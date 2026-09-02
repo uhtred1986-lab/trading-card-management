@@ -42,7 +42,7 @@ the same style.
 | Card images | `https://storage.googleapis.com/deckplanet_card_images/{number}.png` | Hot-linked via `next/image`; a few prints 404 and fall back to a placeholder. |
 | Prices | `https://tcgcsv.com/tcgplayer/27/...` | **Requires a browser-like User-Agent** (401 otherwise). Category 27 includes one Fusion World group which is skipped. Products join to cards on the printed `Number`; SR+ cards only exist as the "Foil" sub-type, so `priceForFinish` falls back foil↔normal. |
 | FX | `https://api.frankfurter.app/latest?from=USD&to=EUR` | Daily. |
-| CardTrader | `https://api.cardtrader.com/api/v2` | **Read-only client**, and every live call is gated by `CARDTRADER_ENABLED=true`. The owner asked that no live calls be made until they have tested the token manually. Never add cart/purchase endpoints without being asked. |
+| CardTrader | `https://api.cardtrader.com/api/v2` | **Read-only client**, and every live call is gated by `CARDTRADER_ENABLED=true` (the owner enabled it on 2 Sep 2026 after testing). Never add cart/purchase endpoints without being asked. Quirks the docs omit: `/games` returns `{"array": [...]}` (the client unwraps it); `/expansions` is a bare array; Dragon Ball Super is game id 9 and **includes Fusion World expansions** (`fb*`, `fs*`), which stay unmatched on purpose; `fixed_properties.collector_number` is `BT14-113` on newer sets but bare `049` on older ones (see `collectorNumbers`). Crosswalk covers ~98 % of cards, mostly via `tcg_player_id` = tcgcsv `productId`. |
 | Claude | `claude-opus-5`, adaptive thinking, Zod structured outputs via `messages.parse` | Every call is recorded in `ai_runs` with token usage. |
 
 ## Architecture
