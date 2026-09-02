@@ -1,0 +1,69 @@
+@import "tailwindcss";
+
+/*
+ * Dark table-top: deep blue-black "space" surfaces, Saiyan "ki" orange for
+ * anything interactive, and one token per card colour for pills and badges.
+ */
+@theme {
+  --color-space-50: #eef1f8;
+  --color-space-100: #d5dbeb;
+  --color-space-200: #aab5d1;
+  --color-space-300: #7d8bb0;
+  --color-space-400: #56648b;
+  --color-space-500: #3d4869;
+  --color-space-600: #2c3550;
+  --color-space-700: #20273c;
+  --color-space-800: #161b2b;
+  --color-space-900: #0f1220;
+  --color-space-950: #090b15;
+
+  --color-ki-300: #ffc46b;
+  --color-ki-400: #ffa733;
+  --color-ki-500: #f28c0f;
+  --color-ki-600: #c46d08;
+
+  --color-dbs-red: #e5484d;
+  --color-dbs-blue: #3b82f6;
+  --color-dbs-green: #22c55e;
+  --color-dbs-yellow: #eab308;
+  --color-dbs-black: #6b7280;
+  --color-dbs-white: #e5e7eb;
+
+  --color-gain: #34d399;
+  --color-loss: #f87171;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  background:
+    radial-gradient(1200px 600px at 20% -10%, rgba(242, 140, 15, 0.08), transparent 60%),
+    radial-gradient(900px 500px at 100% 0%, rgba(59, 130, 246, 0.08), transparent 55%),
+    var(--color-space-950);
+  color: var(--color-space-100);
+}
+
+/* Card aspect ratio — DBS cards are 63 × 88 mm. */
+.card-aspect {
+  aspect-ratio: 63 / 88;
+}
+
+/* Tap targets on phones: inputs and buttons are at least 44px tall. */
+@media (pointer: coarse) {
+  .tap {
+    min-height: 44px;
+  }
+}
+
+/* Hide number-input spinners: quantity fields get their own +/- buttons. */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}

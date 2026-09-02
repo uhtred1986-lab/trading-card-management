@@ -1,0 +1,6 @@
+{
+  "buildCommand": "npm run db:migrate && npm run build",
+  "crons": [
+    { "path": "/api/sync/prices", "schedule": "0 6 * * *" }
+  ]
+}

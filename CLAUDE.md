@@ -1,0 +1,85 @@
+# CLAUDE.md
+
+Guidance for Claude Code when working in this repository.
+
+## What this is
+
+A single-user Next.js companion app for the **Dragon Ball Super Card Game** (legacy BT1–BT25 sets and
+the current Masters line; Fusion World is deliberately excluded everywhere). Collection tracking with
+market values, virtual vs. built decks with a reservation system, Claude-powered deck analysis and
+card scanning, TCGplayer pricing, and a read-only CardTrader integration with a cart optimiser.
+`dbs-tcg-app-feature-summary.md` is the original feature spec.
+
+Owner is in Austria: the display currency is EUR; TCGplayer prices are USD and converted at the
+ECB rate stored in `fx_rates`. Price paid is entered in EUR.
+
+**No authentication.** Deployed on Vercel behind deployment protection (same pattern as gullet-cove-dm).
+Sharing a preview link exposes the whole database.
+
+## Commands
+
+```powershell
+npm run dev            # Dev server (port 3000, or 3001 if taken)
+npm run build          # Production build
+npm run typecheck      # tsc --noEmit
+npm run lint           # ESLint
+npm test               # scripts/verify-rules.ts (pure) + scripts/verify-db.mts (migrations + reservation rules on PGlite)
+npm run db:generate    # Generate a migration after editing src/db/schema.ts
+npm run db:migrate     # Apply migrations (also run on every Vercel deploy via vercel.json)
+npm run sync:catalog   # Import the card catalog from deckplanet (~17 s)
+npm run sync:prices    # Import TCGplayer products + today's prices from tcgcsv + USD→EUR rate (~25 s)
+```
+
+`npm test` needs no database or network. Everything else needs `DATABASE_URL` in `.env.local`.
+There is no test framework — both scripts are plain `assert` scripts run with `tsx`; extend them in
+the same style.
+
+## Data sources (verified 2 Sep 2026)
+
+| What | Source | Notes |
+|---|---|---|
+| Card catalog | `https://api.deckplanet.net/cardsearch/dbs_masters_cards?limit=100000` | The `dragogodev/cgs` repo the spec names is only a *pointer* to this. 6.5k cards, all lines, no Fusion World. Alternate prints appear as top-level entries **and** in `variants[]`; `shapeCatalog` collapses them to one card per base number + a print list. |
+| Card images | `https://storage.googleapis.com/deckplanet_card_images/{number}.png` | Hot-linked via `next/image`; a few prints 404 and fall back to a placeholder. |
+| Prices | `https://tcgcsv.com/tcgplayer/27/...` | **Requires a browser-like User-Agent** (401 otherwise). Category 27 includes one Fusion World group which is skipped. Products join to cards on the printed `Number`; SR+ cards only exist as the "Foil" sub-type, so `priceForFinish` falls back foil↔normal. |
+| FX | `https://api.frankfurter.app/latest?from=USD&to=EUR` | Daily. |
+| CardTrader | `https://api.cardtrader.com/api/v2` | **Read-only client**, and every live call is gated by `CARDTRADER_ENABLED=true`. The owner asked that no live calls be made until they have tested the token manually. Never add cart/purchase endpoints without being asked. |
+| Claude | `claude-opus-5`, adaptive thinking, Zod structured outputs via `messages.parse` | Every call is recorded in `ai_runs` with token usage. |
+
+## Architecture
+
+- **Server actions over API routes.** Mutations live in `actions.ts` files next to their pages
+  (`src/app/collection/actions.ts`, `src/app/decks/actions.ts`, …). The only API routes are the
+  cron price sync (`/api/sync/prices`, Bearer `CRON_SECRET`) and the scan upload (`/api/scan`).
+- **Catalog is immutable app data**: `card_sets` → `cards` → `card_prints`. Ownership (`owned_cards`)
+  always references a *print* so foil/alt-art copies are distinct; deck slots (`deck_cards`)
+  reference a *card*, because any print satisfies a deck slot.
+- **Reservations are computed, never stored** (`src/lib/decks/reservations.ts`): reserved = sum of
+  `deck_cards` across decks with `is_built`; available = owned − reserved. Marking a deck built is
+  **blocked outright** when it would over-reserve (owner's decision), and `buildConflicts` lists the
+  exact shortfall — which is also the want-list for `/cart?deck=ID`.
+- **Prices are daily snapshots** (`tcg_prices` keyed by product/sub-type/day) so movers can be
+  computed; `pricesForPrints` reduces several TCGplayer products per print to one Normal + one Foil
+  figure.
+- **Raw SQL reads go through `rows()`** (`src/db/rows.ts`) because postgres.js returns arrays and
+  PGlite (used by `npm test`) returns `{ rows }`.
+- **AI**: `src/lib/ai/deck.ts` (summary, improvement wizard, set review), `src/lib/ai/scan.ts`
+  (photo → cards, matched to the catalog by number then name), `src/lib/ai/cart.ts` (explains the
+  deterministic optimiser's output — it never does the arithmetic). The wizard's candidate pool is
+  scoped to the leader's colours and capped at 450 cards; default scope is "any legal card" with an
+  owned-only toggle (owner's decision).
+- **Optimiser** (`src/lib/marketplace/optimizer.ts`) is deterministic: greedy + exhaustive 1/2/3-seller
+  subsets + removal local search, shipping counted once per seller.
+
+## Environment
+
+`.env.local` (gitignored) holds `DATABASE_URL` (Neon, pooled), `ANTHROPIC_API_KEY`,
+`CARDTRADER_API_TOKEN`, `CARDTRADER_ENABLED`. `CRON_SECRET` and `XIMILAR_API_KEY` are optional.
+The same variables must exist in Vercel's project settings for the deployment. See `.env.example`.
+
+## Conventions
+
+- Phone and desktop layouts from the start: `BottomTabs` on phones, `HeaderNav` from `sm` up;
+  card grids are 2 columns on phones. Use the `tap` class on controls for 44 px targets.
+- Money is integer cents + currency code; format with `formatCents`. Never float euros.
+- Card numbers are the catalog's ids (`BT18-020`); print ids add a suffix (`BT18-020_SPR`).
+- Keep `npm run typecheck`, `npm run lint` and `npm test` clean before committing.

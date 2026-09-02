@@ -1,0 +1,143 @@
+/**
+ * Pure-function checks — no database, no network. Run with `tsx`.
+ */
+import assert from "node:assert/strict";
+import { baseNumber, printLabel, printSuffix, shapeCatalog } from "../src/lib/catalog/deckplanet";
+import { setCodeOfNumber, setLineFor, setNameFor } from "../src/lib/catalog/sets";
+import { legality, parseDeckList, type DeckCardRow } from "../src/lib/decks/queries";
+import { formatCents, parseEuroInput } from "../src/lib/money";
+import { markerOf, matchProduct } from "../src/lib/pricing/tcgcsv";
+import { greedyOptimise, type Listing } from "../src/lib/marketplace/optimizer";
+
+// ── catalog shaping ────────────────────────────────────────────────────────
+assert.equal(baseNumber("BT18-020_SPR"), "BT18-020");
+assert.equal(baseNumber("T_CLO_01"), "T_CLO_01");
+assert.equal(printSuffix("P-625_PR2"), "PR2");
+assert.equal(printSuffix("T_CLO_01"), "");
+assert.equal(printLabel("SPR"), "Special Rare");
+assert.equal(printLabel(""), "Standard");
+assert.equal(setCodeOfNumber("SD22-02"), "SD22");
+assert.equal(setCodeOfNumber("T_CLO_01"), "TOKEN");
+assert.equal(setLineFor("BT26", null), "masters");
+assert.equal(setLineFor("BT25", null), "legacy");
+assert.equal(setLineFor("SD30", "2025-01-01"), "masters");
+assert.match(setNameFor("BT18"), /Dawn of the Z-Legends/);
+
+const shaped = shapeCatalog([
+  {
+    id: 1,
+    card_number: "BT18-020",
+    card_name: "Omega Shenron",
+    card_type: "BATTLE",
+    card_color: "Red/Green",
+    card_energy_cost: "-",
+    card_power: "25000",
+    card_rarity: "Super Rare[SR]",
+    variants: [{ id: 2, card_number: "BT18-020_SPR", card_rarity: "Special Rare[SPR]", img_link: "BT18-020_SPR" }],
+  },
+  { id: 2, card_number: "BT18-020_SPR", card_name: "Omega Shenron", card_type: "BATTLE", card_rarity: "Special Rare[SPR]", variant_of: 1, variants: [] },
+  { id: 3, card_number: "P-001", card_name: null, card_type: null, card_rarity: null },
+] as never);
+assert.equal(shaped.cards.length, 2, "variants collapse into one card");
+const omega = shaped.cards.find((c) => c.id === "BT18-020")!;
+assert.deepEqual(omega.colors, ["Red", "Green"]);
+assert.equal(omega.energyCost, null, "'-' cost is null");
+assert.equal(omega.power, 25000);
+assert.equal(omega.rarityCode, "SR");
+assert.deepEqual(
+  shaped.prints.filter((p) => p.cardId === "BT18-020").map((p) => p.id).sort(),
+  ["BT18-020", "BT18-020_SPR"],
+);
+const promo = shaped.cards.find((c) => c.id === "P-001")!;
+assert.equal(promo.name, "P-001", "null name falls back to number");
+assert.equal(promo.rarity, "Unknown");
+assert.equal(shaped.prints.filter((p) => p.cardId === "P-001").length, 1, "a standard print is always created");
+
+// ── price matching ─────────────────────────────────────────────────────────
+const lookup = {
+  printIds: new Map([
+    ["BT18-020", "BT18-020"],
+    ["BT18-020_SPR", "BT18-020_SPR"],
+    ["BT6-060_PR", "BT6-060_PR"],
+    ["BT6-060", "BT6-060"],
+  ]),
+  cardIds: new Set(["BT18-020", "BT6-060"]),
+};
+assert.equal(markerOf("Omega Shenron (SPR)"), "spr");
+assert.equal(markerOf("Plain name"), null);
+assert.deepEqual(matchProduct("BT18-020", "Omega Shenron", lookup), { cardId: "BT18-020", printId: "BT18-020" });
+assert.deepEqual(matchProduct("BT18-020", "Omega Shenron (SPR)", lookup), { cardId: "BT18-020", printId: "BT18-020_SPR" });
+assert.deepEqual(matchProduct("BT6-060_PR", "Whatever", lookup), { cardId: "BT6-060", printId: "BT6-060_PR" });
+assert.deepEqual(matchProduct("FB01-001", "Fusion", lookup), { cardId: null, printId: null });
+assert.deepEqual(matchProduct(null, "Booster box", lookup), { cardId: null, printId: null });
+
+// ── money ──────────────────────────────────────────────────────────────────
+assert.equal(parseEuroInput("1,50"), 150);
+assert.equal(parseEuroInput("1.50"), 150);
+assert.equal(parseEuroInput("€ 12"), 1200);
+assert.equal(parseEuroInput("1.234,56"), 123456);
+assert.equal(parseEuroInput(""), null);
+assert.match(formatCents(150, "EUR"), /1,50/);
+assert.match(formatCents(150, "USD"), /\$1\.50/);
+
+// ── deck lists & legality ──────────────────────────────────────────────────
+const parsed = parseDeckList("# Leader\n1 BT18-001\n# Main deck\n4x BT18-020 Omega Shenron\nBT18-021\n# Z-Deck\n2 BT22-116_SPR\njunk line");
+assert.deepEqual(parsed, [
+  { cardId: "BT18-001", quantity: 1, zone: "leader" },
+  { cardId: "BT18-020", quantity: 4, zone: "main" },
+  { cardId: "BT18-021", quantity: 1, zone: "main" },
+  { cardId: "BT22-116", quantity: 2, zone: "z" },
+]);
+
+const row = (cardId: string, zone: DeckCardRow["zone"], quantity: number, extra: Partial<DeckCardRow> = {}): DeckCardRow => ({
+  cardId,
+  zone,
+  quantity,
+  name: cardId,
+  cardType: zone === "leader" ? "LEADER" : "BATTLE",
+  colors: ["Red"],
+  energyCost: "3",
+  power: 10000,
+  rarityCode: "C",
+  imageUrl: null,
+  limitedTo: 4,
+  isBanned: false,
+  skill: null,
+  characters: [],
+  traits: [],
+  alloc: { owned: 0, reserved: 0, available: 0 },
+  ...extra,
+});
+const legal = legality([row("L", "leader", 1), ...Array.from({ length: 12 }, (_, i) => row(`M${i}`, "main", 4)), row("M99", "main", 2)]);
+assert.equal(legal.mainCount, 50);
+assert.deepEqual(legal.issues, []);
+const illegal = legality([row("M1", "main", 5), row("B", "main", 1, { isBanned: true })]);
+assert.ok(illegal.issues.some((i) => /No leader/.test(i)));
+assert.ok(illegal.issues.some((i) => /5 copies, limit 4/.test(i)));
+assert.ok(illegal.issues.some((i) => /banned/.test(i)));
+
+// ── cart optimiser ─────────────────────────────────────────────────────────
+const L = (seller: string, card: string, price: number, qty = 4, shipping = 300): Listing => ({
+  id: `${seller}-${card}`,
+  seller,
+  cardId: card,
+  priceCents: price,
+  quantity: qty,
+  shippingCents: shipping,
+  country: "DE",
+});
+// One seller has everything cheaply once shipping is counted.
+const plan = greedyOptimise(
+  [{ cardId: "A", quantity: 2 }, { cardId: "B", quantity: 1 }],
+  [L("s1", "A", 100), L("s1", "B", 100), L("s2", "A", 50, 4, 400), L("s3", "B", 10, 1, 500)],
+);
+assert.equal(plan.missing.length, 0);
+assert.equal(plan.sellers.length, 1, "shipping makes the single seller cheaper");
+assert.equal(plan.sellers[0].seller, "s1");
+assert.equal(plan.totalCents, 300 + 300); // 2×100 + 1×100 + one shipping fee
+// Stock limits are respected and shortfalls reported.
+const short = greedyOptimise([{ cardId: "A", quantity: 3 }], [L("s1", "A", 100, 2)]);
+assert.equal(short.missing[0]?.cardId, "A");
+assert.equal(short.missing[0]?.quantity, 1);
+
+console.log("verify-rules: all checks passed");
