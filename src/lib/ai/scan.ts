@@ -2,9 +2,11 @@
  * Card identification from a photo (single card or several in frame).
  *
  * Claude reads the image and lists every card it can see with its printed
- * number and name; each is then matched against the local catalog (exact
- * number first, fuzzy name second). The photo is never stored — only the
- * matched catalog card is, on confirmation.
+ * number, name and rough position; each is then matched against the local
+ * catalog (exact number first, fuzzy name second) and given a match
+ * confidence (`assessMatch`). The photo is never stored — only the matched
+ * catalog card is, on confirmation. Several photos = several calls; the
+ * client fans them out one request each.
  */
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { sql } from "drizzle-orm";
@@ -14,6 +16,7 @@ import type { Db } from "@/db";
 import { cardPrints } from "@/db/schema";
 import { quickSearch } from "@/lib/catalog/queries";
 import { MODEL, anthropic, recordRun } from "./client";
+import { assessMatch, cleanBox, normaliseNumber, type Box, type MatchedBy } from "./scan-match";
 
 /** Longest edge sent to the model; keeps image tokens bounded (~1.2k per image). */
 const MAX_EDGE = 1568;
@@ -24,8 +27,19 @@ export const ScanSchema = z.object({
       z.object({
         name: z.string().describe("Card name as printed (front side for leaders)"),
         number: z.string().nullable().describe("Card number as printed, e.g. BT18-020 or P-181; null if unreadable"),
-        confidence: z.number().min(0).max(1),
+        confidence: z
+          .number()
+          .describe("0–1: how sure you are that the number AND name are read correctly. 0.95+ only when every character of the number is clearly legible; 0.5 or lower when you guessed any digit."),
         position: z.string().describe("Where in the photo: e.g. 'top-left', 'row 2 col 3', 'only card'"),
+        box: z
+          .object({
+            x: z.number().describe("Left edge as a fraction of image width, 0–1"),
+            y: z.number().describe("Top edge as a fraction of image height, 0–1"),
+            w: z.number().describe("Width as a fraction of image width, 0–1"),
+            h: z.number().describe("Height as a fraction of image height, 0–1"),
+          })
+          .nullable()
+          .describe("Approximate bounding box of this card's face in the photo; null if you cannot place it"),
         notes: z.string().nullable().describe("Glare, cut-off, foil/alt-art hints, language"),
       }),
     )
@@ -47,10 +61,14 @@ export interface ScanCandidate {
 
 export interface ScanDetection {
   index: number;
-  seen: ScanResult["cards"][number];
+  seen: Omit<ScanResult["cards"][number], "box"> & { box: Box | null };
   /** Best match first. Empty when nothing plausible was found. */
   candidates: ScanCandidate[];
+  /** True when the printed number matched a catalog id directly. */
   exact: boolean;
+  matchedBy: MatchedBy;
+  /** 0..1 — how likely `candidates[0]` is the card in the photo (0 when unmatched). */
+  matchConfidence: number;
 }
 
 export async function prepareImage(buf: Buffer): Promise<{ data: string; mediaType: "image/jpeg" }> {
@@ -63,15 +81,15 @@ export async function identifyCards(db: Db, image: Buffer, mode: "single" | "bat
   const instruction =
     mode === "single"
       ? "This photo shows one Dragon Ball Super Card Game card. Identify it: read the card number printed in the bottom corner and the name."
-      : "This photo shows several Dragon Ball Super Card Game cards (a binder page, a spread, or a pile). List every distinct card you can see, reading each card number and name. Work systematically across the image.";
+      : "This photo shows several Dragon Ball Super Card Game cards (a binder page, a spread, or a pile). List every distinct card you can see, reading each card number and name. Work systematically across the image, left to right then top to bottom.";
 
   const res = await anthropic().messages.parse({
     model: MODEL,
-    max_tokens: 6000,
+    max_tokens: 8000,
     thinking: { type: "adaptive" },
     output_config: { effort: "medium", format: zodOutputFormat(ScanSchema) },
     system:
-      "You identify Dragon Ball Super Card Game cards (Bandai; not Fusion World). Card numbers look like BT18-020, SD22-02, EX13-16, P-181, TB1-005, DB2-010. Report numbers exactly as printed; if unsure of a digit, lower the confidence rather than guess.",
+      "You identify Dragon Ball Super Card Game cards (Bandai; not Fusion World). Card numbers look like BT18-020, SD22-02, EX13-16, P-181, TB1-005, DB2-010. Report numbers exactly as printed; if unsure of a digit, lower the confidence rather than guess. For every card also give a bounding box (fractions of the image) around its face so the user can compare it with the catalog art.",
     messages: [
       {
         role: "user",
@@ -82,23 +100,16 @@ export async function identifyCards(db: Db, image: Buffer, mode: "single" | "bat
   const { id, output } = await recordRun<ScanResult>(db, "scan_identify", { mode }, res);
 
   const detections: ScanDetection[] = [];
-  for (const [index, seen] of output.cards.entries()) {
-    const candidates = await matchDetection(db, seen);
-    detections.push({ index, seen, candidates: candidates.list, exact: candidates.exact });
+  for (const [index, card] of output.cards.entries()) {
+    const seen = { ...card, box: cleanBox(card.box) };
+    const { list, exact } = await matchDetection(db, seen);
+    const { matchedBy, confidence } = assessMatch(seen, list[0] ?? null, exact);
+    detections.push({ index, seen, candidates: list, exact, matchedBy, matchConfidence: confidence });
   }
   return { runId: id, result: output, detections };
 }
 
-function normaliseNumber(n: string | null): string | null {
-  if (!n) return null;
-  const s = n.trim().toUpperCase().replace(/\s+/g, "").replace(/[–—]/g, "-");
-  // Common OCR slips: "BT18 020" → "BT18-020", "0" vs "O" in the prefix.
-  const m = /^([A-Z]{1,5})(\d{1,2})?-?(\d{2,3})([A-Z0-9_]*)$/.exec(s.replace(/O/g, (ch, i) => (i < 2 ? ch : "0")));
-  if (!m) return s;
-  return `${m[1]}${m[2] ?? ""}-${m[3]}${m[4] ? `_${m[4].replace(/^_/, "")}` : ""}`;
-}
-
-async function matchDetection(db: Db, seen: ScanResult["cards"][number]): Promise<{ list: ScanCandidate[]; exact: boolean }> {
+async function matchDetection(db: Db, seen: { name: string; number: string | null }): Promise<{ list: ScanCandidate[]; exact: boolean }> {
   const number = normaliseNumber(seen.number);
   const base = number?.split("_")[0] ?? null;
   const found = new Map<string, ScanCandidate>();
@@ -125,4 +136,3 @@ async function matchDetection(db: Db, seen: ScanResult["cards"][number]): Promis
   }
   return { list: [...found.values()], exact };
 }
-

@@ -10,6 +10,7 @@ import { markerOf, matchProduct } from "../src/lib/pricing/tcgcsv";
 import { greedyOptimise, type Listing } from "../src/lib/marketplace/optimizer";
 import { collectorNumbers } from "../src/lib/marketplace/cardtrader";
 import { sanitiseDraft, type PoolCard } from "../src/lib/ai/deck-builder";
+import { assessMatch, cleanBox, nameSimilarity, normaliseNumber } from "../src/lib/ai/scan-match";
 
 // ── catalog shaping ────────────────────────────────────────────────────────
 assert.equal(baseNumber("BT18-020_SPR"), "BT18-020");
@@ -171,6 +172,28 @@ assert.deepEqual(draft.main, [
 assert.deepEqual(draft.z, [{ cardId: "BT31-090", quantity: 2, owned: 0, needToBuy: 2 }]);
 assert.deepEqual(draft.dropped, ["BT31-090", "BT99-999"]);
 assert.equal(draft.mainCount, 7);
+
+// ── scan matching ─────────────────────────────────────────────────────────
+assert.equal(normaliseNumber("bt18 020"), "BT18-020");
+assert.equal(normaliseNumber("BT18–020"), "BT18-020", "en dash");
+assert.equal(normaliseNumber("BT18-020 SPR"), "BT18-020_SPR");
+assert.equal(normaliseNumber("P-181"), "P-181");
+assert.equal(normaliseNumber("BT1O-O2O"), "BT10-020", "O read as 0 after the prefix");
+assert.equal(normaliseNumber(null), null);
+assert.equal(nameSimilarity("Son Goku, Hope of Universe 7", "Son Goku Hope of Universe 7"), 1);
+assert.equal(nameSimilarity("Son Goku", "Vegeta"), 0);
+const seen = { name: "Omega Shenron", confidence: 0.9 };
+assert.deepEqual(assessMatch(seen, { name: "Omega Shenron" }, true), { matchedBy: "number", confidence: 0.9, nameSimilarity: 1 });
+assert.equal(assessMatch(seen, { name: "Vegeta, Prince of Pride" }, true).matchedBy, "number-name-differs");
+assert.equal(assessMatch(seen, { name: "Vegeta, Prince of Pride" }, true).confidence, 0.45, "number matched but name disagrees: halved");
+assert.equal(assessMatch(seen, { name: "Omega Shenron" }, false).matchedBy, "name");
+assert.equal(assessMatch(seen, { name: "Omega Shenron" }, false).confidence, 0.54, "name-only match is capped");
+assert.equal(assessMatch(seen, { name: "Omega Shenron, Ultimate Shadow Dragon Form" }, false).confidence, 0.36, "weak name match is capped harder");
+assert.deepEqual(assessMatch(seen, null, false), { matchedBy: null, confidence: 0, nameSimilarity: 0 });
+assert.deepEqual(cleanBox({ x: 0.1, y: 0.2, w: 0.3, h: 0.4 }), { x: 0.1, y: 0.2, w: 0.3, h: 0.4 });
+assert.deepEqual(cleanBox({ x: 0.9, y: 0.9, w: 0.5, h: 0.5 }), { x: 0.9, y: 0.9, w: 0.1, h: 0.1 }, "clamped to the image");
+assert.equal(cleanBox({ x: 0.5, y: 0.5, w: 0.001, h: 0.5 }), null, "degenerate boxes are dropped");
+assert.equal(cleanBox(null), null);
 
 // ── cart optimiser ─────────────────────────────────────────────────────────
 const L = (seller: string, card: string, price: number, qty = 4, shipping = 300): Listing => ({

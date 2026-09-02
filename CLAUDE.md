@@ -67,7 +67,9 @@ the same style.
 - **Raw SQL reads go through `rows()`** (`src/db/rows.ts`) because postgres.js returns arrays and
   PGlite (used by `npm test`) returns `{ rows }`.
 - **AI**: `src/lib/ai/deck.ts` (summary, improvement wizard, set review), `src/lib/ai/scan.ts`
-  (photo → cards, matched to the catalog by number then name), `src/lib/ai/cart.ts` (explains the
+  (photo → cards with bounding boxes, matched to the catalog by number then name; `scan-match.ts`
+  holds the pure number normalisation + match-confidence rules covered by `npm test`; the client
+  downscales each photo in the browser and sends one `/api/scan` request per photo), `src/lib/ai/cart.ts` (explains the
   deterministic optimiser's output — it never does the arithmetic). The wizard's candidate pool is
   scoped to the leader's colours and capped at 450 cards; default scope is "any legal card" with an
   owned-only toggle (owner's decision).

@@ -1,13 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { addLots, printsForCardAction, type LotInput } from "@/app/collection/actions";
-import { searchCardsAction } from "@/app/decks/actions";
 import { CONDITIONS } from "@/lib/collection/queries";
 import { CardImage } from "./CardImage";
-
-type Hit = Awaited<ReturnType<typeof searchCardsAction>>[number];
+import { CardSearchInput, type CardHit as Hit } from "./CardSearchInput";
 type Print = { id: string; label: string };
 
 interface Row {
@@ -182,24 +180,6 @@ export function BulkEntry() {
 }
 
 function CardPicker({ row, autoFocus, onPick, onClear }: { row: Row; autoFocus: boolean; onPick: (h: Hit) => void; onClear: () => void }) {
-  const [q, setQ] = useState("");
-  const [hits, setHits] = useState<Hit[]>([]);
-  const [sel, setSel] = useState(0);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const ref = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (autoFocus && !row.card) ref.current?.focus();
-  }, [autoFocus, row.card]);
-
-  const onQuery = (v: string) => {
-    setQ(v);
-    setSel(0);
-    if (timer.current) clearTimeout(timer.current);
-    if (v.trim().length < 2) return setHits([]);
-    timer.current = setTimeout(async () => setHits(await searchCardsAction(v)), 120);
-  };
-
   if (row.card) {
     return (
       <div className="flex items-center gap-2">
@@ -217,51 +197,5 @@ function CardPicker({ row, autoFocus, onPick, onClear }: { row: Row; autoFocus: 
     );
   }
 
-  return (
-    <div className="relative">
-      <input
-        ref={ref}
-        value={q}
-        onChange={(e) => onQuery(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "ArrowDown") {
-            e.preventDefault();
-            setSel((s) => Math.min(hits.length - 1, s + 1));
-          } else if (e.key === "ArrowUp") {
-            e.preventDefault();
-            setSel((s) => Math.max(0, s - 1));
-          } else if (e.key === "Enter" && hits[sel]) {
-            e.preventDefault();
-            onPick(hits[sel]);
-            setQ("");
-            setHits([]);
-          }
-        }}
-        placeholder="Name or number, e.g. BT18-020"
-        className="tap w-full rounded-md border border-space-600 bg-space-900 px-2 py-1 text-sm text-space-100"
-        autoComplete="off"
-      />
-      {hits.length ? (
-        <ul className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-md border border-space-600 bg-space-950 shadow-lg">
-          {hits.map((h, i) => (
-            <li key={h.id}>
-              <button
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  onPick(h);
-                  setQ("");
-                  setHits([]);
-                }}
-                className={`flex w-full items-center gap-2 px-2 py-1 text-left ${i === sel ? "bg-space-800" : "hover:bg-space-900"}`}
-              >
-                <span className="w-20 shrink-0 font-mono text-xs text-space-300">{h.id}</span>
-                <span className="truncate text-sm text-space-50">{h.name}</span>
-                <span className="ml-auto text-[10px] text-space-400">{h.rarityCode}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-    </div>
-  );
+  return <CardSearchInput autoFocus={autoFocus} onPick={onPick} />;
 }

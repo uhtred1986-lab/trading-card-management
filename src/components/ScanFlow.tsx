@@ -1,15 +1,37 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState, useTransition } from "react";
-import { addLots, type LotInput } from "@/app/collection/actions";
-import type { ScanDetection } from "@/lib/ai/scan";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { addLots, printsForCardAction, type LotInput } from "@/app/collection/actions";
+import type { ScanCandidate, ScanDetection } from "@/lib/ai/scan";
+import { REVIEW_THRESHOLD, type Box } from "@/lib/ai/scan-match";
 import { CONDITIONS } from "@/lib/collection/queries";
+import { downscaleImage } from "@/lib/scan/downscale";
 import { CardImage } from "./CardImage";
+import { CardSearchInput, type CardHit } from "./CardSearchInput";
+
+interface Photo {
+  key: number;
+  file: File;
+  /** Object URL of the downscaled image — exactly what Claude saw, so boxes line up. */
+  url: string;
+  width: number;
+  height: number;
+  status: "queued" | "reading" | "done" | "error";
+  error?: string;
+  found?: number;
+  unreadable?: number;
+}
 
 interface Row {
+  key: number;
+  photoKey: number;
   detection: ScanDetection;
-  chosen: string | null; // card id
+  chosen: ScanCandidate | null;
+  /** Linked by hand via the search box rather than by the scanner. */
+  manual: boolean;
+  /** Search box open on a matched row ("change"). */
+  searching: boolean;
   printId: string | null;
   quantity: number;
   condition: string;
@@ -17,77 +39,130 @@ interface Row {
   include: boolean;
 }
 
+let nextKey = 1;
+const PARALLEL = 3;
+
+const needsReview = (r: Row) => !r.chosen || (!r.manual && r.detection.matchConfidence < REVIEW_THRESHOLD);
+
 /**
- * Photo → identify → review → confirm. Phone-first (camera capture) but the
- * same input accepts a file upload on desktop. The photo itself is never
- * stored: on confirm, only catalog references go into the collection.
+ * Photos → identify (one request per photo, up to three in flight) → review →
+ * confirm. Each row shows the crop from the photo beside the catalog art and
+ * a match confidence so low ones can be filtered; unmatched rows open a
+ * search pre-filled with what Claude read. Photos are never stored: on
+ * confirm, only catalog references go into the collection.
  */
 export function ScanFlow() {
   const [mode, setMode] = useState<"single" | "batch">("single");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
-  const [rows, setRows] = useState<Row[] | null>(null);
-  const [unreadable, setUnreadable] = useState(0);
+  // Read by scan workers that outlive the render they were started in.
+  const modeRef = useRef(mode);
+  useEffect(() => {
+    modeRef.current = mode;
+  }, [mode]);
+  const [photos, setPhotos] = useState<Photo[]>([]);
+  const [rows, setRows] = useState<Row[]>([]);
+  const [showPhoto, setShowPhoto] = useState<number | null>(null);
+  const [expanded, setExpanded] = useState<number | null>(null);
+  const [filter, setFilter] = useState<"all" | "review">("all");
   const [done, setDone] = useState<number | null>(null);
   const [pending, start] = useTransition();
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const onFile = async (file: File | undefined) => {
-    if (!file) return;
-    setError(null);
-    setRows(null);
-    setDone(null);
-    setPreview(URL.createObjectURL(file));
-    setBusy(true);
+  const patchPhoto = (key: number, patch: Partial<Photo>) => setPhotos((ps) => ps.map((p) => (p.key === key ? { ...p, ...patch } : p)));
+  const patchRow = (key: number, patch: Partial<Row>) => setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
+
+  const toRow = (photoKey: number, d: ScanDetection): Row => {
+    const best = d.candidates[0] ?? null;
+    return {
+      key: nextKey++,
+      photoKey,
+      detection: d,
+      chosen: best,
+      manual: false,
+      searching: false,
+      printId: best?.prints[0]?.id ?? null,
+      quantity: 1,
+      condition: "NM",
+      finish: "normal",
+      include: !!best,
+    };
+  };
+
+  const scanPhoto = async (p: Photo) => {
+    patchPhoto(p.key, { status: "reading", error: undefined });
+    setRows((rs) => rs.filter((r) => r.photoKey !== p.key));
     try {
+      const { blob, width, height } = await downscaleImage(p.file);
+      const url = URL.createObjectURL(blob);
+      setPhotos((ps) =>
+        ps.map((q) => {
+          if (q.key !== p.key) return q;
+          if (q.url !== url) URL.revokeObjectURL(q.url);
+          return { ...q, url, width, height };
+        }),
+      );
       const fd = new FormData();
-      fd.append("image", file);
-      fd.append("mode", mode);
+      fd.append("image", blob, "photo.jpg");
+      fd.append("mode", modeRef.current);
       const res = await fetch("/api/scan", { method: "POST", body: fd });
       const json = (await res.json()) as { detections?: ScanDetection[]; unreadable?: number; error?: string };
       if (!res.ok || !json.detections) throw new Error(json.error ?? `Scan failed (${res.status})`);
-      setUnreadable(json.unreadable ?? 0);
-      setRows(
-        json.detections.map((d) => {
-          const best = d.candidates[0] ?? null;
-          return {
-            detection: d,
-            chosen: best?.id ?? null,
-            printId: best?.prints[0]?.id ?? null,
-            quantity: 1,
-            condition: "NM",
-            finish: "normal",
-            include: !!best,
-          };
-        }),
-      );
+      const fresh = json.detections.map((d) => toRow(p.key, d));
+      setRows((rs) => [...rs, ...fresh]);
+      patchPhoto(p.key, { status: "done", found: fresh.length, unreadable: json.unreadable ?? 0 });
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setBusy(false);
-      if (fileRef.current) fileRef.current.value = "";
+      patchPhoto(p.key, { status: "error", error: err instanceof Error ? err.message : String(err) });
     }
   };
 
-  const update = (i: number, patch: Partial<Row>) => setRows((rs) => rs!.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+  const onFiles = async (list: FileList | null) => {
+    const files = Array.from(list ?? []);
+    if (fileRef.current) fileRef.current.value = "";
+    if (files.length === 0) return;
+    setDone(null);
+    const created: Photo[] = files.map((file) => ({ key: nextKey++, file, url: URL.createObjectURL(file), width: 0, height: 0, status: "queued" }));
+    setPhotos((ps) => [...ps, ...created]);
+    const queue = [...created];
+    const worker = async () => {
+      for (let p = queue.shift(); p; p = queue.shift()) await scanPhoto(p);
+    };
+    await Promise.all(Array.from({ length: Math.min(PARALLEL, queue.length) }, worker));
+  };
 
-  const choose = (i: number, cardId: string) => {
-    const cand = rows![i].detection.candidates.find((c) => c.id === cardId);
-    update(i, { chosen: cardId, printId: cand?.prints[0]?.id ?? null, include: true });
+  const link = async (row: Row, hit: CardHit) => {
+    const prints = await printsForCardAction(hit.id);
+    patchRow(row.key, { chosen: { ...hit, prints }, manual: true, searching: false, printId: prints[0]?.id ?? null, include: true });
+  };
+
+  const chooseCandidate = (row: Row, cardId: string) => {
+    const cand = row.detection.candidates.find((c) => c.id === cardId);
+    if (cand) patchRow(row.key, { chosen: cand, manual: false, printId: cand.prints[0]?.id ?? null, include: true });
+  };
+
+  const reset = () => {
+    for (const p of photos) URL.revokeObjectURL(p.url);
+    setPhotos([]);
+    setRows([]);
+    setExpanded(null);
+    setShowPhoto(null);
+    setFilter("all");
   };
 
   const confirm = () =>
     start(async () => {
-      const inputs: LotInput[] = rows!
+      const inputs: LotInput[] = rows
         .filter((r) => r.include && r.printId)
         .map((r) => ({ printId: r.printId!, quantity: r.quantity, condition: r.condition, finish: r.finish }));
       const { added } = await addLots(inputs);
       setDone(added);
-      setRows(null);
-      setPreview(null);
+      reset();
     });
 
+  const busy = photos.some((p) => p.status === "queued" || p.status === "reading");
+  const ready = rows.filter((r) => r.include && r.printId);
+  const reviewCount = rows.filter(needsReview).length;
+  const unmatched = rows.filter((r) => !r.chosen).length;
+  const visible = filter === "review" ? rows.filter(needsReview) : rows;
+  const shown = photos.find((p) => p.key === showPhoto) ?? null;
   const select = "tap rounded-md border border-space-600 bg-space-900 px-2 py-1 text-xs text-space-100";
 
   return (
@@ -96,113 +171,293 @@ export function ScanFlow() {
         <div className="flex rounded-md border border-space-600 p-0.5 text-sm">
           {(["single", "batch"] as const).map((m) => (
             <button key={m} onClick={() => setMode(m)} className={`tap rounded px-3 py-1 ${mode === m ? "bg-ki-500 font-semibold text-space-950" : "text-space-200"}`}>
-              {m === "single" ? "One card" : "Several cards"}
+              {m === "single" ? "One card per photo" : "Several per photo"}
             </button>
           ))}
         </div>
         <label className="tap ml-auto cursor-pointer rounded-md bg-ki-500 px-4 py-2 text-sm font-semibold text-space-950 hover:bg-ki-400">
-          {busy ? "Identifying…" : "Take photo / upload"}
-          <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" disabled={busy} onChange={(e) => onFile(e.target.files?.[0])} />
+          {photos.length ? "Add photos" : "Take photos / upload"}
+          <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => onFiles(e.target.files)} />
         </label>
         <p className="w-full text-xs text-space-300">
-          {mode === "single" ? "Fill the frame with one card, number readable in the bottom corner." : "Lay cards out flat with no overlap — a binder page works well. Each guess is shown for review before anything is saved."}
+          Select as many photos as you like — each is read separately. {mode === "single" ? "Fill the frame with one card, number readable in the bottom corner." : "Lay cards out flat with no overlap; a binder page works well."} Nothing is saved until you confirm.
         </p>
       </div>
 
-      {error ? <p className="rounded-xl border border-loss/40 bg-loss/5 p-3 text-sm text-loss">{error}</p> : null}
       {done != null ? (
         <p className="rounded-xl border border-gain/40 bg-gain/5 p-3 text-sm text-gain">
           Added {done} card{done === 1 ? "" : "s"} to your collection. <Link href="/collection" className="underline">View collection</Link>
         </p>
       ) : null}
 
-      {preview && (busy || rows) ? (
-        <div className="grid gap-4 md:grid-cols-[minmax(200px,320px)_1fr]">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={preview} alt="Your photo (not stored)" className="max-h-80 w-full rounded-xl object-contain md:max-h-none" />
-          <div className="space-y-2">
-            {busy ? <p className="text-sm text-space-300">Reading the photo…</p> : null}
-            {rows ? (
-              <>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-space-300">
-                    {rows.length} detected{unreadable ? ` · ${unreadable} unreadable` : ""}
-                  </span>
-                  <button onClick={confirm} disabled={pending || !rows.some((r) => r.include && r.printId)} className="tap rounded-md bg-ki-500 px-4 py-1.5 text-sm font-semibold text-space-950 hover:bg-ki-400 disabled:opacity-50">
-                    {pending ? "Saving…" : `Add ${rows.filter((r) => r.include && r.printId).reduce((n, r) => n + r.quantity, 0)} to collection`}
+      {photos.length ? (
+        <div className="space-y-2">
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {photos.map((p, i) => (
+              <button
+                key={p.key}
+                onClick={() => setShowPhoto(showPhoto === p.key ? null : p.key)}
+                className={`relative h-20 w-20 shrink-0 overflow-hidden rounded-lg border ${showPhoto === p.key ? "border-ki-500" : p.status === "error" ? "border-loss/60" : "border-space-700"}`}
+                title={`Photo ${i + 1}`}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={p.url} alt={`Photo ${i + 1}`} className={`h-full w-full object-cover ${p.status === "done" || p.status === "error" ? "" : "opacity-50"}`} />
+                <span className={`absolute inset-x-0 bottom-0 truncate bg-space-950/80 px-1 text-center text-[10px] ${p.status === "error" ? "text-loss" : "text-space-100"}`}>
+                  {p.status === "queued" ? "waiting" : p.status === "reading" ? "reading…" : p.status === "error" ? "failed" : `${p.found} card${p.found === 1 ? "" : "s"}`}
+                </span>
+              </button>
+            ))}
+          </div>
+          {shown ? (
+            <div className="space-y-1 rounded-xl border border-space-700/70 bg-space-900/50 p-2">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={shown.url} alt="Your photo (not stored)" className="max-h-96 w-full rounded-lg object-contain" />
+              {shown.status === "error" ? (
+                <div className="flex items-center gap-2 text-sm text-loss">
+                  <span className="min-w-0 flex-1">{shown.error}</span>
+                  <button onClick={() => scanPhoto(shown)} className="tap rounded-md border border-space-600 px-3 py-1 text-xs text-space-100 hover:bg-space-800">
+                    Retry
                   </button>
                 </div>
-                <ul className="space-y-2">
-                  {rows.map((r, i) => {
-                    const cand = r.detection.candidates.find((c) => c.id === r.chosen) ?? null;
-                    return (
-                      <li key={i} className={`rounded-xl border p-2 ${r.include && cand ? "border-space-700" : "border-space-800 opacity-70"}`}>
-                        <div className="flex gap-2">
-                          <div className="w-14 shrink-0">
-                            <CardImage src={cand?.imageUrl} alt={cand?.name ?? "?"} sizes="56px" />
-                          </div>
-                          <div className="min-w-0 flex-1 space-y-1">
-                            <div className="flex items-start gap-2">
-                              <input type="checkbox" checked={r.include} disabled={!cand} onChange={(e) => update(i, { include: e.target.checked })} className="mt-1 h-4 w-4" aria-label="Include" />
-                              <div className="min-w-0 flex-1">
-                                {cand ? (
-                                  <>
-                                    <div className="truncate text-sm font-medium text-space-50">{cand.name}</div>
-                                    <div className="font-mono text-xs text-space-300">{cand.id}</div>
-                                  </>
-                                ) : (
-                                  <div className="text-sm text-loss">No catalog match</div>
-                                )}
-                                <div className="text-[11px] text-space-400">
-                                  Seen: {r.detection.seen.name} {r.detection.seen.number ?? "(no number)"} · {Math.round(r.detection.seen.confidence * 100)}% · {r.detection.seen.position}
-                                  {r.detection.seen.notes ? ` · ${r.detection.seen.notes}` : ""}
-                                  {r.detection.exact ? "" : " · matched by name"}
-                                </div>
-                              </div>
-                            </div>
-                            {r.detection.candidates.length > 1 ? (
-                              <select value={r.chosen ?? ""} onChange={(e) => choose(i, e.target.value)} className={`${select} w-full`}>
-                                {r.detection.candidates.map((c) => (
-                                  <option key={c.id} value={c.id}>
-                                    {c.id} · {c.name}
-                                  </option>
-                                ))}
-                              </select>
-                            ) : null}
-                            {cand ? (
-                              <div className="flex flex-wrap gap-1">
-                                {cand.prints.length > 1 ? (
-                                  <select value={r.printId ?? ""} onChange={(e) => update(i, { printId: e.target.value })} className={select}>
-                                    {cand.prints.map((p) => (
-                                      <option key={p.id} value={p.id}>
-                                        {p.label}
-                                      </option>
-                                    ))}
-                                  </select>
-                                ) : null}
-                                <input type="number" min={1} value={r.quantity} onChange={(e) => update(i, { quantity: Math.max(1, Number(e.target.value) || 1) })} className={`${select} w-14`} aria-label="Quantity" />
-                                <select value={r.condition} onChange={(e) => update(i, { condition: e.target.value })} className={select}>
-                                  {CONDITIONS.map((c) => (
-                                    <option key={c}>{c}</option>
-                                  ))}
-                                </select>
-                                <select value={r.finish} onChange={(e) => update(i, { finish: e.target.value })} className={select}>
-                                  <option value="normal">Non-foil</option>
-                                  <option value="foil">Foil</option>
-                                </select>
-                              </div>
-                            ) : null}
-                          </div>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </>
-            ) : null}
-          </div>
+              ) : shown.status === "done" && shown.unreadable ? (
+                <p className="text-xs text-space-400">{shown.unreadable} card{shown.unreadable === 1 ? "" : "s"} visible but unreadable.</p>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       ) : null}
+
+      {photos.length ? (
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <div className="flex rounded-md border border-space-600 p-0.5 text-xs">
+              <button onClick={() => setFilter("all")} className={`tap rounded px-2 py-1 ${filter === "all" ? "bg-space-700 text-space-50" : "text-space-300"}`}>
+                All ({rows.length})
+              </button>
+              <button onClick={() => setFilter("review")} className={`tap rounded px-2 py-1 ${filter === "review" ? "bg-space-700 text-space-50" : "text-space-300"}`}>
+                Needs review ({reviewCount})
+              </button>
+            </div>
+            <span className="text-xs text-space-400">
+              {busy ? "Reading photos… " : ""}
+              {rows.length - reviewCount} confident · {reviewCount - unmatched} unsure · {unmatched} unmatched
+            </span>
+            <button onClick={confirm} disabled={pending || busy || ready.length === 0} className="tap ml-auto rounded-md bg-ki-500 px-4 py-1.5 text-sm font-semibold text-space-950 hover:bg-ki-400 disabled:opacity-50">
+              {pending ? "Saving…" : `Add ${ready.reduce((n, r) => n + r.quantity, 0)} to collection`}
+            </button>
+          </div>
+
+          {rows.length > 0 && visible.length === 0 ? <p className="text-sm text-space-300">Nothing left to review.</p> : null}
+
+          <ul className="space-y-2">
+            {photos.map((p, pi) => {
+              const mine = visible.filter((r) => r.photoKey === p.key);
+              if (mine.length === 0) return null;
+              return (
+                <li key={p.key} className="space-y-2">
+                  {photos.length > 1 ? <div className="text-[11px] uppercase tracking-wide text-space-400">Photo {pi + 1}</div> : null}
+                  <ul className="space-y-2">
+                    {mine.map((r) => (
+                      <ScanRow
+                        key={r.key}
+                        row={r}
+                        photo={p}
+                        expanded={expanded === r.key}
+                        onToggle={() => setExpanded(expanded === r.key ? null : r.key)}
+                        onPatch={(patch) => patchRow(r.key, patch)}
+                        onLink={(hit) => link(r, hit)}
+                        onCandidate={(id) => chooseCandidate(r, id)}
+                        selectClass={select}
+                      />
+                    ))}
+                  </ul>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function ScanRow({
+  row: r,
+  photo,
+  expanded,
+  onToggle,
+  onPatch,
+  onLink,
+  onCandidate,
+  selectClass,
+}: {
+  row: Row;
+  photo: Photo;
+  expanded: boolean;
+  onToggle: () => void;
+  onPatch: (patch: Partial<Row>) => void;
+  onLink: (hit: CardHit) => void;
+  onCandidate: (cardId: string) => void;
+  selectClass: string;
+}) {
+  const [full, setFull] = useState(false);
+  const seen = r.detection.seen;
+  const cand = r.chosen;
+  const linking = !cand || r.searching;
+  const tone = !cand ? "border-loss/50" : needsReview(r) ? "border-ki-500/50" : "border-space-700";
+
+  return (
+    <li className={`rounded-xl border p-2 ${tone} ${r.include && cand ? "" : "bg-space-900/40"}`}>
+      <div className="flex gap-2">
+        <button onClick={onToggle} className="flex shrink-0 gap-1" aria-expanded={expanded} title={expanded ? "Hide comparison" : "Compare photo with catalog art"}>
+          <PhotoCrop photo={photo} box={seen.box} className="w-14" />
+          <div className="w-14">
+            <CardImage src={cand?.imageUrl} alt={cand?.name ?? "?"} sizes="56px" />
+          </div>
+        </button>
+        <div className="min-w-0 flex-1 space-y-1">
+          <div className="flex items-start gap-2">
+            <input type="checkbox" checked={r.include} disabled={!cand} onChange={(e) => onPatch({ include: e.target.checked })} className="mt-1 h-4 w-4 shrink-0" aria-label="Include" />
+            <div className="min-w-0 flex-1">
+              {linking ? (
+                <div className="space-y-1">
+                  {!cand ? <div className="text-sm text-loss">No catalog match — link it:</div> : null}
+                  <div className="flex items-center gap-1">
+                    <CardSearchInput initialQuery={seen.number ?? seen.name} onPick={onLink} className="flex-1" />
+                    {cand ? (
+                      <button onClick={() => onPatch({ searching: false })} className="tap rounded px-2 text-xs text-space-400 hover:text-space-50">
+                        cancel
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-baseline gap-2">
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-medium text-space-50">{cand.name}</div>
+                    <div className="font-mono text-xs text-space-300">{cand.id}</div>
+                  </div>
+                  <button onClick={() => onPatch({ searching: true })} className="tap rounded px-2 text-xs text-space-400 hover:text-space-50">
+                    change
+                  </button>
+                </div>
+              )}
+              <div className="text-[11px] text-space-400">
+                Read: {seen.name} {seen.number ?? "(no number)"} · {seen.position}
+                {seen.notes ? ` · ${seen.notes}` : ""}
+              </div>
+            </div>
+            <Confidence row={r} />
+          </div>
+          {!r.manual && r.detection.candidates.length > 1 ? (
+            <select value={cand?.id ?? ""} onChange={(e) => onCandidate(e.target.value)} className={`${selectClass} w-full`}>
+              {r.detection.candidates.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.id} · {c.name}
+                </option>
+              ))}
+            </select>
+          ) : null}
+          {cand ? (
+            <div className="flex flex-wrap gap-1">
+              {cand.prints.length > 1 ? (
+                <select value={r.printId ?? ""} onChange={(e) => onPatch({ printId: e.target.value })} className={selectClass}>
+                  {cand.prints.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.label}
+                    </option>
+                  ))}
+                </select>
+              ) : null}
+              <input type="number" min={1} value={r.quantity} onChange={(e) => onPatch({ quantity: Math.max(1, Number(e.target.value) || 1) })} className={`${selectClass} w-14`} aria-label="Quantity" />
+              <select value={r.condition} onChange={(e) => onPatch({ condition: e.target.value })} className={selectClass}>
+                {CONDITIONS.map((c) => (
+                  <option key={c}>{c}</option>
+                ))}
+              </select>
+              <select value={r.finish} onChange={(e) => onPatch({ finish: e.target.value })} className={selectClass}>
+                <option value="normal">Non-foil</option>
+                <option value="foil">Foil</option>
+              </select>
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      {expanded ? (
+        <div className="mt-2 grid grid-cols-2 gap-3 border-t border-space-800 pt-2">
+          <div className="space-y-1">
+            <div className="flex items-center justify-between text-[11px] uppercase tracking-wide text-space-400">
+              <span>From your photo</span>
+              {seen.box ? (
+                <button onClick={() => setFull((f) => !f)} className="tap normal-case text-space-300 hover:text-space-50">
+                  {full ? "show crop" : "show whole photo"}
+                </button>
+              ) : null}
+            </div>
+            <PhotoCrop photo={photo} box={full ? null : seen.box} className="mx-auto w-full max-w-[240px]" />
+          </div>
+          <div className="space-y-1">
+            <div className="text-[11px] uppercase tracking-wide text-space-400">Catalog{cand ? ` · ${cand.id}` : ""}</div>
+            <div className="mx-auto w-full max-w-[240px]">
+              <CardImage src={cand?.imageUrl} alt={cand?.name ?? "No match yet"} sizes="240px" />
+            </div>
+          </div>
+          <p className="col-span-2 text-xs text-space-300">
+            Claude read <span className="text-space-100">{seen.name}</span> {seen.number ? <span className="font-mono text-space-100">{seen.number}</span> : "(no number)"} at {Math.round(seen.confidence * 100)}% read confidence.{" "}
+            {r.manual ? "You linked this card by hand." : describeMatch(r)}
+          </p>
+        </div>
+      ) : null}
+    </li>
+  );
+}
+
+function describeMatch(r: Row): string {
+  switch (r.detection.matchedBy) {
+    case "number":
+      return "The number matched a catalog card and the name agrees.";
+    case "number-name-differs":
+      return `The number matched ${r.detection.candidates[0]?.id ?? "a card"} but its name (${r.detection.candidates[0]?.name ?? "?"}) differs from what was read — a digit may be misread.`;
+    case "name":
+      return "No catalog card has that number; matched by name only.";
+    default:
+      return "Nothing in the catalog matched the number or the name.";
+  }
+}
+
+function Confidence({ row: r }: { row: Row }) {
+  if (r.manual) return <span className="shrink-0 rounded-full border border-space-600 px-2 py-0.5 text-[11px] text-space-200">linked</span>;
+  if (!r.chosen) return <span className="shrink-0 rounded-full bg-loss/15 px-2 py-0.5 text-[11px] font-semibold text-loss">no match</span>;
+  const c = r.detection.matchConfidence;
+  const cls = c >= REVIEW_THRESHOLD ? "bg-gain/15 text-gain" : c >= 0.5 ? "bg-ki-500/20 text-ki-300" : "bg-loss/15 text-loss";
+  return (
+    <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${cls}`} title={describeMatch(r)}>
+      {Math.round(c * 100)}%
+    </span>
+  );
+}
+
+/** The card's region of the photo (or the whole photo when no box was given). */
+function PhotoCrop({ photo, box, className = "" }: { photo: Photo; box: Box | null; className?: string }) {
+  if (!box) {
+    return (
+      <div className={`card-aspect flex items-center justify-center overflow-hidden rounded-lg bg-space-900 ${className}`}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={photo.url} alt="Your photo" className="max-h-full max-w-full object-contain" />
+      </div>
+    );
+  }
+  const aspect = photo.width && photo.height ? (box.w * photo.width) / (box.h * photo.height) : 63 / 88;
+  return (
+    <div className={`relative overflow-hidden rounded-lg bg-space-900 ${className}`} style={{ aspectRatio: aspect }}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={photo.url}
+        alt="Card in your photo"
+        className="absolute max-w-none"
+        style={{ left: `${(-box.x / box.w) * 100}%`, top: `${(-box.y / box.h) * 100}%`, width: `${100 / box.w}%`, height: `${100 / box.h}%` }}
+      />
     </div>
   );
 }
