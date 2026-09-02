@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/db";
-import { getDeck, RULES, ZONE_LABEL, ZONES, deckToText } from "@/lib/decks/queries";
+import { getDeck, ZONE_LABEL, ZONES, deckToText } from "@/lib/decks/queries";
+import { copyLimit, RULES, type DeckLegality } from "@/lib/decks/legality";
+import { CardFlagBadge, DeckStatusBadge } from "@/components/DeckStatusBadge";
 import { buildConflicts } from "@/lib/decks/reservations";
 import { CardFaces } from "@/components/CardFaces";
 import { CardImage } from "@/components/CardImage";
@@ -37,6 +39,7 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
               ← Decks
             </Link>
             {deck.isBuilt ? <span className="rounded bg-ki-500 px-1.5 py-px text-[10px] font-bold uppercase text-space-950">Built</span> : <span className="rounded bg-space-800 px-1.5 py-px text-[10px] font-bold uppercase text-space-300">Virtual</span>}
+            <DeckStatusBadge status={deck.legality.status} />
           </div>
           <h1 className="text-2xl font-semibold text-space-50">{deck.name}</h1>
           <div className="flex flex-wrap items-center gap-1 text-sm text-space-300">
@@ -56,15 +59,7 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
             <Stat label="Z-Deck" value={`${deck.legality.zCount}/${RULES.zMax}`} warn={deck.legality.zCount > RULES.zMax} />
             <Stat label="Leader" value={`${deck.legality.leaderCount}`} warn={deck.legality.leaderCount !== 1} />
           </div>
-          {deck.legality.issues.length ? (
-            <ul className="list-inside list-disc text-xs text-ki-300">
-              {deck.legality.issues.map((i) => (
-                <li key={i}>{i}</li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-xs text-gain">Tournament-legal deck size and copy limits.</p>
-          )}
+          <DeckIssues legality={deck.legality} />
           <BuiltToggle deckId={deck.id} isBuilt={deck.isBuilt} initialConflicts={conflicts} />
         </div>
       </div>
@@ -98,7 +93,7 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
                             <span className="font-mono">{r.cardId}</span>
                             {r.energyCost ? <span>· {r.energyCost} energy</span> : null}
                             {r.power ? <span>· {r.power.toLocaleString()}</span> : null}
-                            {r.isBanned ? <span className="rounded bg-dbs-red px-1 font-bold uppercase text-white">Banned</span> : null}
+                            {deck.legality.flags[`${r.zone}:${r.cardId}`] ? <CardFlagBadge {...deck.legality.flags[`${r.zone}:${r.cardId}`]} /> : null}
                             <span
                               className={`ml-1 rounded px-1 ${
                                 r.alloc.owned >= r.quantity ? "bg-gain/15 text-gain" : r.alloc.owned > 0 ? "bg-dbs-yellow/15 text-yellow-200" : "bg-space-800 text-space-400"
@@ -109,7 +104,7 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
                             </span>
                           </div>
                         </div>
-                        <DeckCardControls deckId={deck.id} cardId={r.cardId} zone={r.zone} quantity={r.quantity} max={r.zone === "leader" ? 1 : (r.limitedTo ?? 4)} />
+                        <DeckCardControls deckId={deck.id} cardId={r.cardId} zone={r.zone} quantity={r.quantity} limit={copyLimit(r)} />
                       </li>
                     ))}
                   </ul>
@@ -174,5 +169,35 @@ function Stat({ label, value, warn }: { label: string; value: string; warn: bool
     <span className={`rounded-md border px-2 py-0.5 ${warn ? "border-ki-500/40 text-ki-300" : "border-space-700 text-space-200"}`}>
       {label} <span className="font-semibold tabular-nums">{value}</span>
     </span>
+  );
+}
+
+/**
+ * Nothing here blocks anything: an illegal or half-finished deck saves fine,
+ * this just says what a judge would say about it.
+ */
+function DeckIssues({ legality }: { legality: DeckLegality }) {
+  if (legality.status === "legal" && legality.issues.length === 0) {
+    return <p className="text-xs text-gain">Tournament-legal: one leader, {RULES.main} cards, copy limits respected.</p>;
+  }
+  const groups = [
+    { severity: "illegal" as const, title: "Breaks a rule", cls: "text-loss" },
+    { severity: "incomplete" as const, title: "Still to do", cls: "text-ki-300" },
+    { severity: "warning" as const, title: "Worth a look", cls: "text-yellow-200" },
+  ];
+  return (
+    <div className="space-y-1">
+      {groups.map((g) => {
+        const list = legality.issues.filter((i) => i.severity === g.severity);
+        if (list.length === 0) return null;
+        return (
+          <div key={g.severity} className="text-xs">
+            <span className={`font-semibold ${g.cls}`}>{g.title}:</span>{" "}
+            <span className="text-space-300">{list.map((i) => i.message).join(" ")}</span>
+          </div>
+        );
+      })}
+      <p className="text-[11px] text-space-400">Saved either way — the deck is only flagged, never blocked.</p>
+    </div>
   );
 }

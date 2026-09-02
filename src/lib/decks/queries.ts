@@ -2,6 +2,10 @@ import { asc, desc, eq, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { cards, deckCards, decks } from "@/db/schema";
 import { allocationForCards, type Allocation } from "./reservations";
+import { legality, legalityForDecks, RULES } from "./legality";
+
+export { legality, RULES };
+export type { DeckLegality, DeckStatus, IssueSeverity } from "./legality";
 
 export const ZONES = ["leader", "main", "z", "side"] as const;
 export type Zone = (typeof ZONES)[number];
@@ -13,9 +17,6 @@ export const ZONE_LABEL: Record<Zone, string> = {
   side: "Sideboard / ideas",
 };
 
-/** Bandai deck rules: 1 leader, exactly 50 main, up to 8 Z-deck. */
-export const RULES = { main: 50, zMax: 8 };
-
 export async function listDecks(db: Db) {
   const rows = await db
     .select({
@@ -24,17 +25,22 @@ export async function listDecks(db: Db) {
       description: decks.description,
       isBuilt: decks.isBuilt,
       updatedAt: decks.updatedAt,
-      mainCount: sql<number>`coalesce((select sum(quantity) from ${deckCards} dc where dc.deck_id = ${decks.id} and dc.zone = 'main'), 0)::int`,
       leaderId: sql<string | null>`(select dc.card_id from ${deckCards} dc where dc.deck_id = ${decks.id} and dc.zone = 'leader' limit 1)`,
     })
     .from(decks)
     .orderBy(desc(decks.isBuilt), desc(decks.updatedAt));
   const leaderIds = rows.map((r) => r.leaderId).filter((x): x is string => !!x);
-  const leaders = leaderIds.length
-    ? await db.select({ id: cards.id, name: cards.name, imageUrl: cards.imageUrl, colors: cards.colors }).from(cards).where(sql`${cards.id} in ${leaderIds}`)
-    : [];
+  const [leaders, legalities] = await Promise.all([
+    leaderIds.length
+      ? db.select({ id: cards.id, name: cards.name, imageUrl: cards.imageUrl, colors: cards.colors }).from(cards).where(sql`${cards.id} in ${leaderIds}`)
+      : Promise.resolve([]),
+    legalityForDecks(db, rows.map((r) => r.id)),
+  ]);
   const lm = new Map(leaders.map((l) => [l.id, l]));
-  return rows.map((r) => ({ ...r, leader: r.leaderId ? (lm.get(r.leaderId) ?? null) : null }));
+  return rows.map((r) => {
+    const legality = legalities.get(r.id)!;
+    return { ...r, leader: r.leaderId ? (lm.get(r.leaderId) ?? null) : null, legality, mainCount: legality.mainCount };
+  });
 }
 
 export interface DeckCardRow {
@@ -56,13 +62,6 @@ export interface DeckCardRow {
   characters: string[];
   traits: string[];
   alloc: Allocation;
-}
-
-export interface DeckLegality {
-  leaderCount: number;
-  mainCount: number;
-  zCount: number;
-  issues: string[];
 }
 
 export async function getDeck(db: Db, id: number) {
@@ -96,30 +95,6 @@ export async function getDeck(db: Db, id: number) {
   const alloc = await allocationForCards(db, [...new Set(rows.map((r) => r.cardId))]);
   const cardsOut: DeckCardRow[] = rows.map((r) => ({ ...r, zone: r.zone as Zone, alloc: alloc.get(r.cardId)! }));
   return { ...deck, cards: cardsOut, legality: legality(cardsOut) };
-}
-
-export function legality(rows: DeckCardRow[]): DeckLegality {
-  const count = (z: Zone) => rows.filter((r) => r.zone === z).reduce((n, r) => n + r.quantity, 0);
-  const leaderCount = count("leader");
-  const mainCount = count("main");
-  const zCount = count("z");
-  const issues: string[] = [];
-  if (leaderCount !== 1) issues.push(leaderCount === 0 ? "No leader chosen." : `${leaderCount} leaders — a deck has exactly one.`);
-  if (mainCount !== RULES.main) issues.push(`Main deck has ${mainCount} cards; it must have exactly ${RULES.main}.`);
-  if (zCount > RULES.zMax) issues.push(`Z-Deck has ${zCount} cards; the maximum is ${RULES.zMax}.`);
-  const perCard = new Map<string, { n: number; row: DeckCardRow }>();
-  for (const r of rows) {
-    if (r.zone === "side") continue;
-    const e = perCard.get(r.cardId) ?? { n: 0, row: r };
-    e.n += r.quantity;
-    perCard.set(r.cardId, e);
-  }
-  for (const { n, row } of perCard.values()) {
-    if (row.isBanned) issues.push(`${row.name} (${row.cardId}) is banned.`);
-    const limit = row.limitedTo ?? 4;
-    if (row.zone !== "leader" && n > limit) issues.push(`${row.name} (${row.cardId}): ${n} copies, limit ${limit}.`);
-  }
-  return { leaderCount, mainCount, zCount, issues };
 }
 
 /** Plain-text decklist for prompts and export: "4 BT18-020 Omega Shenron, …". */

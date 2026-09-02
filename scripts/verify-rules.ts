@@ -114,13 +114,40 @@ const row = (cardId: string, zone: DeckCardRow["zone"], quantity: number, extra:
   alloc: { owned: 0, reserved: 0, available: 0 },
   ...extra,
 });
-const legal = legality([row("L", "leader", 1), ...Array.from({ length: 12 }, (_, i) => row(`M${i}`, "main", 4)), row("M99", "main", 2)]);
+const fullMain = [...Array.from({ length: 12 }, (_, i) => row(`M${i}`, "main", 4)), row("M99", "main", 2)];
+const legal = legality([row("L", "leader", 1), ...fullMain]);
 assert.equal(legal.mainCount, 50);
+assert.equal(legal.status, "legal");
 assert.deepEqual(legal.issues, []);
-const illegal = legality([row("M1", "main", 5), row("B", "main", 1, { isBanned: true })]);
-assert.ok(illegal.issues.some((i) => /No leader/.test(i)));
-assert.ok(illegal.issues.some((i) => /5 copies, limit 4/.test(i)));
-assert.ok(illegal.issues.some((i) => /banned/.test(i)));
+
+// Incomplete: nothing is broken, it just isn't finished — never "illegal".
+const wip = legality([row("M1", "main", 4)]);
+assert.equal(wip.status, "incomplete");
+assert.ok(wip.issues.every((i) => i.severity === "incomplete"));
+assert.ok(wip.issues.some((i) => /No leader/.test(i.message)));
+assert.ok(wip.issues.some((i) => /46 to go/.test(i.message)));
+
+// Illegal: rules actively broken. All of it is still saveable — only flagged.
+const illegal = legality([row("L", "leader", 1), row("L2", "leader", 1), row("M1", "main", 5), row("B", "main", 1, { isBanned: true })]);
+assert.equal(illegal.status, "illegal");
+assert.ok(illegal.issues.some((i) => i.severity === "illegal" && /2 leaders/.test(i.message)));
+assert.ok(illegal.issues.some((i) => /5 copies, limit 4/.test(i.message)));
+assert.ok(illegal.issues.some((i) => /banned card/.test(i.message)));
+assert.equal(illegal.flags["main:M1"]?.label, "5 copies, limit 4");
+assert.equal(illegal.flags["main:B"]?.severity, "illegal");
+assert.equal(legality([row("L", "leader", 1), ...fullMain, row("X", "main", 1)]).status, "illegal", "51 cards is illegal, 49 is incomplete");
+
+// A Z-deck card's own limit wins over the default of 4.
+assert.equal(legality([row("Z1", "z", 7, { cardType: "Z-BATTLE", limitedTo: 7 })]).flags["z:Z1"], undefined);
+assert.equal(legality([row("Z1", "z", 9, { cardType: "Z-BATTLE", limitedTo: 7 })]).flags["z:Z1"]?.label, "9 copies, limit 7");
+
+// Off-colour is a warning: it is shown, but does not by itself make a deck illegal.
+const offColour = legality([row("L", "leader", 1), row("B1", "main", 4, { colors: ["Blue"] })]);
+assert.equal(offColour.flags["main:B1"]?.severity, "warning");
+assert.ok(offColour.issues.some((i) => /off-colour for a Red leader/.test(i.message)));
+assert.equal(offColour.status, "incomplete", "an off-colour card is a warning, not an illegal deck");
+// Sideboard cards are a scratch zone — no copy limit, no colour rule.
+assert.deepEqual(legality([row("L", "leader", 1), ...fullMain, row("S", "side", 9, { colors: ["Blue"] })]).issues, []);
 
 // ── CardTrader collector numbers ──────────────────────────────────────────
 const bp = (n: string | null) => ({ id: 1, name: "x", game_id: 9, expansion_id: 1, fixed_properties: n == null ? {} : { collector_number: n } });

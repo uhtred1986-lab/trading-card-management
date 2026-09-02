@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { db } from "@/db";
-import { listDecks, RULES } from "@/lib/decks/queries";
+import { listDecks } from "@/lib/decks/queries";
+import { RULES } from "@/lib/decks/legality";
+import { DeckStatusBadge } from "@/components/DeckStatusBadge";
 import { CardImage } from "@/components/CardImage";
 import { ColorPill } from "@/components/ColorPill";
 import { createDeckForm } from "./actions";
@@ -57,9 +59,10 @@ export default async function DecksPage() {
                       <CardImage src={d.leader?.imageUrl} alt={d.leader?.name ?? "No leader"} sizes="64px" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
                         <span className="truncate font-medium text-space-50">{d.name}</span>
                         {d.isBuilt ? <span className="rounded bg-ki-500 px-1.5 py-px text-[10px] font-bold uppercase text-space-950">Built</span> : null}
+                        <DeckStatusBadge status={d.legality.status} small title={d.legality.issues.map((i) => i.message).join(" ")} />
                       </div>
                       <div className="truncate text-xs text-space-300">{d.leader?.name ?? "No leader yet"}</div>
                       <div className="mt-1 flex flex-wrap items-center gap-1">

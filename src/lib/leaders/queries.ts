@@ -1,6 +1,7 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { cardSets, cards, deckCards, decks, ownedCards } from "@/db/schema";
+import { legalityForDecks, type DeckStatus } from "@/lib/decks/legality";
 
 export interface OwnedLeader {
   id: string;
@@ -13,7 +14,7 @@ export interface OwnedLeader {
   imageUrl: string | null;
   backImageUrl: string | null;
   owned: number;
-  decks: { id: number; name: string; isBuilt: boolean; mainCount: number }[];
+  decks: { id: number; name: string; isBuilt: boolean; mainCount: number; status: DeckStatus }[];
 }
 
 /** Every LEADER card in the collection, with the decks it leads. */
@@ -41,22 +42,18 @@ export async function ownedLeaders(db: Db): Promise<OwnedLeader[]> {
   if (rows.length === 0) return [];
 
   const usage = await db
-    .select({
-      leaderId: deckCards.cardId,
-      id: decks.id,
-      name: decks.name,
-      isBuilt: decks.isBuilt,
-      mainCount: sql<number>`coalesce((select sum(quantity) from ${deckCards} dc where dc.deck_id = ${decks.id} and dc.zone = 'main'), 0)::int`,
-    })
+    .select({ leaderId: deckCards.cardId, id: decks.id, name: decks.name, isBuilt: decks.isBuilt })
     .from(deckCards)
     .innerJoin(decks, eq(decks.id, deckCards.deckId))
     .where(and(eq(deckCards.zone, "leader"), sql`${deckCards.cardId} in ${rows.map((r) => r.id)}`))
     .orderBy(desc(decks.isBuilt), decks.name);
 
+  const legalities = await legalityForDecks(db, [...new Set(usage.map((u) => u.id))]);
   const byLeader = new Map<string, OwnedLeader["decks"]>();
   for (const u of usage) {
     const list = byLeader.get(u.leaderId) ?? [];
-    list.push({ id: u.id, name: u.name, isBuilt: u.isBuilt, mainCount: u.mainCount });
+    const l = legalities.get(u.id);
+    list.push({ id: u.id, name: u.name, isBuilt: u.isBuilt, mainCount: l?.mainCount ?? 0, status: l?.status ?? "incomplete" });
     byLeader.set(u.leaderId, list);
   }
   return rows.map((r) => {

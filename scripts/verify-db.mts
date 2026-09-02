@@ -111,14 +111,25 @@ assert.equal(priceForFinish(prices.get("BT18-020_SPR"), "foil"), 199);
     { id: "BT18-116", setCode: "BT18", name: "Z Battle", cardType: "Z-BATTLE", rarity: "SR", rarityCode: "SR", searchText: "bt18-116" },
   ]);
   const [d] = await db.insert(schema.decks).values({ name: "Acquisitions" }).returning({ id: schema.decks.id });
-  await addCardsToDeck(db, d.id, [{ cardId: "BT18-020", quantity: 3 }, { cardId: "BT18-001", quantity: 2 }, { cardId: "BT18-116", quantity: 1 }]);
+  await addCardsToDeck(db, d.id, [{ cardId: "BT18-020", quantity: 3 }, { cardId: "BT18-001", quantity: 1 }, { cardId: "BT18-116", quantity: 1 }]);
   await addCardsToDeck(db, d.id, [{ cardId: "BT18-020", quantity: 3 }, { cardId: "BT18-002", quantity: 1 }]);
   const rowsInDeck = (await db.select().from(schema.deckCards).where((await import("drizzle-orm")).eq(schema.deckCards.deckId, d.id))).map((r) => [r.zone, r.cardId, r.quantity]).sort();
-  assert.deepEqual(rowsInDeck, [
-    ["leader", "BT18-002", 1], // second leader replaced the first
-    ["main", "BT18-020", 4], // 3 + 3 capped at the 4-copy limit
-    ["z", "BT18-116", 1],
-  ]);
+  assert.deepEqual(
+    rowsInDeck,
+    [
+      ["leader", "BT18-001", 1],
+      ["leader", "BT18-002", 1], // a second leader is added, not silently swapped in
+      ["main", "BT18-020", 6], // 3 + 3, not capped at the 4-copy limit
+      ["z", "BT18-116", 1],
+    ],
+    "nothing scanned into a deck is dropped or replaced",
+  );
+  // …and the deck is flagged for exactly those two things.
+  const { legalityForDecks } = await import("../src/lib/decks/legality.ts");
+  const flagged = (await legalityForDecks(db, [d.id])).get(d.id)!;
+  assert.equal(flagged.status, "illegal");
+  assert.ok(flagged.issues.some((i) => /2 leaders/.test(i.message)));
+  assert.equal(flagged.flags["main:BT18-020"]?.label, "6 copies, limit 4");
 }
 
 // Scan batches: photo bytes round-trip, completing writes lots and drops the photo.

@@ -1,7 +1,10 @@
 /**
  * Add freshly acquired cards to a deck as well as the collection. Leaders take
- * the leader slot, Z- cards go to the Z-deck, everything else to the main
- * deck; quantities accumulate but never exceed the card's copy limit.
+ * the leader slot, Z- cards go to the Z-deck, everything else to the main deck.
+ *
+ * Nothing is capped or replaced: adding a fifth copy, or a second leader, is
+ * allowed and the deck is flagged illegal afterwards (src/lib/decks/legality.ts).
+ * Silently dropping a card the user just scanned would be worse than a flag.
  */
 import { eq, inArray, sql } from "drizzle-orm";
 import type { Db } from "@/db";
@@ -31,24 +34,19 @@ export async function addCardsToDeck(db: Db, deckId: number, entries: { cardId: 
   const ids = [...totals.keys()].filter((id) => totals.get(id)! > 0);
   if (ids.length === 0) return { added: 0 };
 
-  const meta = await db.select({ id: cards.id, cardType: cards.cardType, limitedTo: cards.limitedTo }).from(cards).where(inArray(cards.id, ids));
+  const meta = await db.select({ id: cards.id, cardType: cards.cardType }).from(cards).where(inArray(cards.id, ids));
   let added = 0;
   for (const m of meta) {
     const zone = zoneForType(m.cardType);
-    const want = zone === "leader" ? 1 : totals.get(m.id)!;
-    const cap = zone === "leader" ? 1 : (m.limitedTo ?? 4);
-    if (zone === "leader") {
-      // One leader per deck: replace whatever is there.
-      await db.delete(deckCards).where(sql`${deckCards.deckId} = ${deckId} and ${deckCards.zone} = 'leader' and ${deckCards.cardId} <> ${m.id}`);
-    }
+    const want = totals.get(m.id)!;
     await db
       .insert(deckCards)
-      .values({ deckId, cardId: m.id, zone, quantity: Math.min(cap, want) })
+      .values({ deckId, cardId: m.id, zone, quantity: want })
       .onConflictDoUpdate({
         target: [deckCards.deckId, deckCards.cardId, deckCards.zone],
-        set: { quantity: sql`least(${cap}, ${deckCards.quantity} + ${want})` },
+        set: { quantity: sql`${deckCards.quantity} + ${want}` },
       });
-    added += Math.min(cap, want);
+    added += want;
   }
   await db.update(decks).set({ updatedAt: new Date() }).where(eq(decks.id, deckId));
   return { added };

@@ -5,8 +5,12 @@ import { setDeckCard } from "@/app/decks/actions";
 import type { Zone } from "@/lib/decks/queries";
 import type { BuildConflict } from "@/lib/decks/reservations";
 
-/** +/- stepper for one deck row. On a built deck, going over the collection is refused inline. */
-export function DeckCardControls({ deckId, cardId, zone, quantity, max }: { deckId: number; cardId: string; zone: Zone; quantity: number; max: number }) {
+/**
+ * +/- stepper for one deck row. Going past the copy limit is allowed — the deck
+ * is flagged illegal instead of the button being disabled. Only the built-deck
+ * ownership check can refuse a change, and it says why inline.
+ */
+export function DeckCardControls({ deckId, cardId, zone, quantity, limit }: { deckId: number; cardId: string; zone: Zone; quantity: number; limit: number }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<BuildConflict[] | null>(null);
 
@@ -23,8 +27,10 @@ export function DeckCardControls({ deckId, cardId, zone, quantity, max }: { deck
         <button className={btn} onClick={() => set(quantity - 1)} disabled={pending} aria-label="Remove one">
           −
         </button>
-        <span className="w-6 text-center font-semibold tabular-nums text-space-50">{quantity}</span>
-        <button className={btn} onClick={() => set(quantity + 1)} disabled={pending || quantity >= max} aria-label="Add one">
+        <span className={`w-6 text-center font-semibold tabular-nums ${quantity > limit ? "text-loss" : "text-space-50"}`} title={quantity > limit ? `Over the ${limit}-copy limit` : undefined}>
+          {quantity}
+        </span>
+        <button className={btn} onClick={() => set(quantity + 1)} disabled={pending || quantity >= 99} aria-label="Add one" title={quantity >= limit ? `Past the ${limit}-copy limit — the deck will be flagged illegal` : undefined}>
           +
         </button>
       </div>

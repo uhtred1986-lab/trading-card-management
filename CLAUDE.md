@@ -78,10 +78,19 @@ the same style.
   (`currentUser()` in `src/lib/auth.ts`, read from the `Authorization` header); null when the app
   runs open locally. Every path that creates lots (card page, bulk entry, scan batches, quick
   capture) stamps it — keep that true for new paths.
+- **Deck legality is a flag, never a block** (`src/lib/decks/legality.ts`). A deck saves in any
+  state; `legality()` labels it **legal / incomplete / illegal** and returns per-card `flags`
+  keyed `"<zone>:<cardId>"`. *Incomplete* = still building (no leader, under 50). *Illegal* = a
+  rule is broken (banned card, over the copy limit, 2+ leaders, over 50, Z-deck over 8, a card in
+  the wrong zone). Off-colour cards are *warnings* and do not change the status. Shown on the deck
+  page, the deck list and the leaders page. The one thing that *is* refused is over-reserving a
+  **built** deck — that's ownership, not legality.
 - **"Also add to deck"** (`DeckPicker`, `src/lib/decks/add.ts`): every add path can target a deck
   (existing, or "New deck…" which creates it on the spot). `addCardsToDeck` puts leaders in the
-  leader slot (replacing), Z- cards in the Z-deck, everything else in main, accumulating up to the
-  copy limit. Scan batches store the target in `scan_batches.deck_id` so it carries to the PC.
+  leader slot, Z- cards in the Z-deck, everything else in main, and **never caps or replaces** —
+  a sixth copy or a second leader is added and the deck is flagged, because silently dropping a
+  card the user just scanned is worse. Scan batches store the target in `scan_batches.deck_id` so
+  it carries to the PC.
 - **Quick capture** (`/add/quick`, `POST /api/scan/quick`): phone loop — one photo → identified
   immediately (nothing stored) → quantity with big ± buttons → `addLot` → the camera re-opens
   (the `click()` happens inside the save handler so it counts as a user gesture).

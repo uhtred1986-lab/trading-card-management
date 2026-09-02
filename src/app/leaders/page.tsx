@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { db } from "@/db";
 import { hasAnthropic } from "@/lib/ai/client";
-import { RULES } from "@/lib/decks/queries";
+import { RULES } from "@/lib/decks/legality";
+import { DeckStatusBadge } from "@/components/DeckStatusBadge";
 import { ownedLeaders } from "@/lib/leaders/queries";
 import { BuildDeckButton } from "@/components/BuildDeckButton";
 import { CardFaces } from "@/components/CardFaces";
@@ -79,6 +80,7 @@ export default async function LeadersPage() {
                           <Link href={`/decks/${d.id}`} className="min-w-0 truncate text-space-100 hover:text-ki-300">
                             {d.name}
                           </Link>
+                          <DeckStatusBadge status={d.status} small />
                           <span className={`ml-auto shrink-0 ${d.mainCount === RULES.main ? "text-space-400" : "text-ki-300"}`}>
                             {d.mainCount}/{RULES.main}
                           </span>
