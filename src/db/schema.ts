@@ -89,6 +89,8 @@ export const cards = pgTable(
     backPower: integer("back_power"),
     /** Canonical image for the standard print (prints carry their own). */
     imageUrl: text("image_url"),
+    /** Awakened side of a leader; null for single-sided cards. */
+    backImageUrl: text("back_image_url"),
     deckplanetId: integer("deckplanet_id"),
     /** Lower-cased "number name characters" for ILIKE search. */
     searchText: text("search_text").notNull(),
@@ -309,6 +311,8 @@ export const ctBlueprints = pgTable(
     name: text("name").notNull(),
     version: text("version"),
     imageUrl: text("image_url"),
+    /** Leader back side as CardTrader hosts it — used when deckplanet has none. */
+    backImageUrl: text("back_image_url"),
     tcgPlayerId: integer("tcg_player_id"),
     cardMarketIds: jsonb("card_market_ids"),
     /** Collector number etc. as CardTrader reports it. */

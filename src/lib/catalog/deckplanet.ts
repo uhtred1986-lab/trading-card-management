@@ -140,6 +140,7 @@ export interface CatalogCard {
   backSkill: string | null;
   backPower: number | null;
   imageUrl: string;
+  backImageUrl: string | null;
   deckplanetId: number;
   searchText: string;
 }
@@ -260,6 +261,8 @@ export function shapeCatalog(raw: DpCard[]): ShapedCatalog {
       backSkill: cleanText(c.card_back_skill_unstyled),
       backPower: cleanInt(c.card_back_power),
       imageUrl: g.prints.get(base)!.imageUrl,
+      // Leaders' awakened side lives beside the front as "<number>_b.png".
+      backImageUrl: backName ? imageFor(`${base}_b`, base) : null,
       deckplanetId: c.id,
       searchText,
     });
@@ -289,6 +292,32 @@ export interface CatalogSyncSummary {
   sets: number;
   cards: number;
   prints: number;
+  backImages?: number;
+}
+
+/**
+ * deckplanet only hosts "<number>_b.png" for older sets, so each candidate back
+ * URL is checked with a HEAD request before it is stored; a 404 becomes null
+ * and the CardTrader sync may fill it in later.
+ */
+export async function verifyBackImages(shaped: ShapedCatalog, concurrency = 12): Promise<number> {
+  const withBack = shaped.cards.filter((c) => c.backImageUrl);
+  let kept = 0;
+  let next = 0;
+  const worker = async () => {
+    while (next < withBack.length) {
+      const c = withBack[next++];
+      try {
+        const res = await fetch(c.backImageUrl!, { method: "HEAD" });
+        if (res.ok) kept++;
+        else c.backImageUrl = null;
+      } catch {
+        c.backImageUrl = null;
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(concurrency, withBack.length) }, worker));
+  return kept;
 }
 
 export async function importCatalog(db: Db, shaped: ShapedCatalog): Promise<CatalogSyncSummary> {
@@ -340,6 +369,8 @@ export async function importCatalog(db: Db, shaped: ShapedCatalog): Promise<Cata
           backSkill: sql`excluded.back_skill`,
           backPower: sql`excluded.back_power`,
           imageUrl: sql`excluded.image_url`,
+          // Keep a back image the CardTrader sync supplied when deckplanet has none.
+          backImageUrl: sql`coalesce(excluded.back_image_url, ${cards.backImageUrl})`,
           deckplanetId: sql`excluded.deckplanet_id`,
           searchText: sql`excluded.search_text`,
           updatedAt: sql`now()`,
@@ -370,5 +401,7 @@ export async function importCatalog(db: Db, shaped: ShapedCatalog): Promise<Cata
 
 export async function syncCatalog(db: Db): Promise<CatalogSyncSummary> {
   const raw = await fetchDeckplanet();
-  return importCatalog(db, shapeCatalog(raw));
+  const shaped = shapeCatalog(raw);
+  const backImages = await verifyBackImages(shaped);
+  return { ...(await importCatalog(db, shaped)), backImages };
 }

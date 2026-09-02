@@ -103,6 +103,8 @@ const row = (cardId: string, zone: DeckCardRow["zone"], quantity: number, extra:
   power: 10000,
   rarityCode: "C",
   imageUrl: null,
+  backImageUrl: null,
+  backName: null,
   limitedTo: 4,
   isBanned: false,
   skill: null,

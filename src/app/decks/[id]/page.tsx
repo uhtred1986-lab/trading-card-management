@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/db";
 import { getDeck, RULES, ZONE_LABEL, ZONES, deckToText } from "@/lib/decks/queries";
 import { buildConflicts } from "@/lib/decks/reservations";
+import { CardFaces } from "@/components/CardFaces";
 import { CardImage } from "@/components/CardImage";
 import { ColorPill } from "@/components/ColorPill";
 import { DeckBuilder } from "@/components/DeckBuilder";
@@ -27,8 +28,8 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-start gap-4">
-        <div className="w-24 shrink-0 sm:w-32">
-          <CardImage src={leader?.imageUrl} alt={leader?.name ?? "No leader"} sizes="128px" priority />
+        <div className={`shrink-0 ${leader?.backImageUrl ? "w-48 sm:w-64" : "w-24 sm:w-32"}`}>
+          <CardFaces front={leader?.imageUrl} back={leader?.backImageUrl} name={leader?.name ?? "No leader"} backName={leader?.backName} sizes="128px" priority />
         </div>
         <div className="min-w-0 flex-1 space-y-2">
           <div className="flex flex-wrap items-center gap-2">

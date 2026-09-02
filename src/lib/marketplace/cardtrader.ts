@@ -58,6 +58,11 @@ export interface CtExpansion {
   code: string | null;
   name: string;
 }
+interface CtImage {
+  url?: string | null;
+  show?: { url?: string | null } | null;
+}
+
 export interface CtBlueprint {
   id: number;
   name: string;
@@ -65,6 +70,8 @@ export interface CtBlueprint {
   game_id: number;
   expansion_id: number;
   image_url?: string | null;
+  image?: CtImage | null;
+  back_image?: CtImage | null;
   tcg_player_id?: string | number | null;
   card_market_ids?: number[] | null;
   fixed_properties?: Record<string, unknown> | null;
@@ -112,12 +119,20 @@ export interface CtSyncSummary {
   matchedByTcgPlayer: number;
   matchedByNumber: number;
   unmatched: number;
+  backImagesFilled: number;
 }
 
 /**
  * Printed number from the blueprint. Newer expansions carry "BT14-113"; older
  * ones only "049", so the expansion code ("bt3") supplies the prefix.
  */
+/** Absolute URL of a blueprint image ("show" size), or null. Paths come back relative. */
+export function ctImageUrl(img: CtImage | null | undefined): string | null {
+  const path = img?.show?.url ?? img?.url ?? null;
+  if (!path) return null;
+  return /^https?:/.test(path) ? path : `https://www.cardtrader.com${path.startsWith("/") ? "" : "/"}${path}`;
+}
+
 export function collectorNumbers(bp: CtBlueprint, expansionCode: string | null): string[] {
   const fp = bp.fixed_properties ?? {};
   const v = fp.collector_number ?? fp.dbs_number ?? fp.number ?? null;
@@ -194,6 +209,7 @@ export async function syncCardTraderCatalog(db: Db): Promise<CtSyncSummary> {
         name: bp.name,
         version: bp.version ?? null,
         imageUrl: bp.image_url ?? null,
+        backImageUrl: ctImageUrl(bp.back_image),
         tcgPlayerId: Number.isFinite(tcgId) ? tcgId : null,
         cardMarketIds: bp.card_market_ids ?? null,
         fixedProperties: bp.fixed_properties ?? null,
@@ -214,6 +230,7 @@ export async function syncCardTraderCatalog(db: Db): Promise<CtSyncSummary> {
             name: sql`excluded.name`,
             version: sql`excluded.version`,
             imageUrl: sql`excluded.image_url`,
+            backImageUrl: sql`excluded.back_image_url`,
             tcgPlayerId: sql`excluded.tcg_player_id`,
             cardMarketIds: sql`excluded.card_market_ids`,
             fixedProperties: sql`excluded.fixed_properties`,
@@ -224,7 +241,22 @@ export async function syncCardTraderCatalog(db: Db): Promise<CtSyncSummary> {
         });
     }
   }
-  return { game: game.display_name, expansions: exps.length, blueprints, matchedByTcgPlayer: byTcgN, matchedByNumber: byNumN, unmatched };
+  // Leaders whose awakened side deckplanet doesn't host (Masters-era sets) get CardTrader's.
+  const backfilled = rows<{ n: number }>(
+    await db.execute(sql`
+      with src as (
+        select distinct on (card_id) card_id, back_image_url
+        from ct_blueprints
+        where card_id is not null and back_image_url is not null
+        order by card_id, (print_id = card_id) desc, id
+      )
+      update cards c set back_image_url = src.back_image_url
+      from src
+      where src.card_id = c.id and c.back_image_url is null and c.back_name is not null
+      returning 1 as n
+    `),
+  ).length;
+  return { game: game.display_name, expansions: exps.length, blueprints, matchedByTcgPlayer: byTcgN, matchedByNumber: byNumN, unmatched, backImagesFilled: backfilled };
 }
 
 // ── on-demand listings ─────────────────────────────────────────────────────

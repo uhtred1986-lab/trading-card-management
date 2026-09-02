@@ -22,6 +22,20 @@
       "when": 1788361361851,
       "tag": "0002_cynical_husk",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1788362393525,
+      "tag": "0003_silky_eddie_brock",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1788362480532,
+      "tag": "0004_pretty_paladin",
+      "breakpoints": true
     }
   ]
 }

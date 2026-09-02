@@ -7,7 +7,7 @@ import { allocationForCards, decksReserving } from "@/lib/decks/reservations";
 import { latestUsdEur } from "@/lib/pricing/fx";
 import { pricesForPrints } from "@/lib/pricing/queries";
 import { formatCents } from "@/lib/money";
-import { CardImage } from "@/components/CardImage";
+import { CardFaces } from "@/components/CardFaces";
 import { ColorPill, RarityBadge, TypeBadge } from "@/components/ColorPill";
 import { SkillText } from "@/components/SkillText";
 import { MarketplacePanel } from "@/components/MarketplacePanel";
@@ -37,7 +37,7 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
   return (
     <div className="grid gap-6 md:grid-cols-[minmax(220px,300px)_1fr]">
       <div className="space-y-3">
-        <CardImage src={card.imageUrl} alt={card.name} priority sizes="(min-width: 768px) 300px, 90vw" />
+        <CardFaces front={card.imageUrl} back={card.backImageUrl} name={card.name} backName={card.backName} priority sizes="(min-width: 768px) 300px, 90vw" />
         <div className="rounded-xl border border-space-700/70 bg-space-900/60 p-3 text-sm">
           <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-space-300">Allocation</div>
           <dl className="grid grid-cols-3 gap-2 text-center">

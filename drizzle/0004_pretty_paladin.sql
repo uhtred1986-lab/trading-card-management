@@ -1,0 +1,1 @@
+ALTER TABLE "ct_blueprints" ADD COLUMN "back_image_url" text;

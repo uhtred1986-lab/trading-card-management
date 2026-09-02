@@ -48,6 +48,8 @@ export interface DeckCardRow {
   power: number | null;
   rarityCode: string;
   imageUrl: string | null;
+  backImageUrl: string | null;
+  backName: string | null;
   limitedTo: number | null;
   isBanned: boolean;
   skill: string | null;
@@ -78,6 +80,8 @@ export async function getDeck(db: Db, id: number) {
       power: cards.power,
       rarityCode: cards.rarityCode,
       imageUrl: cards.imageUrl,
+      backImageUrl: cards.backImageUrl,
+      backName: cards.backName,
       limitedTo: cards.limitedTo,
       isBanned: cards.isBanned,
       skill: cards.skill,

@@ -11,6 +11,7 @@ export interface OwnedLeader {
   colors: string[];
   rarityCode: string;
   imageUrl: string | null;
+  backImageUrl: string | null;
   owned: number;
   decks: { id: number; name: string; isBuilt: boolean; mainCount: number }[];
 }
@@ -27,6 +28,7 @@ export async function ownedLeaders(db: Db): Promise<OwnedLeader[]> {
       colors: cards.colors,
       rarityCode: cards.rarityCode,
       imageUrl: cards.imageUrl,
+      backImageUrl: cards.backImageUrl,
       owned: sql<number>`sum(${ownedCards.quantity})::int`,
       setSort: cardSets.sortKey,
     })

@@ -4,7 +4,7 @@ import { hasAnthropic } from "@/lib/ai/client";
 import { RULES } from "@/lib/decks/queries";
 import { ownedLeaders } from "@/lib/leaders/queries";
 import { BuildDeckButton } from "@/components/BuildDeckButton";
-import { CardImage } from "@/components/CardImage";
+import { CardFaces } from "@/components/CardFaces";
 import { ColorPill, RarityBadge } from "@/components/ColorPill";
 
 export const dynamic = "force-dynamic";
@@ -49,9 +49,9 @@ export default async function LeadersPage() {
         <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {leaders.map((l) => (
             <li key={l.id} className="flex gap-3 rounded-xl border border-space-700/70 bg-space-900/60 p-3">
-              <Link href={`/cards/${encodeURIComponent(l.id)}`} className="w-24 shrink-0 sm:w-28">
-                <CardImage src={l.imageUrl} alt={l.name} sizes="112px" />
-              </Link>
+              <div className="w-24 shrink-0 sm:w-28">
+                <CardFaces front={l.imageUrl} back={l.backImageUrl} name={l.name} backName={l.backName} layout="flip" sizes="112px" />
+              </div>
               <div className="flex min-w-0 flex-1 flex-col gap-2">
                 <div className="min-w-0">
                   <Link href={`/cards/${encodeURIComponent(l.id)}`} className="block truncate font-medium text-space-50 hover:text-ki-300">
