@@ -36,7 +36,13 @@ async function get<T>(path: string, params: Record<string, string | number | boo
   const res = await fetch(url, { headers: { authorization: `Bearer ${process.env.CARDTRADER_API_TOKEN}`, accept: "application/json" } });
   if (res.status === 429) throw new Error("CardTrader rate limit hit — slow down.");
   if (!res.ok) throw new Error(`CardTrader ${path}: ${res.status} ${res.statusText}`);
-  return (await res.json()) as T;
+  const json = (await res.json()) as unknown;
+  // List endpoints (/games, /expansions, /blueprints/export, /shipping_methods)
+  // come back as {"array": [...]}, which the reference docs don't mention.
+  if (json && typeof json === "object" && !Array.isArray(json) && Array.isArray((json as { array?: unknown }).array)) {
+    return (json as { array: T }).array;
+  }
+  return json as T;
 }
 
 // ── shapes (subset of the documented objects) ──────────────────────────────
