@@ -33,3 +33,6 @@ yarn-error.log*
 # local data caches (catalog dumps, scan temp)
 /.cache/
 /tmp/
+
+.vercel
+.env*
