@@ -102,5 +102,31 @@ assert.equal(prices.get("BT18-020")?.foilCents, 40, "newest snapshot wins");
 assert.equal(priceForFinish(prices.get("BT18-020"), "normal"), 40, "falls back to foil when that's the only print");
 assert.equal(priceForFinish(prices.get("BT18-020_SPR"), "foil"), 199);
 
+// Scan batches: photo bytes round-trip, completing writes lots and drops the photo.
+{
+  const { completeBatch, createBatch, getBatch, listOpenBatches, photoBytes, replaceItems, storePhoto, updateItem } = await import("../src/lib/scan/batches.ts");
+  const batchId = await createBatch(db, "batch");
+  const photoId = await storePhoto(db, batchId, 0, Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]), 100, 140);
+  assert.deepEqual([...(await photoBytes(db, photoId))!.data], [0xff, 0xd8, 0xff, 0xe0, 1, 2, 3], "bytea round-trips");
+  const cand = { id: "BT18-020", name: "Omega Shenron", setCode: "BT18", imageUrl: null, cardType: "BATTLE", colors: ["Red"], rarityCode: "C", prints: [{ id: "BT18-020", label: "Standard" }, { id: "BT18-020_SPR", label: "Special Rare" }] };
+  const det = (i: number, list: typeof cand[], conf: number) => ({ index: i, seen: { name: "x", number: null, confidence: 0.9, position: "a", box: null, notes: null }, candidates: list, exact: list.length > 0, matchedBy: list.length ? ("number" as const) : null, matchConfidence: conf });
+  const items = await replaceItems(db, batchId, photoId, [det(0, [cand], 0.95), det(1, [], 0)]);
+  assert.equal(items.length, 2);
+  assert.equal(items[0].printId, "BT18-020", "best candidate's standard print is preselected");
+  assert.equal(items[1].include, false, "unmatched rows start excluded");
+  const [summary] = await listOpenBatches(db);
+  assert.deepEqual({ photos: summary.photos, items: summary.items, needsReview: summary.needsReview, ready: summary.ready }, { photos: 1, items: 2, needsReview: 1, ready: 1 });
+  await updateItem(db, items[0].id, { printId: "BT18-020_SPR", quantity: 2, finish: "foil" });
+  await updateItem(db, items[1].id, { chosen: cand, manual: true, printId: "BT18-020", include: true });
+  const before = (await db.select().from(schema.ownedCards)).length;
+  const { added } = await completeBatch(db, batchId);
+  assert.equal(added, 3, "2 foil SPR + 1 standard");
+  const lots = (await db.select().from(schema.ownedCards)).slice(before);
+  assert.deepEqual(lots.map((l) => [l.printId, l.quantity, l.finish]).sort(), [["BT18-020", 1, "normal"], ["BT18-020_SPR", 2, "foil"]]);
+  assert.equal(await photoBytes(db, photoId), null, "photo bytes are dropped on completion");
+  assert.equal((await getBatch(db, batchId))!.items.length, 0, "items are dropped on completion");
+  assert.equal((await listOpenBatches(db)).length, 0, "completed batch is no longer open");
+}
+
 await client.close();
 console.log("verify-db: all checks passed");

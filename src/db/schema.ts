@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   boolean,
+  customType,
   date,
   index,
   integer,
@@ -342,6 +343,81 @@ export const ctListings = pgTable(
     fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("ct_listings_card_idx").on(t.cardId), index("ct_listings_blueprint_idx").on(t.blueprintId)],
+);
+
+/*
+ * ──────────────────────────────────────────────────────────────────────────
+ *  Scan batches — a scan started on the phone can be finished on the PC.
+ *  Photos are kept (downscaled, exactly what Claude saw) only while the batch
+ *  is open; completing or discarding it deletes them.
+ * ──────────────────────────────────────────────────────────────────────────
+ */
+
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({
+  dataType() {
+    return "bytea";
+  },
+});
+
+export const scanBatches = pgTable("scan_batches", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  /** single | batch — default for photos added to this batch. */
+  mode: text("mode").notNull().default("single"),
+  /** open | done */
+  status: text("status").notNull().default("open"),
+  addedCount: integer("added_count"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+});
+
+export const scanPhotos = pgTable(
+  "scan_photos",
+  {
+    id: serial("id").primaryKey(),
+    batchId: integer("batch_id")
+      .notNull()
+      .references(() => scanBatches.id, { onDelete: "cascade" }),
+    position: integer("position").notNull().default(0),
+    /** Downscaled JPEG; null once the batch is finished. */
+    data: bytea("data"),
+    width: integer("width").notNull().default(0),
+    height: integer("height").notNull().default(0),
+    /** reading | done | error */
+    status: text("status").notNull().default("reading"),
+    error: text("error"),
+    found: integer("found"),
+    unreadable: integer("unreadable"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("scan_photos_batch_idx").on(t.batchId)],
+);
+
+export const scanItems = pgTable(
+  "scan_items",
+  {
+    id: serial("id").primaryKey(),
+    batchId: integer("batch_id")
+      .notNull()
+      .references(() => scanBatches.id, { onDelete: "cascade" }),
+    photoId: integer("photo_id")
+      .notNull()
+      .references(() => scanPhotos.id, { onDelete: "cascade" }),
+    idx: integer("idx").notNull().default(0),
+    /** The ScanDetection as returned by identifyCards. */
+    detection: jsonb("detection").notNull(),
+    /** The ScanCandidate the user (or the scanner) settled on. */
+    chosen: jsonb("chosen"),
+    manual: boolean("manual").notNull().default(false),
+    printId: text("print_id").references(() => cardPrints.id, { onDelete: "set null" }),
+    quantity: integer("quantity").notNull().default(1),
+    condition: text("condition").notNull().default("NM"),
+    finish: text("finish").notNull().default("normal"),
+    include: boolean("include").notNull().default(true),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("scan_items_batch_idx").on(t.batchId), index("scan_items_photo_idx").on(t.photoId)],
 );
 
 /** Every Claude call, kept so results can be re-shown without re-paying for them. */

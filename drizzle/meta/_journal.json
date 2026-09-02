@@ -15,6 +15,13 @@
       "when": 1788341729716,
       "tag": "0001_great_preak",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788361361851,
+      "tag": "0002_cynical_husk",
+      "breakpoints": true
     }
   ]
 }

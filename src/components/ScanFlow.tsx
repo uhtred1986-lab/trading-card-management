@@ -2,18 +2,21 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
-import { addLots, printsForCardAction, type LotInput } from "@/app/collection/actions";
+import { completeBatchAction, createBatchAction, deleteBatchAction, updateScanItemAction } from "@/app/add/scan/actions";
+import { printsForCardAction } from "@/app/collection/actions";
 import type { ScanCandidate, ScanDetection } from "@/lib/ai/scan";
 import { REVIEW_THRESHOLD, type Box } from "@/lib/ai/scan-match";
 import { CONDITIONS } from "@/lib/collection/queries";
+import type { ItemPatch, ScanItemRow, ScanMode, ScanPhotoMeta } from "@/lib/scan/batches";
 import { downscaleImage } from "@/lib/scan/downscale";
 import { CardImage } from "./CardImage";
 import { CardSearchInput, type CardHit } from "./CardSearchInput";
 
 interface Photo {
+  /** Server photo id, or a negative temporary key until the upload returns. */
   key: number;
-  file: File;
-  /** Object URL of the downscaled image — exactly what Claude saw, so boxes line up. */
+  file?: File;
+  /** Server photo URL, or an object URL of the local file while uploading. */
   url: string;
   width: number;
   height: number;
@@ -24,6 +27,7 @@ interface Photo {
 }
 
 interface Row {
+  /** Server item id. */
   key: number;
   photoKey: number;
   detection: ScanDetection;
@@ -39,27 +43,62 @@ interface Row {
   include: boolean;
 }
 
-let nextKey = 1;
+let tempKey = -1;
 const PARALLEL = 3;
+const photoUrl = (id: number) => `/api/scan/photo/${id}`;
 
 const needsReview = (r: Row) => !r.chosen || (!r.manual && r.detection.matchConfidence < REVIEW_THRESHOLD);
 
+function fromItem(i: ScanItemRow): Row {
+  return {
+    key: i.id,
+    photoKey: i.photoId,
+    detection: i.detection,
+    chosen: i.chosen,
+    manual: i.manual,
+    searching: false,
+    printId: i.printId,
+    quantity: i.quantity,
+    condition: i.condition,
+    finish: i.finish,
+    include: i.include,
+  };
+}
+
+function fromPhoto(p: ScanPhotoMeta): Photo {
+  return { key: p.id, url: photoUrl(p.id), width: p.width, height: p.height, status: p.status, error: p.error ?? undefined, found: p.found ?? undefined, unreadable: p.unreadable ?? undefined };
+}
+
 /**
  * Photos → identify (one request per photo, up to three in flight) → review →
- * confirm. Each row shows the crop from the photo beside the catalog art and
- * a match confidence so low ones can be filtered; unmatched rows open a
- * search pre-filled with what Claude read. Photos are never stored: on
- * confirm, only catalog references go into the collection.
+ * confirm. Everything is persisted in a scan batch as it happens — the photo
+ * (downscaled, exactly what Claude saw), the detections and every review
+ * edit — so a batch started on the phone can be finished on the PC. Photos
+ * are deleted when the batch is confirmed or discarded.
  */
-export function ScanFlow() {
-  const [mode, setMode] = useState<"single" | "batch">("single");
+export function ScanFlow({
+  batchId: initialBatchId,
+  batchName,
+  mode: initialMode,
+  photos: initialPhotos,
+  items: initialItems,
+}: {
+  batchId: number | null;
+  batchName: string | null;
+  mode: ScanMode;
+  photos: ScanPhotoMeta[];
+  items: ScanItemRow[];
+}) {
+  const [batchId, setBatchId] = useState<number | null>(initialBatchId);
+  const batchRef = useRef<number | null>(initialBatchId);
+  const [mode, setMode] = useState<ScanMode>(initialMode);
   // Read by scan workers that outlive the render they were started in.
   const modeRef = useRef(mode);
   useEffect(() => {
     modeRef.current = mode;
   }, [mode]);
-  const [photos, setPhotos] = useState<Photo[]>([]);
-  const [rows, setRows] = useState<Row[]>([]);
+  const [photos, setPhotos] = useState<Photo[]>(() => initialPhotos.map(fromPhoto));
+  const [rows, setRows] = useState<Row[]>(() => initialItems.map(fromItem));
   const [showPhoto, setShowPhoto] = useState<number | null>(null);
   const [expanded, setExpanded] = useState<number | null>(null);
   const [filter, setFilter] = useState<"all" | "review">("all");
@@ -68,49 +107,65 @@ export function ScanFlow() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const patchPhoto = (key: number, patch: Partial<Photo>) => setPhotos((ps) => ps.map((p) => (p.key === key ? { ...p, ...patch } : p)));
-  const patchRow = (key: number, patch: Partial<Row>) => setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
 
-  const toRow = (photoKey: number, d: ScanDetection): Row => {
-    const best = d.candidates[0] ?? null;
-    return {
-      key: nextKey++,
-      photoKey,
-      detection: d,
-      chosen: best,
-      manual: false,
-      searching: false,
-      printId: best?.prints[0]?.id ?? null,
-      quantity: 1,
-      condition: "NM",
-      finish: "normal",
-      include: !!best,
-    };
+  /** Local update + persist the fields the server keeps. */
+  const patchRow = (key: number, patch: Partial<Row>) => {
+    setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
+    const persisted: ItemPatch = {};
+    for (const k of ["chosen", "manual", "printId", "quantity", "condition", "finish", "include"] as const) {
+      if (k in patch) (persisted as Record<string, unknown>)[k] = patch[k];
+    }
+    if (Object.keys(persisted).length) void updateScanItemAction(key, persisted);
+  };
+
+  const ensureBatch = async (): Promise<number> => {
+    if (batchRef.current) return batchRef.current;
+    const id = await createBatchAction(modeRef.current);
+    batchRef.current = id;
+    setBatchId(id);
+    window.history.replaceState(null, "", `/add/scan?batch=${id}`);
+    return id;
   };
 
   const scanPhoto = async (p: Photo) => {
     patchPhoto(p.key, { status: "reading", error: undefined });
     setRows((rs) => rs.filter((r) => r.photoKey !== p.key));
+    let key = p.key;
     try {
-      const { blob, width, height } = await downscaleImage(p.file);
-      const url = URL.createObjectURL(blob);
-      setPhotos((ps) =>
-        ps.map((q) => {
-          if (q.key !== p.key) return q;
-          if (q.url !== url) URL.revokeObjectURL(q.url);
-          return { ...q, url, width, height };
-        }),
-      );
+      const id = await ensureBatch();
       const fd = new FormData();
-      fd.append("image", blob, "photo.jpg");
       fd.append("mode", modeRef.current);
+      if (key > 0) {
+        fd.append("photoId", String(key));
+      } else {
+        if (!p.file) throw new Error("Photo is no longer available on this device.");
+        const { blob, width, height } = await downscaleImage(p.file);
+        const url = URL.createObjectURL(blob);
+        setPhotos((ps) => ps.map((q) => (q.key === key ? (q.url !== url && URL.revokeObjectURL(q.url), { ...q, url, width, height }) : q)));
+        fd.append("image", blob, "photo.jpg");
+        fd.append("batchId", String(id));
+        fd.append("position", String(photos.length));
+      }
       const res = await fetch("/api/scan", { method: "POST", body: fd });
-      const json = (await res.json()) as { detections?: ScanDetection[]; unreadable?: number; error?: string };
-      if (!res.ok || !json.detections) throw new Error(json.error ?? `Scan failed (${res.status})`);
-      const fresh = json.detections.map((d) => toRow(p.key, d));
-      setRows((rs) => [...rs, ...fresh]);
-      patchPhoto(p.key, { status: "done", found: fresh.length, unreadable: json.unreadable ?? 0 });
+      const json = (await res.json()) as { photoId?: number; width?: number; height?: number; items?: ScanItemRow[]; unreadable?: number; error?: string };
+      if (json.photoId && json.photoId !== key) {
+        // Swap the temporary key for the server id; from now on the photo is served from the batch.
+        const serverKey = json.photoId;
+        setPhotos((ps) =>
+          ps.map((q) => {
+            if (q.key !== key) return q;
+            URL.revokeObjectURL(q.url);
+            return { ...q, key: serverKey, file: undefined, url: photoUrl(serverKey), width: json.width ?? q.width, height: json.height ?? q.height };
+          }),
+        );
+        key = serverKey;
+      }
+      if (!res.ok || !json.items) throw new Error(json.error ?? `Scan failed (${res.status})`);
+      const fresh = json.items.map(fromItem);
+      setRows((rs) => [...rs.filter((r) => r.photoKey !== key), ...fresh]);
+      patchPhoto(key, { status: "done", found: fresh.length, unreadable: json.unreadable ?? 0 });
     } catch (err) {
-      patchPhoto(p.key, { status: "error", error: err instanceof Error ? err.message : String(err) });
+      patchPhoto(key, { status: "error", error: err instanceof Error ? err.message : String(err) });
     }
   };
 
@@ -119,8 +174,9 @@ export function ScanFlow() {
     if (fileRef.current) fileRef.current.value = "";
     if (files.length === 0) return;
     setDone(null);
-    const created: Photo[] = files.map((file) => ({ key: nextKey++, file, url: URL.createObjectURL(file), width: 0, height: 0, status: "queued" }));
+    const created: Photo[] = files.map((file) => ({ key: tempKey--, file, url: URL.createObjectURL(file), width: 0, height: 0, status: "queued" }));
     setPhotos((ps) => [...ps, ...created]);
+    await ensureBatch();
     const queue = [...created];
     const worker = async () => {
       for (let p = queue.shift(); p; p = queue.shift()) await scanPhoto(p);
@@ -139,21 +195,29 @@ export function ScanFlow() {
   };
 
   const reset = () => {
-    for (const p of photos) URL.revokeObjectURL(p.url);
+    for (const p of photos) if (p.key < 0) URL.revokeObjectURL(p.url);
     setPhotos([]);
     setRows([]);
     setExpanded(null);
     setShowPhoto(null);
     setFilter("all");
+    batchRef.current = null;
+    setBatchId(null);
+    window.history.replaceState(null, "", "/add/scan");
   };
 
   const confirm = () =>
     start(async () => {
-      const inputs: LotInput[] = rows
-        .filter((r) => r.include && r.printId)
-        .map((r) => ({ printId: r.printId!, quantity: r.quantity, condition: r.condition, finish: r.finish }));
-      const { added } = await addLots(inputs);
+      if (!batchRef.current) return;
+      const { added } = await completeBatchAction(batchRef.current);
       setDone(added);
+      reset();
+    });
+
+  const discard = () =>
+    start(async () => {
+      if (batchRef.current && !window.confirm("Discard this batch and its photos?")) return;
+      if (batchRef.current) await deleteBatchAction(batchRef.current);
       reset();
     });
 
@@ -180,7 +244,14 @@ export function ScanFlow() {
           <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => onFiles(e.target.files)} />
         </label>
         <p className="w-full text-xs text-space-300">
-          Select as many photos as you like — each is read separately. {mode === "single" ? "Fill the frame with one card, number readable in the bottom corner." : "Lay cards out flat with no overlap; a binder page works well."} Nothing is saved until you confirm.
+          Select as many photos as you like — each is read separately. {mode === "single" ? "Fill the frame with one card, number readable in the bottom corner." : "Lay cards out flat with no overlap; a binder page works well."}{" "}
+          {batchId ? (
+            <>
+              Progress is saved in <span className="text-space-100">{batchName ?? `batch #${batchId}`}</span> — open <span className="font-mono text-space-100">/add/scan</span> on another device to continue there. Photos are deleted once you confirm or discard.
+            </>
+          ) : (
+            "Photos and your review are saved as a batch, so you can upload from the phone and finish on the PC."
+          )}
         </p>
       </div>
 
@@ -203,7 +274,7 @@ export function ScanFlow() {
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={p.url} alt={`Photo ${i + 1}`} className={`h-full w-full object-cover ${p.status === "done" || p.status === "error" ? "" : "opacity-50"}`} />
                 <span className={`absolute inset-x-0 bottom-0 truncate bg-space-950/80 px-1 text-center text-[10px] ${p.status === "error" ? "text-loss" : "text-space-100"}`}>
-                  {p.status === "queued" ? "waiting" : p.status === "reading" ? "reading…" : p.status === "error" ? "failed" : `${p.found} card${p.found === 1 ? "" : "s"}`}
+                  {p.status === "queued" ? "waiting" : p.status === "reading" ? "reading…" : p.status === "error" ? "failed" : `${p.found ?? 0} card${p.found === 1 ? "" : "s"}`}
                 </span>
               </button>
             ))}
@@ -211,7 +282,7 @@ export function ScanFlow() {
           {shown ? (
             <div className="space-y-1 rounded-xl border border-space-700/70 bg-space-900/50 p-2">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={shown.url} alt="Your photo (not stored)" className="max-h-96 w-full rounded-lg object-contain" />
+              <img src={shown.url} alt="Your photo" className="max-h-96 w-full rounded-lg object-contain" />
               {shown.status === "error" ? (
                 <div className="flex items-center gap-2 text-sm text-loss">
                   <span className="min-w-0 flex-1">{shown.error}</span>
@@ -242,9 +313,14 @@ export function ScanFlow() {
               {busy ? "Reading photos… " : ""}
               {rows.length - reviewCount} confident · {reviewCount - unmatched} unsure · {unmatched} unmatched
             </span>
-            <button onClick={confirm} disabled={pending || busy || ready.length === 0} className="tap ml-auto rounded-md bg-ki-500 px-4 py-1.5 text-sm font-semibold text-space-950 hover:bg-ki-400 disabled:opacity-50">
-              {pending ? "Saving…" : `Add ${ready.reduce((n, r) => n + r.quantity, 0)} to collection`}
-            </button>
+            <span className="ml-auto flex gap-2">
+              <button onClick={discard} disabled={pending || busy} className="tap rounded-md border border-space-600 px-3 py-1.5 text-sm text-space-300 hover:bg-space-800 hover:text-loss disabled:opacity-50">
+                Discard
+              </button>
+              <button onClick={confirm} disabled={pending || busy || ready.length === 0} className="tap rounded-md bg-ki-500 px-4 py-1.5 text-sm font-semibold text-space-950 hover:bg-ki-400 disabled:opacity-50">
+                {pending ? "Saving…" : `Add ${ready.reduce((n, r) => n + r.quantity, 0)} to collection`}
+              </button>
+            </span>
           </div>
 
           {rows.length > 0 && visible.length === 0 ? <p className="text-sm text-space-300">Nothing left to review.</p> : null}

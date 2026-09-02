@@ -73,6 +73,12 @@ the same style.
   deterministic optimiser's output — it never does the arithmetic). The wizard's candidate pool is
   scoped to the leader's colours and capped at 450 cards; default scope is "any legal card" with an
   owned-only toggle (owner's decision).
+- **Scan batches** (`src/lib/scan/batches.ts`, tables `scan_batches`/`scan_photos`/`scan_items`): a
+  scan is persisted as it happens — the downscaled photo bytes (`bytea`, exactly what Claude saw so
+  crops line up), each detection, and every review edit — so a batch uploaded from the phone can be
+  finished on the PC (`/add/scan` lists open batches; `/add/scan?batch=ID` resumes one). `POST /api/scan`
+  stores the photo *before* identifying so a retry never needs the phone again; `GET /api/scan/photo/[id]`
+  serves it. Completing a batch writes the lots and nulls the photo bytes; discarding deletes everything.
 - **Leaders → "Build a deck with Claude"** (`/leaders`, `src/lib/ai/deck-builder.ts`): every owned
   LEADER card with its decks (built/virtual). The draft prompt gets two pools — owned on-colour
   cards with quantities (preferred) and a capped pool of legal cards to buy — and the answer is

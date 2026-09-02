@@ -71,13 +71,31 @@ export interface ScanDetection {
   matchConfidence: number;
 }
 
-export async function prepareImage(buf: Buffer): Promise<{ data: string; mediaType: "image/jpeg" }> {
-  const out = await sharp(buf).rotate().resize({ width: MAX_EDGE, height: MAX_EDGE, fit: "inside", withoutEnlargement: true }).jpeg({ quality: 85 }).toBuffer();
-  return { data: out.toString("base64"), mediaType: "image/jpeg" };
+export interface PreparedImage {
+  data: string;
+  mediaType: "image/jpeg";
+  /** The exact bytes sent to the model — stored with a scan batch so crops line up. */
+  buffer: Buffer;
+  width: number;
+  height: number;
 }
 
-export async function identifyCards(db: Db, image: Buffer, mode: "single" | "batch"): Promise<{ runId: number; result: ScanResult; detections: ScanDetection[] }> {
-  const { data, mediaType } = await prepareImage(image);
+export async function prepareImage(buf: Buffer): Promise<PreparedImage> {
+  const { data: out, info } = await sharp(buf)
+    .rotate()
+    .resize({ width: MAX_EDGE, height: MAX_EDGE, fit: "inside", withoutEnlargement: true })
+    .jpeg({ quality: 85 })
+    .toBuffer({ resolveWithObject: true });
+  return { data: out.toString("base64"), mediaType: "image/jpeg", buffer: out, width: info.width, height: info.height };
+}
+
+export async function identifyCards(
+  db: Db,
+  image: Buffer | PreparedImage,
+  mode: "single" | "batch",
+): Promise<{ runId: number; result: ScanResult; detections: ScanDetection[]; prepared: PreparedImage }> {
+  const prepared = Buffer.isBuffer(image) ? await prepareImage(image) : image;
+  const { data, mediaType } = prepared;
   const instruction =
     mode === "single"
       ? "This photo shows one Dragon Ball Super Card Game card. Identify it: read the card number printed in the bottom corner and the name."
@@ -106,7 +124,7 @@ export async function identifyCards(db: Db, image: Buffer, mode: "single" | "bat
     const { matchedBy, confidence } = assessMatch(seen, list[0] ?? null, exact);
     detections.push({ index, seen, candidates: list, exact, matchedBy, matchConfidence: confidence });
   }
-  return { runId: id, result: output, detections };
+  return { runId: id, result: output, detections, prepared };
 }
 
 async function matchDetection(db: Db, seen: { name: string; number: string | null }): Promise<{ list: ScanCandidate[]; exact: boolean }> {
