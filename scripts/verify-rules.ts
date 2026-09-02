@@ -9,6 +9,7 @@ import { formatCents, parseEuroInput } from "../src/lib/money";
 import { markerOf, matchProduct } from "../src/lib/pricing/tcgcsv";
 import { greedyOptimise, type Listing } from "../src/lib/marketplace/optimizer";
 import { collectorNumbers } from "../src/lib/marketplace/cardtrader";
+import { sanitiseDraft, type PoolCard } from "../src/lib/ai/deck-builder";
 
 // ── catalog shaping ────────────────────────────────────────────────────────
 assert.equal(baseNumber("BT18-020_SPR"), "BT18-020");
@@ -125,6 +126,51 @@ assert.deepEqual(collectorNumbers(bp("003"), "sd3"), ["SD3-003", "SD3-03"]);
 assert.deepEqual(collectorNumbers(bp("094"), "tb01"), ["TB01-094", "TB01-94", "TB1-094", "TB1-94"]);
 assert.deepEqual(collectorNumbers(bp("16"), "ex01"), ["EX01-16", "EX1-16"]);
 assert.deepEqual(collectorNumbers(bp(null), "bt3"), []);
+// ── Claude deck drafts are sanitised, never trusted ───────────────────────
+const poolCard = (id: string, owned: number, extra: Partial<PoolCard> = {}): PoolCard => ({
+  id,
+  name: id,
+  cardType: "BATTLE",
+  colors: ["Yellow"],
+  energyCost: "3",
+  power: 10000,
+  skill: null,
+  traits: [],
+  rarityCode: "C",
+  limitedTo: 4,
+  owned,
+  ...extra,
+});
+const pool = new Map([
+  ["BT31-059", poolCard("BT31-059", 3)],
+  ["BT31-060", poolCard("BT31-060", 0)],
+  ["BT31-061", poolCard("BT31-061", 4, { limitedTo: 1 })],
+  ["BT31-090", poolCard("BT31-090", 0, { cardType: "Z-BATTLE" })],
+]);
+const draft = sanitiseDraft(
+  {
+    name: "x",
+    strategy: "y",
+    main: [
+      { cardId: "bt31-059_spr", quantity: 4 }, // case + print suffix normalised
+      { cardId: "BT31-060", quantity: 2 },
+      { cardId: "BT31-061", quantity: 4 }, // limited to 1
+      { cardId: "BT31-090", quantity: 2 }, // Z card in main → dropped
+      { cardId: "BT99-999", quantity: 4 }, // not in pool → dropped
+    ],
+    zDeck: [{ cardId: "BT31-090", quantity: 2 }],
+    purchases: [],
+  },
+  pool,
+);
+assert.deepEqual(draft.main, [
+  { cardId: "BT31-059", quantity: 4, owned: 3, needToBuy: 1 },
+  { cardId: "BT31-060", quantity: 2, owned: 0, needToBuy: 2 },
+  { cardId: "BT31-061", quantity: 1, owned: 4, needToBuy: 0 },
+]);
+assert.deepEqual(draft.z, [{ cardId: "BT31-090", quantity: 2, owned: 0, needToBuy: 2 }]);
+assert.deepEqual(draft.dropped, ["BT31-090", "BT99-999"]);
+assert.equal(draft.mainCount, 7);
 
 // ── cart optimiser ─────────────────────────────────────────────────────────
 const L = (seller: string, card: string, price: number, qty = 4, shipping = 300): Listing => ({

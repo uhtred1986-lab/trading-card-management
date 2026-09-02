@@ -71,6 +71,14 @@ the same style.
   deterministic optimiser's output — it never does the arithmetic). The wizard's candidate pool is
   scoped to the leader's colours and capped at 450 cards; default scope is "any legal card" with an
   owned-only toggle (owner's decision).
+- **Leaders → "Build a deck with Claude"** (`/leaders`, `src/lib/ai/deck-builder.ts`): every owned
+  LEADER card with its decks (built/virtual). The draft prompt gets two pools — owned on-colour
+  cards with quantities (preferred) and a capped pool of legal cards to buy — and the answer is
+  run through `sanitiseDraft` (pool membership, copy limits, Z-zone) before it becomes a *virtual*
+  deck whose description carries the shopping list. Owned/buy flags come from the collection, not
+  the model. ~130 s and ~$0.40 per draft.
+- **Binding arrays in raw SQL:** use `textArray()` from `src/db/sqlx.ts` — `${arr}::text[]` fails
+  under postgres.js with a `transformTypeCast` error.
 - **Optimiser** (`src/lib/marketplace/optimizer.ts`) is deterministic: greedy + exhaustive 1/2/3-seller
   subsets + removal local search, shipping counted once per seller.
 

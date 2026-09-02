@@ -8,6 +8,7 @@ import { and, asc, eq, inArray, ne, notInArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "@/db";
 import { cardSets, cards, decks, ownedCards } from "@/db/schema";
+import { textArray } from "@/db/sqlx";
 import { deckToText, getDeck, type DeckCardRow } from "@/lib/decks/queries";
 import { MODEL, anthropic, recordRun } from "./client";
 
@@ -127,7 +128,7 @@ async function candidatePool(db: Db, deck: NonNullable<Awaited<ReturnType<typeof
   const colours = leader ? [...leader.colors, "Colorless"] : null;
   const inDeck = deck.cards.map((c) => c.cardId);
   const base = [eq(cards.isBanned, false), ne(cards.cardType, "TOKEN"), inDeck.length ? notInArray(cards.id, inDeck) : undefined];
-  if (colours) base.push(sql`${cards.colors} <@ ${colours}::text[]`);
+  if (colours) base.push(sql`${cards.colors} <@ ${textArray(colours)}`);
 
   const select = {
     id: cards.id,
