@@ -114,10 +114,25 @@ export interface CtSyncSummary {
   unmatched: number;
 }
 
-function collectorNumber(bp: CtBlueprint): string | null {
+/**
+ * Printed number from the blueprint. Newer expansions carry "BT14-113"; older
+ * ones only "049", so the expansion code ("bt3") supplies the prefix.
+ */
+export function collectorNumbers(bp: CtBlueprint, expansionCode: string | null): string[] {
   const fp = bp.fixed_properties ?? {};
   const v = fp.collector_number ?? fp.dbs_number ?? fp.number ?? null;
-  return v == null ? null : String(v).trim().toUpperCase();
+  if (v == null) return [];
+  const s = String(v).trim().toUpperCase();
+  if (!s) return [];
+  if (s.includes("-") || s.startsWith("T_")) return [s];
+  const raw = (expansionCode ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (!raw) return [s];
+  // "TB01" → "TB1" (catalog drops the zero) but "EX01" keeps it; offer both.
+  const m = /^([A-Z]+)0*(\d+)$/.exec(raw);
+  const codes = m ? [...new Set([raw, `${m[1]}${m[2]}`])] : [raw];
+  // Boosters print three digits ("BT3-049"); starter/expert decks two ("SD3-03").
+  const nums = [...new Set([s, s.replace(/^0(\d\d)$/, "$1")])];
+  return codes.flatMap((c) => nums.map((n) => `${c}-${n}`));
 }
 
 /**
@@ -161,8 +176,11 @@ export async function syncCardTraderCatalog(db: Db): Promise<CtSyncSummary> {
         matchedBy = "tcgplayer";
         byTcgN++;
       } else {
-        const num = collectorNumber(bp);
-        const print = num ? (printById.get(num) ?? printById.get(baseNumber(num).toUpperCase())) : undefined;
+        let print: { id: string; cardId: string } | undefined;
+        for (const num of collectorNumbers(bp, e.code)) {
+          print = printById.get(num) ?? printById.get(baseNumber(num).toUpperCase());
+          if (print) break;
+        }
         if (print) {
           cardId = print.cardId;
           printId = print.id;

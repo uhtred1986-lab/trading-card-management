@@ -8,6 +8,7 @@ import { legality, parseDeckList, type DeckCardRow } from "../src/lib/decks/quer
 import { formatCents, parseEuroInput } from "../src/lib/money";
 import { markerOf, matchProduct } from "../src/lib/pricing/tcgcsv";
 import { greedyOptimise, type Listing } from "../src/lib/marketplace/optimizer";
+import { collectorNumbers } from "../src/lib/marketplace/cardtrader";
 
 // ── catalog shaping ────────────────────────────────────────────────────────
 assert.equal(baseNumber("BT18-020_SPR"), "BT18-020");
@@ -115,6 +116,15 @@ const illegal = legality([row("M1", "main", 5), row("B", "main", 1, { isBanned: 
 assert.ok(illegal.issues.some((i) => /No leader/.test(i)));
 assert.ok(illegal.issues.some((i) => /5 copies, limit 4/.test(i)));
 assert.ok(illegal.issues.some((i) => /banned/.test(i)));
+
+// ── CardTrader collector numbers ──────────────────────────────────────────
+const bp = (n: string | null) => ({ id: 1, name: "x", game_id: 9, expansion_id: 1, fixed_properties: n == null ? {} : { collector_number: n } });
+assert.deepEqual(collectorNumbers(bp("BT14-113"), "bt14"), ["BT14-113"]);
+assert.deepEqual(collectorNumbers(bp("049"), "bt3"), ["BT3-049", "BT3-49"]);
+assert.deepEqual(collectorNumbers(bp("003"), "sd3"), ["SD3-003", "SD3-03"]);
+assert.deepEqual(collectorNumbers(bp("094"), "tb01"), ["TB01-094", "TB01-94", "TB1-094", "TB1-94"]);
+assert.deepEqual(collectorNumbers(bp("16"), "ex01"), ["EX01-16", "EX1-16"]);
+assert.deepEqual(collectorNumbers(bp(null), "bt3"), []);
 
 // ── cart optimiser ─────────────────────────────────────────────────────────
 const L = (seller: string, card: string, price: number, qty = 4, shipping = 300): Listing => ({
