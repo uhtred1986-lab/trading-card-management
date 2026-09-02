@@ -13,8 +13,12 @@ card scanning, TCGplayer pricing, and a read-only CardTrader integration with a 
 Owner is in Austria: the display currency is EUR; TCGplayer prices are USD and converted at the
 ECB rate stored in `fx_rates`. Price paid is entered in EUR.
 
-**No authentication.** Deployed on Vercel behind deployment protection (same pattern as gullet-cove-dm).
-Sharing a preview link exposes the whole database.
+**Auth is HTTP Basic Auth in `src/proxy.ts`** (same pattern as gullet-cove-dm), active only when
+`BASIC_AUTH_USER` and `BASIC_AUTH_PASSWORD` are both set — they are set in Vercel for Production and
+Preview, and deliberately *not* in `.env.local`, so local dev runs open. `/api/sync/*` is exempt
+because the Vercel cron can't send credentials; it is guarded by `CRON_SECRET` instead. Vercel's
+own deployment protection is off (it is a paid feature on the Pro plan). Removing either variable
+exposes the whole database.
 
 ## Commands
 
