@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
+import { currentUser } from "@/lib/auth";
 import { completeBatch, createBatch, deleteBatch, updateItem, type ItemPatch, type ScanMode } from "@/lib/scan/batches";
 
 export async function createBatchAction(mode: ScanMode): Promise<number> {
@@ -17,7 +18,7 @@ export async function updateScanItemAction(id: number, patch: ItemPatch): Promis
 }
 
 export async function completeBatchAction(batchId: number): Promise<{ added: number }> {
-  const r = await completeBatch(db, batchId);
+  const r = await completeBatch(db, batchId, await currentUser());
   revalidatePath("/", "layout");
   return r;
 }

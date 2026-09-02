@@ -240,10 +240,12 @@ export const ownedCards = pgTable(
     pricePaidCents: integer("price_paid_cents"),
     currency: text("currency").notNull().default("EUR"),
     notes: text("notes"),
+    /** Basic Auth username that added the lot; null when the app runs open (local dev). */
+    owner: text("owner"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("owned_cards_card_idx").on(t.cardId), index("owned_cards_print_idx").on(t.printId)],
+  (t) => [index("owned_cards_card_idx").on(t.cardId), index("owned_cards_print_idx").on(t.printId), index("owned_cards_owner_idx").on(t.owner)],
 );
 
 /*

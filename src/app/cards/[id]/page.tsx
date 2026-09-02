@@ -166,6 +166,7 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
                   <span className="text-xs text-space-300">{l.finish === "foil" ? "Foil" : "Non-foil"} · {l.language}</span>
                   {l.pricePaidCents != null ? <span className="text-xs text-space-300">paid {formatCents(l.pricePaidCents, l.currency as "EUR" | "USD")} each</span> : null}
                   {l.acquiredOn ? <span className="text-xs text-space-300">{l.acquiredOn}</span> : null}
+                  {l.owner ? <span className="rounded bg-space-800 px-1.5 text-[10px] text-space-300">{l.owner}</span> : null}
                   {l.notes ? <span className="text-xs italic text-space-300">{l.notes}</span> : null}
                   <form action={deleteLotForm} className="ml-auto">
                     <input type="hidden" name="id" value={l.id} />

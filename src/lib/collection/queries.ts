@@ -22,6 +22,7 @@ export async function lotsForCard(db: Db, cardId: string) {
       pricePaidCents: ownedCards.pricePaidCents,
       currency: ownedCards.currency,
       notes: ownedCards.notes,
+      owner: ownedCards.owner,
     })
     .from(ownedCards)
     .innerJoin(cardPrints, eq(cardPrints.id, ownedCards.printId))

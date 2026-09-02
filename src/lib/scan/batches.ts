@@ -212,7 +212,7 @@ async function touch(db: Db, batchId: number): Promise<void> {
  * Write every included, linked item to the collection, then drop the photo
  * bytes and items. The batch row stays as a record of what was added.
  */
-export async function completeBatch(db: Db, batchId: number): Promise<{ added: number }> {
+export async function completeBatch(db: Db, batchId: number, owner: string | null = null): Promise<{ added: number }> {
   return db.transaction(async (tx) => {
     const items = await tx.select().from(scanItems).where(and(eq(scanItems.batchId, batchId), eq(scanItems.include, true)));
     const printIds = [...new Set(items.map((i) => i.printId).filter((p): p is string => !!p))];
@@ -220,7 +220,7 @@ export async function completeBatch(db: Db, batchId: number): Promise<{ added: n
     const cardOf = new Map(prints.map((p) => [p.id, p.cardId]));
     const lots = items
       .filter((i) => i.printId && cardOf.has(i.printId))
-      .map((i) => ({ printId: i.printId!, cardId: cardOf.get(i.printId!)!, quantity: i.quantity, condition: i.condition, finish: i.finish }));
+      .map((i) => ({ printId: i.printId!, cardId: cardOf.get(i.printId!)!, quantity: i.quantity, condition: i.condition, finish: i.finish, owner }));
     if (lots.length) await tx.insert(ownedCards).values(lots);
     const added = lots.reduce((n, l) => n + l.quantity, 0);
     await tx.delete(scanItems).where(eq(scanItems.batchId, batchId));

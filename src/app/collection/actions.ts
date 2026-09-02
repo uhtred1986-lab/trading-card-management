@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { cardPrints, ownedCards } from "@/db/schema";
+import { currentUser } from "@/lib/auth";
 import { CONDITIONS, FINISHES } from "@/lib/collection/queries";
 import { parseEuroInput } from "@/lib/money";
 
@@ -45,10 +46,10 @@ function revalidate(cardId: string) {
 }
 
 export async function addLot(input: LotInput): Promise<{ id: number; cardId: string }> {
-  const cardId = await cardIdForPrint(input.printId);
+  const [cardId, owner] = await Promise.all([cardIdForPrint(input.printId), currentUser()]);
   const [row] = await db
     .insert(ownedCards)
-    .values({ printId: input.printId, cardId, ...normalise(input) })
+    .values({ printId: input.printId, cardId, owner, ...normalise(input) })
     .returning({ id: ownedCards.id });
   revalidate(cardId);
   return { id: row.id, cardId };
@@ -58,12 +59,12 @@ export async function addLot(input: LotInput): Promise<{ id: number; cardId: str
 export async function addLots(inputs: LotInput[]): Promise<{ added: number }> {
   const clean = inputs.filter((i) => i.printId);
   if (clean.length === 0) return { added: 0 };
-  const cardIds = await Promise.all(clean.map((i) => cardIdForPrint(i.printId)));
+  const [cardIds, owner] = await Promise.all([Promise.all(clean.map((i) => cardIdForPrint(i.printId))), currentUser()]);
   await db.transaction(async (tx) => {
-    await tx.insert(ownedCards).values(clean.map((i, idx) => ({ printId: i.printId, cardId: cardIds[idx], ...normalise(i) })));
+    await tx.insert(ownedCards).values(clean.map((i, idx) => ({ printId: i.printId, cardId: cardIds[idx], owner, ...normalise(i) })));
   });
   for (const id of new Set(cardIds)) revalidate(id);
-  return { added: clean.length };
+  return { added: clean.reduce((n, i) => n + Math.max(1, Math.floor(Number(i.quantity) || 1)), 0) };
 }
 
 export async function updateLot(id: number, input: LotInput): Promise<void> {

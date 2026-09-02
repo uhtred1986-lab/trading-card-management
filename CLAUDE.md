@@ -74,6 +74,13 @@ the same style.
   deterministic optimiser's output — it never does the arithmetic). The wizard's candidate pool is
   scoped to the leader's colours and capped at 450 cards; default scope is "any legal card" with an
   owned-only toggle (owner's decision).
+- **Lot owner**: every `owned_cards` row records `owner` = the Basic Auth username
+  (`currentUser()` in `src/lib/auth.ts`, read from the `Authorization` header); null when the app
+  runs open locally. Every path that creates lots (card page, bulk entry, scan batches, quick
+  capture) stamps it — keep that true for new paths.
+- **Quick capture** (`/add/quick`, `POST /api/scan/quick`): phone loop — one photo → identified
+  immediately (nothing stored) → quantity with big ± buttons → `addLot` → the camera re-opens
+  (the `click()` happens inside the save handler so it counts as a user gesture).
 - **Scan batches** (`src/lib/scan/batches.ts`, tables `scan_batches`/`scan_photos`/`scan_items`): a
   scan is persisted as it happens — the downscaled photo bytes (`bytea`, exactly what Claude saw so
   crops line up), each detection, and every review edit — so a batch uploaded from the phone can be

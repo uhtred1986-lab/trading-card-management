@@ -8,6 +8,7 @@ import { legality, parseDeckList, type DeckCardRow } from "../src/lib/decks/quer
 import { formatCents, parseEuroInput } from "../src/lib/money";
 import { markerOf, matchProduct } from "../src/lib/pricing/tcgcsv";
 import { greedyOptimise, type Listing } from "../src/lib/marketplace/optimizer";
+import { parseBasicUser } from "../src/lib/auth";
 import { collectorNumbers } from "../src/lib/marketplace/cardtrader";
 import { sanitiseDraft, type PoolCard } from "../src/lib/ai/deck-builder";
 import { assessMatch, cleanBox, nameSimilarity, normaliseNumber } from "../src/lib/ai/scan-match";
@@ -196,6 +197,12 @@ assert.deepEqual(cleanBox({ x: 0.1, y: 0.2, w: 0.3, h: 0.4 }), { x: 0.1, y: 0.2,
 assert.deepEqual(cleanBox({ x: 0.9, y: 0.9, w: 0.5, h: 0.5 }), { x: 0.9, y: 0.9, w: 0.1, h: 0.1 }, "clamped to the image");
 assert.equal(cleanBox({ x: 0.5, y: 0.5, w: 0.001, h: 0.5 }), null, "degenerate boxes are dropped");
 assert.equal(cleanBox(null), null);
+
+// ── Basic Auth username → lot owner ───────────────────────────────────────
+assert.equal(parseBasicUser(`Basic ${Buffer.from("patvolny:Drag0nball!").toString("base64")}`), "patvolny");
+assert.equal(parseBasicUser(`Basic ${Buffer.from("a:b:c").toString("base64")}`), "a", "only the part before the first colon");
+assert.equal(parseBasicUser("Bearer xyz"), null);
+assert.equal(parseBasicUser(null), null);
 
 // ── cart optimiser ─────────────────────────────────────────────────────────
 const L = (seller: string, card: string, price: number, qty = 4, shipping = 300): Listing => ({
