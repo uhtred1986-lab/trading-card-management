@@ -1,0 +1,2 @@
+ALTER TABLE "scan_batches" ADD COLUMN "deck_id" integer;--> statement-breakpoint
+ALTER TABLE "scan_batches" ADD CONSTRAINT "scan_batches_deck_id_decks_id_fk" FOREIGN KEY ("deck_id") REFERENCES "public"."decks"("id") ON DELETE set null ON UPDATE no action;

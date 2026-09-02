@@ -6,8 +6,9 @@
  */
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import type { Db } from "@/db";
-import { cardPrints, ownedCards, scanBatches, scanItems, scanPhotos } from "@/db/schema";
+import { cardPrints, decks, ownedCards, scanBatches, scanItems, scanPhotos } from "@/db/schema";
 import type { ScanCandidate, ScanDetection } from "@/lib/ai/scan";
+import { addCardsToDeck } from "@/lib/decks/add";
 import { REVIEW_THRESHOLD } from "@/lib/ai/scan-match";
 
 export type ScanMode = "single" | "batch";
@@ -43,6 +44,8 @@ export interface ScanBatchSummary {
   id: number;
   name: string;
   mode: ScanMode;
+  deckId: number | null;
+  deckName: string | null;
   createdAt: Date;
   updatedAt: Date;
   photos: number;
@@ -60,13 +63,22 @@ function defaultName(now = new Date()): string {
   return `Scan ${now.toISOString().slice(0, 10)} ${now.toISOString().slice(11, 16)}`;
 }
 
-export async function createBatch(db: Db, mode: ScanMode): Promise<number> {
-  const [row] = await db.insert(scanBatches).values({ name: defaultName(), mode }).returning({ id: scanBatches.id });
+export async function createBatch(db: Db, mode: ScanMode, deckId: number | null = null): Promise<number> {
+  const [row] = await db.insert(scanBatches).values({ name: defaultName(), mode, deckId }).returning({ id: scanBatches.id });
   return row.id;
 }
 
+export async function setBatchDeck(db: Db, batchId: number, deckId: number | null): Promise<void> {
+  await db.update(scanBatches).set({ deckId, updatedAt: new Date() }).where(eq(scanBatches.id, batchId));
+}
+
 export async function listOpenBatches(db: Db): Promise<ScanBatchSummary[]> {
-  const batches = await db.select().from(scanBatches).where(eq(scanBatches.status, "open")).orderBy(desc(scanBatches.updatedAt));
+  const batches = await db
+    .select({ id: scanBatches.id, name: scanBatches.name, mode: scanBatches.mode, deckId: scanBatches.deckId, deckName: decks.name, createdAt: scanBatches.createdAt, updatedAt: scanBatches.updatedAt })
+    .from(scanBatches)
+    .leftJoin(decks, eq(decks.id, scanBatches.deckId))
+    .where(eq(scanBatches.status, "open"))
+    .orderBy(desc(scanBatches.updatedAt));
   if (batches.length === 0) return [];
   const ids = batches.map((b) => b.id);
   const [photoCounts, items] = await Promise.all([
@@ -87,6 +99,8 @@ export async function listOpenBatches(db: Db): Promise<ScanBatchSummary[]> {
       id: b.id,
       name: b.name,
       mode: b.mode as ScanMode,
+      deckId: b.deckId,
+      deckName: b.deckName,
       createdAt: b.createdAt,
       updatedAt: b.updatedAt,
       photos: photos.get(b.id) ?? 0,
@@ -97,7 +111,7 @@ export async function listOpenBatches(db: Db): Promise<ScanBatchSummary[]> {
   });
 }
 
-export async function getBatch(db: Db, id: number): Promise<{ batch: { id: number; name: string; mode: ScanMode; status: string }; photos: ScanPhotoMeta[]; items: ScanItemRow[] } | null> {
+export async function getBatch(db: Db, id: number): Promise<{ batch: { id: number; name: string; mode: ScanMode; status: string; deckId: number | null }; photos: ScanPhotoMeta[]; items: ScanItemRow[] } | null> {
   const batch = await db.query.scanBatches.findFirst({ where: eq(scanBatches.id, id) });
   if (!batch) return null;
   const [photos, items] = await Promise.all([
@@ -119,7 +133,7 @@ export async function getBatch(db: Db, id: number): Promise<{ batch: { id: numbe
     db.select().from(scanItems).where(eq(scanItems.batchId, id)).orderBy(asc(scanItems.photoId), asc(scanItems.idx)),
   ]);
   return {
-    batch: { id: batch.id, name: batch.name, mode: batch.mode as ScanMode, status: batch.status },
+    batch: { id: batch.id, name: batch.name, mode: batch.mode as ScanMode, status: batch.status, deckId: batch.deckId },
     photos: photos.map((p) => ({ ...p, status: p.status as ScanPhotoMeta["status"] })),
     items: items.map(rowToItem),
   };
@@ -212,8 +226,9 @@ async function touch(db: Db, batchId: number): Promise<void> {
  * Write every included, linked item to the collection, then drop the photo
  * bytes and items. The batch row stays as a record of what was added.
  */
-export async function completeBatch(db: Db, batchId: number, owner: string | null = null): Promise<{ added: number }> {
+export async function completeBatch(db: Db, batchId: number, owner: string | null = null): Promise<{ added: number; deckAdded: number; deckId: number | null }> {
   return db.transaction(async (tx) => {
+    const batch = await tx.query.scanBatches.findFirst({ where: eq(scanBatches.id, batchId), columns: { deckId: true } });
     const items = await tx.select().from(scanItems).where(and(eq(scanItems.batchId, batchId), eq(scanItems.include, true)));
     const printIds = [...new Set(items.map((i) => i.printId).filter((p): p is string => !!p))];
     const prints = printIds.length ? await tx.select({ id: cardPrints.id, cardId: cardPrints.cardId }).from(cardPrints).where(inArray(cardPrints.id, printIds)) : [];
@@ -223,10 +238,12 @@ export async function completeBatch(db: Db, batchId: number, owner: string | nul
       .map((i) => ({ printId: i.printId!, cardId: cardOf.get(i.printId!)!, quantity: i.quantity, condition: i.condition, finish: i.finish, owner }));
     if (lots.length) await tx.insert(ownedCards).values(lots);
     const added = lots.reduce((n, l) => n + l.quantity, 0);
+    const deckId = batch?.deckId ?? null;
+    const deckAdded = deckId && lots.length ? (await addCardsToDeck(tx as unknown as Db, deckId, lots.map((l) => ({ cardId: l.cardId, quantity: l.quantity })))).added : 0;
     await tx.delete(scanItems).where(eq(scanItems.batchId, batchId));
     await tx.update(scanPhotos).set({ data: null }).where(eq(scanPhotos.batchId, batchId));
     await tx.update(scanBatches).set({ status: "done", addedCount: added, completedAt: new Date(), updatedAt: new Date() }).where(eq(scanBatches.id, batchId));
-    return { added };
+    return { added, deckAdded, deckId };
   });
 }
 

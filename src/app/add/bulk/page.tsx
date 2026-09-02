@@ -1,9 +1,12 @@
 import Link from "next/link";
+import { db } from "@/db";
+import { deckOptions } from "@/lib/decks/add";
 import { BulkEntry } from "@/components/BulkEntry";
 
 export const dynamic = "force-dynamic";
 
-export default function BulkPage() {
+export default async function BulkPage() {
+  const decks = await deckOptions(db);
   return (
     <div className="space-y-3">
       <div className="flex items-baseline gap-3">
@@ -12,7 +15,7 @@ export default function BulkPage() {
         </Link>
         <h1 className="text-xl font-semibold text-space-50">Bulk entry</h1>
       </div>
-      <BulkEntry />
+      <BulkEntry decks={decks} />
     </div>
   );
 }

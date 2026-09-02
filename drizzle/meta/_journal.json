@@ -43,6 +43,13 @@
       "when": 1788363155852,
       "tag": "0005_chunky_lethal_legion",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788364998857,
+      "tag": "0006_jittery_tana_nile",
+      "breakpoints": true
     }
   ]
 }

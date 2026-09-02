@@ -16,6 +16,14 @@ function revalidate(deckId?: number) {
   if (deckId) revalidatePath(`/decks/${deckId}`);
 }
 
+/** Used by the DeckPicker on the add screens: create and return, no redirect. */
+export async function createDeckAction(name: string): Promise<{ id: number; name: string; isBuilt: boolean }> {
+  const clean = name.trim().slice(0, 120) || "Untitled deck";
+  const [row] = await db.insert(decks).values({ name: clean }).returning({ id: decks.id, name: decks.name, isBuilt: decks.isBuilt });
+  revalidate();
+  return row;
+}
+
 export async function createDeckForm(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim() || "Untitled deck";
   const [row] = await db.insert(decks).values({ name }).returning({ id: decks.id });

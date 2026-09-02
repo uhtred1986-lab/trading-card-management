@@ -102,10 +102,30 @@ assert.equal(prices.get("BT18-020")?.foilCents, 40, "newest snapshot wins");
 assert.equal(priceForFinish(prices.get("BT18-020"), "normal"), 40, "falls back to foil when that's the only print");
 assert.equal(priceForFinish(prices.get("BT18-020_SPR"), "foil"), 199);
 
+// Adding acquired cards to a deck: zones by type, accumulate, cap at the copy limit, one leader.
+{
+  const { addCardsToDeck } = await import("../src/lib/decks/add.ts");
+  await db.insert(schema.cards).values([
+    { id: "BT18-001", setCode: "BT18", name: "Leader One", cardType: "LEADER", rarity: "L", rarityCode: "L", searchText: "bt18-001" },
+    { id: "BT18-002", setCode: "BT18", name: "Leader Two", cardType: "LEADER", rarity: "L", rarityCode: "L", searchText: "bt18-002" },
+    { id: "BT18-116", setCode: "BT18", name: "Z Battle", cardType: "Z-BATTLE", rarity: "SR", rarityCode: "SR", searchText: "bt18-116" },
+  ]);
+  const [d] = await db.insert(schema.decks).values({ name: "Acquisitions" }).returning({ id: schema.decks.id });
+  await addCardsToDeck(db, d.id, [{ cardId: "BT18-020", quantity: 3 }, { cardId: "BT18-001", quantity: 2 }, { cardId: "BT18-116", quantity: 1 }]);
+  await addCardsToDeck(db, d.id, [{ cardId: "BT18-020", quantity: 3 }, { cardId: "BT18-002", quantity: 1 }]);
+  const rowsInDeck = (await db.select().from(schema.deckCards).where((await import("drizzle-orm")).eq(schema.deckCards.deckId, d.id))).map((r) => [r.zone, r.cardId, r.quantity]).sort();
+  assert.deepEqual(rowsInDeck, [
+    ["leader", "BT18-002", 1], // second leader replaced the first
+    ["main", "BT18-020", 4], // 3 + 3 capped at the 4-copy limit
+    ["z", "BT18-116", 1],
+  ]);
+}
+
 // Scan batches: photo bytes round-trip, completing writes lots and drops the photo.
 {
   const { completeBatch, createBatch, getBatch, listOpenBatches, photoBytes, replaceItems, storePhoto, updateItem } = await import("../src/lib/scan/batches.ts");
-  const batchId = await createBatch(db, "batch");
+  const [target] = await db.insert(schema.decks).values({ name: "Scan target" }).returning({ id: schema.decks.id });
+  const batchId = await createBatch(db, "batch", target.id);
   const photoId = await storePhoto(db, batchId, 0, Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]), 100, 140);
   assert.deepEqual([...(await photoBytes(db, photoId))!.data], [0xff, 0xd8, 0xff, 0xe0, 1, 2, 3], "bytea round-trips");
   const cand = { id: "BT18-020", name: "Omega Shenron", setCode: "BT18", imageUrl: null, cardType: "BATTLE", colors: ["Red"], rarityCode: "C", prints: [{ id: "BT18-020", label: "Standard" }, { id: "BT18-020_SPR", label: "Special Rare" }] };
@@ -119,8 +139,12 @@ assert.equal(priceForFinish(prices.get("BT18-020_SPR"), "foil"), 199);
   await updateItem(db, items[0].id, { printId: "BT18-020_SPR", quantity: 2, finish: "foil" });
   await updateItem(db, items[1].id, { chosen: cand, manual: true, printId: "BT18-020", include: true });
   const before = (await db.select().from(schema.ownedCards)).length;
-  const { added } = await completeBatch(db, batchId, "patvolny");
+  const { added, deckAdded, deckId } = await completeBatch(db, batchId, "patvolny");
   assert.equal(added, 3, "2 foil SPR + 1 standard");
+  assert.equal(deckId, target.id);
+  assert.equal(deckAdded, 3, "both lots of the same card land in the deck's main zone");
+  const inDeck = await db.select().from(schema.deckCards).where((await import("drizzle-orm")).eq(schema.deckCards.deckId, target.id));
+  assert.deepEqual(inDeck.map((r) => [r.zone, r.cardId, r.quantity]), [["main", "BT18-020", 3]]);
   const lots = (await db.select().from(schema.ownedCards)).slice(before);
   assert.deepEqual(lots.map((l) => [l.printId, l.quantity, l.finish, l.owner]).sort(), [["BT18-020", 1, "normal", "patvolny"], ["BT18-020_SPR", 2, "foil", "patvolny"]]);
   assert.equal(await photoBytes(db, photoId), null, "photo bytes are dropped on completion");

@@ -11,6 +11,8 @@ import { CardFaces } from "@/components/CardFaces";
 import { ColorPill, RarityBadge, TypeBadge } from "@/components/ColorPill";
 import { SkillText } from "@/components/SkillText";
 import { MarketplacePanel } from "@/components/MarketplacePanel";
+import { DeckPicker } from "@/components/DeckPicker";
+import { deckOptions } from "@/lib/decks/add";
 import { addLotForm, deleteLotForm } from "@/app/collection/actions";
 
 export const dynamic = "force-dynamic";
@@ -22,12 +24,13 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
   if (!card) notFound();
 
   const printIds = card.prints.map((p) => p.id);
-  const [prices, alloc, lots, reservedBy, usdEur] = await Promise.all([
+  const [prices, alloc, lots, reservedBy, usdEur, decks] = await Promise.all([
     pricesForPrints(db, printIds),
     allocationForCards(db, [id]),
     lotsForCard(db, id),
     decksReserving(db, id),
     latestUsdEur(db),
+    deckOptions(db),
   ]);
   const a = alloc.get(id)!;
   const tcgUrl = (await db.query.tcgProducts.findFirst({ where: (p, { eq }) => eq(p.cardId, id), columns: { url: true } }))?.url ?? null;
@@ -227,6 +230,9 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
               Notes
               <input name="notes" className={input} placeholder="optional" />
             </label>
+            <div className="col-span-2 sm:col-span-3">
+              <DeckPicker decks={decks} compact />
+            </div>
             <button className="tap self-end rounded-md bg-ki-500 px-3 py-1.5 text-sm font-semibold text-space-950 hover:bg-ki-400">Add to collection</button>
           </form>
         </section>

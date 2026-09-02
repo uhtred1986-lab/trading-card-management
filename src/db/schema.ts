@@ -372,6 +372,8 @@ export const scanBatches = pgTable("scan_batches", {
   mode: text("mode").notNull().default("single"),
   /** open | done */
   status: text("status").notNull().default("open"),
+  /** Deck the confirmed cards are also added to, if one was chosen. */
+  deckId: integer("deck_id").references(() => decks.id, { onDelete: "set null" }),
   addedCount: integer("added_count"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

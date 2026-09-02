@@ -4,8 +4,10 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { addLots, printsForCardAction, type LotInput } from "@/app/collection/actions";
 import { CONDITIONS } from "@/lib/collection/queries";
+import type { DeckOption } from "@/lib/decks/add";
 import { CardImage } from "./CardImage";
 import { CardSearchInput, type CardHit as Hit } from "./CardSearchInput";
+import { DeckPicker } from "./DeckPicker";
 type Print = { id: string; label: string };
 
 interface Row {
@@ -27,10 +29,11 @@ const blank = (): Row => ({ key: nextKey++, card: null, prints: [], printId: "",
  * match with ↑/↓ + Enter, tab across qty/condition, Enter on the last field
  * commits the row and opens a new one. "Save all" writes every row at once.
  */
-export function BulkEntry() {
+export function BulkEntry({ decks }: { decks: DeckOption[] }) {
   const [rows, setRows] = useState<Row[]>([blank()]);
   const [active, setActive] = useState(0);
-  const [saved, setSaved] = useState<number | null>(null);
+  const [saved, setSaved] = useState<{ added: number; deckAdded: number; deckId: number | null } | null>(null);
+  const [deckId, setDeckId] = useState<number | null>(null);
   const [pending, start] = useTransition();
   const [defaults, setDefaults] = useState({ condition: "NM", finish: "normal", acquiredOn: "", language: "EN" });
 
@@ -51,8 +54,8 @@ export function BulkEntry() {
       const inputs: LotInput[] = rows
         .filter((r) => r.card && r.printId)
         .map((r) => ({ printId: r.printId, quantity: r.quantity, condition: r.condition, finish: r.finish, pricePaid: r.pricePaid || null, acquiredOn: defaults.acquiredOn || null, language: defaults.language }));
-      const { added } = await addLots(inputs);
-      setSaved(added);
+      const { added, deckAdded } = await addLots(inputs, deckId);
+      setSaved({ added, deckAdded, deckId });
       setRows([blank()]);
       setActive(0);
     });
@@ -91,9 +94,21 @@ export function BulkEntry() {
         </button>
       </div>
 
+      <DeckPicker decks={decks} value={deckId} onChange={(id) => setDeckId(id)} />
+
       {saved != null ? (
         <p className="rounded-xl border border-gain/40 bg-gain/5 p-2 text-sm text-gain">
-          Saved {saved} card{saved === 1 ? "" : "s"}. <Link href="/collection" className="underline">View collection</Link>
+          Saved {saved.added} card{saved.added === 1 ? "" : "s"}
+          {saved.deckId ? (
+            <>
+              {" "}
+              and put {saved.deckAdded} in{" "}
+              <Link href={`/decks/${saved.deckId}`} className="underline">
+                the deck
+              </Link>
+            </>
+          ) : null}
+          . <Link href="/collection" className="underline">View collection</Link>
         </p>
       ) : null}
 

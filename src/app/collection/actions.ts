@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { cardPrints, ownedCards } from "@/db/schema";
 import { currentUser } from "@/lib/auth";
+import { addCardsToDeck } from "@/lib/decks/add";
 import { CONDITIONS, FINISHES } from "@/lib/collection/queries";
 import { parseEuroInput } from "@/lib/money";
 
@@ -45,26 +46,36 @@ function revalidate(cardId: string) {
   revalidatePath(`/cards/${encodeURIComponent(cardId)}`);
 }
 
-export async function addLot(input: LotInput): Promise<{ id: number; cardId: string }> {
+/** `deckId` — also add the copies to that deck (leader slot / Z-deck / main by card type). */
+export async function addLot(input: LotInput, deckId: number | null = null): Promise<{ id: number; cardId: string; deckAdded: number }> {
   const [cardId, owner] = await Promise.all([cardIdForPrint(input.printId), currentUser()]);
-  const [row] = await db
-    .insert(ownedCards)
-    .values({ printId: input.printId, cardId, owner, ...normalise(input) })
-    .returning({ id: ownedCards.id });
+  const values = normalise(input);
+  const result = await db.transaction(async (tx) => {
+    const [row] = await tx
+      .insert(ownedCards)
+      .values({ printId: input.printId, cardId, owner, ...values })
+      .returning({ id: ownedCards.id });
+    const deckAdded = deckId ? (await addCardsToDeck(tx as unknown as typeof db, deckId, [{ cardId, quantity: values.quantity }])).added : 0;
+    return { id: row.id, deckAdded };
+  });
   revalidate(cardId);
-  return { id: row.id, cardId };
+  if (deckId) revalidatePath(`/decks/${deckId}`);
+  return { ...result, cardId };
 }
 
 /** Bulk entry (Path B): every row in one transaction so a typo doesn't half-commit. */
-export async function addLots(inputs: LotInput[]): Promise<{ added: number }> {
+export async function addLots(inputs: LotInput[], deckId: number | null = null): Promise<{ added: number; deckAdded: number }> {
   const clean = inputs.filter((i) => i.printId);
-  if (clean.length === 0) return { added: 0 };
+  if (clean.length === 0) return { added: 0, deckAdded: 0 };
   const [cardIds, owner] = await Promise.all([Promise.all(clean.map((i) => cardIdForPrint(i.printId))), currentUser()]);
-  await db.transaction(async (tx) => {
-    await tx.insert(ownedCards).values(clean.map((i, idx) => ({ printId: i.printId, cardId: cardIds[idx], owner, ...normalise(i) })));
+  const rows = clean.map((i, idx) => ({ printId: i.printId, cardId: cardIds[idx], owner, ...normalise(i) }));
+  const deckAdded = await db.transaction(async (tx) => {
+    await tx.insert(ownedCards).values(rows);
+    return deckId ? (await addCardsToDeck(tx as unknown as typeof db, deckId, rows.map((r) => ({ cardId: r.cardId, quantity: r.quantity })))).added : 0;
   });
   for (const id of new Set(cardIds)) revalidate(id);
-  return { added: clean.reduce((n, i) => n + Math.max(1, Math.floor(Number(i.quantity) || 1)), 0) };
+  if (deckId) revalidatePath(`/decks/${deckId}`);
+  return { added: rows.reduce((n, r) => n + r.quantity, 0), deckAdded };
 }
 
 export async function updateLot(id: number, input: LotInput): Promise<void> {
@@ -89,16 +100,20 @@ export async function printsForCardAction(cardId: string): Promise<{ id: string;
 
 /** Form-action wrappers so plain <form> posts work without client JS. */
 export async function addLotForm(formData: FormData) {
-  await addLot({
-    printId: String(formData.get("printId") ?? ""),
-    quantity: Number(formData.get("quantity") ?? 1),
-    condition: String(formData.get("condition") ?? "NM"),
-    finish: String(formData.get("finish") ?? "normal"),
-    language: String(formData.get("language") ?? "EN"),
-    acquiredOn: (formData.get("acquiredOn") as string) || null,
-    pricePaid: (formData.get("pricePaid") as string) || null,
-    notes: (formData.get("notes") as string) || null,
-  });
+  const deckId = Number(formData.get("deckId")) || null;
+  await addLot(
+    {
+      printId: String(formData.get("printId") ?? ""),
+      quantity: Number(formData.get("quantity") ?? 1),
+      condition: String(formData.get("condition") ?? "NM"),
+      finish: String(formData.get("finish") ?? "normal"),
+      language: String(formData.get("language") ?? "EN"),
+      acquiredOn: (formData.get("acquiredOn") as string) || null,
+      pricePaid: (formData.get("pricePaid") as string) || null,
+      notes: (formData.get("notes") as string) || null,
+    },
+    deckId,
+  );
 }
 
 export async function deleteLotForm(formData: FormData) {

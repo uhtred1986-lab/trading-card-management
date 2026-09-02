@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { db } from "@/db";
+import { deckOptions } from "@/lib/decks/add";
 import { getBatch, listOpenBatches } from "@/lib/scan/batches";
 import { ScanFlow } from "@/components/ScanFlow";
 import { deleteBatchForm } from "./actions";
@@ -12,7 +13,7 @@ export default async function ScanPage({ searchParams }: { searchParams: Promise
   const sp = await searchParams;
   const raw = Array.isArray(sp.batch) ? sp.batch[0] : sp.batch;
   const batchId = raw ? Number(raw) : null;
-  const [open, current] = await Promise.all([listOpenBatches(db), batchId ? getBatch(db, batchId) : null]);
+  const [open, current, decks] = await Promise.all([listOpenBatches(db), batchId ? getBatch(db, batchId) : null, deckOptions(db)]);
   const active = current && current.batch.status === "open" ? current : null;
   const others = open.filter((b) => b.id !== active?.batch.id);
 
@@ -47,6 +48,7 @@ export default async function ScanPage({ searchParams }: { searchParams: Promise
                 </Link>
                 <span className="text-xs text-space-300">
                   {b.photos} photo{b.photos === 1 ? "" : "s"} · {b.items} card{b.items === 1 ? "" : "s"} · {b.needsReview} to review · {b.ready} ready
+                  {b.deckName ? ` · → ${b.deckName}` : ""}
                 </span>
                 <span className="text-xs text-space-400">updated {b.updatedAt.toISOString().replace("T", " ").slice(0, 16)}</span>
                 <span className="ml-auto flex gap-2">
@@ -71,6 +73,8 @@ export default async function ScanPage({ searchParams }: { searchParams: Promise
         mode={active?.batch.mode ?? "single"}
         photos={active?.photos ?? []}
         items={active?.items ?? []}
+        decks={decks}
+        deckId={active?.batch.deckId ?? null}
       />
     </div>
   );

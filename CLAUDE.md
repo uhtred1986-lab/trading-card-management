@@ -78,6 +78,10 @@ the same style.
   (`currentUser()` in `src/lib/auth.ts`, read from the `Authorization` header); null when the app
   runs open locally. Every path that creates lots (card page, bulk entry, scan batches, quick
   capture) stamps it — keep that true for new paths.
+- **"Also add to deck"** (`DeckPicker`, `src/lib/decks/add.ts`): every add path can target a deck
+  (existing, or "New deck…" which creates it on the spot). `addCardsToDeck` puts leaders in the
+  leader slot (replacing), Z- cards in the Z-deck, everything else in main, accumulating up to the
+  copy limit. Scan batches store the target in `scan_batches.deck_id` so it carries to the PC.
 - **Quick capture** (`/add/quick`, `POST /api/scan/quick`): phone loop — one photo → identified
   immediately (nothing stored) → quantity with big ± buttons → `addLot` → the camera re-opens
   (the `click()` happens inside the save handler so it counts as a user gesture).

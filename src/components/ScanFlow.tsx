@@ -2,15 +2,17 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
-import { completeBatchAction, createBatchAction, deleteBatchAction, updateScanItemAction } from "@/app/add/scan/actions";
+import { completeBatchAction, createBatchAction, deleteBatchAction, setBatchDeckAction, updateScanItemAction } from "@/app/add/scan/actions";
 import { printsForCardAction } from "@/app/collection/actions";
 import type { ScanCandidate, ScanDetection } from "@/lib/ai/scan";
 import { REVIEW_THRESHOLD, type Box } from "@/lib/ai/scan-match";
 import { CONDITIONS } from "@/lib/collection/queries";
+import type { DeckOption } from "@/lib/decks/add";
 import type { ItemPatch, ScanItemRow, ScanMode, ScanPhotoMeta } from "@/lib/scan/batches";
 import { downscaleImage } from "@/lib/scan/downscale";
 import { CardImage } from "./CardImage";
 import { CardSearchInput, type CardHit } from "./CardSearchInput";
+import { DeckPicker } from "./DeckPicker";
 
 interface Photo {
   /** Server photo id, or a negative temporary key until the upload returns. */
@@ -82,15 +84,27 @@ export function ScanFlow({
   mode: initialMode,
   photos: initialPhotos,
   items: initialItems,
+  decks,
+  deckId: initialDeckId,
 }: {
   batchId: number | null;
   batchName: string | null;
   mode: ScanMode;
   photos: ScanPhotoMeta[];
   items: ScanItemRow[];
+  decks: DeckOption[];
+  deckId: number | null;
 }) {
   const [batchId, setBatchId] = useState<number | null>(initialBatchId);
   const batchRef = useRef<number | null>(initialBatchId);
+  const [deckId, setDeckId] = useState<number | null>(initialDeckId);
+  const deckRef = useRef<number | null>(initialDeckId);
+  const [doneDeck, setDoneDeck] = useState<{ id: number; added: number } | null>(null);
+  const chooseDeck = (id: number | null) => {
+    setDeckId(id);
+    deckRef.current = id;
+    if (batchRef.current) void setBatchDeckAction(batchRef.current, id);
+  };
   const [mode, setMode] = useState<ScanMode>(initialMode);
   // Read by scan workers that outlive the render they were started in.
   const modeRef = useRef(mode);
@@ -120,7 +134,7 @@ export function ScanFlow({
 
   const ensureBatch = async (): Promise<number> => {
     if (batchRef.current) return batchRef.current;
-    const id = await createBatchAction(modeRef.current);
+    const id = await createBatchAction(modeRef.current, deckRef.current);
     batchRef.current = id;
     setBatchId(id);
     window.history.replaceState(null, "", `/add/scan?batch=${id}`);
@@ -209,8 +223,9 @@ export function ScanFlow({
   const confirm = () =>
     start(async () => {
       if (!batchRef.current) return;
-      const { added } = await completeBatchAction(batchRef.current);
+      const { added, deckAdded, deckId: targetDeck } = await completeBatchAction(batchRef.current);
       setDone(added);
+      setDoneDeck(targetDeck ? { id: targetDeck, added: deckAdded } : null);
       reset();
     });
 
@@ -255,9 +270,21 @@ export function ScanFlow({
         </p>
       </div>
 
+      <DeckPicker decks={decks} value={deckId} onChange={chooseDeck} />
+
       {done != null ? (
         <p className="rounded-xl border border-gain/40 bg-gain/5 p-3 text-sm text-gain">
-          Added {done} card{done === 1 ? "" : "s"} to your collection. <Link href="/collection" className="underline">View collection</Link>
+          Added {done} card{done === 1 ? "" : "s"} to your collection
+          {doneDeck ? (
+            <>
+              {" "}
+              and {doneDeck.added} to{" "}
+              <Link href={`/decks/${doneDeck.id}`} className="underline">
+                the deck
+              </Link>
+            </>
+          ) : null}
+          . <Link href="/collection" className="underline">View collection</Link>
         </p>
       ) : null}
 
