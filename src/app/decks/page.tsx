@@ -21,10 +21,15 @@ export default async function DecksPage() {
             {built.length} built · {virtual.length} virtual
           </p>
         </div>
-        <form action={createDeckForm} className="flex gap-2">
-          <input name="name" placeholder="New deck name" className="tap rounded-md border border-space-600 bg-space-900 px-2 py-1.5 text-sm text-space-100" />
-          <button className="tap rounded-md bg-ki-500 px-3 py-1.5 text-sm font-semibold text-space-950 hover:bg-ki-400">Create</button>
-        </form>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href="/leaders" className="tap rounded-md border border-space-600 px-3 py-1.5 text-sm text-space-100 hover:bg-space-800">
+            My leaders
+          </Link>
+          <form action={createDeckForm} className="flex gap-2">
+            <input name="name" placeholder="New deck name" className="tap rounded-md border border-space-600 bg-space-900 px-2 py-1.5 text-sm text-space-100" />
+            <button className="tap rounded-md bg-ki-500 px-3 py-1.5 text-sm font-semibold text-space-950 hover:bg-ki-400">Create</button>
+          </form>
+        </div>
       </div>
 
       <p className="rounded-xl border border-space-700/70 bg-space-900/40 p-3 text-xs text-space-300">

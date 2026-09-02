@@ -14,7 +14,10 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/add", label: "Add cards", short: "Add" },
 ];
 
-export const SECONDARY_ITEMS: NavItem[] = [{ href: "/settings", label: "Settings & sync", short: "Settings" }];
+export const SECONDARY_ITEMS: NavItem[] = [
+  { href: "/leaders", label: "Leaders" },
+  { href: "/settings", label: "Settings & sync", short: "Settings" },
+];
 
 export function isActive(pathname: string, href: string): boolean {
   if (href === "/") return pathname === "/";

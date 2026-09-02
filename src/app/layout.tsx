@@ -26,12 +26,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <span className="text-xs uppercase tracking-widest text-space-300">Card Companion</span>
             </Link>
             <HeaderNav />
-            <Link
-              href="/settings"
-              className="ml-auto rounded-md px-2 py-1 text-xs text-space-300 hover:text-space-50 sm:hidden"
-            >
-              Settings
-            </Link>
+            <div className="ml-auto flex gap-1 sm:hidden">
+              <Link href="/leaders" className="rounded-md px-2 py-1 text-xs text-space-300 hover:text-space-50">
+                Leaders
+              </Link>
+              <Link href="/settings" className="rounded-md px-2 py-1 text-xs text-space-300 hover:text-space-50">
+                Settings
+              </Link>
+            </div>
           </div>
         </header>
 
