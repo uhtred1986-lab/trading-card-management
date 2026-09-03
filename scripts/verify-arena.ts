@@ -130,6 +130,9 @@ const DEFS: Record<string, CardDef> = defsFrom([
   card("SPAWN", { energyCost: 1, skill: "[Auto] When you play this card, play 2 Saibaman tokens (10000 power, 0 combo cost, and 5000 combo power)." }),
   card("MYSTERY", { energyCost: 1, skill: "[Auto] When you play this card, bend the fabric of reality to your will." }),
   card("FORCEKILL", { energyCost: 1, skill: "[Auto] When you play this card, choose 1 of your opponent's Battle Cards and KO it." }),
+  card("AUTOCOST", { energyCost: 1, skill: "[Auto]{r}: When you play this card, draw 2 cards." }),
+  card("UNI2", { type: "UNISON", energyCost: "X", power: 5000, comboCost: null, comboPower: null, skill: "[-1][Activate: Main] Draw 1 card." }),
+  card("XBAT", { energyCost: "X", power: 5000 }),
 ]);
 
 const fifty = (id: string) => Array.from({ length: 50 }, () => id);
@@ -695,6 +698,99 @@ function assertConsistentAfterDrop(s: GameState) {
   // An empty ruling means "nothing happens".
   t = apply(refCtx, t, { type: "refereeRuling", player: "p1", ops: [] }).state;
   assert.equal(t.prompt.kind, "main");
+}
+
+// ── costs the rules make optional or a matter of choice ────────────────────
+
+// 3-8-2: which energy to rest is asked only when the colours left would differ.
+{
+  // A combo cost has no colour (5-6-1-1), so with two colours in energy there
+  // is a real choice.
+  let s = arena({ hand: ["BLOCKER"], energy: ["V1", "V-BLUE"], battle: ["V1"] });
+  s = play(s, { type: "attack", player: "p1", attacker: s.players.p1.leader, target: s.players.p2.leader });
+  const c = find(s, "p1", "hand", "BLOCKER");
+  s = play(s, { type: "combo", player: "p1", card: c });
+  assert.equal(s.prompt.kind, "payCost", "two colours, one generic cost: the player picks");
+  const options = (s.prompt as { options: { rest: string[] }[] }).options;
+  assert.equal(options.length, 2);
+  assert.ok(labels(s).some((x) => x.startsWith("Rest 1 Red")));
+  assert.ok(labels(s).some((x) => x.startsWith("Rest 1 Blue")));
+  const blue = options.findIndex((o) => o.rest.some((id) => s.cards[id].cardId === "V-BLUE"));
+  s = play(s, { type: "payCost", player: "p1", option: blue });
+  assert.equal(s.cards[find(s, "p1", "energy", "V-BLUE")].mode, "rest", "the blue energy was rested");
+  assert.equal(s.cards[find(s, "p1", "energy", "V1")].mode, "active", "the red was kept");
+  assert.ok(s.players.p1.combo.includes(c), "and the combo went through");
+  assertConsistent(s);
+
+  // One colour, so no question is asked.
+  let mono = arena({ hand: ["BLOCKER"], energy: ["V1", "V1"], battle: ["V1"] });
+  mono = play(mono, { type: "attack", player: "p1", attacker: mono.players.p1.leader, target: mono.players.p2.leader });
+  mono = play(mono, { type: "combo", player: "p1", card: find(mono, "p1", "hand", "BLOCKER") });
+  assert.equal(mono.prompt.kind, "combo", "identical energy, so nothing to decide");
+}
+
+// 9-6-4: an [Auto] skill's cost may be declined, and then it does not resolve.
+{
+  let s = arena({ hand: ["AUTOCOST"], energy: ["V1", "V1"] });
+  const c = find(s, "p1", "hand", "AUTOCOST");
+  const before = s.players.p1.hand.length;
+  s = play(s, { type: "play", player: "p1", card: c });
+  assert.equal(s.prompt.kind, "optionalCost");
+  assert.equal((s.prompt as { describe: string }).describe, "1 Red energy");
+  s = play(s, { type: "optionalCost", player: "p1", pay: false });
+  assert.equal(s.players.p1.hand.length, before - 1, "declined, so no cards were drawn");
+  assert.equal(s.players.p1.energy.filter((id) => s.cards[id].mode === "rest").length, 1, "only the play itself was paid for");
+  assert.equal(s.prompt.kind, "main");
+
+  // Paying resolves it.
+  let t = arena({ hand: ["AUTOCOST"], energy: ["V1", "V1"] });
+  const handBefore = t.players.p1.hand.length;
+  t = play(t, { type: "play", player: "p1", card: find(t, "p1", "hand", "AUTOCOST") }, { type: "optionalCost", player: "p1", pay: true });
+  assert.equal(t.players.p1.hand.length, handBefore - 1 + 2, "paid, so two cards were drawn");
+  assert.equal(t.players.p1.energy.filter((id) => t.cards[id].mode === "rest").length, 2, "the skill cost was rested too");
+  assertConsistent(t);
+}
+
+// 13-4: a Unison marker skill costs markers, and only one may be used per card per turn.
+{
+  let s = arena({ hand: ["UNI2", "UNI2"], energy: ["V1", "V1", "V1"] });
+  const u = find(s, "p1", "hand", "UNI2");
+  s = play(s, { type: "playUnison", player: "p1", card: u, x: 3 });
+  assert.equal(s.cards[u].markers, 3);
+  assert.ok(labels(s).some((x) => x.startsWith("Activate UNI2")), "the [-1] skill is offered");
+  const handBefore = s.players.p1.hand.length;
+  s = play(s, { type: "activate", player: "p1", card: u, skill: 0 });
+  assert.equal(s.cards[u].markers, 2, "13-4-1-3: one marker was removed as the cost");
+  assert.equal(s.players.p1.hand.length, handBefore + 1, "and the effect ran");
+  assert.ok(!labels(s).some((x) => x.startsWith("Activate UNI2")), "13-4-2: no second marker skill on that card this turn");
+  assertConsistent(s);
+}
+
+// 1-2-2-2-1: with an X cost the player picks the value.
+{
+  let s = arena({ hand: ["XBAT"], energy: ["V1", "V1", "V1"] });
+  const x = find(s, "p1", "hand", "XBAT");
+  const offers = labels(s).filter((l) => l.startsWith("Play XBAT with X ="));
+  assert.deepEqual(offers, ["Play XBAT with X = 0", "Play XBAT with X = 1", "Play XBAT with X = 2", "Play XBAT with X = 3"]);
+  s = play(s, { type: "play", player: "p1", card: x, x: 2 });
+  assert.ok(s.players.p1.battle.includes(x));
+  assert.equal(s.players.p1.energy.filter((id) => s.cards[id].mode === "rest").length, 2, "two energy paid for X = 2");
+}
+
+// 8-1-7: if the attacker leaves the Battle Area, the battle ends with no damage.
+{
+  let s = arena({ battle: ["V1"], hand: ["E-NEGATE"] });
+  const attacker = s.players.p1.battle[0];
+  s = play(s, { type: "attack", player: "p1", attacker, target: s.players.p2.leader });
+  assert.equal(s.prompt.kind, "combo");
+  // Something removes the attacker mid-battle.
+  const ctx = { defs: DEFS };
+  move(ctx, s, [], attacker, "drop", "p1");
+  s = play(s, { type: "pass", player: "p1" });
+  assert.equal(s.players.p2.life.length, 8, "no damage was dealt");
+  assert.equal(s.battle, null, "and the battle is over");
+  assert.equal(s.prompt.kind, "main");
+  assertConsistent(s);
 }
 
 console.log("verify-arena: all checks passed");

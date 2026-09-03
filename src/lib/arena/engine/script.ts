@@ -419,6 +419,7 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
             enteredTurn: s.turn,
             extraAttacks: 0,
             usedThisTurn: [],
+            usedMarkerSkill: false,
             negated: [],
           };
           s.players[p].battle.push(id);

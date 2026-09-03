@@ -8,6 +8,7 @@
  */
 
 import type { Op, ScriptFrame } from "./script";
+import type { Payment } from "./state";
 
 export type PlayerId = "p1" | "p2";
 export const PLAYERS: PlayerId[] = ["p1", "p2"];
@@ -151,6 +152,8 @@ export interface CardInstance {
   extraAttacks: number;
   /** Skill indexes already resolved this turn under [Once per turn] / [Limit]. */
   usedThisTurn: number[];
+  /** 13-4-2: once a marker skill resolves on a card, no marker skill on it can be used again this turn. */
+  usedMarkerSkill: boolean;
   /** Skills negated by effects (index list) or all skills. */
   negated: number[] | "all";
 }
@@ -257,7 +260,17 @@ export type Prompt =
   | { kind: "orderPending"; player: PlayerId; candidates: number[] }
   | { kind: "chooseCards"; player: PlayerId; choice: CardChoice }
   | { kind: "zEnergyFromCombo"; player: PlayerId; candidates: string[] }
-  | { kind: "payCost"; player: PlayerId; action: Action; needed: number; specified: Partial<Record<Color, number>> }
+  /**
+   * An [Auto] skill whose cost the master may decline to pay (9-6-4). Costs
+   * that are really conditions ("if your Leader is red") are not asked about —
+   * 9-6-4-1-1 says those cannot be declined.
+   */
+  | { kind: "optionalCost"; player: PlayerId; card: string; skillIndex: number; describe: string }
+  /**
+   * Which energy to rest. Only asked when the choice can matter: when the
+   * colours left active afterwards would differ (3-8-2).
+   */
+  | { kind: "payCost"; player: PlayerId; action: Action; options: Payment[]; describe: string }
   | { kind: "offering"; player: PlayerId; card: string }
   /** A skill the compiler could not read; Claude answers with a program in the effect language. */
   | { kind: "referee"; player: PlayerId; request: RefereeRequest }
@@ -294,7 +307,8 @@ export type Action =
   | { type: "chooseFirst"; player: PlayerId; first: PlayerId }
   | { type: "mulligan"; player: PlayerId; redraw: boolean }
   | { type: "charge"; player: PlayerId; card: string | null }
-  | { type: "play"; player: PlayerId; card: string; pay?: string[] }
+  /** `x` is the value the master picks for an X cost (1-2-2-2-1). */
+  | { type: "play"; player: PlayerId; card: string; x?: number; pay?: string[] }
   | { type: "playUnison"; player: PlayerId; card: string; x: number; pay?: string[] }
   | { type: "playZ"; player: PlayerId; card: string; x?: number; pay?: string[] }
   | { type: "growUnison"; player: PlayerId; card: string }
@@ -306,6 +320,8 @@ export type Action =
   | { type: "block"; player: PlayerId; card: string | null }
   | { type: "counter"; player: PlayerId; card: string | null; skill?: number; pay?: string[] }
   | { type: "orderPending"; player: PlayerId; index: number }
+  | { type: "optionalCost"; player: PlayerId; pay: boolean }
+  | { type: "payCost"; player: PlayerId; option: number }
   | { type: "choose"; player: PlayerId; cards: string[] }
   | { type: "zEnergyFromCombo"; player: PlayerId; card: string | null }
   | { type: "offering"; player: PlayerId; dropLife: boolean }

@@ -369,6 +369,92 @@ export function planPayment(ctx: GameContext, s: GameState, p: PlayerId, total: 
   return { rest: chosen.filter((x) => x !== "#marker"), markers: chosen.filter((x) => x === "#marker").length };
 }
 
+/**
+ * The genuinely different ways to pay a cost (3-8-2: a player may choose any
+ * energy they like). Two payments that rest the same combination of colours
+ * are the same choice, so they are folded together; when only one survives,
+ * the choice cannot matter and the caller pays it without asking.
+ */
+export function paymentOptions(
+  ctx: GameContext,
+  s: GameState,
+  p: PlayerId,
+  total: number,
+  specified: Partial<Record<Color, number>>,
+  limit = 8,
+): Payment[] {
+  const ps = s.players[p];
+  const leader = leaderColors(ctx, s, p);
+  const colorsOf = (id: string) => def(ctx, s, id).colors;
+  const byColors = new Map<string, string[]>();
+  for (const id of activeEnergy(s, p)) {
+    const k = colorsOf(id).join("/");
+    byColors.set(k, [...(byColors.get(k) ?? []), id]);
+  }
+  const keys = [...byColors.keys()].sort();
+  const out: Payment[] = [];
+  const seen = new Set<string>();
+
+  const covers = (picked: string[], markers: number): boolean => {
+    const need = { ...specified };
+    for (const id of picked) {
+      for (const c of colorsOf(id)) {
+        if ((need[c] ?? 0) > 0) {
+          need[c]!--;
+          break;
+        }
+      }
+    }
+    let m = markers;
+    for (const c of leader) {
+      while (m > 0 && (need[c] ?? 0) > 0) {
+        need[c]!--;
+        m--;
+      }
+    }
+    return !Object.values(need).some((n) => (n ?? 0) > 0);
+  };
+
+  const take = (i: number, left: number, picked: string[], counts: number[]) => {
+    if (out.length >= limit) return;
+    if (left === 0) {
+      if (!covers(picked, 0)) return;
+      const sig = counts.join(",");
+      if (seen.has(sig)) return;
+      seen.add(sig);
+      out.push({ rest: picked.slice(), markers: 0 });
+      return;
+    }
+    if (i >= keys.length) {
+      // Energy markers stand in for energy of the leader's colour (1-14-2).
+      if (left <= ps.energyMarkers && covers(picked, left)) {
+        const sig = [...counts, `m${left}`].join(",");
+        if (!seen.has(sig)) {
+          seen.add(sig);
+          out.push({ rest: picked.slice(), markers: left });
+        }
+      }
+      return;
+    }
+    const pool = byColors.get(keys[i])!;
+    for (let n = Math.min(pool.length, left); n >= 0; n--) take(i + 1, left - n, [...picked, ...pool.slice(0, n)], [...counts, n]);
+  };
+  take(0, total, [], []);
+  return out;
+}
+
+/** A short label for one payment, for the prompt: "2 Red, 1 Blue". */
+export function describePayment(ctx: GameContext, s: GameState, payment: Payment): string {
+  const counts = new Map<string, number>();
+  for (const id of payment.rest) {
+    const k = def(ctx, s, id).colors.join("/") || "Colourless";
+    counts.set(k, (counts.get(k) ?? 0) + 1);
+  }
+  const parts = [...counts.entries()].map(([k, n]) => `${n} ${k}`);
+  if (payment.markers) parts.push(`${payment.markers} energy marker${payment.markers === 1 ? "" : "s"}`);
+  return parts.join(", ") || "nothing";
+}
+
 export function pay(s: GameState, ev: GameEvent[], p: PlayerId, payment: Payment): void {
   for (const id of payment.rest) setMode(s, ev, id, "rest");
   if (payment.markers) {
