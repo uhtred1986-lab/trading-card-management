@@ -284,6 +284,8 @@ export const decks = pgTable("decks", {
   metaNotes: text("meta_notes"),
   isBuilt: boolean("is_built").notNull().default(false),
   builtAt: timestamp("built_at", { withTimezone: true }),
+  /** Where the built deck physically sits — the same list the copies use. */
+  locationId: integer("location_id").references(() => storageLocations.id, { onDelete: "set null" }),
   aiSummary: text("ai_summary"),
   aiSummaryAt: timestamp("ai_summary_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

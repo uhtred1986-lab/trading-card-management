@@ -28,7 +28,10 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
   const view = parseViewMode(one(sp.view));
   const locationParam = one(sp.location);
   const location = locationParam === "none" ? ("none" as const) : locationParam ? Number(locationParam) : undefined;
-  const filters: Parameters<typeof collectionCopies>[1] = { q, set, finish, sort, location };
+  const deckParam = one(sp.deck);
+  const deck = deckParam ? Number(deckParam) : undefined;
+  const owner = one(sp.owner);
+  const filters: Parameters<typeof collectionCopies>[1] = { q, set, finish, sort, location, deck, owner };
 
   // The grid aggregates by card; the list is one row per physical copy. Only
   // the one being shown is fetched — both walk every lot.
@@ -45,7 +48,7 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
   const shown = grid?.rows.length ?? list?.rows.length ?? 0;
   const select = "tap rounded-md border border-space-600 bg-space-900 px-2 py-1.5 text-sm text-space-100";
 
-  const params = { q, set, sort: sort === "recent" ? undefined : sort, finish, location: locationParam };
+  const params = { q, set, sort: sort === "recent" ? undefined : sort, finish, location: locationParam, deck: deckParam, owner };
 
   const href = (next: string | undefined) => {
     const p = new URLSearchParams();
@@ -55,6 +58,8 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
     if (next) p.set("finish", next);
     if (view !== "grid") p.set("view", view);
     if (locationParam) p.set("location", locationParam);
+    if (deckParam) p.set("deck", deckParam);
+    if (owner) p.set("owner", owner);
     const qs = p.toString();
     return qs ? `/collection?${qs}` : "/collection";
   };
@@ -97,19 +102,39 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
         </span>
       </div>
 
-      <form action="/collection" className="grid grid-cols-2 gap-2 rounded-xl border border-space-700/70 bg-space-900/50 p-3 sm:grid-cols-5">
+      <form action="/collection" className="grid grid-cols-2 gap-2 rounded-xl border border-space-700/70 bg-space-900/50 p-3 sm:grid-cols-4">
         {finish ? <input type="hidden" name="finish" value={finish} /> : null}
         {view !== "grid" ? <input type="hidden" name="view" value={view} /> : null}
         {view === "list" ? (
-          <select name="location" defaultValue={locationParam ?? ""} className={select}>
-            <option value="">Anywhere</option>
-            {locations.map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.name}
-              </option>
-            ))}
-            <option value="none">Not filed yet</option>
-          </select>
+          <>
+            <select name="location" defaultValue={locationParam ?? ""} className={select}>
+              <option value="">Anywhere</option>
+              {locations.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name}
+                </option>
+              ))}
+              <option value="none">Not filed yet</option>
+            </select>
+            {/* A deck names cards, so this shows every copy of what the deck uses. */}
+            <select name="deck" defaultValue={deckParam ?? ""} className={select}>
+              <option value="">Any deck</option>
+              {decks.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.isBuilt ? "▣" : "▢"} {d.name}
+                </option>
+              ))}
+            </select>
+            <select name="owner" defaultValue={owner ?? ""} className={select}>
+              <option value="">Anyone</option>
+              {owners.map((o) => (
+                <option key={o} value={o}>
+                  {o}
+                </option>
+              ))}
+              <option value="none">No owner set</option>
+            </select>
+          </>
         ) : null}
         <input type="search" name="q" defaultValue={q ?? ""} placeholder="Filter by name or number" className={`${select} col-span-2`} />
         <select name="set" defaultValue={set ?? ""} className={select}>

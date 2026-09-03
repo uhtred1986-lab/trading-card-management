@@ -1,0 +1,2 @@
+ALTER TABLE "decks" ADD COLUMN "location_id" integer;--> statement-breakpoint
+ALTER TABLE "decks" ADD CONSTRAINT "decks_location_id_storage_locations_id_fk" FOREIGN KEY ("location_id") REFERENCES "public"."storage_locations"("id") ON DELETE set null ON UPDATE no action;

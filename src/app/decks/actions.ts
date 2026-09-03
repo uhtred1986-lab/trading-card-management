@@ -32,7 +32,7 @@ export async function createDeckForm(formData: FormData) {
   redirect(`/decks/${row.id}`);
 }
 
-export async function updateDeck(id: number, patch: { name?: string; description?: string | null; metaNotes?: string | null }) {
+export async function updateDeck(id: number, patch: { name?: string; description?: string | null; metaNotes?: string | null; locationId?: number | null }) {
   await db
     .update(decks)
     .set({ ...patch, updatedAt: new Date() })
@@ -42,10 +42,12 @@ export async function updateDeck(id: number, patch: { name?: string; description
 
 export async function updateDeckForm(formData: FormData) {
   const id = Number(formData.get("id"));
+  const location = String(formData.get("locationId") ?? "");
   await updateDeck(id, {
     name: String(formData.get("name") ?? "").trim() || "Untitled deck",
     description: (formData.get("description") as string)?.trim() || null,
     metaNotes: (formData.get("metaNotes") as string)?.trim() || null,
+    locationId: location ? Number(location) : null,
   });
 }
 

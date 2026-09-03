@@ -8,7 +8,7 @@
  */
 import { asc, eq, inArray, sql } from "drizzle-orm";
 import type { Db } from "@/db";
-import { ownedCards, storageLocations } from "@/db/schema";
+import { decks, ownedCards, storageLocations } from "@/db/schema";
 
 export interface StorageLocation {
   id: number;
@@ -18,12 +18,14 @@ export interface StorageLocation {
   sortKey: number;
   /** How many physical cards are kept there. */
   cards: number;
+  /** How many built or planned decks live there. */
+  decks: number;
 }
 
 export async function listLocations(db: Db, includeArchived = true): Promise<StorageLocation[]> {
   // Counted with a plain grouped query rather than a correlated subquery in a
   // `sql` template — that renders without the correlation and returns 0 for all.
-  const [places, counts] = await Promise.all([
+  const [places, counts, deckCounts] = await Promise.all([
     db
       .select({ id: storageLocations.id, name: storageLocations.name, note: storageLocations.note, isArchived: storageLocations.isArchived, sortKey: storageLocations.sortKey })
       .from(storageLocations)
@@ -32,9 +34,14 @@ export async function listLocations(db: Db, includeArchived = true): Promise<Sto
       .select({ locationId: ownedCards.locationId, n: sql<number>`count(*)::int` })
       .from(ownedCards)
       .groupBy(ownedCards.locationId),
+    db
+      .select({ locationId: decks.locationId, n: sql<number>`count(*)::int` })
+      .from(decks)
+      .groupBy(decks.locationId),
   ]);
   const held = new Map(counts.map((c) => [c.locationId, c.n]));
-  const rows = places.map((p) => ({ ...p, cards: held.get(p.id) ?? 0 }));
+  const decked = new Map(deckCounts.map((c) => [c.locationId, c.n]));
+  const rows = places.map((p) => ({ ...p, cards: held.get(p.id) ?? 0, decks: decked.get(p.id) ?? 0 }));
   return includeArchived ? rows : rows.filter((r) => !r.isArchived);
 }
 
@@ -46,7 +53,7 @@ export async function createLocation(db: Db, name: string, note: string | null):
     .values({ name: clean, note: note?.trim() || null })
     .onConflictDoNothing({ target: storageLocations.name })
     .returning({ id: storageLocations.id, name: storageLocations.name, note: storageLocations.note, isArchived: storageLocations.isArchived, sortKey: storageLocations.sortKey });
-  return row ? { ...row, cards: 0 } : null;
+  return row ? { ...row, cards: 0, decks: 0 } : null;
 }
 
 export async function updateLocation(db: Db, id: number, patch: { name?: string; note?: string | null; isArchived?: boolean; sortKey?: number }): Promise<void> {

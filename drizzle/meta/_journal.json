@@ -78,6 +78,13 @@
       "when": 1788432760073,
       "tag": "0010_faulty_ultimates",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1788434367536,
+      "tag": "0011_supreme_ultron",
+      "breakpoints": true
     }
   ]
 }

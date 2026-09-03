@@ -77,6 +77,11 @@ export function LocationsAdmin({ locations }: { locations: StorageLocation[] }) 
                   ) : (
                     <span className="text-space-500">0</span>
                   )}
+                  {l.decks > 0 ? (
+                    <Link href={`/decks`} className="ml-1 text-[11px] text-space-400 hover:text-ki-300">
+                      +{l.decks} deck{l.decks === 1 ? "" : "s"}
+                    </Link>
+                  ) : null}
                 </td>
                 <td className="px-3 py-2">
                   <div className="flex flex-wrap justify-end gap-1">
@@ -85,7 +90,8 @@ export function LocationsAdmin({ locations }: { locations: StorageLocation[] }) 
                     </button>
                     <button
                       onClick={() => {
-                        const warn = l.cards > 0 ? `${l.cards} card${l.cards === 1 ? "" : "s"} filed there will show no location. ` : "";
+                        const filed = [l.cards ? `${l.cards} card${l.cards === 1 ? "" : "s"}` : "", l.decks ? `${l.decks} deck${l.decks === 1 ? "" : "s"}` : ""].filter(Boolean);
+                        const warn = filed.length ? `${filed.join(" and ")} filed there will show no location. ` : "";
                         if (window.confirm(`Delete "${l.name}"? ${warn}Archiving keeps the label instead.`)) run(() => deleteLocationAction(l.id));
                       }}
                       disabled={pending}

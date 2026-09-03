@@ -64,7 +64,10 @@ export default async function DecksPage() {
                         {d.isBuilt ? <span className="rounded bg-ki-500 px-1.5 py-px text-[10px] font-bold uppercase text-space-950">Built</span> : null}
                         <DeckStatusBadge status={d.legality.status} small title={d.legality.issues.map((i) => i.message).join(" ")} />
                       </div>
-                      <div className="truncate text-xs text-space-300">{d.leader?.name ?? "No leader yet"}</div>
+                      <div className="truncate text-xs text-space-300">
+                        {d.leader?.name ?? "No leader yet"}
+                        {d.locationName ? <span className="text-space-400"> · 📍 {d.locationName}</span> : null}
+                      </div>
                       <div className="mt-1 flex flex-wrap items-center gap-1">
                         {d.leader?.colors.map((c) => (
                           <ColorPill key={c} color={c} small />

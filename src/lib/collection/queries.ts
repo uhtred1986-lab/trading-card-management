@@ -1,6 +1,6 @@
 import { asc, desc, eq, sql } from "drizzle-orm";
 import type { Db } from "@/db";
-import { cardPrints, cardSets, cards, ownedCards, storageLocations } from "@/db/schema";
+import { cardPrints, cardSets, cards, deckCards, ownedCards, storageLocations } from "@/db/schema";
 import type { Currency } from "@/lib/money";
 import { latestUsdEur } from "@/lib/pricing/fx";
 import { basePricesAsOf, priceForFinish, pricesForPrints } from "@/lib/pricing/queries";
@@ -251,7 +251,17 @@ export interface CollectionCopy {
  */
 export async function collectionCopies(
   db: Db,
-  opts: { q?: string; set?: string; finish?: "foil" | "normal"; location?: number | "none"; sort?: "value" | "name" | "number" | "recent" } = {},
+  opts: {
+    q?: string;
+    set?: string;
+    finish?: "foil" | "normal";
+    location?: number | "none";
+    /** Copies of cards that appear in this deck — deck slots name a card, not a copy. */
+    deck?: number;
+    /** A username, or "none" for copies nobody has claimed. */
+    owner?: string;
+    sort?: "value" | "name" | "number" | "recent";
+  } = {},
 ): Promise<{ rows: CollectionCopy[]; usdEur: number | null }> {
   const [lots, usdEur] = await Promise.all([
     db
@@ -307,6 +317,13 @@ export async function collectionCopies(
   // "none" is the useful case: the cards you have not filed anywhere yet.
   if (opts.location === "none") rows = rows.filter((r) => r.locationId == null);
   else if (typeof opts.location === "number") rows = rows.filter((r) => r.locationId === opts.location);
+  if (opts.owner) rows = opts.owner === "none" ? rows.filter((r) => !r.owner) : rows.filter((r) => r.owner === opts.owner);
+  if (opts.deck) {
+    // A deck names cards, not copies, so this shows every copy of everything
+    // the deck uses — which is what you want when you go to pull it together.
+    const inDeck = new Set((await db.selectDistinct({ cardId: deckCards.cardId }).from(deckCards).where(eq(deckCards.deckId, opts.deck))).map((d) => d.cardId));
+    rows = rows.filter((r) => inDeck.has(r.cardId));
+  }
   if (opts.q) {
     const terms = opts.q.toLowerCase().split(/\s+/).filter(Boolean);
     rows = rows.filter((r) => terms.every((t) => r.searchText.includes(t)));

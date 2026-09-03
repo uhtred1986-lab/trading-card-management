@@ -12,6 +12,7 @@ import { DeckBuilder } from "@/components/DeckBuilder";
 import { DeckAI } from "@/components/DeckAI";
 import { SwapSuggestions } from "@/components/SwapSuggestions";
 import { suggestionsForDeck } from "@/lib/decks/swaps";
+import { listLocations } from "@/lib/collection/locations";
 import { hasAnthropic } from "@/lib/ai/client";
 import { BuiltToggle } from "@/components/BuiltToggle";
 import { DeckCardControls } from "@/components/DeckCardControls";
@@ -26,7 +27,10 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
   const deck = await getDeck(db, id);
   if (!deck) notFound();
   const conflicts = deck.isBuilt ? [] : await buildConflicts(db, id);
-  const suggestions = await suggestionsForDeck(db, id);
+  // Archived places are still listed here: a deck already filed in one should
+  // not silently lose it the next time the form is saved.
+  const [suggestions, locations] = await Promise.all([suggestionsForDeck(db, id), listLocations(db)]);
+  const deckLocation = locations.find((l) => l.id === deck.locationId) ?? null;
   const leader = deck.cards.find((c) => c.zone === "leader");
   const input = "tap w-full rounded-md border border-space-600 bg-space-900 px-2 py-1.5 text-sm text-space-100";
 
@@ -43,6 +47,11 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
             </Link>
             {deck.isBuilt ? <span className="rounded bg-ki-500 px-1.5 py-px text-[10px] font-bold uppercase text-space-950">Built</span> : <span className="rounded bg-space-800 px-1.5 py-px text-[10px] font-bold uppercase text-space-300">Virtual</span>}
             <DeckStatusBadge status={deck.legality.status} />
+            {deckLocation ? (
+              <Link href={`/collection?view=list&location=${deckLocation.id}`} className="rounded border border-space-700 px-1.5 py-px text-[11px] text-space-300 hover:border-space-500 hover:text-space-100">
+                📍 {deckLocation.name}
+              </Link>
+            ) : null}
           </div>
           <h1 className="text-2xl font-semibold text-space-50">{deck.name}</h1>
           <div className="flex flex-wrap items-center gap-1 text-sm text-space-300">
@@ -141,6 +150,17 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
               <label className="block text-xs text-space-300">
                 Description
                 <textarea name="description" defaultValue={deck.description ?? ""} rows={2} className={input} />
+              </label>
+              <label className="block text-xs text-space-300">
+                Kept in
+                <select name="locationId" defaultValue={deck.locationId ?? ""} className={input}>
+                  <option value="">Nowhere in particular</option>
+                  {locations.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.name}
+                    </option>
+                  ))}
+                </select>
               </label>
               <label className="block text-xs text-space-300">
                 Meta notes <span className="text-space-400">(given to the AI wizard)</span>

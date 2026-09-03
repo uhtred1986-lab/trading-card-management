@@ -1,6 +1,6 @@
 import { asc, desc, eq, sql } from "drizzle-orm";
 import type { Db } from "@/db";
-import { cards, deckCards, decks } from "@/db/schema";
+import { cards, deckCards, decks, storageLocations } from "@/db/schema";
 import { allocationForCards, type Allocation } from "./reservations";
 import { legality, legalityForDecks, RULES } from "./legality";
 
@@ -49,8 +49,11 @@ export async function listDecks(db: Db) {
       isBuilt: decks.isBuilt,
       updatedAt: decks.updatedAt,
       leaderId: sql<string | null>`(select dc.card_id from ${deckCards} dc where dc.deck_id = ${decks.id} and dc.zone = 'leader' limit 1)`,
+      locationId: decks.locationId,
+      locationName: storageLocations.name,
     })
     .from(decks)
+    .leftJoin(storageLocations, eq(storageLocations.id, decks.locationId))
     .orderBy(desc(decks.isBuilt), desc(decks.updatedAt));
   const leaderIds = rows.map((r) => r.leaderId).filter((x): x is string => !!x);
   const [leaders, legalities] = await Promise.all([
