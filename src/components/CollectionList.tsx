@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState, useTransition } from "react";
-import { bulkAddToDeckAction, bulkDeleteCopiesAction, bulkSetFinishAction, bulkSetLocationAction, bulkSetOwnerAction } from "@/app/collection/actions";
+import { bulkAddToDeckAction, bulkDeleteCopiesAction, bulkSetFinishAction, bulkSetLocationAction, bulkSetOwnerAction, cloneCopyAction } from "@/app/collection/actions";
 import type { CollectionCopy } from "@/lib/collection/queries";
 import type { DeckOption } from "@/lib/decks/add";
 import type { StorageLocation } from "@/lib/collection/locations";
@@ -113,6 +113,9 @@ export function CollectionList({ rows, owners, decks, locations }: { rows: Colle
               <th className={`${head} hidden lg:table-cell`}>Location</th>
               <th className={`${head} hidden text-right md:table-cell`}>Paid</th>
               <th className={`${head} text-right`}>Value</th>
+              <th className={`${head} text-right`}>
+                <span className="sr-only">Actions</span>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -168,6 +171,21 @@ export function CollectionList({ rows, owners, decks, locations }: { rows: Colle
                     ) : (
                       <span className="text-space-500">unpriced</span>
                     )}
+                  </td>
+                  <td className={`${cell} text-right`}>
+                    <button
+                      onClick={() =>
+                        run(async () => {
+                          const c = await cloneCopyAction(r.id);
+                          return c.added ? `Added another ${r.name} — same print, condition and place.` : "That copy is gone; nothing cloned.";
+                        })
+                      }
+                      disabled={pending}
+                      title={`Add another copy exactly like this one${r.locationName ? ` (${r.printLabel}, ${r.condition}, in ${r.locationName})` : ` (${r.printLabel}, ${r.condition})`}`}
+                      className="tap rounded-md border border-space-600 px-1.5 py-1 text-[11px] text-space-300 hover:bg-space-800 hover:text-space-50 disabled:opacity-40"
+                    >
+                      Clone
+                    </button>
                   </td>
                 </tr>
               );

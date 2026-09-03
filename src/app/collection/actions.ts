@@ -241,6 +241,8 @@ export async function deleteLotForm(formData: FormData) {
 
 /** A stray id list this long is not a real selection; the whole collection is. */
 const MAX_BULK = 20000;
+/** A playset is four; anything past a box of one card is a typo. */
+const MAX_CLONES = 99;
 
 function cleanIds(lotIds: number[]): number[] {
   return [...new Set(lotIds.filter((n) => Number.isInteger(n) && n > 0))].slice(0, MAX_BULK);
@@ -255,6 +257,36 @@ export async function bulkSetLocationAction(lotIds: number[], locationId: number
   revalidateCards(cardIds);
   revalidatePath("/collection");
   return { updated: cardIds.length };
+}
+
+/**
+ * Another physical card exactly like this one — same print, condition, finish,
+ * language, owner, place and price paid. Distinct from `addCopyAction`, which
+ * guesses from the newest copy you own: cloning a row you are looking at is
+ * how a playset gets entered once you have typed the first one in.
+ */
+export async function cloneCopyAction(lotId: number, times = 1): Promise<{ added: number; cardId: string | null }> {
+  const n = Math.min(Math.max(1, Math.floor(times)), MAX_CLONES);
+  const source = await db.query.ownedCards.findFirst({ where: eq(ownedCards.id, lotId) });
+  if (!source) return { added: 0, cardId: null };
+  // Listed field by field rather than spreading the row: a new column should
+  // have to be considered here, not silently copied or silently dropped.
+  const copy = {
+    printId: source.printId,
+    cardId: source.cardId,
+    condition: source.condition,
+    finish: source.finish,
+    language: source.language,
+    acquiredOn: source.acquiredOn,
+    pricePaidCents: source.pricePaidCents,
+    currency: source.currency,
+    notes: source.notes,
+    owner: source.owner,
+    locationId: source.locationId,
+  };
+  await db.insert(ownedCards).values(Array.from({ length: n }, () => copy));
+  revalidate(source.cardId);
+  return { added: n, cardId: source.cardId };
 }
 
 /** File one copy, from the card page or the grid popover. */
