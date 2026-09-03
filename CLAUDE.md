@@ -91,6 +91,13 @@ the same style.
   a sixth copy or a second leader is added and the deck is flagged, because silently dropping a
   card the user just scanned is worse. Scan batches store the target in `scan_batches.deck_id` so
   it carries to the PC.
+- **Voice bulk entry** (`VoiceEntry`, `src/lib/scan/voice.ts`): speech recognition runs in the
+  browser via the Web Speech API (`src/lib/scan/speech.ts`) — no audio is uploaded and there is no
+  API cost; only the transcript reaches the server. `parseSpoken` never decides what was meant: it
+  returns *ordered* `{cardId, quantity}` interpretations ("eighteen oh twenty" is both BT18-020 ×1
+  and BT18-02 ×20) and `resolveSpokenAction` keeps the first whose card number exists, so the
+  catalog is the tie-breaker. Falls back to a name search. Hit/miss are signalled by synthesised
+  tones (`src/lib/scan/cue.ts`) so entry can be done without looking at the screen.
 - **Quick capture** (`/add/quick`, `POST /api/scan/quick`): phone loop — one photo → identified
   immediately (nothing stored) → quantity with big ± buttons → `addLot` → the camera re-opens
   (the `click()` happens inside the save handler so it counts as a user gesture).

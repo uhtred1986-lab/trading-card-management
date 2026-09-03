@@ -9,6 +9,7 @@ import { formatCents, parseEuroInput } from "../src/lib/money";
 import { markerOf, matchProduct } from "../src/lib/pricing/tcgcsv";
 import { greedyOptimise, type Listing } from "../src/lib/marketplace/optimizer";
 import { parseBasicUser } from "../src/lib/auth";
+import { normaliseSpeech, parseSpoken, spokenQuantity } from "../src/lib/scan/voice";
 import { collectorNumbers } from "../src/lib/marketplace/cardtrader";
 import { sanitiseDraft, type PoolCard } from "../src/lib/ai/deck-builder";
 import { assessMatch, cleanBox, nameSimilarity, normaliseNumber } from "../src/lib/ai/scan-match";
@@ -224,6 +225,31 @@ assert.deepEqual(cleanBox({ x: 0.1, y: 0.2, w: 0.3, h: 0.4 }), { x: 0.1, y: 0.2,
 assert.deepEqual(cleanBox({ x: 0.9, y: 0.9, w: 0.5, h: 0.5 }), { x: 0.9, y: 0.9, w: 0.1, h: 0.1 }, "clamped to the image");
 assert.equal(cleanBox({ x: 0.5, y: 0.5, w: 0.001, h: 0.5 }), null, "degenerate boxes are dropped");
 assert.equal(cleanBox(null), null);
+
+// ── spoken card numbers ───────────────────────────────────────────────────
+assert.equal(normaliseSpeech("BT eighteen dash zero twenty"), "bt 18 0 20");
+assert.equal(normaliseSpeech("twenty two"), "22", "tens + ones combine");
+assert.equal(normaliseSpeech("card number P one eighty one"), "p 1 81");
+
+const opts = (s: string) => parseSpoken(s).options;
+const has = (s: string, cardId: string, quantity: number) => opts(s).some((o) => o.cardId === cardId && o.quantity === quantity);
+
+// The reading the catalog will accept has to be offered first.
+assert.deepEqual(opts("BT eighteen zero twenty")[0], { cardId: "BT18-020", quantity: 1 });
+assert.deepEqual(opts("bt 18 020 times 4")[0], { cardId: "BT18-020", quantity: 4 });
+assert.deepEqual(opts("sd twenty two zero two")[0], { cardId: "SD22-02", quantity: 1 });
+assert.deepEqual(opts("p one eighty one")[0], { cardId: "P-181", quantity: 1 });
+// Spelled-out prefixes and digit-by-digit dictation still reach the same card.
+assert.ok(has("b t one eight zero two zero", "BT18-020", 1), "letters spelled out, digits one by one");
+// A trailing count is only *one* of the readings — the real card decides.
+assert.ok(has("bt 18 020 4", "BT18-020", 4), "trailing number can be the quantity");
+assert.ok(has("bt 18 020 4", "BT18-0204", 1), "…but the all-digits reading is offered first");
+assert.ok(opts("bt 18 020 4").findIndex((o) => o.cardId === "BT18-0204") < opts("bt 18 020 4").findIndex((o) => o.cardId === "BT18-020" && o.quantity === 4));
+// Words with no number in them fall through to the name search.
+assert.deepEqual(opts("son goku"), []);
+assert.equal(parseSpoken("son goku times 3").query, "son goku");
+assert.equal(spokenQuantity("son goku times 3"), 3);
+assert.equal(spokenQuantity("bt 18 020"), 1);
 
 // ── Basic Auth username → lot owner ───────────────────────────────────────
 assert.equal(parseBasicUser(`Basic ${Buffer.from("patvolny:Drag0nball!").toString("base64")}`), "patvolny");

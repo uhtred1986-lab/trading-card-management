@@ -8,6 +8,7 @@ import type { DeckOption } from "@/lib/decks/add";
 import { CardImage } from "./CardImage";
 import { CardSearchInput, type CardHit as Hit } from "./CardSearchInput";
 import { DeckPicker } from "./DeckPicker";
+import { VoiceEntry } from "./VoiceEntry";
 type Print = { id: string; label: string };
 
 interface Row {
@@ -57,6 +58,24 @@ export function BulkEntry({ decks }: { decks: DeckOption[] }) {
     const prints = await printsForCardAction(hit.id);
     update(i, { card: hit, prints, printId: prints[0]?.id ?? "" });
     if (key != null) setTimeout(() => qtyRefs.current.get(key)?.focus(), 0);
+  };
+
+  /** A voice hit fills the trailing blank row if there is one, else appends. */
+  const addVoiceRow = (card: Hit, prints: Print[], quantity: number) => {
+    setRows((rs) => {
+      const row: Row = {
+        key: nextKey++,
+        card,
+        prints,
+        printId: prints[0]?.id ?? "",
+        quantity: String(quantity),
+        condition: defaults.condition,
+        finish: defaults.finish,
+        pricePaid: "",
+      };
+      const last = rs[rs.length - 1];
+      return last && !last.card ? [...rs.slice(0, -1), row] : [...rs, row];
+    });
   };
 
   const addRow = () => {
@@ -109,6 +128,8 @@ export function BulkEntry({ decks }: { decks: DeckOption[] }) {
           {pending ? "Saving…" : `Save ${totalCards} card${totalCards === 1 ? "" : "s"}`}
         </button>
       </div>
+
+      <VoiceEntry onCard={addVoiceRow} />
 
       <DeckPicker decks={decks} value={deckId} onChange={(id) => setDeckId(id)} />
 
