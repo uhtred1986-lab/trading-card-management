@@ -319,9 +319,33 @@ export async function collectionCopies(
       rows.sort((a, b) => b.id - a.id);
   }
 
+  // Projected by hand: this is the boundary to a client component, and
+  // `searchText` on every copy would be the biggest thing crossing it.
   return {
     usdEur,
-    rows: rows.map(({ searchText: _s, setSort: _k, ...r }) => r),
+    rows: rows.map((r) => ({
+      id: r.id,
+      cardId: r.cardId,
+      name: r.name,
+      setCode: r.setCode,
+      setName: r.setName,
+      cardType: r.cardType,
+      colors: r.colors,
+      rarityCode: r.rarityCode,
+      imageUrl: r.imageUrl,
+      isBanned: r.isBanned,
+      isLimited: r.isLimited,
+      printId: r.printId,
+      printLabel: r.printLabel,
+      condition: r.condition,
+      finish: r.finish,
+      language: r.language,
+      owner: r.owner,
+      acquiredOn: r.acquiredOn,
+      pricePaidCents: r.pricePaidCents,
+      currency: r.currency,
+      marketEurCents: r.marketEurCents,
+    })),
   };
 }
 

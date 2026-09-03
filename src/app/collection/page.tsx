@@ -1,10 +1,15 @@
 import Link from "next/link";
 import { db } from "@/db";
 import { listSets } from "@/lib/catalog/queries";
-import { collectionCards, summarise, valuedLots } from "@/lib/collection/queries";
+import { collectionCards, collectionCopies, summarise, valuedLots } from "@/lib/collection/queries";
+import { ownerOptions } from "@/lib/collection/owners";
+import { currentOwner } from "@/lib/auth";
 import { formatCents } from "@/lib/money";
+import { parseViewMode } from "@/lib/view-mode";
 import { CardTile } from "@/components/CardTile";
+import { CollectionList } from "@/components/CollectionList";
 import { CopiesPopover } from "@/components/CopiesPopover";
+import { ViewToggle } from "@/components/ViewToggle";
 import { deckOptions } from "@/lib/decks/add";
 
 export const dynamic = "force-dynamic";
@@ -19,10 +24,25 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
   const finishParam = one(sp.finish);
   const finish = finishParam === "foil" || finishParam === "normal" ? finishParam : undefined;
   const sort = (one(sp.sort) as "value" | "name" | "number" | "recent" | undefined) ?? "recent";
+  const view = parseViewMode(one(sp.view));
+  const filters: Parameters<typeof collectionCopies>[1] = { q, set, finish, sort };
 
-  const [{ rows }, sets, all, decks] = await Promise.all([collectionCards(db, { q, set, finish, sort }), listSets(db), valuedLots(db), deckOptions(db)]);
+  // The grid aggregates by card; the list is one row per physical copy. Only
+  // the one being shown is fetched — both walk every lot.
+  const [grid, list, sets, all, decks, me] = await Promise.all([
+    view === "grid" ? collectionCards(db, filters) : null,
+    view === "list" ? collectionCopies(db, filters) : null,
+    listSets(db),
+    valuedLots(db),
+    deckOptions(db),
+    currentOwner(),
+  ]);
+  const owners = view === "list" ? await ownerOptions(db, me) : [];
   const s = summarise(all.lots, all.usdEur);
+  const shown = grid?.rows.length ?? list?.rows.length ?? 0;
   const select = "tap rounded-md border border-space-600 bg-space-900 px-2 py-1.5 text-sm text-space-100";
+
+  const params = { q, set, sort: sort === "recent" ? undefined : sort, finish };
 
   const href = (next: string | undefined) => {
     const p = new URLSearchParams();
@@ -30,6 +50,7 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
     if (set) p.set("set", set);
     if (sort !== "recent") p.set("sort", sort);
     if (next) p.set("finish", next);
+    if (view !== "grid") p.set("view", view);
     const qs = p.toString();
     return qs ? `/collection?${qs}` : "/collection";
   };
@@ -67,10 +88,14 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
         {chip(undefined, "all copies", s.copies, s.valueEurCents, "text-space-50")}
         {chip("normal", "non-foil", s.normalCopies, s.normalValueEurCents, "text-space-50")}
         {chip("foil", "✦ foil", s.foilCopies, s.foilValueEurCents, "text-amber-300")}
+        <span className="ml-auto">
+          <ViewToggle path="/collection" params={params} view={view} listLabel="Copies" />
+        </span>
       </div>
 
       <form action="/collection" className="grid grid-cols-2 gap-2 rounded-xl border border-space-700/70 bg-space-900/50 p-3 sm:grid-cols-5">
         {finish ? <input type="hidden" name="finish" value={finish} /> : null}
+        {view !== "grid" ? <input type="hidden" name="view" value={view} /> : null}
         <input type="search" name="q" defaultValue={q ?? ""} placeholder="Filter by name or number" className={`${select} col-span-2`} />
         <select name="set" defaultValue={set ?? ""} className={select}>
           <option value="">All sets</option>
@@ -89,13 +114,15 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
         <button className="tap rounded-md border border-space-600 px-3 py-1.5 text-sm text-space-100 hover:bg-space-800">Apply</button>
       </form>
 
-      {rows.length === 0 ? (
+      {shown === 0 ? (
         <p className="rounded-xl border border-dashed border-space-700 p-8 text-center text-space-300">
           {s.lots === 0 ? "Nothing here yet." : finish === "foil" ? "No foils match that filter." : "No cards match that filter."}
         </p>
+      ) : list ? (
+        <CollectionList rows={list.rows} owners={owners} decks={decks} />
       ) : (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-          {rows.map((r) => (
+          {grid!.rows.map((r) => (
             <CardTile
               key={r.card.id}
               card={r.card}

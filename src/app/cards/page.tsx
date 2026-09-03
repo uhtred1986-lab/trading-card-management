@@ -6,6 +6,9 @@ import { latestUsdEur } from "@/lib/pricing/fx";
 import { basePricesForCards, priceForFinish } from "@/lib/pricing/queries";
 import { formatCents } from "@/lib/money";
 import { CardTile } from "@/components/CardTile";
+import { CardList } from "@/components/CardList";
+import { ViewToggle } from "@/components/ViewToggle";
+import { parseViewMode } from "@/lib/view-mode";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +20,7 @@ function one(v: string | string[] | undefined): string | undefined {
 
 export default async function CardsPage({ searchParams }: { searchParams: Promise<Params> }) {
   const sp = await searchParams;
+  const view = parseViewMode(one(sp.view));
   const search: CardSearch = {
     q: one(sp.q),
     set: one(sp.set),
@@ -39,29 +43,40 @@ export default async function CardsPage({ searchParams }: { searchParams: Promis
 
   const qs = (overrides: Record<string, string | number | undefined>) => {
     const p = new URLSearchParams();
-    const merged = { ...search, ...overrides } as Record<string, unknown>;
+    const merged = { ...search, view: view === "grid" ? undefined : view, ...overrides } as Record<string, unknown>;
     for (const [k, v] of Object.entries(merged)) if (v != null && v !== "" && !(k === "page" && v === 1)) p.set(k, String(v));
     const s = p.toString();
     return s ? `/cards?${s}` : "/cards";
   };
 
+  const label = (id: string) => {
+    // SR+ cards only exist as foils on TCGplayer, so `priceForFinish` falls back to the foil price.
+    const usd = priceForFinish(prices.get(id), "normal");
+    return usd == null ? null : usdEur != null ? formatCents(Math.round(usd * usdEur), "EUR") : formatCents(usd, "USD");
+  };
+
   const select = "tap rounded-md border border-space-600 bg-space-900 px-2 py-1.5 text-sm text-space-100";
+  // Switching view keeps every filter and the page you are on.
+  const viewParams: Record<string, string | undefined> = {};
+  for (const [k, v] of Object.entries(search)) if (v != null && v !== "" && !(k === "page" && v === 1)) viewParams[k] = String(v);
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-2">
         <h1 className="text-xl font-semibold text-space-50">Card catalog</h1>
-        <p className="flex items-center gap-3 text-sm text-space-300">
+        <p className="flex flex-wrap items-center gap-3 text-sm text-space-300">
           {result.total.toLocaleString()} card{result.total === 1 ? "" : "s"}
           {search.set ? (
             <Link href={`/sets/${search.set}/review`} className="rounded-md border border-space-600 px-2 py-1 text-xs text-space-100 hover:bg-space-800">
               AI set review
             </Link>
           ) : null}
+          <ViewToggle path="/cards" params={viewParams} view={view} />
         </p>
       </div>
 
       <form className="grid grid-cols-2 gap-2 rounded-xl border border-space-700/70 bg-space-900/50 p-3 sm:grid-cols-4 lg:grid-cols-8" action="/cards">
+        {view !== "grid" ? <input type="hidden" name="view" value={view} /> : null}
         <input
           type="search"
           name="q"
@@ -123,15 +138,13 @@ export default async function CardsPage({ searchParams }: { searchParams: Promis
         <p className="rounded-xl border border-dashed border-space-700 p-8 text-center text-space-300">
           No cards match. {sets.length === 0 ? "The catalog looks empty — run the catalog sync from Settings." : ""}
         </p>
+      ) : view === "list" ? (
+        <CardList rows={result.rows.map((c) => ({ card: c, priceLabel: label(c.id), ownedQty: alloc.get(c.id)?.owned }))} />
       ) : (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-          {result.rows.map((c) => {
-            // SR+ cards only exist as foils on TCGplayer, so fall back to the foil price.
-            const usd = priceForFinish(prices.get(c.id), "normal");
-            const label =
-              usd == null ? null : usdEur != null ? formatCents(Math.round(usd * usdEur), "EUR") : formatCents(usd, "USD");
-            return <CardTile key={c.id} card={c} priceLabel={label} ownedQty={alloc.get(c.id)?.owned} />;
-          })}
+          {result.rows.map((c) => (
+            <CardTile key={c.id} card={c} priceLabel={label(c.id)} ownedQty={alloc.get(c.id)?.owned} />
+          ))}
         </div>
       )}
 
