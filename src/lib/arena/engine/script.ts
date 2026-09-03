@@ -9,12 +9,15 @@
  *
  * Nothing here reads card text. Section numbers refer to the Rule Manual.
  */
-import { matches, type CardFilter } from "./filters";
+import type { CardFilter } from "./filters";
 import {
   addEffect,
+  amount,
+  condHolds,
+  resolveRef,
+  resolveSelector,
+  sideOf,
   areaOf,
-  cardsInPlay,
-  def,
   draw as drawCards,
   face,
   has,
@@ -26,7 +29,6 @@ import {
 } from "./state";
 import { koCard, pendTriggers } from "./triggers";
 import type { Color, FlowStep, GameEvent, GameState, KeywordSkill, PlayerId, Trigger } from "./types";
-import { other } from "./types";
 
 // ── the language ───────────────────────────────────────────────────────────
 
@@ -92,6 +94,8 @@ export type Op =
   | { op: "addMarker"; target: Ref; n: Amount }
   | { op: "removeMarker"; target: Ref; n: Amount }
   | { op: "token"; name: string; power: number; comboCost: number | null; comboPower: number | null; colors: Color[]; n: Amount; side?: Side }
+  /** A [Permanent] cost reducer, applied while the card sits where the skill says (9-1-3-3). */
+  | { op: "costReduction"; target: Ref; amount: number }
   | { op: "negateAttack" }
   | { op: "cannotAttack"; target: Ref; until: Duration }
   | { op: "if"; cond: Cond; then: Op[]; else?: Op[] }
@@ -116,106 +120,9 @@ export interface ScriptFrame {
   awaiting?: string;
 }
 
-// ── selectors ──────────────────────────────────────────────────────────────
-
-function sideOf(master: PlayerId, side: Side | undefined): PlayerId[] {
-  if (side === "opponent") return [other(master)];
-  if (side === "both") return [master, other(master)];
-  return [master];
-}
-
-function areaCards(s: GameState, p: PlayerId, area: ScriptArea, frame: ScriptFrame): string[] {
-  const ps = s.players[p];
-  switch (area) {
-    case "leader":
-      return ps.leader ? [ps.leader] : [];
-    case "unison":
-      return ps.unison ? [ps.unison] : [];
-    case "play":
-      return cardsInPlay(s, p);
-    case "under":
-      return s.cards[frame.card]?.under.slice() ?? [];
-    default:
-      return ps[area].slice();
-  }
-}
-
-/**
- * Cards a selector can pick. 22-16 [Barrier] removes a card from the choices
- * of a skill mastered by its opponent; 20-4 does the same for "unaffected by
- * skills", which the compiler never emits.
- */
-export function resolveSelector(ctx: GameContext, s: GameState, frame: ScriptFrame, sel: Selector): string[] {
-  let out: string[] = [];
-  if (sel.special) {
-    const b = s.battle;
-    const pick =
-      sel.special === "self"
-        ? frame.card
-        : sel.special === "attacker"
-          ? b?.attacker
-          : sel.special === "guard"
-            ? b?.guard
-            : sel.special === "subject"
-              ? frame.subject
-              : sel.special === "leader"
-                ? s.players[frame.master].leader
-                : s.players[other(frame.master)].leader;
-    out = pick && s.cards[pick] ? [pick] : [];
-  } else if (sel.fromVar) {
-    out = (frame.vars[sel.fromVar] ?? []).filter((id) => s.cards[id]);
-  } else {
-    const area = sel.area ?? "battle";
-    for (const p of sideOf(frame.master, sel.side)) out.push(...areaCards(s, p, area, frame));
-  }
-  return out.filter((id) => {
-    const inst = s.cards[id];
-    if (!inst) return false;
-    if (sel.mode && inst.mode !== sel.mode) return false;
-    // 23-5-2: a Hidden Mode card has none of its front-side information.
-    if (sel.filter && (inst.hidden || !matches(def(ctx, s, id), sel.filter))) return false;
-    if (!sel.special && !sel.ignoreBarrier && sel.side !== "you" && has(ctx, s, id, "Barrier") && s.cards[id].owner !== frame.master && areaOf(s, id) !== "hand") return false;
-    return true;
-  });
-}
-
-function resolveRef(ctx: GameContext, s: GameState, frame: ScriptFrame, ref: Ref): string[] {
-  if ("var" in ref) return (frame.vars[ref.var] ?? []).filter((id) => s.cards[id]);
-  return resolveSelector(ctx, s, frame, ref.sel);
-}
-
-function amount(ctx: GameContext, s: GameState, frame: ScriptFrame, a: Amount): number {
-  if (typeof a === "number") return a;
-  if ("var" in a) return (frame.vars[a.var] ?? []).length;
-  return resolveSelector(ctx, s, frame, a.count).length;
-}
-
-function condHolds(ctx: GameContext, s: GameState, frame: ScriptFrame, c: Cond): boolean {
-  switch (c.kind) {
-    case "count": {
-      const n = resolveSelector(ctx, s, frame, c.sel).length;
-      return (c.atLeast == null || n >= c.atLeast) && (c.atMost == null || n <= c.atMost);
-    }
-    case "life": {
-      const n = sideOf(frame.master, c.side).reduce((t, p) => t + s.players[p].life.length, 0);
-      return (c.atLeast == null || n >= c.atLeast) && (c.atMost == null || n <= c.atMost);
-    }
-    case "leaderColor": {
-      const l = s.players[frame.master].leader;
-      return !!l && def(ctx, s, l).colors.includes(c.color);
-    }
-    case "leaderMatches": {
-      const l = s.players[frame.master].leader;
-      return !!l && matches(def(ctx, s, l), c.filter);
-    }
-    case "chose":
-      return (frame.vars[c.var] ?? []).length > 0;
-    case "isTurnPlayer":
-      return s.turnPlayer === frame.master;
-  }
-}
-
 // ── the interpreter ────────────────────────────────────────────────────────
+
+export { resolveSelector };
 
 /**
  * Run a program until it finishes or needs a decision. Returns "wait" with a
@@ -429,6 +336,10 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         break;
       }
 
+      case "costReduction":
+        // Continuous by nature: it is read by `playCost`, not applied here.
+        break;
+
       case "negateAttack":
         if (s.battle) {
           s.battle.negated = true;
@@ -504,6 +415,7 @@ const OP_NAMES = new Set<Op["op"]>([
   "token",
   "negateAttack",
   "cannotAttack",
+  "costReduction",
   "if",
   "note",
 ]);

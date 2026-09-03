@@ -112,6 +112,9 @@ export function parseTarget(phrase: string): Selector | null {
     count = 99;
   } else if ((m = /\b(\d+)\b/.exec(t.replace(/\d+000\b/g, "").replace(/energy cost (?:of )?\d+/g, "").replace(/\bz-\d/g, "")))) {
     count = Number(m[1]);
+  } else if (/\bcards\b|\benergy\b/.test(t)) {
+    // A plural with no number means all of them: "your Battle Cards get +5000 power".
+    count = 99;
   }
 
   const mode = /\bin rest mode\b/.test(t) ? "rest" : /\bin active mode\b/.test(t) ? "active" : undefined;
@@ -249,6 +252,12 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     return [{ op: "moveTo", target: { sel: { fromVar: "looked" } }, to: "deck", position: "bottom" }];
   if (/^shuffle your deck(?: if you looked through it)?$/.test(t)) return [{ op: "shuffle" }];
   if ((m = /^look at (?:up to )?(\d+) cards? from the top of your deck$/.exec(t))) return [{ op: "look", n: Number(m[1]), as: "looked" }];
+
+  // Cost reduction on a [Permanent] skill (9-1-3-3, 20-21).
+  if ((m = /^reduce the energy cost of (.+?) (?:in your hand |in your z-deck )?by (\d+)$/.exec(t))) {
+    const ref = refFor(m[1], c);
+    return ref ? [{ op: "costReduction", target: ref, amount: Number(m[2]) }] : null;
+  }
 
   // Energy markers (5-14).
   if ((m = /^place (\d+) energy markers? in your energy(?: area)?$/.exec(t))) return [{ op: "energyMarker", n: Number(m[1]) }];
@@ -457,6 +466,18 @@ export interface CardScripts {
   unsupported: string[];
 }
 
+const cardCache = new WeakMap<CardDef, { front: CardScripts; back: CardScripts }>();
+
+/** `compileCard`, memoised per definition — the same card is compiled once. */
+export function compileCardCached(card: CardDef, side: "front" | "back" = "front"): CardScripts {
+  let entry = cardCache.get(card);
+  if (!entry) {
+    entry = { front: compileCard(card, "front"), back: compileCard(card, "back") };
+    cardCache.set(card, entry);
+  }
+  return side === "back" ? entry.back : entry.front;
+}
+
 export function compileCard(card: CardDef, side: "front" | "back" = "front"): CardScripts {
   const bySkill: Record<number, Script> = {};
   const unsupported: string[] = [];
@@ -556,6 +577,9 @@ export function describeScript(ops: Op[]): string {
         break;
       case "token":
         parts.push(`play ${describeAmount(op.n)} ${op.name} (${op.power} power)`);
+        break;
+      case "costReduction":
+        parts.push(`${describeRef(op.target)} costs ${op.amount} less`);
         break;
       case "negateAttack":
         parts.push("negate the attack");

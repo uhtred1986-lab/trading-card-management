@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { apply, createGame, defsFrom, legalActions, type Action, type CardDef, type GameState, type PlayerId } from "../src/lib/arena/engine";
 import { parseSkills, keywordOf, orbsIn } from "../src/lib/arena/engine/cards";
 import { parseFilter, matches, parseCondition } from "../src/lib/arena/engine/filters";
-import { move, locate, powerOf } from "../src/lib/arena/engine/state";
+import { move, locate, playCost, powerOf } from "../src/lib/arena/engine/state";
 import { compileSkill, describeScript, splitClauses } from "../src/lib/arena/engine/compile";
 
 // ── skill text parsing ─────────────────────────────────────────────────────
@@ -133,6 +133,9 @@ const DEFS: Record<string, CardDef> = defsFrom([
   card("AUTOCOST", { energyCost: 1, skill: "[Auto]{r}: When you play this card, draw 2 cards." }),
   card("UNI2", { type: "UNISON", energyCost: "X", power: 5000, comboCost: null, comboPower: null, skill: "[-1][Activate: Main] Draw 1 card." }),
   card("XBAT", { energyCost: "X", power: 5000 }),
+  card("AURA", { energyCost: 1, skill: "[Permanent] Your Battle Cards get +5000 power." }),
+  card("CHEAP", { energyCost: 3, skill: "[Permanent] Reduce the energy cost of this card in your hand by 1." }),
+  card("ODDAURA", { energyCost: 1, skill: "[Permanent] Your Battle Cards resonate with the will of the universe." }),
 ]);
 
 const fifty = (id: string) => Array.from({ length: 50 }, () => id);
@@ -791,6 +794,42 @@ function assertConsistentAfterDrop(s: GameState) {
   assert.equal(s.battle, null, "and the battle is over");
   assert.equal(s.prompt.kind, "main");
   assertConsistent(s);
+}
+
+// ── [Permanent] skills hold on their own (9-5) ─────────────────────────────
+
+{
+  // A power buff applies to every matching card, and stops when the source leaves.
+  let s = arena({ hand: ["AURA"], energy: ["V1"], battle: ["V1"] });
+  const ally = s.players.p1.battle[0];
+  const ctx = { defs: DEFS };
+  assert.equal(powerOf(ctx, s, ally), 10000, "no buff before it is played");
+  const aura = find(s, "p1", "hand", "AURA");
+  s = play(s, { type: "play", player: "p1", card: aura });
+  assert.equal(powerOf(ctx, s, ally), 15000, "the permanent skill holds while the card is in play");
+  assert.equal(powerOf(ctx, s, s.players.p2.battle[0] ?? s.players.p2.leader), 10000, "and not for the opponent");
+  move(ctx, s, [], aura, "drop", "p1");
+  assert.equal(powerOf(ctx, s, ally), 10000, "9-5-1: it stops when the source leaves play");
+}
+
+{
+  // 9-1-3-3: a cost reducer names the hand, so it applies there and nowhere else.
+  const s = arena({ hand: ["CHEAP"], energy: ["V1", "V1"] });
+  const cheap = find(s, "p1", "hand", "CHEAP");
+  const ctx = { defs: DEFS };
+  assert.equal(playCost(ctx, s, cheap).total, 2, "printed 3, reduced by 1");
+  assert.ok(
+    labels(s).some((x) => x.startsWith("Play CHEAP")),
+    "so it is playable with two energy",
+  );
+}
+
+{
+  // A [Permanent] the compiler cannot read simply does nothing — there is no
+  // moment at which the referee could be asked about it.
+  const s = arena({ battle: ["ODDAURA", "V1"] });
+  const ctx = { defs: DEFS };
+  assert.equal(powerOf(ctx, s, find(s, "p1", "battle", "V1")), 10000);
 }
 
 console.log("verify-arena: all checks passed");
