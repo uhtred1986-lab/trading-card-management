@@ -5,6 +5,8 @@ import { getCard } from "@/lib/catalog/queries";
 import { CONDITIONS, LANGUAGES, knownOwners, lotsForCard } from "@/lib/collection/queries";
 import { currentUser } from "@/lib/auth";
 import { LotOwnerPicker } from "@/components/LotOwnerPicker";
+import { CardDecks } from "@/components/CardDecks";
+import { decksForCard } from "@/lib/decks/queries";
 import { allocationForCards, decksReserving } from "@/lib/decks/reservations";
 import { latestUsdEur } from "@/lib/pricing/fx";
 import { pricesForPrints } from "@/lib/pricing/queries";
@@ -37,6 +39,7 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
     knownOwners(db),
     currentUser(),
   ]);
+  const inDecks = await decksForCard(db, id);
   const owners = [...new Set([...ownersUsed, ...(me ? [me] : [])])];
   const a = alloc.get(id)!;
   const tcgUrl = (await db.query.tcgProducts.findFirst({ where: (p, { eq }) => eq(p.cardId, id), columns: { url: true } }))?.url ?? null;
@@ -168,6 +171,7 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
 
         <section>
           <h2 className="mb-2 text-sm font-semibold uppercase tracking-wider text-space-300">In your collection</h2>
+          <CardDecks cardId={card.id} initial={inDecks} options={decks} />
           {lots.length === 0 ? (
             <p className="text-sm text-space-300">You don&apos;t own this card yet.</p>
           ) : (

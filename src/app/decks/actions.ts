@@ -6,7 +6,8 @@ import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { cards, deckCards, decks } from "@/db/schema";
 import { quickSearch } from "@/lib/catalog/queries";
-import { parseDeckList, ZONES, type Zone } from "@/lib/decks/queries";
+import { decksForCard, parseDeckList, ZONES, type CardDeckMembership, type Zone } from "@/lib/decks/queries";
+import { zoneForType } from "@/lib/decks/add";
 import { buildConflicts, type BuildConflict } from "@/lib/decks/reservations";
 
 function revalidate(deckId?: number) {
@@ -160,6 +161,46 @@ export async function deckCardQuantity(deckId: number, cardId: string, zone: Zon
     columns: { quantity: true },
   });
   return row?.quantity ?? 0;
+}
+
+export type CardDeckResult = { ok: true; decks: CardDeckMembership[] } | { ok: false; error: string; decks: CardDeckMembership[] };
+
+/** Which decks hold this card — for the control on the card page. */
+export async function decksForCardAction(cardId: string): Promise<CardDeckMembership[]> {
+  return decksForCard(db, cardId);
+}
+
+/**
+ * Put the card in a deck from the card page. Routed through `setDeckCard` so a
+ * built deck still can't be pushed past what you own — that check is about
+ * owning the cards, not about deck rules.
+ */
+export async function addCardToDeckAction(cardId: string, deckId: number): Promise<CardDeckResult> {
+  const card = await db.query.cards.findFirst({ where: eq(cards.id, cardId), columns: { cardType: true } });
+  if (!card) return { ok: false, error: "Unknown card.", decks: await decksForCard(db, cardId) };
+  const zone = zoneForType(card.cardType);
+  const current = await deckCardQuantity(deckId, cardId, zone);
+  const r = await setDeckCard(deckId, cardId, zone, current + 1);
+  if (!r.ok) {
+    const c = r.conflicts[0];
+    return { ok: false, error: c ? `That built deck would be short ${c.short} × ${c.name}.` : "Blocked by a built deck.", decks: await decksForCard(db, cardId) };
+  }
+  return { ok: true, decks: await decksForCard(db, cardId) };
+}
+
+/** Take the card out of one deck entirely, whichever zone it sat in. */
+export async function removeCardFromDeckAction(cardId: string, deckId: number): Promise<CardDeckResult> {
+  await db.delete(deckCards).where(and(eq(deckCards.deckId, deckId), eq(deckCards.cardId, cardId)));
+  await db.update(decks).set({ updatedAt: new Date() }).where(eq(decks.id, deckId));
+  revalidate(deckId);
+  revalidatePath(`/cards/${encodeURIComponent(cardId)}`);
+  return { ok: true, decks: await decksForCard(db, cardId) };
+}
+
+/** Create a deck and drop this card straight into it. */
+export async function createDeckWithCardAction(cardId: string, name: string): Promise<CardDeckResult> {
+  const deck = await createDeckAction(name);
+  return addCardToDeckAction(cardId, deck.id);
 }
 
 /** Typeahead for the builder's search box. */

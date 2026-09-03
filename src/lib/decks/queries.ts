@@ -17,6 +17,29 @@ export const ZONE_LABEL: Record<Zone, string> = {
   side: "Sideboard / ideas",
 };
 
+export interface CardDeckMembership {
+  id: number;
+  name: string;
+  isBuilt: boolean;
+  zone: Zone;
+  quantity: number;
+}
+
+/**
+ * Every deck this card sits in. Deck slots reference the *card*, not one
+ * particular copy, so this belongs to the card as a whole rather than to a
+ * row of the collection table.
+ */
+export async function decksForCard(db: Db, cardId: string): Promise<CardDeckMembership[]> {
+  const rows = await db
+    .select({ id: decks.id, name: decks.name, isBuilt: decks.isBuilt, zone: deckCards.zone, quantity: deckCards.quantity })
+    .from(deckCards)
+    .innerJoin(decks, eq(decks.id, deckCards.deckId))
+    .where(eq(deckCards.cardId, cardId))
+    .orderBy(desc(decks.isBuilt), asc(decks.name));
+  return rows.map((r) => ({ ...r, zone: r.zone as Zone }));
+}
+
 export async function listDecks(db: Db) {
   const rows = await db
     .select({
