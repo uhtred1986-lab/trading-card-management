@@ -45,13 +45,27 @@ export async function updateDeck(id: number, patch: { name?: string; description
 
 export async function updateDeckForm(formData: FormData) {
   const id = Number(formData.get("id"));
-  const location = String(formData.get("locationId") ?? "");
   await updateDeck(id, {
     name: String(formData.get("name") ?? "").trim() || "Untitled deck",
     description: (formData.get("description") as string)?.trim() || null,
     metaNotes: (formData.get("metaNotes") as string)?.trim() || null,
-    locationId: location ? Number(location) : null,
   });
+}
+
+/**
+ * Where the deck is kept. Saved on the spot rather than with the rest of the
+ * settings form: an uncontrolled `<select defaultValue>` is re-applied by React
+ * on every re-render, so a pick made before pressing Save was liable to snap
+ * back to the old value — and then save it.
+ *
+ * Returns what the move did to the collection, because filing a built deck
+ * quietly relocates every card in it.
+ */
+export async function setDeckLocationAction(deckId: number, locationId: number | null): Promise<FilingResult> {
+  await db.update(decks).set({ locationId, updatedAt: new Date() }).where(eq(decks.id, deckId));
+  const filing = await fileDeckAtLocation(db, deckId);
+  revalidate(deckId);
+  return filing;
 }
 
 export async function deleteDeckForm(formData: FormData) {

@@ -13,6 +13,7 @@ import { DeckAI } from "@/components/DeckAI";
 import { SwapSuggestions } from "@/components/SwapSuggestions";
 import { suggestionsForDeck } from "@/lib/decks/swaps";
 import { listLocations } from "@/lib/collection/locations";
+import { DeckLocationPicker } from "@/components/DeckLocationPicker";
 import { hasAnthropic } from "@/lib/ai/client";
 import { BuiltToggle } from "@/components/BuiltToggle";
 import { DeckCardControls } from "@/components/DeckCardControls";
@@ -27,8 +28,8 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
   const deck = await getDeck(db, id);
   if (!deck) notFound();
   const conflicts = deck.isBuilt ? [] : await buildConflicts(db, id);
-  // Archived places are still listed here: a deck already filed in one should
-  // not silently lose it the next time the form is saved.
+  // Archived places are listed too, so a deck already filed in one still shows
+  // where it is.
   const [suggestions, locations] = await Promise.all([suggestionsForDeck(db, id), listLocations(db)]);
   const deckLocation = locations.find((l) => l.id === deck.locationId) ?? null;
   const leader = deck.cards.find((c) => c.zone === "leader");
@@ -152,22 +153,15 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
                 <textarea name="description" defaultValue={deck.description ?? ""} rows={2} className={input} />
               </label>
               <label className="block text-xs text-space-300">
-                Kept in
-                <select name="locationId" defaultValue={deck.locationId ?? ""} className={input}>
-                  <option value="">Nowhere in particular</option>
-                  {locations.map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="block text-xs text-space-300">
                 Meta notes <span className="text-space-400">(given to the AI wizard)</span>
                 <textarea name="metaNotes" defaultValue={deck.metaNotes ?? ""} rows={3} className={input} placeholder="What's popular locally, what you keep losing to…" />
               </label>
               <button className="tap rounded-md bg-space-700 px-3 py-1.5 text-sm text-space-50 hover:bg-space-600">Save</button>
             </form>
+            {/* Outside the form: it saves on its own, so Save can't clobber it. */}
+            <div className="mt-2 border-t border-space-700/70 pt-2">
+              <DeckLocationPicker deckId={deck.id} locationId={deck.locationId} locations={locations} isBuilt={deck.isBuilt} />
+            </div>
           </details>
 
           <details className="rounded-xl border border-space-700/70 bg-space-900/50 p-3">
