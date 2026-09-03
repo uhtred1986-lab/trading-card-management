@@ -149,6 +149,45 @@ assert.equal(priceForFinish(prices.get("BT18-020_SPR"), "foil"), 199);
   await db.delete(schema.ownedCards).where(eqOp(schema.ownedCards.cardId, "BT18-022"));
 }
 
+// Swap suggestions: stored, deduped on re-run, grouped by the card they replace,
+// and swept once they age out.
+{
+  const { saveSuggestions, suggestionsForDeck, markSuggestion, addWant, listWants } = await import("../src/lib/decks/swaps.ts");
+  const { eq: eqOp } = await import("drizzle-orm");
+  const [d] = await db.insert(schema.decks).values({ name: "Advice" }).returning({ id: schema.decks.id });
+  const swap = (out: string, inn: string, rationale: string) => ({ outCardId: out, inCardId: inn, outQuantity: 1, inQuantity: 1, rationale, priority: "medium" });
+
+  await saveSuggestions(db, d.id, null, "first pass", [swap("BT18-020", "BT18-021", "original"), swap("BT18-020", "BT18-022", "second option")]);
+  let byCard = await suggestionsForDeck(db, d.id);
+  assert.equal(byCard.get("BT18-020")?.length, 2, "two options for the same card are kept side by side");
+
+  // The same advice again refreshes it rather than creating a duplicate.
+  await saveSuggestions(db, d.id, null, "second pass", [swap("BT18-020", "BT18-021", "reworded")]);
+  byCard = await suggestionsForDeck(db, d.id);
+  assert.equal(byCard.get("BT18-020")?.length, 2, "a repeated suggestion does not pile up");
+  assert.equal(byCard.get("BT18-020")?.find((s) => s.inCardId === "BT18-021")?.rationale, "reworded");
+
+  // Ownership is resolved for the incoming card, so the UI knows which button to show.
+  const owned = byCard.get("BT18-020")!.find((s) => s.inCardId === "BT18-021")!;
+  assert.equal(typeof owned.inAvailable, "number");
+  assert.equal(owned.wanted, false);
+  await addWant(db, "BT18-021", 1, null, d.id);
+  assert.equal((await suggestionsForDeck(db, d.id)).get("BT18-020")!.find((s) => s.inCardId === "BT18-021")!.wanted, true, "already on the shopping list");
+  assert.equal((await listWants(db)).length, 1);
+
+  // Applying or dismissing takes it out of the open set.
+  await markSuggestion(db, byCard.get("BT18-020")![0].id, "applied");
+  assert.equal((await suggestionsForDeck(db, d.id)).get("BT18-020")?.length, 1);
+
+  // Anything past its expiry is swept on the next read.
+  await db.update(schema.deckSwaps).set({ expiresAt: new Date(Date.now() - 1000) }).where(eqOp(schema.deckSwaps.deckId, d.id));
+  assert.equal((await suggestionsForDeck(db, d.id)).size, 0, "expired suggestions are deleted, not just hidden");
+  assert.equal((await db.select().from(schema.deckSwaps)).length, 0);
+
+  await db.delete(schema.wantList);
+  await db.delete(schema.decks).where(eqOp(schema.decks.id, d.id));
+}
+
 // Scan batches: photo bytes round-trip, completing writes lots and drops the photo.
 {
   const { completeBatch, createBatch, getBatch, listOpenBatches, photoBytes, replaceItems, storePhoto, updateItem } = await import("../src/lib/scan/batches.ts");

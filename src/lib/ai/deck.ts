@@ -160,7 +160,17 @@ async function candidatePool(db: Db, deck: NonNullable<Awaited<ReturnType<typeof
     .limit(POOL_CAP);
 }
 
-export async function runWizard(db: Db, deckId: number, scope: "owned" | "any"): Promise<{ runId: number; assessment: string; swaps: WizardSwap[] }> {
+/**
+ * `context` is whatever you told Claude you wanted from this run ("the curve
+ * feels top-heavy", "optimise for going second"). It is stored with each
+ * suggestion so a week-old piece of advice still says what it was answering.
+ */
+export async function runWizard(
+  db: Db,
+  deckId: number,
+  scope: "owned" | "any",
+  context: string | null = null,
+): Promise<{ runId: number; assessment: string; swaps: WizardSwap[] }> {
   const deck = await getDeck(db, deckId);
   if (!deck) throw new Error("Deck not found");
   if (deck.cards.length === 0) throw new Error("The deck is empty.");
@@ -170,7 +180,7 @@ export async function runWizard(db: Db, deckId: number, scope: "owned" | "any"):
   const poolBlock = `CANDIDATE POOL (${scope === "owned" ? "cards the player owns" : "legal cards"}; only suggest additions from this list):\n${pool.map((c) => cardLine(c, 240)).join("\n")}`;
   const ask = `${deckBlock(deck.cards)}
 
-${deck.metaNotes ? `PLAYER'S META NOTES:\n${deck.metaNotes}\n\n` : ""}Propose card-for-card swaps that improve this deck. Each swap removes a card that is in the deck and adds one from the candidate pool. Keep the main deck at exactly 50 cards (outQuantity should equal inQuantity unless fixing a count problem) and respect the 4-copy limit.`;
+${deck.metaNotes ? `PLAYER'S META NOTES:\n${deck.metaNotes}\n\n` : ""}${context ? `WHAT THE PLAYER WANTS FROM THIS PASS:\n${context}\n\n` : ""}Propose card-for-card swaps that improve this deck. Each swap removes a card that is in the deck and adds one from the candidate pool. Keep the main deck at exactly 50 cards (outQuantity should equal inQuantity unless fixing a count problem) and respect the 4-copy limit.${context ? " Weigh the player's request above over general improvements." : ""}`;
 
   const res = await anthropic().messages.parse({
     model: MODEL,
@@ -180,7 +190,7 @@ ${deck.metaNotes ? `PLAYER'S META NOTES:\n${deck.metaNotes}\n\n` : ""}Propose ca
     system: [{ type: "text", text: SYSTEM }, { type: "text", text: poolBlock, cache_control: { type: "ephemeral" } }],
     messages: [{ role: "user", content: ask }],
   });
-  const { id, output } = await recordRun<WizardResult>(db, "deck_wizard", { deckId, scope, poolSize: pool.length }, res, deckId);
+  const { id, output } = await recordRun<WizardResult>(db, "deck_wizard", { deckId, scope, context, poolSize: pool.length }, res, deckId);
 
   const ids = [...new Set(output.swaps.flatMap((s) => [s.outCardId, s.inCardId]))];
   const meta = ids.length ? await db.select({ id: cards.id, name: cards.name, imageUrl: cards.imageUrl, cardType: cards.cardType, colors: cards.colors }).from(cards).where(inArray(cards.id, ids)) : [];
@@ -200,6 +210,22 @@ ${deck.metaNotes ? `PLAYER'S META NOTES:\n${deck.metaNotes}\n\n` : ""}Propose ca
       inOwned: alloc.get(s.inCardId)?.owned ?? 0,
       inAvailable: alloc.get(s.inCardId)?.available ?? 0,
     }));
+  // Kept so the deck page can show them inline later without paying again.
+  const { saveSuggestions } = await import("@/lib/decks/swaps");
+  await saveSuggestions(
+    db,
+    deckId,
+    id,
+    context,
+    swaps.map((s) => ({
+      outCardId: s.outCardId,
+      inCardId: s.inCardId,
+      outQuantity: s.outQuantity,
+      inQuantity: s.inQuantity,
+      rationale: s.rationale,
+      priority: s.priority,
+    })),
+  );
   return { runId: id, assessment: output.assessment, swaps };
 }
 

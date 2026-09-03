@@ -12,6 +12,7 @@ import {
   serial,
   text,
   timestamp,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 /*
@@ -429,6 +430,63 @@ export const scanItems = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("scan_items_batch_idx").on(t.batchId), index("scan_items_photo_idx").on(t.photoId)],
+);
+
+/**
+ * Swap suggestions from the improvement wizard, kept so a deck doesn't have to
+ * be re-analysed every time it is opened. One row per proposed replacement;
+ * a card can have several, and the deck page lets you page through them.
+ * They expire after a week — the meta and your collection both move on.
+ */
+export const deckSwaps = pgTable(
+  "deck_swaps",
+  {
+    id: serial("id").primaryKey(),
+    deckId: integer("deck_id")
+      .notNull()
+      .references(() => decks.id, { onDelete: "cascade" }),
+    outCardId: text("out_card_id")
+      .notNull()
+      .references(() => cards.id, { onDelete: "cascade" }),
+    inCardId: text("in_card_id")
+      .notNull()
+      .references(() => cards.id, { onDelete: "cascade" }),
+    outQuantity: integer("out_quantity").notNull().default(1),
+    inQuantity: integer("in_quantity").notNull().default(1),
+    rationale: text("rationale").notNull(),
+    /** high | medium | low */
+    priority: text("priority").notNull().default("medium"),
+    /** open | applied | dismissed */
+    status: text("status").notNull().default("open"),
+    /** What you asked for when this run was made, shown alongside the advice. */
+    context: text("context"),
+    runId: integer("run_id").references(() => aiRuns.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    index("deck_swaps_deck_idx").on(t.deckId),
+    index("deck_swaps_out_idx").on(t.deckId, t.outCardId),
+    // Re-running the wizard refreshes a repeated suggestion instead of duplicating it.
+    uniqueIndex("deck_swaps_unique").on(t.deckId, t.outCardId, t.inCardId),
+  ],
+);
+
+/** Cards to buy — fed by the swap suggestions and read by the cart optimiser. */
+export const wantList = pgTable(
+  "want_list",
+  {
+    id: serial("id").primaryKey(),
+    cardId: text("card_id")
+      .notNull()
+      .references(() => cards.id, { onDelete: "cascade" }),
+    quantity: integer("quantity").notNull().default(1),
+    note: text("note"),
+    /** The deck the want came from, if any. */
+    deckId: integer("deck_id").references(() => decks.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("want_list_card_unique").on(t.cardId)],
 );
 
 /** Every Claude call, kept so results can be re-shown without re-paying for them. */

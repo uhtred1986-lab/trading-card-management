@@ -10,6 +10,8 @@ import { CardImage } from "@/components/CardImage";
 import { ColorPill } from "@/components/ColorPill";
 import { DeckBuilder } from "@/components/DeckBuilder";
 import { DeckAI } from "@/components/DeckAI";
+import { SwapSuggestions } from "@/components/SwapSuggestions";
+import { suggestionsForDeck } from "@/lib/decks/swaps";
 import { hasAnthropic } from "@/lib/ai/client";
 import { BuiltToggle } from "@/components/BuiltToggle";
 import { DeckCardControls } from "@/components/DeckCardControls";
@@ -24,6 +26,7 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
   const deck = await getDeck(db, id);
   if (!deck) notFound();
   const conflicts = deck.isBuilt ? [] : await buildConflicts(db, id);
+  const suggestions = await suggestionsForDeck(db, id);
   const leader = deck.cards.find((c) => c.zone === "leader");
   const input = "tap w-full rounded-md border border-space-600 bg-space-900 px-2 py-1.5 text-sm text-space-100";
 
@@ -81,7 +84,8 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
                 ) : (
                   <ul className="divide-y divide-space-800 rounded-xl border border-space-700/70">
                     {rows.map((r) => (
-                      <li key={`${r.zone}:${r.cardId}`} className="flex items-center gap-2 px-2 py-1.5 text-sm">
+                      <li key={`${r.zone}:${r.cardId}`} className="px-2 py-1.5 text-sm">
+                        <div className="flex items-center gap-2">
                         <div className="w-9 shrink-0">
                           <CardImage src={r.imageUrl} alt={r.name} sizes="36px" />
                         </div>
@@ -105,6 +109,8 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
                           </div>
                         </div>
                         <DeckCardControls deckId={deck.id} cardId={r.cardId} zone={r.zone} quantity={r.quantity} limit={copyLimit(r)} />
+                        </div>
+                        {suggestions.get(r.cardId)?.length ? <SwapSuggestions deckId={deck.id} zone={r.zone} suggestions={suggestions.get(r.cardId)!} /> : null}
                       </li>
                     ))}
                   </ul>
@@ -116,7 +122,13 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
 
         <aside className="space-y-4">
           <DeckBuilder deckId={deck.id} />
-          <DeckAI deckId={deck.id} aiSummary={deck.aiSummary} aiSummaryAt={deck.aiSummaryAt?.toISOString() ?? null} enabled={hasAnthropic()} />
+          <DeckAI
+            deckId={deck.id}
+            aiSummary={deck.aiSummary}
+            aiSummaryAt={deck.aiSummaryAt?.toISOString() ?? null}
+            enabled={hasAnthropic()}
+            openSuggestions={[...suggestions.values()].reduce((n, l) => n + l.length, 0)}
+          />
 
           <details className="rounded-xl border border-space-700/70 bg-space-900/50 p-3">
             <summary className="cursor-pointer text-sm font-semibold text-space-100">Deck details & notes</summary>

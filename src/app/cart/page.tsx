@@ -7,6 +7,8 @@ import { buildConflicts } from "@/lib/decks/reservations";
 import { cardTraderConfigured, cardTraderEnabled } from "@/lib/marketplace/cardtrader";
 import { cartSettings, optimiseCart } from "@/lib/marketplace/cart";
 import type { Want } from "@/lib/marketplace/optimizer";
+import { listWants } from "@/lib/decks/swaps";
+import { WantList } from "@/components/WantList";
 import { formatCents } from "@/lib/money";
 import { CartTools } from "@/components/CartTools";
 import { saveCartSettingsForm } from "./actions";
@@ -23,6 +25,12 @@ async function wantsFrom(sp: Params): Promise<{ wants: Want[]; source: string }>
   if (deck) {
     const conflicts = await buildConflicts(db, Number(deck));
     return { wants: conflicts.map((c) => ({ cardId: c.cardId, quantity: c.short })), source: `deck ${deck}` };
+  }
+  if (one(sp.want) !== "0") {
+    // Default source: the saved shopping list, so swap suggestions you parked
+    // are priced without having to build a URL.
+    const wants = await listWants(db);
+    if (wants.length && !one(sp.cards)) return { wants: wants.map((w) => ({ cardId: w.cardId, quantity: w.quantity })), source: "shopping list" };
   }
   const list = one(sp.cards) ?? "";
   const wants = list
@@ -60,6 +68,8 @@ export default async function CartPage({ searchParams }: { searchParams: Promise
           {!cardTraderConfigured() ? <span className="text-loss">No CardTrader token configured.</span> : !cardTraderEnabled() ? <span className="text-ki-300">Live calls are disabled (CARDTRADER_ENABLED=false) — working from cached listings only.</span> : null}
         </p>
       </div>
+
+      <WantList rows={await listWants(db)} />
 
       {wants.length === 0 ? (
         <div className="rounded-xl border border-dashed border-space-700 p-6 text-sm text-space-300">
