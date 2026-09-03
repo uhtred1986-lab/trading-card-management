@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { addLots, printsForCardAction, type LotInput } from "@/app/collection/actions";
 import { CONDITIONS } from "@/lib/collection/queries";
 import type { DeckOption } from "@/lib/decks/add";
@@ -57,6 +57,14 @@ export function BulkEntry({ decks, owner, owners }: { decks: DeckOption[]; owner
   // Keyed by row key so a removed row can't leave focus pointing at the wrong input.
   const normalRefs = useRef(new Map<number, HTMLInputElement | null>());
   const foilRefs = useRef(new Map<number, HTMLInputElement | null>());
+  const rowRefs = useRef(new Map<number, HTMLTableRowElement | null>());
+  /** The row last touched — dictating hands-free, you want it on screen. */
+  const [latest, setLatest] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (latest == null) return;
+    rowRefs.current.get(latest)?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [latest, rows]);
 
   const update = (i: number, patch: Partial<Row>) => setRows((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)));
 
@@ -70,15 +78,17 @@ export function BulkEntry({ decks, owner, owners }: { decks: DeckOption[]; owner
 
   /** Voice keeps one row per card: a second mention of the same card adds to its counters. */
   const addVoiceRow = (card: Hit, prints: Print[], counts: { foil: number; normal: number }) => {
+    // The key is settled out here so the row can be scrolled to straight after.
+    const key = rows.find((r) => r.card?.id === card.id)?.key ?? nextKey++;
     setRows((rs) => {
-      const at = rs.findIndex((r) => r.card?.id === card.id);
+      const at = rs.findIndex((r) => r.key === key);
       if (at >= 0) {
         const r = rs[at];
         const merged = { ...r, normal: String(countOf(r.normal) + counts.normal), foil: String(countOf(r.foil) + counts.foil) };
         return rs.map((x, j) => (j === at ? merged : x));
       }
       const row: Row = {
-        key: nextKey++,
+        key,
         card,
         prints,
         printId: prints[0]?.id ?? "",
@@ -90,11 +100,21 @@ export function BulkEntry({ decks, owner, owners }: { decks: DeckOption[]; owner
       const last = rs[rs.length - 1];
       return last && !last.card ? [...rs.slice(0, -1), row] : [...rs, row];
     });
+    setLatest(key);
   };
 
   const addRow = () => {
-    setRows((rs) => [...rs, { ...blank(), condition: defaults.condition }]);
+    const row = { ...blank(), condition: defaults.condition };
+    setRows((rs) => [...rs, row]);
     setActive(rows.length);
+    setLatest(row.key);
+  };
+
+  /** Step a counter without touching the keyboard flow. */
+  const step = (i: number, field: "normal" | "foil", by: number) => {
+    const r = rows[i];
+    update(i, { [field]: String(Math.max(0, Math.min(99, countOf(r[field]) + by))) });
+    setLatest(r.key);
   };
 
   const save = () =>
@@ -182,7 +202,13 @@ export function BulkEntry({ decks, owner, owners }: { decks: DeckOption[]; owner
           </thead>
           <tbody>
             {rows.map((r, i) => (
-              <tr key={r.key} className="border-t border-space-800 align-top">
+              <tr
+                key={r.key}
+                ref={(el) => {
+                  rowRefs.current.set(r.key, el);
+                }}
+                className={`border-t border-space-800 align-top transition-colors ${latest === r.key ? "bg-ki-500/5" : ""}`}
+              >
                 <td className="min-w-[16rem] px-2 py-1.5">
                   <CardPicker row={r} autoFocus={i === active} onPick={(hit) => pick(i, hit)} onClear={() => update(i, { card: null, prints: [], printId: "" })} />
                   {r.card && totalOf(r) > 1 ? (
@@ -190,43 +216,46 @@ export function BulkEntry({ decks, owner, owners }: { decks: DeckOption[]; owner
                   ) : null}
                 </td>
                 <td className="px-2 py-1.5">
-                  <input
-                    ref={(el) => {
-                      normalRefs.current.set(r.key, el);
-                    }}
+                  <Stepper
                     value={r.normal}
-                    inputMode="numeric"
-                    aria-label="Non-foil copies"
-                    onFocus={(e) => e.currentTarget.select()}
-                    onChange={(e) => update(i, { normal: e.target.value.replace(/\D/g, "").slice(0, 2) })}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        foilRefs.current.get(r.key)?.focus();
-                      }
+                    onStep={(by) => step(i, "normal", by)}
+                    inputProps={{
+                      ref: (el: HTMLInputElement | null) => {
+                        normalRefs.current.set(r.key, el);
+                      },
+                      "aria-label": "Non-foil copies",
+                      onChange: (e) => update(i, { normal: e.target.value.replace(/\D/g, "").slice(0, 2) }),
+                      onKeyDown: (e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          foilRefs.current.get(r.key)?.focus();
+                        }
+                      },
+                      className: counter,
                     }}
-                    className={counter}
                   />
                 </td>
                 <td className="px-2 py-1.5">
-                  <input
-                    ref={(el) => {
-                      foilRefs.current.set(r.key, el);
-                    }}
+                  <Stepper
                     value={r.foil}
-                    inputMode="numeric"
-                    aria-label="Foil copies"
-                    onFocus={(e) => e.currentTarget.select()}
-                    onChange={(e) => update(i, { foil: e.target.value.replace(/\D/g, "").slice(0, 2) })}
-                    onKeyDown={(e) => {
-                      // Last stop in the row: Tab (or Enter) opens the next one.
-                      if (e.key !== "Tab" && e.key !== "Enter") return;
-                      if (e.key === "Tab" && e.shiftKey) return;
-                      e.preventDefault();
-                      if (i === rows.length - 1) addRow();
-                      else normalRefs.current.get(rows[i + 1].key)?.focus();
+                    tone="foil"
+                    onStep={(by) => step(i, "foil", by)}
+                    inputProps={{
+                      ref: (el: HTMLInputElement | null) => {
+                        foilRefs.current.set(r.key, el);
+                      },
+                      "aria-label": "Foil copies",
+                      onChange: (e) => update(i, { foil: e.target.value.replace(/\D/g, "").slice(0, 2) }),
+                      onKeyDown: (e) => {
+                        // Last stop in the row: Tab (or Enter) opens the next one.
+                        if (e.key !== "Tab" && e.key !== "Enter") return;
+                        if (e.key === "Tab" && e.shiftKey) return;
+                        e.preventDefault();
+                        if (i === rows.length - 1) addRow();
+                        else normalRefs.current.get(rows[i + 1].key)?.focus();
+                      },
+                      className: `${counter} ${countOf(r.foil) > 0 ? "border-amber-400/60 text-amber-300" : ""}`,
                     }}
-                    className={`${counter} ${countOf(r.foil) > 0 ? "border-amber-400/60 text-amber-300" : ""}`}
                   />
                 </td>
                 <td className="px-2 py-1.5">
@@ -277,6 +306,38 @@ export function BulkEntry({ decks, owner, owners }: { decks: DeckOption[]; owner
           <Key>↓</Key> to choose, <Key>Tab</Key> takes it → <Key>Tab</Key> non-foil → <Key>Tab</Key> foil → <Key>Tab</Key> next row. Each copy is stored separately, so 3 non-foil + 1 foil saves as four cards.
         </p>
       </div>
+    </div>
+  );
+}
+
+/**
+ * A counter you can type into or tap. The − and + are out of the tab order so
+ * the keyboard path (card → non-foil → foil → next row) is unchanged.
+ */
+function Stepper({
+  value,
+  onStep,
+  inputProps,
+  tone,
+}: {
+  value: string;
+  onStep: (by: number) => void;
+  inputProps: React.InputHTMLAttributes<HTMLInputElement> & { ref: (el: HTMLInputElement | null) => void };
+  tone?: "foil";
+}) {
+  const n = parseInt(value, 10) || 0;
+  const button = `tap h-7 w-7 shrink-0 rounded-md border border-space-600 text-sm leading-none ${
+    tone === "foil" ? "text-amber-300 hover:bg-amber-400/10" : "text-space-200 hover:bg-space-800"
+  } disabled:opacity-30`;
+  return (
+    <div className="flex items-center gap-1">
+      <button type="button" tabIndex={-1} onClick={() => onStep(-1)} disabled={n <= 0} className={button} aria-label="One fewer">
+        −
+      </button>
+      <input {...inputProps} value={value} inputMode="numeric" onFocus={(e) => e.currentTarget.select()} />
+      <button type="button" tabIndex={-1} onClick={() => onStep(1)} disabled={n >= 99} className={button} aria-label="One more">
+        +
+      </button>
     </div>
   );
 }
