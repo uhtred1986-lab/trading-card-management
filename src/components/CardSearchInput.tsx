@@ -7,7 +7,8 @@ export type CardHit = Awaited<ReturnType<typeof searchCardsAction>>[number];
 
 /**
  * Catalog typeahead shared by bulk entry and the scan review. Accepts a name
- * or a card number (BT18-020, bt18020…); ↑/↓ + Enter picks, Esc closes.
+ * or a card number (BT18-020, bt18020…); ↑/↓ moves, Enter or Tab takes the
+ * highlighted line (the top one by default), Esc closes.
  * `initialQuery` pre-fills and searches immediately so linking a card the
  * scanner read but could not match is one click away.
  */
@@ -82,7 +83,9 @@ export function CardSearchInput({
           } else if (e.key === "ArrowUp") {
             e.preventDefault();
             setSel((s) => Math.max(0, s - 1));
-          } else if (e.key === "Enter" && open && hits[sel]) {
+          } else if ((e.key === "Enter" || (e.key === "Tab" && !e.shiftKey)) && open && hits[sel]) {
+            // Tab takes the highlighted suggestion; the caller decides where
+            // focus goes next, so stop the browser moving it as well.
             e.preventDefault();
             pick(hits[sel]);
           } else if (e.key === "Escape") {
