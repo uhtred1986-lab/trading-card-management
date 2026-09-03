@@ -7,10 +7,13 @@
  * — by then the collection and the meta have both moved — and expired rows are
  * swept whenever a deck's suggestions are read, so nothing needs a cron.
  */
-import { and, asc, desc, eq, lt, sql } from "drizzle-orm";
+import { aliasedTable, and, asc, desc, eq, lt, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { cards, deckSwaps, wantList } from "@/db/schema";
 import { allocationForCards } from "./reservations";
+
+/** The card being replaced — the same table joined a second time. */
+const outCard = aliasedTable(cards, "out_card");
 
 export const SUGGESTION_TTL_DAYS = 7;
 
@@ -22,6 +25,14 @@ export interface SwapSuggestion {
   inImageUrl: string | null;
   inCardType: string;
   inColors: string[];
+  /** Both sides' stats, so the trade can be judged without opening two card pages. */
+  outName: string;
+  outImageUrl: string | null;
+  outEnergyCost: string | null;
+  outPower: number | null;
+  outIsBanned: boolean;
+  inEnergyCost: string | null;
+  inPower: number | null;
   outQuantity: number;
   inQuantity: number;
   rationale: string;
@@ -92,9 +103,17 @@ export async function suggestionsForDeck(db: Db, deckId: number): Promise<Map<st
       inImageUrl: cards.imageUrl,
       inCardType: cards.cardType,
       inColors: cards.colors,
+      inEnergyCost: cards.energyCost,
+      inPower: cards.power,
+      outName: outCard.name,
+      outImageUrl: outCard.imageUrl,
+      outEnergyCost: outCard.energyCost,
+      outPower: outCard.power,
+      outIsBanned: outCard.isBanned,
     })
     .from(deckSwaps)
     .innerJoin(cards, eq(cards.id, deckSwaps.inCardId))
+    .innerJoin(outCard, eq(outCard.id, deckSwaps.outCardId))
     .where(and(eq(deckSwaps.deckId, deckId), eq(deckSwaps.status, "open")))
     .orderBy(asc(deckSwaps.outCardId), sql`case ${deckSwaps.priority} when 'high' then 0 when 'medium' then 1 else 2 end`, desc(deckSwaps.createdAt));
   if (rows.length === 0) return new Map();

@@ -194,19 +194,48 @@ export async function runWizard(
   if (pool.length === 0) throw new Error(scope === "owned" ? "You don't own any on-colour cards outside this deck." : "No candidate cards found.");
 
   const poolBlock = `CANDIDATE POOL (${scope === "owned" ? "cards the player owns" : "legal cards"}; only suggest additions from this list):\n${pool.map((c) => cardLine(c, 240)).join("\n")}`;
+  // Banned cards are not an improvement question — the deck cannot be played
+  // with them, so every one has to come out. Named explicitly, because they are
+  // easy to miss in a fifty-card list.
+  const banned = deck.cards.filter((c) => c.isBanned && c.zone !== "side");
+  const bannedBlock = banned.length
+    ? `\nBANNED CARDS IN THIS DECK — every one of these MUST get a swap, at priority "high", before any other improvement:\n${banned
+        .map((c) => `${c.quantity}× ${c.cardId} ${c.name} (${c.zone})`)
+        .join("\n")}\n`
+    : "";
   const ask = `${deckBlock(deck.cards)}
+${bannedBlock}
+${deck.metaNotes ? `PLAYER'S META NOTES:\n${deck.metaNotes}\n\n` : ""}${context ? `WHAT THE PLAYER WANTS FROM THIS PASS:\n${context}\n\n` : ""}Propose card-for-card swaps that improve this deck. Each swap removes a card that is in the deck and adds one from the candidate pool. Keep the main deck at exactly 50 cards (outQuantity should equal inQuantity unless fixing a count problem) and respect the 4-copy limit. Replace the full played count of a card you are cutting — if the deck runs 3 copies and all 3 should go, say outQuantity 3.${context ? " Weigh the player's request above over general improvements." : ""}`;
 
-${deck.metaNotes ? `PLAYER'S META NOTES:\n${deck.metaNotes}\n\n` : ""}${context ? `WHAT THE PLAYER WANTS FROM THIS PASS:\n${context}\n\n` : ""}Propose card-for-card swaps that improve this deck. Each swap removes a card that is in the deck and adds one from the candidate pool. Keep the main deck at exactly 50 cards (outQuantity should equal inQuantity unless fixing a count problem) and respect the 4-copy limit.${context ? " Weigh the player's request above over general improvements." : ""}`;
+  const call = (message: string) =>
+    anthropic().messages.parse({
+      model: MODEL,
+      max_tokens: 12000,
+      thinking: { type: "adaptive" },
+      output_config: { effort: "high", format: zodOutputFormat(WizardSchema) },
+      system: [{ type: "text", text: SYSTEM }, { type: "text", text: poolBlock, cache_control: { type: "ephemeral" } }],
+      messages: [{ role: "user", content: message }],
+    });
 
-  const res = await anthropic().messages.parse({
-    model: MODEL,
-    max_tokens: 12000,
-    thinking: { type: "adaptive" },
-    output_config: { effort: "high", format: zodOutputFormat(WizardSchema) },
-    system: [{ type: "text", text: SYSTEM }, { type: "text", text: poolBlock, cache_control: { type: "ephemeral" } }],
-    messages: [{ role: "user", content: ask }],
-  });
+  const res = await call(ask);
   const { id, output } = await recordRun<WizardResult>(db, "deck_wizard", { deckId, scope, context, poolSize: pool.length }, res, deckId);
+
+  // One focused follow-up if a banned card was still missed, rather than
+  // shipping a deck that can't be played with a suggestion list that says so.
+  const missed = banned.filter((c) => !output.swaps.some((s) => s.outCardId === c.cardId));
+  if (missed.length) {
+    const retry = await call(
+      `${deckBlock(deck.cards)}\n\nThese banned cards are still in the deck and have no replacement yet. Propose exactly one swap for each, from the candidate pool, at priority "high", replacing the full played count:\n${missed
+        .map((c) => `${c.quantity}× ${c.cardId} ${c.name} (${c.zone})`)
+        .join("\n")}`,
+    );
+    const { output: extra } = await recordRun<WizardResult>(db, "deck_wizard", { deckId, scope, context, mode: "banned-retry", missed: missed.map((c) => c.cardId) }, retry, deckId);
+    for (const s of extra.swaps) {
+      if (missed.some((c) => c.cardId === s.outCardId) && !output.swaps.some((x) => x.outCardId === s.outCardId)) {
+        output.swaps.push({ ...s, priority: "high" });
+      }
+    }
+  }
 
   const ids = [...new Set(output.swaps.flatMap((s) => [s.outCardId, s.inCardId]))];
   const meta = ids.length ? await db.select({ id: cards.id, name: cards.name, imageUrl: cards.imageUrl, cardType: cards.cardType, colors: cards.colors }).from(cards).where(inArray(cards.id, ids)) : [];
