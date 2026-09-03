@@ -4,6 +4,8 @@ import { listSets } from "@/lib/catalog/queries";
 import { collectionCards, summarise, valuedLots } from "@/lib/collection/queries";
 import { formatCents } from "@/lib/money";
 import { CardTile } from "@/components/CardTile";
+import { CopiesPopover } from "@/components/CopiesPopover";
+import { deckOptions } from "@/lib/decks/add";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +20,7 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
   const finish = finishParam === "foil" || finishParam === "normal" ? finishParam : undefined;
   const sort = (one(sp.sort) as "value" | "name" | "number" | "recent" | undefined) ?? "recent";
 
-  const [{ rows }, sets, all] = await Promise.all([collectionCards(db, { q, set, finish, sort }), listSets(db), valuedLots(db)]);
+  const [{ rows }, sets, all, decks] = await Promise.all([collectionCards(db, { q, set, finish, sort }), listSets(db), valuedLots(db), deckOptions(db)]);
   const s = summarise(all.lots, all.usdEur);
   const select = "tap rounded-md border border-space-600 bg-space-900 px-2 py-1.5 text-sm text-space-100";
 
@@ -97,8 +99,7 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
             <CardTile
               key={r.card.id}
               card={r.card}
-              ownedQty={r.qty}
-              foilQty={r.foilQty}
+              badge={<CopiesPopover cardId={r.card.id} name={r.card.name} ownedQty={r.qty} foilQty={r.foilQty} decks={decks} />}
               priceLabel={r.valueEur ? formatCents(r.valueEur) : r.unpriced ? "unpriced" : null}
               footer={
                 r.spentEur ? (

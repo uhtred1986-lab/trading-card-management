@@ -110,6 +110,76 @@ export async function deleteLot(id: number): Promise<void> {
   if (row) revalidate(row.cardId);
 }
 
+export interface CopyRow {
+  id: number;
+  printId: string;
+  printLabel: string;
+  condition: string;
+  finish: string;
+  language: string;
+}
+
+/** The individual physical cards of one card id, for the collection popover. */
+export async function copiesForCardAction(cardId: string): Promise<CopyRow[]> {
+  const rows = await db
+    .select({
+      id: ownedCards.id,
+      printId: ownedCards.printId,
+      printLabel: cardPrints.label,
+      condition: ownedCards.condition,
+      finish: ownedCards.finish,
+      language: ownedCards.language,
+    })
+    .from(ownedCards)
+    .innerJoin(cardPrints, eq(cardPrints.id, ownedCards.printId))
+    .where(eq(ownedCards.cardId, cardId))
+    .orderBy(ownedCards.id);
+  return rows;
+}
+
+/** Add one more physical copy, matching the newest one you already own. */
+export async function addCopyAction(cardId: string): Promise<CopyRow[]> {
+  const existing = await copiesForCardAction(cardId);
+  const like = existing[existing.length - 1];
+  const printId =
+    like?.printId ??
+    (await db.query.cardPrints.findFirst({ where: (p, { and, eq: e }) => and(e(p.cardId, cardId), e(p.isBase, true)), columns: { id: true } }))?.id ??
+    (await db.query.cardPrints.findFirst({ where: (p, { eq: e }) => e(p.cardId, cardId), columns: { id: true } }))?.id;
+  if (!printId) throw new Error(`No print to add for ${cardId}`);
+  await db.insert(ownedCards).values({
+    printId,
+    cardId,
+    owner: await currentUser(),
+    condition: like?.condition ?? "NM",
+    finish: like?.finish ?? "normal",
+    language: like?.language ?? "EN",
+  });
+  revalidate(cardId);
+  return copiesForCardAction(cardId);
+}
+
+/** Remove one physical copy and hand back what is left. */
+export async function removeCopyAction(lotId: number, cardId: string): Promise<CopyRow[]> {
+  await db.delete(ownedCards).where(eq(ownedCards.id, lotId));
+  revalidate(cardId);
+  return copiesForCardAction(cardId);
+}
+
+export async function setCopyFinishAction(lotId: number, foil: boolean, cardId: string): Promise<CopyRow[]> {
+  await db.update(ownedCards).set({ finish: foil ? "foil" : "normal", updatedAt: new Date() }).where(eq(ownedCards.id, lotId));
+  revalidate(cardId);
+  return copiesForCardAction(cardId);
+}
+
+/** Put this card into a deck (leader slot / Z-deck / main by card type). */
+export async function assignToDeckAction(cardId: string, deckId: number, quantity = 1): Promise<{ added: number }> {
+  const r = await addCardsToDeck(db, deckId, [{ cardId, quantity }]);
+  revalidatePath(`/decks/${deckId}`);
+  revalidatePath("/decks");
+  revalidate(cardId);
+  return r;
+}
+
 /** Prints of a card for pickers (standard first). */
 export async function printsForCardAction(cardId: string): Promise<{ id: string; label: string }[]> {
   const rows = await db.query.cardPrints.findMany({ where: eq(cardPrints.cardId, cardId), columns: { id: true, label: true, isBase: true } });
