@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState, useTransition } from "react";
-import { bulkAddToDeckAction, bulkDeleteCopiesAction, bulkSetFinishAction, bulkSetOwnerAction } from "@/app/collection/actions";
+import { bulkAddToDeckAction, bulkDeleteCopiesAction, bulkSetFinishAction, bulkSetLocationAction, bulkSetOwnerAction } from "@/app/collection/actions";
 import type { CollectionCopy } from "@/lib/collection/queries";
 import type { DeckOption } from "@/lib/decks/add";
+import type { StorageLocation } from "@/lib/collection/locations";
 import { formatCents } from "@/lib/money";
 import { CardImage } from "./CardImage";
 
@@ -19,7 +20,7 @@ const NEW = "__new";
  * card id, so there is no way to point at *this* copy and hand it to someone
  * else. Here the row is the copy, and every bulk action takes lot ids.
  */
-export function CollectionList({ rows, owners, decks }: { rows: CollectionCopy[]; owners: string[]; decks: DeckOption[] }) {
+export function CollectionList({ rows, owners, decks, locations }: { rows: CollectionCopy[]; owners: string[]; decks: DeckOption[]; locations: StorageLocation[] }) {
   const router = useRouter();
   const [selected, setSelected] = useState<ReadonlySet<number>>(new Set());
   const [note, setNote] = useState<string | null>(null);
@@ -109,6 +110,7 @@ export function CollectionList({ rows, owners, decks }: { rows: CollectionCopy[]
               <th className={`${head} hidden sm:table-cell`}>Print</th>
               <th className={`${head} w-12 text-center`}>Foil</th>
               <th className={head}>Owner</th>
+              <th className={`${head} hidden lg:table-cell`}>Location</th>
               <th className={`${head} hidden text-right md:table-cell`}>Paid</th>
               <th className={`${head} text-right`}>Value</th>
             </tr>
@@ -156,6 +158,7 @@ export function CollectionList({ rows, owners, decks }: { rows: CollectionCopy[]
                     )}
                   </td>
                   <td className={`${cell} text-xs ${r.owner ? "text-space-200" : "text-space-500"}`}>{r.owner ?? "—"}</td>
+                  <td className={`${cell} hidden text-xs lg:table-cell ${r.locationName ? "text-space-200" : "text-space-500"}`}>{r.locationName ?? "—"}</td>
                   <td className={`${cell} hidden text-right text-xs text-space-300 md:table-cell`}>
                     {r.pricePaidCents != null ? formatCents(r.pricePaidCents, r.currency) : "—"}
                   </td>
@@ -227,6 +230,36 @@ export function CollectionList({ rows, owners, decks }: { rows: CollectionCopy[]
               <option value={NEW}>someone else…</option>
             </select>
           )}
+
+          {/* Filing a shelf-full in one go is the whole point of the multiselect. */}
+          <select
+            value=""
+            disabled={pending}
+            onChange={(e) => {
+              const v = e.target.value;
+              e.target.value = "";
+              if (!v) return;
+              const locationId = v === NONE ? null : Number(v);
+              start(async () => {
+                const r = await bulkSetLocationAction(chosen, locationId);
+                const where = locationId ? locations.find((l) => l.id === locationId)?.name : null;
+                setNote(`Filed ${r.updated} ${r.updated === 1 ? "copy" : "copies"} ${where ? `in ${where}` : "as unfiled"}.`);
+                setSelected(new Set());
+                router.refresh();
+              });
+            }}
+            className="tap rounded-md border border-space-600 bg-space-900 px-2 py-1 text-xs text-space-100 disabled:opacity-40"
+          >
+            <option value="">File in…</option>
+            {locations
+              .filter((l) => !l.isArchived)
+              .map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name}
+                </option>
+              ))}
+            <option value={NONE}>no location</option>
+          </select>
 
           <button
             disabled={pending}

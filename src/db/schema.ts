@@ -212,6 +212,21 @@ export const syncRuns = pgTable("sync_runs", {
   error: text("error"),
 });
 
+/**
+ * Where cards physically live — "Binder 1 page 4", "Trade box", "Deck shelf".
+ * Maintained in settings and attached to individual copies, so a card can be
+ * found again without turning the shelf out.
+ */
+export const storageLocations = pgTable("storage_locations", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  note: text("note"),
+  /** Hidden from the pickers without deleting it, so old assignments survive. */
+  isArchived: boolean("is_archived").notNull().default(false),
+  sortKey: integer("sort_key").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [uniqueIndex("storage_locations_name_unique").on(t.name)]);
+
 /*
  * ──────────────────────────────────────────────────────────────────────────
  *  Collection — **one row per physical card**. There is deliberately no
@@ -244,6 +259,8 @@ export const ownedCards = pgTable(
     notes: text("notes"),
     /** Basic Auth username that added the lot; null when the app runs open (local dev). */
     owner: text("owner"),
+    /** Where this particular card is kept. */
+    locationId: integer("location_id").references(() => storageLocations.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

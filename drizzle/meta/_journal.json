@@ -71,6 +71,13 @@
       "when": 1788432344762,
       "tag": "0009_fearless_metal_master",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1788432760073,
+      "tag": "0010_faulty_ultimates",
+      "breakpoints": true
     }
   ]
 }

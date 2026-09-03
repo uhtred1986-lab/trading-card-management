@@ -6,6 +6,7 @@ import { db } from "@/db";
 import { cardPrints, ownedCards } from "@/db/schema";
 import { currentOwner } from "@/lib/auth";
 import { addCardsToDeck } from "@/lib/decks/add";
+import { setCopyLocations } from "@/lib/collection/locations";
 import { expand } from "@/lib/collection/lots";
 import { CONDITIONS, FINISHES } from "@/lib/collection/queries";
 import { parseEuroInput } from "@/lib/money";
@@ -244,6 +245,16 @@ function cleanIds(lotIds: number[]): number[] {
 }
 
 /** Re-assign the selected copies to an owner, or to nobody. */
+/** Mass-assign a storage location, so a shelf-full can be filed in one go. */
+export async function bulkSetLocationAction(lotIds: number[], locationId: number | null): Promise<{ updated: number }> {
+  const ids = cleanIds(lotIds);
+  if (ids.length === 0) return { updated: 0 };
+  const cardIds = await setCopyLocations(db, ids, locationId);
+  revalidateCards(cardIds);
+  revalidatePath("/collection");
+  return { updated: cardIds.length };
+}
+
 export async function bulkSetOwnerAction(lotIds: number[], owner: string | null): Promise<{ updated: number }> {
   const ids = cleanIds(lotIds);
   if (ids.length === 0) return { updated: 0 };

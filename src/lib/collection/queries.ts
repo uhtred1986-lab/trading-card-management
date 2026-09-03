@@ -1,6 +1,6 @@
 import { asc, desc, eq, sql } from "drizzle-orm";
 import type { Db } from "@/db";
-import { cardPrints, cardSets, cards, ownedCards } from "@/db/schema";
+import { cardPrints, cardSets, cards, ownedCards, storageLocations } from "@/db/schema";
 import type { Currency } from "@/lib/money";
 import { latestUsdEur } from "@/lib/pricing/fx";
 import { basePricesAsOf, priceForFinish, pricesForPrints } from "@/lib/pricing/queries";
@@ -239,6 +239,9 @@ export interface CollectionCopy {
   currency: Currency;
   /** Market value of this one copy in EUR cents; null when unpriced. */
   marketEurCents: number | null;
+  /** Where this copy is kept, if it has been filed. */
+  locationId: number | null;
+  locationName: string | null;
 }
 
 /**
@@ -248,7 +251,7 @@ export interface CollectionCopy {
  */
 export async function collectionCopies(
   db: Db,
-  opts: { q?: string; set?: string; finish?: "foil" | "normal"; sort?: "value" | "name" | "number" | "recent" } = {},
+  opts: { q?: string; set?: string; finish?: "foil" | "normal"; location?: number | "none"; sort?: "value" | "name" | "number" | "recent" } = {},
 ): Promise<{ rows: CollectionCopy[]; usdEur: number | null }> {
   const [lots, usdEur] = await Promise.all([
     db
@@ -275,11 +278,14 @@ export async function collectionCopies(
         isLimited: cards.isLimited,
         searchText: cards.searchText,
         setSort: cardSets.sortKey,
+        locationId: ownedCards.locationId,
+        locationName: storageLocations.name,
       })
       .from(ownedCards)
       .innerJoin(cardPrints, eq(cardPrints.id, ownedCards.printId))
       .innerJoin(cards, eq(cards.id, ownedCards.cardId))
-      .innerJoin(cardSets, eq(cardSets.code, cards.setCode)),
+      .innerJoin(cardSets, eq(cardSets.code, cards.setCode))
+      .leftJoin(storageLocations, eq(storageLocations.id, ownedCards.locationId)),
     latestUsdEur(db),
   ]);
 
@@ -298,6 +304,9 @@ export async function collectionCopies(
   // Unlike the grid, filtering by finish drops the copies that don't match —
   // in a per-copy list the row *is* the finish.
   if (opts.finish) rows = rows.filter((r) => (opts.finish === "foil" ? r.finish === "foil" : r.finish !== "foil"));
+  // "none" is the useful case: the cards you have not filed anywhere yet.
+  if (opts.location === "none") rows = rows.filter((r) => r.locationId == null);
+  else if (typeof opts.location === "number") rows = rows.filter((r) => r.locationId === opts.location);
   if (opts.q) {
     const terms = opts.q.toLowerCase().split(/\s+/).filter(Boolean);
     rows = rows.filter((r) => terms.every((t) => r.searchText.includes(t)));
@@ -345,6 +354,8 @@ export async function collectionCopies(
       pricePaidCents: r.pricePaidCents,
       currency: r.currency,
       marketEurCents: r.marketEurCents,
+      locationId: r.locationId,
+      locationName: r.locationName,
     })),
   };
 }

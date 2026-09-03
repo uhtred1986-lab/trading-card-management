@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { listSets } from "@/lib/catalog/queries";
 import { collectionCards, collectionCopies, summarise, valuedLots } from "@/lib/collection/queries";
 import { ownerOptions } from "@/lib/collection/owners";
+import { listLocations } from "@/lib/collection/locations";
 import { currentOwner } from "@/lib/auth";
 import { formatCents } from "@/lib/money";
 import { parseViewMode } from "@/lib/view-mode";
@@ -25,7 +26,9 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
   const finish = finishParam === "foil" || finishParam === "normal" ? finishParam : undefined;
   const sort = (one(sp.sort) as "value" | "name" | "number" | "recent" | undefined) ?? "recent";
   const view = parseViewMode(one(sp.view));
-  const filters: Parameters<typeof collectionCopies>[1] = { q, set, finish, sort };
+  const locationParam = one(sp.location);
+  const location = locationParam === "none" ? ("none" as const) : locationParam ? Number(locationParam) : undefined;
+  const filters: Parameters<typeof collectionCopies>[1] = { q, set, finish, sort, location };
 
   // The grid aggregates by card; the list is one row per physical copy. Only
   // the one being shown is fetched — both walk every lot.
@@ -37,12 +40,12 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
     deckOptions(db),
     currentOwner(),
   ]);
-  const owners = view === "list" ? await ownerOptions(db, me) : [];
+  const [owners, locations] = view === "list" ? await Promise.all([ownerOptions(db, me), listLocations(db)]) : [[], []];
   const s = summarise(all.lots, all.usdEur);
   const shown = grid?.rows.length ?? list?.rows.length ?? 0;
   const select = "tap rounded-md border border-space-600 bg-space-900 px-2 py-1.5 text-sm text-space-100";
 
-  const params = { q, set, sort: sort === "recent" ? undefined : sort, finish };
+  const params = { q, set, sort: sort === "recent" ? undefined : sort, finish, location: locationParam };
 
   const href = (next: string | undefined) => {
     const p = new URLSearchParams();
@@ -51,6 +54,7 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
     if (sort !== "recent") p.set("sort", sort);
     if (next) p.set("finish", next);
     if (view !== "grid") p.set("view", view);
+    if (locationParam) p.set("location", locationParam);
     const qs = p.toString();
     return qs ? `/collection?${qs}` : "/collection";
   };
@@ -96,6 +100,17 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
       <form action="/collection" className="grid grid-cols-2 gap-2 rounded-xl border border-space-700/70 bg-space-900/50 p-3 sm:grid-cols-5">
         {finish ? <input type="hidden" name="finish" value={finish} /> : null}
         {view !== "grid" ? <input type="hidden" name="view" value={view} /> : null}
+        {view === "list" ? (
+          <select name="location" defaultValue={locationParam ?? ""} className={select}>
+            <option value="">Anywhere</option>
+            {locations.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.name}
+              </option>
+            ))}
+            <option value="none">Not filed yet</option>
+          </select>
+        ) : null}
         <input type="search" name="q" defaultValue={q ?? ""} placeholder="Filter by name or number" className={`${select} col-span-2`} />
         <select name="set" defaultValue={set ?? ""} className={select}>
           <option value="">All sets</option>
@@ -119,7 +134,7 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
           {s.lots === 0 ? "Nothing here yet." : finish === "foil" ? "No foils match that filter." : "No cards match that filter."}
         </p>
       ) : list ? (
-        <CollectionList rows={list.rows} owners={owners} decks={decks} />
+        <CollectionList rows={list.rows} owners={owners} decks={decks} locations={locations} />
       ) : (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
           {grid!.rows.map((r) => (

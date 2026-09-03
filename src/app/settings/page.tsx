@@ -60,6 +60,18 @@ export default async function SettingsPage() {
       </section>
 
       <section className="rounded-xl border border-space-700/70 bg-space-900/50 p-3 text-sm">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="font-semibold text-space-50">Storage locations</h2>
+          <Link href="/settings/locations" className="tap rounded-md border border-space-600 px-3 py-1 text-xs text-space-100 hover:bg-space-800">
+            Manage locations →
+          </Link>
+        </div>
+        <p className="mt-1 text-xs text-space-300">
+          Keep a list of binders, boxes and shelves, then file individual copies — or a whole selection at once — so you can find a card when you want it.
+        </p>
+      </section>
+
+      <section className="rounded-xl border border-space-700/70 bg-space-900/50 p-3 text-sm">
         <h2 className="mb-2 font-semibold text-space-50">Integrations</h2>
         <ul className="space-y-1">
           <Row ok={hasAnthropic} label="Anthropic API" note="deck analysis, improvement wizard, set review, card scanning" />
