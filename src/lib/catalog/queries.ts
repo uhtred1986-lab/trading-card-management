@@ -81,11 +81,20 @@ export async function searchCards(db: Db, s: CardSearch) {
   return { rows, total: count, page, pageSize, pages: Math.max(1, Math.ceil(count / pageSize)) };
 }
 
-/** Fast typeahead for the bulk-entry form and deck builder. */
-export async function quickSearch(db: Db, q: string, limit = 12) {
+/**
+ * Fast typeahead for the bulk-entry form and deck builder.
+ *
+ * `cardType` narrows in SQL rather than after the fact: "son goku" matches
+ * hundreds of cards, so filtering a capped result set would leave a leader
+ * search with almost no leaders in it.
+ */
+export async function quickSearch(db: Db, q: string, limit = 12, cardType?: string) {
   const terms = searchTerms(q);
   if (terms.length === 0) return [];
-  const where = and(...terms.map((t) => ilike(cards.searchText, `%${t.replace(/[%_]/g, "")}%`)));
+  const where = and(
+    ...terms.map((t) => ilike(cards.searchText, `%${t.replace(/[%_]/g, "")}%`)),
+    ...(cardType ? [eq(cards.cardType, cardType)] : []),
+  );
   const exact = q.trim().toUpperCase();
   return db
     .select({
@@ -99,9 +108,12 @@ export async function quickSearch(db: Db, q: string, limit = 12) {
     })
     .from(cards)
     .where(where)
-    // Exact number match first, then number-prefix, then name.
+    // Exact number match, then number-prefix, then cards whose *name* matches
+    // ahead of ones that merely mention the words in their skill text —
+    // otherwise typing "goku" offers Dende, who only talks about him.
     .orderBy(
       sql`case when ${cards.id} = ${exact} then 0 when ${cards.id} like ${exact + "%"} then 1 else 2 end`,
+      sql`case when ${cards.name} ilike ${"%" + q.trim().replace(/[%_]/g, "") + "%"} then 0 else 1 end`,
       asc(cards.name),
     )
     .limit(limit);

@@ -5,14 +5,25 @@ import { RULES } from "@/lib/decks/legality";
 import { DeckStatusBadge } from "@/components/DeckStatusBadge";
 import { CardImage } from "@/components/CardImage";
 import { ColorPill } from "@/components/ColorPill";
+import { NewDeckWithClaude } from "@/components/NewDeckWithClaude";
+import { hasAnthropic } from "@/lib/ai/client";
 import { createDeckForm } from "./actions";
 
 export const dynamic = "force-dynamic";
 
-export default async function DecksPage() {
+type Params = Record<string, string | string[] | undefined>;
+
+export default async function DecksPage({ searchParams }: { searchParams: Promise<Params> }) {
+  const sp = await searchParams;
+  const raw = Array.isArray(sp.show) ? sp.show[0] : sp.show;
+  const show: "all" | "built" | "virtual" = raw === "built" || raw === "virtual" ? raw : "all";
   const decks = await listDecks(db);
   const built = decks.filter((d) => d.isBuilt);
   const virtual = decks.filter((d) => !d.isBuilt);
+  const sections = [
+    { title: "Built", rows: built, key: "built" as const },
+    { title: "Virtual", rows: virtual, key: "virtual" as const },
+  ].filter((s) => show === "all" || show === s.key);
 
   return (
     <div className="space-y-6">
@@ -23,16 +34,40 @@ export default async function DecksPage() {
             {built.length} built · {virtual.length} virtual
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-start gap-2">
           <Link href="/leaders" className="tap rounded-md border border-space-600 px-3 py-1.5 text-sm text-space-100 hover:bg-space-800">
             My leaders
           </Link>
+          <NewDeckWithClaude enabled={hasAnthropic()} />
           <form action={createDeckForm} className="flex gap-2">
             <input name="name" placeholder="New deck name" className="tap rounded-md border border-space-600 bg-space-900 px-2 py-1.5 text-sm text-space-100" />
             <button className="tap rounded-md bg-ki-500 px-3 py-1.5 text-sm font-semibold text-space-950 hover:bg-ki-400">Create</button>
           </form>
         </div>
       </div>
+
+      {decks.length > 0 ? (
+        <div className="flex flex-wrap gap-1.5">
+          {(
+            [
+              { key: "all", label: "All", n: decks.length },
+              { key: "built", label: "Built", n: built.length },
+              { key: "virtual", label: "Virtual", n: virtual.length },
+            ] as const
+          ).map((f) => (
+            <Link
+              key={f.key}
+              href={f.key === "all" ? "/decks" : `/decks?show=${f.key}`}
+              aria-current={show === f.key}
+              className={`tap rounded-lg border px-2.5 py-1 text-sm transition-colors ${
+                show === f.key ? "border-ki-500 bg-ki-500/10 text-space-50" : "border-space-700 text-space-300 hover:border-space-500"
+              }`}
+            >
+              {f.label} <span className="tabular-nums text-space-400">{f.n}</span>
+            </Link>
+          ))}
+        </div>
+      ) : null}
 
       <p className="rounded-xl border border-space-700/70 bg-space-900/40 p-3 text-xs text-space-300">
         <span className="font-semibold text-ki-300">Built</span> decks are physical stacks: every copy they contain is reserved from your collection, and a deck can only be marked built while you own enough copies for it and every other built deck.{" "}
@@ -43,10 +78,7 @@ export default async function DecksPage() {
         <p className="rounded-xl border border-dashed border-space-700 p-8 text-center text-space-300">No decks yet — create one above.</p>
       ) : null}
 
-      {[
-        { title: "Built", rows: built },
-        { title: "Virtual", rows: virtual },
-      ]
+      {sections
         .filter((s) => s.rows.length)
         .map((section) => (
           <section key={section.title}>
