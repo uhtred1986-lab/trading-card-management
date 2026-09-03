@@ -5,6 +5,8 @@ import { getCard } from "@/lib/catalog/queries";
 import { CONDITIONS, LANGUAGES, knownOwners, lotsForCard } from "@/lib/collection/queries";
 import { currentUser } from "@/lib/auth";
 import { LotOwnerPicker } from "@/components/LotOwnerPicker";
+import { LotLocationPicker } from "@/components/LotLocationPicker";
+import { listLocations } from "@/lib/collection/locations";
 import { CardDecks } from "@/components/CardDecks";
 import { decksForCard } from "@/lib/decks/queries";
 import { allocationForCards, decksReserving } from "@/lib/decks/reservations";
@@ -29,7 +31,7 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
   if (!card) notFound();
 
   const printIds = card.prints.map((p) => p.id);
-  const [prices, alloc, lots, reservedBy, usdEur, decks, ownersUsed, me] = await Promise.all([
+  const [prices, alloc, lots, reservedBy, usdEur, decks, ownersUsed, me, locations] = await Promise.all([
     pricesForPrints(db, printIds),
     allocationForCards(db, [id]),
     lotsForCard(db, id),
@@ -38,6 +40,7 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
     deckOptions(db),
     knownOwners(db),
     currentUser(),
+    listLocations(db),
   ]);
   const inDecks = await decksForCard(db, id);
   const owners = [...new Set([...ownersUsed, ...(me ? [me] : [])])];
@@ -186,6 +189,7 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
                   {l.pricePaidCents != null ? <span className="text-xs text-space-300">paid {formatCents(l.pricePaidCents, l.currency as "EUR" | "USD")} each</span> : null}
                   {l.acquiredOn ? <span className="text-xs text-space-300">{l.acquiredOn}</span> : null}
                   <LotOwnerPicker lotId={l.id} owner={l.owner} known={owners} />
+                  <LotLocationPicker lotId={l.id} locationId={l.locationId} locations={locations} />
                   {l.notes ? <span className="text-xs italic text-space-300">{l.notes}</span> : null}
                   <form action={deleteLotForm} className="ml-auto">
                     <input type="hidden" name="id" value={l.id} />

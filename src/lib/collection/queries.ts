@@ -1,4 +1,4 @@
-import { asc, desc, eq, sql } from "drizzle-orm";
+import { asc, desc, eq, inArray, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { cardPrints, cardSets, cards, deckCards, ownedCards, storageLocations } from "@/db/schema";
 import type { Currency } from "@/lib/money";
@@ -32,6 +32,7 @@ export async function lotsForCard(db: Db, cardId: string) {
       currency: ownedCards.currency,
       notes: ownedCards.notes,
       owner: ownedCards.owner,
+      locationId: ownedCards.locationId,
     })
     .from(ownedCards)
     .innerJoin(cardPrints, eq(cardPrints.id, ownedCards.printId))
@@ -256,8 +257,12 @@ export async function collectionCopies(
     set?: string;
     finish?: "foil" | "normal";
     location?: number | "none";
-    /** Copies of cards that appear in this deck — deck slots name a card, not a copy. */
-    deck?: number;
+    /**
+     * Copies of cards that appear in any of these decks — deck slots name a
+     * card, not a copy. `"none"` matches cards no deck uses at all, and mixes
+     * with deck ids as an "or".
+     */
+    deck?: (number | "none")[];
     /** A username, or "none" for copies nobody has claimed. */
     owner?: string;
     sort?: "value" | "name" | "number" | "recent";
@@ -318,11 +323,18 @@ export async function collectionCopies(
   if (opts.location === "none") rows = rows.filter((r) => r.locationId == null);
   else if (typeof opts.location === "number") rows = rows.filter((r) => r.locationId === opts.location);
   if (opts.owner) rows = opts.owner === "none" ? rows.filter((r) => !r.owner) : rows.filter((r) => r.owner === opts.owner);
-  if (opts.deck) {
+  if (opts.deck?.length) {
     // A deck names cards, not copies, so this shows every copy of everything
     // the deck uses — which is what you want when you go to pull it together.
-    const inDeck = new Set((await db.selectDistinct({ cardId: deckCards.cardId }).from(deckCards).where(eq(deckCards.deckId, opts.deck))).map((d) => d.cardId));
-    rows = rows.filter((r) => inDeck.has(r.cardId));
+    const ids = opts.deck.filter((d): d is number => typeof d === "number");
+    const wantUndecked = opts.deck.includes("none");
+    const [chosen, anyDeck] = await Promise.all([
+      ids.length ? db.selectDistinct({ cardId: deckCards.cardId }).from(deckCards).where(inArray(deckCards.deckId, ids)) : Promise.resolve([]),
+      wantUndecked ? db.selectDistinct({ cardId: deckCards.cardId }).from(deckCards) : Promise.resolve([]),
+    ]);
+    const inChosen = new Set(chosen.map((d) => d.cardId));
+    const inAny = new Set(anyDeck.map((d) => d.cardId));
+    rows = rows.filter((r) => inChosen.has(r.cardId) || (wantUndecked && !inAny.has(r.cardId)));
   }
   if (opts.q) {
     const terms = opts.q.toLowerCase().split(/\s+/).filter(Boolean);

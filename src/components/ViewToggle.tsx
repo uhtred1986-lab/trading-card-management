@@ -13,7 +13,7 @@ export function ViewToggle({
   listLabel = "List",
 }: {
   path: string;
-  params: Record<string, string | undefined>;
+  params: Record<string, string | string[] | undefined>;
   view: ViewMode;
   /** The collection's list is per-copy, so it says so. */
   listLabel?: string;

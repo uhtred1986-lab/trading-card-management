@@ -11,12 +11,14 @@ import { CardTile } from "@/components/CardTile";
 import { CollectionList } from "@/components/CollectionList";
 import { CopiesPopover } from "@/components/CopiesPopover";
 import { ViewToggle } from "@/components/ViewToggle";
+import { LiveSearch } from "@/components/LiveSearch";
 import { deckOptions } from "@/lib/decks/add";
 
 export const dynamic = "force-dynamic";
 
 type Params = Record<string, string | string[] | undefined>;
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v || undefined);
+const many = (v: string | string[] | undefined) => (Array.isArray(v) ? v : v ? [v] : []);
 
 export default async function CollectionPage({ searchParams }: { searchParams: Promise<Params> }) {
   const sp = await searchParams;
@@ -28,8 +30,9 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
   const view = parseViewMode(one(sp.view));
   const locationParam = one(sp.location);
   const location = locationParam === "none" ? ("none" as const) : locationParam ? Number(locationParam) : undefined;
-  const deckParam = one(sp.deck);
-  const deck = deckParam ? Number(deckParam) : undefined;
+  // The deck filter takes several values at once, so it arrives repeated.
+  const deckParams = many(sp.deck);
+  const deck = deckParams.map((d) => (d === "none" ? ("none" as const) : Number(d))).filter((d) => d === "none" || Number.isInteger(d));
   const owner = one(sp.owner);
   const filters: Parameters<typeof collectionCopies>[1] = { q, set, finish, sort, location, deck, owner };
 
@@ -43,12 +46,13 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
     deckOptions(db),
     currentOwner(),
   ]);
-  const [owners, locations] = view === "list" ? await Promise.all([ownerOptions(db, me), listLocations(db)]) : [[], []];
+  const locations = await listLocations(db);
+  const owners = view === "list" ? await ownerOptions(db, me) : [];
   const s = summarise(all.lots, all.usdEur);
   const shown = grid?.rows.length ?? list?.rows.length ?? 0;
   const select = "tap rounded-md border border-space-600 bg-space-900 px-2 py-1.5 text-sm text-space-100";
 
-  const params = { q, set, sort: sort === "recent" ? undefined : sort, finish, location: locationParam, deck: deckParam, owner };
+  const params = { q, set, sort: sort === "recent" ? undefined : sort, finish, location: locationParam, deck: deckParams, owner };
 
   const href = (next: string | undefined) => {
     const p = new URLSearchParams();
@@ -58,7 +62,7 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
     if (next) p.set("finish", next);
     if (view !== "grid") p.set("view", view);
     if (locationParam) p.set("location", locationParam);
-    if (deckParam) p.set("deck", deckParam);
+    for (const d of deckParams) p.append("deck", d);
     if (owner) p.set("owner", owner);
     const qs = p.toString();
     return qs ? `/collection?${qs}` : "/collection";
@@ -116,15 +120,35 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
               ))}
               <option value="none">Not filed yet</option>
             </select>
-            {/* A deck names cards, so this shows every copy of what the deck uses. */}
-            <select name="deck" defaultValue={deckParam ?? ""} className={select}>
-              <option value="">Any deck</option>
-              {decks.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.isBuilt ? "▣" : "▢"} {d.name}
-                </option>
-              ))}
-            </select>
+            {/*
+              Checkboxes rather than a multi-select: several decks at once, plus
+              "in no deck", and it stays usable on a phone. Plain form controls,
+              so the whole thing still works as a GET.
+            */}
+            <details className="relative rounded-md border border-space-600 bg-space-900">
+              <summary className="tap cursor-pointer list-none px-2 py-1.5 text-sm text-space-100">
+                {deckParams.length === 0
+                  ? "Any deck"
+                  : deckParams.length === 1
+                    ? (deckParams[0] === "none" ? "In no deck" : (decks.find((d) => String(d.id) === deckParams[0])?.name ?? "1 deck"))
+                    : `${deckParams.length} decks`}
+                <span className="float-right text-space-400">▾</span>
+              </summary>
+              <div className="absolute left-0 z-30 mt-1 max-h-64 w-56 overflow-y-auto rounded-md border border-space-600 bg-space-950 p-2 shadow-xl">
+                <label className="flex items-center gap-2 rounded px-1 py-1 text-sm text-space-200 hover:bg-space-900">
+                  <input type="checkbox" name="deck" value="none" defaultChecked={deckParams.includes("none")} className="h-3.5 w-3.5 accent-ki-500" />
+                  In no deck
+                </label>
+                {decks.map((d) => (
+                  <label key={d.id} className="flex items-center gap-2 rounded px-1 py-1 text-sm text-space-200 hover:bg-space-900">
+                    <input type="checkbox" name="deck" value={d.id} defaultChecked={deckParams.includes(String(d.id))} className="h-3.5 w-3.5 accent-ki-500" />
+                    <span className="truncate">
+                      {d.isBuilt ? "▣" : "▢"} {d.name}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </details>
             <select name="owner" defaultValue={owner ?? ""} className={select}>
               <option value="">Anyone</option>
               {owners.map((o) => (
@@ -136,7 +160,12 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
             </select>
           </>
         ) : null}
-        <input type="search" name="q" defaultValue={q ?? ""} placeholder="Filter by name or number" className={`${select} col-span-2`} />
+        <LiveSearch
+          defaultValue={q}
+          placeholder="Filter by name or number"
+          className="col-span-2"
+          params={{ set, sort: sort === "recent" ? undefined : sort, finish, view: view === "grid" ? undefined : view, location: locationParam, deck: deckParams, owner }}
+        />
         <select name="set" defaultValue={set ?? ""} className={select}>
           <option value="">All sets</option>
           {sets.map((st) => (
@@ -166,7 +195,7 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
             <CardTile
               key={r.card.id}
               card={r.card}
-              badge={<CopiesPopover cardId={r.card.id} name={r.card.name} ownedQty={r.qty} foilQty={r.foilQty} decks={decks} />}
+              badge={<CopiesPopover cardId={r.card.id} name={r.card.name} ownedQty={r.qty} foilQty={r.foilQty} decks={decks} locations={locations} />}
               priceLabel={r.valueEur ? formatCents(r.valueEur) : r.unpriced ? "unpriced" : null}
               footer={
                 r.spentEur ? (

@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { addCopyAction, assignToDeckAction, copiesForCardAction, removeCopyAction, setCopyFinishAction, type CopyRow } from "@/app/collection/actions";
 import type { DeckOption } from "@/lib/decks/add";
+import type { StorageLocation } from "@/lib/collection/locations";
+import { LotLocationPicker } from "./LotLocationPicker";
 
 /**
  * The ×N badge on a collection tile, opened. Because every physical card is
@@ -16,12 +18,14 @@ export function CopiesPopover({
   ownedQty,
   foilQty,
   decks,
+  locations,
 }: {
   cardId: string;
   name: string;
   ownedQty: number;
   foilQty: number;
   decks: DeckOption[];
+  locations: StorageLocation[];
 }) {
   const [open, setOpen] = useState(false);
   const [copies, setCopies] = useState<CopyRow[] | null>(null);
@@ -73,7 +77,7 @@ export function CopiesPopover({
       </button>
 
       {open ? (
-        <div className="absolute right-0 top-7 z-40 w-64 max-w-[80vw] space-y-2 rounded-xl border border-space-600 bg-space-950 p-2 text-left shadow-xl">
+        <div className="absolute right-0 top-7 z-40 w-72 max-w-[85vw] space-y-2 rounded-xl border border-space-600 bg-space-950 p-2 text-left shadow-xl">
           <div className="flex items-baseline justify-between gap-2">
             <span className="truncate text-xs font-semibold text-space-100">{name}</span>
             <span className="shrink-0 font-mono text-[10px] text-space-400">{cardId}</span>
@@ -84,9 +88,10 @@ export function CopiesPopover({
           ) : copies.length === 0 ? (
             <p className="py-1 text-xs text-space-400">No copies left.</p>
           ) : (
-            <ul className="max-h-48 space-y-1 overflow-y-auto">
+            <ul className="max-h-56 space-y-1 overflow-y-auto">
               {copies.map((c, i) => (
-                <li key={c.id} className="flex items-center gap-1.5 rounded bg-space-900/70 px-1.5 py-1 text-xs">
+                <li key={c.id} className="space-y-1 rounded bg-space-900/70 px-1.5 py-1 text-xs">
+                  <div className="flex items-center gap-1.5">
                   <span className="w-4 shrink-0 font-mono text-[10px] text-space-500">#{i + 1}</span>
                   <span className="min-w-0 flex-1 truncate text-space-200" title={`${c.printLabel} · ${c.condition} · ${c.language}`}>
                     {c.printLabel} · {c.condition}
@@ -112,6 +117,13 @@ export function CopiesPopover({
                   >
                     ×
                   </button>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="shrink-0 text-[10px] text-space-500" title="Where this copy is kept">
+                      📍
+                    </span>
+                    <LotLocationPicker lotId={c.id} locationId={c.locationId} locations={locations} compact />
+                  </div>
                 </li>
               ))}
             </ul>

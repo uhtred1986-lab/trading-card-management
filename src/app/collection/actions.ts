@@ -6,7 +6,7 @@ import { db } from "@/db";
 import { cardPrints, ownedCards } from "@/db/schema";
 import { currentOwner } from "@/lib/auth";
 import { addCardsToDeck } from "@/lib/decks/add";
-import { setCopyLocations } from "@/lib/collection/locations";
+import { createLocation, listLocations, setCopyLocations } from "@/lib/collection/locations";
 import { expand } from "@/lib/collection/lots";
 import { CONDITIONS, FINISHES } from "@/lib/collection/queries";
 import { parseEuroInput } from "@/lib/money";
@@ -142,6 +142,7 @@ export interface CopyRow {
   condition: string;
   finish: string;
   language: string;
+  locationId: number | null;
 }
 
 /** The individual physical cards of one card id, for the collection popover. */
@@ -154,6 +155,7 @@ export async function copiesForCardAction(cardId: string): Promise<CopyRow[]> {
       condition: ownedCards.condition,
       finish: ownedCards.finish,
       language: ownedCards.language,
+      locationId: ownedCards.locationId,
     })
     .from(ownedCards)
     .innerJoin(cardPrints, eq(cardPrints.id, ownedCards.printId))
@@ -253,6 +255,35 @@ export async function bulkSetLocationAction(lotIds: number[], locationId: number
   revalidateCards(cardIds);
   revalidatePath("/collection");
   return { updated: cardIds.length };
+}
+
+/** File one copy, from the card page or the grid popover. */
+export async function setLotLocationAction(lotId: number, locationId: number | null): Promise<{ ok: boolean }> {
+  const cardIds = await setCopyLocations(db, [lotId], locationId);
+  revalidateCards(cardIds);
+  revalidatePath("/collection");
+  return { ok: cardIds.length > 0 };
+}
+
+/**
+ * Create a place and file a copy in it in one step, so a new box can be named
+ * where you're standing rather than in settings. A name that already exists is
+ * reused rather than rejected — from here that is what you meant.
+ */
+export async function addLocationAction(name: string, lotIds: number[] = []): Promise<{ id: number; name: string } | { error: string }> {
+  const clean = name.trim().slice(0, 80);
+  if (!clean) return { error: "Give the location a name." };
+  const created = await createLocation(db, clean, null);
+  const place = created ?? (await listLocations(db)).find((l) => l.name.toLowerCase() === clean.toLowerCase()) ?? null;
+  if (!place) return { error: "Could not create that location." };
+  const ids = cleanIds(lotIds);
+  if (ids.length) {
+    const cardIds = await setCopyLocations(db, ids, place.id);
+    revalidateCards(cardIds);
+  }
+  revalidatePath("/settings/locations");
+  revalidatePath("/collection");
+  return { id: place.id, name: place.name };
 }
 
 export async function bulkSetOwnerAction(lotIds: number[], owner: string | null): Promise<{ updated: number }> {
