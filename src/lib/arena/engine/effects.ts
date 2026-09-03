@@ -38,7 +38,8 @@ export function resolveEffect(ctx: GameContext & { scripts?: Record<string, Comp
   }
 
   let handled = false;
-  const lower = text.toLowerCase();
+  // [Auto] text repeats its trigger ("When this card attacks, draw 1 card"); the trigger already fired.
+  const lower = text.toLowerCase().replace(/^(?:when|at the (?:end|start|beginning) of|if)\b[^,:]*,\s*/, "");
   let m: RegExpExecArray | null;
 
   // "Draw 1 card." / "You may draw 2 cards" (the "may" is taken: no downside in practice).
