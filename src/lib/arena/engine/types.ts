@@ -7,6 +7,8 @@
  * Rule Manual v4.00 (`docs/rules/rulemanual.txt`).
  */
 
+import type { Op, ScriptFrame } from "./script";
+
 export type PlayerId = "p1" | "p2";
 export const PLAYERS: PlayerId[] = ["p1", "p2"];
 export const other = (p: PlayerId): PlayerId => (p === "p1" ? "p2" : "p1");
@@ -257,7 +259,22 @@ export type Prompt =
   | { kind: "zEnergyFromCombo"; player: PlayerId; candidates: string[] }
   | { kind: "payCost"; player: PlayerId; action: Action; needed: number; specified: Partial<Record<Color, number>> }
   | { kind: "offering"; player: PlayerId; card: string }
+  /** A skill the compiler could not read; Claude answers with a program in the effect language. */
+  | { kind: "referee"; player: PlayerId; request: RefereeRequest }
   | { kind: "gameOver" };
+
+export interface RefereeRequest {
+  card: string;
+  cardId: string;
+  cardName: string;
+  skillIndex: number;
+  /** The printed skill line, verbatim. */
+  text: string;
+  /** The clauses the compiler could not read. */
+  unsupported: string[];
+  master: PlayerId;
+  trigger?: Trigger;
+}
 
 export type CounterWindow = "play" | "attack" | "battleCardAttack" | "counter" | "skill";
 
@@ -292,6 +309,8 @@ export type Action =
   | { type: "choose"; player: PlayerId; cards: string[] }
   | { type: "zEnergyFromCombo"; player: PlayerId; card: string | null }
   | { type: "offering"; player: PlayerId; dropLife: boolean }
+  /** The referee's answer: a program in the effect language, or an empty one for "nothing happens". */
+  | { type: "refereeRuling"; player: PlayerId; ops: Op[] }
   | { type: "concede"; player: PlayerId };
 
 /** Append-only log; the UI animates from these and a replay folds them. */
@@ -380,8 +399,10 @@ export type FlowStep =
   | { op: "turn.endPhase" }
   | { op: "turn.cleanup" }
   | { op: "turn.next" }
-  | { op: "counter"; window: CounterWindow; responder: PlayerId; onNegate: FlowStep[] }
-  | { op: "play.resolve"; card: string; player: PlayerId; markers?: number }
+  | { op: "counter"; window: CounterWindow; responder: PlayerId }
+  | { op: "play.resolve"; card: string; player: PlayerId; markers?: number; mode?: "active" | "rest" }
+  | { op: "script.step"; frame: ScriptFrame }
+  | { op: "flipLeader"; card: string }
   | { op: "skill.resolve"; card: string; skill: number; player: PlayerId; trigger?: Trigger }
   | { op: "extra.finish"; card: string }
   | { op: "battle.afterDeclare" }

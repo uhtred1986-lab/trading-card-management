@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { db } from "@/db";
 import { listDecks } from "@/lib/decks/queries";
-import { RULES } from "@/lib/decks/legality";
+import { mainCountLabel, mainCountOk } from "@/lib/decks/legality";
 import { DeckStatusBadge } from "@/components/DeckStatusBadge";
 import { CardImage } from "@/components/CardImage";
 import { ColorPill } from "@/components/ColorPill";
@@ -104,9 +104,7 @@ export default async function DecksPage({ searchParams }: { searchParams: Promis
                         {d.leader?.colors.map((c) => (
                           <ColorPill key={c} color={c} small />
                         ))}
-                        <span className={`ml-auto text-xs ${d.mainCount === RULES.main ? "text-space-300" : "text-ki-300"}`}>
-                          {d.mainCount}/{RULES.main}
-                        </span>
+                        <span className={`ml-auto text-xs ${mainCountOk(d.mainCount) ? "text-space-300" : "text-ki-300"}`}>{mainCountLabel(d.mainCount)}</span>
                       </div>
                     </div>
                   </Link>

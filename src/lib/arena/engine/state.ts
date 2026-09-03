@@ -15,9 +15,38 @@ export interface GameContext {
 export const LIFE_AT_START = 8;
 export const OPENING_HAND = 6;
 
+/**
+ * Tokens (19) are made by effects and have no catalog row, so their whole
+ * definition lives in the card id. Encoding it there rather than in a context
+ * that only lives for one request keeps a saved game reloadable.
+ */
+export function tokenCardId(name: string, power: number, comboCost: number | null, comboPower: number | null, colors: Color[]): string {
+  return `TOKEN:${encodeURIComponent(name)}:${power}:${comboCost ?? ""}:${comboPower ?? ""}:${colors.join(",")}`;
+}
+
+export function tokenDefOf(cardId: string): CardDef {
+  const [, name, power, comboCost, comboPower, colors] = cardId.split(":");
+  const num = (x: string) => (x === "" ? null : Number(x));
+  return {
+    id: cardId,
+    name: decodeURIComponent(name ?? "Token"),
+    type: "TOKEN",
+    colors: (colors ? colors.split(",") : []).filter(Boolean) as Color[],
+    energyCost: null,
+    zEnergyCost: null,
+    power: num(power ?? "") ?? 0,
+    comboCost: num(comboCost ?? ""),
+    comboPower: num(comboPower ?? ""),
+    skill: null,
+    characters: [],
+    traits: [],
+  };
+}
+
 export function def(ctx: GameContext, s: GameState, id: string): CardDef {
   const inst = s.cards[id];
   if (!inst) throw new Error(`unknown card instance ${id}`);
+  if (inst.cardId.startsWith("TOKEN:")) return tokenDefOf(inst.cardId);
   const d = ctx.defs[inst.cardId];
   if (!d) throw new Error(`no definition for ${inst.cardId}`);
   return d;

@@ -9,6 +9,7 @@ import { apply, createGame, defsFrom, legalActions, type Action, type CardDef, t
 import { parseSkills, keywordOf, orbsIn } from "../src/lib/arena/engine/cards";
 import { parseFilter, matches, parseCondition } from "../src/lib/arena/engine/filters";
 import { move, locate, powerOf } from "../src/lib/arena/engine/state";
+import { compileSkill, describeScript, splitClauses } from "../src/lib/arena/engine/compile";
 
 // ── skill text parsing ─────────────────────────────────────────────────────
 
@@ -105,7 +106,7 @@ const card = (id: string, o: Partial<CardDef>): CardDef => ({
   ...o,
 });
 
-const DEFS = defsFrom([
+const DEFS: Record<string, CardDef> = defsFrom([
   card("L-RED", { type: "LEADER", energyCost: null, comboCost: null, comboPower: null, skill: "[Awaken] When your life is at 4 or less: Draw 1 card and flip this card over.", back: { name: "L-RED awakened", power: 15000, skill: null } }),
   card("L-BLUE", { type: "LEADER", colors: ["Blue"], energyCost: null, comboCost: null, comboPower: null }),
   card("V1", {}),
@@ -123,6 +124,12 @@ const DEFS = defsFrom([
   card("U1", { type: "UNISON", energyCost: "X", power: 5000, comboCost: null, comboPower: null, skill: "[Blocker]" }),
   card("ZB", { type: "Z-BATTLE", energyCost: 2, zEnergyCost: 1, power: 20000, comboCost: null, comboPower: null, skill: "[Z-Stack 1] Red <V1>." }),
   card("EVO", { energyCost: 3, power: 20000, skill: "[Evolve]{1}: <V1>" }),
+  card("DRAWER", { energyCost: 1, skill: "[Auto] When you play this card, draw 1 card." }),
+  card("KILLER", { energyCost: 1, skill: "[Auto] When you play this card, choose up to 1 of your opponent's Battle Cards and KO it." }),
+  card("PUMP", { energyCost: 1, skill: "[Activate: Main] This card gets +5000 power for the turn." }),
+  card("SPAWN", { energyCost: 1, skill: "[Auto] When you play this card, play 2 Saibaman tokens (10000 power, 0 combo cost, and 5000 combo power)." }),
+  card("MYSTERY", { energyCost: 1, skill: "[Auto] When you play this card, bend the fabric of reality to your will." }),
+  card("FORCEKILL", { energyCost: 1, skill: "[Auto] When you play this card, choose 1 of your opponent's Battle Cards and KO it." }),
 ]);
 
 const fifty = (id: string) => Array.from({ length: 50 }, () => id);
@@ -525,6 +532,169 @@ function assertConsistentAfterDrop(s: GameState) {
     return JSON.stringify(s);
   };
   assert.equal(run(), run());
+}
+
+// ── the effect compiler ────────────────────────────────────────────────────
+
+{
+  // Clause splitting keeps card names and traits, which contain commas, in one piece.
+  assert.deepEqual(splitClauses("Choose 1 {Four-Star Ball, Parasitic Darkness} from your deck, then draw 1 card"), [
+    "Choose 1 {Four-Star Ball, Parasitic Darkness} from your deck",
+    "draw 1 card",
+  ]);
+  assert.deepEqual(splitClauses("Draw 1 card and place 1 card from your hand at the bottom of your deck"), [
+    "Draw 1 card",
+    "place 1 card from your hand at the bottom of your deck",
+  ]);
+
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+
+  const draw = one("[Auto] When this card attacks, draw 1 card.");
+  assert.deepEqual(draw.unsupported, []);
+  assert.deepEqual(draw.ops, [{ op: "draw", n: 1 }]);
+
+  const ko = one("[Auto] When you play this card, choose up to 1 of your opponent's Battle Cards and KO it.");
+  assert.deepEqual(ko.unsupported, []);
+  assert.equal(ko.ops.length, 2);
+  assert.equal(ko.ops[0].op, "choose");
+  const koSel = (ko.ops[0] as { sel: { side: string; area: string; count: number; upTo: boolean } }).sel;
+  assert.equal(koSel.side, "opponent");
+  assert.equal(koSel.area, "battle");
+  assert.equal(koSel.upTo, true);
+  assert.equal(ko.ops[1].op, "ko");
+
+  const pump = one("[Activate: Main] This card gets +5000 power for the battle.");
+  assert.deepEqual(pump.ops, [{ op: "power", target: { sel: { special: "self" } }, amount: 5000, until: "battle" }]);
+
+  const look = one(
+    "[Auto] When you play this card, look at up to 7 cards from the top of your deck, choose up to 1 card among them, place it in your energy in Rest Mode, then shuffle your deck.",
+  );
+  assert.deepEqual(look.unsupported, []);
+  assert.deepEqual(
+    look.ops.map((o) => o.op),
+    ["look", "choose", "moveTo", "shuffle"],
+  );
+  assert.equal((look.ops[2] as { to: string }).to, "energy");
+  assert.equal((look.ops[2] as { mode: string }).mode, "rest");
+
+  const grant = one("[Activate: Main] Choose up to 1 of your yellow Battle Cards and it gains [Blocker] for the turn.");
+  assert.deepEqual(grant.unsupported, []);
+  assert.equal(grant.ops[1].op, "grant");
+  assert.deepEqual((grant.ops[1] as { keyword: { name: string } }).keyword, { name: "Blocker" });
+
+  // A clause the parser cannot read marks the whole skill for the referee.
+  const partial = one("[Auto] When you play this card, draw 1 card, then rearrange the stars in the sky.");
+  assert.deepEqual(partial.unsupported, ["rearrange the stars in the sky"]);
+
+  // The reading the inspector shows.
+  assert.equal(describeScript(ko.ops), "choose up to 1 in opponent's battle, KO the chosen cards");
+  assert.equal(describeScript(draw.ops), "draw 1");
+}
+
+// ── the interpreter ────────────────────────────────────────────────────────
+
+// "When you play this card, draw 1 card" runs without asking anything.
+{
+  let s = arena({ hand: ["DRAWER"], energy: ["V1"] });
+  const c = find(s, "p1", "hand", "DRAWER");
+  const before = s.players.p1.hand.length;
+  s = play(s, { type: "play", player: "p1", card: c });
+  assert.equal(s.players.p1.hand.length, before - 1 + 1, "played one, drew one");
+  assert.equal(s.prompt.kind, "main");
+}
+
+// "choose up to 1 of your opponent's Battle Cards and KO it" asks, then KOs.
+{
+  let s = arena({ hand: ["KILLER"], energy: ["V1"], oppBattle: ["V-BLUE", "BIG"] });
+  const c = find(s, "p1", "hand", "KILLER");
+  const victim = find(s, "p2", "battle", "BIG");
+  s = play(s, { type: "play", player: "p1", card: c });
+  assert.equal(s.prompt.kind, "chooseCards", "two candidates, so the choice is put to the player");
+  assert.equal((s.prompt as { player: PlayerId }).player, "p1");
+  assert.equal((s.prompt as { choice: { min: number } }).choice.min, 0, "up to N allows none");
+  s = play(s, { type: "choose", player: "p1", cards: [victim] });
+  assert.ok(s.players.p2.drop.includes(victim), "5-12: the chosen card is KO'd");
+  assert.equal(s.prompt.kind, "main");
+  assertConsistent(s);
+
+  // "Up to 1" with a single candidate is still a real decision — taking it or
+  // not are different outcomes — so it is put to the player (5-2-4).
+  let single = arena({ hand: ["KILLER"], energy: ["V1"], oppBattle: ["BIG"] });
+  single = play(single, { type: "play", player: "p1", card: find(single, "p1", "hand", "KILLER") });
+  assert.equal(single.prompt.kind, "chooseCards");
+
+  // A choice with no "up to" and exactly one candidate is forced, so it is taken silently (5-2-5).
+  let t = arena({ hand: ["FORCEKILL"], energy: ["V1"], oppBattle: ["BIG"] });
+  const only = find(t, "p2", "battle", "BIG");
+  t = play(t, { type: "play", player: "p1", card: find(t, "p1", "hand", "FORCEKILL") });
+  assert.equal(t.prompt.kind, "main", "a forced choice is not put to the player");
+  assert.ok(t.players.p2.drop.includes(only));
+
+  // Choosing nothing is allowed and KOs nothing.
+  let u = arena({ hand: ["KILLER"], energy: ["V1"], oppBattle: ["V-BLUE", "BIG"] });
+  u = play(u, { type: "play", player: "p1", card: find(u, "p1", "hand", "KILLER") }, { type: "choose", player: "p1", cards: [] });
+  assert.equal(u.players.p2.battle.length, 2);
+}
+
+// [Barrier] (22-16) takes a card out of the opponent's choices.
+{
+  DEFS.BARRIER = { ...DEFS.BIG, id: "BARRIER", name: "BARRIER", skill: "[Barrier]" };
+  let s = arena({ hand: ["KILLER"], energy: ["V1"], oppBattle: ["BIG"] });
+  const shielded = find(s, "p2", "battle", "BIG");
+  s.cards[shielded].cardId = "BARRIER";
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "KILLER") });
+  assert.equal(s.prompt.kind, "main", "no legal target, so nothing was asked");
+  assert.ok(s.players.p2.battle.includes(shielded), "22-16: not chosen by the opponent's skill");
+}
+
+// Tokens (19) are created with the stats the text spells out.
+{
+  let s = arena({ hand: ["SPAWN"], energy: ["V1"] });
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "SPAWN") });
+  const tokens = s.players.p1.battle.filter((id) => s.cards[id].isToken);
+  assert.equal(tokens.length, 2, "two tokens entered the Battle Area");
+  assert.equal(powerOf({ defs: DEFS }, s, tokens[0]), 10000);
+  assertConsistent(s);
+  // 19-1-7: a token that would leave play is removed from the game instead.
+  const t0 = tokens[0];
+  s.cards[t0].mode = "rest";
+  s = play(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+  s.effects.push({ id: 999, target: s.players.p2.leader, kind: "power", value: 20000, until: "turn", ownerTurn: "p2", createdTurn: s.turn });
+  s = play(s, { type: "attack", player: "p2", attacker: s.players.p2.leader, target: t0 }, { type: "pass", player: "p2" }, { type: "pass", player: "p1" });
+  assert.ok(s.players.p1.removed.includes(t0), "19-1-7: removed, not dropped");
+  assertConsistent(s);
+}
+
+// A skill the compiler cannot read is skipped when no referee is available…
+{
+  let s = arena({ hand: ["MYSTERY"], energy: ["V1"] });
+  const before = JSON.stringify(s.players.p2);
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "MYSTERY") });
+  assert.equal(s.prompt.kind, "main", "the game carries on");
+  assert.equal(JSON.stringify(s.players.p2), before, "and nothing happened to the opponent");
+}
+
+// …and put to the referee when one is, whose ruling is a program in this same language.
+{
+  const refCtx = { defs: DEFS, referee: true };
+  let s = arena({ hand: ["MYSTERY"], energy: ["V1"] });
+  s = apply(refCtx, s, { type: "play", player: "p1", card: find(s, "p1", "hand", "MYSTERY") }).state;
+  assert.equal(s.prompt.kind, "referee");
+  const req = (s.prompt as { request: { cardId: string; unsupported: string[] } }).request;
+  assert.equal(req.cardId, "MYSTERY");
+  assert.deepEqual(req.unsupported, ["bend the fabric of reality to your will"]);
+  assert.deepEqual(legalActions(refCtx, s), [], "no player action is legal while the referee is being asked");
+  const before = s.players.p1.hand.length;
+  s = apply(refCtx, s, { type: "refereeRuling", player: "p1", ops: [{ op: "draw", n: 2 }] }).state;
+  assert.equal(s.players.p1.hand.length, before + 2, "the ruling ran");
+  assert.equal(s.prompt.kind, "main");
+  // A malformed ruling is refused rather than trusted.
+  let t = arena({ hand: ["MYSTERY"], energy: ["V1"] });
+  t = apply(refCtx, t, { type: "play", player: "p1", card: find(t, "p1", "hand", "MYSTERY") }).state;
+  assert.throws(() => apply(refCtx, t, { type: "refereeRuling", player: "p1", ops: [{ op: "delete-the-database" }] as never }), /valid effect program/);
+  // An empty ruling means "nothing happens".
+  t = apply(refCtx, t, { type: "refereeRuling", player: "p1", ops: [] }).state;
+  assert.equal(t.prompt.kind, "main");
 }
 
 console.log("verify-arena: all checks passed");

@@ -12,8 +12,26 @@ import type { Db } from "@/db";
 import { cards, deckCards } from "@/db/schema";
 import { hasKeyword, rulesFor } from "./cardRules";
 
-/** Bandai deck rules: 1 leader, exactly 50 main, up to 8 Z-deck, 4 copies unless the card says otherwise. */
-export const RULES = { main: 50, zMax: 8, copies: 4 };
+/**
+ * Bandai deck rules, from the official Rule Manual v4.00 §6-1 (Masters):
+ * 1 leader, a **50-to-60** card main deck (6-1-3), up to **10** Z-cards
+ * (6-1-4), 4 copies of a card number unless the card says otherwise (6-1-5-1).
+ *
+ * The app used to enforce the older line's "exactly 50, Z-deck 8"; the arena
+ * engine reads the same manual, so both now agree (owner's decision,
+ * 3 Sep 2026).
+ */
+export const RULES = { main: 50, mainMax: 60, zMax: 10, copies: 4 };
+
+/** "42/50" while the deck is still short, just the count once it is in range. */
+export function mainCountLabel(n: number): string {
+  return n < RULES.main ? `${n}/${RULES.main}` : `${n}`;
+}
+
+/** Whether a main-deck count is inside the legal 50–60 range. */
+export function mainCountOk(n: number): boolean {
+  return n >= RULES.main && n <= RULES.mainMax;
+}
 
 export type IssueSeverity = "illegal" | "incomplete" | "warning";
 export type DeckStatus = "legal" | "incomplete" | "illegal";
@@ -93,7 +111,7 @@ export function legality(rows: LegalityCard[]): DeckLegality {
 
   if (mainCount === 0) issues.push({ severity: "incomplete", message: `Main deck is empty — ${RULES.main} cards to go.` });
   else if (mainCount < RULES.main) issues.push({ severity: "incomplete", message: `Main deck has ${mainCount} of ${RULES.main} cards — ${RULES.main - mainCount} to go.` });
-  else if (mainCount > RULES.main) issues.push({ severity: "illegal", message: `Main deck has ${mainCount} cards — ${mainCount - RULES.main} too many.` });
+  else if (mainCount > RULES.mainMax) issues.push({ severity: "illegal", message: `Main deck has ${mainCount} cards — ${mainCount - RULES.mainMax} over the ${RULES.mainMax}-card maximum.` });
 
   if (zCount > RULES.zMax) issues.push({ severity: "illegal", message: `Z-Deck has ${zCount} cards; the maximum is ${RULES.zMax}.` });
 

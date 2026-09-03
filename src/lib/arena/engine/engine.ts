@@ -9,8 +9,10 @@
  * state storable mid-prompt and replayable from the action log.
  */
 import { baseType, canCombo, isZ, keywordOf, skillsOf, specifiedCostOf } from "./cards";
-import { resolveEffect, type CompiledScript } from "./effects";
+import { compileCard, type CardScripts } from "./compile";
 import { matches, parseCondition, parseFilter } from "./filters";
+import { stepScript, validateProgram, type Op, type ScriptFrame } from "./script";
+import { koCard, pendTriggers } from "./triggers";
 import { nextRandom, shuffle } from "./rng";
 import {
   activeEnergy,
@@ -26,6 +28,7 @@ import {
   keyword,
   LIFE_AT_START,
   move,
+  note,
   OPENING_HAND,
   pay,
   payZEnergy,
@@ -36,10 +39,19 @@ import {
   skillsOfInstance,
   type GameContext,
 } from "./state";
-import type { Action, Applied, CardDef, CardInstance, FlowStep, GameEvent, GameState, PendingAuto, PlayerId, PlayerState, Prompt, Skill, Trigger } from "./types";
+import type { Action, Applied, CardDef, CardInstance, Color, FlowStep, GameEvent, GameState, PendingAuto, PlayerId, PlayerState, Prompt, Skill, Trigger } from "./types";
 import { other, PLAYERS } from "./types";
 
-export type EngineContext = GameContext & { scripts?: Record<string, CompiledScript> };
+export interface EngineContext extends GameContext {
+  /** Compiled effect programs, by catalog card id. Built once by `scriptsFor()`. */
+  scripts?: Record<string, CardScripts>;
+  /**
+   * When set, a skill whose text did not compile stops the game and asks the
+   * referee (Claude) for a program in the effect language. Without it — tests,
+   * fuzzing, a hot-seat game with no API key — such a skill is logged and skipped.
+   */
+  referee?: boolean;
+}
 
 // ── setup ──────────────────────────────────────────────────────────────────
 
@@ -248,7 +260,7 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
       return "done";
 
     case "counter":
-      return openCounterWindow(ctx, s, ev, step.window, step.responder, step.onNegate);
+      return openCounterWindow(ctx, s, ev, step.window, step.responder);
 
     case "play.resolve":
       return resolvePlay(ctx, s, ev, step.card, step.player, step.markers);
@@ -284,6 +296,17 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
     case "battle.cleanup":
       return battleCleanup(ctx, s, ev);
 
+    case "script.step":
+      return stepScript(ctx, s, ev, step.frame);
+    case "flipLeader": {
+      // 22-2-4 / 22-25-4: [Awaken] and [Wish] flip the leader after their effects resolve.
+      const inst = s.cards[step.card];
+      if (!inst.flipped && def(ctx, s, step.card).back) {
+        inst.flipped = true;
+        ev.push({ type: "flip", card: step.card, flipped: true });
+      }
+      return "done";
+    }
     case "zstack.place":
       return zStackPlace(ctx, s, ev, step.card, step.player);
     case "choose.apply":
@@ -300,72 +323,6 @@ function abortBattle(s: GameState): void {
 }
 
 // ── checkpoints, pending, rule processing (4-2, 9-6, 21) ───────────────────
-
-/** Queue every [Auto] skill on `card` whose printed trigger matches. */
-export function pendTriggers(ctx: EngineContext, s: GameState, trigger: Trigger, card: string, subject?: string): void {
-  const inst = s.cards[card];
-  if (!inst || inst.hidden || inst.negated === "all") return;
-  const master = areaOf(s, card) === "leader" || areaOf(s, card) === "battle" || areaOf(s, card) === "unison" ? owner(s, card) : inst.owner;
-  for (const sk of skillsOfInstance(ctx, s, card)) {
-    if (inst.negated.includes(sk.index)) continue;
-    if (sk.kind !== "auto" && !(sk.kind === "keyword" && keywordTriggers(sk, trigger))) continue;
-    if (sk.kind === "auto" && !autoTriggerMatches(sk, trigger)) continue;
-    if (sk.oncePerTurn && inst.usedThisTurn.includes(sk.index)) continue;
-    s.pending.push({ card, skillIndex: sk.index, master, trigger, subject });
-  }
-}
-
-function owner(s: GameState, card: string): PlayerId {
-  for (const p of PLAYERS) if (cardsInPlay(s, p).includes(card)) return p;
-  return s.cards[card].owner;
-}
-
-/** Keyword [Auto] skills and the events that pend them (22). */
-function keywordTriggers(sk: Skill, trigger: Trigger): boolean {
-  const k = sk.keyword;
-  if (!k) return false;
-  switch (k.name) {
-    case "Attack":
-      return trigger === "attacks";
-    case "Revenge":
-      return trigger === "attacked";
-    case "Offering":
-      return trigger === "played";
-    case "Z-Stack":
-      return trigger === "played" || trigger === "leaderPlaced";
-    default:
-      return false;
-  }
-}
-
-/** Read the "When …" clause of an [Auto] skill. Unrecognised wording never pends. */
-function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
-  const t = (sk.cost + " " + sk.effect).toLowerCase();
-  switch (trigger) {
-    case "played":
-      return /when (?:you play this card|this card is played)/.test(t);
-    case "attacks":
-      return /when this card attacks/.test(t);
-    case "attacked":
-      return /when this card is attacked/.test(t);
-    case "koed":
-      return /when this card is ko'?d/.test(t);
-    case "leaderPlaced":
-      return /when this card is placed in (?:your|a) leader area/.test(t);
-    case "turnEnd":
-      return /at the end of (?:your|the) turn/.test(t);
-    case "mainStart":
-      return /at the (?:beginning|start) of your main phase/.test(t);
-    case "chargeStart":
-      return /at the (?:beginning|start) of your (?:turn|charge phase)/.test(t);
-    case "dealtDamage":
-      return /when this card deals damage/.test(t);
-    case "battleEnd":
-      return /at the end of (?:the|a) battle/.test(t);
-    default:
-      return false;
-  }
-}
 
 /**
  * 4-2-2: rule processing, then the turn player's pending [Auto]s one at a
@@ -396,7 +353,7 @@ function resolveAuto(ctx: EngineContext, s: GameState, ev: GameEvent[], p: Pendi
     inst.usedThisTurn.push(sk.index);
   }
   ev.push({ type: "skill", card: p.card, skill: sk.index, master: p.master, text: sk.raw });
-  return resolveKeywordOrText(ctx, s, ev, p.card, sk, p.master, p.trigger);
+  return resolveKeywordOrText(ctx, s, ev, p.card, sk, p.master, p.trigger, p.subject);
 }
 
 /** 21: interruptive and confirmative rule processing, repeated until stable. */
@@ -504,28 +461,21 @@ function counterCandidates(ctx: EngineContext, s: GameState, responder: PlayerId
         (window === "attack" && (sk.kind === "counter:attack" || (sk.kind === "counter:battle card attack" && s.battle && baseType(def(ctx, s, s.battle.attacker)) === "BATTLE"))) ||
         (window === "counter" && sk.kind === "counter:counter");
       if (!want) continue;
-      // Only counters the engine can resolve natively are offered until scripts exist.
-      if (!nativeCounter(sk)) continue;
+      if (!canResolve(ctx, s, id, sk)) continue;
       const cost = playCost(ctx, s, id);
-      if (!planPayment(ctx, s, responder, cost.total, cost.specified)) continue;
+      const orbs = orbTotals(sk);
+      if (!planPayment(ctx, s, responder, cost.total + orbs.total, cost.specified)) continue;
       out.push({ card: id, skill: sk.index });
     }
   }
   return out;
 }
 
-function nativeCounter(sk: Skill): boolean {
-  const e = sk.effect.toLowerCase();
-  if (sk.cost.trim()) return false; // skill costs beyond the energy cost are not read yet
-  return /^negate the attack/.test(e) || /the battle card your opponent is playing is played in rest mode/.test(e);
-}
-
-function openCounterWindow(ctx: EngineContext, s: GameState, ev: GameEvent[], window: "play" | "attack" | "battleCardAttack" | "counter" | "skill", responder: PlayerId, onNegate: FlowStep[]): "done" | "wait" {
+function openCounterWindow(ctx: EngineContext, s: GameState, ev: GameEvent[], window: "play" | "attack" | "battleCardAttack" | "counter" | "skill", responder: PlayerId): "done" | "wait" {
   const w = window === "battleCardAttack" ? "attack" : window;
   const candidates = w === "skill" ? [] : counterCandidates(ctx, s, responder, w);
   if (candidates.length === 0) return "done";
   s.counterStack.push({ window: w, responder, then: "", negated: false });
-  s.continuations.counterOnNegate = onNegate;
   return wait(s, { kind: "counter", player: responder, window: w, candidates: candidates.map((c) => c.card) });
 }
 
@@ -569,7 +519,7 @@ function resolvePlay(ctx: EngineContext, s: GameState, ev: GameEvent[], card: st
 
 // ── keyword skills and text effects ────────────────────────────────────────
 
-function resolveKeywordOrText(ctx: EngineContext, s: GameState, ev: GameEvent[], card: string, sk: Skill, master: PlayerId, trigger?: Trigger): "done" | "wait" {
+function resolveKeywordOrText(ctx: EngineContext, s: GameState, ev: GameEvent[], card: string, sk: Skill, master: PlayerId, trigger?: Trigger, subject?: string): "done" | "wait" {
   const k = sk.keyword;
   const inst = s.cards[card];
   if (sk.index === -1) {
@@ -612,15 +562,11 @@ function resolveKeywordOrText(ctx: EngineContext, s: GameState, ev: GameEvent[],
         return wait(s, { kind: "chooseCards", player: master, choice: { reason: `Z-Stack ${k.x}: cards to place under ${face(ctx, s, card).name}`, candidates: cands, min: 0, max: k.x, continuation: "zstack" } });
       }
       case "Awaken":
-      case "Wish": {
-        const r = resolveEffect(ctx, s, ev, { card, skill: sk, master, trigger });
-        // 22-2-4 / 22-25-4: then flip if face-up.
-        if (!inst.flipped && def(ctx, s, card).back) {
-          inst.flipped = true;
-          ev.push({ type: "flip", card, flipped: true });
-        }
-        return r;
-      }
+      case "Wish":
+        // The flip is queued first so it happens after the effect, even when
+        // the effect stops to ask a question (22-2-4, 22-25-4).
+        s.flow.unshift({ op: "flipLeader", card });
+        return runSkill(ctx, s, ev, card, sk, master, trigger);
       case "Field":
         // 22-3: the Extra goes to the Battle Area; other [Field] Extras go to the Drop.
         for (const id of s.players[master].battle.slice()) if (has(ctx, s, id, "Field")) move(ctx, s, ev, id, "drop", master, { reason: "rule" });
@@ -630,7 +576,74 @@ function resolveKeywordOrText(ctx: EngineContext, s: GameState, ev: GameEvent[],
         break;
     }
   }
-  return resolveEffect(ctx, s, ev, { card, skill: sk, master, trigger });
+  return runSkill(ctx, s, ev, card, sk, master, trigger, subject);
+}
+
+/**
+ * Resolve a skill's text. The compiled program runs deterministically; a skill
+ * the compiler could not read is handed to the referee when one is available,
+ * and otherwise logged and skipped so a game never silently does the wrong thing.
+ */
+function runSkill(ctx: EngineContext, s: GameState, ev: GameEvent[], card: string, sk: Skill, master: PlayerId, trigger?: Trigger, subject?: string): "done" | "wait" {
+  const script = scriptFor(ctx, s, card, sk.index);
+  if (script) {
+    if (script.ops.length === 0) return "done";
+    const frame: ScriptFrame = { ops: script.ops, ip: 0, vars: {}, card, master, trigger, subject };
+    return stepScript(ctx, s, ev, frame);
+  }
+  const d = def(ctx, s, card);
+  if (ctx.referee) {
+    const unread = scriptsOf(ctx, s, card).bySkill[sk.index]?.unsupported ?? [sk.effect];
+    return wait(s, {
+      kind: "referee",
+      player: master,
+      request: { card, cardId: d.id, cardName: face(ctx, s, card).name, skillIndex: sk.index, text: sk.raw, unsupported: unread, master, trigger },
+    });
+  }
+  note(ev, `${d.id} skill ${sk.index} was not applied — the compiler could not read "${sk.effect.slice(0, 70)}"`);
+  return "done";
+}
+
+/** The energy orbs in a skill cost: "{g}{g}" is two green, "{2}" is two of anything. */
+function orbTotals(sk: Skill): { total: number; specified: Partial<Record<Color, number>> } {
+  const specified: Partial<Record<Color, number>> = {};
+  let total = 0;
+  for (const [k, v] of Object.entries(sk.energyCost)) {
+    total += v ?? 0;
+    if (k !== "any") specified[k as Color] = v;
+  }
+  return { total, specified };
+}
+
+/** Compiled programs for the face-up side of a card, memoised per definition. */
+const scriptCache = new WeakMap<CardDef, { front: CardScripts; back: CardScripts }>();
+
+function scriptsOf(ctx: EngineContext, s: GameState, card: string): CardScripts {
+  const d = def(ctx, s, card);
+  const inst = s.cards[card];
+  const side = inst.flipped && d.back ? "back" : "front";
+  const stored = ctx.scripts?.[side === "back" ? `${d.id}#back` : d.id];
+  if (stored) return stored;
+  let entry = scriptCache.get(d);
+  if (!entry) {
+    entry = { front: compileCard(d, "front"), back: compileCard(d, "back") };
+    scriptCache.set(d, entry);
+  }
+  return side === "back" ? entry.back : entry.front;
+}
+
+/** The program for one skill, or null when a clause of it could not be read. */
+function scriptFor(ctx: EngineContext, s: GameState, card: string, skillIndex: number) {
+  const sc = scriptsOf(ctx, s, card).bySkill[skillIndex];
+  return sc && sc.unsupported.length === 0 ? sc : null;
+}
+
+/** Whether the engine can carry out this skill on its own (or will ask the referee). */
+function canResolve(ctx: EngineContext, s: GameState, card: string, sk: Skill): boolean {
+  if (!sk.effect.trim()) return true;
+  const sc = scriptsOf(ctx, s, card).bySkill[sk.index];
+  if (sc && sc.unsupported.length === 0) return true;
+  return !!ctx.referee;
 }
 
 // ── battle (8) ─────────────────────────────────────────────────────────────
@@ -641,7 +654,7 @@ function battleAfterDeclare(ctx: EngineContext, s: GameState): "done" | "wait" {
   pendTriggers(ctx, s, "attacks", b.attacker);
   pendTriggers(ctx, s, "attacked", b.guard);
   s.flow.unshift(
-    { op: "counter", window: "attack", responder: other(s.turnPlayer), onNegate: [{ op: "battle.end" }] },
+    { op: "counter", window: "attack", responder: other(s.turnPlayer) },
     { op: "battle.blocker" },
     { op: "checkpoint" },
     { op: "battle.offense" },
@@ -750,13 +763,6 @@ function battleDamage(ctx: EngineContext, s: GameState, ev: GameEvent[]): "done"
   }
   s.flow.unshift({ op: "checkpoint" }, { op: "battle.end" });
   return "done";
-}
-
-export function koCard(ctx: EngineContext, s: GameState, ev: GameEvent[], card: string, by?: string): void {
-  const p = owner(s, card);
-  ev.push({ type: "ko", card, by });
-  pendTriggers(ctx, s, "koed", card);
-  move(ctx, s, ev, card, "drop", p, { reason: "ko" });
 }
 
 function battleEnd(ctx: EngineContext, s: GameState, ev: GameEvent[]): "done" | "wait" {
@@ -869,7 +875,7 @@ function chooseApply(ctx: EngineContext, s: GameState, ev: GameEvent[], step: Ex
       move(ctx, s, ev, info.card, "hand", p, { reason: "cost" });
       const target = chosen[0];
       if (target) {
-        s.flow.unshift({ op: "counter", window: "play", responder: other(p), onNegate: [] }, { op: "play.resolve", card: target, player: p });
+        s.flow.unshift({ op: "counter", window: "play", responder: other(p) }, { op: "play.resolve", card: target, player: p });
         s.resolving = { card: target, player: p };
       }
       return "done";
@@ -967,6 +973,9 @@ export function legalActions(ctx: EngineContext, s: GameState): LegalAction[] {
     case "chooseCards":
       for (const id of pr.choice.candidates) out.push({ action: { type: "choose", player: pr.player, cards: [id] }, label: `Choose ${name(id)}` });
       if (pr.choice.min === 0) out.push({ action: { type: "choose", player: pr.player, cards: [] }, label: "Choose none" });
+      return out;
+    case "referee":
+      // Answered by the server with a ruling, not by a player.
       return out;
     case "orderPending":
     case "payCost":
@@ -1148,7 +1157,7 @@ function activatable(ctx: EngineContext, s: GameState, p: PlayerId, card: string
   if (!kindOk) return null;
   if (sk.markerCost != null) return null; // unison marker skills wait for scripts
   if (!costIsOrbsOnly || !canPayOrbs()) return null;
-  if (!nativeEffect(sk)) return null;
+  if (!canResolve(ctx, s, card, sk)) return null;
   if (baseType(d) === "EXTRA" && inHand) {
     const c = playCost(ctx, s, card);
     if (!planPayment(ctx, s, p, c.total + orbTotal, c.specified)) return null;
@@ -1156,11 +1165,6 @@ function activatable(ctx: EngineContext, s: GameState, p: PlayerId, card: string
   }
   if (inHand) return null; // 9-1-3-1: battle card skills are valid in the Battle Area
   return `Activate ${name}: ${sk.effect.slice(0, 40)}`;
-}
-
-function nativeEffect(sk: Skill): boolean {
-  const e = sk.effect.toLowerCase();
-  return /^(?:you may )?draw \d+ cards?/.test(e) || /^this card gets [+-]\d+ power for the (battle|turn)/.test(e);
 }
 
 function conditionHolds(ctx: EngineContext, s: GameState, p: PlayerId, c: ReturnType<typeof parseCondition>): boolean {
@@ -1235,7 +1239,7 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
       if (!pm) throw new IllegalAction("can't pay the energy cost");
       pay(s, ev, p, pm);
       s.resolving = { card: action.card, player: p };
-      s.flow.unshift({ op: "counter", window: "play", responder: other(p), onNegate: [] }, { op: "play.resolve", card: action.card, player: p }, { op: "turn.promptMain" });
+      s.flow.unshift({ op: "counter", window: "play", responder: other(p) }, { op: "play.resolve", card: action.card, player: p }, { op: "turn.promptMain" });
       break;
     }
     case "playUnison": {
@@ -1249,7 +1253,7 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
       if (!pm) throw new IllegalAction("can't pay the energy cost");
       pay(s, ev, p, pm);
       s.resolving = { card: action.card, player: p };
-      s.flow.unshift({ op: "counter", window: "play", responder: other(p), onNegate: [] }, { op: "play.resolve", card: action.card, player: p, markers: pm.rest.length + pm.markers }, { op: "turn.promptMain" });
+      s.flow.unshift({ op: "counter", window: "play", responder: other(p) }, { op: "play.resolve", card: action.card, player: p, markers: pm.rest.length + pm.markers }, { op: "turn.promptMain" });
       break;
     }
     case "playZ": {
@@ -1265,7 +1269,7 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
       if (!payZEnergy(ctx, s, ev, p, d.zEnergyCost ?? 0)) throw new IllegalAction("can't pay the Z-Energy cost");
       pay(s, ev, p, pm);
       s.resolving = { card: action.card, player: p };
-      s.flow.unshift({ op: "counter", window: "play", responder: other(p), onNegate: [] }, { op: "play.resolve", card: action.card, player: p, markers: d.type === "Z-UNISON" ? pm.rest.length + pm.markers : undefined }, { op: "turn.promptMain" });
+      s.flow.unshift({ op: "counter", window: "play", responder: other(p) }, { op: "play.resolve", card: action.card, player: p, markers: d.type === "Z-UNISON" ? pm.rest.length + pm.markers : undefined }, { op: "turn.promptMain" });
       break;
     }
     case "growUnison": {
@@ -1342,26 +1346,21 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
     }
     case "counter": {
       if (pr.kind !== "counter") throw new IllegalAction("no counter window");
-      const frame = s.counterStack.pop();
-      const onNegate = (s.continuations.counterOnNegate as FlowStep[] | undefined) ?? [];
-      delete s.continuations.counterOnNegate;
+      s.counterStack.pop();
       if (action.card) {
         if (!pr.candidates.includes(action.card)) throw new IllegalAction("that card can't counter now");
         const d = def(ctx, s, action.card);
         const sk = skillsOf(d).find((k) => k.index === (action.skill ?? -1)) ?? skillsOf(d).find((k) => k.kind.startsWith("counter:"));
         if (!sk) throw new IllegalAction("no counter skill");
+        // 22-10-4: a [Counter] costs its energy cost and its skill cost.
         const c = playCost(ctx, s, action.card);
-        const pm = planPayment(ctx, s, p, c.total, c.specified, action.pay);
+        const orbs = orbTotals(sk);
+        const pm = planPayment(ctx, s, p, c.total + orbs.total, { ...c.specified }, action.pay);
         if (!pm) throw new IllegalAction("can't pay the counter's cost");
         pay(s, ev, p, pm);
-        // 22-10-7: counters go to the Drop; the effect resolves in the counter motion.
+        // 22-10-7: the card goes to the Drop; its effect resolves as the counter motion.
         move(ctx, s, ev, action.card, "drop", p, { reason: "effect", reveal: true });
-        ev.push({ type: "skill", card: action.card, skill: sk.index, master: p, text: sk.raw });
-        resolveEffect(ctx, s, ev, { card: action.card, skill: sk, master: p });
-        if (s.battle?.negated && frame?.window === "attack") {
-          abortBattle(s);
-          if (onNegate.length && onNegate[0].op !== "battle.end") s.flow.unshift(...onNegate);
-        }
+        s.flow.unshift({ op: "skill.resolve", card: action.card, skill: sk.index, player: p });
       }
       break;
     }
@@ -1389,6 +1388,17 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
       if (action.cards.length < ch.min || action.cards.length > ch.max) throw new IllegalAction(`choose between ${ch.min} and ${ch.max}`);
       if (action.cards.some((id) => !ch.candidates.includes(id)) || new Set(action.cards).size !== action.cards.length) throw new IllegalAction("invalid choice");
       s.lastChoice = action.cards;
+      break;
+    }
+    case "refereeRuling": {
+      if (pr.kind !== "referee") throw new IllegalAction("no ruling was asked for");
+      if (!validateProgram(action.ops)) throw new IllegalAction("the ruling is not a valid effect program");
+      const req = pr.request;
+      ev.push({ type: "note", text: `referee ruled on ${req.cardName} (${req.cardId}) skill ${req.skillIndex}` });
+      if (action.ops.length) {
+        const frame: ScriptFrame = { ops: action.ops as Op[], ip: 0, vars: {}, card: req.card, master: req.master, trigger: req.trigger };
+        s.flow.unshift({ op: "script.step", frame });
+      }
       break;
     }
     case "orderPending":
@@ -1447,7 +1457,7 @@ function activate(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId
     for (const id of ps.drop.slice()) move(ctx, s, ev, id, "warp", p, { reason: "cost" });
     s.continuations[`overRealm:${card}`] = true;
     s.resolving = { card, player: p };
-    s.flow.unshift({ op: "counter", window: "play", responder: other(p), onNegate: [] }, { op: "play.resolve", card, player: p });
+    s.flow.unshift({ op: "counter", window: "play", responder: other(p) }, { op: "play.resolve", card, player: p });
     return;
   }
   if (k?.name === "Swap") {
@@ -1506,7 +1516,7 @@ function activate(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId
   }
   payOrbs();
   s.resolving = { card, skill: sk.index, player: p };
-  s.flow.unshift({ op: "counter", window: "skill", responder: other(p), onNegate: [] }, { op: "skill.resolve", card, skill: sk.index, player: p }, { op: "extra.finish", card }, { op: "checkpoint" });
+  s.flow.unshift({ op: "counter", window: "skill", responder: other(p) }, { op: "skill.resolve", card, skill: sk.index, player: p }, { op: "extra.finish", card }, { op: "checkpoint" });
 }
 
 // ── views ──────────────────────────────────────────────────────────────────

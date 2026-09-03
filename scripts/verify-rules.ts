@@ -139,7 +139,22 @@ assert.ok(illegal.issues.some((i) => /5 copies, limit 4/.test(i.message)));
 assert.ok(illegal.issues.some((i) => /banned card/.test(i.message)));
 assert.equal(illegal.flags["main:M1"]?.label, "5 copies, limit 4");
 assert.equal(illegal.flags["main:B"]?.severity, "illegal");
-assert.equal(legality([row("L", "leader", 1), ...fullMain, row("X", "main", 1)]).status, "illegal", "51 cards is illegal, 49 is incomplete");
+// 6-1-3 (Masters): the main deck is 50 to 60 cards, so 51 is legal and 61 is not.
+const extra = (n: number, tag = "X") => Array.from({ length: Math.ceil(n / 4) }, (_, i) => row(`${tag}${i}`, "main", Math.min(4, n - i * 4)));
+assert.equal(legality([row("L", "leader", 1), ...fullMain, ...extra(1)]).status, "legal", "51 cards is legal");
+assert.equal(legality([row("L", "leader", 1), ...fullMain, ...extra(10)]).status, "legal", "60 cards is legal");
+assert.match(
+  legality([row("L", "leader", 1), ...fullMain, ...extra(11)]).issues.find((i) => i.severity === "illegal")!.message,
+  /61 cards — 1 over the 60-card maximum/,
+);
+assert.equal(legality([row("L", "leader", 1), ...fullMain.slice(0, 5)]).status, "incomplete", "under 50 is still incomplete");
+// 6-1-4: the Z-Deck holds up to 10.
+const zed = (n: number) => Array.from({ length: Math.ceil(n / 4) }, (_, i) => row(`ZZ${i}`, "z", Math.min(4, n - i * 4), { cardType: "Z-BATTLE" }));
+assert.equal(legality([row("L", "leader", 1), ...fullMain, ...zed(10)]).status, "legal", "a 10-card Z-Deck is legal");
+assert.match(
+  legality([row("L", "leader", 1), ...fullMain, ...zed(11)]).issues.find((i) => i.severity === "illegal")!.message,
+  /Z-Deck has 11 cards; the maximum is 10/,
+);
 
 // A Z-deck card's own limit wins over the default of 4.
 assert.equal(legality([row("Z1", "z", 7, { cardType: "Z-BATTLE", limitedTo: 7 })]).flags["z:Z1"], undefined);

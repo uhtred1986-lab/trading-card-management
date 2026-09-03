@@ -146,7 +146,7 @@ export async function suggestDeck(db: Db, leaderId: string): Promise<{ deckId: n
   const system = [
     "You are an expert Dragon Ball Super Card Game (Bandai; legacy + Masters, not Fusion World) deck builder.",
     "Build a competitive, coherent 50-card main deck for the given Leader. Card text uses [brackets] for keywords, {braces} for card names, <angle brackets> for traits.",
-    "Rules: exactly 50 main-deck cards; at most 4 copies of any card number (fewer if the pool row says a lower limit); only Z- type cards go in the Z-Deck (max 8); all cards must come from the pool below; refer to cards by exact card number.",
+    `Rules: exactly 50 main-deck cards (the legal range is 50–${RULES.mainMax}, but build 50); at most 4 copies of any card number (fewer if the pool row says a lower limit); only Z- type cards go in the Z-Deck (max ${RULES.zMax}); all cards must come from the pool below; refer to cards by exact card number.`,
     ...ruleLines(poolRules),
     "STRONGLY prefer OWN cards (the player already has them, up to the quantity shown). Use BUY cards only where they meaningfully improve the deck — a key engine piece, a finisher, or to fix a real gap — and list every BUY card used in `purchases` with a reason.",
   ].join("\n");
