@@ -78,6 +78,22 @@ export async function addLots(inputs: LotInput[], deckId: number | null = null):
   return { added: rows.reduce((n, r) => n + r.quantity, 0), deckAdded };
 }
 
+/**
+ * Flip one collection lot between foil and non-foil. Its own action because
+ * it is a one-tap edit from the card page, and because the finish changes
+ * which market price the lot is valued at.
+ */
+export async function setLotFinishAction(lotId: number, foil: boolean): Promise<{ ok: boolean }> {
+  const [row] = await db
+    .update(ownedCards)
+    .set({ finish: foil ? "foil" : "normal", updatedAt: new Date() })
+    .where(eq(ownedCards.id, lotId))
+    .returning({ cardId: ownedCards.cardId });
+  if (!row) return { ok: false };
+  revalidate(row.cardId);
+  return { ok: true };
+}
+
 export async function updateLot(id: number, input: LotInput): Promise<void> {
   const cardId = await cardIdForPrint(input.printId);
   await db

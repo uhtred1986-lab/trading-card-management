@@ -8,6 +8,7 @@ import { latestUsdEur } from "@/lib/pricing/fx";
 import { pricesForPrints } from "@/lib/pricing/queries";
 import { formatCents } from "@/lib/money";
 import { CardFaces } from "@/components/CardFaces";
+import { LotFinishToggle } from "@/components/LotFinishToggle";
 import { ColorPill, RarityBadge, TypeBadge } from "@/components/ColorPill";
 import { SkillText } from "@/components/SkillText";
 import { MarketplacePanel } from "@/components/MarketplacePanel";
@@ -172,7 +173,8 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
                   <span className="font-semibold text-space-50">×{l.quantity}</span>
                   <span>{l.printLabel}</span>
                   <span className="rounded bg-space-800 px-1.5 text-xs">{l.condition}</span>
-                  <span className="text-xs text-space-300">{l.finish === "foil" ? "Foil" : "Non-foil"} · {l.language}</span>
+                  <LotFinishToggle lotId={l.id} foil={l.finish === "foil"} />
+                  <span className="text-xs text-space-300">{l.language}</span>
                   {l.pricePaidCents != null ? <span className="text-xs text-space-300">paid {formatCents(l.pricePaidCents, l.currency as "EUR" | "USD")} each</span> : null}
                   {l.acquiredOn ? <span className="text-xs text-space-300">{l.acquiredOn}</span> : null}
                   {l.owner ? <span className="rounded bg-space-800 px-1.5 text-[10px] text-space-300">{l.owner}</span> : null}
