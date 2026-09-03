@@ -6,7 +6,7 @@
  * Reservations count at the card level — a foil copy still satisfies a deck
  * slot for that card.
  */
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, ne, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { rows } from "@/db/rows";
 import { deckCards, decks, ownedCards } from "@/db/schema";
@@ -108,4 +108,38 @@ export async function decksReserving(db: Db, cardId: string) {
     .innerJoin(decks, eq(decks.id, deckCards.deckId))
     .where(and(eq(deckCards.cardId, cardId), eq(decks.isBuilt, true)))
     .groupBy(decks.id, decks.name);
+}
+
+export interface Reserver {
+  id: number;
+  name: string;
+  quantity: number;
+}
+
+/**
+ * Batched `decksReserving`, for showing which decks to consider breaking up
+ * instead of buying — the cart's owned/used/missing breakdown. `excludeDeckId`
+ * drops the deck you're shopping for, so an already-built deck rechecking its
+ * own shortfall doesn't list itself as the reason cards are unavailable.
+ */
+export async function decksReservingFor(db: Db, cardIds: string[], excludeDeckId?: number): Promise<Map<string, Reserver[]>> {
+  const out = new Map<string, Reserver[]>();
+  if (cardIds.length === 0) return out;
+
+  const conditions = [inArray(deckCards.cardId, cardIds), eq(decks.isBuilt, true)];
+  if (excludeDeckId != null) conditions.push(ne(decks.id, excludeDeckId));
+
+  const found = await db
+    .select({ cardId: deckCards.cardId, id: decks.id, name: decks.name, quantity: sql<number>`sum(${deckCards.quantity})::int` })
+    .from(deckCards)
+    .innerJoin(decks, eq(decks.id, deckCards.deckId))
+    .where(and(...conditions))
+    .groupBy(deckCards.cardId, decks.id, decks.name);
+
+  for (const r of found) {
+    const list = out.get(r.cardId) ?? [];
+    list.push({ id: r.id, name: r.name, quantity: r.quantity });
+    out.set(r.cardId, list);
+  }
+  return out;
 }

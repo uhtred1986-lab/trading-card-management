@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { db } from "@/db";
-import { listSets } from "@/lib/catalog/queries";
+import { COLORS, listSets } from "@/lib/catalog/queries";
 import { collectionCards, collectionCopies, summarise, valuedLots } from "@/lib/collection/queries";
 import { ownerOptions } from "@/lib/collection/owners";
 import { listLocations } from "@/lib/collection/locations";
@@ -24,6 +24,7 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
   const sp = await searchParams;
   const q = one(sp.q);
   const set = one(sp.set);
+  const color = one(sp.color);
   const finishParam = one(sp.finish);
   const finish = finishParam === "foil" || finishParam === "normal" ? finishParam : undefined;
   const sort = (one(sp.sort) as "value" | "name" | "number" | "recent" | undefined) ?? "recent";
@@ -34,7 +35,7 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
   const deckParams = many(sp.deck);
   const deck = deckParams.map((d) => (d === "none" ? ("none" as const) : Number(d))).filter((d) => d === "none" || Number.isInteger(d));
   const owner = one(sp.owner);
-  const filters: Parameters<typeof collectionCopies>[1] = { q, set, finish, sort, location, deck, owner };
+  const filters: Parameters<typeof collectionCopies>[1] = { q, set, color, finish, sort, location, deck, owner };
 
   // The grid aggregates by card; the list is one row per physical copy. Only
   // the one being shown is fetched — both walk every lot.
@@ -52,12 +53,13 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
   const shown = grid?.rows.length ?? list?.rows.length ?? 0;
   const select = "tap rounded-md border border-space-600 bg-space-900 px-2 py-1.5 text-sm text-space-100";
 
-  const params = { q, set, sort: sort === "recent" ? undefined : sort, finish, location: locationParam, deck: deckParams, owner };
+  const params = { q, set, color, sort: sort === "recent" ? undefined : sort, finish, location: locationParam, deck: deckParams, owner };
 
   const href = (next: string | undefined) => {
     const p = new URLSearchParams();
     if (q) p.set("q", q);
     if (set) p.set("set", set);
+    if (color) p.set("color", color);
     if (sort !== "recent") p.set("sort", sort);
     if (next) p.set("finish", next);
     if (view !== "grid") p.set("view", view);
@@ -161,13 +163,21 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
           defaultValue={q}
           placeholder="Filter by name or number"
           className="col-span-2"
-          params={{ set, sort: sort === "recent" ? undefined : sort, finish, view: view === "grid" ? undefined : view, location: locationParam, deck: deckParams, owner }}
+          params={{ set, color, sort: sort === "recent" ? undefined : sort, finish, view: view === "grid" ? undefined : view, location: locationParam, deck: deckParams, owner }}
         />
         <select name="set" defaultValue={set ?? ""} className={select}>
           <option value="">All sets</option>
           {sets.map((st) => (
             <option key={st.code} value={st.code}>
               {st.code} · {st.name}
+            </option>
+          ))}
+        </select>
+        <select name="color" defaultValue={color ?? ""} className={select}>
+          <option value="">Any colour</option>
+          {COLORS.map((c) => (
+            <option key={c} value={c}>
+              {c}
             </option>
           ))}
         </select>

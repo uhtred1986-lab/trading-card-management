@@ -4,7 +4,7 @@ import { db } from "@/db";
 import { getDeck, ZONE_LABEL, ZONES, deckToText } from "@/lib/decks/queries";
 import { copyLimit, RULES, type DeckLegality } from "@/lib/decks/legality";
 import { CardFlagBadge, DeckStatusBadge } from "@/components/DeckStatusBadge";
-import { buildConflicts } from "@/lib/decks/reservations";
+import { buildConflicts, decksReservingFor } from "@/lib/decks/reservations";
 import { CardFaces } from "@/components/CardFaces";
 import { CardImage } from "@/components/CardImage";
 import { ColorPill } from "@/components/ColorPill";
@@ -28,9 +28,15 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
   const deck = await getDeck(db, id);
   if (!deck) notFound();
   const conflicts = deck.isBuilt ? [] : await buildConflicts(db, id);
+  const tiedUpIds = conflicts.filter((c) => c.reservedElsewhere > 0).map((c) => c.cardId);
   // Archived places are listed too, so a deck already filed in one still shows
   // where it is.
-  const [suggestions, locations] = await Promise.all([suggestionsForDeck(db, id), listLocations(db)]);
+  const [suggestions, locations, reserversMap] = await Promise.all([
+    suggestionsForDeck(db, id),
+    listLocations(db),
+    tiedUpIds.length ? decksReservingFor(db, tiedUpIds, id) : Promise.resolve(new Map<string, { id: number; name: string; quantity: number }[]>()),
+  ]);
+  const reservers = Object.fromEntries(reserversMap);
   const deckLocation = locations.find((l) => l.id === deck.locationId) ?? null;
   const leader = deck.cards.find((c) => c.zone === "leader");
   const input = "tap w-full rounded-md border border-space-600 bg-space-900 px-2 py-1.5 text-sm text-space-100";
@@ -73,7 +79,7 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
             <Stat label="Leader" value={`${deck.legality.leaderCount}`} warn={deck.legality.leaderCount !== 1} />
           </div>
           <DeckIssues legality={deck.legality} />
-          <BuiltToggle deckId={deck.id} isBuilt={deck.isBuilt} initialConflicts={conflicts} />
+          <BuiltToggle deckId={deck.id} isBuilt={deck.isBuilt} initialConflicts={conflicts} reservers={reservers} />
         </div>
       </div>
 

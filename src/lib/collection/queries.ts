@@ -165,6 +165,7 @@ export async function collectionCards(
   opts: {
     q?: string;
     set?: string;
+    color?: string;
     finish?: "foil" | "normal";
     location?: number | "none";
     deck?: (number | "none")[];
@@ -227,6 +228,7 @@ export async function collectionCards(
 
   let rows = cardRows.map((c) => ({ card: c, ...byCard.get(c.id)! }));
   if (opts.set) rows = rows.filter((r) => r.card.setCode === opts.set);
+  if (opts.color) rows = rows.filter((r) => r.card.colors.includes(opts.color!));
   // Filtering by finish keeps the card but both counts stay visible on the tile.
   if (opts.finish === "foil") rows = rows.filter((r) => r.foilQty > 0);
   if (opts.finish === "normal") rows = rows.filter((r) => r.normalQty > 0);
@@ -287,6 +289,7 @@ export async function collectionCopies(
   opts: {
     q?: string;
     set?: string;
+    color?: string;
     finish?: "foil" | "normal";
     location?: number | "none";
     /**
@@ -348,6 +351,7 @@ export async function collectionCopies(
   });
 
   if (opts.set) rows = rows.filter((r) => r.setCode === opts.set);
+  if (opts.color) rows = rows.filter((r) => r.colors.includes(opts.color!));
   // Unlike the grid, filtering by finish drops the copies that don't match —
   // in a per-copy list the row *is* the finish.
   if (opts.finish) rows = rows.filter((r) => (opts.finish === "foil" ? r.finish === "foil" : r.finish !== "foil"));

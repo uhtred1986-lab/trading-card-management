@@ -18,7 +18,8 @@ export interface OwnedLeader {
 }
 
 /** Every LEADER card in the collection, with the decks it leads. */
-export async function ownedLeaders(db: Db): Promise<OwnedLeader[]> {
+export async function ownedLeaders(db: Db, opts: { color?: string } = {}): Promise<OwnedLeader[]> {
+  const where = opts.color ? and(eq(cards.cardType, "LEADER"), sql`${opts.color} = any(${cards.colors})`) : eq(cards.cardType, "LEADER");
   const rows = await db
     .select({
       id: cards.id,
@@ -36,7 +37,7 @@ export async function ownedLeaders(db: Db): Promise<OwnedLeader[]> {
     .from(ownedCards)
     .innerJoin(cards, eq(cards.id, ownedCards.cardId))
     .innerJoin(cardSets, eq(cardSets.code, cards.setCode))
-    .where(eq(cards.cardType, "LEADER"))
+    .where(where)
     .groupBy(cards.id, cardSets.name, cardSets.sortKey)
     .orderBy(desc(cardSets.sortKey), cards.name);
   if (rows.length === 0) return [];

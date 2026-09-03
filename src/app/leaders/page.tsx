@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { db } from "@/db";
 import { hasAnthropic } from "@/lib/ai/client";
+import { COLORS } from "@/lib/catalog/queries";
 import { RULES } from "@/lib/decks/legality";
 import { DeckStatusBadge } from "@/components/DeckStatusBadge";
 import { ownedLeaders } from "@/lib/leaders/queries";
@@ -12,11 +13,17 @@ export const dynamic = "force-dynamic";
 /** Deck drafting is a long Claude call. */
 export const maxDuration = 300;
 
-export default async function LeadersPage() {
-  const leaders = await ownedLeaders(db);
+type Params = Record<string, string | string[] | undefined>;
+const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v || undefined);
+
+export default async function LeadersPage({ searchParams }: { searchParams: Promise<Params> }) {
+  const sp = await searchParams;
+  const color = one(sp.color);
+  const leaders = await ownedLeaders(db, { color });
   const aiEnabled = hasAnthropic();
   const withDeck = leaders.filter((l) => l.decks.length).length;
   const built = leaders.filter((l) => l.decks.some((d) => d.isBuilt)).length;
+  const select = "tap rounded-md border border-space-600 bg-space-900 px-2 py-1.5 text-sm text-space-100";
 
   return (
     <div className="space-y-4">
@@ -32,9 +39,26 @@ export default async function LeadersPage() {
         </Link>
       </div>
 
+      <form action="/leaders" className="flex flex-wrap items-center gap-2">
+        <select name="color" defaultValue={color ?? ""} className={select}>
+          <option value="">Any colour</option>
+          {COLORS.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
+        <button className="tap rounded-md border border-space-600 px-3 py-1.5 text-sm text-space-100 hover:bg-space-800">Filter</button>
+        {color ? (
+          <Link href="/leaders" className="text-xs text-space-300 hover:text-ki-300">
+            Clear
+          </Link>
+        ) : null}
+      </form>
+
       {leaders.length === 0 ? (
         <div className="rounded-xl border border-dashed border-space-700 p-8 text-center text-sm text-space-300">
-          <p>No leaders in your collection yet.</p>
+          <p>{color ? `No ${color.toLowerCase()} leaders in your collection.` : "No leaders in your collection yet."}</p>
           <p className="mt-1">
             <Link href="/add" className="text-ki-300 hover:underline">
               Add cards

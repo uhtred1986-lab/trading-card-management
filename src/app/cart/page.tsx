@@ -3,7 +3,7 @@ import { inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { cards } from "@/db/schema";
 import { hasAnthropic } from "@/lib/ai/client";
-import { buildConflicts } from "@/lib/decks/reservations";
+import { allocationForCards, buildConflicts, decksReservingFor, type Reserver } from "@/lib/decks/reservations";
 import { cardTraderConfigured, cardTraderEnabled } from "@/lib/marketplace/cardtrader";
 import { cartSettings, optimiseCart } from "@/lib/marketplace/cart";
 import type { Want } from "@/lib/marketplace/optimizer";
@@ -19,18 +19,30 @@ export const maxDuration = 120;
 type Params = Record<string, string | string[] | undefined>;
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v || undefined);
 
+/** Owned/reserved breakdown behind a want, so "missing" can be told apart from "owned but tied up in another deck". */
+export interface WantBreakdown {
+  owned: number;
+  reservedElsewhere: number;
+}
+
 /** `?deck=12` → the deck's shortfall; `?cards=BT18-020:2,BT18-021:1` → explicit. */
-async function wantsFrom(sp: Params): Promise<{ wants: Want[]; source: string }> {
+async function wantsFrom(sp: Params): Promise<{ wants: Want[]; source: string; breakdown: Map<string, WantBreakdown>; deckId: number | null }> {
   const deck = one(sp.deck);
   if (deck) {
-    const conflicts = await buildConflicts(db, Number(deck));
-    return { wants: conflicts.map((c) => ({ cardId: c.cardId, quantity: c.short })), source: `deck ${deck}` };
+    const deckId = Number(deck);
+    const conflicts = await buildConflicts(db, deckId);
+    const breakdown = new Map(conflicts.map((c) => [c.cardId, { owned: c.owned, reservedElsewhere: c.reservedElsewhere }]));
+    return { wants: conflicts.map((c) => ({ cardId: c.cardId, quantity: c.short })), source: `deck ${deck}`, breakdown, deckId };
   }
   if (one(sp.want) !== "0") {
     // Default source: the saved shopping list, so swap suggestions you parked
     // are priced without having to build a URL.
     const wants = await listWants(db);
-    if (wants.length && !one(sp.cards)) return { wants: wants.map((w) => ({ cardId: w.cardId, quantity: w.quantity })), source: "shopping list" };
+    if (wants.length && !one(sp.cards)) {
+      const mapped = wants.map((w) => ({ cardId: w.cardId, quantity: w.quantity }));
+      const breakdown = await breakdownFor(mapped);
+      return { wants: mapped, source: "shopping list", breakdown, deckId: null };
+    }
   }
   const list = one(sp.cards) ?? "";
   const wants = list
@@ -41,16 +53,26 @@ async function wantsFrom(sp: Params): Promise<{ wants: Want[]; source: string }>
       const [id, q] = s.split(":");
       return { cardId: id.toUpperCase(), quantity: Math.max(1, Number(q) || 1) };
     });
-  return { wants, source: "list" };
+  const breakdown = await breakdownFor(wants);
+  return { wants, source: "list", breakdown, deckId: null };
+}
+
+async function breakdownFor(wants: Want[]): Promise<Map<string, WantBreakdown>> {
+  const alloc = await allocationForCards(db, wants.map((w) => w.cardId));
+  const out = new Map<string, WantBreakdown>();
+  for (const [id, a] of alloc) out.set(id, { owned: a.owned, reservedElsewhere: a.reserved });
+  return out;
 }
 
 export default async function CartPage({ searchParams }: { searchParams: Promise<Params> }) {
   const sp = await searchParams;
-  const { wants, source } = await wantsFrom(sp);
+  const { wants, source, breakdown, deckId: sourceDeckId } = await wantsFrom(sp);
   const cfg = await cartSettings(db);
   const names = wants.length ? await db.select({ id: cards.id, name: cards.name }).from(cards).where(inArray(cards.id, wants.map((w) => w.cardId))) : [];
   const nameOf = new Map(names.map((n) => [n.id, n.name]));
   const result = wants.length ? await optimiseCart(db, wants, cfg) : null;
+  const tiedUpIds = wants.filter((w) => (breakdown.get(w.cardId)?.reservedElsewhere ?? 0) > 0).map((w) => w.cardId);
+  const reservers = tiedUpIds.length ? await decksReservingFor(db, tiedUpIds, sourceDeckId ?? undefined) : new Map<string, Reserver[]>();
   const input = "tap w-full rounded-md border border-space-600 bg-space-900 px-2 py-1 text-sm text-space-100";
   const deckId = one(sp.deck);
 
@@ -80,14 +102,41 @@ export default async function CartPage({ searchParams }: { searchParams: Promise
         <>
           <section className="rounded-xl border border-space-700/70 bg-space-900/50 p-3">
             <h2 className="mb-1 text-sm font-semibold text-space-50">Want-list ({source})</h2>
-            <ul className="flex flex-wrap gap-1 text-xs">
-              {wants.map((w) => (
-                <li key={w.cardId} className="rounded bg-space-800 px-2 py-0.5">
-                  <Link href={`/cards/${encodeURIComponent(w.cardId)}`} className="hover:text-ki-300">
-                    {w.quantity}× {nameOf.get(w.cardId) ?? w.cardId} <span className="font-mono text-space-400">{w.cardId}</span>
-                  </Link>
-                </li>
-              ))}
+            <ul className="space-y-1 text-xs">
+              {wants.map((w) => {
+                const b = breakdown.get(w.cardId);
+                const owned = b?.owned ?? 0;
+                const tiedUp = b?.reservedElsewhere ?? 0;
+                const holders = reservers.get(w.cardId) ?? [];
+                return (
+                  <li key={w.cardId} className="rounded bg-space-800 px-2 py-1">
+                    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                      <Link href={`/cards/${encodeURIComponent(w.cardId)}`} className="hover:text-ki-300">
+                        {w.quantity}× {nameOf.get(w.cardId) ?? w.cardId} <span className="font-mono text-space-400">{w.cardId}</span>
+                      </Link>
+                      {owned > 0 ? (
+                        <span className="text-space-400">
+                          {owned} owned{tiedUp > 0 ? `, ${tiedUp} used elsewhere` : ""} · buying {w.quantity}
+                        </span>
+                      ) : null}
+                    </div>
+                    {tiedUp > 0 ? (
+                      <p className="mt-0.5 text-loss">
+                        Reserved by {holders.map((h, i) => (
+                          <span key={h.id}>
+                            {i > 0 ? ", " : ""}
+                            <Link href={`/decks/${h.id}`} className="underline hover:text-ki-300">
+                              {h.name}
+                            </Link>{" "}
+                            ({h.quantity})
+                          </span>
+                        ))}{" "}
+                        — buy more, or break one of those decks up to free copies instead.
+                      </p>
+                    ) : null}
+                  </li>
+                );
+              })}
             </ul>
             <CartTools wants={wants} aiEnabled={hasAnthropic()} listingsCached={result?.listings ?? 0} fetchedAt={result?.fetchedAt?.toISOString() ?? null} />
           </section>
