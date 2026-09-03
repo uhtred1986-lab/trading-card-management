@@ -36,3 +36,8 @@ yarn-error.log*
 
 .vercel
 .env*
+
+# Official rule PDFs are downloaded into docs/rules by hand (see docs/arena-design-proposal.md); only the extracted text is tracked.
+docs/rules/rulemanual.pdf
+docs/rules/playmanual.pdf
+docs/rules/unison_flowchart.pdf
