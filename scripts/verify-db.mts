@@ -133,6 +133,22 @@ assert.equal(priceForFinish(prices.get("BT18-020_SPR"), "foil"), 199);
   assert.equal(flagged.flags["main:BT18-020"]?.label, "6 copies, limit 4");
 }
 
+// A bulk row of "3 non-foil + 1 foil" is one row on screen and four cards stored.
+{
+  const before = (await db.select().from(schema.ownedCards)).length;
+  const inputs = [
+    { printId: "BT18-022", quantity: 3, finish: "normal" },
+    { printId: "BT18-022", quantity: 1, finish: "foil" },
+  ];
+  await db.insert(schema.ownedCards).values(inputs.flatMap((i) => expand({ printId: i.printId, cardId: "BT18-022", finish: i.finish }, i.quantity)));
+  const added = (await db.select().from(schema.ownedCards)).slice(before);
+  assert.equal(added.length, 4, "one screen row becomes four physical cards");
+  assert.equal(added.filter((l) => l.finish === "foil").length, 1);
+  assert.equal(added.filter((l) => l.finish === "normal").length, 3);
+  const { eq: eqOp } = await import("drizzle-orm");
+  await db.delete(schema.ownedCards).where(eqOp(schema.ownedCards.cardId, "BT18-022"));
+}
+
 // Scan batches: photo bytes round-trip, completing writes lots and drops the photo.
 {
   const { completeBatch, createBatch, getBatch, listOpenBatches, photoBytes, replaceItems, storePhoto, updateItem } = await import("../src/lib/scan/batches.ts");

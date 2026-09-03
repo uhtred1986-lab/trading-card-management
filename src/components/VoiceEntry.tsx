@@ -20,7 +20,7 @@ let logKey = 1;
  * only the transcript is sent, and the catalog decides which reading of the
  * digits is a real card.
  */
-export function VoiceEntry({ onCard }: { onCard: (card: SpokenCard, prints: { id: string; label: string }[], quantity: number) => void }) {
+export function VoiceEntry({ onCard }: { onCard: (card: SpokenCard, prints: { id: string; label: string }[], counts: { foil: number; normal: number }) => void }) {
   // Whether the API exists is a client-only fact; useSyncExternalStore reads it
   // after hydration without the server and client disagreeing about the markup.
   const supported = useSyncExternalStore(
@@ -52,9 +52,10 @@ export function VoiceEntry({ onCard }: { onCard: (card: SpokenCard, prints: { id
       }
       if (result.ok) {
         cue("ok");
-        onCard(result.card, result.prints, result.quantity);
-        if (readBackRef.current) speak(`${result.quantity} ${result.card.name}`);
-        setLog((l) => [{ key: logKey++, ok: true, heard: result.heard, detail: `${result.quantity}× ${result.card.name} (${result.card.id})` }, ...l].slice(0, 6));
+        onCard(result.card, result.prints, { foil: result.foil, normal: result.normal });
+        const parts = [result.normal ? `${result.normal} non-foil` : "", result.foil ? `${result.foil} ✦ foil` : ""].filter(Boolean).join(" + ");
+        if (readBackRef.current) speak(`${parts.replace("✦ ", "")} ${result.card.name}`);
+        setLog((l) => [{ key: logKey++, ok: true, heard: result.heard, detail: `${parts} · ${result.card.name} (${result.card.id})` }, ...l].slice(0, 6));
       } else {
         cue("fail");
         setLog((l) => [{ key: logKey++, ok: false, heard: result.heard, detail: result.reason }, ...l].slice(0, 6));
@@ -149,7 +150,8 @@ export function VoiceEntry({ onCard }: { onCard: (card: SpokenCard, prints: { id
       </div>
 
       <p className="mt-1 text-xs text-space-400">
-        Say the card number, then how many: <span className="text-space-200">&ldquo;BT eighteen zero twenty, times four&rdquo;</span>. A rising chime means it landed in the table; a low buzz means it didn&apos;t. Card names work too.
+        Say the card number, then how many — and which finish if you like:{" "}
+        <span className="text-space-200">&ldquo;BT eighteen zero twenty, one card foiled, three cards non-foil&rdquo;</span>. Plain counts (&ldquo;times four&rdquo;) are stored non-foil. A rising chime means it landed in the table; a low buzz means it didn&apos;t. Card names work too.
       </p>
       {error ? <p className="mt-1 text-xs text-loss">{error}</p> : null}
 

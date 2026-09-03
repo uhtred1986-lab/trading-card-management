@@ -229,27 +229,44 @@ assert.equal(cleanBox(null), null);
 // ── spoken card numbers ───────────────────────────────────────────────────
 assert.equal(normaliseSpeech("BT eighteen dash zero twenty"), "bt 18 0 20");
 assert.equal(normaliseSpeech("twenty two"), "22", "tens + ones combine");
-assert.equal(normaliseSpeech("card number P one eighty one"), "p 1 81");
+// "card" survives normalisation — it separates a count from its finish
+// ("1 card foiled") — and is dropped later, once the finishes are read off.
+assert.equal(normaliseSpeech("card number P one eighty one"), "card p 1 81");
+assert.deepEqual(parseSpoken("card number P one eighty one").options[0], { cardId: "P-181", foil: 0, normal: 1 });
 
 const opts = (s: string) => parseSpoken(s).options;
-const has = (s: string, cardId: string, quantity: number) => opts(s).some((o) => o.cardId === cardId && o.quantity === quantity);
+const has = (s: string, cardId: string, normal: number, foil = 0) => opts(s).some((o) => o.cardId === cardId && o.normal === normal && o.foil === foil);
 
 // The reading the catalog will accept has to be offered first.
-assert.deepEqual(opts("BT eighteen zero twenty")[0], { cardId: "BT18-020", quantity: 1 });
-assert.deepEqual(opts("bt 18 020 times 4")[0], { cardId: "BT18-020", quantity: 4 });
-assert.deepEqual(opts("sd twenty two zero two")[0], { cardId: "SD22-02", quantity: 1 });
-assert.deepEqual(opts("p one eighty one")[0], { cardId: "P-181", quantity: 1 });
+assert.deepEqual(opts("BT eighteen zero twenty")[0], { cardId: "BT18-020", foil: 0, normal: 1 });
+assert.deepEqual(opts("bt 18 020 times 4")[0], { cardId: "BT18-020", foil: 0, normal: 4 });
+assert.deepEqual(opts("sd twenty two zero two")[0], { cardId: "SD22-02", foil: 0, normal: 1 });
+assert.deepEqual(opts("p one eighty one")[0], { cardId: "P-181", foil: 0, normal: 1 });
 // Spelled-out prefixes and digit-by-digit dictation still reach the same card.
 assert.ok(has("b t one eight zero two zero", "BT18-020", 1), "letters spelled out, digits one by one");
 // A trailing count is only *one* of the readings — the real card decides.
 assert.ok(has("bt 18 020 4", "BT18-020", 4), "trailing number can be the quantity");
 assert.ok(has("bt 18 020 4", "BT18-0204", 1), "…but the all-digits reading is offered first");
-assert.ok(opts("bt 18 020 4").findIndex((o) => o.cardId === "BT18-0204") < opts("bt 18 020 4").findIndex((o) => o.cardId === "BT18-020" && o.quantity === 4));
+assert.ok(opts("bt 18 020 4").findIndex((o) => o.cardId === "BT18-0204") < opts("bt 18 020 4").findIndex((o) => o.cardId === "BT18-020" && o.normal === 4));
+
+// Finish counts spoken after the number — and their digits are not card digits.
+assert.deepEqual(opts("bt 18 020 one card foiled three cards non foil")[0], { cardId: "BT18-020", foil: 1, normal: 3 });
+assert.deepEqual(opts("bt 18 020 three cards non-foil one card foiled")[0], { cardId: "BT18-020", foil: 1, normal: 3 }, "either order");
+assert.deepEqual(opts("bt 18 020 2 foils")[0], { cardId: "BT18-020", foil: 2, normal: 0 });
+assert.deepEqual(opts("bt 18 020 foil")[0], { cardId: "BT18-020", foil: 1, normal: 0 }, "bare 'foil' means one");
+assert.deepEqual(opts("bt 18 020 non foil")[0], { cardId: "BT18-020", foil: 0, normal: 1 }, "'non foil' is not read as a foil");
+assert.deepEqual(opts("sd twenty two zero two 1 foiled")[0], { cardId: "SD22-02", foil: 1, normal: 0 });
+// "…twenty one card foiled": the "one" starts the count, so the card is -020.
+assert.deepEqual(opts("bt eighteen zero twenty one card foiled three cards non foil")[0], { cardId: "BT18-020", foil: 1, normal: 3 });
+// …but a plural really is twenty-one of them.
+assert.deepEqual(opts("bt 18 020 twenty one cards non foil")[0], { cardId: "BT18-020", foil: 0, normal: 21 });
+
 // Words with no number in them fall through to the name search.
 assert.deepEqual(opts("son goku"), []);
 assert.equal(parseSpoken("son goku times 3").query, "son goku");
-assert.equal(spokenQuantity("son goku times 3"), 3);
-assert.equal(spokenQuantity("bt 18 020"), 1);
+assert.deepEqual(spokenQuantity("son goku times 3"), { foil: 0, normal: 3 });
+assert.deepEqual(spokenQuantity("son goku 2 foils"), { foil: 2, normal: 0 });
+assert.deepEqual(spokenQuantity("bt 18 020"), { foil: 0, normal: 1 });
 
 // ── Basic Auth username → lot owner ───────────────────────────────────────
 assert.equal(parseBasicUser(`Basic ${Buffer.from("patvolny:Drag0nball!").toString("base64")}`), "patvolny");

@@ -17,7 +17,7 @@ export interface SpokenCard {
 }
 
 export type SpokenResult =
-  | { ok: true; card: SpokenCard; prints: { id: string; label: string }[]; quantity: number; heard: string; via: "number" | "name" }
+  | { ok: true; card: SpokenCard; prints: { id: string; label: string }[]; foil: number; normal: number; heard: string; via: "number" | "name" }
   | { ok: false; heard: string; reason: string };
 
 async function load(cardId: string): Promise<{ card: SpokenCard; prints: { id: string; label: string }[] } | null> {
@@ -53,7 +53,7 @@ export async function resolveSpokenAction(alternatives: string[]): Promise<Spoke
     const hit = options.find((o) => found.has(o.cardId));
     if (!hit) continue;
     const loaded = await load(hit.cardId);
-    if (loaded) return { ok: true, ...loaded, quantity: hit.quantity, heard: alt, via: "number" };
+    if (loaded) return { ok: true, ...loaded, foil: hit.foil, normal: hit.normal, heard: alt, via: "number" };
   }
 
   for (const alt of alternatives) {
@@ -62,7 +62,7 @@ export async function resolveSpokenAction(alternatives: string[]): Promise<Spoke
     const hits = await quickSearch(db, query, 1);
     if (!hits[0]) continue;
     const loaded = await load(hits[0].id);
-    if (loaded) return { ok: true, ...loaded, quantity: spokenQuantity(alt), heard: alt, via: "name" };
+    if (loaded) return { ok: true, ...loaded, ...spokenQuantity(alt), heard: alt, via: "name" };
   }
 
   return { ok: false, heard, reason: "No card matched that number or name." };
