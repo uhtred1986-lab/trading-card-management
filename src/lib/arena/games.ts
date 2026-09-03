@@ -1,0 +1,215 @@
+/**
+ * Saved games: create, load, apply an action, save.
+ *
+ * The engine stays pure — it knows nothing about the database. This is the
+ * only place the two meet. A row keeps the seed, the action log (which is what
+ * makes a game reproducible) and a snapshot of the state so a page load does
+ * not have to replay from the beginning.
+ */
+import { desc, eq } from "drizzle-orm";
+import type { Db } from "@/db";
+import { arenaGames, cards as cardsTable } from "@/db/schema";
+import { inArray } from "drizzle-orm";
+import { apply, createGame, legalActions, seedFrom, type Action, type CardDef, type EngineContext, type GameEvent, type GameState, type LegalAction } from "./engine";
+import { face } from "./engine";
+import { cardDefFrom, deckInputFor } from "./load";
+
+export type ArenaMode = "hotseat" | "sparring" | "tournament";
+
+export interface LoadedGame {
+  id: number;
+  mode: ArenaMode;
+  status: string;
+  p1Name: string;
+  p2Name: string;
+  p1DeckId: number | null;
+  p2DeckId: number | null;
+  ctx: EngineContext;
+  state: GameState;
+  log: string[];
+  legal: LegalAction[];
+}
+
+/** Definitions for every card the state mentions, tokens included. */
+async function defsForState(db: Db, state: GameState): Promise<Record<string, CardDef>> {
+  const ids = [...new Set(Object.values(state.cards).map((c) => c.cardId))].filter((id) => !id.startsWith("TOKEN:"));
+  const rows = ids.length ? await db.select().from(cardsTable).where(inArray(cardsTable.id, ids)) : [];
+  const out: Record<string, CardDef> = {};
+  for (const r of rows) out[r.id] = cardDefFrom(r);
+  return out;
+}
+
+export async function startGame(db: Db, p1DeckId: number, p2DeckId: number, mode: ArenaMode = "hotseat"): Promise<number> {
+  const a = await deckInputFor(db, p1DeckId);
+  const b = await deckInputFor(db, p2DeckId);
+  if (!a) throw new Error("the first deck has no leader, so it cannot be played");
+  if (!b) throw new Error("the second deck has no leader, so it cannot be played");
+  const rows = await db
+    .select()
+    .from(cardsTable)
+    .where(inArray(cardsTable.id, [...new Set([...a.cardIds, ...b.cardIds])]));
+  const defs: Record<string, CardDef> = {};
+  for (const r of rows) defs[r.id] = cardDefFrom(r);
+  const ctx: EngineContext = { defs };
+  const seed = seedFrom(`${p1DeckId}:${p2DeckId}:${Date.now()}`);
+  const { state, events } = createGame(ctx, { seed, p1: a.input, p2: b.input });
+  const [row] = await db
+    .insert(arenaGames)
+    .values({
+      p1DeckId,
+      p2DeckId,
+      p1Name: a.input.name,
+      p2Name: b.input.name,
+      seed,
+      mode,
+      state,
+      actions: [],
+      log: describeEvents(ctx, state, events),
+      turn: state.turn,
+    })
+    .returning({ id: arenaGames.id });
+  return row.id;
+}
+
+export async function loadGame(db: Db, id: number): Promise<LoadedGame | null> {
+  const row = await db.query.arenaGames.findFirst({ where: eq(arenaGames.id, id) });
+  if (!row) return null;
+  const state = row.state as GameState;
+  const ctx: EngineContext = { defs: await defsForState(db, state) };
+  return {
+    id: row.id,
+    mode: row.mode as ArenaMode,
+    status: row.status,
+    p1Name: row.p1Name,
+    p2Name: row.p2Name,
+    p1DeckId: row.p1DeckId,
+    p2DeckId: row.p2DeckId,
+    ctx,
+    state,
+    log: (row.log as string[]) ?? [],
+    legal: legalActions(ctx, state),
+  };
+}
+
+/** Apply one action and save. Throws whatever the engine throws for an illegal move. */
+export async function applyToGame(db: Db, id: number, action: Action): Promise<LoadedGame> {
+  const game = await loadGame(db, id);
+  if (!game) throw new Error(`no game ${id}`);
+  if (game.status !== "playing") throw new Error("this game is over");
+  const { state, events } = apply(game.ctx, game.state, action);
+  const lines = [...game.log, ...describeEvents(game.ctx, state, events)].slice(-400);
+  const actions = [...((await db.query.arenaGames.findFirst({ where: eq(arenaGames.id, id) }))?.actions as Action[]), action];
+  await db
+    .update(arenaGames)
+    .set({
+      state,
+      actions,
+      log: lines,
+      turn: state.turn,
+      status: state.phase === "over" ? "over" : "playing",
+      winner: state.winner,
+      reason: state.overReason,
+      updatedAt: new Date(),
+    })
+    .where(eq(arenaGames.id, id));
+  return { ...game, state, log: lines, legal: legalActions(game.ctx, state), status: state.phase === "over" ? "over" : "playing" };
+}
+
+export async function listGames(db: Db, limit = 20) {
+  return db
+    .select({
+      id: arenaGames.id,
+      p1Name: arenaGames.p1Name,
+      p2Name: arenaGames.p2Name,
+      status: arenaGames.status,
+      winner: arenaGames.winner,
+      reason: arenaGames.reason,
+      turn: arenaGames.turn,
+      mode: arenaGames.mode,
+      updatedAt: arenaGames.updatedAt,
+    })
+    .from(arenaGames)
+    .orderBy(desc(arenaGames.updatedAt))
+    .limit(limit);
+}
+
+export async function abandonGame(db: Db, id: number): Promise<void> {
+  await db.update(arenaGames).set({ status: "abandoned", updatedAt: new Date() }).where(eq(arenaGames.id, id));
+}
+
+// ── the event log ──────────────────────────────────────────────────────────
+
+/** One readable line per event, for the log the board shows. */
+export function describeEvents(ctx: EngineContext, state: GameState, events: GameEvent[]): string[] {
+  const name = (id: string) => {
+    try {
+      return face(ctx, state, id).name;
+    } catch {
+      return id;
+    }
+  };
+  const who = (p: "p1" | "p2") => state.players[p].name;
+  const out: string[] = [];
+  for (const e of events) {
+    switch (e.type) {
+      case "gameStart":
+        out.push(`Game on. ${who(e.first)} won the flip.`);
+        break;
+      case "phase":
+        out.push(`— Turn ${e.turn}, ${who(e.player)}: ${e.phase} phase`);
+        break;
+      case "draw":
+        out.push(`${who(e.player)} drew a card`);
+        break;
+      case "move":
+        if (e.from === "hand" && e.to === "energy") out.push(`${who(e.owner)} charged ${name(e.card)} as energy`);
+        else if (e.to === "battle" && e.from === "hand") out.push(`${who(e.owner)} played ${name(e.card)}`);
+        else if (e.to === "combo") out.push(`${who(e.owner)} comboed ${name(e.card)}`);
+        else if (e.from === "hand" && e.to === "drop") out.push(`${who(e.owner)} put ${name(e.card)} in the Drop`);
+        else if (e.to === "removed") out.push(`${name(e.card)} was removed from the game`);
+        else if (e.from === "deck" && e.to === "life") break;
+        else if (e.to === "unison") out.push(`${who(e.owner)} played the Unison ${name(e.card)}`);
+        else break;
+        break;
+      case "attack":
+        out.push(`${name(e.attacker)} attacks ${name(e.target)}`);
+        break;
+      case "guardChanged":
+        out.push(`${name(e.guard)} blocks`);
+        break;
+      case "powerCompare":
+        out.push(`${e.attackPower.toLocaleString("en")} vs ${e.guardPower.toLocaleString("en")} — ${e.hit ? "the attack lands" : "it bounces off"}`);
+        break;
+      case "damage":
+        out.push(`${who(e.player)} takes ${e.amount} damage${e.critical ? " (Critical: to the Drop)" : ""}`);
+        break;
+      case "ko":
+        out.push(`${name(e.card)} is KO'd`);
+        break;
+      case "attackNegated":
+        out.push("the attack is negated");
+        break;
+      case "skill":
+        out.push(`${name(e.card)}: ${e.text.replace(/\s+/g, " ").slice(0, 90)}`);
+        break;
+      case "flip":
+        out.push(`${name(e.card)} awakens`);
+        break;
+      case "markers":
+        out.push(`${name(e.card)} ${e.delta >= 0 ? "gains" : "loses"} ${Math.abs(e.delta)} marker${Math.abs(e.delta) === 1 ? "" : "s"} (now ${e.total})`);
+        break;
+      case "token":
+        out.push(`${who(e.owner)} plays a ${name(e.card)}`);
+        break;
+      case "note":
+        out.push(e.text);
+        break;
+      case "gameOver":
+        out.push(e.winner ? `${who(e.winner)} wins — ${e.reason}` : `A draw — ${e.reason}`);
+        break;
+      default:
+        break;
+    }
+  }
+  return out;
+}

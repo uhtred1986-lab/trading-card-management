@@ -5,7 +5,7 @@
  * are Rule Manual sections.
  */
 import assert from "node:assert/strict";
-import { apply, createGame, defsFrom, legalActions, type Action, type CardDef, type GameState, type PlayerId } from "../src/lib/arena/engine";
+import { apply, createGame, defsFrom, legalActions, seedFrom, type Action, type CardDef, type GameState, type PlayerId } from "../src/lib/arena/engine";
 import { parseSkills, keywordOf, orbsIn } from "../src/lib/arena/engine/cards";
 import { parseFilter, matches, parseCondition } from "../src/lib/arena/engine/filters";
 import { move, locate, playCost, powerOf } from "../src/lib/arena/engine/state";
@@ -165,6 +165,14 @@ function assertConsistent(s: GameState): void {
     assert.ok(ps.life.length <= 8, "life never exceeds 8");
   }
   for (const id of Object.keys(s.cards)) assert.equal(seen.get(id), 1, `${id} is in exactly one place (found ${seen.get(id) ?? 0})`);
+}
+
+// A seed has to fit a signed 32-bit column so it can be stored with the game.
+{
+  for (const text of ["1:2:1757000000000", "", "a", "zzzzzzzzzzzzzzzzzzzz"]) {
+    const seed = seedFrom(text);
+    assert.ok(Number.isInteger(seed) && seed >= 0 && seed <= 2147483647, `seed ${seed} fits an integer column`);
+  }
 }
 
 // ── setup (6-2) ────────────────────────────────────────────────────────────

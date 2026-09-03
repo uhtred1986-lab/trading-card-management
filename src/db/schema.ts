@@ -511,6 +511,43 @@ export const wantList = pgTable(
 );
 
 /** Every Claude call, kept so results can be re-shown without re-paying for them. */
+/*
+ * ──────────────────────────────────────────────────────────────────────────
+ *  Arena — a game of the card game itself, played against Claude or hot-seat.
+ *  `state` is the engine's state; `actions` is the log that produced it, so a
+ *  game can be replayed exactly from its seed. The engine never reads these
+ *  rows: `src/lib/arena/games.ts` loads them, calls the engine, and saves.
+ * ──────────────────────────────────────────────────────────────────────────
+ */
+
+export const arenaGames = pgTable(
+  "arena_games",
+  {
+    id: serial("id").primaryKey(),
+    p1DeckId: integer("p1_deck_id").references(() => decks.id, { onDelete: "set null" }),
+    p2DeckId: integer("p2_deck_id").references(() => decks.id, { onDelete: "set null" }),
+    /** Deck names are copied in so a finished game still reads right if a deck is renamed. */
+    p1Name: text("p1_name").notNull(),
+    p2Name: text("p2_name").notNull(),
+    seed: integer("seed").notNull(),
+    /** hotseat | sparring | tournament */
+    mode: text("mode").notNull().default("hotseat"),
+    /** playing | over | abandoned */
+    status: text("status").notNull().default("playing"),
+    winner: text("winner"),
+    reason: text("reason"),
+    turn: integer("turn").notNull().default(0),
+    state: jsonb("state").notNull(),
+    /** Every action applied, in order — the game replays from seed + these. */
+    actions: jsonb("actions").notNull().default(sql`'[]'::jsonb`),
+    /** One line per event, for the log the board shows. */
+    log: jsonb("log").notNull().default(sql`'[]'::jsonb`),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("arena_games_status_idx").on(t.status)],
+);
+
 export const aiRuns = pgTable(
   "ai_runs",
   {

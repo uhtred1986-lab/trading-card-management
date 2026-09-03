@@ -126,6 +126,13 @@ the same style.
   scripts and the runtime referee plug in. Only skills the engine can both pay for and resolve are
   offered as actions. Design and decisions: `docs/arena-design-proposal.md`. Tests:
   `scripts/verify-arena.ts` (part of `npm test`), synthetic cards, sections cited in messages.
+- **Arena UI** (`/arena`, `src/components/arena/`, `src/lib/arena/{games,view}.ts`): phone-first
+  hot-seat board. A game is one `arena_games` row holding the seed, the action log (the
+  reproducible source) and a state snapshot; `applyToGame` is the only writer. The board is drawn
+  from `boardView`, which hides what the player may not see (3-1-3), and every tappable thing comes
+  from the engine's `legalActions`, so the UI knows no rules. `npm run arena:playthrough` plays a
+  whole game through the database, and `npm run arena:coverage` reports how much card text the
+  compiler reads.
 - **Optimiser** (`src/lib/marketplace/optimizer.ts`) is deterministic: greedy + exhaustive 1/2/3-seller
   subsets + removal local search, shipping counted once per seller.
 

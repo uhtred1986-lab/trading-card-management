@@ -23,12 +23,16 @@ export function shuffle<T>(items: T[], state: number): { items: T[]; state: numb
   return { items: out, state: s };
 }
 
-/** A seed from anything string-like (deck ids, a date) — FNV-1a. */
+/**
+ * A seed from anything string-like (deck ids, a date) — FNV-1a, kept to 31
+ * bits so it fits a signed 32-bit integer column and can be stored with the
+ * saved game. The lost bit costs nothing: the seed only has to be varied.
+ */
 export function seedFrom(text: string): number {
   let h = 0x811c9dc5;
   for (let i = 0; i < text.length; i++) {
     h ^= text.charCodeAt(i);
     h = Math.imul(h, 0x01000193);
   }
-  return h >>> 0;
+  return (h >>> 0) & 0x7fffffff;
 }
