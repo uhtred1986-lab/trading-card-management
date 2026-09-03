@@ -11,6 +11,7 @@ import type { Db } from "@/db";
 import { cardSets, cards, deckCards, decks, ownedCards } from "@/db/schema";
 import { textArray } from "@/db/sqlx";
 import { RULES } from "@/lib/decks/queries";
+import { hasKeyword, rulesFor, type KeywordDeckRule } from "@/lib/decks/cardRules";
 import { MODEL, anthropic, recordRun } from "./client";
 import { cardLine } from "./deck";
 
@@ -91,6 +92,10 @@ export interface SanitisedDraft {
 /** Enforce pool membership and copy limits; compute owned/buy from the pools. */
 export function sanitiseDraft(draft: DeckDraft, pool: Map<string, PoolCard>): SanitisedDraft {
   const dropped: string[] = [];
+  // Keywords like [Dragon Ball] replace the 4-copy cap with a pooled total.
+  const rules = rulesFor([...pool.values()]);
+  const ruleFor = (c: PoolCard) => rules.find((r) => hasKeyword(c, r.keyword));
+  const spent = new Map<string, number>();
   const merge = (list: { cardId: string; quantity: number }[], zOnly: boolean) => {
     const out = new Map<string, number>();
     for (const e of list) {
@@ -100,7 +105,17 @@ export function sanitiseDraft(draft: DeckDraft, pool: Map<string, PoolCard>): Sa
         dropped.push(e.cardId);
         continue;
       }
-      out.set(id, Math.min((out.get(id) ?? 0) + e.quantity, c.limitedTo ?? 4));
+      const rule = ruleFor(c);
+      const cap = rule?.unlimitedCopies ? rule.max : (c.limitedTo ?? 4);
+      let want = Math.min((out.get(id) ?? 0) + e.quantity, cap);
+      if (rule) {
+        // Trim to whatever is left of the shared allowance, first come first served.
+        const used = spent.get(rule.keyword) ?? 0;
+        want = Math.min(want, Math.max(0, rule.max - used + (out.get(id) ?? 0)));
+        spent.set(rule.keyword, used - (out.get(id) ?? 0) + want);
+      }
+      if (want <= 0) { dropped.push(e.cardId); continue; }
+      out.set(id, want);
     }
     return [...out].map(([cardId, quantity]) => {
       const owned = pool.get(cardId)!.owned;
@@ -112,16 +127,27 @@ export function sanitiseDraft(draft: DeckDraft, pool: Map<string, PoolCard>): Sa
   return { main, z, dropped, mainCount: main.reduce((n, m) => n + m.quantity, 0) };
 }
 
+/** Pooled keyword limits spelled out for the model, only when the pool has them. */
+function ruleLines(rules: KeywordDeckRule[]): string[] {
+  return rules.map((r) =>
+    r.unlimitedCopies
+      ? `SPECIAL RULE — [${r.keyword}]: the 4-copy cap does NOT apply to cards with [${r.keyword}]; instead the deck may hold at most ${r.max} of them in total, in any mix of copies.`
+      : `SPECIAL RULE — [${r.keyword}]: the deck may hold at most ${r.max} cards with [${r.keyword}] in total.`,
+  );
+}
+
 export async function suggestDeck(db: Db, leaderId: string): Promise<{ deckId: number; draft: DeckDraft; sanitised: SanitisedDraft }> {
   const { leader, owned, buy } = await buildPools(db, leaderId);
   if (owned.length + buy.length < 30) throw new Error("Not enough on-colour cards in the catalog for this leader.");
   const pool = new Map<string, PoolCard>([...owned, ...buy].map((c) => [c.id, c]));
 
+  const poolRules = rulesFor([...owned, ...buy]);
   const line = (c: PoolCard) => `${c.owned ? `OWN×${c.owned}` : "BUY"} | ${cardLine(c, 220)}`;
   const system = [
     "You are an expert Dragon Ball Super Card Game (Bandai; legacy + Masters, not Fusion World) deck builder.",
     "Build a competitive, coherent 50-card main deck for the given Leader. Card text uses [brackets] for keywords, {braces} for card names, <angle brackets> for traits.",
     "Rules: exactly 50 main-deck cards; at most 4 copies of any card number (fewer if the pool row says a lower limit); only Z- type cards go in the Z-Deck (max 8); all cards must come from the pool below; refer to cards by exact card number.",
+    ...ruleLines(poolRules),
     "STRONGLY prefer OWN cards (the player already has them, up to the quantity shown). Use BUY cards only where they meaningfully improve the deck — a key engine piece, a finisher, or to fix a real gap — and list every BUY card used in `purchases` with a reason.",
   ].join("\n");
   const poolBlock = `CARD POOL (OWN×n = owned copies, BUY = would need buying):\n${[...owned, ...buy].map(line).join("\n")}`;

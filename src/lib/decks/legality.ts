@@ -10,6 +10,7 @@
 import { eq, inArray } from "drizzle-orm";
 import type { Db } from "@/db";
 import { cards, deckCards } from "@/db/schema";
+import { hasKeyword, rulesFor } from "./cardRules";
 
 /** Bandai deck rules: 1 leader, exactly 50 main, up to 8 Z-deck, 4 copies unless the card says otherwise. */
 export const RULES = { main: 50, zMax: 8, copies: 4 };
@@ -26,6 +27,8 @@ export interface LegalityCard {
   colors: string[];
   limitedTo: number | null;
   isBanned: boolean;
+  /** Needed to read deck-building rules printed on the cards themselves. */
+  skill?: string | null;
 }
 
 export interface DeckIssue {
@@ -39,8 +42,17 @@ export interface DeckFlag {
   label: string;
 }
 
+export interface KeywordRuleUse {
+  keyword: string;
+  max: number;
+  used: number;
+  unlimitedCopies: boolean;
+}
+
 export interface DeckLegality {
   status: DeckStatus;
+  /** Pooled keyword limits in play, e.g. [Dragon Ball] 6/7. */
+  keywordRules: KeywordRuleUse[];
   leaderCount: number;
   mainCount: number;
   zCount: number;
@@ -93,8 +105,24 @@ export function legality(rows: LegalityCard[]): DeckLegality {
     e.n += r.quantity;
     perCard.set(r.cardId, e);
   }
+  // Pooled keyword limits printed on the cards ([Dragon Ball], [Super Combo]).
+  const rules = rulesFor(rows);
+  const keywordRules: KeywordRuleUse[] = [];
+  for (const rule of rules) {
+    const members = rows.filter((r) => r.zone !== "side" && hasKeyword(r, rule.keyword));
+    const used = members.reduce((n, r) => n + r.quantity, 0);
+    keywordRules.push({ ...rule, used });
+    if (used > rule.max) {
+      issues.push({ severity: "illegal", message: `${used} [${rule.keyword}] cards — a deck may hold at most ${rule.max}.` });
+      for (const m of members) flag(m, "illegal", `over the ${rule.max}-card [${rule.keyword}] limit`);
+    }
+  }
+  /** A rule like [Dragon Ball] replaces the 4-copy limit rather than adding to it. */
+  const copyLimitWaived = (row: LegalityCard) => rules.some((r) => r.unlimitedCopies && hasKeyword(row, r.keyword));
+
   for (const { n, row } of perCard.values()) {
     if (row.isBanned) flag(row, "illegal", "banned card");
+    if (copyLimitWaived(row)) continue;
     const limit = copyLimit(row);
     if (n > limit) flag(row, "illegal", `${n} copies, limit ${limit}`);
   }
@@ -122,7 +150,7 @@ export function legality(rows: LegalityCard[]): DeckLegality {
     : issues.some((i) => i.severity === "incomplete")
       ? "incomplete"
       : "legal";
-  return { status, leaderCount, mainCount, zCount, sideCount, issues, flags };
+  return { status, keywordRules, leaderCount, mainCount, zCount, sideCount, issues, flags };
 }
 
 /** Legality for several decks at once — for the deck list and the leaders page. */
@@ -140,6 +168,7 @@ export async function legalityForDecks(db: Db, deckIds: number[]): Promise<Map<n
       colors: cards.colors,
       limitedTo: cards.limitedTo,
       isBanned: cards.isBanned,
+      skill: cards.skill,
     })
     .from(deckCards)
     .innerJoin(cards, eq(cards.id, deckCards.cardId))

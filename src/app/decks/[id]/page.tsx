@@ -189,8 +189,29 @@ function Stat({ label, value, warn }: { label: string; value: string; warn: bool
  * this just says what a judge would say about it.
  */
 function DeckIssues({ legality }: { legality: DeckLegality }) {
+  // Keywords like [Dragon Ball] carry their own limit, printed on the card.
+  const rules = legality.keywordRules.length ? (
+    <p className="text-[11px] text-space-400">
+      Card rules in play:{" "}
+      {legality.keywordRules.map((r) => (
+        <span key={r.keyword} className="mr-2">
+          <span className="text-space-200">[{r.keyword}]</span>{" "}
+          <span className={`tabular-nums ${r.used > r.max ? "text-loss" : ""}`}>
+            {r.used}/{r.max}
+          </span>
+          {r.unlimitedCopies ? " (any mix of copies)" : null}
+        </span>
+      ))}
+    </p>
+  ) : null;
+
   if (legality.status === "legal" && legality.issues.length === 0) {
-    return <p className="text-xs text-gain">Tournament-legal: one leader, {RULES.main} cards, copy limits respected.</p>;
+    return (
+      <div className="space-y-1">
+        <p className="text-xs text-gain">Tournament-legal: one leader, {RULES.main} cards, copy limits respected.</p>
+        {rules}
+      </div>
+    );
   }
   const groups = [
     { severity: "illegal" as const, title: "Breaks a rule", cls: "text-loss" },
@@ -209,6 +230,7 @@ function DeckIssues({ legality }: { legality: DeckLegality }) {
           </div>
         );
       })}
+      {rules}
       <p className="text-[11px] text-space-400">Saved either way — the deck is only flagged, never blocked.</p>
     </div>
   );

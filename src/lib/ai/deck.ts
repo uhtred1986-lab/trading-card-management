@@ -10,6 +10,7 @@ import type { Db } from "@/db";
 import { cardSets, cards, decks, ownedCards } from "@/db/schema";
 import { textArray } from "@/db/sqlx";
 import { deckToText, getDeck, type DeckCardRow } from "@/lib/decks/queries";
+import { hasKeyword, rulesFor } from "@/lib/decks/cardRules";
 import { MODEL, anthropic, recordRun } from "./client";
 
 const SYSTEM = `You are an expert Dragon Ball Super Card Game (Bandai; legacy sets BT1–BT25 and the current Masters line) deck analyst.
@@ -45,7 +46,22 @@ export function cardLine(c: {
 }
 
 function deckBlock(rows: DeckCardRow[]): string {
-  return ["DECKLIST:", deckToText(rows), "", "CARD TEXT:", ...rows.map((r) => cardLine({ ...r, id: r.cardId }))].join("\n");
+  // Some keywords carry their own deck-building limit, printed on the card
+  // itself — spell it out so a suggestion never breaks it.
+  const rules = rulesFor(rows).map((r) => {
+    const used = rows.filter((x) => x.zone !== "side" && hasKeyword(x, r.keyword)).reduce((n, x) => n + x.quantity, 0);
+    return r.unlimitedCopies
+      ? `[${r.keyword}]: the 4-copy cap does not apply; the deck may hold at most ${r.max} cards with [${r.keyword}] in total, in any mix of copies. Currently ${used}/${r.max}.`
+      : `[${r.keyword}]: at most ${r.max} cards with [${r.keyword}] in total. Currently ${used}/${r.max}.`;
+  });
+  return [
+    "DECKLIST:",
+    deckToText(rows),
+    ...(rules.length ? ["", "SPECIAL DECK-BUILDING RULES FROM THE CARD TEXT:", ...rules] : []),
+    "",
+    "CARD TEXT:",
+    ...rows.map((r) => cardLine({ ...r, id: r.cardId })),
+  ].join("\n");
 }
 
 // ── Summary ────────────────────────────────────────────────────────────────
