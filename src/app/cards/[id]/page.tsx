@@ -2,7 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/db";
 import { getCard } from "@/lib/catalog/queries";
-import { CONDITIONS, LANGUAGES, lotsForCard } from "@/lib/collection/queries";
+import { CONDITIONS, LANGUAGES, knownOwners, lotsForCard } from "@/lib/collection/queries";
+import { currentUser } from "@/lib/auth";
+import { LotOwnerPicker } from "@/components/LotOwnerPicker";
 import { allocationForCards, decksReserving } from "@/lib/decks/reservations";
 import { latestUsdEur } from "@/lib/pricing/fx";
 import { pricesForPrints } from "@/lib/pricing/queries";
@@ -25,14 +27,17 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
   if (!card) notFound();
 
   const printIds = card.prints.map((p) => p.id);
-  const [prices, alloc, lots, reservedBy, usdEur, decks] = await Promise.all([
+  const [prices, alloc, lots, reservedBy, usdEur, decks, ownersUsed, me] = await Promise.all([
     pricesForPrints(db, printIds),
     allocationForCards(db, [id]),
     lotsForCard(db, id),
     decksReserving(db, id),
     latestUsdEur(db),
     deckOptions(db),
+    knownOwners(db),
+    currentUser(),
   ]);
+  const owners = [...new Set([...ownersUsed, ...(me ? [me] : [])])];
   const a = alloc.get(id)!;
   const tcgUrl = (await db.query.tcgProducts.findFirst({ where: (p, { eq }) => eq(p.cardId, id), columns: { url: true } }))?.url ?? null;
   const eur = (usd: number | null) => (usd == null ? "—" : usdEur != null ? formatCents(Math.round(usd * usdEur), "EUR") : formatCents(usd, "USD"));
@@ -176,7 +181,7 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
                   <span className="text-xs text-space-300">{l.language}</span>
                   {l.pricePaidCents != null ? <span className="text-xs text-space-300">paid {formatCents(l.pricePaidCents, l.currency as "EUR" | "USD")} each</span> : null}
                   {l.acquiredOn ? <span className="text-xs text-space-300">{l.acquiredOn}</span> : null}
-                  {l.owner ? <span className="rounded bg-space-800 px-1.5 text-[10px] text-space-300">{l.owner}</span> : null}
+                  <LotOwnerPicker lotId={l.id} owner={l.owner} known={owners} />
                   {l.notes ? <span className="text-xs italic text-space-300">{l.notes}</span> : null}
                   <form action={deleteLotForm} className="ml-auto">
                     <input type="hidden" name="id" value={l.id} />

@@ -8,6 +8,15 @@ export const CONDITIONS = ["NM", "LP", "MP", "HP", "DMG"] as const;
 export const FINISHES = ["normal", "foil"] as const;
 export const LANGUAGES = ["EN", "JP", "DE", "FR", "IT", "ES", "PT", "KR", "ZH"] as const;
 
+/** Owners already used somewhere in the collection, for the card page's picker. */
+export async function knownOwners(db: Db): Promise<string[]> {
+  const rows = await db.selectDistinct({ owner: ownedCards.owner }).from(ownedCards);
+  return rows
+    .map((r) => r.owner)
+    .filter((o): o is string => !!o)
+    .sort((a, b) => a.localeCompare(b));
+}
+
 export async function lotsForCard(db: Db, cardId: string) {
   return db
     .select({

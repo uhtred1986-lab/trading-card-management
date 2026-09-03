@@ -96,6 +96,23 @@ export async function setLotFinishAction(lotId: number, foil: boolean): Promise<
   return { ok: true };
 }
 
+/**
+ * Re-assign one physical card to a different owner (or to nobody). Only the
+ * card page offers this — adding and the collection popover keep using the
+ * logged-in user, which is right almost always.
+ */
+export async function setLotOwnerAction(lotId: number, owner: string | null): Promise<{ ok: boolean; owner: string | null }> {
+  const clean = owner?.trim().slice(0, 64) || null;
+  const [row] = await db
+    .update(ownedCards)
+    .set({ owner: clean, updatedAt: new Date() })
+    .where(eq(ownedCards.id, lotId))
+    .returning({ cardId: ownedCards.cardId });
+  if (!row) return { ok: false, owner: null };
+  revalidate(row.cardId);
+  return { ok: true, owner: clean };
+}
+
 export async function updateLot(id: number, input: LotInput): Promise<void> {
   const cardId = await cardIdForPrint(input.printId);
   await db
