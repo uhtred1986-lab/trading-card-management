@@ -1,0 +1,116 @@
+/**
+ * Card-description text → predicate. Keyword conditions on cards name their
+ * targets in a fixed grammar ("Blue <Baby> with an energy cost of 4",
+ * "yellow non-≪Great Ape≫ <Son Goku: Childhood> card with an energy cost of 3
+ * or less", "1 {Four-Star Ball, Parasitic Darkness}"). Reading that grammar
+ * lets the engine offer the right candidates for Evolve, Union, Z-Stack,
+ * Z-Awaken and Swap without a compiled script.
+ */
+import { baseType, hasCharacter, hasTrait } from "./cards";
+import type { CardDef, Color } from "./types";
+
+export interface CardFilter {
+  colors: Color[];
+  monoColor: boolean;
+  characters: string[];
+  notCharacters: string[];
+  traits: string[];
+  notTraits: string[];
+  names: string[];
+  type: "LEADER" | "BATTLE" | "EXTRA" | "UNISON" | null;
+  /** Energy cost bounds, inclusive. */
+  costMin: number | null;
+  costMax: number | null;
+  powerMin: number | null;
+  powerMax: number | null;
+  z: boolean | null;
+}
+
+const COLOR_WORDS: Record<string, Color> = { red: "Red", blue: "Blue", green: "Green", yellow: "Yellow", black: "Black" };
+
+export function parseFilter(text: string): CardFilter {
+  const f: CardFilter = { colors: [], monoColor: false, characters: [], notCharacters: [], traits: [], notTraits: [], names: [], type: null, costMin: null, costMax: null, powerMin: null, powerMax: null, z: null };
+  const t = text.replace(/&lt;/g, "<").replace(/&gt;/g, ">");
+  for (const m of t.matchAll(/(non-)?<([^>]+)>/g)) (m[1] ? f.notCharacters : f.characters).push(m[2].trim());
+  for (const m of t.matchAll(/(non-)?≪([^≫]+)≫/g)) (m[1] ? f.notTraits : f.traits).push(m[2].trim());
+  for (const m of t.matchAll(/\{([^}]+)\}/g)) if (!/^[rugyk]$|^\d+$/i.test(m[1])) f.names.push(m[1].trim());
+  const lower = t.toLowerCase();
+  if (/\bmono-?colou?r\b|\bmono-(red|blue|green|yellow|black)\b/.test(lower)) f.monoColor = true;
+  for (const m of lower.matchAll(/\b(red|blue|green|yellow|black)\b/g)) {
+    const c = COLOR_WORDS[m[1]];
+    if (!f.colors.includes(c)) f.colors.push(c);
+  }
+  if (/\bz-(leader|battle|extra|unison)\b|\bz-card\b/.test(lower)) f.z = true;
+  if (/\bleader( card)?\b/.test(lower)) f.type = "LEADER";
+  else if (/\bunison( card)?\b/.test(lower)) f.type = "UNISON";
+  else if (/\bextra( card)?\b/.test(lower)) f.type = "EXTRA";
+  else if (/\bbattle card\b/.test(lower)) f.type = "BATTLE";
+  let m: RegExpExecArray | null;
+  if ((m = /energy cost (?:of )?(\d+) or less/.exec(lower))) f.costMax = Number(m[1]);
+  else if ((m = /energy cost (?:of )?(\d+) or more/.exec(lower))) f.costMin = Number(m[1]);
+  else if ((m = /energy cost (?:of )?between (\d+) and (\d+)/.exec(lower))) {
+    f.costMin = Number(m[1]);
+    f.costMax = Number(m[2]);
+  } else if ((m = /energy cost (?:of )?(\d+)\b/.exec(lower))) f.costMin = f.costMax = Number(m[1]);
+  if ((m = /(\d+) power or less/.exec(lower))) f.powerMax = Number(m[1]);
+  else if ((m = /(\d+) power or more/.exec(lower))) f.powerMin = Number(m[1]);
+  return f;
+}
+
+export function matches(d: CardDef, f: CardFilter): boolean {
+  if (f.z != null && d.type.startsWith("Z-") !== f.z) return false;
+  if (f.type && baseType(d) !== f.type) return false;
+  if (f.colors.length && !f.colors.every((c) => d.colors.includes(c))) return false;
+  if (f.monoColor && d.colors.length !== 1) return false;
+  if (f.characters.length && !f.characters.some((c) => hasCharacter(d, c))) return false;
+  if (f.notCharacters.some((c) => hasCharacter(d, c))) return false;
+  if (f.traits.length && !f.traits.some((c) => hasTrait(d, c))) return false;
+  if (f.notTraits.some((c) => hasTrait(d, c))) return false;
+  if (f.names.length && !f.names.some((n) => n.toLowerCase() === d.name.toLowerCase())) return false;
+  const cost = typeof d.energyCost === "number" ? d.energyCost : null;
+  if (f.costMin != null && (cost == null || cost < f.costMin)) return false;
+  if (f.costMax != null && (cost == null || cost > f.costMax)) return false;
+  if (f.powerMin != null && (d.power == null || d.power < f.powerMin)) return false;
+  if (f.powerMax != null && (d.power == null || d.power > f.powerMax)) return false;
+  return true;
+}
+
+/** "When your life is at 4 or less" and friends — the conditions Awaken/Wish print most often. */
+export interface SimpleCondition {
+  lifeAtMost: number | null;
+  opponentLifeAtMost: number | null;
+  energyAtLeast: number | null;
+  totalEnergyAtLeast: number | null;
+  dropAtLeast: number | null;
+  /** Parsed something the engine can check; false = leave to a script / the referee. */
+  recognised: boolean;
+}
+
+export function parseCondition(text: string): SimpleCondition {
+  const c: SimpleCondition = { lifeAtMost: null, opponentLifeAtMost: null, energyAtLeast: null, totalEnergyAtLeast: null, dropAtLeast: null, recognised: false };
+  const t = text.toLowerCase();
+  let m: RegExpExecArray | null;
+  if ((m = /your opponent'?s life is (?:at )?(\d+) or less/.exec(t))) {
+    c.opponentLifeAtMost = Number(m[1]);
+    c.recognised = true;
+  }
+  if ((m = /(?<!opponent'?s )(?:your )?life is (?:at )?(\d+) or less/.exec(t))) {
+    c.lifeAtMost = Number(m[1]);
+    c.recognised = true;
+  }
+  if ((m = /total of (\d+) or more energy between you and your opponent/.exec(t))) {
+    c.totalEnergyAtLeast = Number(m[1]);
+    c.recognised = true;
+  }
+  if ((m = /you have (\d+) or more energy/.exec(t))) {
+    c.energyAtLeast = Number(m[1]);
+    c.recognised = true;
+  }
+  if ((m = /(\d+) or more cards in your drop/.exec(t))) {
+    c.dropAtLeast = Number(m[1]);
+    c.recognised = true;
+  }
+  // Conditions with a further clause ("and you have a Blue/Green card in your energy") are only partly read.
+  if (c.recognised && /\band\b|\bwhen you have\b.*\bin your energy\b/.test(t) && !c.totalEnergyAtLeast) c.recognised = false;
+  return c;
+}

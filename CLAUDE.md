@@ -115,6 +115,17 @@ the same style.
   the model. ~130 s and ~$0.40 per draft.
 - **Binding arrays in raw SQL:** use `textArray()` from `src/db/sqlx.ts` — `${arr}::text[]` fails
   under postgres.js with a `transformTypeCast` error.
+- **Arena rules engine** (`src/lib/arena/engine/`, branch `feature/arena`): pure TypeScript, no React,
+  no database. A game is a `GameState` plus an append-only event log; `apply(ctx, state, action)` is the
+  only mutator and runs the flow (a data step list in `state.flow`) until the next `prompt`, so a game
+  is storable mid-decision and reproducible from seed + actions. `legalActions()` drives both the UI
+  and, later, Claude's move menu. Card text is *read*, not interpreted: `cards.ts` parses skill
+  types, keyword skills (§22 of `docs/rules/rulemanual.txt`) and orb costs; `filters.ts` reads the
+  fixed target grammar ("Blue <Baby> with an energy cost of 4"); `effects.ts` handles a few fixed
+  phrasings natively and logs a note for everything else, which is where the phase-3 compiled
+  scripts and the runtime referee plug in. Only skills the engine can both pay for and resolve are
+  offered as actions. Design and decisions: `docs/arena-design-proposal.md`. Tests:
+  `scripts/verify-arena.ts` (part of `npm test`), synthetic cards, sections cited in messages.
 - **Optimiser** (`src/lib/marketplace/optimizer.ts`) is deterministic: greedy + exhaustive 1/2/3-seller
   subsets + removal local search, shipping counted once per seller.
 
