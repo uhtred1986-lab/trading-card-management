@@ -2,6 +2,7 @@ import Link from "next/link";
 import { db } from "@/db";
 import { deckOptions } from "@/lib/decks/add";
 import { ownerOptions } from "@/lib/collection/owners";
+import { listLocations } from "@/lib/collection/locations";
 import { currentOwner } from "@/lib/auth";
 import { getBatch, listOpenBatches } from "@/lib/scan/batches";
 import { ScanFlow } from "@/components/ScanFlow";
@@ -16,7 +17,7 @@ export default async function ScanPage({ searchParams }: { searchParams: Promise
   const raw = Array.isArray(sp.batch) ? sp.batch[0] : sp.batch;
   const batchId = raw ? Number(raw) : null;
   const owner = await currentOwner();
-  const [open, current, decks, owners] = await Promise.all([listOpenBatches(db), batchId ? getBatch(db, batchId) : null, deckOptions(db), ownerOptions(db, owner)]);
+  const [open, current, decks, owners, locations] = await Promise.all([listOpenBatches(db), batchId ? getBatch(db, batchId) : null, deckOptions(db), ownerOptions(db, owner), listLocations(db, false)]);
   const active = current && current.batch.status === "open" ? current : null;
   const others = open.filter((b) => b.id !== active?.batch.id);
 
@@ -80,6 +81,8 @@ export default async function ScanPage({ searchParams }: { searchParams: Promise
         decks={decks}
         deckId={active?.batch.deckId ?? null}
         owner={active?.batch.owner ?? owner}
+        locationId={active?.batch.locationId ?? null}
+        locations={locations}
         owners={owners}
       />
     </div>

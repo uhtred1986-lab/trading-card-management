@@ -397,6 +397,8 @@ export const scanBatches = pgTable("scan_batches", {
   deckId: integer("deck_id").references(() => decks.id, { onDelete: "set null" }),
   /** Who the scanned cards belong to; chosen on the phone, honoured on the PC. */
   owner: text("owner"),
+  /** Where the scanned cards go; chosen on the phone, honoured on the PC. */
+  locationId: integer("location_id").references(() => storageLocations.id, { onDelete: "set null" }),
   addedCount: integer("added_count"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

@@ -4,10 +4,10 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { currentOwner } from "@/lib/auth";
-import { completeBatch, createBatch, deleteBatch, setBatchDeck, setBatchOwner, updateItem, type ItemPatch, type ScanMode } from "@/lib/scan/batches";
+import { completeBatch, createBatch, deleteBatch, setBatchDeck, setBatchLocation, setBatchOwner, updateItem, type ItemPatch, type ScanMode } from "@/lib/scan/batches";
 
-export async function createBatchAction(mode: ScanMode, deckId: number | null = null, owner: string | null = null): Promise<number> {
-  const id = await createBatch(db, mode, deckId, owner ?? (await currentOwner()));
+export async function createBatchAction(mode: ScanMode, deckId: number | null = null, owner: string | null = null, locationId: number | null = null): Promise<number> {
+  const id = await createBatch(db, mode, deckId, owner ?? (await currentOwner()), locationId);
   revalidatePath("/add/scan");
   revalidatePath("/add");
   return id;
@@ -15,6 +15,11 @@ export async function createBatchAction(mode: ScanMode, deckId: number | null = 
 
 export async function setBatchOwnerAction(batchId: number, owner: string | null): Promise<void> {
   await setBatchOwner(db, batchId, owner);
+  revalidatePath("/add/scan");
+}
+
+export async function setBatchLocationAction(batchId: number, locationId: number | null): Promise<void> {
+  await setBatchLocation(db, batchId, locationId);
   revalidatePath("/add/scan");
 }
 

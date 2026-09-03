@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
-import { completeBatchAction, createBatchAction, deleteBatchAction, setBatchDeckAction, setBatchOwnerAction, updateScanItemAction } from "@/app/add/scan/actions";
+import { completeBatchAction, createBatchAction, deleteBatchAction, setBatchDeckAction, setBatchLocationAction, setBatchOwnerAction, updateScanItemAction } from "@/app/add/scan/actions";
 import { printsForCardAction } from "@/app/collection/actions";
 import type { ScanCandidate, ScanDetection } from "@/lib/ai/scan";
 import { REVIEW_THRESHOLD, type Box } from "@/lib/ai/scan-match";
@@ -14,6 +14,8 @@ import { CardImage } from "./CardImage";
 import { CardSearchInput, type CardHit } from "./CardSearchInput";
 import { DeckPicker } from "./DeckPicker";
 import { OwnerPicker } from "./OwnerPicker";
+import { LocationPicker } from "./LocationPicker";
+import type { StorageLocation } from "@/lib/collection/locations";
 
 interface Photo {
   /** Server photo id, or a negative temporary key until the upload returns. */
@@ -89,6 +91,8 @@ export function ScanFlow({
   deckId: initialDeckId,
   owner: initialOwner,
   owners,
+  locationId: initialLocationId,
+  locations,
 }: {
   batchId: number | null;
   batchName: string | null;
@@ -99,6 +103,8 @@ export function ScanFlow({
   deckId: number | null;
   owner: string | null;
   owners: string[];
+  locationId: number | null;
+  locations: StorageLocation[];
 }) {
   const [batchId, setBatchId] = useState<number | null>(initialBatchId);
   const batchRef = useRef<number | null>(initialBatchId);
@@ -111,6 +117,15 @@ export function ScanFlow({
     setAsOwner(o);
     ownerRef.current = o;
     if (batchRef.current) void setBatchOwnerAction(batchRef.current, o);
+  };
+  // Kept on the batch row like the owner and deck, so a scan started on the
+  // phone still knows where the cards go when it is finished on the PC.
+  const [locationId, setLocationId] = useState<number | null>(initialLocationId);
+  const locationRef = useRef<number | null>(initialLocationId);
+  const chooseLocation = (id: number | null) => {
+    setLocationId(id);
+    locationRef.current = id;
+    if (batchRef.current) void setBatchLocationAction(batchRef.current, id);
   };
   const chooseDeck = (id: number | null) => {
     setDeckId(id);
@@ -146,7 +161,7 @@ export function ScanFlow({
 
   const ensureBatch = async (): Promise<number> => {
     if (batchRef.current) return batchRef.current;
-    const id = await createBatchAction(modeRef.current, deckRef.current, ownerRef.current);
+    const id = await createBatchAction(modeRef.current, deckRef.current, ownerRef.current, locationRef.current);
     batchRef.current = id;
     setBatchId(id);
     window.history.replaceState(null, "", `/add/scan?batch=${id}`);
@@ -285,6 +300,7 @@ export function ScanFlow({
       <div className="grid gap-2 sm:grid-cols-2">
         <OwnerPicker owners={owners} value={asOwner} onChange={chooseOwner} label="These cards belong to" />
         <DeckPicker decks={decks} value={deckId} onChange={chooseDeck} />
+        <LocationPicker locations={locations} value={locationId} onChange={chooseLocation} />
       </div>
 
       {done != null ? (

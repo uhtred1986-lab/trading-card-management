@@ -24,6 +24,8 @@ export interface LotInput {
   notes?: string | null;
   /** Whose card this is; defaults to the logged-in user's owner name. */
   owner?: string | null;
+  /** Where the cards are being put — the whole batch usually shares one. */
+  locationId?: number | null;
 }
 
 /** The stored shape of one physical card — no quantity; see lib/collection/lots.ts. */
@@ -35,7 +37,8 @@ function normalise(input: LotInput) {
   const pricePaidCents = input.pricePaid ? parseEuroInput(input.pricePaid) : null;
   const currency = input.currency === "USD" ? "USD" : "EUR";
   const notes = input.notes?.trim() || null;
-  return { condition, finish, language, acquiredOn, pricePaidCents, currency, notes };
+  const locationId = input.locationId ?? null;
+  return { condition, finish, language, acquiredOn, pricePaidCents, currency, notes, locationId };
 }
 
 async function cardIdForPrint(printId: string): Promise<string> {

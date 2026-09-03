@@ -9,6 +9,8 @@ import { CardImage } from "./CardImage";
 import { CardSearchInput, type CardHit as Hit } from "./CardSearchInput";
 import { DeckPicker } from "./DeckPicker";
 import { OwnerPicker } from "./OwnerPicker";
+import { LocationPicker } from "./LocationPicker";
+import type { StorageLocation } from "@/lib/collection/locations";
 import { VoiceEntry } from "./VoiceEntry";
 
 type Print = { id: string; label: string };
@@ -45,12 +47,14 @@ const totalOf = (r: Row) => countOf(r.normal) + countOf(r.foil);
  * to Foil → **Tab** opens a fresh row. Print, condition and price sit outside
  * that tab order (`tabIndex={-1}`); they default sensibly and stay clickable.
  */
-export function BulkEntry({ decks, owner, owners }: { decks: DeckOption[]; owner: string | null; owners: string[] }) {
+export function BulkEntry({ decks, owner, owners, locations }: { decks: DeckOption[]; owner: string | null; owners: string[]; locations: StorageLocation[] }) {
   const [rows, setRows] = useState<Row[]>([blank()]);
   const [active, setActive] = useState(0);
   const [saved, setSaved] = useState<{ added: number; deckAdded: number; deckId: number | null } | null>(null);
   const [deckId, setDeckId] = useState<number | null>(null);
   const [asOwner, setAsOwner] = useState<string | null>(owner);
+  /** One place for the whole batch — a box being entered goes back in that box. */
+  const [locationId, setLocationId] = useState<number | null>(null);
   const [pending, start] = useTransition();
   const [defaults, setDefaults] = useState({ condition: "NM", acquiredOn: "", language: "EN" });
 
@@ -123,7 +127,7 @@ export function BulkEntry({ decks, owner, owners }: { decks: DeckOption[]; owner
       const inputs: LotInput[] = [];
       for (const r of rows) {
         if (!r.card || !r.printId) continue;
-        const common = { printId: r.printId, condition: r.condition, pricePaid: r.pricePaid || null, acquiredOn: defaults.acquiredOn || null, language: defaults.language, owner: asOwner };
+        const common = { printId: r.printId, condition: r.condition, pricePaid: r.pricePaid || null, acquiredOn: defaults.acquiredOn || null, language: defaults.language, owner: asOwner, locationId };
         const n = countOf(r.normal);
         const f = countOf(r.foil);
         if (n > 0) inputs.push({ ...common, quantity: n, finish: "normal" });
@@ -149,6 +153,7 @@ export function BulkEntry({ decks, owner, owners }: { decks: DeckOption[]; owner
       <div className="grid gap-2 sm:grid-cols-2">
         <OwnerPicker owners={owners} value={asOwner} onChange={setAsOwner} label="These cards belong to" />
         <DeckPicker decks={decks} value={deckId} onChange={(id) => setDeckId(id)} />
+        <LocationPicker locations={locations} value={locationId} onChange={setLocationId} />
       </div>
 
       <div className="flex flex-wrap items-end gap-2 rounded-xl border border-space-700/70 bg-space-900/50 p-3 text-xs text-space-300">
