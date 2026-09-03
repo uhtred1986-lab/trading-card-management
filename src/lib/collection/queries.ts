@@ -47,6 +47,9 @@ export interface ValuedLot {
   finish: string;
   pricePaidCents: number | null;
   currency: string;
+  /** Carried so the grid can filter by the same things the copies list does. */
+  owner: string | null;
+  locationId: number | null;
   /** Current market value per copy, USD cents (null if unpriced). */
   marketUsdCents: number | null;
   /** Same, converted to EUR at the latest rate. */
@@ -64,6 +67,8 @@ export async function valuedLots(db: Db): Promise<{ lots: ValuedLot[]; usdEur: n
         finish: ownedCards.finish,
         pricePaidCents: ownedCards.pricePaidCents,
         currency: ownedCards.currency,
+        owner: ownedCards.owner,
+        locationId: ownedCards.locationId,
       })
       .from(ownedCards),
     latestUsdEur(db),
@@ -150,12 +155,39 @@ export function summarise(lots: ValuedLot[], usdEur: number | null): CollectionS
   };
 }
 
-/** Per-card aggregation for the collection grid. */
+/**
+ * Per-card aggregation for the collection grid. Takes the same filters as the
+ * copies list; the per-copy ones (owner, location) narrow which copies are
+ * counted, so a tile's ×N always matches what you filtered for.
+ */
 export async function collectionCards(
   db: Db,
-  opts: { q?: string; set?: string; finish?: "foil" | "normal"; sort?: "value" | "name" | "number" | "recent" } = {},
+  opts: {
+    q?: string;
+    set?: string;
+    finish?: "foil" | "normal";
+    location?: number | "none";
+    deck?: (number | "none")[];
+    owner?: string;
+    sort?: "value" | "name" | "number" | "recent";
+  } = {},
 ) {
-  const { lots, usdEur } = await valuedLots(db);
+  const { lots: allLots, usdEur } = await valuedLots(db);
+  let lots = allLots;
+  if (opts.owner) lots = opts.owner === "none" ? lots.filter((l) => !l.owner) : lots.filter((l) => l.owner === opts.owner);
+  if (opts.location === "none") lots = lots.filter((l) => l.locationId == null);
+  else if (typeof opts.location === "number") lots = lots.filter((l) => l.locationId === opts.location);
+  if (opts.deck?.length) {
+    const ids = opts.deck.filter((d): d is number => typeof d === "number");
+    const wantUndecked = opts.deck.includes("none");
+    const [chosen, anyDeck] = await Promise.all([
+      ids.length ? db.selectDistinct({ cardId: deckCards.cardId }).from(deckCards).where(inArray(deckCards.deckId, ids)) : Promise.resolve([]),
+      wantUndecked ? db.selectDistinct({ cardId: deckCards.cardId }).from(deckCards) : Promise.resolve([]),
+    ]);
+    const inChosen = new Set(chosen.map((d) => d.cardId));
+    const inAny = new Set(anyDeck.map((d) => d.cardId));
+    lots = lots.filter((l) => inChosen.has(l.cardId) || (wantUndecked && !inAny.has(l.cardId)));
+  }
   const byCard = new Map<
     string,
     { qty: number; foilQty: number; normalQty: number; valueEur: number; spentEur: number; unpriced: number; latest: number }

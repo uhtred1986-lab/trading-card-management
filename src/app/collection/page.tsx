@@ -38,16 +38,16 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
 
   // The grid aggregates by card; the list is one row per physical copy. Only
   // the one being shown is fetched — both walk every lot.
-  const [grid, list, sets, all, decks, me] = await Promise.all([
+  const [grid, list, sets, all, decks, locations] = await Promise.all([
     view === "grid" ? collectionCards(db, filters) : null,
     view === "list" ? collectionCopies(db, filters) : null,
     listSets(db),
     valuedLots(db),
     deckOptions(db),
-    currentOwner(),
+    listLocations(db),
   ]);
-  const locations = await listLocations(db);
-  const owners = view === "list" ? await ownerOptions(db, me) : [];
+  // Both views offer the same filters, so the owner list is always needed.
+  const owners = await ownerOptions(db, await currentOwner());
   const s = summarise(all.lots, all.usdEur);
   const shown = grid?.rows.length ?? list?.rows.length ?? 0;
   const select = "tap rounded-md border border-space-600 bg-space-900 px-2 py-1.5 text-sm text-space-100";
@@ -109,57 +109,54 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
       <form action="/collection" className="grid grid-cols-2 gap-2 rounded-xl border border-space-700/70 bg-space-900/50 p-3 sm:grid-cols-4">
         {finish ? <input type="hidden" name="finish" value={finish} /> : null}
         {view !== "grid" ? <input type="hidden" name="view" value={view} /> : null}
-        {view === "list" ? (
-          <>
-            <select name="location" defaultValue={locationParam ?? ""} className={select}>
-              <option value="">Anywhere</option>
-              {locations.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.name}
-                </option>
-              ))}
-              <option value="none">Not filed yet</option>
-            </select>
-            {/*
-              Checkboxes rather than a multi-select: several decks at once, plus
-              "in no deck", and it stays usable on a phone. Plain form controls,
-              so the whole thing still works as a GET.
-            */}
-            <details className="relative rounded-md border border-space-600 bg-space-900">
-              <summary className="tap cursor-pointer list-none px-2 py-1.5 text-sm text-space-100">
-                {deckParams.length === 0
-                  ? "Any deck"
-                  : deckParams.length === 1
-                    ? (deckParams[0] === "none" ? "In no deck" : (decks.find((d) => String(d.id) === deckParams[0])?.name ?? "1 deck"))
-                    : `${deckParams.length} decks`}
-                <span className="float-right text-space-400">▾</span>
-              </summary>
-              <div className="absolute left-0 z-30 mt-1 max-h-64 w-56 overflow-y-auto rounded-md border border-space-600 bg-space-950 p-2 shadow-xl">
-                <label className="flex items-center gap-2 rounded px-1 py-1 text-sm text-space-200 hover:bg-space-900">
-                  <input type="checkbox" name="deck" value="none" defaultChecked={deckParams.includes("none")} className="h-3.5 w-3.5 accent-ki-500" />
-                  In no deck
-                </label>
-                {decks.map((d) => (
-                  <label key={d.id} className="flex items-center gap-2 rounded px-1 py-1 text-sm text-space-200 hover:bg-space-900">
-                    <input type="checkbox" name="deck" value={d.id} defaultChecked={deckParams.includes(String(d.id))} className="h-3.5 w-3.5 accent-ki-500" />
-                    <span className="truncate">
-                      {d.isBuilt ? "▣" : "▢"} {d.name}
-                    </span>
-                  </label>
-                ))}
-              </div>
-            </details>
-            <select name="owner" defaultValue={owner ?? ""} className={select}>
-              <option value="">Anyone</option>
-              {owners.map((o) => (
-                <option key={o} value={o}>
-                  {o}
-                </option>
-              ))}
-              <option value="none">No owner set</option>
-            </select>
-          </>
-        ) : null}
+        {/* The same filters in both views — a grid tile counts only the copies that match. */}
+        <select name="location" defaultValue={locationParam ?? ""} className={select}>
+          <option value="">Anywhere</option>
+          {locations.map((l) => (
+            <option key={l.id} value={l.id}>
+              {l.name}
+            </option>
+          ))}
+          <option value="none">Not filed yet</option>
+        </select>
+        {/*
+          Checkboxes rather than a multi-select: several decks at once, plus
+          "in no deck", and it stays usable on a phone. Plain form controls,
+          so the whole thing still works as a GET.
+        */}
+        <details className="relative rounded-md border border-space-600 bg-space-900">
+          <summary className="tap cursor-pointer list-none px-2 py-1.5 text-sm text-space-100">
+            {deckParams.length === 0
+              ? "Any deck"
+              : deckParams.length === 1
+                ? (deckParams[0] === "none" ? "In no deck" : (decks.find((d) => String(d.id) === deckParams[0])?.name ?? "1 deck"))
+                : `${deckParams.length} decks`}
+            <span className="float-right text-space-400">▾</span>
+          </summary>
+          <div className="absolute left-0 z-30 mt-1 max-h-64 w-56 overflow-y-auto rounded-md border border-space-600 bg-space-950 p-2 shadow-xl">
+            <label className="flex items-center gap-2 rounded px-1 py-1 text-sm text-space-200 hover:bg-space-900">
+              <input type="checkbox" name="deck" value="none" defaultChecked={deckParams.includes("none")} className="h-3.5 w-3.5 accent-ki-500" />
+              In no deck
+            </label>
+            {decks.map((d) => (
+              <label key={d.id} className="flex items-center gap-2 rounded px-1 py-1 text-sm text-space-200 hover:bg-space-900">
+                <input type="checkbox" name="deck" value={d.id} defaultChecked={deckParams.includes(String(d.id))} className="h-3.5 w-3.5 accent-ki-500" />
+                <span className="truncate">
+                  {d.isBuilt ? "▣" : "▢"} {d.name}
+                </span>
+              </label>
+            ))}
+          </div>
+        </details>
+        <select name="owner" defaultValue={owner ?? ""} className={select}>
+          <option value="">Anyone</option>
+          {owners.map((o) => (
+            <option key={o} value={o}>
+              {o}
+            </option>
+          ))}
+          <option value="none">No owner set</option>
+        </select>
         <LiveSearch
           defaultValue={q}
           placeholder="Filter by name or number"
