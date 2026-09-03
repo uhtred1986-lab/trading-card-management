@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { setBuilt } from "@/app/decks/actions";
 import type { BuildConflict } from "@/lib/decks/reservations";
+import type { FilingResult } from "@/lib/decks/filing";
 
 /**
  * Mark a deck built (reserve its cards) or virtual (release them). Building is
@@ -13,12 +14,14 @@ import type { BuildConflict } from "@/lib/decks/reservations";
 export function BuiltToggle({ deckId, isBuilt, initialConflicts }: { deckId: number; isBuilt: boolean; initialConflicts: BuildConflict[] }) {
   const [pending, start] = useTransition();
   const [conflicts, setConflicts] = useState<BuildConflict[]>(initialConflicts);
+  const [filing, setFiling] = useState<FilingResult | null>(null);
   const blocked = !isBuilt && conflicts.length > 0;
 
   const toggle = () =>
     start(async () => {
       const r = await setBuilt(deckId, !isBuilt);
       setConflicts(r.ok ? [] : r.conflicts);
+      setFiling(r.ok ? r.filing : null);
     });
 
   return (
@@ -32,6 +35,11 @@ export function BuiltToggle({ deckId, isBuilt, initialConflicts }: { deckId: num
       >
         {pending ? "…" : isBuilt ? "Un-build (release cards)" : blocked ? "Can't build — missing cards" : "Mark as built"}
       </button>
+      {filing?.filed ? (
+        <p className="text-xs text-gain">
+          Filed {filing.filed} {filing.filed === 1 ? "copy" : "copies"} in {filing.locationName ?? "the deck’s location"}.
+        </p>
+      ) : null}
       {blocked ? (
         <div className="rounded-xl border border-loss/40 bg-loss/5 p-2 text-xs">
           <div className="mb-1 flex items-center gap-2 font-semibold text-loss">

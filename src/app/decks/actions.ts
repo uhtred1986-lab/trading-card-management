@@ -9,6 +9,7 @@ import { quickSearch } from "@/lib/catalog/queries";
 import { decksForCard, parseDeckList, ZONES, type CardDeckMembership, type Zone } from "@/lib/decks/queries";
 import { zoneForType } from "@/lib/decks/add";
 import { buildConflicts, type BuildConflict } from "@/lib/decks/reservations";
+import { fileDeckAtLocation, type FilingResult } from "@/lib/decks/filing";
 
 function revalidate(deckId?: number) {
   revalidatePath("/decks");
@@ -37,6 +38,8 @@ export async function updateDeck(id: number, patch: { name?: string; description
     .update(decks)
     .set({ ...patch, updatedAt: new Date() })
     .where(eq(decks.id, id));
+  // Moving a built deck to another box moves the cards in it.
+  if (patch.locationId !== undefined) await fileDeckAtLocation(db, id);
   revalidate(id);
 }
 
@@ -118,12 +121,14 @@ export async function setDeckCard(
     if (!(conflicts.length && err instanceof Error && /rollback/i.test(err.message))) throw err;
   }
   if (conflicts.length) return { ok: false, conflicts };
+  // A card added to a built deck joins it physically as well.
+  await fileDeckAtLocation(db, deckId);
   revalidate(deckId);
   return { ok: true };
 }
 
 /** Flip built ↔ virtual. Building is blocked outright when the collection can't cover it. */
-export async function setBuilt(deckId: number, built: boolean): Promise<{ ok: true } | { ok: false; conflicts: BuildConflict[] }> {
+export async function setBuilt(deckId: number, built: boolean): Promise<{ ok: true; filing: FilingResult } | { ok: false; conflicts: BuildConflict[] }> {
   if (built) {
     const conflicts = await buildConflicts(db, deckId);
     if (conflicts.length) return { ok: false, conflicts };
@@ -132,8 +137,11 @@ export async function setBuilt(deckId: number, built: boolean): Promise<{ ok: tr
     .update(decks)
     .set({ isBuilt: built, builtAt: built ? new Date() : null, updatedAt: new Date() })
     .where(eq(decks.id, deckId));
+  // The deck is now a physical object in a place, so its cards are there too.
+  // Taking it apart leaves them filed: they don't move until you move them.
+  const filing = await fileDeckAtLocation(db, deckId);
   revalidate(deckId);
-  return { ok: true };
+  return { ok: true, filing };
 }
 
 /** Paste a decklist; unknown numbers are reported back, known ones are added. */
