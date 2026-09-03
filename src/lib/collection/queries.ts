@@ -14,7 +14,6 @@ export async function lotsForCard(db: Db, cardId: string) {
       id: ownedCards.id,
       printId: ownedCards.printId,
       printLabel: cardPrints.label,
-      quantity: ownedCards.quantity,
       condition: ownedCards.condition,
       finish: ownedCards.finish,
       language: ownedCards.language,
@@ -35,7 +34,6 @@ export interface ValuedLot {
   cardId: string;
   printId: string;
   finish: string;
-  quantity: number;
   pricePaidCents: number | null;
   currency: string;
   /** Current market value per copy, USD cents (null if unpriced). */
@@ -53,7 +51,6 @@ export async function valuedLots(db: Db): Promise<{ lots: ValuedLot[]; usdEur: n
         cardId: ownedCards.cardId,
         printId: ownedCards.printId,
         finish: ownedCards.finish,
-        quantity: ownedCards.quantity,
         pricePaidCents: ownedCards.pricePaidCents,
         currency: ownedCards.currency,
       })
@@ -104,11 +101,11 @@ export function summarise(lots: ValuedLot[], usdEur: number | null): CollectionS
   let normalValue = 0;
   const unique = new Set<string>();
   for (const l of lots) {
-    copies += l.quantity;
+    copies += 1;
     unique.add(l.cardId);
-    const lotValue = (l.marketEurCents ?? 0) * l.quantity;
+    const lotValue = l.marketEurCents ?? 0;
     if (l.finish === "foil") {
-      foilCopies += l.quantity;
+      foilCopies += 1;
       foilValue += lotValue;
     } else {
       normalValue += lotValue;
@@ -116,13 +113,13 @@ export function summarise(lots: ValuedLot[], usdEur: number | null): CollectionS
     if (l.pricePaidCents != null) {
       // Price paid is stored in the lot's currency; convert USD purchases to EUR.
       const eur = l.currency === "USD" && usdEur != null ? Math.round(l.pricePaidCents * usdEur) : l.pricePaidCents;
-      spent += eur * l.quantity;
-      copiesWithCost += l.quantity;
+      spent += eur;
+      copiesWithCost += 1;
     }
     if (l.marketUsdCents != null) {
-      valueUsd += l.marketUsdCents * l.quantity;
-      valueEur += (l.marketEurCents ?? 0) * l.quantity;
-      copiesWithValue += l.quantity;
+      valueUsd += l.marketUsdCents;
+      valueEur += l.marketEurCents ?? 0;
+      copiesWithValue += 1;
     }
   }
   return {
@@ -154,12 +151,12 @@ export async function collectionCards(
   >();
   for (const l of lots) {
     const agg = byCard.get(l.cardId) ?? { qty: 0, foilQty: 0, normalQty: 0, valueEur: 0, spentEur: 0, unpriced: 0, latest: 0 };
-    agg.qty += l.quantity;
-    if (l.finish === "foil") agg.foilQty += l.quantity;
-    else agg.normalQty += l.quantity;
-    if (l.marketEurCents != null) agg.valueEur += l.marketEurCents * l.quantity;
-    else agg.unpriced += l.quantity;
-    if (l.pricePaidCents != null) agg.spentEur += l.pricePaidCents * l.quantity;
+    agg.qty += 1;
+    if (l.finish === "foil") agg.foilQty += 1;
+    else agg.normalQty += 1;
+    if (l.marketEurCents != null) agg.valueEur += l.marketEurCents;
+    else agg.unpriced += 1;
+    if (l.pricePaidCents != null) agg.spentEur += l.pricePaidCents;
     agg.latest = Math.max(agg.latest, l.id);
     byCard.set(l.cardId, agg);
   }
@@ -212,7 +209,7 @@ export async function collectionCards(
 export async function movers(db: Db, days = 7, limit = 8) {
   const { lots, usdEur } = await valuedLots(db);
   const qty = new Map<string, number>();
-  for (const l of lots) qty.set(l.cardId, (qty.get(l.cardId) ?? 0) + l.quantity);
+  for (const l of lots) qty.set(l.cardId, (qty.get(l.cardId) ?? 0) + 1);
   const ids = [...qty.keys()];
   if (ids.length === 0) return { rows: [], usdEur, days };
 
@@ -249,13 +246,13 @@ export async function breakdown(db: Db) {
   for (const l of lots) {
     const c = m.get(l.cardId);
     if (!c) continue;
-    const v = (l.marketEurCents ?? 0) * l.quantity;
+    const v = l.marketEurCents ?? 0;
     const s = bySet.get(c.setCode) ?? { code: c.setCode, name: c.setName, sort: c.sort, copies: 0, valueEur: 0 };
-    s.copies += l.quantity;
+    s.copies += 1;
     s.valueEur += v;
     bySet.set(c.setCode, s);
     const r = byRarity.get(c.rarity) ?? { code: c.rarity, copies: 0, valueEur: 0 };
-    r.copies += l.quantity;
+    r.copies += 1;
     r.valueEur += v;
     byRarity.set(c.rarity, r);
   }

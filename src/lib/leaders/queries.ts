@@ -30,7 +30,7 @@ export async function ownedLeaders(db: Db): Promise<OwnedLeader[]> {
       rarityCode: cards.rarityCode,
       imageUrl: cards.imageUrl,
       backImageUrl: cards.backImageUrl,
-      owned: sql<number>`sum(${ownedCards.quantity})::int`,
+      owned: sql<number>`count(*)::int`,
       setSort: cardSets.sortKey,
     })
     .from(ownedCards)

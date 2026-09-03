@@ -60,8 +60,7 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
           </dl>
           {a.owned > 0 ? (
             <p className="mt-2 border-t border-space-700 pt-2 text-center text-xs text-space-300">
-              {lots.reduce((n, l) => n + (l.finish === "foil" ? l.quantity : 0), 0)} <span className="text-amber-300">✦ foil</span> ·{" "}
-              {lots.reduce((n, l) => n + (l.finish === "foil" ? 0 : l.quantity), 0)} non-foil
+              {lots.filter((l) => l.finish === "foil").length} <span className="text-amber-300">✦ foil</span> · {lots.filter((l) => l.finish !== "foil").length} non-foil
             </p>
           ) : null}
           {reservedBy.length ? (
@@ -168,9 +167,9 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
             <p className="text-sm text-space-300">You don&apos;t own this card yet.</p>
           ) : (
             <ul className="divide-y divide-space-800 rounded-xl border border-space-700/70">
-              {lots.map((l) => (
+              {lots.map((l, i) => (
                 <li key={l.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-sm">
-                  <span className="font-semibold text-space-50">×{l.quantity}</span>
+                  <span className="font-mono text-xs text-space-400" title="One row per physical card">#{i + 1}</span>
                   <span>{l.printLabel}</span>
                   <span className="rounded bg-space-800 px-1.5 text-xs">{l.condition}</span>
                   <LotFinishToggle lotId={l.id} foil={l.finish === "foil"} />

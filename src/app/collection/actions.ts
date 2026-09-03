@@ -6,6 +6,7 @@ import { db } from "@/db";
 import { cardPrints, ownedCards } from "@/db/schema";
 import { currentUser } from "@/lib/auth";
 import { addCardsToDeck } from "@/lib/decks/add";
+import { expand } from "@/lib/collection/lots";
 import { CONDITIONS, FINISHES } from "@/lib/collection/queries";
 import { parseEuroInput } from "@/lib/money";
 
@@ -22,8 +23,8 @@ export interface LotInput {
   notes?: string | null;
 }
 
+/** The stored shape of one physical card — no quantity; see lib/collection/lots.ts. */
 function normalise(input: LotInput) {
-  const quantity = Math.max(1, Math.floor(Number(input.quantity) || 1));
   const condition = (CONDITIONS as readonly string[]).includes(input.condition ?? "") ? input.condition! : "NM";
   const finish = (FINISHES as readonly string[]).includes(input.finish ?? "") ? input.finish! : "normal";
   const language = (input.language ?? "EN").toUpperCase().slice(0, 3) || "EN";
@@ -31,7 +32,7 @@ function normalise(input: LotInput) {
   const pricePaidCents = input.pricePaid ? parseEuroInput(input.pricePaid) : null;
   const currency = input.currency === "USD" ? "USD" : "EUR";
   const notes = input.notes?.trim() || null;
-  return { quantity, condition, finish, language, acquiredOn, pricePaidCents, currency, notes };
+  return { condition, finish, language, acquiredOn, pricePaidCents, currency, notes };
 }
 
 async function cardIdForPrint(printId: string): Promise<string> {
@@ -46,21 +47,22 @@ function revalidate(cardId: string) {
   revalidatePath(`/cards/${encodeURIComponent(cardId)}`);
 }
 
-/** `deckId` — also add the copies to that deck (leader slot / Z-deck / main by card type). */
-export async function addLot(input: LotInput, deckId: number | null = null): Promise<{ id: number; cardId: string; deckAdded: number }> {
+/**
+ * Asking for 2 copies stores two rows — one per physical card — so each can
+ * later carry its own finish or go to its own deck. `deckId` also adds them to
+ * that deck (leader slot / Z-deck / main by card type).
+ */
+export async function addLot(input: LotInput, deckId: number | null = null): Promise<{ ids: number[]; cardId: string; added: number; deckAdded: number }> {
   const [cardId, owner] = await Promise.all([cardIdForPrint(input.printId), currentUser()]);
-  const values = normalise(input);
+  const rows = expand({ printId: input.printId, cardId, owner, ...normalise(input) }, input.quantity);
   const result = await db.transaction(async (tx) => {
-    const [row] = await tx
-      .insert(ownedCards)
-      .values({ printId: input.printId, cardId, owner, ...values })
-      .returning({ id: ownedCards.id });
-    const deckAdded = deckId ? (await addCardsToDeck(tx as unknown as typeof db, deckId, [{ cardId, quantity: values.quantity }])).added : 0;
-    return { id: row.id, deckAdded };
+    const inserted = await tx.insert(ownedCards).values(rows).returning({ id: ownedCards.id });
+    const deckAdded = deckId ? (await addCardsToDeck(tx as unknown as typeof db, deckId, [{ cardId, quantity: rows.length }])).added : 0;
+    return { ids: inserted.map((r) => r.id), deckAdded };
   });
   revalidate(cardId);
   if (deckId) revalidatePath(`/decks/${deckId}`);
-  return { ...result, cardId };
+  return { ...result, cardId, added: rows.length };
 }
 
 /** Bulk entry (Path B): every row in one transaction so a typo doesn't half-commit. */
@@ -68,14 +70,14 @@ export async function addLots(inputs: LotInput[], deckId: number | null = null):
   const clean = inputs.filter((i) => i.printId);
   if (clean.length === 0) return { added: 0, deckAdded: 0 };
   const [cardIds, owner] = await Promise.all([Promise.all(clean.map((i) => cardIdForPrint(i.printId))), currentUser()]);
-  const rows = clean.map((i, idx) => ({ printId: i.printId, cardId: cardIds[idx], owner, ...normalise(i) }));
+  const rows = clean.flatMap((i, idx) => expand({ printId: i.printId, cardId: cardIds[idx], owner, ...normalise(i) }, i.quantity));
   const deckAdded = await db.transaction(async (tx) => {
     await tx.insert(ownedCards).values(rows);
-    return deckId ? (await addCardsToDeck(tx as unknown as typeof db, deckId, rows.map((r) => ({ cardId: r.cardId, quantity: r.quantity })))).added : 0;
+    return deckId ? (await addCardsToDeck(tx as unknown as typeof db, deckId, rows.map((r) => ({ cardId: r.cardId, quantity: 1 })))).added : 0;
   });
   for (const id of new Set(cardIds)) revalidate(id);
   if (deckId) revalidatePath(`/decks/${deckId}`);
-  return { added: rows.reduce((n, r) => n + r.quantity, 0), deckAdded };
+  return { added: rows.length, deckAdded };
 }
 
 /**

@@ -13,7 +13,8 @@ import { CardSearchInput, type CardHit } from "./CardSearchInput";
 import { DeckPicker } from "./DeckPicker";
 
 interface Saved {
-  lotId: number;
+  /** One id per physical card saved — undo removes them all. */
+  lotIds: number[];
   cardId: string;
   name: string;
   imageUrl: string | null;
@@ -89,9 +90,9 @@ export function QuickCapture({ owner, decks }: { owner: string | null; decks: De
     if (autoNext) openCamera();
     const snapshot = { chosen, printId, quantity, condition, finish, deckId };
     start(async () => {
-      const { id } = await addLot({ printId: snapshot.printId, quantity: snapshot.quantity, condition: snapshot.condition, finish: snapshot.finish }, snapshot.deckId);
+      const { ids } = await addLot({ printId: snapshot.printId, quantity: snapshot.quantity, condition: snapshot.condition, finish: snapshot.finish }, snapshot.deckId);
       setSaved((s) => [
-        { lotId: id, cardId: snapshot.chosen.id, name: snapshot.chosen.name, imageUrl: snapshot.chosen.imageUrl, quantity: snapshot.quantity, printLabel: snapshot.chosen.prints.find((p) => p.id === snapshot.printId)?.label ?? "" },
+        { lotIds: ids, cardId: snapshot.chosen.id, name: snapshot.chosen.name, imageUrl: snapshot.chosen.imageUrl, quantity: snapshot.quantity, printLabel: snapshot.chosen.prints.find((p) => p.id === snapshot.printId)?.label ?? "" },
         ...s,
       ]);
       if (phase.kind !== "idle" && "preview" in phase) URL.revokeObjectURL(phase.preview);
@@ -102,8 +103,8 @@ export function QuickCapture({ owner, decks }: { owner: string | null; decks: De
 
   const undo = (lot: Saved) =>
     start(async () => {
-      await deleteLot(lot.lotId);
-      setSaved((s) => s.filter((x) => x.lotId !== lot.lotId));
+      await Promise.all(lot.lotIds.map((id) => deleteLot(id)));
+      setSaved((s) => s.filter((x) => x !== lot));
     });
 
   const detection = phase.kind === "confirm" ? phase.detections[phase.chosenIndex] : null;
@@ -315,7 +316,7 @@ export function QuickCapture({ owner, decks }: { owner: string | null; decks: De
           </h2>
           <ul className="divide-y divide-space-800 rounded-xl border border-space-700/70">
             {saved.map((s) => (
-              <li key={s.lotId} className="flex items-center gap-2 px-2 py-1.5 text-sm">
+              <li key={s.lotIds[0]} className="flex items-center gap-2 px-2 py-1.5 text-sm">
                 <div className="w-8 shrink-0">
                   <CardImage src={s.imageUrl} alt={s.name} sizes="32px" />
                 </div>

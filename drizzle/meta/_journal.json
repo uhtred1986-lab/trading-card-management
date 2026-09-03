@@ -50,6 +50,13 @@
       "when": 1788364998857,
       "tag": "0006_jittery_tana_nile",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1788421642636,
+      "tag": "0007_cooing_talisman",
+      "breakpoints": true
     }
   ]
 }

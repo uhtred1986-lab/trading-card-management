@@ -61,7 +61,7 @@ export async function buildPools(db: Db, leaderId: string): Promise<{ leader: ty
   const onColour = [eq(cards.isBanned, false), notInArray(cards.cardType, ["LEADER", "TOKEN"]), sql`${cards.colors} <@ ${textArray(colours)}`];
 
   const owned = await db
-    .select({ ...select, owned: sql<number>`sum(${ownedCards.quantity})::int` })
+    .select({ ...select, owned: sql<number>`count(*)::int` })
     .from(cards)
     .innerJoin(ownedCards, eq(ownedCards.cardId, cards.id))
     .where(and(...onColour))

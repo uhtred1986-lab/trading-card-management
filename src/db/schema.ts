@@ -213,8 +213,10 @@ export const syncRuns = pgTable("sync_runs", {
 
 /*
  * ──────────────────────────────────────────────────────────────────────────
- *  Collection — one row per *lot*: a quantity of one print in one condition,
- *  bought together. The same card can have several lots.
+ *  Collection — **one row per physical card**. There is deliberately no
+ *  quantity column: adding "2 copies" writes two rows, so each copy carries
+ *  its own finish, condition and price and can be assigned individually.
+ *  See src/lib/collection/lots.ts.
  * ──────────────────────────────────────────────────────────────────────────
  */
 
@@ -229,7 +231,6 @@ export const ownedCards = pgTable(
     cardId: text("card_id")
       .notNull()
       .references(() => cards.id, { onDelete: "cascade" }),
-    quantity: integer("quantity").notNull().default(1),
     /** NM | LP | MP | HP | DMG */
     condition: text("condition").notNull().default("NM"),
     /** normal | foil */
@@ -252,7 +253,7 @@ export const ownedCards = pgTable(
  * ──────────────────────────────────────────────────────────────────────────
  *  Decks — virtual decks are unconstrained; a deck flagged built reserves its
  *  copies against the collection. Reservations are *computed* (sum of built
- *  decks' deck_cards per card vs. sum of owned_cards.quantity), never stored,
+ *  decks' deck_cards per card vs. the number of owned_cards rows), never stored,
  *  so they can't drift. See src/lib/decks/reservations.ts.
  * ──────────────────────────────────────────────────────────────────────────
  */

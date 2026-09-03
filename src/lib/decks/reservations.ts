@@ -23,7 +23,7 @@ export async function allocationForCards(db: Db, cardIds: string[]): Promise<Map
 
   const [ownedRows, reservedRows] = await Promise.all([
     db
-      .select({ cardId: ownedCards.cardId, n: sql<number>`coalesce(sum(${ownedCards.quantity}), 0)::int` })
+      .select({ cardId: ownedCards.cardId, n: sql<number>`count(*)::int` })
       .from(ownedCards)
       .where(inArray(ownedCards.cardId, cardIds))
       .groupBy(ownedCards.cardId),
@@ -68,7 +68,7 @@ export async function buildConflicts(db: Db, deckId: number): Promise<BuildConfl
       group by dc.card_id
     ),
     own as (
-      select o.card_id, sum(o.quantity)::int as owned
+      select o.card_id, count(*)::int as owned
       from owned_cards o where o.card_id in (select card_id from need)
       group by o.card_id
     ),

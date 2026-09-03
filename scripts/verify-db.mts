@@ -12,6 +12,7 @@ import * as schema from "../src/db/schema.ts";
 import type { Db } from "../src/db/index.ts";
 import { allocationForCards, buildConflicts } from "../src/lib/decks/reservations.ts";
 import { pricesForPrints, priceForFinish } from "../src/lib/pricing/queries.ts";
+import { expand } from "../src/lib/collection/lots.ts";
 
 const client = new PGlite();
 const db = drizzle(client, { schema }) as unknown as Db;
@@ -37,11 +38,11 @@ await db.insert(schema.cardPrints).values([
   { id: "BT18-022", cardId: "BT18-022", suffix: "", label: "Standard", rarity: "C", isBase: true },
 ]);
 
-// Own 4 Omega (3 standard + 1 SPR) and 2 Goku, no Vegeta.
+// Own 4 Omega (3 standard + 1 SPR) and 2 Goku, no Vegeta — one row per card.
 await db.insert(schema.ownedCards).values([
-  { printId: "BT18-020", cardId: "BT18-020", quantity: 3 },
-  { printId: "BT18-020_SPR", cardId: "BT18-020", quantity: 1, finish: "foil" },
-  { printId: "BT18-021", cardId: "BT18-021", quantity: 2 },
+  ...expand({ printId: "BT18-020", cardId: "BT18-020" }, 3),
+  { printId: "BT18-020_SPR", cardId: "BT18-020", finish: "foil" },
+  ...expand({ printId: "BT18-021", cardId: "BT18-021" }, 2),
 ]);
 
 const alloc0 = await allocationForCards(db, ["BT18-020", "BT18-021", "BT18-022"]);
@@ -157,7 +158,11 @@ assert.equal(priceForFinish(prices.get("BT18-020_SPR"), "foil"), 199);
   const inDeck = await db.select().from(schema.deckCards).where((await import("drizzle-orm")).eq(schema.deckCards.deckId, target.id));
   assert.deepEqual(inDeck.map((r) => [r.zone, r.cardId, r.quantity]), [["main", "BT18-020", 3]]);
   const lots = (await db.select().from(schema.ownedCards)).slice(before);
-  assert.deepEqual(lots.map((l) => [l.printId, l.quantity, l.finish, l.owner]).sort(), [["BT18-020", 1, "normal", "patvolny"], ["BT18-020_SPR", 2, "foil", "patvolny"]]);
+  assert.deepEqual(lots.map((l) => [l.printId, l.finish, l.owner]).sort(), [
+    ["BT18-020", "normal", "patvolny"],
+    ["BT18-020_SPR", "foil", "patvolny"],
+    ["BT18-020_SPR", "foil", "patvolny"],
+  ], "a reviewed quantity of 2 becomes two rows");
   assert.equal(await photoBytes(db, photoId), null, "photo bytes are dropped on completion");
   assert.equal((await getBatch(db, batchId))!.items.length, 0, "items are dropped on completion");
   assert.equal((await listOpenBatches(db)).length, 0, "completed batch is no longer open");

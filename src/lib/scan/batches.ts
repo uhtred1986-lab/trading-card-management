@@ -9,6 +9,7 @@ import type { Db } from "@/db";
 import { cardPrints, decks, ownedCards, scanBatches, scanItems, scanPhotos } from "@/db/schema";
 import type { ScanCandidate, ScanDetection } from "@/lib/ai/scan";
 import { addCardsToDeck } from "@/lib/decks/add";
+import { expand } from "@/lib/collection/lots";
 import { REVIEW_THRESHOLD } from "@/lib/ai/scan-match";
 
 export type ScanMode = "single" | "batch";
@@ -233,13 +234,14 @@ export async function completeBatch(db: Db, batchId: number, owner: string | nul
     const printIds = [...new Set(items.map((i) => i.printId).filter((p): p is string => !!p))];
     const prints = printIds.length ? await tx.select({ id: cardPrints.id, cardId: cardPrints.cardId }).from(cardPrints).where(inArray(cardPrints.id, printIds)) : [];
     const cardOf = new Map(prints.map((p) => [p.id, p.cardId]));
+    // A reviewed row saying "3" becomes three rows — one per physical card.
     const lots = items
       .filter((i) => i.printId && cardOf.has(i.printId))
-      .map((i) => ({ printId: i.printId!, cardId: cardOf.get(i.printId!)!, quantity: i.quantity, condition: i.condition, finish: i.finish, owner }));
+      .flatMap((i) => expand({ printId: i.printId!, cardId: cardOf.get(i.printId!)!, condition: i.condition, finish: i.finish, owner }, i.quantity));
     if (lots.length) await tx.insert(ownedCards).values(lots);
-    const added = lots.reduce((n, l) => n + l.quantity, 0);
+    const added = lots.length;
     const deckId = batch?.deckId ?? null;
-    const deckAdded = deckId && lots.length ? (await addCardsToDeck(tx as unknown as Db, deckId, lots.map((l) => ({ cardId: l.cardId, quantity: l.quantity })))).added : 0;
+    const deckAdded = deckId && lots.length ? (await addCardsToDeck(tx as unknown as Db, deckId, lots.map((l) => ({ cardId: l.cardId, quantity: 1 })))).added : 0;
     await tx.delete(scanItems).where(eq(scanItems.batchId, batchId));
     await tx.update(scanPhotos).set({ data: null }).where(eq(scanPhotos.batchId, batchId));
     await tx.update(scanBatches).set({ status: "done", addedCount: added, completedAt: new Date(), updatedAt: new Date() }).where(eq(scanBatches.id, batchId));
