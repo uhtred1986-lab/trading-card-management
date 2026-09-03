@@ -57,6 +57,13 @@
       "when": 1788421642636,
       "tag": "0007_cooing_talisman",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1788427209590,
+      "tag": "0008_keen_black_knight",
+      "breakpoints": true
     }
   ]
 }

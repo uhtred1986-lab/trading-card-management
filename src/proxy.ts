@@ -1,31 +1,73 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { parseBasicAuth } from "@/lib/auth-header";
 
 /**
- * HTTP Basic Auth in front of everything — the app has no login of its own.
- * Only active when both env vars are set, so local dev stays open. Same
- * pattern as gullet-cove-dm.
+ * HTTP Basic Auth in front of everything — the app has no login page.
  *
- * `/api/sync/*` is exempt: Vercel's cron can't send Basic credentials, and
- * that route already refuses anything without the `CRON_SECRET` bearer token.
+ * Two sources of credentials, in this order:
+ *   1. BASIC_AUTH_USER / BASIC_AUTH_PASSWORD from the environment. This pair
+ *      always works, so a mistake in the users table can never lock everyone
+ *      out, and it is what bootstraps the first login.
+ *   2. Rows in `app_users`, managed at /settings/users.
+ *
+ * With neither configured the app runs open, which is what local dev wants.
+ * `/api/sync/*` is exempt: Vercel's cron can't send credentials, and that
+ * route already requires the CRON_SECRET bearer token.
+ *
+ * Next 16 runs this on the Node.js runtime, so the database is reachable here.
+ * Verifying a scrypt hash costs ~100 ms, so an accepted header is remembered
+ * for a few minutes instead of being re-derived on every request.
  */
-export function proxy(request: NextRequest) {
-  const user = process.env.BASIC_AUTH_USER;
-  const password = process.env.BASIC_AUTH_PASSWORD;
 
-  if (!user || !password) {
-    return NextResponse.next();
-  }
+const ACCEPTED_TTL_MS = 5 * 60_000;
+const accepted = new Map<string, number>();
 
-  const expected = "Basic " + Buffer.from(`${user}:${password}`).toString("base64");
-  if (request.headers.get("authorization") === expected) {
-    return NextResponse.next();
-  }
+function remember(header: string) {
+  accepted.set(header, Date.now() + ACCEPTED_TTL_MS);
+  // The map only ever holds the handful of logins in use; prune expired ones.
+  if (accepted.size > 50) for (const [k, exp] of accepted) if (exp < Date.now()) accepted.delete(k);
+}
 
+function challenge() {
   return new Response("Authentication required", {
     status: 401,
     headers: { "WWW-Authenticate": 'Basic realm="DBS Card Companion"' },
   });
+}
+
+export async function proxy(request: NextRequest) {
+  const header = request.headers.get("authorization");
+  const envUser = process.env.BASIC_AUTH_USER;
+  const envPassword = process.env.BASIC_AUTH_PASSWORD;
+
+  const cached = header ? accepted.get(header) : undefined;
+  if (cached && cached > Date.now()) return NextResponse.next();
+
+  if (envUser && envPassword && header === "Basic " + Buffer.from(`${envUser}:${envPassword}`).toString("base64")) {
+    remember(header!);
+    return NextResponse.next();
+  }
+
+  const creds = parseBasicAuth(header);
+  let hasUsers = false;
+  try {
+    const { db } = await import("@/db");
+    const { appUsers } = await import("@/db/schema");
+    const { authenticate } = await import("@/lib/auth/users");
+    hasUsers = (await db.select({ id: appUsers.id }).from(appUsers).limit(1)).length > 0;
+    if (creds && hasUsers && (await authenticate(db, creds.username, creds.password))) {
+      remember(header!);
+      return NextResponse.next();
+    }
+  } catch {
+    // The database is unreachable: fall back to the env pair alone rather than
+    // locking the app open or shut on an outage.
+  }
+
+  // Nothing configured anywhere — local dev runs open, as it always has.
+  if (!envUser && !envPassword && !hasUsers) return NextResponse.next();
+  return challenge();
 }
 
 export const config = {

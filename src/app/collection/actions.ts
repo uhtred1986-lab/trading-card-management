@@ -1,10 +1,10 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { cardPrints, ownedCards } from "@/db/schema";
-import { currentUser } from "@/lib/auth";
+import { currentOwner } from "@/lib/auth";
 import { addCardsToDeck } from "@/lib/decks/add";
 import { expand } from "@/lib/collection/lots";
 import { CONDITIONS, FINISHES } from "@/lib/collection/queries";
@@ -21,6 +21,8 @@ export interface LotInput {
   pricePaid?: string | null;
   currency?: string;
   notes?: string | null;
+  /** Whose card this is; defaults to the logged-in user's owner name. */
+  owner?: string | null;
 }
 
 /** The stored shape of one physical card — no quantity; see lib/collection/lots.ts. */
@@ -41,10 +43,14 @@ async function cardIdForPrint(printId: string): Promise<string> {
   return print.cardId;
 }
 
-function revalidate(cardId: string) {
+function revalidateCards(cardIds: Iterable<string>) {
   revalidatePath("/");
   revalidatePath("/collection");
-  revalidatePath(`/cards/${encodeURIComponent(cardId)}`);
+  for (const id of new Set(cardIds)) revalidatePath(`/cards/${encodeURIComponent(id)}`);
+}
+
+function revalidate(cardId: string) {
+  revalidateCards([cardId]);
 }
 
 /**
@@ -53,7 +59,8 @@ function revalidate(cardId: string) {
  * that deck (leader slot / Z-deck / main by card type).
  */
 export async function addLot(input: LotInput, deckId: number | null = null): Promise<{ ids: number[]; cardId: string; added: number; deckAdded: number }> {
-  const [cardId, owner] = await Promise.all([cardIdForPrint(input.printId), currentUser()]);
+  const [cardId, fallback] = await Promise.all([cardIdForPrint(input.printId), currentOwner()]);
+  const owner = input.owner?.trim() || fallback;
   const rows = expand({ printId: input.printId, cardId, owner, ...normalise(input) }, input.quantity);
   const result = await db.transaction(async (tx) => {
     const inserted = await tx.insert(ownedCards).values(rows).returning({ id: ownedCards.id });
@@ -69,8 +76,8 @@ export async function addLot(input: LotInput, deckId: number | null = null): Pro
 export async function addLots(inputs: LotInput[], deckId: number | null = null): Promise<{ added: number; deckAdded: number }> {
   const clean = inputs.filter((i) => i.printId);
   if (clean.length === 0) return { added: 0, deckAdded: 0 };
-  const [cardIds, owner] = await Promise.all([Promise.all(clean.map((i) => cardIdForPrint(i.printId))), currentUser()]);
-  const rows = clean.flatMap((i, idx) => expand({ printId: i.printId, cardId: cardIds[idx], owner, ...normalise(i) }, i.quantity));
+  const [cardIds, fallback] = await Promise.all([Promise.all(clean.map((i) => cardIdForPrint(i.printId))), currentOwner()]);
+  const rows = clean.flatMap((i, idx) => expand({ printId: i.printId, cardId: cardIds[idx], owner: i.owner?.trim() || fallback, ...normalise(i) }, i.quantity));
   const deckAdded = await db.transaction(async (tx) => {
     await tx.insert(ownedCards).values(rows);
     return deckId ? (await addCardsToDeck(tx as unknown as typeof db, deckId, rows.map((r) => ({ cardId: r.cardId, quantity: 1 })))).added : 0;
@@ -166,7 +173,7 @@ export async function addCopyAction(cardId: string): Promise<CopyRow[]> {
   await db.insert(ownedCards).values({
     printId,
     cardId,
-    owner: await currentUser(),
+    owner: await currentOwner(),
     condition: like?.condition ?? "NM",
     finish: like?.finish ?? "normal",
     language: like?.language ?? "EN",
@@ -223,4 +230,68 @@ export async function addLotForm(formData: FormData) {
 
 export async function deleteLotForm(formData: FormData) {
   await deleteLot(Number(formData.get("id")));
+}
+
+// ── Bulk edits from the collection list ────────────────────────────────────
+// The list selects individual physical cards, so every one of these takes lot
+// ids and touches exactly the copies that were ticked — never a whole card.
+
+/** A stray id list this long is not a real selection; the whole collection is. */
+const MAX_BULK = 20000;
+
+function cleanIds(lotIds: number[]): number[] {
+  return [...new Set(lotIds.filter((n) => Number.isInteger(n) && n > 0))].slice(0, MAX_BULK);
+}
+
+/** Re-assign the selected copies to an owner, or to nobody. */
+export async function bulkSetOwnerAction(lotIds: number[], owner: string | null): Promise<{ updated: number }> {
+  const ids = cleanIds(lotIds);
+  if (ids.length === 0) return { updated: 0 };
+  const clean = owner?.trim().slice(0, 64) || null;
+  const rows = await db
+    .update(ownedCards)
+    .set({ owner: clean, updatedAt: new Date() })
+    .where(inArray(ownedCards.id, ids))
+    .returning({ cardId: ownedCards.cardId });
+  revalidateCards(rows.map((r) => r.cardId));
+  return { updated: rows.length };
+}
+
+/** Mark the selected copies foil or non-foil — this changes what they are worth. */
+export async function bulkSetFinishAction(lotIds: number[], foil: boolean): Promise<{ updated: number }> {
+  const ids = cleanIds(lotIds);
+  if (ids.length === 0) return { updated: 0 };
+  const rows = await db
+    .update(ownedCards)
+    .set({ finish: foil ? "foil" : "normal", updatedAt: new Date() })
+    .where(inArray(ownedCards.id, ids))
+    .returning({ cardId: ownedCards.cardId });
+  revalidateCards(rows.map((r) => r.cardId));
+  return { updated: rows.length };
+}
+
+export async function bulkDeleteCopiesAction(lotIds: number[]): Promise<{ deleted: number }> {
+  const ids = cleanIds(lotIds);
+  if (ids.length === 0) return { deleted: 0 };
+  const rows = await db.delete(ownedCards).where(inArray(ownedCards.id, ids)).returning({ cardId: ownedCards.cardId });
+  revalidateCards(rows.map((r) => r.cardId));
+  return { deleted: rows.length };
+}
+
+/**
+ * Send the selected copies' cards to a deck. Two ticked copies of one card ask
+ * for two slots; `addCardsToDeck` still never caps or replaces, so an illegal
+ * count is flagged on the deck rather than silently dropped.
+ */
+export async function bulkAddToDeckAction(lotIds: number[], deckId: number): Promise<{ added: number }> {
+  const ids = cleanIds(lotIds);
+  if (ids.length === 0 || !deckId) return { added: 0 };
+  const rows = await db.select({ cardId: ownedCards.cardId }).from(ownedCards).where(inArray(ownedCards.id, ids));
+  const totals = new Map<string, number>();
+  for (const r of rows) totals.set(r.cardId, (totals.get(r.cardId) ?? 0) + 1);
+  const result = await addCardsToDeck(db, deckId, [...totals].map(([cardId, quantity]) => ({ cardId, quantity })));
+  revalidatePath(`/decks/${deckId}`);
+  revalidatePath("/decks");
+  revalidateCards([...totals.keys()]);
+  return result;
 }

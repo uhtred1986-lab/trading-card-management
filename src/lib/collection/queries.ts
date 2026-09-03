@@ -1,6 +1,7 @@
 import { asc, desc, eq, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { cardPrints, cardSets, cards, ownedCards } from "@/db/schema";
+import type { Currency } from "@/lib/money";
 import { latestUsdEur } from "@/lib/pricing/fx";
 import { basePricesAsOf, priceForFinish, pricesForPrints } from "@/lib/pricing/queries";
 
@@ -212,6 +213,116 @@ export async function collectionCards(
       break;
   }
   return { rows, usdEur };
+}
+
+export interface CollectionCopy {
+  /** `owned_cards.id` — the identity of one physical card. */
+  id: number;
+  cardId: string;
+  name: string;
+  setCode: string;
+  setName: string;
+  cardType: string;
+  colors: string[];
+  rarityCode: string;
+  imageUrl: string | null;
+  isBanned: boolean;
+  isLimited: boolean;
+  printId: string;
+  printLabel: string;
+  condition: string;
+  finish: string;
+  language: string;
+  owner: string | null;
+  acquiredOn: string | null;
+  pricePaidCents: number | null;
+  currency: Currency;
+  /** Market value of this one copy in EUR cents; null when unpriced. */
+  marketEurCents: number | null;
+}
+
+/**
+ * One row per physical card, for the collection's list view. The grid
+ * aggregates by card id; this deliberately does not, because the things you
+ * select and re-own are individual copies, not the card.
+ */
+export async function collectionCopies(
+  db: Db,
+  opts: { q?: string; set?: string; finish?: "foil" | "normal"; sort?: "value" | "name" | "number" | "recent" } = {},
+): Promise<{ rows: CollectionCopy[]; usdEur: number | null }> {
+  const [lots, usdEur] = await Promise.all([
+    db
+      .select({
+        id: ownedCards.id,
+        cardId: ownedCards.cardId,
+        printId: ownedCards.printId,
+        printLabel: cardPrints.label,
+        condition: ownedCards.condition,
+        finish: ownedCards.finish,
+        language: ownedCards.language,
+        owner: ownedCards.owner,
+        acquiredOn: ownedCards.acquiredOn,
+        pricePaidCents: ownedCards.pricePaidCents,
+        currency: ownedCards.currency,
+        name: cards.name,
+        setCode: cards.setCode,
+        setName: cardSets.name,
+        cardType: cards.cardType,
+        colors: cards.colors,
+        rarityCode: cards.rarityCode,
+        imageUrl: cards.imageUrl,
+        isBanned: cards.isBanned,
+        isLimited: cards.isLimited,
+        searchText: cards.searchText,
+        setSort: cardSets.sortKey,
+      })
+      .from(ownedCards)
+      .innerJoin(cardPrints, eq(cardPrints.id, ownedCards.printId))
+      .innerJoin(cards, eq(cards.id, ownedCards.cardId))
+      .innerJoin(cardSets, eq(cardSets.code, cards.setCode)),
+    latestUsdEur(db),
+  ]);
+
+  const prices = await pricesForPrints(db, [...new Set(lots.map((l) => l.printId))]);
+  let rows = lots.map((l) => {
+    const usd = priceForFinish(prices.get(l.printId), l.finish);
+    return {
+      ...l,
+      // Written as EUR|USD by `normalise`; narrowed here so `formatCents` accepts it.
+      currency: (l.currency === "USD" ? "USD" : "EUR") as Currency,
+      marketEurCents: usd != null && usdEur != null ? Math.round(usd * usdEur) : null,
+    };
+  });
+
+  if (opts.set) rows = rows.filter((r) => r.setCode === opts.set);
+  // Unlike the grid, filtering by finish drops the copies that don't match —
+  // in a per-copy list the row *is* the finish.
+  if (opts.finish) rows = rows.filter((r) => (opts.finish === "foil" ? r.finish === "foil" : r.finish !== "foil"));
+  if (opts.q) {
+    const terms = opts.q.toLowerCase().split(/\s+/).filter(Boolean);
+    rows = rows.filter((r) => terms.every((t) => r.searchText.includes(t)));
+  }
+
+  const byNumber = (a: (typeof rows)[number], b: (typeof rows)[number]) =>
+    a.setSort - b.setSort || a.cardId.localeCompare(b.cardId) || a.id - b.id;
+  switch (opts.sort) {
+    case "value":
+      rows.sort((a, b) => (b.marketEurCents ?? 0) - (a.marketEurCents ?? 0) || byNumber(a, b));
+      break;
+    case "name":
+      rows.sort((a, b) => a.name.localeCompare(b.name) || byNumber(a, b));
+      break;
+    case "number":
+      rows.sort(byNumber);
+      break;
+    default:
+      rows.sort((a, b) => b.id - a.id);
+  }
+
+  return {
+    usdEur,
+    rows: rows.map(({ searchText: _s, setSort: _k, ...r }) => r),
+  };
 }
 
 /** Value now vs. N days ago for owned cards, base-print Normal price. */

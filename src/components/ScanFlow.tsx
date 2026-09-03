@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
-import { completeBatchAction, createBatchAction, deleteBatchAction, setBatchDeckAction, updateScanItemAction } from "@/app/add/scan/actions";
+import { completeBatchAction, createBatchAction, deleteBatchAction, setBatchDeckAction, setBatchOwnerAction, updateScanItemAction } from "@/app/add/scan/actions";
 import { printsForCardAction } from "@/app/collection/actions";
 import type { ScanCandidate, ScanDetection } from "@/lib/ai/scan";
 import { REVIEW_THRESHOLD, type Box } from "@/lib/ai/scan-match";
@@ -13,6 +13,7 @@ import { downscaleImage } from "@/lib/scan/downscale";
 import { CardImage } from "./CardImage";
 import { CardSearchInput, type CardHit } from "./CardSearchInput";
 import { DeckPicker } from "./DeckPicker";
+import { OwnerPicker } from "./OwnerPicker";
 
 interface Photo {
   /** Server photo id, or a negative temporary key until the upload returns. */
@@ -86,6 +87,8 @@ export function ScanFlow({
   items: initialItems,
   decks,
   deckId: initialDeckId,
+  owner: initialOwner,
+  owners,
 }: {
   batchId: number | null;
   batchName: string | null;
@@ -94,12 +97,21 @@ export function ScanFlow({
   items: ScanItemRow[];
   decks: DeckOption[];
   deckId: number | null;
+  owner: string | null;
+  owners: string[];
 }) {
   const [batchId, setBatchId] = useState<number | null>(initialBatchId);
   const batchRef = useRef<number | null>(initialBatchId);
   const [deckId, setDeckId] = useState<number | null>(initialDeckId);
   const deckRef = useRef<number | null>(initialDeckId);
   const [doneDeck, setDoneDeck] = useState<{ id: number; added: number } | null>(null);
+  const [asOwner, setAsOwner] = useState<string | null>(initialOwner);
+  const ownerRef = useRef<string | null>(initialOwner);
+  const chooseOwner = (o: string | null) => {
+    setAsOwner(o);
+    ownerRef.current = o;
+    if (batchRef.current) void setBatchOwnerAction(batchRef.current, o);
+  };
   const chooseDeck = (id: number | null) => {
     setDeckId(id);
     deckRef.current = id;
@@ -134,7 +146,7 @@ export function ScanFlow({
 
   const ensureBatch = async (): Promise<number> => {
     if (batchRef.current) return batchRef.current;
-    const id = await createBatchAction(modeRef.current, deckRef.current);
+    const id = await createBatchAction(modeRef.current, deckRef.current, ownerRef.current);
     batchRef.current = id;
     setBatchId(id);
     window.history.replaceState(null, "", `/add/scan?batch=${id}`);
@@ -270,7 +282,10 @@ export function ScanFlow({
         </p>
       </div>
 
-      <DeckPicker decks={decks} value={deckId} onChange={chooseDeck} />
+      <div className="grid gap-2 sm:grid-cols-2">
+        <OwnerPicker owners={owners} value={asOwner} onChange={chooseOwner} label="These cards belong to" />
+        <DeckPicker decks={decks} value={deckId} onChange={chooseDeck} />
+      </div>
 
       {done != null ? (
         <p className="rounded-xl border border-gain/40 bg-gain/5 p-3 text-sm text-gain">

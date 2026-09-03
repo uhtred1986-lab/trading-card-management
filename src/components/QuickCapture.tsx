@@ -11,6 +11,7 @@ import { downscaleImage } from "@/lib/scan/downscale";
 import { CardImage } from "./CardImage";
 import { CardSearchInput, type CardHit } from "./CardSearchInput";
 import { DeckPicker } from "./DeckPicker";
+import { OwnerPicker } from "./OwnerPicker";
 
 interface Saved {
   /** One id per physical card saved — undo removes them all. */
@@ -28,9 +29,10 @@ type Phase = { kind: "idle" } | { kind: "reading"; preview: string } | { kind: "
  * Phone loop: take a photo → identified at once → confirm quantity with big
  * buttons → saved → camera opens again. Nothing is stored until "Save".
  */
-export function QuickCapture({ owner, decks }: { owner: string | null; decks: DeckOption[] }) {
+export function QuickCapture({ owner, decks, owners }: { owner: string | null; decks: DeckOption[]; owners: string[] }) {
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
   const [deckId, setDeckId] = useState<number | null>(null);
+  const [asOwner, setAsOwner] = useState<string | null>(owner);
   const [deckName, setDeckName] = useState<string | null>(null);
   const [chosen, setChosen] = useState<ScanCandidate | null>(null);
   const [manual, setManual] = useState(false);
@@ -88,9 +90,9 @@ export function QuickCapture({ owner, decks }: { owner: string | null; decks: De
     if (!chosen || !printId) return;
     // Opening the camera must happen inside the click handler to count as a user gesture.
     if (autoNext) openCamera();
-    const snapshot = { chosen, printId, quantity, condition, finish, deckId };
+    const snapshot = { chosen, printId, quantity, condition, finish, deckId, owner: asOwner };
     start(async () => {
-      const { ids } = await addLot({ printId: snapshot.printId, quantity: snapshot.quantity, condition: snapshot.condition, finish: snapshot.finish }, snapshot.deckId);
+      const { ids } = await addLot({ printId: snapshot.printId, quantity: snapshot.quantity, condition: snapshot.condition, finish: snapshot.finish, owner: snapshot.owner }, snapshot.deckId);
       setSaved((s) => [
         { lotIds: ids, cardId: snapshot.chosen.id, name: snapshot.chosen.name, imageUrl: snapshot.chosen.imageUrl, quantity: snapshot.quantity, printLabel: snapshot.chosen.prints.find((p) => p.id === snapshot.printId)?.label ?? "" },
         ...s,
@@ -115,6 +117,8 @@ export function QuickCapture({ owner, decks }: { owner: string | null; decks: De
   return (
     <div className="mx-auto max-w-md space-y-4">
       <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => onFile(e.target.files?.[0])} />
+
+      <OwnerPicker owners={owners} value={asOwner} onChange={setAsOwner} label="These cards belong to" />
 
       <DeckPicker
         decks={decks}
@@ -303,7 +307,7 @@ export function QuickCapture({ owner, decks }: { owner: string | null; decks: De
           <h2 className="mb-1 flex items-baseline justify-between text-sm font-semibold uppercase tracking-wider text-space-300">
             Added this session
             <span className="text-xs font-normal normal-case">
-              {saved.reduce((n, s) => n + s.quantity, 0)} cards{owner ? ` · owner ${owner}` : ""}
+              {saved.reduce((n, s) => n + s.quantity, 0)} cards{asOwner ? ` · owner ${asOwner}` : ""}
               {deckId ? (
                 <>
                   {" · → "}

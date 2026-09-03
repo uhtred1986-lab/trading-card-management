@@ -1,13 +1,15 @@
 import Link from "next/link";
 import { db } from "@/db";
-import { currentUser } from "@/lib/auth";
+import { currentOwner } from "@/lib/auth";
 import { deckOptions } from "@/lib/decks/add";
+import { ownerOptions } from "@/lib/collection/owners";
 import { QuickCapture } from "@/components/QuickCapture";
 
 export const dynamic = "force-dynamic";
 
 export default async function QuickPage() {
-  const [owner, decks] = await Promise.all([currentUser(), deckOptions(db)]);
+  const owner = await currentOwner();
+  const [decks, owners] = await Promise.all([deckOptions(db), ownerOptions(db, owner)]);
   return (
     <div className="space-y-3">
       <div className="flex items-baseline gap-3">
@@ -17,7 +19,7 @@ export default async function QuickPage() {
         <h1 className="text-xl font-semibold text-space-50">Quick capture</h1>
         <span className="ml-auto text-xs text-space-400">{owner ? `as ${owner}` : "no login — owner not recorded"}</span>
       </div>
-      <QuickCapture owner={owner} decks={decks} />
+      <QuickCapture owner={owner} decks={decks} owners={owners} />
     </div>
   );
 }

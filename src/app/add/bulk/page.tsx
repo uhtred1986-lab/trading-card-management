@@ -1,12 +1,15 @@
 import Link from "next/link";
 import { db } from "@/db";
 import { deckOptions } from "@/lib/decks/add";
+import { ownerOptions } from "@/lib/collection/owners";
+import { currentOwner } from "@/lib/auth";
 import { BulkEntry } from "@/components/BulkEntry";
 
 export const dynamic = "force-dynamic";
 
 export default async function BulkPage() {
-  const decks = await deckOptions(db);
+  const owner = await currentOwner();
+  const [decks, owners] = await Promise.all([deckOptions(db), ownerOptions(db, owner)]);
   return (
     <div className="space-y-3">
       <div className="flex items-baseline gap-3">
@@ -15,7 +18,7 @@ export default async function BulkPage() {
         </Link>
         <h1 className="text-xl font-semibold text-space-50">Bulk entry</h1>
       </div>
-      <BulkEntry decks={decks} />
+      <BulkEntry decks={decks} owner={owner} owners={owners} />
     </div>
   );
 }

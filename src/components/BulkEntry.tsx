@@ -8,6 +8,7 @@ import type { DeckOption } from "@/lib/decks/add";
 import { CardImage } from "./CardImage";
 import { CardSearchInput, type CardHit as Hit } from "./CardSearchInput";
 import { DeckPicker } from "./DeckPicker";
+import { OwnerPicker } from "./OwnerPicker";
 import { VoiceEntry } from "./VoiceEntry";
 
 type Print = { id: string; label: string };
@@ -44,11 +45,12 @@ const totalOf = (r: Row) => countOf(r.normal) + countOf(r.foil);
  * to Foil → **Tab** opens a fresh row. Print, condition and price sit outside
  * that tab order (`tabIndex={-1}`); they default sensibly and stay clickable.
  */
-export function BulkEntry({ decks }: { decks: DeckOption[] }) {
+export function BulkEntry({ decks, owner, owners }: { decks: DeckOption[]; owner: string | null; owners: string[] }) {
   const [rows, setRows] = useState<Row[]>([blank()]);
   const [active, setActive] = useState(0);
   const [saved, setSaved] = useState<{ added: number; deckAdded: number; deckId: number | null } | null>(null);
   const [deckId, setDeckId] = useState<number | null>(null);
+  const [asOwner, setAsOwner] = useState<string | null>(owner);
   const [pending, start] = useTransition();
   const [defaults, setDefaults] = useState({ condition: "NM", acquiredOn: "", language: "EN" });
 
@@ -101,7 +103,7 @@ export function BulkEntry({ decks }: { decks: DeckOption[] }) {
       const inputs: LotInput[] = [];
       for (const r of rows) {
         if (!r.card || !r.printId) continue;
-        const common = { printId: r.printId, condition: r.condition, pricePaid: r.pricePaid || null, acquiredOn: defaults.acquiredOn || null, language: defaults.language };
+        const common = { printId: r.printId, condition: r.condition, pricePaid: r.pricePaid || null, acquiredOn: defaults.acquiredOn || null, language: defaults.language, owner: asOwner };
         const n = countOf(r.normal);
         const f = countOf(r.foil);
         if (n > 0) inputs.push({ ...common, quantity: n, finish: "normal" });
@@ -122,7 +124,10 @@ export function BulkEntry({ decks }: { decks: DeckOption[] }) {
     <div className="space-y-3">
       <VoiceEntry onCard={addVoiceRow} />
 
-      <DeckPicker decks={decks} value={deckId} onChange={(id) => setDeckId(id)} />
+      <div className="grid gap-2 sm:grid-cols-2">
+        <OwnerPicker owners={owners} value={asOwner} onChange={setAsOwner} label="These cards belong to" />
+        <DeckPicker decks={decks} value={deckId} onChange={(id) => setDeckId(id)} />
+      </div>
 
       <div className="flex flex-wrap items-end gap-2 rounded-xl border border-space-700/70 bg-space-900/50 p-3 text-xs text-space-300">
         <label>

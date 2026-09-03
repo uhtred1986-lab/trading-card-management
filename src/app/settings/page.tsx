@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { db } from "@/db";
 import { lastSyncRuns } from "@/lib/sync";
 import { syncCardTraderAction, syncCatalogAction, syncPricesAction } from "./actions";
@@ -44,6 +45,18 @@ export default async function SettingsPage() {
           button="Sync CardTrader"
           disabled={!cardTraderLive}
         />
+      </section>
+
+      <section className="rounded-xl border border-space-700/70 bg-space-900/50 p-3 text-sm">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="font-semibold text-space-50">Logins & owners</h2>
+          <Link href="/settings/users" className="tap rounded-md border border-space-600 px-3 py-1 text-xs text-space-100 hover:bg-space-800">
+            Manage logins →
+          </Link>
+        </div>
+        <p className="mt-1 text-xs text-space-300">
+          Add people who can sign in, change their passwords, and choose the owner name each login records on the cards it adds.
+        </p>
       </section>
 
       <section className="rounded-xl border border-space-700/70 bg-space-900/50 p-3 text-sm">

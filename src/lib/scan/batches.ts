@@ -47,6 +47,7 @@ export interface ScanBatchSummary {
   mode: ScanMode;
   deckId: number | null;
   deckName: string | null;
+  owner: string | null;
   createdAt: Date;
   updatedAt: Date;
   photos: number;
@@ -64,9 +65,13 @@ function defaultName(now = new Date()): string {
   return `Scan ${now.toISOString().slice(0, 10)} ${now.toISOString().slice(11, 16)}`;
 }
 
-export async function createBatch(db: Db, mode: ScanMode, deckId: number | null = null): Promise<number> {
-  const [row] = await db.insert(scanBatches).values({ name: defaultName(), mode, deckId }).returning({ id: scanBatches.id });
+export async function createBatch(db: Db, mode: ScanMode, deckId: number | null = null, owner: string | null = null): Promise<number> {
+  const [row] = await db.insert(scanBatches).values({ name: defaultName(), mode, deckId, owner }).returning({ id: scanBatches.id });
   return row.id;
+}
+
+export async function setBatchOwner(db: Db, batchId: number, owner: string | null): Promise<void> {
+  await db.update(scanBatches).set({ owner: owner?.trim() || null, updatedAt: new Date() }).where(eq(scanBatches.id, batchId));
 }
 
 export async function setBatchDeck(db: Db, batchId: number, deckId: number | null): Promise<void> {
@@ -75,7 +80,7 @@ export async function setBatchDeck(db: Db, batchId: number, deckId: number | nul
 
 export async function listOpenBatches(db: Db): Promise<ScanBatchSummary[]> {
   const batches = await db
-    .select({ id: scanBatches.id, name: scanBatches.name, mode: scanBatches.mode, deckId: scanBatches.deckId, deckName: decks.name, createdAt: scanBatches.createdAt, updatedAt: scanBatches.updatedAt })
+    .select({ id: scanBatches.id, name: scanBatches.name, mode: scanBatches.mode, deckId: scanBatches.deckId, deckName: decks.name, owner: scanBatches.owner, createdAt: scanBatches.createdAt, updatedAt: scanBatches.updatedAt })
     .from(scanBatches)
     .leftJoin(decks, eq(decks.id, scanBatches.deckId))
     .where(eq(scanBatches.status, "open"))
@@ -102,6 +107,7 @@ export async function listOpenBatches(db: Db): Promise<ScanBatchSummary[]> {
       mode: b.mode as ScanMode,
       deckId: b.deckId,
       deckName: b.deckName,
+      owner: b.owner,
       createdAt: b.createdAt,
       updatedAt: b.updatedAt,
       photos: photos.get(b.id) ?? 0,
@@ -112,7 +118,7 @@ export async function listOpenBatches(db: Db): Promise<ScanBatchSummary[]> {
   });
 }
 
-export async function getBatch(db: Db, id: number): Promise<{ batch: { id: number; name: string; mode: ScanMode; status: string; deckId: number | null }; photos: ScanPhotoMeta[]; items: ScanItemRow[] } | null> {
+export async function getBatch(db: Db, id: number): Promise<{ batch: { id: number; name: string; mode: ScanMode; status: string; deckId: number | null; owner: string | null }; photos: ScanPhotoMeta[]; items: ScanItemRow[] } | null> {
   const batch = await db.query.scanBatches.findFirst({ where: eq(scanBatches.id, id) });
   if (!batch) return null;
   const [photos, items] = await Promise.all([
@@ -134,7 +140,7 @@ export async function getBatch(db: Db, id: number): Promise<{ batch: { id: numbe
     db.select().from(scanItems).where(eq(scanItems.batchId, id)).orderBy(asc(scanItems.photoId), asc(scanItems.idx)),
   ]);
   return {
-    batch: { id: batch.id, name: batch.name, mode: batch.mode as ScanMode, status: batch.status, deckId: batch.deckId },
+    batch: { id: batch.id, name: batch.name, mode: batch.mode as ScanMode, status: batch.status, deckId: batch.deckId, owner: batch.owner },
     photos: photos.map((p) => ({ ...p, status: p.status as ScanPhotoMeta["status"] })),
     items: items.map(rowToItem),
   };
@@ -229,7 +235,8 @@ async function touch(db: Db, batchId: number): Promise<void> {
  */
 export async function completeBatch(db: Db, batchId: number, owner: string | null = null): Promise<{ added: number; deckAdded: number; deckId: number | null }> {
   return db.transaction(async (tx) => {
-    const batch = await tx.query.scanBatches.findFirst({ where: eq(scanBatches.id, batchId), columns: { deckId: true } });
+    const batch = await tx.query.scanBatches.findFirst({ where: eq(scanBatches.id, batchId), columns: { deckId: true, owner: true } });
+    const lotOwner = batch?.owner ?? owner;
     const items = await tx.select().from(scanItems).where(and(eq(scanItems.batchId, batchId), eq(scanItems.include, true)));
     const printIds = [...new Set(items.map((i) => i.printId).filter((p): p is string => !!p))];
     const prints = printIds.length ? await tx.select({ id: cardPrints.id, cardId: cardPrints.cardId }).from(cardPrints).where(inArray(cardPrints.id, printIds)) : [];
@@ -237,7 +244,7 @@ export async function completeBatch(db: Db, batchId: number, owner: string | nul
     // A reviewed row saying "3" becomes three rows — one per physical card.
     const lots = items
       .filter((i) => i.printId && cardOf.has(i.printId))
-      .flatMap((i) => expand({ printId: i.printId!, cardId: cardOf.get(i.printId!)!, condition: i.condition, finish: i.finish, owner }, i.quantity));
+      .flatMap((i) => expand({ printId: i.printId!, cardId: cardOf.get(i.printId!)!, condition: i.condition, finish: i.finish, owner: lotOwner }, i.quantity));
     if (lots.length) await tx.insert(ownedCards).values(lots);
     const added = lots.length;
     const deckId = batch?.deckId ?? null;

@@ -375,6 +375,8 @@ export const scanBatches = pgTable("scan_batches", {
   status: text("status").notNull().default("open"),
   /** Deck the confirmed cards are also added to, if one was chosen. */
   deckId: integer("deck_id").references(() => decks.id, { onDelete: "set null" }),
+  /** Who the scanned cards belong to; chosen on the phone, honoured on the PC. */
+  owner: text("owner"),
   addedCount: integer("added_count"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -446,6 +448,24 @@ export const aiRuns = pgTable(
   },
   (t) => [index("ai_runs_deck_idx").on(t.deckId)],
 );
+
+/**
+ * Logins. The app has no session system: `src/proxy.ts` checks HTTP Basic Auth
+ * against these rows (and against the BASIC_AUTH_* env pair, which always works
+ * so a bad row can't lock everyone out). `owner` is what gets stamped on cards
+ * this person adds, so two logins can share one owner or one login can add on
+ * someone else's behalf.
+ */
+export const appUsers = pgTable("app_users", {
+  id: serial("id").primaryKey(),
+  username: text("username").notNull().unique(),
+  /** scrypt$<salt hex>$<key hex> — see src/lib/auth/password.ts. */
+  passwordHash: text("password_hash").notNull(),
+  owner: text("owner").notNull(),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
 
 /** Key/value app settings (default currency, preferences, …). */
 export const settings = pgTable("settings", {

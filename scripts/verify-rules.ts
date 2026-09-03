@@ -8,11 +8,13 @@ import { legality, parseDeckList, type DeckCardRow } from "../src/lib/decks/quer
 import { formatCents, parseEuroInput } from "../src/lib/money";
 import { markerOf, matchProduct } from "../src/lib/pricing/tcgcsv";
 import { greedyOptimise, type Listing } from "../src/lib/marketplace/optimizer";
-import { parseBasicUser } from "../src/lib/auth";
+import { parseBasicAuth, parseBasicUser } from "../src/lib/auth-header";
+import { hashPassword, passwordProblem, usernameProblem, verifyPassword } from "../src/lib/auth/password";
 import { normaliseSpeech, parseSpoken, spokenQuantity } from "../src/lib/scan/voice";
 import { collectorNumbers } from "../src/lib/marketplace/cardtrader";
 import { sanitiseDraft, type PoolCard } from "../src/lib/ai/deck-builder";
 import { assessMatch, cleanBox, nameSimilarity, normaliseNumber } from "../src/lib/ai/scan-match";
+import { parseViewMode, viewHref } from "../src/lib/view-mode";
 
 // ── catalog shaping ────────────────────────────────────────────────────────
 assert.equal(baseNumber("BT18-020_SPR"), "BT18-020");
@@ -273,6 +275,23 @@ assert.equal(parseBasicUser(`Basic ${Buffer.from("patvolny:Drag0nball!").toStrin
 assert.equal(parseBasicUser(`Basic ${Buffer.from("a:b:c").toString("base64")}`), "a", "only the part before the first colon");
 assert.equal(parseBasicUser("Bearer xyz"), null);
 assert.equal(parseBasicUser(null), null);
+// A password may itself contain colons; only the first one separates.
+assert.deepEqual(parseBasicAuth(`Basic ${Buffer.from("anna:p:a:ss").toString("base64")}`), { username: "anna", password: "p:a:ss" });
+assert.equal(parseBasicAuth("Basic not-base64!!"), null);
+
+// ── stored passwords ──────────────────────────────────────────────────────
+const stored = hashPassword("correct horse battery");
+assert.match(stored, /^scrypt\$[0-9a-f]{32}\$[0-9a-f]{128}$/, "salt and key are stored, never the password");
+assert.ok(verifyPassword("correct horse battery", stored));
+assert.ok(!verifyPassword("Correct horse battery", stored), "case matters");
+assert.ok(!verifyPassword("", stored));
+assert.notEqual(hashPassword("same"), hashPassword("same"), "a fresh salt every time");
+assert.ok(!verifyPassword("anything", "not-a-hash"), "a malformed hash never authenticates");
+assert.equal(passwordProblem("short"), "Use at least 8 characters.");
+assert.equal(passwordProblem("long enough"), null);
+assert.equal(usernameProblem("a"), "2–32 characters: letters, digits, dot, dash or underscore.");
+assert.equal(usernameProblem("anna.k"), null);
+assert.ok(usernameProblem("has space"), "spaces are rejected");
 
 // ── cart optimiser ─────────────────────────────────────────────────────────
 const L = (seller: string, card: string, price: number, qty = 4, shipping = 300): Listing => ({
@@ -297,5 +316,16 @@ assert.equal(plan.totalCents, 300 + 300); // 2×100 + 1×100 + one shipping fee
 const short = greedyOptimise([{ cardId: "A", quantity: 3 }], [L("s1", "A", 100, 2)]);
 assert.equal(short.missing[0]?.cardId, "A");
 assert.equal(short.missing[0]?.quantity, 1);
+
+// ── image ⇄ list view toggle ───────────────────────────────────────────────
+assert.equal(parseViewMode("list"), "list");
+assert.equal(parseViewMode("grid"), "grid");
+assert.equal(parseViewMode(undefined), "grid", "grid is the default everywhere");
+assert.equal(parseViewMode("gallery"), "grid", "an unknown value is not an error");
+assert.equal(parseViewMode(undefined, "list"), "list");
+// Filters survive the switch; the default view drops out of the URL.
+assert.equal(viewHref("/collection", { q: "goku", set: "BT18" }, "list"), "/collection?q=goku&set=BT18&view=list");
+assert.equal(viewHref("/collection", { q: "goku", view: "list" }, "grid"), "/collection?q=goku");
+assert.equal(viewHref("/cards", { q: undefined, set: "" }, "grid"), "/cards");
 
 console.log("verify-rules: all checks passed");
