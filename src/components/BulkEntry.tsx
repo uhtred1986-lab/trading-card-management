@@ -138,7 +138,9 @@ export function BulkEntry({ decks, owner, owners }: { decks: DeckOption[]; owner
   const ready = rows.filter((r) => r.card && r.printId && totalOf(r) > 0);
   const totalCards = ready.reduce((n, r) => n + totalOf(r), 0);
   const input = "tap w-full rounded-md border border-space-600 bg-space-900 px-2 py-1 text-sm text-space-100";
-  const counter = `${input} text-center tabular-nums`;
+  // Not `input`: inside the stepper the field has to flex between the two
+  // buttons, and `w-full` there squeezes the digits out of sight.
+  const counter = "tap w-10 min-w-0 flex-1 rounded-md border border-space-600 bg-space-900 px-1 py-1 text-center text-sm tabular-nums text-space-100";
 
   return (
     <div className="space-y-3">
@@ -192,8 +194,8 @@ export function BulkEntry({ decks, owner, owners }: { decks: DeckOption[]; owner
           <thead className="bg-space-900 text-left text-xs uppercase tracking-wide text-space-300">
             <tr>
               <th className="px-2 py-2">Card</th>
-              <th className="w-20 px-2 py-2">Non-foil</th>
-              <th className="w-20 px-2 py-2 text-amber-300">✦ Foil</th>
+              <th className="w-32 px-2 py-2">Non-foil</th>
+              <th className="w-32 px-2 py-2 text-amber-300">✦ Foil</th>
               <th className="px-2 py-2 font-normal normal-case text-space-400">Print</th>
               <th className="w-20 px-2 py-2 font-normal normal-case text-space-400">Cond.</th>
               <th className="w-24 px-2 py-2 font-normal normal-case text-space-400">Paid €</th>
@@ -326,7 +328,7 @@ function Stepper({
   tone?: "foil";
 }) {
   const n = parseInt(value, 10) || 0;
-  const button = `tap h-7 w-7 shrink-0 rounded-md border border-space-600 text-sm leading-none ${
+  const button = `h-7 w-6 shrink-0 rounded-md border border-space-600 text-sm leading-none ${
     tone === "foil" ? "text-amber-300 hover:bg-amber-400/10" : "text-space-200 hover:bg-space-800"
   } disabled:opacity-30`;
   return (
