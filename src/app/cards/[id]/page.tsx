@@ -57,6 +57,12 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
               <dd className={`text-xl font-semibold ${a.available < 0 ? "text-loss" : "text-gain"}`}>{a.available}</dd>
             </div>
           </dl>
+          {a.owned > 0 ? (
+            <p className="mt-2 border-t border-space-700 pt-2 text-center text-xs text-space-300">
+              {lots.reduce((n, l) => n + (l.finish === "foil" ? l.quantity : 0), 0)} <span className="text-amber-300">✦ foil</span> ·{" "}
+              {lots.reduce((n, l) => n + (l.finish === "foil" ? 0 : l.quantity), 0)} non-foil
+            </p>
+          ) : null}
           {reservedBy.length ? (
             <ul className="mt-2 space-y-1 border-t border-space-700 pt-2 text-xs text-space-300">
               {reservedBy.map((d) => (

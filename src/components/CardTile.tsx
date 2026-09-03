@@ -19,12 +19,15 @@ export function CardTile({
   card,
   priceLabel,
   ownedQty,
+  foilQty,
   footer,
   href,
 }: {
   card: CardTileData;
   priceLabel?: string | null;
   ownedQty?: number;
+  /** Shown as its own chip so foils are countable without opening the card. */
+  foilQty?: number;
   footer?: React.ReactNode;
   href?: string;
 }) {
@@ -36,8 +39,16 @@ export function CardTile({
       <div className="relative">
         <CardImage src={card.imageUrl} alt={`${card.name} (${card.id})`} />
         {ownedQty ? (
-          <span className="absolute right-1 top-1 rounded-md bg-ki-500 px-1.5 py-0.5 text-xs font-bold text-space-950 shadow">
+          <span className="absolute right-1 top-1 rounded-md bg-ki-500 px-1.5 py-0.5 text-xs font-bold text-space-950 shadow" title={`${ownedQty} owned`}>
             ×{ownedQty}
+          </span>
+        ) : null}
+        {foilQty ? (
+          <span
+            className="absolute right-1 top-[26px] rounded-md bg-gradient-to-r from-yellow-200 via-amber-300 to-yellow-400 px-1.5 py-0.5 text-[10px] font-bold text-space-950 shadow"
+            title={`${foilQty} foil${ownedQty ? ` of ${ownedQty}` : ""}`}
+          >
+            ✦{foilQty}
           </span>
         ) : null}
         {card.isBanned ? (

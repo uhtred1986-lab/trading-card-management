@@ -77,6 +77,11 @@ export async function valuedLots(db: Db): Promise<{ lots: ValuedLot[]; usdEur: n
 export interface CollectionSummary {
   lots: number;
   copies: number;
+  /** Copies by finish — the two always add up to `copies`. */
+  foilCopies: number;
+  normalCopies: number;
+  foilValueEurCents: number;
+  normalValueEurCents: number;
   uniqueCards: number;
   spentEurCents: number;
   /** Copies that have a price paid (spent covers only these). */
@@ -94,10 +99,20 @@ export function summarise(lots: ValuedLot[], usdEur: number | null): CollectionS
   let valueEur = 0;
   let valueUsd = 0;
   let copiesWithValue = 0;
+  let foilCopies = 0;
+  let foilValue = 0;
+  let normalValue = 0;
   const unique = new Set<string>();
   for (const l of lots) {
     copies += l.quantity;
     unique.add(l.cardId);
+    const lotValue = (l.marketEurCents ?? 0) * l.quantity;
+    if (l.finish === "foil") {
+      foilCopies += l.quantity;
+      foilValue += lotValue;
+    } else {
+      normalValue += lotValue;
+    }
     if (l.pricePaidCents != null) {
       // Price paid is stored in the lot's currency; convert USD purchases to EUR.
       const eur = l.currency === "USD" && usdEur != null ? Math.round(l.pricePaidCents * usdEur) : l.pricePaidCents;
@@ -113,6 +128,10 @@ export function summarise(lots: ValuedLot[], usdEur: number | null): CollectionS
   return {
     lots: lots.length,
     copies,
+    foilCopies,
+    normalCopies: copies - foilCopies,
+    foilValueEurCents: foilValue,
+    normalValueEurCents: normalValue,
     uniqueCards: unique.size,
     spentEurCents: spent,
     copiesWithCost,
@@ -126,16 +145,18 @@ export function summarise(lots: ValuedLot[], usdEur: number | null): CollectionS
 /** Per-card aggregation for the collection grid. */
 export async function collectionCards(
   db: Db,
-  opts: { q?: string; set?: string; sort?: "value" | "name" | "number" | "recent" } = {},
+  opts: { q?: string; set?: string; finish?: "foil" | "normal"; sort?: "value" | "name" | "number" | "recent" } = {},
 ) {
   const { lots, usdEur } = await valuedLots(db);
   const byCard = new Map<
     string,
-    { qty: number; valueEur: number; spentEur: number; unpriced: number; latest: number }
+    { qty: number; foilQty: number; normalQty: number; valueEur: number; spentEur: number; unpriced: number; latest: number }
   >();
   for (const l of lots) {
-    const agg = byCard.get(l.cardId) ?? { qty: 0, valueEur: 0, spentEur: 0, unpriced: 0, latest: 0 };
+    const agg = byCard.get(l.cardId) ?? { qty: 0, foilQty: 0, normalQty: 0, valueEur: 0, spentEur: 0, unpriced: 0, latest: 0 };
     agg.qty += l.quantity;
+    if (l.finish === "foil") agg.foilQty += l.quantity;
+    else agg.normalQty += l.quantity;
     if (l.marketEurCents != null) agg.valueEur += l.marketEurCents * l.quantity;
     else agg.unpriced += l.quantity;
     if (l.pricePaidCents != null) agg.spentEur += l.pricePaidCents * l.quantity;
@@ -166,6 +187,9 @@ export async function collectionCards(
 
   let rows = cardRows.map((c) => ({ card: c, ...byCard.get(c.id)! }));
   if (opts.set) rows = rows.filter((r) => r.card.setCode === opts.set);
+  // Filtering by finish keeps the card but both counts stay visible on the tile.
+  if (opts.finish === "foil") rows = rows.filter((r) => r.foilQty > 0);
+  if (opts.finish === "normal") rows = rows.filter((r) => r.normalQty > 0);
   if (opts.q) {
     const terms = opts.q.toLowerCase().split(/\s+/).filter(Boolean);
     rows = rows.filter((r) => terms.every((t) => r.card.searchText.includes(t)));

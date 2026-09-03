@@ -14,11 +14,38 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
   const sp = await searchParams;
   const q = one(sp.q);
   const set = one(sp.set);
+  const finishParam = one(sp.finish);
+  const finish = finishParam === "foil" || finishParam === "normal" ? finishParam : undefined;
   const sort = (one(sp.sort) as "value" | "name" | "number" | "recent" | undefined) ?? "recent";
 
-  const [{ rows, usdEur }, sets, all] = await Promise.all([collectionCards(db, { q, set, sort }), listSets(db), valuedLots(db)]);
-  const s = summarise(all.lots, usdEur);
+  const [{ rows }, sets, all] = await Promise.all([collectionCards(db, { q, set, finish, sort }), listSets(db), valuedLots(db)]);
+  const s = summarise(all.lots, all.usdEur);
   const select = "tap rounded-md border border-space-600 bg-space-900 px-2 py-1.5 text-sm text-space-100";
+
+  const href = (next: string | undefined) => {
+    const p = new URLSearchParams();
+    if (q) p.set("q", q);
+    if (set) p.set("set", set);
+    if (sort !== "recent") p.set("sort", sort);
+    if (next) p.set("finish", next);
+    const qs = p.toString();
+    return qs ? `/collection?${qs}` : "/collection";
+  };
+
+  /** Doubles as the finish filter — the number you are looking at is the button. */
+  const chip = (key: "foil" | "normal" | undefined, label: string, copies: number, value: number, tone: string) => {
+    const active = finish === key;
+    return (
+      <Link
+        href={href(key)}
+        className={`flex items-baseline gap-1.5 rounded-lg border px-2.5 py-1 transition-colors ${active ? "border-ki-500 bg-ki-500/10" : "border-space-700 hover:border-space-500"}`}
+      >
+        <span className={`text-sm font-semibold tabular-nums ${tone}`}>{copies}</span>
+        <span className="text-xs text-space-300">{label}</span>
+        <span className="text-[11px] text-space-400">{formatCents(value)}</span>
+      </Link>
+    );
+  };
 
   return (
     <div className="space-y-4">
@@ -34,7 +61,14 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
         </Link>
       </div>
 
+      <div className="flex flex-wrap items-center gap-2">
+        {chip(undefined, "all copies", s.copies, s.valueEurCents, "text-space-50")}
+        {chip("normal", "non-foil", s.normalCopies, s.normalValueEurCents, "text-space-50")}
+        {chip("foil", "✦ foil", s.foilCopies, s.foilValueEurCents, "text-amber-300")}
+      </div>
+
       <form action="/collection" className="grid grid-cols-2 gap-2 rounded-xl border border-space-700/70 bg-space-900/50 p-3 sm:grid-cols-5">
+        {finish ? <input type="hidden" name="finish" value={finish} /> : null}
         <input type="search" name="q" defaultValue={q ?? ""} placeholder="Filter by name or number" className={`${select} col-span-2`} />
         <select name="set" defaultValue={set ?? ""} className={select}>
           <option value="">All sets</option>
@@ -55,7 +89,7 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
 
       {rows.length === 0 ? (
         <p className="rounded-xl border border-dashed border-space-700 p-8 text-center text-space-300">
-          {s.lots === 0 ? "Nothing here yet." : "No cards match that filter."}
+          {s.lots === 0 ? "Nothing here yet." : finish === "foil" ? "No foils match that filter." : "No cards match that filter."}
         </p>
       ) : (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
@@ -64,6 +98,7 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
               key={r.card.id}
               card={r.card}
               ownedQty={r.qty}
+              foilQty={r.foilQty}
               priceLabel={r.valueEur ? formatCents(r.valueEur) : r.unpriced ? "unpriced" : null}
               footer={
                 r.spentEur ? (
