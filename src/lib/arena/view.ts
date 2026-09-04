@@ -199,6 +199,8 @@ function questionFor(ctx: EngineContext, s: GameState): { kind: string; player: 
       return { kind: pr.kind, player: pr.player, question: "Play a counter?", hint: "Counter cards are activated from hand and go to the Drop." };
     case "chooseCards":
       return { kind: pr.kind, player: pr.player, question: pr.choice.reason, hint: `Choose ${pr.choice.min === pr.choice.max ? pr.choice.min : `${pr.choice.min} to ${pr.choice.max}`}.` };
+    case "chooseMode":
+      return { kind: pr.kind, player: pr.player, question: pr.reason, hint: "The card offers these; exactly one happens (20-2)." };
     case "zEnergyFromCombo":
       return { kind: pr.kind, player: pr.player, question: "Send one combo card to Z-Energy?", hint: "At the end of a battle, one card may go there instead of the Drop." };
     case "offering":

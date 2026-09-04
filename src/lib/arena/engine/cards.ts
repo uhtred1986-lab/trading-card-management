@@ -15,9 +15,12 @@ import type { CardDef, Color, KeywordSkill, Skill, SkillKind } from "./types";
 /** `<br>` and `[br]` separate skill lines; entities are HTML-escaped in some sets. */
 export function skillLines(text: string | null | undefined): string[] {
   if (!text) return [];
-  return text
+  const raw = text
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/\[br\]/gi, "\n")
+    .replace(/\[\/?ul\]/gi, "\n")
+    .replace(/\[li\]/gi, "\n・")
+    .replace(/\[\/li\]/gi, "")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&amp;/g, "&")
@@ -25,7 +28,18 @@ export function skillLines(text: string | null | undefined): string[] {
     .split("\n")
     .map((l) => l.trim())
     .filter(Boolean);
+  // The options of a "Choose one—" are printed on their own lines, but they
+  // are not skills of their own (20-2): they belong to the line above them.
+  const out: string[] = [];
+  for (const line of raw) {
+    if (BULLET.test(line) && out.length) out[out.length - 1] += ` ・${line.replace(BULLET, "").trim()}`;
+    else out.push(line);
+  }
+  return out;
 }
+
+/** The bullet a modal option starts with. The catalog uses several. */
+export const BULLET = /^[・･·•‧]\s*/;
 
 const COLOR_BY_LETTER: Record<string, Color> = { r: "Red", u: "Blue", g: "Green", y: "Yellow", k: "Black" };
 const COLOR_BY_NAME: Record<string, Color> = { red: "Red", blue: "Blue", green: "Green", yellow: "Yellow", black: "Black" };

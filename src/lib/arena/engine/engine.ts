@@ -107,6 +107,7 @@ export function createGame(ctx: EngineContext, opts: GameOptions): Applied {
     continuations: {},
     flow: [],
     lastChoice: null,
+    lastMode: null,
   };
   const ev: GameEvent[] = [];
   for (const p of PLAYERS) {
@@ -1072,6 +1073,10 @@ export function legalActions(ctx: EngineContext, s: GameState): LegalAction[] {
       for (const id of pr.choice.candidates) out.push({ action: { type: "choose", player: pr.player, cards: [id] }, label: `Choose ${name(id)}` });
       if (pr.choice.min === 0) out.push({ action: { type: "choose", player: pr.player, cards: [] }, label: "Choose none" });
       return out;
+    case "chooseMode":
+      // 20-2: the printed options, in the order they are printed.
+      pr.options.forEach((label, i) => out.push({ action: { type: "chooseMode", player: pr.player, index: i }, label: label.length > 90 ? `${label.slice(0, 88)}…` : label }));
+      return out;
     case "optionalCost":
       // 9-6-4: an [Auto] skill's cost may be declined, and then it does not resolve.
       out.push({ action: { type: "optionalCost", player: pr.player, pay: true }, label: `Pay: ${pr.describe}` });
@@ -1534,6 +1539,12 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
       if (action.cards.length < ch.min || action.cards.length > ch.max) throw new IllegalAction(`choose between ${ch.min} and ${ch.max}`);
       if (action.cards.some((id) => !ch.candidates.includes(id)) || new Set(action.cards).size !== action.cards.length) throw new IllegalAction("invalid choice");
       s.lastChoice = action.cards;
+      break;
+    }
+    case "chooseMode": {
+      if (pr.kind !== "chooseMode") throw new IllegalAction("no option is being offered");
+      if (!Number.isInteger(action.index) || action.index < 0 || action.index >= pr.options.length) throw new IllegalAction("no such option");
+      s.lastMode = action.index;
       break;
     }
     case "optionalCost": {

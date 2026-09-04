@@ -24,6 +24,7 @@ import {
   has,
   move,
   note,
+  placeUnder,
   schedule,
   setMode,
   tokenCardId,
@@ -86,7 +87,8 @@ export type Op =
   | { op: "choose"; sel: Selector; as: string; reason?: string }
   | { op: "look"; n: Amount; as: string; side?: Side }
   | { op: "ko"; target: Ref }
-  | { op: "moveTo"; target: Ref; to: ScriptArea; position?: "top" | "bottom"; mode?: "active" | "rest"; reveal?: boolean }
+  /** `to: "under"` puts the card under `under`, or under the source card (23-2). */
+  | { op: "moveTo"; target: Ref; to: ScriptArea; position?: "top" | "bottom"; mode?: "active" | "rest"; reveal?: boolean; under?: Ref }
   | { op: "play"; target: Ref; mode?: "active" | "rest" }
   | { op: "switchMode"; target: Ref; mode: "active" | "rest" }
   | { op: "power"; target: Ref; amount: Amount; until: Duration }
@@ -108,6 +110,8 @@ export type Op =
    */
   | { op: "forbid"; what: ForbiddenAction; until: Duration; target?: Ref; side?: Side; filter?: CardFilter; sameNameAsSelf?: boolean }
   | { op: "if"; cond: Cond; then: Op[]; else?: Op[] }
+  /** "Choose one— ・A ・B" (20-2): the master picks one printed option. */
+  | { op: "chooseMode"; modes: { label: string; ops: Op[] }[]; reason?: string }
   /**
    * Write an effect down now and carry it out later (1-7-2-1-1): "at the end
    * of the turn, KO it". The inner program keeps this frame's variables, so it
@@ -287,15 +291,22 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         }
         break;
 
-      case "moveTo":
+      case "moveTo": {
+        // 23-2: under a card is not an area of its own, so it is its own move.
+        const host = op.to === "under" ? (op.under ? resolveRef(ctx, s, frame, op.under)[0] : frame.card) : null;
         for (const id of resolveRef(ctx, s, frame, op.target)) {
+          if (op.to === "under") {
+            if (host) placeUnder(ctx, s, ev, id, host);
+            continue;
+          }
           const owner = op.to === "battle" || op.to === "unison" ? master : s.cards[id].owner;
-          // "play" and "under" are not areas of their own (3-1): both land in the Battle Area / Drop.
-          const dest = op.to === "play" ? "battle" : op.to === "under" ? "drop" : op.to;
+          // "play" is not an area of its own either (3-1); it means the Battle Area.
+          const dest = op.to === "play" ? "battle" : op.to;
           move(ctx, s, ev, id, dest, owner, { position: op.position, reveal: op.reveal, reason: "effect" });
           if (op.mode) setMode(s, ev, id, op.mode);
         }
         break;
+      }
 
       case "switchMode":
         for (const id of resolveRef(ctx, s, frame, op.target)) setMode(s, ev, id, op.mode);
@@ -427,6 +438,28 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         frame.ops = [...frame.ops.slice(0, frame.ip), ...branch, ...frame.ops.slice(frame.ip + 1)];
         continue;
       }
+
+      case "chooseMode": {
+        // 20-2: the option is chosen as the skill resolves, and only then does
+        // the rest of the program exist — so it is spliced in like an `if`.
+        if (s.lastMode != null && frame.awaiting === "mode") {
+          const picked = op.modes[s.lastMode] ?? op.modes[0];
+          s.lastMode = null;
+          frame.awaiting = undefined;
+          frame.ops = [...frame.ops.slice(0, frame.ip), ...(picked?.ops ?? []), ...frame.ops.slice(frame.ip + 1)];
+          continue;
+        }
+        // A single option is not a choice, and an empty one is not asked about.
+        const usable = op.modes.filter((mode) => mode.ops.length);
+        if (usable.length <= 1) {
+          frame.ops = [...frame.ops.slice(0, frame.ip), ...(usable[0]?.ops ?? []), ...frame.ops.slice(frame.ip + 1)];
+          continue;
+        }
+        frame.awaiting = "mode";
+        s.flow.unshift({ op: "script.step", frame });
+        s.prompt = { kind: "chooseMode", player: master, reason: op.reason ?? `${face(ctx, s, frame.card).name}: choose one`, options: op.modes.map((mode) => mode.label) };
+        return "wait";
+      }
     }
     frame.ip++;
   }
@@ -480,6 +513,7 @@ const OP_NAMES = new Set<Op["op"]>([
   "forbid",
   "costReduction",
   "if",
+  "chooseMode",
   "delay",
   "note",
 ]);
@@ -496,9 +530,10 @@ export function validateProgram(ops: unknown, depth = 0): ops is Op[] {
   if (!Array.isArray(ops) || depth > 4) return false;
   return ops.every((raw) => {
     if (!raw || typeof raw !== "object") return false;
-    const o = raw as { op?: unknown; then?: unknown; else?: unknown; ops?: unknown; at?: unknown; scope?: unknown };
+    const o = raw as { op?: unknown; then?: unknown; else?: unknown; ops?: unknown; at?: unknown; scope?: unknown; modes?: unknown[] };
     if (typeof o.op !== "string" || !OP_NAMES.has(o.op as Op["op"])) return false;
     if (o.op === "if") return validateProgram(o.then, depth + 1) && (o.else === undefined || validateProgram(o.else, depth + 1));
+    if (o.op === "chooseMode") return Array.isArray(o.modes) && o.modes.length > 0 && o.modes.every((mode) => validateProgram((mode as { ops?: unknown }).ops, depth + 1));
     // A delay with a timing the engine never drains would sit in the state for
     // the rest of the game, so the timing is checked as well as the shape.
     if (o.op === "delay") {

@@ -329,6 +329,8 @@ export type Prompt =
   | { kind: "counter"; player: PlayerId; window: CounterWindow; candidates: string[] }
   | { kind: "orderPending"; player: PlayerId; candidates: number[] }
   | { kind: "chooseCards"; player: PlayerId; choice: CardChoice }
+  /** "Choose one— ・A ・B" (20-2): which printed option is taken. */
+  | { kind: "chooseMode"; player: PlayerId; reason: string; options: string[] }
   | { kind: "zEnergyFromCombo"; player: PlayerId; candidates: string[] }
   /**
    * An [Auto] skill whose cost the master may decline to pay (9-6-4). Costs
@@ -393,6 +395,7 @@ export type Action =
   | { type: "optionalCost"; player: PlayerId; pay: boolean }
   | { type: "payCost"; player: PlayerId; option: number }
   | { type: "choose"; player: PlayerId; cards: string[] }
+  | { type: "chooseMode"; player: PlayerId; index: number }
   | { type: "zEnergyFromCombo"; player: PlayerId; card: string | null }
   | { type: "offering"; player: PlayerId; dropLife: boolean }
   /** The referee's answer: a program in the effect language, or an empty one for "nothing happens". */
@@ -457,6 +460,8 @@ export interface GameState {
   flow: FlowStep[];
   /** Answer to the current chooseCards prompt, consumed by the next step. */
   lastChoice: string[] | null;
+  /** Answer to the current chooseMode prompt, consumed by the next step. */
+  lastMode: number | null;
 }
 
 export interface CounterFrame {

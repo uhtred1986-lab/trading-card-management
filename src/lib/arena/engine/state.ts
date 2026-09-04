@@ -461,6 +461,32 @@ export function draw(ctx: GameContext, s: GameState, ev: GameEvent[], p: PlayerI
   return drawn;
 }
 
+/**
+ * Put one card under another (23-2). The stack is already modelled — Evolve,
+ * Union and Z-Stack build one — but until now no effect could say it, so the
+ * compiler sent the card to the Drop instead, which is a different game.
+ *
+ * A card under another is not in any area of its own, so it leaves the one it
+ * was in and takes no state with it (3-1-4). `move` already returns the whole
+ * stack to the Drop when the card on top leaves play (23-2-5).
+ */
+export function placeUnder(ctx: GameContext, s: GameState, ev: GameEvent[], id: string, host: string): boolean {
+  if (id === host || !s.cards[id] || !s.cards[host]) return false;
+  // Nothing can go under a card that is not on the table.
+  if (!["battle", "leader", "unison"].includes(areaOf(s, host) ?? "")) return false;
+  detach(s, id);
+  const inst = s.cards[id];
+  inst.mode = "active";
+  inst.markers = 0;
+  inst.flipped = false;
+  inst.hidden = false;
+  inst.negated = [];
+  inst.usedThisTurn = [];
+  s.cards[host].under.push(id);
+  ev.push({ type: "stack", top: host, under: s.cards[host].under.slice() });
+  return true;
+}
+
 export function setMode(s: GameState, ev: GameEvent[], id: string, mode: "active" | "rest"): boolean {
   const inst = s.cards[id];
   if (inst.mode === mode) return false; // 0-2-4-1: already in that state

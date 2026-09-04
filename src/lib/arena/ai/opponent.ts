@@ -234,6 +234,8 @@ Operations (each is an object with "op"):
     until may also be "nextTurn", which lasts through the opponent's turn and ends as yours begins.
   {"op":"token","name":"Saibaman Token","power":10000,"comboCost":0,"comboPower":5000,"colors":[],"n":2}
   {"op":"if","cond":COND,"then":[...],"else":[...]}
+  {"op":"chooseMode","modes":[{"label":"…","ops":[...]},{"label":"…","ops":[...]}]}   "Choose one— ・A ・B"
+  {"op":"moveTo","target":TARGET,"to":"under","under":TARGET}    under another card; omit "under" for this card
   {"op":"delay","at":TIMING,"scope":SCOPE,"ops":[...]}   the inner operations happen later, not now
 
 TARGET is {"var":"t"} for something chosen earlier, or {"sel":SELECTOR}.

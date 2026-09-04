@@ -143,6 +143,8 @@ const DEFS: Record<string, CardDef> = defsFrom([
   card("RESTLOCK", { energyCost: 1, skill: "[Auto] When you play this card, choose 1 of your opponent's Battle Cards. It can't switch to Active Mode until the end of your opponent's turn." }),
   card("NOCOPIES", { energyCost: 1, skill: "[Auto] When you play this card, you can't play copies of this card for the turn." }),
   card("TOUGH", { energyCost: 2, power: 5000, skill: "[Auto] When you play this card, this card can't be KO'd by your opponent's skills until the start of your next turn." }),
+  card("STACKER", { energyCost: 1, skill: "[Auto] When you play this card, choose 1 of your Battle Cards and place it under this card." }),
+  card("MODAL", { energyCost: 1, skill: "[Auto] When you play this card, choose one-<br>・Draw 1 card.<br>・Your opponent discards 1 card." }),
 ]);
 
 const fifty = (id: string) => Array.from({ length: 50 }, () => id);
@@ -1032,6 +1034,60 @@ function assertConsistentAfterDrop(s: GameState) {
   s.effects.push({ id: 998, target: tough, kind: "power", value: -99000, until: "turn", ownerTurn: "p2", createdTurn: s.turn });
   s = play(s, { type: "endMain", player: "p2" });
   assert.ok(s.players.p1.drop.includes(tough), "21-6: 0 power is a rule, and rules are not skills");
+}
+
+// ── cards under cards (23-2) and modal choice (20-2) ───────────────────────
+
+{
+  // "Place it under this card" used to compile to a move to the Drop, which is
+  // a different game entirely.
+  let s = arena({ hand: ["STACKER"], energy: ["V1"], battle: ["V1"] });
+  const under = find(s, "p1", "battle", "V1");
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "STACKER") });
+  assert.equal(s.prompt.kind, "chooseCards", "both Battle Cards are candidates, so it asks");
+  s = play(s, { type: "choose", player: "p1", cards: [under] });
+  const host = find(s, "p1", "battle", "STACKER");
+  assert.ok(!s.players.p1.battle.includes(under), "it is no longer a Battle Card of its own");
+  assert.ok(!s.players.p1.drop.includes(under), "and it did not go to the Drop");
+  assert.deepEqual(s.cards[host].under, [under]);
+  assertConsistent(s);
+
+  // 23-2-5: when the card on top leaves play, the stack goes with it.
+  s.effects.push({ id: 997, target: host, kind: "power", value: -99000, until: "turn", ownerTurn: "p1", createdTurn: s.turn });
+  s = play(s, { type: "endMain", player: "p1" });
+  assert.ok(s.players.p1.drop.includes(under), "the card underneath followed it to the Drop");
+  assertConsistent(s);
+}
+
+{
+  // The options of a "Choose one—" are printed on separate lines but are not
+  // skills of their own.
+  const skills = parseSkills("[Auto] When you play this card, choose one-<br>・Draw 1 card.<br>・Your opponent discards 1 card.");
+  assert.equal(skills.length, 1, "20-2: one skill, with two options");
+
+  const script = compileSkill(skills[0]);
+  assert.deepEqual(script.unsupported, []);
+  assert.equal(script.ops.length, 1);
+  const modal = script.ops[0] as { op: string; modes: { ops: { op: string }[] }[] };
+  assert.equal(modal.op, "chooseMode");
+  assert.deepEqual(
+    modal.modes.map((mode) => mode.ops.map((o) => o.op)),
+    [["draw"], ["discard"]],
+  );
+}
+
+{
+  // Exactly one option happens, and the player says which.
+  let s = arena({ hand: ["MODAL"], energy: ["V1"], oppHand: ["BIG"] });
+  const myHand = s.players.p1.hand.length;
+  const theirHand = s.players.p2.hand.length;
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "MODAL") });
+  assert.equal(s.prompt.kind, "chooseMode");
+  assert.deepEqual(labels(s), ["Draw 1 card.", "Your opponent discards 1 card."]);
+  s = play(s, { type: "chooseMode", player: "p1", index: 1 });
+  assert.equal(s.players.p2.hand.length, theirHand - 1, "the option taken happened");
+  assert.equal(s.players.p1.hand.length, myHand - 1, "and the one not taken did not");
+  assert.equal(s.prompt.kind, "main");
 }
 
 console.log("verify-arena: all checks passed");

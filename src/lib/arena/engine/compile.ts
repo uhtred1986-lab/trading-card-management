@@ -398,6 +398,14 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     return ref ? [{ op: "removeMarker", target: ref, n: Number(m[1]) }] : null;
   }
 
+  // Under another card (23-2). Not an area, so it is not in the table below.
+  // Only "under this card" is read: any other host is an antecedent the
+  // compiler would have to guess at, and a wrong guess moves the wrong card.
+  if ((m = /^(?:place|put) (.+?) (?:face ?up )?under this card$/.exec(t))) {
+    const ref = refFor(m[1], c);
+    return ref ? [{ op: "moveTo", target: ref, to: "under" }] : null;
+  }
+
   // Area moves (3-1).
   const MOVES: [RegExp, ScriptArea, { position?: "top" | "bottom"; mode?: "active" | "rest"; reveal?: boolean }][] = [
     [/^place (.+?) (?:in|into) (?:its owner'?s?|their|your) drop(?: area)?$/, "drop", { reveal: true }],
@@ -551,19 +559,50 @@ function compileToken(clause: string, c: Ctx): Op[] | null {
  */
 const KEYWORD_HANDLES_THE_LINE = new Set<KeywordSkill["name"]>(["Evolve", "Union", "Over Realm", "Swap", "Overlord", "Z-Awaken", "Z-Stack", "Field", "Attack", "Revenge", "Offering"]);
 
+/**
+ * "Choose one— ・A ・B" (20-2). The options are printed on their own lines and
+ * `skillLines` has already folded them back onto the line that introduces
+ * them, so here they are separated by bullets in one string.
+ */
+function splitModal(text: string): { head: string; options: string[] } | null {
+  const m = /choose one\s*(?:[-–—―?:]{1,2})?\s*/i.exec(text);
+  if (!m) return null;
+  const options = text
+    .slice(m.index + m[0].length)
+    .split(/[・･·•‧]\s*/)
+    .map((o) => o.trim())
+    .filter(Boolean);
+  if (options.length < 2) return null;
+  return { head: text.slice(0, m.index).trim(), options };
+}
+
 export function compileSkill(skill: Skill): Script {
   if (skill.keyword && KEYWORD_HANDLES_THE_LINE.has(skill.keyword.name)) return { ops: [], unsupported: [] };
   const text = stripNotes(skill.effect);
   if (!text) return { ops: [], unsupported: [] };
   const unsupported: string[] = [];
   const c: Ctx = { last: null, lastTarget: null, n: 0, raw: skill.effect };
-  const clauses = splitClauses(text);
+  const modal = splitModal(text);
+  const clauses = splitClauses(modal ? modal.head : text);
   // An [Auto] skill restates its own trigger ("When this card attacks, draw 1
   // card"); by the time the effect resolves the trigger has already fired, so
   // that clause is dropped. A leading "if …" is a condition, not a trigger, and
   // stays — it must compile or the skill goes to the referee.
-  if (skill.kind === "auto" && clauses.length > 1 && /^(?:when|at the (?:end|beginning|start))\b/i.test(clauses[0])) clauses.shift();
+  if (skill.kind === "auto" && (clauses.length > 1 || modal) && /^(?:when|at the (?:end|beginning|start))\b/i.test(clauses[0] ?? "")) clauses.shift();
 
+  const ops = compileClauseList(clauses, c, unsupported);
+  if (modal) {
+    // Each option is compiled on its own, carrying what the head established
+    // ("If your Leader is a <Baby> card, it gets +10000 power, then choose
+    // one— ・…" — "it" still means the leader inside the options).
+    const modes = modal.options.map((option) => ({ label: option, ops: compileClauseList(splitClauses(option), { ...c }, unsupported) }));
+    if (modes.some((mode) => mode.ops.length)) ops.push({ op: "chooseMode", modes });
+  }
+  return { ops, unsupported };
+}
+
+/** The clause loop, shared by a skill's body and by each modal option. */
+function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op[] {
   // "if you do" (20-16) makes the rest conditional on the previous choice, and
   // a run of conditions all have to hold, so a group carries a list of them.
   type Group = { conds: Cond[]; ops: Op[]; delay?: { at: DelayTiming; scope: DelayScope; label: string } };
@@ -655,7 +694,7 @@ export function compileSkill(skill: Skill): Script {
     for (const cond of [...g.conds].reverse()) body = [{ op: "if", cond, then: body }];
     ops.push(...body);
   }
-  return { ops, unsupported };
+  return ops;
 }
 
 export interface CardScripts {
@@ -807,6 +846,9 @@ export function describeScript(ops: Op[]): string {
         break;
       case "delay":
         parts.push(`${op.label ?? "later"}: ${describeScript(op.ops)}`);
+        break;
+      case "chooseMode":
+        parts.push(`choose one — ${op.modes.map((mode) => describeScript(mode.ops)).join(" / ")}`);
         break;
       case "note":
         break;
