@@ -274,8 +274,9 @@ export function resolveSelector(ctx: GameContext, s: GameState, frame: ScriptFra
   } else if (sel.fromVar) {
     out = (frame.vars[sel.fromVar] ?? []).filter((id) => s.cards[id]);
   } else {
-    const area = sel.area ?? "battle";
-    for (const p of sideOf(frame.master, sel.side)) out.push(...areaCards(s, p, area, frame));
+    // A phrase may name two areas — "your opponent's Battle Cards or Unisons".
+    const areas = sel.areas?.length ? sel.areas : [sel.area ?? "battle"];
+    for (const p of sideOf(frame.master, sel.side)) for (const area of areas) out.push(...areaCards(s, p, area, frame));
   }
   return out.filter((id) => {
     const inst = s.cards[id];

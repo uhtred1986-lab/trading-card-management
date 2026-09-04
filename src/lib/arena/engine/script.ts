@@ -48,6 +48,12 @@ export type SpecialTarget = "self" | "attacker" | "guard" | "subject" | "leader"
 export interface Selector {
   side?: Side;
   area?: ScriptArea;
+  /**
+   * More than one area, for the wordings that name two: "your opponent's
+   * Battle Cards or Unisons". One area is the common case and stays in
+   * `area`; this is read instead of it when present.
+   */
+  areas?: ScriptArea[];
   filter?: CardFilter;
   special?: SpecialTarget;
   /** Only cards in this mode (1-10). */

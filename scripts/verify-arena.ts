@@ -1622,6 +1622,41 @@ function assertConsistentAfterDrop(s: GameState) {
   assert.equal(normal.effect, "When this card attacks, draw 1 card.");
 }
 
+// ── a phrase that names two areas at once ──────────────────────────────────
+
+{
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+
+  // "Battle Cards or Unisons" is the one two-area phrase the game prints
+  // often enough to be worth a selector that can hold both. Reading it as
+  // either one alone would drop the other half without saying so.
+  const both = one("[Auto] When you play this card, choose up to 1 of your opponent's Battle Cards or Unisons and switch it to Rest Mode.");
+  assert.deepEqual(both.unsupported, []);
+  const sel = (both.ops[0] as { sel: { areas?: string[]; side: string } }).sel;
+  assert.deepEqual(sel.areas, ["battle", "unison"]);
+  assert.equal(sel.side, "opponent");
+
+  // Each area alone still resolves to just that one.
+  assert.equal((one("[Auto] When you play this card, choose up to 1 of your opponent's Unisons and remove 1 marker from it.").ops[0] as { sel: { area: string; areas?: string[] } }).sel.area, "unison");
+  assert.equal((one("[Auto] When you play this card, choose up to 1 of your opponent's Battle Cards and KO it.").ops[0] as { sel: { areas?: string[] } }).sel.areas, undefined);
+}
+
+{
+  // And it finds cards in both areas at once.
+  const ctx = { defs: DEFS };
+  DEFS.RESTBOTH = { ...DEFS.V1, id: "RESTBOTH", name: "RESTBOTH", skill: "[Auto] When you play this card, choose 1 of your opponent's Battle Cards or Unisons and switch it to Rest Mode." };
+  let s = arena({ hand: ["RESTBOTH"], energy: ["V1"] });
+  // Their only card in either area is a Unison, so the choice is forced.
+  const uni = s.players.p2.deck.find((id) => s.cards[id].cardId === "V-BLUE")!;
+  s.cards[uni].cardId = "U1";
+  move(ctx, s, [], uni, "unison", "p2");
+  // 21-9: a Unison with no markers is dropped by rule processing before the
+  // skill ever gets to look at it.
+  s.cards[uni].markers = 2;
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "RESTBOTH") });
+  assert.equal(s.cards[uni].mode, "rest", "a Unison was found by a phrase that also names Battle Cards");
+}
+
 // ── a skill that switches itself off, and taking a card ────────────────────
 
 {

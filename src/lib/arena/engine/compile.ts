@@ -114,10 +114,9 @@ export function parseTarget(phrase: string): Selector | null {
   if (/\byour opponent'?s?\b|\btheir\b|\bthe opponent'?s\b/.test(t)) side = "opponent";
   if (/\ball players\b|\beach player\b|\bboth players\b/.test(t)) side = "both";
 
-  // "Your opponent's Battle Cards or Unisons" names two areas, and a selector
-  // holds one. Picking either would quietly drop the other half, so this is
-  // left unread until a selector can say "both".
-  if (/\bbattle cards?\b.*\bunisons?\b|\bunisons?\b.*\bbattle cards?\b/.test(t)) return null;
+  // "Your opponent's Battle Cards or Unisons" names two areas at once, which
+  // is the one such phrase the game prints often enough to be worth reading.
+  const bothAreas = /\bbattle cards?\b[^.]*\bor\b[^.]*\bunisons?\b|\bunisons?\b[^.]*\bor\b[^.]*\bbattle cards?\b/.test(t);
 
   let area: ScriptArea | null = null;
   for (const [re, a] of AREA_WORDS) {
@@ -151,6 +150,7 @@ export function parseTarget(phrase: string): Selector | null {
 
   const mode = /\bin rest mode\b/.test(t) ? "rest" : /\bin active mode\b/.test(t) ? "active" : undefined;
   const filter = filterFor(phrase, area);
+  if (bothAreas) return { side, area: "battle", areas: ["battle", "unison"], filter, count, upTo, mode, fromVar };
   return { side, area: area ?? undefined, filter, count, upTo, mode, fromVar };
 }
 
@@ -1150,7 +1150,7 @@ function describeSelector(sel: Selector): string {
   if (sel.special) return { self: "this card", attacker: "the attacking card", guard: "the guard card", subject: "that card", leader: "your leader", opponentLeader: "the opposing leader" }[sel.special];
   const who = sel.side === "opponent" ? "opponent's " : sel.side === "both" ? "each player's " : "your ";
   const n = sel.count === 99 ? "all" : sel.upTo ? `up to ${sel.count}` : `${sel.count}`;
-  const where = sel.fromVar ? "of the cards looked at" : `in ${who}${sel.area}`;
+  const where = sel.fromVar ? "of the cards looked at" : `in ${who}${(sel.areas?.length ? sel.areas.join(" or ") : sel.area)}`;
   return `${n} ${where}`;
 }
 
@@ -1187,7 +1187,8 @@ function describeEach(sel: Selector): string {
   if (sel.special) return describeSelector(sel);
   const who = sel.side === "opponent" ? "their " : sel.side === "both" ? "" : "your ";
   const mode = sel.mode ? ` in ${sel.mode} mode` : "";
-  return `${who}${AREA_NOUNS[sel.area ?? "play"] ?? "cards"}${mode}`;
+  const nouns = (sel.areas?.length ? sel.areas : [sel.area ?? "play"]).map((a) => AREA_NOUNS[a] ?? "cards");
+  return `${who}${nouns.join(" or ")}${mode}`;
 }
 
 /**
