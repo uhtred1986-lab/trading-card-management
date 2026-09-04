@@ -206,7 +206,7 @@ const RulingSchema = z.object({
   why: z.string().max(200).describe("One sentence on how you read the card"),
 });
 
-const EFFECT_LANGUAGE = `You are ruling on one skill of one card in a Dragon Ball Super Card Game engine. Answer with a JSON array of operations that carries out exactly what the skill's text says — no more, no less. The engine runs it and still enforces every rule, so an operation that would break a rule is simply refused.
+export const EFFECT_LANGUAGE = `You are ruling on one skill of one card in a Dragon Ball Super Card Game engine. Answer with a JSON array of operations that carries out exactly what the skill's text says — no more, no less. The engine runs it and still enforces every rule, so an operation that would break a rule is simply refused.
 
 Operations (each is an object with "op"):
   {"op":"draw","n":1,"side":"you"|"opponent"}

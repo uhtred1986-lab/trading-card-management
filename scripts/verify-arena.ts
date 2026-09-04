@@ -596,6 +596,28 @@ function assertConsistentAfterDrop(s: GameState) {
   assert.equal(grant.ops[1].op, "grant");
   assert.deepEqual((grant.ops[1] as { keyword: { name: string } }).keyword, { name: "Blocker" });
 
+  // Two conditions joined by "and" both have to hold — the second arrives
+  // without a condition word in front of it, and used to be dropped.
+  const twoConds = one("[Auto] When you combo with this card, if your Leader Card is yellow and your life is at 4 or less, draw 1 card.");
+  assert.deepEqual(twoConds.unsupported, []);
+  assert.deepEqual(twoConds.ops, [
+    {
+      op: "if",
+      cond: { kind: "leaderMatches", filter: parseFilter("yellow") },
+      then: [{ op: "if", cond: { kind: "life", side: "you", atMost: 4 }, then: [{ op: "draw", n: 1 }] }],
+    },
+  ]);
+
+  // A keyword the engine handles itself is not "unreadable": the text after
+  // the colon is the keyword's condition, which engine.ts reads for itself.
+  assert.deepEqual(one("[Evolve]{2}: <Nail>").unsupported, []);
+  assert.deepEqual(one("[Evolve]{2}: <Nail>").ops, []);
+
+  // A comma between two names is not a sentence break.
+  assert.deepEqual(splitClauses("choose 1 <Son Goku: GT>, <Trunks: GT>, or <Pan> with 15000 or less power"), [
+    "choose 1 <Son Goku: GT>, <Trunks: GT>, or <Pan> with 15000 or less power",
+  ]);
+
   // A clause the parser cannot read marks the whole skill for the referee.
   const partial = one("[Auto] When you play this card, draw 1 card, then rearrange the stars in the sky.");
   assert.deepEqual(partial.unsupported, ["rearrange the stars in the sky"]);

@@ -2,7 +2,9 @@ import Link from "next/link";
 import { inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { cards as cardsTable } from "@/db/schema";
+import { ExplainCard } from "@/components/arena/ExplainCard";
 import { backlogByPattern } from "@/lib/arena/ai/debug";
+import { cardScripts } from "@/db/schema";
 import { markNote, sweepBacklog } from "../actions";
 
 export const dynamic = "force-dynamic";
@@ -25,6 +27,9 @@ export default async function BacklogPage({ searchParams }: { searchParams: Prom
   if (cardIds.length) {
     for (const r of await db.select({ id: cardsTable.id, name: cardsTable.name }).from(cardsTable).where(inArray(cardsTable.id, cardIds))) names.set(r.id, r.name);
   }
+
+  // Cards with a stored program already play correctly, whatever the compiler thinks.
+  const scripted = new Set((await db.select({ cardId: cardScripts.cardId, skillIndex: cardScripts.skillIndex }).from(cardScripts)).map((r) => `${r.cardId}#${r.skillIndex}`));
 
   const totalCards = groups.reduce((n, g) => n + g.cards.length, 0);
   const seen = groups.filter((g) => g.timesSeen > 0).length;
@@ -108,6 +113,15 @@ export default async function BacklogPage({ searchParams }: { searchParams: Prom
                             <pre className="mt-1 overflow-auto rounded bg-space-950 p-2 font-mono text-[10px] text-space-300">{JSON.stringify(c.lastRuling, null, 1)}</pre>
                           </details>
                         )}
+                        <ExplainCard
+                          noteId={c.id}
+                          cardName={names.get(c.cardId) ?? c.cardId}
+                          clause={c.clause}
+                          explanation={c.explanation}
+                          meaning={c.explanation ? c.lastRulingWhy : null}
+                          brief={c.brief}
+                          hasProgram={scripted.has(`${c.cardId}#${c.skillIndex}`)}
+                        />
                       </li>
                     ))}
                   </ul>
