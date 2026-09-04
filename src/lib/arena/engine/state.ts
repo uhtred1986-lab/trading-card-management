@@ -8,7 +8,7 @@ import { canCombo, hasKeyword, keywordOf, skillsOf, specifiedCostOf, isZ, baseTy
 import { compileCardCached } from "./compile";
 import { matches } from "./filters";
 import type { Amount, Cond, Op, Ref, ScriptArea, ScriptFrame, Selector, Side } from "./script";
-import type { Area, CardDef, CardFace, Color, ContinuousEffect, DelayedEffect, DelayTiming, FlowStep, GameEvent, GameState, KeywordSkill, PlayerId, PlayerState, Skill } from "./types";
+import type { Area, CardDef, CardFace, Color, ContinuousEffect, DelayedEffect, DelayTiming, ForbiddenAction, FlowStep, GameEvent, GameState, KeywordSkill, PlayerId, PlayerState, Skill } from "./types";
 import { other } from "./types";
 
 export interface GameContext {
@@ -219,6 +219,8 @@ export function resolveSelector(ctx: GameContext, s: GameState, frame: ScriptFra
     // 23-5-2: a Hidden Mode card has none of its front-side information.
     if (sel.filter && (inst.hidden || !matches(def(ctx, s, id), sel.filter))) return false;
     if (!sel.special && !sel.ignoreBarrier && sel.side !== "you" && has(ctx, s, id, "Barrier") && s.cards[id].owner !== frame.master && areaOf(s, id) !== "hand") return false;
+    // 20-4: the same shape as [Barrier], but printed as a prohibition.
+    if (!sel.special && s.cards[id].owner !== frame.master && forbids(ctx, s, "beChosen", { card: id })) return false;
     return true;
   });
 }
@@ -462,6 +464,9 @@ export function draw(ctx: GameContext, s: GameState, ev: GameEvent[], p: PlayerI
 export function setMode(s: GameState, ev: GameEvent[], id: string, mode: "active" | "rest"): boolean {
   const inst = s.cards[id];
   if (inst.mode === mode) return false; // 0-2-4-1: already in that state
+  // 20-14: "it can't switch to Active Mode" holds against every path that
+  // would switch it, including the Charge Phase (7-2-7).
+  if (mode === "active" && forbiddenForCard(s, "switchToActive", id)) return false;
   inst.mode = mode;
   ev.push({ type: "mode", card: id, mode });
   return true;
@@ -476,6 +481,42 @@ export function addEffect(s: GameState, ev: GameEvent[], e: Omit<ContinuousEffec
 
 export function endEffects(s: GameState, until: ContinuousEffect["until"], forPlayer?: PlayerId): void {
   s.effects = s.effects.filter((e) => !(e.until === until && (forPlayer == null || e.ownerTurn === forPlayer)));
+}
+
+// ── prohibitions (20-14, 0-2-5) ────────────────────────────────────────────
+
+/**
+ * Whether something is forbidden right now. 0-2-5: a prohibition beats an
+ * instruction, so this is the last question asked and its answer is final.
+ *
+ * `card` is what the action is about — the attacker, the card being played,
+ * the card that would switch to Active Mode. `player` is who is acting.
+ */
+export function forbids(ctx: GameContext, s: GameState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string } = {}): boolean {
+  for (const e of s.effects) {
+    const f = e.forbid;
+    if (e.kind !== "forbid" || !f || f.what !== what) continue;
+    // A rule about one card only applies to that card.
+    if (e.target && e.target !== opts.card) continue;
+    if (f.player && opts.player && f.player !== opts.player) continue;
+    if (f.filter || f.name) {
+      if (!opts.card || !s.cards[opts.card]) continue;
+      const d = def(ctx, s, opts.card);
+      if (f.filter && !matches(d, f.filter)) continue;
+      if (f.name && d.name !== f.name) continue;
+    }
+    return true;
+  }
+  return false;
+}
+
+/**
+ * The card-only half of the same question, for the places that have a state
+ * but no card definitions — `setMode` is called from everywhere, including
+ * paths that must not need a context.
+ */
+export function forbiddenForCard(s: GameState, what: ForbiddenAction, card: string): boolean {
+  return s.effects.some((e) => e.kind === "forbid" && e.target === card && e.forbid?.what === what);
 }
 
 // ── delayed effects (1-7-2-1-1) ────────────────────────────────────────────

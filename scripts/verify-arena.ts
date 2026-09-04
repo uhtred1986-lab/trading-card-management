@@ -139,6 +139,10 @@ const DEFS: Record<string, CardDef> = defsFrom([
   card("DELAYKO", { energyCost: 1, skill: "[Auto] When you play this card, choose 1 of your opponent's Battle Cards. At the end of the turn, KO it." }),
   card("DELAYDRAW", { energyCost: 1, skill: "[Auto] When you play this card, at the start of your next turn, draw 2 cards." }),
   card("DELAYOPP", { energyCost: 1, skill: "[Auto] When you play this card, during your opponent's next turn, your opponent discards 1 card." }),
+  card("LOCKDOWN", { energyCost: 1, skill: "[Auto] When you play this card, your opponent can't attack with Battle Cards until the start of your next turn." }),
+  card("RESTLOCK", { energyCost: 1, skill: "[Auto] When you play this card, choose 1 of your opponent's Battle Cards. It can't switch to Active Mode until the end of your opponent's turn." }),
+  card("NOCOPIES", { energyCost: 1, skill: "[Auto] When you play this card, you can't play copies of this card for the turn." }),
+  card("TOUGH", { energyCost: 2, power: 5000, skill: "[Auto] When you play this card, this card can't be KO'd by your opponent's skills until the start of your next turn." }),
 ]);
 
 const fifty = (id: string) => Array.from({ length: 50 }, () => id);
@@ -945,6 +949,89 @@ function assertConsistentAfterDrop(s: GameState) {
   s.delayed[0].at = "battleEnd"; // a timing this turn will never reach
   s = play(s, { type: "endMain", player: "p1" });
   assert.equal(s.delayed.length, 0, "its moment passed, so it is gone");
+}
+
+// ── prohibitions (20-14, 0-2-5) ────────────────────────────────────────────
+
+{
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+
+  const lock = one("[Auto] When you play this card, your opponent can't attack with Battle Cards until the start of your next turn.");
+  assert.deepEqual(lock.unsupported, []);
+  const f = lock.ops[0] as { op: string; what: string; side: string; until: string; filter?: { type: string | null } };
+  assert.equal(f.op, "forbid");
+  assert.equal(f.what, "attack");
+  assert.equal(f.side, "opponent");
+  assert.equal(f.filter?.type, "BATTLE", "only their Battle Cards, not their Leader");
+
+  // The rest-lock wording has to outlast the opponent's whole turn.
+  const rest = one("[Auto] When you play this card, choose 1 of your opponent's Battle Cards. It can't switch to Active Mode until the end of your opponent's turn.");
+  assert.deepEqual(rest.unsupported, []);
+  assert.equal((rest.ops[1] as { what: string }).what, "switchToActive");
+  assert.equal((rest.ops[1] as { until: string }).until, "nextTurn");
+
+  // Deck-building rules are not rules of play, and must not be read as one.
+  const deckRule = one("[Permanent] You can't include non-≪Saiyan≫ Battle Cards in your deck.");
+  assert.deepEqual(deckRule.unsupported, []);
+  assert.deepEqual(deckRule.ops, []);
+}
+
+{
+  // The move is not offered, and 0-2-5 means it is refused if sent anyway.
+  let s = arena({ hand: ["LOCKDOWN"], energy: ["V1"], oppBattle: ["BIG"] });
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "LOCKDOWN") }, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+  const attacker = find(s, "p2", "battle", "BIG");
+  assert.ok(
+    !labels(s).some((x) => x.includes("Attack") && x.includes("BIG")),
+    "20-14: their Battle Card is not offered an attack",
+  );
+  assert.ok(
+    labels(s).some((x) => x.includes("Attack") && x.includes("L-BLUE")),
+    "but their Leader still can — the rule named Battle Cards",
+  );
+  assert.throws(() => apply({ defs: DEFS }, s, { type: "attack", player: "p2", attacker, target: s.players.p1.leader }), /illegal attack/);
+}
+
+{
+  // "It can't switch to Active Mode": the Charge Phase leaves it resting.
+  let s = arena({ hand: ["RESTLOCK"], energy: ["V1"], oppBattle: ["BIG"] });
+  const locked = find(s, "p2", "battle", "BIG");
+  s.cards[locked].mode = "rest";
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "RESTLOCK") });
+  assert.equal(s.cards[locked].mode, "rest");
+  s = play(s, { type: "endMain", player: "p1" });
+  assert.equal(s.cards[locked].mode, "rest", "7-2-7 did not stand it up");
+  // It ends as the turn comes back round to the player who created it.
+  s = play(s, { type: "charge", player: "p2", card: null }, { type: "endMain", player: "p2" });
+  assert.equal(s.turnPlayer, "p1");
+  assert.equal(s.effects.filter((e) => e.kind === "forbid").length, 0, "the rule has expired");
+}
+
+{
+  // "You can't play copies of this card" is about the name, not the card.
+  let s = arena({ hand: ["NOCOPIES", "NOCOPIES"], energy: ["V1", "V1"] });
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "NOCOPIES") });
+  assert.ok(
+    !labels(s).some((x) => x.startsWith("Play NOCOPIES")),
+    "the second copy is not offered",
+  );
+  assert.throws(() => apply({ defs: DEFS }, s, { type: "play", player: "p1", card: find(s, "p1", "hand", "NOCOPIES") }), /can't be played/);
+}
+
+{
+  // "Can't be KO'd by your opponent's skills" stops their skill, not the battle.
+  let s = arena({ hand: ["TOUGH"], energy: ["V1", "V1"], oppHand: ["KILLER"], oppEnergy: ["V1"] });
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "TOUGH") });
+  const tough = find(s, "p1", "battle", "TOUGH");
+  s = play(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+  s = play(s, { type: "play", player: "p2", card: find(s, "p2", "hand", "KILLER") });
+  assert.equal(s.prompt.kind, "chooseCards", "it is still a legal choice — the KO simply does not happen");
+  s = play(s, { type: "choose", player: "p2", cards: [tough] });
+  assert.ok(s.players.p1.battle.includes(tough), "22-12-like: their skill cannot KO it");
+  // 21-6 still applies: a rule, not a skill, and it ignores even [Indestructible].
+  s.effects.push({ id: 998, target: tough, kind: "power", value: -99000, until: "turn", ownerTurn: "p2", createdTurn: s.turn });
+  s = play(s, { type: "endMain", player: "p2" });
+  assert.ok(s.players.p1.drop.includes(tough), "21-6: 0 power is a rule, and rules are not skills");
 }
 
 console.log("verify-arena: all checks passed");

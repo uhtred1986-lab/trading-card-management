@@ -25,6 +25,7 @@ import {
   endEffects,
   expireDelayed,
   face,
+  forbids,
   fireDelayed,
   has,
   describePayment,
@@ -212,6 +213,9 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
       s.phase = "charge";
       ev.push({ type: "phase", phase: "charge", player: s.turnPlayer, turn: s.turn });
       endEffects(s, "opponentTurn", other(s.turnPlayer));
+      // "until the end of your opponent's turn" — created on your turn, it
+      // runs through theirs and ends as your next turn opens.
+      endEffects(s, "nextTurn", s.turnPlayer);
       for (const id of cardsInPlay(s, s.turnPlayer)) pendTriggers(ctx, s, "chargeStart", id);
       s.flow.unshift(...fireDelayed(s, "turnStart"), { op: "checkpoint" }, { op: "turn.activeAll" }, { op: "checkpoint" }, { op: "turn.draw" }, { op: "checkpoint" }, { op: "turn.promptCharge" });
       return "done";
@@ -486,6 +490,7 @@ function counterCandidates(ctx: EngineContext, s: GameState, responder: PlayerId
         (window === "counter" && sk.kind === "counter:counter");
       if (!want) continue;
       if (!canResolve(ctx, s, id, sk)) continue;
+      if (forbids(ctx, s, "activateCounter", { player: responder, card: id })) continue;
       const cost = playCost(ctx, s, id);
       const orbs = orbTotals(sk);
       if (!planPayment(ctx, s, responder, cost.total + orbs.total, cost.specified)) continue;
@@ -746,7 +751,7 @@ function battleBlocker(ctx: EngineContext, s: GameState): "done" | "wait" {
   if (b.blockerOffered) return "done";
   b.blockerOffered = true;
   const defender = other(s.turnPlayer);
-  const cands = cardsInPlay(s, defender).filter((id) => id !== b.guard && s.cards[id].mode === "active" && has(ctx, s, id, "Blocker"));
+  const cands = cardsInPlay(s, defender).filter((id) => id !== b.guard && s.cards[id].mode === "active" && has(ctx, s, id, "Blocker") && !forbids(ctx, s, "block", { player: defender, card: id }));
   if (!cands.length) return "done";
   return wait(s, { kind: "blocker", player: defender, candidates: cands });
 }
@@ -1032,13 +1037,13 @@ export function legalActions(ctx: EngineContext, s: GameState): LegalAction[] {
       const b = s.battle!;
       for (const id of s.players[p].hand) {
         const d = def(ctx, s, id);
-        if (canCombo(d) && planPayment(ctx, s, p, d.comboCost ?? 0, {})) out.push({ action: { type: "combo", player: p, card: id }, label: `Combo ${name(id)} from hand (+${comboPowerOf(ctx, s, id)}, cost ${d.comboCost})` });
+        if (canCombo(d) && !forbids(ctx, s, "combo", { player: p, card: id }) && planPayment(ctx, s, p, d.comboCost ?? 0, {})) out.push({ action: { type: "combo", player: p, card: id }, label: `Combo ${name(id)} from hand (+${comboPowerOf(ctx, s, id)}, cost ${d.comboCost})` });
       }
       for (const id of s.players[p].battle) {
         if (id === b.attacker || id === b.guard || s.cards[id].mode !== "active" || s.cards[id].hidden) continue;
         const d = def(ctx, s, id);
         // 5-7-3: the combo cost is paid whether the card comes from hand or from the Battle Area.
-        if (canCombo(d) && planPayment(ctx, s, p, d.comboCost ?? 0, {}))
+        if (canCombo(d) && !forbids(ctx, s, "combo", { player: p, card: id }) && planPayment(ctx, s, p, d.comboCost ?? 0, {}))
           out.push({ action: { type: "combo", player: p, card: id }, label: `Combo ${name(id)} from the Battle Area (+${comboPowerOf(ctx, s, id)}, cost ${d.comboCost})` });
       }
       out.push({ action: { type: "pass", player: p }, label: pr.side === "offense" ? "End Offense Step" : "End Defense Step" });
@@ -1099,13 +1104,13 @@ function mainActions(ctx: EngineContext, s: GameState, p: PlayerId): LegalAction
     const d = def(ctx, s, id);
     const bt = baseType(d);
     if (bt === "BATTLE" && d.energyCost !== "X") {
-      if (planPayment(ctx, s, p, playCost(ctx, s, id).total, playCost(ctx, s, id).specified) && uniqueAllows(ctx, s, p, id)) out.push({ action: { type: "play", player: p, card: id }, label: `Play ${name(id)} (${d.energyCost ?? 0})` });
+      if (planPayment(ctx, s, p, playCost(ctx, s, id).total, playCost(ctx, s, id).specified) && canPlay(ctx, s, p, id)) out.push({ action: { type: "play", player: p, card: id }, label: `Play ${name(id)} (${d.energyCost ?? 0})` });
     }
     // 1-2-2-2-1: with an X cost the card's master picks the value.
-    if (bt === "BATTLE" && d.energyCost === "X" && uniqueAllows(ctx, s, p, id)) {
+    if (bt === "BATTLE" && d.energyCost === "X" && canPlay(ctx, s, p, id)) {
       for (let x = 0; x <= energyCount; x++) if (planPayment(ctx, s, p, x, {})) out.push({ action: { type: "play", player: p, card: id, x }, label: `Play ${name(id)} with X = ${x}` });
     }
-    if (bt === "UNISON" && !isZ(d)) {
+    if (bt === "UNISON" && !isZ(d) && canPlay(ctx, s, p, id)) {
       const max = d.energyCost === "X" ? energyCount : (d.energyCost ?? 0);
       const min = d.energyCost === "X" ? 1 : (d.energyCost ?? 0);
       for (let x = min; x <= max; x++) if (planPayment(ctx, s, p, x, {})) out.push({ action: { type: "playUnison", player: p, card: id, x }, label: `Play Unison ${name(id)} with ${x} marker${x === 1 ? "" : "s"}` });
@@ -1133,6 +1138,7 @@ function mainActions(ctx: EngineContext, s: GameState, p: PlayerId): LegalAction
   for (const id of ps.zDeck) {
     const d = def(ctx, s, id);
     if (!isZ(d) || d.type === "Z-LEADER") continue; // 6-1-4: only Z-cards; Z-Leaders enter via [Z-Awaken]
+    if (!canPlay(ctx, s, p, id)) continue; // 20-14
     const zc = d.zEnergyCost ?? 0;
     if (ps.zEnergy.length < zc) continue;
     if (d.type === "Z-UNISON") {
@@ -1149,9 +1155,9 @@ function mainActions(ctx: EngineContext, s: GameState, p: PlayerId): LegalAction
     const targets = [s.players[opp].leader, ...(s.players[opp].unison ? [s.players[opp].unison] : []), ...s.players[opp].battle.filter((id) => s.cards[id].mode === "rest")];
     for (const a of cardsInPlay(s, p)) {
       if (s.cards[a].mode !== "active" || s.cards[a].hidden) continue;
-      if (s.effects.some((e) => e.kind === "cannotAttack" && e.target === a)) continue;
+      if (forbids(ctx, s, "attack", { player: p, card: a })) continue;
       for (const t of targets) {
-        if (s.effects.some((e) => e.kind === "cannotBeAttacked" && e.target === t)) continue;
+        if (forbids(ctx, s, "beAttacked", { player: opp, card: t })) continue;
         out.push({ action: { type: "attack", player: p, attacker: a, target: t }, label: `Attack ${name(t)} with ${name(a)} (${powerOf(ctx, s, a)} vs ${powerOf(ctx, s, t)})` });
       }
     }
@@ -1160,10 +1166,15 @@ function mainActions(ctx: EngineContext, s: GameState, p: PlayerId): LegalAction
   return out;
 }
 
-/** 22-39: a card can't be played while a [Unique] card of the same name is in play. */
-function uniqueAllows(ctx: EngineContext, s: GameState, p: PlayerId, card: string): boolean {
+/**
+ * Whether this card may be played at all: 22-39 ([Unique] of the same name in
+ * play) and 20-14 (anything that forbids playing it). Asked in both places a
+ * play can start — the menu and `apply` — so the two never disagree.
+ */
+function canPlay(ctx: EngineContext, s: GameState, p: PlayerId, card: string): boolean {
   const d = def(ctx, s, card);
-  return !s.players[p].battle.some((id) => has(ctx, s, id, "Unique") && face(ctx, s, id).name === d.name);
+  if (s.players[p].battle.some((id) => has(ctx, s, id, "Unique") && face(ctx, s, id).name === d.name)) return false;
+  return !forbids(ctx, s, "play", { player: p, card });
 }
 
 /**
@@ -1178,6 +1189,8 @@ function activatable(ctx: EngineContext, s: GameState, p: PlayerId, card: string
   const inHand = areaOf(s, card) === "hand";
   const name = face(ctx, s, card).name;
   if (inst.negated === "all" || inst.negated.includes(sk.index)) return null;
+  // 20-14: a skill nothing forbids, on a card nothing forbids it on.
+  if (forbids(ctx, s, "activateSkill", { player: p, card })) return null;
   if (sk.oncePerTurn && inst.usedThisTurn.includes(sk.index)) return null;
   if (sk.bond != null && s.players[p].battle.length < sk.bond) return null;
   if (sk.sparking != null && s.players[p].drop.length < sk.sparking) return null;
@@ -1355,7 +1368,7 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
       if (!ps.hand.includes(action.card)) throw new IllegalAction("card not in hand");
       const d = def(ctx, s, action.card);
       if (baseType(d) !== "BATTLE") throw new IllegalAction("not a playable Battle Card");
-      if (!uniqueAllows(ctx, s, p, action.card)) throw new IllegalAction("a [Unique] card with that name is in play");
+      if (!canPlay(ctx, s, p, action.card)) throw new IllegalAction("that card can't be played now");
       const c = d.energyCost === "X" ? { total: action.x ?? 0, specified: {} } : playCost(ctx, s, action.card);
       const asked = askForPayment(ctx, s, p, action, c.total, c.specified, `play ${face(ctx, s, action.card).name}`);
       if (asked) return { state: asked, events: ev };
@@ -1371,6 +1384,7 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
       if (!ps.hand.includes(action.card)) throw new IllegalAction("card not in hand");
       const d = def(ctx, s, action.card);
       if (baseType(d) !== "UNISON") throw new IllegalAction("not a Unison card");
+      if (!canPlay(ctx, s, p, action.card)) throw new IllegalAction("that card can't be played now");
       const x = d.energyCost === "X" ? action.x : (d.energyCost ?? 0);
       if (d.energyCost === "X" && x < 1) throw new IllegalAction("X must be at least 1");
       const askedUnison = askForPayment(ctx, s, p, action, x, {}, `play ${face(ctx, s, action.card).name}`);
@@ -1388,6 +1402,7 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
       const d = def(ctx, s, action.card);
       if (!isZ(d)) throw new IllegalAction("only Z-cards can be played from the Z-Deck");
       if (d.type === "Z-LEADER") throw new IllegalAction("Z-Leaders enter through [Z-Awaken]");
+      if (!canPlay(ctx, s, p, action.card)) throw new IllegalAction("that card can't be played now");
       const x = d.energyCost === "X" ? (action.x ?? 0) : (d.energyCost ?? 0);
       const c = d.energyCost === "X" ? { total: x, specified: {} } : playCost(ctx, s, action.card);
       const askedZ = askForPayment(ctx, s, p, action, c.total, c.specified, `play ${face(ctx, s, action.card).name}`);
@@ -1445,6 +1460,7 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
       const b = s.battle!;
       const d = def(ctx, s, action.card);
       if (!canCombo(d)) throw new IllegalAction("that card can't be used in a combo");
+      if (forbids(ctx, s, "combo", { player: p, card: action.card })) throw new IllegalAction("that card can't be used in a combo now");
       const fromHand = ps.hand.includes(action.card);
       const fromBattle = ps.battle.includes(action.card) && s.cards[action.card].mode === "active" && action.card !== b.attacker && action.card !== b.guard;
       if (!fromHand && !fromBattle) throw new IllegalAction("card not available for a combo");

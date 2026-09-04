@@ -7,6 +7,7 @@
  * Rule Manual v4.00 (`docs/rules/rulemanual.txt`).
  */
 
+import type { CardFilter } from "./filters";
 import type { Op, ScriptFrame } from "./script";
 import type { Payment } from "./state";
 
@@ -205,13 +206,46 @@ export interface Battle {
   reactivate: boolean;
 }
 
+/**
+ * Things a card can forbid (20-14). 0-2-5 settles every conflict between a
+ * prohibition and an instruction: the prohibition wins, so these are checked
+ * last and nothing overrules them.
+ */
+export type ForbiddenAction =
+  | "attack"
+  | "beAttacked"
+  | "block"
+  | "play"
+  | "activateSkill"
+  | "activateCounter"
+  | "combo"
+  | "beKOd"
+  | "beKOdBySkill"
+  | "beChosen"
+  | "switchToActive"
+  | "placeEnergy";
+
+export interface Prohibition {
+  what: ForbiddenAction;
+  /** Whose action is forbidden. Absent means either player's. */
+  player?: PlayerId;
+  /** Which cards it is about. Absent means any card. */
+  filter?: CardFilter;
+  /** Cards with this exact name — "you can't play copies of this card". */
+  name?: string;
+}
+
 /** A continuous effect (9-9) with a duration. */
 export interface ContinuousEffect {
   id: number;
+  /** The card it is about; empty for a rule that is about a player, not a card. */
   target: string;
-  kind: "power" | "comboPower" | "keyword" | "negateSkills" | "cannotAttack" | "cannotBeAttacked";
+  kind: "power" | "comboPower" | "keyword" | "negateSkills" | "forbid";
   value: number | KeywordSkill;
-  until: "battle" | "turn" | "opponentTurn" | "game";
+  /** Set when `kind` is "forbid". */
+  forbid?: Prohibition;
+  /** "nextTurn" runs through the opponent's whole turn and ends as yours begins. */
+  until: "battle" | "turn" | "opponentTurn" | "nextTurn" | "game";
   /** The turn player when the effect was created, so "for the turn" ends at the right End Phase. */
   ownerTurn: PlayerId;
   createdTurn: number;

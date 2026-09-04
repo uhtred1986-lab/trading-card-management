@@ -226,7 +226,12 @@ Operations (each is an object with "op"):
   {"op":"grant","target":TARGET,"keyword":{"name":"Blocker"},"until":"turn"}
   {"op":"negateSkills","target":TARGET,"until":"turn"} | {"op":"negateAttack"}
   {"op":"addMarker","target":TARGET,"n":1} | {"op":"removeMarker","target":TARGET,"n":1}
-  {"op":"cannotAttack","target":TARGET,"until":"turn"}
+  {"op":"forbid","what":FORBIDDEN,"until":"turn","target":TARGET}        a rule about particular cards
+  {"op":"forbid","what":"play","until":"turn","side":"opponent","filter":{...}}   a rule about a player
+    FORBIDDEN: "attack" | "beAttacked" | "block" | "play" | "activateSkill" | "activateCounter"
+             | "combo" | "beKOd" | "beKOdBySkill" | "beChosen" | "switchToActive"
+    "sameNameAsSelf":true narrows a play rule to copies of this card.
+    until may also be "nextTurn", which lasts through the opponent's turn and ends as yours begins.
   {"op":"token","name":"Saibaman Token","power":10000,"comboCost":0,"comboPower":5000,"colors":[],"n":2}
   {"op":"if","cond":COND,"then":[...],"else":[...]}
   {"op":"delay","at":TIMING,"scope":SCOPE,"ops":[...]}   the inner operations happen later, not now

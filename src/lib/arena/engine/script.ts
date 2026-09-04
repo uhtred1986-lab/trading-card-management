@@ -20,6 +20,7 @@ import {
   areaOf,
   draw as drawCards,
   face,
+  forbids,
   has,
   move,
   note,
@@ -29,7 +30,7 @@ import {
   type GameContext,
 } from "./state";
 import { koCard, pendTriggers } from "./triggers";
-import type { Color, DelayScope, DelayTiming, FlowStep, GameEvent, GameState, KeywordSkill, PlayerId, Trigger } from "./types";
+import type { Color, DelayScope, DelayTiming, FlowStep, ForbiddenAction, GameEvent, GameState, KeywordSkill, PlayerId, Trigger } from "./types";
 
 // ── the language ───────────────────────────────────────────────────────────
 
@@ -38,7 +39,7 @@ export type ScriptArea = "hand" | "deck" | "drop" | "life" | "battle" | "combo" 
 
 export type Side = "you" | "opponent" | "both";
 
-export type Duration = "battle" | "turn" | "opponentTurn" | "game";
+export type Duration = "battle" | "turn" | "opponentTurn" | "nextTurn" | "game";
 
 /** Cards the source skill can point at without choosing: itself, the battle roles, the trigger's subject. */
 export type SpecialTarget = "self" | "attacker" | "guard" | "subject" | "leader" | "opponentLeader";
@@ -98,7 +99,14 @@ export type Op =
   /** A [Permanent] cost reducer, applied while the card sits where the skill says (9-1-3-3). */
   | { op: "costReduction"; target: Ref; amount: number }
   | { op: "negateAttack" }
+  /** Kept for programs written before `forbid` existed; the same thing. */
   | { op: "cannotAttack"; target: Ref; until: Duration }
+  /**
+   * Forbid an action (20-14). Name a `target` for a rule about particular
+   * cards, or a `side` for one about a player ("your opponent can't attack
+   * with Battle Cards"), optionally narrowed by a filter.
+   */
+  | { op: "forbid"; what: ForbiddenAction; until: Duration; target?: Ref; side?: Side; filter?: CardFilter; sameNameAsSelf?: boolean }
   | { op: "if"; cond: Cond; then: Op[]; else?: Op[] }
   /**
    * Write an effect down now and carry it out later (1-7-2-1-1): "at the end
@@ -273,6 +281,8 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         for (const id of resolveRef(ctx, s, frame, op.target)) {
           // 22-12: [Indestructible] cannot be KO'd by an opponent's skill.
           if (has(ctx, s, id, "Indestructible") && s.cards[id].owner !== master) continue;
+          // 20-14: the same thing spelled out on the card rather than keyworded.
+          if (forbids(ctx, s, "beKOdBySkill", { player: master, card: id })) continue;
           if (areaOf(s, id) === "battle") koCard(ctx, s, ev, id, frame.card);
         }
         break;
@@ -310,8 +320,28 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         break;
 
       case "cannotAttack":
-        for (const id of resolveRef(ctx, s, frame, op.target)) addEffect(s, ev, { target: id, kind: "cannotAttack", value: 0, until: op.until });
+        for (const id of resolveRef(ctx, s, frame, op.target)) addEffect(s, ev, { target: id, kind: "forbid", value: 0, until: op.until, forbid: { what: "attack" } });
         break;
+
+      case "forbid": {
+        // "both" and an absent side alike mean the rule is about neither
+        // player in particular, so it holds for both.
+        const players = op.side && op.side !== "both" ? sideOf(master, op.side) : [];
+        if (op.target) {
+          // On a card, the side says *whose* action is forbidden — "can't be
+          // KO'd by your opponent's skills" is a rule about the opponent.
+          for (const id of resolveRef(ctx, s, frame, op.target)) addEffect(s, ev, { target: id, kind: "forbid", value: 0, until: op.until, forbid: { what: op.what, player: players[0] } });
+          break;
+        }
+        addEffect(s, ev, {
+          target: "",
+          kind: "forbid",
+          value: 0,
+          until: op.until,
+          forbid: { what: op.what, player: players[0], filter: op.filter, name: op.sameNameAsSelf ? face(ctx, s, frame.card).name : undefined },
+        });
+        break;
+      }
 
       case "addMarker":
       case "removeMarker": {
@@ -364,8 +394,9 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         break;
 
       case "play": {
-        // 5-5-3: played by a skill, so no energy cost is paid.
-        const targets = resolveRef(ctx, s, frame, op.target);
+        // 5-5-3: played by a skill, so no energy cost is paid — but a card
+        // that may not be played may not be played by a skill either (20-14).
+        const targets = resolveRef(ctx, s, frame, op.target).filter((id) => !forbids(ctx, s, "play", { player: master, card: id }));
         if (!targets.length) break;
         const steps: FlowStep[] = [];
         for (const id of targets) steps.push({ op: "play.resolve", card: id, player: master, mode: op.mode });
@@ -446,6 +477,7 @@ const OP_NAMES = new Set<Op["op"]>([
   "token",
   "negateAttack",
   "cannotAttack",
+  "forbid",
   "costReduction",
   "if",
   "delay",
