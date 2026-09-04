@@ -311,6 +311,10 @@ function parseConditionClause(clause: string, allowBare = false): { cond: Cond; 
   if (/^(?:it's |it is )?your turn$/.test(t) || /^during your turn$/.test(t)) return { cond: { kind: "isTurnPlayer" } };
   if (/^(?:it's |it is )?your opponent's turn$/.test(t) || /^during your opponent's turn$/.test(t)) return { cond: { kind: "isTurnPlayer", who: "opponent" } };
 
+  // A card's own mode as a condition (1-10).
+  if ((m = /^this card is in (rest|active) mode$/.exec(t))) {
+    return { cond: { kind: "count", sel: { special: "self", mode: m[1] as "rest" | "active" }, atLeast: 1 }, subject: { sel: { special: "self" } } };
+  }
   const counted = parseCountCondition(t);
   if (counted) return { cond: counted };
   return null;
@@ -361,6 +365,9 @@ function connective(clause: string): "skip" | "ifDone" | null {
   // nothing. The forms that *change* the cost are not this, and are left alone.
   if (/^you (?:can|may) activate this card's \[counter\][a-z: ]*skill from your hand$/.test(t)) return "skip";
   if (/^when you activate this card's \[counter\][a-z: ]*skill$/.test(t)) return "skip";
+  // Deck-building permissions are not rules of play (6-1), like the
+  // restrictions their opposite numbers print.
+  if (/^you can include as many copies of this card in your deck as you like$/.test(t)) return "skip";
   return null;
 }
 
@@ -417,9 +424,32 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   }
 
   // Cost reduction on a [Permanent] skill (9-1-3-3, 20-21).
-  if ((m = /^reduce the energy cost of (.+?) (?:in your hand |in your z-deck )?by (\d+)$/.exec(t))) {
+  if ((m = /^reduce the (energy|combo) cost of (.+?) (?:in your hand |in your z-deck )?by (\d+)$/.exec(t))) {
+    const ref = refFor(m[2], c);
+    return ref ? [{ op: "costReduction", target: ref, amount: Number(m[3]), ...(m[1] === "combo" ? { what: "combo" as const } : {}) }] : null;
+  }
+
+  // 9-1-5: negating one named keyword rather than silencing the card.
+  if ((m = /^negate (.+?)'s \[([a-z0-9\- ]+)\](?: skill)?(?: in (?:all|any) areas?)?$/.exec(t))) {
+    const kw = keywordOf(m[2]);
+    if (!kw) return null;
     const ref = refFor(m[1], c);
-    return ref ? [{ op: "costReduction", target: ref, amount: Number(m[2]) }] : null;
+    return ref ? [{ op: "negateKeyword", keyword: kw.name, target: ref }] : null;
+  }
+
+  // "Only 1 {SS2 Trunks} can be played in your Battle Area" — a prohibition
+  // that switches itself on once the card is there, which a [Permanent] can
+  // say because the static layer asks again every time.
+  if ((m = /^only (\d+) (.+?) can be played in your battle area$/.exec(t))) {
+    const filter = filterFor(m[2], null);
+    if (!filter) return null;
+    return [
+      {
+        op: "if",
+        cond: { kind: "count", sel: { side: "you", area: "battle", filter }, atLeast: Number(m[1]) },
+        then: [{ op: "forbid", what: "play", side: "you", until: "game", filter }],
+      },
+    ];
   }
 
   // Energy markers (5-14).
@@ -439,6 +469,18 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   if ((m = /^(.*?) (?:gets?|gains?) ([+-]\d+) power\b/.exec(t))) {
     const ref = refFor(m[1], c);
     return ref ? [{ op: "power", target: ref, amount: Number(m[2]), until: durationOf(t) }] : null;
+  }
+
+  // 20-1: what a card counts as, rather than what it does. "This card gains
+  // ≪Saiyan≫ in all areas" makes it a Saiyan to every skill that names one.
+  if ((m = /^(.*?) (?:gains?|is (?:also )?treated as(?: an?)?) ((?:(?:non-)?(?:<[^>]+>|≪[^≫]+≫|red|blue|green|yellow|black)[\s,]*(?:and\s+|or\s+)?)+)(?: in (?:all|any) areas?)?$/.exec(t))) {
+    const what = m[2];
+    const filter = parseFilter(what);
+    const colors = filter.colors;
+    if (!filter.traits.length && !filter.characters.length && !colors.length) return null;
+    if (filter.notTraits.length || filter.notCharacters.length) return null;
+    const ref = refFor(m[1] || "this card", c);
+    return ref ? [{ op: "gains", target: ref, traits: filter.traits, characters: filter.characters, colors }] : null;
   }
 
   // Granting keyword skills (20-18); one clause can grant several.

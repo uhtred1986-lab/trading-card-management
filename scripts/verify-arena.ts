@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { apply, createGame, defsFrom, legalActions, seedFrom, type Action, type CardDef, type GameState, type PlayerId } from "../src/lib/arena/engine";
 import { parseSkills, keywordOf, orbsIn } from "../src/lib/arena/engine/cards";
 import { parseFilter, matches, parseCondition } from "../src/lib/arena/engine/filters";
-import { move, locate, playCost, powerOf, forbids } from "../src/lib/arena/engine/state";
+import { move, locate, playCost, powerOf, forbids, has, cardNow, comboCostOf } from "../src/lib/arena/engine/state";
 import { compileSkill, describeScript, splitClauses } from "../src/lib/arena/engine/compile";
 
 // ── skill text parsing ─────────────────────────────────────────────────────
@@ -148,6 +148,12 @@ const DEFS: Record<string, CardDef> = defsFrom([
   card("GRABBER", { energyCost: 1, skill: "[Auto] When you play this card, choose 1 of your opponent's cards and place it in its owner's drop area." }),
   card("PERMTOUGH", { energyCost: 2, power: 5000, skill: "[Permanent] This card can't be KO'd by your opponent's skills." }),
   card("PERMLOCK", { energyCost: 2, power: 5000, skill: "[Permanent] Your opponent can't attack with Battle Cards." }),
+  card("SELFMUTE", { energyCost: 2, skill: "[Blocker]\n[Permanent] Negate this card's [Blocker] skill in all areas." }),
+  card("BECOMES", { energyCost: 2, skill: "[Permanent] This card gains ≪Saiyan≫ in all areas." }),
+  card("SAIYANKILL", { energyCost: 1, skill: "[Auto] When you play this card, choose 1 of your opponent's ≪Saiyan≫ Battle Cards and KO it." }),
+  card("CHEAPCOMBO", { energyCost: 3, comboCost: 2, comboPower: 5000, skill: "[Permanent] Reduce the combo cost of this card in your hand by 2." }),
+  card("ONLYONE", { energyCost: 1, name: "ONLYONE", skill: "[Permanent] Only 1 {ONLYONE} can be played in your Battle Area." }),
+  card("RESTCOND", { energyCost: 1, skill: "[Permanent] If this card is in Rest Mode, your Battle Cards get +5000 power." }),
   card("E-LIFE", {
     type: "EXTRA",
     energyCost: 3,
@@ -1352,6 +1358,65 @@ function assertConsistentAfterDrop(s: GameState) {
   s = play(s, { type: "counter", player: "p2", card: find(s, "p2", "hand", "E-LIFE") });
   assert.equal(s.players.p2.life.length, before, "paying with energy leaves the life alone");
   assert.equal(s.players.p2.energy.filter((id) => s.cards[id].mode === "rest").length, 3, "it was paid with energy instead");
+}
+
+// ── what a [Permanent] can say about the card itself (9-1-5, 20-1, 20-21) ──
+
+{
+  const ctx = { defs: DEFS };
+  // 9-1-5: one named keyword goes, the card keeps the rest of itself.
+  const s = arena({ battle: ["SELFMUTE"] });
+  const mute = find(s, "p1", "battle", "SELFMUTE");
+  assert.ok(!has(ctx, s, mute, "Blocker"), "the card negated its own [Blocker]");
+}
+
+{
+  const ctx = { defs: DEFS };
+  // 20-1: a card that gains a trait is that trait to every skill that names
+  // one — this is about what the card *is*, not what it does.
+  let s = arena({ hand: ["SAIYANKILL"], energy: ["V1"], oppBattle: ["BECOMES", "BIG"] });
+  const becomes = find(s, "p2", "battle", "BECOMES");
+  assert.ok(cardNow(ctx, s, becomes).traits.some((t) => t.toLowerCase() === "saiyan"), "it counts as a ≪Saiyan≫");
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "SAIYANKILL") });
+  // Only one card on their side is a Saiyan, so the choice is forced and taken.
+  assert.ok(s.players.p2.drop.includes(becomes), "the ≪Saiyan≫ skill found it");
+  assert.ok(s.players.p2.battle.includes(find(s, "p2", "battle", "BIG")), "and left the card that is not one");
+}
+
+{
+  const ctx = { defs: DEFS };
+  // 20-21: a reducer that names the combo cost reduces the combo cost.
+  const s = arena({ hand: ["CHEAPCOMBO"] });
+  const cheap = find(s, "p1", "hand", "CHEAPCOMBO");
+  assert.equal(DEFS.CHEAPCOMBO.comboCost, 2, "printed");
+  assert.equal(comboCostOf(ctx, s, cheap), 0, "and free after its own [Permanent]");
+}
+
+{
+  // "Only 1 {ONLYONE} can be played in your Battle Area" — the rule switches
+  // itself on once one is there, which a [Permanent] can say because the
+  // static layer asks again every time.
+  let s = arena({ hand: ["ONLYONE", "ONLYONE"], energy: ["V1", "V1"] });
+  assert.ok(
+    labels(s).some((x) => x.startsWith("Play ONLYONE")),
+    "the first is playable",
+  );
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "ONLYONE") });
+  assert.ok(
+    !labels(s).some((x) => x.startsWith("Play ONLYONE")),
+    "the second is not, while the first is in play",
+  );
+}
+
+{
+  const ctx = { defs: DEFS };
+  // A card's own mode as a condition, re-read every time it is asked.
+  const s = arena({ battle: ["RESTCOND", "V1"] });
+  const cond = find(s, "p1", "battle", "RESTCOND");
+  const ally = find(s, "p1", "battle", "V1");
+  assert.equal(powerOf(ctx, s, ally), 10000, "nothing while it stands");
+  s.cards[cond].mode = "rest";
+  assert.equal(powerOf(ctx, s, ally), 15000, "and +5000 once it is rested");
 }
 
 console.log("verify-arena: all checks passed");
