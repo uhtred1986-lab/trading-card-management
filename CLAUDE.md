@@ -115,6 +115,42 @@ the same style.
   the model. ~130 s and ~$0.40 per draft.
 - **Binding arrays in raw SQL:** use `textArray()` from `src/db/sqlx.ts` — `${arr}::text[]` fails
   under postgres.js with a `transformTypeCast` error.
+- **Arena rules engine** (`src/lib/arena/engine/`, branch `feature/arena`): pure TypeScript, no React,
+  no database. A game is a `GameState` plus an append-only event log; `apply(ctx, state, action)` is the
+  only mutator and runs the flow (a data step list in `state.flow`) until the next `prompt`, so a game
+  is storable mid-decision and reproducible from seed + actions. `legalActions()` drives both the UI
+  and, later, Claude's move menu. Card text is *read*, not interpreted: `cards.ts` parses skill
+  types, keyword skills (§22 of `docs/rules/rulemanual.txt`) and orb costs; `filters.ts` reads the
+  fixed target grammar ("Blue <Baby> with an energy cost of 4"); `effects.ts` handles a few fixed
+  phrasings natively and logs a note for everything else, which is where the phase-3 compiled
+  scripts and the runtime referee plug in. Only skills the engine can both pay for and resolve are
+  offered as actions. Design and decisions: `docs/arena-design-proposal.md`. Tests:
+  `scripts/verify-arena.ts` (part of `npm test`), synthetic cards, sections cited in messages.
+- **Arena UI** (`/arena`, `src/components/arena/`, `src/lib/arena/{games,view}.ts`): phone-first
+  hot-seat board. A game is one `arena_games` row holding the seed, the action log (the
+  reproducible source) and a state snapshot; `applyToGame` is the only writer. The board is drawn
+  from `boardView`, which hides what the player may not see (3-1-3), and every tappable thing comes
+  from the engine's `legalActions`, so the UI knows no rules. `npm run arena:playthrough` plays a
+  whole game through the database, and `npm run arena:coverage` reports how much card text the
+  compiler reads.
+- **Claude as the arena opponent** (`src/lib/arena/ai/`): `view.ts` builds what Claude may see —
+  its own hand and decklist plus public state; your hand, life and decklist are never in the
+  request. `opponent.ts` picks a number from the engine's legal-move list, so an answer can be
+  wrong but never illegal, and takes the decisions that cannot go wrong (one legal move, the coin
+  flip, the mulligan, which card to charge) without an API call at all. Two tiers, the owner's
+  choice: Sparring on Haiku 4.5, Tournament sending the Main Phase and counter windows to Opus 5.
+  The same module holds the **referee**, which answers with a program in the effect language when
+  a card's text defeats the compiler. `run.ts` drives Claude's side and totals what it spent onto
+  the game row. Caching note: the cached prefix is ~3,200 tokens, over Opus 5's 512-token minimum
+  but under Haiku 4.5's 4,096, so Tournament games cache and Sparring games do not.
+- **Arena debug and backlog** (`src/lib/arena/ai/debug.ts`): every decision the server takes is
+  written to `arena_decisions` — the prompt kind, the whole menu offered, what was chosen, whether a
+  rule or Claude decided it, the model, tokens, cost and latency, plus the exact prompt text when
+  the game has `debug` on. `/arena/[id]/debug` reads it back. Clauses the compiler cannot read go
+  to `card_text_notes`, grouped by clause shape at `/arena/backlog`: the referee bumps a row when
+  the text actually comes up and stores the program Claude produced as a worked example, and
+  "scan my decks again" fills it from the decks you play. That page is the to-do list for
+  `compile.ts` — one rule usually clears a whole group.
 - **Optimiser** (`src/lib/marketplace/optimizer.ts`) is deterministic: greedy + exhaustive 1/2/3-seller
   subsets + removal local search, shipping counted once per seller.
 
