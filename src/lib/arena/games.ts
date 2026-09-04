@@ -12,11 +12,70 @@ import { hasAnthropic } from "@/lib/ai/client";
 import { arenaGames, cards as cardsTable } from "@/db/schema";
 import { inArray } from "drizzle-orm";
 import { apply, createGame, legalActions, seedFrom, type Action, type CardDef, type EngineContext, type GameEvent, type GameState, type LegalAction } from "./engine";
-import { face } from "./engine";
+import { compileCardCached, face, skillsOf } from "./engine";
+import { def } from "./engine/state";
 import { cardDefFrom, deckInputFor } from "./load";
 import { scriptsFor } from "./scripts";
 
 export type ArenaMode = "hotseat" | "sparring" | "tournament";
+
+/**
+ * The card whose text just fired, for the banner the board shows. Engine
+ * events only exist for the length of one `apply`, so the one thing the board
+ * wants out of them is kept on the row.
+ */
+export interface Spotlight {
+  /** Log length when it happened: the board banners it when this changes. */
+  seq: number;
+  /** Catalog id, so the page can find the art it already loaded. */
+  cardId: string;
+  name: string;
+  /** The bracket tag the card prints: "Auto", "Activate: Main", "Permanent". */
+  label: string;
+  text: string;
+  /** True when this skill is one the compiler could not read on its own. */
+  unread: boolean;
+}
+
+const SKILL_LABELS: Record<string, string> = {
+  "activate:main": "Activate: Main",
+  "activate:battle": "Activate: Battle",
+  "activate:main/battle": "Activate: Main/Battle",
+  auto: "Auto",
+  permanent: "Permanent",
+  "counter:play": "Counter: Play",
+  "counter:attack": "Counter: Attack",
+  "counter:battle card attack": "Counter: Attack",
+  "counter:counter": "Counter",
+  keyword: "Keyword",
+};
+
+/** The last skill to resolve in this batch of events, or null if none did. */
+function spotlightFrom(ctx: EngineContext, state: GameState, events: GameEvent[], seq: number): Spotlight | null {
+  for (let i = events.length - 1; i >= 0; i--) {
+    const e = events[i];
+    if (e.type !== "skill") continue;
+    const inst = state.cards[e.card];
+    if (!inst) continue;
+    try {
+      const d = def(ctx, state, e.card);
+      const side = inst.flipped && d.back ? "back" : "front";
+      const sk = skillsOf(d, side).find((x) => x.index === e.skill);
+      const compiled = compileCardCached(d, side).bySkill[e.skill];
+      return {
+        seq,
+        cardId: inst.cardId,
+        name: face(ctx, state, e.card).name,
+        label: sk?.tags[0] ?? SKILL_LABELS[sk?.kind ?? ""] ?? "Skill",
+        text: e.text.replace(/\s+/g, " ").trim(),
+        unread: !!compiled?.unsupported.length,
+      };
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
 
 export interface LoadedGame {
   id: number;
@@ -35,6 +94,8 @@ export interface LoadedGame {
   state: GameState;
   log: string[];
   legal: LegalAction[];
+  /** The skill that fired on the last action, for the board's banner. */
+  spotlight: Spotlight | null;
 }
 
 /** Definitions for every card the state mentions, tokens included. */
@@ -97,6 +158,7 @@ export async function loadGame(db: Db, id: number): Promise<LoadedGame | null> {
     ctx,
     state,
     log: (row.log as string[]) ?? [],
+    spotlight: (row.spotlight as Spotlight | null) ?? null,
     legal: legalActions(ctx, state),
     spend: { calls: row.aiCalls, input: row.aiInputTokens, output: row.aiOutputTokens, cached: row.aiCachedTokens, micros: row.aiCostMicros },
     review: row.review,
@@ -111,6 +173,8 @@ export async function applyToGame(db: Db, id: number, action: Action): Promise<L
   if (game.status !== "playing") throw new Error("this game is over");
   const { state, events } = apply(game.ctx, game.state, action);
   const lines = [...game.log, ...describeEvents(game.ctx, state, events)].slice(-400);
+  // Null when this action fired no skill, so the banner does not show again.
+  const spotlight = spotlightFrom(game.ctx, state, events, lines.length);
   const actions = [...((await db.query.arenaGames.findFirst({ where: eq(arenaGames.id, id) }))?.actions as Action[]), action];
   await db
     .update(arenaGames)
@@ -118,6 +182,7 @@ export async function applyToGame(db: Db, id: number, action: Action): Promise<L
       state,
       actions,
       log: lines,
+      spotlight,
       turn: state.turn,
       status: state.phase === "over" ? "over" : "playing",
       winner: state.winner,
@@ -125,7 +190,7 @@ export async function applyToGame(db: Db, id: number, action: Action): Promise<L
       updatedAt: new Date(),
     })
     .where(eq(arenaGames.id, id));
-  return { ...game, state, log: lines, legal: legalActions(game.ctx, state), status: state.phase === "over" ? "over" : "playing" };
+  return { ...game, state, log: lines, spotlight, legal: legalActions(game.ctx, state), status: state.phase === "over" ? "over" : "playing" };
 }
 
 export async function listGames(db: Db, limit = 20) {
