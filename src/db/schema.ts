@@ -111,6 +111,12 @@ export const cards = pgTable(
     deckplanetId: integer("deckplanet_id"),
     /** Lower-cased "number name characters" for ILIKE search. */
     searchText: text("search_text").notNull(),
+    /**
+     * Stamped once, on insert, and never touched again — the catalog upsert
+     * omits it from its `onConflictDoUpdate` set, so a re-sync can't disturb
+     * it. This is what "recently added to the game" means for the news feed.
+     */
+    firstSeenAt: timestamp("first_seen_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
@@ -118,6 +124,7 @@ export const cards = pgTable(
     index("cards_name_idx").on(t.name),
     index("cards_type_idx").on(t.cardType),
     index("cards_game_idx").on(t.game),
+    index("cards_first_seen_idx").on(t.firstSeenAt),
   ],
 );
 
@@ -395,6 +402,66 @@ export const ctListings = pgTable(
     fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("ct_listings_card_idx").on(t.cardId), index("ct_listings_blueprint_idx").on(t.blueprintId)],
+);
+
+/*
+ * ──────────────────────────────────────────────────────────────────────────
+ *  Meta — regional results scraped from deckplanet.net's own dashboard (same
+ *  trusted source as the catalog, just an undocumented page instead of the
+ *  cardsearch API). See src/lib/meta/deckplanet-results.ts. A lookup miss is
+ *  kept as a raw number rather than dropped, per this app's "flag, never
+ *  drop" rule — an unresolved card just doesn't get a "buy this" link.
+ * ──────────────────────────────────────────────────────────────────────────
+ */
+
+export const metaEvents = pgTable("meta_events", {
+  /** deckplanet's own event uuid. */
+  id: text("id").primaryKey(),
+  game: text("game").notNull().default("dbs"),
+  name: text("name").notNull(),
+  occurredOn: date("occurred_on"),
+  official: boolean("official").notNull().default(true),
+  sourceUrl: text("source_url").notNull(),
+  fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const metaResults = pgTable(
+  "meta_results",
+  {
+    id: serial("id").primaryKey(),
+    eventId: text("event_id")
+      .notNull()
+      .references(() => metaEvents.id, { onDelete: "cascade" }),
+    placement: integer("placement").notNull(),
+    /** Null when the leader's card_number didn't resolve against our catalog. */
+    leaderCardId: text("leader_card_id").references(() => cards.id, { onDelete: "set null" }),
+    /** Kept even when resolved, so a bad match is visible; the only value at all when it isn't. */
+    leaderNumberRaw: text("leader_number_raw").notNull(),
+    /** deckplanet's own deck uuid, for re-fetching or linking out. */
+    deckSourceId: text("deck_source_id").notNull(),
+    sourceUrl: text("source_url").notNull(),
+  },
+  (t) => [
+    index("meta_results_event_idx").on(t.eventId),
+    index("meta_results_leader_idx").on(t.leaderCardId),
+    uniqueIndex("meta_results_deck_unique").on(t.eventId, t.deckSourceId),
+  ],
+);
+
+export const metaResultCards = pgTable(
+  "meta_result_cards",
+  {
+    resultId: integer("result_id")
+      .notNull()
+      .references(() => metaResults.id, { onDelete: "cascade" }),
+    /** Null when card_number didn't resolve — the row is kept anyway so the miss is visible. */
+    cardId: text("card_id").references(() => cards.id, { onDelete: "set null" }),
+    cardNumberRaw: text("card_number_raw").notNull(),
+    /** main | z — deckplanet's "side" (tech/sideboard) rows are dropped, they're not part of the 50+10 legal list. */
+    zone: text("zone").notNull().default("main"),
+    quantity: integer("quantity").notNull().default(1),
+  },
+  (t) => [primaryKey({ columns: [t.resultId, t.cardNumberRaw] }), index("meta_result_cards_card_idx").on(t.cardId)],
 );
 
 /*
