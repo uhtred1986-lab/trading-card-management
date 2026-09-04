@@ -251,13 +251,13 @@ export function condHolds(ctx: GameContext, s: GameState, frame: ScriptFrame, c:
       return !!l && def(ctx, s, l).colors.includes(c.color);
     }
     case "leaderMatches": {
-      const l = s.players[frame.master].leader;
+      const l = s.players[c.side === "opponent" ? other(frame.master) : frame.master].leader;
       return !!l && matches(def(ctx, s, l), c.filter);
     }
     case "chose":
       return (frame.vars[c.var] ?? []).length > 0;
     case "isTurnPlayer":
-      return s.turnPlayer === frame.master;
+      return c.who === "opponent" ? s.turnPlayer !== frame.master : s.turnPlayer === frame.master;
   }
 }
 
