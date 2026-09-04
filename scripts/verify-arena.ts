@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { apply, createGame, defsFrom, legalActions, seedFrom, type Action, type CardDef, type GameState, type PlayerId } from "../src/lib/arena/engine";
 import { parseSkills, keywordOf, orbsIn } from "../src/lib/arena/engine/cards";
 import { parseFilter, matches, parseCondition } from "../src/lib/arena/engine/filters";
-import { move, locate, playCost, powerOf } from "../src/lib/arena/engine/state";
+import { move, locate, playCost, powerOf, forbids } from "../src/lib/arena/engine/state";
 import { compileSkill, describeScript, splitClauses } from "../src/lib/arena/engine/compile";
 
 // ── skill text parsing ─────────────────────────────────────────────────────
@@ -146,6 +146,16 @@ const DEFS: Record<string, CardDef> = defsFrom([
   card("STACKER", { energyCost: 1, skill: "[Auto] When you play this card, choose 1 of your Battle Cards and place it under this card." }),
   card("TWOKILL", { energyCost: 1, skill: "[Auto] When you play this card, choose 2 of your opponent's Battle Cards and KO them." }),
   card("GRABBER", { energyCost: 1, skill: "[Auto] When you play this card, choose 1 of your opponent's cards and place it in its owner's drop area." }),
+  card("PERMTOUGH", { energyCost: 2, power: 5000, skill: "[Permanent] This card can't be KO'd by your opponent's skills." }),
+  card("PERMLOCK", { energyCost: 2, power: 5000, skill: "[Permanent] Your opponent can't attack with Battle Cards." }),
+  card("E-LIFE", {
+    type: "EXTRA",
+    energyCost: 3,
+    power: null,
+    comboCost: null,
+    comboPower: null,
+    skill: "[Counter: Attack] Negate the attack.<br>[Permanent] You can activate this card's [Counter] skill from your hand by adding a card from your life to your hand instead of paying its energy cost.",
+  }),
   card("MODAL", { energyCost: 1, skill: "[Auto] When you play this card, choose one-<br>・Draw 1 card.<br>・Your opponent discards 1 card." }),
 ]);
 
@@ -1262,6 +1272,86 @@ function assertConsistentAfterDrop(s: GameState) {
   // "Choose 1 of X and 1 of Y" splits on the "and"; the second half is a
   // choice with the verb left behind.
   assert.deepEqual(ops("[Activate: Main] Choose 1 of your <Son Goku> and 1 of your opponent's Battle Cards."), ["choose", "choose"]);
+}
+
+// ── prohibitions printed as [Permanent] skills (9-5-1, 20-14) ──────────────
+
+{
+  // A [Permanent] holds for as long as the card is where the skill is valid,
+  // with no duration to expire — so unlike the same sentence on an [Auto], it
+  // is still true next turn, and it stops the moment the card leaves play.
+  const ctx = { defs: DEFS };
+  let s = arena({ battle: ["PERMTOUGH"], oppHand: ["KILLER"], oppEnergy: ["V1"] });
+  const tough = find(s, "p1", "battle", "PERMTOUGH");
+  s = play(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+  s = play(s, { type: "play", player: "p2", card: find(s, "p2", "hand", "KILLER") });
+  assert.equal(s.prompt.kind, "chooseCards", "it is still a legal choice; the KO just does not happen");
+  s = play(s, { type: "choose", player: "p2", cards: [tough] });
+  assert.ok(s.players.p1.battle.includes(tough), "9-5-1: the permanent skill holds without being activated");
+  // Take the card off the table and the rule goes with it.
+  move(ctx, s, [], tough, "drop", "p1");
+  assert.ok(!forbids(ctx, s, "beKOdBySkill", { player: "p2", card: tough }), "and stops when the source leaves play");
+}
+
+{
+  // The same thing about a player rather than a card.
+  const ctx = { defs: DEFS };
+  let s = arena({ battle: ["PERMLOCK"], oppBattle: ["BIG"] });
+  const lock = find(s, "p1", "battle", "PERMLOCK");
+  s = play(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+  assert.ok(
+    !labels(s).some((x) => x.includes("Attack") && x.includes("BIG")),
+    "their Battle Card cannot attack while the permanent skill is in play",
+  );
+  assert.ok(
+    labels(s).some((x) => x.includes("Attack") && x.includes("L-BLUE")),
+    "their Leader still can — the rule named Battle Cards",
+  );
+  // 9-5-1 again: no duration to end, so removing the card is what ends it.
+  move(ctx, s, [], lock, "drop", "p1");
+  assert.ok(
+    labels(s).some((x) => x.includes("Attack") && x.includes("BIG")),
+    "with the source gone, the attack is offered again",
+  );
+}
+
+// ── another way to pay (5-3) ───────────────────────────────────────────────
+
+{
+  // The card costs 3 and the defender has no energy at all, so the only way
+  // it can be played is the one the card itself prints.
+  let s = arena({ oppHand: ["E-LIFE"] });
+  const counter = find(s, "p2", "hand", "E-LIFE");
+  const lifeBefore = s.players.p2.life.length;
+  const handBefore = s.players.p2.hand.length;
+  s = play(s, { type: "attack", player: "p1", attacker: s.players.p1.leader, target: s.players.p2.leader });
+  assert.equal(s.prompt.kind, "counter");
+  assert.deepEqual((s.prompt as { candidates: string[] }).candidates, [counter], "offered although the energy is not there");
+  const offers = labels(s).filter((x) => x.startsWith("Counter with"));
+  assert.deepEqual(offers, ["Counter with E-LIFE (by adding 1 from your life to your hand)"], "only the cost it can actually pay");
+
+  s = play(s, { type: "counter", player: "p2", card: counter, alt: true });
+  assert.equal(s.battle, null, "the counter resolved: the attack was negated");
+  assert.equal(s.players.p2.life.length, lifeBefore - 1, "one life card paid the cost");
+  // The card left the hand for the Drop and one life card came in, so the hand
+  // is the size it was. Losing life this way is a cost, not damage (1-13-2).
+  assert.equal(s.players.p2.hand.length, handBefore, "the life card went to the hand");
+  assert.ok(s.players.p2.drop.includes(counter));
+  assert.equal(s.players.p2.damageTaken, 0, "paying a cost is not taking damage");
+  assertConsistent(s);
+}
+
+{
+  // With the energy there, both costs are offered and they are different
+  // decisions — 0-2-5 does not choose for the player.
+  let s = arena({ oppHand: ["E-LIFE"], oppEnergy: ["V1", "V1", "V1"] });
+  s = play(s, { type: "attack", player: "p1", attacker: s.players.p1.leader, target: s.players.p2.leader });
+  const offers = labels(s).filter((x) => x.startsWith("Counter with"));
+  assert.equal(offers.length, 2, "the printed cost and the alternative, both on the menu");
+  const before = s.players.p2.life.length;
+  s = play(s, { type: "counter", player: "p2", card: find(s, "p2", "hand", "E-LIFE") });
+  assert.equal(s.players.p2.life.length, before, "paying with energy leaves the life alone");
+  assert.equal(s.players.p2.energy.filter((id) => s.cards[id].mode === "rest").length, 3, "it was paid with energy instead");
 }
 
 console.log("verify-arena: all checks passed");

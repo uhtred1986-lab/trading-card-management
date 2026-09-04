@@ -17,6 +17,7 @@ import { nextRandom, shuffle } from "./rng";
 import {
   activeEnergy,
   addEffect,
+  altCostFor,
   areaOf,
   cardsInPlay,
   comboPowerOf,
@@ -36,6 +37,7 @@ import {
   note,
   OPENING_HAND,
   pay,
+  payAltCost,
   paymentOptions,
   payZEnergy,
   planPayment,
@@ -227,7 +229,7 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
       for (const id of [ps.leader, ps.unison, ...ps.battle, ...ps.energy]) {
         if (!id) continue;
         if (has(ctx, s, id, "Servant")) continue;
-        setMode(s, ev, id, "active");
+        setMode(s, ev, id, "active", ctx);
       }
       return "done";
     }
@@ -494,7 +496,10 @@ function counterCandidates(ctx: EngineContext, s: GameState, responder: PlayerId
       if (forbids(ctx, s, "activateCounter", { player: responder, card: id })) continue;
       const cost = playCost(ctx, s, id);
       const orbs = orbTotals(sk);
-      if (!planPayment(ctx, s, responder, cost.total + orbs.total, cost.specified)) continue;
+      // 5-3: some cards print another way to pay, which is the only way the
+      // card is playable when the energy is not there.
+      const affordable = !!planPayment(ctx, s, responder, cost.total + orbs.total, cost.specified);
+      if (!affordable && !altCostFor(ctx, s, id, responder)) continue;
       out.push({ card: id, skill: sk.index });
     }
   }
@@ -893,7 +898,7 @@ function battleCleanup(ctx: EngineContext, s: GameState, ev: GameEvent[]): "done
   // 22-9-4 [Revenge]: KO the attacker at the end of the battle.
   if (b.revenge && areaOf(s, b.attacker) === "battle") koCard(ctx, s, ev, b.attacker, b.guard);
   // 22-8-3 [X Attack]: the attacker is switched back to Active Mode.
-  if (b.reactivate && areaOf(s, b.attacker)) setMode(s, ev, b.attacker, "active");
+  if (b.reactivate && areaOf(s, b.attacker)) setMode(s, ev, b.attacker, "active", ctx);
   for (const p of PLAYERS) for (const id of cardsInPlay(s, p)) pendTriggers(ctx, s, "battleEnd", id);
   const due = fireDelayed(s, "battleEnd");
   endEffects(s, "battle");
@@ -1057,7 +1062,18 @@ export function legalActions(ctx: EngineContext, s: GameState): LegalAction[] {
     case "counter":
       for (const id of pr.candidates) {
         const sk = skillsOf(def(ctx, s, id)).find((k) => k.kind.startsWith("counter:"));
-        out.push({ action: { type: "counter", player: pr.player, card: id, skill: sk?.index }, label: `Counter with ${name(id)}` });
+        const cost = playCost(ctx, s, id);
+        const orbs = sk ? orbTotals(sk) : { total: 0 };
+        if (planPayment(ctx, s, pr.player, cost.total + orbs.total, cost.specified)) {
+          out.push({ action: { type: "counter", player: pr.player, card: id, skill: sk?.index }, label: `Counter with ${name(id)}` });
+        }
+        // 5-3: the printed alternative is a second, separate offer — paying it
+        // is a different decision, not a cheaper version of the same one.
+        const alt = altCostFor(ctx, s, id, pr.player);
+        if (alt) {
+          const how = alt.pay === "none" ? "for no energy" : `by adding ${alt.n} from your life to your hand`;
+          out.push({ action: { type: "counter", player: pr.player, card: id, skill: sk?.index, alt: true }, label: `Counter with ${name(id)} (${how})` });
+        }
       }
       out.push({ action: { type: "counter", player: pr.player, card: null }, label: "No counter" });
       return out;
@@ -1503,12 +1519,19 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
         const d = def(ctx, s, action.card);
         const sk = skillsOf(d).find((k) => k.index === (action.skill ?? -1)) ?? skillsOf(d).find((k) => k.kind.startsWith("counter:"));
         if (!sk) throw new IllegalAction("no counter skill");
-        // 22-10-4: a [Counter] costs its energy cost and its skill cost.
-        const c = playCost(ctx, s, action.card);
-        const orbs = orbTotals(sk);
-        const pm = planPayment(ctx, s, p, c.total + orbs.total, { ...c.specified }, action.pay);
-        if (!pm) throw new IllegalAction("can't pay the counter's cost");
-        pay(s, ev, p, pm);
+        // 22-10-4: a [Counter] costs its energy cost and its skill cost —
+        // unless the card prints another way to pay for it (5-3).
+        if (action.alt) {
+          const alt = altCostFor(ctx, s, action.card, p);
+          if (!alt) throw new IllegalAction("that card has no other cost to pay");
+          if (!payAltCost(ctx, s, ev, p, alt)) throw new IllegalAction("can't pay the counter's cost");
+        } else {
+          const c = playCost(ctx, s, action.card);
+          const orbs = orbTotals(sk);
+          const pm = planPayment(ctx, s, p, c.total + orbs.total, { ...c.specified }, action.pay);
+          if (!pm) throw new IllegalAction("can't pay the counter's cost");
+          pay(s, ev, p, pm);
+        }
         // 22-10-7: the card goes to the Drop; its effect resolves as the counter motion.
         move(ctx, s, ev, action.card, "drop", p, { reason: "effect", reveal: true });
         s.flow.unshift({ op: "skill.resolve", card: action.card, skill: sk.index, player: p });
