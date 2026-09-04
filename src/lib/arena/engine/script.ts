@@ -68,6 +68,8 @@ export type Ref = { var: string } | { sel: Selector };
 export type Cond =
   | { kind: "count"; sel: Selector; atLeast?: number; atMost?: number }
   | { kind: "life"; side: Side; atLeast?: number; atMost?: number }
+  /** "When your life is less than or equal to your opponent's life" — the two counts against each other. */
+  | { kind: "lifeVsOpponent"; atMost?: boolean; atLeast?: boolean }
   | { kind: "leaderColor"; color: Color }
   /** "If your Leader is a <Baby> card" — colour, character name and traits alike. */
   | { kind: "leaderMatches"; filter: CardFilter; side?: Side }
@@ -247,37 +249,60 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
       }
 
       case "choose": {
-        const cands = resolveSelector(ctx, s, frame, op.sel);
         const want = op.sel.count ?? 1;
-        // 5-2-5: take as many as possible when fewer are available than asked for.
-        const max = Math.min(want, cands.length);
-        const min = op.sel.upTo ? 0 : max;
         /** Cards taken out of a pool ("choose 1 among them") leave the pool. */
         const take = (picked: string[]) => {
           frame.vars[op.as] = picked;
           if (op.sel.fromVar) frame.vars[op.sel.fromVar] = (frame.vars[op.sel.fromVar] ?? []).filter((id) => !picked.includes(id));
         };
+        // Cards picked so far, while a multi-card choice is part-answered.
+        const sofar = frame.awaiting === op.as ? (frame.vars[op.as] ?? []) : [];
+        const cands = resolveSelector(ctx, s, frame, op.sel).filter((id) => !sofar.includes(id));
+
         if (s.lastChoice && frame.awaiting === op.as) {
-          take(s.lastChoice.filter((id) => cands.includes(id)));
+          const picked = [...sofar, ...s.lastChoice.filter((id) => cands.includes(id))];
           s.lastChoice = null;
-          frame.awaiting = undefined;
-          break;
+          // A choice is made one card at a time (the board asks by tapping),
+          // so a "choose 2" comes back here for the second card. Declining a
+          // card ends an "up to" choice early, as 5-2-4 allows.
+          const done = picked.length >= want || picked.length === sofar.length || picked.length >= sofar.length + cands.length;
+          frame.vars[op.as] = picked;
+          if (done) {
+            frame.awaiting = undefined;
+            take(picked);
+            break;
+          }
+          continue;
         }
+
+        // 5-2-5: take as many as possible when fewer are available than asked for.
+        const left = want - sofar.length;
         if (cands.length === 0) {
-          take([]);
+          frame.awaiting = undefined;
+          take(sofar);
           break;
         }
         // Only ask when the answer can differ: a forced pick is taken silently.
-        if (min === max && max === cands.length) {
-          take(cands.slice(0, max));
+        if (!op.sel.upTo && cands.length <= left) {
+          frame.awaiting = undefined;
+          take([...sofar, ...cands]);
           break;
         }
         frame.awaiting = op.as;
+        frame.vars[op.as] = sofar;
         s.flow.unshift({ op: "script.step", frame });
+        const asked = left === 1 ? "" : ` (${left} more)`;
         s.prompt = {
           kind: "chooseCards",
           player: master,
-          choice: { reason: op.reason ?? `${face(ctx, s, frame.card).name}: choose ${op.sel.upTo ? `up to ${want}` : want}`, candidates: cands, min, max, continuation: op.as },
+          choice: {
+            reason: (op.reason ?? `${face(ctx, s, frame.card).name}: choose ${op.sel.upTo ? `up to ${want}` : want}`) + asked,
+            candidates: cands,
+            // One card per answer, so the menu is one action per card.
+            min: op.sel.upTo ? 0 : 1,
+            max: 1,
+            continuation: op.as,
+          },
         };
         return "wait";
       }
@@ -296,6 +321,10 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         // 23-2: under a card is not an area of its own, so it is its own move.
         const host = op.to === "under" ? (op.under ? resolveRef(ctx, s, frame, op.under)[0] : frame.card) : null;
         for (const id of resolveRef(ctx, s, frame, op.target)) {
+          // 3-1-2: a Leader Card stays in the Leader Area. Skills may change
+          // its power or negate it, but nothing puts it anywhere else — and
+          // an empty Leader Area is a state the rest of the engine cannot read.
+          if (areaOf(s, id) === "leader") continue;
           if (op.to === "under") {
             if (host) placeUnder(ctx, s, ev, id, host);
             continue;

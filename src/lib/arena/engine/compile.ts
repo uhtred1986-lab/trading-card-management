@@ -181,6 +181,9 @@ interface Ctx {
   raw: string;
 }
 
+/** "A marker", "an energy" — the article is the number one. */
+const countWord = (w: string) => (/^\d+$/.test(w) ? Number(w) : 1);
+
 /** Words that point back at whatever the previous clause acted on. */
 const IT = /\b(?:it|its|them|they|their|that card|those cards|the chosen cards?)\b/;
 
@@ -287,11 +290,18 @@ function parseConditionClause(clause: string, allowBare = false): { cond: Cond; 
   if ((m = /^your opponent's leader(?: card)? is (.+)$/.exec(t))) {
     return { cond: { kind: "leaderMatches", side: "opponent", filter: parseFilter(m[1]) }, subject: { sel: { special: "opponentLeader" } } };
   }
-  if ((m = /^your life is (?:at )?(\d+) or less$/.exec(t))) return { cond: { kind: "life", side: "you", atMost: Number(m[1]) } };
-  if ((m = /^your opponent's life is (?:at )?(\d+) or less$/.exec(t))) return { cond: { kind: "life", side: "opponent", atMost: Number(m[1]) } };
+  // Life, both sides and both directions. "Or more" reads the other bound of
+  // the same condition, which the engine has always had and the compiler used
+  // to leave to the referee.
+  // The two life counts against each other, rather than against a number.
+  if (/^your life is (?:less than or equal to|at or below|no more than) your opponent's life$/.test(t)) return { cond: { kind: "lifeVsOpponent", atMost: true } };
+  if (/^your life is (?:greater than or equal to|at or above|no less than) your opponent's life$/.test(t)) return { cond: { kind: "lifeVsOpponent", atLeast: true } };
+  const lifeBound = (n: string, dir: string) => (/less|fewer/.test(dir) ? { atMost: Number(n) } : { atLeast: Number(n) });
+  if ((m = /^your life is (?:at )?(\d+) or (less|fewer|more)$/.exec(t))) return { cond: { kind: "life", side: "you", ...lifeBound(m[1], m[2]) } };
+  if ((m = /^your opponent's life is (?:at )?(\d+) or (less|fewer|more)$/.exec(t))) return { cond: { kind: "life", side: "opponent", ...lifeBound(m[1], m[2]) } };
   // "If you have 2 or less life" — the same sentence with the subject moved.
-  if ((m = /^you have (\d+) or (less|more) life$/.exec(t))) return { cond: { kind: "life", side: "you", ...(m[2] === "less" ? { atMost: Number(m[1]) } : { atLeast: Number(m[1]) }) } };
-  if ((m = /^your opponent has (\d+) or (less|more) life$/.exec(t))) return { cond: { kind: "life", side: "opponent", ...(m[2] === "less" ? { atMost: Number(m[1]) } : { atLeast: Number(m[1]) }) } };
+  if ((m = /^you have (\d+) or (less|fewer|more) life$/.exec(t))) return { cond: { kind: "life", side: "you", ...lifeBound(m[1], m[2]) } };
+  if ((m = /^your opponent has (\d+) or (less|fewer|more) life$/.exec(t))) return { cond: { kind: "life", side: "opponent", ...lifeBound(m[1], m[2]) } };
   // Whose turn it is (7-1). The engine has carried this condition since the
   // beginning and the compiler has never once emitted it.
   if (/^(?:it's |it is )?your turn$/.test(t) || /^during your turn$/.test(t)) return { cond: { kind: "isTurnPlayer" } };
@@ -309,7 +319,8 @@ function parseConditionClause(clause: string, allowBare = false): { cond: Cond; 
  * is the same grammar every other clause uses.
  */
 function parseCountCondition(t: string): Cond | null {
-  const m = /^(?:you have|your opponent has|there (?:are|is)) (?:(no)|(\d+) or (more|less|fewer)) (.+)$/.exec(t);
+  // "a Battle Card" and a bare plural both mean "at least one"; "no" means none.
+  const m = /^(?:you have|your opponent has|there (?:are|is)) (?:(no)|(?:an?|any) |(\d+) or (more|less|fewer) )?(.+)$/.exec(t);
   if (!m) return null;
   const [, none, num, dir, rest] = m;
   // "you have" / "your opponent has" says whose cards, which the phrase after
@@ -323,6 +334,7 @@ function parseCountCondition(t: string): Cond | null {
   delete sel.count;
   delete sel.upTo;
   if (none) return { kind: "count", sel, atMost: 0 };
+  if (!num) return { kind: "count", sel, atLeast: 1 };
   return { kind: "count", sel, ...(dir === "more" ? { atLeast: Number(num) } : { atMost: Number(num) }) };
 }
 
@@ -454,14 +466,14 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     return ref ? [{ op: "ko", target: ref }] : null;
   }
 
-  // Markers (5-13, 13-3).
-  if ((m = /^add (\d+) markers? to (.+)$/.exec(t))) {
+  // Markers (5-13, 13-3). "A marker" is one marker.
+  if ((m = /^add (a|an|\d+) markers? to (.+)$/.exec(t))) {
     const ref = refFor(m[2], c);
-    return ref ? [{ op: "addMarker", target: ref, n: Number(m[1]) }] : null;
+    return ref ? [{ op: "addMarker", target: ref, n: countWord(m[1]) }] : null;
   }
-  if ((m = /^remove (\d+) markers? from (.+)$/.exec(t))) {
+  if ((m = /^remove (a|an|\d+) markers? from (.+)$/.exec(t))) {
     const ref = refFor(m[2], c);
-    return ref ? [{ op: "removeMarker", target: ref, n: Number(m[1]) }] : null;
+    return ref ? [{ op: "removeMarker", target: ref, n: countWord(m[1]) }] : null;
   }
 
   // Under another card (23-2). Not an area, so it is not in the table below.
@@ -520,6 +532,17 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     if (!sel) return null;
     const v = `c${c.n++}`;
     return [{ op: "choose", sel, as: v, reason: clause }];
+  }
+
+  // "Choose 1 of your <Majin Buu> and 1 of your opponent's Battle Cards"
+  // splits on the "and", and the second half arrives with the verb left
+  // behind. A bare target phrase after a choice is another choice.
+  if (c.last && /^(?:up to )?\d+ /.test(t)) {
+    const sel = parseTarget(clause);
+    if (sel) {
+      const v = `c${c.n++}`;
+      return [{ op: "choose", sel, as: v, reason: clause }];
+    }
   }
 
   return null;
@@ -660,7 +683,14 @@ export function compileSkill(skill: Skill): Script {
   // card"); by the time the effect resolves the trigger has already fired, so
   // that clause is dropped. A leading "if …" is a condition, not a trigger, and
   // stays — it must compile or the skill goes to the referee.
-  if (skill.kind === "auto" && (clauses.length > 1 || modal) && /^(?:when|at the (?:end|beginning|start))\b/i.test(clauses[0] ?? "")) clauses.shift();
+  if (skill.kind === "auto" && (clauses.length > 1 || modal) && /^(?:when|at the (?:end|beginning|start))\b/i.test(clauses[0] ?? "")) {
+    const trigger = clauses.shift()!;
+    // The dropped trigger is still what the sentence is about: "When this card
+    // is sent to the Warp …, add **it** to your hand" means this card. Without
+    // this, the first "it" of an [Auto] has nothing to point at and the whole
+    // skill goes to the referee.
+    if (/\bthis card\b/i.test(trigger)) c.lastTarget = { sel: { special: "self" } };
+  }
 
   const ops = compileClauseList(clauses, c, unsupported);
   if (modal) {

@@ -254,6 +254,11 @@ export function condHolds(ctx: GameContext, s: GameState, frame: ScriptFrame, c:
       const l = s.players[c.side === "opponent" ? other(frame.master) : frame.master].leader;
       return !!l && matches(def(ctx, s, l), c.filter);
     }
+    case "lifeVsOpponent": {
+      const mine = s.players[frame.master].life.length;
+      const theirs = s.players[other(frame.master)].life.length;
+      return c.atLeast ? mine >= theirs : mine <= theirs;
+    }
     case "chose":
       return (frame.vars[c.var] ?? []).length > 0;
     case "isTurnPlayer":
@@ -472,6 +477,8 @@ export function draw(ctx: GameContext, s: GameState, ev: GameEvent[], p: PlayerI
  */
 export function placeUnder(ctx: GameContext, s: GameState, ev: GameEvent[], id: string, host: string): boolean {
   if (id === host || !s.cards[id] || !s.cards[host]) return false;
+  // 3-1-2: a Leader Card does not leave the Leader Area, not even downwards.
+  if (areaOf(s, id) === "leader") return false;
   // Nothing can go under a card that is not on the table.
   if (!["battle", "leader", "unison"].includes(areaOf(s, host) ?? "")) return false;
   detach(s, id);

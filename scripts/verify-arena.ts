@@ -144,6 +144,8 @@ const DEFS: Record<string, CardDef> = defsFrom([
   card("NOCOPIES", { energyCost: 1, skill: "[Auto] When you play this card, you can't play copies of this card for the turn." }),
   card("TOUGH", { energyCost: 2, power: 5000, skill: "[Auto] When you play this card, this card can't be KO'd by your opponent's skills until the start of your next turn." }),
   card("STACKER", { energyCost: 1, skill: "[Auto] When you play this card, choose 1 of your Battle Cards and place it under this card." }),
+  card("TWOKILL", { energyCost: 1, skill: "[Auto] When you play this card, choose 2 of your opponent's Battle Cards and KO them." }),
+  card("GRABBER", { energyCost: 1, skill: "[Auto] When you play this card, choose 1 of your opponent's cards and place it in its owner's drop area." }),
   card("MODAL", { energyCost: 1, skill: "[Auto] When you play this card, choose one-<br>・Draw 1 card.<br>・Your opponent discards 1 card." }),
 ]);
 
@@ -1137,6 +1139,129 @@ function assertConsistentAfterDrop(s: GameState) {
     chain.ops.map((o) => o.op),
     ["choose", "switchMode"],
   );
+}
+
+// ── two conditions in front of one effect (9-1-3) ──────────────────────────
+
+{
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+  const yellow = parseFilter("yellow");
+
+  // BT5-088. Both conditions have to hold, so they nest, and the order they
+  // are printed in is the order they nest in.
+  const both = one("[Auto] When you combo with this card, if your Leader Card is yellow and your life is at 4 or less, draw 1 card.");
+  assert.deepEqual(both.unsupported, []);
+  assert.deepEqual(both.ops, [
+    {
+      op: "if",
+      cond: { kind: "leaderMatches", filter: yellow },
+      then: [{ op: "if", cond: { kind: "life", side: "you", atMost: 4 }, then: [{ op: "draw", n: 1 }] }],
+    },
+  ]);
+
+  // The same card text with the conditions the other way round: same meaning,
+  // and both still have to hold.
+  const swapped = one("[Auto] When you combo with this card, if your life is at 4 or less and your Leader Card is yellow, draw 1 card.");
+  assert.deepEqual(swapped.unsupported, []);
+  assert.deepEqual(swapped.ops, [
+    {
+      op: "if",
+      cond: { kind: "life", side: "you", atMost: 4 },
+      then: [{ op: "if", cond: { kind: "leaderMatches", filter: yellow }, then: [{ op: "draw", n: 1 }] }],
+    },
+  ]);
+
+  // Either half alone is the same condition without the nesting.
+  assert.deepEqual(one("[Auto] When you combo with this card, if your life is at 4 or less, draw 1 card.").ops, [
+    { op: "if", cond: { kind: "life", side: "you", atMost: 4 }, then: [{ op: "draw", n: 1 }] },
+  ]);
+  assert.deepEqual(one("[Auto] When you combo with this card, if your Leader Card is yellow, draw 1 card.").ops, [
+    { op: "if", cond: { kind: "leaderMatches", filter: yellow }, then: [{ op: "draw", n: 1 }] },
+  ]);
+
+  // Whose life, and which way round the comparison goes, both change the test.
+  assert.deepEqual((one("[Auto] When you combo with this card, if your opponent's life is at 4 or less, draw 1 card.").ops[0] as { cond: unknown }).cond, {
+    kind: "life",
+    side: "opponent",
+    atMost: 4,
+  });
+  assert.deepEqual((one("[Auto] When you combo with this card, if your life is at 4 or more, draw 1 card.").ops[0] as { cond: unknown }).cond, {
+    kind: "life",
+    side: "you",
+    atLeast: 4,
+  });
+}
+
+// ── choosing more than one card, one tap at a time (5-2) ───────────────────
+
+{
+  // The board asks by tapping a card, so a "choose 2" is two questions. It
+  // used to be offered as two separate one-card answers to a prompt that
+  // demanded both at once, which the engine then refused as illegal.
+  let s = arena({ hand: ["TWOKILL"], energy: ["V1"], oppBattle: ["BIG", "V-BLUE", "BLOCKER"] });
+  const first = find(s, "p2", "battle", "BIG");
+  const second = find(s, "p2", "battle", "BLOCKER");
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "TWOKILL") });
+  assert.equal(s.prompt.kind, "chooseCards");
+  assert.equal((s.prompt as { choice: { max: number } }).choice.max, 1, "one card per answer");
+  // Every candidate is offered, and taking one is legal.
+  assert.equal(labels(s).length, 3);
+  s = play(s, { type: "choose", player: "p1", cards: [first] });
+  assert.equal(s.prompt.kind, "chooseCards", "it asks again for the second");
+  assert.ok(!(s.prompt as { choice: { candidates: string[] } }).choice.candidates.includes(first), "and not for the same card twice");
+  s = play(s, { type: "choose", player: "p1", cards: [second] });
+  assert.ok(s.players.p2.drop.includes(first) && s.players.p2.drop.includes(second), "both chosen cards were KO'd");
+  assert.equal(s.prompt.kind, "main");
+  assertConsistent(s);
+}
+
+{
+  // 3-1-2: "your opponent's cards" includes their Leader (20-1-6), but a
+  // Leader does not leave the Leader Area — and an empty Leader Area is a
+  // state the rest of the engine cannot read.
+  let s = arena({ hand: ["GRABBER"], energy: ["V1"] });
+  const leader = s.players.p2.leader;
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "GRABBER") });
+  assert.equal(s.players.p2.leader, leader, "their Leader is still there");
+  assert.ok(!s.players.p2.drop.includes(leader));
+  assert.equal(s.prompt.kind, "main");
+  assert.ok(labels(s).length > 0, "and the game can still be played");
+  assertConsistent(s);
+}
+
+// ── wordings the compiler learned in the second pattern pass ───────────────
+
+{
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+  const ops = (text: string) => one(text).ops.map((o) => o.op);
+
+  // "A marker" is one marker.
+  assert.deepEqual(ops("[Auto] When you play this card, choose up to 1 of your opponent's Unison Cards and remove a marker from it."), ["choose", "removeMarker"]);
+
+  // An [Auto] restates its trigger and then says "it": the trigger is dropped,
+  // but what it was about is not.
+  const carried = one("[Auto] When this card is sent to the Warp from your Battle Area or deck, add it to your hand.");
+  assert.deepEqual(carried.unsupported, []);
+  assert.deepEqual(carried.ops, [{ op: "moveTo", target: { sel: { special: "self" } }, to: "hand" }]);
+
+  // A count with no number: "a" and a bare plural both mean at least one.
+  const any = one("[Activate: Main] If your opponent has a Battle Card in play in Rest Mode, draw 1 card.");
+  assert.deepEqual(any.unsupported, []);
+  assert.deepEqual((any.ops[0] as { cond: { kind: string; atLeast?: number } }).cond.atLeast, 1);
+  assert.deepEqual((one("[Activate: Main] If your opponent has Battle Cards in their Battle Area, draw 1 card.").ops[0] as { cond: { atLeast?: number } }).cond.atLeast, 1);
+
+  // Some sets print the odd full-width letter mid-word.
+  assert.deepEqual(one("[Auto] When you play this card, if your Leader Ｃard is a ≪Majin≫, draw 1 card.").unsupported, []);
+
+  // The two life counts against each other.
+  assert.deepEqual((one("[Activate: Main] If your life is less than or equal to your opponent's life, draw 1 card.").ops[0] as { cond: unknown }).cond, {
+    kind: "lifeVsOpponent",
+    atMost: true,
+  });
+
+  // "Choose 1 of X and 1 of Y" splits on the "and"; the second half is a
+  // choice with the verb left behind.
+  assert.deepEqual(ops("[Activate: Main] Choose 1 of your <Son Goku> and 1 of your opponent's Battle Cards."), ["choose", "choose"]);
 }
 
 console.log("verify-arena: all checks passed");
