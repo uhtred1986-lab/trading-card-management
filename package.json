@@ -16,6 +16,7 @@
     "sync:catalog": "tsx scripts/sync-catalog.mts",
     "sync:prices": "tsx scripts/sync-prices.mts",
     "sync:all": "tsx scripts/sync-catalog.mts && tsx scripts/sync-prices.mts",
+    "import:starters": "tsx scripts/import-starter-decks.mts",
     "arena:fuzz": "tsx --env-file=.env.local scripts/arena-fuzz.mts",
     "arena:coverage": "tsx --env-file=.env.local scripts/arena-coverage.mts",
     "arena:playthrough": "tsx --env-file=.env.local scripts/arena-playthrough.mts",
