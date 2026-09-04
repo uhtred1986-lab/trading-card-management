@@ -180,6 +180,12 @@ interface Ctx {
    * this card — so the last target of any clause counts, not only a choice.
    */
   lastTarget: Ref | null;
+  /**
+   * Set by "if this card would leave the Battle Area": the *next* clause says
+   * where it goes instead, so it becomes a replacement rather than a move
+   * (9-10).
+   */
+  replacing: { by?: "skill"; subject?: string } | null;
   n: number;
   /** The skill text with its explanatory notes still in place. A token's stats are printed there. */
   raw: string;
@@ -212,6 +218,31 @@ function durationOf(clause: string): "battle" | "turn" | "game" | "opponentTurn"
   // begins: the rest-lock wordings, which are the same duration said four ways.
   if (/until the end of your opponent's(?: next)? turn|until the (?:start|beginning) of your next turn|during your opponent's next charge phase|during your opponent's next turn/.test(t)) return "nextTurn";
   return "turn";
+}
+
+/**
+ * "If this card would leave the Battle Area" (9-10). The phrase says nothing
+ * about what happens — the clause after it does — so what is returned is only
+ * the fact that a replacement follows, and what caused the departure.
+ *
+ * "By your opponent's skills" is deliberately not read: `move` knows a skill
+ * put the card out but not whose, and guessing would let the wrong cards
+ * escape.
+ */
+function parseWouldLeave(clause: string): { by?: "skill"; subject?: string } | null {
+  const t = clean(clause);
+  if (/your opponent'?s? skills?/.test(t)) return null;
+  const opener = /^(?:if|when)?\s*(.*?) would (leave|be removed from|be sent from) (?:your |the )?battle area(?: by (?:a|your) skills?)?$/.exec(t);
+  if (opener) {
+    const by = opener[2] === "leave" ? undefined : ("skill" as const);
+    const who = opener[1].trim();
+    // "A ≪Slug's Army≫ card with a combo cost of 1 would leave your Battle
+    // Area" — the rule is about other cards, so the subject is kept.
+    if (/^(?:this card|it)$/.test(who)) return { by };
+    return who ? { by, subject: who } : { by };
+  }
+  if (/^(?:if|when)?\s*(?:this card|it) would be ko'?d$/.test(t)) return {};
+  return null;
 }
 
 /**
@@ -376,7 +407,10 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   const t = clause
     .toLowerCase()
     .trim()
-    .replace(/^(?:you may|you can|the player may)\s+/, "");
+    .replace(/^(?:you may|you can|the player may)\s+/, "")
+    // A trailing "instead" marks a replacement (9-10) and says nothing about
+    // the action itself; the clause before it has already recorded that.
+    .replace(/\s+instead$/, "");
   let m: RegExpExecArray | null;
 
   // Draw (5-1). "You may draw" is treated as taken: declining never helps.
@@ -561,6 +595,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     [/^(?:add|place) (.+?) (?:to|in) your energy in rest mode$/, "energy", { mode: "rest", reveal: true }],
     [/^(?:add|place) (.+?) (?:to|in) your energy(?: area)?$/, "energy", { reveal: true }],
     [/^add (.+?) to your life$/, "life", {}],
+    [/^(?:add|place|send) (.+?) (?:in|into|to) your z-energy$/, "zEnergy", {}],
     [/^remove (.+?) from the game(?: instead)?$/, "removed", {}],
   ];
   for (const [re, to, opts] of MOVES) {
@@ -736,7 +771,7 @@ export function compileSkill(skill: Skill): Script {
   const text = stripNotes(skill.effect);
   if (!text) return { ops: [], unsupported: [] };
   const unsupported: string[] = [];
-  const c: Ctx = { last: null, lastTarget: null, n: 0, raw: skill.effect };
+  const c: Ctx = { last: null, lastTarget: null, replacing: null, n: 0, raw: skill.effect };
   const modal = splitModal(text);
   const clauses = splitClauses(modal ? modal.head : text);
   // An [Auto] skill restates its own trigger ("When this card attacks, draw 1
@@ -783,6 +818,17 @@ function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op
       if (lastChoose && lastChoose.op === "choose") lastChoose.sel.ignoreBarrier = true;
       continue;
     }
+    // 9-10: "If this card would leave the Battle Area" is not a condition —
+    // nothing has happened yet. It says the *next* clause replaces the
+    // departure, so it is remembered rather than compiled.
+    const would = parseWouldLeave(clause);
+    if (would) {
+      c.replacing = would;
+      // "…it goes to the Warp instead" — "it" is the card the phrase named.
+      c.lastTarget = { sel: { special: "self" } };
+      continue;
+    }
+
     // A timing phrase opens a group too, and everything after it happens then
     // rather than now. A condition already in front of it still applies, and
     // is checked when the skill resolves, not when the delayed part fires.
@@ -835,6 +881,26 @@ function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op
     }
     const got = compileClause(clause, c);
     if (!got) {
+      if (c.replacing) c.replacing = null;
+      unsupported.push(clause);
+      continue;
+    }
+    // 9-10: the clause after "if this card would leave the Battle Area" is
+    // where it goes instead, so it is a replacement rather than a move.
+    if (c.replacing) {
+      const only = got.length === 1 ? got[0] : null;
+      const { by, subject } = c.replacing;
+      c.replacing = null;
+      if (only && only.op === "moveTo" && only.to !== "under" && only.to !== "play" && !only.under) {
+        // When the rule names other cards, they are the ones it is about —
+        // not whatever "it" happened to point at in the second half.
+        const filter = subject ? filterFor(subject, "battle") : undefined;
+        const target: Ref = subject ? { sel: { side: "you", area: "battle", filter, count: 99 } } : only.target;
+        push([{ op: "replaceLeave", to: only.to, target, ...(by ? { by } : {}) }]);
+        continue;
+      }
+      // Anything else is a replacement this language cannot say yet, and
+      // half of one is worse than none.
       unsupported.push(clause);
       continue;
     }
@@ -999,6 +1065,9 @@ export function describeScript(ops: Op[]): string {
         break;
       case "costReduction":
         parts.push(`${describeRef(op.target)} costs ${op.amount} less`);
+        break;
+      case "replaceLeave":
+        parts.push(`if it would leave the Battle Area it goes to the ${op.to} instead`);
         break;
       case "altCost":
         parts.push(op.pay === "none" ? "its [Counter] may be activated for no energy" : `its [Counter] may be activated by adding ${op.n ?? 1} from your life to your hand`);

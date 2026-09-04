@@ -55,6 +55,34 @@ export function def(ctx: GameContext, s: GameState, id: string): CardDef {
   return d;
 }
 
+/**
+ * A replacement effect on a card leaving the Battle Area (9-10): where it goes
+ * instead. `by` narrows it to departures caused by a skill.
+ */
+export interface Replacement {
+  to: Area;
+  by?: "skill";
+}
+
+/**
+ * Where this card goes instead of where it was about to go, if a skill says so.
+ *
+ * 9-10-2 gives the choice to the affected player when several replacements
+ * apply at once. Two on the same card is rare enough that the first one wins
+ * here and the log says which; when that turns up in a real game it is one
+ * prompt away.
+ */
+function replacementFor(ctx: GameContext, s: GameState, id: string, reason: MoveOptions["reason"]): Area | null {
+  for (const e of staticEffects(ctx, s)) {
+    if (e.kind !== "replaceLeave" || e.target !== id) continue;
+    const r = e.value as Replacement;
+    // "By a skill" means an effect put it out, not a battle or a rule.
+    if (r.by === "skill" && reason !== "effect") continue;
+    return r.to;
+  }
+  return null;
+}
+
 /** What a card counts as, once its skills have had their say (20-1). */
 export interface Gains {
   traits: string[];
@@ -319,10 +347,10 @@ export interface AltCost {
 
 export interface StaticEffect {
   source: string;
-  kind: "power" | "comboPower" | "keyword" | "cost" | "comboCost" | "negateKeyword" | "gains" | "forbid" | "altCost";
+  kind: "power" | "comboPower" | "keyword" | "cost" | "comboCost" | "negateKeyword" | "gains" | "replaceLeave" | "forbid" | "altCost";
   /** The card it is about; empty for a rule about a player rather than a card. */
   target: string;
-  value: number | KeywordSkill | KeywordSkill["name"] | Prohibition | AltCost | Gains;
+  value: number | KeywordSkill | KeywordSkill["name"] | Prohibition | AltCost | Gains | Replacement;
 }
 
 /**
@@ -390,6 +418,15 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
     }
     // "In all areas", so it is read wherever the card is — which is the point
     // of negating [Energy-Exhaust], a skill that only matters outside play.
+    // 9-10: only while the card is where its skill is valid — a replacement
+    // effect on a card in your hand has nothing to replace.
+    if (op.op === "replaceLeave") {
+      if (!inPlayNow) continue;
+      const dest = op.to === "play" ? "battle" : op.to === "under" ? "drop" : (op.to as Area);
+      const targets = op.target ? staticTargets(ctx, s, frame, op.target) : [source];
+      for (const id of targets) out.push({ source, kind: "replaceLeave", target: id, value: { to: dest, by: op.by } });
+      continue;
+    }
     // "In all areas" again: what a card counts as does not depend on where it is.
     if (op.op === "gains") {
       const targets = op.target ? staticTargets(ctx, s, frame, op.target) : [source];
@@ -484,6 +521,18 @@ export function move(ctx: GameContext, s: GameState, ev: GameEvent[], id: string
   const wasCombo = from?.area === "combo";
   const goesToPlay = to === "leader" || to === "battle" || to === "unison";
   const goesToCombo = to === "combo";
+
+  // 9-10: a replacement effect changes where the card goes before it goes
+  // there, and the move that was about to happen is treated as never having
+  // happened (9-10-1-1). Read before the rules below, because a rule about
+  // what a card *is* — a token, a Z-card — outranks an effect (0-2-5).
+  if (wasInPlay && !goesToPlay && !goesToCombo) {
+    const instead = replacementFor(ctx, s, id, opts.reason);
+    if (instead && instead !== to) {
+      note(ev, `${face(ctx, s, id).name} goes to the ${instead} instead`);
+      to = instead;
+    }
+  }
 
   // 19-1-7: tokens leaving battle/combo for anywhere else are removed.
   if (inst.isToken && (wasInPlay || wasCombo) && !goesToPlay && !goesToCombo) to = "removed";
