@@ -123,7 +123,10 @@ export default async function ArenaPage() {
         <section>
           <div className="mb-2 flex items-baseline gap-2">
             <h2 className="text-xs uppercase tracking-widest text-space-400">What the engine reads in each deck</h2>
-            <Link href="/arena/backlog" className="ml-auto text-xs text-ki-300 hover:underline">
+            <Link href="/arena/bugs" className="ml-auto text-xs text-space-300 hover:text-ki-300">
+              reported bugs
+            </Link>
+            <Link href="/arena/backlog" className="text-xs text-ki-300 hover:underline">
               what it cannot read →
             </Link>
           </div>
