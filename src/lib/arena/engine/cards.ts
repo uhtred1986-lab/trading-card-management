@@ -178,7 +178,31 @@ function splitCost(body: string): { cost: string; effect: string } {
     else if (ch === ")" || ch === "]" || ch === "}" || ch === ">" || ch === "≫") depth = Math.max(0, depth - 1);
     else if (ch === ":" && depth === 0) return { cost: body.slice(0, i).trim(), effect: body.slice(i + 1).trim() };
   }
+  // A keyword skill writes its cost after the tag with no colon at all:
+  // "[Arrival red/green] {r}", "[Successor]{g}{y}". Read as an effect those
+  // orbs say nothing, and the engine never learns what the keyword costs.
+  if (isOnlyOrbs(body)) return { cost: body.trim(), effect: "" };
   return { cost: "", effect: body };
+}
+
+/**
+ * Orbs, and at most the condition that follows them — "{g}{y}, if your Leader
+ * is a green <Frieza> card". On a keyword line everything after the tag is
+ * cost and validity; the keyword's own rules are the effect.
+ */
+function isOnlyOrbs(body: string): boolean {
+  const withoutNotes = body
+    .replace(/\([^)]*\)/g, "")
+    .replace(/（[^）]*）/g, "")
+    .trim();
+  // It has to *start* with an orb, or "When this card attacks, draw 1 card"
+  // would count as a cost and the whole skill would vanish.
+  if (!/^\{[rugyk\d]\}/i.test(withoutNotes)) return false;
+  const rest = withoutNotes
+    .replace(/\{[rugyk\d]\}/gi, "")
+    .replace(/^[\s,]*(?:if|when|while)\b.*$/i, "")
+    .trim();
+  return rest.length === 0;
 }
 
 /** Parse a card face's whole text into skills. */

@@ -186,6 +186,8 @@ interface Ctx {
    * this card — so the last target of any clause counts, not only a choice.
    */
   lastTarget: Ref | null;
+  /** The op the previous clause produced, for wordings that restate it. */
+  lastOp: string | null;
   /**
    * Set by "if this card would leave the Battle Area": the *next* clause says
    * where it goes instead, so it becomes a replacement rather than a move
@@ -468,6 +470,27 @@ function stripQualifiers(t: string): string {
   return out.trim();
 }
 
+/**
+ * "Your opponent chooses 1 card in their hand and **places** it in their Drop
+ * Area": splitting on the "and" leaves the second half in the third person,
+ * with its subject in the clause before it.
+ *
+ * Only the verbs that move a card are normalised. Where the card decides what
+ * happens — which Drop, whose Warp — the actor does not matter, so nothing is
+ * being guessed. "Draws", "chooses" and "plays" are deliberately left alone:
+ * those need to know *who*, and getting that wrong is worse than not reading
+ * the clause.
+ */
+const THIRD_PERSON: Record<string, string> = {
+  places: "place",
+  sends: "send",
+  returns: "return",
+  adds: "add",
+  switches: "switch",
+  removes: "remove",
+  discards: "discard",
+};
+
 /** Try to read one clause. Returns null when the wording is not understood. */
 function compileClause(clause: string, c: Ctx): Op[] | null {
   const t = clause
@@ -476,8 +499,17 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     .replace(/^(?:you may|you can|the player may)\s+/, "")
     // A trailing "instead" marks a replacement (9-10) and says nothing about
     // the action itself; the clause before it has already recorded that.
-    .replace(/\s+instead$/, "");
+    .replace(/\s+instead$/, "")
+    // A card-moving verb left in the third person by the split before it.
+    .replace(/^(places|sends|returns|adds|switches|removes|discards)\b/, (v) => THIRD_PERSON[v]);
   let m: RegExpExecArray | null;
+
+  // "Your opponent chooses 1 card in their hand and places it in their Drop
+  // Area" says the discard twice: the choosing *is* the discard, and this half
+  // is where the cards were already sent. Reading it as a second move made it
+  // move the wrong card, because "it" had nothing of its own to point at.
+  if (c.lastOp === "discard" && /^(?:place|put) (?:it|them) (?:in|into) (?:their|the|your|its owner's) drop(?: area)?$/.test(t)) return [];
+
   // The same clause with "for the turn", "in all areas" and the like taken
   // off, so the patterns for the action itself can end in `$`.
   const q = stripQualifiers(t);
@@ -894,7 +926,7 @@ export function compileSkill(skill: Skill): Script {
   const text = stripNotes(skill.effect);
   if (!text) return { ops: [], unsupported: [] };
   const unsupported: string[] = [];
-  const c: Ctx = { last: null, lastTarget: null, replacing: null, n: 0, raw: skill.effect };
+  const c: Ctx = { last: null, lastTarget: null, lastOp: null, replacing: null, n: 0, raw: skill.effect };
   const modal = splitModal(text);
   const clauses = splitClauses(modal ? modal.head : text);
   // An [Auto] skill restates its own trigger ("When this card attacks, draw 1
@@ -1033,6 +1065,7 @@ function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op
         c.lastTarget = { var: o.as };
       } else if ("target" in o && o.target) c.lastTarget = o.target;
     }
+    if (got.length) c.lastOp = got[got.length - 1].op;
     push(got);
   }
 

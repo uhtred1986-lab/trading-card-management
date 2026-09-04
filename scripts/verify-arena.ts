@@ -1599,6 +1599,52 @@ function assertConsistentAfterDrop(s: GameState) {
   assert.equal(s.players.p1.deck[s.players.p1.deck.length - 1], bottom, "and the bottom card is where it was");
 }
 
+// ── a keyword's cost is written after the tag, with no colon ───────────────
+
+{
+  // "[Arrival red/green] {r}", "[Successor]{g}{y}" — the orbs are what the
+  // keyword costs. Read as an effect they say nothing, and the engine never
+  // learns the price; this was the single commonest reason a whole skill
+  // failed to compile.
+  const orbs = (line: string) => parseSkills(line)[0];
+  assert.deepEqual(orbs("[Successor]{g}{g}{y}").energyCost, { Green: 2, Yellow: 1 });
+  assert.equal(orbs("[Successor]{g}{g}{y}").effect, "", "nothing is left over to compile");
+  assert.deepEqual(orbs("[Arrival red/green] {r} (Play this card from your hand when you have red cards.)").energyCost, { Red: 1 });
+  // The orbs may be followed by the keyword's validity condition.
+  assert.deepEqual(orbs("[Successor]{g}{y}, if your Leader is a green <Frieza> card.").energyCost, { Green: 1, Yellow: 1 });
+
+  // It has to begin with an orb: a skill that merely *starts* with "When" is
+  // an effect, and treating it as a cost would delete the whole skill.
+  const normal = parseSkills("[Auto] When this card attacks, draw 1 card.")[0];
+  assert.equal(normal.cost, "");
+  assert.equal(normal.effect, "When this card attacks, draw 1 card.");
+}
+
+// ── the second half of a sentence, left in the third person ────────────────
+
+{
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+
+  // Splitting on the "and" leaves "places it in their Drop Area" with its
+  // subject in the clause before it. Only the verbs that move a card are
+  // normalised, because there the card decides what happens and the actor
+  // does not matter.
+  const warp = one("[Auto] When you play this card, choose 1 of your opponent's Battle Cards and sends it to their Warp.");
+  assert.deepEqual(warp.unsupported, []);
+  assert.deepEqual(
+    warp.ops.map((o) => o.op),
+    ["choose", "moveTo"],
+  );
+  assert.equal((warp.ops[1] as { to: string }).to, "warp");
+
+  // "Your opponent chooses 1 card in their hand and places it in their Drop
+  // Area" is one action said twice. Read as two it moved the wrong card:
+  // "it" had nothing of its own to point at and fell back on this card.
+  const discard = one("[Auto] When you play this card, your opponent chooses 1 card in their hand and places it in their Drop Area.");
+  assert.deepEqual(discard.unsupported, []);
+  assert.deepEqual(discard.ops, [{ op: "discard", n: 1, side: "opponent" }], "the discard, once");
+}
+
 // ── a clause is read whole, or not at all ──────────────────────────────────
 
 {
