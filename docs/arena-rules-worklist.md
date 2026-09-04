@@ -123,35 +123,28 @@ which is conservative — it expires rather than lingering wrongly.
 
 ---
 
-## Next: modal choice (20-2) and cards under cards (23-2)
+## Done: modal choice (20-2) and cards under cards (23-2)
 
-Cheap, clear, and together they cover 243 cards.
+Commit "Arena: choose one, and cards that go under other cards".
 
-**Modal choice.** "Choose one— ・A ・B". The bullet characters are already in the
-text, so splitting is mechanical; watch for both `・` and the three different
-dashes in "Choose one—" (`-`, `—`, `―` all appear in the catalog, see
-`arena:coverage` output). One new op:
+- **Modal choice.** The real discovery: `skillLines` splits on `<br>`, so each
+  printed option was arriving as *its own skill*. `skillLines` now folds a
+  bullet line onto the line above it (and unwraps `[ul]`/`[li]`), `splitModal`
+  in `compile.ts` splits the options, and the new `chooseMode` op splices the
+  chosen option's program in place exactly as `if` does. New `Prompt` kind and
+  `Action` of the same name, `state.lastMode` carrying the answer,
+  `ArenaBoard` rendering the options as whole sentences.
+- **Cards under cards.** `placeUnder` in `state.ts`; `moveTo: "under"` with an
+  optional `under: Ref` host, defaulting to the source card. 23-2-5 already
+  worked, so a stack still follows its top card out of play.
 
-```ts
-| { op: "chooseMode"; reason: string; modes: { label: string; ops: Op[] }[] }
-```
-
-The interpreter raises a prompt (a new `Prompt` kind, or reuse `chooseCards`
-with synthetic ids — prefer a new kind, the UI reads prompts directly) and
-splices the chosen mode's ops in place, exactly as `if` already does. 542
-clauses, the largest single count of any mechanism.
-
-**Cards under cards.** The state already models `under`, and Evolve, Union and
-Z-Stack stack properly; only the *language* cannot say it. Today
-`moveTo: "under"` maps to `"drop"`, which is simply wrong. Give `moveTo` an
-`under: Ref` so the destination card is named, move the card into
-`s.cards[host].under`, and make sure `assertConsistent` in the tests still sees
-each card exactly once. Check `move()` in `state.ts` for how a card leaves its
-current area first.
+Note for anyone puzzled by a stored program misbehaving: skill indexes shifted
+on cards whose modal options used to be counted as separate lines, so a
+`card_scripts` row written before this may point at the wrong skill.
 
 ---
 
-## Then: replacement effects (9-10) — the one genuinely hard piece
+## Next: replacement effects (9-10) — the one genuinely hard piece
 
 "If this card would leave the Battle Area, … instead". A registry consulted
 *before* an event, the affected player choosing when several apply (9-10-2),
@@ -185,7 +178,7 @@ In the order they earn their keep:
   condition gate for "during your turn".
 - **Cost changes on other cards** (20-21, 74 cards). Extends the static layer:
   other cards, increases as well as reductions, and skill costs.
-- **Amounts counted off the board** (53 cards). `Amount` already has
+- **Amounts counted off the board** (90 cards). `Amount` already has
   `{count: Selector}`; the compiler has never emitted one. Pure compiler work.
 - **The §22 keywords still missing** (45 cards): Aegis, Alliance, Arrival,
   Revive, Successor, Rejuvenate, Spirit Boost, Empower, Invoker, Burst,
@@ -201,7 +194,7 @@ In the order they earn their keep:
 
 ## The other track, which needs no planning
 
-Two thirds of the unreadable clauses — 7,759 of them — need **no new
+Two thirds of the unreadable clauses — 7,644 of them — need **no new
 mechanism**, only a phrase pattern. The loop for grinding them down already
 exists and is the fastest way to raise coverage:
 
