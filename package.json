@@ -23,7 +23,7 @@
     "arena:playthrough": "tsx --env-file=.env.local scripts/arena-playthrough.mts",
     "arena:vs": "tsx --env-file=.env.local scripts/arena-vs-claude.mts",
     "arena:gaps": "tsx --env-file=.env.local scripts/arena-gaps.mts",
-    "arena:bugs": "tsx --env-file=.env.local scripts/arena-bugs.mts"
+    "arena:feedback": "tsx --env-file=.env.local scripts/arena-feedback.mts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.116.0",

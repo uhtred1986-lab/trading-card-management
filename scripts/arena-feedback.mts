@@ -1,17 +1,22 @@
 /**
- * The bugs reported from the board, printed for whoever is going to fix them.
+ * Everything the owner told the arena, printed for whoever is going to act on
+ * it. Three kinds land here and they are one kind of thing — a person noticing
+ * what the coverage scripts cannot:
  *
- * Each report carries the game it came from, so this prints what the compiler
- * made of the card that was named — which, on the reports so far, has been the
- * answer every time.
+ *   bug   something went wrong in a game, reported from the board
+ *   card  a card explained in their own words, from the backlog
+ *   rule  a rule set by hand, from the rules page
  *
- * `npm run arena:bugs`            open reports
- * `npm run arena:bugs -- all`     including the fixed ones
- * `npm run arena:bugs -- 7`       one report, with its board
+ * Whatever the kind, this prints what the compiler makes of the card that was
+ * named. On the reports so far that has been the answer every time.
+ *
+ * `npm run arena:feedback`            open items
+ * `npm run arena:feedback -- all`     including the settled ones
+ * `npm run arena:feedback -- 7`       one item, with its board
  */
 import { desc, eq, inArray } from "drizzle-orm";
 import { db } from "./../src/db";
-import { arenaBugReports, cards as cardsTable } from "../src/db/schema";
+import { arenaFeedback, cards as cardsTable } from "../src/db/schema";
 import { compileCard, parseSkills, type GameState } from "../src/lib/arena/engine";
 import { skillLines } from "../src/lib/arena/engine/cards";
 import { cardDefFrom } from "../src/lib/arena/load";
@@ -21,13 +26,13 @@ const one = Number.isInteger(Number(arg)) ? Number(arg) : null;
 
 const rows = await db
   .select()
-  .from(arenaBugReports)
-  .where(one ? eq(arenaBugReports.id, one) : arg === "all" ? undefined : eq(arenaBugReports.status, "open"))
-  .orderBy(desc(arenaBugReports.createdAt))
+  .from(arenaFeedback)
+  .where(one ? eq(arenaFeedback.id, one) : arg === "all" ? undefined : eq(arenaFeedback.status, "open"))
+  .orderBy(desc(arenaFeedback.createdAt))
   .limit(one ? 1 : 30);
 
 if (!rows.length) {
-  console.log("no reports");
+  console.log("nothing said yet");
   process.exit(0);
 }
 
@@ -37,7 +42,8 @@ const byId = new Map(cards.map((c) => [c.id, c]));
 
 for (const r of rows) {
   console.log(`\n${"─".repeat(72)}`);
-  console.log(`#${r.id}  [${r.status}]  ${r.createdAt.toISOString().slice(0, 16).replace("T", " ")}  game ${r.gameId ?? "—"}  turn ${r.turn} ${r.phase ?? ""}`);
+  const where = r.kind === "bug" ? `game ${r.gameId ?? "—"}  turn ${r.turn} ${r.phase ?? ""}` : r.kind === "card" ? "explained on the backlog" : "rule set by hand";
+  console.log(`#${r.id}  [${r.kind}/${r.status}]  ${r.createdAt.toISOString().slice(0, 16).replace("T", " ")}  ${where}`);
   console.log(`\n  "${r.note}"\n`);
 
   const card = r.cardId ? byId.get(r.cardId) : null;
@@ -57,8 +63,11 @@ for (const r of rows) {
     }
   }
 
-  console.log(`\n  waiting on: ${r.prompt ?? "—"}`);
-  console.log(`  on offer: ${((r.legal as string[]) ?? []).join(" · ") || "nothing"}`);
+  if (r.resolution) console.log(`\n  read as: ${r.resolution}`);
+  if (r.kind === "bug") {
+    console.log(`\n  waiting on: ${r.prompt ?? "—"}`);
+    console.log(`  on offer: ${((r.legal as string[]) ?? []).join(" · ") || "nothing"}`);
+  }
   const log = (r.log as string[]) ?? [];
   if (log.length) {
     console.log("\n  the last of the log:");
@@ -77,5 +86,5 @@ for (const r of rows) {
     }
   }
 }
-console.log(`\n${rows.length} report${rows.length === 1 ? "" : "s"}. \`npm run arena:bugs -- <id>\` for the board of one.`);
+console.log(`\n${rows.length} item${rows.length === 1 ? "" : "s"}. \`npm run arena:feedback -- <id>\` for the board of one.`);
 process.exit(0);
