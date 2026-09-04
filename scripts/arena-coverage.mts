@@ -7,8 +7,10 @@
  *
  * `npm run arena:coverage [-- deckId ...]`
  */
+import { eq } from "drizzle-orm";
 import { db } from "../src/db";
-import { cards, cardSets, decks } from "../src/db/schema";
+import { DEFAULT_GAME } from "../src/lib/catalog/games";
+import { cards, decks } from "../src/db/schema";
 import { compileSkill, parseSkills, type CardDef } from "../src/lib/arena/engine";
 import { cardDefFrom, deckInputFor } from "../src/lib/arena/load";
 
@@ -69,12 +71,10 @@ const pct = (a: number, b: number) => (b === 0 ? "—" : `${((a / b) * 100).toFi
 const line = (label: string, t: Tally) =>
   `${label.padEnd(26)} ${String(t.cardsTotal).padStart(5)} cards   resolved skills ${String(t.skills).padStart(5)} → ${pct(t.compiled, t.skills).padStart(7)} compiled   permanent ${String(t.permanent).padStart(5)} → ${pct(t.permanentCompiled, t.permanent).padStart(7)}   keyword-only ${t.keywordOnly}`;
 
-// Fusion World is a different game with different rules, and the arena does
-// not play it. Counting its 2,000 cards would mean tuning the compiler on
-// text that can never come up (see CLAUDE.md).
-const fusionSets = new Set((await db.select({ code: cardSets.code, line: cardSets.line }).from(cardSets)).filter((s) => s.line === "fusion").map((s) => s.code));
-const rows = (await db.select().from(cards)).filter((r) => !fusionSets.has(r.setCode));
-const all = rows.map(cardDefFrom);
+// The arena reads the Masters rule manual and only ever plays `dbs` decks
+// (src/lib/catalog/games.ts), so Fusion World text is not counted here —
+// tuning the compiler on it would be tuning on noise.
+const all = (await db.select().from(cards).where(eq(cards.game, DEFAULT_GAME))).map(cardDefFrom);
 console.log(line("whole catalog", tally(all, catalogMisses)));
 
 const deckRows = await db.select({ id: decks.id, name: decks.name }).from(decks);

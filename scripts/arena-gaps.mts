@@ -8,8 +8,10 @@
  *
  * `npm run arena:gaps`
  */
+import { eq } from "drizzle-orm";
 import { db } from "../src/db";
-import { cards as cardsTable, cardSets } from "../src/db/schema";
+import { DEFAULT_GAME } from "../src/lib/catalog/games";
+import { cards as cardsTable } from "../src/db/schema";
 import { compileCardCached, parseSkills, type CardDef } from "../src/lib/arena/engine";
 import { cardDefFrom } from "../src/lib/arena/load";
 
@@ -35,10 +37,9 @@ const MECHANISMS: { key: string; needs: string; test: RegExp }[] = [
   { key: "turn structure", needs: "skipping or adding phases and turns (20-13)", test: /\bskip\b|\bextra turn\b|\banother turn\b/ },
 ];
 
-// Fusion World is a different game and the arena does not play it, so its
-// card text is not counted here (see CLAUDE.md).
-const fusionSets = new Set((await db.select({ code: cardSets.code, line: cardSets.line }).from(cardSets)).filter((s) => s.line === "fusion").map((s) => s.code));
-const all = (await db.select().from(cardsTable)).filter((r) => !fusionSets.has(r.setCode));
+// The arena only plays `dbs` decks (src/lib/catalog/games.ts), so Fusion
+// World text is not counted here.
+const all = await db.select().from(cardsTable).where(eq(cardsTable.game, DEFAULT_GAME));
 const defs: CardDef[] = all.map(cardDefFrom);
 
 interface Bucket {
