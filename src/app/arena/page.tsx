@@ -105,6 +105,10 @@ export default async function ArenaPage() {
               ))}
             </div>
           </fieldset>
+          <label className="flex items-center gap-2 text-xs text-space-300">
+            <input type="checkbox" name="debug" defaultChecked className="accent-ki-500" />
+            Record what Claude was shown for every decision, so the game can be picked apart afterwards
+          </label>
           <button className="tap w-full rounded-lg bg-ki-500 px-4 py-3 text-sm font-semibold text-space-950">Flip the coin</button>
           <p className="text-[11px] text-space-400">
             A game starts with the coin flip, then each side may mulligan once. Life is 8; the player going second gets one energy marker. Against Claude, the second
@@ -115,7 +119,12 @@ export default async function ArenaPage() {
 
       {playable.length > 0 && (
         <section>
-          <h2 className="mb-2 text-xs uppercase tracking-widest text-space-400">What the engine reads in each deck</h2>
+          <div className="mb-2 flex items-baseline gap-2">
+            <h2 className="text-xs uppercase tracking-widest text-space-400">What the engine reads in each deck</h2>
+            <Link href="/arena/backlog" className="ml-auto text-xs text-ki-300 hover:underline">
+              what it cannot read →
+            </Link>
+          </div>
           <ul className="space-y-1 text-xs">
             {playable.map((d) => {
               const c = coverage.get(d.id);

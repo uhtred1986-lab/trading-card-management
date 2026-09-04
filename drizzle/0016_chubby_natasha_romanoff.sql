@@ -1,0 +1,1 @@
+ALTER TABLE "arena_games" ADD COLUMN "debug" boolean DEFAULT true NOT NULL;

@@ -23,6 +23,8 @@ export interface LoadedGame {
   /** What Claude has cost this game, and its review once it exists. */
   spend: { calls: number; input: number; output: number; cached: number; micros: number };
   review: string | null;
+  /** Keep the exact prompt of every paid decision, for later analysis. */
+  debug: boolean;
   p1Name: string;
   p2Name: string;
   p1DeckId: number | null;
@@ -42,7 +44,7 @@ async function defsForState(db: Db, state: GameState): Promise<Record<string, Ca
   return out;
 }
 
-export async function startGame(db: Db, p1DeckId: number, p2DeckId: number, mode: ArenaMode = "hotseat"): Promise<number> {
+export async function startGame(db: Db, p1DeckId: number, p2DeckId: number, mode: ArenaMode = "hotseat", debug = true): Promise<number> {
   const a = await deckInputFor(db, p1DeckId);
   const b = await deckInputFor(db, p2DeckId);
   if (!a) throw new Error("the first deck has no leader, so it cannot be played");
@@ -69,6 +71,7 @@ export async function startGame(db: Db, p1DeckId: number, p2DeckId: number, mode
       actions: [],
       log: describeEvents(ctx, state, events),
       turn: state.turn,
+      debug,
     })
     .returning({ id: arenaGames.id });
   return row.id;
@@ -93,6 +96,7 @@ export async function loadGame(db: Db, id: number): Promise<LoadedGame | null> {
     legal: legalActions(ctx, state),
     spend: { calls: row.aiCalls, input: row.aiInputTokens, output: row.aiOutputTokens, cached: row.aiCachedTokens, micros: row.aiCostMicros },
     review: row.review,
+    debug: row.debug,
   };
 }
 

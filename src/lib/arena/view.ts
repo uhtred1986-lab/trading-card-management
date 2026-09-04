@@ -99,7 +99,17 @@ export function tappable(legal: LegalAction[]): Tappable {
   return out;
 }
 
-function cardView(ctx: EngineContext, s: GameState, id: string, images: Record<string, string | null>, reveal: boolean): CardView {
+/**
+ * Card art from the catalog, keyed by card number. A leader has two faces, so
+ * both are carried: a leader that has awakened must show its back, which is a
+ * different image and often a different name (1-9-1).
+ */
+export interface CardArt {
+  front: string | null;
+  back: string | null;
+}
+
+function cardView(ctx: EngineContext, s: GameState, id: string, images: Record<string, CardArt>, reveal: boolean): CardView {
   const inst = s.cards[id];
   const d = def(ctx, s, id);
   const f = face(ctx, s, id);
@@ -120,7 +130,8 @@ function cardView(ctx: EngineContext, s: GameState, id: string, images: Record<s
     name: hidden ? "Face-down card" : f.name,
     power: hidden ? null : (inPlayArea(s, id) ? powerOf(ctx, s, id) : f.power),
     colors: hidden ? [] : d.colors,
-    imageUrl: hidden ? null : (images[inst.cardId] ?? null),
+    // The awakened side has its own art; fall back to the front if the catalog has none.
+    imageUrl: hidden ? null : side === "back" ? (images[inst.cardId]?.back ?? images[inst.cardId]?.front ?? null) : (images[inst.cardId]?.front ?? null),
     mode: inst.mode,
     hidden,
     flipped: inst.flipped,
@@ -142,7 +153,7 @@ function inPlayArea(s: GameState, id: string): boolean {
   return a === "leader" || a === "battle" || a === "unison" || a === "combo";
 }
 
-function sideView(ctx: EngineContext, s: GameState, p: PlayerId, images: Record<string, string | null>, ownHand: boolean): SideView {
+function sideView(ctx: EngineContext, s: GameState, p: PlayerId, images: Record<string, CardArt>, ownHand: boolean): SideView {
   const ps = s.players[p];
   const v = (id: string, reveal = true) => cardView(ctx, s, id, images, reveal);
   return {
@@ -205,7 +216,7 @@ function questionFor(ctx: EngineContext, s: GameState): { kind: string; player: 
   }
 }
 
-export function boardView(ctx: EngineContext, s: GameState, viewer: PlayerId, images: Record<string, string | null>): BoardView {
+export function boardView(ctx: EngineContext, s: GameState, viewer: PlayerId, images: Record<string, CardArt>): BoardView {
   const them = viewer === "p1" ? "p2" : "p1";
   return {
     you: sideView(ctx, s, viewer, images, true),

@@ -6,8 +6,9 @@
  * the compiler — those can belong to either player, so they are handled even
  * in a hot-seat game.
  *
- * Everything Claude spends is added up on the game row, so the end screen can
- * show what the match actually cost rather than an estimate.
+ * Every decision is written down, whether or not it cost anything, so a
+ * finished game can be read back move by move and the opponent tuned. Clauses
+ * the compiler could not read are added to the backlog as they come up.
  */
 import { eq } from "drizzle-orm";
 import type { Db } from "@/db";
@@ -15,6 +16,7 @@ import { arenaGames } from "@/db/schema";
 import { describeAiError } from "@/lib/ai/client";
 import type { Action, PlayerId } from "../engine";
 import { applyToGame, loadGame, type LoadedGame } from "../games";
+import { noteUnreadText, recordDecision } from "./debug";
 import { stateText } from "./view";
 import { chooseMove, ruleOnCard, type Tier } from "./opponent";
 
@@ -36,10 +38,11 @@ export function aiPlayerOf(game: { mode: string }): PlayerId | null {
   return game.mode === "hotseat" ? null : "p2";
 }
 
-async function addSpend(db: Db, gameId: number, spend: { model: string; input: number; output: number; cached: number } | null): Promise<void> {
-  if (!spend) return;
+async function addSpend(db: Db, gameId: number, spend: { model: string; input: number; output: number; cached: number } | null): Promise<number> {
+  if (!spend) return 0;
+  const micros = costMicros(spend);
   const row = await db.query.arenaGames.findFirst({ where: eq(arenaGames.id, gameId) });
-  if (!row) return;
+  if (!row) return micros;
   await db
     .update(arenaGames)
     .set({
@@ -47,9 +50,10 @@ async function addSpend(db: Db, gameId: number, spend: { model: string; input: n
       aiInputTokens: row.aiInputTokens + spend.input,
       aiOutputTokens: row.aiOutputTokens + spend.output,
       aiCachedTokens: row.aiCachedTokens + spend.cached,
-      aiCostMicros: row.aiCostMicros + costMicros(spend),
+      aiCostMicros: row.aiCostMicros + micros,
     })
     .where(eq(arenaGames.id, gameId));
+  return micros;
 }
 
 export interface AdvanceResult {
@@ -80,10 +84,30 @@ export async function advance(db: Db, gameId: number, maxSteps = 80): Promise<Ad
         continue;
       }
       if (!ai || !("player" in prompt) || prompt.player !== ai) break;
+
+      const started = Date.now();
       const choice = await chooseMove(db, game.ctx, game.state, game.legal, ai, game.mode as Tier);
-      await addSpend(db, gameId, choice.spend);
-      const action = game.legal[choice.index].action as Action;
-      await applyToGame(db, gameId, action);
+      const micros = await addSpend(db, gameId, choice.spend);
+      const chosen = game.legal[choice.index];
+      await recordDecision(db, {
+        gameId,
+        turn: game.state.turn,
+        phase: game.state.phase,
+        promptKind: prompt.kind,
+        player: ai,
+        kind: "move",
+        decidedBy: choice.spend ? (choice.how.startsWith("Claude answered") ? "fallback" : "claude") : "rule",
+        how: choice.how,
+        model: choice.spend?.model ?? null,
+        menu: game.legal.map((l) => l.label),
+        chosenIndex: choice.index,
+        chosenLabel: chosen.label,
+        say: choice.say,
+        promptText: game.debug && choice.spend ? stateText(game.ctx, game.state, ai) : null,
+        spend: choice.spend ? { ...choice.spend, micros } : null,
+        latencyMs: choice.spend ? Date.now() - started : null,
+      });
+      await applyToGame(db, gameId, chosen.action as Action);
       if (choice.say) said.push(`${game.state.players[ai].name}: “${choice.say}”`);
     } catch (err) {
       return { steps, said, error: describeAiError(err) };
@@ -97,9 +121,37 @@ async function runReferee(db: Db, game: LoadedGame, gameId: number): Promise<str
   const prompt = game.state.prompt;
   if (prompt.kind !== "referee") return null;
   const req = prompt.request;
+  const started = Date.now();
   const situation = stateText(game.ctx, game.state, req.master);
   const ruling = await ruleOnCard(db, { cardId: req.cardId, cardName: req.cardName, text: req.text, unsupported: req.unsupported }, situation);
-  await addSpend(db, gameId, ruling.spend);
+  const micros = await addSpend(db, gameId, ruling.spend);
+
+  // The clauses that got us here go on the backlog, with what Claude decided
+  // as a worked example of what the compiler should learn to emit.
+  await noteUnreadText(
+    db,
+    req.unsupported.map((clause) => ({ cardId: req.cardId, skillIndex: req.skillIndex, clause, skillText: req.text })),
+    true,
+    { ops: ruling.ops, why: ruling.why },
+  );
+
+  await recordDecision(db, {
+    gameId,
+    turn: game.state.turn,
+    phase: game.state.phase,
+    promptKind: "referee",
+    player: req.master,
+    kind: "referee",
+    decidedBy: ruling.spend ? "claude" : "rule",
+    how: `${req.cardName}: ${ruling.why}`,
+    model: ruling.spend?.model ?? null,
+    menu: req.unsupported,
+    chosenLabel: `${ruling.ops.length} operation${ruling.ops.length === 1 ? "" : "s"}`,
+    promptText: game.debug && ruling.spend ? `${req.text}\n\n${situation}` : null,
+    spend: ruling.spend ? { ...ruling.spend, micros } : null,
+    latencyMs: ruling.spend ? Date.now() - started : null,
+  });
+
   await applyToGame(db, gameId, { type: "refereeRuling", player: req.master, ops: ruling.ops });
   return `referee on ${req.cardName}: ${ruling.why}`;
 }

@@ -9,7 +9,7 @@ import { GameOver } from "@/components/arena/GameOver";
 import { aiPlayerOf } from "@/lib/arena/ai/run";
 import type { GameReview } from "@/lib/arena/ai/review";
 import { loadGame } from "@/lib/arena/games";
-import { boardView, tappable, viewerOf } from "@/lib/arena/view";
+import { boardView, tappable, viewerOf, type CardArt } from "@/lib/arena/view";
 import { abandon } from "../actions";
 
 export const dynamic = "force-dynamic";
@@ -25,9 +25,11 @@ export default async function ArenaGamePage({ params }: { params: Promise<{ id: 
 
   // Card art, keyed by catalog id; tokens have none.
   const ids = [...new Set(Object.values(game.state.cards).map((c) => c.cardId))].filter((x) => !x.startsWith("TOKEN:"));
-  const rows = ids.length ? await db.select({ id: cardsTable.id, imageUrl: cardsTable.imageUrl }).from(cardsTable).where(inArray(cardsTable.id, ids)) : [];
-  const images: Record<string, string | null> = {};
-  for (const r of rows) images[r.id] = r.imageUrl;
+  const rows = ids.length
+    ? await db.select({ id: cardsTable.id, imageUrl: cardsTable.imageUrl, backImageUrl: cardsTable.backImageUrl }).from(cardsTable).where(inArray(cardsTable.id, ids))
+    : [];
+  const images: Record<string, CardArt> = {};
+  for (const r of rows) images[r.id] = { front: r.imageUrl, back: r.backImageUrl };
 
   const ai = aiPlayerOf(game);
   // In a game against Claude the human is always the first player, so the board
@@ -49,8 +51,11 @@ export default async function ArenaGamePage({ params }: { params: Promise<{ id: 
         <span className="text-xs text-space-500">
           {game.p1Name} vs {game.p2Name} · {game.mode === "hotseat" ? "hot-seat" : game.mode}
         </span>
+        <Link href={`/arena/${id}/debug`} className="ml-auto text-xs text-space-400 hover:text-ki-300">
+          how Claude played
+        </Link>
         {playing && (
-          <form action={abandon.bind(null, id)} className="ml-auto">
+          <form action={abandon.bind(null, id)} className="">
             <button className="tap text-xs text-space-400 hover:text-loss">give up</button>
           </form>
         )}
