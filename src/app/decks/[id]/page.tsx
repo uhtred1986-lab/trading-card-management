@@ -19,6 +19,7 @@ import { DeckLocationPicker } from "@/components/DeckLocationPicker";
 import { hasAnthropic } from "@/lib/ai/client";
 import { BuiltToggle } from "@/components/BuiltToggle";
 import { DeckCardControls } from "@/components/DeckCardControls";
+import { SubmitButton } from "@/components/SubmitButton";
 import { deleteDeckForm, duplicateDeckForm, importDeckListForm, updateDeckForm } from "../actions";
 
 export const dynamic = "force-dynamic";
@@ -177,7 +178,7 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
                 Meta notes <span className="text-space-400">(given to the AI wizard)</span>
                 <textarea name="metaNotes" defaultValue={deck.metaNotes ?? ""} rows={3} className={input} placeholder="What's popular locally, what you keep losing to…" />
               </label>
-              <button className="tap rounded-md bg-space-700 px-3 py-1.5 text-sm text-space-50 hover:bg-space-600">Save</button>
+              <SubmitButton pendingLabel="Saving…" className="tap rounded-md bg-space-700 px-3 py-1.5 text-sm text-space-50 hover:bg-space-600">Save</SubmitButton>
             </form>
             {/* Outside the form: it saves on its own, so Save can't clobber it. */}
             <div className="mt-2 border-t border-space-700/70 pt-2">
@@ -190,7 +191,7 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
             <form action={importDeckListForm} className="mt-2 space-y-2">
               <input type="hidden" name="id" value={deck.id} />
               <textarea name="list" rows={6} className={`${input} font-mono text-xs`} placeholder={"# Leader\n1 BT18-001\n# Main deck\n4 BT18-020\n…"} />
-              <button className="tap rounded-md bg-space-700 px-3 py-1.5 text-sm text-space-50 hover:bg-space-600">Import lines</button>
+              <SubmitButton pendingLabel="Importing…" className="tap rounded-md bg-space-700 px-3 py-1.5 text-sm text-space-50 hover:bg-space-600">Import lines</SubmitButton>
             </form>
             <pre className="mt-3 max-h-64 overflow-auto rounded-md bg-space-950 p-2 font-mono text-[11px] text-space-300">{deckToText(deck.cards) || "(empty)"}</pre>
           </details>
@@ -198,11 +199,11 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
           <div className="flex flex-wrap gap-2">
             <form action={duplicateDeckForm}>
               <input type="hidden" name="id" value={deck.id} />
-              <button className="tap rounded-md border border-space-600 px-3 py-1.5 text-sm text-space-100 hover:bg-space-800">Duplicate</button>
+              <SubmitButton pendingLabel="Duplicating…" className="tap rounded-md border border-space-600 px-3 py-1.5 text-sm text-space-100 hover:bg-space-800">Duplicate</SubmitButton>
             </form>
             <form action={deleteDeckForm}>
               <input type="hidden" name="id" value={deck.id} />
-              <button className="tap rounded-md border border-space-600 px-3 py-1.5 text-sm text-space-300 hover:bg-space-800 hover:text-loss">Delete deck</button>
+              <SubmitButton pendingLabel="Deleting…" className="tap rounded-md border border-space-600 px-3 py-1.5 text-sm text-space-300 hover:bg-space-800 hover:text-loss">Delete deck</SubmitButton>
             </form>
           </div>
         </aside>

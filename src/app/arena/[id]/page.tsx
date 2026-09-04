@@ -10,6 +10,7 @@ import { aiPlayerOf } from "@/lib/arena/ai/run";
 import type { GameReview } from "@/lib/arena/ai/review";
 import { loadGame } from "@/lib/arena/games";
 import { boardView, tappable, viewerOf, type CardArt } from "@/lib/arena/view";
+import { SubmitButton } from "@/components/SubmitButton";
 import { abandon } from "../actions";
 
 export const dynamic = "force-dynamic";
@@ -59,7 +60,7 @@ export default async function ArenaGamePage({ params }: { params: Promise<{ id: 
         </Link>
         {playing && (
           <form action={abandon.bind(null, id)}>
-            <button className="tap text-sm text-space-400 hover:text-loss">give up</button>
+            <SubmitButton pendingLabel="Giving up…" className="tap text-sm text-space-400 hover:text-loss">give up</SubmitButton>
           </form>
         )}
       </div>

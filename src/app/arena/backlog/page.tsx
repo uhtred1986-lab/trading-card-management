@@ -3,6 +3,7 @@ import { inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { cards as cardsTable } from "@/db/schema";
 import { ExplainCard } from "@/components/arena/ExplainCard";
+import { SubmitButton } from "@/components/SubmitButton";
 import { backlogByPattern } from "@/lib/arena/ai/debug";
 import { cardScripts } from "@/db/schema";
 import { markNote, sweepBacklog } from "../actions";
@@ -57,7 +58,7 @@ export default async function BacklogPage({ searchParams }: { searchParams: Prom
           Done
         </Link>
         <form action={sweepBacklog} className="ml-auto">
-          <button className="tap rounded-md border border-space-600 px-3 py-1.5 text-space-100 hover:bg-space-800">Scan my decks again</button>
+          <SubmitButton pendingLabel="Scanning…" className="tap rounded-md border border-space-600 px-3 py-1.5 text-space-100 hover:bg-space-800">Scan my decks again</SubmitButton>
         </form>
       </div>
 
@@ -93,7 +94,7 @@ export default async function BacklogPage({ searchParams }: { searchParams: Prom
                           </Link>
                           <span className="font-mono text-[10px] text-space-500">{c.cardId}</span>
                           <form action={markNote.bind(null, c.id, c.status === "open" ? "done" : "open")} className="ml-auto">
-                            <button className="tap text-[10px] text-space-400 hover:text-ki-300">{c.status === "open" ? "mark done" : "reopen"}</button>
+                            <SubmitButton className="tap text-[10px] text-space-400 hover:text-ki-300">{c.status === "open" ? "mark done" : "reopen"}</SubmitButton>
                           </form>
                         </div>
                         <p className="mt-1 text-space-400">

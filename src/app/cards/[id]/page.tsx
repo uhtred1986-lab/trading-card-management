@@ -21,6 +21,7 @@ import { MarketplacePanel } from "@/components/MarketplacePanel";
 import { DeckPicker } from "@/components/DeckPicker";
 import { deckOptions } from "@/lib/decks/add";
 import { GAME_INFO, gameOr } from "@/lib/catalog/games";
+import { SubmitButton } from "@/components/SubmitButton";
 import { addLotForm, deleteLotForm } from "@/app/collection/actions";
 
 export const dynamic = "force-dynamic";
@@ -198,7 +199,7 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
                   {l.notes ? <span className="text-xs italic text-space-300">{l.notes}</span> : null}
                   <form action={deleteLotForm} className="ml-auto">
                     <input type="hidden" name="id" value={l.id} />
-                    <button className="tap rounded px-2 py-1 text-xs text-space-300 hover:bg-space-800 hover:text-loss">Remove</button>
+                    <SubmitButton pendingLabel="Removing…" className="tap rounded px-2 py-1 text-xs text-space-300 hover:bg-space-800 hover:text-loss">Remove</SubmitButton>
                   </form>
                 </li>
               ))}
@@ -258,7 +259,7 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
             <div className="col-span-2 sm:col-span-3">
               <DeckPicker decks={decks} compact />
             </div>
-            <button className="tap self-end rounded-md bg-ki-500 px-3 py-1.5 text-sm font-semibold text-space-950 hover:bg-ki-400">Add to collection</button>
+            <SubmitButton pendingLabel="Adding…" className="tap self-end rounded-md bg-ki-500 px-3 py-1.5 text-sm font-semibold text-space-950 hover:bg-ki-400">Add to collection</SubmitButton>
           </form>
         </section>
       </div>

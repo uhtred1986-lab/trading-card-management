@@ -6,6 +6,7 @@ import { compileCardCached, parseSkills } from "@/lib/arena/engine";
 import { cardDefFrom, deckInputFor } from "@/lib/arena/load";
 import { cards as cardsTable } from "@/db/schema";
 import { inArray } from "drizzle-orm";
+import { SubmitButton } from "@/components/SubmitButton";
 import { startGameForm } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -111,7 +112,7 @@ export default async function ArenaPage() {
             <input type="checkbox" name="debug" defaultChecked className="accent-ki-500" />
             Record what Claude was shown for every decision, so the game can be picked apart afterwards
           </label>
-          <button className="tap w-full rounded-lg bg-ki-500 px-4 py-3 text-sm font-semibold text-space-950">Flip the coin</button>
+          <SubmitButton pendingLabel="Flipping…" className="tap w-full rounded-lg bg-ki-500 px-4 py-3 text-sm font-semibold text-space-950">Flip the coin</SubmitButton>
           <p className="text-[11px] text-space-400">
             A game starts with the coin flip, then each side may mulligan once. Life is 8; the player going second gets one energy marker. Against Claude, the second
             deck is the one it plays.

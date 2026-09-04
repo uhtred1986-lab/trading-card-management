@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import { NAV_ITEMS, SECONDARY_ITEMS, isActive } from "@/lib/navigation";
 
@@ -18,7 +18,7 @@ export function HeaderNav() {
           active ? "bg-space-800 text-space-50" : "text-space-200 hover:bg-space-800 hover:text-space-50"
         }`}
       >
-        {label}
+        <NavLabel label={label} />
       </Link>
     );
   };
@@ -29,4 +29,14 @@ export function HeaderNav() {
       {SECONDARY_ITEMS.map((i) => link(i.href, i.label))}
     </nav>
   );
+}
+
+/**
+ * `useLinkStatus` only sees the nearest `Link` ancestor, so the clicked
+ * item's own pending state has to live in a child — dims the instant it's
+ * clicked, ahead of the destination route's `loading.tsx` painting.
+ */
+function NavLabel({ label }: { label: string }) {
+  const { pending } = useLinkStatus();
+  return <span className={pending ? "animate-pulse opacity-60" : ""}>{label}</span>;
 }

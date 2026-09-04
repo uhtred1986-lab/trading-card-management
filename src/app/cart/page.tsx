@@ -11,6 +11,7 @@ import { listWants } from "@/lib/decks/swaps";
 import { WantList } from "@/components/WantList";
 import { formatCents } from "@/lib/money";
 import { CartTools } from "@/components/CartTools";
+import { SubmitButton } from "@/components/SubmitButton";
 import { saveCartSettingsForm } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -171,7 +172,7 @@ export default async function CartPage({ searchParams }: { searchParams: Promise
             Soft preferences (for the AI explanation)
             <input name="preferences" defaultValue={cfg.preferences} placeholder="Prefer fewer sellers unless it costs more than €2" className={input} />
           </label>
-          <button className="tap rounded-md bg-space-700 px-3 py-1.5 text-sm text-space-50 hover:bg-space-600 sm:col-span-2">Save</button>
+          <SubmitButton pendingLabel="Saving…" className="tap rounded-md bg-space-700 px-3 py-1.5 text-sm text-space-50 hover:bg-space-600 sm:col-span-2">Save</SubmitButton>
         </form>
       </details>
     </div>
