@@ -2,6 +2,7 @@ import { db } from "@/db";
 import { blueprintsFor, cachedListings, cardTraderConfigured, cardTraderEnabled, externalLinks } from "@/lib/marketplace/cardtrader";
 import { formatCents } from "@/lib/money";
 import { refreshListingsForm } from "@/app/cards/marketplace-actions";
+import { SubmitButton } from "@/components/SubmitButton";
 
 /** CardTrader section on the card page: cached listings, refresh, deep links. */
 export async function MarketplacePanel({ card, tcgUrl }: { card: { id: string; name: string; game?: string | null }; tcgUrl: string | null }) {
@@ -38,9 +39,9 @@ export async function MarketplacePanel({ card, tcgUrl }: { card: { id: string; n
             </span>
             <form action={refreshListingsForm} className="ml-auto">
               <input type="hidden" name="cardId" value={card.id} />
-              <button disabled={!cardTraderEnabled()} className="tap rounded-md bg-ki-500 px-3 py-1 text-xs font-semibold text-space-950 hover:bg-ki-400 disabled:opacity-50">
+              <SubmitButton disabled={!cardTraderEnabled()} pendingLabel="Refreshing…" className="tap rounded-md bg-ki-500 px-3 py-1 text-xs font-semibold text-space-950 hover:bg-ki-400">
                 Refresh listings
-              </button>
+              </SubmitButton>
             </form>
           </div>
           {listings.length ? (

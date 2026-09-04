@@ -6,6 +6,7 @@ import { aiRuns, cardSets, cards } from "@/db/schema";
 import { hasAnthropic } from "@/lib/ai/client";
 import type { SetReview } from "@/lib/ai/deck";
 import { CardImage } from "@/components/CardImage";
+import { SubmitButton } from "@/components/SubmitButton";
 import { reviewSetForm } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -38,9 +39,9 @@ export default async function SetReviewPage({ params }: { params: Promise<{ code
         </div>
         <form action={reviewSetForm}>
           <input type="hidden" name="code" value={code} />
-          <button disabled={!hasAnthropic()} className="tap rounded-md bg-ki-500 px-3 py-1.5 text-sm font-semibold text-space-950 hover:bg-ki-400 disabled:opacity-50">
+          <SubmitButton disabled={!hasAnthropic()} pendingLabel="Reviewing…" className="tap rounded-md bg-ki-500 px-3 py-1.5 text-sm font-semibold text-space-950 hover:bg-ki-400">
             {review ? "Re-run review" : "Review this set with Claude"}
-          </button>
+          </SubmitButton>
         </form>
       </div>
 

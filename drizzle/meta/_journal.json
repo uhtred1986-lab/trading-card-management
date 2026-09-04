@@ -162,6 +162,13 @@
       "when": 1788542032868,
       "tag": "0022_gorgeous_blockbuster",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1788556963396,
+      "tag": "0023_furry_wonder_man",
+      "breakpoints": true
     }
   ]
 }

@@ -9,6 +9,7 @@ import { CardImage } from "@/components/CardImage";
 import { ColorPill } from "@/components/ColorPill";
 import { NewDeckWithClaude } from "@/components/NewDeckWithClaude";
 import { hasAnthropic } from "@/lib/ai/client";
+import { SubmitButton } from "@/components/SubmitButton";
 import { createDeckForm } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -49,7 +50,7 @@ export default async function DecksPage({ searchParams }: { searchParams: Promis
             {/* A deck belongs to one game from the moment it exists — its rules
                 and the cards its builder offers both follow from this. */}
             <GameSelect value={game} className="tap rounded-md border border-space-600 bg-space-900 px-2 py-1.5 text-sm text-space-100" />
-            <button className="tap rounded-md bg-ki-500 px-3 py-1.5 text-sm font-semibold text-space-950 hover:bg-ki-400">Create</button>
+            <SubmitButton pendingLabel="Creating…" className="tap rounded-md bg-ki-500 px-3 py-1.5 text-sm font-semibold text-space-950 hover:bg-ki-400">Create</SubmitButton>
           </form>
         </div>
       </div>
