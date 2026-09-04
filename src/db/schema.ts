@@ -814,6 +814,47 @@ export const appUsers = pgTable("app_users", {
 });
 
 /** Key/value app settings (default currency, preferences, …). */
+/**
+ * Something that went wrong in a game, reported from the board.
+ *
+ * The point is that the owner types one sentence and nothing else: everything
+ * needed to reproduce it — the whole game state, the action log, whose
+ * decision it was, the last lines of the game log — is copied in at the moment
+ * of reporting. A bug found while playing is worth far more than one found by
+ * a coverage script, and it is only worth that if it can be replayed.
+ */
+export const arenaBugReports = pgTable(
+  "arena_bug_reports",
+  {
+    id: serial("id").primaryKey(),
+    gameId: integer("game_id").references(() => arenaGames.id, { onDelete: "set null" }),
+    /** What the owner said was wrong, in their own words. */
+    note: text("note").notNull(),
+    /** The card it is about, when they picked one. */
+    cardId: text("card_id"),
+    /** Turn and phase when it was reported, so the log lines make sense. */
+    turn: integer("turn").notNull().default(0),
+    phase: text("phase"),
+    /** Whose decision the game was waiting on. */
+    prompt: text("prompt"),
+    /** The state as it stood — enough to replay the game from the seed. */
+    state: jsonb("state"),
+    /** Every action so far: replaying these reproduces the report exactly. */
+    actions: jsonb("actions"),
+    /** The tail of the game log, which is usually where the answer is. */
+    log: jsonb("log"),
+    /** The moves that were on offer, for "it did not let me …" reports. */
+    legal: jsonb("legal"),
+    /** open | fixed | wontfix */
+    status: text("status").notNull().default("open"),
+    /** What was done about it, written back when it is fixed. */
+    resolution: text("resolution"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+  },
+  (t) => [index("arena_bug_reports_status_idx").on(t.status, t.createdAt)],
+);
+
 export const settings = pgTable("settings", {
   key: text("key").primaryKey(),
   value: jsonb("value"),

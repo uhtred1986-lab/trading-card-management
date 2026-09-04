@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { apply, createGame, defsFrom, legalActions, seedFrom, type Action, type CardDef, type GameState, type PlayerId } from "../src/lib/arena/engine";
 import { parseSkills, keywordOf, orbsIn } from "../src/lib/arena/engine/cards";
 import { parseFilter, matches, parseCondition } from "../src/lib/arena/engine/filters";
-import { move, locate, playCost, powerOf } from "../src/lib/arena/engine/state";
+import { move, locate, playCost, powerOf, forbids, has, cardNow, comboCostOf } from "../src/lib/arena/engine/state";
 import { compileSkill, describeScript, splitClauses } from "../src/lib/arena/engine/compile";
 
 // ── skill text parsing ─────────────────────────────────────────────────────
@@ -144,6 +144,27 @@ const DEFS: Record<string, CardDef> = defsFrom([
   card("NOCOPIES", { energyCost: 1, skill: "[Auto] When you play this card, you can't play copies of this card for the turn." }),
   card("TOUGH", { energyCost: 2, power: 5000, skill: "[Auto] When you play this card, this card can't be KO'd by your opponent's skills until the start of your next turn." }),
   card("STACKER", { energyCost: 1, skill: "[Auto] When you play this card, choose 1 of your Battle Cards and place it under this card." }),
+  card("TWOKILL", { energyCost: 1, skill: "[Auto] When you play this card, choose 2 of your opponent's Battle Cards and KO them." }),
+  card("GRABBER", { energyCost: 1, skill: "[Auto] When you play this card, choose 1 of your opponent's cards and place it in its owner's drop area." }),
+  card("PERMTOUGH", { energyCost: 2, power: 5000, skill: "[Permanent] This card can't be KO'd by your opponent's skills." }),
+  card("PERMLOCK", { energyCost: 2, power: 5000, skill: "[Permanent] Your opponent can't attack with Battle Cards." }),
+  card("SELFMUTE", { energyCost: 2, skill: "[Blocker]\n[Permanent] Negate this card's [Blocker] skill in all areas." }),
+  card("BECOMES", { energyCost: 2, skill: "[Permanent] This card gains ≪Saiyan≫ in all areas." }),
+  card("SAIYANKILL", { energyCost: 1, skill: "[Auto] When you play this card, choose 1 of your opponent's ≪Saiyan≫ Battle Cards and KO it." }),
+  card("CHEAPCOMBO", { energyCost: 3, comboCost: 2, comboPower: 5000, skill: "[Permanent] Reduce the combo cost of this card in your hand by 2." }),
+  card("ONLYONE", { energyCost: 1, name: "ONLYONE", skill: "[Permanent] Only 1 {ONLYONE} can be played in your Battle Area." }),
+  card("RESTCOND", { energyCost: 1, skill: "[Permanent] If this card is in Rest Mode, your Battle Cards get +5000 power." }),
+  card("FREEPLAY", { energyCost: 2, power: 5000, skill: "[Permanent] If you have <V1> in your Battle Area or Leader Area, you can play this card from your hand without paying its energy cost." }),
+  card("EXILE", { energyCost: 2, power: 5000, skill: "[Permanent] If this card would leave the Battle Area, remove it from the game instead." }),
+  card("WARPER", { energyCost: 2, power: 5000, skill: "[Permanent] If this card would be removed from your Battle Area by a skill, send this card to your Warp instead." }),
+  card("E-LIFE", {
+    type: "EXTRA",
+    energyCost: 3,
+    power: null,
+    comboCost: null,
+    comboPower: null,
+    skill: "[Counter: Attack] Negate the attack.<br>[Permanent] You can activate this card's [Counter] skill from your hand by adding a card from your life to your hand instead of paying its energy cost.",
+  }),
   card("MODAL", { energyCost: 1, skill: "[Auto] When you play this card, choose one-<br>・Draw 1 card.<br>・Your opponent discards 1 card." }),
 ]);
 
@@ -1088,6 +1109,407 @@ function assertConsistentAfterDrop(s: GameState) {
   assert.equal(s.players.p2.hand.length, theirHand - 1, "the option taken happened");
   assert.equal(s.players.p1.hand.length, myHand - 1, "and the one not taken did not");
   assert.equal(s.prompt.kind, "main");
+}
+
+// ── wordings the compiler learned in the first pattern pass ────────────────
+
+{
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+  const ops = (text: string) => one(text).ops.map((o) => o.op);
+
+  // Whose turn it is: the condition existed from the start and the compiler
+  // had never once emitted it.
+  const mine = one("[Activate: Main] If it's your turn, draw 1 card.");
+  assert.deepEqual(mine.unsupported, []);
+  assert.deepEqual(mine.ops, [{ op: "if", cond: { kind: "isTurnPlayer" }, then: [{ op: "draw", n: 1 }] }]);
+  const theirs = one("[Activate: Battle] During your opponent's turn, draw 1 card.");
+  assert.deepEqual((theirs.ops[0] as { cond: { kind: string; who?: string } }).cond, { kind: "isTurnPlayer", who: "opponent" });
+
+  // One shape of counting condition, many areas.
+  const counted = one("[Activate: Main] If your opponent has 2 or more Battle Cards in play in Rest Mode, draw 1 card.");
+  assert.deepEqual(counted.unsupported, []);
+  const cond = (counted.ops[0] as { cond: { kind: string; atLeast?: number; sel: { side: string; area: string; mode?: string } } }).cond;
+  assert.equal(cond.kind, "count");
+  assert.equal(cond.atLeast, 2);
+  assert.deepEqual([cond.sel.side, cond.sel.area, cond.sel.mode], ["opponent", "battle", "rest"]);
+  // "No cards" is the same shape read the other way.
+  assert.equal((one("[Activate: Main] If there are no cards in your opponent's combo area, draw 1 card.").ops[0] as { cond: { atMost?: number } }).cond.atMost, 0);
+
+  // Discarding written the long way round, and life written as a count.
+  assert.deepEqual(ops("[Activate: Main] You may place 1 card from your hand in the drop area."), ["discard"]);
+  assert.deepEqual(ops("[Activate: Main] Add cards from your life to your hand until you have 6 life left."), ["lifeDownTo"]);
+  assert.deepEqual(ops("[Activate: Main] Both players choose 1 card from their hand."), ["discard"]);
+
+  // A reminder of a rule the engine already applies is not an effect.
+  const reminder = one("[Counter: Play] You can activate this card's [Counter] skill from your hand. Draw 1 card.");
+  assert.deepEqual(reminder.unsupported, []);
+  assert.deepEqual(
+    reminder.ops.map((o) => o.op),
+    ["draw"],
+  );
+  // Nor is a note in the full-width brackets some sets print.
+  assert.deepEqual(one("[Auto] When you play this card, draw 1 card.（You can only include up to 4 cards with [Super Combo] in your deck）").unsupported, []);
+
+  // A choice with no area named is a card on the table (20-1-6) — and until
+  // this worked, every later "it" in the same skill had nothing to point at.
+  const chain = one("[Auto] When you play this card, choose 1 of your <Son Goku>, and switch it to Rest Mode.");
+  assert.deepEqual(chain.unsupported, []);
+  assert.deepEqual(
+    chain.ops.map((o) => o.op),
+    ["choose", "switchMode"],
+  );
+}
+
+// ── two conditions in front of one effect (9-1-3) ──────────────────────────
+
+{
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+  const yellow = parseFilter("yellow");
+
+  // BT5-088. Both conditions have to hold, so they nest, and the order they
+  // are printed in is the order they nest in.
+  const both = one("[Auto] When you combo with this card, if your Leader Card is yellow and your life is at 4 or less, draw 1 card.");
+  assert.deepEqual(both.unsupported, []);
+  assert.deepEqual(both.ops, [
+    {
+      op: "if",
+      cond: { kind: "leaderMatches", filter: yellow },
+      then: [{ op: "if", cond: { kind: "life", side: "you", atMost: 4 }, then: [{ op: "draw", n: 1 }] }],
+    },
+  ]);
+
+  // The same card text with the conditions the other way round: same meaning,
+  // and both still have to hold.
+  const swapped = one("[Auto] When you combo with this card, if your life is at 4 or less and your Leader Card is yellow, draw 1 card.");
+  assert.deepEqual(swapped.unsupported, []);
+  assert.deepEqual(swapped.ops, [
+    {
+      op: "if",
+      cond: { kind: "life", side: "you", atMost: 4 },
+      then: [{ op: "if", cond: { kind: "leaderMatches", filter: yellow }, then: [{ op: "draw", n: 1 }] }],
+    },
+  ]);
+
+  // Either half alone is the same condition without the nesting.
+  assert.deepEqual(one("[Auto] When you combo with this card, if your life is at 4 or less, draw 1 card.").ops, [
+    { op: "if", cond: { kind: "life", side: "you", atMost: 4 }, then: [{ op: "draw", n: 1 }] },
+  ]);
+  assert.deepEqual(one("[Auto] When you combo with this card, if your Leader Card is yellow, draw 1 card.").ops, [
+    { op: "if", cond: { kind: "leaderMatches", filter: yellow }, then: [{ op: "draw", n: 1 }] },
+  ]);
+
+  // Whose life, and which way round the comparison goes, both change the test.
+  assert.deepEqual((one("[Auto] When you combo with this card, if your opponent's life is at 4 or less, draw 1 card.").ops[0] as { cond: unknown }).cond, {
+    kind: "life",
+    side: "opponent",
+    atMost: 4,
+  });
+  assert.deepEqual((one("[Auto] When you combo with this card, if your life is at 4 or more, draw 1 card.").ops[0] as { cond: unknown }).cond, {
+    kind: "life",
+    side: "you",
+    atLeast: 4,
+  });
+}
+
+// ── choosing more than one card, one tap at a time (5-2) ───────────────────
+
+{
+  // The board asks by tapping a card, so a "choose 2" is two questions. It
+  // used to be offered as two separate one-card answers to a prompt that
+  // demanded both at once, which the engine then refused as illegal.
+  let s = arena({ hand: ["TWOKILL"], energy: ["V1"], oppBattle: ["BIG", "V-BLUE", "BLOCKER"] });
+  const first = find(s, "p2", "battle", "BIG");
+  const second = find(s, "p2", "battle", "BLOCKER");
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "TWOKILL") });
+  assert.equal(s.prompt.kind, "chooseCards");
+  assert.equal((s.prompt as { choice: { max: number } }).choice.max, 1, "one card per answer");
+  // Every candidate is offered, and taking one is legal.
+  assert.equal(labels(s).length, 3);
+  s = play(s, { type: "choose", player: "p1", cards: [first] });
+  assert.equal(s.prompt.kind, "chooseCards", "it asks again for the second");
+  assert.ok(!(s.prompt as { choice: { candidates: string[] } }).choice.candidates.includes(first), "and not for the same card twice");
+  s = play(s, { type: "choose", player: "p1", cards: [second] });
+  assert.ok(s.players.p2.drop.includes(first) && s.players.p2.drop.includes(second), "both chosen cards were KO'd");
+  assert.equal(s.prompt.kind, "main");
+  assertConsistent(s);
+}
+
+{
+  // 3-1-2: "your opponent's cards" includes their Leader (20-1-6), but a
+  // Leader does not leave the Leader Area — and an empty Leader Area is a
+  // state the rest of the engine cannot read.
+  let s = arena({ hand: ["GRABBER"], energy: ["V1"] });
+  const leader = s.players.p2.leader;
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "GRABBER") });
+  assert.equal(s.players.p2.leader, leader, "their Leader is still there");
+  assert.ok(!s.players.p2.drop.includes(leader));
+  assert.equal(s.prompt.kind, "main");
+  assert.ok(labels(s).length > 0, "and the game can still be played");
+  assertConsistent(s);
+}
+
+// ── wordings the compiler learned in the second pattern pass ───────────────
+
+{
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+  const ops = (text: string) => one(text).ops.map((o) => o.op);
+
+  // "A marker" is one marker.
+  assert.deepEqual(ops("[Auto] When you play this card, choose up to 1 of your opponent's Unison Cards and remove a marker from it."), ["choose", "removeMarker"]);
+
+  // An [Auto] restates its trigger and then says "it": the trigger is dropped,
+  // but what it was about is not.
+  const carried = one("[Auto] When this card is sent to the Warp from your Battle Area or deck, add it to your hand.");
+  assert.deepEqual(carried.unsupported, []);
+  assert.deepEqual(carried.ops, [{ op: "moveTo", target: { sel: { special: "self" } }, to: "hand" }]);
+
+  // A count with no number: "a" and a bare plural both mean at least one.
+  const any = one("[Activate: Main] If your opponent has a Battle Card in play in Rest Mode, draw 1 card.");
+  assert.deepEqual(any.unsupported, []);
+  assert.deepEqual((any.ops[0] as { cond: { kind: string; atLeast?: number } }).cond.atLeast, 1);
+  assert.deepEqual((one("[Activate: Main] If your opponent has Battle Cards in their Battle Area, draw 1 card.").ops[0] as { cond: { atLeast?: number } }).cond.atLeast, 1);
+
+  // Some sets print the odd full-width letter mid-word.
+  assert.deepEqual(one("[Auto] When you play this card, if your Leader Ｃard is a ≪Majin≫, draw 1 card.").unsupported, []);
+
+  // The two life counts against each other.
+  assert.deepEqual((one("[Activate: Main] If your life is less than or equal to your opponent's life, draw 1 card.").ops[0] as { cond: unknown }).cond, {
+    kind: "lifeVsOpponent",
+    atMost: true,
+  });
+
+  // "Choose 1 of X and 1 of Y" splits on the "and"; the second half is a
+  // choice with the verb left behind.
+  assert.deepEqual(ops("[Activate: Main] Choose 1 of your <Son Goku> and 1 of your opponent's Battle Cards."), ["choose", "choose"]);
+}
+
+// ── prohibitions printed as [Permanent] skills (9-5-1, 20-14) ──────────────
+
+{
+  // A [Permanent] holds for as long as the card is where the skill is valid,
+  // with no duration to expire — so unlike the same sentence on an [Auto], it
+  // is still true next turn, and it stops the moment the card leaves play.
+  const ctx = { defs: DEFS };
+  let s = arena({ battle: ["PERMTOUGH"], oppHand: ["KILLER"], oppEnergy: ["V1"] });
+  const tough = find(s, "p1", "battle", "PERMTOUGH");
+  s = play(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+  s = play(s, { type: "play", player: "p2", card: find(s, "p2", "hand", "KILLER") });
+  assert.equal(s.prompt.kind, "chooseCards", "it is still a legal choice; the KO just does not happen");
+  s = play(s, { type: "choose", player: "p2", cards: [tough] });
+  assert.ok(s.players.p1.battle.includes(tough), "9-5-1: the permanent skill holds without being activated");
+  // Take the card off the table and the rule goes with it.
+  move(ctx, s, [], tough, "drop", "p1");
+  assert.ok(!forbids(ctx, s, "beKOdBySkill", { player: "p2", card: tough }), "and stops when the source leaves play");
+}
+
+{
+  // The same thing about a player rather than a card.
+  const ctx = { defs: DEFS };
+  let s = arena({ battle: ["PERMLOCK"], oppBattle: ["BIG"] });
+  const lock = find(s, "p1", "battle", "PERMLOCK");
+  s = play(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+  assert.ok(
+    !labels(s).some((x) => x.includes("Attack") && x.includes("BIG")),
+    "their Battle Card cannot attack while the permanent skill is in play",
+  );
+  assert.ok(
+    labels(s).some((x) => x.includes("Attack") && x.includes("L-BLUE")),
+    "their Leader still can — the rule named Battle Cards",
+  );
+  // 9-5-1 again: no duration to end, so removing the card is what ends it.
+  move(ctx, s, [], lock, "drop", "p1");
+  assert.ok(
+    labels(s).some((x) => x.includes("Attack") && x.includes("BIG")),
+    "with the source gone, the attack is offered again",
+  );
+}
+
+// ── another way to pay (5-3) ───────────────────────────────────────────────
+
+{
+  // The card costs 3 and the defender has no energy at all, so the only way
+  // it can be played is the one the card itself prints.
+  let s = arena({ oppHand: ["E-LIFE"] });
+  const counter = find(s, "p2", "hand", "E-LIFE");
+  const lifeBefore = s.players.p2.life.length;
+  const handBefore = s.players.p2.hand.length;
+  s = play(s, { type: "attack", player: "p1", attacker: s.players.p1.leader, target: s.players.p2.leader });
+  assert.equal(s.prompt.kind, "counter");
+  assert.deepEqual((s.prompt as { candidates: string[] }).candidates, [counter], "offered although the energy is not there");
+  const offers = labels(s).filter((x) => x.startsWith("Counter with"));
+  assert.deepEqual(offers, ["Counter with E-LIFE (by adding 1 from your life to your hand)"], "only the cost it can actually pay");
+
+  s = play(s, { type: "counter", player: "p2", card: counter, alt: true });
+  assert.equal(s.battle, null, "the counter resolved: the attack was negated");
+  assert.equal(s.players.p2.life.length, lifeBefore - 1, "one life card paid the cost");
+  // The card left the hand for the Drop and one life card came in, so the hand
+  // is the size it was. Losing life this way is a cost, not damage (1-13-2).
+  assert.equal(s.players.p2.hand.length, handBefore, "the life card went to the hand");
+  assert.ok(s.players.p2.drop.includes(counter));
+  assert.equal(s.players.p2.damageTaken, 0, "paying a cost is not taking damage");
+  assertConsistent(s);
+}
+
+{
+  // With the energy there, both costs are offered and they are different
+  // decisions — 0-2-5 does not choose for the player.
+  let s = arena({ oppHand: ["E-LIFE"], oppEnergy: ["V1", "V1", "V1"] });
+  s = play(s, { type: "attack", player: "p1", attacker: s.players.p1.leader, target: s.players.p2.leader });
+  const offers = labels(s).filter((x) => x.startsWith("Counter with"));
+  assert.equal(offers.length, 2, "the printed cost and the alternative, both on the menu");
+  const before = s.players.p2.life.length;
+  s = play(s, { type: "counter", player: "p2", card: find(s, "p2", "hand", "E-LIFE") });
+  assert.equal(s.players.p2.life.length, before, "paying with energy leaves the life alone");
+  assert.equal(s.players.p2.energy.filter((id) => s.cards[id].mode === "rest").length, 3, "it was paid with energy instead");
+}
+
+// ── what a [Permanent] can say about the card itself (9-1-5, 20-1, 20-21) ──
+
+{
+  const ctx = { defs: DEFS };
+  // 9-1-5: one named keyword goes, the card keeps the rest of itself.
+  const s = arena({ battle: ["SELFMUTE"] });
+  const mute = find(s, "p1", "battle", "SELFMUTE");
+  assert.ok(!has(ctx, s, mute, "Blocker"), "the card negated its own [Blocker]");
+}
+
+{
+  const ctx = { defs: DEFS };
+  // 20-1: a card that gains a trait is that trait to every skill that names
+  // one — this is about what the card *is*, not what it does.
+  let s = arena({ hand: ["SAIYANKILL"], energy: ["V1"], oppBattle: ["BECOMES", "BIG"] });
+  const becomes = find(s, "p2", "battle", "BECOMES");
+  assert.ok(cardNow(ctx, s, becomes).traits.some((t) => t.toLowerCase() === "saiyan"), "it counts as a ≪Saiyan≫");
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "SAIYANKILL") });
+  // Only one card on their side is a Saiyan, so the choice is forced and taken.
+  assert.ok(s.players.p2.drop.includes(becomes), "the ≪Saiyan≫ skill found it");
+  assert.ok(s.players.p2.battle.includes(find(s, "p2", "battle", "BIG")), "and left the card that is not one");
+}
+
+{
+  const ctx = { defs: DEFS };
+  // 20-21: a reducer that names the combo cost reduces the combo cost.
+  const s = arena({ hand: ["CHEAPCOMBO"] });
+  const cheap = find(s, "p1", "hand", "CHEAPCOMBO");
+  assert.equal(DEFS.CHEAPCOMBO.comboCost, 2, "printed");
+  assert.equal(comboCostOf(ctx, s, cheap), 0, "and free after its own [Permanent]");
+}
+
+{
+  // "Only 1 {ONLYONE} can be played in your Battle Area" — the rule switches
+  // itself on once one is there, which a [Permanent] can say because the
+  // static layer asks again every time.
+  let s = arena({ hand: ["ONLYONE", "ONLYONE"], energy: ["V1", "V1"] });
+  assert.ok(
+    labels(s).some((x) => x.startsWith("Play ONLYONE")),
+    "the first is playable",
+  );
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "ONLYONE") });
+  assert.ok(
+    !labels(s).some((x) => x.startsWith("Play ONLYONE")),
+    "the second is not, while the first is in play",
+  );
+}
+
+{
+  const ctx = { defs: DEFS };
+  // A card's own mode as a condition, re-read every time it is asked.
+  const s = arena({ battle: ["RESTCOND", "V1"] });
+  const cond = find(s, "p1", "battle", "RESTCOND");
+  const ally = find(s, "p1", "battle", "V1");
+  assert.equal(powerOf(ctx, s, ally), 10000, "nothing while it stands");
+  s.cards[cond].mode = "rest";
+  assert.equal(powerOf(ctx, s, ally), 15000, "and +5000 once it is rested");
+}
+
+// ── replacement effects (9-10) ─────────────────────────────────────────────
+
+{
+  // 9-10-1-1: the move that was about to happen is treated as never having
+  // happened, and the card goes where the skill says instead.
+  let s = arena({ battle: ["EXILE"], oppHand: ["KILLER"], oppEnergy: ["V1"] });
+  const exile = find(s, "p1", "battle", "EXILE");
+  s = play(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+  s = play(s, { type: "play", player: "p2", card: find(s, "p2", "hand", "KILLER") }, { type: "choose", player: "p2", cards: [exile] });
+  assert.ok(!s.players.p1.drop.includes(exile), "it did not go to the Drop");
+  assert.ok(s.players.p1.removed.includes(exile), "9-10: it went where the skill said instead");
+  assertConsistent(s);
+}
+
+{
+  // "By a skill" is narrower than "would leave": a battle is not a skill.
+  let s = arena({ battle: ["WARPER"], oppBattle: ["BIG"] });
+  const warper = find(s, "p1", "battle", "WARPER");
+  s.cards[warper].mode = "rest";
+  s = play(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+  s = play(s, { type: "attack", player: "p2", attacker: find(s, "p2", "battle", "BIG"), target: warper }, { type: "pass", player: "p2" }, { type: "pass", player: "p1" });
+  assert.ok(s.players.p1.drop.includes(warper), "KO'd in a battle, so the Drop — the skill named a skill");
+  assert.ok(!s.players.p1.warp.includes(warper));
+  assertConsistent(s);
+}
+
+{
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+  // The sentence splits at the comma, and neither half means anything alone.
+  const r = one("[Permanent] If this card would leave the Battle Area, remove it from the game instead.");
+  assert.deepEqual(r.unsupported, []);
+  assert.deepEqual(r.ops, [{ op: "replaceLeave", to: "removed", target: { sel: { special: "self" } } }]);
+
+  // A rule about other cards keeps its subject rather than the "it" that follows.
+  const other = one("[Permanent] When a ≪Saiyan≫ card would leave your Battle Area, you may place it in your Z-Energy instead.");
+  assert.deepEqual(other.unsupported, []);
+  const op = other.ops[0] as { op: string; to: string; target: { sel: { area: string; filter?: { traits: string[] } } } };
+  assert.equal(op.op, "replaceLeave");
+  assert.equal(op.to, "zEnergy");
+  assert.deepEqual(op.target.sel.filter?.traits, ["saiyan"]);
+
+  // "By your opponent's skills" is left unread on purpose: `move` knows a
+  // skill did it but not whose, and guessing lets the wrong cards escape.
+  assert.ok(one("[Permanent] If this card would be removed from your Battle Area by an opponent's skill, send it to your Warp instead.").unsupported.length > 0);
+}
+
+// ── playing a card for another price (5-3) ─────────────────────────────────
+
+{
+  // BT3-087's wording. It used to compile to an *instruction to play the
+  // card*, which a [Permanent] never carries out — so the card looked handled,
+  // never reached the referee, and the player paid the energy anyway.
+  const one = compileSkill(parseSkills("[Permanent] If you have <V1> in your Battle Area or Leader Area, you can play this card from your hand without paying its energy cost.")[0]);
+  assert.deepEqual(one.unsupported, []);
+  const gate = one.ops[0] as { op: string; cond: { kind: string; sel: { area: string; filter?: { type: string | null } } }; then: { op: string; for?: string }[] };
+  assert.equal(gate.op, "if");
+  // "Battle Area or Leader Area" is both areas, not a Battle Area holding a
+  // Leader — which is nothing, so the waiver could never have switched on.
+  assert.equal(gate.cond.sel.area, "play");
+  assert.equal(gate.cond.sel.filter?.type, null);
+  assert.deepEqual(gate.then, [{ op: "altCost", pay: "none", for: "play" }]);
+}
+
+{
+  // With the named card on the table, it plays for nothing — and there is no
+  // energy at all here, so nothing else could have paid for it.
+  let s = arena({ hand: ["FREEPLAY"], battle: ["V1"] });
+  assert.equal(s.players.p1.energy.length, 0);
+  assert.ok(
+    labels(s).some((x) => x === "Play FREEPLAY (for no energy)"),
+    "the printed price is offered",
+  );
+  const free = find(s, "p1", "hand", "FREEPLAY");
+  s = play(s, { type: "play", player: "p1", card: free, alt: true });
+  assert.ok(s.players.p1.battle.includes(free), "it was played");
+  assert.equal(s.players.p1.energy.length, 0, "and nothing was charged for it");
+  assertConsistent(s);
+}
+
+{
+  // Without the card the skill names, the waiver is not on the menu, and the
+  // card costs 2 like anything else.
+  const s = arena({ hand: ["FREEPLAY"], energy: ["V1", "V1"] });
+  assert.ok(!labels(s).some((x) => x.includes("for no energy")), "no waiver without the condition");
+  assert.ok(
+    labels(s).some((x) => x === "Play FREEPLAY (2)"),
+    "the printed cost is still there",
+  );
 }
 
 console.log("verify-arena: all checks passed");

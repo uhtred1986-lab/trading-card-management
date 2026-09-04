@@ -380,7 +380,7 @@ export type Action =
   | { type: "mulligan"; player: PlayerId; redraw: boolean }
   | { type: "charge"; player: PlayerId; card: string | null }
   /** `x` is the value the master picks for an X cost (1-2-2-2-1). */
-  | { type: "play"; player: PlayerId; card: string; x?: number; pay?: string[] }
+  | { type: "play"; player: PlayerId; card: string; x?: number; pay?: string[]; alt?: boolean }
   | { type: "playUnison"; player: PlayerId; card: string; x: number; pay?: string[] }
   | { type: "playZ"; player: PlayerId; card: string; x?: number; pay?: string[] }
   | { type: "growUnison"; player: PlayerId; card: string }
@@ -390,7 +390,8 @@ export type Action =
   | { type: "combo"; player: PlayerId; card: string; pay?: string[] }
   | { type: "pass"; player: PlayerId }
   | { type: "block"; player: PlayerId; card: string | null }
-  | { type: "counter"; player: PlayerId; card: string | null; skill?: number; pay?: string[] }
+  /** `alt` pays the other cost the card prints instead of its energy cost (5-3). */
+  | { type: "counter"; player: PlayerId; card: string | null; skill?: number; pay?: string[]; alt?: boolean }
   | { type: "orderPending"; player: PlayerId; index: number }
   | { type: "optionalCost"; player: PlayerId; pay: boolean }
   | { type: "payCost"; player: PlayerId; option: number }

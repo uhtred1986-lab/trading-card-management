@@ -1,5 +1,5 @@
 {
-  "id": "0979e495-30a9-421a-b348-4ef6208be9e9",
+  "id": "74bb9184-4cc4-4322-b72b-27c50e07184a",
   "prevId": "4910c8c9-7072-40c3-b3af-730ca0117958",
   "version": "7",
   "dialect": "postgresql",
@@ -164,6 +164,148 @@
           ]
         }
       },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.arena_bug_reports": {
+      "name": "arena_bug_reports",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "game_id": {
+          "name": "game_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "card_id": {
+          "name": "card_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "turn": {
+          "name": "turn",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "phase": {
+          "name": "phase",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "prompt": {
+          "name": "prompt",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "state": {
+          "name": "state",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "actions": {
+          "name": "actions",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "log": {
+          "name": "log",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "legal": {
+          "name": "legal",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'open'"
+        },
+        "resolution": {
+          "name": "resolution",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "resolved_at": {
+          "name": "resolved_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "arena_bug_reports_status_idx": {
+          "name": "arena_bug_reports_status_idx",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "arena_bug_reports_game_id_arena_games_id_fk": {
+          "name": "arena_bug_reports_game_id_arena_games_id_fk",
+          "tableFrom": "arena_bug_reports",
+          "tableTo": "arena_games",
+          "columnsFrom": [
+            "game_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -1175,13 +1317,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "first_seen_at": {
-          "name": "first_seen_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
         "updated_at": {
           "name": "updated_at",
           "type": "timestamp with time zone",
@@ -1241,21 +1376,6 @@
           "columns": [
             {
               "expression": "game",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "cards_first_seen_idx": {
-          "name": "cards_first_seen_idx",
-          "columns": [
-            {
-              "expression": "first_seen_at",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -2094,294 +2214,6 @@
           ]
         }
       },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.meta_events": {
-      "name": "meta_events",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "game": {
-          "name": "game",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'dbs'"
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "occurred_on": {
-          "name": "occurred_on",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "official": {
-          "name": "official",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        },
-        "source_url": {
-          "name": "source_url",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "fetched_at": {
-          "name": "fetched_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.meta_result_cards": {
-      "name": "meta_result_cards",
-      "schema": "",
-      "columns": {
-        "result_id": {
-          "name": "result_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "card_id": {
-          "name": "card_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "card_number_raw": {
-          "name": "card_number_raw",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "zone": {
-          "name": "zone",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'main'"
-        },
-        "quantity": {
-          "name": "quantity",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 1
-        }
-      },
-      "indexes": {
-        "meta_result_cards_card_idx": {
-          "name": "meta_result_cards_card_idx",
-          "columns": [
-            {
-              "expression": "card_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "meta_result_cards_result_id_meta_results_id_fk": {
-          "name": "meta_result_cards_result_id_meta_results_id_fk",
-          "tableFrom": "meta_result_cards",
-          "tableTo": "meta_results",
-          "columnsFrom": [
-            "result_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "meta_result_cards_card_id_cards_id_fk": {
-          "name": "meta_result_cards_card_id_cards_id_fk",
-          "tableFrom": "meta_result_cards",
-          "tableTo": "cards",
-          "columnsFrom": [
-            "card_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "meta_result_cards_result_id_card_number_raw_pk": {
-          "name": "meta_result_cards_result_id_card_number_raw_pk",
-          "columns": [
-            "result_id",
-            "card_number_raw"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.meta_results": {
-      "name": "meta_results",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "event_id": {
-          "name": "event_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "placement": {
-          "name": "placement",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "leader_card_id": {
-          "name": "leader_card_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "leader_number_raw": {
-          "name": "leader_number_raw",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "deck_source_id": {
-          "name": "deck_source_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "source_url": {
-          "name": "source_url",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "meta_results_event_idx": {
-          "name": "meta_results_event_idx",
-          "columns": [
-            {
-              "expression": "event_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "meta_results_leader_idx": {
-          "name": "meta_results_leader_idx",
-          "columns": [
-            {
-              "expression": "leader_card_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "meta_results_deck_unique": {
-          "name": "meta_results_deck_unique",
-          "columns": [
-            {
-              "expression": "event_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "deck_source_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "meta_results_event_id_meta_events_id_fk": {
-          "name": "meta_results_event_id_meta_events_id_fk",
-          "tableFrom": "meta_results",
-          "tableTo": "meta_events",
-          "columnsFrom": [
-            "event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "meta_results_leader_card_id_cards_id_fk": {
-          "name": "meta_results_leader_card_id_cards_id_fk",
-          "tableFrom": "meta_results",
-          "tableTo": "cards",
-          "columnsFrom": [
-            "leader_card_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
