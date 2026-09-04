@@ -67,3 +67,27 @@ input[type="number"] {
   -moz-appearance: textfield;
   appearance: textfield;
 }
+
+/*
+ * The arena board is laid out for a phone and then scaled up: every card size is
+ * a phone size multiplied by `--arena`, so one knob makes the whole table bigger
+ * on a laptop instead of leaving two thirds of the screen empty.
+ */
+.arena {
+  --arena: 1;
+}
+@media (min-width: 640px) {
+  .arena {
+    --arena: 1.35;
+  }
+}
+@media (min-width: 1024px) {
+  .arena {
+    --arena: 1.7;
+  }
+}
+@media (min-width: 1280px) {
+  .arena {
+    --arena: 1.95;
+  }
+}
