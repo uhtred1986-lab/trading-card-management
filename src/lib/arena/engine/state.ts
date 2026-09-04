@@ -8,7 +8,7 @@ import { canCombo, hasKeyword, keywordOf, skillsOf, specifiedCostOf, isZ, baseTy
 import { compileCardCached } from "./compile";
 import { matches } from "./filters";
 import type { Amount, Cond, Op, Ref, ScriptArea, ScriptFrame, Selector, Side } from "./script";
-import type { Area, CardDef, CardFace, Color, ContinuousEffect, GameEvent, GameState, KeywordSkill, PlayerId, PlayerState, Skill } from "./types";
+import type { Area, CardDef, CardFace, Color, ContinuousEffect, DelayedEffect, DelayTiming, ForbiddenAction, FlowStep, GameEvent, GameState, KeywordSkill, PlayerId, PlayerState, Skill } from "./types";
 import { other } from "./types";
 
 export interface GameContext {
@@ -212,9 +212,15 @@ export function resolveSelector(ctx: GameContext, s: GameState, frame: ScriptFra
     const inst = s.cards[id];
     if (!inst) return false;
     if (sel.mode && inst.mode !== sel.mode) return false;
+    // A named target that also names an area only matches while it is there.
+    // A delayed effect resolves turns later, and by then "this card" may have
+    // left the Battle Area — in which case it is no longer the same card (3-1-4).
+    if (sel.special && sel.area && areaOf(s, id) !== (sel.area === "play" ? "battle" : sel.area)) return false;
     // 23-5-2: a Hidden Mode card has none of its front-side information.
     if (sel.filter && (inst.hidden || !matches(def(ctx, s, id), sel.filter))) return false;
     if (!sel.special && !sel.ignoreBarrier && sel.side !== "you" && has(ctx, s, id, "Barrier") && s.cards[id].owner !== frame.master && areaOf(s, id) !== "hand") return false;
+    // 20-4: the same shape as [Barrier], but printed as a prohibition.
+    if (!sel.special && s.cards[id].owner !== frame.master && forbids(ctx, s, "beChosen", { card: id })) return false;
     return true;
   });
 }
@@ -455,9 +461,38 @@ export function draw(ctx: GameContext, s: GameState, ev: GameEvent[], p: PlayerI
   return drawn;
 }
 
+/**
+ * Put one card under another (23-2). The stack is already modelled — Evolve,
+ * Union and Z-Stack build one — but until now no effect could say it, so the
+ * compiler sent the card to the Drop instead, which is a different game.
+ *
+ * A card under another is not in any area of its own, so it leaves the one it
+ * was in and takes no state with it (3-1-4). `move` already returns the whole
+ * stack to the Drop when the card on top leaves play (23-2-5).
+ */
+export function placeUnder(ctx: GameContext, s: GameState, ev: GameEvent[], id: string, host: string): boolean {
+  if (id === host || !s.cards[id] || !s.cards[host]) return false;
+  // Nothing can go under a card that is not on the table.
+  if (!["battle", "leader", "unison"].includes(areaOf(s, host) ?? "")) return false;
+  detach(s, id);
+  const inst = s.cards[id];
+  inst.mode = "active";
+  inst.markers = 0;
+  inst.flipped = false;
+  inst.hidden = false;
+  inst.negated = [];
+  inst.usedThisTurn = [];
+  s.cards[host].under.push(id);
+  ev.push({ type: "stack", top: host, under: s.cards[host].under.slice() });
+  return true;
+}
+
 export function setMode(s: GameState, ev: GameEvent[], id: string, mode: "active" | "rest"): boolean {
   const inst = s.cards[id];
   if (inst.mode === mode) return false; // 0-2-4-1: already in that state
+  // 20-14: "it can't switch to Active Mode" holds against every path that
+  // would switch it, including the Charge Phase (7-2-7).
+  if (mode === "active" && forbiddenForCard(s, "switchToActive", id)) return false;
   inst.mode = mode;
   ev.push({ type: "mode", card: id, mode });
   return true;
@@ -472,6 +507,92 @@ export function addEffect(s: GameState, ev: GameEvent[], e: Omit<ContinuousEffec
 
 export function endEffects(s: GameState, until: ContinuousEffect["until"], forPlayer?: PlayerId): void {
   s.effects = s.effects.filter((e) => !(e.until === until && (forPlayer == null || e.ownerTurn === forPlayer)));
+}
+
+// ── prohibitions (20-14, 0-2-5) ────────────────────────────────────────────
+
+/**
+ * Whether something is forbidden right now. 0-2-5: a prohibition beats an
+ * instruction, so this is the last question asked and its answer is final.
+ *
+ * `card` is what the action is about — the attacker, the card being played,
+ * the card that would switch to Active Mode. `player` is who is acting.
+ */
+export function forbids(ctx: GameContext, s: GameState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string } = {}): boolean {
+  for (const e of s.effects) {
+    const f = e.forbid;
+    if (e.kind !== "forbid" || !f || f.what !== what) continue;
+    // A rule about one card only applies to that card.
+    if (e.target && e.target !== opts.card) continue;
+    if (f.player && opts.player && f.player !== opts.player) continue;
+    if (f.filter || f.name) {
+      if (!opts.card || !s.cards[opts.card]) continue;
+      const d = def(ctx, s, opts.card);
+      if (f.filter && !matches(d, f.filter)) continue;
+      if (f.name && d.name !== f.name) continue;
+    }
+    return true;
+  }
+  return false;
+}
+
+/**
+ * The card-only half of the same question, for the places that have a state
+ * but no card definitions — `setMode` is called from everywhere, including
+ * paths that must not need a context.
+ */
+export function forbiddenForCard(s: GameState, what: ForbiddenAction, card: string): boolean {
+  return s.effects.some((e) => e.kind === "forbid" && e.target === card && e.forbid?.what === what);
+}
+
+// ── delayed effects (1-7-2-1-1) ────────────────────────────────────────────
+
+/** Write an effect down for a later timing. */
+export function schedule(s: GameState, ev: GameEvent[], e: Omit<DelayedEffect, "id" | "createdTurn">): DelayedEffect {
+  const full: DelayedEffect = { ...e, id: s.nextDelayedId++, createdTurn: s.turn };
+  s.delayed.push(full);
+  ev.push({ type: "delayed", card: e.card, label: e.label });
+  return full;
+}
+
+/** Whether the turn now under way is the one the effect was waiting for. */
+function ripe(s: GameState, d: DelayedEffect): boolean {
+  switch (d.scope) {
+    case "thisTurn":
+      return s.turn === d.createdTurn;
+    case "nextTurn":
+      return s.turn > d.createdTurn;
+    case "yourNextTurn":
+      return s.turn > d.createdTurn && s.turnPlayer === d.master;
+    case "opponentNextTurn":
+      return s.turn > d.createdTurn && s.turnPlayer !== d.master;
+  }
+}
+
+/**
+ * Take every effect waiting for this timing off the list and return the flow
+ * steps that carry them out, oldest first (4-2-2-2 order). A checkpoint
+ * follows each one, because a delayed effect can KO a card like any other.
+ */
+export function fireDelayed(s: GameState, at: DelayTiming): FlowStep[] {
+  const ready = s.delayed.filter((d) => d.at === at && ripe(s, d));
+  if (!ready.length) return [];
+  const ids = new Set(ready.map((d) => d.id));
+  s.delayed = s.delayed.filter((d) => !ids.has(d.id));
+  return ready.flatMap((d): FlowStep[] => [
+    { op: "script.step", frame: { ops: d.ops, ip: 0, vars: d.vars, card: d.card, master: d.master, subject: d.subject } },
+    { op: "checkpoint" },
+  ]);
+}
+
+/**
+ * An effect scheduled for "this turn" whose moment has gone never happens —
+ * the card that scheduled it may have left play before the timing came round,
+ * or the timing may simply have passed. Dropping it keeps the list from
+ * growing over a long game.
+ */
+export function expireDelayed(s: GameState): void {
+  s.delayed = s.delayed.filter((d) => d.scope !== "thisTurn" || d.createdTurn === s.turn);
 }
 
 // ── costs (5-3, 5-4, 5-6) ──────────────────────────────────────────────────

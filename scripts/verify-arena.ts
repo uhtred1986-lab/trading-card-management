@@ -136,6 +136,15 @@ const DEFS: Record<string, CardDef> = defsFrom([
   card("AURA", { energyCost: 1, skill: "[Permanent] Your Battle Cards get +5000 power." }),
   card("CHEAP", { energyCost: 3, skill: "[Permanent] Reduce the energy cost of this card in your hand by 1." }),
   card("ODDAURA", { energyCost: 1, skill: "[Permanent] Your Battle Cards resonate with the will of the universe." }),
+  card("DELAYKO", { energyCost: 1, skill: "[Auto] When you play this card, choose 1 of your opponent's Battle Cards. At the end of the turn, KO it." }),
+  card("DELAYDRAW", { energyCost: 1, skill: "[Auto] When you play this card, at the start of your next turn, draw 2 cards." }),
+  card("DELAYOPP", { energyCost: 1, skill: "[Auto] When you play this card, during your opponent's next turn, your opponent discards 1 card." }),
+  card("LOCKDOWN", { energyCost: 1, skill: "[Auto] When you play this card, your opponent can't attack with Battle Cards until the start of your next turn." }),
+  card("RESTLOCK", { energyCost: 1, skill: "[Auto] When you play this card, choose 1 of your opponent's Battle Cards. It can't switch to Active Mode until the end of your opponent's turn." }),
+  card("NOCOPIES", { energyCost: 1, skill: "[Auto] When you play this card, you can't play copies of this card for the turn." }),
+  card("TOUGH", { energyCost: 2, power: 5000, skill: "[Auto] When you play this card, this card can't be KO'd by your opponent's skills until the start of your next turn." }),
+  card("STACKER", { energyCost: 1, skill: "[Auto] When you play this card, choose 1 of your Battle Cards and place it under this card." }),
+  card("MODAL", { energyCost: 1, skill: "[Auto] When you play this card, choose one-<br>・Draw 1 card.<br>・Your opponent discards 1 card." }),
 ]);
 
 const fifty = (id: string) => Array.from({ length: 50 }, () => id);
@@ -860,6 +869,225 @@ function assertConsistentAfterDrop(s: GameState) {
   const s = arena({ battle: ["ODDAURA", "V1"] });
   const ctx = { defs: DEFS };
   assert.equal(powerOf(ctx, s, find(s, "p1", "battle", "V1")), 10000);
+}
+
+// ── delayed effects (1-7-2-1-1) ────────────────────────────────────────────
+
+{
+  // The timing phrase moves the rest of the sentence into the future rather
+  // than defeating the compiler, which is what used to happen.
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+  const later = one("[Auto] When you play this card, choose 1 of your opponent's Battle Cards. At the end of the turn, KO it.");
+  assert.deepEqual(later.unsupported, []);
+  assert.equal(later.ops.length, 2);
+  assert.equal(later.ops[0].op, "choose");
+  const delay = later.ops[1] as { op: string; at: string; scope: string; ops: { op: string }[] };
+  assert.equal(delay.op, "delay");
+  assert.equal(delay.at, "turnEnd");
+  assert.equal(delay.scope, "thisTurn");
+  assert.deepEqual(
+    delay.ops.map((o) => o.op),
+    ["ko"],
+    "the KO is inside the delay, not alongside it",
+  );
+
+  // Whose turn it has to be is read off the wording, not guessed.
+  const mine = one("[Auto] When you play this card, at the start of your next turn, draw 2 cards.");
+  assert.equal((mine.ops[0] as { at: string; scope: string }).at, "turnStart");
+  assert.equal((mine.ops[0] as { scope: string }).scope, "yourNextTurn");
+  const theirs = one("[Auto] When you play this card, during your opponent's next turn, your opponent discards 1 card.");
+  assert.equal((theirs.ops[0] as { scope: string }).scope, "opponentNextTurn");
+
+  // "for the turn" is a duration, not a timing, and must not become a delay.
+  const pump = one("[Activate: Main] This card gets +5000 power for the turn.");
+  assert.equal(pump.ops[0].op, "power");
+}
+
+{
+  // The KO happens at the end of the turn, not when the skill resolves.
+  let s = arena({ hand: ["DELAYKO"], energy: ["V1"], oppBattle: ["BIG"] });
+  const victim = find(s, "p2", "battle", "BIG");
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "DELAYKO") });
+  assert.ok(s.players.p2.battle.includes(victim), "still there while the turn runs");
+  assert.equal(s.delayed.length, 1, "written down for later");
+  assert.equal(s.delayed[0].at, "turnEnd");
+  s = play(s, { type: "endMain", player: "p1" });
+  assert.ok(s.players.p2.drop.includes(victim), "1-7-2-1-1: carried out at the end of the turn");
+  assert.equal(s.delayed.length, 0, "and taken off the list");
+  assertConsistent(s);
+}
+
+{
+  // "At the start of your next turn" waits out the opponent's whole turn.
+  let s = arena({ hand: ["DELAYDRAW"], energy: ["V1"] });
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "DELAYDRAW") });
+  assert.equal(s.delayed.length, 1);
+  s = play(s, { type: "endMain", player: "p1" });
+  assert.equal(s.delayed.length, 1, "the opponent's turn is not yours");
+  assert.equal(s.turnPlayer, "p2");
+  const before = s.players.p1.hand.length;
+  s = play(s, { type: "charge", player: "p2", card: null }, { type: "endMain", player: "p2" });
+  assert.equal(s.turnPlayer, "p1");
+  assert.equal(s.players.p1.hand.length, before + 2 + 1, "two from the skill, one from the draw step");
+  assert.equal(s.delayed.length, 0);
+}
+
+{
+  // The other side of the same rule: the opponent's next turn, not yours.
+  let s = arena({ hand: ["DELAYOPP"], energy: ["V1"], oppHand: ["BIG", "BIG"] });
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "DELAYOPP") });
+  const before = s.players.p2.hand.length;
+  assert.equal(before, 2);
+  s = play(s, { type: "endMain", player: "p1" });
+  assert.equal(s.players.p2.hand.length, before - 1 + 1, "discarded one as their turn opened, then drew for the turn");
+  assert.equal(s.delayed.length, 0);
+}
+
+{
+  // An effect waiting for "the end of the turn" that never got there is
+  // dropped rather than firing a turn late.
+  let s = arena({ hand: ["DELAYKO"], energy: ["V1"], oppBattle: ["BIG"] });
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "DELAYKO") });
+  s.delayed[0].at = "battleEnd"; // a timing this turn will never reach
+  s = play(s, { type: "endMain", player: "p1" });
+  assert.equal(s.delayed.length, 0, "its moment passed, so it is gone");
+}
+
+// ── prohibitions (20-14, 0-2-5) ────────────────────────────────────────────
+
+{
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+
+  const lock = one("[Auto] When you play this card, your opponent can't attack with Battle Cards until the start of your next turn.");
+  assert.deepEqual(lock.unsupported, []);
+  const f = lock.ops[0] as { op: string; what: string; side: string; until: string; filter?: { type: string | null } };
+  assert.equal(f.op, "forbid");
+  assert.equal(f.what, "attack");
+  assert.equal(f.side, "opponent");
+  assert.equal(f.filter?.type, "BATTLE", "only their Battle Cards, not their Leader");
+
+  // The rest-lock wording has to outlast the opponent's whole turn.
+  const rest = one("[Auto] When you play this card, choose 1 of your opponent's Battle Cards. It can't switch to Active Mode until the end of your opponent's turn.");
+  assert.deepEqual(rest.unsupported, []);
+  assert.equal((rest.ops[1] as { what: string }).what, "switchToActive");
+  assert.equal((rest.ops[1] as { until: string }).until, "nextTurn");
+
+  // Deck-building rules are not rules of play, and must not be read as one.
+  const deckRule = one("[Permanent] You can't include non-≪Saiyan≫ Battle Cards in your deck.");
+  assert.deepEqual(deckRule.unsupported, []);
+  assert.deepEqual(deckRule.ops, []);
+}
+
+{
+  // The move is not offered, and 0-2-5 means it is refused if sent anyway.
+  let s = arena({ hand: ["LOCKDOWN"], energy: ["V1"], oppBattle: ["BIG"] });
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "LOCKDOWN") }, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+  const attacker = find(s, "p2", "battle", "BIG");
+  assert.ok(
+    !labels(s).some((x) => x.includes("Attack") && x.includes("BIG")),
+    "20-14: their Battle Card is not offered an attack",
+  );
+  assert.ok(
+    labels(s).some((x) => x.includes("Attack") && x.includes("L-BLUE")),
+    "but their Leader still can — the rule named Battle Cards",
+  );
+  assert.throws(() => apply({ defs: DEFS }, s, { type: "attack", player: "p2", attacker, target: s.players.p1.leader }), /illegal attack/);
+}
+
+{
+  // "It can't switch to Active Mode": the Charge Phase leaves it resting.
+  let s = arena({ hand: ["RESTLOCK"], energy: ["V1"], oppBattle: ["BIG"] });
+  const locked = find(s, "p2", "battle", "BIG");
+  s.cards[locked].mode = "rest";
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "RESTLOCK") });
+  assert.equal(s.cards[locked].mode, "rest");
+  s = play(s, { type: "endMain", player: "p1" });
+  assert.equal(s.cards[locked].mode, "rest", "7-2-7 did not stand it up");
+  // It ends as the turn comes back round to the player who created it.
+  s = play(s, { type: "charge", player: "p2", card: null }, { type: "endMain", player: "p2" });
+  assert.equal(s.turnPlayer, "p1");
+  assert.equal(s.effects.filter((e) => e.kind === "forbid").length, 0, "the rule has expired");
+}
+
+{
+  // "You can't play copies of this card" is about the name, not the card.
+  let s = arena({ hand: ["NOCOPIES", "NOCOPIES"], energy: ["V1", "V1"] });
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "NOCOPIES") });
+  assert.ok(
+    !labels(s).some((x) => x.startsWith("Play NOCOPIES")),
+    "the second copy is not offered",
+  );
+  assert.throws(() => apply({ defs: DEFS }, s, { type: "play", player: "p1", card: find(s, "p1", "hand", "NOCOPIES") }), /can't be played/);
+}
+
+{
+  // "Can't be KO'd by your opponent's skills" stops their skill, not the battle.
+  let s = arena({ hand: ["TOUGH"], energy: ["V1", "V1"], oppHand: ["KILLER"], oppEnergy: ["V1"] });
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "TOUGH") });
+  const tough = find(s, "p1", "battle", "TOUGH");
+  s = play(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+  s = play(s, { type: "play", player: "p2", card: find(s, "p2", "hand", "KILLER") });
+  assert.equal(s.prompt.kind, "chooseCards", "it is still a legal choice — the KO simply does not happen");
+  s = play(s, { type: "choose", player: "p2", cards: [tough] });
+  assert.ok(s.players.p1.battle.includes(tough), "22-12-like: their skill cannot KO it");
+  // 21-6 still applies: a rule, not a skill, and it ignores even [Indestructible].
+  s.effects.push({ id: 998, target: tough, kind: "power", value: -99000, until: "turn", ownerTurn: "p2", createdTurn: s.turn });
+  s = play(s, { type: "endMain", player: "p2" });
+  assert.ok(s.players.p1.drop.includes(tough), "21-6: 0 power is a rule, and rules are not skills");
+}
+
+// ── cards under cards (23-2) and modal choice (20-2) ───────────────────────
+
+{
+  // "Place it under this card" used to compile to a move to the Drop, which is
+  // a different game entirely.
+  let s = arena({ hand: ["STACKER"], energy: ["V1"], battle: ["V1"] });
+  const under = find(s, "p1", "battle", "V1");
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "STACKER") });
+  assert.equal(s.prompt.kind, "chooseCards", "both Battle Cards are candidates, so it asks");
+  s = play(s, { type: "choose", player: "p1", cards: [under] });
+  const host = find(s, "p1", "battle", "STACKER");
+  assert.ok(!s.players.p1.battle.includes(under), "it is no longer a Battle Card of its own");
+  assert.ok(!s.players.p1.drop.includes(under), "and it did not go to the Drop");
+  assert.deepEqual(s.cards[host].under, [under]);
+  assertConsistent(s);
+
+  // 23-2-5: when the card on top leaves play, the stack goes with it.
+  s.effects.push({ id: 997, target: host, kind: "power", value: -99000, until: "turn", ownerTurn: "p1", createdTurn: s.turn });
+  s = play(s, { type: "endMain", player: "p1" });
+  assert.ok(s.players.p1.drop.includes(under), "the card underneath followed it to the Drop");
+  assertConsistent(s);
+}
+
+{
+  // The options of a "Choose one—" are printed on separate lines but are not
+  // skills of their own.
+  const skills = parseSkills("[Auto] When you play this card, choose one-<br>・Draw 1 card.<br>・Your opponent discards 1 card.");
+  assert.equal(skills.length, 1, "20-2: one skill, with two options");
+
+  const script = compileSkill(skills[0]);
+  assert.deepEqual(script.unsupported, []);
+  assert.equal(script.ops.length, 1);
+  const modal = script.ops[0] as { op: string; modes: { ops: { op: string }[] }[] };
+  assert.equal(modal.op, "chooseMode");
+  assert.deepEqual(
+    modal.modes.map((mode) => mode.ops.map((o) => o.op)),
+    [["draw"], ["discard"]],
+  );
+}
+
+{
+  // Exactly one option happens, and the player says which.
+  let s = arena({ hand: ["MODAL"], energy: ["V1"], oppHand: ["BIG"] });
+  const myHand = s.players.p1.hand.length;
+  const theirHand = s.players.p2.hand.length;
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "MODAL") });
+  assert.equal(s.prompt.kind, "chooseMode");
+  assert.deepEqual(labels(s), ["Draw 1 card.", "Your opponent discards 1 card."]);
+  s = play(s, { type: "chooseMode", player: "p1", index: 1 });
+  assert.equal(s.players.p2.hand.length, theirHand - 1, "the option taken happened");
+  assert.equal(s.players.p1.hand.length, myHand - 1, "and the one not taken did not");
+  assert.equal(s.prompt.kind, "main");
 }
 
 console.log("verify-arena: all checks passed");

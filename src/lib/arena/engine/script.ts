@@ -20,15 +20,18 @@ import {
   areaOf,
   draw as drawCards,
   face,
+  forbids,
   has,
   move,
   note,
+  placeUnder,
+  schedule,
   setMode,
   tokenCardId,
   type GameContext,
 } from "./state";
 import { koCard, pendTriggers } from "./triggers";
-import type { Color, FlowStep, GameEvent, GameState, KeywordSkill, PlayerId, Trigger } from "./types";
+import type { Color, DelayScope, DelayTiming, FlowStep, ForbiddenAction, GameEvent, GameState, KeywordSkill, PlayerId, Trigger } from "./types";
 
 // ── the language ───────────────────────────────────────────────────────────
 
@@ -37,7 +40,7 @@ export type ScriptArea = "hand" | "deck" | "drop" | "life" | "battle" | "combo" 
 
 export type Side = "you" | "opponent" | "both";
 
-export type Duration = "battle" | "turn" | "opponentTurn" | "game";
+export type Duration = "battle" | "turn" | "opponentTurn" | "nextTurn" | "game";
 
 /** Cards the source skill can point at without choosing: itself, the battle roles, the trigger's subject. */
 export type SpecialTarget = "self" | "attacker" | "guard" | "subject" | "leader" | "opponentLeader";
@@ -84,7 +87,8 @@ export type Op =
   | { op: "choose"; sel: Selector; as: string; reason?: string }
   | { op: "look"; n: Amount; as: string; side?: Side }
   | { op: "ko"; target: Ref }
-  | { op: "moveTo"; target: Ref; to: ScriptArea; position?: "top" | "bottom"; mode?: "active" | "rest"; reveal?: boolean }
+  /** `to: "under"` puts the card under `under`, or under the source card (23-2). */
+  | { op: "moveTo"; target: Ref; to: ScriptArea; position?: "top" | "bottom"; mode?: "active" | "rest"; reveal?: boolean; under?: Ref }
   | { op: "play"; target: Ref; mode?: "active" | "rest" }
   | { op: "switchMode"; target: Ref; mode: "active" | "rest" }
   | { op: "power"; target: Ref; amount: Amount; until: Duration }
@@ -97,8 +101,23 @@ export type Op =
   /** A [Permanent] cost reducer, applied while the card sits where the skill says (9-1-3-3). */
   | { op: "costReduction"; target: Ref; amount: number }
   | { op: "negateAttack" }
+  /** Kept for programs written before `forbid` existed; the same thing. */
   | { op: "cannotAttack"; target: Ref; until: Duration }
+  /**
+   * Forbid an action (20-14). Name a `target` for a rule about particular
+   * cards, or a `side` for one about a player ("your opponent can't attack
+   * with Battle Cards"), optionally narrowed by a filter.
+   */
+  | { op: "forbid"; what: ForbiddenAction; until: Duration; target?: Ref; side?: Side; filter?: CardFilter; sameNameAsSelf?: boolean }
   | { op: "if"; cond: Cond; then: Op[]; else?: Op[] }
+  /** "Choose one— ・A ・B" (20-2): the master picks one printed option. */
+  | { op: "chooseMode"; modes: { label: string; ops: Op[] }[]; reason?: string }
+  /**
+   * Write an effect down now and carry it out later (1-7-2-1-1): "at the end
+   * of the turn, KO it". The inner program keeps this frame's variables, so it
+   * still knows which card "it" was.
+   */
+  | { op: "delay"; at: DelayTiming; scope?: DelayScope; ops: Op[]; label?: string }
   | { op: "note"; text: string };
 
 export interface Script {
@@ -119,6 +138,15 @@ export interface ScriptFrame {
   /** Set while a `choose` is waiting for an answer. */
   awaiting?: string;
 }
+
+/** How each timing reads in the log when the card text does not say it better. */
+export const DELAY_LABELS: Record<DelayTiming, string> = {
+  turnStart: "at the start of the turn",
+  mainStart: "at the start of the Main Phase",
+  turnEnd: "at the end of the turn",
+  turnCleanup: "as the turn ends",
+  battleEnd: "at the end of the battle",
+};
 
 // ── the interpreter ────────────────────────────────────────────────────────
 
@@ -257,19 +285,28 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         for (const id of resolveRef(ctx, s, frame, op.target)) {
           // 22-12: [Indestructible] cannot be KO'd by an opponent's skill.
           if (has(ctx, s, id, "Indestructible") && s.cards[id].owner !== master) continue;
+          // 20-14: the same thing spelled out on the card rather than keyworded.
+          if (forbids(ctx, s, "beKOdBySkill", { player: master, card: id })) continue;
           if (areaOf(s, id) === "battle") koCard(ctx, s, ev, id, frame.card);
         }
         break;
 
-      case "moveTo":
+      case "moveTo": {
+        // 23-2: under a card is not an area of its own, so it is its own move.
+        const host = op.to === "under" ? (op.under ? resolveRef(ctx, s, frame, op.under)[0] : frame.card) : null;
         for (const id of resolveRef(ctx, s, frame, op.target)) {
+          if (op.to === "under") {
+            if (host) placeUnder(ctx, s, ev, id, host);
+            continue;
+          }
           const owner = op.to === "battle" || op.to === "unison" ? master : s.cards[id].owner;
-          // "play" and "under" are not areas of their own (3-1): both land in the Battle Area / Drop.
-          const dest = op.to === "play" ? "battle" : op.to === "under" ? "drop" : op.to;
+          // "play" is not an area of its own either (3-1); it means the Battle Area.
+          const dest = op.to === "play" ? "battle" : op.to;
           move(ctx, s, ev, id, dest, owner, { position: op.position, reveal: op.reveal, reason: "effect" });
           if (op.mode) setMode(s, ev, id, op.mode);
         }
         break;
+      }
 
       case "switchMode":
         for (const id of resolveRef(ctx, s, frame, op.target)) setMode(s, ev, id, op.mode);
@@ -294,8 +331,28 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         break;
 
       case "cannotAttack":
-        for (const id of resolveRef(ctx, s, frame, op.target)) addEffect(s, ev, { target: id, kind: "cannotAttack", value: 0, until: op.until });
+        for (const id of resolveRef(ctx, s, frame, op.target)) addEffect(s, ev, { target: id, kind: "forbid", value: 0, until: op.until, forbid: { what: "attack" } });
         break;
+
+      case "forbid": {
+        // "both" and an absent side alike mean the rule is about neither
+        // player in particular, so it holds for both.
+        const players = op.side && op.side !== "both" ? sideOf(master, op.side) : [];
+        if (op.target) {
+          // On a card, the side says *whose* action is forbidden — "can't be
+          // KO'd by your opponent's skills" is a rule about the opponent.
+          for (const id of resolveRef(ctx, s, frame, op.target)) addEffect(s, ev, { target: id, kind: "forbid", value: 0, until: op.until, forbid: { what: op.what, player: players[0] } });
+          break;
+        }
+        addEffect(s, ev, {
+          target: "",
+          kind: "forbid",
+          value: 0,
+          until: op.until,
+          forbid: { what: op.what, player: players[0], filter: op.filter, name: op.sameNameAsSelf ? face(ctx, s, frame.card).name : undefined },
+        });
+        break;
+      }
 
       case "addMarker":
       case "removeMarker": {
@@ -348,8 +405,9 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         break;
 
       case "play": {
-        // 5-5-3: played by a skill, so no energy cost is paid.
-        const targets = resolveRef(ctx, s, frame, op.target);
+        // 5-5-3: played by a skill, so no energy cost is paid — but a card
+        // that may not be played may not be played by a skill either (20-14).
+        const targets = resolveRef(ctx, s, frame, op.target).filter((id) => !forbids(ctx, s, "play", { player: master, card: id }));
         if (!targets.length) break;
         const steps: FlowStep[] = [];
         for (const id of targets) steps.push({ op: "play.resolve", card: id, player: master, mode: op.mode });
@@ -359,11 +417,48 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         return "done";
       }
 
+      case "delay":
+        // The variables are copied, not shared: a later `choose` in this same
+        // program must not change what the delayed part points at.
+        schedule(s, ev, {
+          at: op.at,
+          scope: op.scope ?? "thisTurn",
+          ops: op.ops,
+          card: frame.card,
+          master,
+          vars: { ...frame.vars },
+          subject: frame.subject,
+          label: op.label ?? DELAY_LABELS[op.at],
+        });
+        break;
+
       case "if": {
         const branch = condHolds(ctx, s, frame, op.cond) ? op.then : (op.else ?? []);
         // Splice the branch in place of the `if`, keeping one frame.
         frame.ops = [...frame.ops.slice(0, frame.ip), ...branch, ...frame.ops.slice(frame.ip + 1)];
         continue;
+      }
+
+      case "chooseMode": {
+        // 20-2: the option is chosen as the skill resolves, and only then does
+        // the rest of the program exist — so it is spliced in like an `if`.
+        if (s.lastMode != null && frame.awaiting === "mode") {
+          const picked = op.modes[s.lastMode] ?? op.modes[0];
+          s.lastMode = null;
+          frame.awaiting = undefined;
+          frame.ops = [...frame.ops.slice(0, frame.ip), ...(picked?.ops ?? []), ...frame.ops.slice(frame.ip + 1)];
+          continue;
+        }
+        // A single option is not a choice, and an empty one is not asked about.
+        const usable = op.modes.filter((mode) => mode.ops.length);
+        if (usable.length <= 1) {
+          frame.ops = [...frame.ops.slice(0, frame.ip), ...(usable[0]?.ops ?? []), ...frame.ops.slice(frame.ip + 1)];
+          continue;
+        }
+        frame.awaiting = "mode";
+        s.flow.unshift({ op: "script.step", frame });
+        s.prompt = { kind: "chooseMode", player: master, reason: op.reason ?? `${face(ctx, s, frame.card).name}: choose one`, options: op.modes.map((mode) => mode.label) };
+        return "wait";
       }
     }
     frame.ip++;
@@ -415,10 +510,16 @@ const OP_NAMES = new Set<Op["op"]>([
   "token",
   "negateAttack",
   "cannotAttack",
+  "forbid",
   "costReduction",
   "if",
+  "chooseMode",
+  "delay",
   "note",
 ]);
+
+const DELAY_TIMINGS = new Set<DelayTiming>(["turnStart", "mainStart", "turnEnd", "turnCleanup", "battleEnd"]);
+const DELAY_SCOPES = new Set<DelayScope>(["thisTurn", "nextTurn", "yourNextTurn", "opponentNextTurn"]);
 
 /**
  * Structural check for a program supplied by the referee. It only proves the
@@ -429,9 +530,17 @@ export function validateProgram(ops: unknown, depth = 0): ops is Op[] {
   if (!Array.isArray(ops) || depth > 4) return false;
   return ops.every((raw) => {
     if (!raw || typeof raw !== "object") return false;
-    const o = raw as { op?: unknown; then?: unknown; else?: unknown };
+    const o = raw as { op?: unknown; then?: unknown; else?: unknown; ops?: unknown; at?: unknown; scope?: unknown; modes?: unknown[] };
     if (typeof o.op !== "string" || !OP_NAMES.has(o.op as Op["op"])) return false;
     if (o.op === "if") return validateProgram(o.then, depth + 1) && (o.else === undefined || validateProgram(o.else, depth + 1));
+    if (o.op === "chooseMode") return Array.isArray(o.modes) && o.modes.length > 0 && o.modes.every((mode) => validateProgram((mode as { ops?: unknown }).ops, depth + 1));
+    // A delay with a timing the engine never drains would sit in the state for
+    // the rest of the game, so the timing is checked as well as the shape.
+    if (o.op === "delay") {
+      if (!DELAY_TIMINGS.has(o.at as DelayTiming)) return false;
+      if (o.scope !== undefined && !DELAY_SCOPES.has(o.scope as DelayScope)) return false;
+      return validateProgram(o.ops, depth + 1);
+    }
     return true;
   });
 }

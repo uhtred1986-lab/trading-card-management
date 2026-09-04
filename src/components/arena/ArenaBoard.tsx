@@ -116,6 +116,9 @@ export function ArenaBoard({
   });
 
   const bare = taps.bare.map((i) => ({ i, l: legal[i] }));
+  // A "Choose one—" is a sentence per option (20-2); shortened to fit a
+  // button they would read the same, so they get the full-width row below.
+  const modal = view.prompt.kind === "chooseMode";
   const yourTurn = view.prompt.player === view.you.player;
   const step = view.battle ? `battle:${view.battle.step}` : `phase:${view.phase}`;
 
@@ -170,6 +173,7 @@ export function ArenaBoard({
         )}
         {!isTargeting &&
           playable &&
+          !modal &&
           bare.slice(0, 3).map(({ i, l }) => (
             <button
               key={i}
@@ -188,9 +192,9 @@ export function ArenaBoard({
       </section>
 
       {/* Everything the prompt accepts that is not a card tap. */}
-      {playable && !isTargeting && bare.length > 3 && (
+      {playable && !isTargeting && (modal || bare.length > 3) && (
         <div className="flex flex-wrap gap-1.5 sm:gap-2">
-          {bare.slice(3).map(({ i, l }) => (
+          {(modal ? bare : bare.slice(3)).map(({ i, l }) => (
             <button
               key={i}
               type="button"

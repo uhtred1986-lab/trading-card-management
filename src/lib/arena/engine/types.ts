@@ -7,6 +7,7 @@
  * Rule Manual v4.00 (`docs/rules/rulemanual.txt`).
  */
 
+import type { CardFilter } from "./filters";
 import type { Op, ScriptFrame } from "./script";
 import type { Payment } from "./state";
 
@@ -205,16 +206,85 @@ export interface Battle {
   reactivate: boolean;
 }
 
+/**
+ * Things a card can forbid (20-14). 0-2-5 settles every conflict between a
+ * prohibition and an instruction: the prohibition wins, so these are checked
+ * last and nothing overrules them.
+ */
+export type ForbiddenAction =
+  | "attack"
+  | "beAttacked"
+  | "block"
+  | "play"
+  | "activateSkill"
+  | "activateCounter"
+  | "combo"
+  | "beKOd"
+  | "beKOdBySkill"
+  | "beChosen"
+  | "switchToActive"
+  | "placeEnergy";
+
+export interface Prohibition {
+  what: ForbiddenAction;
+  /** Whose action is forbidden. Absent means either player's. */
+  player?: PlayerId;
+  /** Which cards it is about. Absent means any card. */
+  filter?: CardFilter;
+  /** Cards with this exact name — "you can't play copies of this card". */
+  name?: string;
+}
+
 /** A continuous effect (9-9) with a duration. */
 export interface ContinuousEffect {
   id: number;
+  /** The card it is about; empty for a rule that is about a player, not a card. */
   target: string;
-  kind: "power" | "comboPower" | "keyword" | "negateSkills" | "cannotAttack" | "cannotBeAttacked";
+  kind: "power" | "comboPower" | "keyword" | "negateSkills" | "forbid";
   value: number | KeywordSkill;
-  until: "battle" | "turn" | "opponentTurn" | "game";
+  /** Set when `kind` is "forbid". */
+  forbid?: Prohibition;
+  /** "nextTurn" runs through the opponent's whole turn and ends as yours begins. */
+  until: "battle" | "turn" | "opponentTurn" | "nextTurn" | "game";
   /** The turn player when the effect was created, so "for the turn" ends at the right End Phase. */
   ownerTurn: PlayerId;
   createdTurn: number;
+}
+
+/**
+ * Timings a delayed effect can be scheduled for (1-7-2-1-1). Each one is a
+ * point the flow already passes through, so nothing new has to be invented to
+ * fire them: the drain happens inside that step.
+ */
+export type DelayTiming = "turnStart" | "mainStart" | "turnEnd" | "turnCleanup" | "battleEnd";
+
+/**
+ * Which turn the timing has to come round on. "thisTurn" is the common case —
+ * "at the end of the turn" means the turn the skill resolved on, and if that
+ * moment has passed the effect never happens.
+ */
+export type DelayScope = "thisTurn" | "nextTurn" | "yourNextTurn" | "opponentNextTurn";
+
+/**
+ * An effect written down now and carried out later (1-7-2-1-1, 1-7-2-2-1).
+ *
+ * It keeps the variables the program had bound when it was scheduled, so
+ * "choose a card; at the end of the turn, KO it" still knows which card — and
+ * it keeps `master`, because the delayed part is still that player's effect
+ * however many turns later it fires.
+ */
+export interface DelayedEffect {
+  id: number;
+  at: DelayTiming;
+  scope: DelayScope;
+  ops: Op[];
+  card: string;
+  master: PlayerId;
+  vars: Record<string, string[]>;
+  subject?: string;
+  createdTurn: number;
+  /** What to call it in the log and on the board ("at the end of the turn"). */
+  label: string;
 }
 
 /** An [Auto] skill whose trigger fired, waiting for a checkpoint (0-3-7, 9-6). */
@@ -259,6 +329,8 @@ export type Prompt =
   | { kind: "counter"; player: PlayerId; window: CounterWindow; candidates: string[] }
   | { kind: "orderPending"; player: PlayerId; candidates: number[] }
   | { kind: "chooseCards"; player: PlayerId; choice: CardChoice }
+  /** "Choose one— ・A ・B" (20-2): which printed option is taken. */
+  | { kind: "chooseMode"; player: PlayerId; reason: string; options: string[] }
   | { kind: "zEnergyFromCombo"; player: PlayerId; candidates: string[] }
   /**
    * An [Auto] skill whose cost the master may decline to pay (9-6-4). Costs
@@ -323,6 +395,7 @@ export type Action =
   | { type: "optionalCost"; player: PlayerId; pay: boolean }
   | { type: "payCost"; player: PlayerId; option: number }
   | { type: "choose"; player: PlayerId; cards: string[] }
+  | { type: "chooseMode"; player: PlayerId; index: number }
   | { type: "zEnergyFromCombo"; player: PlayerId; card: string | null }
   | { type: "offering"; player: PlayerId; dropLife: boolean }
   /** The referee's answer: a program in the effect language, or an empty one for "nothing happens". */
@@ -350,6 +423,8 @@ export type GameEvent =
   | { type: "attackNegated" }
   | { type: "skill"; card: string; skill: number; master: PlayerId; text: string }
   | { type: "effect"; effect: ContinuousEffect }
+  /** An effect written down for later; `label` is the timing in plain words. */
+  | { type: "delayed"; card: string; label: string }
   | { type: "token"; card: string; owner: PlayerId }
   | { type: "stack"; top: string; under: string[] }
   | { type: "note"; text: string }
@@ -368,6 +443,9 @@ export interface GameState {
   cards: Record<string, CardInstance>;
   effects: ContinuousEffect[];
   nextEffectId: number;
+  /** Effects waiting for a later timing (1-7-2-1-1); drained by `fireDelayed`. */
+  delayed: DelayedEffect[];
+  nextDelayedId: number;
   pending: PendingAuto[];
   prompt: Prompt;
   /** Counter timing bookkeeping: the action waiting behind the window. */
@@ -382,6 +460,8 @@ export interface GameState {
   flow: FlowStep[];
   /** Answer to the current chooseCards prompt, consumed by the next step. */
   lastChoice: string[] | null;
+  /** Answer to the current chooseMode prompt, consumed by the next step. */
+  lastMode: number | null;
 }
 
 export interface CounterFrame {

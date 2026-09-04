@@ -3,7 +3,7 @@
  * interpreter can queue triggers too without importing the engine
  * (which imports the interpreter).
  */
-import { areaOf, cardsInPlay, def, move, skillsOfInstance, type GameContext } from "./state";
+import { areaOf, cardsInPlay, def, forbids, move, skillsOfInstance, type GameContext } from "./state";
 import type { GameEvent, GameState, PlayerId, Skill, Trigger } from "./types";
 import { PLAYERS } from "./types";
 
@@ -107,6 +107,9 @@ export function pendTriggers(ctx: GameContext, s: GameState, trigger: Trigger, c
 
 /** 5-12 / 21-14: move a Battle Card from the Battle Area to its owner's Drop Area. */
 export function koCard(ctx: GameContext, s: GameState, ev: GameEvent[], card: string, by?: string): void {
+  // 20-14: a card that can't be KO'd at all is not KO'd by battle damage
+  // either, so the check belongs here rather than in the `ko` operation.
+  if (forbids(ctx, s, "beKOd", { card })) return;
   const p = masterOf(s, card);
   ev.push({ type: "ko", card, by });
   pendTriggers(ctx, s, "koed", card);

@@ -23,7 +23,10 @@ import {
   def,
   draw,
   endEffects,
+  expireDelayed,
   face,
+  forbids,
+  fireDelayed,
   has,
   describePayment,
   inPlay,
@@ -38,6 +41,7 @@ import {
   planPayment,
   playCost,
   powerOf,
+  schedule,
   setMode,
   skillsOfInstance,
   type GameContext,
@@ -92,6 +96,8 @@ export function createGame(ctx: EngineContext, opts: GameOptions): Applied {
     cards: {},
     effects: [],
     nextEffectId: 1,
+    delayed: [],
+    nextDelayedId: 1,
     pending: [],
     prompt: { kind: "gameOver" },
     counterStack: [],
@@ -101,6 +107,7 @@ export function createGame(ctx: EngineContext, opts: GameOptions): Applied {
     continuations: {},
     flow: [],
     lastChoice: null,
+    lastMode: null,
   };
   const ev: GameEvent[] = [];
   for (const p of PLAYERS) {
@@ -197,6 +204,8 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
       ps.overRealmsThisTurn = 0;
       ps.zAwakenedThisTurn = false;
       ps.grewUnisonThisTurn = false;
+      // Anything still waiting for "the end of the turn" missed its moment.
+      expireDelayed(s);
       s.flow.unshift({ op: "turn.start" });
       return "done";
     }
@@ -205,8 +214,11 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
       s.phase = "charge";
       ev.push({ type: "phase", phase: "charge", player: s.turnPlayer, turn: s.turn });
       endEffects(s, "opponentTurn", other(s.turnPlayer));
+      // "until the end of your opponent's turn" — created on your turn, it
+      // runs through theirs and ends as your next turn opens.
+      endEffects(s, "nextTurn", s.turnPlayer);
       for (const id of cardsInPlay(s, s.turnPlayer)) pendTriggers(ctx, s, "chargeStart", id);
-      s.flow.unshift({ op: "checkpoint" }, { op: "turn.activeAll" }, { op: "checkpoint" }, { op: "turn.draw" }, { op: "checkpoint" }, { op: "turn.promptCharge" });
+      s.flow.unshift(...fireDelayed(s, "turnStart"), { op: "checkpoint" }, { op: "turn.activeAll" }, { op: "checkpoint" }, { op: "turn.draw" }, { op: "checkpoint" }, { op: "turn.promptCharge" });
       return "done";
     }
     case "turn.activeAll": {
@@ -234,7 +246,7 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
       s.phase = "main";
       ev.push({ type: "phase", phase: "main", player: s.turnPlayer, turn: s.turn });
       for (const id of cardsInPlay(s, s.turnPlayer)) pendTriggers(ctx, s, "mainStart", id);
-      s.flow.unshift({ op: "checkpoint" }, { op: "turn.promptMain" });
+      s.flow.unshift(...fireDelayed(s, "mainStart"), { op: "checkpoint" }, { op: "turn.promptMain" });
       return "done";
     }
     case "turn.promptMain":
@@ -256,20 +268,25 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
       ev.push({ type: "phase", phase: "end", player: s.turnPlayer, turn: s.turn });
       const before = s.pending.length;
       for (const p of PLAYERS) for (const id of cardsInPlay(s, p)) pendTriggers(ctx, s, "turnEnd", id);
+      // Effects written down earlier in the turn resolve here, before the
+      // "at the end of the turn" skills the cards in play are triggering now.
+      const due = fireDelayed(s, "turnEnd");
       // 7-4-4: if new "at the end of the turn" skills became pending, run the
       // End Phase again before the turn passes.
       const again = s.pending.length > before && (s.continuations.endPhaseRuns as number | undefined ?? 0) < 5;
       s.continuations.endPhaseRuns = ((s.continuations.endPhaseRuns as number | undefined) ?? 0) + 1;
-      if (again) s.flow.unshift({ op: "checkpoint" }, { op: "turn.endPhase" });
+      if (again) s.flow.unshift(...due, { op: "checkpoint" }, { op: "turn.endPhase" });
       else {
         delete s.continuations.endPhaseRuns;
-        s.flow.unshift({ op: "checkpoint" }, { op: "turn.cleanup" }, { op: "turn.next" });
+        s.flow.unshift(...due, { op: "checkpoint" }, { op: "turn.cleanup" }, { op: "turn.next" });
       }
       return "done";
     }
     case "turn.cleanup":
-      // 7-4-5/6: "for the turn" effects end; 22-15-6: Over Realm cards go to the Warp.
-      endTurnCleanup(ctx, s, ev);
+      // 7-4-5/6: "for the turn" effects end. 22-15-6 (Over Realm cards back to
+      // the Warp) is now one of the delayed effects drained here.
+      endEffects(s, "turn");
+      s.flow.unshift(...fireDelayed(s, "turnCleanup"));
       return "done";
 
     case "counter":
@@ -459,18 +476,6 @@ function gameOver(s: GameState, ev: GameEvent[], winner: PlayerId | null, reason
   ev.push({ type: "gameOver", winner, reason });
 }
 
-function endTurnCleanup(ctx: EngineContext, s: GameState, ev: GameEvent[]): void {
-  endEffects(s, "turn");
-  for (const p of PLAYERS) {
-    for (const id of s.players[p].battle.slice()) {
-      if (s.continuations[`overRealm:${id}`]) {
-        delete s.continuations[`overRealm:${id}`];
-        move(ctx, s, ev, id, "warp", p, { reason: "rule" });
-      }
-    }
-  }
-}
-
 // ── counter timing (4-3, 9-7, 22-10) ───────────────────────────────────────
 
 function counterCandidates(ctx: EngineContext, s: GameState, responder: PlayerId, window: "play" | "attack" | "counter" | "skill"): { card: string; skill: number }[] {
@@ -486,6 +491,7 @@ function counterCandidates(ctx: EngineContext, s: GameState, responder: PlayerId
         (window === "counter" && sk.kind === "counter:counter");
       if (!want) continue;
       if (!canResolve(ctx, s, id, sk)) continue;
+      if (forbids(ctx, s, "activateCounter", { player: responder, card: id })) continue;
       const cost = playCost(ctx, s, id);
       const orbs = orbTotals(sk);
       if (!planPayment(ctx, s, responder, cost.total + orbs.total, cost.specified)) continue;
@@ -746,7 +752,7 @@ function battleBlocker(ctx: EngineContext, s: GameState): "done" | "wait" {
   if (b.blockerOffered) return "done";
   b.blockerOffered = true;
   const defender = other(s.turnPlayer);
-  const cands = cardsInPlay(s, defender).filter((id) => id !== b.guard && s.cards[id].mode === "active" && has(ctx, s, id, "Blocker"));
+  const cands = cardsInPlay(s, defender).filter((id) => id !== b.guard && s.cards[id].mode === "active" && has(ctx, s, id, "Blocker") && !forbids(ctx, s, "block", { player: defender, card: id }));
   if (!cands.length) return "done";
   return wait(s, { kind: "blocker", player: defender, candidates: cands });
 }
@@ -889,9 +895,10 @@ function battleCleanup(ctx: EngineContext, s: GameState, ev: GameEvent[]): "done
   // 22-8-3 [X Attack]: the attacker is switched back to Active Mode.
   if (b.reactivate && areaOf(s, b.attacker)) setMode(s, ev, b.attacker, "active");
   for (const p of PLAYERS) for (const id of cardsInPlay(s, p)) pendTriggers(ctx, s, "battleEnd", id);
+  const due = fireDelayed(s, "battleEnd");
   endEffects(s, "battle");
   s.battle = null;
-  s.flow.unshift({ op: "checkpoint" }, { op: "turn.promptMain" });
+  s.flow.unshift(...due, { op: "checkpoint" }, { op: "turn.promptMain" });
   return "done";
 }
 
@@ -1031,13 +1038,13 @@ export function legalActions(ctx: EngineContext, s: GameState): LegalAction[] {
       const b = s.battle!;
       for (const id of s.players[p].hand) {
         const d = def(ctx, s, id);
-        if (canCombo(d) && planPayment(ctx, s, p, d.comboCost ?? 0, {})) out.push({ action: { type: "combo", player: p, card: id }, label: `Combo ${name(id)} from hand (+${comboPowerOf(ctx, s, id)}, cost ${d.comboCost})` });
+        if (canCombo(d) && !forbids(ctx, s, "combo", { player: p, card: id }) && planPayment(ctx, s, p, d.comboCost ?? 0, {})) out.push({ action: { type: "combo", player: p, card: id }, label: `Combo ${name(id)} from hand (+${comboPowerOf(ctx, s, id)}, cost ${d.comboCost})` });
       }
       for (const id of s.players[p].battle) {
         if (id === b.attacker || id === b.guard || s.cards[id].mode !== "active" || s.cards[id].hidden) continue;
         const d = def(ctx, s, id);
         // 5-7-3: the combo cost is paid whether the card comes from hand or from the Battle Area.
-        if (canCombo(d) && planPayment(ctx, s, p, d.comboCost ?? 0, {}))
+        if (canCombo(d) && !forbids(ctx, s, "combo", { player: p, card: id }) && planPayment(ctx, s, p, d.comboCost ?? 0, {}))
           out.push({ action: { type: "combo", player: p, card: id }, label: `Combo ${name(id)} from the Battle Area (+${comboPowerOf(ctx, s, id)}, cost ${d.comboCost})` });
       }
       out.push({ action: { type: "pass", player: p }, label: pr.side === "offense" ? "End Offense Step" : "End Defense Step" });
@@ -1065,6 +1072,10 @@ export function legalActions(ctx: EngineContext, s: GameState): LegalAction[] {
     case "chooseCards":
       for (const id of pr.choice.candidates) out.push({ action: { type: "choose", player: pr.player, cards: [id] }, label: `Choose ${name(id)}` });
       if (pr.choice.min === 0) out.push({ action: { type: "choose", player: pr.player, cards: [] }, label: "Choose none" });
+      return out;
+    case "chooseMode":
+      // 20-2: the printed options, in the order they are printed.
+      pr.options.forEach((label, i) => out.push({ action: { type: "chooseMode", player: pr.player, index: i }, label: label.length > 90 ? `${label.slice(0, 88)}…` : label }));
       return out;
     case "optionalCost":
       // 9-6-4: an [Auto] skill's cost may be declined, and then it does not resolve.
@@ -1098,13 +1109,13 @@ function mainActions(ctx: EngineContext, s: GameState, p: PlayerId): LegalAction
     const d = def(ctx, s, id);
     const bt = baseType(d);
     if (bt === "BATTLE" && d.energyCost !== "X") {
-      if (planPayment(ctx, s, p, playCost(ctx, s, id).total, playCost(ctx, s, id).specified) && uniqueAllows(ctx, s, p, id)) out.push({ action: { type: "play", player: p, card: id }, label: `Play ${name(id)} (${d.energyCost ?? 0})` });
+      if (planPayment(ctx, s, p, playCost(ctx, s, id).total, playCost(ctx, s, id).specified) && canPlay(ctx, s, p, id)) out.push({ action: { type: "play", player: p, card: id }, label: `Play ${name(id)} (${d.energyCost ?? 0})` });
     }
     // 1-2-2-2-1: with an X cost the card's master picks the value.
-    if (bt === "BATTLE" && d.energyCost === "X" && uniqueAllows(ctx, s, p, id)) {
+    if (bt === "BATTLE" && d.energyCost === "X" && canPlay(ctx, s, p, id)) {
       for (let x = 0; x <= energyCount; x++) if (planPayment(ctx, s, p, x, {})) out.push({ action: { type: "play", player: p, card: id, x }, label: `Play ${name(id)} with X = ${x}` });
     }
-    if (bt === "UNISON" && !isZ(d)) {
+    if (bt === "UNISON" && !isZ(d) && canPlay(ctx, s, p, id)) {
       const max = d.energyCost === "X" ? energyCount : (d.energyCost ?? 0);
       const min = d.energyCost === "X" ? 1 : (d.energyCost ?? 0);
       for (let x = min; x <= max; x++) if (planPayment(ctx, s, p, x, {})) out.push({ action: { type: "playUnison", player: p, card: id, x }, label: `Play Unison ${name(id)} with ${x} marker${x === 1 ? "" : "s"}` });
@@ -1132,6 +1143,7 @@ function mainActions(ctx: EngineContext, s: GameState, p: PlayerId): LegalAction
   for (const id of ps.zDeck) {
     const d = def(ctx, s, id);
     if (!isZ(d) || d.type === "Z-LEADER") continue; // 6-1-4: only Z-cards; Z-Leaders enter via [Z-Awaken]
+    if (!canPlay(ctx, s, p, id)) continue; // 20-14
     const zc = d.zEnergyCost ?? 0;
     if (ps.zEnergy.length < zc) continue;
     if (d.type === "Z-UNISON") {
@@ -1148,9 +1160,9 @@ function mainActions(ctx: EngineContext, s: GameState, p: PlayerId): LegalAction
     const targets = [s.players[opp].leader, ...(s.players[opp].unison ? [s.players[opp].unison] : []), ...s.players[opp].battle.filter((id) => s.cards[id].mode === "rest")];
     for (const a of cardsInPlay(s, p)) {
       if (s.cards[a].mode !== "active" || s.cards[a].hidden) continue;
-      if (s.effects.some((e) => e.kind === "cannotAttack" && e.target === a)) continue;
+      if (forbids(ctx, s, "attack", { player: p, card: a })) continue;
       for (const t of targets) {
-        if (s.effects.some((e) => e.kind === "cannotBeAttacked" && e.target === t)) continue;
+        if (forbids(ctx, s, "beAttacked", { player: opp, card: t })) continue;
         out.push({ action: { type: "attack", player: p, attacker: a, target: t }, label: `Attack ${name(t)} with ${name(a)} (${powerOf(ctx, s, a)} vs ${powerOf(ctx, s, t)})` });
       }
     }
@@ -1159,10 +1171,15 @@ function mainActions(ctx: EngineContext, s: GameState, p: PlayerId): LegalAction
   return out;
 }
 
-/** 22-39: a card can't be played while a [Unique] card of the same name is in play. */
-function uniqueAllows(ctx: EngineContext, s: GameState, p: PlayerId, card: string): boolean {
+/**
+ * Whether this card may be played at all: 22-39 ([Unique] of the same name in
+ * play) and 20-14 (anything that forbids playing it). Asked in both places a
+ * play can start — the menu and `apply` — so the two never disagree.
+ */
+function canPlay(ctx: EngineContext, s: GameState, p: PlayerId, card: string): boolean {
   const d = def(ctx, s, card);
-  return !s.players[p].battle.some((id) => has(ctx, s, id, "Unique") && face(ctx, s, id).name === d.name);
+  if (s.players[p].battle.some((id) => has(ctx, s, id, "Unique") && face(ctx, s, id).name === d.name)) return false;
+  return !forbids(ctx, s, "play", { player: p, card });
 }
 
 /**
@@ -1177,6 +1194,8 @@ function activatable(ctx: EngineContext, s: GameState, p: PlayerId, card: string
   const inHand = areaOf(s, card) === "hand";
   const name = face(ctx, s, card).name;
   if (inst.negated === "all" || inst.negated.includes(sk.index)) return null;
+  // 20-14: a skill nothing forbids, on a card nothing forbids it on.
+  if (forbids(ctx, s, "activateSkill", { player: p, card })) return null;
   if (sk.oncePerTurn && inst.usedThisTurn.includes(sk.index)) return null;
   if (sk.bond != null && s.players[p].battle.length < sk.bond) return null;
   if (sk.sparking != null && s.players[p].drop.length < sk.sparking) return null;
@@ -1303,6 +1322,12 @@ function clone<T>(x: T): T {
 /** Apply one action. Throws `IllegalAction` when it is not the asked player's or not legal. */
 export function apply(ctx: EngineContext, prev: GameState, action: Action): Applied {
   const s = clone(prev);
+  // Games saved before delayed effects existed have no list; give them one
+  // rather than letting the first scheduled effect throw.
+  if (!s.delayed) {
+    s.delayed = [];
+    s.nextDelayedId = 1;
+  }
   const ev: GameEvent[] = [{ type: "action", action }];
   const pr = s.prompt;
   if (action.type === "concede") {
@@ -1348,7 +1373,7 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
       if (!ps.hand.includes(action.card)) throw new IllegalAction("card not in hand");
       const d = def(ctx, s, action.card);
       if (baseType(d) !== "BATTLE") throw new IllegalAction("not a playable Battle Card");
-      if (!uniqueAllows(ctx, s, p, action.card)) throw new IllegalAction("a [Unique] card with that name is in play");
+      if (!canPlay(ctx, s, p, action.card)) throw new IllegalAction("that card can't be played now");
       const c = d.energyCost === "X" ? { total: action.x ?? 0, specified: {} } : playCost(ctx, s, action.card);
       const asked = askForPayment(ctx, s, p, action, c.total, c.specified, `play ${face(ctx, s, action.card).name}`);
       if (asked) return { state: asked, events: ev };
@@ -1364,6 +1389,7 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
       if (!ps.hand.includes(action.card)) throw new IllegalAction("card not in hand");
       const d = def(ctx, s, action.card);
       if (baseType(d) !== "UNISON") throw new IllegalAction("not a Unison card");
+      if (!canPlay(ctx, s, p, action.card)) throw new IllegalAction("that card can't be played now");
       const x = d.energyCost === "X" ? action.x : (d.energyCost ?? 0);
       if (d.energyCost === "X" && x < 1) throw new IllegalAction("X must be at least 1");
       const askedUnison = askForPayment(ctx, s, p, action, x, {}, `play ${face(ctx, s, action.card).name}`);
@@ -1381,6 +1407,7 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
       const d = def(ctx, s, action.card);
       if (!isZ(d)) throw new IllegalAction("only Z-cards can be played from the Z-Deck");
       if (d.type === "Z-LEADER") throw new IllegalAction("Z-Leaders enter through [Z-Awaken]");
+      if (!canPlay(ctx, s, p, action.card)) throw new IllegalAction("that card can't be played now");
       const x = d.energyCost === "X" ? (action.x ?? 0) : (d.energyCost ?? 0);
       const c = d.energyCost === "X" ? { total: x, specified: {} } : playCost(ctx, s, action.card);
       const askedZ = askForPayment(ctx, s, p, action, c.total, c.specified, `play ${face(ctx, s, action.card).name}`);
@@ -1438,6 +1465,7 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
       const b = s.battle!;
       const d = def(ctx, s, action.card);
       if (!canCombo(d)) throw new IllegalAction("that card can't be used in a combo");
+      if (forbids(ctx, s, "combo", { player: p, card: action.card })) throw new IllegalAction("that card can't be used in a combo now");
       const fromHand = ps.hand.includes(action.card);
       const fromBattle = ps.battle.includes(action.card) && s.cards[action.card].mode === "active" && action.card !== b.attacker && action.card !== b.guard;
       if (!fromHand && !fromBattle) throw new IllegalAction("card not available for a combo");
@@ -1511,6 +1539,12 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
       if (action.cards.length < ch.min || action.cards.length > ch.max) throw new IllegalAction(`choose between ${ch.min} and ${ch.max}`);
       if (action.cards.some((id) => !ch.candidates.includes(id)) || new Set(action.cards).size !== action.cards.length) throw new IllegalAction("invalid choice");
       s.lastChoice = action.cards;
+      break;
+    }
+    case "chooseMode": {
+      if (pr.kind !== "chooseMode") throw new IllegalAction("no option is being offered");
+      if (!Number.isInteger(action.index) || action.index < 0 || action.index >= pr.options.length) throw new IllegalAction("no such option");
+      s.lastMode = action.index;
       break;
     }
     case "optionalCost": {
@@ -1611,7 +1645,17 @@ function activate(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId
     payOrbs();
     ps.overRealmsThisTurn++;
     for (const id of ps.drop.slice()) move(ctx, s, ev, id, "warp", p, { reason: "cost" });
-    s.continuations[`overRealm:${card}`] = true;
+    // 22-15-6: the card returns to the Warp as the turn ends — a delayed
+    // effect like any other, and it does nothing if the card has already left.
+    schedule(s, ev, {
+      at: "turnCleanup",
+      scope: "thisTurn",
+      ops: [{ op: "moveTo", target: { sel: { special: "self", area: "battle" } }, to: "warp" }],
+      card,
+      master: p,
+      vars: {},
+      label: "back to the Warp as the turn ends",
+    });
     s.resolving = { card, player: p };
     s.flow.unshift({ op: "counter", window: "play", responder: other(p) }, { op: "play.resolve", card, player: p });
     return;

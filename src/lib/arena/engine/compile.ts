@@ -11,7 +11,7 @@
 import { parseFilter, type CardFilter } from "./filters";
 import { keywordOf, skillsOf } from "./cards";
 import type { Amount, Cond, Op, Ref, Script, ScriptArea, Selector, Side } from "./script";
-import type { CardDef, KeywordSkill, Skill } from "./types";
+import type { CardDef, DelayScope, DelayTiming, ForbiddenAction, KeywordSkill, Skill } from "./types";
 
 // ── clause splitting ───────────────────────────────────────────────────────
 
@@ -187,12 +187,70 @@ function refFor(clause: string, c: Ctx): Ref | null {
   return null;
 }
 
-function durationOf(clause: string): "battle" | "turn" | "game" | "opponentTurn" {
+function durationOf(clause: string): "battle" | "turn" | "game" | "opponentTurn" | "nextTurn" {
   const t = clause.toLowerCase();
   if (/for the (?:duration of the )?battle|during this battle/.test(t)) return "battle";
-  if (/for the (?:duration of the )?game|during the game/.test(t)) return "game";
+  if (/for the (?:duration of the )?game|during the game|in any area|in all areas/.test(t)) return "game";
   if (/until (?:the start of )?your opponent's next turn/.test(t)) return "opponentTurn";
+  // Everything that has to survive the opponent's whole turn and end as yours
+  // begins: the rest-lock wordings, which are the same duration said four ways.
+  if (/until the end of your opponent's(?: next)? turn|until the (?:start|beginning) of your next turn|during your opponent's next charge phase|during your opponent's next turn/.test(t)) return "nextTurn";
   return "turn";
+}
+
+/**
+ * Timings that push the rest of the sentence into the future (1-7-2-1-1):
+ * "At the end of the turn, KO it", "During your opponent's next turn, …".
+ * Everything after the phrase becomes a delayed program rather than something
+ * that happens now — which, until this existed, the compiler could not say at
+ * all, so the whole skill went to the referee.
+ */
+const DELAY_PATTERNS: [RegExp, DelayTiming, DelayScope][] = [
+  [/at (?:the )?end of your next turn/, "turnEnd", "yourNextTurn"],
+  [/at (?:the )?end of your opponent's (?:next )?turn/, "turnEnd", "opponentNextTurn"],
+  [/at (?:the )?end of (?:this |the |your )?turn/, "turnEnd", "thisTurn"],
+  [/at (?:the )?end of (?:this|the) battle/, "battleEnd", "thisTurn"],
+  [/at the (?:start|beginning) of your next main phase/, "mainStart", "yourNextTurn"],
+  [/at the (?:start|beginning) of your opponent's next turn/, "turnStart", "opponentNextTurn"],
+  [/at the (?:start|beginning) of your next turn/, "turnStart", "yourNextTurn"],
+  [/at the (?:start|beginning) of the next turn/, "turnStart", "nextTurn"],
+  [/during your opponent's next turn/, "turnStart", "opponentNextTurn"],
+  [/during your next turn/, "turnStart", "yourNextTurn"],
+];
+
+const clean = (clause: string) => clause.toLowerCase().trim().replace(/[.]$/, "");
+
+/** Longest match wins: "your next turn" also matches the plainer "your turn". */
+function bestDelay(t: string, anchor: (src: string) => RegExp): { at: DelayTiming; scope: DelayScope; m: RegExpExecArray } | null {
+  let best: { at: DelayTiming; scope: DelayScope; m: RegExpExecArray } | null = null;
+  for (const [re, at, scope] of DELAY_PATTERNS) {
+    const m = anchor(re.source).exec(t);
+    if (!m) continue;
+    if (best && best.m[0].length >= m[0].length) continue;
+    best = { at, scope, m };
+  }
+  return best;
+}
+
+function parseDelayClause(clause: string): { at: DelayTiming; scope: DelayScope; label: string; rest: string } | null {
+  const t = clean(clause);
+  const best = bestDelay(t, (src) => new RegExp(`^${src}`));
+  if (!best) return null;
+  return { at: best.at, scope: best.scope, label: best.m[0], rest: t.slice(best.m[0].length).replace(/^[\s,:]+/, "") };
+}
+
+/**
+ * The same timing written at the other end of the clause: "Flip this card over
+ * at the end of the turn". "until the end of the turn" is a *duration*, not a
+ * timing, so a head ending in a linking word is left alone.
+ */
+function parseTrailingDelay(clause: string): { at: DelayTiming; scope: DelayScope; label: string; head: string } | null {
+  const t = clean(clause);
+  const best = bestDelay(t, (src) => new RegExp(`^(.+?)[\\s,]+(?:${src})$`));
+  if (!best) return null;
+  const head = best.m[1].trim();
+  if (!head || /\b(?:until|through|for|by)$/.test(head)) return null;
+  return { at: best.at, scope: best.scope, label: best.m[0].slice(head.length).trim(), head };
 }
 
 /**
@@ -250,7 +308,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   if ((m = /^your opponent draws (\d+) cards?$/.exec(t))) return [{ op: "draw", n: Number(m[1]), side: "opponent" }];
 
   // Discard (20-7).
-  if ((m = /^your opponent discards (\d+) cards? from their hand$/.exec(t))) return [{ op: "discard", n: Number(m[1]), side: "opponent" }];
+  if ((m = /^your opponent discards (\d+) cards?(?: from their hand)?$/.exec(t))) return [{ op: "discard", n: Number(m[1]), side: "opponent" }];
   if ((m = /^discard (\d+) cards?(?: from your hand)?$/.exec(t))) return [{ op: "discard", n: Number(m[1]) }];
   if ((m = /^your opponent chooses (\d+) cards? (?:in|from) their hand$/.exec(t))) return [{ op: "discard", n: Number(m[1]), side: "opponent" }];
   if (/^make your opponent choose (\d+) cards? from their hand$/.test(t)) return [{ op: "discard", n: 1, side: "opponent" }];
@@ -311,10 +369,11 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     return ref ? [{ op: "negateSkills", target: ref, until: durationOf(t) }] : null;
   }
 
-  // Attack restrictions (20-14).
-  if ((m = /^(.*?) can't attack\b/.exec(t))) {
-    const ref = refFor(m[1] || "this card", c);
-    return ref ? [{ op: "cannotAttack", target: ref, until: durationOf(t) }] : null;
+  // Prohibitions (20-14). 0-2-5: they beat instructions, so the engine checks
+  // them last; here we only have to say precisely what is forbidden to whom.
+  if (/\bcan'?t\b|\bcannot\b/.test(t)) {
+    const forbid = compileProhibition(t, c);
+    if (forbid) return forbid;
   }
 
   // Mode switches (1-10).
@@ -337,6 +396,14 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   if ((m = /^remove (\d+) markers? from (.+)$/.exec(t))) {
     const ref = refFor(m[2], c);
     return ref ? [{ op: "removeMarker", target: ref, n: Number(m[1]) }] : null;
+  }
+
+  // Under another card (23-2). Not an area, so it is not in the table below.
+  // Only "under this card" is read: any other host is an antecedent the
+  // compiler would have to guess at, and a wrong guess moves the wrong card.
+  if ((m = /^(?:place|put) (.+?) (?:face ?up )?under this card$/.exec(t))) {
+    const ref = refFor(m[1], c);
+    return ref ? [{ op: "moveTo", target: ref, to: "under" }] : null;
   }
 
   // Area moves (3-1).
@@ -391,6 +458,72 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
  * that follows, which is stripped from the clause, so they are read from the
  * untouched skill text (19-1-2).
  */
+/**
+ * "You can't play copies of this card for the turn", "it can't switch to
+ * Active Mode until the end of your opponent's turn", "your opponent can't
+ * attack with their Leader Card".
+ *
+ * Two questions decide the shape: who or what the sentence is about — a player
+ * ("you", "your opponent") or particular cards — and which action it names.
+ * Only actions the engine actually checks are compiled; anything else is left
+ * unread, because a prohibition nothing enforces is worse than an honest gap.
+ */
+function compileProhibition(t: string, c: Ctx): Op[] | null {
+  const until = durationOf(t);
+  const m = /^(.*?)\s+(?:can'?t|cannot)\s+(.*)$/.exec(t);
+  if (!m) return null;
+  const subject = m[1].trim();
+  const rest = m[2].trim();
+
+  // Deck-building restrictions are not rules of play (6-1); the engine takes
+  // the deck it is given, so the clause is read and does nothing.
+  if (/^include\b/.test(rest)) return [];
+
+  const side: Side | null = /^you$/.test(subject) ? "you" : /^your opponent$/.test(subject) ? "opponent" : null;
+
+  // A sentence about a player: what follows names the cards it is about.
+  if (side) {
+    let mm: RegExpExecArray | null;
+    if ((mm = /^play\s+(.*)$/.exec(rest))) {
+      const what = mm[1];
+      if (/\bcopies of this card\b|\banother copy of this card\b/.test(what)) return [{ op: "forbid", what: "play", side, until, sameNameAsSelf: true }];
+      if (/^this card\b/.test(what)) return [{ op: "forbid", what: "play", side, until, target: { sel: { special: "self" } } }];
+      const filter = filterFor(what, null);
+      const type = /\bunison cards?\b/.test(what) ? "UNISON" : /\bextra cards?\b/.test(what) ? "EXTRA" : /\bbattle cards?\b/.test(what) ? "BATTLE" : null;
+      if (!filter && !type) return null;
+      return [{ op: "forbid", what: "play", side, until, filter: { ...(filter ?? parseFilter("")), ...(type ? { type } : {}) } }];
+    }
+    if (/^attack\b/.test(rest)) {
+      // "attack this card" is about the defender, not the attacker.
+      if (/^attack (?:this card|it)\b/.test(rest)) return [{ op: "forbid", what: "beAttacked", until, target: { sel: { special: "self" } } }];
+      const withWhat = /\bwith (.*)$/.exec(rest)?.[1];
+      const filter = withWhat ? filterFor(withWhat, null) : undefined;
+      const type = withWhat && /\bleader cards?\b/.test(withWhat) ? "LEADER" : withWhat && /\bbattle cards?\b/.test(withWhat) ? "BATTLE" : null;
+      return [{ op: "forbid", what: "attack", side, until, filter: filter || type ? { ...(filter ?? parseFilter("")), ...(type ? { type } : {}) } : undefined }];
+    }
+    if (/^activate\b/.test(rest) && /\[counter/.test(rest)) return [{ op: "forbid", what: "activateCounter", side, until }];
+    if (/^activate\b/.test(rest) && /\[blocker/.test(rest)) return [{ op: "forbid", what: "block", side, until }];
+    return null;
+  }
+
+  // A sentence about cards: "this card", "it", "your Battle Cards".
+  const target = refFor(subject || "this card", c);
+  if (!target) return null;
+  // "can't be KO'd by your opponent's skills" — who is stopped from doing it.
+  const bySide: Side | undefined = /\bby your opponent'?s? skills?\b/.test(rest) ? "opponent" : /\bby your skills?\b/.test(rest) ? "you" : undefined;
+  if (/^attack\b/.test(rest)) return [{ op: "forbid", what: "attack", until, target }];
+  if (/^be attacked\b/.test(rest)) return [{ op: "forbid", what: "beAttacked", until, target }];
+  if (/^block\b/.test(rest)) return [{ op: "forbid", what: "block", until, target }];
+  if (/^(?:switch|be switched)\b.*\bactive mode\b/.test(rest)) return [{ op: "forbid", what: "switchToActive", until, target }];
+  if (/^be ko'?d\b/.test(rest)) {
+    // "by skills" is the narrow rule; a bare "can't be KO'd" covers the battle too.
+    const bySkill = /\bby (?:your opponent's |your )?skills?\b/.test(rest);
+    return [{ op: "forbid", what: bySkill ? "beKOdBySkill" : "beKOd", until, target, side: bySide }];
+  }
+  if (/^be chosen\b/.test(rest)) return [{ op: "forbid", what: "beChosen", until, target, side: bySide }];
+  return null;
+}
+
 function compileToken(clause: string, c: Ctx): Op[] | null {
   const m = /play (?:up to )?(\d+) (.+?) tokens?/i.exec(clause);
   if (!m) return null;
@@ -426,22 +559,54 @@ function compileToken(clause: string, c: Ctx): Op[] | null {
  */
 const KEYWORD_HANDLES_THE_LINE = new Set<KeywordSkill["name"]>(["Evolve", "Union", "Over Realm", "Swap", "Overlord", "Z-Awaken", "Z-Stack", "Field", "Attack", "Revenge", "Offering"]);
 
+/**
+ * "Choose one— ・A ・B" (20-2). The options are printed on their own lines and
+ * `skillLines` has already folded them back onto the line that introduces
+ * them, so here they are separated by bullets in one string.
+ */
+function splitModal(text: string): { head: string; options: string[] } | null {
+  const m = /choose one\s*(?:[-–—―?:]{1,2})?\s*/i.exec(text);
+  if (!m) return null;
+  const options = text
+    .slice(m.index + m[0].length)
+    .split(/[・･·•‧]\s*/)
+    .map((o) => o.trim())
+    .filter(Boolean);
+  if (options.length < 2) return null;
+  return { head: text.slice(0, m.index).trim(), options };
+}
+
 export function compileSkill(skill: Skill): Script {
   if (skill.keyword && KEYWORD_HANDLES_THE_LINE.has(skill.keyword.name)) return { ops: [], unsupported: [] };
   const text = stripNotes(skill.effect);
   if (!text) return { ops: [], unsupported: [] };
   const unsupported: string[] = [];
   const c: Ctx = { last: null, lastTarget: null, n: 0, raw: skill.effect };
-  const clauses = splitClauses(text);
+  const modal = splitModal(text);
+  const clauses = splitClauses(modal ? modal.head : text);
   // An [Auto] skill restates its own trigger ("When this card attacks, draw 1
   // card"); by the time the effect resolves the trigger has already fired, so
   // that clause is dropped. A leading "if …" is a condition, not a trigger, and
   // stays — it must compile or the skill goes to the referee.
-  if (skill.kind === "auto" && clauses.length > 1 && /^(?:when|at the (?:end|beginning|start))\b/i.test(clauses[0])) clauses.shift();
+  if (skill.kind === "auto" && (clauses.length > 1 || modal) && /^(?:when|at the (?:end|beginning|start))\b/i.test(clauses[0] ?? "")) clauses.shift();
 
+  const ops = compileClauseList(clauses, c, unsupported);
+  if (modal) {
+    // Each option is compiled on its own, carrying what the head established
+    // ("If your Leader is a <Baby> card, it gets +10000 power, then choose
+    // one— ・…" — "it" still means the leader inside the options).
+    const modes = modal.options.map((option) => ({ label: option, ops: compileClauseList(splitClauses(option), { ...c }, unsupported) }));
+    if (modes.some((mode) => mode.ops.length)) ops.push({ op: "chooseMode", modes });
+  }
+  return { ops, unsupported };
+}
+
+/** The clause loop, shared by a skill's body and by each modal option. */
+function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op[] {
   // "if you do" (20-16) makes the rest conditional on the previous choice, and
   // a run of conditions all have to hold, so a group carries a list of them.
-  const groups: { conds: Cond[]; ops: Op[] }[] = [{ conds: [], ops: [] }];
+  type Group = { conds: Cond[]; ops: Op[]; delay?: { at: DelayTiming; scope: DelayScope; label: string } };
+  const groups: Group[] = [{ conds: [], ops: [] }];
   const push = (ops: Op[]) => groups[groups.length - 1].ops.push(...ops);
   for (const clause of clauses) {
     const conn = connective(clause);
@@ -456,6 +621,44 @@ export function compileSkill(skill: Skill): Script {
       if (lastChoose && lastChoose.op === "choose") lastChoose.sel.ignoreBarrier = true;
       continue;
     }
+    // A timing phrase opens a group too, and everything after it happens then
+    // rather than now. A condition already in front of it still applies, and
+    // is checked when the skill resolves, not when the delayed part fires.
+    const delay = parseDelayClause(clause);
+    if (delay) {
+      const open = groups[groups.length - 1];
+      const inherited = open.ops.length === 0 ? open.conds : [];
+      groups.push({ conds: [...inherited], ops: [], delay: { at: delay.at, scope: delay.scope, label: delay.label } });
+      // "At the end of the turn KO this card" arrives as one clause when the
+      // printed text has no comma; the remainder is the delayed effect itself.
+      if (delay.rest) {
+        const got = compileClause(delay.rest, c);
+        if (got) groups[groups.length - 1].ops.push(...got);
+        else unsupported.push(delay.rest);
+      }
+      continue;
+    }
+
+    // "Flip this card over at the end of the turn" — the same thing said the
+    // other way round. Only the head is an effect; the tail says when.
+    const trailing = parseTrailingDelay(clause);
+    if (trailing) {
+      if (connective(trailing.head) === "skip") continue;
+      const got = compileClause(trailing.head, c);
+      if (got) {
+        for (const o of got) {
+          if (o.op === "choose") {
+            c.last = o.as;
+            c.lastTarget = { var: o.as };
+          } else if ("target" in o && o.target) c.lastTarget = o.target;
+        }
+        push([{ op: "delay", at: trailing.at, scope: trailing.scope, ops: got, label: trailing.label }]);
+        continue;
+      }
+      unsupported.push(clause);
+      continue;
+    }
+
     // A condition opens a group: everything after it depends on it holding.
     // A second condition with nothing between them joins the same group, so
     // both have to hold rather than the first being quietly dropped.
@@ -477,7 +680,7 @@ export function compileSkill(skill: Skill): Script {
       if (o.op === "choose") {
         c.last = o.as;
         c.lastTarget = { var: o.as };
-      } else if ("target" in o) c.lastTarget = o.target;
+      } else if ("target" in o && o.target) c.lastTarget = o.target;
     }
     push(got);
   }
@@ -487,10 +690,11 @@ export function compileSkill(skill: Skill): Script {
     if (!g.ops.length) continue;
     // Nest the conditions outermost-first, so all of them have to hold.
     let body = g.ops;
+    if (g.delay) body = [{ op: "delay", at: g.delay.at, scope: g.delay.scope, ops: body, label: g.delay.label }];
     for (const cond of [...g.conds].reverse()) body = [{ op: "if", cond, then: body }];
     ops.push(...body);
   }
-  return { ops, unsupported };
+  return ops;
 }
 
 export interface CardScripts {
@@ -525,6 +729,21 @@ export function compileCard(card: CardDef, side: "front" | "back" = "front"): Ca
 }
 
 // ── plain-English rendering, for the card inspector ─────────────────────────
+
+const FORBIDDEN_IN_WORDS: Record<ForbiddenAction, string> = {
+  attack: "attack",
+  beAttacked: "be attacked",
+  block: "block",
+  play: "play cards",
+  activateSkill: "activate skills",
+  activateCounter: "activate [Counter] skills",
+  combo: "combo",
+  beKOd: "be KO'd",
+  beKOdBySkill: "be KO'd by skills",
+  beChosen: "be chosen by skills",
+  switchToActive: "switch to Active Mode",
+  placeEnergy: "place cards in the Energy Area",
+};
 
 function describeSelector(sel: Selector): string {
   if (sel.special) return { self: "this card", attacker: "the attacking card", guard: "the guard card", subject: "that card", leader: "your leader", opponentLeader: "the opposing leader" }[sel.special];
@@ -604,6 +823,9 @@ export function describeScript(ops: Op[]): string {
       case "cannotAttack":
         parts.push(`${describeRef(op.target)} can't attack for the ${op.until}`);
         break;
+      case "forbid":
+        parts.push(`${op.target ? describeRef(op.target) : op.side === "opponent" ? "your opponent" : "you"} can't ${FORBIDDEN_IN_WORDS[op.what]} for the ${op.until}`);
+        break;
       case "addMarker":
         parts.push(`add ${describeAmount(op.n)} marker`);
         break;
@@ -621,6 +843,12 @@ export function describeScript(ops: Op[]): string {
         break;
       case "if":
         parts.push(`if a condition holds: ${describeScript(op.then)}`);
+        break;
+      case "delay":
+        parts.push(`${op.label ?? "later"}: ${describeScript(op.ops)}`);
+        break;
+      case "chooseMode":
+        parts.push(`choose one — ${op.modes.map((mode) => describeScript(mode.ops)).join(" / ")}`);
         break;
       case "note":
         break;
