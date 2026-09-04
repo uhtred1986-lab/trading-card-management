@@ -408,6 +408,9 @@ function connective(clause: string): "skip" | "ifDone" | null {
   // [Counter] skill is activated from anyway (4-3), so the sentence adds
   // nothing. The forms that *change* the cost are not this, and are left alone.
   if (/^you (?:can|may) activate this card's \[counter\][a-z: ]*skill from your hand$/.test(t)) return "skip";
+  // "When this card is played using [Over Realm], activate this skill" — the
+  // skill saying that it happens, which it is already doing.
+  if (/^activate this skill$/.test(t)) return "skip";
   if (/^when you activate this card's \[counter\][a-z: ]*skill$/.test(t)) return "skip";
   // Deck-building permissions are not rules of play (6-1), like the
   // restrictions their opposite numbers print.
@@ -513,7 +516,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // Area" says the discard twice: the choosing *is* the discard, and this half
   // is where the cards were already sent. Reading it as a second move made it
   // move the wrong card, because "it" had nothing of its own to point at.
-  if (c.lastOp === "discard" && /^(?:place|put) (?:it|them) (?:in|into) (?:their|the|your|its owner's) drop(?: area)?$/.test(t)) return [];
+  if (c.lastOp === "discard" && /^(?:(?:place|put) (?:it|them) (?:in|into) (?:their|the|your|its owner's) drop(?: area)?|discard (?:it|them))$/.test(t)) return [];
 
   // The same clause with "for the turn", "in all areas" and the like taken
   // off, so the patterns for the action itself can end in `$`.
@@ -575,7 +578,9 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // has to be read before the "play …" rule below, which otherwise takes the
   // sentence for an instruction to play the card — a [Permanent] that reads as
   // an instruction is silently ignored, so the player pays after all.
-  if ((m = /^play this card from (?:your |their )?hand (.+)$/.exec(t))) {
+  // Only when the tail is about paying: "play this card from your hand in Rest
+  // Mode" is an ordinary play, and swallowing it here left it unread.
+  if ((m = /^play this card from (?:your |their )?hand ((?:without|by) .+)$/.exec(t))) {
     const how = m[1];
     if (/^without paying (?:its|the) energy cost$/.test(how)) return [{ op: "altCost", pay: "none", for: "play" }];
     let mm: RegExpExecArray | null;
@@ -778,8 +783,13 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   }
 
   // Playing a card by a skill (5-5-3).
-  if ((m = /^play (.+)$/.exec(t))) {
+  // "Activate" is what the text calls playing an Extra card (12-2), so the two
+  // words lead to the same place. A card that says "play … in Rest Mode" is
+  // still played from wherever it is; the mode belongs to the play, not to the
+  // choice, or the choice would go looking for a card already rested.
+  if ((m = /^(?:play|activate) (.+?)(?: in (rest|active) mode)?$/.exec(t))) {
     if (/token/.test(t)) return compileToken(clause, c);
+    const mode = m[2] as "rest" | "active" | undefined;
     const ref = refFor(m[1], c);
     if (!ref) return null;
     if ("sel" in ref) {
@@ -787,10 +797,10 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
       const v = `p${c.n++}`;
       return [
         { op: "choose", sel: ref.sel, as: v, reason: clause },
-        { op: "play", target: { var: v } },
+        { op: "play", target: { var: v }, ...(mode ? { mode } : {}) },
       ];
     }
-    return [{ op: "play", target: ref }];
+    return [{ op: "play", target: ref, ...(mode ? { mode } : {}) }];
   }
 
   // Choosing (5-2). Late, because many clauses open with "choose" plus an action.
@@ -1267,7 +1277,7 @@ export function describeScript(ops: Op[]): string {
         parts.push(`move ${describeRef(op.target)} to ${op.to}`);
         break;
       case "play":
-        parts.push(`play ${describeRef(op.target)}`);
+        parts.push(`play ${describeRef(op.target)}${op.mode ? ` in ${op.mode} mode` : ""}`);
         break;
       case "switchMode":
         parts.push(`switch ${describeRef(op.target)} to ${op.mode} mode`);
