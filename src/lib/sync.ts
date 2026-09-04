@@ -6,7 +6,7 @@ import { desc, eq } from "drizzle-orm";
 import type { Db } from "@/db";
 import { syncRuns } from "@/db/schema";
 
-export type SyncSource = "catalog" | "prices" | "fx" | "cardtrader";
+export type SyncSource = "catalog" | "prices" | "fx" | "cardtrader" | "meta";
 
 export async function runSync<T>(db: Db, source: SyncSource, fn: () => Promise<T>): Promise<T> {
   const [run] = await db.insert(syncRuns).values({ source, status: "running" }).returning({ id: syncRuns.id });

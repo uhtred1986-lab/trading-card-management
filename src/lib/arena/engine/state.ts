@@ -55,6 +55,64 @@ export function def(ctx: GameContext, s: GameState, id: string): CardDef {
   return d;
 }
 
+/**
+ * A replacement effect on a card leaving the Battle Area (9-10): where it goes
+ * instead. `by` narrows it to departures caused by a skill.
+ */
+export interface Replacement {
+  to: Area;
+  by?: "skill";
+}
+
+/**
+ * Where this card goes instead of where it was about to go, if a skill says so.
+ *
+ * 9-10-2 gives the choice to the affected player when several replacements
+ * apply at once. Two on the same card is rare enough that the first one wins
+ * here and the log says which; when that turns up in a real game it is one
+ * prompt away.
+ */
+function replacementFor(ctx: GameContext, s: GameState, id: string, reason: MoveOptions["reason"]): Area | null {
+  for (const e of staticEffects(ctx, s)) {
+    if (e.kind !== "replaceLeave" || e.target !== id) continue;
+    const r = e.value as Replacement;
+    // "By a skill" means an effect put it out, not a battle or a rule.
+    if (r.by === "skill" && reason !== "effect") continue;
+    return r.to;
+  }
+  return null;
+}
+
+/** What a card counts as, once its skills have had their say (20-1). */
+export interface Gains {
+  traits: string[];
+  characters: string[];
+  colors: Color[];
+}
+
+/**
+ * The card as the rules now read it: printed, plus anything it "gains in all
+ * areas". Every check of what a card *is* — a selector's filter, a Leader
+ * condition, an [Evolve] target — goes through this rather than `def`, so a
+ * card that gained ≪Saiyan≫ is a Saiyan to all of them.
+ */
+export function cardNow(ctx: GameContext, s: GameState, id: string): CardDef {
+  const d = def(ctx, s, id);
+  const gains = staticEffects(ctx, s).filter((e) => e.kind === "gains" && e.target === id);
+  if (!gains.length) return d;
+  const out = { ...d, traits: [...d.traits], characters: [...d.characters], colors: [...d.colors] };
+  const add = (list: string[], more: string[]) => {
+    for (const x of more) if (!list.some((y) => y.toLowerCase() === x.toLowerCase())) list.push(x);
+  };
+  for (const e of gains) {
+    const g = e.value as Gains;
+    add(out.traits, g.traits);
+    add(out.characters, g.characters);
+    add(out.colors, g.colors);
+  }
+  return out;
+}
+
 export function player(s: GameState, p: PlayerId): PlayerState {
   return s.players[p];
 }
@@ -123,7 +181,10 @@ export function keywordsInForce(ctx: GameContext, s: GameState, id: string): Key
     }
   }
   for (const e of s.effects) if (e.kind === "keyword" && e.target === id) out.push(e.value as KeywordSkill);
-  return out;
+  // 9-1-5: a skill may name one keyword to negate rather than silencing the
+  // card. Applied last, so it beats a grant of the same keyword.
+  const gone = new Set(staticEffects(ctx, s).filter((e) => e.kind === "negateKeyword" && e.target === id).map((e) => e.value as KeywordSkill["name"]));
+  return gone.size ? out.filter((k) => !gone.has(k.name)) : out;
 }
 
 export function has(ctx: GameContext, s: GameState, id: string, name: KeywordSkill["name"]): boolean {
@@ -146,6 +207,14 @@ export function powerOf(ctx: GameContext, s: GameState, id: string): number {
   for (const e of staticEffects(ctx, s)) if (e.kind === "power" && e.target === id) p += e.value as number;
   for (const e of s.effects) if (e.kind === "power" && e.target === id) p += e.value as number;
   return p;
+}
+
+/** 5-7-3, 20-21: the combo cost as it stands, after any [Permanent] reducer. */
+export function comboCostOf(ctx: GameContext, s: GameState, id: string): number {
+  const base = def(ctx, s, id).comboCost ?? 0;
+  let reduction = 0;
+  for (const e of staticEffects(ctx, s)) if (e.kind === "comboCost" && e.target === id) reduction += e.value as number;
+  return Math.max(0, base - reduction);
 }
 
 export function comboPowerOf(ctx: GameContext, s: GameState, id: string): number {
@@ -217,7 +286,7 @@ export function resolveSelector(ctx: GameContext, s: GameState, frame: ScriptFra
     // left the Battle Area — in which case it is no longer the same card (3-1-4).
     if (sel.special && sel.area && areaOf(s, id) !== (sel.area === "play" ? "battle" : sel.area)) return false;
     // 23-5-2: a Hidden Mode card has none of its front-side information.
-    if (sel.filter && (inst.hidden || !matches(def(ctx, s, id), sel.filter))) return false;
+    if (sel.filter && (inst.hidden || !matches(cardNow(ctx, s, id), sel.filter))) return false;
     if (!sel.special && !sel.ignoreBarrier && sel.side !== "you" && has(ctx, s, id, "Barrier") && s.cards[id].owner !== frame.master && areaOf(s, id) !== "hand") return false;
     // 20-4: the same shape as [Barrier], but printed as a prohibition.
     if (!sel.special && s.cards[id].owner !== frame.master && forbids(ctx, s, "beChosen", { card: id })) return false;
@@ -252,7 +321,7 @@ export function condHolds(ctx: GameContext, s: GameState, frame: ScriptFrame, c:
     }
     case "leaderMatches": {
       const l = s.players[c.side === "opponent" ? other(frame.master) : frame.master].leader;
-      return !!l && matches(def(ctx, s, l), c.filter);
+      return !!l && matches(cardNow(ctx, s, l), c.filter);
     }
     case "lifeVsOpponent": {
       const mine = s.players[frame.master].life.length;
@@ -274,14 +343,16 @@ export interface AltCost {
   pay: "none" | "life";
   /** Cards to add from your life to your hand, for `pay: "life"`. */
   n: number;
+  /** Which cost it replaces: the [Counter] skill's, or playing the card. */
+  for: "counter" | "play";
 }
 
 export interface StaticEffect {
   source: string;
-  kind: "power" | "comboPower" | "keyword" | "cost" | "forbid" | "altCost";
+  kind: "power" | "comboPower" | "keyword" | "cost" | "comboCost" | "negateKeyword" | "gains" | "replaceLeave" | "forbid" | "altCost";
   /** The card it is about; empty for a rule about a player rather than a card. */
   target: string;
-  value: number | KeywordSkill | Prohibition | AltCost;
+  value: number | KeywordSkill | KeywordSkill["name"] | Prohibition | AltCost | Gains | Replacement;
 }
 
 /**
@@ -343,13 +414,36 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
       continue;
     }
     if (op.op === "costReduction") {
-      for (const id of staticTargets(ctx, s, frame, op.target)) out.push({ source, kind: "cost", target: id, value: op.amount });
+      const kind = op.what === "combo" ? "comboCost" : "cost";
+      for (const id of staticTargets(ctx, s, frame, op.target)) out.push({ source, kind, target: id, value: op.amount });
+      continue;
+    }
+    // "In all areas", so it is read wherever the card is — which is the point
+    // of negating [Energy-Exhaust], a skill that only matters outside play.
+    // 9-10: only while the card is where its skill is valid — a replacement
+    // effect on a card in your hand has nothing to replace.
+    if (op.op === "replaceLeave") {
+      if (!inPlayNow) continue;
+      const dest = op.to === "play" ? "battle" : op.to === "under" ? "drop" : (op.to as Area);
+      const targets = op.target ? staticTargets(ctx, s, frame, op.target) : [source];
+      for (const id of targets) out.push({ source, kind: "replaceLeave", target: id, value: { to: dest, by: op.by } });
+      continue;
+    }
+    // "In all areas" again: what a card counts as does not depend on where it is.
+    if (op.op === "gains") {
+      const targets = op.target ? staticTargets(ctx, s, frame, op.target) : [source];
+      for (const id of targets) out.push({ source, kind: "gains", target: id, value: { traits: op.traits ?? [], characters: op.characters ?? [], colors: op.colors ?? [] } });
+      continue;
+    }
+    if (op.op === "negateKeyword") {
+      const targets = op.target ? staticTargets(ctx, s, frame, op.target) : [source];
+      for (const id of targets) out.push({ source, kind: "negateKeyword", target: id, value: op.keyword });
       continue;
     }
     // Like a cost reducer, this one is about the card in hand, so it is read
     // whether or not the card is on the table.
     if (op.op === "altCost") {
-      out.push({ source, kind: "altCost", target: source, value: { pay: op.pay, n: op.n ?? 1 } });
+      out.push({ source, kind: "altCost", target: source, value: { pay: op.pay, n: op.n ?? 1, for: op.for ?? "counter" } });
       continue;
     }
     // 20-14: a prohibition printed as a [Permanent] skill holds for as long as
@@ -429,6 +523,18 @@ export function move(ctx: GameContext, s: GameState, ev: GameEvent[], id: string
   const wasCombo = from?.area === "combo";
   const goesToPlay = to === "leader" || to === "battle" || to === "unison";
   const goesToCombo = to === "combo";
+
+  // 9-10: a replacement effect changes where the card goes before it goes
+  // there, and the move that was about to happen is treated as never having
+  // happened (9-10-1-1). Read before the rules below, because a rule about
+  // what a card *is* — a token, a Z-card — outranks an effect (0-2-5).
+  if (wasInPlay && !goesToPlay && !goesToCombo) {
+    const instead = replacementFor(ctx, s, id, opts.reason);
+    if (instead && instead !== to) {
+      note(ev, `${face(ctx, s, id).name} goes to the ${instead} instead`);
+      to = instead;
+    }
+  }
 
   // 19-1-7: tokens leaving battle/combo for anywhere else are removed.
   if (inst.isToken && (wasInPlay || wasCombo) && !goesToPlay && !goesToCombo) to = "removed";
@@ -570,7 +676,7 @@ export function forbids(ctx: GameContext, s: GameState, what: ForbiddenAction, o
     if (f.filter || f.name) {
       if (!opts.card || !s.cards[opts.card]) continue;
       const d = def(ctx, s, opts.card);
-      if (f.filter && !matches(d, f.filter)) continue;
+      if (f.filter && !matches(cardNow(ctx, s, opts.card), f.filter)) continue;
       if (f.name && d.name !== f.name) continue;
     }
     return true;
@@ -594,10 +700,12 @@ export function forbiddenForCard(s: GameState, what: ForbiddenAction, card: stri
  * The other way this card's [Counter] skill may be paid for, if it has one
  * (5-3), and whether the player can actually meet it right now.
  */
-export function altCostFor(ctx: GameContext, s: GameState, card: string, payer: PlayerId): AltCost | null {
+export function altCostFor(ctx: GameContext, s: GameState, card: string, payer: PlayerId, which: "counter" | "play" = "counter"): AltCost | null {
   for (const e of staticEffects(ctx, s)) {
     if (e.kind !== "altCost" || e.target !== card) continue;
     const alt = e.value as AltCost;
+    // Programs stored before playing had its own waiver are about a [Counter].
+    if ((alt.for ?? "counter") !== which) continue;
     if (alt.pay === "life" && s.players[payer].life.length < alt.n) continue;
     return alt;
   }

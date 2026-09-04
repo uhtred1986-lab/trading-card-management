@@ -141,6 +141,27 @@
       "when": 1788521413675,
       "tag": "0019_closed_talon",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1788540154302,
+      "tag": "0020_yielding_jamie_braddock",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1788542011087,
+      "tag": "0021_parched_zarda",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1788542032868,
+      "tag": "0022_gorgeous_blockbuster",
+      "breakpoints": true
     }
   ]
 }

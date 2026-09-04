@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { act, advanceGame } from "@/app/arena/actions";
+import { ReportBug } from "./ReportBug";
 import type { Action, LegalAction } from "@/lib/arena/engine";
 import type { Spotlight } from "@/lib/arena/games";
 import type { BoardView, CardView, SideView, Tappable } from "@/lib/arena/view";
@@ -217,9 +218,12 @@ export function ArenaBoard({
           <span>
             {view.you.name} · hand {view.you.handCount}
           </span>
-          <button type="button" onClick={() => setLogOpen((x) => !x)} className="tap text-ki-300 hover:text-ki-400">
-            {logOpen ? "hide log" : "log"}
-          </button>
+          <div className="flex items-center gap-3 normal-case tracking-normal">
+            <ReportBug gameId={gameId} cards={cardsOnTable(view)} />
+            <button type="button" onClick={() => setLogOpen((x) => !x)} className="tap uppercase tracking-widest text-ki-300 hover:text-ki-400">
+              {logOpen ? "hide log" : "log"}
+            </button>
+          </div>
         </div>
         {logOpen ? (
           <ol className="max-h-56 space-y-0.5 overflow-y-auto font-mono text-[10px] leading-relaxed text-space-400 sm:max-h-80 sm:text-xs">
@@ -452,6 +456,20 @@ function Counter({ label, value }: { label: string; value: number }) {
 }
 
 /** Charge, Main, End and the four battle steps, with the live one lit. */
+/**
+ * The cards a report could be about: everything either player can see. Hidden
+ * cards are left out, because naming one would say more than the board does.
+ */
+function cardsOnTable(view: BoardView): { cardId: string; name: string }[] {
+  const out: { cardId: string; name: string }[] = [];
+  for (const side of [view.you, view.them]) {
+    for (const c of [side.leader, side.unison, ...side.battle, ...side.combo, ...side.energy, ...(side.hand ?? [])]) {
+      if (c && !c.hidden) out.push({ cardId: c.cardId, name: c.name });
+    }
+  }
+  return out;
+}
+
 function TopStrip({ view }: { view: BoardView }) {
   const steps = ["charge", "main", "end"];
   const battleSteps = ["declared", "offense", "defense", "damage"];

@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { apply, createGame, defsFrom, legalActions, seedFrom, type Action, type CardDef, type GameState, type PlayerId } from "../src/lib/arena/engine";
 import { parseSkills, keywordOf, orbsIn } from "../src/lib/arena/engine/cards";
 import { parseFilter, matches, parseCondition } from "../src/lib/arena/engine/filters";
-import { move, locate, playCost, powerOf, forbids } from "../src/lib/arena/engine/state";
+import { move, locate, playCost, powerOf, forbids, has, cardNow, comboCostOf } from "../src/lib/arena/engine/state";
 import { compileSkill, describeScript, splitClauses } from "../src/lib/arena/engine/compile";
 
 // ── skill text parsing ─────────────────────────────────────────────────────
@@ -148,6 +148,15 @@ const DEFS: Record<string, CardDef> = defsFrom([
   card("GRABBER", { energyCost: 1, skill: "[Auto] When you play this card, choose 1 of your opponent's cards and place it in its owner's drop area." }),
   card("PERMTOUGH", { energyCost: 2, power: 5000, skill: "[Permanent] This card can't be KO'd by your opponent's skills." }),
   card("PERMLOCK", { energyCost: 2, power: 5000, skill: "[Permanent] Your opponent can't attack with Battle Cards." }),
+  card("SELFMUTE", { energyCost: 2, skill: "[Blocker]\n[Permanent] Negate this card's [Blocker] skill in all areas." }),
+  card("BECOMES", { energyCost: 2, skill: "[Permanent] This card gains ≪Saiyan≫ in all areas." }),
+  card("SAIYANKILL", { energyCost: 1, skill: "[Auto] When you play this card, choose 1 of your opponent's ≪Saiyan≫ Battle Cards and KO it." }),
+  card("CHEAPCOMBO", { energyCost: 3, comboCost: 2, comboPower: 5000, skill: "[Permanent] Reduce the combo cost of this card in your hand by 2." }),
+  card("ONLYONE", { energyCost: 1, name: "ONLYONE", skill: "[Permanent] Only 1 {ONLYONE} can be played in your Battle Area." }),
+  card("RESTCOND", { energyCost: 1, skill: "[Permanent] If this card is in Rest Mode, your Battle Cards get +5000 power." }),
+  card("FREEPLAY", { energyCost: 2, power: 5000, skill: "[Permanent] If you have <V1> in your Battle Area or Leader Area, you can play this card from your hand without paying its energy cost." }),
+  card("EXILE", { energyCost: 2, power: 5000, skill: "[Permanent] If this card would leave the Battle Area, remove it from the game instead." }),
+  card("WARPER", { energyCost: 2, power: 5000, skill: "[Permanent] If this card would be removed from your Battle Area by a skill, send this card to your Warp instead." }),
   card("E-LIFE", {
     type: "EXTRA",
     energyCost: 3,
@@ -1352,6 +1361,155 @@ function assertConsistentAfterDrop(s: GameState) {
   s = play(s, { type: "counter", player: "p2", card: find(s, "p2", "hand", "E-LIFE") });
   assert.equal(s.players.p2.life.length, before, "paying with energy leaves the life alone");
   assert.equal(s.players.p2.energy.filter((id) => s.cards[id].mode === "rest").length, 3, "it was paid with energy instead");
+}
+
+// ── what a [Permanent] can say about the card itself (9-1-5, 20-1, 20-21) ──
+
+{
+  const ctx = { defs: DEFS };
+  // 9-1-5: one named keyword goes, the card keeps the rest of itself.
+  const s = arena({ battle: ["SELFMUTE"] });
+  const mute = find(s, "p1", "battle", "SELFMUTE");
+  assert.ok(!has(ctx, s, mute, "Blocker"), "the card negated its own [Blocker]");
+}
+
+{
+  const ctx = { defs: DEFS };
+  // 20-1: a card that gains a trait is that trait to every skill that names
+  // one — this is about what the card *is*, not what it does.
+  let s = arena({ hand: ["SAIYANKILL"], energy: ["V1"], oppBattle: ["BECOMES", "BIG"] });
+  const becomes = find(s, "p2", "battle", "BECOMES");
+  assert.ok(cardNow(ctx, s, becomes).traits.some((t) => t.toLowerCase() === "saiyan"), "it counts as a ≪Saiyan≫");
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "SAIYANKILL") });
+  // Only one card on their side is a Saiyan, so the choice is forced and taken.
+  assert.ok(s.players.p2.drop.includes(becomes), "the ≪Saiyan≫ skill found it");
+  assert.ok(s.players.p2.battle.includes(find(s, "p2", "battle", "BIG")), "and left the card that is not one");
+}
+
+{
+  const ctx = { defs: DEFS };
+  // 20-21: a reducer that names the combo cost reduces the combo cost.
+  const s = arena({ hand: ["CHEAPCOMBO"] });
+  const cheap = find(s, "p1", "hand", "CHEAPCOMBO");
+  assert.equal(DEFS.CHEAPCOMBO.comboCost, 2, "printed");
+  assert.equal(comboCostOf(ctx, s, cheap), 0, "and free after its own [Permanent]");
+}
+
+{
+  // "Only 1 {ONLYONE} can be played in your Battle Area" — the rule switches
+  // itself on once one is there, which a [Permanent] can say because the
+  // static layer asks again every time.
+  let s = arena({ hand: ["ONLYONE", "ONLYONE"], energy: ["V1", "V1"] });
+  assert.ok(
+    labels(s).some((x) => x.startsWith("Play ONLYONE")),
+    "the first is playable",
+  );
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "ONLYONE") });
+  assert.ok(
+    !labels(s).some((x) => x.startsWith("Play ONLYONE")),
+    "the second is not, while the first is in play",
+  );
+}
+
+{
+  const ctx = { defs: DEFS };
+  // A card's own mode as a condition, re-read every time it is asked.
+  const s = arena({ battle: ["RESTCOND", "V1"] });
+  const cond = find(s, "p1", "battle", "RESTCOND");
+  const ally = find(s, "p1", "battle", "V1");
+  assert.equal(powerOf(ctx, s, ally), 10000, "nothing while it stands");
+  s.cards[cond].mode = "rest";
+  assert.equal(powerOf(ctx, s, ally), 15000, "and +5000 once it is rested");
+}
+
+// ── replacement effects (9-10) ─────────────────────────────────────────────
+
+{
+  // 9-10-1-1: the move that was about to happen is treated as never having
+  // happened, and the card goes where the skill says instead.
+  let s = arena({ battle: ["EXILE"], oppHand: ["KILLER"], oppEnergy: ["V1"] });
+  const exile = find(s, "p1", "battle", "EXILE");
+  s = play(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+  s = play(s, { type: "play", player: "p2", card: find(s, "p2", "hand", "KILLER") }, { type: "choose", player: "p2", cards: [exile] });
+  assert.ok(!s.players.p1.drop.includes(exile), "it did not go to the Drop");
+  assert.ok(s.players.p1.removed.includes(exile), "9-10: it went where the skill said instead");
+  assertConsistent(s);
+}
+
+{
+  // "By a skill" is narrower than "would leave": a battle is not a skill.
+  let s = arena({ battle: ["WARPER"], oppBattle: ["BIG"] });
+  const warper = find(s, "p1", "battle", "WARPER");
+  s.cards[warper].mode = "rest";
+  s = play(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+  s = play(s, { type: "attack", player: "p2", attacker: find(s, "p2", "battle", "BIG"), target: warper }, { type: "pass", player: "p2" }, { type: "pass", player: "p1" });
+  assert.ok(s.players.p1.drop.includes(warper), "KO'd in a battle, so the Drop — the skill named a skill");
+  assert.ok(!s.players.p1.warp.includes(warper));
+  assertConsistent(s);
+}
+
+{
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+  // The sentence splits at the comma, and neither half means anything alone.
+  const r = one("[Permanent] If this card would leave the Battle Area, remove it from the game instead.");
+  assert.deepEqual(r.unsupported, []);
+  assert.deepEqual(r.ops, [{ op: "replaceLeave", to: "removed", target: { sel: { special: "self" } } }]);
+
+  // A rule about other cards keeps its subject rather than the "it" that follows.
+  const other = one("[Permanent] When a ≪Saiyan≫ card would leave your Battle Area, you may place it in your Z-Energy instead.");
+  assert.deepEqual(other.unsupported, []);
+  const op = other.ops[0] as { op: string; to: string; target: { sel: { area: string; filter?: { traits: string[] } } } };
+  assert.equal(op.op, "replaceLeave");
+  assert.equal(op.to, "zEnergy");
+  assert.deepEqual(op.target.sel.filter?.traits, ["saiyan"]);
+
+  // "By your opponent's skills" is left unread on purpose: `move` knows a
+  // skill did it but not whose, and guessing lets the wrong cards escape.
+  assert.ok(one("[Permanent] If this card would be removed from your Battle Area by an opponent's skill, send it to your Warp instead.").unsupported.length > 0);
+}
+
+// ── playing a card for another price (5-3) ─────────────────────────────────
+
+{
+  // BT3-087's wording. It used to compile to an *instruction to play the
+  // card*, which a [Permanent] never carries out — so the card looked handled,
+  // never reached the referee, and the player paid the energy anyway.
+  const one = compileSkill(parseSkills("[Permanent] If you have <V1> in your Battle Area or Leader Area, you can play this card from your hand without paying its energy cost.")[0]);
+  assert.deepEqual(one.unsupported, []);
+  const gate = one.ops[0] as { op: string; cond: { kind: string; sel: { area: string; filter?: { type: string | null } } }; then: { op: string; for?: string }[] };
+  assert.equal(gate.op, "if");
+  // "Battle Area or Leader Area" is both areas, not a Battle Area holding a
+  // Leader — which is nothing, so the waiver could never have switched on.
+  assert.equal(gate.cond.sel.area, "play");
+  assert.equal(gate.cond.sel.filter?.type, null);
+  assert.deepEqual(gate.then, [{ op: "altCost", pay: "none", for: "play" }]);
+}
+
+{
+  // With the named card on the table, it plays for nothing — and there is no
+  // energy at all here, so nothing else could have paid for it.
+  let s = arena({ hand: ["FREEPLAY"], battle: ["V1"] });
+  assert.equal(s.players.p1.energy.length, 0);
+  assert.ok(
+    labels(s).some((x) => x === "Play FREEPLAY (for no energy)"),
+    "the printed price is offered",
+  );
+  const free = find(s, "p1", "hand", "FREEPLAY");
+  s = play(s, { type: "play", player: "p1", card: free, alt: true });
+  assert.ok(s.players.p1.battle.includes(free), "it was played");
+  assert.equal(s.players.p1.energy.length, 0, "and nothing was charged for it");
+  assertConsistent(s);
+}
+
+{
+  // Without the card the skill names, the waiver is not on the menu, and the
+  // card costs 2 like anything else.
+  const s = arena({ hand: ["FREEPLAY"], energy: ["V1", "V1"] });
+  assert.ok(!labels(s).some((x) => x.includes("for no energy")), "no waiver without the condition");
+  assert.ok(
+    labels(s).some((x) => x === "Play FREEPLAY (2)"),
+    "the printed cost is still there",
+  );
 }
 
 console.log("verify-arena: all checks passed");

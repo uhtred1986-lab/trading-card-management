@@ -1,0 +1,1 @@
+DROP TABLE "arena_bug_reports" CASCADE;
