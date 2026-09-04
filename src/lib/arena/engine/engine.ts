@@ -295,6 +295,16 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
 
     case "counter":
       return openCounterWindow(ctx, s, ev, step.window, step.responder);
+    case "counter.resolve": {
+      // 9-7-4: a counter that was negated does nothing at all; the card has
+      // already been paid for and is already in the Drop (22-10-7).
+      if (step.negated) {
+        note(ev, `${face(ctx, s, step.card).name} was countered`);
+        return "done";
+      }
+      s.flow.unshift({ op: "skill.resolve", card: step.card, skill: step.skill, player: step.player });
+      return "done";
+    }
 
     case "play.resolve":
       return resolvePlay(ctx, s, ev, step.card, step.player, step.markers);
@@ -1550,7 +1560,11 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
         }
         // 22-10-7: the card goes to the Drop; its effect resolves as the counter motion.
         move(ctx, s, ev, action.card, "drop", p, { reason: "effect", reveal: true });
-        s.flow.unshift({ op: "skill.resolve", card: action.card, skill: sk.index, player: p });
+        // 9-7: a counter is itself an action that can be countered. The answer
+        // is offered first and resolves first (9-7-3, descending order), which
+        // is simply what the flow being a stack already does — and a
+        // [Counter: Counter] that negates marks the step below it on its way.
+        s.flow.unshift({ op: "counter", window: "counter", responder: other(p) }, { op: "counter.resolve", card: action.card, skill: sk.index, player: p });
       }
       break;
     }

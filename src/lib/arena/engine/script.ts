@@ -132,6 +132,12 @@ export type Op =
    */
   | { op: "altCost"; pay: "none" | "life"; n?: number; for?: "counter" | "play" }
   | { op: "negateAttack" }
+  /**
+   * 9-7: negate the counter this one is answering. The counter being answered
+   * is the step waiting under this one in the flow, so there is nothing to
+   * name — "the [Counter]" is always that one.
+   */
+  | { op: "negateCounter" }
   /** Kept for programs written before `forbid` existed; the same thing. */
   | { op: "cannotAttack"; target: Ref; until: Duration }
   /**
@@ -467,6 +473,17 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         }
         break;
 
+      case "negateCounter": {
+        // The counter being answered is the first one still waiting in the
+        // flow: this effect is running inside the window opened over it.
+        const target = s.flow.find((f) => f.op === "counter.resolve");
+        if (target && target.op === "counter.resolve") {
+          target.negated = true;
+          note(ev, `${face(ctx, s, target.card).name} is countered`);
+        }
+        break;
+      }
+
       case "play": {
         // 5-5-3: played by a skill, so no energy cost is paid — but a card
         // that may not be played may not be played by a skill either (20-14).
@@ -572,6 +589,7 @@ const OP_NAMES = new Set<Op["op"]>([
   "removeMarker",
   "token",
   "negateAttack",
+  "negateCounter",
   "cannotAttack",
   "forbid",
   "costReduction",

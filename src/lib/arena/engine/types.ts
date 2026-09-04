@@ -497,6 +497,12 @@ export type FlowStep =
   | { op: "turn.cleanup" }
   | { op: "turn.next" }
   | { op: "counter"; window: CounterWindow; responder: PlayerId }
+  /**
+   * A counter that has been paid for and is waiting to resolve (9-7-3). It
+   * sits under the window that offers the answer to it, so a counter played in
+   * response resolves first — and can mark this one negated on its way past.
+   */
+  | { op: "counter.resolve"; card: string; skill: number; player: PlayerId; negated?: boolean }
   | { op: "play.resolve"; card: string; player: PlayerId; markers?: number; mode?: "active" | "rest" }
   | { op: "script.step"; frame: ScriptFrame }
   | { op: "flipLeader"; card: string }

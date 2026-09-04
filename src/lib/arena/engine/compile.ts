@@ -568,6 +568,10 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     if (forbid) return forbid;
   }
 
+  // 9-7: answering a counter with a counter. "The [Counter]" is always the one
+  // being answered, so nothing has to be named.
+  if (/^negate the \[counter[^\]]*\](?: skill)?$/.test(t)) return [{ op: "negateCounter" }];
+
   // Mode switches (1-10).
   if ((m = /^switch (.*?) to (active|rest) mode$/.exec(t))) {
     const ref = refFor(m[1], c);
@@ -1128,6 +1132,9 @@ export function describeScript(ops: Op[]): string {
         break;
       case "negateAttack":
         parts.push("negate the attack");
+        break;
+      case "negateCounter":
+        parts.push("negate the counter being answered");
         break;
       case "if": {
         const yes = describeScript(op.then);

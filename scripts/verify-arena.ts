@@ -157,6 +157,7 @@ const DEFS: Record<string, CardDef> = defsFrom([
   card("FREEPLAY", { energyCost: 2, power: 5000, skill: "[Permanent] If you have <V1> in your Battle Area or Leader Area, you can play this card from your hand without paying its energy cost." }),
   card("EXILE", { energyCost: 2, power: 5000, skill: "[Permanent] If this card would leave the Battle Area, remove it from the game instead." }),
   card("WARPER", { energyCost: 2, power: 5000, skill: "[Permanent] If this card would be removed from your Battle Area by a skill, send this card to your Warp instead." }),
+  card("E-STOP", { type: "EXTRA", energyCost: 1, power: null, comboCost: null, comboPower: null, skill: "[Counter: Counter] Negate the [Counter]." }),
   card("E-LIFE", {
     type: "EXTRA",
     energyCost: 3,
@@ -1510,6 +1511,47 @@ function assertConsistentAfterDrop(s: GameState) {
     labels(s).some((x) => x === "Play FREEPLAY (2)"),
     "the printed cost is still there",
   );
+}
+
+// ── a counter can be countered (9-7) ───────────────────────────────────────
+
+{
+  // Until the window below existed, no [Counter: Counter] card in the game
+  // could ever be played: the only window that collects them is the one
+  // opened in answer to a counter, and none was ever opened.
+  let s = arena({ hand: ["E-STOP"], energy: ["V1"], oppHand: ["E-NEGATE"], oppEnergy: ["V1"] });
+  // p2 holds a counter that negates attacks; p1 holds one that negates counters.
+  const stop = find(s, "p1", "hand", "E-STOP");
+  const neg = find(s, "p2", "hand", "E-NEGATE");
+  s = play(s, { type: "attack", player: "p1", attacker: s.players.p1.leader, target: s.players.p2.leader });
+  assert.equal(s.prompt.kind, "counter");
+  assert.equal((s.prompt as { player: PlayerId }).player, "p2");
+
+  s = play(s, { type: "counter", player: "p2", card: neg });
+  // 9-7: their counter is now itself open to an answer.
+  assert.equal(s.prompt.kind, "counter", "the counter can be countered");
+  assert.equal((s.prompt as { player: PlayerId }).player, "p1");
+  assert.deepEqual((s.prompt as { candidates: string[] }).candidates, [stop]);
+
+  s = play(s, { type: "counter", player: "p1", card: stop });
+  // 9-7-3: the last one played resolves first, and it negates the one under it,
+  // so the attack was never negated after all.
+  assert.equal(s.battle?.negated ?? false, false, "9-7-4: the countered counter did nothing");
+  assert.ok(s.players.p2.drop.includes(neg), "22-10-7: it was still paid for and still in the Drop");
+  assert.ok(s.players.p1.drop.includes(stop));
+  assertConsistent(s);
+}
+
+{
+  // Declining the answer lets the counter through, as before.
+  let s = arena({ hand: ["E-STOP"], energy: ["V1"], oppHand: ["E-NEGATE"], oppEnergy: ["V1"] });
+  const neg = find(s, "p2", "hand", "E-NEGATE");
+  s = play(s, { type: "attack", player: "p1", attacker: s.players.p1.leader, target: s.players.p2.leader });
+  s = play(s, { type: "counter", player: "p2", card: neg });
+  s = play(s, { type: "counter", player: "p1", card: null });
+  assert.equal(s.battle, null, "the attack was negated and the battle ended");
+  assert.equal(s.players.p2.life.length, 8);
+  assertConsistent(s);
 }
 
 console.log("verify-arena: all checks passed");
