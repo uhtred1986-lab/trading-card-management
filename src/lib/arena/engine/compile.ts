@@ -1009,6 +1009,40 @@ function describeAmount(a: Amount): string {
   return typeof a === "number" ? `${a}` : "var" in a ? "that many" : "one per matching card";
 }
 
+/**
+ * A condition in plain words. The rules page shows this back before you keep a
+ * reading, and "if a condition holds" would tell you nothing about whether the
+ * engine understood the condition you meant.
+ */
+function describeCond(c: Cond): string {
+  switch (c.kind) {
+    case "count": {
+      const what = describeSelector({ ...c.sel, count: 99 }).replace(/^all /, "");
+      const bound = c.atMost === 0 ? "no" : c.atLeast != null ? `${c.atLeast} or more` : c.atMost != null ? `${c.atMost} or fewer` : "any";
+      return `there ${c.atMost === 0 ? "are" : "is"} ${bound} ${what}`;
+    }
+    case "life": {
+      const whose = c.side === "opponent" ? "their" : "your";
+      if (c.atMost != null) return `${whose} life is ${c.atMost} or less`;
+      if (c.atLeast != null) return `${whose} life is ${c.atLeast} or more`;
+      return `${whose} life`;
+    }
+    case "lifeVsOpponent":
+      return c.atLeast ? "your life is at least theirs" : "your life is no more than theirs";
+    case "leaderColor":
+      return `your leader is ${c.color}`;
+    case "leaderMatches": {
+      const f = c.filter;
+      const bits = [...f.colors, ...f.characters.map((x) => `<${x}>`), ...f.traits.map((x) => `≪${x}≫`)];
+      return `${c.side === "opponent" ? "their" : "your"} leader is ${bits.join(" ") || "a match"}`;
+    }
+    case "chose":
+      return "you took that choice";
+    case "isTurnPlayer":
+      return c.who === "opponent" ? "it is your opponent's turn" : "it is your turn";
+  }
+}
+
 /** One short line per op, so the inspector can show the engine's own reading. */
 export function describeScript(ops: Op[]): string {
   const parts: string[] = [];
@@ -1095,9 +1129,12 @@ export function describeScript(ops: Op[]): string {
       case "negateAttack":
         parts.push("negate the attack");
         break;
-      case "if":
-        parts.push(`if a condition holds: ${describeScript(op.then)}`);
+      case "if": {
+        const yes = describeScript(op.then);
+        const no = op.else?.length ? `, otherwise ${describeScript(op.else)}` : "";
+        parts.push(`if ${describeCond(op.cond)}: ${yes || "nothing"}${no}`);
         break;
+      }
       case "delay":
         parts.push(`${op.label ?? "later"}: ${describeScript(op.ops)}`);
         break;

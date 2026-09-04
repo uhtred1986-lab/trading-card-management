@@ -14,6 +14,8 @@ import { abandonGame, applyToGame, loadGame, startGame, type ArenaMode } from "@
 import { advance } from "@/lib/arena/ai/run";
 import { reviewGame } from "@/lib/arena/ai/review";
 import { clarifyCard } from "@/lib/arena/ai/clarify";
+import { previewRule, removeRule, type RulePreview } from "@/lib/arena/rules";
+import { saveScript } from "@/lib/arena/scripts";
 
 /**
  * Report something that went wrong, from the board.
@@ -51,6 +53,39 @@ export async function setBugStatus(id: number, status: "open" | "fixed" | "wontf
     .set({ status, resolvedAt: status === "open" ? null : new Date() })
     .where(eq(arenaBugReports.id, id));
   revalidatePath("/arena/bugs");
+}
+
+/**
+ * What the engine would make of a line of card text, without keeping it.
+ *
+ * This is the whole point of the rules page: the compiler is the parser for
+ * this language, so the honest way to let you set a rule is to let you write
+ * the wording and read back what it means.
+ */
+export async function checkRule(line: string): Promise<RulePreview> {
+  return previewRule(line);
+}
+
+/** Keep that reading against the card, where the engine will prefer it. */
+export async function saveRule(cardId: string, skillIndex: number, side: "front" | "back", line: string): Promise<{ error: string | null }> {
+  const p = previewRule(line);
+  if (p.unsupported.length) return { error: `still unread: ${p.unsupported.join(" | ")}` };
+  if (!p.ops.length) return { error: "that reads as doing nothing — save it only if the skill really does nothing" };
+  await saveScript(db, { cardId, skillIndex, side, ops: p.ops, source: "user", explanation: line.trim(), meaning: p.reads });
+  revalidatePath("/arena/rules");
+  return { error: null };
+}
+
+/** Save a program that reads as nothing, for skills the engine should ignore. */
+export async function saveEmptyRule(cardId: string, skillIndex: number, side: "front" | "back", line: string): Promise<{ error: string | null }> {
+  await saveScript(db, { cardId, skillIndex, side, ops: [], source: "user", explanation: line.trim(), meaning: "deliberately does nothing" });
+  revalidatePath("/arena/rules");
+  return { error: null };
+}
+
+export async function clearRule(cardId: string, skillIndex: number, side: "front" | "back") {
+  await removeRule(db, cardId, skillIndex, side);
+  revalidatePath("/arena/rules");
 }
 
 export async function startGameForm(formData: FormData) {
