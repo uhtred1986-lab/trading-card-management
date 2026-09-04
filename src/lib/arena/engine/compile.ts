@@ -30,7 +30,7 @@ export function splitClauses(text: string): string[] {
     if ("([{<≪".includes(ch)) depth++;
     else if (")]}>≫".includes(ch)) depth = Math.max(0, depth - 1);
     else if (depth === 0) {
-      if (ch === "," || ch === ";") {
+      if ((ch === "," || ch === ";") && !inNameList(text, i)) {
         push(i, 1);
       } else if (ch === "." && (i + 1 >= text.length || text[i + 1] === " ")) {
         push(i, 1);
@@ -46,6 +46,18 @@ export function splitClauses(text: string): string[] {
   }
   push(text.length, 0);
   return out.map((c) => c.replace(/^(?:then|and|if you do|if so)\s+/i, "").trim()).filter(Boolean);
+}
+
+/**
+ * A comma inside a list of names is not a sentence break. "choose 1
+ * <Son Goku: GT>, <Trunks: GT>, <Pan>, or <Giru>" is one instruction, and
+ * splitting it leaves three fragments that are nothing but a name.
+ */
+function inNameList(text: string, comma: number): boolean {
+  const before = text.slice(0, comma).trimEnd();
+  const endsWithName = /[>}≫]$/.test(before);
+  const after = text.slice(comma + 1).replace(/^\s*(?:or|and)\s+/i, "").trimStart();
+  return endsWithName && /^[<{≪]/.test(after);
 }
 
 /** Explanatory notes in parentheses are not rules text (1-5-8). */
@@ -187,10 +199,13 @@ function durationOf(clause: string): "battle" | "turn" | "game" | "opponentTurn"
  * Conditions a skill puts in front of its effect ("If your Leader is red, …").
  * Everything after the condition becomes conditional on it (9-1-3).
  */
-function parseConditionClause(clause: string): { cond: Cond; subject?: Ref } | null {
+function parseConditionClause(clause: string, allowBare = false): { cond: Cond; subject?: Ref } | null {
   const trimmed = clause.toLowerCase().trim();
   const t = trimmed.replace(/^(?:if|when|while)\s+/, "");
-  if (t === trimmed) return null; // it did not start with a condition word
+  // "if your Leader Card is yellow and your life is at 4 or less" splits on the
+  // "and", so the second half arrives without a condition word in front of it.
+  // It only counts as a condition when it continues one (9-1-3).
+  if (t === trimmed && !allowBare) return null;
   let m: RegExpExecArray | null;
   // "If your Leader Card is a <Baby> card, it gets +10000 power" — the leader is
   // both the condition's subject and what "it" then refers to.
@@ -400,7 +415,19 @@ function compileToken(clause: string, c: Ctx): Op[] | null {
  * Compile one skill's effect. Keyword skills are rules rather than text, so
  * they compile to an empty program and the engine applies them directly.
  */
+/**
+ * Keyword skills whose text after the colon is a *condition* the engine reads
+ * for itself, not an effect to compile — "[Evolve] {2}: <Nail>" names the card
+ * you evolve from, and `engine.ts` already handles the whole line. Compiling
+ * it would report a card as unreadable that the engine plays perfectly well.
+ *
+ * [Awaken] and [Wish] are deliberately absent: their text after the colon is a
+ * real effect, and the engine does need it compiled.
+ */
+const KEYWORD_HANDLES_THE_LINE = new Set<KeywordSkill["name"]>(["Evolve", "Union", "Over Realm", "Swap", "Overlord", "Z-Awaken", "Z-Stack", "Field", "Attack", "Revenge", "Offering"]);
+
 export function compileSkill(skill: Skill): Script {
+  if (skill.keyword && KEYWORD_HANDLES_THE_LINE.has(skill.keyword.name)) return { ops: [], unsupported: [] };
   const text = stripNotes(skill.effect);
   if (!text) return { ops: [], unsupported: [] };
   const unsupported: string[] = [];
@@ -412,14 +439,15 @@ export function compileSkill(skill: Skill): Script {
   // stays — it must compile or the skill goes to the referee.
   if (skill.kind === "auto" && clauses.length > 1 && /^(?:when|at the (?:end|beginning|start))\b/i.test(clauses[0])) clauses.shift();
 
-  // "if you do" (20-16) makes the rest conditional on the previous choice.
-  const groups: { cond: Cond | null; ops: Op[] }[] = [{ cond: null, ops: [] }];
+  // "if you do" (20-16) makes the rest conditional on the previous choice, and
+  // a run of conditions all have to hold, so a group carries a list of them.
+  const groups: { conds: Cond[]; ops: Op[] }[] = [{ conds: [], ops: [] }];
   const push = (ops: Op[]) => groups[groups.length - 1].ops.push(...ops);
   for (const clause of clauses) {
     const conn = connective(clause);
     if (conn === "skip") continue;
     if (conn === "ifDone") {
-      groups.push({ cond: c.last ? { kind: "chose", var: c.last } : null, ops: [] });
+      groups.push({ conds: c.last ? [{ kind: "chose", var: c.last }] : [], ops: [] });
       continue;
     }
     // "ignoring [Barrier]" lifts 22-16 for the choice just made (22-16, 20-4).
@@ -429,9 +457,14 @@ export function compileSkill(skill: Skill): Script {
       continue;
     }
     // A condition opens a group: everything after it depends on it holding.
-    const cond = parseConditionClause(clause);
+    // A second condition with nothing between them joins the same group, so
+    // both have to hold rather than the first being quietly dropped.
+    const open = groups[groups.length - 1];
+    const chaining = open.ops.length === 0 && open.conds.length > 0;
+    const cond = parseConditionClause(clause, chaining);
     if (cond) {
-      groups.push({ cond: cond.cond, ops: [] });
+      if (chaining) open.conds.push(cond.cond);
+      else groups.push({ conds: [cond.cond], ops: [] });
       if (cond.subject) c.lastTarget = cond.subject;
       continue;
     }
@@ -452,8 +485,10 @@ export function compileSkill(skill: Skill): Script {
   const ops: Op[] = [];
   for (const g of groups) {
     if (!g.ops.length) continue;
-    if (g.cond) ops.push({ op: "if", cond: g.cond, then: g.ops });
-    else ops.push(...g.ops);
+    // Nest the conditions outermost-first, so all of them have to hold.
+    let body = g.ops;
+    for (const cond of [...g.conds].reverse()) body = [{ op: "if", cond, then: body }];
+    ops.push(...body);
   }
   return { ops, unsupported };
 }

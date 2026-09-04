@@ -120,6 +120,13 @@
       "when": 1788503127837,
       "tag": "0016_chubby_natasha_romanoff",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1788505141306,
+      "tag": "0017_abnormal_scrambler",
+      "breakpoints": true
     }
   ]
 }

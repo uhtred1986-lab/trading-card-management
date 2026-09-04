@@ -8,11 +8,13 @@
  */
 import { desc, eq } from "drizzle-orm";
 import type { Db } from "@/db";
+import { hasAnthropic } from "@/lib/ai/client";
 import { arenaGames, cards as cardsTable } from "@/db/schema";
 import { inArray } from "drizzle-orm";
 import { apply, createGame, legalActions, seedFrom, type Action, type CardDef, type EngineContext, type GameEvent, type GameState, type LegalAction } from "./engine";
 import { face } from "./engine";
 import { cardDefFrom, deckInputFor } from "./load";
+import { scriptsFor } from "./scripts";
 
 export type ArenaMode = "hotseat" | "sparring" | "tournament";
 
@@ -55,7 +57,7 @@ export async function startGame(db: Db, p1DeckId: number, p2DeckId: number, mode
     .where(inArray(cardsTable.id, [...new Set([...a.cardIds, ...b.cardIds])]));
   const defs: Record<string, CardDef> = {};
   for (const r of rows) defs[r.id] = cardDefFrom(r);
-  const ctx: EngineContext = { defs };
+  const ctx: EngineContext = { defs, scripts: await scriptsFor(db, defs), referee: hasAnthropic() && mode !== "hotseat" };
   const seed = seedFrom(`${p1DeckId}:${p2DeckId}:${Date.now()}`);
   const { state, events } = createGame(ctx, { seed, p1: a.input, p2: b.input });
   const [row] = await db
@@ -81,7 +83,9 @@ export async function loadGame(db: Db, id: number): Promise<LoadedGame | null> {
   const row = await db.query.arenaGames.findFirst({ where: eq(arenaGames.id, id) });
   if (!row) return null;
   const state = row.state as GameState;
-  const ctx: EngineContext = { defs: await defsForState(db, state) };
+  const defs = await defsForState(db, state);
+  // Programs you have explained win over whatever the compiler managed to read.
+  const ctx: EngineContext = { defs, scripts: await scriptsFor(db, defs), referee: hasAnthropic() && row.mode !== "hotseat" };
   return {
     id: row.id,
     mode: row.mode as ArenaMode,

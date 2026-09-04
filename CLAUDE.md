@@ -151,6 +151,12 @@ the same style.
   the text actually comes up and stores the program Claude produced as a worked example, and
   "scan my decks again" fills it from the decks you play. That page is the to-do list for
   `compile.ts` — one rule usually clears a whole group.
+- **Explaining a card** (`src/lib/arena/ai/clarify.ts`, `/arena/backlog`): you say what a card does in
+  plain words; Claude returns a program in the effect language, saved to `card_scripts`, and a
+  markdown work item for teaching `compile.ts` the *wording*. `src/lib/arena/scripts.ts` lays stored
+  programs over the compiler's own reading through `ctx.scripts`, so an explained card plays
+  correctly from the next game — no referee call, no tokens — while the work item is what fixes
+  every card phrased the same way. The two are not the same fix and the page says so.
 - **Optimiser** (`src/lib/marketplace/optimizer.ts`) is deterministic: greedy + exhaustive 1/2/3-seller
   subsets + removal local search, shipping counted once per seller.
 

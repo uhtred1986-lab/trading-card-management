@@ -13,6 +13,7 @@ import { IllegalAction, type Action } from "@/lib/arena/engine";
 import { abandonGame, applyToGame, startGame, type ArenaMode } from "@/lib/arena/games";
 import { advance } from "@/lib/arena/ai/run";
 import { reviewGame } from "@/lib/arena/ai/review";
+import { clarifyCard } from "@/lib/arena/ai/clarify";
 
 export async function startGameForm(formData: FormData) {
   const p1 = Number(formData.get("p1"));
@@ -83,4 +84,18 @@ export async function sweepBacklog() {
 export async function markNote(noteId: number, status: "open" | "done") {
   await setNoteStatus(db, noteId, status);
   revalidatePath("/arena/backlog");
+}
+
+/**
+ * You explain a card; Claude saves a program for it and writes the work item
+ * for teaching the compiler the wording.
+ */
+export async function explainCard(noteId: number, explanation: string): Promise<{ error: string | null }> {
+  try {
+    await clarifyCard(db, noteId, explanation);
+  } catch (err) {
+    return { error: describeAiError(err) };
+  }
+  revalidatePath("/arena/backlog");
+  return { error: null };
 }
