@@ -127,6 +127,13 @@
       "when": 1788505141306,
       "tag": "0017_abnormal_scrambler",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1788519085875,
+      "tag": "0018_left_roland_deschain",
+      "breakpoints": true
     }
   ]
 }

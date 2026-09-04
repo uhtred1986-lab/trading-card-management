@@ -43,20 +43,23 @@ export default async function ArenaGamePage({ params }: { params: Promise<{ id: 
   const review = game.review ? (JSON.parse(game.review) as GameReview) : null;
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-baseline gap-2">
-        <Link href="/arena" className="text-xs text-space-300 hover:text-ki-300">
+    <div className="mx-auto w-full max-w-7xl space-y-3">
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <Link href="/arena" className="text-sm text-space-300 hover:text-ki-300">
           ← Arena
         </Link>
-        <span className="text-xs text-space-500">
-          {game.p1Name} vs {game.p2Name} · {game.mode === "hotseat" ? "hot-seat" : game.mode}
+        <span className="text-sm font-medium text-space-100 sm:text-base">
+          {game.p1Name} <span className="text-space-500">vs</span> {game.p2Name}
         </span>
-        <Link href={`/arena/${id}/debug`} className="ml-auto text-xs text-space-400 hover:text-ki-300">
+        <span className="rounded-full border border-space-700 px-2 py-0.5 text-[11px] uppercase tracking-wider text-space-400">
+          {game.mode === "hotseat" ? "hot-seat" : game.mode}
+        </span>
+        <Link href={`/arena/${id}/debug`} className="ml-auto text-sm text-space-400 hover:text-ki-300">
           how Claude played
         </Link>
         {playing && (
-          <form action={abandon.bind(null, id)} className="">
-            <button className="tap text-xs text-space-400 hover:text-loss">give up</button>
+          <form action={abandon.bind(null, id)}>
+            <button className="tap text-sm text-space-400 hover:text-loss">give up</button>
           </form>
         )}
       </div>
@@ -75,7 +78,16 @@ export default async function ArenaGamePage({ params }: { params: Promise<{ id: 
         />
       )}
 
-      <ArenaBoard gameId={id} view={view} legal={game.legal} taps={taps} log={game.log} playable={playing} waitingOnServer={waitingOnServer} />
+      <ArenaBoard
+        gameId={id}
+        view={view}
+        legal={game.legal}
+        taps={taps}
+        log={game.log}
+        spotlight={game.spotlight ? { ...game.spotlight, imageUrl: images[game.spotlight.cardId]?.front ?? null } : null}
+        playable={playing}
+        waitingOnServer={waitingOnServer}
+      />
     </div>
   );
 }
