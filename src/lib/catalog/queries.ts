@@ -1,13 +1,24 @@
 import { and, asc, desc, eq, ilike, inArray, sql, type SQL } from "drizzle-orm";
 import type { Db } from "@/db";
 import { cardPrints, cardSets, cards, ownedCards } from "@/db/schema";
+import { GAME_INFO, type Game } from "./games";
 
-export const CARD_TYPES = ["LEADER", "BATTLE", "EXTRA", "UNISON", "Z-LEADER", "Z-BATTLE", "Z-EXTRA", "Z-UNISON", "TOKEN"];
+/** Card types across both games; Fusion World adds ENERGY MARKER and has no Z- types. */
+export const CARD_TYPES = ["LEADER", "BATTLE", "EXTRA", "UNISON", "Z-LEADER", "Z-BATTLE", "Z-EXTRA", "Z-UNISON", "TOKEN", "ENERGY MARKER"];
 export const COLORS = ["Red", "Blue", "Green", "Yellow", "Black", "White", "Colorless"];
+
+/** The types a game actually prints, for the type dropdown. */
+export function cardTypesFor(game?: Game): string[] {
+  if (!game) return CARD_TYPES;
+  const fusion = ["LEADER", "BATTLE", "EXTRA", "ENERGY MARKER"];
+  return game === "fusion" ? fusion : CARD_TYPES.filter((t) => t !== "ENERGY MARKER");
+}
 
 export interface CardSearch {
   q?: string;
   set?: string;
+  /** Undefined shows both games, which is the default view. */
+  game?: Game;
   type?: string;
   color?: string;
   rarity?: string;
@@ -29,6 +40,7 @@ export function searchTerms(q: string): string[] {
 function whereFor(s: CardSearch): SQL | undefined {
   const parts: SQL[] = [];
   for (const t of searchTerms(s.q ?? "")) parts.push(ilike(cards.searchText, `%${t.replace(/[%_]/g, "")}%`));
+  if (s.game) parts.push(eq(cards.game, s.game));
   if (s.set) parts.push(eq(cards.setCode, s.set));
   if (s.type) parts.push(eq(cards.cardType, s.type));
   if (s.color) parts.push(sql`${s.color} = any(${cards.colors})`);
@@ -60,6 +72,7 @@ export async function searchCards(db: Db, s: CardSearch) {
         id: cards.id,
         name: cards.name,
         setCode: cards.setCode,
+        game: cards.game,
         cardType: cards.cardType,
         colors: cards.colors,
         rarityCode: cards.rarityCode,
@@ -88,12 +101,15 @@ export async function searchCards(db: Db, s: CardSearch) {
  * hundreds of cards, so filtering a capped result set would leave a leader
  * search with almost no leaders in it.
  */
-export async function quickSearch(db: Db, q: string, limit = 12, cardType?: string) {
+export async function quickSearch(db: Db, q: string, limit = 12, cardType?: string, game?: Game) {
   const terms = searchTerms(q);
   if (terms.length === 0) return [];
   const where = and(
     ...terms.map((t) => ilike(cards.searchText, `%${t.replace(/[%_]/g, "")}%`)),
     ...(cardType ? [eq(cards.cardType, cardType)] : []),
+    // Scoped to one game when the caller has one in mind — a Fusion World deck
+    // should not offer Masters cards in its search box.
+    ...(game ? [eq(cards.game, game)] : []),
   );
   const exact = q.trim().toUpperCase();
   return db
@@ -101,6 +117,7 @@ export async function quickSearch(db: Db, q: string, limit = 12, cardType?: stri
       id: cards.id,
       name: cards.name,
       setCode: cards.setCode,
+      game: cards.game,
       cardType: cards.cardType,
       colors: cards.colors,
       rarityCode: cards.rarityCode,
@@ -119,17 +136,34 @@ export async function quickSearch(db: Db, q: string, limit = 12, cardType?: stri
     .limit(limit);
 }
 
-export async function listSets(db: Db) {
-  return db.select().from(cardSets).orderBy(desc(cardSets.sortKey));
+export async function listSets(db: Db, opts: { game?: Game } = {}) {
+  return db
+    .select()
+    .from(cardSets)
+    .where(opts.game ? eq(cardSets.game, opts.game) : undefined)
+    .orderBy(desc(cardSets.sortKey));
 }
 
-export async function listRarities(db: Db) {
-  const rows = await db
-    .select({ code: cards.rarityCode, label: cards.rarity, n: sql<number>`count(*)::int` })
+/**
+ * Rarity codes for the filter dropdown. Grouped by *code* rather than by the
+ * full label, because both games use "SR" and a dropdown cannot offer the same
+ * value twice; `min(rarity)` picks one label to show it under.
+ */
+export async function listRarities(db: Db, opts: { game?: Game } = {}) {
+  return db
+    .select({ code: cards.rarityCode, label: sql<string>`min(${cards.rarity})`, n: sql<number>`count(*)::int` })
     .from(cards)
-    .groupBy(cards.rarityCode, cards.rarity)
+    .where(opts.game ? eq(cards.game, opts.game) : undefined)
+    .groupBy(cards.rarityCode)
     .orderBy(desc(sql`count(*)`));
-  return rows;
+}
+
+/** Sets grouped by game, for a picker that shows both at once. */
+export async function listSetsByGame(db: Db) {
+  const sets = await listSets(db);
+  return (Object.keys(GAME_INFO) as Game[])
+    .map((game) => ({ game, label: GAME_INFO[game].short, sets: sets.filter((s) => s.game === game) }))
+    .filter((g) => g.sets.length > 0);
 }
 
 export async function getCard(db: Db, id: string) {

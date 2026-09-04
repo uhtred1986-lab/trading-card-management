@@ -2,8 +2,8 @@
  * Pure-function checks — no database, no network. Run with `tsx`.
  */
 import assert from "node:assert/strict";
-import { baseNumber, printLabel, printSuffix, shapeCatalog } from "../src/lib/catalog/deckplanet";
-import { setCodeOfNumber, setLineFor, setNameFor } from "../src/lib/catalog/sets";
+import { baseNumber, normaliseRarity, printLabel, printSuffix, shapeCatalog } from "../src/lib/catalog/deckplanet";
+import { gameOfNumber, gameOfSetCode, setCodeOfNumber, setLineFor, setNameFor } from "../src/lib/catalog/sets";
 import { legality, parseDeckList, type DeckCardRow } from "../src/lib/decks/queries";
 import { hasKeyword, leadingTags, parseDeckRules, rulesFor } from "../src/lib/decks/cardRules";
 import { formatCents, parseEuroInput } from "../src/lib/money";
@@ -30,6 +30,44 @@ assert.equal(setLineFor("BT26", null), "masters");
 assert.equal(setLineFor("BT25", null), "legacy");
 assert.equal(setLineFor("SD30", "2025-01-01"), "masters");
 assert.match(setNameFor("BT18"), /Dawn of the Z-Legends/);
+
+// ── the two games are told apart by card-number prefix alone ───────────────
+for (const [code, game] of [
+  ["BT18", "dbs"],
+  ["SD22", "dbs"],
+  ["P", "dbs"],
+  ["EX13", "dbs"],
+  ["TOKEN", "dbs"],
+  ["FB07", "fusion"],
+  ["FS01", "fusion"],
+  ["FP", "fusion"],
+  ["SB01", "fusion"],
+  ["ST01", "fusion"],
+  // "E" is the Energy Marker set; "E01" must not be read as "E" + a number.
+  ["E", "fusion"],
+  ["E01", "fusion"],
+] as const) {
+  assert.equal(gameOfSetCode(code), game, `${code} belongs to ${game}`);
+}
+assert.equal(gameOfNumber("FB07-021"), "fusion");
+assert.equal(gameOfNumber("BT18-020"), "dbs");
+assert.equal(gameOfNumber("T_CLO_01"), "dbs");
+// Every Fusion World set is one line, whatever its release date says.
+assert.equal(setLineFor("FB01", "2024-02-23"), "fusion");
+assert.equal(setLineFor("FS12", null), "fusion");
+assert.match(setNameFor("FB07"), /Wish For Shenron \(FB07\)/);
+assert.match(setNameFor("FS01"), /Starter Deck 01 – Son Goku/);
+assert.equal(setNameFor("SB01"), "Manga Booster 01");
+assert.equal(setCodeOfNumber("E-112"), "E");
+assert.equal(setCodeOfNumber("FP-060"), "FP");
+
+// Fusion World prints bare rarity codes; both games end up in "Name[CODE]" form
+// so one rarity dropdown can serve them.
+assert.equal(normaliseRarity("SR", "fusion"), "Super Rare[SR]");
+assert.equal(normaliseRarity("SR★", "fusion"), "Super Rare Alt Art[SR★]");
+assert.equal(normaliseRarity("Super Rare[SR]", "dbs"), "Super Rare[SR]", "the original game is left alone");
+assert.equal(normaliseRarity(null, "fusion"), "Unknown");
+assert.equal(normaliseRarity("ZZ", "fusion"), "ZZ", "an unknown code is passed through, not mangled");
 
 const shaped = shapeCatalog([
   {
@@ -60,6 +98,49 @@ const promo = shaped.cards.find((c) => c.id === "P-001")!;
 assert.equal(promo.name, "P-001", "null name falls back to number");
 assert.equal(promo.rarity, "Unknown");
 assert.equal(shaped.prints.filter((p) => p.cardId === "P-001").length, 1, "a standard print is always created");
+assert.ok(
+  shaped.cards.every((c) => c.game === "dbs" && c.imageUrl?.startsWith("https://storage.googleapis.com/")),
+  "the original game keeps its deckplanet art",
+);
+
+// The Fusion World payload is the same shape with three differences: bare
+// rarity codes, a numeric energy cost, and no images in the bucket.
+const fwShaped = shapeCatalog(
+  [
+    {
+      id: 1,
+      card_number: "FB07-021",
+      card_name: "Vegeta : DA",
+      card_type: "BATTLE",
+      card_color: "Red",
+      card_energy_cost: 5,
+      card_power: "30000",
+      card_rarity: "SR",
+      card_traits: ["Saiyan", "Demon Realm"],
+      limited_to: 4,
+      variants: [{ id: 2, card_number: "FB07-021_PR", card_rarity: "SR★" }],
+    },
+    { id: 3, card_number: "E-112", card_name: "Energy Marker", card_type: "ENERGY MARKER", card_rarity: null },
+  ] as never,
+  "fusion",
+);
+assert.equal(fwShaped.game, "fusion");
+assert.deepEqual(fwShaped.sets.sort(), ["E", "FB07"]);
+const vegeta = fwShaped.cards.find((c) => c.id === "FB07-021")!;
+assert.equal(vegeta.game, "fusion");
+assert.equal(vegeta.energyCost, "5", "a numeric cost is read like a printed one");
+assert.equal(vegeta.rarityCode, "SR");
+assert.deepEqual(vegeta.traits, ["Saiyan", "Demon Realm"]);
+assert.equal(vegeta.imageUrl, null, "Fusion World art comes from the price sync, not deckplanet");
+assert.equal(fwShaped.cards.find((c) => c.id === "E-112")!.cardType, "ENERGY MARKER");
+assert.deepEqual(
+  fwShaped.prints.filter((p) => p.cardId === "FB07-021").map((p) => [p.id, p.rarity]).sort(),
+  [
+    ["FB07-021", "Super Rare[SR]"],
+    ["FB07-021_PR", "Super Rare Alt Art[SR★]"],
+  ],
+);
+assert.ok(fwShaped.prints.every((p) => p.imageUrl === null));
 
 // ── price matching ─────────────────────────────────────────────────────────
 const lookup = {
@@ -68,14 +149,21 @@ const lookup = {
     ["BT18-020_SPR", "BT18-020_SPR"],
     ["BT6-060_PR", "BT6-060_PR"],
     ["BT6-060", "BT6-060"],
+    ["FB07-021", "FB07-021"],
+    ["FB07-021_PR", "FB07-021_PR"],
   ]),
-  cardIds: new Set(["BT18-020", "BT6-060"]),
+  cardIds: new Set(["BT18-020", "BT6-060", "FB07-021"]),
 };
 assert.equal(markerOf("Omega Shenron (SPR)"), "spr");
 assert.equal(markerOf("Plain name"), null);
 assert.deepEqual(matchProduct("BT18-020", "Omega Shenron", lookup), { cardId: "BT18-020", printId: "BT18-020" });
 assert.deepEqual(matchProduct("BT18-020", "Omega Shenron (SPR)", lookup), { cardId: "BT18-020", printId: "BT18-020_SPR" });
 assert.deepEqual(matchProduct("BT6-060_PR", "Whatever", lookup), { cardId: "BT6-060", printId: "BT6-060_PR" });
+// Fusion World products match the same way now that its cards are imported;
+// TCGplayer's alt-art reprint groups mark the parallel print in the name.
+assert.deepEqual(matchProduct("FB07-021", "Vegeta : DA", lookup), { cardId: "FB07-021", printId: "FB07-021" });
+assert.deepEqual(matchProduct("FB07-021", "Vegeta : DA (Alternate Art)", lookup), { cardId: "FB07-021", printId: "FB07-021_PR" });
+// A number that is in no catalog is still no match.
 assert.deepEqual(matchProduct("FB01-001", "Fusion", lookup), { cardId: null, printId: null });
 assert.deepEqual(matchProduct(null, "Booster box", lookup), { cardId: null, printId: null });
 
@@ -115,6 +203,7 @@ const row = (cardId: string, zone: DeckCardRow["zone"], quantity: number, extra:
   skill: null,
   characters: [],
   traits: [],
+  game: "dbs",
   alloc: { owned: 0, reserved: 0, available: 0 },
   ...extra,
 });
@@ -167,6 +256,48 @@ assert.ok(offColour.issues.some((i) => /off-colour for a Red leader/.test(i.mess
 assert.equal(offColour.status, "incomplete", "an off-colour card is a warning, not an illegal deck");
 // Sideboard cards are a scratch zone — no copy limit, no colour rule.
 assert.deepEqual(legality([row("L", "leader", 1), ...fullMain, row("S", "side", 9, { colors: ["Blue"] })]).issues, []);
+
+// ── Fusion World deck rules ────────────────────────────────────────────────
+// Same shape of deck, three rules that differ: no Z-Deck, colour is a hard
+// rule, and a card from the other game can never be played.
+const fw = (cardId: string, zone: DeckCardRow["zone"], quantity: number, extra: Partial<DeckCardRow> = {}) =>
+  row(cardId, zone, quantity, { game: "fusion", ...extra });
+const fwMain = [...Array.from({ length: 12 }, (_, i) => fw(`F${i}`, "main", 4)), fw("F99", "main", 2)];
+const fwLegal = legality([fw("FL", "leader", 1), ...fwMain], "fusion");
+assert.equal(fwLegal.mainCount, 50);
+assert.equal(fwLegal.status, "legal");
+assert.deepEqual(fwLegal.issues, []);
+
+// 50–60 is the range here too. Spread over several numbers, or the 4-copy
+// limit would be what fails rather than the deck size.
+const fwExtra = (n: number) => Array.from({ length: Math.ceil(n / 4) }, (_, i) => fw(`FX${i}`, "main", Math.min(4, n - i * 4)));
+assert.equal(legality([fw("FL", "leader", 1), ...fwMain, ...fwExtra(10)], "fusion").status, "legal", "60 cards is legal");
+assert.equal(legality([fw("FL", "leader", 1), ...fwMain, ...fwExtra(11)], "fusion").status, "illegal", "61 cards is not");
+
+// Off-colour is illegal in Fusion World, where the original game only warns.
+const fwOffColour = legality([fw("FL", "leader", 1), ...fwMain.slice(1), fw("B1", "main", 4, { colors: ["Blue"] })], "fusion");
+assert.equal(fwOffColour.flags["main:B1"]?.severity, "illegal");
+assert.equal(fwOffColour.status, "illegal", "the leader's colours are enforced, not suggested");
+
+// There is no Z-Deck to put anything in.
+const fwZ = legality([fw("FL", "leader", 1), ...fwMain, fw("Z1", "z", 1, { cardType: "BATTLE" })], "fusion");
+assert.equal(fwZ.status, "illegal");
+assert.ok(fwZ.issues.some((i) => /no Z-Deck/.test(i.message)), "the reason names the missing zone");
+
+// Energy Markers are game pieces, not deck cards.
+const fwMarker = legality([fw("FL", "leader", 1), ...fwMain.slice(1), fw("E-112", "main", 4, { cardType: "ENERGY MARKER" })], "fusion");
+assert.equal(fwMarker.flags["main:E-112"]?.severity, "illegal");
+assert.match(fwMarker.flags["main:E-112"]!.label, /not deck cards/);
+
+// A card from the other game is flagged, never silently dropped.
+const mixed = legality([fw("FL", "leader", 1), ...fwMain.slice(1), row("BT18-020", "main", 4)], "fusion");
+assert.equal(mixed.flags["main:BT18-020"]?.severity, "illegal");
+assert.match(mixed.flags["main:BT18-020"]!.label, /Super card in a Fusion World deck/);
+// …and the same the other way round.
+const mixedBack = legality([row("L", "leader", 1), ...fullMain.slice(1), fw("FB07-021", "main", 4)]);
+assert.match(mixedBack.flags["main:FB07-021"]!.label, /Fusion World card in a Super deck/);
+// A mismatched card is reported once, as the wrong game — not also as off-colour.
+assert.equal(mixed.issues.filter((i) => i.cardId === "BT18-020").length, 1);
 
 
 // ── Deck-building rules printed on the cards themselves ───────────────────
@@ -283,6 +414,19 @@ assert.equal(normaliseNumber("BT18-020 SPR"), "BT18-020_SPR");
 assert.equal(normaliseNumber("P-181"), "P-181");
 assert.equal(normaliseNumber("BT1O-O2O"), "BT10-020", "O read as 0 after the prefix");
 assert.equal(normaliseNumber(null), null);
+// Fusion World numbers off a photo: two-digit starter decks, a bare-prefix
+// promo, and the Energy Marker sets.
+assert.equal(normaliseNumber("fb07 021"), "FB07-021");
+assert.equal(normaliseNumber("FS01-01"), "FS01-01");
+assert.equal(normaliseNumber("FP 060"), "FP-060");
+assert.equal(normaliseNumber("ST01-014"), "ST01-014");
+assert.equal(normaliseNumber("E01-03"), "E01-03");
+assert.equal(normaliseNumber("E 112"), "E-112");
+// A set code that ends in digits is still read as one, dash or no dash.
+assert.equal(normaliseNumber("E0103"), "E01-03");
+// The bare-prefix rule must not steal digits from a set that numbers itself.
+assert.equal(normaliseNumber("XD101"), "XD1-01");
+assert.equal(normaliseNumber("P181"), "P-181", "'P1-81' is not a set");
 assert.equal(nameSimilarity("Son Goku, Hope of Universe 7", "Son Goku Hope of Universe 7"), 1);
 assert.equal(nameSimilarity("Son Goku", "Vegeta"), 0);
 const seen = { name: "Omega Shenron", confidence: 0.9 };

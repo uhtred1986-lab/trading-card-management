@@ -20,6 +20,7 @@ import { SkillText } from "@/components/SkillText";
 import { MarketplacePanel } from "@/components/MarketplacePanel";
 import { DeckPicker } from "@/components/DeckPicker";
 import { deckOptions } from "@/lib/decks/add";
+import { GAME_INFO, gameOr } from "@/lib/catalog/games";
 import { addLotForm, deleteLotForm } from "@/app/collection/actions";
 
 export const dynamic = "force-dynamic";
@@ -37,7 +38,8 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
     lotsForCard(db, id),
     decksReserving(db, id),
     latestUsdEur(db),
-    deckOptions(db),
+    // Only decks that could legally hold this card are offered as a target.
+    deckOptions(db, { game: gameOr(card.game) }),
     knownOwners(db),
     currentUser(),
     listLocations(db),
@@ -93,6 +95,9 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
         <div>
           <div className="flex flex-wrap items-center gap-2 text-xs text-space-300">
             <span className="font-mono">{card.id}</span>
+            <Link href={`/cards?game=${gameOr(card.game)}`} className="hover:text-ki-300">
+              {GAME_INFO[gameOr(card.game)].short}
+            </Link>
             <Link href={`/cards?set=${card.setCode}`} className="hover:text-ki-300">
               {card.set.name}
             </Link>
@@ -170,7 +175,7 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
           <p className="mt-1 text-xs text-space-400">TCGplayer market price{usdEur ? ` converted at 1 USD = ${usdEur.toFixed(4)} EUR` : " in USD"}.</p>
         </section>
 
-        <MarketplacePanel card={{ id: card.id, name: card.name }} tcgUrl={tcgUrl} />
+        <MarketplacePanel card={{ id: card.id, name: card.name, game: card.game }} tcgUrl={tcgUrl} />
 
         <section>
           <h2 className="mb-2 text-sm font-semibold uppercase tracking-wider text-space-300">In your collection</h2>

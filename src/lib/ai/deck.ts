@@ -4,18 +4,36 @@
  * from catalog card text we hold — no forum scraping.
  */
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { and, asc, eq, inArray, ne, notInArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, notInArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "@/db";
 import { cardSets, cards, decks, ownedCards } from "@/db/schema";
 import { textArray } from "@/db/sqlx";
+import { currentLineFor, gameOfSetCode } from "@/lib/catalog/sets";
+import { deckRules, gameInfo, type Game } from "@/lib/catalog/games";
 import { deckToText, getDeck, type DeckCardRow } from "@/lib/decks/queries";
 import { hasKeyword, rulesFor } from "@/lib/decks/cardRules";
 import { MODEL, anthropic, recordRun } from "./client";
 
-const SYSTEM = `You are an expert Dragon Ball Super Card Game (Bandai; legacy sets BT1–BT25 and the current Masters line) deck analyst.
-Reason only from the card data given to you. Card text uses [brackets] for keywords, {braces} for card names and <angle brackets> for traits.
-Refer to cards by their exact card number (e.g. BT18-020) as given. Be concrete and concise.`;
+/**
+ * The two games share a brand and nothing else, so the model is told which one
+ * it is looking at before anything else — a Fusion World deck analysed as if
+ * it were Masters would be confidently wrong about its own rules.
+ */
+function systemFor(game: Game): string {
+  const info = gameInfo(game);
+  const r = info.deck;
+  return [
+    `You are an expert ${info.promptName} deck analyst.`,
+    "Reason only from the card data given to you. Card text uses [brackets] for keywords, {braces} for card names and <angle brackets> for traits.",
+    "Refer to cards by their exact card number (e.g. BT18-020) as given. Be concrete and concise.",
+    `Deck rules for this game: 1 Leader, ${r.main}–${r.mainMax} cards in the main deck, at most ${r.copies} copies of a card number` +
+      (r.zMax > 0 ? `, and a Z-Deck of up to ${r.zMax} Z- cards.` : ", and no Z-Deck at all.") +
+      (r.colorStrict
+        ? " Every card in the deck MUST share a colour with the Leader — an off-colour card is illegal, not merely weak."
+        : " Off-colour cards are legal but usually a mistake."),
+  ].join("\n");
+}
 
 /** Compact one-line card row for prompts. */
 export function cardLine(c: {
@@ -91,7 +109,7 @@ ${deck.metaNotes ? `PLAYER'S META NOTES:\n${deck.metaNotes}\n\n` : ""}Summarise 
     max_tokens: 8000,
     thinking: { type: "adaptive" },
     output_config: { effort: "medium", format: zodOutputFormat(DeckSummarySchema) },
-    system: SYSTEM,
+    system: systemFor(deck.game),
     messages: [{ role: "user", content: prompt }],
   });
   const { id, output } = await recordRun<DeckSummary>(db, "deck_summary", { deckId }, res, deckId);
@@ -143,7 +161,13 @@ async function candidatePool(db: Db, deck: NonNullable<Awaited<ReturnType<typeof
   const leader = deck.cards.find((c) => c.zone === "leader");
   const colours = leader ? [...leader.colors, "Colorless"] : null;
   const inDeck = deck.cards.map((c) => c.cardId);
-  const base = [eq(cards.isBanned, false), ne(cards.cardType, "TOKEN"), inDeck.length ? notInArray(cards.id, inDeck) : undefined];
+  const base = [
+    eq(cards.isBanned, false),
+    // The other game's cards are not an option, and neither are game pieces.
+    eq(cards.game, deck.game),
+    notInArray(cards.cardType, gameInfo(deck.game).nonDeckTypes),
+    inDeck.length ? notInArray(cards.id, inDeck) : undefined,
+  ];
   if (colours) base.push(sql`${cards.colors} <@ ${textArray(colours)}`);
 
   const select = {
@@ -171,7 +195,7 @@ async function candidatePool(db: Db, deck: NonNullable<Awaited<ReturnType<typeof
     .select(select)
     .from(cards)
     .innerJoin(cardSets, eq(cardSets.code, cards.setCode))
-    .where(and(...base, sql`(${cardSets.line} = 'masters' or ${cards.setCode} in ${deckSets.length ? deckSets : ["-"]})`))
+    .where(and(...base, sql`(${cardSets.line} = ${currentLineFor(deck.game)} or ${cards.setCode} in ${deckSets.length ? deckSets : ["-"]})`))
     .orderBy(sql`${cardSets.sortKey} desc`, asc(cards.id))
     .limit(POOL_CAP);
 }
@@ -190,6 +214,7 @@ export async function runWizard(
   const deck = await getDeck(db, deckId);
   if (!deck) throw new Error("Deck not found");
   if (deck.cards.length === 0) throw new Error("The deck is empty.");
+  const rules = deckRules(deck.game);
   const pool = await candidatePool(db, deck, scope);
   if (pool.length === 0) throw new Error(scope === "owned" ? "You don't own any on-colour cards outside this deck." : "No candidate cards found.");
 
@@ -205,7 +230,7 @@ export async function runWizard(
     : "";
   const ask = `${deckBlock(deck.cards)}
 ${bannedBlock}
-${deck.metaNotes ? `PLAYER'S META NOTES:\n${deck.metaNotes}\n\n` : ""}${context ? `WHAT THE PLAYER WANTS FROM THIS PASS:\n${context}\n\n` : ""}Propose card-for-card swaps that improve this deck. Each swap removes a card that is in the deck and adds one from the candidate pool. Keep the main deck at exactly 50 cards (outQuantity should equal inQuantity unless fixing a count problem) and respect the 4-copy limit. Replace the full played count of a card you are cutting — if the deck runs 3 copies and all 3 should go, say outQuantity 3.${context ? " Weigh the player's request above over general improvements." : ""}`;
+${deck.metaNotes ? `PLAYER'S META NOTES:\n${deck.metaNotes}\n\n` : ""}${context ? `WHAT THE PLAYER WANTS FROM THIS PASS:\n${context}\n\n` : ""}Propose card-for-card swaps that improve this deck. Each swap removes a card that is in the deck and adds one from the candidate pool. Keep the main deck at exactly ${rules.main} cards (outQuantity should equal inQuantity unless fixing a count problem) and respect the ${rules.copies}-copy limit. Replace the full played count of a card you are cutting — if the deck runs 3 copies and all 3 should go, say outQuantity 3.${context ? " Weigh the player's request above over general improvements." : ""}`;
 
   const call = (message: string) =>
     anthropic().messages.parse({
@@ -213,7 +238,7 @@ ${deck.metaNotes ? `PLAYER'S META NOTES:\n${deck.metaNotes}\n\n` : ""}${context 
       max_tokens: 12000,
       thinking: { type: "adaptive" },
       output_config: { effort: "high", format: zodOutputFormat(WizardSchema) },
-      system: [{ type: "text", text: SYSTEM }, { type: "text", text: poolBlock, cache_control: { type: "ephemeral" } }],
+      system: [{ type: "text", text: systemFor(deck.game) }, { type: "text", text: poolBlock, cache_control: { type: "ephemeral" } }],
       messages: [{ role: "user", content: message }],
     });
 
@@ -308,7 +333,8 @@ export async function reviewSet(db: Db, setCode: string): Promise<{ runId: numbe
     max_tokens: 12000,
     thinking: { type: "adaptive" },
     output_config: { effort: "high", format: zodOutputFormat(SetReviewSchema) },
-    system: SYSTEM,
+    // A Fusion World set has to be reviewed against Fusion World's rules.
+    system: systemFor(gameOfSetCode(setCode)),
     messages: [
       {
         role: "user",

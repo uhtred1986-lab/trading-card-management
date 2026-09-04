@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { db } from "@/db";
-import { CARD_TYPES, COLORS, listRarities, listSets, searchCards, type CardSearch } from "@/lib/catalog/queries";
+import { COLORS, cardTypesFor, listRarities, listSets, searchCards, type CardSearch } from "@/lib/catalog/queries";
+import { GAMES, parseGame } from "@/lib/catalog/games";
+import { GameFilter } from "@/components/GameFilter";
 import { allocationForCards } from "@/lib/decks/reservations";
 import { latestUsdEur } from "@/lib/pricing/fx";
 import { basePricesForCards, priceForFinish } from "@/lib/pricing/queries";
@@ -24,6 +26,7 @@ export default async function CardsPage({ searchParams }: { searchParams: Promis
   const search: CardSearch = {
     q: one(sp.q),
     set: one(sp.set),
+    game: parseGame(one(sp.game)),
     type: one(sp.type),
     color: one(sp.color),
     rarity: one(sp.rarity),
@@ -32,12 +35,16 @@ export default async function CardsPage({ searchParams }: { searchParams: Promis
     page: Number(one(sp.page) ?? 1),
   };
 
-  const [result, sets, rarities, usdEur] = await Promise.all([
+  // The set and rarity dropdowns follow the game filter, so a Fusion World
+  // view never offers a Masters set that would empty the page.
+  const [result, allSets, sets, rarities, usdEur] = await Promise.all([
     searchCards(db, search),
     listSets(db),
-    listRarities(db),
+    search.game ? listSets(db, { game: search.game }) : listSets(db),
+    listRarities(db, { game: search.game }),
     latestUsdEur(db),
   ]);
+  const gamesPresent = GAMES.filter((g) => allSets.some((s) => s.game === g));
   const ids = result.rows.map((r) => r.id);
   const [prices, alloc] = await Promise.all([basePricesForCards(db, ids), allocationForCards(db, ids)]);
 
@@ -75,8 +82,12 @@ export default async function CardsPage({ searchParams }: { searchParams: Promis
         </p>
       </div>
 
+      <GameFilter path="/cards" params={viewParams} game={search.game} available={gamesPresent} />
+
       <form className="grid grid-cols-2 gap-2 rounded-xl border border-space-700/70 bg-space-900/50 p-3 sm:grid-cols-4 lg:grid-cols-8" action="/cards">
         {view !== "grid" ? <input type="hidden" name="view" value={view} /> : null}
+        {/* The chips above own the game; the form carries the choice through a search. */}
+        {search.game ? <input type="hidden" name="game" value={search.game} /> : null}
         <input
           type="search"
           name="q"
@@ -95,7 +106,7 @@ export default async function CardsPage({ searchParams }: { searchParams: Promis
         </select>
         <select name="type" defaultValue={search.type ?? ""} className={select}>
           <option value="">Any type</option>
-          {CARD_TYPES.map((t) => (
+          {cardTypesFor(search.game).map((t) => (
             <option key={t} value={t}>
               {t}
             </option>

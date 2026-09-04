@@ -67,7 +67,9 @@ export async function abandon(gameId: number) {
 
 /** Fill the backlog from every deck you can actually play. */
 export async function sweepBacklog() {
-  const all = await listDecks(db);
+  // Only the decks the arena can play: the compiler this backlog feeds reads
+  // the original game's card text, not Fusion World's.
+  const all = await listDecks(db, { game: "dbs" });
   const playable = all.filter((d) => d.leader && d.mainCount >= 50);
   const ids = new Set<string>();
   for (const d of playable) {

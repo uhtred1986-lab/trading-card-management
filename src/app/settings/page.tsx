@@ -24,14 +24,14 @@ export default async function SettingsPage() {
       <section className="grid gap-3 md:grid-cols-2">
         <SyncCard
           title="Card catalog"
-          source="deckplanet — every DBS card (legacy + Masters), text, bans, prints, images"
+          source="deckplanet — both games: Dragon Ball Super (legacy + Masters) and Fusion World, with text, bans, prints and images"
           run={catalog}
           action={syncCatalogAction}
           button="Refresh catalog"
         />
         <SyncCard
           title="Market prices"
-          source="TCGplayer via tcgcsv.com (daily) + ECB USD→EUR rate. Also runs automatically at 06:00 UTC."
+          source="TCGplayer via tcgcsv.com (daily, both games) + ECB USD→EUR rate. Also fills in Fusion World card art, which deckplanet does not host. Runs automatically at 06:00 UTC."
           run={prices}
           extra={fx?.summary ? `FX ${JSON.stringify(fx.summary)}` : undefined}
           action={syncPricesAction}

@@ -98,8 +98,8 @@ export async function identifyCards(
   const { data, mediaType } = prepared;
   const instruction =
     mode === "single"
-      ? "This photo shows one Dragon Ball Super Card Game card. Identify it: read the card number printed in the bottom corner and the name."
-      : "This photo shows several Dragon Ball Super Card Game cards (a binder page, a spread, or a pile). List every distinct card you can see, reading each card number and name. Work systematically across the image, left to right then top to bottom.";
+      ? "This photo shows one Dragon Ball Super Card Game card, from either the original game or Fusion World. Identify it: read the card number printed in the bottom corner and the name."
+      : "This photo shows several Dragon Ball Super Card Game cards (a binder page, a spread, or a pile), from either the original game or Fusion World, possibly mixed. List every distinct card you can see, reading each card number and name. Work systematically across the image, left to right then top to bottom.";
 
   const res = await anthropic().messages.parse({
     model: MODEL,
@@ -107,7 +107,7 @@ export async function identifyCards(
     thinking: { type: "adaptive" },
     output_config: { effort: "medium", format: zodOutputFormat(ScanSchema) },
     system:
-      "You identify Dragon Ball Super Card Game cards (Bandai; not Fusion World). Card numbers look like BT18-020, SD22-02, EX13-16, P-181, TB1-005, DB2-010. Report numbers exactly as printed; if unsure of a digit, lower the confidence rather than guess. For every card also give a bounding box (fractions of the image) around its face so the user can compare it with the catalog art.",
+      "You identify Dragon Ball Super Card Game cards (Bandai). Both of Bandai's lines are in scope and a photo may mix them: the original game numbers cards like BT18-020, SD22-02, EX13-16, P-181, TB1-005, DB2-010, and Fusion World like FB07-021, FS01-01, FP-060, SB01-046, ST01-014. Report numbers exactly as printed; if unsure of a digit, lower the confidence rather than guess. For every card also give a bounding box (fractions of the image) around its face so the user can compare it with the catalog art.",
     messages: [
       {
         role: "user",

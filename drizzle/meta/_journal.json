@@ -134,6 +134,13 @@
       "when": 1788519085875,
       "tag": "0018_left_roland_deschain",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1788521413675,
+      "tag": "0019_closed_talon",
+      "breakpoints": true
     }
   ]
 }

@@ -51,6 +51,9 @@ export async function defsForCards(db: Db, ids: string[]): Promise<Record<string
 export async function deckInputFor(db: Db, deckId: number): Promise<{ input: DeckInput; cardIds: string[] } | null> {
   const deck = await db.query.decks.findFirst({ where: eq(decks.id, deckId) });
   if (!deck) return null;
+  // The engine implements the original game's rule manual only; a Fusion World
+  // deck is not playable here and must not be loaded as if it were.
+  if (deck.game !== "dbs") return null;
   const rows = await db.select({ cardId: deckCards.cardId, zone: deckCards.zone, quantity: deckCards.quantity }).from(deckCards).where(eq(deckCards.deckId, deckId));
   const leader = rows.find((r) => r.zone === "leader")?.cardId;
   if (!leader) return null;

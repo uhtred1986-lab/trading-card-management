@@ -2,14 +2,21 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { deckCardQuantity, searchCardsAction, setDeckCard } from "@/app/decks/actions";
+import { deckRules, type Game } from "@/lib/catalog/games";
 import type { Zone } from "@/lib/decks/queries";
 import { CardImage } from "./CardImage";
 import { ColorPill } from "./ColorPill";
 
 type Hit = Awaited<ReturnType<typeof searchCardsAction>>[number];
 
-/** Search-and-add panel for the deck page. Leaders go to the leader slot automatically. */
-export function DeckBuilder({ deckId }: { deckId: number }) {
+/**
+ * Search-and-add panel for the deck page. Leaders go to the leader slot
+ * automatically, and the search only ever returns cards from the deck's own
+ * game — a Fusion World deck should not be able to find a Masters card by
+ * accident.
+ */
+export function DeckBuilder({ deckId, game }: { deckId: number; game: Game }) {
+  const rules = deckRules(game);
   const [q, setQ] = useState("");
   const [hits, setHits] = useState<Hit[]>([]);
   const [zone, setZone] = useState<Zone>("main");
@@ -25,7 +32,7 @@ export function DeckBuilder({ deckId }: { deckId: number }) {
       setHits([]);
       return;
     }
-    timer.current = setTimeout(async () => setHits(await searchCardsAction(value)), 150);
+    timer.current = setTimeout(async () => setHits(await searchCardsAction(value, game)), 150);
   };
   useEffect(() => () => {
     if (timer.current) clearTimeout(timer.current);
@@ -34,7 +41,7 @@ export function DeckBuilder({ deckId }: { deckId: number }) {
   const add = (hit: Hit) =>
     start(async () => {
       const isLeader = /LEADER/.test(hit.cardType);
-      const targetZone: Zone = isLeader ? "leader" : /^Z-/.test(hit.cardType) && zone === "main" ? "z" : zone;
+      const targetZone: Zone = isLeader ? "leader" : /^Z-/.test(hit.cardType) && zone === "main" && rules.zMax > 0 ? "z" : zone;
       const current = targetZone === "leader" ? 0 : await deckCardQuantity(deckId, hit.id, targetZone);
       const r = await setDeckCard(deckId, hit.id, targetZone, current + 1);
       setMsg(r.ok ? `Added ${hit.name} → ${targetZone}` : `Blocked: short ${r.conflicts[0]?.short} × ${r.conflicts[0]?.name}`);
@@ -53,7 +60,7 @@ export function DeckBuilder({ deckId }: { deckId: number }) {
         />
         <select value={zone} onChange={(e) => setZone(e.target.value as Zone)} className={select} aria-label="Add to zone">
           <option value="main">Main</option>
-          <option value="z">Z-Deck</option>
+          {rules.zMax > 0 ? <option value="z">Z-Deck</option> : null}
           <option value="side">Side</option>
         </select>
       </div>
