@@ -317,10 +317,10 @@ the same game.
 | Phase | Delivers | Size |
 |---|---|---|
 | 0 | This proposal, Claude Design mockups (phone first), decisions in §12 | done / in progress |
-| 1 | Engine with tests, no UI: setup, phases, costs with colour, play, attack, combo, damage, keywords, Unison, Z-cards, tokens, win/loss. Exercised by scripted hot-seat games | XL |
-| 2 | Arena UI, **hot-seat** (you vs. you), phone layout first, then desktop: the board, legal-move highlighting, every animation in §4 | L |
-| 3 | Effect compiler + referee + card inspector + a coverage line on the setup screen ("38 of 42 cards compiled, 4 adjudicated at runtime") | M |
-| 4 | Claude opponent: view builder, menus, plans, two tiers, cost telemetry, end screen | M |
+| 1 | Engine with tests, no UI: setup, phases, costs with colour, play, attack, combo, damage, keywords, Unison, Z-cards, tokens, win/loss | done |
+| 2 | Arena UI, phone layout: the board, legal-move highlighting (animations still to come) | phone done |
+| 3 | Effect compiler + referee + card inspector + a coverage line on the setup screen | done |
+| 4 | Claude opponent: view builder, menus, two tiers, cost telemetry, end screen, post-game coaching | done |
 | 5 | Sounds, haptics, replay, event-log sheet polish | S |
 
 Phases 1–2 are pure engineering with no AI cost. Phase 3 is the first that spends tokens.
@@ -415,3 +415,71 @@ engine and a thin JSON API in front of the existing server actions — a bounded
 Concretely for phase 2: ship a web-app manifest and icon so the arena can be installed to the home
 screen and run without browser chrome, design the board at 390×844 first, test on the owner's phone
 before the desktop layout is touched.
+
+---
+
+## 14. The addendum, folded in (4 Sep 2026)
+
+`dbs-tcg-arena-addendum.md` arrived after this proposal and was checked against
+what had been built. Its five-point validation checklist came out as follows.
+
+- **Rules separate from presentation?** Yes. `src/lib/arena/engine/` imports
+  nothing outside itself — no React, no database, no app code — and its tests
+  need neither a database nor a network.
+- **A clean way to query Built decks?** Yes: `decks.is_built`, returned and
+  sorted on by `listDecks`, with the reservation module already computing
+  per-deck shortfalls.
+- **Structured per-card effect text in the catalog?** No, and this is the real
+  gap the addendum identified. There is free text and an unreliable keyword
+  scrape. Rather than add a hand-authored column for 6,500 cards, the text is
+  compiled into an effect language at load time (§6), memoised per definition.
+  A `card_scripts` table to persist that is still worth adding.
+- **An existing server-held key pattern?** Yes — one Anthropic client module,
+  with every call recorded in `ai_runs` with its token counts. The arena reuses
+  it rather than duplicating it.
+- **Model and caching specifics confirmed against the docs.** Two corrections
+  to the addendum: the default cache lifetime is five minutes, not "warm for
+  the whole session", so the arena asks for the one-hour lifetime; and Haiku
+  4.5 rejects the effort setting Opus 5 accepts, so the two tiers cannot share
+  one request shape.
+
+### Decisions taken on the addendum's open points
+
+1. **Client.** Stay with the web app. A native Android client would first need
+   a JSON API in front of the engine, because the pages talk to it through
+   server actions — a month of plumbing before a card is drawn, and two
+   clients to keep in step. The engine is pure TypeScript, so nothing built so
+   far would be wasted if that changes.
+2. **Deck choice.** Any legal deck may be played, not only Built ones. Two of
+   the owner's decks are Claude drafts he does not own, and being able to test
+   them is worth more than the tie-in to the reservation system.
+3. **Claude's deck.** One of your own decks, or one Claude drafts through the
+   button that already exists on the leaders page. No curated `ai_decks` pool:
+   a drafted deck is saved as an ordinary deck that can be inspected and edited.
+4. **Difficulty.** Model tiers only. Both sides play by identical rules, so a
+   win means something and the engine carries no special cases.
+5. **Hidden information** was already engineered rather than prompted around,
+   and was tightened further: Claude is sent its own hand, its own decklist and
+   everything public about both boards. Your hand, your life cards, your deck
+   order and your decklist are not in the request at all, so no instruction can
+   leak them.
+
+### What the cost work actually measured
+
+The addendum's optimisation list is implemented except for the opening book,
+with one finding worth recording. Caching only starts above a model-dependent
+prefix size: 512 tokens on Opus 5, but 4,096 on Haiku 4.5. The cached block —
+rules primer, Claude's decklist with full card text, and the engine's own
+reading of each card — measures about 3,200 tokens for a 50-card deck. So
+**Tournament games cache and Sparring games do not**: a measured Tournament run
+served 45 % of its input tokens from cache, and a Sparring run served none.
+Padding the prompt to trip the Haiku threshold would cost more than it saves,
+so it is left alone and said out loud instead.
+
+Measured per decision on 4 Sep 2026: Sparring about $0.004, Tournament about
+$0.007. The setup screen shows these as estimates until real games exist, then
+switches to the average of what your own games have cost.
+
+Still deliberately not built: the "plan, don't poll" batching of a whole Main
+Phase into one call, and the Batch-API opening book. Both are worth doing once
+there is a real sense of how many decisions a game takes.

@@ -7,6 +7,9 @@
  * Rule Manual v4.00 (`docs/rules/rulemanual.txt`).
  */
 
+import type { Op, ScriptFrame } from "./script";
+import type { Payment } from "./state";
+
 export type PlayerId = "p1" | "p2";
 export const PLAYERS: PlayerId[] = ["p1", "p2"];
 export const other = (p: PlayerId): PlayerId => (p === "p1" ? "p2" : "p1");
@@ -149,6 +152,8 @@ export interface CardInstance {
   extraAttacks: number;
   /** Skill indexes already resolved this turn under [Once per turn] / [Limit]. */
   usedThisTurn: number[];
+  /** 13-4-2: once a marker skill resolves on a card, no marker skill on it can be used again this turn. */
+  usedMarkerSkill: boolean;
   /** Skills negated by effects (index list) or all skills. */
   negated: number[] | "all";
 }
@@ -255,9 +260,34 @@ export type Prompt =
   | { kind: "orderPending"; player: PlayerId; candidates: number[] }
   | { kind: "chooseCards"; player: PlayerId; choice: CardChoice }
   | { kind: "zEnergyFromCombo"; player: PlayerId; candidates: string[] }
-  | { kind: "payCost"; player: PlayerId; action: Action; needed: number; specified: Partial<Record<Color, number>> }
+  /**
+   * An [Auto] skill whose cost the master may decline to pay (9-6-4). Costs
+   * that are really conditions ("if your Leader is red") are not asked about —
+   * 9-6-4-1-1 says those cannot be declined.
+   */
+  | { kind: "optionalCost"; player: PlayerId; card: string; skillIndex: number; describe: string }
+  /**
+   * Which energy to rest. Only asked when the choice can matter: when the
+   * colours left active afterwards would differ (3-8-2).
+   */
+  | { kind: "payCost"; player: PlayerId; action: Action; options: Payment[]; describe: string }
   | { kind: "offering"; player: PlayerId; card: string }
+  /** A skill the compiler could not read; Claude answers with a program in the effect language. */
+  | { kind: "referee"; player: PlayerId; request: RefereeRequest }
   | { kind: "gameOver" };
+
+export interface RefereeRequest {
+  card: string;
+  cardId: string;
+  cardName: string;
+  skillIndex: number;
+  /** The printed skill line, verbatim. */
+  text: string;
+  /** The clauses the compiler could not read. */
+  unsupported: string[];
+  master: PlayerId;
+  trigger?: Trigger;
+}
 
 export type CounterWindow = "play" | "attack" | "battleCardAttack" | "counter" | "skill";
 
@@ -277,7 +307,8 @@ export type Action =
   | { type: "chooseFirst"; player: PlayerId; first: PlayerId }
   | { type: "mulligan"; player: PlayerId; redraw: boolean }
   | { type: "charge"; player: PlayerId; card: string | null }
-  | { type: "play"; player: PlayerId; card: string; pay?: string[] }
+  /** `x` is the value the master picks for an X cost (1-2-2-2-1). */
+  | { type: "play"; player: PlayerId; card: string; x?: number; pay?: string[] }
   | { type: "playUnison"; player: PlayerId; card: string; x: number; pay?: string[] }
   | { type: "playZ"; player: PlayerId; card: string; x?: number; pay?: string[] }
   | { type: "growUnison"; player: PlayerId; card: string }
@@ -289,9 +320,13 @@ export type Action =
   | { type: "block"; player: PlayerId; card: string | null }
   | { type: "counter"; player: PlayerId; card: string | null; skill?: number; pay?: string[] }
   | { type: "orderPending"; player: PlayerId; index: number }
+  | { type: "optionalCost"; player: PlayerId; pay: boolean }
+  | { type: "payCost"; player: PlayerId; option: number }
   | { type: "choose"; player: PlayerId; cards: string[] }
   | { type: "zEnergyFromCombo"; player: PlayerId; card: string | null }
   | { type: "offering"; player: PlayerId; dropLife: boolean }
+  /** The referee's answer: a program in the effect language, or an empty one for "nothing happens". */
+  | { type: "refereeRuling"; player: PlayerId; ops: Op[] }
   | { type: "concede"; player: PlayerId };
 
 /** Append-only log; the UI animates from these and a replay folds them. */
@@ -380,8 +415,10 @@ export type FlowStep =
   | { op: "turn.endPhase" }
   | { op: "turn.cleanup" }
   | { op: "turn.next" }
-  | { op: "counter"; window: CounterWindow; responder: PlayerId; onNegate: FlowStep[] }
-  | { op: "play.resolve"; card: string; player: PlayerId; markers?: number }
+  | { op: "counter"; window: CounterWindow; responder: PlayerId }
+  | { op: "play.resolve"; card: string; player: PlayerId; markers?: number; mode?: "active" | "rest" }
+  | { op: "script.step"; frame: ScriptFrame }
+  | { op: "flipLeader"; card: string }
   | { op: "skill.resolve"; card: string; skill: number; player: PlayerId; trigger?: Trigger }
   | { op: "extra.finish"; card: string }
   | { op: "battle.afterDeclare" }

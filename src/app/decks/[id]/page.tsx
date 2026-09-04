@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/db";
 import { getDeck, ZONE_LABEL, ZONES, deckToText } from "@/lib/decks/queries";
-import { copyLimit, RULES, type DeckLegality } from "@/lib/decks/legality";
+import { copyLimit, mainCountLabel, mainCountOk, RULES, type DeckLegality } from "@/lib/decks/legality";
 import { CardFlagBadge, DeckStatusBadge } from "@/components/DeckStatusBadge";
 import { buildConflicts, decksReservingFor } from "@/lib/decks/reservations";
 import { CardFaces } from "@/components/CardFaces";
@@ -74,7 +74,7 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
             )}
           </div>
           <div className="flex flex-wrap gap-3 text-sm">
-            <Stat label="Main" value={`${deck.legality.mainCount}/${RULES.main}`} warn={deck.legality.mainCount !== RULES.main} />
+            <Stat label="Main" value={mainCountLabel(deck.legality.mainCount)} warn={!mainCountOk(deck.legality.mainCount)} />
             <Stat label="Z-Deck" value={`${deck.legality.zCount}/${RULES.zMax}`} warn={deck.legality.zCount > RULES.zMax} />
             <Stat label="Leader" value={`${deck.legality.leaderCount}`} warn={deck.legality.leaderCount !== 1} />
           </div>
@@ -228,7 +228,9 @@ function DeckIssues({ legality }: { legality: DeckLegality }) {
   if (legality.status === "legal" && legality.issues.length === 0) {
     return (
       <div className="space-y-1">
-        <p className="text-xs text-gain">Tournament-legal: one leader, {RULES.main} cards, copy limits respected.</p>
+        <p className="text-xs text-gain">
+          Tournament-legal: one leader, {RULES.main}–{RULES.mainMax} cards, copy limits respected.
+        </p>
         {rules}
       </div>
     );

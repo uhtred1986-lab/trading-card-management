@@ -12,6 +12,7 @@ import {
   serial,
   text,
   timestamp,
+  unique,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
@@ -511,6 +512,136 @@ export const wantList = pgTable(
 );
 
 /** Every Claude call, kept so results can be re-shown without re-paying for them. */
+/*
+ * ──────────────────────────────────────────────────────────────────────────
+ *  Arena — a game of the card game itself, played against Claude or hot-seat.
+ *  `state` is the engine's state; `actions` is the log that produced it, so a
+ *  game can be replayed exactly from its seed. The engine never reads these
+ *  rows: `src/lib/arena/games.ts` loads them, calls the engine, and saves.
+ * ──────────────────────────────────────────────────────────────────────────
+ */
+
+export const arenaGames = pgTable(
+  "arena_games",
+  {
+    id: serial("id").primaryKey(),
+    p1DeckId: integer("p1_deck_id").references(() => decks.id, { onDelete: "set null" }),
+    p2DeckId: integer("p2_deck_id").references(() => decks.id, { onDelete: "set null" }),
+    /** Deck names are copied in so a finished game still reads right if a deck is renamed. */
+    p1Name: text("p1_name").notNull(),
+    p2Name: text("p2_name").notNull(),
+    seed: integer("seed").notNull(),
+    /** hotseat | sparring | tournament */
+    mode: text("mode").notNull().default("hotseat"),
+    /** playing | over | abandoned */
+    status: text("status").notNull().default("playing"),
+    winner: text("winner"),
+    reason: text("reason"),
+    turn: integer("turn").notNull().default(0),
+    state: jsonb("state").notNull(),
+    /** Every action applied, in order — the game replays from seed + these. */
+    actions: jsonb("actions").notNull().default(sql`'[]'::jsonb`),
+    /** One line per event, for the log the board shows. */
+    log: jsonb("log").notNull().default(sql`'[]'::jsonb`),
+    /** What Claude has cost this game so far — shown on the end screen. */
+    aiCalls: integer("ai_calls").notNull().default(0),
+    aiInputTokens: integer("ai_input_tokens").notNull().default(0),
+    aiOutputTokens: integer("ai_output_tokens").notNull().default(0),
+    aiCachedTokens: integer("ai_cached_tokens").notNull().default(0),
+    /** Millionths of a US dollar, so even a cheap call is a whole number. */
+    aiCostMicros: integer("ai_cost_micros").notNull().default(0),
+    /**
+     * Keep the exact prompt text of every paid decision, so a finished game
+     * can be read back and the opponent tuned. Rows are a few KB each and a
+     * game has a few dozen, which is worth it for a single-player app.
+     */
+    debug: boolean("debug").notNull().default(true),
+    /** Claude's review of the finished game, in the deck-summary pattern. */
+    review: text("review"),
+    reviewAt: timestamp("review_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("arena_games_status_idx").on(t.status)],
+);
+
+/**
+ * Every decision the server took for a player, so a finished game can be read
+ * back move by move: what Claude was shown, what it picked, why, what it cost
+ * and how long it took. This is what makes the opponent tunable rather than a
+ * black box — `/arena/[id]/debug` renders it.
+ */
+export const arenaDecisions = pgTable(
+  "arena_decisions",
+  {
+    id: serial("id").primaryKey(),
+    gameId: integer("game_id")
+      .notNull()
+      .references(() => arenaGames.id, { onDelete: "cascade" }),
+    seq: integer("seq").notNull(),
+    turn: integer("turn").notNull(),
+    phase: text("phase").notNull(),
+    /** The prompt the engine was waiting on: main, combo, blocker, counter, referee … */
+    promptKind: text("prompt_kind").notNull(),
+    player: text("player").notNull(),
+    /** move | referee */
+    kind: text("kind").notNull().default("move"),
+    /** rule | claude | fallback — a rule means no API call was made. */
+    decidedBy: text("decided_by").notNull(),
+    /** One line on why it went this way. */
+    how: text("how").notNull(),
+    model: text("model"),
+    /** The numbered menu Claude was given. */
+    menu: jsonb("menu"),
+    chosenIndex: integer("chosen_index"),
+    chosenLabel: text("chosen_label"),
+    say: text("say"),
+    /** The exact snapshot sent, kept only when the game has debug turned on. */
+    promptText: text("prompt_text"),
+    inputTokens: integer("input_tokens").notNull().default(0),
+    outputTokens: integer("output_tokens").notNull().default(0),
+    cachedTokens: integer("cached_tokens").notNull().default(0),
+    costMicros: integer("cost_micros").notNull().default(0),
+    latencyMs: integer("latency_ms"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("arena_decisions_game_idx").on(t.gameId, t.seq)],
+);
+
+/**
+ * Card text the compiler could not read — the working list for extending
+ * `src/lib/arena/engine/compile.ts`. A row is one clause of one card's skill.
+ * The catalog sweep fills it for the decks you actually play; a referee ruling
+ * bumps `timesSeen` and records what Claude decided, which is a strong hint at
+ * what the compiler should emit.
+ */
+export const cardTextNotes = pgTable(
+  "card_text_notes",
+  {
+    id: serial("id").primaryKey(),
+    cardId: text("card_id")
+      .notNull()
+      .references(() => cards.id, { onDelete: "cascade" }),
+    skillIndex: integer("skill_index").notNull(),
+    /** The exact clause that defeated the parser. */
+    clause: text("clause").notNull(),
+    /** Its shape with numbers and names blanked, so like clauses group together. */
+    pattern: text("pattern").notNull(),
+    /** The whole printed skill line, for context when writing the rule. */
+    skillText: text("skill_text").notNull(),
+    /** How often it has actually come up in a game. */
+    timesSeen: integer("times_seen").notNull().default(0),
+    /** open | done | wontfix */
+    status: text("status").notNull().default("open"),
+    /** The last program Claude produced for it, as a worked example. */
+    lastRuling: jsonb("last_ruling"),
+    lastRulingWhy: text("last_ruling_why"),
+    firstSeenAt: timestamp("first_seen_at", { withTimezone: true }).notNull().defaultNow(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
+  },
+  (t) => [unique("card_text_notes_clause_key").on(t.cardId, t.skillIndex, t.clause), index("card_text_notes_pattern_idx").on(t.pattern)],
+);
+
 export const aiRuns = pgTable(
   "ai_runs",
   {

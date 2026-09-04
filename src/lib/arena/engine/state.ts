@@ -5,6 +5,9 @@
  * is given; `engine.ts` clones before calling.
  */
 import { canCombo, hasKeyword, keywordOf, skillsOf, specifiedCostOf, isZ, baseType } from "./cards";
+import { compileCardCached } from "./compile";
+import { matches } from "./filters";
+import type { Amount, Cond, Op, Ref, ScriptArea, ScriptFrame, Selector, Side } from "./script";
 import type { Area, CardDef, CardFace, Color, ContinuousEffect, GameEvent, GameState, KeywordSkill, PlayerId, PlayerState, Skill } from "./types";
 import { other } from "./types";
 
@@ -15,9 +18,38 @@ export interface GameContext {
 export const LIFE_AT_START = 8;
 export const OPENING_HAND = 6;
 
+/**
+ * Tokens (19) are made by effects and have no catalog row, so their whole
+ * definition lives in the card id. Encoding it there rather than in a context
+ * that only lives for one request keeps a saved game reloadable.
+ */
+export function tokenCardId(name: string, power: number, comboCost: number | null, comboPower: number | null, colors: Color[]): string {
+  return `TOKEN:${encodeURIComponent(name)}:${power}:${comboCost ?? ""}:${comboPower ?? ""}:${colors.join(",")}`;
+}
+
+export function tokenDefOf(cardId: string): CardDef {
+  const [, name, power, comboCost, comboPower, colors] = cardId.split(":");
+  const num = (x: string) => (x === "" ? null : Number(x));
+  return {
+    id: cardId,
+    name: decodeURIComponent(name ?? "Token"),
+    type: "TOKEN",
+    colors: (colors ? colors.split(",") : []).filter(Boolean) as Color[],
+    energyCost: null,
+    zEnergyCost: null,
+    power: num(power ?? "") ?? 0,
+    comboCost: num(comboCost ?? ""),
+    comboPower: num(comboPower ?? ""),
+    skill: null,
+    characters: [],
+    traits: [],
+  };
+}
+
 export function def(ctx: GameContext, s: GameState, id: string): CardDef {
   const inst = s.cards[id];
   if (!inst) throw new Error(`unknown card instance ${id}`);
+  if (inst.cardId.startsWith("TOKEN:")) return tokenDefOf(inst.cardId);
   const d = ctx.defs[inst.cardId];
   if (!d) throw new Error(`no definition for ${inst.cardId}`);
   return d;
@@ -76,6 +108,7 @@ export function skillsOfInstance(ctx: GameContext, s: GameState, id: string): Sk
 export function keywordsInForce(ctx: GameContext, s: GameState, id: string): KeywordSkill[] {
   const inst = s.cards[id];
   const out: KeywordSkill[] = [];
+  for (const e of staticEffects(ctx, s)) if (e.kind === "keyword" && e.target === id) out.push(e.value as KeywordSkill);
   if (!inst.hidden && inst.negated !== "all") {
     const d = def(ctx, s, id);
     const side = inst.flipped && d.back ? "back" : "front";
@@ -110,6 +143,7 @@ export function powerOf(ctx: GameContext, s: GameState, id: string): number {
   const f = face(ctx, s, id);
   let p = f.power ?? 0;
   if (has(ctx, s, id, "Servant")) p += 10000;
+  for (const e of staticEffects(ctx, s)) if (e.kind === "power" && e.target === id) p += e.value as number;
   for (const e of s.effects) if (e.kind === "power" && e.target === id) p += e.value as number;
   return p;
 }
@@ -117,8 +151,195 @@ export function powerOf(ctx: GameContext, s: GameState, id: string): number {
 export function comboPowerOf(ctx: GameContext, s: GameState, id: string): number {
   const d = def(ctx, s, id);
   let p = d.comboPower ?? 0;
+  for (const e of staticEffects(ctx, s)) if (e.kind === "comboPower" && e.target === id) p += e.value as number;
   for (const e of s.effects) if (e.kind === "comboPower" && e.target === id) p += e.value as number;
   return p;
+}
+
+// ── selectors ──────────────────────────────────────────────────────────────
+
+export function sideOf(master: PlayerId, side: Side | undefined): PlayerId[] {
+  if (side === "opponent") return [other(master)];
+  if (side === "both") return [master, other(master)];
+  return [master];
+}
+
+function areaCards(s: GameState, p: PlayerId, area: ScriptArea, frame: ScriptFrame): string[] {
+  const ps = s.players[p];
+  switch (area) {
+    case "leader":
+      return ps.leader ? [ps.leader] : [];
+    case "unison":
+      return ps.unison ? [ps.unison] : [];
+    case "play":
+      return cardsInPlay(s, p);
+    case "under":
+      return s.cards[frame.card]?.under.slice() ?? [];
+    default:
+      return ps[area].slice();
+  }
+}
+
+/**
+ * Cards a selector can pick. 22-16 [Barrier] removes a card from the choices
+ * of a skill mastered by its opponent; 20-4 does the same for "unaffected by
+ * skills", which the compiler never emits.
+ */
+export function resolveSelector(ctx: GameContext, s: GameState, frame: ScriptFrame, sel: Selector): string[] {
+  let out: string[] = [];
+  if (sel.special) {
+    const b = s.battle;
+    const pick =
+      sel.special === "self"
+        ? frame.card
+        : sel.special === "attacker"
+          ? b?.attacker
+          : sel.special === "guard"
+            ? b?.guard
+            : sel.special === "subject"
+              ? frame.subject
+              : sel.special === "leader"
+                ? s.players[frame.master].leader
+                : s.players[other(frame.master)].leader;
+    out = pick && s.cards[pick] ? [pick] : [];
+  } else if (sel.fromVar) {
+    out = (frame.vars[sel.fromVar] ?? []).filter((id) => s.cards[id]);
+  } else {
+    const area = sel.area ?? "battle";
+    for (const p of sideOf(frame.master, sel.side)) out.push(...areaCards(s, p, area, frame));
+  }
+  return out.filter((id) => {
+    const inst = s.cards[id];
+    if (!inst) return false;
+    if (sel.mode && inst.mode !== sel.mode) return false;
+    // 23-5-2: a Hidden Mode card has none of its front-side information.
+    if (sel.filter && (inst.hidden || !matches(def(ctx, s, id), sel.filter))) return false;
+    if (!sel.special && !sel.ignoreBarrier && sel.side !== "you" && has(ctx, s, id, "Barrier") && s.cards[id].owner !== frame.master && areaOf(s, id) !== "hand") return false;
+    return true;
+  });
+}
+
+export function resolveRef(ctx: GameContext, s: GameState, frame: ScriptFrame, ref: Ref): string[] {
+  if ("var" in ref) return (frame.vars[ref.var] ?? []).filter((id) => s.cards[id]);
+  return resolveSelector(ctx, s, frame, ref.sel);
+}
+
+export function amount(ctx: GameContext, s: GameState, frame: ScriptFrame, a: Amount): number {
+  if (typeof a === "number") return a;
+  if ("var" in a) return (frame.vars[a.var] ?? []).length;
+  return resolveSelector(ctx, s, frame, a.count).length;
+}
+
+export function condHolds(ctx: GameContext, s: GameState, frame: ScriptFrame, c: Cond): boolean {
+  switch (c.kind) {
+    case "count": {
+      const n = resolveSelector(ctx, s, frame, c.sel).length;
+      return (c.atLeast == null || n >= c.atLeast) && (c.atMost == null || n <= c.atMost);
+    }
+    case "life": {
+      const n = sideOf(frame.master, c.side).reduce((t, p) => t + s.players[p].life.length, 0);
+      return (c.atLeast == null || n >= c.atLeast) && (c.atMost == null || n <= c.atMost);
+    }
+    case "leaderColor": {
+      const l = s.players[frame.master].leader;
+      return !!l && def(ctx, s, l).colors.includes(c.color);
+    }
+    case "leaderMatches": {
+      const l = s.players[frame.master].leader;
+      return !!l && matches(def(ctx, s, l), c.filter);
+    }
+    case "chose":
+      return (frame.vars[c.var] ?? []).length > 0;
+    case "isTurnPlayer":
+      return s.turnPlayer === frame.master;
+  }
+}
+
+
+// ── static effects from [Permanent] skills (9-5, 9-9) ──────────────────────
+
+export interface StaticEffect {
+  source: string;
+  kind: "power" | "comboPower" | "keyword" | "cost";
+  target: string;
+  value: number | KeywordSkill;
+}
+
+/**
+ * [Permanent] skills are never activated; they simply hold while they are
+ * valid (9-5-1). So rather than being resolved once, they are read whenever a
+ * card's power, keywords or cost is asked for.
+ *
+ * Only the shapes the compiler understands take effect: power and combo-power
+ * changes, keyword grants, and cost reductions. A permanent skill it cannot
+ * read does nothing, which the coverage report says out loud — the referee
+ * cannot help here, because there is no moment at which to ask.
+ */
+export function staticEffects(ctx: GameContext, s: GameState): StaticEffect[] {
+  if (computingStatics) return []; // one level only; see the note below
+  computingStatics = true;
+  try {
+    const out: StaticEffect[] = [];
+    for (const p of ["p1", "p2"] as PlayerId[]) {
+      const ps = s.players[p];
+      // 9-1-3-1: a card's skills are valid in its own area. Cards in hand are
+      // included only for the skills that name the hand, such as cost reducers.
+      for (const src of [...cardsInPlay(s, p), ...ps.hand, ...ps.zDeck]) {
+        const inst = s.cards[src];
+        if (!inst || inst.hidden || inst.negated === "all") continue;
+        const d = def(ctx, s, src);
+        const side = inst.flipped && d.back ? "back" : "front";
+        const scripts = compileCardCached(d, side);
+        const inPlayNow = inPlay(s, src);
+        for (const sk of skillsOf(d, side)) {
+          if (sk.kind !== "permanent") continue;
+          if (inst.negated.includes(sk.index)) continue;
+          const sc = scripts.bySkill[sk.index];
+          if (!sc || sc.unsupported.length) continue;
+          collectStatics(ctx, s, out, src, p, sc.ops, inPlayNow);
+        }
+      }
+    }
+    return out;
+  } finally {
+    computingStatics = false;
+  }
+}
+
+/**
+ * Guards against a loop: resolving a selector can ask whether a card has
+ * [Barrier], which asks for its keywords, which would ask for the static
+ * effects again. Static selectors therefore ignore [Barrier] — it governs
+ * being *chosen* by a skill (22-16), not being covered by a permanent one —
+ * and this flag catches anything else.
+ */
+let computingStatics = false;
+
+function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], source: string, master: PlayerId, ops: Op[], inPlayNow: boolean): void {
+  const frame: ScriptFrame = { ops: [], ip: 0, vars: {}, card: source, master };
+  for (const op of ops) {
+    if (op.op === "if") {
+      if (condHolds(ctx, s, frame, op.cond)) collectStatics(ctx, s, out, source, master, op.then, inPlayNow);
+      else if (op.else) collectStatics(ctx, s, out, source, master, op.else, inPlayNow);
+      continue;
+    }
+    if (op.op === "costReduction") {
+      for (const id of staticTargets(ctx, s, frame, op.target)) out.push({ source, kind: "cost", target: id, value: op.amount });
+      continue;
+    }
+    if (!inPlayNow) continue; // the rest only hold while the card is in play
+    if (op.op === "power" || op.op === "comboPower") {
+      if (typeof op.amount !== "number") continue;
+      for (const id of staticTargets(ctx, s, frame, op.target)) out.push({ source, kind: op.op, target: id, value: op.amount });
+    } else if (op.op === "grant") {
+      for (const id of staticTargets(ctx, s, frame, op.target)) out.push({ source, kind: "keyword", target: id, value: op.keyword });
+    }
+  }
+}
+
+function staticTargets(ctx: GameContext, s: GameState, frame: ScriptFrame, ref: Ref): string[] {
+  if ("var" in ref) return [];
+  return resolveSelector(ctx, s, frame, { ...ref.sel, ignoreBarrier: true });
 }
 
 // ── moving cards ───────────────────────────────────────────────────────────
@@ -340,6 +561,92 @@ export function planPayment(ctx: GameContext, s: GameState, p: PlayerId, total: 
   return { rest: chosen.filter((x) => x !== "#marker"), markers: chosen.filter((x) => x === "#marker").length };
 }
 
+/**
+ * The genuinely different ways to pay a cost (3-8-2: a player may choose any
+ * energy they like). Two payments that rest the same combination of colours
+ * are the same choice, so they are folded together; when only one survives,
+ * the choice cannot matter and the caller pays it without asking.
+ */
+export function paymentOptions(
+  ctx: GameContext,
+  s: GameState,
+  p: PlayerId,
+  total: number,
+  specified: Partial<Record<Color, number>>,
+  limit = 8,
+): Payment[] {
+  const ps = s.players[p];
+  const leader = leaderColors(ctx, s, p);
+  const colorsOf = (id: string) => def(ctx, s, id).colors;
+  const byColors = new Map<string, string[]>();
+  for (const id of activeEnergy(s, p)) {
+    const k = colorsOf(id).join("/");
+    byColors.set(k, [...(byColors.get(k) ?? []), id]);
+  }
+  const keys = [...byColors.keys()].sort();
+  const out: Payment[] = [];
+  const seen = new Set<string>();
+
+  const covers = (picked: string[], markers: number): boolean => {
+    const need = { ...specified };
+    for (const id of picked) {
+      for (const c of colorsOf(id)) {
+        if ((need[c] ?? 0) > 0) {
+          need[c]!--;
+          break;
+        }
+      }
+    }
+    let m = markers;
+    for (const c of leader) {
+      while (m > 0 && (need[c] ?? 0) > 0) {
+        need[c]!--;
+        m--;
+      }
+    }
+    return !Object.values(need).some((n) => (n ?? 0) > 0);
+  };
+
+  const take = (i: number, left: number, picked: string[], counts: number[]) => {
+    if (out.length >= limit) return;
+    if (left === 0) {
+      if (!covers(picked, 0)) return;
+      const sig = counts.join(",");
+      if (seen.has(sig)) return;
+      seen.add(sig);
+      out.push({ rest: picked.slice(), markers: 0 });
+      return;
+    }
+    if (i >= keys.length) {
+      // Energy markers stand in for energy of the leader's colour (1-14-2).
+      if (left <= ps.energyMarkers && covers(picked, left)) {
+        const sig = [...counts, `m${left}`].join(",");
+        if (!seen.has(sig)) {
+          seen.add(sig);
+          out.push({ rest: picked.slice(), markers: left });
+        }
+      }
+      return;
+    }
+    const pool = byColors.get(keys[i])!;
+    for (let n = Math.min(pool.length, left); n >= 0; n--) take(i + 1, left - n, [...picked, ...pool.slice(0, n)], [...counts, n]);
+  };
+  take(0, total, [], []);
+  return out;
+}
+
+/** A short label for one payment, for the prompt: "2 Red, 1 Blue". */
+export function describePayment(ctx: GameContext, s: GameState, payment: Payment): string {
+  const counts = new Map<string, number>();
+  for (const id of payment.rest) {
+    const k = def(ctx, s, id).colors.join("/") || "Colourless";
+    counts.set(k, (counts.get(k) ?? 0) + 1);
+  }
+  const parts = [...counts.entries()].map(([k, n]) => `${n} ${k}`);
+  if (payment.markers) parts.push(`${payment.markers} energy marker${payment.markers === 1 ? "" : "s"}`);
+  return parts.join(", ") || "nothing";
+}
+
 export function pay(s: GameState, ev: GameEvent[], p: PlayerId, payment: Payment): void {
   for (const id of payment.rest) setMode(s, ev, id, "rest");
   if (payment.markers) {
@@ -362,11 +669,21 @@ export function playCost(ctx: GameContext, s: GameState, id: string, x = 0): { t
   const total = d.energyCost === "X" ? x : (d.energyCost ?? 0);
   const specified = d.energyCost === "X" ? {} : specifiedCostOf(d);
   const owner = s.cards[id].owner;
+  // A [Permanent] cost reducer lowers both the total and the specified cost (20-21-2).
+  let reduction = 0;
+  for (const e of staticEffects(ctx, s)) if (e.kind === "cost" && e.target === id) reduction += e.value as number;
+  let cut = { total: Math.max(0, total - reduction), specified: { ...specified } };
+  for (let left = reduction; left > 0; left--) {
+    const c = (Object.keys(cut.specified) as Color[]).find((k) => (cut.specified[k] ?? 0) > 0);
+    if (!c) break;
+    cut.specified[c] = cut.specified[c]! - 1;
+    if (!cut.specified[c]) delete cut.specified[c];
+  }
   // 22-19: [Warrior of Universe 7] on a card the player controls removes specified costs of Universe 7 cards.
   if (d.traits.some((t) => /universe 7/i.test(t)) && [s.players[owner].leader, ...s.players[owner].battle].some((c) => c && has(ctx, s, c, "Warrior of Universe 7"))) {
-    return { total, specified: {} };
+    cut = { total: cut.total, specified: {} };
   }
-  return { total, specified };
+  return cut;
 }
 
 export function canAffordPlay(ctx: GameContext, s: GameState, p: PlayerId, id: string, x = 0): boolean {

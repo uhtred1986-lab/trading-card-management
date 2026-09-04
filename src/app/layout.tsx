@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { BottomTabs } from "@/components/BottomTabs";
 import { HeaderNav } from "@/components/HeaderNav";
+import { SECONDARY_ITEMS } from "@/lib/navigation";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -26,13 +27,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <span className="text-xs uppercase tracking-widest text-space-300">Card Companion</span>
             </Link>
             <HeaderNav />
+            {/* The five bottom tabs cannot grow, so everything else lives here on a phone. */}
             <div className="ml-auto flex gap-1 sm:hidden">
-              <Link href="/leaders" className="rounded-md px-2 py-1 text-xs text-space-300 hover:text-space-50">
-                Leaders
-              </Link>
-              <Link href="/settings" className="rounded-md px-2 py-1 text-xs text-space-300 hover:text-space-50">
-                Settings
-              </Link>
+              {SECONDARY_ITEMS.map((item) => (
+                <Link key={item.href} href={item.href} className="rounded-md px-2 py-1 text-xs text-space-300 hover:text-space-50">
+                  {item.short ?? item.label}
+                </Link>
+              ))}
             </div>
           </div>
         </header>

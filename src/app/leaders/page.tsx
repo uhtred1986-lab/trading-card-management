@@ -2,7 +2,7 @@ import Link from "next/link";
 import { db } from "@/db";
 import { hasAnthropic } from "@/lib/ai/client";
 import { COLORS } from "@/lib/catalog/queries";
-import { RULES } from "@/lib/decks/legality";
+import { mainCountLabel, mainCountOk } from "@/lib/decks/legality";
 import { DeckStatusBadge } from "@/components/DeckStatusBadge";
 import { ownedLeaders } from "@/lib/leaders/queries";
 import { BuildDeckButton } from "@/components/BuildDeckButton";
@@ -105,9 +105,7 @@ export default async function LeadersPage({ searchParams }: { searchParams: Prom
                             {d.name}
                           </Link>
                           <DeckStatusBadge status={d.status} small />
-                          <span className={`ml-auto shrink-0 ${d.mainCount === RULES.main ? "text-space-400" : "text-ki-300"}`}>
-                            {d.mainCount}/{RULES.main}
-                          </span>
+                          <span className={`ml-auto shrink-0 ${mainCountOk(d.mainCount) ? "text-space-400" : "text-ki-300"}`}>{mainCountLabel(d.mainCount)}</span>
                         </li>
                       ))}
                     </ul>
