@@ -93,6 +93,10 @@ const AREA_WORDS: [RegExp, ScriptArea][] = [
   [/\bz-deck\b/, "zDeck"],
   [/\bz-energy\b/, "zEnergy"],
   [/\bunder this card\b/, "under"],
+  // Naming both areas is how the text says "on the table" (20-1-6), and it
+  // has to be read before either area alone — otherwise "in your Battle Area
+  // or Leader Area" becomes a Battle Area holding a Leader, which is nothing.
+  [/\b(?:battle|leader) area or (?:battle|leader) area\b/, "play"],
   [/\bleader cards?\b|\byour leader\b/, "leader"],
   [/\bbattle area\b|\bbattle cards?\b/, "battle"],
   // 20-1-6: an unqualified "cards" means the Leader Area and the Battle Area.
@@ -166,6 +170,8 @@ function filterFor(phrase: string, area: ScriptArea | null): CardFilter | undefi
   // In an area that only holds one kind of card, the type word is noise.
   if (area === "battle" && f.type === "BATTLE") f.type = null;
   if (area === "leader" && f.type === "LEADER") f.type = null;
+  // "Play" spans both areas, so naming either type narrows nothing there.
+  if (area === "play" && (f.type === "BATTLE" || f.type === "LEADER")) f.type = null;
   return f;
 }
 
@@ -446,6 +452,20 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // Another way to pay for this card's own [Counter] skill (5-3). The bare
   // sentence with no "by …" tail is only a reminder of where a [Counter] is
   // activated from, and `connective` skips it before we get here.
+  // The same waiver for playing the card rather than for its [Counter]. This
+  // has to be read before the "play …" rule below, which otherwise takes the
+  // sentence for an instruction to play the card — a [Permanent] that reads as
+  // an instruction is silently ignored, so the player pays after all.
+  if ((m = /^play this card from (?:your |their )?hand (.+)$/.exec(t))) {
+    const how = m[1];
+    if (/^without paying (?:its|the) energy cost$/.test(how)) return [{ op: "altCost", pay: "none", for: "play" }];
+    let mm: RegExpExecArray | null;
+    if ((mm = /^by adding (a|an|\d+) cards? from your life to your hand(?: instead of paying (?:its|the) energy cost)?$/.exec(how))) {
+      return [{ op: "altCost", pay: "life", n: countWord(mm[1]), for: "play" }];
+    }
+    return null;
+  }
+
   // ("You can" has already been stripped from the front of `t`.)
   if ((m = /^activate this card's \[counter\](?: skill)? from your hand (.+)$/.exec(t))) {
     const how = m[1];

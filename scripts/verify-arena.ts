@@ -154,6 +154,7 @@ const DEFS: Record<string, CardDef> = defsFrom([
   card("CHEAPCOMBO", { energyCost: 3, comboCost: 2, comboPower: 5000, skill: "[Permanent] Reduce the combo cost of this card in your hand by 2." }),
   card("ONLYONE", { energyCost: 1, name: "ONLYONE", skill: "[Permanent] Only 1 {ONLYONE} can be played in your Battle Area." }),
   card("RESTCOND", { energyCost: 1, skill: "[Permanent] If this card is in Rest Mode, your Battle Cards get +5000 power." }),
+  card("FREEPLAY", { energyCost: 2, power: 5000, skill: "[Permanent] If you have <V1> in your Battle Area or Leader Area, you can play this card from your hand without paying its energy cost." }),
   card("EXILE", { energyCost: 2, power: 5000, skill: "[Permanent] If this card would leave the Battle Area, remove it from the game instead." }),
   card("WARPER", { energyCost: 2, power: 5000, skill: "[Permanent] If this card would be removed from your Battle Area by a skill, send this card to your Warp instead." }),
   card("E-LIFE", {
@@ -1465,6 +1466,50 @@ function assertConsistentAfterDrop(s: GameState) {
   // "By your opponent's skills" is left unread on purpose: `move` knows a
   // skill did it but not whose, and guessing lets the wrong cards escape.
   assert.ok(one("[Permanent] If this card would be removed from your Battle Area by an opponent's skill, send it to your Warp instead.").unsupported.length > 0);
+}
+
+// ── playing a card for another price (5-3) ─────────────────────────────────
+
+{
+  // BT3-087's wording. It used to compile to an *instruction to play the
+  // card*, which a [Permanent] never carries out — so the card looked handled,
+  // never reached the referee, and the player paid the energy anyway.
+  const one = compileSkill(parseSkills("[Permanent] If you have <V1> in your Battle Area or Leader Area, you can play this card from your hand without paying its energy cost.")[0]);
+  assert.deepEqual(one.unsupported, []);
+  const gate = one.ops[0] as { op: string; cond: { kind: string; sel: { area: string; filter?: { type: string | null } } }; then: { op: string; for?: string }[] };
+  assert.equal(gate.op, "if");
+  // "Battle Area or Leader Area" is both areas, not a Battle Area holding a
+  // Leader — which is nothing, so the waiver could never have switched on.
+  assert.equal(gate.cond.sel.area, "play");
+  assert.equal(gate.cond.sel.filter?.type, null);
+  assert.deepEqual(gate.then, [{ op: "altCost", pay: "none", for: "play" }]);
+}
+
+{
+  // With the named card on the table, it plays for nothing — and there is no
+  // energy at all here, so nothing else could have paid for it.
+  let s = arena({ hand: ["FREEPLAY"], battle: ["V1"] });
+  assert.equal(s.players.p1.energy.length, 0);
+  assert.ok(
+    labels(s).some((x) => x === "Play FREEPLAY (for no energy)"),
+    "the printed price is offered",
+  );
+  const free = find(s, "p1", "hand", "FREEPLAY");
+  s = play(s, { type: "play", player: "p1", card: free, alt: true });
+  assert.ok(s.players.p1.battle.includes(free), "it was played");
+  assert.equal(s.players.p1.energy.length, 0, "and nothing was charged for it");
+  assertConsistent(s);
+}
+
+{
+  // Without the card the skill names, the waiver is not on the menu, and the
+  // card costs 2 like anything else.
+  const s = arena({ hand: ["FREEPLAY"], energy: ["V1", "V1"] });
+  assert.ok(!labels(s).some((x) => x.includes("for no energy")), "no waiver without the condition");
+  assert.ok(
+    labels(s).some((x) => x === "Play FREEPLAY (2)"),
+    "the printed cost is still there",
+  );
 }
 
 console.log("verify-arena: all checks passed");
