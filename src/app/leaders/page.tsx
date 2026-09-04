@@ -2,6 +2,8 @@ import Link from "next/link";
 import { db } from "@/db";
 import { hasAnthropic } from "@/lib/ai/client";
 import { COLORS } from "@/lib/catalog/queries";
+import { GAMES, GAME_INFO, parseGame } from "@/lib/catalog/games";
+import { GameFilter } from "@/components/GameFilter";
 import { mainCountLabel, mainCountOk } from "@/lib/decks/legality";
 import { DeckStatusBadge } from "@/components/DeckStatusBadge";
 import { ownedLeaders } from "@/lib/leaders/queries";
@@ -19,7 +21,13 @@ const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v |
 export default async function LeadersPage({ searchParams }: { searchParams: Promise<Params> }) {
   const sp = await searchParams;
   const color = one(sp.color);
-  const leaders = await ownedLeaders(db, { color });
+  const game = parseGame(one(sp.game));
+  // Fetched once for both filters: the game is cheap to apply here, and
+  // `ownedLeaders` does a legality pass that is not worth running twice.
+  const ofColour = await ownedLeaders(db, { color });
+  const leaders = game ? ofColour.filter((l) => l.game === game) : ofColour;
+  // The chosen game stays offered even when the colour filter empties it.
+  const gamesPresent = GAMES.filter((g) => g === game || ofColour.some((l) => l.game === g));
   const aiEnabled = hasAnthropic();
   const withDeck = leaders.filter((l) => l.decks.length).length;
   const built = leaders.filter((l) => l.decks.some((d) => d.isBuilt)).length;
@@ -39,7 +47,10 @@ export default async function LeadersPage({ searchParams }: { searchParams: Prom
         </Link>
       </div>
 
+      <GameFilter path="/leaders" params={{ color }} game={game} available={gamesPresent} />
+
       <form action="/leaders" className="flex flex-wrap items-center gap-2">
+        {game ? <input type="hidden" name="game" value={game} /> : null}
         <select name="color" defaultValue={color ?? ""} className={select}>
           <option value="">Any colour</option>
           {COLORS.map((c) => (
@@ -50,7 +61,7 @@ export default async function LeadersPage({ searchParams }: { searchParams: Prom
         </select>
         <button className="tap rounded-md border border-space-600 px-3 py-1.5 text-sm text-space-100 hover:bg-space-800">Filter</button>
         {color ? (
-          <Link href="/leaders" className="text-xs text-space-300 hover:text-ki-300">
+          <Link href={game ? `/leaders?game=${game}` : "/leaders"} className="text-xs text-space-300 hover:text-ki-300">
             Clear
           </Link>
         ) : null}
@@ -85,6 +96,7 @@ export default async function LeadersPage({ searchParams }: { searchParams: Prom
                   {l.backName ? <div className="truncate text-xs text-space-300">↻ {l.backName}</div> : null}
                   <div className="mt-1 flex flex-wrap items-center gap-1 text-xs text-space-300">
                     <span className="font-mono">{l.id}</span>
+                    {l.game !== "dbs" ? <span className="rounded border border-space-600 px-1 text-[10px] uppercase">{GAME_INFO[l.game].short}</span> : null}
                     <RarityBadge code={l.rarityCode} />
                     {l.colors.map((c) => (
                       <ColorPill key={c} color={c} small />
@@ -105,7 +117,7 @@ export default async function LeadersPage({ searchParams }: { searchParams: Prom
                             {d.name}
                           </Link>
                           <DeckStatusBadge status={d.status} small />
-                          <span className={`ml-auto shrink-0 ${mainCountOk(d.mainCount) ? "text-space-400" : "text-ki-300"}`}>{mainCountLabel(d.mainCount)}</span>
+                          <span className={`ml-auto shrink-0 ${mainCountOk(d.mainCount, d.game) ? "text-space-400" : "text-ki-300"}`}>{mainCountLabel(d.mainCount, d.game)}</span>
                         </li>
                       ))}
                     </ul>

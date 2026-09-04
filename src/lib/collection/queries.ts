@@ -1,6 +1,7 @@
 import { asc, desc, eq, inArray, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { cardPrints, cardSets, cards, deckCards, ownedCards, storageLocations } from "@/db/schema";
+import type { Game } from "@/lib/catalog/games";
 import type { Currency } from "@/lib/money";
 import { latestUsdEur } from "@/lib/pricing/fx";
 import { basePricesAsOf, priceForFinish, pricesForPrints } from "@/lib/pricing/queries";
@@ -56,8 +57,13 @@ export interface ValuedLot {
   marketEurCents: number | null;
 }
 
-/** Every lot, valued. Used by the dashboard and the collection list. */
-export async function valuedLots(db: Db): Promise<{ lots: ValuedLot[]; usdEur: number | null }> {
+/**
+ * Every lot, valued. Used by the dashboard and the collection list.
+ *
+ * `game` narrows to one game's cards, which is what makes the collection
+ * header's totals agree with the filter above the grid.
+ */
+export async function valuedLots(db: Db, opts: { game?: Game } = {}): Promise<{ lots: ValuedLot[]; usdEur: number | null }> {
   const [lots, usdEur] = await Promise.all([
     db
       .select({
@@ -70,7 +76,8 @@ export async function valuedLots(db: Db): Promise<{ lots: ValuedLot[]; usdEur: n
         owner: ownedCards.owner,
         locationId: ownedCards.locationId,
       })
-      .from(ownedCards),
+      .from(ownedCards)
+      .where(opts.game ? sql`exists (select 1 from ${cards} c where c.id = ${ownedCards.cardId} and c.game = ${opts.game})` : undefined),
     latestUsdEur(db),
   ]);
   const prices = await pricesForPrints(db, [...new Set(lots.map((l) => l.printId))]);
@@ -165,6 +172,7 @@ export async function collectionCards(
   opts: {
     q?: string;
     set?: string;
+    game?: Game;
     color?: string;
     finish?: "foil" | "normal";
     location?: number | "none";
@@ -173,7 +181,7 @@ export async function collectionCards(
     sort?: "value" | "name" | "number" | "recent";
   } = {},
 ) {
-  const { lots: allLots, usdEur } = await valuedLots(db);
+  const { lots: allLots, usdEur } = await valuedLots(db, { game: opts.game });
   let lots = allLots;
   if (opts.owner) lots = opts.owner === "none" ? lots.filter((l) => !l.owner) : lots.filter((l) => l.owner === opts.owner);
   if (opts.location === "none") lots = lots.filter((l) => l.locationId == null);
@@ -212,6 +220,7 @@ export async function collectionCards(
       id: cards.id,
       name: cards.name,
       setCode: cards.setCode,
+      game: cards.game,
       cardType: cards.cardType,
       colors: cards.colors,
       rarityCode: cards.rarityCode,
@@ -257,6 +266,7 @@ export interface CollectionCopy {
   name: string;
   setCode: string;
   setName: string;
+  game: string;
   cardType: string;
   colors: string[];
   rarityCode: string;
@@ -289,6 +299,8 @@ export async function collectionCopies(
   opts: {
     q?: string;
     set?: string;
+    /** One game's copies only; undefined shows both. */
+    game?: Game;
     color?: string;
     finish?: "foil" | "normal";
     location?: number | "none";
@@ -320,6 +332,7 @@ export async function collectionCopies(
         name: cards.name,
         setCode: cards.setCode,
         setName: cardSets.name,
+        game: cards.game,
         cardType: cards.cardType,
         colors: cards.colors,
         rarityCode: cards.rarityCode,
@@ -350,6 +363,7 @@ export async function collectionCopies(
     };
   });
 
+  if (opts.game) rows = rows.filter((r) => r.game === opts.game);
   if (opts.set) rows = rows.filter((r) => r.setCode === opts.set);
   if (opts.color) rows = rows.filter((r) => r.colors.includes(opts.color!));
   // Unlike the grid, filtering by finish drops the copies that don't match —
@@ -403,6 +417,7 @@ export async function collectionCopies(
       name: r.name,
       setCode: r.setCode,
       setName: r.setName,
+      game: r.game,
       cardType: r.cardType,
       colors: r.colors,
       rarityCode: r.rarityCode,
@@ -451,18 +466,19 @@ export async function movers(db: Db, days = 7, limit = 8) {
   return { rows: top.map((t) => ({ ...t, ...nameMap.get(t.cardId)! })), usdEur, days };
 }
 
-export async function breakdown(db: Db) {
-  const { lots, usdEur } = await valuedLots(db);
+export async function breakdown(db: Db, opts: { game?: Game } = {}) {
+  const { lots, usdEur } = await valuedLots(db, opts);
   const ids = [...new Set(lots.map((l) => l.cardId))];
-  if (ids.length === 0) return { bySet: [], byRarity: [], usdEur };
+  if (ids.length === 0) return { bySet: [], byRarity: [], byGame: [], usdEur };
   const meta = await db
-    .select({ id: cards.id, setCode: cards.setCode, setName: cardSets.name, rarity: cards.rarityCode, sort: cardSets.sortKey })
+    .select({ id: cards.id, setCode: cards.setCode, setName: cardSets.name, game: cards.game, rarity: cards.rarityCode, sort: cardSets.sortKey })
     .from(cards)
     .innerJoin(cardSets, eq(cardSets.code, cards.setCode))
     .where(sql`${cards.id} in ${ids}`);
   const m = new Map(meta.map((r) => [r.id, r]));
   const bySet = new Map<string, { code: string; name: string; sort: number; copies: number; valueEur: number }>();
   const byRarity = new Map<string, { code: string; copies: number; valueEur: number }>();
+  const byGame = new Map<string, { code: string; copies: number; valueEur: number }>();
   for (const l of lots) {
     const c = m.get(l.cardId);
     if (!c) continue;
@@ -475,10 +491,15 @@ export async function breakdown(db: Db) {
     r.copies += 1;
     r.valueEur += v;
     byRarity.set(c.rarity, r);
+    const g = byGame.get(c.game) ?? { code: c.game, copies: 0, valueEur: 0 };
+    g.copies += 1;
+    g.valueEur += v;
+    byGame.set(c.game, g);
   }
   return {
     bySet: [...bySet.values()].sort((a, b) => b.valueEur - a.valueEur),
     byRarity: [...byRarity.values()].sort((a, b) => b.valueEur - a.valueEur),
+    byGame: [...byGame.values()].sort((a, b) => b.valueEur - a.valueEur),
     usdEur,
   };
 }

@@ -4,11 +4,17 @@
  * from tcgcsv group data during the price sync when we don't know them.
  *
  * "Masters" is Bandai's current line (BT26 "Ultimate Advent", Oct 2024, onward).
- * Everything before is "legacy". Fusion World is a separate game and is never
- * imported.
+ * Everything before is "legacy". **Fusion World** is a separate game rather
+ * than another line of this one, so all of its sets carry the single line
+ * "fusion"; what tells the two games apart is `gameOfSetCode`, not the line.
+ *
+ * No prefix is shared between the games — Fusion World uses FB/FS/FP/SB/ST/E,
+ * the original game uses BT/EX/SD/TB/EB/DB/XD/P — so a card number on its own
+ * says which game a card belongs to.
  */
+import { DEFAULT_GAME, type Game } from "./games";
 
-export type SetLine = "legacy" | "masters";
+export type SetLine = "legacy" | "masters" | "fusion";
 
 const MASTERS_FROM_BT = 26;
 const MASTERS_FROM_DATE = "2024-10-01";
@@ -117,8 +123,79 @@ const FIXED: Record<string, string> = {
   TOKEN: "Tokens",
 };
 
-/** Sort order: series family first, then number. Newest boosters come last. */
-const FAMILY_ORDER = ["BT", "TB", "EB", "DB", "XD", "SD", "EX", "P", "TOKEN"];
+// ── Fusion World ───────────────────────────────────────────────────────────
+
+/** FB = booster. Names as TCGplayer publishes them (category 80 groups). */
+const FB: Record<number, string> = {
+  1: "Awakened Pulse",
+  2: "Blazing Aura",
+  3: "Raging Roar",
+  4: "Ultra Limit",
+  5: "New Adventure",
+  6: "Rivals Clash",
+  7: "Wish For Shenron",
+  8: "Saiyan's Pride",
+  9: "Dual Evolution",
+  10: "Cross Force",
+  11: "Brightness of Hope",
+  12: "Reach the God",
+};
+
+/** FS = starter deck; FS11 and FS12 are the "Starter Deck EX" pair. */
+const FS: Record<number, string> = {
+  1: "Son Goku",
+  2: "Vegeta",
+  3: "Broly",
+  4: "Frieza",
+  5: "Bardock",
+  6: "Son Goku (Mini)",
+  7: "Vegeta (Mini)",
+  8: "Vegeta (Mini) Super Saiyan 3",
+  9: "Shallot",
+  10: "Giblet",
+  11: "EX: The Phase of Evolution",
+  12: "EX: The Beat of Ki",
+};
+
+const FIXED_FUSION: Record<string, string> = {
+  SB01: "Manga Booster 01",
+  SB02: "Manga Booster 02",
+  ST01: "Story Booster 01",
+  FP: "Promotion Cards",
+  // Energy Markers are game pieces rather than deck cards, and Bandai has
+  // numbered them four different ways across the sets.
+  E: "Energy Markers",
+  E01: "Energy Markers 01",
+  E02: "Energy Markers 02",
+  E03: "Energy Markers 03",
+};
+
+const FUSION_FAMILIES = ["FB", "FS", "SB", "ST", "FP", "E"];
+
+/**
+ * Which game a set code belongs to. The two games' prefixes are disjoint, so
+ * this is a lookup rather than a guess — but "E01" has to be matched whole
+ * before it is read as the "E" family plus a number.
+ */
+export function gameOfSetCode(code: string): Game {
+  if (FIXED_FUSION[code]) return "fusion";
+  const { family } = splitCode(code);
+  return FUSION_FAMILIES.includes(family) ? "fusion" : DEFAULT_GAME;
+}
+
+export function gameOfNumber(cardNumber: string): Game {
+  return gameOfSetCode(setCodeOfNumber(cardNumber));
+}
+
+/**
+ * Sort order: series family first, then number. Newest boosters come last.
+ *
+ * Fusion World's families sit *before* the original game's, so that in the
+ * highest-key-first order the set pickers use the original game's sets still
+ * come first and Fusion World's follow — the default view is both games at
+ * once, and the owner's collection is overwhelmingly the older game.
+ */
+const FAMILY_ORDER = [...FUSION_FAMILIES, "BT", "TB", "EB", "DB", "XD", "SD", "EX", "P", "TOKEN"];
 
 function splitCode(code: string): { family: string; num: number } {
   const m = /^([A-Z]+)(\d+)?$/.exec(code);
@@ -128,10 +205,13 @@ function splitCode(code: string): { family: string; num: number } {
 
 export function setNameFor(code: string): string {
   if (FIXED[code]) return FIXED[code];
+  if (FIXED_FUSION[code]) return FIXED_FUSION[code];
   const { family, num } = splitCode(code);
   if (family === "BT" && BT[num]) return `${BT[num]} (BT${num})`;
   if (family === "EX") return `Expansion Set ${String(num).padStart(2, "0")}${EX[num] ? ` – ${EX[num]}` : ""}`;
   if (family === "SD") return `Starter Deck ${String(num).padStart(2, "0")}${SD[num] ? ` – ${SD[num]}` : ""}`;
+  if (family === "FB") return `${FB[num] ?? `Booster ${num}`} (FB${String(num).padStart(2, "0")})`;
+  if (family === "FS") return `Starter Deck ${String(num).padStart(2, "0")}${FS[num] ? ` – ${FS[num]}` : ""}`;
   return code;
 }
 
@@ -142,10 +222,20 @@ export function setSortKey(code: string): number {
 }
 
 export function setLineFor(code: string, releasedOn: string | null): SetLine {
+  // Fusion World has only ever had the one line, so its sets are never split.
+  if (gameOfSetCode(code) === "fusion") return "fusion";
   const { family, num } = splitCode(code);
   if (family === "BT") return num >= MASTERS_FROM_BT ? "masters" : "legacy";
   if (releasedOn && releasedOn >= MASTERS_FROM_DATE) return "masters";
   return "legacy";
+}
+
+/**
+ * The line holding a game's *current* cards — what the AI pools mean by "worth
+ * buying today", as opposed to the whole back catalogue.
+ */
+export function currentLineFor(game: Game): SetLine {
+  return game === "fusion" ? "fusion" : "masters";
 }
 
 /** "BT18-020" → "BT18"; "T_CLO_01" → "TOKEN"; "P-181" → "P". */

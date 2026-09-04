@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/db";
-import { getDeck, ZONE_LABEL, ZONES, deckToText } from "@/lib/decks/queries";
-import { copyLimit, mainCountLabel, mainCountOk, RULES, type DeckLegality } from "@/lib/decks/legality";
+import { getDeck, ZONE_LABEL, ZONES, zonesFor, deckToText } from "@/lib/decks/queries";
+import { copyLimit, mainCountLabel, mainCountOk, type DeckLegality } from "@/lib/decks/legality";
+import { deckRules, GAME_INFO, type Game } from "@/lib/catalog/games";
+import { GameSelect } from "@/components/GameFilter";
 import { CardFlagBadge, DeckStatusBadge } from "@/components/DeckStatusBadge";
 import { buildConflicts, decksReservingFor } from "@/lib/decks/reservations";
 import { CardFaces } from "@/components/CardFaces";
@@ -39,6 +41,10 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
   const reservers = Object.fromEntries(reserversMap);
   const deckLocation = locations.find((l) => l.id === deck.locationId) ?? null;
   const leader = deck.cards.find((c) => c.zone === "leader");
+  const rules = deckRules(deck.game);
+  // A zone the game does not have is still shown when something is sitting in
+  // it, so cards can never go missing behind a rule change.
+  const zones = ZONES.filter((z) => zonesFor(deck.game).includes(z) || deck.cards.some((c) => c.zone === z));
   const input = "tap w-full rounded-md border border-space-600 bg-space-900 px-2 py-1.5 text-sm text-space-100";
 
   return (
@@ -74,18 +80,23 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
             )}
           </div>
           <div className="flex flex-wrap gap-3 text-sm">
-            <Stat label="Main" value={mainCountLabel(deck.legality.mainCount)} warn={!mainCountOk(deck.legality.mainCount)} />
-            <Stat label="Z-Deck" value={`${deck.legality.zCount}/${RULES.zMax}`} warn={deck.legality.zCount > RULES.zMax} />
+            <Stat label="Main" value={mainCountLabel(deck.legality.mainCount, deck.game)} warn={!mainCountOk(deck.legality.mainCount, deck.game)} />
+            {/* Fusion World has no Z-Deck, so the tile only appears when the
+                game has one — or when stray Z-cards need pointing at. */}
+            {rules.zMax > 0 || deck.legality.zCount > 0 ? (
+              <Stat label="Z-Deck" value={`${deck.legality.zCount}/${rules.zMax}`} warn={deck.legality.zCount > rules.zMax} />
+            ) : null}
             <Stat label="Leader" value={`${deck.legality.leaderCount}`} warn={deck.legality.leaderCount !== 1} />
+            <Stat label="Game" value={GAME_INFO[deck.game].short} />
           </div>
-          <DeckIssues legality={deck.legality} />
+          <DeckIssues legality={deck.legality} game={deck.game} />
           <BuiltToggle deckId={deck.id} isBuilt={deck.isBuilt} initialConflicts={conflicts} reservers={reservers} />
         </div>
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[1fr_minmax(300px,380px)]">
         <div className="space-y-4">
-          {ZONES.map((zone) => {
+          {zones.map((zone) => {
             const rows = deck.cards.filter((c) => c.zone === zone);
             if (!rows.length && zone !== "main") return null;
             const total = rows.reduce((n, r) => n + r.quantity, 0);
@@ -124,7 +135,7 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
                             </span>
                           </div>
                         </div>
-                        <DeckCardControls deckId={deck.id} cardId={r.cardId} zone={r.zone} quantity={r.quantity} limit={copyLimit(r)} />
+                        <DeckCardControls deckId={deck.id} cardId={r.cardId} zone={r.zone} quantity={r.quantity} limit={copyLimit(r, deck.game)} />
                         </div>
                         {suggestions.get(r.cardId)?.length ? <SwapSuggestions deckId={deck.id} zone={r.zone} suggestions={suggestions.get(r.cardId)!} /> : null}
                       </li>
@@ -137,7 +148,7 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
         </div>
 
         <aside className="space-y-4">
-          <DeckBuilder deckId={deck.id} />
+          <DeckBuilder deckId={deck.id} game={deck.game} />
           <DeckAI
             deckId={deck.id}
             aiSummary={deck.aiSummary}
@@ -153,6 +164,10 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
               <label className="block text-xs text-space-300">
                 Name
                 <input name="name" defaultValue={deck.name} className={input} />
+              </label>
+              <label className="block text-xs text-space-300">
+                Game <span className="text-space-400">(decides which rules apply and which cards the search offers)</span>
+                <GameSelect value={deck.game} className={input} />
               </label>
               <label className="block text-xs text-space-300">
                 Description
@@ -196,7 +211,7 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
   );
 }
 
-function Stat({ label, value, warn }: { label: string; value: string; warn: boolean }) {
+function Stat({ label, value, warn = false }: { label: string; value: string; warn?: boolean }) {
   return (
     <span className={`rounded-md border px-2 py-0.5 ${warn ? "border-ki-500/40 text-ki-300" : "border-space-700 text-space-200"}`}>
       {label} <span className="font-semibold tabular-nums">{value}</span>
@@ -208,7 +223,8 @@ function Stat({ label, value, warn }: { label: string; value: string; warn: bool
  * Nothing here blocks anything: an illegal or half-finished deck saves fine,
  * this just says what a judge would say about it.
  */
-function DeckIssues({ legality }: { legality: DeckLegality }) {
+function DeckIssues({ legality, game }: { legality: DeckLegality; game: Game }) {
+  const RULES = deckRules(game);
   // Keywords like [Dragon Ball] carry their own limit, printed on the card.
   const rules = legality.keywordRules.length ? (
     <p className="text-[11px] text-space-400">

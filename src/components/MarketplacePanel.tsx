@@ -4,7 +4,7 @@ import { formatCents } from "@/lib/money";
 import { refreshListingsForm } from "@/app/cards/marketplace-actions";
 
 /** CardTrader section on the card page: cached listings, refresh, deep links. */
-export async function MarketplacePanel({ card, tcgUrl }: { card: { id: string; name: string }; tcgUrl: string | null }) {
+export async function MarketplacePanel({ card, tcgUrl }: { card: { id: string; name: string; game?: string | null }; tcgUrl: string | null }) {
   const [bps, listings] = await Promise.all([blueprintsFor(db, card.id), cachedListings(db, [card.id])]);
   const links = externalLinks(card, tcgUrl, bps[0]?.cardMarketIds);
   const fetchedAt = listings[0]?.fetchedAt ?? null;

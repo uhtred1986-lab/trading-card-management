@@ -2,6 +2,8 @@ import Link from "next/link";
 import { db } from "@/db";
 import { listDecks } from "@/lib/decks/queries";
 import { mainCountLabel, mainCountOk } from "@/lib/decks/legality";
+import { GAMES, GAME_INFO, parseGame } from "@/lib/catalog/games";
+import { GameFilter, GameSelect } from "@/components/GameFilter";
 import { DeckStatusBadge } from "@/components/DeckStatusBadge";
 import { CardImage } from "@/components/CardImage";
 import { ColorPill } from "@/components/ColorPill";
@@ -17,7 +19,10 @@ export default async function DecksPage({ searchParams }: { searchParams: Promis
   const sp = await searchParams;
   const raw = Array.isArray(sp.show) ? sp.show[0] : sp.show;
   const show: "all" | "built" | "virtual" = raw === "built" || raw === "virtual" ? raw : "all";
-  const decks = await listDecks(db);
+  const game = parseGame(Array.isArray(sp.game) ? sp.game[0] : sp.game);
+  const all = await listDecks(db);
+  const gamesPresent = GAMES.filter((g) => all.some((d) => d.game === g));
+  const decks = game ? all.filter((d) => d.game === game) : all;
   const built = decks.filter((d) => d.isBuilt);
   const virtual = decks.filter((d) => !d.isBuilt);
   const sections = [
@@ -41,10 +46,15 @@ export default async function DecksPage({ searchParams }: { searchParams: Promis
           <NewDeckWithClaude enabled={hasAnthropic()} />
           <form action={createDeckForm} className="flex gap-2">
             <input name="name" placeholder="New deck name" className="tap rounded-md border border-space-600 bg-space-900 px-2 py-1.5 text-sm text-space-100" />
+            {/* A deck belongs to one game from the moment it exists — its rules
+                and the cards its builder offers both follow from this. */}
+            <GameSelect value={game} className="tap rounded-md border border-space-600 bg-space-900 px-2 py-1.5 text-sm text-space-100" />
             <button className="tap rounded-md bg-ki-500 px-3 py-1.5 text-sm font-semibold text-space-950 hover:bg-ki-400">Create</button>
           </form>
         </div>
       </div>
+
+      <GameFilter path="/decks" params={{ show: show === "all" ? undefined : show }} game={game} available={gamesPresent} />
 
       {decks.length > 0 ? (
         <div className="flex flex-wrap gap-1.5">
@@ -57,7 +67,7 @@ export default async function DecksPage({ searchParams }: { searchParams: Promis
           ).map((f) => (
             <Link
               key={f.key}
-              href={f.key === "all" ? "/decks" : `/decks?show=${f.key}`}
+              href={`/decks?${new URLSearchParams({ ...(f.key === "all" ? {} : { show: f.key }), ...(game ? { game } : {}) }).toString()}`}
               aria-current={show === f.key}
               className={`tap rounded-lg border px-2.5 py-1 text-sm transition-colors ${
                 show === f.key ? "border-ki-500 bg-ki-500/10 text-space-50" : "border-space-700 text-space-300 hover:border-space-500"
@@ -94,6 +104,10 @@ export default async function DecksPage({ searchParams }: { searchParams: Promis
                       <div className="flex items-center gap-1.5">
                         <span className="truncate font-medium text-space-50">{d.name}</span>
                         {d.isBuilt ? <span className="rounded bg-ki-500 px-1.5 py-px text-[10px] font-bold uppercase text-space-950">Built</span> : null}
+                        {/* Only the odd one out is labelled — most decks are the original game. */}
+                        {d.game !== "dbs" ? (
+                          <span className="rounded border border-space-600 px-1.5 py-px text-[10px] font-semibold uppercase text-space-300">{GAME_INFO[d.game].short}</span>
+                        ) : null}
                         <DeckStatusBadge status={d.legality.status} small title={d.legality.issues.map((i) => i.message).join(" ")} />
                       </div>
                       <div className="truncate text-xs text-space-300">
@@ -104,7 +118,7 @@ export default async function DecksPage({ searchParams }: { searchParams: Promis
                         {d.leader?.colors.map((c) => (
                           <ColorPill key={c} color={c} small />
                         ))}
-                        <span className={`ml-auto text-xs ${mainCountOk(d.mainCount) ? "text-space-300" : "text-ki-300"}`}>{mainCountLabel(d.mainCount)}</span>
+                        <span className={`ml-auto text-xs ${mainCountOk(d.mainCount, d.game) ? "text-space-300" : "text-ki-300"}`}>{mainCountLabel(d.mainCount, d.game)}</span>
                       </div>
                     </div>
                   </Link>

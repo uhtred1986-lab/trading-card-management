@@ -33,6 +33,13 @@ function pick(r: Row): number | null {
 
 const isFoilMarker = (m: string | null) => !!m && /foil/.test(m) && !/non-foil/.test(m);
 const isNonFoilMarker = (m: string | null) => !m || /non-foil/.test(m);
+/**
+ * TCGplayer names the foil sub-type "Foil" in the original game's category and
+ * "Holofoil" in Fusion World's; plenty of Fusion World cards are printed *only*
+ * as Holofoil, so missing this would leave them unpriced.
+ */
+const FOIL_SUB_TYPES = ["Foil", "Holofoil"];
+const isFoilSubType = (s: string) => FOIL_SUB_TYPES.includes(s);
 
 /** Latest Normal/Foil price per print for the given prints. */
 export async function pricesForPrints(db: Db, printIds: string[]): Promise<Map<string, PrintPrice>> {
@@ -63,10 +70,10 @@ export async function pricesForPrints(db: Db, printIds: string[]): Promise<Map<s
     const normal =
       list.find((r) => r.sub_type === "Normal" && isNonFoilMarker(r.marker)) ??
       list.find((r) => r.sub_type === "Normal");
-    // Foil: a foil-marked product's Normal price, else any Foil sub-type.
+    // Foil: a foil-marked product's Normal price, else any foil sub-type.
     const foil =
       list.find((r) => r.sub_type === "Normal" && isFoilMarker(r.marker)) ??
-      list.find((r) => r.sub_type === "Foil");
+      list.find((r) => isFoilSubType(r.sub_type));
     const newest = list.reduce((a, b) => (a.captured_on >= b.captured_on ? a : b));
     out.set(printId, {
       printId,
@@ -119,9 +126,11 @@ export async function basePricesAsOf(db: Db, cardIds: string[], asOf: string): P
     from cards c
     join card_prints cp on cp.card_id = c.id and cp.is_base
     join tcg_products p on p.print_id = cp.id and (p.marker is null or p.marker like '%non-foil%')
-    join tcg_prices pr on pr.product_id = p.id and pr.sub_type = 'Normal' and pr.captured_on <= ${asOf}
+    join tcg_prices pr on pr.product_id = p.id and pr.sub_type in ('Normal', 'Holofoil') and pr.captured_on <= ${asOf}
     where c.id in ${cardIds}
-    order by c.id, pr.captured_on desc
+    -- Newest snapshot wins; a Fusion World card printed only as Holofoil falls
+    -- back to that rather than dropping out of the movers list entirely.
+    order by c.id, pr.captured_on desc, (pr.sub_type = 'Normal') desc
   `),
   );
   for (const r of found) {

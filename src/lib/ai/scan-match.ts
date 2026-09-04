@@ -5,12 +5,28 @@
 
 export type MatchedBy = "number" | "number-name-differs" | "name" | null;
 
+/**
+ * Set codes that carry no number of their own, so every digit after the
+ * letters is part of the card number. Without this "P181" splits as "P1-81"
+ * and "FP060" as "FP0-60", because the pattern below cannot otherwise tell a
+ * set's digits from the card's. Sets whose code *does* end in digits ("E01")
+ * still work: they arrive with four digits and fall through to the pattern.
+ */
+const BARE_SET_CODES = new Set(["P", "FP", "E"]);
+
 /** Canonicalise a printed number: "bt18 020" → "BT18-020", "P 181" → "P-181", "BT18-020 SPR" → "BT18-020_SPR". */
 export function normaliseNumber(n: string | null): string | null {
   if (!n) return null;
   const s = n.trim().toUpperCase().replace(/\s+/g, "").replace(/[–—]/g, "-");
   // Common OCR slips: "BT18 020" → "BT18-020", "0" vs "O" after the letter prefix.
-  const m = /^([A-Z]{1,5})(\d{1,2})?-?(\d{2,3})([A-Z0-9_]*)$/.exec(s.replace(/O/g, (ch, i) => (i < 2 ? ch : "0")));
+  const fixed = s.replace(/O/g, (ch, i) => (i < 2 ? ch : "0"));
+  // The print suffix has to start with a letter or "_", so "E0103" is not read
+  // as E-010 with a stray "3" — it falls through and comes out as E01-03.
+  const bare = /^([A-Z]{1,5})(\d{2,3})(_?[A-Z][A-Z0-9_]*)?$/.exec(fixed);
+  if (bare && BARE_SET_CODES.has(bare[1])) {
+    return `${bare[1]}-${bare[2]}${bare[3] ? `_${bare[3].replace(/^_/, "")}` : ""}`;
+  }
+  const m = /^([A-Z]{1,5})(\d{1,2})?-?(\d{2,3})([A-Z0-9_]*)$/.exec(fixed);
   if (!m) return s;
   return `${m[1]}${m[2] ?? ""}-${m[3]}${m[4] ? `_${m[4].replace(/^_/, "")}` : ""}`;
 }
