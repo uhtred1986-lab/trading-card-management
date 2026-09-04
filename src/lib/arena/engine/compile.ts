@@ -408,6 +408,38 @@ function connective(clause: string): "skip" | "ifDone" | null {
   return null;
 }
 
+/**
+ * "…for each of your ≪Saiyan≫ cards", "…equal to the number of cards in your
+ * Drop Area": a number read off the board rather than printed. The clause in
+ * front of it is compiled on its own and its number is then swapped for the
+ * count — times the printed number, since "+5000 power for each" is far more
+ * common than "1 for each".
+ */
+function compileForEach(clause: string, c: Ctx): Op[] | null {
+  const t = clean(clause);
+  const m = /^(.+?)\s+(?:for each|equal to the number of)\s+(.+)$/.exec(t);
+  if (!m) return null;
+  const sel = parseTarget(m[2]);
+  if (!sel) return null;
+  // A count reads the whole area, not one card out of it.
+  const counting: Selector = { ...sel, count: 99, upTo: false };
+  // "Draw cards equal to the number of …" prints no number at all, because the
+  // count is the number.
+  if (/^draw cards?$/.test(m[1])) return [{ op: "draw", n: { count: counting } }];
+  const head = compileClause(m[1], c);
+  if (!head || head.length !== 1) return null;
+  const op = head[0];
+  // Only the ops whose whole point is a number, and only when that number was
+  // printed — anything else would be a guess about which part varies.
+  if ((op.op === "draw" || op.op === "discard" || op.op === "damage" || op.op === "mill" || op.op === "addLife" || op.op === "energyMarker") && typeof op.n === "number") {
+    return [{ ...op, n: { count: counting, ...(op.n === 1 ? {} : { times: op.n }) } }];
+  }
+  if ((op.op === "power" || op.op === "comboPower") && typeof op.amount === "number") {
+    return [{ ...op, amount: { count: counting, ...(op.amount === 1 ? {} : { times: op.amount }) } }];
+  }
+  return null;
+}
+
 /** Try to read one clause. Returns null when the wording is not understood. */
 function compileClause(clause: string, c: Ctx): Op[] | null {
   const t = clause
@@ -418,6 +450,15 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     // the action itself; the clause before it has already recorded that.
     .replace(/\s+instead$/, "");
   let m: RegExpExecArray | null;
+
+  // A number read off the board has to be seen *first*: the patterns below
+  // match on a word boundary rather than the end of the clause, so "gets
+  // +5000 power for each card in your Drop" would otherwise read as a flat
+  // +5000 and say nothing about having dropped the rest of the sentence.
+  if (/\bfor each\b|\bequal to the number of\b/.test(t)) {
+    const counted = compileForEach(t, c);
+    if (counted) return counted;
+  }
 
   // Draw (5-1). "You may draw" is treated as taken: declining never helps.
   if ((m = /^draw (\d+) cards?$/.exec(t))) return [{ op: "draw", n: Number(m[1]) }];
@@ -447,7 +488,17 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // "The rest" is whatever is left of the cards just looked at.
   if (/^place the rest in (?:your |the )?drop(?: area)?$/.test(t)) return [{ op: "moveTo", target: { sel: { fromVar: "looked" } }, to: "drop", reveal: true }];
   if (/^shuffle your deck(?: if you looked through it| afterwards?)?$/.test(t)) return [{ op: "shuffle" }];
-  if ((m = /^look at (?:up to )?(\d+) cards? from the top of your deck$/.exec(t))) return [{ op: "look", n: Number(m[1]), as: "looked" }];
+  // Looking at a deck (20-11), which the text words half a dozen ways: either
+  // end of either deck, and the number before or after the word "top".
+  {
+    const look = /^look at (?:up to )?(?:the )?(?:(top|bottom) )?(?:(\d+) cards?|(the )?(top|bottom) card)(?: from| of)? (?:the )?(?:(top|bottom) of )?(your opponent's|your|their) deck$/.exec(t);
+    if (look) {
+      const end = look[1] ?? look[4] ?? look[5];
+      const n = look[2] ? Number(look[2]) : 1;
+      const side: Side | undefined = /opponent|their/.test(look[6]) ? "opponent" : undefined;
+      return [{ op: "look", n, as: "looked", ...(side ? { side } : {}), ...(end === "bottom" ? { from: "bottom" as const } : {}) }];
+    }
+  }
 
   // Another way to pay for this card's own [Counter] skill (5-3). The bare
   // sentence with no "by …" tail is only a reminder of where a [Counter] is
@@ -1010,7 +1061,35 @@ function describeRef(ref: Ref): string {
 }
 
 function describeAmount(a: Amount): string {
-  return typeof a === "number" ? `${a}` : "var" in a ? "that many" : "one per matching card";
+  if (typeof a === "number") return `${a}`;
+  if ("var" in a) return "that many";
+  return `${a.times ?? 1} for each of ${describeEach(a.count)}`;
+}
+
+/** The area as a person would name it, for "for each of your Battle Cards". */
+const AREA_NOUNS: Partial<Record<ScriptArea, string>> = {
+  play: "cards in play",
+  battle: "Battle Cards",
+  unison: "Unison Cards",
+  leader: "Leader",
+  drop: "cards in the Drop",
+  hand: "cards in hand",
+  deck: "cards in the deck",
+  life: "life cards",
+  energy: "energy",
+  warp: "cards in the Warp",
+  combo: "combo cards",
+  zDeck: "Z-Deck cards",
+  zEnergy: "Z-Energy",
+  removed: "removed cards",
+  under: "cards underneath",
+};
+
+function describeEach(sel: Selector): string {
+  if (sel.special) return describeSelector(sel);
+  const who = sel.side === "opponent" ? "their " : sel.side === "both" ? "" : "your ";
+  const mode = sel.mode ? ` in ${sel.mode} mode` : "";
+  return `${who}${AREA_NOUNS[sel.area ?? "play"] ?? "cards"}${mode}`;
 }
 
 /**
@@ -1095,11 +1174,16 @@ export function describeScript(ops: Op[]): string {
         parts.push(`switch ${describeRef(op.target)} to ${op.mode} mode`);
         break;
       case "power":
-        parts.push(`${describeRef(op.target)} ${(op.amount as number) >= 0 ? "+" : ""}${op.amount} power for the ${op.until}`);
+      case "comboPower": {
+        // A counted amount reads "+5000 power for each …", so the noun has to
+        // sit next to the number rather than at the end of the sentence.
+        const kind = op.op === "power" ? "power" : "combo power";
+        const a = op.amount;
+        if (typeof a === "number") parts.push(`${describeRef(op.target)} ${a >= 0 ? "+" : ""}${a} ${kind} for the ${op.until}`);
+        else if ("count" in a) parts.push(`${describeRef(op.target)} +${a.times ?? 1} ${kind} for each of ${describeEach(a.count)}, for the ${op.until}`);
+        else parts.push(`${describeRef(op.target)} +that many ${kind} for the ${op.until}`);
         break;
-      case "comboPower":
-        parts.push(`${describeRef(op.target)} ${(op.amount as number) >= 0 ? "+" : ""}${op.amount} combo power for the ${op.until}`);
-        break;
+      }
       case "grant":
         parts.push(`${describeRef(op.target)} gains [${(op.keyword as KeywordSkill).name}] for the ${op.until}`);
         break;

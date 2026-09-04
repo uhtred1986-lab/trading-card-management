@@ -61,7 +61,12 @@ export interface Selector {
   ignoreBarrier?: boolean;
 }
 
-export type Amount = number | { var: string } | { count: Selector };
+/**
+ * A number an effect needs. `count` is read off the board — "for each of your
+ * ≪Saiyan≫ cards" — and `times` multiplies it, because cards say "+5000 power
+ * for each" far more often than they say "1 for each".
+ */
+export type Amount = number | { var: string } | { count: Selector; times?: number };
 
 export type Ref = { var: string } | { sel: Selector };
 
@@ -88,7 +93,8 @@ export type Op =
   | { op: "shuffle"; side?: Side }
   | { op: "energyMarker"; n: Amount; side?: Side }
   | { op: "choose"; sel: Selector; as: string; reason?: string }
-  | { op: "look"; n: Amount; as: string; side?: Side }
+  /** `from` is the top of the deck unless the card says the bottom. */
+  | { op: "look"; n: Amount; as: string; side?: Side; from?: "top" | "bottom" }
   | { op: "ko"; target: Ref }
   /** `to: "under"` puts the card under `under`, or under the source card (23-2). */
   | { op: "moveTo"; target: Ref; to: ScriptArea; position?: "top" | "bottom"; mode?: "active" | "rest"; reveal?: boolean; under?: Ref }
@@ -276,9 +282,12 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         break;
 
       case "look": {
+        // 20-11: looking is not revealing — only the player looking sees them,
+        // which is why the cards are bound to a name rather than moved.
         const p = sideOf(master, op.side)[0];
         const n = amount(ctx, s, frame, op.n);
-        frame.vars[op.as] = s.players[p].deck.slice(0, n);
+        const deck = s.players[p].deck;
+        frame.vars[op.as] = op.from === "bottom" ? deck.slice(Math.max(0, deck.length - n)) : deck.slice(0, n);
         break;
       }
 

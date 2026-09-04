@@ -1554,4 +1554,49 @@ function assertConsistentAfterDrop(s: GameState) {
   assertConsistent(s);
 }
 
+// ── numbers read off the board, and looking at a deck (20-11) ──────────────
+
+{
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+
+  // The `count` amount has been in the language from the start and the
+  // compiler had never once emitted it.
+  const each = one("[Activate: Main] Draw 1 card for each of your Battle Cards.");
+  assert.deepEqual(each.unsupported, []);
+  assert.deepEqual(each.ops, [{ op: "draw", n: { count: { side: "you", area: "battle", filter: undefined, count: 99, upTo: false, mode: undefined, fromVar: undefined } } }]);
+
+  // "+5000 power for each" is a multiple of the count, not the count.
+  const power = one("[Activate: Main] This card gets +5000 power for each card in your Drop Area.");
+  assert.deepEqual(power.unsupported, []);
+  const amt = (power.ops[0] as { amount: { count: { area: string }; times?: number } }).amount;
+  assert.equal(amt.times, 5000);
+  assert.equal(amt.count.area, "drop");
+
+  // It has to be read before the power pattern, which matches on a word
+  // boundary and would otherwise take the +5000 and drop the rest in silence.
+  assert.notEqual(typeof (power.ops[0] as { amount: unknown }).amount, "number", "not a flat +5000");
+
+  // "Draw cards equal to the number of …" prints no number at all.
+  assert.deepEqual((one("[Activate: Main] Draw cards equal to the number of your Battle Cards.").ops[0] as { op: string }).op, "draw");
+
+  // Looking at a deck, in the half-dozen ways the text words it.
+  const look = (text: string) => one(`[Activate: Main] ${text}`).ops[0] as { op: string; n: number; side?: string; from?: string };
+  assert.deepEqual(look("Look at up to 3 cards from the top of your deck."), { op: "look", n: 3, as: "looked" });
+  assert.equal(look("Look at up to the top 5 cards of your deck.").n, 5, "the number can come after the word");
+  assert.equal(look("Look at up to 2 cards from the top of your opponent's deck.").side, "opponent");
+  assert.equal(look("Look at the bottom card of your deck.").from, "bottom");
+  assert.equal(look("Look at the bottom card of your deck.").n, 1, "a card is one card");
+}
+
+{
+  // Looking is not revealing (20-11): the cards are bound to a name, not moved.
+  DEFS.PEEK = { ...DEFS.V1, id: "PEEK", name: "PEEK", skill: "[Auto] When you play this card, look at the bottom card of your deck." };
+  let s = arena({ hand: ["PEEK"], energy: ["V1"] });
+  const deckSize = s.players.p1.deck.length;
+  const bottom = s.players.p1.deck[deckSize - 1];
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "PEEK") });
+  assert.equal(s.players.p1.deck.length, deckSize, "nothing left the deck");
+  assert.equal(s.players.p1.deck[s.players.p1.deck.length - 1], bottom, "and the bottom card is where it was");
+}
+
 console.log("verify-arena: all checks passed");

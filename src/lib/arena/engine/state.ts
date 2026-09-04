@@ -302,7 +302,7 @@ export function resolveRef(ctx: GameContext, s: GameState, frame: ScriptFrame, r
 export function amount(ctx: GameContext, s: GameState, frame: ScriptFrame, a: Amount): number {
   if (typeof a === "number") return a;
   if ("var" in a) return (frame.vars[a.var] ?? []).length;
-  return resolveSelector(ctx, s, frame, a.count).length;
+  return resolveSelector(ctx, s, frame, a.count).length * (a.times ?? 1);
 }
 
 export function condHolds(ctx: GameContext, s: GameState, frame: ScriptFrame, c: Cond): boolean {
