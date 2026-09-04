@@ -194,3 +194,8 @@ The same variables must exist in Vercel's project settings for the deployment. S
 - Money is integer cents + currency code; format with `formatCents`. Never float euros.
 - Card numbers are the catalog's ids (`BT18-020`); print ids add a suffix (`BT18-020_SPR`).
 - Keep `npm run typecheck`, `npm run lint` and `npm test` clean before committing.
+- After a PR merges, delete the merged remote branch (`gh pr merge --delete-branch`, or the
+  "Delete branch" button on GitHub) — do this unasked, but never delete a branch that hasn't
+  merged (`--no-merged` in `git branch -r --merged main`). There is one Neon database for dev,
+  preview and production (`DATABASE_URL` above) — no per-branch database, so a merged branch
+  needs no separate cleanup in Neon.
