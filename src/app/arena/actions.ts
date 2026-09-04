@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
-import { arenaBugReports, arenaGames, cards as cardsTable } from "@/db/schema";
+import { arenaFeedback, arenaGames, cardTextNotes, cards as cardsTable } from "@/db/schema";
 import { listDecks } from "@/lib/decks/queries";
 import { noteUnreadText, setNoteStatus, unreadClausesOf } from "@/lib/arena/ai/debug";
 import { cardDefFrom, deckInputFor } from "@/lib/arena/load";
@@ -31,7 +31,8 @@ export async function reportBug(gameId: number, note: string, cardId?: string | 
   if (!text) return { error: "say what went wrong, in a few words" };
   const game = await loadGame(db, gameId);
   if (!game) return { error: "no such game" };
-  await db.insert(arenaBugReports).values({
+  await db.insert(arenaFeedback).values({
+    kind: "bug",
     gameId,
     note: text,
     cardId: cardId || null,
@@ -43,16 +44,16 @@ export async function reportBug(gameId: number, note: string, cardId?: string | 
     log: game.log.slice(-40),
     legal: game.legal.map((l) => l.label),
   });
-  revalidatePath("/arena/bugs");
+  revalidatePath("/arena/feedback");
   return { error: null };
 }
 
-export async function setBugStatus(id: number, status: "open" | "fixed" | "wontfix") {
+export async function setFeedbackStatus(id: number, status: "open" | "fixed" | "wontfix") {
   await db
-    .update(arenaBugReports)
+    .update(arenaFeedback)
     .set({ status, resolvedAt: status === "open" ? null : new Date() })
-    .where(eq(arenaBugReports.id, id));
-  revalidatePath("/arena/bugs");
+    .where(eq(arenaFeedback.id, id));
+  revalidatePath("/arena/feedback");
 }
 
 /**
@@ -72,7 +73,11 @@ export async function saveRule(cardId: string, skillIndex: number, side: "front"
   if (p.unsupported.length) return { error: `still unread: ${p.unsupported.join(" | ")}` };
   if (!p.ops.length) return { error: "that reads as doing nothing — save it only if the skill really does nothing" };
   await saveScript(db, { cardId, skillIndex, side, ops: p.ops, source: "user", explanation: line.trim(), meaning: p.reads });
+  // Setting a rule by hand is you telling me the compiler could not read
+  // something, which no coverage run can say — so it lands with the rest.
+  await db.insert(arenaFeedback).values({ kind: "rule", cardId, skillIndex, note: line.trim(), resolution: p.reads });
   revalidatePath("/arena/rules");
+  revalidatePath("/arena/feedback");
   return { error: null };
 }
 
@@ -166,11 +171,25 @@ export async function markNote(noteId: number, status: "open" | "done") {
  * for teaching the compiler the wording.
  */
 export async function explainCard(noteId: number, explanation: string): Promise<{ error: string | null }> {
+  let meaning: string | null = null;
   try {
-    await clarifyCard(db, noteId, explanation);
+    const r = await clarifyCard(db, noteId, explanation);
+    meaning = r.clarification.meaning;
   } catch (err) {
     return { error: describeAiError(err) };
   }
+  // Explaining a card is the same kind of thing as reporting a bug: you saw
+  // something the measurements cannot. It goes to the same place.
+  const note = await db.query.cardTextNotes.findFirst({ where: eq(cardTextNotes.id, noteId) });
+  await db.insert(arenaFeedback).values({
+    kind: "card",
+    noteId,
+    cardId: note?.cardId ?? null,
+    skillIndex: note?.skillIndex ?? null,
+    note: explanation.trim(),
+    resolution: meaning,
+  });
   revalidatePath("/arena/backlog");
+  revalidatePath("/arena/feedback");
   return { error: null };
 }
