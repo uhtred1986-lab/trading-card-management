@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { act, advanceGame } from "@/app/arena/actions";
 import type { Action, LegalAction } from "@/lib/arena/engine";
+import type { Spotlight } from "@/lib/arena/games";
 import type { BoardView, CardView, SideView, Tappable } from "@/lib/arena/view";
 import { ArenaCard, type CardState } from "./ArenaCard";
 
@@ -24,6 +25,7 @@ export function ArenaBoard({
   legal,
   taps,
   log,
+  spotlight,
   playable,
   waitingOnServer,
 }: {
@@ -32,6 +34,8 @@ export function ArenaBoard({
   legal: LegalAction[];
   taps: Tappable;
   log: string[];
+  /** The skill that fired on the last action, with the art already resolved. */
+  spotlight: (Spotlight & { imageUrl: string | null }) | null;
   /** False for a finished or abandoned game: the board is then read-only. */
   playable: boolean;
   /**
@@ -118,6 +122,7 @@ export function ArenaBoard({
   return (
     <div ref={boardRef} className="arena relative mx-auto flex w-full max-w-7xl flex-col gap-2 sm:gap-3">
       <StepBanner step={step} />
+      <SkillSpotlight spotlight={spotlight} />
       <TopStrip view={view} />
 
       {/* Your Leader, the stage, their Leader. Stacked on a phone, in that order. */}
@@ -219,7 +224,10 @@ export function ArenaBoard({
             {log.length === 0 && <li>nothing has happened yet</li>}
           </ol>
         ) : (
-          <div className="flex gap-1 overflow-x-auto pb-1 sm:justify-center sm:gap-2 lg:gap-3">
+          // `safe center` centres a short hand but falls back to the start once
+          // it overflows — plain centring makes the first cards unreachable,
+          // because overflow to the left cannot be scrolled to.
+          <div className="flex gap-1 overflow-x-auto pb-1 sm:gap-2 sm:[justify-content:safe_center] lg:gap-3">
             {(view.you.hand ?? []).map((c) => (
               // The lift is what makes a hand feel like cards rather than a filmstrip.
               <div key={c.id} className="transition-transform duration-200 hover:-translate-y-2">
@@ -274,7 +282,7 @@ type CardProps = (c: CardView) => {
  */
 function BattleRow({ cards, cardProps, width, label }: { cards: CardView[]; cardProps: CardProps; width: number; label: string }) {
   return (
-    <div className="flex min-h-[calc(78px*var(--arena,1))] items-center justify-center gap-1.5 overflow-x-auto sm:gap-2 lg:gap-3">
+    <div className="flex min-h-[calc(78px*var(--arena,1))] items-center gap-1.5 overflow-x-auto [justify-content:safe_center] sm:gap-2 lg:gap-3">
       {cards.map((c) => (
         <ArenaCard key={c.id} {...cardProps(c)} width={width} drop />
       ))}
@@ -501,6 +509,51 @@ function StepBanner({ step }: { step: string }) {
       <p key={shown.key} className="arena-banner select-none text-4xl font-black uppercase italic tracking-tight text-space-50 drop-shadow-[0_4px_24px_rgba(242,140,15,0.7)] sm:text-6xl lg:text-7xl">
         {shown.text}
       </p>
+    </div>
+  );
+}
+
+/**
+ * The card whose text just fired, named with its own bracket tag and the
+ * clause that resolved. This is where the engine stops being a black box: it
+ * says which skill it read, and marks the ones it could not read on its own,
+ * which is exactly when Claude was asked to rule instead.
+ */
+function SkillSpotlight({ spotlight }: { spotlight: (Spotlight & { imageUrl: string | null }) | null }) {
+  const [shown, setShown] = useState<(Spotlight & { imageUrl: string | null }) | null>(null);
+  const seen = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!spotlight || seen.current === spotlight.seq) return;
+    const first = seen.current === null;
+    seen.current = spotlight.seq;
+    // On a reload the last skill is still on the row; don't replay it.
+    if (first) return;
+    setShown(spotlight);
+    const t = setTimeout(() => setShown(null), 4000);
+    return () => clearTimeout(t);
+  }, [spotlight]);
+
+  if (!shown) return null;
+  return (
+    // Clear of the page header — it may overlay the board, not the game's name.
+    <div className="pointer-events-none fixed left-2 top-24 z-40 w-[19rem] sm:left-4 sm:top-28 sm:w-[23rem]" aria-live="polite">
+      <div
+        className={`arena-drop flex gap-2 rounded-xl border-l-4 bg-space-900/95 p-2 shadow-[0_12px_40px_rgba(0,0,0,0.6)] backdrop-blur ${
+          shown.unread ? "border-dbs-yellow" : "border-ki-500"
+        }`}
+      >
+        {shown.imageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element -- transient overlay, art already loaded by the board.
+          <img src={shown.imageUrl} alt="" className="card-aspect h-16 shrink-0 rounded object-cover sm:h-20" />
+        )}
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold text-space-50">{shown.name}</p>
+          <span className="mt-0.5 inline-block rounded bg-ki-500/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ki-300">{shown.label}</span>
+          <p className="mt-1 line-clamp-3 text-[11px] leading-snug text-space-200 sm:text-xs">{plainText(shown.text)}</p>
+          {shown.unread && <p className="mt-1 text-[10px] font-semibold text-dbs-yellow">Claude ruled on this one.</p>}
+        </div>
+      </div>
     </div>
   );
 }

@@ -13,6 +13,24 @@ const COLOR_BAR: Record<string, string> = {
   Colorless: "bg-space-500",
 };
 
+/**
+ * The keyword skills that change how a card behaves *while it sits on the
+ * board*, and the glyph each gets. The rest (Evolve, Union, Arrival …) matter
+ * when a card is played, not after, so they stay off the face and live in the
+ * card's detail panel instead.
+ */
+const KEYWORD_GLYPH: Record<string, string> = {
+  Blocker: "BLK",
+  Critical: "CRT",
+  Barrier: "BAR",
+  Indestructible: "IND",
+  Deflect: "DFL",
+  Revenge: "RVG",
+  Strike: "STR",
+  Attack: "ATK",
+  "Over Realm": "ORL",
+};
+
 export type CardState = "plain" | "legal" | "selected" | "dim" | "attacker" | "guard";
 
 const RING: Record<CardState, string> = {
@@ -151,6 +169,24 @@ export function ArenaCard({
             style={{ fontSize: px(8), width: px(13), height: px(13) }}
           >
             {card.cost}
+          </span>
+        )}
+        {/* What this card does while it stands there, without having to hover it. */}
+        {chrome && width >= 40 && (
+          <span className="absolute inset-x-0 bottom-[11%] flex flex-wrap justify-center gap-[3px] px-[2px]">
+            {card.keywords
+              .filter((k) => KEYWORD_GLYPH[k])
+              .slice(0, 3)
+              .map((k) => (
+                <span
+                  key={k}
+                  title={k}
+                  className="rounded-[2px] bg-space-950/85 px-[2px] font-bold leading-tight text-ki-300 ring-[0.5px] ring-ki-500/40"
+                  style={{ fontSize: px(6) }}
+                >
+                  {KEYWORD_GLYPH[k]}
+                </span>
+              ))}
           </span>
         )}
         {/* Combo is the number that decides a battle from hand — worth its own badge. */}

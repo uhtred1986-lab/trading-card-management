@@ -543,6 +543,13 @@ export const arenaGames = pgTable(
     actions: jsonb("actions").notNull().default(sql`'[]'::jsonb`),
     /** One line per event, for the log the board shows. */
     log: jsonb("log").notNull().default(sql`'[]'::jsonb`),
+    /**
+     * The skill that resolved on the last action, so the board can name the
+     * card whose text just fired. Engine events are per-`apply` and would
+     * otherwise be gone by the time the page re-renders. Null when the last
+     * action resolved no skill.
+     */
+    spotlight: jsonb("spotlight"),
     /** What Claude has cost this game so far — shown on the end screen. */
     aiCalls: integer("ai_calls").notNull().default(0),
     aiInputTokens: integer("ai_input_tokens").notNull().default(0),

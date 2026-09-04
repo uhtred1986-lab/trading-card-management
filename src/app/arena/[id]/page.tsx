@@ -78,7 +78,16 @@ export default async function ArenaGamePage({ params }: { params: Promise<{ id: 
         />
       )}
 
-      <ArenaBoard gameId={id} view={view} legal={game.legal} taps={taps} log={game.log} playable={playing} waitingOnServer={waitingOnServer} />
+      <ArenaBoard
+        gameId={id}
+        view={view}
+        legal={game.legal}
+        taps={taps}
+        log={game.log}
+        spotlight={game.spotlight ? { ...game.spotlight, imageUrl: images[game.spotlight.cardId]?.front ?? null } : null}
+        playable={playing}
+        waitingOnServer={waitingOnServer}
+      />
     </div>
   );
 }
