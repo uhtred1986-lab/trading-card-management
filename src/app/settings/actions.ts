@@ -36,3 +36,8 @@ export async function syncPricesAction(): Promise<void> {
     await runSync(db, "prices", () => syncPrices(db));
   });
 }
+
+export async function syncMetaAction(): Promise<void> {
+  const { syncMeta } = await import("@/lib/meta/sync");
+  await quietly(() => runSync(db, "meta", () => syncMeta(db)));
+}

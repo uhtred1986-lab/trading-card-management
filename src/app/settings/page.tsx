@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { db } from "@/db";
 import { lastSyncRuns } from "@/lib/sync";
-import { syncCardTraderAction, syncCatalogAction, syncPricesAction } from "./actions";
+import { syncCardTraderAction, syncCatalogAction, syncMetaAction, syncPricesAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 /** Sync actions can run for a couple of minutes on Vercel's fluid compute. */
@@ -44,6 +44,13 @@ export default async function SettingsPage() {
           action={syncCardTraderAction}
           button="Sync CardTrader"
           disabled={!cardTraderLive}
+        />
+        <SyncCard
+          title="Regional results"
+          source="Top-cut leaders and decklists scraped from deckplanet's own regional dashboard, for the Meta & News leaderboard. Runs automatically at 07:00 UTC."
+          run={latest.get("meta")}
+          action={syncMetaAction}
+          button="Refresh results"
         />
       </section>
 

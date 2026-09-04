@@ -16,6 +16,7 @@ export const NAV_ITEMS: NavItem[] = [
 
 export const SECONDARY_ITEMS: NavItem[] = [
   { href: "/leaders", label: "Leaders" },
+  { href: "/meta", label: "Meta & News" },
   { href: "/arena", label: "Arena" },
   { href: "/settings", label: "Settings & sync", short: "Settings" },
 ];
