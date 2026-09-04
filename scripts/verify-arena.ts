@@ -146,6 +146,8 @@ const DEFS: Record<string, CardDef> = defsFrom([
   card("STACKER", { energyCost: 1, skill: "[Auto] When you play this card, choose 1 of your Battle Cards and place it under this card." }),
   card("TWOKILL", { energyCost: 1, skill: "[Auto] When you play this card, choose 2 of your opponent's Battle Cards and KO them." }),
   card("GRABBER", { energyCost: 1, skill: "[Auto] When you play this card, choose 1 of your opponent's cards and place it in its owner's drop area." }),
+  card("ONCEONLY", { energyCost: 1, skill: "[Auto] When you play this card, draw 1 card and negate this skill for the game." }),
+  card("STEALER", { energyCost: 1, skill: "[Auto] When you play this card, choose 1 of your opponent's Battle Cards and gain control of it." }),
   card("PERMTOUGH", { energyCost: 2, power: 5000, skill: "[Permanent] This card can't be KO'd by your opponent's skills." }),
   card("PERMLOCK", { energyCost: 2, power: 5000, skill: "[Permanent] Your opponent can't attack with Battle Cards." }),
   card("SELFMUTE", { energyCost: 2, skill: "[Blocker]\n[Permanent] Negate this card's [Blocker] skill in all areas." }),
@@ -1618,6 +1620,40 @@ function assertConsistentAfterDrop(s: GameState) {
   const normal = parseSkills("[Auto] When this card attacks, draw 1 card.")[0];
   assert.equal(normal.cost, "");
   assert.equal(normal.effect, "When this card attacks, draw 1 card.");
+}
+
+// ── a skill that switches itself off, and taking a card ────────────────────
+
+{
+  // 9-1-5: an effect meant to happen once. The skill is still printed; it
+  // simply never triggers again, through the same list of negated skill
+  // indexes another card's negation uses.
+  let s = arena({ hand: ["ONCEONLY", "ONCEONLY"], energy: ["V1", "V1"] });
+  const before = s.players.p1.hand.length;
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "ONCEONLY") });
+  const once = find(s, "p1", "battle", "ONCEONLY");
+  assert.equal(s.players.p1.hand.length, before - 1 + 1, "played one, drew one");
+  assert.deepEqual(s.cards[once].negated, [0], "the skill turned itself off — its own index, on its own instance");
+
+  // The second copy is a different card, and its own skill still works.
+  const after = s.players.p1.hand.length;
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "ONCEONLY") });
+  assert.equal(s.players.p1.hand.length, after - 1 + 1, "the other copy still draws");
+}
+
+{
+  // 3-1-6-1: a Battle Card may sit in either player's Battle Area, so taking
+  // control is a move to your own side. The card is not replayed and keeps
+  // what it had.
+  let s = arena({ hand: ["STEALER"], energy: ["V1"], oppBattle: ["BIG"] });
+  const prize = find(s, "p2", "battle", "BIG");
+  s.cards[prize].mode = "rest";
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "STEALER") });
+  assert.ok(s.players.p1.battle.includes(prize), "it is yours now");
+  assert.ok(!s.players.p2.battle.includes(prize));
+  assert.equal(s.cards[prize].mode, "rest", "23-3: the card itself did not change");
+  assert.equal(s.cards[prize].owner, "p2", "its owner is still its owner (3-1-6)");
+  assertConsistent(s);
 }
 
 // ── the second half of a sentence, left in the third person ────────────────

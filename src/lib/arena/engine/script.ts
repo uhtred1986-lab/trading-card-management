@@ -144,6 +144,12 @@ export type Op =
    * name — "the [Counter]" is always that one.
    */
   | { op: "negateCounter" }
+  /**
+   * 9-1-5: this skill switches itself off for the rest of the game. Cards use
+   * it for effects meant to happen once — the skill is still printed, and
+   * still negatable by anything else, it simply never triggers again.
+   */
+  | { op: "negateOwnSkill" }
   /** Kept for programs written before `forbid` existed; the same thing. */
   | { op: "cannotAttack"; target: Ref; until: Duration }
   /**
@@ -178,6 +184,8 @@ export interface ScriptFrame {
   master: PlayerId;
   trigger?: Trigger;
   subject?: string;
+  /** Which skill of the card this is, so a skill can switch itself off (9-1-5). */
+  skillIndex?: number;
   /** Set while a `choose` is waiting for an answer. */
   awaiting?: string;
 }
@@ -482,6 +490,19 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         }
         break;
 
+      case "negateOwnSkill": {
+        // 9-1-5: the skill switches itself off for the rest of the game.
+        // `negated` is a list of skill indexes on the instance, so this is the
+        // same mechanism another card's negation uses — and it is cleared when
+        // the card leaves play, because that is a different card (3-1-4).
+        const inst = s.cards[frame.card];
+        if (inst && frame.skillIndex != null && inst.negated !== "all" && !inst.negated.includes(frame.skillIndex)) {
+          inst.negated.push(frame.skillIndex);
+          note(ev, `${face(ctx, s, frame.card).name}: that skill will not happen again`);
+        }
+        break;
+      }
+
       case "negateCounter": {
         // The counter being answered is the first one still waiting in the
         // flow: this effect is running inside the window opened over it.
@@ -599,6 +620,7 @@ const OP_NAMES = new Set<Op["op"]>([
   "token",
   "negateAttack",
   "negateCounter",
+  "negateOwnSkill",
   "cannotAttack",
   "forbid",
   "costReduction",

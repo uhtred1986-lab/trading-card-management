@@ -635,7 +635,7 @@ function runSkill(ctx: EngineContext, s: GameState, ev: GameEvent[], card: strin
   const script = scriptFor(ctx, s, card, sk.index);
   if (script) {
     if (script.ops.length === 0) return "done";
-    const frame: ScriptFrame = { ops: script.ops, ip: 0, vars: {}, card, master, trigger, subject };
+    const frame: ScriptFrame = { ops: script.ops, ip: 0, vars: {}, card, master, trigger, subject, skillIndex: sk.index };
     return stepScript(ctx, s, ev, frame);
   }
   const d = def(ctx, s, card);

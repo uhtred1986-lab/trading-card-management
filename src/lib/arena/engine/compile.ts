@@ -89,7 +89,7 @@ const AREA_WORDS: [RegExp, ScriptArea][] = [
   [/\bin your life\b|\bfrom your life\b|\byour life\b|\blife area\b/, "life"],
   [/\bwarp\b/, "warp"],
   [/\bcombo area\b/, "combo"],
-  [/\bunison area\b|\bunison cards?\b/, "unison"],
+  [/\bunison area\b|\bunison cards?\b|\bunisons\b/, "unison"],
   [/\bz-deck\b/, "zDeck"],
   [/\bz-energy\b/, "zEnergy"],
   [/\bunder this card\b/, "under"],
@@ -113,6 +113,11 @@ export function parseTarget(phrase: string): Selector | null {
   let side: Side = "you";
   if (/\byour opponent'?s?\b|\btheir\b|\bthe opponent'?s\b/.test(t)) side = "opponent";
   if (/\ball players\b|\beach player\b|\bboth players\b/.test(t)) side = "both";
+
+  // "Your opponent's Battle Cards or Unisons" names two areas, and a selector
+  // holds one. Picking either would quietly drop the other half, so this is
+  // left unread until a selector can say "both".
+  if (/\bbattle cards?\b.*\bunisons?\b|\bunisons?\b.*\bbattle cards?\b/.test(t)) return null;
 
   let area: ScriptArea | null = null;
   for (const [re, a] of AREA_WORDS) {
@@ -687,6 +692,18 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
 
   // Negation (9-1).
   if (/^negate the attack$/.test(t)) return [{ op: "negateAttack" }];
+  // 9-1-5: a skill that switches itself off, for effects meant to happen once.
+  // Only "for the game" is read: "for the turn" would need the negation to
+  // expire, and the instance's list of negated skills carries no duration.
+  if (/^negate this skill for the (?:duration of the )?game$/.test(t)) return [{ op: "negateOwnSkill" }];
+
+  // 3-1-6-1: a Battle Card may sit in either player's Battle Area, so taking
+  // control of one is a move to your own — mode and markers carried, because
+  // the card itself does not change (23-3).
+  if (/^gain control of (?:it|them|that card|those cards)$/.test(t) && c.lastTarget) {
+    return [{ op: "moveTo", target: c.lastTarget, to: "battle" }];
+  }
+
   if ((m = /^negate (.*?)(?:'s)? skills$/.exec(q))) {
     const ref = refFor(m[1], c);
     return ref ? [{ op: "negateSkills", target: ref, until: durationOf(t) }] : null;
@@ -1300,6 +1317,9 @@ export function describeScript(ops: Op[]): string {
         break;
       case "negateCounter":
         parts.push("negate the counter being answered");
+        break;
+      case "negateOwnSkill":
+        parts.push("this skill does not happen again");
         break;
       case "if": {
         const yes = describeScript(op.then);
