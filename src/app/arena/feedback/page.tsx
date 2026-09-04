@@ -1,28 +1,35 @@
 import Link from "next/link";
 import { desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
-import { arenaBugReports, cards as cardsTable } from "@/db/schema";
-import { setBugStatus } from "../actions";
+import { arenaFeedback, cards as cardsTable } from "@/db/schema";
+import { setFeedbackStatus } from "../actions";
 
 export const dynamic = "force-dynamic";
 
+const KINDS: Record<string, { label: string; hint: string }> = {
+  bug: { label: "went wrong in a game", hint: "reported from the board" },
+  card: { label: "a card explained", hint: "from the backlog, in your own words" },
+  rule: { label: "a rule you set", hint: "from the rules page" },
+};
+
 /**
- * What you reported from a game, and what became of it.
+ * Everything you told the arena, from whichever page you said it on.
  *
- * The report itself is one sentence; everything under it was copied in at the
- * moment you sent it, so a bug found while playing can be replayed rather
- * than remembered.
+ * One list, because there is one question worth asking of it: what has been
+ * said that the automatic measurements cannot see? A coverage run knows which
+ * clauses the compiler failed to read; it cannot know that a card charged the
+ * energy anyway, or that a wording means something other than it appears to.
  */
-export default async function BugsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+export default async function FeedbackPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const sp = await searchParams;
   const want = (Array.isArray(sp.status) ? sp.status[0] : sp.status) ?? "open";
   const status = want === "all" ? null : want === "fixed" ? "fixed" : "open";
 
   const rows = await db
     .select()
-    .from(arenaBugReports)
-    .where(status ? eq(arenaBugReports.status, status) : undefined)
-    .orderBy(desc(arenaBugReports.createdAt))
+    .from(arenaFeedback)
+    .where(status ? eq(arenaFeedback.status, status) : undefined)
+    .orderBy(desc(arenaFeedback.createdAt))
     .limit(100);
 
   const ids = [...new Set(rows.map((r) => r.cardId).filter((x): x is string => !!x))];
@@ -30,7 +37,7 @@ export default async function BugsPage({ searchParams }: { searchParams: Promise
   if (ids.length) for (const c of await db.select({ id: cardsTable.id, name: cardsTable.name }).from(cardsTable).where(inArray(cardsTable.id, ids))) names.set(c.id, c.name);
 
   const tab = (key: string, label: string) => (
-    <Link key={key} href={`/arena/bugs?status=${key}`} className={`tap rounded-md px-3 py-1.5 ${want === key ? "bg-space-800 text-space-50" : "text-space-300"}`}>
+    <Link key={key} href={`/arena/feedback?status=${key}`} className={`tap rounded-md px-3 py-1.5 ${want === key ? "bg-space-800 text-space-50" : "text-space-300"}`}>
       {label}
     </Link>
   );
@@ -38,14 +45,14 @@ export default async function BugsPage({ searchParams }: { searchParams: Promise
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-baseline gap-2">
-        <h1 className="text-lg font-semibold tracking-tight text-space-50">Things that went wrong</h1>
+        <h1 className="text-lg font-semibold tracking-tight text-space-50">What you told me</h1>
         <Link href="/arena" className="ml-auto text-xs text-space-300 hover:text-ki-300">
           ← Arena
         </Link>
       </div>
       <p className="text-sm text-space-300">
-        Reported from the board with “something’s wrong”. Each one carries the whole game with it — the state, every move made, and what was on offer — so it can be
-        replayed exactly as you saw it.
+        Everything said from inside the arena, in one place: bugs reported from the board, cards explained on the backlog, and rules set by hand. A bug carries the
+        whole game with it — the state, every move made, and what was on offer — so it can be replayed exactly as you saw it.
       </p>
 
       <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -63,6 +70,7 @@ export default async function BugsPage({ searchParams }: { searchParams: Promise
               <div className="flex flex-wrap items-baseline gap-2">
                 <span className="font-mono text-[10px] text-space-500">#{r.id}</span>
                 <p className="min-w-0 flex-1 text-sm text-space-100">{r.note}</p>
+                <span className="shrink-0 rounded bg-space-800 px-1.5 py-0.5 text-[10px] text-space-300">{KINDS[r.kind]?.label ?? r.kind}</span>
                 <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] ${r.status === "open" ? "bg-dbs-yellow/20 text-dbs-yellow" : "bg-gain/20 text-gain"}`}>{r.status}</span>
               </div>
 
@@ -77,21 +85,28 @@ export default async function BugsPage({ searchParams }: { searchParams: Promise
                     game {r.gameId}
                   </Link>
                 )}
-                <span>
-                  turn {r.turn}
-                  {r.phase ? `, ${r.phase}` : ""}
-                </span>
-                {r.prompt && <span>waiting on: {r.prompt}</span>}
+                {r.kind === "bug" ? (
+                  <>
+                    <span>
+                      turn {r.turn}
+                      {r.phase ? `, ${r.phase}` : ""}
+                    </span>
+                    {r.prompt && <span>waiting on: {r.prompt}</span>}
+                  </>
+                ) : (
+                  <span>{KINDS[r.kind]?.hint}</span>
+                )}
                 <span>{r.createdAt.toISOString().slice(0, 16).replace("T", " ")}</span>
               </p>
 
               {r.resolution && (
                 <p className="mt-1 border-l-2 border-gain pl-2 text-[11px] text-space-300">
-                  <span className="text-space-400">Fixed: </span>
+                  <span className="text-space-400">{r.kind === "bug" ? "Fixed: " : "Read as: "}</span>
                   {r.resolution}
                 </p>
               )}
 
+              {r.kind === "bug" && (
               <details className="mt-2 text-[11px]">
                 <summary className="cursor-pointer text-space-400">the log, and what was on offer</summary>
                 <ol className="mt-1 space-y-0.5 font-mono text-[10px] text-space-400">
@@ -103,8 +118,9 @@ export default async function BugsPage({ searchParams }: { searchParams: Promise
                 </ol>
                 <p className="mt-1 text-space-500">On offer: {((r.legal as string[]) ?? []).join(" · ") || "nothing"}</p>
               </details>
+              )}
 
-              <form action={setBugStatus.bind(null, r.id, r.status === "open" ? "fixed" : "open")} className="mt-1">
+              <form action={setFeedbackStatus.bind(null, r.id, r.status === "open" ? "fixed" : "open")} className="mt-1">
                 <button className="tap text-[10px] text-space-400 hover:text-ki-300">{r.status === "open" ? "mark fixed" : "reopen"}</button>
               </form>
             </li>
