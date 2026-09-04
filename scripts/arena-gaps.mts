@@ -122,4 +122,61 @@ console.log("once the routine phrasing work on those same cards is also done:\n"
 for (const [key, set] of [...blockers.entries()].sort((a, b) => b[1].size - a[1].size)) {
   console.log(`${String(set.size).padStart(5)} cards   ${key}`);
 }
+
+/*
+ * The list that should actually drive the work.
+ *
+ * Sorting wordings by how often they appear turned out to be the wrong
+ * question: a clause that turns up 100 times is usually sitting in a skill
+ * with three other unread clauses, so reading it finishes nothing. What
+ * finishes a skill is being the *last* thing in the way of it.
+ *
+ * So: of every skill the compiler cannot read, how many are one clause away —
+ * and which wordings are that one clause?
+ */
+const distance = new Map<number, number>();
+const lastInTheWay = new Map<string, { skills: number; cards: Set<string>; example: string }>();
+let resolvable = 0;
+
+for (const d of defs) {
+  for (const side of ["front", "back"] as const) {
+    const text = side === "front" ? d.skill : d.back?.skill;
+    if (!text) continue;
+    const scripts = compileCardCached(d, side);
+    for (const sk of parseSkills(text)) {
+      // [Permanent] skills are never "resolved"; they are counted separately
+      // by arena:coverage, and mixing them in here hides the working list.
+      if (!sk.effect.trim() || sk.kind === "permanent") continue;
+      const sc = scripts.bySkill[sk.index];
+      if (!sc) continue;
+      resolvable++;
+      distance.set(sc.unsupported.length, (distance.get(sc.unsupported.length) ?? 0) + 1);
+      if (sc.unsupported.length !== 1) continue;
+      const clause = sc.unsupported[0];
+      const key = clause
+        .toLowerCase()
+        .replace(/\d+/g, "N")
+        .replace(/<[^>]*>|\{[^}]*\}|≪[^≫]*≫/g, "…")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 70);
+      const e = lastInTheWay.get(key) ?? { skills: 0, cards: new Set<string>(), example: `${d.id}: ${clause.replace(/\s+/g, " ")}` };
+      e.skills++;
+      e.cards.add(d.id);
+      lastInTheWay.set(key, e);
+    }
+  }
+}
+
+console.log(`\n\n${resolvable} resolvable skills, by how far they are from compiling:\n`);
+for (const n of [...distance.keys()].sort((a, b) => a - b)) {
+  const label = n === 0 ? "read" : `${n} clause${n === 1 ? "" : "s"} in the way`;
+  console.log(`${String(distance.get(n)).padStart(6)}  ${label}`);
+}
+
+console.log("\nThe wordings that are the *only* thing holding a skill back — fix these first:\n");
+for (const [, e] of [...lastInTheWay.entries()].sort((a, b) => b[1].skills - a[1].skills).slice(0, 25)) {
+  console.log(`${String(e.skills).padStart(5)} skills on ${String(e.cards.size).padStart(4)} cards`);
+  console.log(`        e.g. ${e.example.slice(0, 110)}`);
+}
 process.exit(0);

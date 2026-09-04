@@ -1599,4 +1599,38 @@ function assertConsistentAfterDrop(s: GameState) {
   assert.equal(s.players.p1.deck[s.players.p1.deck.length - 1], bottom, "and the bottom card is where it was");
 }
 
+// ── a clause is read whole, or not at all ──────────────────────────────────
+
+{
+  const one = (text: string) => compileSkill(parseSkills(`[Activate: Battle] ${text}`)[0]);
+
+  // The commonest two-part clause in the game. `splitClauses` keeps "and ["
+  // together on purpose so that "gains [A] and [B]" stays whole, which means
+  // this arrives in one piece — and the keyword used to be dropped in silence.
+  const both = one("This card gets +10000 power and [Double Strike] for the turn.");
+  assert.deepEqual(both.unsupported, []);
+  assert.deepEqual(
+    both.ops.map((o) => o.op),
+    ["power", "grant"],
+  );
+  assert.equal((both.ops[0] as { amount: number; until: string }).until, "turn");
+  assert.equal((both.ops[1] as { keyword: { name: string } }).keyword.name, "Strike");
+
+  // Combo power says it the same way.
+  assert.deepEqual(
+    one("This card gets +5000 combo power and [Barrier] for the battle.").ops.map((o) => o.op),
+    ["comboPower", "grant"],
+  );
+
+  // A tail the compiler does not know must fail the whole clause rather than
+  // be discarded: "during your turn" makes the bonus conditional, and reading
+  // it as an unconditional +5000 would be wrong rather than incomplete.
+  assert.ok(one("This card gets +5000 power during your turn.").unsupported.length > 0, "an unknown tail is an honest gap, not a silent loss");
+
+  // The tails that really are only a duration still read.
+  for (const tail of ["for the turn", "for the duration of the battle", "until the end of your opponent's turn"]) {
+    assert.deepEqual(one(`This card gets +5000 power ${tail}.`).unsupported, [], tail);
+  }
+}
+
 console.log("verify-arena: all checks passed");

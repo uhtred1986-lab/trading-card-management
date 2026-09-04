@@ -440,6 +440,34 @@ function compileForEach(clause: string, c: Ctx): Op[] | null {
   return null;
 }
 
+/**
+ * Tails that say *how long* or *where* an effect holds, rather than adding to
+ * what it does. `durationOf` reads them off the whole clause, so a pattern
+ * matching the action itself can be anchored to the end once they are gone.
+ */
+const TRAILING_QUALIFIER =
+  /\s+(?:for the (?:duration of the )?(?:turn|battle|game)|for the rest of (?:the|this) turn|during (?:this|the) turn|this turn|until (?:the )?(?:end|start|beginning) of [a-z' ]+|in (?:all|any) areas?)$/;
+
+/**
+ * The clause with those tails removed.
+ *
+ * This exists so the patterns below can end in `$`. Matching a prefix and
+ * ignoring the rest is how a clause gets read *wrongly* rather than not at
+ * all: "gets +5000 power for each card in your Drop" read as a flat +5000, and
+ * "you can play this card from your hand without paying its energy cost" read
+ * as an instruction to play it — both looked compiled, and both were wrong.
+ * Anchored patterns turn that class of mistake into an honest gap.
+ */
+function stripQualifiers(t: string): string {
+  let out = t;
+  for (let i = 0; i < 4; i++) {
+    const next = out.replace(TRAILING_QUALIFIER, "");
+    if (next === out) break;
+    out = next;
+  }
+  return out.trim();
+}
+
 /** Try to read one clause. Returns null when the wording is not understood. */
 function compileClause(clause: string, c: Ctx): Op[] | null {
   const t = clause
@@ -450,6 +478,9 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     // the action itself; the clause before it has already recorded that.
     .replace(/\s+instead$/, "");
   let m: RegExpExecArray | null;
+  // The same clause with "for the turn", "in all areas" and the like taken
+  // off, so the patterns for the action itself can end in `$`.
+  const q = stripQualifiers(t);
 
   // A number read off the board has to be seen *first*: the patterns below
   // match on a word boundary rather than the end of the clause, so "gets
@@ -560,18 +591,35 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // Energy markers (5-14).
   if ((m = /^place (\d+) energy markers? in your energy(?: area)?$/.exec(t))) return [{ op: "energyMarker", n: Number(m[1]) }];
 
-  // Power and combo power (9-9). Cards say both "gets" and "gains".
-  if ((m = /^(.*?) (?:gets?|gains?) ([+-]\d+) combo power\b/.exec(t))) {
+  // "This card gets +10000 power and [Double Strike] for the turn" — one
+  // clause doing two things, and by far the commonest such clause in the game.
+  // `splitClauses` keeps "and [" together on purpose, so that "gains [A] and
+  // [B]" stays whole; the price is that this arrives in one piece, and until
+  // it was read here the keyword was dropped without a word.
+  if ((m = /^(.*?) (?:gets?|gains?) ([+-]\d+) (combo )?power,? and ((?:\[[^\]]+\][\s,]*(?:and\s+)?)+)$/.exec(q))) {
+    const ref = refFor(m[1], c);
+    const kws = [...m[4].matchAll(/\[([^\]]+)\]/g)].map((x) => keywordOf(x[1]));
+    if (ref && kws.length && kws.every((k) => k)) {
+      const until = durationOf(t);
+      const gain: Op = m[3] ? { op: "comboPower", target: ref, amount: Number(m[2]), until } : { op: "power", target: ref, amount: Number(m[2]), until };
+      return [gain, ...kws.map((k) => ({ op: "grant", target: ref, keyword: k!, until }) as Op)];
+    }
+  }
+
+  // Power and combo power (9-9). Cards say both "gets" and "gains". Matched
+  // against the clause with its duration taken off, and anchored: a tail this
+  // does not recognise has to fail here rather than be quietly discarded.
+  if ((m = /^(.*?) (?:gets?|gains?) ([+-]\d+) combo power$/.exec(q))) {
     const ref = refFor(m[1], c);
     return ref ? [{ op: "comboPower", target: ref, amount: Number(m[2]), until: durationOf(t) }] : null;
   }
   // "It loses -5000 power" and "it loses 5000 power" both mean the same thing;
   // the sign on the card is decoration, the verb is what counts.
-  if ((m = /^(.*?) loses ([+-]?\d+) power\b/.exec(t))) {
+  if ((m = /^(.*?) loses ([+-]?\d+) power$/.exec(q))) {
     const ref = refFor(m[1], c);
     return ref ? [{ op: "power", target: ref, amount: -Math.abs(Number(m[2])), until: durationOf(t) }] : null;
   }
-  if ((m = /^(.*?) (?:gets?|gains?) ([+-]\d+) power\b/.exec(t))) {
+  if ((m = /^(.*?) (?:gets?|gains?) ([+-]\d+) power$/.exec(q))) {
     const ref = refFor(m[1], c);
     return ref ? [{ op: "power", target: ref, amount: Number(m[2]), until: durationOf(t) }] : null;
   }
@@ -589,7 +637,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   }
 
   // Granting keyword skills (20-18); one clause can grant several.
-  if ((m = /^(.*?) gains? ((?:\[[^\]]+\][\s,]*(?:and\s+)?)+)/.exec(t))) {
+  if ((m = /^(.*?) gains? ((?:\[[^\]]+\][\s,]*(?:and\s+)?)+)$/.exec(q))) {
     const ref = refFor(m[1], c);
     const kws = [...m[2].matchAll(/\[([^\]]+)\]/g)].map((x) => keywordOf(x[1]));
     if (!ref || !kws.length || kws.some((k) => !k)) return null;
@@ -597,7 +645,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     return kws.map((k) => ({ op: "grant", target: ref, keyword: k!, until }) as Op);
   }
   // A trailing fragment of such a list, left over from splitting on "and".
-  if ((m = /^((?:\[[^\]]+\][\s,]*(?:and\s+)?)+)(?:for the|$)/.exec(t)) && c.lastTarget) {
+  if ((m = /^((?:\[[^\]]+\][\s,]*(?:and\s+)?)+)$/.exec(q)) && c.lastTarget) {
     const kws = [...m[1].matchAll(/\[([^\]]+)\]/g)].map((x) => keywordOf(x[1]));
     if (kws.length && kws.every((k) => k)) {
       const until = durationOf(t);
@@ -607,7 +655,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
 
   // Negation (9-1).
   if (/^negate the attack$/.test(t)) return [{ op: "negateAttack" }];
-  if ((m = /^negate (.*?)(?:'s)? skills\b/.exec(t))) {
+  if ((m = /^negate (.*?)(?:'s)? skills$/.exec(q))) {
     const ref = refFor(m[1], c);
     return ref ? [{ op: "negateSkills", target: ref, until: durationOf(t) }] : null;
   }
