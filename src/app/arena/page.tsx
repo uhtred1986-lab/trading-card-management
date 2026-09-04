@@ -30,7 +30,9 @@ async function coverageFor(deckId: number): Promise<{ cards: number; referee: nu
 }
 
 export default async function ArenaPage() {
-  const [decks, games] = await Promise.all([listDecks(db), listGames(db)]);
+  // The engine reads the original game's rule manual and nothing else, so
+  // Fusion World decks are simply not offered here (owner's decision).
+  const [decks, games] = await Promise.all([listDecks(db, { game: "dbs" }), listGames(db)]);
   // What games of each kind have actually cost, rather than an estimate.
   const spent: Record<string, string | null> = { sparring: null, tournament: null };
   for (const mode of ["sparring", "tournament"] as const) {
@@ -57,7 +59,7 @@ export default async function ArenaPage() {
 
       {playable.length < 1 ? (
         <p className="rounded-xl border border-dashed border-space-700 p-6 text-center text-sm text-space-300">
-          No deck is ready to play yet. A deck needs a leader and at least 50 cards.{" "}
+          No deck is ready to play yet. A deck needs a leader, at least 50 cards, and the original game&rsquo;s rules — the arena does not play Fusion World.{" "}
           <Link href="/decks" className="text-ki-300 hover:underline">
             Build one
           </Link>

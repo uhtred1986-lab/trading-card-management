@@ -10,6 +10,7 @@ export interface SpokenCard {
   id: string;
   name: string;
   setCode: string;
+  game: string;
   cardType: string;
   colors: string[];
   rarityCode: string;
@@ -23,7 +24,7 @@ export type SpokenResult =
 async function load(cardId: string): Promise<{ card: SpokenCard; prints: { id: string; label: string }[] } | null> {
   const card = await db.query.cards.findFirst({
     where: (c, { eq }) => eq(c.id, cardId),
-    columns: { id: true, name: true, setCode: true, cardType: true, colors: true, rarityCode: true, imageUrl: true },
+    columns: { id: true, name: true, setCode: true, game: true, cardType: true, colors: true, rarityCode: true, imageUrl: true },
   });
   if (!card) return null;
   const prints = await db.query.cardPrints.findMany({

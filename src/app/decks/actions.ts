@@ -6,8 +6,9 @@ import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { cards, deckCards, decks } from "@/db/schema";
 import { quickSearch } from "@/lib/catalog/queries";
+import { DEFAULT_GAME, gameOr, type Game } from "@/lib/catalog/games";
 import { decksForCard, parseDeckList, ZONES, type CardDeckMembership, type Zone } from "@/lib/decks/queries";
-import { zoneForType } from "@/lib/decks/add";
+import { zoneForType, type DeckOption } from "@/lib/decks/add";
 import { buildConflicts, type BuildConflict } from "@/lib/decks/reservations";
 import { fileDeckAtLocation, type FilingResult } from "@/lib/decks/filing";
 
@@ -19,21 +20,25 @@ function revalidate(deckId?: number) {
 }
 
 /** Used by the DeckPicker on the add screens: create and return, no redirect. */
-export async function createDeckAction(name: string): Promise<{ id: number; name: string; isBuilt: boolean }> {
+export async function createDeckAction(name: string, game: Game = DEFAULT_GAME): Promise<DeckOption> {
   const clean = name.trim().slice(0, 120) || "Untitled deck";
-  const [row] = await db.insert(decks).values({ name: clean }).returning({ id: decks.id, name: decks.name, isBuilt: decks.isBuilt });
+  const [row] = await db
+    .insert(decks)
+    .values({ name: clean, game: gameOr(game) })
+    .returning({ id: decks.id, name: decks.name, isBuilt: decks.isBuilt, game: decks.game });
   revalidate();
-  return row;
+  return { ...row, game: gameOr(row.game) };
 }
 
 export async function createDeckForm(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim() || "Untitled deck";
-  const [row] = await db.insert(decks).values({ name }).returning({ id: decks.id });
+  const game = gameOr(formData.get("game"));
+  const [row] = await db.insert(decks).values({ name, game }).returning({ id: decks.id });
   revalidate();
   redirect(`/decks/${row.id}`);
 }
 
-export async function updateDeck(id: number, patch: { name?: string; description?: string | null; metaNotes?: string | null; locationId?: number | null }) {
+export async function updateDeck(id: number, patch: { name?: string; game?: Game; description?: string | null; metaNotes?: string | null; locationId?: number | null }) {
   await db
     .update(decks)
     .set({ ...patch, updatedAt: new Date() })
@@ -47,6 +52,9 @@ export async function updateDeckForm(formData: FormData) {
   const id = Number(formData.get("id"));
   await updateDeck(id, {
     name: String(formData.get("name") ?? "").trim() || "Untitled deck",
+    // Switching games re-flags the cards already in the deck rather than
+    // removing them; the deck page then shows what no longer belongs.
+    game: gameOr(formData.get("game")),
     description: (formData.get("description") as string)?.trim() || null,
     metaNotes: (formData.get("metaNotes") as string)?.trim() || null,
   });
@@ -80,7 +88,7 @@ export async function duplicateDeck(id: number): Promise<number> {
   if (!src) throw new Error("Deck not found");
   const [row] = await db
     .insert(decks)
-    .values({ name: `${src.name} (copy)`, description: src.description, metaNotes: src.metaNotes })
+    .values({ name: `${src.name} (copy)`, game: src.game, description: src.description, metaNotes: src.metaNotes })
     .returning({ id: decks.id });
   await db.execute(sql`insert into deck_cards (deck_id, card_id, zone, quantity) select ${row.id}, card_id, zone, quantity from deck_cards where deck_id = ${id}`);
   revalidate();
@@ -202,7 +210,8 @@ export async function decksForCardAction(cardId: string): Promise<CardDeckMember
 export async function addCardToDeckAction(cardId: string, deckId: number): Promise<CardDeckResult> {
   const card = await db.query.cards.findFirst({ where: eq(cards.id, cardId), columns: { cardType: true } });
   if (!card) return { ok: false, error: "Unknown card.", decks: await decksForCard(db, cardId) };
-  const zone = zoneForType(card.cardType);
+  const deck = await db.query.decks.findFirst({ where: eq(decks.id, deckId), columns: { game: true } });
+  const zone = zoneForType(card.cardType, gameOr(deck?.game));
   const current = await deckCardQuantity(deckId, cardId, zone);
   const r = await setDeckCard(deckId, cardId, zone, current + 1);
   if (!r.ok) {
@@ -221,14 +230,15 @@ export async function removeCardFromDeckAction(cardId: string, deckId: number): 
   return { ok: true, decks: await decksForCard(db, cardId) };
 }
 
-/** Create a deck and drop this card straight into it. */
+/** Create a deck and drop this card straight into it, in the card's own game. */
 export async function createDeckWithCardAction(cardId: string, name: string): Promise<CardDeckResult> {
-  const deck = await createDeckAction(name);
+  const card = await db.query.cards.findFirst({ where: eq(cards.id, cardId), columns: { game: true } });
+  const deck = await createDeckAction(name, gameOr(card?.game));
   return addCardToDeckAction(cardId, deck.id);
 }
 
-/** Typeahead for the builder's search box. */
-export async function searchCardsAction(q: string) {
+/** Typeahead for the builder's search box, scoped to the deck's game. */
+export async function searchCardsAction(q: string, game?: Game) {
   if (q.trim().length < 2) return [];
-  return quickSearch(db, q, 15);
+  return quickSearch(db, q, 15, undefined, game ? gameOr(game) : undefined);
 }

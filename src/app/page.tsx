@@ -2,6 +2,7 @@ import Link from "next/link";
 import { db } from "@/db";
 import { breakdown, movers, summarise, valuedLots } from "@/lib/collection/queries";
 import { lastSyncRuns } from "@/lib/sync";
+import { GAME_INFO, gameOr } from "@/lib/catalog/games";
 import { formatCents, formatPct } from "@/lib/money";
 import { CardImage } from "@/components/CardImage";
 
@@ -90,6 +91,22 @@ export default async function DashboardPage() {
           </ul>
         )}
       </section>
+
+      {/* Only worth the space once the collection actually spans both games. */}
+      {bd.byGame.length > 1 ? (
+        <section>
+          <h2 className="mb-2 text-sm font-semibold uppercase tracking-wider text-space-300">By game</h2>
+          <Table
+            rows={bd.byGame.map((r) => ({
+              key: r.code,
+              label: GAME_INFO[gameOr(r.code)].label,
+              copies: r.copies,
+              value: r.valueEur,
+              href: `/collection?game=${r.code}`,
+            }))}
+          />
+        </section>
+      ) : null}
 
       <div className="grid gap-4 md:grid-cols-2">
         <section>

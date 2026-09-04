@@ -26,10 +26,16 @@ import {
  */
 
 export const cardSets = pgTable("card_sets", {
-  /** Card-number prefix: "BT1", "SD22", "P", "EX13", "TB1", "DB2", "EB1", "XD1", "TOKEN". */
+  /** Card-number prefix: "BT1", "SD22", "P", "EX13", "TB1", "TOKEN", "FB07", "FS01". */
   code: text("code").primaryKey(),
   name: text("name").notNull(),
-  /** "legacy" (2017–2024) or "masters" (current). */
+  /**
+   * "dbs" (the original legacy + Masters game) or "fusion" (Fusion World) —
+   * two separate games sharing a brand, see src/lib/catalog/games.ts. No
+   * card-number prefix belongs to both.
+   */
+  game: text("game").notNull().default("dbs"),
+  /** "legacy" (2017–2024), "masters" (current), or "fusion" (all of Fusion World). */
   line: text("line").notNull(),
   releasedOn: date("released_on"),
   /** Chronological ordering key so set lists read newest-first without date gaps. */
@@ -44,8 +50,17 @@ export const cards = pgTable(
     setCode: text("set_code")
       .notNull()
       .references(() => cardSets.code),
+    /**
+     * Denormalised from the set so any card list can be narrowed to one game
+     * without a join — the collection and deck queries filter in TypeScript
+     * over rows they already hold, where a join is not available.
+     */
+    game: text("game").notNull().default("dbs"),
     name: text("name").notNull(),
-    /** LEADER, BATTLE, EXTRA, UNISON, Z-LEADER, Z-BATTLE, Z-EXTRA, Z-UNISON, TOKEN. */
+    /**
+     * dbs: LEADER, BATTLE, EXTRA, UNISON, Z-LEADER, Z-BATTLE, Z-EXTRA,
+     * Z-UNISON, TOKEN. fusion: LEADER, BATTLE, EXTRA, ENERGY MARKER.
+     */
     cardType: text("card_type").notNull(),
     colors: text("colors")
       .array()
@@ -102,6 +117,7 @@ export const cards = pgTable(
     index("cards_set_idx").on(t.setCode),
     index("cards_name_idx").on(t.name),
     index("cards_type_idx").on(t.cardType),
+    index("cards_game_idx").on(t.game),
   ],
 );
 
@@ -135,6 +151,8 @@ export const cardPrints = pgTable(
 
 export const tcgGroups = pgTable("tcg_groups", {
   id: integer("id").primaryKey(),
+  /** TCGplayer category: 27 for the original game, 80 for Fusion World. */
+  categoryId: integer("category_id").notNull().default(27),
   name: text("name").notNull(),
   abbreviation: text("abbreviation"),
   publishedOn: date("published_on"),
@@ -280,6 +298,12 @@ export const ownedCards = pgTable(
 export const decks = pgTable("decks", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
+  /**
+   * Which game's rules this deck is built to. Decks are never mixed: a card
+   * from the other game is flagged illegal rather than refused, in keeping
+   * with "legality is a flag, never a block". The arena only plays "dbs".
+   */
+  game: text("game").notNull().default("dbs"),
   description: text("description"),
   /** Free-form notes about the current meta, fed to the AI wizard. */
   metaNotes: text("meta_notes"),

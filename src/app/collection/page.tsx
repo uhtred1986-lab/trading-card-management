@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { db } from "@/db";
 import { COLORS, listSets } from "@/lib/catalog/queries";
+import { GAMES, parseGame } from "@/lib/catalog/games";
+import { GameFilter } from "@/components/GameFilter";
 import { collectionCards, collectionCopies, summarise, valuedLots } from "@/lib/collection/queries";
 import { ownerOptions } from "@/lib/collection/owners";
 import { listLocations } from "@/lib/collection/locations";
@@ -24,6 +26,7 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
   const sp = await searchParams;
   const q = one(sp.q);
   const set = one(sp.set);
+  const game = parseGame(one(sp.game));
   const color = one(sp.color);
   const finishParam = one(sp.finish);
   const finish = finishParam === "foil" || finishParam === "normal" ? finishParam : undefined;
@@ -35,30 +38,34 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
   const deckParams = many(sp.deck);
   const deck = deckParams.map((d) => (d === "none" ? ("none" as const) : Number(d))).filter((d) => d === "none" || Number.isInteger(d));
   const owner = one(sp.owner);
-  const filters: Parameters<typeof collectionCopies>[1] = { q, set, color, finish, sort, location, deck, owner };
+  const filters: Parameters<typeof collectionCopies>[1] = { q, set, game, color, finish, sort, location, deck, owner };
 
   // The grid aggregates by card; the list is one row per physical copy. Only
   // the one being shown is fetched — both walk every lot.
-  const [grid, list, sets, all, decks, locations] = await Promise.all([
+  const [grid, list, allSets, sets, all, decks, locations] = await Promise.all([
     view === "grid" ? collectionCards(db, filters) : null,
     view === "list" ? collectionCopies(db, filters) : null,
     listSets(db),
-    valuedLots(db),
+    game ? listSets(db, { game }) : listSets(db),
+    // The header totals honour the game filter, so they agree with the list.
+    valuedLots(db, { game }),
     deckOptions(db),
     listLocations(db),
   ]);
+  const gamesPresent = GAMES.filter((g) => allSets.some((s) => s.game === g));
   // Both views offer the same filters, so the owner list is always needed.
   const owners = await ownerOptions(db, await currentOwner());
   const s = summarise(all.lots, all.usdEur);
   const shown = grid?.rows.length ?? list?.rows.length ?? 0;
   const select = "tap rounded-md border border-space-600 bg-space-900 px-2 py-1.5 text-sm text-space-100";
 
-  const params = { q, set, color, sort: sort === "recent" ? undefined : sort, finish, location: locationParam, deck: deckParams, owner };
+  const params = { q, set, game, color, sort: sort === "recent" ? undefined : sort, finish, location: locationParam, deck: deckParams, owner };
 
   const href = (next: string | undefined) => {
     const p = new URLSearchParams();
     if (q) p.set("q", q);
     if (set) p.set("set", set);
+    if (game) p.set("game", game);
     if (color) p.set("color", color);
     if (sort !== "recent") p.set("sort", sort);
     if (next) p.set("finish", next);
@@ -99,6 +106,8 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
         </Link>
       </div>
 
+      <GameFilter path="/collection" params={{ ...params, view: view === "grid" ? undefined : view }} game={game} available={gamesPresent} />
+
       <div className="flex flex-wrap items-center gap-2">
         {chip(undefined, "all copies", s.copies, s.valueEurCents, "text-space-50")}
         {chip("normal", "non-foil", s.normalCopies, s.normalValueEurCents, "text-space-50")}
@@ -111,6 +120,7 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
       <form action="/collection" className="grid grid-cols-2 gap-2 rounded-xl border border-space-700/70 bg-space-900/50 p-3 sm:grid-cols-4">
         {finish ? <input type="hidden" name="finish" value={finish} /> : null}
         {view !== "grid" ? <input type="hidden" name="view" value={view} /> : null}
+        {game ? <input type="hidden" name="game" value={game} /> : null}
         {/* The same filters in both views — a grid tile counts only the copies that match. */}
         <select name="location" defaultValue={locationParam ?? ""} className={select}>
           <option value="">Anywhere</option>
@@ -163,7 +173,7 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
           defaultValue={q}
           placeholder="Filter by name or number"
           className="col-span-2"
-          params={{ set, color, sort: sort === "recent" ? undefined : sort, finish, view: view === "grid" ? undefined : view, location: locationParam, deck: deckParams, owner }}
+          params={{ set, game, color, sort: sort === "recent" ? undefined : sort, finish, view: view === "grid" ? undefined : view, location: locationParam, deck: deckParams, owner }}
         />
         <select name="set" defaultValue={set ?? ""} className={select}>
           <option value="">All sets</option>

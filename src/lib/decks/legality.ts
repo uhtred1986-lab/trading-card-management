@@ -9,28 +9,37 @@
  */
 import { eq, inArray } from "drizzle-orm";
 import type { Db } from "@/db";
-import { cards, deckCards } from "@/db/schema";
+import { cards, deckCards, decks } from "@/db/schema";
+import { DEFAULT_GAME, deckRules, gameInfo, gameOr, type Game } from "@/lib/catalog/games";
 import { hasKeyword, rulesFor } from "./cardRules";
 
 /**
- * Bandai deck rules, from the official Rule Manual v4.00 §6-1 (Masters):
- * 1 leader, a **50-to-60** card main deck (6-1-3), up to **10** Z-cards
- * (6-1-4), 4 copies of a card number unless the card says otherwise (6-1-5-1).
+ * Deck sizes and copy limits per game live in src/lib/catalog/games.ts.
  *
- * The app used to enforce the older line's "exactly 50, Z-deck 8"; the arena
- * engine reads the same manual, so both now agree (owner's decision,
- * 3 Sep 2026).
+ * dbs — official Rule Manual v4.00 §6-1 (Masters): 1 leader, a **50-to-60**
+ * card main deck (6-1-3), up to **10** Z-cards (6-1-4), 4 copies of a card
+ * number unless the card says otherwise (6-1-5-1). The app used to enforce the
+ * older line's "exactly 50, Z-deck 8"; the arena engine reads the same manual,
+ * so both now agree (owner's decision, 3 Sep 2026).
+ *
+ * fusion — Fusion World Rule Manual v1.20 and the official deck-building FAQ:
+ * 1 leader, 50–60 cards, 4 copies of a number, no Z-Deck, and a **hard** colour
+ * rule ("if your Leader doesn't have a certain color, you can't include a card
+ * with that color in your deck") — the one place the two games differ in kind
+ * rather than in number.
  */
-export const RULES = { main: 50, mainMax: 60, zMax: 10, copies: 4 };
+export const RULES = deckRules(DEFAULT_GAME);
 
 /** "42/50" while the deck is still short, just the count once it is in range. */
-export function mainCountLabel(n: number): string {
-  return n < RULES.main ? `${n}/${RULES.main}` : `${n}`;
+export function mainCountLabel(n: number, game: Game = DEFAULT_GAME): string {
+  const r = deckRules(game);
+  return n < r.main ? `${n}/${r.main}` : `${n}`;
 }
 
-/** Whether a main-deck count is inside the legal 50–60 range. */
-export function mainCountOk(n: number): boolean {
-  return n >= RULES.main && n <= RULES.mainMax;
+/** Whether a main-deck count is inside the game's legal range. */
+export function mainCountOk(n: number, game: Game = DEFAULT_GAME): boolean {
+  const r = deckRules(game);
+  return n >= r.main && n <= r.mainMax;
 }
 
 export type IssueSeverity = "illegal" | "incomplete" | "warning";
@@ -47,6 +56,11 @@ export interface LegalityCard {
   isBanned: boolean;
   /** Needed to read deck-building rules printed on the cards themselves. */
   skill?: string | null;
+  /**
+   * The game the card belongs to. Left undefined by callers that only ever
+   * deal with one game; a card whose game differs from the deck's is flagged.
+   */
+  game?: Game;
 }
 
 export interface DeckIssue {
@@ -86,12 +100,14 @@ export const STATUS_LABEL: Record<DeckStatus, string> = {
   illegal: "Illegal",
 };
 
-export function copyLimit(card: { zone?: string; limitedTo: number | null }): number {
+export function copyLimit(card: { zone?: string; limitedTo: number | null }, game: Game = DEFAULT_GAME): number {
   if (card.zone === "leader") return 1;
-  return card.limitedTo ?? RULES.copies;
+  return card.limitedTo ?? deckRules(game).copies;
 }
 
-export function legality(rows: LegalityCard[]): DeckLegality {
+export function legality(rows: LegalityCard[], game: Game = DEFAULT_GAME): DeckLegality {
+  const info = gameInfo(game);
+  const RULES = info.deck;
   const issues: DeckIssue[] = [];
   const flags: Record<string, DeckFlag> = {};
   const flag = (r: LegalityCard, severity: IssueSeverity, label: string) => {
@@ -113,7 +129,11 @@ export function legality(rows: LegalityCard[]): DeckLegality {
   else if (mainCount < RULES.main) issues.push({ severity: "incomplete", message: `Main deck has ${mainCount} of ${RULES.main} cards — ${RULES.main - mainCount} to go.` });
   else if (mainCount > RULES.mainMax) issues.push({ severity: "illegal", message: `Main deck has ${mainCount} cards — ${mainCount - RULES.mainMax} over the ${RULES.mainMax}-card maximum.` });
 
-  if (zCount > RULES.zMax) issues.push({ severity: "illegal", message: `Z-Deck has ${zCount} cards; the maximum is ${RULES.zMax}.` });
+  if (RULES.zMax === 0) {
+    if (zCount > 0) issues.push({ severity: "illegal", message: `${info.short} has no Z-Deck — move those ${zCount} cards to the main deck or the sideboard.` });
+  } else if (zCount > RULES.zMax) {
+    issues.push({ severity: "illegal", message: `Z-Deck has ${zCount} cards; the maximum is ${RULES.zMax}.` });
+  }
 
   // Copies count across leader + main + Z; the sideboard is a scratch zone.
   const perCard = new Map<string, { n: number; row: LegalityCard }>();
@@ -141,13 +161,25 @@ export function legality(rows: LegalityCard[]): DeckLegality {
   for (const { n, row } of perCard.values()) {
     if (row.isBanned) flag(row, "illegal", "banned card");
     if (copyLimitWaived(row)) continue;
-    const limit = copyLimit(row);
+    const limit = copyLimit(row, game);
     if (n > limit) flag(row, "illegal", `${n} copies, limit ${limit}`);
   }
 
   const leaderColors = new Set(rows.filter((r) => r.zone === "leader").flatMap((r) => r.colors));
   for (const r of rows) {
     if (r.zone === "side") continue;
+    // The two games share nothing but a brand, so a card from the other one
+    // can never be played here. It is flagged, not refused — the same way a
+    // banned card is — so a decklist pasted into the wrong deck still lands
+    // somewhere you can see and fix it.
+    if (r.game && r.game !== game) {
+      flag(r, "illegal", `a ${gameInfo(r.game).short} card in a ${info.short} deck`);
+      continue;
+    }
+    if (info.nonDeckTypes.includes(r.cardType)) {
+      flag(r, "illegal", `${r.cardType.toLowerCase()} cards are not deck cards`);
+      continue;
+    }
     const isLeaderCard = r.cardType.endsWith("LEADER");
     if (r.zone === "leader" && !isLeaderCard) flag(r, "illegal", "not a Leader card");
     if (r.zone !== "leader" && isLeaderCard) flag(r, "illegal", "Leader cards belong in the leader slot");
@@ -159,7 +191,11 @@ export function legality(rows: LegalityCard[]): DeckLegality {
       !r.colors.includes("Colorless") &&
       !r.colors.some((c) => leaderColors.has(c))
     ) {
-      flag(r, "warning", `off-colour for a ${[...leaderColors].join("/")} leader`);
+      // Fusion World forbids off-colour cards outright; the original game
+      // only makes them a bad idea.
+      const why = `off-colour for a ${[...leaderColors].join("/")} leader`;
+      if (RULES.colorStrict) flag(r, "illegal", why);
+      else flag(r, "warning", why);
     }
   }
 
@@ -175,28 +211,33 @@ export function legality(rows: LegalityCard[]): DeckLegality {
 export async function legalityForDecks(db: Db, deckIds: number[]): Promise<Map<number, DeckLegality>> {
   const out = new Map<number, DeckLegality>();
   if (deckIds.length === 0) return out;
-  const rows = await db
-    .select({
-      deckId: deckCards.deckId,
-      cardId: deckCards.cardId,
-      zone: deckCards.zone,
-      quantity: deckCards.quantity,
-      name: cards.name,
-      cardType: cards.cardType,
-      colors: cards.colors,
-      limitedTo: cards.limitedTo,
-      isBanned: cards.isBanned,
-      skill: cards.skill,
-    })
-    .from(deckCards)
-    .innerJoin(cards, eq(cards.id, deckCards.cardId))
-    .where(inArray(deckCards.deckId, deckIds));
+  const [rows, deckGames] = await Promise.all([
+    db
+      .select({
+        deckId: deckCards.deckId,
+        cardId: deckCards.cardId,
+        zone: deckCards.zone,
+        quantity: deckCards.quantity,
+        name: cards.name,
+        cardType: cards.cardType,
+        colors: cards.colors,
+        limitedTo: cards.limitedTo,
+        isBanned: cards.isBanned,
+        skill: cards.skill,
+        game: cards.game,
+      })
+      .from(deckCards)
+      .innerJoin(cards, eq(cards.id, deckCards.cardId))
+      .where(inArray(deckCards.deckId, deckIds)),
+    db.select({ id: decks.id, game: decks.game }).from(decks).where(inArray(decks.id, deckIds)),
+  ]);
+  const gameOf = new Map(deckGames.map((d) => [d.id, gameOr(d.game)]));
   const byDeck = new Map<number, LegalityCard[]>();
   for (const r of rows) {
     const list = byDeck.get(r.deckId) ?? [];
-    list.push(r);
+    list.push({ ...r, game: gameOr(r.game) });
     byDeck.set(r.deckId, list);
   }
-  for (const id of deckIds) out.set(id, legality(byDeck.get(id) ?? []));
+  for (const id of deckIds) out.set(id, legality(byDeck.get(id) ?? [], gameOf.get(id)));
   return out;
 }

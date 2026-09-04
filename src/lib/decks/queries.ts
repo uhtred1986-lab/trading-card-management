@@ -1,6 +1,7 @@
 import { asc, desc, eq, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { cards, deckCards, decks, storageLocations } from "@/db/schema";
+import { deckRules, gameOr, type Game } from "@/lib/catalog/games";
 import { allocationForCards, type Allocation } from "./reservations";
 import { legality, legalityForDecks, RULES } from "./legality";
 
@@ -16,6 +17,16 @@ export const ZONE_LABEL: Record<Zone, string> = {
   z: "Z-Deck",
   side: "Sideboard / ideas",
 };
+
+/**
+ * The zones a game actually has. Fusion World has no Z-Deck, so it is not
+ * offered as a place to put a card — but an existing Z row is still listed
+ * (and flagged) rather than hidden, so a deck converted between games never
+ * loses cards silently.
+ */
+export function zonesFor(game: Game): Zone[] {
+  return deckRules(game).zMax === 0 ? ZONES.filter((z) => z !== "z") : [...ZONES];
+}
 
 export interface CardDeckMembership {
   id: number;
@@ -40,11 +51,12 @@ export async function decksForCard(db: Db, cardId: string): Promise<CardDeckMemb
   return rows.map((r) => ({ ...r, zone: r.zone as Zone }));
 }
 
-export async function listDecks(db: Db) {
+export async function listDecks(db: Db, opts: { game?: Game } = {}) {
   const rows = await db
     .select({
       id: decks.id,
       name: decks.name,
+      game: decks.game,
       description: decks.description,
       isBuilt: decks.isBuilt,
       updatedAt: decks.updatedAt,
@@ -54,6 +66,7 @@ export async function listDecks(db: Db) {
     })
     .from(decks)
     .leftJoin(storageLocations, eq(storageLocations.id, decks.locationId))
+    .where(opts.game ? eq(decks.game, opts.game) : undefined)
     .orderBy(desc(decks.isBuilt), desc(decks.updatedAt));
   const leaderIds = rows.map((r) => r.leaderId).filter((x): x is string => !!x);
   const [leaders, legalities] = await Promise.all([
@@ -65,7 +78,7 @@ export async function listDecks(db: Db) {
   const lm = new Map(leaders.map((l) => [l.id, l]));
   return rows.map((r) => {
     const legality = legalities.get(r.id)!;
-    return { ...r, leader: r.leaderId ? (lm.get(r.leaderId) ?? null) : null, legality, mainCount: legality.mainCount };
+    return { ...r, game: gameOr(r.game), leader: r.leaderId ? (lm.get(r.leaderId) ?? null) : null, legality, mainCount: legality.mainCount };
   });
 }
 
@@ -87,17 +100,21 @@ export interface DeckCardRow {
   skill: string | null;
   characters: string[];
   traits: string[];
+  /** The card's own game — a mismatch with the deck's is flagged by `legality`. */
+  game: Game;
   alloc: Allocation;
 }
 
 export async function getDeck(db: Db, id: number) {
   const deck = await db.query.decks.findFirst({ where: eq(decks.id, id) });
   if (!deck) return null;
+  const game = gameOr(deck.game);
   const rows = await db
     .select({
       cardId: deckCards.cardId,
       zone: deckCards.zone,
       quantity: deckCards.quantity,
+      game: cards.game,
       name: cards.name,
       cardType: cards.cardType,
       colors: cards.colors,
@@ -119,8 +136,8 @@ export async function getDeck(db: Db, id: number) {
     .orderBy(asc(deckCards.zone), asc(sql`nullif(regexp_replace(${cards.energyCost}, '\\D', '', 'g'), '')::int`), asc(cards.name));
 
   const alloc = await allocationForCards(db, [...new Set(rows.map((r) => r.cardId))]);
-  const cardsOut: DeckCardRow[] = rows.map((r) => ({ ...r, zone: r.zone as Zone, alloc: alloc.get(r.cardId)! }));
-  return { ...deck, cards: cardsOut, legality: legality(cardsOut) };
+  const cardsOut: DeckCardRow[] = rows.map((r) => ({ ...r, zone: r.zone as Zone, game: gameOr(r.game), alloc: alloc.get(r.cardId)! }));
+  return { ...deck, game, cards: cardsOut, legality: legality(cardsOut, game) };
 }
 
 /** Plain-text decklist for prompts and export: "4 BT18-020 Omega Shenron, …". */

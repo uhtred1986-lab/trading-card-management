@@ -1,19 +1,28 @@
 /**
  * TCGplayer pricing via tcgcsv.com — a free daily mirror, no key needed.
- * Category 27 is "Dragon Ball Super: Masters" and spans the whole legacy line
- * as well; it also contains the first Fusion World set, which we skip.
+ *
+ * One category per game: 27 is "Dragon Ball Super: Masters", which spans the
+ * whole legacy line as well, and 80 is "Dragon Ball Super: Fusion World".
+ * Category 27 *also* carries a stray copy of the first Fusion World set, which
+ * is skipped there because category 80 has it properly.
  *
  * Products join to the catalog on the printed card number. Prices are stored
  * as one snapshot per product/sub-type/day so the dashboard can show movers.
+ *
+ * This is also where Fusion World gets its **card art**: deckplanet hosts no
+ * images for it, so a matched product's TCGplayer photo is copied onto any
+ * card or print that still has none.
  */
 import { and, eq, isNull, sql } from "drizzle-orm";
 import type { Db } from "@/db";
+import { rows } from "@/db/rows";
 import { cardPrints, cardSets, cards, tcgGroups, tcgPrices, tcgProducts } from "@/db/schema";
 import { baseNumber } from "@/lib/catalog/deckplanet";
+import { GAMES, GAME_INFO, type Game } from "@/lib/catalog/games";
 import { setCodeOfNumber, setLineFor } from "@/lib/catalog/sets";
 
-const BASE = "https://tcgcsv.com/tcgplayer/27";
-export const TCG_CATEGORY_ID = 27;
+const BASE = "https://tcgcsv.com/tcgplayer";
+export const TCG_CATEGORY_ID = GAME_INFO.dbs.tcgCategoryId;
 
 interface TcgGroup {
   groupId: number;
@@ -47,16 +56,21 @@ interface TcgPrice {
   directLowPrice: number | null;
 }
 
-async function getJson<T>(path: string): Promise<T[]> {
+async function getJson<T>(categoryId: number, path: string): Promise<T[]> {
   // tcgcsv answers 401 to requests without a browser-like User-Agent.
-  const res = await fetch(`${BASE}/${path}`, {
+  const res = await fetch(`${BASE}/${categoryId}/${path}`, {
     headers: { accept: "application/json", "user-agent": "Mozilla/5.0 DBSCardCompanion/0.1 (+https://github.com)" },
   });
-  if (!res.ok) throw new Error(`tcgcsv ${path}: ${res.status} ${res.statusText}`);
+  if (!res.ok) throw new Error(`tcgcsv ${categoryId}/${path}: ${res.status} ${res.statusText}`);
   const json = (await res.json()) as { results?: T[] };
   return Array.isArray(json.results) ? json.results : [];
 }
 
+/**
+ * Fusion World groups that turn up in the *original* game's category. Only one
+ * does (a duplicate of FB01), and category 80 carries the real thing, so it is
+ * skipped rather than imported twice under the wrong game.
+ */
 export function isFusionWorld(g: TcgGroup): boolean {
   return /^FB|^FS|^FP/.test(g.abbreviation ?? "") || /fusion world/i.test(g.name);
 }
@@ -143,6 +157,10 @@ export interface PriceSyncSummary {
   matchedProducts: number;
   prices: number;
   capturedOn: string;
+  /** Cards and prints that got their art from a TCGplayer photo this run. */
+  imagesFilled?: number;
+  /** Per-game breakdown; absent on a single-game run. */
+  games?: Record<Game, Omit<PriceSyncSummary, "capturedOn" | "games">>;
 }
 
 async function mapLimit<T, R>(items: T[], limit: number, fn: (t: T) => Promise<R>): Promise<R[]> {
@@ -158,20 +176,30 @@ async function mapLimit<T, R>(items: T[], limit: number, fn: (t: T) => Promise<R
   return out;
 }
 
-export async function syncPrices(
+/**
+ * One game's TCGplayer category. `capturedOn` and the catalog lookup are
+ * passed in so both games land on the same snapshot date and share one read
+ * of the card/print ids.
+ */
+export async function syncPricesForGame(
   db: Db,
+  game: Game,
+  capturedOn: string,
+  lookup: Lookup,
   opts: { onProgress?: (done: number, total: number, name: string) => void } = {},
-): Promise<PriceSyncSummary> {
-  const capturedOn = new Date().toISOString().slice(0, 10);
-  const allGroups = await getJson<TcgGroup>("groups");
-  const groups = allGroups.filter((g) => !isFusionWorld(g));
-  const lookup = await loadLookup(db);
+): Promise<Omit<PriceSyncSummary, "capturedOn" | "games">> {
+  const categoryId = GAME_INFO[game].tcgCategoryId;
+  const allGroups = await getJson<TcgGroup>(categoryId, "groups");
+  // Fusion World sets that stray into the original game's category belong to
+  // the other category, where they are imported properly.
+  const groups = game === "dbs" ? allGroups.filter((g) => !isFusionWorld(g)) : allGroups;
 
   await db
     .insert(tcgGroups)
     .values(
       groups.map((g) => ({
         id: g.groupId,
+        categoryId,
         name: g.name,
         abbreviation: g.abbreviation ?? null,
         publishedOn: dateOnly(g.publishedOn),
@@ -181,6 +209,7 @@ export async function syncPrices(
     .onConflictDoUpdate({
       target: tcgGroups.id,
       set: {
+        categoryId: sql`excluded.category_id`,
         name: sql`excluded.name`,
         abbreviation: sql`excluded.abbreviation`,
         publishedOn: sql`excluded.published_on`,
@@ -197,8 +226,8 @@ export async function syncPrices(
 
   await mapLimit(groups, 4, async (g) => {
     const [prodList, priceList] = await Promise.all([
-      getJson<TcgProduct>(`${g.groupId}/products`),
-      getJson<TcgPrice>(`${g.groupId}/prices`),
+      getJson<TcgProduct>(categoryId, `${g.groupId}/products`),
+      getJson<TcgPrice>(categoryId, `${g.groupId}/prices`),
     ]);
 
     const rows = prodList.map((p) => {
@@ -296,6 +325,76 @@ export async function syncPrices(
     products,
     matchedProducts: matched,
     prices,
+    imagesFilled: await fillMissingImages(db),
+  };
+}
+
+/**
+ * Give cards and prints that still have no art the photo from their matched
+ * TCGplayer product. Only Fusion World needs this today — deckplanet covers
+ * the original game — but it is written for any card with a null image, so a
+ * print deckplanet never uploaded gets one too.
+ *
+ * TCGplayer serves several sizes off one path; the catalog grid wants the big
+ * one, and the stored product row keeps the thumbnail it was given.
+ */
+async function fillMissingImages(db: Db): Promise<number> {
+  const big = sql`replace(src.image_url, '_200w.jpg', '_in_1000x1000.jpg')`;
+  // A print can have several products (foil and non-foil listings); the
+  // unmarked one is the plain card face, so it is preferred.
+  const source = sql`
+    select distinct on (p.print_id) p.print_id, p.image_url
+    from tcg_products p
+    where p.print_id is not null and p.image_url is not null
+    order by p.print_id, (p.marker is null) desc, p.id
+  `;
+  const prints = rows<{ n: number }>(
+    await db.execute(sql`
+      with src as (${source})
+      update card_prints cp set image_url = ${big}
+      from src where src.print_id = cp.id and cp.image_url is null
+      returning 1 as n
+    `),
+  ).length;
+  // The card's own image is the base print's.
+  const cardsFilled = rows<{ n: number }>(
+    await db.execute(sql`
+      with src as (${source})
+      update cards c set image_url = ${big}
+      from src
+      join card_prints bp on bp.id = src.print_id and bp.card_id = c.id and bp.is_base
+      where c.image_url is null
+      returning 1 as n
+    `),
+  ).length;
+  return prints + cardsFilled;
+}
+
+/** Both games, onto one snapshot date. */
+export async function syncPrices(
+  db: Db,
+  opts: { onProgress?: (done: number, total: number, name: string) => void } = {},
+): Promise<PriceSyncSummary> {
+  const capturedOn = new Date().toISOString().slice(0, 10);
+  const lookup = await loadLookup(db);
+  const games = {} as Record<Game, Omit<PriceSyncSummary, "capturedOn" | "games">>;
+  for (const game of GAMES) {
+    // Group names alone don't say which game they came from, and both games
+    // count their groups from one, so the progress line carries the label.
+    const label = GAME_INFO[game].short;
+    games[game] = await syncPricesForGame(db, game, capturedOn, lookup, {
+      onProgress: opts.onProgress && ((done, total, name) => opts.onProgress!(done, total, `${label}: ${name}`)),
+    });
+  }
+  const total = (pick: (s: Omit<PriceSyncSummary, "capturedOn" | "games">) => number) => GAMES.reduce((n, g) => n + pick(games[g]), 0);
+  return {
     capturedOn,
+    games,
+    groups: total((s) => s.groups),
+    skippedFusionWorld: total((s) => s.skippedFusionWorld),
+    products: total((s) => s.products),
+    matchedProducts: total((s) => s.matchedProducts),
+    prices: total((s) => s.prices),
+    imagesFilled: total((s) => s.imagesFilled ?? 0),
   };
 }

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { buildDeckAction, searchLeadersAction, type LeaderChoice } from "@/app/leaders/actions";
+import { GAME_INFO } from "@/lib/catalog/games";
 import { CardImage } from "./CardImage";
 
 /**
@@ -86,7 +87,9 @@ export function NewDeckWithClaude({ enabled }: { enabled: boolean }) {
           <div className="min-w-0 flex-1">
             <span className="block truncate text-sm font-medium text-space-50">{picked.name}</span>
             <span className="text-[11px] text-space-400">
-              {picked.id} · {picked.colors.join("/")} · {picked.owned ? `you own ${picked.owned}` : "not in your collection"}
+              {/* The leader decides the game, so the draft's rules follow from this pick. */}
+              {picked.id} · {GAME_INFO[picked.game].short} · {picked.colors.join("/")} ·{" "}
+              {picked.owned ? `you own ${picked.owned}` : "not in your collection"}
             </span>
           </div>
         </div>
@@ -104,6 +107,7 @@ export function NewDeckWithClaude({ enabled }: { enabled: boolean }) {
                   <span className="block truncate text-sm text-space-100">{l.name}</span>
                   <span className="text-[11px] text-space-400">
                     {l.id} · {l.colors.join("/")}
+                    {l.game !== "dbs" ? ` · ${GAME_INFO[l.game].short}` : ""}
                     {l.owned ? ` · own ${l.owned}` : ""}
                   </span>
                 </span>

@@ -223,5 +223,75 @@ assert.equal(priceForFinish(prices.get("BT18-020_SPR"), "foil"), 199);
   assert.equal((await listOpenBatches(db)).length, 0, "completed batch is no longer open");
 }
 
+// ── Fusion World alongside the original game ───────────────────────────────
+// The two games share every table and are told apart by one column. What is
+// checked here is that they stay apart: legality reads the deck's own rules,
+// and the collection can be narrowed to one game.
+{
+  const { eq } = await import("drizzle-orm");
+  const { legalityForDecks } = await import("../src/lib/decks/legality.ts");
+  const { collectionCopies, valuedLots } = await import("../src/lib/collection/queries.ts");
+  const { zoneForType } = await import("../src/lib/decks/add.ts");
+
+  await db.insert(schema.cardSets).values({ code: "FB07", name: "Wish For Shenron (FB07)", game: "fusion", line: "fusion", sortKey: 7 });
+  const fwCard = (id: string, name: string, cardType = "BATTLE", colors = ["Red"]) => ({
+    id,
+    setCode: "FB07",
+    game: "fusion",
+    name,
+    cardType,
+    colors,
+    rarity: "Super Rare[SR]",
+    rarityCode: "SR",
+    searchText: `${id} ${name}`.toLowerCase(),
+  });
+  await db.insert(schema.cards).values([
+    fwCard("FB07-025", "Omega Shenron", "LEADER"),
+    fwCard("FB07-021", "Vegeta : DA"),
+    fwCard("FB07-050", "Blue Card", "BATTLE", ["Blue"]),
+  ]);
+  await db.insert(schema.cardPrints).values([
+    { id: "FB07-025", cardId: "FB07-025", suffix: "", label: "Standard", rarity: "SR", isBase: true },
+    { id: "FB07-021", cardId: "FB07-021", suffix: "", label: "Standard", rarity: "SR", isBase: true },
+  ]);
+
+  // Existing rows kept the default, which is the game the app started with.
+  const bt = await db.query.cards.findFirst({ where: eq(schema.cards.id, "BT18-020") });
+  assert.equal(bt!.game, "dbs", "the migration defaults every existing card to the original game");
+
+  const [fwDeck] = await db.insert(schema.decks).values({ name: "Shenron FW", game: "fusion" }).returning({ id: schema.decks.id });
+  await db.insert(schema.deckCards).values([
+    { deckId: fwDeck.id, cardId: "FB07-025", zone: "leader", quantity: 1 },
+    { deckId: fwDeck.id, cardId: "FB07-050", zone: "main", quantity: 4 },
+    { deckId: fwDeck.id, cardId: "BT18-020", zone: "main", quantity: 4 },
+  ]);
+  const fwLegality = (await legalityForDecks(db, [fwDeck.id])).get(fwDeck.id)!;
+  assert.equal(fwLegality.status, "illegal");
+  assert.equal(fwLegality.flags["main:FB07-050"]?.severity, "illegal", "off-colour is a rule break in Fusion World");
+  assert.match(fwLegality.flags["main:BT18-020"]!.label, /Super card in a Fusion World deck/);
+
+  // `legalityForDecks` reads each deck's own game: switching this one over
+  // makes the Fusion World cards the foreign ones and clears the Masters card.
+  await db.update(schema.decks).set({ game: "dbs" }).where(eq(schema.decks.id, fwDeck.id));
+  const asDbs = (await legalityForDecks(db, [fwDeck.id])).get(fwDeck.id)!;
+  assert.equal(asDbs.flags["main:BT18-020"], undefined, "the Masters card now belongs");
+  assert.match(asDbs.flags["main:FB07-050"]!.label, /Fusion World card in a Super deck/);
+  await db.update(schema.decks).set({ game: "fusion" }).where(eq(schema.decks.id, fwDeck.id));
+
+  // A Z- card has nowhere to go in a game with no Z-Deck, so it goes to main.
+  assert.equal(zoneForType("Z-BATTLE", "dbs"), "z");
+  assert.equal(zoneForType("Z-BATTLE", "fusion"), "main");
+  assert.equal(zoneForType("LEADER", "fusion"), "leader");
+
+  // Owning one card of each game, the collection filter separates them.
+  await db.insert(schema.ownedCards).values([{ printId: "FB07-021", cardId: "FB07-021" }]);
+  const both = await valuedLots(db);
+  const onlyFw = await valuedLots(db, { game: "fusion" });
+  assert.equal(onlyFw.lots.length, 1);
+  assert.ok(both.lots.length > onlyFw.lots.length, "unfiltered still shows both games");
+  assert.deepEqual((await collectionCopies(db, { game: "fusion" })).rows.map((r) => r.cardId), ["FB07-021"]);
+  assert.ok((await collectionCopies(db, { game: "dbs" })).rows.every((r) => r.game === "dbs"));
+}
+
 await client.close();
 console.log("verify-db: all checks passed");

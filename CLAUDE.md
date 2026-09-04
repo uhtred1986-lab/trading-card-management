@@ -4,11 +4,20 @@ Guidance for Claude Code when working in this repository.
 
 ## What this is
 
-A single-user Next.js companion app for the **Dragon Ball Super Card Game** (legacy BT1–BT25 sets and
-the current Masters line; Fusion World is deliberately excluded everywhere). Collection tracking with
-market values, virtual vs. built decks with a reservation system, Claude-powered deck analysis and
-card scanning, TCGplayer pricing, and a read-only CardTrader integration with a cart optimiser.
-`dbs-tcg-app-feature-summary.md` is the original feature spec.
+A single-user Next.js companion app for Bandai's two **Dragon Ball Super Card Game** products:
+the original game (legacy BT1–BT25 plus the current Masters line) and **Fusion World**. Collection
+tracking with market values, virtual vs. built decks with a reservation system, Claude-powered deck
+analysis and card scanning, TCGplayer pricing, and a read-only CardTrader integration with a cart
+optimiser. `dbs-tcg-app-feature-summary.md` is the original feature spec, written before Fusion
+World was added.
+
+**The two games are one app, kept apart by a `game` column** (`"dbs" | "fusion"`, see
+`src/lib/catalog/games.ts`): it lives on `card_sets`, is denormalised onto `cards`, and is chosen
+once per deck. Everything game-specific — catalog source, TCGplayer category, deck rules, how the
+model is told which game it is looking at — is in `GAME_INFO`, so a query only ever needs the id.
+Lists default to **both** games with a `GameFilter` chip row; nothing is mixed within a deck.
+The **arena is the exception**: its engine reads the Masters rule manual and only plays `dbs`
+decks (owner's decision, 4 Sep 2026).
 
 Owner is in Austria: the display currency is EUR; TCGplayer prices are USD and converted at the
 ECB rate stored in `fx_rates`. Price paid is entered in EUR.
@@ -30,8 +39,9 @@ npm run lint           # ESLint
 npm test               # scripts/verify-rules.ts (pure) + scripts/verify-db.mts (migrations + reservation rules on PGlite)
 npm run db:generate    # Generate a migration after editing src/db/schema.ts
 npm run db:migrate     # Apply migrations (also run on every Vercel deploy via vercel.json)
-npm run sync:catalog   # Import the card catalog from deckplanet (~17 s)
-npm run sync:prices    # Import TCGplayer products + today's prices from tcgcsv + USD→EUR rate (~25 s)
+npm run sync:catalog   # Import both games' catalogs from deckplanet (~20 s)
+npm run sync:prices    # Import TCGplayer products + today's prices from tcgcsv (both categories),
+                       # the USD→EUR rate, and Fusion World's card art (~35 s)
 ```
 
 `npm test` needs no database or network. Everything else needs `DATABASE_URL` in `.env.local`.
@@ -42,12 +52,12 @@ the same style.
 
 | What | Source | Notes |
 |---|---|---|
-| Card catalog | `https://api.deckplanet.net/cardsearch/dbs_masters_cards?limit=100000` | The `dragogodev/cgs` repo the spec names is only a *pointer* to this. 6.5k cards, all lines, no Fusion World. Alternate prints appear as top-level entries **and** in `variants[]`; `shapeCatalog` collapses them to one card per base number + a print list. |
-| Card images | `https://storage.googleapis.com/deckplanet_card_images/{number}.png` | Hot-linked via `next/image`; a few prints 404 and fall back to a placeholder. |
+| Card catalog | `https://api.deckplanet.net/cardsearch/{dbs_masters_cards,fusion_world_cards}?limit=100000` | One call per game; the `dragogodev/cgs` repo the spec names is only a *pointer* to the first. 6.5k cards for the original game, ~2k for Fusion World. Alternate prints appear as top-level entries **and** in `variants[]`; `shapeCatalog` collapses them to one card per base number + a print list. The Fusion World payload differs in three ways, all handled in `deckplanet.ts`: bare rarity codes ("SR", normalised to "Super Rare[SR]" by `normaliseRarity`), no character/era lists, and a numeric energy cost. |
+| Card images | `https://storage.googleapis.com/deckplanet_card_images/{number}.png` | Hot-linked via `next/image`; a few prints 404 and fall back to a placeholder. **Fusion World is not in this bucket at all** — its art comes from the matched TCGplayer product photo (`_200w.jpg` rewritten to `_in_1000x1000.jpg`), filled in by `fillMissingImages` during the price sync. The catalog upserts therefore `coalesce` `image_url` instead of overwriting it. |
 | Leader back sides | deckplanet `{number}_b.png` (older sets only, HEAD-verified at catalog sync) → else CardTrader blueprint `back_image` (Masters-era sets, backfilled by the CardTrader sync) | Stored in `cards.back_image_url`; the catalog upsert `coalesce`s so a CardTrader back survives re-syncs. `CardFaces` shows front + awakened when present. |
-| Prices | `https://tcgcsv.com/tcgplayer/27/...` | **Requires a browser-like User-Agent** (401 otherwise). Category 27 includes one Fusion World group which is skipped. Products join to cards on the printed `Number`; SR+ cards only exist as the "Foil" sub-type, so `priceForFinish` falls back foil↔normal. |
+| Prices | `https://tcgcsv.com/tcgplayer/{27,80}/...` | **Requires a browser-like User-Agent** (401 otherwise). Category 27 is the original game, 80 is Fusion World; 27 also carries a stray duplicate of Fusion World's FB01 group, which is skipped there. Products join to cards on the printed `Number`; SR+ cards only exist as a foil sub-type, so `priceForFinish` falls back foil↔normal — and the foil sub-type is called `Foil` in category 27 but `Holofoil` in 80 (`FOIL_SUB_TYPES`). |
 | FX | `https://api.frankfurter.app/latest?from=USD&to=EUR` | Daily. |
-| CardTrader | `https://api.cardtrader.com/api/v2` | **Read-only client**, and every live call is gated by `CARDTRADER_ENABLED=true` (the owner enabled it on 2 Sep 2026 after testing). Never add cart/purchase endpoints without being asked. Quirks the docs omit: `/games` returns `{"array": [...]}` (the client unwraps it); `/expansions` is a bare array; Dragon Ball Super is game id 9 and **includes Fusion World expansions** (`fb*`, `fs*`), which stay unmatched on purpose; `fixed_properties.collector_number` is `BT14-113` on newer sets but bare `049` on older ones (see `collectorNumbers`). Crosswalk covers ~98 % of cards, mostly via `tcg_player_id` = tcgcsv `productId`. |
+| CardTrader | `https://api.cardtrader.com/api/v2` | **Read-only client**, and every live call is gated by `CARDTRADER_ENABLED=true` (the owner enabled it on 2 Sep 2026 after testing). Never add cart/purchase endpoints without being asked. Quirks the docs omit: `/games` returns `{"array": [...]}` (the client unwraps it); `/expansions` is a bare array; Dragon Ball Super is game id 9 and **includes Fusion World expansions** (`fb*`, `fs*`), which now cross-walk like any other set; `fixed_properties.collector_number` is `BT14-113` on newer sets but bare `049` on older ones (see `collectorNumbers`). Crosswalk covers ~98 % of cards, mostly via `tcg_player_id` = tcgcsv `productId`. Cardmarket also files Fusion World under its `DragonBallSuper` category, but **TCGplayer does not** — `externalLinks` picks the search slug per game. |
 | Claude | `claude-opus-5`, adaptive thinking, Zod structured outputs via `messages.parse` | Every call is recorded in `ai_runs` with token usage. |
 
 ## Architecture
@@ -58,6 +68,10 @@ the same style.
 - **Catalog is immutable app data**: `card_sets` → `cards` → `card_prints`. Ownership (`owned_cards`)
   always references a *print* so foil/alt-art copies are distinct; deck slots (`deck_cards`)
   reference a *card*, because any print satisfies a deck slot.
+- **No card-number prefix belongs to both games** — the original uses BT/EX/SD/TB/EB/DB/XD/P/TOKEN
+  and Fusion World FB/FS/FP/SB/ST/E — so `gameOfSetCode` is a lookup, not a guess, and card ids
+  never collide. Watch the `E`/`E01` pair: it is matched whole before being read as a family plus
+  a number, in `sets.ts` and again in `normaliseNumber`'s `BARE_SET_CODES`.
 - **Reservations are computed, never stored** (`src/lib/decks/reservations.ts`): reserved = sum of
   `deck_cards` across decks with `is_built`; available = owned − reserved. Marking a deck built is
   **blocked outright** when it would over-reserve (owner's decision), and `buildConflicts` lists the
@@ -73,18 +87,23 @@ the same style.
   downscales each photo in the browser and sends one `/api/scan` request per photo), `src/lib/ai/cart.ts` (explains the
   deterministic optimiser's output — it never does the arithmetic). The wizard's candidate pool is
   scoped to the leader's colours and capped at 450 cards; default scope is "any legal card" with an
-  owned-only toggle (owner's decision).
+  owned-only toggle (owner's decision). Every deck prompt is built by `systemFor(game)` and every
+  pool is filtered to one game, so the model is never asked to reason across the two; only the
+  scanner reads both at once, because a photo can hold a mix.
 - **Lot owner**: every `owned_cards` row records `owner` = the Basic Auth username
   (`currentUser()` in `src/lib/auth.ts`, read from the `Authorization` header); null when the app
   runs open locally. Every path that creates lots (card page, bulk entry, scan batches, quick
   capture) stamps it — keep that true for new paths.
 - **Deck legality is a flag, never a block** (`src/lib/decks/legality.ts`). A deck saves in any
-  state; `legality()` labels it **legal / incomplete / illegal** and returns per-card `flags`
-  keyed `"<zone>:<cardId>"`. *Incomplete* = still building (no leader, under 50). *Illegal* = a
-  rule is broken (banned card, over the copy limit, 2+ leaders, over 50, Z-deck over 8, a card in
-  the wrong zone). Off-colour cards are *warnings* and do not change the status. Shown on the deck
-  page, the deck list and the leaders page. The one thing that *is* refused is over-reserving a
-  **built** deck — that's ownership, not legality.
+  state; `legality(rows, game)` labels it **legal / incomplete / illegal** and returns per-card
+  `flags` keyed `"<zone>:<cardId>"`. *Incomplete* = still building (no leader, under 50).
+  *Illegal* = a rule is broken (banned card, over the copy limit, 2+ leaders, over the deck
+  maximum, Z-deck too big, a card in the wrong zone, a card from the **other game**, a non-deck
+  card like an Energy Marker). Shown on the deck page, the deck list and the leaders page. The one
+  thing that *is* refused is over-reserving a **built** deck — that's ownership, not legality.
+  Per-game numbers come from `deckRules(game)`; the only rule that differs in *kind* is colour:
+  off-colour is a **warning** in the original game and **illegal** in Fusion World, which also has
+  no Z-Deck (`zMax: 0`, so `zonesFor` drops the zone and `zoneForType` sends Z- cards to main).
 - **"Also add to deck"** (`DeckPicker`, `src/lib/decks/add.ts`): every add path can target a deck
   (existing, or "New deck…" which creates it on the spot). `addCardsToDeck` puts leaders in the
   leader slot, Z- cards in the Z-deck, everything else in main, and **never caps or replaces** —
@@ -115,7 +134,9 @@ the same style.
   the model. ~130 s and ~$0.40 per draft.
 - **Binding arrays in raw SQL:** use `textArray()` from `src/db/sqlx.ts` — `${arr}::text[]` fails
   under postgres.js with a `transformTypeCast` error.
-- **Arena rules engine** (`src/lib/arena/engine/`, branch `feature/arena`): pure TypeScript, no React,
+- **Arena rules engine** (`src/lib/arena/engine/`, branch `feature/arena`): **Dragon Ball Super
+  only — it does not play Fusion World**, so `deckInputFor` returns null for such a deck and the
+  arena's deck lists ask for `game: "dbs"`. Pure TypeScript, no React,
   no database. A game is a `GameState` plus an append-only event log; `apply(ctx, state, action)` is the
   only mutator and runs the flow (a data step list in `state.flow`) until the next `prompt`, so a game
   is storable mid-decision and reproducible from seed + actions. `legalActions()` drives both the UI

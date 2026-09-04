@@ -12,6 +12,7 @@ import type { Db } from "@/db";
 import { rows } from "@/db/rows";
 import { cardPrints, ctBlueprints, ctExpansions, ctListings, tcgProducts } from "@/db/schema";
 import { baseNumber } from "@/lib/catalog/deckplanet";
+import { gameOr, type Game } from "@/lib/catalog/games";
 
 const BASE = "https://api.cardtrader.com/api/v2";
 
@@ -154,6 +155,10 @@ export function collectorNumbers(bp: CtBlueprint, expansionCode: string | null):
  * Pull CardTrader's DBS catalog and link each blueprint to our card/print:
  * first through TCGplayer product ids (already matched to prints by the
  * price sync), then by printed collector number.
+ *
+ * CardTrader keeps Fusion World inside its "Dragon Ball Super" game (id 9)
+ * rather than as a separate one, so its `fb*`/`fs*` expansions come down with
+ * everything else and now cross-walk to our catalog like any other set.
  */
 export async function syncCardTraderCatalog(db: Db): Promise<CtSyncSummary> {
   const all = await games();
@@ -329,13 +334,26 @@ export async function blueprintsFor(db: Db, cardId: string) {
   return db.select().from(ctBlueprints).where(and(eq(ctBlueprints.cardId, cardId)));
 }
 
-/** Deep links even without an integration: CardTrader search, TCGplayer, Cardmarket. */
-export function externalLinks(card: { id: string; name: string }, tcgUrl?: string | null, cardMarketIds?: unknown) {
+/**
+ * Deep links even without an integration: CardTrader search, TCGplayer,
+ * Cardmarket.
+ *
+ * TCGplayer files the two games under separate categories, so the fallback
+ * search has to point at the right one. Cardmarket and CardTrader both keep
+ * Fusion World *inside* their Dragon Ball Super category, so those are the
+ * same URL either way.
+ */
+const TCG_SEARCH_SLUG: Record<Game, string> = {
+  dbs: "dragon-ball-super-ccg",
+  fusion: "dragon-ball-super-fusion-world",
+};
+
+export function externalLinks(card: { id: string; name: string; game?: string | null }, tcgUrl?: string | null, cardMarketIds?: unknown) {
   const q = encodeURIComponent(`${card.name} ${card.id}`);
   const cm = Array.isArray(cardMarketIds) && cardMarketIds.length ? `https://www.cardmarket.com/en/DragonBallSuper/Products/Singles?idProduct=${cardMarketIds[0]}` : `https://www.cardmarket.com/en/DragonBallSuper/Products/Search?searchString=${encodeURIComponent(card.name)}`;
   return {
     cardtrader: `https://www.cardtrader.com/en/search?q=${q}`,
-    tcgplayer: tcgUrl ?? `https://www.tcgplayer.com/search/dragon-ball-super-ccg/product?q=${q}`,
+    tcgplayer: tcgUrl ?? `https://www.tcgplayer.com/search/${TCG_SEARCH_SLUG[gameOr(card.game)]}/product?q=${q}`,
     cardmarket: cm,
   };
 }

@@ -110,8 +110,10 @@ async function defsForState(db: Db, state: GameState): Promise<Record<string, Ca
 export async function startGame(db: Db, p1DeckId: number, p2DeckId: number, mode: ArenaMode = "hotseat", debug = true): Promise<number> {
   const a = await deckInputFor(db, p1DeckId);
   const b = await deckInputFor(db, p2DeckId);
-  if (!a) throw new Error("the first deck has no leader, so it cannot be played");
-  if (!b) throw new Error("the second deck has no leader, so it cannot be played");
+  // `deckInputFor` also returns null for a Fusion World deck, which the engine
+  // has no rules for.
+  if (!a) throw new Error("the first deck has no leader or is not a Dragon Ball Super deck, so it cannot be played");
+  if (!b) throw new Error("the second deck has no leader or is not a Dragon Ball Super deck, so it cannot be played");
   const rows = await db
     .select()
     .from(cardsTable)
