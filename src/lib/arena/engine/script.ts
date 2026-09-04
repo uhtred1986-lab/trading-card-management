@@ -121,6 +121,11 @@ export type Op =
    */
   | { op: "gains"; traits?: string[]; characters?: string[]; colors?: Color[]; target?: Ref }
   /**
+   * 9-10: where this card goes instead, when it would leave the Battle Area.
+   * `by: "skill"` narrows it to departures a skill caused.
+   */
+  | { op: "replaceLeave"; to: ScriptArea; by?: "skill"; target?: Ref }
+  /**
    * Another way to pay for this card's own [Counter] skill (5-3): for nothing,
    * or by adding cards from your life to your hand. Read from the hand, like
    * a cost reducer, because that is where the skill says it applies.
@@ -449,6 +454,7 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
       case "costReduction":
       case "negateKeyword":
       case "gains":
+      case "replaceLeave":
       case "altCost":
         // Continuous by nature: read by `playCost` and by the counter window,
         // not applied here.
@@ -571,6 +577,7 @@ const OP_NAMES = new Set<Op["op"]>([
   "costReduction",
   "negateKeyword",
   "gains",
+  "replaceLeave",
   "altCost",
   "if",
   "chooseMode",

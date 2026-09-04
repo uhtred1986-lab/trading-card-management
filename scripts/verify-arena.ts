@@ -154,6 +154,8 @@ const DEFS: Record<string, CardDef> = defsFrom([
   card("CHEAPCOMBO", { energyCost: 3, comboCost: 2, comboPower: 5000, skill: "[Permanent] Reduce the combo cost of this card in your hand by 2." }),
   card("ONLYONE", { energyCost: 1, name: "ONLYONE", skill: "[Permanent] Only 1 {ONLYONE} can be played in your Battle Area." }),
   card("RESTCOND", { energyCost: 1, skill: "[Permanent] If this card is in Rest Mode, your Battle Cards get +5000 power." }),
+  card("EXILE", { energyCost: 2, power: 5000, skill: "[Permanent] If this card would leave the Battle Area, remove it from the game instead." }),
+  card("WARPER", { energyCost: 2, power: 5000, skill: "[Permanent] If this card would be removed from your Battle Area by a skill, send this card to your Warp instead." }),
   card("E-LIFE", {
     type: "EXTRA",
     energyCost: 3,
@@ -1417,6 +1419,52 @@ function assertConsistentAfterDrop(s: GameState) {
   assert.equal(powerOf(ctx, s, ally), 10000, "nothing while it stands");
   s.cards[cond].mode = "rest";
   assert.equal(powerOf(ctx, s, ally), 15000, "and +5000 once it is rested");
+}
+
+// ── replacement effects (9-10) ─────────────────────────────────────────────
+
+{
+  // 9-10-1-1: the move that was about to happen is treated as never having
+  // happened, and the card goes where the skill says instead.
+  let s = arena({ battle: ["EXILE"], oppHand: ["KILLER"], oppEnergy: ["V1"] });
+  const exile = find(s, "p1", "battle", "EXILE");
+  s = play(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+  s = play(s, { type: "play", player: "p2", card: find(s, "p2", "hand", "KILLER") }, { type: "choose", player: "p2", cards: [exile] });
+  assert.ok(!s.players.p1.drop.includes(exile), "it did not go to the Drop");
+  assert.ok(s.players.p1.removed.includes(exile), "9-10: it went where the skill said instead");
+  assertConsistent(s);
+}
+
+{
+  // "By a skill" is narrower than "would leave": a battle is not a skill.
+  let s = arena({ battle: ["WARPER"], oppBattle: ["BIG"] });
+  const warper = find(s, "p1", "battle", "WARPER");
+  s.cards[warper].mode = "rest";
+  s = play(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+  s = play(s, { type: "attack", player: "p2", attacker: find(s, "p2", "battle", "BIG"), target: warper }, { type: "pass", player: "p2" }, { type: "pass", player: "p1" });
+  assert.ok(s.players.p1.drop.includes(warper), "KO'd in a battle, so the Drop — the skill named a skill");
+  assert.ok(!s.players.p1.warp.includes(warper));
+  assertConsistent(s);
+}
+
+{
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+  // The sentence splits at the comma, and neither half means anything alone.
+  const r = one("[Permanent] If this card would leave the Battle Area, remove it from the game instead.");
+  assert.deepEqual(r.unsupported, []);
+  assert.deepEqual(r.ops, [{ op: "replaceLeave", to: "removed", target: { sel: { special: "self" } } }]);
+
+  // A rule about other cards keeps its subject rather than the "it" that follows.
+  const other = one("[Permanent] When a ≪Saiyan≫ card would leave your Battle Area, you may place it in your Z-Energy instead.");
+  assert.deepEqual(other.unsupported, []);
+  const op = other.ops[0] as { op: string; to: string; target: { sel: { area: string; filter?: { traits: string[] } } } };
+  assert.equal(op.op, "replaceLeave");
+  assert.equal(op.to, "zEnergy");
+  assert.deepEqual(op.target.sel.filter?.traits, ["saiyan"]);
+
+  // "By your opponent's skills" is left unread on purpose: `move` knows a
+  // skill did it but not whose, and guessing lets the wrong cards escape.
+  assert.ok(one("[Permanent] If this card would be removed from your Battle Area by an opponent's skill, send it to your Warp instead.").unsupported.length > 0);
 }
 
 console.log("verify-arena: all checks passed");
