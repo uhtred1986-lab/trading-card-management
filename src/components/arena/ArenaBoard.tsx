@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { act } from "@/app/arena/actions";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { act, advanceGame } from "@/app/arena/actions";
 import type { Action, LegalAction } from "@/lib/arena/engine";
 import type { BoardView, CardView, SideView, Tappable } from "@/lib/arena/view";
 import { ArenaCard, type CardState } from "./ArenaCard";
@@ -22,6 +22,7 @@ export function ArenaBoard({
   taps,
   log,
   playable,
+  waitingOnServer,
 }: {
   gameId: number;
   view: BoardView;
@@ -30,9 +31,24 @@ export function ArenaBoard({
   log: string[];
   /** False for a finished or abandoned game: the board is then read-only. */
   playable: boolean;
+  /**
+   * True when the next decision is Claude's, or a card's text has gone to the
+   * referee. The page fires the server on load so a reload mid-turn recovers.
+   */
+  waitingOnServer: boolean;
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const asked = useRef(false);
+
+  useEffect(() => {
+    if (!waitingOnServer || asked.current) return;
+    asked.current = true;
+    startTransition(async () => {
+      const r = await advanceGame(gameId);
+      if (r.error) setError(r.error);
+    });
+  }, [waitingOnServer, gameId]);
   const [selected, setSelected] = useState<string | null>(null);
   const [menu, setMenu] = useState<number[] | null>(null);
   const [inspect, setInspect] = useState<CardView | null>(null);
@@ -161,9 +177,16 @@ export function ArenaBoard({
         }`}
         aria-live="polite"
       >
+        {(waitingOnServer || pending) && !view.over && <span className="h-3.5 w-3.5 shrink-0 animate-pulse rounded-full bg-ki-400 shadow-[0_0_0_5px_rgba(255,167,51,0.18)]" aria-hidden />}
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-space-50">
-            {view.over ? (view.over.winner ? `${view.over.winner === view.you.player ? view.you.name : view.them.name} wins` : "A draw") : view.prompt.question}
+            {view.over
+              ? view.over.winner
+                ? `${view.over.winner === view.you.player ? view.you.name : view.them.name} wins`
+                : "A draw"
+              : waitingOnServer
+                ? `${view.them.name} is thinking…`
+                : view.prompt.question}
           </p>
           <p className="mt-0.5 truncate text-[11px] text-space-300">{view.over ? view.over.reason : (error ?? view.prompt.hint ?? "")}</p>
         </div>

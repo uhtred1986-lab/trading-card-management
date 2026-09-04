@@ -20,6 +20,9 @@ export interface LoadedGame {
   id: number;
   mode: ArenaMode;
   status: string;
+  /** What Claude has cost this game, and its review once it exists. */
+  spend: { calls: number; input: number; output: number; cached: number; micros: number };
+  review: string | null;
   p1Name: string;
   p2Name: string;
   p1DeckId: number | null;
@@ -88,6 +91,8 @@ export async function loadGame(db: Db, id: number): Promise<LoadedGame | null> {
     state,
     log: (row.log as string[]) ?? [],
     legal: legalActions(ctx, state),
+    spend: { calls: row.aiCalls, input: row.aiInputTokens, output: row.aiOutputTokens, cached: row.aiCachedTokens, micros: row.aiCostMicros },
+    review: row.review,
   };
 }
 
@@ -126,6 +131,7 @@ export async function listGames(db: Db, limit = 20) {
       reason: arenaGames.reason,
       turn: arenaGames.turn,
       mode: arenaGames.mode,
+      costMicros: arenaGames.aiCostMicros,
       updatedAt: arenaGames.updatedAt,
     })
     .from(arenaGames)

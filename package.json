@@ -18,7 +18,8 @@
     "sync:all": "tsx scripts/sync-catalog.mts && tsx scripts/sync-prices.mts",
     "arena:fuzz": "tsx --env-file=.env.local scripts/arena-fuzz.mts",
     "arena:coverage": "tsx --env-file=.env.local scripts/arena-coverage.mts",
-    "arena:playthrough": "tsx --env-file=.env.local scripts/arena-playthrough.mts"
+    "arena:playthrough": "tsx --env-file=.env.local scripts/arena-playthrough.mts",
+    "arena:vs": "tsx --env-file=.env.local scripts/arena-vs-claude.mts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.116.0",

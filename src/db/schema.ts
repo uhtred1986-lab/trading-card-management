@@ -542,6 +542,16 @@ export const arenaGames = pgTable(
     actions: jsonb("actions").notNull().default(sql`'[]'::jsonb`),
     /** One line per event, for the log the board shows. */
     log: jsonb("log").notNull().default(sql`'[]'::jsonb`),
+    /** What Claude has cost this game so far — shown on the end screen. */
+    aiCalls: integer("ai_calls").notNull().default(0),
+    aiInputTokens: integer("ai_input_tokens").notNull().default(0),
+    aiOutputTokens: integer("ai_output_tokens").notNull().default(0),
+    aiCachedTokens: integer("ai_cached_tokens").notNull().default(0),
+    /** Millionths of a US dollar, so even a cheap call is a whole number. */
+    aiCostMicros: integer("ai_cost_micros").notNull().default(0),
+    /** Claude's review of the finished game, in the deck-summary pattern. */
+    review: text("review"),
+    reviewAt: timestamp("review_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

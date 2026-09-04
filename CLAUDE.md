@@ -133,6 +133,16 @@ the same style.
   from the engine's `legalActions`, so the UI knows no rules. `npm run arena:playthrough` plays a
   whole game through the database, and `npm run arena:coverage` reports how much card text the
   compiler reads.
+- **Claude as the arena opponent** (`src/lib/arena/ai/`): `view.ts` builds what Claude may see —
+  its own hand and decklist plus public state; your hand, life and decklist are never in the
+  request. `opponent.ts` picks a number from the engine's legal-move list, so an answer can be
+  wrong but never illegal, and takes the decisions that cannot go wrong (one legal move, the coin
+  flip, the mulligan, which card to charge) without an API call at all. Two tiers, the owner's
+  choice: Sparring on Haiku 4.5, Tournament sending the Main Phase and counter windows to Opus 5.
+  The same module holds the **referee**, which answers with a program in the effect language when
+  a card's text defeats the compiler. `run.ts` drives Claude's side and totals what it spent onto
+  the game row. Caching note: the cached prefix is ~3,200 tokens, over Opus 5's 512-token minimum
+  but under Haiku 4.5's 4,096, so Tournament games cache and Sparring games do not.
 - **Optimiser** (`src/lib/marketplace/optimizer.ts`) is deterministic: greedy + exhaustive 1/2/3-seller
   subsets + removal local search, shipping counted once per seller.
 

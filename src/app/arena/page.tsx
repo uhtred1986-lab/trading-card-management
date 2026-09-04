@@ -31,6 +31,14 @@ async function coverageFor(deckId: number): Promise<{ cards: number; referee: nu
 
 export default async function ArenaPage() {
   const [decks, games] = await Promise.all([listDecks(db), listGames(db)]);
+  // What games of each kind have actually cost, rather than an estimate.
+  const spent: Record<string, string | null> = { sparring: null, tournament: null };
+  for (const mode of ["sparring", "tournament"] as const) {
+    const done = games.filter((g) => g.mode === mode && g.status !== "playing" && g.costMicros > 0);
+    if (!done.length) continue;
+    const avg = done.reduce((n, g) => n + g.costMicros, 0) / done.length / 1_000_000;
+    spent[mode] = `Your games so far: $${avg.toFixed(2)} on average.`;
+  }
   const playable = decks.filter((d) => d.leader && d.mainCount >= 50);
   const coverage = new Map<number, { cards: number; referee: number } | null>();
   for (const d of playable) coverage.set(d.id, await coverageFor(d.id));
@@ -42,7 +50,8 @@ export default async function ArenaPage() {
       <div>
         <h1 className="text-xl font-semibold tracking-tight text-space-50">Arena</h1>
         <p className="mt-1 text-sm text-space-300">
-          Play a full game. The rules are enforced by the engine, so only legal moves are ever offered. Hot-seat for now: both sides are yours.
+          Play a full game against Claude, or hot-seat against yourself. The rules are enforced by the engine, so only legal moves are ever offered — Claude picks
+          from the same list you do, and never sees your hand.
         </p>
       </div>
 
@@ -68,7 +77,7 @@ export default async function ArenaPage() {
               </select>
             </label>
             <label className="block text-sm">
-              <span className="mb-1 block text-xs uppercase tracking-wider text-space-400">Second player&rsquo;s deck</span>
+              <span className="mb-1 block text-xs uppercase tracking-wider text-space-400">Second player&rsquo;s deck (Claude&rsquo;s, unless hot-seat)</span>
               <select name="p2" className={select} defaultValue={playable[1]?.id ?? playable[0]?.id}>
                 {playable.map((d) => (
                   <option key={d.id} value={d.id}>
@@ -78,10 +87,28 @@ export default async function ArenaPage() {
               </select>
             </label>
           </div>
-          <input type="hidden" name="mode" value="hotseat" />
+          <fieldset>
+            <legend className="mb-1 block text-xs uppercase tracking-wider text-space-400">Opponent</legend>
+            <div className="grid gap-2 sm:grid-cols-3">
+              {[
+                { value: "hotseat", title: "Hot-seat", note: "Both sides are yours. Free." },
+                { value: "sparring", title: "Sparring", note: `Claude on Haiku 4.5. ${spent.sparring ?? "Measured at about 10 to 15 cents a game."}` },
+                { value: "tournament", title: "Tournament", note: `Claude on Opus 5 for the turns that decide things. ${spent.tournament ?? "Measured at about 20 to 30 cents a game."}` },
+              ].map((o, i) => (
+                <label key={o.value} className="tap flex cursor-pointer flex-col rounded-lg border border-space-600 bg-space-900 p-2 text-sm has-[:checked]:border-ki-500 has-[:checked]:bg-space-800">
+                  <span className="flex items-center gap-2">
+                    <input type="radio" name="mode" value={o.value} defaultChecked={i === 0} className="accent-ki-500" />
+                    <span className="font-medium text-space-50">{o.title}</span>
+                  </span>
+                  <span className="mt-0.5 pl-6 text-[11px] text-space-400">{o.note}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
           <button className="tap w-full rounded-lg bg-ki-500 px-4 py-3 text-sm font-semibold text-space-950">Flip the coin</button>
           <p className="text-[11px] text-space-400">
-            A game starts with the coin flip, then each side may mulligan once. Life is 8; the player going second gets one energy marker.
+            A game starts with the coin flip, then each side may mulligan once. Life is 8; the player going second gets one energy marker. Against Claude, the second
+            deck is the one it plays.
           </p>
         </form>
       )}
@@ -123,6 +150,7 @@ export default async function ArenaPage() {
                     {g.p1Name} <span className="text-space-500">vs</span> {g.p2Name}
                   </span>
                   <span className="text-xs text-space-400">turn {g.turn}</span>
+                  <span className="text-xs text-space-500">{g.mode === "hotseat" ? "hot-seat" : g.mode}</span>
                   <span className={`ml-auto text-xs ${g.status === "playing" ? "text-ki-300" : "text-space-400"}`}>
                     {g.status === "playing" ? "in progress" : g.status === "over" ? (g.winner ? `${g.winner === "p1" ? g.p1Name : g.p2Name} won` : "draw") : "abandoned"}
                   </span>
