@@ -192,9 +192,40 @@ In the order they earn their keep:
 
 ---
 
+## Done: the first pattern pass (4 Sep 2026)
+
+Commit "Arena: the first pass of wordings, aimed at the decks you play".
+Catalog 60.1 % → 66.5 %, the owner's decks 77.2 % → 85.6 %, on the same 6,493
+cards. No new mechanism — every one was a sentence the engine could already
+carry out and could not read.
+
+The lesson worth carrying: **a failed clause fails the clauses after it.** The
+compiler tracks what "it" refers to in `Ctx.lastTarget`, so when
+`choose 1 of your <Majin Buu>` failed for want of an area word, the
+`switch it to Active Mode` behind it failed too. Two fixes at the head of a
+chain were worth more than twenty at the tail. When picking the next batch,
+look for the clause that comes *first* in a skill.
+
+Also: measurement now filters on `cards.game` (`src/lib/catalog/games.ts`).
+Fusion World entered the catalog on 4 Sep; it is a different game, the arena
+does not play it, and counting its 2,000 cards would mean tuning the compiler
+on text that can never come up.
+
+How to run the next batch, which is the same shape:
+
+1. `npm run arena:coverage` → the **"in your decks"** table is the working list.
+2. For the top wordings, look at the verbatim clause and the card it is on
+   before writing a pattern — the normalised form in the table hides which
+   preposition the set actually printed.
+3. Write the pattern generally, not for the deck: the same sentence usually
+   appears hundreds of times catalog-wide.
+4. Add the compile assertions to `scripts/verify-arena.ts`, re-measure, fuzz.
+
+---
+
 ## The other track, which needs no planning
 
-Two thirds of the unreadable clauses — 7,644 of them — need **no new
+Two thirds of the unreadable clauses — 6,116 of them — need **no new
 mechanism**, only a phrase pattern. The loop for grinding them down already
 exists and is the fastest way to raise coverage:
 
