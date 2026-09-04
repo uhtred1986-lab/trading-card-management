@@ -25,6 +25,9 @@ export function skillLines(text: string | null | undefined): string[] {
     .replace(/&gt;/g, ">")
     .replace(/&amp;/g, "&")
     .replace(/[’‘]/g, "'")
+    // Some sets print the odd full-width Latin letter mid-word ("Leader Ｃard"),
+    // which reads the same and matches nothing.
+    .replace(/[Ａ-Ｚａ-ｚ]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xfee0))
     .split("\n")
     .map((l) => l.trim())
     .filter(Boolean);
