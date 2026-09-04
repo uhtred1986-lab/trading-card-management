@@ -215,6 +215,9 @@ export function describeEvents(ctx: EngineContext, state: GameState, events: Gam
       case "token":
         out.push(`${who(e.owner)} plays a ${name(e.card)}`);
         break;
+      case "delayed":
+        out.push(`${name(e.card)} — ${e.label}`);
+        break;
       case "note":
         out.push(e.text);
         break;

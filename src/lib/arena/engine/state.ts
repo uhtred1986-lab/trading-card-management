@@ -8,7 +8,7 @@ import { canCombo, hasKeyword, keywordOf, skillsOf, specifiedCostOf, isZ, baseTy
 import { compileCardCached } from "./compile";
 import { matches } from "./filters";
 import type { Amount, Cond, Op, Ref, ScriptArea, ScriptFrame, Selector, Side } from "./script";
-import type { Area, CardDef, CardFace, Color, ContinuousEffect, GameEvent, GameState, KeywordSkill, PlayerId, PlayerState, Skill } from "./types";
+import type { Area, CardDef, CardFace, Color, ContinuousEffect, DelayedEffect, DelayTiming, FlowStep, GameEvent, GameState, KeywordSkill, PlayerId, PlayerState, Skill } from "./types";
 import { other } from "./types";
 
 export interface GameContext {
@@ -212,6 +212,10 @@ export function resolveSelector(ctx: GameContext, s: GameState, frame: ScriptFra
     const inst = s.cards[id];
     if (!inst) return false;
     if (sel.mode && inst.mode !== sel.mode) return false;
+    // A named target that also names an area only matches while it is there.
+    // A delayed effect resolves turns later, and by then "this card" may have
+    // left the Battle Area — in which case it is no longer the same card (3-1-4).
+    if (sel.special && sel.area && areaOf(s, id) !== (sel.area === "play" ? "battle" : sel.area)) return false;
     // 23-5-2: a Hidden Mode card has none of its front-side information.
     if (sel.filter && (inst.hidden || !matches(def(ctx, s, id), sel.filter))) return false;
     if (!sel.special && !sel.ignoreBarrier && sel.side !== "you" && has(ctx, s, id, "Barrier") && s.cards[id].owner !== frame.master && areaOf(s, id) !== "hand") return false;
@@ -472,6 +476,56 @@ export function addEffect(s: GameState, ev: GameEvent[], e: Omit<ContinuousEffec
 
 export function endEffects(s: GameState, until: ContinuousEffect["until"], forPlayer?: PlayerId): void {
   s.effects = s.effects.filter((e) => !(e.until === until && (forPlayer == null || e.ownerTurn === forPlayer)));
+}
+
+// ── delayed effects (1-7-2-1-1) ────────────────────────────────────────────
+
+/** Write an effect down for a later timing. */
+export function schedule(s: GameState, ev: GameEvent[], e: Omit<DelayedEffect, "id" | "createdTurn">): DelayedEffect {
+  const full: DelayedEffect = { ...e, id: s.nextDelayedId++, createdTurn: s.turn };
+  s.delayed.push(full);
+  ev.push({ type: "delayed", card: e.card, label: e.label });
+  return full;
+}
+
+/** Whether the turn now under way is the one the effect was waiting for. */
+function ripe(s: GameState, d: DelayedEffect): boolean {
+  switch (d.scope) {
+    case "thisTurn":
+      return s.turn === d.createdTurn;
+    case "nextTurn":
+      return s.turn > d.createdTurn;
+    case "yourNextTurn":
+      return s.turn > d.createdTurn && s.turnPlayer === d.master;
+    case "opponentNextTurn":
+      return s.turn > d.createdTurn && s.turnPlayer !== d.master;
+  }
+}
+
+/**
+ * Take every effect waiting for this timing off the list and return the flow
+ * steps that carry them out, oldest first (4-2-2-2 order). A checkpoint
+ * follows each one, because a delayed effect can KO a card like any other.
+ */
+export function fireDelayed(s: GameState, at: DelayTiming): FlowStep[] {
+  const ready = s.delayed.filter((d) => d.at === at && ripe(s, d));
+  if (!ready.length) return [];
+  const ids = new Set(ready.map((d) => d.id));
+  s.delayed = s.delayed.filter((d) => !ids.has(d.id));
+  return ready.flatMap((d): FlowStep[] => [
+    { op: "script.step", frame: { ops: d.ops, ip: 0, vars: d.vars, card: d.card, master: d.master, subject: d.subject } },
+    { op: "checkpoint" },
+  ]);
+}
+
+/**
+ * An effect scheduled for "this turn" whose moment has gone never happens —
+ * the card that scheduled it may have left play before the timing came round,
+ * or the timing may simply have passed. Dropping it keeps the list from
+ * growing over a long game.
+ */
+export function expireDelayed(s: GameState): void {
+  s.delayed = s.delayed.filter((d) => d.scope !== "thisTurn" || d.createdTurn === s.turn);
 }
 
 // ── costs (5-3, 5-4, 5-6) ──────────────────────────────────────────────────

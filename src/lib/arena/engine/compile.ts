@@ -11,7 +11,7 @@
 import { parseFilter, type CardFilter } from "./filters";
 import { keywordOf, skillsOf } from "./cards";
 import type { Amount, Cond, Op, Ref, Script, ScriptArea, Selector, Side } from "./script";
-import type { CardDef, KeywordSkill, Skill } from "./types";
+import type { CardDef, DelayScope, DelayTiming, KeywordSkill, Skill } from "./types";
 
 // ── clause splitting ───────────────────────────────────────────────────────
 
@@ -196,6 +196,61 @@ function durationOf(clause: string): "battle" | "turn" | "game" | "opponentTurn"
 }
 
 /**
+ * Timings that push the rest of the sentence into the future (1-7-2-1-1):
+ * "At the end of the turn, KO it", "During your opponent's next turn, …".
+ * Everything after the phrase becomes a delayed program rather than something
+ * that happens now — which, until this existed, the compiler could not say at
+ * all, so the whole skill went to the referee.
+ */
+const DELAY_PATTERNS: [RegExp, DelayTiming, DelayScope][] = [
+  [/at (?:the )?end of your next turn/, "turnEnd", "yourNextTurn"],
+  [/at (?:the )?end of your opponent's (?:next )?turn/, "turnEnd", "opponentNextTurn"],
+  [/at (?:the )?end of (?:this |the |your )?turn/, "turnEnd", "thisTurn"],
+  [/at (?:the )?end of (?:this|the) battle/, "battleEnd", "thisTurn"],
+  [/at the (?:start|beginning) of your next main phase/, "mainStart", "yourNextTurn"],
+  [/at the (?:start|beginning) of your opponent's next turn/, "turnStart", "opponentNextTurn"],
+  [/at the (?:start|beginning) of your next turn/, "turnStart", "yourNextTurn"],
+  [/at the (?:start|beginning) of the next turn/, "turnStart", "nextTurn"],
+  [/during your opponent's next turn/, "turnStart", "opponentNextTurn"],
+  [/during your next turn/, "turnStart", "yourNextTurn"],
+];
+
+const clean = (clause: string) => clause.toLowerCase().trim().replace(/[.]$/, "");
+
+/** Longest match wins: "your next turn" also matches the plainer "your turn". */
+function bestDelay(t: string, anchor: (src: string) => RegExp): { at: DelayTiming; scope: DelayScope; m: RegExpExecArray } | null {
+  let best: { at: DelayTiming; scope: DelayScope; m: RegExpExecArray } | null = null;
+  for (const [re, at, scope] of DELAY_PATTERNS) {
+    const m = anchor(re.source).exec(t);
+    if (!m) continue;
+    if (best && best.m[0].length >= m[0].length) continue;
+    best = { at, scope, m };
+  }
+  return best;
+}
+
+function parseDelayClause(clause: string): { at: DelayTiming; scope: DelayScope; label: string; rest: string } | null {
+  const t = clean(clause);
+  const best = bestDelay(t, (src) => new RegExp(`^${src}`));
+  if (!best) return null;
+  return { at: best.at, scope: best.scope, label: best.m[0], rest: t.slice(best.m[0].length).replace(/^[\s,:]+/, "") };
+}
+
+/**
+ * The same timing written at the other end of the clause: "Flip this card over
+ * at the end of the turn". "until the end of the turn" is a *duration*, not a
+ * timing, so a head ending in a linking word is left alone.
+ */
+function parseTrailingDelay(clause: string): { at: DelayTiming; scope: DelayScope; label: string; head: string } | null {
+  const t = clean(clause);
+  const best = bestDelay(t, (src) => new RegExp(`^(.+?)[\\s,]+(?:${src})$`));
+  if (!best) return null;
+  const head = best.m[1].trim();
+  if (!head || /\b(?:until|through|for|by)$/.test(head)) return null;
+  return { at: best.at, scope: best.scope, label: best.m[0].slice(head.length).trim(), head };
+}
+
+/**
  * Conditions a skill puts in front of its effect ("If your Leader is red, …").
  * Everything after the condition becomes conditional on it (9-1-3).
  */
@@ -250,7 +305,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   if ((m = /^your opponent draws (\d+) cards?$/.exec(t))) return [{ op: "draw", n: Number(m[1]), side: "opponent" }];
 
   // Discard (20-7).
-  if ((m = /^your opponent discards (\d+) cards? from their hand$/.exec(t))) return [{ op: "discard", n: Number(m[1]), side: "opponent" }];
+  if ((m = /^your opponent discards (\d+) cards?(?: from their hand)?$/.exec(t))) return [{ op: "discard", n: Number(m[1]), side: "opponent" }];
   if ((m = /^discard (\d+) cards?(?: from your hand)?$/.exec(t))) return [{ op: "discard", n: Number(m[1]) }];
   if ((m = /^your opponent chooses (\d+) cards? (?:in|from) their hand$/.exec(t))) return [{ op: "discard", n: Number(m[1]), side: "opponent" }];
   if (/^make your opponent choose (\d+) cards? from their hand$/.test(t)) return [{ op: "discard", n: 1, side: "opponent" }];
@@ -441,7 +496,8 @@ export function compileSkill(skill: Skill): Script {
 
   // "if you do" (20-16) makes the rest conditional on the previous choice, and
   // a run of conditions all have to hold, so a group carries a list of them.
-  const groups: { conds: Cond[]; ops: Op[] }[] = [{ conds: [], ops: [] }];
+  type Group = { conds: Cond[]; ops: Op[]; delay?: { at: DelayTiming; scope: DelayScope; label: string } };
+  const groups: Group[] = [{ conds: [], ops: [] }];
   const push = (ops: Op[]) => groups[groups.length - 1].ops.push(...ops);
   for (const clause of clauses) {
     const conn = connective(clause);
@@ -456,6 +512,44 @@ export function compileSkill(skill: Skill): Script {
       if (lastChoose && lastChoose.op === "choose") lastChoose.sel.ignoreBarrier = true;
       continue;
     }
+    // A timing phrase opens a group too, and everything after it happens then
+    // rather than now. A condition already in front of it still applies, and
+    // is checked when the skill resolves, not when the delayed part fires.
+    const delay = parseDelayClause(clause);
+    if (delay) {
+      const open = groups[groups.length - 1];
+      const inherited = open.ops.length === 0 ? open.conds : [];
+      groups.push({ conds: [...inherited], ops: [], delay: { at: delay.at, scope: delay.scope, label: delay.label } });
+      // "At the end of the turn KO this card" arrives as one clause when the
+      // printed text has no comma; the remainder is the delayed effect itself.
+      if (delay.rest) {
+        const got = compileClause(delay.rest, c);
+        if (got) groups[groups.length - 1].ops.push(...got);
+        else unsupported.push(delay.rest);
+      }
+      continue;
+    }
+
+    // "Flip this card over at the end of the turn" — the same thing said the
+    // other way round. Only the head is an effect; the tail says when.
+    const trailing = parseTrailingDelay(clause);
+    if (trailing) {
+      if (connective(trailing.head) === "skip") continue;
+      const got = compileClause(trailing.head, c);
+      if (got) {
+        for (const o of got) {
+          if (o.op === "choose") {
+            c.last = o.as;
+            c.lastTarget = { var: o.as };
+          } else if ("target" in o) c.lastTarget = o.target;
+        }
+        push([{ op: "delay", at: trailing.at, scope: trailing.scope, ops: got, label: trailing.label }]);
+        continue;
+      }
+      unsupported.push(clause);
+      continue;
+    }
+
     // A condition opens a group: everything after it depends on it holding.
     // A second condition with nothing between them joins the same group, so
     // both have to hold rather than the first being quietly dropped.
@@ -487,6 +581,7 @@ export function compileSkill(skill: Skill): Script {
     if (!g.ops.length) continue;
     // Nest the conditions outermost-first, so all of them have to hold.
     let body = g.ops;
+    if (g.delay) body = [{ op: "delay", at: g.delay.at, scope: g.delay.scope, ops: body, label: g.delay.label }];
     for (const cond of [...g.conds].reverse()) body = [{ op: "if", cond, then: body }];
     ops.push(...body);
   }
@@ -621,6 +716,9 @@ export function describeScript(ops: Op[]): string {
         break;
       case "if":
         parts.push(`if a condition holds: ${describeScript(op.then)}`);
+        break;
+      case "delay":
+        parts.push(`${op.label ?? "later"}: ${describeScript(op.ops)}`);
         break;
       case "note":
         break;

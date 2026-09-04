@@ -23,7 +23,9 @@ import {
   def,
   draw,
   endEffects,
+  expireDelayed,
   face,
+  fireDelayed,
   has,
   describePayment,
   inPlay,
@@ -38,6 +40,7 @@ import {
   planPayment,
   playCost,
   powerOf,
+  schedule,
   setMode,
   skillsOfInstance,
   type GameContext,
@@ -92,6 +95,8 @@ export function createGame(ctx: EngineContext, opts: GameOptions): Applied {
     cards: {},
     effects: [],
     nextEffectId: 1,
+    delayed: [],
+    nextDelayedId: 1,
     pending: [],
     prompt: { kind: "gameOver" },
     counterStack: [],
@@ -197,6 +202,8 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
       ps.overRealmsThisTurn = 0;
       ps.zAwakenedThisTurn = false;
       ps.grewUnisonThisTurn = false;
+      // Anything still waiting for "the end of the turn" missed its moment.
+      expireDelayed(s);
       s.flow.unshift({ op: "turn.start" });
       return "done";
     }
@@ -206,7 +213,7 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
       ev.push({ type: "phase", phase: "charge", player: s.turnPlayer, turn: s.turn });
       endEffects(s, "opponentTurn", other(s.turnPlayer));
       for (const id of cardsInPlay(s, s.turnPlayer)) pendTriggers(ctx, s, "chargeStart", id);
-      s.flow.unshift({ op: "checkpoint" }, { op: "turn.activeAll" }, { op: "checkpoint" }, { op: "turn.draw" }, { op: "checkpoint" }, { op: "turn.promptCharge" });
+      s.flow.unshift(...fireDelayed(s, "turnStart"), { op: "checkpoint" }, { op: "turn.activeAll" }, { op: "checkpoint" }, { op: "turn.draw" }, { op: "checkpoint" }, { op: "turn.promptCharge" });
       return "done";
     }
     case "turn.activeAll": {
@@ -234,7 +241,7 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
       s.phase = "main";
       ev.push({ type: "phase", phase: "main", player: s.turnPlayer, turn: s.turn });
       for (const id of cardsInPlay(s, s.turnPlayer)) pendTriggers(ctx, s, "mainStart", id);
-      s.flow.unshift({ op: "checkpoint" }, { op: "turn.promptMain" });
+      s.flow.unshift(...fireDelayed(s, "mainStart"), { op: "checkpoint" }, { op: "turn.promptMain" });
       return "done";
     }
     case "turn.promptMain":
@@ -256,20 +263,25 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
       ev.push({ type: "phase", phase: "end", player: s.turnPlayer, turn: s.turn });
       const before = s.pending.length;
       for (const p of PLAYERS) for (const id of cardsInPlay(s, p)) pendTriggers(ctx, s, "turnEnd", id);
+      // Effects written down earlier in the turn resolve here, before the
+      // "at the end of the turn" skills the cards in play are triggering now.
+      const due = fireDelayed(s, "turnEnd");
       // 7-4-4: if new "at the end of the turn" skills became pending, run the
       // End Phase again before the turn passes.
       const again = s.pending.length > before && (s.continuations.endPhaseRuns as number | undefined ?? 0) < 5;
       s.continuations.endPhaseRuns = ((s.continuations.endPhaseRuns as number | undefined) ?? 0) + 1;
-      if (again) s.flow.unshift({ op: "checkpoint" }, { op: "turn.endPhase" });
+      if (again) s.flow.unshift(...due, { op: "checkpoint" }, { op: "turn.endPhase" });
       else {
         delete s.continuations.endPhaseRuns;
-        s.flow.unshift({ op: "checkpoint" }, { op: "turn.cleanup" }, { op: "turn.next" });
+        s.flow.unshift(...due, { op: "checkpoint" }, { op: "turn.cleanup" }, { op: "turn.next" });
       }
       return "done";
     }
     case "turn.cleanup":
-      // 7-4-5/6: "for the turn" effects end; 22-15-6: Over Realm cards go to the Warp.
-      endTurnCleanup(ctx, s, ev);
+      // 7-4-5/6: "for the turn" effects end. 22-15-6 (Over Realm cards back to
+      // the Warp) is now one of the delayed effects drained here.
+      endEffects(s, "turn");
+      s.flow.unshift(...fireDelayed(s, "turnCleanup"));
       return "done";
 
     case "counter":
@@ -457,18 +469,6 @@ function gameOver(s: GameState, ev: GameEvent[], winner: PlayerId | null, reason
   s.overReason = reason;
   s.prompt = { kind: "gameOver" };
   ev.push({ type: "gameOver", winner, reason });
-}
-
-function endTurnCleanup(ctx: EngineContext, s: GameState, ev: GameEvent[]): void {
-  endEffects(s, "turn");
-  for (const p of PLAYERS) {
-    for (const id of s.players[p].battle.slice()) {
-      if (s.continuations[`overRealm:${id}`]) {
-        delete s.continuations[`overRealm:${id}`];
-        move(ctx, s, ev, id, "warp", p, { reason: "rule" });
-      }
-    }
-  }
 }
 
 // ── counter timing (4-3, 9-7, 22-10) ───────────────────────────────────────
@@ -889,9 +889,10 @@ function battleCleanup(ctx: EngineContext, s: GameState, ev: GameEvent[]): "done
   // 22-8-3 [X Attack]: the attacker is switched back to Active Mode.
   if (b.reactivate && areaOf(s, b.attacker)) setMode(s, ev, b.attacker, "active");
   for (const p of PLAYERS) for (const id of cardsInPlay(s, p)) pendTriggers(ctx, s, "battleEnd", id);
+  const due = fireDelayed(s, "battleEnd");
   endEffects(s, "battle");
   s.battle = null;
-  s.flow.unshift({ op: "checkpoint" }, { op: "turn.promptMain" });
+  s.flow.unshift(...due, { op: "checkpoint" }, { op: "turn.promptMain" });
   return "done";
 }
 
@@ -1303,6 +1304,12 @@ function clone<T>(x: T): T {
 /** Apply one action. Throws `IllegalAction` when it is not the asked player's or not legal. */
 export function apply(ctx: EngineContext, prev: GameState, action: Action): Applied {
   const s = clone(prev);
+  // Games saved before delayed effects existed have no list; give them one
+  // rather than letting the first scheduled effect throw.
+  if (!s.delayed) {
+    s.delayed = [];
+    s.nextDelayedId = 1;
+  }
   const ev: GameEvent[] = [{ type: "action", action }];
   const pr = s.prompt;
   if (action.type === "concede") {
@@ -1611,7 +1618,17 @@ function activate(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId
     payOrbs();
     ps.overRealmsThisTurn++;
     for (const id of ps.drop.slice()) move(ctx, s, ev, id, "warp", p, { reason: "cost" });
-    s.continuations[`overRealm:${card}`] = true;
+    // 22-15-6: the card returns to the Warp as the turn ends — a delayed
+    // effect like any other, and it does nothing if the card has already left.
+    schedule(s, ev, {
+      at: "turnCleanup",
+      scope: "thisTurn",
+      ops: [{ op: "moveTo", target: { sel: { special: "self", area: "battle" } }, to: "warp" }],
+      card,
+      master: p,
+      vars: {},
+      label: "back to the Warp as the turn ends",
+    });
     s.resolving = { card, player: p };
     s.flow.unshift({ op: "counter", window: "play", responder: other(p) }, { op: "play.resolve", card, player: p });
     return;

@@ -229,12 +229,17 @@ Operations (each is an object with "op"):
   {"op":"cannotAttack","target":TARGET,"until":"turn"}
   {"op":"token","name":"Saibaman Token","power":10000,"comboCost":0,"comboPower":5000,"colors":[],"n":2}
   {"op":"if","cond":COND,"then":[...],"else":[...]}
+  {"op":"delay","at":TIMING,"scope":SCOPE,"ops":[...]}   the inner operations happen later, not now
 
 TARGET is {"var":"t"} for something chosen earlier, or {"sel":SELECTOR}.
 SELECTOR: {"side":"you"|"opponent"|"both","area":"battle"|"hand"|"deck"|"drop"|"life"|"energy"|"unison"|"leader"|"warp"|"combo"|"zDeck"|"zEnergy"|"play","count":1,"upTo":true,"mode":"rest"|"active","filter":{...}}
   or {"special":"self"|"attacker"|"guard"|"leader"|"opponentLeader"} for a single known card.
   "count":99 means all of them. A filter may hold colors, characters, traits, names, costMin, costMax, powerMin, powerMax.
 COND: {"kind":"life","side":"you","atMost":4} | {"kind":"count","sel":SELECTOR,"atLeast":2} | {"kind":"leaderColor","color":"Red"} | {"kind":"chose","var":"t"}
+TIMING: "turnStart" | "mainStart" | "turnEnd" | "turnCleanup" | "battleEnd"
+SCOPE: "thisTurn" (default) | "nextTurn" | "yourNextTurn" | "opponentNextTurn"
+  "At the end of the turn, KO it" is {"op":"choose",...} then {"op":"delay","at":"turnEnd","ops":[{"op":"ko","target":{"var":"t"}}]}.
+  A delayed program keeps the variables bound before it, so "it" still means the card chosen now.
 
 Rules of thumb: "up to N" means "upTo":true; "choose 1 ... and KO it" is a choose followed by a ko on that variable; a skill that only restricts or renames something you cannot express should be an empty array rather than a guess.`;
 

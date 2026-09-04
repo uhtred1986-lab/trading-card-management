@@ -217,6 +217,42 @@ export interface ContinuousEffect {
   createdTurn: number;
 }
 
+/**
+ * Timings a delayed effect can be scheduled for (1-7-2-1-1). Each one is a
+ * point the flow already passes through, so nothing new has to be invented to
+ * fire them: the drain happens inside that step.
+ */
+export type DelayTiming = "turnStart" | "mainStart" | "turnEnd" | "turnCleanup" | "battleEnd";
+
+/**
+ * Which turn the timing has to come round on. "thisTurn" is the common case —
+ * "at the end of the turn" means the turn the skill resolved on, and if that
+ * moment has passed the effect never happens.
+ */
+export type DelayScope = "thisTurn" | "nextTurn" | "yourNextTurn" | "opponentNextTurn";
+
+/**
+ * An effect written down now and carried out later (1-7-2-1-1, 1-7-2-2-1).
+ *
+ * It keeps the variables the program had bound when it was scheduled, so
+ * "choose a card; at the end of the turn, KO it" still knows which card — and
+ * it keeps `master`, because the delayed part is still that player's effect
+ * however many turns later it fires.
+ */
+export interface DelayedEffect {
+  id: number;
+  at: DelayTiming;
+  scope: DelayScope;
+  ops: Op[];
+  card: string;
+  master: PlayerId;
+  vars: Record<string, string[]>;
+  subject?: string;
+  createdTurn: number;
+  /** What to call it in the log and on the board ("at the end of the turn"). */
+  label: string;
+}
+
 /** An [Auto] skill whose trigger fired, waiting for a checkpoint (0-3-7, 9-6). */
 export interface PendingAuto {
   card: string;
@@ -350,6 +386,8 @@ export type GameEvent =
   | { type: "attackNegated" }
   | { type: "skill"; card: string; skill: number; master: PlayerId; text: string }
   | { type: "effect"; effect: ContinuousEffect }
+  /** An effect written down for later; `label` is the timing in plain words. */
+  | { type: "delayed"; card: string; label: string }
   | { type: "token"; card: string; owner: PlayerId }
   | { type: "stack"; top: string; under: string[] }
   | { type: "note"; text: string }
@@ -368,6 +406,9 @@ export interface GameState {
   cards: Record<string, CardInstance>;
   effects: ContinuousEffect[];
   nextEffectId: number;
+  /** Effects waiting for a later timing (1-7-2-1-1); drained by `fireDelayed`. */
+  delayed: DelayedEffect[];
+  nextDelayedId: number;
   pending: PendingAuto[];
   prompt: Prompt;
   /** Counter timing bookkeeping: the action waiting behind the window. */

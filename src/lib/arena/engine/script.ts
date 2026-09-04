@@ -23,12 +23,13 @@ import {
   has,
   move,
   note,
+  schedule,
   setMode,
   tokenCardId,
   type GameContext,
 } from "./state";
 import { koCard, pendTriggers } from "./triggers";
-import type { Color, FlowStep, GameEvent, GameState, KeywordSkill, PlayerId, Trigger } from "./types";
+import type { Color, DelayScope, DelayTiming, FlowStep, GameEvent, GameState, KeywordSkill, PlayerId, Trigger } from "./types";
 
 // ── the language ───────────────────────────────────────────────────────────
 
@@ -99,6 +100,12 @@ export type Op =
   | { op: "negateAttack" }
   | { op: "cannotAttack"; target: Ref; until: Duration }
   | { op: "if"; cond: Cond; then: Op[]; else?: Op[] }
+  /**
+   * Write an effect down now and carry it out later (1-7-2-1-1): "at the end
+   * of the turn, KO it". The inner program keeps this frame's variables, so it
+   * still knows which card "it" was.
+   */
+  | { op: "delay"; at: DelayTiming; scope?: DelayScope; ops: Op[]; label?: string }
   | { op: "note"; text: string };
 
 export interface Script {
@@ -119,6 +126,15 @@ export interface ScriptFrame {
   /** Set while a `choose` is waiting for an answer. */
   awaiting?: string;
 }
+
+/** How each timing reads in the log when the card text does not say it better. */
+export const DELAY_LABELS: Record<DelayTiming, string> = {
+  turnStart: "at the start of the turn",
+  mainStart: "at the start of the Main Phase",
+  turnEnd: "at the end of the turn",
+  turnCleanup: "as the turn ends",
+  battleEnd: "at the end of the battle",
+};
 
 // ── the interpreter ────────────────────────────────────────────────────────
 
@@ -359,6 +375,21 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         return "done";
       }
 
+      case "delay":
+        // The variables are copied, not shared: a later `choose` in this same
+        // program must not change what the delayed part points at.
+        schedule(s, ev, {
+          at: op.at,
+          scope: op.scope ?? "thisTurn",
+          ops: op.ops,
+          card: frame.card,
+          master,
+          vars: { ...frame.vars },
+          subject: frame.subject,
+          label: op.label ?? DELAY_LABELS[op.at],
+        });
+        break;
+
       case "if": {
         const branch = condHolds(ctx, s, frame, op.cond) ? op.then : (op.else ?? []);
         // Splice the branch in place of the `if`, keeping one frame.
@@ -417,8 +448,12 @@ const OP_NAMES = new Set<Op["op"]>([
   "cannotAttack",
   "costReduction",
   "if",
+  "delay",
   "note",
 ]);
+
+const DELAY_TIMINGS = new Set<DelayTiming>(["turnStart", "mainStart", "turnEnd", "turnCleanup", "battleEnd"]);
+const DELAY_SCOPES = new Set<DelayScope>(["thisTurn", "nextTurn", "yourNextTurn", "opponentNextTurn"]);
 
 /**
  * Structural check for a program supplied by the referee. It only proves the
@@ -429,9 +464,16 @@ export function validateProgram(ops: unknown, depth = 0): ops is Op[] {
   if (!Array.isArray(ops) || depth > 4) return false;
   return ops.every((raw) => {
     if (!raw || typeof raw !== "object") return false;
-    const o = raw as { op?: unknown; then?: unknown; else?: unknown };
+    const o = raw as { op?: unknown; then?: unknown; else?: unknown; ops?: unknown; at?: unknown; scope?: unknown };
     if (typeof o.op !== "string" || !OP_NAMES.has(o.op as Op["op"])) return false;
     if (o.op === "if") return validateProgram(o.then, depth + 1) && (o.else === undefined || validateProgram(o.else, depth + 1));
+    // A delay with a timing the engine never drains would sit in the state for
+    // the rest of the game, so the timing is checked as well as the shape.
+    if (o.op === "delay") {
+      if (!DELAY_TIMINGS.has(o.at as DelayTiming)) return false;
+      if (o.scope !== undefined && !DELAY_SCOPES.has(o.scope as DelayScope)) return false;
+      return validateProgram(o.ops, depth + 1);
+    }
     return true;
   });
 }

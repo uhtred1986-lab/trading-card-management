@@ -136,6 +136,9 @@ const DEFS: Record<string, CardDef> = defsFrom([
   card("AURA", { energyCost: 1, skill: "[Permanent] Your Battle Cards get +5000 power." }),
   card("CHEAP", { energyCost: 3, skill: "[Permanent] Reduce the energy cost of this card in your hand by 1." }),
   card("ODDAURA", { energyCost: 1, skill: "[Permanent] Your Battle Cards resonate with the will of the universe." }),
+  card("DELAYKO", { energyCost: 1, skill: "[Auto] When you play this card, choose 1 of your opponent's Battle Cards. At the end of the turn, KO it." }),
+  card("DELAYDRAW", { energyCost: 1, skill: "[Auto] When you play this card, at the start of your next turn, draw 2 cards." }),
+  card("DELAYOPP", { energyCost: 1, skill: "[Auto] When you play this card, during your opponent's next turn, your opponent discards 1 card." }),
 ]);
 
 const fifty = (id: string) => Array.from({ length: 50 }, () => id);
@@ -860,6 +863,88 @@ function assertConsistentAfterDrop(s: GameState) {
   const s = arena({ battle: ["ODDAURA", "V1"] });
   const ctx = { defs: DEFS };
   assert.equal(powerOf(ctx, s, find(s, "p1", "battle", "V1")), 10000);
+}
+
+// ── delayed effects (1-7-2-1-1) ────────────────────────────────────────────
+
+{
+  // The timing phrase moves the rest of the sentence into the future rather
+  // than defeating the compiler, which is what used to happen.
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+  const later = one("[Auto] When you play this card, choose 1 of your opponent's Battle Cards. At the end of the turn, KO it.");
+  assert.deepEqual(later.unsupported, []);
+  assert.equal(later.ops.length, 2);
+  assert.equal(later.ops[0].op, "choose");
+  const delay = later.ops[1] as { op: string; at: string; scope: string; ops: { op: string }[] };
+  assert.equal(delay.op, "delay");
+  assert.equal(delay.at, "turnEnd");
+  assert.equal(delay.scope, "thisTurn");
+  assert.deepEqual(
+    delay.ops.map((o) => o.op),
+    ["ko"],
+    "the KO is inside the delay, not alongside it",
+  );
+
+  // Whose turn it has to be is read off the wording, not guessed.
+  const mine = one("[Auto] When you play this card, at the start of your next turn, draw 2 cards.");
+  assert.equal((mine.ops[0] as { at: string; scope: string }).at, "turnStart");
+  assert.equal((mine.ops[0] as { scope: string }).scope, "yourNextTurn");
+  const theirs = one("[Auto] When you play this card, during your opponent's next turn, your opponent discards 1 card.");
+  assert.equal((theirs.ops[0] as { scope: string }).scope, "opponentNextTurn");
+
+  // "for the turn" is a duration, not a timing, and must not become a delay.
+  const pump = one("[Activate: Main] This card gets +5000 power for the turn.");
+  assert.equal(pump.ops[0].op, "power");
+}
+
+{
+  // The KO happens at the end of the turn, not when the skill resolves.
+  let s = arena({ hand: ["DELAYKO"], energy: ["V1"], oppBattle: ["BIG"] });
+  const victim = find(s, "p2", "battle", "BIG");
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "DELAYKO") });
+  assert.ok(s.players.p2.battle.includes(victim), "still there while the turn runs");
+  assert.equal(s.delayed.length, 1, "written down for later");
+  assert.equal(s.delayed[0].at, "turnEnd");
+  s = play(s, { type: "endMain", player: "p1" });
+  assert.ok(s.players.p2.drop.includes(victim), "1-7-2-1-1: carried out at the end of the turn");
+  assert.equal(s.delayed.length, 0, "and taken off the list");
+  assertConsistent(s);
+}
+
+{
+  // "At the start of your next turn" waits out the opponent's whole turn.
+  let s = arena({ hand: ["DELAYDRAW"], energy: ["V1"] });
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "DELAYDRAW") });
+  assert.equal(s.delayed.length, 1);
+  s = play(s, { type: "endMain", player: "p1" });
+  assert.equal(s.delayed.length, 1, "the opponent's turn is not yours");
+  assert.equal(s.turnPlayer, "p2");
+  const before = s.players.p1.hand.length;
+  s = play(s, { type: "charge", player: "p2", card: null }, { type: "endMain", player: "p2" });
+  assert.equal(s.turnPlayer, "p1");
+  assert.equal(s.players.p1.hand.length, before + 2 + 1, "two from the skill, one from the draw step");
+  assert.equal(s.delayed.length, 0);
+}
+
+{
+  // The other side of the same rule: the opponent's next turn, not yours.
+  let s = arena({ hand: ["DELAYOPP"], energy: ["V1"], oppHand: ["BIG", "BIG"] });
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "DELAYOPP") });
+  const before = s.players.p2.hand.length;
+  assert.equal(before, 2);
+  s = play(s, { type: "endMain", player: "p1" });
+  assert.equal(s.players.p2.hand.length, before - 1 + 1, "discarded one as their turn opened, then drew for the turn");
+  assert.equal(s.delayed.length, 0);
+}
+
+{
+  // An effect waiting for "the end of the turn" that never got there is
+  // dropped rather than firing a turn late.
+  let s = arena({ hand: ["DELAYKO"], energy: ["V1"], oppBattle: ["BIG"] });
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "DELAYKO") });
+  s.delayed[0].at = "battleEnd"; // a timing this turn will never reach
+  s = play(s, { type: "endMain", player: "p1" });
+  assert.equal(s.delayed.length, 0, "its moment passed, so it is gone");
 }
 
 console.log("verify-arena: all checks passed");
