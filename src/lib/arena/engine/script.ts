@@ -130,7 +130,7 @@ export type Op =
    * or by adding cards from your life to your hand. Read from the hand, like
    * a cost reducer, because that is where the skill says it applies.
    */
-  | { op: "altCost"; pay: "none" | "life"; n?: number }
+  | { op: "altCost"; pay: "none" | "life"; n?: number; for?: "counter" | "play" }
   | { op: "negateAttack" }
   /** Kept for programs written before `forbid` existed; the same thing. */
   | { op: "cannotAttack"; target: Ref; until: Duration }

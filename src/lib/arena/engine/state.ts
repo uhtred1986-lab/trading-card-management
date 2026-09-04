@@ -343,6 +343,8 @@ export interface AltCost {
   pay: "none" | "life";
   /** Cards to add from your life to your hand, for `pay: "life"`. */
   n: number;
+  /** Which cost it replaces: the [Counter] skill's, or playing the card. */
+  for: "counter" | "play";
 }
 
 export interface StaticEffect {
@@ -441,7 +443,7 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
     // Like a cost reducer, this one is about the card in hand, so it is read
     // whether or not the card is on the table.
     if (op.op === "altCost") {
-      out.push({ source, kind: "altCost", target: source, value: { pay: op.pay, n: op.n ?? 1 } });
+      out.push({ source, kind: "altCost", target: source, value: { pay: op.pay, n: op.n ?? 1, for: op.for ?? "counter" } });
       continue;
     }
     // 20-14: a prohibition printed as a [Permanent] skill holds for as long as
@@ -698,10 +700,12 @@ export function forbiddenForCard(s: GameState, what: ForbiddenAction, card: stri
  * The other way this card's [Counter] skill may be paid for, if it has one
  * (5-3), and whether the player can actually meet it right now.
  */
-export function altCostFor(ctx: GameContext, s: GameState, card: string, payer: PlayerId): AltCost | null {
+export function altCostFor(ctx: GameContext, s: GameState, card: string, payer: PlayerId, which: "counter" | "play" = "counter"): AltCost | null {
   for (const e of staticEffects(ctx, s)) {
     if (e.kind !== "altCost" || e.target !== card) continue;
     const alt = e.value as AltCost;
+    // Programs stored before playing had its own waiver are about a [Counter].
+    if ((alt.for ?? "counter") !== which) continue;
     if (alt.pay === "life" && s.players[payer].life.length < alt.n) continue;
     return alt;
   }

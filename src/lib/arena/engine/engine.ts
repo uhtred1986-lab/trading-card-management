@@ -1128,6 +1128,13 @@ function mainActions(ctx: EngineContext, s: GameState, p: PlayerId): LegalAction
     const bt = baseType(d);
     if (bt === "BATTLE" && d.energyCost !== "X") {
       if (planPayment(ctx, s, p, playCost(ctx, s, id).total, playCost(ctx, s, id).specified) && canPlay(ctx, s, p, id)) out.push({ action: { type: "play", player: p, card: id }, label: `Play ${name(id)} (${d.energyCost ?? 0})` });
+      // 5-3: a card may print another price for playing it, which is often the
+      // only reason it is playable at all.
+      const alt = canPlay(ctx, s, p, id) ? altCostFor(ctx, s, id, p, "play") : null;
+      if (alt) {
+        const how = alt.pay === "none" ? "for no energy" : `by adding ${alt.n} from your life to your hand`;
+        out.push({ action: { type: "play", player: p, card: id, alt: true }, label: `Play ${name(id)} (${how})` });
+      }
     }
     // 1-2-2-2-1: with an X cost the card's master picks the value.
     if (bt === "BATTLE" && d.energyCost === "X" && canPlay(ctx, s, p, id)) {
@@ -1392,12 +1399,19 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
       const d = def(ctx, s, action.card);
       if (baseType(d) !== "BATTLE") throw new IllegalAction("not a playable Battle Card");
       if (!canPlay(ctx, s, p, action.card)) throw new IllegalAction("that card can't be played now");
-      const c = d.energyCost === "X" ? { total: action.x ?? 0, specified: {} } : playCost(ctx, s, action.card);
-      const asked = askForPayment(ctx, s, p, action, c.total, c.specified, `play ${face(ctx, s, action.card).name}`);
-      if (asked) return { state: asked, events: ev };
-      const pm = planPayment(ctx, s, p, c.total, c.specified, action.pay);
-      if (!pm) throw new IllegalAction("can't pay the energy cost");
-      pay(s, ev, p, pm);
+      // 5-3: the card may print another price for playing it.
+      if (action.alt) {
+        const alt = altCostFor(ctx, s, action.card, p, "play");
+        if (!alt) throw new IllegalAction("that card has no other price to pay");
+        if (!payAltCost(ctx, s, ev, p, alt)) throw new IllegalAction("can't pay that price");
+      } else {
+        const c = d.energyCost === "X" ? { total: action.x ?? 0, specified: {} } : playCost(ctx, s, action.card);
+        const asked = askForPayment(ctx, s, p, action, c.total, c.specified, `play ${face(ctx, s, action.card).name}`);
+        if (asked) return { state: asked, events: ev };
+        const pm = planPayment(ctx, s, p, c.total, c.specified, action.pay);
+        if (!pm) throw new IllegalAction("can't pay the energy cost");
+        pay(s, ev, p, pm);
+      }
       s.resolving = { card: action.card, player: p };
       s.flow.unshift({ op: "counter", window: "play", responder: other(p) }, { op: "play.resolve", card: action.card, player: p }, { op: "turn.promptMain" });
       break;

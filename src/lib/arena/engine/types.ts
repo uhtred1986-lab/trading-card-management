@@ -380,7 +380,7 @@ export type Action =
   | { type: "mulligan"; player: PlayerId; redraw: boolean }
   | { type: "charge"; player: PlayerId; card: string | null }
   /** `x` is the value the master picks for an X cost (1-2-2-2-1). */
-  | { type: "play"; player: PlayerId; card: string; x?: number; pay?: string[] }
+  | { type: "play"; player: PlayerId; card: string; x?: number; pay?: string[]; alt?: boolean }
   | { type: "playUnison"; player: PlayerId; card: string; x: number; pay?: string[] }
   | { type: "playZ"; player: PlayerId; card: string; x?: number; pay?: string[] }
   | { type: "growUnison"; player: PlayerId; card: string }
