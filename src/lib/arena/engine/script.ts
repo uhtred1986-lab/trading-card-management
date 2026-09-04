@@ -103,6 +103,12 @@ export type Op =
   | { op: "token"; name: string; power: number; comboCost: number | null; comboPower: number | null; colors: Color[]; n: Amount; side?: Side }
   /** A [Permanent] cost reducer, applied while the card sits where the skill says (9-1-3-3). */
   | { op: "costReduction"; target: Ref; amount: number }
+  /**
+   * Another way to pay for this card's own [Counter] skill (5-3): for nothing,
+   * or by adding cards from your life to your hand. Read from the hand, like
+   * a cost reducer, because that is where the skill says it applies.
+   */
+  | { op: "altCost"; pay: "none" | "life"; n?: number }
   | { op: "negateAttack" }
   /** Kept for programs written before `forbid` existed; the same thing. */
   | { op: "cannotAttack"; target: Ref; until: Duration }
@@ -333,13 +339,13 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
           // "play" is not an area of its own either (3-1); it means the Battle Area.
           const dest = op.to === "play" ? "battle" : op.to;
           move(ctx, s, ev, id, dest, owner, { position: op.position, reveal: op.reveal, reason: "effect" });
-          if (op.mode) setMode(s, ev, id, op.mode);
+          if (op.mode) setMode(s, ev, id, op.mode, ctx);
         }
         break;
       }
 
       case "switchMode":
-        for (const id of resolveRef(ctx, s, frame, op.target)) setMode(s, ev, id, op.mode);
+        for (const id of resolveRef(ctx, s, frame, op.target)) setMode(s, ev, id, op.mode, ctx);
         break;
 
       case "power":
@@ -424,7 +430,9 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
       }
 
       case "costReduction":
-        // Continuous by nature: it is read by `playCost`, not applied here.
+      case "altCost":
+        // Continuous by nature: read by `playCost` and by the counter window,
+        // not applied here.
         break;
 
       case "negateAttack":
@@ -542,6 +550,7 @@ const OP_NAMES = new Set<Op["op"]>([
   "cannotAttack",
   "forbid",
   "costReduction",
+  "altCost",
   "if",
   "chooseMode",
   "delay",

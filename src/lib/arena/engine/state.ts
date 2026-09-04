@@ -8,7 +8,7 @@ import { canCombo, hasKeyword, keywordOf, skillsOf, specifiedCostOf, isZ, baseTy
 import { compileCardCached } from "./compile";
 import { matches } from "./filters";
 import type { Amount, Cond, Op, Ref, ScriptArea, ScriptFrame, Selector, Side } from "./script";
-import type { Area, CardDef, CardFace, Color, ContinuousEffect, DelayedEffect, DelayTiming, ForbiddenAction, FlowStep, GameEvent, GameState, KeywordSkill, PlayerId, PlayerState, Skill } from "./types";
+import type { Area, CardDef, CardFace, Color, ContinuousEffect, DelayedEffect, DelayTiming, ForbiddenAction, FlowStep, Prohibition, GameEvent, GameState, KeywordSkill, PlayerId, PlayerState, Skill } from "./types";
 import { other } from "./types";
 
 export interface GameContext {
@@ -269,11 +269,19 @@ export function condHolds(ctx: GameContext, s: GameState, frame: ScriptFrame, c:
 
 // ── static effects from [Permanent] skills (9-5, 9-9) ──────────────────────
 
+/** Another way to pay for a card's [Counter] skill (5-3). */
+export interface AltCost {
+  pay: "none" | "life";
+  /** Cards to add from your life to your hand, for `pay: "life"`. */
+  n: number;
+}
+
 export interface StaticEffect {
   source: string;
-  kind: "power" | "comboPower" | "keyword" | "cost";
+  kind: "power" | "comboPower" | "keyword" | "cost" | "forbid" | "altCost";
+  /** The card it is about; empty for a rule about a player rather than a card. */
   target: string;
-  value: number | KeywordSkill;
+  value: number | KeywordSkill | Prohibition | AltCost;
 }
 
 /**
@@ -336,6 +344,26 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
     }
     if (op.op === "costReduction") {
       for (const id of staticTargets(ctx, s, frame, op.target)) out.push({ source, kind: "cost", target: id, value: op.amount });
+      continue;
+    }
+    // Like a cost reducer, this one is about the card in hand, so it is read
+    // whether or not the card is on the table.
+    if (op.op === "altCost") {
+      out.push({ source, kind: "altCost", target: source, value: { pay: op.pay, n: op.n ?? 1 } });
+      continue;
+    }
+    // 20-14: a prohibition printed as a [Permanent] skill holds for as long as
+    // the card is where the skill is valid, so it belongs here rather than in
+    // the list of effects with a duration.
+    if (op.op === "forbid") {
+      if (!inPlayNow) continue;
+      const player = op.side && op.side !== "both" ? sideOf(master, op.side)[0] : undefined;
+      const name = op.sameNameAsSelf ? face(ctx, s, source).name : undefined;
+      if (op.target) {
+        for (const id of staticTargets(ctx, s, frame, op.target)) out.push({ source, kind: "forbid", target: id, value: { what: op.what, player } });
+      } else {
+        out.push({ source, kind: "forbid", target: "", value: { what: op.what, player, filter: op.filter, name } });
+      }
       continue;
     }
     if (!inPlayNow) continue; // the rest only hold while the card is in play
@@ -494,12 +522,14 @@ export function placeUnder(ctx: GameContext, s: GameState, ev: GameEvent[], id: 
   return true;
 }
 
-export function setMode(s: GameState, ev: GameEvent[], id: string, mode: "active" | "rest"): boolean {
+export function setMode(s: GameState, ev: GameEvent[], id: string, mode: "active" | "rest", ctx?: GameContext): boolean {
   const inst = s.cards[id];
   if (inst.mode === mode) return false; // 0-2-4-1: already in that state
   // 20-14: "it can't switch to Active Mode" holds against every path that
-  // would switch it, including the Charge Phase (7-2-7).
-  if (mode === "active" && forbiddenForCard(s, "switchToActive", id)) return false;
+  // would switch it, including the Charge Phase (7-2-7). `ctx` is passed by
+  // the callers that can switch a card to Active Mode; without it only the
+  // effects with a duration are read, which is all that resting needs.
+  if (mode === "active" && forbiddenForCard(s, "switchToActive", id, ctx)) return false;
   inst.mode = mode;
   ev.push({ type: "mode", card: id, mode });
   return true;
@@ -526,11 +556,16 @@ export function endEffects(s: GameState, until: ContinuousEffect["until"], forPl
  * the card that would switch to Active Mode. `player` is who is acting.
  */
 export function forbids(ctx: GameContext, s: GameState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string } = {}): boolean {
-  for (const e of s.effects) {
-    const f = e.forbid;
-    if (e.kind !== "forbid" || !f || f.what !== what) continue;
+  const rules: { target: string; forbid: Prohibition }[] = [];
+  for (const e of s.effects) if (e.kind === "forbid" && e.forbid) rules.push({ target: e.target, forbid: e.forbid });
+  // A prohibition printed as a [Permanent] skill holds while the card is in
+  // play, with no duration to expire (9-5-1).
+  for (const e of staticEffects(ctx, s)) if (e.kind === "forbid") rules.push({ target: e.target, forbid: e.value as Prohibition });
+
+  for (const { target, forbid: f } of rules) {
+    if (f.what !== what) continue;
     // A rule about one card only applies to that card.
-    if (e.target && e.target !== opts.card) continue;
+    if (target && target !== opts.card) continue;
     if (f.player && opts.player && f.player !== opts.player) continue;
     if (f.filter || f.name) {
       if (!opts.card || !s.cards[opts.card]) continue;
@@ -548,8 +583,37 @@ export function forbids(ctx: GameContext, s: GameState, what: ForbiddenAction, o
  * but no card definitions — `setMode` is called from everywhere, including
  * paths that must not need a context.
  */
-export function forbiddenForCard(s: GameState, what: ForbiddenAction, card: string): boolean {
-  return s.effects.some((e) => e.kind === "forbid" && e.target === card && e.forbid?.what === what);
+export function forbiddenForCard(s: GameState, what: ForbiddenAction, card: string, ctx?: GameContext): boolean {
+  if (s.effects.some((e) => e.kind === "forbid" && e.target === card && e.forbid?.what === what)) return true;
+  // The [Permanent] half needs the card definitions, so it is only asked when
+  // the caller has them.
+  return !!ctx && staticEffects(ctx, s).some((e) => e.kind === "forbid" && e.target === card && (e.value as Prohibition).what === what);
+}
+
+/**
+ * The other way this card's [Counter] skill may be paid for, if it has one
+ * (5-3), and whether the player can actually meet it right now.
+ */
+export function altCostFor(ctx: GameContext, s: GameState, card: string, payer: PlayerId): AltCost | null {
+  for (const e of staticEffects(ctx, s)) {
+    if (e.kind !== "altCost" || e.target !== card) continue;
+    const alt = e.value as AltCost;
+    if (alt.pay === "life" && s.players[payer].life.length < alt.n) continue;
+    return alt;
+  }
+  return null;
+}
+
+/** Carry out an alternative cost. Adding life to hand is not damage (1-13-2). */
+export function payAltCost(ctx: GameContext, s: GameState, ev: GameEvent[], payer: PlayerId, alt: AltCost): boolean {
+  if (alt.pay === "none") return true;
+  if (s.players[payer].life.length < alt.n) return false;
+  for (let i = 0; i < alt.n; i++) {
+    const life = s.players[payer].life[0];
+    if (!life) return false;
+    move(ctx, s, ev, life, "hand", payer, { reason: "cost" });
+  }
+  return true;
 }
 
 // ── delayed effects (1-7-2-1-1) ────────────────────────────────────────────

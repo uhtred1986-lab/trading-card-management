@@ -81,7 +81,9 @@ function stripNotes(text: string): string {
 
 const AREA_WORDS: [RegExp, ScriptArea][] = [
   [/\bin (?:your|their|its owner's|an?) (?:own )?drop\b|\bdrop area\b|\bfrom your drop\b/, "drop"],
-  [/\bin your energy\b|\benergy area\b|\bof your energy\b|\byour energy\b|\b(?:your opponent's|their) energy\b/, "energy"],
+  // "Your blue energy", "your opponent's rested energy": the adjectives sit
+  // between the possessive and the word, and "energy cost" is not an area.
+  [/\benergy area\b|\b(?:your opponent's|their|your)(?: [a-z-]+)* energy\b(?! cost)/, "energy"],
   [/\bfrom your hand\b|\bin your hand\b|\btheir hand\b|\byour hand\b/, "hand"],
   [/\bfrom your deck\b|\bin your deck\b|\byour deck\b/, "deck"],
   [/\bin your life\b|\bfrom your life\b|\byour life\b|\blife area\b/, "life"],
@@ -157,7 +159,9 @@ function filterFor(phrase: string, area: ScriptArea | null): CardFilter | undefi
     f.powerMin != null ||
     f.powerMax != null ||
     f.monoColor ||
-    (f.colors.length > 0 && area !== "energy");
+    // A colour narrows an energy area as much as any other: "your blue energy"
+    // is not "your energy".
+    f.colors.length > 0;
   if (!narrows) return undefined;
   // In an area that only holds one kind of card, the type word is noise.
   if (area === "battle" && f.type === "BATTLE") f.type = null;
@@ -397,6 +401,20 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   if (/^place the rest in (?:your |the )?drop(?: area)?$/.test(t)) return [{ op: "moveTo", target: { sel: { fromVar: "looked" } }, to: "drop", reveal: true }];
   if (/^shuffle your deck(?: if you looked through it| afterwards?)?$/.test(t)) return [{ op: "shuffle" }];
   if ((m = /^look at (?:up to )?(\d+) cards? from the top of your deck$/.exec(t))) return [{ op: "look", n: Number(m[1]), as: "looked" }];
+
+  // Another way to pay for this card's own [Counter] skill (5-3). The bare
+  // sentence with no "by …" tail is only a reminder of where a [Counter] is
+  // activated from, and `connective` skips it before we get here.
+  // ("You can" has already been stripped from the front of `t`.)
+  if ((m = /^activate this card's \[counter\](?: skill)? from your hand (.+)$/.exec(t))) {
+    const how = m[1];
+    if (/^without paying its energy cost$/.test(how)) return [{ op: "altCost", pay: "none" }];
+    let mm: RegExpExecArray | null;
+    if ((mm = /^by adding (a|an|\d+) cards? from your life to your hand(?: instead of paying its energy cost)?$/.exec(how))) {
+      return [{ op: "altCost", pay: "life", n: countWord(mm[1]) }];
+    }
+    return null;
+  }
 
   // Cost reduction on a [Permanent] skill (9-1-3-3, 20-21).
   if ((m = /^reduce the energy cost of (.+?) (?:in your hand |in your z-deck )?by (\d+)$/.exec(t))) {
@@ -939,6 +957,9 @@ export function describeScript(ops: Op[]): string {
         break;
       case "costReduction":
         parts.push(`${describeRef(op.target)} costs ${op.amount} less`);
+        break;
+      case "altCost":
+        parts.push(op.pay === "none" ? "its [Counter] may be activated for no energy" : `its [Counter] may be activated by adding ${op.n ?? 1} from your life to your hand`);
         break;
       case "negateAttack":
         parts.push("negate the attack");
