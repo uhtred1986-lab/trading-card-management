@@ -90,50 +90,40 @@ already typed and belongs to the battle rather than to the turn.
 
 ---
 
-## Next: prohibitions (20-14, 0-2-5) — the most serious correctness gap
+## Done: prohibitions (20-14, 0-2-5)
 
-**Why first:** the engine currently *offers moves the cards forbid*. 463 cards
-say "can't" about something. 0-2-5 is the rule that decides ties: a prohibition
-always beats an instruction, so it is checked **last** and wins.
+Commit "Arena: the engine stops offering moves the cards forbid". 463 cards →
+184; catalog coverage 57.7 % → 59.0 %.
 
-**Shape.** `ContinuousEffect.kind` runs to `cannotAttack | cannotBeAttacked` and
-stops. Generalise to one kind:
+- `types.ts`: `ForbiddenAction` (eleven actions), `Prohibition`,
+  `ContinuousEffect.kind` collapsed `cannotAttack | cannotBeAttacked` into one
+  `forbid` kind with a `forbid` payload, and a new duration `"nextTurn"`.
+- `state.ts`: `forbids(ctx, s, what, {player, card})` — the one question, asked
+  last; `forbiddenForCard` for `setMode`, which has no context; the
+  `switchToActive` check inside `setMode`, so the Charge Phase honours it
+  without knowing it exists; `beChosen` beside the `[Barrier]` line.
+- `engine.ts`: attack and target checks in `mainActions`; `uniqueAllows`
+  became `canPlay`, used by the menu *and* by `apply` for play / playUnison /
+  playZ; blocker candidates, combo candidates, `activatable`, `counterCandidates`.
+- `triggers.ts`: `koCard` refuses a KO from any source for `beKOd`.
+- `script.ts`: the `forbid` op (`cannotAttack` kept as an alias for programs
+  already stored in `card_scripts`); `beKOdBySkill` in the `ko` op; the `play`
+  op filters cards that may not be played.
+- `compile.ts`: `compileProhibition` — the subject says whether the rule is
+  about a player or about cards, the verb says which action; deck-building
+  restrictions are read and deliberately do nothing.
 
-```ts
-| { kind: "forbid"; what: ForbiddenAction; sel?: Selector; who?: PlayerId }
-```
-
-with `ForbiddenAction` covering, in rough order of how often it is printed:
-`attack`, `beAttacked`, `block`, `play`, `playCopiesOf`, `activateSkill`,
-`activateCounter`, `combo`, `beKOdBySkill`, `beChosen`, `gainSkills`,
-`placeEnergyBySkill`, `switchToActive`, `draw`.
-
-**Where it is consulted.** Two places, and both are needed — one for the menu,
-one for the rule:
-
-1. `legalActions()` in `engine.ts`, so the move is never offered.
-2. `apply()`, so a client (or Claude) that sends it anyway is refused with
-   `IllegalAction`. Put the check in one helper, `forbidden(ctx, s, action)`,
-   and call it from both; that is the only way the two stay in step.
-
-Effects that forbid something *about a card* (`beKOdBySkill`, `beChosen`) are
-read where the card is used instead: `ko` in `script.ts`, `resolveSelector` in
-`state.ts` next to the existing `[Barrier]` line.
-
-**Compiler.** New patterns in `compileClause`, all beginning
-`^(?:your opponent |you )?can'?t\b`. Most of the 511 clauses are one of a dozen
-sentences — `npm run arena:gaps` prints them with counts. `[Permanent]` skills
-that forbid something are static effects: they belong in `staticEffects()` in
-`state.ts`, not in a program that runs once.
-
-**Tests.** A card that says "your opponent can't attack with Battle Cards": the
-opponent's attack actions vanish from `legalActions`, and sending one throws.
-A card that can't be KO'd by skills survives a `ko` op but still dies to battle
-damage and to the 0-power rule (21-6, which ignores even `[Indestructible]`).
+**Still missing, and it is the next thing worth doing here:** a prohibition
+printed as a `[Permanent]` skill does not apply, because `staticEffects()`
+emits only power, combo power, keywords and cost. Most "this card can't be
+KO'd by your opponent's skills" lines are `[Permanent]`. Fixing that is the
+static-layer item below, and it would finish the prohibition work properly.
+Related: a prohibition with no stated duration compiles as "for the turn",
+which is conservative — it expires rather than lingering wrongly.
 
 ---
 
-## Then: modal choice (20-2) and cards under cards (23-2)
+## Next: modal choice (20-2) and cards under cards (23-2)
 
 Cheap, clear, and together they cover 243 cards.
 
@@ -188,10 +178,11 @@ In the order they earn their keep:
 - **Counter-motion chains** (9-7). `counterStack` is push/pop only and no window
   ever opens in response to a counter, so every `[Counter: Counter]` card in the
   game is dead. Needs the numbered chain of 9-7-3, resolved in descending order.
-- **Permanent skills outside the Battle Area** (9-1-3-3, 135 cards).
-  `staticEffects()` scans cards in play plus the hand for cost reducers, and
-  emits only power, combo power, keywords and cost. Add area-scoped validity and
-  a condition gate for "during your turn".
+- **Permanent skills as static effects** (9-1-3-3, 233 cards). `staticEffects()`
+  scans cards in play plus the hand for cost reducers, and emits only power,
+  combo power, keywords and cost. It needs to emit **prohibitions** as well —
+  that is what finishes the prohibition work — plus area-scoped validity and a
+  condition gate for "during your turn".
 - **Cost changes on other cards** (20-21, 74 cards). Extends the static layer:
   other cards, increases as well as reductions, and skill costs.
 - **Amounts counted off the board** (53 cards). `Amount` already has
@@ -210,7 +201,7 @@ In the order they earn their keep:
 
 ## The other track, which needs no planning
 
-Two thirds of the unreadable clauses — 7,766 of them — need **no new
+Two thirds of the unreadable clauses — 7,759 of them — need **no new
 mechanism**, only a phrase pattern. The loop for grinding them down already
 exists and is the fastest way to raise coverage:
 
