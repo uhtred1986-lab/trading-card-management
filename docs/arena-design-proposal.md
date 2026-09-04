@@ -483,3 +483,140 @@ switches to the average of what your own games have cost.
 Still deliberately not built: the "plan, don't poll" batching of a whole Main
 Phase into one call, and the Batch-API opening book. Both are worth doing once
 there is a real sense of how many decisions a game takes.
+
+---
+
+## 15. What the engine still needs (reviewed 4 Sep 2026)
+
+`npm run arena:gaps` sorts every clause the compiler cannot read, across the
+whole catalog, into the *mechanism* it would need. That distinction is the
+point of the exercise: a clause that needs a queue of delayed effects is a
+feature, a clause the parser simply has no pattern for is an afternoon.
+
+**6,493 cards. 4,530 have at least one skill the compiler cannot read, over
+11,577 clauses. 7,759 of those clauses — two thirds — need no new mechanism at
+all.** They are phrasings nobody has written a rule for yet, and the
+explain-a-card loop on `/arena/backlog` is the machine for grinding them down:
+each brief it produces is roughly twenty lines of compiler work.
+
+The rest need something the engine does not have. Ranked by how many cards each
+one *alone* would unlock — that is, cards where it is the only missing
+mechanism, so building it plus routine phrasing work finishes them:
+
+| Cards unlocked | Cards affected | Mechanism |
+|---:|---:|---|
+| 336 | 574 | delayed effects |
+| 286 | 463 | prohibitions |
+| 154 | 252 | replacement effects |
+| 135 | 233 | permanent skills outside the Battle Area |
+| 129 | 293 | energy manipulation |
+| 122 | 190 | cards under cards |
+| 121 | 201 | modal choice |
+| 74 | 149 | cost changes on other cards |
+| 67 | 146 | negating one skill rather than all |
+| 53 | 90 | amounts counted off the board |
+| 45 | 100 | the §22 keywords still missing |
+
+Two rows in that table are softer than they look. "Search a secret area" (187)
+and "reveal / look at" (56) are folded into the phrasing count above, because
+the engine can already choose cards out of a deck or a life pile — what those
+clauses mostly lack is a pattern, not a mechanism.
+
+### The five that change how games play out
+
+These are not missing features so much as wrong behaviour. A card that says
+something the engine cannot represent does not fail loudly; it does nothing,
+and the game carries on as though the card were blank.
+
+**1. Delayed effects (1-7-2-1-1, 1-7-2-2-1). 336 cards. Size M.**
+"At the end of the turn, …", "during your opponent's next turn, …". Nothing
+today can schedule an effect for later. Add a `delayed` list to the state —
+`{ at, ops, card, master, madeOnTurn }` — and drain the matching entries into
+the pending queue at points the flow already passes through: `turn.start`,
+`turn.mainStart`, `turn.endPhase`, `battle.end`. Two existing hacks fold into
+it: [Over Realm]'s end-of-turn return to the Warp, currently a continuation
+keyed by card id, and [X Attack]'s reactivation, currently a flag on the
+battle. Best value per unit of work in the whole list.
+
+**2. Prohibitions (20-14, 0-2-5). 286 cards. Size M.**
+"Your opponent can't attack with Battle Cards", "this card can't be KO'd by
+skills", "you can't play copies of this card for the turn". The continuous
+effect kinds run to `cannotAttack` and `cannotBeAttacked` and stop. Generalise
+to a `forbid` effect carrying a selector and an action kind, consulted in
+`legalActions` and again in `apply`. 0-2-5 is the rule that matters: a
+prohibition always beats an instruction, so it is checked last and wins. Until
+this exists the engine offers moves the cards forbid, which is the most
+serious correctness gap on the list.
+
+**3. Replacement effects (9-10). 154 cards. Size L.**
+"If this card would leave the Battle Area, … instead", "you may place it in
+your Z-Energy instead". A registry consulted *before* an event happens, with
+the affected player choosing when several apply (9-10-2), and the original
+event treated as never having occurred (9-10-1-1). The deepest change here,
+because the hook goes inside `move`, the damage step and the KO path. It is
+also what [Revive] and the Z-Energy substitutions are built on.
+
+**4. Negating one skill rather than all (9-1-5). 67 cards. Size S.**
+`negateSkills` sets a card's `negated` to `"all"`. Card text usually means one
+skill, or one *kind* of skill ("negate its keyword skills"). The instance
+already carries `number[] | "all"`, so this is mostly compiler work plus
+honouring a type filter. Today the engine over-negates, which is wrong in the
+player's favour or against it depending on the card.
+
+**5. Counter-motion chains (9-7). Size M. No text analysis catches this one.**
+A counter cannot currently be countered. `counter:counter` is matched when
+candidates are gathered, but no window ever opens in response to a counter, so
+every [Counter: Counter] card in the game is dead. Needs the numbered chain of
+9-7-3 and resolution in descending order.
+
+### The five that are mostly cheap coverage
+
+**6. Modal choice (20-2). 121 cards, 542 clauses. Size S–M.**
+"Choose one— ・A ・B". The largest clause count of any mechanism, and the
+bullet characters are already in the text, so splitting is mechanical. One new
+operation, one prompt.
+
+**7. Cards under cards (23-2). 122 cards. Size S.**
+The state already models `under`, and Evolve, Union-Potara and Z-Awaken already
+stack properly. The *effect language* has no way to say it, so the compiler
+emits a move to the Drop with an apologetic note — which is simply wrong. Wire
+`moveTo: "under"` to the stack that already exists.
+
+**8. Permanent skills outside the Battle Area (9-1-3-3). 135 cards. Size M.**
+The static layer exists but scans only cards in play, plus the hand for cost
+reducers, and emits only power, combo power, keywords and cost. Add a
+condition gate for "during your turn" and area-scoped validity.
+
+**9. Cost changes on other cards (20-21). 74 cards. Size S–M.**
+Reduction works for "this card in your hand". Missing: other cards,
+increases, and skill-cost reductions. Extends the static layer.
+
+**10. Amounts counted off the board. 53 cards. Size S.**
+"For each of your ≪Saiyan≫ cards, +5000 power." The `Amount` type already has
+`{ count: Selector }`; the compiler has never emitted one. Pure compiler work.
+
+### Completeness, when the above is done
+
+- **The §22 keywords still missing** (45 cards): Aegis, Alliance, Arrival,
+  Revive, Successor, Rejuvenate, Spirit Boost, Empower, Invoker, Burst,
+  Union-Absorb. Each is small and self-contained.
+- **Ordering simultaneous triggers** (4-2-2-2). The prompt type exists and is
+  never raised; the engine resolves in printed order. It matters when one
+  trigger KOs the card another one needs.
+- **Hidden Mode** (23-5). Modelled on the card instance, but nothing ever puts
+  a card face down, so the whole branch is unreachable.
+- **Infinite loops** (23-1). None detected. The flow has a 10,000-step guard
+  that throws; the rules call for a draw, or for the player to declare how many
+  times the loop runs.
+
+### Suggested order
+
+Delayed effects and prohibitions first: together they are 622 cards and both
+are currently silent wrongness rather than absence. Then modal choice and
+under-cards, which are cheap and clear 243 more. Then replacement effects,
+which is the one genuinely hard piece and unblocks a family of Masters-era
+cards. Everything else after.
+
+Throughout, the phrasing backlog is the other track, and it is the larger
+number. It does not need planning — it needs the loop on `/arena/backlog` to be
+used.
