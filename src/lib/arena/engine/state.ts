@@ -55,6 +55,36 @@ export function def(ctx: GameContext, s: GameState, id: string): CardDef {
   return d;
 }
 
+/** What a card counts as, once its skills have had their say (20-1). */
+export interface Gains {
+  traits: string[];
+  characters: string[];
+  colors: Color[];
+}
+
+/**
+ * The card as the rules now read it: printed, plus anything it "gains in all
+ * areas". Every check of what a card *is* — a selector's filter, a Leader
+ * condition, an [Evolve] target — goes through this rather than `def`, so a
+ * card that gained ≪Saiyan≫ is a Saiyan to all of them.
+ */
+export function cardNow(ctx: GameContext, s: GameState, id: string): CardDef {
+  const d = def(ctx, s, id);
+  const gains = staticEffects(ctx, s).filter((e) => e.kind === "gains" && e.target === id);
+  if (!gains.length) return d;
+  const out = { ...d, traits: [...d.traits], characters: [...d.characters], colors: [...d.colors] };
+  const add = (list: string[], more: string[]) => {
+    for (const x of more) if (!list.some((y) => y.toLowerCase() === x.toLowerCase())) list.push(x);
+  };
+  for (const e of gains) {
+    const g = e.value as Gains;
+    add(out.traits, g.traits);
+    add(out.characters, g.characters);
+    add(out.colors, g.colors);
+  }
+  return out;
+}
+
 export function player(s: GameState, p: PlayerId): PlayerState {
   return s.players[p];
 }
@@ -123,7 +153,10 @@ export function keywordsInForce(ctx: GameContext, s: GameState, id: string): Key
     }
   }
   for (const e of s.effects) if (e.kind === "keyword" && e.target === id) out.push(e.value as KeywordSkill);
-  return out;
+  // 9-1-5: a skill may name one keyword to negate rather than silencing the
+  // card. Applied last, so it beats a grant of the same keyword.
+  const gone = new Set(staticEffects(ctx, s).filter((e) => e.kind === "negateKeyword" && e.target === id).map((e) => e.value as KeywordSkill["name"]));
+  return gone.size ? out.filter((k) => !gone.has(k.name)) : out;
 }
 
 export function has(ctx: GameContext, s: GameState, id: string, name: KeywordSkill["name"]): boolean {
@@ -146,6 +179,14 @@ export function powerOf(ctx: GameContext, s: GameState, id: string): number {
   for (const e of staticEffects(ctx, s)) if (e.kind === "power" && e.target === id) p += e.value as number;
   for (const e of s.effects) if (e.kind === "power" && e.target === id) p += e.value as number;
   return p;
+}
+
+/** 5-7-3, 20-21: the combo cost as it stands, after any [Permanent] reducer. */
+export function comboCostOf(ctx: GameContext, s: GameState, id: string): number {
+  const base = def(ctx, s, id).comboCost ?? 0;
+  let reduction = 0;
+  for (const e of staticEffects(ctx, s)) if (e.kind === "comboCost" && e.target === id) reduction += e.value as number;
+  return Math.max(0, base - reduction);
 }
 
 export function comboPowerOf(ctx: GameContext, s: GameState, id: string): number {
@@ -217,7 +258,7 @@ export function resolveSelector(ctx: GameContext, s: GameState, frame: ScriptFra
     // left the Battle Area — in which case it is no longer the same card (3-1-4).
     if (sel.special && sel.area && areaOf(s, id) !== (sel.area === "play" ? "battle" : sel.area)) return false;
     // 23-5-2: a Hidden Mode card has none of its front-side information.
-    if (sel.filter && (inst.hidden || !matches(def(ctx, s, id), sel.filter))) return false;
+    if (sel.filter && (inst.hidden || !matches(cardNow(ctx, s, id), sel.filter))) return false;
     if (!sel.special && !sel.ignoreBarrier && sel.side !== "you" && has(ctx, s, id, "Barrier") && s.cards[id].owner !== frame.master && areaOf(s, id) !== "hand") return false;
     // 20-4: the same shape as [Barrier], but printed as a prohibition.
     if (!sel.special && s.cards[id].owner !== frame.master && forbids(ctx, s, "beChosen", { card: id })) return false;
@@ -252,7 +293,7 @@ export function condHolds(ctx: GameContext, s: GameState, frame: ScriptFrame, c:
     }
     case "leaderMatches": {
       const l = s.players[c.side === "opponent" ? other(frame.master) : frame.master].leader;
-      return !!l && matches(def(ctx, s, l), c.filter);
+      return !!l && matches(cardNow(ctx, s, l), c.filter);
     }
     case "lifeVsOpponent": {
       const mine = s.players[frame.master].life.length;
@@ -278,10 +319,10 @@ export interface AltCost {
 
 export interface StaticEffect {
   source: string;
-  kind: "power" | "comboPower" | "keyword" | "cost" | "forbid" | "altCost";
+  kind: "power" | "comboPower" | "keyword" | "cost" | "comboCost" | "negateKeyword" | "gains" | "forbid" | "altCost";
   /** The card it is about; empty for a rule about a player rather than a card. */
   target: string;
-  value: number | KeywordSkill | Prohibition | AltCost;
+  value: number | KeywordSkill | KeywordSkill["name"] | Prohibition | AltCost | Gains;
 }
 
 /**
@@ -343,7 +384,21 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
       continue;
     }
     if (op.op === "costReduction") {
-      for (const id of staticTargets(ctx, s, frame, op.target)) out.push({ source, kind: "cost", target: id, value: op.amount });
+      const kind = op.what === "combo" ? "comboCost" : "cost";
+      for (const id of staticTargets(ctx, s, frame, op.target)) out.push({ source, kind, target: id, value: op.amount });
+      continue;
+    }
+    // "In all areas", so it is read wherever the card is — which is the point
+    // of negating [Energy-Exhaust], a skill that only matters outside play.
+    // "In all areas" again: what a card counts as does not depend on where it is.
+    if (op.op === "gains") {
+      const targets = op.target ? staticTargets(ctx, s, frame, op.target) : [source];
+      for (const id of targets) out.push({ source, kind: "gains", target: id, value: { traits: op.traits ?? [], characters: op.characters ?? [], colors: op.colors ?? [] } });
+      continue;
+    }
+    if (op.op === "negateKeyword") {
+      const targets = op.target ? staticTargets(ctx, s, frame, op.target) : [source];
+      for (const id of targets) out.push({ source, kind: "negateKeyword", target: id, value: op.keyword });
       continue;
     }
     // Like a cost reducer, this one is about the card in hand, so it is read
@@ -570,7 +625,7 @@ export function forbids(ctx: GameContext, s: GameState, what: ForbiddenAction, o
     if (f.filter || f.name) {
       if (!opts.card || !s.cards[opts.card]) continue;
       const d = def(ctx, s, opts.card);
-      if (f.filter && !matches(d, f.filter)) continue;
+      if (f.filter && !matches(cardNow(ctx, s, opts.card), f.filter)) continue;
       if (f.name && d.name !== f.name) continue;
     }
     return true;

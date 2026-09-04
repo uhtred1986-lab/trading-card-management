@@ -19,7 +19,9 @@ import {
   addEffect,
   altCostFor,
   areaOf,
+  cardNow,
   cardsInPlay,
+  comboCostOf,
   comboPowerOf,
   def,
   draw,
@@ -590,7 +592,7 @@ function resolveKeywordOrText(ctx: EngineContext, s: GameState, ev: GameEvent[],
       }
       case "Z-Stack": {
         const filter = parseFilter(sk.effect || sk.cost);
-        const cands = s.players[master].zDeck.filter((id) => matches(def(ctx, s, id), filter));
+        const cands = s.players[master].zDeck.filter((id) => matches(cardNow(ctx, s, id), filter));
         if (!cands.length) return "done";
         s.continuations.zstack = { card, x: k.x };
         s.flow.unshift({ op: "choose.apply", what: "zstack", card, player: master });
@@ -1043,14 +1045,14 @@ export function legalActions(ctx: EngineContext, s: GameState): LegalAction[] {
       const b = s.battle!;
       for (const id of s.players[p].hand) {
         const d = def(ctx, s, id);
-        if (canCombo(d) && !forbids(ctx, s, "combo", { player: p, card: id }) && planPayment(ctx, s, p, d.comboCost ?? 0, {})) out.push({ action: { type: "combo", player: p, card: id }, label: `Combo ${name(id)} from hand (+${comboPowerOf(ctx, s, id)}, cost ${d.comboCost})` });
+        if (canCombo(d) && !forbids(ctx, s, "combo", { player: p, card: id }) && planPayment(ctx, s, p, comboCostOf(ctx, s, id), {})) out.push({ action: { type: "combo", player: p, card: id }, label: `Combo ${name(id)} from hand (+${comboPowerOf(ctx, s, id)}, cost ${comboCostOf(ctx, s, id)})` });
       }
       for (const id of s.players[p].battle) {
         if (id === b.attacker || id === b.guard || s.cards[id].mode !== "active" || s.cards[id].hidden) continue;
         const d = def(ctx, s, id);
         // 5-7-3: the combo cost is paid whether the card comes from hand or from the Battle Area.
-        if (canCombo(d) && !forbids(ctx, s, "combo", { player: p, card: id }) && planPayment(ctx, s, p, d.comboCost ?? 0, {}))
-          out.push({ action: { type: "combo", player: p, card: id }, label: `Combo ${name(id)} from the Battle Area (+${comboPowerOf(ctx, s, id)}, cost ${d.comboCost})` });
+        if (canCombo(d) && !forbids(ctx, s, "combo", { player: p, card: id }) && planPayment(ctx, s, p, comboCostOf(ctx, s, id), {}))
+          out.push({ action: { type: "combo", player: p, card: id }, label: `Combo ${name(id)} from the Battle Area (+${comboPowerOf(ctx, s, id)}, cost ${comboCostOf(ctx, s, id)})` });
       }
       out.push({ action: { type: "pass", player: p }, label: pr.side === "offense" ? "End Offense Step" : "End Defense Step" });
       return out;
@@ -1236,7 +1238,7 @@ function activatable(ctx: EngineContext, s: GameState, p: PlayerId, card: string
       case "Evolve": {
         if (timing !== "main" || !inHand || !costIsOrbsOnly || !canPayOrbs()) return null;
         const filter = parseFilter(sk.effect || sk.cost);
-        if (!s.players[p].battle.some((id) => matches(def(ctx, s, id), filter))) return null;
+        if (!s.players[p].battle.some((id) => matches(cardNow(ctx, s, id), filter))) return null;
         return `${k.variant} ${name} onto a ${sk.effect || sk.cost}`;
       }
       case "Union": {
@@ -1286,7 +1288,7 @@ function activatable(ctx: EngineContext, s: GameState, p: PlayerId, card: string
         const leader = ps.leader;
         if (!leader || !s.cards[leader].flipped || isZ(def(ctx, s, leader))) return null;
         const filter = parseFilter(sk.effect || sk.cost);
-        if (!matches(def(ctx, s, leader), filter) && !(filter.characters.length && def(ctx, s, leader).characters.some((c) => filter.characters.includes(c)))) return null;
+        if (!matches(cardNow(ctx, s, leader), filter) && !(filter.characters.length && def(ctx, s, leader).characters.some((c) => filter.characters.includes(c)))) return null;
         if (ps.zEnergy.length < (d.zEnergyCost ?? 0)) return null;
         if (!costIsOrbsOnly || !canPayOrbs()) return null;
         return `Z-Awaken: ${name} on ${face(ctx, s, leader).name}`;
@@ -1485,9 +1487,9 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
       const fromHand = ps.hand.includes(action.card);
       const fromBattle = ps.battle.includes(action.card) && s.cards[action.card].mode === "active" && action.card !== b.attacker && action.card !== b.guard;
       if (!fromHand && !fromBattle) throw new IllegalAction("card not available for a combo");
-      const askedCombo = askForPayment(ctx, s, p, action, d.comboCost ?? 0, {}, `combo ${face(ctx, s, action.card).name}`);
+      const askedCombo = askForPayment(ctx, s, p, action, comboCostOf(ctx, s, action.card), {}, `combo ${face(ctx, s, action.card).name}`);
       if (askedCombo) return { state: askedCombo, events: ev };
-      const pm = planPayment(ctx, s, p, d.comboCost ?? 0, {}, action.pay);
+      const pm = planPayment(ctx, s, p, comboCostOf(ctx, s, action.card), {}, action.pay);
       if (!pm) throw new IllegalAction("can't pay the combo cost");
       pay(s, ev, p, pm);
       move(ctx, s, ev, action.card, "combo", p, { reason: "combo", reveal: true });
@@ -1650,7 +1652,7 @@ function activate(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId
   if (k?.name === "Evolve") {
     payOrbs();
     const filter = parseFilter(sk.effect || sk.cost);
-    const cands = ps.battle.filter((id) => matches(def(ctx, s, id), filter));
+    const cands = ps.battle.filter((id) => matches(cardNow(ctx, s, id), filter));
     s.continuations.evolve = { card, xeno: k.variant === "Xeno-Evolve" };
     s.flow.unshift({ op: "prompt", prompt: { kind: "chooseCards", player: p, choice: { reason: `${k.variant}: choose the card to evolve`, candidates: cands, min: 1, max: 1, continuation: "evolve" } } }, { op: "choose.apply", what: "evolve", card, player: p });
     return;

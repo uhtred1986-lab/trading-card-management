@@ -101,8 +101,25 @@ export type Op =
   | { op: "addMarker"; target: Ref; n: Amount }
   | { op: "removeMarker"; target: Ref; n: Amount }
   | { op: "token"; name: string; power: number; comboCost: number | null; comboPower: number | null; colors: Color[]; n: Amount; side?: Side }
-  /** A [Permanent] cost reducer, applied while the card sits where the skill says (9-1-3-3). */
-  | { op: "costReduction"; target: Ref; amount: number }
+  /**
+   * A [Permanent] cost reducer, applied while the card sits where the skill
+   * says (9-1-3-3). `what` says which cost: the energy cost by default, or the
+   * combo cost (5-7-3).
+   */
+  | { op: "costReduction"; target: Ref; amount: number; what?: "energy" | "combo" }
+  /**
+   * Take a keyword skill away from a card (9-1-5). Unlike `negateSkills`, which
+   * silences everything, this names one — "negate this card's
+   * [Energy-Exhaust] skill in all areas".
+   */
+  | { op: "negateKeyword"; keyword: KeywordSkill["name"]; target?: Ref }
+  /**
+   * 20-1: the card counts as having these too, wherever it is — "this card
+   * gains ≪Saiyan≫ in all areas", "this card is also treated as red". It is
+   * read by every rule that looks at what a card *is*, not by the ones that
+   * look at what it does.
+   */
+  | { op: "gains"; traits?: string[]; characters?: string[]; colors?: Color[]; target?: Ref }
   /**
    * Another way to pay for this card's own [Counter] skill (5-3): for nothing,
    * or by adding cards from your life to your hand. Read from the hand, like
@@ -430,6 +447,8 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
       }
 
       case "costReduction":
+      case "negateKeyword":
+      case "gains":
       case "altCost":
         // Continuous by nature: read by `playCost` and by the counter window,
         // not applied here.
@@ -550,6 +569,8 @@ const OP_NAMES = new Set<Op["op"]>([
   "cannotAttack",
   "forbid",
   "costReduction",
+  "negateKeyword",
+  "gains",
   "altCost",
   "if",
   "chooseMode",
