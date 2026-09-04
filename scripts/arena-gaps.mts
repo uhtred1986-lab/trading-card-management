@@ -9,7 +9,7 @@
  * `npm run arena:gaps`
  */
 import { db } from "../src/db";
-import { cards as cardsTable } from "../src/db/schema";
+import { cards as cardsTable, cardSets } from "../src/db/schema";
 import { compileCardCached, parseSkills, type CardDef } from "../src/lib/arena/engine";
 import { cardDefFrom } from "../src/lib/arena/load";
 
@@ -35,7 +35,10 @@ const MECHANISMS: { key: string; needs: string; test: RegExp }[] = [
   { key: "turn structure", needs: "skipping or adding phases and turns (20-13)", test: /\bskip\b|\bextra turn\b|\banother turn\b/ },
 ];
 
-const all = await db.select().from(cardsTable);
+// Fusion World is a different game and the arena does not play it, so its
+// card text is not counted here (see CLAUDE.md).
+const fusionSets = new Set((await db.select({ code: cardSets.code, line: cardSets.line }).from(cardSets)).filter((s) => s.line === "fusion").map((s) => s.code));
+const all = (await db.select().from(cardsTable)).filter((r) => !fusionSets.has(r.setCode));
 const defs: CardDef[] = all.map(cardDefFrom);
 
 interface Bucket {

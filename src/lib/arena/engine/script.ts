@@ -70,9 +70,10 @@ export type Cond =
   | { kind: "life"; side: Side; atLeast?: number; atMost?: number }
   | { kind: "leaderColor"; color: Color }
   /** "If your Leader is a <Baby> card" — colour, character name and traits alike. */
-  | { kind: "leaderMatches"; filter: CardFilter }
+  | { kind: "leaderMatches"; filter: CardFilter; side?: Side }
   | { kind: "chose"; var: string }
-  | { kind: "isTurnPlayer" };
+  /** Whose turn it is (7-1). "opponent" is "during your opponent's turn". */
+  | { kind: "isTurnPlayer"; who?: "you" | "opponent" };
 
 export type Op =
   | { op: "draw"; n: Amount; side?: Side }

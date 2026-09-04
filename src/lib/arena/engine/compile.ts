@@ -60,13 +60,18 @@ function inNameList(text: string, comma: number): boolean {
   return endsWithName && /^[<{≪]/.test(after);
 }
 
-/** Explanatory notes in parentheses are not rules text (1-5-8). */
+/**
+ * Explanatory notes in parentheses are not rules text (1-5-8). Some sets print
+ * the full-width brackets, and a note whose closing bracket is missing runs to
+ * the end of the line — both used to leave a reminder behind as an
+ * "unreadable" clause.
+ */
 function stripNotes(text: string): string {
   let out = "";
   let depth = 0;
   for (const ch of text) {
-    if (ch === "(") depth++;
-    else if (ch === ")") depth = Math.max(0, depth - 1);
+    if (ch === "(" || ch === "（") depth++;
+    else if (ch === ")" || ch === "）") depth = Math.max(0, depth - 1);
     else if (depth === 0) out += ch;
   }
   return out.replace(/\s+/g, " ").trim();
@@ -76,7 +81,7 @@ function stripNotes(text: string): string {
 
 const AREA_WORDS: [RegExp, ScriptArea][] = [
   [/\bin (?:your|their|its owner's|an?) (?:own )?drop\b|\bdrop area\b|\bfrom your drop\b/, "drop"],
-  [/\bin your energy\b|\benergy area\b|\bof your energy\b|\byour energy\b/, "energy"],
+  [/\bin your energy\b|\benergy area\b|\bof your energy\b|\byour energy\b|\b(?:your opponent's|their) energy\b/, "energy"],
   [/\bfrom your hand\b|\bin your hand\b|\btheir hand\b|\byour hand\b/, "hand"],
   [/\bfrom your deck\b|\bin your deck\b|\byour deck\b/, "deck"],
   [/\bin your life\b|\bfrom your life\b|\byour life\b|\blife area\b/, "life"],
@@ -111,7 +116,11 @@ export function parseTarget(phrase: string): Selector | null {
     }
   }
   // "among them" / "of those cards" keeps working on what was just looked at.
-  const fromVar = /\bamong them\b|\bof those cards\b|\bfrom among them\b/.test(t) ? "looked" : undefined;
+  const fromVar = /\bamong them\b|\bof those cards\b|\bfrom among them\b|\bof them\b/.test(t) ? "looked" : undefined;
+  // "Choose 1 of your <Majin Buu>" names no area, but 20-1-6 says an
+  // unqualified card is one on the table. Without this the choice fails, and
+  // then every later "it" in the same skill has nothing to point at.
+  if (!area && !fromVar && filterFor(phrase, null)) area = "play";
   if (!area && !fromVar) return null;
 
   let count = 1;
@@ -259,7 +268,10 @@ function parseTrailingDelay(clause: string): { at: DelayTiming; scope: DelayScop
  */
 function parseConditionClause(clause: string, allowBare = false): { cond: Cond; subject?: Ref } | null {
   const trimmed = clause.toLowerCase().trim();
-  const t = trimmed.replace(/^(?:if|when|while)\s+/, "");
+  // "During your turn" is a condition too, and reads as one everywhere else in
+  // the text. The delay phrases ("during your opponent's *next* turn") are
+  // matched before this is reached, so they are not caught here.
+  const t = trimmed.replace(/^(?:if|when|while|during)\s+/, "");
   // "if your Leader Card is yellow and your life is at 4 or less" splits on the
   // "and", so the second half arrives without a condition word in front of it.
   // It only counts as a condition when it continues one (9-1-3).
@@ -271,11 +283,47 @@ function parseConditionClause(clause: string, allowBare = false): { cond: Cond; 
     const filter = parseFilter(m[1]);
     return { cond: { kind: "leaderMatches", filter }, subject: { sel: { special: "leader" } } };
   }
+  // "If your opponent's Leader Card is red or blue" — the same test, other side.
+  if ((m = /^your opponent's leader(?: card)? is (.+)$/.exec(t))) {
+    return { cond: { kind: "leaderMatches", side: "opponent", filter: parseFilter(m[1]) }, subject: { sel: { special: "opponentLeader" } } };
+  }
   if ((m = /^your life is (?:at )?(\d+) or less$/.exec(t))) return { cond: { kind: "life", side: "you", atMost: Number(m[1]) } };
   if ((m = /^your opponent's life is (?:at )?(\d+) or less$/.exec(t))) return { cond: { kind: "life", side: "opponent", atMost: Number(m[1]) } };
-  if ((m = /^you have (\d+) or more energy$/.exec(t))) return { cond: { kind: "count", sel: { side: "you", area: "energy" }, atLeast: Number(m[1]) } };
-  if ((m = /^(?:you have|there (?:are|is)) (\d+) or more cards in your drop(?: area)?$/.exec(t))) return { cond: { kind: "count", sel: { side: "you", area: "drop" }, atLeast: Number(m[1]) } };
+  // "If you have 2 or less life" — the same sentence with the subject moved.
+  if ((m = /^you have (\d+) or (less|more) life$/.exec(t))) return { cond: { kind: "life", side: "you", ...(m[2] === "less" ? { atMost: Number(m[1]) } : { atLeast: Number(m[1]) }) } };
+  if ((m = /^your opponent has (\d+) or (less|more) life$/.exec(t))) return { cond: { kind: "life", side: "opponent", ...(m[2] === "less" ? { atMost: Number(m[1]) } : { atLeast: Number(m[1]) }) } };
+  // Whose turn it is (7-1). The engine has carried this condition since the
+  // beginning and the compiler has never once emitted it.
+  if (/^(?:it's |it is )?your turn$/.test(t) || /^during your turn$/.test(t)) return { cond: { kind: "isTurnPlayer" } };
+  if (/^(?:it's |it is )?your opponent's turn$/.test(t) || /^during your opponent's turn$/.test(t)) return { cond: { kind: "isTurnPlayer", who: "opponent" } };
+
+  const counted = parseCountCondition(t);
+  if (counted) return { cond: counted };
   return null;
+}
+
+/**
+ * "If you have 2 or more Battle Cards in play in Rest Mode", "if there are 5
+ * or more cards in your Warp", "if there are no cards in your opponent's
+ * Combo Area" — one shape, many areas, and the target phrase after the number
+ * is the same grammar every other clause uses.
+ */
+function parseCountCondition(t: string): Cond | null {
+  const m = /^(?:you have|your opponent has|there (?:are|is)) (?:(no)|(\d+) or (more|less|fewer)) (.+)$/.exec(t);
+  if (!m) return null;
+  const [, none, num, dir, rest] = m;
+  // "you have" / "your opponent has" says whose cards, which the phrase after
+  // the number usually does not repeat.
+  const mine = /^you have/.test(t);
+  const theirs = /^your opponent has/.test(t);
+  const phrase = mine ? `your ${rest}` : theirs ? `your opponent's ${rest}` : rest;
+  const sel = parseTarget(phrase);
+  if (!sel) return null;
+  // A count reads the whole area, not one card out of it.
+  delete sel.count;
+  delete sel.upTo;
+  if (none) return { kind: "count", sel, atMost: 0 };
+  return { kind: "count", sel, ...(dir === "more" ? { atLeast: Number(num) } : { atMost: Number(num) }) };
 }
 
 /**
@@ -292,6 +340,11 @@ function connective(clause: string): "skip" | "ifDone" | null {
   // Reminders that restate a rule the engine already applies.
   if (/^flip (?:this card|it) (?:over|onto its back)$/.test(t)) return "skip";
   if (/^(?:you can't activate|this skill can only be activated|this card can't be played)/.test(t)) return "skip";
+  // "You can activate this card's [Counter] skill from your hand" is where a
+  // [Counter] skill is activated from anyway (4-3), so the sentence adds
+  // nothing. The forms that *change* the cost are not this, and are left alone.
+  if (/^you (?:can|may) activate this card's \[counter\][a-z: ]*skill from your hand$/.test(t)) return "skip";
+  if (/^when you activate this card's \[counter\][a-z: ]*skill$/.test(t)) return "skip";
   return null;
 }
 
@@ -313,17 +366,24 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   if ((m = /^your opponent chooses (\d+) cards? (?:in|from) their hand$/.exec(t))) return [{ op: "discard", n: Number(m[1]), side: "opponent" }];
   if (/^make your opponent choose (\d+) cards? from their hand$/.test(t)) return [{ op: "discard", n: 1, side: "opponent" }];
   if (/^discard (?:it|them)$/.test(t) && c.last) return [{ op: "moveTo", target: { var: c.last }, to: "drop", reveal: true }];
+  if ((m = /^both players choose (\d+) cards? (?:in|from) their hands?$/.exec(t))) return [{ op: "discard", n: Number(m[1]), side: "both" }];
+  // Discarding is often printed the long way round, as a move to the Drop.
+  // Only the unqualified form: "1 yellow card in your hand" narrows *which*
+  // card, and `discard` cannot yet honour that, so it stays unread.
+  if ((m = /^place (\d+) cards? (?:from|in) your hand in(?:to)? (?:your |the )?drop(?: area)?$/.exec(t))) return [{ op: "discard", n: Number(m[1]) }];
 
   // Damage (5-10).
   if ((m = /^deal (\d+) damage to (?:your opponent|your opponent's life|them)$/.exec(t))) return [{ op: "damage", n: Number(m[1]), side: "opponent" }];
 
   // Deck manipulation.
-  if ((m = /^place (\d+) cards? from the top of your deck in (?:your|its owner's) drop(?: area)?$/.exec(t))) return [{ op: "mill", n: Number(m[1]) }];
+  if ((m = /^place (?:up to )?(\d+) cards? from the top of your deck in (?:your |its owner's |the )?drop(?: area)?$/.exec(t))) return [{ op: "mill", n: Number(m[1]) }];
   if (/^add the top card of your deck to your life$/.test(t)) return [{ op: "addLife", n: 1 }];
-  if ((m = /^add cards from your life to your hand until you have (\d+) life$/.exec(t))) return [{ op: "lifeDownTo", n: Number(m[1]) }];
-  if (/^place the remaining cards at the bottom of your deck(?: in any order)?$/.test(t))
+  if ((m = /^add cards from your life to your hand until you have (\d+) life(?: left)?$/.exec(t))) return [{ op: "lifeDownTo", n: Number(m[1]) }];
+  if (/^place the (?:remaining|rest of the) cards at the bottom of your deck(?: in any order)?$/.test(t))
     return [{ op: "moveTo", target: { sel: { fromVar: "looked" } }, to: "deck", position: "bottom" }];
-  if (/^shuffle your deck(?: if you looked through it)?$/.test(t)) return [{ op: "shuffle" }];
+  // "The rest" is whatever is left of the cards just looked at.
+  if (/^place the rest in (?:your |the )?drop(?: area)?$/.test(t)) return [{ op: "moveTo", target: { sel: { fromVar: "looked" } }, to: "drop", reveal: true }];
+  if (/^shuffle your deck(?: if you looked through it| afterwards?)?$/.test(t)) return [{ op: "shuffle" }];
   if ((m = /^look at (?:up to )?(\d+) cards? from the top of your deck$/.exec(t))) return [{ op: "look", n: Number(m[1]), as: "looked" }];
 
   // Cost reduction on a [Permanent] skill (9-1-3-3, 20-21).
@@ -339,6 +399,12 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   if ((m = /^(.*?) (?:gets?|gains?) ([+-]\d+) combo power\b/.exec(t))) {
     const ref = refFor(m[1], c);
     return ref ? [{ op: "comboPower", target: ref, amount: Number(m[2]), until: durationOf(t) }] : null;
+  }
+  // "It loses -5000 power" and "it loses 5000 power" both mean the same thing;
+  // the sign on the card is decoration, the verb is what counts.
+  if ((m = /^(.*?) loses ([+-]?\d+) power\b/.exec(t))) {
+    const ref = refFor(m[1], c);
+    return ref ? [{ op: "power", target: ref, amount: -Math.abs(Number(m[2])), until: durationOf(t) }] : null;
   }
   if ((m = /^(.*?) (?:gets?|gains?) ([+-]\d+) power\b/.exec(t))) {
     const ref = refFor(m[1], c);
@@ -405,15 +471,21 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     const ref = refFor(m[1], c);
     return ref ? [{ op: "moveTo", target: ref, to: "under" }] : null;
   }
+  // The same stack said from the other end: this card ends up underneath.
+  if ((m = /^(?:place|put) (.+?) on top of this card$/.exec(t))) {
+    const host = refFor(m[1], c);
+    return host ? [{ op: "moveTo", target: { sel: { special: "self" } }, to: "under", under: host }] : null;
+  }
 
   // Area moves (3-1).
   const MOVES: [RegExp, ScriptArea, { position?: "top" | "bottom"; mode?: "active" | "rest"; reveal?: boolean }][] = [
-    [/^place (.+?) (?:in|into) (?:its owner'?s?|their|your) drop(?: area)?$/, "drop", { reveal: true }],
-    [/^place (.+?) at the bottom of (?:its owner'?s?|your) deck$/, "deck", { position: "bottom" }],
-    [/^place (.+?) on top of (?:its owner'?s?|your) deck$/, "deck", { position: "top" }],
-    [/^return (.+?) to (?:its owner'?s?|your) hand$/, "hand", {}],
+    [/^place (.+?) (?:in|into) (?:its owner'?s?|their|your|the) drop(?: area)?$/, "drop", { reveal: true }],
+    [/^place (.+?) at the bottom of (?:its owner'?s?|their|your) deck$/, "deck", { position: "bottom" }],
+    [/^place (.+?) on top of (?:its owner'?s?|their|your) deck$/, "deck", { position: "top" }],
+    [/^return (.+?) to (?:its|their) owner'?s? hand$/, "hand", {}],
+    [/^return (.+?) to (?:your|their) hand$/, "hand", {}],
     [/^add (.+?) to your hand$/, "hand", {}],
-    [/^send (.+?) to (?:your|its owner'?s?) warp$/, "warp", {}],
+    [/^send (.+?) to (?:your|their|its owner'?s?) warp$/, "warp", {}],
     [/^(?:add|place) (.+?) (?:to|in) your energy in rest mode$/, "energy", { mode: "rest", reveal: true }],
     [/^(?:add|place) (.+?) (?:to|in) your energy(?: area)?$/, "energy", { reveal: true }],
     [/^add (.+?) to your life$/, "life", {}],

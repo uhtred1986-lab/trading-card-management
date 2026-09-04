@@ -1090,4 +1090,53 @@ function assertConsistentAfterDrop(s: GameState) {
   assert.equal(s.prompt.kind, "main");
 }
 
+// ── wordings the compiler learned in the first pattern pass ────────────────
+
+{
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+  const ops = (text: string) => one(text).ops.map((o) => o.op);
+
+  // Whose turn it is: the condition existed from the start and the compiler
+  // had never once emitted it.
+  const mine = one("[Activate: Main] If it's your turn, draw 1 card.");
+  assert.deepEqual(mine.unsupported, []);
+  assert.deepEqual(mine.ops, [{ op: "if", cond: { kind: "isTurnPlayer" }, then: [{ op: "draw", n: 1 }] }]);
+  const theirs = one("[Activate: Battle] During your opponent's turn, draw 1 card.");
+  assert.deepEqual((theirs.ops[0] as { cond: { kind: string; who?: string } }).cond, { kind: "isTurnPlayer", who: "opponent" });
+
+  // One shape of counting condition, many areas.
+  const counted = one("[Activate: Main] If your opponent has 2 or more Battle Cards in play in Rest Mode, draw 1 card.");
+  assert.deepEqual(counted.unsupported, []);
+  const cond = (counted.ops[0] as { cond: { kind: string; atLeast?: number; sel: { side: string; area: string; mode?: string } } }).cond;
+  assert.equal(cond.kind, "count");
+  assert.equal(cond.atLeast, 2);
+  assert.deepEqual([cond.sel.side, cond.sel.area, cond.sel.mode], ["opponent", "battle", "rest"]);
+  // "No cards" is the same shape read the other way.
+  assert.equal((one("[Activate: Main] If there are no cards in your opponent's combo area, draw 1 card.").ops[0] as { cond: { atMost?: number } }).cond.atMost, 0);
+
+  // Discarding written the long way round, and life written as a count.
+  assert.deepEqual(ops("[Activate: Main] You may place 1 card from your hand in the drop area."), ["discard"]);
+  assert.deepEqual(ops("[Activate: Main] Add cards from your life to your hand until you have 6 life left."), ["lifeDownTo"]);
+  assert.deepEqual(ops("[Activate: Main] Both players choose 1 card from their hand."), ["discard"]);
+
+  // A reminder of a rule the engine already applies is not an effect.
+  const reminder = one("[Counter: Play] You can activate this card's [Counter] skill from your hand. Draw 1 card.");
+  assert.deepEqual(reminder.unsupported, []);
+  assert.deepEqual(
+    reminder.ops.map((o) => o.op),
+    ["draw"],
+  );
+  // Nor is a note in the full-width brackets some sets print.
+  assert.deepEqual(one("[Auto] When you play this card, draw 1 card.（You can only include up to 4 cards with [Super Combo] in your deck）").unsupported, []);
+
+  // A choice with no area named is a card on the table (20-1-6) — and until
+  // this worked, every later "it" in the same skill had nothing to point at.
+  const chain = one("[Auto] When you play this card, choose 1 of your <Son Goku>, and switch it to Rest Mode.");
+  assert.deepEqual(chain.unsupported, []);
+  assert.deepEqual(
+    chain.ops.map((o) => o.op),
+    ["choose", "switchMode"],
+  );
+}
+
 console.log("verify-arena: all checks passed");
