@@ -43,7 +43,7 @@ export default async function ArenaGamePage({ params }: { params: Promise<{ id: 
   const review = game.review ? (JSON.parse(game.review) as GameReview) : null;
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-3 xl:max-w-6xl">
+    <div className="mx-auto w-full max-w-7xl space-y-3">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <Link href="/arena" className="text-sm text-space-300 hover:text-ki-300">
           ← Arena

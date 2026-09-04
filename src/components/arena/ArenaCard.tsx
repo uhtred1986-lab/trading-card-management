@@ -45,6 +45,7 @@ export function ArenaCard({
   onInspect,
   onHover,
   badge,
+  drop = false,
 }: {
   card: CardView;
   width?: number;
@@ -58,11 +59,14 @@ export function ArenaCard({
    */
   onHover?: (box: DOMRect | null) => void;
   badge?: string | null;
+  /** Battle Area cards drop in when they arrive; the animation runs once, on mount. */
+  drop?: boolean;
 }) {
   const [failed, setFailed] = useState(false);
   const height = Math.round((width * 88) / 63);
-  const rotation = card.mode === "rest" ? 90 : upsideDown ? 180 : 0;
-  const box = card.mode === "rest" ? Math.max(width, height) : height;
+  const rested = card.mode === "rest";
+  const rotation = rested ? 90 : upsideDown ? 180 : 0;
+  const box = rested ? Math.max(width, height) : height;
   const showArt = !!card.imageUrl && !failed && !card.hidden;
   const long = card.name.length > 18;
 
@@ -78,9 +82,13 @@ export function ArenaCard({
   };
 
   const hoverable = !!onHover && !card.hidden;
+  // Energy sits upside-down and its cost, power and combo mean nothing there —
+  // badges would just be clutter on a 22px card.
+  const chrome = !card.hidden && !upsideDown;
 
   return (
-    <div className="relative flex shrink-0 items-center justify-center" style={{ width: px(width), height: px(box) }}>
+    // The id is in the DOM so the attack beam can find both of its ends.
+    <div data-arena-card={card.id} className={`relative flex shrink-0 items-center justify-center ${drop ? "arena-drop" : ""}`} style={{ width: px(width), height: px(box) }}>
       <button
         type="button"
         onClick={onTap}
@@ -103,7 +111,7 @@ export function ArenaCard({
         }}
         disabled={!onTap && !onInspect && !hoverable}
         aria-label={card.hidden ? "Face-down card" : `${card.name}${card.power != null ? `, ${card.power} power` : ""}`}
-        className={`absolute overflow-hidden rounded-[4px] border border-space-600 bg-space-800 text-left transition-all duration-200 ${RING[state]} ${onTap ? "cursor-pointer" : ""} ${hoverable ? "hover:brightness-125" : ""}`}
+        className={`absolute overflow-hidden rounded-[4px] border border-space-600 bg-space-800 text-left transition-all duration-200 ${RING[state]} ${onTap ? "cursor-pointer" : ""} ${hoverable ? "hover:brightness-125" : ""} ${rested ? "brightness-75 saturate-[0.7]" : ""}`}
         style={{ width: px(width), height: px(height), transform: `rotate(${rotation}deg)` }}
       >
         {card.hidden ? (
@@ -120,14 +128,38 @@ export function ArenaCard({
             </span>
           </>
         )}
-        {!card.hidden && card.power != null && (
-          <span className="absolute inset-x-0 bottom-0 bg-space-950/85 px-[3px] py-[1px] font-mono text-space-100" style={{ fontSize: px(8) }}>
+        {/* Rest Mode is already a 90° turn; the band is what names it at a glance. */}
+        {rested && !card.hidden && (
+          <span
+            className="absolute inset-x-0 top-1/2 -translate-y-1/2 bg-space-950/70 text-center font-bold uppercase tracking-[0.2em] text-space-100"
+            style={{ fontSize: px(7) }}
+          >
+            rest
+          </span>
+        )}
+        {chrome && card.power != null && (
+          <span
+            className="absolute inset-x-0 bottom-0 bg-space-950/85 px-[3px] py-[1px] text-center font-mono font-bold text-space-50"
+            style={{ fontSize: px(9) }}
+          >
             {card.power.toLocaleString("en")}
           </span>
         )}
-        {card.cost && !card.hidden && (
-          <span className="absolute left-[2px] top-[2px] rounded bg-space-950/80 px-[3px] font-mono text-ki-300" style={{ fontSize: px(8) }}>
+        {card.cost && chrome && (
+          <span
+            className="absolute left-[2px] top-[2px] grid place-items-center rounded-full bg-ki-500 font-mono font-bold leading-none text-space-950 shadow-[0_1px_3px_rgba(0,0,0,0.6)]"
+            style={{ fontSize: px(8), width: px(13), height: px(13) }}
+          >
             {card.cost}
+          </span>
+        )}
+        {/* Combo is the number that decides a battle from hand — worth its own badge. */}
+        {card.comboPower != null && card.comboPower > 0 && chrome && (
+          <span
+            className="absolute right-[2px] top-[2px] rounded-full bg-dbs-blue/90 px-[3px] font-mono font-bold leading-none text-space-50"
+            style={{ fontSize: px(7), paddingBlock: px(2) }}
+          >
+            +{Math.round(card.comboPower / 1000)}k
           </span>
         )}
       </button>
@@ -149,7 +181,7 @@ export function ArenaCard({
           ×{card.underCount + 1}
         </span>
       )}
-      {card.referee && !card.hidden && (
+      {card.referee && chrome && (
         <span className="pointer-events-none absolute -top-1 left-1/2 -translate-x-1/2 rounded bg-dbs-yellow px-1 font-bold tracking-wide text-space-950" style={{ fontSize: px(7) }}>
           REF
         </span>

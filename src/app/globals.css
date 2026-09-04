@@ -91,3 +91,86 @@ input[type="number"] {
     --arena: 1.95;
   }
 }
+
+/*
+ * The stage the two Battle Areas face each other across. A little depth and a
+ * warm floor so the middle of the screen reads as a table rather than a gap.
+ */
+.arena-stage {
+  background:
+    radial-gradient(120% 80% at 50% 50%, rgba(242, 140, 15, 0.07), transparent 70%),
+    linear-gradient(180deg, rgba(9, 11, 21, 0.75), rgba(22, 27, 43, 0.55) 50%, rgba(9, 11, 21, 0.75));
+}
+
+/* An empty Battle Area still holds its shape, so the board never jumps. */
+.arena-slot {
+  border: 1px dashed var(--color-space-700);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.012);
+}
+
+/* The step banner: the one moment of theatre, on every phase and battle step. */
+@keyframes arena-banner {
+  0% {
+    opacity: 0;
+    transform: scale(1.4) skewX(-9deg);
+  }
+  12% {
+    opacity: 1;
+    transform: scale(1) skewX(-9deg);
+  }
+  72% {
+    opacity: 1;
+    transform: scale(1) skewX(-9deg);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.08) skewX(-9deg);
+  }
+}
+.arena-banner {
+  animation: arena-banner 1.5s ease-out forwards;
+}
+
+/* The power figures slam together when a battle resolves. */
+@keyframes arena-slam {
+  0% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+  45% {
+    transform: scale(0.92);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+.arena-slam {
+  animation: arena-slam 0.45s cubic-bezier(0.2, 1.4, 0.4, 1) backwards;
+}
+
+/* A card arriving on the board drops in rather than blinking into place. */
+@keyframes arena-drop {
+  0% {
+    transform: translateY(-14px) scale(1.12);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+.arena-drop {
+  animation: arena-drop 0.28s ease-out backwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arena-banner,
+  .arena-slam,
+  .arena-drop {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+  }
+}
