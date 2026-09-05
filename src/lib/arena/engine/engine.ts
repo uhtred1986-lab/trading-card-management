@@ -50,6 +50,7 @@ import {
   skillsOfInstance,
   type GameContext,
   condHolds,
+  invokerEnergy,
   resolveSelector,
   resolveRef,
   skillNegated,
@@ -1259,6 +1260,10 @@ function chooseApply(ctx: EngineContext, s: GameState, ev: GameEvent[], step: Ex
       delete s.continuations.alliance;
       if (!chosen.length) return "done"; // 22-32-3: may
       for (const id of chosen) setMode(s, ev, id, "rest", ctx);
+      // "When this card is switched to Rest Mode by an [Alliance] skill" —
+      // the cards rested as the cost notice it (BT28-069/070/071, BT7-004,
+      // EX04-01), with the card that used [Alliance] as the subject.
+      for (const id of chosen) pendTriggers(ctx, s, "restedByAlliance", id, info.card);
       const sk = skillsOfInstance(ctx, s, info.card).find((x) => x.index === info.skillIndex);
       if (!sk) return "done";
       ev.push({ type: "skill", card: info.card, skill: sk.index, master: p, text: sk.raw });
@@ -1712,7 +1717,13 @@ function activatable(ctx: EngineContext, s: GameState, p: PlayerId, card: string
     if (alt) {
       // 5-3 / 22-37: the printed alternative to the energy cost is its own
       // offer; the skill's orbs are still paid.
-      if (!altCostFor(ctx, s, card, p, "play") || !planPayment(ctx, s, p, orbTotal, {})) return null;
+      // 22-37: [Invoker] rests one Red/Blue energy in place of the card's own
+      // energy cost — but the *skill's* orbs are still paid, and out of what
+      // is left. Checked against the whole pool, this offered skills whose
+      // orbs needed the very energy [Invoker] was about to rest.
+      if (!altCostFor(ctx, s, card, p, "play")) return null;
+      const spoken = invokerEnergy(ctx, s, p);
+      if (!planPayment(ctx, s, p, orbTotal, orbSpecified, undefined, orbEither, spoken ? [spoken] : undefined)) return null;
       return `Activate ${name} by resting a Red/Blue energy ([Invoker])`;
     }
     const c = playCost(ctx, s, card);

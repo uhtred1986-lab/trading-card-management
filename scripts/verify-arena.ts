@@ -3333,4 +3333,44 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assertConsistent(s);
 }
 
+// ── the last two §6.14 approximations ──────────────────────────────────────
+
+{
+  // 22-32-3: the cards rested to pay for [Alliance] notice it. Five cards
+  // print this and none of them could ever fire.
+  assert.ok(autoTriggerMatches(parseSkills("[Auto] When this card is switched to Rest Mode by an [Alliance] skill, draw 1 card.")[0], "restedByAlliance"));
+
+  DEFS.ALLY = { ...DEFS.V1, id: "ALLY", name: "ALLY", skill: "[Auto] When this card is switched to Rest Mode by an [Alliance] skill, draw 1 card." };
+  DEFS.LEADS = { ...DEFS.V1, id: "LEADS", name: "LEADS", power: 20000, skill: "[Alliance Red] When this card attacks, this card gets +5000 power for the battle." };
+  let s = arena({ battle: ["LEADS", "ALLY"] });
+  const leads = s.players.p1.battle.find((id) => s.cards[id].cardId === "LEADS")!;
+  const ally = s.players.p1.battle.find((id) => s.cards[id].cardId === "ALLY")!;
+  const hand = s.players.p1.hand.length;
+  s = play(s, { type: "attack", player: "p1", attacker: leads, target: s.players.p2.leader });
+  assert.equal(s.prompt.kind, "chooseCards", "22-32-3: which cards to rest as the cost");
+  s = play(s, { type: "choose", player: "p1", cards: [ally] });
+  assert.equal(s.cards[ally].mode, "rest", "it was rested to pay");
+  assert.equal(s.players.p1.hand.length, hand + 1, "and it noticed");
+  assertConsistent(s);
+}
+
+{
+  // 22-37: [Invoker] rests one Red/Blue energy in place of the card's energy
+  // cost, but the *skill's* orbs are still paid out of what is left. With one
+  // Red/Blue energy and a skill costing {r}, the same card cannot do both.
+  DEFS.INVOKE = { ...DEFS.V1, id: "INVOKE", name: "INVOKE", skill: "[Invoker]" };
+  DEFS["E-COSTLY"] = { ...DEFS["E-DRAW"], id: "E-COSTLY", name: "E-COSTLY", colors: ["Red", "Blue"], skill: "[Activate: Main]{r}: Draw 1 card." };
+  DEFS["V-PURPLE"] = { ...DEFS.V1, id: "V-PURPLE", name: "V-PURPLE", colors: ["Red", "Blue"] };
+
+  // One Red/Blue energy: [Invoker] would rest it, leaving nothing for the {r}.
+  const tight = arena({ battle: ["INVOKE"], hand: ["E-COSTLY"], energy: ["V-PURPLE"] });
+  const one = find(tight, "p1", "hand", "E-COSTLY");
+  assert.ok(!acts(tight).some((a) => a.type === "activate" && a.card === one && a.alt), "the same energy cannot pay twice");
+
+  // A second energy for the orbs, and the offer is real.
+  const roomy = arena({ battle: ["INVOKE"], hand: ["E-COSTLY"], energy: ["V-PURPLE", "V1"] });
+  const two = find(roomy, "p1", "hand", "E-COSTLY");
+  assert.ok(acts(roomy).some((a) => a.type === "activate" && a.card === two && a.alt), "one to rest for [Invoker], one for the {r}");
+}
+
 console.log("verify-arena: all checks passed");

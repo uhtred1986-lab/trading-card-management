@@ -44,6 +44,7 @@ const TRIGGERS: Trigger[] = [
   "opponentCounter",
   "opponentMainStart",
   "blockerUsed",
+  "restedByAlliance",
   "addedToZEnergy",
   "energyToDrop",
   "unisonToDrop",

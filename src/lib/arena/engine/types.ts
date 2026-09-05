@@ -364,6 +364,8 @@ export type Trigger =
   | "opponentMainStart"
   /** "When this card activates [Blocker]" (22-4): the block itself, not the attack. */
   | "blockerUsed"
+  /** "When this card is switched to Rest Mode by an [Alliance] skill" (22-32-3): the cards rested as the cost. */
+  | "restedByAlliance"
   /** "When this card is added to your Z-Energy" (17-3). */
   | "addedToZEnergy"
   /**

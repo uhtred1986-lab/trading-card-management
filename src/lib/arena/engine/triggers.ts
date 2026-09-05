@@ -80,6 +80,8 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       return /at the (?:beginning|start) of your opponent's main phase/.test(t);
     case "blockerUsed":
       return /when this card activates (?:its )?\[blocker\]/.test(t);
+    case "restedByAlliance":
+      return /when this card is switched to rest mode by (?:an?|one of your) \[alliance\]/.test(t);
     case "addedToZEnergy":
       return /when this card is added to (?:your )?z-energy/.test(t);
     case "chargeStart":

@@ -878,7 +878,8 @@ function isRedBlue(ctx: GameContext, s: GameState, id: string): boolean {
   return colors.length === 2 && colors.includes("Red") && colors.includes("Blue");
 }
 
-function invokerEnergy(ctx: GameContext, s: GameState, payer: PlayerId): string | null {
+/** The energy [Invoker] would rest, so a caller can leave it out of the rest of the price (22-37). */
+export function invokerEnergy(ctx: GameContext, s: GameState, payer: PlayerId): string | null {
   return s.players[payer].energy.find((id) => s.cards[id].mode === "active" && isRedBlue(ctx, s, id)) ?? null;
 }
 
@@ -982,6 +983,8 @@ export function planPayment(
   specified: Partial<Record<Color, number>>,
   explicit?: string[],
   either?: Color[][],
+  /** Energy already spoken for by another part of the price — [Invoker]'s (22-37). */
+  exclude?: string[],
 ): Payment | null {
   // "{r}/{u}" is one orb payable with either colour (22-13 and friends). Each
   // way of settling those is an ordinary specified cost, so rather than teach
@@ -999,12 +1002,12 @@ export function planPayment(
     for (const pick of assignments) {
       const merged = { ...specified };
       for (const c of pick) merged[c] = (merged[c] ?? 0) + 1;
-      const got = planPayment(ctx, s, p, total, merged, explicit);
+      const got = planPayment(ctx, s, p, total, merged, explicit, undefined, exclude);
       if (got) return got;
     }
     return null;
   }
-  const active = activeEnergy(s, p);
+  const active = exclude?.length ? activeEnergy(s, p).filter((id) => !exclude.includes(id)) : activeEnergy(s, p);
   const ps = s.players[p];
   const leader = leaderColors(ctx, s, p);
   const colorsOf = (id: string) => def(ctx, s, id).colors;
