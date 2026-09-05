@@ -631,6 +631,39 @@ source *and* a destination, where the selector is rightly the source. Skipping
 any clause that names more than one area left the real ones. Do not abandon a
 probe because its first run looks like nothing — narrow it.
 
+## Done: checking the keywords that had no test (5 Sep 2026)
+
+A probe over `verify-arena.ts` and the engine, asked two questions of all 39
+§22 keywords: does it have a rule anywhere, and does any test exercise it?
+
+**Every keyword has a rule** — nothing is missing. But **13 had no test**, and
+writing them found three bugs, one of which had never worked at all:
+
+- **[Heroic] and [Villainous] have never once resolved** (33 cards). They are
+  pending skills with no printed line, so they pend at index -1;
+  `resolveAuto` looks up a `Skill` by that index, finds none, returns.
+  `resolveKeywordOrText` carried a branch for them that nothing could reach.
+- They **cross-matched**: a [Villainous] card played set off every [Heroic] on
+  the board, where 22-35-2 says each watches its own keyword.
+- Neither **negated itself for the turn** (22-35-3), so a card paid out once
+  per play instead of once per turn.
+
+And, found while making [Villainous] work: **a discard was never a choice.**
+The `discard` op's comment has said "20-7: the *owner* of the hand chooses"
+since it was written, above a loop taking `hand[hand.length - 1]`. It is now
+rewritten in place into a `choose` the owner answers plus the move, the way
+`chooseMode` splices its option — so every discard in the game asks.
+
+Tested and correct as they stood: [Servant], [Ultimate], [Warrior of Universe
+7], [Field], [Overlord]. Still untested, in card order: [Swap] (60), [Offering]
+(19), [Wish] (15), [Victory Strike] (4), [Wormhole] (2). [Dragon Ball] (14) is
+a deck-construction rule only (22-28-1) and needs no play rule at all.
+
+**The lesson is the same one in a new place.** "It has a rule" and "the rule
+runs" are different claims, and only a test that plays the card distinguishes
+them. A keyword with an implementation, a manual citation and a comment can
+still be dead code.
+
 ## Conventions worth keeping
 
 - Card text is **read, never interpreted**: if the compiler cannot read a

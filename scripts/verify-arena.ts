@@ -3625,4 +3625,40 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assertConsistent(s);
 }
 
+{
+  // 22-3: [Field] is an [Activate: Main] on an Extra that puts the card itself
+  // into the Battle Area in Active Mode, and 22-3-5 drops any other [Field]
+  // Extra already there.
+  DEFS.FIELD = { ...DEFS["E-DRAW"], id: "FIELD", name: "FIELD", energyCost: 1, skill: "[Field]" };
+  let s = arena({ hand: ["FIELD", "FIELD"], energy: ["V1", "V1"] });
+  const first = find(s, "p1", "hand", "FIELD");
+  s = play(s, { type: "activate", player: "p1", card: first, skill: 0 });
+  assert.ok(s.players.p1.battle.includes(first), "22-3-2: into the Battle Area");
+  assert.equal(s.cards[first].mode, "active", "22-3-2: in Active Mode");
+  const second = find(s, "p1", "hand", "FIELD");
+  s = play(s, { type: "activate", player: "p1", card: second, skill: 0 });
+  assert.ok(s.players.p1.battle.includes(second));
+  assert.ok(s.players.p1.drop.includes(first), "22-3-5: the one already there goes to the Drop");
+  assertConsistent(s);
+}
+
+{
+  // 22-41: [Overlord] costs a [Servant] Battle Card, sent to the bottom of its
+  // owner's deck, and draws 1.
+  DEFS.OVER = { ...DEFS.V1, id: "OVER", name: "OVER", skill: "[Overlord]" };
+  DEFS.SERV2 = { ...DEFS.V1, id: "SERV2", name: "SERV2", skill: "[Servant]" };
+  let s = arena({ battle: ["OVER"] });
+  const over = s.players.p1.battle[0];
+  assert.ok(!canActivate(s, over), "22-41-2: no [Servant] to pay with");
+  s = arena({ battle: ["OVER", "SERV2"] });
+  const over2 = s.players.p1.battle.find((id) => s.cards[id].cardId === "OVER")!;
+  const servant = s.players.p1.battle.find((id) => s.cards[id].cardId === "SERV2")!;
+  const hand = s.players.p1.hand.length;
+  assert.ok(canActivate(s, over2));
+  s = play(s, { type: "activate", player: "p1", card: over2, skill: 0 });
+  assert.equal(s.players.p1.deck[s.players.p1.deck.length - 1], servant, "22-41-2: to the bottom of the deck");
+  assert.equal(s.players.p1.hand.length, hand + 1, "22-41-3: and draw 1");
+  assertConsistent(s);
+}
+
 console.log("verify-arena: all checks passed");
