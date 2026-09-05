@@ -475,6 +475,34 @@ says nothing about triggers; the trigger count says nothing about costs. When
 something looks finished, ask what the next stage does with it, and write the
 engine assertion rather than the compile one.
 
+## Done: a price that is an action (5 Sep 2026)
+
+The mechanism §6.13 of the hand-off spec deferred, and it cleared most of the
+never-offered list: **766 → 159**. "[Activate: Main] Switch this card to Rest
+Mode: Draw 1 card", "Choose 1 card in your hand and place it in your Drop Area:
+…", "Remove this card from the game: …".
+
+The trick is that a price is written in exactly the vocabulary of an effect —
+what makes it a cost is only *where it is printed* — so `compileCostProgram`
+compiles it with the same code, and `activate` runs it as its own frame ahead
+of the counter window (4-3-3).
+
+The care goes into deciding whether it can be **charged**. Offering a skill
+whose price then half-runs is worse than the gap it was: the effect happens
+anyway. So `canPayCostProgram` is a whitelist — an op it does not know means
+"no" — and it asks the board about each one. Two details cost a debugging pass:
+
+- A target named by a variable is whatever the `choose` in front of it binds,
+  and nothing is bound while the check runs. Resolving it there finds nothing,
+  which silently refused every price containing a choice.
+- The activating card leaves the hand as part of activating, so it is not also
+  available to be discarded as the price.
+
+`arena:gaps` calls `compileCostProgram` too, so both sides of the count mean
+the same thing. What remains is a real tail: "discard this card from your hand"
+(the card *is* the price), a full-width numeral, and a few prohibitions printed
+where a price goes.
+
 ## Conventions worth keeping
 
 - Card text is **read, never interpreted**: if the compiler cannot read a

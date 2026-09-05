@@ -24,7 +24,7 @@ Measured on the 6,493 Dragon Ball Super (not Fusion World) cards:
 | skills in the owner's 12 decks that compile | 89.8 % of 354 | same (deck tables) |
 | skills exactly one unreadable clause away | 1,344 | `npm run arena:gaps` |
 | [Auto] skills that compile but no trigger fires | 775 | `npm run arena:gaps` (§5.3) |
-| [Activate]/[Counter] whose price the engine cannot read | 766 | same |
+| [Activate]/[Counter] whose price the engine cannot read | 159 | same |
 | fuzzer | 40 games, 0 crashes | `npm run arena:fuzz 40` |
 
 Numbers as of 5 Sep 2026, after the commits described at the end of
@@ -226,7 +226,9 @@ percentage, and the last two sections of `arena:gaps` count them:
 2. An **[Activate] or [Counter]** skill is only offered when `activatable` can
    read the price before the colon, because a price the engine cannot charge
    must not be waived. **1,626 skills whose effects compiled were never
-   offered** — more than the first class.
+   offered** — more than the first class. Now 159: a price may be an *action*
+   as well as orbs or a condition (`compileCostProgram`), and `activatable`
+   only offers it when `canPayCostProgram` says the board can be charged.
 
 Both were found by accident, and the first by an engine test rather than by any
 measurement: it failed because "when your opponent plays a Battle Card" had no
@@ -522,14 +524,23 @@ target is a card in hand/energy (`inPlayNow` false); read `collectStatics`'s
 `inPlayNow` handling. "this card gains +5000 power and [Critical] during your
 turn" (SD5-01) — see 6.1 last row.
 
-### 6.13 Unread "If …:" costs — 173 of 2,500
+### 6.13 Unread costs — **the action prices are done**
 
-No shape appears more than three times. Top: "if all of your energy is black"
-(needs a `notColors`/`allMatch` count: every card in the energy area matches a
-filter — add `Cond {kind:"every", sel, filter}`), "if this card has
-[Servant]" (`Cond {kind:"hasKeyword", sel, name}`; `has()` exists),
-"if you discard 1 card from your hand" (a *cost*, not a condition — the skill
-cost mechanism would need `discard: N`; leave to the referee).
+> Done 5 Sep 2026. A price may now be an *action* as well as orbs or a
+> condition: `compileCostProgram` (`compile.ts`) compiles it with the same code
+> as an effect, and `canPayCostProgram` (`engine.ts`) decides whether the board
+> can be charged before `activatable` offers it. 1,626 never-offered skills →
+> 159. Read that pair before touching either — a skill offered with a price
+> that then half-runs gets its effect for free.
+
+What is left is a tail, listed at the end of `arena:gaps`: "discard this card
+from your hand" (the card *is* the price, so it must not also be the source of
+the skill), a full-width numeral where a number is expected, and a handful of
+prohibitions printed where a price goes.
+
+Still unread as *conditions*: "if all of your energy is black" (needs a
+`Cond {kind:"every", sel, filter}`) and "if this card has [Servant]"
+(`Cond {kind:"hasKeyword", sel, name}`; `has()` exists).
 
 ### 6.14 Engine follow-ups noted while building the keywords
 
