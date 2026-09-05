@@ -19,6 +19,14 @@ import type { CardDef, DelayScope, DelayTiming, ForbiddenAction, KeywordSkill, S
 /** After an " and ": nothing but a name, so the "and" joins names rather than clauses. */
 const NAME_AFTER_AND = /^(?:<[^>]+>|≪[^≫]+≫|\{[^}]+\})(?:\s*(?:,|\.|$|cards?\b|battle cards?\b|and\b|or\b|in\b|with\b))/i;
 
+/**
+ * After an " and ": a second measure of the same card description, as in "with
+ * an energy cost of 3 and 5000 power" (20-12 searches print both orders).
+ * Only counted when the clause so far opened a description with "with", which
+ * is the word that turns the rest of the phrase into a filter.
+ */
+const MEASURE_AFTER_AND = /^(?:an? energy cost of \d+|\d+ power)(?: or (?:less|more))?\b/i;
+
 export function splitClauses(text: string): string[] {
   const out: string[] = [];
   let depth = 0;
@@ -37,9 +45,15 @@ export function splitClauses(text: string): string[] {
         push(i, 1);
       } else if (ch === "." && (i + 1 >= text.length || text[i + 1] === " ")) {
         push(i, 1);
-      } else if (text.startsWith(" and ", i) && !text.startsWith(" and [", i) && !NAME_AFTER_AND.test(text.slice(i + 5))) {
+      } else if (
+        text.startsWith(" and ", i) &&
+        !text.startsWith(" and [", i) &&
+        !NAME_AFTER_AND.test(text.slice(i + 5)) &&
+        !(MEASURE_AFTER_AND.test(text.slice(i + 5)) && /\bwith\b/i.test(text.slice(start, i)))
+      ) {
         // "gains [Double Strike] and [Barrier]" is one clause, not two; nor is
-        // "a Battle Card with both <Son Goku> and <Piccolo>".
+        // "a Battle Card with both <Son Goku> and <Piccolo>", nor "with an
+        // energy cost of 3 and 5000 power".
         push(i, 5);
         i += 4;
       } else if (text.startsWith(" then ", i)) {
@@ -89,7 +103,7 @@ const AREA_WORDS: [RegExp, ScriptArea][] = [
   // between the possessive and the word, and "energy cost" is not an area.
   [/\benergy area\b|\b(?:your opponent's|their|your)(?: [a-z-]+)* energy\b(?! cost)/, "energy"],
   [/\bfrom your hand\b|\bin your hand\b|\btheir hand\b|\byour hand\b|\byour opponent's hand\b/, "hand"],
-  [/\bfrom your deck\b|\bin your deck\b|\byour deck\b/, "deck"],
+  [/\bfrom your deck\b|\bin your deck\b|\byour deck\b|\byour opponent'?s deck\b|\btheir deck\b/, "deck"],
   [/\bin your life\b|\bfrom your life\b|\byour life\b|\blife area\b/, "life"],
   [/\bwarp\b/, "warp"],
   [/\bcombo area\b/, "combo"],
@@ -153,16 +167,39 @@ export function parseTarget(phrase: string): Selector | null {
     count = 99;
   }
 
+  // "The top card of your deck", "the bottom 2 cards of their deck": a
+  // position, not a choice. 20-12 only lets a player pick out of a secret area
+  // when the text says to look, so reading these as a choice would hand the
+  // whole deck over.
+  let take: number | undefined;
+  let fromEnd: boolean | undefined;
+  const end = /\bthe (top|bottom) (?:(\d+) )?cards?\b/.exec(t);
+  if (end) {
+    take = end[2] ? Number(end[2]) : 1;
+    if (end[1] === "bottom") fromEnd = true;
+  }
+
   const mode = /\bin rest mode\b/.test(t) ? "rest" : /\bin active mode\b/.test(t) ? "active" : undefined;
   const filter = filterFor(phrase, area);
   if (bothAreas) return { side, area: "battle", areas: ["battle", "unison"], filter, count, upTo, mode, fromVar };
-  return { side, area: area ?? undefined, filter, count, upTo, mode, fromVar };
+  return { side, area: area ?? undefined, filter, count, upTo, mode, fromVar, take, fromEnd };
 }
 
 /** Only keep a filter when the phrase actually narrows the cards. */
 function filterFor(phrase: string, area: ScriptArea | null): CardFilter | undefined {
   const f = parseFilter(phrase);
+  // In an area that only holds one kind of card, the type word is noise — and
+  // it has to go before the question of whether anything narrows, or "your
+  // Battle Cards" would count as narrowed by a word that means nothing there.
+  if (area === "battle" && f.type === "BATTLE") f.type = null;
+  if (area === "leader" && f.type === "LEADER") f.type = null;
+  // "Play" spans both areas, so naming either type narrows nothing there.
+  if (area === "play" && (f.type === "BATTLE" || f.type === "LEADER")) f.type = null;
   const narrows =
+    f.type != null ||
+    // "Place up to 1 red <Android 17> card from your deck under a Z-Extra":
+    // being a Z-card is the only thing said about the host.
+    f.z != null ||
     f.characters.length > 0 ||
     f.notCharacters.length > 0 ||
     f.traits.length > 0 ||
@@ -178,11 +215,6 @@ function filterFor(phrase: string, area: ScriptArea | null): CardFilter | undefi
     // is not "your energy".
     f.colors.length > 0;
   if (!narrows) return undefined;
-  // In an area that only holds one kind of card, the type word is noise.
-  if (area === "battle" && f.type === "BATTLE") f.type = null;
-  if (area === "leader" && f.type === "LEADER") f.type = null;
-  // "Play" spans both areas, so naming either type narrows nothing there.
-  if (area === "play" && (f.type === "BATTLE" || f.type === "LEADER")) f.type = null;
   return f;
 }
 
@@ -191,6 +223,8 @@ function filterFor(phrase: string, area: ScriptArea | null): CardFilter | undefi
 interface Ctx {
   /** The variable the last `choose` bound. */
   last: string | null;
+  /** The variable the last `look` or `reveal` bound — what "that card" means. */
+  lastSeen: string | null;
   /** The variable bound by the last "play …" choice — what "the card you played with this skill" means. */
   lastPlayed: string | null;
   /**
@@ -229,6 +263,13 @@ function refFor(clause: string, c: Ctx): Ref | null {
   }
   // "Add a marker to the chosen card": the last choice.
   if (/\bthe chosen cards?\b/i.test(clause)) return c.last ? { var: c.last } : c.lastTarget;
+  // "Add up to 1 <Son Goku> card among them to your hand" names its own target
+  // and only says *where to look* for it. Read before "it"/"them", which would
+  // otherwise take the "them" and hand back whatever the last clause acted on.
+  if (/\b(?:among them|from among them|of those cards)\b/i.test(clause)) {
+    const among = parseTarget(clause);
+    if (among) return { sel: among };
+  }
   if (IT.test(clause.toLowerCase())) {
     if (c.lastTarget) return c.lastTarget;
     if (c.last) return { var: c.last };
@@ -247,7 +288,7 @@ function refFor(clause: string, c: Ctx): Ref | null {
  * opponent's Battle Cards") carry no count and do mean all of them.
  */
 function withChoice(ref: Ref, clause: string, c: Ctx, act: (target: Ref) => Op): Op[] {
-  if ("sel" in ref && !ref.sel.special && ref.sel.count != null && ref.sel.count < 99) {
+  if ("sel" in ref && !ref.sel.special && ref.sel.take == null && ref.sel.count != null && ref.sel.count < 99) {
     const v = `c${c.n++}`;
     return [{ op: "choose", sel: ref.sel, as: v, reason: clause }, act({ var: v })];
   }
@@ -508,8 +549,9 @@ function parseCountCondition(t: string): Cond | null {
  * having happened, which `compileSkill` turns into a condition; the rest are
  * connectives left over from splitting a sentence.
  */
-function connective(clause: string): "skip" | "ifDone" | "ifNotDone" | null {
+function connective(clause: string): "skip" | "ifDone" | "ifNotDone" | "otherwise" | null {
   const t = clause.toLowerCase().replace(/[.,]$/, "").trim();
+  if (/^otherwise$/.test(t)) return "otherwise";
   if (/^(?:if you do|if so|if you did)$/.test(t)) return "ifDone";
   if (/^(?:if you don'?t|if not|if you didn'?t|if you do not)$/.test(t)) return "ifNotDone";
   // 20-12-3: after looking, the cards go back where they were; the order is
@@ -681,11 +723,30 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   if (/^add the top card of your deck to your life$/.test(t)) return [{ op: "addLife", n: 1 }];
   // Printed as "add card … to you hand" on some sets; the meaning is the same.
   if ((m = /^add cards? from your life to your? hand until you have (\d+) life(?: left)?$/.exec(t))) return [{ op: "lifeDownTo", n: Number(m[1]) }];
-  if (/^place the (?:remaining|rest of the) cards at the bottom of your deck(?: in any order)?$/.test(t))
-    return [{ op: "moveTo", target: { sel: { fromVar: "looked" } }, to: "deck", position: "bottom" }];
-  // "The rest" is whatever is left of the cards just looked at.
-  if (/^place the rest in (?:your |the )?drop(?: area)?$/.test(t)) return [{ op: "moveTo", target: { sel: { fromVar: "looked" } }, to: "drop", reveal: true }];
+  // "The rest" is whatever is left of the cards just looked at once the choice
+  // in between has taken its own — so it is the look's variable minus the
+  // choice's, not the whole look (20-11).
+  {
+    const REST = "the (?:remaining cards|rest of the cards|rest|other cards)";
+    const rest: Ref = { var: "looked", ...(c.last ? { minus: c.last } : {}) };
+    if ((m = new RegExp(`^(?:place|put|return) ${REST} (?:back )?(?:at|on) the (top|bottom) of (?:your|its owner'?s?|their) decks?(?: in any order)?$`).exec(t)))
+      return [{ op: "moveTo", target: rest, to: "deck", position: m[1] as "top" | "bottom" }];
+    if (new RegExp(`^(?:place|put) ${REST} (?:in|into) (?:your |the |its owner'?s? |their )?drop(?: area)?$`).test(t))
+      return [{ op: "moveTo", target: rest, to: "drop", reveal: true }];
+  }
   if (/^shuffle your deck(?: if you looked through it| afterwards?)?$/.test(t)) return [{ op: "shuffle" }];
+  // Revealing (20-11-2). Unlike looking, both players see the cards, and they
+  // stay where they are — the clauses after it act on what was turned up.
+  if ((m = /^(?:your opponent reveals|reveal) (?:your|their) hand$/.exec(t))) {
+    const side: Side | undefined = /your opponent reveals|their/.test(t) ? "opponent" : undefined;
+    return [{ op: "reveal", sel: { side: side ?? "you", area: "hand" }, as: "revealed" }];
+  }
+  if ((m = /^reveal (.+)$/.exec(t))) {
+    const sel = parseTarget(m[1]);
+    if (sel) return [{ op: "reveal", sel, as: "revealed" }];
+  }
+  // "Look at your opponent's hand" (20-11): a whole area, seen only by you.
+  if (/^look at (?:your opponent'?s|their) hand$/.test(t)) return [{ op: "look", n: 99, as: "looked", side: "opponent", area: "hand" }];
   // Looking at a deck (20-11), which the text words half a dozen ways: either
   // end of either deck, and the number before or after the word "top".
   {
@@ -695,6 +756,17 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
       const n = look[2] ? Number(look[2]) : 1;
       const side: Side | undefined = /opponent|their/.test(look[6]) ? "opponent" : undefined;
       return [{ op: "look", n, as: "looked", ...(side ? { side } : {}), ...(end === "bottom" ? { from: "bottom" as const } : {}) }];
+    }
+  }
+  // "Look at cards from the top of your deck up to the number of cards in your
+  // Battle Area" — how many is read off the board when the skill resolves.
+  {
+    const look = /^look at cards from the (top|bottom) of (your opponent's|your|their) deck up to the number of (.+)$/.exec(t);
+    if (look) {
+      const sel = parseTarget(look[3]);
+      if (!sel) return null;
+      const side: Side | undefined = /opponent|their/.test(look[2]) ? "opponent" : undefined;
+      return [{ op: "look", n: { count: { ...sel, count: undefined, upTo: undefined } }, as: "looked", ...(side ? { side } : {}), ...(look[1] === "bottom" ? { from: "bottom" as const } : {}) }];
     }
   }
 
@@ -873,7 +945,10 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // Mode switches (1-10).
   if ((m = /^switch (.*?) to (active|rest) mode$/.exec(t))) {
     const ref = refFor(m[1], c);
-    return ref ? [{ op: "switchMode", target: ref, mode: m[2] as "active" | "rest" }] : null;
+    const mode = m[2] as "active" | "rest";
+    // "Switch up to 1 of your energy to Active Mode" names a number, so it is
+    // a choice first (5-2); without this it switched every card in the area.
+    return ref ? withChoice(ref, clause, c, (target) => ({ op: "switchMode", target, mode })) : null;
   }
   // "You may flip this card over" on a Leader's [Auto]: the Leader awakens
   // (22-2-4 says how a flip works; this says when). A card without a back
@@ -961,7 +1036,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   }
 
   // Area moves (3-1).
-  const MOVES: [RegExp, ScriptArea, { position?: "top" | "bottom"; mode?: "active" | "rest"; reveal?: boolean }][] = [
+  const MOVES: [RegExp, ScriptArea, { position?: "top" | "bottom"; mode?: "active" | "rest"; reveal?: boolean; owner?: Side }][] = [
     // "their owners' decks", "its owner's hand": several cards go to several
     // owners' areas, which `moveTo` does one card at a time anyway.
     [/^place (.+?) (?:in|into) (?:its owner'?s?|their owners?'?s?|their|your|the) drops?(?: area)?s?$/, "drop", { reveal: true }],
@@ -971,8 +1046,12 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     [/^return (.+?) to (?:your|their) hands?$/, "hand", {}],
     [/^add (.+?) to your hand$/, "hand", {}],
     [/^send (.+?) to (?:your|their|its owner'?s?|their owners?'?s?) warps?$/, "warp", {}],
-    [/^(?:add|place) (.+?) (?:to|in) your energy in rest mode$/, "energy", { mode: "rest", reveal: true }],
-    [/^(?:add|place) (.+?) (?:to|in) your energy(?: area)?$/, "energy", { reveal: true }],
+    // 3-8: whose energy area matters, and it is not always the card's owner —
+    // "place it in your opponent's energy in Rest Mode" hands them a card.
+    [/^(?:add|place) (.+?) (?:to|in) your opponent'?s energy(?: area)? in rest mode$/, "energy", { mode: "rest", reveal: true, owner: "opponent" }],
+    [/^(?:add|place) (.+?) (?:to|in) your opponent'?s energy(?: area)?$/, "energy", { reveal: true, owner: "opponent" }],
+    [/^(?:add|place) (.+?) (?:to|in) your energy(?: area)? in rest mode$/, "energy", { mode: "rest", reveal: true, owner: "you" }],
+    [/^(?:add|place) (.+?) (?:to|in) your energy(?: area)?$/, "energy", { reveal: true, owner: "you" }],
     [/^add (.+?) to your life$/, "life", {}],
     [/^(?:add|place|send) (.+?) (?:in|into|to) your z-energy$/, "zEnergy", {}],
     [/^remove (.+?) from the game(?: instead)?$/, "removed", {}],
@@ -1156,7 +1235,7 @@ export function compileSkill(skill: Skill): Script {
   const text = stripNotes(skill.effect);
   if (!text) return { ops: [], unsupported: [] };
   const unsupported: string[] = [];
-  const c: Ctx = { last: null, lastPlayed: null, lastTarget: null, lastOp: null, replacing: null, n: 0, raw: skill.effect };
+  const c: Ctx = { last: null, lastSeen: null, lastPlayed: null, lastTarget: null, lastOp: null, replacing: null, n: 0, raw: skill.effect };
   const modal = splitModal(text);
   const clauses = splitClauses(modal ? modal.head : text);
   // [Awaken] and [Wish] check their own condition in the engine before the
@@ -1214,6 +1293,22 @@ export function compileSkill(skill: Skill): Script {
   return { ops, unsupported };
 }
 
+/**
+ * What an op leaves behind for the clauses after it: which cards "it" means,
+ * and which name a later "if that card is …" is asking about.
+ */
+function track(o: Op, c: Ctx): void {
+  if (o.op === "choose") {
+    c.last = o.as;
+    c.lastTarget = { var: o.as };
+  } else if (o.op === "reveal") {
+    c.lastSeen = o.as;
+    c.lastTarget = { var: o.as };
+  } else if (o.op === "look") {
+    c.lastSeen = o.as;
+  } else if ("target" in o && o.target) c.lastTarget = o.target;
+}
+
 /** A clause that is nothing but a duration, split off from the effect it belongs to. */
 const PURE_DURATION = /^(?:during this turn|for the (?:duration of the )?(?:turn|battle)|for the rest of the turn|until the end of (?:your|your opponent's|the)(?: next)? turn|until the (?:start|beginning) of your (?:next )?turn|until the (?:start|beginning) of your opponent's next turn)[.,]?$/i;
 
@@ -1233,8 +1328,28 @@ function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op
       clauses[i + 1] = `${clauses[i + 1].replace(/[.]$/, "")} ${clause.trim()}`;
       continue;
     }
+    // "Otherwise, draw 1 card" — the else of the condition just before it,
+    // printed without a break. Split so the two halves read as themselves.
+    const inlineOtherwise = /^otherwise[\s,]+(.+)$/i.exec(clause.trim());
+    if (inlineOtherwise) {
+      clauses.splice(i, 1, "otherwise", inlineOtherwise[1]);
+      i--;
+      continue;
+    }
     const conn = connective(clause);
     if (conn === "skip") continue;
+    if (conn === "otherwise") {
+      // 20-16: the opposite of what the group before it asked. With no
+      // condition to be the opposite of there is nothing to say.
+      const prev = groups[groups.length - 1];
+      if (!prev.conds.length) {
+        unsupported.push(clause);
+        continue;
+      }
+      const asked: Cond = prev.conds.length === 1 ? prev.conds[0] : { kind: "all", conds: [...prev.conds] };
+      groups.push({ conds: [{ kind: "not", cond: asked }], ops: [] });
+      continue;
+    }
     if (conn === "ifDone") {
       groups.push({ conds: c.last ? [{ kind: "chose", var: c.last }] : [], ops: [] });
       continue;
@@ -1291,17 +1406,25 @@ function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op
       if (connective(trailing.head) === "skip") continue;
       const got = compileClause(trailing.head, c);
       if (got) {
-        for (const o of got) {
-          if (o.op === "choose") {
-            c.last = o.as;
-            c.lastTarget = { var: o.as };
-          } else if ("target" in o && o.target) c.lastTarget = o.target;
-        }
+        for (const o of got) track(o, c);
         push([{ op: "delay", at: trailing.at, scope: trailing.scope, ops: got, label: trailing.label }]);
         continue;
       }
       unsupported.push(clause);
       continue;
+    }
+
+    // "If that card is a Battle Card" — what the reveal or the look just
+    // turned up. The name only exists here, so the condition is built with
+    // the compiler's own bookkeeping rather than by `parseConditionClause`.
+    if (c.lastSeen) {
+      const seen = /^(?:if|when) (?:that card|the revealed card) is (?:an? )?(.+)$/i.exec(clause.trim().replace(/[.,]$/, ""));
+      const filter = seen ? filterFor(seen[1], null) : undefined;
+      if (seen && filter) {
+        groups.push({ conds: [{ kind: "varMatches", var: c.lastSeen, filter }], ops: [] });
+        c.lastTarget = { var: c.lastSeen };
+        continue;
+      }
     }
 
     // A condition opens a group: everything after it depends on it holding.
@@ -1341,12 +1464,7 @@ function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op
       unsupported.push(clause);
       continue;
     }
-    for (const o of got) {
-      if (o.op === "choose") {
-        c.last = o.as;
-        c.lastTarget = { var: o.as };
-      } else if ("target" in o && o.target) c.lastTarget = o.target;
-    }
+    for (const o of got) track(o, c);
     if (got.length) c.lastOp = got[got.length - 1].op;
     push(got);
   }
@@ -1507,6 +1625,8 @@ function describeCond(c: Cond): string {
       return c.conds.map(describeCond).join(" and ");
     case "chose":
       return "you took that choice";
+    case "varMatches":
+      return `that card is ${describeSelector({ filter: c.filter })}`;
     case "isTurnPlayer":
       return c.who === "opponent" ? "it is your opponent's turn" : "it is your turn";
   }
@@ -1546,6 +1666,9 @@ export function describeScript(ops: Op[]): string {
         break;
       case "look":
         parts.push(`look at the top ${describeAmount(op.n)}`);
+        break;
+      case "reveal":
+        parts.push(`reveal ${describeSelector(op.sel)}`);
         break;
       case "hidden":
         parts.push(`switch ${describeRef(op.target)} to ${op.hidden ? "Hidden" : "Revealed"} Mode`);

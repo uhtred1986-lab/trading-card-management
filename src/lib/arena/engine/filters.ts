@@ -60,6 +60,11 @@ export function parseFilter(text: string): CardFilter {
   } else if ((m = /energy cost (?:of )?(\d+)\b/.exec(lower))) f.costMin = f.costMax = Number(m[1]);
   if ((m = /(\d+) power or less/.exec(lower))) f.powerMax = Number(m[1]);
   else if ((m = /(\d+) power or more/.exec(lower))) f.powerMin = Number(m[1]);
+  // An exact power, which searches print alongside the cost: "a yellow
+  // <Son Goku> card with an energy cost of 3 and 5000 power". Only after
+  // "with"/"and", so that "it gets +5000 power for the turn" is not read as a
+  // bound on the target.
+  else if ((m = /\b(?:with|and) (\d+) power\b/.exec(lower))) f.powerMin = f.powerMax = Number(m[1]);
   // "with power less than or equal to this card's power", "with power greater
   // than this card's power" — measured against the card the skill is on.
   if ((m = /power (less than or equal to|equal to or less than|no more than|at or below|less than|lower than|greater than or equal to|equal to or greater than|no less than|at or above|greater than|higher than|more than) (?:this card'?s|its) power/.exec(lower))) {

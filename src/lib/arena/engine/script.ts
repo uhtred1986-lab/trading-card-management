@@ -63,6 +63,14 @@ export interface Selector {
   /** How many to take. `upTo` allows zero (5-2-4). */
   count?: number;
   upTo?: boolean;
+  /**
+   * "The top card of your deck": the first `take` cards of the area in its own
+   * order, not a choice among them. `count` never means this — a count is
+   * always a choice (5-2) — so the two must not be confused.
+   */
+  take?: number;
+  /** With `take`, count from the far end: "the bottom card of your deck". */
+  fromEnd?: boolean;
   /** Card text may say "ignoring [Barrier]", which lifts 22-16 for this choice. */
   ignoreBarrier?: boolean;
 }
@@ -81,7 +89,12 @@ export type Amount =
   /** "Draw cards until you have 4 cards in your hand": however many that takes, never fewer than none. */
   | { handUpTo: number };
 
-export type Ref = { var: string } | { sel: Selector };
+/**
+ * `minus` is "the rest": the cards bound to `var` that a later choice did not
+ * take — "look at the top 3 cards of your deck, add 1 of them to your hand and
+ * place the rest at the bottom of your deck".
+ */
+export type Ref = { var: string; minus?: string } | { sel: Selector };
 
 export type Cond =
   | { kind: "count"; sel: Selector; atLeast?: number; atMost?: number }
@@ -107,6 +120,8 @@ export type Cond =
   /** "If you don't" (20-16): the opposite of a condition. */
   | { kind: "not"; cond: Cond }
   | { kind: "chose"; var: string }
+  /** "If that card is a Battle Card": what a reveal or a look turned up (20-11). */
+  | { kind: "varMatches"; var: string; filter: CardFilter }
   /** Whose turn it is (7-1). "opponent" is "during your opponent's turn". */
   | { kind: "isTurnPlayer"; who?: "you" | "opponent" };
 
@@ -123,10 +138,23 @@ export type Op =
   | { op: "energyMarker"; n: Amount; side?: Side }
   | { op: "choose"; sel: Selector; as: string; reason?: string }
   /** `from` is the top of the deck unless the card says the bottom. */
-  | { op: "look"; n: Amount; as: string; side?: Side; from?: "top" | "bottom" }
+  /** `area` is the deck unless it says otherwise — "look at your opponent's hand" (20-11). */
+  | { op: "look"; n: Amount; as: string; side?: Side; from?: "top" | "bottom"; area?: ScriptArea }
+  /**
+   * "Reveal the top card of your opponent's deck" (20-11-2): both players see
+   * it, so the name is logged, and the cards stay where they are — bound to
+   * `as` for the clauses that act on what was seen.
+   */
+  | { op: "reveal"; sel: Selector; as: string }
   | { op: "ko"; target: Ref }
   /** `to: "under"` puts the card under `under`, or under the source card (23-2). */
-  | { op: "moveTo"; target: Ref; to: ScriptArea; position?: "top" | "bottom"; mode?: "active" | "rest"; reveal?: boolean; under?: Ref }
+  /**
+   * `owner` overrides whose area the card lands in — "place it in your
+   * opponent's energy in Rest Mode" (3-8) puts a card the opponent owns into
+   * the *other* player's energy. Left out, a card goes to its own owner's
+   * area, which is what nearly every move means.
+   */
+  | { op: "moveTo"; target: Ref; to: ScriptArea; position?: "top" | "bottom"; mode?: "active" | "rest"; reveal?: boolean; under?: Ref; owner?: Side }
   | { op: "play"; target: Ref; mode?: "active" | "rest" }
   | { op: "switchMode"; target: Ref; mode: "active" | "rest" }
   | { op: "power"; target: Ref; amount: Amount; until: Duration }
@@ -341,9 +369,24 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         // 20-11: looking is not revealing — only the player looking sees them,
         // which is why the cards are bound to a name rather than moved.
         const p = sideOf(master, op.side)[0];
+        // "Look at your opponent's hand": a whole area rather than an end of
+        // the deck, so the count says nothing.
+        if (op.area && op.area !== "deck") {
+          frame.vars[op.as] = resolveSelector(ctx, s, frame, { side: op.side, area: op.area });
+          break;
+        }
         const n = amount(ctx, s, frame, op.n);
         const deck = s.players[p].deck;
         frame.vars[op.as] = op.from === "bottom" ? deck.slice(Math.max(0, deck.length - n)) : deck.slice(0, n);
+        break;
+      }
+
+      case "reveal": {
+        // 20-11-2: revealing shows the cards to both players and leaves them
+        // where they are. The log is how the other player gets to see them.
+        const shown = resolveSelector(ctx, s, frame, op.sel);
+        frame.vars[op.as] = shown;
+        if (shown.length) note(ev, `revealed ${shown.map((id) => face(ctx, s, id).name).join(", ")}`);
         break;
       }
 
@@ -433,7 +476,7 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
             if (host) placeUnder(ctx, s, ev, id, host);
             continue;
           }
-          const owner = op.to === "battle" || op.to === "unison" ? master : s.cards[id].owner;
+          const owner = op.owner ? sideOf(master, op.owner)[0] : op.to === "battle" || op.to === "unison" ? master : s.cards[id].owner;
           // "play" is not an area of its own either (3-1); it means the Battle Area.
           const dest = op.to === "play" ? "battle" : op.to;
           move(ctx, s, ev, id, dest, owner, { position: op.position, reveal: op.reveal, reason: "effect" });
@@ -718,6 +761,7 @@ const OP_NAMES = new Set<Op["op"]>([
   "energyMarker",
   "choose",
   "look",
+  "reveal",
   "ko",
   "moveTo",
   "play",

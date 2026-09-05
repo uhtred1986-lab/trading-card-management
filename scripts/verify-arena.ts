@@ -1567,7 +1567,7 @@ function assertConsistentAfterDrop(s: GameState) {
   // compiler had never once emitted it.
   const each = one("[Activate: Main] Draw 1 card for each of your Battle Cards.");
   assert.deepEqual(each.unsupported, []);
-  assert.deepEqual(each.ops, [{ op: "draw", n: { count: { side: "you", area: "battle", filter: undefined, count: 99, upTo: false, mode: undefined, fromVar: undefined } } }]);
+  assert.deepEqual(each.ops, [{ op: "draw", n: { count: { side: "you", area: "battle", filter: undefined, count: 99, upTo: false, mode: undefined, fromVar: undefined, take: undefined, fromEnd: undefined } } }]);
 
   // "+5000 power for each" is a multiple of the count, not the count.
   const power = one("[Activate: Main] This card gets +5000 power for each card in your Drop Area.");
@@ -2389,6 +2389,134 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   for (const id of s.players.p1.hand.slice()) if (s.cards[id].cardId !== "REFILL") move({ defs: DEFS }, s, [], id, "deck", "p1", { position: "bottom" });
   s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "REFILL") });
   assert.equal(s.players.p1.hand.length, 4);
+}
+
+// ── searching a secret area (20-12), and the rest of what was looked at ────
+
+{
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+
+  // "with an energy cost of 3 and 5000 power": the "and" joins two measures of
+  // one card description, and splitting on it left both halves unreadable.
+  const search = one("[Auto] When you play this card, add up to 1 yellow <Son Goku> card with an energy cost of 3 and 5000 power from your deck to your hand, then shuffle your deck.");
+  assert.deepEqual(search.unsupported, []);
+  assert.deepEqual(search.ops.map((o) => o.op), ["choose", "moveTo", "shuffle"]);
+  const found = (search.ops[0] as { sel: { area?: string; filter?: { costMin: number | null; powerMin: number | null } } }).sel;
+  assert.equal(found.area, "deck");
+  assert.equal(found.filter?.costMin, 3, "the cost is read");
+  assert.equal(found.filter?.powerMin, 5000, "and so is the power behind the 'and'");
+
+  // The set prints the two measures in either order.
+  const other = one("[Auto] When you play this card, add up to 1 card with 5000 power and an energy cost of 2 or less from your deck to your hand.");
+  assert.deepEqual(other.unsupported, []);
+  assert.equal((other.ops[0] as { sel: { filter?: { costMax: number | null; powerMax: number | null } } }).sel.filter?.costMax, 2);
+
+  // "for each" still reads a bare power as a measure of the *target*, not of
+  // the bonus: "+5000 power" must not become a filter.
+  const buff = one("[Auto] When you play this card, choose 1 of your Battle Cards and it gets +5000 power for the turn.");
+  assert.deepEqual(buff.unsupported, []);
+  assert.equal((buff.ops[0] as { sel: { filter?: unknown } }).sel.filter, undefined, "the bonus is not a bound on the choice");
+
+  // "Among them" names its own target and only says where to look for it.
+  // Read as an "it" this became *this card*, which was silently wrong.
+  const dig = one("[Auto] When you play this card, look at the top 3 cards of your deck, add up to 1 <Son Goku> card among them to your hand, and place the rest at the bottom of your deck in any order.");
+  assert.deepEqual(dig.unsupported, []);
+  assert.deepEqual(dig.ops.map((o) => o.op), ["look", "choose", "moveTo", "moveTo"]);
+  assert.equal((dig.ops[1] as { sel: { fromVar?: string } }).sel.fromVar, "looked");
+  // "The rest" is what the choice did not take, so the card added to the hand
+  // is not put back at the bottom of the deck.
+  assert.deepEqual((dig.ops[3] as { target: unknown }).target, { var: "looked", minus: "c0" });
+
+  // A Z-card is the only thing said about the host, so it has to count as a
+  // narrowing — without it the phrase named no area and the clause failed.
+  const host = one("[Auto] When you play this card, place up to 1 red <Android 17> card from your deck under a Z-Extra in your Battle Area, then shuffle your deck.");
+  assert.deepEqual(host.unsupported, []);
+  assert.deepEqual(host.ops.map((o) => o.op), ["choose", "moveTo", "shuffle"]);
+
+  // "Up to the number of cards in your Battle Area" — read off the board.
+  const many = one("[Activate: Main] Look at cards from the top of your deck up to the number of cards in your Battle Area.");
+  assert.deepEqual(many.unsupported, []);
+  assert.equal((many.ops[0] as { n: { count?: { area?: string } } }).n.count?.area, "battle");
+}
+
+{
+  // The engine side: a search offers exactly the cards that match, and the
+  // rest of the look goes back to the bottom of the deck (20-12-3).
+  DEFS.DIGGER = {
+    ...DEFS.V1,
+    id: "DIGGER",
+    name: "DIGGER",
+    energyCost: 1,
+    skill: "[Auto] When you play this card, look at the top 3 cards of your deck, add up to 1 card among them to your hand, and place the rest at the bottom of your deck in any order.",
+  };
+  let s = arena({ hand: ["DIGGER"], energy: ["V1"] });
+  const [t1, t2, t3] = s.players.p1.deck;
+  const deckSize = s.players.p1.deck.length;
+  const hand = s.players.p1.hand.length;
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "DIGGER") });
+  assert.equal(s.prompt.kind, "chooseCards", "the player picks out of what was looked at");
+  s = play(s, { type: "choose", player: "p1", cards: [t2] });
+  assert.ok(s.players.p1.hand.includes(t2), "the chosen card is in hand");
+  assert.equal(s.players.p1.hand.length, hand, "one in, one played out");
+  assert.equal(s.players.p1.deck.length, deckSize - 1, "only the chosen card left the deck");
+  assert.deepEqual(s.players.p1.deck.slice(-2), [t1, t3], "and they went to the bottom, not to the hand");
+  assertConsistent(s);
+}
+
+// ── energy as an effect (3-8), and reading what a card turned up (20-11) ────
+
+{
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+
+  // "The top card of your deck" is a position, not a choice — reading it as
+  // one handed the player their whole deck to pick from (20-12).
+  const top = one("[Auto] When you play this card, place the top card of your deck in your energy in Rest Mode.");
+  assert.deepEqual(top.unsupported, []);
+  assert.deepEqual(top.ops.map((o) => o.op), ["moveTo"], "no choice: the deck is not searched");
+  assert.equal((top.ops[0] as { target: { sel?: { take?: number } } }).target.sel?.take, 1);
+
+  // A number in the phrase is still a choice, and `switchMode` had never been
+  // wrapped in one — "up to 1 of your energy" switched all of it.
+  const sw = one("[Activate: Main] Draw 1 card, switch up to 1 of your energy to Active Mode, and add up to 1 card from your hand to your energy.");
+  assert.deepEqual(sw.unsupported, []);
+  assert.deepEqual(sw.ops.map((o) => o.op), ["draw", "choose", "switchMode", "choose", "moveTo"]);
+
+  // Whose energy area, which is not always the card's owner (3-8).
+  const gift = one("[Auto] When you play this card, reveal the top card of your opponent's deck. If that card is a Battle Card, place it in your opponent's energy in Rest Mode, otherwise draw 1 card.");
+  assert.deepEqual(gift.unsupported, []);
+  assert.deepEqual(gift.ops.map((o) => o.op), ["reveal", "if", "if"]);
+  const then = (gift.ops[1] as { then: { op: string; owner?: string; mode?: string }[] }).then[0];
+  assert.equal(then.owner, "opponent", "into their energy, not its owner's");
+  assert.equal(then.mode, "rest");
+  // "Otherwise" is the opposite of the condition just asked.
+  assert.equal((gift.ops[2] as { cond: { kind: string } }).cond.kind, "not");
+  assert.deepEqual((gift.ops[2] as { then: { op: string }[] }).then.map((o) => o.op), ["draw"]);
+
+  // Looking at a hand is a whole area, not an end of a deck.
+  assert.deepEqual(one("[Activate: Main] Look at your opponent's hand.").ops, [{ op: "look", n: 99, as: "looked", side: "opponent", area: "hand" }]);
+}
+
+{
+  // The engine side of a reveal: the card is named in the log, stays where it
+  // was, and the clause after it acts on what was turned up.
+  DEFS.PEEP = {
+    ...DEFS.V1,
+    id: "PEEP",
+    name: "PEEP",
+    energyCost: 1,
+    skill: "[Auto] When you play this card, reveal the top card of your opponent's deck. If that card is a Battle Card, place it in your opponent's energy in Rest Mode, otherwise draw 1 card.",
+  };
+  let s = arena({ hand: ["PEEP"], energy: ["V1"] });
+  const top = s.players.p2.deck[0];
+  const energy = s.players.p2.energy.length;
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "PEEP") });
+  // Every card the arena's synthetic decks hold is a Battle Card, so the
+  // "then" branch is the one that runs.
+  assert.ok(s.players.p2.energy.includes(top), "it went into *their* energy");
+  assert.equal(s.players.p2.energy.length, energy + 1);
+  assert.equal(s.cards[top].mode, "rest", "and in Rest Mode");
+  assert.equal(s.cards[top].owner, "p2");
+  assertConsistent(s);
 }
 
 console.log("verify-arena: all checks passed");

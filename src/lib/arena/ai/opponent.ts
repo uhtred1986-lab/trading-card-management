@@ -216,9 +216,11 @@ Operations (each is an object with "op"):
   {"op":"addLife","n":1} | {"op":"lifeDownTo","n":4}
   {"op":"shuffle"} | {"op":"energyMarker","n":1}
   {"op":"choose","sel":SELECTOR,"as":"t","reason":"..."}   binds the chosen cards to a name
-  {"op":"look","n":5,"as":"looked"}               top of your deck
+  {"op":"look","n":5,"as":"looked"}               top of your deck, seen only by you
+  {"op":"reveal","sel":SELECTOR,"as":"revealed"}  shown to both players; the cards stay where they are
   {"op":"ko","target":TARGET}
   {"op":"moveTo","target":TARGET,"to":"drop"|"hand"|"deck"|"energy"|"life"|"warp"|"removed"|"battle","position":"top"|"bottom","mode":"rest"|"active"}
+    add "owner":"opponent" for "place it in your opponent's energy" — the area is theirs, not the card owner's
   {"op":"play","target":TARGET}
   {"op":"switchMode","target":TARGET,"mode":"rest"|"active"}
   {"op":"hidden","target":TARGET,"hidden":true|false}     Hidden Mode / Revealed Mode (23-5)
@@ -246,10 +248,13 @@ Operations (each is an object with "op"):
   {"op":"delay","at":TIMING,"scope":SCOPE,"ops":[...]}   the inner operations happen later, not now
 
 TARGET is {"var":"t"} for something chosen earlier, or {"sel":SELECTOR}.
+  {"var":"looked","minus":"t"} is "the rest": the cards of one name that another name did not take.
 SELECTOR: {"side":"you"|"opponent"|"both","area":"battle"|"hand"|"deck"|"drop"|"life"|"energy"|"unison"|"leader"|"warp"|"combo"|"zDeck"|"zEnergy"|"play","count":1,"upTo":true,"mode":"rest"|"active","filter":{...}}
   or {"special":"self"|"attacker"|"guard"|"leader"|"opponentLeader"} for a single known card.
-  "count":99 means all of them. A filter may hold colors, characters, traits, names, costMin, costMax, powerMin, powerMax.
+  "count":99 means all of them, and a count is always a choice; "take":2 is "the top 2 cards" instead ("fromEnd":true for the bottom).
+  A filter may hold colors, characters, traits, names, costMin, costMax, powerMin, powerMax.
 COND: {"kind":"life","side":"you","atMost":4} | {"kind":"count","sel":SELECTOR,"atLeast":2} | {"kind":"leaderColor","color":"Red"} | {"kind":"chose","var":"t"}
+   | {"kind":"varMatches","var":"revealed","filter":{...}}   "if that card is a Battle Card"
 TIMING: "turnStart" | "mainStart" | "turnEnd" | "turnCleanup" | "battleEnd"
 SCOPE: "thisTurn" (default) | "nextTurn" | "yourNextTurn" | "opponentNextTurn"
   "At the end of the turn, KO it" is {"op":"choose",...} then {"op":"delay","at":"turnEnd","ops":[{"op":"ko","target":{"var":"t"}}]}.

@@ -295,6 +295,9 @@ export function resolveSelector(ctx: GameContext, s: GameState, frame: ScriptFra
     const areas = sel.areas?.length ? sel.areas : [sel.area ?? "battle"];
     for (const p of sideOf(frame.master, sel.side)) for (const area of areas) out.push(...areaCards(s, p, area, frame));
   }
+  // "The top 2 cards of your deck" — the area's own order decides, and the
+  // filter is not applied first, because the cards are not being searched for.
+  if (sel.take != null) out = sel.fromEnd ? out.slice(Math.max(0, out.length - sel.take)) : out.slice(0, sel.take);
   return out.filter((id) => {
     const inst = s.cards[id];
     if (!inst) return false;
@@ -316,7 +319,10 @@ export function resolveSelector(ctx: GameContext, s: GameState, frame: ScriptFra
 }
 
 export function resolveRef(ctx: GameContext, s: GameState, frame: ScriptFrame, ref: Ref): string[] {
-  if ("var" in ref) return (frame.vars[ref.var] ?? []).filter((id) => s.cards[id]);
+  if ("var" in ref) {
+    const taken = ref.minus ? new Set(frame.vars[ref.minus] ?? []) : null;
+    return (frame.vars[ref.var] ?? []).filter((id) => s.cards[id] && !taken?.has(id));
+  }
   return resolveSelector(ctx, s, frame, ref.sel);
 }
 
@@ -385,6 +391,10 @@ export function condHolds(ctx: GameContext, s: GameState, frame: ScriptFrame, c:
     }
     case "chose":
       return (frame.vars[c.var] ?? []).length > 0;
+    // "If that card is a Battle Card": any of the cards the reveal or look
+    // bound to the name. A name that bound nothing is not a match.
+    case "varMatches":
+      return (frame.vars[c.var] ?? []).some((id) => s.cards[id] && matches(cardNow(ctx, s, id), c.filter));
     case "isTurnPlayer":
       return c.who === "opponent" ? s.turnPlayer !== frame.master : s.turnPlayer === frame.master;
   }
