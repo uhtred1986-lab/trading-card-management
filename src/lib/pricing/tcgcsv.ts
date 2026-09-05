@@ -331,8 +331,9 @@ export async function syncPricesForGame(
 
 /**
  * Give cards and prints that still have no art the photo from their matched
- * TCGplayer product. Only Fusion World needs this today — deckplanet covers
- * the original game — but it is written for any card with a null image, so a
+ * TCGplayer product. Today that is the Fusion World alternate prints Bandai's
+ * card list does not show (see catalog/bandai.ts) — deckplanet covers the
+ * original game — but it is written for any card with a null image, so a
  * print deckplanet never uploaded gets one too.
  *
  * TCGplayer serves several sizes off one path; the catalog grid wants the big

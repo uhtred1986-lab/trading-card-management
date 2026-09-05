@@ -17,6 +17,7 @@
 import { sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { cardPrints, cardSets, cards } from "@/db/schema";
+import { applyOfficialImages, fetchOfficialImageNames } from "./bandai";
 import { GAMES, GAME_INFO, type Game } from "./games";
 import { setCodeOfNumber, setLineFor, setNameFor, setSortKey } from "./sets";
 
@@ -151,8 +152,10 @@ export function normaliseRarity(raw: string | null, game: Game): string {
 }
 
 /**
- * Fusion World cards are not in the deckplanet image bucket, so they have no
- * catalog image at all until the price sync copies TCGplayer's across.
+ * Fusion World cards are not in the deckplanet image bucket. The shaper leaves
+ * them null; `applyOfficialImages` (bandai.ts) then writes Bandai's own art
+ * over the shaped catalog, and the price sync copies TCGplayer's photo onto
+ * whatever is still missing.
  */
 function imageFor(imgLink: string | null | undefined, number: string, game: Game): string | null {
   if (game === "fusion") return null;
@@ -188,7 +191,7 @@ export interface CatalogCard {
   backName: string | null;
   backSkill: string | null;
   backPower: number | null;
-  /** Null for Fusion World until the price sync supplies TCGplayer's art. */
+  /** Null for Fusion World out of the shaper; Bandai's art is laid on by `applyOfficialImages`. */
   imageUrl: string | null;
   backImageUrl: string | null;
   deckplanetId: number;
@@ -345,6 +348,8 @@ export interface CatalogSyncSummary {
   cards: number;
   prints: number;
   backImages?: number;
+  /** Fusion World prints given Bandai's official art (bandai.ts). */
+  officialImages?: number;
 }
 
 /** One summary per game, plus the totals, so the settings page reads at a glance. */
@@ -426,8 +431,8 @@ export async function importCatalog(db: Db, shaped: ShapedCatalog): Promise<Cata
           backName: sql`excluded.back_name`,
           backSkill: sql`excluded.back_skill`,
           backPower: sql`excluded.back_power`,
-          // Keep the TCGplayer art the price sync supplied for Fusion World,
-          // which deckplanet does not host at all.
+          // Fusion World prints Bandai does not show arrive null here; keep the
+          // TCGplayer art the price sync supplied for them.
           imageUrl: sql`coalesce(excluded.image_url, ${cards.imageUrl})`,
           // Keep a back image the CardTrader sync supplied when deckplanet has none.
           backImageUrl: sql`coalesce(excluded.back_image_url, ${cards.backImageUrl})`,
@@ -462,10 +467,15 @@ export async function importCatalog(db: Db, shaped: ShapedCatalog): Promise<Cata
 /** One game's catalog, end to end. */
 export async function syncCatalogFor(db: Db, game: Game): Promise<CatalogSyncSummary> {
   const shaped = shapeCatalog(await fetchDeckplanet(game), game);
-  // Only the original game has "<number>_b.png" backs to check for; Fusion
-  // World leaders get theirs from CardTrader or not at all.
-  const backImages = game === "fusion" ? 0 : await verifyBackImages(shaped);
-  return { ...(await importCatalog(db, shaped)), backImages };
+  if (game === "fusion") {
+    // deckplanet hosts no Fusion World art; Bandai's card list has fronts,
+    // leader backs and most alternate prints (bandai.ts).
+    const official = applyOfficialImages(shaped, await fetchOfficialImageNames());
+    // Backs are inferred from the leader's front, so they get the same HEAD check.
+    const backImages = await verifyBackImages(shaped);
+    return { ...(await importCatalog(db, shaped)), backImages, officialImages: official.prints };
+  }
+  return { ...(await importCatalog(db, shaped)), backImages: await verifyBackImages(shaped) };
 }
 
 /** Both games, in order. A failure on either aborts the whole sync run. */
@@ -479,5 +489,6 @@ export async function syncCatalog(db: Db): Promise<CatalogSyncSummaries> {
     cards: total((s) => s.cards),
     prints: total((s) => s.prints),
     backImages: total((s) => s.backImages ?? 0),
+    officialImages: total((s) => s.officialImages ?? 0),
   };
 }
