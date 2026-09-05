@@ -51,7 +51,10 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       return /when (?:you play this card|this card is played)|when you activate this card|when you play or combo with this card|when this card(?: in your hand)? is played(?: or used in a combo)?/.test(t);
     case "attacks":
       // "When this card attacks and KOs an opponent's Battle Card" is the KO, not the attack.
-      return /when this card attacks(?! and kos?\b)/.test(t);
+      // "When you attack or combo with this card" is this trigger and `comboed`
+      // both, like "play or combo" above: each fires at its own moment and only
+      // one of them happens.
+      return /when this card attacks(?! and kos?\b)|when you attack or combo with this card/.test(t);
     case "attacked":
       return /when this card is attacked/.test(t);
     case "koed":
@@ -62,6 +65,12 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     // KO'd" when they mean both.
     case "removedFromBattle":
       return /when this card is removed from [a-z' ]*battle area by (?:a|your|one of your) skill/.test(t);
+    // 3-1: the narrower wording — a skill put it out of the Battle Area *and*
+    // it ended in the Drop. `removedFromBattle` covers a skill that sends it
+    // anywhere, so this cannot simply widen that one: a card bounced to the
+    // hand is that moment and not this.
+    case "droppedFromBattle":
+      return /when this card is placed in (?:a|your|its owner'?s) drop area from (?:a|your|the) battle area by (?:a|your|one of your) skill/.test(t);
     case "removedByOpponent":
       return /when this card is removed from [a-z' ]*battle area by (?:an? |one of )?(?:your )?opponent'?s? skill/.test(t);
     case "evolvedInto":
@@ -86,10 +95,21 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     // them add is checked in `script.ts`, where the flipping card is known.
     case "flippedFaceUp":
       return /when (?:a|this) card in your life is flipped face up/.test(t);
+    // 22: a keyword skill being used, which the cards name by its own bracket.
+    case "unionActivated":
+      return /when you activate a \[union[^\]]*\](?: skill)?/.test(t);
+    case "overlordActivated":
+      return /when you activate an \[overlord\](?: skill)?/.test(t);
+    case "overRealmPlayed":
+      return /when you play a battle card using \[over realm\]/.test(t);
+    // 1-10: the narrower [Alliance] wording just below is read first, so a card
+    // that names the keyword is not also caught by this.
+    case "restedBySkill":
+      return /when this card is switched to rest mode by (?:one of )?your skills?\b/.test(t);
     case "restedByAlliance":
       return /when this card is switched to rest mode by (?:an?|one of your) \[alliance\]/.test(t);
     case "addedToZEnergy":
-      return /when this card is added to (?:your )?z-energy/.test(t);
+      return /when this card is added to (?:your )?z-energy|when you add this card to your z-energy/.test(t);
     case "chargeStart":
       return /at the (?:beginning|start) of (?:your|the) (?:turn|charge phase)/.test(t);
     case "dealtDamage":
@@ -97,7 +117,7 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     case "battleEnd":
       return /at the end of (?:the|a|this) battle/.test(t);
     case "comboed":
-      return /when you use this card in a combo|when this card is used in a combo|when you combo with this card|when you play or combo with this card|when this card in your hand is played or used in a combo/.test(t);
+      return /when you use this card in a combo|when this card is used in a combo|when you combo with this card|when you (?:play|attack) or combo with this card|when this card in your hand is played or used in a combo/.test(t);
     // The card the opponent played is the subject, whichever way round the
     // sentence names it. "Plays this card" is never how a card says it.
     case "opponentPlayed":
@@ -106,6 +126,11 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       return /when your opponent attacks\b|when your opponent's [a-z ]*cards? attacks?\b|when one of your opponent's [a-z ]*cards? attacks\b/.test(t);
     case "opponentCombos":
       return /when your opponent combos\b|when your opponent uses a card in a combo\b/.test(t);
+    // Your own side of it. "When you combo with this card" is the card's own
+    // skill and belongs to `comboed`, so the possessive has to be excluded
+    // here or every combo card would fire twice.
+    case "youCombo":
+      return /when you (?:use a card in a combo|combo)\b/.test(t) && !/when you combo with this card/.test(t);
     // 5-5: placed, not played. A card that says both is caught by `played`
     // first, so this only ever adds the ones that say only this.
     case "placed":
@@ -113,9 +138,17 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     case "energyToDrop":
       return /when a card in your energy is placed in (?:your|its owner's) drop/.test(t);
     case "unisonToDrop":
-      return /when this card is placed in a drop area from your unison area/.test(t);
+      return /when this card is placed in a drop area from your unison area|when this card in a unison area is placed into its owner's drop/.test(t);
     case "markerRemoved":
       return /when a marker is removed/.test(t);
+    // 22-43-3: paying [Spirit Boost X] takes markers off your Unison. These
+    // cards watch for that *cost* rather than for a marker leaving, so an
+    // opponent's attack knocking markers off (13-5-2) is not their moment —
+    // which is why it is a trigger of its own and not the one above. Both ends
+    // of it are printed: the Unison itself ("from this card") and the Battle
+    // Cards watching it ("from one of your Unison Cards").
+    case "spiritBoostPaid":
+      return /when you remove a marker from (?:this card|one of your unison cards?|your unison card)/.test(t) && /\[spirit boost\]/.test(t);
     case "offenseStart":
       return /at the (?:beginning|start) of (?:your|the) offense step/.test(t);
     case "defenseStart":
@@ -144,6 +177,7 @@ export function pendTriggers(ctx: GameContext, s: GameState, trigger: Trigger, c
     trigger === "energyToDrop" ||
     trigger === "unisonToDrop" ||
     trigger === "removedFromBattle" ||
+    trigger === "droppedFromBattle" ||
     trigger === "removedByOpponent" ||
     trigger === "addedToZEnergy" ||
     // 3-9-2-1: the card this fires on is sitting in a Life Area.

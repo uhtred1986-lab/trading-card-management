@@ -715,6 +715,38 @@ The file typechecked as garbage and had to be reverted. The rule in "Before you
 start" now covers both halves: use the Edit tool for engine source, and if a
 script must do it, never let card text or code near a replacement string.
 
+## Done: eight moments the engine did not know about (5 Sep 2026)
+
+Straight off the orphan-trigger list in `arena:gaps`, biggest first. 800 → 726
+[Auto] skills that compile and now have a moment to fire at. Nothing here is a
+new mechanism; each is a moment the engine already reached and did not announce.
+
+- **`spiritBoostPaid`** (22-43-3, 16 cards). Sixteen cards watch the *cost*
+  being paid rather than a marker leaving, from both ends — the Unison it came
+  off ("from this card") and the Battle Cards watching it ("from one of your
+  Unison Cards"). It could not widen `markerRemoved`, because an opponent's
+  attack knocking markers off (13-5-2) is that moment and not this.
+- **`youCombo`** (5-7, 14 cards). "When you use a card in a combo" is the
+  board's moment, watched by your own cards in play. `comboed` is the combo
+  card's own skill and fires when it leaves the Combo Area (8-5-8) — two
+  different things that had been one. A combo a *skill* makes now announces
+  itself to both players, which it never did.
+- **`restedBySkill`** (1-10, 9 cards). Your skill and your card: an opponent
+  resting it is a different moment.
+- **`unionActivated`/`overlordActivated`/`overRealmPlayed`** (22-13, 22-40,
+  22-15; 17 cards). The keyword being used, watched by that player's cards in
+  play. The moment is the activation, not the choice that follows it.
+- **`droppedFromBattle`** (3-1, 4 cards). A skill put the card out of a Battle
+  Area *and* it ended in the Drop. Again not a widening: a card bounced to the
+  hand is `removedFromBattle` and not this.
+- Two wordings that only needed the regex: "when this card in a Unison Area is
+  placed into its owner's Drop" and "when you add this card to your Z-Energy".
+
+The pattern in all of them: **a printed wording is a claim about *when*, and
+two wordings that look alike are usually two moments.** Widening an existing
+regex is right only when the wider one would never fire at a moment the card
+does not mean — which was true twice out of eight here.
+
 ## Conventions worth keeping
 
 - Card text is **read, never interpreted**: if the compiler cannot read a

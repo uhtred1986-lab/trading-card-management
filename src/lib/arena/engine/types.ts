@@ -159,10 +159,12 @@ export interface CardInstance {
   /** Leader flipped to its back side (Awaken / Wish). */
   flipped: boolean;
   /**
-   * 3-9-2-1: a Life card a skill turned face up. It stays in the Life Area
-   * and is still taken as damage in turn, but both players can see it and
-   * skills can count it ("if you have 4 or more face-up ≪Boujack Brigade≫
-   * cards in your life"). Cleared when the card leaves the area (3-1-4).
+   * 3-9-2-1: a card in a closed area that a skill turned face up — most often
+   * a Life card, and the Z-Deck for the ≪Boujack Brigade≫ cards. It stays
+   * where it is and is still taken as damage in its turn, but both players can
+   * see it and skills can count it ("if you have 4 or more face-up ≪Boujack
+   * Brigade≫ cards in your Z-Deck"). Cleared when the card leaves the area
+   * (3-1-4), so a card *placed* face up is marked after it arrives.
    */
   faceUp?: boolean;
   /** Unison markers (1-11). */
@@ -356,6 +358,12 @@ export type Trigger =
   | "opponentAttacks"
   | "opponentCombos"
   /**
+   * "When you use a card in a combo", "when you combo" (5-7): your own side of
+   * the same moment, watched by your cards in play. `comboed` is the combo
+   * card's own skill and fires when it leaves the Combo Area (8-5-8).
+   */
+  | "youCombo"
+  /**
    * "When this card is removed from a Battle Area by a skill" (3-1): a move an
    * effect caused, which the cards themselves distinguish from a KO — they
    * write "or KO'd" when they mean both, and that half is `koed`.
@@ -363,6 +371,12 @@ export type Trigger =
    */
   | "removedFromBattle"
   | "removedByOpponent"
+  /**
+   * The narrower wording: a skill put this card out of a Battle Area **and**
+   * it ended in a Drop Area. Not the same as `removedFromBattle`, which is
+   * any destination, so a card bounced to the hand is that and not this.
+   */
+  | "droppedFromBattle"
   /** "When a card evolves into this card" (22-5): this card entered play by [Evolve], not by an ordinary play. */
   | "evolvedInto"
   /** "When your opponent activates a [Counter] skill" (4-3): watched by your cards in play. */
@@ -373,6 +387,17 @@ export type Trigger =
   | "blockerUsed"
   /** "When this card is switched to Rest Mode by an [Alliance] skill" (22-32-3): the cards rested as the cost. */
   | "restedByAlliance"
+  /** "When this card is switched to Rest Mode by one of your skills" (1-10). */
+  | "restedBySkill"
+  /**
+   * A keyword skill being used, watched by that player's cards in play:
+   * "when you activate a [Union] skill" (22-13), "…an [Overlord] skill"
+   * (22-40), "when you play a Battle Card using [Over Realm]" (22-15).
+   * The card that did it is the `subject`.
+   */
+  | "unionActivated"
+  | "overlordActivated"
+  | "overRealmPlayed"
   /** "When this card is added to your Z-Energy" (17-3). */
   | "addedToZEnergy"
   /**
@@ -384,6 +409,13 @@ export type Trigger =
   | "energyToDrop"
   | "unisonToDrop"
   | "markerRemoved"
+  /**
+   * "When you remove a marker from this card using a [Spirit Boost] skill"
+   * (22-43-3): the *cost* being paid, watched by the Unison it came off and by
+   * that player's cards in play. An attack taking markers off is `markerRemoved`
+   * and not this.
+   */
+  | "spiritBoostPaid"
   /** "When a card in your life is flipped face up" (3-9-2-1). */
   | "flippedFaceUp"
   | "offenseStart"

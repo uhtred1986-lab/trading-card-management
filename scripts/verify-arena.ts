@@ -1805,6 +1805,51 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
 }
 
 {
+  // 22-43-3: sixteen cards watch the [Spirit Boost] *payment* rather than the
+  // marker, from both ends — the Unison the markers came off and the Battle
+  // Cards watching it. An attack knocking markers off is not their moment.
+  DEFS.SPIRIT2 = { ...DEFS.V1, id: "SPIRIT2", name: "SPIRIT2", skill: "[Spirit Boost 1][Activate: Main] Draw 1 card." };
+  DEFS.BOOSTWATCH = { ...DEFS.V1, id: "BOOSTWATCH", name: "BOOSTWATCH", skill: "[Auto] When you remove a marker from one of your Unison Cards using a [Spirit Boost] skill, draw 1 card." };
+  DEFS.UWATCH = { ...DEFS.U1, id: "UWATCH", name: "UWATCH", skill: "[Auto] When you remove a marker from this card using a [Spirit Boost] skill, draw 1 card." };
+  let s = arena({ battle: ["SPIRIT2", "BOOSTWATCH"], hand: ["UWATCH"], energy: ["V1", "V1", "V1"] });
+  s = play(s, { type: "playUnison", player: "p1", card: find(s, "p1", "hand", "UWATCH"), x: 3 });
+  const hand = s.players.p1.hand.length;
+  s = play(s, { type: "activate", player: "p1", card: s.players.p1.battle[0], skill: 0 });
+  // The skill itself draws one, the Unison's own [Auto] one, the watcher one.
+  assert.equal(s.players.p1.hand.length, hand + 3, "22-43-3: both ends of the payment fire");
+  assertConsistent(s);
+}
+
+{
+  // 1-10: "when this card is switched to Rest Mode by one of your skills" —
+  // your skill and your card, so an opponent resting it is a different moment
+  // and this does not fire.
+  DEFS.RESTWATCH = { ...DEFS.V1, id: "RESTWATCH", name: "RESTWATCH", skill: "[Auto] When this card is switched to Rest Mode by one of your skills, draw 1 card." };
+  DEFS.RESTER = { ...DEFS.V1, id: "RESTER", name: "RESTER", energyCost: 1, skill: "[Auto] When you play this card, switch up to 1 of your Battle Cards to Rest Mode." };
+  let s = arena({ hand: ["RESTER"], battle: ["RESTWATCH"], energy: ["V1"] });
+  const watcher = s.players.p1.battle[0];
+  const hand = s.players.p1.hand.length;
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "RESTER") });
+  s = play(s, { type: "choose", player: "p1", cards: [watcher] });
+  assert.equal(s.cards[watcher].mode, "rest");
+  assert.equal(s.players.p1.hand.length, hand - 1 + 1, "one played, one drawn by the rested card");
+  assertConsistent(s);
+}
+
+{
+  // 5-7: "when you use a card in a combo" is the board's moment, watched by
+  // your own cards in play — not the combo card's own skill, which is
+  // `comboed` and fires when it leaves the Combo Area (8-5-8).
+  DEFS.COMBOWATCH = { ...DEFS.V1, id: "COMBOWATCH", name: "COMBOWATCH", skill: "[Auto] When you use a card in a combo, draw 1 card." };
+  let s = arena({ hand: ["V1"], battle: ["COMBOWATCH"] });
+  s = play(s, { type: "attack", player: "p1", attacker: s.players.p1.leader, target: s.players.p2.leader });
+  const hand = s.players.p1.hand.length;
+  s = play(s, { type: "combo", player: "p1", card: find(s, "p1", "hand", "V1") });
+  assert.equal(s.players.p1.hand.length, hand - 1 + 1, "one combo'd, one drawn");
+  assertConsistent(s);
+}
+
+{
   // [Arrival X/Y] (22-29): from hand during a battle, once cards of both
   // colours are in the Combo Area; the effect is playing the card.
   DEFS.ARRIVER = { ...DEFS.V1, id: "ARRIVER", name: "ARRIVER", energyCost: 4, power: 20000, skill: "[Arrival red/blue] {r}" };
@@ -3672,6 +3717,16 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.equal(s.players.p1.deck[s.players.p1.deck.length - 1], servant, "22-41-2: to the bottom of the deck");
   assert.equal(s.players.p1.hand.length, hand + 1, "22-41-3: and draw 1");
   assertConsistent(s);
+
+  // 22-41: four cards watch the keyword being used rather than anything it
+  // does — "when you activate an [Overlord] skill".
+  DEFS.OVERWATCH = { ...DEFS.V1, id: "OVERWATCH", name: "OVERWATCH", skill: "[Auto] When you activate an [Overlord] skill, draw 1 card." };
+  let w = arena({ battle: ["OVER", "SERV2", "OVERWATCH"] });
+  const o3 = w.players.p1.battle.find((id) => w.cards[id].cardId === "OVER")!;
+  const before = w.players.p1.hand.length;
+  w = play(w, { type: "activate", player: "p1", card: o3, skill: 0 });
+  assert.equal(w.players.p1.hand.length, before + 2, "the keyword's own draw, and the watcher's");
+  assertConsistent(w);
 }
 
 {

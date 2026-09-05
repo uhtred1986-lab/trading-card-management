@@ -939,6 +939,11 @@ function payKeywordCosts(ctx: EngineContext, s: GameState, ev: GameEvent[], p: P
     s.cards[u].markers = Math.max(0, s.cards[u].markers - sk.spiritBoost);
     ev.push({ type: "markers", card: u, delta: -sk.spiritBoost, total: s.cards[u].markers });
     pendTriggers(ctx, s, "markerRemoved", u);
+    // 22-43-3: sixteen cards watch the *payment* rather than the marker —
+    // the Unison it came off ("from this card") and the player's cards in
+    // play ("from one of your Unison Cards").
+    pendTriggers(ctx, s, "spiritBoostPaid", u);
+    for (const w of cardsInPlay(s, p)) if (w !== u) pendTriggers(ctx, s, "spiritBoostPaid", w, u);
   }
 }
 
@@ -1965,6 +1970,10 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
       // "When your opponent combos": watched by the other player's cards in
       // play, with the combo card as the subject.
       for (const id of cardsInPlay(s, other(p))) pendTriggers(ctx, s, "opponentCombos", id, action.card);
+      // "When you use a card in a combo" — the same moment from your own side,
+      // which fourteen cards watch and none of them called `comboed`: that one
+      // is the combo card's own skill (8-5-8), this is the board's.
+      for (const id of cardsInPlay(s, p)) pendTriggers(ctx, s, "youCombo", id, action.card);
       s.flow.unshift({ op: "checkpoint" }, { op: "battle.promptCombo", side: pr.side });
       break;
     }
@@ -2171,6 +2180,9 @@ function activate(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId
     const names = (sk.effect || sk.cost).match(/<([^>]+)>/g)?.map((x) => x.slice(1, -1)) ?? [];
     const pool = k.variant === "Fusion" ? ps.hand.filter((id) => id !== card) : ps.battle;
     const cands = pool.filter((id) => names.some((n) => def(ctx, s, id).characters.some((c) => c.toLowerCase() === n.toLowerCase())));
+    // 22-13: "when you activate a [Union] skill", watched by your cards in
+    // play. The moment is the activation, not the choice that follows it.
+    for (const id of cardsInPlay(s, p)) pendTriggers(ctx, s, "unionActivated", id, card);
     s.continuations.union = { card, variant: k.variant };
     s.flow.unshift({ op: "prompt", prompt: { kind: "chooseCards", player: p, choice: { reason: `Union-${k.variant}: choose ${names.join(" and ")}`, candidates: cands, min: names.length, max: names.length, continuation: "union" } } }, { op: "choose.apply", what: "union", card, player: p });
     return;
@@ -2190,6 +2202,9 @@ function activate(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId
       vars: {},
       label: "back to the Warp as the turn ends",
     });
+    // 22-15: "when you play a Battle Card using [Over Realm]" — the play is
+    // this keyword, so the moment is here rather than in the ordinary play.
+    for (const id of cardsInPlay(s, p)) pendTriggers(ctx, s, "overRealmPlayed", id, card);
     s.resolving = { card, player: p };
     s.flow.unshift({ op: "counter", window: "play", responder: other(p) }, { op: "play.resolve", card, player: p });
     return;
@@ -2255,6 +2270,8 @@ function activate(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId
     const servant = ps.battle.find((id) => has(ctx, s, id, "Servant"))!;
     move(ctx, s, ev, servant, "deck", p, { position: "bottom", reason: "cost" });
     draw(ctx, s, ev, p, 1);
+    // 22-40: "when you activate an [Overlord] skill".
+    for (const id of cardsInPlay(s, p)) pendTriggers(ctx, s, "overlordActivated", id, card);
     return;
   }
   if (k?.name === "Field") {

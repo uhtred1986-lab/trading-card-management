@@ -586,6 +586,8 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
           if (leftBattle && areaOf(s, id) !== "battle") {
             pendTriggers(ctx, s, "removedFromBattle", id);
             if (masterOf(s, id) !== master) pendTriggers(ctx, s, "removedByOpponent", id);
+            // The narrower wording, which names where it ended up as well.
+            if (areaOf(s, id) === "drop") pendTriggers(ctx, s, "droppedFromBattle", id);
           }
           if (op.mode) setMode(s, ev, id, op.mode, ctx);
           // 5-5: a card a skill *places* in a Battle Area was not played, so
@@ -603,7 +605,16 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
       }
 
       case "switchMode":
-        for (const id of resolveRef(ctx, s, frame, op.target)) setMode(s, ev, id, op.mode, ctx);
+        for (const id of resolveRef(ctx, s, frame, op.target)) {
+          const was = s.cards[id].mode;
+          setMode(s, ev, id, op.mode, ctx);
+          // "When this card is switched to Rest Mode by one of your skills"
+          // (1-10): the card and the skill both have to be yours, which is what
+          // "your" says — an opponent resting it is not this moment.
+          if (op.mode === "rest" && was === "active" && s.cards[id].mode === "rest" && masterOf(s, id) === master) {
+            pendTriggers(ctx, s, "restedBySkill", id, frame.card);
+          }
+        }
         break;
 
       case "hidden":
@@ -652,6 +663,10 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
           if (areaOf(s, id) === "combo") continue;
           move(ctx, s, ev, id, "combo", master, { reason: "combo", reveal: true });
           if (op.negated) s.cards[id].negated = "all";
+          // 5-7-2: a combo a skill makes is a combo. Both sides watch it, the
+          // same as one the player declared.
+          for (const w of cardsInPlay(s, master)) pendTriggers(ctx, s, "youCombo", w, id);
+          for (const w of cardsInPlay(s, master === "p1" ? "p2" : "p1")) pendTriggers(ctx, s, "opponentCombos", w, id);
         }
         break;
       }

@@ -24,7 +24,7 @@ Measured on the 6,493 Dragon Ball Super (not Fusion World) cards:
 | …and that actually emit a standing effect | 47.6 % of 1,808 | same |
 | skills in the owner's 12 decks that compile | 89.9 % of 357 | same (deck tables) |
 | skills exactly one unreadable clause away | 1,226 | `npm run arena:gaps` |
-| [Auto] skills that compile but no trigger fires | 800 | `npm run arena:gaps` (§5.3) |
+| [Auto] skills that compile but no trigger fires | 726 | `npm run arena:gaps` (§5.3) |
 | [Activate]/[Counter] whose price the engine cannot read | 160 | same |
 | fuzzer | 40 games, 0 crashes | `npm run arena:fuzz 40` |
 
