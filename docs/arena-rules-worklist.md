@@ -23,11 +23,14 @@ npm run arena:fuzz       # 20 self-played games, asserts no crash and no stuck s
 cards. **Every mechanism below needs its tests there**, in the same style: a
 comment naming the Rule Manual section, then the smallest game that shows it.
 
-A caution learned the hard way, twice: **never write engine source through
-`node -e`.** `\b` inside a template string becomes a literal backspace and
-silently breaks a regex, and `` $` `` in a `String.replace` *replacement* means
-"everything before the match", which once spliced 900 lines of `compile.ts` into
-the middle of itself. Use the Edit tool.
+A caution learned the hard way, three times: **never write engine source
+through `node -e`.** `\b` inside a shell-quoted string becomes a literal
+backspace and silently breaks a regex — on the third occasion it turned off five
+trigger patterns at once, and they typechecked and passed every test while
+matching nothing. `` $` `` in a `String.replace` *replacement* means "everything
+before the match", which once spliced 900 lines of `compile.ts` into the middle
+of itself. Use the Edit tool. If a file already contains one of these, find it
+with `grep -c $'\x08' <file>`.
 
 ---
 
@@ -822,6 +825,54 @@ reminder emits nothing because there is nothing to emit, and counting those made
 the inert figure 4 skills too pessimistic. What remains in that bucket is mostly
 deck-construction ("you can't include … in your deck"), which is 6-1 and not a
 rule of play — worth excluding next time this measure is touched.
+
+## Done: whose turn it is (5 Sep 2026)
+
+The owner's note — "an effect of a player might affect the opponent, on the
+opponent's turn" — turned out to name four separate bugs, all of them the same
+mistake: reading a wording against **the turn player** when it is written from
+**the controller's** chair. None of these is a missing feature; every one of
+them made a card that compiles do the wrong thing in a real game.
+
+1. **"At the end of your turn" fired at the end of both turns.** One trigger
+   matched `(?:your|the|your opponent's) turn` and was pended for both players,
+   so 164 cards that act at the end of *your* turn also acted at the end of the
+   opponent's, and the 13 that wait for the opponent's turn fired a turn early
+   as well. Now `turnEnd` and `opponentTurnEnd`, each pended for one side.
+   `opponentTurnStart` joins them for the four cards that print it.
+2. **A skill that merely *mentions* a turn boundary was triggered by it.** 116
+   skills say something like "…, and at the end of the turn, flip all face-up
+   cards in your life face down" — a delayed effect, in a skill that already
+   has its own trigger. Each was pending its whole text again at every turn
+   end. A trigger is the **head** of the sentence, so the timing triggers are
+   now matched against the head and nothing else (allowing for a condition
+   printed in front of it, with a comma or with the sets' own bar).
+3. **One "draw 1 card" drew five.** 7-4-4 repeats the End Phase when a skill
+   *newly* triggers while it runs, and the turn-end skills were re-offered on
+   every pass, up to the loop's cap. They are now pended on the first pass only.
+4. **Every duration a [Counter] created lasted a whole turn too long.** "Until
+   the end of your opponent's turn" and "until the start of your opponent's
+   next turn" were expired against the turn player *at the moment the effect
+   was made* — right only when you make it on your own turn, and a [Counter]
+   resolves on the opponent's turn by definition. `ContinuousEffect` now
+   carries its `master` and `endTurnRelativeEffects` reads both durations
+   against that. The same reading fixes the delayed-effect scope
+   `opponentNextTurn`, which demanded a *later* turn and so skipped the very
+   turn it was about.
+
+**And the tooling lesson bit for the third time, in its worst form yet.** A
+bulk `node -e` edit turned `\b` into a literal backspace inside five trigger
+regexes — `chargeStart`, `battleEnd`, and the three battle steps. They compiled,
+typechecked, passed every existing test, and matched nothing at all. The only
+visible sign was the orphan-trigger count going *up* by 128, which looks exactly
+like the measure becoming more honest. It was caught by asking why the top of
+that list was full of wordings the engine should already read. There is now a
+positive test for every head-anchored timing trigger, because an anchor that
+matches nothing is the same silence as no rule at all.
+
+Orphan triggers 726 → 751: the residue is honest, being the mid-sentence
+timings that used to match spuriously and whose skills have no other recognised
+trigger.
 
 ## Conventions worth keeping
 

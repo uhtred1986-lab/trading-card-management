@@ -688,12 +688,12 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
       case "power":
       case "comboPower": {
         const n = amount(ctx, s, frame, op.amount);
-        for (const id of resolveRef(ctx, s, frame, op.target)) addEffect(s, ev, { target: id, kind: op.op === "power" ? "power" : "comboPower", value: n, until: op.until });
+        for (const id of resolveRef(ctx, s, frame, op.target)) addEffect(s, ev, { master: frame.master, target: id, kind: op.op === "power" ? "power" : "comboPower", value: n, until: op.until });
         break;
       }
 
       case "grant":
-        for (const id of resolveRef(ctx, s, frame, op.target)) addEffect(s, ev, { target: id, kind: "keyword", value: op.keyword, until: op.until });
+        for (const id of resolveRef(ctx, s, frame, op.target)) addEffect(s, ev, { master: frame.master, target: id, kind: "keyword", value: op.keyword, until: op.until });
         break;
 
       case "negateSkills":
@@ -704,7 +704,7 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
           // instruction, like every other prohibition (0-2-5).
           if (forbids(ctx, s, "beNegated", { card: id })) continue;
           if (op.until === "game") s.cards[id].negated = "all";
-          else addEffect(s, ev, { target: id, kind: "negateSkills", value: 0, until: op.until });
+          else addEffect(s, ev, { master: frame.master, target: id, kind: "negateSkills", value: 0, until: op.until });
         }
         break;
 
@@ -713,12 +713,12 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         // duration — no card prints "for the game" on a single kind.
         for (const id of resolveRef(ctx, s, frame, op.target)) {
           if (forbids(ctx, s, "beNegated", { card: id })) continue;
-          addEffect(s, ev, { target: id, kind: "negateSkillKind", value: op.kind, until: op.until === "game" ? "turn" : op.until });
+          addEffect(s, ev, { master: frame.master, target: id, kind: "negateSkillKind", value: op.kind, until: op.until === "game" ? "turn" : op.until });
         }
         break;
 
       case "cannotAttack":
-        for (const id of resolveRef(ctx, s, frame, op.target)) addEffect(s, ev, { target: id, kind: "forbid", value: 0, until: op.until, forbid: { what: "attack" } });
+        for (const id of resolveRef(ctx, s, frame, op.target)) addEffect(s, ev, { master: frame.master, target: id, kind: "forbid", value: 0, until: op.until, forbid: { what: "attack" } });
         break;
 
       case "forbid": {
@@ -728,10 +728,11 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         if (op.target) {
           // On a card, the side says *whose* action is forbidden — "can't be
           // KO'd by your opponent's skills" is a rule about the opponent.
-          for (const id of resolveRef(ctx, s, frame, op.target)) addEffect(s, ev, { target: id, kind: "forbid", value: 0, until: op.until, forbid: { what: op.what, player: players[0] } });
+          for (const id of resolveRef(ctx, s, frame, op.target)) addEffect(s, ev, { master: frame.master, target: id, kind: "forbid", value: 0, until: op.until, forbid: { what: op.what, player: players[0] } });
           break;
         }
         addEffect(s, ev, {
+          master: frame.master,
           target: "",
           kind: "forbid",
           value: 0,
@@ -834,7 +835,7 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         if (op.until === "turn" || op.until === "battle") {
           // "Negate this skill for the turn / for the battle": it comes back,
           // so an effect with a duration rather than a mark on the instance.
-          addEffect(s, ev, { target: frame.card, kind: "negateSkill", value: frame.skillIndex, until: op.until });
+          addEffect(s, ev, { master: frame.master, target: frame.card, kind: "negateSkill", value: frame.skillIndex, until: op.until });
           note(ev, `${face(ctx, s, frame.card).name}: that skill will not happen again this ${op.until}`);
           break;
         }

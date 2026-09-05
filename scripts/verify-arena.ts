@@ -8,9 +8,10 @@ import assert from "node:assert/strict";
 import { apply, createGame, defsFrom, legalActions, seedFrom, type Action, type CardDef, type GameState, type PlayerId } from "../src/lib/arena/engine";
 import { parseSkills, keywordOf, orbsIn, eitherOrbsIn, skillLines } from "../src/lib/arena/engine/cards";
 import { parseFilter, matches, parseCondition } from "../src/lib/arena/engine/filters";
-import { move, locate, playCost, powerOf, forbids, has, cardNow, comboCostOf, skillNegated, skillsNegated } from "../src/lib/arena/engine/state";
+import { addEffect, schedule, move, locate, playCost, powerOf, forbids, has, cardNow, comboCostOf, skillNegated, skillsNegated } from "../src/lib/arena/engine/state";
 import { compileCostProgram, compileSkill, costIsOnlyOrbs, costText, describeScript, parseConditionClause, parseTarget, priceCondition, splitClauses } from "../src/lib/arena/engine/compile";
 import { autoTriggerMatches, koCard } from "../src/lib/arena/engine/triggers";
+import type { Trigger } from "../src/lib/arena/engine/types";
 
 // ── skill text parsing ─────────────────────────────────────────────────────
 
@@ -532,7 +533,7 @@ function assertConsistentAfterDrop(s: GameState) {
   s.cards[zb].mode = "rest";
   s.players.p2.battle.push(...[]);
   // Give p2 something strong enough: bump the leader's power for the test.
-  s.effects.push({ id: 99, target: s.players.p2.leader, kind: "power", value: 20000, until: "turn", ownerTurn: "p2", createdTurn: s.turn });
+  s.effects.push({ id: 99, target: s.players.p2.leader, kind: "power", value: 20000, until: "turn", ownerTurn: "p2", master: "p2", createdTurn: s.turn });
   s = play(s, { type: "attack", player: "p2", attacker: s.players.p2.leader, target: zb }, { type: "pass", player: "p2" }, { type: "pass", player: "p1" });
   assert.ok(s.players.p1.removed.includes(zb), "14-1-4: removed instead of Drop");
   assert.ok(s.players.p1.drop.includes(tuck), "23-2-5: the card under it went to the Drop");
@@ -737,7 +738,7 @@ function assertConsistentAfterDrop(s: GameState) {
   const t0 = tokens[0];
   s.cards[t0].mode = "rest";
   s = play(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
-  s.effects.push({ id: 999, target: s.players.p2.leader, kind: "power", value: 20000, until: "turn", ownerTurn: "p2", createdTurn: s.turn });
+  s.effects.push({ id: 999, target: s.players.p2.leader, kind: "power", value: 20000, until: "turn", ownerTurn: "p2", master: "p2", createdTurn: s.turn });
   s = play(s, { type: "attack", player: "p2", attacker: s.players.p2.leader, target: t0 }, { type: "pass", player: "p2" }, { type: "pass", player: "p1" });
   assert.ok(s.players.p1.removed.includes(t0), "19-1-7: removed, not dropped");
   assertConsistent(s);
@@ -1064,7 +1065,7 @@ function assertConsistentAfterDrop(s: GameState) {
   s = play(s, { type: "choose", player: "p2", cards: [tough] });
   assert.ok(s.players.p1.battle.includes(tough), "22-12-like: their skill cannot KO it");
   // 21-6 still applies: a rule, not a skill, and it ignores even [Indestructible].
-  s.effects.push({ id: 998, target: tough, kind: "power", value: -99000, until: "turn", ownerTurn: "p2", createdTurn: s.turn });
+  s.effects.push({ id: 998, target: tough, kind: "power", value: -99000, until: "turn", ownerTurn: "p2", master: "p2", createdTurn: s.turn });
   s = play(s, { type: "endMain", player: "p2" });
   assert.ok(s.players.p1.drop.includes(tough), "21-6: 0 power is a rule, and rules are not skills");
 }
@@ -1086,7 +1087,7 @@ function assertConsistentAfterDrop(s: GameState) {
   assertConsistent(s);
 
   // 23-2-5: when the card on top leaves play, the stack goes with it.
-  s.effects.push({ id: 997, target: host, kind: "power", value: -99000, until: "turn", ownerTurn: "p1", createdTurn: s.turn });
+  s.effects.push({ id: 997, target: host, kind: "power", value: -99000, until: "turn", ownerTurn: "p1", master: "p1", createdTurn: s.turn });
   s = play(s, { type: "endMain", player: "p1" });
   assert.ok(s.players.p1.drop.includes(under), "the card underneath followed it to the Drop");
   assertConsistent(s);
@@ -4058,6 +4059,109 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   const allowed = play(s, { type: "choose", player: "p1", cards: [onlyBySkill] });
   assert.ok(allowed.players.p1.battle.includes(onlyBySkill), "…and its own ban is on the player, not the skill");
   assertConsistent(allowed);
+}
+
+{
+  // 7-1: "your turn" on a card is its controller's turn, not the turn player's.
+  // Both wordings were one trigger pended for both players, so a skill written
+  // for your own end step also fired at the end of your opponent's — and the
+  // ones that wait for the opponent's turn fired a turn early as well.
+  DEFS.MYEND = { ...DEFS.V1, id: "MYEND", name: "MYEND", skill: "[Auto] At the end of your turn, draw 1 card." };
+  DEFS.THEIREND = { ...DEFS.V1, id: "THEIREND", name: "THEIREND", skill: "[Auto] At the end of your opponent's turn, draw 1 card." };
+  // Measured against a control game, because passing the turn draws a card of
+  // its own (7-3) and that has nothing to do with either skill.
+  const run = (battle: string[]) => {
+    let g = arena({ battle });
+    const start = g.players.p1.hand.length;
+    g = play(g, { type: "endMain", player: "p1" });
+    const own = g.players.p1.hand.length - start;
+    g = play(g, { type: "charge", player: "p2", card: null }, { type: "endMain", player: "p2" });
+    assertConsistent(g);
+    return { own, theirs: g.players.p1.hand.length - start - own };
+  };
+  const none = run(["V1"]);
+  const mine = run(["MYEND"]);
+  const theirs = run(["THEIREND"]);
+  assert.equal(mine.own - none.own, 1, "7-1: at the end of p1's own turn");
+  assert.equal(mine.theirs - none.theirs, 0, "…and not at the end of p1's opponent's turn");
+  assert.equal(theirs.own - none.own, 0, "the other wording waits");
+  assert.equal(theirs.theirs - none.theirs, 1, "…for the opponent's turn to end");
+  // 7-4-4: the End Phase repeats when a skill newly triggers, and the skills
+  // that already had their moment must not be offered again — one "draw 1
+  // card" drew five.
+  assert.equal(mine.own, none.own + 1, "exactly once, not once per End Phase pass");
+
+  // And a card that merely *mentions* a turn boundary in the middle of an
+  // effect is not triggered by it: that phrase is a delayed effect (1-7-2-1-1)
+  // and the skill has its own trigger already.
+  const mid = parseSkills("[Auto] When you play this card, draw 1 card; at the end of the turn, flip all face-up cards in your life face down.")[0];
+  assert.ok(autoTriggerMatches(mid, "played"));
+  assert.ok(!autoTriggerMatches(mid, "turnEnd"), "116 skills were pending their whole text again at every turn end");
+
+  // Every head-anchored timing, positively: an anchor that matches nothing is
+  // the same silence as no rule at all, and reads as an improvement in the
+  // orphan-trigger count while turning the trigger off.
+  const heads: [string, Trigger][] = [
+    ["At the end of your turn, draw 1 card.", "turnEnd"],
+    ["At the end of your opponent's turn, draw 1 card.", "opponentTurnEnd"],
+    ["At the start of your opponent's turn, draw 1 card.", "opponentTurnStart"],
+    ["At the start of your Main Phase, draw 1 card.", "mainStart"],
+    ["At the start of your opponent's Main Phase, draw 1 card.", "opponentMainStart"],
+    ["At the start of your turn, draw 1 card.", "chargeStart"],
+    ["At the end of the battle, draw 1 card.", "battleEnd"],
+    ["At the start of the Offense Step, draw 1 card.", "offenseStart"],
+    ["At the start of the Defense Step, draw 1 card.", "defenseStart"],
+    ["At the start of the Damage Step, draw 1 card.", "damageStart"],
+  ];
+  for (const [text, trigger] of heads) {
+    assert.ok(autoTriggerMatches(parseSkills(`[Auto] ${text}`)[0], trigger), `${trigger}: ${text}`);
+    // …and the condition the sets sometimes print in front of the trigger, with
+    // a comma or with their own bar, does not hide it.
+    assert.ok(autoTriggerMatches(parseSkills(`[Auto] If your Leader Card is red | ${text}`)[0], trigger), `${trigger} behind a condition`);
+  }
+}
+
+{
+  // 9-9: the two durations written from the controller's chair rather than the
+  // turn's. A [Counter] resolves on the opponent's turn by definition, so an
+  // effect one of those makes has to be read against its own master — keyed on
+  // the turn player at the time, every one of them lasted a whole turn longer
+  // than it says.
+  const ctx = { defs: DEFS };
+  let s = arena({ battle: ["V1"] });
+  const mine = s.players.p1.battle[0];
+  const base = powerOf(ctx, s, mine);
+  s = play(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+  assert.equal(s.turnPlayer, "p2", "p1's opponent is now the turn player");
+
+  // "…until the end of your opponent's turn", said by p1 during p2's turn.
+  const now = structuredClone(s);
+  addEffect(now, [], { master: "p1", target: mine, kind: "power", value: 5000, until: "nextTurn" });
+  assert.equal(powerOf(ctx, now, mine), base + 5000);
+  const p1sTurn = play(now, { type: "endMain", player: "p2" });
+  assert.equal(p1sTurn.turnPlayer, "p1");
+  assert.equal(powerOf(ctx, p1sTurn, mine), base, "the opponent's turn ended, so the effect did");
+
+  // "…until the start of your opponent's next turn", said at the same moment,
+  // runs the other way: through p1's whole turn, ending as p2's next opens.
+  const other2 = structuredClone(s);
+  addEffect(other2, [], { master: "p1", target: mine, kind: "power", value: 5000, until: "opponentTurn" });
+  const mid = play(other2, { type: "endMain", player: "p2" });
+  assert.equal(powerOf(ctx, mid, mine), base + 5000, "still there through p1's own turn");
+  const later = play(mid, { type: "charge", player: "p1", card: null }, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+  assert.equal(later.turnPlayer, "p2");
+  assert.equal(powerOf(ctx, later, mine), base, "…and gone as their next turn opens");
+
+  // 1-7-2-1-1: the same reading for a delayed effect. "At the end of your
+  // opponent's turn", written down during that turn, means the turn now under
+  // way — asking for a *later* one made it skip the whole turn it was about.
+  const scheduled = structuredClone(s);
+  const delay = { at: "turnEnd" as const, ops: [{ op: "draw" as const, n: 1 }], card: mine, master: "p1" as const, vars: {}, label: "test" };
+  schedule(scheduled, [], { ...delay, scope: "opponentNextTurn" });
+  schedule(scheduled, [], { ...delay, scope: "yourNextTurn" });
+  const ended = play(scheduled, { type: "endMain", player: "p2" });
+  assert.equal(ended.delayed.length, 1, "the opponent's-turn one fired, the own-turn one waits");
+  assert.equal(ended.delayed[0].scope, "yourNextTurn");
 }
 
 console.log("verify-arena: all checks passed");

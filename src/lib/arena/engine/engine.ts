@@ -26,6 +26,7 @@ import {
   def,
   draw,
   endEffects,
+  endTurnRelativeEffects,
   expireDelayed,
   face,
   forbids,
@@ -223,11 +224,14 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
       // 7-2: Charge Phase.
       s.phase = "charge";
       ev.push({ type: "phase", phase: "charge", player: s.turnPlayer, turn: s.turn });
-      endEffects(s, "opponentTurn", other(s.turnPlayer));
-      // "until the end of your opponent's turn" — created on your turn, it
-      // runs through theirs and ends as your next turn opens.
-      endEffects(s, "nextTurn", s.turnPlayer);
+      // "Until the end of your opponent's turn" and "until the start of your
+      // opponent's next turn" are both said from the controller's chair, so
+      // they are read against the effect's own master — see the note there.
+      endTurnRelativeEffects(s);
       for (const id of cardsInPlay(s, s.turnPlayer)) pendTriggers(ctx, s, "chargeStart", id);
+      // 7-1: the same moment from the other side of the table — "at the start
+      // of your opponent's turn", which is the turn now opening.
+      for (const id of cardsInPlay(s, other(s.turnPlayer))) pendTriggers(ctx, s, "opponentTurnStart", id);
       s.flow.unshift(...fireDelayed(s, "turnStart"), { op: "checkpoint" }, { op: "turn.activeAll" }, { op: "checkpoint" }, { op: "turn.draw" }, { op: "checkpoint" }, { op: "turn.promptCharge" });
       return "done";
     }
@@ -285,13 +289,25 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
       s.phase = "end";
       ev.push({ type: "phase", phase: "end", player: s.turnPlayer, turn: s.turn });
       const before = s.pending.length;
-      for (const p of PLAYERS) for (const id of cardsInPlay(s, p)) pendTriggers(ctx, s, "turnEnd", id);
+      const runs = (s.continuations.endPhaseRuns as number | undefined) ?? 0;
+      // 7-1: "your turn" is the controller's turn, so each side hears only the
+      // wording that is about it. Pending both for both players meant an
+      // effect written for your own end step also fired on your opponent's.
+      //
+      // 7-4-4: and only on the first pass. The End Phase repeats when a skill
+      // *newly* triggers while it runs; the "at the end of your turn" skills
+      // had their moment on that first pass, and re-offering them every time
+      // round turned one "draw 1 card" into five.
+      if (runs === 0) {
+        for (const id of cardsInPlay(s, s.turnPlayer)) pendTriggers(ctx, s, "turnEnd", id);
+        for (const id of cardsInPlay(s, other(s.turnPlayer))) pendTriggers(ctx, s, "opponentTurnEnd", id);
+      }
       // Effects written down earlier in the turn resolve here, before the
       // "at the end of the turn" skills the cards in play are triggering now.
       const due = fireDelayed(s, "turnEnd");
       // 7-4-4: if new "at the end of the turn" skills became pending, run the
       // End Phase again before the turn passes.
-      const again = s.pending.length > before && (s.continuations.endPhaseRuns as number | undefined ?? 0) < 5;
+      const again = s.pending.length > before && runs < 5;
       s.continuations.endPhaseRuns = ((s.continuations.endPhaseRuns as number | undefined) ?? 0) + 1;
       if (again) s.flow.unshift(...due, { op: "checkpoint" }, { op: "turn.endPhase" });
       else {

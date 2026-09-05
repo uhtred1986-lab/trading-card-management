@@ -822,8 +822,8 @@ export function setMode(s: GameState, ev: GameEvent[], id: string, mode: "active
   return true;
 }
 
-export function addEffect(s: GameState, ev: GameEvent[], e: Omit<ContinuousEffect, "id" | "createdTurn" | "ownerTurn">): ContinuousEffect {
-  const full: ContinuousEffect = { ...e, id: s.nextEffectId++, createdTurn: s.turn, ownerTurn: s.turnPlayer };
+export function addEffect(s: GameState, ev: GameEvent[], e: Omit<ContinuousEffect, "id" | "createdTurn" | "ownerTurn" | "master"> & { master?: PlayerId }): ContinuousEffect {
+  const full: ContinuousEffect = { ...e, master: e.master ?? s.turnPlayer, id: s.nextEffectId++, createdTurn: s.turn, ownerTurn: s.turnPlayer };
   s.effects.push(full);
   ev.push({ type: "effect", effect: full });
   return full;
@@ -831,6 +831,29 @@ export function addEffect(s: GameState, ev: GameEvent[], e: Omit<ContinuousEffec
 
 export function endEffects(s: GameState, until: ContinuousEffect["until"], forPlayer?: PlayerId): void {
   s.effects = s.effects.filter((e) => !(e.until === until && (forPlayer == null || e.ownerTurn === forPlayer)));
+}
+
+/**
+ * The two durations written from the controller's point of view rather than
+ * the turn's, expired as a turn opens (9-9):
+ *
+ * - **"until the end of your opponent's turn"** (`nextTurn`) ends as the
+ *   controller's own next turn begins.
+ * - **"until the start of your opponent's next turn"** (`opponentTurn`) ends
+ *   as that opponent's next turn begins.
+ *
+ * Both used to be read against the turn player *at the time the effect was
+ * made*, which is right only when the controller made it on their own turn. A
+ * [Counter] resolves on the opponent's turn by definition, so every effect one
+ * of those created outlasted its wording by a whole turn.
+ */
+export function endTurnRelativeEffects(s: GameState): void {
+  s.effects = s.effects.filter((e) => {
+    if (e.createdTurn >= s.turn) return true;
+    if (e.until === "nextTurn") return s.turnPlayer !== e.master;
+    if (e.until === "opponentTurn") return s.turnPlayer === e.master;
+    return true;
+  });
 }
 
 // ── prohibitions (20-14, 0-2-5) ────────────────────────────────────────────
@@ -984,8 +1007,13 @@ function ripe(s: GameState, d: DelayedEffect): boolean {
       return s.turn > d.createdTurn;
     case "yourNextTurn":
       return s.turn > d.createdTurn && s.turnPlayer === d.master;
+    // No "later than the turn it was written on" here, unlike `yourNextTurn`
+    // above: an effect scheduled *during* the opponent's turn — every [Counter]
+    // is — means the turn now under way, and requiring a later one made it skip
+    // that whole turn and wait for their next. The side test is the guard: on
+    // the master's own turn this is false anyway.
     case "opponentNextTurn":
-      return s.turn > d.createdTurn && s.turnPlayer !== d.master;
+      return s.turnPlayer !== d.master;
   }
 }
 

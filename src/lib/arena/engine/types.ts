@@ -290,6 +290,13 @@ export interface ContinuousEffect {
   until: "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "game";
   /** The turn player when the effect was created, so "for the turn" ends at the right End Phase. */
   ownerTurn: PlayerId;
+  /**
+   * Whose skill made it. The two turn-relative durations are written from the
+   * controller's point of view — "until the end of **your opponent's** turn" —
+   * so they are read against this, not against `ownerTurn`, which is only
+   * whose turn it happened to be at the time.
+   */
+  master: PlayerId;
   createdTurn: number;
 }
 
@@ -353,6 +360,13 @@ export type Trigger =
   | "mainStart"
   | "mainEnd"
   | "turnEnd"
+  /**
+   * 7-1: the same two moments from the other side of the table. "Your turn"
+   * on a card is its controller's turn, never the turn player's, so each
+   * wording is its own trigger and each is pended for one side only.
+   */
+  | "opponentTurnEnd"
+  | "opponentTurnStart"
   | "battleEnd"
   | "comboed"
   /**

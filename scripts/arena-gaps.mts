@@ -32,6 +32,8 @@ const TRIGGERS: Trigger[] = [
   "mainStart",
   "mainEnd",
   "turnEnd",
+  "opponentTurnEnd",
+  "opponentTurnStart",
   "battleEnd",
   "comboed",
   "opponentPlayed",

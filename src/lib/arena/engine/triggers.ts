@@ -42,6 +42,23 @@ export function keywordTriggers(sk: Skill, trigger: Trigger): boolean {
  */
 export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
   const t = (sk.cost + " " + sk.effect).toLowerCase();
+  /**
+   * The timing triggers name a moment, and a card may equally well *mention*
+   * that moment in the middle of an effect — "…, and at the end of the turn,
+   * flip all face-up cards in your life face down", which is a delayed effect
+   * and no trigger at all. 116 skills do exactly that, and every one of them
+   * was pending its whole skill again at every turn end. A trigger is the head
+   * of the sentence, so these are matched against the head and nothing else.
+   */
+  const head = sk.effect
+    .toLowerCase()
+    .trim()
+    // A validity condition may be printed in front of the trigger rather than
+    // before the colon — "If your Leader Card is red, at the end of your turn,
+    // …", or with the sets' own bar between them — and that is still the head
+    // of the sentence. A "when …" in front of it is not: that is the skill's
+    // own trigger, and what follows it is a delayed effect.
+    .replace(/^if [^,|]{0,90}[,|]\s*/, "");
   switch (trigger) {
     case "played":
       // 12-2: activating an Extra *is* playing it, and the sets print both.
@@ -81,12 +98,21 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       return /when this card (?:attacks and )?kos? (?:an opponent's|your opponent's|one of your opponent's|a) (?:battle card|card)/.test(t);
     case "leaderPlaced":
       return /when this card is placed in (?:your|a) leader area|when you place this card in (?:your|a) leader area/.test(t);
+    // 7-1: whose turn it is decides whether these happen at all, and "your" is
+    // the card's controller, never the turn player. One trigger covered both
+    // wordings and was pended for both players, so 164 cards that act "at the
+    // end of your turn" also acted at the end of the opponent's, and 13 that
+    // wait for the opponent's turn fired a turn early as well.
     case "turnEnd":
-      return /at the end of (?:your|the|your opponent's) turn/.test(t);
+      return /^at the end of (?:your|the|this) turn\b/.test(head);
+    case "opponentTurnEnd":
+      return /^at the end of your opponent'?s turn\b/.test(head);
+    case "opponentTurnStart":
+      return /^at the (?:beginning|start) of your opponent'?s turn\b/.test(head);
     case "mainStart":
-      return /at the (?:beginning|start) of (?:your|the) main phase/.test(t);
+      return /^at the (?:beginning|start) of (?:your|the) main phase\b/.test(head);
     case "opponentMainStart":
-      return /at the (?:beginning|start) of your opponent's main phase/.test(t);
+      return /^at the (?:beginning|start) of your opponent'?s main phase\b/.test(head);
     case "blockerUsed":
       return /when this card activates (?:its )?\[blocker\]/.test(t);
     // Both wordings are the same moment: "when **this card** in your life is
@@ -111,11 +137,11 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     case "addedToZEnergy":
       return /when this card is added to (?:your )?z-energy|when you add this card to your z-energy/.test(t);
     case "chargeStart":
-      return /at the (?:beginning|start) of (?:your|the) (?:turn|charge phase)/.test(t);
+      return /^at the (?:beginning|start) of (?:your|the|this) (?:turn|charge phase)\b/.test(head);
     case "dealtDamage":
       return /when this card deals damage|when you deal damage/.test(t);
     case "battleEnd":
-      return /at the end of (?:the|a|this) battle/.test(t);
+      return /^at the end of (?:the|a|this) battle\b/.test(head);
     case "comboed":
       return /when you use this card in a combo|when this card is used in a combo|when you combo with this card|when you (?:play|attack) or combo with this card|when this card in your hand is played or used in a combo/.test(t);
     // The card the opponent played is the subject, whichever way round the
@@ -150,11 +176,11 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     case "spiritBoostPaid":
       return /when you remove a marker from (?:this card|one of your unison cards?|your unison card)/.test(t) && /\[spirit boost\]/.test(t);
     case "offenseStart":
-      return /at the (?:beginning|start) of (?:your|the) offense step/.test(t);
+      return /^at the (?:beginning|start) of (?:your|the) offense step\b/.test(head);
     case "defenseStart":
-      return /at the (?:beginning|start) of (?:your|the) defense step/.test(t);
+      return /^at the (?:beginning|start) of (?:your|the) defense step\b/.test(head);
     case "damageStart":
-      return /at the (?:beginning|start) of (?:your|the) damage step/.test(t);
+      return /^at the (?:beginning|start) of (?:your|the) damage step\b/.test(head);
     default:
       return false;
   }
