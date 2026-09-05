@@ -1219,6 +1219,40 @@ that fail; a clause that compiles wrongly is invisible to every measure in the
 project. Anything the compiler records alongside its output — `reason` here —
 is a way to audit the compiled result against the text it came from.
 
+## Done: ground rule 5, done mechanically (5 Sep 2026)
+
+The same audit turned on the *filters*: for every compiled `choose`, does the
+filter carry every measure its own `reason` clause names? A measure the parser
+drops **widens** the selection, and nothing reports it. Two clean results and
+three findings.
+
+- **`notColors`** — "2 **non-black** Battle Cards in your opponent's Drop Area"
+  chose black ones as happily as any other. Worse, `filterFor` then threw the
+  whole filter away, because its "does this narrow anything?" test did not
+  count a measure that says what a card must *not* be. Both halves fixed.
+- **`notKeywords`** — "a blue **non-[Super Combo]** Battle Card", "a red
+  **non-[Field]** Extra Card". Read off the *printed* skills, which is what the
+  wording is about: a keyword an effect granted this turn does not make the
+  card one of these.
+- **`notToken`** (19-1-5) — and it has to be read *before* the token name, or
+  "non-token Battle Cards" is a token called "non".
+
+Clean, and worth recording so nobody audits them twice:
+
+- **Delayed effects.** Every compiled `delay` records its clause in `label`;
+  its timing and its scope agree with those words in every case. After the
+  turn-ownership round that is the answer one wants.
+- **Counts.** 101 selectors carry a count the text does not print, and every
+  one is the default of 1 for a phrase that names a single card — "the top card
+  of your deck", "your Leader", "\<Spike\>". No mis-sizing left after the
+  ≪Universe 6≫ fix.
+
+**The technique generalises past this project.** `arena:gaps` can only report
+clauses that *fail*; a clause that compiles wrongly is invisible to every
+measure here. Anything the compiler records alongside its output — `reason` on
+a choose, `label` on a delay — is a way to check the result against the text it
+came from, in bulk, without reading a single card by hand.
+
 ## Conventions worth keeping
 
 - Card text is **read, never interpreted**: if the compiler cannot read a

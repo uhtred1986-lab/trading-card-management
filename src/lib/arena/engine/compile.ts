@@ -509,7 +509,15 @@ function filterFor(phrase: string, area: ScriptArea | null): CardFilter | undefi
     f.monoColor ||
     // A colour narrows an energy area as much as any other: "your blue energy"
     // is not "your energy".
-    f.colors.length > 0;
+    f.colors.length > 0 ||
+    // A measure that says what a card must *not* be narrows just as much, and
+    // leaving these off the list threw the whole filter away — so "2 non-black
+    // Battle Cards" chose black ones as happily as any other.
+    f.notColors.length > 0 ||
+    f.notKeywords.length > 0 ||
+    f.token ||
+    f.notToken ||
+    f.faceUp;
   if (!narrows) return undefined;
   return f;
 }

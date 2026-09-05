@@ -4498,4 +4498,35 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.deepEqual(parseTarget("up to 1 card in your hand or Drop Area")?.areas, ["hand", "drop"]);
 }
 
+{
+  // Ground rule 5 done mechanically: a measure the clause names and the filter
+  // does not carry *widens* the selection. Found by checking every compiled
+  // `choose` against the clause its own `reason` records.
+
+  // "2 non-black Battle Cards in your opponent's Drop Area" chose black ones
+  // as happily as any other — and worse, `filterFor` threw the whole filter
+  // away, because "narrows" did not count a measure that says what a card
+  // must *not* be.
+  const notBlack = parseFilter("2 non-black Battle Cards");
+  assert.deepEqual(notBlack.notColors, ["Black"]);
+  assert.deepEqual(notBlack.colors, [], "the colour is not also read as one the card must have");
+  assert.ok(matches({ ...DEFS.V1, colors: ["Red"] }, notBlack));
+  assert.ok(!matches({ ...DEFS.V1, colors: ["Black"] }, notBlack));
+  assert.ok(parseTarget("up to 2 non-black Battle Cards in your opponent's Drop")?.filter, "…and the filter survives");
+
+  // "A blue non-[Super Combo] Battle Card": read off the printed skills, which
+  // is what the wording is about.
+  const notCombo = parseFilter("blue non-[super combo] Battle Card");
+  assert.deepEqual(notCombo.notKeywords, ["Super Combo"]);
+  assert.ok(!matches({ ...DEFS.V1, colors: ["Blue"], skill: "[Super Combo]" }, notCombo));
+  assert.ok(matches({ ...DEFS.V1, colors: ["Blue"], skill: "[Blocker]" }, notCombo));
+
+  // 19-1-5: "non-token" is the other way round, and has to be read before the
+  // token name — otherwise it is a token called "non".
+  const notToken = parseFilter("your opponent's non-token Battle Cards");
+  assert.ok(notToken.notToken);
+  assert.deepEqual(notToken.names, [], "not a token named \"non\"");
+  assert.ok(!matches({ ...DEFS.V1, type: "TOKEN" }, notToken));
+}
+
 console.log("verify-arena: all checks passed");

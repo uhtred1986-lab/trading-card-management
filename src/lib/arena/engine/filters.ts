@@ -6,8 +6,8 @@
  * lets the engine offer the right candidates for Evolve, Union, Z-Stack,
  * Z-Awaken and Swap without a compiled script.
  */
-import { baseType, hasCharacter, hasTrait } from "./cards";
-import type { CardDef, Color } from "./types";
+import { baseType, hasCharacter, hasKeyword, hasTrait, keywordOf } from "./cards";
+import type { CardDef, Color, KeywordSkill } from "./types";
 
 export interface CardFilter {
   colors: Color[];
@@ -23,6 +23,18 @@ export interface CardFilter {
   /** "Non-Leader card under this card" — the type it must *not* be. */
   notType: "LEADER" | "BATTLE" | "EXTRA" | "UNISON" | null;
   /**
+   * "2 **non-black** Battle Cards in your opponent's Drop Area": a colour the
+   * card must not have. Read as nothing, the phrase selected black cards too —
+   * a measure the parser drops widens the selection rather than narrowing it.
+   */
+  notColors: Color[];
+  /**
+   * "A blue **non-[Super Combo]** Battle Card", "a red **non-[Field]** Extra".
+   * Read off the printed skills, which is what the wording is about: a keyword
+   * an effect granted this turn does not make the card one of these.
+   */
+  notKeywords: KeywordSkill["name"][];
+  /**
    * "Face-up ≪Boujack Brigade≫ cards" (3-9-2-1). Unlike every other measure
    * here this one is about the *instance*, not the card, so `matches` cannot
    * answer it — `resolveSelector` checks it where the instance is known.
@@ -34,6 +46,8 @@ export interface CardFilter {
    * printed card of that name, so the type is carried with it.
    */
   token: boolean;
+  /** "Your opponent's **non-token** Battle Cards" (19-1-5): the other way round. */
+  notToken: boolean;
   /** Energy cost bounds, inclusive. */
   costMin: number | null;
   costMax: number | null;
@@ -54,7 +68,7 @@ const COLOR_WORDS: Record<string, Color> = { red: "Red", blue: "Blue", green: "G
 const TOKEN_STOP = new Set(["of", "your", "their", "the", "opponent's", "opponents", "up", "to", "and", "or", "all", "each", "other", "another"]);
 
 export function parseFilter(text: string): CardFilter {
-  const f: CardFilter = { colors: [], monoColor: false, multiColor: false, characters: [], notCharacters: [], traits: [], notTraits: [], names: [], type: null, notType: null, faceUp: false, token: false, costMin: null, costMax: null, powerMin: null, powerMax: null, powerRel: null, z: null };
+  const f: CardFilter = { colors: [], notColors: [], monoColor: false, multiColor: false, characters: [], notCharacters: [], traits: [], notTraits: [], names: [], notKeywords: [], type: null, notType: null, faceUp: false, token: false, notToken: false, costMin: null, costMax: null, powerMin: null, powerMax: null, powerRel: null, z: null };
   const t = text.replace(/&lt;/g, "<").replace(/&gt;/g, ">");
   for (const m of t.matchAll(/(non-)?<([^>]+)>/g)) (m[1] ? f.notCharacters : f.characters).push(m[2].trim());
   for (const m of t.matchAll(/(non-)?≪([^≫]+)≫/g)) (m[1] ? f.notTraits : f.traits).push(m[2].trim());
@@ -66,9 +80,21 @@ export function parseFilter(text: string): CardFilter {
   // (3-9-2-1). "Face down" is never a way a card is picked out, so only the
   // one direction is read.
   if (/\bface[- ]up\b/.test(lower)) f.faceUp = true;
-  for (const m of lower.matchAll(/\b(red|blue|green|yellow|black)\b/g)) {
+  // "Non-black Battle Cards": the colour is one the card must *not* have, and
+  // reading it as an ordinary colour word would invert the phrase.
+  for (const m of lower.matchAll(/\bnon-(red|blue|green|yellow|black)\b/g)) {
     const c = COLOR_WORDS[m[1]];
-    if (!f.colors.includes(c)) f.colors.push(c);
+    if (!f.notColors.includes(c)) f.notColors.push(c);
+  }
+  for (const m of lower.matchAll(/(non-)?\b(red|blue|green|yellow|black)\b/g)) {
+    if (m[1]) continue;
+    const c = COLOR_WORDS[m[2]];
+    if (!f.colors.includes(c) && !f.notColors.includes(c)) f.colors.push(c);
+  }
+  // "A blue non-[Super Combo] Battle Card" — a keyword the card must not have.
+  for (const m of lower.matchAll(/\bnon-\[([a-z0-9:\- ]+)\]/g)) {
+    const kw = keywordOf(m[1]);
+    if (kw && !f.notKeywords.includes(kw.name)) f.notKeywords.push(kw.name);
   }
   if (/\bz-(leader|battle|extra|unison)\b|\bz-card\b/.test(lower)) f.z = true;
   // "Choose 1 of your Earthling Tokens", "up to 2 Cell Jr. tokens in your
@@ -77,7 +103,11 @@ export function parseFilter(text: string): CardFilter {
   // spaces starts as early as it can, so it is bounded to three words and the
   // grammar in front of it is then dropped. "1 token with combo power" names
   // no token and must come out with nothing rather than with a name of "1".
-  const tok = /\b([a-z0-9'.-]+(?: [a-z0-9'.-]+){0,2}) tokens?\b/.exec(lower);
+  // "Your opponent's non-token Battle Cards" (19-1-5) is the other way round,
+  // and has to be read first — otherwise the name below takes "non-token" for
+  // a token called "non".
+  if (/\bnon-tokens?\b/.test(lower)) f.notToken = true;
+  const tok = f.notToken ? null : /\b([a-z0-9'.-]+(?: [a-z0-9'.-]+){0,2}) tokens?\b/.exec(lower);
   if (tok) {
     const words = tok[1].split(" ");
     while (words.length && (TOKEN_STOP.has(words[0]) || /^\d+$/.test(words[0]))) words.shift();
@@ -141,6 +171,7 @@ export function powerRelOk(f: CardFilter, power: number, own: number): boolean {
 export function matches(d: CardDef, f: CardFilter): boolean {
   if (f.z != null && d.type.startsWith("Z-") !== f.z) return false;
   if (f.token && d.type !== "TOKEN") return false;
+  if (f.notToken && d.type === "TOKEN") return false;
   if (f.type && baseType(d) !== f.type) return false;
   if (f.notType && baseType(d) === f.notType) return false;
   // Several colours in one description mean *either* of them — "blue, yellow
@@ -150,6 +181,8 @@ export function matches(d: CardDef, f: CardFilter): boolean {
   // all of them everywhere made every such filter match nothing at all.
   const colourOk = f.multiColor ? f.colors.every((c) => d.colors.includes(c)) : f.colors.some((c) => d.colors.includes(c));
   if (f.colors.length && !colourOk) return false;
+  if (f.notColors.some((c) => d.colors.includes(c))) return false;
+  if (f.notKeywords.some((k) => hasKeyword(d, k))) return false;
   if (f.monoColor && d.colors.length !== 1) return false;
   if (f.multiColor && d.colors.length < 2) return false;
   if (f.characters.length && !f.characters.some((c) => hasCharacter(d, c))) return false;
