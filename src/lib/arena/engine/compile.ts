@@ -1026,11 +1026,15 @@ function connective(clause: string): "skip" | "ifDone" | "ifNotDone" | "otherwis
   const t = clause.toLowerCase().replace(/[.,]$/, "").trim();
   if (/^otherwise$/.test(t)) return "otherwise";
   if (/^(?:if you do|if so|if you did)$/.test(t)) return "ifDone";
-  if (/^(?:if you don'?t|if not|if you didn'?t|if you do not)$/.test(t)) return "ifNotDone";
+  // "…your opponent may choose 1 of their Battle Cards and KO it. **If they
+  // don't**, …" — the same hinge as "if you don't", said about whoever the
+  // clause before it asked. 29 clauses, and each one failed a whole skill.
+  if (/^(?:if (?:you|they) don'?t|if not|if (?:you|they) didn'?t|if (?:you|they) do not|if they did not)$/.test(t)) return "ifNotDone";
+  if (/^(?:if they do|if they did)$/.test(t)) return "ifDone";
   // 20-12-3: after looking, the cards go back where they were; the order is
   // the player's and changes nothing the engine tracks.
   if (/^(?:put|place) (?:them|the rest|the remaining cards?|it) back(?: on top of (?:your|the|their) deck)?(?: in any order)?$/.test(t)) return "skip";
-  if (/^shuffle any (?:secret )?areas? you looked (?:through|at)$/.test(t)) return "skip";
+  if (/^shuffle any (?:secret )?areas? you looked (?:through|at)(?: with this skill)?$/.test(t)) return "skip";
   if (/^(?:additionally|then|so|and|also|after that|in addition)$/.test(t)) return "skip";
   // "Choose **and** activate 1 {Broly's Ring} from your deck" splits into a
   // bare "choose" and the action. The choosing is how that action picks its
@@ -1107,7 +1111,9 @@ function compileForEach(clause: string, c: Ctx): Op[] | null {
  */
 const TRAILING_QUALIFIER =
   // Some sets print "for the duration of turn", without the second article.
-  /\s+(?:for the (?:duration of (?:the )?)?(?:turn|battle|game)|for the rest of (?:the|this) turn|during (?:this|the) turn|this turn|until (?:the )?(?:end|start|beginning) of [a-z' ]+|in (?:all|any) areas?)$/;
+  // "During **that** turn" is the turn the sentence has been talking about,
+  // which is this one — the same duration said with a different pronoun.
+  /\s+(?:for the (?:duration of (?:the )?)?(?:turn|battle|game)|for the rest of (?:the|this) turn|during (?:this|the|that) turn|this turn|until (?:the )?(?:end|start|beginning) of [a-z' ]+|in (?:all|any) areas?)$/;
 
 /**
  * The clause with those tails removed.
@@ -1302,6 +1308,8 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
       return [{ op: "moveTo", target: rest, to: "drop", reveal: true }];
   }
   if (/^shuffle your deck(?: if you looked through it| afterwards?)?$/.test(t)) return [{ op: "shuffle" }];
+  // 20-12-3: a search of *their* deck is theirs to shuffle afterwards.
+  if (/^(?:your opponent|they) shuffles? (?:their|his|her) deck$/.test(t)) return [{ op: "shuffle", side: "opponent" }];
   // Revealing (20-11-2). Unlike looking, both players see the cards, and they
   // stay where they are — the clauses after it act on what was turned up.
   if ((m = /^(?:your opponent reveals|reveal) (?:your|their) hand$/.exec(t))) {
@@ -1415,7 +1423,31 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // "Only 1 {SS2 Trunks} can be played in your Battle Area" — a prohibition
   // that switches itself on once the card is there, which a [Permanent] can
   // say because the static layer asks again every time.
-  if ((m = /^only (\d+) (.+?) can be played in your battle area$/.exec(t))) {
+  // The same rule said three ways: "only 1 {SS2 Trunks} can be played in your
+  // Battle Area", "you can only have up to 1 {X} in play in your Battle Area",
+  // "only 1 copy of this card can be played in your Battle Area". Thirteen
+  // cards print one of the last two, and none of them was read.
+  //
+  // Order matters twice over: "copies of this card" has to be tried before the
+  // general form, which would take "copy of this card" for a description and
+  // fail on it; and the "you can only have" wording arrives with its "you can"
+  // already stripped off the front of `t`.
+  if (
+    (m = /^only (\d+) (?:copy|copies) of (this card) can be played in your battle area$/.exec(t)) ??
+    (m = /^only have up to (\d+) (.+?) in play in your battle area$/.exec(t)) ??
+    (m = /^only (\d+) (.+?) can be played in your battle area$/.exec(t))
+  ) {
+    // "Copies of this card" is the card's own name, which only the instance
+    // knows — `sameNameAsSelf` on the prohibition is how that is said.
+    if (m[2] === "this card") {
+      return [
+        {
+          op: "if",
+          cond: { kind: "count", sel: { side: "you", area: "battle", filter: parseFilter("") }, atLeast: Number(m[1]) },
+          then: [{ op: "forbid", what: "play", side: "you", until: "game", sameNameAsSelf: true }],
+        },
+      ];
+    }
     const filter = filterFor(m[2], null);
     if (!filter) return null;
     return [
@@ -2606,7 +2638,13 @@ export function describeScript(ops: Op[]): string {
         // played, not what plays. "You can't play …" is the player's version.
         const who = op.target ? describeRef(op.target) : op.side === "opponent" ? "your opponent" : "you";
         const what = op.target && op.what === "play" ? `be played${op.bySkill === true ? " by a skill" : op.bySkill === false ? " except by a skill" : ""}` : FORBIDDEN_IN_WORDS[op.what];
-        parts.push(`${who} can't ${what} for the ${op.until}`);
+        // Which cards the ban is about, when it is about cards rather than the
+        // player: "you can't play cards" said nothing about *which*.
+        const which = op.sameNameAsSelf ? "another copy of this card" : op.filter ? describeFilter(op.filter) : "";
+        // "…can't play **cards**" already names the object, so a description
+        // of *which* cards replaces that word rather than following it.
+        const verb = which ? what.replace(/\s+cards?$/, "") : what;
+        parts.push(`${who} can't ${verb}${which ? ` ${which}` : ""} for the ${op.until}`);
         break;
       }
       case "addMarker":

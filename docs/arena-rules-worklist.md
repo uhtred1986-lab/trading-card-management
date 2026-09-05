@@ -1253,6 +1253,35 @@ measure here. Anything the compiler records alongside its output — `reason` on
 a choose, `label` on a delay — is a way to check the result against the text it
 came from, in bulk, without reading a single card by hand.
 
+## Done: a batch off the top of the miss list (5 Sep 2026)
+
+Small ones, taken together. [Permanent] skills emitting a standing effect
+52.4 % → **53.0 %**.
+
+- **"Only 1 X can be played in your Battle Area"** is printed three ways, and
+  only the first was read: "you can **only have up to** 1 {X} in play in your
+  Battle Area" arrives with its "you can" already stripped off the front of
+  `t`, and "only 1 **copy of this card**" has to be tried *before* the general
+  form — which would otherwise take "copy of this card" for a description of
+  the cards and fail on it. Thirteen cards.
+- **"Your opponent shuffles their deck"** (20-12-3): a search of *their* deck
+  is theirs to shuffle.
+- **"during that turn"** is the turn the sentence has been talking about — the
+  same duration as "during this turn", said with a different pronoun.
+- **"shuffle any areas you looked through with this skill"**: the same
+  reminder the connective list already skipped, with three words on the end.
+- `describeScript` now says *which* cards a prohibition is about; "you can't
+  play cards" was the whole of it before.
+
+**Not done, and the reason.** "If they don't" (27 clauses) needs the thing
+before it to have been an *offer the opponent declined* — "your opponent **may**
+choose 1 of their Battle Cards and KO it. **If they don't**, …". The engine's
+`may` is the controller's decision; an optional action the **opponent** takes,
+with `chooser` on the offer itself, is a mechanism rather than a phrase, and it
+is the natural next piece. Reading "if they don't" without it would give the
+condition nothing to be the opposite of, which is the gap it already honestly
+reports.
+
 ## Conventions worth keeping
 
 - Card text is **read, never interpreted**: if the compiler cannot read a

@@ -4529,4 +4529,29 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.ok(!matches({ ...DEFS.V1, type: "TOKEN" }, notToken));
 }
 
+{
+  // 20-14: one rule the sets print three ways, and only the first was read.
+  const read = (text: string) => compileSkill(parseSkills(text)[0]);
+  for (const text of [
+    "[Permanent] Only 1 {Speedy Entrance Cheelai} can be played in your Battle Area.",
+    "[Permanent] You can only have up to 1 {Speedy Entrance Cheelai} in play in your Battle Area.",
+    "[Permanent] Only 1 copy of this card can be played in your Battle Area.",
+  ]) {
+    const sc = read(text);
+    assert.deepEqual(sc.unsupported, [], text);
+    assert.equal(sc.ops[0].op, "if");
+  }
+  // "Copies of **this card**" is the card's own name, which only the instance
+  // knows — and it has to be read before the general form, which would take
+  // "copy of this card" for a description of the cards and fail on it.
+  const copies = read("[Permanent] Only 1 copy of this card can be played in your Battle Area.");
+  assert.equal(describeScript(copies.ops), "if there is 1 or more in your battle: you can't play another copy of this card for the game");
+
+  // 20-12-3: a search of *their* deck is theirs to shuffle afterwards.
+  assert.deepEqual(read("[Auto] When you play this card, your opponent shuffles their deck.").ops, [{ op: "shuffle", side: "opponent" }]);
+
+  // "During **that** turn" is the turn the sentence has been talking about.
+  assert.deepEqual(read("[Auto] When you play this card, this card gets +5000 power during that turn.").unsupported, []);
+}
+
 console.log("verify-arena: all checks passed");
