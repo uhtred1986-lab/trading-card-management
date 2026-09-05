@@ -19,14 +19,14 @@ Measured on the 6,493 Dragon Ball Super (not Fusion World) cards:
 
 | measure | value | command |
 |---|---|---|
-| resolvable skills the compiler reads end-to-end | 80.4 % of 11,485 | `npm run arena:coverage` |
-| [Permanent] skills applied by the static layer | 50.4 % of 1,848 | same |
-| skills in the owner's 12 decks that compile | 89.5 % of 354 | same (deck tables) |
-| skills exactly one unreadable clause away | 1,400 | `npm run arena:gaps` |
+| resolvable skills the compiler reads end-to-end | 81.3 % of 11,485 | `npm run arena:coverage` |
+| [Permanent] skills applied by the static layer | 52.7 % of 1,848 | same |
+| skills in the owner's 12 decks that compile | 89.8 % of 354 | same (deck tables) |
+| skills exactly one unreadable clause away | 1,344 | `npm run arena:gaps` |
 | "If …:" skill costs the compiler cannot read | 173 of 2,500 | probe in §5.3 |
 | fuzzer | 40 games, 0 crashes | `npm run arena:fuzz 40` |
 
-Numbers as of 5 Sep 2026, after the three commits described at the end of
+Numbers as of 5 Sep 2026, after the commits described at the end of
 `docs/arena-rules-worklist.md`. Where they touch the backlog below, the item
 says what is left.
 
@@ -38,7 +38,7 @@ Arrival, Empower, Successor, Aegis, Revive, Rejuvenate, Alliance, Invoker,
 Heroic, Villainous, Servant, Limit, Once per turn, Energy-Exhaust). None of
 them goes through the text compiler or the referee.
 
-What is left is **text**: the effect sentences. 3,573 clauses on 2,151 cards
+What is left is **text**: the effect sentences. 3,340 clauses on 2,037 cards
 need only a phrase pattern (no new mechanism); the rest need one of the
 mechanisms in §6.
 
@@ -326,7 +326,14 @@ as "up to 1 of your energy to Active Mode" (the verb is lost in a split; look
 at `splitClauses` on "Draw 1 card, switch up to 1 of your energy to Active
 Mode, and add…"). Tests: energy counts and modes on both sides.
 
-### 6.4 Replacement effects — 184 cards / 233 clauses (9-10)
+### 6.4 Replacement effects — 9-10 · **the named wordings are done**
+
+> Done 5 Sep 2026. The mechanism was already there; what defeated it was the
+> word **"instead"**, which broke the anchor of every move pattern. `by` now
+> distinguishes the four printed causes (any / skill / ko / skillOrKo) and a
+> replacement can say the mode the card arrives in. Still open: "you may
+> choose both instead" (modal), and replacements that need a prompt when two
+> apply at once (9-10-2 — the first still wins, and the log says which).
 
 Mechanism exists: `parseWouldLeave` marks the clause, the next clause's move
 becomes the replacement (`replaceLeave`, hooked in `move`). Missing wordings:
@@ -367,7 +374,12 @@ Each new `ForbiddenAction`: add to the union in `types.ts`, to the `FORBIDDEN`
 line in `EFFECT_LANGUAGE`, to `compileProhibition` in `compile.ts`, and check
 it at the one place the action happens.
 
-### 6.6 Cost changes — 119 cards / 124 clauses (20-21)
+### 6.6 Cost changes — 20-21 · **the named wordings are done**
+
+> Done 5 Sep 2026: the orb-typed amount, the count amount, and the area bug
+> that made every "in your hand" reducer apply to cards in play instead.
+> Still open: **skill** costs (`orbTotals` in `engine.ts`), which no static
+> kind reaches yet — that is the last of the three shapes named below.
 
 `costReduction {what}` exists for "reduce the energy cost of this card in
 your hand by N". Missing: "Reduce the energy cost of a {Power Pole} by {r}"
@@ -424,7 +436,13 @@ call site (line with `parseConditionClause(clause, chaining)` in
 `if` op already has `else`). "Look at your opponent's hand" (BT10-004) →
 `look` with `side: "opponent"`, area hand, no move.
 
-### 6.10 Skill negation variants — 39 cards / 40 clauses (9-1-5)
+### 6.10 Skill negation variants — 9-1-5 · **two of three done**
+
+> Done 5 Sep 2026: `negateSkillsOfKind` ("that card's [Auto] skill") and
+> `negateOwnSkill` for the battle. Still open: the third shape, a
+> [Permanent] that negates over a *selector* (TB1-048) — `collectStatics` has
+> no `negateSkills` static kind, and `skillsNegated` would have to consult it
+> without recursing into the statics that produced it.
 
 "negate this skill for the battle" (BT29-058) — `negateOwnSkill` with
 `until: "battle"` (extend the union; `addEffect(... until: "battle")` — check

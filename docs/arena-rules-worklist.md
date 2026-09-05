@@ -357,6 +357,53 @@ that *do* compile before writing the pattern. `Selector.take` (a position) now
 exists precisely because `count` always means a choice, and the two had been
 conflated.
 
+## Done: §6.4, §6.6, §6.10 and the phrasing tail (5 Sep 2026, same branch)
+
+Five more commits on `feature/arena-compiler-next`, after merging `main` in
+(the duplicate 0023 migration was already reconciled there, so the merge was
+clean). Catalog **80.4 % → 81.3 %**; [Permanent] statics **50.4 % → 52.7 %**;
+the owner's decks **89.5 % → 89.8 %**; "1 clause in the way" **1,400 → 1,344**;
+clauses needing only a pattern **3,573 → 3,340**. 60 fuzzed games, 0 crashes.
+
+- **§6.4 replacement effects.** The mechanism was already built. What defeated
+  nearly every sentence using it was the word **"instead"** — it broke the
+  anchor of every move pattern, so "send it to the Warp" compiled and "send it
+  to the Warp instead" did not. `Replacement.by` also now distinguishes the
+  four printed causes rather than two, and may say the mode the card arrives
+  in.
+- **§6.6 cost changes.** Orb-typed amounts (`by {r}`), count amounts, and an
+  area bug that made every "in your hand" reducer select cards *in play* —
+  where a cost reduction can never matter.
+- **§6.10 skill negation.** `negateSkillsOfKind`, and "negate this skill for
+  the battle".
+- **Negating a play** (9-6), the largest single item on the "one clause away"
+  list at 29 skills: `resolvingPlay`, which also writes the two continuations
+  `resolvePlay` has read since the play rules were written and nothing ever
+  set.
+- **The phrasing tail**: the full-width dash after "choose one", "Battle Cards
+  **and** Unisons" as two areas, "it" meaning a trigger's subject rather than
+  this card, and instructions the *opponent* carries out (`choose.chooser`).
+
+**The lesson from the first half held, and got sharper.** Again most of the
+value was in clauses that compiled and were wrong, and this time three of them
+were in shared machinery rather than in one pattern:
+
+| where | what it did |
+|---|---|
+| `refFor`'s `IT` list contained "their" | "1 Battle Card from **their** Drop Area" resolved to whatever the trigger last named — a possessive read as a pronoun |
+| the `costReduction` pattern stripped "in your hand" | every reducer selected cards in play, emitted a static, and reduced nothing |
+| `negate (.*?)('s)? skills` has a lazy subject | "negate that card's **[Counter]** skills" silenced the whole card |
+
+Two of those were found only by probing a sentence that *did* compile, so the
+habit is worth stating plainly: when you pick a wording off the gap list, read
+what its neighbours in the same sentence already produce before adding
+anything. The gap report cannot show you a wrong reading.
+
+Related: three fields have now been found that the engine read and nothing ever
+wrote — `placeEnergy`, `continuations.playRest` and `continuations.playNegated`.
+Grepping for a name with no writer is a cheap way to find a finished mechanism
+waiting for a pattern.
+
 ## Conventions worth keeping
 
 - Card text is **read, never interpreted**: if the compiler cannot read a
