@@ -13,7 +13,7 @@ import { db } from "../src/db";
 import { DEFAULT_GAME } from "../src/lib/catalog/games";
 import { cards as cardsTable } from "../src/db/schema";
 import { compileCardCached, parseSkills, type CardDef } from "../src/lib/arena/engine";
-import { compileCostProgram, costIsOnlyOrbs, priceCondition } from "../src/lib/arena/engine/compile";
+import { compileCostProgram, costIsOnlyOrbs, priceCondition, stripNotes } from "../src/lib/arena/engine/compile";
 import { emitsStatic } from "../src/lib/arena/engine/state";
 import { autoTriggerMatches } from "../src/lib/arena/engine/triggers";
 import type { Trigger } from "../src/lib/arena/engine/types";
@@ -336,7 +336,10 @@ for (const d of defs) {
     if (!text) continue;
     const scripts = compileCardCached(d, side);
     for (const sk of parseSkills(text)) {
-      if (sk.kind !== "permanent" || !sk.effect.trim()) continue;
+      // A [Permanent] whose whole text is a parenthetical reminder emits
+      // nothing because there is nothing to emit, which is the compiler being
+      // right. Counting those made this measure 52 skills too pessimistic.
+      if (sk.kind !== "permanent" || !stripNotes(sk.effect).trim()) continue;
       const sc = scripts.bySkill[sk.index];
       if (!sc || sc.unsupported.length || emitsStatic(sc.ops)) continue;
       inerts++;

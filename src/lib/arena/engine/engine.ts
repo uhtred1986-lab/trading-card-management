@@ -1585,7 +1585,8 @@ function mainActions(ctx: EngineContext, s: GameState, p: PlayerId): LegalAction
 function canPlay(ctx: EngineContext, s: GameState, p: PlayerId, card: string): boolean {
   const d = def(ctx, s, card);
   if (s.players[p].battle.some((id) => has(ctx, s, id, "Unique") && face(ctx, s, id).name === d.name)) return false;
-  return !forbids(ctx, s, "play", { player: p, card });
+  // A play the player declares, which is what "except by skills" bans.
+  return !forbids(ctx, s, "play", { player: p, card, bySkill: false });
 }
 
 /**

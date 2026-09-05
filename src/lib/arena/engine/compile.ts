@@ -107,7 +107,7 @@ function inNameList(text: string, comma: number): boolean {
  * the end of the line — both used to leave a reminder behind as an
  * "unreadable" clause.
  */
-function stripNotes(text: string): string {
+export function stripNotes(text: string): string {
   let out = "";
   let depth = 0;
   for (const ch of text) {
@@ -801,7 +801,13 @@ function connective(clause: string): "skip" | "ifDone" | "ifNotDone" | "otherwis
   if (/^shuffle any (?:secret )?areas? you looked (?:through|at)$/.test(t)) return "skip";
   if (/^(?:additionally|then|so|and|also|after that|in addition)$/.test(t)) return "skip";
   // Reminders that restate a rule the engine already applies.
-  if (/^(?:you can't activate|this skill can only be activated|this card can't be played)/.test(t)) return "skip";
+  if (/^(?:you can't activate|this skill can only be activated)/.test(t)) return "skip";
+  // "This card can't be played" on its own is one of those. The forms that say
+  // *how* — "by skills from any area", "from any area except by skills" — are
+  // not: nothing else in the engine applies them, and skipping them here was
+  // why fifteen cards read cleanly and could still be fetched out of a Drop by
+  // any skill that liked the look of them. `compileProhibition` reads those.
+  if (/^this card can't be played/.test(t) && !/\bskills?\b/.test(t)) return "skip";
   // "You can activate this card's [Counter] skill from your hand" is where a
   // [Counter] skill is activated from anyway (4-3), so the sentence adds
   // nothing. The forms that *change* the cost are not this, and are left alone.
@@ -1585,6 +1591,25 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
   if (!target) return null;
   // "can't be KO'd by your opponent's skills" — who is stopped from doing it.
   const bySide: Side | undefined = /\bby your opponent'?s? skills?\b/.test(rest) ? "opponent" : /\bby your skills?\b/.test(rest) ? "you" : undefined;
+  // "This card can't be played by skills from any area", "…from any area
+  // except by skills" (20-14). Fifteen cards print one of these, and the moment
+  // that matters is always a *skill* reaching into the Drop or the deck for
+  // them, so which of the two it is decides everything. The forms that carve
+  // out an exception — "by skills other than its own", "with non-[Evolve]
+  // skills" — are left unread: an exception the engine gets wrong bans a play
+  // the card allows, and a gap here only means the card is playable as normal.
+  if (/^be played\b/.test(rest) && !/\bother than\b|\bnon-\[|\bexcept its own\b/.test(rest)) {
+    // "From any area" is not a duration and `durationOf` does not read it as
+    // one: the rule holds for the whole game, which is what makes it a
+    // property of the card rather than something a turn wears off.
+    if (/\bexcept by (?:card )?skills?\b|\bunless (?:it is |it's )?played by (?:card )?skills?\b/.test(rest)) {
+      return [{ op: "forbid", what: "play", until: "game", target, bySkill: false }];
+    }
+    if (/\b(?:by|with) (?:your |their )?(?:card )?skills?\b/.test(rest)) {
+      return [{ op: "forbid", what: "play", until: "game", target, bySkill: true }];
+    }
+    return null;
+  }
   if (/^attack\b/.test(rest)) return [{ op: "forbid", what: "attack", until, target }];
   if (/^be attacked\b/.test(rest)) return [{ op: "forbid", what: "beAttacked", until, target }];
   if (/^block\b/.test(rest)) return [{ op: "forbid", what: "block", until, target }];
@@ -2232,9 +2257,14 @@ export function describeScript(ops: Op[]): string {
       case "cannotAttack":
         parts.push(`${describeRef(op.target)} can't attack for the ${op.until}`);
         break;
-      case "forbid":
-        parts.push(`${op.target ? describeRef(op.target) : op.side === "opponent" ? "your opponent" : "you"} can't ${FORBIDDEN_IN_WORDS[op.what]} for the ${op.until}`);
+      case "forbid": {
+        // A rule aimed at a card reads the other way round: the card is what is
+        // played, not what plays. "You can't play …" is the player's version.
+        const who = op.target ? describeRef(op.target) : op.side === "opponent" ? "your opponent" : "you";
+        const what = op.target && op.what === "play" ? `be played${op.bySkill === true ? " by a skill" : op.bySkill === false ? " except by a skill" : ""}` : FORBIDDEN_IN_WORDS[op.what];
+        parts.push(`${who} can't ${what} for the ${op.until}`);
         break;
+      }
       case "addMarker":
         parts.push(`add ${describeAmount(op.n)} marker`);
         break;

@@ -268,7 +268,7 @@ export type Op =
    * cards, or a `side` for one about a player ("your opponent can't attack
    * with Battle Cards"), optionally narrowed by a filter.
    */
-  | { op: "forbid"; what: ForbiddenAction; until: Duration; target?: Ref; side?: Side; filter?: CardFilter; sameNameAsSelf?: boolean }
+  | { op: "forbid"; what: ForbiddenAction; until: Duration; target?: Ref; side?: Side; filter?: CardFilter; sameNameAsSelf?: boolean; bySkill?: boolean }
   | { op: "if"; cond: Cond; then: Op[]; else?: Op[] }
   /** "Choose one— ・A ・B" (20-2): the master picks one printed option. */
   | { op: "chooseMode"; modes: { label: string; ops: Op[] }[]; reason?: string }
@@ -857,7 +857,8 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
       case "play": {
         // 5-5-3: played by a skill, so no energy cost is paid — but a card
         // that may not be played may not be played by a skill either (20-14).
-        const targets = resolveRef(ctx, s, frame, op.target).filter((id) => !forbids(ctx, s, "play", { player: master, card: id }));
+        // 20-14: a skill doing the playing, which is the half fifteen cards ban.
+        const targets = resolveRef(ctx, s, frame, op.target).filter((id) => !forbids(ctx, s, "play", { player: master, card: id, bySkill: true }));
         if (!targets.length) break;
         const onto = op.onto ? resolveRef(ctx, s, frame, op.onto)[0] : undefined;
         const steps: FlowStep[] = [];

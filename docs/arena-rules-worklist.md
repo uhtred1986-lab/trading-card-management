@@ -787,6 +787,42 @@ Two traps caught by probing the *result* rather than the compile:
    "remove them from the game" with nothing to remove. A real sentence never
    carries on in lower case, which is the whole fix.
 
+## Done: the cards that could not be played, and were (5 Sep 2026)
+
+Fifteen cards print "This card can't be played by skills from any area" or its
+mirror, "…from any area except by skills". Both compiled cleanly and neither
+did anything, so a skill could fetch any of them out of a Drop, and a card that
+may *only* arrive by a skill could be played straight from the hand. Inert
+[Permanent]s 98 → 83; the static layer's "applied" figure 47.8 % → 48.3 %.
+
+Three things had to change, and the first is the interesting one:
+
+1. **`connective` was skipping the sentence as a reminder.** A rule listed
+   under "reminders that restate a rule the engine already applies" — except
+   the engine applied nothing. The skip now only covers "this card can't be
+   played" with no mention of skills. *A comment that says a rule is handled
+   elsewhere is a claim, and claims in comments are not tested.*
+2. **`Prohibition.bySkill`**, because the two wordings are opposites: one bans
+   the skill and leaves the player's play alone, the other bans the play and
+   leaves the skill alone. A rule that names one says nothing about the other,
+   so an absent `bySkill` still covers both.
+3. **`ownProhibitions`**, a card's own [Permanent] bans read wherever the card
+   is (9-1-3-3). `staticEffects` covers play, the hand and the Z-Deck, which is
+   right for a skill about the board — but these cards say "from any area" on
+   purpose, and the moment that matters is a skill reaching into the *Drop*.
+   Widening the static layer to every area would put a fifty-card deck through
+   it on every call; this reads the one card being asked about.
+
+Left unread on purpose: "by skills other than its own" and "with non-[Evolve]
+skills". An exception the engine gets wrong bans a play the card allows, and a
+gap here only means the card stays as playable as it was.
+
+Also fixed the measure itself: a [Permanent] whose whole text is a parenthetical
+reminder emits nothing because there is nothing to emit, and counting those made
+the inert figure 4 skills too pessimistic. What remains in that bucket is mostly
+deck-construction ("you can't include … in your deck"), which is 6-1 and not a
+rule of play — worth excluding next time this measure is touched.
+
 ## Conventions worth keeping
 
 - Card text is **read, never interpreted**: if the compiler cannot read a

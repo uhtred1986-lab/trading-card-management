@@ -601,9 +601,9 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
       const player = op.side && op.side !== "both" ? sideOf(master, op.side)[0] : undefined;
       const name = op.sameNameAsSelf ? face(ctx, s, source).name : undefined;
       if (op.target) {
-        for (const id of staticTargets(ctx, s, frame, op.target)) out.push({ source, kind: "forbid", target: id, value: { what: op.what, player } });
+        for (const id of staticTargets(ctx, s, frame, op.target)) out.push({ source, kind: "forbid", target: id, value: { what: op.what, player, bySkill: op.bySkill } });
       } else {
-        out.push({ source, kind: "forbid", target: "", value: { what: op.what, player, filter: op.filter, name } });
+        out.push({ source, kind: "forbid", target: "", value: { what: op.what, player, filter: op.filter, name, bySkill: op.bySkill } });
       }
       continue;
     }
@@ -842,15 +842,53 @@ export function endEffects(s: GameState, until: ContinuousEffect["until"], forPl
  * `card` is what the action is about — the attacker, the card being played,
  * the card that would switch to Active Mode. `player` is who is acting.
  */
-export function forbids(ctx: GameContext, s: GameState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string } = {}): boolean {
+/**
+ * A card's own [Permanent] prohibitions, read wherever the card is (9-1-3-3).
+ *
+ * `staticEffects` reads the areas whose skills are ordinarily valid — play, the
+ * hand and the Z-Deck — and that is right for a skill about the board. The
+ * cards that forbid their *own* play say "from any area" on purpose, and the
+ * moment that matters is a skill reaching into the Drop or the deck for them,
+ * where nothing would have read the skill at all. Rather than widen the static
+ * layer to every area for every card, which would put a fifty-card deck through
+ * it on each call, this reads the one card being asked about.
+ */
+function ownProhibitions(ctx: GameContext, s: GameState, card: string): Prohibition[] {
+  const inst = s.cards[card];
+  if (!inst || inst.hidden || skillsNegated(s, card)) return [];
+  const d = def(ctx, s, card);
+  const side = inst.flipped && d.back ? "back" : "front";
+  const scripts = compileCardCached(d, side);
+  const out: Prohibition[] = [];
+  for (const sk of skillsOf(d, side)) {
+    if (sk.kind !== "permanent" || skillNegated(s, card, sk.index, sk.kind)) continue;
+    const sc = scripts.bySkill[sk.index];
+    if (!sc || sc.unsupported.length) continue;
+    for (const op of sc.ops) {
+      // Only a rule the card states about itself, and only the ones it means to
+      // hold everywhere: anything aimed at other cards is the static layer's.
+      if (op.op !== "forbid" || op.until !== "game" || op.bySkill === undefined) continue;
+      if (!op.target || !("sel" in op.target) || op.target.sel.special !== "self") continue;
+      out.push({ what: op.what, bySkill: op.bySkill });
+    }
+  }
+  return out;
+}
+
+export function forbids(ctx: GameContext, s: GameState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean } = {}): boolean {
   const rules: { target: string; forbid: Prohibition }[] = [];
   for (const e of s.effects) if (e.kind === "forbid" && e.forbid) rules.push({ target: e.target, forbid: e.forbid });
   // A prohibition printed as a [Permanent] skill holds while the card is in
   // play, with no duration to expire (9-5-1).
   for (const e of staticEffects(ctx, s)) if (e.kind === "forbid") rules.push({ target: e.target, forbid: e.value as Prohibition });
+  // 9-1-3-3: and the card's own, wherever it is — see `ownProhibitions`.
+  if (opts.card) for (const f of ownProhibitions(ctx, s, opts.card)) rules.push({ target: opts.card, forbid: f });
 
   for (const { target, forbid: f } of rules) {
     if (f.what !== what) continue;
+    // "By skills" and "except by skills" are opposite halves of one wording,
+    // and a rule that names one of them says nothing about the other.
+    if (f.bySkill !== undefined && opts.bySkill !== undefined && f.bySkill !== opts.bySkill) continue;
     // A rule about one card only applies to that card.
     if (target && target !== opts.card) continue;
     if (f.player && opts.player && f.player !== opts.player) continue;

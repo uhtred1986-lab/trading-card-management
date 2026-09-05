@@ -4024,4 +4024,40 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.deepEqual(splitClauses("Draw 1 card. Choose 1 of your Battle Cards.").length, 2, "a real sentence still splits");
 }
 
+{
+  // 20-14: "This card can't be played by skills from any area". The moment
+  // that matters is a skill reaching into the Drop for the card, where its own
+  // [Permanent] would never have been read — a card in the Drop is not in an
+  // area the static layer covers, which is why this is checked on the card
+  // itself rather than through `staticEffects`.
+  DEFS.NOSKILLPLAY = { ...DEFS.V1, id: "NOSKILLPLAY", name: "NOSKILLPLAY", energyCost: 1, skill: "[Permanent] This card can't be played by skills from any area." };
+  DEFS.ONLYSKILLPLAY = { ...DEFS.V1, id: "ONLYSKILLPLAY", name: "ONLYSKILLPLAY", energyCost: 1, skill: "[Permanent] This card can't be played from any area except by skills." };
+  DEFS.DROPCALLER = { ...DEFS.V1, id: "DROPCALLER", name: "DROPCALLER", energyCost: 1, skill: "[Auto] When you play this card, play up to 1 card from your drop area." };
+
+  let s = arena({ hand: ["DROPCALLER", "NOSKILLPLAY", "ONLYSKILLPLAY"], energy: ["V1", "V1"] });
+  const ctx = { defs: DEFS };
+  const banned = find(s, "p1", "hand", "NOSKILLPLAY");
+  const onlyBySkill = find(s, "p1", "hand", "ONLYSKILLPLAY");
+  // The one that may only be played by a skill is not offered as a play.
+  const labelsNow = labels(s);
+  assert.ok(!labelsNow.some((x) => x.includes("ONLYSKILLPLAY")), "20-14: not a play the player may declare");
+  assert.ok(labelsNow.some((x) => x.includes("NOSKILLPLAY")), "…while the other bans only the skill, so the player may still play it");
+
+  // Now put both in the Drop and let a skill try to fetch one.
+  move(ctx, s, [], banned, "drop", "p1");
+  move(ctx, s, [], onlyBySkill, "drop", "p1");
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "DROPCALLER") });
+  assert.equal(s.prompt.kind, "chooseCards", "the skill asks which card to play");
+  // The choice is offered over the area, and the prohibition is applied when
+  // the play itself is attempted — so the test is what happens, not what was
+  // listed. Picking the banned card leaves it exactly where it was.
+  const tried = play(s, { type: "choose", player: "p1", cards: [banned] });
+  assert.ok(tried.players.p1.drop.includes(banned), "20-14: a skill can't play it, even out of the Drop");
+  assertConsistent(tried);
+  // The other way round: a skill is the only way that one can be played.
+  const allowed = play(s, { type: "choose", player: "p1", cards: [onlyBySkill] });
+  assert.ok(allowed.players.p1.battle.includes(onlyBySkill), "…and its own ban is on the player, not the skill");
+  assertConsistent(allowed);
+}
+
 console.log("verify-arena: all checks passed");

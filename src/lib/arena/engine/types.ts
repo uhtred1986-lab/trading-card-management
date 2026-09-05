@@ -262,6 +262,13 @@ export interface Prohibition {
   filter?: CardFilter;
   /** Cards with this exact name — "you can't play copies of this card". */
   name?: string;
+  /**
+   * Whether the ban is on a skill doing it or on the player doing it plainly:
+   * "this card can't be played by skills from any area" is `true`, "…can't be
+   * played from any area except by skills" is `false`, and a bare prohibition
+   * leaves it absent and covers both.
+   */
+  bySkill?: boolean;
 }
 
 /** A continuous effect (9-9) with a duration. */
