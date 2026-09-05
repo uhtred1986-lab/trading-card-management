@@ -222,6 +222,8 @@ function refFor(clause: string, c: Ctx): Ref | null {
   // played card": the card this skill just played, if it played one; otherwise
   // the card the trigger was about ("When you play a <Goku> card, …").
   if (/\bthe played card\b|\bthe card (?:that was )?played\b/i.test(clause)) return c.last ? { var: c.last } : { sel: { special: "subject" } };
+  // "Add a marker to the chosen card": the last choice.
+  if (/\bthe chosen cards?\b/i.test(clause)) return c.last ? { var: c.last } : c.lastTarget;
   if (IT.test(clause.toLowerCase())) {
     if (c.lastTarget) return c.lastTarget;
     if (c.last) return { var: c.last };
@@ -392,6 +394,7 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   if (/^you (?:chose to )?play(?:ed)? (?:a|1 or more|any|one or more) (?:battle )?cards?(?: this way)?$/.test(t)) return { cond: { kind: "did", what: "play" } };
   if (/^you negated (?:a|your opponent's) leader(?: card)?'s attack(?: with this skill)?$/.test(t)) return { cond: { kind: "did", what: "negateLeaderAttack" } };
   if (/^you negated (?:an|the|that) attack(?: with this skill)?$/.test(t)) return { cond: { kind: "did", what: "negateAttack" } };
+  if (/^you ko'?d (?:a|1 or more|any|one or more) (?:battle )?cards?(?: (?:this way|with this skill))?$/.test(t)) return { cond: { kind: "did", what: "ko" } };
   // "If your opponent's Leader Card's back is facing up" — awakened (22-2).
   if ((m = /^(your|your opponent's) leader(?: card)?'s back is facing up$/.exec(t))) {
     return { cond: { kind: "leaderFlipped", ...(m[1] === "your" ? {} : { side: "opponent" as const }) } };
@@ -643,7 +646,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // Discard (20-7).
   if ((m = /^your opponent discards (\d+) cards?(?: from their hand)?$/.exec(t))) return [{ op: "discard", n: Number(m[1]), side: "opponent" }];
   // "Your opponent sends 1 card from their hand to their Warp" — a discard that ends elsewhere (20-7).
-  if ((m = /^your opponent (?:sends|places) (\d+) cards? from their hand (?:to|in|into) their warp$/.exec(t))) return [{ op: "discard", n: Number(m[1]), side: "opponent", to: "warp" }];
+  if ((m = /^your opponent (?:sends|places) (\d+) cards? from their hand (?:to|in|into) (?:their|its owner's) warp$/.exec(t))) return [{ op: "discard", n: Number(m[1]), side: "opponent", to: "warp" }];
   if ((m = /^(?:send|place) (\d+) cards? from your hand (?:to|in|into) your warp$/.exec(t))) return [{ op: "discard", n: Number(m[1]), to: "warp" }];
   if ((m = /^discard (\d+) cards?(?: from your hand)?$/.exec(t))) return [{ op: "discard", n: Number(m[1]) }];
   if ((m = /^your opponent chooses (\d+) cards? (?:in|from) their hand$/.exec(t))) return [{ op: "discard", n: Number(m[1]), side: "opponent" }];
@@ -659,7 +662,9 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   if ((m = /^deal (\d+) damage to (?:your opponent|your opponent's life|them)$/.exec(t))) return [{ op: "damage", n: Number(m[1]), side: "opponent" }];
 
   // Deck manipulation.
-  if ((m = /^place (?:up to )?(\d+) cards? from the top of your deck in (?:your |its owner's |the )?drop(?: area)?$/.exec(t))) return [{ op: "mill", n: Number(m[1]) }];
+  if ((m = /^place (?:up to )?(\d+) cards? from the top of (your|your opponent's) deck in (?:your |their |its owner's |the )?drop(?: area)?$/.exec(t))) return [{ op: "mill", n: Number(m[1]), ...(m[2] === "your" ? {} : { side: "opponent" as const }) }];
+  // "Draw cards until you have 4 cards in your hand".
+  if ((m = /^draw cards until you have (\d+) cards? in your hand$/.exec(t))) return [{ op: "draw", n: { handUpTo: Number(m[1]) } }];
   // "Place the top card of your deck in your Drop Area", "your opponent places
   // the top 2 cards of their deck in their Drop Area" — the same move, either side.
   if ((m = /^(your opponent places|place) the top (?:(\d+) )?cards? of (your|their|your opponent's) deck (?:in|into) (?:your|their|its owner's|the) drop(?: area)?$/.exec(t))) {
@@ -1411,6 +1416,7 @@ function describeAmount(a: Amount): string {
   if (typeof a === "number") return `${a}`;
   if ("var" in a) return "that many";
   if ("sumPower" in a) return "the total power of the cards rested";
+  if ("handUpTo" in a) return `up to ${a.handUpTo} in hand`;
   return `${a.times ?? 1} for each of ${describeEach(a.count)}`;
 }
 
@@ -1477,7 +1483,7 @@ function describeCond(c: Cond): string {
     case "leaderFlipped":
       return `${c.side === "opponent" ? "their" : "your"} leader ${c.flipped === false ? "has not" : "has"} awakened`;
     case "did":
-      return c.what === "addToHand" ? "you added a card to your hand" : c.what === "play" ? "you played a card" : c.what === "negateLeaderAttack" ? "you negated a Leader's attack" : "you negated the attack";
+      return c.what === "addToHand" ? "you added a card to your hand" : c.what === "play" ? "you played a card" : c.what === "negateLeaderAttack" ? "you negated a Leader's attack" : c.what === "ko" ? "you KO'd a card" : "you negated the attack";
     case "not":
       return `not (${describeCond(c.cond)})`;
     case "power": {

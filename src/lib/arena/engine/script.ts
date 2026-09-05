@@ -77,7 +77,9 @@ export type Amount =
   | { var: string }
   | { count: Selector; times?: number }
   /** The total power of the cards bound to a name — "the cards switched to Rest Mode by this skill" ([Alliance], 22-32). */
-  | { sumPower: { var: string } };
+  | { sumPower: { var: string } }
+  /** "Draw cards until you have 4 cards in your hand": however many that takes, never fewer than none. */
+  | { handUpTo: number };
 
 export type Ref = { var: string } | { sel: Selector };
 
@@ -101,7 +103,7 @@ export type Cond =
   /** "If this card's power is 30000 or more" — any of the selected cards, as it stands now. */
   | { kind: "power"; sel: Selector; atLeast?: number; atMost?: number }
   /** "If you added a card to your hand", "if you played a card" — whether an earlier step of this same skill did that. */
-  | { kind: "did"; what: "addToHand" | "play" | "negateAttack" | "negateLeaderAttack" }
+  | { kind: "did"; what: "addToHand" | "play" | "negateAttack" | "negateLeaderAttack" | "ko" }
   /** "If you don't" (20-16): the opposite of a condition. */
   | { kind: "not"; cond: Cond }
   | { kind: "chose"; var: string }
@@ -228,7 +230,7 @@ export interface ScriptFrame {
   /** Set while a `choose` is waiting for an answer. */
   awaiting?: string;
   /** What this program has done so far, for "if you added a card to your hand" (20-16). */
-  did?: { addToHand?: boolean; play?: boolean; negateAttack?: boolean; negateLeaderAttack?: boolean };
+  did?: { addToHand?: boolean; play?: boolean; negateAttack?: boolean; negateLeaderAttack?: boolean; ko?: boolean };
 }
 
 /** How each timing reads in the log when the card text does not say it better. */
@@ -405,7 +407,12 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
           if (has(ctx, s, id, "Indestructible") && s.cards[id].owner !== master) continue;
           // 20-14: the same thing spelled out on the card rather than keyworded.
           if (forbids(ctx, s, "beKOdBySkill", { player: master, card: id })) continue;
-          if (areaOf(s, id) === "battle") koCard(ctx, s, ev, id, frame.card);
+          if (areaOf(s, id) === "battle") {
+            const before = s.players[s.cards[id].owner].drop.length;
+            koCard(ctx, s, ev, id, frame.card);
+            // "If you KO'd a card" (20-16): only a KO that happened counts.
+            if (s.players[s.cards[id].owner].drop.length > before) (frame.did ??= {}).ko = true;
+          }
         }
         break;
 

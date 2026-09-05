@@ -2365,4 +2365,24 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.deepEqual(ops("[Awaken] When your life is at 4 or less: Draw 1 card and flip this card over."), ["draw"]);
 }
 
+{
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+  assert.deepEqual(one("[Auto] When you play this card, draw cards until you have 4 cards in your hand.").ops, [{ op: "draw", n: { handUpTo: 4 } }]);
+  assert.deepEqual(one("[Auto] When you play this card, place 2 cards from the top of your opponent's deck in their Drop Area.").ops, [{ op: "mill", n: 2, side: "opponent" }]);
+  const marked = one("[Auto] When you play this card, choose 1 of your Battle Cards. Add a marker to the chosen card.");
+  assert.deepEqual(marked.unsupported, []);
+  assert.deepEqual(marked.ops[1], { op: "addMarker", target: { var: "c0" }, n: 1 });
+  const kod = one("[Auto] When you play this card, choose up to 1 of your opponent's Battle Cards with 10000 power or less and KO it. If you KO'd a card, draw 1 card.");
+  assert.deepEqual(kod.unsupported, []);
+  assert.deepEqual((kod.ops[kod.ops.length - 1] as { cond: unknown }).cond, { kind: "did", what: "ko" });
+  assert.ok(autoTriggerMatches(parseSkills("[Auto] When you Combo with this card, draw 1 card.")[0], "comboed"));
+
+  // "Draw until you have 4" draws what is missing, and nothing when there is nothing missing.
+  DEFS.REFILL = { ...DEFS.V1, id: "REFILL", name: "REFILL", energyCost: 1, skill: "[Auto] When you play this card, draw cards until you have 4 cards in your hand." };
+  let s = arena({ hand: ["REFILL"], energy: ["V1"] });
+  for (const id of s.players.p1.hand.slice()) if (s.cards[id].cardId !== "REFILL") move({ defs: DEFS }, s, [], id, "deck", "p1", { position: "bottom" });
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "REFILL") });
+  assert.equal(s.players.p1.hand.length, 4);
+}
+
 console.log("verify-arena: all checks passed");

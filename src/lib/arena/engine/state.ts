@@ -324,6 +324,7 @@ export function amount(ctx: GameContext, s: GameState, frame: ScriptFrame, a: Am
   if (typeof a === "number") return a;
   if ("var" in a) return (frame.vars[a.var] ?? []).length;
   if ("sumPower" in a) return (frame.vars[a.sumPower.var] ?? []).reduce((t, id) => t + powerOf(ctx, s, id), 0);
+  if ("handUpTo" in a) return Math.max(0, a.handUpTo - s.players[frame.master].hand.length);
   return resolveSelector(ctx, s, frame, a.count).length * (a.times ?? 1);
 }
 

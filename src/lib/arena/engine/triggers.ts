@@ -67,7 +67,7 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     case "battleEnd":
       return /at the end of (?:the|a|this) battle/.test(t);
     case "comboed":
-      return /when you use this card in a combo|when this card is used in a combo/.test(t);
+      return /when you use this card in a combo|when this card is used in a combo|when you combo with this card/.test(t);
     case "energyToDrop":
       return /when a card in your energy is placed in (?:your|its owner's) drop/.test(t);
     case "unisonToDrop":
