@@ -91,7 +91,7 @@ the same style.
   pool is filtered to one game, so the model is never asked to reason across the two; only the
   scanner reads both at once, because a photo can hold a mix.
 - **Lot owner**: every `owned_cards` row records `owner` = the Basic Auth username
-  (`currentUser()` in `src/lib/auth.ts`, read from the `Authorization` header); null when the app
+  (`currentUser()` in `src/lib/auth/index.ts`, read from the `Authorization` header); null when the app
   runs open locally. Every path that creates lots (card page, bulk entry, scan batches, quick
   capture) stamps it — keep that true for new paths.
 - **Deck legality is a flag, never a block** (`src/lib/decks/legality.ts`). A deck saves in any
@@ -155,7 +155,11 @@ the same style.
   from `boardView`, which hides what the player may not see (3-1-3), and every tappable thing comes
   from the engine's `legalActions`, so the UI knows no rules. `npm run arena:playthrough` plays a
   whole game through the database, and `npm run arena:coverage` reports how much card text the
-  compiler reads.
+  compiler reads. Two motion-first arena clients are planned and not yet built — a rebuilt web board
+  and a native Android app — both fed by one server-side snapshot so neither ever evaluates a rule.
+  **`docs/arena-client-contract.md`** is what they share and is read first;
+  `docs/arena-ui-motion-spec.md` is the web board's brief and `docs/arena-android-spec.md` the
+  Android app's.
 - **Claude as the arena opponent** (`src/lib/arena/ai/`): `view.ts` builds what Claude may see —
   its own hand and decklist plus public state; your hand, life and decklist are never in the
   request. `opponent.ts` picks a number from the engine's legal-move list, so an answer can be
