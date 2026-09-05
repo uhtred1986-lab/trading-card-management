@@ -552,20 +552,23 @@ Still unread as *conditions*: "if all of your energy is black" (needs a
 `Cond {kind:"every", sel, filter}`) and "if this card has [Servant]"
 (`Cond {kind:"hasKeyword", sel, name}`; `has()` exists).
 
-### 6.14 Engine follow-ups noted while building the keywords
+### 6.14 Engine follow-ups — **the four fidelity items are done**
 
-- `{r}/{u}` is read as one orb of **any** colour (`orbsIn`, `cards.ts`). An
-  honest reading needs `Skill.energyCost.either: Color[][]` and a
-  `planPayment` that tries each colour. Low priority; noted in the code.
-- [Aegis]: if the player picks two cards that do not cover both colours, the
-  orbs are lost and nothing happens (`chooseApply` "aegis"). Better: filter
-  the second pick's candidates to the colour still missing.
-- [Alliance]: cards printing "When this card is switched to Rest Mode by an
-  [Alliance] skill" (BT28-069, BT28-070, BT28-071, BT7-004, EX04-01) need a
-  trigger `restedByAlliance` pended in `chooseApply` "alliance" for each
-  rested card.
-- [Invoker]: paying the alternative rests one Red/Blue energy; if the Extra's
-  own orb cost also needs that energy, `activatable` still offers it. Rare.
+> Done 5 Sep 2026, each with an engine test. `{r}/{u}` is an orb payable with
+> either named colour (`Skill.energyEither`, solved exactly by `planPayment`
+> trying each assignment of it rather than learning a new kind of
+> requirement); [Aegis] narrows what it offers so a non-covering pair cannot be
+> picked at all (`CardChoice.cover`); [Alliance] pends `restedByAlliance` on
+> the cards rested to pay for it; and [Invoker] leaves the energy it is about
+> to rest out of the check that the skill's own orbs can still be paid
+> (`planPayment`'s `exclude`).
+
+**Still approximate, and the one worth doing next here:** 9-10-2 gives the
+affected player the choice when several replacement effects apply at once.
+`replacementFor` takes the first and the log says which. Doing it properly
+means `move` being able to prompt, which it cannot — see the note in §6.4 and
+budget for it. Two replacements on one card needs a deck built to do it, which
+is why no fuzzed game has produced one.
 - The `choose` action accumulates picks for engine-side prompts with
   `max > 1` and offers "Done choosing" once `min` is met (`legalActions`
   `chooseCards`). The board (`src/components/arena/`) draws its buttons from

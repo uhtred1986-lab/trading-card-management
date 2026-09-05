@@ -525,6 +525,42 @@ the report (`TRIGGERS`, `costText`/`compileCostProgram`, `emitsStatic`), which
 is the only structural defence: when the two copies drift, the number quietly
 starts describing something else.
 
+## Done: rules fidelity, and one performance fix (5 Sep 2026)
+
+The owner's call: fix what plays *wrong* rather than what raises a percentage.
+§6.14 of the hand-off spec was the list, and all four are now done with engine
+tests. Only 9-10-2 is left approximate there, and it needs `move` to be able to
+prompt.
+
+- **`{r}/{u}`** was folded into "one orb of any colour", so it could be paid
+  with green. It is now `Skill.energyEither`, and `planPayment` solves it
+  *exactly* by trying each assignment of the either-orbs and reusing itself —
+  each way of settling them is an ordinary specified cost, so the planner never
+  had to learn a new kind of requirement.
+- **[Aegis]** let you pick two cards that did not cover both colours and then
+  ate the orbs; the code's own comment called that "the price of a mistake the
+  rules do not let you take back". 22-30-3 makes covering a *condition of
+  activating*, so the engine now narrows what it offers and a wrong pair cannot
+  be chosen.
+- **[Alliance]** never told the cards it rested; five cards print a trigger for
+  exactly that.
+- **[Invoker]** offered a price the same energy would have had to pay twice.
+
+Two things worth carrying:
+
+1. **The either-orb fix broke [Aegis]-style costs for an hour and a test caught
+   it.** Consolidating two near-identical "is this price only orbs?" helpers
+   was right, but the survivor did not strip the `/` of `{r}/{u}` — the copy I
+   deleted did. Consolidating duplicates is worth doing *and* is exactly when
+   to run the tests.
+2. **`locate` was 27 % of all engine time.** A CPU profile of 20 fuzzed games
+   put it above the state clone and the whole compiler. It scanned both
+   players' thirteen areas with the fifty-card deck first. Each state now keeps
+   a hint of where each card was last found, checked in O(1) before it is
+   trusted, so a mutation that bypasses `move` can only make it miss. 1,036 ms
+   → 71 ms. If you need more later, the state clone is the next cost and should
+   be left alone: it is what makes `apply` pure.
+
 ## Conventions worth keeping
 
 - Card text is **read, never interpreted**: if the compiler cannot read a
