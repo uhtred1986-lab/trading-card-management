@@ -73,9 +73,15 @@ mechanisms in §6.
    parser reads *wrongly* compiles cleanly and is never reported, so check what
    a new pattern's neighbours already do before adding it — five of the fixes
    on 5 Sep 2026 were of that kind, and are listed in the worklist.
-6. **Never edit source with `node -e` or `sed` templates that contain regex
-   escapes** — they get mangled. Use the editor. Temporary probe scripts are
-   fine (§5.4) but must be deleted before committing.
+6. **Never write a regex through a shell heredoc, `node -e`, or a `sed`
+   template.** The backslashes are eaten before the file is written: `\b`
+   becomes a literal backspace, `\[` becomes `[`, and the result either fails
+   to parse or — worse — silently matches something else. This applies to
+   **probe scripts as well as engine source**, which is the trap: a probe is
+   throwaway, so it feels safe to paste, and then it reports a clean run
+   because its pattern never matched anything. Write every file containing a
+   regex with the editor. Probe scripts are fine (§5.4) but must be deleted
+   before committing.
 7. **Before every commit:** `npm run typecheck`, `npm run lint`, `npm test`
    (includes `scripts/verify-arena.ts`), `npm run arena:fuzz 40` (must report
    `0 crashes`). Commit on the feature branch, push, do not merge.

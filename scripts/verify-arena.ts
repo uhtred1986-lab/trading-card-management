@@ -3536,4 +3536,93 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.deepEqual(one("[Auto] When this card attacks, draw 1 card for each of your Battle Cards.").ops.map((o) => o.op), ["draw"]);
 }
 
+// ── the keywords that had a rule and no test ───────────────────────────────
+
+{
+  // 22-40-2: [Servant] gets +10000 power and does not stand in its master's
+  // Charge Phase.
+  DEFS.SERV = { ...DEFS.V1, id: "SERV", name: "SERV", skill: "[Servant]" };
+  let s = arena({ battle: ["SERV"] });
+  const serv = s.players.p1.battle[0];
+  assert.equal(powerOf({ defs: DEFS }, s, serv), (DEFS.V1.power ?? 0) + 10000, "22-40-2: +10000");
+  s.cards[serv].mode = "rest";
+  // Round to p1's next Charge Phase.
+  s = play(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null }, { type: "endMain", player: "p2" });
+  assert.equal(s.turnPlayer, "p1");
+  assert.equal(s.cards[serv].mode, "rest", "22-40-2: and it stays rested through the Active Step");
+  assertConsistent(s);
+}
+
+{
+  // 22-14-3: a card with [Ultimate] leaving a Battle Area is removed from the
+  // game instead of going wherever it was headed.
+  DEFS.ULT = { ...DEFS.V1, id: "ULT", name: "ULT", skill: "[Ultimate]" };
+  const s = arena({ battle: ["ULT"] });
+  const ult = s.players.p1.battle[0];
+  koCard({ defs: DEFS }, s, [], ult);
+  assert.ok(s.players.p1.removed.includes(ult), "22-14-3: removed from the game");
+  assert.ok(!s.players.p1.drop.includes(ult), "not the Drop");
+  assertConsistent(s);
+}
+
+{
+  // 22-19-2: [Warrior of Universe 7] treats your Universe 7 cards as having no
+  // specified cost, so any colour of energy pays for them.
+  DEFS.WU7 = { ...DEFS.V1, id: "WU7", name: "WU7", skill: "[Warrior of Universe 7]" };
+  DEFS.U7GUY = { ...DEFS.V1, id: "U7GUY", name: "U7GUY", energyCost: 1, traits: ["Universe 7"], colors: ["Red"] };
+  // Without it, a red card needs red energy.
+  const bare = arena({ hand: ["U7GUY"], energy: ["V-BLUE"] });
+  assert.deepEqual(playCost({ defs: DEFS }, bare, find(bare, "p1", "hand", "U7GUY")).specified, { Red: 1 });
+  // With it in play, the specified cost is gone.
+  const helped = arena({ battle: ["WU7"], hand: ["U7GUY"], energy: ["V-BLUE"] });
+  assert.deepEqual(playCost({ defs: DEFS }, helped, find(helped, "p1", "hand", "U7GUY")).specified, {}, "22-19-2");
+  assert.ok(
+    acts(helped).some((a) => a.type === "play" && a.card === find(helped, "p1", "hand", "U7GUY")),
+    "so blue energy can pay for a red Universe 7 card",
+  );
+}
+
+{
+  // 22-35: [Heroic] pends when its owner plays *another* card with [Heroic].
+  // It was pended at index -1, where `resolveAuto` looks for a printed skill,
+  // finds none and gives up — so it never once fired.
+  DEFS.HERO = { ...DEFS.V1, id: "HERO", name: "HERO", energyCost: 1, skill: "[Heroic]" };
+  DEFS.VILL = { ...DEFS.V1, id: "VILL", name: "VILL", energyCost: 1, skill: "[Villainous]" };
+  let s = arena({ battle: ["HERO"], hand: ["HERO", "HERO"], energy: ["V1", "V1"] });
+  const hand = s.players.p1.hand.length;
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "HERO") });
+  // 22-35-3: draw 1. One card left the hand to be played, one came in.
+  assert.equal(s.players.p1.hand.length, hand, "22-35-3: the one in play drew a card");
+  // …and then negates itself for the turn. Playing a third one makes only the
+  // *second* pay out: one card in, one card played, so the hand is unchanged.
+  // Without the negation the first would draw again and it would be one up.
+  const after = s.players.p1.hand.length;
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "HERO") });
+  assert.equal(s.players.p1.hand.length, after, "22-35-3: each card pays out once a turn, not once per play");
+  assertConsistent(s);
+}
+
+{
+  // 22-35-2 / 22-36-2: each watches its *own* keyword. They used to
+  // cross-match, so playing a [Villainous] card set off every [Heroic].
+  let s = arena({ battle: ["HERO"], hand: ["VILL"], energy: ["V1"] });
+  const hand = s.players.p1.hand.length;
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "VILL") });
+  assert.equal(s.players.p1.hand.length, hand - 1, "a Villainous card is not another Heroic one");
+  assertConsistent(s);
+}
+
+{
+  // 22-36-3: [Villainous] makes the opponent drop a card — and 20-7 says which
+  // one is their choice, where the engine used to take the last in hand.
+  let s = arena({ battle: ["VILL"], hand: ["VILL"], energy: ["V1"], oppHand: ["BIG", "BIG"] });
+  const theirs = s.players.p2.hand.length;
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "VILL") });
+  assert.equal(s.prompt.kind, "chooseCards");
+  assert.equal(s.prompt.player, "p2", "20-7: their hand, their choice");
+  s = play(s, { type: "choose", player: "p2", cards: [s.players.p2.hand[0]] });
+  assert.equal(s.players.p2.hand.length, theirs - 1);
+  assertConsistent(s);
+}
+
 console.log("verify-arena: all checks passed");

@@ -334,13 +334,26 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         break;
 
       case "discard": {
-        // 20-7: the *owner* of the hand chooses which cards to discard.
+        // 20-7: the *owner* of the hand chooses which cards leave it. The
+        // comment here has said so from the beginning while the code took
+        // whatever was last in hand, which is not a choice at all — and for
+        // the opponent's hand it was not even the right player's.
+        //
+        // Rather than teach this op to prompt, it is rewritten into the ops
+        // that already know how: a `choose` the owner answers, then the move.
+        // `chooseMode` splices its option in the same way.
+        const n = amount(ctx, s, frame, op.n);
+        const spliced: Op[] = [];
         for (const p of sideOf(master, op.side)) {
-          const n = amount(ctx, s, frame, op.n);
-          const hand = s.players[p].hand;
-          for (let i = 0; i < n && hand.length; i++) move(ctx, s, ev, hand[hand.length - 1], op.to ?? "drop", p, { reason: "effect", reveal: true });
+          const who: Side = p === master ? "you" : "opponent";
+          const v = `discarded${frame.ip}${p}`;
+          spliced.push(
+            { op: "choose", sel: { side: who, area: "hand", count: n }, as: v, chooser: who, reason: `discard ${n} card${n === 1 ? "" : "s"}` },
+            { op: "moveTo", target: { var: v }, to: op.to ?? "drop", reveal: true },
+          );
         }
-        break;
+        frame.ops = [...frame.ops.slice(0, frame.ip), ...spliced, ...frame.ops.slice(frame.ip + 1)];
+        continue;
       }
 
       case "damage": {

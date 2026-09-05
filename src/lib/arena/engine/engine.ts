@@ -403,6 +403,11 @@ function checkpoint(ctx: EngineContext, s: GameState, ev: GameEvent[]): "done" |
 
 function resolveAuto(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PendingAuto): "done" | "wait" {
   const inst = s.cards[p.card];
+  // 22-35 / 22-36: [Heroic] and [Villainous] are pending skills with no
+  // printed line of their own, so they are pended at index -1 and there is no
+  // `Skill` to find. `resolveKeywordOrText` has always had a branch for them
+  // and nothing ever reached it — they were pended and then dropped here.
+  if (p.skillIndex === -1) return resolveHeroicVillainous(ctx, s, ev, p.card, p.master);
   const sk = skillsOfInstance(ctx, s, p.card).find((k) => k.index === p.skillIndex);
   if (!sk) return "done";
   // 9-6-11: the skill resolves even if the card moved, unless it became impossible.
@@ -602,11 +607,38 @@ function resolvePlay(ctx: EngineContext, s: GameState, ev: GameEvent[], card: st
   // "When your opponent plays a Battle Card": watched by every card the other
   // player has in play, with the played card as the subject.
   for (const id of cardsInPlay(s, other(p))) pendTriggers(ctx, s, "opponentPlayed", id, card);
-  // 22-35/36: Heroic/Villainous on other cards in play pend when a card with the keyword is played.
-  if (has(ctx, s, card, "Heroic") || has(ctx, s, card, "Villainous")) {
-    for (const id of cardsInPlay(s, p)) if (id !== card && (has(ctx, s, id, "Heroic") || has(ctx, s, id, "Villainous"))) s.pending.push({ card: id, skillIndex: -1, master: p, trigger: "played", subject: card });
+  // 22-35-2 / 22-36-2: each pends when its owner plays *another* card with the
+  // **same** keyword. They used to cross-match, so a [Villainous] card played
+  // set off every [Heroic] on the board.
+  for (const name of ["Heroic", "Villainous"] as const) {
+    if (!has(ctx, s, card, name)) continue;
+    for (const id of cardsInPlay(s, p)) {
+      if (id === card || !has(ctx, s, id, name) || skillNegated(s, id, -1)) continue;
+      s.pending.push({ card: id, skillIndex: -1, master: p, trigger: "played", subject: card });
+    }
   }
   s.flow.unshift({ op: "checkpoint" });
+  return "done";
+}
+
+/**
+ * 22-35-3 / 22-36-3: [Heroic] draws a card, [Villainous] makes the opponent
+ * drop one — and both then "negate the effects of this skill for the duration
+ * of the turn", so each card does it once a turn however many more are played.
+ * The pseudo-skill has no printed index, so the negation is recorded at -1.
+ */
+function resolveHeroicVillainous(ctx: EngineContext, s: GameState, ev: GameEvent[], card: string, master: PlayerId): "done" | "wait" {
+  if (skillNegated(s, card, -1)) return "done";
+  if (has(ctx, s, card, "Heroic")) {
+    draw(ctx, s, ev, master, 1);
+  } else if (has(ctx, s, card, "Villainous")) {
+    // 20-7: which card leaves a hand is its owner's choice, so this runs the
+    // ordinary discard rather than taking one off the end.
+    s.flow.unshift({ op: "script.step", frame: { ops: [{ op: "discard", n: 1, side: "opponent" }], ip: 0, vars: {}, card, master } });
+  } else {
+    return "done";
+  }
+  addEffect(s, ev, { target: card, kind: "negateSkill", value: -1, until: "turn" });
   return "done";
 }
 
@@ -615,16 +647,6 @@ function resolvePlay(ctx: EngineContext, s: GameState, ev: GameEvent[], card: st
 function resolveKeywordOrText(ctx: EngineContext, s: GameState, ev: GameEvent[], card: string, sk: Skill, master: PlayerId, trigger?: Trigger, subject?: string): "done" | "wait" {
   const k = sk.keyword;
   const inst = s.cards[card];
-  if (sk.index === -1) {
-    // Heroic / Villainous pseudo-skill.
-    if (has(ctx, s, card, "Heroic")) draw(ctx, s, ev, master, 1);
-    else if (has(ctx, s, card, "Villainous")) {
-      const opp = s.players[other(master)];
-      const drop = opp.hand[opp.hand.length - 1];
-      if (drop) move(ctx, s, ev, drop, "drop", other(master), { reason: "effect" });
-    }
-    return "done";
-  }
   if (k) {
     switch (k.name) {
       case "Attack":
