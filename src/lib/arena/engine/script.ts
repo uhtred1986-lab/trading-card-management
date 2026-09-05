@@ -146,7 +146,12 @@ export type Op =
   | { op: "lifeDownTo"; n: number; side?: Side }
   | { op: "shuffle"; side?: Side }
   | { op: "energyMarker"; n: Amount; side?: Side }
-  | { op: "choose"; sel: Selector; as: string; reason?: string }
+  /**
+   * `chooser` is who answers, when that is not the player whose skill this is:
+   * "your opponent sends 1 Battle Card from their Drop Area to their Warp"
+   * (20-7) is their choice to make, not yours.
+   */
+  | { op: "choose"; sel: Selector; as: string; reason?: string; chooser?: Side }
   /** `from` is the top of the deck unless the card says the bottom. */
   /** `area` is the deck unless it says otherwise — "look at your opponent's hand" (20-11). */
   | { op: "look"; n: Amount; as: string; side?: Side; from?: "top" | "bottom"; area?: ScriptArea }
@@ -458,7 +463,8 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         const asked = left === 1 ? "" : ` (${left} more)`;
         s.prompt = {
           kind: "chooseCards",
-          player: master,
+          // 20-7: whoever the card says chooses, chooses.
+          player: op.chooser ? sideOf(master, op.chooser)[0] : master,
           choice: {
             reason: (op.reason ?? `${face(ctx, s, frame.card).name}: choose ${op.sel.upTo ? `up to ${want}` : want}`) + asked,
             candidates: cands,

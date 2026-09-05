@@ -2888,4 +2888,56 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.deepEqual((one("[Auto] When this card attacks, it gets +5000 power for the turn.").ops[0] as { target: { sel?: { special?: string } } }).target.sel?.special, "self");
 }
 
+// ── an instruction carried out by the other player (20-7) ──────────────────
+
+{
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+
+  // The selectors already point at their cards, because the sentence said
+  // "their Drop Area"; what was missing was who picks which one.
+  const warp = one("[Auto] When this card attacks, your opponent sends 1 Battle Card from their Drop Area to their Warp.");
+  assert.deepEqual(warp.unsupported, []);
+  assert.deepEqual(warp.ops.map((o) => o.op), ["choose", "moveTo"]);
+  assert.equal((warp.ops[0] as { chooser?: string; sel: { side?: string } }).chooser, "opponent");
+  assert.equal((warp.ops[0] as { sel: { side?: string } }).sel.side, "opponent");
+
+  const bottom = one("[Auto] When this card is played, your opponent places 1 card from their hand at the bottom of their deck.");
+  assert.deepEqual(bottom.unsupported, []);
+  assert.equal((bottom.ops[0] as { chooser?: string }).chooser, "opponent");
+
+  // It is only a fallback: the patterns that read the subject themselves say
+  // it better. A hand card leaving for the Warp is a discard (20-7), and
+  // "your opponent discards 1 card" names no area for the rewrite to keep.
+  assert.deepEqual(one("[Auto] When this card attacks, your opponent sends 1 card from their hand to their Warp.").ops, [{ op: "discard", n: 1, side: "opponent", to: "warp" }]);
+  const delayed = one("[Auto] When you play this card, during your opponent's next turn, your opponent discards 1 card.");
+  assert.deepEqual((delayed.ops[0] as { ops: unknown[] }).ops, [{ op: "discard", n: 1, side: "opponent" }]);
+}
+
+{
+  // "Their" is a possessive far more often than a pronoun. Read as one, "1
+  // Battle Card from **their** Drop Area" became whatever the trigger had
+  // last named — here, this card.
+  const ref = compileSkill(parseSkills("[Auto] When this card attacks, your opponent sends 1 Battle Card from their Drop Area to their Warp.")[0]);
+  assert.notDeepEqual((ref.ops[1] as { target: unknown }).target, { sel: { special: "self" } }, "not this card");
+
+  // The engine side: the prompt goes to the player the card says chooses.
+  DEFS.EXILE = {
+    ...DEFS.V1,
+    id: "EXILE",
+    name: "EXILE",
+    energyCost: 1,
+    skill: "[Auto] When you play this card, your opponent places 1 card from their hand at the bottom of their deck.",
+  };
+  let s = arena({ hand: ["EXILE"], energy: ["V1"], oppHand: ["BIG", "BIG"] });
+  const theirHand = s.players.p2.hand.length;
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "EXILE") });
+  assert.equal(s.prompt.kind, "chooseCards");
+  assert.equal(s.prompt.player, "p2", "20-7: their card, their choice");
+  const pick = s.players.p2.hand[0];
+  s = play(s, { type: "choose", player: "p2", cards: [pick] });
+  assert.equal(s.players.p2.hand.length, theirHand - 1);
+  assert.equal(s.players.p2.deck[s.players.p2.deck.length - 1], pick, "and it went to the bottom of their deck");
+  assertConsistent(s);
+}
+
 console.log("verify-arena: all checks passed");

@@ -216,6 +216,7 @@ Operations (each is an object with "op"):
   {"op":"addLife","n":1} | {"op":"lifeDownTo","n":4}
   {"op":"shuffle"} | {"op":"energyMarker","n":1}
   {"op":"choose","sel":SELECTOR,"as":"t","reason":"..."}   binds the chosen cards to a name
+    add "chooser":"opponent" when the card says *they* choose ("your opponent sends 1 Battle Card…")
   {"op":"look","n":5,"as":"looked"}               top of your deck, seen only by you
   {"op":"reveal","sel":SELECTOR,"as":"revealed"}  shown to both players; the cards stay where they are
   {"op":"ko","target":TARGET}

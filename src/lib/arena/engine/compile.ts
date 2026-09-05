@@ -270,8 +270,15 @@ interface Ctx {
 /** "A marker", "an energy" — the article is the number one. */
 const countWord = (w: string) => (/^\d+$/.test(w) ? Number(w) : 1);
 
-/** Words that point back at whatever the previous clause acted on. */
-const IT = /\b(?:it|its|them|they|their|that card|those cards|the chosen cards?)\b/;
+/**
+ * Words that point back at whatever the previous clause acted on.
+ *
+ * "Their" is deliberately not one of them: it is a possessive far more often
+ * than a pronoun, so "1 Battle Card from **their** Drop Area" was read as
+ * whatever the trigger had last named. Every phrase that really does point
+ * back carries "it", "its", "them" or "they" as well.
+ */
+const IT = /\b(?:it|its|them|they|that card|those cards|the chosen cards?)\b/;
 
 function refFor(clause: string, c: Ctx): Ref | null {
   if (/\bthis card\b/i.test(clause)) return { sel: { special: "self" } };
@@ -686,6 +693,7 @@ function stripQualifiers(t: string): string {
  */
 const THIRD_PERSON: Record<string, string> = {
   places: "place",
+  puts: "put",
   sends: "send",
   returns: "return",
   adds: "add",
@@ -693,6 +701,20 @@ const THIRD_PERSON: Record<string, string> = {
   removes: "remove",
   discards: "discard",
 };
+
+/**
+ * "Your opponent sends 1 Battle Card from their Drop Area to their Warp"
+ * (20-7). The instruction is the same one, carried out by them on their own
+ * cards — the possessives in the rest of the sentence already say so — and the
+ * only thing that changes is who picks which card.
+ *
+ * Which is why `OPPONENT_POSSESSIVE` has to hold as well: "your opponent
+ * discards 1 card" names no area, so dropping the subject would drop the only
+ * thing that said whose hand it came from. Those wordings are read elsewhere,
+ * by patterns that keep the subject.
+ */
+const OPPONENT_DOES = /^your opponent (places|puts|sends|returns|adds|switches|removes)\s+/i;
+const OPPONENT_POSSESSIVE = /\btheir\b|\bits owner'?s?\b/i;
 
 /** Try to read one clause. Returns null when the wording is not understood. */
 function compileClause(clause: string, c: Ctx): Op[] | null {
@@ -755,7 +777,9 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // "Place the top card of your deck in your Drop Area", "your opponent places
   // the top 2 cards of their deck in their Drop Area" — the same move, either side.
   if ((m = /^(your opponent places|place) the top (?:(\d+) )?cards? of (your|their|your opponent's) deck (?:in|into) (?:your|their|its owner's|the) drop(?: area)?$/.exec(t))) {
-    const theirs = m[1] !== "place" || m[3] === "your opponent's";
+    // "Their deck" is the opponent's whichever way round the sentence is
+    // built, and the subject may have been dropped before this ran.
+    const theirs = m[1] !== "place" || m[3] !== "your";
     return [{ op: "mill", n: m[2] ? Number(m[2]) : 1, ...(theirs ? { side: "opponent" as const } : {}) }];
   }
   if (/^add the top card of your deck to your life$/.test(t)) return [{ op: "addLife", n: 1 }];
@@ -1560,7 +1584,17 @@ function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op
     // of every move pattern but one — "send it to the Warp instead" was
     // unreadable while "send it to the Warp" was not. It says nothing the
     // pending `c.replacing` has not already said, so it comes off first.
-    const got = compileClause(c.replacing ? clause.replace(/[\s,]+instead[.\s]*$/i, "") : clause, c);
+    const said = c.replacing ? clause.replace(/[\s,]+instead[.\s]*$/i, "") : clause;
+    let got = compileClause(said, c);
+    // Only as a fallback: several patterns read the subject themselves and say
+    // it better than this can — "your opponent sends 1 card from their hand to
+    // their Warp" is a discard (20-7), chosen by its owner because it is a
+    // hand card, not a move of a named one.
+    let opponentDoes = false;
+    if (!got && OPPONENT_POSSESSIVE.test(said) && OPPONENT_DOES.test(said.trim())) {
+      got = compileClause(said.trim().replace(OPPONENT_DOES, (_, v: string) => `${THIRD_PERSON[v.toLowerCase()] ?? v.toLowerCase()} `), c);
+      opponentDoes = !!got;
+    }
     if (!got) {
       if (c.replacing) c.replacing = null;
       unsupported.push(clause);
@@ -1587,6 +1621,9 @@ function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op
       unsupported.push(clause);
       continue;
     }
+    // Only who picks changes: the selectors already point at their cards,
+    // because the sentence said "their Drop Area".
+    if (opponentDoes) for (const o of got) if (o.op === "choose") o.chooser = "opponent";
     for (const o of got) track(o, c);
     if (got.length) c.lastOp = got[got.length - 1].op;
     push(got);
