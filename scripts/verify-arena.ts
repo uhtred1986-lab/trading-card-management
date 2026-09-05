@@ -9,7 +9,7 @@ import { apply, createGame, defsFrom, legalActions, seedFrom, type Action, type 
 import { parseSkills, keywordOf, orbsIn } from "../src/lib/arena/engine/cards";
 import { parseFilter, matches, parseCondition } from "../src/lib/arena/engine/filters";
 import { move, locate, playCost, powerOf, forbids, has, cardNow, comboCostOf } from "../src/lib/arena/engine/state";
-import { compileSkill, describeScript, splitClauses } from "../src/lib/arena/engine/compile";
+import { compileSkill, describeScript, parseConditionClause, splitClauses } from "../src/lib/arena/engine/compile";
 
 // ── skill text parsing ─────────────────────────────────────────────────────
 
@@ -2071,6 +2071,28 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   const a = arena({ battle: ["CONDACT", "CONDACTB"] });
   assert.ok(canActivate(a, a.players.p1.battle[0]), "the condition holds: offered");
   assert.ok(!canActivate(a, a.players.p1.battle[1]), "the condition fails: not offered");
+
+  // The shapes the catalog prints most that used to be gaps.
+  const read = (t: string) => parseConditionClause(t)?.cond;
+  assert.deepEqual(read("if this card has 3 or more markers on it"), { kind: "markers", sel: { special: "self" }, atLeast: 3 });
+  assert.deepEqual(read("if this card is in a battle"), { kind: "inBattle", sel: { special: "self" } });
+  assert.deepEqual(read("if this card isn't in a battle"), { kind: "inBattle", sel: { special: "self" }, not: true });
+  assert.equal(read("if your Leader's back side is a black <Goku> card")?.kind, "leaderMatches");
+  assert.ok((read("if your Leader's back side is a black <Goku> card") as { back?: boolean }).back);
+  const either = read("when your life is at 4 or less, or you have 5 or more energy");
+  assert.equal(either?.kind, "any");
+  assert.deepEqual((either as { conds: { kind: string }[] }).conds.map((x) => x.kind), ["life", "count"]);
+  const bothOf = read("if your life is at 4 or less and you have 3 or more energy");
+  assert.equal(bothOf?.kind, "all");
+  assert.equal(read("if your life is at 4 or less, or the moon is full"), undefined, "one unreadable part fails the whole condition");
+  // "red or blue" and "4 or less" are not alternatives.
+  assert.equal(read("if your Leader Card is red or blue")?.kind, "leaderMatches");
+
+  DEFS.CONDOR = { ...DEFS.V1, id: "CONDOR", name: "CONDOR", skill: "[Activate: Main] If your life is at 4 or less or you have 1 or more energy: Draw 1 card." };
+  const o = arena({ battle: ["CONDOR"], energy: ["V1"] });
+  assert.ok(canActivate(o, o.players.p1.battle[0]), "8 life, but one energy: the other half holds");
+  const o2 = arena({ battle: ["CONDOR"] });
+  assert.ok(!canActivate(o2, o2.players.p1.battle[0]), "neither holds");
 }
 
 console.log("verify-arena: all checks passed");

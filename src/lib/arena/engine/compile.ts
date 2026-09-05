@@ -359,8 +359,62 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   if ((m = /^this card is in (rest|active) mode$/.exec(t))) {
     return { cond: { kind: "count", sel: { special: "self", mode: m[1] as "rest" | "active" }, atLeast: 1 }, subject: { sel: { special: "self" } } };
   }
+  // "If this card has 3 or more markers on it" (13-2).
+  if ((m = /^this card has (\d+) or (more|less|fewer) markers?(?: on it)?$/.exec(t))) {
+    return { cond: { kind: "markers", sel: { special: "self" }, ...(m[2] === "more" ? { atLeast: Number(m[1]) } : { atMost: Number(m[1]) }) }, subject: { sel: { special: "self" } } };
+  }
+  // "If this card is in a battle", "if this card isn't in a battle", "if your
+  // <Son Goku> card is in a battle" (8-1).
+  if ((m = /^(this card|.+?) (is|isn't|is not) in a battle$/.exec(t))) {
+    const sel: Selector | null = m[1] === "this card" ? { special: "self" } : parseTarget(m[1]);
+    if (sel) {
+      delete sel.count;
+      delete sel.upTo;
+      return { cond: { kind: "inBattle", sel, ...(m[2] === "is" ? {} : { not: true }) }, subject: { sel } };
+    }
+  }
+  // "If your Leader's back side is {Name}", "… is a black <Goku> card" (22-2-5).
+  if ((m = /^your leader(?: card)?'s back side is (.+)$/.exec(t))) {
+    return { cond: { kind: "leaderMatches", filter: parseFilter(m[1]), back: true }, subject: { sel: { special: "leader" } } };
+  }
+  // "If {Son Goku, Hero} is in play in your Unison Area", "if your <Vegeta>
+  // card is in play", "if a <Bulma> card is in your Combo Area" — the card
+  // first, then where it has to be: a count of at least one.
+  if ((m = /^(.+?) is in (?:play(?: in your (\w+) area)?|your (\w+) area)$/.exec(t))) {
+    const sel = parseTarget(m[1]);
+    const areaWord = (m[2] ?? m[3])?.toLowerCase();
+    const area = areaWord === "unison" ? "unison" : areaWord === "battle" ? "battle" : areaWord === "combo" ? "combo" : areaWord === "leader" ? "leader" : areaWord ? null : "play";
+    if (sel && area) {
+      delete sel.count;
+      delete sel.upTo;
+      return { cond: { kind: "count", sel: { ...sel, area, side: sel.side ?? "you" }, atLeast: 1 }, subject: { sel } };
+    }
+  }
+  // "If you don't have a Unison in play", "if you don't have any Battle Cards in play".
+  if ((m = /^you don'?t have (?:an?|any) (.+?)(?: in play)?$/.exec(t))) {
+    const sel = parseTarget(`your ${m[1]}`);
+    if (sel) {
+      delete sel.count;
+      delete sel.upTo;
+      return { cond: { kind: "count", sel, atMost: 0 } };
+    }
+  }
   const counted = parseCountCondition(t);
   if (counted) return { cond: counted };
+  // "When your life is at 4 or less, or you have 5 or more energy and a
+  // <Goku> card in play" — several conditions joined; "or" binds loosest.
+  // Every part has to read, or the whole condition is a gap.
+  const JOIN = /(?=you |your |there |it'?s |it is |this card |all |an? )/;
+  const alternatives = t.split(new RegExp(`,? or ${JOIN.source}`));
+  if (alternatives.length > 1) {
+    const conds = alternatives.map((part) => parseConditionClause(part, true)?.cond ?? null);
+    return conds.every((x) => x) ? { cond: { kind: "any", conds: conds as Cond[] } } : null;
+  }
+  const both = t.split(new RegExp(`,? and ${JOIN.source}`));
+  if (both.length > 1) {
+    const conds = both.map((part) => parseConditionClause(part, true)?.cond ?? null);
+    return conds.every((x) => x) ? { cond: { kind: "all", conds: conds as Cond[] } } : null;
+  }
   return null;
 }
 
@@ -993,7 +1047,10 @@ export function compileSkill(skill: Skill): Script {
   // — a condition written before the colon is part of the skill's validity
   // (9-1-3), and it lands in `cost`. It wraps the whole program; one the
   // compiler cannot read fails the skill rather than running it unconditionally.
-  if (ops.length && /^(?:if|when|while|during)\b/i.test(skill.cost)) {
+  // [Awaken] and [Wish] check their own condition in the engine before the
+  // skill is offered (22-2, 22-20), so their programs stay bare.
+  const engineChecks = skill.keyword?.name === "Awaken" || skill.keyword?.name === "Wish";
+  if (ops.length && !engineChecks && /^(?:if|when|while|during)\b/i.test(skill.cost)) {
     const cond = parseConditionClause(skill.cost);
     if (!cond) return { ops: [], unsupported: [skill.cost, ...unsupported] };
     return { ops: [{ op: "if", cond: cond.cond, then: ops }], unsupported };
@@ -1248,8 +1305,18 @@ function describeCond(c: Cond): string {
     case "leaderMatches": {
       const f = c.filter;
       const bits = [...f.colors, ...f.characters.map((x) => `<${x}>`), ...f.traits.map((x) => `≪${x}≫`)];
-      return `${c.side === "opponent" ? "their" : "your"} leader is ${bits.join(" ") || "a match"}`;
+      return `${c.side === "opponent" ? "their" : "your"} leader${c.back ? "'s back side" : ""} is ${bits.join(" ") || f.names?.join("/") || "a match"}`;
     }
+    case "markers": {
+      const bound = c.atLeast != null ? `${c.atLeast} or more` : c.atMost != null ? `${c.atMost} or fewer` : "any";
+      return `${describeSelector(c.sel)} has ${bound} markers`;
+    }
+    case "inBattle":
+      return `${describeSelector(c.sel)} is ${c.not ? "not " : ""}in a battle`;
+    case "any":
+      return c.conds.map(describeCond).join(", or ");
+    case "all":
+      return c.conds.map(describeCond).join(" and ");
     case "chose":
       return "you took that choice";
     case "isTurnPlayer":

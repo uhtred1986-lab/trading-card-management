@@ -323,8 +323,27 @@ export function condHolds(ctx: GameContext, s: GameState, frame: ScriptFrame, c:
     }
     case "leaderMatches": {
       const l = s.players[c.side === "opponent" ? other(frame.master) : frame.master].leader;
-      return !!l && matches(cardNow(ctx, s, l), c.filter);
+      if (!l) return false;
+      if (c.back) {
+        // "If your Leader's back side is {Name}": the other face, whichever is up.
+        const back = def(ctx, s, l).back;
+        return !!back && matches({ ...cardNow(ctx, s, l), name: back.name }, c.filter);
+      }
+      return matches(cardNow(ctx, s, l), c.filter);
     }
+    case "markers": {
+      const n = resolveSelector(ctx, s, frame, c.sel).reduce((t, id) => t + s.cards[id].markers, 0);
+      return (c.atLeast == null || n >= c.atLeast) && (c.atMost == null || n <= c.atMost);
+    }
+    case "inBattle": {
+      const b = s.battle;
+      const inBattle = !!b && resolveSelector(ctx, s, frame, c.sel).some((id) => b.attacker === id || b.guard === id);
+      return c.not ? !inBattle : inBattle;
+    }
+    case "any":
+      return c.conds.some((x) => condHolds(ctx, s, frame, x));
+    case "all":
+      return c.conds.every((x) => condHolds(ctx, s, frame, x));
     case "lifeVsOpponent": {
       const mine = s.players[frame.master].life.length;
       const theirs = s.players[other(frame.master)].life.length;

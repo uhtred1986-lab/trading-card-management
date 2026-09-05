@@ -88,7 +88,14 @@ export type Cond =
   | { kind: "lifeVsOpponent"; atMost?: boolean; atLeast?: boolean }
   | { kind: "leaderColor"; color: Color }
   /** "If your Leader is a <Baby> card" — colour, character name and traits alike. */
-  | { kind: "leaderMatches"; filter: CardFilter; side?: Side }
+  | { kind: "leaderMatches"; filter: CardFilter; side?: Side; back?: boolean }
+  /** "If this card has 3 or more markers on it" (13-2): the markers on the selected cards, added up. */
+  | { kind: "markers"; sel: Selector; atLeast?: number; atMost?: number }
+  /** "If this card is in a battle" (8-1): any of the selected cards is the attacker or the guard. */
+  | { kind: "inBattle"; sel: Selector; not?: boolean }
+  /** "When your life is at 4 or less, or you have 5 or more energy" — one of several; "all" is every one of them. */
+  | { kind: "any"; conds: Cond[] }
+  | { kind: "all"; conds: Cond[] }
   | { kind: "chose"; var: string }
   /** Whose turn it is (7-1). "opponent" is "during your opponent's turn". */
   | { kind: "isTurnPlayer"; who?: "you" | "opponent" };
