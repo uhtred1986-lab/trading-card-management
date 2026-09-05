@@ -123,7 +123,10 @@ const AREA_WORDS: [RegExp, ScriptArea][] = [
   [/\benergy area\b|\b(?:your opponent's|their|your)(?: [a-z-]+)* energy\b(?! cost)/, "energy"],
   [/\bfrom your hand\b|\bin your hand\b|\btheir hand\b|\byour hand\b|\byour opponent's hand\b/, "hand"],
   [/\bfrom your deck\b|\bin your deck\b|\byour deck\b|\byour opponent'?s deck\b|\btheir deck\b/, "deck"],
-  [/\bin your life\b|\bfrom your life\b|\byour life\b|\blife area\b/, "life"],
+  // "Flip up to 1 card in your opponent's life face up" (BT12-069/070): the
+  // possessive is what `parseTarget` reads as the side, so the area word has
+  // to admit it or the phrase names no area at all.
+  [/\bin your life\b|\bfrom your life\b|\byour life\b|\byour opponent'?s life\b|\btheir life\b|\blife area\b/, "life"],
   [/\bwarp\b/, "warp"],
   [/\bcombo area\b/, "combo"],
   [/\bunison area\b|\bunison cards?\b|\bunisons\b/, "unison"],
@@ -917,6 +920,17 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // move the wrong card, because "it" had nothing of its own to point at.
   if (c.lastOp === "discard" && /^(?:(?:place|put) (?:it|them) (?:in|into) (?:their|the|your|its owner's) drop(?: area)?|discard (?:it|them))$/.test(t)) return [];
 
+  // "Add it to your life face up", "place 1 black <Cumber> card from your hand
+  // in your Z-Deck face up" (3-9-2-1): the "face up" is not the action, it is
+  // how the card arrives. Compiling the move on its own and marking the result
+  // gives every moving phrase this for free, and keeps each of those patterns
+  // from having to end in two different ways.
+  if (/\bface[- ]up$/.test(t) && /^(?:add|place|put|send|return)\b/.test(t)) {
+    const moved = compileClause(clause.replace(/\s*face[- ]up\s*$/i, ""), c);
+    const last = moved?.[moved.length - 1];
+    if (moved && last && last.op === "moveTo") return [...moved.slice(0, -1), { ...last, faceUp: true }];
+  }
+
   // The same clause with "for the turn", "in all areas" and the like taken
   // off, so the patterns for the action itself can end in `$`.
   const q = stripQualifiers(t);
@@ -1267,6 +1281,16 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     const ref = refFor(m[1], c);
     return ref ? [{ op: "flip", target: ref }] : null;
   }
+  // 3-9-2-1: a Life card turned face up stays in the Life Area and is still
+  // taken as damage in its turn, but both players can see it and skills can
+  // read it. "Flip up to 1 card in your life face up" names a number, so it is
+  // a choice first (5-2); "flip all face-up cards in your life face down" does
+  // not, and its own filter is what finds the cards to turn back over.
+  if ((m = /^(?:you may )?flip (.+?) face[- ](up|down)$/.exec(t))) {
+    const up = m[2] === "up";
+    const ref = refFor(m[1], c);
+    return ref ? withChoice(ref, clause, c, (target) => ({ op: "faceUp", target, ...(up ? {} : { faceUp: false }) })) : null;
+  }
   // 23-5: "switch it to Hidden Mode", "switch it to Revealed Mode".
   if ((m = /^switch (.+?) to (hidden|revealed) mode$/.exec(t))) {
     const ref = refFor(m[1], c);
@@ -1362,7 +1386,9 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     [/^(?:add|place) (.+?) (?:to|in) your opponent'?s energy(?: area)?$/, "energy", { reveal: true, owner: "opponent" }],
     [/^(?:add|place) (.+?) (?:to|in) your energy(?: area)? in rest mode$/, "energy", { mode: "rest", reveal: true, owner: "you" }],
     [/^(?:add|place) (.+?) (?:to|in) your energy(?: area)?$/, "energy", { reveal: true, owner: "you" }],
-    [/^add (.+?) to your life$/, "life", {}],
+    // 3-9: the Life Area takes cards from the hand as well as the deck, and
+    // the yellow ≪Frieza's Army≫ cards print it both ways round.
+    [/^(?:add|place|put) (.+?) (?:in|into|to) your life(?: area)?$/, "life", {}],
     [/^(?:add|place|send) (.+?) (?:in|into|to) your z-energy$/, "zEnergy", {}],
     [/^remove (.+?) from the game(?: instead)?$/, "removed", {}],
   ];
@@ -2123,11 +2149,14 @@ export function describeScript(ops: Op[]): string {
       case "flip":
         parts.push(`flip ${describeRef(op.target)} over`);
         break;
+      case "faceUp":
+        parts.push(`turn ${describeRef(op.target)} face ${op.faceUp === false ? "down" : "up"}`);
+        break;
       case "ko":
         parts.push(`KO ${describeRef(op.target)}`);
         break;
       case "moveTo":
-        parts.push(`move ${describeRef(op.target)} to ${op.to}`);
+        parts.push(`move ${describeRef(op.target)} to ${op.to}${op.faceUp ? " face up" : ""}`);
         break;
       case "play":
         parts.push(`play ${describeRef(op.target)}${op.mode ? ` in ${op.mode} mode` : ""}`);

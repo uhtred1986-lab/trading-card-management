@@ -44,6 +44,13 @@ export interface SideView {
   hand: CardView[] | null;
   handCount: number;
   life: number;
+  /**
+   * 3-9-2-1: the life cards a skill turned face up, and the same in the
+   * Z-Deck. Both players may see these, on either side of the table, so they
+   * are the one part of a closed area this view names.
+   */
+  lifeFaceUp: CardView[];
+  zDeckFaceUp: CardView[];
   deck: number;
   drop: number;
   warp: number;
@@ -167,6 +174,8 @@ function sideView(ctx: EngineContext, s: GameState, p: PlayerId, images: Record<
     hand: ownHand ? ps.hand.map((id) => v(id)) : null,
     handCount: ps.hand.length,
     life: ps.life.length,
+    lifeFaceUp: ps.life.filter((id) => s.cards[id].faceUp).map((id) => v(id)),
+    zDeckFaceUp: ps.zDeck.filter((id) => s.cards[id].faceUp).map((id) => v(id)),
     deck: ps.deck.length,
     drop: ps.drop.length,
     warp: ps.warp.length,

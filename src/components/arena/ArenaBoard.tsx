@@ -415,6 +415,15 @@ function SidePanel({
           ))}
         </span>
         {side.leader?.power != null && <p className="mt-1 font-mono text-xs font-bold text-gain sm:text-sm">{side.leader.power.toLocaleString("en")}</p>}
+        {/* 3-9-2-1: a life card turned face up is open to both players, and the
+            skills that read it are counting these, so they are shown. */}
+        {(side.lifeFaceUp.length > 0 || side.zDeckFaceUp.length > 0) && (
+          <div className="mt-1 flex flex-wrap gap-[2px] lg:justify-center">
+            {[...side.lifeFaceUp, ...side.zDeckFaceUp].map((c) => (
+              <ArenaCard key={c.id} card={c} width={22} onHover={onHover(c)} />
+            ))}
+          </div>
+        )}
       </div>
 
       <dl className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-space-400 sm:text-xs lg:justify-center">

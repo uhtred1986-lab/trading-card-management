@@ -23,9 +23,11 @@ npm run arena:fuzz       # 20 self-played games, asserts no crash and no stuck s
 cards. **Every mechanism below needs its tests there**, in the same style: a
 comment naming the Rule Manual section, then the smallest game that shows it.
 
-A caution learned the hard way: **never write engine source through
-`node -e` with a template string.** `\b` inside one becomes a literal
-backspace character and silently breaks a regex. Use the Edit tool.
+A caution learned the hard way, twice: **never write engine source through
+`node -e`.** `\b` inside a template string becomes a literal backspace and
+silently breaks a regex, and `` $` `` in a `String.replace` *replacement* means
+"everything before the match", which once spliced 900 lines of `compile.ts` into
+the middle of itself. Use the Edit tool.
 
 ---
 
@@ -663,6 +665,55 @@ a deck-construction rule only (22-28-1) and needs no play rule at all.
 runs" are different claims, and only a test that plays the card distinguishes
 them. A keyword with an implementation, a manual citation and a comment can
 still be dead code.
+
+## Done: face-up life cards (5 Sep 2026)
+
+3-9-2-1. About 95 cards: 67 flip a card face up, 28 read one. The owner asked
+for it after the keyword audit.
+
+A face-up card is **one flag on the instance**, `CardInstance.faceUp`, not a new
+area — the card stays where it is, is still life, and is still taken as damage
+in its turn. What changes is that both players may see it and skills may count
+it. Most of the mechanism therefore falls out of pieces that already existed:
+
+- `faceUp` op (`script.ts`), and `moveTo` gained a `faceUp` flag so "add it to
+  your life face up" is one move rather than a move and a second action. The
+  flag is set *after* the move, because 3-1-4 makes a card that changed area a
+  new card and `move` clears it.
+- `CardFilter.faceUp` reads "face-up" in any target phrase. It is the first
+  filter about the **instance** rather than the card, so `matches` cannot answer
+  it — `resolveSelector` checks it where the instance is known. That one line is
+  what makes "if you have 4 or more face-up ≪Boujack Brigade≫ cards in your
+  Z-Deck" work, with no change to the condition parser at all: those cards are
+  face up in the *Z-Deck*, so the flag was never life-specific.
+- Trigger `flippedFaceUp` covers both printed wordings — "when **this** card in
+  your life is flipped face up" (the card in the life area, so it needed the
+  `elsewhere` exception in `pendTriggers`) and "when **a** card in your life is
+  flipped face up" (watched by that player's cards in play).
+- The colour qualifier those cards all print — "…**by one of your red card
+  skills**" — is checked in `dropWrongColour` in `script.ts`, where the card
+  that did the flipping is known. `autoTriggerMatches` reads text without state
+  and could not have answered it, and without the check BT12-006 would play
+  itself off any flip at all.
+- `view.ts` gained `lifeFaceUp`/`zDeckFaceUp` and the board shows them; the AI
+  view names them on **both** sides, which is the one thing either life area may
+  say (3-1-3 otherwise keeps it out of the request entirely).
+
+Coverage 83.3 % → 83.7 % of 11,745 resolvable skills. Fuzz: 20 games, 0 crashes.
+
+Left undone, deliberately: the prices that are a condition **and** an action in
+one — "{b}, if your Leader is a black \<Fu\> card **and you place** 1 black
+\<Cumber\> card from your hand in your Z-Deck face up". `compileCostProgram`
+returns null for all of them. Splitting a compound price is its own feature and
+is a bigger one than this; the six cards that need it stay in the unreadable-
+prices bucket of `arena:gaps` until then.
+
+**The tooling lesson bit again, in a new way.** `String.replace` treats `` $` ``
+in the *replacement* as "everything before the match", so a comment ending in
+`` `$` `` spliced the first 900 lines of `compile.ts` into the middle of itself.
+The file typechecked as garbage and had to be reverted. The rule in "Before you
+start" now covers both halves: use the Edit tool for engine source, and if a
+script must do it, never let card text or code near a replacement string.
 
 ## Conventions worth keeping
 

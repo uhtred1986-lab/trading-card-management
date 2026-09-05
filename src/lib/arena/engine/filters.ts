@@ -22,6 +22,12 @@ export interface CardFilter {
   type: "LEADER" | "BATTLE" | "EXTRA" | "UNISON" | null;
   /** "Non-Leader card under this card" — the type it must *not* be. */
   notType: "LEADER" | "BATTLE" | "EXTRA" | "UNISON" | null;
+  /**
+   * "Face-up ≪Boujack Brigade≫ cards" (3-9-2-1). Unlike every other measure
+   * here this one is about the *instance*, not the card, so `matches` cannot
+   * answer it — `resolveSelector` checks it where the instance is known.
+   */
+  faceUp: boolean;
   /** Energy cost bounds, inclusive. */
   costMin: number | null;
   costMax: number | null;
@@ -39,7 +45,7 @@ export interface CardFilter {
 const COLOR_WORDS: Record<string, Color> = { red: "Red", blue: "Blue", green: "Green", yellow: "Yellow", black: "Black" };
 
 export function parseFilter(text: string): CardFilter {
-  const f: CardFilter = { colors: [], monoColor: false, multiColor: false, characters: [], notCharacters: [], traits: [], notTraits: [], names: [], type: null, notType: null, costMin: null, costMax: null, powerMin: null, powerMax: null, powerRel: null, z: null };
+  const f: CardFilter = { colors: [], monoColor: false, multiColor: false, characters: [], notCharacters: [], traits: [], notTraits: [], names: [], type: null, notType: null, faceUp: false, costMin: null, costMax: null, powerMin: null, powerMax: null, powerRel: null, z: null };
   const t = text.replace(/&lt;/g, "<").replace(/&gt;/g, ">");
   for (const m of t.matchAll(/(non-)?<([^>]+)>/g)) (m[1] ? f.notCharacters : f.characters).push(m[2].trim());
   for (const m of t.matchAll(/(non-)?≪([^≫]+)≫/g)) (m[1] ? f.notTraits : f.traits).push(m[2].trim());
@@ -47,6 +53,10 @@ export function parseFilter(text: string): CardFilter {
   const lower = t.toLowerCase();
   if (/\bmono-?colou?r\b|\bmono-(red|blue|green|yellow|black)\b/.test(lower)) f.monoColor = true;
   if (/\bmulti-?colou?r(?:ed)?\b/.test(lower)) f.multiColor = true;
+  // "Use up to 1 face-up ≪Turles Crusher Corps≫ card from your life in a combo"
+  // (3-9-2-1). "Face down" is never a way a card is picked out, so only the
+  // one direction is read.
+  if (/\bface[- ]up\b/.test(lower)) f.faceUp = true;
   for (const m of lower.matchAll(/\b(red|blue|green|yellow|black)\b/g)) {
     const c = COLOR_WORDS[m[1]];
     if (!f.colors.includes(c)) f.colors.push(c);

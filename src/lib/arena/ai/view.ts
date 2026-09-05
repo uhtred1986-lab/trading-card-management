@@ -69,6 +69,12 @@ function sideText(ctx: EngineContext, s: GameState, p: PlayerId, own: boolean): 
   // because the cached decklist above already carries it, keyed by card number.
   if (own) lines.push(`  your hand:\n    · ${ps.hand.map((id) => cardLine(ctx, s, id, false)).join("\n    · ") || "empty"}`);
   if (ps.drop.length) lines.push(`  top of drop: ${cardLine(ctx, s, ps.drop[0], false)}`);
+  // 3-9-2-1: a life card a skill turned face up is open to both players, so it
+  // is one of the few things either life area may say. The face-down ones stay
+  // a number, on both sides.
+  const faceUp = (area: string[]) => area.filter((id) => s.cards[id].faceUp);
+  if (faceUp(ps.life).length) lines.push(`  face-up in life: ${faceUp(ps.life).map((id) => cardLine(ctx, s, id, true)).join("; ")}`);
+  if (faceUp(ps.zDeck).length) lines.push(`  face-up in Z-Deck: ${faceUp(ps.zDeck).map((id) => cardLine(ctx, s, id, true)).join("; ")}`);
   return lines.join("\n");
 }
 

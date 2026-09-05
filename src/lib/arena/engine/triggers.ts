@@ -80,6 +80,12 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       return /at the (?:beginning|start) of your opponent's main phase/.test(t);
     case "blockerUsed":
       return /when this card activates (?:its )?\[blocker\]/.test(t);
+    // Both wordings are the same moment: "when **this card** in your life is
+    // flipped face up" is the card that was flipped, "when **a** card…" is
+    // watched by that player's cards in play. The colour qualifier some of
+    // them add is checked in `script.ts`, where the flipping card is known.
+    case "flippedFaceUp":
+      return /when (?:a|this) card in your life is flipped face up/.test(t);
     case "restedByAlliance":
       return /when this card is switched to rest mode by (?:an?|one of your) \[alliance\]/.test(t);
     case "addedToZEnergy":
@@ -139,7 +145,9 @@ export function pendTriggers(ctx: GameContext, s: GameState, trigger: Trigger, c
     trigger === "unisonToDrop" ||
     trigger === "removedFromBattle" ||
     trigger === "removedByOpponent" ||
-    trigger === "addedToZEnergy";
+    trigger === "addedToZEnergy" ||
+    // 3-9-2-1: the card this fires on is sitting in a Life Area.
+    trigger === "flippedFaceUp";
   if (!valid && !elsewhere) return;
   const master = masterOf(s, card);
   for (const sk of skillsOfInstance(ctx, s, card)) {

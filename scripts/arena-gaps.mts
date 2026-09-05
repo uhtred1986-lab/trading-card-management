@@ -49,6 +49,7 @@ const TRIGGERS: Trigger[] = [
   "energyToDrop",
   "unisonToDrop",
   "markerRemoved",
+  "flippedFaceUp",
   "offenseStart",
   "defenseStart",
   "damageStart",

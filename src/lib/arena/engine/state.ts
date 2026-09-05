@@ -368,6 +368,9 @@ export function resolveSelector(ctx: GameContext, s: GameState, frame: ScriptFra
     if (sel.special && sel.area && areaOf(s, id) !== (sel.area === "play" ? "battle" : sel.area)) return false;
     // 23-5-2: a Hidden Mode card has none of its front-side information.
     if (sel.filter && (inst.hidden || !matches(cardNow(ctx, s, id), sel.filter))) return false;
+    // 3-9-2-1: whether a life card has been turned face up is a fact about
+    // this copy, not about the card, so `matches` cannot see it.
+    if (sel.filter?.faceUp && !inst.faceUp) return false;
     // "with power less than or equal to this card's power": measured against
     // the card the skill is on, as it stands now.
     if (sel.filter?.powerRel && !powerRelOk(sel.filter, powerOf(ctx, s, id), powerOf(ctx, s, frame.card))) return false;
@@ -736,6 +739,9 @@ export function move(ctx: GameContext, s: GameState, ev: GameEvent[], id: string
     inst.markers = 0;
     inst.flipped = false;
     inst.hidden = false;
+    // 3-1-4: a card that changes area is a new card, and a life card turned
+    // face up (3-9-2-1) is not still face up once it has left the life area.
+    inst.faceUp = false;
     inst.negated = [];
     inst.usedThisTurn = [];
     inst.extraAttacks = 0;

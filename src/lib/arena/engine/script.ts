@@ -18,6 +18,9 @@ import {
   resolveSelector,
   sideOf,
   areaOf,
+  cardNow,
+  cardsInPlay,
+  skillsOfInstance,
   draw as drawCards,
   face,
   forbids,
@@ -169,7 +172,7 @@ export type Op =
    * the *other* player's energy. Left out, a card goes to its own owner's
    * area, which is what nearly every move means.
    */
-  | { op: "moveTo"; target: Ref; to: ScriptArea; position?: "top" | "bottom"; mode?: "active" | "rest"; reveal?: boolean; under?: Ref; owner?: Side }
+  | { op: "moveTo"; target: Ref; to: ScriptArea; position?: "top" | "bottom"; mode?: "active" | "rest"; reveal?: boolean; under?: Ref; owner?: Side; faceUp?: boolean }
   /**
    * `onto` plays the card on top of another, which is how [Union-Absorb]
    * resolves (22-13-6-3) and how the "play … on top of this card" wordings
@@ -200,6 +203,12 @@ export type Op =
   | { op: "comboFrom"; target: Ref; negated?: boolean }
   /** "You may flip this card over" — a Leader awakens by a skill other than its [Awaken] (22-2-4). */
   | { op: "flip"; target: Ref }
+  /**
+   * "Flip up to 1 card in your life face up" (3-9-2-1). The Life Area is
+   * secret; a card turned face up in it is treated as being in an open area,
+   * which is what lets "face-up ≪Boujack Brigade≫ cards" find it.
+   */
+  | { op: "faceUp"; target: Ref; faceUp?: boolean }
   | { op: "addMarker"; target: Ref; n: Amount }
   | { op: "removeMarker"; target: Ref; n: Amount }
   | { op: "token"; name: string; power: number; comboCost: number | null; comboPower: number | null; colors: Color[]; n: Amount; side?: Side }
@@ -318,6 +327,25 @@ export const DELAY_LABELS: Record<DelayTiming, string> = {
 // ── the interpreter ────────────────────────────────────────────────────────
 
 export { resolveSelector };
+
+/**
+ * Every card that flips a life card face up says *which* skills count: "when
+ * a card in your life is flipped face up **by one of your red card skills**".
+ * The trigger text is read without state (`triggers.ts`), so the colour is
+ * checked here, where the card that did it is known, and the entries pended
+ * since `before` that name a colour the source has not got are dropped again.
+ */
+function dropWrongColour(ctx: GameContext, s: GameState, before: number, source: string | undefined): void {
+  const colors = source && s.cards[source] ? cardNow(ctx, s, source).colors : [];
+  s.pending = s.pending.filter((e, i) => {
+    if (i < before) return true;
+    const sk = skillsOfInstance(ctx, s, e.card).find((x) => x.index === e.skillIndex);
+    const m = /flipped face up by (?:one of )?your (red|blue|green|yellow|black) card skills?/i.exec(sk ? sk.cost + " " + sk.effect : "");
+    if (!m) return true;
+    const want = (m[1][0].toUpperCase() + m[1].slice(1)) as Color;
+    return colors.includes(want);
+  });
+}
 
 /**
  * Run a program until it finishes or needs a decision. Returns "wait" with a
@@ -566,6 +594,9 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
           if (dest === "battle") pendTriggers(ctx, s, "placed", id);
           // 17-3: "when this card is added to your Z-Energy".
           if (dest === "zEnergy") pendTriggers(ctx, s, "addedToZEnergy", id);
+          // "Add it to your life face up" (3-9-2-1): how the card arrives, set
+          // after the move because 3-1-4 clears the flag on the way.
+          if (op.faceUp) s.cards[id].faceUp = true;
           if (dest === "hand" && owner === master) (frame.did ??= {}).addToHand = true;
         }
         break;
@@ -592,6 +623,25 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
           ev.push({ type: "flip", card: id, flipped: true });
         }
         break;
+
+      case "faceUp": {
+        const up = op.faceUp ?? true;
+        for (const id of resolveRef(ctx, s, frame, op.target)) {
+          if (!!s.cards[id].faceUp === up) continue;
+          s.cards[id].faceUp = up;
+          // 3-9-2-1: a face-up card is open to both players, so naming it leaks nothing.
+          note(ev, `${face(ctx, s, id).name} is turned face ${up ? "up" : "down"}`);
+          if (!up) continue;
+          // "When **this card** in your life is flipped face up" is the card
+          // itself; "when **a** card in your life is flipped face up" is watched
+          // by everything that player has in play. One moment, two wordings.
+          const before = s.pending.length;
+          pendTriggers(ctx, s, "flippedFaceUp", id, frame.card);
+          for (const w of cardsInPlay(s, s.cards[id].owner)) if (w !== id) pendTriggers(ctx, s, "flippedFaceUp", w, id);
+          dropWrongColour(ctx, s, before, frame.card);
+        }
+        break;
+      }
 
       case "comboFrom": {
         // 5-7-2: a combo card needs a battle to join, on the side of the
@@ -924,6 +974,7 @@ const OP_NAMES = new Set<Op["op"]>([
   "redirectAttack",
   "comboFrom",
   "flip",
+  "faceUp",
   "addMarker",
   "removeMarker",
   "token",

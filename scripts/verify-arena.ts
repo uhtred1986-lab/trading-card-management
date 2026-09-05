@@ -130,6 +130,13 @@ const DEFS: Record<string, CardDef> = defsFrom([
   card("PUMP", { energyCost: 1, skill: "[Activate: Main] This card gets +5000 power for the turn." }),
   card("SPAWN", { energyCost: 1, skill: "[Auto] When you play this card, play 2 Saibaman tokens (10000 power, 0 combo cost, and 5000 combo power)." }),
   card("MYSTERY", { energyCost: 1, skill: "[Auto] When you play this card, bend the fabric of reality to your will." }),
+  // 3-9-2-1: the three sides of a face-up life card — the skill that flips one,
+  // the card in the life area that watches for it, and a card in play that
+  // watches the same moment.
+  card("FLIPPER", { colors: ["Red"], energyCost: 1, skill: "[Auto] When you play this card, flip up to 1 card in your life face up." }),
+  card("LIFEWATCH", { energyCost: 1, skill: "[Auto] When this card in your life is flipped face up by one of your red card skills, draw 1 card." }),
+  card("BLUEWATCH", { energyCost: 1, skill: "[Auto] When a card in your life is flipped face up by one of your blue card skills, draw 1 card." }),
+  card("LIFEGIVER", { energyCost: 1, skill: "[Auto] When you play this card, you may choose 1 card in your hand and add it to your life face up." }),
   card("FORCEKILL", { energyCost: 1, skill: "[Auto] When you play this card, choose 1 of your opponent's Battle Cards and KO it." }),
   card("AUTOCOST", { energyCost: 1, skill: "[Auto]{r}: When you play this card, draw 2 cards." }),
   card("UNI2", { type: "UNISON", energyCost: "X", power: 5000, comboCost: null, comboPower: null, skill: "[-1][Activate: Main] Draw 1 card." }),
@@ -3869,6 +3876,53 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   const perm = compileSkill(parseSkills("[Permanent] You can activate this card's [Counter] skill from your hand by adding a card from your life to your hand instead of paying its energy cost.")[0]);
   assert.deepEqual(sc.unsupported, []);
   assert.ok(perm.ops.some((o) => o.op === "altCost"), "9-5-1: still a standing effect");
+}
+
+{
+  // 3-9-2-1: a Life card a skill turns face up stays in the Life Area — it is
+  // still life, and still taken as damage in its turn — but both players can
+  // see it, and the cards that watch for the moment fire.
+  const sc = compileSkill(parseSkills("[Auto] When this card is used in a combo, flip up to 1 card in your life face up; at the end of the turn, flip all face-up cards in your life face down.")[0]);
+  assert.deepEqual(sc.unsupported, []);
+  assert.deepEqual(
+    sc.ops.map((o) => o.op),
+    ["choose", "faceUp", "delay"],
+    "the number makes it a choice first (5-2), and the turn end puts them back",
+  );
+  // "Add it to your life face up" is one move, not a move and a second action.
+  const give = compileSkill(parseSkills("[Auto] When this card is played, you may choose 1 ≪Frieza's Army≫ card in your hand and add it to your life face up.")[0]);
+  assert.deepEqual(give.unsupported, []);
+  const moved = give.ops.find((o) => o.op === "moveTo");
+  assert.equal(moved?.op === "moveTo" && moved.to, "life");
+  assert.equal(moved?.op === "moveTo" && moved.faceUp, true, "3-1-4: marked once it has arrived");
+}
+
+{
+  // The whole mechanism through the engine: flipping one face up leaves it in
+  // the life area, fires the card's own [Auto] there, and the colour the text
+  // asks for is the colour of the card whose skill did it.
+  let s = arena({ hand: ["FLIPPER", "FLIPPER"], energy: ["V1", "V1"], battle: ["BLUEWATCH"] });
+  const target = s.players.p1.life[0];
+  s.cards[target].cardId = "LIFEWATCH";
+  const life = s.players.p1.life.length;
+  const hand = s.players.p1.hand.length;
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "FLIPPER") });
+  assert.equal(s.prompt.kind, "chooseCards", "5-2: which life card");
+  s = play(s, { type: "choose", player: "p1", cards: [target] });
+  assert.equal(s.cards[target].faceUp, true);
+  assert.equal(s.players.p1.life.length, life, "3-9-2-1: it is still life");
+  assert.ok(s.players.p1.life.includes(target), "and still in the life area");
+  // One card played, one drawn by the life card's own [Auto]. BLUEWATCH asks
+  // for a *blue* card's skill and FLIPPER is red, so it did not fire.
+  assert.equal(s.players.p1.hand.length, hand - 1 + 1, "22: the flipped card's own [Auto] drew");
+  assertConsistent(s);
+
+  // Taking it as damage is the ordinary rule: a face-up life card is drawn
+  // like any other, and stops being face up once it has left (3-1-4).
+  const ctx = { defs: DEFS };
+  const after = structuredClone(s);
+  move(ctx, after, [], target, "hand", "p1");
+  assert.equal(after.cards[target].faceUp, false, "3-1-4: a card that changed area is a new card");
 }
 
 console.log("verify-arena: all checks passed");

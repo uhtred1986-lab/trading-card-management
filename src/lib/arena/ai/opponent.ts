@@ -228,6 +228,7 @@ Operations (each is an object with "op"):
   {"op":"redirectAttack","target":TARGET}                 "switch the target of the attack to it"
   {"op":"comboFrom","target":TARGET,"negated":true}       "use it in a combo from your Drop (with its skills negated)"
   {"op":"flip","target":TARGET}                           a Leader awakens ("flip this card over")
+  {"op":"faceUp","target":TARGET}                         turn a card in a life area face up (3-9-2-1); faceUp:false turns it back down
   {"op":"power","target":TARGET,"amount":5000,"until":"battle"|"turn"|"game"}
     an amount may also be {"count":SELECTOR,"times":5000} (so much for each card) or {"sumPower":{"var":"rested"}} (the total power of named cards)
   {"op":"comboPower","target":TARGET,"amount":5000,"until":"battle"}
@@ -258,6 +259,9 @@ Operations (each is an object with "op"):
     Omit "target" for this card; give one to cover other cards by filter.
   {"op":"if","cond":COND,"then":[...],"else":[...]}
   {"op":"chooseMode","modes":[{"label":"…","ops":[...]},{"label":"…","ops":[...]}]}   "Choose one— ・A ・B"
+  {"op":"may","ops":[...],"reason":"draw 1 card"}   "You may …" (20-16): the master decides whether it happens.
+    Wrap the optional part only. {"kind":"did","what":"may"} then reads the answer, for "if you do" /
+    "if you don't". A clause that is already an "up to" choice declines by choosing nothing — do not wrap those.
   {"op":"moveTo","target":TARGET,"to":"under","under":TARGET}    under another card; omit "under" for this card
   {"op":"delay","at":TIMING,"scope":SCOPE,"ops":[...]}   the inner operations happen later, not now
 

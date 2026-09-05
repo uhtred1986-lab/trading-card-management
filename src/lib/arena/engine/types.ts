@@ -158,6 +158,13 @@ export interface CardInstance {
   hidden: boolean;
   /** Leader flipped to its back side (Awaken / Wish). */
   flipped: boolean;
+  /**
+   * 3-9-2-1: a Life card a skill turned face up. It stays in the Life Area
+   * and is still taken as damage in turn, but both players can see it and
+   * skills can count it ("if you have 4 or more face-up ≪Boujack Brigade≫
+   * cards in your life"). Cleared when the card leaves the area (3-1-4).
+   */
+  faceUp?: boolean;
   /** Unison markers (1-11). */
   markers: number;
   /** Cards placed under this one (23-2): Evolve/Union stacks, leader stacks. */
@@ -377,6 +384,8 @@ export type Trigger =
   | "energyToDrop"
   | "unisonToDrop"
   | "markerRemoved"
+  /** "When a card in your life is flipped face up" (3-9-2-1). */
+  | "flippedFaceUp"
   | "offenseStart"
   | "defenseStart"
   | "damageStart";
