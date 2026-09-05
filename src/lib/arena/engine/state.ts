@@ -135,18 +135,55 @@ export interface Location {
   index: number;
 }
 
-/** Scan both players' areas for a card. Areas are small; a scan is fine. */
+/**
+ * The listed areas, hottest and smallest first. `areaOf` is asked about cards
+ * in play far more often than about anything else, and a deck of fifty was
+ * being scanned twice before the Battle Area was looked at once.
+ */
+const SEARCH_ORDER = ["battle", "energy", "hand", "drop", "combo", "life", "zEnergy", "warp", "zDeck", "removed", "deck"] as const;
+
+/**
+ * Where each card was last found, per state.
+ *
+ * Only ever a *hint*: every read checks the remembered slot still holds the
+ * card before trusting it, which is O(1), so a mutation that does not go
+ * through `move` — an evolve splicing an array, a card placed under another —
+ * cannot make this wrong. It can only make it miss and fall back to the scan.
+ * A `WeakMap` keyed on the state means a cloned state simply starts cold.
+ */
+const lastSeen = new WeakMap<GameState, Map<string, Location>>();
+
+function stillThere(s: GameState, id: string, at: Location): boolean {
+  const ps = s.players[at.owner];
+  if (at.area === "leader") return ps.leader === id;
+  if (at.area === "unison") return ps.unison === id;
+  return ps[at.area][at.index] === id;
+}
+
+/** Scan both players' areas for a card. */
 export function locate(s: GameState, id: string): Location | null {
+  let hints = lastSeen.get(s);
+  if (!hints) lastSeen.set(s, (hints = new Map()));
+  const hint = hints.get(id);
+  // A fresh object every time: callers get a plain value they cannot alias
+  // into the cache by accident.
+  if (hint && stillThere(s, id, hint)) return { ...hint };
   for (const p of ["p1", "p2"] as PlayerId[]) {
     const ps = s.players[p];
-    if (ps.leader === id) return { owner: p, area: "leader", index: 0 };
-    if (ps.unison === id) return { owner: p, area: "unison", index: 0 };
-    for (const area of ["deck", "hand", "drop", "warp", "life", "battle", "combo", "energy", "zDeck", "zEnergy", "removed"] as const) {
+    if (ps.leader === id) return remember(hints, id, { owner: p, area: "leader", index: 0 });
+    if (ps.unison === id) return remember(hints, id, { owner: p, area: "unison", index: 0 });
+    for (const area of SEARCH_ORDER) {
       const i = ps[area].indexOf(id);
-      if (i >= 0) return { owner: p, area, index: i };
+      if (i >= 0) return remember(hints, id, { owner: p, area, index: i });
     }
   }
+  hints.delete(id);
   return null;
+}
+
+function remember(hints: Map<string, Location>, id: string, at: Location): Location {
+  hints.set(id, at);
+  return { ...at };
 }
 
 export function areaOf(s: GameState, id: string): Area | null {
@@ -215,12 +252,13 @@ export function keywordsInForce(ctx: GameContext, s: GameState, id: string): Key
   }
   for (const e of s.effects) if (e.kind === "keyword" && e.target === id) out.push(e.value as KeywordSkill);
   // 9-1-5: a skill may name one keyword to negate rather than silencing the
-  // card. Applied last, so it beats a grant of the same keyword.
-  // A card whose skills can't be negated keeps its keywords too (20-14).
-  const gone = forbids(ctx, s, "beNegated", { card: id })
-    ? new Set<KeywordSkill["name"]>()
-    : new Set(staticEffects(ctx, s).filter((e) => e.kind === "negateKeyword" && e.target === id).map((e) => e.value as KeywordSkill["name"]));
-  return gone.size ? out.filter((k) => !gone.has(k.name)) : out;
+  // card. Applied last, so it beats a grant of the same keyword — and the
+  // prohibition that saves it (20-14) is only worth asking about when there is
+  // something to save it from. This runs for every keyword check in the game.
+  const gone = new Set(staticEffects(ctx, s).filter((e) => e.kind === "negateKeyword" && e.target === id).map((e) => e.value as KeywordSkill["name"]));
+  if (!gone.size) return out;
+  if (forbids(ctx, s, "beNegated", { card: id })) return out;
+  return out.filter((k) => !gone.has(k.name));
 }
 
 export function has(ctx: GameContext, s: GameState, id: string, name: KeywordSkill["name"]): boolean {

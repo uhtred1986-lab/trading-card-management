@@ -3186,4 +3186,30 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.ok(!canActivate(t, other), "an unpayable price is not offered");
 }
 
+// ── where a card is, remembered but never trusted ──────────────────────────
+
+{
+  // `locate` keeps a hint per state and checks it before believing it, which
+  // is what makes it safe against the mutations that do not go through
+  // `move` — an evolve splicing an array, a card placed under another.
+  const s = arena({ battle: ["V1", "BIG"], hand: ["V-BLUE"] });
+  const [first, second] = s.players.p1.battle;
+  assert.equal(locate(s, first)?.area, "battle");
+  assert.equal(locate(s, first)?.index, 0);
+  // Move it the honest way: the hint follows.
+  move({ defs: DEFS }, s, [], first, "drop", "p1");
+  assert.equal(locate(s, first)?.area, "drop", "the hint was refreshed");
+  assert.equal(locate(s, second)?.area, "battle");
+
+  // Now mutate the arrays behind `move`'s back, as the evolve and Z-Awaken
+  // paths do. A cache that trusted itself would still say "battle".
+  const moved = s.players.p1.battle.pop()!;
+  s.players.p1.warp.unshift(moved);
+  assert.equal(locate(s, moved)?.area, "warp", "the stale hint was checked and missed");
+
+  // And a card that is nowhere is nowhere, not wherever it last was.
+  s.players.p1.warp.shift();
+  assert.equal(locate(s, moved), null);
+}
+
 console.log("verify-arena: all checks passed");
