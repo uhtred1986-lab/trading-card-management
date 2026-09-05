@@ -9,7 +9,7 @@ import { apply, createGame, defsFrom, legalActions, seedFrom, type Action, type 
 import { parseSkills, keywordOf, orbsIn } from "../src/lib/arena/engine/cards";
 import { parseFilter, matches, parseCondition } from "../src/lib/arena/engine/filters";
 import { move, locate, playCost, powerOf, forbids, has, cardNow, comboCostOf, skillNegated, skillsNegated } from "../src/lib/arena/engine/state";
-import { compileSkill, describeScript, parseConditionClause, splitClauses } from "../src/lib/arena/engine/compile";
+import { compileSkill, costIsOnlyOrbs, costText, describeScript, parseConditionClause, splitClauses } from "../src/lib/arena/engine/compile";
 import { autoTriggerMatches, koCard } from "../src/lib/arena/engine/triggers";
 
 // ── skill text parsing ─────────────────────────────────────────────────────
@@ -3112,6 +3112,37 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   // The card itself came back to hand, and the skill drew them one more.
   assert.equal(s.players.p2.hand.length, theirHand + 2, "3-1: it was removed, and it noticed");
   assertConsistent(s);
+}
+
+// ── the price before the colon (9-1-3) ─────────────────────────────────────
+
+{
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+  const priceOf = (text: string) => costText(parseSkills(text)[0].cost);
+
+  // A card that costs orbs *and* names a condition never starts with the
+  // condition, and both `activatable` and `compileSkill` tested the raw text
+  // for a leading "if" — so the condition was neither checked before offering
+  // the skill nor applied to the program. 1,626 skills were in that state.
+  assert.equal(priceOf("[Activate: Main]{r}{r}, if your Leader is red: Draw 1 card."), "if your Leader is red");
+  // A reminder in brackets is not a price either (1-5-8).
+  assert.equal(priceOf("[Activate: Main][Limit 1] (You can only activate this skill once per turn.) If your Leader is red: Draw 1 card."), "If your Leader is red");
+  assert.ok(costIsOnlyOrbs("{r}{r}"), "orbs alone are a price the engine can charge");
+  assert.ok(costIsOnlyOrbs("{r}{r} (a reminder)"));
+  assert.ok(!costIsOnlyOrbs("{r}, if your Leader is red"));
+
+  // Both halves of a compound price are kept. Read whole, the greedy tail of
+  // the Leader pattern swallowed the second and dropped it — which would have
+  // offered the skill without its energy requirement.
+  const both = one("[Activate: Main]{r}{r}, if your Leader is a green <Broly> card and you have 2 or more energy: Draw 1 card.");
+  assert.deepEqual(both.unsupported, []);
+  const gate = (both.ops[0] as { op: string; cond: { kind: string; conds?: { kind: string }[] } }).cond;
+  assert.equal(gate.kind, "all");
+  assert.deepEqual(gate.conds?.map((c) => c.kind), ["leaderMatches", "count"]);
+
+  // A price the engine cannot read still fails the skill rather than running
+  // the effect for free.
+  assert.ok(one("[Activate: Main] If the moon is full: Draw 1 card.").unsupported.length > 0);
 }
 
 console.log("verify-arena: all checks passed");

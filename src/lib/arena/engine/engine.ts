@@ -9,7 +9,7 @@
  * state storable mid-prompt and replayable from the action log.
  */
 import { baseType, canCombo, isZ, keywordOf, skillsOf, specifiedCostOf } from "./cards";
-import { compileCard, parseConditionClause, type CardScripts } from "./compile";
+import { compileCard, costIsOnlyOrbs, costText, parseConditionClause, type CardScripts } from "./compile";
 import { matches, parseCondition, parseFilter } from "./filters";
 import { stepScript, validateProgram, type Op, type ScriptFrame } from "./script";
 import { koCard, pendTriggers } from "./triggers";
@@ -649,8 +649,9 @@ function resolveKeywordOrText(ctx: EngineContext, s: GameState, ev: GameEvent[],
         if (!s.battle || s.battle.attacker !== card) return "done";
         // "[Alliance Red/Green] If your Leader Card is red: …" — the printed
         // condition is checked before anyone is asked to rest a card.
-        if (/^(?:if|when|while|during)\b/i.test(sk.cost)) {
-          const cond = parseConditionClause(sk.cost);
+        const alliancePrice = costText(sk.cost);
+        if (/^(?:if|when|while|during)\b/i.test(alliancePrice)) {
+          const cond = parseConditionClause(alliancePrice);
           if (!cond) {
             note(ev, `${face(ctx, s, card).name}: the condition on [Alliance] could not be read — "${sk.cost}"`);
             return "done";
@@ -763,8 +764,12 @@ function scriptFor(ctx: EngineContext, s: GameState, card: string, skillIndex: n
  * resolving it at all.
  */
 function costIsReadable(sk: Skill): boolean {
-  if (sk.cost.replace(/\{[^}]*\}/g, "").replace(/[\s,:]/g, "").length === 0) return true;
-  return /^(?:if|when|while|during)\b/i.test(sk.cost) && parseConditionClause(sk.cost) !== null;
+  if (costIsOnlyOrbs(sk.cost)) return true;
+  // The orbs and any reminder text come off first — a card that costs both
+  // orbs and a condition never *starts* with the condition, and testing the
+  // raw text meant 1,626 skills whose effects compile were never offered.
+  const priced = costText(sk.cost);
+  return /^(?:if|when|while|during)\b/i.test(priced) && parseConditionClause(priced) !== null;
 }
 
 /** "2 Green energy and 1 marker" — what an optional cost asks for. */

@@ -13,6 +13,7 @@ import { db } from "../src/db";
 import { DEFAULT_GAME } from "../src/lib/catalog/games";
 import { cards as cardsTable } from "../src/db/schema";
 import { compileCardCached, parseSkills, type CardDef } from "../src/lib/arena/engine";
+import { costIsOnlyOrbs, costText, parseConditionClause } from "../src/lib/arena/engine/compile";
 import { autoTriggerMatches } from "../src/lib/arena/engine/triggers";
 import type { Trigger } from "../src/lib/arena/engine/types";
 import { cardDefFrom } from "../src/lib/arena/load";
@@ -256,6 +257,54 @@ for (const d of defs) {
 console.log(`\n\n${orphans} [Auto] skills compile but no trigger ever fires them — the engine reads`);
 console.log("them and then waits for a moment it does not know about:\n");
 for (const [, e] of [...orphan.entries()].sort((a, b) => b[1].skills - a[1].skills).slice(0, 20)) {
+  console.log(`${String(e.skills).padStart(5)} skills on ${String(e.cards.size).padStart(4)} cards   ${e.example}`);
+}
+
+/**
+ * The same blind spot for the other two kinds. `activatable` in `engine.ts`
+ * only offers a skill when its **cost** is readable as well as its effect — a
+ * price the engine cannot charge must not be waived — so an [Activate] or
+ * [Counter] whose effect compiles perfectly is still never offered when the
+ * text before the colon defeats `parseConditionClause`.
+ *
+ * This mirrors `costIsReadable`, which is not exported; keep the two together.
+ */
+const costReadable = (cost: string) => {
+  if (costIsOnlyOrbs(cost)) return true;
+  const priced = costText(cost);
+  return /^(?:if|when|while|during)\b/i.test(priced) && parseConditionClause(priced) !== null;
+};
+
+const unpayable = new Map<string, { skills: number; cards: Set<string>; example: string }>();
+let unpayables = 0;
+for (const d of defs) {
+  for (const side of ["front", "back"] as const) {
+    const text = side === "front" ? d.skill : d.back?.skill;
+    if (!text) continue;
+    const scripts = compileCardCached(d, side);
+    for (const sk of parseSkills(text)) {
+      if (!sk.kind.startsWith("activate") && !sk.kind.startsWith("counter")) continue;
+      if (!sk.effect.trim() || scripts.bySkill[sk.index]?.unsupported.length !== 0) continue;
+      if (costReadable(sk.cost)) continue;
+      unpayables++;
+      const key = sk.cost
+        .toLowerCase()
+        .replace(/\d+/g, "N")
+        .replace(/<[^>]*>|\{[^}]*\}|≪[^≫]*≫/g, "…")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 70);
+      const e = unpayable.get(key) ?? { skills: 0, cards: new Set<string>(), example: key };
+      e.skills++;
+      e.cards.add(d.id);
+      unpayable.set(key, e);
+    }
+  }
+}
+
+console.log(`\n\n${unpayables} [Activate]/[Counter] skills compile but are never offered, because the`);
+console.log("engine cannot read the price before the colon and will not waive one:\n");
+for (const [, e] of [...unpayable.entries()].sort((a, b) => b[1].skills - a[1].skills).slice(0, 20)) {
   console.log(`${String(e.skills).padStart(5)} skills on ${String(e.cards.size).padStart(4)} cards   ${e.example}`);
 }
 process.exit(0);

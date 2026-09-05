@@ -429,6 +429,31 @@ function parseTrailingDelay(clause: string): { at: DelayTiming; scope: DelayScop
  * Conditions a skill puts in front of its effect ("If your Leader is red, …").
  * Everything after the condition becomes conditional on it (9-1-3).
  */
+/**
+ * What a skill prints before its colon, with the orbs and any explanatory note
+ * taken off — "{r}{r}, if your Leader is a green <Broly> card and you have 2
+ * or more energy" leaves the condition alone.
+ *
+ * `activatable` in `engine.ts` and `compileSkill` both have to read this the
+ * same way. They did not: both tested the *raw* cost for a leading "if", which
+ * a card that also costs orbs never has, so the condition was neither checked
+ * before offering the skill nor applied to the program.
+ */
+export function costText(cost: string): string {
+  return stripNotes(cost)
+    .replace(/^(?:\{[^}]*\}|\s|,)+/, "")
+    .trim();
+}
+
+/** True when the price is nothing but orbs (and the reminder text beside them). */
+export function costIsOnlyOrbs(cost: string): boolean {
+  return (
+    stripNotes(cost)
+      .replace(/\{[^}]*\}/g, "")
+      .replace(/[\s,:]/g, "").length === 0
+  );
+}
+
 export function parseConditionClause(clause: string, allowBare = false): { cond: Cond; subject?: Ref } | null {
   const trimmed = clause.toLowerCase().trim();
   // "During your turn" is a condition too, and reads as one everywhere else in
@@ -439,6 +464,24 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // "and", so the second half arrives without a condition word in front of it.
   // It only counts as a condition when it continues one (9-1-3).
   if (t === trimmed && !allowBare) return null;
+  // "If your Leader is a green <Broly> card **and** you have 2 or more
+  // energy" — two conditions in one price. Every pattern below has a greedy
+  // tail that would swallow the second and drop it in silence, which is worse
+  // than failing: the skill would be offered without its second requirement.
+  // A body clause never arrives here compound, because `splitClauses` has
+  // already broken it at the "and".
+  if (/ and /.test(t)) {
+    const conds: Cond[] = [];
+    for (const part of t.split(/ and /)) {
+      const got = parseConditionClause(part.trim(), true);
+      if (!got) {
+        conds.length = 0;
+        break;
+      }
+      conds.push(got.cond);
+    }
+    if (conds.length > 1) return { cond: { kind: "all", conds } };
+  }
   let m: RegExpExecArray | null;
   // "If your Leader Card is a <Baby> card, it gets +10000 power" — the leader is
   // both the condition's subject and what "it" then refers to.
@@ -1440,8 +1483,9 @@ export function compileSkill(skill: Skill): Script {
   // — a condition written before the colon is part of the skill's validity
   // (9-1-3), and it lands in `cost`. It wraps the whole program; one the
   // compiler cannot read fails the skill rather than running it unconditionally.
-  if (ops.length && !engineChecks && /^(?:if|when|while|during)\b/i.test(skill.cost)) {
-    const cond = parseConditionClause(skill.cost);
+  const priced = costText(skill.cost);
+  if (ops.length && !engineChecks && /^(?:if|when|while|during)\b/i.test(priced)) {
+    const cond = parseConditionClause(priced);
     if (!cond) return { ops: [], unsupported: [skill.cost, ...unsupported] };
     return { ops: [{ op: "if", cond: cond.cond, then: ops }], unsupported };
   }
