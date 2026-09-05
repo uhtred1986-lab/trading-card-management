@@ -631,13 +631,31 @@ Rulings the engine has had to take a view on, where the manual does not settle
 it. Each is a one-line change if the answer goes the other way; none blocks the
 work, and they are parked here so they are not lost.
 
-1. **Does a card see its own arrival?** (5 Sep 2026, `youPlayed` in
-   `triggers.ts`.) "When your blue ≪God≫ card is played, draw 1 card", printed
-   on a card that is itself a blue ≪God≫ card. The engine currently fires it:
-   the card's skills are valid in the area it now sits in (9-1-3-1) and the
-   event it names has happened. The alternative reading is that it was not yet
-   in play when it was played, so it cannot watch itself. Changing the answer
-   means excluding the played card from the watcher loop in `engine.ts`.
+1. ~~**Does a card see its own arrival?**~~ **Settled from the manual, 5 Sep
+   2026 — the engine's behaviour stands.** "When your blue ≪God≫ card is
+   played, draw 1 card", printed on a card that is itself a blue ≪God≫ card:
+   it does fire. Two rules decide it, both in `docs/rules/rulemanual.txt`:
+
+   - **9-6-9-4** defines "when you play this card / when this card is played"
+     as an **area movement trigger** — one that fires "when the cards they're
+     on move from an area other than a Battle Area/Unison Area **to** a Battle
+     Area/Unison Area". The play *is* the arrival.
+   - **9-6-9-1-3**: for a movement between two open areas, an [Auto] that asks
+     about the card that triggered it uses "the information of the card **as it
+     is in the new area**". So at the moment the condition is tested the card
+     is in the Battle Area, where its own skills are valid (9-1-3-1).
+
+   Supporting, though not the same question: the official Card Q&A for
+   {BT1-089 Avenging Frieza} answers "can you add Avenging Frieza to your hand
+   with Avenging Frieza's auto skill?" with "…has the ≪Frieza's Army≫ special
+   trait, so the condition specified on the card text is fulfilled" — Bandai
+   does not read an unstated "other" into a card description. The cards that
+   mean it print it ("1 **other** black card in your hand").
+
+   No official Q&A addresses this exact case, so this is a reading of the
+   manual rather than a printed ruling. If one turns up the other way it is a
+   one-line change: exclude the played card from the watcher loop in
+   `engine.ts`.
 
 ## 7. Definition of done for the next stage
 
