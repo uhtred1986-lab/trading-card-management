@@ -61,7 +61,16 @@ export function def(ctx: GameContext, s: GameState, id: string): CardDef {
  */
 export interface Replacement {
   to: Area;
-  by?: "skill";
+  /**
+   * Which departures it replaces. Absent is any of them ("would leave the
+   * Battle Area"); `"skill"` is only an effect putting the card out; `"ko"`
+   * only the KO; `"skillOrKo"` is what BT30-016 prints — "would be removed
+   * from a Battle Area by a skill **or KO'd**", which is both causes and still
+   * not a card leaving for a rule.
+   */
+  by?: "skill" | "ko" | "skillOrKo";
+  /** "Add that card to your energy in Rest Mode instead" — the mode it arrives in. */
+  mode?: "active" | "rest";
 }
 
 /**
@@ -72,13 +81,16 @@ export interface Replacement {
  * here and the log says which; when that turns up in a real game it is one
  * prompt away.
  */
-function replacementFor(ctx: GameContext, s: GameState, id: string, reason: MoveOptions["reason"]): Area | null {
+function replacementFor(ctx: GameContext, s: GameState, id: string, reason: MoveOptions["reason"]): Replacement | null {
   for (const e of staticEffects(ctx, s)) {
     if (e.kind !== "replaceLeave" || e.target !== id) continue;
     const r = e.value as Replacement;
-    // "By a skill" means an effect put it out, not a battle or a rule.
+    // "By a skill" means an effect put it out, not a battle or a rule; the
+    // longer form adds the KO, which is the one other cause cards name.
     if (r.by === "skill" && reason !== "effect") continue;
-    return r.to;
+    if (r.by === "ko" && reason !== "ko") continue;
+    if (r.by === "skillOrKo" && reason !== "effect" && reason !== "ko") continue;
+    return r;
   }
   return null;
 }
@@ -498,7 +510,7 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
       if (!inPlayNow) continue;
       const dest = op.to === "play" ? "battle" : op.to === "under" ? "drop" : (op.to as Area);
       const targets = op.target ? staticTargets(ctx, s, frame, op.target) : [source];
-      for (const id of targets) out.push({ source, kind: "replaceLeave", target: id, value: { to: dest, by: op.by } });
+      for (const id of targets) out.push({ source, kind: "replaceLeave", target: id, value: { to: dest, by: op.by, mode: op.mode } });
       continue;
     }
     // "In all areas" again: what a card counts as does not depend on where it is.
@@ -605,11 +617,13 @@ export function move(ctx: GameContext, s: GameState, ev: GameEvent[], id: string
   // there, and the move that was about to happen is treated as never having
   // happened (9-10-1-1). Read before the rules below, because a rule about
   // what a card *is* — a token, a Z-card — outranks an effect (0-2-5).
+  let insteadMode: "active" | "rest" | undefined;
   if (wasInPlay && !goesToPlay && !goesToCombo) {
     const instead = replacementFor(ctx, s, id, opts.reason);
-    if (instead && instead !== to) {
-      note(ev, `${face(ctx, s, id).name} goes to the ${instead} instead`);
-      to = instead;
+    if (instead && instead.to !== to) {
+      note(ev, `${face(ctx, s, id).name} goes to the ${instead.to} instead`);
+      to = instead.to;
+      insteadMode = instead.mode;
     }
   }
 
@@ -650,6 +664,10 @@ export function move(ctx: GameContext, s: GameState, ev: GameEvent[], id: string
   if (goesToPlay || goesToCombo) inst.enteredTurn = s.turn;
   // 22-31: [Energy-Exhaust] enters the Energy Area rested.
   if (to === "energy" && hasKeyword(d, "Energy-Exhaust")) inst.mode = "rest";
+  // "…add that card to your energy in Rest Mode instead": the replacement says
+  // how the card arrives as well as where, and it is applied after the reset
+  // above, which had just switched it back to Active Mode.
+  if (insteadMode) inst.mode = insteadMode;
 
   const ps = s.players[toOwner];
   if (to === "leader") ps.leader = id;

@@ -248,7 +248,7 @@ interface Ctx {
    * where it goes instead, so it becomes a replacement rather than a move
    * (9-10).
    */
-  replacing: { by?: "skill"; subject?: string } | null;
+  replacing: { by?: "skill" | "ko" | "skillOrKo"; subject?: string } | null;
   n: number;
   /** The skill text with its explanatory notes still in place. A token's stats are printed there. */
   raw: string;
@@ -326,19 +326,23 @@ function durationOf(clause: string): Duration {
  * put the card out but not whose, and guessing would let the wrong cards
  * escape.
  */
-function parseWouldLeave(clause: string): { by?: "skill"; subject?: string } | null {
+function parseWouldLeave(clause: string): { by?: "skill" | "ko" | "skillOrKo"; subject?: string } | null {
   const t = clean(clause);
   if (/your opponent'?s? skills?/.test(t)) return null;
-  const opener = /^(?:if|when)?\s*(.*?) would (leave|be removed from|be sent from) (?:your |the )?battle area(?: by (?:a|your) skills?)?$/.exec(t);
+  const opener = /^(?:if|when)?\s*(.*?) would (leave|be removed from|be sent from) (?:your |the |a )?battle area(?: by (?:a|your) skills?)?( or (?:be )?ko'?d)?$/.exec(t);
   if (opener) {
-    const by = opener[2] === "leave" ? undefined : ("skill" as const);
+    // "Removed from a Battle Area by a skill or KO'd" covers both causes;
+    // "would leave" covers every cause, so it has no restriction at all.
+    const by = opener[2] === "leave" ? undefined : opener[3] ? ("skillOrKo" as const) : ("skill" as const);
     const who = opener[1].trim();
     // "A ≪Slug's Army≫ card with a combo cost of 1 would leave your Battle
     // Area" — the rule is about other cards, so the subject is kept.
     if (/^(?:this card|it)$/.test(who)) return { by };
     return who ? { by, subject: who } : { by };
   }
-  if (/^(?:if|when)?\s*(?:this card|it) would be ko'?d$/.test(t)) return {};
+  // "If this card would be KO'd" replaces the KO and nothing else: a card its
+  // owner returns to hand is still returned to hand.
+  if (/^(?:if|when)?\s*(?:this card|it) would be ko'?d$/.test(t)) return { by: "ko" };
   return null;
 }
 
@@ -1068,7 +1072,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     [/^return (.+?) to (?:its|their) owners?'?s? hands?$/, "hand", {}],
     [/^return (.+?) to (?:your|their) hands?$/, "hand", {}],
     [/^add (.+?) to your hand$/, "hand", {}],
-    [/^send (.+?) to (?:your|their|its owner'?s?|their owners?'?s?) warps?$/, "warp", {}],
+    [/^send (.+?) to (?:your|their|its owner'?s?|their owners?'?s?|the) warps?$/, "warp", {}],
     // 3-8: whose energy area matters, and it is not always the card's owner —
     // "place it in your opponent's energy in Rest Mode" hands them a card.
     [/^(?:add|place) (.+?) (?:to|in) your opponent'?s energy(?: area)? in rest mode$/, "energy", { mode: "rest", reveal: true, owner: "opponent" }],
@@ -1481,7 +1485,11 @@ function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op
       if (cond.subject) c.lastTarget = cond.subject;
       continue;
     }
-    const got = compileClause(clause, c);
+    // "Instead" is the word every replacement ends on, and it broke the anchor
+    // of every move pattern but one — "send it to the Warp instead" was
+    // unreadable while "send it to the Warp" was not. It says nothing the
+    // pending `c.replacing` has not already said, so it comes off first.
+    const got = compileClause(c.replacing ? clause.replace(/[\s,]+instead[.\s]*$/i, "") : clause, c);
     if (!got) {
       if (c.replacing) c.replacing = null;
       unsupported.push(clause);
@@ -1498,7 +1506,9 @@ function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op
         // not whatever "it" happened to point at in the second half.
         const filter = subject ? filterFor(subject, "battle") : undefined;
         const target: Ref = subject ? { sel: { side: "you", area: "battle", filter, count: 99 } } : only.target;
-        push([{ op: "replaceLeave", to: only.to, target, ...(by ? { by } : {}) }]);
+        // "…to your energy in Rest Mode instead" — the move said how it
+        // arrives as well as where, and the replacement has to carry both.
+        push([{ op: "replaceLeave", to: only.to, target, ...(by ? { by } : {}), ...(only.mode ? { mode: only.mode } : {}) }]);
         continue;
       }
       // Anything else is a replacement this language cannot say yet, and
@@ -1773,9 +1783,11 @@ export function describeScript(ops: Op[]): string {
       case "costReduction":
         parts.push(`${describeRef(op.target)} costs ${op.amount} less`);
         break;
-      case "replaceLeave":
-        parts.push(`if it would leave the Battle Area it goes to the ${op.to} instead`);
+      case "replaceLeave": {
+        const cause = op.by === "ko" ? "be KO'd" : op.by === "skill" ? "be removed from the Battle Area by a skill" : op.by === "skillOrKo" ? "be removed from the Battle Area by a skill or KO'd" : "leave the Battle Area";
+        parts.push(`if ${describeRef(op.target ?? { sel: { special: "self" } })} would ${cause}, it goes to the ${op.to}${op.mode === "rest" ? " in Rest Mode" : ""} instead`);
         break;
+      }
       case "altCost":
         parts.push(op.pay === "none" ? "its [Counter] may be activated for no energy" : `its [Counter] may be activated by adding ${op.n ?? 1} from your life to your hand`);
         break;

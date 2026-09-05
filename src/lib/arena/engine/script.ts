@@ -209,7 +209,7 @@ export type Op =
    * 9-10: where this card goes instead, when it would leave the Battle Area.
    * `by: "skill"` narrows it to departures a skill caused.
    */
-  | { op: "replaceLeave"; to: ScriptArea; by?: "skill"; target?: Ref }
+  | { op: "replaceLeave"; to: ScriptArea; by?: "skill" | "ko" | "skillOrKo"; mode?: "active" | "rest"; target?: Ref }
   /**
    * Another way to pay for this card's own [Counter] skill (5-3): for nothing,
    * or by adding cards from your life to your hand. Read from the hand, like

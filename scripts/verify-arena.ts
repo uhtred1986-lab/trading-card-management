@@ -10,7 +10,7 @@ import { parseSkills, keywordOf, orbsIn } from "../src/lib/arena/engine/cards";
 import { parseFilter, matches, parseCondition } from "../src/lib/arena/engine/filters";
 import { move, locate, playCost, powerOf, forbids, has, cardNow, comboCostOf, skillNegated, skillsNegated } from "../src/lib/arena/engine/state";
 import { compileSkill, describeScript, parseConditionClause, splitClauses } from "../src/lib/arena/engine/compile";
-import { autoTriggerMatches } from "../src/lib/arena/engine/triggers";
+import { autoTriggerMatches, koCard } from "../src/lib/arena/engine/triggers";
 
 // ── skill text parsing ─────────────────────────────────────────────────────
 
@@ -2644,6 +2644,73 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   s.cards[pile].under.push(a, b);
   s.players.p1.deck = s.players.p1.deck.filter((id) => id !== a && id !== b);
   assert.equal(powerOf({ defs: DEFS }, s, pile), base + 10000, "two cards under it, +10000");
+}
+
+// ── what a replacement replaces (9-10) ─────────────────────────────────────
+
+{
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+
+  // "Instead" is the word every replacement ends on, and it broke the anchor
+  // of every move pattern but one: the same sentence without it compiled.
+  const warp = one("[Permanent] If this card would be KO'd, send it to the Warp instead.");
+  assert.deepEqual(warp.unsupported, []);
+  assert.deepEqual(warp.ops, [{ op: "replaceLeave", to: "warp", target: { sel: { special: "self" } }, by: "ko" }]);
+
+  // "Would be KO'd" replaces the KO and nothing else; "would leave the Battle
+  // Area" replaces every departure, so it carries no cause at all.
+  assert.equal((one("[Permanent] If this card would leave the Battle Area, return it to its owner's hand instead.").ops[0] as { by?: string }).by, undefined);
+  assert.equal((one("[Permanent] If this card would be removed from the Battle Area by a skill, send it to the Warp instead.").ops[0] as { by?: string }).by, "skill");
+
+  // BT30-016: other cards by filter, both causes, and the mode it arrives in.
+  const earthling = one("[Permanent] If your blue ≪Earthling≫ card would be removed from a Battle Area by a skill or KO'd, add that card to your energy in Rest Mode instead.");
+  assert.deepEqual(earthling.unsupported, []);
+  const rep = earthling.ops[0] as { to: string; by?: string; mode?: string; target: { sel: { filter?: { traits: string[] } } } };
+  assert.equal(rep.to, "energy");
+  assert.equal(rep.by, "skillOrKo");
+  assert.equal(rep.mode, "rest", "the replacement says how it arrives as well as where");
+  assert.deepEqual(rep.target.sel.filter?.traits, ["earthling"], "and which cards it is about");
+}
+
+{
+  // The engine side. A KO-only replacement sends the card to the Warp…
+  DEFS.PHOENIX = { ...DEFS.V1, id: "PHOENIX", name: "PHOENIX", skill: "[Permanent] If this card would be KO'd, send it to the Warp instead." };
+  const s = arena({ battle: ["PHOENIX"], oppBattle: ["BIG"] });
+  const bird = s.players.p1.battle[0];
+  koCard({ defs: DEFS }, s, [], bird);
+  assert.ok(s.players.p1.warp.includes(bird), "9-10: it went to the Warp, not the Drop");
+  assert.ok(!s.players.p1.drop.includes(bird));
+  assertConsistent(s);
+
+  // …and leaves an ordinary skill-move alone, which is what `by` is for.
+  const t = arena({ battle: ["PHOENIX"] });
+  const bird2 = t.players.p1.battle[0];
+  move({ defs: DEFS }, t, [], bird2, "hand", "p1", { reason: "effect" });
+  assert.ok(t.players.p1.hand.includes(bird2), "a return to hand is not a KO");
+  assertConsistent(t);
+}
+
+{
+  // A replacement that covers *other* cards by filter, and says the mode.
+  DEFS.WARDEN = {
+    ...DEFS.V1,
+    id: "WARDEN",
+    name: "WARDEN",
+    skill: "[Permanent] If your ≪Earthling≫ card would be removed from a Battle Area by a skill or KO'd, add that card to your energy in Rest Mode instead.",
+  };
+  DEFS.PEASANT = { ...DEFS.V1, id: "PEASANT", name: "PEASANT", traits: ["Earthling"] };
+  const s = arena({ battle: ["WARDEN", "PEASANT", "BIG"] });
+  const peasant = s.players.p1.battle.find((id) => s.cards[id].cardId === "PEASANT")!;
+  const big = s.players.p1.battle.find((id) => s.cards[id].cardId === "BIG")!;
+  const energy = s.players.p1.energy.length;
+  koCard({ defs: DEFS }, s, [], peasant);
+  assert.ok(s.players.p1.energy.includes(peasant), "the ≪Earthling≫ card went to the energy");
+  assert.equal(s.players.p1.energy.length, energy + 1);
+  assert.equal(s.cards[peasant].mode, "rest", "and in Rest Mode, as printed");
+  // A card the filter does not name still goes to the Drop.
+  koCard({ defs: DEFS }, s, [], big);
+  assert.ok(s.players.p1.drop.includes(big), "9-10 only replaces what the skill names");
+  assertConsistent(s);
 }
 
 console.log("verify-arena: all checks passed");

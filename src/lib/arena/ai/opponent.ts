@@ -243,6 +243,10 @@ Operations (each is an object with "op"):
     until may also be "nextTurn", which lasts through the opponent's turn and ends as yours begins.
   {"op":"token","name":"Saibaman Token","power":10000,"comboCost":0,"comboPower":5000,"colors":[],"n":2}
   {"op":"altCost","pay":"none"|"life","n":1}   [Permanent] only: another way to pay for this card's own [Counter]
+  {"op":"replaceLeave","to":"warp","by":"ko","mode":"rest","target":TARGET}   [Permanent] only (9-10)
+    "if this card would be KO'd, send it to the Warp instead". "by" is which departure it replaces:
+    omitted = any, "skill" = removed by an effect, "ko" = the KO, "skillOrKo" = either.
+    Omit "target" for this card; give one to cover other cards by filter.
   {"op":"if","cond":COND,"then":[...],"else":[...]}
   {"op":"chooseMode","modes":[{"label":"…","ops":[...]},{"label":"…","ops":[...]}]}   "Choose one— ・A ・B"
   {"op":"moveTo","target":TARGET,"to":"under","under":TARGET}    under another card; omit "under" for this card
