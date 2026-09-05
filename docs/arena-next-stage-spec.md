@@ -19,10 +19,10 @@ Measured on the 6,493 Dragon Ball Super (not Fusion World) cards:
 
 | measure | value | command |
 |---|---|---|
-| resolvable skills the compiler reads end-to-end | 81.5 % of 11,485 | `npm run arena:coverage` |
-| [Permanent] skills the compiler reads | 52.8 % of 1,848 | same |
-| …and that actually emit a standing effect | 45.2 % of 1,848 | same |
-| skills in the owner's 12 decks that compile | 89.8 % of 354 | same (deck tables) |
+| resolvable skills the compiler reads end-to-end | 82.5 % of 11,745 | `npm run arena:coverage` |
+| [Permanent] skills the compiler reads | 52.6 % of 1,808 | same |
+| …and that actually emit a standing effect | 47.3 % of 1,808 | same |
+| skills in the owner's 12 decks that compile | 89.9 % of 357 | same (deck tables) |
 | skills exactly one unreadable clause away | 1,344 | `npm run arena:gaps` |
 | [Auto] skills that compile but no trigger fires | 775 | `npm run arena:gaps` (§5.3) |
 | [Activate]/[Counter] whose price the engine cannot read | 159 | same |

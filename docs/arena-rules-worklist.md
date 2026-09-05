@@ -594,6 +594,43 @@ So: a compiler fix can make an engine path reachable for the first time. Run
 `arena:fuzz` after compiler work, not only after engine work — it is the only
 thing that would have caught this.
 
+## Done: the second round of probes (5 Sep 2026)
+
+Four more of the §5.3b probes. Two came back clean, which is worth the ten
+lines to know; two found real bugs, and one of those was the biggest single
+find of the branch.
+
+| probe | result |
+|---|---|
+| a `power` op whose sign disagrees with the printed text | **clean** |
+| a choice looking in a different area from the one printed | 82 hits, nearly all noise → the real one below |
+| an op whose duration disagrees with the printed text | 1, and it was real |
+| a printed "draw N cards" with no matching `draw` op | 4, and they were two different bugs |
+
+**Two skills printed without the line break between them.** Some cards are set
+without the `<br>`, so "[EX-Evolve]{b}{1}: <Towa> …. **[Auto]** When this card
+is played, draw 1 card" arrives as one line — and since [EX-Evolve] owns its
+own text, the [Auto] was discarded with `ops: []` and `unsupported: []`. It was
+not a gap, it was invisible. **205 skills existed on cards and had never been
+parsed**; 153 cards were affected. Catalog 81.8 % → 82.5 %.
+
+**"For each" was swallowing the rest of the sentence.** "+6000 power for each
+card in your energy **and [Triple Strike] for the duration of the battle**" —
+everything after "for each" went to `parseTarget` as the thing being counted,
+so the keyword was dropped and the power lasted the turn rather than the
+battle. One clause, compiled cleanly, two things wrong at once.
+
+**Sixteen area pairs, not five.** "From your deck or Drop Area" searched the
+deck alone. I had added five pairs by hand; asking the catalog found sixteen in
+both orders over 335 printings, so they are read from a table now. 192 of 216
+such choices read both areas, against about five before.
+
+The probe habit worth keeping: **the first version of a probe is mostly
+noise.** The area one flagged 82 cases and nearly all were a clause naming a
+source *and* a destination, where the selector is rightly the source. Skipping
+any clause that names more than one area left the real ones. Do not abandon a
+probe because its first run looks like nothing — narrow it.
+
 ## Conventions worth keeping
 
 - Card text is **read, never interpreted**: if the compiler cannot read a
