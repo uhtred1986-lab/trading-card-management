@@ -1551,7 +1551,12 @@ function activatable(ctx: EngineContext, s: GameState, p: PlayerId, card: string
   const orbTotal = Object.entries(orbCost).reduce((n, [c, v]) => n + (c === "any" ? 0 : (v ?? 0)), 0) + (orbCost.any ?? 0);
   const orbSpecified = Object.fromEntries(Object.entries(orbCost).filter(([c]) => c !== "any")) as Partial<Record<string, number>>;
   const canPayOrbs = () => planPayment(ctx, s, p, orbTotal, orbSpecified as never) !== null;
-  const costIsOrbsOnly = /^[\s{}\w,/]*$/.test(sk.cost) && !/[a-z]{4,}/i.test(sk.cost.replace(/\{[^}]*\}/g, ""));
+  // The one reading of "the price is nothing but orbs", shared with
+  // `costIsReadable` and with `arena:gaps`. There used to be a second one
+  // here that differed on reminder text, so "{r} (Play this card from your
+  // hand when you have red cards.)" counted as orbs in one place and not the
+  // other — the exact drift these helpers exist to prevent.
+  const costIsOrbsOnly = costIsOnlyOrbs(sk.cost);
 
   if (k) {
     switch (k.name) {
