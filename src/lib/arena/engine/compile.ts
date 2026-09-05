@@ -946,6 +946,10 @@ const THIRD_PERSON: Record<string, string> = {
   switches: "switch",
   removes: "remove",
   discards: "discard",
+  kos: "ko",
+  plays: "play",
+  draws: "draw",
+  reveals: "reveal",
 };
 
 /**
@@ -972,7 +976,10 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     // the action itself; the clause before it has already recorded that.
     .replace(/\s+instead$/, "")
     // A card-moving verb left in the third person by the split before it.
-    .replace(/^(places|sends|returns|adds|switches|removes|discards)\b/, (v) => THIRD_PERSON[v]);
+    // "…and **KOs** it", "…and **plays** it": the verb is left in the third
+    // person by the split before it, because the sentence's subject was the
+    // opponent. Only the leading word, so "your opponent draws" is untouched.
+    .replace(/^(places|puts|sends|returns|adds|switches|removes|discards|kos|plays|draws|reveals)\b/, (v) => THIRD_PERSON[v]);
   let m: RegExpExecArray | null;
 
   // "Your opponent chooses 1 card in their hand and places it in their Drop
@@ -1007,7 +1014,9 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
 
   // Draw (5-1). "You may draw" is treated as taken: declining never helps.
   if ((m = /^draw (\d+) cards?$/.exec(t))) return [{ op: "draw", n: Number(m[1]) }];
-  if ((m = /^your opponent draws (\d+) cards?$/.exec(t))) return [{ op: "draw", n: Number(m[1]), side: "opponent" }];
+  // "Have your opponent draw 1 card" leaves the verb uninflected once the
+  // leading words are split off, and a few sets print it that way outright.
+  if ((m = /^(?:your opponent|they) draws? (\d+) cards?$/.exec(t))) return [{ op: "draw", n: Number(m[1]), side: "opponent" }];
 
   // Discard (20-7).
   if ((m = /^your opponent discards (\d+) cards?(?: from their hand)?$/.exec(t))) return [{ op: "discard", n: Number(m[1]), side: "opponent" }];
@@ -1079,6 +1088,12 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   if ((m = /^reveal (.+)$/.exec(t))) {
     const sel = parseTarget(m[1]);
     if (sel) return [{ op: "reveal", sel, as: "revealed" }];
+  }
+  // "Your opponent reveals the top card of their deck" (20-11-2): the same
+  // turning-up, done by them, and the clauses after it act on what came up.
+  if ((m = /^(?:your opponent|they) reveals? (.+)$/.exec(t))) {
+    const sel = parseTarget(m[1]);
+    if (sel && sel.side === "opponent") return [{ op: "reveal", sel, as: "revealed" }];
   }
   // "Look at your opponent's hand" (20-11): a whole area, seen only by you.
   if (/^look at (?:your opponent'?s|their) hand$/.test(t)) return [{ op: "look", n: 99, as: "looked", side: "opponent", area: "hand" }];
@@ -1528,6 +1543,24 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     return [{ op: "play", target: ref, ...extra }];
   }
 
+  // 5-2: the skill is yours, but the choice is *theirs* — "your opponent
+  // chooses 1 of their Battle Cards" and the clause after it says what happens
+  // to what they picked. Twenty-odd clauses, and every one of them is a
+  // decision the wrong player would otherwise take: KO'ing their own weakest
+  // card is not the same game as you KO'ing their best.
+  //
+  // The plain hand discard is read above as a `discard`, which splices the
+  // same choose with the same chooser; this is every other area.
+  if ((m = /^(?:your opponent|they) chooses? (.+)$/.exec(t))) {
+    const sel = parseTarget(m[1]);
+    if (sel && sel.side === "opponent") {
+      if (/\bup to\b/.test(m[1])) sel.upTo = true;
+      const v = `c${c.n++}`;
+      return [{ op: "choose", sel, as: v, chooser: "opponent", reason: clause }];
+    }
+    return null;
+  }
+
   // Choosing (5-2). Late, because many clauses open with "choose" plus an action.
   if (/^choose /.test(t)) {
     let sel = parseTarget(clause);
@@ -1957,7 +1990,9 @@ function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op
     // turned up. The name only exists here, so the condition is built with
     // the compiler's own bookkeeping rather than by `parseConditionClause`.
     if (c.lastSeen || c.last) {
-      const seen = /^(?:if|when) (?:that card|the (revealed|chosen) card) is (?:an? )?(.+)$/i.exec(clause.trim().replace(/[.,]$/, ""));
+      // "If **it's** a Battle Card" is the same sentence contracted, which the
+      // reveal wordings print as often as the long form.
+      const seen = /^(?:if|when) (?:that card|it|it'?s|the (revealed|chosen) card) (?:is )?(?:an? )?(.+)$/i.exec(clause.trim().replace(/[.,]$/, ""));
       // "The chosen card" is the choice; "that card" is whatever was last
       // turned up, and only falls back to the choice when nothing was.
       const v = seen?.[1]?.toLowerCase() === "chosen" ? c.last : (c.lastSeen ?? c.last);
@@ -2106,6 +2141,33 @@ const FORBIDDEN_IN_WORDS: Record<ForbiddenAction, string> = {
   beNegated: "have their skills negated",
 };
 
+/**
+ * What a filter says, in words, for the card inspector. `describeSelector` used
+ * to be handed a bare filter for this and printed "undefined in your undefined"
+ * — the count and the area it wants are not part of a filter.
+ */
+function describeFilter(f: CardFilter): string {
+  const bits: string[] = [];
+  if (f.monoColor) bits.push("mono-colour");
+  if (f.multiColor) bits.push("multicolour");
+  bits.push(...f.colors.map((c) => c.toLowerCase()));
+  bits.push(...f.traits.map((x) => `≪${x}≫`));
+  bits.push(...f.characters.map((x) => `<${x}>`));
+  bits.push(...f.names.map((x) => `{${x}}`));
+  if (f.token) bits.push("token");
+  if (f.z) bits.push("Z-card");
+  if (f.type) bits.push(`${f.type.toLowerCase()} card`);
+  else if (f.notType) bits.push(`non-${f.notType.toLowerCase()} card`);
+  else if (!bits.length) bits.push("card");
+  if (f.faceUp) bits.push("that is face up");
+  if (f.costMin != null && f.costMin === f.costMax) bits.push(`with an energy cost of ${f.costMin}`);
+  else if (f.costMax != null) bits.push(`with an energy cost of ${f.costMax} or less`);
+  else if (f.costMin != null) bits.push(`with an energy cost of ${f.costMin} or more`);
+  if (f.powerMax != null) bits.push(`with ${f.powerMax} power or less`);
+  else if (f.powerMin != null) bits.push(`with ${f.powerMin} power or more`);
+  return bits.join(" ");
+}
+
 function describeSelector(sel: Selector): string {
   if (sel.special) return { self: "this card", attacker: "the attacking card", guard: "the guard card", subject: "that card", leader: "your leader", opponentLeader: "the opposing leader", resolving: "the card being played" }[sel.special];
   const who = sel.side === "opponent" ? "opponent's " : sel.side === "both" ? "each player's " : "your ";
@@ -2203,7 +2265,7 @@ function describeCond(c: Cond): string {
     case "chose":
       return "you took that choice";
     case "varMatches":
-      return `that card is ${describeSelector({ filter: c.filter })}`;
+      return `that card is ${describeFilter(c.filter)}`;
     case "isTurnPlayer":
       return c.who === "opponent" ? "it is your opponent's turn" : "it is your turn";
   }

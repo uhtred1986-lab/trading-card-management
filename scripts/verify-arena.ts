@@ -4201,4 +4201,25 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.equal(played("NOTSAIYAN"), 0, "…and not for anything else");
 }
 
+{
+  // 5-2 / 20-7: the skill is yours, the choice is theirs. "Your opponent
+  // chooses 1 of their Battle Cards and KOs it" is a different game from you
+  // choosing — they give up their weakest card, not their best — and the
+  // clause was unread, so twenty-odd cards did nothing at all.
+  DEFS.THEIRPICK = { ...DEFS.V1, id: "THEIRPICK", name: "THEIRPICK", energyCost: 1, skill: "[Auto] When you play this card, your opponent chooses 1 of their Battle Cards and KOs it." };
+  let s = arena({ hand: ["THEIRPICK"], energy: ["V1", "V1"], oppBattle: ["V-BLUE", "BIG"] });
+  const theirs = s.players.p2.battle.slice();
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "THEIRPICK") });
+  assert.equal(s.prompt.kind, "chooseCards");
+  assert.equal(s.prompt.player, "p2", "20-7: whoever the card says chooses, chooses");
+  const offered = (s.prompt as { choice: { candidates: string[] } }).choice.candidates;
+  assert.deepEqual([...offered].sort(), [...theirs].sort(), "…among their own Battle Cards");
+  const kept = theirs[1];
+  const given = theirs[0];
+  const after = play(s, { type: "choose", player: "p2", cards: [given] });
+  assert.ok(!after.players.p2.battle.includes(given), "the one they gave up is KO'd");
+  assert.ok(after.players.p2.battle.includes(kept), "…and only that one");
+  assertConsistent(after);
+}
+
 console.log("verify-arena: all checks passed");

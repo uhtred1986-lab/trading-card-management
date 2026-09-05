@@ -910,6 +910,40 @@ sees its own arrival. Its skills are valid in the area it now sits in (9-1-3-1)
 and the event it names has happened, which is the reading the rules text
 supports — but the manual does not say so outright.
 
+## Done: when the choice is theirs (5 Sep 2026)
+
+Still the same thread — a skill of yours acting on the other player. "Your
+opponent chooses 1 of their Battle Cards and KOs it" was the largest unread
+clause shape outside the hand, about 25 clauses, and it is a *different game*
+from you choosing: they give up their weakest card, not their best.
+
+- The clause compiles to a `choose` with `chooser: "opponent"`, which the
+  interpreter already honours (20-7, "whoever the card says chooses, chooses").
+  The plain hand discard was already right — the `discard` op splices the same
+  choose — so this is every other area: their Battle Area, their energy, their
+  Unisons, their Drop, their hand when the wording is not a bare discard.
+- The verb after it is left in the third person by the split, because the
+  sentence's subject was the opponent: "…and **KOs** it". `THIRD_PERSON` gained
+  `kos`, `plays`, `draws`, `reveals` — without which the KO half of the
+  commonest wording was simply lost.
+- "Your opponent reveals the top card of their deck" (10) and "your opponent
+  draw 1 card" (14, the sets print the verb uninflected) read now too.
+- "If **it's** a Battle Card" is the same sentence as "if that card is a Battle
+  Card", contracted, and the reveal wordings print it as often as the long form.
+
+Also fixed a display bug found while checking the readings: `describeCond` for
+`varMatches` handed a bare filter to `describeSelector`, which wants a count and
+an area, and printed "that card is undefined in your undefined" in the card
+inspector. There is now a `describeFilter`.
+
+An audit that came up clean, worth recording so it is not repeated: every
+compiled skill that says "your opponent chooses … from their hand" already asks
+them, because the `discard` op splices the choice with the right chooser.
+
+Coverage 84.0 % → 84.5 %; unread clauses 1,226 → 1,207; orphan triggers 690 →
+685 (two cheap widenings: "when an opponent's Battle Card is KO'd **by this
+card's attack**", and "when **this card in your hand** is used in a combo").
+
 ## Conventions worth keeping
 
 - Card text is **read, never interpreted**: if the compiler cannot read a

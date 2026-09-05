@@ -95,7 +95,10 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     case "opponentCounter":
       return /when your opponent activates a \[counter/.test(t);
     case "kos":
-      return /when this card (?:attacks and )?kos? (?:an opponent's|your opponent's|one of your opponent's|a) (?:battle card|card)/.test(t);
+      // The same moment said the other way round — "when an opponent's Battle
+      // Card is KO'd **by this card's attack**" — which is still this card
+      // doing the KO'ing and so still this trigger.
+      return /when this card (?:attacks and )?kos? (?:an opponent's|your opponent's|one of your opponent's|a) (?:battle card|card)|when (?:an|your) opponent'?s? (?:battle )?card is ko'?d by this card'?s attack/.test(t);
     case "leaderPlaced":
       return /when this card is placed in (?:your|a) leader area|when you place this card in (?:your|a) leader area/.test(t);
     // 7-1: whose turn it is decides whether these happen at all, and "your" is
@@ -143,7 +146,7 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     case "battleEnd":
       return /^at the end of (?:the|a|this) battle\b/.test(head);
     case "comboed":
-      return /when you use this card in a combo|when this card is used in a combo|when you combo with this card|when you (?:play|attack) or combo with this card|when this card in your hand is played or used in a combo/.test(t);
+      return /when you use this card in a combo|when this card(?: in your hand)? is used in a combo|when you combo with this card|when you (?:play|attack) or combo with this card|when this card in your hand is played or used in a combo/.test(t);
     // The card the opponent played is the subject, whichever way round the
     // sentence names it. "Plays this card" is never how a card says it.
     case "opponentPlayed":

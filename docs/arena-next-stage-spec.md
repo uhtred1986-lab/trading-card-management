@@ -19,12 +19,12 @@ Measured on the 6,493 Dragon Ball Super (not Fusion World) cards:
 
 | measure | value | command |
 |---|---|---|
-| resolvable skills the compiler reads end-to-end | 84.0 % of 11,742 | `npm run arena:coverage` |
+| resolvable skills the compiler reads end-to-end | 84.5 % of 11,742 | `npm run arena:coverage` |
 | [Permanent] skills the compiler reads | 53.1 % of 1,808 | same |
 | …and that actually emit a standing effect | 48.3 % of 1,808 | same |
 | skills in the owner's 12 decks that compile | 90.2 % of 357 | same (deck tables) |
-| skills exactly one unreadable clause away | 1,226 | `npm run arena:gaps` |
-| [Auto] skills that compile but no trigger fires | 690 | `npm run arena:gaps` (§5.3) |
+| skills exactly one unreadable clause away | 1,207 | `npm run arena:gaps` |
+| [Auto] skills that compile but no trigger fires | 685 | `npm run arena:gaps` (§5.3) |
 | [Activate]/[Counter] whose price the engine cannot read | 67 | same |
 | fuzzer | 40 games, 0 crashes | `npm run arena:fuzz 40` |
 
@@ -620,6 +620,20 @@ inbox — `npm run arena:feedback` prints it. Work items filed there take
 precedence over this backlog when they concern a deck the owner plays.
 
 ---
+
+## 6b. Open questions for the owner
+
+Rulings the engine has had to take a view on, where the manual does not settle
+it. Each is a one-line change if the answer goes the other way; none blocks the
+work, and they are parked here so they are not lost.
+
+1. **Does a card see its own arrival?** (5 Sep 2026, `youPlayed` in
+   `triggers.ts`.) "When your blue ≪God≫ card is played, draw 1 card", printed
+   on a card that is itself a blue ≪God≫ card. The engine currently fires it:
+   the card's skills are valid in the area it now sits in (9-1-3-1) and the
+   event it names has happened. The alternative reading is that it was not yet
+   in play when it was played, so it cannot watch itself. Changing the answer
+   means excluding the played card from the watcher loop in `engine.ts`.
 
 ## 7. Definition of done for the next stage
 
