@@ -3783,4 +3783,39 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.deepEqual((back.ops[0] as { then: unknown[] }).then, [{ op: "resolvingPlay", instead: "hand" }]);
 }
 
+// ── one verb, two targets ──────────────────────────────────────────────────
+
+{
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+
+  // "This card **and** your Leader get +5000 power" — the "and" joins two
+  // targets, not two clauses. Split, the first half was a bare name reported
+  // as unreadable; joined but read as one subject, the Leader would have been
+  // missed in silence, which is worse. Both have to get the power.
+  const two = one("[Auto] When you play a ≪Demon Clan≫ card, this card and your Leader get +5000 power for the turn.");
+  assert.deepEqual(two.unsupported, []);
+  assert.deepEqual(two.ops.map((o) => o.op), ["power", "power"]);
+  assert.deepEqual((two.ops[0] as { target: unknown }).target, { sel: { special: "self" } });
+  assert.equal((two.ops[1] as { target: { sel?: { area?: string } } }).target.sel?.area, "leader");
+
+  // The same with a pronoun for the card just chosen.
+  const both = one("[Auto] When this card attacks, choose up to 1 of your opponent's Battle Cards, and it and this card get -10000 power for the turn.");
+  assert.deepEqual(both.unsupported, []);
+  assert.deepEqual(both.ops.map((o) => o.op), ["choose", "power", "power"]);
+  assert.deepEqual((both.ops[1] as { target: unknown }).target, { var: "c0" });
+  assert.deepEqual((both.ops[2] as { target: unknown }).target, { sel: { special: "self" } });
+
+  // A phrase that names two *areas* is one target and must not be cut in half.
+  const areas = one("[Auto] When this card attacks, all of your opponent's Battle Cards and Unisons get -5000 power for the turn.");
+  assert.deepEqual(areas.unsupported, []);
+  assert.deepEqual(areas.ops.map((o) => o.op), ["power"]);
+  assert.deepEqual((areas.ops[0] as { target: { sel?: { areas?: string[] } } }).target.sel?.areas, ["battle", "unison"]);
+
+  // A trigger split at its own "and" is still the trigger, not the first
+  // thing the skill does.
+  const trig = one("[Auto] When this card is revealed from the top of your deck and placed in your Drop Area, draw 1 card.");
+  assert.deepEqual(trig.unsupported, []);
+  assert.deepEqual(trig.ops, [{ op: "draw", n: 1 }]);
+}
+
 console.log("verify-arena: all checks passed");

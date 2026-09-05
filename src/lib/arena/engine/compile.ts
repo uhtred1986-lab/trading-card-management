@@ -27,6 +27,16 @@ const NAME_AFTER_AND = /^(?:<[^>]+>|≪[^≫]+≫|\{[^}]+\})(?:\s*(?:,|\.|$|card
 const AREA_AFTER_AND = /^(?:unisons?|unison cards?|unison areas?)\b/i;
 
 /**
+ * "This card **and** your Leader get +5000 power for the turn" — the "and"
+ * joins two *targets* of one verb, not two clauses. Split, the first half is a
+ * bare name with nothing to do and the second loses half its subject.
+ *
+ * The tell is that everything since the clause began is only a way of naming a
+ * card: no verb has appeared yet, so the sentence cannot be over.
+ */
+const TARGET_BEFORE_AND = /(?:^\s*|[,;:]\s+)(?:this card|it|they|them|that card|those cards|your leader(?: card)?|the chosen cards?)\s*$/i;
+
+/**
  * After an " and ": a second measure of the same card description, as in "with
  * an energy cost of 3 and 5000 power" (20-12 searches print both orders).
  * Only counted when the clause so far opened a description with "with", which
@@ -57,7 +67,8 @@ export function splitClauses(text: string): string[] {
         !text.startsWith(" and [", i) &&
         !NAME_AFTER_AND.test(text.slice(i + 5)) &&
         !(MEASURE_AFTER_AND.test(text.slice(i + 5)) && /\bwith\b/i.test(text.slice(start, i))) &&
-        !(AREA_AFTER_AND.test(text.slice(i + 5)) && /\bbattle cards?\b/i.test(text.slice(start, i)))
+        !(AREA_AFTER_AND.test(text.slice(i + 5)) && /\bbattle cards?\b/i.test(text.slice(start, i))) &&
+        !TARGET_BEFORE_AND.test(text.slice(start, i))
       ) {
         // "gains [Double Strike] and [Barrier]" is one clause, not two; nor is
         // "a Battle Card with both <Son Goku> and <Piccolo>", nor "with an
@@ -359,6 +370,37 @@ function refFor(clause: string, c: Ctx): Ref | null {
   const sel = parseTarget(clause);
   if (sel) return { sel };
   return null;
+}
+
+/**
+ * "This card **and** your Leader get +5000 power", "**it** and this card get
+ * -10000 power": one verb, two targets. Keeping the halves in one clause is
+ * only half the job — read as a single subject, the power lands on one of them
+ * and the other is silently missed, which is worse than the fragment it used
+ * to leave behind.
+ *
+ * Only split when the first half is a bare way of naming a card. "All of your
+ * opponent's Battle Cards and Unisons" is one target phrase naming two areas,
+ * and must not be cut in half.
+ */
+const BARE_TARGET = /^(?:this card|it|they|them|that card|those cards|your leader(?: card)?|the chosen cards?)$/i;
+
+function refsFor(phrase: string, c: Ctx): Ref[] | null {
+  const parts = phrase
+    .split(/\s+and\s+/i)
+    .map((p) => p.trim())
+    .filter(Boolean);
+  if (parts.length > 1 && BARE_TARGET.test(parts[0])) {
+    const out: Ref[] = [];
+    for (const part of parts) {
+      const r = refFor(part, c);
+      if (!r) return null;
+      out.push(r);
+    }
+    return out;
+  }
+  const one = refFor(phrase, c);
+  return one ? [one] : null;
 }
 
 /**
@@ -1073,12 +1115,16 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   }
 
   if ((m = /^(.*?) (?:gets?|gains?) ([+-]\d+) (combo )?power,? and ((?:\[[^\]]+\][\s,]*(?:and\s+)?)+)$/.exec(q))) {
-    const ref = refFor(m[1], c);
+    const refs = refsFor(m[1], c);
     const kws = [...m[4].matchAll(/\[([^\]]+)\]/g)].map((x) => keywordOf(x[1]));
-    if (ref && kws.length && kws.every((k) => k)) {
+    if (refs && kws.length && kws.every((k) => k)) {
       const until = durationOf(t);
-      const gain: Op = m[3] ? { op: "comboPower", target: ref, amount: Number(m[2]), until } : { op: "power", target: ref, amount: Number(m[2]), until };
-      return [gain, ...kws.map((k) => ({ op: "grant", target: ref, keyword: k!, until }) as Op)];
+      const amount = Number(m[2]);
+      const combo = !!m[3];
+      return refs.flatMap((ref) => [
+        (combo ? { op: "comboPower", target: ref, amount, until } : { op: "power", target: ref, amount, until }) as Op,
+        ...kws.map((k) => ({ op: "grant", target: ref, keyword: k!, until }) as Op),
+      ]);
     }
   }
 
@@ -1086,18 +1132,21 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // against the clause with its duration taken off, and anchored: a tail this
   // does not recognise has to fail here rather than be quietly discarded.
   if ((m = /^(.*?) (?:gets?|gains?) ([+-]\d+) combo power$/.exec(q))) {
-    const ref = refFor(m[1], c);
-    return ref ? [{ op: "comboPower", target: ref, amount: Number(m[2]), until: durationOf(t) }] : null;
+    const refs = refsFor(m[1], c);
+    const until = durationOf(t);
+    return refs ? refs.map((target) => ({ op: "comboPower", target, amount: Number(m![2]), until }) as Op) : null;
   }
   // "It loses -5000 power" and "it loses 5000 power" both mean the same thing;
   // the sign on the card is decoration, the verb is what counts.
   if ((m = /^(.*?) loses ([+-]?\d+) power$/.exec(q))) {
-    const ref = refFor(m[1], c);
-    return ref ? [{ op: "power", target: ref, amount: -Math.abs(Number(m[2])), until: durationOf(t) }] : null;
+    const refs = refsFor(m[1], c);
+    const until = durationOf(t);
+    return refs ? refs.map((target) => ({ op: "power", target, amount: -Math.abs(Number(m![2])), until }) as Op) : null;
   }
   if ((m = /^(.*?) (?:gets?|gains?) ([+-]\d+) power$/.exec(q))) {
-    const ref = refFor(m[1], c);
-    return ref ? [{ op: "power", target: ref, amount: Number(m[2]), until: durationOf(t) }] : null;
+    const refs = refsFor(m[1], c);
+    const until = durationOf(t);
+    return refs ? refs.map((target) => ({ op: "power", target, amount: Number(m![2]), until }) as Op) : null;
   }
 
   // 20-1: what a card counts as, rather than what it does. "This card gains
@@ -1596,9 +1645,11 @@ export function compileSkill(skill: Skill): Script {
     // trigger about some *other* card, which the engine already binds as the
     // trigger's subject. Without this, "it" had nothing to point at.
     else if (/\byour\b|\byour opponent'?s\b/i.test(trigger)) c.lastTarget = { sel: { special: "subject" } };
-    // "When this card attacks and KOs an opponent's Battle Card" splits on the
-    // "and"; the second half is still the trigger.
-    while (clauses.length > 1 && /^(?:kos?|ko's|is ko'?d|deals damage)\b/i.test(clauses[0].trim())) clauses.shift();
+    // "When this card attacks and KOs an opponent's Battle Card", "when this
+    // card is revealed from the top of your deck and placed in your Drop Area"
+    // — the trigger splits on its "and", and the second half is still the
+    // trigger rather than the first thing the skill does.
+    while (clauses.length > 1 && /^(?:kos?|ko's|is ko'?d|deals damage|(?:is )?placed in|(?:is )?revealed|(?:is )?sent to|(?:is )?returned to|(?:is )?switched to)\b/i.test(clauses[0].trim())) clauses.shift();
     // "When you play this card and your Leader Card is a ≪Universe 6≫ card,
     // …" — a condition riding on the trigger, split off the same way (9-1-3).
     // A clause with its own "if" is a condition in the ordinary chain; only a
