@@ -146,17 +146,32 @@ screen, which is most of a card.
 
 ### B2. Installable
 
-- `src/app/manifest.ts` (typed, no `public/` needed for the file itself): `display: "standalone"`,
-  `orientation: "portrait"`, `theme_color: "#090b15"`, `background_color: "#090b15"`,
-  `start_url: "/arena"`, icons 192/512 plus a maskable variant.
-- Icon art: one SVG in the repo (a ki-orange ring on `space-950`), rasterised to the PNG sizes by
-  `scripts/make-icons.mts` using **`sharp`, which is already a dependency**. No new tooling, and no
-  binary blob committed that cannot be regenerated.
-- A minimal service worker whose **only** job is cache-first for card art from the three remote
-  hosts in `next.config.ts`. It deliberately caches nothing from the app's own origin: the whole app
-  sits behind HTTP Basic Auth and caching authenticated responses is not worth the surprise.
-  **Risk to verify on the phone first:** service-worker registration under Basic Auth, and whether
-  Chrome offers the install prompt with an art-only fetch handler.
+**Built.** As specified, plus one thing the spec had wrong:
+
+- `src/app/manifest.ts`: `display: "standalone"`, `orientation: "portrait"`,
+  `theme_color`/`background_color` `#090b15`, `start_url: "/arena"`, icons 192/512 plus maskable.
+- Icon art: `src/app/icon.svg` — the card back the board already draws, which Next also serves as
+  the favicon — rasterised by `scripts/make-icons.mts` (`npm run icons`) with **`sharp`, already a
+  dependency**. The maskable variant insets the art to 72 % so Android's circular crop cannot cut
+  it. No binary in the repo that cannot be regenerated from the SVG.
+- `public/sw.js`: cache-first for card art from the five CDN hosts in `next.config.ts`, and
+  **nothing** from the app's own origin — a cache of authenticated pages is a copy of the
+  collection sitting in the browser profile, outliving any logout.
+
+**What the spec got wrong: the manifest, its icons and the service worker cannot sit behind Basic
+Auth.** The browser fetches all three without credentials, so they answered 401 and the app was
+simply not installable — no amount of `crossorigin="use-credentials"` fixes the icon fetches, which
+the OS makes. `src/proxy.ts` now exempts `icons/`, `manifest.webmanifest` and `sw.js` alongside the
+`favicon.ico` it already exempted. What that gives away is a name, a picture and a list of public
+image hosts. Verified by hand that the exemption is exactly those four assets: `/`, `/collection`,
+`/arena`, `/arena/22`, `/api/v1/health` and `/api/v1/games` all still answer 401 without credentials.
+
+The worker also answers a *failed navigation* with a small "no connection" page. That is not
+caching anything authenticated — it is what makes the app meet the installability bar, which wants a
+fetch handler that can still respond when the network cannot.
+
+**Still to verify on the phone:** whether Chrome actually offers the install prompt. Everything up
+to that point is checked.
 
 ### B3. Touch details that decide whether it feels like an app
 
@@ -307,14 +322,16 @@ No AI cost is added by any of this: it is client work, and a game costs exactly 
 Phases A and B are independent and either can go first; A is the one everything else needs — and it
 is also step 1 of the Android plan, so it is done once and both clients start from it.
 
-| # | Phase | Ships on its own as |
-|---|---|---|
-| 1 | A — beat stream (**shared**, contract §2–§6) | nothing visible; `npm test` covers it |
-| 2 | B — phone shell | the *current* board, installable and full-bleed, with haptics |
-| 3 | C — new board behind the cookie | a board to play with, animated from beats |
-| 4 | D — ergonomics | the hand sheet, the log sheet, "what can I do?" |
-| 5 | E — storyboard | the moments in §7, one at a time |
-| 6 | F — cutover | one board again |
+| # | Phase | Ships on its own as | Status |
+|---|---|---|---|
+| 1 | A — beat stream (**shared**, contract §2–§6) | nothing visible; `npm test` covers it | **built** |
+| 2 | B — phone shell | the *current* board, installable and full-bleed, with haptics | **built** |
+| 3 | C — new board behind the cookie | a board to play with, animated from beats | next |
+| 4 | D — ergonomics | the hand sheet, the log sheet, "what can I do?" | — |
+| 5 | E — storyboard | the moments in §7, one at a time | — |
+| 6 | F — cutover | one board again | — |
+
+Phase C is where `motion` finally gets installed; nothing before it needed a dependency.
 
 ## 12. Two clients, one game
 

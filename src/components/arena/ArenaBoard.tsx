@@ -2,6 +2,9 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { act, advanceGame } from "@/app/arena/actions";
+import { feel } from "@/lib/arena/feel";
+import { useWakeLock } from "@/lib/arena/wake";
+import { FeelToggle } from "./FeelToggle";
 import { ReportBug } from "./ReportBug";
 import type { Action, LegalAction } from "@/lib/arena/engine";
 import type { Spotlight } from "@/lib/arena/games";
@@ -64,14 +67,24 @@ export function ArenaBoard({
   const [hover, setHover] = useState<{ card: CardView; box: DOMRect } | null>(null);
   const [logOpen, setLogOpen] = useState(false);
 
+  // A game holds the screen awake: a Tournament turn can take Claude most of a
+  // minute, and nobody touches the phone while it thinks.
+  useWakeLock(playable && !view.over);
+
   const send = (action: Action) => {
     setMenu(null);
     setSelected(null);
     setHover(null);
     setError(null);
+    // The tap is answered on the frame it happens, even though the move itself
+    // is a server round-trip away.
+    feel("tap");
     startTransition(async () => {
       const r = await act(gameId, action);
-      if (r.error) setError(r.error);
+      if (r.error) {
+        setError(r.error);
+        feel("illegal");
+      }
     });
   };
 
@@ -126,6 +139,23 @@ export function ArenaBoard({
   const yourTurn = view.prompt.player === view.you.player;
   const step = view.battle ? `battle:${view.battle.step}` : `phase:${view.phase}`;
 
+  // The two moments worth feeling without having asked for them: an attack
+  // landing, and the game ending. Skipped on the first paint, like the step
+  // banner, so a reload does not buzz at something that happened minutes ago.
+  const lastFelt = useRef<string | null>(null);
+  useEffect(() => {
+    const key = view.over ? `over:${view.over.winner ?? "draw"}` : step;
+    if (lastFelt.current === key) return;
+    const first = lastFelt.current === null;
+    lastFelt.current = key;
+    if (first) return;
+    if (view.over) {
+      if (view.over.winner) feel(view.over.winner === view.you.player ? "win" : "loss");
+      return;
+    }
+    if (step === "battle:damage") feel("impact");
+  }, [step, view.over, view.you.player]);
+
   return (
     <div ref={boardRef} className="arena relative mx-auto flex w-full max-w-7xl flex-col gap-2 sm:gap-3">
       <StepBanner step={step} />
@@ -152,7 +182,9 @@ export function ArenaBoard({
 
       {/* The prompt bar: the one question being asked. */}
       <section
-        className={`sticky bottom-[4.5rem] z-30 flex items-center gap-2 rounded-xl border p-2 pl-3 backdrop-blur sm:bottom-2 sm:gap-3 sm:rounded-2xl sm:p-3 sm:pl-5 ${
+        // The game route is full-bleed (`AppShell`), so there is no tab bar
+        // left to clear and the bar sits at the bottom edge on every size.
+        className={`sticky bottom-2 z-30 flex items-center gap-2 rounded-xl border p-2 pl-3 backdrop-blur sm:gap-3 sm:rounded-2xl sm:p-3 sm:pl-5 ${
           yourTurn && playable ? "border-ki-500 bg-space-800/95 shadow-[0_0_0_3px_rgba(242,140,15,0.12)]" : "border-space-600 bg-space-800/95"
         }`}
         aria-live="polite"
@@ -219,6 +251,7 @@ export function ArenaBoard({
             {view.you.name} · hand {view.you.handCount}
           </span>
           <div className="flex items-center gap-3 normal-case tracking-normal">
+            <FeelToggle />
             <ReportBug gameId={gameId} cards={cardsOnTable(view)} />
             <button type="button" onClick={() => setLogOpen((x) => !x)} className="tap uppercase tracking-widest text-ki-300 hover:text-ki-400">
               {logOpen ? "hide log" : "log"}

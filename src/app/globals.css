@@ -57,6 +57,16 @@ body {
   }
 }
 
+/*
+ * No double-tap-to-zoom on anything meant to be tapped. Beyond the delay it
+ * removes, zooming the board mid-game is never what was meant by tapping a
+ * card twice — the second tap is a target, or a confirmation.
+ */
+.tap,
+button {
+  touch-action: manipulation;
+}
+
 /* Hide number-input spinners: quantity fields get their own +/- buttons. */
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
@@ -75,6 +85,13 @@ input[type="number"] {
  */
 .arena {
   --arena: 1;
+  /*
+   * A drag that starts on the board is aimed at a card, never at the page.
+   * Without this, dragging down from the top of a game in Android Chrome is
+   * pull-to-refresh, and a reload mid-turn is the worst thing this screen can
+   * do to you.
+   */
+  overscroll-behavior: contain;
 }
 @media (min-width: 640px) {
   .arena {
