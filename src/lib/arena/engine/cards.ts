@@ -37,9 +37,42 @@ export function skillLines(text: string | null | undefined): string[] {
   const out: string[] = [];
   for (const line of raw) {
     if (BULLET.test(line) && out.length) out[out.length - 1] += ` ・${line.replace(BULLET, "").trim()}`;
-    else out.push(line);
+    else out.push(...splitRunOn(line));
   }
   return out;
+}
+
+/** The tag a skill line opens with (1-5). A reference to one mid-sentence is not this. */
+const OPENS_A_SKILL = /^\[(?:auto|activate\s*:|permanent|counter\s*:)/i;
+
+/**
+ * Some cards are printed without the `<br>` between two skills, so a line
+ * arrives as "…: <Towa> with an energy cost of 2 or less. [Auto] When this
+ * card is played, …". Left joined, the second skill is never parsed as one —
+ * its type is wrong, and when the first line is a keyword that owns its text
+ * the whole of it is discarded without even being reported as unread.
+ *
+ * A sentence ending followed by a skill's opening tag is the break. Reminder
+ * text is skipped, because a note may name a tag ("this card isn't affected by
+ * [Counter: Play] skills") without starting a skill.
+ */
+function splitRunOn(line: string): string[] {
+  const out: string[] = [];
+  let start = 0;
+  let depth = 0;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === "(" || ch === "（") depth++;
+    else if (ch === ")" || ch === "）") depth = Math.max(0, depth - 1);
+    else if (depth === 0 && ch === "[" && i > start && /[.]\s+$/.test(line.slice(start, i)) && OPENS_A_SKILL.test(line.slice(i))) {
+      const piece = line.slice(start, i).trim();
+      if (piece) out.push(piece);
+      start = i;
+    }
+  }
+  const last = line.slice(start).trim();
+  if (last) out.push(last);
+  return out.length ? out : [line];
 }
 
 /** The bullet a modal option starts with. The catalog uses several. */

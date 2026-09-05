@@ -6,7 +6,7 @@
  */
 import assert from "node:assert/strict";
 import { apply, createGame, defsFrom, legalActions, seedFrom, type Action, type CardDef, type GameState, type PlayerId } from "../src/lib/arena/engine";
-import { parseSkills, keywordOf, orbsIn, eitherOrbsIn } from "../src/lib/arena/engine/cards";
+import { parseSkills, keywordOf, orbsIn, eitherOrbsIn, skillLines } from "../src/lib/arena/engine/cards";
 import { parseFilter, matches, parseCondition } from "../src/lib/arena/engine/filters";
 import { move, locate, playCost, powerOf, forbids, has, cardNow, comboCostOf, skillNegated, skillsNegated } from "../src/lib/arena/engine/state";
 import { compileSkill, costIsOnlyOrbs, costText, describeScript, parseConditionClause, parseTarget, splitClauses } from "../src/lib/arena/engine/compile";
@@ -3481,6 +3481,30 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.equal((parseTarget("1 card in your hand with an energy cost of 3 or less") as { area?: string }).area, "hand");
   // "Or" between two things that are not areas says nothing about where.
   assert.equal(areas("1 red or blue card in your Drop"), undefined);
+}
+
+// ── two skills printed without the line break between them (1-5) ───────────
+
+{
+  // 153 cards arrive with a missing <br>, so the second skill was never parsed
+  // as one. On BT16-115 the first line is an [EX-Evolve], which owns its own
+  // text, and the [Auto] glued behind it was discarded without even being
+  // reported as unread.
+  const glued = "[EX-Evolve]{b}{1}: <Towa> with an energy cost of 2 or less. [Auto] When this card is played, draw 1 card.";
+  const lines = skillLines(glued);
+  assert.equal(lines.length, 2, "a sentence ending then a skill tag is a new line");
+  assert.ok(lines[1].startsWith("[Auto]"));
+  const skills = parseSkills(glued);
+  assert.equal(skills.length, 2);
+  assert.equal(skills[1].kind, "auto");
+  assert.deepEqual(compileSkill(skills[1]).ops, [{ op: "draw", n: 1 }], "and it compiles on its own");
+
+  // A reminder note may name a tag without starting a skill (1-5-8).
+  assert.equal(skillLines("[Deflect] (This card isn't affected by [Counter: Play] skills.)").length, 1);
+  // So may a sentence that refers to one mid-clause.
+  assert.equal(skillLines("[Permanent] You can activate this card's [Counter] skill from your hand.").length, 1);
+  // And a tag that is not a skill type is not a break either.
+  assert.equal(skillLines("[Auto] When this card attacks, it gains [Critical] for the turn.").length, 1);
 }
 
 console.log("verify-arena: all checks passed");
