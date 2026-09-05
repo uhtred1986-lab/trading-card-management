@@ -3507,4 +3507,33 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.equal(skillLines("[Auto] When this card attacks, it gains [Critical] for the turn.").length, 1);
 }
 
+// ── what "for each" is counting stops at its noun ──────────────────────────
+
+{
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+
+  // "…+6000 power for each card in your energy **and [Triple Strike] for the
+  // duration of the battle**" carries on about the card, not about what is
+  // being counted. Taken as part of the counted phrase, the keyword was
+  // dropped without a word and the power lasted the turn instead of the
+  // battle — a clause that compiled and did two things wrong at once.
+  const both = one("[Auto] When this card attacks, this card gets +6000 power for each card in your energy and [Triple Strike] for the duration of the battle.");
+  assert.deepEqual(both.unsupported, []);
+  assert.deepEqual(both.ops.map((o) => o.op), ["power", "grant"]);
+  assert.equal((both.ops[0] as { until: string }).until, "battle");
+  assert.equal((both.ops[1] as { until: string }).until, "battle");
+  assert.deepEqual((both.ops[1] as { keyword: unknown }).keyword, { name: "Strike", x: 3 });
+  const amount = (both.ops[0] as { amount: { count: { area?: string }; times?: number } }).amount;
+  assert.equal(amount.count.area, "energy", "and it still counts the right thing");
+  assert.equal(amount.times, 6000);
+
+  // A duration alone at the end is not part of the count either.
+  const plain = one("[Auto] When this card attacks, this card gets +5000 power for each card in your Drop Area for the turn.");
+  assert.equal((plain.ops[0] as { amount: { count: { area?: string } } }).amount.count.area, "drop");
+  assert.equal((plain.ops[0] as { until: string }).until, "turn");
+
+  // And a count with nothing after it is unchanged.
+  assert.deepEqual(one("[Auto] When this card attacks, draw 1 card for each of your Battle Cards.").ops.map((o) => o.op), ["draw"]);
+}
+
 console.log("verify-arena: all checks passed");

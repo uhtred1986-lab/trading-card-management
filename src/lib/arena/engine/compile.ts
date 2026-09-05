@@ -754,23 +754,33 @@ function compileForEach(clause: string, c: Ctx): Op[] | null {
   const t = clean(clause);
   const m = /^(.+?)\s+(?:for each|equal to the number of)\s+(.+)$/.exec(t);
   if (!m) return null;
-  const sel = parseTarget(m[2]);
+  // What is being counted ends at its noun. "…+6000 power for each card in
+  // your energy **and [Triple Strike] for the duration of the battle**"
+  // carries on about the card, not about what is counted, and taking the whole
+  // tail as the counted phrase dropped the keyword and the duration in
+  // silence — the power lasted the turn instead of the battle.
+  const cut = /(?:,?\s+and\s+\[)|(?:\s+for the (?:duration of the |rest of the )?(?:turn|battle|game)\b)|(?:\s+until\s)|(?:\s+during (?:this|your)\b)/i.exec(m[2]);
+  const counted = cut ? m[2].slice(0, cut.index) : m[2];
+  const tail = cut ? m[2].slice(cut.index) : "";
+  const sel = parseTarget(counted);
   if (!sel) return null;
   // A count reads the whole area, not one card out of it.
   const counting: Selector = { ...sel, count: 99, upTo: false };
   // "Draw cards equal to the number of …" prints no number at all, because the
   // count is the number.
   if (/^draw cards?$/.test(m[1])) return [{ op: "draw", n: { count: counting } }];
-  const head = compileClause(m[1], c);
-  if (!head || head.length !== 1) return null;
-  const op = head[0];
+  // The tail goes back on the head, where the patterns that read "and
+  // [Keyword]" and the duration can see it.
+  const head = compileClause(`${m[1]}${tail}`, c);
+  if (!head?.length) return null;
+  const [op, ...rest] = head;
   // Only the ops whose whole point is a number, and only when that number was
   // printed — anything else would be a guess about which part varies.
   if ((op.op === "draw" || op.op === "discard" || op.op === "damage" || op.op === "mill" || op.op === "addLife" || op.op === "energyMarker") && typeof op.n === "number") {
-    return [{ ...op, n: { count: counting, ...(op.n === 1 ? {} : { times: op.n }) } }];
+    return [{ ...op, n: { count: counting, ...(op.n === 1 ? {} : { times: op.n }) } }, ...rest];
   }
   if ((op.op === "power" || op.op === "comboPower") && typeof op.amount === "number") {
-    return [{ ...op, amount: { count: counting, ...(op.amount === 1 ? {} : { times: op.amount }) } }];
+    return [{ ...op, amount: { count: counting, ...(op.amount === 1 ? {} : { times: op.amount }) } }, ...rest];
   }
   return null;
 }
