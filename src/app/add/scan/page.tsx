@@ -6,6 +6,7 @@ import { listLocations } from "@/lib/collection/locations";
 import { currentOwner } from "@/lib/auth";
 import { getBatch, listOpenBatches } from "@/lib/scan/batches";
 import { ScanFlow } from "@/components/ScanFlow";
+import { SubmitButton } from "@/components/SubmitButton";
 import { deleteBatchForm } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -62,7 +63,7 @@ export default async function ScanPage({ searchParams }: { searchParams: Promise
                   </Link>
                   <form action={deleteBatchForm}>
                     <input type="hidden" name="id" value={b.id} />
-                    <button className="tap rounded-md border border-space-600 px-3 py-1 text-xs text-space-300 hover:bg-space-800 hover:text-loss">Discard</button>
+                    <SubmitButton pendingLabel="Discarding…" className="tap rounded-md border border-space-600 px-3 py-1 text-xs text-space-300 hover:bg-space-800 hover:text-loss">Discard</SubmitButton>
                   </form>
                 </span>
               </li>

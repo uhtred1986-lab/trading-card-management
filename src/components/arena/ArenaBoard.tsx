@@ -101,8 +101,11 @@ export function ArenaBoard({
     if (isTargeting) return targetsOf(selected!)?.[id] != null ? "legal" : selected === id ? "selected" : "dim";
     if (view.battle?.attacker === id) return "attacker";
     if (view.battle?.guard === id) return "guard";
-    if (taps.byCard[id]?.length) return "legal";
-    return "plain";
+    if (!taps.byCard[id]?.length) return "plain";
+    // A tappable card still no-ops mid-request (tapCard bails on `pending`);
+    // dimming it here is what tells a second tap it was seen and ignored,
+    // rather than looking like the first tap never registered.
+    return pending ? "dim" : "legal";
   };
 
   /** A mouse over any card anywhere on the board opens the same preview. */

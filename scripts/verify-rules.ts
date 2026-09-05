@@ -3,6 +3,7 @@
  */
 import assert from "node:assert/strict";
 import { baseNumber, normaliseRarity, printLabel, printSuffix, shapeCatalog } from "../src/lib/catalog/deckplanet";
+import { applyOfficialImages, officialBackImageName, officialImageName, officialImageUrl, parseImageNames, parseSeriesIds } from "../src/lib/catalog/bandai";
 import { gameOfNumber, gameOfSetCode, setCodeOfNumber, setLineFor, setNameFor } from "../src/lib/catalog/sets";
 import { legality, parseDeckList, type DeckCardRow } from "../src/lib/decks/queries";
 import { hasKeyword, leadingTags, parseDeckRules, rulesFor } from "../src/lib/decks/cardRules";
@@ -131,7 +132,7 @@ assert.equal(vegeta.game, "fusion");
 assert.equal(vegeta.energyCost, "5", "a numeric cost is read like a printed one");
 assert.equal(vegeta.rarityCode, "SR");
 assert.deepEqual(vegeta.traits, ["Saiyan", "Demon Realm"]);
-assert.equal(vegeta.imageUrl, null, "Fusion World art comes from the price sync, not deckplanet");
+assert.equal(vegeta.imageUrl, null, "Fusion World art comes from Bandai (below) or the price sync, not deckplanet");
 assert.equal(fwShaped.cards.find((c) => c.id === "E-112")!.cardType, "ENERGY MARKER");
 assert.deepEqual(
   fwShaped.prints.filter((p) => p.cardId === "FB07-021").map((p) => [p.id, p.rarity]).sort(),
@@ -141,6 +142,38 @@ assert.deepEqual(
   ],
 );
 assert.ok(fwShaped.prints.every((p) => p.imageUrl === null));
+
+// ── Fusion World art from Bandai's card list ───────────────────────────────
+// The crawl gives the exact set of image names; only names in it become URLs.
+const names = new Set(["FB07-021", "FB07-021_p1", "FB01-001_f", "FB01-001_b", "FB01-001_f_p1", "E-112"]);
+assert.equal(officialImageName("FB07-021", "", names), "FB07-021");
+assert.equal(officialImageName("FB07-021", "PR", names), "FB07-021_p1", "deckplanet's _PR is Bandai's _p1");
+assert.equal(officialImageName("FB07-021", "PR2", names), null, "a print Bandai does not show gets no URL");
+assert.equal(officialImageName("FB01-001", "", names), "FB01-001_f", "leaders carry _f for the front");
+assert.equal(officialImageName("FB01-001", "PR", names), "FB01-001_f_p1", "a leader's alt print is _f_p1");
+assert.equal(officialImageName("FB01-001", "SPR", names), null, "an unknown suffix is never guessed");
+assert.equal(officialBackImageName("FB01-001", names), "FB01-001_b");
+assert.equal(officialBackImageName("FB07-021", names), null);
+assert.equal(officialImageUrl("FB01-001_f"), "https://www.dbs-cardgame.com/fw/images/cards/card/en/FB01-001_f.webp");
+assert.deepEqual(
+  parseSeriesIds('<li><a data-val="" class="">ALL</a></li><li><a data-val="583011">FB11</a></li><li><a data-val="583001">FB01</a></li><li><a data-val="583011">dup</a></li>'),
+  ["583011", "583001"],
+);
+assert.deepEqual(
+  parseImageNames('<img data-src="../../images/cards/card/en/FB11-001_f.webp"><img src="../../images/cards/card/en/FB11-002_p1.webp">'),
+  ["FB11-001_f", "FB11-002_p1"],
+);
+{
+  const applied = applyOfficialImages(fwShaped, names);
+  assert.deepEqual(applied, { prints: 3, cards: 2, backs: 0 });
+  const byId = new Map(fwShaped.prints.map((p) => [p.id, p.imageUrl]));
+  assert.equal(byId.get("FB07-021"), officialImageUrl("FB07-021"));
+  assert.equal(byId.get("FB07-021_PR"), officialImageUrl("FB07-021_p1"));
+  assert.equal(fwShaped.cards.find((c) => c.id === "FB07-021")!.imageUrl, officialImageUrl("FB07-021"), "the card shows its base print");
+  assert.equal(fwShaped.cards.find((c) => c.id === "E-112")!.imageUrl, officialImageUrl("E-112"));
+  assert.deepEqual(applyOfficialImages(shaped, names), { prints: 0, cards: 0, backs: 0 }, "the original game is never touched");
+  assert.ok(shaped.cards.every((c) => c.imageUrl?.startsWith("https://storage.googleapis.com/")));
+}
 
 // ── price matching ─────────────────────────────────────────────────────────
 const lookup = {

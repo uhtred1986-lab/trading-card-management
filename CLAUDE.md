@@ -39,9 +39,9 @@ npm run lint           # ESLint
 npm test               # scripts/verify-rules.ts (pure) + scripts/verify-db.mts (migrations + reservation rules on PGlite)
 npm run db:generate    # Generate a migration after editing src/db/schema.ts
 npm run db:migrate     # Apply migrations (also run on every Vercel deploy via vercel.json)
-npm run sync:catalog   # Import both games' catalogs from deckplanet (~20 s)
+npm run sync:catalog   # Import both games' catalogs from deckplanet + Fusion World art from Bandai (~50 s)
 npm run sync:prices    # Import TCGplayer products + today's prices from tcgcsv (both categories),
-                       # the USD→EUR rate, and Fusion World's card art (~35 s)
+                       # the USD→EUR rate, and TCGplayer art for prints still without any (~35 s)
 ```
 
 `npm test` needs no database or network. Everything else needs `DATABASE_URL` in `.env.local`.
@@ -53,8 +53,8 @@ the same style.
 | What | Source | Notes |
 |---|---|---|
 | Card catalog | `https://api.deckplanet.net/cardsearch/{dbs_masters_cards,fusion_world_cards}?limit=100000` | One call per game; the `dragogodev/cgs` repo the spec names is only a *pointer* to the first. 6.5k cards for the original game, ~2k for Fusion World. Alternate prints appear as top-level entries **and** in `variants[]`; `shapeCatalog` collapses them to one card per base number + a print list. The Fusion World payload differs in three ways, all handled in `deckplanet.ts`: bare rarity codes ("SR", normalised to "Super Rare[SR]" by `normaliseRarity`), no character/era lists, and a numeric energy cost. |
-| Card images | `https://storage.googleapis.com/deckplanet_card_images/{number}.png` | Hot-linked via `next/image`; a few prints 404 and fall back to a placeholder. **Fusion World is not in this bucket at all** — its art comes from the matched TCGplayer product photo (`_200w.jpg` rewritten to `_in_1000x1000.jpg`), filled in by `fillMissingImages` during the price sync. The catalog upserts therefore `coalesce` `image_url` instead of overwriting it. |
-| Leader back sides | deckplanet `{number}_b.png` (older sets only, HEAD-verified at catalog sync) → else CardTrader blueprint `back_image` (Masters-era sets, backfilled by the CardTrader sync) | Stored in `cards.back_image_url`; the catalog upsert `coalesce`s so a CardTrader back survives re-syncs. `CardFaces` shows front + awakened when present. |
+| Card images | `https://storage.googleapis.com/deckplanet_card_images/{number}.png` | Hot-linked via `next/image`; a few prints 404 and fall back to a placeholder. **Fusion World is not in this bucket at all** — its art comes from Bandai's own card list, `https://www.dbs-cardgame.com/fw/images/cards/card/en/{number}.webp` (leaders `_f`/`_b`, alternate prints `_p1`, `_p2`…; no User-Agent or Referer check). `src/lib/catalog/bandai.ts` crawls the card list's series pages for the exact image names at catalog sync and only assigns URLs that exist, since deckplanet lists ~700 more alternate prints than Bandai shows. Whatever is still null afterwards gets the matched TCGplayer product photo (`_200w.jpg` rewritten to `_in_1000x1000.jpg`) from `fillMissingImages` during the price sync. The catalog upserts therefore `coalesce` `image_url` instead of overwriting it. |
+| Leader back sides | deckplanet `{number}_b.png` (older sets only, HEAD-verified at catalog sync) → else CardTrader blueprint `back_image` (Masters-era sets, backfilled by the CardTrader sync); Fusion World leaders use Bandai's `{number}_b.webp`, inferred from the `_f` front and HEAD-verified the same way | Stored in `cards.back_image_url`; the catalog upsert `coalesce`s so a CardTrader back survives re-syncs. `CardFaces` shows front + awakened when present. |
 | Prices | `https://tcgcsv.com/tcgplayer/{27,80}/...` | **Requires a browser-like User-Agent** (401 otherwise). Category 27 is the original game, 80 is Fusion World; 27 also carries a stray duplicate of Fusion World's FB01 group, which is skipped there. Products join to cards on the printed `Number`; SR+ cards only exist as a foil sub-type, so `priceForFinish` falls back foil↔normal — and the foil sub-type is called `Foil` in category 27 but `Holofoil` in 80 (`FOIL_SUB_TYPES`). |
 | FX | `https://api.frankfurter.app/latest?from=USD&to=EUR` | Daily. |
 | CardTrader | `https://api.cardtrader.com/api/v2` | **Read-only client**, and every live call is gated by `CARDTRADER_ENABLED=true` (the owner enabled it on 2 Sep 2026 after testing). Never add cart/purchase endpoints without being asked. Quirks the docs omit: `/games` returns `{"array": [...]}` (the client unwraps it); `/expansions` is a bare array; Dragon Ball Super is game id 9 and **includes Fusion World expansions** (`fb*`, `fs*`), which now cross-walk like any other set; `fixed_properties.collector_number` is `BT14-113` on newer sets but bare `049` on older ones (see `collectorNumbers`). Crosswalk covers ~98 % of cards, mostly via `tcg_player_id` = tcgcsv `productId`. Cardmarket also files Fusion World under its `DragonBallSuper` category, but **TCGplayer does not** — `externalLinks` picks the search slug per game. |
@@ -196,3 +196,8 @@ The same variables must exist in Vercel's project settings for the deployment. S
 - Money is integer cents + currency code; format with `formatCents`. Never float euros.
 - Card numbers are the catalog's ids (`BT18-020`); print ids add a suffix (`BT18-020_SPR`).
 - Keep `npm run typecheck`, `npm run lint` and `npm test` clean before committing.
+- After a PR merges, delete the merged remote branch (`gh pr merge --delete-branch`, or the
+  "Delete branch" button on GitHub) — do this unasked, but never delete a branch that hasn't
+  merged (`--no-merged` in `git branch -r --merged main`). There is one Neon database for dev,
+  preview and production (`DATABASE_URL` above) — no per-branch database, so a merged branch
+  needs no separate cleanup in Neon.
