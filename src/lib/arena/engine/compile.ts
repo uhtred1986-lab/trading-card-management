@@ -129,6 +129,26 @@ const AREA_WORDS: [RegExp, ScriptArea][] = [
   [/\b(?:your|their|opponent's) (?:[a-z-]+ )*cards\b/, "play"],
 ];
 
+/**
+ * Area words as the cards print them, for the phrases that name two of them
+ * ("from your deck or Drop Area"). Only used for that: the single-area case is
+ * `AREA_WORDS` above, which reads far more wordings.
+ */
+const AREA_NAMED: Record<string, ScriptArea> = {
+  hand: "hand",
+  deck: "deck",
+  drop: "drop",
+  "drop area": "drop",
+  warp: "warp",
+  life: "life",
+  energy: "energy",
+  "energy area": "energy",
+  "battle area": "battle",
+  "z-deck": "zDeck",
+  "z-energy": "zEnergy",
+};
+const AREA_PAIR_RE = /\b(?:in|from|of|into) (?:your|their) ((?:z-)?[a-z]+(?: area)?) or (?:(?:from|in) )?(?:the )?(?:your |their )?((?:z-)?[a-z]+(?: area)?)\b/;
+
 /** "up to 2 of your opponent's Battle Cards in Rest Mode" → a selector. */
 export function parseTarget(phrase: string): Selector | null {
   let t = phrase.toLowerCase();
@@ -164,15 +184,12 @@ export function parseTarget(phrase: string): Selector | null {
 
   // "…from your deck or Drop Area", "…in your hand or Warp": a second area
   // joined by "or". `AREA_WORDS` is first-match-wins, so the second one was
-  // dropped and the search quietly looked in half the places it should.
-  const AREA_PAIR: [RegExp, ScriptArea, ScriptArea][] = [
-    [/\b(?:from|in) (?:your|their) decks? or (?:the )?drop(?: area)?\b/, "deck", "drop"],
-    [/\b(?:from|in) (?:your|their) drops? (?:area )?or decks?\b/, "drop", "deck"],
-    [/\b(?:from|in) (?:your|their) hands? or (?:the )?warps?\b/, "hand", "warp"],
-    [/\b(?:from|in) (?:your|their) drops? (?:area )?or (?:the )?warps?\b/, "drop", "warp"],
-    [/\b(?:from|in) (?:your|their) decks? or (?:the )?hands?\b/, "deck", "hand"],
-  ];
-  const pair = AREA_PAIR.find(([re]) => re.test(t));
+  // dropped and the search quietly looked in half the places it should. The
+  // catalog prints sixteen such pairs in both orders, so they are read from a
+  // table of the area words rather than listed one by one.
+  const both = AREA_PAIR_RE.exec(t);
+  const pair: [ScriptArea, ScriptArea] | null =
+    both && AREA_NAMED[both[1]] && AREA_NAMED[both[2]] && AREA_NAMED[both[1]] !== AREA_NAMED[both[2]] ? [AREA_NAMED[both[1]], AREA_NAMED[both[2]]] : null;
 
   let area: ScriptArea | null = null;
   for (const [re, a] of AREA_WORDS) {
@@ -222,7 +239,7 @@ export function parseTarget(phrase: string): Selector | null {
   const filter = filterFor(phrase, area);
   if (underHost) return { side: "you", area: "under", filter, count, upTo, mode };
   if (bothAreas) return { side, area: "battle", areas: ["battle", "unison"], filter, count, upTo, mode, fromVar };
-  if (pair) return { side, area: pair[1], areas: [pair[1], pair[2]], filter, count, upTo, mode, fromVar };
+  if (pair) return { side, area: pair[0], areas: pair, filter, count, upTo, mode, fromVar };
   return { side, area: area ?? undefined, filter, count, upTo, mode, fromVar, take, fromEnd };
 }
 

@@ -9,7 +9,7 @@ import { apply, createGame, defsFrom, legalActions, seedFrom, type Action, type 
 import { parseSkills, keywordOf, orbsIn, eitherOrbsIn } from "../src/lib/arena/engine/cards";
 import { parseFilter, matches, parseCondition } from "../src/lib/arena/engine/filters";
 import { move, locate, playCost, powerOf, forbids, has, cardNow, comboCostOf, skillNegated, skillsNegated } from "../src/lib/arena/engine/state";
-import { compileSkill, costIsOnlyOrbs, costText, describeScript, parseConditionClause, splitClauses } from "../src/lib/arena/engine/compile";
+import { compileSkill, costIsOnlyOrbs, costText, describeScript, parseConditionClause, parseTarget, splitClauses } from "../src/lib/arena/engine/compile";
 import { autoTriggerMatches, koCard } from "../src/lib/arena/engine/triggers";
 
 // ── skill text parsing ─────────────────────────────────────────────────────
@@ -3458,6 +3458,29 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.ok(s.players.p1.hand.includes(buried));
   assert.ok(!s.cards[host].under.includes(buried), "and not still underneath");
   assertConsistent(s);
+}
+
+// ── a phrase that names two areas (20-1-6) ─────────────────────────────────
+
+{
+  // `AREA_WORDS` is first-match-wins, so the second area of "from your deck or
+  // Drop Area" was dropped and the search looked in half the places the card
+  // says. The catalog prints sixteen such pairs in both orders, so they are
+  // read from a table rather than listed one at a time.
+  const areas = (phrase: string) => (parseTarget(phrase) as { areas?: string[] } | null)?.areas;
+  assert.deepEqual(areas("1 card from your deck or Drop Area"), ["deck", "drop"]);
+  assert.deepEqual(areas("1 card in your hand or Drop Area"), ["hand", "drop"]);
+  assert.deepEqual(areas("1 card from your Drop or Warp"), ["drop", "warp"]);
+  assert.deepEqual(areas("1 card in your hand or Battle Area"), ["hand", "battle"]);
+  assert.deepEqual(areas("1 card from your deck or life"), ["deck", "life"]);
+  // Both orders, and the preposition repeated after the "or".
+  assert.deepEqual(areas("1 card from your energy or from your Drop"), ["energy", "drop"]);
+  assert.deepEqual(areas("1 card from your Warp or deck"), ["warp", "deck"]);
+  // One area is still one area, and "an energy cost" is not the Energy Area.
+  assert.equal(areas("1 card in your hand with an energy cost of 3 or less"), undefined);
+  assert.equal((parseTarget("1 card in your hand with an energy cost of 3 or less") as { area?: string }).area, "hand");
+  // "Or" between two things that are not areas says nothing about where.
+  assert.equal(areas("1 red or blue card in your Drop"), undefined);
 }
 
 console.log("verify-arena: all checks passed");
