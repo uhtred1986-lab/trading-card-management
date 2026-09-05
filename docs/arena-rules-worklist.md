@@ -1019,6 +1019,37 @@ Deck orphans 10 → 7, catalog orphans 691 → 677; coverage 85.2 % → 85.3 %. 
 seven left in the decks each need a mechanism rather than a pattern: a life card
 moving areas, a skill resting the opponent's energy, the leader being attacked.
 
+## Done: the last moments the owner's decks were waiting for (5 Sep 2026)
+
+Seven skills in the owner's twelve decks compiled and had no moment to fire at.
+Each needed a mechanism rather than a phrase, and each turned out to be small
+and exact. Deck orphans **7 → 2**; catalog orphans 677 → 654.
+
+- **`leftBattleToDrop`** (4 cards). "When this card is placed in the Drop Area
+  from the Battle Area" with *no cause named* — which is every cause, a skill
+  and a battle KO alike. It cannot widen `droppedFromBattle`, because that one
+  says "**by a skill**" and a KO is not a skill; the two are pended from
+  different places and the negative lookahead is what keeps them apart.
+- **`yourLeaderAttacked`** (3). Printed on a Battle Card. The Leader's own copy
+  of that sentence was already `attacked`, because a Leader is a card in play
+  like any other — so this is only for the ones printed elsewhere.
+- **`youTookDamage` / `opponentTookDamage`** (11). The wordings all say "from a
+  non-keyword skill" or "from a skill on one of your Battle Cards", and only the
+  `damage` op reaches the pend — battle damage takes a different path — so the
+  first half is the moment itself, and the second is answered by the area the
+  source card sits in.
+- **`lifeLeft`** (3). A life card leaving the Life Area, by damage or by a
+  skill; the [Critical] case is the one that says "placed in your Drop".
+- **`restedTheirsBySkill`** (1), the other end of `restedBySkill`: your skill
+  resting one of *theirs*. The only printed wording names their Battle Cards
+  and energy, and that is exactly where it is pended.
+- One widening: "placed in **your** Drop Area from your Unison Area" — the
+  regex only knew "a Drop Area".
+
+The two left in the decks are both deliberate: the alternation `youPlayed`
+refuses on purpose, and one card asks whether the opponent switched energy to
+Active Mode with a non-[Awaken] skill.
+
 ## Conventions worth keeping
 
 - Card text is **read, never interpreted**: if the compiler cannot read a

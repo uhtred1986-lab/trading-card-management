@@ -4295,4 +4295,36 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.equal(plain.mine - none.mine, 0, "…and it was not a ≪Saiyan≫");
 }
 
+{
+  // The moments the owner's own decks were still waiting for. Asserted
+  // positively, one wording each: a trigger regex that matches nothing is the
+  // same silence as no rule at all, and reads as an improvement in the count.
+  const moments: [string, Trigger][] = [
+    ["When this card is placed in the Drop Area from the Battle Area, draw 1 card.", "leftBattleToDrop"],
+    ["When your mono-red ≪Saiyan≫ Leader Card is attacked, draw 1 card.", "yourLeaderAttacked"],
+    ["When you take damage from an opponent's non-keyword skill, draw 1 card.", "youTookDamage"],
+    ["When your opponent takes damage from a skill on one of your Battle Cards, draw 1 card.", "opponentTookDamage"],
+    ["When your life moves to another area, draw 1 card.", "lifeLeft"],
+    ["When your life is placed in your Drop, draw 1 card.", "lifeLeft"],
+    ["When one of your card skills switches an opponent's Battle Card or energy to Rest Mode, draw 1 card.", "restedTheirsBySkill"],
+    ["When this card is placed in your Drop Area from your Unison Area, draw 1 card.", "unisonToDrop"],
+  ];
+  for (const [text, trigger] of moments) {
+    assert.ok(autoTriggerMatches(parseSkills(`[Auto] ${text}`)[0], trigger), `${trigger}: ${text}`);
+  }
+  // 3-1: "placed in the Drop Area from the Battle Area **by a skill**" names a
+  // cause, and a battle KO is not it — so the two wordings stay apart.
+  const bySkill = parseSkills("[Auto] When this card is placed in a Drop Area from a Battle Area by a skill, draw 1 card.")[0];
+  assert.ok(autoTriggerMatches(bySkill, "droppedFromBattle"));
+  assert.ok(!autoTriggerMatches(bySkill, "leftBattleToDrop"), "the one that names a cause is not the one that names none");
+
+  // 8-1: through the engine — a Battle Card watching the Leader be attacked.
+  DEFS.LEADERWATCH = { ...DEFS.V1, id: "LEADERWATCH", name: "LEADERWATCH", skill: "[Auto] When your Leader Card is attacked, draw 1 card." };
+  let s = arena({ oppBattle: ["LEADERWATCH"] });
+  const theirs = s.players.p2.hand.length;
+  s = play(s, { type: "attack", player: "p1", attacker: s.players.p1.leader, target: s.players.p2.leader });
+  assert.equal(s.players.p2.hand.length, theirs + 1, "8-1: their board heard their Leader being attacked");
+  assertConsistent(s);
+}
+
 console.log("verify-arena: all checks passed");

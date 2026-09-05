@@ -1046,6 +1046,13 @@ function battleAfterDeclare(ctx: EngineContext, s: GameState): "done" | "wait" {
   // "When your opponent attacks with a Battle Card": the defending player's
   // cards watch it, with the attacker as the subject.
   for (const id of cardsInPlay(s, other(s.turnPlayer))) pendTriggers(ctx, s, "opponentAttacks", id, b.attacker);
+  // 8-1: "when your Leader Card is attacked" printed on a Battle Card — the
+  // Leader's own copy of that sentence is `attacked` above, because a Leader
+  // is a card in play like any other.
+  const defender = other(s.turnPlayer);
+  if (b.guard === s.players[defender].leader) {
+    for (const id of cardsInPlay(s, defender)) if (id !== b.guard) pendTriggers(ctx, s, "yourLeaderAttacked", id, b.guard);
+  }
   s.flow.unshift(
     { op: "counter", window: "attack", responder: other(s.turnPlayer) },
     { op: "battle.blocker" },
@@ -1152,6 +1159,9 @@ function battleDamage(ctx: EngineContext, s: GameState, ev: GameEvent[]): "done"
       ev.push({ type: "damage", player: defP, amount: taken.length, critical, cards: taken });
       if (taken.length) {
         pendTriggers(ctx, s, "dealtDamage", b.attacker);
+        // 3-9: "when your life is placed in your Drop" — the [Critical] case —
+        // and "when your life moves to another area", which is both.
+        for (const id of cardsInPlay(s, defP)) pendTriggers(ctx, s, "lifeLeft", id, taken[0]);
         if (has(ctx, s, b.attacker, "Victory Strike")) {
           gameOver(s, ev, atkP, `[Victory Strike] — ${face(ctx, s, b.attacker).name} dealt damage`);
           return "done";

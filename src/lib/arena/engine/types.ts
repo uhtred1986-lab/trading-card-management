@@ -406,6 +406,15 @@ export type Trigger =
    * any destination, so a card bounced to the hand is that and not this.
    */
   | "droppedFromBattle"
+  /** The same sentence with no cause named, which is every cause: a skill and a battle KO alike. */
+  | "leftBattleToDrop"
+  /** "When your Leader Card is attacked" printed on a Battle Card (8-1). */
+  | "yourLeaderAttacked"
+  /** "When you take damage from an opponent's non-keyword skill" and its mirror (21-3). */
+  | "youTookDamage"
+  | "opponentTookDamage"
+  /** "When your life moves to another area", "when your life is placed in your Drop" (3-9). */
+  | "lifeLeft"
   /** "When a card evolves into this card" (22-5): this card entered play by [Evolve], not by an ordinary play. */
   | "evolvedInto"
   /** "When your opponent activates a [Counter] skill" (4-3): watched by your cards in play. */
@@ -418,6 +427,8 @@ export type Trigger =
   | "restedByAlliance"
   /** "When this card is switched to Rest Mode by one of your skills" (1-10). */
   | "restedBySkill"
+  /** The other end of it: your skill resting one of theirs (1-10). */
+  | "restedTheirsBySkill"
   /**
    * A keyword skill being used, watched by that player's cards in play:
    * "when you activate a [Union] skill" (22-13), "…an [Overlord] skill"

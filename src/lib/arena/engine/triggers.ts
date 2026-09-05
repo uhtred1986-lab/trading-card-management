@@ -74,6 +74,21 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       return /when this card attacks(?! and kos?\b)|when you attack or combo with this card/.test(t);
     case "attacked":
       return /when this card is attacked/.test(t);
+    // 8-1: a Battle Card watching the *Leader* be attacked. The Leader's own
+    // copy of that sentence is `attacked` above — it is a card in play like
+    // any other — so this is only for the ones printed elsewhere.
+    case "yourLeaderAttacked":
+      return /when your [^,]{0,60}leader(?: card)? is attacked/.test(head);
+    // 21-3: damage from a skill, which is the only damage the `damage` op
+    // deals — battle damage takes a different path — so "from a non-keyword
+    // skill" is satisfied by the moment itself.
+    case "youTookDamage":
+      return /when you (?:take|receive) damage/.test(head);
+    case "opponentTookDamage":
+      return /when your opponent (?:takes|receives) damage/.test(head);
+    // 3-9: a life card leaving the Life Area, however it leaves.
+    case "lifeLeft":
+      return /when your life (?:moves|is moved|is placed|leaves|is added)/.test(head);
     case "koed":
       // "…removed from a Battle Area by a skill **or KO'd**" is the KO half of
       // a wording whose other half is `removedFromBattle`.
@@ -88,6 +103,11 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     // hand is that moment and not this.
     case "droppedFromBattle":
       return /when this card is placed in (?:a|your|its owner'?s) drop area from (?:a|your|the) battle area by (?:a|your|one of your) skill/.test(t);
+    // The same sentence with no cause named at all, which is every cause: a
+    // skill putting it there and a battle KO alike. Kept apart from the one
+    // above because that one *does* name a cause, and a KO is not it.
+    case "leftBattleToDrop":
+      return /when this card is placed in (?:a|your|its owner'?s|the) drop area from (?:a|your|the) battle area(?!\s+by)/.test(head);
     // 21-14: a card of *yours* being KO'd, watched by the rest of your board —
     // "when your blue <Son Goku> card is KO'd, you may play this card from your
     // hand" — and the same from the other side of the table. `koed` is the
@@ -148,6 +168,11 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     // that names the keyword is not also caught by this.
     case "restedBySkill":
       return /when this card is switched to rest mode by (?:one of )?your skills?\b/.test(t);
+    // The other end of the same act: your skill resting one of *theirs*,
+    // watched by your cards in play. The only printed wording names their
+    // Battle Cards and energy, and that is exactly where it is pended.
+    case "restedTheirsBySkill":
+      return /when (?:one of )?your (?:card )?skills? switch(?:es)? (?:an|your) opponent'?s/.test(head) && /rest mode/.test(head);
     case "restedByAlliance":
       return /when this card is switched to rest mode by (?:an?|one of your) \[alliance\]/.test(t);
     case "addedToZEnergy":
@@ -202,7 +227,7 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     case "energyToDrop":
       return /when a card in your energy is placed in (?:your|its owner's) drop/.test(t);
     case "unisonToDrop":
-      return /when this card is placed in a drop area from your unison area|when this card in a unison area is placed into its owner's drop/.test(t);
+      return /when this card is placed in (?:a|your|its owner'?s) drop area from (?:a|your) unison area|when this card in a unison area is placed into its owner's drop/.test(t);
     case "markerRemoved":
       return /when a marker is removed/.test(t);
     // 22-43-3: paying [Spirit Boost X] takes markers off your Unison. These
@@ -275,6 +300,9 @@ export function koCard(ctx: GameContext, s: GameState, ev: GameEvent[], card: st
   // the moment is `koed` just above.
   for (const w of cardsInPlay(s, p)) if (w !== card) pendTriggers(ctx, s, "yourCardKoed", w, card);
   for (const w of cardsInPlay(s, p === "p1" ? "p2" : "p1")) pendTriggers(ctx, s, "opponentCardKoed", w, card);
+  // A KO is one of the ways a card is "placed in the Drop Area from the Battle
+  // Area", and the wording that names no cause means every cause.
+  if (areaOf(s, card) === "battle") pendTriggers(ctx, s, "leftBattleToDrop", card);
   // "When this card KOs an opponent's Battle Card": the card that did it,
   // whether by battle or by its own skill.
   if (by && by !== card && s.cards[by] && p !== masterOf(s, by)) pendTriggers(ctx, s, "kos", by);

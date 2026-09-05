@@ -419,6 +419,20 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
             s.players[p].damageTaken += taken.length;
             ev.push({ type: "damage", player: p, amount: taken.length, critical: false, cards: taken });
             pendTriggers(ctx, s, "dealtDamage", frame.card);
+            // 21-3: "when you take damage from an opponent's non-keyword
+            // skill" and its mirror. Only the `damage` op reaches here —
+            // battle damage takes a different path — so the "from a skill"
+            // half of those wordings is the moment itself. The cards that add
+            // "from a skill on one of your Battle Cards" are answered by the
+            // area the source sits in.
+            const src = frame.card && areaOf(s, frame.card);
+            const fromBoard = src === "battle" || src === "unison" || src === "leader";
+            if (fromBoard) {
+              for (const w of cardsInPlay(s, p)) pendTriggers(ctx, s, "youTookDamage", w, frame.card);
+              for (const w of cardsInPlay(s, p === "p1" ? "p2" : "p1")) pendTriggers(ctx, s, "opponentTookDamage", w, frame.card);
+            }
+            // 3-9: the life cards themselves left the Life Area.
+            for (const w of cardsInPlay(s, p)) pendTriggers(ctx, s, "lifeLeft", w, taken[0]);
           }
         }
         break;
@@ -586,8 +600,12 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
           if (leftBattle && areaOf(s, id) !== "battle") {
             pendTriggers(ctx, s, "removedFromBattle", id);
             if (masterOf(s, id) !== master) pendTriggers(ctx, s, "removedByOpponent", id);
-            // The narrower wording, which names where it ended up as well.
-            if (areaOf(s, id) === "drop") pendTriggers(ctx, s, "droppedFromBattle", id);
+            // The narrower wording, which names where it ended up as well —
+            // and the one that names no cause, which covers this too.
+            if (areaOf(s, id) === "drop") {
+              pendTriggers(ctx, s, "droppedFromBattle", id);
+              pendTriggers(ctx, s, "leftBattleToDrop", id);
+            }
           }
           if (op.mode) setMode(s, ev, id, op.mode, ctx);
           // 5-5: a card a skill *places* in a Battle Area was not played, so
@@ -611,8 +629,15 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
           // "When this card is switched to Rest Mode by one of your skills"
           // (1-10): the card and the skill both have to be yours, which is what
           // "your" says — an opponent resting it is not this moment.
-          if (op.mode === "rest" && was === "active" && s.cards[id].mode === "rest" && masterOf(s, id) === master) {
-            pendTriggers(ctx, s, "restedBySkill", id, frame.card);
+          if (op.mode === "rest" && was === "active" && s.cards[id].mode === "rest") {
+            const area = areaOf(s, id);
+            if (masterOf(s, id) === master) pendTriggers(ctx, s, "restedBySkill", id, frame.card);
+            // The other end of it: your skill resting one of *theirs*, watched
+            // by your cards in play. The printed wording names their Battle
+            // Cards and energy, so that is where it is pended and nowhere else.
+            else if (area === "battle" || area === "energy") {
+              for (const w of cardsInPlay(s, master)) pendTriggers(ctx, s, "restedTheirsBySkill", w, id);
+            }
           }
         }
         break;
