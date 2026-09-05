@@ -9,6 +9,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "tsx scripts/verify-rules.ts && tsx scripts/verify-arena.ts && tsx scripts/verify-db.mts",
+    "contract:emit": "tsx scripts/verify-arena.ts --emit",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
