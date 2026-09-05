@@ -183,9 +183,19 @@ export async function applyToGame(db: Db, id: number, action: Action): Promise<L
  * Empty the animation queue. Called once, at the start of your own action, so
  * what a client then finds is exactly one story: your move, and everything the
  * server did in reply to it.
+ *
+ * The *counter* survives the emptying, even though the beats do not. A client
+ * replays everything numbered above the last beat it played, so a counter that
+ * restarted at zero would make the turn after a long one look like something
+ * it had already seen — and it would sit still through it.
  */
 export async function clearBeats(db: Db, id: number): Promise<void> {
-  await db.update(arenaGames).set({ beats: null }).where(eq(arenaGames.id, id));
+  const row = await db.query.arenaGames.findFirst({ where: eq(arenaGames.id, id) });
+  const seq = (row?.beats as Beats | null)?.seq ?? 0;
+  await db
+    .update(arenaGames)
+    .set({ beats: { seq, list: [], art: {} } satisfies Beats })
+    .where(eq(arenaGames.id, id));
 }
 
 export async function listGames(db: Db, limit = 20) {

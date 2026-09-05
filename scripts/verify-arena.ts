@@ -2462,6 +2462,14 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
     const joined = appendBeats(first, second);
     assert.equal(joined.list.length, first.list.length + second.list.length);
     assert.equal(joined.seq, second.seq);
+
+    // Emptying the queue keeps the counter (see `clearBeats`). A counter that
+    // restarted would make the turn after a long one look already-played, and
+    // a client would sit still through it.
+    const emptied = { seq: joined.seq, list: [], art: {} };
+    const afterClear = appendBeats(emptied, toBeats(ctx, r.state, r.events, emptied.seq));
+    assert.equal(afterClear.list.length, first.list.length, "the beats go, so only the new turn replays");
+    assert.ok(afterClear.list[0].n > joined.seq, "but every number is still above everything already played");
   }
 
   // ── golden fixtures ──────────────────────────────────────────────────────

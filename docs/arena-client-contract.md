@@ -157,6 +157,11 @@ been the wrong shape, and `null` already means "nothing to play". Appended by `a
 at the last 300, and **cleared when you act**, so the queue holds exactly one story: your move, then
 everything the server did in reply.
 
+The **counter survives that clearing** even though the beats do not, so `n` climbs for the whole
+life of the game. Found by watching a real game: with a per-queue counter the numbers ran 24 → 0 →
+17, and a client following the rule above would have judged the new turn already played and sat
+still through it.
+
 ## 5. Endpoints — `/api/v1/`
 
 Only the Android app uses these; the web board calls §2 directly.
