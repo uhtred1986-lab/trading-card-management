@@ -21,6 +21,7 @@ export function skillLines(text: string | null | undefined): string[] {
     .replace(/\[\/?ul\]/gi, "\n")
     .replace(/\[li\]/gi, "\n・")
     .replace(/\[\/li\]/gi, "")
+    .replace(/\[\/?em\]/gi, "")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&amp;/g, "&")

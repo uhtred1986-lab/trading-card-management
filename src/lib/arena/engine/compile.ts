@@ -16,6 +16,9 @@ import type { CardDef, DelayScope, DelayTiming, ForbiddenAction, KeywordSkill, S
 // ── clause splitting ───────────────────────────────────────────────────────
 
 /** Split on commas, semicolons, full stops and "then"/"and", ignoring anything inside brackets. */
+/** After an " and ": nothing but a name, so the "and" joins names rather than clauses. */
+const NAME_AFTER_AND = /^(?:<[^>]+>|≪[^≫]+≫|\{[^}]+\})(?:\s*(?:,|\.|$|cards?\b|battle cards?\b|and\b|or\b|in\b|with\b))/i;
+
 export function splitClauses(text: string): string[] {
   const out: string[] = [];
   let depth = 0;
@@ -34,8 +37,9 @@ export function splitClauses(text: string): string[] {
         push(i, 1);
       } else if (ch === "." && (i + 1 >= text.length || text[i + 1] === " ")) {
         push(i, 1);
-      } else if (text.startsWith(" and ", i) && !text.startsWith(" and [", i)) {
-        // "gains [Double Strike] and [Barrier]" is one clause, not two.
+      } else if (text.startsWith(" and ", i) && !text.startsWith(" and [", i) && !NAME_AFTER_AND.test(text.slice(i + 5))) {
+        // "gains [Double Strike] and [Barrier]" is one clause, not two; nor is
+        // "a Battle Card with both <Son Goku> and <Piccolo>".
         push(i, 5);
         i += 4;
       } else if (text.startsWith(" then ", i)) {
@@ -214,6 +218,10 @@ const IT = /\b(?:it|its|them|they|their|that card|those cards|the chosen cards?)
 
 function refFor(clause: string, c: Ctx): Ref | null {
   if (/\bthis card\b/i.test(clause)) return { sel: { special: "self" } };
+  // "…play up to 1 card from under this card, and place this card under the
+  // played card": the card this skill just played, if it played one; otherwise
+  // the card the trigger was about ("When you play a <Goku> card, …").
+  if (/\bthe played card\b|\bthe card (?:that was )?played\b/i.test(clause)) return c.last ? { var: c.last } : { sel: { special: "subject" } };
   if (IT.test(clause.toLowerCase())) {
     if (c.lastTarget) return c.lastTarget;
     if (c.last) return { var: c.last };
@@ -382,6 +390,8 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // skill (20-16), which the interpreter remembers.
   if (/^you (?:chose to )?add(?:ed)? (?:a card|1 or more cards?|any cards?|cards?) to your hand$/.test(t)) return { cond: { kind: "did", what: "addToHand" } };
   if (/^you (?:chose to )?play(?:ed)? (?:a|1 or more|any|one or more) (?:battle )?cards?(?: this way)?$/.test(t)) return { cond: { kind: "did", what: "play" } };
+  if (/^you negated (?:a|your opponent's) leader(?: card)?'s attack(?: with this skill)?$/.test(t)) return { cond: { kind: "did", what: "negateLeaderAttack" } };
+  if (/^you negated (?:an|the|that) attack(?: with this skill)?$/.test(t)) return { cond: { kind: "did", what: "negateAttack" } };
   // "If your opponent's Leader Card's back is facing up" — awakened (22-2).
   if ((m = /^(your|your opponent's) leader(?: card)?'s back is facing up$/.exec(t))) {
     return { cond: { kind: "leaderFlipped", ...(m[1] === "your" ? {} : { side: "opponent" as const }) } };
@@ -498,7 +508,6 @@ function connective(clause: string): "skip" | "ifDone" | "ifNotDone" | null {
   if (/^shuffle any (?:secret )?areas? you looked (?:through|at)$/.test(t)) return "skip";
   if (/^(?:additionally|then|so|and|also|after that|in addition)$/.test(t)) return "skip";
   // Reminders that restate a rule the engine already applies.
-  if (/^flip (?:this card|it) (?:over|onto its back)$/.test(t)) return "skip";
   if (/^(?:you can't activate|this skill can only be activated|this card can't be played)/.test(t)) return "skip";
   // "You can activate this card's [Counter] skill from your hand" is where a
   // [Counter] skill is activated from anyway (4-3), so the sentence adds
@@ -813,7 +822,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   }
 
   // Negation (9-1).
-  if (/^negate the attack$/.test(t)) return [{ op: "negateAttack" }];
+  if (/^negate (?:the|that|this) attack$/.test(t)) return [{ op: "negateAttack" }];
   // 9-1-5: a skill that switches itself off, for effects meant to happen once.
   // Only "for the game" is read: "for the turn" would need the negation to
   // expire, and the instance's list of negated skills carries no duration.
@@ -827,6 +836,11 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     return [{ op: "moveTo", target: c.lastTarget, to: "battle" }];
   }
 
+  // "Negate it for the duration of the turn": a card, so all of its skills (9-1-5).
+  if ((m = /^negate (it|them|that card|those cards)$/.exec(q))) {
+    const ref = refFor(m[1], c);
+    return ref ? [{ op: "negateSkills", target: ref, until: durationOf(t) }] : null;
+  }
   if ((m = /^negate (.*?)(?:'s)? skills$/.exec(q))) {
     const ref = refFor(m[1], c);
     return ref ? [{ op: "negateSkills", target: ref, until: durationOf(t) }] : null;
@@ -848,11 +862,27 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     const ref = refFor(m[1], c);
     return ref ? [{ op: "switchMode", target: ref, mode: m[2] as "active" | "rest" }] : null;
   }
+  // "You may flip this card over" on a Leader's [Auto]: the Leader awakens
+  // (22-2-4 says how a flip works; this says when). A card without a back
+  // side is left as it is.
+  if ((m = /^(?:you may )?flip (.+?) (?:over|onto its back)$/.exec(t))) {
+    const ref = refFor(m[1], c);
+    return ref ? [{ op: "flip", target: ref }] : null;
+  }
   // 23-5: "switch it to Hidden Mode", "switch it to Revealed Mode".
   if ((m = /^switch (.+?) to (hidden|revealed) mode$/.exec(t))) {
     const ref = refFor(m[1], c);
     const hidden = m[2] === "hidden";
     return ref ? withChoice(ref, clause, c, (target) => ({ op: "hidden", target, hidden })) : null;
+  }
+  // "Use up to 1 green card with 5000 combo power from your Drop in a combo
+  // with its skills negated for the battle", "use this card from your Drop in
+  // a combo", "combo with it" (5-7).
+  if ((m = /^(?:use|combo with) (.+?)(?: from (?:your|their) (drop|warp|hand)(?: area)?)?(?: in a combo)?(?: from (?:your|their) (drop|warp|hand)(?: area)?)?( with (?:its|their) skills negated)?$/.exec(q)) && /\bcombo\b/.test(t)) {
+    const from = m[2] ?? m[3];
+    const ref = refFor(from ? `${m[1]} in your ${from}` : m[1], c);
+    const negated = !!m[4];
+    return ref ? withChoice(ref, clause, c, (target) => ({ op: "comboFrom", target, ...(negated ? { negated } : {}) })) : null;
   }
   // "Switch the target of the attack to it / to this card" (8-1, as a [Blocker] does).
   if ((m = /^(?:switch|change) the (?:target of (?:the )?attack|attack target) to (.+)$/.exec(t))) {
@@ -888,7 +918,21 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     const host = refFor(m[1], c);
     return host ? [{ op: "moveTo", target: { sel: { special: "self" } }, to: "under", under: host }] : null;
   }
+  // "Place this card under the played card", "…under your Leader", "…under
+  // {Wickedest Clan}": hosts the text names precisely, so no guessing.
+  if ((m = /^(?:place|put) this card (?:face ?up )?under (the played card|the card (?:that was )?played|your leader(?: card)?|\{[^}]+\}(?: in your battle area)?)$/.exec(t))) {
+    const host = refFor(m[1], c);
+    return host ? [{ op: "moveTo", target: { sel: { special: "self" } }, to: "under", under: host }] : null;
+  }
 
+  // "Place up to 1 yellow ≪Frieza Clan≫ card from your Drop under {Wickedest
+  // Clan} in your Battle Area" (23-2): the card and where it comes from, then
+  // the host.
+  if ((m = /^place (.+?) from (?:your|their) (drop|warp|hand|deck)(?: area)? under (.+?)(?: in (?:your|the) battle area)?$/.exec(t))) {
+    const ref = refFor(`${m[1]} in your ${m[2]}`, c);
+    const host = refFor(m[3], c);
+    return ref && host ? withChoice(ref, clause, c, (target) => ({ op: "moveTo", target, to: "under", under: host })) : null;
+  }
   // "Place up to 2 {Dragon Ball} from your Drop into the Battle Area" — placed,
   // not played (5-5), so nothing that triggers on a play fires.
   if ((m = /^place (.+?) from (?:your|their) (drop|warp|hand)(?: area)? (?:into|in) (?:your|the|their) battle area$/.exec(t))) {
@@ -905,13 +949,13 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   const MOVES: [RegExp, ScriptArea, { position?: "top" | "bottom"; mode?: "active" | "rest"; reveal?: boolean }][] = [
     // "their owners' decks", "its owner's hand": several cards go to several
     // owners' areas, which `moveTo` does one card at a time anyway.
-    [/^place (.+?) (?:in|into) (?:its owner'?s?|their owners?'?|their|your|the) drop(?: area)?s?$/, "drop", { reveal: true }],
-    [/^place (.+?) at the bottom of (?:its owner'?s?|their owners?'?|their|your) decks?(?: in any order)?$/, "deck", { position: "bottom" }],
-    [/^place (.+?) on top of (?:its owner'?s?|their owners?'?|their|your) decks?(?: in any order)?$/, "deck", { position: "top" }],
+    [/^place (.+?) (?:in|into) (?:its owner'?s?|their owners?'?s?|their|your|the) drops?(?: area)?s?$/, "drop", { reveal: true }],
+    [/^place (.+?) at the bottom of (?:its owner'?s?|their owners?'?s?|their|your) decks?(?: in any order)?$/, "deck", { position: "bottom" }],
+    [/^place (.+?) on top of (?:its owner'?s?|their owners?'?s?|their|your) decks?(?: in any order)?$/, "deck", { position: "top" }],
     [/^return (.+?) to (?:its|their) owners?'?s? hands?$/, "hand", {}],
     [/^return (.+?) to (?:your|their) hands?$/, "hand", {}],
     [/^add (.+?) to your hand$/, "hand", {}],
-    [/^send (.+?) to (?:your|their|its owner'?s?|their owners?'?) warps?$/, "warp", {}],
+    [/^send (.+?) to (?:your|their|its owner'?s?|their owners?'?s?) warps?$/, "warp", {}],
     [/^(?:add|place) (.+?) (?:to|in) your energy in rest mode$/, "energy", { mode: "rest", reveal: true }],
     [/^(?:add|place) (.+?) (?:to|in) your energy(?: area)?$/, "energy", { reveal: true }],
     [/^add (.+?) to your life$/, "life", {}],
@@ -1099,10 +1143,17 @@ export function compileSkill(skill: Skill): Script {
   const c: Ctx = { last: null, lastTarget: null, lastOp: null, replacing: null, n: 0, raw: skill.effect };
   const modal = splitModal(text);
   const clauses = splitClauses(modal ? modal.head : text);
+  // [Awaken] and [Wish] check their own condition in the engine before the
+  // skill is offered (22-2, 22-20), and the engine flips the Leader after the
+  // effects resolve (22-2-4), so "flip this card over" in their text is not an
+  // effect. On any other skill it is (a Leader's [Auto] that awakens it).
+  const engineChecks = skill.keyword?.name === "Awaken" || skill.keyword?.name === "Wish";
+  if (engineChecks) for (let i = clauses.length - 1; i >= 0; i--) if (/^(?:then )?flip (?:this card|it) (?:over|onto its back)[.]?$/i.test(clauses[i].trim())) clauses.splice(i, 1);
   // An [Auto] skill restates its own trigger ("When this card attacks, draw 1
   // card"); by the time the effect resolves the trigger has already fired, so
   // that clause is dropped. A leading "if …" is a condition, not a trigger, and
   // stays — it must compile or the skill goes to the referee.
+  let triggerCond: Cond | null = null;
   if (skill.kind === "auto" && (clauses.length > 1 || modal) && /^(?:when|at the (?:end|beginning|start))\b/i.test(clauses[0] ?? "")) {
     const trigger = clauses.shift()!;
     // The dropped trigger is still what the sentence is about: "When this card
@@ -1110,6 +1161,20 @@ export function compileSkill(skill: Skill): Script {
     // this, the first "it" of an [Auto] has nothing to point at and the whole
     // skill goes to the referee.
     if (/\bthis card\b/i.test(trigger)) c.lastTarget = { sel: { special: "self" } };
+    // "When this card attacks and KOs an opponent's Battle Card" splits on the
+    // "and"; the second half is still the trigger.
+    while (clauses.length > 1 && /^(?:kos?|ko's|is ko'?d|deals damage)\b/i.test(clauses[0].trim())) clauses.shift();
+    // "When you play this card and your Leader Card is a ≪Universe 6≫ card,
+    // …" — a condition riding on the trigger, split off the same way (9-1-3).
+    // A clause with its own "if" is a condition in the ordinary chain; only a
+    // bare one rode in on the trigger.
+    if (clauses.length > 1 && !/^(?:if|when|while|during)\b/i.test(clauses[0].trim())) {
+      const riding = parseConditionClause(clauses[0], true);
+      if (riding) {
+        triggerCond = riding.cond;
+        clauses.shift();
+      }
+    }
   }
 
   const ops = compileClauseList(clauses, c, unsupported);
@@ -1124,14 +1189,12 @@ export function compileSkill(skill: Skill): Script {
   // — a condition written before the colon is part of the skill's validity
   // (9-1-3), and it lands in `cost`. It wraps the whole program; one the
   // compiler cannot read fails the skill rather than running it unconditionally.
-  // [Awaken] and [Wish] check their own condition in the engine before the
-  // skill is offered (22-2, 22-20), so their programs stay bare.
-  const engineChecks = skill.keyword?.name === "Awaken" || skill.keyword?.name === "Wish";
   if (ops.length && !engineChecks && /^(?:if|when|while|during)\b/i.test(skill.cost)) {
     const cond = parseConditionClause(skill.cost);
     if (!cond) return { ops: [], unsupported: [skill.cost, ...unsupported] };
     return { ops: [{ op: "if", cond: cond.cond, then: ops }], unsupported };
   }
+  if (ops.length && triggerCond) return { ops: [{ op: "if", cond: triggerCond, then: ops }], unsupported };
   return { ops, unsupported };
 }
 
@@ -1414,7 +1477,7 @@ function describeCond(c: Cond): string {
     case "leaderFlipped":
       return `${c.side === "opponent" ? "their" : "your"} leader ${c.flipped === false ? "has not" : "has"} awakened`;
     case "did":
-      return c.what === "addToHand" ? "you added a card to your hand" : "you played a card";
+      return c.what === "addToHand" ? "you added a card to your hand" : c.what === "play" ? "you played a card" : c.what === "negateLeaderAttack" ? "you negated a Leader's attack" : "you negated the attack";
     case "not":
       return `not (${describeCond(c.cond)})`;
     case "power": {
@@ -1472,6 +1535,12 @@ export function describeScript(ops: Op[]): string {
         break;
       case "redirectAttack":
         parts.push(`switch the target of the attack to ${describeRef(op.target)}`);
+        break;
+      case "comboFrom":
+        parts.push(`use ${describeRef(op.target)} in a combo${op.negated ? " with its skills negated" : ""}`);
+        break;
+      case "flip":
+        parts.push(`flip ${describeRef(op.target)} over`);
         break;
       case "ko":
         parts.push(`KO ${describeRef(op.target)}`);

@@ -223,6 +223,8 @@ Operations (each is an object with "op"):
   {"op":"switchMode","target":TARGET,"mode":"rest"|"active"}
   {"op":"hidden","target":TARGET,"hidden":true|false}     Hidden Mode / Revealed Mode (23-5)
   {"op":"redirectAttack","target":TARGET}                 "switch the target of the attack to it"
+  {"op":"comboFrom","target":TARGET,"negated":true}       "use it in a combo from your Drop (with its skills negated)"
+  {"op":"flip","target":TARGET}                           a Leader awakens ("flip this card over")
   {"op":"power","target":TARGET,"amount":5000,"until":"battle"|"turn"|"game"}
     an amount may also be {"count":SELECTOR,"times":5000} (so much for each card) or {"sumPower":{"var":"rested"}} (the total power of named cards)
   {"op":"comboPower","target":TARGET,"amount":5000,"until":"battle"}

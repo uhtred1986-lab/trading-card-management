@@ -10,6 +10,7 @@ import { parseSkills, keywordOf, orbsIn } from "../src/lib/arena/engine/cards";
 import { parseFilter, matches, parseCondition } from "../src/lib/arena/engine/filters";
 import { move, locate, playCost, powerOf, forbids, has, cardNow, comboCostOf, skillNegated } from "../src/lib/arena/engine/state";
 import { compileSkill, describeScript, parseConditionClause, splitClauses } from "../src/lib/arena/engine/compile";
+import { autoTriggerMatches } from "../src/lib/arena/engine/triggers";
 
 // ── skill text parsing ─────────────────────────────────────────────────────
 
@@ -2300,6 +2301,68 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.ok(s.players.p1.hand.includes(d2));
   assert.ok(s.players.p1.drop.includes(d1), "the other stays");
   assertConsistent(s);
+}
+
+{
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+  const ops = (text: string) => one(text).ops.map((o) => o.op);
+
+  // A trigger split on its "and" is still the trigger; a condition riding on it wraps the effect.
+  const kos = one("[Auto][Once per turn] When this card attacks and KOs an opponent's Battle Card, your opponent chooses 1 card in their hand and discards it.");
+  assert.deepEqual(kos.unsupported, []);
+  assert.deepEqual(kos.ops.map((o) => o.op), ["discard"]);
+  const riding = one("[Auto] When you play this card from your hand and your Leader Card is a ≪Universe 6≫ card, draw 1 card.");
+  assert.deepEqual(riding.unsupported, []);
+  assert.equal(riding.ops[0].op, "if");
+  assert.equal((riding.ops[0] as { cond: { kind: string } }).cond.kind, "leaderMatches");
+  // "attacks and KOs" fires on the KO, not on the attack.
+  const sk = parseSkills("[Auto] When this card attacks and KOs an opponent's Battle Card, draw 1 card.")[0];
+  assert.ok(!autoTriggerMatches(sk, "attacks"));
+  assert.ok(autoTriggerMatches(sk, "kos"));
+
+  // Names joined by "and" are one phrase.
+  assert.deepEqual(splitClauses("When your opponent plays a red Battle Card with both <Son Goku> and <Piccolo>, play this card."), ["When your opponent plays a red Battle Card with both <Son Goku> and <Piccolo>", "play this card"]);
+
+  // Under a named host, from an area.
+  const under = one("[Auto] When you play this card, place up to 1 yellow ≪Frieza Clan≫ card from your Drop under {Wickedest Clan} in your Battle Area.");
+  assert.deepEqual(under.unsupported, []);
+  assert.deepEqual(under.ops.map((o) => o.op), ["choose", "moveTo"]);
+  assert.equal((under.ops[1] as { to: string }).to, "under");
+
+  // A combo from the Drop.
+  const cf = one("[Activate: Battle] Use up to 1 green card with 5000 combo power from your Drop in a combo with its skills negated for the battle.");
+  assert.deepEqual(cf.unsupported, []);
+  assert.deepEqual(cf.ops.map((o) => o.op), ["choose", "comboFrom"]);
+  assert.equal((cf.ops[1] as { negated?: boolean }).negated, true);
+  assert.deepEqual(ops("[Activate: Battle] Use this card from your Drop in a combo."), ["comboFrom"]);
+  DEFS.GRAVE = { ...DEFS["E-DRAW"], id: "GRAVE", name: "GRAVE", skill: "[Activate: Battle] Use up to 1 card with 5000 combo power from your Drop in a combo with its skills negated for the battle." };
+  let s = arena({ hand: ["GRAVE"], energy: ["V1"], battle: ["BLOCKER"] });
+  const dropped = s.players.p1.deck[0];
+  move({ defs: DEFS }, s, [], dropped, "drop", "p1");
+  s = play(s, { type: "attack", player: "p1", attacker: s.players.p1.leader, target: s.players.p2.leader });
+  assert.equal(s.prompt.kind, "combo");
+  const grave = find(s, "p1", "hand", "GRAVE");
+  assert.ok(acts(s).some((a) => a.type === "activate" && a.card === grave), "[Activate: Battle] from hand during the combo step");
+  s = play(s, { type: "activate", player: "p1", card: grave, skill: 0 });
+  if (s.prompt.kind === "chooseCards") s = play(s, { type: "choose", player: "p1", cards: [dropped] });
+  assert.ok(s.players.p1.combo.includes(dropped), "5-7: in the Combo Area");
+  assert.equal(s.cards[dropped].negated, "all", "with its skills negated");
+  assert.equal(s.prompt.kind, "combo");
+  assertConsistent(s);
+
+  // Odds and ends from the same list.
+  assert.deepEqual(ops("[Auto] When you play this card, choose 1 of your opponent's Battle Cards and negate it for the duration of the turn."), ["choose", "negateSkills"]);
+  assert.deepEqual(ops("[Counter: Attack] Negate that attack."), ["negateAttack"]);
+  assert.equal(parseSkills("[Auto][em][/em] When you play this card, draw 1 card.")[0].kind, "auto");
+  const negatedLeader = one("[Counter: Attack] Negate the attack. If you negated a Leader Card's attack with this skill, draw 1 card.");
+  assert.deepEqual(negatedLeader.unsupported, []);
+  assert.deepEqual((negatedLeader.ops[1] as { cond: unknown }).cond, { kind: "did", what: "negateLeaderAttack" });
+  const played = one("[Auto] At the start of your opponent's Main Phase, play up to 1 red card with an energy cost of 3 or less from under this card, and place this card under the played card.");
+  assert.deepEqual(played.unsupported, []);
+  // The flip is read as done, so what follows "if you do" simply follows.
+  assert.deepEqual(ops("[Auto] When one of your yellow Battle Cards is switched to Rest Mode by a skill, you may flip this card over. If you do, draw 1 card."), ["flip", "draw"]);
+  // On an [Awaken] the flip is the engine's, not an effect.
+  assert.deepEqual(ops("[Awaken] When your life is at 4 or less: Draw 1 card and flip this card over."), ["draw"]);
 }
 
 console.log("verify-arena: all checks passed");

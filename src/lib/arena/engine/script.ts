@@ -101,7 +101,7 @@ export type Cond =
   /** "If this card's power is 30000 or more" — any of the selected cards, as it stands now. */
   | { kind: "power"; sel: Selector; atLeast?: number; atMost?: number }
   /** "If you added a card to your hand", "if you played a card" — whether an earlier step of this same skill did that. */
-  | { kind: "did"; what: "addToHand" | "play" }
+  | { kind: "did"; what: "addToHand" | "play" | "negateAttack" | "negateLeaderAttack" }
   /** "If you don't" (20-16): the opposite of a condition. */
   | { kind: "not"; cond: Cond }
   | { kind: "chose"; var: string }
@@ -135,6 +135,14 @@ export type Op =
   | { op: "hidden"; target: Ref; hidden: boolean }
   /** "Switch the target of the attack to it" — the card becomes the guard, as a [Blocker] would (22-4-2). */
   | { op: "redirectAttack"; target: Ref }
+  /**
+   * "Use up to 1 card with 5000 combo power from your Drop in a combo (with
+   * its skills negated)" — into your Combo Area during a battle, for no combo
+   * cost (5-7); it leaves with the other combo cards at the end of the battle.
+   */
+  | { op: "comboFrom"; target: Ref; negated?: boolean }
+  /** "You may flip this card over" — a Leader awakens by a skill other than its [Awaken] (22-2-4). */
+  | { op: "flip"; target: Ref }
   | { op: "addMarker"; target: Ref; n: Amount }
   | { op: "removeMarker"; target: Ref; n: Amount }
   | { op: "token"; name: string; power: number; comboCost: number | null; comboPower: number | null; colors: Color[]; n: Amount; side?: Side }
@@ -220,7 +228,7 @@ export interface ScriptFrame {
   /** Set while a `choose` is waiting for an answer. */
   awaiting?: string;
   /** What this program has done so far, for "if you added a card to your hand" (20-16). */
-  did?: { addToHand?: boolean; play?: boolean };
+  did?: { addToHand?: boolean; play?: boolean; negateAttack?: boolean; negateLeaderAttack?: boolean };
 }
 
 /** How each timing reads in the log when the card text does not say it better. */
@@ -436,6 +444,28 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         }
         break;
 
+      case "flip":
+        for (const id of resolveRef(ctx, s, frame, op.target)) {
+          const inst = s.cards[id];
+          if (inst.flipped || !ctx.defs[inst.cardId]?.back || areaOf(s, id) !== "leader") continue;
+          inst.flipped = true;
+          ev.push({ type: "flip", card: id, flipped: true });
+        }
+        break;
+
+      case "comboFrom": {
+        // 5-7-2: a combo card needs a battle to join, on the side of the
+        // player whose skill this is.
+        const b = s.battle;
+        if (!b || (masterOf(s, b.attacker) !== master && masterOf(s, b.guard) !== master)) break;
+        for (const id of resolveRef(ctx, s, frame, op.target)) {
+          if (areaOf(s, id) === "combo") continue;
+          move(ctx, s, ev, id, "combo", master, { reason: "combo", reveal: true });
+          if (op.negated) s.cards[id].negated = "all";
+        }
+        break;
+      }
+
       case "redirectAttack": {
         // 8-1: a battle in progress; the new target has to be a Leader or a
         // Battle Card of the defending player that is not already the attacker.
@@ -546,6 +576,10 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         if (s.battle) {
           s.battle.negated = true;
           ev.push({ type: "attackNegated" });
+          // "If you negated a Leader Card's attack with this skill" (20-16).
+          const did = (frame.did ??= {});
+          did.negateAttack = true;
+          if (areaOf(s, s.battle.attacker) === "leader") did.negateLeaderAttack = true;
         }
         break;
 
@@ -682,6 +716,8 @@ const OP_NAMES = new Set<Op["op"]>([
   "negateSkills",
   "hidden",
   "redirectAttack",
+  "comboFrom",
+  "flip",
   "addMarker",
   "removeMarker",
   "token",

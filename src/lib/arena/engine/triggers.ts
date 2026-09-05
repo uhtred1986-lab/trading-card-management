@@ -46,13 +46,14 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     case "played":
       return /when (?:you play this card|this card is played)/.test(t);
     case "attacks":
-      return /when this card attacks/.test(t);
+      // "When this card attacks and KOs an opponent's Battle Card" is the KO, not the attack.
+      return /when this card attacks(?! and kos?\b)/.test(t);
     case "attacked":
       return /when this card is attacked/.test(t);
     case "koed":
       return /when this card is ko'?d/.test(t);
     case "kos":
-      return /when this card kos? (?:an opponent's|your opponent's|one of your opponent's|a) (?:battle card|card)/.test(t);
+      return /when this card (?:attacks and )?kos? (?:an opponent's|your opponent's|one of your opponent's|a) (?:battle card|card)/.test(t);
     case "leaderPlaced":
       return /when this card is placed in (?:your|a) leader area/.test(t);
     case "turnEnd":
