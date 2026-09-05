@@ -1141,7 +1141,9 @@ function assertConsistentAfterDrop(s: GameState) {
   assert.equal((one("[Activate: Main] If there are no cards in your opponent's combo area, draw 1 card.").ops[0] as { cond: { atMost?: number } }).cond.atMost, 0);
 
   // Discarding written the long way round, and life written as a count.
-  assert.deepEqual(ops("[Activate: Main] You may place 1 card from your hand in the drop area."), ["discard"]);
+  // 20-16: "you may" wraps it in the offer, so the discard is one level down.
+  assert.deepEqual(ops("[Activate: Main] You may place 1 card from your hand in the drop area."), ["may"]);
+  assert.deepEqual(ops("[Activate: Main] Place 1 card from your hand in the drop area."), ["discard"]);
   assert.deepEqual(ops("[Activate: Main] Add cards from your life to your hand until you have 6 life left."), ["lifeDownTo"]);
   assert.deepEqual(ops("[Activate: Main] Both players choose 1 card from their hand."), ["discard"]);
 
@@ -2362,8 +2364,12 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.deepEqual((negatedLeader.ops[1] as { cond: unknown }).cond, { kind: "did", what: "negateLeaderAttack" });
   const played = one("[Auto] At the start of your opponent's Main Phase, play up to 1 red card with an energy cost of 3 or less from under this card, and place this card under the played card.");
   assert.deepEqual(played.unsupported, []);
-  // The flip is read as done, so what follows "if you do" simply follows.
-  assert.deepEqual(ops("[Auto] When one of your yellow Battle Cards is switched to Rest Mode by a skill, you may flip this card over. If you do, draw 1 card."), ["flip", "draw"]);
+  // 20-16: the flip is offered, and "if you do" is the answer to that offer.
+  // It used to be read as simply done, and the draw simply followed.
+  const mayFlip = one("[Auto] When one of your yellow Battle Cards is switched to Rest Mode by a skill, you may flip this card over. If you do, draw 1 card.");
+  assert.deepEqual(mayFlip.ops.map((o) => o.op), ["may", "if"]);
+  assert.deepEqual((mayFlip.ops[0] as { ops: { op: string }[] }).ops.map((o) => o.op), ["flip"]);
+  assert.deepEqual((mayFlip.ops[1] as { cond: unknown }).cond, { kind: "did", what: "may" });
   // On an [Awaken] the flip is the engine's, not an effect.
   assert.deepEqual(ops("[Awaken] When your life is at 4 or less: Draw 1 card and flip this card over."), ["draw"]);
 }
@@ -3816,6 +3822,53 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   const trig = one("[Auto] When this card is revealed from the top of your deck and placed in your Drop Area, draw 1 card.");
   assert.deepEqual(trig.unsupported, []);
   assert.deepEqual(trig.ops, [{ op: "draw", n: 1 }]);
+}
+
+// ── "you may" is the player's decision (20-16) ─────────────────────────────
+
+{
+  // The words used to be stripped so that every pattern saw a bare
+  // instruction, which meant 787 compiled skills carried out an optional
+  // effect without asking. Now the offer is real, and "if you don't" has
+  // something to be the opposite of.
+  DEFS.MAYBE = {
+    ...DEFS.V1,
+    id: "MAYBE",
+    name: "MAYBE",
+    energyCost: 1,
+    skill: "[Auto] When you play this card, you may draw 1 card. If you don't, your opponent draws 1 card.",
+  };
+  let s = arena({ hand: ["MAYBE"], energy: ["V1"] });
+  const mine = s.players.p1.hand.length;
+  const theirs = s.players.p2.hand.length;
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "MAYBE") });
+  assert.equal(s.prompt.kind, "chooseMode", "20-16: it asks");
+  assert.equal(s.prompt.player, "p1");
+  assert.deepEqual(labels(s), ["draw 1 card", "Don't"]);
+
+  // Taking it draws, and the "if you don't" half does not happen.
+  const took = play(s, { type: "chooseMode", player: "p1", index: 0 });
+  assert.equal(took.players.p1.hand.length, mine - 1 + 1, "one played, one drawn");
+  assert.equal(took.players.p2.hand.length, theirs, "and they drew nothing");
+  assertConsistent(took);
+
+  // Declining does not draw, and the other half happens instead.
+  const left = play(s, { type: "chooseMode", player: "p1", index: 1 });
+  assert.equal(left.players.p1.hand.length, mine - 1, "no draw");
+  assert.equal(left.players.p2.hand.length, theirs + 1, "20-16: so they draw");
+  assertConsistent(left);
+}
+
+{
+  // A clause that is already a declinable choice asks once, not twice —
+  // taking no card *is* declining (5-2-4).
+  const sc = compileSkill(parseSkills("[Activate: Main] You may choose 1 card in your hand and discard it.")[0]);
+  assert.deepEqual(sc.ops.map((o) => o.op), ["choose", "moveTo"]);
+  // And a [Permanent]'s "you can …" is a standing permission, not an offer:
+  // wrapped in a decision it disappears from the static layer altogether.
+  const perm = compileSkill(parseSkills("[Permanent] You can activate this card's [Counter] skill from your hand by adding a card from your life to your hand instead of paying its energy cost.")[0]);
+  assert.deepEqual(sc.unsupported, []);
+  assert.ok(perm.ops.some((o) => o.op === "altCost"), "9-5-1: still a standing effect");
 }
 
 console.log("verify-arena: all checks passed");

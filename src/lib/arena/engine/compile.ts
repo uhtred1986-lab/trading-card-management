@@ -294,6 +294,12 @@ function filterFor(phrase: string, area: ScriptArea | null): CardFilter | undefi
 interface Ctx {
   /** The variable the last `choose` bound. */
   last: string | null;
+  /**
+   * A [Permanent] never *acts*, so its "you can …" is a standing permission
+   * rather than an offer to do something now (9-5-1) — and wrapping one in a
+   * decision hides it from the static layer entirely.
+   */
+  permanent: boolean;
   /** The variable the last `look` or `reveal` bound — what "that card" means. */
   lastSeen: string | null;
   /** The variable bound by the last "play …" choice — what "the card you played with this skill" means. */
@@ -1609,7 +1615,7 @@ export function compileSkill(skill: Skill): Script {
   const text = stripNotes(skill.effect);
   if (!text) return { ops: [], unsupported: [] };
   const unsupported: string[] = [];
-  const c: Ctx = { last: null, lastSeen: null, lastPlayed: null, lastTarget: null, lastOp: null, replacing: null, n: 0, raw: skill.effect };
+  const c: Ctx = { permanent: skill.kind === "permanent", last: null, lastSeen: null, lastPlayed: null, lastTarget: null, lastOp: null, replacing: null, n: 0, raw: skill.effect };
   // "Choose 1 {Tree of Might} … and place this card under the chosen card:
   // **Add a marker to the chosen card**" — the effect points back at what the
   // price chose. The price is its own program, and the engine hands its
@@ -1742,18 +1748,23 @@ function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op
       groups.push({ conds: [{ kind: "not", cond: asked }], ops: [] });
       continue;
     }
+    // 20-16: "if you do" / "if you don't" point at the decision just before
+    // them — an offer the player accepted ("you may draw 1 card") or a choice
+    // they made. The offer is the commoner of the two and had nothing to read
+    // until `may` existed, so "if you don't" was simply a gap.
+    const decided: Cond | null = c.lastOp === "may" ? { kind: "did", what: "may" } : c.last ? { kind: "chose", var: c.last } : null;
     if (conn === "ifDone") {
-      groups.push({ conds: c.last ? [{ kind: "chose", var: c.last }] : [], ops: [] });
+      groups.push({ conds: decided ? [decided] : [], ops: [] });
       continue;
     }
     if (conn === "ifNotDone") {
-      // "If you don't" without a choice before it has nothing to be the
-      // opposite of; the clause is a gap rather than an always-true condition.
-      if (!c.last) {
+      // With nothing before it to be the opposite of, this is a gap rather
+      // than an always-true condition.
+      if (!decided) {
         unsupported.push(clause);
         continue;
       }
-      groups.push({ conds: [{ kind: "not", cond: { kind: "chose", var: c.last } }], ops: [] });
+      groups.push({ conds: [{ kind: "not", cond: decided }], ops: [] });
       continue;
     }
     // "ignoring [Barrier]" lifts 22-16 for the choice just made (22-16, 20-4).
@@ -1840,6 +1851,13 @@ function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op
     // pending `c.replacing` has not already said, so it comes off first.
     const said = c.replacing ? clause.replace(/[\s,]+instead[.\s]*$/i, "") : clause;
     let got = compileClause(said, c);
+    // 20-16: "you may …" is the player's decision. `compileClause` strips the
+    // words so that every pattern below sees a bare instruction, which meant
+    // 787 compiled skills carried out an optional effect without asking. The
+    // clause is read as usual and then wrapped in the offer.
+    // "You can only play mono-yellow ≪Saiyan≫ cards" is a prohibition rather
+    // than an offer, and is read by `compileProhibition`.
+    const optional = !c.permanent && /^(?:you may|you can(?! only)|the player may)\s+\S/i.test(said.trim());
     // Only as a fallback: several patterns read the subject themselves and say
     // it better than this can — "your opponent sends 1 card from their hand to
     // their Warp" is a discard (20-7), chosen by its owner because it is a
@@ -1879,8 +1897,15 @@ function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op
     // because the sentence said "their Drop Area".
     if (opponentDoes) for (const o of got) if (o.op === "choose") o.chooser = "opponent";
     for (const o of got) track(o, c);
-    if (got.length) c.lastOp = got[got.length - 1].op;
-    push(got);
+    // The offer wraps whatever the clause turned out to be. A clause whose
+    // first op is *already* a declinable choice asks by itself — "you may
+    // choose 1 card in your hand and discard it" is answered by taking no card
+    // (5-2-4) — so wrapping it would ask twice.
+    const alreadyOptional = got[0]?.op === "choose" && got[0].sel.upTo;
+    const said2 = optional && got.length && !alreadyOptional ? [{ op: "may", ops: got, reason: clause.trim().replace(/^(?:you may|you can|the player may)\s+/i, "").replace(/[.]$/, "") } as Op] : got;
+    // What "if you do" points at is the *offer*, not the last thing inside it.
+    if (said2.length) c.lastOp = said2[said2.length - 1].op;
+    push(said2);
   }
 
   const ops: Op[] = [];
@@ -2176,6 +2201,9 @@ export function describeScript(ops: Op[]): string {
       }
       case "delay":
         parts.push(`${op.label ?? "later"}: ${describeScript(op.ops)}`);
+        break;
+      case "may":
+        parts.push(`you may: ${describeScript(op.ops)}`);
         break;
       case "chooseMode":
         parts.push(`choose one — ${op.modes.map((mode) => describeScript(mode.ops)).join(" / ")}`);

@@ -126,7 +126,7 @@ export type Cond =
   /** "If this card's power is 30000 or more" — any of the selected cards, as it stands now. */
   | { kind: "power"; sel: Selector; atLeast?: number; atMost?: number }
   /** "If you added a card to your hand", "if you played a card" — whether an earlier step of this same skill did that. */
-  | { kind: "did"; what: "addToHand" | "play" | "negateAttack" | "negateLeaderAttack" | "ko" | "draw" }
+  | { kind: "did"; what: "addToHand" | "play" | "negateAttack" | "negateLeaderAttack" | "ko" | "draw" | "may" }
   /** "If you don't" (20-16): the opposite of a condition. */
   | { kind: "not"; cond: Cond }
   | { kind: "chose"; var: string }
@@ -264,6 +264,12 @@ export type Op =
   /** "Choose one— ・A ・B" (20-2): the master picks one printed option. */
   | { op: "chooseMode"; modes: { label: string; ops: Op[] }[]; reason?: string }
   /**
+   * "You may draw 1 card" (20-16): the master decides whether the rest of this
+   * clause happens. Taking it silently is not the rule — and "if you don't"
+   * has nothing to be the opposite of when the choice was never offered.
+   */
+  | { op: "may"; ops: Op[]; reason?: string }
+  /**
    * Write an effect down now and carry it out later (1-7-2-1-1): "at the end
    * of the turn, KO it". The inner program keeps this frame's variables, so it
    * still knows which card "it" was.
@@ -297,7 +303,7 @@ export interface ScriptFrame {
    */
   saveVarsAs?: string;
   /** What this program has done so far, for "if you added a card to your hand" (20-16). */
-  did?: { addToHand?: boolean; play?: boolean; negateAttack?: boolean; negateLeaderAttack?: boolean; ko?: boolean; draw?: boolean };
+  did?: { addToHand?: boolean; play?: boolean; negateAttack?: boolean; negateLeaderAttack?: boolean; ko?: boolean; draw?: boolean; may?: boolean };
 }
 
 /** How each timing reads in the log when the card text does not say it better. */
@@ -820,6 +826,33 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         continue;
       }
 
+      case "may": {
+        // Asked and answered: splice the ops in, or step over them. Either way
+        // the answer is remembered, so "if you do" and "if you don't" can read
+        // it (20-16).
+        if (s.lastMode != null && frame.awaiting === "may") {
+          const yes = s.lastMode === 0;
+          s.lastMode = null;
+          frame.awaiting = undefined;
+          (frame.did ??= {}).may = yes;
+          if (!yes) {
+            frame.ip++;
+            continue;
+          }
+          frame.ops = [...frame.ops.slice(0, frame.ip), ...op.ops, ...frame.ops.slice(frame.ip + 1)];
+          continue;
+        }
+        // Nothing to offer is not a decision.
+        if (!op.ops.length) {
+          frame.ip++;
+          continue;
+        }
+        frame.awaiting = "may";
+        s.flow.unshift({ op: "script.step", frame });
+        s.prompt = { kind: "chooseMode", player: master, reason: op.reason ?? `${face(ctx, s, frame.card).name}: optional`, options: [op.reason ?? "Do it", "Don't"] };
+        return "wait";
+      }
+
       case "chooseMode": {
         // 20-2: the option is chosen as the skill resolves, and only then does
         // the rest of the program exist — so it is spliced in like an `if`.
@@ -908,6 +941,7 @@ const OP_NAMES = new Set<Op["op"]>([
   "altCost",
   "if",
   "chooseMode",
+  "may",
   "delay",
   "note",
 ]);
@@ -928,6 +962,7 @@ export function validateProgram(ops: unknown, depth = 0): ops is Op[] {
     if (typeof o.op !== "string" || !OP_NAMES.has(o.op as Op["op"])) return false;
     if (o.op === "if") return validateProgram(o.then, depth + 1) && (o.else === undefined || validateProgram(o.else, depth + 1));
     if (o.op === "chooseMode") return Array.isArray(o.modes) && o.modes.length > 0 && o.modes.every((mode) => validateProgram((mode as { ops?: unknown }).ops, depth + 1));
+    if (o.op === "may") return validateProgram(o.ops, depth + 1);
     // A delay with a timing the engine never drains would sit in the state for
     // the rest of the game, so the timing is checked as well as the shape.
     if (o.op === "delay") {
