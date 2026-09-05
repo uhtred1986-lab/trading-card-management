@@ -85,6 +85,13 @@ export type SkillKind =
   /** A keyword skill on its own line, e.g. "[Blocker]" or "[Critical]". */
   | "keyword";
 
+/**
+ * How a card names a *kind* of skill rather than one skill: "negate that
+ * card's [Auto] skill for the turn" (9-1-5). A printed "[Counter]" means every
+ * counter kind, so these are prefixes of `SkillKind`, matched as such.
+ */
+export type SkillKindPrefix = "auto" | "activate" | "counter" | "permanent";
+
 /** Keyword skills of §22 with their parameters. */
 export type KeywordSkill =
   | { name: "Awaken"; surge: boolean }
@@ -246,9 +253,14 @@ export interface ContinuousEffect {
   id: number;
   /** The card it is about; empty for a rule that is about a player, not a card. */
   target: string;
-  /** `negateSkill`: one skill of the card, by index in `value` (9-1-5, "negate this skill for the turn"). */
-  kind: "power" | "comboPower" | "keyword" | "negateSkills" | "negateSkill" | "forbid";
-  value: number | KeywordSkill;
+  /**
+   * `negateSkill`: one skill of the card, by index in `value` (9-1-5, "negate
+   * this skill for the turn"). `negateSkillKind`: every skill of one kind,
+   * named by a `SkillKindPrefix` in `value` ("negate that card's [Auto] skill
+   * for the turn").
+   */
+  kind: "power" | "comboPower" | "keyword" | "negateSkills" | "negateSkill" | "negateSkillKind" | "forbid";
+  value: number | KeywordSkill | SkillKindPrefix;
   /** Set when `kind` is "forbid". */
   forbid?: Prohibition;
   /** "nextTurn" runs through the opponent's whole turn and ends as yours begins. */

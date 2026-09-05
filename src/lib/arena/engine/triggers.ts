@@ -95,7 +95,7 @@ export function pendTriggers(ctx: GameContext, s: GameState, trigger: Trigger, c
   if (!valid && trigger !== "koed" && trigger !== "comboed" && trigger !== "energyToDrop" && trigger !== "unisonToDrop") return;
   const master = masterOf(s, card);
   for (const sk of skillsOfInstance(ctx, s, card)) {
-    if (skillNegated(s, card, sk.index)) continue;
+    if (skillNegated(s, card, sk.index, sk.kind)) continue;
     const isAuto = sk.kind === "auto";
     const isKeyword = sk.kind === "keyword" && keywordTriggers(sk, trigger);
     if (!isAuto && !isKeyword) continue;

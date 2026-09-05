@@ -1469,7 +1469,7 @@ function activatable(ctx: EngineContext, s: GameState, p: PlayerId, card: string
   const inst = s.cards[card];
   const inHand = areaOf(s, card) === "hand";
   const name = face(ctx, s, card).name;
-  if (skillNegated(s, card, sk.index)) return null;
+  if (skillNegated(s, card, sk.index, sk.kind)) return null;
   // 20-14: a skill nothing forbids, on a card nothing forbids it on.
   if (forbids(ctx, s, "activateSkill", { player: p, card })) return null;
   if (sk.oncePerTurn && inst.usedThisTurn.includes(sk.index)) return null;

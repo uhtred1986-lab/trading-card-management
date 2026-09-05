@@ -8,7 +8,7 @@ import { canCombo, hasKeyword, keywordOf, skillsOf, specifiedCostOf, isZ, baseTy
 import { compileCardCached } from "./compile";
 import { matches, powerRelOk } from "./filters";
 import type { Amount, Cond, Op, Ref, ScriptArea, ScriptFrame, Selector, Side } from "./script";
-import type { Area, CardDef, CardFace, Color, ContinuousEffect, DelayedEffect, DelayTiming, ForbiddenAction, FlowStep, Prohibition, GameEvent, GameState, KeywordSkill, PlayerId, PlayerState, Skill } from "./types";
+import type { Area, CardDef, CardFace, Color, ContinuousEffect, DelayedEffect, DelayTiming, ForbiddenAction, FlowStep, Prohibition, GameEvent, GameState, KeywordSkill, PlayerId, PlayerState, Skill, SkillKind } from "./types";
 import { other } from "./types";
 
 export interface GameContext {
@@ -178,10 +178,14 @@ export function skillsNegated(s: GameState, id: string): boolean {
 }
 
 /** One skill of a card is negated: by index for the game, or by a turn-long effect. */
-export function skillNegated(s: GameState, id: string, index: number): boolean {
+export function skillNegated(s: GameState, id: string, index: number, kind?: SkillKind): boolean {
   const inst = s.cards[id];
   if (inst.negated === "all" || inst.negated.includes(index)) return true;
-  return s.effects.some((e) => e.kind === "negateSkill" && e.target === id && e.value === index);
+  if (s.effects.some((e) => e.kind === "negateSkill" && e.target === id && e.value === index)) return true;
+  // 9-1-5: "negate that card's [Auto] skill for the turn" — a whole kind at
+  // once. A printed "[Counter]" covers every counter kind, so the stored value
+  // is a prefix of the skill kind rather than the whole of it.
+  return !!kind && s.effects.some((e) => e.kind === "negateSkillKind" && e.target === id && kind.startsWith(e.value as string));
 }
 
 export function skillsOfInstance(ctx: GameContext, s: GameState, id: string): Skill[] {
@@ -200,7 +204,7 @@ export function keywordsInForce(ctx: GameContext, s: GameState, id: string): Key
     const d = def(ctx, s, id);
     const side = inst.flipped && d.back ? "back" : "front";
     for (const sk of skillsOf(d, side)) {
-      if (skillNegated(s, id, sk.index)) continue;
+      if (skillNegated(s, id, sk.index, sk.kind)) continue;
       if (sk.keyword) out.push(sk.keyword);
       // Keywords sharing the line with a typed skill ("[Auto][Blocker]") belong to that line.
       for (const tag of sk.tags) {
@@ -467,7 +471,7 @@ export function staticEffects(ctx: GameContext, s: GameState): StaticEffect[] {
         const inPlayNow = inPlay(s, src);
         for (const sk of skillsOf(d, side)) {
           if (sk.kind !== "permanent") continue;
-          if (skillNegated(s, src, sk.index)) continue;
+          if (skillNegated(s, src, sk.index, sk.kind)) continue;
           const sc = scripts.bySkill[sk.index];
           if (!sc || sc.unsupported.length) continue;
           collectStatics(ctx, s, out, src, p, sc.ops, inPlayNow);

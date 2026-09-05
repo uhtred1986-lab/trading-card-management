@@ -31,7 +31,7 @@ import {
   type GameContext,
 } from "./state";
 import { koCard, masterOf, pendTriggers } from "./triggers";
-import type { Color, DelayScope, DelayTiming, FlowStep, ForbiddenAction, GameEvent, GameState, KeywordSkill, PlayerId, Trigger } from "./types";
+import type { Color, DelayScope, DelayTiming, FlowStep, ForbiddenAction, GameEvent, GameState, KeywordSkill, PlayerId, SkillKindPrefix, Trigger } from "./types";
 
 // ── the language ───────────────────────────────────────────────────────────
 
@@ -171,6 +171,12 @@ export type Op =
   | { op: "comboPower"; target: Ref; amount: Amount; until: Duration }
   | { op: "grant"; target: Ref; keyword: KeywordSkill; until: Duration }
   | { op: "negateSkills"; target: Ref; until: Duration }
+  /**
+   * "Negate that card's [Auto] skill for the turn" (9-1-5): one kind of skill
+   * rather than all of them. The printed tag is a prefix of `SkillKind`, so a
+   * bare "[Counter]" covers every counter kind.
+   */
+  | { op: "negateSkillsOfKind"; target: Ref; kind: SkillKindPrefix; until: Duration }
   /** 23-5: "switch it to Hidden Mode" / "switch it to Revealed Mode" — Battle Cards in the Battle Area only. */
   | { op: "hidden"; target: Ref; hidden: boolean }
   /** "Switch the target of the attack to it" — the card becomes the guard, as a [Blocker] would (22-4-2). */
@@ -228,7 +234,7 @@ export type Op =
    * it for effects meant to happen once — the skill is still printed, and
    * still negatable by anything else, it simply never triggers again.
    */
-  | { op: "negateOwnSkill"; until?: "turn" }
+  | { op: "negateOwnSkill"; until?: "turn" | "battle" }
   /** Kept for programs written before `forbid` existed; the same thing. */
   | { op: "cannotAttack"; target: Ref; until: Duration }
   /**
@@ -572,6 +578,15 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         }
         break;
 
+      case "negateSkillsOfKind":
+        // 9-1-5: one kind of skill, not the card. Always an effect with a
+        // duration — no card prints "for the game" on a single kind.
+        for (const id of resolveRef(ctx, s, frame, op.target)) {
+          if (forbids(ctx, s, "beNegated", { card: id })) continue;
+          addEffect(s, ev, { target: id, kind: "negateSkillKind", value: op.kind, until: op.until === "game" ? "turn" : op.until });
+        }
+        break;
+
       case "cannotAttack":
         for (const id of resolveRef(ctx, s, frame, op.target)) addEffect(s, ev, { target: id, kind: "forbid", value: 0, until: op.until, forbid: { what: "attack" } });
         break;
@@ -662,10 +677,11 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         // the card leaves play, because that is a different card (3-1-4).
         const inst = s.cards[frame.card];
         if (!inst || frame.skillIndex == null || inst.negated === "all" || inst.negated.includes(frame.skillIndex)) break;
-        if (op.until === "turn") {
-          // "Negate this skill for the turn": back next turn, so an effect, not a mark.
-          addEffect(s, ev, { target: frame.card, kind: "negateSkill", value: frame.skillIndex, until: "turn" });
-          note(ev, `${face(ctx, s, frame.card).name}: that skill will not happen again this turn`);
+        if (op.until === "turn" || op.until === "battle") {
+          // "Negate this skill for the turn / for the battle": it comes back,
+          // so an effect with a duration rather than a mark on the instance.
+          addEffect(s, ev, { target: frame.card, kind: "negateSkill", value: frame.skillIndex, until: op.until });
+          note(ev, `${face(ctx, s, frame.card).name}: that skill will not happen again this ${op.until}`);
           break;
         }
         inst.negated.push(frame.skillIndex);
@@ -800,6 +816,7 @@ const OP_NAMES = new Set<Op["op"]>([
   "cannotAttack",
   "forbid",
   "costReduction",
+  "negateSkillsOfKind",
   "negateKeyword",
   "gains",
   "replaceLeave",

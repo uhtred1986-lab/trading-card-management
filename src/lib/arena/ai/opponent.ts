@@ -232,7 +232,9 @@ Operations (each is an object with "op"):
   {"op":"comboPower","target":TARGET,"amount":5000,"until":"battle"}
   {"op":"grant","target":TARGET,"keyword":{"name":"Blocker"},"until":"turn"}
   {"op":"negateSkills","target":TARGET,"until":"turn"} | {"op":"negateAttack"}
-  {"op":"negateOwnSkill"} | {"op":"negateOwnSkill","until":"turn"}     "negate this skill for the game / for the turn"
+  {"op":"negateSkillsOfKind","target":TARGET,"kind":"auto"|"activate"|"counter"|"permanent","until":"turn"}
+    "negate that card's [Auto] skill for the turn" — one kind, not the whole card
+  {"op":"negateOwnSkill"} | {"op":"negateOwnSkill","until":"turn"|"battle"}   "negate this skill for the game / turn / battle"
   {"op":"addMarker","target":TARGET,"n":1} | {"op":"removeMarker","target":TARGET,"n":1}
   {"op":"forbid","what":FORBIDDEN,"until":"turn","target":TARGET}        a rule about particular cards
   {"op":"forbid","what":"play","until":"turn","side":"opponent","filter":{...}}   a rule about a player

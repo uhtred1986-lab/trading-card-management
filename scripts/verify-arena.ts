@@ -2756,4 +2756,54 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.equal(playCost({ defs: DEFS }, s, cheap).total, 3, "20-21: one blue Battle Card, one less");
 }
 
+// ── negating one kind of skill, not all of them (9-1-5) ────────────────────
+
+{
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+
+  const auto = one("[Counter: Attack] Choose 1 of your opponent's Battle Cards and negate that card's [Auto] skill for the duration of turn.");
+  assert.deepEqual(auto.unsupported, []);
+  assert.deepEqual(auto.ops[1], { op: "negateSkillsOfKind", target: { var: "c0" }, kind: "auto", until: "turn" });
+
+  // A printed "[Counter]" covers every counter kind, so the stored value is a
+  // prefix. And the tag must be read *before* the bare "negate … skills"
+  // pattern, whose subject would otherwise swallow it and silence the card.
+  assert.equal((one("[Auto] When you play this card, choose 1 of your opponent's Battle Cards and negate that card's [Counter] skills for the turn.").ops[1] as { op: string; kind?: string }).kind, "counter");
+  assert.equal((one("[Auto] When you play this card, choose 1 of your opponent's Battle Cards and negate that card's skills for the turn.").ops[1] as { op: string }).op, "negateSkills", "a bare 'skills' still silences everything");
+
+  // "Negate this skill for the battle" — the third duration, which had to be
+  // an effect rather than a mark, because the skill comes back.
+  const once = one("[Auto] When this card attacks, this card gets +5000 power for the battle. Negate this skill for the battle.");
+  assert.deepEqual(once.unsupported, []);
+  assert.deepEqual(once.ops[1], { op: "negateOwnSkill", until: "battle" });
+}
+
+{
+  // The engine side: an [Auto] is silenced and an [Activate] on the same card
+  // is not, which is the whole point of naming a kind.
+  DEFS.TWOSKILL = {
+    ...DEFS.V1,
+    id: "TWOSKILL",
+    name: "TWOSKILL",
+    skill: "[Auto] When this card attacks, draw 1 card.<br>[Activate: Main] Draw 1 card.",
+  };
+  DEFS.HUSH = {
+    ...DEFS.V1,
+    id: "HUSH",
+    name: "HUSH",
+    energyCost: 1,
+    skill: "[Auto] When you play this card, choose 1 of your opponent's Battle Cards and negate that card's [Auto] skill for the turn.",
+  };
+  let s = arena({ hand: ["HUSH"], energy: ["V1"], oppBattle: ["TWOSKILL"] });
+  const quiet = s.players.p2.battle[0];
+  const skills = parseSkills(DEFS.TWOSKILL.skill!);
+  assert.equal(skills.length, 2, "the card really does have two skills of different kinds");
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "HUSH") });
+  if (s.prompt.kind === "chooseCards") s = play(s, { type: "choose", player: "p1", cards: [quiet] });
+  assert.ok(skillNegated(s, quiet, skills[0].index, skills[0].kind), "the [Auto] is negated");
+  assert.ok(!skillNegated(s, quiet, skills[1].index, skills[1].kind), "the [Activate: Main] is not");
+  assert.ok(!skillsNegated(s, quiet), "and the card is not silenced");
+  assertConsistent(s);
+}
+
 console.log("verify-arena: all checks passed");

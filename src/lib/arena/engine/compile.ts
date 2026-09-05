@@ -11,7 +11,7 @@
 import { parseFilter, type CardFilter } from "./filters";
 import { keywordOf, orbsIn, skillsOf } from "./cards";
 import type { Amount, Cond, Duration, Op, Ref, Script, ScriptArea, Selector, Side } from "./script";
-import type { CardDef, DelayScope, DelayTiming, ForbiddenAction, KeywordSkill, Skill } from "./types";
+import type { CardDef, DelayScope, DelayTiming, ForbiddenAction, KeywordSkill, Skill, SkillKindPrefix } from "./types";
 
 // ── clause splitting ───────────────────────────────────────────────────────
 
@@ -637,7 +637,8 @@ function compileForEach(clause: string, c: Ctx): Op[] | null {
  * matching the action itself can be anchored to the end once they are gone.
  */
 const TRAILING_QUALIFIER =
-  /\s+(?:for the (?:duration of the )?(?:turn|battle|game)|for the rest of (?:the|this) turn|during (?:this|the) turn|this turn|until (?:the )?(?:end|start|beginning) of [a-z' ]+|in (?:all|any) areas?)$/;
+  // Some sets print "for the duration of turn", without the second article.
+  /\s+(?:for the (?:duration of (?:the )?)?(?:turn|battle|game)|for the rest of (?:the|this) turn|during (?:this|the) turn|this turn|until (?:the )?(?:end|start|beginning) of [a-z' ]+|in (?:all|any) areas?)$/;
 
 /**
  * The clause with those tails removed.
@@ -853,10 +854,14 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
 
   // 9-1-5: negating one named keyword rather than silencing the card.
   if ((m = /^negate (.+?)'s \[([a-z0-9\- ]+)\](?: skill)?(?: in (?:all|any) areas?)?$/.exec(t))) {
+    // A tag that names a *kind* of skill rather than a keyword ("[Auto]") is
+    // read further down; failing here would take the whole clause with it.
     const kw = keywordOf(m[2]);
-    if (!kw) return null;
-    const ref = refFor(m[1], c);
-    return ref ? [{ op: "negateKeyword", keyword: kw.name, target: ref }] : null;
+    if (kw) {
+      const ref = refFor(m[1], c);
+      return ref ? [{ op: "negateKeyword", keyword: kw.name, target: ref }] : null;
+    }
+    if (!/^(?:auto|activate|counter|permanent)\b/.test(m[2])) return null;
   }
 
   // "Only 1 {SS2 Trunks} can be played in your Battle Area" — a prohibition
@@ -954,10 +959,11 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // Negation (9-1).
   if (/^negate (?:the|that|this) attack$/.test(t)) return [{ op: "negateAttack" }];
   // 9-1-5: a skill that switches itself off, for effects meant to happen once.
-  // Only "for the game" is read: "for the turn" would need the negation to
-  // expire, and the instance's list of negated skills carries no duration.
+  // "For the game" is a mark on the instance; the two shorter durations are
+  // continuous effects, because they have to come back.
   if (/^negate this skill for the (?:duration of the )?game$/.test(t)) return [{ op: "negateOwnSkill" }];
   if (/^negate this skill for the (?:duration of the )?turn$/.test(t)) return [{ op: "negateOwnSkill", until: "turn" }];
+  if (/^negate this skill for the (?:duration of the |rest of the )?battle$/.test(t)) return [{ op: "negateOwnSkill", until: "battle" }];
 
   // 3-1-6-1: a Battle Card may sit in either player's Battle Area, so taking
   // control of one is a move to your own — mode and markers carried, because
@@ -966,6 +972,14 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     return [{ op: "moveTo", target: c.lastTarget, to: "battle" }];
   }
 
+  // "Negate that card's [Auto] skill for the turn" — one kind, not the card.
+  // Read *before* the two below: their subject is `(.*?)`, which would happily
+  // swallow the tag and silence every skill the card has.
+  if ((m = /^negate (.*?)(?:'s)? \[(auto|activate[^\]]*|counter[^\]]*|permanent)\] skills?$/.exec(q))) {
+    const ref = refFor(m[1], c);
+    const kind = m[2].split(":")[0].trim() as SkillKindPrefix;
+    return ref ? [{ op: "negateSkillsOfKind", target: ref, kind, until: durationOf(t) }] : null;
+  }
   // "Negate it for the duration of the turn": a card, so all of its skills (9-1-5).
   if ((m = /^negate (it|them|that card|those cards)$/.exec(q))) {
     const ref = refFor(m[1], c);
@@ -1785,6 +1799,9 @@ export function describeScript(ops: Op[]): string {
         break;
       case "negateSkills":
         parts.push(`negate the skills of ${describeRef(op.target)} for the ${op.until}`);
+        break;
+      case "negateSkillsOfKind":
+        parts.push(`negate the [${op.kind === "auto" ? "Auto" : op.kind === "counter" ? "Counter" : op.kind === "permanent" ? "Permanent" : "Activate"}] skills of ${describeRef(op.target)} for the ${op.until}`);
         break;
       case "cannotAttack":
         parts.push(`${describeRef(op.target)} can't attack for the ${op.until}`);
