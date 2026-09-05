@@ -223,6 +223,61 @@ How to run the next batch, which is the same shape:
 
 ---
 
+## Done: the §22 keywords as engine rules, and printed conditions (5 Sep 2026)
+
+Branch `feature/arena-counter-chains`, not yet merged. Three commits:
+
+**Every keyword the manual defines now has an engine rule** — none goes
+through the compiler or the referee. Read from `docs/rules/rulemanual.txt`
+section by section: [Burst X] and [Spirit Boost X] (costs written as tags, like
+[Bond]; the parser must *not* treat Spirit Boost as the skill's keyword),
+[Arrival X/Y] (from hand during a battle once both colours are in the Combo
+Area), [Empower X Y] (markers carried from the replaced Unison), [Successor]
+(subset-sum of green/yellow costs, chosen one card at a time from cards that
+still leave a way to the exact sum), [Aegis X/Y] (opponent's Defense Step
+only), [Revive X/Y] (on KO, once per card per turn), [Rejuvenate], [Alliance
+X/Y] (rest cards as the cost; the effect reads "the total power of the cards
+switched to Rest Mode by this skill" through a new Amount, `{sumPower:{var:
+"rested"}}`), [Invoker] (an alternative cost, like the printed 5-3 ones).
+Tests for each are at the end of `scripts/verify-arena.ts`, sections cited.
+
+Two engine gaps came out of it. **The combo prompt never offered
+[Activate: Battle] skills at all** — `apply` accepted them, `legalActions`
+never listed them, so the board and the fuzzer had never activated one. And an
+engine-side "choose 2" prompt (Union, Aegis, Revive…) could not be answered
+from a menu that offers one card per tap: the `choose` action now accumulates
+picks and offers "Done choosing" once the minimum is met. The interpreter's own
+`choose` had been fixed the same way a day earlier; the two paths are separate.
+
+**A condition before the colon was being dropped.** "[Auto] If your Leader
+Card is red: When you play this card, draw 1 card" lands in `Skill.cost`, and
+`compileSkill` only ever read `effect` — so the draw happened whatever the
+Leader was, and the skill counted as compiled. Now the program is wrapped in
+`if`, a condition the compiler cannot read fails the skill (honest gap), and an
+[Activate] skill whose cost is only a condition is offered when it holds.
+[Awaken]/[Wish] are exempt: the engine checks theirs natively (22-2). Coverage
+*fell* from 73.2 % to 70.8 % on that commit and is back to 72.6 % after reading
+the commonest shapes (markers on this card, in a battle, the Leader's back
+side, "{X} is in play in your Unison Area", and `any`/`all` for "…, or you have
+5 or more energy and …"). 187 of the catalog's 2,500 condition costs remain
+unread; the top of that list is "if all of your energy is black", "if your
+opponent's Leader Card's back is facing up", "if this card's power is N or
+more", "if your Leader Card has ≪X≫ in its special trait".
+
+A related silent widening: a target phrase whose filter words are not
+recognised selects the *whole* area. "with power less than or equal to this
+card's power" was one — `parseTarget` saw "this card" and chose the card
+itself. `CardFilter.powerRel` now carries the relative bound and
+`resolveSelector` applies it. Grep `parseFilter` for other measures the cards
+print ("with the same name", "with an energy cost equal to…") — each one that
+is not parsed widens a selection without a word.
+
+Next, in order: the rest of the unread conditions above; then the "one clause
+away" list from `npm run arena:gaps` ("if you added a card to your hand" needs
+skill memory; "switch it to Hidden Mode"; "negate this skill for the turn").
+
+---
+
 ## The other track, which needs no planning
 
 Two thirds of the unreadable clauses — 6,116 of them — need **no new

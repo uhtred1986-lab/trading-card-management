@@ -2095,4 +2095,28 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.ok(!canActivate(o2, o2.players.p1.battle[0]), "neither holds");
 }
 
+{
+  // "Choose up to 1 of your opponent's Battle Cards with power less than or
+  // equal to this card's power" used to read "this card" as the target and
+  // pick the card itself. The bound is measured where the skill runs.
+  const sc = compileSkill(parseSkills("[Auto] When this card attacks, choose up to 1 of your opponent's Battle Cards with power less than or equal to this card's power, ignoring [Barrier], and KO it.")[0]);
+  assert.deepEqual(sc.unsupported, []);
+  const sel = (sc.ops[0] as { sel: { side?: string; area?: string; ignoreBarrier?: boolean; filter?: { powerRel: unknown } } }).sel;
+  assert.equal(sel.side, "opponent");
+  assert.equal(sel.area, "battle");
+  assert.deepEqual(sel.filter?.powerRel, { of: "self", cmp: "<=" });
+  assert.ok(sel.ignoreBarrier);
+
+  DEFS.RELKO = { ...DEFS.V1, id: "RELKO", name: "RELKO", power: 15000, skill: "[Auto] When this card attacks, choose up to 1 of your opponent's Battle Cards with power less than or equal to this card's power and KO it." };
+  let s = arena({ battle: ["RELKO"], oppBattle: ["V-BLUE", "BIG"] });
+  const [small, big] = s.players.p2.battle;
+  s.cards[big].mode = "rest";
+  s = play(s, { type: "attack", player: "p1", attacker: s.players.p1.battle[0], target: big });
+  assert.equal(s.prompt.kind, "chooseCards");
+  assert.deepEqual((s.prompt as { choice: { candidates: string[] } }).choice.candidates, [small], "10000 ≤ 15000; 25000 is not");
+  s = play(s, { type: "choose", player: "p1", cards: [small] });
+  assert.ok(s.players.p2.drop.includes(small));
+  assertConsistent(s);
+}
+
 console.log("verify-arena: all checks passed");

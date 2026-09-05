@@ -106,7 +106,8 @@ const AREA_WORDS: [RegExp, ScriptArea][] = [
 /** "up to 2 of your opponent's Battle Cards in Rest Mode" → a selector. */
 export function parseTarget(phrase: string): Selector | null {
   const t = phrase.toLowerCase();
-  if (/\bthis card\b/.test(t) && !/\bother\b/.test(t)) return { special: "self" };
+  // "this card's power" inside a phrase is a measure, not the target.
+  if (/\bthis card\b(?!'s)/.test(t) && !/\bother\b/.test(t)) return { special: "self" };
   if (/\bthe attack(?:ing)? card\b/.test(t)) return { special: "attacker" };
   if (/\bthe guard card\b/.test(t)) return { special: "guard" };
 
@@ -167,6 +168,7 @@ function filterFor(phrase: string, area: ScriptArea | null): CardFilter | undefi
     f.costMax != null ||
     f.powerMin != null ||
     f.powerMax != null ||
+    f.powerRel != null ||
     f.monoColor ||
     // A colour narrows an energy area as much as any other: "your blue energy"
     // is not "your energy".

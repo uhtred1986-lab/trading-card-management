@@ -6,7 +6,7 @@
  */
 import { canCombo, hasKeyword, keywordOf, skillsOf, specifiedCostOf, isZ, baseType } from "./cards";
 import { compileCardCached } from "./compile";
-import { matches } from "./filters";
+import { matches, powerRelOk } from "./filters";
 import type { Amount, Cond, Op, Ref, ScriptArea, ScriptFrame, Selector, Side } from "./script";
 import type { Area, CardDef, CardFace, Color, ContinuousEffect, DelayedEffect, DelayTiming, ForbiddenAction, FlowStep, Prohibition, GameEvent, GameState, KeywordSkill, PlayerId, PlayerState, Skill } from "./types";
 import { other } from "./types";
@@ -288,6 +288,9 @@ export function resolveSelector(ctx: GameContext, s: GameState, frame: ScriptFra
     if (sel.special && sel.area && areaOf(s, id) !== (sel.area === "play" ? "battle" : sel.area)) return false;
     // 23-5-2: a Hidden Mode card has none of its front-side information.
     if (sel.filter && (inst.hidden || !matches(cardNow(ctx, s, id), sel.filter))) return false;
+    // "with power less than or equal to this card's power": measured against
+    // the card the skill is on, as it stands now.
+    if (sel.filter?.powerRel && !powerRelOk(sel.filter, powerOf(ctx, s, id), powerOf(ctx, s, frame.card))) return false;
     if (!sel.special && !sel.ignoreBarrier && sel.side !== "you" && has(ctx, s, id, "Barrier") && s.cards[id].owner !== frame.master && areaOf(s, id) !== "hand") return false;
     // 20-4: the same shape as [Barrier], but printed as a prohibition.
     if (!sel.special && s.cards[id].owner !== frame.master && forbids(ctx, s, "beChosen", { card: id })) return false;

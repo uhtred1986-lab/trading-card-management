@@ -23,13 +23,19 @@ export interface CardFilter {
   costMax: number | null;
   powerMin: number | null;
   powerMax: number | null;
+  /**
+   * "with power less than or equal to this card's power" — a bound read off
+   * the card whose skill this is, so it is applied where the skill runs
+   * (`resolveSelector`), not here.
+   */
+  powerRel: { of: "self"; cmp: "<=" | "<" | ">=" | ">" } | null;
   z: boolean | null;
 }
 
 const COLOR_WORDS: Record<string, Color> = { red: "Red", blue: "Blue", green: "Green", yellow: "Yellow", black: "Black" };
 
 export function parseFilter(text: string): CardFilter {
-  const f: CardFilter = { colors: [], monoColor: false, characters: [], notCharacters: [], traits: [], notTraits: [], names: [], type: null, costMin: null, costMax: null, powerMin: null, powerMax: null, z: null };
+  const f: CardFilter = { colors: [], monoColor: false, characters: [], notCharacters: [], traits: [], notTraits: [], names: [], type: null, costMin: null, costMax: null, powerMin: null, powerMax: null, powerRel: null, z: null };
   const t = text.replace(/&lt;/g, "<").replace(/&gt;/g, ">");
   for (const m of t.matchAll(/(non-)?<([^>]+)>/g)) (m[1] ? f.notCharacters : f.characters).push(m[2].trim());
   for (const m of t.matchAll(/(non-)?≪([^≫]+)≫/g)) (m[1] ? f.notTraits : f.traits).push(m[2].trim());
@@ -54,7 +60,29 @@ export function parseFilter(text: string): CardFilter {
   } else if ((m = /energy cost (?:of )?(\d+)\b/.exec(lower))) f.costMin = f.costMax = Number(m[1]);
   if ((m = /(\d+) power or less/.exec(lower))) f.powerMax = Number(m[1]);
   else if ((m = /(\d+) power or more/.exec(lower))) f.powerMin = Number(m[1]);
+  // "with power less than or equal to this card's power", "with power greater
+  // than this card's power" — measured against the card the skill is on.
+  if ((m = /power (less than or equal to|equal to or less than|no more than|at or below|less than|lower than|greater than or equal to|equal to or greater than|no less than|at or above|greater than|higher than|more than) (?:this card'?s|its) power/.exec(lower))) {
+    const w = m[1];
+    const cmp = /^(?:less than or equal|equal to or less|no more|at or below)/.test(w) ? "<=" : /^(?:less|lower)/.test(w) ? "<" : /^(?:greater than or equal|equal to or greater|no less|at or above)/.test(w) ? ">=" : ">";
+    f.powerRel = { of: "self", cmp };
+  }
   return f;
+}
+
+/** The relative power bound, given the power of the card the skill is on. */
+export function powerRelOk(f: CardFilter, power: number, own: number): boolean {
+  if (!f.powerRel) return true;
+  switch (f.powerRel.cmp) {
+    case "<=":
+      return power <= own;
+    case "<":
+      return power < own;
+    case ">=":
+      return power >= own;
+    case ">":
+      return power > own;
+  }
 }
 
 export function matches(d: CardDef, f: CardFilter): boolean {
