@@ -2713,4 +2713,47 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assertConsistent(s);
 }
 
+// ── what a cost reduction is about, and how much (20-21) ───────────────────
+
+{
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+  const sel = (sc: { ops: unknown[] }) => (sc.ops[0] as { target: { sel?: { area?: string } } }).target.sel;
+
+  // The area the text names is part of the target. It used to be stripped out
+  // of the phrase, so a reducer for cards "in your hand" selected cards in
+  // play — it compiled, and then did nothing at all.
+  const hand = one("[Permanent] Reduce the energy cost of your <Son Goku> cards in your hand by 1.");
+  assert.deepEqual(hand.unsupported, []);
+  assert.equal(sel(hand)?.area, "hand");
+
+  // A phrase that names no area is about the card you are about to play, not
+  // about a card on the table — 20-1-6's default is the one place a cost
+  // reduction can never matter.
+  const named = one("[Permanent] Reduce the energy cost of a {Power Pole} by {r}.");
+  assert.deepEqual(named.unsupported, []);
+  assert.equal(sel(named)?.area, "hand");
+  assert.equal((named.ops[0] as { amount: number }).amount, 1, "an orb is one less");
+
+  // "For each …" is the same count amount the power statics take.
+  const each = one("[Permanent] Reduce the energy cost of this card in your hand by 1 for each of your blue Battle Cards.");
+  assert.deepEqual(each.unsupported, []);
+  assert.equal((each.ops[0] as { amount: { count?: { area?: string } } }).amount.count?.area, "battle");
+}
+
+{
+  // The engine side: the reduction is real, it follows the board, and it
+  // reaches a card in hand — which is the only place it could ever apply.
+  DEFS.CHEAP = { ...DEFS.V1, id: "CHEAP", name: "CHEAP", energyCost: 4 };
+  DEFS.DISCOUNT = { ...DEFS.V1, id: "DISCOUNT", name: "DISCOUNT", skill: "[Permanent] Reduce the energy cost of your <CHEAP> cards in your hand by 1 for each of your blue Battle Cards." };
+  DEFS.CHEAP.characters = ["CHEAP"];
+  const s = arena({ hand: ["CHEAP"], battle: ["DISCOUNT"] });
+  const cheap = find(s, "p1", "hand", "CHEAP");
+  assert.equal(playCost({ defs: DEFS }, s, cheap).total, 4, "no blue Battle Cards yet");
+  // One blue Battle Card on the board takes one off.
+  const blue = s.players.p1.deck.find((id) => s.cards[id].cardId === "V-BLUE") ?? s.players.p1.deck[0];
+  move({ defs: DEFS }, s, [], blue, "battle", "p1");
+  s.cards[blue].cardId = "V-BLUE";
+  assert.equal(playCost({ defs: DEFS }, s, cheap).total, 3, "20-21: one blue Battle Card, one less");
+}
+
 console.log("verify-arena: all checks passed");

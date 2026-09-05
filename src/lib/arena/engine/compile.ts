@@ -9,7 +9,7 @@
  * is worse than an honest "Claude decides this one".
  */
 import { parseFilter, type CardFilter } from "./filters";
-import { keywordOf, skillsOf } from "./cards";
+import { keywordOf, orbsIn, skillsOf } from "./cards";
 import type { Amount, Cond, Duration, Op, Ref, Script, ScriptArea, Selector, Side } from "./script";
 import type { CardDef, DelayScope, DelayTiming, ForbiddenAction, KeywordSkill, Skill } from "./types";
 
@@ -824,10 +824,31 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     return null;
   }
 
-  // Cost reduction on a [Permanent] skill (9-1-3-3, 20-21).
-  if ((m = /^reduce the (energy|combo) cost of (.+?) (?:in your hand |in your z-deck )?by (\d+)$/.exec(t))) {
-    const ref = refFor(m[2], c);
-    return ref ? [{ op: "costReduction", target: ref, amount: Number(m[3]), ...(m[1] === "combo" ? { what: "combo" as const } : {}) }] : null;
+  // Cost reduction on a [Permanent] skill (9-1-3-3, 20-21). The amount is
+  // printed either as a number or as the orbs it takes off — "by {r}" is one
+  // less, and `playCost` already lowers a specified colour along with the
+  // total. "For each …" makes it a number read off the board.
+  if ((m = /^reduce the (energy|combo) cost of (.+?) by (\d+|(?:\{[rugyk\d]+\})+)(?: for each (.+))?$/.exec(t))) {
+    // The area the phrase names is part of the target, not noise: a reducer
+    // for cards "in your hand" that selects cards in play does nothing at all,
+    // which is what stripping it here used to produce.
+    let ref = refFor(m[2], c);
+    if (!ref) return null;
+    // "Reduce the energy cost of a {Power Pole}" names no area, and 20-1-6's
+    // default — a card on the table — is the one place a cost reduction can
+    // never matter. What it is about is the card you are about to play.
+    if ("sel" in ref && ref.sel.area === "play" && !/\b(?:hand|deck|drop|energy|warp|life|battle area)\b/i.test(m[2])) {
+      ref = { sel: { ...ref.sel, area: "hand", count: 99 } };
+    }
+    const orbs = /^\d+$/.test(m[3]) ? null : orbsIn(m[3]);
+    const flat: number = orbs ? Object.values(orbs).reduce<number>((sum, n) => sum + (n ?? 0), 0) : Number(m[3]);
+    let by: Amount = flat;
+    if (m[4]) {
+      const per = parseTarget(m[4]);
+      if (!per) return null;
+      by = { count: { ...per, count: undefined, upTo: undefined }, ...(flat === 1 ? {} : { times: flat }) };
+    }
+    return [{ op: "costReduction", target: ref, amount: by, ...(m[1] === "combo" ? { what: "combo" as const } : {}) }];
   }
 
   // 9-1-5: negating one named keyword rather than silencing the card.
@@ -1781,7 +1802,7 @@ export function describeScript(ops: Op[]): string {
         parts.push(`play ${describeAmount(op.n)} ${op.name} (${op.power} power)`);
         break;
       case "costReduction":
-        parts.push(`${describeRef(op.target)} costs ${op.amount} less`);
+        parts.push(`${describeRef(op.target)} costs ${describeAmount(op.amount)} less`);
         break;
       case "replaceLeave": {
         const cause = op.by === "ko" ? "be KO'd" : op.by === "skill" ? "be removed from the Battle Area by a skill" : op.by === "skillOrKo" ? "be removed from the Battle Area by a skill or KO'd" : "leave the Battle Area";

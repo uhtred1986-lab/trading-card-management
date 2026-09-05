@@ -191,7 +191,7 @@ export type Op =
    * says (9-1-3-3). `what` says which cost: the energy cost by default, or the
    * combo cost (5-7-3).
    */
-  | { op: "costReduction"; target: Ref; amount: number; what?: "energy" | "combo" }
+  | { op: "costReduction"; target: Ref; amount: Amount; what?: "energy" | "combo" }
   /**
    * Take a keyword skill away from a card (9-1-5). Unlike `negateSkills`, which
    * silences everything, this names one — "negate this card's

@@ -499,7 +499,12 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
     }
     if (op.op === "costReduction") {
       const kind = op.what === "combo" ? "comboCost" : "cost";
-      for (const id of staticTargets(ctx, s, frame, op.target)) out.push({ source, kind, target: id, value: op.amount });
+      // "…by 1 for each of your blue Battle Cards" — the same count amount the
+      // power statics take, and for the same reason: a [Permanent] has no
+      // frame that ever bound a variable, so only `count` can be evaluated.
+      const value = typeof op.amount === "number" ? op.amount : "count" in op.amount ? amount(ctx, s, frame, op.amount) : null;
+      if (value == null) continue;
+      for (const id of staticTargets(ctx, s, frame, op.target)) out.push({ source, kind, target: id, value });
       continue;
     }
     // "In all areas", so it is read wherever the card is — which is the point
