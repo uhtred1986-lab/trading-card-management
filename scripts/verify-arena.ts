@@ -3393,11 +3393,20 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   const marked = one("[Auto] When you play this card, play up to 1 {Spaceship, Vessel of Hope} from your deck with a marker on it.");
   assert.equal(chosen(marked).special, undefined);
 
-  // "From under this card" says where to look, not which card.
+  // "From under this card" says where to look, not which card — and the rest
+  // of the phrase still says how many. Hard-coding "all" here (which is what
+  // the fix for "each card under this card" first did) played the whole pile.
   const beneath = one("[Activate: Main] Play up to 1 red ≪Universe 7≫ card with an energy cost of 3 or less from under this card.");
   assert.deepEqual(beneath.unsupported, []);
   assert.equal(chosen(beneath).special, undefined, "the pile, not the card on top of it");
-  assert.equal((beneath.ops[0] as { sel: { area?: string } }).sel.area, "under");
+  assert.equal((beneath.ops[0] as { sel: { area?: string; count?: number; upTo?: boolean } }).sel.area, "under");
+  assert.equal((beneath.ops[0] as { sel: { count?: number } }).sel.count, 1, "up to 1, not the whole pile");
+  assert.equal((beneath.ops[0] as { sel: { upTo?: boolean } }).sel.upTo, true);
+  // The plural in the same area is still all of them.
+  const each = one("[Permanent] This card gets +5000 power for each non-Leader card under this card.");
+  const counted = (each.ops[0] as { amount: { count: { area?: string; count?: number } } }).amount.count;
+  assert.equal(counted.area, "under");
+  assert.equal(counted.count, 99);
 
   // A phrase that really is a pronoun still is one.
   assert.deepEqual((one("[Auto] When you play this card, choose 1 of your opponent's Battle Cards and KO it.").ops[1] as { target: unknown }).target, { var: "c0" });
@@ -3425,6 +3434,29 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.ok(s.players.p1.battle.includes(loud), "it was played");
   assert.ok(skillsNegated(s, loud), "9-1-5: and silenced");
   assert.equal(s.players.p1.hand.length, hand - 1, "MUZZLE left the hand and nothing was drawn");
+  assertConsistent(s);
+}
+
+// ── a card taken out of a pile leaves the pile (23-2) ──────────────────────
+
+{
+  // Cards under a card are in no area of their own, so `locate` cannot see
+  // them and nothing that moves a card could take one out. Playing a card
+  // *from* a pile put it in its new area while it was still in the pile — the
+  // fuzzer found it as "found 2 times" the moment such a skill compiled.
+  DEFS.PILEHOST = { ...DEFS.V1, id: "PILEHOST", name: "PILEHOST" };
+  const s = arena({ battle: ["PILEHOST"] });
+  const host = s.players.p1.battle[0];
+  const buried = s.players.p1.deck[0];
+  move({ defs: DEFS }, s, [], buried, "removed", "p1");
+  s.players.p1.removed = s.players.p1.removed.filter((id) => id !== buried);
+  s.cards[host].under.push(buried);
+  assert.equal(locate(s, buried), null, "a card in a pile is in no area");
+
+  // Moving it out the ordinary way takes it out of the pile.
+  move({ defs: DEFS }, s, [], buried, "hand", "p1");
+  assert.ok(s.players.p1.hand.includes(buried));
+  assert.ok(!s.cards[host].under.includes(buried), "and not still underneath");
   assertConsistent(s);
 }
 

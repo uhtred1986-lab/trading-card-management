@@ -631,10 +631,30 @@ function list(ps: PlayerState, area: Area): string[] | null {
   return ps[area];
 }
 
+/**
+ * Cards under a card are in no area of their own (23-2), so `locate` cannot
+ * see them and nothing that moves a card could take one out. A skill that
+ * plays a card *out* of a pile — "play up to 1 card from under this card" —
+ * needs this, or the card is added to its new area while still in the pile and
+ * exists twice.
+ */
+export function liftFromPile(s: GameState, id: string): boolean {
+  for (const inst of Object.values(s.cards)) {
+    const i = inst.under.indexOf(id);
+    if (i < 0) continue;
+    inst.under.splice(i, 1);
+    return true;
+  }
+  return false;
+}
+
 /** Take a card out of wherever it is. Returns where it was. */
 export function detach(s: GameState, id: string): Location | null {
   const loc = locate(s, id);
-  if (!loc) return null;
+  if (!loc) {
+    liftFromPile(s, id);
+    return null;
+  }
   const ps = s.players[loc.owner];
   if (loc.area === "leader") ps.leader = "";
   else if (loc.area === "unison") ps.unison = null;

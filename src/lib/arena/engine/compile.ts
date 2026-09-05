@@ -131,12 +131,18 @@ const AREA_WORDS: [RegExp, ScriptArea][] = [
 
 /** "up to 2 of your opponent's Battle Cards in Rest Mode" → a selector. */
 export function parseTarget(phrase: string): Selector | null {
-  const t = phrase.toLowerCase();
+  let t = phrase.toLowerCase();
   // "Each non-Leader card under this card" is about the stack; the "this card"
-  // in it names the host, not the target. Read before the shortcut below,
-  // which took the whole phrase for the card on top and counted one (23-2).
-  if (/\bunder (?:this card|it)\b/.test(t) && !/^this card\b/.test(t.trim())) {
-    return { side: "you", area: "under", filter: filterFor(phrase.replace(/\bunder (?:this card|it)\b/gi, ""), "under"), count: 99, upTo: false };
+  // in it names the host, not the target (23-2). Read before the shortcut
+  // below, which took the whole phrase for the card on top.
+  //
+  // The rest of the phrase is then read as usual: "**each** card under this
+  // card" and "**up to 1** card from under this card" are the same area and
+  // different counts, and hard-coding "all" here played every card in the pile.
+  const underHost = /\bunder (?:this card|it)\b/.test(t) && !/^this card\b/.test(t.trim());
+  if (underHost) {
+    phrase = phrase.replace(/\b(?:from )?under (?:this card|it)\b/gi, " ");
+    t = phrase.toLowerCase();
   }
   // "this card's power" inside a phrase is a measure, not the target.
   if (/\bthis card\b(?!'s)/.test(t) && !/\bother\b/.test(t)) return { special: "self" };
@@ -181,7 +187,9 @@ export function parseTarget(phrase: string): Selector | null {
   // unqualified card is one on the table. Without this the choice fails, and
   // then every later "it" in the same skill has nothing to point at.
   if (!area && !fromVar && filterFor(phrase, null)) area = "play";
-  if (!area && !fromVar) return null;
+  // The pile under a card is the area, and it was named by words that have
+  // already been taken off the phrase.
+  if (!area && !fromVar && !underHost) return null;
 
   let count = 1;
   let upTo = false;
@@ -212,6 +220,7 @@ export function parseTarget(phrase: string): Selector | null {
 
   const mode = /\bin rest mode\b/.test(t) ? "rest" : /\bin active mode\b/.test(t) ? "active" : undefined;
   const filter = filterFor(phrase, area);
+  if (underHost) return { side: "you", area: "under", filter, count, upTo, mode };
   if (bothAreas) return { side, area: "battle", areas: ["battle", "unison"], filter, count, upTo, mode, fromVar };
   if (pair) return { side, area: pair[1], areas: [pair[1], pair[2]], filter, count, upTo, mode, fromVar };
   return { side, area: area ?? undefined, filter, count, upTo, mode, fromVar, take, fromEnd };

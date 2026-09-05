@@ -51,6 +51,7 @@ import {
   type GameContext,
   condHolds,
   invokerEnergy,
+  liftFromPile,
   resolveSelector,
   resolveRef,
   skillNegated,
@@ -1316,8 +1317,12 @@ function stackOnto(ctx: EngineContext, s: GameState, ev: GameEvent[], top: strin
   const slot = ps.battle.indexOf(bottom);
   const from = areaOf(s, top);
   // Detach the top card from wherever it was without the "new card" reset yet.
+  // It may be under another card — "play up to 1 card from under this card on
+  // top of this card" — and a card in a pile is in no area (23-2), so the list
+  // lookup finds nothing and it would end up in two places at once.
   const l = ps[from as "hand" | "drop" | "deck"] as string[] | undefined;
   if (l) l.splice(l.indexOf(top), 1);
+  else liftFromPile(s, top);
   ps.battle[slot] = top;
   ti.mode = bi.mode;
   ti.enteredTurn = s.turn;
