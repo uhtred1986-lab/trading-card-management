@@ -317,6 +317,62 @@ function subjectFilterOf(trigger: string): CardFilter | undefined {
   return filterFor(phrase, null);
 }
 
+/**
+ * "…by **choosing** 1 card and **placing** it in your Drop" → "choose … place
+ * …". A price that hangs off "by" is written as a gerund, and every action
+ * pattern in the compiler is written in the imperative.
+ */
+const GERUNDS: Record<string, string> = {
+  choosing: "choose",
+  placing: "place",
+  putting: "put",
+  discarding: "discard",
+  returning: "return",
+  switching: "switch",
+  adding: "add",
+  sending: "send",
+  removing: "remove",
+  playing: "play",
+  paying: "pay",
+  drawing: "draw",
+  revealing: "reveal",
+};
+
+function imperative(clause: string): string {
+  return clause.replace(/^\s*([a-z]+ing)\b/i, (whole, word: string) => GERUNDS[word.toLowerCase()] ?? whole);
+}
+
+/**
+ * "You can activate this card's [Counter] skill from your hand …" (5-3): the
+ * card's own offer of another way to pay for it.
+ *
+ * The two halves are printed in either order — "…**without paying its energy
+ * cost** by discarding 1 blue card" and "…by adding a card from your life to
+ * your hand **instead of paying its energy cost**" say the same thing — and the
+ * waiver is not the price. Anything the card asks for beyond the two fixed
+ * kinds is an *action* price (4-3-3) in the same vocabulary as a printed one,
+ * so the same reader compiles it; most of them ask the player to pick a card,
+ * which is why the engine charges that one through the flow rather than inline.
+ */
+function counterAltCost(sentence: string, c: Ctx): Op[] | null {
+  const said = /^activate this card's \[counter[^\]]*\](?: skill)? from your hand (.+?)\.?$/.exec(sentence);
+  if (!said) return null;
+  const how = said[1].replace(/^without paying (?:its|the) energy cost,? /, "").replace(/,? instead of paying (?:its|the) energy cost$/, "");
+  if (/^without paying (?:its|the) energy cost$/.test(how)) return [{ op: "altCost", pay: "none" }];
+  let m: RegExpExecArray | null;
+  if ((m = /^by adding (a|an|\d+) cards? from your life to your hand$/.exec(how))) {
+    return [{ op: "altCost", pay: "life", n: countWord(m[1]) }];
+  }
+  if ((m = /^by (.+)$/.exec(how))) {
+    const unread: string[] = [];
+    // A fresh variable counter well clear of the effect's own, because the
+    // price is a program of its own that runs before the skill.
+    const price = compileClauseList(splitClauses(m[1]).map(imperative), { ...c, n: c.n + 50, last: null, lastTarget: null }, unread);
+    if (price.length && !unread.length) return [{ op: "altCost", pay: "program", ops: price }];
+  }
+  return null;
+}
+
 /** Only keep a filter when the phrase actually narrows the cards. */
 function filterFor(phrase: string, area: ScriptArea | null): CardFilter | undefined {
   const f = parseFilter(phrase);
@@ -1067,7 +1123,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // among the cards the text describes, which the `discard` op cannot say. It
   // is the same choose-then-move that op splices for the unqualified case, so
   // this reads the description as a target phrase and lets `withChoice` ask.
-  if ((m = /^discard (\d+ .+?) from your hand$/.exec(t))) {
+  if ((m = /^discard (\d+ .+?)(?: from your hand)?$/.exec(t))) {
     const ref = refFor(`${m[1]} in your hand`, c);
     if (ref) return withChoice(ref, clause, c, (target) => ({ op: "moveTo", target, to: "drop", reveal: true }));
   }
@@ -1173,15 +1229,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   }
 
   // ("You can" has already been stripped from the front of `t`.)
-  if ((m = /^activate this card's \[counter\](?: skill)? from your hand (.+)$/.exec(t))) {
-    const how = m[1];
-    if (/^without paying its energy cost$/.test(how)) return [{ op: "altCost", pay: "none" }];
-    let mm: RegExpExecArray | null;
-    if ((mm = /^by adding (a|an|\d+) cards? from your life to your hand(?: instead of paying its energy cost)?$/.exec(how))) {
-      return [{ op: "altCost", pay: "life", n: countWord(mm[1]) }];
-    }
-    return null;
-  }
+  if (/^activate this card's \[counter[^\]]*\](?: skill)? from your hand /.test(t)) return counterAltCost(t, c);
 
   // Cost reduction on a [Permanent] skill (9-1-3-3, 20-21). The amount is
   // printed either as a number or as the orbs it takes off — "by {r}" is one
@@ -1815,6 +1863,13 @@ export function compileSkill(skill: Skill): Script {
   if (!text) return { ops: [], unsupported: [] };
   const unsupported: string[] = [];
   const c: Ctx = { permanent: skill.kind === "permanent", last: null, lastSeen: null, lastPlayed: null, lastTarget: null, lastOp: null, replacing: null, n: 0, raw: skill.effect };
+  // A standing permission is one sentence, not a list of actions: "you can
+  // activate this card's [Counter] skill from your hand without paying its
+  // energy cost **by choosing 1 other black card in your hand and placing it
+  // in your Drop Area**". Splitting it first hands the price's second half to
+  // the clause list as an orphan, so the whole sentence is read before that.
+  const permission = counterAltCost(text.toLowerCase().trim().replace(/^you (?:can|may)\s+/, ""), c);
+  if (permission) return { ops: permission, unsupported: [] };
   // "Choose 1 {Tree of Might} … and place this card under the chosen card:
   // **Add a marker to the chosen card**" — the effect points back at what the
   // price chose. The price is its own program, and the engine hands its
@@ -2429,9 +2484,16 @@ export function describeScript(ops: Op[]): string {
         parts.push(`if ${describeRef(op.target ?? { sel: { special: "self" } })} would ${cause}, it goes to the ${op.to}${op.mode === "rest" ? " in Rest Mode" : ""} instead`);
         break;
       }
-      case "altCost":
-        parts.push(op.pay === "none" ? "its [Counter] may be activated for no energy" : `its [Counter] may be activated by adding ${op.n ?? 1} from your life to your hand`);
+      case "altCost": {
+        const price =
+          op.pay === "none"
+            ? "for no energy"
+            : op.pay === "program"
+              ? `by: ${describeScript(op.ops ?? [])}`
+              : `by adding ${op.n ?? 1} from your life to your hand`;
+        parts.push(`${op.for === "play" ? "it may be played" : "its [Counter] may be activated"} ${price}`);
         break;
+      }
       case "negateAttack":
         parts.push("negate the attack");
         break;

@@ -18,6 +18,7 @@ import {
   activeEnergy,
   addEffect,
   altCostFor,
+  canPayCostProgram,
   areaOf,
   cardNow,
   cardsInPlay,
@@ -53,8 +54,6 @@ import {
   condHolds,
   invokerEnergy,
   liftFromPile,
-  resolveSelector,
-  resolveRef,
   skillNegated,
 } from "./state";
 import type { Action, Applied, CardDef, CardInstance, Color, FlowStep, GameEvent, GameState, PendingAuto, PlayerId, PlayerState, Prompt, Skill, Trigger } from "./types";
@@ -845,54 +844,6 @@ function costIsReadable(sk: Skill): boolean {
   return priceCondition(sk) !== null || compileCostProgram(sk) !== null;
 }
 
-/**
- * Whether the engine can actually charge an action price right now (4-3-3).
- *
- * Deliberately a whitelist: an op that is not on it means "no", so the skill
- * stays unoffered. Offering a skill whose price then half-runs would be worse
- * than the honest gap it is today — the effect would still happen.
- */
-function canPayCostProgram(ctx: EngineContext, s: GameState, p: PlayerId, card: string, ops: Op[]): boolean {
-  const frame: ScriptFrame = { ops: [], ip: 0, vars: {}, card, master: p };
-  const inHand = s.players[p].hand.includes(card) ? 1 : 0;
-  for (const op of ops) {
-    switch (op.op) {
-      case "choose": {
-        // "Up to" can always be paid with nothing (5-2-4).
-        if (op.sel.upTo) break;
-        if (resolveSelector(ctx, s, frame, op.sel).length < (op.sel.count ?? 1)) return false;
-        break;
-      }
-      case "discard":
-        // The activating card leaves the hand as part of the activation, so
-        // it is not also available to be discarded.
-        if (typeof op.n !== "number" || s.players[p].hand.length - inHand < op.n) return false;
-        break;
-      case "mill":
-        if (typeof op.n !== "number" || s.players[p].deck.length < op.n) return false;
-        break;
-      // A target named by a variable is whatever the `choose` in front of it
-      // binds, and that choice has already been checked; nothing is bound yet
-      // while this runs, so resolving it here would always find nothing.
-      case "switchMode": {
-        if ("var" in op.target) break;
-        const cards = resolveRef(ctx, s, frame, op.target);
-        if (!cards.length || cards.some((id) => s.cards[id].mode === op.mode)) return false;
-        break;
-      }
-      case "moveTo":
-        // "Under" needs a host and "play" is not an area (3-1); neither is a
-        // price this can promise.
-        if (op.to === "under" || op.to === "play") return false;
-        if ("var" in op.target) break;
-        if (!resolveRef(ctx, s, frame, op.target).length) return false;
-        break;
-      default:
-        return false;
-    }
-  }
-  return true;
-}
 
 /** "2 Green energy and 1 marker" — what an optional cost asks for. */
 function describeCost(sk: Skill): string {
@@ -2037,12 +1988,17 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
         const d = def(ctx, s, action.card);
         const sk = skillsOf(d).find((k) => k.index === (action.skill ?? -1)) ?? skillsOf(d).find((k) => k.kind.startsWith("counter:"));
         if (!sk) throw new IllegalAction("no counter skill");
+        let altProgram: Op[] | undefined;
         // 22-10-4: a [Counter] costs its energy cost and its skill cost —
         // unless the card prints another way to pay for it (5-3).
         if (action.alt) {
           const alt = altCostFor(ctx, s, action.card, p);
           if (!alt) throw new IllegalAction("that card has no other cost to pay");
           if (!payAltCost(ctx, s, ev, p, alt)) throw new IllegalAction("can't pay the counter's cost");
+          // An action price asks the player to pick cards, so it is charged
+          // through the flow rather than inline — put on the front below, so
+          // that it runs before the counter it is paying for.
+          altProgram = alt.pay === "program" ? alt.ops : undefined;
         } else {
           const c = playCost(ctx, s, action.card);
           const orbs = orbTotals(sk);
@@ -2060,6 +2016,10 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
         // is simply what the flow being a stack already does — and a
         // [Counter: Counter] that negates marks the step below it on its way.
         s.flow.unshift({ op: "counter", window: "counter", responder: other(p) }, { op: "counter.resolve", card: action.card, skill: sk.index, player: p });
+        // 4-3-3: the price is paid on activation, before anyone may answer it,
+        // so it goes on the front of the flow after everything else — the same
+        // shape a printed action price uses.
+        if (altProgram) s.flow.unshift({ op: "script.step", frame: { ops: altProgram, ip: 0, vars: {}, card: action.card, master: p } });
       }
       break;
     }

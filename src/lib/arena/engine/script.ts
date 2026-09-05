@@ -241,7 +241,8 @@ export type Op =
    * or by adding cards from your life to your hand. Read from the hand, like
    * a cost reducer, because that is where the skill says it applies.
    */
-  | { op: "altCost"; pay: "none" | "life"; n?: number; for?: "counter" | "play" }
+  /** `ops` is the price to run, for `pay: "program"` — an action the card asks for instead of the energy cost (5-3). */
+  | { op: "altCost"; pay: "none" | "life" | "program"; n?: number; for?: "counter" | "play"; ops?: Op[] }
   /**
    * What a [Counter: Play] does to the card it is answering (9-6). `instead`
    * stops the play outright and sends the card there rather than into play;

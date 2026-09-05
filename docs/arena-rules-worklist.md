@@ -1050,6 +1050,43 @@ The two left in the decks are both deliberate: the alternation `youPlayed`
 refuses on purpose, and one card asks whether the opponent switched energy to
 Active Mode with a non-[Awaken] skill.
 
+## Done: paying for a [Counter] with something other than energy (5 Sep 2026)
+
+The largest remaining unread shape in the catalog, and a whole mechanism rather
+than a phrase: **"You can activate this card's [Counter] skill from your hand
+without paying its energy cost by \<doing something\>"** — 22 clauses. The
+engine already had `altCost`, but only for the two fixed prices it knew, `none`
+and `life`. Everything else was unread, so those skills could only ever be paid
+for with energy the player may not have.
+
+- **`AltCost.pay: "program"`** carries an `Op[]`, compiled by the *same* reader
+  as a printed action price (4-3-3) — it is the same vocabulary, so it should
+  not have a second one.
+- **It is charged through the flow, not inline.** `payAltCost` returns a
+  boolean and has nowhere to ask, and most of these prices need the player to
+  pick a card. The [Counter] path now unshifts the price as a `script.step`
+  after the counter's own steps, so it runs *first*, which is the same shape a
+  printed action price already used.
+- **`canPayCostProgram` moved from `engine.ts` to `state.ts`**, because
+  `altCostFor` has to ask the same question about the alternative price. One
+  definition is the only way two answers cannot drift apart — the lesson from
+  the three measurement scripts, applied before it went wrong rather than
+  after.
+- The two *play* sites still pay inline, so `altCostFor` refuses a program
+  offered for a play rather than waiving it. Nothing compiles to that today;
+  the referee could, and silently free is the wrong failure.
+- Two wordings fixed on the way: the waiver and the price are printed in either
+  order ("**without paying its energy cost** by discarding…" and "by adding a
+  card from your life **instead of paying its energy cost**"), and the price
+  hangs off "by" so it is written as a gerund — "by **choosing** … and
+  **placing** …" — which `imperative` turns back into the verbs every pattern
+  in the compiler expects.
+- The sentence is read **before** `splitClauses`, because splitting it hands
+  the price's second half to the clause list as an orphan. A standing
+  permission is one sentence, not a list of actions.
+
+[Permanent] skills that emit a standing effect: 48.6 % → **49.5 %** of 1,807.
+
 ## Conventions worth keeping
 
 - Card text is **read, never interpreted**: if the compiler cannot read a

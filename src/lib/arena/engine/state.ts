@@ -468,12 +468,20 @@ export function condHolds(ctx: GameContext, s: GameState, frame: ScriptFrame, c:
 
 /** Another way to pay for a card's [Counter] skill (5-3). */
 export interface AltCost {
-  /** `invoker`: rest one active Red/Blue multicolour energy instead (22-37). */
-  pay: "none" | "life" | "invoker";
+  /**
+   * `invoker`: rest one active Red/Blue multicolour energy instead (22-37).
+   * `program`: an action the card names — "by choosing 1 other black card in
+   * your hand and placing it in your Drop" — compiled by the same reader as an
+   * ordinary action price (4-3-3) and charged the same way, through the flow,
+   * because most of them need the player to pick a card.
+   */
+  pay: "none" | "life" | "invoker" | "program";
   /** Cards to add from your life to your hand, for `pay: "life"`. */
   n: number;
   /** Which cost it replaces: the [Counter] skill's, or playing the card. */
   for: "counter" | "play";
+  /** The price to run, for `pay: "program"`. */
+  ops?: Op[];
 }
 
 export interface StaticEffect {
@@ -590,7 +598,7 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
     // Like a cost reducer, this one is about the card in hand, so it is read
     // whether or not the card is on the table.
     if (op.op === "altCost") {
-      out.push({ source, kind: "altCost", target: source, value: { pay: op.pay, n: op.n ?? 1, for: op.for ?? "counter" } });
+      out.push({ source, kind: "altCost", target: source, value: { pay: op.pay, n: op.n ?? 1, for: op.for ?? "counter", ...(op.ops ? { ops: op.ops } : {}) } });
       continue;
     }
     // 20-14: a prohibition printed as a [Permanent] skill holds for as long as
@@ -939,6 +947,59 @@ export function forbiddenForCard(s: GameState, what: ForbiddenAction, card: stri
 }
 
 /**
+ * Whether the engine can actually charge an action price right now (4-3-3).
+ *
+ * Deliberately a whitelist: an op that is not on it means "no", so the skill
+ * stays unoffered. Offering a skill whose price then half-runs would be worse
+ * than the honest gap it is today — the effect would still happen.
+ *
+ * Lives here rather than in `engine.ts` because `altCostFor` just below has to
+ * ask the same question about the alternative price a [Permanent] offers, and
+ * one definition is the only way the two answers cannot drift apart.
+ */
+export function canPayCostProgram(ctx: GameContext, s: GameState, p: PlayerId, card: string, ops: Op[]): boolean {
+  const frame: ScriptFrame = { ops: [], ip: 0, vars: {}, card, master: p };
+  const inHand = s.players[p].hand.includes(card) ? 1 : 0;
+  for (const op of ops) {
+    switch (op.op) {
+      case "choose": {
+        // "Up to" can always be paid with nothing (5-2-4).
+        if (op.sel.upTo) break;
+        if (resolveSelector(ctx, s, frame, op.sel).length < (op.sel.count ?? 1)) return false;
+        break;
+      }
+      case "discard":
+        // The activating card leaves the hand as part of the activation, so
+        // it is not also available to be discarded.
+        if (typeof op.n !== "number" || s.players[p].hand.length - inHand < op.n) return false;
+        break;
+      case "mill":
+        if (typeof op.n !== "number" || s.players[p].deck.length < op.n) return false;
+        break;
+      // A target named by a variable is whatever the `choose` in front of it
+      // binds, and that choice has already been checked; nothing is bound yet
+      // while this runs, so resolving it here would always find nothing.
+      case "switchMode": {
+        if ("var" in op.target) break;
+        const cards = resolveRef(ctx, s, frame, op.target);
+        if (!cards.length || cards.some((id) => s.cards[id].mode === op.mode)) return false;
+        break;
+      }
+      case "moveTo":
+        // "Under" needs a host and "play" is not an area (3-1); neither is a
+        // price this can promise.
+        if (op.to === "under" || op.to === "play") return false;
+        if ("var" in op.target) break;
+        if (!resolveRef(ctx, s, frame, op.target).length) return false;
+        break;
+      default:
+        return false;
+    }
+  }
+  return true;
+}
+
+/**
  * The other way this card's [Counter] skill may be paid for, if it has one
  * (5-3), and whether the player can actually meet it right now.
  */
@@ -949,6 +1010,11 @@ export function altCostFor(ctx: GameContext, s: GameState, card: string, payer: 
     // Programs stored before playing had its own waiver are about a [Counter].
     if ((alt.for ?? "counter") !== which) continue;
     if (alt.pay === "life" && s.players[payer].life.length < alt.n) continue;
+    // 4-3-3: an action price is only an offer when the board can meet it, or
+    // the skill happens and the price quietly does not. Only the [Counter]
+    // path charges one — the two play sites pay inline and have nowhere to ask
+    // — so a program offered for a play is refused rather than waived.
+    if (alt.pay === "program" && (which !== "counter" || !alt.ops || !canPayCostProgram(ctx, s, payer, card, alt.ops))) continue;
     return alt;
   }
   // 22-37: [Invoker] on a card in play lets a Red/Blue multicolour Extra be
@@ -970,9 +1036,16 @@ export function invokerEnergy(ctx: GameContext, s: GameState, payer: PlayerId): 
   return s.players[payer].energy.find((id) => s.cards[id].mode === "active" && isRedBlue(ctx, s, id)) ?? null;
 }
 
-/** Carry out an alternative cost. Adding life to hand is not damage (1-13-2). */
+/**
+ * Carry out an alternative cost. Adding life to hand is not damage (1-13-2).
+ *
+ * A `program` price is *not* paid here: it needs the player to pick cards, and
+ * this returns a boolean with nowhere to ask. The caller unshifts it onto the
+ * flow instead — `altCostProgram` below is what they use — and this says "yes,
+ * nothing more to do inline".
+ */
 export function payAltCost(ctx: GameContext, s: GameState, ev: GameEvent[], payer: PlayerId, alt: AltCost): boolean {
-  if (alt.pay === "none") return true;
+  if (alt.pay === "none" || alt.pay === "program") return true;
   if (alt.pay === "invoker") {
     const e = invokerEnergy(ctx, s, payer);
     if (!e) return false;

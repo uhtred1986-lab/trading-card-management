@@ -4327,4 +4327,51 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assertConsistent(s);
 }
 
+{
+  // 5-3: the card's own offer of another way to pay for its [Counter], when
+  // what it asks for is an *action* rather than energy. Twenty-two cards print
+  // one, and every one of them was unread — the skill could only ever be paid
+  // for with energy it may not have.
+  DEFS.ALTC = {
+    ...DEFS["E-NEGATE"],
+    id: "ALTC",
+    name: "ALTC",
+    energyCost: 3,
+    skill: "[Counter: Attack] Negate the attack.<br>[Permanent] You can activate this card's [Counter] skill from your hand without paying its energy cost by choosing 1 other black card in your hand and placing it in your Drop Area.",
+  };
+  DEFS.BLACKCARD = { ...DEFS.V1, id: "BLACKCARD", name: "BLACKCARD", colors: ["Black"] };
+
+  // No energy at all, so the printed cost is out of reach; the alternative is
+  // the only way in. Two black cards, so the price is a real choice and p2 is
+  // the one asked (20-7) — with only one the engine takes it silently, which
+  // is 5-2 and not this rule.
+  let s = arena({ oppHand: ["ALTC", "BLACKCARD", "BLACKCARD"] });
+  s = play(s, { type: "attack", player: "p1", attacker: s.players.p1.leader, target: s.players.p2.leader });
+  const counter = find(s, "p2", "hand", "ALTC");
+  const offered = acts(s).filter((a) => a.type === "counter" && a.card === counter);
+  assert.ok(
+    offered.some((a) => (a as { alt?: boolean }).alt),
+    "4-3-3: offered, because the board can meet the price",
+  );
+  const hand = s.players.p2.hand.length;
+  const drop = s.players.p2.drop.length;
+  s = play(s, { type: "counter", player: "p2", card: counter, alt: true });
+  assert.equal(s.prompt.kind, "chooseCards", "the price asks which black card");
+  assert.equal(s.prompt.player, "p2", "20-7: and it is theirs to answer");
+  const black = (s.prompt as { choice: { candidates: string[] } }).choice.candidates[0];
+  s = play(s, { type: "choose", player: "p2", cards: [black] });
+  assert.ok(s.players.p2.drop.includes(black), "the price was charged");
+  assert.equal(s.players.p2.hand.length, hand - 2, "the counter and the card it cost both left the hand");
+  assert.equal(s.players.p2.drop.length, drop + 2);
+  assert.equal(s.battle, null, "…and the attack was negated");
+  assertConsistent(s);
+
+  // With nothing black to give up, the alternative is not offered at all —
+  // a price the board cannot meet is not an offer (4-3-3).
+  let poor = arena({ oppHand: ["ALTC"] });
+  poor = play(poor, { type: "attack", player: "p1", attacker: poor.players.p1.leader, target: poor.players.p2.leader });
+  const lone = find(poor, "p2", "hand", "ALTC");
+  assert.ok(!acts(poor).some((a) => a.type === "counter" && a.card === lone && (a as { alt?: boolean }).alt));
+}
+
 console.log("verify-arena: all checks passed");
