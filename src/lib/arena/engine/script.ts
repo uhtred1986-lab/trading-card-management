@@ -290,6 +290,12 @@ export interface ScriptFrame {
   skillIndex?: number;
   /** Set while a `choose` is waiting for an answer. */
   awaiting?: string;
+  /**
+   * Where to leave this program's variables when it finishes, so a later one
+   * can start from them. Used by a skill's price, whose effect may refer to
+   * what the price chose (4-3-3).
+   */
+  saveVarsAs?: string;
   /** What this program has done so far, for "if you added a card to your hand" (20-16). */
   did?: { addToHand?: boolean; play?: boolean; negateAttack?: boolean; negateLeaderAttack?: boolean; ko?: boolean; draw?: boolean };
 }
@@ -316,7 +322,15 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
   const master = frame.master;
 
   for (let guard = 0; guard < 200; guard++) {
-    if (frame.ip >= frame.ops.length) return "done";
+    if (frame.ip >= frame.ops.length) {
+      // A skill's price is its own program, run before the effect (4-3-3), but
+      // the effect may point back at what the price chose: "Choose 1 {Tree of
+      // Might} … and place this card under the chosen card: **Add a marker to
+      // the chosen card**." Handing the names on is what makes that one skill
+      // rather than two.
+      if (frame.saveVarsAs) s.continuations[frame.saveVarsAs] = { ...frame.vars };
+      return "done";
+    }
     const op = frame.ops[frame.ip];
 
     switch (op.op) {

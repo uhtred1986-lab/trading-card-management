@@ -1133,9 +1133,14 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // being played" is the phrase that negates the play; without it the card is
   // played and only the manner changes.
   {
-    const stopped = /^(?:it'?s|it is|that card is|the (?:battle |extra |unison )?card being played is) (?:placed|put) (?:in|into|at) (?:its owner'?s?|their owners?'?s?|your|the|their) (?:(drop)(?: area)?|bottom of (?:its owner'?s?|their|your) deck|(warp)s?)(?: instead)?(?: of being played)?$/.exec(t);
+    const stopped =
+      /^(?:it'?s|it is|that card is|the (?:battle |extra |unison )?card being played is) (?:(?:placed|put) (?:in|into|at) (?:its owner'?s?|their owners?'?s?|your|the|their) (?:(drop)(?: area)?|bottom of (?:its owner'?s?|their|your) deck|(warp)s?)|(?:returned) to (?:its owner'?s?|their owners?'?s?|your|their) (hand)s?)(?: instead)?(?: of being played)?$/.exec(
+        t,
+      );
     if (stopped && /instead of being played|instead$/.test(t)) {
-      const to: ScriptArea = stopped[1] ? "drop" : stopped[2] ? "warp" : "deck";
+      // 22-13-4-5-1-1 names the hand form specially: a card "returned to its
+      // owner's hand instead of being played" does *not* then go to the Drop.
+      const to: ScriptArea = stopped[1] ? "drop" : stopped[2] ? "warp" : stopped[3] ? "hand" : "deck";
       return [{ op: "resolvingPlay", instead: to, ...(to === "deck" ? { position: "bottom" as const } : {}) }];
     }
     // "The Battle Card being played is played in Rest Mode" (BT10-105).
@@ -1259,7 +1264,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // "Place this card under the played card", "place it under the card you
   // played with this skill", "…under your Leader", "…under {Wickedest Clan}":
   // hosts the text names precisely, so no guessing.
-  if ((m = /^(?:place|put) (.+?) (?:face ?up )?under (the played card|the card (?:that was |you )?played(?: with this skill)?|your leader(?: card)?|\{[^}]+\}(?: in your battle area)?)$/.exec(t))) {
+  if ((m = /^(?:place|put) (.+?) (?:face ?up )?under (the chosen card|the played card|the card (?:that was |you )?played(?: with this skill)?|your leader(?: card)?|\{[^}]+\}(?: in your battle area)?)$/.exec(t))) {
     const host = refFor(m[2], c);
     const ref = refFor(m[1], c);
     return host && ref ? withChoice(ref, clause, c, (target) => ({ op: "moveTo", target, to: "under", under: host })) : null;
@@ -1545,12 +1550,27 @@ export function compileSkill(skill: Skill): Script {
   // effect would go, and the engine reads those itself. [Union-Absorb] is
   // different (22-13-6-1): its line really is "cost : effect", and the effect
   // is what says which card is played onto this one.
-  const keywordOwnsIt = skill.keyword && KEYWORD_HANDLES_THE_LINE.has(skill.keyword.name) && !(skill.keyword.name === "Union" && skill.keyword.variant === "Absorb");
+  // A line may carry more than one tag — "[Blocker][Evolve]{r}{r}: <Pan>" —
+  // and the one that owns the text is not always the one `parseSkills` picked
+  // as *the* keyword. Reading the whole line's tags stops the Evolve's target
+  // ("<Pan>.") being compiled as if it were an effect.
+  const owners = [skill.keyword, ...skill.tags.map(keywordOf)].filter((k): k is KeywordSkill => !!k);
+  const keywordOwnsIt = owners.some((k) => KEYWORD_HANDLES_THE_LINE.has(k.name) && !(k.name === "Union" && k.variant === "Absorb"));
   if (keywordOwnsIt) return { ops: [], unsupported: [] };
   const text = stripNotes(skill.effect);
   if (!text) return { ops: [], unsupported: [] };
   const unsupported: string[] = [];
   const c: Ctx = { last: null, lastSeen: null, lastPlayed: null, lastTarget: null, lastOp: null, replacing: null, n: 0, raw: skill.effect };
+  // "Choose 1 {Tree of Might} … and place this card under the chosen card:
+  // **Add a marker to the chosen card**" — the effect points back at what the
+  // price chose. The price is its own program, and the engine hands its
+  // variables on (4-3-3), so the compiler only has to know the name.
+  const priceOps = compileCostProgram(skill)?.ops ?? [];
+  for (const o of priceOps) {
+    if (o.op !== "choose") continue;
+    c.last = o.as;
+    c.lastTarget = { var: o.as };
+  }
   const modal = splitModal(text);
   const clauses = splitClauses(modal ? modal.head : text);
   // [Awaken] and [Wish] check their own condition in the engine before the

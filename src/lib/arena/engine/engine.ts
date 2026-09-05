@@ -741,11 +741,19 @@ function resolveKeywordOrText(ctx: EngineContext, s: GameState, ev: GameEvent[],
  * the compiler could not read is handed to the referee when one is available,
  * and otherwise logged and skipped so a game never silently does the wrong thing.
  */
+/** Where a skill leaves what its price chose, for the effect that follows it. */
+const costVarsKey = (card: string, skillIndex: number) => `costvars:${card}:${skillIndex}`;
+
 function runSkill(ctx: EngineContext, s: GameState, ev: GameEvent[], card: string, sk: Skill, master: PlayerId, trigger?: Trigger, subject?: string, vars: Record<string, string[]> = {}): "done" | "wait" {
   const script = scriptFor(ctx, s, card, sk.index);
   if (script) {
     if (script.ops.length === 0) return "done";
-    const frame: ScriptFrame = { ops: script.ops, ip: 0, vars: { ...vars }, card, master, trigger, subject, skillIndex: sk.index };
+    // Anything the skill's price chose is already bound; "the chosen card" in
+    // the effect means that card (4-3-3).
+    const key = costVarsKey(card, sk.index);
+    const paid = s.continuations[key] as Record<string, string[]> | undefined;
+    delete s.continuations[key];
+    const frame: ScriptFrame = { ops: script.ops, ip: 0, vars: { ...paid, ...vars }, card, master, trigger, subject, skillIndex: sk.index };
     return stepScript(ctx, s, ev, frame);
   }
   const d = def(ctx, s, card);
@@ -2301,7 +2309,7 @@ function activate(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId
   // 4-3-3: an action price is paid on activation, before the counter window
   // opens — so it goes on the front of the flow, after everything else.
   const actionCost = compileCostProgram(sk);
-  if (actionCost) s.flow.unshift({ op: "script.step", frame: { ops: actionCost.ops, ip: 0, vars: {}, card, master: p, skillIndex: sk.index } });
+  if (actionCost) s.flow.unshift({ op: "script.step", frame: { ops: actionCost.ops, ip: 0, vars: {}, card, master: p, skillIndex: sk.index, saveVarsAs: costVarsKey(card, sk.index) } });
 }
 
 // ── views ──────────────────────────────────────────────────────────────────

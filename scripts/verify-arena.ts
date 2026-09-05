@@ -9,7 +9,7 @@ import { apply, createGame, defsFrom, legalActions, seedFrom, type Action, type 
 import { parseSkills, keywordOf, orbsIn, eitherOrbsIn, skillLines } from "../src/lib/arena/engine/cards";
 import { parseFilter, matches, parseCondition } from "../src/lib/arena/engine/filters";
 import { move, locate, playCost, powerOf, forbids, has, cardNow, comboCostOf, skillNegated, skillsNegated } from "../src/lib/arena/engine/state";
-import { compileSkill, costIsOnlyOrbs, costText, describeScript, parseConditionClause, parseTarget, splitClauses } from "../src/lib/arena/engine/compile";
+import { compileCostProgram, compileSkill, costIsOnlyOrbs, costText, describeScript, parseConditionClause, parseTarget, splitClauses } from "../src/lib/arena/engine/compile";
 import { autoTriggerMatches, koCard } from "../src/lib/arena/engine/triggers";
 
 // ── skill text parsing ─────────────────────────────────────────────────────
@@ -3753,6 +3753,34 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   const w = spendDrop(arena({ battle: ["HOLE"], hand: ["ORB2", "ORB2"], energy: ["V1", "V1"] }));
   dropOne(w);
   assert.ok(offered(w), "22-24-2: [Wormhole] allows a second");
+}
+
+// ── an effect that points back at what its price chose (4-3-3) ─────────────
+
+{
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+
+  // "Choose 1 {Tree of Might} … and place this card under the chosen card:
+  // **Add a marker to the chosen card**." The price is its own program, so
+  // "the chosen card" had nothing to point at when the effect was compiled.
+  const paid = one("[Activate: Main] Choose 1 {Tree of Might, Divine Roots} in your Unison Area and place this card under the chosen card: Add a marker to the chosen card.");
+  assert.deepEqual(paid.unsupported, []);
+  assert.deepEqual(paid.ops, [{ op: "addMarker", target: { var: "c0" }, n: 1 }]);
+  // …and the price itself compiles, with the same name bound.
+  const price = compileCostProgram(parseSkills("[Activate: Main] Choose 1 {Tree of Might, Divine Roots} in your Unison Area and place this card under the chosen card: Add a marker to the chosen card.")[0]);
+  assert.ok(price, "the price is an action the engine can charge");
+  assert.equal((price.ops[0] as { as?: string }).as, "c0", "and it binds the name the effect uses");
+
+  // A line may carry two tags — "[Blocker][Evolve]{r}{r}: <Pan>" — and the one
+  // that owns the text is not always the one picked as *the* keyword, so the
+  // Evolve's target was compiled as if it were an effect.
+  assert.deepEqual(one("[Blocker][Evolve]{r}{r}: <Pan>.").unsupported, []);
+  assert.deepEqual(one("[Blocker][Evolve]{r}{r}: <Pan>.").ops, []);
+
+  // 22-13-4-5-1-1 names this form specially: returned to hand, not dropped.
+  const back = one("[Counter: Play] If the Battle Card being played has an energy cost of 3 or less, it is returned to its owner's hand instead of being played.");
+  assert.deepEqual(back.unsupported, []);
+  assert.deepEqual((back.ops[0] as { then: unknown[] }).then, [{ op: "resolvingPlay", instead: "hand" }]);
 }
 
 console.log("verify-arena: all checks passed");
