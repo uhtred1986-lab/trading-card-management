@@ -444,6 +444,37 @@ pronoun list to fix "1 Battle Card from **their** Drop Area" broke "negate
 at nine skills. Inside a phrase it is a possessive; a phrase that is nothing but
 the word is the pronoun after all. Both readings are now tested.
 
+## Done: the price before the colon (5 Sep 2026)
+
+The same blind spot as the orphan triggers, for the other two skill kinds, and
+larger: **1,626 [Activate]/[Counter] skills whose effects compile were never
+offered**, because `activatable` could not read the price before the colon and
+will not waive one. Now 766, and counted by `arena:gaps` alongside the triggers.
+
+Three bugs that had to be fixed in one commit, because two of them cancelled:
+
+- A card that costs orbs *and* names a condition never *starts* with the
+  condition — "{r}{r}, if your Leader is a green <Broly> card" — and both
+  `costIsReadable` and `compileSkill` tested the raw cost for a leading "if".
+- A reminder in brackets is not a price either (1-5-8); `stripNotes` had never
+  been applied to a cost.
+- A **compound** price silently lost half of itself: the Leader pattern's tail
+  is greedy, so "…and you have 2 or more energy" vanished. Fixing only the
+  first two would have started offering those skills without their second
+  requirement — a wrong reading created by two correct fixes.
+
+`costText` and `costIsOnlyOrbs` are exported and used by all three readers so
+they cannot drift apart again. Catalog coverage moved 81.8 % → 81.5 %, and the
+drop is the honest direction: a skill whose price cannot be read now fails to
+compile rather than compiling without it, and goes to the referee.
+
+**The pattern across all three discoveries this session** — wrong readings,
+orphan triggers, unreadable prices — is that *every number here measures one
+stage of a pipeline and is silent about the next.* The compiler's percentage
+says nothing about triggers; the trigger count says nothing about costs. When
+something looks finished, ask what the next stage does with it, and write the
+engine assertion rather than the compile one.
+
 ## Conventions worth keeping
 
 - Card text is **read, never interpreted**: if the compiler cannot read a

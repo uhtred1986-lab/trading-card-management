@@ -19,12 +19,12 @@ Measured on the 6,493 Dragon Ball Super (not Fusion World) cards:
 
 | measure | value | command |
 |---|---|---|
-| resolvable skills the compiler reads end-to-end | 81.8 % of 11,485 | `npm run arena:coverage` |
-| [Permanent] skills applied by the static layer | 52.7 % of 1,848 | same |
+| resolvable skills the compiler reads end-to-end | 81.5 % of 11,485 | `npm run arena:coverage` |
+| [Permanent] skills applied by the static layer | 52.8 % of 1,848 | same |
 | skills in the owner's 12 decks that compile | 89.8 % of 354 | same (deck tables) |
 | skills exactly one unreadable clause away | 1,344 | `npm run arena:gaps` |
-| "If …:" skill costs the compiler cannot read | 173 of 2,500 | probe in §5.4 |
-| [Auto] skills that compile but no trigger fires | 849 | `npm run arena:gaps` (§5.3) |
+| [Auto] skills that compile but no trigger fires | 775 | `npm run arena:gaps` (§5.3) |
+| [Activate]/[Counter] whose price the engine cannot read | 766 | same |
 | fuzzer | 40 games, 0 crashes | `npm run arena:fuzz 40` |
 
 Numbers as of 5 Sep 2026, after the commits described at the end of
@@ -215,18 +215,31 @@ card" loop that stores a program per card and a work item per wording).
 
 ### 5.3 Compiling is not happening — read this before trusting a percentage
 
-An [Auto] skill only runs if some `Trigger` in `types.ts` matches the moment it
-names *and* something calls `pendTriggers` at that moment. The compiler knows
-nothing about either. So a skill can read end-to-end, count as compiled in
-`arena:coverage`, and never once happen in a game.
+**A skill that compiles may still never happen, and `arena:coverage` cannot
+tell.** It asks the compiler, and the compiler knows nothing about when a skill
+runs or whether its price can be charged. Two whole classes hide behind the
+percentage, and the last two sections of `arena:gaps` count them:
 
-On 5 Sep 2026 **1,081 skills were in that state — about a tenth of the whole
-catalog.** It was found by accident: an engine test for a newly compiled
-wording failed, because the wording sits on "when your opponent plays a Battle
-Card" and `played` only ever matches "this card".
+1. An **[Auto]** skill runs only if some `Trigger` in `types.ts` matches the
+   moment it names *and* something calls `pendTriggers` there. **1,081 skills
+   had neither** — about a tenth of the whole catalog.
+2. An **[Activate] or [Counter]** skill is only offered when `activatable` can
+   read the price before the colon, because a price the engine cannot charge
+   must not be waived. **1,626 skills whose effects compiled were never
+   offered** — more than the first class.
 
-The last section of `arena:gaps` now counts them and ranks the wordings. Each
-is engine work rather than a pattern, and always the same three steps:
+Both were found by accident, and the first by an engine test rather than by any
+measurement: it failed because "when your opponent plays a Battle Card" had no
+trigger, `played` matching only "this card". So write the engine assertion,
+not only the compile one — it is the only thing that catches this.
+
+For the price, the reading now lives in `costText`/`costIsOnlyOrbs` in
+`compile.ts`, and `activatable`, `compileSkill` and `arena:gaps` all use it.
+Keep it that way: when those three disagree a skill is offered whose condition
+is never checked, which is the worst outcome available.
+
+Each orphan trigger is engine work rather than a pattern, and always the same
+three steps:
 
 1. a value in the `Trigger` union (`types.ts`);
 2. a line in `autoTriggerMatches` (`triggers.ts`) — and check the *neighbouring*
