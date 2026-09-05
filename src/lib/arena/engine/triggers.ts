@@ -44,7 +44,11 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
   const t = (sk.cost + " " + sk.effect).toLowerCase();
   switch (trigger) {
     case "played":
-      return /when (?:you play this card|this card is played)/.test(t);
+      // 12-2: activating an Extra *is* playing it, and the sets print both.
+      // "When you play or combo with this card" and "when this card in your
+      // hand is played or used in a combo" are this trigger and `comboed`
+      // both — each fires at its own moment, and only one of them happens.
+      return /when (?:you play this card|this card is played)|when you activate this card|when you play or combo with this card|when this card(?: in your hand)? is played(?: or used in a combo)?/.test(t);
     case "attacks":
       // "When this card attacks and KOs an opponent's Battle Card" is the KO, not the attack.
       return /when this card attacks(?! and kos?\b)/.test(t);
@@ -67,11 +71,17 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     case "kos":
       return /when this card (?:attacks and )?kos? (?:an opponent's|your opponent's|one of your opponent's|a) (?:battle card|card)/.test(t);
     case "leaderPlaced":
-      return /when this card is placed in (?:your|a) leader area/.test(t);
+      return /when this card is placed in (?:your|a) leader area|when you place this card in (?:your|a) leader area/.test(t);
     case "turnEnd":
       return /at the end of (?:your|the|your opponent's) turn/.test(t);
     case "mainStart":
       return /at the (?:beginning|start) of (?:your|the) main phase/.test(t);
+    case "opponentMainStart":
+      return /at the (?:beginning|start) of your opponent's main phase/.test(t);
+    case "blockerUsed":
+      return /when this card activates (?:its )?\[blocker\]/.test(t);
+    case "addedToZEnergy":
+      return /when this card is added to (?:your )?z-energy/.test(t);
     case "chargeStart":
       return /at the (?:beginning|start) of (?:your|the) (?:turn|charge phase)/.test(t);
     case "dealtDamage":
@@ -79,7 +89,7 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     case "battleEnd":
       return /at the end of (?:the|a|this) battle/.test(t);
     case "comboed":
-      return /when you use this card in a combo|when this card is used in a combo|when you combo with this card/.test(t);
+      return /when you use this card in a combo|when this card is used in a combo|when you combo with this card|when you play or combo with this card|when this card in your hand is played or used in a combo/.test(t);
     // The card the opponent played is the subject, whichever way round the
     // sentence names it. "Plays this card" is never how a card says it.
     case "opponentPlayed":
@@ -116,10 +126,19 @@ export function pendTriggers(ctx: GameContext, s: GameState, trigger: Trigger, c
   const area = areaOf(s, card);
   // 9-1-3-1: a card's skills are only valid in its own area.
   const valid = area === "leader" || area === "battle" || area === "unison";
-  // The triggers about a card *leaving* fire once it has already gone, so its
-  // area is no longer one its skills are valid in (9-1-3-1).
-  const onLeaving = trigger === "koed" || trigger === "comboed" || trigger === "energyToDrop" || trigger === "unisonToDrop" || trigger === "removedFromBattle" || trigger === "removedByOpponent";
-  if (!valid && !onLeaving) return;
+  // Triggers about a card arriving somewhere that is not a play area, or
+  // leaving one, fire when the card is already there — so its area is not one
+  // its skills would ordinarily be valid in (9-1-3-1). These name that moment
+  // themselves, which is what makes them the exception.
+  const elsewhere =
+    trigger === "koed" ||
+    trigger === "comboed" ||
+    trigger === "energyToDrop" ||
+    trigger === "unisonToDrop" ||
+    trigger === "removedFromBattle" ||
+    trigger === "removedByOpponent" ||
+    trigger === "addedToZEnergy";
+  if (!valid && !elsewhere) return;
   const master = masterOf(s, card);
   for (const sk of skillsOfInstance(ctx, s, card)) {
     if (skillNegated(s, card, sk.index, sk.kind)) continue;

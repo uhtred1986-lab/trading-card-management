@@ -353,6 +353,12 @@ export type Trigger =
   | "evolvedInto"
   /** "When your opponent activates a [Counter] skill" (4-3): watched by your cards in play. */
   | "opponentCounter"
+  /** "At the start of your opponent's Main Phase" (7-3): the *other* player's cards watch it. */
+  | "opponentMainStart"
+  /** "When this card activates [Blocker]" (22-4): the block itself, not the attack. */
+  | "blockerUsed"
+  /** "When this card is added to your Z-Energy" (17-3). */
+  | "addedToZEnergy"
   /**
    * A card *placed* in a Battle Area rather than played (5-5): by a skill, by
    * [Over Realm], by an Evolve. "When this card is played" does not cover it,

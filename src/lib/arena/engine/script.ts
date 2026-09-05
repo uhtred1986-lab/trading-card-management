@@ -525,6 +525,8 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
           // "when this card is played" does not fire — 30 cards say only
           // "when this card is placed in a Battle Area".
           if (dest === "battle") pendTriggers(ctx, s, "placed", id);
+          // 17-3: "when this card is added to your Z-Energy".
+          if (dest === "zEnergy") pendTriggers(ctx, s, "addedToZEnergy", id);
           if (dest === "hand" && owner === master) (frame.did ??= {}).addToHand = true;
         }
         break;

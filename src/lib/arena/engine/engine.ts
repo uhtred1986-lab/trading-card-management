@@ -257,6 +257,9 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
       s.phase = "main";
       ev.push({ type: "phase", phase: "main", player: s.turnPlayer, turn: s.turn });
       for (const id of cardsInPlay(s, s.turnPlayer)) pendTriggers(ctx, s, "mainStart", id);
+      // "At the start of your opponent's Main Phase" is the same moment seen
+      // from the other side of the table, so those cards have to be asked too.
+      for (const id of cardsInPlay(s, other(s.turnPlayer))) pendTriggers(ctx, s, "opponentMainStart", id);
       s.flow.unshift(...fireDelayed(s, "mainStart"), { op: "checkpoint" }, { op: "turn.promptMain" });
       return "done";
     }
@@ -1834,6 +1837,9 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
         setMode(s, ev, action.card, "rest");
         s.battle!.guard = action.card;
         ev.push({ type: "guardChanged", guard: action.card, by: action.card });
+        // 22-4: "when this card activates [Blocker]" — the block itself, which
+        // is a different moment from being attacked.
+        pendTriggers(ctx, s, "blockerUsed", action.card);
         pendTriggers(ctx, s, "attacked", action.card);
         s.flow.unshift({ op: "checkpoint" });
       }
@@ -1878,6 +1884,7 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
       if (action.card) {
         if (!pr.candidates.includes(action.card)) throw new IllegalAction("not a combo card");
         move(ctx, s, ev, action.card, "zEnergy", p, { reason: "rule" });
+        pendTriggers(ctx, s, "addedToZEnergy", action.card);
       }
       break;
     }

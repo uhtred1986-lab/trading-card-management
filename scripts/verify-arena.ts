@@ -3017,6 +3017,32 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assertConsistent(s);
 }
 
+{
+  // The engine side of two of them: blocking is a moment of its own (22-4),
+  // and the *other* player's cards see your Main Phase begin (7-3).
+  DEFS.WALL = { ...DEFS.BLOCKER, id: "WALL", name: "WALL", skill: "[Blocker]<br>[Auto] When this card activates [Blocker], draw 1 card." };
+  let s = arena({ battle: ["WALL"] });
+  const wall = s.players.p1.battle[0];
+  s = play(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+  const hand = s.players.p1.hand.length;
+  s = play(s, { type: "attack", player: "p2", attacker: s.players.p2.leader, target: s.players.p1.leader });
+  while (s.prompt.kind === "counter") s = play(s, { type: "counter", player: s.prompt.player, card: null });
+  assert.equal(s.prompt.kind, "blocker", "the [Blocker] window");
+  s = play(s, { type: "block", player: "p1", card: wall });
+  assert.equal(s.players.p1.hand.length, hand + 1, "22-4: blocking is its own moment");
+  assertConsistent(s);
+}
+
+{
+  DEFS.NOSY = { ...DEFS.V1, id: "NOSY", name: "NOSY", skill: "[Auto] At the start of your opponent's Main Phase, draw 1 card." };
+  let s = arena({ battle: ["NOSY"] });
+  const hand = s.players.p1.hand.length;
+  s = play(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+  assert.equal(s.turnPlayer, "p2");
+  assert.equal(s.players.p1.hand.length, hand + 1, "7-3: their Main Phase, my card watching it");
+  assertConsistent(s);
+}
+
 // ── moments the engine did not know about (4-2) ────────────────────────────
 
 {
@@ -3038,6 +3064,21 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   // skill that puts a card into play would run twice.
   assert.ok(!fires("[Auto] When you play this card, draw 1 card.", "placed"));
   assert.ok(!fires("[Auto] When you play this card, draw 1 card.", "evolvedInto"));
+
+  // 12-2: activating an Extra is playing it.
+  assert.ok(fires("[Auto] When you activate this card, draw 1 card.", "played"));
+  // One sentence naming two moments belongs to both triggers; only one of
+  // them ever happens to a given copy.
+  assert.ok(fires("[Auto] When you play or combo with this card, draw 1 card.", "played"));
+  assert.ok(fires("[Auto] When you play or combo with this card, draw 1 card.", "comboed"));
+  assert.ok(fires("[Auto] When this card in your hand is played or used in a combo, draw 1 card.", "played"));
+  assert.ok(fires("[Auto] When this card in your hand is played or used in a combo, draw 1 card.", "comboed"));
+  assert.ok(fires("[Auto] When you place this card in your Leader Area, draw 1 card.", "leaderPlaced"));
+  assert.ok(fires("[Auto] At the start of your opponent's Main Phase, draw 1 card.", "opponentMainStart"));
+  assert.ok(!fires("[Auto] At the start of your Main Phase, draw 1 card.", "opponentMainStart"), "and only theirs");
+  assert.ok(fires("[Auto] When this card activates [Blocker], draw 1 card.", "blockerUsed"));
+  assert.ok(fires("[Auto] When this card activates its [Blocker] skill, draw 1 card.", "blockerUsed"));
+  assert.ok(fires("[Auto] When this card is added to your Z-Energy, draw 1 card.", "addedToZEnergy"));
 }
 
 {
