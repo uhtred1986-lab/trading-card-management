@@ -68,6 +68,12 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       return /at the end of (?:the|a|this) battle/.test(t);
     case "comboed":
       return /when you use this card in a combo|when this card is used in a combo|when you combo with this card/.test(t);
+    // The card the opponent played is the subject, whichever way round the
+    // sentence names it. "Plays this card" is never how a card says it.
+    case "opponentPlayed":
+      return /when your opponent plays (?:a|an|1|up to)\b|when your opponent's [a-z ]*card is played|when a card is played by your opponent/.test(t);
+    case "opponentAttacks":
+      return /when your opponent attacks with\b|when your opponent's [a-z ]*card attacks\b/.test(t);
     case "energyToDrop":
       return /when a card in your energy is placed in (?:your|its owner's) drop/.test(t);
     case "unisonToDrop":

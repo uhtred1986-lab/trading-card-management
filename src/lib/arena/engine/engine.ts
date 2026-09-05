@@ -578,6 +578,9 @@ function resolvePlay(ctx: EngineContext, s: GameState, ev: GameEvent[], card: st
   }
   s.resolving = null;
   pendTriggers(ctx, s, "played", card);
+  // "When your opponent plays a Battle Card": watched by every card the other
+  // player has in play, with the played card as the subject.
+  for (const id of cardsInPlay(s, other(p))) pendTriggers(ctx, s, "opponentPlayed", id, card);
   // 22-35/36: Heroic/Villainous on other cards in play pend when a card with the keyword is played.
   if (has(ctx, s, card, "Heroic") || has(ctx, s, card, "Villainous")) {
     for (const id of cardsInPlay(s, p)) if (id !== card && (has(ctx, s, id, "Heroic") || has(ctx, s, id, "Villainous"))) s.pending.push({ card: id, skillIndex: -1, master: p, trigger: "played", subject: card });
@@ -905,6 +908,9 @@ function battleAfterDeclare(ctx: EngineContext, s: GameState): "done" | "wait" {
   // 8-1-3: attack/attacked triggers and [Blocker] pend; 8-1-4 counter timing; 8-1-5 checkpoint.
   pendTriggers(ctx, s, "attacks", b.attacker);
   pendTriggers(ctx, s, "attacked", b.guard);
+  // "When your opponent attacks with a Battle Card": the defending player's
+  // cards watch it, with the attacker as the subject.
+  for (const id of cardsInPlay(s, other(s.turnPlayer))) pendTriggers(ctx, s, "opponentAttacks", id, b.attacker);
   s.flow.unshift(
     { op: "counter", window: "attack", responder: other(s.turnPlayer) },
     { op: "battle.blocker" },

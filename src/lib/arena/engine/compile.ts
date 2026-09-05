@@ -123,7 +123,7 @@ const AREA_WORDS: [RegExp, ScriptArea][] = [
   // has to be read before either area alone — otherwise "in your Battle Area
   // or Leader Area" becomes a Battle Area holding a Leader, which is nothing.
   [/\b(?:battle|leader) area or (?:battle|leader) area\b/, "play"],
-  [/\bleader cards?\b|\byour leader\b/, "leader"],
+  [/\bleader cards?\b|\byour leaders?\b/, "leader"],
   [/\bbattle area\b|\bbattle cards?\b/, "battle"],
   // 20-1-6: an unqualified "cards" means the Leader Area and the Battle Area.
   [/\b(?:your|their|opponent's) (?:[a-z-]+ )*cards\b/, "play"],
@@ -273,12 +273,15 @@ const countWord = (w: string) => (/^\d+$/.test(w) ? Number(w) : 1);
 /**
  * Words that point back at whatever the previous clause acted on.
  *
- * "Their" is deliberately not one of them: it is a possessive far more often
- * than a pronoun, so "1 Battle Card from **their** Drop Area" was read as
- * whatever the trigger had last named. Every phrase that really does point
- * back carries "it", "its", "them" or "they" as well.
+ * "Their" is not one of them *inside a phrase*: it is a possessive far more
+ * often than a pronoun, so "1 Battle Card from **their** Drop Area" was read
+ * as whatever the trigger had last named. A phrase that is nothing but the
+ * possessive — "negate **their** skills for the turn", where the noun after it
+ * has already been stripped — is the pronoun after all, and `BARE_IT` covers
+ * that.
  */
 const IT = /\b(?:it|its|them|they|that card|those cards|the chosen cards?)\b/;
+const BARE_IT = /^(?:it|its|them|they|their|that card|those cards)$/i;
 
 function refFor(clause: string, c: Ctx): Ref | null {
   if (/\bthis card\b/i.test(clause)) return { sel: { special: "self" } };
@@ -298,7 +301,7 @@ function refFor(clause: string, c: Ctx): Ref | null {
     const among = parseTarget(clause);
     if (among) return { sel: among };
   }
-  if (IT.test(clause.toLowerCase())) {
+  if (IT.test(clause.toLowerCase()) || BARE_IT.test(clause.trim().replace(/[.,]$/, ""))) {
     if (c.lastTarget) return c.lastTarget;
     if (c.last) return { var: c.last };
     return null;
@@ -758,7 +761,9 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   if ((m = /^your opponent (?:sends|places) (\d+) cards? from their hand (?:to|in|into) (?:their|its owner's) warp$/.exec(t))) return [{ op: "discard", n: Number(m[1]), side: "opponent", to: "warp" }];
   if ((m = /^(?:send|place) (\d+) cards? from your hand (?:to|in|into) your warp$/.exec(t))) return [{ op: "discard", n: Number(m[1]), to: "warp" }];
   if ((m = /^discard (\d+) cards?(?: from your hand)?$/.exec(t))) return [{ op: "discard", n: Number(m[1]) }];
-  if ((m = /^your opponent chooses (\d+) cards? (?:in|from) their hand$/.exec(t))) return [{ op: "discard", n: Number(m[1]), side: "opponent" }];
+  // "…they choose 1 card in their hand": after "when your opponent combos",
+  // "they" is the opponent, and the sentence is the same discard.
+  if ((m = /^(?:your opponent|they) chooses? (\d+) cards? (?:in|from) their hand$/.exec(t))) return [{ op: "discard", n: Number(m[1]), side: "opponent" }];
   if (/^make your opponent choose (\d+) cards? from their hand$/.test(t)) return [{ op: "discard", n: 1, side: "opponent" }];
   if (/^discard (?:it|them)$/.test(t) && c.last) return [{ op: "moveTo", target: { var: c.last }, to: "drop", reveal: true }];
   if ((m = /^both players choose (\d+) cards? (?:in|from) their hands?$/.exec(t))) return [{ op: "discard", n: Number(m[1]), side: "both" }];
@@ -791,7 +796,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   {
     const REST = "the (?:remaining cards|rest of the cards|rest|other cards)";
     const rest: Ref = { var: "looked", ...(c.last ? { minus: c.last } : {}) };
-    if ((m = new RegExp(`^(?:place|put|return) ${REST} (?:back )?(?:at|on) the (top|bottom) of (?:your|its owner'?s?|their) decks?(?: in any order)?$`).exec(t)))
+    if ((m = new RegExp(`^(?:place|put|return) ${REST} (?:back )?(?:at|on) the (top|bottom) of (?:your|its owner'?s?|their owners?'?s?|their) decks?(?: in any order)?$`).exec(t)))
       return [{ op: "moveTo", target: rest, to: "deck", position: m[1] as "top" | "bottom" }];
     if (new RegExp(`^(?:place|put) ${REST} (?:in|into) (?:your |the |its owner'?s? |their )?drop(?: area)?$`).test(t))
       return [{ op: "moveTo", target: rest, to: "drop", reveal: true }];
@@ -1201,8 +1206,21 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
 
   // Choosing (5-2). Late, because many clauses open with "choose" plus an action.
   if (/^choose /.test(t)) {
-    const sel = parseTarget(clause);
+    let sel = parseTarget(clause);
+    // "When your opponent plays a Battle Card, you may choose **that card**":
+    // the trigger already named it, so there is nothing to pick out of an area
+    // — the only question is whether to take it.
+    if (!sel) {
+      const named = refFor(t.replace(/^choose\s+/, ""), c);
+      if (named) sel = "sel" in named ? { ...named.sel } : { fromVar: named.var, count: 1 };
+    }
     if (!sel) return null;
+    // 5-2-4: "you may" is what makes a choice declinable, and the prefix is
+    // stripped from `t` before any pattern sees it.
+    if (/^(?:you may|you can|the player may)\s+/i.test(clause.trim())) {
+      sel.count ??= 1;
+      sel.upTo = true;
+    }
     const v = `c${c.n++}`;
     return [{ op: "choose", sel, as: v, reason: clause }];
   }

@@ -332,6 +332,14 @@ export type Trigger =
   | "turnEnd"
   | "battleEnd"
   | "comboed"
+  /**
+   * Something the *other* player did, watched by every card you have in play:
+   * "when your opponent plays a Battle Card", "when your opponent attacks with
+   * a Battle Card". The card they played or attacked with is the `subject`, so
+   * "that card" and "it" point at it.
+   */
+  | "opponentPlayed"
+  | "opponentAttacks"
   | "energyToDrop"
   | "unisonToDrop"
   | "markerRemoved"

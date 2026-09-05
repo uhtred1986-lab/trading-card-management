@@ -2940,4 +2940,81 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assertConsistent(s);
 }
 
+// ── choosing a card the trigger already named (5-2) ────────────────────────
+
+{
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+
+  // "Their" is a possessive inside a phrase and a pronoun on its own. Taking
+  // it out of the pronoun list to fix "from **their** Drop Area" broke this,
+  // the commonest wording on the list at the time.
+  const negate = one("[Auto] When this card attacks, choose up to 2 of your opponent's Battle Cards and negate their skills for the turn.");
+  assert.deepEqual(negate.unsupported, []);
+  assert.deepEqual(negate.ops[1], { op: "negateSkills", target: { var: "c0" }, until: "turn" });
+
+  // "You may choose that card": the trigger named it, so nothing is picked out
+  // of an area — the only question is whether to take it (5-2-4).
+  const may = one("[Auto] When your opponent plays a Battle Card or Unison Card, you may choose that card and switch it to Rest Mode.");
+  assert.deepEqual(may.unsupported, []);
+  assert.deepEqual(may.ops[0], { op: "choose", sel: { special: "subject", count: 1, upTo: true }, as: "c0", reason: "you may choose that card" });
+  assert.deepEqual(may.ops[1], { op: "switchMode", target: { var: "c0" }, mode: "rest" });
+
+  // The same sentence without "you may" is not declinable.
+  const must = one("[Auto] When your opponent's Battle Card is played, choose that card and switch it to Rest Mode.");
+  assert.deepEqual(must.unsupported, []);
+  assert.equal((must.ops[0] as { sel: { upTo?: boolean } }).sel.upTo, undefined);
+
+  // "Your Leaders" is the Leader Area; the plural was not in the area words,
+  // so the phrase fell through to "cards on the table" and included the
+  // Battle Area.
+  assert.equal((one("[Auto] When this card is played, choose up to 1 of your Leaders, and it gets +5000 power until the end of your opponent's turn.").ops[0] as { sel: { area?: string } }).sel.area, "leader");
+
+  // "They" after "when your opponent combos" is the opponent.
+  assert.deepEqual(one("[Auto] When your opponent combos, they choose 1 card in their hand and place it in their Drop Area.").ops, [{ op: "discard", n: 1, side: "opponent" }]);
+}
+
+{
+  // The engine side: an optional choice over a card the trigger named is a
+  // real prompt with a "no" in it, and declining does nothing at all.
+  DEFS.TAX = {
+    ...DEFS.V1,
+    id: "TAX",
+    name: "TAX",
+    skill: "[Auto] When your opponent plays a Battle Card, you may choose that card and switch it to Rest Mode.",
+  };
+  let s = arena({ battle: ["TAX"], oppHand: ["V-BLUE"], oppEnergy: ["V-BLUE"] });
+  s = play(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+  const theirs = find(s, "p2", "hand", "V-BLUE");
+  s = play(s, { type: "play", player: "p2", card: theirs });
+  if (s.prompt.kind === "payCost") s = play(s, { type: "payCost", player: "p2", option: 0 });
+  assert.equal(s.prompt.kind, "chooseCards", "5-2-4: 'you may' asks");
+  assert.equal(s.prompt.player, "p1", "and it is the skill's master who answers");
+  s = play(s, { type: "choose", player: "p1", cards: [theirs] });
+  assert.equal(s.cards[theirs].mode, "rest");
+  assertConsistent(s);
+}
+
+{
+  // The other half of the same gap: these skills compiled all along and could
+  // never fire, because no trigger watched what the *opponent* did. Declining
+  // the optional choice leaves the board alone.
+  DEFS.WATCH = {
+    ...DEFS.V1,
+    id: "WATCH",
+    name: "WATCH",
+    skill: "[Auto] When your opponent attacks with a Battle Card, you may choose it and it gets -25000 power for the turn.",
+  };
+  let s = arena({ battle: ["WATCH"], oppBattle: ["BIG"] });
+  s = play(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+  const attacker = s.players.p2.battle.find((id) => s.cards[id].cardId === "BIG")!;
+  const before = powerOf({ defs: DEFS }, s, attacker);
+  s = play(s, { type: "attack", player: "p2", attacker, target: s.players.p1.leader });
+  assert.equal(s.prompt.kind, "chooseCards", "the defender's card watches the attack");
+  assert.equal(s.prompt.player, "p1");
+  // 5-2-4: declining an optional choice does nothing.
+  s = play(s, { type: "choose", player: "p1", cards: [] });
+  assert.equal(powerOf({ defs: DEFS }, s, attacker), before, "no choice, no effect");
+  assertConsistent(s);
+}
+
 console.log("verify-arena: all checks passed");
