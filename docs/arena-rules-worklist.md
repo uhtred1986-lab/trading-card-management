@@ -561,6 +561,39 @@ Two things worth carrying:
    → 71 ms. If you need more later, the state clone is the next cost and should
    be left alone: it is what makes `apply` pure.
 
+## Done: hunting mis-targeting with a probe (5 Sep 2026)
+
+The Union-Absorb bug — a skill that played cards onto themselves — suggested a
+way to find the rest of its family without waiting to trip over them. A
+`choose` op carries its clause verbatim in `reason`, so the compiled selector
+and the printed text can be compared directly. **Write the probe, not the
+pattern.**
+
+Three probes, each about ten lines:
+
+| the question | found | left |
+|---|---|---|
+| a choice that resolves to *this card* while its clause names another | 66 | 2 |
+| a choice saying "your opponent's" that selects your own cards | 1 | 1 (a real mechanism, not a misreading) |
+| a choice saying "up to 1" that selects every match | 27 | 0 |
+
+The 66 were two causes in `refFor`: a pronoun inside a trailing modifier
+("play … **with its** skills negated") read as an antecedent, and "from under
+this card", where "this card" is the pile to look in rather than the card
+meant. Reading those correctly then made the *rest* of those sentences worth
+reading, which is where `play`'s `negated` came from.
+
+**The lesson, and it cost a red fuzz run:** the 27 were caused by my own
+earlier fix, which hard-coded "all" into the under-area because the first
+wording it met was a count. And fixing *that* made skills compile that play a
+card out of a pile — which the engine had never been able to do, because cards
+under a card are in no area (23-2), so `detach` could not take one out. Seven
+of sixty fuzzed games then reported the same card in two places.
+
+So: a compiler fix can make an engine path reachable for the first time. Run
+`arena:fuzz` after compiler work, not only after engine work — it is the only
+thing that would have caught this.
+
 ## Conventions worth keeping
 
 - Card text is **read, never interpreted**: if the compiler cannot read a

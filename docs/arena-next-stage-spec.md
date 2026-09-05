@@ -267,6 +267,29 @@ Watch two things. A trigger about a card *leaving* fires once it has gone, so
 card that did it as the `subject`, which is what "that card" and "it" then
 point at.
 
+### 5.3b Probes that compare a program with its own text
+
+The measures in §5.3 find skills that do *nothing*. A skill that does the
+**wrong** thing appears in no report at all, and the way to find those is to
+compare the compiled program against the clause it came from. A `choose` op
+carries its clause verbatim in `reason`, which makes that a ten-line script.
+
+Three that paid off on 5 Sep 2026 — 66, 1 and 27 hits, all now near zero:
+
+- the selector resolves to `special: "self"` while its `reason` names some
+  other card (`<…>`, `≪…≫`, `{…}`);
+- the `reason` says "your opponent's" and the selector's side is `you`;
+- the `reason` says "up to 1" and the selector's count is 99.
+
+Others worth writing when you touch that area: an area named in the text that
+the selector does not have; a `moveTo` whose destination the clause does not
+mention; a `power` whose sign is the opposite of the printed one.
+
+**Then run `npm run arena:fuzz`, even for pure compiler work.** Making a
+wording compile can make an engine path reachable for the first time: the
+under-a-card fix above reached `detach`, which had never been asked to take a
+card out of a pile, and seven games in sixty ended with a card in two places.
+
 ### 5.4 Probe scripts
 
 A throwaway `scripts/tmp-x.mts` run with `npx tsx --env-file=.env.local scripts/tmp-x.mts`.
