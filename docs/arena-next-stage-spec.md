@@ -1,6 +1,7 @@
 # Arena rules engine — hand-off spec for the next stage
 
-Written 5 Sep 2026 on branch `feature/arena-counter-chains` (not merged; the
+Written 5 Sep 2026 on branch `feature/arena-counter-chains` and carried on in
+`feature/arena-compiler-next`, which branches off it (neither is merged; the
 owner decides when). This is a self-contained brief for whoever picks the work
 up next, written so that it can be followed step by step without re-deriving
 the design. Read it once top to bottom, then work the backlog in order.
@@ -18,12 +19,16 @@ Measured on the 6,493 Dragon Ball Super (not Fusion World) cards:
 
 | measure | value | command |
 |---|---|---|
-| resolvable skills the compiler reads end-to-end | 79.1 % of 11,485 | `npm run arena:coverage` |
-| [Permanent] skills applied by the static layer | 49.0 % of 1,848 | same |
-| skills in the owner's 12 decks that compile | 89.3 % of 354 | same (deck tables) |
-| skills exactly one unreadable clause away | 1,469 | `npm run arena:gaps` |
+| resolvable skills the compiler reads end-to-end | 80.4 % of 11,485 | `npm run arena:coverage` |
+| [Permanent] skills applied by the static layer | 50.4 % of 1,848 | same |
+| skills in the owner's 12 decks that compile | 89.5 % of 354 | same (deck tables) |
+| skills exactly one unreadable clause away | 1,400 | `npm run arena:gaps` |
 | "If …:" skill costs the compiler cannot read | 173 of 2,500 | probe in §5.3 |
 | fuzzer | 40 games, 0 crashes | `npm run arena:fuzz 40` |
+
+Numbers as of 5 Sep 2026, after the three commits described at the end of
+`docs/arena-rules-worklist.md`. Where they touch the backlog below, the item
+says what is left.
 
 Every keyword in §22 of the rule manual now has an engine rule (Blocker,
 Critical, Double/Triple Strike, Dual Attack, Barrier, Deflect, Indestructible,
@@ -33,7 +38,7 @@ Arrival, Empower, Successor, Aegis, Revive, Rejuvenate, Alliance, Invoker,
 Heroic, Villainous, Servant, Limit, Once per turn, Energy-Exhaust). None of
 them goes through the text compiler or the referee.
 
-What is left is **text**: the effect sentences. 3,788 clauses on 2,258 cards
+What is left is **text**: the effect sentences. 3,573 clauses on 2,151 cards
 need only a phrase pattern (no new mechanism); the rest need one of the
 mechanisms in §6.
 
@@ -61,7 +66,11 @@ mechanisms in §6.
    Battle Cards with the same name as this card" would select all of them.
    When adding a target wording, check `parseFilter` reads every measure in it
    (cost, power, relative power `powerRel`, colours, characters, traits, names,
-   mono-colour, Z). If it cannot, make the clause fail rather than pass.
+   mono-colour, multi-colour, card type and `notType`, Z). If it cannot, make
+   the clause fail rather than pass. The same trap in reverse: a phrase the
+   parser reads *wrongly* compiles cleanly and is never reported, so check what
+   a new pattern's neighbours already do before adding it — five of the fixes
+   on 5 Sep 2026 were of that kind, and are listed in the worklist.
 6. **Never edit source with `node -e` or `sed` templates that contain regex
    escapes** — they get mangled. Use the editor. Temporary probe scripts are
    fine (§5.3) but must be deleted before committing.
@@ -263,7 +272,13 @@ from `arena:gaps`. Wordings already identified, with the intended reading:
 | "if you did not draw a card with this skill" (4 in decks) | `did.draw` — set in the `draw` op when ≥1 card was drawn; pattern → `{kind:"not", cond:{kind:"did", what:"draw"}}`. |
 | "this card gains +N power and [Critical] during your turn" (3 in decks, SD5-01) | a [Permanent] with a turn condition: `collectStatics` must accept `if` with `isTurnPlayer` around power/keyword statics. Check `collectStatics` first: if it already unwraps `if`, only the "during your turn" phrase is missing. |
 
-### 6.2 Search a secret area — 134 cards / 156 clauses (20-12)
+### 6.2 Search a secret area — 20-12 · **the named wordings are done**
+
+> Done 5 Sep 2026. All three example sentences compile and are tested. What
+> is left on these cards is other clauses, chiefly "in Rest Mode from your
+> deck **or Drop**" (a target naming two secret areas) and the [Evolve]
+> wordings of §6.1. The paragraph below is kept because it says where the
+> pieces live.
 
 Wordings: "add up to 1 yellow <Son Goku> card with an energy cost of 3 and
 5000 power from your deck to your hand, then shuffle your deck" (BT22-040),
@@ -289,7 +304,13 @@ joined by "and"). Do:
    matching card → the prompt offers exactly the matching cards; after the
    choice the deck order changed (`shuffle` ran).
 
-### 6.3 Energy manipulation — 136 cards / 148 clauses (3-8)
+### 6.3 Energy manipulation — 3-8 · **the named wordings are done**
+
+> Done 5 Sep 2026. `moveTo.owner` carries "your opponent's energy"; the
+> "switch up to 1 of your energy" clause turned out to compile already and to
+> be *wrong* (it switched all of it), which `withChoice` fixed. Still open on
+> these cards: energy as a **skill cost** (§6.13) and "choose 1 of your energy
+> and place it in its owner's Drop" variants with an unusual possessive.
 
 Wordings: "place it in your opponent's energy in Rest Mode" (BT7-042), "switch
 up to 1 of your energy to Active Mode" (BT23-071), "choose 1 of your energy
@@ -321,7 +342,12 @@ becomes the replacement (`replaceLeave`, hooked in `move`). Missing wordings:
 Tests: a card that would go to the Drop goes to the Warp/energy instead; a
 card not matching the filter still goes to the Drop.
 
-### 6.5 Prohibitions — 159 cards / 184 clauses (20-14)
+### 6.5 Prohibitions — 20-14 · **the named actions are done**
+
+> Done 5 Sep 2026: `beMovedBySkill`, `beNegated` and `placeEnergy` all exist,
+> compile and are enforced, and "will not" reads as a prohibition. Still open:
+> "it can't attack for the turn" on the cards where "it" has no antecedent —
+> that is a §6.1 pronoun problem, not a prohibition one.
 
 `forbid` exists with `ForbiddenAction` = attack | beAttacked | block | play |
 activateSkill | activateCounter | combo | beKOd | beKOdBySkill | beChosen |
@@ -352,7 +378,12 @@ cost; `orbTotals(sk)` in `engine.ts` is where the skill cost is computed — a
 static of kind `cost` with `what: "skill"` would have to be read there). Read
 `collectStatics` for how `cost` statics are consumed before adding kinds.
 
-### 6.7 Count-based amounts — 96 cards / 100 clauses
+### 6.7 Count-based amounts — **partly done**
+
+> Done 5 Sep 2026: cards under a card are counted (`parseTarget` reads the
+> "under" area before the "this card" shortcut), and `collectStatics`
+> evaluates a `count` amount rather than dropping it. Still open: `costReduction`
+> with a count amount (DB2-039), which is §6.6 work.
 
 `Amount { count: Selector, times }` exists. Missing selectors: "for each card
 placed under it / under this card" (BT9-072, BT19-003 "non-Leader card under
@@ -376,7 +407,11 @@ to accept "place N cards from under this card in their owners' Drop Areas" and
 `activate` would have to pay it (a new cost kind `underToDrop: N`; pay in
 `payKeywordCosts`-style helper).
 
-### 6.9 Reveal / look — 54 cards / 59 clauses (20-11)
+### 6.9 Reveal / look — 20-11 · **the named wordings are done**
+
+> Done 5 Sep 2026: the `reveal` op, `Cond.varMatches`, "otherwise", and
+> "look at your opponent's hand". Still open: "if it's a black … card you may
+> add it to your hand" — the *may* is what is missing, not the condition.
 
 "reveal the top card of your opponent's deck. If that card is a Battle Card,
 place it in your opponent's energy in Rest Mode, otherwise draw 1 card"

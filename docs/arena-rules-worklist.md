@@ -308,6 +308,55 @@ fixes one card, the pattern fixes every card phrased that way.
 `npm run arena:gaps` prints the same thing catalog-wide with counts — start at
 the top of that list.
 
+## Done: §6.2, §6.3, §6.5, §6.7 and §6.9 of the hand-off spec (5 Sep 2026)
+
+Branch `feature/arena-compiler-next`, three commits, working
+`docs/arena-next-stage-spec.md` in the order it recommends. Catalog 79.1 % →
+**80.4 %** of resolvable skills; [Permanent] skills the static layer applies
+49.0 % → **50.4 %**; the owner's decks 89.3 % → **89.5 %**; "1 clause in the
+way" 1,469 → **1,400**. 40 fuzzed games, 0 crashes at every step.
+
+What was built, by the section it came from:
+
+- **§6.2 searching a secret area.** `splitClauses` no longer breaks a card
+  description at the "and" joining its two measures, `parseFilter` reads a bare
+  "N power", and `filterFor` counts a card type and a Z-card as narrowing.
+  `Ref.minus` is "the rest" — what a look turned up minus what the choice took.
+  `look` can take its count off the board.
+- **§6.3 energy.** `moveTo.owner`, so "place it in your opponent's energy in
+  Rest Mode" lands in *their* area rather than the card owner's.
+- **§6.5 prohibitions.** `beMovedBySkill`, `beNegated`, and `placeEnergy`
+  wired up at last (it had been in the union, uncompiled and unenforced, since
+  the prohibition work). A prohibition may be printed as "will not", which
+  brought in `Duration "afterNextCharge"` — `nextTurn` ends *before* the Active
+  Step it is about, so a rest-lock written for "your next Charge Phase" needed
+  a duration that is spent at 7-2-7 instead.
+- **§6.7 counts.** The static layer evaluates a `count` amount instead of
+  dropping it, so "+5000 power for each card placed under it" works.
+- **§6.9 reveal.** A `reveal` op, `Cond.varMatches` for "if that card is a
+  Battle Card", "otherwise" as the else of the condition just asked, and
+  `look` over a whole area for "look at your opponent's hand".
+- Also `Selector.special: "resolving"`, the card a [Counter: Play] is
+  answering. Negating the play itself is still a gap, so those skills stay
+  with the referee.
+
+**The lesson worth carrying: a clause that compiles is not a clause that is
+read correctly.** Five of the fixes above were not gaps at all — they were
+skills the compiler was already running, wrongly and in silence:
+
+| printed | what it did |
+|---|---|
+| "add up to 1 <Son Goku> card **among them** to your hand" | added *this card*: "them" was read as a pronoun and pointed at the trigger's subject |
+| "place **the top card** of your deck in your energy" | offered the whole deck as a choice — a search the card never granted |
+| "**switch up to 1** of your energy to Active Mode" | switched all of it; `switchMode` was the one action never wrapped in `withChoice` |
+| "for each **non-Leader** card under this card" | counted the card on top, and the filter selected Leaders only |
+| "place **the rest** at the bottom of your deck" | put back the card that had just been added to the hand |
+
+So when a wording is on the "one clause away" list, check the clauses around it
+that *do* compile before writing the pattern. `Selector.take` (a position) now
+exists precisely because `count` always means a choice, and the two had been
+conflated.
+
 ## Conventions worth keeping
 
 - Card text is **read, never interpreted**: if the compiler cannot read a
