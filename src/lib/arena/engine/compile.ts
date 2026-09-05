@@ -297,7 +297,11 @@ const IT = /\b(?:it|its|them|they|that card|those cards|the chosen cards?)\b/;
 const BARE_IT = /^(?:it|its|them|they|their|that card|those cards)$/i;
 
 function refFor(clause: string, c: Ctx): Ref | null {
-  if (/\bthis card\b/i.test(clause)) return { sel: { special: "self" } };
+  // "Play up to 1 red ≪Universe 7≫ card from **under this card**" — here
+  // "this card" says where to look, or where the card goes, not which card is
+  // meant. Taken as the target it played this card instead (23-2).
+  const named = clause.replace(/\b(?:from |place )?(?:under|on top of|beneath) this card\b/gi, "");
+  if (/\bthis card\b/i.test(named)) return { sel: { special: "self" } };
   // "…play up to 1 card from under this card, and place this card under the
   // played card": the card this skill just played, if it played one; otherwise
   // the card the trigger was about ("When you play a <Goku> card, …").
@@ -314,7 +318,14 @@ function refFor(clause: string, c: Ctx): Ref | null {
     const among = parseTarget(clause);
     if (among) return { sel: among };
   }
-  if (IT.test(clause.toLowerCase()) || BARE_IT.test(clause.trim().replace(/[.,]$/, ""))) {
+  // A pronoun inside a trailing modifier is not pointing at an earlier clause,
+  // it is describing the card this phrase already named: "play up to 1
+  // {Piccolo} from your deck **with its skills negated for the turn**" is
+  // about the Piccolo. Only the head of the phrase can carry an antecedent, so
+  // that is what is tested — 66 choices were resolving to this card because
+  // the "its" of a trailing "with …" was read as a reference.
+  const head = clause.replace(/\s+(?:with|on top of|beneath)\b.*$/i, "");
+  if (IT.test(head.toLowerCase()) || BARE_IT.test(head.trim().replace(/[.,]$/, ""))) {
     if (c.lastTarget) return c.lastTarget;
     if (c.last) return { var: c.last };
     return null;
@@ -1270,20 +1281,24 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // (22-13-6-3). The host has to come off the phrase before the target is
   // read: "this card" at the end of it made `parseTarget` take the whole
   // thing for this card, and the skill played the card onto itself.
-  if ((m = /^(?:play|activate) (.+?) on top of (this card|it|the played card)(?: in (rest|active) mode)?$/.exec(t))) {
-    const onto = refFor(m[2], c);
+  if ((m = /^(?:play|activate) (.+?)(?: in (rest|active) mode)? on top of (this card|it|the played card|the chosen card)(?: in (rest|active) mode)?(?: with (?:its|their) (?:non-keyword )?skills negated(?: for (?:the )?(turn|game|battle))?)?$/.exec(t))) {
+    const onto = refFor(m[3], c);
     const ref = refFor(m[1], c);
-    const mode = m[3] as "rest" | "active" | undefined;
+    const mode = (m[2] ?? m[4]) as "rest" | "active" | undefined;
+    // 9-1-5: the sets print "for game" as well as "for the game"; anything
+    // shorter than the game is an effect with a duration.
+    const negated: "turn" | "game" | undefined = /skills negated/.test(t) ? (m[5] === "game" ? "game" : "turn") : undefined;
     if (!onto || !ref) return null;
+    const extra = { onto, ...(mode ? { mode } : {}), ...(negated ? { negated } : {}) } as const;
     if ("sel" in ref) {
       const v = `p${c.n++}`;
       c.lastPlayed = v;
       return [
         { op: "choose", sel: ref.sel, as: v, reason: clause },
-        { op: "play", target: { var: v }, onto, ...(mode ? { mode } : {}) },
+        { op: "play", target: { var: v }, ...extra },
       ];
     }
-    return [{ op: "play", target: ref, onto, ...(mode ? { mode } : {}) }];
+    return [{ op: "play", target: ref, ...extra }];
   }
 
   // Playing a card by a skill (5-5-3).
@@ -1291,21 +1306,25 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // words lead to the same place. A card that says "play … in Rest Mode" is
   // still played from wherever it is; the mode belongs to the play, not to the
   // choice, or the choice would go looking for a card already rested.
-  if ((m = /^(?:play|activate) (.+?)(?: in (rest|active) mode)?$/.exec(t))) {
+  if ((m = /^(?:play|activate) (.+?)(?: in (rest|active) mode)?(?: with (?:its|their) (?:non-keyword )?skills negated(?: for (?:the )?(turn|game|battle))?)?$/.exec(t))) {
     if (/token/.test(t)) return compileToken(clause, c);
     const mode = m[2] as "rest" | "active" | undefined;
+    // 9-1-5: "played … with its skills negated", which the sets print with and
+    // without the article before "game".
+    const negated: "turn" | "game" | undefined = /skills negated/.test(t) ? (m[3] === "game" ? "game" : "turn") : undefined;
     const ref = refFor(m[1], c);
     if (!ref) return null;
+    const extra = { ...(mode ? { mode } : {}), ...(negated ? { negated } : {}) } as const;
     if ("sel" in ref) {
       // "play up to 1 X from your hand" is a choice followed by the play.
       const v = `p${c.n++}`;
       c.lastPlayed = v;
       return [
         { op: "choose", sel: ref.sel, as: v, reason: clause },
-        { op: "play", target: { var: v }, ...(mode ? { mode } : {}) },
+        { op: "play", target: { var: v }, ...extra },
       ];
     }
-    return [{ op: "play", target: ref, ...(mode ? { mode } : {}) }];
+    return [{ op: "play", target: ref, ...extra }];
   }
 
   // Choosing (5-2). Late, because many clauses open with "choose" plus an action.

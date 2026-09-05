@@ -320,7 +320,7 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
     }
 
     case "play.resolve":
-      return resolvePlay(ctx, s, ev, step.card, step.player, step.markers, step.onto);
+      return resolvePlay(ctx, s, ev, step.card, step.player, step.markers, step.onto, step.negated);
     case "skill.resolve": {
       const sk = skillsOfInstance(ctx, s, step.card).find((k) => k.index === step.skill);
       if (!sk) return "done";
@@ -544,7 +544,7 @@ function openCounterWindow(ctx: EngineContext, s: GameState, ev: GameEvent[], wi
 
 // ── playing cards (5-5, 13-2, 16-2, 17-2, 18-2) ────────────────────────────
 
-function resolvePlay(ctx: EngineContext, s: GameState, ev: GameEvent[], card: string, p: PlayerId, markers?: number, onto?: string): "done" | "wait" {
+function resolvePlay(ctx: EngineContext, s: GameState, ev: GameEvent[], card: string, p: PlayerId, markers?: number, onto?: string, negated?: "turn" | "game"): "done" | "wait" {
   const d = def(ctx, s, card);
   const bt = baseType(d);
   const ps = s.players[p];
@@ -586,6 +586,15 @@ function resolvePlay(ctx: EngineContext, s: GameState, ev: GameEvent[], card: st
       addEffect(s, ev, { target: card, kind: "negateSkills", value: 0, until: "turn" });
       delete s.continuations.playNegated;
     }
+  }
+  // 9-1-5: "played … with its skills negated". Applied before the played
+  // triggers pend, so a card brought back silenced does not fire its own
+  // [Auto] on the way in. "For the game" is a mark on the instance, cleared
+  // when it leaves play; anything shorter is an effect with a duration.
+  if (negated) {
+    if (negated === "game") s.cards[card].negated = "all";
+    else addEffect(s, ev, { target: card, kind: "negateSkills", value: 0, until: "turn" });
+    note(ev, `${face(ctx, s, card).name} was played with its skills negated`);
   }
   s.resolving = null;
   pendTriggers(ctx, s, "played", card);

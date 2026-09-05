@@ -3373,4 +3373,59 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.ok(acts(roomy).some((a) => a.type === "activate" && a.card === two && a.alt), "one to rest for [Invoker], one for the {r}");
 }
 
+// ── a pronoun in a trailing modifier is not an antecedent ──────────────────
+
+{
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+  const chosen = (sc: { ops: unknown[] }) => (sc.ops[0] as { sel: { special?: string; filter?: { names: string[] } } }).sel;
+
+  // "…with **its** skills negated" describes the card just named, not whatever
+  // the last clause acted on. Read as a reference it played this card instead,
+  // on 66 choices across the catalog.
+  const negated = one("[Auto] When you play this card, play up to 1 {Piccolo, Bestowed Power} from your deck with its skills negated for the turn.");
+  assert.deepEqual(negated.unsupported, []);
+  assert.equal(chosen(negated).special, undefined, "not this card");
+  assert.deepEqual(chosen(negated).filter?.names, ["piccolo, bestowed power"], "the named card, not this one");
+  assert.equal((negated.ops[1] as { negated?: string }).negated, "turn", "and the negation itself is read");
+  assert.equal((one("[Auto] When you play this card, play up to 1 {X} from your deck with its skills negated for game.").ops[1] as { negated?: string }).negated, "game", "'for game' without the article");
+
+  // Same for "with a marker on it".
+  const marked = one("[Auto] When you play this card, play up to 1 {Spaceship, Vessel of Hope} from your deck with a marker on it.");
+  assert.equal(chosen(marked).special, undefined);
+
+  // "From under this card" says where to look, not which card.
+  const beneath = one("[Activate: Main] Play up to 1 red ≪Universe 7≫ card with an energy cost of 3 or less from under this card.");
+  assert.deepEqual(beneath.unsupported, []);
+  assert.equal(chosen(beneath).special, undefined, "the pile, not the card on top of it");
+  assert.equal((beneath.ops[0] as { sel: { area?: string } }).sel.area, "under");
+
+  // A phrase that really is a pronoun still is one.
+  assert.deepEqual((one("[Auto] When you play this card, choose 1 of your opponent's Battle Cards and KO it.").ops[1] as { target: unknown }).target, { var: "c0" });
+}
+
+{
+  // The engine side: a card played with its skills negated for the game does
+  // not fire its own [Auto] on the way in (9-1-5).
+  DEFS.LOUD = { ...DEFS.V1, id: "LOUD", name: "LOUD", skill: "[Auto] When you play this card, draw 1 card." };
+  DEFS.MUZZLE = {
+    ...DEFS.V1,
+    id: "MUZZLE",
+    name: "MUZZLE",
+    energyCost: 1,
+    skill: "[Auto] When you play this card, play up to 1 <LOUD> card from your Drop with its skills negated for the game.",
+  };
+  DEFS.LOUD.characters = ["LOUD"];
+  let s = arena({ hand: ["MUZZLE"], energy: ["V1"] });
+  const loud = s.players.p1.deck.find((id) => s.cards[id].cardId === "V1")!;
+  s.cards[loud].cardId = "LOUD";
+  move({ defs: DEFS }, s, [], loud, "drop", "p1");
+  const hand = s.players.p1.hand.length;
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "MUZZLE") });
+  if (s.prompt.kind === "chooseCards") s = play(s, { type: "choose", player: "p1", cards: [loud] });
+  assert.ok(s.players.p1.battle.includes(loud), "it was played");
+  assert.ok(skillsNegated(s, loud), "9-1-5: and silenced");
+  assert.equal(s.players.p1.hand.length, hand - 1, "MUZZLE left the hand and nothing was drawn");
+  assertConsistent(s);
+}
+
 console.log("verify-arena: all checks passed");

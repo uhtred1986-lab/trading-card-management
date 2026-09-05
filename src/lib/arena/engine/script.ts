@@ -175,7 +175,8 @@ export type Op =
    * resolves (22-13-6-3) and how the "play … on top of this card" wordings
    * read. Without it the card is played beside the host instead of onto it.
    */
-  | { op: "play"; target: Ref; mode?: "active" | "rest"; onto?: Ref }
+  /** `negated` is "played … with its skills negated" (9-1-5), for the turn or for as long as it is in play. */
+  | { op: "play"; target: Ref; mode?: "active" | "rest"; onto?: Ref; negated?: "turn" | "game" }
   | { op: "switchMode"; target: Ref; mode: "active" | "rest" }
   | { op: "power"; target: Ref; amount: Amount; until: Duration }
   | { op: "comboPower"; target: Ref; amount: Amount; until: Duration }
@@ -762,7 +763,7 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         if (!targets.length) break;
         const onto = op.onto ? resolveRef(ctx, s, frame, op.onto)[0] : undefined;
         const steps: FlowStep[] = [];
-        for (const id of targets) steps.push({ op: "play.resolve", card: id, player: master, mode: op.mode, onto });
+        for (const id of targets) steps.push({ op: "play.resolve", card: id, player: master, mode: op.mode, onto, negated: op.negated });
         (frame.did ??= {}).play = true;
         frame.ip++;
         steps.push({ op: "script.step", frame });
