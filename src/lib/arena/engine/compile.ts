@@ -445,6 +445,31 @@ export function costText(cost: string): string {
     .trim();
 }
 
+/**
+ * A price that is an *action* rather than a condition: "switch this card to
+ * Rest Mode", "choose 1 card in your hand and place it in your Drop Area"
+ * (4-3-3). It is the same vocabulary as an effect, so it is compiled by the
+ * same code — what makes it a cost is only where it is printed.
+ *
+ * Whether the engine may actually charge it is a separate question, answered
+ * by `canPayCostProgram` in `engine.ts`; a program this returns is not yet a
+ * price the player can pay.
+ */
+const costPrograms = new Map<string, Script | null>();
+export function compileCostProgram(skill: Skill): Script | null {
+  const said = costText(skill.cost);
+  // Orbs and conditions are the two prices the engine already knew.
+  if (!said || costIsOnlyOrbs(skill.cost) || /^(?:if|when|while|during)\b/i.test(said)) return null;
+  const hit = costPrograms.get(said);
+  if (hit !== undefined) return hit;
+  // Compiled as an [Activate] so that a leading "when" is not mistaken for a
+  // trigger, and with no cost of its own so nothing wraps it in a condition.
+  const sc = compileSkill({ ...skill, kind: "activate:main", keyword: null, cost: "", effect: said });
+  const out = sc.unsupported.length || !sc.ops.length ? null : sc;
+  costPrograms.set(said, out);
+  return out;
+}
+
 /** True when the price is nothing but orbs (and the reminder text beside them). */
 export function costIsOnlyOrbs(cost: string): boolean {
   return (

@@ -9,7 +9,7 @@
  * state storable mid-prompt and replayable from the action log.
  */
 import { baseType, canCombo, isZ, keywordOf, skillsOf, specifiedCostOf } from "./cards";
-import { compileCard, costIsOnlyOrbs, costText, parseConditionClause, type CardScripts } from "./compile";
+import { compileCard, compileCostProgram, costIsOnlyOrbs, costText, parseConditionClause, type CardScripts } from "./compile";
 import { matches, parseCondition, parseFilter } from "./filters";
 import { stepScript, validateProgram, type Op, type ScriptFrame } from "./script";
 import { koCard, pendTriggers } from "./triggers";
@@ -50,6 +50,8 @@ import {
   skillsOfInstance,
   type GameContext,
   condHolds,
+  resolveSelector,
+  resolveRef,
   skillNegated,
 } from "./state";
 import type { Action, Applied, CardDef, CardInstance, Color, FlowStep, GameEvent, GameState, PendingAuto, PlayerId, PlayerState, Prompt, Skill, Trigger } from "./types";
@@ -769,7 +771,57 @@ function costIsReadable(sk: Skill): boolean {
   // orbs and a condition never *starts* with the condition, and testing the
   // raw text meant 1,626 skills whose effects compile were never offered.
   const priced = costText(sk.cost);
-  return /^(?:if|when|while|during)\b/i.test(priced) && parseConditionClause(priced) !== null;
+  if (/^(?:if|when|while|during)\b/i.test(priced)) return parseConditionClause(priced) !== null;
+  return compileCostProgram(sk) !== null;
+}
+
+/**
+ * Whether the engine can actually charge an action price right now (4-3-3).
+ *
+ * Deliberately a whitelist: an op that is not on it means "no", so the skill
+ * stays unoffered. Offering a skill whose price then half-runs would be worse
+ * than the honest gap it is today — the effect would still happen.
+ */
+function canPayCostProgram(ctx: EngineContext, s: GameState, p: PlayerId, card: string, ops: Op[]): boolean {
+  const frame: ScriptFrame = { ops: [], ip: 0, vars: {}, card, master: p };
+  const inHand = s.players[p].hand.includes(card) ? 1 : 0;
+  for (const op of ops) {
+    switch (op.op) {
+      case "choose": {
+        // "Up to" can always be paid with nothing (5-2-4).
+        if (op.sel.upTo) break;
+        if (resolveSelector(ctx, s, frame, op.sel).length < (op.sel.count ?? 1)) return false;
+        break;
+      }
+      case "discard":
+        // The activating card leaves the hand as part of the activation, so
+        // it is not also available to be discarded.
+        if (typeof op.n !== "number" || s.players[p].hand.length - inHand < op.n) return false;
+        break;
+      case "mill":
+        if (typeof op.n !== "number" || s.players[p].deck.length < op.n) return false;
+        break;
+      // A target named by a variable is whatever the `choose` in front of it
+      // binds, and that choice has already been checked; nothing is bound yet
+      // while this runs, so resolving it here would always find nothing.
+      case "switchMode": {
+        if ("var" in op.target) break;
+        const cards = resolveRef(ctx, s, frame, op.target);
+        if (!cards.length || cards.some((id) => s.cards[id].mode === op.mode)) return false;
+        break;
+      }
+      case "moveTo":
+        // "Under" needs a host and "play" is not an area (3-1); neither is a
+        // price this can promise.
+        if (op.to === "under" || op.to === "play") return false;
+        if ("var" in op.target) break;
+        if (!resolveRef(ctx, s, frame, op.target).length) return false;
+        break;
+      default:
+        return false;
+    }
+  }
+  return true;
 }
 
 /** "2 Green energy and 1 marker" — what an optional cost asks for. */
@@ -1620,9 +1672,15 @@ function activatable(ctx: EngineContext, s: GameState, p: PlayerId, card: string
   }
   // "[Activate: Main] If your Leader Card is red: Draw 1 card" — a cost that
   // is only a condition (9-1-3) is a skill that can be used when it holds.
-  const condCost = !costIsOrbsOnly && /^(?:if|when|while|during)\b/i.test(sk.cost) ? parseConditionClause(sk.cost) : null;
-  if (!costIsOrbsOnly && !condCost) return null;
+  const priced = costText(sk.cost);
+  const condCost = !costIsOrbsOnly && /^(?:if|when|while|during)\b/i.test(priced) ? parseConditionClause(priced) : null;
+  // 4-3-3: or the price may be an action — "switch this card to Rest Mode",
+  // "choose 1 card in your hand and place it in your Drop Area". Only offered
+  // when the engine can charge it, so the effect never happens for free.
+  const actionCost = !costIsOrbsOnly && !condCost ? compileCostProgram(sk) : null;
+  if (!costIsOrbsOnly && !condCost && !actionCost) return null;
   if (condCost && !condHolds(ctx, s, { ops: [], ip: 0, vars: {}, card, master: p }, condCost.cond)) return null;
+  if (actionCost && !canPayCostProgram(ctx, s, p, card, actionCost.ops)) return null;
   if (!canPayOrbs()) return null;
   if (!canResolve(ctx, s, card, sk)) return null;
   if (baseType(d) === "EXTRA" && inHand) {
@@ -2151,6 +2209,10 @@ function activate(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId
   payOrbs();
   s.resolving = { card, skill: sk.index, player: p };
   s.flow.unshift({ op: "counter", window: "skill", responder: other(p) }, { op: "skill.resolve", card, skill: sk.index, player: p }, { op: "extra.finish", card }, { op: "checkpoint" });
+  // 4-3-3: an action price is paid on activation, before the counter window
+  // opens — so it goes on the front of the flow, after everything else.
+  const actionCost = compileCostProgram(sk);
+  if (actionCost) s.flow.unshift({ op: "script.step", frame: { ops: actionCost.ops, ip: 0, vars: {}, card, master: p, skillIndex: sk.index } });
 }
 
 // ── views ──────────────────────────────────────────────────────────────────

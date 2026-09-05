@@ -3145,4 +3145,45 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.ok(one("[Activate: Main] If the moon is full: Draw 1 card.").unsupported.length > 0);
 }
 
+// ── a price that is an action, not a condition (4-3-3) ─────────────────────
+
+{
+  // "Switch this card to Rest Mode: Draw 1 card" — the price is the same
+  // vocabulary as an effect, and is compiled by the same code.
+  DEFS.TIRED = { ...DEFS.V1, id: "TIRED", name: "TIRED", skill: "[Activate: Main] Switch this card to Rest Mode: Draw 1 card." };
+  let s = arena({ battle: ["TIRED"] });
+  const tired = s.players.p1.battle[0];
+  const hand = s.players.p1.hand.length;
+  assert.ok(canActivate(s, tired), "it is active, so the price can be paid");
+  s = play(s, { type: "activate", player: "p1", card: tired, skill: 0 });
+  assert.equal(s.cards[tired].mode, "rest", "the price was charged");
+  assert.equal(s.players.p1.hand.length, hand + 1, "and the effect happened");
+  // A price that cannot be paid twice is not offered twice.
+  assert.ok(!canActivate(s, tired), "already rested: nothing left to pay with");
+  assertConsistent(s);
+}
+
+{
+  // A price that discards is only offered while there is something to discard,
+  // and the effect never happens for free.
+  DEFS.TITHE = { ...DEFS.V1, id: "TITHE", name: "TITHE", skill: "[Activate: Main] Choose 1 card in your hand and place it in your Drop Area: Draw 2 cards." };
+  let s = arena({ battle: ["TITHE"], hand: ["BIG", "BIG"] });
+  const tithe = s.players.p1.battle[0];
+  const hand = s.players.p1.hand.length;
+  assert.ok(canActivate(s, tithe));
+  s = play(s, { type: "activate", player: "p1", card: tithe, skill: 0 });
+  assert.equal(s.prompt.kind, "chooseCards", "the price is a choice");
+  const paid = s.players.p1.hand[0];
+  s = play(s, { type: "choose", player: "p1", cards: [paid] });
+  assert.ok(s.players.p1.drop.includes(paid), "4-3-3: the price was charged");
+  assert.equal(s.players.p1.hand.length, hand - 1 + 2, "one paid, two drawn");
+  assertConsistent(s);
+
+  // With an empty hand there is nothing to pay with, so it is not offered.
+  const t = arena({ battle: ["TITHE"] });
+  const other = t.players.p1.battle[0];
+  for (const id of t.players.p1.hand.slice()) move({ defs: DEFS }, t, [], id, "deck", "p1", { position: "bottom" });
+  assert.ok(!canActivate(t, other), "an unpayable price is not offered");
+}
+
 console.log("verify-arena: all checks passed");

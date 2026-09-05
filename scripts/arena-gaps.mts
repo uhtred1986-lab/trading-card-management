@@ -13,7 +13,7 @@ import { db } from "../src/db";
 import { DEFAULT_GAME } from "../src/lib/catalog/games";
 import { cards as cardsTable } from "../src/db/schema";
 import { compileCardCached, parseSkills, type CardDef } from "../src/lib/arena/engine";
-import { costIsOnlyOrbs, costText, parseConditionClause } from "../src/lib/arena/engine/compile";
+import { compileCostProgram, costIsOnlyOrbs, costText, parseConditionClause } from "../src/lib/arena/engine/compile";
 import { autoTriggerMatches } from "../src/lib/arena/engine/triggers";
 import type { Trigger } from "../src/lib/arena/engine/types";
 import { cardDefFrom } from "../src/lib/arena/load";
@@ -269,10 +269,13 @@ for (const [, e] of [...orphan.entries()].sort((a, b) => b[1].skills - a[1].skil
  *
  * This mirrors `costIsReadable`, which is not exported; keep the two together.
  */
-const costReadable = (cost: string) => {
-  if (costIsOnlyOrbs(cost)) return true;
-  const priced = costText(cost);
-  return /^(?:if|when|while|during)\b/i.test(priced) && parseConditionClause(priced) !== null;
+const costReadable = (sk: ReturnType<typeof parseSkills>[number]) => {
+  if (costIsOnlyOrbs(sk.cost)) return true;
+  const priced = costText(sk.cost);
+  if (/^(?:if|when|while|during)\b/i.test(priced)) return parseConditionClause(priced) !== null;
+  // An action price is readable when it compiles; whether it can be *paid* is
+  // a question about the board, which only `canPayCostProgram` can answer.
+  return compileCostProgram(sk) !== null;
 };
 
 const unpayable = new Map<string, { skills: number; cards: Set<string>; example: string }>();
@@ -285,7 +288,7 @@ for (const d of defs) {
     for (const sk of parseSkills(text)) {
       if (!sk.kind.startsWith("activate") && !sk.kind.startsWith("counter")) continue;
       if (!sk.effect.trim() || scripts.bySkill[sk.index]?.unsupported.length !== 0) continue;
-      if (costReadable(sk.cost)) continue;
+      if (costReadable(sk)) continue;
       unpayables++;
       const key = sk.cost
         .toLowerCase()
