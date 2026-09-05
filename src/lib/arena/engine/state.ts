@@ -155,9 +155,26 @@ export function face(ctx: GameContext, s: GameState, id: string): CardFace {
   return { name: d.name, power: d.power, skill: d.skill };
 }
 
+/**
+ * 9-1-5: all of a card's skills are negated — for the rest of the game
+ * (`negated: "all"`, cleared when the card leaves play) or for a duration,
+ * carried as a continuous effect so it ends when the turn does.
+ */
+export function skillsNegated(s: GameState, id: string): boolean {
+  const inst = s.cards[id];
+  return inst.negated === "all" || s.effects.some((e) => e.kind === "negateSkills" && e.target === id);
+}
+
+/** One skill of a card is negated: by index for the game, or by a turn-long effect. */
+export function skillNegated(s: GameState, id: string, index: number): boolean {
+  const inst = s.cards[id];
+  if (inst.negated === "all" || inst.negated.includes(index)) return true;
+  return s.effects.some((e) => e.kind === "negateSkill" && e.target === id && e.value === index);
+}
+
 export function skillsOfInstance(ctx: GameContext, s: GameState, id: string): Skill[] {
   const inst = s.cards[id];
-  if (inst.hidden) return [];
+  if (inst.hidden || skillsNegated(s, id)) return [];
   const d = def(ctx, s, id);
   return skillsOf(d, inst.flipped && d.back ? "back" : "front");
 }
@@ -167,11 +184,11 @@ export function keywordsInForce(ctx: GameContext, s: GameState, id: string): Key
   const inst = s.cards[id];
   const out: KeywordSkill[] = [];
   for (const e of staticEffects(ctx, s)) if (e.kind === "keyword" && e.target === id) out.push(e.value as KeywordSkill);
-  if (!inst.hidden && inst.negated !== "all") {
+  if (!inst.hidden && !skillsNegated(s, id)) {
     const d = def(ctx, s, id);
     const side = inst.flipped && d.back ? "back" : "front";
     for (const sk of skillsOf(d, side)) {
-      if (inst.negated.includes(sk.index)) continue;
+      if (skillNegated(s, id, sk.index)) continue;
       if (sk.keyword) out.push(sk.keyword);
       // Keywords sharing the line with a typed skill ("[Auto][Blocker]") belong to that line.
       for (const tag of sk.tags) {
@@ -351,6 +368,8 @@ export function condHolds(ctx: GameContext, s: GameState, frame: ScriptFrame, c:
       const l = s.players[c.side === "opponent" ? other(frame.master) : frame.master].leader;
       return !!l && s.cards[l].flipped === (c.flipped ?? true);
     }
+    case "did":
+      return !!frame.did?.[c.what];
     case "power":
       return resolveSelector(ctx, s, frame, c.sel).some((id) => {
         const n = powerOf(ctx, s, id);
@@ -410,14 +429,14 @@ export function staticEffects(ctx: GameContext, s: GameState): StaticEffect[] {
       // included only for the skills that name the hand, such as cost reducers.
       for (const src of [...cardsInPlay(s, p), ...ps.hand, ...ps.zDeck]) {
         const inst = s.cards[src];
-        if (!inst || inst.hidden || inst.negated === "all") continue;
+        if (!inst || inst.hidden || skillsNegated(s, src)) continue;
         const d = def(ctx, s, src);
         const side = inst.flipped && d.back ? "back" : "front";
         const scripts = compileCardCached(d, side);
         const inPlayNow = inPlay(s, src);
         for (const sk of skillsOf(d, side)) {
           if (sk.kind !== "permanent") continue;
-          if (inst.negated.includes(sk.index)) continue;
+          if (skillNegated(s, src, sk.index)) continue;
           const sc = scripts.bySkill[sk.index];
           if (!sc || sc.unsupported.length) continue;
           collectStatics(ctx, s, out, src, p, sc.ops, inPlayNow);

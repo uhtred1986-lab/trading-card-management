@@ -100,6 +100,8 @@ export type Cond =
   | { kind: "leaderFlipped"; side?: Side; flipped?: boolean }
   /** "If this card's power is 30000 or more" — any of the selected cards, as it stands now. */
   | { kind: "power"; sel: Selector; atLeast?: number; atMost?: number }
+  /** "If you added a card to your hand", "if you played a card" — whether an earlier step of this same skill did that. */
+  | { kind: "did"; what: "addToHand" | "play" }
   | { kind: "chose"; var: string }
   /** Whose turn it is (7-1). "opponent" is "during your opponent's turn". */
   | { kind: "isTurnPlayer"; who?: "you" | "opponent" };
@@ -126,6 +128,8 @@ export type Op =
   | { op: "comboPower"; target: Ref; amount: Amount; until: Duration }
   | { op: "grant"; target: Ref; keyword: KeywordSkill; until: Duration }
   | { op: "negateSkills"; target: Ref; until: Duration }
+  /** 23-5: "switch it to Hidden Mode" / "switch it to Revealed Mode" — Battle Cards in the Battle Area only. */
+  | { op: "hidden"; target: Ref; hidden: boolean }
   | { op: "addMarker"; target: Ref; n: Amount }
   | { op: "removeMarker"; target: Ref; n: Amount }
   | { op: "token"; name: string; power: number; comboCost: number | null; comboPower: number | null; colors: Color[]; n: Amount; side?: Side }
@@ -171,7 +175,7 @@ export type Op =
    * it for effects meant to happen once — the skill is still printed, and
    * still negatable by anything else, it simply never triggers again.
    */
-  | { op: "negateOwnSkill" }
+  | { op: "negateOwnSkill"; until?: "turn" }
   /** Kept for programs written before `forbid` existed; the same thing. */
   | { op: "cannotAttack"; target: Ref; until: Duration }
   /**
@@ -210,6 +214,8 @@ export interface ScriptFrame {
   skillIndex?: number;
   /** Set while a `choose` is waiting for an answer. */
   awaiting?: string;
+  /** What this program has done so far, for "if you added a card to your hand" (20-16). */
+  did?: { addToHand?: boolean; play?: boolean };
 }
 
 /** How each timing reads in the log when the card text does not say it better. */
@@ -407,12 +413,22 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
           const dest = op.to === "play" ? "battle" : op.to;
           move(ctx, s, ev, id, dest, owner, { position: op.position, reveal: op.reveal, reason: "effect" });
           if (op.mode) setMode(s, ev, id, op.mode, ctx);
+          if (dest === "hand" && owner === master) (frame.did ??= {}).addToHand = true;
         }
         break;
       }
 
       case "switchMode":
         for (const id of resolveRef(ctx, s, frame, op.target)) setMode(s, ev, id, op.mode, ctx);
+        break;
+
+      case "hidden":
+        // 23-5-1: only a Battle Card in a Battle Area can be face down.
+        for (const id of resolveRef(ctx, s, frame, op.target)) {
+          if (areaOf(s, id) !== "battle" || s.cards[id].hidden === op.hidden) continue;
+          s.cards[id].hidden = op.hidden;
+          note(ev, `${op.hidden ? "a Battle Card" : face(ctx, s, id).name} is switched to ${op.hidden ? "Hidden" : "Revealed"} Mode`);
+        }
         break;
 
       case "power":
@@ -427,9 +443,11 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         break;
 
       case "negateSkills":
+        // 9-1-5: for a duration it is a continuous effect that ends with the
+        // turn or the battle; "for the game" marks the card until it leaves play.
         for (const id of resolveRef(ctx, s, frame, op.target)) {
-          s.cards[id].negated = "all";
-          addEffect(s, ev, { target: id, kind: "negateSkills", value: 0, until: op.until });
+          if (op.until === "game") s.cards[id].negated = "all";
+          else addEffect(s, ev, { target: id, kind: "negateSkills", value: 0, until: op.until });
         }
         break;
 
@@ -518,10 +536,15 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         // same mechanism another card's negation uses — and it is cleared when
         // the card leaves play, because that is a different card (3-1-4).
         const inst = s.cards[frame.card];
-        if (inst && frame.skillIndex != null && inst.negated !== "all" && !inst.negated.includes(frame.skillIndex)) {
-          inst.negated.push(frame.skillIndex);
-          note(ev, `${face(ctx, s, frame.card).name}: that skill will not happen again`);
+        if (!inst || frame.skillIndex == null || inst.negated === "all" || inst.negated.includes(frame.skillIndex)) break;
+        if (op.until === "turn") {
+          // "Negate this skill for the turn": back next turn, so an effect, not a mark.
+          addEffect(s, ev, { target: frame.card, kind: "negateSkill", value: frame.skillIndex, until: "turn" });
+          note(ev, `${face(ctx, s, frame.card).name}: that skill will not happen again this turn`);
+          break;
         }
+        inst.negated.push(frame.skillIndex);
+        note(ev, `${face(ctx, s, frame.card).name}: that skill will not happen again`);
         break;
       }
 
@@ -543,6 +566,7 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         if (!targets.length) break;
         const steps: FlowStep[] = [];
         for (const id of targets) steps.push({ op: "play.resolve", card: id, player: master, mode: op.mode });
+        (frame.did ??= {}).play = true;
         frame.ip++;
         steps.push({ op: "script.step", frame });
         s.flow.unshift(...steps);
@@ -637,6 +661,7 @@ const OP_NAMES = new Set<Op["op"]>([
   "comboPower",
   "grant",
   "negateSkills",
+  "hidden",
   "addMarker",
   "removeMarker",
   "token",

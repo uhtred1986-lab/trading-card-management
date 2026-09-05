@@ -3,7 +3,7 @@
  * interpreter can queue triggers too without importing the engine
  * (which imports the interpreter).
  */
-import { areaOf, cardsInPlay, def, forbids, move, skillsOfInstance, type GameContext } from "./state";
+import { areaOf, cardsInPlay, def, forbids, move, skillNegated, skillsNegated, skillsOfInstance, type GameContext } from "./state";
 import type { GameEvent, GameState, PlayerId, Skill, Trigger } from "./types";
 import { PLAYERS } from "./types";
 
@@ -85,14 +85,14 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
 /** Queue every [Auto] skill on `card` whose printed trigger matches (9-6-2). */
 export function pendTriggers(ctx: GameContext, s: GameState, trigger: Trigger, card: string, subject?: string): void {
   const inst = s.cards[card];
-  if (!inst || inst.hidden || inst.negated === "all") return;
+  if (!inst || inst.hidden || skillsNegated(s, card)) return;
   const area = areaOf(s, card);
   // 9-1-3-1: a card's skills are only valid in its own area.
   const valid = area === "leader" || area === "battle" || area === "unison";
   if (!valid && trigger !== "koed" && trigger !== "comboed" && trigger !== "energyToDrop" && trigger !== "unisonToDrop") return;
   const master = masterOf(s, card);
   for (const sk of skillsOfInstance(ctx, s, card)) {
-    if (inst.negated.includes(sk.index)) continue;
+    if (skillNegated(s, card, sk.index)) continue;
     const isAuto = sk.kind === "auto";
     const isKeyword = sk.kind === "keyword" && keywordTriggers(sk, trigger);
     if (!isAuto && !isKeyword) continue;

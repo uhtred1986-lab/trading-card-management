@@ -50,6 +50,7 @@ import {
   skillsOfInstance,
   type GameContext,
   condHolds,
+  skillNegated,
 } from "./state";
 import type { Action, Applied, CardDef, CardInstance, Color, FlowStep, GameEvent, GameState, PendingAuto, PlayerId, PlayerState, Prompt, Skill, Trigger } from "./types";
 import { other, PLAYERS } from "./types";
@@ -564,7 +565,8 @@ function resolvePlay(ctx: EngineContext, s: GameState, ev: GameEvent[], card: st
       delete s.continuations.playRest;
     }
     if (s.continuations.playNegated === card) {
-      s.cards[card].negated = "all";
+      // "…with its skills negated for the turn": a turn-long effect, not a mark
+      // on the card, so the skills come back when the turn ends.
       addEffect(s, ev, { target: card, kind: "negateSkills", value: 0, until: "turn" });
       delete s.continuations.playNegated;
     }
@@ -1460,7 +1462,7 @@ function activatable(ctx: EngineContext, s: GameState, p: PlayerId, card: string
   const inst = s.cards[card];
   const inHand = areaOf(s, card) === "hand";
   const name = face(ctx, s, card).name;
-  if (inst.negated === "all" || inst.negated.includes(sk.index)) return null;
+  if (skillNegated(s, card, sk.index)) return null;
   // 20-14: a skill nothing forbids, on a card nothing forbids it on.
   if (forbids(ctx, s, "activateSkill", { player: p, card })) return null;
   if (sk.oncePerTurn && inst.usedThisTurn.includes(sk.index)) return null;

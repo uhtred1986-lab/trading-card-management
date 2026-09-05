@@ -273,6 +273,7 @@ const DELAY_PATTERNS: [RegExp, DelayTiming, DelayScope][] = [
   [/at (?:the )?end of (?:this |the |your )?turn/, "turnEnd", "thisTurn"],
   [/at (?:the )?end of (?:this|the) battle/, "battleEnd", "thisTurn"],
   [/at the (?:start|beginning) of your next main phase/, "mainStart", "yourNextTurn"],
+  [/at the (?:start|beginning) of your opponent's next main phase/, "mainStart", "opponentNextTurn"],
   [/at the (?:start|beginning) of your opponent's next turn/, "turnStart", "opponentNextTurn"],
   [/at the (?:start|beginning) of your next turn/, "turnStart", "yourNextTurn"],
   [/at the (?:start|beginning) of the next turn/, "turnStart", "nextTurn"],
@@ -361,6 +362,11 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   if ((m = /^this card is in (rest|active) mode$/.exec(t))) {
     return { cond: { kind: "count", sel: { special: "self", mode: m[1] as "rest" | "active" }, atLeast: 1 }, subject: { sel: { special: "self" } } };
   }
+  // "If you added a card to your hand", "if you chose to add 1 or more cards
+  // to your hand", "if you played a card" — about an earlier step of the same
+  // skill (20-16), which the interpreter remembers.
+  if (/^you (?:chose to )?add(?:ed)? (?:a card|1 or more cards?|any cards?|cards?) to your hand$/.test(t)) return { cond: { kind: "did", what: "addToHand" } };
+  if (/^you (?:chose to )?play(?:ed)? (?:a|1 or more|any|one or more) (?:battle )?cards?(?: this way)?$/.test(t)) return { cond: { kind: "did", what: "play" } };
   // "If your opponent's Leader Card's back is facing up" — awakened (22-2).
   if ((m = /^(your|your opponent's) leader(?: card)?'s back is facing up$/.exec(t))) {
     return { cond: { kind: "leaderFlipped", ...(m[1] === "your" ? {} : { side: "opponent" as const }) } };
@@ -621,6 +627,11 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
 
   // Deck manipulation.
   if ((m = /^place (?:up to )?(\d+) cards? from the top of your deck in (?:your |its owner's |the )?drop(?: area)?$/.exec(t))) return [{ op: "mill", n: Number(m[1]) }];
+  // "Place the top card of your deck in your Drop Area", "your opponent places
+  // the top 2 cards of their deck in their Drop Area" — the same move, either side.
+  if ((m = /^(your opponent places|place) the top (?:(\d+) )?cards? of (?:your|their) deck in (?:your|their|its owner's|the) drop(?: area)?$/.exec(t))) {
+    return [{ op: "mill", n: m[2] ? Number(m[2]) : 1, ...(m[1] === "place" ? {} : { side: "opponent" as const }) }];
+  }
   if (/^add the top card of your deck to your life$/.test(t)) return [{ op: "addLife", n: 1 }];
   if ((m = /^add cards from your life to your hand until you have (\d+) life(?: left)?$/.exec(t))) return [{ op: "lifeDownTo", n: Number(m[1]) }];
   if (/^place the (?:remaining|rest of the) cards at the bottom of your deck(?: in any order)?$/.test(t))
@@ -782,6 +793,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // Only "for the game" is read: "for the turn" would need the negation to
   // expire, and the instance's list of negated skills carries no duration.
   if (/^negate this skill for the (?:duration of the )?game$/.test(t)) return [{ op: "negateOwnSkill" }];
+  if (/^negate this skill for the (?:duration of the )?turn$/.test(t)) return [{ op: "negateOwnSkill", until: "turn" }];
 
   // 3-1-6-1: a Battle Card may sit in either player's Battle Area, so taking
   // control of one is a move to your own — mode and markers carried, because
@@ -810,6 +822,11 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   if ((m = /^switch (.*?) to (active|rest) mode$/.exec(t))) {
     const ref = refFor(m[1], c);
     return ref ? [{ op: "switchMode", target: ref, mode: m[2] as "active" | "rest" }] : null;
+  }
+  // 23-5: "switch it to Hidden Mode", "switch it to Revealed Mode".
+  if ((m = /^switch (.+?) to (hidden|revealed) mode$/.exec(t))) {
+    const ref = refFor(m[1], c);
+    return ref ? [{ op: "hidden", target: ref, hidden: m[2] === "hidden" }] : null;
   }
 
   // KO (5-12).
@@ -843,13 +860,15 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
 
   // Area moves (3-1).
   const MOVES: [RegExp, ScriptArea, { position?: "top" | "bottom"; mode?: "active" | "rest"; reveal?: boolean }][] = [
-    [/^place (.+?) (?:in|into) (?:its owner'?s?|their|your|the) drop(?: area)?$/, "drop", { reveal: true }],
-    [/^place (.+?) at the bottom of (?:its owner'?s?|their|your) deck$/, "deck", { position: "bottom" }],
-    [/^place (.+?) on top of (?:its owner'?s?|their|your) deck$/, "deck", { position: "top" }],
-    [/^return (.+?) to (?:its|their) owner'?s? hand$/, "hand", {}],
-    [/^return (.+?) to (?:your|their) hand$/, "hand", {}],
+    // "their owners' decks", "its owner's hand": several cards go to several
+    // owners' areas, which `moveTo` does one card at a time anyway.
+    [/^place (.+?) (?:in|into) (?:its owner'?s?|their owners?'?|their|your|the) drop(?: area)?s?$/, "drop", { reveal: true }],
+    [/^place (.+?) at the bottom of (?:its owner'?s?|their owners?'?|their|your) decks?(?: in any order)?$/, "deck", { position: "bottom" }],
+    [/^place (.+?) on top of (?:its owner'?s?|their owners?'?|their|your) decks?(?: in any order)?$/, "deck", { position: "top" }],
+    [/^return (.+?) to (?:its|their) owners?'?s? hands?$/, "hand", {}],
+    [/^return (.+?) to (?:your|their) hands?$/, "hand", {}],
     [/^add (.+?) to your hand$/, "hand", {}],
-    [/^send (.+?) to (?:your|their|its owner'?s?) warp$/, "warp", {}],
+    [/^send (.+?) to (?:your|their|its owner'?s?|their owners?'?) warps?$/, "warp", {}],
     [/^(?:add|place) (.+?) (?:to|in) your energy in rest mode$/, "energy", { mode: "rest", reveal: true }],
     [/^(?:add|place) (.+?) (?:to|in) your energy(?: area)?$/, "energy", { reveal: true }],
     [/^add (.+?) to your life$/, "life", {}],
@@ -1330,6 +1349,8 @@ function describeCond(c: Cond): string {
       return `${describeSelector(c.sel)} is ${c.not ? "not " : ""}in a battle`;
     case "leaderFlipped":
       return `${c.side === "opponent" ? "their" : "your"} leader ${c.flipped === false ? "has not" : "has"} awakened`;
+    case "did":
+      return c.what === "addToHand" ? "you added a card to your hand" : "you played a card";
     case "power": {
       const bound = c.atLeast != null ? `${c.atLeast} or more` : c.atMost != null ? `${c.atMost} or less` : "any";
       return `${describeSelector(c.sel)} has ${bound} power`;
@@ -1379,6 +1400,9 @@ export function describeScript(ops: Op[]): string {
         break;
       case "look":
         parts.push(`look at the top ${describeAmount(op.n)}`);
+        break;
+      case "hidden":
+        parts.push(`switch ${describeRef(op.target)} to ${op.hidden ? "Hidden" : "Revealed"} Mode`);
         break;
       case "ko":
         parts.push(`KO ${describeRef(op.target)}`);

@@ -242,7 +242,8 @@ export interface ContinuousEffect {
   id: number;
   /** The card it is about; empty for a rule that is about a player, not a card. */
   target: string;
-  kind: "power" | "comboPower" | "keyword" | "negateSkills" | "forbid";
+  /** `negateSkill`: one skill of the card, by index in `value` (9-1-5, "negate this skill for the turn"). */
+  kind: "power" | "comboPower" | "keyword" | "negateSkills" | "negateSkill" | "forbid";
   value: number | KeywordSkill;
   /** Set when `kind` is "forbid". */
   forbid?: Prohibition;

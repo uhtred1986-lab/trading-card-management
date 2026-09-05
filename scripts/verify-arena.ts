@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { apply, createGame, defsFrom, legalActions, seedFrom, type Action, type CardDef, type GameState, type PlayerId } from "../src/lib/arena/engine";
 import { parseSkills, keywordOf, orbsIn } from "../src/lib/arena/engine/cards";
 import { parseFilter, matches, parseCondition } from "../src/lib/arena/engine/filters";
-import { move, locate, playCost, powerOf, forbids, has, cardNow, comboCostOf } from "../src/lib/arena/engine/state";
+import { move, locate, playCost, powerOf, forbids, has, cardNow, comboCostOf, skillNegated } from "../src/lib/arena/engine/state";
 import { compileSkill, describeScript, parseConditionClause, splitClauses } from "../src/lib/arena/engine/compile";
 
 // ── skill text parsing ─────────────────────────────────────────────────────
@@ -2123,6 +2123,94 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   s = play(s, { type: "choose", player: "p1", cards: [small] });
   assert.ok(s.players.p2.drop.includes(small));
   assertConsistent(s);
+}
+
+{
+  // Wordings from the top of the "one clause away" list.
+  const one = (text: string) => compileSkill(parseSkills(`[Auto] When you play this card, ${text}`)[0]);
+  const ops = (text: string) => one(text).ops.map((o) => o.op);
+
+  // Several cards to several owners' areas.
+  assert.deepEqual(ops("choose 2 of your opponent's Battle Cards and return them to their owners' hands."), ["choose", "moveTo"]);
+  assert.deepEqual(ops("choose 2 of your opponent's Battle Cards and place them at the bottom of their owners' decks in any order."), ["choose", "moveTo"]);
+  assert.equal((one("choose 2 of your opponent's Battle Cards and place them at the bottom of their owners' decks in any order.").ops[1] as { position?: string }).position, "bottom");
+  assert.deepEqual(ops("choose 2 of your opponent's Battle Cards and send them to their owners' Warps."), ["choose", "moveTo"]);
+
+  // The top of the deck to the Drop, either side.
+  assert.deepEqual(one("your opponent places the top card of their deck in their Drop Area.").ops, [{ op: "mill", n: 1, side: "opponent" }]);
+  assert.deepEqual(one("place the top 2 cards of your deck in your Drop Area.").ops, [{ op: "mill", n: 2 }]);
+
+  // A delay the table did not have.
+  const later = one("at the start of your opponent's next Main Phase, draw 1 card.").ops[0] as { op: string; at?: string; scope?: string };
+  assert.equal(later.op, "delay");
+  assert.equal(later.at, "mainStart");
+  assert.equal(later.scope, "opponentNextTurn");
+
+  // Hidden Mode (23-5).
+  assert.deepEqual(ops("choose 1 of your opponent's Battle Cards and switch it to Hidden Mode."), ["choose", "hidden"]);
+  DEFS.HIDER = { ...DEFS.V1, id: "HIDER", name: "HIDER", energyCost: 1, skill: "[Auto] When you play this card, choose 1 of your opponent's Battle Cards and switch it to Hidden Mode." };
+  let s = arena({ hand: ["HIDER"], energy: ["V1"], oppBattle: ["V-BLUE"] });
+  const vb = s.players.p2.battle[0];
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "HIDER") });
+  if (s.prompt.kind === "chooseCards") s = play(s, { type: "choose", player: "p1", cards: [vb] });
+  assert.equal(s.cards[vb].hidden, true, "23-5-1: face down in the Battle Area");
+  assert.ok(s.players.p2.battle.includes(vb), "and still there");
+
+  // "If you added a card to your hand" remembers what this skill did (20-16).
+  const did = one("choose up to 1 card in your Drop Area and add it to your hand. If you added a card to your hand, draw 1 card.");
+  assert.deepEqual(did.unsupported, []);
+  const tail = did.ops[did.ops.length - 1] as { op: string; cond?: { kind: string; what?: string } };
+  assert.equal(tail.op, "if");
+  assert.deepEqual(tail.cond, { kind: "did", what: "addToHand" });
+  DEFS.DIDDRAW = { ...DEFS.V1, id: "DIDDRAW", name: "DIDDRAW", energyCost: 1, skill: "[Auto] When you play this card, choose up to 1 card in your Drop Area and add it to your hand. If you added a card to your hand, draw 1 card." };
+  let d = arena({ hand: ["DIDDRAW", "DIDDRAW"], energy: ["V1", "V1"] });
+  let hand = d.players.p1.hand.length;
+  d = play(d, { type: "play", player: "p1", card: find(d, "p1", "hand", "DIDDRAW") });
+  if (d.prompt.kind === "chooseCards") d = play(d, { type: "choose", player: "p1", cards: [] });
+  assert.equal(d.players.p1.hand.length, hand - 1, "an empty Drop: nothing added, nothing drawn");
+  const dropped = d.players.p1.deck[0];
+  move({ defs: DEFS }, d, [], dropped, "drop", "p1");
+  hand = d.players.p1.hand.length;
+  d = play(d, { type: "play", player: "p1", card: find(d, "p1", "hand", "DIDDRAW") });
+  assert.equal(d.prompt.kind, "chooseCards");
+  d = play(d, { type: "choose", player: "p1", cards: [dropped] });
+  assert.equal(d.players.p1.hand.length, hand - 1 + 2, "the card from the Drop, then the draw it earned");
+  assertConsistent(d);
+}
+
+{
+  // Negation for a duration (9-1-5) is a continuous effect: it was being
+  // written into the state and never read, so "negate its skills for the
+  // turn" did nothing — and the card was marked negated for the game as well.
+  const ctx = { defs: DEFS };
+  DEFS.MUTER = { ...DEFS.V1, id: "MUTER", name: "MUTER", energyCost: 1, skill: "[Auto] When you play this card, choose 1 of your opponent's Battle Cards and negate its skills for the turn." };
+  assert.deepEqual(compileSkill(parseSkills(DEFS.MUTER.skill!)[0]).unsupported, []);
+  let s = arena({ hand: ["MUTER"], energy: ["V1"], oppBattle: ["BLOCKER"] });
+  const blocker = s.players.p2.battle[0];
+  assert.ok(has(ctx, s, blocker, "Blocker"));
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "MUTER") });
+  if (s.prompt.kind === "chooseCards") s = play(s, { type: "choose", player: "p1", cards: [blocker] });
+  assert.ok(!has(ctx, s, blocker, "Blocker"), "negated for the turn");
+  assert.deepEqual(s.cards[blocker].negated, [], "but not marked for the game");
+  s = play(s, { type: "attack", player: "p1", attacker: s.players.p1.leader, target: s.players.p2.leader });
+  assert.equal(s.prompt.kind, "combo", "no [Blocker] to offer");
+  s = play(s, { type: "pass", player: "p1" }, { type: "pass", player: "p2" });
+  s = play(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+  assert.ok(has(ctx, s, blocker, "Blocker"), "back when the turn ends");
+
+  // "Negate this skill for the turn" is the same idea for one skill.
+  DEFS.SELFMUTET = { ...DEFS.V1, id: "SELFMUTET", name: "SELFMUTET", skill: "[Auto] When this card attacks, draw 1 card, then negate this skill for the turn." };
+  const sc = compileSkill(parseSkills(DEFS.SELFMUTET.skill!)[0]);
+  assert.deepEqual(sc.ops, [{ op: "draw", n: 1 }, { op: "negateOwnSkill", until: "turn" }]);
+  let t = arena({ battle: ["SELFMUTET"] });
+  const sm = t.players.p1.battle[0];
+  const hand = t.players.p1.hand.length;
+  t = play(t, { type: "attack", player: "p1", attacker: sm, target: t.players.p2.leader }, { type: "pass", player: "p1" }, { type: "pass", player: "p2" });
+  assert.equal(t.players.p1.hand.length, hand + 1);
+  assert.ok(skillNegated(t, sm, 0), "off for the rest of the turn");
+  assert.deepEqual(t.cards[sm].negated, []);
+  t = play(t, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+  assert.ok(!skillNegated(t, sm, 0), "and back next turn");
 }
 
 console.log("verify-arena: all checks passed");
