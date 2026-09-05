@@ -191,6 +191,8 @@ function filterFor(phrase: string, area: ScriptArea | null): CardFilter | undefi
 interface Ctx {
   /** The variable the last `choose` bound. */
   last: string | null;
+  /** The variable bound by the last "play …" choice — what "the card you played with this skill" means. */
+  lastPlayed: string | null;
   /**
    * What "it"/"them" points at. Card text carries the subject from clause to
    * clause — "Switch this card to Active Mode and it gets +5000 power" means
@@ -221,7 +223,10 @@ function refFor(clause: string, c: Ctx): Ref | null {
   // "…play up to 1 card from under this card, and place this card under the
   // played card": the card this skill just played, if it played one; otherwise
   // the card the trigger was about ("When you play a <Goku> card, …").
-  if (/\bthe played card\b|\bthe card (?:that was )?played\b/i.test(clause)) return c.last ? { var: c.last } : { sel: { special: "subject" } };
+  if (/\bthe played card\b|\bthe card (?:that was |you )?played(?: with this skill)?\b/i.test(clause)) {
+    if (c.lastPlayed) return { var: c.lastPlayed };
+    return c.last ? { var: c.last } : { sel: { special: "subject" } };
+  }
   // "Add a marker to the chosen card": the last choice.
   if (/\bthe chosen cards?\b/i.test(clause)) return c.last ? { var: c.last } : c.lastTarget;
   if (IT.test(clause.toLowerCase())) {
@@ -395,6 +400,8 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   if (/^you negated (?:a|your opponent's) leader(?: card)?'s attack(?: with this skill)?$/.test(t)) return { cond: { kind: "did", what: "negateLeaderAttack" } };
   if (/^you negated (?:an|the|that) attack(?: with this skill)?$/.test(t)) return { cond: { kind: "did", what: "negateAttack" } };
   if (/^you ko'?d (?:a|1 or more|any|one or more) (?:battle )?cards?(?: (?:this way|with this skill))?$/.test(t)) return { cond: { kind: "did", what: "ko" } };
+  if (/^you (?:drew|draw) (?:a|1 or more|any) cards?(?: with this skill)?$/.test(t)) return { cond: { kind: "did", what: "draw" } };
+  if (/^you (?:did not|didn'?t|do not|don'?t) draw (?:a|any) cards?(?: with this skill)?$/.test(t)) return { cond: { kind: "not", cond: { kind: "did", what: "draw" } } };
   // "If your opponent's Leader Card's back is facing up" — awakened (22-2).
   if ((m = /^(your|your opponent's) leader(?: card)?'s back is facing up$/.exec(t))) {
     return { cond: { kind: "leaderFlipped", ...(m[1] === "your" ? {} : { side: "opponent" as const }) } };
@@ -672,7 +679,8 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     return [{ op: "mill", n: m[2] ? Number(m[2]) : 1, ...(theirs ? { side: "opponent" as const } : {}) }];
   }
   if (/^add the top card of your deck to your life$/.test(t)) return [{ op: "addLife", n: 1 }];
-  if ((m = /^add cards from your life to your hand until you have (\d+) life(?: left)?$/.exec(t))) return [{ op: "lifeDownTo", n: Number(m[1]) }];
+  // Printed as "add card … to you hand" on some sets; the meaning is the same.
+  if ((m = /^add cards? from your life to your? hand until you have (\d+) life(?: left)?$/.exec(t))) return [{ op: "lifeDownTo", n: Number(m[1]) }];
   if (/^place the (?:remaining|rest of the) cards at the bottom of your deck(?: in any order)?$/.test(t))
     return [{ op: "moveTo", target: { sel: { fromVar: "looked" } }, to: "deck", position: "bottom" }];
   // "The rest" is whatever is left of the cards just looked at.
@@ -923,11 +931,13 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     const host = refFor(m[1], c);
     return host ? [{ op: "moveTo", target: { sel: { special: "self" } }, to: "under", under: host }] : null;
   }
-  // "Place this card under the played card", "…under your Leader", "…under
-  // {Wickedest Clan}": hosts the text names precisely, so no guessing.
-  if ((m = /^(?:place|put) this card (?:face ?up )?under (the played card|the card (?:that was )?played|your leader(?: card)?|\{[^}]+\}(?: in your battle area)?)$/.exec(t))) {
-    const host = refFor(m[1], c);
-    return host ? [{ op: "moveTo", target: { sel: { special: "self" } }, to: "under", under: host }] : null;
+  // "Place this card under the played card", "place it under the card you
+  // played with this skill", "…under your Leader", "…under {Wickedest Clan}":
+  // hosts the text names precisely, so no guessing.
+  if ((m = /^(?:place|put) (.+?) (?:face ?up )?under (the played card|the card (?:that was |you )?played(?: with this skill)?|your leader(?: card)?|\{[^}]+\}(?: in your battle area)?)$/.exec(t))) {
+    const host = refFor(m[2], c);
+    const ref = refFor(m[1], c);
+    return host && ref ? withChoice(ref, clause, c, (target) => ({ op: "moveTo", target, to: "under", under: host })) : null;
   }
 
   // "Place up to 1 yellow ≪Frieza Clan≫ card from your Drop under {Wickedest
@@ -987,6 +997,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     if ("sel" in ref) {
       // "play up to 1 X from your hand" is a choice followed by the play.
       const v = `p${c.n++}`;
+      c.lastPlayed = v;
       return [
         { op: "choose", sel: ref.sel, as: v, reason: clause },
         { op: "play", target: { var: v }, ...(mode ? { mode } : {}) },
@@ -1145,7 +1156,7 @@ export function compileSkill(skill: Skill): Script {
   const text = stripNotes(skill.effect);
   if (!text) return { ops: [], unsupported: [] };
   const unsupported: string[] = [];
-  const c: Ctx = { last: null, lastTarget: null, lastOp: null, replacing: null, n: 0, raw: skill.effect };
+  const c: Ctx = { last: null, lastPlayed: null, lastTarget: null, lastOp: null, replacing: null, n: 0, raw: skill.effect };
   const modal = splitModal(text);
   const clauses = splitClauses(modal ? modal.head : text);
   // [Awaken] and [Wish] check their own condition in the engine before the
@@ -1483,7 +1494,7 @@ function describeCond(c: Cond): string {
     case "leaderFlipped":
       return `${c.side === "opponent" ? "their" : "your"} leader ${c.flipped === false ? "has not" : "has"} awakened`;
     case "did":
-      return c.what === "addToHand" ? "you added a card to your hand" : c.what === "play" ? "you played a card" : c.what === "negateLeaderAttack" ? "you negated a Leader's attack" : c.what === "ko" ? "you KO'd a card" : "you negated the attack";
+      return c.what === "addToHand" ? "you added a card to your hand" : c.what === "play" ? "you played a card" : c.what === "negateLeaderAttack" ? "you negated a Leader's attack" : c.what === "ko" ? "you KO'd a card" : c.what === "draw" ? "you drew a card" : "you negated the attack";
     case "not":
       return `not (${describeCond(c.cond)})`;
     case "power": {

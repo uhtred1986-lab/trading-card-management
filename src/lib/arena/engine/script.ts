@@ -103,7 +103,7 @@ export type Cond =
   /** "If this card's power is 30000 or more" — any of the selected cards, as it stands now. */
   | { kind: "power"; sel: Selector; atLeast?: number; atMost?: number }
   /** "If you added a card to your hand", "if you played a card" — whether an earlier step of this same skill did that. */
-  | { kind: "did"; what: "addToHand" | "play" | "negateAttack" | "negateLeaderAttack" | "ko" }
+  | { kind: "did"; what: "addToHand" | "play" | "negateAttack" | "negateLeaderAttack" | "ko" | "draw" }
   /** "If you don't" (20-16): the opposite of a condition. */
   | { kind: "not"; cond: Cond }
   | { kind: "chose"; var: string }
@@ -230,7 +230,7 @@ export interface ScriptFrame {
   /** Set while a `choose` is waiting for an answer. */
   awaiting?: string;
   /** What this program has done so far, for "if you added a card to your hand" (20-16). */
-  did?: { addToHand?: boolean; play?: boolean; negateAttack?: boolean; negateLeaderAttack?: boolean; ko?: boolean };
+  did?: { addToHand?: boolean; play?: boolean; negateAttack?: boolean; negateLeaderAttack?: boolean; ko?: boolean; draw?: boolean };
 }
 
 /** How each timing reads in the log when the card text does not say it better. */
@@ -264,7 +264,12 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         break;
 
       case "draw":
-        for (const p of sideOf(master, op.side)) drawCards(ctx, s, ev, p, amount(ctx, s, frame, op.n));
+        for (const p of sideOf(master, op.side)) {
+          const before = s.players[p].hand.length;
+          drawCards(ctx, s, ev, p, amount(ctx, s, frame, op.n));
+          // "If you did not draw a card with this skill" (20-16).
+          if (p === master && s.players[p].hand.length > before) (frame.did ??= {}).draw = true;
+        }
         break;
 
       case "discard": {

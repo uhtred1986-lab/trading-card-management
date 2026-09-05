@@ -2377,6 +2377,12 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.deepEqual((kod.ops[kod.ops.length - 1] as { cond: unknown }).cond, { kind: "did", what: "ko" });
   assert.ok(autoTriggerMatches(parseSkills("[Auto] When you Combo with this card, draw 1 card.")[0], "comboed"));
 
+  assert.deepEqual(one("[Awaken] If you have 5 or more ≪Saiyan≫ cards in your Warp: Draw 2 cards and add card from your life to you hand until you have 6 life left.").ops, [{ op: "draw", n: 2 }, { op: "lifeDownTo", n: 6 }]);
+  const under = one("[Activate: Main] Choose up to 1 <Majin Buu> card from your Energy Area and play it. If you played a card, choose up to 1 Battle Card in your Drop Area and place it under the card you played with this skill.");
+  assert.deepEqual(under.unsupported, []);
+  const noDraw = one("[Auto] When this card attacks, look at the top card of your deck, and if it's a red card, add it to your hand. If you did not draw a card with this skill, this card gets +5000 power for the battle.");
+  assert.ok(noDraw.unsupported.length <= 1, "only the look-and-add may still be a gap here");
+
   // "Draw until you have 4" draws what is missing, and nothing when there is nothing missing.
   DEFS.REFILL = { ...DEFS.V1, id: "REFILL", name: "REFILL", energyCost: 1, skill: "[Auto] When you play this card, draw cards until you have 4 cards in your hand." };
   let s = arena({ hand: ["REFILL"], energy: ["V1"] });
