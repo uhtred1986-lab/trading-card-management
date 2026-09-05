@@ -193,6 +193,11 @@ the same style.
 `CARDTRADER_API_TOKEN`, `CARDTRADER_ENABLED`. `CRON_SECRET` and `XIMILAR_API_KEY` are optional.
 The same variables must exist in Vercel's project settings for the deployment. See `.env.example`.
 
+The Neon database is in **`eu-central-1`** (AWS Frankfurt), so `vercel.json` pins functions to
+**`fra1`**, the Vercel region co-located with it. That pin used to live only in the Vercel dashboard,
+where nothing in the repo recorded it and nothing would catch it drifting back to the `iad1`
+default — which would put the Atlantic in the middle of every database round-trip.
+
 ## Conventions
 
 - Phone and desktop layouts from the start: `BottomTabs` on phones, `HeaderNav` from `sm` up;
