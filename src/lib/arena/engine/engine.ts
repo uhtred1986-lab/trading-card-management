@@ -1117,6 +1117,9 @@ function chooseApply(ctx: EngineContext, s: GameState, ev: GameEvent[], step: Ex
       } else {
         stackOnto(ctx, s, ev, info.card, target, p);
       }
+      // 22-5: "when a card evolves into this card" — the card that just
+      // arrived by evolving, which an ordinary "played" does not distinguish.
+      pendTriggers(ctx, s, "evolvedInto", info.card, target);
       s.flow.unshift({ op: "play.resolve", card: info.card, player: p });
       return "done";
     }
@@ -1859,6 +1862,9 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
         }
         // 22-10-7: the card goes to the Drop; its effect resolves as the counter motion.
         move(ctx, s, ev, action.card, "drop", p, { reason: "effect", reveal: true });
+        // "When your opponent activates a [Counter] skill" (4-3): watched by
+        // the other player's cards in play, with the counter card as subject.
+        for (const id of cardsInPlay(s, other(p))) pendTriggers(ctx, s, "opponentCounter", id, action.card);
         // 9-7: a counter is itself an action that can be countered. The answer
         // is offered first and resolves first (9-7-3, descending order), which
         // is simply what the flow being a stack already does — and a

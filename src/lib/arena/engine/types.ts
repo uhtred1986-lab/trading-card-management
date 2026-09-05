@@ -349,6 +349,10 @@ export type Trigger =
    */
   | "removedFromBattle"
   | "removedByOpponent"
+  /** "When a card evolves into this card" (22-5): this card entered play by [Evolve], not by an ordinary play. */
+  | "evolvedInto"
+  /** "When your opponent activates a [Counter] skill" (4-3): watched by your cards in play. */
+  | "opponentCounter"
   /**
    * A card *placed* in a Battle Area rather than played (5-5): by a skill, by
    * [Over Realm], by an Evolve. "When this card is played" does not cover it,

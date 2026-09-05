@@ -3032,9 +3032,12 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   // "Or KO'd" is the KO half of the same sentence, and belongs to `koed`.
   assert.ok(fires("[Auto] When this card is removed from a Battle Area by a skill or KO'd, draw 1 card.", "koed"));
   assert.ok(fires("[Auto] When this card is removed from a Battle Area by a skill or KO'd, draw 1 card.", "removedFromBattle"));
+  assert.ok(fires("[Auto] When a card evolves into this card, draw 1 card.", "evolvedInto"));
+  assert.ok(fires("[Auto] If your Leader Card is red: When your opponent activates a [Counter] skill, deal 1 damage to them.", "opponentCounter"));
   // A card that only says "played" must not fire on a placement, or every
   // skill that puts a card into play would run twice.
   assert.ok(!fires("[Auto] When you play this card, draw 1 card.", "placed"));
+  assert.ok(!fires("[Auto] When you play this card, draw 1 card.", "evolvedInto"));
 }
 
 {

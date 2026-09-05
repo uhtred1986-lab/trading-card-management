@@ -60,6 +60,10 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       return /when this card is removed from [a-z' ]*battle area by (?:a|your|one of your) skill/.test(t);
     case "removedByOpponent":
       return /when this card is removed from [a-z' ]*battle area by (?:an? |one of )?(?:your )?opponent'?s? skill/.test(t);
+    case "evolvedInto":
+      return /when a card evolves into this card|when this card evolves\b/.test(t);
+    case "opponentCounter":
+      return /when your opponent activates a \[counter/.test(t);
     case "kos":
       return /when this card (?:attacks and )?kos? (?:an opponent's|your opponent's|one of your opponent's|a) (?:battle card|card)/.test(t);
     case "leaderPlaced":

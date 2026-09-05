@@ -38,6 +38,8 @@ const TRIGGERS: Trigger[] = [
   "placed",
   "removedFromBattle",
   "removedByOpponent",
+  "evolvedInto",
+  "opponentCounter",
   "energyToDrop",
   "unisonToDrop",
   "markerRemoved",
