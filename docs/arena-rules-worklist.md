@@ -283,7 +283,7 @@ engine bugs: **skill negation for a turn was written into `s.effects` and never
 read** (and marked the card for the game), and **a move with a number in its
 target moved every matching card** ("add 1 card from your Drop to your hand"
 added the whole Drop) — `withChoice` now puts a choice in front. End of day:
-catalog **78.9 %**, decks **87.9 %**, permanent 49.0 %, one clause away 1,469.
+catalog **79.1 %**, decks **89.3 %**, permanent 49.0 %, one clause away ~1,450.
 
 **Next stage: `docs/arena-next-stage-spec.md`** — a self-contained brief with
 the code map, the checklists for a new op/condition/trigger/keyword, the
