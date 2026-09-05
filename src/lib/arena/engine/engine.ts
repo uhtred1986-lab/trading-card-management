@@ -623,6 +623,12 @@ function resolvePlay(ctx: EngineContext, s: GameState, ev: GameEvent[], card: st
   // "When your opponent plays a Battle Card": watched by every card the other
   // player has in play, with the played card as the subject.
   for (const id of cardsInPlay(s, other(p))) pendTriggers(ctx, s, "opponentPlayed", id, card);
+  // "When your blue ≪God≫ card is played", "when you play a red ≪Android≫
+  // card": your own side of the same moment, watched by your cards in play —
+  // most often a Leader. The card just played is one of them: its skills are
+  // valid in the area it now sits in (9-1-3-1) and the event it names has
+  // happened, so a ≪God≫ card printing that line does see its own arrival.
+  for (const id of cardsInPlay(s, p)) pendTriggers(ctx, s, "youPlayed", id, card);
   // 22-35-2 / 22-36-2: each pends when its owner plays *another* card with the
   // **same** keyword. They used to cross-match, so a [Villainous] card played
   // set off every [Heroic] on the board.

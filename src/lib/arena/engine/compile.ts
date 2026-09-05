@@ -261,6 +261,39 @@ export function parseTarget(phrase: string): Selector | null {
   return { side, area: area ?? undefined, filter, count, upTo, mode, fromVar, take, fromEnd };
 }
 
+/**
+ * What an [Auto]'s trigger clause said about the card it is *about*, when it
+ * said more than "a card" (9-6-2).
+ *
+ * Only the shapes where the subject is unambiguous — the player playing a card
+ * and the card being played or attacking. Anything else returns nothing, and a
+ * trigger with no filter fires as it always did: an over-fire is bad, but a
+ * *wrong* filter would stop a skill that should happen, which is worse.
+ */
+function subjectFilterOf(trigger: string): CardFilter | undefined {
+  const t = trigger
+    .toLowerCase()
+    .replace(/^\s*when\s+/, "")
+    .replace(/[,.]\s*$/, "")
+    .trim();
+  const phrase =
+    /^(?:your opponent|you) plays? (?:an?|1|up to \d+|\d+) (.+?)(?: (?:from|in|to|with|by) .*)?$/.exec(t)?.[1] ??
+    // The word "card" stays in the phrase: taking it out of the capture let
+    // the lazy group stop at "battle", and "battle" alone narrows nothing.
+    /^(?:your|your opponent's) (.+?) is played\b/.exec(t)?.[1] ??
+    /^(?:your|your opponent's) (.+?) attacks\b/.exec(t)?.[1] ??
+    null;
+  // "A Battle Card **or** Unison Card" is two kinds, and `parseFilter` keeps
+  // only one of them — which would stop the skill on the other. A filter that
+  // is wrong in that direction is worse than no filter at all, so alternatives
+  // are refused outright.
+  if (!phrase) return undefined;
+  // …but "an energy cost of 5 **or** less" is one bound, not two kinds, and
+  // `parseFilter` reads it whole.
+  if (/ or /.test(phrase.replace(/\b\d+ or (?:less|fewer|more|greater|higher|lower)\b/g, ""))) return undefined;
+  return filterFor(phrase, null);
+}
+
 /** Only keep a filter when the phrase actually narrows the cards. */
 function filterFor(phrase: string, area: ScriptArea | null): CardFilter | undefined {
   const f = parseFilter(phrase);
@@ -1741,7 +1774,17 @@ export function compileSkill(skill: Skill): Script {
     // attacks a Battle Card, **it** gets +10000 power for the turn" — a
     // trigger about some *other* card, which the engine already binds as the
     // trigger's subject. Without this, "it" had nothing to point at.
-    else if (/\byour\b|\byour opponent'?s\b/i.test(trigger)) c.lastTarget = { sel: { special: "subject" } };
+    else if (/\byour\b|\byour opponent'?s\b/i.test(trigger)) {
+      c.lastTarget = { sel: { special: "subject" } };
+      // The dropped clause also said *which* card, and dropping it dropped
+      // that: "when your opponent plays a **Battle Card**" fired when they
+      // played an Extra, and "when your **≪Saiyan≫** card attacks" fired for
+      // anything of theirs that attacked. The engine binds the card as the
+      // trigger's subject, so what the clause said about it becomes a
+      // condition on that subject and the skill stays where it was printed.
+      const subject = subjectFilterOf(trigger);
+      if (subject) triggerCond = { kind: "count", sel: { special: "subject", filter: subject }, atLeast: 1 };
+    }
     // "When this card attacks and KOs an opponent's Battle Card", "when this
     // card is revealed from the top of your deck and placed in your Drop Area"
     // — the trigger splits on its "and", and the second half is still the

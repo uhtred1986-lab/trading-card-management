@@ -37,6 +37,7 @@ const TRIGGERS: Trigger[] = [
   "battleEnd",
   "comboed",
   "opponentPlayed",
+  "youPlayed",
   "opponentAttacks",
   "opponentCombos",
   "youCombo",

@@ -874,6 +874,42 @@ Orphan triggers 726 → 751: the residue is honest, being the mid-sentence
 timings that used to match spuriously and whose skills have no other recognised
 trigger.
 
+## Done: which card the trigger was about (5 Sep 2026)
+
+Following the same thread. An [Auto]'s trigger clause is dropped before the
+effect is compiled — by the time it resolves the trigger has fired, so the
+clause is not an instruction. But the clause also says **which card** the
+skill is about, and dropping it dropped that: "when your opponent plays a
+**Battle Card**" fired when they played an Extra, and "when your **≪Turtle
+School≫** card attacks" fired for anything of theirs that attacked.
+
+The engine already binds the card as the trigger's `subject`, so what the
+clause said about it now becomes a condition on that subject
+(`subjectFilterOf`), and the whole program sits inside it. Two guards, both of
+them the same principle — **a wrong filter stops a skill that should happen,
+which is worse than an over-fire**:
+
+- Only the shapes where the subject is unambiguous: the player playing a card,
+  and the card being played or attacking. Anything else keeps firing as before.
+- A phrase naming **alternatives** ("a Battle Card **or** Unison Card") is
+  refused outright, because `parseFilter` keeps only one of the two kinds. "An
+  energy cost of 5 **or** less" is one bound and not two kinds, so the numeric
+  wordings are taken out before that test.
+
+With the filter in place it became safe to add **`youPlayed`** — "when your
+blue ≪God≫ card is played", "when you play a red ≪Android≫ card", the mirror of
+`opponentPlayed` and most often printed on a Leader. About 25 cards; orphan
+triggers 751 → 690. A trigger that names *how* the card was played ("by a
+[Union] skill", "using [Swap]", "from your life") is left out, because the
+engine cannot check that and firing on an ordinary play would be worse than
+not firing at all.
+
+**One judgement call to confirm with the owner:** the card just played is among
+the watchers, so a ≪God≫ card printing "when your blue ≪God≫ card is played"
+sees its own arrival. Its skills are valid in the area it now sits in (9-1-3-1)
+and the event it names has happened, which is the reading the rules text
+supports — but the manual does not say so outright.
+
 ## Conventions worth keeping
 
 - Card text is **read, never interpreted**: if the compiler cannot read a

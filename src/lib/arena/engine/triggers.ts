@@ -148,6 +148,17 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     // sentence names it. "Plays this card" is never how a card says it.
     case "opponentPlayed":
       return /when your opponent plays (?:a|an|1|up to)\b|when your opponent's [a-z ]*card is played|when a card is played by your opponent/.test(t);
+    // Your own side of `opponentPlayed`: a card of yours watching another of
+    // your cards arrive. Not "this card" — that is `played`, the card's own
+    // arrival — and not the opponent's.
+    //
+    // A trigger that names *how* the card was played ("by a [Union] skill",
+    // "using [Swap]", "from your life") is left out: the engine cannot check
+    // that, and firing on an ordinary play would be worse than not firing.
+    case "youPlayed":
+      if (/when (?:you play this card|this card is played)/.test(t)) return false;
+      if (/\bis played (?:by|using|from)\b|\bwhen you play [^,]*\b(?:using|from your)\b/.test(t)) return false;
+      return /when you play (?:an?|1|up to \d+|\d+)\b/.test(t) || /when your (?!opponent)[^,]{0,80} is played\b/.test(t);
     case "opponentAttacks":
       return /when your opponent attacks\b|when your opponent's [a-z ]*cards? attacks?\b|when one of your opponent's [a-z ]*cards? attacks\b/.test(t);
     case "opponentCombos":

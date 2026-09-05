@@ -376,6 +376,8 @@ export type Trigger =
    * "that card" and "it" point at it.
    */
   | "opponentPlayed"
+  /** Your own side of it: "when your blue ≪God≫ card is played", "when you play a red ≪Android≫ card". */
+  | "youPlayed"
   | "opponentAttacks"
   | "opponentCombos"
   /**

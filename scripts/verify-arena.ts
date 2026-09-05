@@ -2943,9 +2943,23 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   // "When your ≪Turtle School≫ card attacks …, **it** gets +10000 power" — a
   // trigger about a card other than this one. "It" is the trigger's subject,
   // which the engine binds; before this it pointed at nothing.
+  //
+  // 9-6-2: and the clause also said *which* card. Dropping it dropped that
+  // too, so the skill fired for anything of yours that attacked; what the
+  // clause said is now a condition on the same subject, and the effect sits
+  // inside it.
   const other = one("[Auto] When your green ≪Turtle School≫ card with an energy cost of 5 or less attacks a Battle Card, it gets +10000 power for the turn.");
   assert.deepEqual(other.unsupported, []);
-  assert.deepEqual((other.ops[0] as { target: { sel?: { special?: string } } }).target.sel?.special, "subject");
+  const gate = other.ops[0] as { op: string; cond?: { sel?: { special?: string; filter?: { traits: string[]; costMax: number | null } } }; then?: { target: { sel?: { special?: string } } }[] };
+  assert.equal(gate.op, "if");
+  assert.equal(gate.cond?.sel?.special, "subject");
+  assert.deepEqual(gate.cond?.sel?.filter?.traits, ["turtle school"]);
+  assert.equal(gate.cond?.sel?.filter?.costMax, 5);
+  assert.deepEqual(gate.then?.[0].target.sel?.special, "subject");
+  // A trigger that says no more than "a card" keeps firing as it always did:
+  // an over-fire is bad, but a wrong filter would stop a skill that should
+  // happen, which is worse.
+  assert.equal(one("[Auto] When your opponent plays a card, draw 1 card, then draw 1 card.").ops[0].op, "draw");
   // A trigger that does name this card still means this card.
   assert.deepEqual((one("[Auto] When this card attacks, it gets +5000 power for the turn.").ops[0] as { target: { sel?: { special?: string } } }).target.sel?.special, "self");
 }
@@ -3022,9 +3036,12 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.deepEqual(may.ops[1], { op: "switchMode", target: { var: "c0" }, mode: "rest" });
 
   // The same sentence without "you may" is not declinable.
+  // (This one names the kind of card, so the whole program sits inside the
+  // condition on the trigger's subject — see the ≪Turtle School≫ case above.)
   const must = one("[Auto] When your opponent's Battle Card is played, choose that card and switch it to Rest Mode.");
   assert.deepEqual(must.unsupported, []);
-  assert.equal((must.ops[0] as { sel: { upTo?: boolean } }).sel.upTo, undefined);
+  const inside = (must.ops[0] as { op: string; then: unknown[] }).then;
+  assert.equal((inside[0] as { sel: { upTo?: boolean } }).sel.upTo, undefined);
 
   // "Your Leaders" is the Leader Area; the plural was not in the area words,
   // so the phrase fell through to "cards on the table" and included the
@@ -4162,6 +4179,26 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   const ended = play(scheduled, { type: "endMain", player: "p2" });
   assert.equal(ended.delayed.length, 1, "the opponent's-turn one fired, the own-turn one waits");
   assert.equal(ended.delayed[0].scope, "yourNextTurn");
+}
+
+{
+  // 9-6-2: "when your ≪Saiyan≫ card is played" is your own side of a moment
+  // the engine only announced to the opponent, and the kind of card it names
+  // is part of the trigger — dropping that clause dropped the filter with it,
+  // so the skill fired for anything at all.
+  DEFS.SAIYANWATCH = { ...DEFS.V1, id: "SAIYANWATCH", name: "SAIYANWATCH", skill: "[Auto] When your ≪Saiyan≫ card is played, draw 1 card." };
+  DEFS.ASAIYAN = { ...DEFS.V1, id: "ASAIYAN", name: "ASAIYAN", energyCost: 1, traits: ["Saiyan"] };
+  DEFS.NOTSAIYAN = { ...DEFS.V1, id: "NOTSAIYAN", name: "NOTSAIYAN", energyCost: 1, traits: ["Android"] };
+
+  const played = (cardId: string) => {
+    let g = arena({ hand: [cardId], battle: ["SAIYANWATCH"], energy: ["V1", "V1"] });
+    const before = g.players.p1.hand.length;
+    g = play(g, { type: "play", player: "p1", card: find(g, "p1", "hand", cardId) });
+    assertConsistent(g);
+    return g.players.p1.hand.length - (before - 1);
+  };
+  assert.equal(played("ASAIYAN"), 1, "the watcher drew for a ≪Saiyan≫");
+  assert.equal(played("NOTSAIYAN"), 0, "…and not for anything else");
 }
 
 console.log("verify-arena: all checks passed");
