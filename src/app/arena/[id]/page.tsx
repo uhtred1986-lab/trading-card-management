@@ -1,15 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { inArray } from "drizzle-orm";
 import { db } from "@/db";
-import { cards as cardsTable } from "@/db/schema";
 import { hasAnthropic } from "@/lib/ai/client";
 import { ArenaBoard } from "@/components/arena/ArenaBoard";
 import { GameOver } from "@/components/arena/GameOver";
-import { aiPlayerOf } from "@/lib/arena/ai/run";
 import type { GameReview } from "@/lib/arena/ai/review";
 import { loadGame } from "@/lib/arena/games";
-import { boardView, tappable, viewerOf, type CardArt } from "@/lib/arena/view";
+import { snapshotOfGame } from "@/lib/arena/session";
 import { SubmitButton } from "@/components/SubmitButton";
 import { abandon } from "../actions";
 
@@ -24,23 +21,12 @@ export default async function ArenaGamePage({ params }: { params: Promise<{ id: 
   const game = await loadGame(db, id);
   if (!game) notFound();
 
-  // Card art, keyed by catalog id; tokens have none.
-  const ids = [...new Set(Object.values(game.state.cards).map((c) => c.cardId))].filter((x) => !x.startsWith("TOKEN:"));
-  const rows = ids.length
-    ? await db.select({ id: cardsTable.id, imageUrl: cardsTable.imageUrl, backImageUrl: cardsTable.backImageUrl }).from(cardsTable).where(inArray(cardsTable.id, ids))
-    : [];
-  const images: Record<string, CardArt> = {};
-  for (const r of rows) images[r.id] = { front: r.imageUrl, back: r.backImageUrl };
-
-  const ai = aiPlayerOf(game);
-  // In a game against Claude the human is always the first player, so the board
-  // is drawn from their side even while Claude is deciding.
-  const viewer = ai ? "p1" : viewerOf(game.state);
-  const view = boardView(game.ctx, game.state, viewer, images);
-  const taps = tappable(game.legal);
-  const playing = game.status === "playing";
-  const prompt = game.state.prompt;
-  const waitingOnServer = playing && (prompt.kind === "referee" || (!!ai && "player" in prompt && prompt.player === ai));
+  // Everything the board is drawn from — art, view, taps, whose turn it is —
+  // comes from the one snapshot builder both clients share, so this page and
+  // the Android app can never disagree about what the position is.
+  const snap = await snapshotOfGame(db, game);
+  const playing = snap.game.status === "playing";
+  const waitingOnServer = snap.waiting === "opponent" || snap.waiting === "referee";
   const review = game.review ? (JSON.parse(game.review) as GameReview) : null;
 
   return (
@@ -81,11 +67,11 @@ export default async function ArenaGamePage({ params }: { params: Promise<{ id: 
 
       <ArenaBoard
         gameId={id}
-        view={view}
-        legal={game.legal}
-        taps={taps}
-        log={game.log}
-        spotlight={game.spotlight ? { ...game.spotlight, imageUrl: images[game.spotlight.cardId]?.front ?? null } : null}
+        view={snap.view}
+        legal={snap.legal}
+        taps={snap.taps}
+        log={snap.log}
+        spotlight={snap.spotlight}
         playable={playing}
         waitingOnServer={waitingOnServer}
       />
