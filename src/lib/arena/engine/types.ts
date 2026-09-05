@@ -355,6 +355,12 @@ export type Trigger =
   | "koed"
   /** This card KO'd another — by battle or by its own skill ("When this card KOs an opponent's Battle Card"). */
   | "kos"
+  /**
+   * A card of yours being KO'd, watched by the rest of your board, and the
+   * same from the other side (21-14). `koed` is the KO'd card's own skill.
+   */
+  | "yourCardKoed"
+  | "opponentCardKoed"
   | "dealtDamage"
   | "chargeStart"
   | "mainStart"

@@ -11,13 +11,13 @@
 import { eq } from "drizzle-orm";
 import { db } from "../src/db";
 import { DEFAULT_GAME } from "../src/lib/catalog/games";
-import { cards as cardsTable } from "../src/db/schema";
+import { cards as cardsTable, decks } from "../src/db/schema";
 import { compileCardCached, parseSkills, type CardDef } from "../src/lib/arena/engine";
 import { compileCostProgram, costIsOnlyOrbs, priceCondition, stripNotes } from "../src/lib/arena/engine/compile";
 import { emitsStatic } from "../src/lib/arena/engine/state";
 import { autoTriggerMatches } from "../src/lib/arena/engine/triggers";
 import type { Trigger } from "../src/lib/arena/engine/types";
-import { cardDefFrom } from "../src/lib/arena/load";
+import { cardDefFrom, deckInputFor } from "../src/lib/arena/load";
 
 /** Every moment the engine knows about, for the orphan-trigger check below. */
 const TRIGGERS: Trigger[] = [
@@ -27,6 +27,8 @@ const TRIGGERS: Trigger[] = [
   "attacked",
   "koed",
   "kos",
+  "yourCardKoed",
+  "opponentCardKoed",
   "dealtDamage",
   "chargeStart",
   "mainStart",
@@ -90,7 +92,31 @@ const MECHANISMS: { key: string; needs: string; test: RegExp }[] = [
 // The arena only plays `dbs` decks (src/lib/catalog/games.ts), so Fusion
 // World text is not counted here.
 const all = await db.select().from(cardsTable).where(eq(cardsTable.game, DEFAULT_GAME));
-const defs: CardDef[] = all.map(cardDefFrom);
+const catalog: CardDef[] = all.map(cardDefFrom);
+
+/**
+ * `npm run arena:gaps -- --decks` narrows every count below to the cards in the
+ * owner's own decks.
+ *
+ * Worth having as a flag rather than a one-off: the catalog-wide list ranks by
+ * how often a wording appears, which buries anything that happens once per card
+ * and rewards adding phrase patterns. Ranked over the decks instead, the same
+ * data surfaced a clause-splitter bug that was costing whole skills everywhere
+ * — the tell was that the "wordings" were single words ("energy", "choose 1").
+ */
+const decksOnly = process.argv.slice(2).includes("--decks");
+let defs = catalog;
+if (decksOnly) {
+  const byId = new Map(catalog.map((d) => [d.id, d]));
+  const inDecks = new Set<string>();
+  for (const row of await db.select({ id: decks.id }).from(decks)) {
+    const input = await deckInputFor(db, row.id);
+    if (!input || input.input.main.length < 50) continue;
+    for (const id of input.cardIds) if (byId.has(id)) inDecks.add(id);
+  }
+  defs = [...inDecks].map((id) => byId.get(id)!);
+  console.log(`Restricted to the ${defs.length} distinct cards in the owner's decks.\n`);
+}
 
 interface Bucket {
   clauses: number;

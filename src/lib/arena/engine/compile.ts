@@ -302,6 +302,9 @@ function subjectFilterOf(trigger: string): CardFilter | undefined {
     // the lazy group stop at "battle", and "battle" alone narrows nothing.
     /^(?:your|your opponent's) (.+?) is played\b/.exec(t)?.[1] ??
     /^(?:your|your opponent's) (.+?) attacks\b/.exec(t)?.[1] ??
+    // "When your blue <Son Goku> card is KO'd" — the same question about the
+    // card that just died (21-14).
+    /^(?:your|your opponent's|an opponent's|one of your|one of your opponent's) (.+?) (?:is|are) ko'd\b/.exec(t)?.[1] ??
     null;
   // "A Battle Card **or** Unison Card" is two kinds, and `parseFilter` keeps
   // only one of them — which would stop the skill on the other. A filter that

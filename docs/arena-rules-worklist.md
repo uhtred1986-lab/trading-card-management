@@ -984,6 +984,41 @@ rewards adding patterns. Ranking the *owner's decks* instead surfaced a
 structural bug that was costing whole skills everywhere — and the tell was that
 the "wordings" were single words.
 
+## Done: the decks, asked the other three questions (5 Sep 2026)
+
+Having ranked the owner's decks for *unreadable* clauses last round, the sharper
+question is what in those decks **compiles and still cannot happen**. Ten skills
+had no trigger, one had an unreadable price, no [Permanent] was inert. Working
+those ten:
+
+- **"KO-ed" / "KO-s".** Older sets hyphenate the verb, and every reader of the
+  text spells it the other way. Normalised in `skillLines` beside the circled
+  numbers, so the compiler's own clause patterns get it too.
+- **`yourCardKoed` / `opponentCardKoed`** (34 cards catalog-wide): a card of
+  yours being KO'd, watched by the rest of your board — "when your blue <Son
+  Goku> card is KO'd, you may play this card from your hand" — and the same
+  from the other side. `koed` is the KO'd card's own skill and is not this.
+  Only the plain wording: "…KO'd **by an opponent's skill**" and "…KO'd **or
+  removed from a Battle Area**" name a cause the engine cannot tell apart from
+  a battle KO, so the comma or the end of the clause is what says the sentence
+  stopped there. `subjectFilterOf` gained the KO shape, so "your **blue <Son
+  Goku>** card" is still the filter.
+- **[Spirit Boost] with an adjective**: "one of your **red** Unison Cards".
+- **`youPlayed` now refuses an alternation.** "When a blue **or** yellow
+  ≪Universe 6≫ card is played … that card gets +5000 power" — `parseFilter`
+  keeps one colour of the two, and this trigger fires on *every* card that
+  player plays, so an unreadable description has to mean "do not fire" rather
+  than "fire unfiltered". It is an honest orphan again.
+
+And the tool: **`npm run arena:gaps -- --decks`** narrows every count in that
+report to the cards in the owner's decks. Worth a flag rather than a one-off,
+because the catalog-wide list ranks by how often a wording appears — which
+buries anything happening once per card and rewards adding phrase patterns.
+
+Deck orphans 10 → 7, catalog orphans 691 → 677; coverage 85.2 % → 85.3 %. The
+seven left in the decks each need a mechanism rather than a pattern: a life card
+moving areas, a skill resting the opponent's energy, the leader being attacked.
+
 ## Conventions worth keeping
 
 - Card text is **read, never interpreted**: if the compiler cannot read a

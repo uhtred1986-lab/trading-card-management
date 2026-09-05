@@ -19,14 +19,18 @@ Measured on the 6,493 Dragon Ball Super (not Fusion World) cards:
 
 | measure | value | command |
 |---|---|---|
-| resolvable skills the compiler reads end-to-end | 85.2 % of 11,743 | `npm run arena:coverage` |
-| [Permanent] skills the compiler reads | 53.3 % of 1,807 | same |
-| …and that actually emit a standing effect | 48.5 % of 1,807 | same |
+| resolvable skills the compiler reads end-to-end | 85.3 % of 11,743 | `npm run arena:coverage` |
+| [Permanent] skills the compiler reads | 53.5 % of 1,807 | same |
+| …and that actually emit a standing effect | 48.6 % of 1,807 | same |
 | skills in the owner's 12 decks that compile | 91.6 % of 358 | same (deck tables) |
-| skills exactly one unreadable clause away | 1,183 | `npm run arena:gaps` |
-| [Auto] skills that compile but no trigger fires | 691 | `npm run arena:gaps` (§5.3) |
+| skills exactly one unreadable clause away | 1,182 | `npm run arena:gaps` |
+| [Auto] skills that compile but no trigger fires | 677 | `npm run arena:gaps` (§5.3) |
 | [Activate]/[Counter] whose price the engine cannot read | 66 | same |
 | fuzzer | 40 games, 0 crashes | `npm run arena:fuzz 40` |
+
+Every row above can be narrowed to the cards in the owner's own decks with
+`npm run arena:gaps -- --decks`, which is where a structural bug shows up that
+the catalog-wide ranking buries.
 
 The orphan-trigger figure goes **up** when the compiler improves, and that is
 not a regression: a skill only reaches that bucket once its effect compiles, so

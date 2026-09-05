@@ -4262,4 +4262,37 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.ok(autoTriggerMatches(typo, "evolvedInto"));
 }
 
+{
+  // 21-14: a card of yours being KO'd, watched by the rest of your board —
+  // and the same from the other side. `koed` is the KO'd card's own skill and
+  // fires on the card that died; these fire on the ones still standing.
+  DEFS.MOURNER = { ...DEFS.V1, id: "MOURNER", name: "MOURNER", skill: "[Auto] When your ≪Saiyan≫ card is KO'd, draw 1 card." };
+  DEFS.GLOATER = { ...DEFS.V1, id: "GLOATER", name: "GLOATER", skill: "[Auto] When an opponent's Battle Card is KO'd, draw 1 card." };
+  DEFS.MYSAIYAN = { ...DEFS.V1, id: "MYSAIYAN", name: "MYSAIYAN", traits: ["Saiyan"] };
+  DEFS.MYPLAIN = { ...DEFS.V1, id: "MYPLAIN", name: "MYPLAIN", traits: ["Android"] };
+
+  const ctx = { defs: DEFS };
+  const koing = (victimId: string, ko = true) => {
+    const s = arena({ battle: ["MOURNER", victimId], oppBattle: ["GLOATER"] });
+    const mine = s.players.p1.hand.length;
+    const theirs = s.players.p2.hand.length;
+    const victim = s.players.p1.battle.find((id) => s.cards[id].cardId === victimId)!;
+    const ev: Parameters<typeof koCard>[2] = [];
+    const after = structuredClone(s);
+    if (ko) koCard(ctx, after, ev, victim);
+    // The pended skills are drained by the engine, so run it to a prompt.
+    const done = play(after, { type: "endMain", player: "p1" });
+    return { mine: done.players.p1.hand.length - mine, theirs: done.players.p2.hand.length - theirs };
+  };
+  // Passing the turn draws for the new turn player, so both sides are read
+  // against a KO of a card neither watcher cares about.
+  const plain = koing("MYPLAIN");
+  const saiyan = koing("MYSAIYAN");
+  assert.equal(saiyan.mine - plain.mine, 1, "9-6-2: the ≪Saiyan≫ was the one it was watching for");
+  assert.equal(saiyan.theirs - plain.theirs, 0, "…and their side heard the same KO only once, either way");
+  const none = koing("MYPLAIN", false);
+  assert.equal(plain.theirs - none.theirs, 1, "an opponent's Battle Card was KO'd, whatever it was");
+  assert.equal(plain.mine - none.mine, 0, "…and it was not a ≪Saiyan≫");
+}
+
 console.log("verify-arena: all checks passed");

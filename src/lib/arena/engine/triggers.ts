@@ -88,6 +88,19 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     // hand is that moment and not this.
     case "droppedFromBattle":
       return /when this card is placed in (?:a|your|its owner'?s) drop area from (?:a|your|the) battle area by (?:a|your|one of your) skill/.test(t);
+    // 21-14: a card of *yours* being KO'd, watched by the rest of your board —
+    // "when your blue <Son Goku> card is KO'd, you may play this card from your
+    // hand" — and the same from the other side of the table. `koed` is the
+    // KO'd card's own skill and is not this.
+    //
+    // Only the plain wording. "…KO'd **by an opponent's skill**" and "…KO'd
+    // **or removed from a Battle Area**" name a cause the engine cannot tell
+    // apart from a battle KO, so the comma or the end of the clause is what
+    // says the sentence stopped there.
+    case "yourCardKoed":
+      return /^when (?:your|one of your) (?!opponent)[^,]{0,70} (?:is|are) ko'd(?:,|$)/.test(head);
+    case "opponentCardKoed":
+      return /^when (?:your opponent's|an opponent's|one of your opponent's) [^,]{0,70} (?:is|are) ko'd(?:,|$)/.test(head);
     case "removedByOpponent":
       return /when this card is removed from [a-z' ]*battle area by (?:an? |one of )?(?:your )?opponent'?s? skill/.test(t);
     case "evolvedInto":
@@ -158,10 +171,21 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     // A trigger that names *how* the card was played ("by a [Union] skill",
     // "using [Swap]", "from your life") is left out: the engine cannot check
     // that, and firing on an ordinary play would be worse than not firing.
-    case "youPlayed":
+    case "youPlayed": {
       if (/when (?:you play this card|this card is played)/.test(t)) return false;
       if (/\bis played (?:by|using|from)\b|\bwhen you play [^,]*\b(?:using|from your)\b/.test(t)) return false;
-      return /when you play (?:an?|1|up to \d+|\d+)\b/.test(t) || /when your (?!opponent)[^,]{0,80} is played\b/.test(t);
+      const spoken = /when you play ((?:an?|1|up to \d+|\d+) [^,]{0,80}?)(?:,|$)/.exec(t);
+      const passive = /when (a|an|your) ([^,]{0,80}?) is played\b/.exec(t);
+      if (!spoken && !passive) return false;
+      const said = spoken ? spoken[1] : `${passive![1]} ${passive![2]}`;
+      if (/^your opponent/.test(said)) return false;
+      // This fires for *every* card that player plays, and the effect then acts
+      // on it — so a description the compiler cannot turn into a filter must
+      // not fire at all. "A blue **or** yellow ≪Universe 6≫ card" is the shape
+      // that matters: `parseFilter` keeps one colour of the two, so the whole
+      // trigger stays an honest gap rather than buffing whatever was played.
+      return !/ or /.test(said);
+    }
     case "opponentAttacks":
       return /when your opponent attacks\b|when your opponent's [a-z ]*cards? attacks?\b|when one of your opponent's [a-z ]*cards? attacks\b/.test(t);
     case "opponentCombos":
@@ -188,7 +212,7 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     // of it are printed: the Unison itself ("from this card") and the Battle
     // Cards watching it ("from one of your Unison Cards").
     case "spiritBoostPaid":
-      return /when you remove a marker from (?:this card|one of your unison cards?|your unison card)/.test(t) && /\[spirit boost\]/.test(t);
+      return /when you remove a marker from (?:this card|(?:one of )?your (?:[a-z-]+ )?unison cards?)/.test(t) && /\[spirit boost\]/.test(t);
     case "offenseStart":
       return /^at the (?:beginning|start) of (?:your|the) offense step\b/.test(head);
     case "defenseStart":
@@ -246,6 +270,11 @@ export function koCard(ctx: GameContext, s: GameState, ev: GameEvent[], card: st
   const p = masterOf(s, card);
   ev.push({ type: "ko", card, by });
   pendTriggers(ctx, s, "koed", card);
+  // 21-14: the rest of the board watches it too, each side hearing only the
+  // wording that is about it. The KO'd card is left out — its own arrival at
+  // the moment is `koed` just above.
+  for (const w of cardsInPlay(s, p)) if (w !== card) pendTriggers(ctx, s, "yourCardKoed", w, card);
+  for (const w of cardsInPlay(s, p === "p1" ? "p2" : "p1")) pendTriggers(ctx, s, "opponentCardKoed", w, card);
   // "When this card KOs an opponent's Battle Card": the card that did it,
   // whether by battle or by its own skill.
   if (by && by !== card && s.cards[by] && p !== masterOf(s, by)) pendTriggers(ctx, s, "kos", by);

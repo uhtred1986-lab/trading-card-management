@@ -35,6 +35,11 @@ export function skillLines(text: string | null | undefined): string[] {
     // `orbsIn`, `costText`, `costIsOnlyOrbs`, `splitCost` — sees the one form.
     .replace(/[①-⑳]/g, (ch) => `{${ch.charCodeAt(0) - 0x245f}}`)
     .replace(/⓪/g, "{0}")
+    // Older sets hyphenate the verb — "when your ≪Saiyan≫ is KO-ed", "when
+    // this card KO-s your opponent's Battle Card" — and every reader of the
+    // text spells it the other way.
+    .replace(/\bKO-ed\b/gi, "KO'd")
+    .replace(/\bKO-s\b/gi, "KOs")
     .split("\n")
     .map((l) => l.trim())
     .filter(Boolean);
