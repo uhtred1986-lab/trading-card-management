@@ -233,10 +233,17 @@ export function stripNotes(text: string): string {
 // ── target phrases ─────────────────────────────────────────────────────────
 
 const AREA_WORDS: [RegExp, ScriptArea][] = [
-  [/\bin (?:your|their|its owner's|an?) (?:own )?drop\b|\bdrop area\b|\bfrom your drop\b/, "drop"],
+  // "In your opponent's Drop" was the one possessive this line did not admit —
+  // `in your` matched, then `drop` did not follow — so "up to 1 Battle Card in
+  // your opponent's Drop" fell through to the Battle Area and chose a card in
+  // play instead. Every other area word here already reads the possessive.
+  [/\bin (?:your|their|its owner's|an?) (?:own )?drop\b|\bdrop area\b|\bfrom your drop\b|\b(?:your |an? )?opponent'?s drop\b|\btheir drop\b/, "drop"],
   // "Your blue energy", "your opponent's rested energy": the adjectives sit
   // between the possessive and the word, and "energy cost" is not an area.
-  [/\benergy area\b|\b(?:your opponent's|their|your)(?: [a-z-]+)* energy\b(?! cost)/, "energy"],
+  // The adjectives between the possessive and the word include the slash of
+  // "your **Red/Blue multicolor** energy", which the class did not admit — so
+  // six cards that rest a multicolour energy went looking on the table for it.
+  [/\benergy area\b|\b(?:your opponent's|their|your)(?: [a-z/-]+)* energy\b(?! cost)/, "energy"],
   [/\bfrom your hand\b|\bin your hand\b|\btheir hand\b|\byour hand\b|\byour opponent's hand\b/, "hand"],
   [/\bfrom your deck\b|\bin your deck\b|\byour deck\b|\byour opponent'?s deck\b|\btheir deck\b/, "deck"],
   // "Flip up to 1 card in your opponent's life face up" (BT12-069/070): the
@@ -277,7 +284,10 @@ const AREA_NAMED: Record<string, ScriptArea> = {
   "z-deck": "zDeck",
   "z-energy": "zEnergy",
 };
-const AREA_PAIR_RE = /\b(?:in|from|of|into) (?:your|their) ((?:z-)?[a-z]+(?: area)?) or (?:(?:from|in) )?(?:the )?(?:your |their )?((?:z-)?[a-z]+(?: area)?)\b/;
+// "In **your opponent's** Battle Area or Drop": the possessive sits where the
+// first area word was expected, so the pair went unread and the phrase fell
+// through to whichever single area matched first.
+const AREA_PAIR_RE = /\b(?:in|from|of|into) (?:your|their)(?: opponent'?s)? ((?:z-)?[a-z]+(?: area)?) or (?:(?:from|in) )?(?:the )?(?:your |their )?(?:opponent'?s )?((?:z-)?[a-z]+(?: area)?)\b/;
 
 /** "up to 2 of your opponent's Battle Cards in Rest Mode" → a selector. */
 export function parseTarget(phrase: string): Selector | null {

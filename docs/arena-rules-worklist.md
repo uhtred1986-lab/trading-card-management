@@ -1184,6 +1184,41 @@ the clause that does not compile, but check what its *neighbours* compile to
 while you are there. The unread clause was the cheapest of the three to fix and
 the least important.
 
+## Done: auditing the selectors against their own words (5 Sep 2026)
+
+Having found two silent mis-reads by accident, this round went looking for them
+on purpose. **A `choose` op records the clause that produced it in `reason`**,
+so the compiled selector can be checked against its own words — 4,000-odd of
+them, with no card text to read by hand. The probe flags a selector whose side
+or area the clause does not support, and the first run was mostly its own
+noise: "…to your hand" is where a card *goes*, "energy cost" is not the energy
+area, `special: self` names no area at all. Narrowing those left ten real ones.
+
+Three area words the parser could not hear, none of them ever reported because
+the clauses all compiled:
+
+- **"in your opponent's Drop"** — the one possessive the Drop line did not
+  admit (`in your` matched, then "drop" did not follow), so the phrase fell
+  through to the Battle Area and chose a card in play instead of one in the
+  Drop. Every other area word already read the possessive; this one was simply
+  missed.
+- **"your Red/Blue multicolor energy"** — the adjectives between the possessive
+  and the word are matched with `[a-z-]+`, and a slash is neither. Six cards
+  that rest a multicolour energy went looking for it on the table.
+- **"in your opponent's Battle Area or Drop"** — the possessive sat where
+  `AREA_PAIR_RE` expected the first area word, so the pair went unread and the
+  phrase took whichever single area matched first.
+
+Left alone, with the reason: "Choose up to 1 Unison" would need a bare singular
+"Unison" as an area word, and the same word in "**play** up to 1 blue Unison"
+means one in the hand. One card gains, four lose; the parser cannot tell them
+apart without the verb, so it stays as it is.
+
+**The technique is the reusable part.** `arena:gaps` can only report clauses
+that fail; a clause that compiles wrongly is invisible to every measure in the
+project. Anything the compiler records alongside its output — `reason` here —
+is a way to audit the compiled result against the text it came from.
+
 ## Conventions worth keeping
 
 - Card text is **read, never interpreted**: if the compiler cannot read a

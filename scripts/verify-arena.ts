@@ -4472,4 +4472,30 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   );
 }
 
+{
+  // Three areas a target phrase could name and the parser could not hear.
+  // None of these was ever reported: the clause compiled, it just looked in
+  // the wrong place — found by checking each compiled `choose` against the
+  // clause its own `reason` records.
+
+  // "In your opponent's Drop" was the one possessive the Drop line did not
+  // admit, so the phrase fell through to the Battle Area and chose a card in
+  // play instead of one in the Drop.
+  const theirDrop = parseTarget("up to 1 Battle Card in your opponent's Drop");
+  assert.equal(theirDrop?.area, "drop");
+  assert.equal(theirDrop?.side, "opponent");
+
+  // The adjectives between the possessive and "energy" include a slash.
+  assert.equal(parseTarget("up to 1 of your Red/Blue multicolor energy")?.area, "energy");
+  assert.equal(parseTarget("up to 1 of your Blue/Yellow multicolor energy")?.area, "energy");
+
+  // A pair of areas behind a possessive: "in **your opponent's** Battle Area
+  // or Drop" put the possessive where the first area word was expected.
+  const pair = parseTarget("up to 1 Battle Card in your opponent's Battle Area or Drop");
+  assert.deepEqual(pair?.areas, ["battle", "drop"]);
+  assert.equal(pair?.side, "opponent");
+  // …and the form without one still reads.
+  assert.deepEqual(parseTarget("up to 1 card in your hand or Drop Area")?.areas, ["hand", "drop"]);
+}
+
 console.log("verify-arena: all checks passed");
