@@ -230,11 +230,16 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
     case "turn.activeAll": {
       // 7-2-7, except [Servant] (22-40).
       const ps = s.players[s.turnPlayer];
-      for (const id of [ps.leader, ps.unison, ...ps.battle, ...ps.energy]) {
-        if (!id) continue;
+      const mine = [ps.leader, ps.unison, ...ps.battle, ...ps.energy].filter((id): id is string => !!id);
+      for (const id of mine) {
         if (has(ctx, s, id, "Servant")) continue;
         setMode(s, ev, id, "active", ctx);
       }
+      // "…will not switch to Active Mode during your next Charge Phase": the
+      // Active Step it was written for has now happened, so it is spent. Only
+      // this player's cards had one, which is what makes "next" the right one
+      // whichever turn the effect was created on.
+      s.effects = s.effects.filter((e) => !(e.until === "afterNextCharge" && mine.includes(e.target)));
       return "done";
     }
     case "turn.draw": {
@@ -1261,7 +1266,9 @@ export function legalActions(ctx: EngineContext, s: GameState): LegalAction[] {
       out.push({ action: { type: "mulligan", player: pr.player, redraw: true }, label: "Mulligan" });
       return out;
     case "charge":
-      for (const id of s.players[pr.player].hand) out.push({ action: { type: "charge", player: pr.player, card: id }, label: `Charge ${name(id)}` });
+      // 20-14: a player forbidden to place energy is only offered the skip.
+      if (!forbids(ctx, s, "placeEnergy", { player: pr.player }))
+        for (const id of s.players[pr.player].hand) out.push({ action: { type: "charge", player: pr.player, card: id }, label: `Charge ${name(id)}` });
       out.push({ action: { type: "charge", player: pr.player, card: null }, label: "Skip charge" });
       return out;
     case "main":
@@ -1679,6 +1686,8 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
       if (pr.kind !== "charge") throw new IllegalAction("not the charge step");
       if (action.card) {
         if (!ps.hand.includes(action.card)) throw new IllegalAction("card not in hand");
+        // 20-14: "you can't place cards in your energy for the turn".
+        if (forbids(ctx, s, "placeEnergy", { player: p })) throw new IllegalAction("you can't place cards in your energy");
         move(ctx, s, ev, action.card, "energy", p, { reason: "charge", reveal: true });
       }
       s.flow.unshift({ op: "checkpoint" }, { op: "turn.mainStart" });

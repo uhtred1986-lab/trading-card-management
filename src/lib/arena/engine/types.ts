@@ -225,7 +225,11 @@ export type ForbiddenAction =
   | "beKOdBySkill"
   | "beChosen"
   | "switchToActive"
-  | "placeEnergy";
+  | "placeEnergy"
+  /** "Can't be removed from a Battle Area by your opponent's skills" (20-14): a move by a skill, not by a battle. */
+  | "beMovedBySkill"
+  /** "This card's skills can't be negated in any area" (9-1-5). */
+  | "beNegated";
 
 export interface Prohibition {
   what: ForbiddenAction;
@@ -248,7 +252,7 @@ export interface ContinuousEffect {
   /** Set when `kind` is "forbid". */
   forbid?: Prohibition;
   /** "nextTurn" runs through the opponent's whole turn and ends as yours begins. */
-  until: "battle" | "turn" | "opponentTurn" | "nextTurn" | "game";
+  until: "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "game";
   /** The turn player when the effect was created, so "for the turn" ends at the right End Phase. */
   ownerTurn: PlayerId;
   createdTurn: number;

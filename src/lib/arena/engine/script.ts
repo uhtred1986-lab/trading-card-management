@@ -40,10 +40,20 @@ export type ScriptArea = "hand" | "deck" | "drop" | "life" | "battle" | "combo" 
 
 export type Side = "you" | "opponent" | "both";
 
-export type Duration = "battle" | "turn" | "opponentTurn" | "nextTurn" | "game";
+/**
+ * `afterNextCharge` outlives `nextTurn` by one step: "the chosen card will not
+ * switch to Active Mode during your next Charge Phase" (7-2-7) has to still be
+ * there when the Active Step runs, and `nextTurn` ends just before it.
+ */
+export type Duration = "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "game";
 
-/** Cards the source skill can point at without choosing: itself, the battle roles, the trigger's subject. */
-export type SpecialTarget = "self" | "attacker" | "guard" | "subject" | "leader" | "opponentLeader";
+/**
+ * Cards the source skill can point at without choosing: itself, the battle
+ * roles, the trigger's subject, and `resolving` — the card whose play a
+ * [Counter: Play] is answering ("if the Battle Card being played has an energy
+ * cost of 7 or less").
+ */
+export type SpecialTarget = "self" | "attacker" | "guard" | "subject" | "leader" | "opponentLeader" | "resolving";
 
 export interface Selector {
   side?: Side;
@@ -472,6 +482,10 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
           // its power or negate it, but nothing puts it anywhere else — and
           // an empty Leader Area is a state the rest of the engine cannot read.
           if (areaOf(s, id) === "leader") continue;
+          // 20-14: "can't be removed from a Battle Area by your opponent's
+          // skills". The rule is about the opponent's skills, so a card its
+          // own master moves is unaffected.
+          if (s.cards[id].owner !== master && areaOf(s, id) === "battle" && forbids(ctx, s, "beMovedBySkill", { card: id })) continue;
           if (op.to === "under") {
             if (host) placeUnder(ctx, s, ev, id, host);
             continue;
@@ -550,6 +564,9 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         // 9-1-5: for a duration it is a continuous effect that ends with the
         // turn or the battle; "for the game" marks the card until it leaves play.
         for (const id of resolveRef(ctx, s, frame, op.target)) {
+          // 9-1-5: "This card's skills can't be negated in any area" beats the
+          // instruction, like every other prohibition (0-2-5).
+          if (forbids(ctx, s, "beNegated", { card: id })) continue;
           if (op.until === "game") s.cards[id].negated = "all";
           else addEffect(s, ev, { target: id, kind: "negateSkills", value: 0, until: op.until });
         }

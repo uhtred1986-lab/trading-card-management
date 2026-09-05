@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { apply, createGame, defsFrom, legalActions, seedFrom, type Action, type CardDef, type GameState, type PlayerId } from "../src/lib/arena/engine";
 import { parseSkills, keywordOf, orbsIn } from "../src/lib/arena/engine/cards";
 import { parseFilter, matches, parseCondition } from "../src/lib/arena/engine/filters";
-import { move, locate, playCost, powerOf, forbids, has, cardNow, comboCostOf, skillNegated } from "../src/lib/arena/engine/state";
+import { move, locate, playCost, powerOf, forbids, has, cardNow, comboCostOf, skillNegated, skillsNegated } from "../src/lib/arena/engine/state";
 import { compileSkill, describeScript, parseConditionClause, splitClauses } from "../src/lib/arena/engine/compile";
 import { autoTriggerMatches } from "../src/lib/arena/engine/triggers";
 
@@ -2517,6 +2517,95 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.equal(s.cards[top].mode, "rest", "and in Rest Mode");
   assert.equal(s.cards[top].owner, "p2");
   assertConsistent(s);
+}
+
+// ── three more things a card can forbid (20-14) ────────────────────────────
+
+{
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+
+  // "Can't be removed from a Battle Area by your opponent's skills" is not the
+  // same rule as "can't be KO'd": a move by a skill, and nothing else.
+  const stay = one("[Permanent] Your green non-<Bulma> ≪Adventure≫ cards can't be removed from a Battle Area by your opponent's skills.");
+  assert.deepEqual(stay.unsupported, []);
+  assert.equal((stay.ops[0] as { what: string; side?: string }).what, "beMovedBySkill");
+  assert.equal((stay.ops[0] as { side?: string }).side, "opponent");
+
+  const keep = one("[Permanent] This card's skills can't be negated in any area.");
+  assert.deepEqual(keep.unsupported, []);
+  assert.deepEqual(keep.ops, [{ op: "forbid", what: "beNegated", until: "game", target: { sel: { special: "self" } } }]);
+
+  const noCharge = one("[Auto] When you play this card, you can't place cards in your energy for the turn.");
+  assert.deepEqual(noCharge.unsupported, []);
+  assert.deepEqual(noCharge.ops, [{ op: "forbid", what: "placeEnergy", side: "you", until: "turn" }]);
+
+  // The same rule printed as "will not" rather than "can't", and a duration
+  // that has to outlive "your next turn" by one step (7-2-7).
+  const lock = one("[Activate: Main] Choose 1 of your opponent's Battle Cards and switch it to Rest Mode. The chosen card will not switch to Active Mode during your next Charge Phase.");
+  assert.deepEqual(lock.unsupported, []);
+  assert.deepEqual(lock.ops.map((o) => o.op), ["choose", "switchMode", "forbid"]);
+  assert.equal((lock.ops[2] as { until: string }).until, "afterNextCharge");
+
+  // A [Counter: Play] asking about the card it is answering (9-6).
+  const gate = parseConditionClause("if the Battle Card being played has an energy cost of 7 or less");
+  assert.ok(gate, "the condition is readable even though negating a play is not");
+  assert.equal((gate.cond as { sel: { special?: string; filter?: { costMax: number | null } } }).sel.special, "resolving");
+  assert.equal((gate.cond as { sel: { filter?: { costMax: number | null } } }).sel.filter?.costMax, 7);
+
+  // "If the chosen card is a <X> card" — the same reading as "that card", over
+  // the choice rather than over a reveal.
+  const check = one("[Auto] When you play this card, choose 1 card in your Drop Area. If the chosen card is a <Supreme Kai of Time> card, draw 1 card.");
+  assert.deepEqual(check.unsupported, []);
+  assert.deepEqual((check.ops[1] as { cond: { kind: string; var: string } }).cond.var, "c0");
+}
+
+{
+  // A rest-lock has to survive the opponent's whole turn *and* the Active Step
+  // of the next one, which is where a "nextTurn" effect would already be gone.
+  DEFS.LOCKER = {
+    ...DEFS.V1,
+    id: "LOCKER",
+    name: "LOCKER",
+    energyCost: 1,
+    skill: "[Auto] When you play this card, choose 1 of your opponent's Battle Cards and switch it to Rest Mode. The chosen card will not switch to Active Mode during your next Charge Phase.",
+  };
+  let s = arena({ hand: ["LOCKER"], energy: ["V1"], oppBattle: ["V-BLUE"] });
+  const victim = s.players.p2.battle[0];
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "LOCKER") });
+  if (s.prompt.kind === "chooseCards") s = play(s, { type: "choose", player: "p1", cards: [victim] });
+  assert.equal(s.cards[victim].mode, "rest", "it was switched to Rest Mode");
+  // Their turn: their Active Step runs and must leave it rested.
+  s = play(s, { type: "endMain", player: "p1" });
+  assert.equal(s.cards[victim].mode, "rest", "7-2-7 did not switch it back");
+  assert.ok(!s.effects.some((e) => e.until === "afterNextCharge"), "and the rule is spent");
+  assertConsistent(s);
+}
+
+{
+  // A card whose skills can't be negated keeps them, and keeps its keywords.
+  DEFS.STUBBORN = { ...DEFS.BLOCKER, id: "STUBBORN", name: "STUBBORN", skill: "[Blocker]<br>[Permanent] This card's skills can't be negated in any area." };
+  DEFS.SILENCER = { ...DEFS.V1, id: "SILENCER", name: "SILENCER", energyCost: 1, skill: "[Auto] When you play this card, choose 1 of your opponent's Battle Cards and negate its skills for the turn." };
+  let s = arena({ hand: ["SILENCER"], energy: ["V1"], oppBattle: ["STUBBORN"] });
+  const stubborn = s.players.p2.battle[0];
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "SILENCER") });
+  if (s.prompt.kind === "chooseCards") s = play(s, { type: "choose", player: "p1", cards: [stubborn] });
+  assert.ok(!skillsNegated(s, stubborn), "0-2-5: the prohibition beats the instruction");
+  assertConsistent(s);
+}
+
+{
+  // "You can't place cards in your energy for the turn" is a rule about a
+  // player, and the Charge Phase is the one place it bites.
+  DEFS.DROUGHT = { ...DEFS.V1, id: "DROUGHT", name: "DROUGHT", energyCost: 1, skill: "[Permanent] Your opponent can't place cards in their energy." };
+  let s = arena({ hand: ["DROUGHT"], energy: ["V1"] });
+  assert.ok(!forbids({ defs: DEFS }, s, "placeEnergy", { player: "p2" }), "nothing forbids it yet");
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "DROUGHT") });
+  assert.ok(forbids({ defs: DEFS }, s, "placeEnergy", { player: "p2" }), "the [Permanent] holds while the card is in play");
+  assert.ok(!forbids({ defs: DEFS }, s, "placeEnergy", { player: "p1" }), "and only against them");
+  // Their Charge Phase then offers nothing to charge.
+  s = play(s, { type: "endMain", player: "p1" });
+  assert.equal(s.prompt.kind, "charge", "it is their Charge Phase");
+  assert.deepEqual(labels(s), ["Skip charge"], "and there is nothing to do in it");
 }
 
 console.log("verify-arena: all checks passed");

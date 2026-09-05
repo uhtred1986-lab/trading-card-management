@@ -200,7 +200,10 @@ export function keywordsInForce(ctx: GameContext, s: GameState, id: string): Key
   for (const e of s.effects) if (e.kind === "keyword" && e.target === id) out.push(e.value as KeywordSkill);
   // 9-1-5: a skill may name one keyword to negate rather than silencing the
   // card. Applied last, so it beats a grant of the same keyword.
-  const gone = new Set(staticEffects(ctx, s).filter((e) => e.kind === "negateKeyword" && e.target === id).map((e) => e.value as KeywordSkill["name"]));
+  // A card whose skills can't be negated keeps its keywords too (20-14).
+  const gone = forbids(ctx, s, "beNegated", { card: id })
+    ? new Set<KeywordSkill["name"]>()
+    : new Set(staticEffects(ctx, s).filter((e) => e.kind === "negateKeyword" && e.target === id).map((e) => e.value as KeywordSkill["name"]));
   return gone.size ? out.filter((k) => !gone.has(k.name)) : out;
 }
 
@@ -284,6 +287,9 @@ export function resolveSelector(ctx: GameContext, s: GameState, frame: ScriptFra
             ? b?.guard
             : sel.special === "subject"
               ? frame.subject
+              : sel.special === "resolving"
+              ? // 9-6: the card whose play this skill is answering.
+                (s.resolving?.card ?? null)
               : sel.special === "leader"
                 ? s.players[frame.master].leader
                 : s.players[other(frame.master)].leader;

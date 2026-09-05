@@ -10,7 +10,7 @@
  */
 import { parseFilter, type CardFilter } from "./filters";
 import { keywordOf, skillsOf } from "./cards";
-import type { Amount, Cond, Op, Ref, Script, ScriptArea, Selector, Side } from "./script";
+import type { Amount, Cond, Duration, Op, Ref, Script, ScriptArea, Selector, Side } from "./script";
 import type { CardDef, DelayScope, DelayTiming, ForbiddenAction, KeywordSkill, Skill } from "./types";
 
 // ── clause splitting ───────────────────────────────────────────────────────
@@ -295,11 +295,14 @@ function withChoice(ref: Ref, clause: string, c: Ctx, act: (target: Ref) => Op):
   return [act(ref)];
 }
 
-function durationOf(clause: string): "battle" | "turn" | "game" | "opponentTurn" | "nextTurn" {
+function durationOf(clause: string): Duration {
   const t = clause.toLowerCase();
   if (/for the (?:duration of the )?battle|during this battle/.test(t)) return "battle";
   if (/for the (?:duration of the )?game|during the game|in any area|in all areas/.test(t)) return "game";
   if (/until (?:the start of )?your opponent's next turn/.test(t)) return "opponentTurn";
+  // Your *own* next Charge Phase is one step past "your next turn": the effect
+  // has to be there when the Active Step runs (7-2-7).
+  if (/during your next charge phase/.test(t)) return "afterNextCharge";
   // Everything that has to survive the opponent's whole turn and end as yours
   // begins: the rest-lock wordings, which are the same duration said four ways.
   if (/until the end of your opponent's(?: next)? turn|until the (?:start|beginning) of your next turn|during your opponent's next charge phase|during your opponent's next turn/.test(t)) return "nextTurn";
@@ -428,6 +431,15 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // beginning and the compiler has never once emitted it.
   if (/^(?:it's |it is )?your turn$/.test(t) || /^during your turn$/.test(t)) return { cond: { kind: "isTurnPlayer" } };
   if (/^(?:it's |it is )?your opponent's turn$/.test(t) || /^during your opponent's turn$/.test(t)) return { cond: { kind: "isTurnPlayer", who: "opponent" } };
+
+  // "If the Battle Card being played has an energy cost of 7 or less" — a
+  // [Counter: Play] asking about the card it is answering (9-6). The card is
+  // not in play yet, so it can only be named, never chosen.
+  if ((m = /^the (?:battle |extra |unison )?card being played (?:has|is) (.+)$/.exec(t))) {
+    const filter = filterFor(m[1], null);
+    if (!filter) return null;
+    return { cond: { kind: "count", sel: { special: "resolving", filter }, atLeast: 1 }, subject: { sel: { special: "resolving" } } };
+  }
 
   // A card's own mode as a condition (1-10).
   if ((m = /^this card is in (rest|active) mode$/.exec(t))) {
@@ -933,7 +945,10 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
 
   // Prohibitions (20-14). 0-2-5: they beat instructions, so the engine checks
   // them last; here we only have to say precisely what is forbidden to whom.
-  if (/\bcan'?t\b|\bcannot\b/.test(t)) {
+  // Some sets print the same rule as "will not" rather than "can't"
+  // ("the chosen card will not switch to Active Mode during your next Charge
+  // Phase"); it forbids the action just the same.
+  if (/\bcan'?t\b|\bcannot\b|\bwill not\b|\bwon'?t\b/.test(t)) {
     const forbid = compileProhibition(t, c);
     if (forbid) return forbid;
   }
@@ -1124,7 +1139,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
  */
 function compileProhibition(t: string, c: Ctx): Op[] | null {
   const until = durationOf(t);
-  const m = /^(.*?)\s+(?:can'?t|cannot)\s+(.*)$/.exec(t);
+  const m = /^(.*?)\s+(?:can'?t|cannot|will not|won'?t)\s+(.*)$/.exec(t);
   if (!m) return null;
   const subject = m[1].trim();
   const rest = m[2].trim();
@@ -1157,6 +1172,9 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
     }
     if (/^activate\b/.test(rest) && /\[counter/.test(rest)) return [{ op: "forbid", what: "activateCounter", side, until }];
     if (/^activate\b/.test(rest) && /\[blocker/.test(rest)) return [{ op: "forbid", what: "block", side, until }];
+    // "You can't place cards in your energy for the turn" (EX22-02): the
+    // Charge Phase, which the engine offers as an action of its own (3-8).
+    if (/^place cards? (?:in|into) (?:your|their) energy\b/.test(rest)) return [{ op: "forbid", what: "placeEnergy", side, until }];
     return null;
   }
 
@@ -1175,6 +1193,19 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
     return [{ op: "forbid", what: bySkill ? "beKOdBySkill" : "beKOd", until, target, side: bySide }];
   }
   if (/^be chosen\b/.test(rest)) return [{ op: "forbid", what: "beChosen", until, target, side: bySide }];
+  // "Can't be removed from a Battle Area by your opponent's skills" (20-14) —
+  // a move by a skill, which is not the same as a KO and not the same as a
+  // battle. Only the form that names skills as the cause is read: a bare
+  // "can't be removed from a Battle Area" would also cover the KO.
+  if (/^be removed from (?:a|the|your|their) battle area\b/.test(rest) && /\bby (?:your opponent's |your )?skills?\b/.test(rest)) {
+    return [{ op: "forbid", what: "beMovedBySkill", until, target, side: bySide }];
+  }
+  // "This card's skills can't be negated in any area" (9-1-5). `durationOf`
+  // already reads "in any area" as the game.
+  if (/^be negated\b/.test(rest) && /\bskills?\b/.test(subject)) {
+    const owner = refFor(subject.replace(/'?s skills?\b.*$/, ""), c);
+    return owner ? [{ op: "forbid", what: "beNegated", until, target: owner }] : null;
+  }
   return null;
 }
 
@@ -1417,12 +1448,15 @@ function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op
     // "If that card is a Battle Card" — what the reveal or the look just
     // turned up. The name only exists here, so the condition is built with
     // the compiler's own bookkeeping rather than by `parseConditionClause`.
-    if (c.lastSeen) {
-      const seen = /^(?:if|when) (?:that card|the revealed card) is (?:an? )?(.+)$/i.exec(clause.trim().replace(/[.,]$/, ""));
-      const filter = seen ? filterFor(seen[1], null) : undefined;
-      if (seen && filter) {
-        groups.push({ conds: [{ kind: "varMatches", var: c.lastSeen, filter }], ops: [] });
-        c.lastTarget = { var: c.lastSeen };
+    if (c.lastSeen || c.last) {
+      const seen = /^(?:if|when) (?:that card|the (revealed|chosen) card) is (?:an? )?(.+)$/i.exec(clause.trim().replace(/[.,]$/, ""));
+      // "The chosen card" is the choice; "that card" is whatever was last
+      // turned up, and only falls back to the choice when nothing was.
+      const v = seen?.[1]?.toLowerCase() === "chosen" ? c.last : (c.lastSeen ?? c.last);
+      const filter = seen ? filterFor(seen[2], null) : undefined;
+      if (seen && filter && v) {
+        groups.push({ conds: [{ kind: "varMatches", var: v, filter }], ops: [] });
+        c.lastTarget = { var: v };
         continue;
       }
     }
@@ -1527,10 +1561,12 @@ const FORBIDDEN_IN_WORDS: Record<ForbiddenAction, string> = {
   beChosen: "be chosen by skills",
   switchToActive: "switch to Active Mode",
   placeEnergy: "place cards in the Energy Area",
+  beMovedBySkill: "be removed from a Battle Area by skills",
+  beNegated: "have their skills negated",
 };
 
 function describeSelector(sel: Selector): string {
-  if (sel.special) return { self: "this card", attacker: "the attacking card", guard: "the guard card", subject: "that card", leader: "your leader", opponentLeader: "the opposing leader" }[sel.special];
+  if (sel.special) return { self: "this card", attacker: "the attacking card", guard: "the guard card", subject: "that card", leader: "your leader", opponentLeader: "the opposing leader", resolving: "the card being played" }[sel.special];
   const who = sel.side === "opponent" ? "opponent's " : sel.side === "both" ? "each player's " : "your ";
   const n = sel.count === 99 ? "all" : sel.upTo ? `up to ${sel.count}` : `${sel.count}`;
   const where = sel.fromVar ? "of the cards looked at" : `in ${who}${(sel.areas?.length ? sel.areas.join(" or ") : sel.area)}`;

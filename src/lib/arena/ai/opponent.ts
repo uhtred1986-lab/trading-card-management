@@ -238,6 +238,7 @@ Operations (each is an object with "op"):
   {"op":"forbid","what":"play","until":"turn","side":"opponent","filter":{...}}   a rule about a player
     FORBIDDEN: "attack" | "beAttacked" | "block" | "play" | "activateSkill" | "activateCounter"
              | "combo" | "beKOd" | "beKOdBySkill" | "beChosen" | "switchToActive"
+             | "placeEnergy" | "beMovedBySkill" | "beNegated"
     "sameNameAsSelf":true narrows a play rule to copies of this card.
     until may also be "nextTurn", which lasts through the opponent's turn and ends as yours begins.
   {"op":"token","name":"Saibaman Token","power":10000,"comboCost":0,"comboPower":5000,"colors":[],"n":2}
@@ -250,7 +251,8 @@ Operations (each is an object with "op"):
 TARGET is {"var":"t"} for something chosen earlier, or {"sel":SELECTOR}.
   {"var":"looked","minus":"t"} is "the rest": the cards of one name that another name did not take.
 SELECTOR: {"side":"you"|"opponent"|"both","area":"battle"|"hand"|"deck"|"drop"|"life"|"energy"|"unison"|"leader"|"warp"|"combo"|"zDeck"|"zEnergy"|"play","count":1,"upTo":true,"mode":"rest"|"active","filter":{...}}
-  or {"special":"self"|"attacker"|"guard"|"leader"|"opponentLeader"} for a single known card.
+  or {"special":"self"|"attacker"|"guard"|"leader"|"opponentLeader"|"resolving"} for a single known card
+  ("resolving" is the card whose play a [Counter: Play] is answering).
   "count":99 means all of them, and a count is always a choice; "take":2 is "the top 2 cards" instead ("fromEnd":true for the bottom).
   A filter may hold colors, characters, traits, names, costMin, costMax, powerMin, powerMax.
 COND: {"kind":"life","side":"you","atMost":4} | {"kind":"count","sel":SELECTOR,"atLeast":2} | {"kind":"leaderColor","color":"Red"} | {"kind":"chose","var":"t"}
