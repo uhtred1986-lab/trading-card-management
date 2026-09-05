@@ -19,7 +19,7 @@ Measured on the 6,493 Dragon Ball Super (not Fusion World) cards:
 
 | measure | value | command |
 |---|---|---|
-| resolvable skills the compiler reads end-to-end | 82.5 % of 11,745 | `npm run arena:coverage` |
+| resolvable skills the compiler reads end-to-end | 83.0 % of 11,745 | `npm run arena:coverage` |
 | [Permanent] skills the compiler reads | 52.6 % of 1,808 | same |
 | …and that actually emit a standing effect | 47.3 % of 1,808 | same |
 | skills in the owner's 12 decks that compile | 89.9 % of 357 | same (deck tables) |
