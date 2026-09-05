@@ -3661,4 +3661,98 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assertConsistent(s);
 }
 
+{
+  // 22-18-2: dealing life damage with a [Victory Strike] card wins the game.
+  DEFS.VICTORY = { ...DEFS.V1, id: "VICTORY", name: "VICTORY", power: 30000, skill: "[Victory Strike]" };
+  let s = arena({ battle: ["VICTORY"] });
+  const vs = s.players.p1.battle[0];
+  s.cards[vs].enteredTurn = 0;
+  s = play(s, { type: "attack", player: "p1", attacker: vs, target: s.players.p2.leader });
+  while (s.prompt.kind === "counter" || s.prompt.kind === "blocker" || s.prompt.kind === "combo") {
+    if (s.prompt.kind === "blocker") s = play(s, { type: "block", player: s.prompt.player, card: null });
+    else if (s.prompt.kind === "combo") s = play(s, { type: "pass", player: s.prompt.player });
+    else s = play(s, { type: "counter", player: s.prompt.player, card: null });
+  }
+  assert.equal(s.prompt.kind, "gameOver", "22-18-2: the game is over");
+  assert.equal(s.phase, "over");
+  assertConsistent(s);
+}
+
+{
+  // 13-5-2-2: against a Unison, [Victory Strike] takes *all* the markers,
+  // where [Strike] would take its own number and a plain attack takes one.
+  DEFS.UNI = { ...DEFS.U1, id: "UNI", name: "UNI" };
+  const setup = (attacker: string) => {
+    let g = arena({ battle: [attacker] });
+    const me = g.players.p1.battle[0];
+    g.cards[me].enteredTurn = 0;
+    const uni = g.players.p2.deck[0];
+    g.cards[uni].cardId = "UNI";
+    move({ defs: DEFS }, g, [], uni, "unison", "p2");
+    g.cards[uni].markers = 3;
+    g = play(g, { type: "attack", player: "p1", attacker: me, target: uni });
+    while (g.prompt.kind === "counter" || g.prompt.kind === "blocker" || g.prompt.kind === "combo") {
+      if (g.prompt.kind === "blocker") g = play(g, { type: "block", player: g.prompt.player, card: null });
+      else if (g.prompt.kind === "combo") g = play(g, { type: "pass", player: g.prompt.player });
+      else g = play(g, { type: "counter", player: g.prompt.player, card: null });
+    }
+    return g.cards[uni].markers;
+  };
+  assert.equal(setup("VICTORY"), 0, "13-5-2-2: all of them");
+  assert.equal(setup("BIG"), 2, "13-5-2-3: one, without either keyword");
+}
+
+{
+  // 22-33-3: the *opponent* may drop a life card; if they don't, the owner
+  // draws 2. Their choice, not yours.
+  DEFS.OFFER = { ...DEFS.V1, id: "OFFER", name: "OFFER", energyCost: 1, skill: "[Offering]" };
+  let s = arena({ hand: ["OFFER"], energy: ["V1"] });
+  const theirLife = s.players.p2.life.length;
+  const myHand = s.players.p1.hand.length;
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "OFFER") });
+  assert.equal(s.prompt.kind, "offering");
+  assert.equal(s.prompt.player, "p2", "22-33-3: the opponent decides");
+  // Declining pays the owner instead.
+  const declined = play(s, { type: "offering", player: "p2", dropLife: false });
+  assert.equal(declined.players.p2.life.length, theirLife, "their life is untouched");
+  assert.equal(declined.players.p1.hand.length, myHand - 1 + 2, "so the owner draws 2");
+  assertConsistent(declined);
+  // Paying costs them a life card and the owner draws nothing.
+  const paid = play(s, { type: "offering", player: "p2", dropLife: true });
+  assert.equal(paid.players.p2.life.length, theirLife - 1);
+  assert.equal(paid.players.p1.hand.length, myHand - 1, "and no draw");
+  assertConsistent(paid);
+}
+
+{
+  // 22-24-2: [Over Realm] is once a turn, and [Wormhole] makes it twice.
+  DEFS.HOLE = { ...DEFS.V1, id: "HOLE", name: "HOLE", skill: "[Wormhole]" };
+  DEFS.ORB2 = { ...DEFS.V1, id: "ORB2", name: "ORB2", energyCost: 1, skill: "[Over Realm 1]" };
+  const dropOne = (g: GameState) => {
+    const id = g.players.p1.deck[0];
+    move({ defs: DEFS }, g, [], id, "drop", "p1");
+  };
+  // 22-15-4: activating it sends the *whole* Drop to the Warp, so the second
+  // one needs the Drop refilled — otherwise 22-15-3 stops it for want of
+  // cards rather than for the limit this is testing.
+  const spendDrop = (g: GameState) => {
+    dropOne(g);
+    let next = play(g, { type: "activate", player: "p1", card: find(g, "p1", "hand", "ORB2"), skill: 0 });
+    while (next.prompt.kind === "counter") next = play(next, { type: "counter", player: next.prompt.player, card: null });
+    return next;
+  };
+  const offered = (g: GameState) => {
+    const card = find(g, "p1", "hand", "ORB2");
+    return !!card && acts(g).some((a) => a.type === "activate" && a.card === card);
+  };
+
+  const s = spendDrop(arena({ hand: ["ORB2", "ORB2"], energy: ["V1", "V1"] }));
+  dropOne(s);
+  assert.ok(!offered(s), "22-15-7: once a turn, even with the Drop refilled");
+
+  const w = spendDrop(arena({ battle: ["HOLE"], hand: ["ORB2", "ORB2"], energy: ["V1", "V1"] }));
+  dropOne(w);
+  assert.ok(offered(w), "22-24-2: [Wormhole] allows a second");
+}
+
 console.log("verify-arena: all checks passed");
