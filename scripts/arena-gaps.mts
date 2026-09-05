@@ -14,6 +14,7 @@ import { DEFAULT_GAME } from "../src/lib/catalog/games";
 import { cards as cardsTable } from "../src/db/schema";
 import { compileCardCached, parseSkills, type CardDef } from "../src/lib/arena/engine";
 import { compileCostProgram, costIsOnlyOrbs, costText, parseConditionClause } from "../src/lib/arena/engine/compile";
+import { emitsStatic } from "../src/lib/arena/engine/state";
 import { autoTriggerMatches } from "../src/lib/arena/engine/triggers";
 import type { Trigger } from "../src/lib/arena/engine/types";
 import { cardDefFrom } from "../src/lib/arena/load";
@@ -309,5 +310,40 @@ console.log(`\n\n${unpayables} [Activate]/[Counter] skills compile but are never
 console.log("engine cannot read the price before the colon and will not waive one:\n");
 for (const [, e] of [...unpayable.entries()].sort((a, b) => b[1].skills - a[1].skills).slice(0, 20)) {
   console.log(`${String(e.skills).padStart(5)} skills on ${String(e.cards.size).padStart(4)} cards   ${e.example}`);
+}
+
+/**
+ * And the third kind. A [Permanent] skill is never resolved; `collectStatics`
+ * reads its program and emits standing effects from the ops it knows. A
+ * program made of anything else compiles and then does nothing — grouped here
+ * by the ops it produced, because that is what says which static kind is
+ * missing.
+ */
+const inert = new Map<string, { skills: number; cards: Set<string>; example: string }>();
+let inerts = 0;
+for (const d of defs) {
+  for (const side of ["front", "back"] as const) {
+    const text = side === "front" ? d.skill : d.back?.skill;
+    if (!text) continue;
+    const scripts = compileCardCached(d, side);
+    for (const sk of parseSkills(text)) {
+      if (sk.kind !== "permanent" || !sk.effect.trim()) continue;
+      const sc = scripts.bySkill[sk.index];
+      if (!sc || sc.unsupported.length || emitsStatic(sc.ops)) continue;
+      inerts++;
+      const key = sc.ops.map((o) => o.op).join(" + ") || "(nothing at all — the text was a reminder)";
+      const e = inert.get(key) ?? { skills: 0, cards: new Set<string>(), example: `${d.id}: ${sk.effect.replace(/\s+/g, " ").slice(0, 60)}` };
+      e.skills++;
+      e.cards.add(d.id);
+      inert.set(key, e);
+    }
+  }
+}
+
+console.log(`\n\n${inerts} [Permanent] skills compile but emit no standing effect — the static layer`);
+console.log("has no kind for what they say, so they read cleanly and do nothing:\n");
+for (const [key, e] of [...inert.entries()].sort((a, b) => b[1].skills - a[1].skills).slice(0, 15)) {
+  console.log(`${String(e.skills).padStart(5)} skills on ${String(e.cards.size).padStart(4)} cards   ${key}`);
+  console.log(`        e.g. ${e.example}`);
 }
 process.exit(0);

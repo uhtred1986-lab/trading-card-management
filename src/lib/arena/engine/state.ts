@@ -493,6 +493,19 @@ export function staticEffects(ctx: GameContext, s: GameState): StaticEffect[] {
  */
 let computingStatics = false;
 
+/**
+ * The ops `collectStatics` below turns into a standing effect. Anything else
+ * in a [Permanent] program is **inert**: the skill compiles and then does
+ * nothing, which no compile figure can show. `emitsStatic` is what
+ * `arena:coverage` uses so its "applied by the static layer" line means what
+ * it says — keep this list beside the switch it describes.
+ */
+const STATIC_OPS = new Set<Op["op"]>(["power", "comboPower", "grant", "costReduction", "replaceLeave", "gains", "negateKeyword", "forbid", "altCost"]);
+
+export function emitsStatic(ops: Op[]): boolean {
+  return ops.some((o) => (o.op === "if" ? emitsStatic(o.then) || emitsStatic(o.else ?? []) : STATIC_OPS.has(o.op)));
+}
+
 function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], source: string, master: PlayerId, ops: Op[], inPlayNow: boolean): void {
   const frame: ScriptFrame = { ops: [], ip: 0, vars: {}, card: source, master };
   for (const op of ops) {
