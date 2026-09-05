@@ -19,13 +19,13 @@ Measured on the 6,493 Dragon Ball Super (not Fusion World) cards:
 
 | measure | value | command |
 |---|---|---|
-| resolvable skills the compiler reads end-to-end | 83.7 % of 11,745 | `npm run arena:coverage` |
-| [Permanent] skills the compiler reads | 53.0 % of 1,808 | same |
-| …and that actually emit a standing effect | 47.6 % of 1,808 | same |
-| skills in the owner's 12 decks that compile | 89.9 % of 357 | same (deck tables) |
+| resolvable skills the compiler reads end-to-end | 84.0 % of 11,742 | `npm run arena:coverage` |
+| [Permanent] skills the compiler reads | 53.2 % of 1,808 | same |
+| …and that actually emit a standing effect | 47.8 % of 1,808 | same |
+| skills in the owner's 12 decks that compile | 90.2 % of 357 | same (deck tables) |
 | skills exactly one unreadable clause away | 1,226 | `npm run arena:gaps` |
 | [Auto] skills that compile but no trigger fires | 726 | `npm run arena:gaps` (§5.3) |
-| [Activate]/[Counter] whose price the engine cannot read | 160 | same |
+| [Activate]/[Counter] whose price the engine cannot read | 67 | same |
 | fuzzer | 40 games, 0 crashes | `npm run arena:fuzz 40` |
 
 The orphan-trigger figure goes **up** when the compiler improves, and that is

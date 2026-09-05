@@ -9,7 +9,7 @@
  * state storable mid-prompt and replayable from the action log.
  */
 import { baseType, canCombo, isZ, keywordOf, skillsOf, specifiedCostOf } from "./cards";
-import { compileCard, compileCostProgram, costIsOnlyOrbs, costText, parseConditionClause, type CardScripts } from "./compile";
+import { compileCard, compileCostProgram, costIsOnlyOrbs, costText, parseConditionClause, priceCondition, type CardScripts } from "./compile";
 import { matches, parseCondition, parseFilter } from "./filters";
 import { stepScript, validateProgram, type Op, type ScriptFrame } from "./script";
 import { koCard, pendTriggers } from "./triggers";
@@ -818,9 +818,9 @@ function costIsReadable(sk: Skill): boolean {
   // The orbs and any reminder text come off first — a card that costs both
   // orbs and a condition never *starts* with the condition, and testing the
   // raw text meant 1,626 skills whose effects compile were never offered.
-  const priced = costText(sk.cost);
-  if (/^(?:if|when|while|during)\b/i.test(priced)) return parseConditionClause(priced) !== null;
-  return compileCostProgram(sk) !== null;
+  // A dozen cards state the condition bare, with no "if" in front of it, which
+  // `priceCondition` reads once the price has failed to be an action.
+  return priceCondition(sk) !== null || compileCostProgram(sk) !== null;
 }
 
 /**
@@ -1751,8 +1751,7 @@ function activatable(ctx: EngineContext, s: GameState, p: PlayerId, card: string
   }
   // "[Activate: Main] If your Leader Card is red: Draw 1 card" — a cost that
   // is only a condition (9-1-3) is a skill that can be used when it holds.
-  const priced = costText(sk.cost);
-  const condCost = !costIsOrbsOnly && /^(?:if|when|while|during)\b/i.test(priced) ? parseConditionClause(priced) : null;
+  const condCost = !costIsOrbsOnly ? priceCondition(sk) : null;
   // 4-3-3: or the price may be an action — "switch this card to Rest Mode",
   // "choose 1 card in your hand and place it in your Drop Area". Only offered
   // when the engine can charge it, so the effect never happens for free.

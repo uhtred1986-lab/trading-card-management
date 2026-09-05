@@ -747,6 +747,46 @@ two wordings that look alike are usually two moments.** Widening an existing
 regex is right only when the wider one would never fire at a moment the card
 does not mean — which was true twice out of eight here.
 
+## Done: the prices the engine would not charge (5 Sep 2026)
+
+A skill whose price cannot be read is never offered — the engine will not waive
+one — so this bucket is skills that compile perfectly and can never be used.
+160 → 67. The probe technique of §5.3b again: dump every unreadable price as
+printed, and the clusters name themselves.
+
+- **Circled numbers** (6). A few sets print a colourless skill cost as `③`
+  where the rest print `{3}`. Normalised in `skillLines`, so `orbsIn`,
+  `costText`, `costIsOnlyOrbs` and `splitCost` all see one form — fixing it in
+  any one of them would have left the other three wrong.
+- **`priceCondition`** (14). A dozen cards state the condition bare: "Your
+  Leader Card is a green ≪Android≫ card", no "if". Four call sites tested for
+  a leading if/when/while/during; they now share one reader. A bare condition
+  is only read **after** the price has failed to be an action, because the
+  action is the stronger reading — guessing the other way hands out a free
+  skill, and that asymmetry is the whole of the rule.
+- **Filtered discards** (10). "Discard 1 mono-green card from your hand" is
+  still the owner's choice (20-7) but only among the cards described, which the
+  `discard` op cannot say — so it compiles to the same choose-then-move that op
+  splices for the unqualified case. "Discard **this card**" is the opposite:
+  the card is named, so nobody chooses.
+- **Tokens** (15). "Choose 1 of your Earthling Tokens", "up to 2 Cell Jr.
+  tokens", "switch 1 of your Chilled Army tokens to rest". A `token` flag on
+  the filter carries the type with the name, so a printed card of the same name
+  is not matched.
+- **"…and place this card under it"** (5): the host is the card the clause
+  before just chose.
+- Two words: "switch … to rest" without "Mode", "place … **on** the bottom of".
+
+Two traps caught by probing the *result* rather than the compile:
+
+1. The first token regex captured `"of your earthling"` — a character class
+   that admits spaces starts as early as it can. It is now bounded to three
+   words with the grammar stripped off the front, and the test pins both the
+   name and the fact that "1 token with combo power" names no token.
+2. `splitClauses` cut "Cell Jr. tokens" in half at the full stop, leaving
+   "remove them from the game" with nothing to remove. A real sentence never
+   carries on in lower case, which is the whole fix.
+
 ## Conventions worth keeping
 
 - Card text is **read, never interpreted**: if the compiler cannot read a

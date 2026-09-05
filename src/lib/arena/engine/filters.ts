@@ -28,6 +28,12 @@ export interface CardFilter {
    * answer it — `resolveSelector` checks it where the instance is known.
    */
   faceUp: boolean;
+  /**
+   * "Choose 1 of your Earthling Tokens and switch it to Rest Mode" (19): a
+   * token is named by what it is, and the name alone would also match a
+   * printed card of that name, so the type is carried with it.
+   */
+  token: boolean;
   /** Energy cost bounds, inclusive. */
   costMin: number | null;
   costMax: number | null;
@@ -44,8 +50,11 @@ export interface CardFilter {
 
 const COLOR_WORDS: Record<string, Color> = { red: "Red", blue: "Blue", green: "Green", yellow: "Yellow", black: "Black" };
 
+/** Grammar that can sit between the number and a token's name, never part of it. */
+const TOKEN_STOP = new Set(["of", "your", "their", "the", "opponent's", "opponents", "up", "to", "and", "or", "all", "each", "other", "another"]);
+
 export function parseFilter(text: string): CardFilter {
-  const f: CardFilter = { colors: [], monoColor: false, multiColor: false, characters: [], notCharacters: [], traits: [], notTraits: [], names: [], type: null, notType: null, faceUp: false, costMin: null, costMax: null, powerMin: null, powerMax: null, powerRel: null, z: null };
+  const f: CardFilter = { colors: [], monoColor: false, multiColor: false, characters: [], notCharacters: [], traits: [], notTraits: [], names: [], type: null, notType: null, faceUp: false, token: false, costMin: null, costMax: null, powerMin: null, powerMax: null, powerRel: null, z: null };
   const t = text.replace(/&lt;/g, "<").replace(/&gt;/g, ">");
   for (const m of t.matchAll(/(non-)?<([^>]+)>/g)) (m[1] ? f.notCharacters : f.characters).push(m[2].trim());
   for (const m of t.matchAll(/(non-)?≪([^≫]+)≫/g)) (m[1] ? f.notTraits : f.traits).push(m[2].trim());
@@ -62,6 +71,21 @@ export function parseFilter(text: string): CardFilter {
     if (!f.colors.includes(c)) f.colors.push(c);
   }
   if (/\bz-(leader|battle|extra|unison)\b|\bz-card\b/.test(lower)) f.z = true;
+  // "Choose 1 of your Earthling Tokens", "up to 2 Cell Jr. tokens in your
+  // Battle Area", "switch 1 of your Chilled Army tokens to rest" (19). The
+  // name sits straight before the word, but a character class that admits
+  // spaces starts as early as it can, so it is bounded to three words and the
+  // grammar in front of it is then dropped. "1 token with combo power" names
+  // no token and must come out with nothing rather than with a name of "1".
+  const tok = /\b([a-z0-9'.-]+(?: [a-z0-9'.-]+){0,2}) tokens?\b/.exec(lower);
+  if (tok) {
+    const words = tok[1].split(" ");
+    while (words.length && (TOKEN_STOP.has(words[0]) || /^\d+$/.test(words[0]))) words.shift();
+    if (words.length) {
+      f.token = true;
+      f.names.push(words.join(" "));
+    }
+  }
   // "Non-Leader card" is the type it must not be, and reading it as the type
   // itself inverted the filter — a stack of "non-Leader cards" became Leaders.
   const typeWord = (re: RegExp): "yes" | "no" | null => (new RegExp(`non-${re.source}`).test(lower) ? "no" : re.test(lower) ? "yes" : null);
@@ -116,6 +140,7 @@ export function powerRelOk(f: CardFilter, power: number, own: number): boolean {
 
 export function matches(d: CardDef, f: CardFilter): boolean {
   if (f.z != null && d.type.startsWith("Z-") !== f.z) return false;
+  if (f.token && d.type !== "TOKEN") return false;
   if (f.type && baseType(d) !== f.type) return false;
   if (f.notType && baseType(d) === f.notType) return false;
   if (f.colors.length && !f.colors.every((c) => d.colors.includes(c))) return false;

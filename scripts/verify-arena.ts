@@ -9,7 +9,7 @@ import { apply, createGame, defsFrom, legalActions, seedFrom, type Action, type 
 import { parseSkills, keywordOf, orbsIn, eitherOrbsIn, skillLines } from "../src/lib/arena/engine/cards";
 import { parseFilter, matches, parseCondition } from "../src/lib/arena/engine/filters";
 import { move, locate, playCost, powerOf, forbids, has, cardNow, comboCostOf, skillNegated, skillsNegated } from "../src/lib/arena/engine/state";
-import { compileCostProgram, compileSkill, costIsOnlyOrbs, costText, describeScript, parseConditionClause, parseTarget, splitClauses } from "../src/lib/arena/engine/compile";
+import { compileCostProgram, compileSkill, costIsOnlyOrbs, costText, describeScript, parseConditionClause, parseTarget, priceCondition, splitClauses } from "../src/lib/arena/engine/compile";
 import { autoTriggerMatches, koCard } from "../src/lib/arena/engine/triggers";
 
 // ── skill text parsing ─────────────────────────────────────────────────────
@@ -3978,6 +3978,50 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   const after = structuredClone(s);
   move(ctx, after, [], target, "hand", "p1");
   assert.equal(after.cards[target].faceUp, false, "3-1-4: a card that changed area is a new card");
+}
+
+{
+  // Prices the engine could not read at all, in the order the catalog prints
+  // them. Each is a price, so a wrong reading hands out a skill for free.
+
+  // A few sets print a colourless skill cost as a circled number where the
+  // rest print "{3}"; `skillLines` normalises it so every reader of a cost
+  // sees one form.
+  const circled = parseSkills("[Activate: Main]③, if your Leader Card is a blue <Gogeta> card : Draw 1 card.")[0];
+  assert.deepEqual(circled.energyCost, { any: 3 }, "③ is three colourless energy");
+
+  // 9-1-3: a dozen cards state the condition bare, with no "if" in front.
+  const bare = parseSkills("[Activate: Main] Your Leader Card is a green ≪Android≫ card : Draw 1 card.")[0];
+  const cond = priceCondition(bare);
+  assert.equal(cond?.cond.kind, "leaderMatches", "a price that only states a condition");
+  // …but an action price is the stronger reading and wins, so a price the
+  // engine can charge is never mistaken for a condition that costs nothing.
+  const action = parseSkills("[Activate: Main] Switch this card to Rest Mode : Draw 1 card.")[0];
+  assert.equal(priceCondition(action), null, "4-3-3: an action price is charged, not merely checked");
+
+  // 20-7: a discard the text describes is still the owner's choice, but only
+  // among the cards described — which the `discard` op cannot say.
+  const filtered = compileCostProgram(parseSkills("[Activate: Main] Discard 1 mono-green card from your hand : Draw 1 card.")[0]);
+  assert.deepEqual(filtered?.ops.map((o) => o.op), ["choose", "moveTo"], "the description makes it a choose plus a move");
+  // Naming the card outright is the opposite: nobody chooses.
+  const named = compileCostProgram(parseSkills("[Activate: Main] Discard this card from your hand : Draw 1 card.")[0]);
+  assert.deepEqual(named?.ops.map((o) => o.op), ["moveTo"]);
+
+  // 19: a token is named by what it is, and only a token carries that name.
+  const tokenDef = { ...DEFS.V1, id: "TOKEN:x", name: "Earthling", type: "TOKEN" as const };
+  const printed = { ...DEFS.V1, id: "BT1-999", name: "Earthling" };
+  const f = parseFilter("1 of your Earthling Tokens");
+  assert.deepEqual(f.names, ["earthling"], "the grammar in front of the name is not part of it");
+  assert.ok(matches(tokenDef, f));
+  assert.ok(!matches(printed, f), "a printed card of the same name is not a token");
+  // "If you or your opponent removes 1 token with combo power from the game"
+  // names no token at all, and must come out with nothing rather than a name.
+  assert.deepEqual(parseFilter("1 token with combo power").names, []);
+
+  // A full stop inside an abbreviation is not the end of a sentence: splitting
+  // there left the removal below with nothing to remove.
+  assert.deepEqual(splitClauses("Choose up to 2 Cell Jr. tokens in your Battle Area and remove them from the game").length, 2);
+  assert.deepEqual(splitClauses("Draw 1 card. Choose 1 of your Battle Cards.").length, 2, "a real sentence still splits");
 }
 
 console.log("verify-arena: all checks passed");

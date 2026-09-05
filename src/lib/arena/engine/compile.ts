@@ -60,7 +60,11 @@ export function splitClauses(text: string): string[] {
     else if (depth === 0) {
       if ((ch === "," || ch === ";") && !inNameList(text, i)) {
         push(i, 1);
-      } else if (ch === "." && (i + 1 >= text.length || text[i + 1] === " ")) {
+      } else if (ch === "." && (i + 1 >= text.length || (text[i + 1] === " " && !/^ [a-z]/.test(text.slice(i + 1, i + 3))))) {
+        // A full stop inside an abbreviation is not the end of a sentence:
+        // "choose up to 2 Cell Jr. tokens and remove them from the game" is
+        // one clause, and splitting it left the removal with nothing to remove.
+        // A real sentence never carries on in lower case.
         push(i, 1);
       } else if (
         text.startsWith(" and ", i) &&
@@ -583,6 +587,24 @@ export function costIsOnlyOrbs(cost: string): boolean {
   );
 }
 
+/**
+ * The condition a price states, when stating one is all it does (9-1-3).
+ *
+ * Most cards write "If your Leader Card is red"; a dozen print the same claim
+ * bare — "Your Leader Card is a green ≪Android≫ card" — with no condition word
+ * in front of it. A bare one is only read once the price has failed to be an
+ * *action*, because the action is the stronger reading: charging it changes the
+ * game, and a condition that merely holds costs nothing, so guessing wrong in
+ * that direction would hand the player a free skill.
+ */
+export function priceCondition(skill: Skill): { cond: Cond; subject?: Ref } | null {
+  const priced = costText(skill.cost);
+  if (!priced) return null;
+  if (/^(?:if|when|while|during)\b/i.test(priced)) return parseConditionClause(priced);
+  if (compileCostProgram(skill)) return null;
+  return parseConditionClause(priced, true);
+}
+
 export function parseConditionClause(clause: string, allowBare = false): { cond: Cond; subject?: Ref } | null {
   const trimmed = clause.toLowerCase().trim();
   // "During your turn" is a condition too, and reads as one everywhere else in
@@ -954,6 +976,20 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   if ((m = /^your opponent (?:sends|places) (\d+) cards? from their hand (?:to|in|into) (?:their|its owner's) warp$/.exec(t))) return [{ op: "discard", n: Number(m[1]), side: "opponent", to: "warp" }];
   if ((m = /^(?:send|place) (\d+) cards? from your hand (?:to|in|into) your warp$/.exec(t))) return [{ op: "discard", n: Number(m[1]), to: "warp" }];
   if ((m = /^discard (\d+) cards?(?: from your hand)?$/.exec(t))) return [{ op: "discard", n: Number(m[1]) }];
+  // "Discard this card from your hand" (20-7): the card is named, so nobody
+  // chooses — which is what makes it not the `discard` op.
+  if (/^discard this card(?: from your hand)?$/.test(t) || /^(?:place|put) this card (?:in|into) (?:your|its owner'?s?|the) drop(?: area)?(?: from your hand)?$/.test(t)) {
+    return [{ op: "moveTo", target: { sel: { special: "self" } }, to: "drop", reveal: true }];
+  }
+  // "Discard 1 mono-green card from your hand", "discard 1 ≪Saiyan≫ or
+  // ≪Earthling≫ card from your hand": the owner still chooses (20-7), but only
+  // among the cards the text describes, which the `discard` op cannot say. It
+  // is the same choose-then-move that op splices for the unqualified case, so
+  // this reads the description as a target phrase and lets `withChoice` ask.
+  if ((m = /^discard (\d+ .+?) from your hand$/.exec(t))) {
+    const ref = refFor(`${m[1]} in your hand`, c);
+    if (ref) return withChoice(ref, clause, c, (target) => ({ op: "moveTo", target, to: "drop", reveal: true }));
+  }
   // "…they choose 1 card in their hand": after "when your opponent combos",
   // "they" is the opponent, and the sentence is the same discard.
   if ((m = /^(?:your opponent|they) chooses? (\d+) cards? (?:in|from) their hand$/.exec(t))) return [{ op: "discard", n: Number(m[1]), side: "opponent" }];
@@ -1267,7 +1303,8 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   if (/^negate the \[counter[^\]]*\](?: skill)?$/.test(t)) return [{ op: "negateCounter" }];
 
   // Mode switches (1-10).
-  if ((m = /^switch (.*?) to (active|rest) mode$/.exec(t))) {
+  // A few cards drop the word: "switch 1 of your Chilled Army tokens to rest".
+  if ((m = /^switch (.*?) to (active|rest)(?: mode)?$/.exec(t))) {
     const ref = refFor(m[1], c);
     const mode = m[2] as "active" | "rest";
     // "Switch up to 1 of your energy to Active Mode" names a number, so it is
@@ -1343,7 +1380,10 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // "Place this card under the played card", "place it under the card you
   // played with this skill", "…under your Leader", "…under {Wickedest Clan}":
   // hosts the text names precisely, so no guessing.
-  if ((m = /^(?:place|put) (.+?) (?:face ?up )?under (the chosen card|the played card|the card (?:that was |you )?played(?: with this skill)?|your leader(?: card)?|\{[^}]+\}(?: in your battle area)?)$/.exec(t))) {
+  // "Choose 1 {Spaceship, Vessel of Hope} in your Unison Area **and place this
+  // card under it**": "it" is the card the clause before just chose, which is
+  // the only antecedent it can have — the host is never the card being placed.
+  if ((m = /^(?:place|put) (.+?) (?:face ?up )?under (the chosen card|the played card|the card (?:that was |you )?played(?: with this skill)?|your leader(?: card)?|it|them|that card|those cards|\{[^}]+\}(?: in your battle area)?)$/.exec(t))) {
     const host = refFor(m[2], c);
     const ref = refFor(m[1], c);
     return host && ref ? withChoice(ref, clause, c, (target) => ({ op: "moveTo", target, to: "under", under: host })) : null;
@@ -1374,7 +1414,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     // "their owners' decks", "its owner's hand": several cards go to several
     // owners' areas, which `moveTo` does one card at a time anyway.
     [/^place (.+?) (?:in|into) (?:its owner'?s?|their owners?'?s?|their|your|the) drops?(?: area)?s?$/, "drop", { reveal: true }],
-    [/^place (.+?) at the bottom of (?:its owner'?s?|their owners?'?s?|their|your) decks?(?: in any order)?$/, "deck", { position: "bottom" }],
+    [/^place (.+?) (?:at|on) the bottom of (?:its owner'?s?|their owners?'?s?|their|your) decks?(?: in any order)?$/, "deck", { position: "bottom" }],
     [/^place (.+?) on top of (?:its owner'?s?|their owners?'?s?|their|your) decks?(?: in any order)?$/, "deck", { position: "top" }],
     [/^return (.+?) to (?:its|their) owners?'?s? hands?$/, "hand", {}],
     [/^return (.+?) to (?:your|their) hands?$/, "hand", {}],
@@ -1708,10 +1748,12 @@ export function compileSkill(skill: Skill): Script {
   // (9-1-3), and it lands in `cost`. It wraps the whole program; one the
   // compiler cannot read fails the skill rather than running it unconditionally.
   const priced = costText(skill.cost);
+  const priceCond = ops.length && !engineChecks ? priceCondition(skill) : null;
+  if (priceCond) return { ops: [{ op: "if", cond: priceCond.cond, then: ops }], unsupported };
+  // A condition the compiler cannot read fails the skill. An *action* price is
+  // not this: the engine charges that separately, so it leaves the program be.
   if (ops.length && !engineChecks && /^(?:if|when|while|during)\b/i.test(priced)) {
-    const cond = parseConditionClause(priced);
-    if (!cond) return { ops: [], unsupported: [skill.cost, ...unsupported] };
-    return { ops: [{ op: "if", cond: cond.cond, then: ops }], unsupported };
+    return { ops: [], unsupported: [skill.cost, ...unsupported] };
   }
   if (ops.length && triggerCond) return { ops: [{ op: "if", cond: triggerCond, then: ops }], unsupported };
   return { ops, unsupported };

@@ -29,6 +29,12 @@ export function skillLines(text: string | null | undefined): string[] {
     // Some sets print the odd full-width Latin letter mid-word ("Leader Ｃard"),
     // which reads the same and matches nothing.
     .replace(/[Ａ-Ｚａ-ｚ]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xfee0))
+    // A handful of sets print a skill's colourless energy cost as a circled
+    // number ("③, if your Leader Card is a blue <Gogeta: Br> card") where the
+    // rest print "{3}". Normalising it here means every reader of a cost —
+    // `orbsIn`, `costText`, `costIsOnlyOrbs`, `splitCost` — sees the one form.
+    .replace(/[①-⑳]/g, (ch) => `{${ch.charCodeAt(0) - 0x245f}}`)
+    .replace(/⓪/g, "{0}")
     .split("\n")
     .map((l) => l.trim())
     .filter(Boolean);

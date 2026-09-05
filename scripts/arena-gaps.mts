@@ -13,7 +13,7 @@ import { db } from "../src/db";
 import { DEFAULT_GAME } from "../src/lib/catalog/games";
 import { cards as cardsTable } from "../src/db/schema";
 import { compileCardCached, parseSkills, type CardDef } from "../src/lib/arena/engine";
-import { compileCostProgram, costIsOnlyOrbs, costText, parseConditionClause } from "../src/lib/arena/engine/compile";
+import { compileCostProgram, costIsOnlyOrbs, priceCondition } from "../src/lib/arena/engine/compile";
 import { emitsStatic } from "../src/lib/arena/engine/state";
 import { autoTriggerMatches } from "../src/lib/arena/engine/triggers";
 import type { Trigger } from "../src/lib/arena/engine/types";
@@ -281,8 +281,8 @@ for (const [, e] of [...orphan.entries()].sort((a, b) => b[1].skills - a[1].skil
  */
 const costReadable = (sk: ReturnType<typeof parseSkills>[number]) => {
   if (costIsOnlyOrbs(sk.cost)) return true;
-  const priced = costText(sk.cost);
-  if (/^(?:if|when|while|during)\b/i.test(priced)) return parseConditionClause(priced) !== null;
+  // A price that only states a condition, with or without an "if" in front.
+  if (priceCondition(sk)) return true;
   // An action price is readable when it compiles; whether it can be *paid* is
   // a question about the board, which only `canPayCostProgram` can answer.
   return compileCostProgram(sk) !== null;
