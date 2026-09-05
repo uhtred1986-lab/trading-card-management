@@ -145,7 +145,9 @@ the same style.
   fixed target grammar ("Blue <Baby> with an energy cost of 4"); `effects.ts` handles a few fixed
   phrasings natively and logs a note for everything else, which is where the phase-3 compiled
   scripts and the runtime referee plug in. Only skills the engine can both pay for and resolve are
-  offered as actions. Design and decisions: `docs/arena-design-proposal.md`. Tests:
+  offered as actions. Design and decisions: `docs/arena-design-proposal.md`; history and
+  lessons: `docs/arena-rules-worklist.md`; **the current work brief with code map, checklists
+  and backlog: `docs/arena-next-stage-spec.md`** — read it before touching the compiler. Tests:
   `scripts/verify-arena.ts` (part of `npm test`), synthetic cards, sections cited in messages.
 - **Arena UI** (`/arena`, `src/components/arena/`, `src/lib/arena/{games,view}.ts`): phone-first
   hot-seat board. A game is one `arena_games` row holding the seed, the action log (the

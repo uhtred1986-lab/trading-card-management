@@ -272,9 +272,23 @@ itself. `CardFilter.powerRel` now carries the relative bound and
 print ("with the same name", "with an energy cost equal to…") — each one that
 is not parsed widens a selection without a word.
 
-Next, in order: the rest of the unread conditions above; then the "one clause
-away" list from `npm run arena:gaps` ("if you added a card to your hand" needs
-skill memory; "switch it to Hidden Mode"; "negate this skill for the turn").
+Later the same day, five more commits worked the "one clause away" list down:
+skill memory (`frame.did`: "if you added a card to your hand", "if you played
+a card", "if you KO'd a card", "if you negated a Leader Card's attack"), Hidden
+Mode, `redirectAttack`, `comboFrom` (combos from the Drop), `flip`, the `kos`
+trigger ("when this card attacks and KOs…" — the trigger's own "and" had been
+splitting it), a bare condition riding on a trigger ("When you play this card
+and your Leader Card is a ≪Universe 6≫ card, …" — one fix, +3 points), and two
+engine bugs: **skill negation for a turn was written into `s.effects` and never
+read** (and marked the card for the game), and **a move with a number in its
+target moved every matching card** ("add 1 card from your Drop to your hand"
+added the whole Drop) — `withChoice` now puts a choice in front. End of day:
+catalog **78.9 %**, decks **87.9 %**, permanent 49.0 %, one clause away 1,469.
+
+**Next stage: `docs/arena-next-stage-spec.md`** — a self-contained brief with
+the code map, the checklists for a new op/condition/trigger/keyword, the
+measurement loop, and the backlog with per-item specs and acceptance tests.
+Start there.
 
 ---
 
