@@ -1999,10 +1999,19 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
       const key = `picking:${ch.continuation}`;
       const sofar = (s.continuations[key] as string[] | undefined) ?? [];
       const picked = [...sofar, ...action.cards];
-      const left = ch.candidates.filter((id) => !action.cards.includes(id));
+      let left = ch.candidates.filter((id) => !action.cards.includes(id));
+      // 22-30-3: with colours still to cover, only the cards that cover one of
+      // them are worth offering — and once they are all covered there is
+      // nothing left to ask.
+      const missing = ch.cover?.filter((c) => !picked.some((id) => cardNow(ctx, s, id).colors.includes(c))) ?? [];
+      if (ch.cover) left = missing.length ? left.filter((id) => cardNow(ctx, s, id).colors.some((c) => missing.includes(c))) : [];
       if (action.cards.length > 0 && action.cards.length < ch.max && left.length > 0) {
         s.continuations[key] = picked;
-        s.prompt = { ...pr, choice: { ...ch, candidates: left, min: Math.max(0, ch.min - action.cards.length), max: ch.max - action.cards.length } };
+        // A colour still missing means the next pick is not optional: offering
+        // "choose none" here would let the player stop halfway and lose the
+        // cost, which is the thing this is here to prevent.
+        const min = missing.length ? 1 : Math.max(0, ch.min - action.cards.length);
+        s.prompt = { ...pr, choice: { ...ch, candidates: left, min, max: ch.max - action.cards.length } };
         return { state: s, events: ev };
       }
       delete s.continuations[key];
@@ -2140,10 +2149,19 @@ function activate(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId
   }
   if (k?.name === "Aegis") {
     payOrbs();
-    const cands = ps.hand.filter((id) => cardNow(ctx, s, id).colors.some((c) => k.colors.includes(c)));
+    // 22-30-3: only cards that could be part of a set covering every named
+    // colour. A card that covers one colour is only worth offering when the
+    // hand can still cover the rest — otherwise picking it is a dead end that
+    // costs the orbs and does nothing.
+    const cands = ps.hand.filter((id) => {
+      const mine = cardNow(ctx, s, id).colors.filter((c) => k.colors.includes(c));
+      if (!mine.length) return false;
+      const rest = k.colors.filter((c) => !mine.includes(c));
+      return rest.every((c) => ps.hand.some((other) => other !== id && cardNow(ctx, s, other).colors.includes(c)));
+    });
     s.continuations.aegis = { card, colors: k.colors };
     s.flow.unshift(
-      { op: "prompt", prompt: { kind: "chooseCards", player: p, choice: { reason: `Aegis: drop ${k.colors.join(" and ")} from your hand`, candidates: cands, min: 1, max: k.colors.length, continuation: "aegis" } } },
+      { op: "prompt", prompt: { kind: "chooseCards", player: p, choice: { reason: `Aegis: drop ${k.colors.join(" and ")} from your hand`, candidates: cands, min: 1, max: k.colors.length, continuation: "aegis", cover: k.colors } } },
       { op: "choose.apply", what: "aegis", card, player: p },
     );
     return;

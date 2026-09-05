@@ -3287,4 +3287,50 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assertConsistent(after);
 }
 
+// ── [Aegis] cannot be paid wrongly (22-30-3) ───────────────────────────────
+
+{
+  // Covering the named colours is a *condition of activating* [Aegis], not
+  // something a player can get wrong. The engine used to take any two cards
+  // that each matched a colour, then check — and a red-and-red pair ate the
+  // orbs and did nothing.
+  DEFS.AEG2 = { ...DEFS.V1, id: "AEG2", name: "AEG2", skill: "[Aegis red/blue] {r}" };
+  let s = arena({ battle: ["AEG2"], hand: ["V1", "V1", "V-BLUE"], energy: ["V1", "V1"] });
+  const aeg = s.players.p1.battle[0];
+  s = play(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+  s.cards[s.players.p1.energy[0]].mode = "rest";
+  s = play(s, { type: "attack", player: "p2", attacker: s.players.p2.leader, target: s.players.p1.leader }, { type: "pass", player: "p2" });
+  s = play(s, { type: "activate", player: "p1", card: aeg, skill: 0 });
+  const reds = s.players.p1.hand.filter((id) => s.cards[id].cardId === "V1");
+  const blue = find(s, "p1", "hand", "V-BLUE");
+  s = play(s, { type: "choose", player: "p1", cards: [reds[0]] });
+  assert.equal(s.prompt.kind, "chooseCards", "blue is still to cover");
+  const menu = (s.prompt as { choice: { candidates: string[]; min: number } }).choice;
+  assert.deepEqual(menu.candidates, [blue], "only the card that covers what is missing");
+  assert.equal(menu.min, 1, "and stopping here is not on the menu");
+  assert.ok(!labels(s).includes("Choose none"));
+  s = play(s, { type: "choose", player: "p1", cards: [blue] });
+  assert.ok(s.players.p1.drop.includes(reds[0]) && s.players.p1.drop.includes(blue), "22-30-3: a covering pair");
+  assert.ok(!s.players.p1.drop.includes(reds[1]), "and only the two it needed");
+  assertConsistent(s);
+}
+
+{
+  // A single multicolour card covers both on its own (22-30-3), and then
+  // there is nothing more to ask.
+  DEFS.AEG3 = { ...DEFS.V1, id: "AEG3", name: "AEG3", skill: "[Aegis red/blue]" };
+  DEFS.PURPLE = { ...DEFS.V1, id: "PURPLE", name: "PURPLE", colors: ["Red", "Blue"] };
+  let s = arena({ battle: ["AEG3"], hand: ["PURPLE"], energy: ["V1"] });
+  const aeg = s.players.p1.battle[0];
+  s = play(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+  s.cards[s.players.p1.energy[0]].mode = "rest";
+  s = play(s, { type: "attack", player: "p2", attacker: s.players.p2.leader, target: s.players.p1.leader }, { type: "pass", player: "p2" });
+  assert.ok(canActivate(s, aeg), "one card covering both is enough to activate");
+  s = play(s, { type: "activate", player: "p1", card: aeg, skill: 0 });
+  const purple = find(s, "p1", "hand", "PURPLE");
+  s = play(s, { type: "choose", player: "p1", cards: [purple] });
+  assert.ok(s.players.p1.drop.includes(purple), "it paid the whole cost by itself");
+  assertConsistent(s);
+}
+
 console.log("verify-arena: all checks passed");

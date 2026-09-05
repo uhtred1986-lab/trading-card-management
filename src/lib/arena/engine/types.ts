@@ -433,6 +433,13 @@ export interface CardChoice {
   max: number;
   /** Continuation id the engine resolves when the choice comes back. */
   continuation: string;
+  /**
+   * 22-30-3: the cards picked must between them cover every one of these
+   * colours. Covering is a *condition of activating* [Aegis], not something a
+   * player can get wrong, so the engine narrows what it offers as the picks
+   * come in rather than letting a wrong pair be chosen and eat the cost.
+   */
+  cover?: Color[];
 }
 
 /** Everything a player can do, as sent to `apply()`. */
