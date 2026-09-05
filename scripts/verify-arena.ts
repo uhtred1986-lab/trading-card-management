@@ -2608,4 +2608,42 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.deepEqual(labels(s), ["Skip charge"], "and there is nothing to do in it");
 }
 
+// ── counting the cards under a card (23-2), and the type words ─────────────
+
+{
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+  const countOf = (sc: { ops: unknown[] }) => (sc.ops[0] as { amount: { count: { area?: string; special?: string; filter?: { notType: string | null } } } }).amount.count;
+
+  // "For each card placed under it" is about the stack. The phrase used to be
+  // taken for "this card" and counted one, whatever the stack held.
+  const stack = one("[Permanent] This card gets +5000 power for each card placed under it.");
+  assert.deepEqual(stack.unsupported, []);
+  assert.equal(countOf(stack).area, "under");
+  assert.equal(countOf(stack).special, undefined, "not the card on top");
+
+  // "Non-Leader" is the type it must *not* be — read as the type itself, the
+  // filter counted Leaders and nothing else.
+  const nonLeader = one("[Permanent] This card gets +5000 power for each non-Leader card under this card.");
+  assert.deepEqual(nonLeader.unsupported, []);
+  assert.equal(countOf(nonLeader).filter?.notType, "LEADER");
+  assert.equal(matches({ ...DEFS.V1 }, parseFilter("non-Leader card")), true, "a Battle Card is a non-Leader card");
+  assert.equal(matches({ ...DEFS.V1, type: "LEADER" }, parseFilter("non-Leader card")), false);
+
+  // "Multicolor" is two colours or more, which is not what mono-colour denies.
+  assert.equal(matches({ ...DEFS.V1, colors: ["Red", "Blue"] }, parseFilter("multicolor <V1> cards")), true);
+  assert.equal(matches({ ...DEFS.V1, colors: ["Red"] }, parseFilter("multicolor <V1> cards")), false);
+}
+
+{
+  // The engine side: the power really does follow the size of the stack.
+  DEFS.PILE = { ...DEFS.V1, id: "PILE", name: "PILE", skill: "[Permanent] This card gets +5000 power for each card placed under it." };
+  const s = arena({ battle: ["PILE"] });
+  const pile = s.players.p1.battle[0];
+  const base = powerOf({ defs: DEFS }, s, pile);
+  const [a, b] = s.players.p1.deck;
+  s.cards[pile].under.push(a, b);
+  s.players.p1.deck = s.players.p1.deck.filter((id) => id !== a && id !== b);
+  assert.equal(powerOf({ defs: DEFS }, s, pile), base + 10000, "two cards under it, +10000");
+}
+
 console.log("verify-arena: all checks passed");

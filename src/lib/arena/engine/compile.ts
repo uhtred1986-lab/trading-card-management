@@ -124,6 +124,12 @@ const AREA_WORDS: [RegExp, ScriptArea][] = [
 /** "up to 2 of your opponent's Battle Cards in Rest Mode" → a selector. */
 export function parseTarget(phrase: string): Selector | null {
   const t = phrase.toLowerCase();
+  // "Each non-Leader card under this card" is about the stack; the "this card"
+  // in it names the host, not the target. Read before the shortcut below,
+  // which took the whole phrase for the card on top and counted one (23-2).
+  if (/\bunder (?:this card|it)\b/.test(t) && !/^this card\b/.test(t.trim())) {
+    return { side: "you", area: "under", filter: filterFor(phrase.replace(/\bunder (?:this card|it)\b/gi, ""), "under"), count: 99, upTo: false };
+  }
   // "this card's power" inside a phrase is a measure, not the target.
   if (/\bthis card\b(?!'s)/.test(t) && !/\bother\b/.test(t)) return { special: "self" };
   if (/\bthe attack(?:ing)? card\b/.test(t)) return { special: "attacker" };
@@ -197,6 +203,8 @@ function filterFor(phrase: string, area: ScriptArea | null): CardFilter | undefi
   if (area === "play" && (f.type === "BATTLE" || f.type === "LEADER")) f.type = null;
   const narrows =
     f.type != null ||
+    f.notType != null ||
+    f.multiColor ||
     // "Place up to 1 red <Android 17> card from your deck under a Z-Extra":
     // being a Z-card is the only thing said about the host.
     f.z != null ||

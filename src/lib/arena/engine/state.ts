@@ -534,8 +534,13 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
     }
     if (!inPlayNow) continue; // the rest only hold while the card is in play
     if (op.op === "power" || op.op === "comboPower") {
-      if (typeof op.amount !== "number") continue;
-      for (const id of staticTargets(ctx, s, frame, op.target)) out.push({ source, kind: op.op, target: id, value: op.amount });
+      // "+5000 power for each card placed under it" — a number read off the
+      // board. Only `count` amounts: the others are named by a variable, and a
+      // [Permanent] has no frame that ever bound one. `staticEffects` refuses
+      // to recurse, so the count may safely ask the board about itself.
+      const value = typeof op.amount === "number" ? op.amount : "count" in op.amount ? amount(ctx, s, frame, op.amount) : null;
+      if (value == null) continue;
+      for (const id of staticTargets(ctx, s, frame, op.target)) out.push({ source, kind: op.op, target: id, value });
     } else if (op.op === "grant") {
       for (const id of staticTargets(ctx, s, frame, op.target)) out.push({ source, kind: "keyword", target: id, value: op.keyword });
     }

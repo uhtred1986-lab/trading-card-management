@@ -12,12 +12,16 @@ import type { CardDef, Color } from "./types";
 export interface CardFilter {
   colors: Color[];
   monoColor: boolean;
+  /** "Multicolor <Pan> cards": two colours or more, which is not the opposite of mono-colour on a colourless card. */
+  multiColor: boolean;
   characters: string[];
   notCharacters: string[];
   traits: string[];
   notTraits: string[];
   names: string[];
   type: "LEADER" | "BATTLE" | "EXTRA" | "UNISON" | null;
+  /** "Non-Leader card under this card" — the type it must *not* be. */
+  notType: "LEADER" | "BATTLE" | "EXTRA" | "UNISON" | null;
   /** Energy cost bounds, inclusive. */
   costMin: number | null;
   costMax: number | null;
@@ -35,22 +39,32 @@ export interface CardFilter {
 const COLOR_WORDS: Record<string, Color> = { red: "Red", blue: "Blue", green: "Green", yellow: "Yellow", black: "Black" };
 
 export function parseFilter(text: string): CardFilter {
-  const f: CardFilter = { colors: [], monoColor: false, characters: [], notCharacters: [], traits: [], notTraits: [], names: [], type: null, costMin: null, costMax: null, powerMin: null, powerMax: null, powerRel: null, z: null };
+  const f: CardFilter = { colors: [], monoColor: false, multiColor: false, characters: [], notCharacters: [], traits: [], notTraits: [], names: [], type: null, notType: null, costMin: null, costMax: null, powerMin: null, powerMax: null, powerRel: null, z: null };
   const t = text.replace(/&lt;/g, "<").replace(/&gt;/g, ">");
   for (const m of t.matchAll(/(non-)?<([^>]+)>/g)) (m[1] ? f.notCharacters : f.characters).push(m[2].trim());
   for (const m of t.matchAll(/(non-)?≪([^≫]+)≫/g)) (m[1] ? f.notTraits : f.traits).push(m[2].trim());
   for (const m of t.matchAll(/\{([^}]+)\}/g)) if (!/^[rugyk]$|^\d+$/i.test(m[1])) f.names.push(m[1].trim());
   const lower = t.toLowerCase();
   if (/\bmono-?colou?r\b|\bmono-(red|blue|green|yellow|black)\b/.test(lower)) f.monoColor = true;
+  if (/\bmulti-?colou?r(?:ed)?\b/.test(lower)) f.multiColor = true;
   for (const m of lower.matchAll(/\b(red|blue|green|yellow|black)\b/g)) {
     const c = COLOR_WORDS[m[1]];
     if (!f.colors.includes(c)) f.colors.push(c);
   }
   if (/\bz-(leader|battle|extra|unison)\b|\bz-card\b/.test(lower)) f.z = true;
-  if (/\bleader( card)?\b/.test(lower)) f.type = "LEADER";
-  else if (/\bunison( card)?\b/.test(lower)) f.type = "UNISON";
-  else if (/\bextra( card)?\b/.test(lower)) f.type = "EXTRA";
-  else if (/\bbattle card\b/.test(lower)) f.type = "BATTLE";
+  // "Non-Leader card" is the type it must not be, and reading it as the type
+  // itself inverted the filter — a stack of "non-Leader cards" became Leaders.
+  const typeWord = (re: RegExp): "yes" | "no" | null => (new RegExp(`non-${re.source}`).test(lower) ? "no" : re.test(lower) ? "yes" : null);
+  for (const [re, type] of [
+    [/\bleader( card)?\b/, "LEADER"],
+    [/\bunison( card)?\b/, "UNISON"],
+    [/\bextra( card)?\b/, "EXTRA"],
+    [/\bbattle card\b/, "BATTLE"],
+  ] as const) {
+    const said = typeWord(re);
+    if (said === "no") f.notType ??= type;
+    else if (said === "yes" && !f.type) f.type = type;
+  }
   let m: RegExpExecArray | null;
   if ((m = /energy cost (?:of )?(\d+) or less/.exec(lower))) f.costMax = Number(m[1]);
   else if ((m = /energy cost (?:of )?(\d+) or more/.exec(lower))) f.costMin = Number(m[1]);
@@ -93,8 +107,10 @@ export function powerRelOk(f: CardFilter, power: number, own: number): boolean {
 export function matches(d: CardDef, f: CardFilter): boolean {
   if (f.z != null && d.type.startsWith("Z-") !== f.z) return false;
   if (f.type && baseType(d) !== f.type) return false;
+  if (f.notType && baseType(d) === f.notType) return false;
   if (f.colors.length && !f.colors.every((c) => d.colors.includes(c))) return false;
   if (f.monoColor && d.colors.length !== 1) return false;
+  if (f.multiColor && d.colors.length < 2) return false;
   if (f.characters.length && !f.characters.some((c) => hasCharacter(d, c))) return false;
   if (f.notCharacters.some((c) => hasCharacter(d, c))) return false;
   if (f.traits.length && !f.traits.some((c) => hasTrait(d, c))) return false;
