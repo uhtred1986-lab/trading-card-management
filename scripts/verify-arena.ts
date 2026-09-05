@@ -2085,6 +2085,12 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   const bothOf = read("if your life is at 4 or less and you have 3 or more energy");
   assert.equal(bothOf?.kind, "all");
   assert.equal(read("if your life is at 4 or less, or the moon is full"), undefined, "one unreadable part fails the whole condition");
+  assert.deepEqual(read("if your opponent's Leader Card's back is facing up"), { kind: "leaderFlipped", side: "opponent" });
+  assert.deepEqual(read("if this card's power is 30000 or more"), { kind: "power", sel: { special: "self" }, atLeast: 30000 });
+  const trait = read("if your Leader Card has ≪Saiyan≫ in its special trait");
+  assert.equal(trait?.kind, "leaderMatches");
+  assert.deepEqual((trait as { filter: { traits: string[] } }).filter.traits.map((x) => x.toLowerCase()), ["saiyan"]);
+  assert.equal(read("when your life is at 4 or less or your opponent's Leader Card's back is facing up")?.kind, "any");
   // "red or blue" and "4 or less" are not alternatives.
   assert.equal(read("if your Leader Card is red or blue")?.kind, "leaderMatches");
 

@@ -361,6 +361,19 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   if ((m = /^this card is in (rest|active) mode$/.exec(t))) {
     return { cond: { kind: "count", sel: { special: "self", mode: m[1] as "rest" | "active" }, atLeast: 1 }, subject: { sel: { special: "self" } } };
   }
+  // "If your opponent's Leader Card's back is facing up" — awakened (22-2).
+  if ((m = /^(your|your opponent's) leader(?: card)?'s back is facing up$/.exec(t))) {
+    return { cond: { kind: "leaderFlipped", ...(m[1] === "your" ? {} : { side: "opponent" as const }) } };
+  }
+  // "If this card's power is 30000 or more".
+  if ((m = /^this card'?s power is (\d+) or (more|less)$/.exec(t))) {
+    return { cond: { kind: "power", sel: { special: "self" }, ...(m[2] === "more" ? { atLeast: Number(m[1]) } : { atMost: Number(m[1]) }) }, subject: { sel: { special: "self" } } };
+  }
+  // "If your Leader Card has ≪Saiyan≫ in its special trait", "… has {Son Goku}
+  // in its card name", "… has <Vegeta> in its character name".
+  if ((m = /^your leader(?: card)? has (.+) in its (?:special traits?|card name|character names?)$/.exec(t))) {
+    return { cond: { kind: "leaderMatches", filter: parseFilter(m[1]) }, subject: { sel: { special: "leader" } } };
+  }
   // "If this card has 3 or more markers on it" (13-2).
   if ((m = /^this card has (\d+) or (more|less|fewer) markers?(?: on it)?$/.exec(t))) {
     return { cond: { kind: "markers", sel: { special: "self" }, ...(m[2] === "more" ? { atLeast: Number(m[1]) } : { atMost: Number(m[1]) }) }, subject: { sel: { special: "self" } } };
@@ -394,7 +407,7 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   }
   // "If you don't have a Unison in play", "if you don't have any Battle Cards in play".
   if ((m = /^you don'?t have (?:an?|any) (.+?)(?: in play)?$/.exec(t))) {
-    const sel = parseTarget(`your ${m[1]}`);
+    const sel = parseTarget(`your ${m[1]}`) ?? parseTarget(`your ${m[1]} card`);
     if (sel) {
       delete sel.count;
       delete sel.upTo;
@@ -1315,6 +1328,12 @@ function describeCond(c: Cond): string {
     }
     case "inBattle":
       return `${describeSelector(c.sel)} is ${c.not ? "not " : ""}in a battle`;
+    case "leaderFlipped":
+      return `${c.side === "opponent" ? "their" : "your"} leader ${c.flipped === false ? "has not" : "has"} awakened`;
+    case "power": {
+      const bound = c.atLeast != null ? `${c.atLeast} or more` : c.atMost != null ? `${c.atMost} or less` : "any";
+      return `${describeSelector(c.sel)} has ${bound} power`;
+    }
     case "any":
       return c.conds.map(describeCond).join(", or ");
     case "all":

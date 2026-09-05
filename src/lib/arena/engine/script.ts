@@ -96,6 +96,10 @@ export type Cond =
   /** "When your life is at 4 or less, or you have 5 or more energy" — one of several; "all" is every one of them. */
   | { kind: "any"; conds: Cond[] }
   | { kind: "all"; conds: Cond[] }
+  /** "If your opponent's Leader Card's back is facing up" — the Leader has awakened (22-2). */
+  | { kind: "leaderFlipped"; side?: Side; flipped?: boolean }
+  /** "If this card's power is 30000 or more" — any of the selected cards, as it stands now. */
+  | { kind: "power"; sel: Selector; atLeast?: number; atMost?: number }
   | { kind: "chose"; var: string }
   /** Whose turn it is (7-1). "opponent" is "during your opponent's turn". */
   | { kind: "isTurnPlayer"; who?: "you" | "opponent" };

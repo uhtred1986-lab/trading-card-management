@@ -347,6 +347,15 @@ export function condHolds(ctx: GameContext, s: GameState, frame: ScriptFrame, c:
       return c.conds.some((x) => condHolds(ctx, s, frame, x));
     case "all":
       return c.conds.every((x) => condHolds(ctx, s, frame, x));
+    case "leaderFlipped": {
+      const l = s.players[c.side === "opponent" ? other(frame.master) : frame.master].leader;
+      return !!l && s.cards[l].flipped === (c.flipped ?? true);
+    }
+    case "power":
+      return resolveSelector(ctx, s, frame, c.sel).some((id) => {
+        const n = powerOf(ctx, s, id);
+        return (c.atLeast == null || n >= c.atLeast) && (c.atMost == null || n <= c.atMost);
+      });
     case "lifeVsOpponent": {
       const mine = s.players[frame.master].life.length;
       const theirs = s.players[other(frame.master)].life.length;
