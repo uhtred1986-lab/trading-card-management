@@ -503,6 +503,28 @@ the same thing. What remains is a real tail: "discard this card from your hand"
 (the card *is* the price), a full-width numeral, and a few prohibitions printed
 where a price goes.
 
+## Done: the third measure that counted the wrong thing (5 Sep 2026)
+
+`arena:coverage` printed "[Permanent] skills **applied by the static layer**"
+next to a number that only meant "compiled". A [Permanent] is never resolved —
+`collectStatics` emits standing effects from the ops it knows, and a program
+made of anything else reads cleanly and does nothing. **141 of the 976 that
+compile emit nothing**, so the line overclaimed by 7.6 points. It now reads
+`52.8 % read, 45.2 % applied`, and `arena:gaps` lists the 141 grouped by the
+ops they produced, because that says which static kind is missing.
+
+Of them: 49 whose whole text is a bracketed reminder (correctly nothing), 43
+permissions the static layer has no kind for ("if you have 4 or more energy,
+you can activate this card from your hand"), and ~40 whose text is an
+instruction the compiler has taken literally.
+
+**That is three measures in a row that counted a stage earlier than the one
+they named** — the [Auto] triggers, the [Activate]/[Counter] prices, and now
+this. Each is now driven by a single exported reader shared by the engine and
+the report (`TRIGGERS`, `costText`/`compileCostProgram`, `emitsStatic`), which
+is the only structural defence: when the two copies drift, the number quietly
+starts describing something else.
+
 ## Conventions worth keeping
 
 - Card text is **read, never interpreted**: if the compiler cannot read a
