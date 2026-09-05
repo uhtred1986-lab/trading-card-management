@@ -20,8 +20,8 @@ Measured on the 6,493 Dragon Ball Super (not Fusion World) cards:
 | measure | value | command |
 |---|---|---|
 | resolvable skills the compiler reads end-to-end | 85.6 % of 11,743 | `npm run arena:coverage` |
-| [Permanent] skills the compiler reads | 56.3 % of 1,807 | same |
-| …and that actually emit a standing effect | 51.5 % of 1,807 | same |
+| [Permanent] skills the compiler reads | 57.2 % of 1,807 | same |
+| …and that actually emit a standing effect | 52.4 % of 1,807 | same |
 | skills in the owner's 12 decks that compile | 91.6 % of 358 | same (deck tables) |
 | skills exactly one unreadable clause away | 1,189 | `npm run arena:gaps` |
 | [Auto] skills that compile but no trigger fires | 655 | `npm run arena:gaps` (§5.3) |
@@ -65,6 +65,15 @@ mechanisms in §6.
 2. **Cite the manual.** Every engine rule and every test message names the
    section (`22-32-3`, `9-1-5`). Search `docs/rules/rulemanual.txt` with
    `grep -n "^22-32\|^  22-32-"` before implementing a keyword or a phase rule.
+
+   **When a wording is genuinely ambiguous, look it up before asking the
+   owner.** In order: the manual, then Bandai's own Q&A pages
+   (`dbs-cardgame.com/us-en/rule/card_faq.php` and `game_faq.php`), then
+   community forum entries. The one question parked for him on 5 Sep 2026 —
+   "does a card see its own arrival?" — was answered by 9-6-9-4 with 9-6-9-1-3,
+   in the manual already in this repo. Say plainly when the sources do *not*
+   settle it: a reading of the manual is not a printed ruling, and that
+   difference belongs in the note beside the rule.
 3. **A failed clause fails the clauses after it.** The compiler tracks what
    "it" refers to (`Ctx.lastTarget`, `Ctx.last`); fix the *first* failing
    clause in a skill before the later ones.

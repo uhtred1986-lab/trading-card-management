@@ -1752,9 +1752,18 @@ function assertConsistentAfterDrop(s: GameState) {
   );
 
   // A tail the compiler does not know must fail the whole clause rather than
-  // be discarded: "during your turn" makes the bonus conditional, and reading
-  // it as an unconditional +5000 would be wrong rather than incomplete.
-  assert.ok(one("This card gets +5000 power during your turn.").unsupported.length > 0, "an unknown tail is an honest gap, not a silent loss");
+  // be discarded — reading "…for each card in your Drop" as a flat +5000 would
+  // be wrong rather than incomplete.
+  assert.ok(one("This card gets +5000 power while your opponent is winning.").unsupported.length > 0, "an unknown tail is an honest gap, not a silent loss");
+
+  // 9-9: "during your turn" is one the compiler now knows, and it is a
+  // *condition* rather than a duration — the bonus is there only while it is
+  // your turn, which on a [Permanent] the static layer asks again every time.
+  const whileMine = one("This card gets +5000 power during your turn.");
+  assert.deepEqual(whileMine.unsupported, []);
+  assert.equal(whileMine.ops[0].op, "if");
+  assert.deepEqual((whileMine.ops[0] as { cond: unknown }).cond, { kind: "isTurnPlayer" });
+  assert.deepEqual((one("This card gets +5000 power during your opponent's turn.").ops[0] as { cond: unknown }).cond, { kind: "isTurnPlayer", who: "opponent" });
 
   // The tails that really are only a duration still read.
   for (const tail of ["for the turn", "for the duration of the battle", "until the end of your opponent's turn"]) {
@@ -4403,6 +4412,30 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
     { op: "draw", n: 1 },
     { op: "draw", n: 1, side: "opponent" },
   ]);
+}
+
+{
+  // Sentences from the owner's own decks, each of which did nothing at all.
+  const read = (text: string) => compileSkill(parseSkills(text)[0]);
+
+  // 20-21 works in both directions and the sets print both.
+  const dearer = read("[Permanent] Increase the energy cost of this card in your Battle Area by 2.");
+  assert.deepEqual(dearer.unsupported, []);
+  assert.equal((dearer.ops[0] as { amount: number }).amount, -2, "the same standing effect with the sign turned round");
+  assert.equal(describeScript(dearer.ops), "this card costs 2 more", "…and 'costs -2 less' is not English");
+
+  // A deck-building rule keeps its exception: splitting at that comma left
+  // "except for <Vegeta> cards" behind as a clause naming no action.
+  assert.deepEqual(read("[Permanent] You can't include non-≪Universe 6≫ Battle Cards in your deck, except for <Vegeta> cards.").unsupported, []);
+
+  // 9-9: a condition tail on a [Permanent], with two effects hanging off one
+  // subject — the "and" before a keyword tag is not a sentence break either.
+  const crit = read("[Permanent] When your life is less than or equal to your opponent's life, this card gains +5000 power and [Critical] during your turn.");
+  assert.deepEqual(crit.unsupported, []);
+  assert.equal(
+    describeScript(crit.ops),
+    "if your life is no more than theirs: if it is your turn: this card +5000 power for the turn, this card gains [Critical] for the turn",
+  );
 }
 
 console.log("verify-arena: all checks passed");

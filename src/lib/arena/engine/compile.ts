@@ -78,7 +78,7 @@ export function splitClauses(text: string): string[] {
     if ("([{<≪".includes(ch)) depth++;
     else if (")]}>≫".includes(ch)) depth = Math.max(0, depth - 1);
     else if (depth === 0) {
-      if ((ch === "," || ch === ";") && !inNameList(text, i) && !(ch === "," && inList(text, i))) {
+      if ((ch === "," || ch === ";") && !inNameList(text, i) && !(ch === "," && (inList(text, i) || commaJoinsColours(text, i) || /^,\s*except\b/i.test(text.slice(i)))) ) {
         push(i, 1);
       } else if (ch === "." && (i + 1 >= text.length || (text[i + 1] === " " && !/^ [a-z]/.test(text.slice(i + 1, i + 3))))) {
         // A full stop inside an abbreviation is not the end of a sentence:
@@ -94,7 +94,11 @@ export function splitClauses(text: string): string[] {
         !(AREA_AFTER_AND.test(text.slice(i + 5)) && /\bbattle cards?\b/i.test(text.slice(start, i))) &&
         !TARGET_BEFORE_AND.test(text.slice(start, i)) &&
         !andEndsAList(text, start, i) &&
-        !andJoinsTwoAreas(text, start, i)
+        !andJoinsTwoAreas(text, start, i) &&
+        // "This card gains +5000 power **and** [Critical] during your turn":
+        // one subject given two things, and the half after the "and" is a
+        // keyword tag with no verb of its own to be read as a clause.
+        !(/^ and \[[a-z0-9\- ]+\]/i.test(text.slice(i)) && /\bgains?\b|\bgets?\b/i.test(text.slice(start, i)))
       ) {
         // "gains [Double Strike] and [Barrier]" is one clause, not two; nor is
         // "a Battle Card with both <Son Goku> and <Piccolo>", nor "with an
@@ -181,6 +185,16 @@ function andJoinsTwoAreas(text: string, start: number, i: number): boolean {
   if (!AREA_WORD.test(text.slice(start, i))) return false;
   const after = text.slice(i + 5, i + 60).split(/[,.;]/)[0].trim();
   return AREA_WORD.test((after.match(/^(?:(?:your|their|its owner'?s|the)\s+)?[a-z-]+(?: area)?/i)?.[0] ?? "").trim());
+}
+
+/**
+ * The two-colour list the sets write with a comma and no "and": "reduce the
+ * combo cost of blue, yellow ≪Universe 6≫ cards in your hand by 1". `inList`
+ * cannot see it, because the run never reaches an "and"/"or" item — the second
+ * colour runs straight on into the rest of the phrase.
+ */
+function commaJoinsColours(text: string, comma: number): boolean {
+  return /\b(?:red|blue|green|yellow|black)\s*$/i.test(text.slice(0, comma)) && /^,\s*(?:red|blue|green|yellow|black)\b/i.test(text.slice(comma));
 }
 
 function inList(text: string, comma: number): boolean {
@@ -1166,6 +1180,18 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     if (moved && last && last.op === "moveTo") return [...moved.slice(0, -1), { ...last, faceUp: true }];
   }
 
+  // "This card gains +5000 power and [Critical] **during your turn**" (9-9):
+  // a tail that says *when* the rest holds, not how long it lasts — so it is a
+  // condition rather than a duration, and on a [Permanent] the static layer
+  // asks it again every time. `TRAILING_QUALIFIER` deliberately does not strip
+  // this one: dropping it would make the card always have [Critical].
+  if ((m = /^(.*\S)\s+during (your|your opponent's) turn$/.exec(t))) {
+    const inner = compileClause(m[1], c);
+    if (inner?.length) {
+      return [{ op: "if", cond: { kind: "isTurnPlayer", ...(m[2] === "your" ? {} : { who: "opponent" as const }) }, then: inner }];
+    }
+  }
+
   // The same clause with "for the turn", "in all areas" and the like taken
   // off, so the patterns for the action itself can end in `$`.
   const q = stripQualifiers(t);
@@ -1321,7 +1347,12 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // printed either as a number or as the orbs it takes off — "by {r}" is one
   // less, and `playCost` already lowers a specified colour along with the
   // total. "For each …" makes it a number read off the board.
-  if ((m = /^reduce the (energy|combo) cost of (.+?) by (\d+|(?:\{[rugyk\d]+\})+)(?: for each (.+))?$/.exec(t))) {
+  if ((m = /^(reduce|increase) the (energy|combo) cost of (.+?) by (\d+|(?:\{[rugyk\d]+\})+)(?: for each (.+))?$/.exec(t))) {
+    // 20-21 works in both directions, and the sets print both: "increase the
+    // energy cost of this card in your Battle Area by 2" is the same standing
+    // effect with the sign turned round.
+    const sign = m[1] === "increase" ? -1 : 1;
+    m = [m[0], m[2], m[3], m[4], m[5]] as unknown as RegExpExecArray;
     // The area the phrase names is part of the target, not noise: a reducer
     // for cards "in your hand" that selects cards in play does nothing at all,
     // which is what stripping it here used to produce.
@@ -1334,7 +1365,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
       ref = { sel: { ...ref.sel, area: "hand", count: 99 } };
     }
     const orbs = /^\d+$/.test(m[3]) ? null : orbsIn(m[3]);
-    const flat: number = orbs ? Object.values(orbs).reduce<number>((sum, n) => sum + (n ?? 0), 0) : Number(m[3]);
+    const flat: number = sign * (orbs ? Object.values(orbs).reduce<number>((sum, n) => sum + (n ?? 0), 0) : Number(m[3]));
     let by: Amount = flat;
     if (m[4]) {
       const per = parseTarget(m[4]);
@@ -2563,6 +2594,11 @@ export function describeScript(ops: Op[]): string {
         parts.push(`play ${describeAmount(op.n)} ${op.name} (${op.power} power)`);
         break;
       case "costReduction":
+        // 20-21 goes both ways, and "costs -2 less" is not English.
+        if (typeof op.amount === "number" && op.amount < 0) {
+          parts.push(`${describeRef(op.target)} costs ${-op.amount} more`);
+          break;
+        }
         parts.push(`${describeRef(op.target)} costs ${describeAmount(op.amount)} less`);
         break;
       case "replaceLeave": {

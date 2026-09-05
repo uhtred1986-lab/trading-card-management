@@ -1126,6 +1126,31 @@ colour lists are nearly all [Permanent]: read 53.5 % → **56.3 %**, and emittin
 a standing effect 48.6 % → **51.5 %** of 1,807. Fuzzer run at the spec's own
 bar this time: 40 games, 0 crashes.
 
+## Done: four sentences out of the owner's decks (5 Sep 2026)
+
+Worked from `npm run arena:gaps -- --decks`, taking the ones that were a
+pattern rather than a mechanism. Deck clauses 50 → 47; [Permanent] skills that
+emit a standing effect 51.5 % → **52.4 %** of 1,807.
+
+- **"during your turn" is a condition, not a duration** (9-9). "This card gains
+  +5000 power and [Critical] **during your turn**" — the bonus is there only
+  while it is your turn, which on a [Permanent] the static layer asks again
+  every time. It is deliberately *not* in `TRAILING_QUALIFIER`: stripping it
+  would give the card [Critical] always. This replaced an older test that
+  asserted the tail must fail rather than be discarded — the lesson still
+  holds, so that test now points at a tail the compiler really does not know.
+- **"and" before a keyword tag is not a sentence break** when the clause is
+  giving one subject two things: "+5000 power **and** [Critical]".
+- **"increase the energy cost … by 2"** (20-21) is the reduction with its sign
+  turned round, and `describeScript` no longer says "costs -2 less".
+- **A comma before "except"** is never a sentence break: "you can't include
+  non-≪Universe 6≫ Battle Cards in your deck, except for \<Vegeta\> cards" was
+  losing its exception to the clause list.
+- Also protected: the two-colour list the sets write with a comma and no "and"
+  ("blue, yellow ≪Universe 6≫ cards"). That one still does not compile, because
+  `parseFilter` reads two colours as *both* rather than *either* — but it is
+  one honest gap now instead of two fragments.
+
 ## Conventions worth keeping
 
 - Card text is **read, never interpreted**: if the compiler cannot read a
