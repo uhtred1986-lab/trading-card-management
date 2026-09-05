@@ -30,7 +30,7 @@ import {
   tokenCardId,
   type GameContext,
 } from "./state";
-import { koCard, pendTriggers } from "./triggers";
+import { koCard, masterOf, pendTriggers } from "./triggers";
 import type { Color, DelayScope, DelayTiming, FlowStep, ForbiddenAction, GameEvent, GameState, KeywordSkill, PlayerId, Trigger } from "./types";
 
 // ── the language ───────────────────────────────────────────────────────────
@@ -102,13 +102,16 @@ export type Cond =
   | { kind: "power"; sel: Selector; atLeast?: number; atMost?: number }
   /** "If you added a card to your hand", "if you played a card" — whether an earlier step of this same skill did that. */
   | { kind: "did"; what: "addToHand" | "play" }
+  /** "If you don't" (20-16): the opposite of a condition. */
+  | { kind: "not"; cond: Cond }
   | { kind: "chose"; var: string }
   /** Whose turn it is (7-1). "opponent" is "during your opponent's turn". */
   | { kind: "isTurnPlayer"; who?: "you" | "opponent" };
 
 export type Op =
   | { op: "draw"; n: Amount; side?: Side }
-  | { op: "discard"; n: Amount; side?: Side }
+  /** Cards leave a hand, chosen by its owner (20-7); `to: "warp"` for "sends 1 card from their hand to their Warp". */
+  | { op: "discard"; n: Amount; side?: Side; to?: "warp" }
   | { op: "damage"; n: Amount; side?: Side }
   | { op: "mill"; n: Amount; side?: Side }
   | { op: "addLife"; n: Amount; side?: Side }
@@ -130,6 +133,8 @@ export type Op =
   | { op: "negateSkills"; target: Ref; until: Duration }
   /** 23-5: "switch it to Hidden Mode" / "switch it to Revealed Mode" — Battle Cards in the Battle Area only. */
   | { op: "hidden"; target: Ref; hidden: boolean }
+  /** "Switch the target of the attack to it" — the card becomes the guard, as a [Blocker] would (22-4-2). */
+  | { op: "redirectAttack"; target: Ref }
   | { op: "addMarker"; target: Ref; n: Amount }
   | { op: "removeMarker"; target: Ref; n: Amount }
   | { op: "token"; name: string; power: number; comboCost: number | null; comboPower: number | null; colors: Color[]; n: Amount; side?: Side }
@@ -257,7 +262,7 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         for (const p of sideOf(master, op.side)) {
           const n = amount(ctx, s, frame, op.n);
           const hand = s.players[p].hand;
-          for (let i = 0; i < n && hand.length; i++) move(ctx, s, ev, hand[hand.length - 1], "drop", p, { reason: "effect", reveal: true });
+          for (let i = 0; i < n && hand.length; i++) move(ctx, s, ev, hand[hand.length - 1], op.to ?? "drop", p, { reason: "effect", reveal: true });
         }
         break;
       }
@@ -430,6 +435,20 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
           note(ev, `${op.hidden ? "a Battle Card" : face(ctx, s, id).name} is switched to ${op.hidden ? "Hidden" : "Revealed"} Mode`);
         }
         break;
+
+      case "redirectAttack": {
+        // 8-1: a battle in progress; the new target has to be a Leader or a
+        // Battle Card of the defending player that is not already the attacker.
+        const b = s.battle;
+        if (!b) break;
+        const defender = masterOf(s, b.guard);
+        const id = resolveRef(ctx, s, frame, op.target).find((x) => x !== b.attacker && x !== b.guard && masterOf(s, x) === defender && (areaOf(s, x) === "battle" || areaOf(s, x) === "leader"));
+        if (!id) break;
+        b.guard = id;
+        ev.push({ type: "guardChanged", guard: id, by: frame.card });
+        pendTriggers(ctx, s, "attacked", id);
+        break;
+      }
 
       case "power":
       case "comboPower": {
@@ -662,6 +681,7 @@ const OP_NAMES = new Set<Op["op"]>([
   "grant",
   "negateSkills",
   "hidden",
+  "redirectAttack",
   "addMarker",
   "removeMarker",
   "token",

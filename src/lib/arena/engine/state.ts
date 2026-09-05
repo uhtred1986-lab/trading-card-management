@@ -370,6 +370,8 @@ export function condHolds(ctx: GameContext, s: GameState, frame: ScriptFrame, c:
     }
     case "did":
       return !!frame.did?.[c.what];
+    case "not":
+      return !condHolds(ctx, s, frame, c.cond);
     case "power":
       return resolveSelector(ctx, s, frame, c.sel).some((id) => {
         const n = powerOf(ctx, s, id);

@@ -307,6 +307,8 @@ export type Trigger =
   | "attacks"
   | "attacked"
   | "koed"
+  /** This card KO'd another — by battle or by its own skill ("When this card KOs an opponent's Battle Card"). */
+  | "kos"
   | "dealtDamage"
   | "chargeStart"
   | "mainStart"

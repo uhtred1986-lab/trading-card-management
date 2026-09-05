@@ -51,6 +51,8 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       return /when this card is attacked/.test(t);
     case "koed":
       return /when this card is ko'?d/.test(t);
+    case "kos":
+      return /when this card kos? (?:an opponent's|your opponent's|one of your opponent's|a) (?:battle card|card)/.test(t);
     case "leaderPlaced":
       return /when this card is placed in (?:your|a) leader area/.test(t);
     case "turnEnd":
@@ -113,6 +115,9 @@ export function koCard(ctx: GameContext, s: GameState, ev: GameEvent[], card: st
   const p = masterOf(s, card);
   ev.push({ type: "ko", card, by });
   pendTriggers(ctx, s, "koed", card);
+  // "When this card KOs an opponent's Battle Card": the card that did it,
+  // whether by battle or by its own skill.
+  if (by && by !== card && s.cards[by] && p !== masterOf(s, by)) pendTriggers(ctx, s, "kos", by);
   move(ctx, s, ev, card, "drop", p, { reason: "ko" });
 }
 

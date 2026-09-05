@@ -50,11 +50,16 @@ const COLOR_BY_NAME: Record<string, Color> = { red: "Red", blue: "Blue", green: 
 /** "{g}{g}" / "{u}" orbs in a cost → per-colour counts; "{1}" style numbers → any. */
 export function orbsIn(text: string): Partial<Record<Color, number>> & { any?: number } {
   const out: Partial<Record<Color, number>> & { any?: number } = {};
-  for (const m of text.matchAll(/\{([rugyk])\}/gi)) {
+  // "{r}/{u}" is one orb of either colour. Read as one of any colour: a
+  // little too generous to the payer, and honest about it here.
+  const either = [...text.matchAll(/\{[rugyk]\}\/\{[rugyk]\}/gi)].length;
+  if (either) out.any = either;
+  const rest = text.replace(/\{[rugyk]\}\/\{[rugyk]\}/gi, "");
+  for (const m of rest.matchAll(/\{([rugyk])\}/gi)) {
     const c = COLOR_BY_LETTER[m[1].toLowerCase()];
     out[c] = (out[c] ?? 0) + 1;
   }
-  for (const m of text.matchAll(/\{(\d+)\}/g)) out.any = (out.any ?? 0) + Number(m[1]);
+  for (const m of rest.matchAll(/\{(\d+)\}/g)) out.any = (out.any ?? 0) + Number(m[1]);
   return out;
 }
 
@@ -200,6 +205,7 @@ function isOnlyOrbs(body: string): boolean {
   if (!/^\{[rugyk\d]\}/i.test(withoutNotes)) return false;
   const rest = withoutNotes
     .replace(/\{[rugyk\d]\}/gi, "")
+    .replace(/\//g, "") // "{r}/{u}": either colour
     .replace(/^[\s,]*(?:if|when|while)\b.*$/i, "")
     .trim();
   return rest.length === 0;

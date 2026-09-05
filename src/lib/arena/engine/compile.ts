@@ -84,7 +84,7 @@ const AREA_WORDS: [RegExp, ScriptArea][] = [
   // "Your blue energy", "your opponent's rested energy": the adjectives sit
   // between the possessive and the word, and "energy cost" is not an area.
   [/\benergy area\b|\b(?:your opponent's|their|your)(?: [a-z-]+)* energy\b(?! cost)/, "energy"],
-  [/\bfrom your hand\b|\bin your hand\b|\btheir hand\b|\byour hand\b/, "hand"],
+  [/\bfrom your hand\b|\bin your hand\b|\btheir hand\b|\byour hand\b|\byour opponent's hand\b/, "hand"],
   [/\bfrom your deck\b|\bin your deck\b|\byour deck\b/, "deck"],
   [/\bin your life\b|\bfrom your life\b|\byour life\b|\blife area\b/, "life"],
   [/\bwarp\b/, "warp"],
@@ -222,6 +222,21 @@ function refFor(clause: string, c: Ctx): Ref | null {
   const sel = parseTarget(clause);
   if (sel) return { sel };
   return null;
+}
+
+/**
+ * A target with a number in it ("1 card from your Drop", "up to 2 of your
+ * opponent's Battle Cards") is a choice before it is anything else: the
+ * interpreter resolves a selector to *every* card it matches, so an action
+ * handed the selector directly would take them all. Bare plurals ("your
+ * opponent's Battle Cards") carry no count and do mean all of them.
+ */
+function withChoice(ref: Ref, clause: string, c: Ctx, act: (target: Ref) => Op): Op[] {
+  if ("sel" in ref && !ref.sel.special && ref.sel.count != null && ref.sel.count < 99) {
+    const v = `c${c.n++}`;
+    return [{ op: "choose", sel: ref.sel, as: v, reason: clause }, act({ var: v })];
+  }
+  return [act(ref)];
 }
 
 function durationOf(clause: string): "battle" | "turn" | "game" | "opponentTurn" | "nextTurn" {
@@ -401,14 +416,15 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // "If {Son Goku, Hero} is in play in your Unison Area", "if your <Vegeta>
   // card is in play", "if a <Bulma> card is in your Combo Area" — the card
   // first, then where it has to be: a count of at least one.
-  if ((m = /^(.+?) is in (?:play(?: in your (\w+) area)?|your (\w+) area)$/.exec(t))) {
+  if ((m = /^(.+?) (is|isn't|is not) in (?:play(?: in your (\w+) area)?|your (\w+) area)$/.exec(t))) {
     const sel = parseTarget(m[1]);
-    const areaWord = (m[2] ?? m[3])?.toLowerCase();
+    const areaWord = (m[3] ?? m[4])?.toLowerCase();
     const area = areaWord === "unison" ? "unison" : areaWord === "battle" ? "battle" : areaWord === "combo" ? "combo" : areaWord === "leader" ? "leader" : areaWord ? null : "play";
     if (sel && area) {
       delete sel.count;
       delete sel.upTo;
-      return { cond: { kind: "count", sel: { ...sel, area, side: sel.side ?? "you" }, atLeast: 1 }, subject: { sel } };
+      const counted: Selector = { ...sel, area, side: sel.side ?? "you" };
+      return { cond: m[2] === "is" ? { kind: "count", sel: counted, atLeast: 1 } : { kind: "count", sel: counted, atMost: 0 }, subject: { sel } };
     }
   }
   // "If you don't have a Unison in play", "if you don't have any Battle Cards in play".
@@ -472,9 +488,14 @@ function parseCountCondition(t: string): Cond | null {
  * having happened, which `compileSkill` turns into a condition; the rest are
  * connectives left over from splitting a sentence.
  */
-function connective(clause: string): "skip" | "ifDone" | null {
+function connective(clause: string): "skip" | "ifDone" | "ifNotDone" | null {
   const t = clause.toLowerCase().replace(/[.,]$/, "").trim();
   if (/^(?:if you do|if so|if you did)$/.test(t)) return "ifDone";
+  if (/^(?:if you don'?t|if not|if you didn'?t|if you do not)$/.test(t)) return "ifNotDone";
+  // 20-12-3: after looking, the cards go back where they were; the order is
+  // the player's and changes nothing the engine tracks.
+  if (/^(?:put|place) (?:them|the rest|the remaining cards?|it) back(?: on top of (?:your|the|their) deck)?(?: in any order)?$/.test(t)) return "skip";
+  if (/^shuffle any (?:secret )?areas? you looked (?:through|at)$/.test(t)) return "skip";
   if (/^(?:additionally|then|so|and|also|after that|in addition)$/.test(t)) return "skip";
   // Reminders that restate a rule the engine already applies.
   if (/^flip (?:this card|it) (?:over|onto its back)$/.test(t)) return "skip";
@@ -612,6 +633,9 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
 
   // Discard (20-7).
   if ((m = /^your opponent discards (\d+) cards?(?: from their hand)?$/.exec(t))) return [{ op: "discard", n: Number(m[1]), side: "opponent" }];
+  // "Your opponent sends 1 card from their hand to their Warp" — a discard that ends elsewhere (20-7).
+  if ((m = /^your opponent (?:sends|places) (\d+) cards? from their hand (?:to|in|into) their warp$/.exec(t))) return [{ op: "discard", n: Number(m[1]), side: "opponent", to: "warp" }];
+  if ((m = /^(?:send|place) (\d+) cards? from your hand (?:to|in|into) your warp$/.exec(t))) return [{ op: "discard", n: Number(m[1]), to: "warp" }];
   if ((m = /^discard (\d+) cards?(?: from your hand)?$/.exec(t))) return [{ op: "discard", n: Number(m[1]) }];
   if ((m = /^your opponent chooses (\d+) cards? (?:in|from) their hand$/.exec(t))) return [{ op: "discard", n: Number(m[1]), side: "opponent" }];
   if (/^make your opponent choose (\d+) cards? from their hand$/.test(t)) return [{ op: "discard", n: 1, side: "opponent" }];
@@ -629,8 +653,9 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   if ((m = /^place (?:up to )?(\d+) cards? from the top of your deck in (?:your |its owner's |the )?drop(?: area)?$/.exec(t))) return [{ op: "mill", n: Number(m[1]) }];
   // "Place the top card of your deck in your Drop Area", "your opponent places
   // the top 2 cards of their deck in their Drop Area" — the same move, either side.
-  if ((m = /^(your opponent places|place) the top (?:(\d+) )?cards? of (?:your|their) deck in (?:your|their|its owner's|the) drop(?: area)?$/.exec(t))) {
-    return [{ op: "mill", n: m[2] ? Number(m[2]) : 1, ...(m[1] === "place" ? {} : { side: "opponent" as const }) }];
+  if ((m = /^(your opponent places|place) the top (?:(\d+) )?cards? of (your|their|your opponent's) deck (?:in|into) (?:your|their|its owner's|the) drop(?: area)?$/.exec(t))) {
+    const theirs = m[1] !== "place" || m[3] === "your opponent's";
+    return [{ op: "mill", n: m[2] ? Number(m[2]) : 1, ...(theirs ? { side: "opponent" as const } : {}) }];
   }
   if (/^add the top card of your deck to your life$/.test(t)) return [{ op: "addLife", n: 1 }];
   if ((m = /^add cards from your life to your hand until you have (\d+) life(?: left)?$/.exec(t))) return [{ op: "lifeDownTo", n: Number(m[1]) }];
@@ -826,13 +851,19 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // 23-5: "switch it to Hidden Mode", "switch it to Revealed Mode".
   if ((m = /^switch (.+?) to (hidden|revealed) mode$/.exec(t))) {
     const ref = refFor(m[1], c);
-    return ref ? [{ op: "hidden", target: ref, hidden: m[2] === "hidden" }] : null;
+    const hidden = m[2] === "hidden";
+    return ref ? withChoice(ref, clause, c, (target) => ({ op: "hidden", target, hidden })) : null;
+  }
+  // "Switch the target of the attack to it / to this card" (8-1, as a [Blocker] does).
+  if ((m = /^(?:switch|change) the (?:target of (?:the )?attack|attack target) to (.+)$/.exec(t))) {
+    const ref = refFor(m[1], c);
+    return ref ? withChoice(ref, clause, c, (target) => ({ op: "redirectAttack", target })) : null;
   }
 
   // KO (5-12).
   if ((m = /^ko (.+)$/.exec(t))) {
     const ref = refFor(m[1], c);
-    return ref ? [{ op: "ko", target: ref }] : null;
+    return ref ? withChoice(ref, clause, c, (target) => ({ op: "ko", target })) : null;
   }
 
   // Markers (5-13, 13-3). "A marker" is one marker.
@@ -858,6 +889,18 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     return host ? [{ op: "moveTo", target: { sel: { special: "self" } }, to: "under", under: host }] : null;
   }
 
+  // "Place up to 2 {Dragon Ball} from your Drop into the Battle Area" — placed,
+  // not played (5-5), so nothing that triggers on a play fires.
+  if ((m = /^place (.+?) from (?:your|their) (drop|warp|hand)(?: area)? (?:into|in) (?:your|the|their) battle area$/.exec(t))) {
+    const ref = refFor(`${m[1]} in your ${m[2]}`, c);
+    return ref ? withChoice(ref, clause, c, (target) => ({ op: "moveTo", target, to: "battle" })) : null;
+  }
+  // "Shuffle them into your deck": into the deck, then the deck is shuffled (3-2-3).
+  if ((m = /^shuffle (.+?) (?:into|in) (?:your|their|its owner'?s?|their owners?'?) decks?$/.exec(t))) {
+    const ref = refFor(m[1], c);
+    return ref ? [...withChoice(ref, clause, c, (target) => ({ op: "moveTo", target, to: "deck" })), { op: "shuffle" }] : null;
+  }
+
   // Area moves (3-1).
   const MOVES: [RegExp, ScriptArea, { position?: "top" | "bottom"; mode?: "active" | "rest"; reveal?: boolean }][] = [
     // "their owners' decks", "its owner's hand": several cards go to several
@@ -878,7 +921,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   for (const [re, to, opts] of MOVES) {
     if ((m = re.exec(t))) {
       const ref = refFor(m[1], c);
-      return ref ? [{ op: "moveTo", target: ref, to, ...opts }] : null;
+      return ref ? withChoice(ref, clause, c, (target) => ({ op: "moveTo", target, to, ...opts })) : null;
     }
   }
 
@@ -1092,6 +1135,9 @@ export function compileSkill(skill: Skill): Script {
   return { ops, unsupported };
 }
 
+/** A clause that is nothing but a duration, split off from the effect it belongs to. */
+const PURE_DURATION = /^(?:during this turn|for the (?:duration of the )?(?:turn|battle)|for the rest of the turn|until the end of (?:your|your opponent's|the)(?: next)? turn|until the (?:start|beginning) of your (?:next )?turn|until the (?:start|beginning) of your opponent's next turn)[.,]?$/i;
+
 /** The clause loop, shared by a skill's body and by each modal option. */
 function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op[] {
   // "if you do" (20-16) makes the rest conditional on the previous choice, and
@@ -1099,11 +1145,29 @@ function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op
   type Group = { conds: Cond[]; ops: Op[]; delay?: { at: DelayTiming; scope: DelayScope; label: string } };
   const groups: Group[] = [{ conds: [], ops: [] }];
   const push = (ops: Op[]) => groups[groups.length - 1].ops.push(...ops);
-  for (const clause of clauses) {
+  for (let i = 0; i < clauses.length; i++) {
+    const clause = clauses[i];
+    // "During this turn, your opponent can't…", "…, until the end of your
+    // opponent's turn, it can't attack" — a duration split off on its own
+    // belongs to the clause after it, where `durationOf` will find it.
+    if (PURE_DURATION.test(clause.trim()) && i + 1 < clauses.length) {
+      clauses[i + 1] = `${clauses[i + 1].replace(/[.]$/, "")} ${clause.trim()}`;
+      continue;
+    }
     const conn = connective(clause);
     if (conn === "skip") continue;
     if (conn === "ifDone") {
       groups.push({ conds: c.last ? [{ kind: "chose", var: c.last }] : [], ops: [] });
+      continue;
+    }
+    if (conn === "ifNotDone") {
+      // "If you don't" without a choice before it has nothing to be the
+      // opposite of; the clause is a gap rather than an always-true condition.
+      if (!c.last) {
+        unsupported.push(clause);
+        continue;
+      }
+      groups.push({ conds: [{ kind: "not", cond: { kind: "chose", var: c.last } }], ops: [] });
       continue;
     }
     // "ignoring [Barrier]" lifts 22-16 for the choice just made (22-16, 20-4).
@@ -1351,6 +1415,8 @@ function describeCond(c: Cond): string {
       return `${c.side === "opponent" ? "their" : "your"} leader ${c.flipped === false ? "has not" : "has"} awakened`;
     case "did":
       return c.what === "addToHand" ? "you added a card to your hand" : "you played a card";
+    case "not":
+      return `not (${describeCond(c.cond)})`;
     case "power": {
       const bound = c.atLeast != null ? `${c.atLeast} or more` : c.atMost != null ? `${c.atMost} or less` : "any";
       return `${describeSelector(c.sel)} has ${bound} power`;
@@ -1403,6 +1469,9 @@ export function describeScript(ops: Op[]): string {
         break;
       case "hidden":
         parts.push(`switch ${describeRef(op.target)} to ${op.hidden ? "Hidden" : "Revealed"} Mode`);
+        break;
+      case "redirectAttack":
+        parts.push(`switch the target of the attack to ${describeRef(op.target)}`);
         break;
       case "ko":
         parts.push(`KO ${describeRef(op.target)}`);

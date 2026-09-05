@@ -2213,4 +2213,93 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.ok(!skillNegated(t, sm, 0), "and back next turn");
 }
 
+{
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+  const auto = (text: string) => one(`[Auto] When you play this card, ${text}`);
+
+  // "{r}/{u}": one orb of either colour, read as one of any colour.
+  assert.deepEqual(orbsIn("{r}/{u}"), { any: 1 });
+  assert.deepEqual(orbsIn("{r}/{u}{g}"), { any: 1, Green: 1 });
+  const either = parseSkills("[Activate: Main]{r}/{u}: Draw 1 card.")[0];
+  assert.deepEqual(either.energyCost, { any: 1 });
+  assert.equal(either.effect, "Draw 1 card.");
+
+  // A discard that ends in the Warp.
+  assert.deepEqual(auto("your opponent sends 1 card from their hand to their Warp.").ops, [{ op: "discard", n: 1, side: "opponent", to: "warp" }]);
+  // The opponent's deck, to their Drop.
+  assert.deepEqual(auto("place the top card of your opponent's deck into its owner's Drop.").ops, [{ op: "mill", n: 1, side: "opponent" }]);
+  // Placed, not played.
+  const placed = auto("place up to 2 {Dragon Ball} from your Drop into the Battle Area.").ops;
+  assert.deepEqual(placed.map((o) => o.op), ["choose", "moveTo"]);
+  assert.equal((placed[0] as { sel: { area?: string } }).sel.area, "drop");
+  assert.equal((placed[1] as { to: string }).to, "battle");
+  // Shuffled in.
+  assert.deepEqual(auto("choose 1 card in your Drop Area and shuffle it into your deck.").ops.map((o) => o.op), ["choose", "moveTo", "shuffle"]);
+  // "isn't in play".
+  const absent = auto("if {Demonic Invasion Majin Buu} isn't in play in your Battle Area, draw 1 card.").ops[0] as { op: string; cond: { kind: string; atMost?: number } };
+  assert.equal(absent.op, "if");
+  assert.equal(absent.cond.kind, "count");
+  assert.equal(absent.cond.atMost, 0);
+  // A duration on its own belongs to the clause after it.
+  const lock = auto("choose 1 of your opponent's Battle Cards. Until the end of your opponent's turn, it can't attack.");
+  assert.deepEqual(lock.unsupported, []);
+  assert.equal((lock.ops[1] as { until?: string }).until, "nextTurn");
+  // "If you don't" is the opposite of "if you do".
+  const either2 = auto("you may choose 1 card in your hand and discard it. If you don't, your opponent draws 1 card.");
+  assert.deepEqual(either2.unsupported, []);
+  assert.equal(either2.ops[either2.ops.length - 1].op, "if");
+  assert.equal(((either2.ops[either2.ops.length - 1] as { cond: { kind: string } }).cond).kind, "not");
+  // Looking's housekeeping is not an effect.
+  assert.deepEqual(auto("look at the top 3 cards of your deck, then put them back in any order.").ops.map((o) => o.op), ["look"]);
+  // A card in the opponent's hand is a hand card.
+  assert.equal((auto("choose up to 1 card in your opponent's hand and discard it.").ops[0] as { sel: { area?: string; side?: string } }).sel.area, "hand");
+
+  // "When this card KOs an opponent's Battle Card": the KO'er is told, by battle and by skill.
+  DEFS.HUNTER = { ...DEFS.V1, id: "HUNTER", name: "HUNTER", power: 20000, skill: "[Auto] When this card KOs an opponent's Battle Card, draw 1 card." };
+  let s = arena({ battle: ["HUNTER"], oppBattle: ["V-BLUE"] });
+  const prey = s.players.p2.battle[0];
+  s.cards[prey].mode = "rest";
+  const hand = s.players.p1.hand.length;
+  s = play(s, { type: "attack", player: "p1", attacker: s.players.p1.battle[0], target: prey }, { type: "pass", player: "p1" }, { type: "pass", player: "p2" });
+  assert.ok(s.players.p2.drop.includes(prey));
+  assert.equal(s.players.p1.hand.length, hand + 1, "the KO by battle triggers it");
+  assertConsistent(s);
+
+  // "Switch the target of the attack to it" — a redirect from a skill.
+  DEFS["E-DECOY"] = { ...DEFS["E-NEGATE"], id: "E-DECOY", name: "E-DECOY", skill: "[Counter: Attack] Choose 1 of your Battle Cards and switch the target of the attack to it." };
+  assert.deepEqual(one(DEFS["E-DECOY"].skill!).ops.map((o) => o.op), ["choose", "redirectAttack"]);
+  let r = arena({ oppHand: ["E-DECOY"], oppEnergy: ["V1"], oppBattle: ["BIG"] });
+  const big = r.players.p2.battle[0];
+  r = play(r, { type: "attack", player: "p1", attacker: r.players.p1.leader, target: r.players.p2.leader });
+  assert.equal(r.prompt.kind, "counter", "the [Counter: Attack] window");
+  const edecoy = find(r, "p2", "hand", "E-DECOY");
+  r = play(r, { type: "counter", player: "p2", card: edecoy, skill: 0 });
+  if (r.prompt.kind === "chooseCards") r = play(r, { type: "choose", player: "p2", cards: [big] });
+  assert.equal(r.battle?.guard, big, "the attack now goes at BIG");
+}
+
+{
+  // A selector resolves to every card it matches, so a move whose target has
+  // a number in it has to be a choice first — "add 1 card from your Drop to
+  // your hand" used to add the whole Drop.
+  const sc = compileSkill(parseSkills("[Auto] When you play this card, add 1 card from your Drop to your hand.")[0]);
+  assert.deepEqual(sc.ops.map((o) => o.op), ["choose", "moveTo"]);
+  // A bare plural still means all of them.
+  assert.deepEqual(compileSkill(parseSkills("[Auto] When you play this card, return your opponent's Battle Cards to their owners' hands.")[0]).ops.map((o) => o.op), ["moveTo"]);
+
+  DEFS.FETCH = { ...DEFS.V1, id: "FETCH", name: "FETCH", energyCost: 1, skill: "[Auto] When you play this card, add 1 card from your Drop to your hand." };
+  let s = arena({ hand: ["FETCH"], energy: ["V1"] });
+  const [d1, d2] = s.players.p1.deck;
+  move({ defs: DEFS }, s, [], d1, "drop", "p1");
+  move({ defs: DEFS }, s, [], d2, "drop", "p1");
+  const hand = s.players.p1.hand.length;
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "FETCH") });
+  assert.equal(s.prompt.kind, "chooseCards", "which one is the player's to say");
+  s = play(s, { type: "choose", player: "p1", cards: [d2] });
+  assert.equal(s.players.p1.hand.length, hand, "one card in, one card played out");
+  assert.ok(s.players.p1.hand.includes(d2));
+  assert.ok(s.players.p1.drop.includes(d1), "the other stays");
+  assertConsistent(s);
+}
+
 console.log("verify-arena: all checks passed");

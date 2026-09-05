@@ -210,7 +210,7 @@ export const EFFECT_LANGUAGE = `You are ruling on one skill of one card in a Dra
 
 Operations (each is an object with "op"):
   {"op":"draw","n":1,"side":"you"|"opponent"}
-  {"op":"discard","n":1,"side":"opponent"}        cards leave a hand for the Drop
+  {"op":"discard","n":1,"side":"opponent"}        cards leave a hand for the Drop (add "to":"warp" for the Warp)
   {"op":"damage","n":1,"side":"opponent"}         life to hand
   {"op":"mill","n":2,"side":"you"}                deck to Drop
   {"op":"addLife","n":1} | {"op":"lifeDownTo","n":4}
@@ -222,6 +222,7 @@ Operations (each is an object with "op"):
   {"op":"play","target":TARGET}
   {"op":"switchMode","target":TARGET,"mode":"rest"|"active"}
   {"op":"hidden","target":TARGET,"hidden":true|false}     Hidden Mode / Revealed Mode (23-5)
+  {"op":"redirectAttack","target":TARGET}                 "switch the target of the attack to it"
   {"op":"power","target":TARGET,"amount":5000,"until":"battle"|"turn"|"game"}
     an amount may also be {"count":SELECTOR,"times":5000} (so much for each card) or {"sumPower":{"var":"rested"}} (the total power of named cards)
   {"op":"comboPower","target":TARGET,"amount":5000,"until":"battle"}
