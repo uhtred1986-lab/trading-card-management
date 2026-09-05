@@ -404,6 +404,46 @@ wrote — `placeEnergy`, `continuations.playRest` and `continuations.playNegated
 Grepping for a name with no writer is a cheap way to find a finished mechanism
 waiting for a pattern.
 
+## Done: the skills that compiled and could never happen (5 Sep 2026)
+
+The most useful thing found on this branch, and it was found by accident.
+
+An engine test for a newly compiled wording failed. The wording sits on "when
+your opponent plays a Battle Card", and `played` in `autoTriggerMatches` only
+ever matches "this card" — so there was no `Trigger` for the moment, and the
+skill could never fire. Compiling is not happening: the compiler knows nothing
+about triggers, so a skill can read end-to-end, count as compiled in
+`arena:coverage`, and sit in every game doing nothing.
+
+Probing the catalog for it turned up **1,081 such skills — about a tenth of
+every resolvable skill in the game.** `arena:gaps` now counts them and ranks
+the wordings; see §5.3 of the hand-off spec for the three steps each one needs.
+Down to **849** after this pass:
+
+| trigger added or widened | skills |
+|---|---|
+| `removedFromBattle` / `removedByOpponent` (3-1) | 65 |
+| `evolvedInto` (22-5) | 45 |
+| `opponentAttacks`, widened to the bare and "one of your opponent's" forms | 33 |
+| `placed` (5-5) — placed in a Battle Area, which is not played | 30 |
+| `opponentCounter` (4-3) | 15 |
+| `opponentPlayed`, and `opponentCombos` | 13 |
+| "…removed from a Battle Area by a skill **or KO'd**", which belonged to `koed` all along | 8 |
+
+Two things to know before adding one. A trigger about a card *leaving* fires
+once it has already gone, so `pendTriggers` must be told not to refuse it for
+being out of a valid area (9-1-3-1) — that is the `onLeaving` list, which
+`koed` had and nothing else did. And a trigger about what the *opponent* did is
+pended on every card the other player has in play, with the card that did it as
+the `subject` — which is exactly what "that card" and "it" then point at, and
+is why the two halves of this work belong together.
+
+Also in this pass: a **regression of mine**. Taking "their" out of `refFor`'s
+pronoun list to fix "1 Battle Card from **their** Drop Area" broke "negate
+**their** skills for the turn", which went straight to the top of the gap list
+at nine skills. Inside a phrase it is a possessive; a phrase that is nothing but
+the word is the pronoun after all. Both readings are now tested.
+
 ## Conventions worth keeping
 
 - Card text is **read, never interpreted**: if the compiler cannot read a

@@ -19,11 +19,12 @@ Measured on the 6,493 Dragon Ball Super (not Fusion World) cards:
 
 | measure | value | command |
 |---|---|---|
-| resolvable skills the compiler reads end-to-end | 81.3 % of 11,485 | `npm run arena:coverage` |
+| resolvable skills the compiler reads end-to-end | 81.8 % of 11,485 | `npm run arena:coverage` |
 | [Permanent] skills applied by the static layer | 52.7 % of 1,848 | same |
 | skills in the owner's 12 decks that compile | 89.8 % of 354 | same (deck tables) |
 | skills exactly one unreadable clause away | 1,344 | `npm run arena:gaps` |
-| "If …:" skill costs the compiler cannot read | 173 of 2,500 | probe in §5.3 |
+| "If …:" skill costs the compiler cannot read | 173 of 2,500 | probe in §5.4 |
+| [Auto] skills that compile but no trigger fires | 849 | `npm run arena:gaps` (§5.3) |
 | fuzzer | 40 games, 0 crashes | `npm run arena:fuzz 40` |
 
 Numbers as of 5 Sep 2026, after the commits described at the end of
@@ -73,7 +74,7 @@ mechanisms in §6.
    on 5 Sep 2026 were of that kind, and are listed in the worklist.
 6. **Never edit source with `node -e` or `sed` templates that contain regex
    escapes** — they get mangled. Use the editor. Temporary probe scripts are
-   fine (§5.3) but must be deleted before committing.
+   fine (§5.4) but must be deleted before committing.
 7. **Before every commit:** `npm run typecheck`, `npm run lint`, `npm test`
    (includes `scripts/verify-arena.ts`), `npm run arena:fuzz 40` (must report
    `0 crashes`). Commit on the feature branch, push, do not merge.
@@ -193,7 +194,9 @@ card" loop that stores a program per card and a work item per wording).
 - `npm run arena:gaps` — (a) each unreadable clause classified by the
   mechanism it would need, with examples; (b) how many skills are 1, 2, 3…
   clauses away; (c) **"the only thing holding a skill back"** ranking — the
-  cheapest wins. Redirect to a file: it is long.
+  cheapest wins; (d) **"[Auto] skills that compile but no trigger ever
+  fires"** — see §5.3, and read it before trusting the coverage figure.
+  Redirect to a file: it is long.
 - `npm run arena:fuzz 40` — random legal play across the owner's decks; the
   tail lists the commonest "skill was not applied" notes, which are also a
   work list.
@@ -210,7 +213,36 @@ card" loop that stores a program per card and a work item per wording).
 5. `typecheck`, `lint`, `npm test`, `fuzz 40`, `coverage` (note the numbers in
    the commit message), commit, push.
 
-### 5.3 Probe scripts
+### 5.3 Compiling is not happening — read this before trusting a percentage
+
+An [Auto] skill only runs if some `Trigger` in `types.ts` matches the moment it
+names *and* something calls `pendTriggers` at that moment. The compiler knows
+nothing about either. So a skill can read end-to-end, count as compiled in
+`arena:coverage`, and never once happen in a game.
+
+On 5 Sep 2026 **1,081 skills were in that state — about a tenth of the whole
+catalog.** It was found by accident: an engine test for a newly compiled
+wording failed, because the wording sits on "when your opponent plays a Battle
+Card" and `played` only ever matches "this card".
+
+The last section of `arena:gaps` now counts them and ranks the wordings. Each
+is engine work rather than a pattern, and always the same three steps:
+
+1. a value in the `Trigger` union (`types.ts`);
+2. a line in `autoTriggerMatches` (`triggers.ts`) — and check the *neighbouring*
+   cases, because "…or KO'd" belonged to `koed` all along;
+3. a `pendTriggers` call where the event actually happens, plus its name in the
+   `TRIGGERS` list at the top of `scripts/arena-gaps.mts` so it stops being
+   counted as missing.
+
+Watch two things. A trigger about a card *leaving* fires once it has gone, so
+`pendTriggers` must be told not to refuse it for being out of a valid area
+(9-1-3-1) — that is the `onLeaving` list. And a trigger about what the
+*opponent* did is pended on every card the other player has in play, with the
+card that did it as the `subject`, which is what "that card" and "it" then
+point at.
+
+### 5.4 Probe scripts
 
 A throwaway `scripts/tmp-x.mts` run with `npx tsx --env-file=.env.local scripts/tmp-x.mts`.
 Keep regexes out of them (heredoc + template escapes mangle backslashes) —
