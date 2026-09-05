@@ -232,6 +232,9 @@ Operations (each is an object with "op"):
   {"op":"comboPower","target":TARGET,"amount":5000,"until":"battle"}
   {"op":"grant","target":TARGET,"keyword":{"name":"Blocker"},"until":"turn"}
   {"op":"negateSkills","target":TARGET,"until":"turn"} | {"op":"negateAttack"}
+  {"op":"resolvingPlay","instead":"drop"|"deck"|"warp","position":"bottom"}   [Counter: Play] only (9-6)
+    negates the play: the card goes there instead of into play. Without "instead" the play happens and
+    only the manner changes — {"op":"resolvingPlay","mode":"rest"} or {"op":"resolvingPlay","negated":true}.
   {"op":"negateSkillsOfKind","target":TARGET,"kind":"auto"|"activate"|"counter"|"permanent","until":"turn"}
     "negate that card's [Auto] skill for the turn" — one kind, not the whole card
   {"op":"negateOwnSkill"} | {"op":"negateOwnSkill","until":"turn"|"battle"}   "negate this skill for the game / turn / battle"

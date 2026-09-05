@@ -222,6 +222,12 @@ export type Op =
    * a cost reducer, because that is where the skill says it applies.
    */
   | { op: "altCost"; pay: "none" | "life"; n?: number; for?: "counter" | "play" }
+  /**
+   * What a [Counter: Play] does to the card it is answering (9-6). `instead`
+   * stops the play outright and sends the card there rather than into play;
+   * `mode` and `negated` let the play happen but change how the card arrives.
+   */
+  | { op: "resolvingPlay"; instead?: ScriptArea; position?: "top" | "bottom"; mode?: "rest"; negated?: boolean }
   | { op: "negateAttack" }
   /**
    * 9-7: negate the counter this one is answering. The counter being answered
@@ -659,6 +665,30 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         // not applied here.
         break;
 
+      case "resolvingPlay": {
+        const card = s.resolving?.card;
+        if (!card) break;
+        if (!op.instead) {
+          // The play still happens; `resolvePlay` reads these as the card enters.
+          if (op.mode === "rest") s.continuations.playRest = card;
+          if (op.negated) s.continuations.playNegated = card;
+          break;
+        }
+        // 9-6: the play is negated. The card never reaches the Battle Area, so
+        // the step that would have put it there is dropped and the card goes
+        // where the skill says from wherever it was being played from. The
+        // energy stays paid — negating a play does not undo the cost.
+        s.flow = s.flow.filter((f) => !(f.op === "play.resolve" && f.card === card));
+        const owner = s.cards[card].owner;
+        note(ev, `${face(ctx, s, card).name} is not played`);
+        // "Under" is not an area a card can simply be put in (23-2), and no
+        // card says so here; the Drop is the printed default.
+        const dest = op.instead === "play" ? "battle" : op.instead === "under" ? "drop" : op.instead;
+        move(ctx, s, ev, card, dest, owner, { reason: "effect", position: op.position, reveal: true });
+        s.resolving = null;
+        break;
+      }
+
       case "negateAttack":
         if (s.battle) {
           s.battle.negated = true;
@@ -817,6 +847,7 @@ const OP_NAMES = new Set<Op["op"]>([
   "forbid",
   "costReduction",
   "negateSkillsOfKind",
+  "resolvingPlay",
   "negateKeyword",
   "gains",
   "replaceLeave",

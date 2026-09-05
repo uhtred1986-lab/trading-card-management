@@ -2806,4 +2806,55 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assertConsistent(s);
 }
 
+// ── what a [Counter: Play] does to the card it answers (9-6) ───────────────
+
+{
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+
+  const stop = one("[Counter: Play] Choose 1 Battle Card with an energy cost of 2 or less being played by your opponent. It is placed in its owner's Drop Area instead of being played.");
+  assert.deepEqual(stop.unsupported, []);
+  // "Being played" names the card the counter is answering — there is only
+  // ever one — so it is not a choice among the cards already in play.
+  assert.equal((stop.ops[0] as { sel: { special?: string } }).sel.special, "resolving");
+  assert.deepEqual(stop.ops[1], { op: "resolvingPlay", instead: "drop" });
+
+  const deck = one("[Counter: Play] If the Battle Card being played has an energy cost of 7 or less, it's placed at the bottom of its owner's deck instead of being played.");
+  assert.deepEqual(deck.unsupported, []);
+  assert.deepEqual((deck.ops[0] as { then: unknown[] }).then, [{ op: "resolvingPlay", instead: "deck", position: "bottom" }]);
+
+  // Without "instead of being played" the play happens; only the manner changes.
+  assert.deepEqual(one("[Counter: Play] The Battle Card being played is played in Rest Mode.").ops, [{ op: "resolvingPlay", mode: "rest" }]);
+  assert.deepEqual(one("[Counter: Play] It's played with its skills negated for the turn.").ops, [{ op: "resolvingPlay", negated: true }]);
+}
+
+{
+  // The engine side: the card never reaches the Battle Area, and the energy
+  // stays paid — negating a play does not undo the cost (9-6).
+  DEFS["E-STOP"] = { ...DEFS["E-NEGATE"], id: "E-STOP", name: "E-STOP", skill: "[Counter: Play] The Battle Card being played is placed in its owner's Drop Area instead of being played." };
+  let s = arena({ hand: ["V1"], energy: ["V1", "V1"], oppHand: ["E-STOP"], oppEnergy: ["V1"] });
+  const played = find(s, "p1", "hand", "V1");
+  const battle = s.players.p1.battle.length;
+  s = play(s, { type: "play", player: "p1", card: played });
+  assert.equal(s.prompt.kind, "counter", "the [Counter: Play] window");
+  s = play(s, { type: "counter", player: "p2", card: find(s, "p2", "hand", "E-STOP"), skill: 0 });
+  while (s.prompt.kind === "chooseCards") s = play(s, { type: "choose", player: "p1", cards: [] });
+  assert.ok(s.players.p1.drop.includes(played), "it went to the Drop");
+  assert.equal(s.players.p1.battle.length, battle, "and never reached the Battle Area");
+  assert.equal(s.players.p1.energy.filter((id) => s.cards[id].mode === "rest").length, 1, "the energy stays paid");
+  assertConsistent(s);
+}
+
+{
+  // "Played in Rest Mode" and "played with its skills negated" let the play
+  // happen — the two continuations `resolvePlay` reads and nothing ever wrote.
+  DEFS["E-TIRE"] = { ...DEFS["E-NEGATE"], id: "E-TIRE", name: "E-TIRE", skill: "[Counter: Play] The Battle Card being played is played in Rest Mode." };
+  let s = arena({ hand: ["V1"], energy: ["V1", "V1"], oppHand: ["E-TIRE"], oppEnergy: ["V1"] });
+  const played = find(s, "p1", "hand", "V1");
+  s = play(s, { type: "play", player: "p1", card: played });
+  s = play(s, { type: "counter", player: "p2", card: find(s, "p2", "hand", "E-TIRE"), skill: 0 });
+  assert.ok(s.players.p1.battle.includes(played), "the play still happened");
+  assert.equal(s.cards[played].mode, "rest", "but the card arrived rested");
+  assertConsistent(s);
+}
+
 console.log("verify-arena: all checks passed");

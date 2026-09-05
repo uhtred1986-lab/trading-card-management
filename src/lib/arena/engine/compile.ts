@@ -134,6 +134,11 @@ export function parseTarget(phrase: string): Selector | null {
   if (/\bthis card\b(?!'s)/.test(t) && !/\bother\b/.test(t)) return { special: "self" };
   if (/\bthe attack(?:ing)? card\b/.test(t)) return { special: "attacker" };
   if (/\bthe guard card\b/.test(t)) return { special: "guard" };
+  // "1 Battle Card with an energy cost of 2 or less being played by your
+  // opponent" is the card the [Counter: Play] is answering, and there is only
+  // ever one of those — reading it as a choice asked for a card in play, which
+  // is a different card entirely (9-6).
+  if (/\bbeing played\b/.test(t)) return { special: "resolving", filter: filterFor(phrase, null) };
 
   let side: Side = "you";
   if (/\byour opponent'?s?\b|\btheir\b|\bthe opponent'?s\b/.test(t)) side = "opponent";
@@ -954,6 +959,21 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
       const until = durationOf(t);
       return kws.map((k) => ({ op: "grant", target: c.lastTarget!, keyword: k!, until }) as Op);
     }
+  }
+
+  // What a [Counter: Play] does to the card it is answering (9-6). "Instead of
+  // being played" is the phrase that negates the play; without it the card is
+  // played and only the manner changes.
+  {
+    const stopped = /^(?:it'?s|it is|that card is|the (?:battle |extra |unison )?card being played is) (?:placed|put) (?:in|into|at) (?:its owner'?s?|their owners?'?s?|your|the|their) (?:(drop)(?: area)?|bottom of (?:its owner'?s?|their|your) deck|(warp)s?)(?: instead)?(?: of being played)?$/.exec(t);
+    if (stopped && /instead of being played|instead$/.test(t)) {
+      const to: ScriptArea = stopped[1] ? "drop" : stopped[2] ? "warp" : "deck";
+      return [{ op: "resolvingPlay", instead: to, ...(to === "deck" ? { position: "bottom" as const } : {}) }];
+    }
+    // "The Battle Card being played is played in Rest Mode" (BT10-105).
+    if (/^(?:it'?s|it is|that card is|the (?:battle |extra |unison )?card being played is) played in rest mode$/.test(t)) return [{ op: "resolvingPlay", mode: "rest" }];
+    // "It's played with its skills negated for the turn" (BT11-099).
+    if (/^(?:it'?s|it is|that card is|the (?:battle |extra |unison )?card being played is) played with (?:its|their) skills negated(?: for the turn)?$/.test(t)) return [{ op: "resolvingPlay", negated: true }];
   }
 
   // Negation (9-1).
@@ -1799,6 +1819,9 @@ export function describeScript(ops: Op[]): string {
         break;
       case "negateSkills":
         parts.push(`negate the skills of ${describeRef(op.target)} for the ${op.until}`);
+        break;
+      case "resolvingPlay":
+        parts.push(op.instead ? `the card being played is not played and goes to the ${op.instead} instead` : op.mode === "rest" ? "the card being played is played in Rest Mode" : "the card being played is played with its skills negated");
         break;
       case "negateSkillsOfKind":
         parts.push(`negate the [${op.kind === "auto" ? "Auto" : op.kind === "counter" ? "Counter" : op.kind === "permanent" ? "Permanent" : "Activate"}] skills of ${describeRef(op.target)} for the ${op.until}`);
