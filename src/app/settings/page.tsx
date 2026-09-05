@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { db } from "@/db";
 import { lastSyncRuns } from "@/lib/sync";
+import { SubmitButton } from "@/components/SubmitButton";
 import { syncCardTraderAction, syncCatalogAction, syncMetaAction, syncPricesAction } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -152,9 +153,9 @@ function SyncCard({
           <p className="text-xs text-space-300">{source}</p>
         </div>
         <form action={action}>
-          <button disabled={disabled} className="tap rounded-md bg-ki-500 px-3 py-1.5 text-sm font-semibold text-space-950 hover:bg-ki-400 disabled:opacity-50">
+          <SubmitButton disabled={disabled} pendingLabel="Syncing…" className="tap rounded-md bg-ki-500 px-3 py-1.5 text-sm font-semibold text-space-950 hover:bg-ki-400">
             {button}
-          </button>
+          </SubmitButton>
         </form>
       </div>
       <p className="mt-2 text-xs text-space-300">
