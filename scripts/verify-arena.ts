@@ -195,7 +195,8 @@ function assertConsistent(s: GameState): void {
     const all = [ps.leader, ps.unison, ...ps.deck, ...ps.hand, ...ps.drop, ...ps.warp, ...ps.life, ...ps.battle, ...ps.combo, ...ps.energy, ...ps.zDeck, ...ps.zEnergy, ...ps.removed].filter(Boolean) as string[];
     for (const id of all) seen.set(id, (seen.get(id) ?? 0) + 1);
     for (const id of all) for (const u of s.cards[id].under) seen.set(u, (seen.get(u) ?? 0) + 1);
-    assert.ok(ps.life.length <= 8, "life never exceeds 8");
+    // 3-9 sets no ceiling on life: [Rejuvenate] and "place the top card of
+    // your deck in your Life Area" can take it past the 8 it starts with.
   }
   for (const id of Object.keys(s.cards)) assert.equal(seen.get(id), 1, `${id} is in exactly one place (found ${seen.get(id) ?? 0})`);
 }
@@ -1748,6 +1749,231 @@ function assertConsistentAfterDrop(s: GameState) {
   for (const tail of ["for the turn", "for the duration of the battle", "until the end of your opponent's turn"]) {
     assert.deepEqual(one(`This card gets +5000 power ${tail}.`).unsupported, [], tail);
   }
+}
+
+// ── §22 keywords as engine rules ───────────────────────────────────────────
+
+const acts = (s: GameState) => legalActions({ defs: DEFS }, s).map((a) => a.action);
+const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type === "activate" && a.card === card);
+
+{
+  // [Burst X] (22-27): X cards from the top of the deck to the Drop as a cost;
+  // with fewer than X cards in the deck the cost cannot be paid.
+  DEFS.BURSTER = { ...DEFS.V1, id: "BURSTER", name: "BURSTER", skill: "[Burst 2][Activate: Main] Draw 1 card." };
+  let s = arena({ battle: ["BURSTER"] });
+  const b = s.players.p1.battle[0];
+  assert.ok(canActivate(s, b), "22-27: offered with a deck to burn");
+  const deck = s.players.p1.deck.length;
+  const hand = s.players.p1.hand.length;
+  const drop = s.players.p1.drop.length;
+  s = play(s, { type: "activate", player: "p1", card: b, skill: 0 });
+  assert.equal(s.players.p1.drop.length, drop + 2, "22-27-2: two cards to the Drop as the cost");
+  assert.equal(s.players.p1.hand.length, hand + 1, "then the skill resolves");
+  assert.equal(s.players.p1.deck.length, deck - 3);
+  assertConsistent(s);
+
+  const d = arena({ battle: ["BURSTER"] });
+  d.players.p1.deck.splice(1).forEach((id) => d.players.p1.drop.push(id));
+  assert.ok(!canActivate(d, d.players.p1.battle[0]), "22-27-3: one card in the deck is not enough for [Burst 2]");
+}
+
+{
+  // [Spirit Boost X] (22-43): X markers off your Unison as a cost.
+  DEFS.SPIRIT = { ...DEFS.V1, id: "SPIRIT", name: "SPIRIT", skill: "[Spirit Boost 2][Activate: Main] Draw 1 card." };
+  let s = arena({ battle: ["SPIRIT"], hand: ["U1"], energy: ["V1", "V1", "V1"] });
+  const sp = s.players.p1.battle[0];
+  assert.ok(!canActivate(s, sp), "22-43-3: no Unison, no Spirit Boost");
+  s = play(s, { type: "playUnison", player: "p1", card: find(s, "p1", "hand", "U1"), x: 3 });
+  const u = s.players.p1.unison!;
+  assert.ok(canActivate(s, sp));
+  const hand = s.players.p1.hand.length;
+  s = play(s, { type: "activate", player: "p1", card: sp, skill: 0 });
+  assert.equal(s.cards[u].markers, 1, "22-43-2: two markers removed as the cost");
+  assert.equal(s.players.p1.hand.length, hand + 1);
+  assert.ok(!canActivate(s, sp), "one marker left is not enough for a second use");
+  assertConsistent(s);
+}
+
+{
+  // [Arrival X/Y] (22-29): from hand during a battle, once cards of both
+  // colours are in the Combo Area; the effect is playing the card.
+  DEFS.ARRIVER = { ...DEFS.V1, id: "ARRIVER", name: "ARRIVER", energyCost: 4, power: 20000, skill: "[Arrival red/blue] {r}" };
+  let s = arena({ hand: ["ARRIVER", "V1", "V-BLUE"], energy: ["V1", "V1"] });
+  const arr = find(s, "p1", "hand", "ARRIVER");
+  assert.ok(!canActivate(s, arr), "22-29-4: not in the Main Phase");
+  s = play(s, { type: "attack", player: "p1", attacker: s.players.p1.leader, target: s.players.p2.leader });
+  assert.ok(!canActivate(s, arr), "no combo cards yet");
+  s = play(s, { type: "combo", player: "p1", card: find(s, "p1", "hand", "V1") });
+  assert.ok(!canActivate(s, arr), "red alone is not red and blue");
+  s = play(s, { type: "combo", player: "p1", card: find(s, "p1", "hand", "V-BLUE") });
+  assert.ok(canActivate(s, arr), "22-29-3: both colours are in the Combo Area");
+  s = play(s, { type: "activate", player: "p1", card: arr, skill: 0 });
+  assert.ok(s.players.p1.battle.includes(arr), "22-29-5: the card is played");
+  assert.equal(s.players.p1.energy.filter((id) => s.cards[id].mode === "rest").length, 1, "for {r}, not its printed cost");
+  assert.equal(s.prompt.kind, "combo", "and the battle goes on");
+  assert.equal((s.prompt as { side: string }).side, "offense");
+  assertConsistent(s);
+}
+
+{
+  // [Empower X Y] (22-45): a Unison replacing one of colour X keeps up to Y of its markers.
+  DEFS.EMP = { ...DEFS.U1, id: "EMP", name: "EMP", skill: "[Empower Red 2]" };
+  let s = arena({ hand: ["U1", "EMP"], energy: ["V1", "V1", "V1", "V1", "V1"] });
+  s = play(s, { type: "playUnison", player: "p1", card: find(s, "p1", "hand", "U1"), x: 3 });
+  const old = s.players.p1.unison!;
+  s = play(s, { type: "playUnison", player: "p1", card: find(s, "p1", "hand", "EMP"), x: 1 });
+  const emp = s.players.p1.unison!;
+  assert.equal(s.cards[emp].cardId, "EMP");
+  assert.ok(s.players.p1.drop.includes(old), "13-2-3: the old Unison went to the Drop");
+  assert.equal(s.cards[emp].markers, 3, "22-45-2: 1 paid plus 2 carried over (of the 3 it had)");
+  assertConsistent(s);
+}
+
+{
+  // [Successor] (22-38): from hand by dropping green/yellow Battle Cards
+  // whose costs add up exactly to this card's cost; picked one at a time,
+  // and only cards that still leave a way to the exact sum are offered.
+  DEFS.SUCC = { ...DEFS.V1, id: "SUCC", name: "SUCC", colors: ["Green", "Yellow"], energyCost: 5, power: 25000, skill: "[Successor]{g}{y}" };
+  DEFS.G2 = { ...DEFS.V1, id: "G2", name: "G2", colors: ["Green"], energyCost: 2 };
+  DEFS.Y3 = { ...DEFS.V1, id: "Y3", name: "Y3", colors: ["Yellow"], energyCost: 3 };
+  DEFS.G4 = { ...DEFS.V1, id: "G4", name: "G4", colors: ["Green"], energyCost: 4 };
+  let s = arena({ hand: ["SUCC"], battle: ["G2", "Y3", "G4"], energy: ["G2", "Y3"] });
+  const succ = find(s, "p1", "hand", "SUCC");
+  const [g2, y3, g4] = s.players.p1.battle;
+  assert.ok(labels(s).some((x) => x.startsWith("Successor: play SUCC")), "22-38-2: a sum of 5 exists (2 + 3)");
+  s = play(s, { type: "activate", player: "p1", card: succ, skill: 0 });
+  assert.equal(s.prompt.kind, "chooseCards");
+  assert.deepEqual((s.prompt as { choice: { candidates: string[] } }).choice.candidates, [g2, y3], "4 alone can never reach 5, so it is not offered");
+  s = play(s, { type: "choose", player: "p1", cards: [g2] });
+  assert.equal(s.prompt.kind, "chooseCards", "3 more to find");
+  assert.deepEqual((s.prompt as { choice: { candidates: string[] } }).choice.candidates, [y3]);
+  s = play(s, { type: "choose", player: "p1", cards: [y3] });
+  assert.ok(s.players.p1.battle.includes(succ), "22-38-4: played");
+  assert.ok(s.players.p1.drop.includes(g2) && s.players.p1.drop.includes(y3), "22-38-3: the chosen cards were dropped");
+  assert.ok(s.players.p1.battle.includes(g4), "the rest stay");
+  assert.ok(s.players.p1.energy.every((id) => s.cards[id].mode === "rest"), "{g}{y} was paid");
+  assertConsistent(s);
+
+  const n = arena({ hand: ["SUCC"], battle: ["G4", "G4"], energy: ["G2", "Y3"] });
+  assert.ok(!labels(n).some((x) => x.startsWith("Successor")), "4 + 4 is not 5");
+}
+
+{
+  // [Aegis X/Y] (22-30): in the Defense Step of the opponent's turn only; drop
+  // one card of each colour from hand, then up to two energy go active.
+  DEFS.AEG = { ...DEFS.V1, id: "AEG", name: "AEG", skill: "[Aegis red/blue] {r}" };
+  let s = arena({ battle: ["AEG"], hand: ["V1", "V-BLUE"], energy: ["V1", "V1", "V1"] });
+  const aeg = s.players.p1.battle[0];
+  assert.ok(!canActivate(s, aeg), "22-30-4: not in your own Main Phase");
+  s = play(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+  const [e1, e2, e3] = s.players.p1.energy;
+  s.cards[e1].mode = "rest";
+  s.cards[e2].mode = "rest";
+  s = play(s, { type: "attack", player: "p2", attacker: s.players.p2.leader, target: s.players.p1.leader });
+  assert.ok(!canActivate(s, aeg), "22-30-4: not in the Offense Step");
+  s = play(s, { type: "pass", player: "p2" });
+  assert.equal((s.prompt as { side: string }).side, "defense");
+  assert.ok(labels(s).some((x) => x.startsWith("Aegis Red/Blue")), "22-30-4: the Defense Step of the opponent's turn");
+  s = play(s, { type: "activate", player: "p1", card: aeg, skill: 0 });
+  assert.equal(s.cards[e3].mode, "rest", "the {r} was paid");
+  assert.equal(s.prompt.kind, "chooseCards");
+  const v1 = find(s, "p1", "hand", "V1");
+  const vb = find(s, "p1", "hand", "V-BLUE");
+  s = play(s, { type: "choose", player: "p1", cards: [v1] });
+  assert.equal(s.prompt.kind, "chooseCards", "one colour down, one to go");
+  const rest = (s.prompt as { choice: { candidates: string[] } }).choice.candidates;
+  assert.ok(rest.includes(vb) && !rest.includes(v1), "the picked card is off the menu");
+  s = play(s, { type: "choose", player: "p1", cards: [vb] });
+  assert.ok(s.players.p1.drop.includes(v1) && s.players.p1.drop.includes(vb), "22-30-3: both dropped as the cost");
+  assert.equal(s.prompt.kind, "chooseCards", "22-30-5: which energy to stand");
+  s = play(s, { type: "choose", player: "p1", cards: [e1] }, { type: "choose", player: "p1", cards: [e2] });
+  assert.equal(s.cards[e1].mode, "active");
+  assert.equal(s.cards[e2].mode, "active");
+  assert.equal(s.cards[e3].mode, "rest", "up to two, not all");
+  assert.equal(s.prompt.kind, "combo");
+  assert.equal((s.prompt as { side: string }).side, "defense", "back to the Defense Step");
+  assertConsistent(s);
+}
+
+{
+  // [Revive X/Y] (22-34): KO'd, its owner may drop cards from hand covering
+  // both colours to play it back from the Drop — once per card per turn.
+  DEFS.REV = { ...DEFS.V1, id: "REV", name: "REV", skill: "[Revive red/blue]" };
+  let s = arena({ battle: ["REV"], hand: ["V1", "V-BLUE", "V1", "V-BLUE"], oppBattle: ["DOUBLE"] });
+  const rev = s.players.p1.battle[0];
+  s.cards[rev].mode = "rest";
+  s = play(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+  const dbl = s.players.p2.battle[0];
+  s = play(s, { type: "attack", player: "p2", attacker: dbl, target: rev }, { type: "pass", player: "p2" }, { type: "pass", player: "p1" });
+  assert.ok(s.players.p1.drop.includes(rev), "20000 into 10000: KO'd");
+  assert.equal(s.prompt.kind, "chooseCards", "22-34-3: the owner is asked");
+  assert.equal((s.prompt as { player: string }).player, "p1");
+  const v1 = find(s, "p1", "hand", "V1");
+  const vb = find(s, "p1", "hand", "V-BLUE");
+  s = play(s, { type: "choose", player: "p1", cards: [v1] }, { type: "choose", player: "p1", cards: [vb] });
+  assert.ok(s.players.p1.battle.includes(rev), "22-34-4: played from the Drop");
+  assert.ok(s.players.p1.drop.includes(v1) && s.players.p1.drop.includes(vb), "the cost was dropped");
+  assert.equal(s.prompt.kind, "main");
+  assert.equal(s.turnPlayer, "p2");
+  // KO'd again the same turn: [Revive] is negated on it (22-34-4), no question asked.
+  s.cards[rev].mode = "rest";
+  const handBefore = s.players.p1.hand.length;
+  s = play(s, { type: "attack", player: "p2", attacker: s.players.p2.leader, target: rev }, { type: "pass", player: "p2" }, { type: "pass", player: "p1" });
+  assert.ok(s.players.p1.drop.includes(rev), "KO'd by the 10000 leader on a tie");
+  assert.equal(s.prompt.kind, "main", "no second Revive this turn");
+  assert.equal(s.players.p1.hand.length, handBefore, "and nothing was dropped");
+  assertConsistent(s);
+
+  // Declining keeps the card in the Drop and the hand whole.
+  let d = arena({ battle: ["REV"], hand: ["V1", "V-BLUE"], oppBattle: ["DOUBLE"] });
+  const r2 = d.players.p1.battle[0];
+  d.cards[r2].mode = "rest";
+  d = play(d, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+  d = play(d, { type: "attack", player: "p2", attacker: d.players.p2.battle[0], target: r2 }, { type: "pass", player: "p2" }, { type: "pass", player: "p1" });
+  assert.equal(d.prompt.kind, "chooseCards");
+  const kept = d.players.p1.hand.length;
+  d = play(d, { type: "choose", player: "p1", cards: [] });
+  assert.ok(d.players.p1.drop.includes(r2));
+  assert.equal(d.players.p1.hand.length, kept);
+}
+
+{
+  // [Rejuvenate] (22-42): a Unison drops a card from beneath itself and pays
+  // the printed marker cost; the top card of the deck becomes life.
+  DEFS.REJ = { ...DEFS.U1, id: "REJ", name: "REJ", skill: "[Rejuvenate] Remove 2 markers from this card." };
+  let s = arena({ hand: ["REJ", "REJ"], energy: ["V1", "V1", "V1"] });
+  s = play(s, { type: "playUnison", player: "p1", card: find(s, "p1", "hand", "REJ"), x: 3 });
+  const u = s.players.p1.unison!;
+  assert.ok(!canActivate(s, u), "22-42-3: nothing beneath it yet");
+  const copy = find(s, "p1", "hand", "REJ");
+  s = play(s, { type: "growUnison", player: "p1", card: copy });
+  assert.equal(s.cards[u].markers, 4);
+  assert.ok(labels(s).some((x) => x.startsWith("Rejuvenate: 2 markers")));
+  const life = s.players.p1.life.length;
+  const top = s.players.p1.deck[0];
+  s = play(s, { type: "activate", player: "p1", card: u, skill: 0 });
+  assert.equal(s.cards[u].markers, 2, "22-42-3: the marker cost");
+  assert.deepEqual(s.cards[u].under, [], "and the card beneath");
+  assert.ok(s.players.p1.drop.includes(copy));
+  assert.equal(s.players.p1.life.length, life + 1, "22-42-4: the top card of the deck to life");
+  assert.ok(s.players.p1.life.includes(top));
+  assert.ok(!canActivate(s, u), "13-4-2: one marker skill per card per turn");
+  assertConsistent(s);
+}
+
+{
+  // A prompt for more than one card is answered one card at a time, with
+  // "Done choosing" once the minimum is met.
+  let s = arena({ hand: ["V1", "V1", "V1"] });
+  const [a, b, c] = s.players.p1.hand;
+  s.prompt = { kind: "chooseCards", player: "p1", choice: { reason: "test", candidates: [a, b, c], min: 1, max: 2, continuation: "swap" } };
+  s.continuations.swap = { card: a };
+  assert.ok(!labels(s).includes("Choose none"), "one is required");
+  s = play(s, { type: "choose", player: "p1", cards: [a] });
+  assert.equal(s.prompt.kind, "chooseCards");
+  assert.deepEqual((s.prompt as { choice: { candidates: string[]; min: number; max: number } }).choice.candidates, [b, c]);
+  assert.ok(labels(s).includes("Done choosing"), "the minimum is met");
+  assert.throws(() => play(s, { type: "choose", player: "p1", cards: [a] }), /invalid choice/, "a card cannot be picked twice");
 }
 
 console.log("verify-arena: all checks passed");

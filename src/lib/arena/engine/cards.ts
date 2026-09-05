@@ -218,7 +218,9 @@ export function parseSkills(text: string | null | undefined): Skill[] {
       for (const [j, kw] of keywords.entries()) out.push(makeSkill(index * 10 + j, [tagFor(kw)], kw, "", "", line));
       continue;
     }
-    const primary = keywords[0] ?? null;
+    // [Spirit Boost X] is a cost written as a tag (22-43), like [Burst X]: it
+    // never names the skill it sits on, which keeps its own [Activate] type.
+    const primary = keywords.find((k) => k.name !== "Spirit Boost") ?? null;
     const { cost, effect } = splitCost(body);
     out.push(makeSkill(index * 10, tags, primary, cost, effect, line));
   }
@@ -251,6 +253,7 @@ function makeSkill(index: number, tags: string[], keyword: KeywordSkill | null, 
     bond: num(/^bond (\d+)/),
     sparking: num(/^sparking (\d+)$/),
     burst: num(/^burst (\d+)$/),
+    spiritBoost: num(/^spirit boost (\d+)$/),
     markerCost: marker,
     energyCost: orbsIn(cost),
     raw,

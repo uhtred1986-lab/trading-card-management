@@ -63,6 +63,8 @@ export interface Skill {
   bond: number | null;
   sparking: number | null;
   burst: number | null;
+  /** [Spirit Boost X]: remove X markers from your Unison as the skill cost (22-43). */
+  spiritBoost: number | null;
   /** Marker skill cost [+X]/[-X] on Unison cards (13-4). */
   markerCost: number | null;
   /** Energy orbs in the skill cost, e.g. {g}{g} → { Green: 2 }; `{u}` is blue. */
@@ -519,7 +521,7 @@ export type FlowStep =
   | { op: "battle.cleanup" }
   | { op: "prompt"; prompt: Prompt }
   | { op: "zstack.place"; card: string; player: PlayerId }
-  | { op: "choose.apply"; what: "zstack" | "evolve" | "union" | "swap"; card: string; player: PlayerId };
+  | { op: "choose.apply"; what: "zstack" | "evolve" | "union" | "swap" | "successor" | "aegis" | "aegisEnergy" | "revive"; card: string; player: PlayerId };
 
 /** Output of `apply`. */
 export interface Applied {

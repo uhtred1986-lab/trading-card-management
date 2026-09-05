@@ -400,9 +400,12 @@ function resolveAuto(ctx: EngineContext, s: GameState, ev: GameEvent[], p: Pendi
   // 9-6-4: a cost may be declined, and then the skill does not resolve at all.
   const orbs = orbTotals(sk);
   const needsMarker = sk.markerCost != null;
-  if ((orbs.total > 0 || needsMarker) && !s.continuations[`paid:${p.card}:${sk.index}`]) {
+  const needsKeywordCost = sk.burst != null || sk.spiritBoost != null;
+  if ((orbs.total > 0 || needsMarker || needsKeywordCost) && !s.continuations[`paid:${p.card}:${sk.index}`]) {
     if (needsMarker && (inst.usedMarkerSkill || inst.markers + (sk.markerCost ?? 0) < 0)) return "done";
     if (orbs.total > 0 && !planPayment(ctx, s, p.master, orbs.total, orbs.specified)) return "done";
+    // 22-27-4 / 22-43-3: a [Burst] or [Spirit Boost] that cannot be paid does not resolve.
+    if (!canPayKeywordCosts(s, p.master, sk)) return "done";
     s.continuations.optionalCost = { card: p.card, skillIndex: sk.index, master: p.master, trigger: p.trigger, subject: p.subject };
     return wait(s, { kind: "optionalCost", player: p.master, card: p.card, skillIndex: sk.index, describe: describeCost(sk) });
   }
@@ -533,11 +536,22 @@ function resolvePlay(ctx: EngineContext, s: GameState, ev: GameEvent[], card: st
   const bt = baseType(d);
   const ps = s.players[p];
   if (bt === "UNISON") {
+    // 22-45: [Empower XY] carries up to Y markers over from the Unison this
+    // one replaces, if that Unison is the colour it names (any colour when it
+    // names none). Read before the old one goes, because leaving play clears
+    // its markers.
+    let carried = 0;
+    const empower = keyword(ctx, s, card, "Empower");
+    if (ps.unison && empower && empower.x > 0) {
+      const old = ps.unison;
+      if (empower.color == null || cardNow(ctx, s, old).colors.includes(empower.color)) carried = Math.min(empower.x, s.cards[old].markers);
+    }
     // 3-11-5: an existing Unison goes to the Drop.
     if (ps.unison) move(ctx, s, ev, ps.unison, "drop", p, { reason: "rule" });
     move(ctx, s, ev, card, "unison", p, { reason: "play", reveal: true });
-    s.cards[card].markers = markers ?? 0;
+    s.cards[card].markers = (markers ?? 0) + carried;
     ev.push({ type: "markers", card, delta: s.cards[card].markers, total: s.cards[card].markers });
+    if (carried) note(ev, `Empower: ${carried} marker${carried === 1 ? "" : "s"} carried over`);
   } else if (d.type === "Z-EXTRA") {
     // 17-2-1-3: other Z-Extras are removed.
     for (const id of ps.battle.slice()) if (def(ctx, s, id).type === "Z-EXTRA") move(ctx, s, ev, id, "removed", p, { reason: "rule" });
@@ -614,6 +628,22 @@ function resolveKeywordOrText(ctx: EngineContext, s: GameState, ev: GameEvent[],
         // the effect stops to ask a question (22-2-4, 22-25-4).
         s.flow.unshift({ op: "flipLeader", card });
         return runSkill(ctx, s, ev, card, sk, master, trigger);
+      case "Revive": {
+        // 22-34: KO'd, and its owner may drop cards from hand covering both
+        // colours to play it back from the Drop — once per turn per card.
+        if (areaOf(s, card) !== "drop") return "done";
+        if (s.continuations[`revived:${card}`] === s.turn) return "done";
+        const hand = s.players[master].hand;
+        if (!canCoverColors(ctx, s, hand, k.colors)) return "done";
+        const cands = hand.filter((id) => cardNow(ctx, s, id).colors.some((c) => k.colors.includes(c)));
+        s.continuations.revive = { card, colors: k.colors };
+        s.flow.unshift({ op: "choose.apply", what: "revive", card, player: master });
+        return wait(s, {
+          kind: "chooseCards",
+          player: master,
+          choice: { reason: `Revive ${k.colors.join("/")}: drop cards covering both colours to play ${face(ctx, s, card).name} back, or none`, candidates: cands, min: 0, max: k.colors.length, continuation: "revive" },
+        });
+      }
       case "Field":
         // 22-3: the Extra goes to the Battle Area; other [Field] Extras go to the Drop.
         for (const id of s.players[master].battle.slice()) if (has(ctx, s, id, "Field")) move(ctx, s, ev, id, "drop", master, { reason: "rule" });
@@ -701,6 +731,8 @@ function describeCost(sk: Skill): string {
   const parts: string[] = [];
   for (const [c, n] of Object.entries(sk.energyCost)) if (n) parts.push(`${n} ${c === "any" ? "energy" : `${c} energy`}`);
   if (sk.markerCost != null) parts.push(sk.markerCost >= 0 ? `add ${sk.markerCost} marker${sk.markerCost === 1 ? "" : "s"}` : `remove ${-sk.markerCost} marker${sk.markerCost === -1 ? "" : "s"}`);
+  if (sk.burst != null) parts.push(`Burst ${sk.burst}: ${sk.burst} card${sk.burst === 1 ? "" : "s"} from the top of your deck to the Drop`);
+  if (sk.spiritBoost != null) parts.push(`Spirit Boost ${sk.spiritBoost}: ${sk.spiritBoost} marker${sk.spiritBoost === 1 ? "" : "s"} off your Unison`);
   return parts.join(", ") || "nothing";
 }
 
@@ -737,6 +769,93 @@ function askForPayment(
 }
 
 /** Pay a Unison card's marker cost (13-4) and lock that card's marker skills for the turn. */
+/**
+ * The costs a keyword tag adds to a skill: [Burst X] mills X (22-27-3), and
+ * [Spirit Boost X] removes X markers from your Unison (22-43-3). Both are
+ * part of the skill cost, so they are paid where the orbs are paid and refused
+ * where the orbs are refused.
+ */
+function canPayKeywordCosts(s: GameState, p: PlayerId, sk: Skill): boolean {
+  const ps = s.players[p];
+  // 22-27-4: not if X is more than the deck holds.
+  if (sk.burst != null && ps.deck.length < sk.burst) return false;
+  if (sk.spiritBoost != null && (!ps.unison || s.cards[ps.unison].markers < sk.spiritBoost)) return false;
+  return true;
+}
+
+function payKeywordCosts(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId, sk: Skill): void {
+  const ps = s.players[p];
+  if (sk.burst != null) {
+    for (let i = 0; i < sk.burst && ps.deck.length; i++) move(ctx, s, ev, ps.deck[0], "drop", p, { reason: "cost", reveal: true });
+  }
+  if (sk.spiritBoost != null && ps.unison) {
+    const u = ps.unison;
+    s.cards[u].markers = Math.max(0, s.cards[u].markers - sk.spiritBoost);
+    ev.push({ type: "markers", card: u, delta: -sk.spiritBoost, total: s.cards[u].markers });
+    pendTriggers(ctx, s, "markerRemoved", u);
+  }
+}
+
+/** The printed energy cost as a number; X and none count as 0. */
+function costOf(d: CardDef): number {
+  return typeof d.energyCost === "number" ? d.energyCost : 0;
+}
+
+/** 22-38-3: mono-green, mono-yellow, or Green/Yellow — nothing else. */
+function successorPool(ctx: EngineContext, s: GameState, p: PlayerId): string[] {
+  return s.players[p].battle.filter((id) => {
+    const colors = cardNow(ctx, s, id).colors;
+    return colors.length > 0 && colors.every((c) => c === "Green" || c === "Yellow");
+  });
+}
+
+/** Whether some subset of these costs adds up to exactly `target`. */
+function subsetSumExists(costs: number[], target: number): boolean {
+  const reachable = new Set<number>([0]);
+  for (const c of costs) for (const r of [...reachable]) if (r + c <= target) reachable.add(r + c);
+  return reachable.has(target);
+}
+
+/**
+ * 22-30-3 / 22-34-3: whether cards in this list can cover every colour named —
+ * one card of each, or one multicolour card carrying both.
+ */
+function canCoverColors(ctx: EngineContext, s: GameState, ids: string[], colors: Color[]): boolean {
+  const covered = new Set<Color>();
+  for (const id of ids) for (const c of cardNow(ctx, s, id).colors) if (colors.includes(c)) covered.add(c);
+  return colors.every((c) => covered.has(c));
+}
+
+/**
+ * Asks for the next card of a [Successor] cost. Only cards that still leave a
+ * way to hit the exact sum are offered, so the choice can never dead-end.
+ */
+function successorAsk(ctx: EngineContext, s: GameState, card: string, p: PlayerId): void {
+  const info = s.continuations.successor as { card: string; need: number; chosen: string[] };
+  const paid = info.chosen.reduce((n, id) => n + costOf(def(ctx, s, id)), 0);
+  const left = info.need - paid;
+  const pool = successorPool(ctx, s, p).filter((id) => !info.chosen.includes(id));
+  const cands = pool.filter((id) => {
+    const c = costOf(def(ctx, s, id));
+    if (c <= 0 || c > left) return false;
+    const rest = pool.filter((o) => o !== id).map((o) => costOf(def(ctx, s, o)));
+    return subsetSumExists(rest, left - c);
+  });
+  s.flow.unshift(
+    { op: "prompt", prompt: { kind: "chooseCards", player: p, choice: { reason: `Successor: ${left} more energy worth of green/yellow Battle Cards to drop`, candidates: cands, min: 1, max: 1, continuation: "successor" } } },
+    { op: "choose.apply", what: "successor", card, player: p },
+  );
+}
+
+/** [Rejuvenate]'s printed cost: markers to remove, and any life ceiling (22-42-3). */
+function rejuvenateCost(sk: Skill): { markers: number; lifeAtMost: number | null } | null {
+  const t = (sk.cost || sk.effect).toLowerCase();
+  const m = /remove (\d+) markers? from this card/.exec(t);
+  if (!m) return null;
+  const life = /your life is at (\d+) or less/.exec(t);
+  return { markers: Number(m[1]), lifeAtMost: life ? Number(life[1]) : null };
+}
+
 function payMarkerCost(s: GameState, ev: GameEvent[], card: string, markerCost: number): void {
   const inst = s.cards[card];
   inst.markers = Math.max(0, inst.markers + markerCost);
@@ -983,6 +1102,63 @@ function chooseApply(ctx: EngineContext, s: GameState, ev: GameEvent[], step: Ex
       s.flow.unshift({ op: "play.resolve", card: info.card, player: p });
       return "done";
     }
+    case "successor": {
+      const info = s.continuations.successor as { card: string; need: number; chosen: string[] };
+      const pick = chosen[0];
+      if (pick) info.chosen.push(pick);
+      const paid = info.chosen.reduce((n, id) => n + costOf(def(ctx, s, id)), 0);
+      if (paid < info.need && pick) {
+        successorAsk(ctx, s, info.card, p);
+        return "done";
+      }
+      delete s.continuations.successor;
+      if (paid !== info.need) return "done"; // nothing chosen: the activation lapses
+      // 22-38-3: the chosen cards to the Drop as the cost, then the play.
+      for (const id of info.chosen) move(ctx, s, ev, id, "drop", p, { reason: "cost" });
+      s.resolving = { card: info.card, player: p };
+      s.flow.unshift({ op: "counter", window: "play", responder: other(p) }, { op: "play.resolve", card: info.card, player: p });
+      return "done";
+    }
+    case "aegis": {
+      const info = s.continuations.aegis as { card: string; colors: Color[] };
+      delete s.continuations.aegis;
+      // 22-30-3: the cards dropped have to cover every colour named. Chosen
+      // wrongly, the cost is not paid and nothing happens — the orbs are gone,
+      // which is the price of a mistake the rules do not let you take back.
+      if (!chosen.length || !canCoverColors(ctx, s, chosen, info.colors)) {
+        note(ev, "Aegis: the cards dropped did not cover the colours, so nothing happened");
+        return "done";
+      }
+      for (const id of chosen) move(ctx, s, ev, id, "drop", p, { reason: "cost" });
+      // 22-30-5: up to two energy from Rest to Active.
+      const rested = s.players[p].energy.filter((id) => s.cards[id].mode === "rest");
+      if (!rested.length) return "done";
+      s.flow.unshift(
+        { op: "prompt", prompt: { kind: "chooseCards", player: p, choice: { reason: "Aegis: energy to switch to Active Mode", candidates: rested, min: 0, max: 2, continuation: "aegisEnergy" } } },
+        { op: "choose.apply", what: "aegisEnergy", card: info.card, player: p },
+      );
+      return "done";
+    }
+    case "aegisEnergy": {
+      for (const id of chosen) setMode(s, ev, id, "active", ctx);
+      return "done";
+    }
+    case "revive": {
+      const info = s.continuations.revive as { card: string; colors: Color[] };
+      delete s.continuations.revive;
+      if (!chosen.length) return "done"; // 22-34-3: may, not must
+      if (!canCoverColors(ctx, s, chosen, info.colors)) {
+        note(ev, "Revive: the cards chosen did not cover the colours, so it stays in the Drop");
+        return "done";
+      }
+      if (areaOf(s, info.card) !== "drop") return "done";
+      for (const id of chosen) move(ctx, s, ev, id, "drop", p, { reason: "cost" });
+      // 22-34-4: played from the Drop, and no second Revive this turn.
+      s.continuations[`revived:${info.card}`] = s.turn;
+      s.resolving = { card: info.card, player: p };
+      s.flow.unshift({ op: "counter", window: "play", responder: other(p) }, { op: "play.resolve", card: info.card, player: p });
+      return "done";
+    }
     case "swap": {
       const info = s.continuations.swap as { card: string };
       delete s.continuations.swap;
@@ -1064,6 +1240,20 @@ export function legalActions(ctx: EngineContext, s: GameState): LegalAction[] {
         if (canCombo(d) && !forbids(ctx, s, "combo", { player: p, card: id }) && planPayment(ctx, s, p, comboCostOf(ctx, s, id), {}))
           out.push({ action: { type: "combo", player: p, card: id }, label: `Combo ${name(id)} from the Battle Area (+${comboPowerOf(ctx, s, id)}, cost ${comboCostOf(ctx, s, id)})` });
       }
+      // [Activate: Battle] skills, and the keywords that work like one
+      // ([Arrival] from hand, [Aegis] on the defence).
+      for (const id of s.players[p].hand) {
+        for (const sk of skillsOf(def(ctx, s, id))) {
+          const act = activatable(ctx, s, p, id, sk, "battle");
+          if (act) out.push({ action: { type: "activate", player: p, card: id, skill: sk.index }, label: act });
+        }
+      }
+      for (const id of cardsInPlay(s, p)) {
+        for (const sk of skillsOfInstance(ctx, s, id)) {
+          const act = activatable(ctx, s, p, id, sk, "battle");
+          if (act) out.push({ action: { type: "activate", player: p, card: id, skill: sk.index }, label: act });
+        }
+      }
       out.push({ action: { type: "pass", player: p }, label: pr.side === "offense" ? "End Offense Step" : "End Defense Step" });
       return out;
     }
@@ -1099,7 +1289,7 @@ export function legalActions(ctx: EngineContext, s: GameState): LegalAction[] {
       return out;
     case "chooseCards":
       for (const id of pr.choice.candidates) out.push({ action: { type: "choose", player: pr.player, cards: [id] }, label: `Choose ${name(id)}` });
-      if (pr.choice.min === 0) out.push({ action: { type: "choose", player: pr.player, cards: [] }, label: "Choose none" });
+      if (pr.choice.min === 0) out.push({ action: { type: "choose", player: pr.player, cards: [] }, label: s.continuations[`picking:${pr.choice.continuation}`] ? "Done choosing" : "Choose none" });
       return out;
     case "chooseMode":
       // 20-2: the printed options, in the order they are printed.
@@ -1234,6 +1424,8 @@ function activatable(ctx: EngineContext, s: GameState, p: PlayerId, card: string
   if (sk.oncePerTurn && inst.usedThisTurn.includes(sk.index)) return null;
   if (sk.bond != null && s.players[p].battle.length < sk.bond) return null;
   if (sk.sparking != null && s.players[p].drop.length < sk.sparking) return null;
+  // 22-27 / 22-43: a [Burst] or [Spirit Boost] tag is part of the cost.
+  if (!canPayKeywordCosts(s, p, sk)) return null;
   const k = sk.keyword;
   const orbCost = sk.energyCost;
   const orbTotal = Object.entries(orbCost).reduce((n, [c, v]) => n + (c === "any" ? 0 : (v ?? 0)), 0) + (orbCost.any ?? 0);
@@ -1284,9 +1476,42 @@ function activatable(ctx: EngineContext, s: GameState, p: PlayerId, card: string
         if (timing !== "main" || areaOf(s, card) !== "battle" || !costIsOrbsOnly || !canPayOrbs()) return null;
         return `Swap ${name} for a cost-${k.x} card from hand`;
       }
+      case "Arrival": {
+        // 22-29: [Activate: Battle], from hand only, when the original colours
+        // of the Battle Cards in your Combo Area cover every colour it names.
+        if (timing !== "battle" || !inHand) return null;
+        const combo = s.players[p].combo.map((id) => cardNow(ctx, s, id).colors);
+        if (!k.colors.every((c) => combo.some((cs) => cs.includes(c)))) return null;
+        if (!canPayOrbs()) return null;
+        return `Arrival ${k.colors.join("/")}: play ${name}`;
+      }
       case "Successor": {
-        if (timing !== "main" || !inHand) return null;
-        return null; // needs a subset-sum choice; phase 3
+        // 22-38: from hand, in the Main Phase, by dropping green/yellow Battle
+        // Cards whose energy costs add up to this card's original cost.
+        if (timing !== "main" || !inHand || !costIsOrbsOnly || !canPayOrbs()) return null;
+        const need = costOf(d);
+        if (need <= 0) return null;
+        const costs = successorPool(ctx, s, p).map((id) => costOf(def(ctx, s, id)));
+        if (!subsetSumExists(costs, need)) return null;
+        return `Successor: play ${name} by dropping ${need} worth of green/yellow Battle Cards`;
+      }
+      case "Aegis": {
+        // 22-30-4: only in the Defense Step of your opponent's turn, and the
+        // colours it names have to be there in your hand to drop.
+        if (timing !== "battle" || s.turnPlayer === p || s.battle?.step !== "defense") return null;
+        if (!inPlay(s, card)) return null;
+        if (!canCoverColors(ctx, s, s.players[p].hand, k.colors)) return null;
+        if (!costIsOrbsOnly || !canPayOrbs()) return null;
+        return `Aegis ${k.colors.join("/")}: drop ${k.colors.join(" and ")} from hand, stand up to 2 energy`;
+      }
+      case "Rejuvenate": {
+        // 22-42: a Unison with cards beneath it drops one of them and pays the
+        // printed marker cost; the top card of the deck becomes life.
+        if (timing !== "main" || areaOf(s, card) !== "unison" || inst.under.length === 0) return null;
+        const cost = rejuvenateCost(sk);
+        if (!cost || inst.markers < cost.markers || inst.usedMarkerSkill) return null;
+        if (cost.lifeAtMost != null && s.players[p].life.length > cost.lifeAtMost) return null;
+        return `Rejuvenate: ${cost.markers} marker${cost.markers === 1 ? "" : "s"} and a card from under ${name} → +1 life`;
       }
       case "Overlord": {
         if (timing !== "main" || !s.players[p].battle.some((id) => has(ctx, s, id, "Servant"))) return null;
@@ -1589,9 +1814,24 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
     case "choose": {
       if (pr.kind !== "chooseCards") throw new IllegalAction("no choice pending");
       const ch = pr.choice;
-      if (action.cards.length < ch.min || action.cards.length > ch.max) throw new IllegalAction(`choose between ${ch.min} and ${ch.max}`);
       if (action.cards.some((id) => !ch.candidates.includes(id)) || new Set(action.cards).size !== action.cards.length) throw new IllegalAction("invalid choice");
-      s.lastChoice = action.cards;
+      if (action.cards.length > ch.max) throw new IllegalAction(`choose at most ${ch.max}`);
+      // The board and the move list answer one card at a time. A prompt that
+      // needs more than one keeps what has been picked and asks again for the
+      // rest, so a "choose 2" is two taps rather than an answer nothing on the
+      // menu could give.
+      if (action.cards.length < ch.min) throw new IllegalAction(`choose at least ${ch.min}`);
+      const key = `picking:${ch.continuation}`;
+      const sofar = (s.continuations[key] as string[] | undefined) ?? [];
+      const picked = [...sofar, ...action.cards];
+      const left = ch.candidates.filter((id) => !action.cards.includes(id));
+      if (action.cards.length > 0 && action.cards.length < ch.max && left.length > 0) {
+        s.continuations[key] = picked;
+        s.prompt = { ...pr, choice: { ...ch, candidates: left, min: Math.max(0, ch.min - action.cards.length), max: ch.max - action.cards.length } };
+        return { state: s, events: ev };
+      }
+      delete s.continuations[key];
+      s.lastChoice = picked;
       break;
     }
     case "chooseMode": {
@@ -1614,6 +1854,8 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
           pay(s, ev, p, pm);
         }
         if (sk.markerCost != null) payMarkerCost(s, ev, info.card, sk.markerCost);
+        if (!canPayKeywordCosts(s, p, sk)) throw new IllegalAction("can't pay the skill cost");
+        payKeywordCosts(ctx, s, ev, p, sk);
         // 9-6-4-2: paid, so the skill activates and resolves.
         s.continuations[`paid:${info.card}:${info.skillIndex}`] = true;
         s.flow.unshift({ op: "auto.resolve", pending: { card: info.card, skillIndex: info.skillIndex, master: info.master, trigger: info.trigger ?? "played", subject: info.subject } }, { op: "checkpoint" });
@@ -1671,6 +1913,7 @@ function activate(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId
   };
   if (sk.oncePerTurn || sk.limit != null) inst.usedThisTurn.push(sk.index);
   if (sk.markerCost != null) payMarkerCost(s, ev, card, sk.markerCost);
+  payKeywordCosts(ctx, s, ev, p, sk);
   ev.push({ type: "skill", card, skill: sk.index, master: p, text: sk.raw });
 
   if (k?.name === "Awaken" || k?.name === "Wish") {
@@ -1709,6 +1952,47 @@ function activate(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId
       vars: {},
       label: "back to the Warp as the turn ends",
     });
+    s.resolving = { card, player: p };
+    s.flow.unshift({ op: "counter", window: "play", responder: other(p) }, { op: "play.resolve", card, player: p });
+    return;
+  }
+  if (k?.name === "Successor") {
+    // 22-38: the cost is a set of cards whose costs add up exactly, chosen
+    // one at a time; the play follows once the sum is met.
+    payOrbs();
+    s.continuations.successor = { card, need: costOf(d), chosen: [] as string[] };
+    successorAsk(ctx, s, card, p);
+    return;
+  }
+  if (k?.name === "Aegis") {
+    payOrbs();
+    const cands = ps.hand.filter((id) => cardNow(ctx, s, id).colors.some((c) => k.colors.includes(c)));
+    s.continuations.aegis = { card, colors: k.colors };
+    s.flow.unshift(
+      { op: "prompt", prompt: { kind: "chooseCards", player: p, choice: { reason: `Aegis: drop ${k.colors.join(" and ")} from your hand`, candidates: cands, min: 1, max: k.colors.length, continuation: "aegis" } } },
+      { op: "choose.apply", what: "aegis", card, player: p },
+    );
+    return;
+  }
+  if (k?.name === "Rejuvenate") {
+    const cost = rejuvenateCost(sk)!;
+    // 22-42-3: a card from beneath goes to the Drop. Cards under a card are in
+    // no area of their own, so this is the one move `move` cannot make.
+    const beneath = inst.under.shift()!;
+    const owner = s.cards[beneath].owner;
+    s.players[owner].drop.unshift(beneath);
+    ev.push({ type: "move", card: beneath, from: "unison", to: "drop", owner });
+    ev.push({ type: "stack", top: card, under: inst.under.slice() });
+    payMarkerCost(s, ev, card, -cost.markers);
+    // 22-42-4: the top card of the deck to life.
+    const top = ps.deck[0];
+    if (top) move(ctx, s, ev, top, "life", p, { reason: "effect" });
+    s.flow.unshift({ op: "checkpoint" });
+    return;
+  }
+  if (k?.name === "Arrival") {
+    // 22-29-5: the effect of [Arrival] is playing the card that activated it.
+    payOrbs();
     s.resolving = { card, player: p };
     s.flow.unshift({ op: "counter", window: "play", responder: other(p) }, { op: "play.resolve", card, player: p });
     return;
