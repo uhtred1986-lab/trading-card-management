@@ -974,7 +974,36 @@ export interface Payment {
  * mono-colour matches first, then the rest from whatever is most plentiful,
  * then energy markers. Returns null when the cost can't be paid (5-3-3).
  */
-export function planPayment(ctx: GameContext, s: GameState, p: PlayerId, total: number, specified: Partial<Record<Color, number>>, explicit?: string[]): Payment | null {
+export function planPayment(
+  ctx: GameContext,
+  s: GameState,
+  p: PlayerId,
+  total: number,
+  specified: Partial<Record<Color, number>>,
+  explicit?: string[],
+  either?: Color[][],
+): Payment | null {
+  // "{r}/{u}" is one orb payable with either colour (22-13 and friends). Each
+  // way of settling those is an ordinary specified cost, so rather than teach
+  // the planner a new kind of requirement, try each assignment and let it
+  // answer the question it already knows how to answer. No printed skill has
+  // more than one such orb, so this is exact and costs nothing.
+  if (either?.length) {
+    const assignments: Color[][] = [[]];
+    for (const orb of either.slice(0, 3)) {
+      const next: Color[][] = [];
+      for (const so_far of assignments) for (const c of orb) next.push([...so_far, c]);
+      assignments.length = 0;
+      assignments.push(...next);
+    }
+    for (const pick of assignments) {
+      const merged = { ...specified };
+      for (const c of pick) merged[c] = (merged[c] ?? 0) + 1;
+      const got = planPayment(ctx, s, p, total, merged, explicit);
+      if (got) return got;
+    }
+    return null;
+  }
   const active = activeEnergy(s, p);
   const ps = s.players[p];
   const leader = leaderColors(ctx, s, p);

@@ -6,7 +6,7 @@
  */
 import assert from "node:assert/strict";
 import { apply, createGame, defsFrom, legalActions, seedFrom, type Action, type CardDef, type GameState, type PlayerId } from "../src/lib/arena/engine";
-import { parseSkills, keywordOf, orbsIn } from "../src/lib/arena/engine/cards";
+import { parseSkills, keywordOf, orbsIn, eitherOrbsIn } from "../src/lib/arena/engine/cards";
 import { parseFilter, matches, parseCondition } from "../src/lib/arena/engine/filters";
 import { move, locate, playCost, powerOf, forbids, has, cardNow, comboCostOf, skillNegated, skillsNegated } from "../src/lib/arena/engine/state";
 import { compileSkill, costIsOnlyOrbs, costText, describeScript, parseConditionClause, splitClauses } from "../src/lib/arena/engine/compile";
@@ -2218,11 +2218,14 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   const one = (text: string) => compileSkill(parseSkills(text)[0]);
   const auto = (text: string) => one(`[Auto] When you play this card, ${text}`);
 
-  // "{r}/{u}": one orb of either colour, read as one of any colour.
-  assert.deepEqual(orbsIn("{r}/{u}"), { any: 1 });
-  assert.deepEqual(orbsIn("{r}/{u}{g}"), { any: 1, Green: 1 });
+  // "{r}/{u}" is one orb payable with either colour — which is not the same as
+  // one of *any* colour, and used to be folded into that.
+  assert.deepEqual(orbsIn("{r}/{u}"), {});
+  assert.deepEqual(eitherOrbsIn("{r}/{u}"), [["Red", "Blue"]]);
+  assert.deepEqual(orbsIn("{r}/{u}{g}"), { Green: 1 });
   const either = parseSkills("[Activate: Main]{r}/{u}: Draw 1 card.")[0];
-  assert.deepEqual(either.energyCost, { any: 1 });
+  assert.deepEqual(either.energyCost, {});
+  assert.deepEqual(either.energyEither, [["Red", "Blue"]]);
   assert.equal(either.effect, "Draw 1 card.");
 
   // A discard that ends in the Warp.
@@ -3257,6 +3260,31 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.equal(s.players.p1.battle.length, width, "22-13-6-3: on top of it, not beside it");
   assert.ok(s.cards[food].under.includes(absorber), "and the activator is underneath");
   assertConsistent(s);
+}
+
+// ── an orb payable with either of two colours ──────────────────────────────
+
+{
+  // Read as "one orb of any colour", a {r}/{u} skill could be paid with green.
+  DEFS.EITHER = { ...DEFS.V1, id: "EITHER", name: "EITHER", skill: "[Activate: Main]{r}/{u}: Draw 1 card." };
+  DEFS["V-GREEN"] = { ...DEFS.V1, id: "V-GREEN", name: "V-GREEN", colors: ["Green"] };
+
+  // Green energy alone cannot pay it.
+  const s = arena({ battle: ["EITHER"], energy: ["V-GREEN"] });
+  assert.ok(!canActivate(s, s.players.p1.battle[0]), "green is neither red nor blue");
+
+  // Either of the named colours can.
+  const red = arena({ battle: ["EITHER"], energy: ["V1"] });
+  assert.ok(canActivate(red, red.players.p1.battle[0]), "V1 is red");
+  const blue = arena({ battle: ["EITHER"], energy: ["V-BLUE"] });
+  assert.ok(canActivate(blue, blue.players.p1.battle[0]), "and V-BLUE is blue");
+
+  // And paying it rests the right one, leaving the green alone.
+  const mixed = arena({ battle: ["EITHER"], energy: ["V-GREEN", "V-BLUE"] });
+  const after = play(mixed, { type: "activate", player: "p1", card: mixed.players.p1.battle[0], skill: 0 });
+  assert.equal(after.cards[find(after, "p1", "energy", "V-BLUE")].mode, "rest");
+  assert.equal(after.cards[find(after, "p1", "energy", "V-GREEN")].mode, "active", "the green was not spendable, so it was not spent");
+  assertConsistent(after);
 }
 
 console.log("verify-arena: all checks passed");

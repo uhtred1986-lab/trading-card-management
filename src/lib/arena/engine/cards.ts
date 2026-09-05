@@ -49,12 +49,18 @@ const COLOR_BY_LETTER: Record<string, Color> = { r: "Red", u: "Blue", g: "Green"
 const COLOR_BY_NAME: Record<string, Color> = { red: "Red", blue: "Blue", green: "Green", yellow: "Yellow", black: "Black" };
 
 /** "{g}{g}" / "{u}" orbs in a cost → per-colour counts; "{1}" style numbers → any. */
+/**
+ * "{r}/{u}" is one orb payable with *either* named colour — not with any
+ * colour at all, which is what it used to fold into. The colours are carried
+ * separately by `eitherOrbsIn` so that every loop over `orbsIn`'s result stays
+ * a loop over numbers.
+ */
+export function eitherOrbsIn(text: string): Color[][] {
+  return [...text.matchAll(/\{([rugyk])\}\/\{([rugyk])\}/gi)].map((m) => [COLOR_BY_LETTER[m[1].toLowerCase()], COLOR_BY_LETTER[m[2].toLowerCase()]]);
+}
+
 export function orbsIn(text: string): Partial<Record<Color, number>> & { any?: number } {
   const out: Partial<Record<Color, number>> & { any?: number } = {};
-  // "{r}/{u}" is one orb of either colour. Read as one of any colour: a
-  // little too generous to the payer, and honest about it here.
-  const either = [...text.matchAll(/\{[rugyk]\}\/\{[rugyk]\}/gi)].length;
-  if (either) out.any = either;
   const rest = text.replace(/\{[rugyk]\}\/\{[rugyk]\}/gi, "");
   for (const m of rest.matchAll(/\{([rugyk])\}/gi)) {
     const c = COLOR_BY_LETTER[m[1].toLowerCase()];
@@ -267,6 +273,7 @@ function makeSkill(index: number, tags: string[], keyword: KeywordSkill | null, 
     spiritBoost: num(/^spirit boost (\d+)$/),
     markerCost: marker,
     energyCost: orbsIn(cost),
+    energyEither: eitherOrbsIn(cost),
     raw,
   };
 }

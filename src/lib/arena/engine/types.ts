@@ -69,6 +69,13 @@ export interface Skill {
   markerCost: number | null;
   /** Energy orbs in the skill cost, e.g. {g}{g} → { Green: 2 }; `{u}` is blue. */
   energyCost: Partial<Record<Color, number>> & { any?: number };
+  /**
+   * Orbs printed "{r}/{u}": one orb each, payable with any *one* of the named
+   * colours. Kept apart from `energyCost` so that every loop over that stays a
+   * loop over numbers — and because "either red or blue" is not "any colour",
+   * which is what it used to be folded into.
+   */
+  energyEither: Color[][];
   raw: string;
 }
 

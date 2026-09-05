@@ -483,12 +483,15 @@ export function compileCostProgram(skill: Skill): Script | null {
   return out;
 }
 
-/** True when the price is nothing but orbs (and the reminder text beside them). */
+/**
+ * True when the price is nothing but orbs (and the reminder text beside them).
+ * The slash of "{r}/{u}" is part of the orb notation, not leftover text.
+ */
 export function costIsOnlyOrbs(cost: string): boolean {
   return (
     stripNotes(cost)
       .replace(/\{[^}]*\}/g, "")
-      .replace(/[\s,:]/g, "").length === 0
+      .replace(/[\s,:/]/g, "").length === 0
   );
 }
 
