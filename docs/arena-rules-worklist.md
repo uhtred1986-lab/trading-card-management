@@ -944,6 +944,46 @@ Coverage 84.0 % → 84.5 %; unread clauses 1,226 → 1,207; orphan triggers 690 
 685 (two cheap widenings: "when an opponent's Battle Card is KO'd **by this
 card's attack**", and "when **this card in your hand** is used in a combo").
 
+## Done: sentences cut into nonsense (5 Sep 2026)
+
+Chosen by asking a narrower question than usual: **what can the owner's own
+twelve decks not read?** 68 clauses across 54 wordings — almost no repetition,
+so it looked like a long tail of phrase patterns. It was not. Several entries
+were single words — `energy`, `choose 1`, `<Broly>` — and a fragment naming no
+action is not a missing pattern, it is `splitClauses` cutting a sentence in the
+wrong place and failing the whole skill.
+
+- **A pair of dashes hangs a description off the target.** "Play up to 1 <Son
+  Goku: GT> or <Vegeta: GT> card ―both mono-green, with an energy cost of 5 and
+  20000 power― from your Drop": everything between the pair belongs to the
+  phrase in front of it, commas and all. Only when they come in pairs — a lone
+  dash is ordinary punctuation, and treating it as an opener would swallow the
+  rest of the sentence. This one fix is most of the jump below, because the
+  aside is a house style across many sets.
+- **"…your opponent's Battle Cards *and energy*"** is one phrase naming two
+  areas, exactly like "Battle Cards and Unisons" already beside it in
+  `AREA_AFTER_AND`.
+- **"look at the top 3 cards …, *choose 1*, and add it to your hand"** (20-12):
+  the middle clause does not repeat what is being chosen among, because the
+  clause before it just said. And a bare "choose" left by "choose **and**
+  activate 1 {Broly's Ring}" is a connective: the choosing is how that action
+  picks its card.
+- **"If you chose *not* to add any cards to your hand"** (20-16) — the other
+  half of "if you do", and the half that decides whether the rest happens.
+- **BT1-074 closes its tag with a brace**: "[Auto} When a card evolves into
+  this card". Unread, the tag is not a tag, so the line became a [Permanent]
+  whose text opens with its own trigger.
+
+Coverage 84.5 % → **85.2 %**, which passes the spec's §7 target; the owner's
+decks 90.2 % → **91.6 %**; their unreadable clauses 68 → 62. Unread clauses
+across the catalog 1,207 → 1,183.
+
+**The lesson is about where to look.** The catalog-wide gap list ranks by how
+often a wording appears, which buries anything that happens once per card and
+rewards adding patterns. Ranking the *owner's decks* instead surfaced a
+structural bug that was costing whole skills everywhere — and the tell was that
+the "wordings" were single words.
+
 ## Conventions worth keeping
 
 - Card text is **read, never interpreted**: if the compiler cannot read a

@@ -24,7 +24,7 @@ const NAME_AFTER_AND = /^(?:<[^>]+>|≪[^≫]+≫|\{[^}]+\})(?:\s*(?:,|\.|$|card
  * your opponent's Battle Cards and Unisons" (20-1-6). Split, the second half
  * is a bare area word, and the first half quietly narrows to one area.
  */
-const AREA_AFTER_AND = /^(?:unisons?|unison cards?|unison areas?)\b/i;
+const AREA_AFTER_AND = /^(?:unisons?|unison cards?|unison areas?|energy(?: area)?\b)/i;
 
 /**
  * "This card **and** your Leader get +5000 power for the turn" — the "and"
@@ -44,10 +44,23 @@ const TARGET_BEFORE_AND = /(?:^\s*|[,;:]\s+)(?:this card|it|they|them|that card|
  */
 const MEASURE_AFTER_AND = /^(?:an? energy cost of \d+|\d+ power)(?: or (?:less|more))?\b/i;
 
+/**
+ * A dash the sets use in pairs to hang a description off a target: "play up to
+ * 1 <Son Goku: GT> or <Vegeta: GT> card ―both mono-green, with an energy cost
+ * of 5 and 20000 power― from your Drop". Everything between the pair belongs
+ * to the phrase in front of it, commas and all, and splitting there left the
+ * second half as a fragment naming no action at all.
+ */
+const ASIDE_DASH = /[―—–]|--/y;
+
 export function splitClauses(text: string): string[] {
   const out: string[] = [];
   let depth = 0;
   let start = 0;
+  // Only when they come in pairs: a lone dash is ordinary punctuation, and
+  // treating it as an opener would swallow the rest of the sentence.
+  const dashes = text.match(/[―—–]|--/g)?.length ?? 0;
+  let inAside = false;
   const push = (end: number, skip: number) => {
     const piece = text.slice(start, end).trim();
     if (piece) out.push(piece);
@@ -55,6 +68,13 @@ export function splitClauses(text: string): string[] {
   };
   for (let i = 0; i < text.length; i++) {
     const ch = text[i];
+    ASIDE_DASH.lastIndex = i;
+    if (dashes >= 2 && dashes % 2 === 0 && ASIDE_DASH.test(text)) {
+      inAside = !inAside;
+      i = ASIDE_DASH.lastIndex - 1;
+      continue;
+    }
+    if (inAside) continue;
     if ("([{<≪".includes(ch)) depth++;
     else if (")]}>≫".includes(ch)) depth = Math.max(0, depth - 1);
     else if (depth === 0) {
@@ -711,6 +731,12 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // to your hand", "if you played a card" — about an earlier step of the same
   // skill (20-16), which the interpreter remembers.
   if (/^you (?:chose to )?add(?:ed)? (?:a card|1 or more cards?|any cards?|cards?) to your hand$/.test(t)) return { cond: { kind: "did", what: "addToHand" } };
+  // "If you chose **not** to add any cards to your hand" — the other half of
+  // the same question (20-16), and the half that decides whether the rest of
+  // the skill happens at all.
+  if (/^you (?:chose not to|did ?n'?o?t|didn'?t) add (?:a card|1 or more cards?|any cards?|cards?) to your hand$/.test(t)) {
+    return { cond: { kind: "not", cond: { kind: "did", what: "addToHand" } } };
+  }
   if (/^you (?:chose to )?play(?:ed)? (?:a|1 or more|any|one or more) (?:battle )?cards?(?: this way)?$/.test(t)) return { cond: { kind: "did", what: "play" } };
   if (/^you negated (?:a|your opponent's) leader(?: card)?'s attack(?: with this skill)?$/.test(t)) return { cond: { kind: "did", what: "negateLeaderAttack" } };
   if (/^you negated (?:an|the|that) attack(?: with this skill)?$/.test(t)) return { cond: { kind: "did", what: "negateAttack" } };
@@ -833,6 +859,10 @@ function connective(clause: string): "skip" | "ifDone" | "ifNotDone" | "otherwis
   if (/^(?:put|place) (?:them|the rest|the remaining cards?|it) back(?: on top of (?:your|the|their) deck)?(?: in any order)?$/.test(t)) return "skip";
   if (/^shuffle any (?:secret )?areas? you looked (?:through|at)$/.test(t)) return "skip";
   if (/^(?:additionally|then|so|and|also|after that|in addition)$/.test(t)) return "skip";
+  // "Choose **and** activate 1 {Broly's Ring} from your deck" splits into a
+  // bare "choose" and the action. The choosing is how that action picks its
+  // card, so the fragment says nothing the clause after it does not.
+  if (/^choose$/.test(t)) return "skip";
   // Reminders that restate a rule the engine already applies.
   if (/^(?:you can't activate|this skill can only be activated)/.test(t)) return "skip";
   // "This card can't be played" on its own is one of those. The forms that say
@@ -1559,6 +1589,15 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
       return [{ op: "choose", sel, as: v, chooser: "opponent", reason: clause }];
     }
     return null;
+  }
+
+  // "Look at up to the top 3 cards of your deck, **choose 1**, and add it to
+  // your hand" (20-12): the sentence does not repeat what is being chosen
+  // among, because the clause before it just said. Without this the middle
+  // clause was a fragment and the whole skill went to the referee.
+  if ((m = /^choose (up to )?(\d+)$/.exec(t)) && c.lastSeen) {
+    const v = `c${c.n++}`;
+    return [{ op: "choose", sel: { fromVar: c.lastSeen, count: Number(m[2]), upTo: !!m[1] }, as: v, reason: clause }];
   }
 
   // Choosing (5-2). Late, because many clauses open with "choose" plus an action.

@@ -213,7 +213,10 @@ function splitTags(line: string): { tags: string[]; body: string } {
   const tags: string[] = [];
   let rest = line;
   for (;;) {
-    const m = /^\s*\[([^\]]+)\]\s*/.exec(rest);
+    // A few printings close the bracket with a brace — BT1-074 is "[Auto}
+    // When a card evolves into this card". Left unread, the tag is not a tag,
+    // so the line becomes a [Permanent] whose text opens with its own trigger.
+    const m = /^\s*\[([^\]}]+)[\]}]\s*/.exec(rest);
     if (!m) break;
     tags.push(m[1].trim());
     rest = rest.slice(m[0].length);

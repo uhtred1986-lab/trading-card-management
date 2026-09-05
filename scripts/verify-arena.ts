@@ -4222,4 +4222,44 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assertConsistent(after);
 }
 
+{
+  // Sentences the splitter used to cut into nonsense. Each left a fragment
+  // naming no action, which failed the whole skill — the fragments in
+  // `arena:gaps` ("energy", "choose 1", "<Broly>") are what these look like
+  // from the outside.
+
+  // A pair of dashes hangs a description off the target, commas and all.
+  assert.deepEqual(
+    splitClauses("Play up to 1 <Son Goku: GT> or <Vegeta: GT> card ―both mono-green, with an energy cost of 5 and 20000 power― from your Drop."),
+    ["Play up to 1 <Son Goku: GT> or <Vegeta: GT> card ―both mono-green, with an energy cost of 5 and 20000 power― from your Drop"],
+  );
+  // A lone dash is ordinary punctuation and must not swallow the rest.
+  assert.equal(splitClauses("Draw 1 card ― then draw 1 card, and draw 1 card.").length, 3);
+
+  // "…your opponent's Battle Cards **and energy**" is one target phrase naming
+  // two areas, like "Battle Cards and Unisons" beside it.
+  const twoAreas = compileSkill(parseSkills("[Auto] When a card evolves into this card, choose all of your opponent's Battle Cards and energy and switch them to Rest Mode.")[0]);
+  assert.deepEqual(twoAreas.unsupported, []);
+
+  // 20-12: "look at the top 3 cards …, choose 1, and add it to your hand" —
+  // the middle clause does not repeat what is being chosen among.
+  const look = compileSkill(parseSkills("[Auto] When you play this card, look at up to the top 3 cards of your deck, choose 1, and add it to your hand. Then, place the rest in your Drop Area.")[0]);
+  assert.deepEqual(look.unsupported, []);
+  const picked = look.ops.find((o) => o.op === "choose");
+  assert.equal(picked?.op === "choose" && picked.sel.fromVar, "looked", "chosen from what was looked at");
+
+  // 20-16: the other half of "if you do" — the half that decides whether the
+  // rest of the skill happens.
+  assert.deepEqual(
+    compileSkill(parseSkills("[Auto] When you play this card, look at up to 3 cards from the top of your deck. Choose up to 1 card among them and add it to your hand, then place the rest in your Drop Area. If you chose not to add any cards to your hand, choose up to 1 of your opponent's Battle Cards in Rest Mode and KO it.")[0]).unsupported,
+    [],
+  );
+
+  // BT1-074 closes its tag with a brace. Left unread, the tag is not a tag and
+  // the line becomes a [Permanent] whose text opens with its own trigger.
+  const typo = parseSkills("[Auto} When a card evolves into this card, draw 1 card.")[0];
+  assert.equal(typo.kind, "auto");
+  assert.ok(autoTriggerMatches(typo, "evolvedInto"));
+}
+
 console.log("verify-arena: all checks passed");
