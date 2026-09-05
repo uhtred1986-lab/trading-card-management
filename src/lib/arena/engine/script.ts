@@ -170,7 +170,12 @@ export type Op =
    * area, which is what nearly every move means.
    */
   | { op: "moveTo"; target: Ref; to: ScriptArea; position?: "top" | "bottom"; mode?: "active" | "rest"; reveal?: boolean; under?: Ref; owner?: Side }
-  | { op: "play"; target: Ref; mode?: "active" | "rest" }
+  /**
+   * `onto` plays the card on top of another, which is how [Union-Absorb]
+   * resolves (22-13-6-3) and how the "play … on top of this card" wordings
+   * read. Without it the card is played beside the host instead of onto it.
+   */
+  | { op: "play"; target: Ref; mode?: "active" | "rest"; onto?: Ref }
   | { op: "switchMode"; target: Ref; mode: "active" | "rest" }
   | { op: "power"; target: Ref; amount: Amount; until: Duration }
   | { op: "comboPower"; target: Ref; amount: Amount; until: Duration }
@@ -755,8 +760,9 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         // that may not be played may not be played by a skill either (20-14).
         const targets = resolveRef(ctx, s, frame, op.target).filter((id) => !forbids(ctx, s, "play", { player: master, card: id }));
         if (!targets.length) break;
+        const onto = op.onto ? resolveRef(ctx, s, frame, op.onto)[0] : undefined;
         const steps: FlowStep[] = [];
-        for (const id of targets) steps.push({ op: "play.resolve", card: id, player: master, mode: op.mode });
+        for (const id of targets) steps.push({ op: "play.resolve", card: id, player: master, mode: op.mode, onto });
         (frame.did ??= {}).play = true;
         frame.ip++;
         steps.push({ op: "script.step", frame });

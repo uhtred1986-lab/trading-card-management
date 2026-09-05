@@ -156,6 +156,18 @@ export function parseTarget(phrase: string): Selector | null {
   // is the one such phrase the game prints often enough to be worth reading.
   const bothAreas = /\bbattle cards?\b[^.]*\b(?:or|and)\b[^.]*\bunisons?\b|\bunisons?\b[^.]*\b(?:or|and)\b[^.]*\bbattle cards?\b/.test(t);
 
+  // "…from your deck or Drop Area", "…in your hand or Warp": a second area
+  // joined by "or". `AREA_WORDS` is first-match-wins, so the second one was
+  // dropped and the search quietly looked in half the places it should.
+  const AREA_PAIR: [RegExp, ScriptArea, ScriptArea][] = [
+    [/\b(?:from|in) (?:your|their) decks? or (?:the )?drop(?: area)?\b/, "deck", "drop"],
+    [/\b(?:from|in) (?:your|their) drops? (?:area )?or decks?\b/, "drop", "deck"],
+    [/\b(?:from|in) (?:your|their) hands? or (?:the )?warps?\b/, "hand", "warp"],
+    [/\b(?:from|in) (?:your|their) drops? (?:area )?or (?:the )?warps?\b/, "drop", "warp"],
+    [/\b(?:from|in) (?:your|their) decks? or (?:the )?hands?\b/, "deck", "hand"],
+  ];
+  const pair = AREA_PAIR.find(([re]) => re.test(t));
+
   let area: ScriptArea | null = null;
   for (const [re, a] of AREA_WORDS) {
     if (re.test(t)) {
@@ -201,6 +213,7 @@ export function parseTarget(phrase: string): Selector | null {
   const mode = /\bin rest mode\b/.test(t) ? "rest" : /\bin active mode\b/.test(t) ? "active" : undefined;
   const filter = filterFor(phrase, area);
   if (bothAreas) return { side, area: "battle", areas: ["battle", "unison"], filter, count, upTo, mode, fromVar };
+  if (pair) return { side, area: pair[1], areas: [pair[1], pair[2]], filter, count, upTo, mode, fromVar };
   return { side, area: area ?? undefined, filter, count, upTo, mode, fromVar, take, fromEnd };
 }
 
@@ -1250,6 +1263,26 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     }
   }
 
+  // "Play up to 1 <Majin Buu> card from your deck on top of this card"
+  // (22-13-6-3). The host has to come off the phrase before the target is
+  // read: "this card" at the end of it made `parseTarget` take the whole
+  // thing for this card, and the skill played the card onto itself.
+  if ((m = /^(?:play|activate) (.+?) on top of (this card|it|the played card)(?: in (rest|active) mode)?$/.exec(t))) {
+    const onto = refFor(m[2], c);
+    const ref = refFor(m[1], c);
+    const mode = m[3] as "rest" | "active" | undefined;
+    if (!onto || !ref) return null;
+    if ("sel" in ref) {
+      const v = `p${c.n++}`;
+      c.lastPlayed = v;
+      return [
+        { op: "choose", sel: ref.sel, as: v, reason: clause },
+        { op: "play", target: { var: v }, onto, ...(mode ? { mode } : {}) },
+      ];
+    }
+    return [{ op: "play", target: ref, onto, ...(mode ? { mode } : {}) }];
+  }
+
   // Playing a card by a skill (5-5-3).
   // "Activate" is what the text calls playing an Extra card (12-2), so the two
   // words lead to the same place. A card that says "play … in Rest Mode" is
@@ -1450,7 +1483,12 @@ function splitModal(text: string): { head: string; options: string[] } | null {
 }
 
 export function compileSkill(skill: Skill): Script {
-  if (skill.keyword && KEYWORD_HANDLES_THE_LINE.has(skill.keyword.name)) return { ops: [], unsupported: [] };
+  // [Union-Fusion] and [Union-Potara] print two character names where an
+  // effect would go, and the engine reads those itself. [Union-Absorb] is
+  // different (22-13-6-1): its line really is "cost : effect", and the effect
+  // is what says which card is played onto this one.
+  const keywordOwnsIt = skill.keyword && KEYWORD_HANDLES_THE_LINE.has(skill.keyword.name) && !(skill.keyword.name === "Union" && skill.keyword.variant === "Absorb");
+  if (keywordOwnsIt) return { ops: [], unsupported: [] };
   const text = stripNotes(skill.effect);
   if (!text) return { ops: [], unsupported: [] };
   const unsupported: string[] = [];

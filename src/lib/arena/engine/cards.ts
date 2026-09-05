@@ -101,9 +101,13 @@ export function keywordOf(tag: string): KeywordSkill | null {
   if (t === "evolve") return { name: "Evolve", variant: "Evolve" };
   if (t === "ex-evolve") return { name: "Evolve", variant: "EX-Evolve" };
   if (t === "xeno-evolve") return { name: "Evolve", variant: "Xeno-Evolve" };
-  if (t === "union-fusion") return { name: "Union", variant: "Fusion" };
-  if (t === "union-potara") return { name: "Union", variant: "Potara" };
-  if (t === "union-absorb") return { name: "Union", variant: "Absorb" };
+  // 22-13-3: printed "[Union-(type)]", but some sets set it with a space.
+  // Unrecognised, the whole line falls back to [Permanent] and the skill is
+  // read as a standing effect it is not.
+  if ((m = /^union[- ](fusion|potara|absorb)$/.exec(t))) {
+    const variant = m[1] === "fusion" ? "Fusion" : m[1] === "potara" ? "Potara" : "Absorb";
+    return { name: "Union", variant };
+  }
   if ((m = /^(dark )?over realm(?: (\d+))?$/.exec(t))) return { name: "Over Realm", x: Number(m[2] ?? 0), dark: !!m[1] };
   if ((m = /^swap(?: (\d+))?$/.exec(t))) return { name: "Swap", x: Number(m[1] ?? 0) };
   if ((m = /^(arrival|aegis|alliance|revive)\b(.*)$/.exec(t))) {

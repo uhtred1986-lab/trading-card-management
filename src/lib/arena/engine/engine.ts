@@ -319,7 +319,7 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
     }
 
     case "play.resolve":
-      return resolvePlay(ctx, s, ev, step.card, step.player, step.markers);
+      return resolvePlay(ctx, s, ev, step.card, step.player, step.markers, step.onto);
     case "skill.resolve": {
       const sk = skillsOfInstance(ctx, s, step.card).find((k) => k.index === step.skill);
       if (!sk) return "done";
@@ -543,7 +543,7 @@ function openCounterWindow(ctx: EngineContext, s: GameState, ev: GameEvent[], wi
 
 // ── playing cards (5-5, 13-2, 16-2, 17-2, 18-2) ────────────────────────────
 
-function resolvePlay(ctx: EngineContext, s: GameState, ev: GameEvent[], card: string, p: PlayerId, markers?: number): "done" | "wait" {
+function resolvePlay(ctx: EngineContext, s: GameState, ev: GameEvent[], card: string, p: PlayerId, markers?: number, onto?: string): "done" | "wait" {
   const d = def(ctx, s, card);
   const bt = baseType(d);
   const ps = s.players[p];
@@ -569,7 +569,12 @@ function resolvePlay(ctx: EngineContext, s: GameState, ev: GameEvent[], card: st
     for (const id of ps.battle.slice()) if (def(ctx, s, id).type === "Z-EXTRA") move(ctx, s, ev, id, "removed", p, { reason: "rule" });
     move(ctx, s, ev, card, "battle", p, { reason: "play", reveal: true });
   } else {
-    move(ctx, s, ev, card, "battle", p, { reason: "play", reveal: true });
+    // 22-13-6-3: [Union-Absorb] and the "play … on top of this card" wordings
+    // play the card *onto* another, which carries the host's position and its
+    // power effects (22-13-6-3-1). If the host has gone, it is an ordinary
+    // play beside it.
+    if (onto && areaOf(s, onto) === "battle") stackOnto(ctx, s, ev, card, onto, p);
+    else move(ctx, s, ev, card, "battle", p, { reason: "play", reveal: true });
     if (s.continuations.playRest === card) {
       setMode(s, ev, card, "rest");
       delete s.continuations.playRest;
@@ -1576,8 +1581,21 @@ function activatable(ctx: EngineContext, s: GameState, p: PlayerId, card: string
         return `${k.variant} ${name} onto a ${sk.effect || sk.cost}`;
       }
       case "Union": {
-        if (timing !== "main" || !costIsOrbsOnly || !canPayOrbs()) return null;
-        if (k.variant === "Absorb") return null; // needs the effect text
+        if (timing !== "main") return null;
+        // 22-13-6: [Union-Absorb] is the odd one out — activated from the
+        // *Battle Area*, and its effect text says which card is played onto
+        // this one, so it resolves like an ordinary text skill rather than by
+        // naming two characters to find.
+        if (k.variant === "Absorb") {
+          if (areaOf(s, card) !== "battle") return null;
+          if (!canPayOrbs() || !canResolve(ctx, s, card, sk)) return null;
+          const priceOk = costIsOrbsOnly || (() => {
+            const prog = compileCostProgram(sk);
+            return prog ? canPayCostProgram(ctx, s, p, card, prog.ops) : false;
+          })();
+          return priceOk ? `Union-Absorb ${name}: ${sk.effect.slice(0, 40)}` : null;
+        }
+        if (!costIsOrbsOnly || !canPayOrbs()) return null;
         if (!inHand) return null;
         const names = (sk.effect || sk.cost).match(/<([^>]+)>/g)?.map((x) => x.slice(1, -1)) ?? [];
         if (names.length < 2) return null;

@@ -558,7 +558,7 @@ export type FlowStep =
    * response resolves first — and can mark this one negated on its way past.
    */
   | { op: "counter.resolve"; card: string; skill: number; player: PlayerId; negated?: boolean }
-  | { op: "play.resolve"; card: string; player: PlayerId; markers?: number; mode?: "active" | "rest" }
+  | { op: "play.resolve"; card: string; player: PlayerId; markers?: number; mode?: "active" | "rest"; onto?: string }
   | { op: "script.step"; frame: ScriptFrame }
   | { op: "flipLeader"; card: string }
   | { op: "skill.resolve"; card: string; skill: number; player: PlayerId; trigger?: Trigger }

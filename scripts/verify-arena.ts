@@ -3212,4 +3212,51 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.equal(locate(s, moved), null);
 }
 
+// ── [Union-Absorb] (22-13-6) ───────────────────────────────────────────────
+
+{
+  // Three things were wrong with this line at once, and it compiled cleanly.
+  const line = "[Union Absorb] Play up to 1 mono-green <Majin Buu> card with an energy cost of 4 from your deck or Drop Area on top of this card, then shuffle your deck.";
+  const sk = parseSkills(line)[0];
+  // 22-13-3: printed with a hyphen, but some sets set it with a space, and
+  // unrecognised the whole line fell back to [Permanent].
+  assert.deepEqual(sk.keyword, { name: "Union", variant: "Absorb" });
+  // 22-13-6-1: its line really is "cost : effect", unlike Fusion and Potara,
+  // so the keyword must not swallow the text.
+  const sc = compileSkill(sk);
+  assert.deepEqual(sc.unsupported, []);
+  assert.deepEqual(sc.ops.map((o) => o.op), ["choose", "play", "shuffle"]);
+  // "On top of this card" names the *host*. Left in the phrase, `parseTarget`
+  // took the whole thing for "this card" and the skill played the card onto
+  // itself.
+  assert.deepEqual((sc.ops[1] as { onto?: unknown }).onto, { sel: { special: "self" } });
+  assert.notDeepEqual((sc.ops[0] as { sel: unknown }).sel, { special: "self" });
+  // "From your deck or Drop Area" is two areas; the second was being dropped.
+  assert.deepEqual((sc.ops[0] as { sel: { areas?: string[] } }).sel.areas, ["deck", "drop"]);
+}
+
+{
+  // The engine side: 22-13-6-2 activates it from the Battle Area, and
+  // 22-13-6-3 plays the chosen card on top of the one that activated it.
+  DEFS.ABSORBER = {
+    ...DEFS.V1,
+    id: "ABSORBER",
+    name: "ABSORBER",
+    skill: "[Union Absorb] Play up to 1 <BIG> card from your deck on top of this card, then shuffle your deck.",
+  };
+  DEFS.BIG.characters = ["BIG"];
+  let s = arena({ battle: ["ABSORBER"] });
+  const absorber = s.players.p1.battle[0];
+  const food = s.players.p1.deck.find((id) => s.cards[id].cardId === "V1")!;
+  s.cards[food].cardId = "BIG";
+  const width = s.players.p1.battle.length;
+  assert.ok(canActivate(s, absorber), "22-13-6-2: offered from the Battle Area");
+  s = play(s, { type: "activate", player: "p1", card: absorber, skill: 0 });
+  if (s.prompt.kind === "chooseCards") s = play(s, { type: "choose", player: "p1", cards: [food] });
+  assert.ok(s.players.p1.battle.includes(food), "the chosen card is in play");
+  assert.equal(s.players.p1.battle.length, width, "22-13-6-3: on top of it, not beside it");
+  assert.ok(s.cards[food].under.includes(absorber), "and the activator is underneath");
+  assertConsistent(s);
+}
+
 console.log("verify-arena: all checks passed");
