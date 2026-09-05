@@ -1976,4 +1976,101 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.throws(() => play(s, { type: "choose", player: "p1", cards: [a] }), /invalid choice/, "a card cannot be picked twice");
 }
 
+{
+  // [Alliance X/Y] (22-32): as it attacks, its owner may rest other Battle
+  // Cards of the named colours; the printed effect then reads "the total
+  // power of the cards switched to Rest Mode by this skill" off those cards.
+  DEFS.ALLY = { ...DEFS.V1, id: "ALLY", name: "ALLY", colors: ["Red", "Green"], energyCost: 3, skill: "[Alliance Red/Green] This card gains power equal to the total power of the cards switched to Rest Mode by this skill and [Double Strike] for the battle, then draw 1 card." };
+  DEFS.GRN = { ...DEFS.V1, id: "GRN", name: "GRN", colors: ["Green"], power: 15000 };
+  let s = arena({ battle: ["ALLY", "V1", "GRN", "V-BLUE"], oppBattle: ["BIG"] });
+  const [ally, v1, grn] = s.players.p1.battle;
+  const big = s.players.p2.battle[0];
+  s.cards[big].mode = "rest";
+  const hand = s.players.p1.hand.length;
+  s = play(s, { type: "attack", player: "p1", attacker: ally, target: big });
+  assert.equal(s.prompt.kind, "chooseCards", "22-32-3: asked which cards to rest");
+  assert.deepEqual((s.prompt as { choice: { candidates: string[] } }).choice.candidates, [v1, grn], "red or green, active, and not the attacker");
+  s = play(s, { type: "choose", player: "p1", cards: [v1] }, { type: "choose", player: "p1", cards: [grn] });
+  assert.equal(s.cards[v1].mode, "rest");
+  assert.equal(s.cards[grn].mode, "rest");
+  assert.equal(s.players.p1.hand.length, hand + 1, "then draw 1 card");
+  assert.equal(s.prompt.kind, "combo");
+  s = play(s, { type: "pass", player: "p1" }, { type: "pass", player: "p2" });
+  assert.ok(s.players.p2.drop.includes(big), "10000 + (10000 + 15000) beats 25000");
+  assertConsistent(s);
+
+  // Declining rests nothing and the attack is what it was.
+  let d = arena({ battle: ["ALLY", "V1"], oppBattle: ["BIG"] });
+  const b2 = d.players.p2.battle[0];
+  d.cards[b2].mode = "rest";
+  d = play(d, { type: "attack", player: "p1", attacker: d.players.p1.battle[0], target: b2 }, { type: "choose", player: "p1", cards: [] });
+  assert.equal(d.cards[d.players.p1.battle[1]].mode, "active");
+  d = play(d, { type: "pass", player: "p1" }, { type: "pass", player: "p2" });
+  assert.ok(d.players.p2.battle.includes(b2), "10000 into 25000 does nothing");
+
+  // Nothing of the right colours to rest: no question.
+  let n = arena({ battle: ["ALLY", "V-BLUE"], oppBattle: ["BIG"] });
+  n.cards[n.players.p2.battle[0]].mode = "rest";
+  n = play(n, { type: "attack", player: "p1", attacker: n.players.p1.battle[0], target: n.players.p2.battle[0] });
+  assert.equal(n.prompt.kind, "combo");
+
+  // A printed condition on the keyword ("If your Leader Card is blue:") is
+  // read before asking.
+  DEFS.ALLYC = { ...DEFS.ALLY, id: "ALLYC", name: "ALLYC", skill: "[Alliance Red/Green] If your Leader Card is blue: This card gains power equal to the total power of the cards switched to Rest Mode by this skill for the battle." };
+  let c = arena({ battle: ["ALLYC", "V1"], oppBattle: ["BIG"] });
+  c.cards[c.players.p2.battle[0]].mode = "rest";
+  c = play(c, { type: "attack", player: "p1", attacker: c.players.p1.battle[0], target: c.players.p2.battle[0] });
+  assert.equal(c.prompt.kind, "combo", "a red Leader: the skill does not apply");
+}
+
+{
+  // [Invoker] (22-37): a Red/Blue multicolour Extra can be paid for by resting
+  // one active Red/Blue multicolour energy instead of its energy cost.
+  DEFS.INVK = { ...DEFS.V1, id: "INVK", name: "INVK", colors: ["Red", "Blue"], skill: "[Invoker]" };
+  DEFS["E-RB"] = { ...DEFS["E-DRAW"], id: "E-RB", name: "E-RB", colors: ["Red", "Blue"], energyCost: 2 };
+  DEFS.RB = { ...DEFS.V1, id: "RB", name: "RB", colors: ["Red", "Blue"] };
+  let s = arena({ hand: ["E-RB"], battle: ["INVK"], energy: ["RB"] });
+  const e = find(s, "p1", "hand", "E-RB");
+  const l = labels(s);
+  assert.ok(!l.includes("Activate E-RB (2)"), "one energy cannot pay 2");
+  assert.ok(l.some((x) => x.startsWith("Activate E-RB by resting a Red/Blue energy")), "22-37: [Invoker] in play and a Red/Blue energy active");
+  const hand = s.players.p1.hand.length;
+  s = play(s, { type: "activate", player: "p1", card: e, skill: 0, alt: true });
+  assert.equal(s.cards[s.players.p1.energy[0]].mode, "rest", "the Red/Blue energy was rested");
+  assert.equal(s.players.p1.hand.length, hand - 1 + 2, "and the Extra resolved");
+  assert.ok(s.players.p1.drop.includes(e));
+  assertConsistent(s);
+
+  assert.ok(!labels(arena({ hand: ["E-RB"], energy: ["RB"] })).some((x) => x.includes("Invoker")), "no [Invoker] in play, no offer");
+  assert.ok(!labels(arena({ hand: ["E-RB"], battle: ["INVK"], energy: ["V1"] })).some((x) => x.includes("Invoker")), "a mono-red energy will not do");
+  assert.ok(!labels(arena({ hand: ["E-DRAW"], battle: ["INVK"], energy: ["RB"] })).some((x) => x.includes("Invoker")), "nor a mono-red Extra");
+}
+
+{
+  // A condition written before the colon ("[Auto] If your Leader Card is
+  // red: …") is part of the skill's validity (9-1-3). It used to land in
+  // `cost` and be dropped, so the skill ran whatever the Leader was.
+  const cond = compileSkill(parseSkills("[Auto] If your Leader Card is blue: When you play this card, draw 1 card.")[0]);
+  assert.deepEqual(cond.unsupported, []);
+  assert.equal(cond.ops.length, 1);
+  assert.equal(cond.ops[0].op, "if");
+  assert.deepEqual((cond.ops[0] as { then: unknown[] }).then, [{ op: "draw", n: 1 }]);
+  // One the compiler cannot read fails the skill rather than running it anyway.
+  const odd = compileSkill(parseSkills("[Auto] If the moon is full: When you play this card, draw 1 card.")[0]);
+  assert.deepEqual(odd.ops, []);
+  assert.ok(odd.unsupported.length > 0);
+
+  DEFS.CONDDRAW = { ...DEFS.V1, id: "CONDDRAW", name: "CONDDRAW", energyCost: 1, skill: "[Auto] If your Leader Card is blue: When you play this card, draw 2 cards." };
+  let s = arena({ hand: ["CONDDRAW"], energy: ["V1"] });
+  const hand = s.players.p1.hand.length;
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "CONDDRAW") });
+  assert.equal(s.players.p1.hand.length, hand - 1, "a red Leader: no draw");
+
+  DEFS.CONDACT = { ...DEFS.V1, id: "CONDACT", name: "CONDACT", skill: "[Activate: Main] If your Leader Card is red: Draw 1 card." };
+  DEFS.CONDACTB = { ...DEFS.V1, id: "CONDACTB", name: "CONDACTB", skill: "[Activate: Main] If your Leader Card is blue: Draw 1 card." };
+  const a = arena({ battle: ["CONDACT", "CONDACTB"] });
+  assert.ok(canActivate(a, a.players.p1.battle[0]), "the condition holds: offered");
+  assert.ok(!canActivate(a, a.players.p1.battle[1]), "the condition fails: not offered");
+}
+
 console.log("verify-arena: all checks passed");

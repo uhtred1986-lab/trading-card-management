@@ -386,7 +386,8 @@ export type Action =
   | { type: "playUnison"; player: PlayerId; card: string; x: number; pay?: string[] }
   | { type: "playZ"; player: PlayerId; card: string; x?: number; pay?: string[] }
   | { type: "growUnison"; player: PlayerId; card: string }
-  | { type: "activate"; player: PlayerId; card: string; skill: number; pay?: string[] }
+  /** `alt`: pay the printed alternative instead of the energy cost ([Invoker], 22-37). */
+  | { type: "activate"; player: PlayerId; card: string; skill: number; pay?: string[]; alt?: boolean }
   | { type: "attack"; player: PlayerId; attacker: string; target: string }
   | { type: "endMain"; player: PlayerId }
   | { type: "combo"; player: PlayerId; card: string; pay?: string[] }
@@ -521,7 +522,7 @@ export type FlowStep =
   | { op: "battle.cleanup" }
   | { op: "prompt"; prompt: Prompt }
   | { op: "zstack.place"; card: string; player: PlayerId }
-  | { op: "choose.apply"; what: "zstack" | "evolve" | "union" | "swap" | "successor" | "aegis" | "aegisEnergy" | "revive"; card: string; player: PlayerId };
+  | { op: "choose.apply"; what: "zstack" | "evolve" | "union" | "swap" | "successor" | "aegis" | "aegisEnergy" | "revive" | "alliance"; card: string; player: PlayerId };
 
 /** Output of `apply`. */
 export interface Applied {

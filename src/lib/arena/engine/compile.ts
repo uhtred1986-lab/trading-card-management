@@ -317,7 +317,7 @@ function parseTrailingDelay(clause: string): { at: DelayTiming; scope: DelayScop
  * Conditions a skill puts in front of its effect ("If your Leader is red, …").
  * Everything after the condition becomes conditional on it (9-1-3).
  */
-function parseConditionClause(clause: string, allowBare = false): { cond: Cond; subject?: Ref } | null {
+export function parseConditionClause(clause: string, allowBare = false): { cond: Cond; subject?: Ref } | null {
   const trimmed = clause.toLowerCase().trim();
   // "During your turn" is a condition too, and reads as one everywhere else in
   // the text. The delay phrases ("during your opponent's *next* turn") are
@@ -638,6 +638,18 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // `splitClauses` keeps "and [" together on purpose, so that "gains [A] and
   // [B]" stays whole; the price is that this arrives in one piece, and until
   // it was read here the keyword was dropped without a word.
+  // [Alliance] (22-32): "This card gains power equal to the total power of
+  // the cards switched to Rest Mode by this skill [and [Double Strike]] for
+  // the battle". The engine binds the cards it rested as the cost to `rested`.
+  if ((m = /^(.*?) (?:gets?|gains?) power equal to the total power of the cards switched to rest mode by this skill(?:,? and ((?:\[[^\]]+\][\s,]*(?:and\s+)?)+))?$/.exec(q))) {
+    const ref = refFor(m[1], c);
+    const kws = m[2] ? [...m[2].matchAll(/\[([^\]]+)\]/g)].map((x) => keywordOf(x[1])) : [];
+    if (ref && kws.every((k) => k)) {
+      const until = durationOf(t);
+      return [{ op: "power", target: ref, amount: { sumPower: { var: "rested" } }, until }, ...kws.map((k) => ({ op: "grant", target: ref, keyword: k!, until }) as Op)];
+    }
+  }
+
   if ((m = /^(.*?) (?:gets?|gains?) ([+-]\d+) (combo )?power,? and ((?:\[[^\]]+\][\s,]*(?:and\s+)?)+)$/.exec(q))) {
     const ref = refFor(m[1], c);
     const kws = [...m[4].matchAll(/\[([^\]]+)\]/g)].map((x) => keywordOf(x[1]));
@@ -977,6 +989,15 @@ export function compileSkill(skill: Skill): Script {
     const modes = modal.options.map((option) => ({ label: option, ops: compileClauseList(splitClauses(option), { ...c }, unsupported) }));
     if (modes.some((mode) => mode.ops.length)) ops.push({ op: "chooseMode", modes });
   }
+  // "[Auto] If your Leader Card is red: When you play this card, draw 1 card"
+  // — a condition written before the colon is part of the skill's validity
+  // (9-1-3), and it lands in `cost`. It wraps the whole program; one the
+  // compiler cannot read fails the skill rather than running it unconditionally.
+  if (ops.length && /^(?:if|when|while|during)\b/i.test(skill.cost)) {
+    const cond = parseConditionClause(skill.cost);
+    if (!cond) return { ops: [], unsupported: [skill.cost, ...unsupported] };
+    return { ops: [{ op: "if", cond: cond.cond, then: ops }], unsupported };
+  }
   return { ops, unsupported };
 }
 
@@ -1171,6 +1192,7 @@ function describeRef(ref: Ref): string {
 function describeAmount(a: Amount): string {
   if (typeof a === "number") return `${a}`;
   if ("var" in a) return "that many";
+  if ("sumPower" in a) return "the total power of the cards rested";
   return `${a.times ?? 1} for each of ${describeEach(a.count)}`;
 }
 

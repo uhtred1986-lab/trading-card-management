@@ -72,7 +72,12 @@ export interface Selector {
  * ≪Saiyan≫ cards" — and `times` multiplies it, because cards say "+5000 power
  * for each" far more often than they say "1 for each".
  */
-export type Amount = number | { var: string } | { count: Selector; times?: number };
+export type Amount =
+  | number
+  | { var: string }
+  | { count: Selector; times?: number }
+  /** The total power of the cards bound to a name — "the cards switched to Rest Mode by this skill" ([Alliance], 22-32). */
+  | { sumPower: { var: string } };
 
 export type Ref = { var: string } | { sel: Selector };
 

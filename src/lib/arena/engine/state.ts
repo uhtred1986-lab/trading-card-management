@@ -303,6 +303,7 @@ export function resolveRef(ctx: GameContext, s: GameState, frame: ScriptFrame, r
 export function amount(ctx: GameContext, s: GameState, frame: ScriptFrame, a: Amount): number {
   if (typeof a === "number") return a;
   if ("var" in a) return (frame.vars[a.var] ?? []).length;
+  if ("sumPower" in a) return (frame.vars[a.sumPower.var] ?? []).reduce((t, id) => t + powerOf(ctx, s, id), 0);
   return resolveSelector(ctx, s, frame, a.count).length * (a.times ?? 1);
 }
 
@@ -341,7 +342,8 @@ export function condHolds(ctx: GameContext, s: GameState, frame: ScriptFrame, c:
 
 /** Another way to pay for a card's [Counter] skill (5-3). */
 export interface AltCost {
-  pay: "none" | "life";
+  /** `invoker`: rest one active Red/Blue multicolour energy instead (22-37). */
+  pay: "none" | "life" | "invoker";
   /** Cards to add from your life to your hand, for `pay: "life"`. */
   n: number;
   /** Which cost it replaces: the [Counter] skill's, or playing the card. */
@@ -710,12 +712,33 @@ export function altCostFor(ctx: GameContext, s: GameState, card: string, payer: 
     if (alt.pay === "life" && s.players[payer].life.length < alt.n) continue;
     return alt;
   }
+  // 22-37: [Invoker] on a card in play lets a Red/Blue multicolour Extra be
+  // paid for by resting one active Red/Blue multicolour energy instead.
+  if (baseType(def(ctx, s, card)) === "EXTRA" && isRedBlue(ctx, s, card) && cardsInPlay(s, payer).some((id) => has(ctx, s, id, "Invoker")) && invokerEnergy(ctx, s, payer)) {
+    return { pay: "invoker", n: 0, for: which };
+  }
   return null;
+}
+
+/** Red/Blue multicolour: those two colours and nothing else. */
+function isRedBlue(ctx: GameContext, s: GameState, id: string): boolean {
+  const colors = cardNow(ctx, s, id).colors;
+  return colors.length === 2 && colors.includes("Red") && colors.includes("Blue");
+}
+
+function invokerEnergy(ctx: GameContext, s: GameState, payer: PlayerId): string | null {
+  return s.players[payer].energy.find((id) => s.cards[id].mode === "active" && isRedBlue(ctx, s, id)) ?? null;
 }
 
 /** Carry out an alternative cost. Adding life to hand is not damage (1-13-2). */
 export function payAltCost(ctx: GameContext, s: GameState, ev: GameEvent[], payer: PlayerId, alt: AltCost): boolean {
   if (alt.pay === "none") return true;
+  if (alt.pay === "invoker") {
+    const e = invokerEnergy(ctx, s, payer);
+    if (!e) return false;
+    setMode(s, ev, e, "rest", ctx);
+    return true;
+  }
   if (s.players[payer].life.length < alt.n) return false;
   for (let i = 0; i < alt.n; i++) {
     const life = s.players[payer].life[0];

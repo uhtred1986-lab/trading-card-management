@@ -222,6 +222,7 @@ Operations (each is an object with "op"):
   {"op":"play","target":TARGET}
   {"op":"switchMode","target":TARGET,"mode":"rest"|"active"}
   {"op":"power","target":TARGET,"amount":5000,"until":"battle"|"turn"|"game"}
+    an amount may also be {"count":SELECTOR,"times":5000} (so much for each card) or {"sumPower":{"var":"rested"}} (the total power of named cards)
   {"op":"comboPower","target":TARGET,"amount":5000,"until":"battle"}
   {"op":"grant","target":TARGET,"keyword":{"name":"Blocker"},"until":"turn"}
   {"op":"negateSkills","target":TARGET,"until":"turn"} | {"op":"negateAttack"}

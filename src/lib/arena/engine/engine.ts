@@ -9,7 +9,7 @@
  * state storable mid-prompt and replayable from the action log.
  */
 import { baseType, canCombo, isZ, keywordOf, skillsOf, specifiedCostOf } from "./cards";
-import { compileCard, type CardScripts } from "./compile";
+import { compileCard, parseConditionClause, type CardScripts } from "./compile";
 import { matches, parseCondition, parseFilter } from "./filters";
 import { stepScript, validateProgram, type Op, type ScriptFrame } from "./script";
 import { koCard, pendTriggers } from "./triggers";
@@ -49,6 +49,7 @@ import {
   setMode,
   skillsOfInstance,
   type GameContext,
+  condHolds,
 } from "./state";
 import type { Action, Applied, CardDef, CardInstance, Color, FlowStep, GameEvent, GameState, PendingAuto, PlayerId, PlayerState, Prompt, Skill, Trigger } from "./types";
 import { other, PLAYERS } from "./types";
@@ -628,6 +629,31 @@ function resolveKeywordOrText(ctx: EngineContext, s: GameState, ev: GameEvent[],
         // the effect stops to ask a question (22-2-4, 22-25-4).
         s.flow.unshift({ op: "flipLeader", card });
         return runSkill(ctx, s, ev, card, sk, master, trigger);
+      case "Alliance": {
+        // 22-32-3: as it attacks, its owner may switch one or more of their
+        // other Battle Cards of the named colours to Rest Mode as the cost;
+        // the printed effect then runs with those cards bound to `rested`.
+        if (!s.battle || s.battle.attacker !== card) return "done";
+        // "[Alliance Red/Green] If your Leader Card is red: …" — the printed
+        // condition is checked before anyone is asked to rest a card.
+        if (/^(?:if|when|while|during)\b/i.test(sk.cost)) {
+          const cond = parseConditionClause(sk.cost);
+          if (!cond) {
+            note(ev, `${face(ctx, s, card).name}: the condition on [Alliance] could not be read — "${sk.cost}"`);
+            return "done";
+          }
+          if (!condHolds(ctx, s, { ops: [], ip: 0, vars: {}, card, master }, cond.cond)) return "done";
+        }
+        const cands = s.players[master].battle.filter((id) => id !== card && s.cards[id].mode === "active" && cardNow(ctx, s, id).colors.some((c) => k.colors.includes(c)));
+        if (!cands.length) return "done";
+        s.continuations.alliance = { card, skillIndex: sk.index, trigger };
+        s.flow.unshift({ op: "choose.apply", what: "alliance", card, player: master });
+        return wait(s, {
+          kind: "chooseCards",
+          player: master,
+          choice: { reason: `Alliance ${k.colors.join("/")}: Battle Cards to switch to Rest Mode for ${face(ctx, s, card).name}, or none`, candidates: cands, min: 0, max: cands.length, continuation: "alliance" },
+        });
+      }
       case "Revive": {
         // 22-34: KO'd, and its owner may drop cards from hand covering both
         // colours to play it back from the Drop — once per turn per card.
@@ -661,11 +687,11 @@ function resolveKeywordOrText(ctx: EngineContext, s: GameState, ev: GameEvent[],
  * the compiler could not read is handed to the referee when one is available,
  * and otherwise logged and skipped so a game never silently does the wrong thing.
  */
-function runSkill(ctx: EngineContext, s: GameState, ev: GameEvent[], card: string, sk: Skill, master: PlayerId, trigger?: Trigger, subject?: string): "done" | "wait" {
+function runSkill(ctx: EngineContext, s: GameState, ev: GameEvent[], card: string, sk: Skill, master: PlayerId, trigger?: Trigger, subject?: string, vars: Record<string, string[]> = {}): "done" | "wait" {
   const script = scriptFor(ctx, s, card, sk.index);
   if (script) {
     if (script.ops.length === 0) return "done";
-    const frame: ScriptFrame = { ops: script.ops, ip: 0, vars: {}, card, master, trigger, subject, skillIndex: sk.index };
+    const frame: ScriptFrame = { ops: script.ops, ip: 0, vars: { ...vars }, card, master, trigger, subject, skillIndex: sk.index };
     return stepScript(ctx, s, ev, frame);
   }
   const d = def(ctx, s, card);
@@ -716,14 +742,16 @@ function scriptFor(ctx: EngineContext, s: GameState, card: string, skillIndex: n
 }
 
 /**
- * A skill cost the engine can read: nothing at all, energy orbs, or a Unison
- * marker cost. Anything else — "if you discard 1 card from your hand", "if
- * your Leader is red" — is left to the referee rather than quietly skipped,
+ * A skill cost the engine can read: nothing at all, energy orbs, a Unison
+ * marker cost, or a condition the compiler reads ("if your Leader is red" —
+ * which then guards the compiled program). Anything else — "if you discard 1
+ * card from your hand" — is left to the referee rather than quietly skipped,
  * because resolving the effect without its cost would be worse than not
  * resolving it at all.
  */
 function costIsReadable(sk: Skill): boolean {
-  return sk.cost.replace(/\{[^}]*\}/g, "").replace(/[\s,:]/g, "").length === 0;
+  if (sk.cost.replace(/\{[^}]*\}/g, "").replace(/[\s,:]/g, "").length === 0) return true;
+  return /^(?:if|when|while|during)\b/i.test(sk.cost) && parseConditionClause(sk.cost) !== null;
 }
 
 /** "2 Green energy and 1 marker" — what an optional cost asks for. */
@@ -1143,6 +1171,16 @@ function chooseApply(ctx: EngineContext, s: GameState, ev: GameEvent[], step: Ex
       for (const id of chosen) setMode(s, ev, id, "active", ctx);
       return "done";
     }
+    case "alliance": {
+      const info = s.continuations.alliance as { card: string; skillIndex: number; trigger?: Trigger };
+      delete s.continuations.alliance;
+      if (!chosen.length) return "done"; // 22-32-3: may
+      for (const id of chosen) setMode(s, ev, id, "rest", ctx);
+      const sk = skillsOfInstance(ctx, s, info.card).find((x) => x.index === info.skillIndex);
+      if (!sk) return "done";
+      ev.push({ type: "skill", card: info.card, skill: sk.index, master: p, text: sk.raw });
+      return runSkill(ctx, s, ev, info.card, sk, p, info.trigger, undefined, { rested: chosen });
+    }
     case "revive": {
       const info = s.continuations.revive as { card: string; colors: Color[] };
       delete s.continuations.revive;
@@ -1246,6 +1284,8 @@ export function legalActions(ctx: EngineContext, s: GameState): LegalAction[] {
         for (const sk of skillsOf(def(ctx, s, id))) {
           const act = activatable(ctx, s, p, id, sk, "battle");
           if (act) out.push({ action: { type: "activate", player: p, card: id, skill: sk.index }, label: act });
+          const viaAlt = activatable(ctx, s, p, id, sk, "battle", true);
+          if (viaAlt) out.push({ action: { type: "activate", player: p, card: id, skill: sk.index, alt: true }, label: viaAlt });
         }
       }
       for (const id of cardsInPlay(s, p)) {
@@ -1273,7 +1313,7 @@ export function legalActions(ctx: EngineContext, s: GameState): LegalAction[] {
         // is a different decision, not a cheaper version of the same one.
         const alt = altCostFor(ctx, s, id, pr.player);
         if (alt) {
-          const how = alt.pay === "none" ? "for no energy" : `by adding ${alt.n} from your life to your hand`;
+          const how = alt.pay === "none" ? "for no energy" : alt.pay === "invoker" ? "by resting a Red/Blue energy ([Invoker])" : `by adding ${alt.n} from your life to your hand`;
           out.push({ action: { type: "counter", player: pr.player, card: id, skill: sk?.index, alt: true }, label: `Counter with ${name(id)} (${how})` });
         }
       }
@@ -1349,6 +1389,8 @@ function mainActions(ctx: EngineContext, s: GameState, p: PlayerId): LegalAction
     for (const sk of skillsOf(d)) {
       const act = activatable(ctx, s, p, id, sk, "main");
       if (act) out.push({ action: { type: "activate", player: p, card: id, skill: sk.index }, label: act });
+      const viaAlt = activatable(ctx, s, p, id, sk, "main", true);
+      if (viaAlt) out.push({ action: { type: "activate", player: p, card: id, skill: sk.index, alt: true }, label: viaAlt });
     }
   }
   // Skills on cards in play.
@@ -1413,7 +1455,7 @@ function canPlay(ctx: EngineContext, s: GameState, p: PlayerId, card: string): b
  * rules, plus text skills whose cost is orbs only and whose effect the native
  * resolver reads. Everything else waits for compiled scripts / the referee.
  */
-function activatable(ctx: EngineContext, s: GameState, p: PlayerId, card: string, sk: Skill, timing: "main" | "battle"): string | null {
+function activatable(ctx: EngineContext, s: GameState, p: PlayerId, card: string, sk: Skill, timing: "main" | "battle", alt = false): string | null {
   const d = def(ctx, s, card);
   const inst = s.cards[card];
   const inHand = areaOf(s, card) === "hand";
@@ -1550,13 +1592,25 @@ function activatable(ctx: EngineContext, s: GameState, p: PlayerId, card: string
     if (inst.usedMarkerSkill) return null;
     if (inst.markers + sk.markerCost < 0) return null;
   }
-  if (!costIsOrbsOnly || !canPayOrbs()) return null;
+  // "[Activate: Main] If your Leader Card is red: Draw 1 card" — a cost that
+  // is only a condition (9-1-3) is a skill that can be used when it holds.
+  const condCost = !costIsOrbsOnly && /^(?:if|when|while|during)\b/i.test(sk.cost) ? parseConditionClause(sk.cost) : null;
+  if (!costIsOrbsOnly && !condCost) return null;
+  if (condCost && !condHolds(ctx, s, { ops: [], ip: 0, vars: {}, card, master: p }, condCost.cond)) return null;
+  if (!canPayOrbs()) return null;
   if (!canResolve(ctx, s, card, sk)) return null;
   if (baseType(d) === "EXTRA" && inHand) {
+    if (alt) {
+      // 5-3 / 22-37: the printed alternative to the energy cost is its own
+      // offer; the skill's orbs are still paid.
+      if (!altCostFor(ctx, s, card, p, "play") || !planPayment(ctx, s, p, orbTotal, {})) return null;
+      return `Activate ${name} by resting a Red/Blue energy ([Invoker])`;
+    }
     const c = playCost(ctx, s, card);
     if (!planPayment(ctx, s, p, c.total + orbTotal, c.specified)) return null;
     return `Activate ${name} (${c.total})`;
   }
+  if (alt) return null;
   if (inHand) return null; // 9-1-3-1: battle card skills are valid in the Battle Area
   return `Activate ${name}: ${sk.effect.slice(0, 40)}`;
 }
@@ -1706,9 +1760,9 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
       const skills = areaOf(s, action.card) === "hand" || areaOf(s, action.card) === "zDeck" ? skillsOf(def(ctx, s, action.card)) : skillsOfInstance(ctx, s, action.card);
       const sk = skills.find((k) => k.index === action.skill);
       if (!sk) throw new IllegalAction("no such skill");
-      const label = activatable(ctx, s, p, action.card, sk, timing);
+      const label = activatable(ctx, s, p, action.card, sk, timing, !!action.alt);
       if (!label) throw new IllegalAction("that skill can't be activated now");
-      activate(ctx, s, ev, p, action.card, sk, action.pay);
+      activate(ctx, s, ev, p, action.card, sk, action.pay, !!action.alt);
       s.flow.push(timing === "main" ? { op: "turn.promptMain" } : { op: "battle.promptCombo", side: pr.kind === "combo" ? pr.side : "offense" });
       break;
     }
@@ -1899,7 +1953,7 @@ function requireMain(s: GameState, p: PlayerId): void {
 }
 
 /** Pay a skill's cost and queue its resolution. Keyword skills with choices push a prompt. */
-function activate(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId, card: string, sk: Skill, explicitPay?: string[]): void {
+function activate(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId, card: string, sk: Skill, explicitPay?: string[], alt = false): void {
   const d = def(ctx, s, card);
   const inst = s.cards[card];
   const k = sk.keyword;
@@ -2045,10 +2099,15 @@ function activate(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId
   // Text skill with a native effect.
   if (baseType(d) === "EXTRA" && areaOf(s, card) === "hand") {
     // 12-2-2: pay the energy cost, card to the Drop, then the skill resolves with counter timing around it.
-    const c = playCost(ctx, s, card);
-    const pm = planPayment(ctx, s, p, c.total, c.specified, explicitPay);
-    if (!pm) throw new IllegalAction("can't pay");
-    pay(s, ev, p, pm);
+    if (alt) {
+      const a = altCostFor(ctx, s, card, p, "play");
+      if (!a || !payAltCost(ctx, s, ev, p, a)) throw new IllegalAction("can't pay that price");
+    } else {
+      const c = playCost(ctx, s, card);
+      const pm = planPayment(ctx, s, p, c.total, c.specified, explicitPay);
+      if (!pm) throw new IllegalAction("can't pay");
+      pay(s, ev, p, pm);
+    }
     move(ctx, s, ev, card, "drop", p, { reason: "cost", reveal: true });
   }
   payOrbs();
