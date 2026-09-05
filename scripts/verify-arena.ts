@@ -4438,4 +4438,38 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   );
 }
 
+{
+  // Two silent mis-reads, both of the kind ground rule 5 is about: the clause
+  // compiled, so nothing reported them, and the reading was wrong.
+
+  // A digit inside a name is part of the name, not a count. 533 skills on 436
+  // cards name one — ≪Universe 7≫, <Android 18>, <Super 17> — and "your
+  // ≪Universe 6≫ cards in your hand" was six of them.
+  assert.equal(parseTarget("blue ≪Universe 6≫ cards in your hand")?.count, 99, "a plural with no number is all of them");
+  assert.equal(parseTarget("1 ≪Universe 6≫ card in your hand")?.count, 1, "…and a real count still wins");
+  assert.equal(parseTarget("up to 2 <Android 17> cards in your hand")?.count, 2);
+  assert.equal(parseTarget("<Android 18> cards in your Battle Area")?.count, 99);
+
+  // Several colours in one description mean *either* of them. Requiring all of
+  // them made "blue, yellow ≪Universe 6≫ cards" match nothing at all, because
+  // no card is both.
+  const either = parseFilter("blue, yellow ≪Universe 6≫ cards");
+  const blue = { ...DEFS.V1, colors: ["Blue" as const], traits: ["Universe 6"] };
+  const red = { ...DEFS.V1, colors: ["Red" as const], traits: ["Universe 6"] };
+  assert.ok(matches(blue, either));
+  assert.ok(!matches(red, either));
+  // …unless the text says one card in both colours at once, which is what
+  // "multicolor" says (22-37 leans on the same reading).
+  const both = parseFilter("a Red/Yellow multicolor card");
+  assert.ok(matches({ ...DEFS.V1, colors: ["Red", "Yellow"] }, both));
+  assert.ok(!matches({ ...DEFS.V1, colors: ["Red"] }, both));
+
+  // 20-21: a cost change may carry a duration like anything else, and
+  // anchoring the pattern to the end of the raw clause missed every one.
+  assert.deepEqual(
+    compileSkill(parseSkills("[Auto] When you play this card, reduce the combo cost of blue, yellow ≪Universe 6≫ cards in your hand by 1 for the duration of the turn.")[0]).unsupported,
+    [],
+  );
+}
+
 console.log("verify-arena: all checks passed");

@@ -143,7 +143,13 @@ export function matches(d: CardDef, f: CardFilter): boolean {
   if (f.token && d.type !== "TOKEN") return false;
   if (f.type && baseType(d) !== f.type) return false;
   if (f.notType && baseType(d) === f.notType) return false;
-  if (f.colors.length && !f.colors.every((c) => d.colors.includes(c))) return false;
+  // Several colours in one description mean *either* of them — "blue, yellow
+  // ≪Universe 6≫ cards", "if your Leader Card is green or yellow" — and a card
+  // has to be all of them only when the text says it is one card in both
+  // colours at once, which is what "Red/Yellow **multicolor**" says. Requiring
+  // all of them everywhere made every such filter match nothing at all.
+  const colourOk = f.multiColor ? f.colors.every((c) => d.colors.includes(c)) : f.colors.some((c) => d.colors.includes(c));
+  if (f.colors.length && !colourOk) return false;
   if (f.monoColor && d.colors.length !== 1) return false;
   if (f.multiColor && d.colors.length < 2) return false;
   if (f.characters.length && !f.characters.some((c) => hasCharacter(d, c))) return false;

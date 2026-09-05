@@ -1151,6 +1151,39 @@ emit a standing effect 51.5 % → **52.4 %** of 1,807.
   `parseFilter` reads two colours as *both* rather than *either* — but it is
   one honest gap now instead of two fragments.
 
+## Done: two silent mis-reads behind one unread clause (5 Sep 2026)
+
+Chasing the one clause left over from the round above — "reduce the combo cost
+of **blue, yellow** ≪Universe 6≫ cards in your hand by 1" — turned up three
+bugs, and only the first was the one I was looking for. All three are the kind
+ground rule 5 is about: the clause compiles, nothing reports it, and the
+reading is wrong.
+
+1. **Several colours in one description meant *all* of them.** `matches`
+   required `f.colors.every(...)`, so "blue, yellow ≪Universe 6≫ cards" matched
+   nothing at all — no card is both. A list of colours means *either*; a card
+   has to be all of them only when the text says one card in both colours at
+   once, which is what "Red/Yellow **multicolor**" says. That distinction is
+   now the `multiColor` flag's job, and it also makes "your red **or** blue
+   Battle Cards" read correctly for the first time.
+2. **A digit inside a name was read as a count.** `parseTarget` masks power
+   figures, energy costs and `z-N` before looking for a bare number, but not
+   the brackets — so "your ≪Universe 6≫ cards in your hand" was **six** of
+   them, and "\<Android 18\> cards in your Battle Area" eighteen. **533 skills
+   on 436 cards** name something with a digit in it (≪Universe 7≫ ×119,
+   ≪Universe 6≫ ×73, \<Android 18\> ×58, \<Super 17\> ×30 …). Not every one
+   reaches that branch — an explicit "up to N" is read first — but every one
+   that did was sized wrongly and silently.
+3. **A cost change could not carry a duration.** The pattern was anchored to
+   the end of the *raw* clause rather than the one with its tails stripped, so
+   "…by 1 **for the duration of the turn**" went unread. One character's
+   difference, `t` → `q`.
+
+The lesson is the one the spec already states, earning its place again: chase
+the clause that does not compile, but check what its *neighbours* compile to
+while you are there. The unread clause was the cheapest of the three to fix and
+the least important.
+
 ## Conventions worth keeping
 
 - Card text is **read, never interpreted**: if the compiler cannot read a

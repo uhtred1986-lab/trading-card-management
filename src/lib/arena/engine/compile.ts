@@ -346,7 +346,11 @@ export function parseTarget(phrase: string): Selector | null {
     upTo = true;
   } else if (/\ball\b|\bevery\b|\beach\b/.test(t)) {
     count = 99;
-  } else if ((m = /\b(\d+)\b/.exec(t.replace(/\d+000\b/g, "").replace(/energy cost (?:of )?\d+/g, "").replace(/\bz-\d/g, "")))) {
+    // A digit inside a name is part of the name, not a count: ≪Universe 6≫,
+    // <Android 17>, {Ultimate Form Gohan 2}. Read as a number, "your ≪Universe
+    // 6≫ cards in your hand" became six of them — the silent mis-read ground
+    // rule 5 is about, and it sized every selector naming one of those.
+  } else if ((m = /\b(\d+)\b/.exec(t.replace(/<[^>]*>|≪[^≫]*≫|\{[^}]*\}/g, " ").replace(/\d+000\b/g, "").replace(/energy cost (?:of )?\d+/g, "").replace(/\bz-\d/g, "")))) {
     count = Number(m[1]);
   } else if (/\bcards\b|\benergy\b/.test(t)) {
     // A plural with no number means all of them: "your Battle Cards get +5000 power".
@@ -1347,7 +1351,10 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // printed either as a number or as the orbs it takes off — "by {r}" is one
   // less, and `playCost` already lowers a specified colour along with the
   // total. "For each …" makes it a number read off the board.
-  if ((m = /^(reduce|increase) the (energy|combo) cost of (.+?) by (\d+|(?:\{[rugyk\d]+\})+)(?: for each (.+))?$/.exec(t))) {
+  // Matched on `q`, not `t`: a cost change may carry a duration like anything
+  // else ("…by 1 **for the duration of the turn**"), and anchoring to the end
+  // of the raw clause meant every one of those went unread.
+  if ((m = /^(reduce|increase) the (energy|combo) cost of (.+?) by (\d+|(?:\{[rugyk\d]+\})+)(?: for each (.+))?$/.exec(q))) {
     // 20-21 works in both directions, and the sets print both: "increase the
     // energy cost of this card in your Battle Area by 2" is the same standing
     // effect with the sign turned round.
