@@ -51,7 +51,15 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     case "attacked":
       return /when this card is attacked/.test(t);
     case "koed":
-      return /when this card is ko'?d/.test(t);
+      // "…removed from a Battle Area by a skill **or KO'd**" is the KO half of
+      // a wording whose other half is `removedFromBattle`.
+      return /when this card is ko'?d|when this card is removed from [a-z' ]*battle area by [a-z' ]*skills? or ko'?d/.test(t);
+    // 3-1: a move an effect caused, which is not a KO — the cards write "or
+    // KO'd" when they mean both.
+    case "removedFromBattle":
+      return /when this card is removed from [a-z' ]*battle area by (?:a|your|one of your) skill/.test(t);
+    case "removedByOpponent":
+      return /when this card is removed from [a-z' ]*battle area by (?:an? |one of )?(?:your )?opponent'?s? skill/.test(t);
     case "kos":
       return /when this card (?:attacks and )?kos? (?:an opponent's|your opponent's|one of your opponent's|a) (?:battle card|card)/.test(t);
     case "leaderPlaced":
@@ -73,7 +81,13 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     case "opponentPlayed":
       return /when your opponent plays (?:a|an|1|up to)\b|when your opponent's [a-z ]*card is played|when a card is played by your opponent/.test(t);
     case "opponentAttacks":
-      return /when your opponent attacks with\b|when your opponent's [a-z ]*card attacks\b/.test(t);
+      return /when your opponent attacks\b|when your opponent's [a-z ]*cards? attacks?\b|when one of your opponent's [a-z ]*cards? attacks\b/.test(t);
+    case "opponentCombos":
+      return /when your opponent combos\b|when your opponent uses a card in a combo\b/.test(t);
+    // 5-5: placed, not played. A card that says both is caught by `played`
+    // first, so this only ever adds the ones that say only this.
+    case "placed":
+      return /when this card is placed in (?:a|your|their|an opponent's) battle area/.test(t);
     case "energyToDrop":
       return /when a card in your energy is placed in (?:your|its owner's) drop/.test(t);
     case "unisonToDrop":
@@ -98,7 +112,10 @@ export function pendTriggers(ctx: GameContext, s: GameState, trigger: Trigger, c
   const area = areaOf(s, card);
   // 9-1-3-1: a card's skills are only valid in its own area.
   const valid = area === "leader" || area === "battle" || area === "unison";
-  if (!valid && trigger !== "koed" && trigger !== "comboed" && trigger !== "energyToDrop" && trigger !== "unisonToDrop") return;
+  // The triggers about a card *leaving* fire once it has already gone, so its
+  // area is no longer one its skills are valid in (9-1-3-1).
+  const onLeaving = trigger === "koed" || trigger === "comboed" || trigger === "energyToDrop" || trigger === "unisonToDrop" || trigger === "removedFromBattle" || trigger === "removedByOpponent";
+  if (!valid && !onLeaving) return;
   const master = masterOf(s, card);
   for (const sk of skillsOfInstance(ctx, s, card)) {
     if (skillNegated(s, card, sk.index, sk.kind)) continue;

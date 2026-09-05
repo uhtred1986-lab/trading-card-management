@@ -340,6 +340,21 @@ export type Trigger =
    */
   | "opponentPlayed"
   | "opponentAttacks"
+  | "opponentCombos"
+  /**
+   * "When this card is removed from a Battle Area by a skill" (3-1): a move an
+   * effect caused, which the cards themselves distinguish from a KO — they
+   * write "or KO'd" when they mean both, and that half is `koed`.
+   * `removedByOpponent` is the narrower wording, and by far the commoner one.
+   */
+  | "removedFromBattle"
+  | "removedByOpponent"
+  /**
+   * A card *placed* in a Battle Area rather than played (5-5): by a skill, by
+   * [Over Realm], by an Evolve. "When this card is played" does not cover it,
+   * and 30 cards say only the second.
+   */
+  | "placed"
   | "energyToDrop"
   | "unisonToDrop"
   | "markerRemoved"

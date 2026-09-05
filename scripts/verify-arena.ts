@@ -3017,4 +3017,57 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assertConsistent(s);
 }
 
+// ── moments the engine did not know about (4-2) ────────────────────────────
+
+{
+  // These wordings all compiled and could never happen: no `Trigger` matched
+  // the moment they name, so the engine read the skill and waited forever.
+  // `npm run arena:gaps` now counts them; this keeps the ones fixed, fixed.
+  const fires = (text: string, trigger: Parameters<typeof autoTriggerMatches>[1]) => autoTriggerMatches(parseSkills(text)[0], trigger);
+  assert.ok(fires("[Auto] When your opponent attacks, draw 1 card.", "opponentAttacks"));
+  assert.ok(fires("[Auto] When one of your opponent's cards attacks, draw 1 card.", "opponentAttacks"));
+  assert.ok(fires("[Auto] When your opponent combos, draw 1 card.", "opponentCombos"));
+  assert.ok(fires("[Auto] When this card is placed in a Battle Area, draw 1 card.", "placed"));
+  assert.ok(fires("[Auto] When this card is removed from your Battle Area by an opponent's skill, draw 1 card.", "removedByOpponent"));
+  // "Or KO'd" is the KO half of the same sentence, and belongs to `koed`.
+  assert.ok(fires("[Auto] When this card is removed from a Battle Area by a skill or KO'd, draw 1 card.", "koed"));
+  assert.ok(fires("[Auto] When this card is removed from a Battle Area by a skill or KO'd, draw 1 card.", "removedFromBattle"));
+  // A card that only says "played" must not fire on a placement, or every
+  // skill that puts a card into play would run twice.
+  assert.ok(!fires("[Auto] When you play this card, draw 1 card.", "placed"));
+}
+
+{
+  // 5-5: placed, not played. A skill that *places* a card in a Battle Area
+  // does not play it, so only the second wording fires.
+  DEFS.ARRIVES = { ...DEFS.V1, id: "ARRIVES", name: "ARRIVES", skill: "[Auto] When this card is placed in a Battle Area, draw 1 card." };
+  DEFS.SUMMON = { ...DEFS.V1, id: "SUMMON", name: "SUMMON", energyCost: 1, skill: "[Auto] When you play this card, place up to 1 <ARRIVES> card from your Drop into your Battle Area." };
+  DEFS.ARRIVES.characters = ["ARRIVES"];
+  let s = arena({ hand: ["SUMMON"], energy: ["V1"] });
+  const sleeping = s.players.p1.deck.find((id) => s.cards[id].cardId === "V1")!;
+  s.cards[sleeping].cardId = "ARRIVES";
+  move({ defs: DEFS }, s, [], sleeping, "drop", "p1");
+  const hand = s.players.p1.hand.length;
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "SUMMON") });
+  if (s.prompt.kind === "chooseCards") s = play(s, { type: "choose", player: "p1", cards: [sleeping] });
+  assert.ok(s.players.p1.battle.includes(sleeping), "it was placed");
+  assert.equal(s.players.p1.hand.length, hand - 1 + 1, "SUMMON left the hand, the draw came in");
+  assertConsistent(s);
+}
+
+{
+  // "Removed from your Battle Area by an opponent's skill" — a move an effect
+  // caused, and only when the effect was theirs.
+  DEFS.GRUDGE = { ...DEFS.V1, id: "GRUDGE", name: "GRUDGE", skill: "[Auto] When this card is removed from your Battle Area by an opponent's skill, draw 1 card." };
+  DEFS.BOUNCE = { ...DEFS.V1, id: "BOUNCE", name: "BOUNCE", energyCost: 1, skill: "[Auto] When you play this card, choose 1 of your opponent's Battle Cards and return it to its owner's hand." };
+  let s = arena({ hand: ["BOUNCE"], energy: ["V1"], oppBattle: ["GRUDGE"] });
+  const grudge = s.players.p2.battle[0];
+  const theirHand = s.players.p2.hand.length;
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "BOUNCE") });
+  if (s.prompt.kind === "chooseCards") s = play(s, { type: "choose", player: "p1", cards: [grudge] });
+  // The card itself came back to hand, and the skill drew them one more.
+  assert.equal(s.players.p2.hand.length, theirHand + 2, "3-1: it was removed, and it noticed");
+  assertConsistent(s);
+}
+
 console.log("verify-arena: all checks passed");

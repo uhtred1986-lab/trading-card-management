@@ -511,8 +511,20 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
           const owner = op.owner ? sideOf(master, op.owner)[0] : op.to === "battle" || op.to === "unison" ? master : s.cards[id].owner;
           // "play" is not an area of its own either (3-1); it means the Battle Area.
           const dest = op.to === "play" ? "battle" : op.to;
+          const leftBattle = areaOf(s, id) === "battle";
           move(ctx, s, ev, id, dest, owner, { position: op.position, reveal: op.reveal, reason: "effect" });
+          // 3-1: "when this card is removed from a Battle Area by a skill",
+          // and the commoner narrowing to the *opponent's* skills. A card that
+          // went nowhere — a replacement sent it back — was not removed.
+          if (leftBattle && areaOf(s, id) !== "battle") {
+            pendTriggers(ctx, s, "removedFromBattle", id);
+            if (masterOf(s, id) !== master) pendTriggers(ctx, s, "removedByOpponent", id);
+          }
           if (op.mode) setMode(s, ev, id, op.mode, ctx);
+          // 5-5: a card a skill *places* in a Battle Area was not played, so
+          // "when this card is played" does not fire — 30 cards say only
+          // "when this card is placed in a Battle Area".
+          if (dest === "battle") pendTriggers(ctx, s, "placed", id);
           if (dest === "hand" && owner === master) (frame.did ??= {}).addToHand = true;
         }
         break;

@@ -1813,6 +1813,9 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
       if (!pm) throw new IllegalAction("can't pay the combo cost");
       pay(s, ev, p, pm);
       move(ctx, s, ev, action.card, "combo", p, { reason: "combo", reveal: true });
+      // "When your opponent combos": watched by the other player's cards in
+      // play, with the combo card as the subject.
+      for (const id of cardsInPlay(s, other(p))) pendTriggers(ctx, s, "opponentCombos", id, action.card);
       s.flow.unshift({ op: "checkpoint" }, { op: "battle.promptCombo", side: pr.side });
       break;
     }

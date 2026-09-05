@@ -13,7 +13,38 @@ import { db } from "../src/db";
 import { DEFAULT_GAME } from "../src/lib/catalog/games";
 import { cards as cardsTable } from "../src/db/schema";
 import { compileCardCached, parseSkills, type CardDef } from "../src/lib/arena/engine";
+import { autoTriggerMatches } from "../src/lib/arena/engine/triggers";
+import type { Trigger } from "../src/lib/arena/engine/types";
 import { cardDefFrom } from "../src/lib/arena/load";
+
+/** Every moment the engine knows about, for the orphan-trigger check below. */
+const TRIGGERS: Trigger[] = [
+  "leaderPlaced",
+  "played",
+  "attacks",
+  "attacked",
+  "koed",
+  "kos",
+  "dealtDamage",
+  "chargeStart",
+  "mainStart",
+  "mainEnd",
+  "turnEnd",
+  "battleEnd",
+  "comboed",
+  "opponentPlayed",
+  "opponentAttacks",
+  "opponentCombos",
+  "placed",
+  "removedFromBattle",
+  "removedByOpponent",
+  "energyToDrop",
+  "unisonToDrop",
+  "markerRemoved",
+  "offenseStart",
+  "defenseStart",
+  "damageStart",
+];
 
 /** Ordered: the first bucket a clause matches wins, so put the specific first. */
 const MECHANISMS: { key: string; needs: string; test: RegExp }[] = [
@@ -178,5 +209,48 @@ console.log("\nThe wordings that are the *only* thing holding a skill back — f
 for (const [, e] of [...lastInTheWay.entries()].sort((a, b) => b[1].skills - a[1].skills).slice(0, 25)) {
   console.log(`${String(e.skills).padStart(5)} skills on ${String(e.cards.size).padStart(4)} cards`);
   console.log(`        e.g. ${e.example.slice(0, 110)}`);
+}
+
+/**
+ * [Auto] skills that compile and can never happen, because no `Trigger` in the
+ * engine matches the moment they name.
+ *
+ * These are worse than a gap and invisible to every other measure here: the
+ * compiler reads them, the coverage counts them, and the engine sits there.
+ * Fixing one is engine work (a `Trigger`, a wording in `autoTriggerMatches`,
+ * and a `pendTriggers` call where the event happens) rather than a pattern.
+ */
+const orphan = new Map<string, { skills: number; cards: Set<string>; example: string }>();
+let orphans = 0;
+for (const d of defs) {
+  for (const side of ["front", "back"] as const) {
+    const text = side === "front" ? d.skill : d.back?.skill;
+    if (!text) continue;
+    const scripts = compileCardCached(d, side);
+    for (const sk of parseSkills(text)) {
+      if (sk.kind !== "auto" || !sk.effect.trim()) continue;
+      if (scripts.bySkill[sk.index]?.unsupported.length !== 0) continue;
+      if (TRIGGERS.some((t) => autoTriggerMatches(sk, t))) continue;
+      orphans++;
+      const said = `${sk.cost} ${sk.effect}`.toLowerCase();
+      const when = /\b(?:when|at the (?:end|beginning|start))\b[^,.]*/.exec(said);
+      const key = (when ? when[0] : "(names no moment)")
+        .replace(/\d+/g, "N")
+        .replace(/<[^>]*>|\{[^}]*\}|≪[^≫]*≫/g, "…")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 70);
+      const e = orphan.get(key) ?? { skills: 0, cards: new Set<string>(), example: key };
+      e.skills++;
+      e.cards.add(d.id);
+      orphan.set(key, e);
+    }
+  }
+}
+
+console.log(`\n\n${orphans} [Auto] skills compile but no trigger ever fires them — the engine reads`);
+console.log("them and then waits for a moment it does not know about:\n");
+for (const [, e] of [...orphan.entries()].sort((a, b) => b[1].skills - a[1].skills).slice(0, 20)) {
+  console.log(`${String(e.skills).padStart(5)} skills on ${String(e.cards.size).padStart(4)} cards   ${e.example}`);
 }
 process.exit(0);
