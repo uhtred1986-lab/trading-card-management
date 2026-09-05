@@ -20,6 +20,13 @@ import type { CardDef, DelayScope, DelayTiming, ForbiddenAction, KeywordSkill, S
 const NAME_AFTER_AND = /^(?:<[^>]+>|≪[^≫]+≫|\{[^}]+\})(?:\s*(?:,|\.|$|cards?\b|battle cards?\b|and\b|or\b|in\b|with\b))/i;
 
 /**
+ * After an " and ": the second of two areas one phrase names — "all cards in
+ * your opponent's Battle Cards and Unisons" (20-1-6). Split, the second half
+ * is a bare area word, and the first half quietly narrows to one area.
+ */
+const AREA_AFTER_AND = /^(?:unisons?|unison cards?|unison areas?)\b/i;
+
+/**
  * After an " and ": a second measure of the same card description, as in "with
  * an energy cost of 3 and 5000 power" (20-12 searches print both orders).
  * Only counted when the clause so far opened a description with "with", which
@@ -49,7 +56,8 @@ export function splitClauses(text: string): string[] {
         text.startsWith(" and ", i) &&
         !text.startsWith(" and [", i) &&
         !NAME_AFTER_AND.test(text.slice(i + 5)) &&
-        !(MEASURE_AFTER_AND.test(text.slice(i + 5)) && /\bwith\b/i.test(text.slice(start, i)))
+        !(MEASURE_AFTER_AND.test(text.slice(i + 5)) && /\bwith\b/i.test(text.slice(start, i))) &&
+        !(AREA_AFTER_AND.test(text.slice(i + 5)) && /\bbattle cards?\b/i.test(text.slice(start, i)))
       ) {
         // "gains [Double Strike] and [Barrier]" is one clause, not two; nor is
         // "a Battle Card with both <Son Goku> and <Piccolo>", nor "with an
@@ -146,7 +154,7 @@ export function parseTarget(phrase: string): Selector | null {
 
   // "Your opponent's Battle Cards or Unisons" names two areas at once, which
   // is the one such phrase the game prints often enough to be worth reading.
-  const bothAreas = /\bbattle cards?\b[^.]*\bor\b[^.]*\bunisons?\b|\bunisons?\b[^.]*\bor\b[^.]*\bbattle cards?\b/.test(t);
+  const bothAreas = /\bbattle cards?\b[^.]*\b(?:or|and)\b[^.]*\bunisons?\b|\bunisons?\b[^.]*\b(?:or|and)\b[^.]*\bbattle cards?\b/.test(t);
 
   let area: ScriptArea | null = null;
   for (const [re, a] of AREA_WORDS) {
@@ -1317,7 +1325,10 @@ const KEYWORD_HANDLES_THE_LINE = new Set<KeywordSkill["name"]>(["Evolve", "Union
  * them, so here they are separated by bullets in one string.
  */
 function splitModal(text: string): { head: string; options: string[] } | null {
-  const m = /choose one\s*(?:[-–—―?:]{1,2})?\s*/i.exec(text);
+  // Some sets print the full-width hyphen-minus after "choose one". Left out
+  // of this class it is not consumed, and the text before the first bullet
+  // becomes an option of its own — a dash, which compiles to nothing.
+  const m = /choose one\s*(?:[-–—―－ー?:]{1,2})?\s*/i.exec(text);
   if (!m) return null;
   const options = text
     .slice(m.index + m[0].length)
@@ -1354,6 +1365,11 @@ export function compileSkill(skill: Skill): Script {
     // this, the first "it" of an [Auto] has nothing to point at and the whole
     // skill goes to the referee.
     if (/\bthis card\b/i.test(trigger)) c.lastTarget = { sel: { special: "self" } };
+    // "When your green ≪Turtle School≫ card with an energy cost of 5 or less
+    // attacks a Battle Card, **it** gets +10000 power for the turn" — a
+    // trigger about some *other* card, which the engine already binds as the
+    // trigger's subject. Without this, "it" had nothing to point at.
+    else if (/\byour\b|\byour opponent'?s\b/i.test(trigger)) c.lastTarget = { sel: { special: "subject" } };
     // "When this card attacks and KOs an opponent's Battle Card" splits on the
     // "and"; the second half is still the trigger.
     while (clauses.length > 1 && /^(?:kos?|ko's|is ko'?d|deals damage)\b/i.test(clauses[0].trim())) clauses.shift();

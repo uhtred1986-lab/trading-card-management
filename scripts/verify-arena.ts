@@ -2857,4 +2857,35 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assertConsistent(s);
 }
 
+// ── three ways a sentence was being cut in the wrong place ─────────────────
+
+{
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+
+  // The full-width hyphen-minus after "choose one". Left out of the dash
+  // class it survived into the options list as an option of its own — which
+  // is where the six bare "－" clauses in the gap report came from.
+  const modal = one("[Auto] When this card is played from your hand, choose one－<br>・Choose up to 1 of your opponent's Battle Cards and place it at the bottom of its owner's deck.<br>・If your Leader Card is a green <Son Goku> card, draw 1 card.");
+  assert.deepEqual(modal.unsupported, []);
+  const modes = (modal.ops.find((o) => o.op === "chooseMode") as { modes: { label: string; ops: unknown[] }[] } | undefined)?.modes;
+  assert.equal(modes?.length, 2, "two printed options, and no dash among them");
+  assert.ok(modes?.every((mode) => mode.ops.length), "both of them do something");
+
+  // "All cards in your opponent's Battle Cards and Unisons" names two areas.
+  // Split on the "and", the second half was a bare area word and the first
+  // half quietly narrowed to one area.
+  const both = one("[Auto] When this card attacks, choose up to 2 total cards from among all cards in your opponent's Battle Cards and Unisons and they get -15000 power for the turn.");
+  assert.deepEqual(both.unsupported, []);
+  assert.deepEqual((both.ops[0] as { sel: { areas?: string[] } }).sel.areas, ["battle", "unison"]);
+
+  // "When your ≪Turtle School≫ card attacks …, **it** gets +10000 power" — a
+  // trigger about a card other than this one. "It" is the trigger's subject,
+  // which the engine binds; before this it pointed at nothing.
+  const other = one("[Auto] When your green ≪Turtle School≫ card with an energy cost of 5 or less attacks a Battle Card, it gets +10000 power for the turn.");
+  assert.deepEqual(other.unsupported, []);
+  assert.deepEqual((other.ops[0] as { target: { sel?: { special?: string } } }).target.sel?.special, "subject");
+  // A trigger that does name this card still means this card.
+  assert.deepEqual((one("[Auto] When this card attacks, it gets +5000 power for the turn.").ops[0] as { target: { sel?: { special?: string } } }).target.sel?.special, "self");
+}
+
 console.log("verify-arena: all checks passed");
