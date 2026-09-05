@@ -34,7 +34,7 @@ const AREA_AFTER_AND = /^(?:unisons?|unison cards?|unison areas?|energy(?: area)
  * The tell is that everything since the clause began is only a way of naming a
  * card: no verb has appeared yet, so the sentence cannot be over.
  */
-const TARGET_BEFORE_AND = /(?:^\s*|[,;:]\s+)(?:this card|it|they|them|that card|those cards|your leader(?: card)?|the chosen cards?)\s*$/i;
+const TARGET_BEFORE_AND = /(?:^\s*|[,;:]\s+)(?:this card|it|they|them|that card|those cards|your leader(?: card)?|the chosen cards?|you)\s*$/i;
 
 /**
  * After an " and ": a second measure of the same card description, as in "with
@@ -78,7 +78,7 @@ export function splitClauses(text: string): string[] {
     if ("([{<≪".includes(ch)) depth++;
     else if (")]}>≫".includes(ch)) depth = Math.max(0, depth - 1);
     else if (depth === 0) {
-      if ((ch === "," || ch === ";") && !inNameList(text, i)) {
+      if ((ch === "," || ch === ";") && !inNameList(text, i) && !(ch === "," && inList(text, i))) {
         push(i, 1);
       } else if (ch === "." && (i + 1 >= text.length || (text[i + 1] === " " && !/^ [a-z]/.test(text.slice(i + 1, i + 3))))) {
         // A full stop inside an abbreviation is not the end of a sentence:
@@ -92,7 +92,9 @@ export function splitClauses(text: string): string[] {
         !NAME_AFTER_AND.test(text.slice(i + 5)) &&
         !(MEASURE_AFTER_AND.test(text.slice(i + 5)) && /\bwith\b/i.test(text.slice(start, i))) &&
         !(AREA_AFTER_AND.test(text.slice(i + 5)) && /\bbattle cards?\b/i.test(text.slice(start, i))) &&
-        !TARGET_BEFORE_AND.test(text.slice(start, i))
+        !TARGET_BEFORE_AND.test(text.slice(start, i)) &&
+        !andEndsAList(text, start, i) &&
+        !andJoinsTwoAreas(text, start, i)
       ) {
         // "gains [Double Strike] and [Barrier]" is one clause, not two; nor is
         // "a Battle Card with both <Son Goku> and <Piccolo>", nor "with an
@@ -119,6 +121,82 @@ function inNameList(text: string, comma: number): boolean {
   const endsWithName = /[>}≫]$/.test(before);
   const after = text.slice(comma + 1).replace(/^\s*(?:or|and)\s+/i, "").trimStart();
   return endsWithName && /^[<{≪]/.test(after);
+}
+
+/**
+ * What the sets actually put in a list: a colour or an area. Deliberately a
+ * vocabulary rather than "any short phrase" — protecting a comma that is a
+ * real sentence break would merge two instructions into one unreadable clause,
+ * which is a worse failure than the fragment this is here to prevent.
+ */
+const LIST_WORD =
+  /^(?:(?:your|their|its owner'?s|the|an? opponent'?s|your opponent'?s)\s+)?(?:red|blue|green|yellow|black|multicolou?r|battle area|combo area|leader area|drop area|energy area|unison area|z-energy|z-deck|drop|hand|deck|life|warp|energy|unison)\b/i;
+
+/** A list item, with the "and"/"or"/"and/or" that may introduce the last one. */
+function listItem(seg: string): boolean {
+  return LIST_WORD.test(seg.trim().replace(/^(?:and\/or|and|or)\s+/i, ""));
+}
+
+/**
+ * The same trap one step wider: a comma inside a *list of anything* is not a
+ * sentence break. "This card is also treated as red, blue, and green", "play
+ * up to 1 card from your hand, Drop, or Warp", "cards in your energy,
+ * Z-Energy, Battle Area, and/or Drop". Ninety-eight skills were losing a
+ * one-word fragment to this, and a fragment fails the whole skill.
+ *
+ * What tells a list from a sentence is that the items are short and the run
+ * ends with "and", "or" or "and/or" before the last one — a real clause after
+ * a comma has a verb in it, which is what `LIST_TAIL_VERB` rules out. A
+ * two-item list ("from your hand, or your Drop") is allowed only because of
+ * that check: without it, "draw 1 card, and draw 1 card" would read as one.
+ */
+/**
+ * The tail of the same list, where the "and" is: "…from your opponent's Battle
+ * Area, energy, life, **and** hand". The commas are protected by `inList`, so
+ * the run only survives if the final "and" is protected too — otherwise the
+ * last item is cut off on its own, which is exactly the fragment this is for.
+ */
+function andEndsAList(text: string, start: number, i: number): boolean {
+  const before = text.slice(start, i).trimEnd();
+  // A *comma run* has to be there already. Without that requirement "if your
+  // Leader Card is yellow and your life is at 4 or less" reads as a list,
+  // because "yellow" and "life" are both list words — two conditions are not a
+  // list, and the comma is what tells them apart.
+  const run = before.endsWith(",") || /,\s*[^,]{1,24}$/.test(before);
+  // The Oxford comma leaves an empty last segment ("…as red, blue, and"), so
+  // the item to test is the last one that has anything in it.
+  const last = before.split(/,\s*/).filter((x) => x.trim()).pop() ?? "";
+  return run && listItem(last) && listItem(text.slice(i + 5, i + 60));
+}
+
+/**
+ * The two-item version, which the sets write without a comma: "cards in your
+ * energy **and** Battle Area", "while in your deck **and** Drop Area". Both
+ * sides have to be an area, so "…is yellow and your life is at 4 or less" —
+ * where only the second is one — still reads as the two conditions it is.
+ */
+const AREA_WORD = /\b(?:battle area|combo area|leader area|drop area|energy area|unison area|z-energy|z-deck|drop|hand|deck|life|warp|energy|unison)\s*$/i;
+
+function andJoinsTwoAreas(text: string, start: number, i: number): boolean {
+  if (!AREA_WORD.test(text.slice(start, i))) return false;
+  const after = text.slice(i + 5, i + 60).split(/[,.;]/)[0].trim();
+  return AREA_WORD.test((after.match(/^(?:(?:your|their|its owner'?s|the)\s+)?[a-z-]+(?: area)?/i)?.[0] ?? "").trim());
+}
+
+function inList(text: string, comma: number): boolean {
+  let at = comma;
+  for (let items = 0; items < 6; items++) {
+    const next = text.indexOf(",", at + 1);
+    const stop = next === -1 ? text.length : next;
+    const seg = text.slice(at + 1, stop).trim().replace(/[.;]$/, "");
+    if (!seg || !listItem(seg)) return false;
+    // The run ends at the item the "and"/"or" introduces; what follows that
+    // item is the rest of the sentence and none of this function's business.
+    if (/^(?:and\/or|and|or)\s+/i.test(seg)) return true;
+    if (next === -1) return false;
+    at = next;
+  }
+  return false;
 }
 
 /**
@@ -1106,6 +1184,14 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // "Have your opponent draw 1 card" leaves the verb uninflected once the
   // leading words are split off, and a few sets print it that way outright.
   if ((m = /^(?:your opponent|they) draws? (\d+) cards?$/.exec(t))) return [{ op: "draw", n: Number(m[1]), side: "opponent" }];
+  // "You and your opponent draw 1 card": one sentence about both players, and
+  // splitting it at the "and" left "you" behind as a fragment.
+  if ((m = /^you and your opponent draws? (\d+) cards?$/.exec(t))) {
+    return [
+      { op: "draw", n: Number(m[1]) },
+      { op: "draw", n: Number(m[1]), side: "opponent" },
+    ];
+  }
 
   // Discard (20-7).
   if ((m = /^your opponent discards (\d+) cards?(?: from their hand)?$/.exec(t))) return [{ op: "discard", n: Number(m[1]), side: "opponent" }];

@@ -1087,6 +1087,45 @@ for with energy the player may not have.
 
 [Permanent] skills that emit a standing effect: 48.6 % → **49.5 %** of 1,807.
 
+## Done: lists are not sentences (5 Sep 2026)
+
+The same tell as the em-dash round, and the same lesson: the top of the unread
+list was full of **single words** — "you" ×29, "battle area" ×20, "blue" ×11,
+"green" ×11, "hand" ×10, "drop" ×10. A fragment naming no action is never a
+missing phrase pattern; it is `splitClauses` cutting a sentence in the wrong
+place, and it fails the whole skill.
+
+The cause this time: **comma-separated lists**. "This card is also treated as
+red, blue, and green", "play up to 1 card from your hand, Drop, or Warp", "all
+cards in your opponent's Leader Area, Battle Area, and Combo Area get -5000
+power", "cards in your energy and Z-Energy". 98 skills lost a fragment; 5 do
+now.
+
+Three rules, and the shape of each was decided by what would go wrong:
+
+1. **`inList`** protects a comma when the run of items either side of it are
+   list *words* — a vocabulary of colours and areas, deliberately, not "any
+   short phrase". Protecting a comma that is a real sentence break merges two
+   instructions into one unreadable clause, which is a worse failure than the
+   fragment.
+2. **`andEndsAList`** protects the "and" that ends such a run, but **only when
+   a comma run is already there**. Without that requirement "if your Leader
+   Card is yellow **and** your life is at 4 or less" reads as a list, because
+   "yellow" and "life" are both list words. Two conditions are not a list, and
+   the comma is what tells them apart — a test that failed on exactly this is
+   in the file.
+3. **`andJoinsTwoAreas`** for the version the sets write without a comma —
+   "while in your deck **and** Drop Area" — where *both* sides have to be an
+   area, which is what keeps rule 2's counter-example out.
+
+Plus "you" in `TARGET_BEFORE_AND`, and a pattern for the sentence behind it:
+"you and your opponent draw 1 card" is one instruction about both players.
+
+Coverage 85.3 % → **85.6 %**. The [Permanent] figures moved most, because the
+colour lists are nearly all [Permanent]: read 53.5 % → **56.3 %**, and emitting
+a standing effect 48.6 % → **51.5 %** of 1,807. Fuzzer run at the spec's own
+bar this time: 40 games, 0 crashes.
+
 ## Conventions worth keeping
 
 - Card text is **read, never interpreted**: if the compiler cannot read a

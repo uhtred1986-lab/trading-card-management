@@ -4374,4 +4374,35 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.ok(!acts(poor).some((a) => a.type === "counter" && a.card === lone && (a as { alt?: boolean }).alt));
 }
 
+{
+  // A comma inside a *list* is not a sentence break, and neither is the "and"
+  // that ends one. Ninety-eight skills were losing a one-word fragment to
+  // this — "green", "hand", "Battle Area" — and a fragment fails the whole
+  // skill, so each of these sentences did nothing at all.
+  const one = (text: string) => splitClauses(text);
+  assert.deepEqual(one("This card is also treated as red, blue, and green."), ["This card is also treated as red, blue, and green"]);
+  assert.deepEqual(one("Play up to 1 card from your hand, Drop, or Warp."), ["Play up to 1 card from your hand, Drop, or Warp"]);
+  assert.deepEqual(one("All cards in your opponent's Leader Area, Battle Area, and Combo Area get -5000 power."), [
+    "All cards in your opponent's Leader Area, Battle Area, and Combo Area get -5000 power",
+  ]);
+  // The two-item version, which the sets write without a comma.
+  assert.deepEqual(one("This card is green while in your deck and Drop Area."), ["This card is green while in your deck and Drop Area"]);
+
+  // …and none of that may swallow a real sentence break. Two conditions are
+  // not a list, even when both halves happen to be list words ("yellow",
+  // "life"); the missing comma is what tells them apart.
+  assert.equal(one("If your Leader Card is yellow and your life is at 4 or less, draw 1 card.").length, 3);
+  assert.equal(one("Draw 1 card, and draw 1 card.").length, 2);
+  assert.equal(one("Choose 1 card in your hand, and place it in your Drop Area.").length, 2);
+  assert.equal(one("Place it in your Drop Area and draw 1 card.").length, 2);
+
+  // "You and your opponent draw 1 card" is one sentence about both players.
+  const both = compileSkill(parseSkills("[Auto] When this card is played, you and your opponent draw 1 card.")[0]);
+  assert.deepEqual(both.unsupported, []);
+  assert.deepEqual(both.ops, [
+    { op: "draw", n: 1 },
+    { op: "draw", n: 1, side: "opponent" },
+  ]);
+}
+
 console.log("verify-arena: all checks passed");
