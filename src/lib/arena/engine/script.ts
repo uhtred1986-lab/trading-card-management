@@ -86,6 +86,15 @@ export interface Selector {
   fromEnd?: boolean;
   /** Card text may say "ignoring [Barrier]", which lifts 22-16 for this choice. */
   ignoreBarrier?: boolean;
+  /**
+   * "Choose all Battle Cards **other than this card**", "play up to 1 ≪Demon
+   * Clan≫ card among them **other than copies of this card**". Refusing to
+   * *resolve* to this card is only half of it: read as nothing, the phrase
+   * still offered this card among the candidates, so "they get -15000 power"
+   * hit the card printing it. `"copies"` excludes every card of the same
+   * name, which is what that longer wording says.
+   */
+  notSelf?: "card" | "copies";
 }
 
 /**

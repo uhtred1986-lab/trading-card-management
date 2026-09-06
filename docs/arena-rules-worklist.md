@@ -1327,6 +1327,136 @@ Two things worth keeping from this:
    owner's decks; every deck added is new coverage, and this bug had been
    sitting in the [Union] path since it was written.
 
+## Done: a quality check of the last stretch, which did not come back clean (6 Sep 2026)
+
+The stretch of 5–6 September was mostly *correctness* fixes to clauses that
+already compiled. Nothing in `arena:gaps` would have caught those, and nothing
+would catch a mistake in them either — so this round proved them before adding
+anything. Four of the five held. One did not, and looking for it turned up four
+more mis-reads of the same kind that had been there all along.
+
+**Where the audit said "clean", in one paragraph each.**
+
+- **The three list guards** (`inList`, `andEndsAList`, `andJoinsTwoAreas`) are
+  sound. Every skill was split twice — once by the compiler, once by a copy of
+  it with the three guards forced to `false` — and the 119 clauses they keep
+  whole were read one by one. Every one is a genuine list: areas joined by
+  "and" ("in your deck and Drop Area"), colours in a comma run ("treated as
+  red, blue, and green"), alternative card descriptions ("from your hand, Drop,
+  or Warp"). **Not one is two instructions merged**, which is the failure they
+  could have caused. The 48 that sit inside a skill which still fails, fail for
+  an unread *mechanism* ("look through your deck and your life", "for each
+  colour among…"), not for the merge.
+- **Turn ownership.** A full 27-turn playthrough, whole log read rather than
+  the last twelve lines. Charge/main/end alternate cleanly, every [Auto] fires
+  on its controller's turn, and every `[Once per turn]` fires once. Nothing
+  fires twice or on the wrong turn.
+- **`subjectFilterOf`.** Its subject capture is lazy and stops at the first
+  " from | in | to | with | by ", which throws away the rest of the trigger —
+  including an " or " that the alternation guard exists to refuse. Seven
+  triggers have such a hidden " or ", and in **none** of them does the hidden
+  branch name a different card *type* from the one that was read, so the filter
+  never narrows past what the card means (BT19-067's hidden branch is also a
+  green Battle Card). Nine more drop a *measure* with the tail — "with an
+  energy cost of 8", "with 30000 power" — which widens the trigger. That is the
+  direction ground rule 6 calls acceptable, and it is left as it is,
+  deliberately, rather than tightened into something that could stop a skill.
+- **"Either" is the right reading of a colour list**, and `multicolor` really is
+  the only wording that means one card in two colours at once. The catalog
+  writes alternatives as "blue or green", "red and/or black", "—both green—";
+  every slash outside the word "multicolor" is part of a *keyword* name
+  ([Arrival Red/Green], [Aegis Blue/Yellow], [Revive Blue/Green]), and every
+  "both" is "both <A> and <B>" or "both green", never two colours on one card.
+
+**Where it did not: the colour fix exposed a mis-read underneath it.**
+
+`parseFilter` harvested colour words from *inside* names. ≪Red Ribbon Army≫,
+<Goku Black>, <Commander Red>, {Super Saiyan Blue Vegeta} and [Revive
+Blue/Green] all contain one, and none of them says anything about the card's
+colour. While several colours meant "all of them" such a filter simply matched
+nothing — a missing effect. Once they meant "either", the same filter started
+selecting the extra colour: "add up to 2 **blue** ≪Red Ribbon Army≫ cards"
+would take a red one. **The fix was right and it turned a silent no-match into
+a silent wrong selection**, which is the trade ground rule 1 forbids.
+
+39 selectors, 25 of them widened this way, plus BT7-046's [Auto] trigger — a
+filter that *gates* a skill, where being wrong stops something that should
+happen. Colour words are now read off the description with every `<…>`, `≪…≫`,
+`{…}` and `[…]` span blanked out. It also fixed the fourteen that were merely
+over-narrow, and BT27-043, whose "This card gains ≪Red Ribbon Army≫ in all
+areas" had been granting the card the colour **red**.
+
+**Four more, all found by comparing a compiled program with its own clause.**
+
+1. **"Choose up to 1 opponent Battle Card" chose your own.** The oldest sets
+   (BT1–BT3, EX01–EX02, P-006) drop the possessive, and `parseTarget` only
+   knew "your opponent's" and "the opponent's". Sixteen skills read as naming
+   no side, so they defaulted to yours: BT1-082 KO'd your own Battle Card,
+   BT1-036 returned it to your hand, BT1-090 rested two of your cards. Read as
+   a side whenever the word carries a possessive, however it is introduced
+   ("an opponent's", "ofyour opponent's" — a typo in the catalog itself), and
+   when the bare word qualifies a card noun.
+2. **`refFor` had neither of the two exceptions `parseTarget` makes.** It asked
+   only whether the words "this card" appeared anywhere in the phrase. So
+   "**other than** this card" and "other than **copies of** this card" resolved
+   to this card — BT11-107 and BT17-036 played the card that was already in
+   play instead of the one they had just looked at — and so did "with power
+   less than or equal to **this card's** power", where the possessive belongs
+   to a measure of some *other* card. Both are now read, and the possessive
+   only counts when it is in the *head* of the phrase, so "**this card's
+   skills** can't be negated" and "you can activate **this card's** [Activate:
+   Battle]" still mean this card. That head/tail distinction is the one the
+   pronoun test already made, now shared as `headOf`.
+3. **Excluding a card is not the same as requiring it.** "Choose up to 1 Battle
+   Card **other than** <Grand Supreme Kai>", "…other than {Vegito, Powers
+   Combined}" — 36 cards, and `parseFilter` read the name straight into
+   `characters`/`names`, so the filter demanded the very card the text rules
+   out. Not a widening: an **inversion**, the worst way for a selector to be
+   wrong. The names now go to `notCharacters`/`notTraits`/`notNames`
+   (`notNames` is new) and are taken out of the text before the positive loops
+   see them. SD15-01 is in the owner's own decks and does this every game.
+4. **"Other than this card" needs to leave it out of the candidates, too.**
+   Refusing to *resolve* to this card is only half of it: the phrase still
+   offered it, so BT21-023's "choose all Battle Cards other than this card, and
+   they get -15000 power" shrank the card printing it. `Selector.notSelf`
+   (`"card"` or `"copies"`, because the longer wording excludes every card of
+   the same name) is applied in `resolveSelector`.
+
+Two smaller ones fell out on the way. **"and/or" ends a name list as often as
+"and" does**, and `inNameList` stripped only the latter, so the comma in
+"choose up to 2 ≪Saiyan≫, ≪Earthling≫, **and/or** ≪God≫ cards in your
+opponent's Battle Area" was read as a sentence break — the exact failure the
+list guards were written for, one conjunction short. And **"Cards chosen with
+this card's skill can't be switched to Active Mode"** (P-137, XD1-06, XD1-01)
+is the long way of saying "the chosen cards"; it had been putting the
+restriction on the card printing it.
+
+**Numbers.** Catalog 85.9 % and the owner's decks 91.7 %, both unchanged — as
+they should be, because none of this makes a new wording readable. [Permanent]
+skills that emit a standing effect went 53.0 % → 52.9 %: BT7-092's "Battle
+Cards chosen with this card's skill can't be switched to Active Mode" refers to
+a choice made by a *different skill on the same card*, which the compiler
+cannot express, so it is now an honest gap instead of a forbid pointed at the
+wrong card. One skill traded for one wrong effect removed. 40 fuzzed games, 0
+crashes; `npm test`, `lint`, `typecheck` and `build` clean.
+
+**The lesson, which is the reusable part.** Every one of these compiled
+cleanly, so no percentage in this project moved when they were wrong and none
+moved when they were fixed. The only thing that finds them is reading the
+compiled program back against the clause it came from — and the *second* place
+to look, after the compiler's own records, is a fix that has just changed which
+direction a mis-read fails in. A filter that used to match nothing and now
+matches too much was wrong the whole time; the fix is what makes it visible.
+
+**Left alone, with the reason.** The [Energy-Exhaust] negators print "if you
+have a red/blue multicolor card **other than this card** in your energy" as a
+*condition*, and `notSelf` is on the selector, not on `condHolds`'s count —
+these ten still count themselves. It is an over-fire on cards that sit in the
+energy area, worth a round of its own rather than a rushed one here.
+`parseFilter` also still drops a positive `[Blocker]` requirement ("up to 1
+opponent Battle Card **with [Blocker]**") and reads no plural type word
+("Battle **Cards**" sets no type) — both widenings, both on the list.
+
 ## Conventions worth keeping
 
 - Card text is **read, never interpreted**: if the compiler cannot read a

@@ -362,6 +362,12 @@ export function resolveSelector(ctx: GameContext, s: GameState, frame: ScriptFra
     const inst = s.cards[id];
     if (!inst) return false;
     if (sel.mode && inst.mode !== sel.mode) return false;
+    // "…other than this card" / "…other than copies of this card": the one
+    // card the phrase says the target is not.
+    if (sel.notSelf && frame.card) {
+      if (id === frame.card) return false;
+      if (sel.notSelf === "copies" && s.cards[frame.card] && inst.cardId === s.cards[frame.card].cardId) return false;
+    }
     // A named target that also names an area only matches while it is there.
     // A delayed effect resolves turns later, and by then "this card" may have
     // left the Battle Area — in which case it is no longer the same card (3-1-4).

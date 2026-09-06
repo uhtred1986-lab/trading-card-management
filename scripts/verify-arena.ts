@@ -1577,7 +1577,9 @@ function assertConsistentAfterDrop(s: GameState) {
   // compiler had never once emitted it.
   const each = one("[Activate: Main] Draw 1 card for each of your Battle Cards.");
   assert.deepEqual(each.unsupported, []);
-  assert.deepEqual(each.ops, [{ op: "draw", n: { count: { side: "you", area: "battle", filter: undefined, count: 99, upTo: false, mode: undefined, fromVar: undefined, take: undefined, fromEnd: undefined } } }]);
+  assert.deepEqual(each.ops, [
+    { op: "draw", n: { count: { side: "you", area: "battle", filter: undefined, count: 99, upTo: false, mode: undefined, fromVar: undefined, take: undefined, fromEnd: undefined, notSelf: undefined } } },
+  ]);
 
   // "+5000 power for each" is a multiple of the count, not the count.
   const power = one("[Activate: Main] This card gets +5000 power for each card in your Drop Area.");
@@ -4624,6 +4626,148 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.equal(s.prompt.kind, "chooseCards", "it asks again for the second");
   const second = (s.prompt as { choice: { candidates: string[] } }).choice.candidates[0];
   s = play(s, { type: "choose", player: "p1", cards: [second] });
+  assertConsistent(s);
+}
+
+
+
+{
+  // ------------------------------------------------------------------------
+  // Three ways a target phrase was read as naming a card it does not name.
+  // All three compiled cleanly, so no gap report ever mentioned them; they
+  // were found by comparing each program with the clause it came from (§5.3b).
+  // ------------------------------------------------------------------------
+
+  // 1. The oldest sets drop the possessive: "choose up to 1 **opponent**
+  // Battle Card" (BT1-036, BT1-082, BT1-090/091/094, BT2-041/068/083/085,
+  // BT3-096, EX01-06/07, EX02-02/04, P-006 — sixteen skills). Read as naming
+  // no side, every one of them chose *your own* card and KO'd, rested or
+  // returned it — the opposite of what the card says (5-2, 9-6).
+  const oppSel = (phrase: string) => parseTarget(phrase)?.side;
+  assert.equal(oppSel("up to 1 opponent Battle Card with an energy cost of 2 or less"), "opponent");
+  assert.equal(oppSel("up to 2 opponent Rest Mode Battle Cards"), "opponent");
+  assert.equal(oppSel("up to 1 opponent's Battle Card in Rest Mode"), "opponent", "the bare possessive too");
+  assert.equal(oppSel("up to 1 of an opponent's Battle Cards"), "opponent");
+  assert.equal(oppSel("up to 1 of your opponent's Battle Cards"), "opponent", "the modern wording still reads");
+  assert.equal(oppSel("up to 1 of your Battle Cards"), "you", "and yours is still yours");
+  assert.equal(oppSel("1 card in your hand"), "you");
+
+  // 2. "**Other than** this card" names the one card the target is not, and
+  // "this card's power" is a measure of some other card. `refFor` tested only
+  // whether the words appeared, so both read as this card: "play up to 1
+  // ≪Demon Clan≫ card among them other than copies of this card" (BT11-107,
+  // BT17-036, EX13-26, EX14-03) played this card, which is already in play.
+  const opsOf = (text: string) => compileSkill(parseSkills(text)[0]);
+  const otherThan = opsOf("[Activate: Main] Add up to 1 card from your Drop Area other than this card to your hand.");
+  assert.deepEqual(otherThan.unsupported, []);
+  assert.equal((otherThan.ops[0] as { op: string }).op, "choose", "it is a choice among the Drop, not this card");
+  assert.ok(!JSON.stringify(otherThan.ops).includes('"special":"self"'));
+  const measure = opsOf("[Activate: Main] Return up to 1 of your opponent's Battle Cards with power less than or equal to this card's power to their hand.");
+  assert.deepEqual(measure.unsupported, []);
+  assert.equal((measure.ops[0] as { op: string; sel: { side: string } }).sel.side, "opponent");
+  // …but a possessive in the *head* of the phrase is about this card, and an
+  // "other" qualifying something else must not disarm the test either.
+  const own = opsOf("[Permanent] This card's skills can't be negated in any area.");
+  assert.ok(JSON.stringify(own.ops).includes('"special":"self"'), "9-1-5: this card's own skills");
+  const notThisCard = opsOf("[Permanent] You can't play this card from any area with skills other than [Revive Blue/Green].");
+  assert.ok(JSON.stringify(notThisCard.ops).includes('"special":"self"'), "a bare 'other' does not make it another card");
+
+  // 3. "Cards chosen with this card's skill can't be switched to Active Mode"
+  // (P-137, XD1-06, XD1-01) is the long way of saying "the chosen cards", and
+  // it used to put the restriction on the card printing it.
+  const chosen = opsOf(
+    "[Activate: Main] Choose up to 1 of your opponent's Battle Cards in Rest Mode. Cards chosen with this card's skill can't be switched to Active Mode until the end of your opponent's next turn.",
+  );
+  assert.deepEqual(chosen.unsupported, []);
+  assert.ok(JSON.stringify(chosen.ops).includes('"forbid"'));
+  assert.ok(!JSON.stringify(chosen.ops.slice(2)).includes('"special":"self"'), "the restriction lands on the choice");
+}
+
+{
+  // A colour word inside a card *name* is not the card's colour. ≪Red Ribbon
+  // Army≫, <Goku Black>, <Commander Red>, {Super Saiyan Blue Vegeta} and
+  // [Revive Blue/Green] all carry one, and `parseFilter` read it as if the
+  // text had said so. While several colours meant "all of them" such a filter
+  // merely matched nothing; since they mean "either" it selects the extra
+  // colour as well — the same mis-read, turned from a missing effect into a
+  // wrong one (ground rule 5). 39 selectors and one [Auto] trigger.
+  const f = (text: string) => parseFilter(text);
+  assert.deepEqual(f("blue ≪Red Ribbon Army≫ card").colors, ["Blue"]);
+  assert.deepEqual(f("blue <Goku Black> card").colors, ["Blue"]);
+  assert.deepEqual(f("blue <Commander Red> card").colors, ["Blue"]);
+  assert.deepEqual(f("yellow {Super Saiyan Blue Vegeta}").colors, ["Yellow"]);
+  assert.deepEqual(f("Battle Card with the [Revive Blue/Green] skill").colors, []);
+  assert.deepEqual(f("your ≪Saiyan≫ cards with [Arrival Red/Green]").colors, []);
+  // The alternatives the sets really do print are still read as either.
+  assert.deepEqual(f("blue or green ≪Android≫ card").colors, ["Blue", "Green"]);
+  assert.deepEqual(f("red and/or black ≪Saiyan≫ cards").colors, ["Red", "Black"]);
+  // "Multicolor" is the one wording that means one card in both colours at
+  // once, and its slash sits inside no bracket.
+  const both = f("Blue/Green multicolor card in your energy");
+  assert.deepEqual(both.colors, ["Blue", "Green"]);
+  assert.equal(both.multiColor, true);
+  assert.equal(matches({ ...DEFS.V1, colors: ["Blue"] }, both), false, "one of the two is not multicolor");
+  assert.equal(matches({ ...DEFS.V1, colors: ["Blue", "Green"] }, both), true);
+  assert.equal(matches({ ...DEFS.V1, colors: ["Blue"] }, f("blue or green card")), true, "…but either is enough without it");
+  assert.equal(matches({ ...DEFS.V1, colors: ["Green"] }, f("blue or green card")), true);
+  assert.equal(matches({ ...DEFS.V1, colors: ["Yellow"] }, f("blue or green card")), false);
+  // A colour the card must *not* have is read off the same text, so it must
+  // not be harvested from a name either.
+  assert.deepEqual(f("non-black Battle Card").notColors, ["Black"]);
+  assert.deepEqual(f("blue non-<Commander Red> ≪Red Ribbon Army≫ card").notColors, []);
+
+  // "and/or" ends a name list as often as "and" does, and the comma before it
+  // was read as a sentence break — which cost BT7-092 its whole skill.
+  assert.deepEqual(splitClauses("choose up to 2 ≪Saiyan≫, ≪Earthling≫, and/or ≪God≫ cards in your opponent's Battle Area and switch them to Rest Mode"), [
+    "choose up to 2 ≪Saiyan≫, ≪Earthling≫, and/or ≪God≫ cards in your opponent's Battle Area",
+    "switch them to Rest Mode",
+  ]);
+}
+
+{
+  // The engine assertion behind the first of those: the bare wording has to
+  // offer *their* card. A compile assertion alone would not have caught the
+  // side being wrong, because the program compiled cleanly either way.
+  DEFS["OLD-KILL"] = { ...DEFS.V1, id: "OLD-KILL", name: "OLD-KILL", energyCost: 1, skill: "[Auto] When you play this card, choose up to 1 opponent Battle Card and KO that card." };
+  let s = arena({ hand: ["OLD-KILL"], energy: ["V1", "V1"], battle: ["BIG"], oppBattle: ["V-BLUE"] });
+  const mine = find(s, "p1", "battle", "BIG");
+  const theirs = find(s, "p2", "battle", "V-BLUE");
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "OLD-KILL") });
+  assert.equal(s.prompt.kind, "chooseCards");
+  const offered = (s.prompt as { choice: { candidates: string[] } }).choice.candidates;
+  assert.ok(offered.includes(theirs), "5-2: the opponent's card is the one on offer");
+  assert.ok(!offered.includes(mine), "…and yours is not");
+  s = play(s, { type: "choose", player: "p1", cards: [theirs] });
+  assert.ok(s.players.p1.battle.includes(mine), "your own card survives");
+  assertConsistent(s);
+}
+
+
+
+{
+  // Refusing to *resolve* to this card is only half of "other than this card":
+  // read as nothing, the phrase still offered this card among the candidates,
+  // so BT21-023's "choose all Battle Cards other than this card, and they get
+  // -15000 power" shrank the card printing it too.
+  const sel = parseTarget("all Battle Cards other than this card");
+  assert.equal(sel?.notSelf, "card");
+  assert.equal(parseTarget("up to 1 ≪Demon Clan≫ card among them other than copies of this card")?.notSelf, "copies");
+  assert.equal(parseTarget("up to 1 of your Battle Cards")?.notSelf, undefined);
+
+  DEFS["SHRINK"] = {
+    ...DEFS.V1,
+    id: "SHRINK",
+    name: "SHRINK",
+    energyCost: 1,
+    power: 20000,
+    skill: "[Auto] When you play this card, choose all Battle Cards other than this card, and they get -15000 power for the turn.",
+  };
+  let s = arena({ hand: ["SHRINK"], energy: ["V1", "V1"], battle: ["BIG"], oppBattle: ["V-BLUE"] });
+  const big = find(s, "p1", "battle", "BIG");
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "SHRINK") });
+  const self = s.players.p1.battle.find((id) => s.cards[id].cardId === "SHRINK")!;
+  assert.equal(powerOf({ defs: DEFS }, s, big), 25000 - 15000, "every other Battle Card is shrunk");
+  assert.equal(powerOf({ defs: DEFS }, s, self), 20000, "…and the card that said so is not");
   assertConsistent(s);
 }
 

@@ -25,7 +25,7 @@ Measured on the 6,493 Dragon Ball Super (not Fusion World) cards:
 |---|---|---|
 | resolvable skills the compiler reads end-to-end | 85.9 % of 11,743 | `npm run arena:coverage` |
 | [Permanent] skills the compiler reads | 57.8 % of 1,807 | same |
-| …and that actually emit a standing effect | 53.0 % of 1,807 | same |
+| …and that actually emit a standing effect | 52.9 % of 1,807 | same |
 | skills in the owner's 13 decks that compile | 91.7 % of 397 | same (deck tables) |
 | skills exactly one unreadable clause away | 1,191 | `npm run arena:gaps` |
 | [Auto] skills that compile but no trigger fires | 655 | `npm run arena:gaps` (§5.3) |
@@ -41,7 +41,7 @@ not a regression: a skill only reaches that bucket once its effect compiles, so
 teaching the compiler a phrase moves skills out of "unreadable" and into "reads
 fine, never fires". Read the three lines together, never one alone.
 
-Numbers as of 5 Sep 2026, after the commits described at the end of
+Numbers as of 6 Sep 2026, after the commits described at the end of
 `docs/arena-rules-worklist.md`. Where they touch the backlog below, the item
 says what is left.
 
@@ -89,12 +89,26 @@ mechanisms in §6.
    `parseFilter` ignores words it does not recognise, so "your opponent's
    Battle Cards with the same name as this card" would select all of them.
    When adding a target wording, check `parseFilter` reads every measure in it
-   (cost, power, relative power `powerRel`, colours, characters, traits, names,
-   mono-colour, multi-colour, card type and `notType`, Z). If it cannot, make
-   the clause fail rather than pass. The same trap in reverse: a phrase the
-   parser reads *wrongly* compiles cleanly and is never reported, so check what
-   a new pattern's neighbours already do before adding it — five of the fixes
-   on 5 Sep 2026 were of that kind, and are listed in the worklist.
+   (cost, power, relative power `powerRel`, colours and `notColors`, characters
+   and `notCharacters`, traits and `notTraits`, names and `notNames`,
+   mono-colour, multi-colour, card type and `notType`, Z), and `parseTarget`
+   its `side` and `notSelf`. If it cannot, make the clause fail rather than
+   pass. The same trap in reverse: a phrase the parser reads *wrongly* compiles
+   cleanly and is never reported, so check what a new pattern's neighbours
+   already do before adding it — five of the fixes on 5 Sep 2026 and six more
+   on 6 Sep were of that kind, and are listed in the worklist.
+
+   **The negative half of a measure is the easy one to miss, and it fails
+   worst.** "Non-black", "non-<Commander Red>", "other than <Grand Supreme
+   Kai>", "other than this card": each one *inverts* the filter when it goes
+   unread, rather than merely widening it, so the skill acts on precisely the
+   cards the text rules out. Whenever you add a positive measure, ask what the
+   sets write for its opposite.
+
+   Two positive measures are still unread and are known widenings: a required
+   keyword ("up to 1 opponent Battle Card **with [Blocker]**" chooses any), and
+   a **plural** type word ("Battle **Cards**" sets no `type`, because the word
+   is matched with a trailing `\b`).
 6. **Never write a regex through a shell heredoc, `node -e`, or a `sed`
    template.** The backslashes are eaten before the file is written: `\b`
    becomes a literal backspace, `\[` becomes `[`, and the result either fails
@@ -312,6 +326,38 @@ Three that paid off on 5 Sep 2026 — 66, 1 and 27 hits, all now near zero:
 Others worth writing when you touch that area: an area named in the text that
 the selector does not have; a `moveTo` whose destination the clause does not
 mention; a `power` whose sign is the opposite of the printed one.
+
+Four more paid off on 6 Sep 2026, and the shape of them is worth copying —
+each asks *whether the clause said the opposite of what the program does*,
+which is a stronger question than "did it read every measure":
+
+- a selector whose `side` is `you` while the reason names the opponent **in
+  any form the sets print it**: "your opponent's", "an opponent's", and the
+  bare "opponent Battle Card" the BT1–BT3 sets use. Sixteen skills KO'd,
+  rested or returned *your own* card.
+- a target that resolves to `special: "self"` out of a clause that says
+  "**other than** this card" or only "this card'**s** power" — the phrase has
+  to *mention* this card either way, so testing for the words is not enough.
+- a `filter` whose `characters`/`names` came out of an "other than <X>"
+  phrase, which means the target must **not** be that card. 36 cards, and the
+  filter was inverted rather than merely widened.
+- a `filter` colour that does not survive blanking every `<…>`, `≪…≫`, `{…}`
+  and `[…]` span out of the clause first: ≪Red Ribbon Army≫, <Goku Black>,
+  <Commander Red> and [Revive Blue/Green] all carry a colour word that says
+  nothing about the card.
+
+And one technique rather than a probe: **to check a guard, run the compiler
+against a copy of itself with that guard forced to `false` and read the
+difference.** That is how the three list guards (`inList`, `andEndsAList`,
+`andJoinsTwoAreas`) were proved — 119 clauses, every one a genuine list, none
+of them two instructions merged. It takes a `cp` and a three-line patch
+script, and it answers a question no assertion can.
+
+**Look hardest at a fix that changed which *direction* a mis-read fails in.**
+Reading colour lists as "either" instead of "all" was right, and it turned 25
+filters that had silently matched nothing into filters that silently matched
+too much — a missing effect became a wrong one. The bug was underneath the
+whole time; the fix is what made it reachable.
 
 **Then run `npm run arena:fuzz`, even for pure compiler work.** Making a
 wording compile can make an engine path reachable for the first time: the

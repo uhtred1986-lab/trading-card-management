@@ -19,6 +19,12 @@ export interface CardFilter {
   traits: string[];
   notTraits: string[];
   names: string[];
+  /**
+   * "Choose up to 1 Battle Card **other than** {Vegito, Powers Combined}" — a
+   * name the target must not have. Thirty-six cards print the wording, and
+   * read as an ordinary name it required the very card it excludes.
+   */
+  notNames: string[];
   type: "LEADER" | "BATTLE" | "EXTRA" | "UNISON" | null;
   /** "Non-Leader card under this card" — the type it must *not* be. */
   notType: "LEADER" | "BATTLE" | "EXTRA" | "UNISON" | null;
@@ -68,12 +74,45 @@ const COLOR_WORDS: Record<string, Color> = { red: "Red", blue: "Blue", green: "G
 const TOKEN_STOP = new Set(["of", "your", "their", "the", "opponent's", "opponents", "up", "to", "and", "or", "all", "each", "other", "another"]);
 
 export function parseFilter(text: string): CardFilter {
-  const f: CardFilter = { colors: [], notColors: [], monoColor: false, multiColor: false, characters: [], notCharacters: [], traits: [], notTraits: [], names: [], notKeywords: [], type: null, notType: null, faceUp: false, token: false, notToken: false, costMin: null, costMax: null, powerMin: null, powerMax: null, powerRel: null, z: null };
-  const t = text.replace(/&lt;/g, "<").replace(/&gt;/g, ">");
+  const f: CardFilter = { colors: [], notColors: [], monoColor: false, multiColor: false, characters: [], notCharacters: [], traits: [], notTraits: [], names: [], notNames: [], notKeywords: [], type: null, notType: null, faceUp: false, token: false, notToken: false, costMin: null, costMax: null, powerMin: null, powerMax: null, powerRel: null, z: null };
+  let t = text.replace(/&lt;/g, "<").replace(/&gt;/g, ">");
+  // "Choose up to 1 Battle Card **other than** <Grand Supreme Kai>" (SD15-01,
+  // in the owner's own decks) says which card is *excluded*. Read by the loops
+  // below it became a card the target had to *be* — the filter inverted rather
+  // than widened, which is the worst way for a selector to be wrong. It is the
+  // same thing "non-<X>" says, so it lands in the same lists; the tokens are
+  // then taken out of the text so the positive loops cannot see them.
+  const NAMED = /<[^>]+>|≪[^≫]+≫|\{[^}]+\}/;
+  const EXCLUDED = new RegExp(`\\bother than (?:copies of )?((?:(?:${NAMED.source})(?:\\s*(?:,|and/or|and|or)\\s*)?)+)`, "g");
+  t = t.replace(EXCLUDED, (whole, run: string) => {
+    for (const m of run.matchAll(/<([^>]+)>|≪([^≫]+)≫|\{([^}]+)\}/g)) {
+      if (m[1]) f.notCharacters.push(m[1].trim());
+      else if (m[2]) f.notTraits.push(m[2].trim());
+      else if (m[3]) f.notNames.push(m[3].trim());
+    }
+    // Keep the words, drop the names: "other than" itself carries no measure,
+    // and removing the whole phrase would take a following "in your Battle
+    // Area" with it on some wordings.
+    return " other than ";
+  });
   for (const m of t.matchAll(/(non-)?<([^>]+)>/g)) (m[1] ? f.notCharacters : f.characters).push(m[2].trim());
   for (const m of t.matchAll(/(non-)?≪([^≫]+)≫/g)) (m[1] ? f.notTraits : f.traits).push(m[2].trim());
   for (const m of t.matchAll(/\{([^}]+)\}/g)) if (!/^[rugyk]$|^\d+$/i.test(m[1])) f.names.push(m[1].trim());
   const lower = t.toLowerCase();
+  // Colour words are read off the description with every *name* taken out of
+  // it. ≪Red Ribbon Army≫, <Goku Black>, <Commander Red>, {Super Saiyan Blue
+  // Vegeta} and [Revive Blue/Green] all carry a colour word that says nothing
+  // about the card's colour, and reading it made "a **blue** ≪Red Ribbon
+  // Army≫ card" mean blue *or* red. While several colours meant *all* of them
+  // that filter merely matched nothing; since they mean *either* (see
+  // `matches`) it selects the opponent's red ones too — the same mis-read,
+  // turned from a missing effect into a wrong one. 39 selectors and one
+  // [Auto] trigger read this way.
+  const colourText = lower
+    .replace(/<[^>]*>/g, " ")
+    .replace(/≪[^≫]*≫/g, " ")
+    .replace(/\{[^}]*\}/g, " ")
+    .replace(/\[[^\]]*\]/g, " ");
   if (/\bmono-?colou?r\b|\bmono-(red|blue|green|yellow|black)\b/.test(lower)) f.monoColor = true;
   if (/\bmulti-?colou?r(?:ed)?\b/.test(lower)) f.multiColor = true;
   // "Use up to 1 face-up ≪Turles Crusher Corps≫ card from your life in a combo"
@@ -82,11 +121,11 @@ export function parseFilter(text: string): CardFilter {
   if (/\bface[- ]up\b/.test(lower)) f.faceUp = true;
   // "Non-black Battle Cards": the colour is one the card must *not* have, and
   // reading it as an ordinary colour word would invert the phrase.
-  for (const m of lower.matchAll(/\bnon-(red|blue|green|yellow|black)\b/g)) {
+  for (const m of colourText.matchAll(/\bnon-(red|blue|green|yellow|black)\b/g)) {
     const c = COLOR_WORDS[m[1]];
     if (!f.notColors.includes(c)) f.notColors.push(c);
   }
-  for (const m of lower.matchAll(/(non-)?\b(red|blue|green|yellow|black)\b/g)) {
+  for (const m of colourText.matchAll(/(non-)?\b(red|blue|green|yellow|black)\b/g)) {
     if (m[1]) continue;
     const c = COLOR_WORDS[m[2]];
     if (!f.colors.includes(c) && !f.notColors.includes(c)) f.colors.push(c);
@@ -190,6 +229,7 @@ export function matches(d: CardDef, f: CardFilter): boolean {
   if (f.traits.length && !f.traits.some((c) => hasTrait(d, c))) return false;
   if (f.notTraits.some((c) => hasTrait(d, c))) return false;
   if (f.names.length && !f.names.some((n) => n.toLowerCase() === d.name.toLowerCase())) return false;
+  if (f.notNames.some((n) => n.toLowerCase() === d.name.toLowerCase())) return false;
   const cost = typeof d.energyCost === "number" ? d.energyCost : null;
   if (f.costMin != null && (cost == null || cost < f.costMin)) return false;
   if (f.costMax != null && (cost == null || cost > f.costMax)) return false;

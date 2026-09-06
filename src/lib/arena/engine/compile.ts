@@ -123,7 +123,11 @@ export function splitClauses(text: string): string[] {
 function inNameList(text: string, comma: number): boolean {
   const before = text.slice(0, comma).trimEnd();
   const endsWithName = /[>}≫]$/.test(before);
-  const after = text.slice(comma + 1).replace(/^\s*(?:or|and)\s+/i, "").trimStart();
+  // "and/or" introduces the last item of a name list as often as "and" does —
+  // "choose up to 2 ≪Saiyan≫, ≪Earthling≫, **and/or** ≪God≫ cards in your
+  // opponent's Battle Area" — and it was not stripped, so the comma before it
+  // was read as a sentence break. `listItem` already spells it this way.
+  const after = text.slice(comma + 1).replace(/^\s*(?:and\/or|or|and)\s+/i, "").trimStart();
   return endsWithName && /^[<{≪]/.test(after);
 }
 
@@ -315,7 +319,18 @@ export function parseTarget(phrase: string): Selector | null {
   if (/\bbeing played\b/.test(t)) return { special: "resolving", filter: filterFor(phrase, null) };
 
   let side: Side = "you";
-  if (/\byour opponent'?s?\b|\btheir\b|\bthe opponent'?s\b/.test(t)) side = "opponent";
+  // The sets write the possessive four ways — "your opponent's", "an
+  // opponent's", "the opponent's", and once "ofyour opponent's" (a typo in the
+  // catalog itself) — so the word is matched with whatever leads up to it.
+  //
+  // The oldest sets drop the possessive altogether: "choose up to 1 opponent
+  // Battle Card and KO that card" (BT1–BT3, EX01–EX02, P-006). Read as naming
+  // no side, all sixteen of those chose *your own* card and KO'd, rested or
+  // returned it — the wrong-effect failure ground rule 1 is about, and the
+  // opposite of what the card says. Only the attributive form is read that
+  // way: a bare "an opponent discards a card" is a player, not a card.
+  if (/\bopponent'?s\b|\byour opponent\b|\btheir\b/.test(t)) side = "opponent";
+  else if (/\bopponent (?:rest mode |active mode |skill-less )?(?:battle|unison|extra|leader|z-battle|z-extra)s?\b/.test(t)) side = "opponent";
   if (/\ball players\b|\beach player\b|\bboth players\b/.test(t)) side = "both";
 
   // "Your opponent's Battle Cards or Unisons" names two areas at once, which
@@ -380,11 +395,16 @@ export function parseTarget(phrase: string): Selector | null {
   }
 
   const mode = /\bin rest mode\b/.test(t) ? "rest" : /\bin active mode\b/.test(t) ? "active" : undefined;
+  // "Choose all Battle Cards **other than this card**" — the card the phrase
+  // rules out. Read as nothing it stayed among the candidates, so a clause
+  // that shrank every Battle Card shrank this one too.
+  const excluded = /\bother than (copies of )?this card\b/.exec(t);
+  const notSelf = excluded ? (excluded[1] ? "copies" : "card") : undefined;
   const filter = filterFor(phrase, area);
-  if (underHost) return { side: "you", area: "under", filter, count, upTo, mode };
-  if (bothAreas) return { side, area: "battle", areas: ["battle", "unison"], filter, count, upTo, mode, fromVar };
-  if (pair) return { side, area: pair[0], areas: pair, filter, count, upTo, mode, fromVar };
-  return { side, area: area ?? undefined, filter, count, upTo, mode, fromVar, take, fromEnd };
+  if (underHost) return { side: "you", area: "under", filter, count, upTo, mode, notSelf };
+  if (bothAreas) return { side, area: "battle", areas: ["battle", "unison"], filter, count, upTo, mode, fromVar, notSelf };
+  if (pair) return { side, area: pair[0], areas: pair, filter, count, upTo, mode, fromVar, notSelf };
+  return { side, area: area ?? undefined, filter, count, upTo, mode, fromVar, take, fromEnd, notSelf };
 }
 
 /**
@@ -572,12 +592,42 @@ const countWord = (w: string) => (/^\d+$/.test(w) ? Number(w) : 1);
 const IT = /\b(?:it|its|them|they|that card|those cards|the chosen cards?)\b/;
 const BARE_IT = /^(?:it|its|them|they|their|that card|those cards)$/i;
 
+/**
+ * A target phrase without its trailing modifier: "1 {Piccolo} from your deck
+ * **with its skills negated for the turn**" names the Piccolo, and everything
+ * from the "with" onwards describes it rather than pointing anywhere else.
+ * Both the pronoun test and the "this card's power" test in `refFor` ask about
+ * the head only, and for the same reason.
+ */
+function headOf(clause: string): string {
+  return clause.replace(/\s+(?:with|on top of|beneath)\b.*$/i, "");
+}
+
 function refFor(clause: string, c: Ctx): Ref | null {
   // "Play up to 1 red ≪Universe 7≫ card from **under this card**" — here
   // "this card" says where to look, or where the card goes, not which card is
   // meant. Taken as the target it played this card instead (23-2).
   const named = clause.replace(/\b(?:from |place )?(?:under|on top of|beneath) this card\b/gi, "");
-  if (/\bthis card\b/i.test(named)) return { sel: { special: "self" } };
+  // Two ways a phrase mentions this card without meaning it, both of which
+  // this test used to read as "this card" because it only asked whether the
+  // words appeared at all:
+  //
+  // - "**other than** this card", "other than **copies of** this card" names
+  //   the one card the target is not. "Add up to 1 card from your Drop other
+  //   than this card to your hand" added this card, and "play up to 1 ≪Demon
+  //   Clan≫ card among them other than copies of this card" played this card.
+  //   The wording is matched whole rather than by a bare "other", so "you
+  //   can't play this card from any area with skills other than [Revive
+  //   Blue/Green]" still means this card.
+  // - "this card's **power**" in a trailing measure describes some *other*
+  //   card: "return 1 of your opponent's Battle Cards with power less than or
+  //   equal to this card's power to their hand" returned this card. Only in
+  //   the trailing measure, because "**this card's skills** can't be negated"
+  //   and "you can activate **this card's** [Activate: Battle]" are about this
+  //   one — which is the same head/tail distinction the pronoun test below
+  //   makes, for the same reason.
+  const mentions = named.replace(/\bother than (?:copies of )?this card\b/gi, " ");
+  if (/\bthis card\b(?!'s)/i.test(mentions) || /\bthis card's\b/i.test(headOf(mentions))) return { sel: { special: "self" } };
   // "…play up to 1 card from under this card, and place this card under the
   // played card": the card this skill just played, if it played one; otherwise
   // the card the trigger was about ("When you play a <Goku> card, …").
@@ -585,8 +635,11 @@ function refFor(clause: string, c: Ctx): Ref | null {
     if (c.lastPlayed) return { var: c.lastPlayed };
     return c.last ? { var: c.last } : { sel: { special: "subject" } };
   }
-  // "Add a marker to the chosen card": the last choice.
-  if (/\bthe chosen cards?\b/i.test(clause)) return c.last ? { var: c.last } : c.lastTarget;
+  // "Add a marker to the chosen card": the last choice. "**Cards chosen with
+  // this card's skill** can't be switched to Active Mode" is the same thing
+  // said the long way, and it used to read as this card — so the restriction
+  // landed on the card printing it instead of on what it had just chosen.
+  if (/\bthe chosen cards?\b|\bcards? chosen with this card'?s skill\b/i.test(clause)) return c.last ? { var: c.last } : c.lastTarget;
   // "Add up to 1 <Son Goku> card among them to your hand" names its own target
   // and only says *where to look* for it. Read before "it"/"them", which would
   // otherwise take the "them" and hand back whatever the last clause acted on.
@@ -600,7 +653,7 @@ function refFor(clause: string, c: Ctx): Ref | null {
   // about the Piccolo. Only the head of the phrase can carry an antecedent, so
   // that is what is tested — 66 choices were resolving to this card because
   // the "its" of a trailing "with …" was read as a reference.
-  const head = clause.replace(/\s+(?:with|on top of|beneath)\b.*$/i, "");
+  const head = headOf(clause);
   if (IT.test(head.toLowerCase()) || BARE_IT.test(head.trim().replace(/[.,]$/, ""))) {
     if (c.lastTarget) return c.lastTarget;
     if (c.last) return { var: c.last };
