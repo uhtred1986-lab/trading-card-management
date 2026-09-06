@@ -8,6 +8,7 @@ import { DeckStatusBadge } from "@/components/DeckStatusBadge";
 import { CardImage } from "@/components/CardImage";
 import { ColorPill } from "@/components/ColorPill";
 import { NewDeckWithClaude } from "@/components/NewDeckWithClaude";
+import { NewDeckFromCard } from "@/components/NewDeckFromCard";
 import { hasAnthropic } from "@/lib/ai/client";
 import { SubmitButton } from "@/components/SubmitButton";
 import { createDeckForm } from "./actions";
@@ -45,6 +46,7 @@ export default async function DecksPage({ searchParams }: { searchParams: Promis
             My leaders
           </Link>
           <NewDeckWithClaude enabled={hasAnthropic()} />
+          <NewDeckFromCard enabled={hasAnthropic()} />
           <form action={createDeckForm} className="flex gap-2">
             <input name="name" placeholder="New deck name" className="tap rounded-md border border-space-600 bg-space-900 px-2 py-1.5 text-sm text-space-100" />
             {/* A deck belongs to one game from the moment it exists — its rules
