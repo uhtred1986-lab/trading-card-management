@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { apply, createGame, defsFrom, legalActions, seedFrom, type Action, type CardDef, type GameState, type PlayerId } from "../src/lib/arena/engine";
-import { appendBeats, toBeats } from "../src/lib/arena/beats";
+import { appendBeats, toBeats, type Beat, type Beats, type NumberedBeat } from "../src/lib/arena/beats";
 import { buildSnapshot } from "../src/lib/arena/snapshot";
 import { parseSkills, keywordOf, orbsIn } from "../src/lib/arena/engine/cards";
 import { parseFilter, matches, parseCondition } from "../src/lib/arena/engine/filters";
@@ -2515,6 +2515,46 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
     const s = arena();
     const r = apply(ctx, s, { type: "concede", player: "p1" });
     fixtures.over = snapshotFor(r.state, toBeats(ctx, r.state, r.events, 0));
+  }
+  {
+    // One of every beat kind, in one snapshot, built by hand.
+    //
+    // No real game produces all of them: `arena:playthrough` over ~700 moves
+    // has never yielded a token, a block, a marker, a negation or a word from
+    // Claude, because those need a token card, a blocker, a Unison, a negated
+    // attack and an opponent who talks. Without this, a client could get five
+    // of the sixteen shapes wrong and nothing would notice — this fixture is
+    // what the Kotlin round-trip tests decode to prove they do not.
+    const s = arena({ battle: ["V1"], oppBattle: ["V-BLUE"] });
+    const mine = s.players.p1.battle[0];
+    const theirs = s.players.p2.battle[0];
+    let n = 0;
+    const at = (b: Beat): NumberedBeat => ({ ...b, n: ++n }) as NumberedBeat;
+    const list: NumberedBeat[] = [
+      at({ t: "phase", phase: "main", player: "p1", turn: s.turn }),
+      at({ t: "draw", player: "p1", card: mine }),
+      at({ t: "move", card: mine, from: "hand", to: "battle", owner: "p1" }),
+      at({ t: "mode", card: mine, mode: "rest" }),
+      at({ t: "flip", card: mine }),
+      at({ t: "markers", card: mine, delta: 1, total: 2 }),
+      at({ t: "token", card: theirs, owner: "p2" }),
+      at({ t: "attack", attacker: mine, target: theirs }),
+      at({ t: "block", guard: theirs, by: theirs }),
+      at({ t: "clash", attacker: mine, guard: theirs, attackPower: 20000, guardPower: 10000, hit: true }),
+      at({ t: "damage", player: "p2", amount: 1, critical: false, cards: [theirs] }),
+      at({ t: "ko", card: theirs, owner: "p2" }),
+      at({ t: "negated" }),
+      at({ t: "skill", card: mine, label: "Auto", text: "When this card attacks, draw 1 card.", unread: false }),
+      at({ t: "say", text: "Let us see how you answer that." }),
+      at({ t: "over", winner: "p1", reason: "no life left" }),
+    ];
+    const art: Beats["art"] = {};
+    for (const id of [mine, theirs]) art[id] = { cardId: s.cards[id].cardId, name: s.cards[id].cardId, imageUrl: null };
+    fixtures["all-beats"] = snapshotFor(s, { seq: n, list, art });
+
+    // If a kind is ever added to the union, this fixture must grow with it.
+    const covered = new Set(list.map((b) => b.t));
+    assert.equal(covered.size, list.length, "every beat kind appears exactly once in the all-beats fixture");
   }
 
   // `npm test` runs from the repo root, which is what makes this path right.

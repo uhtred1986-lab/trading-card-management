@@ -3,9 +3,10 @@
 A native Android client for the arena, built for animation fidelity and installed from the app's own
 domain rather than a store.
 
-**Status: not built (6 Sep 2026).** Step 1 — the contract it would run on — is done and serving at
-`/api/v1`. No Kotlin exists yet, and **§10 is the thing to read before any is written**: this
-machine has no JDK, no Gradle and no Android SDK, so today the app could be written but not run.
+**Status: not built (6 Sep 2026)** — but it is now *testable*. Step 1, the contract it runs on, is
+done and serving at `/api/v1`, and step 0 of §10 is built: `android/contract` proves the Kotlin
+still understands the server, in Docker, with no JDK or Android SDK installed on the machine
+(`npm run android:test`). No app code exists yet. **Read §10 before writing any.**
 
 Read `docs/arena-client-contract.md` first — it is the wire this app runs on, and the rule it must
 not break. The web client's plan is `docs/arena-ui-motion-spec.md`; the two are built and improved
@@ -233,29 +234,48 @@ The good news is that the risk and the setup cost are not spread evenly. Four ti
 wedge: the highest-risk part of a thin client is not its UI, it is whether it still understands the
 server, and that is checkable for the price of one download.
 
-### Stage 0 — `android/contract/`, worth building before any UI
+### Stage 0 — **built**: `android/contract/`
 
 A Kotlin/JVM Gradle module with **no Android plugin at all**: `kotlinx-serialization-json`, the
-`Snapshot` / `Beat` / `CardView` data classes hand-written, and one test that walks
-`contract/fixtures/*.json`, decodes each, re-encodes it, and asserts it comes back the same.
+`Snapshot` / `Beat` / `CardView` data classes hand-written in `Snapshot.kt`, and six tests that read
+the golden fixtures straight out of `contract/fixtures` — not copies, the very files `npm test`
+regenerates and compares on the server side.
+
+Run it with **no JDK on the machine**:
+
+```
+npm run android:test                                  # from the repository root
+cd android && docker compose run --rm contract        # the same thing
+cd android && docker compose --profile tools run --rm shell   # a prompt inside the toolchain
+```
 
 Two decoders, deliberately:
 
-- **strict** (`ignoreUnknownKeys = false`) — fails the moment the server grows a field. That is a
-  tripwire, not a bug: someone should look at the new field and decide whether the app wants it.
+- **strict** (`ignoreUnknownKeys = false`) — fails the moment the server grows a field. A tripwire,
+  not a bug: someone should look at the new field and decide whether the app wants it.
 - **lenient** (`ignoreUnknownKeys = true`) — proves an *older* app still works against a *newer*
   server, which is the actual promise contract §7 makes.
 
-One command, a JDK, half a minute: `cd android && ./gradlew :contract:test`.
+Proven rather than assumed: renaming one field in a fixture — `owner` → `whoseCard`, exactly what a
+careless server change looks like from here — fails five of the six tests. That is the drift
+detection working across two languages.
 
-Worth doing first because it is the thing that breaks silently and at a distance — the server
-changes, everything on the web looks fine, and a phone somewhere stops being able to read a board.
+Three things the build settled:
 
-**One gap to close on the server side while doing it:** the fixtures cover four snapshots and the
-playthrough has only ever produced 11 of the 16 beat kinds. `token`, `block`, `markers`, `negated`
-and `say` have never appeared in a real game, so nothing would catch a Kotlin class getting them
-wrong. `scripts/verify-arena.ts` should emit one extra fixture built by hand to contain **one of
-every beat kind**, so the Kotlin round-trip test is actually complete.
+- **`LegalAction.action` is left as opaque `JsonElement`.** A client picks a move by index and never
+  describes one (contract §5), so modelling the `Action` union in Kotlin would be a second
+  definition of the rules' vocabulary in a second language, for nothing.
+- **Kotlin block comments nest.** A `/*` inside a doc comment — as in a path with a glob — opens a
+  nested comment and swallows the rest of the file. Cost one confusing build failure.
+- **The fixtures directory is declared as a task input.** Without it Gradle calls the tests up to
+  date when only the fixtures changed, which is the exact moment they need to run.
+
+**The gap it closed on the server side:** `scripts/verify-arena.ts` now also emits `all-beats.json`,
+a snapshot carrying **one of every one of the sixteen beat kinds**, built by hand. It has to be by
+hand: ~700 moves of `arena:playthrough` have never produced a `token`, `block`, `markers`, `negated`
+or `say` beat, because those need a token card, a blocker, a Unison, a negated attack and an
+opponent who talks. Without that fixture a client could get five of the sixteen shapes wrong and
+nothing anywhere would notice.
 
 ### Stage 2 — screenshots without a device
 
@@ -305,7 +325,7 @@ project is the one that never gets built.
 
 | # | Step | Done when |
 |---|---|---|
-| 0 | A JDK, and `android/contract` — §10 stage 0 | `./gradlew :contract:test` round-trips every fixture, strict and lenient |
+| 0 | ~~Toolchain and `android/contract`~~ **done** | `npm run android:test` round-trips every fixture, strict and lenient, in Docker |
 | 1 | ~~Contract — the server side~~ **done** | `/api/v1` serves a real snapshot; `npm test` guards the shape with golden fixtures |
 | 2 | Project skeleton: Gradle, Hilt, theme mirroring the `space` / `ki` tokens, auth screen | The games list loads from the real server |
 | 3 | Static board — `view` rendered, `legal` tappable, no animation at all | A whole hot-seat game is playable, ugly |

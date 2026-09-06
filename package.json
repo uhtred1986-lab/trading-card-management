@@ -25,7 +25,8 @@
     "arena:vs": "tsx --env-file=.env.local scripts/arena-vs-claude.mts",
     "arena:gaps": "tsx --env-file=.env.local scripts/arena-gaps.mts",
     "arena:feedback": "tsx --env-file=.env.local scripts/arena-feedback.mts",
-    "icons": "tsx scripts/make-icons.mts"
+    "icons": "tsx scripts/make-icons.mts",
+    "android:test": "docker compose -f android/compose.yaml run --rm contract"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.116.0",

@@ -37,6 +37,8 @@ npm run build          # Production build
 npm run typecheck      # tsc --noEmit
 npm run lint           # ESLint
 npm test               # scripts/verify-rules.ts (pure) + scripts/verify-db.mts (migrations + reservation rules on PGlite)
+npm run contract:emit  # rewrite contract/fixtures/*.json after a deliberate Snapshot shape change
+npm run android:test   # Kotlin round-trip of those fixtures, in Docker — no JDK on the machine
 npm run db:generate    # Generate a migration after editing src/db/schema.ts
 npm run db:migrate     # Apply migrations (also run on every Vercel deploy via vercel.json)
 npm run sync:catalog   # Import both games' catalogs from deckplanet + Fusion World art from Bandai (~50 s)
@@ -44,7 +46,9 @@ npm run sync:prices    # Import TCGplayer products + today's prices from tcgcsv 
                        # the USD→EUR rate, and TCGplayer art for prints still without any (~35 s)
 ```
 
-`npm test` needs no database or network. Everything else needs `DATABASE_URL` in `.env.local`.
+`npm test` needs no database or network. Everything else needs `DATABASE_URL` in `.env.local`,
+except `android:test`, which needs Docker and nothing else — the Kotlin toolchain lives in a
+container (`android/Dockerfile`) because the machine has no JDK, no Gradle and no Android SDK.
 There is no test framework — both scripts are plain `assert` scripts run with `tsx`; extend them in
 the same style.
 
