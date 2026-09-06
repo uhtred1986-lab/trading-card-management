@@ -73,6 +73,12 @@ export interface Snapshot {
   legal: LegalAction[];
   /** src/lib/arena/view.ts — legal indexed by the card each move names. */
   taps: Tappable;
+  /**
+   * The moves the asked player might reach for that are not in `legal`, each
+   * with its reasons (`docs/arena-workflow-spec.md`). Only when the viewer is
+   * the player being asked — never for Claude — and absent when empty.
+   */
+  rejected?: RejectedAction[];
   /** §4. Null when nothing has happened since the client last looked. */
   beats: Beats | null;
   spotlight: (Spotlight & { imageUrl: string | null }) | null;
@@ -89,6 +95,70 @@ export interface Snapshot {
 `view`, `legal` and `taps` already exist and are already exactly this shape. The snapshot is mostly
 an envelope around code that is written, which is why this is a small piece of work rather than a
 platform.
+
+### 3.1 The rejection side (added 6 Sep 2026, `docs/arena-workflow-spec.md` Phase 1)
+
+`legal` says only what the server will accept, so a card the player cannot play is silent. The
+additions below make the *reason* part of the payload — all of them optional, so the contract did
+not bump (§7):
+
+```ts
+/** Why a move the player might expect is not on the menu. A closed vocabulary; the client words it. */
+export type Requirement =
+  | { kind: "energy"; need: number; have: number }              // active energy + markers
+  | { kind: "energyColour"; colour: string; need: number; have: number }
+  | { kind: "mode"; card: string; mode: "active" | "rest" }     // it is resting
+  | { kind: "timing"; window: string }                          // when it *would* work: main, battle, defense, nextTurn
+  | { kind: "oncePerTurn"; what: string }                       // charge, skill, Over Realm, marker skill, Z-Awaken
+  | { kind: "zone"; card: string; area: Area }                  // where it would have to be
+  | { kind: "cardType"; card: string; needs: string }           // "a Battle Card with a combo cost"
+  | { kind: "target"; reason: string }                          // nothing legal to point at
+  | { kind: "forbidden"; by: string | null }                    // a rule in play; `by` names the card
+  | { kind: "unread"; card: string }                            // the compiler cannot read the text
+  | { kind: "condition"; text: string }                         // a printed condition not met yet
+  | { kind: "other"; detail: string };                          // the pressure valve
+
+export interface RejectedAction {
+  action: Action;        // the move the player was reaching for, opaque to a client like `legal[i].action`
+  label: string;         // what the label would have been
+  why: Requirement[];    // most decisive first; never empty
+}
+
+export interface Tappable {
+  // …unchanged…
+  whyByCard?: Record<string, Requirement[]>;   // rejections indexed by the card, once each
+}
+
+export interface SideView {
+  // …unchanged…
+  /** Cards the current prompt names that no zone draws (deck, Drop below the top, Warp, face-down
+   *  life, Z-Deck, under a card). Only on the side of the player being asked, and only for that
+   *  player's view: a search of your deck reveals those cards to you and to nobody else. */
+  choices?: CardView[];
+}
+
+// BoardView.prompt gains, all optional:
+//   min?: number; max?: number;                          // from a `chooseCards` prompt; min 0 needs a "Choose none" button
+//   step?: { index: number; count: number; label: string }; // from the engine's flow; count 0 = total unknown
+//   cost?: string;                                       // `payCost` / `optionalCost`'s describe, unflattened
+```
+
+Three properties, all the server's job:
+
+- **`rejected` is computed for the viewer only, and only when the prompt is theirs.** It is the
+  answer to "why can't I", which only the player asking can ask; it is never computed for Claude's
+  side. At most one entry per card per action type, and never a move that `legal` offers for that
+  card — `npm test` and `arena:playthrough` both assert `legal ∩ rejected = ∅` and that no `why` is
+  empty.
+- **The reasons come from the engine, never from a client.** Each gate in `legalActions` has a
+  `whyNot*` twin beside it in `engine.ts` that runs the same tests in the same order; the
+  predicates themselves are untouched.
+- **A client words a `Requirement`; it never computes one.** `other` is a sentence the client cannot
+  style or translate; the playthrough audit counts them, and a growing number is the signal to add
+  a kind.
+
+The Android app does not exist yet; `Snapshot.kt` carries every field above from day one, so it
+inherits the workflow model rather than retrofitting it.
 
 ## 4. `Beats` — the animation stream
 
@@ -112,7 +182,7 @@ export type Beat =
   | { t: "damage"; player: PlayerId; amount: number; critical: boolean; cards: string[] }
   | { t: "ko"; card: string }
   | { t: "negated" }
-  | { t: "skill"; card: string; label: string; text: string; unread: boolean }
+  | { t: "skill"; card: string; label: string; text: string; unread: boolean; owner: PlayerId }
   | { t: "say"; text: string }
   | { t: "over"; winner: PlayerId | null; reason: string };
 
@@ -141,6 +211,8 @@ Four things the build settled that the first draft of this section had wrong:
 - **`ko` carries `owner`.** Added while building the ghost layer: a KO'd card is gone from the board
   by the time anyone looks, so without it a client cannot tell which side it should fly out of.
   `null` only if the card left the game entirely.
+- **`skill` carries `owner`** (6 Sep 2026, workflow spec §3.4): whose ability resolved, so the
+  opponent-turn narration can say *"Claude uses 《Union-Absorb》"* rather than a card sliding by.
 
 Three properties the clients depend on, all of which are the server's job:
 
@@ -230,6 +302,12 @@ the client's mark.
 
 Every payload carries `contract: 1`. It is bumped **only** when a field is removed or its meaning
 changes; adding an optional field is not a bump.
+
+- **6 Sep 2026 — additive, no bump.** `docs/arena-workflow-spec.md` Phase 1 added `rejected`,
+  `taps.whyByCard`, `SideView.choices`, `prompt.min/max/step/cost` and `owner` on the `skill` beat
+  (§3.1, §4). Every one is optional or has a default on the Kotlin side, an older app decodes the
+  new payload leniently, and the fixtures were re-emitted (`search.json` is new — a deck search
+  mid-skill, so both clients decode the shape a search sheet is built from).
 
 - `GET /api/v1/health` returns `minClient`, the oldest Android `versionCode` the server will still
   talk to. Below it the app refuses to play and offers the update (`docs/arena-android-spec.md` §8).

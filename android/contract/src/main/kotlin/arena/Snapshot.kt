@@ -21,6 +21,12 @@ data class Snapshot(
     val view: BoardView,
     val legal: List<LegalAction>,
     val taps: Tappable,
+    /**
+     * The moves the asked player might reach for that are not in `legal`,
+     * each with its reasons (`docs/arena-workflow-spec.md`). Absent when the
+     * viewer is not the one being asked, and when there is nothing to say.
+     */
+    val rejected: List<RejectedAction>? = null,
     val beats: Beats? = null,
     val spotlight: Spotlight? = null,
     val log: List<String>,
@@ -55,6 +61,84 @@ data class LegalAction(
     val action: JsonElement,
 )
 
+/**
+ * A move the player was reaching for and every reason it is not on the menu.
+ * `action` is opaque for the same reason `LegalAction`'s is: a client shows
+ * the move it cannot make and never sends it.
+ */
+@Serializable
+data class RejectedAction(
+    val label: String,
+    val action: JsonElement,
+    /** Most decisive first. Never empty. */
+    val why: List<Requirement>,
+)
+
+/**
+ * Why a move is not on the menu — a closed vocabulary the client puts into
+ * words, so the wording lives on the phone and a translation is a
+ * translation rather than a fork. `Other` is the engine's pressure valve.
+ */
+@OptIn(ExperimentalSerializationApi::class)
+@Serializable
+@JsonClassDiscriminator("kind")
+sealed class Requirement {
+    /** Costs `need`; `have` counts active energy plus energy markers. */
+    @Serializable
+    @SerialName("energy")
+    data class Energy(val need: Int, val have: Int) : Requirement()
+
+    @Serializable
+    @SerialName("energyColour")
+    data class EnergyColour(val colour: String, val need: Int, val have: Int) : Requirement()
+
+    /** The card is resting. */
+    @Serializable
+    @SerialName("mode")
+    data class Mode(val card: String, val mode: String) : Requirement()
+
+    /** `window` is when it *would* be allowed: "main", "battle", "defense", "nextTurn". */
+    @Serializable
+    @SerialName("timing")
+    data class Timing(val window: String) : Requirement()
+
+    /** Already done this turn: "charge", "skill", "Over Realm", … */
+    @Serializable
+    @SerialName("oncePerTurn")
+    data class OncePerTurn(val what: String) : Requirement()
+
+    /** `area` is where the card would have to be. */
+    @Serializable
+    @SerialName("zone")
+    data class Zone(val card: String, val area: String) : Requirement()
+
+    @Serializable
+    @SerialName("cardType")
+    data class CardType(val card: String, val needs: String) : Requirement()
+
+    @Serializable
+    @SerialName("target")
+    data class Target(val reason: String) : Requirement()
+
+    /** `by` names the card whose rule it is, or null for a turn-long effect. */
+    @Serializable
+    @SerialName("forbidden")
+    data class Forbidden(val by: String? = null) : Requirement()
+
+    @Serializable
+    @SerialName("unread")
+    data class Unread(val card: String) : Requirement()
+
+    /** A printed condition that does not hold yet. */
+    @Serializable
+    @SerialName("condition")
+    data class Condition(val text: String) : Requirement()
+
+    @Serializable
+    @SerialName("other")
+    data class Other(val detail: String) : Requirement()
+}
+
 @Serializable
 data class Tappable(
     /** Card instance id → indices into `legal`. */
@@ -62,6 +146,8 @@ data class Tappable(
     val bare: List<Int>,
     /** Attacker id → (target id → index into `legal`). */
     val attackTargets: Map<String, Map<String, Int>>,
+    /** Card instance id → why it has no move, so a tap on a dead card has an answer. */
+    val whyByCard: Map<String, List<Requirement>>? = null,
 )
 
 @Serializable
@@ -103,6 +189,11 @@ data class SideView(
     val energyMarkers: Int,
     val activeEnergy: Int,
     val dropTop: CardView? = null,
+    /**
+     * Cards the current prompt names that no zone draws — a search of the
+     * deck. Only ever on the side of the player being asked.
+     */
+    val choices: List<CardView>? = null,
 )
 
 @Serializable
@@ -145,6 +236,20 @@ data class PromptView(
     val player: String? = null,
     val question: String,
     val hint: String? = null,
+    /** How many cards a `chooseCards` prompt takes; `min` of 0 needs a "Choose none" button. */
+    val min: Int? = null,
+    val max: Int? = null,
+    /** Where this prompt sits in a skill's chain; `count` 0 means the total is not known. */
+    val step: StepView? = null,
+    /** What is being paid for, from a `payCost` or `optionalCost` prompt. */
+    val cost: String? = null,
+)
+
+@Serializable
+data class StepView(
+    val index: Int,
+    val count: Int,
+    val label: String,
 )
 
 @Serializable
@@ -270,9 +375,10 @@ sealed class Beat {
     @SerialName("negated")
     data class Negated(override val n: Int) : Beat()
 
+    /** `owner` is whose skill resolved, so a narration can say whose ability it was. */
     @Serializable
     @SerialName("skill")
-    data class Skill(override val n: Int, val card: String, val label: String, val text: String, val unread: Boolean) : Beat()
+    data class Skill(override val n: Int, val card: String, val label: String, val text: String, val unread: Boolean, val owner: String) : Beat()
 
     @Serializable
     @SerialName("say")

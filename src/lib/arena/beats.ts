@@ -38,7 +38,8 @@ export type Beat =
   /** `owner` because a KO'd card is gone: a client must know which side to draw it leaving from. */
   | { t: "ko"; card: string; owner: PlayerId | null }
   | { t: "negated" }
-  | { t: "skill"; card: string; label: string; text: string; unread: boolean }
+  /** `owner` is whose skill resolved, so a narration can say whose ability it was. */
+  | { t: "skill"; card: string; label: string; text: string; unread: boolean; owner: PlayerId }
   /** Claude's table talk, added by `run.ts` rather than by the engine. */
   | { t: "say"; text: string }
   | { t: "over"; winner: PlayerId | null; reason: string };
@@ -208,7 +209,7 @@ export function toBeats(ctx: EngineContext, state: GameState, events: GameEvent[
         const d = describeSkillEvent(ctx, state, e);
         if (d) {
           remember(e.card);
-          push({ t: "skill", card: e.card, label: d.label, text: d.text, unread: d.unread });
+          push({ t: "skill", card: e.card, label: d.label, text: d.text, unread: d.unread, owner: e.master });
         }
         break;
       }

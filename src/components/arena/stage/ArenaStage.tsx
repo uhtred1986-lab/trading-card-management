@@ -4,7 +4,7 @@ import { LayoutGroup, animate, motion, useMotionValue, useReducedMotion, useTran
 import { useEffect, useRef, useState, useTransition } from "react";
 import { act, advanceGame } from "@/app/arena/actions";
 
-import type { Action } from "@/lib/arena/engine";
+import type { Action, Requirement } from "@/lib/arena/engine";
 import { feel } from "@/lib/arena/feel";
 import type { Snapshot } from "@/lib/arena/snapshot";
 import type { BoardView, CardView, SideView } from "@/lib/arena/view";
@@ -12,7 +12,8 @@ import { useWakeLock } from "@/lib/arena/wake";
 import { type CardState } from "../ArenaCard";
 import { FeelToggle } from "../FeelToggle";
 import { ReportBug } from "../ReportBug";
-import { AttackBeam, CardDetail, CardPreview, Counter, Sheet, SkillSpotlight, StepBanner, TopStrip, cardsOnTable, shortLabel } from "../shared";
+import { narrate } from "@/lib/arena/narration";
+import { AttackBeam, CardPreview, CardSheet, Counter, NarrationRibbon, SearchSheet, SkillSpotlight, StepBanner, StepChip, TopStrip, cardsOnTable, refusalLine, shortLabel, type SheetMove } from "../shared";
 import { ZoneAnchor } from "./anchors";
 import { Ghosts } from "./Ghosts";
 import { Hand } from "./Hand";
@@ -36,8 +37,15 @@ export function ArenaStage({ gameId, snapshot }: { gameId: number; snapshot: Sna
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
-  const [menu, setMenu] = useState<number[] | null>(null);
-  const [inspect, setInspect] = useState<CardView | null>(null);
+  /** The card whose action sheet is open — from a tap, a long press or a right-click. */
+  const [sheet, setSheet] = useState<CardView | null>(null);
+  /** The last refused tap: which card, and the sentence the rules gave for it. */
+  const [refusal, setRefusal] = useState<{ card: string; text: string; at: number } | null>(null);
+  const [shaking, setShaking] = useState<string | null>(null);
+  /** The search prompt the player closed to look at the board; it reopens on the next prompt. */
+  const [closedSearch, setClosedSearch] = useState<string | null>(null);
+  /** The last sentence the story told, kept after playback stops until you act. */
+  const [held, setHeld] = useState<{ text: string; n: number; mine: boolean } | null>(null);
   const [hover, setHover] = useState<{ card: CardView; box: DOMRect } | null>(null);
   const [logOpen, setLogOpen] = useState(false);
   const asked = useRef(false);
@@ -50,6 +58,7 @@ export function ArenaStage({ gameId, snapshot }: { gameId: number; snapshot: Sna
   // instead of all at once when the request finally returns.
   const live = useLiveGame(gameId, snapshot, pending || waitingOnServer);
   const { view, legal, taps, log, spotlight, beats } = live;
+  const rejected = live.rejected ?? [];
   const playable = live.game.status === "playing";
 
   // Reduced motion is not a second code path: it simply never queues anything,
@@ -58,6 +67,26 @@ export function ArenaStage({ gameId, snapshot }: { gameId: number; snapshot: Sna
   const playback = useBeatPlayer(beats, !still, boardRef);
 
   useWakeLock(playable && !view.over);
+
+  // The narration follows the beat on screen (workflow spec §7, Phase 3): one
+  // sentence per beat, from the same stream the motion plays, so the words and
+  // the pictures never disagree about the order of events.
+  const beatNow = playback.current;
+  if (beatNow && held?.n !== beatNow.n) {
+    // Adjusted while rendering rather than in an effect, as the beat player
+    // does: it is a change of props the board reflects on the same paint.
+    const ownerOf = (id: string): typeof view.you.player | null => {
+      for (const side of [view.you, view.them]) {
+        for (const c of [side.leader, side.unison, ...side.battle, ...side.combo, ...side.energy, ...(side.hand ?? []), side.dropTop]) if (c?.id === id) return side.player;
+      }
+      return null;
+    };
+    const text = narrate(beatNow, { viewer: view.you.player, them: view.them.name, art: beats?.art ?? {}, ownerOf });
+    if (text) {
+      const actor = "player" in beatNow ? beatNow.player : "owner" in beatNow ? beatNow.owner : null;
+      setHeld({ text, n: beatNow.n, mine: actor === view.you.player });
+    }
+  }
 
   // Only for arriving at a game that is already mid-turn — a normal move runs
   // the opponent's reply inside `act` itself.
@@ -70,11 +99,26 @@ export function ArenaStage({ gameId, snapshot }: { gameId: number; snapshot: Sna
     });
   }, [waitingOnServer, gameId]);
 
+  // A refusal is said once and then gets out of the way; the card it was
+  // about keeps its red badge, which is the board saying it before you tap.
+  useEffect(() => {
+    if (!refusal) return;
+    const t = setTimeout(() => setRefusal(null), 5000);
+    return () => clearTimeout(t);
+  }, [refusal]);
+  useEffect(() => {
+    if (!shaking) return;
+    const t = setTimeout(() => setShaking(null), 400);
+    return () => clearTimeout(t);
+  }, [shaking]);
+
   const send = (action: Action) => {
-    setMenu(null);
+    setSheet(null);
     setSelected(null);
     setHover(null);
     setError(null);
+    setRefusal(null);
+    setHeld(null);
     feel("tap");
     startTransition(async () => {
       const r = await act(gameId, action);
@@ -91,6 +135,54 @@ export function ArenaStage({ gameId, snapshot }: { gameId: number; snapshot: Sna
   // picture rather than a control surface.
   const busy = pending || playback.playing;
 
+  /** A card as the board currently draws it, wherever it sits. */
+  const cardOf = (id: string): CardView | null => {
+    for (const side of [view.you, view.them]) {
+      for (const c of [side.leader, side.unison, ...side.battle, ...side.combo, ...side.energy, ...(side.hand ?? []), ...side.lifeFaceUp, ...side.zDeckFaceUp, ...(side.choices ?? []), side.dropTop]) {
+        if (c?.id === id) return c;
+      }
+    }
+    return null;
+  };
+  const whyOf = (id: string): Requirement[] | undefined => taps.whyByCard?.[id];
+  const reaching = (id: string) => rejected.find((r) => cardIdOf(r.action) === id)?.action.type ?? "play";
+
+  /** The rows the action sheet lists for one card: attacks folded into one row that starts targeting. */
+  const movesFor = (id: string): SheetMove[] => {
+    const options = taps.byCard[id] ?? [];
+    const targets = targetsOf(id);
+    const out: SheetMove[] = [];
+    let attackShown = false;
+    for (const i of options) {
+      const l = legal[i];
+      if (l.action.type === "attack") {
+        if (attackShown) continue;
+        attackShown = true;
+        out.push({ index: i, legal: l, targets: Object.keys(targets ?? {}).length });
+        continue;
+      }
+      out.push({ index: i, legal: l });
+    }
+    return out;
+  };
+
+  /**
+   * Say no out loud (`docs/arena-workflow-spec.md` §4): the card shakes, the
+   * prompt bar names the requirement that failed, and a second tap on the
+   * same card opens the sheet with every reason on it.
+   */
+  const refuse = (id: string, why: Requirement[]) => {
+    const card = cardOf(id);
+    if (refusal?.card === id) {
+      if (card) setSheet(card);
+      return;
+    }
+    feel("illegal");
+    setShaking(id);
+    const inHand = !!view.you.hand?.some((c) => c.id === id);
+    setRefusal({ card: id, text: refusalLine(why, { name: card?.name ?? "That card", reaching: reaching(id), side: view.you, inHand }) ?? "Not now.", at: Date.now() });
+  };
+
   const tapCard = (id: string) => {
     if (!playable || busy) return;
     if (isTargeting) {
@@ -100,38 +192,67 @@ export function ArenaStage({ gameId, snapshot }: { gameId: number; snapshot: Sna
       return;
     }
     const options = taps.byCard[id];
-    if (!options?.length) return;
-    if (targetsOf(id)) return setSelected(id);
-    if (options.length === 1) return send(legal[options[0]].action);
-    setMenu(options);
+    const why = whyOf(id);
+    if (!options?.length) {
+      if (why?.length) refuse(id, why);
+      return;
+    }
+    // Only attacks: straight to picking a target, as before. Anything richer —
+    // several moves, or a move beside a refusal — is a sheet with the prices
+    // and the reasons on it.
+    const targets = targetsOf(id);
+    if (targets && options.every((i) => legal[i].action.type === "attack") && !why?.length) return setSelected(id);
+    if (options.length === 1 && !why?.length) return send(legal[options[0]].action);
+    const card = cardOf(id);
+    if (card) setSheet(card);
+  };
+
+  const pickMove = (m: SheetMove) => {
+    if (m.targets) {
+      setSheet(null);
+      setSelected(cardIdOf(m.legal.action)!);
+      return;
+    }
+    send(m.legal.action);
   };
 
   const stateOf = (id: string): CardState => {
     if (isTargeting) return targetsOf(selected!)?.[id] != null ? "legal" : selected === id ? "selected" : "dim";
     if (view.battle?.attacker === id) return "attacker";
     if (view.battle?.guard === id) return "guard";
-    if (!taps.byCard[id]?.length) return "plain";
+    if (!taps.byCard[id]?.length) return whyOf(id)?.length && !busy ? "dead" : "plain";
     return busy ? "dim" : "legal";
   };
 
   const hoverOf = (c: CardView) => (box: DOMRect | null) => setHover(box ? { card: c, box } : null);
 
-  const bare = taps.bare.map((i) => ({ i, l: legal[i] }));
   const modal = view.prompt.kind === "chooseMode";
+  // A search of a hidden zone: the prompt names cards no zone draws, so the
+  // board opens them as a list. Keyed on the prompt so closing it to look at
+  // the board does not close the next one too.
+  const choices = view.you.choices ?? [];
+  const searchKey = `${view.prompt.question}|${choices.map((c) => c.id).join(",")}`;
+  const searching = choices.length > 0 && playable && !busy && view.prompt.player === view.you.player;
+  const searchOpen = searching && closedSearch !== searchKey;
+  const chooseNone = taps.bare.find((i) => legal[i].action.type === "choose" && (legal[i].action as { cards: string[] }).cards.length === 0) ?? null;
+  // The bar's buttons. While a search is on, "Choose none" lives in the sheet
+  // and the bar keeps one button that reopens it, so the question has room.
+  const bare = taps.bare.filter((i) => !(searching && i === chooseNone)).map((i) => ({ i, l: legal[i] }));
   const yourTurn = view.prompt.player === view.you.player;
   const step = view.battle ? `battle:${view.battle.step}` : `phase:${view.phase}`;
 
   // After a few quiet seconds the cards that can be tapped say so. The clock
   // restarts on anything that changes what you could do, so it never nags.
   const idle = useIdle(4000, `${view.prompt.question}|${selected}|${busy}|${playback.playing}`);
-  const nudging = idle && playable && yourTurn && !busy && !isTargeting;
-  const choices = Object.keys(taps.byCard).length + bare.length;
+  const nudging = idle && playable && yourTurn && !busy && !isTargeting && !searchOpen;
+  const moveCount = Object.keys(taps.byCard).length + bare.length;
 
   // The storyboard, driven by the beat on screen rather than by whatever a
   // re-render happens to notice. `docs/arena-ui-motion-spec.md` §7.
   const beat = playback.current;
   const mine = (id: string) => view.you.battle.some((c) => c.id === id) || view.you.leader?.id === id || view.you.unison?.id === id;
   const momentOf = (id: string): Moment | null => {
+    if (shaking === id) return "refuse";
     if (!beat) return null;
     // Your side sits below theirs, so an attack of yours throws itself upward.
     if (beat.t === "attack" && beat.attacker === id) return mine(id) ? "lungeUp" : "lungeDown";
@@ -148,8 +269,8 @@ export function ArenaStage({ gameId, snapshot }: { gameId: number; snapshot: Sna
     suppressed: playback.suppressed.has(c.id),
     nudge: nudging && !!taps.byCard[c.id]?.length,
     moment: momentOf(c.id),
-    onTap: taps.byCard[c.id]?.length || isTargeting ? () => tapCard(c.id) : undefined,
-    onInspect: () => setInspect(c),
+    onTap: taps.byCard[c.id]?.length || whyOf(c.id)?.length || isTargeting ? () => tapCard(c.id) : undefined,
+    onInspect: () => setSheet(c),
     onHover: hoverOf(c),
   });
 
@@ -173,6 +294,8 @@ export function ArenaStage({ gameId, snapshot }: { gameId: number; snapshot: Sna
           <SideRail side={view.you} cardProps={cardProps} onHover={hoverOf} hurt={hurting === view.you.player} className="lg:col-start-1 lg:row-start-1" />
         </div>
 
+        {held && !view.over && <NarrationRibbon text={held.text} n={held.n} mine={held.mine} live={playback.playing} />}
+
         {/* The prompt bar: the one question being asked, or the story being told. */}
         <section
           className={`sticky bottom-2 z-30 flex items-center gap-2 rounded-xl border p-2 pl-3 backdrop-blur sm:gap-3 sm:rounded-2xl sm:p-3 sm:pl-5 ${
@@ -183,6 +306,11 @@ export function ArenaStage({ gameId, snapshot }: { gameId: number; snapshot: Sna
           {(waitingOnServer || busy) && !view.over && <span className="h-3.5 w-3.5 shrink-0 animate-pulse rounded-full bg-ki-400 shadow-[0_0_0_5px_rgba(255,167,51,0.18)]" aria-hidden />}
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-space-50 sm:text-base lg:text-lg">
+              {!playback.playing && !view.over && yourTurn && view.prompt.step && (
+                <span className="mr-2 align-middle">
+                  <StepChip step={view.prompt.step} />
+                </span>
+              )}
               {playback.playing
                 ? `${view.them.name} is playing…`
                 : view.over
@@ -193,12 +321,14 @@ export function ArenaStage({ gameId, snapshot }: { gameId: number; snapshot: Sna
                     ? `${view.them.name} is thinking…`
                     : view.prompt.question}
             </p>
-            <p className="mt-0.5 flex items-center gap-2 text-[11px] text-space-300 sm:text-sm">
-              <span className="truncate">{view.over ? view.over.reason : (error ?? view.prompt.hint ?? "")}</span>
+            <p className={`mt-0.5 flex items-center gap-2 text-[11px] sm:text-sm ${refusal && !view.over ? "text-loss" : "text-space-300"}`}>
+              {/* The refusal line (workflow spec §4): which requirement failed, and what would satisfy it. */}
+              {/* While the story plays the ribbon above has the words; the next prompt's hint would only mislead here. */}
+              <span className={refusal && !view.over ? "line-clamp-2" : "truncate"}>{view.over ? view.over.reason : playback.playing ? "" : (error ?? refusal?.text ?? view.prompt.hint ?? "")}</span>
               {/* "What can I do?" answered as a number, before you have to look. */}
-              {!view.over && !playback.playing && playable && yourTurn && choices > 0 && (
+              {!view.over && !playback.playing && playable && yourTurn && moveCount > 0 && !refusal && !searching && (
                 <span className={`shrink-0 rounded-full border px-1.5 py-px text-[10px] tabular-nums ${nudging ? "border-ki-500/60 text-ki-300" : "border-space-600 text-space-400"}`}>
-                  {choices} {choices === 1 ? "move" : "moves"}
+                  {moveCount} {moveCount === 1 ? "move" : "moves"}
                 </span>
               )}
             </p>
@@ -212,6 +342,11 @@ export function ArenaStage({ gameId, snapshot }: { gameId: number; snapshot: Sna
           {!playback.playing && isTargeting && (
             <button type="button" onClick={() => setSelected(null)} className="tap shrink-0 rounded-lg border border-space-600 px-3 py-2 text-sm text-space-100 sm:px-5 sm:py-2.5 sm:text-base">
               Cancel
+            </button>
+          )}
+          {searching && !searchOpen && (
+            <button type="button" onClick={() => setClosedSearch(null)} className="tap shrink-0 rounded-lg bg-ki-500 px-3 py-2 text-sm font-semibold text-space-950 hover:bg-ki-400 sm:rounded-xl sm:px-5 sm:py-2.5 sm:text-base">
+              Choose from {choices.length}
             </button>
           )}
           {!playback.playing &&
@@ -283,31 +418,41 @@ export function ArenaStage({ gameId, snapshot }: { gameId: number; snapshot: Sna
 
         <Ghosts ghosts={playback.ghosts} art={beats?.art ?? {}} />
 
-        {hover && !menu && !inspect && <CardPreview card={hover.card} box={hover.box} />}
+        {hover && !sheet && !searchOpen && <CardPreview card={hover.card} box={hover.box} />}
 
-        {menu && (
-          <Sheet onClose={() => setMenu(null)} title="What would you like to do?">
-            {menu.map((i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => send(legal[i].action)}
-                className="tap w-full rounded-lg border border-space-600 bg-space-800 px-3 py-2 text-left text-sm text-space-50 hover:border-ki-500/60 sm:px-4 sm:py-3 sm:text-base"
-              >
-                {legal[i].label}
-              </button>
-            ))}
-          </Sheet>
+        {sheet && (
+          <CardSheet
+            card={sheet}
+            side={view.you}
+            moves={playable && !busy && !isTargeting ? movesFor(sheet.id) : []}
+            rejected={playable && !busy ? rejected.filter((r) => cardIdOf(r.action) === sheet.id) : []}
+            onPick={pickMove}
+            onClose={() => setSheet(null)}
+          />
         )}
 
-        {inspect && (
-          <Sheet onClose={() => setInspect(null)} title={inspect.name}>
-            <CardDetail card={inspect} />
-          </Sheet>
+        {searchOpen && !sheet && (
+          <SearchSheet
+            prompt={view.prompt}
+            choices={choices}
+            indexOf={(id) => taps.byCard[id]?.[0]}
+            none={chooseNone}
+            onPick={(i) => send(legal[i].action)}
+            onClose={() => setClosedSearch(searchKey)}
+          />
         )}
       </div>
     </LayoutGroup>
   );
+}
+
+/** The card an action names, read the way `Tappable` indexes it. */
+function cardIdOf(a: Action): string | null {
+  const x = a as { card?: string | null; attacker?: string; cards?: string[] };
+  if (typeof x.card === "string") return x.card;
+  if (typeof x.attacker === "string") return x.attacker;
+  if (Array.isArray(x.cards) && x.cards.length === 1) return x.cards[0];
+  return null;
 }
 
 type CardProps = (c: CardView) => {

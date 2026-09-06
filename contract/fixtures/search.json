@@ -1,0 +1,1680 @@
+{
+  "contract": 1,
+  "game": {
+    "id": 1,
+    "mode": "hotseat",
+    "status": "playing",
+    "turn": 3,
+    "p1Name": "You",
+    "p2Name": "Claude"
+  },
+  "view": {
+    "you": {
+      "player": "p1",
+      "name": "You",
+      "leader": {
+        "id": "p1#0",
+        "cardId": "L-RED",
+        "name": "L-RED",
+        "power": 10000,
+        "colors": [
+          "Red"
+        ],
+        "imageUrl": null,
+        "mode": "active",
+        "hidden": false,
+        "flipped": false,
+        "markers": 0,
+        "underCount": 0,
+        "isToken": false,
+        "cost": null,
+        "comboCost": null,
+        "comboPower": 0,
+        "keywords": [
+          "Awaken"
+        ],
+        "text": "[Awaken] When your life is at 4 or less: Draw 1 card and flip this card over.",
+        "reading": "draw 1",
+        "referee": false
+      },
+      "unison": null,
+      "battle": [
+        {
+          "id": "p1#15",
+          "cardId": "SEARCH",
+          "name": "SEARCH",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": "[Auto] When you play this card, add up to 1 <V1> card from your deck to your hand, then shuffle your deck.",
+          "reading": "choose up to 1 in your deck, move the chosen cards to hand, shuffle",
+          "referee": false
+        }
+      ],
+      "combo": [],
+      "energy": [
+        {
+          "id": "p1#35",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "rest",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        }
+      ],
+      "hand": [],
+      "handCount": 0,
+      "life": 8,
+      "lifeFaceUp": [],
+      "zDeckFaceUp": [],
+      "deck": 40,
+      "drop": 0,
+      "warp": 0,
+      "zDeck": 0,
+      "zEnergy": 0,
+      "energyMarkers": 0,
+      "activeEnergy": 0,
+      "dropTop": null,
+      "choices": [
+        {
+          "id": "p1#18",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#38",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#13",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#12",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#45",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#2",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#49",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#36",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#42",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#28",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#5",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#6",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#27",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#37",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#32",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#10",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#46",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#41",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#14",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#8",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#20",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#30",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#7",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#44",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#31",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#24",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#11",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#21",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#19",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#25",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#34",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#48",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#4",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#9",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#23",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#17",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#50",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#29",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#26",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#43",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        }
+      ]
+    },
+    "them": {
+      "player": "p2",
+      "name": "Claude",
+      "leader": {
+        "id": "p2#0",
+        "cardId": "L-BLUE",
+        "name": "L-BLUE",
+        "power": 10000,
+        "colors": [
+          "Blue"
+        ],
+        "imageUrl": null,
+        "mode": "active",
+        "hidden": false,
+        "flipped": false,
+        "markers": 0,
+        "underCount": 0,
+        "isToken": false,
+        "cost": null,
+        "comboCost": null,
+        "comboPower": 0,
+        "keywords": [],
+        "text": null,
+        "reading": "",
+        "referee": false
+      },
+      "unison": null,
+      "battle": [],
+      "combo": [],
+      "energy": [],
+      "hand": null,
+      "handCount": 0,
+      "life": 8,
+      "lifeFaceUp": [],
+      "zDeckFaceUp": [],
+      "deck": 42,
+      "drop": 0,
+      "warp": 0,
+      "zDeck": 0,
+      "zEnergy": 0,
+      "energyMarkers": 1,
+      "activeEnergy": 0,
+      "dropTop": null
+    },
+    "turn": 3,
+    "phase": "main",
+    "turnPlayer": "p1",
+    "battle": null,
+    "prompt": {
+      "kind": "chooseCards",
+      "player": "p1",
+      "question": "add up to 1 <V1> card from your deck to your hand",
+      "hint": "Choose 0 to 1.",
+      "min": 0,
+      "max": 1,
+      "step": {
+        "index": 1,
+        "count": 1,
+        "label": "add up to 1 <V1> card from your deck to your hand"
+      }
+    },
+    "over": null
+  },
+  "legal": [
+    {
+      "action": {
+        "type": "choose",
+        "player": "p1",
+        "cards": [
+          "p1#18"
+        ]
+      },
+      "label": "Choose V1"
+    },
+    {
+      "action": {
+        "type": "choose",
+        "player": "p1",
+        "cards": [
+          "p1#38"
+        ]
+      },
+      "label": "Choose V1"
+    },
+    {
+      "action": {
+        "type": "choose",
+        "player": "p1",
+        "cards": [
+          "p1#13"
+        ]
+      },
+      "label": "Choose V1"
+    },
+    {
+      "action": {
+        "type": "choose",
+        "player": "p1",
+        "cards": [
+          "p1#12"
+        ]
+      },
+      "label": "Choose V1"
+    },
+    {
+      "action": {
+        "type": "choose",
+        "player": "p1",
+        "cards": [
+          "p1#45"
+        ]
+      },
+      "label": "Choose V1"
+    },
+    {
+      "action": {
+        "type": "choose",
+        "player": "p1",
+        "cards": [
+          "p1#2"
+        ]
+      },
+      "label": "Choose V1"
+    },
+    {
+      "action": {
+        "type": "choose",
+        "player": "p1",
+        "cards": [
+          "p1#49"
+        ]
+      },
+      "label": "Choose V1"
+    },
+    {
+      "action": {
+        "type": "choose",
+        "player": "p1",
+        "cards": [
+          "p1#36"
+        ]
+      },
+      "label": "Choose V1"
+    },
+    {
+      "action": {
+        "type": "choose",
+        "player": "p1",
+        "cards": [
+          "p1#42"
+        ]
+      },
+      "label": "Choose V1"
+    },
+    {
+      "action": {
+        "type": "choose",
+        "player": "p1",
+        "cards": [
+          "p1#28"
+        ]
+      },
+      "label": "Choose V1"
+    },
+    {
+      "action": {
+        "type": "choose",
+        "player": "p1",
+        "cards": [
+          "p1#5"
+        ]
+      },
+      "label": "Choose V1"
+    },
+    {
+      "action": {
+        "type": "choose",
+        "player": "p1",
+        "cards": [
+          "p1#6"
+        ]
+      },
+      "label": "Choose V1"
+    },
+    {
+      "action": {
+        "type": "choose",
+        "player": "p1",
+        "cards": [
+          "p1#27"
+        ]
+      },
+      "label": "Choose V1"
+    },
+    {
+      "action": {
+        "type": "choose",
+        "player": "p1",
+        "cards": [
+          "p1#37"
+        ]
+      },
+      "label": "Choose V1"
+    },
+    {
+      "action": {
+        "type": "choose",
+        "player": "p1",
+        "cards": [
+          "p1#32"
+        ]
+      },
+      "label": "Choose V1"
+    },
+    {
+      "action": {
+        "type": "choose",
+        "player": "p1",
+        "cards": [
+          "p1#10"
+        ]
+      },
+      "label": "Choose V1"
+    },
+    {
+      "action": {
+        "type": "choose",
+        "player": "p1",
+        "cards": [
+          "p1#46"
+        ]
+      },
+      "label": "Choose V1"
+    },
+    {
+      "action": {
+        "type": "choose",
+        "player": "p1",
+        "cards": [
+          "p1#41"
+        ]
+      },
+      "label": "Choose V1"
+    },
+    {
+      "action": {
+        "type": "choose",
+        "player": "p1",
+        "cards": [
+          "p1#14"
+        ]
+      },
+      "label": "Choose V1"
+    },
+    {
+      "action": {
+        "type": "choose",
+        "player": "p1",
+        "cards": [
+          "p1#8"
+        ]
+      },
+      "label": "Choose V1"
+    },
+    {
+      "action": {
+        "type": "choose",
+        "player": "p1",
+        "cards": [
+          "p1#20"
+        ]
+      },
+      "label": "Choose V1"
+    },
+    {
+      "action": {
+        "type": "choose",
+        "player": "p1",
+        "cards": [
+          "p1#30"
+        ]
+      },
+      "label": "Choose V1"
+    },
+    {
+      "action": {
+        "type": "choose",
+        "player": "p1",
+        "cards": [
+          "p1#7"
+        ]
+      },
+      "label": "Choose V1"
+    },
+    {
+      "action": {
+        "type": "choose",
+        "player": "p1",
+        "cards": [
+          "p1#44"
+        ]
+      },
+      "label": "Choose V1"
+    },
+    {
+      "action": {
+        "type": "choose",
+        "player": "p1",
+        "cards": [
+          "p1#31"
+        ]
+      },
+      "label": "Choose V1"
+    },
+    {
+      "action": {
+        "type": "choose",
+        "player": "p1",
+        "cards": [
+          "p1#24"
+        ]
+      },
+      "label": "Choose V1"
+    },
+    {
+      "action": {
+        "type": "choose",
+        "player": "p1",
+        "cards": [
+          "p1#11"
+        ]
+      },
+      "label": "Choose V1"
+    },
+    {
+      "action": {
+        "type": "choose",
+        "player": "p1",
+        "cards": [
+          "p1#21"
+        ]
+      },
+      "label": "Choose V1"
+    },
+    {
+      "action": {
+        "type": "choose",
+        "player": "p1",
+        "cards": [
+          "p1#19"
+        ]
+      },
+      "label": "Choose V1"
+    },
+    {
+      "action": {
+        "type": "choose",
+        "player": "p1",
+        "cards": [
+          "p1#25"
+        ]
+      },
+      "label": "Choose V1"
+    },
+    {
+      "action": {
+        "type": "choose",
+        "player": "p1",
+        "cards": [
+          "p1#34"
+        ]
+      },
+      "label": "Choose V1"
+    },
+    {
+      "action": {
+        "type": "choose",
+        "player": "p1",
+        "cards": [
+          "p1#48"
+        ]
+      },
+      "label": "Choose V1"
+    },
+    {
+      "action": {
+        "type": "choose",
+        "player": "p1",
+        "cards": [
+          "p1#4"
+        ]
+      },
+      "label": "Choose V1"
+    },
+    {
+      "action": {
+        "type": "choose",
+        "player": "p1",
+        "cards": [
+          "p1#9"
+        ]
+      },
+      "label": "Choose V1"
+    },
+    {
+      "action": {
+        "type": "choose",
+        "player": "p1",
+        "cards": [
+          "p1#23"
+        ]
+      },
+      "label": "Choose V1"
+    },
+    {
+      "action": {
+        "type": "choose",
+        "player": "p1",
+        "cards": [
+          "p1#17"
+        ]
+      },
+      "label": "Choose V1"
+    },
+    {
+      "action": {
+        "type": "choose",
+        "player": "p1",
+        "cards": [
+          "p1#50"
+        ]
+      },
+      "label": "Choose V1"
+    },
+    {
+      "action": {
+        "type": "choose",
+        "player": "p1",
+        "cards": [
+          "p1#29"
+        ]
+      },
+      "label": "Choose V1"
+    },
+    {
+      "action": {
+        "type": "choose",
+        "player": "p1",
+        "cards": [
+          "p1#26"
+        ]
+      },
+      "label": "Choose V1"
+    },
+    {
+      "action": {
+        "type": "choose",
+        "player": "p1",
+        "cards": [
+          "p1#43"
+        ]
+      },
+      "label": "Choose V1"
+    },
+    {
+      "action": {
+        "type": "choose",
+        "player": "p1",
+        "cards": []
+      },
+      "label": "Choose none"
+    }
+  ],
+  "taps": {
+    "byCard": {
+      "p1#18": [
+        0
+      ],
+      "p1#38": [
+        1
+      ],
+      "p1#13": [
+        2
+      ],
+      "p1#12": [
+        3
+      ],
+      "p1#45": [
+        4
+      ],
+      "p1#2": [
+        5
+      ],
+      "p1#49": [
+        6
+      ],
+      "p1#36": [
+        7
+      ],
+      "p1#42": [
+        8
+      ],
+      "p1#28": [
+        9
+      ],
+      "p1#5": [
+        10
+      ],
+      "p1#6": [
+        11
+      ],
+      "p1#27": [
+        12
+      ],
+      "p1#37": [
+        13
+      ],
+      "p1#32": [
+        14
+      ],
+      "p1#10": [
+        15
+      ],
+      "p1#46": [
+        16
+      ],
+      "p1#41": [
+        17
+      ],
+      "p1#14": [
+        18
+      ],
+      "p1#8": [
+        19
+      ],
+      "p1#20": [
+        20
+      ],
+      "p1#30": [
+        21
+      ],
+      "p1#7": [
+        22
+      ],
+      "p1#44": [
+        23
+      ],
+      "p1#31": [
+        24
+      ],
+      "p1#24": [
+        25
+      ],
+      "p1#11": [
+        26
+      ],
+      "p1#21": [
+        27
+      ],
+      "p1#19": [
+        28
+      ],
+      "p1#25": [
+        29
+      ],
+      "p1#34": [
+        30
+      ],
+      "p1#48": [
+        31
+      ],
+      "p1#4": [
+        32
+      ],
+      "p1#9": [
+        33
+      ],
+      "p1#23": [
+        34
+      ],
+      "p1#17": [
+        35
+      ],
+      "p1#50": [
+        36
+      ],
+      "p1#29": [
+        37
+      ],
+      "p1#26": [
+        38
+      ],
+      "p1#43": [
+        39
+      ]
+    },
+    "bare": [
+      40
+    ],
+    "attackTargets": {}
+  },
+  "beats": {
+    "seq": 3,
+    "list": [
+      {
+        "t": "mode",
+        "card": "p1#35",
+        "mode": "rest",
+        "n": 1
+      },
+      {
+        "t": "move",
+        "card": "p1#15",
+        "from": "hand",
+        "to": "battle",
+        "owner": "p1",
+        "n": 2
+      },
+      {
+        "t": "skill",
+        "card": "p1#15",
+        "label": "Auto",
+        "text": "[Auto] When you play this card, add up to 1 <V1> card from your deck to your hand, then shuffle your deck.",
+        "unread": false,
+        "owner": "p1",
+        "n": 3
+      }
+    ],
+    "art": {
+      "p1#35": {
+        "cardId": "V1",
+        "name": "V1",
+        "imageUrl": null
+      },
+      "p1#15": {
+        "cardId": "SEARCH",
+        "name": "SEARCH",
+        "imageUrl": null
+      }
+    }
+  },
+  "spotlight": null,
+  "log": [],
+  "waiting": "you",
+  "spend": {
+    "calls": 0,
+    "input": 0,
+    "output": 0,
+    "cached": 0,
+    "micros": 0
+  },
+  "over": null
+}

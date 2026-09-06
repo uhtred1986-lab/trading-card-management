@@ -334,6 +334,29 @@ input[type="number"] {
 }
 
 /* Unison markers popping in. */
+/*
+ * A refused tap (docs/arena-workflow-spec.md §4): the card says no with a
+ * short shake while the prompt bar says why. Sideways only, and small — it is
+ * a headshake, not a hit.
+ */
+@keyframes arena-nope {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-4px);
+  }
+  50% {
+    transform: translateX(4px);
+  }
+  75% {
+    transform: translateX(-2px);
+  }
+}
+.arena-nope {
+  animation: arena-nope 340ms ease-out;
+}
 @keyframes arena-chip {
   from {
     transform: scale(0);
@@ -357,6 +380,7 @@ input[type="number"] {
   .arena-awaken,
   .arena-pop,
   .arena-hurt,
+  .arena-nope,
   .arena-chip {
     animation-duration: 0.01ms;
     animation-iteration-count: 1;

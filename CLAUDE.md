@@ -171,6 +171,14 @@ the same style.
   well, so no client ever evaluates a rule. **`docs/arena-client-contract.md`** is that contract and
   is read first; `docs/arena-ui-motion-spec.md` records the web board and
   `docs/arena-android-spec.md` briefs the Android app, which is not built.
+  `docs/arena-workflow-spec.md` is the current work brief for making every rule a
+  visible workflow — read it before touching `legalActions` or the `Snapshot` shape.
+  Phases 1–3 of it are built: `rejectedActions` beside `legalActions` (a `whyNot*` twin per
+  predicate, never an edit to one), `taps.whyByCard`, `view.you.choices` for a search of a
+  hidden zone, `prompt.min/max/step/cost`, `owner` on the `skill` beat — and on the web board the
+  card action sheet, the refusal line, the search sheet, the step chip and the narration ribbon.
+  `src/lib/arena/wording.ts` is the only place a `Requirement` becomes a sentence and
+  `src/lib/arena/narration.ts` the only place a beat does; both are pure and under `npm test`.
 - **Claude as the arena opponent** (`src/lib/arena/ai/`): `view.ts` builds what Claude may see —
   its own hand and decklist plus public state; your hand, life and decklist are never in the
   request. `opponent.ts` picks a number from the engine's legal-move list, so an answer can be

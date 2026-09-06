@@ -693,6 +693,51 @@ export type FlowStep =
   | { op: "zstack.place"; card: string; player: PlayerId }
   | { op: "choose.apply"; what: "zstack" | "evolve" | "union" | "swap" | "successor" | "aegis" | "aegisEnergy" | "revive" | "alliance"; card: string; player: PlayerId };
 
+/**
+ * Why a move the player might expect is not on the menu
+ * (`docs/arena-workflow-spec.md` §3.1).
+ *
+ * A closed vocabulary rather than a sentence: the client renders the words,
+ * so the wording lives in one place, a phone and a watch can phrase it
+ * differently, and a translation is a translation rather than a fork. `other`
+ * is the pressure valve, and every use of it is a sentence no client can style
+ * or count — a growing number of them is the signal to add a kind.
+ */
+export type Requirement =
+  /** Costs `need` energy; `have` counts active energy plus energy markers. */
+  | { kind: "energy"; need: number; have: number }
+  /** The cost asks for `need` orbs of this colour and only `have` are active. */
+  | { kind: "energyColour"; colour: string; need: number; have: number }
+  /** The card is in the wrong mode — resting, so it cannot attack or combo. */
+  | { kind: "mode"; card: string; mode: Mode }
+  /** Not now: `window` is when it *would* be allowed ("main", "battle", "defense", "nextTurn"). */
+  | { kind: "timing"; window: string }
+  /** Already done this turn: a charge, Unison growth, a [Once per turn] skill. */
+  | { kind: "oncePerTurn"; what: string }
+  /** The card is not where the move needs it to be; `area` is where it would have to be. */
+  | { kind: "zone"; card: string; area: Area }
+  /** The move wants a different kind of card — "a Battle Card". */
+  | { kind: "cardType"; card: string; needs: string }
+  /** Nothing legal to point at. */
+  | { kind: "target"; reason: string }
+  /** A skill in play forbids it (`forbids()`); `by` names the card when a card is the source. */
+  | { kind: "forbidden"; by: string | null }
+  /** The compiler cannot read the card's text, so the engine cannot offer it. */
+  | { kind: "unread"; card: string }
+  /** A printed condition of the skill that does not hold yet — "When your life is at 4 or less". */
+  | { kind: "condition"; text: string }
+  | { kind: "other"; detail: string };
+
+/** A move the player was reaching for, and every reason it is not on the menu. */
+export interface RejectedAction {
+  /** The action the player was reaching for, in the same shape as a legal one. */
+  action: Action;
+  /** What the label would have been, so a client can show the move it cannot make. */
+  label: string;
+  /** Every requirement that failed, most decisive first. Never empty. */
+  why: Requirement[];
+}
+
 /** Output of `apply`. */
 export interface Applied {
   state: GameState;

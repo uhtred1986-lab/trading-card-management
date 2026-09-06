@@ -5,8 +5,8 @@
  * what a player may tap. This turns one state plus the legal moves into a view
  * for one side of the table, hiding what that player may not see (3-1-3).
  */
-import { areaOf, comboPowerOf, describeScript, compileCardCached, face, keywordsInForce, powerOf, skillsOf, type EngineContext, type GameState, type LegalAction, type PlayerId } from "./engine";
-import { def } from "./engine/state";
+import { areaOf, comboPowerOf, describeScript, compileCardCached, face, keywordsInForce, powerOf, skillsOf, type EngineContext, type GameState, type LegalAction, type PlayerId, type RejectedAction, type Requirement } from "./engine";
+import { def, locate } from "./engine/state";
 
 export interface CardView {
   id: string;
@@ -59,6 +59,14 @@ export interface SideView {
   energyMarkers: number;
   activeEnergy: number;
   dropTop: CardView | null;
+  /**
+   * Cards the current prompt names that live in no drawn zone — the deck, the
+   * Drop below its top card, the Warp, face-down life, the Z-Deck, under
+   * another card. Absent unless the prompt names them, and only ever built for
+   * the player being asked: a search of your deck reveals those cards to you
+   * and to nobody else. This is what makes a search renderable at all.
+   */
+  choices?: CardView[];
 }
 
 export interface BoardView {
@@ -68,8 +76,27 @@ export interface BoardView {
   phase: string;
   turnPlayer: PlayerId;
   battle: { attacker: string; guard: string; step: string; attackPower: number; guardPower: number } | null;
-  prompt: { kind: string; player: PlayerId | null; question: string; hint: string | null };
+  prompt: PromptView;
   over: { winner: PlayerId | null; reason: string } | null;
+}
+
+/** The one-line question the prompt bar asks, and what the engine knows about it beyond the words. */
+export interface PromptView {
+  kind: string;
+  player: PlayerId | null;
+  question: string;
+  hint: string | null;
+  /** How many cards a `chooseCards` prompt takes; `min` of 0 is what a "Choose none" button needs. */
+  min?: number;
+  max?: number;
+  /**
+   * Where this prompt sits in a skill's resolution chain, from the engine's
+   * flow rather than a client counting taps. `count` is 0 when the chain
+   * cannot say how long it is; a client then shows "step 2" without a total.
+   */
+  step?: { index: number; count: number; label: string };
+  /** What is being paid for, unflattened, from a `payCost` or `optionalCost` prompt. */
+  cost?: string;
 }
 
 /** Everything the current prompt will accept, indexed by the card it points at. */
@@ -80,6 +107,12 @@ export interface Tappable {
   bare: number[];
   /** For an attack, the targets each attacker may hit. */
   attackTargets: Record<string, Record<string, number>>;
+  /**
+   * Why a card the player might tap has no action: the rejections indexed the
+   * same way, so a tap on a dead card has an answer. Present only when there
+   * are any — they are computed for the asked player and never for Claude.
+   */
+  whyByCard?: Record<string, Requirement[]>;
 }
 
 const cardIdOf = (a: LegalAction["action"]): string | null => {
@@ -90,8 +123,20 @@ const cardIdOf = (a: LegalAction["action"]): string | null => {
   return null;
 };
 
-export function tappable(legal: LegalAction[]): Tappable {
+export function tappable(legal: LegalAction[], rejected: RejectedAction[] = []): Tappable {
   const out: Tappable = { byCard: {}, bare: [], attackTargets: {} };
+  if (rejected.length) {
+    const why: Record<string, Requirement[]> = {};
+    for (const r of rejected) {
+      const card = cardIdOf(r.action);
+      if (!card) continue;
+      const list = (why[card] ??= []);
+      // The same requirement can fall out of two moves on one card ("you
+      // have already charged" from both a play and a charge); once is enough.
+      for (const q of r.why) if (!list.some((x) => JSON.stringify(x) === JSON.stringify(q))) list.push(q);
+    }
+    out.whyByCard = why;
+  }
   legal.forEach((l, i) => {
     if (l.action.type === "attack") {
       const t = (out.attackTargets[l.action.attacker] ??= {});
@@ -160,9 +205,10 @@ function inPlayArea(s: GameState, id: string): boolean {
   return a === "leader" || a === "battle" || a === "unison" || a === "combo";
 }
 
-function sideView(ctx: EngineContext, s: GameState, p: PlayerId, images: Record<string, CardArt>, ownHand: boolean): SideView {
+function sideView(ctx: EngineContext, s: GameState, p: PlayerId, images: Record<string, CardArt>, ownHand: boolean, viewer: PlayerId): SideView {
   const ps = s.players[p];
   const v = (id: string, reveal = true) => cardView(ctx, s, id, images, reveal);
+  const choices = hiddenChoices(ctx, s, p, viewer, ownHand);
   return {
     player: p,
     name: ps.name,
@@ -184,13 +230,68 @@ function sideView(ctx: EngineContext, s: GameState, p: PlayerId, images: Record<
     energyMarkers: ps.energyMarkers,
     activeEnergy: ps.energy.filter((id) => s.cards[id].mode === "active").length,
     dropTop: ps.drop[0] ? v(ps.drop[0]) : null,
+    ...(choices.length ? { choices: choices.map((id) => v(id)) } : {}),
   };
 }
 
+/**
+ * The cards a `chooseCards` prompt names on this side of the table that the
+ * board does not draw. Only for the player being asked, and only when that
+ * player is the viewer: what a search shows you is yours to see (3-1-3), so
+ * the opponent's view of the same moment carries nothing.
+ */
+function hiddenChoices(ctx: EngineContext, s: GameState, p: PlayerId, viewer: PlayerId, ownHand: boolean): string[] {
+  const pr = s.prompt;
+  if (pr.kind !== "chooseCards" || pr.player !== viewer) return [];
+  const ps = s.players[p];
+  const drawn = new Set<string>([
+    ...(ps.leader ? [ps.leader] : []),
+    ...(ps.unison ? [ps.unison] : []),
+    ...ps.battle,
+    ...ps.combo,
+    ...ps.energy,
+    ...(ownHand ? ps.hand : []),
+    ...ps.life.filter((id) => s.cards[id].faceUp),
+    ...ps.zDeck.filter((id) => s.cards[id].faceUp),
+    ...(ps.drop[0] ? [ps.drop[0]] : []),
+  ]);
+  return pr.choice.candidates.filter((id) => {
+    if (drawn.has(id) || !s.cards[id]) return false;
+    // A card under another belongs to whoever holds the host; `locate` finds
+    // the host's owner for it.
+    const at = locate(s, id);
+    return at ? at.owner === p : s.cards[id].owner === p;
+  });
+}
+
+/**
+ * Where a prompt sits in a skill's chain, read from the engine's flow: a
+ * script mid-execution counts its `choose` ops, and the one waiting is this
+ * prompt. The other chains (an evolution, a union, [Aegis]) are prompts the
+ * engine queued one at a time, so their length is not cheaply known and the
+ * count is 0 — "step 1", with no total invented.
+ */
+function stepFor(s: GameState): PromptView["step"] {
+  const pr = s.prompt;
+  if (pr.kind !== "chooseCards" && pr.kind !== "chooseMode" && pr.kind !== "optionalCost" && pr.kind !== "payCost") return undefined;
+  const label = pr.kind === "chooseCards" ? pr.choice.reason : pr.kind === "chooseMode" ? pr.reason : pr.describe;
+  const head = s.flow[0];
+  if (head && head.op === "script.step" && head.frame.awaiting) {
+    const frame = head.frame;
+    const asks = frame.ops.map((o, i) => (o.op === "choose" ? i : -1)).filter((i) => i >= 0);
+    const index = Math.max(1, asks.filter((i) => i <= frame.ip).length);
+    return { index, count: asks.length, label };
+  }
+  if (pr.kind === "chooseCards" || pr.kind === "chooseMode") return { index: 1, count: 0, label };
+  return undefined;
+}
+
 /** The one-line question the prompt bar asks, and the hint under it. */
-function questionFor(ctx: EngineContext, s: GameState): { kind: string; player: PlayerId | null; question: string; hint: string | null } {
+function questionFor(ctx: EngineContext, s: GameState): PromptView {
   const pr = s.prompt;
   const nameOf = (id: string) => face(ctx, s, id).name;
+  const step = stepFor(s);
+  const withStep = (v: PromptView): PromptView => (step ? { ...v, step } : v);
   switch (pr.kind) {
     case "chooseFirst":
       return { kind: pr.kind, player: pr.player, question: "You won the flip. Who goes first?", hint: "The second player starts with one energy marker." };
@@ -207,17 +308,17 @@ function questionFor(ctx: EngineContext, s: GameState): { kind: string; player: 
     case "counter":
       return { kind: pr.kind, player: pr.player, question: "Play a counter?", hint: "Counter cards are activated from hand and go to the Drop." };
     case "chooseCards":
-      return { kind: pr.kind, player: pr.player, question: pr.choice.reason, hint: `Choose ${pr.choice.min === pr.choice.max ? pr.choice.min : `${pr.choice.min} to ${pr.choice.max}`}.` };
+      return withStep({ kind: pr.kind, player: pr.player, question: pr.choice.reason, hint: `Choose ${pr.choice.min === pr.choice.max ? pr.choice.min : `${pr.choice.min} to ${pr.choice.max}`}.`, min: pr.choice.min, max: pr.choice.max });
     case "chooseMode":
-      return { kind: pr.kind, player: pr.player, question: pr.reason, hint: "The card offers these; exactly one happens (20-2)." };
+      return withStep({ kind: pr.kind, player: pr.player, question: pr.reason, hint: "The card offers these; exactly one happens (20-2)." });
     case "zEnergyFromCombo":
       return { kind: pr.kind, player: pr.player, question: "Send one combo card to Z-Energy?", hint: "At the end of a battle, one card may go there instead of the Drop." };
     case "offering":
       return { kind: pr.kind, player: pr.player, question: "[Offering]: drop one life, or let them draw two?", hint: null };
     case "optionalCost":
-      return { kind: pr.kind, player: pr.player, question: `Pay ${pr.describe} for ${nameOf(pr.card)}?`, hint: "An [Auto] skill's cost may be declined; then it does not resolve." };
+      return withStep({ kind: pr.kind, player: pr.player, question: `Pay ${pr.describe} for ${nameOf(pr.card)}?`, hint: "An [Auto] skill's cost may be declined; then it does not resolve.", cost: pr.describe });
     case "payCost":
-      return { kind: pr.kind, player: pr.player, question: `Which energy do you rest to ${pr.describe}?`, hint: "The colours you keep active decide what you can still do this turn." };
+      return withStep({ kind: pr.kind, player: pr.player, question: `Which energy do you rest to ${pr.describe}?`, hint: "The colours you keep active decide what you can still do this turn.", cost: pr.describe });
     case "referee":
       return { kind: pr.kind, player: pr.player, question: `Claude is ruling on ${pr.request.cardName}…`, hint: pr.request.unsupported.join(" · ") };
     case "orderPending":
@@ -230,8 +331,8 @@ function questionFor(ctx: EngineContext, s: GameState): { kind: string; player: 
 export function boardView(ctx: EngineContext, s: GameState, viewer: PlayerId, images: Record<string, CardArt>): BoardView {
   const them = viewer === "p1" ? "p2" : "p1";
   return {
-    you: sideView(ctx, s, viewer, images, true),
-    them: sideView(ctx, s, them, images, false),
+    you: sideView(ctx, s, viewer, images, true, viewer),
+    them: sideView(ctx, s, them, images, false, viewer),
     turn: s.turn,
     phase: s.phase,
     turnPlayer: s.turnPlayer,

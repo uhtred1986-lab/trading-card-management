@@ -8,7 +8,7 @@ import { canCombo, hasKeyword, keywordOf, skillsOf, specifiedCostOf, isZ, baseTy
 import { compileCardCached } from "./compile";
 import { matches, powerRelOk } from "./filters";
 import type { Amount, Cond, Op, Ref, ScriptArea, ScriptFrame, Selector, Side } from "./script";
-import type { Area, CardDef, CardFace, Color, ContinuousEffect, DelayedEffect, DelayTiming, ForbiddenAction, FlowStep, Permission, Prohibition, GameEvent, GameState, KeywordSkill, PlayerId, PlayerState, Skill, SkillKind } from "./types";
+import type { Area, CardDef, CardFace, Color, ContinuousEffect, DelayedEffect, DelayTiming, ForbiddenAction, FlowStep, Permission, Prohibition, GameEvent, GameState, KeywordSkill, PlayerId, PlayerState, Requirement, Skill, SkillKind } from "./types";
 import { other } from "./types";
 
 export interface GameContext {
@@ -949,6 +949,36 @@ export function forbids(ctx: GameContext, s: GameState, what: ForbiddenAction, o
 }
 
 /**
+ * The `why` twin of `forbids` (`docs/arena-workflow-spec.md` §3.2): the same
+ * rules read in the same order, answering *which card's* rule forbids it
+ * rather than only that one does. `null` when nothing forbids it; `by` is
+ * null when the rule is a turn-long effect that names no card. Called only
+ * from `rejectedActions`; `forbids` itself is untouched, so the two must be
+ * kept adjacent and changed together.
+ */
+export function forbiddenBy(ctx: GameContext, s: GameState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean } = {}): { by: string | null } | null {
+  const rules: { target: string; source: string | null; forbid: Prohibition }[] = [];
+  for (const e of s.effects) if (e.kind === "forbid" && e.forbid) rules.push({ target: e.target, source: null, forbid: e.forbid });
+  for (const e of staticEffects(ctx, s)) if (e.kind === "forbid") rules.push({ target: e.target, source: e.source, forbid: e.value as Prohibition });
+  if (opts.card) for (const f of ownProhibitions(ctx, s, opts.card)) rules.push({ target: opts.card, source: opts.card, forbid: f });
+
+  for (const { target, source, forbid: f } of rules) {
+    if (f.what !== what) continue;
+    if (f.bySkill !== undefined && opts.bySkill !== undefined && f.bySkill !== opts.bySkill) continue;
+    if (target && target !== opts.card) continue;
+    if (f.player && opts.player && f.player !== opts.player) continue;
+    if (f.filter || f.name) {
+      if (!opts.card || !s.cards[opts.card]) continue;
+      const d = def(ctx, s, opts.card);
+      if (f.filter && !matches(cardNow(ctx, s, opts.card), f.filter)) continue;
+      if (f.name && d.name !== f.name) continue;
+    }
+    return { by: source && s.cards[source] ? face(ctx, s, source).name : null };
+  }
+  return null;
+}
+
+/**
  * The permissions one card carries — the mirror of `forbids`, and the reader
  * both `legalActions` and the measurement use, so they cannot drift apart.
  *
@@ -1263,6 +1293,48 @@ export function planPayment(
     pool.splice(pool.indexOf(best), 1);
   }
   return { rest: chosen.filter((x) => x !== "#marker"), markers: chosen.filter((x) => x === "#marker").length };
+}
+
+/**
+ * The `why` twin of `planPayment` (`docs/arena-workflow-spec.md` §3.2): what
+ * the price asks for against what is active, as requirements rather than a
+ * plan. Empty when the price can be paid. Called only from the rejection
+ * side; `planPayment` is untouched and stays the one answer to "can I".
+ *
+ * The count is the honest part — `need` against active energy plus markers,
+ * then each specified colour against the active energy that carries it. A
+ * price the planner still cannot settle after that (multicolour energy the
+ * colours fight over) is reported as `other`, so a drifted pair shows up as
+ * a counted `other` in the playthrough audit rather than as silence.
+ */
+export function whyNotPay(
+  ctx: GameContext,
+  s: GameState,
+  p: PlayerId,
+  total: number,
+  specified: Partial<Record<Color, number>>,
+  either?: Color[][],
+  exclude?: string[],
+): Requirement[] {
+  const why: Requirement[] = [];
+  const active = exclude?.length ? activeEnergy(s, p).filter((id) => !exclude.includes(id)) : activeEnergy(s, p);
+  const ps = s.players[p];
+  const leader = leaderColors(ctx, s, p);
+  const colorsOf = (id: string) => def(ctx, s, id).colors;
+  const have = active.length + ps.energyMarkers;
+  if (have < total) why.push({ kind: "energy", need: total, have });
+  const haveColour = (c: Color) => active.filter((id) => colorsOf(id).includes(c)).length + (leader.includes(c) ? ps.energyMarkers : 0);
+  for (const c of Object.keys(specified) as Color[]) {
+    const need = specified[c] ?? 0;
+    if (need > 0 && haveColour(c) < need) why.push({ kind: "energyColour", colour: c, need, have: haveColour(c) });
+  }
+  for (const orb of either ?? []) {
+    if (!orb.some((c) => haveColour(c) > 0)) why.push({ kind: "energyColour", colour: orb.join("/"), need: 1, have: 0 });
+  }
+  if (!why.length && !planPayment(ctx, s, p, total, specified, undefined, either, exclude)) {
+    why.push({ kind: "other", detail: "the active energy cannot cover the colours of the cost" });
+  }
+  return why;
 }
 
 /**

@@ -31,10 +31,16 @@ const KEYWORD_GLYPH: Record<string, string> = {
   "Over Realm": "ORL",
 };
 
-export type CardState = "plain" | "legal" | "selected" | "dim" | "attacker" | "guard";
+/**
+ * `dead`: the card has no move but the engine can say why — it sits a little
+ * desaturated and its cost badge turns red, so the board says "not this one"
+ * before you even tap it (docs/arena-workflow-spec.md §4).
+ */
+export type CardState = "plain" | "legal" | "selected" | "dim" | "attacker" | "guard" | "dead";
 
 const RING: Record<CardState, string> = {
   plain: "",
+  dead: "saturate-[0.6] opacity-90",
   legal: "ring-2 ring-ki-400 shadow-[0_0_14px_rgba(242,140,15,0.55)]",
   selected: "ring-2 ring-ki-300 shadow-[0_0_18px_rgba(242,140,15,0.8)] -translate-y-2 scale-105",
   dim: "opacity-40 saturate-50",
@@ -167,7 +173,7 @@ export function ArenaCard({
         )}
         {card.cost && chrome && (
           <span
-            className="absolute left-[2px] top-[2px] grid place-items-center rounded-full bg-ki-500 font-mono font-bold leading-none text-space-950 shadow-[0_1px_3px_rgba(0,0,0,0.6)]"
+            className={`absolute left-[2px] top-[2px] grid place-items-center rounded-full font-mono font-bold leading-none shadow-[0_1px_3px_rgba(0,0,0,0.6)] ${state === "dead" ? "bg-loss text-space-50" : "bg-ki-500 text-space-950"}`}
             style={{ fontSize: px(8), width: px(13), height: px(13) }}
           >
             {card.cost}

@@ -11,7 +11,7 @@ import assert from "node:assert/strict";
 import { db } from "../src/db";
 import { arenaGames, decks } from "../src/db/schema";
 import { eq } from "drizzle-orm";
-import { nextRandom } from "../src/lib/arena/engine";
+import { legalActions, nextRandom, rejectedActions, type LegalAction } from "../src/lib/arena/engine";
 import { BEAT_CAP, type Beat, type Beats } from "../src/lib/arena/beats";
 import { applyToGame, loadGame, startGame } from "../src/lib/arena/games";
 import { deckInputFor } from "../src/lib/arena/load";
@@ -47,6 +47,41 @@ function cardsIn(b: Beat): string[] {
 }
 
 const kinds = new Map<string, number>();
+
+/** How the rejection side behaved: the `other` valve, and what it cost. */
+const rejections = { total: 0, other: new Map<string, number>(), byKind: new Map<string, number>(), ms: 0, legalMs: 0, prompts: 0 };
+
+/**
+ * `docs/arena-workflow-spec.md` §5: on every move, no action is both legal
+ * and rejected, no rejection is without a reason, and the `other` kind is
+ * counted — a growing number of them means the vocabulary is missing a kind.
+ * The real card pool is the only place the long tail of `activatable` runs.
+ */
+function auditRejections(game: { ctx: Parameters<typeof rejectedActions>[0]; state: Parameters<typeof rejectedActions>[1]; legal: LegalAction[] }, move: number): void {
+  // What the menu costs against what the rejections cost, on the same state.
+  const t0 = performance.now();
+  legalActions(game.ctx, game.state);
+  const t1 = performance.now();
+  const rejected = rejectedActions(game.ctx, game.state, game.legal);
+  rejections.ms += performance.now() - t1;
+  rejections.legalMs += t1 - t0;
+  rejections.prompts++;
+  const legal = new Set(game.legal.map((l) => JSON.stringify(l.action)));
+  const keys = new Set<string>();
+  for (const r of rejected) {
+    rejections.total++;
+    assert.ok(r.why.length > 0, `move ${move}: "${r.label}" is rejected for no reason`);
+    assert.ok(!legal.has(JSON.stringify(r.action)), `move ${move}: "${r.label}" is both legal and rejected`);
+    const a = r.action as { type: string; card?: string; attacker?: string };
+    const key = `${a.type}:${a.card ?? a.attacker ?? ""}`;
+    assert.ok(!keys.has(key), `move ${move}: two rejections for ${key}`);
+    keys.add(key);
+    for (const w of r.why) {
+      rejections.byKind.set(w.kind, (rejections.byKind.get(w.kind) ?? 0) + 1);
+      if (w.kind === "other") rejections.other.set(w.detail, (rejections.other.get(w.detail) ?? 0) + 1);
+    }
+  }
+}
 
 /**
  * What a client relies on, checked against the real card pool rather than the
@@ -107,6 +142,7 @@ for (;;) {
     console.log(`taps: ${Object.keys(taps.byCard).length} cards, ${taps.bare.length} buttons`);
   }
   if (game.status !== "playing" || game.legal.length === 0) break;
+  auditRejections(game, steps + 1);
   if (++steps > 800) {
     console.log("stopped after 800 moves");
     break;
@@ -132,5 +168,15 @@ for (const line of (done?.log ?? []).slice(-12)) console.log("  " + line);
 const seen = [...kinds.entries()].sort((x, y) => y[1] - x[1]);
 console.log(`\nbeats produced (${seen.reduce((n, [, c]) => n + c, 0)} across ${seen.length} kinds):`);
 console.log("  " + seen.map(([k, c]) => `${k} ${c}`).join(" · "));
+
+// The rejection side (`docs/arena-workflow-spec.md` §5/§6): how much of the
+// vocabulary a real game used, how often the `other` valve was needed, and
+// what computing it cost per prompt against the menu itself.
+const byKind = [...rejections.byKind.entries()].sort((x, y) => y[1] - x[1]);
+console.log(`\nrejections: ${rejections.total} across ${rejections.prompts} prompts, ${(rejections.ms / Math.max(1, rejections.prompts)).toFixed(2)} ms each (the menu itself: ${(rejections.legalMs / Math.max(1, rejections.prompts)).toFixed(2)} ms)`);
+console.log("  " + (byKind.map(([k, c]) => `${k} ${c}`).join(" · ") || "none"));
+const others = [...rejections.other.entries()].sort((x, y) => y[1] - x[1]);
+console.log(`other (${others.reduce((n, [, c]) => n + c, 0)}):`);
+for (const [detail, c] of others.slice(0, 12)) console.log(`  ${c} × ${detail}`);
 
 process.exit(done?.status === "over" ? 0 : 1);
