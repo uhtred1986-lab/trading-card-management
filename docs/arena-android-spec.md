@@ -284,12 +284,42 @@ mid-battle, targeting, a counter window, rest/active, an awakened leader, game o
 layout regressions that a person playing would not notice for weeks, and still never starts an
 emulator.
 
+### Stage 2 — **the image is built**
+
+`docker compose --profile tier2 build android` produced a 2.12 GB image with `platforms;android-36`,
+`build-tools;36.0.0` and `platform-tools`, and the contract tests still pass inside it. Nothing uses
+it yet — there are no composables to screenshot — but the download is done and the SDK licences are
+accepted, so the first Compose test costs minutes rather than an evening.
+
 ### Stage 3 — the phone, for what cannot be faked
 
 Haptics, wake lock through a Tournament turn, install and update from the app's own domain, the back
 gesture, airplane mode, `ANIMATOR_DURATION_SCALE = 0`, and Macrobenchmark's `FrameTimingMetric`
-across a full attack sequence. An emulator is mostly avoidable here: the owner has the target device,
-and jank on it is the only number that means anything.
+across a full attack sequence.
+
+**An emulator does not run *on* a phone** — it is the other way round, a virtual phone on a PC — and
+none is needed here, because the real device is the one whose jank matters. Docker on Windows cannot
+give an emulator the nested virtualisation it wants anyway.
+
+**Getting the phone onto this machine, three ways, in the order they become useful:**
+
+1. **The web arena, today, with nothing built.** `npm run dev` serves on the LAN
+   (`http://<machine-ip>:3000`), the phone joins the same Wi-Fi and opens `/arena`. Verified: the
+   board, `/api/v1`, and — because `src/proxy.ts` exempts them — `/manifest.webmanifest` and the
+   icons all answer on the LAN address, which is what makes **Add to Home screen** work from the
+   phone against a dev server. This is how the motion board finally gets watched, and it needs no
+   Android anything.
+2. **An APK, when there is one: just download it.** §8's delivery design already covers this — the
+   phone fetches the APK from the app's own domain behind the same Basic Auth. No cable, no `adb`,
+   no pairing. It works over the LAN exactly as it will over the internet.
+3. **`adb` over Wi-Fi, when a debugger is genuinely wanted.** Docker Desktop on Windows cannot pass
+   a USB device through to a container, so USB debugging from inside the image is out. Wireless
+   debugging is not: `platform-tools` is in the tier-2 image, the container can reach the LAN, and
+   `adb pair <phone-ip>:<port>` followed by `adb connect <phone-ip>:5555` gets a shell, `logcat` and
+   `install`. Needs Developer options → Wireless debugging on the phone.
+
+Note the phone never wants the git repository. "Connecting local git" for testing means one of the
+three above — a URL or an APK — and CI is GitHub Actions, not the phone.
 
 ### Where it lives
 
