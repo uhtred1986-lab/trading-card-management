@@ -5,6 +5,18 @@ import type { CardView } from "@/lib/arena/view";
 import { ArenaCard, type CardState } from "../ArenaCard";
 import { SPRING } from "./motion";
 
+/** A storyboard moment that happens *to* a card, rather than moving it. */
+export type Moment = "lungeUp" | "lungeDown" | "hit" | "awaken" | "arrive";
+
+const MOMENT: Record<Moment | "none", string> = {
+  lungeUp: "arena-lunge-up",
+  lungeDown: "arena-lunge-down",
+  hit: "arena-hit",
+  awaken: "arena-awaken",
+  arrive: "arena-pop",
+  none: "",
+};
+
 /**
  * A card that carries its position with it.
  *
@@ -27,6 +39,7 @@ export function StageCard({
   fan = 0,
   lift = 0,
   nudge = false,
+  moment = null,
   onTap,
   onInspect,
   onHover,
@@ -43,6 +56,8 @@ export function StageCard({
   lift?: number;
   /** Idle, and this card can be tapped: say so quietly. */
   nudge?: boolean;
+  /** The storyboard moment happening to this card right now (§7). */
+  moment?: Moment | null;
   onTap?: () => void;
   onInspect?: () => void;
   onHover?: (box: DOMRect | null) => void;
@@ -64,7 +79,15 @@ export function StageCard({
        * place. A CSS transform inside it is invisible to that machinery.
        */}
       <div className={`transition-transform duration-200 ${nudge ? "arena-nudge" : ""}`} style={fan || lift ? { transform: `rotate(${fan}deg) translateY(${lift}px)` } : undefined}>
-        <ArenaCard card={card} state={state} width={width} upsideDown={upsideDown} onTap={onTap} onInspect={onInspect} onHover={onHover} />
+        {/*
+         * The moment gets its own element and is keyed on which moment it is,
+         * so re-mounting restarts the animation — a card attacking twice in a
+         * turn should lunge twice, and a CSS animation on a class that never
+         * changed would play once and then sit still.
+         */}
+        <div key={moment ?? "still"} className={MOMENT[moment ?? "none"]}>
+          <ArenaCard card={card} state={state} width={width} upsideDown={upsideDown} onTap={onTap} onInspect={onInspect} onHover={onHover} />
+        </div>
       </div>
     </motion.div>
   );

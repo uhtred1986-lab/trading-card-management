@@ -1,6 +1,6 @@
 # Arena — the animated board (web client)
 
-**Status: phases A–D built (6 Sep 2026); E and F remain.** The work brief for a second, motion-first
+**Status: phases A–E built (6 Sep 2026); F remains.** The work brief for a second, motion-first
 arena board in the web app, built for an Android phone and installed from the browser, not a store.
 
 §1 below is what was true before any of it, kept because it is the argument for the work. Each
@@ -272,24 +272,40 @@ decision, not a UI one. It stays on the proposal's open-questions list.
 §4 of the proposal, with the beat that drives each and the mechanism. Durations are the phone's;
 nothing exceeds 350 ms and nothing blocks the next tap.
 
-| Moment | Beat | Mechanism | ms |
-|---|---|---|---|
-| Draw | `draw` | fly from the deck anchor, hand re-fans | 220 |
-| Charge energy | `move` hand→energy | `layoutId` flight with a 180° rotation on the way | 260 |
-| Play a Battle Card | `move` hand→battle | lift, `layoutId` glide, 4 px settle, edge glow | 280 |
-| Rest / Active | `mode` | 90° rotation (today's transform, now animated) | 200 |
-| Attack declared | `attack` | attacker lunges 30 % and snaps back; today's SVG beam draws | 300 |
-| Combo | `move` →combo | slide in; the power HUD counts up rather than swapping | 250 |
-| Clash | `clash` | today's `arena-slam` on the winning figure, impact flash at the guard | 300 |
-| Counter | `move` hand→drop in a counter window | spring from hand, "COUNTER" stamp, then Drop | 320 |
-| Blocker | `guardChanged` | blocker slides in front of the target and rotates to rest | 280 |
-| Damage | `damage` | leader flash, a life card flips and flies to hand (red tint + Drop if Critical), haptic | 340 |
-| KO | `ko` | ghost shudders, desaturates, slides to the Drop anchor | 300 |
-| Awaken | `flip` | 3D `rotateY` on a preserve-3d wrapper, ki burst, back face lands | 350 |
-| Unison markers | `markers` | chips pop in / fall off | 180 |
-| Claude plays | `move` from a hidden hand | the face-down back flips face-up as it leaves | 300 |
-| Claude thinking | — | today's pulse, kept. **Never streams reasoning** | — |
-| Turn change | `phase` | today's banner, plus a light change on the active side | 1500 |
+Driven by **the beat on screen** (`playback.current`), not by whatever a re-render happens to
+notice, so the moments play in the story's order. Every one runs on a *child* of the element the
+layout animation projects — a transform on that element corrupts its measurement and the card flies
+to the wrong place.
+
+| Moment | Beat | Mechanism | ms | |
+|---|---|---|---|---|
+| Draw | `draw` | pops in where it lands | 220 | ✅ |
+| Charge energy | `move` hand→energy | `layoutId` flight, landing upside-down | 260 | ◐ |
+| Play a Battle Card | `move` hand→battle | `layoutId` glide, then `arena-pop` as it settles | 280 | ✅ |
+| Rest / Active | `mode` | 90° rotation, already animated by `ArenaCard` | 200 | ✅ |
+| Attack declared | `attack` | `arena-lunge-up`/`-down`, 18 % toward the target and back, with the SVG beam | 300 | ✅ |
+| Combo | `move` →combo | slides in; the power figures **count up** (`Count`, over a motion value) | 250 | ✅ |
+| Clash | `clash` | `arena-slam` on the figures, `arena-hit` flash and shake on the guard | 300 | ✅ |
+| Counter | `move` hand→drop in a counter window | spring from hand, "COUNTER" stamp | 320 | ✗ |
+| Blocker | `block` | blocker slides in front of the target | 280 | ✗ |
+| Damage | `damage` | `arena-hurt` shakes the side that took it, with a red edge; haptic | 340 | ◐ |
+| KO | `ko` | ghost desaturates and slides to the Drop anchor | 300 | ✅ |
+| Awaken | `flip` | `arena-awaken`, a full 3D `rotateY` with a swell | 350 | ✅ |
+| Unison markers | `markers` | `arena-chip`, popping in on a stagger | 180 | ✅ |
+| Claude plays | `move` from a hidden hand | flies and pops like any other card | 300 | ◐ |
+| Claude thinking | — | the pulse. **Never streams reasoning** | — | ✅ |
+| Turn change | `phase` | the banner slams across the stage | 1500 | ✅ |
+
+**◐ — less than the storyboard asked for, on purpose.** A charge lands upside-down but does not turn
+over *during* the flight; a card Claude plays does not flip from its back on the way out; and damage
+shakes the side that took it rather than flying a life card to the hand. That last one needs UI that
+does not exist — life is a number and eight pips, not cards — so it is a piece of work, not a
+keyframe.
+
+**✗ — not built.** The counter stamp and the blocker sliding in front both need the board to tell
+apart beats it currently cannot: a counter is only a `move` to the Drop, and `block` arrives after
+the guard has already changed. Worth doing when the cards they belong to come up often enough that
+their absence is felt.
 
 ---
 
@@ -352,7 +368,7 @@ is also step 1 of the Android plan, so it is done once and both clients start fr
 | 2 | B — phone shell | the *current* board, installable and full-bleed, with haptics | **built** |
 | 3 | C — new board behind the cookie | a board to play with, animated from beats | **built** |
 | 4 | D — ergonomics | the hand that opens, the long-press bar, "what can I do?" | **built** |
-| 5 | E — storyboard | the moments in §7, one at a time | — |
+| 5 | E — storyboard | the moments in §7, one at a time | **built** (three deferred, §7) |
 | 6 | F — cutover | one board again | — |
 
 Phase C is where `motion` finally gets installed; nothing before it needed a dependency.

@@ -1,6 +1,6 @@
 "use client";
 
-import { LayoutGroup, useReducedMotion } from "motion/react";
+import { LayoutGroup, animate, motion, useMotionValue, useReducedMotion, useTransform } from "motion/react";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { act, advanceGame } from "@/app/arena/actions";
 import type { Beats } from "@/lib/arena/beats";
@@ -16,7 +16,7 @@ import { AttackBeam, CardDetail, CardPreview, Counter, Sheet, SkillSpotlight, St
 import { ZoneAnchor } from "./anchors";
 import { Ghosts } from "./Ghosts";
 import { Hand } from "./Hand";
-import { StageCard } from "./StageCard";
+import { StageCard, type Moment } from "./StageCard";
 import { useBeatPlayer } from "./useBeatPlayer";
 import { useIdle } from "./useIdle";
 
@@ -136,11 +136,27 @@ export function ArenaStage({
   const nudging = idle && playable && yourTurn && !busy && !isTargeting;
   const choices = Object.keys(taps.byCard).length + bare.length;
 
+  // The storyboard, driven by the beat on screen rather than by whatever a
+  // re-render happens to notice. `docs/arena-ui-motion-spec.md` §7.
+  const beat = playback.current;
+  const mine = (id: string) => view.you.battle.some((c) => c.id === id) || view.you.leader?.id === id || view.you.unison?.id === id;
+  const momentOf = (id: string): Moment | null => {
+    if (!beat) return null;
+    // Your side sits below theirs, so an attack of yours throws itself upward.
+    if (beat.t === "attack" && beat.attacker === id) return mine(id) ? "lungeUp" : "lungeDown";
+    if (beat.t === "clash" && beat.hit && beat.guard === id) return "hit";
+    if (beat.t === "flip" && beat.card === id) return "awaken";
+    if ((beat.t === "token" && beat.card === id) || (beat.t === "move" && beat.card === id)) return "arrive";
+    return null;
+  };
+  const hurting = beat?.t === "damage" ? beat.player : null;
+
   const cardProps = (c: CardView) => ({
     card: c,
     state: stateOf(c.id),
     suppressed: playback.suppressed.has(c.id),
     nudge: nudging && !!taps.byCard[c.id]?.length,
+    moment: momentOf(c.id),
     onTap: taps.byCard[c.id]?.length || isTargeting ? () => tapCard(c.id) : undefined,
     onInspect: () => setInspect(c),
     onHover: hoverOf(c),
@@ -154,7 +170,7 @@ export function ArenaStage({
         <TopStrip view={view} />
 
         <div className="flex flex-col gap-2 lg:grid lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-start lg:gap-4">
-          <SideRail side={view.them} them cardProps={cardProps} onHover={hoverOf} className="lg:col-start-3 lg:row-start-1" />
+          <SideRail side={view.them} them cardProps={cardProps} onHover={hoverOf} hurt={hurting === view.them.player} className="lg:col-start-3 lg:row-start-1" />
 
           <section className="arena-stage relative rounded-xl border border-space-700/70 p-2 sm:rounded-2xl sm:p-3 lg:col-start-2 lg:row-start-1 lg:p-4" aria-label="Battle Areas">
             <HandBacks count={view.them.handCount} />
@@ -163,7 +179,7 @@ export function ArenaStage({
             <BattleRow cards={view.you.battle} cardProps={cardProps} zone="p1:battle" label="You have no Battle Cards" />
           </section>
 
-          <SideRail side={view.you} cardProps={cardProps} onHover={hoverOf} className="lg:col-start-1 lg:row-start-1" />
+          <SideRail side={view.you} cardProps={cardProps} onHover={hoverOf} hurt={hurting === view.you.player} className="lg:col-start-1 lg:row-start-1" />
         </div>
 
         {/* The prompt bar: the one question being asked, or the story being told. */}
@@ -348,14 +364,10 @@ function ClashBand({ view, cardProps }: { view: BoardView; cardProps: CardProps 
   const winning = b.attackPower >= b.guardPower;
   return (
     <div className="my-2 rounded-xl border border-ki-500/35 bg-gradient-to-b from-ki-500/10 to-transparent p-2 sm:my-3 sm:p-3">
-      <div key={`${b.attackPower}-${b.guardPower}`} className="arena-slam flex items-center justify-center gap-3 font-mono sm:gap-6">
-        <span className={`text-2xl font-black tabular-nums sm:text-4xl lg:text-5xl ${winning ? "text-ki-300 drop-shadow-[0_0_12px_rgba(255,167,51,0.5)]" : "text-space-400"}`}>
-          {b.attackPower.toLocaleString("en")}
-        </span>
+      <div className="flex items-center justify-center gap-3 font-mono sm:gap-6">
+        <Count value={b.attackPower} className={`text-2xl font-black tabular-nums sm:text-4xl lg:text-5xl ${winning ? "text-ki-300 drop-shadow-[0_0_12px_rgba(255,167,51,0.5)]" : "text-space-400"}`} />
         <span className="text-[10px] font-bold tracking-[0.3em] text-space-500 sm:text-xs">VS</span>
-        <span className={`text-2xl font-black tabular-nums sm:text-4xl lg:text-5xl ${!winning ? "text-ki-300 drop-shadow-[0_0_12px_rgba(255,167,51,0.5)]" : "text-space-400"}`}>
-          {b.guardPower.toLocaleString("en")}
-        </span>
+        <Count value={b.guardPower} className={`text-2xl font-black tabular-nums sm:text-4xl lg:text-5xl ${!winning ? "text-ki-300 drop-shadow-[0_0_12px_rgba(255,167,51,0.5)]" : "text-space-400"}`} />
       </div>
       {(view.them.combo.length > 0 || view.you.combo.length > 0) && (
         <div className="mt-2 flex items-end justify-between">
@@ -377,6 +389,23 @@ function ClashBand({ view, cardProps }: { view: BoardView; cardProps: CardProps 
       )}
     </div>
   );
+}
+
+/**
+ * A power figure that climbs to its new value.
+ *
+ * A combo card is worth counting *up* to: the number is the whole reason you
+ * played it, and swapping 25,000 for 30,000 between two renders is the one
+ * moment on this board where the arithmetic is the drama.
+ */
+function Count({ value, className }: { value: number; className?: string }) {
+  const shown = useMotionValue(value);
+  const text = useTransform(shown, (v) => Math.round(v).toLocaleString("en"));
+  useEffect(() => {
+    const run = animate(shown, value, { duration: 0.25, ease: "easeOut" });
+    return () => run.stop();
+  }, [shown, value]);
+  return <motion.span className={className}>{text}</motion.span>;
 }
 
 /** The opponent's hand: a count, fanned, peeking over the top of the stage. */
@@ -403,19 +432,25 @@ function SideRail({
   them = false,
   cardProps,
   onHover,
+  hurt = false,
   className = "",
 }: {
   side: SideView;
   them?: boolean;
   cardProps: CardProps;
   onHover: (c: CardView) => (box: DOMRect | null) => void;
+  /** This player is taking damage right now. */
+  hurt?: boolean;
   className?: string;
 }) {
   const spent = side.energy.length - side.activeEnergy;
   const p = side.player;
   return (
     <aside
-      className={`flex items-center gap-3 rounded-xl border border-space-700/70 bg-space-900/60 p-2 sm:rounded-2xl sm:p-3 lg:w-44 lg:flex-col lg:items-stretch lg:gap-3 xl:w-52 ${className}`}
+      // Keyed on `hurt` so a second hit in the same turn shakes again rather
+      // than sitting still on an animation that already played.
+      key={hurt ? `${p}-hurt` : p}
+      className={`flex items-center gap-3 rounded-xl border border-space-700/70 bg-space-900/60 p-2 sm:rounded-2xl sm:p-3 lg:w-44 lg:flex-col lg:items-stretch lg:gap-3 xl:w-52 ${hurt ? "arena-hurt" : ""} ${className}`}
       aria-label={them ? `${side.name}'s side` : "Your side"}
     >
       <div className="relative flex shrink-0 items-end gap-1.5 lg:justify-center">

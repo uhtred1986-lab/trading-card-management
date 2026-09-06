@@ -21,6 +21,11 @@ export interface Playback {
   suppressed: Set<string>;
   /** Cards that have already left the board, drawn on their way out. */
   ghosts: Ghost[];
+  /**
+   * The beat on screen right now, so the board can lunge the attacker, flash
+   * the guard, spin an awakening leader. Null when nothing is playing.
+   */
+  current: NumberedBeat | null;
   /** Straight to the end state. Also what reduced motion does, at zero. */
   skip: () => void;
 }
@@ -119,7 +124,7 @@ export function useBeatPlayer(beats: Beats | null, enabled: boolean, hostRef: Re
     }
   }
 
-  return { playing, suppressed, ghosts, skip };
+  return { playing, suppressed, ghosts, current: playing ? (queue[at] ?? null) : null, skip };
 }
 
 const pause = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));

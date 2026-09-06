@@ -210,7 +210,9 @@ export function ArenaCard({
       {card.markers > 0 && (
         <span className="pointer-events-none absolute -right-1 -top-1 flex gap-[2px]">
           {Array.from({ length: Math.min(card.markers, 6) }, (_, i) => (
-            <span key={i} className="rounded-full border border-space-950 bg-ki-400" style={{ width: px(9), height: px(9) }} />
+            // Keyed by position, so a marker arriving pops in on its own rather
+            // than the whole row restarting.
+            <span key={i} className="arena-chip rounded-full border border-space-950 bg-ki-400" style={{ width: px(9), height: px(9), animationDelay: `${i * 40}ms` }} />
           ))}
           {card.markers > 6 && (
             <span className="font-mono text-ki-300" style={{ fontSize: px(8) }}>
