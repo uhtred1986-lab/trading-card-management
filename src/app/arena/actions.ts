@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
@@ -16,6 +17,20 @@ import { reviewGame } from "@/lib/arena/ai/review";
 import { clarifyCard } from "@/lib/arena/ai/clarify";
 import { previewRule, removeRule, type RulePreview } from "@/lib/arena/rules";
 import { saveScript } from "@/lib/arena/scripts";
+import { SKIN_COOKIE, type ArenaSkin } from "@/lib/arena/skin";
+
+/**
+ * Which skin paints the board (`docs/arena-skin-spec.md` §3.1).
+ *
+ * A cookie rather than a column — a per-device preference that needs no
+ * migration to try and none to change your mind — and a cookie rather than
+ * `localStorage`, so the server sends the right skin and the board never
+ * flashes the other one on load.
+ */
+export async function chooseSkin(gameId: number, skin: ArenaSkin) {
+  (await cookies()).set(SKIN_COOKIE, skin, { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
+  revalidatePath(`/arena/${gameId}`);
+}
 
 /**
  * Report something that went wrong, from the board.

@@ -30,7 +30,7 @@ export function Ghosts({ ghosts, art }: { ghosts: Ghost[]; art: Record<string, B
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3, ease: "easeIn" }}
           >
-            <div className="card-aspect w-[calc(52px*var(--arena,1))] overflow-hidden rounded-[4px] border border-loss/60 bg-space-800 shadow-[0_0_18px_rgba(248,113,113,0.45)]">
+            <div className="arena-ghost card-aspect w-[calc(52px*var(--arena,1))] overflow-hidden rounded-[4px] border border-loss/60 bg-space-800">
               {face.imageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element -- a transient overlay of art the board has already loaded.
                 <img src={face.imageUrl} alt="" className="h-full w-full object-cover" />
