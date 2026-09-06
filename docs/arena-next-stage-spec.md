@@ -634,6 +634,71 @@ precedence over this backlog when they concern a deck the owner plays.
 
 ---
 
+## 6a. What this stretch of work taught (5–6 Sep 2026)
+
+`docs/arena-rules-worklist.md` has the round-by-round history. These are the
+parts that generalise — read them before choosing what to do next, because
+three of them changed what "next" meant.
+
+### Where to look
+
+1. **A clause that compiles wrongly is invisible to every measure here.**
+   `arena:gaps` can only report clauses that *fail*. The most valuable work of
+   this stretch was not in that list at all: colours that meant "all of them"
+   instead of "either", a digit in ≪Universe 6≫ read as a count, "in your
+   opponent's Drop" resolving to the Battle Area.
+2. **Audit the compiled output against the text it came from.** A `choose` op
+   records its clause in `reason`; a `delay` records its in `label`. That is
+   enough to check thousands of selectors mechanically — side, area, count,
+   and every measure the filter should carry (ground rule 5, done as a script).
+   Expect the first run of such a probe to be mostly its own noise; narrow it
+   twice before believing it.
+3. **Rank by the owner's decks, not the catalog.** `npm run arena:gaps --
+   --decks`. The catalog-wide list ranks by how often a wording appears, which
+   buries anything happening once per card and rewards adding phrase patterns.
+   Ranked over the decks, the same data surfaced a clause-splitter bug costing
+   whole skills everywhere.
+4. **A one-word "wording" is not a wording.** Fragments at the top of the miss
+   list — "energy", "choose 1", "green", "you" — always mean `splitClauses` cut
+   a sentence in the wrong place, and a fragment fails the whole skill. Two
+   separate rounds of this: the ―…― aside, and comma-separated lists.
+5. **Read the three headline numbers together.** Coverage, orphan triggers and
+   unreadable prices move against each other: teaching the compiler a phrase
+   *raises* the orphan count, because a skill only reaches that bucket once its
+   effect compiles.
+
+### How to decide what a wording means
+
+6. **A wrong filter is worse than an over-fire.** A filter that stops a skill
+   which should happen is a silent loss; a trigger that fires slightly too
+   often is visible and usually harmless. So: refuse an alternation the parser
+   cannot express ("a Battle Card **or** Unison Card"), and let the trigger
+   fire unfiltered — *unless* the trigger fires on every card that player plays
+   and the effect then acts on it, in which case refusing to fire is the safer
+   half. Both directions are in `triggers.ts` with the reasoning.
+7. **Two wordings that look alike are usually two moments.** "Your turn" is the
+   controller's turn, never the turn player's. "By a skill" and "by a skill or
+   KO'd" are different causes. `koed` is the KO'd card's own skill; the board
+   watching it is a different trigger. Widening an existing regex is right only
+   when the wider one would never fire at a moment the card does not mean.
+8. **A trigger is the head of the sentence.** A card may *mention* a moment in
+   the middle of an effect; that is a delayed effect, not a trigger.
+9. **When a wording is genuinely ambiguous, look it up** — see ground rule 2.
+
+### Traps that cost real time
+
+10. **Never write a regex through `node -e`.** Three times now. `\b` becomes a
+    literal backspace and the pattern silently matches nothing; `` $` `` in a
+    replacement means "everything before the match". Find the damage with
+    `grep -c $'\x08' <file>`. Use the editor.
+11. **A regex that matches nothing looks exactly like progress.** Turning off
+    five trigger patterns *lowered* nothing and *raised* the orphan count,
+    which reads as the measure becoming honest. Every head-anchored trigger now
+    has a positive test for this reason.
+12. **Check whether a new failure is yours before fixing it.** Copy the changed
+    files aside, `git checkout --` them, re-run the same fuzz seed. A minute,
+    and it settled that a crash had come in with a newly added deck.
+
 ## 6b. Open questions for the owner
 
 Rulings the engine has had to take a view on, where the manual does not settle
@@ -668,8 +733,13 @@ work, and they are parked here so they are not lost.
 
 ## 7. Definition of done for the next stage
 
-- Catalog ≥ 85 % of resolvable skills compile; the owner's decks ≥ 95 %.
-- `arena:gaps` "1 clause in the way" below 800.
+- ~~Catalog ≥ 85 % of resolvable skills compile~~ — **met, 85.9 %** (6 Sep
+  2026). The owner's decks ≥ 95 % is still open: 91.7 %, and what is left there
+  is listed by `npm run arena:gaps -- --decks`.
+- `arena:gaps` "1 clause in the way" below 800. Still open at 1,191, and that
+  figure has barely moved all stretch — because the work went into clauses that
+  compiled *wrongly* rather than ones that failed. Both matter; only one of
+  them shows up here.
 - Sections 6.2–6.5 implemented with tests; 6.6–6.12 at least the wordings
   named above.
 - `npm test`, `lint`, `typecheck` clean; `arena:fuzz 100` with 0 crashes.
