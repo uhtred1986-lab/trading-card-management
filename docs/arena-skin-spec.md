@@ -324,6 +324,10 @@ The mechanism in §1 was verified first: the built CSS compiles `bg-space-800` t
 a `space-700` *background* is the prototype's panel blue rather than ink. Measured, not assumed:
 ink on paper 18:1, `space-300` 7.5:1, `space-400` 5.5:1, the strip's sky blue 9.9:1.
 
+**The default flipped on the same day**: the owner asked for the anime sky to be the default, so
+`skinFrom` now falls back to `anime` and `night` is the one you choose (decision 1 amended). The
+night table stays maintained and stays as good as it was.
+
 Verified here: typecheck, lint, `npm test`, both skins at 360 and 390 px from the golden fixtures,
 reduced motion zeroing the aura (the reduced-motion block was moved after the skin so it wins),
 and `themeColor` / `manifest.ts` untouched. Not yet done: a game on the phone in each skin, which

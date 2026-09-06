@@ -67,11 +67,12 @@ export function Hand({
         </button>
       </motion.div>
 
-      <div className="mb-1 flex items-center justify-between text-[10px] uppercase tracking-widest text-space-400 sm:mb-2 sm:text-xs">
-        <span>
+      {/* Six controls do not fit beside the label on a phone; the row wraps rather than squeezing the words. */}
+      <div className="mb-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[10px] uppercase tracking-widest text-space-400 sm:mb-2 sm:text-xs">
+        <span className="whitespace-nowrap">
           {name} · hand {count}
         </span>
-        <div className="flex items-center gap-3 normal-case tracking-normal">{controls}</div>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 normal-case tracking-normal">{controls}</div>
       </div>
 
       {children}

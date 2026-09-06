@@ -4,14 +4,17 @@ import { LayoutGroup, animate, motion, useMotionValue, useReducedMotion, useTran
 import { useEffect, useRef, useState, useTransition } from "react";
 import { act, advanceGame } from "@/app/arena/actions";
 
-import type { Action, Requirement } from "@/lib/arena/engine";
+import type { Action, PlayerId, Requirement } from "@/lib/arena/engine";
+import type { NumberedBeat } from "@/lib/arena/beats";
 import { feel } from "@/lib/arena/feel";
 import type { Snapshot } from "@/lib/arena/snapshot";
 import type { BoardView, CardView, SideView } from "@/lib/arena/view";
 import { useWakeLock } from "@/lib/arena/wake";
 import { type CardState } from "../ArenaCard";
 import { FeelToggle } from "../FeelToggle";
+import { PaceToggle } from "../PaceToggle";
 import { SkinToggle } from "../SkinToggle";
+import { usePace } from "@/lib/arena/pace";
 import type { ArenaSkin } from "@/lib/arena/skin";
 import { ReportBug } from "../ReportBug";
 import { narrate } from "@/lib/arena/narration";
@@ -59,20 +62,29 @@ export function ArenaStage({ gameId, snapshot, skin = "night" }: { gameId: numbe
   // moves are committed as they are made, so they can be shown as they happen
   // instead of all at once when the request finally returns.
   const live = useLiveGame(gameId, snapshot, pending || waitingOnServer);
-  const { view, legal, taps, log, spotlight, beats } = live;
+  const { view, legal, taps, log, beats } = live;
   const rejected = live.rejected ?? [];
   const playable = live.game.status === "playing";
 
   // Reduced motion is not a second code path: it simply never queues anything,
   // which is the same state the board reaches the instant you press Skip.
   const still = useReducedMotion();
-  const playback = useBeatPlayer(beats, !still, boardRef);
+  const pace = usePace();
+  const playback = useBeatPlayer(beats, !still, boardRef, pace, view.you.player);
 
   useWakeLock(playable && !view.over);
 
   // The narration follows the beat on screen (workflow spec §7, Phase 3): one
   // sentence per beat, from the same stream the motion plays, so the words and
   // the pictures never disagree about the order of events.
+  /** Whose beat this is: the player it names, the card's owner, or whoever's turn it is. */
+  const actorOf = (b: NumberedBeat): PlayerId | null => {
+    if ("player" in b) return b.player;
+    if ("owner" in b && b.owner) return b.owner;
+    if ("attacker" in b) return view.you.battle.some((c) => c.id === b.attacker) || view.you.leader?.id === b.attacker || view.you.unison?.id === b.attacker ? view.you.player : view.them.player;
+    return b.t === "say" ? view.them.player : view.turnPlayer;
+  };
+
   const beatNow = playback.current;
   if (beatNow && held?.n !== beatNow.n) {
     // Adjusted while rendering rather than in an effect, as the beat player
@@ -84,10 +96,7 @@ export function ArenaStage({ gameId, snapshot, skin = "night" }: { gameId: numbe
       return null;
     };
     const text = narrate(beatNow, { viewer: view.you.player, them: view.them.name, art: beats?.art ?? {}, ownerOf });
-    if (text) {
-      const actor = "player" in beatNow ? beatNow.player : "owner" in beatNow ? beatNow.owner : null;
-      setHeld({ text, n: beatNow.n, mine: actor === view.you.player });
-    }
+    if (text) setHeld({ text, n: beatNow.n, mine: actorOf(beatNow) === view.you.player });
   }
 
   // Only for arriving at a game that is already mid-turn — a normal move runs
@@ -265,6 +274,14 @@ export function ArenaStage({ gameId, snapshot, skin = "night" }: { gameId: numbe
   };
   const hurting = beat?.t === "damage" ? beat.player : null;
 
+  // The skill banner is bound to the `skill` beat on screen, so each ability
+  // in a turn gets its moment in the story's order — the row's `spotlight`
+  // only ever names the last one.
+  const beatSpotlight =
+    beat?.t === "skill"
+      ? { seq: beat.n, cardId: beats?.art[beat.card]?.cardId ?? "", name: beats?.art[beat.card]?.name ?? "", label: beat.label, text: beat.text, unread: beat.unread, imageUrl: beats?.art[beat.card]?.imageUrl ?? null }
+      : null;
+
   const cardProps = (c: CardView) => ({
     card: c,
     state: stateOf(c.id),
@@ -283,7 +300,7 @@ export function ArenaStage({ gameId, snapshot, skin = "night" }: { gameId: numbe
             screen like every other; it draws nothing on the night table. */}
         {beat && (beat.t === "attack" || beat.t === "clash") && <div key={beat.n} className="arena-speedlines pointer-events-none absolute inset-0 z-20" aria-hidden />}
         <StepBanner step={step} />
-        <SkillSpotlight spotlight={spotlight} />
+        <SkillSpotlight spotlight={beatSpotlight} />
         <TopStrip view={view} />
 
         <div className="flex flex-col gap-2 lg:grid lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-start lg:gap-4">
@@ -299,7 +316,7 @@ export function ArenaStage({ gameId, snapshot, skin = "night" }: { gameId: numbe
           <SideRail side={view.you} cardProps={cardProps} onHover={hoverOf} hurt={hurting === view.you.player} className="lg:col-start-1 lg:row-start-1" />
         </div>
 
-        {held && !view.over && <NarrationRibbon text={held.text} n={held.n} mine={held.mine} live={playback.playing} />}
+        {held && !view.over && !playback.playing && <NarrationRibbon text={held.text} n={held.n} mine={held.mine} live={false} />}
 
         {/* The prompt bar: the one question being asked, or the story being told. */}
         <section
@@ -317,7 +334,7 @@ export function ArenaStage({ gameId, snapshot, skin = "night" }: { gameId: numbe
                 </span>
               )}
               {playback.playing
-                ? `${view.them.name} is playing…`
+                ? (held?.text ?? `${view.them.name} is playing…`)
                 : view.over
                   ? view.over.winner
                     ? `${view.over.winner === view.you.player ? view.you.name : view.them.name} wins`
@@ -328,8 +345,14 @@ export function ArenaStage({ gameId, snapshot, skin = "night" }: { gameId: numbe
             </p>
             <p className={`mt-0.5 flex items-center gap-2 text-[11px] sm:text-sm ${refusal && !view.over ? "text-loss" : "text-space-300"}`}>
               {/* The refusal line (workflow spec §4): which requirement failed, and what would satisfy it. */}
-              {/* While the story plays the ribbon above has the words; the next prompt's hint would only mislead here. */}
-              <span className={refusal && !view.over ? "line-clamp-2" : "truncate"}>{view.over ? view.over.reason : playback.playing ? "" : (error ?? refusal?.text ?? view.prompt.hint ?? "")}</span>
+              {/* While the story plays: whose turn it is and where in it we are; the next prompt's hint would only mislead here. */}
+              <span className={refusal && !view.over ? "line-clamp-2" : "truncate"}>
+                {view.over
+                  ? view.over.reason
+                  : playback.playing
+                    ? `${beat && actorOf(beat) === view.you.player ? "Your move" : `${view.them.name} is playing`} · ${playback.index + 1} of ${playback.total}${pace === "step" ? " · tap Next" : ""}`
+                    : (error ?? refusal?.text ?? view.prompt.hint ?? "")}
+              </span>
               {/* "What can I do?" answered as a number, before you have to look. */}
               {!view.over && !playback.playing && playable && yourTurn && moveCount > 0 && !refusal && !searching && (
                 <span className={`shrink-0 rounded-full border px-1.5 py-px text-[10px] tabular-nums ${nudging ? "border-ki-500/60 text-ki-300" : "border-space-600 text-space-400"}`}>
@@ -339,6 +362,11 @@ export function ArenaStage({ gameId, snapshot, skin = "night" }: { gameId: numbe
             </p>
           </div>
 
+          {playback.playing && pace === "step" && (
+            <button type="button" onClick={playback.next} className="tap shrink-0 rounded-lg bg-ki-500 px-3 py-2 text-sm font-semibold text-space-950 hover:bg-ki-400 sm:rounded-xl sm:px-5 sm:py-2.5">
+              Next ▸
+            </button>
+          )}
           {playback.playing && (
             <button type="button" onClick={playback.skip} className="tap shrink-0 rounded-lg border border-space-600 bg-space-700 px-3 py-2 text-sm font-semibold text-space-50 sm:px-5 sm:py-2.5">
               Skip
@@ -398,6 +426,7 @@ export function ArenaStage({ gameId, snapshot, skin = "night" }: { gameId: numbe
           controls={
             <>
               <FeelToggle />
+              <PaceToggle />
               <SkinToggle gameId={gameId} skin={skin} />
               <ReportBug gameId={gameId} cards={cardsOnTable(view)} />
               <button type="button" onClick={() => setLogOpen((x) => !x)} className="tap uppercase tracking-widest text-ki-300 hover:text-ki-400">
