@@ -205,8 +205,33 @@
       "p1#15": {
         "p2#0": 1
       }
+    },
+    "whyByCard": {
+      "p1#0": [
+        {
+          "kind": "condition",
+          "text": "When your life is at 4 or less"
+        }
+      ]
     }
   },
+  "rejected": [
+    {
+      "action": {
+        "type": "activate",
+        "player": "p1",
+        "card": "p1#0",
+        "skill": 0
+      },
+      "label": "Activate L-RED",
+      "why": [
+        {
+          "kind": "condition",
+          "text": "When your life is at 4 or less"
+        }
+      ]
+    }
+  ],
   "beats": {
     "seq": 16,
     "list": [
@@ -302,6 +327,7 @@
         "label": "Auto",
         "text": "When this card attacks, draw 1 card.",
         "unread": false,
+        "owner": "p1",
         "n": 14
       },
       {

@@ -34,6 +34,7 @@ import {
   fireDelayed,
   has,
   describePayment,
+  forbiddenBy,
   inPlay,
   keyword,
   LIFE_AT_START,
@@ -56,8 +57,9 @@ import {
   invokerEnergy,
   liftFromPile,
   skillNegated,
+  whyNotPay,
 } from "./state";
-import type { Action, Applied, CardDef, CardInstance, Color, FlowStep, GameEvent, GameState, PendingAuto, PlayerId, PlayerState, Prompt, Skill, Trigger } from "./types";
+import type { Action, Applied, Area, CardDef, CardInstance, Color, FlowStep, GameEvent, GameState, PendingAuto, PlayerId, PlayerState, Prompt, RejectedAction, Requirement, Skill, Trigger } from "./types";
 import { other, PLAYERS } from "./types";
 
 export interface EngineContext extends GameContext {
@@ -1568,6 +1570,182 @@ function mainActions(ctx: EngineContext, s: GameState, p: PlayerId): LegalAction
   return out;
 }
 
+// ── rejected actions ───────────────────────────────────────────────────────
+//
+// `docs/arena-workflow-spec.md`. `legalActions` says what the server will
+// accept and nothing else; a card the player cannot play is simply absent
+// from it. This is the parallel list — the moves a player might reach for and
+// every requirement that stops each one — so a tap on a dead card has an
+// answer that comes from the rules rather than from a client's guess.
+//
+// The gates in `mainActions` are named predicates (`planPayment`, `canPlay`,
+// `canCombo`, `activatable`, `forbids`), and each has a `whyNot*` twin beside
+// it that runs the same tests in the same order, collecting instead of
+// short-circuiting. The predicates themselves are untouched: they run on
+// every enumeration, including Claude's, and threading a reason collector
+// through them is the cost this duplication buys out of. Each pair is
+// adjacent in the file and covered by the same test so they cannot drift.
+
+/**
+ * Every move the asked player might expect that is not on the menu, with
+ * the reasons. At most one entry per card per action type, and never an
+ * action that `legal` already offers for that card — the invariant
+ * `scripts/verify-arena.ts` and `arena:playthrough` both assert.
+ *
+ * `legal` may be passed in when the caller already has it (the snapshot
+ * does), so the menu is not enumerated a second time.
+ */
+export function rejectedActions(ctx: EngineContext, s: GameState, legal: LegalAction[] = legalActions(ctx, s)): RejectedAction[] {
+  const pr = s.prompt;
+  if (!("player" in pr) || !pr.player) return [];
+  const p = pr.player;
+  const out: RejectedAction[] = [];
+  const name = (id: string) => face(ctx, s, id).name;
+  // "activate:p1#3" — the card-and-type pairs the menu already offers. A card
+  // playable by its alternative price is playable; a skill offered under one
+  // index is offered. Anything offered is not rejected.
+  const offered = new Set(legal.map((l) => `${l.action.type}:${cardOf(l.action) ?? ""}`));
+  const seen = new Set<string>();
+  const push = (action: Action, label: string, why: Requirement[]) => {
+    const key = `${action.type}:${cardOf(action) ?? ""}`;
+    if (offered.has(key) || seen.has(key)) return;
+    seen.add(key);
+    // Never empty: a twin that found nothing is a drifted twin, and an `other`
+    // here is what the playthrough audit counts.
+    out.push({ action, label, why: why.length ? why : [{ kind: "other", detail: "not offered by the engine" }] });
+  };
+  /** The first skill of the card that is a real activation, with its reasons. */
+  const rejectActivate = (id: string, skills: Skill[], timing: "main" | "battle") => {
+    for (const sk of skills) {
+      const why = whyNotActivate(ctx, s, p, id, sk, timing);
+      if (!why) continue;
+      push({ type: "activate", player: p, card: id, skill: sk.index }, `Activate ${name(id)}`, why);
+      return;
+    }
+  };
+
+  switch (pr.kind) {
+    case "charge":
+      for (const id of s.players[p].hand) push({ type: "charge", player: p, card: id }, `Charge ${name(id)}`, whyNotCharge(ctx, s, p));
+      return out;
+    case "main": {
+      const ps = s.players[p];
+      for (const id of ps.hand) {
+        const d = def(ctx, s, id);
+        const why = whyNotPlayFromHand(ctx, s, p, id);
+        if (why) push({ type: "play", player: p, card: id }, `Play ${name(id)} (${d.energyCost ?? 0})`, why);
+        rejectActivate(id, skillsOf(d), "main");
+        push({ type: "charge", player: p, card: id }, `Charge ${name(id)}`, whyNotCharge(ctx, s, p));
+      }
+      for (const id of cardsInPlay(s, p)) {
+        rejectActivate(id, skillsOfInstance(ctx, s, id), "main");
+        const why = whyNotAttack(ctx, s, p, id);
+        if (why) push({ type: "attack", player: p, attacker: id, target: s.players[other(p)].leader }, `Attack with ${name(id)}`, why);
+      }
+      return out;
+    }
+    case "combo": {
+      const ps = s.players[p];
+      for (const id of ps.hand) {
+        push({ type: "combo", player: p, card: id }, `Combo ${name(id)}`, whyNotCombo(ctx, s, p, id));
+        rejectActivate(id, skillsOf(def(ctx, s, id)), "battle");
+      }
+      for (const id of ps.battle) push({ type: "combo", player: p, card: id }, `Combo ${name(id)}`, whyNotCombo(ctx, s, p, id));
+      for (const id of cardsInPlay(s, p)) rejectActivate(id, skillsOfInstance(ctx, s, id), "battle");
+      return out;
+    }
+    default:
+      return out;
+  }
+}
+
+/** The card an action names, the way `Tappable` indexes it. */
+function cardOf(a: Action): string | null {
+  const x = a as { card?: string | null; attacker?: string };
+  if (typeof x.card === "string") return x.card;
+  if (typeof x.attacker === "string") return x.attacker;
+  return null;
+}
+
+/**
+ * The `why` twin of the charge offer in `legalActions`: in the Charge Phase,
+ * only a prohibition stops it (20-14); once the Main Phase has begun, the
+ * one charge of the turn has gone by (7-3).
+ */
+function whyNotCharge(ctx: EngineContext, s: GameState, p: PlayerId): Requirement[] {
+  if (s.prompt.kind !== "charge") return [{ kind: "oncePerTurn", what: "charge" }];
+  const f = forbiddenBy(ctx, s, "placeEnergy", { player: p });
+  return f ? [{ kind: "forbidden", by: f.by }] : [];
+}
+
+/**
+ * The `why` twin of the play branches of `mainActions` — the energy and the
+ * `canPlay` gate, in that order. Null for a card that is never played from
+ * hand as a "play" (an Extra is activated; a Z-card comes from the Z-Deck).
+ */
+function whyNotPlayFromHand(ctx: EngineContext, s: GameState, p: PlayerId, card: string): Requirement[] | null {
+  const d = def(ctx, s, card);
+  const bt = baseType(d);
+  if (bt === "BATTLE" && d.energyCost !== "X") {
+    const c = playCost(ctx, s, card);
+    return [...whyNotPay(ctx, s, p, c.total, c.specified), ...whyNotPlay(ctx, s, p, card)];
+  }
+  // 1-2-2-2-1: X may be 0, so only `canPlay` can stop it.
+  if (bt === "BATTLE" && d.energyCost === "X") return whyNotPlay(ctx, s, p, card);
+  if (bt === "UNISON" && !isZ(d)) {
+    const min = d.energyCost === "X" ? 1 : (d.energyCost ?? 0);
+    return [...whyNotPlay(ctx, s, p, card), ...whyNotPay(ctx, s, p, min, {})];
+  }
+  return null;
+}
+
+/**
+ * The `why` twin of the attack loop in `mainActions`: the same gates in the
+ * same order — the first turn (7-3-4-4-1), the attacker's mode and facing,
+ * a prohibition (20-14), and then whether anything at all may be attacked
+ * (8-1-1 plus this card's own permissions). Null for a card that is not in
+ * play, which cannot attack in any state.
+ */
+function whyNotAttack(ctx: EngineContext, s: GameState, p: PlayerId, a: string): Requirement[] | null {
+  if (!cardsInPlay(s, p).includes(a)) return null;
+  const why: Requirement[] = [];
+  if (s.turn === 1 && p === s.firstPlayer) why.push({ kind: "timing", window: "nextTurn" });
+  if (s.cards[a].mode !== "active") why.push({ kind: "mode", card: a, mode: s.cards[a].mode });
+  if (s.cards[a].hidden) why.push({ kind: "other", detail: "a face-down card cannot attack" });
+  const f = forbiddenBy(ctx, s, "attack", { player: p, card: a });
+  if (f) why.push({ kind: "forbidden", by: f.by });
+  const opp = other(p);
+  const targets = [s.players[opp].leader, ...(s.players[opp].unison ? [s.players[opp].unison] : []), ...s.players[opp].battle.filter((id) => s.cards[id].mode === "rest")];
+  const extra = permits(ctx, s, a, "attackActive").flatMap((rule) =>
+    s.players[opp].battle.filter((id) => s.cards[id].mode === "active" && (!rule.filter || matches(cardNow(ctx, s, id), rule.filter))),
+  );
+  if (![...targets, ...new Set(extra)].some((t) => !forbids(ctx, s, "beAttacked", { player: opp, card: t }))) why.push({ kind: "target", reason: "nothing may be attacked" });
+  return why;
+}
+
+/**
+ * The `why` twin of the combo offers in `legalActions`: the card's own
+ * ability to combo (`canCombo`), a prohibition, and the combo cost (5-7-3),
+ * with the Battle Area's extra gates first — the attacker and the guard are
+ * in the battle, and a rested card cannot join it.
+ */
+function whyNotCombo(ctx: EngineContext, s: GameState, p: PlayerId, card: string): Requirement[] {
+  const why: Requirement[] = [];
+  const b = s.battle;
+  if (areaOf(s, card) === "battle") {
+    if (b && card === b.attacker) why.push({ kind: "other", detail: "it is the attacking card" });
+    else if (b && card === b.guard) why.push({ kind: "other", detail: "it is the card being attacked" });
+    if (s.cards[card].mode !== "active") why.push({ kind: "mode", card, mode: s.cards[card].mode });
+    if (s.cards[card].hidden) why.push({ kind: "other", detail: "a face-down card cannot combo" });
+  }
+  const d = def(ctx, s, card);
+  if (!canCombo(d)) why.push({ kind: "cardType", card, needs: "a Battle Card with a combo cost" });
+  const f = forbiddenBy(ctx, s, "combo", { player: p, card });
+  if (f) why.push({ kind: "forbidden", by: f.by });
+  if (canCombo(d)) why.push(...whyNotPay(ctx, s, p, comboCostOf(ctx, s, card), {}));
+  return why;
+}
+
 /**
  * Whether this card may be played at all: 22-39 ([Unique] of the same name in
  * play) and 20-14 (anything that forbids playing it). Asked in both places a
@@ -1578,6 +1756,20 @@ function canPlay(ctx: EngineContext, s: GameState, p: PlayerId, card: string): b
   if (s.players[p].battle.some((id) => has(ctx, s, id, "Unique") && face(ctx, s, id).name === d.name)) return false;
   // A play the player declares, which is what "except by skills" bans.
   return !forbids(ctx, s, "play", { player: p, card, bySkill: false });
+}
+
+/**
+ * The `why` twin of `canPlay`: the same two tests, reported. Empty when the
+ * card may be played. Called only from `rejectedActions`.
+ */
+function whyNotPlay(ctx: EngineContext, s: GameState, p: PlayerId, card: string): Requirement[] {
+  const d = def(ctx, s, card);
+  const why: Requirement[] = [];
+  const twin = s.players[p].battle.find((id) => has(ctx, s, id, "Unique") && face(ctx, s, id).name === d.name);
+  if (twin) why.push({ kind: "forbidden", by: face(ctx, s, twin).name });
+  const f = forbiddenBy(ctx, s, "play", { player: p, card, bySkill: false });
+  if (f) why.push({ kind: "forbidden", by: f.by });
+  return why;
 }
 
 /**
@@ -1773,6 +1965,207 @@ function activatable(ctx: EngineContext, s: GameState, p: PlayerId, card: string
   if (alt) return null;
   if (inHand) return null; // 9-1-3-1: battle card skills are valid in the Battle Area
   return `Activate ${name}: ${sk.effect.slice(0, 40)}`;
+}
+
+/**
+ * The `why` twin of `activatable`: the same gates in the same order, each
+ * reported instead of ending the question. Returns null for a skill that is
+ * never declared — an [Auto], a [Permanent], a [Counter], a keyword with no
+ * activation of its own — so no rejection is invented for it; an empty list
+ * means the skill is offered. The alternative price ([Invoker]) is a second
+ * offer of the same skill and is not reported separately. Called only from
+ * `rejectedActions`; `activatable` is untouched.
+ */
+function whyNotActivate(ctx: EngineContext, s: GameState, p: PlayerId, card: string, sk: Skill, timing: "main" | "battle"): Requirement[] | null {
+  const d = def(ctx, s, card);
+  const inst = s.cards[card];
+  const inHand = areaOf(s, card) === "hand";
+  const why: Requirement[] = [];
+  const k = sk.keyword;
+  const ACTIVATED_KEYWORDS = ["Awaken", "Wish", "Evolve", "Union", "Over Realm", "Swap", "Arrival", "Successor", "Aegis", "Rejuvenate", "Overlord", "Field", "Z-Awaken"];
+  const kindOk = timing === "main" ? sk.kind === "activate:main" || sk.kind === "activate:main/battle" : sk.kind === "activate:battle" || sk.kind === "activate:main/battle";
+  const textActivate = sk.kind === "activate:main" || sk.kind === "activate:battle" || sk.kind === "activate:main/battle";
+  if (k ? !ACTIVATED_KEYWORDS.includes(k.name) : !textActivate) return null;
+
+  if (skillNegated(s, card, sk.index, sk.kind)) why.push({ kind: "other", detail: "the skill is negated" });
+  const f = forbiddenBy(ctx, s, "activateSkill", { player: p, card });
+  if (f) why.push({ kind: "forbidden", by: f.by });
+  if (sk.oncePerTurn && inst.usedThisTurn.includes(sk.index)) why.push({ kind: "oncePerTurn", what: "skill" });
+  if (sk.bond != null && s.players[p].battle.length < sk.bond) why.push({ kind: "condition", text: `[Bond ${sk.bond}]: ${sk.bond} or more Battle Cards in play` });
+  if (sk.sparking != null && s.players[p].drop.length < sk.sparking) why.push({ kind: "condition", text: `[Sparking ${sk.sparking}]: ${sk.sparking} or more cards in your Drop Area` });
+  if (!canPayKeywordCosts(s, p, sk)) why.push({ kind: "other", detail: sk.burst != null ? `[Burst ${sk.burst}] needs that many cards in the deck` : "[Spirit Boost] needs the markers" });
+  const { total: orbTotal, specified: orbSpecified, either: orbEither } = orbTotals(sk);
+  const orbs = () => whyNotPay(ctx, s, p, orbTotal, orbSpecified, orbEither);
+  const costIsOrbsOnly = costIsOnlyOrbs(sk.cost);
+  const wantTiming = (want: "main" | "battle") => {
+    if (timing !== want) why.push({ kind: "timing", window: want });
+  };
+  const wantZone = (area: Area) => {
+    if (areaOf(s, card) !== area) why.push({ kind: "zone", card, area });
+  };
+  const unread = () => why.push({ kind: "unread", card });
+
+  if (k) {
+    switch (k.name) {
+      case "Awaken":
+      case "Wish": {
+        wantZone("leader");
+        if (inst.flipped) why.push({ kind: "other", detail: "the Leader is already awakened" });
+        else if (!d.back) why.push({ kind: "other", detail: "the Leader has no awakened side" });
+        const cond = parseCondition(sk.cost);
+        if (!cond.recognised) unread();
+        else if (!conditionHolds(ctx, s, p, cond)) why.push({ kind: "condition", text: sk.cost });
+        return why;
+      }
+      case "Evolve": {
+        wantTiming("main");
+        wantZone("hand");
+        if (!costIsOrbsOnly) unread();
+        else why.push(...orbs());
+        const filter = parseFilter(sk.effect || sk.cost);
+        if (!s.players[p].battle.some((id) => matches(cardNow(ctx, s, id), filter))) why.push({ kind: "target", reason: `no ${sk.effect || sk.cost} in your Battle Area` });
+        return why;
+      }
+      case "Union": {
+        wantTiming("main");
+        if (k.variant === "Absorb") {
+          wantZone("battle");
+          why.push(...orbs());
+          if (!canResolve(ctx, s, card, sk)) unread();
+          const priceOk = costIsOrbsOnly || (() => {
+            const prog = compileCostProgram(sk);
+            return prog ? canPayCostProgram(ctx, s, p, card, prog.ops) : false;
+          })();
+          if (!priceOk) why.push({ kind: "other", detail: `cannot pay: ${sk.cost}` });
+          return why;
+        }
+        if (!costIsOrbsOnly) unread();
+        else why.push(...orbs());
+        wantZone("hand");
+        const names = (sk.effect || sk.cost).match(/<([^>]+)>/g)?.map((x) => x.slice(1, -1)) ?? [];
+        if (names.length < 2) {
+          unread();
+          return why;
+        }
+        const pool = k.variant === "Fusion" ? s.players[p].hand.filter((id) => id !== card) : s.players[p].battle;
+        const found = names.map((n) => pool.find((id) => def(ctx, s, id).characters.some((c) => c.toLowerCase() === n.toLowerCase())));
+        if (found.some((x) => !x) || new Set(found).size < names.length) why.push({ kind: "target", reason: `needs ${names.join(" and ")} ${k.variant === "Fusion" ? "in hand" : "in your Battle Area"}` });
+        else if (k.variant === "Fusion" && new Set(found.map((x) => def(ctx, s, x!).power)).size !== 1) why.push({ kind: "target", reason: "the two cards must have equal power" });
+        return why;
+      }
+      case "Over Realm": {
+        wantTiming("main");
+        wantZone("hand");
+        const ps = s.players[p];
+        const limit = cardsInPlay(s, p).some((id) => has(ctx, s, id, "Wormhole")) ? 2 : 1;
+        if (ps.overRealmsThisTurn >= limit) why.push({ kind: "oncePerTurn", what: "Over Realm" });
+        const count = k.dark ? ps.drop.filter((id) => def(ctx, s, id).colors.includes("Black")).length : ps.drop.length;
+        if (count < k.x) why.push({ kind: "condition", text: `${k.x} or more ${k.dark ? "black " : ""}cards in your Drop Area (${count} there)` });
+        if (!costIsOrbsOnly) unread();
+        else why.push(...orbs());
+        return why;
+      }
+      case "Swap": {
+        wantTiming("main");
+        wantZone("battle");
+        if (!costIsOrbsOnly) unread();
+        else why.push(...orbs());
+        return why;
+      }
+      case "Arrival": {
+        wantTiming("battle");
+        wantZone("hand");
+        const combo = s.players[p].combo.map((id) => cardNow(ctx, s, id).colors);
+        if (!k.colors.every((c) => combo.some((cs) => cs.includes(c)))) why.push({ kind: "condition", text: `${k.colors.join(" and ")} Battle Cards in your Combo Area` });
+        why.push(...orbs());
+        return why;
+      }
+      case "Successor": {
+        wantTiming("main");
+        wantZone("hand");
+        if (!costIsOrbsOnly) unread();
+        else why.push(...orbs());
+        const need = costOf(d);
+        if (need <= 0) why.push({ kind: "other", detail: "the card has no energy cost to match" });
+        else if (!subsetSumExists(successorPool(ctx, s, p).map((id) => costOf(def(ctx, s, id))), need)) why.push({ kind: "target", reason: `no green/yellow Battle Cards adding up to ${need}` });
+        return why;
+      }
+      case "Aegis": {
+        if (timing !== "battle" || s.turnPlayer === p || s.battle?.step !== "defense") why.push({ kind: "timing", window: "defense" });
+        if (!inPlay(s, card)) why.push({ kind: "zone", card, area: "battle" });
+        if (!canCoverColors(ctx, s, s.players[p].hand, k.colors)) why.push({ kind: "condition", text: `${k.colors.join(" and ")} cards in your hand to drop` });
+        if (!costIsOrbsOnly) unread();
+        else why.push(...orbs());
+        return why;
+      }
+      case "Rejuvenate": {
+        wantTiming("main");
+        wantZone("unison");
+        if (inst.under.length === 0) why.push({ kind: "other", detail: "no card under it to drop" });
+        const cost = rejuvenateCost(sk);
+        if (!cost) unread();
+        else {
+          if (inst.markers < cost.markers) why.push({ kind: "other", detail: `needs ${cost.markers} marker${cost.markers === 1 ? "" : "s"} (${inst.markers} on it)` });
+          if (inst.usedMarkerSkill) why.push({ kind: "oncePerTurn", what: "marker skill" });
+          if (cost.lifeAtMost != null && s.players[p].life.length > cost.lifeAtMost) why.push({ kind: "condition", text: `your life is at ${cost.lifeAtMost} or less` });
+        }
+        return why;
+      }
+      case "Overlord": {
+        wantTiming("main");
+        if (!s.players[p].battle.some((id) => has(ctx, s, id, "Servant"))) why.push({ kind: "target", reason: "no [Servant] in your Battle Area" });
+        return why;
+      }
+      case "Field": {
+        wantTiming("main");
+        wantZone("hand");
+        if (baseType(d) !== "EXTRA") why.push({ kind: "cardType", card, needs: "an Extra Card" });
+        const c = playCost(ctx, s, card);
+        why.push(...whyNotPay(ctx, s, p, c.total, c.specified));
+        return why;
+      }
+      case "Z-Awaken": {
+        wantTiming("main");
+        wantZone("zDeck");
+        const ps = s.players[p];
+        if (ps.zAwakenedThisTurn) why.push({ kind: "oncePerTurn", what: "Z-Awaken" });
+        const leader = ps.leader;
+        if (!leader || !s.cards[leader].flipped || isZ(def(ctx, s, leader))) why.push({ kind: "condition", text: "your Leader is awakened and not yet a Z-Leader" });
+        else {
+          const filter = parseFilter(sk.effect || sk.cost);
+          if (!matches(cardNow(ctx, s, leader), filter) && !(filter.characters.length && def(ctx, s, leader).characters.some((c) => filter.characters.includes(c)))) why.push({ kind: "target", reason: `your Leader is not ${sk.effect || sk.cost}` });
+        }
+        if (ps.zEnergy.length < (d.zEnergyCost ?? 0)) why.push({ kind: "condition", text: `${d.zEnergyCost} Z-Energy (${ps.zEnergy.length} there)` });
+        if (!costIsOrbsOnly) unread();
+        else why.push(...orbs());
+        return why;
+      }
+      default:
+        return null;
+    }
+  }
+
+  // Text [Activate] skills.
+  if (!kindOk) why.push({ kind: "timing", window: timing === "main" ? "battle" : "main" });
+  if (sk.markerCost != null) {
+    wantZone("unison");
+    if (inst.usedMarkerSkill) why.push({ kind: "oncePerTurn", what: "marker skill" });
+    if (inst.markers + sk.markerCost < 0) why.push({ kind: "other", detail: `needs ${-sk.markerCost} markers (${inst.markers} on it)` });
+  }
+  const condCost = !costIsOrbsOnly ? priceCondition(sk) : null;
+  const actionCost = !costIsOrbsOnly && !condCost ? compileCostProgram(sk) : null;
+  if (!costIsOrbsOnly && !condCost && !actionCost) unread();
+  if (condCost && !condHolds(ctx, s, { ops: [], ip: 0, vars: {}, card, master: p }, condCost.cond)) why.push({ kind: "condition", text: sk.cost });
+  if (actionCost && !canPayCostProgram(ctx, s, p, card, actionCost.ops)) why.push({ kind: "other", detail: `cannot pay: ${sk.cost}` });
+  why.push(...orbs());
+  if (!canResolve(ctx, s, card, sk)) unread();
+  if (baseType(d) === "EXTRA" && inHand) {
+    const c = playCost(ctx, s, card);
+    why.push(...whyNotPay(ctx, s, p, c.total + orbTotal, c.specified));
+    return why;
+  }
+  if (inHand) why.push({ kind: "zone", card, area: "battle" }); // 9-1-3-1
+  return why;
 }
 
 function conditionHolds(ctx: EngineContext, s: GameState, p: PlayerId, c: ReturnType<typeof parseCondition>): boolean {

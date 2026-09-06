@@ -11,7 +11,7 @@
  * lets `npm test` build snapshots and compare them against golden fixtures.
  * `session.ts` is the half that reaches the database.
  */
-import type { EngineContext, GameState, LegalAction, PlayerId } from "./engine";
+import { rejectedActions, type EngineContext, type GameState, type LegalAction, type PlayerId, type RejectedAction } from "./engine";
 import { boardView, tappable, viewerOf, type BoardView, type CardArt, type Tappable } from "./view";
 import type { Beats } from "./beats";
 import type { ArenaMode, Spotlight } from "./games";
@@ -32,6 +32,13 @@ export interface Snapshot {
   view: BoardView;
   legal: LegalAction[];
   taps: Tappable;
+  /**
+   * The moves the asked player might reach for that are not in `legal`, each
+   * with its reasons (`docs/arena-workflow-spec.md`). Only computed when the
+   * viewer is the player being asked — never for Claude's side — and absent
+   * when there is nothing to say.
+   */
+  rejected?: RejectedAction[];
   beats: Beats | null;
   spotlight: (Spotlight & { imageUrl: string | null }) | null;
   log: string[];
@@ -78,8 +85,21 @@ export function waitingFor(input: Pick<SnapshotInput, "ai" | "state" | "status">
   return "you";
 }
 
+/**
+ * Rejections are answers to "why can't I", which only the player being asked
+ * can ask: they are computed for the viewer when the prompt is theirs, and
+ * never for Claude, who cannot read them and whose turns would pay for them.
+ */
+export function rejectedFor(input: Pick<SnapshotInput, "ai" | "state" | "ctx" | "legal">): RejectedAction[] {
+  const prompt = input.state.prompt;
+  if (!("player" in prompt) || !prompt.player) return [];
+  if (prompt.player !== viewerFor(input) || prompt.player === input.ai) return [];
+  return rejectedActions(input.ctx, input.state, input.legal);
+}
+
 export function buildSnapshot(input: SnapshotInput): Snapshot {
   const viewer = viewerFor(input);
+  const rejected = rejectedFor(input);
   return {
     contract: CONTRACT_VERSION,
     game: {
@@ -92,7 +112,8 @@ export function buildSnapshot(input: SnapshotInput): Snapshot {
     },
     view: boardView(input.ctx, input.state, viewer, input.images),
     legal: input.legal,
-    taps: tappable(input.legal),
+    taps: tappable(input.legal, rejected),
+    ...(rejected.length ? { rejected } : {}),
     beats: withArt(input.beats, input.images),
     spotlight: input.spotlight ? { ...input.spotlight, imageUrl: input.images[input.spotlight.cardId]?.front ?? null } : null,
     log: input.log,

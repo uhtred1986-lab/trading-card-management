@@ -179,8 +179,63 @@
     "bare": [
       0
     ],
-    "attackTargets": {}
+    "attackTargets": {},
+    "whyByCard": {
+      "p1#15": [
+        {
+          "kind": "other",
+          "detail": "it is the attacking card"
+        },
+        {
+          "kind": "mode",
+          "card": "p1#15",
+          "mode": "rest"
+        }
+      ],
+      "p1#0": [
+        {
+          "kind": "condition",
+          "text": "When your life is at 4 or less"
+        }
+      ]
+    }
   },
+  "rejected": [
+    {
+      "action": {
+        "type": "combo",
+        "player": "p1",
+        "card": "p1#15"
+      },
+      "label": "Combo BIG",
+      "why": [
+        {
+          "kind": "other",
+          "detail": "it is the attacking card"
+        },
+        {
+          "kind": "mode",
+          "card": "p1#15",
+          "mode": "rest"
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "activate",
+        "player": "p1",
+        "card": "p1#0",
+        "skill": 0
+      },
+      "label": "Activate L-RED",
+      "why": [
+        {
+          "kind": "condition",
+          "text": "When your life is at 4 or less"
+        }
+      ]
+    }
+  ],
   "beats": {
     "seq": 3,
     "list": [

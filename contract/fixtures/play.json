@@ -367,8 +367,397 @@
       "p1#9": {
         "p2#0": 1
       }
+    },
+    "whyByCard": {
+      "p1#23": [
+        {
+          "kind": "energy",
+          "need": 1,
+          "have": 0
+        },
+        {
+          "kind": "energyColour",
+          "colour": "Red",
+          "need": 1,
+          "have": 0
+        },
+        {
+          "kind": "oncePerTurn",
+          "what": "charge"
+        }
+      ],
+      "p1#17": [
+        {
+          "kind": "energy",
+          "need": 1,
+          "have": 0
+        },
+        {
+          "kind": "energyColour",
+          "colour": "Red",
+          "need": 1,
+          "have": 0
+        },
+        {
+          "kind": "oncePerTurn",
+          "what": "charge"
+        }
+      ],
+      "p1#50": [
+        {
+          "kind": "energy",
+          "need": 1,
+          "have": 0
+        },
+        {
+          "kind": "energyColour",
+          "colour": "Red",
+          "need": 1,
+          "have": 0
+        },
+        {
+          "kind": "oncePerTurn",
+          "what": "charge"
+        }
+      ],
+      "p1#29": [
+        {
+          "kind": "energy",
+          "need": 1,
+          "have": 0
+        },
+        {
+          "kind": "energyColour",
+          "colour": "Red",
+          "need": 1,
+          "have": 0
+        },
+        {
+          "kind": "oncePerTurn",
+          "what": "charge"
+        }
+      ],
+      "p1#26": [
+        {
+          "kind": "energy",
+          "need": 1,
+          "have": 0
+        },
+        {
+          "kind": "energyColour",
+          "colour": "Red",
+          "need": 1,
+          "have": 0
+        },
+        {
+          "kind": "oncePerTurn",
+          "what": "charge"
+        }
+      ],
+      "p1#43": [
+        {
+          "kind": "energy",
+          "need": 1,
+          "have": 0
+        },
+        {
+          "kind": "energyColour",
+          "colour": "Red",
+          "need": 1,
+          "have": 0
+        },
+        {
+          "kind": "oncePerTurn",
+          "what": "charge"
+        }
+      ],
+      "p1#15": [
+        {
+          "kind": "energy",
+          "need": 1,
+          "have": 0
+        },
+        {
+          "kind": "energyColour",
+          "colour": "Red",
+          "need": 1,
+          "have": 0
+        },
+        {
+          "kind": "oncePerTurn",
+          "what": "charge"
+        }
+      ],
+      "p1#0": [
+        {
+          "kind": "condition",
+          "text": "When your life is at 4 or less"
+        }
+      ]
     }
   },
+  "rejected": [
+    {
+      "action": {
+        "type": "play",
+        "player": "p1",
+        "card": "p1#23"
+      },
+      "label": "Play V1 (1)",
+      "why": [
+        {
+          "kind": "energy",
+          "need": 1,
+          "have": 0
+        },
+        {
+          "kind": "energyColour",
+          "colour": "Red",
+          "need": 1,
+          "have": 0
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "charge",
+        "player": "p1",
+        "card": "p1#23"
+      },
+      "label": "Charge V1",
+      "why": [
+        {
+          "kind": "oncePerTurn",
+          "what": "charge"
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "play",
+        "player": "p1",
+        "card": "p1#17"
+      },
+      "label": "Play V1 (1)",
+      "why": [
+        {
+          "kind": "energy",
+          "need": 1,
+          "have": 0
+        },
+        {
+          "kind": "energyColour",
+          "colour": "Red",
+          "need": 1,
+          "have": 0
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "charge",
+        "player": "p1",
+        "card": "p1#17"
+      },
+      "label": "Charge V1",
+      "why": [
+        {
+          "kind": "oncePerTurn",
+          "what": "charge"
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "play",
+        "player": "p1",
+        "card": "p1#50"
+      },
+      "label": "Play V1 (1)",
+      "why": [
+        {
+          "kind": "energy",
+          "need": 1,
+          "have": 0
+        },
+        {
+          "kind": "energyColour",
+          "colour": "Red",
+          "need": 1,
+          "have": 0
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "charge",
+        "player": "p1",
+        "card": "p1#50"
+      },
+      "label": "Charge V1",
+      "why": [
+        {
+          "kind": "oncePerTurn",
+          "what": "charge"
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "play",
+        "player": "p1",
+        "card": "p1#29"
+      },
+      "label": "Play V1 (1)",
+      "why": [
+        {
+          "kind": "energy",
+          "need": 1,
+          "have": 0
+        },
+        {
+          "kind": "energyColour",
+          "colour": "Red",
+          "need": 1,
+          "have": 0
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "charge",
+        "player": "p1",
+        "card": "p1#29"
+      },
+      "label": "Charge V1",
+      "why": [
+        {
+          "kind": "oncePerTurn",
+          "what": "charge"
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "play",
+        "player": "p1",
+        "card": "p1#26"
+      },
+      "label": "Play V1 (1)",
+      "why": [
+        {
+          "kind": "energy",
+          "need": 1,
+          "have": 0
+        },
+        {
+          "kind": "energyColour",
+          "colour": "Red",
+          "need": 1,
+          "have": 0
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "charge",
+        "player": "p1",
+        "card": "p1#26"
+      },
+      "label": "Charge V1",
+      "why": [
+        {
+          "kind": "oncePerTurn",
+          "what": "charge"
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "play",
+        "player": "p1",
+        "card": "p1#43"
+      },
+      "label": "Play V1 (1)",
+      "why": [
+        {
+          "kind": "energy",
+          "need": 1,
+          "have": 0
+        },
+        {
+          "kind": "energyColour",
+          "colour": "Red",
+          "need": 1,
+          "have": 0
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "charge",
+        "player": "p1",
+        "card": "p1#43"
+      },
+      "label": "Charge V1",
+      "why": [
+        {
+          "kind": "oncePerTurn",
+          "what": "charge"
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "play",
+        "player": "p1",
+        "card": "p1#15"
+      },
+      "label": "Play V1 (1)",
+      "why": [
+        {
+          "kind": "energy",
+          "need": 1,
+          "have": 0
+        },
+        {
+          "kind": "energyColour",
+          "colour": "Red",
+          "need": 1,
+          "have": 0
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "charge",
+        "player": "p1",
+        "card": "p1#15"
+      },
+      "label": "Charge V1",
+      "why": [
+        {
+          "kind": "oncePerTurn",
+          "what": "charge"
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "activate",
+        "player": "p1",
+        "card": "p1#0",
+        "skill": 0
+      },
+      "label": "Activate L-RED",
+      "why": [
+        {
+          "kind": "condition",
+          "text": "When your life is at 4 or less"
+        }
+      ]
+    }
+  ],
   "beats": {
     "seq": 2,
     "list": [

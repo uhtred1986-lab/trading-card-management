@@ -1,5 +1,5 @@
 export * from "./types";
-export { createGame, apply, legalActions, IllegalAction, defsFrom, type EngineContext, type GameOptions, type DeckInput, type LegalAction } from "./engine";
+export { createGame, apply, legalActions, rejectedActions, IllegalAction, defsFrom, type EngineContext, type GameOptions, type DeckInput, type LegalAction } from "./engine";
 export { koCard, pendTriggers, masterOf } from "./triggers";
 export { compileCard, compileCardCached, compileSkill, describeScript, splitClauses, type CardScripts } from "./compile";
 export { validateProgram, resolveSelector, type Op, type Script, type ScriptFrame, type Selector } from "./script";

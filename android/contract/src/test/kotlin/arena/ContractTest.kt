@@ -142,7 +142,48 @@ class ContractTest {
             }
         }
     }
+
+    /**
+     * `docs/arena-workflow-spec.md`: a rejection is never a legal move, is
+     * never without a reason, and `whyByCard` points only at real cards.
+     */
+    @Test
+    fun `rejections are reasoned and disjoint from the legal moves`() {
+        var any = false
+        for (file in fixtures) {
+            val snapshot = lenient.decodeFromString<Snapshot>(file.readText())
+            val legal = snapshot.legal.map { it.action }.toSet()
+            for (r in snapshot.rejected ?: emptyList()) {
+                any = true
+                assertTrue(r.why.isNotEmpty(), "${file.name}: \"${r.label}\" is rejected for no reason")
+                assertTrue(r.action !in legal, "${file.name}: \"${r.label}\" is both legal and rejected")
+            }
+            val cards = (snapshot.view.you.all() + snapshot.view.them.all()).map { it.id }.toSet()
+            for ((card, why) in snapshot.taps.whyByCard ?: emptyMap()) {
+                assertTrue(card in cards, "${file.name}: whyByCard names $card, which is not on the board")
+                assertTrue(why.isNotEmpty(), "${file.name}: whyByCard has nothing to say about $card")
+            }
+        }
+        assertTrue(any, "at least one fixture should carry rejections")
+    }
+
+    /** The search fixture: every choice is reachable, and the other side sees none. */
+    @Test
+    fun `a search names its choices for the searcher only`() {
+        val file = fixtures.firstOrNull { it.name == "search.json" } ?: return
+        val snapshot = lenient.decodeFromString<Snapshot>(file.readText())
+        val choices = snapshot.view.you.choices ?: fail("search.json has no choices")
+        assertTrue(choices.isNotEmpty())
+        for (c in choices) assertTrue(snapshot.taps.byCard[c.id]?.isNotEmpty() == true, "${c.id} is a choice with no move")
+        assertEquals(null, snapshot.view.them.choices, "the other side is shown nothing")
+        assertEquals(0, snapshot.view.prompt.min, "an optional choice says so, which is what the 'Choose none' button reads")
+        assertTrue(snapshot.view.prompt.step != null, "a choice inside a skill knows its step")
+    }
 }
+
+/** Every card the board draws on one side, plus the choices a prompt reveals. */
+private fun SideView.all(): List<CardView> =
+    listOfNotNull(leader, unison) + battle + combo + energy + (hand ?: emptyList()) + lifeFaceUp + zDeckFaceUp + listOfNotNull(dropTop) + (choices ?: emptyList())
 
 /** Every card instance id a beat names. */
 private fun Beat.cards(): List<String> = when (this) {

@@ -7,9 +7,10 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { apply, createGame, defsFrom, legalActions, seedFrom, type Action, type CardDef, type GameState, type PlayerId } from "../src/lib/arena/engine";
+import { apply, createGame, defsFrom, legalActions, rejectedActions, seedFrom, type Action, type CardDef, type GameState, type PlayerId, type RejectedAction, type Requirement } from "../src/lib/arena/engine";
 import { appendBeats, toBeats, type Beat, type Beats, type NumberedBeat } from "../src/lib/arena/beats";
-import { buildSnapshot } from "../src/lib/arena/snapshot";
+import { buildSnapshot, rejectedFor, type Snapshot } from "../src/lib/arena/snapshot";
+import { boardView } from "../src/lib/arena/view";
 import { parseSkills, keywordOf, orbsIn, eitherOrbsIn, skillLines } from "../src/lib/arena/engine/cards";
 import { parseFilter, matches, parseCondition } from "../src/lib/arena/engine/filters";
 import { addEffect, schedule, move, locate, playCost, powerOf, forbids, has, cardNow, comboCostOf, skillNegated, skillsNegated } from "../src/lib/arena/engine/state";
@@ -182,6 +183,10 @@ const DEFS: Record<string, CardDef> = defsFrom([
     skill: "[Counter: Attack] Negate the attack.<br>[Permanent] You can activate this card's [Counter] skill from your hand by adding a card from your life to your hand instead of paying its energy cost.",
   }),
   card("MODAL", { energyCost: 1, skill: "[Auto] When you play this card, choose one-<br>・Draw 1 card.<br>・Your opponent discards 1 card." }),
+  // For the workflow spec: a search of the deck, and a skill the turn uses up.
+  card("SEARCH", { energyCost: 1, skill: "[Auto] When you play this card, add up to 1 <V1> card from your deck to your hand, then shuffle your deck." }),
+  card("ONCE", { energyCost: 1, skill: "[Activate: Main][Once per turn] Draw 1 card." }),
+  card("E-MYSTERY", { type: "EXTRA", energyCost: 1, power: null, comboCost: null, comboPower: null, skill: "[Activate: Main] Bend the fabric of reality to your will." }),
 ]);
 
 const fifty = (id: string) => Array.from({ length: 50 }, () => id);
@@ -5023,6 +5028,213 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assertConsistent(s);
 }
 
+// ── every rule as a workflow: rejections, choices, steps ───────────────────
+//
+// `docs/arena-workflow-spec.md` §3.6. `legalActions` says only what the server
+// will accept; `rejectedActions` is the parallel list of what the player might
+// reach for and why each is not there. The two must never overlap, and each
+// `whyNot*` twin must say the same thing as the predicate beside it.
+
+/** No action in both lists, and no rejection without a reason. Run over every state a fixture holds. */
+function assertDisjoint(s: GameState, where: string): RejectedAction[] {
+  const ctx = { defs: DEFS };
+  const legal = legalActions(ctx, s);
+  const rejected = rejectedActions(ctx, s, legal);
+  const offered = new Set(legal.map((l) => JSON.stringify(l.action)));
+  const keys = new Set<string>();
+  for (const r of rejected) {
+    assert.ok(!offered.has(JSON.stringify(r.action)), `${where}: "${r.label}" is both legal and rejected`);
+    assert.ok(r.why.length > 0, `${where}: "${r.label}" is rejected for no reason`);
+    const a = r.action as { type: string; card?: string; attacker?: string };
+    const key = `${a.type}:${a.card ?? a.attacker ?? ""}`;
+    assert.ok(!keys.has(key), `${where}: two rejections for ${key}`);
+    keys.add(key);
+    // And no legal move of the same type on the same card, which is the
+    // stronger promise a client relies on when it indexes by card.
+    assert.ok(!legal.some((l) => `${l.action.type}:${(l.action as { card?: string; attacker?: string }).card ?? (l.action as { attacker?: string }).attacker ?? ""}` === key), `${where}: ${key} is rejected while the same move is offered`);
+  }
+  return rejected;
+}
+
+{
+  const ctx = { defs: DEFS };
+  const first = (r: RejectedAction | undefined): Requirement | undefined => r?.why[0];
+  const ofCard = (list: RejectedAction[], type: string, card: string) => list.find((r) => r.action.type === type && (r.action as { card?: string; attacker?: string }).card === card) ?? list.find((r) => r.action.type === type && (r.action as { attacker?: string }).attacker === card);
+
+  // A hand card costing more than the active energy: exactly one play
+  // rejection, and the first reason is the energy with the right numbers.
+  {
+    const s = arena({ hand: ["BIG"], energy: ["V1", "V1"] });
+    const big = find(s, "p1", "hand", "BIG");
+    const rejected = assertDisjoint(s, "BIG in hand");
+    const plays = rejected.filter((r) => r.action.type === "play" && r.action.card === big);
+    assert.equal(plays.length, 1, "one rejection per card per action type");
+    assert.deepEqual(first(plays[0]), { kind: "energy", need: 5, have: 2 });
+    assert.equal(plays[0].label, "Play BIG (5)");
+    // Energy markers count as energy (1-14).
+    s.players.p1.energyMarkers = 3;
+    assert.equal(ofCard(assertDisjoint(s, "BIG with markers"), "play", big), undefined, "5 energy sources pay a cost of 5");
+  }
+
+  // A card in Rest Mode is refused an attack for its mode, not its timing.
+  {
+    const s = arena({ battle: ["V1"] });
+    const mine = s.players.p1.battle[0];
+    s.cards[mine].mode = "rest";
+    const r = ofCard(assertDisjoint(s, "rested attacker"), "attack", mine);
+    assert.ok(r, "a rested Battle Card gets an attack rejection");
+    assert.deepEqual(first(r), { kind: "mode", card: mine, mode: "rest" });
+    assert.ok(!r!.why.some((w) => w.kind === "timing"), "…and it is not blamed on the phase");
+    assert.equal(r!.label, "Attack with V1");
+  }
+
+  // On the first player's first turn the attack is refused for its timing.
+  {
+    let s = game();
+    const chooser = (s.prompt as { player: PlayerId }).player;
+    s = play(s, { type: "chooseFirst", player: chooser, first: "p1" }, { type: "mulligan", player: "p1", redraw: false }, { type: "mulligan", player: "p2", redraw: false });
+    s = play(s, { type: "charge", player: "p1", card: null });
+    const r = ofCard(assertDisjoint(s, "turn 1"), "attack", s.players.p1.leader);
+    assert.deepEqual(first(r), { kind: "timing", window: "nextTurn" }, "7-3-4-4-1");
+  }
+
+  // After charging, a second charge is once per turn.
+  {
+    let s = game();
+    const chooser = (s.prompt as { player: PlayerId }).player;
+    s = play(s, { type: "chooseFirst", player: chooser, first: "p1" }, { type: "mulligan", player: "p1", redraw: false }, { type: "mulligan", player: "p2", redraw: false });
+    assert.equal(s.prompt.kind, "charge");
+    assert.deepEqual(assertDisjoint(s, "charge prompt").filter((r) => r.action.type === "charge"), [], "in the Charge Phase every hand card may be charged");
+    s = play(s, { type: "charge", player: "p1", card: s.players.p1.hand[0] });
+    const again = ofCard(assertDisjoint(s, "after charging"), "charge", s.players.p1.hand[0]);
+    assert.deepEqual(first(again), { kind: "oncePerTurn", what: "charge" });
+    assert.equal(again!.label, `Charge V1`);
+  }
+
+  // A [Once per turn] skill, used, is refused for that reason; before use it is
+  // offered and so has no rejection at all.
+  {
+    let s = arena({ battle: ["ONCE"] });
+    const once = s.players.p1.battle[0];
+    assert.equal(ofCard(assertDisjoint(s, "ONCE fresh"), "activate", once), undefined, "the skill is on the menu");
+    s = play(s, { type: "activate", player: "p1", card: once, skill: 0 });
+    assert.equal(s.prompt.kind, "main");
+    const r = ofCard(assertDisjoint(s, "ONCE used"), "activate", once);
+    assert.deepEqual(first(r), { kind: "oncePerTurn", what: "skill" });
+    assert.equal(r!.label, "Activate ONCE");
+  }
+
+  // 20-14: a prohibition names the card whose rule it is.
+  {
+    const s = arena({ battle: ["V1"], oppBattle: ["PERMLOCK"] });
+    const mine = s.players.p1.battle[0];
+    assert.equal(ofCard(assertDisjoint(s, "PERMLOCK"), "attack", mine)?.why[0].kind, "forbidden");
+    assert.deepEqual(first(ofCard(assertDisjoint(s, "PERMLOCK"), "attack", mine)), { kind: "forbidden", by: "PERMLOCK" });
+    assert.ok(!ofCard(assertDisjoint(s, "PERMLOCK leader"), "attack", s.players.p1.leader), "the Leader is not a Battle Card and still attacks");
+  }
+
+  // 22-39: a [Unique] twin in play is a rule of that card.
+  {
+    const s = arena({ hand: ["UNIQ"], battle: ["UNIQ"], energy: ["V1"] });
+    const r = ofCard(assertDisjoint(s, "Unique"), "play", find(s, "p1", "hand", "UNIQ"));
+    assert.deepEqual(first(r), { kind: "forbidden", by: "UNIQ" });
+  }
+
+  // In a battle: a card with no combo is the wrong kind of card, a combo the
+  // energy cannot pay is an energy shortfall, and an [Activate: Main] skill
+  // is refused for its timing — the window in which it *would* work.
+  {
+    let s = arena({ hand: ["BLOCKER", "E-DRAW"], battle: ["V1"], oppBattle: ["V-BLUE"] });
+    s = play(s, { type: "attack", player: "p1", attacker: s.players.p1.battle[0], target: s.players.p2.leader });
+    assert.equal(s.prompt.kind, "combo");
+    const rejected = assertDisjoint(s, "offense combo");
+    const blocker = find(s, "p1", "hand", "BLOCKER");
+    const extra = find(s, "p1", "hand", "E-DRAW");
+    assert.deepEqual(first(ofCard(rejected, "combo", blocker)), { kind: "energy", need: 1, have: 0 });
+    assert.equal(ofCard(rejected, "combo", blocker)!.label, "Combo BLOCKER");
+    assert.deepEqual(first(ofCard(rejected, "combo", extra)), { kind: "cardType", card: extra, needs: "a Battle Card with a combo cost" });
+    assert.deepEqual(first(ofCard(rejected, "activate", extra)), { kind: "timing", window: "main" });
+    // The attacker itself: rested by attacking, and in the battle.
+    const attacker = s.battle!.attacker;
+    const r = ofCard(rejected, "combo", attacker);
+    assert.ok(r && r.why.some((w) => w.kind === "mode"), "the attacker is rested and cannot combo");
+    // Nothing is said about the cards in play: no "play" rejection is invented
+    // for a card that is already on the table.
+    assert.equal(ofCard(rejected, "play", attacker), undefined);
+  }
+
+  // A Battle Card's text skill is only valid in the Battle Area (9-1-3-1),
+  // and an [Auto] or [Permanent] is never an activation, so neither invents
+  // a rejection the player could not have expected.
+  {
+    const s = arena({ hand: ["PUMP", "DRAWER", "AURA"], energy: ["V1"] });
+    const rejected = assertDisjoint(s, "text skills in hand");
+    assert.deepEqual(first(ofCard(rejected, "activate", find(s, "p1", "hand", "PUMP"))), { kind: "zone", card: find(s, "p1", "hand", "PUMP"), area: "battle" });
+    assert.equal(ofCard(rejected, "activate", find(s, "p1", "hand", "DRAWER")), undefined, "[Auto] is not activated");
+    assert.equal(ofCard(rejected, "activate", find(s, "p1", "hand", "AURA")), undefined, "[Permanent] is not activated");
+    // With one energy each of them is playable, so no play rejection either.
+    assert.equal(rejected.filter((r) => r.action.type === "play").length, 0);
+  }
+
+  // The compiler cannot read E-MYSTERY, and says so rather than staying silent.
+  {
+    const s = arena({ hand: ["E-MYSTERY"], energy: ["V1"] });
+    const id = find(s, "p1", "hand", "E-MYSTERY");
+    assert.deepEqual(first(ofCard(assertDisjoint(s, "unread"), "activate", id)), { kind: "unread", card: id });
+  }
+
+  // A search of the deck: the prompt names cards no zone draws, so the view
+  // carries them — for the player searching, and for nobody else.
+  {
+    const s = arena({ hand: ["SEARCH"], energy: ["V1"] });
+    const r = apply(ctx, s, { type: "play", player: "p1", card: find(s, "p1", "hand", "SEARCH") });
+    assert.equal(r.state.prompt.kind, "chooseCards", "SEARCH asks which card to add");
+    const choice = (r.state.prompt as { choice: { candidates: string[]; min: number; max: number } }).choice;
+    assert.ok(choice.candidates.length > 1 && choice.candidates.every((id) => r.state.players.p1.deck.includes(id)), "the candidates are deck cards");
+    const snap = buildSnapshot({ id: 1, mode: "hotseat", status: "playing", p1Name: "You", p2Name: "Claude", ctx, state: r.state, legal: legalActions(ctx, r.state), log: [], beats: null, spotlight: null, spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, images: {} });
+    assert.deepEqual(snap.view.you.choices?.map((c) => c.id), choice.candidates, "you.choices is exactly what the prompt names");
+    assert.ok(snap.view.you.choices!.every((c) => !c.hidden && c.name === "V1"), "…revealed to the searcher");
+    assert.equal(snap.view.them.choices, undefined, "and absent from the other side");
+    assert.equal(snap.view.prompt.min, 0);
+    assert.equal(snap.view.prompt.max, 1);
+    assert.deepEqual(snap.view.prompt.step, { index: 1, count: 1, label: snap.view.prompt.question }, "the step comes from the script's own chain");
+    assert.ok(snap.legal.some((l) => l.action.type === "choose" && l.action.cards.length === 0), "min 0 is offered as 'Choose none'");
+    // Every choice can be tapped: the legal `choose` for it exists.
+    for (const c of snap.view.you.choices!) assert.ok(snap.taps.byCard[c.id]?.length, `${c.id} is reachable`);
+    // The opponent, looking at the same moment, is shown nothing of the deck.
+    const theirs = boardView(ctx, r.state, "p2", {});
+    assert.equal(theirs.you.choices, undefined, "a viewer who is not being asked sees no choices");
+    assert.equal(theirs.them.choices, undefined);
+  }
+
+  // Rejections are for the viewer only, and never for Claude.
+  {
+    let s = arena({ hand: ["BIG"] });
+    assert.ok(rejectedActions(ctx, s).length > 0, "p1, asked, has rejections");
+    s = play(s, { type: "endMain", player: "p1" });
+    assert.equal((s.prompt as { player: PlayerId }).player, "p2");
+    const input = { ctx, state: s, legal: legalActions(ctx, s), ai: "p2" as PlayerId };
+    assert.deepEqual(rejectedFor(input), [], "the prompt is Claude's: nothing is computed");
+    const snap = buildSnapshot({ id: 1, mode: "sparring", status: "playing", p1Name: "You", p2Name: "Claude", log: [], beats: null, spotlight: null, spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, images: {}, ...input });
+    assert.equal(snap.rejected, undefined);
+    assert.equal(snap.taps.whyByCard, undefined);
+    // Hot-seat: the board flips to whoever is asked, so p2's rejections are theirs.
+    assert.ok(rejectedFor({ ...input, ai: null }).every((r) => r.action.player === "p2"));
+  }
+
+  // `whyByCard` indexes the same requirements by the card, once each.
+  {
+    const s = arena({ hand: ["BIG"], energy: ["V1"] });
+    const big = find(s, "p1", "hand", "BIG");
+    const snap = buildSnapshot({ id: 1, mode: "hotseat", status: "playing", p1Name: "You", p2Name: "Claude", ctx, state: s, legal: legalActions(ctx, s), log: [], beats: null, spotlight: null, spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, images: {} });
+    assert.ok(snap.rejected && snap.rejected.length > 0);
+    assert.deepEqual(snap.taps.whyByCard?.[big]?.[0], { kind: "energy", need: 5, have: 1 });
+    assert.ok(snap.taps.whyByCard?.[big]?.some((w) => w.kind === "oncePerTurn" && w.what === "charge"), "the charge that has gone by is there too");
+    assert.equal(snap.taps.byCard[big], undefined, "and the card has no legal move");
+    for (const r of snap.rejected!) assert.ok(!snap.legal.some((l) => JSON.stringify(l.action) === JSON.stringify(r.action)));
+  }
+}
+
 // ── the client contract: beats, and the snapshot both clients render ───────
 //
 // `docs/arena-client-contract.md`. The fixtures below are the anti-drift
@@ -5145,6 +5357,22 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
     fixtures.over = snapshotFor(r.state, toBeats(ctx, r.state, r.events, 0));
   }
   {
+    // A search of the deck mid-skill: `choices`, `min`/`max` and `step` on the
+    // prompt, so both clients decode the shape a search sheet is built from.
+    const s = arena({ hand: ["SEARCH"], energy: ["V1"] });
+    const r = apply(ctx, s, { type: "play", player: "p1", card: find(s, "p1", "hand", "SEARCH") });
+    fixtures.search = snapshotFor(r.state, toBeats(ctx, r.state, r.events, 0));
+  }
+  // Every fixture state: no move is both legal and rejected, and nothing is
+  // rejected for no reason (`docs/arena-workflow-spec.md` §3.6).
+  for (const [name, snap] of Object.entries(fixtures)) {
+    const sn = snap as Snapshot;
+    for (const r of sn.rejected ?? []) {
+      assert.ok(r.why.length > 0, `${name}: "${r.label}" rejected for no reason`);
+      assert.ok(!sn.legal.some((l) => JSON.stringify(l.action) === JSON.stringify(r.action)), `${name}: "${r.label}" is both legal and rejected`);
+    }
+  }
+  {
     // One of every beat kind, in one snapshot, built by hand.
     //
     // No real game produces all of them: `arena:playthrough` over ~700 moves
@@ -5172,7 +5400,7 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
       at({ t: "damage", player: "p2", amount: 1, critical: false, cards: [theirs] }),
       at({ t: "ko", card: theirs, owner: "p2" }),
       at({ t: "negated" }),
-      at({ t: "skill", card: mine, label: "Auto", text: "When this card attacks, draw 1 card.", unread: false }),
+      at({ t: "skill", card: mine, label: "Auto", text: "When this card attacks, draw 1 card.", unread: false, owner: "p1" }),
       at({ t: "say", text: "Let us see how you answer that." }),
       at({ t: "over", winner: "p1", reason: "no life left" }),
     ];
