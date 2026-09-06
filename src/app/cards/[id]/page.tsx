@@ -15,6 +15,7 @@ import { pricesForPrints } from "@/lib/pricing/queries";
 import { formatCents } from "@/lib/money";
 import { CardFaces } from "@/components/CardFaces";
 import { LotFinishToggle } from "@/components/LotFinishToggle";
+import { LotPrintPicker } from "@/components/LotPrintPicker";
 import { ColorPill, RarityBadge, TypeBadge } from "@/components/ColorPill";
 import { SkillText } from "@/components/SkillText";
 import { MarketplacePanel } from "@/components/MarketplacePanel";
@@ -50,6 +51,7 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
   const a = alloc.get(id)!;
   const tcgUrl = (await db.query.tcgProducts.findFirst({ where: (p, { eq }) => eq(p.cardId, id), columns: { url: true } }))?.url ?? null;
   const eur = (usd: number | null) => (usd == null ? "—" : usdEur != null ? formatCents(Math.round(usd * usdEur), "EUR") : formatCents(usd, "USD"));
+  const printOptions = card.prints.map((p) => ({ id: p.id, label: p.label, rarity: p.rarity }));
   const input = "tap w-full rounded-md border border-space-600 bg-space-900 px-2 py-1.5 text-sm text-space-100";
 
   return (
@@ -188,7 +190,7 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
               {lots.map((l, i) => (
                 <li key={l.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-sm">
                   <span className="font-mono text-xs text-space-400" title="One row per physical card">#{i + 1}</span>
-                  <span>{l.printLabel}</span>
+                  <LotPrintPicker lotId={l.id} printId={l.printId} prints={printOptions} />
                   <span className="rounded bg-space-800 px-1.5 text-xs">{l.condition}</span>
                   <LotFinishToggle lotId={l.id} foil={l.finish === "foil"} />
                   <span className="text-xs text-space-300">{l.language}</span>

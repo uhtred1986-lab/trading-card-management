@@ -108,6 +108,32 @@ export async function setLotFinishAction(lotId: number, foil: boolean): Promise<
 }
 
 /**
+ * Say which print this physical card actually is — Standard, Parallel, Special
+ * Rare and so on.
+ *
+ * Worth having in place because it is the field most easily got wrong when a
+ * card is added: prints differ by a suffix on the number and often only by the
+ * foiling in hand, and the print is what the copy is *valued* at, so a wrong
+ * one quietly misprices the collection.
+ *
+ * Only within the same card. A print of a different card is not a correction,
+ * it is a different copy — accepting it would silently move the card out of
+ * one collection row and into another, and the counts would just change.
+ */
+export async function setLotPrintAction(lotId: number, printId: string): Promise<{ ok: boolean; error?: string }> {
+  const lot = await db.query.ownedCards.findFirst({ where: eq(ownedCards.id, lotId), columns: { cardId: true } });
+  if (!lot) return { ok: false, error: "That copy no longer exists." };
+
+  const print = await db.query.cardPrints.findFirst({ where: eq(cardPrints.id, printId), columns: { cardId: true } });
+  if (!print) return { ok: false, error: `Unknown print ${printId}.` };
+  if (print.cardId !== lot.cardId) return { ok: false, error: "That print belongs to a different card." };
+
+  await db.update(ownedCards).set({ printId, updatedAt: new Date() }).where(eq(ownedCards.id, lotId));
+  revalidate(lot.cardId);
+  return { ok: true };
+}
+
+/**
  * Re-assign one physical card to a different owner (or to nobody). Only the
  * card page offers this — adding and the collection popover keep using the
  * logged-in user, which is right almost always.
