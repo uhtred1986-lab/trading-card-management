@@ -6,18 +6,82 @@
  * lets the engine offer the right candidates for Evolve, Union, Z-Stack,
  * Z-Awaken and Swap without a compiled script.
  */
-import { baseType, hasCharacter, hasTrait } from "./cards";
-import type { CardDef, Color } from "./types";
+import { baseType, hasCharacter, hasKeyword, hasTrait, keywordOf, keywordsOf, skillsOf } from "./cards";
+import type { CardDef, Color, KeywordSkill, SkillKindPrefix } from "./types";
 
 export interface CardFilter {
   colors: Color[];
   monoColor: boolean;
+  /** "Multicolor <Pan> cards": two colours or more, which is not the opposite of mono-colour on a colourless card. */
+  multiColor: boolean;
   characters: string[];
   notCharacters: string[];
   traits: string[];
   notTraits: string[];
   names: string[];
+  /**
+   * "Choose up to 1 Battle Card **other than** {Vegito, Powers Combined}" — a
+   * name the target must not have. Thirty-six cards print the wording, and
+   * read as an ordinary name it required the very card it excludes.
+   */
+  notNames: string[];
   type: "LEADER" | "BATTLE" | "EXTRA" | "UNISON" | null;
+  /** "Non-Leader card under this card" — the type it must *not* be. */
+  notType: "LEADER" | "BATTLE" | "EXTRA" | "UNISON" | null;
+  /**
+   * "2 **non-black** Battle Cards in your opponent's Drop Area": a colour the
+   * card must not have. Read as nothing, the phrase selected black cards too —
+   * a measure the parser drops widens the selection rather than narrowing it.
+   */
+  notColors: Color[];
+  /**
+   * "A blue **non-[Super Combo]** Battle Card", "a red **non-[Field]** Extra".
+   * Read off the printed skills, which is what the wording is about: a keyword
+   * an effect granted this turn does not make the card one of these.
+   */
+  notKeywords: KeywordSkill["name"][];
+  /**
+   * "Up to 1 opponent Battle Card **with [Blocker]**", "a yellow ≪Demon Realm≫
+   * card **with an [Evolve] skill**". Ground rule 5's second named widening:
+   * dropped, the phrase chose any card in the area, on 83 selectors.
+   *
+   * Compared by keyword *name* only, so "with the [Revive Blue/Green] skill"
+   * matches a card whose [Revive] names other colours. The narrower reading
+   * would need the parameters, which only two cards in the catalog print.
+   */
+  keywords: KeywordSkill["name"][];
+  /**
+   * "Mono-blue cards **with [Counter] skills**", "an Extra Card with the
+   * [Activate: Main] skill" — a kind of skill rather than a keyword, and the
+   * one shape `keywordOf` cannot answer.
+   */
+  skillKind: SkillKindPrefix | null;
+  /**
+   * A bracketed word in the description that is neither of those. Nothing may
+   * be selected on a guess, so `filterFor` refuses the whole phrase rather
+   * than quietly widening it (ground rule 5).
+   */
+  unreadable: boolean;
+  /**
+   * "1 red Extra Card with an energy cost of 1 and **no keyword skills**"
+   * (BT29-001, P-247, XD1-08 and eight more). A measure that narrows, so
+   * leaving it unread offered every card in the area instead.
+   */
+  noKeywords: boolean;
+  /**
+   * "Face-up ≪Boujack Brigade≫ cards" (3-9-2-1). Unlike every other measure
+   * here this one is about the *instance*, not the card, so `matches` cannot
+   * answer it — `resolveSelector` checks it where the instance is known.
+   */
+  faceUp: boolean;
+  /**
+   * "Choose 1 of your Earthling Tokens and switch it to Rest Mode" (19): a
+   * token is named by what it is, and the name alone would also match a
+   * printed card of that name, so the type is carried with it.
+   */
+  token: boolean;
+  /** "Your opponent's **non-token** Battle Cards" (19-1-5): the other way round. */
+  notToken: boolean;
   /** Energy cost bounds, inclusive. */
   costMin: number | null;
   costMax: number | null;
@@ -34,32 +98,184 @@ export interface CardFilter {
 
 const COLOR_WORDS: Record<string, Color> = { red: "Red", blue: "Blue", green: "Green", yellow: "Yellow", black: "Black" };
 
+/**
+ * Keyword families a target description names without the parameters the
+ * printed tag carries: a card "with a **[Union]** skill" means any of
+ * [Union-Fusion], [Union-Potara] and [Union-Absorb], and `keywordOf` only
+ * reads the hyphenated forms. Deliberately a list rather than a rule — every
+ * other keyword is named in full, and guessing at one is how a filter starts
+ * matching cards the text never mentioned.
+ */
+const KEYWORD_FAMILIES = new Set(["union"]);
+
+const titleCase = (s: string) => s.replace(/\b[a-z]/g, (ch) => ch.toUpperCase());
+
+/** Grammar that can sit between the number and a token's name, never part of it. */
+const TOKEN_STOP = new Set(["of", "your", "their", "the", "opponent's", "opponents", "up", "to", "and", "or", "all", "each", "other", "another"]);
+
 export function parseFilter(text: string): CardFilter {
-  const f: CardFilter = { colors: [], monoColor: false, characters: [], notCharacters: [], traits: [], notTraits: [], names: [], type: null, costMin: null, costMax: null, powerMin: null, powerMax: null, powerRel: null, z: null };
-  const t = text.replace(/&lt;/g, "<").replace(/&gt;/g, ">");
+  const f: CardFilter = { colors: [], notColors: [], monoColor: false, multiColor: false, characters: [], notCharacters: [], traits: [], notTraits: [], names: [], notNames: [], notKeywords: [], keywords: [], skillKind: null, unreadable: false, noKeywords: false, type: null, notType: null, faceUp: false, token: false, notToken: false, costMin: null, costMax: null, powerMin: null, powerMax: null, powerRel: null, z: null };
+  let t = text.replace(/&lt;/g, "<").replace(/&gt;/g, ">");
+  // "Choose up to 1 Battle Card **other than** <Grand Supreme Kai>" (SD15-01,
+  // in the owner's own decks) says which card is *excluded*. Read by the loops
+  // below it became a card the target had to *be* — the filter inverted rather
+  // than widened, which is the worst way for a selector to be wrong. It is the
+  // same thing "non-<X>" says, so it lands in the same lists; the tokens are
+  // then taken out of the text so the positive loops cannot see them.
+  const NAMED = /<[^>]+>|≪[^≫]+≫|\{[^}]+\}/;
+  const EXCLUDED = new RegExp(`\\bother than (?:copies of )?((?:(?:${NAMED.source})(?:\\s*(?:,|and/or|and|or)\\s*)?)+)`, "g");
+  t = t.replace(EXCLUDED, (whole, run: string) => {
+    for (const m of run.matchAll(/<([^>]+)>|≪([^≫]+)≫|\{([^}]+)\}/g)) {
+      if (m[1]) f.notCharacters.push(m[1].trim());
+      else if (m[2]) f.notTraits.push(m[2].trim());
+      else if (m[3]) f.notNames.push(m[3].trim());
+    }
+    // Keep the words, drop the names: "other than" itself carries no measure,
+    // and removing the whole phrase would take a following "in your Battle
+    // Area" with it on some wordings.
+    return " other than ";
+  });
   for (const m of t.matchAll(/(non-)?<([^>]+)>/g)) (m[1] ? f.notCharacters : f.characters).push(m[2].trim());
   for (const m of t.matchAll(/(non-)?≪([^≫]+)≫/g)) (m[1] ? f.notTraits : f.traits).push(m[2].trim());
   for (const m of t.matchAll(/\{([^}]+)\}/g)) if (!/^[rugyk]$|^\d+$/i.test(m[1])) f.names.push(m[1].trim());
   const lower = t.toLowerCase();
+  // Colour words are read off the description with every *name* taken out of
+  // it. ≪Red Ribbon Army≫, <Goku Black>, <Commander Red>, {Super Saiyan Blue
+  // Vegeta} and [Revive Blue/Green] all carry a colour word that says nothing
+  // about the card's colour, and reading it made "a **blue** ≪Red Ribbon
+  // Army≫ card" mean blue *or* red. While several colours meant *all* of them
+  // that filter merely matched nothing; since they mean *either* (see
+  // `matches`) it selects the opponent's red ones too — the same mis-read,
+  // turned from a missing effect into a wrong one. 39 selectors and one
+  // [Auto] trigger read this way.
+  const colourText = lower
+    .replace(/<[^>]*>/g, " ")
+    .replace(/≪[^≫]*≫/g, " ")
+    .replace(/\{[^}]*\}/g, " ")
+    .replace(/\[[^\]]*\]/g, " ");
   if (/\bmono-?colou?r\b|\bmono-(red|blue|green|yellow|black)\b/.test(lower)) f.monoColor = true;
-  for (const m of lower.matchAll(/\b(red|blue|green|yellow|black)\b/g)) {
+  if (/\bmulti-?colou?r(?:ed)?\b/.test(lower)) f.multiColor = true;
+  // "Use up to 1 face-up ≪Turles Crusher Corps≫ card from your life in a combo"
+  // (3-9-2-1). "Face down" is never a way a card is picked out, so only the
+  // one direction is read.
+  if (/\bface[- ]up\b/.test(lower)) f.faceUp = true;
+  // "Non-black Battle Cards": the colour is one the card must *not* have, and
+  // reading it as an ordinary colour word would invert the phrase.
+  for (const m of colourText.matchAll(/\bnon-(red|blue|green|yellow|black)\b/g)) {
     const c = COLOR_WORDS[m[1]];
-    if (!f.colors.includes(c)) f.colors.push(c);
+    if (!f.notColors.includes(c)) f.notColors.push(c);
+  }
+  for (const m of colourText.matchAll(/(non-)?\b(red|blue|green|yellow|black)\b/g)) {
+    if (m[1]) continue;
+    const c = COLOR_WORDS[m[2]];
+    if (!f.colors.includes(c) && !f.notColors.includes(c)) f.colors.push(c);
+  }
+  // "…with an energy cost of 1 **and no keyword skills**" — none at all, which
+  // the sets also write "skill-less" for a card with no text whatsoever. This
+  // one is only about the keywords, so a card with an [Auto] and no keyword
+  // still qualifies.
+  if (/\bno keyword skills?\b|\bno keywords\b/.test(lower)) f.noKeywords = true;
+  // "…**with [Blocker]**", "…with an [Evolve] skill", "…with [Counter]
+  // skills". A requirement, and dropping it chose any card in the area (83
+  // selectors). "Without" and "non-" are read below as the opposite; anything
+  // else in brackets that is neither a keyword nor a skill kind makes the
+  // whole description unreadable, because guessing selects the wrong cards.
+  for (const m of lower.matchAll(/\bwith (?:an?|the )?\s*\[([a-z0-9:\- /]+)\](?: skills?)?/g)) {
+    const word = m[1].trim();
+    const kind: SkillKindPrefix | null = /^counter\b/.test(word) ? "counter" : /^activate\b/.test(word) ? "activate" : word === "auto" ? "auto" : word === "permanent" ? "permanent" : null;
+    if (kind) {
+      f.skillKind = kind;
+      continue;
+    }
+    // `keywordOf` wants the parameters the *printed* tag carries — it reads
+    // "[Union-Fusion]" but not the bare "[Union]" a target description uses,
+    // because the family alone is what the description means. Matching is by
+    // name anyway, so the family name is enough.
+    const kw = keywordOf(word) ?? (KEYWORD_FAMILIES.has(word) ? { name: titleCase(word) as KeywordSkill["name"] } : null);
+    if (!kw) f.unreadable = true;
+    else if (!f.keywords.includes(kw.name)) f.keywords.push(kw.name);
+  }
+  // "Battle Cards **without [Barrier]** in Active Mode" — the same thing
+  // "non-[Barrier]" says, written the long way. Sixteen of the cards that let
+  // an active card be attacked carve out [Barrier] like this, and a
+  // permission that misses the carve-out allows an attack the card forbids.
+  for (const m of lower.matchAll(/\bwithout \[([a-z0-9:\- ]+)\]/g)) {
+    const kw = keywordOf(m[1]);
+    if (kw && !f.notKeywords.includes(kw.name)) f.notKeywords.push(kw.name);
+  }
+  // "A blue non-[Super Combo] Battle Card" — a keyword the card must not have.
+  for (const m of lower.matchAll(/\bnon-\[([a-z0-9:\- ]+)\]/g)) {
+    const kw = keywordOf(m[1]);
+    if (kw && !f.notKeywords.includes(kw.name)) f.notKeywords.push(kw.name);
   }
   if (/\bz-(leader|battle|extra|unison)\b|\bz-card\b/.test(lower)) f.z = true;
-  if (/\bleader( card)?\b/.test(lower)) f.type = "LEADER";
-  else if (/\bunison( card)?\b/.test(lower)) f.type = "UNISON";
-  else if (/\bextra( card)?\b/.test(lower)) f.type = "EXTRA";
-  else if (/\bbattle card\b/.test(lower)) f.type = "BATTLE";
+  // "Choose 1 of your Earthling Tokens", "up to 2 Cell Jr. tokens in your
+  // Battle Area", "switch 1 of your Chilled Army tokens to rest" (19). The
+  // name sits straight before the word, but a character class that admits
+  // spaces starts as early as it can, so it is bounded to three words and the
+  // grammar in front of it is then dropped. "1 token with combo power" names
+  // no token and must come out with nothing rather than with a name of "1".
+  // "Your opponent's non-token Battle Cards" (19-1-5) is the other way round,
+  // and has to be read first — otherwise the name below takes "non-token" for
+  // a token called "non".
+  if (/\bnon-tokens?\b/.test(lower)) f.notToken = true;
+  const tok = f.notToken ? null : /\b([a-z0-9'.-]+(?: [a-z0-9'.-]+){0,2}) tokens?\b/.exec(lower);
+  if (tok) {
+    const words = tok[1].split(" ");
+    while (words.length && (TOKEN_STOP.has(words[0]) || /^\d+$/.test(words[0]))) words.shift();
+    if (words.length) {
+      f.token = true;
+      f.names.push(words.join(" "));
+    }
+  }
+  // "Non-Leader card" is the type it must not be, and reading it as the type
+  // itself inverted the filter — a stack of "non-Leader cards" became Leaders.
+  const typeWord = (re: RegExp): "yes" | "no" | null => (new RegExp(`non-${re.source}`).test(lower) ? "no" : re.test(lower) ? "yes" : null);
+  // The plural counts too. Anchored with a trailing `\b`, "Battle Card" did
+  // not match "Battle **Cards**" — so every phrase that names the type in the
+  // plural set no type at all and selected every card in the area, and
+  // `filterFor` handed back nothing for a description like "Battle Cards"
+  // whose only measure is the type.
+  const TYPE_WORDS = [
+    [/\bleaders?( cards?)?\b/, "LEADER"],
+    [/\bunisons?( cards?)?\b/, "UNISON"],
+    [/\bextras?( cards?)?\b/, "EXTRA"],
+    [/\bbattle cards?\b/, "BATTLE"],
+  ] as const;
+  // "Your opponent's Battle Cards **or** Unisons" names two kinds, and one
+  // field cannot hold both — so it holds neither. Taking the first would drop
+  // the other half in silence, which is the alternation trap `subjectFilterOf`
+  // refuses for the same reason; the two areas the phrase names already narrow
+  // the selection to what the card meant.
+  const named = TYPE_WORDS.filter(([re]) => typeWord(re) === "yes");
+  for (const [re, type] of TYPE_WORDS) {
+    const said = typeWord(re);
+    if (said === "no") f.notType ??= type;
+    else if (said === "yes" && named.length === 1 && !f.type) f.type = type;
+  }
   let m: RegExpExecArray | null;
   if ((m = /energy cost (?:of )?(\d+) or less/.exec(lower))) f.costMax = Number(m[1]);
   else if ((m = /energy cost (?:of )?(\d+) or more/.exec(lower))) f.costMin = Number(m[1]);
-  else if ((m = /energy cost (?:of )?between (\d+) and (\d+)/.exec(lower))) {
+  else if ((m = /energy costs? (?:of )?between (\d+) and (\d+)/.exec(lower))) {
     f.costMin = Number(m[1]);
     f.costMax = Number(m[2]);
   } else if ((m = /energy cost (?:of )?(\d+)\b/.exec(lower))) f.costMin = f.costMax = Number(m[1]);
-  if ((m = /(\d+) power or less/.exec(lower))) f.powerMax = Number(m[1]);
+  // "Battle Cards with power between 30000 and 35000", "up to 2 black Battle
+  // Cards with powers between 20000 and 30000" — the same range the cost line
+  // above already reads, which the sets also write for power. Read before the
+  // single bounds, because "between 30000 and 35000" contains neither "or
+  // less" nor "or more" but does contain a bare number the last pattern would
+  // take for an exact power.
+  if ((m = /powers? between ([\d,]+) and ([\d,]+)/.exec(lower))) {
+    f.powerMin = Number(m[1].replace(/,/g, ""));
+    f.powerMax = Number(m[2].replace(/,/g, ""));
+  } else if ((m = /(\d+) power or less/.exec(lower))) f.powerMax = Number(m[1]);
   else if ((m = /(\d+) power or more/.exec(lower))) f.powerMin = Number(m[1]);
+  // An exact power, which searches print alongside the cost: "a yellow
+  // <Son Goku> card with an energy cost of 3 and 5000 power". Only after
+  // "with"/"and", so that "it gets +5000 power for the turn" is not read as a
+  // bound on the target.
+  else if ((m = /\b(?:with|and) (\d+) power\b/.exec(lower))) f.powerMin = f.powerMax = Number(m[1]);
   // "with power less than or equal to this card's power", "with power greater
   // than this card's power" — measured against the card the skill is on.
   if ((m = /power (less than or equal to|equal to or less than|no more than|at or below|less than|lower than|greater than or equal to|equal to or greater than|no less than|at or above|greater than|higher than|more than) (?:this card'?s|its) power/.exec(lower))) {
@@ -87,14 +303,30 @@ export function powerRelOk(f: CardFilter, power: number, own: number): boolean {
 
 export function matches(d: CardDef, f: CardFilter): boolean {
   if (f.z != null && d.type.startsWith("Z-") !== f.z) return false;
+  if (f.token && d.type !== "TOKEN") return false;
+  if (f.notToken && d.type === "TOKEN") return false;
   if (f.type && baseType(d) !== f.type) return false;
-  if (f.colors.length && !f.colors.every((c) => d.colors.includes(c))) return false;
+  if (f.notType && baseType(d) === f.notType) return false;
+  // Several colours in one description mean *either* of them — "blue, yellow
+  // ≪Universe 6≫ cards", "if your Leader Card is green or yellow" — and a card
+  // has to be all of them only when the text says it is one card in both
+  // colours at once, which is what "Red/Yellow **multicolor**" says. Requiring
+  // all of them everywhere made every such filter match nothing at all.
+  const colourOk = f.multiColor ? f.colors.every((c) => d.colors.includes(c)) : f.colors.some((c) => d.colors.includes(c));
+  if (f.colors.length && !colourOk) return false;
+  if (f.notColors.some((c) => d.colors.includes(c))) return false;
+  if (f.notKeywords.some((k) => hasKeyword(d, k))) return false;
+  if (f.keywords.some((k) => !hasKeyword(d, k))) return false;
+  if (f.skillKind && !skillsOf(d).some((sk) => sk.kind.startsWith(f.skillKind!))) return false;
+  if (f.noKeywords && keywordsOf(d).length) return false;
   if (f.monoColor && d.colors.length !== 1) return false;
+  if (f.multiColor && d.colors.length < 2) return false;
   if (f.characters.length && !f.characters.some((c) => hasCharacter(d, c))) return false;
   if (f.notCharacters.some((c) => hasCharacter(d, c))) return false;
   if (f.traits.length && !f.traits.some((c) => hasTrait(d, c))) return false;
   if (f.notTraits.some((c) => hasTrait(d, c))) return false;
   if (f.names.length && !f.names.some((n) => n.toLowerCase() === d.name.toLowerCase())) return false;
+  if (f.notNames.some((n) => n.toLowerCase() === d.name.toLowerCase())) return false;
   const cost = typeof d.energyCost === "number" ? d.energyCost : null;
   if (f.costMin != null && (cost == null || cost < f.costMin)) return false;
   if (f.costMax != null && (cost == null || cost > f.costMax)) return false;

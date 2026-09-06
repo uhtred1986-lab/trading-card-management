@@ -11,9 +11,67 @@
 import { eq } from "drizzle-orm";
 import { db } from "../src/db";
 import { DEFAULT_GAME } from "../src/lib/catalog/games";
-import { cards as cardsTable } from "../src/db/schema";
+import { cards as cardsTable, decks } from "../src/db/schema";
 import { compileCardCached, parseSkills, type CardDef } from "../src/lib/arena/engine";
-import { cardDefFrom } from "../src/lib/arena/load";
+import { compileCostProgram, costIsOnlyOrbs, priceCondition, stripNotes } from "../src/lib/arena/engine/compile";
+import { emitsStatic } from "../src/lib/arena/engine/state";
+import { autoTriggerMatches } from "../src/lib/arena/engine/triggers";
+import type { Trigger } from "../src/lib/arena/engine/types";
+import { cardDefFrom, deckInputFor } from "../src/lib/arena/load";
+
+/** Every moment the engine knows about, for the orphan-trigger check below. */
+const TRIGGERS: Trigger[] = [
+  "leaderPlaced",
+  "played",
+  "attacks",
+  "attacked",
+  "koed",
+  "kos",
+  "yourCardKoed",
+  "opponentCardKoed",
+  "dealtDamage",
+  "chargeStart",
+  "mainStart",
+  "mainEnd",
+  "turnEnd",
+  "opponentTurnEnd",
+  "opponentTurnStart",
+  "battleEnd",
+  "comboed",
+  "opponentPlayed",
+  "youPlayed",
+  "opponentAttacks",
+  "opponentCombos",
+  "youCombo",
+  "placed",
+  "removedFromBattle",
+  "removedByOpponent",
+  "droppedFromBattle",
+  "leftBattleToDrop",
+  "yourLeaderAttacked",
+  "youTookDamage",
+  "opponentTookDamage",
+  "lifeLeft",
+  "evolvedInto",
+  "opponentCounter",
+  "opponentMainStart",
+  "blockerUsed",
+  "restedByAlliance",
+  "addedToZEnergy",
+  "energyToDrop",
+  "unisonToDrop",
+  "markerRemoved",
+  "restedBySkill",
+  "restedTheirsBySkill",
+  "unionActivated",
+  "overlordActivated",
+  "overRealmPlayed",
+  "spiritBoostPaid",
+  "flippedFaceUp",
+  "offenseStart",
+  "defenseStart",
+  "damageStart",
+];
 
 /** Ordered: the first bucket a clause matches wins, so put the specific first. */
 const MECHANISMS: { key: string; needs: string; test: RegExp }[] = [
@@ -40,7 +98,31 @@ const MECHANISMS: { key: string; needs: string; test: RegExp }[] = [
 // The arena only plays `dbs` decks (src/lib/catalog/games.ts), so Fusion
 // World text is not counted here.
 const all = await db.select().from(cardsTable).where(eq(cardsTable.game, DEFAULT_GAME));
-const defs: CardDef[] = all.map(cardDefFrom);
+const catalog: CardDef[] = all.map(cardDefFrom);
+
+/**
+ * `npm run arena:gaps -- --decks` narrows every count below to the cards in the
+ * owner's own decks.
+ *
+ * Worth having as a flag rather than a one-off: the catalog-wide list ranks by
+ * how often a wording appears, which buries anything that happens once per card
+ * and rewards adding phrase patterns. Ranked over the decks instead, the same
+ * data surfaced a clause-splitter bug that was costing whole skills everywhere
+ * — the tell was that the "wordings" were single words ("energy", "choose 1").
+ */
+const decksOnly = process.argv.slice(2).includes("--decks");
+let defs = catalog;
+if (decksOnly) {
+  const byId = new Map(catalog.map((d) => [d.id, d]));
+  const inDecks = new Set<string>();
+  for (const row of await db.select({ id: decks.id }).from(decks)) {
+    const input = await deckInputFor(db, row.id);
+    if (!input || input.input.main.length < 50) continue;
+    for (const id of input.cardIds) if (byId.has(id)) inDecks.add(id);
+  }
+  defs = [...inDecks].map((id) => byId.get(id)!);
+  console.log(`Restricted to the ${defs.length} distinct cards in the owner's decks.\n`);
+}
 
 interface Bucket {
   clauses: number;
@@ -178,5 +260,137 @@ console.log("\nThe wordings that are the *only* thing holding a skill back — f
 for (const [, e] of [...lastInTheWay.entries()].sort((a, b) => b[1].skills - a[1].skills).slice(0, 25)) {
   console.log(`${String(e.skills).padStart(5)} skills on ${String(e.cards.size).padStart(4)} cards`);
   console.log(`        e.g. ${e.example.slice(0, 110)}`);
+}
+
+/**
+ * [Auto] skills that compile and can never happen, because no `Trigger` in the
+ * engine matches the moment they name.
+ *
+ * These are worse than a gap and invisible to every other measure here: the
+ * compiler reads them, the coverage counts them, and the engine sits there.
+ * Fixing one is engine work (a `Trigger`, a wording in `autoTriggerMatches`,
+ * and a `pendTriggers` call where the event happens) rather than a pattern.
+ */
+const orphan = new Map<string, { skills: number; cards: Set<string>; example: string }>();
+let orphans = 0;
+for (const d of defs) {
+  for (const side of ["front", "back"] as const) {
+    const text = side === "front" ? d.skill : d.back?.skill;
+    if (!text) continue;
+    const scripts = compileCardCached(d, side);
+    for (const sk of parseSkills(text)) {
+      if (sk.kind !== "auto" || !sk.effect.trim()) continue;
+      if (scripts.bySkill[sk.index]?.unsupported.length !== 0) continue;
+      if (TRIGGERS.some((t) => autoTriggerMatches(sk, t))) continue;
+      orphans++;
+      const said = `${sk.cost} ${sk.effect}`.toLowerCase();
+      const when = /\b(?:when|at the (?:end|beginning|start))\b[^,.]*/.exec(said);
+      const key = (when ? when[0] : "(names no moment)")
+        .replace(/\d+/g, "N")
+        .replace(/<[^>]*>|\{[^}]*\}|≪[^≫]*≫/g, "…")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 70);
+      const e = orphan.get(key) ?? { skills: 0, cards: new Set<string>(), example: key };
+      e.skills++;
+      e.cards.add(d.id);
+      orphan.set(key, e);
+    }
+  }
+}
+
+console.log(`\n\n${orphans} [Auto] skills compile but no trigger ever fires them — the engine reads`);
+console.log("them and then waits for a moment it does not know about:\n");
+for (const [, e] of [...orphan.entries()].sort((a, b) => b[1].skills - a[1].skills).slice(0, 20)) {
+  console.log(`${String(e.skills).padStart(5)} skills on ${String(e.cards.size).padStart(4)} cards   ${e.example}`);
+}
+
+/**
+ * The same blind spot for the other two kinds. `activatable` in `engine.ts`
+ * only offers a skill when its **cost** is readable as well as its effect — a
+ * price the engine cannot charge must not be waived — so an [Activate] or
+ * [Counter] whose effect compiles perfectly is still never offered when the
+ * text before the colon defeats `parseConditionClause`.
+ *
+ * This mirrors `costIsReadable`, which is not exported; keep the two together.
+ */
+const costReadable = (sk: ReturnType<typeof parseSkills>[number]) => {
+  if (costIsOnlyOrbs(sk.cost)) return true;
+  // A price that only states a condition, with or without an "if" in front.
+  if (priceCondition(sk)) return true;
+  // An action price is readable when it compiles; whether it can be *paid* is
+  // a question about the board, which only `canPayCostProgram` can answer.
+  return compileCostProgram(sk) !== null;
+};
+
+const unpayable = new Map<string, { skills: number; cards: Set<string>; example: string }>();
+let unpayables = 0;
+for (const d of defs) {
+  for (const side of ["front", "back"] as const) {
+    const text = side === "front" ? d.skill : d.back?.skill;
+    if (!text) continue;
+    const scripts = compileCardCached(d, side);
+    for (const sk of parseSkills(text)) {
+      if (!sk.kind.startsWith("activate") && !sk.kind.startsWith("counter")) continue;
+      if (!sk.effect.trim() || scripts.bySkill[sk.index]?.unsupported.length !== 0) continue;
+      if (costReadable(sk)) continue;
+      unpayables++;
+      const key = sk.cost
+        .toLowerCase()
+        .replace(/\d+/g, "N")
+        .replace(/<[^>]*>|\{[^}]*\}|≪[^≫]*≫/g, "…")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 70);
+      const e = unpayable.get(key) ?? { skills: 0, cards: new Set<string>(), example: key };
+      e.skills++;
+      e.cards.add(d.id);
+      unpayable.set(key, e);
+    }
+  }
+}
+
+console.log(`\n\n${unpayables} [Activate]/[Counter] skills compile but are never offered, because the`);
+console.log("engine cannot read the price before the colon and will not waive one:\n");
+for (const [, e] of [...unpayable.entries()].sort((a, b) => b[1].skills - a[1].skills).slice(0, 20)) {
+  console.log(`${String(e.skills).padStart(5)} skills on ${String(e.cards.size).padStart(4)} cards   ${e.example}`);
+}
+
+/**
+ * And the third kind. A [Permanent] skill is never resolved; `collectStatics`
+ * reads its program and emits standing effects from the ops it knows. A
+ * program made of anything else compiles and then does nothing — grouped here
+ * by the ops it produced, because that is what says which static kind is
+ * missing.
+ */
+const inert = new Map<string, { skills: number; cards: Set<string>; example: string }>();
+let inerts = 0;
+for (const d of defs) {
+  for (const side of ["front", "back"] as const) {
+    const text = side === "front" ? d.skill : d.back?.skill;
+    if (!text) continue;
+    const scripts = compileCardCached(d, side);
+    for (const sk of parseSkills(text)) {
+      // A [Permanent] whose whole text is a parenthetical reminder emits
+      // nothing because there is nothing to emit, which is the compiler being
+      // right. Counting those made this measure 52 skills too pessimistic.
+      if (sk.kind !== "permanent" || !stripNotes(sk.effect).trim()) continue;
+      const sc = scripts.bySkill[sk.index];
+      if (!sc || sc.unsupported.length || emitsStatic(sc.ops)) continue;
+      inerts++;
+      const key = sc.ops.map((o) => o.op).join(" + ") || "(nothing at all — the text was a reminder)";
+      const e = inert.get(key) ?? { skills: 0, cards: new Set<string>(), example: `${d.id}: ${sk.effect.replace(/\s+/g, " ").slice(0, 60)}` };
+      e.skills++;
+      e.cards.add(d.id);
+      inert.set(key, e);
+    }
+  }
+}
+
+console.log(`\n\n${inerts} [Permanent] skills compile but emit no standing effect — the static layer`);
+console.log("has no kind for what they say, so they read cleanly and do nothing:\n");
+for (const [key, e] of [...inert.entries()].sort((a, b) => b[1].skills - a[1].skills).slice(0, 15)) {
+  console.log(`${String(e.skills).padStart(5)} skills on ${String(e.cards.size).padStart(4)} cards   ${key}`);
+  console.log(`        e.g. ${e.example}`);
 }
 process.exit(0);

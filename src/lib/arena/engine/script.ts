@@ -18,6 +18,9 @@ import {
   resolveSelector,
   sideOf,
   areaOf,
+  cardNow,
+  cardsInPlay,
+  skillsOfInstance,
   draw as drawCards,
   face,
   forbids,
@@ -31,7 +34,7 @@ import {
   type GameContext,
 } from "./state";
 import { koCard, masterOf, pendTriggers } from "./triggers";
-import type { Color, DelayScope, DelayTiming, FlowStep, ForbiddenAction, GameEvent, GameState, KeywordSkill, PlayerId, Trigger } from "./types";
+import type { Color, DelayScope, DelayTiming, FlowStep, ForbiddenAction, GameEvent, GameState, KeywordSkill, PlayerId, SkillKindPrefix, Trigger } from "./types";
 
 // ── the language ───────────────────────────────────────────────────────────
 
@@ -40,10 +43,20 @@ export type ScriptArea = "hand" | "deck" | "drop" | "life" | "battle" | "combo" 
 
 export type Side = "you" | "opponent" | "both";
 
-export type Duration = "battle" | "turn" | "opponentTurn" | "nextTurn" | "game";
+/**
+ * `afterNextCharge` outlives `nextTurn` by one step: "the chosen card will not
+ * switch to Active Mode during your next Charge Phase" (7-2-7) has to still be
+ * there when the Active Step runs, and `nextTurn` ends just before it.
+ */
+export type Duration = "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "game";
 
-/** Cards the source skill can point at without choosing: itself, the battle roles, the trigger's subject. */
-export type SpecialTarget = "self" | "attacker" | "guard" | "subject" | "leader" | "opponentLeader";
+/**
+ * Cards the source skill can point at without choosing: itself, the battle
+ * roles, the trigger's subject, and `resolving` — the card whose play a
+ * [Counter: Play] is answering ("if the Battle Card being played has an energy
+ * cost of 7 or less").
+ */
+export type SpecialTarget = "self" | "attacker" | "guard" | "subject" | "leader" | "opponentLeader" | "resolving";
 
 export interface Selector {
   side?: Side;
@@ -63,8 +76,25 @@ export interface Selector {
   /** How many to take. `upTo` allows zero (5-2-4). */
   count?: number;
   upTo?: boolean;
+  /**
+   * "The top card of your deck": the first `take` cards of the area in its own
+   * order, not a choice among them. `count` never means this — a count is
+   * always a choice (5-2) — so the two must not be confused.
+   */
+  take?: number;
+  /** With `take`, count from the far end: "the bottom card of your deck". */
+  fromEnd?: boolean;
   /** Card text may say "ignoring [Barrier]", which lifts 22-16 for this choice. */
   ignoreBarrier?: boolean;
+  /**
+   * "Choose all Battle Cards **other than this card**", "play up to 1 ≪Demon
+   * Clan≫ card among them **other than copies of this card**". Refusing to
+   * *resolve* to this card is only half of it: read as nothing, the phrase
+   * still offered this card among the candidates, so "they get -15000 power"
+   * hit the card printing it. `"copies"` excludes every card of the same
+   * name, which is what that longer wording says.
+   */
+  notSelf?: "card" | "copies";
 }
 
 /**
@@ -81,7 +111,12 @@ export type Amount =
   /** "Draw cards until you have 4 cards in your hand": however many that takes, never fewer than none. */
   | { handUpTo: number };
 
-export type Ref = { var: string } | { sel: Selector };
+/**
+ * `minus` is "the rest": the cards bound to `var` that a later choice did not
+ * take — "look at the top 3 cards of your deck, add 1 of them to your hand and
+ * place the rest at the bottom of your deck".
+ */
+export type Ref = { var: string; minus?: string } | { sel: Selector };
 
 export type Cond =
   | { kind: "count"; sel: Selector; atLeast?: number; atMost?: number }
@@ -103,10 +138,12 @@ export type Cond =
   /** "If this card's power is 30000 or more" — any of the selected cards, as it stands now. */
   | { kind: "power"; sel: Selector; atLeast?: number; atMost?: number }
   /** "If you added a card to your hand", "if you played a card" — whether an earlier step of this same skill did that. */
-  | { kind: "did"; what: "addToHand" | "play" | "negateAttack" | "negateLeaderAttack" | "ko" | "draw" }
+  | { kind: "did"; what: "addToHand" | "play" | "negateAttack" | "negateLeaderAttack" | "ko" | "draw" | "may" }
   /** "If you don't" (20-16): the opposite of a condition. */
   | { kind: "not"; cond: Cond }
   | { kind: "chose"; var: string }
+  /** "If that card is a Battle Card": what a reveal or a look turned up (20-11). */
+  | { kind: "varMatches"; var: string; filter: CardFilter }
   /** Whose turn it is (7-1). "opponent" is "during your opponent's turn". */
   | { kind: "isTurnPlayer"; who?: "you" | "opponent" };
 
@@ -121,18 +158,48 @@ export type Op =
   | { op: "lifeDownTo"; n: number; side?: Side }
   | { op: "shuffle"; side?: Side }
   | { op: "energyMarker"; n: Amount; side?: Side }
-  | { op: "choose"; sel: Selector; as: string; reason?: string }
+  /**
+   * `chooser` is who answers, when that is not the player whose skill this is:
+   * "your opponent sends 1 Battle Card from their Drop Area to their Warp"
+   * (20-7) is their choice to make, not yours.
+   */
+  | { op: "choose"; sel: Selector; as: string; reason?: string; chooser?: Side }
   /** `from` is the top of the deck unless the card says the bottom. */
-  | { op: "look"; n: Amount; as: string; side?: Side; from?: "top" | "bottom" }
+  /** `area` is the deck unless it says otherwise — "look at your opponent's hand" (20-11). */
+  | { op: "look"; n: Amount; as: string; side?: Side; from?: "top" | "bottom"; area?: ScriptArea }
+  /**
+   * "Reveal the top card of your opponent's deck" (20-11-2): both players see
+   * it, so the name is logged, and the cards stay where they are — bound to
+   * `as` for the clauses that act on what was seen.
+   */
+  | { op: "reveal"; sel: Selector; as: string }
   | { op: "ko"; target: Ref }
   /** `to: "under"` puts the card under `under`, or under the source card (23-2). */
-  | { op: "moveTo"; target: Ref; to: ScriptArea; position?: "top" | "bottom"; mode?: "active" | "rest"; reveal?: boolean; under?: Ref }
-  | { op: "play"; target: Ref; mode?: "active" | "rest" }
+  /**
+   * `owner` overrides whose area the card lands in — "place it in your
+   * opponent's energy in Rest Mode" (3-8) puts a card the opponent owns into
+   * the *other* player's energy. Left out, a card goes to its own owner's
+   * area, which is what nearly every move means.
+   */
+  | { op: "moveTo"; target: Ref; to: ScriptArea; position?: "top" | "bottom"; mode?: "active" | "rest"; reveal?: boolean; under?: Ref; owner?: Side; faceUp?: boolean }
+  /**
+   * `onto` plays the card on top of another, which is how [Union-Absorb]
+   * resolves (22-13-6-3) and how the "play … on top of this card" wordings
+   * read. Without it the card is played beside the host instead of onto it.
+   */
+  /** `negated` is "played … with its skills negated" (9-1-5), for the turn or for as long as it is in play. */
+  | { op: "play"; target: Ref; mode?: "active" | "rest"; onto?: Ref; negated?: "turn" | "game" }
   | { op: "switchMode"; target: Ref; mode: "active" | "rest" }
   | { op: "power"; target: Ref; amount: Amount; until: Duration }
   | { op: "comboPower"; target: Ref; amount: Amount; until: Duration }
   | { op: "grant"; target: Ref; keyword: KeywordSkill; until: Duration }
   | { op: "negateSkills"; target: Ref; until: Duration }
+  /**
+   * "Negate that card's [Auto] skill for the turn" (9-1-5): one kind of skill
+   * rather than all of them. The printed tag is a prefix of `SkillKind`, so a
+   * bare "[Counter]" covers every counter kind.
+   */
+  | { op: "negateSkillsOfKind"; target: Ref; kind: SkillKindPrefix; until: Duration }
   /** 23-5: "switch it to Hidden Mode" / "switch it to Revealed Mode" — Battle Cards in the Battle Area only. */
   | { op: "hidden"; target: Ref; hidden: boolean }
   /** "Switch the target of the attack to it" — the card becomes the guard, as a [Blocker] would (22-4-2). */
@@ -145,6 +212,12 @@ export type Op =
   | { op: "comboFrom"; target: Ref; negated?: boolean }
   /** "You may flip this card over" — a Leader awakens by a skill other than its [Awaken] (22-2-4). */
   | { op: "flip"; target: Ref }
+  /**
+   * "Flip up to 1 card in your life face up" (3-9-2-1). The Life Area is
+   * secret; a card turned face up in it is treated as being in an open area,
+   * which is what lets "face-up ≪Boujack Brigade≫ cards" find it.
+   */
+  | { op: "faceUp"; target: Ref; faceUp?: boolean }
   | { op: "addMarker"; target: Ref; n: Amount }
   | { op: "removeMarker"; target: Ref; n: Amount }
   | { op: "token"; name: string; power: number; comboCost: number | null; comboPower: number | null; colors: Color[]; n: Amount; side?: Side }
@@ -153,7 +226,7 @@ export type Op =
    * says (9-1-3-3). `what` says which cost: the energy cost by default, or the
    * combo cost (5-7-3).
    */
-  | { op: "costReduction"; target: Ref; amount: number; what?: "energy" | "combo" }
+  | { op: "costReduction"; target: Ref; amount: Amount; what?: "energy" | "combo" }
   /**
    * Take a keyword skill away from a card (9-1-5). Unlike `negateSkills`, which
    * silences everything, this names one — "negate this card's
@@ -171,13 +244,20 @@ export type Op =
    * 9-10: where this card goes instead, when it would leave the Battle Area.
    * `by: "skill"` narrows it to departures a skill caused.
    */
-  | { op: "replaceLeave"; to: ScriptArea; by?: "skill"; target?: Ref }
+  | { op: "replaceLeave"; to: ScriptArea; by?: "skill" | "ko" | "skillOrKo"; mode?: "active" | "rest"; target?: Ref }
   /**
    * Another way to pay for this card's own [Counter] skill (5-3): for nothing,
    * or by adding cards from your life to your hand. Read from the hand, like
    * a cost reducer, because that is where the skill says it applies.
    */
-  | { op: "altCost"; pay: "none" | "life"; n?: number; for?: "counter" | "play" }
+  /** `ops` is the price to run, for `pay: "program"` — an action the card asks for instead of the energy cost (5-3). */
+  | { op: "altCost"; pay: "none" | "life" | "program"; n?: number; for?: "counter" | "play"; ops?: Op[] }
+  /**
+   * What a [Counter: Play] does to the card it is answering (9-6). `instead`
+   * stops the play outright and sends the card there rather than into play;
+   * `mode` and `negated` let the play happen but change how the card arrives.
+   */
+  | { op: "resolvingPlay"; instead?: ScriptArea; position?: "top" | "bottom"; mode?: "rest"; negated?: boolean }
   | { op: "negateAttack" }
   /**
    * 9-7: negate the counter this one is answering. The counter being answered
@@ -190,7 +270,7 @@ export type Op =
    * it for effects meant to happen once — the skill is still printed, and
    * still negatable by anything else, it simply never triggers again.
    */
-  | { op: "negateOwnSkill"; until?: "turn" }
+  | { op: "negateOwnSkill"; until?: "turn" | "battle" }
   /** Kept for programs written before `forbid` existed; the same thing. */
   | { op: "cannotAttack"; target: Ref; until: Duration }
   /**
@@ -198,10 +278,28 @@ export type Op =
    * cards, or a `side` for one about a player ("your opponent can't attack
    * with Battle Cards"), optionally narrowed by a filter.
    */
-  | { op: "forbid"; what: ForbiddenAction; until: Duration; target?: Ref; side?: Side; filter?: CardFilter; sameNameAsSelf?: boolean }
+  | { op: "forbid"; what: ForbiddenAction; until: Duration; target?: Ref; side?: Side; filter?: CardFilter; sameNameAsSelf?: boolean; bySkill?: boolean }
+  /**
+   * The opposite of `forbid`: a rule of the game lifted for one card.
+   * "This card can attack Battle Cards in Active Mode" (8-1-1). `filter`
+   * says which active cards, and a description the parser cannot read must
+   * fail the clause rather than permit every one of them.
+   */
+  | { op: "permit"; what: "attackActive"; until: Duration; target: Ref; filter?: CardFilter }
   | { op: "if"; cond: Cond; then: Op[]; else?: Op[] }
   /** "Choose one— ・A ・B" (20-2): the master picks one printed option. */
   | { op: "chooseMode"; modes: { label: string; ops: Op[] }[]; reason?: string }
+  /**
+   * "You may draw 1 card" (20-16): the master decides whether the rest of this
+   * clause happens. Taking it silently is not the rule — and "if you don't"
+   * has nothing to be the opposite of when the choice was never offered.
+   */
+  /**
+   * `chooser` is who decides, when that is not the player whose skill this is:
+   * "your opponent **may** choose 1 of their Battle Cards and KO it" is their
+   * offer to decline (20-16), and "if they don't" reads the answer.
+   */
+  | { op: "may"; ops: Op[]; reason?: string; chooser?: Side }
   /**
    * Write an effect down now and carry it out later (1-7-2-1-1): "at the end
    * of the turn, KO it". The inner program keeps this frame's variables, so it
@@ -229,8 +327,14 @@ export interface ScriptFrame {
   skillIndex?: number;
   /** Set while a `choose` is waiting for an answer. */
   awaiting?: string;
+  /**
+   * Where to leave this program's variables when it finishes, so a later one
+   * can start from them. Used by a skill's price, whose effect may refer to
+   * what the price chose (4-3-3).
+   */
+  saveVarsAs?: string;
   /** What this program has done so far, for "if you added a card to your hand" (20-16). */
-  did?: { addToHand?: boolean; play?: boolean; negateAttack?: boolean; negateLeaderAttack?: boolean; ko?: boolean; draw?: boolean };
+  did?: { addToHand?: boolean; play?: boolean; negateAttack?: boolean; negateLeaderAttack?: boolean; ko?: boolean; draw?: boolean; may?: boolean };
 }
 
 /** How each timing reads in the log when the card text does not say it better. */
@@ -247,6 +351,25 @@ export const DELAY_LABELS: Record<DelayTiming, string> = {
 export { resolveSelector };
 
 /**
+ * Every card that flips a life card face up says *which* skills count: "when
+ * a card in your life is flipped face up **by one of your red card skills**".
+ * The trigger text is read without state (`triggers.ts`), so the colour is
+ * checked here, where the card that did it is known, and the entries pended
+ * since `before` that name a colour the source has not got are dropped again.
+ */
+function dropWrongColour(ctx: GameContext, s: GameState, before: number, source: string | undefined): void {
+  const colors = source && s.cards[source] ? cardNow(ctx, s, source).colors : [];
+  s.pending = s.pending.filter((e, i) => {
+    if (i < before) return true;
+    const sk = skillsOfInstance(ctx, s, e.card).find((x) => x.index === e.skillIndex);
+    const m = /flipped face up by (?:one of )?your (red|blue|green|yellow|black) card skills?/i.exec(sk ? sk.cost + " " + sk.effect : "");
+    if (!m) return true;
+    const want = (m[1][0].toUpperCase() + m[1].slice(1)) as Color;
+    return colors.includes(want);
+  });
+}
+
+/**
  * Run a program until it finishes or needs a decision. Returns "wait" with a
  * prompt set and the frame pushed back onto the flow; "done" when the program
  * ended or a sub-flow (playing a card) took over.
@@ -255,7 +378,15 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
   const master = frame.master;
 
   for (let guard = 0; guard < 200; guard++) {
-    if (frame.ip >= frame.ops.length) return "done";
+    if (frame.ip >= frame.ops.length) {
+      // A skill's price is its own program, run before the effect (4-3-3), but
+      // the effect may point back at what the price chose: "Choose 1 {Tree of
+      // Might} … and place this card under the chosen card: **Add a marker to
+      // the chosen card**." Handing the names on is what makes that one skill
+      // rather than two.
+      if (frame.saveVarsAs) s.continuations[frame.saveVarsAs] = { ...frame.vars };
+      return "done";
+    }
     const op = frame.ops[frame.ip];
 
     switch (op.op) {
@@ -273,13 +404,26 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         break;
 
       case "discard": {
-        // 20-7: the *owner* of the hand chooses which cards to discard.
+        // 20-7: the *owner* of the hand chooses which cards leave it. The
+        // comment here has said so from the beginning while the code took
+        // whatever was last in hand, which is not a choice at all — and for
+        // the opponent's hand it was not even the right player's.
+        //
+        // Rather than teach this op to prompt, it is rewritten into the ops
+        // that already know how: a `choose` the owner answers, then the move.
+        // `chooseMode` splices its option in the same way.
+        const n = amount(ctx, s, frame, op.n);
+        const spliced: Op[] = [];
         for (const p of sideOf(master, op.side)) {
-          const n = amount(ctx, s, frame, op.n);
-          const hand = s.players[p].hand;
-          for (let i = 0; i < n && hand.length; i++) move(ctx, s, ev, hand[hand.length - 1], op.to ?? "drop", p, { reason: "effect", reveal: true });
+          const who: Side = p === master ? "you" : "opponent";
+          const v = `discarded${frame.ip}${p}`;
+          spliced.push(
+            { op: "choose", sel: { side: who, area: "hand", count: n }, as: v, chooser: who, reason: `discard ${n} card${n === 1 ? "" : "s"}` },
+            { op: "moveTo", target: { var: v }, to: op.to ?? "drop", reveal: true },
+          );
         }
-        break;
+        frame.ops = [...frame.ops.slice(0, frame.ip), ...spliced, ...frame.ops.slice(frame.ip + 1)];
+        continue;
       }
 
       case "damage": {
@@ -297,6 +441,20 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
             s.players[p].damageTaken += taken.length;
             ev.push({ type: "damage", player: p, amount: taken.length, critical: false, cards: taken });
             pendTriggers(ctx, s, "dealtDamage", frame.card);
+            // 21-3: "when you take damage from an opponent's non-keyword
+            // skill" and its mirror. Only the `damage` op reaches here —
+            // battle damage takes a different path — so the "from a skill"
+            // half of those wordings is the moment itself. The cards that add
+            // "from a skill on one of your Battle Cards" are answered by the
+            // area the source sits in.
+            const src = frame.card && areaOf(s, frame.card);
+            const fromBoard = src === "battle" || src === "unison" || src === "leader";
+            if (fromBoard) {
+              for (const w of cardsInPlay(s, p)) pendTriggers(ctx, s, "youTookDamage", w, frame.card);
+              for (const w of cardsInPlay(s, p === "p1" ? "p2" : "p1")) pendTriggers(ctx, s, "opponentTookDamage", w, frame.card);
+            }
+            // 3-9: the life cards themselves left the Life Area.
+            for (const w of cardsInPlay(s, p)) pendTriggers(ctx, s, "lifeLeft", w, taken[0]);
           }
         }
         break;
@@ -341,9 +499,24 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         // 20-11: looking is not revealing — only the player looking sees them,
         // which is why the cards are bound to a name rather than moved.
         const p = sideOf(master, op.side)[0];
+        // "Look at your opponent's hand": a whole area rather than an end of
+        // the deck, so the count says nothing.
+        if (op.area && op.area !== "deck") {
+          frame.vars[op.as] = resolveSelector(ctx, s, frame, { side: op.side, area: op.area });
+          break;
+        }
         const n = amount(ctx, s, frame, op.n);
         const deck = s.players[p].deck;
         frame.vars[op.as] = op.from === "bottom" ? deck.slice(Math.max(0, deck.length - n)) : deck.slice(0, n);
+        break;
+      }
+
+      case "reveal": {
+        // 20-11-2: revealing shows the cards to both players and leaves them
+        // where they are. The log is how the other player gets to see them.
+        const shown = resolveSelector(ctx, s, frame, op.sel);
+        frame.vars[op.as] = shown;
+        if (shown.length) note(ev, `revealed ${shown.map((id) => face(ctx, s, id).name).join(", ")}`);
         break;
       }
 
@@ -393,7 +566,8 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         const asked = left === 1 ? "" : ` (${left} more)`;
         s.prompt = {
           kind: "chooseCards",
-          player: master,
+          // 20-7: whoever the card says chooses, chooses.
+          player: op.chooser ? sideOf(master, op.chooser)[0] : master,
           choice: {
             reason: (op.reason ?? `${face(ctx, s, frame.card).name}: choose ${op.sel.upTo ? `up to ${want}` : want}`) + asked,
             candidates: cands,
@@ -429,22 +603,65 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
           // its power or negate it, but nothing puts it anywhere else — and
           // an empty Leader Area is a state the rest of the engine cannot read.
           if (areaOf(s, id) === "leader") continue;
+          // 20-14: "can't be removed from a Battle Area by your opponent's
+          // skills". The rule is about the opponent's skills, so a card its
+          // own master moves is unaffected.
+          if (s.cards[id].owner !== master && areaOf(s, id) === "battle" && forbids(ctx, s, "beMovedBySkill", { card: id })) continue;
           if (op.to === "under") {
             if (host) placeUnder(ctx, s, ev, id, host);
             continue;
           }
-          const owner = op.to === "battle" || op.to === "unison" ? master : s.cards[id].owner;
+          const owner = op.owner ? sideOf(master, op.owner)[0] : op.to === "battle" || op.to === "unison" ? master : s.cards[id].owner;
           // "play" is not an area of its own either (3-1); it means the Battle Area.
           const dest = op.to === "play" ? "battle" : op.to;
+          const leftBattle = areaOf(s, id) === "battle";
           move(ctx, s, ev, id, dest, owner, { position: op.position, reveal: op.reveal, reason: "effect" });
+          // 3-1: "when this card is removed from a Battle Area by a skill",
+          // and the commoner narrowing to the *opponent's* skills. A card that
+          // went nowhere — a replacement sent it back — was not removed.
+          if (leftBattle && areaOf(s, id) !== "battle") {
+            pendTriggers(ctx, s, "removedFromBattle", id);
+            if (masterOf(s, id) !== master) pendTriggers(ctx, s, "removedByOpponent", id);
+            // The narrower wording, which names where it ended up as well —
+            // and the one that names no cause, which covers this too.
+            if (areaOf(s, id) === "drop") {
+              pendTriggers(ctx, s, "droppedFromBattle", id);
+              pendTriggers(ctx, s, "leftBattleToDrop", id);
+            }
+          }
           if (op.mode) setMode(s, ev, id, op.mode, ctx);
+          // 5-5: a card a skill *places* in a Battle Area was not played, so
+          // "when this card is played" does not fire — 30 cards say only
+          // "when this card is placed in a Battle Area".
+          if (dest === "battle") pendTriggers(ctx, s, "placed", id);
+          // 17-3: "when this card is added to your Z-Energy".
+          if (dest === "zEnergy") pendTriggers(ctx, s, "addedToZEnergy", id);
+          // "Add it to your life face up" (3-9-2-1): how the card arrives, set
+          // after the move because 3-1-4 clears the flag on the way.
+          if (op.faceUp) s.cards[id].faceUp = true;
           if (dest === "hand" && owner === master) (frame.did ??= {}).addToHand = true;
         }
         break;
       }
 
       case "switchMode":
-        for (const id of resolveRef(ctx, s, frame, op.target)) setMode(s, ev, id, op.mode, ctx);
+        for (const id of resolveRef(ctx, s, frame, op.target)) {
+          const was = s.cards[id].mode;
+          setMode(s, ev, id, op.mode, ctx);
+          // "When this card is switched to Rest Mode by one of your skills"
+          // (1-10): the card and the skill both have to be yours, which is what
+          // "your" says — an opponent resting it is not this moment.
+          if (op.mode === "rest" && was === "active" && s.cards[id].mode === "rest") {
+            const area = areaOf(s, id);
+            if (masterOf(s, id) === master) pendTriggers(ctx, s, "restedBySkill", id, frame.card);
+            // The other end of it: your skill resting one of *theirs*, watched
+            // by your cards in play. The printed wording names their Battle
+            // Cards and energy, so that is where it is pended and nowhere else.
+            else if (area === "battle" || area === "energy") {
+              for (const w of cardsInPlay(s, master)) pendTriggers(ctx, s, "restedTheirsBySkill", w, id);
+            }
+          }
+        }
         break;
 
       case "hidden":
@@ -465,6 +682,25 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         }
         break;
 
+      case "faceUp": {
+        const up = op.faceUp ?? true;
+        for (const id of resolveRef(ctx, s, frame, op.target)) {
+          if (!!s.cards[id].faceUp === up) continue;
+          s.cards[id].faceUp = up;
+          // 3-9-2-1: a face-up card is open to both players, so naming it leaks nothing.
+          note(ev, `${face(ctx, s, id).name} is turned face ${up ? "up" : "down"}`);
+          if (!up) continue;
+          // "When **this card** in your life is flipped face up" is the card
+          // itself; "when **a** card in your life is flipped face up" is watched
+          // by everything that player has in play. One moment, two wordings.
+          const before = s.pending.length;
+          pendTriggers(ctx, s, "flippedFaceUp", id, frame.card);
+          for (const w of cardsInPlay(s, s.cards[id].owner)) if (w !== id) pendTriggers(ctx, s, "flippedFaceUp", w, id);
+          dropWrongColour(ctx, s, before, frame.card);
+        }
+        break;
+      }
+
       case "comboFrom": {
         // 5-7-2: a combo card needs a battle to join, on the side of the
         // player whose skill this is.
@@ -474,6 +710,10 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
           if (areaOf(s, id) === "combo") continue;
           move(ctx, s, ev, id, "combo", master, { reason: "combo", reveal: true });
           if (op.negated) s.cards[id].negated = "all";
+          // 5-7-2: a combo a skill makes is a combo. Both sides watch it, the
+          // same as one the player declared.
+          for (const w of cardsInPlay(s, master)) pendTriggers(ctx, s, "youCombo", w, id);
+          for (const w of cardsInPlay(s, master === "p1" ? "p2" : "p1")) pendTriggers(ctx, s, "opponentCombos", w, id);
         }
         break;
       }
@@ -495,25 +735,37 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
       case "power":
       case "comboPower": {
         const n = amount(ctx, s, frame, op.amount);
-        for (const id of resolveRef(ctx, s, frame, op.target)) addEffect(s, ev, { target: id, kind: op.op === "power" ? "power" : "comboPower", value: n, until: op.until });
+        for (const id of resolveRef(ctx, s, frame, op.target)) addEffect(s, ev, { master: frame.master, target: id, kind: op.op === "power" ? "power" : "comboPower", value: n, until: op.until });
         break;
       }
 
       case "grant":
-        for (const id of resolveRef(ctx, s, frame, op.target)) addEffect(s, ev, { target: id, kind: "keyword", value: op.keyword, until: op.until });
+        for (const id of resolveRef(ctx, s, frame, op.target)) addEffect(s, ev, { master: frame.master, target: id, kind: "keyword", value: op.keyword, until: op.until });
         break;
 
       case "negateSkills":
         // 9-1-5: for a duration it is a continuous effect that ends with the
         // turn or the battle; "for the game" marks the card until it leaves play.
         for (const id of resolveRef(ctx, s, frame, op.target)) {
+          // 9-1-5: "This card's skills can't be negated in any area" beats the
+          // instruction, like every other prohibition (0-2-5).
+          if (forbids(ctx, s, "beNegated", { card: id })) continue;
           if (op.until === "game") s.cards[id].negated = "all";
-          else addEffect(s, ev, { target: id, kind: "negateSkills", value: 0, until: op.until });
+          else addEffect(s, ev, { master: frame.master, target: id, kind: "negateSkills", value: 0, until: op.until });
+        }
+        break;
+
+      case "negateSkillsOfKind":
+        // 9-1-5: one kind of skill, not the card. Always an effect with a
+        // duration — no card prints "for the game" on a single kind.
+        for (const id of resolveRef(ctx, s, frame, op.target)) {
+          if (forbids(ctx, s, "beNegated", { card: id })) continue;
+          addEffect(s, ev, { master: frame.master, target: id, kind: "negateSkillKind", value: op.kind, until: op.until === "game" ? "turn" : op.until });
         }
         break;
 
       case "cannotAttack":
-        for (const id of resolveRef(ctx, s, frame, op.target)) addEffect(s, ev, { target: id, kind: "forbid", value: 0, until: op.until, forbid: { what: "attack" } });
+        for (const id of resolveRef(ctx, s, frame, op.target)) addEffect(s, ev, { master: frame.master, target: id, kind: "forbid", value: 0, until: op.until, forbid: { what: "attack" } });
         break;
 
       case "forbid": {
@@ -523,10 +775,11 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         if (op.target) {
           // On a card, the side says *whose* action is forbidden — "can't be
           // KO'd by your opponent's skills" is a rule about the opponent.
-          for (const id of resolveRef(ctx, s, frame, op.target)) addEffect(s, ev, { target: id, kind: "forbid", value: 0, until: op.until, forbid: { what: op.what, player: players[0] } });
+          for (const id of resolveRef(ctx, s, frame, op.target)) addEffect(s, ev, { master: frame.master, target: id, kind: "forbid", value: 0, until: op.until, forbid: { what: op.what, player: players[0] } });
           break;
         }
         addEffect(s, ev, {
+          master: frame.master,
           target: "",
           kind: "forbid",
           value: 0,
@@ -535,6 +788,14 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         });
         break;
       }
+
+      // 8-1-1 lifted for one card — the opposite of `forbid`, and stored the
+      // same way so that a duration expires it the same way.
+      case "permit":
+        for (const id of resolveRef(ctx, s, frame, op.target)) {
+          addEffect(s, ev, { master: frame.master, target: id, kind: "permit", value: 0, until: op.until, permit: { what: op.what, filter: op.filter } });
+        }
+        break;
 
       case "addMarker":
       case "removeMarker": {
@@ -584,6 +845,30 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         // not applied here.
         break;
 
+      case "resolvingPlay": {
+        const card = s.resolving?.card;
+        if (!card) break;
+        if (!op.instead) {
+          // The play still happens; `resolvePlay` reads these as the card enters.
+          if (op.mode === "rest") s.continuations.playRest = card;
+          if (op.negated) s.continuations.playNegated = card;
+          break;
+        }
+        // 9-6: the play is negated. The card never reaches the Battle Area, so
+        // the step that would have put it there is dropped and the card goes
+        // where the skill says from wherever it was being played from. The
+        // energy stays paid — negating a play does not undo the cost.
+        s.flow = s.flow.filter((f) => !(f.op === "play.resolve" && f.card === card));
+        const owner = s.cards[card].owner;
+        note(ev, `${face(ctx, s, card).name} is not played`);
+        // "Under" is not an area a card can simply be put in (23-2), and no
+        // card says so here; the Drop is the printed default.
+        const dest = op.instead === "play" ? "battle" : op.instead === "under" ? "drop" : op.instead;
+        move(ctx, s, ev, card, dest, owner, { reason: "effect", position: op.position, reveal: true });
+        s.resolving = null;
+        break;
+      }
+
       case "negateAttack":
         if (s.battle) {
           s.battle.negated = true;
@@ -602,10 +887,11 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         // the card leaves play, because that is a different card (3-1-4).
         const inst = s.cards[frame.card];
         if (!inst || frame.skillIndex == null || inst.negated === "all" || inst.negated.includes(frame.skillIndex)) break;
-        if (op.until === "turn") {
-          // "Negate this skill for the turn": back next turn, so an effect, not a mark.
-          addEffect(s, ev, { target: frame.card, kind: "negateSkill", value: frame.skillIndex, until: "turn" });
-          note(ev, `${face(ctx, s, frame.card).name}: that skill will not happen again this turn`);
+        if (op.until === "turn" || op.until === "battle") {
+          // "Negate this skill for the turn / for the battle": it comes back,
+          // so an effect with a duration rather than a mark on the instance.
+          addEffect(s, ev, { master: frame.master, target: frame.card, kind: "negateSkill", value: frame.skillIndex, until: op.until });
+          note(ev, `${face(ctx, s, frame.card).name}: that skill will not happen again this ${op.until}`);
           break;
         }
         inst.negated.push(frame.skillIndex);
@@ -627,10 +913,12 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
       case "play": {
         // 5-5-3: played by a skill, so no energy cost is paid — but a card
         // that may not be played may not be played by a skill either (20-14).
-        const targets = resolveRef(ctx, s, frame, op.target).filter((id) => !forbids(ctx, s, "play", { player: master, card: id }));
+        // 20-14: a skill doing the playing, which is the half fifteen cards ban.
+        const targets = resolveRef(ctx, s, frame, op.target).filter((id) => !forbids(ctx, s, "play", { player: master, card: id, bySkill: true }));
         if (!targets.length) break;
+        const onto = op.onto ? resolveRef(ctx, s, frame, op.onto)[0] : undefined;
         const steps: FlowStep[] = [];
-        for (const id of targets) steps.push({ op: "play.resolve", card: id, player: master, mode: op.mode });
+        for (const id of targets) steps.push({ op: "play.resolve", card: id, player: master, mode: op.mode, onto, negated: op.negated });
         (frame.did ??= {}).play = true;
         frame.ip++;
         steps.push({ op: "script.step", frame });
@@ -658,6 +946,40 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         // Splice the branch in place of the `if`, keeping one frame.
         frame.ops = [...frame.ops.slice(0, frame.ip), ...branch, ...frame.ops.slice(frame.ip + 1)];
         continue;
+      }
+
+      case "may": {
+        // Asked and answered: splice the ops in, or step over them. Either way
+        // the answer is remembered, so "if you do" and "if you don't" can read
+        // it (20-16).
+        if (s.lastMode != null && frame.awaiting === "may") {
+          const yes = s.lastMode === 0;
+          s.lastMode = null;
+          frame.awaiting = undefined;
+          (frame.did ??= {}).may = yes;
+          if (!yes) {
+            frame.ip++;
+            continue;
+          }
+          frame.ops = [...frame.ops.slice(0, frame.ip), ...op.ops, ...frame.ops.slice(frame.ip + 1)];
+          continue;
+        }
+        // Nothing to offer is not a decision.
+        if (!op.ops.length) {
+          frame.ip++;
+          continue;
+        }
+        frame.awaiting = "may";
+        s.flow.unshift({ op: "script.step", frame });
+        s.prompt = {
+          kind: "chooseMode",
+          // 20-16: whoever the card says may do it, decides. The skill is
+          // still yours — only the answer is theirs.
+          player: op.chooser ? sideOf(master, op.chooser)[0] : master,
+          reason: op.reason ?? `${face(ctx, s, frame.card).name}: optional`,
+          options: [op.reason ?? "Do it", "Don't"],
+        };
+        return "wait";
       }
 
       case "chooseMode": {
@@ -718,6 +1040,7 @@ const OP_NAMES = new Set<Op["op"]>([
   "energyMarker",
   "choose",
   "look",
+  "reveal",
   "ko",
   "moveTo",
   "play",
@@ -730,6 +1053,7 @@ const OP_NAMES = new Set<Op["op"]>([
   "redirectAttack",
   "comboFrom",
   "flip",
+  "faceUp",
   "addMarker",
   "removeMarker",
   "token",
@@ -738,13 +1062,17 @@ const OP_NAMES = new Set<Op["op"]>([
   "negateOwnSkill",
   "cannotAttack",
   "forbid",
+  "permit",
   "costReduction",
+  "negateSkillsOfKind",
+  "resolvingPlay",
   "negateKeyword",
   "gains",
   "replaceLeave",
   "altCost",
   "if",
   "chooseMode",
+  "may",
   "delay",
   "note",
 ]);
@@ -765,6 +1093,7 @@ export function validateProgram(ops: unknown, depth = 0): ops is Op[] {
     if (typeof o.op !== "string" || !OP_NAMES.has(o.op as Op["op"])) return false;
     if (o.op === "if") return validateProgram(o.then, depth + 1) && (o.else === undefined || validateProgram(o.else, depth + 1));
     if (o.op === "chooseMode") return Array.isArray(o.modes) && o.modes.length > 0 && o.modes.every((mode) => validateProgram((mode as { ops?: unknown }).ops, depth + 1));
+    if (o.op === "may") return validateProgram(o.ops, depth + 1);
     // A delay with a timing the engine never drains would sit in the state for
     // the rest of the game, so the timing is checked as well as the shape.
     if (o.op === "delay") {

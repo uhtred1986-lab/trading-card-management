@@ -69,6 +69,13 @@ export interface Skill {
   markerCost: number | null;
   /** Energy orbs in the skill cost, e.g. {g}{g} → { Green: 2 }; `{u}` is blue. */
   energyCost: Partial<Record<Color, number>> & { any?: number };
+  /**
+   * Orbs printed "{r}/{u}": one orb each, payable with any *one* of the named
+   * colours. Kept apart from `energyCost` so that every loop over that stays a
+   * loop over numbers — and because "either red or blue" is not "any colour",
+   * which is what it used to be folded into.
+   */
+  energyEither: Color[][];
   raw: string;
 }
 
@@ -84,6 +91,13 @@ export type SkillKind =
   | "counter:counter"
   /** A keyword skill on its own line, e.g. "[Blocker]" or "[Critical]". */
   | "keyword";
+
+/**
+ * How a card names a *kind* of skill rather than one skill: "negate that
+ * card's [Auto] skill for the turn" (9-1-5). A printed "[Counter]" means every
+ * counter kind, so these are prefixes of `SkillKind`, matched as such.
+ */
+export type SkillKindPrefix = "auto" | "activate" | "counter" | "permanent";
 
 /** Keyword skills of §22 with their parameters. */
 export type KeywordSkill =
@@ -144,6 +158,15 @@ export interface CardInstance {
   hidden: boolean;
   /** Leader flipped to its back side (Awaken / Wish). */
   flipped: boolean;
+  /**
+   * 3-9-2-1: a card in a closed area that a skill turned face up — most often
+   * a Life card, and the Z-Deck for the ≪Boujack Brigade≫ cards. It stays
+   * where it is and is still taken as damage in its turn, but both players can
+   * see it and skills can count it ("if you have 4 or more face-up ≪Boujack
+   * Brigade≫ cards in your Z-Deck"). Cleared when the card leaves the area
+   * (3-1-4), so a card *placed* face up is marked after it arrives.
+   */
+  faceUp?: boolean;
   /** Unison markers (1-11). */
   markers: number;
   /** Cards placed under this one (23-2): Evolve/Union stacks, leader stacks. */
@@ -225,7 +248,11 @@ export type ForbiddenAction =
   | "beKOdBySkill"
   | "beChosen"
   | "switchToActive"
-  | "placeEnergy";
+  | "placeEnergy"
+  /** "Can't be removed from a Battle Area by your opponent's skills" (20-14): a move by a skill, not by a battle. */
+  | "beMovedBySkill"
+  /** "This card's skills can't be negated in any area" (9-1-5). */
+  | "beNegated";
 
 export interface Prohibition {
   what: ForbiddenAction;
@@ -235,6 +262,31 @@ export interface Prohibition {
   filter?: CardFilter;
   /** Cards with this exact name — "you can't play copies of this card". */
   name?: string;
+  /**
+   * Whether the ban is on a skill doing it or on the player doing it plainly:
+   * "this card can't be played by skills from any area" is `true`, "…can't be
+   * played from any area except by skills" is `false`, and a bare prohibition
+   * leaves it absent and covers both.
+   */
+  bySkill?: boolean;
+}
+
+/**
+ * The other direction: a rule that *lifts* one of the game's own restrictions
+ * for one card. Only one of them exists, and it is printed on 48 clauses —
+ * "This card can attack Battle Cards in Active Mode" (8-1-1, where an attack
+ * may otherwise only be declared against a Leader, a Unison, or a **rested**
+ * Battle Card).
+ *
+ * A permission read too widely lets an illegal attack happen, so `filter` is
+ * not optional in practice: "can attack Battle Cards **without [Barrier]** in
+ * Active Mode" says which active cards, and a clause whose description the
+ * parser cannot read fails rather than permitting everything.
+ */
+export interface Permission {
+  what: "attackActive";
+  /** Which active cards may be attacked. Absent means any of them. */
+  filter?: CardFilter;
 }
 
 /** A continuous effect (9-9) with a duration. */
@@ -242,15 +294,29 @@ export interface ContinuousEffect {
   id: number;
   /** The card it is about; empty for a rule that is about a player, not a card. */
   target: string;
-  /** `negateSkill`: one skill of the card, by index in `value` (9-1-5, "negate this skill for the turn"). */
-  kind: "power" | "comboPower" | "keyword" | "negateSkills" | "negateSkill" | "forbid";
-  value: number | KeywordSkill;
+  /**
+   * `negateSkill`: one skill of the card, by index in `value` (9-1-5, "negate
+   * this skill for the turn"). `negateSkillKind`: every skill of one kind,
+   * named by a `SkillKindPrefix` in `value` ("negate that card's [Auto] skill
+   * for the turn").
+   */
+  kind: "power" | "comboPower" | "keyword" | "negateSkills" | "negateSkill" | "negateSkillKind" | "forbid" | "permit";
+  value: number | KeywordSkill | SkillKindPrefix;
   /** Set when `kind` is "forbid". */
   forbid?: Prohibition;
+  /** Set when `kind` is "permit". */
+  permit?: Permission;
   /** "nextTurn" runs through the opponent's whole turn and ends as yours begins. */
-  until: "battle" | "turn" | "opponentTurn" | "nextTurn" | "game";
+  until: "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "game";
   /** The turn player when the effect was created, so "for the turn" ends at the right End Phase. */
   ownerTurn: PlayerId;
+  /**
+   * Whose skill made it. The two turn-relative durations are written from the
+   * controller's point of view — "until the end of **your opponent's** turn" —
+   * so they are read against this, not against `ownerTurn`, which is only
+   * whose turn it happened to be at the time.
+   */
+  master: PlayerId;
   createdTurn: number;
 }
 
@@ -309,16 +375,109 @@ export type Trigger =
   | "koed"
   /** This card KO'd another — by battle or by its own skill ("When this card KOs an opponent's Battle Card"). */
   | "kos"
+  /**
+   * A card of yours being KO'd, watched by the rest of your board, and the
+   * same from the other side (21-14). `koed` is the KO'd card's own skill.
+   */
+  | "yourCardKoed"
+  | "opponentCardKoed"
   | "dealtDamage"
   | "chargeStart"
   | "mainStart"
   | "mainEnd"
   | "turnEnd"
+  /**
+   * 7-1: the same two moments from the other side of the table. "Your turn"
+   * on a card is its controller's turn, never the turn player's, so each
+   * wording is its own trigger and each is pended for one side only.
+   */
+  | "opponentTurnEnd"
+  | "opponentTurnStart"
   | "battleEnd"
   | "comboed"
+  /**
+   * Something the *other* player did, watched by every card you have in play:
+   * "when your opponent plays a Battle Card", "when your opponent attacks with
+   * a Battle Card". The card they played or attacked with is the `subject`, so
+   * "that card" and "it" point at it.
+   */
+  | "opponentPlayed"
+  /** Your own side of it: "when your blue ≪God≫ card is played", "when you play a red ≪Android≫ card". */
+  | "youPlayed"
+  | "opponentAttacks"
+  | "opponentCombos"
+  /**
+   * "When you use a card in a combo", "when you combo" (5-7): your own side of
+   * the same moment, watched by your cards in play. `comboed` is the combo
+   * card's own skill and fires when it leaves the Combo Area (8-5-8).
+   */
+  | "youCombo"
+  /**
+   * "When this card is removed from a Battle Area by a skill" (3-1): a move an
+   * effect caused, which the cards themselves distinguish from a KO — they
+   * write "or KO'd" when they mean both, and that half is `koed`.
+   * `removedByOpponent` is the narrower wording, and by far the commoner one.
+   */
+  | "removedFromBattle"
+  | "removedByOpponent"
+  /**
+   * The narrower wording: a skill put this card out of a Battle Area **and**
+   * it ended in a Drop Area. Not the same as `removedFromBattle`, which is
+   * any destination, so a card bounced to the hand is that and not this.
+   */
+  | "droppedFromBattle"
+  /** The same sentence with no cause named, which is every cause: a skill and a battle KO alike. */
+  | "leftBattleToDrop"
+  /** "When your Leader Card is attacked" printed on a Battle Card (8-1). */
+  | "yourLeaderAttacked"
+  /** "When you take damage from an opponent's non-keyword skill" and its mirror (21-3). */
+  | "youTookDamage"
+  | "opponentTookDamage"
+  /** "When your life moves to another area", "when your life is placed in your Drop" (3-9). */
+  | "lifeLeft"
+  /** "When a card evolves into this card" (22-5): this card entered play by [Evolve], not by an ordinary play. */
+  | "evolvedInto"
+  /** "When your opponent activates a [Counter] skill" (4-3): watched by your cards in play. */
+  | "opponentCounter"
+  /** "At the start of your opponent's Main Phase" (7-3): the *other* player's cards watch it. */
+  | "opponentMainStart"
+  /** "When this card activates [Blocker]" (22-4): the block itself, not the attack. */
+  | "blockerUsed"
+  /** "When this card is switched to Rest Mode by an [Alliance] skill" (22-32-3): the cards rested as the cost. */
+  | "restedByAlliance"
+  /** "When this card is switched to Rest Mode by one of your skills" (1-10). */
+  | "restedBySkill"
+  /** The other end of it: your skill resting one of theirs (1-10). */
+  | "restedTheirsBySkill"
+  /**
+   * A keyword skill being used, watched by that player's cards in play:
+   * "when you activate a [Union] skill" (22-13), "…an [Overlord] skill"
+   * (22-40), "when you play a Battle Card using [Over Realm]" (22-15).
+   * The card that did it is the `subject`.
+   */
+  | "unionActivated"
+  | "overlordActivated"
+  | "overRealmPlayed"
+  /** "When this card is added to your Z-Energy" (17-3). */
+  | "addedToZEnergy"
+  /**
+   * A card *placed* in a Battle Area rather than played (5-5): by a skill, by
+   * [Over Realm], by an Evolve. "When this card is played" does not cover it,
+   * and 30 cards say only the second.
+   */
+  | "placed"
   | "energyToDrop"
   | "unisonToDrop"
   | "markerRemoved"
+  /**
+   * "When you remove a marker from this card using a [Spirit Boost] skill"
+   * (22-43-3): the *cost* being paid, watched by the Unison it came off and by
+   * that player's cards in play. An attack taking markers off is `markerRemoved`
+   * and not this.
+   */
+  | "spiritBoostPaid"
+  /** "When a card in your life is flipped face up" (3-9-2-1). */
+  | "flippedFaceUp"
   | "offenseStart"
   | "defenseStart"
   | "damageStart";
@@ -377,6 +536,13 @@ export interface CardChoice {
   max: number;
   /** Continuation id the engine resolves when the choice comes back. */
   continuation: string;
+  /**
+   * 22-30-3: the cards picked must between them cover every one of these
+   * colours. Covering is a *condition of activating* [Aegis], not something a
+   * player can get wrong, so the engine narrows what it offers as the picks
+   * come in rather than letting a wrong pair be chosen and eat the cost.
+   */
+  cover?: Color[];
 }
 
 /** Everything a player can do, as sent to `apply()`. */
@@ -509,7 +675,7 @@ export type FlowStep =
    * response resolves first — and can mark this one negated on its way past.
    */
   | { op: "counter.resolve"; card: string; skill: number; player: PlayerId; negated?: boolean }
-  | { op: "play.resolve"; card: string; player: PlayerId; markers?: number; mode?: "active" | "rest" }
+  | { op: "play.resolve"; card: string; player: PlayerId; markers?: number; mode?: "active" | "rest"; onto?: string; negated?: "turn" | "game" }
   | { op: "script.step"; frame: ScriptFrame }
   | { op: "flipLeader"; card: string }
   | { op: "skill.resolve"; card: string; skill: number; player: PlayerId; trigger?: Trigger }

@@ -85,6 +85,12 @@ data class SideView(
     val battle: List<CardView>,
     val combo: List<CardView>,
     val energy: List<CardView>,
+    /**
+     * 3-9-2-1: a life card turned face up is open to both players, and the
+     * skills that read it count these — so both sides are told about them.
+     */
+    val lifeFaceUp: List<CardView> = emptyList(),
+    val zDeckFaceUp: List<CardView> = emptyList(),
     /** Null when it is the opponent's hand: only its size is public (3-3-3). */
     val hand: List<CardView>? = null,
     val handCount: Int,

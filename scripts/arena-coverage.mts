@@ -12,6 +12,7 @@ import { db } from "../src/db";
 import { DEFAULT_GAME } from "../src/lib/catalog/games";
 import { cards, decks } from "../src/db/schema";
 import { compileSkill, parseSkills, type CardDef } from "../src/lib/arena/engine";
+import { emitsStatic } from "../src/lib/arena/engine/state";
 import { cardDefFrom, deckInputFor } from "../src/lib/arena/load";
 
 const wanted = process.argv.slice(2).map(Number).filter(Number.isInteger);
@@ -23,6 +24,8 @@ interface Tally {
   /** [Permanent] skills, which are never "resolved" — they need the static-effect layer. */
   permanent: number;
   permanentCompiled: number;
+  /** …and of those, the ones that actually emit a standing effect; the rest compile and do nothing. */
+  permanentApplied: number;
   keywordOnly: number;
   cardsTotal: number;
   cardsFull: number;
@@ -33,7 +36,7 @@ const catalogMisses = new Map<string, number>();
 const deckMisses = new Map<string, number>();
 
 function tally(defs: CardDef[], misses: Map<string, number>): Tally {
-  const t: Tally = { skills: 0, compiled: 0, permanent: 0, permanentCompiled: 0, keywordOnly: 0, cardsTotal: 0, cardsFull: 0 };
+  const t: Tally = { skills: 0, compiled: 0, permanent: 0, permanentCompiled: 0, permanentApplied: 0, keywordOnly: 0, cardsTotal: 0, cardsFull: 0 };
   for (const d of defs) {
     t.cardsTotal++;
     let full = true;
@@ -51,7 +54,10 @@ function tally(defs: CardDef[], misses: Map<string, number>): Tally {
         if (isPermanent) t.permanent++;
         else t.skills++;
         if (script.unsupported.length === 0) {
-          if (isPermanent) t.permanentCompiled++;
+          if (isPermanent) {
+            t.permanentCompiled++;
+            if (emitsStatic(script.ops)) t.permanentApplied++;
+          }
           else t.compiled++;
         } else {
           full = false;
@@ -69,7 +75,7 @@ function tally(defs: CardDef[], misses: Map<string, number>): Tally {
 
 const pct = (a: number, b: number) => (b === 0 ? "—" : `${((a / b) * 100).toFixed(1)} %`);
 const line = (label: string, t: Tally) =>
-  `${label.padEnd(26)} ${String(t.cardsTotal).padStart(5)} cards   resolved skills ${String(t.skills).padStart(5)} → ${pct(t.compiled, t.skills).padStart(7)} compiled   permanent ${String(t.permanent).padStart(5)} → ${pct(t.permanentCompiled, t.permanent).padStart(7)}   keyword-only ${t.keywordOnly}`;
+  `${label.padEnd(26)} ${String(t.cardsTotal).padStart(5)} cards   resolved skills ${String(t.skills).padStart(5)} → ${pct(t.compiled, t.skills).padStart(7)} compiled   permanent ${String(t.permanent).padStart(5)} → ${pct(t.permanentCompiled, t.permanent).padStart(7)} read, ${pct(t.permanentApplied, t.permanent).padStart(7)} applied   keyword-only ${t.keywordOnly}`;
 
 // The arena reads the Masters rule manual and only ever plays `dbs` decks
 // (src/lib/catalog/games.ts), so Fusion World text is not counted here —
@@ -83,6 +89,7 @@ let deckSkills = 0;
 let deckCompiled = 0;
 let deckPerm = 0;
 let deckPermCompiled = 0;
+let deckPermApplied = 0;
 for (const d of deckRows) {
   if (wanted.length && !wanted.includes(d.id)) continue;
   const input = await deckInputFor(db, d.id);
@@ -93,10 +100,12 @@ for (const d of deckRows) {
   deckCompiled += t.compiled;
   deckPerm += t.permanent;
   deckPermCompiled += t.permanentCompiled;
+  deckPermApplied += t.permanentApplied;
   console.log(line(`deck ${d.id} ${d.name}`.slice(0, 26), t));
 }
 console.log(`\ndecks combined: ${pct(deckCompiled, deckSkills)} of ${deckSkills} resolved skills compile; the rest are put to the referee at runtime.`);
-console.log(`                ${pct(deckPermCompiled, deckPerm)} of ${deckPerm} [Permanent] skills compile. Those that do are applied by the static layer.`);
+console.log(`                ${pct(deckPermCompiled, deckPerm)} of ${deckPerm} [Permanent] skills compile, and ${pct(deckPermApplied, deckPerm)} emit a standing effect.`);
+console.log(`                The gap between those two is skills that read cleanly and then do nothing (see arena:gaps).`);
 
 // The decks come first: a wording that never turns up in a game you play is
 // worth less than one that turns up every game, whatever the catalog says.

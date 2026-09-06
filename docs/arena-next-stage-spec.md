@@ -1,9 +1,14 @@
 # Arena rules engine — hand-off spec for the next stage
 
-Written 5 Sep 2026 on branch `feature/arena-counter-chains` (not merged; the
-owner decides when). This is a self-contained brief for whoever picks the work
+Written 5 Sep 2026 on branch `feature/arena-counter-chains` and carried on in
+`feature/arena-compiler-next`, which branches off it. The owner asked for both
+to be merged on 6 Sep 2026 and PR #22 was opened against `main`; check whether
+it landed before assuming which branch to work on. This is a self-contained brief for whoever picks the work
 up next, written so that it can be followed step by step without re-deriving
 the design. Read it once top to bottom, then work the backlog in order.
+
+Starting a fresh session? `docs/arena-next-session-prompt.md` is a prompt to
+paste, which opens with a quality check of the work described here.
 
 Companion documents: `docs/arena-design-proposal.md` (why the engine is built
 the way it is), `docs/arena-rules-worklist.md` (history of what was built, with
@@ -18,12 +23,27 @@ Measured on the 6,493 Dragon Ball Super (not Fusion World) cards:
 
 | measure | value | command |
 |---|---|---|
-| resolvable skills the compiler reads end-to-end | 79.1 % of 11,485 | `npm run arena:coverage` |
-| [Permanent] skills applied by the static layer | 49.0 % of 1,848 | same |
-| skills in the owner's 12 decks that compile | 89.3 % of 354 | same (deck tables) |
-| skills exactly one unreadable clause away | 1,469 | `npm run arena:gaps` |
-| "If …:" skill costs the compiler cannot read | 173 of 2,500 | probe in §5.3 |
+| resolvable skills the compiler reads end-to-end | 86.5 % of 11,743 | `npm run arena:coverage` |
+| [Permanent] skills the compiler reads | 59.7 % of 1,807 | same |
+| …and that actually emit a standing effect | 54.8 % of 1,807 | same |
+| skills in the owner's 13 decks that compile | 92.9 % of 397 | same (deck tables) |
+| skills exactly one unreadable clause away | 1,191 | `npm run arena:gaps` |
+| [Auto] skills that compile but no trigger fires | 655 | `npm run arena:gaps` (§5.3) |
+| [Activate]/[Counter] whose price the engine cannot read | 66 | same |
 | fuzzer | 40 games, 0 crashes | `npm run arena:fuzz 40` |
+
+Every row above can be narrowed to the cards in the owner's own decks with
+`npm run arena:gaps -- --decks`, which is where a structural bug shows up that
+the catalog-wide ranking buries.
+
+The orphan-trigger figure goes **up** when the compiler improves, and that is
+not a regression: a skill only reaches that bucket once its effect compiles, so
+teaching the compiler a phrase moves skills out of "unreadable" and into "reads
+fine, never fires". Read the three lines together, never one alone.
+
+Numbers as of 6 Sep 2026, after the commits described at the end of
+`docs/arena-rules-worklist.md`. Where they touch the backlog below, the item
+says what is left.
 
 Every keyword in §22 of the rule manual now has an engine rule (Blocker,
 Critical, Double/Triple Strike, Dual Attack, Barrier, Deflect, Indestructible,
@@ -33,7 +53,7 @@ Arrival, Empower, Successor, Aegis, Revive, Rejuvenate, Alliance, Invoker,
 Heroic, Villainous, Servant, Limit, Once per turn, Energy-Exhaust). None of
 them goes through the text compiler or the referee.
 
-What is left is **text**: the effect sentences. 3,788 clauses on 2,258 cards
+What is left is **text**: the effect sentences. 3,340 clauses on 2,037 cards
 need only a phrase pattern (no new mechanism); the rest need one of the
 mechanisms in §6.
 
@@ -49,6 +69,15 @@ mechanisms in §6.
 2. **Cite the manual.** Every engine rule and every test message names the
    section (`22-32-3`, `9-1-5`). Search `docs/rules/rulemanual.txt` with
    `grep -n "^22-32\|^  22-32-"` before implementing a keyword or a phase rule.
+
+   **When a wording is genuinely ambiguous, look it up before asking the
+   owner.** In order: the manual, then Bandai's own Q&A pages
+   (`dbs-cardgame.com/us-en/rule/card_faq.php` and `game_faq.php`), then
+   community forum entries. The one question parked for him on 5 Sep 2026 —
+   "does a card see its own arrival?" — was answered by 9-6-9-4 with 9-6-9-1-3,
+   in the manual already in this repo. Say plainly when the sources do *not*
+   settle it: a reading of the manual is not a printed ruling, and that
+   difference belongs in the note beside the rule.
 3. **A failed clause fails the clauses after it.** The compiler tracks what
    "it" refers to (`Ctx.lastTarget`, `Ctx.last`); fix the *first* failing
    clause in a skill before the later ones.
@@ -60,14 +89,64 @@ mechanisms in §6.
    `parseFilter` ignores words it does not recognise, so "your opponent's
    Battle Cards with the same name as this card" would select all of them.
    When adding a target wording, check `parseFilter` reads every measure in it
-   (cost, power, relative power `powerRel`, colours, characters, traits, names,
-   mono-colour, Z). If it cannot, make the clause fail rather than pass.
-6. **Never edit source with `node -e` or `sed` templates that contain regex
-   escapes** — they get mangled. Use the editor. Temporary probe scripts are
-   fine (§5.3) but must be deleted before committing.
+   (cost, power, relative power `powerRel`, colours and `notColors`, characters
+   and `notCharacters`, traits and `notTraits`, names and `notNames`,
+   mono-colour, multi-colour, card type and `notType`, Z), and `parseTarget`
+   its `side` and `notSelf`. If it cannot, make the clause fail rather than
+   pass. The same trap in reverse: a phrase the parser reads *wrongly* compiles
+   cleanly and is never reported, so check what a new pattern's neighbours
+   already do before adding it — five of the fixes on 5 Sep 2026 and six more
+   on 6 Sep were of that kind, and are listed in the worklist.
+
+   **The negative half of a measure is the easy one to miss, and it fails
+   worst.** "Non-black", "non-<Commander Red>", "other than <Grand Supreme
+   Kai>", "other than this card": each one *inverts* the filter when it goes
+   unread, rather than merely widening it, so the skill acts on precisely the
+   cards the text rules out. Whenever you add a positive measure, ask what the
+   sets write for its opposite.
+
+   Both of the positive measures once listed here as known widenings are now
+   read: a required keyword (`keywords`, `skillKind`) and the plural type word.
+   What is left is `[Sparking N]`, which fails the clause rather than widening
+   it — it is a numeric validity condition, not a keyword.
+
+   **A measure has to be added in two places.** `parseFilter` reads it *and*
+   `filterFor`'s `narrows` list has to name it, or a description whose only
+   measure is that one counts as saying nothing and the whole filter is thrown
+   away — the very widening the measure was added to prevent. `noKeywords`,
+   `notNames`, `keywords` and `skillKind` were every one of them shipped
+   missing from that list, and only an *engine* assertion caught it: the
+   compiled program looked right, because the filter was in it.
+6. **Never write a regex through a shell heredoc, `node -e`, or a `sed`
+   template.** The backslashes are eaten before the file is written: `\b`
+   becomes a literal backspace, `\[` becomes `[`, and the result either fails
+   to parse or — worse — silently matches something else. This applies to
+   **probe scripts as well as engine source**, which is the trap: a probe is
+   throwaway, so it feels safe to paste, and then it reports a clean run
+   because its pattern never matched anything. Write every file containing a
+   regex with the editor. Probe scripts are fine (§5.4) but must be deleted
+   before committing.
+
+   **The same escape bites the *replacement*, which is the half nobody
+   expects.** `String.prototype.replace` scans a replacement **string** for
+   `$` patterns: `` $` `` inserts everything before the match, `$&` the match
+   itself. Inserting a section into `arena-rules-worklist.md` on 6 Sep 2026
+   duplicated 1,457 lines of it, because the prose being inserted mentioned the
+   `$` anchor next to a backtick. Pass a replacement **function** — `() => text`
+   — whenever the text is not a literal in front of you; a function is never
+   scanned.
 7. **Before every commit:** `npm run typecheck`, `npm run lint`, `npm test`
-   (includes `scripts/verify-arena.ts`), `npm run arena:fuzz 40` (must report
-   `0 crashes`). Commit on the feature branch, push, do not merge.
+   (includes `scripts/verify-arena.ts`), `npm run build`, `npm run arena:fuzz 40`
+   (must report `0 crashes`). Commit on the feature branch, push, do not merge.
+
+   Two ways that gate lies to you, both hit on 6 Sep 2026. **Read the exit
+   code, not the output** — `npm run build | tail` reports `tail`'s status, so
+   a failed build looks like a passing one; run each check on its own line and
+   echo `$?`. And **a worktree needs its own `npm ci`**: `tsx`, `tsc` and
+   `eslint` resolve up the directory tree to the main checkout's
+   `node_modules` and appear to work, but `next build` looks for
+   `next/package.json` beside the project and fails with "Could not find the
+   Next.js package". A junction does not work; run the install.
 8. Do not spend tokens on Fusion World cards: every measurement filters
    `cards.game === "dbs"`.
 
@@ -184,7 +263,9 @@ card" loop that stores a program per card and a work item per wording).
 - `npm run arena:gaps` — (a) each unreadable clause classified by the
   mechanism it would need, with examples; (b) how many skills are 1, 2, 3…
   clauses away; (c) **"the only thing holding a skill back"** ranking — the
-  cheapest wins. Redirect to a file: it is long.
+  cheapest wins; (d) **"[Auto] skills that compile but no trigger ever
+  fires"** — see §5.3, and read it before trusting the coverage figure.
+  Redirect to a file: it is long.
 - `npm run arena:fuzz 40` — random legal play across the owner's decks; the
   tail lists the commonest "skill was not applied" notes, which are also a
   work list.
@@ -201,7 +282,115 @@ card" loop that stores a program per card and a work item per wording).
 5. `typecheck`, `lint`, `npm test`, `fuzz 40`, `coverage` (note the numbers in
    the commit message), commit, push.
 
-### 5.3 Probe scripts
+### 5.3 Compiling is not happening — read this before trusting a percentage
+
+**A skill that compiles may still never happen, and `arena:coverage` cannot
+tell on its own.** The compiler knows nothing about when a skill runs, whether
+its price can be charged, or whether the static layer has a kind for what it
+says. All three kinds of skill have a class of silent failure behind the
+percentage, and the last three sections of `arena:gaps` count them:
+
+1. An **[Auto]** skill runs only if some `Trigger` in `types.ts` matches the
+   moment it names *and* something calls `pendTriggers` there. **1,081 skills
+   had neither** — about a tenth of the whole catalog.
+2. An **[Activate] or [Counter]** skill is only offered when `activatable` can
+   read the price before the colon, because a price the engine cannot charge
+   must not be waived. **1,626 skills whose effects compiled were never
+   offered** — more than the first class. Now 159: a price may be an *action*
+   as well as orbs or a condition (`compileCostProgram`), and `activatable`
+   only offers it when `canPayCostProgram` says the board can be charged.
+
+3. A **[Permanent]** skill is never resolved at all: `collectStatics` reads its
+   program and emits standing effects from the ops it knows, and a program made
+   of anything else does nothing. **141 of the 976 that compile emit nothing**,
+   and the coverage line used to call all 976 "applied by the static layer".
+
+The first was found by an engine test rather than by any measurement — it
+failed because "when your opponent plays a Battle Card" had no trigger,
+`played` matching only "this card". So write the engine assertion, not only the
+compile one; it is the only thing that catches this class.
+
+**Each of the three now has one exported reader, used by the engine and by the
+measurement, so they cannot drift apart:** the `TRIGGERS` list at the top of
+`arena-gaps.mts` beside `autoTriggerMatches`; `costText`/`costIsOnlyOrbs`/
+`compileCostProgram` in `compile.ts`, shared by `activatable`, `compileSkill`
+and the report; and `emitsStatic` in `state.ts`, beside the switch it
+describes. When those disagree, a skill is offered whose condition is never
+checked — the worst outcome available, because the effect happens anyway.
+
+Each orphan trigger is engine work rather than a pattern, and always the same
+three steps:
+
+1. a value in the `Trigger` union (`types.ts`);
+2. a line in `autoTriggerMatches` (`triggers.ts`) — and check the *neighbouring*
+   cases, because "…or KO'd" belonged to `koed` all along;
+3. a `pendTriggers` call where the event actually happens, plus its name in the
+   `TRIGGERS` list at the top of `scripts/arena-gaps.mts` so it stops being
+   counted as missing.
+
+Watch two things. A trigger about a card *leaving* fires once it has gone, so
+`pendTriggers` must be told not to refuse it for being out of a valid area
+(9-1-3-1) — that is the `onLeaving` list. And a trigger about what the
+*opponent* did is pended on every card the other player has in play, with the
+card that did it as the `subject`, which is what "that card" and "it" then
+point at.
+
+### 5.3b Probes that compare a program with its own text
+
+The measures in §5.3 find skills that do *nothing*. A skill that does the
+**wrong** thing appears in no report at all, and the way to find those is to
+compare the compiled program against the clause it came from. A `choose` op
+carries its clause verbatim in `reason`, which makes that a ten-line script.
+
+Three that paid off on 5 Sep 2026 — 66, 1 and 27 hits, all now near zero:
+
+- the selector resolves to `special: "self"` while its `reason` names some
+  other card (`<…>`, `≪…≫`, `{…}`);
+- the `reason` says "your opponent's" and the selector's side is `you`;
+- the `reason` says "up to 1" and the selector's count is 99.
+
+Others worth writing when you touch that area: an area named in the text that
+the selector does not have; a `moveTo` whose destination the clause does not
+mention; a `power` whose sign is the opposite of the printed one.
+
+Four more paid off on 6 Sep 2026, and the shape of them is worth copying —
+each asks *whether the clause said the opposite of what the program does*,
+which is a stronger question than "did it read every measure":
+
+- a selector whose `side` is `you` while the reason names the opponent **in
+  any form the sets print it**: "your opponent's", "an opponent's", and the
+  bare "opponent Battle Card" the BT1–BT3 sets use. Sixteen skills KO'd,
+  rested or returned *your own* card.
+- a target that resolves to `special: "self"` out of a clause that says
+  "**other than** this card" or only "this card'**s** power" — the phrase has
+  to *mention* this card either way, so testing for the words is not enough.
+- a `filter` whose `characters`/`names` came out of an "other than <X>"
+  phrase, which means the target must **not** be that card. 36 cards, and the
+  filter was inverted rather than merely widened.
+- a `filter` colour that does not survive blanking every `<…>`, `≪…≫`, `{…}`
+  and `[…]` span out of the clause first: ≪Red Ribbon Army≫, <Goku Black>,
+  <Commander Red> and [Revive Blue/Green] all carry a colour word that says
+  nothing about the card.
+
+And one technique rather than a probe: **to check a guard, run the compiler
+against a copy of itself with that guard forced to `false` and read the
+difference.** That is how the three list guards (`inList`, `andEndsAList`,
+`andJoinsTwoAreas`) were proved — 119 clauses, every one a genuine list, none
+of them two instructions merged. It takes a `cp` and a three-line patch
+script, and it answers a question no assertion can.
+
+**Look hardest at a fix that changed which *direction* a mis-read fails in.**
+Reading colour lists as "either" instead of "all" was right, and it turned 25
+filters that had silently matched nothing into filters that silently matched
+too much — a missing effect became a wrong one. The bug was underneath the
+whole time; the fix is what made it reachable.
+
+**Then run `npm run arena:fuzz`, even for pure compiler work.** Making a
+wording compile can make an engine path reachable for the first time: the
+under-a-card fix above reached `detach`, which had never been asked to take a
+card out of a pile, and seven games in sixty ended with a card in two places.
+
+### 5.4 Probe scripts
 
 A throwaway `scripts/tmp-x.mts` run with `npx tsx --env-file=.env.local scripts/tmp-x.mts`.
 Keep regexes out of them (heredoc + template escapes mangle backslashes) —
@@ -263,7 +452,13 @@ from `arena:gaps`. Wordings already identified, with the intended reading:
 | "if you did not draw a card with this skill" (4 in decks) | `did.draw` — set in the `draw` op when ≥1 card was drawn; pattern → `{kind:"not", cond:{kind:"did", what:"draw"}}`. |
 | "this card gains +N power and [Critical] during your turn" (3 in decks, SD5-01) | a [Permanent] with a turn condition: `collectStatics` must accept `if` with `isTurnPlayer` around power/keyword statics. Check `collectStatics` first: if it already unwraps `if`, only the "during your turn" phrase is missing. |
 
-### 6.2 Search a secret area — 134 cards / 156 clauses (20-12)
+### 6.2 Search a secret area — 20-12 · **the named wordings are done**
+
+> Done 5 Sep 2026. All three example sentences compile and are tested. What
+> is left on these cards is other clauses, chiefly "in Rest Mode from your
+> deck **or Drop**" (a target naming two secret areas) and the [Evolve]
+> wordings of §6.1. The paragraph below is kept because it says where the
+> pieces live.
 
 Wordings: "add up to 1 yellow <Son Goku> card with an energy cost of 3 and
 5000 power from your deck to your hand, then shuffle your deck" (BT22-040),
@@ -289,7 +484,13 @@ joined by "and"). Do:
    matching card → the prompt offers exactly the matching cards; after the
    choice the deck order changed (`shuffle` ran).
 
-### 6.3 Energy manipulation — 136 cards / 148 clauses (3-8)
+### 6.3 Energy manipulation — 3-8 · **the named wordings are done**
+
+> Done 5 Sep 2026. `moveTo.owner` carries "your opponent's energy"; the
+> "switch up to 1 of your energy" clause turned out to compile already and to
+> be *wrong* (it switched all of it), which `withChoice` fixed. Still open on
+> these cards: energy as a **skill cost** (§6.13) and "choose 1 of your energy
+> and place it in its owner's Drop" variants with an unusual possessive.
 
 Wordings: "place it in your opponent's energy in Rest Mode" (BT7-042), "switch
 up to 1 of your energy to Active Mode" (BT23-071), "choose 1 of your energy
@@ -305,7 +506,14 @@ as "up to 1 of your energy to Active Mode" (the verb is lost in a split; look
 at `splitClauses` on "Draw 1 card, switch up to 1 of your energy to Active
 Mode, and add…"). Tests: energy counts and modes on both sides.
 
-### 6.4 Replacement effects — 184 cards / 233 clauses (9-10)
+### 6.4 Replacement effects — 9-10 · **the named wordings are done**
+
+> Done 5 Sep 2026. The mechanism was already there; what defeated it was the
+> word **"instead"**, which broke the anchor of every move pattern. `by` now
+> distinguishes the four printed causes (any / skill / ko / skillOrKo) and a
+> replacement can say the mode the card arrives in. Still open: "you may
+> choose both instead" (modal), and replacements that need a prompt when two
+> apply at once (9-10-2 — the first still wins, and the log says which).
 
 Mechanism exists: `parseWouldLeave` marks the clause, the next clause's move
 becomes the replacement (`replaceLeave`, hooked in `move`). Missing wordings:
@@ -321,7 +529,12 @@ becomes the replacement (`replaceLeave`, hooked in `move`). Missing wordings:
 Tests: a card that would go to the Drop goes to the Warp/energy instead; a
 card not matching the filter still goes to the Drop.
 
-### 6.5 Prohibitions — 159 cards / 184 clauses (20-14)
+### 6.5 Prohibitions — 20-14 · **the named actions are done**
+
+> Done 5 Sep 2026: `beMovedBySkill`, `beNegated` and `placeEnergy` all exist,
+> compile and are enforced, and "will not" reads as a prohibition. Still open:
+> "it can't attack for the turn" on the cards where "it" has no antecedent —
+> that is a §6.1 pronoun problem, not a prohibition one.
 
 `forbid` exists with `ForbiddenAction` = attack | beAttacked | block | play |
 activateSkill | activateCounter | combo | beKOd | beKOdBySkill | beChosen |
@@ -341,7 +554,12 @@ Each new `ForbiddenAction`: add to the union in `types.ts`, to the `FORBIDDEN`
 line in `EFFECT_LANGUAGE`, to `compileProhibition` in `compile.ts`, and check
 it at the one place the action happens.
 
-### 6.6 Cost changes — 119 cards / 124 clauses (20-21)
+### 6.6 Cost changes — 20-21 · **the named wordings are done**
+
+> Done 5 Sep 2026: the orb-typed amount, the count amount, and the area bug
+> that made every "in your hand" reducer apply to cards in play instead.
+> Still open: **skill** costs (`orbTotals` in `engine.ts`), which no static
+> kind reaches yet — that is the last of the three shapes named below.
 
 `costReduction {what}` exists for "reduce the energy cost of this card in
 your hand by N". Missing: "Reduce the energy cost of a {Power Pole} by {r}"
@@ -352,7 +570,12 @@ cost; `orbTotals(sk)` in `engine.ts` is where the skill cost is computed — a
 static of kind `cost` with `what: "skill"` would have to be read there). Read
 `collectStatics` for how `cost` statics are consumed before adding kinds.
 
-### 6.7 Count-based amounts — 96 cards / 100 clauses
+### 6.7 Count-based amounts — **partly done**
+
+> Done 5 Sep 2026: cards under a card are counted (`parseTarget` reads the
+> "under" area before the "this card" shortcut), and `collectStatics`
+> evaluates a `count` amount rather than dropping it. Still open: `costReduction`
+> with a count amount (DB2-039), which is §6.6 work.
 
 `Amount { count: Selector, times }` exists. Missing selectors: "for each card
 placed under it / under this card" (BT9-072, BT19-003 "non-Leader card under
@@ -376,7 +599,11 @@ to accept "place N cards from under this card in their owners' Drop Areas" and
 `activate` would have to pay it (a new cost kind `underToDrop: N`; pay in
 `payKeywordCosts`-style helper).
 
-### 6.9 Reveal / look — 54 cards / 59 clauses (20-11)
+### 6.9 Reveal / look — 20-11 · **the named wordings are done**
+
+> Done 5 Sep 2026: the `reveal` op, `Cond.varMatches`, "otherwise", and
+> "look at your opponent's hand". Still open: "if it's a black … card you may
+> add it to your hand" — the *may* is what is missing, not the condition.
 
 "reveal the top card of your opponent's deck. If that card is a Battle Card,
 place it in your opponent's energy in Rest Mode, otherwise draw 1 card"
@@ -389,7 +616,13 @@ call site (line with `parseConditionClause(clause, chaining)` in
 `if` op already has `else`). "Look at your opponent's hand" (BT10-004) →
 `look` with `side: "opponent"`, area hand, no move.
 
-### 6.10 Skill negation variants — 39 cards / 40 clauses (9-1-5)
+### 6.10 Skill negation variants — 9-1-5 · **two of three done**
+
+> Done 5 Sep 2026: `negateSkillsOfKind` ("that card's [Auto] skill") and
+> `negateOwnSkill` for the battle. Still open: the third shape, a
+> [Permanent] that negates over a *selector* (TB1-048) — `collectStatics` has
+> no `negateSkills` static kind, and `skillsNegated` would have to consult it
+> without recursing into the statics that produced it.
 
 "negate this skill for the battle" (BT29-058) — `negateOwnSkill` with
 `until: "battle"` (extend the union; `addEffect(... until: "battle")` — check
@@ -424,29 +657,41 @@ target is a card in hand/energy (`inPlayNow` false); read `collectStatics`'s
 `inPlayNow` handling. "this card gains +5000 power and [Critical] during your
 turn" (SD5-01) — see 6.1 last row.
 
-### 6.13 Unread "If …:" costs — 173 of 2,500
+### 6.13 Unread costs — **the action prices are done**
 
-No shape appears more than three times. Top: "if all of your energy is black"
-(needs a `notColors`/`allMatch` count: every card in the energy area matches a
-filter — add `Cond {kind:"every", sel, filter}`), "if this card has
-[Servant]" (`Cond {kind:"hasKeyword", sel, name}`; `has()` exists),
-"if you discard 1 card from your hand" (a *cost*, not a condition — the skill
-cost mechanism would need `discard: N`; leave to the referee).
+> Done 5 Sep 2026. A price may now be an *action* as well as orbs or a
+> condition: `compileCostProgram` (`compile.ts`) compiles it with the same code
+> as an effect, and `canPayCostProgram` (`engine.ts`) decides whether the board
+> can be charged before `activatable` offers it. 1,626 never-offered skills →
+> 159. Read that pair before touching either — a skill offered with a price
+> that then half-runs gets its effect for free.
 
-### 6.14 Engine follow-ups noted while building the keywords
+What is left is a tail, listed at the end of `arena:gaps`: "discard this card
+from your hand" (the card *is* the price, so it must not also be the source of
+the skill), a full-width numeral where a number is expected, and a handful of
+prohibitions printed where a price goes.
 
-- `{r}/{u}` is read as one orb of **any** colour (`orbsIn`, `cards.ts`). An
-  honest reading needs `Skill.energyCost.either: Color[][]` and a
-  `planPayment` that tries each colour. Low priority; noted in the code.
-- [Aegis]: if the player picks two cards that do not cover both colours, the
-  orbs are lost and nothing happens (`chooseApply` "aegis"). Better: filter
-  the second pick's candidates to the colour still missing.
-- [Alliance]: cards printing "When this card is switched to Rest Mode by an
-  [Alliance] skill" (BT28-069, BT28-070, BT28-071, BT7-004, EX04-01) need a
-  trigger `restedByAlliance` pended in `chooseApply` "alliance" for each
-  rested card.
-- [Invoker]: paying the alternative rests one Red/Blue energy; if the Extra's
-  own orb cost also needs that energy, `activatable` still offers it. Rare.
+Still unread as *conditions*: "if all of your energy is black" (needs a
+`Cond {kind:"every", sel, filter}`) and "if this card has [Servant]"
+(`Cond {kind:"hasKeyword", sel, name}`; `has()` exists).
+
+### 6.14 Engine follow-ups — **the four fidelity items are done**
+
+> Done 5 Sep 2026, each with an engine test. `{r}/{u}` is an orb payable with
+> either named colour (`Skill.energyEither`, solved exactly by `planPayment`
+> trying each assignment of it rather than learning a new kind of
+> requirement); [Aegis] narrows what it offers so a non-covering pair cannot be
+> picked at all (`CardChoice.cover`); [Alliance] pends `restedByAlliance` on
+> the cards rested to pay for it; and [Invoker] leaves the energy it is about
+> to rest out of the check that the skill's own orbs can still be paid
+> (`planPayment`'s `exclude`).
+
+**Still approximate, and the one worth doing next here:** 9-10-2 gives the
+affected player the choice when several replacement effects apply at once.
+`replacementFor` takes the first and the log says which. Doing it properly
+means `move` being able to prompt, which it cannot — see the note in §6.4 and
+budget for it. Two replacements on one card needs a deck built to do it, which
+is why no fuzzed game has produced one.
 - The `choose` action accumulates picks for engine-side prompts with
   `max > 1` and offers "Done choosing" once `min` is met (`legalActions`
   `chooseCards`). The board (`src/components/arena/`) draws its buttons from
@@ -465,10 +710,112 @@ precedence over this backlog when they concern a deck the owner plays.
 
 ---
 
+## 6a. What this stretch of work taught (5–6 Sep 2026)
+
+`docs/arena-rules-worklist.md` has the round-by-round history. These are the
+parts that generalise — read them before choosing what to do next, because
+three of them changed what "next" meant.
+
+### Where to look
+
+1. **A clause that compiles wrongly is invisible to every measure here.**
+   `arena:gaps` can only report clauses that *fail*. The most valuable work of
+   this stretch was not in that list at all: colours that meant "all of them"
+   instead of "either", a digit in ≪Universe 6≫ read as a count, "in your
+   opponent's Drop" resolving to the Battle Area.
+2. **Audit the compiled output against the text it came from.** A `choose` op
+   records its clause in `reason`; a `delay` records its in `label`. That is
+   enough to check thousands of selectors mechanically — side, area, count,
+   and every measure the filter should carry (ground rule 5, done as a script).
+   Expect the first run of such a probe to be mostly its own noise; narrow it
+   twice before believing it.
+3. **Rank by the owner's decks, not the catalog.** `npm run arena:gaps --
+   --decks`. The catalog-wide list ranks by how often a wording appears, which
+   buries anything happening once per card and rewards adding phrase patterns.
+   Ranked over the decks, the same data surfaced a clause-splitter bug costing
+   whole skills everywhere.
+4. **A one-word "wording" is not a wording.** Fragments at the top of the miss
+   list — "energy", "choose 1", "green", "you" — always mean `splitClauses` cut
+   a sentence in the wrong place, and a fragment fails the whole skill. Two
+   separate rounds of this: the ―…― aside, and comma-separated lists.
+5. **Read the three headline numbers together.** Coverage, orphan triggers and
+   unreadable prices move against each other: teaching the compiler a phrase
+   *raises* the orphan count, because a skill only reaches that bucket once its
+   effect compiles.
+
+### How to decide what a wording means
+
+6. **A wrong filter is worse than an over-fire.** A filter that stops a skill
+   which should happen is a silent loss; a trigger that fires slightly too
+   often is visible and usually harmless. So: refuse an alternation the parser
+   cannot express ("a Battle Card **or** Unison Card"), and let the trigger
+   fire unfiltered — *unless* the trigger fires on every card that player plays
+   and the effect then acts on it, in which case refusing to fire is the safer
+   half. Both directions are in `triggers.ts` with the reasoning.
+7. **Two wordings that look alike are usually two moments.** "Your turn" is the
+   controller's turn, never the turn player's. "By a skill" and "by a skill or
+   KO'd" are different causes. `koed` is the KO'd card's own skill; the board
+   watching it is a different trigger. Widening an existing regex is right only
+   when the wider one would never fire at a moment the card does not mean.
+8. **A trigger is the head of the sentence.** A card may *mention* a moment in
+   the middle of an effect; that is a delayed effect, not a trigger.
+9. **When a wording is genuinely ambiguous, look it up** — see ground rule 2.
+
+### Traps that cost real time
+
+10. **Never write a regex through `node -e`.** Three times now. `\b` becomes a
+    literal backspace and the pattern silently matches nothing; `` $` `` in a
+    replacement means "everything before the match". Find the damage with
+    `grep -c $'\x08' <file>`. Use the editor.
+11. **A regex that matches nothing looks exactly like progress.** Turning off
+    five trigger patterns *lowered* nothing and *raised* the orphan count,
+    which reads as the measure becoming honest. Every head-anchored trigger now
+    has a positive test for this reason.
+12. **Check whether a new failure is yours before fixing it.** Copy the changed
+    files aside, `git checkout --` them, re-run the same fuzz seed. A minute,
+    and it settled that a crash had come in with a newly added deck.
+
+## 6b. Open questions for the owner
+
+Rulings the engine has had to take a view on, where the manual does not settle
+it. Each is a one-line change if the answer goes the other way; none blocks the
+work, and they are parked here so they are not lost.
+
+1. ~~**Does a card see its own arrival?**~~ **Settled from the manual, 5 Sep
+   2026 — the engine's behaviour stands.** "When your blue ≪God≫ card is
+   played, draw 1 card", printed on a card that is itself a blue ≪God≫ card:
+   it does fire. Two rules decide it, both in `docs/rules/rulemanual.txt`:
+
+   - **9-6-9-4** defines "when you play this card / when this card is played"
+     as an **area movement trigger** — one that fires "when the cards they're
+     on move from an area other than a Battle Area/Unison Area **to** a Battle
+     Area/Unison Area". The play *is* the arrival.
+   - **9-6-9-1-3**: for a movement between two open areas, an [Auto] that asks
+     about the card that triggered it uses "the information of the card **as it
+     is in the new area**". So at the moment the condition is tested the card
+     is in the Battle Area, where its own skills are valid (9-1-3-1).
+
+   Supporting, though not the same question: the official Card Q&A for
+   {BT1-089 Avenging Frieza} answers "can you add Avenging Frieza to your hand
+   with Avenging Frieza's auto skill?" with "…has the ≪Frieza's Army≫ special
+   trait, so the condition specified on the card text is fulfilled" — Bandai
+   does not read an unstated "other" into a card description. The cards that
+   mean it print it ("1 **other** black card in your hand").
+
+   No official Q&A addresses this exact case, so this is a reading of the
+   manual rather than a printed ruling. If one turns up the other way it is a
+   one-line change: exclude the played card from the watcher loop in
+   `engine.ts`.
+
 ## 7. Definition of done for the next stage
 
-- Catalog ≥ 85 % of resolvable skills compile; the owner's decks ≥ 95 %.
-- `arena:gaps` "1 clause in the way" below 800.
+- ~~Catalog ≥ 85 % of resolvable skills compile~~ — **met, 86.5 %** (6 Sep
+  2026). The owner's decks ≥ 95 % is still open: 92.9 %, and what is left there
+  is listed by `npm run arena:gaps -- --decks`.
+- `arena:gaps` "1 clause in the way" below 800. Still open at 1,191, and that
+  figure has barely moved all stretch — because the work went into clauses that
+  compiled *wrongly* rather than ones that failed. Both matter; only one of
+  them shows up here.
 - Sections 6.2–6.5 implemented with tests; 6.6–6.12 at least the wordings
   named above.
 - `npm test`, `lint`, `typecheck` clean; `arena:fuzz 100` with 0 crashes.

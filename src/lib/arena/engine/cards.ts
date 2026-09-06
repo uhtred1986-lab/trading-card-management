@@ -29,6 +29,17 @@ export function skillLines(text: string | null | undefined): string[] {
     // Some sets print the odd full-width Latin letter mid-word ("Leader Ｃard"),
     // which reads the same and matches nothing.
     .replace(/[Ａ-Ｚａ-ｚ]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xfee0))
+    // A handful of sets print a skill's colourless energy cost as a circled
+    // number ("③, if your Leader Card is a blue <Gogeta: Br> card") where the
+    // rest print "{3}". Normalising it here means every reader of a cost —
+    // `orbsIn`, `costText`, `costIsOnlyOrbs`, `splitCost` — sees the one form.
+    .replace(/[①-⑳]/g, (ch) => `{${ch.charCodeAt(0) - 0x245f}}`)
+    .replace(/⓪/g, "{0}")
+    // Older sets hyphenate the verb — "when your ≪Saiyan≫ is KO-ed", "when
+    // this card KO-s your opponent's Battle Card" — and every reader of the
+    // text spells it the other way.
+    .replace(/\bKO-ed\b/gi, "KO'd")
+    .replace(/\bKO-s\b/gi, "KOs")
     .split("\n")
     .map((l) => l.trim())
     .filter(Boolean);
@@ -37,9 +48,42 @@ export function skillLines(text: string | null | undefined): string[] {
   const out: string[] = [];
   for (const line of raw) {
     if (BULLET.test(line) && out.length) out[out.length - 1] += ` ・${line.replace(BULLET, "").trim()}`;
-    else out.push(line);
+    else out.push(...splitRunOn(line));
   }
   return out;
+}
+
+/** The tag a skill line opens with (1-5). A reference to one mid-sentence is not this. */
+const OPENS_A_SKILL = /^\[(?:auto|activate\s*:|permanent|counter\s*:)/i;
+
+/**
+ * Some cards are printed without the `<br>` between two skills, so a line
+ * arrives as "…: <Towa> with an energy cost of 2 or less. [Auto] When this
+ * card is played, …". Left joined, the second skill is never parsed as one —
+ * its type is wrong, and when the first line is a keyword that owns its text
+ * the whole of it is discarded without even being reported as unread.
+ *
+ * A sentence ending followed by a skill's opening tag is the break. Reminder
+ * text is skipped, because a note may name a tag ("this card isn't affected by
+ * [Counter: Play] skills") without starting a skill.
+ */
+function splitRunOn(line: string): string[] {
+  const out: string[] = [];
+  let start = 0;
+  let depth = 0;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === "(" || ch === "（") depth++;
+    else if (ch === ")" || ch === "）") depth = Math.max(0, depth - 1);
+    else if (depth === 0 && ch === "[" && i > start && /[.]\s+$/.test(line.slice(start, i)) && OPENS_A_SKILL.test(line.slice(i))) {
+      const piece = line.slice(start, i).trim();
+      if (piece) out.push(piece);
+      start = i;
+    }
+  }
+  const last = line.slice(start).trim();
+  if (last) out.push(last);
+  return out.length ? out : [line];
 }
 
 /** The bullet a modal option starts with. The catalog uses several. */
@@ -49,12 +93,18 @@ const COLOR_BY_LETTER: Record<string, Color> = { r: "Red", u: "Blue", g: "Green"
 const COLOR_BY_NAME: Record<string, Color> = { red: "Red", blue: "Blue", green: "Green", yellow: "Yellow", black: "Black" };
 
 /** "{g}{g}" / "{u}" orbs in a cost → per-colour counts; "{1}" style numbers → any. */
+/**
+ * "{r}/{u}" is one orb payable with *either* named colour — not with any
+ * colour at all, which is what it used to fold into. The colours are carried
+ * separately by `eitherOrbsIn` so that every loop over `orbsIn`'s result stays
+ * a loop over numbers.
+ */
+export function eitherOrbsIn(text: string): Color[][] {
+  return [...text.matchAll(/\{([rugyk])\}\/\{([rugyk])\}/gi)].map((m) => [COLOR_BY_LETTER[m[1].toLowerCase()], COLOR_BY_LETTER[m[2].toLowerCase()]]);
+}
+
 export function orbsIn(text: string): Partial<Record<Color, number>> & { any?: number } {
   const out: Partial<Record<Color, number>> & { any?: number } = {};
-  // "{r}/{u}" is one orb of either colour. Read as one of any colour: a
-  // little too generous to the payer, and honest about it here.
-  const either = [...text.matchAll(/\{[rugyk]\}\/\{[rugyk]\}/gi)].length;
-  if (either) out.any = either;
   const rest = text.replace(/\{[rugyk]\}\/\{[rugyk]\}/gi, "");
   for (const m of rest.matchAll(/\{([rugyk])\}/gi)) {
     const c = COLOR_BY_LETTER[m[1].toLowerCase()];
@@ -101,9 +151,13 @@ export function keywordOf(tag: string): KeywordSkill | null {
   if (t === "evolve") return { name: "Evolve", variant: "Evolve" };
   if (t === "ex-evolve") return { name: "Evolve", variant: "EX-Evolve" };
   if (t === "xeno-evolve") return { name: "Evolve", variant: "Xeno-Evolve" };
-  if (t === "union-fusion") return { name: "Union", variant: "Fusion" };
-  if (t === "union-potara") return { name: "Union", variant: "Potara" };
-  if (t === "union-absorb") return { name: "Union", variant: "Absorb" };
+  // 22-13-3: printed "[Union-(type)]", but some sets set it with a space.
+  // Unrecognised, the whole line falls back to [Permanent] and the skill is
+  // read as a standing effect it is not.
+  if ((m = /^union[- ](fusion|potara|absorb)$/.exec(t))) {
+    const variant = m[1] === "fusion" ? "Fusion" : m[1] === "potara" ? "Potara" : "Absorb";
+    return { name: "Union", variant };
+  }
   if ((m = /^(dark )?over realm(?: (\d+))?$/.exec(t))) return { name: "Over Realm", x: Number(m[2] ?? 0), dark: !!m[1] };
   if ((m = /^swap(?: (\d+))?$/.exec(t))) return { name: "Swap", x: Number(m[1] ?? 0) };
   if ((m = /^(arrival|aegis|alliance|revive)\b(.*)$/.exec(t))) {
@@ -164,7 +218,10 @@ function splitTags(line: string): { tags: string[]; body: string } {
   const tags: string[] = [];
   let rest = line;
   for (;;) {
-    const m = /^\s*\[([^\]]+)\]\s*/.exec(rest);
+    // A few printings close the bracket with a brace — BT1-074 is "[Auto}
+    // When a card evolves into this card". Left unread, the tag is not a tag,
+    // so the line becomes a [Permanent] whose text opens with its own trigger.
+    const m = /^\s*\[([^\]}]+)[\]}]\s*/.exec(rest);
     if (!m) break;
     tags.push(m[1].trim());
     rest = rest.slice(m[0].length);
@@ -263,6 +320,7 @@ function makeSkill(index: number, tags: string[], keyword: KeywordSkill | null, 
     spiritBoost: num(/^spirit boost (\d+)$/),
     markerCost: marker,
     energyCost: orbsIn(cost),
+    energyEither: eitherOrbsIn(cost),
     raw,
   };
 }

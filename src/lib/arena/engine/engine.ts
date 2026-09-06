@@ -9,7 +9,7 @@
  * state storable mid-prompt and replayable from the action log.
  */
 import { baseType, canCombo, isZ, keywordOf, skillsOf, specifiedCostOf } from "./cards";
-import { compileCard, parseConditionClause, type CardScripts } from "./compile";
+import { compileCard, compileCostProgram, costIsOnlyOrbs, costText, parseConditionClause, priceCondition, type CardScripts } from "./compile";
 import { matches, parseCondition, parseFilter } from "./filters";
 import { stepScript, validateProgram, type Op, type ScriptFrame } from "./script";
 import { koCard, pendTriggers } from "./triggers";
@@ -18,6 +18,7 @@ import {
   activeEnergy,
   addEffect,
   altCostFor,
+  canPayCostProgram,
   areaOf,
   cardNow,
   cardsInPlay,
@@ -26,6 +27,7 @@ import {
   def,
   draw,
   endEffects,
+  endTurnRelativeEffects,
   expireDelayed,
   face,
   forbids,
@@ -42,6 +44,7 @@ import {
   payAltCost,
   paymentOptions,
   payZEnergy,
+  permits,
   planPayment,
   playCost,
   powerOf,
@@ -50,6 +53,8 @@ import {
   skillsOfInstance,
   type GameContext,
   condHolds,
+  invokerEnergy,
+  liftFromPile,
   skillNegated,
 } from "./state";
 import type { Action, Applied, CardDef, CardInstance, Color, FlowStep, GameEvent, GameState, PendingAuto, PlayerId, PlayerState, Prompt, Skill, Trigger } from "./types";
@@ -219,22 +224,30 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
       // 7-2: Charge Phase.
       s.phase = "charge";
       ev.push({ type: "phase", phase: "charge", player: s.turnPlayer, turn: s.turn });
-      endEffects(s, "opponentTurn", other(s.turnPlayer));
-      // "until the end of your opponent's turn" — created on your turn, it
-      // runs through theirs and ends as your next turn opens.
-      endEffects(s, "nextTurn", s.turnPlayer);
+      // "Until the end of your opponent's turn" and "until the start of your
+      // opponent's next turn" are both said from the controller's chair, so
+      // they are read against the effect's own master — see the note there.
+      endTurnRelativeEffects(s);
       for (const id of cardsInPlay(s, s.turnPlayer)) pendTriggers(ctx, s, "chargeStart", id);
+      // 7-1: the same moment from the other side of the table — "at the start
+      // of your opponent's turn", which is the turn now opening.
+      for (const id of cardsInPlay(s, other(s.turnPlayer))) pendTriggers(ctx, s, "opponentTurnStart", id);
       s.flow.unshift(...fireDelayed(s, "turnStart"), { op: "checkpoint" }, { op: "turn.activeAll" }, { op: "checkpoint" }, { op: "turn.draw" }, { op: "checkpoint" }, { op: "turn.promptCharge" });
       return "done";
     }
     case "turn.activeAll": {
       // 7-2-7, except [Servant] (22-40).
       const ps = s.players[s.turnPlayer];
-      for (const id of [ps.leader, ps.unison, ...ps.battle, ...ps.energy]) {
-        if (!id) continue;
+      const mine = [ps.leader, ps.unison, ...ps.battle, ...ps.energy].filter((id): id is string => !!id);
+      for (const id of mine) {
         if (has(ctx, s, id, "Servant")) continue;
         setMode(s, ev, id, "active", ctx);
       }
+      // "…will not switch to Active Mode during your next Charge Phase": the
+      // Active Step it was written for has now happened, so it is spent. Only
+      // this player's cards had one, which is what makes "next" the right one
+      // whichever turn the effect was created on.
+      s.effects = s.effects.filter((e) => !(e.until === "afterNextCharge" && mine.includes(e.target)));
       return "done";
     }
     case "turn.draw": {
@@ -252,6 +265,9 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
       s.phase = "main";
       ev.push({ type: "phase", phase: "main", player: s.turnPlayer, turn: s.turn });
       for (const id of cardsInPlay(s, s.turnPlayer)) pendTriggers(ctx, s, "mainStart", id);
+      // "At the start of your opponent's Main Phase" is the same moment seen
+      // from the other side of the table, so those cards have to be asked too.
+      for (const id of cardsInPlay(s, other(s.turnPlayer))) pendTriggers(ctx, s, "opponentMainStart", id);
       s.flow.unshift(...fireDelayed(s, "mainStart"), { op: "checkpoint" }, { op: "turn.promptMain" });
       return "done";
     }
@@ -273,13 +289,25 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
       s.phase = "end";
       ev.push({ type: "phase", phase: "end", player: s.turnPlayer, turn: s.turn });
       const before = s.pending.length;
-      for (const p of PLAYERS) for (const id of cardsInPlay(s, p)) pendTriggers(ctx, s, "turnEnd", id);
+      const runs = (s.continuations.endPhaseRuns as number | undefined) ?? 0;
+      // 7-1: "your turn" is the controller's turn, so each side hears only the
+      // wording that is about it. Pending both for both players meant an
+      // effect written for your own end step also fired on your opponent's.
+      //
+      // 7-4-4: and only on the first pass. The End Phase repeats when a skill
+      // *newly* triggers while it runs; the "at the end of your turn" skills
+      // had their moment on that first pass, and re-offering them every time
+      // round turned one "draw 1 card" into five.
+      if (runs === 0) {
+        for (const id of cardsInPlay(s, s.turnPlayer)) pendTriggers(ctx, s, "turnEnd", id);
+        for (const id of cardsInPlay(s, other(s.turnPlayer))) pendTriggers(ctx, s, "opponentTurnEnd", id);
+      }
       // Effects written down earlier in the turn resolve here, before the
       // "at the end of the turn" skills the cards in play are triggering now.
       const due = fireDelayed(s, "turnEnd");
       // 7-4-4: if new "at the end of the turn" skills became pending, run the
       // End Phase again before the turn passes.
-      const again = s.pending.length > before && (s.continuations.endPhaseRuns as number | undefined ?? 0) < 5;
+      const again = s.pending.length > before && runs < 5;
       s.continuations.endPhaseRuns = ((s.continuations.endPhaseRuns as number | undefined) ?? 0) + 1;
       if (again) s.flow.unshift(...due, { op: "checkpoint" }, { op: "turn.endPhase" });
       else {
@@ -309,7 +337,7 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
     }
 
     case "play.resolve":
-      return resolvePlay(ctx, s, ev, step.card, step.player, step.markers);
+      return resolvePlay(ctx, s, ev, step.card, step.player, step.markers, step.onto, step.negated);
     case "skill.resolve": {
       const sk = skillsOfInstance(ctx, s, step.card).find((k) => k.index === step.skill);
       if (!sk) return "done";
@@ -391,6 +419,11 @@ function checkpoint(ctx: EngineContext, s: GameState, ev: GameEvent[]): "done" |
 
 function resolveAuto(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PendingAuto): "done" | "wait" {
   const inst = s.cards[p.card];
+  // 22-35 / 22-36: [Heroic] and [Villainous] are pending skills with no
+  // printed line of their own, so they are pended at index -1 and there is no
+  // `Skill` to find. `resolveKeywordOrText` has always had a branch for them
+  // and nothing ever reached it — they were pended and then dropped here.
+  if (p.skillIndex === -1) return resolveHeroicVillainous(ctx, s, ev, p.card, p.master);
   const sk = skillsOfInstance(ctx, s, p.card).find((k) => k.index === p.skillIndex);
   if (!sk) return "done";
   // 9-6-11: the skill resolves even if the card moved, unless it became impossible.
@@ -405,7 +438,7 @@ function resolveAuto(ctx: EngineContext, s: GameState, ev: GameEvent[], p: Pendi
   const needsKeywordCost = sk.burst != null || sk.spiritBoost != null;
   if ((orbs.total > 0 || needsMarker || needsKeywordCost) && !s.continuations[`paid:${p.card}:${sk.index}`]) {
     if (needsMarker && (inst.usedMarkerSkill || inst.markers + (sk.markerCost ?? 0) < 0)) return "done";
-    if (orbs.total > 0 && !planPayment(ctx, s, p.master, orbs.total, orbs.specified)) return "done";
+    if (orbs.total > 0 && !planPayment(ctx, s, p.master, orbs.total, orbs.specified, undefined, orbs.either)) return "done";
     // 22-27-4 / 22-43-3: a [Burst] or [Spirit Boost] that cannot be paid does not resolve.
     if (!canPayKeywordCosts(s, p.master, sk)) return "done";
     s.continuations.optionalCost = { card: p.card, skillIndex: sk.index, master: p.master, trigger: p.trigger, subject: p.subject };
@@ -515,7 +548,7 @@ function counterCandidates(ctx: EngineContext, s: GameState, responder: PlayerId
       const orbs = orbTotals(sk);
       // 5-3: some cards print another way to pay, which is the only way the
       // card is playable when the energy is not there.
-      const affordable = !!planPayment(ctx, s, responder, cost.total + orbs.total, cost.specified);
+      const affordable = !!planPayment(ctx, s, responder, cost.total + orbs.total, cost.specified, undefined, orbs.either);
       if (!affordable && !altCostFor(ctx, s, id, responder)) continue;
       out.push({ card: id, skill: sk.index });
     }
@@ -533,7 +566,7 @@ function openCounterWindow(ctx: EngineContext, s: GameState, ev: GameEvent[], wi
 
 // ── playing cards (5-5, 13-2, 16-2, 17-2, 18-2) ────────────────────────────
 
-function resolvePlay(ctx: EngineContext, s: GameState, ev: GameEvent[], card: string, p: PlayerId, markers?: number): "done" | "wait" {
+function resolvePlay(ctx: EngineContext, s: GameState, ev: GameEvent[], card: string, p: PlayerId, markers?: number, onto?: string, negated?: "turn" | "game"): "done" | "wait" {
   const d = def(ctx, s, card);
   const bt = baseType(d);
   const ps = s.players[p];
@@ -559,7 +592,12 @@ function resolvePlay(ctx: EngineContext, s: GameState, ev: GameEvent[], card: st
     for (const id of ps.battle.slice()) if (def(ctx, s, id).type === "Z-EXTRA") move(ctx, s, ev, id, "removed", p, { reason: "rule" });
     move(ctx, s, ev, card, "battle", p, { reason: "play", reveal: true });
   } else {
-    move(ctx, s, ev, card, "battle", p, { reason: "play", reveal: true });
+    // 22-13-6-3: [Union-Absorb] and the "play … on top of this card" wordings
+    // play the card *onto* another, which carries the host's position and its
+    // power effects (22-13-6-3-1). If the host has gone, it is an ordinary
+    // play beside it.
+    if (onto && areaOf(s, onto) === "battle") stackOnto(ctx, s, ev, card, onto, p);
+    else move(ctx, s, ev, card, "battle", p, { reason: "play", reveal: true });
     if (s.continuations.playRest === card) {
       setMode(s, ev, card, "rest");
       delete s.continuations.playRest;
@@ -571,13 +609,58 @@ function resolvePlay(ctx: EngineContext, s: GameState, ev: GameEvent[], card: st
       delete s.continuations.playNegated;
     }
   }
+  // 9-1-5: "played … with its skills negated". Applied before the played
+  // triggers pend, so a card brought back silenced does not fire its own
+  // [Auto] on the way in. "For the game" is a mark on the instance, cleared
+  // when it leaves play; anything shorter is an effect with a duration.
+  if (negated) {
+    if (negated === "game") s.cards[card].negated = "all";
+    else addEffect(s, ev, { target: card, kind: "negateSkills", value: 0, until: "turn" });
+    note(ev, `${face(ctx, s, card).name} was played with its skills negated`);
+  }
   s.resolving = null;
   pendTriggers(ctx, s, "played", card);
-  // 22-35/36: Heroic/Villainous on other cards in play pend when a card with the keyword is played.
-  if (has(ctx, s, card, "Heroic") || has(ctx, s, card, "Villainous")) {
-    for (const id of cardsInPlay(s, p)) if (id !== card && (has(ctx, s, id, "Heroic") || has(ctx, s, id, "Villainous"))) s.pending.push({ card: id, skillIndex: -1, master: p, trigger: "played", subject: card });
+  // "When your opponent plays a Battle Card": watched by every card the other
+  // player has in play, with the played card as the subject.
+  for (const id of cardsInPlay(s, other(p))) pendTriggers(ctx, s, "opponentPlayed", id, card);
+  // "When your blue ≪God≫ card is played", "when you play a red ≪Android≫
+  // card": your own side of the same moment, watched by your cards in play —
+  // most often a Leader. The card just played is one of them: its skills are
+  // valid in the area it now sits in (9-1-3-1) and the event it names has
+  // happened, so a ≪God≫ card printing that line does see its own arrival.
+  for (const id of cardsInPlay(s, p)) pendTriggers(ctx, s, "youPlayed", id, card);
+  // 22-35-2 / 22-36-2: each pends when its owner plays *another* card with the
+  // **same** keyword. They used to cross-match, so a [Villainous] card played
+  // set off every [Heroic] on the board.
+  for (const name of ["Heroic", "Villainous"] as const) {
+    if (!has(ctx, s, card, name)) continue;
+    for (const id of cardsInPlay(s, p)) {
+      if (id === card || !has(ctx, s, id, name) || skillNegated(s, id, -1)) continue;
+      s.pending.push({ card: id, skillIndex: -1, master: p, trigger: "played", subject: card });
+    }
   }
   s.flow.unshift({ op: "checkpoint" });
+  return "done";
+}
+
+/**
+ * 22-35-3 / 22-36-3: [Heroic] draws a card, [Villainous] makes the opponent
+ * drop one — and both then "negate the effects of this skill for the duration
+ * of the turn", so each card does it once a turn however many more are played.
+ * The pseudo-skill has no printed index, so the negation is recorded at -1.
+ */
+function resolveHeroicVillainous(ctx: EngineContext, s: GameState, ev: GameEvent[], card: string, master: PlayerId): "done" | "wait" {
+  if (skillNegated(s, card, -1)) return "done";
+  if (has(ctx, s, card, "Heroic")) {
+    draw(ctx, s, ev, master, 1);
+  } else if (has(ctx, s, card, "Villainous")) {
+    // 20-7: which card leaves a hand is its owner's choice, so this runs the
+    // ordinary discard rather than taking one off the end.
+    s.flow.unshift({ op: "script.step", frame: { ops: [{ op: "discard", n: 1, side: "opponent" }], ip: 0, vars: {}, card, master } });
+  } else {
+    return "done";
+  }
+  addEffect(s, ev, { target: card, kind: "negateSkill", value: -1, until: "turn" });
   return "done";
 }
 
@@ -586,16 +669,6 @@ function resolvePlay(ctx: EngineContext, s: GameState, ev: GameEvent[], card: st
 function resolveKeywordOrText(ctx: EngineContext, s: GameState, ev: GameEvent[], card: string, sk: Skill, master: PlayerId, trigger?: Trigger, subject?: string): "done" | "wait" {
   const k = sk.keyword;
   const inst = s.cards[card];
-  if (sk.index === -1) {
-    // Heroic / Villainous pseudo-skill.
-    if (has(ctx, s, card, "Heroic")) draw(ctx, s, ev, master, 1);
-    else if (has(ctx, s, card, "Villainous")) {
-      const opp = s.players[other(master)];
-      const drop = opp.hand[opp.hand.length - 1];
-      if (drop) move(ctx, s, ev, drop, "drop", other(master), { reason: "effect" });
-    }
-    return "done";
-  }
   if (k) {
     switch (k.name) {
       case "Attack":
@@ -638,8 +711,9 @@ function resolveKeywordOrText(ctx: EngineContext, s: GameState, ev: GameEvent[],
         if (!s.battle || s.battle.attacker !== card) return "done";
         // "[Alliance Red/Green] If your Leader Card is red: …" — the printed
         // condition is checked before anyone is asked to rest a card.
-        if (/^(?:if|when|while|during)\b/i.test(sk.cost)) {
-          const cond = parseConditionClause(sk.cost);
+        const alliancePrice = costText(sk.cost);
+        if (/^(?:if|when|while|during)\b/i.test(alliancePrice)) {
+          const cond = parseConditionClause(alliancePrice);
           if (!cond) {
             note(ev, `${face(ctx, s, card).name}: the condition on [Alliance] could not be read — "${sk.cost}"`);
             return "done";
@@ -689,11 +763,19 @@ function resolveKeywordOrText(ctx: EngineContext, s: GameState, ev: GameEvent[],
  * the compiler could not read is handed to the referee when one is available,
  * and otherwise logged and skipped so a game never silently does the wrong thing.
  */
+/** Where a skill leaves what its price chose, for the effect that follows it. */
+const costVarsKey = (card: string, skillIndex: number) => `costvars:${card}:${skillIndex}`;
+
 function runSkill(ctx: EngineContext, s: GameState, ev: GameEvent[], card: string, sk: Skill, master: PlayerId, trigger?: Trigger, subject?: string, vars: Record<string, string[]> = {}): "done" | "wait" {
   const script = scriptFor(ctx, s, card, sk.index);
   if (script) {
     if (script.ops.length === 0) return "done";
-    const frame: ScriptFrame = { ops: script.ops, ip: 0, vars: { ...vars }, card, master, trigger, subject, skillIndex: sk.index };
+    // Anything the skill's price chose is already bound; "the chosen card" in
+    // the effect means that card (4-3-3).
+    const key = costVarsKey(card, sk.index);
+    const paid = s.continuations[key] as Record<string, string[]> | undefined;
+    delete s.continuations[key];
+    const frame: ScriptFrame = { ops: script.ops, ip: 0, vars: { ...paid, ...vars }, card, master, trigger, subject, skillIndex: sk.index };
     return stepScript(ctx, s, ev, frame);
   }
   const d = def(ctx, s, card);
@@ -710,14 +792,16 @@ function runSkill(ctx: EngineContext, s: GameState, ev: GameEvent[], card: strin
 }
 
 /** The energy orbs in a skill cost: "{g}{g}" is two green, "{2}" is two of anything. */
-function orbTotals(sk: Skill): { total: number; specified: Partial<Record<Color, number>> } {
+function orbTotals(sk: Skill): { total: number; specified: Partial<Record<Color, number>>; either: Color[][] } {
   const specified: Partial<Record<Color, number>> = {};
   let total = 0;
   for (const [k, v] of Object.entries(sk.energyCost)) {
     total += v ?? 0;
     if (k !== "any") specified[k as Color] = v;
   }
-  return { total, specified };
+  // "{r}/{u}" is an orb like any other for the total; what it will accept is
+  // the part `planPayment` has to be told separately.
+  return { total: total + sk.energyEither.length, specified, either: sk.energyEither };
 }
 
 /** Compiled programs for the face-up side of a card, memoised per definition. */
@@ -752,9 +836,15 @@ function scriptFor(ctx: EngineContext, s: GameState, card: string, skillIndex: n
  * resolving it at all.
  */
 function costIsReadable(sk: Skill): boolean {
-  if (sk.cost.replace(/\{[^}]*\}/g, "").replace(/[\s,:]/g, "").length === 0) return true;
-  return /^(?:if|when|while|during)\b/i.test(sk.cost) && parseConditionClause(sk.cost) !== null;
+  if (costIsOnlyOrbs(sk.cost)) return true;
+  // The orbs and any reminder text come off first — a card that costs both
+  // orbs and a condition never *starts* with the condition, and testing the
+  // raw text meant 1,626 skills whose effects compile were never offered.
+  // A dozen cards state the condition bare, with no "if" in front of it, which
+  // `priceCondition` reads once the price has failed to be an action.
+  return priceCondition(sk) !== null || compileCostProgram(sk) !== null;
 }
+
 
 /** "2 Green energy and 1 marker" — what an optional cost asks for. */
 function describeCost(sk: Skill): string {
@@ -823,6 +913,11 @@ function payKeywordCosts(ctx: EngineContext, s: GameState, ev: GameEvent[], p: P
     s.cards[u].markers = Math.max(0, s.cards[u].markers - sk.spiritBoost);
     ev.push({ type: "markers", card: u, delta: -sk.spiritBoost, total: s.cards[u].markers });
     pendTriggers(ctx, s, "markerRemoved", u);
+    // 22-43-3: sixteen cards watch the *payment* rather than the marker —
+    // the Unison it came off ("from this card") and the player's cards in
+    // play ("from one of your Unison Cards").
+    pendTriggers(ctx, s, "spiritBoostPaid", u);
+    for (const w of cardsInPlay(s, p)) if (w !== u) pendTriggers(ctx, s, "spiritBoostPaid", w, u);
   }
 }
 
@@ -900,6 +995,16 @@ function battleAfterDeclare(ctx: EngineContext, s: GameState): "done" | "wait" {
   // 8-1-3: attack/attacked triggers and [Blocker] pend; 8-1-4 counter timing; 8-1-5 checkpoint.
   pendTriggers(ctx, s, "attacks", b.attacker);
   pendTriggers(ctx, s, "attacked", b.guard);
+  // "When your opponent attacks with a Battle Card": the defending player's
+  // cards watch it, with the attacker as the subject.
+  for (const id of cardsInPlay(s, other(s.turnPlayer))) pendTriggers(ctx, s, "opponentAttacks", id, b.attacker);
+  // 8-1: "when your Leader Card is attacked" printed on a Battle Card — the
+  // Leader's own copy of that sentence is `attacked` above, because a Leader
+  // is a card in play like any other.
+  const defender = other(s.turnPlayer);
+  if (b.guard === s.players[defender].leader) {
+    for (const id of cardsInPlay(s, defender)) if (id !== b.guard) pendTriggers(ctx, s, "yourLeaderAttacked", id, b.guard);
+  }
   s.flow.unshift(
     { op: "counter", window: "attack", responder: other(s.turnPlayer) },
     { op: "battle.blocker" },
@@ -1006,6 +1111,9 @@ function battleDamage(ctx: EngineContext, s: GameState, ev: GameEvent[]): "done"
       ev.push({ type: "damage", player: defP, amount: taken.length, critical, cards: taken });
       if (taken.length) {
         pendTriggers(ctx, s, "dealtDamage", b.attacker);
+        // 3-9: "when your life is placed in your Drop" — the [Critical] case —
+        // and "when your life moves to another area", which is both.
+        for (const id of cardsInPlay(s, defP)) pendTriggers(ctx, s, "lifeLeft", id, taken[0]);
         if (has(ctx, s, b.attacker, "Victory Strike")) {
           gameOver(s, ev, atkP, `[Victory Strike] — ${face(ctx, s, b.attacker).name} dealt damage`);
           return "done";
@@ -1106,6 +1214,9 @@ function chooseApply(ctx: EngineContext, s: GameState, ev: GameEvent[], step: Ex
       } else {
         stackOnto(ctx, s, ev, info.card, target, p);
       }
+      // 22-5: "when a card evolves into this card" — the card that just
+      // arrived by evolving, which an ordinary "played" does not distinguish.
+      pendTriggers(ctx, s, "evolvedInto", info.card, target);
       s.flow.unshift({ op: "play.resolve", card: info.card, player: p });
       return "done";
     }
@@ -1178,6 +1289,10 @@ function chooseApply(ctx: EngineContext, s: GameState, ev: GameEvent[], step: Ex
       delete s.continuations.alliance;
       if (!chosen.length) return "done"; // 22-32-3: may
       for (const id of chosen) setMode(s, ev, id, "rest", ctx);
+      // "When this card is switched to Rest Mode by an [Alliance] skill" —
+      // the cards rested as the cost notice it (BT28-069/070/071, BT7-004,
+      // EX04-01), with the card that used [Alliance] as the subject.
+      for (const id of chosen) pendTriggers(ctx, s, "restedByAlliance", id, info.card);
       const sk = skillsOfInstance(ctx, s, info.card).find((x) => x.index === info.skillIndex);
       if (!sk) return "done";
       ev.push({ type: "skill", card: info.card, skill: sk.index, master: p, text: sk.raw });
@@ -1221,8 +1336,12 @@ function stackOnto(ctx: EngineContext, s: GameState, ev: GameEvent[], top: strin
   const slot = ps.battle.indexOf(bottom);
   const from = areaOf(s, top);
   // Detach the top card from wherever it was without the "new card" reset yet.
+  // It may be under another card — "play up to 1 card from under this card on
+  // top of this card" — and a card in a pile is in no area (23-2), so the list
+  // lookup finds nothing and it would end up in two places at once.
   const l = ps[from as "hand" | "drop" | "deck"] as string[] | undefined;
   if (l) l.splice(l.indexOf(top), 1);
+  else liftFromPile(s, top);
   ps.battle[slot] = top;
   ti.mode = bi.mode;
   ti.enteredTurn = s.turn;
@@ -1261,7 +1380,9 @@ export function legalActions(ctx: EngineContext, s: GameState): LegalAction[] {
       out.push({ action: { type: "mulligan", player: pr.player, redraw: true }, label: "Mulligan" });
       return out;
     case "charge":
-      for (const id of s.players[pr.player].hand) out.push({ action: { type: "charge", player: pr.player, card: id }, label: `Charge ${name(id)}` });
+      // 20-14: a player forbidden to place energy is only offered the skip.
+      if (!forbids(ctx, s, "placeEnergy", { player: pr.player }))
+        for (const id of s.players[pr.player].hand) out.push({ action: { type: "charge", player: pr.player, card: id }, label: `Charge ${name(id)}` });
       out.push({ action: { type: "charge", player: pr.player, card: null }, label: "Skip charge" });
       return out;
     case "main":
@@ -1430,7 +1551,14 @@ function mainActions(ctx: EngineContext, s: GameState, p: PlayerId): LegalAction
     for (const a of cardsInPlay(s, p)) {
       if (s.cards[a].mode !== "active" || s.cards[a].hidden) continue;
       if (forbids(ctx, s, "attack", { player: p, card: a })) continue;
-      for (const t of targets) {
+      // 8-1-1 says an attack may only be declared against a Leader, a Unison,
+      // or a **rested** Battle Card. "This card can attack Battle Cards in
+      // Active Mode" lifts that, for this attacker only — so the target list
+      // is the shared one plus whatever this card's permissions add.
+      const extra = permits(ctx, s, a, "attackActive").flatMap((rule) =>
+        s.players[opp].battle.filter((id) => s.cards[id].mode === "active" && (!rule.filter || matches(cardNow(ctx, s, id), rule.filter))),
+      );
+      for (const t of [...targets, ...new Set(extra)]) {
         if (forbids(ctx, s, "beAttacked", { player: opp, card: t })) continue;
         out.push({ action: { type: "attack", player: p, attacker: a, target: t }, label: `Attack ${name(t)} with ${name(a)} (${powerOf(ctx, s, a)} vs ${powerOf(ctx, s, t)})` });
       }
@@ -1448,7 +1576,8 @@ function mainActions(ctx: EngineContext, s: GameState, p: PlayerId): LegalAction
 function canPlay(ctx: EngineContext, s: GameState, p: PlayerId, card: string): boolean {
   const d = def(ctx, s, card);
   if (s.players[p].battle.some((id) => has(ctx, s, id, "Unique") && face(ctx, s, id).name === d.name)) return false;
-  return !forbids(ctx, s, "play", { player: p, card });
+  // A play the player declares, which is what "except by skills" bans.
+  return !forbids(ctx, s, "play", { player: p, card, bySkill: false });
 }
 
 /**
@@ -1462,7 +1591,7 @@ function activatable(ctx: EngineContext, s: GameState, p: PlayerId, card: string
   const inst = s.cards[card];
   const inHand = areaOf(s, card) === "hand";
   const name = face(ctx, s, card).name;
-  if (skillNegated(s, card, sk.index)) return null;
+  if (skillNegated(s, card, sk.index, sk.kind)) return null;
   // 20-14: a skill nothing forbids, on a card nothing forbids it on.
   if (forbids(ctx, s, "activateSkill", { player: p, card })) return null;
   if (sk.oncePerTurn && inst.usedThisTurn.includes(sk.index)) return null;
@@ -1471,11 +1600,16 @@ function activatable(ctx: EngineContext, s: GameState, p: PlayerId, card: string
   // 22-27 / 22-43: a [Burst] or [Spirit Boost] tag is part of the cost.
   if (!canPayKeywordCosts(s, p, sk)) return null;
   const k = sk.keyword;
-  const orbCost = sk.energyCost;
-  const orbTotal = Object.entries(orbCost).reduce((n, [c, v]) => n + (c === "any" ? 0 : (v ?? 0)), 0) + (orbCost.any ?? 0);
-  const orbSpecified = Object.fromEntries(Object.entries(orbCost).filter(([c]) => c !== "any")) as Partial<Record<string, number>>;
-  const canPayOrbs = () => planPayment(ctx, s, p, orbTotal, orbSpecified as never) !== null;
-  const costIsOrbsOnly = /^[\s{}\w,/]*$/.test(sk.cost) && !/[a-z]{4,}/i.test(sk.cost.replace(/\{[^}]*\}/g, ""));
+  // One reading of the skill's orbs, shared with `activate` — the two used to
+  // count them separately, and neither knew about "{r}/{u}".
+  const { total: orbTotal, specified: orbSpecified, either: orbEither } = orbTotals(sk);
+  const canPayOrbs = () => planPayment(ctx, s, p, orbTotal, orbSpecified, undefined, orbEither) !== null;
+  // The one reading of "the price is nothing but orbs", shared with
+  // `costIsReadable` and with `arena:gaps`. There used to be a second one
+  // here that differed on reminder text, so "{r} (Play this card from your
+  // hand when you have red cards.)" counted as orbs in one place and not the
+  // other — the exact drift these helpers exist to prevent.
+  const costIsOrbsOnly = costIsOnlyOrbs(sk.cost);
 
   if (k) {
     switch (k.name) {
@@ -1495,8 +1629,21 @@ function activatable(ctx: EngineContext, s: GameState, p: PlayerId, card: string
         return `${k.variant} ${name} onto a ${sk.effect || sk.cost}`;
       }
       case "Union": {
-        if (timing !== "main" || !costIsOrbsOnly || !canPayOrbs()) return null;
-        if (k.variant === "Absorb") return null; // needs the effect text
+        if (timing !== "main") return null;
+        // 22-13-6: [Union-Absorb] is the odd one out — activated from the
+        // *Battle Area*, and its effect text says which card is played onto
+        // this one, so it resolves like an ordinary text skill rather than by
+        // naming two characters to find.
+        if (k.variant === "Absorb") {
+          if (areaOf(s, card) !== "battle") return null;
+          if (!canPayOrbs() || !canResolve(ctx, s, card, sk)) return null;
+          const priceOk = costIsOrbsOnly || (() => {
+            const prog = compileCostProgram(sk);
+            return prog ? canPayCostProgram(ctx, s, p, card, prog.ops) : false;
+          })();
+          return priceOk ? `Union-Absorb ${name}: ${sk.effect.slice(0, 40)}` : null;
+        }
+        if (!costIsOrbsOnly || !canPayOrbs()) return null;
         if (!inHand) return null;
         const names = (sk.effect || sk.cost).match(/<([^>]+)>/g)?.map((x) => x.slice(1, -1)) ?? [];
         if (names.length < 2) return null;
@@ -1596,16 +1743,27 @@ function activatable(ctx: EngineContext, s: GameState, p: PlayerId, card: string
   }
   // "[Activate: Main] If your Leader Card is red: Draw 1 card" — a cost that
   // is only a condition (9-1-3) is a skill that can be used when it holds.
-  const condCost = !costIsOrbsOnly && /^(?:if|when|while|during)\b/i.test(sk.cost) ? parseConditionClause(sk.cost) : null;
-  if (!costIsOrbsOnly && !condCost) return null;
+  const condCost = !costIsOrbsOnly ? priceCondition(sk) : null;
+  // 4-3-3: or the price may be an action — "switch this card to Rest Mode",
+  // "choose 1 card in your hand and place it in your Drop Area". Only offered
+  // when the engine can charge it, so the effect never happens for free.
+  const actionCost = !costIsOrbsOnly && !condCost ? compileCostProgram(sk) : null;
+  if (!costIsOrbsOnly && !condCost && !actionCost) return null;
   if (condCost && !condHolds(ctx, s, { ops: [], ip: 0, vars: {}, card, master: p }, condCost.cond)) return null;
+  if (actionCost && !canPayCostProgram(ctx, s, p, card, actionCost.ops)) return null;
   if (!canPayOrbs()) return null;
   if (!canResolve(ctx, s, card, sk)) return null;
   if (baseType(d) === "EXTRA" && inHand) {
     if (alt) {
       // 5-3 / 22-37: the printed alternative to the energy cost is its own
       // offer; the skill's orbs are still paid.
-      if (!altCostFor(ctx, s, card, p, "play") || !planPayment(ctx, s, p, orbTotal, {})) return null;
+      // 22-37: [Invoker] rests one Red/Blue energy in place of the card's own
+      // energy cost — but the *skill's* orbs are still paid, and out of what
+      // is left. Checked against the whole pool, this offered skills whose
+      // orbs needed the very energy [Invoker] was about to rest.
+      if (!altCostFor(ctx, s, card, p, "play")) return null;
+      const spoken = invokerEnergy(ctx, s, p);
+      if (!planPayment(ctx, s, p, orbTotal, orbSpecified, undefined, orbEither, spoken ? [spoken] : undefined)) return null;
       return `Activate ${name} by resting a Red/Blue energy ([Invoker])`;
     }
     const c = playCost(ctx, s, card);
@@ -1679,6 +1837,8 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
       if (pr.kind !== "charge") throw new IllegalAction("not the charge step");
       if (action.card) {
         if (!ps.hand.includes(action.card)) throw new IllegalAction("card not in hand");
+        // 20-14: "you can't place cards in your energy for the turn".
+        if (forbids(ctx, s, "placeEnergy", { player: p })) throw new IllegalAction("you can't place cards in your energy");
         move(ctx, s, ev, action.card, "energy", p, { reason: "charge", reveal: true });
       }
       s.flow.unshift({ op: "checkpoint" }, { op: "turn.mainStart" });
@@ -1798,6 +1958,13 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
       if (!pm) throw new IllegalAction("can't pay the combo cost");
       pay(s, ev, p, pm);
       move(ctx, s, ev, action.card, "combo", p, { reason: "combo", reveal: true });
+      // "When your opponent combos": watched by the other player's cards in
+      // play, with the combo card as the subject.
+      for (const id of cardsInPlay(s, other(p))) pendTriggers(ctx, s, "opponentCombos", id, action.card);
+      // "When you use a card in a combo" — the same moment from your own side,
+      // which fourteen cards watch and none of them called `comboed`: that one
+      // is the combo card's own skill (8-5-8), this is the board's.
+      for (const id of cardsInPlay(s, p)) pendTriggers(ctx, s, "youCombo", id, action.card);
       s.flow.unshift({ op: "checkpoint" }, { op: "battle.promptCombo", side: pr.side });
       break;
     }
@@ -1813,6 +1980,9 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
         setMode(s, ev, action.card, "rest");
         s.battle!.guard = action.card;
         ev.push({ type: "guardChanged", guard: action.card, by: action.card });
+        // 22-4: "when this card activates [Blocker]" — the block itself, which
+        // is a different moment from being attacked.
+        pendTriggers(ctx, s, "blockerUsed", action.card);
         pendTriggers(ctx, s, "attacked", action.card);
         s.flow.unshift({ op: "checkpoint" });
       }
@@ -1826,26 +1996,38 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
         const d = def(ctx, s, action.card);
         const sk = skillsOf(d).find((k) => k.index === (action.skill ?? -1)) ?? skillsOf(d).find((k) => k.kind.startsWith("counter:"));
         if (!sk) throw new IllegalAction("no counter skill");
+        let altProgram: Op[] | undefined;
         // 22-10-4: a [Counter] costs its energy cost and its skill cost —
         // unless the card prints another way to pay for it (5-3).
         if (action.alt) {
           const alt = altCostFor(ctx, s, action.card, p);
           if (!alt) throw new IllegalAction("that card has no other cost to pay");
           if (!payAltCost(ctx, s, ev, p, alt)) throw new IllegalAction("can't pay the counter's cost");
+          // An action price asks the player to pick cards, so it is charged
+          // through the flow rather than inline — put on the front below, so
+          // that it runs before the counter it is paying for.
+          altProgram = alt.pay === "program" ? alt.ops : undefined;
         } else {
           const c = playCost(ctx, s, action.card);
           const orbs = orbTotals(sk);
-          const pm = planPayment(ctx, s, p, c.total + orbs.total, { ...c.specified }, action.pay);
+          const pm = planPayment(ctx, s, p, c.total + orbs.total, { ...c.specified }, action.pay, orbs.either);
           if (!pm) throw new IllegalAction("can't pay the counter's cost");
           pay(s, ev, p, pm);
         }
         // 22-10-7: the card goes to the Drop; its effect resolves as the counter motion.
         move(ctx, s, ev, action.card, "drop", p, { reason: "effect", reveal: true });
+        // "When your opponent activates a [Counter] skill" (4-3): watched by
+        // the other player's cards in play, with the counter card as subject.
+        for (const id of cardsInPlay(s, other(p))) pendTriggers(ctx, s, "opponentCounter", id, action.card);
         // 9-7: a counter is itself an action that can be countered. The answer
         // is offered first and resolves first (9-7-3, descending order), which
         // is simply what the flow being a stack already does — and a
         // [Counter: Counter] that negates marks the step below it on its way.
         s.flow.unshift({ op: "counter", window: "counter", responder: other(p) }, { op: "counter.resolve", card: action.card, skill: sk.index, player: p });
+        // 4-3-3: the price is paid on activation, before anyone may answer it,
+        // so it goes on the front of the flow after everything else — the same
+        // shape a printed action price uses.
+        if (altProgram) s.flow.unshift({ op: "script.step", frame: { ops: altProgram, ip: 0, vars: {}, card: action.card, master: p } });
       }
       break;
     }
@@ -1854,6 +2036,7 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
       if (action.card) {
         if (!pr.candidates.includes(action.card)) throw new IllegalAction("not a combo card");
         move(ctx, s, ev, action.card, "zEnergy", p, { reason: "rule" });
+        pendTriggers(ctx, s, "addedToZEnergy", action.card);
       }
       break;
     }
@@ -1872,18 +2055,29 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
       const ch = pr.choice;
       if (action.cards.some((id) => !ch.candidates.includes(id)) || new Set(action.cards).size !== action.cards.length) throw new IllegalAction("invalid choice");
       if (action.cards.length > ch.max) throw new IllegalAction(`choose at most ${ch.max}`);
-      // The board and the move list answer one card at a time. A prompt that
-      // needs more than one keeps what has been picked and asks again for the
-      // rest, so a "choose 2" is two taps rather than an answer nothing on the
-      // menu could give.
-      if (action.cards.length < ch.min) throw new IllegalAction(`choose at least ${ch.min}`);
       const key = `picking:${ch.continuation}`;
       const sofar = (s.continuations[key] as string[] | undefined) ?? [];
       const picked = [...sofar, ...action.cards];
-      const left = ch.candidates.filter((id) => !action.cards.includes(id));
-      if (action.cards.length > 0 && action.cards.length < ch.max && left.length > 0) {
+      let left = ch.candidates.filter((id) => !action.cards.includes(id));
+      // 22-30-3: with colours still to cover, only the cards that cover one of
+      // them are worth offering — and once they are all covered there is
+      // nothing left to ask.
+      const missing = ch.cover?.filter((c) => !picked.some((id) => cardNow(ctx, s, id).colors.includes(c))) ?? [];
+      if (ch.cover) left = missing.length ? left.filter((id) => cardNow(ctx, s, id).colors.some((c) => missing.includes(c))) : [];
+      // The board and the move list answer one card at a time. A prompt that
+      // needs more than one keeps what has been picked and asks again for the
+      // rest, so the minimum is only owed on the *last* answer — checking it on
+      // every answer made a [Union] asking for two characters unanswerable,
+      // because a single card was the only thing on the menu.
+      const willAskAgain = action.cards.length > 0 && action.cards.length < ch.max && left.length > 0;
+      if (!willAskAgain && action.cards.length < ch.min) throw new IllegalAction(`choose at least ${ch.min}`);
+      if (willAskAgain) {
         s.continuations[key] = picked;
-        s.prompt = { ...pr, choice: { ...ch, candidates: left, min: Math.max(0, ch.min - action.cards.length), max: ch.max - action.cards.length } };
+        // A colour still missing means the next pick is not optional: offering
+        // "choose none" here would let the player stop halfway and lose the
+        // cost, which is the thing this is here to prevent.
+        const min = missing.length ? 1 : Math.max(0, ch.min - action.cards.length);
+        s.prompt = { ...pr, choice: { ...ch, candidates: left, min, max: ch.max - action.cards.length } };
         return { state: s, events: ev };
       }
       delete s.continuations[key];
@@ -1961,9 +2155,8 @@ function activate(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId
   const k = sk.keyword;
   const ps = s.players[p];
   const payOrbs = () => {
-    const total = Object.entries(sk.energyCost).reduce((n, [, v]) => n + (v ?? 0), 0);
-    const specified = Object.fromEntries(Object.entries(sk.energyCost).filter(([c]) => c !== "any"));
-    const pm = planPayment(ctx, s, p, total, specified as never, explicitPay);
+    const { total, specified, either } = orbTotals(sk);
+    const pm = planPayment(ctx, s, p, total, specified, explicitPay, either);
     if (!pm) throw new IllegalAction("can't pay the skill cost");
     pay(s, ev, p, pm);
   };
@@ -1989,6 +2182,9 @@ function activate(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId
     const names = (sk.effect || sk.cost).match(/<([^>]+)>/g)?.map((x) => x.slice(1, -1)) ?? [];
     const pool = k.variant === "Fusion" ? ps.hand.filter((id) => id !== card) : ps.battle;
     const cands = pool.filter((id) => names.some((n) => def(ctx, s, id).characters.some((c) => c.toLowerCase() === n.toLowerCase())));
+    // 22-13: "when you activate a [Union] skill", watched by your cards in
+    // play. The moment is the activation, not the choice that follows it.
+    for (const id of cardsInPlay(s, p)) pendTriggers(ctx, s, "unionActivated", id, card);
     s.continuations.union = { card, variant: k.variant };
     s.flow.unshift({ op: "prompt", prompt: { kind: "chooseCards", player: p, choice: { reason: `Union-${k.variant}: choose ${names.join(" and ")}`, candidates: cands, min: names.length, max: names.length, continuation: "union" } } }, { op: "choose.apply", what: "union", card, player: p });
     return;
@@ -2008,6 +2204,9 @@ function activate(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId
       vars: {},
       label: "back to the Warp as the turn ends",
     });
+    // 22-15: "when you play a Battle Card using [Over Realm]" — the play is
+    // this keyword, so the moment is here rather than in the ordinary play.
+    for (const id of cardsInPlay(s, p)) pendTriggers(ctx, s, "overRealmPlayed", id, card);
     s.resolving = { card, player: p };
     s.flow.unshift({ op: "counter", window: "play", responder: other(p) }, { op: "play.resolve", card, player: p });
     return;
@@ -2022,10 +2221,19 @@ function activate(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId
   }
   if (k?.name === "Aegis") {
     payOrbs();
-    const cands = ps.hand.filter((id) => cardNow(ctx, s, id).colors.some((c) => k.colors.includes(c)));
+    // 22-30-3: only cards that could be part of a set covering every named
+    // colour. A card that covers one colour is only worth offering when the
+    // hand can still cover the rest — otherwise picking it is a dead end that
+    // costs the orbs and does nothing.
+    const cands = ps.hand.filter((id) => {
+      const mine = cardNow(ctx, s, id).colors.filter((c) => k.colors.includes(c));
+      if (!mine.length) return false;
+      const rest = k.colors.filter((c) => !mine.includes(c));
+      return rest.every((c) => ps.hand.some((other) => other !== id && cardNow(ctx, s, other).colors.includes(c)));
+    });
     s.continuations.aegis = { card, colors: k.colors };
     s.flow.unshift(
-      { op: "prompt", prompt: { kind: "chooseCards", player: p, choice: { reason: `Aegis: drop ${k.colors.join(" and ")} from your hand`, candidates: cands, min: 1, max: k.colors.length, continuation: "aegis" } } },
+      { op: "prompt", prompt: { kind: "chooseCards", player: p, choice: { reason: `Aegis: drop ${k.colors.join(" and ")} from your hand`, candidates: cands, min: 1, max: k.colors.length, continuation: "aegis", cover: k.colors } } },
       { op: "choose.apply", what: "aegis", card, player: p },
     );
     return;
@@ -2064,6 +2272,8 @@ function activate(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId
     const servant = ps.battle.find((id) => has(ctx, s, id, "Servant"))!;
     move(ctx, s, ev, servant, "deck", p, { position: "bottom", reason: "cost" });
     draw(ctx, s, ev, p, 1);
+    // 22-40: "when you activate an [Overlord] skill".
+    for (const id of cardsInPlay(s, p)) pendTriggers(ctx, s, "overlordActivated", id, card);
     return;
   }
   if (k?.name === "Field") {
@@ -2115,6 +2325,10 @@ function activate(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId
   payOrbs();
   s.resolving = { card, skill: sk.index, player: p };
   s.flow.unshift({ op: "counter", window: "skill", responder: other(p) }, { op: "skill.resolve", card, skill: sk.index, player: p }, { op: "extra.finish", card }, { op: "checkpoint" });
+  // 4-3-3: an action price is paid on activation, before the counter window
+  // opens — so it goes on the front of the flow, after everything else.
+  const actionCost = compileCostProgram(sk);
+  if (actionCost) s.flow.unshift({ op: "script.step", frame: { ops: actionCost.ops, ip: 0, vars: {}, card, master: p, skillIndex: sk.index, saveVarsAs: costVarsKey(card, sk.index) } });
 }
 
 // ── views ──────────────────────────────────────────────────────────────────

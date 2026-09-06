@@ -8,7 +8,7 @@ import { canCombo, hasKeyword, keywordOf, skillsOf, specifiedCostOf, isZ, baseTy
 import { compileCardCached } from "./compile";
 import { matches, powerRelOk } from "./filters";
 import type { Amount, Cond, Op, Ref, ScriptArea, ScriptFrame, Selector, Side } from "./script";
-import type { Area, CardDef, CardFace, Color, ContinuousEffect, DelayedEffect, DelayTiming, ForbiddenAction, FlowStep, Prohibition, GameEvent, GameState, KeywordSkill, PlayerId, PlayerState, Skill } from "./types";
+import type { Area, CardDef, CardFace, Color, ContinuousEffect, DelayedEffect, DelayTiming, ForbiddenAction, FlowStep, Permission, Prohibition, GameEvent, GameState, KeywordSkill, PlayerId, PlayerState, Skill, SkillKind } from "./types";
 import { other } from "./types";
 
 export interface GameContext {
@@ -61,7 +61,16 @@ export function def(ctx: GameContext, s: GameState, id: string): CardDef {
  */
 export interface Replacement {
   to: Area;
-  by?: "skill";
+  /**
+   * Which departures it replaces. Absent is any of them ("would leave the
+   * Battle Area"); `"skill"` is only an effect putting the card out; `"ko"`
+   * only the KO; `"skillOrKo"` is what BT30-016 prints — "would be removed
+   * from a Battle Area by a skill **or KO'd**", which is both causes and still
+   * not a card leaving for a rule.
+   */
+  by?: "skill" | "ko" | "skillOrKo";
+  /** "Add that card to your energy in Rest Mode instead" — the mode it arrives in. */
+  mode?: "active" | "rest";
 }
 
 /**
@@ -72,13 +81,16 @@ export interface Replacement {
  * here and the log says which; when that turns up in a real game it is one
  * prompt away.
  */
-function replacementFor(ctx: GameContext, s: GameState, id: string, reason: MoveOptions["reason"]): Area | null {
+function replacementFor(ctx: GameContext, s: GameState, id: string, reason: MoveOptions["reason"]): Replacement | null {
   for (const e of staticEffects(ctx, s)) {
     if (e.kind !== "replaceLeave" || e.target !== id) continue;
     const r = e.value as Replacement;
-    // "By a skill" means an effect put it out, not a battle or a rule.
+    // "By a skill" means an effect put it out, not a battle or a rule; the
+    // longer form adds the KO, which is the one other cause cards name.
     if (r.by === "skill" && reason !== "effect") continue;
-    return r.to;
+    if (r.by === "ko" && reason !== "ko") continue;
+    if (r.by === "skillOrKo" && reason !== "effect" && reason !== "ko") continue;
+    return r;
   }
   return null;
 }
@@ -123,18 +135,55 @@ export interface Location {
   index: number;
 }
 
-/** Scan both players' areas for a card. Areas are small; a scan is fine. */
+/**
+ * The listed areas, hottest and smallest first. `areaOf` is asked about cards
+ * in play far more often than about anything else, and a deck of fifty was
+ * being scanned twice before the Battle Area was looked at once.
+ */
+const SEARCH_ORDER = ["battle", "energy", "hand", "drop", "combo", "life", "zEnergy", "warp", "zDeck", "removed", "deck"] as const;
+
+/**
+ * Where each card was last found, per state.
+ *
+ * Only ever a *hint*: every read checks the remembered slot still holds the
+ * card before trusting it, which is O(1), so a mutation that does not go
+ * through `move` — an evolve splicing an array, a card placed under another —
+ * cannot make this wrong. It can only make it miss and fall back to the scan.
+ * A `WeakMap` keyed on the state means a cloned state simply starts cold.
+ */
+const lastSeen = new WeakMap<GameState, Map<string, Location>>();
+
+function stillThere(s: GameState, id: string, at: Location): boolean {
+  const ps = s.players[at.owner];
+  if (at.area === "leader") return ps.leader === id;
+  if (at.area === "unison") return ps.unison === id;
+  return ps[at.area][at.index] === id;
+}
+
+/** Scan both players' areas for a card. */
 export function locate(s: GameState, id: string): Location | null {
+  let hints = lastSeen.get(s);
+  if (!hints) lastSeen.set(s, (hints = new Map()));
+  const hint = hints.get(id);
+  // A fresh object every time: callers get a plain value they cannot alias
+  // into the cache by accident.
+  if (hint && stillThere(s, id, hint)) return { ...hint };
   for (const p of ["p1", "p2"] as PlayerId[]) {
     const ps = s.players[p];
-    if (ps.leader === id) return { owner: p, area: "leader", index: 0 };
-    if (ps.unison === id) return { owner: p, area: "unison", index: 0 };
-    for (const area of ["deck", "hand", "drop", "warp", "life", "battle", "combo", "energy", "zDeck", "zEnergy", "removed"] as const) {
+    if (ps.leader === id) return remember(hints, id, { owner: p, area: "leader", index: 0 });
+    if (ps.unison === id) return remember(hints, id, { owner: p, area: "unison", index: 0 });
+    for (const area of SEARCH_ORDER) {
       const i = ps[area].indexOf(id);
-      if (i >= 0) return { owner: p, area, index: i };
+      if (i >= 0) return remember(hints, id, { owner: p, area, index: i });
     }
   }
+  hints.delete(id);
   return null;
+}
+
+function remember(hints: Map<string, Location>, id: string, at: Location): Location {
+  hints.set(id, at);
+  return { ...at };
 }
 
 export function areaOf(s: GameState, id: string): Area | null {
@@ -166,10 +215,14 @@ export function skillsNegated(s: GameState, id: string): boolean {
 }
 
 /** One skill of a card is negated: by index for the game, or by a turn-long effect. */
-export function skillNegated(s: GameState, id: string, index: number): boolean {
+export function skillNegated(s: GameState, id: string, index: number, kind?: SkillKind): boolean {
   const inst = s.cards[id];
   if (inst.negated === "all" || inst.negated.includes(index)) return true;
-  return s.effects.some((e) => e.kind === "negateSkill" && e.target === id && e.value === index);
+  if (s.effects.some((e) => e.kind === "negateSkill" && e.target === id && e.value === index)) return true;
+  // 9-1-5: "negate that card's [Auto] skill for the turn" — a whole kind at
+  // once. A printed "[Counter]" covers every counter kind, so the stored value
+  // is a prefix of the skill kind rather than the whole of it.
+  return !!kind && s.effects.some((e) => e.kind === "negateSkillKind" && e.target === id && kind.startsWith(e.value as string));
 }
 
 export function skillsOfInstance(ctx: GameContext, s: GameState, id: string): Skill[] {
@@ -188,7 +241,7 @@ export function keywordsInForce(ctx: GameContext, s: GameState, id: string): Key
     const d = def(ctx, s, id);
     const side = inst.flipped && d.back ? "back" : "front";
     for (const sk of skillsOf(d, side)) {
-      if (skillNegated(s, id, sk.index)) continue;
+      if (skillNegated(s, id, sk.index, sk.kind)) continue;
       if (sk.keyword) out.push(sk.keyword);
       // Keywords sharing the line with a typed skill ("[Auto][Blocker]") belong to that line.
       for (const tag of sk.tags) {
@@ -199,9 +252,13 @@ export function keywordsInForce(ctx: GameContext, s: GameState, id: string): Key
   }
   for (const e of s.effects) if (e.kind === "keyword" && e.target === id) out.push(e.value as KeywordSkill);
   // 9-1-5: a skill may name one keyword to negate rather than silencing the
-  // card. Applied last, so it beats a grant of the same keyword.
+  // card. Applied last, so it beats a grant of the same keyword — and the
+  // prohibition that saves it (20-14) is only worth asking about when there is
+  // something to save it from. This runs for every keyword check in the game.
   const gone = new Set(staticEffects(ctx, s).filter((e) => e.kind === "negateKeyword" && e.target === id).map((e) => e.value as KeywordSkill["name"]));
-  return gone.size ? out.filter((k) => !gone.has(k.name)) : out;
+  if (!gone.size) return out;
+  if (forbids(ctx, s, "beNegated", { card: id })) return out;
+  return out.filter((k) => !gone.has(k.name));
 }
 
 export function has(ctx: GameContext, s: GameState, id: string, name: KeywordSkill["name"]): boolean {
@@ -284,6 +341,9 @@ export function resolveSelector(ctx: GameContext, s: GameState, frame: ScriptFra
             ? b?.guard
             : sel.special === "subject"
               ? frame.subject
+              : sel.special === "resolving"
+              ? // 9-6: the card whose play this skill is answering.
+                (s.resolving?.card ?? null)
               : sel.special === "leader"
                 ? s.players[frame.master].leader
                 : s.players[other(frame.master)].leader;
@@ -295,16 +355,28 @@ export function resolveSelector(ctx: GameContext, s: GameState, frame: ScriptFra
     const areas = sel.areas?.length ? sel.areas : [sel.area ?? "battle"];
     for (const p of sideOf(frame.master, sel.side)) for (const area of areas) out.push(...areaCards(s, p, area, frame));
   }
+  // "The top 2 cards of your deck" — the area's own order decides, and the
+  // filter is not applied first, because the cards are not being searched for.
+  if (sel.take != null) out = sel.fromEnd ? out.slice(Math.max(0, out.length - sel.take)) : out.slice(0, sel.take);
   return out.filter((id) => {
     const inst = s.cards[id];
     if (!inst) return false;
     if (sel.mode && inst.mode !== sel.mode) return false;
+    // "…other than this card" / "…other than copies of this card": the one
+    // card the phrase says the target is not.
+    if (sel.notSelf && frame.card) {
+      if (id === frame.card) return false;
+      if (sel.notSelf === "copies" && s.cards[frame.card] && inst.cardId === s.cards[frame.card].cardId) return false;
+    }
     // A named target that also names an area only matches while it is there.
     // A delayed effect resolves turns later, and by then "this card" may have
     // left the Battle Area — in which case it is no longer the same card (3-1-4).
     if (sel.special && sel.area && areaOf(s, id) !== (sel.area === "play" ? "battle" : sel.area)) return false;
     // 23-5-2: a Hidden Mode card has none of its front-side information.
     if (sel.filter && (inst.hidden || !matches(cardNow(ctx, s, id), sel.filter))) return false;
+    // 3-9-2-1: whether a life card has been turned face up is a fact about
+    // this copy, not about the card, so `matches` cannot see it.
+    if (sel.filter?.faceUp && !inst.faceUp) return false;
     // "with power less than or equal to this card's power": measured against
     // the card the skill is on, as it stands now.
     if (sel.filter?.powerRel && !powerRelOk(sel.filter, powerOf(ctx, s, id), powerOf(ctx, s, frame.card))) return false;
@@ -316,7 +388,10 @@ export function resolveSelector(ctx: GameContext, s: GameState, frame: ScriptFra
 }
 
 export function resolveRef(ctx: GameContext, s: GameState, frame: ScriptFrame, ref: Ref): string[] {
-  if ("var" in ref) return (frame.vars[ref.var] ?? []).filter((id) => s.cards[id]);
+  if ("var" in ref) {
+    const taken = ref.minus ? new Set(frame.vars[ref.minus] ?? []) : null;
+    return (frame.vars[ref.var] ?? []).filter((id) => s.cards[id] && !taken?.has(id));
+  }
   return resolveSelector(ctx, s, frame, ref.sel);
 }
 
@@ -385,6 +460,10 @@ export function condHolds(ctx: GameContext, s: GameState, frame: ScriptFrame, c:
     }
     case "chose":
       return (frame.vars[c.var] ?? []).length > 0;
+    // "If that card is a Battle Card": any of the cards the reveal or look
+    // bound to the name. A name that bound nothing is not a match.
+    case "varMatches":
+      return (frame.vars[c.var] ?? []).some((id) => s.cards[id] && matches(cardNow(ctx, s, id), c.filter));
     case "isTurnPlayer":
       return c.who === "opponent" ? s.turnPlayer !== frame.master : s.turnPlayer === frame.master;
   }
@@ -395,20 +474,28 @@ export function condHolds(ctx: GameContext, s: GameState, frame: ScriptFrame, c:
 
 /** Another way to pay for a card's [Counter] skill (5-3). */
 export interface AltCost {
-  /** `invoker`: rest one active Red/Blue multicolour energy instead (22-37). */
-  pay: "none" | "life" | "invoker";
+  /**
+   * `invoker`: rest one active Red/Blue multicolour energy instead (22-37).
+   * `program`: an action the card names — "by choosing 1 other black card in
+   * your hand and placing it in your Drop" — compiled by the same reader as an
+   * ordinary action price (4-3-3) and charged the same way, through the flow,
+   * because most of them need the player to pick a card.
+   */
+  pay: "none" | "life" | "invoker" | "program";
   /** Cards to add from your life to your hand, for `pay: "life"`. */
   n: number;
   /** Which cost it replaces: the [Counter] skill's, or playing the card. */
   for: "counter" | "play";
+  /** The price to run, for `pay: "program"`. */
+  ops?: Op[];
 }
 
 export interface StaticEffect {
   source: string;
-  kind: "power" | "comboPower" | "keyword" | "cost" | "comboCost" | "negateKeyword" | "gains" | "replaceLeave" | "forbid" | "altCost";
+  kind: "power" | "comboPower" | "keyword" | "cost" | "comboCost" | "negateKeyword" | "gains" | "replaceLeave" | "forbid" | "permit" | "altCost";
   /** The card it is about; empty for a rule about a player rather than a card. */
   target: string;
-  value: number | KeywordSkill | KeywordSkill["name"] | Prohibition | AltCost | Gains | Replacement;
+  value: number | KeywordSkill | KeywordSkill["name"] | Prohibition | Permission | AltCost | Gains | Replacement;
 }
 
 /**
@@ -439,7 +526,7 @@ export function staticEffects(ctx: GameContext, s: GameState): StaticEffect[] {
         const inPlayNow = inPlay(s, src);
         for (const sk of skillsOf(d, side)) {
           if (sk.kind !== "permanent") continue;
-          if (skillNegated(s, src, sk.index)) continue;
+          if (skillNegated(s, src, sk.index, sk.kind)) continue;
           const sc = scripts.bySkill[sk.index];
           if (!sc || sc.unsupported.length) continue;
           collectStatics(ctx, s, out, src, p, sc.ops, inPlayNow);
@@ -461,6 +548,19 @@ export function staticEffects(ctx: GameContext, s: GameState): StaticEffect[] {
  */
 let computingStatics = false;
 
+/**
+ * The ops `collectStatics` below turns into a standing effect. Anything else
+ * in a [Permanent] program is **inert**: the skill compiles and then does
+ * nothing, which no compile figure can show. `emitsStatic` is what
+ * `arena:coverage` uses so its "applied by the static layer" line means what
+ * it says — keep this list beside the switch it describes.
+ */
+const STATIC_OPS = new Set<Op["op"]>(["power", "comboPower", "grant", "costReduction", "replaceLeave", "gains", "negateKeyword", "forbid", "permit", "altCost"]);
+
+export function emitsStatic(ops: Op[]): boolean {
+  return ops.some((o) => (o.op === "if" ? emitsStatic(o.then) || emitsStatic(o.else ?? []) : STATIC_OPS.has(o.op)));
+}
+
 function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], source: string, master: PlayerId, ops: Op[], inPlayNow: boolean): void {
   const frame: ScriptFrame = { ops: [], ip: 0, vars: {}, card: source, master };
   for (const op of ops) {
@@ -471,7 +571,12 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
     }
     if (op.op === "costReduction") {
       const kind = op.what === "combo" ? "comboCost" : "cost";
-      for (const id of staticTargets(ctx, s, frame, op.target)) out.push({ source, kind, target: id, value: op.amount });
+      // "…by 1 for each of your blue Battle Cards" — the same count amount the
+      // power statics take, and for the same reason: a [Permanent] has no
+      // frame that ever bound a variable, so only `count` can be evaluated.
+      const value = typeof op.amount === "number" ? op.amount : "count" in op.amount ? amount(ctx, s, frame, op.amount) : null;
+      if (value == null) continue;
+      for (const id of staticTargets(ctx, s, frame, op.target)) out.push({ source, kind, target: id, value });
       continue;
     }
     // "In all areas", so it is read wherever the card is — which is the point
@@ -482,7 +587,7 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
       if (!inPlayNow) continue;
       const dest = op.to === "play" ? "battle" : op.to === "under" ? "drop" : (op.to as Area);
       const targets = op.target ? staticTargets(ctx, s, frame, op.target) : [source];
-      for (const id of targets) out.push({ source, kind: "replaceLeave", target: id, value: { to: dest, by: op.by } });
+      for (const id of targets) out.push({ source, kind: "replaceLeave", target: id, value: { to: dest, by: op.by, mode: op.mode } });
       continue;
     }
     // "In all areas" again: what a card counts as does not depend on where it is.
@@ -499,7 +604,7 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
     // Like a cost reducer, this one is about the card in hand, so it is read
     // whether or not the card is on the table.
     if (op.op === "altCost") {
-      out.push({ source, kind: "altCost", target: source, value: { pay: op.pay, n: op.n ?? 1, for: op.for ?? "counter" } });
+      out.push({ source, kind: "altCost", target: source, value: { pay: op.pay, n: op.n ?? 1, for: op.for ?? "counter", ...(op.ops ? { ops: op.ops } : {}) } });
       continue;
     }
     // 20-14: a prohibition printed as a [Permanent] skill holds for as long as
@@ -510,16 +615,29 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
       const player = op.side && op.side !== "both" ? sideOf(master, op.side)[0] : undefined;
       const name = op.sameNameAsSelf ? face(ctx, s, source).name : undefined;
       if (op.target) {
-        for (const id of staticTargets(ctx, s, frame, op.target)) out.push({ source, kind: "forbid", target: id, value: { what: op.what, player } });
+        for (const id of staticTargets(ctx, s, frame, op.target)) out.push({ source, kind: "forbid", target: id, value: { what: op.what, player, bySkill: op.bySkill } });
       } else {
-        out.push({ source, kind: "forbid", target: "", value: { what: op.what, player, filter: op.filter, name } });
+        out.push({ source, kind: "forbid", target: "", value: { what: op.what, player, filter: op.filter, name, bySkill: op.bySkill } });
       }
+      continue;
+    }
+    // 8-1-1 the other way round. Printed as a [Permanent] on most of the cards
+    // that have it ("This card can attack Battle Cards in Active Mode"), so it
+    // belongs here beside the prohibition it mirrors.
+    if (op.op === "permit") {
+      if (!inPlayNow) continue;
+      for (const id of staticTargets(ctx, s, frame, op.target)) out.push({ source, kind: "permit", target: id, value: { what: op.what, filter: op.filter } });
       continue;
     }
     if (!inPlayNow) continue; // the rest only hold while the card is in play
     if (op.op === "power" || op.op === "comboPower") {
-      if (typeof op.amount !== "number") continue;
-      for (const id of staticTargets(ctx, s, frame, op.target)) out.push({ source, kind: op.op, target: id, value: op.amount });
+      // "+5000 power for each card placed under it" — a number read off the
+      // board. Only `count` amounts: the others are named by a variable, and a
+      // [Permanent] has no frame that ever bound one. `staticEffects` refuses
+      // to recurse, so the count may safely ask the board about itself.
+      const value = typeof op.amount === "number" ? op.amount : "count" in op.amount ? amount(ctx, s, frame, op.amount) : null;
+      if (value == null) continue;
+      for (const id of staticTargets(ctx, s, frame, op.target)) out.push({ source, kind: op.op, target: id, value });
     } else if (op.op === "grant") {
       for (const id of staticTargets(ctx, s, frame, op.target)) out.push({ source, kind: "keyword", target: id, value: op.keyword });
     }
@@ -538,10 +656,30 @@ function list(ps: PlayerState, area: Area): string[] | null {
   return ps[area];
 }
 
+/**
+ * Cards under a card are in no area of their own (23-2), so `locate` cannot
+ * see them and nothing that moves a card could take one out. A skill that
+ * plays a card *out* of a pile — "play up to 1 card from under this card" —
+ * needs this, or the card is added to its new area while still in the pile and
+ * exists twice.
+ */
+export function liftFromPile(s: GameState, id: string): boolean {
+  for (const inst of Object.values(s.cards)) {
+    const i = inst.under.indexOf(id);
+    if (i < 0) continue;
+    inst.under.splice(i, 1);
+    return true;
+  }
+  return false;
+}
+
 /** Take a card out of wherever it is. Returns where it was. */
 export function detach(s: GameState, id: string): Location | null {
   const loc = locate(s, id);
-  if (!loc) return null;
+  if (!loc) {
+    liftFromPile(s, id);
+    return null;
+  }
   const ps = s.players[loc.owner];
   if (loc.area === "leader") ps.leader = "";
   else if (loc.area === "unison") ps.unison = null;
@@ -584,11 +722,13 @@ export function move(ctx: GameContext, s: GameState, ev: GameEvent[], id: string
   // there, and the move that was about to happen is treated as never having
   // happened (9-10-1-1). Read before the rules below, because a rule about
   // what a card *is* — a token, a Z-card — outranks an effect (0-2-5).
+  let insteadMode: "active" | "rest" | undefined;
   if (wasInPlay && !goesToPlay && !goesToCombo) {
     const instead = replacementFor(ctx, s, id, opts.reason);
-    if (instead && instead !== to) {
-      note(ev, `${face(ctx, s, id).name} goes to the ${instead} instead`);
-      to = instead;
+    if (instead && instead.to !== to) {
+      note(ev, `${face(ctx, s, id).name} goes to the ${instead.to} instead`);
+      to = instead.to;
+      insteadMode = instead.mode;
     }
   }
 
@@ -621,6 +761,9 @@ export function move(ctx: GameContext, s: GameState, ev: GameEvent[], id: string
     inst.markers = 0;
     inst.flipped = false;
     inst.hidden = false;
+    // 3-1-4: a card that changes area is a new card, and a life card turned
+    // face up (3-9-2-1) is not still face up once it has left the life area.
+    inst.faceUp = false;
     inst.negated = [];
     inst.usedThisTurn = [];
     inst.extraAttacks = 0;
@@ -629,6 +772,10 @@ export function move(ctx: GameContext, s: GameState, ev: GameEvent[], id: string
   if (goesToPlay || goesToCombo) inst.enteredTurn = s.turn;
   // 22-31: [Energy-Exhaust] enters the Energy Area rested.
   if (to === "energy" && hasKeyword(d, "Energy-Exhaust")) inst.mode = "rest";
+  // "…add that card to your energy in Rest Mode instead": the replacement says
+  // how the card arrives as well as where, and it is applied after the reset
+  // above, which had just switched it back to Active Mode.
+  if (insteadMode) inst.mode = insteadMode;
 
   const ps = s.players[toOwner];
   if (to === "leader") ps.leader = id;
@@ -697,8 +844,8 @@ export function setMode(s: GameState, ev: GameEvent[], id: string, mode: "active
   return true;
 }
 
-export function addEffect(s: GameState, ev: GameEvent[], e: Omit<ContinuousEffect, "id" | "createdTurn" | "ownerTurn">): ContinuousEffect {
-  const full: ContinuousEffect = { ...e, id: s.nextEffectId++, createdTurn: s.turn, ownerTurn: s.turnPlayer };
+export function addEffect(s: GameState, ev: GameEvent[], e: Omit<ContinuousEffect, "id" | "createdTurn" | "ownerTurn" | "master"> & { master?: PlayerId }): ContinuousEffect {
+  const full: ContinuousEffect = { ...e, master: e.master ?? s.turnPlayer, id: s.nextEffectId++, createdTurn: s.turn, ownerTurn: s.turnPlayer };
   s.effects.push(full);
   ev.push({ type: "effect", effect: full });
   return full;
@@ -706,6 +853,29 @@ export function addEffect(s: GameState, ev: GameEvent[], e: Omit<ContinuousEffec
 
 export function endEffects(s: GameState, until: ContinuousEffect["until"], forPlayer?: PlayerId): void {
   s.effects = s.effects.filter((e) => !(e.until === until && (forPlayer == null || e.ownerTurn === forPlayer)));
+}
+
+/**
+ * The two durations written from the controller's point of view rather than
+ * the turn's, expired as a turn opens (9-9):
+ *
+ * - **"until the end of your opponent's turn"** (`nextTurn`) ends as the
+ *   controller's own next turn begins.
+ * - **"until the start of your opponent's next turn"** (`opponentTurn`) ends
+ *   as that opponent's next turn begins.
+ *
+ * Both used to be read against the turn player *at the time the effect was
+ * made*, which is right only when the controller made it on their own turn. A
+ * [Counter] resolves on the opponent's turn by definition, so every effect one
+ * of those created outlasted its wording by a whole turn.
+ */
+export function endTurnRelativeEffects(s: GameState): void {
+  s.effects = s.effects.filter((e) => {
+    if (e.createdTurn >= s.turn) return true;
+    if (e.until === "nextTurn") return s.turnPlayer !== e.master;
+    if (e.until === "opponentTurn") return s.turnPlayer === e.master;
+    return true;
+  });
 }
 
 // ── prohibitions (20-14, 0-2-5) ────────────────────────────────────────────
@@ -717,15 +887,53 @@ export function endEffects(s: GameState, until: ContinuousEffect["until"], forPl
  * `card` is what the action is about — the attacker, the card being played,
  * the card that would switch to Active Mode. `player` is who is acting.
  */
-export function forbids(ctx: GameContext, s: GameState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string } = {}): boolean {
+/**
+ * A card's own [Permanent] prohibitions, read wherever the card is (9-1-3-3).
+ *
+ * `staticEffects` reads the areas whose skills are ordinarily valid — play, the
+ * hand and the Z-Deck — and that is right for a skill about the board. The
+ * cards that forbid their *own* play say "from any area" on purpose, and the
+ * moment that matters is a skill reaching into the Drop or the deck for them,
+ * where nothing would have read the skill at all. Rather than widen the static
+ * layer to every area for every card, which would put a fifty-card deck through
+ * it on each call, this reads the one card being asked about.
+ */
+function ownProhibitions(ctx: GameContext, s: GameState, card: string): Prohibition[] {
+  const inst = s.cards[card];
+  if (!inst || inst.hidden || skillsNegated(s, card)) return [];
+  const d = def(ctx, s, card);
+  const side = inst.flipped && d.back ? "back" : "front";
+  const scripts = compileCardCached(d, side);
+  const out: Prohibition[] = [];
+  for (const sk of skillsOf(d, side)) {
+    if (sk.kind !== "permanent" || skillNegated(s, card, sk.index, sk.kind)) continue;
+    const sc = scripts.bySkill[sk.index];
+    if (!sc || sc.unsupported.length) continue;
+    for (const op of sc.ops) {
+      // Only a rule the card states about itself, and only the ones it means to
+      // hold everywhere: anything aimed at other cards is the static layer's.
+      if (op.op !== "forbid" || op.until !== "game" || op.bySkill === undefined) continue;
+      if (!op.target || !("sel" in op.target) || op.target.sel.special !== "self") continue;
+      out.push({ what: op.what, bySkill: op.bySkill });
+    }
+  }
+  return out;
+}
+
+export function forbids(ctx: GameContext, s: GameState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean } = {}): boolean {
   const rules: { target: string; forbid: Prohibition }[] = [];
   for (const e of s.effects) if (e.kind === "forbid" && e.forbid) rules.push({ target: e.target, forbid: e.forbid });
   // A prohibition printed as a [Permanent] skill holds while the card is in
   // play, with no duration to expire (9-5-1).
   for (const e of staticEffects(ctx, s)) if (e.kind === "forbid") rules.push({ target: e.target, forbid: e.value as Prohibition });
+  // 9-1-3-3: and the card's own, wherever it is — see `ownProhibitions`.
+  if (opts.card) for (const f of ownProhibitions(ctx, s, opts.card)) rules.push({ target: opts.card, forbid: f });
 
   for (const { target, forbid: f } of rules) {
     if (f.what !== what) continue;
+    // "By skills" and "except by skills" are opposite halves of one wording,
+    // and a rule that names one of them says nothing about the other.
+    if (f.bySkill !== undefined && opts.bySkill !== undefined && f.bySkill !== opts.bySkill) continue;
     // A rule about one card only applies to that card.
     if (target && target !== opts.card) continue;
     if (f.player && opts.player && f.player !== opts.player) continue;
@@ -741,6 +949,23 @@ export function forbids(ctx: GameContext, s: GameState, what: ForbiddenAction, o
 }
 
 /**
+ * The permissions one card carries — the mirror of `forbids`, and the reader
+ * both `legalActions` and the measurement use, so they cannot drift apart.
+ *
+ * Returns one entry per rule that applies, because each carries its own
+ * description of what may be attacked: "Battle Cards in Active Mode" and
+ * "Battle Cards **without [Barrier]** in Active Mode" are different
+ * permissions, and a card may hold both. An empty array means the ordinary
+ * rule stands (8-1-1).
+ */
+export function permits(ctx: GameContext, s: GameState, card: string, what: Permission["what"]): Permission[] {
+  const out: Permission[] = [];
+  for (const e of s.effects) if (e.kind === "permit" && e.target === card && e.permit?.what === what) out.push(e.permit);
+  for (const e of staticEffects(ctx, s)) if (e.kind === "permit" && e.target === card && (e.value as Permission).what === what) out.push(e.value as Permission);
+  return out;
+}
+
+/**
  * The card-only half of the same question, for the places that have a state
  * but no card definitions — `setMode` is called from everywhere, including
  * paths that must not need a context.
@@ -750,6 +975,59 @@ export function forbiddenForCard(s: GameState, what: ForbiddenAction, card: stri
   // The [Permanent] half needs the card definitions, so it is only asked when
   // the caller has them.
   return !!ctx && staticEffects(ctx, s).some((e) => e.kind === "forbid" && e.target === card && (e.value as Prohibition).what === what);
+}
+
+/**
+ * Whether the engine can actually charge an action price right now (4-3-3).
+ *
+ * Deliberately a whitelist: an op that is not on it means "no", so the skill
+ * stays unoffered. Offering a skill whose price then half-runs would be worse
+ * than the honest gap it is today — the effect would still happen.
+ *
+ * Lives here rather than in `engine.ts` because `altCostFor` just below has to
+ * ask the same question about the alternative price a [Permanent] offers, and
+ * one definition is the only way the two answers cannot drift apart.
+ */
+export function canPayCostProgram(ctx: GameContext, s: GameState, p: PlayerId, card: string, ops: Op[]): boolean {
+  const frame: ScriptFrame = { ops: [], ip: 0, vars: {}, card, master: p };
+  const inHand = s.players[p].hand.includes(card) ? 1 : 0;
+  for (const op of ops) {
+    switch (op.op) {
+      case "choose": {
+        // "Up to" can always be paid with nothing (5-2-4).
+        if (op.sel.upTo) break;
+        if (resolveSelector(ctx, s, frame, op.sel).length < (op.sel.count ?? 1)) return false;
+        break;
+      }
+      case "discard":
+        // The activating card leaves the hand as part of the activation, so
+        // it is not also available to be discarded.
+        if (typeof op.n !== "number" || s.players[p].hand.length - inHand < op.n) return false;
+        break;
+      case "mill":
+        if (typeof op.n !== "number" || s.players[p].deck.length < op.n) return false;
+        break;
+      // A target named by a variable is whatever the `choose` in front of it
+      // binds, and that choice has already been checked; nothing is bound yet
+      // while this runs, so resolving it here would always find nothing.
+      case "switchMode": {
+        if ("var" in op.target) break;
+        const cards = resolveRef(ctx, s, frame, op.target);
+        if (!cards.length || cards.some((id) => s.cards[id].mode === op.mode)) return false;
+        break;
+      }
+      case "moveTo":
+        // "Under" needs a host and "play" is not an area (3-1); neither is a
+        // price this can promise.
+        if (op.to === "under" || op.to === "play") return false;
+        if ("var" in op.target) break;
+        if (!resolveRef(ctx, s, frame, op.target).length) return false;
+        break;
+      default:
+        return false;
+    }
+  }
+  return true;
 }
 
 /**
@@ -763,6 +1041,11 @@ export function altCostFor(ctx: GameContext, s: GameState, card: string, payer: 
     // Programs stored before playing had its own waiver are about a [Counter].
     if ((alt.for ?? "counter") !== which) continue;
     if (alt.pay === "life" && s.players[payer].life.length < alt.n) continue;
+    // 4-3-3: an action price is only an offer when the board can meet it, or
+    // the skill happens and the price quietly does not. Only the [Counter]
+    // path charges one — the two play sites pay inline and have nowhere to ask
+    // — so a program offered for a play is refused rather than waived.
+    if (alt.pay === "program" && (which !== "counter" || !alt.ops || !canPayCostProgram(ctx, s, payer, card, alt.ops))) continue;
     return alt;
   }
   // 22-37: [Invoker] on a card in play lets a Red/Blue multicolour Extra be
@@ -779,13 +1062,21 @@ function isRedBlue(ctx: GameContext, s: GameState, id: string): boolean {
   return colors.length === 2 && colors.includes("Red") && colors.includes("Blue");
 }
 
-function invokerEnergy(ctx: GameContext, s: GameState, payer: PlayerId): string | null {
+/** The energy [Invoker] would rest, so a caller can leave it out of the rest of the price (22-37). */
+export function invokerEnergy(ctx: GameContext, s: GameState, payer: PlayerId): string | null {
   return s.players[payer].energy.find((id) => s.cards[id].mode === "active" && isRedBlue(ctx, s, id)) ?? null;
 }
 
-/** Carry out an alternative cost. Adding life to hand is not damage (1-13-2). */
+/**
+ * Carry out an alternative cost. Adding life to hand is not damage (1-13-2).
+ *
+ * A `program` price is *not* paid here: it needs the player to pick cards, and
+ * this returns a boolean with nowhere to ask. The caller unshifts it onto the
+ * flow instead — `altCostProgram` below is what they use — and this says "yes,
+ * nothing more to do inline".
+ */
 export function payAltCost(ctx: GameContext, s: GameState, ev: GameEvent[], payer: PlayerId, alt: AltCost): boolean {
-  if (alt.pay === "none") return true;
+  if (alt.pay === "none" || alt.pay === "program") return true;
   if (alt.pay === "invoker") {
     const e = invokerEnergy(ctx, s, payer);
     if (!e) return false;
@@ -820,8 +1111,13 @@ function ripe(s: GameState, d: DelayedEffect): boolean {
       return s.turn > d.createdTurn;
     case "yourNextTurn":
       return s.turn > d.createdTurn && s.turnPlayer === d.master;
+    // No "later than the turn it was written on" here, unlike `yourNextTurn`
+    // above: an effect scheduled *during* the opponent's turn — every [Counter]
+    // is — means the turn now under way, and requiring a later one made it skip
+    // that whole turn and wait for their next. The side test is the guard: on
+    // the master's own turn this is false anyway.
     case "opponentNextTurn":
-      return s.turn > d.createdTurn && s.turnPlayer !== d.master;
+      return s.turnPlayer !== d.master;
   }
 }
 
@@ -875,8 +1171,39 @@ export interface Payment {
  * mono-colour matches first, then the rest from whatever is most plentiful,
  * then energy markers. Returns null when the cost can't be paid (5-3-3).
  */
-export function planPayment(ctx: GameContext, s: GameState, p: PlayerId, total: number, specified: Partial<Record<Color, number>>, explicit?: string[]): Payment | null {
-  const active = activeEnergy(s, p);
+export function planPayment(
+  ctx: GameContext,
+  s: GameState,
+  p: PlayerId,
+  total: number,
+  specified: Partial<Record<Color, number>>,
+  explicit?: string[],
+  either?: Color[][],
+  /** Energy already spoken for by another part of the price — [Invoker]'s (22-37). */
+  exclude?: string[],
+): Payment | null {
+  // "{r}/{u}" is one orb payable with either colour (22-13 and friends). Each
+  // way of settling those is an ordinary specified cost, so rather than teach
+  // the planner a new kind of requirement, try each assignment and let it
+  // answer the question it already knows how to answer. No printed skill has
+  // more than one such orb, so this is exact and costs nothing.
+  if (either?.length) {
+    const assignments: Color[][] = [[]];
+    for (const orb of either.slice(0, 3)) {
+      const next: Color[][] = [];
+      for (const so_far of assignments) for (const c of orb) next.push([...so_far, c]);
+      assignments.length = 0;
+      assignments.push(...next);
+    }
+    for (const pick of assignments) {
+      const merged = { ...specified };
+      for (const c of pick) merged[c] = (merged[c] ?? 0) + 1;
+      const got = planPayment(ctx, s, p, total, merged, explicit, undefined, exclude);
+      if (got) return got;
+    }
+    return null;
+  }
+  const active = exclude?.length ? activeEnergy(s, p).filter((id) => !exclude.includes(id)) : activeEnergy(s, p);
   const ps = s.players[p];
   const leader = leaderColors(ctx, s, p);
   const colorsOf = (id: string) => def(ctx, s, id).colors;
