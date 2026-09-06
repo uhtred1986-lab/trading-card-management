@@ -95,6 +95,8 @@ export function splitClauses(text: string): string[] {
         !TARGET_BEFORE_AND.test(text.slice(start, i)) &&
         !andEndsAList(text, start, i) &&
         !andJoinsTwoAreas(text, start, i) &&
+        !andJoinsARange(text, start, i) &&
+        !andJoinsTwoSwitched(text, start, i) &&
         // "This card gains +5000 power **and** [Critical] during your turn":
         // one subject given two things, and the half after the "and" is a
         // keyword tag with no verb of its own to be read as a clause.
@@ -199,6 +201,38 @@ function andJoinsTwoAreas(text: string, start: number, i: number): boolean {
  */
 function commaJoinsColours(text: string, comma: number): boolean {
   return /\b(?:red|blue|green|yellow|black)\s*$/i.test(text.slice(0, comma)) && /^,\s*(?:red|blue|green|yellow|black)\b/i.test(text.slice(comma));
+}
+
+/**
+ * The "and" of a **numeric range**: "with an energy cost between 3 and 7",
+ * "with powers between 20000 and 30000", "you can't play Battle Cards with
+ * power between 30000 and 35000".
+ *
+ * Cut, this one does more than leave a fragment. `parseFilter` reads "an
+ * energy cost between 3" with the plain `energy cost N` pattern and comes out
+ * with *exactly 3* — a bound narrower than anything the card says — while the
+ * "7 from your deck to your hand" it left behind fails the whole skill. Twelve
+ * clauses, and the wrong half of each was compiling in silence.
+ */
+function andJoinsARange(text: string, start: number, i: number): boolean {
+  return /\bbetween [\d,]+\s*$/i.test(text.slice(start, i)) && /^[\d,]+\b/.test(text.slice(i + 5));
+}
+
+/**
+ * "Switch this card **and** up to 1 of your energy to Active Mode" (1-10):
+ * one verb and one destination mode shared by two targets, which the sets
+ * print on eleven cards. The tell is narrow on purpose — a verb, then a bare
+ * way of naming a card, then the "and", and the mode at the end of what
+ * follows — because the general "verb A and B" shape is not safe to keep
+ * whole: `refFor` collapses it to one target and the other is silently
+ * dropped, which is worse than the fragment. Only the wording whose pattern
+ * reads both halves (`refsFor`, below) is kept together.
+ */
+const SWITCH_TARGET_BEFORE_AND = /(?:^\s*|[,;:]\s+)(?:you (?:may|can)\s+)?switch\s+(?:this card|it|them|that card|those cards|your leader(?: card)?)\s*$/i;
+
+function andJoinsTwoSwitched(text: string, start: number, i: number): boolean {
+  if (!SWITCH_TARGET_BEFORE_AND.test(text.slice(start, i))) return false;
+  return /^[^.;]*\bto (?:active|rest)(?: mode)?\b/i.test(text.slice(i + 5));
 }
 
 function inList(text: string, comma: number): boolean {
@@ -1669,11 +1703,16 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // Mode switches (1-10).
   // A few cards drop the word: "switch 1 of your Chilled Army tokens to rest".
   if ((m = /^switch (.*?) to (active|rest)(?: mode)?$/.exec(t))) {
-    const ref = refFor(m[1], c);
     const mode = m[2] as "active" | "rest";
+    // "Switch this card **and** up to 1 of your energy to Active Mode": one
+    // verb, two targets, and `refFor` would collapse them to this card and
+    // leave the energy standing. Each target keeps its own choice, because
+    // only one of the two carries a number.
+    const refs = refsFor(m[1], c);
+    if (!refs) return null;
     // "Switch up to 1 of your energy to Active Mode" names a number, so it is
     // a choice first (5-2); without this it switched every card in the area.
-    return ref ? withChoice(ref, clause, c, (target) => ({ op: "switchMode", target, mode })) : null;
+    return refs.flatMap((ref) => withChoice(ref, clause, c, (target) => ({ op: "switchMode", target, mode })));
   }
   // "You may flip this card over" on a Leader's [Auto]: the Leader awakens
   // (22-2-4 says how a flip works; this says when). A card without a back

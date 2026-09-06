@@ -4802,4 +4802,76 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.deepEqual(combo.ops, [{ op: "comboPower", target: { sel: { special: "self" } }, amount: 10000, until: "turn" }]);
 }
 
+
+
+{
+  // ------------------------------------------------------------------------
+  // Two "and"s that join halves of one instruction, not two instructions.
+  // ------------------------------------------------------------------------
+
+  // A numeric range. Cut, the *left* half compiled — "an energy cost between
+  // 3" fell through to the plain `energy cost N` pattern and came out as
+  // exactly 3, a bound narrower than anything the card says — while the "7
+  // from your deck to your hand" it left behind failed the whole skill.
+  assert.deepEqual(splitClauses("Add up to 1 black Battle Card with an energy cost between 3 and 7 from your Warp to your hand"), [
+    "Add up to 1 black Battle Card with an energy cost between 3 and 7 from your Warp to your hand",
+  ]);
+  const range = parseFilter("black Battle Card with an energy cost between 3 and 7");
+  assert.equal(range.costMin, 3);
+  assert.equal(range.costMax, 7);
+  // The sets write the same range for power, and in the plural.
+  const pow = parseFilter("black Battle Cards with powers between 20000 and 30000");
+  assert.equal(pow.powerMin, 20000);
+  assert.equal(pow.powerMax, 30000);
+  assert.equal(parseFilter("Battle Cards with power between 30000 and 35000").powerMax, 35000);
+  // …and an exact power is still an exact power.
+  assert.equal(parseFilter("a yellow <Son Goku> card with 5000 power").powerMin, 5000);
+
+  // "Switch this card **and** up to 1 of your energy to Active Mode" (1-10) —
+  // one verb and one mode shared by two targets, on eleven cards. Keeping it
+  // whole is only half the job: `refFor` collapsed it to this card and left
+  // the energy standing, which is why the pattern reads `refsFor` now.
+  assert.deepEqual(splitClauses("Switch this card and up to 1 of your energy to Active Mode"), ["Switch this card and up to 1 of your energy to Active Mode"]);
+  const both = compileSkill(parseSkills("[Auto] When you play this card, switch this card and up to 1 of your energy to Active Mode.")[0]);
+  assert.deepEqual(both.unsupported, []);
+  assert.deepEqual(
+    both.ops.map((o) => o.op),
+    ["switchMode", "choose", "switchMode"],
+    "this card switches, and the energy is chosen first (5-2)",
+  );
+  assert.deepEqual((both.ops[0] as { target: { sel: { special: string } } }).target.sel.special, "self");
+
+  // The guard is deliberately narrow, and these are the counter-examples that
+  // decide its shape. A real sentence break after the same words still splits…
+  assert.equal(splitClauses("Switch this card to Active Mode and draw 1 card").length, 2);
+  assert.equal(splitClauses("Switch this card and draw 1 card").length, 2, "no mode at the end of the second half");
+  // …and "choose this card and all of your Battle Cards" is left alone on
+  // purpose: the choose pattern reads one target, so keeping it whole would
+  // lose the second half in silence instead of failing. Fragment now, wrong
+  // effect if this assertion ever flips without the pattern changing too.
+  assert.equal(splitClauses("Choose this card and all of your non-black Battle Cards").length, 2);
+}
+
+{
+  // The engine assertion behind the switch: both targets really move. The
+  // compile assertion above cannot see that the second one is applied.
+  DEFS["RESTER"] = {
+    ...DEFS.V1,
+    id: "RESTER",
+    name: "RESTER",
+    energyCost: 1,
+    skill: "[Auto] When you play this card, switch this card and up to 1 of your energy to Rest Mode.",
+  };
+  let s = arena({ hand: ["RESTER"], energy: ["V1", "V1", "V1"] });
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "RESTER") });
+  const self = s.players.p1.battle.find((id) => s.cards[id].cardId === "RESTER")!;
+  assert.equal(s.cards[self].mode, "rest", "1-10: this card is switched");
+  assert.equal(s.prompt.kind, "chooseCards", "…and the energy is a choice of its own");
+  const energy = (s.prompt as { choice: { candidates: string[] } }).choice.candidates;
+  assert.ok(energy.every((id) => s.players.p1.energy.includes(id)), "the candidates are your energy");
+  s = play(s, { type: "choose", player: "p1", cards: [energy[0]] });
+  assert.equal(s.cards[energy[0]].mode, "rest", "…and it is switched too");
+  assertConsistent(s);
+}
+
 console.log("verify-arena: all checks passed");

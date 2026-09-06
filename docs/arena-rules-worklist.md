@@ -1508,6 +1508,66 @@ duplicated the preceding 1,457 lines of this file into the middle of it. Use a
 replacement **function**, which is never scanned for `$` patterns, whenever the
 text is not under your eye at the time.
 
+## Done: two more "and"s that were never a sentence break (6 Sep 2026)
+
+The deferred round from the last entry, approached from the evidence rather
+than from the three cards that raised it. A probe over the catalog for
+**unreadable clauses that are nothing but the object of a verb** — a quantifier
+and a card description, no verb of their own — found 96, and sorted by what the
+clause before them looked like they fall into four shapes. Two of those are
+safe to fix on their own, and are what this round does.
+
+**A numeric range: "with an energy cost between 3 and 7".** Twelve clauses, and
+the damage was not the fragment. Cut at the "and", the *left* half compiled:
+"an energy cost between 3" misses the `between N and M` pattern, falls through
+to the plain `energy cost N` one, and comes out as **exactly 3** — a bound
+narrower than anything the card says, on a selector that then looked right. The
+"7 from your deck to your hand" left over failed the skill, which is the only
+reason anyone would have noticed. `andJoinsARange` keeps the two numbers
+together, and `parseFilter` learned the same range for power ("with powers
+between 20000 and 30000") and the plural of the cost one.
+
+**One verb, one mode, two targets: "Switch this card and up to 1 of your energy
+to Active Mode"** (1-10, eleven cards). Keeping this whole is only half the
+job, and the half that matters is the other one: `refFor` collapses "this card
+and up to 1 of your energy" to *this card* and drops the energy in silence,
+which is worse than the fragment it replaces. So the split guard came with the
+pattern — `switch` reads `refsFor` now, and each target keeps its own
+`withChoice`, because only one of the two carries a number.
+
+`andJoinsTwoSwitched` is narrow on purpose: a verb, a bare way of naming a
+card, the "and", and the mode at the end of what follows. The general "verb A
+and B" shape is **not** safe to keep whole while the patterns behind it read
+one target — "Choose this card and all of your non-black Battle Cards" is left
+splitting deliberately, with an assertion saying so, because merging it would
+turn a fragment into a wrong effect. Three counter-examples are in the test
+file for the same reason.
+
+**22 skills go from unreadable to read and 9 more were already compiling
+wrongly:**
+
+- BT10-119 searched the **Battle Area** for a `<Syn Shenron>` with no cost
+  bound at all; the clause had lost "and 4 **in your deck or hand**" along with
+  the second half of its range. Now deck-or-hand, cost 2–4.
+- P-174's "you can't play Battle Cards with power between 30000 and 35000 **for
+  the duration of the game**" was lasting a turn, and had no power bound.
+- BT8-091/094/095/096/097 and EX21-13 have the range in the condition before
+  the colon, where it had been reading as an exact cost of 3.
+- BT25-099 was losing the switch entirely.
+
+Catalog **85.9 % → 86.1 %**; the owner's decks stay at 92.2 %, because none of
+these twenty-two cards is in one of his decks. That is worth saying plainly:
+this round was ranked by the catalog, and the deck figure is the one the spec
+sets a target for.
+
+**Still open in this family**, both measured and both needing a pattern change
+alongside the guard, which is why they are not here: 56 clauses of "verb
+`<object>` and `<object>`" ("Add up to 1 `<Son Goten>` card and up to 1
+`<Trunks: Youth>` card … to your hand"), about half of which are really a
+second *measure* of one card ("with an energy cost of 3 and an [Alliance]
+skill") and belong to `MEASURE_AFTER_AND`; and 21 more of the verb-led shape
+whose verbs are choose/send/add/place rather than switch.
+
 ## Conventions worth keeping
 
 - Card text is **read, never interpreted**: if the compiler cannot read a

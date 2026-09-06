@@ -182,11 +182,20 @@ export function parseFilter(text: string): CardFilter {
   let m: RegExpExecArray | null;
   if ((m = /energy cost (?:of )?(\d+) or less/.exec(lower))) f.costMax = Number(m[1]);
   else if ((m = /energy cost (?:of )?(\d+) or more/.exec(lower))) f.costMin = Number(m[1]);
-  else if ((m = /energy cost (?:of )?between (\d+) and (\d+)/.exec(lower))) {
+  else if ((m = /energy costs? (?:of )?between (\d+) and (\d+)/.exec(lower))) {
     f.costMin = Number(m[1]);
     f.costMax = Number(m[2]);
   } else if ((m = /energy cost (?:of )?(\d+)\b/.exec(lower))) f.costMin = f.costMax = Number(m[1]);
-  if ((m = /(\d+) power or less/.exec(lower))) f.powerMax = Number(m[1]);
+  // "Battle Cards with power between 30000 and 35000", "up to 2 black Battle
+  // Cards with powers between 20000 and 30000" — the same range the cost line
+  // above already reads, which the sets also write for power. Read before the
+  // single bounds, because "between 30000 and 35000" contains neither "or
+  // less" nor "or more" but does contain a bare number the last pattern would
+  // take for an exact power.
+  if ((m = /powers? between ([\d,]+) and ([\d,]+)/.exec(lower))) {
+    f.powerMin = Number(m[1].replace(/,/g, ""));
+    f.powerMax = Number(m[2].replace(/,/g, ""));
+  } else if ((m = /(\d+) power or less/.exec(lower))) f.powerMax = Number(m[1]);
   else if ((m = /(\d+) power or more/.exec(lower))) f.powerMin = Number(m[1]);
   // An exact power, which searches print alongside the cost: "a yellow
   // <Son Goku> card with an energy cost of 3 and 5000 power". Only after
