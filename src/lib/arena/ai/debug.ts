@@ -7,7 +7,7 @@
  * only improves if the clauses that defeat it are written down where they can
  * be worked through.
  */
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { arenaDecisions, cardTextNotes } from "@/db/schema";
 import { compileCardCached, parseSkills, type CardDef, type Op } from "../engine";
@@ -109,6 +109,36 @@ export async function noteUnreadText(
         },
       });
   }
+}
+
+/**
+ * Close the notes for clauses the compiler has since learned to read.
+ *
+ * The sweep only ever added, so a rule that cleared a whole group left its
+ * rows sitting open and the backlog went on counting work that was already
+ * done — which is the one thing that list must not do, because it is read as
+ * what is left. A row whose clause no longer comes back unread from the cards
+ * just scanned is finished by definition. Only the status moves: what was
+ * ruled, explained or briefed stays on the row.
+ *
+ * Cards that were not scanned are not touched, so this can never close a note
+ * on evidence it did not look at.
+ */
+export async function closeNotesNowRead(
+  db: Db,
+  scanned: string[],
+  stillUnread: { cardId: string; skillIndex: number; clause: string }[],
+): Promise<number> {
+  if (!scanned.length) return 0;
+  const key = (e: { cardId: string; skillIndex: number; clause: string }) => `${e.cardId} ${e.skillIndex} ${e.clause}`;
+  const keep = new Set(stillUnread.map(key));
+  const open = await db
+    .select({ id: cardTextNotes.id, cardId: cardTextNotes.cardId, skillIndex: cardTextNotes.skillIndex, clause: cardTextNotes.clause })
+    .from(cardTextNotes)
+    .where(and(eq(cardTextNotes.status, "open"), inArray(cardTextNotes.cardId, scanned)));
+  const stale = open.filter((r) => !keep.has(key(r))).map((r) => r.id);
+  if (stale.length) await db.update(cardTextNotes).set({ status: "done" }).where(inArray(cardTextNotes.id, stale));
+  return stale.length;
 }
 
 /** Every clause of a card the compiler cannot read, ready for the backlog. */

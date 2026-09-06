@@ -49,7 +49,18 @@ export function splitClauses(text: string): string[] {
     }
   }
   push(text.length, 0);
-  return out.map((c) => c.replace(/^(?:then|and|if you do|if so)\s+/i, "").trim()).filter(Boolean);
+  return out
+    .map((c) =>
+      c
+        // "If you do so" is "if you do" with a word on the end, and the strip
+        // below would take the phrase and leave the "so" — which reads as a
+        // bare connective and threw the condition away, so everything the
+        // sentence made conditional happened anyway (20-16).
+        .replace(/^(if you (?:do|did))\s+so\b/i, "$1")
+        .replace(/^(?:then|and|if you do|if so)\s+/i, "")
+        .trim(),
+    )
+    .filter(Boolean);
 }
 
 /**
@@ -191,6 +202,13 @@ function filterFor(phrase: string, area: ScriptArea | null): CardFilter | undefi
 interface Ctx {
   /** The variable the last `choose` bound. */
   last: string | null;
+  /**
+   * Every choice the skill has made so far, with what it asked for. A skill
+   * that chooses twice then says which one it means — "the chosen opponent
+   * Battle Card", "the chosen <Majin Buu>" — cannot be answered by `last`
+   * alone, which is only ever the second of them.
+   */
+  chosen: { name: string; sel: Selector }[];
   /** The variable bound by the last "play …" choice — what "the card you played with this skill" means. */
   lastPlayed: string | null;
   /**
@@ -218,6 +236,52 @@ const countWord = (w: string) => (/^\d+$/.test(w) ? Number(w) : 1);
 /** Words that point back at whatever the previous clause acted on. */
 const IT = /\b(?:it|its|them|they|their|that card|those cards|the chosen cards?)\b/;
 
+/**
+ * "The chosen opponent Battle Card", "the chosen <Majin Buu>" — which of the
+ * choices the skill already made this one means (5-2).
+ *
+ * The description is matched against what each `choose` actually asked for:
+ * whose cards, what type, which characters, traits, names and colours. Every
+ * discriminator the phrase carries has to be one the choice asked for, so
+ * "opponent" can never come back with your own card. Only a single clear
+ * winner is returned — a tie, or a phrase with nothing to tell them apart, is
+ * left to the referee, because naming the wrong half of a two-card choice
+ * moves the wrong card.
+ */
+function chosenRef(desc: string, c: Ctx): Ref | null {
+  if (!c.chosen.length) return null;
+  const want = parseFilter(desc);
+  const t = desc.toLowerCase();
+  const side: Side | null = /\bopponent'?s?\b/.test(t) ? "opponent" : /\byour\b|\byou control\b/.test(t) ? "you" : null;
+  const covers = (have: readonly string[], need: readonly string[]) => need.every((n) => have.some((h) => h.toLowerCase() === n.toLowerCase()));
+
+  let best: { name: string; score: number } | null = null;
+  let tied = false;
+  for (const ch of c.chosen) {
+    const f = ch.sel.filter;
+    if (side && ch.sel.side && ch.sel.side !== side) continue;
+    // A type the choice did not state is unknown, not a mismatch: "1 of your
+    // opponent's Battle Cards" is read as the Battle Area, which leaves
+    // `type` null on a filter that means Battle Cards all the same.
+    if (want.type && f?.type && want.type !== f.type) continue;
+    if (!covers(f?.characters ?? [], want.characters)) continue;
+    if (!covers(f?.traits ?? [], want.traits)) continue;
+    if (!covers(f?.names ?? [], want.names)) continue;
+    if (!covers(f?.colors ?? [], want.colors)) continue;
+    let score = want.characters.length + want.traits.length + want.names.length + want.colors.length;
+    if (side && ch.sel.side === side) score++;
+    if (want.type && f?.type === want.type) score++;
+    // "The chosen card" says nothing that picks one of them out; the plain
+    // back-reference below is what that means.
+    if (!score) continue;
+    if (!best || score > best.score) {
+      best = { name: ch.name, score };
+      tied = false;
+    } else if (score === best.score) tied = true;
+  }
+  return best && !tied ? { var: best.name } : null;
+}
+
 function refFor(clause: string, c: Ctx): Ref | null {
   if (/\bthis card\b/i.test(clause)) return { sel: { special: "self" } };
   // "…play up to 1 card from under this card, and place this card under the
@@ -227,8 +291,19 @@ function refFor(clause: string, c: Ctx): Ref | null {
     if (c.lastPlayed) return { var: c.lastPlayed };
     return c.last ? { var: c.last } : { sel: { special: "subject" } };
   }
-  // "Add a marker to the chosen card": the last choice.
-  if (/\bthe chosen cards?\b/i.test(clause)) return c.last ? { var: c.last } : c.lastTarget;
+  // "The chosen …" always points back at a choice already made, so it is
+  // answered here or not at all — reading it as a fresh description would turn
+  // "the chosen <Majin Buu>" into every <Majin Buu> you have.
+  if (/\bthe chosen\b/i.test(clause)) {
+    // "Place the chosen opponent Battle Card under the chosen <Majin Buu>":
+    // which choice it means, when the phrase says enough to tell.
+    const ref = chosenRef(clause, c);
+    if (ref) return ref;
+    // "Add a marker to the chosen card": nothing to tell them apart, so it is
+    // the last choice, as it has always been.
+    if (/\bthe chosen cards?\b/i.test(clause)) return c.last ? { var: c.last } : c.lastTarget;
+    return null;
+  }
   if (IT.test(clause.toLowerCase())) {
     if (c.lastTarget) return c.lastTarget;
     if (c.last) return { var: c.last };
@@ -614,8 +689,66 @@ const THIRD_PERSON: Record<string, string> = {
   discards: "discard",
 };
 
-/** Try to read one clause. Returns null when the wording is not understood. */
+/**
+ * The wordings that put the whole clause in the player's gift (20-6).
+ *
+ * "May" only. "You can" is this game's word for a permission rather than an
+ * option — "You can activate this card's [Counter] skill from your hand by
+ * adding a card from your life instead" is an alternative cost that is always
+ * available, and reading it as a decision would take the card off the table.
+ */
+const MAY = /^(?:you may|the player may)\s+/i;
+
+/**
+ * "You may …": the player decides whether it happens at all, and an "if you
+ * do" after it is asking about exactly that decision.
+ *
+ * The language cannot say "may" over an arbitrary program — a `chooseMode`
+ * with an empty branch is not asked about (20-2) — so what is read here are
+ * the two shapes that already turn on a choice of cards: a choice becomes an
+ * "up to" choice, which 5-2-4 lets you take none of, and a cost paid out of
+ * your own hand becomes that choice followed by the move. Those are the
+ * shapes where compulsion actually costs the player something: before this,
+ * "you may place 1 card from your hand in the Drop Area" discarded a card
+ * whether they agreed or not, and an "if you do" after it had no choice to
+ * point at, so the rest of the skill happened unconditionally too.
+ *
+ * A "may" over anything else is left as it was — played as though it always
+ * happens. That is still wrong, and it is the next thing to fix here; it is
+ * left alone rather than refused because the wordings it covers are
+ * replacements and flips a player takes every time, and sending them all to
+ * the referee would cost more than it corrects.
+ */
+function makeOptional(ops: Op[], clause: string, c: Ctx): Op[] {
+  if (!ops.length) return ops;
+  const [head, ...rest] = ops;
+
+  // "You may discard 1 card", "you may place 1 card from your hand in the Drop
+  // Area": the cards leave your own hand, so which ones is a choice already,
+  // and whether to is that same choice with `upTo`.
+  if (head.op === "discard" && !rest.length && typeof head.n === "number" && (!head.side || head.side === "you")) {
+    const v = `c${c.n++}`;
+    return [
+      { op: "choose", sel: { side: "you", area: "hand", count: head.n, upTo: true }, as: v, reason: clause },
+      { op: "moveTo", target: { var: v }, to: head.to ?? "drop", reveal: true },
+    ];
+  }
+
+  if (head.op !== "choose" || head.sel.count == null || head.sel.count >= 99) return ops;
+  const choice: Op = { ...head, sel: { ...head.sel, upTo: true } };
+  if (!rest.length) return [choice];
+  // Everything the clause goes on to do happens only if a card was taken.
+  return [choice, { op: "if", cond: { kind: "chose", var: head.as }, then: rest }];
+}
+
 function compileClause(clause: string, c: Ctx): Op[] | null {
+  const ops = compileClauseBody(clause, c);
+  if (!ops || !MAY.test(clause.trim())) return ops;
+  return makeOptional(ops, clause, c);
+}
+
+/** Try to read one clause. Returns null when the wording is not understood. */
+function compileClauseBody(clause: string, c: Ctx): Op[] | null {
   const t = clause
     .toLowerCase()
     .trim()
@@ -932,9 +1065,12 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     return host ? [{ op: "moveTo", target: { sel: { special: "self" } }, to: "under", under: host }] : null;
   }
   // "Place this card under the played card", "place it under the card you
-  // played with this skill", "…under your Leader", "…under {Wickedest Clan}":
-  // hosts the text names precisely, so no guessing.
-  if ((m = /^(?:place|put) (.+?) (?:face ?up )?under (the played card|the card (?:that was |you )?played(?: with this skill)?|your leader(?: card)?|\{[^}]+\}(?: in your battle area)?)$/.exec(t))) {
+  // played with this skill", "…under your Leader", "…under {Wickedest Clan}",
+  // "…under the chosen <Majin Buu>": hosts the text names precisely, so no
+  // guessing. A "the chosen …" host only reads when it picks out one of the
+  // choices already made (`chosenRef`); otherwise this returns null and the
+  // skill goes to the referee, as it did before.
+  if ((m = /^(?:place|put) (.+?) (?:face ?up )?under (the played card|the card (?:that was |you )?played(?: with this skill)?|your leader(?: card)?|the chosen [^,]+|\{[^}]+\}(?: in your battle area)?)$/.exec(t))) {
     const host = refFor(m[2], c);
     const ref = refFor(m[1], c);
     return host && ref ? withChoice(ref, clause, c, (target) => ({ op: "moveTo", target, to: "under", under: host })) : null;
@@ -1156,7 +1292,7 @@ export function compileSkill(skill: Skill): Script {
   const text = stripNotes(skill.effect);
   if (!text) return { ops: [], unsupported: [] };
   const unsupported: string[] = [];
-  const c: Ctx = { last: null, lastPlayed: null, lastTarget: null, lastOp: null, replacing: null, n: 0, raw: skill.effect };
+  const c: Ctx = { last: null, chosen: [], lastPlayed: null, lastTarget: null, lastOp: null, replacing: null, n: 0, raw: skill.effect };
   const modal = splitModal(text);
   const clauses = splitClauses(modal ? modal.head : text);
   // [Awaken] and [Wish] check their own condition in the engine before the
@@ -1344,6 +1480,7 @@ function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op
     for (const o of got) {
       if (o.op === "choose") {
         c.last = o.as;
+        c.chosen.push({ name: o.as, sel: o.sel });
         c.lastTarget = { var: o.as };
       } else if ("target" in o && o.target) c.lastTarget = o.target;
     }

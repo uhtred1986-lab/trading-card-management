@@ -149,6 +149,13 @@ const DEFS: Record<string, CardDef> = defsFrom([
   card("NOCOPIES", { energyCost: 1, skill: "[Auto] When you play this card, you can't play copies of this card for the turn." }),
   card("TOUGH", { energyCost: 2, power: 5000, skill: "[Auto] When you play this card, this card can't be KO'd by your opponent's skills until the start of your next turn." }),
   card("STACKER", { energyCost: 1, skill: "[Auto] When you play this card, choose 1 of your Battle Cards and place it under this card." }),
+  card("BUUHOST", { energyCost: 1, characters: ["Majin Buu"] }),
+  card("BUUEAT", {
+    energyCost: 1,
+    characters: ["Majin Buu"],
+    skill:
+      "[Auto] When you play this card, choose 1 of your <Majin Buu> and 1 of your opponent's Battle Cards with an energy cost of 3 or less. Place the chosen opponent Battle Card under the chosen <Majin Buu>.",
+  }),
   card("TWOKILL", { energyCost: 1, skill: "[Auto] When you play this card, choose 2 of your opponent's Battle Cards and KO them." }),
   card("GRABBER", { energyCost: 1, skill: "[Auto] When you play this card, choose 1 of your opponent's cards and place it in its owner's drop area." }),
   card("ONCEONLY", { energyCost: 1, skill: "[Auto] When you play this card, draw 1 card and negate this skill for the game." }),
@@ -1090,6 +1097,28 @@ function assertConsistentAfterDrop(s: GameState) {
 }
 
 {
+  // Two choices, then a clause that says which is which (BT3-054's wording).
+  // The card that gets buried is the opponent's, and it goes under the
+  // <Majin Buu> that was chosen — not under the card whose skill this is,
+  // which is what "the chosen cards" alone would have meant.
+  let s = arena({ hand: ["BUUEAT"], energy: ["V1", "V1"], battle: ["BUUHOST"], oppBattle: ["V-BLUE", "BLOCKER"] });
+  const host = find(s, "p1", "battle", "BUUHOST");
+  const prey = find(s, "p2", "battle", "V-BLUE");
+  const spared = find(s, "p2", "battle", "BLOCKER");
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "BUUEAT") });
+  assert.equal(s.prompt.kind, "chooseCards", "two <Majin Buu> are on the table, so it asks which");
+  s = play(s, { type: "choose", player: "p1", cards: [host] });
+  assert.equal(s.prompt.kind, "chooseCards", "then which of the opponent's Battle Cards");
+  s = play(s, { type: "choose", player: "p1", cards: [prey] });
+  assert.ok(!s.players.p2.battle.includes(prey), "it is no longer a Battle Card of its own");
+  assert.ok(!s.players.p2.drop.includes(prey), "and it did not go to the Drop");
+  assert.deepEqual(s.cards[host].under, [prey], "23-2: under the <Majin Buu> that was chosen");
+  assert.deepEqual(s.cards[find(s, "p1", "battle", "BUUEAT")].under, [], "not under the card that played the skill");
+  assert.ok(s.players.p2.battle.includes(spared), "the opponent's other card is untouched");
+  assertConsistent(s);
+}
+
+{
   // The options of a "Choose one—" are printed on separate lines but are not
   // skills of their own.
   const skills = parseSkills("[Auto] When you play this card, choose one-<br>・Draw 1 card.<br>・Your opponent discards 1 card.");
@@ -1145,7 +1174,16 @@ function assertConsistentAfterDrop(s: GameState) {
   assert.equal((one("[Activate: Main] If there are no cards in your opponent's combo area, draw 1 card.").ops[0] as { cond: { atMost?: number } }).cond.atMost, 0);
 
   // Discarding written the long way round, and life written as a count.
-  assert.deepEqual(ops("[Activate: Main] You may place 1 card from your hand in the drop area."), ["discard"]);
+  assert.deepEqual(ops("[Activate: Main] Place 1 card from your hand in the drop area."), ["discard"]);
+  // 20-6: with "you may" in front of it the same sentence is the player's to
+  // decline, which is an "up to" choice out of their own hand (5-2-4) — not a
+  // discard they never agreed to.
+  const mayDiscard = one("[Activate: Main] You may place 1 card from your hand in the drop area.");
+  assert.deepEqual(mayDiscard.unsupported, []);
+  assert.deepEqual(mayDiscard.ops.map((o) => o.op), ["choose", "moveTo"]);
+  assert.equal((mayDiscard.ops[0] as { sel: { upTo: boolean; area: string } }).sel.upTo, true);
+  assert.equal((mayDiscard.ops[0] as { sel: { area: string } }).sel.area, "hand");
+  assert.equal((mayDiscard.ops[1] as { to: string }).to, "drop");
   assert.deepEqual(ops("[Activate: Main] Add cards from your life to your hand until you have 6 life left."), ["lifeDownTo"]);
   assert.deepEqual(ops("[Activate: Main] Both players choose 1 card from their hand."), ["discard"]);
 
@@ -2324,6 +2362,16 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.ok(!autoTriggerMatches(sk, "attacks"));
   assert.ok(autoTriggerMatches(sk, "kos"));
 
+  // 20-16: "if you do so" is the same connective as "if you do". The split
+  // used to take the phrase and leave the "so", which reads as a bare
+  // connective — so the condition vanished and the rest happened anyway.
+  assert.deepEqual(splitClauses("You may draw 1 card. If you do so, discard 1 card."), ["You may draw 1 card", "If you do", "discard 1 card"]);
+  const gated = one("[Activate: Main] You may place 1 card from your hand in the drop area. If you do so, draw 2 cards.");
+  assert.deepEqual(gated.unsupported, []);
+  assert.deepEqual(gated.ops.map((o) => o.op), ["choose", "moveTo", "if"]);
+  assert.equal((gated.ops[2] as { cond: { kind: string } }).cond.kind, "chose");
+  assert.deepEqual((gated.ops[2] as { then: { op: string }[] }).then.map((o) => o.op), ["draw"]);
+
   // Names joined by "and" are one phrase.
   assert.deepEqual(splitClauses("When your opponent plays a red Battle Card with both <Son Goku> and <Piccolo>, play this card."), ["When your opponent plays a red Battle Card with both <Son Goku> and <Piccolo>", "play this card"]);
 
@@ -2332,6 +2380,31 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.deepEqual(under.unsupported, []);
   assert.deepEqual(under.ops.map((o) => o.op), ["choose", "moveTo"]);
   assert.equal((under.ops[1] as { to: string }).to, "under");
+
+  // Under a host that is one of two earlier choices (BT3-054). "The chosen
+  // opponent Battle Card" and "the chosen <Majin Buu>" are told apart by what
+  // each choice asked for, so each half of the sentence points at its own.
+  const buu = one(
+    "[Counter: Attack] Negate the attack. Then, if your Leader Card is <Majin Buu>, you may place 1 card from your hand in the Drop Area. If you do so, choose 1 of your <Majin Buu> and 1 of your opponent's Battle Cards with an energy cost of 3 or less. Place the chosen opponent Battle Card under the chosen <Majin Buu>.",
+  );
+  assert.deepEqual(buu.unsupported, [], "the whole card reads");
+  // 20-6/20-16: the hand cost is the player's to decline, and everything the
+  // sentence hangs on "if you do so" waits on that decision.
+  const flat = JSON.stringify(buu.ops);
+  assert.match(flat, /"area":"hand","count":1,"upTo":true/, "the card from hand is an up-to choice, not a forced discard");
+  assert.match(flat, /"op":"if","cond":\{"kind":"chose","var":"c0"\}/, "and the rest of the skill waits on it");
+  const buried = JSON.stringify(buu.ops).match(/"op":"moveTo","target":\{"var":"(c\d+)"\},"to":"under","under":\{"var":"(c\d+)"\}/);
+  assert.ok(buried, "the opponent's card moves under a card, and both ends are earlier choices");
+  assert.notEqual(buried[1], buried[2], "and they are not the same choice");
+  const chooses = JSON.stringify(buu.ops).matchAll(/"as":"(c\d+)","reason":"([^"]*)"/g);
+  const reasons = new Map([...chooses].map((m) => [m[1], m[2]]));
+  assert.match(reasons.get(buried[1]) ?? "", /opponent/i, "the card that gets buried is the opponent's");
+  assert.match(reasons.get(buried[2]) ?? "", /your <Majin Buu>/i, "the host is your <Majin Buu>");
+
+  // Nothing to tell the two apart is left to the referee: guessing which of
+  // them the sentence means would bury the wrong card half the time.
+  const tie = one("[Auto] When you play this card, choose 1 of your <Majin Buu> and 1 of your opponent's <Majin Buu>. Place the chosen <Majin Buu> under the chosen <Majin Buu>.");
+  assert.deepEqual(tie.unsupported, ["Place the chosen <Majin Buu> under the chosen <Majin Buu>"]);
 
   // A combo from the Drop.
   const cf = one("[Activate: Battle] Use up to 1 green card with 5000 combo power from your Drop in a combo with its skills negated for the battle.");
