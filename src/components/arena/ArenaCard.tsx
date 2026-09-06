@@ -38,14 +38,19 @@ const KEYWORD_GLYPH: Record<string, string> = {
  */
 export type CardState = "plain" | "legal" | "selected" | "dim" | "attacker" | "guard" | "dead";
 
+/**
+ * The glow each state wears is a named class in `globals.css` rather than an
+ * arbitrary shadow here, so it is painted from the theme's tokens — and so a
+ * skin can turn the ring into an aura without this file knowing.
+ */
 const RING: Record<CardState, string> = {
   plain: "",
   dead: "saturate-[0.6] opacity-90",
-  legal: "ring-2 ring-ki-400 shadow-[0_0_14px_rgba(242,140,15,0.55)]",
-  selected: "ring-2 ring-ki-300 shadow-[0_0_18px_rgba(242,140,15,0.8)] -translate-y-2 scale-105",
+  legal: "arena-ring-legal ring-2 ring-ki-400",
+  selected: "arena-ring-selected ring-2 ring-ki-300 -translate-y-2 scale-105",
   dim: "opacity-40 saturate-50",
-  attacker: "ring-2 ring-ki-300 shadow-[0_0_18px_rgba(242,140,15,0.7)]",
-  guard: "ring-2 ring-loss shadow-[0_0_14px_rgba(248,113,113,0.6)]",
+  attacker: "arena-ring-attacker ring-2 ring-ki-300",
+  guard: "arena-ring-guard ring-2 ring-loss",
 };
 
 /**
@@ -137,11 +142,11 @@ export function ArenaCard({
         }}
         disabled={!onTap && !onInspect && !hoverable}
         aria-label={card.hidden ? "Face-down card" : `${card.name}${card.power != null ? `, ${card.power} power` : ""}`}
-        className={`absolute overflow-hidden rounded-[4px] border border-space-600 bg-space-800 text-left transition-all duration-200 ${RING[state]} ${onTap ? "cursor-pointer" : ""} ${hoverable ? "hover:brightness-125" : ""} ${rested ? "brightness-75 saturate-[0.7]" : ""}`}
+        className={`arena-card absolute overflow-hidden rounded-[4px] border border-space-600 bg-space-800 text-left transition-all duration-200 ${RING[state]} ${onTap ? "cursor-pointer" : ""} ${hoverable ? "hover:brightness-125" : ""} ${rested ? "brightness-75 saturate-[0.7]" : ""}`}
         style={{ width: px(width), height: px(height), transform: `rotate(${rotation}deg)` }}
       >
         {card.hidden ? (
-          <span className="absolute inset-0 grid place-items-center bg-[radial-gradient(circle_at_50%_50%,#f28c0f_0_11%,#0f1220_12%_30%,#2c3550_31%_33%,#0f1220_34%)]">
+          <span className="arena-card-back absolute inset-0 grid place-items-center">
             <span className="block h-[62%] w-[62%] rounded-full border border-ki-400/35" />
           </span>
         ) : showArt ? (
@@ -165,7 +170,7 @@ export function ArenaCard({
         )}
         {chrome && card.power != null && (
           <span
-            className="absolute inset-x-0 bottom-0 bg-space-950/85 px-[3px] py-[1px] text-center font-mono font-bold text-space-50"
+            className="arena-power absolute inset-x-0 bottom-0 bg-space-950/85 px-[3px] py-[1px] text-center font-mono font-bold text-space-50"
             style={{ fontSize: px(9) }}
           >
             {card.power.toLocaleString("en")}
@@ -173,7 +178,7 @@ export function ArenaCard({
         )}
         {card.cost && chrome && (
           <span
-            className={`absolute left-[2px] top-[2px] grid place-items-center rounded-full font-mono font-bold leading-none shadow-[0_1px_3px_rgba(0,0,0,0.6)] ${state === "dead" ? "bg-loss text-space-50" : "bg-ki-500 text-space-950"}`}
+            className={`arena-cost absolute left-[2px] top-[2px] grid place-items-center rounded-full font-mono font-bold leading-none ${state === "dead" ? "bg-loss text-space-50" : "bg-ki-500 text-space-950"}`}
             style={{ fontSize: px(8), width: px(13), height: px(13) }}
           >
             {card.cost}

@@ -110,20 +110,83 @@ input[type="number"] {
 }
 
 /*
+ * Everything on the board that is a colour is painted from the theme's tokens
+ * — including the glows and shadows below, which used to be literals in the
+ * components. That is what lets a skin repaint the whole table by redefining
+ * the tokens inside one scope (docs/arena-skin-spec.md §1).
+ */
+.arena {
+  /* The back of a card: the ki dot on deep space. Shared by the face-down card and the opponent's hand. */
+  --card-back: radial-gradient(circle at 50% 135%, var(--color-ki-500) 0 14%, var(--color-space-700) 15% 60%, var(--color-space-900) 61%);
+  --ink: var(--color-space-600);
+}
+.arena-card-back {
+  background: var(--card-back);
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--color-space-950) 50%, transparent);
+}
+.arena-ring-legal {
+  box-shadow: 0 0 14px color-mix(in srgb, var(--color-ki-500) 55%, transparent);
+}
+.arena-ring-selected {
+  box-shadow: 0 0 18px color-mix(in srgb, var(--color-ki-500) 80%, transparent);
+}
+.arena-ring-attacker {
+  box-shadow: 0 0 18px color-mix(in srgb, var(--color-ki-500) 70%, transparent);
+}
+.arena-ring-guard,
+.arena-ghost {
+  box-shadow: 0 0 14px color-mix(in srgb, var(--color-loss) 60%, transparent);
+}
+.arena-cost {
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--color-space-950) 60%, transparent);
+}
+.arena-prompt-live {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-ki-500) 12%, transparent);
+}
+.arena-pulse {
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--color-ki-400) 18%, transparent);
+}
+.arena-power-win {
+  filter: drop-shadow(0 0 12px color-mix(in srgb, var(--color-ki-400) 50%, transparent));
+}
+.arena-tick-you {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-gain) 16%, transparent);
+}
+.arena-tick-them {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-ki-500) 16%, transparent);
+}
+/* Panels that float over the board: the skill spotlight and the hover preview. */
+.arena-float {
+  box-shadow: 0 12px 40px color-mix(in srgb, var(--color-space-950) 60%, transparent);
+}
+.arena-banner.arena-impact {
+  filter: drop-shadow(0 4px 24px color-mix(in srgb, var(--color-ki-500) 70%, transparent));
+}
+/* Speed lines exist only under a skin that draws them. */
+.arena-speedlines {
+  display: none;
+}
+
+/*
  * The stage the two Battle Areas face each other across. A little depth and a
  * warm floor so the middle of the screen reads as a table rather than a gap.
  */
 .arena-stage {
   background:
-    radial-gradient(120% 80% at 50% 50%, rgba(242, 140, 15, 0.07), transparent 70%),
-    linear-gradient(180deg, rgba(9, 11, 21, 0.75), rgba(22, 27, 43, 0.55) 50%, rgba(9, 11, 21, 0.75));
+    radial-gradient(120% 80% at 50% 50%, color-mix(in srgb, var(--color-ki-500) 7%, transparent), transparent 70%),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-space-950) 75%, transparent),
+      color-mix(in srgb, var(--color-space-800) 55%, transparent) 50%,
+      color-mix(in srgb, var(--color-space-950) 75%, transparent)
+    );
 }
 
 /* An empty Battle Area still holds its shape, so the board never jumps. */
 .arena-slot {
   border: 1px dashed var(--color-space-700);
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.012);
+  background: color-mix(in srgb, var(--color-space-50) 1.2%, transparent);
 }
 
 /* The step banner: the one moment of theatre, on every phase and battle step. */
@@ -323,7 +386,7 @@ input[type="number"] {
   }
   20% {
     transform: translateX(-5px);
-    box-shadow: 0 0 0 2px rgba(248, 113, 113, 0.5);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-loss) 50%, transparent);
   }
   60% {
     transform: translateX(5px);
@@ -369,6 +432,329 @@ input[type="number"] {
   animation: arena-chip 180ms cubic-bezier(0.2, 1.4, 0.4, 1) backwards;
 }
 
+
+
+/* ==========================================================================
+ * Anime Sky — a second skin for the board only (docs/arena-skin-spec.md).
+ *
+ * Daylight ground, ink outlines, ki light, impact type. It repaints by
+ * redefining the theme's own custom properties inside this scope, so every
+ * Tailwind utility on the board follows without a single component knowing a
+ * skin exists; the rules after the tokens are the things that are not colours.
+ * Everything is drawn in CSS — no character art, no logos, nothing traced —
+ * and the whole skin can be read, or deleted, from this one block.
+ * ========================================================================== */
+.arena[data-skin="anime"] {
+  /* A bright ground needs the native controls and scrollbars to know. */
+  color-scheme: light;
+  /* The screentone pseudo-element sits behind the children, above the sky. */
+  isolation: isolate;
+
+  /* Surfaces invert: what was deep space is now paper and ink. */
+  --color-space-50: #12161f;
+  --color-space-100: #1b212d;
+  --color-space-200: #2c3646;
+  --color-space-300: #46566a;
+  --color-space-400: #5a6b80;
+  /* Darker than the prototype's #7c8ca0: that is 3.4:1 on white, and this is the colour of every small label. */
+  --color-space-500: #5f7087;
+  --color-space-600: #12161f; /* borders become ink, not grey */
+  --color-space-700: #12161f;
+  --color-space-800: #ffffff;
+  --color-space-900: #f4f8ff;
+  --color-space-950: #eaf7ff;
+
+  /* Ki stays ki — it is the one thing both skins agree on. */
+  --color-ki-300: #ffd54a;
+  --color-ki-400: #ffc02e;
+  --color-ki-500: #f2711c;
+  --color-ki-600: #c2410c;
+
+  /* Both a shade darker than the prototype for 4.5:1 as text on white (§5). */
+  --color-gain: #0b7a43;
+  --color-loss: #c92a27;
+
+  /* Skin-local values the rules below use. */
+  --ink: #12161f;
+  --sky: #63c2f5;
+  --sky-deep: #2e9fe0;
+  --sky-hi: #bfe9ff;
+  --cloud: #ffffff;
+  --ki-gold: #ffd54a;
+  --gi: #f2711c;
+  --card-back: radial-gradient(circle at 50% 135%, var(--gi) 0 16%, #2f6fe0 17% 58%, var(--ink) 59%);
+
+  background:
+    radial-gradient(closest-side at 16% 13%, rgba(255, 255, 255, 0.95) 0 38%, rgba(255, 255, 255, 0) 74%),
+    radial-gradient(closest-side at 34% 7%, rgba(255, 255, 255, 0.9) 0 34%, rgba(255, 255, 255, 0) 72%),
+    radial-gradient(closest-side at 72% 6%, rgba(255, 255, 255, 0.95) 0 36%, rgba(255, 255, 255, 0) 74%),
+    radial-gradient(closest-side at 90% 17%, rgba(255, 255, 255, 0.8) 0 32%, rgba(255, 255, 255, 0) 70%),
+    radial-gradient(closest-side at 54% 21%, rgba(255, 255, 255, 0.55) 0 34%, rgba(255, 255, 255, 0) 72%),
+    linear-gradient(180deg, var(--sky-deep) 0%, var(--sky) 26%, var(--sky-hi) 62%, #eaf7ff 100%);
+  border-radius: 16px;
+}
+
+/* Screentone: the halftone the cels are shaded with, faint, and gone before
+   it reaches anything you have to read. */
+.arena[data-skin="anime"]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.16;
+  border-radius: inherit;
+  background-image: radial-gradient(rgba(18, 22, 31, 0.55) 1px, transparent 1.2px);
+  background-size: 6px 6px;
+  -webkit-mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.9), transparent 45%);
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.9), transparent 45%);
+}
+
+/* Card faces stay dark under the art (decision 4): inside the face the
+   night palette holds, so the name, the power bar, the rest band and the
+   keyword marks keep the contrast they were tuned for. The bezel around them
+   is ink, with the hard offset shadow that makes a cel look like a cel. Sizes
+   do not change: the buttons are border-box, so a thicker border eats the
+   padding, not the width. */
+.arena[data-skin="anime"] .arena-card {
+  --color-space-50: #eef1f8;
+  --color-space-100: #d5dbeb;
+  --color-space-200: #aab5d1;
+  --color-space-800: #161b2b;
+  --color-space-950: #090b15;
+  border: 2px solid var(--ink);
+  border-radius: 6px;
+  background: var(--ink);
+  box-shadow: 2px 3px 0 rgba(18, 22, 31, 0.9);
+}
+.arena[data-skin="anime"] .arena-power {
+  background: var(--ink);
+  color: #fff;
+  border-top: 1.5px solid var(--ink);
+  font-family: var(--font-impact), var(--font-mono, ui-monospace), monospace;
+  font-style: italic;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+.arena[data-skin="anime"] .arena-cost {
+  background: radial-gradient(circle at 35% 30%, #ffd97a, var(--gi) 70%);
+  color: var(--ink);
+  border: 1.5px solid var(--ink);
+  box-shadow: none;
+  font-family: var(--font-impact), var(--font-mono, ui-monospace), monospace;
+  font-style: italic;
+  font-weight: 800;
+}
+.arena[data-skin="anime"] .arena-cost.bg-loss {
+  background: radial-gradient(circle at 35% 30%, #ff9d9d, #d8322f 70%);
+  color: #fff;
+}
+.arena[data-skin="anime"] .arena-slot {
+  border: 2px dashed rgba(18, 22, 31, 0.45);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.28);
+}
+
+/* Ki aura: a playable card is not ringed, it glows, on a slow breath. Board
+   cards animate; the hand gets the static version — six animated shadows in a
+   fanned hand is both a wall of gold and a real paint cost on a phone. */
+@keyframes arena-ki {
+  0%,
+  100% {
+    box-shadow:
+      2px 3px 0 rgba(18, 22, 31, 0.9),
+      0 0 0 3px var(--ki-gold),
+      0 0 14px 3px rgba(255, 193, 40, 0.7);
+  }
+  50% {
+    box-shadow:
+      2px 3px 0 rgba(18, 22, 31, 0.9),
+      0 0 0 3px #fff0b8,
+      0 0 26px 9px rgba(255, 193, 40, 0.95);
+  }
+}
+.arena[data-skin="anime"] .arena-ring-legal {
+  --tw-ring-color: transparent;
+  box-shadow:
+    2px 3px 0 rgba(18, 22, 31, 0.9),
+    0 0 0 3px var(--ki-gold),
+    0 0 18px 5px rgba(255, 193, 40, 0.85);
+  animation: arena-ki 1.5s ease-in-out infinite;
+}
+.arena[data-skin="anime"] [aria-label="Your hand"] .arena-ring-legal {
+  animation: none;
+  box-shadow:
+    2px 3px 0 rgba(18, 22, 31, 0.9),
+    0 0 0 2px var(--ki-gold),
+    0 0 9px 2px rgba(255, 193, 40, 0.5);
+}
+.arena[data-skin="anime"] .arena-ring-selected,
+.arena[data-skin="anime"] .arena-ring-attacker {
+  --tw-ring-color: transparent;
+  box-shadow:
+    2px 3px 0 rgba(18, 22, 31, 0.9),
+    0 0 0 4px #fff0b8,
+    0 0 34px 12px rgba(255, 193, 40, 1);
+}
+.arena[data-skin="anime"] .arena-ring-guard {
+  --tw-ring-color: transparent;
+  box-shadow:
+    2px 3px 0 rgba(18, 22, 31, 0.9),
+    0 0 0 3px #ff3b30,
+    0 0 20px 6px rgba(255, 59, 48, 0.8);
+}
+.arena[data-skin="anime"] .arena-ghost {
+  box-shadow: 2px 3px 0 rgba(18, 22, 31, 0.6);
+}
+
+/* The strips, the stage, the prompt bar, the hand and every button become
+   inked stickers: white paper, ink edge, hard shadow. */
+.arena[data-skin="anime"] :is(aside, section, .arena-stage) {
+  background: rgba(255, 255, 255, 0.92);
+  border: 2px solid var(--ink);
+  box-shadow: 2px 3px 0 rgba(18, 22, 31, 0.85);
+  backdrop-filter: none;
+}
+.arena[data-skin="anime"] .arena-stage {
+  background: rgba(255, 255, 255, 0.55);
+}
+.arena[data-skin="anime"] .arena-prompt-live {
+  box-shadow:
+    3px 4px 0 rgba(18, 22, 31, 0.85),
+    0 0 0 3px rgba(255, 213, 74, 0.9);
+}
+.arena[data-skin="anime"] button.tap {
+  border: 2px solid var(--ink);
+  box-shadow: 2px 3px 0 rgba(18, 22, 31, 0.85);
+}
+.arena[data-skin="anime"] button.tap:active {
+  transform: translate(1px, 2px);
+  box-shadow: 1px 1px 0 rgba(18, 22, 31, 0.85);
+}
+/* The small text controls in the hand's toolbar are words, not stickers. */
+.arena[data-skin="anime"] [aria-label="Your hand"] button.tap:not(.rounded-lg):not(.rounded-xl),
+.arena[data-skin="anime"] button.tap.text-xs:not(.rounded-lg):not(.rounded-xl) {
+  border: 0;
+  box-shadow: none;
+}
+.arena[data-skin="anime"] .arena-float {
+  border: 2px solid var(--ink);
+  box-shadow: 3px 4px 0 rgba(18, 22, 31, 0.85);
+  backdrop-filter: none;
+}
+.arena[data-skin="anime"] .bg-ki-500 {
+  background: linear-gradient(180deg, #ffd97a, var(--gi));
+  color: var(--ink);
+}
+
+/* Ki as *text* on paper is the dark ki (5:1); on a card face it stays gold. */
+.arena[data-skin="anime"] .text-ki-300 {
+  color: var(--color-ki-600);
+}
+.arena[data-skin="anime"] .arena-card .text-ki-300 {
+  color: var(--ki-gold);
+}
+/* A panel that was a raised dark surface is now the prototype's --panel, not ink. */
+.arena[data-skin="anime"] .bg-space-700 {
+  background-color: #dbe6f5;
+}
+/* The phase strip sits on the sky itself, so it reads in deep sky blue. */
+.arena[data-skin="anime"] .arena-strip {
+  color: #1d4667;
+}
+.arena[data-skin="anime"] .arena-strip .text-space-600 {
+  color: var(--ink);
+}
+
+/* Impact type: the numbers are the drama in this genre. Sizes do not change;
+   only the treatment — heavy italic, ink stroke, gold for the winning figure. */
+.arena[data-skin="anime"] .arena-impact {
+  font-family: var(--font-impact), "Kanit", var(--font-sans, system-ui), sans-serif;
+  font-style: italic;
+  font-weight: 900;
+  color: #fff;
+  -webkit-text-stroke: 2px var(--ink);
+  paint-order: stroke fill;
+  text-shadow: 2px 3px 0 rgba(18, 22, 31, 0.85);
+}
+.arena[data-skin="anime"] .arena-impact.text-space-400,
+.arena[data-skin="anime"] .arena-impact.text-space-500 {
+  color: #dbe6f5;
+}
+.arena[data-skin="anime"] .arena-impact.text-loss {
+  color: #ff5a4d;
+}
+.arena[data-skin="anime"] .arena-power-win {
+  color: var(--ki-gold);
+  filter: none;
+  text-shadow:
+    0 0 18px rgba(255, 193, 40, 0.9),
+    2px 3px 0 rgba(18, 22, 31, 0.85);
+}
+.arena[data-skin="anime"] .arena-banner.arena-impact {
+  color: var(--ki-gold);
+  -webkit-text-stroke: 3px var(--ink);
+  text-shadow: 4px 5px 0 rgba(18, 22, 31, 0.55);
+  filter: none;
+}
+
+/* The clash starburst: a slow conic gradient behind the two power figures,
+   masked to a ring so it never sits under the digits. */
+@keyframes arena-spin {
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+.arena[data-skin="anime"] .arena-clash::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 230px;
+  height: 230px;
+  transform: translate(-50%, -50%);
+  background: conic-gradient(from 0deg, rgba(255, 213, 74, 0.85) 0 5deg, transparent 5deg 20deg);
+  -webkit-mask-image: radial-gradient(circle, transparent 18%, #000 30%, #000 40%, transparent 68%);
+  mask-image: radial-gradient(circle, transparent 18%, #000 30%, #000 40%, transparent 68%);
+  animation: arena-spin 5s linear infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Speed lines swept across the screen on an attack and on the clash, driven
+   by the beat on screen like every other moment. */
+@keyframes arena-zoom {
+  0% {
+    opacity: 0;
+    transform: scale(1.5);
+  }
+  30% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+.arena[data-skin="anime"] .arena-speedlines {
+  display: block;
+  opacity: 0;
+  border-radius: inherit;
+  background: repeating-linear-gradient(96deg, rgba(255, 255, 255, 0.95) 0 2px, transparent 2px 13px);
+  -webkit-mask-image: radial-gradient(circle at 50% 50%, transparent 22%, #000 74%);
+  mask-image: radial-gradient(circle at 50% 50%, transparent 22%, #000 74%);
+  animation: arena-zoom 320ms ease-out forwards;
+}
+
+/* Energy: upright gold cards and rested grey ones, each outlined. They are the
+   same tiny cards as on the night table, so the card rule above outlines them;
+   this only turns the rested ones to paper. */
+.arena[data-skin="anime"] .arena-card.brightness-75 {
+  filter: saturate(0.35) brightness(1.05);
+  background: #c6d2e0;
+}
+
+/* Reduced motion zeroes every animation, the skin's included — kept after the skin so it wins. */
 @media (prefers-reduced-motion: reduce) {
   .arena-banner,
   .arena-slam,
@@ -381,7 +767,10 @@ input[type="number"] {
   .arena-pop,
   .arena-hurt,
   .arena-nope,
-  .arena-chip {
+  .arena-chip,
+  .arena-speedlines,
+  .arena[data-skin="anime"] .arena-ring-legal,
+  .arena[data-skin="anime"] .arena-clash::before {
     animation-duration: 0.01ms;
     animation-iteration-count: 1;
   }

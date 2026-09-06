@@ -11,6 +11,8 @@ import type { BoardView, CardView, SideView } from "@/lib/arena/view";
 import { useWakeLock } from "@/lib/arena/wake";
 import { type CardState } from "../ArenaCard";
 import { FeelToggle } from "../FeelToggle";
+import { SkinToggle } from "../SkinToggle";
+import type { ArenaSkin } from "@/lib/arena/skin";
 import { ReportBug } from "../ReportBug";
 import { narrate } from "@/lib/arena/narration";
 import { AttackBeam, CardPreview, CardSheet, Counter, NarrationRibbon, SearchSheet, SkillSpotlight, StepBanner, StepChip, TopStrip, cardsOnTable, refusalLine, shortLabel, type SheetMove } from "../shared";
@@ -33,7 +35,7 @@ import { useIdle } from "./useIdle";
  *
  * Selected by the `boardStyle` cookie; `?board=classic` goes back.
  */
-export function ArenaStage({ gameId, snapshot }: { gameId: number; snapshot: Snapshot }) {
+export function ArenaStage({ gameId, snapshot, skin = "night" }: { gameId: number; snapshot: Snapshot; skin?: ArenaSkin }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
@@ -276,7 +278,10 @@ export function ArenaStage({ gameId, snapshot }: { gameId: number; snapshot: Sna
 
   return (
     <LayoutGroup>
-      <div ref={boardRef} className="arena relative mx-auto flex w-full max-w-7xl flex-col gap-2 sm:gap-3">
+      <div ref={boardRef} className="arena relative mx-auto flex w-full max-w-7xl flex-col gap-2 sm:gap-3" data-skin={skin}>
+        {/* Speed lines under an attack — a skin's moment, driven by the beat on
+            screen like every other; it draws nothing on the night table. */}
+        {beat && (beat.t === "attack" || beat.t === "clash") && <div key={beat.n} className="arena-speedlines pointer-events-none absolute inset-0 z-20" aria-hidden />}
         <StepBanner step={step} />
         <SkillSpotlight spotlight={spotlight} />
         <TopStrip view={view} />
@@ -299,11 +304,11 @@ export function ArenaStage({ gameId, snapshot }: { gameId: number; snapshot: Sna
         {/* The prompt bar: the one question being asked, or the story being told. */}
         <section
           className={`sticky bottom-2 z-30 flex items-center gap-2 rounded-xl border p-2 pl-3 backdrop-blur sm:gap-3 sm:rounded-2xl sm:p-3 sm:pl-5 ${
-            yourTurn && playable && !playback.playing ? "border-ki-500 bg-space-800/95 shadow-[0_0_0_3px_rgba(242,140,15,0.12)]" : "border-space-600 bg-space-800/95"
+            yourTurn && playable && !playback.playing ? "arena-prompt-live border-ki-500 bg-space-800/95" : "border-space-600 bg-space-800/95"
           }`}
           aria-live="polite"
         >
-          {(waitingOnServer || busy) && !view.over && <span className="h-3.5 w-3.5 shrink-0 animate-pulse rounded-full bg-ki-400 shadow-[0_0_0_5px_rgba(255,167,51,0.18)]" aria-hidden />}
+          {(waitingOnServer || busy) && !view.over && <span className="arena-pulse h-3.5 w-3.5 shrink-0 animate-pulse rounded-full bg-ki-400" aria-hidden />}
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-space-50 sm:text-base lg:text-lg">
               {!playback.playing && !view.over && yourTurn && view.prompt.step && (
@@ -393,6 +398,7 @@ export function ArenaStage({ gameId, snapshot }: { gameId: number; snapshot: Sna
           controls={
             <>
               <FeelToggle />
+              <SkinToggle gameId={gameId} skin={skin} />
               <ReportBug gameId={gameId} cards={cardsOnTable(view)} />
               <button type="button" onClick={() => setLogOpen((x) => !x)} className="tap uppercase tracking-widest text-ki-300 hover:text-ki-400">
                 {logOpen ? "hide log" : "log"}
@@ -500,10 +506,10 @@ function ClashBand({ view, cardProps }: { view: BoardView; cardProps: CardProps 
   const winning = b.attackPower >= b.guardPower;
   return (
     <div className="my-2 rounded-xl border border-ki-500/35 bg-gradient-to-b from-ki-500/10 to-transparent p-2 sm:my-3 sm:p-3">
-      <div className="flex items-center justify-center gap-3 font-mono sm:gap-6">
-        <Count value={b.attackPower} className={`text-2xl font-black tabular-nums sm:text-4xl lg:text-5xl ${winning ? "text-ki-300 drop-shadow-[0_0_12px_rgba(255,167,51,0.5)]" : "text-space-400"}`} />
-        <span className="text-[10px] font-bold tracking-[0.3em] text-space-500 sm:text-xs">VS</span>
-        <Count value={b.guardPower} className={`text-2xl font-black tabular-nums sm:text-4xl lg:text-5xl ${!winning ? "text-ki-300 drop-shadow-[0_0_12px_rgba(255,167,51,0.5)]" : "text-space-400"}`} />
+      <div className="arena-clash relative flex items-center justify-center gap-3 font-mono sm:gap-6">
+        <Count value={b.attackPower} className={`arena-impact relative text-2xl font-black tabular-nums sm:text-4xl lg:text-5xl ${winning ? "arena-power-win text-ki-300" : "text-space-400"}`} />
+        <span className="arena-impact relative text-[10px] font-bold tracking-[0.3em] text-space-500 sm:text-xs">VS</span>
+        <Count value={b.guardPower} className={`arena-impact relative text-2xl font-black tabular-nums sm:text-4xl lg:text-5xl ${!winning ? "arena-power-win text-ki-300" : "text-space-400"}`} />
       </div>
       {(view.them.combo.length > 0 || view.you.combo.length > 0) && (
         <div className="mt-2 flex items-end justify-between">
@@ -553,7 +559,7 @@ function HandBacks({ count }: { count: number }) {
       {Array.from({ length: shown }, (_, i) => (
         <span
           key={i}
-          className="-ml-1.5 h-[calc(24px*var(--arena,1))] w-[calc(22px*var(--arena,1))] rounded-b-[3px] border border-space-500 bg-[radial-gradient(circle_at_50%_135%,#f28c0f_0_14%,#20273c_15%_60%,#0f1220_61%)] shadow-[0_2px_6px_rgba(0,0,0,0.5)] first:ml-0"
+          className="arena-card-back -ml-1.5 h-[calc(24px*var(--arena,1))] w-[calc(22px*var(--arena,1))] rounded-b-[3px] border border-space-500 first:ml-0"
           style={{ transform: `rotate(${(i - (shown - 1) / 2) * 2.5}deg)` }}
         />
       ))}
@@ -599,7 +605,7 @@ function SideRail({
         <ZoneAnchor zone={`${p}:life`} />
         <p className="truncate text-xs font-semibold text-space-100 sm:text-sm">{side.name}</p>
         <div className="flex items-baseline gap-1.5 lg:justify-center">
-          <span className={`font-mono text-3xl font-black leading-none tabular-nums sm:text-4xl ${side.life <= 2 ? "text-loss" : "text-space-50"}`}>{side.life}</span>
+          <span className={`arena-impact font-mono text-3xl font-black leading-none tabular-nums sm:text-4xl ${side.life <= 2 ? "text-loss" : "text-space-50"}`}>{side.life}</span>
           <span className="text-[10px] uppercase tracking-widest text-space-500">life</span>
         </div>
         <span className="mt-1 flex gap-[2px] lg:justify-center">

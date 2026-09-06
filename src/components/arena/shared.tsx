@@ -44,7 +44,7 @@ export function TopStrip({ view }: { view: BoardView }) {
   const steps = ["charge", "main", "end"];
   const battleSteps = ["declared", "offense", "defense", "damage"];
   return (
-    <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-space-500 sm:gap-3 sm:text-xs lg:text-sm">
+    <div className="arena-strip flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-space-500 sm:gap-3 sm:text-xs lg:text-sm">
       {steps.map((p) => (
         <span key={p} className={view.phase === p || (p === "main" && view.phase === "mainEnd") ? "font-bold text-ki-400" : ""}>
           {p}
@@ -101,7 +101,7 @@ export function StepBanner({ step }: { step: string }) {
   if (!shown) return null;
   return (
     <div className="pointer-events-none fixed inset-0 z-40 grid place-items-center" aria-hidden>
-      <p key={shown.key} className="arena-banner select-none text-4xl font-black uppercase italic tracking-tight text-space-50 drop-shadow-[0_4px_24px_rgba(242,140,15,0.7)] sm:text-6xl lg:text-7xl">
+      <p key={shown.key} className="arena-banner arena-impact select-none text-4xl font-black uppercase italic tracking-tight text-space-50 sm:text-6xl lg:text-7xl">
         {shown.text}
       </p>
     </div>
@@ -134,7 +134,7 @@ export function SkillSpotlight({ spotlight }: { spotlight: (Spotlight & { imageU
     // Clear of the page header — it may overlay the board, not the game's name.
     <div className="pointer-events-none fixed left-2 top-24 z-40 w-[19rem] sm:left-4 sm:top-28 sm:w-[23rem]" aria-live="polite">
       <div
-        className={`arena-drop flex gap-2 rounded-xl border-l-4 bg-space-900/95 p-2 shadow-[0_12px_40px_rgba(0,0,0,0.6)] backdrop-blur ${
+        className={`arena-drop arena-float flex gap-2 rounded-xl border-l-4 bg-space-900/95 p-2 backdrop-blur ${
           shown.unread ? "border-dbs-yellow" : "border-ki-500"
         }`}
       >
@@ -192,10 +192,10 @@ export function AttackBeam({ from, to, hostRef }: { from: string; to: string; ho
   const d = `M ${line.x1} ${line.y1} Q ${cx} ${cy} ${line.x2} ${line.y2}`;
   return (
     <svg className="pointer-events-none absolute inset-0 z-20 h-full w-full overflow-visible" aria-hidden>
-      <path d={d} fill="none" stroke="rgba(242,140,15,0.25)" strokeWidth={12} strokeLinecap="round" />
-      <path d={d} fill="none" stroke="#ffc46b" strokeWidth={3} strokeLinecap="round" />
-      <circle cx={line.x2} cy={line.y2} r={7} fill="rgba(255,167,51,0.35)" />
-      <circle cx={line.x2} cy={line.y2} r={3.5} fill="#ffc46b" />
+      <path d={d} fill="none" stroke="var(--color-ki-500)" strokeOpacity={0.25} strokeWidth={12} strokeLinecap="round" />
+      <path d={d} fill="none" stroke="var(--color-ki-300)" strokeWidth={3} strokeLinecap="round" />
+      <circle cx={line.x2} cy={line.y2} r={7} fill="var(--color-ki-400)" fillOpacity={0.35} />
+      <circle cx={line.x2} cy={line.y2} r={3.5} fill="var(--color-ki-300)" />
     </svg>
   );
 }
@@ -217,7 +217,7 @@ export function CardPreview({ card, box }: { card: CardView; box: DOMRect }) {
 
   return (
     <div
-      className="pointer-events-none fixed z-40 hidden max-h-[calc(100dvh-1.75rem)] overflow-hidden rounded-2xl border border-space-600 bg-space-900/95 p-3 shadow-[0_20px_60px_rgba(0,0,0,0.65)] backdrop-blur sm:block"
+      className="arena-float pointer-events-none fixed z-40 hidden max-h-[calc(100dvh-1.75rem)] overflow-hidden rounded-2xl border border-space-600 bg-space-900/95 p-3 backdrop-blur sm:block"
       style={{ left, width, ...edge }}
       aria-hidden
     >
@@ -491,7 +491,7 @@ export function NarrationRibbon({ text, n, mine, live }: { text: string; n: numb
       } ${live ? "text-space-100" : "text-space-300"}`}
       aria-live="polite"
     >
-      <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${mine ? "bg-gain shadow-[0_0_0_3px_rgba(52,211,153,0.16)]" : "bg-ki-500 shadow-[0_0_0_3px_rgba(242,140,15,0.16)]"} ${live ? "animate-pulse" : ""}`} aria-hidden />
+      <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${mine ? "arena-tick-you bg-gain" : "arena-tick-them bg-ki-500"} ${live ? "animate-pulse" : ""}`} aria-hidden />
       <span key={n} className="arena-drop min-w-0 flex-1 truncate">{text}</span>
       <span className="shrink-0 font-mono text-[9px] text-space-500">#{n}</span>
     </div>

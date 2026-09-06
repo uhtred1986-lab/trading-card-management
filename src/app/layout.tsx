@@ -1,7 +1,15 @@
 import type { Metadata, Viewport } from "next";
+import { Kanit } from "next/font/google";
 import { AppShell } from "@/components/AppShell";
 import { ServiceWorker } from "@/components/ServiceWorker";
 import "./globals.css";
+
+/**
+ * The one display face, used only by the arena's anime skin for numerals and
+ * banners (`docs/arena-skin-spec.md` §3.5). Two weights, italic only; the
+ * rest of the app keeps the default stack.
+ */
+const impact = Kanit({ subsets: ["latin"], weight: ["800", "900"], style: ["italic"], variable: "--font-impact", display: "swap" });
 
 export const metadata: Metadata = {
   title: "DBS Card Companion",
@@ -19,7 +27,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="h-full antialiased">
+    <html lang="en" className={`h-full antialiased ${impact.variable}`}>
       <body className="flex min-h-full flex-col">
         <AppShell>{children}</AppShell>
         <ServiceWorker />
