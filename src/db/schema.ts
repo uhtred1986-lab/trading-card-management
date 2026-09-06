@@ -287,10 +287,21 @@ export const ownedCards = pgTable(
     owner: text("owner"),
     /** Where this particular card is kept. */
     locationId: integer("location_id").references(() => storageLocations.id, { onDelete: "set null" }),
+    /**
+     * Set instead of deleting the row when a copy is removed from the
+     * collection, so it can be restored. Every "current collection" query
+     * filters this out; only the archive view reads archived rows.
+     */
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("owned_cards_card_idx").on(t.cardId), index("owned_cards_print_idx").on(t.printId), index("owned_cards_owner_idx").on(t.owner)],
+  (t) => [
+    index("owned_cards_card_idx").on(t.cardId),
+    index("owned_cards_print_idx").on(t.printId),
+    index("owned_cards_owner_idx").on(t.owner),
+    index("owned_cards_archived_idx").on(t.archivedAt),
+  ],
 );
 
 /*

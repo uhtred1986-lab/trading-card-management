@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRef, useState, useTransition } from "react";
-import { addLot, deleteLot, printsForCardAction } from "@/app/collection/actions";
+import { addLot, discardLot, printsForCardAction } from "@/app/collection/actions";
 import type { ScanCandidate, ScanDetection } from "@/lib/ai/scan";
 import { REVIEW_THRESHOLD } from "@/lib/ai/scan-match";
 import { CONDITIONS } from "@/lib/collection/queries";
@@ -107,9 +107,11 @@ export function QuickCapture({ owner, decks, owners, locations }: { owner: strin
     });
   };
 
+  // A genuine delete, not an archive: this undoes a save from moments ago in
+  // this same session, so there's nothing worth keeping a restorable trace of.
   const undo = (lot: Saved) =>
     start(async () => {
-      await Promise.all(lot.lotIds.map((id) => deleteLot(id)));
+      await Promise.all(lot.lotIds.map((id) => discardLot(id)));
       setSaved((s) => s.filter((x) => x !== lot));
     });
 

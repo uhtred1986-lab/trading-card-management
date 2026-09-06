@@ -331,10 +331,9 @@ export function CollectionList({ rows, owners, decks, locations }: { rows: Colle
           <button
             disabled={pending}
             onClick={() => {
-              if (!confirm(`Delete ${chosen.length} ${chosen.length === 1 ? "copy" : "copies"} from your collection?`)) return;
               run(async () => {
                 const r = await bulkDeleteCopiesAction(chosen);
-                return `${r.deleted} ${r.deleted === 1 ? "copy" : "copies"} deleted.`;
+                return `${r.deleted} ${r.deleted === 1 ? "copy" : "copies"} removed — restore from Archived if that was a mistake.`;
               }, true);
             }}
             className="tap ml-auto rounded-md border border-loss/50 px-2 py-1 text-xs text-loss hover:bg-loss/10 disabled:opacity-40"

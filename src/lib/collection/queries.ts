@@ -1,4 +1,4 @@
-import { asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { cardPrints, cardSets, cards, deckCards, ownedCards, storageLocations } from "@/db/schema";
 import type { Game } from "@/lib/catalog/games";
@@ -12,7 +12,7 @@ export const LANGUAGES = ["EN", "JP", "DE", "FR", "IT", "ES", "PT", "KR", "ZH"] 
 
 /** Owners already used somewhere in the collection, for the card page's picker. */
 export async function knownOwners(db: Db): Promise<string[]> {
-  const rows = await db.selectDistinct({ owner: ownedCards.owner }).from(ownedCards);
+  const rows = await db.selectDistinct({ owner: ownedCards.owner }).from(ownedCards).where(isNull(ownedCards.archivedAt));
   return rows
     .map((r) => r.owner)
     .filter((o): o is string => !!o)
@@ -37,7 +37,7 @@ export async function lotsForCard(db: Db, cardId: string) {
     })
     .from(ownedCards)
     .innerJoin(cardPrints, eq(cardPrints.id, ownedCards.printId))
-    .where(eq(ownedCards.cardId, cardId))
+    .where(and(eq(ownedCards.cardId, cardId), isNull(ownedCards.archivedAt)))
     .orderBy(desc(ownedCards.createdAt));
 }
 
@@ -77,7 +77,12 @@ export async function valuedLots(db: Db, opts: { game?: Game } = {}): Promise<{ 
         locationId: ownedCards.locationId,
       })
       .from(ownedCards)
-      .where(opts.game ? sql`exists (select 1 from ${cards} c where c.id = ${ownedCards.cardId} and c.game = ${opts.game})` : undefined),
+      .where(
+        and(
+          isNull(ownedCards.archivedAt),
+          opts.game ? sql`exists (select 1 from ${cards} c where c.id = ${ownedCards.cardId} and c.game = ${opts.game})` : undefined,
+        ),
+      ),
     latestUsdEur(db),
   ]);
   const prices = await pricesForPrints(db, [...new Set(lots.map((l) => l.printId))]);
@@ -348,7 +353,8 @@ export async function collectionCopies(
       .innerJoin(cardPrints, eq(cardPrints.id, ownedCards.printId))
       .innerJoin(cards, eq(cards.id, ownedCards.cardId))
       .innerJoin(cardSets, eq(cardSets.code, cards.setCode))
-      .leftJoin(storageLocations, eq(storageLocations.id, ownedCards.locationId)),
+      .leftJoin(storageLocations, eq(storageLocations.id, ownedCards.locationId))
+      .where(isNull(ownedCards.archivedAt)),
     latestUsdEur(db),
   ]);
 
@@ -438,6 +444,42 @@ export async function collectionCopies(
       locationName: r.locationName,
     })),
   };
+}
+
+export interface ArchivedCopy {
+  id: number;
+  cardId: string;
+  name: string;
+  imageUrl: string | null;
+  printLabel: string;
+  condition: string;
+  finish: string;
+  archivedAt: Date;
+}
+
+/**
+ * Copies removed from the collection but not yet purged — restorable from
+ * `/collection/archived`. Ordered newest-archived-first, since that's the
+ * order a "did I just delete that?" check wants.
+ */
+export async function archivedCopies(db: Db): Promise<ArchivedCopy[]> {
+  const rows = await db
+    .select({
+      id: ownedCards.id,
+      cardId: ownedCards.cardId,
+      name: cards.name,
+      imageUrl: cards.imageUrl,
+      printLabel: cardPrints.label,
+      condition: ownedCards.condition,
+      finish: ownedCards.finish,
+      archivedAt: ownedCards.archivedAt,
+    })
+    .from(ownedCards)
+    .innerJoin(cards, eq(cards.id, ownedCards.cardId))
+    .innerJoin(cardPrints, eq(cardPrints.id, ownedCards.printId))
+    .where(sql`${ownedCards.archivedAt} is not null`)
+    .orderBy(desc(ownedCards.archivedAt));
+  return rows.map((r) => ({ ...r, archivedAt: r.archivedAt! }));
 }
 
 /** Value now vs. N days ago for owned cards, base-print Normal price. */

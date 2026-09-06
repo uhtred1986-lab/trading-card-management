@@ -149,6 +149,24 @@ assert.equal(priceForFinish(prices.get("BT18-020_SPR"), "foil"), 199);
   await db.delete(schema.ownedCards).where(eqOp(schema.ownedCards.cardId, "BT18-022"));
 }
 
+// "Deleting" a lot archives it instead: it drops out of ownership counts but
+// can be told apart from a real delete, and restoring it brings it straight back.
+{
+  const { eq: eqOp } = await import("drizzle-orm");
+  const [lot] = await db.insert(schema.ownedCards).values({ printId: "BT18-022", cardId: "BT18-022" }).returning({ id: schema.ownedCards.id });
+  assert.equal((await allocationForCards(db, ["BT18-022"])).get("BT18-022")?.owned, 1, "freshly owned copy counts");
+
+  await db.update(schema.ownedCards).set({ archivedAt: new Date() }).where(eqOp(schema.ownedCards.id, lot.id));
+  assert.equal((await allocationForCards(db, ["BT18-022"])).get("BT18-022")?.owned, 0, "archived copy no longer counts as owned");
+  const stillThere = await db.select().from(schema.ownedCards).where(eqOp(schema.ownedCards.id, lot.id));
+  assert.equal(stillThere.length, 1, "archiving keeps the row — it is not a delete");
+
+  await db.update(schema.ownedCards).set({ archivedAt: null }).where(eqOp(schema.ownedCards.id, lot.id));
+  assert.equal((await allocationForCards(db, ["BT18-022"])).get("BT18-022")?.owned, 1, "restoring counts it again");
+
+  await db.delete(schema.ownedCards).where(eqOp(schema.ownedCards.id, lot.id));
+}
+
 // Swap suggestions: stored, deduped on re-run, grouped by the card they replace,
 // and swept once they age out.
 {
