@@ -435,20 +435,21 @@ input[type="number"] {
 
 
 /* ==========================================================================
- * Anime Sky — a second skin for the board only (docs/arena-skin-spec.md).
+ * Anime Sky — the app's skin (docs/arena-skin-spec.md, extended to the whole
+ * app on 6 Sep 2026 at the owner's request).
  *
  * Daylight ground, ink outlines, ki light, impact type. It repaints by
- * redefining the theme's own custom properties inside this scope, so every
- * Tailwind utility on the board follows without a single component knowing a
- * skin exists; the rules after the tokens are the things that are not colours.
- * Everything is drawn in CSS — no character art, no logos, nothing traced —
- * and the whole skin can be read, or deleted, from this one block.
+ * redefining the theme's own custom properties on <html> (`data-skin`, from
+ * the `arenaSkin` cookie), so every Tailwind utility in the app follows
+ * without a single component knowing a skin exists; the rules after the
+ * tokens are the things that are not colours. Everything is drawn in CSS — no
+ * character art, no logos, nothing traced — and the whole skin can be read,
+ * or deleted, from this one block. `night` is the theme block above, and can
+ * be pinned back onto one board with the same attribute (see the end).
  * ========================================================================== */
-.arena[data-skin="anime"] {
+[data-skin="anime"] {
   /* A bright ground needs the native controls and scrollbars to know. */
   color-scheme: light;
-  /* The screentone pseudo-element sits behind the children, above the sky. */
-  isolation: isolate;
 
   /* Surfaces invert: what was deep space is now paper and ink. */
   --color-space-50: #12161f;
@@ -483,7 +484,16 @@ input[type="number"] {
   --ki-gold: #ffd54a;
   --gi: #f2711c;
   --card-back: radial-gradient(circle at 50% 135%, var(--gi) 0 16%, #2f6fe0 17% 58%, var(--ink) 59%);
+}
+/* The board sets its own card back for the night table; under the sky it takes the skin's. */
+[data-skin="anime"] .arena {
+  --card-back: radial-gradient(circle at 50% 135%, var(--gi) 0 16%, #2f6fe0 17% 58%, var(--ink) 59%);
+}
 
+/* The sky: the top of every page, with paper-white ground below it. Sized to
+   the viewport rather than fixed, which phones scroll badly. */
+html[data-skin="anime"] body {
+  isolation: isolate;
   background:
     radial-gradient(closest-side at 16% 13%, rgba(255, 255, 255, 0.95) 0 38%, rgba(255, 255, 255, 0) 74%),
     radial-gradient(closest-side at 34% 7%, rgba(255, 255, 255, 0.9) 0 34%, rgba(255, 255, 255, 0) 72%),
@@ -491,19 +501,21 @@ input[type="number"] {
     radial-gradient(closest-side at 90% 17%, rgba(255, 255, 255, 0.8) 0 32%, rgba(255, 255, 255, 0) 70%),
     radial-gradient(closest-side at 54% 21%, rgba(255, 255, 255, 0.55) 0 34%, rgba(255, 255, 255, 0) 72%),
     linear-gradient(180deg, var(--sky-deep) 0%, var(--sky) 26%, var(--sky-hi) 62%, #eaf7ff 100%);
-  border-radius: 16px;
+  background-color: #eaf7ff;
+  background-repeat: no-repeat;
+  background-size: 100% 100svh;
+  color: var(--color-space-100);
 }
 
 /* Screentone: the halftone the cels are shaded with, faint, and gone before
    it reaches anything you have to read. */
-.arena[data-skin="anime"]::before {
+html[data-skin="anime"] body::before {
   content: "";
-  position: absolute;
+  position: fixed;
   inset: 0;
   z-index: -1;
   pointer-events: none;
   opacity: 0.16;
-  border-radius: inherit;
   background-image: radial-gradient(rgba(18, 22, 31, 0.55) 1px, transparent 1.2px);
   background-size: 6px 6px;
   -webkit-mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.9), transparent 45%);
@@ -516,7 +528,7 @@ input[type="number"] {
    is ink, with the hard offset shadow that makes a cel look like a cel. Sizes
    do not change: the buttons are border-box, so a thicker border eats the
    padding, not the width. */
-.arena[data-skin="anime"] .arena-card {
+[data-skin="anime"] .arena-card {
   --color-space-50: #eef1f8;
   --color-space-100: #d5dbeb;
   --color-space-200: #aab5d1;
@@ -527,7 +539,7 @@ input[type="number"] {
   background: var(--ink);
   box-shadow: 2px 3px 0 rgba(18, 22, 31, 0.9);
 }
-.arena[data-skin="anime"] .arena-power {
+[data-skin="anime"] .arena-power {
   background: var(--ink);
   color: #fff;
   border-top: 1.5px solid var(--ink);
@@ -536,7 +548,7 @@ input[type="number"] {
   font-weight: 800;
   letter-spacing: 0.02em;
 }
-.arena[data-skin="anime"] .arena-cost {
+[data-skin="anime"] .arena-cost {
   background: radial-gradient(circle at 35% 30%, #ffd97a, var(--gi) 70%);
   color: var(--ink);
   border: 1.5px solid var(--ink);
@@ -545,11 +557,11 @@ input[type="number"] {
   font-style: italic;
   font-weight: 800;
 }
-.arena[data-skin="anime"] .arena-cost.bg-loss {
+[data-skin="anime"] .arena-cost.bg-loss {
   background: radial-gradient(circle at 35% 30%, #ff9d9d, #d8322f 70%);
   color: #fff;
 }
-.arena[data-skin="anime"] .arena-slot {
+[data-skin="anime"] .arena-slot {
   border: 2px dashed rgba(18, 22, 31, 0.45);
   border-radius: 7px;
   background: rgba(255, 255, 255, 0.28);
@@ -573,7 +585,7 @@ input[type="number"] {
       0 0 26px 9px rgba(255, 193, 40, 0.95);
   }
 }
-.arena[data-skin="anime"] .arena-ring-legal {
+[data-skin="anime"] .arena-ring-legal {
   --tw-ring-color: transparent;
   box-shadow:
     2px 3px 0 rgba(18, 22, 31, 0.9),
@@ -581,94 +593,165 @@ input[type="number"] {
     0 0 18px 5px rgba(255, 193, 40, 0.85);
   animation: arena-ki 1.5s ease-in-out infinite;
 }
-.arena[data-skin="anime"] [aria-label="Your hand"] .arena-ring-legal {
+[data-skin="anime"] [aria-label="Your hand"] .arena-ring-legal {
   animation: none;
   box-shadow:
     2px 3px 0 rgba(18, 22, 31, 0.9),
     0 0 0 2px var(--ki-gold),
     0 0 9px 2px rgba(255, 193, 40, 0.5);
 }
-.arena[data-skin="anime"] .arena-ring-selected,
-.arena[data-skin="anime"] .arena-ring-attacker {
+[data-skin="anime"] .arena-ring-selected,
+[data-skin="anime"] .arena-ring-attacker {
   --tw-ring-color: transparent;
   box-shadow:
     2px 3px 0 rgba(18, 22, 31, 0.9),
     0 0 0 4px #fff0b8,
     0 0 34px 12px rgba(255, 193, 40, 1);
 }
-.arena[data-skin="anime"] .arena-ring-guard {
+[data-skin="anime"] .arena-ring-guard {
   --tw-ring-color: transparent;
   box-shadow:
     2px 3px 0 rgba(18, 22, 31, 0.9),
     0 0 0 3px #ff3b30,
     0 0 20px 6px rgba(255, 59, 48, 0.8);
 }
-.arena[data-skin="anime"] .arena-ghost {
+[data-skin="anime"] .arena-ghost {
   box-shadow: 2px 3px 0 rgba(18, 22, 31, 0.6);
 }
 
 /* The strips, the stage, the prompt bar, the hand and every button become
    inked stickers: white paper, ink edge, hard shadow. */
-.arena[data-skin="anime"] :is(aside, section, .arena-stage) {
+[data-skin="anime"] .arena :is(aside, section, .arena-stage) {
   background: rgba(255, 255, 255, 0.92);
   border: 2px solid var(--ink);
   box-shadow: 2px 3px 0 rgba(18, 22, 31, 0.85);
   backdrop-filter: none;
 }
-.arena[data-skin="anime"] .arena-stage {
+[data-skin="anime"] .arena-stage {
   background: rgba(255, 255, 255, 0.55);
 }
-.arena[data-skin="anime"] .arena-prompt-live {
+[data-skin="anime"] .arena-prompt-live {
   box-shadow:
     3px 4px 0 rgba(18, 22, 31, 0.85),
     0 0 0 3px rgba(255, 213, 74, 0.9);
 }
-.arena[data-skin="anime"] button.tap {
+/* Buttons that look like buttons — the ones with a shape — become stickers;
+   a `.tap` that is only a word stays a word. Links styled as buttons too. */
+[data-skin="anime"] :is(button, a).tap:is(.rounded-md, .rounded-lg, .rounded-xl),
+[data-skin="anime"] .arena button.tap:is(.rounded-lg, .rounded-xl) {
   border: 2px solid var(--ink);
   box-shadow: 2px 3px 0 rgba(18, 22, 31, 0.85);
 }
-.arena[data-skin="anime"] button.tap:active {
+[data-skin="anime"] :is(button, a).tap:is(.rounded-md, .rounded-lg, .rounded-xl):active {
   transform: translate(1px, 2px);
   box-shadow: 1px 1px 0 rgba(18, 22, 31, 0.85);
 }
-/* The small text controls in the hand's toolbar are words, not stickers. */
-.arena[data-skin="anime"] [aria-label="Your hand"] button.tap:not(.rounded-lg):not(.rounded-xl),
-.arena[data-skin="anime"] button.tap.text-xs:not(.rounded-lg):not(.rounded-xl) {
-  border: 0;
-  box-shadow: none;
+
+/* ── the rest of the app ──────────────────────────────────────────────── */
+
+/* Panels: a bordered rounded box is a white sticker with an ink edge. */
+[data-skin="anime"] :is(.rounded-xl, .rounded-2xl).border:not(.arena *) {
+  border-width: 2px;
+  border-color: var(--ink);
+  background-color: rgba(255, 255, 255, 0.92);
+  box-shadow: 2px 3px 0 rgba(18, 22, 31, 0.85);
 }
-.arena[data-skin="anime"] .arena-float {
+/* The header and the phone's tab bar: paper, inked on the edge that faces the page. */
+[data-skin="anime"] header.sticky {
+  background: rgba(255, 255, 255, 0.92);
+  border-bottom: 2px solid var(--ink);
+  backdrop-filter: none;
+}
+[data-skin="anime"] nav[aria-label="Primary"] {
+  background: rgba(255, 255, 255, 0.96);
+  border-top: 2px solid var(--ink);
+  backdrop-filter: none;
+}
+/* Page titles in the display face; the numbers on the board keep the stroke, titles do not. */
+[data-skin="anime"] h1 {
+  font-family: var(--font-impact), "Kanit", var(--font-sans, system-ui), sans-serif;
+  font-style: italic;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  color: var(--ink);
+}
+/* Card art everywhere is a sticker too. */
+[data-skin="anime"] .card-aspect:not(.arena *) {
+  border: 2px solid var(--ink);
+  border-radius: 7px;
+  box-shadow: 2px 3px 0 rgba(18, 22, 31, 0.8);
+  background: var(--ink);
+}
+/* Form controls on paper. */
+[data-skin="anime"] :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]), select, textarea) {
+  background-color: #fff;
+  border: 2px solid var(--ink);
+  color: var(--ink);
+}
+/* Text that was tuned for a dark ground and does not read on paper. */
+[data-skin="anime"] .text-space-950 {
+  color: var(--ink);
+}
+[data-skin="anime"] .text-ki-400,
+[data-skin="anime"] .hover\:text-ki-400:hover {
+  color: var(--color-ki-600);
+}
+[data-skin="anime"] .text-dbs-yellow {
+  color: #8a6a00;
+}
+[data-skin="anime"] .bg-ki-400 {
+  background: linear-gradient(180deg, #ffe08a, var(--gi));
+  color: var(--ink);
+}
+/* The few places that reach past the theme into Tailwind's own pastels — meant
+   for a dark ground, so on paper they take the readable shade of the same hue. */
+[data-skin="anime"] :is(.text-amber-300, .text-yellow-200) {
+  color: #8a6a00;
+}
+[data-skin="anime"] .text-red-300 {
+  color: var(--color-loss);
+}
+[data-skin="anime"] .text-green-300 {
+  color: var(--color-gain);
+}
+[data-skin="anime"] :is(.text-blue-300, .text-blue-200) {
+  color: #1d4ed8;
+}
+[data-skin="anime"] :is(.text-gray-100, .text-gray-200) {
+  color: var(--ink);
+}
+[data-skin="anime"] .arena-float {
   border: 2px solid var(--ink);
   box-shadow: 3px 4px 0 rgba(18, 22, 31, 0.85);
   backdrop-filter: none;
 }
-.arena[data-skin="anime"] .bg-ki-500 {
+[data-skin="anime"] .bg-ki-500 {
   background: linear-gradient(180deg, #ffd97a, var(--gi));
   color: var(--ink);
 }
 
 /* Ki as *text* on paper is the dark ki (5:1); on a card face it stays gold. */
-.arena[data-skin="anime"] .text-ki-300 {
+[data-skin="anime"] .text-ki-300 {
   color: var(--color-ki-600);
 }
-.arena[data-skin="anime"] .arena-card .text-ki-300 {
+[data-skin="anime"] .arena-card .text-ki-300 {
   color: var(--ki-gold);
 }
 /* A panel that was a raised dark surface is now the prototype's --panel, not ink. */
-.arena[data-skin="anime"] .bg-space-700 {
+[data-skin="anime"] .bg-space-700 {
   background-color: #dbe6f5;
 }
 /* The phase strip sits on the sky itself, so it reads in deep sky blue. */
-.arena[data-skin="anime"] .arena-strip {
+[data-skin="anime"] .arena-strip {
   color: #1d4667;
 }
-.arena[data-skin="anime"] .arena-strip .text-space-600 {
+[data-skin="anime"] .arena-strip .text-space-600 {
   color: var(--ink);
 }
 
 /* Impact type: the numbers are the drama in this genre. Sizes do not change;
    only the treatment — heavy italic, ink stroke, gold for the winning figure. */
-.arena[data-skin="anime"] .arena-impact {
+[data-skin="anime"] .arena-impact {
   font-family: var(--font-impact), "Kanit", var(--font-sans, system-ui), sans-serif;
   font-style: italic;
   font-weight: 900;
@@ -677,21 +760,21 @@ input[type="number"] {
   paint-order: stroke fill;
   text-shadow: 2px 3px 0 rgba(18, 22, 31, 0.85);
 }
-.arena[data-skin="anime"] .arena-impact.text-space-400,
-.arena[data-skin="anime"] .arena-impact.text-space-500 {
+[data-skin="anime"] .arena-impact.text-space-400,
+[data-skin="anime"] .arena-impact.text-space-500 {
   color: #dbe6f5;
 }
-.arena[data-skin="anime"] .arena-impact.text-loss {
+[data-skin="anime"] .arena-impact.text-loss {
   color: #ff5a4d;
 }
-.arena[data-skin="anime"] .arena-power-win {
+[data-skin="anime"] .arena-power-win {
   color: var(--ki-gold);
   filter: none;
   text-shadow:
     0 0 18px rgba(255, 193, 40, 0.9),
     2px 3px 0 rgba(18, 22, 31, 0.85);
 }
-.arena[data-skin="anime"] .arena-banner.arena-impact {
+[data-skin="anime"] .arena-banner.arena-impact {
   color: var(--ki-gold);
   -webkit-text-stroke: 3px var(--ink);
   text-shadow: 4px 5px 0 rgba(18, 22, 31, 0.55);
@@ -705,7 +788,7 @@ input[type="number"] {
     transform: translate(-50%, -50%) rotate(360deg);
   }
 }
-.arena[data-skin="anime"] .arena-clash::before {
+[data-skin="anime"] .arena-clash::before {
   content: "";
   position: absolute;
   left: 50%;
@@ -736,7 +819,7 @@ input[type="number"] {
     transform: scale(1);
   }
 }
-.arena[data-skin="anime"] .arena-speedlines {
+[data-skin="anime"] .arena-speedlines {
   display: block;
   opacity: 0;
   border-radius: inherit;
@@ -749,9 +832,35 @@ input[type="number"] {
 /* Energy: upright gold cards and rested grey ones, each outlined. They are the
    same tiny cards as on the night table, so the card rule above outlines them;
    this only turns the rested ones to paper. */
-.arena[data-skin="anime"] .arena-card.brightness-75 {
+[data-skin="anime"] .arena-card.brightness-75 {
   filter: saturate(0.35) brightness(1.05);
   background: #c6d2e0;
+}
+
+/* The night table, pinned onto one board with `data-skin="night"` while the
+   app around it wears the sky (`?skin=night` on a game page): the theme's own
+   values, restated so the nearer attribute wins the cascade. */
+[data-skin="anime"] .arena[data-skin="night"] {
+  color-scheme: dark;
+  --color-space-50: #eef1f8;
+  --color-space-100: #d5dbeb;
+  --color-space-200: #aab5d1;
+  --color-space-300: #7d8bb0;
+  --color-space-400: #56648b;
+  --color-space-500: #3d4869;
+  --color-space-600: #2c3550;
+  --color-space-700: #20273c;
+  --color-space-800: #161b2b;
+  --color-space-900: #0f1220;
+  --color-space-950: #090b15;
+  --color-ki-300: #ffc46b;
+  --color-ki-400: #ffa733;
+  --color-ki-500: #f28c0f;
+  --color-ki-600: #c46d08;
+  --color-gain: #34d399;
+  --color-loss: #f87171;
+  --ink: var(--color-space-600);
+  --card-back: radial-gradient(circle at 50% 135%, var(--color-ki-500) 0 14%, var(--color-space-700) 15% 60%, var(--color-space-900) 61%);
 }
 
 /* Reduced motion zeroes every animation, the skin's included — kept after the skin so it wins. */
@@ -769,8 +878,8 @@ input[type="number"] {
   .arena-nope,
   .arena-chip,
   .arena-speedlines,
-  .arena[data-skin="anime"] .arena-ring-legal,
-  .arena[data-skin="anime"] .arena-clash::before {
+  [data-skin="anime"] .arena-ring-legal,
+  [data-skin="anime"] .arena-clash::before {
     animation-duration: 0.01ms;
     animation-iteration-count: 1;
   }

@@ -328,7 +328,26 @@ ink on paper 18:1, `space-300` 7.5:1, `space-400` 5.5:1, the strip's sky blue 9.
 `skinFrom` now falls back to `anime` and `night` is the one you choose (decision 1 amended). The
 night table stays maintained and stays as good as it was.
 
+**Then the whole app (same day, owner's request; decision 3 amended).** The scope moved from the
+board's root to `<html>`: the root layout reads the `arenaSkin` cookie and stamps `data-skin` there,
+so the token block repaints every Tailwind utility in the app, and the sky is the body's own ground
+(sized to the viewport, not fixed, which phones scroll badly) with the screentone behind it. The
+board-only rules (card faces, aura, starburst, speed lines, the strips) stay scoped under `.arena`;
+the app gets its own short set: bordered rounded panels become white stickers with an ink edge and
+the hard shadow, buttons and links with a shape do the same (a `.tap` that is only a word stays a
+word), inputs and selects sit on paper, the header and the phone's tab bar are paper with an inked
+edge, `h1` takes the display face without the stroke, and card art everywhere gets the ink frame.
+A few text classes tuned for the dark ground are remapped on paper (`text-space-950` to ink,
+`text-ki-400` to the dark ki, `text-dbs-yellow` to a readable ochre). A board can still be pinned
+back to the night table with `?skin=night` on a game page: the night tokens are restated under
+`[data-skin="anime"] .arena[data-skin="night"]` so the nearer attribute wins. The setting lives on
+the Settings page as "Look", beside the board's own toggle; both set the same cookie and
+revalidate the whole app. The manifest and `themeColor` are still untouched (decision 6): the
+splash stays dark while the app is light, which is the owner's call to change.
+
 Verified here: typecheck, lint, `npm test`, both skins at 360 and 390 px from the golden fixtures,
+seven app pages (home, settings, cards, decks, arena, collection, add) in both skins at 390 px
+against an in-memory Postgres,
 reduced motion zeroing the aura (the reduced-motion block was moved after the skin so it wins),
 and `themeColor` / `manifest.ts` untouched. Not yet done: a game on the phone in each skin, which
 is the gate §5 shares with the motion spec.
