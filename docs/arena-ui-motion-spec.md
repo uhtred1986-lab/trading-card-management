@@ -198,21 +198,35 @@ to that point is checked.
 ("try the new board"), with `?board=classic` as an escape hatch. A cookie, not a column: it is read
 server-side in `page.tsx`, survives reloads on the phone, and needs no migration.
 
+**Built**, as `src/components/arena/stage/`:
+
 | File | What it owns |
 |---|---|
-| `ArenaStage.tsx` | Composition root. Same props as `ArenaBoard`, plus `beats`. |
-| `Card.tsx` | `motion.div` with `layoutId={card.id}`, wrapping today's `ArenaCard` face. |
-| `Stage.tsx` | The two Battle Areas, the clash band, zone anchors. |
-| `Hand.tsx` | The bottom sheet (§6). |
-| `SideRail.tsx` | Leader, life, energy, counters — today's `SidePanel`, folded for the phone. |
-| `PromptBar.tsx` | The one question, the primary actions, Skip while playing back. |
-| `BeatPlayer.ts` | The hook from A4. |
-| `Ghosts.tsx` | The overlay layer for cards that have left. |
-| `motion.ts` | Every duration and easing, in one table. |
+| `ArenaStage.tsx` | Composition root, and the layout: stage, battle rows, clash band, side rails, prompt bar, hand. |
+| `StageCard.tsx` | `motion.div` with `layoutId={card.id}` around today's `ArenaCard` face. |
+| `useBeatPlayer.ts` | The hook from A4: the queue, `suppressed`, `ghosts`, `skip`. |
+| `Ghosts.tsx` | The overlay for cards that have already left. |
+| `anchors.tsx` | `ZoneAnchor` and `anchorPoint` — rectangles for the piles that are only a number. |
+| `motion.ts` | Every duration, which beat feels like what, and which beats bring a card in or take one away. |
 
-Everything already worth keeping is carried over rather than re-earned: the safe-centred hand, the
-attack beam's DOM measurement, the long-press inspector, the `--arena` scale, the tap-then-target
-flow, `shortLabel`, `plainText`, the report-a-bug button.
+Everything already worth keeping is carried over rather than re-earned — and the parts that are not
+layout were *extracted* rather than copied, into `src/components/arena/shared.tsx`, which both
+boards now import: the step banner, skill spotlight, attack beam, card preview, inspector, sheet,
+`shortLabel` and `plainText`. Neither board can drift from the other on what a card says about
+itself, and Phase F is a deletion rather than a salvage.
+
+Three things the build settled:
+
+- **`Hand.tsx` and `PromptBar.tsx` did not need to exist.** Both are a dozen lines inside the
+  composition root, and splitting them out would have been filing rather than design. The hand
+  becomes its own component when it becomes a bottom sheet, in Phase D.
+- **Ghost positions are measured when the beat plays**, not when the ghost renders — reading the
+  DOM during render is unsound, and the moment the card left is the honest answer to where it was.
+- **The `ko` beat now carries `owner`.** Without it a client cannot know which side of the board a
+  dead card should fly out of, and the card itself is gone by the time anyone asks. Contract §4.
+
+The board is chosen by a `boardStyle` cookie, set from a control in the game's header, with
+`?board=stage` / `?board=classic` overriding for one load.
 
 ---
 
@@ -326,7 +340,7 @@ is also step 1 of the Android plan, so it is done once and both clients start fr
 |---|---|---|---|
 | 1 | A — beat stream (**shared**, contract §2–§6) | nothing visible; `npm test` covers it | **built** |
 | 2 | B — phone shell | the *current* board, installable and full-bleed, with haptics | **built** |
-| 3 | C — new board behind the cookie | a board to play with, animated from beats | next |
+| 3 | C — new board behind the cookie | a board to play with, animated from beats | **built** |
 | 4 | D — ergonomics | the hand sheet, the log sheet, "what can I do?" | — |
 | 5 | E — storyboard | the moments in §7, one at a time | — |
 | 6 | F — cutover | one board again | — |

@@ -35,7 +35,8 @@ export type Beat =
   | { t: "clash"; attacker: string; guard: string; attackPower: number; guardPower: number; hit: boolean }
   /** `cards` are the life cards taken, so they can be flown to hand or Drop. */
   | { t: "damage"; player: PlayerId; amount: number; critical: boolean; cards: string[] }
-  | { t: "ko"; card: string }
+  /** `owner` because a KO'd card is gone: a client must know which side to draw it leaving from. */
+  | { t: "ko"; card: string; owner: PlayerId | null }
   | { t: "negated" }
   | { t: "skill"; card: string; label: string; text: string; unread: boolean }
   /** Claude's table talk, added by `run.ts` rather than by the engine. */
@@ -198,7 +199,7 @@ export function toBeats(ctx: EngineContext, state: GameState, events: GameEvent[
         break;
       case "ko":
         remember(e.card);
-        push({ t: "ko", card: e.card });
+        push({ t: "ko", card: e.card, owner: ownerOf(state, e.card) });
         break;
       case "attackNegated":
         push({ t: "negated" });
@@ -236,6 +237,20 @@ export function toBeats(ctx: EngineContext, state: GameState, events: GameEvent[
   }
 
   return { seq: n, list, art };
+}
+
+/**
+ * Whose card this is, found by looking for it.
+ *
+ * A KO'd card has already moved to its owner's Drop by the time the events are
+ * translated, so the answer is there; `null` only if it left the game entirely.
+ */
+function ownerOf(state: GameState, id: string): PlayerId | null {
+  for (const p of ["p1", "p2"] as PlayerId[]) {
+    const ps = state.players[p];
+    if (ps.drop.includes(id) || ps.battle.includes(id) || ps.removed.includes(id) || ps.warp.includes(id)) return p;
+  }
+  return null;
 }
 
 /** Add a batch to a game's queue, keeping it bounded. */

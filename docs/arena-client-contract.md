@@ -138,6 +138,9 @@ Four things the build settled that the first draft of this section had wrong:
   animates at the guard and flies specific life cards, and both were already in the events.
 - **A leader turning back does not get a `flip` beat.** Only the awakening does; there is no moment
   to show for the other direction.
+- **`ko` carries `owner`.** Added while building the ghost layer: a KO'd card is gone from the board
+  by the time anyone looks, so without it a client cannot tell which side it should fly out of.
+  `null` only if the card left the game entirely.
 
 Three properties the clients depend on, all of which are the server's job:
 
