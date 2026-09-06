@@ -2501,6 +2501,49 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   // identical and the condition always true, which is worse than a gap.
   assert.deepEqual(one("[Auto] When this card attacks, if all of your energy is thoroughly cromulent, draw 1 card.").unsupported, ["if all of your energy is thoroughly cromulent"]);
 
+  // One end of the battle rather than either (BT4-085). A card of yours doing
+  // the attacking is not one being attacked, and "one of" is the article.
+  const guard = one("[Auto] When you combo with this card, if one of your yellow Battle Cards is being attacked, this card gains +10000 combo power for the duration of the turn.");
+  assert.deepEqual(guard.unsupported, []);
+  assert.match(JSON.stringify(guard.ops), /"kind":"inBattle".*"role":"guard"/);
+  assert.match(JSON.stringify(one("[Auto] When this card attacks, if this card is attacking, draw 1 card.").ops), /"role":"attacker"/);
+
+  // "If you use this skill to play a Battle Card with [Over Realm]" (BT3-121):
+  // what the play earlier in this same skill turned out to be, not anything
+  // the board holds.
+  const overRealm = one("[Activate: Main] Choose up to 1 Battle Card in your Warp with an energy cost of 4 or less and play it. If you use this skill to play a Battle Card with [Over Realm], draw 1 card.");
+  assert.deepEqual(overRealm.unsupported, []);
+  assert.match(JSON.stringify(overRealm.ops), /"op":"if","cond":\{"kind":"varMatches","var":"c0"/);
+  assert.match(JSON.stringify(overRealm.ops), /"keywords":\["Over Realm"\]/);
+
+  // Two colours joined by "and" are one target phrase (XD1-05). Cut there, the
+  // halves are a verb whose object is a colour and a bare noun phrase.
+  assert.deepEqual(splitClauses("reduce the combo cost of blue and yellow ≪Universe 6≫ cards in your hand by 1"), ["reduce the combo cost of blue and yellow ≪Universe 6≫ cards in your hand by 1"]);
+  assert.deepEqual(one("[Auto] When you play this card, reduce the combo cost of blue and yellow ≪Universe 6≫ cards in your hand by 1 for the duration of the turn.").unsupported, []);
+
+  // "If they don't KO a card this way" (EX03-16) is "if they don't" with the
+  // action spelled out again, and "they instead …" is the same branch saying
+  // so twice. Both halves of the sentence have to read, or the trailing move
+  // binds to the card that was *not* chosen.
+  const orElse = one("[Auto] When you play this card, your opponent may choose 1 of their Battle Cards and KO it. If they don't KO a card this way, they instead choose 2 cards in their hand and place them in their Drop Area.");
+  assert.deepEqual(orElse.unsupported, []);
+  const branch = JSON.stringify(orElse.ops).match(/"cond":\{"kind":"not","cond":\{"kind":"chose","var":"c0"\}\},"then":\[([^\]]*)\]/);
+  assert.ok(branch, "the second sentence is the other branch of the offer");
+  assert.match(branch[1], /"op":"discard","n":2,"side":"opponent"/, "and it is the opponent discarding 2, not the KO'd card moving again");
+  // A condition about the board still reads as one.
+  assert.match(JSON.stringify(one("[Activate: Main] If you don't have a Unison in play, draw 1 card.").ops), /"op":"if"/);
+
+  // The alternative cost told over two sentences (BT4-070, BT4-097): the price
+  // as something you may do when the [Counter] is activated, the waiver
+  // hanging on "if you do so". Clause by clause it became a *play* of this
+  // card, which is not what any of it says.
+  const alt = one(
+    "[Permanent] If your Leader Card is ≪Goku's Lineage≫, when you activate this card's [Counter], you may choose 1 card in your life and add it to your hand. If you do so, you may activate this card's [Counter] without paying its energy cost.",
+  );
+  assert.deepEqual(alt.unsupported, []);
+  assert.match(JSON.stringify(alt.ops), /"kind":"leaderMatches".*"traits":\["goku's lineage"\]/);
+  assert.match(JSON.stringify(alt.ops), /\{"op":"altCost","pay":"life","n":1\}/);
+
   // A combo from the Drop.
   const cf = one("[Activate: Battle] Use up to 1 green card with 5000 combo power from your Drop in a combo with its skills negated for the battle.");
   assert.deepEqual(cf.unsupported, []);

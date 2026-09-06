@@ -97,6 +97,7 @@ export function splitClauses(text: string): string[] {
         !andJoinsTwoAreas(text, start, i) &&
         !andJoinsTwoCountedAreas(text, start, i) &&
         !andJoinsARange(text, start, i) &&
+        !andJoinsColours(text, start, i) &&
         !andJoinsTwoSwitched(text, start, i) &&
         // "This card gains +5000 power **and** [Critical] during your turn":
         // one subject given two things, and the half after the "and" is a
@@ -230,6 +231,16 @@ function andJoinsTwoCountedAreas(text: string, start: number, i: number): boolea
  */
 function commaJoinsColours(text: string, comma: number): boolean {
   return /\b(?:red|blue|green|yellow|black)\s*$/i.test(text.slice(0, comma)) && /^,\s*(?:red|blue|green|yellow|black)\b/i.test(text.slice(comma));
+}
+
+/**
+ * The same list written with "and": "reduce the combo cost of blue **and**
+ * yellow ≪Universe 6≫ cards in your hand by 1" (XD1-05). Cut there, the halves
+ * are "reduce the combo cost of blue" — a verb whose object is a colour — and
+ * a bare noun phrase, and neither is a clause.
+ */
+function andJoinsColours(text: string, start: number, i: number): boolean {
+  return /\b(?:red|blue|green|yellow|black)\s*$/i.test(text.slice(start, i)) && /^ and (?:red|blue|green|yellow|black)\b/i.test(text.slice(i));
 }
 
 /**
@@ -1158,6 +1169,19 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
       if (JSON.stringify(whole) !== JSON.stringify(part)) return { cond: { kind: "every", sel: whole, matching: part }, subject: { sel: whole } };
     }
   }
+  // "If one of your yellow Battle Cards **is being attacked**" (BT4-085), "if
+  // this card is attacking": one end of the battle rather than either (8-1).
+  // "One of" is the article, not a count — the condition asks whether any of
+  // them is there.
+  if ((m = /^(?:if )?(.+?) (is|isn't|is not) (being attacked|attacking)$/.exec(t))) {
+    const sel: Selector | null = m[1] === "this card" ? { special: "self" } : parseTarget(m[1].replace(/^(?:one|any) of /, ""));
+    if (sel) {
+      delete sel.count;
+      delete sel.upTo;
+      const role = m[3] === "being attacked" ? "guard" : "attacker";
+      return { cond: { kind: "inBattle", sel, role, ...(m[2] === "is" ? {} : { not: true }) }, subject: { sel } };
+    }
+  }
   // "If this card is in a battle", "if this card isn't in a battle", "if your
   // <Son Goku> card is in a battle" (8-1).
   if ((m = /^(this card|.+?) (is|isn't|is not) in a battle$/.exec(t))) {
@@ -1254,7 +1278,14 @@ function connective(clause: string): "skip" | "ifDone" | "ifNotDone" | "otherwis
   // "…your opponent may choose 1 of their Battle Cards and KO it. **If they
   // don't**, …" — the same hinge as "if you don't", said about whoever the
   // clause before it asked. 29 clauses, and each one failed a whole skill.
-  if (/^(?:if (?:you|they) don'?t|if not|if (?:you|they) didn'?t|if (?:you|they) do not|if they did not)$/.test(t)) return "ifNotDone";
+  // "…**If they don't KO a card this way**, they instead choose 2 cards in
+  // their hand" (EX03-16): the hinge with the action it is about spelled out
+  // again. What it names is always the offer just before it, so the words in
+  // between say nothing the bare form does not — but only when the sentence
+  // ends by pointing back at this skill, so "if you don't have a Unison in
+  // play" stays a condition about the board.
+  if (/^(?:if (?:you|they) (?:don'?t|do not|didn'?t|did not))(?:\s+[a-z0-9'<>≪≫{}\- ]+?\s+(?:this way|with this skill))?$/.test(t)) return "ifNotDone";
+  if (/^if not$/.test(t)) return "ifNotDone";
   if (/^(?:if they do|if they did)$/.test(t)) return "ifDone";
   // 20-12-3: after looking, the cards go back where they were; the order is
   // the player's and changes nothing the engine tracks.
@@ -1280,7 +1311,10 @@ function connective(clause: string): "skip" | "ifDone" | "ifNotDone" | "otherwis
   // "When this card is played using [Over Realm], activate this skill" — the
   // skill saying that it happens, which it is already doing.
   if (/^activate this skill$/.test(t)) return "skip";
-  if (/^when you activate this card's \[counter\][a-z: ]*skill$/.test(t)) return "skip";
+  // The word "skill" is optional in print: BT4-097 says "when you activate
+  // this card's [Counter]" and BT5-050 "…[Counter] skill", meaning the same
+  // moment — the one this skill is already about.
+  if (/^when you activate this card's \[counter[a-z: ]*\](?: skill)?$/.test(t)) return "skip";
   // Deck-building permissions are not rules of play (6-1), like the
   // restrictions their opposite numbers print.
   if (/^you can include as many copies of this card in your deck as you like$/.test(t)) return "skip";
@@ -2356,6 +2390,24 @@ function compileSkillText(skill: Skill): Script {
   // the clause list as an orphan, so the whole sentence is read before that.
   const permission = counterAltCost(text.toLowerCase().trim().replace(/^you (?:can|may)\s+/, ""), c);
   if (permission) return { ops: permission, unsupported: [] };
+  // The same offer told over two sentences (BT4-070, BT4-097): the price
+  // first, as something you may do at the moment the [Counter] is activated,
+  // and the waiver second, hanging on "if you do so". Read clause by clause it
+  // becomes a choice out of your life and then a *play* of this card, which is
+  // not what any of it says — so the pair is matched whole, ahead of the split.
+  const overTwo =
+    /when you activate this card's \[counter[^\]]*\](?: skill)?,\s*you may (?:choose|add) (a|an|\d+) cards? (?:in|from) your life(?: and add (?:it|them) to your hand)?\.?\s*if you do(?: so)?,\s*you may activate this card's \[counter[^\]]*\](?: skill)? without paying (?:its|the) energy cost/i.exec(
+      text,
+    );
+  if (overTwo) {
+    const alt: Op[] = [{ op: "altCost", pay: "life", n: countWord(overTwo[1]) }];
+    // "If your Leader Card is ≪Goku's Lineage≫, when you activate…": the
+    // permission only stands while the condition does.
+    const lead = /^if (.+?),\s*when you activate/i.exec(text);
+    const cond = lead ? parseConditionClause(`if ${lead[1]}`, true) : null;
+    if (lead && !cond) return { ops: [], unsupported: [lead[1]] };
+    return { ops: cond ? [{ op: "if", cond: cond.cond, then: alt }] : alt, unsupported: [] };
+  }
   // "Choose 1 {Tree of Might} … and place this card under the chosen card:
   // **Add a marker to the chosen card**" — the effect points back at what the
   // price chose. The price is its own program, and the engine hands its
@@ -2588,6 +2640,24 @@ function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op
       }
     }
 
+    // "If you use this skill to play a Battle Card with [Over Realm]"
+    // (BT3-121) — what the play earlier in this same skill turned out to be.
+    // Only the card this skill played counts, so it is the play's own variable
+    // rather than anything the board holds.
+    // Several play patterns name their own variable; "…and play it" is the
+    // choice just before it, and that is only the played card when the clause
+    // before this one was in fact the play.
+    const played = c.lastPlayed ?? (c.lastOp === "play" ? c.last : null);
+    if (played) {
+      const used = /^(?:if )?you (?:use|used) this skill to play (.+)$/i.exec(clause.trim().replace(/[.,]$/, ""));
+      const filter = used ? filterFor(used[1], null) : undefined;
+      if (used && filter) {
+        groups.push({ conds: [{ kind: "varMatches", var: played, filter }], ops: [] });
+        c.lastTarget = { var: played };
+        continue;
+      }
+    }
+
     // A condition opens a group: everything after it depends on it holding.
     // A second condition with nothing between them joins the same group, so
     // both have to hold rather than the first being quietly dropped.
@@ -2604,7 +2674,13 @@ function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op
     // of every move pattern but one — "send it to the Warp instead" was
     // unreadable while "send it to the Warp" was not. It says nothing the
     // pending `c.replacing` has not already said, so it comes off first.
-    const said = c.replacing ? clause.replace(/[\s,]+instead[.\s]*$/i, "") : clause;
+    // "…**they instead** choose 2 cards in their hand" (EX03-16): the adverb
+    // restating that this is the other branch of the "if they don't" before
+    // it. A replacement's "instead" is at the *end* of its clause (9-10); one
+    // at the front is emphasis only, and it stopped every pattern below from
+    // recognising an otherwise ordinary sentence.
+    const plain = clause.replace(/^((?:your opponent|they|you)\s+)?instead[,\s]+/i, "$1");
+    const said = c.replacing ? plain.replace(/[\s,]+instead[.\s]*$/i, "") : plain;
     // 20-16: "your opponent **may** choose 1 of their Battle Cards and KO it"
     // — the offer is theirs to decline, and the "if they don't" after it reads
     // their answer. `compileClause` strips "you may" so every pattern sees a
@@ -2856,7 +2932,7 @@ function describeCond(c: Cond): string {
       return `${describeSelector(c.sel)} has ${bound} markers`;
     }
     case "inBattle":
-      return `${describeSelector(c.sel)} is ${c.not ? "not " : ""}in a battle`;
+      return `${describeSelector(c.sel)} is ${c.not ? "not " : ""}${c.role === "guard" ? "being attacked" : c.role === "attacker" ? "attacking" : "in a battle"}`;
     case "every":
       return `all of ${describeSelector(c.sel)} is ${describeSelector(c.matching)}`;
     case "leaderFlipped":

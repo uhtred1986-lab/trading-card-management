@@ -433,7 +433,8 @@ export function condHolds(ctx: GameContext, s: GameState, frame: ScriptFrame, c:
     }
     case "inBattle": {
       const b = s.battle;
-      const inBattle = !!b && resolveSelector(ctx, s, frame, c.sel).some((id) => b.attacker === id || b.guard === id);
+      const inBattle =
+        !!b && resolveSelector(ctx, s, frame, c.sel).some((id) => (c.role === "attacker" ? b.attacker === id : c.role === "guard" ? b.guard === id : b.attacker === id || b.guard === id));
       return c.not ? !inBattle : inBattle;
     }
     case "every": {

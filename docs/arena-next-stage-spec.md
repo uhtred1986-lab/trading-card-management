@@ -730,6 +730,42 @@ is why no fuzzed game has produced one.
 inbox — `npm run arena:feedback` prints it. Work items filed there take
 precedence over this backlog when they concern a deck the owner plays.
 
+### 6.16 What is left of `/arena/backlog`'s open list (7 Sep 2026)
+
+The open list held 131 notes. **108 were stale** — wordings the compiler had
+since learned, still sitting there because nothing re-checks a note against the
+current compiler. Of the 23 that were real, 11 are now read; these 12 are
+what remain, each with the owner's ruling so the next session does not have to
+ask again. None is a phrasing gap: every one needs a mechanism the engine does
+not have.
+
+| card | clause | the ruling, and what it needs |
+|---|---|---|
+| BT3-096, BT3-098 | "evolve it into this card" | 22-5-2-3: "evolve" means play this card as if with [Evolve], on top of the chosen `<Tora>`/`<Fasha>`, paying nothing. The card is in the **Combo Area** when this fires, which 22-5-4 ("only from a player's hand") does not obviously allow. **Owner's decision, 7 Sep 2026: leave it to the referee** rather than guess. Do not compile it. |
+| BT3-049 | "Gain all of the chosen card's skills for the duration of the turn" | This card gains the skills of the chosen `<South Supreme Kai>` under it, for the turn — the point of the card, since 23-2-2 negates them while they are under. Needs skill copying: a card whose `skillsOf` is another card's, for a duration. Nothing in the language says that. |
+| BT3-039 | "You can use this card to pay energy costs even when it's in your Battle Area" | While it is in your Battle Area you may rest it to pay an energy cost as if it were one energy of its own colour; it stays a Battle Card in the Battle Area. Needs `planPayment` to accept a payment source outside the Energy Area. |
+| EX03-16 | "the [evolve] cost is decreased by {g}{g}" when evolving into a differently-named `<Broly>` from hand | A cost static on **[Evolve]** costs, applying when this card is the evolve target. `collectStatics` has `cost`/`comboCost` kinds only; this is a third, and `orbTotals` is where an Evolve's price is computed. Same family as §6.6's skill costs. |
+| BT3-050 | "When this card is under a card, the `<Majin Buu>` on top of this card gains [barrier]" | A [Permanent] that keeps working from under a card — 23-2-2-4 exempts exactly this trigger from the negation — granting [Barrier] to its host when the host is a `<Majin Buu>`. §6.12's "statics from cards under cards", plus `Selector.special: "above"`. |
+| BT3-051 | "place all the cards under this card in the Drop Area instead" | A replacement where the card **stays** and its whole under-stack goes to the Drop instead. `replaceLeave` can only redirect the card itself to another area; this needs a replacement whose substitute is a different action. |
+| BT3-104 | "your opponent's can only attack one more time with Battle Cards for the duration of the turn" | After this resolves the opponent may declare at most **one** further attack with a Battle Card this turn; Leader attacks are untouched. Needs a counted prohibition — `forbid` is all-or-nothing and has no remaining-uses. |
+| SD3-01 | "If you place a black card in the Drop Area with this skill" / "If a card of any other color is placed in the Drop Area" | Both read the three cards the skill's **cost** put in the Drop: a black one among them grants [Critical], a non-black one also grants +5000, and both can apply at once. The cost program would have to bind the cards it milled to a variable the effect can see — `costVarsKey` already carries a price's *choices* across, so this is the same road, for a `mill`. |
+| EX02-01 | "place the remaining cards on the top or bottom of your deck in any order" | You return each un-taken card to the top or the bottom, in an order you choose. Needs `Ref = { var; minus }` (§6.1) **and** a per-card top/bottom prompt, which no op offers. |
+
+Two more things this pass turned up that no measure on that page can see:
+
+- **`/arena/backlog` never re-checks a note.** 108 of 131 open notes were
+  fixed long ago. `unreadClausesOf` is already the whole test — a sweep that
+  closes a note whose clause now compiles would keep the page honest.
+- **Five non-[Permanent] skills read cleanly and then do nothing**: BT30-053,
+  BT21-118, BT22-062, BT27-070 and XD1-05 all compile to `costReduction`, which
+  `script.ts` deliberately does not carry out because `collectStatics` turns it
+  into a standing effect — and that only ever runs over a [Permanent] (9-5-1).
+  "Reduce the combo cost of … **for the duration of the turn**" on an [Auto] is
+  a *timed* cost effect, which no `StaticEffect` kind can express. Marking them
+  unread instead was tried and reverted: the referee would answer with the same
+  inert op, and it contradicts the test that asserts the wording compiles. The
+  fix is a duration on the cost effect, not a change to the compiler.
+
 ---
 
 ## 6a. What this stretch of work taught (5–6 Sep 2026)

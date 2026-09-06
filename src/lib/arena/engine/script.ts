@@ -128,8 +128,13 @@ export type Cond =
   | { kind: "leaderMatches"; filter: CardFilter; side?: Side; back?: boolean }
   /** "If this card has 3 or more markers on it" (13-2): the markers on the selected cards, added up. */
   | { kind: "markers"; sel: Selector; atLeast?: number; atMost?: number }
-  /** "If this card is in a battle" (8-1): any of the selected cards is the attacker or the guard. */
-  | { kind: "inBattle"; sel: Selector; not?: boolean }
+  /**
+   * "If this card is in a battle" (8-1): any of the selected cards is the
+   * attacker or the guard. `role` narrows it to one end of the battle — "if
+   * one of your yellow Battle Cards **is being attacked**" (BT4-085) is about
+   * the guard card, and a card of yours doing the attacking is not that.
+   */
+  | { kind: "inBattle"; sel: Selector; not?: boolean; role?: "attacker" | "guard" }
   /**
    * "If **all** of your opponent's energy is in Rest Mode" (XD1-01): every card
    * `sel` finds is also one that `matching` finds. Two selectors rather than a
