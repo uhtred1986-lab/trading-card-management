@@ -97,6 +97,7 @@ export function splitClauses(text: string): string[] {
         !andJoinsTwoAreas(text, start, i) &&
         !andJoinsTwoCountedAreas(text, start, i) &&
         !andJoinsARange(text, start, i) &&
+        !andJoinsColours(text, start, i) &&
         !andJoinsTwoSwitched(text, start, i) &&
         // "This card gains +5000 power **and** [Critical] during your turn":
         // one subject given two things, and the half after the "and" is a
@@ -230,6 +231,16 @@ function andJoinsTwoCountedAreas(text: string, start: number, i: number): boolea
  */
 function commaJoinsColours(text: string, comma: number): boolean {
   return /\b(?:red|blue|green|yellow|black)\s*$/i.test(text.slice(0, comma)) && /^,\s*(?:red|blue|green|yellow|black)\b/i.test(text.slice(comma));
+}
+
+/**
+ * The same list written with "and": "reduce the combo cost of blue **and**
+ * yellow ≪Universe 6≫ cards in your hand by 1" (XD1-05). Cut there, the halves
+ * are "reduce the combo cost of blue" — a verb whose object is a colour — and
+ * a bare noun phrase, and neither is a clause.
+ */
+function andJoinsColours(text: string, start: number, i: number): boolean {
+  return /\b(?:red|blue|green|yellow|black)\s*$/i.test(text.slice(start, i)) && /^ and (?:red|blue|green|yellow|black)\b/i.test(text.slice(i));
 }
 
 /**
@@ -637,6 +648,13 @@ interface Ctx {
   /** The variable the last `choose` bound. */
   last: string | null;
   /**
+   * Every choice the skill has made so far, in order. "The chosen card" means
+   * the last one, but a skill that chooses twice has to name them apart —
+   * "place **the chosen opponent Battle Card** under **the chosen <Majin
+   * Buu>**" (BT3-052, BT3-054) — and the description is what says which.
+   */
+  choices: { var: string; sel: Selector }[];
+  /**
    * A [Permanent] never *acts*, so its "you can …" is a standing permission
    * rather than an offer to do something now (9-5-1) — and wrapping one in a
    * decision hides it from the static layer entirely.
@@ -692,6 +710,52 @@ function headOf(clause: string): string {
   return clause.replace(/\s+(?:with|on top of|beneath)\b.*$/i, "");
 }
 
+/**
+ * "The chosen opponent Battle Card", "the chosen <Majin Buu>" — which of the
+ * choices the skill already made this one means (5-2).
+ *
+ * The description is matched against what each `choose` actually asked for:
+ * whose cards, what type, which characters, traits, names and colours. Every
+ * discriminator the phrase carries has to be one the choice asked for, so
+ * "opponent" can never come back with your own card. Only a single clear
+ * winner is returned — a tie, or a phrase with nothing to tell them apart, is
+ * left to the referee, because naming the wrong half of a two-card choice
+ * moves the wrong card.
+ */
+function chosenRef(desc: string, c: Ctx): Ref | null {
+  if (!c.choices.length) return null;
+  const want = parseFilter(desc);
+  const t = desc.toLowerCase();
+  const side: Side | null = /\bopponent'?s?\b/.test(t) ? "opponent" : /\byour\b|\byou control\b/.test(t) ? "you" : null;
+  const covers = (have: readonly string[], need: readonly string[]) => need.every((n) => have.some((h) => h.toLowerCase() === n.toLowerCase()));
+
+  let best: { name: string; score: number } | null = null;
+  let tied = false;
+  for (const ch of c.choices) {
+    const f = ch.sel.filter;
+    if (side && ch.sel.side && ch.sel.side !== side) continue;
+    // A type the choice did not state is unknown, not a mismatch: "1 of your
+    // opponent's Battle Cards" is read as the Battle Area, which leaves
+    // `type` null on a filter that means Battle Cards all the same.
+    if (want.type && f?.type && want.type !== f.type) continue;
+    if (!covers(f?.characters ?? [], want.characters)) continue;
+    if (!covers(f?.traits ?? [], want.traits)) continue;
+    if (!covers(f?.names ?? [], want.names)) continue;
+    if (!covers(f?.colors ?? [], want.colors)) continue;
+    let score = want.characters.length + want.traits.length + want.names.length + want.colors.length;
+    if (side && ch.sel.side === side) score++;
+    if (want.type && f?.type === want.type) score++;
+    // "The chosen card" says nothing that picks one of them out; the plain
+    // back-reference is what that means.
+    if (!score) continue;
+    if (!best || score > best.score) {
+      best = { name: ch.var, score };
+      tied = false;
+    } else if (score === best.score) tied = true;
+  }
+  return best && !tied ? { var: best.name } : null;
+}
+
 function refFor(clause: string, c: Ctx): Ref | null {
   // "Play up to 1 red ≪Universe 7≫ card from **under this card**" — here
   // "this card" says where to look, or where the card goes, not which card is
@@ -728,7 +792,20 @@ function refFor(clause: string, c: Ctx): Ref | null {
   // this card's skill** can't be switched to Active Mode" is the same thing
   // said the long way, and it used to read as this card — so the restriction
   // landed on the card printing it instead of on what it had just chosen.
-  if (/\bthe chosen cards?\b|\bcards? chosen with this card'?s skill\b/i.test(clause)) return c.last ? { var: c.last } : c.lastTarget;
+  if (/\bcards? chosen with this card'?s skill\b/i.test(clause)) return c.last ? { var: c.last } : c.lastTarget;
+  // "The chosen …" always points back at a choice already made, so it is
+  // answered here or not at all — reading it as a fresh description would turn
+  // "the chosen <Majin Buu>" into every <Majin Buu> you have.
+  if (/\bthe chosen\b/i.test(clause)) {
+    // "Place the chosen opponent Battle Card under the chosen <Majin Buu>":
+    // which choice it means, when the phrase says enough to tell.
+    const ref = chosenRef(clause, c);
+    if (ref) return ref;
+    // "Add a marker to the chosen card": nothing to tell them apart, so it is
+    // the last choice, as it has always been.
+    if (/\bthe chosen cards?\b/i.test(clause)) return c.last ? { var: c.last } : c.lastTarget;
+    return null;
+  }
   // "Add up to 1 <Son Goku> card among them to your hand" names its own target
   // and only says *where to look* for it. Read before "it"/"them", which would
   // otherwise take the "them" and hand back whatever the last clause acted on.
@@ -1075,6 +1152,36 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   if ((m = /^this card has (\d+) or (more|less|fewer) markers?(?: on it)?$/.exec(t))) {
     return { cond: { kind: "markers", sel: { special: "self" }, ...(m[2] === "more" ? { atLeast: Number(m[1]) } : { atMost: Number(m[1]) }) }, subject: { sel: { special: "self" } } };
   }
+  // "If **all** of your opponent's energy is in Rest Mode" (XD1-01): the whole
+  // set against the part of it the description picks out. Read as two
+  // selectors so that the description can be a mode as easily as a colour.
+  if ((m = /^all of (.+?) (?:is|are) (.+)$/.exec(t))) {
+    const whole = parseTarget(m[1]);
+    const part = parseTarget(`${m[1]} ${m[2]}`);
+    if (whole && part) {
+      for (const sel of [whole, part]) {
+        delete sel.count;
+        delete sel.upTo;
+      }
+      // A description `parseTarget` did not take in leaves the two selectors
+      // identical, and the condition would then always hold. That is worse
+      // than a gap, so it stays a gap.
+      if (JSON.stringify(whole) !== JSON.stringify(part)) return { cond: { kind: "every", sel: whole, matching: part }, subject: { sel: whole } };
+    }
+  }
+  // "If one of your yellow Battle Cards **is being attacked**" (BT4-085), "if
+  // this card is attacking": one end of the battle rather than either (8-1).
+  // "One of" is the article, not a count — the condition asks whether any of
+  // them is there.
+  if ((m = /^(?:if )?(.+?) (is|isn't|is not) (being attacked|attacking)$/.exec(t))) {
+    const sel: Selector | null = m[1] === "this card" ? { special: "self" } : parseTarget(m[1].replace(/^(?:one|any) of /, ""));
+    if (sel) {
+      delete sel.count;
+      delete sel.upTo;
+      const role = m[3] === "being attacked" ? "guard" : "attacker";
+      return { cond: { kind: "inBattle", sel, role, ...(m[2] === "is" ? {} : { not: true }) }, subject: { sel } };
+    }
+  }
   // "If this card is in a battle", "if this card isn't in a battle", "if your
   // <Son Goku> card is in a battle" (8-1).
   if ((m = /^(this card|.+?) (is|isn't|is not) in a battle$/.exec(t))) {
@@ -1171,7 +1278,14 @@ function connective(clause: string): "skip" | "ifDone" | "ifNotDone" | "otherwis
   // "…your opponent may choose 1 of their Battle Cards and KO it. **If they
   // don't**, …" — the same hinge as "if you don't", said about whoever the
   // clause before it asked. 29 clauses, and each one failed a whole skill.
-  if (/^(?:if (?:you|they) don'?t|if not|if (?:you|they) didn'?t|if (?:you|they) do not|if they did not)$/.test(t)) return "ifNotDone";
+  // "…**If they don't KO a card this way**, they instead choose 2 cards in
+  // their hand" (EX03-16): the hinge with the action it is about spelled out
+  // again. What it names is always the offer just before it, so the words in
+  // between say nothing the bare form does not — but only when the sentence
+  // ends by pointing back at this skill, so "if you don't have a Unison in
+  // play" stays a condition about the board.
+  if (/^(?:if (?:you|they) (?:don'?t|do not|didn'?t|did not))(?:\s+[a-z0-9'<>≪≫{}\- ]+?\s+(?:this way|with this skill))?$/.test(t)) return "ifNotDone";
+  if (/^if not$/.test(t)) return "ifNotDone";
   if (/^(?:if they do|if they did)$/.test(t)) return "ifDone";
   // 20-12-3: after looking, the cards go back where they were; the order is
   // the player's and changes nothing the engine tracks.
@@ -1197,7 +1311,10 @@ function connective(clause: string): "skip" | "ifDone" | "ifNotDone" | "otherwis
   // "When this card is played using [Over Realm], activate this skill" — the
   // skill saying that it happens, which it is already doing.
   if (/^activate this skill$/.test(t)) return "skip";
-  if (/^when you activate this card's \[counter\][a-z: ]*skill$/.test(t)) return "skip";
+  // The word "skill" is optional in print: BT4-097 says "when you activate
+  // this card's [Counter]" and BT5-050 "…[Counter] skill", meaning the same
+  // moment — the one this skill is already about.
+  if (/^when you activate this card's \[counter[a-z: ]*\](?: skill)?$/.test(t)) return "skip";
   // Deck-building permissions are not rules of play (6-1), like the
   // restrictions their opposite numbers print.
   if (/^you can include as many copies of this card in your deck as you like$/.test(t)) return "skip";
@@ -1576,7 +1693,12 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
       if (!per) return null;
       by = { count: { ...per, count: undefined, upTo: undefined }, ...(flat === 1 ? {} : { times: flat }) };
     }
-    return [{ op: "costReduction", target: ref, amount: by, ...(m[1] === "combo" ? { what: "combo" as const } : {}) }];
+    // The duration is read off the printed clause, not the qualifier-stripped
+    // one: "…for the duration of the turn" is exactly what `stripQualifiers`
+    // takes off. A [Permanent] holds while its card is valid (9-5-1) and
+    // `holdForGame` rewrites this to "game"; anywhere else it is what says how
+    // long the change is in force.
+    return [{ op: "costReduction", target: ref, amount: by, ...(m[1] === "combo" ? { what: "combo" as const } : {}), until: durationOf(clause) }];
   }
 
   // 9-1-5: negating one named keyword rather than silencing the card.
@@ -1888,7 +2010,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // "Choose 1 {Spaceship, Vessel of Hope} in your Unison Area **and place this
   // card under it**": "it" is the card the clause before just chose, which is
   // the only antecedent it can have — the host is never the card being placed.
-  if ((m = /^(?:place|put) (.+?) (?:face ?up )?under (the chosen card|the played card|the card (?:that was |you )?played(?: with this skill)?|your leader(?: card)?|it|them|that card|those cards|\{[^}]+\}(?: in your battle area)?)$/.exec(t))) {
+  if ((m = /^(?:place|put) (.+?) (?:face ?up )?under (the chosen [^,.]+|the played card|the card (?:that was |you )?played(?: with this skill)?|your leader(?: card)?|it|them|that card|those cards|\{[^}]+\}(?: in your battle area)?)$/.exec(t))) {
     const host = refFor(m[2], c);
     const ref = refFor(m[1], c);
     return host && ref ? withChoice(ref, clause, c, (target) => ({ op: "moveTo", target, to: "under", under: host })) : null;
@@ -2265,7 +2387,7 @@ function compileSkillText(skill: Skill): Script {
   const text = stripNotes(skill.effect);
   if (!text) return { ops: [], unsupported: [] };
   const unsupported: string[] = [];
-  const c: Ctx = { permanent: skill.kind === "permanent", last: null, lastSeen: null, lastPlayed: null, lastTarget: null, lastOp: null, replacing: null, n: 0, raw: skill.effect };
+  const c: Ctx = { permanent: skill.kind === "permanent", last: null, choices: [], lastSeen: null, lastPlayed: null, lastTarget: null, lastOp: null, replacing: null, n: 0, raw: skill.effect };
   // A standing permission is one sentence, not a list of actions: "you can
   // activate this card's [Counter] skill from your hand without paying its
   // energy cost **by choosing 1 other black card in your hand and placing it
@@ -2273,6 +2395,24 @@ function compileSkillText(skill: Skill): Script {
   // the clause list as an orphan, so the whole sentence is read before that.
   const permission = counterAltCost(text.toLowerCase().trim().replace(/^you (?:can|may)\s+/, ""), c);
   if (permission) return { ops: permission, unsupported: [] };
+  // The same offer told over two sentences (BT4-070, BT4-097): the price
+  // first, as something you may do at the moment the [Counter] is activated,
+  // and the waiver second, hanging on "if you do so". Read clause by clause it
+  // becomes a choice out of your life and then a *play* of this card, which is
+  // not what any of it says — so the pair is matched whole, ahead of the split.
+  const overTwo =
+    /when you activate this card's \[counter[^\]]*\](?: skill)?,\s*you may (?:choose|add) (a|an|\d+) cards? (?:in|from) your life(?: and add (?:it|them) to your hand)?\.?\s*if you do(?: so)?,\s*you may activate this card's \[counter[^\]]*\](?: skill)? without paying (?:its|the) energy cost/i.exec(
+      text,
+    );
+  if (overTwo) {
+    const alt: Op[] = [{ op: "altCost", pay: "life", n: countWord(overTwo[1]) }];
+    // "If your Leader Card is ≪Goku's Lineage≫, when you activate…": the
+    // permission only stands while the condition does.
+    const lead = /^if (.+?),\s*when you activate/i.exec(text);
+    const cond = lead ? parseConditionClause(`if ${lead[1]}`, true) : null;
+    if (lead && !cond) return { ops: [], unsupported: [lead[1]] };
+    return { ops: cond ? [{ op: "if", cond: cond.cond, then: alt }] : alt, unsupported: [] };
+  }
   // "Choose 1 {Tree of Might} … and place this card under the chosen card:
   // **Add a marker to the chosen card**" — the effect points back at what the
   // price chose. The price is its own program, and the engine hands its
@@ -2367,6 +2507,7 @@ function compileSkillText(skill: Skill): Script {
 function track(o: Op, c: Ctx): void {
   if (o.op === "choose") {
     c.last = o.as;
+    c.choices.push({ var: o.as, sel: o.sel });
     c.lastTarget = { var: o.as };
   } else if (o.op === "reveal") {
     c.lastSeen = o.as;
@@ -2504,6 +2645,24 @@ function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op
       }
     }
 
+    // "If you use this skill to play a Battle Card with [Over Realm]"
+    // (BT3-121) — what the play earlier in this same skill turned out to be.
+    // Only the card this skill played counts, so it is the play's own variable
+    // rather than anything the board holds.
+    // Several play patterns name their own variable; "…and play it" is the
+    // choice just before it, and that is only the played card when the clause
+    // before this one was in fact the play.
+    const played = c.lastPlayed ?? (c.lastOp === "play" ? c.last : null);
+    if (played) {
+      const used = /^(?:if )?you (?:use|used) this skill to play (.+)$/i.exec(clause.trim().replace(/[.,]$/, ""));
+      const filter = used ? filterFor(used[1], null) : undefined;
+      if (used && filter) {
+        groups.push({ conds: [{ kind: "varMatches", var: played, filter }], ops: [] });
+        c.lastTarget = { var: played };
+        continue;
+      }
+    }
+
     // A condition opens a group: everything after it depends on it holding.
     // A second condition with nothing between them joins the same group, so
     // both have to hold rather than the first being quietly dropped.
@@ -2520,7 +2679,13 @@ function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op
     // of every move pattern but one — "send it to the Warp instead" was
     // unreadable while "send it to the Warp" was not. It says nothing the
     // pending `c.replacing` has not already said, so it comes off first.
-    const said = c.replacing ? clause.replace(/[\s,]+instead[.\s]*$/i, "") : clause;
+    // "…**they instead** choose 2 cards in their hand" (EX03-16): the adverb
+    // restating that this is the other branch of the "if they don't" before
+    // it. A replacement's "instead" is at the *end* of its clause (9-10); one
+    // at the front is emphasis only, and it stopped every pattern below from
+    // recognising an otherwise ordinary sentence.
+    const plain = clause.replace(/^((?:your opponent|they|you)\s+)?instead[,\s]+/i, "$1");
+    const said = c.replacing ? plain.replace(/[\s,]+instead[.\s]*$/i, "") : plain;
     // 20-16: "your opponent **may** choose 1 of their Battle Cards and KO it"
     // — the offer is theirs to decline, and the "if they don't" after it reads
     // their answer. `compileClause` strips "you may" so every pattern sees a
@@ -2772,7 +2937,9 @@ function describeCond(c: Cond): string {
       return `${describeSelector(c.sel)} has ${bound} markers`;
     }
     case "inBattle":
-      return `${describeSelector(c.sel)} is ${c.not ? "not " : ""}in a battle`;
+      return `${describeSelector(c.sel)} is ${c.not ? "not " : ""}${c.role === "guard" ? "being attacked" : c.role === "attacker" ? "attacking" : "in a battle"}`;
+    case "every":
+      return `all of ${describeSelector(c.sel)} is ${describeSelector(c.matching)}`;
     case "leaderFlipped":
       return `${c.side === "opponent" ? "their" : "your"} leader ${c.flipped === false ? "has not" : "has"} awakened`;
     case "did":

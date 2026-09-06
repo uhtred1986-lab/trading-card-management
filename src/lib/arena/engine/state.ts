@@ -283,11 +283,15 @@ export function powerOf(ctx: GameContext, s: GameState, id: string): number {
   return p;
 }
 
-/** 5-7-3, 20-21: the combo cost as it stands, after any [Permanent] reducer. */
+/**
+ * 5-7-3, 20-21: the combo cost as it stands, after any reducer — a standing
+ * one from a [Permanent], or a timed one an [Auto] put in force for the turn.
+ */
 export function comboCostOf(ctx: GameContext, s: GameState, id: string): number {
   const base = def(ctx, s, id).comboCost ?? 0;
   let reduction = 0;
   for (const e of staticEffects(ctx, s)) if (e.kind === "comboCost" && e.target === id) reduction += e.value as number;
+  for (const e of s.effects) if (e.kind === "comboCost" && e.target === id) reduction += e.value as number;
   return Math.max(0, base - reduction);
 }
 
@@ -433,8 +437,16 @@ export function condHolds(ctx: GameContext, s: GameState, frame: ScriptFrame, c:
     }
     case "inBattle": {
       const b = s.battle;
-      const inBattle = !!b && resolveSelector(ctx, s, frame, c.sel).some((id) => b.attacker === id || b.guard === id);
+      const inBattle =
+        !!b && resolveSelector(ctx, s, frame, c.sel).some((id) => (c.role === "attacker" ? b.attacker === id : c.role === "guard" ? b.guard === id : b.attacker === id || b.guard === id));
       return c.not ? !inBattle : inBattle;
+    }
+    case "every": {
+      const ids = resolveSelector(ctx, s, frame, c.sel);
+      // Nothing there is not "all of it" — see the note on the Cond.
+      if (!ids.length) return false;
+      const ok = new Set(resolveSelector(ctx, s, frame, c.matching));
+      return ids.every((id) => ok.has(id));
     }
     case "any":
       return c.conds.some((x) => condHolds(ctx, s, frame, x));
@@ -1503,9 +1515,12 @@ export function playCost(ctx: GameContext, s: GameState, id: string, x = 0): { t
   const total = d.energyCost === "X" ? x : (d.energyCost ?? 0);
   const specified = d.energyCost === "X" ? {} : specifiedCostOf(d);
   const owner = s.cards[id].owner;
-  // A [Permanent] cost reducer lowers both the total and the specified cost (20-21-2).
+  // A cost reducer lowers both the total and the specified cost (20-21-2) —
+  // whether it stands from a [Permanent] or was put in force for the turn by a
+  // skill that resolved.
   let reduction = 0;
   for (const e of staticEffects(ctx, s)) if (e.kind === "cost" && e.target === id) reduction += e.value as number;
+  for (const e of s.effects) if (e.kind === "cost" && e.target === id) reduction += e.value as number;
   let cut = { total: Math.max(0, total - reduction), specified: { ...specified } };
   for (let left = reduction; left > 0; left--) {
     const c = (Object.keys(cut.specified) as Color[]).find((k) => (cut.specified[k] ?? 0) > 0);

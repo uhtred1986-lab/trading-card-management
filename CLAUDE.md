@@ -226,6 +226,12 @@ the same style.
   programs over the compiler's own reading through `ctx.scripts`, so an explained card plays
   correctly from the next game — no referee call, no tokens — while the work item is what fixes
   every card phrased the same way. The two are not the same fix and the page says so.
+  **A ruling that arrives in conversation goes to the same table, not into a commit message**:
+  `npm run arena:rule -- <cardId> [--skill N] [--clause "…"] "<the ruling>"` writes it to
+  `card_text_notes.explanation` (`--list` reads them all back). Unlike the page's box it asks
+  Claude for nothing — it records what the owner said, and the code change is then made
+  deliberately against every card sharing the wording. Owner's instruction, 7 Sep 2026: when a
+  ruling is given in chat, store it there first, then wait to be asked for the code change.
 - **Optimiser** (`src/lib/marketplace/optimizer.ts`) is deterministic: greedy + exhaustive 1/2/3-seller
   subsets + removal local search, shipping counted once per seller.
 

@@ -183,6 +183,12 @@ const DEFS: Record<string, CardDef> = defsFrom([
   card("NOCOPIES", { energyCost: 1, skill: "[Auto] When you play this card, you can't play copies of this card for the turn." }),
   card("TOUGH", { energyCost: 2, power: 5000, skill: "[Auto] When you play this card, this card can't be KO'd by your opponent's skills until the start of your next turn." }),
   card("STACKER", { energyCost: 1, skill: "[Auto] When you play this card, choose 1 of your Battle Cards and place it under this card." }),
+  card("BUUHOST", { energyCost: 1, power: 5000, characters: ["Majin Buu"] }),
+  card("BUUEAT", {
+    energyCost: 1,
+    characters: ["Majin Buu"],
+    skill: "[Auto] When you play this card, choose 1 of your <Majin Buu> and 1 of your opponent's Battle Cards with an energy cost of 3 or less. Place the chosen opponent Battle Card under the chosen <Majin Buu>.",
+  }),
   card("TWOKILL", { energyCost: 1, skill: "[Auto] When you play this card, choose 2 of your opponent's Battle Cards and KO them." }),
   card("GRABBER", { energyCost: 1, skill: "[Auto] When you play this card, choose 1 of your opponent's cards and place it in its owner's drop area." }),
   card("ONCEONLY", { energyCost: 1, skill: "[Auto] When you play this card, draw 1 card and negate this skill for the game." }),
@@ -193,6 +199,8 @@ const DEFS: Record<string, CardDef> = defsFrom([
   card("BECOMES", { energyCost: 2, skill: "[Permanent] This card gains ≪Saiyan≫ in all areas." }),
   card("SAIYANKILL", { energyCost: 1, skill: "[Auto] When you play this card, choose 1 of your opponent's ≪Saiyan≫ Battle Cards and KO it." }),
   card("CHEAPCOMBO", { energyCost: 3, comboCost: 2, comboPower: 5000, skill: "[Permanent] Reduce the combo cost of this card in your hand by 2." }),
+  card("BLUECOMBO", { energyCost: 3, colors: ["Blue"], comboCost: 2, comboPower: 5000 }),
+  card("CHEAPENER", { energyCost: 1, skill: "[Auto] When you play this card, reduce the combo cost of blue cards in your hand by 1 for the duration of the turn." }),
   card("ONLYONE", { energyCost: 1, name: "ONLYONE", skill: "[Permanent] Only 1 {ONLYONE} can be played in your Battle Area." }),
   card("RESTCOND", { energyCost: 1, skill: "[Permanent] If this card is in Rest Mode, your Battle Cards get +5000 power." }),
   card("FREEPLAY", { energyCost: 2, power: 5000, skill: "[Permanent] If you have <V1> in your Battle Area or Leader Area, you can play this card from your hand without paying its energy cost." }),
@@ -522,6 +530,28 @@ function assertConsistentAfterDrop(s: GameState) {
   // The test removed life cards outright; put them in the drop so the invariant holds.
   const gone = Object.keys(s.cards).filter((id) => s.cards[id].owner === "p1" && !locate(s, id));
   s.players.p1.drop.push(...gone);
+}
+
+// Two choices, then a clause saying which is which (BT3-052, BT3-054): the
+// card that gets buried is the opponent's, and it goes under the <Majin Buu>
+// that was chosen — not under the card whose skill this is, which is what "the
+// chosen cards" alone would have meant.
+{
+  let s = arena({ hand: ["BUUEAT"], energy: ["V1", "V1"], battle: ["BUUHOST"], oppBattle: ["V-BLUE", "BLOCKER"] });
+  const host = find(s, "p1", "battle", "BUUHOST");
+  const prey = find(s, "p2", "battle", "V-BLUE");
+  const spared = find(s, "p2", "battle", "BLOCKER");
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "BUUEAT") });
+  assert.equal(s.prompt.kind, "chooseCards", "two <Majin Buu> are on the table, so it asks which");
+  s = play(s, { type: "choose", player: "p1", cards: [host] });
+  assert.equal(s.prompt.kind, "chooseCards", "then which of the opponent's Battle Cards");
+  s = play(s, { type: "choose", player: "p1", cards: [prey] });
+  assert.ok(!s.players.p2.battle.includes(prey), "it is no longer a Battle Card of its own");
+  assert.ok(!s.players.p2.drop.includes(prey), "and it did not go to the Drop");
+  assert.deepEqual(s.cards[host].under, [prey], "23-2: under the <Majin Buu> that was chosen");
+  assert.deepEqual(s.cards[find(s, "p1", "battle", "BUUEAT")].under, [], "not under the card that played the skill");
+  assert.ok(s.players.p2.battle.includes(spared), "the opponent's other card is untouched");
+  assertConsistent(s);
 }
 
 // Unison (13-2, 13-3, 13-5): X markers, growth, guard loses a marker instead of KO.
@@ -1454,6 +1484,24 @@ function assertConsistentAfterDrop(s: GameState) {
   const cheap = find(s, "p1", "hand", "CHEAPCOMBO");
   assert.equal(DEFS.CHEAPCOMBO.comboCost, 2, "printed");
   assert.equal(comboCostOf(ctx, s, cheap), 0, "and free after its own [Permanent]");
+}
+
+{
+  const ctx = { defs: DEFS };
+  // 20-21 with a duration on it. `collectStatics` only ever runs over a
+  // [Permanent] (9-5-1), so the same sentence on an [Auto] used to compile to
+  // a `costReduction` the interpreter walked straight past — the skill read
+  // perfectly and did nothing, which no compile figure can show. Five cards in
+  // the catalog print it, XD1-05 among them.
+  let s = arena({ hand: ["CHEAPENER", "BLUECOMBO"], energy: ["V1"] });
+  const blue = find(s, "p1", "hand", "BLUECOMBO");
+  assert.equal(comboCostOf(ctx, s, blue), 2, "printed");
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "CHEAPENER") });
+  assert.equal(comboCostOf(ctx, s, blue), 1, "and 1 less while the skill is in force");
+  assert.ok(
+    s.effects.some((e) => e.kind === "comboCost" && e.target === blue && e.until === "turn"),
+    "as an effect that ends with the turn, not a standing one",
+  );
 }
 
 {
@@ -2443,6 +2491,78 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.deepEqual(under.unsupported, []);
   assert.deepEqual(under.ops.map((o) => o.op), ["choose", "moveTo"]);
   assert.equal((under.ops[1] as { to: string }).to, "under");
+
+  // Under a host that is one of two earlier choices (BT3-052, BT3-054). "The
+  // chosen opponent Battle Card" and "the chosen <Majin Buu>" are told apart
+  // by what each choice asked for, so each half points at its own.
+  const buu = one("[Activate: Main] If your Leader Card is <Majin Buu>, choose 1 of your <Majin Buu> and 1 of your opponent's Battle Cards. Place the chosen opponent Battle Card under the chosen <Majin Buu>.");
+  assert.deepEqual(buu.unsupported, [], "the whole card reads");
+  const flat = JSON.stringify(buu.ops);
+  const buried = flat.match(/"op":"moveTo","target":\{"var":"(c\d+)"\},"to":"under","under":\{"var":"(c\d+)"\}/);
+  assert.ok(buried, "the opponent's card moves under a card, and both ends are earlier choices");
+  assert.notEqual(buried[1], buried[2], "and they are not the same choice");
+  const reasons = new Map([...flat.matchAll(/"as":"(c\d+)","reason":"([^"]*)"/g)].map((m) => [m[1], m[2]]));
+  assert.match(reasons.get(buried[1]) ?? "", /opponent/i, "the card that gets buried is the opponent's");
+  assert.match(reasons.get(buried[2]) ?? "", /your <Majin Buu>/i, "the host is your <Majin Buu>");
+
+  // Nothing to tell the two apart is left to the referee: guessing which of
+  // them the sentence means would bury the wrong card half the time.
+  const tie = one("[Auto] When you play this card, choose 1 of your <Majin Buu> and 1 of your opponent's <Majin Buu>. Place the chosen <Majin Buu> under the chosen <Majin Buu>.");
+  assert.deepEqual(tie.unsupported, ["Place the chosen <Majin Buu> under the chosen <Majin Buu>"]);
+
+  // "All of X is Y" (XD1-01) is the whole set against the part of it the
+  // description picks out — and with nothing in the set it does not hold
+  // (0-2-4-1), so the skill cannot fire on a turn where the opponent has no
+  // energy at all.
+  const every = one("[Auto] When your opponent's Leader Card attacks, if all of your opponent's energy is in Rest Mode, draw 1 card.");
+  assert.deepEqual(every.unsupported, []);
+  assert.match(JSON.stringify(every.ops), /"kind":"every","sel":\{"side":"opponent","area":"energy"\},"matching":\{"side":"opponent","area":"energy","mode":"rest"\}/);
+  // A description `parseTarget` cannot take in would leave the two selectors
+  // identical and the condition always true, which is worse than a gap.
+  assert.deepEqual(one("[Auto] When this card attacks, if all of your energy is thoroughly cromulent, draw 1 card.").unsupported, ["if all of your energy is thoroughly cromulent"]);
+
+  // One end of the battle rather than either (BT4-085). A card of yours doing
+  // the attacking is not one being attacked, and "one of" is the article.
+  const guard = one("[Auto] When you combo with this card, if one of your yellow Battle Cards is being attacked, this card gains +10000 combo power for the duration of the turn.");
+  assert.deepEqual(guard.unsupported, []);
+  assert.match(JSON.stringify(guard.ops), /"kind":"inBattle".*"role":"guard"/);
+  assert.match(JSON.stringify(one("[Auto] When this card attacks, if this card is attacking, draw 1 card.").ops), /"role":"attacker"/);
+
+  // "If you use this skill to play a Battle Card with [Over Realm]" (BT3-121):
+  // what the play earlier in this same skill turned out to be, not anything
+  // the board holds.
+  const overRealm = one("[Activate: Main] Choose up to 1 Battle Card in your Warp with an energy cost of 4 or less and play it. If you use this skill to play a Battle Card with [Over Realm], draw 1 card.");
+  assert.deepEqual(overRealm.unsupported, []);
+  assert.match(JSON.stringify(overRealm.ops), /"op":"if","cond":\{"kind":"varMatches","var":"c0"/);
+  assert.match(JSON.stringify(overRealm.ops), /"keywords":\["Over Realm"\]/);
+
+  // Two colours joined by "and" are one target phrase (XD1-05). Cut there, the
+  // halves are a verb whose object is a colour and a bare noun phrase.
+  assert.deepEqual(splitClauses("reduce the combo cost of blue and yellow ≪Universe 6≫ cards in your hand by 1"), ["reduce the combo cost of blue and yellow ≪Universe 6≫ cards in your hand by 1"]);
+  assert.deepEqual(one("[Auto] When you play this card, reduce the combo cost of blue and yellow ≪Universe 6≫ cards in your hand by 1 for the duration of the turn.").unsupported, []);
+
+  // "If they don't KO a card this way" (EX03-16) is "if they don't" with the
+  // action spelled out again, and "they instead …" is the same branch saying
+  // so twice. Both halves of the sentence have to read, or the trailing move
+  // binds to the card that was *not* chosen.
+  const orElse = one("[Auto] When you play this card, your opponent may choose 1 of their Battle Cards and KO it. If they don't KO a card this way, they instead choose 2 cards in their hand and place them in their Drop Area.");
+  assert.deepEqual(orElse.unsupported, []);
+  const branch = JSON.stringify(orElse.ops).match(/"cond":\{"kind":"not","cond":\{"kind":"chose","var":"c0"\}\},"then":\[([^\]]*)\]/);
+  assert.ok(branch, "the second sentence is the other branch of the offer");
+  assert.match(branch[1], /"op":"discard","n":2,"side":"opponent"/, "and it is the opponent discarding 2, not the KO'd card moving again");
+  // A condition about the board still reads as one.
+  assert.match(JSON.stringify(one("[Activate: Main] If you don't have a Unison in play, draw 1 card.").ops), /"op":"if"/);
+
+  // The alternative cost told over two sentences (BT4-070, BT4-097): the price
+  // as something you may do when the [Counter] is activated, the waiver
+  // hanging on "if you do so". Clause by clause it became a *play* of this
+  // card, which is not what any of it says.
+  const alt = one(
+    "[Permanent] If your Leader Card is ≪Goku's Lineage≫, when you activate this card's [Counter], you may choose 1 card in your life and add it to your hand. If you do so, you may activate this card's [Counter] without paying its energy cost.",
+  );
+  assert.deepEqual(alt.unsupported, []);
+  assert.match(JSON.stringify(alt.ops), /"kind":"leaderMatches".*"traits":\["goku's lineage"\]/);
+  assert.match(JSON.stringify(alt.ops), /\{"op":"altCost","pay":"life","n":1\}/);
 
   // A combo from the Drop.
   const cf = one("[Activate: Battle] Use up to 1 green card with 5000 combo power from your Drop in a combo with its skills negated for the battle.");
@@ -3638,6 +3758,36 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.equal(skillLines("[Permanent] You can activate this card's [Counter] skill from your hand.").length, 1);
   // And a tag that is not a skill type is not a break either.
   assert.equal(skillLines("[Auto] When this card attacks, it gains [Critical] for the turn.").length, 1);
+}
+
+// ── full-width text reads as the ASCII the compiler steers by ──────────────
+
+{
+  // Some sets set a run of the text in full-width forms. Every one of them
+  // reads the same to a person and matched nothing here: "：" is the colon
+  // `splitCost` cuts a price at, "｛｝" the braces round a card name, "【】" a
+  // keyword tag, "《》" a special trait, "･" a modal option's bullet.
+  assert.deepEqual(skillLines("［Ｐｅｒｍａｎｅｎｔ］ Ｌｅａｄｅｒ Ｃard"), ["[Permanent] Leader Card"]);
+  assert.equal(skillLines("【Evolve】 {g}{g}{2}: <Broly>")[0], "[Evolve] {g}{g}{2}: <Broly>");
+  assert.equal(skillLines("[Permanent] Reduce the cost of ｛Power Pole｝ by 1.")[0], "[Permanent] Reduce the cost of {Power Pole} by 1.");
+  assert.equal(skillLines("[Auto] When you play a 《Saiyan》 card, draw 1 card.")[0], "[Auto] When you play a ≪Saiyan≫ card, draw 1 card.");
+
+  // BT1-074 printed its [Evolve] in full-width brackets, so the keyword was
+  // never recognised at all and its character name was left as a fragment.
+  const evolve = parseSkills("【Evolve】 {g}{g}{2}: <Broly> (Play this card on top of the specified card)")[0];
+  assert.equal(evolve.keyword?.name, "Evolve", "the tag is the keyword, whichever brackets it is printed in");
+  assert.deepEqual(compileSkill(evolve).unsupported, [], "so <Broly> is the Evolve condition, not an unread clause");
+
+  // A count spelled out rather than printed as a digit. Every counted target
+  // is read by a pattern that wants a digit, and a phrase with none is taken
+  // as *all* of them — BT1-074 emptied the opponent's hand instead of taking
+  // two cards from it.
+  const spelled = parseSkills("[Auto] When a card evolves into this card, your opponent chooses two cards from their hand, and places them in the Drop Area.")[0];
+  assert.deepEqual(compileSkill(spelled).ops, [{ op: "discard", n: 2, side: "opponent" }]);
+  // "One" is left alone: "Choose one—" is how a modal skill opens. So is a
+  // number inside a card name.
+  assert.equal(skillLines("[Auto] Choose one― ・Draw 1 card")[0].includes("Choose one"), true);
+  assert.equal(skillLines("[Activate: Main] Add up to 1 {Grandpa's Heirloom, the Four-Star Ball} to your hand.")[0].includes("Four-Star Ball"), true);
 }
 
 // ── what "for each" is counting stops at its noun ──────────────────────────

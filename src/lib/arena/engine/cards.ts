@@ -12,6 +12,8 @@ import type { CardDef, Color, KeywordSkill, Skill, SkillKind } from "./types";
 
 // ── text normalisation ─────────────────────────────────────────────────────
 
+const SPELLED: Record<string, number> = { two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
+
 /** `<br>` and `[br]` separate skill lines; entities are HTML-escaped in some sets. */
 export function skillLines(text: string | null | undefined): string[] {
   if (!text) return [];
@@ -26,15 +28,36 @@ export function skillLines(text: string | null | undefined): string[] {
     .replace(/&gt;/g, ">")
     .replace(/&amp;/g, "&")
     .replace(/[’‘]/g, "'")
-    // Some sets print the odd full-width Latin letter mid-word ("Leader Ｃard"),
-    // which reads the same and matches nothing.
-    .replace(/[Ａ-Ｚａ-ｚ]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xfee0))
+    // Some sets set a run of the text in full-width forms, and every one of
+    // them reads the same to a person and matches nothing here. It is not only
+    // the odd letter mid-word ("Leader Ｃard"): the whole FF01–FF5E block maps
+    // onto ASCII by the same offset, and the ones that hurt are the punctuation
+    // the compiler steers by — "：" is the colon `splitCost` looks for, "｛｝"
+    // are the braces around a card name, "（）" a reminder note's parentheses.
+    .replace(/[！-～]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xfee0))
+    // The rest of the same story, where the ASCII spelling is not one offset
+    // away: the ideographic space, the half-width middle dot a few sets use for
+    // a modal option, and the two bracket pairs that mean a keyword tag and a
+    // special trait.
+    .replace(/　/g, " ")
+    .replace(/･/g, "・")
+    .replace(/【/g, "[")
+    .replace(/】/g, "]")
+    .replace(/《/g, "≪")
+    .replace(/》/g, "≫")
     // A handful of sets print a skill's colourless energy cost as a circled
     // number ("③, if your Leader Card is a blue <Gogeta: Br> card") where the
     // rest print "{3}". Normalising it here means every reader of a cost —
     // `orbsIn`, `costText`, `costIsOnlyOrbs`, `splitCost` — sees the one form.
     .replace(/[①-⑳]/g, (ch) => `{${ch.charCodeAt(0) - 0x245f}}`)
     .replace(/⓪/g, "{0}")
+    // A count spelled out instead of printed as a digit. Every counted target
+    // is read by a pattern that wants a digit, and a phrase that has none is
+    // taken as *all* of them — "your opponent chooses two cards from their
+    // hand" (BT1-074) emptied their hand. Only where a count can stand, so the
+    // "Four" of {Grandpa's Heirloom, the Four-Star Ball} is left alone; "one"
+    // is left alone too, because "choose one—" is how a modal skill opens.
+    .replace(/\b(two|three|four|five|six|seven|eight|nine|ten)\b(?=\s+(?:cards?\b|of\b))/gi, (w) => String(SPELLED[w.toLowerCase()]))
     // Older sets hyphenate the verb — "when your ≪Saiyan≫ is KO-ed", "when
     // this card KO-s your opponent's Battle Card" — and every reader of the
     // text spells it the other way.

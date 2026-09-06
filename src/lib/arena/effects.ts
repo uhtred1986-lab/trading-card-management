@@ -104,6 +104,17 @@ export function describeEffect(e: ContinuousEffect): Pick<EffectView, "kind" | "
       return { kind: "forbid", label: e.forbid ? forbidLabel(e.forbid) : "forbidden" };
     case "permit":
       return { kind: "permit", label: e.permit ? permitLabel(e.permit) : "permitted" };
+    // 20-21 said with a duration on it, so it is in force rather than standing.
+    // The wording is `describeStatic`'s, because the player is being told the
+    // same thing either way.
+    case "cost": {
+      const n = e.value as number;
+      return { kind: "cost", label: n < 0 ? `costs ${-n} more` : `costs ${n} less` };
+    }
+    case "comboCost": {
+      const n = e.value as number;
+      return { kind: "cost", label: n < 0 ? `combo costs ${-n} more` : `combo costs ${n} less` };
+    }
   }
 }
 
