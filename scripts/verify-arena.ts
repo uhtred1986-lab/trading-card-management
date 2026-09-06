@@ -621,6 +621,11 @@ function assertConsistentAfterDrop(s: GameState) {
     "Draw 1 card",
     "place 1 card from your hand at the bottom of your deck",
   ]);
+  // 20-16: "if you do so" is the same connective as "if you do". Stripping the
+  // phrase used to leave the "so" behind, which reads as a bare connective —
+  // the condition vanished and the rest of the sentence happened regardless.
+  assert.deepEqual(splitClauses("You may draw 1 card. If you do so, discard 1 card."), ["You may draw 1 card", "If you do", "discard 1 card"]);
+  assert.deepEqual(splitClauses("Draw 1 card. If you did so, draw 1 more."), ["Draw 1 card", "If you did", "draw 1 more"]);
 
   const one = (text: string) => compileSkill(parseSkills(text)[0]);
 
