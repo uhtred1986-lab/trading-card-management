@@ -348,12 +348,34 @@ export interface CatalogSyncSummary {
   cards: number;
   prints: number;
   backImages?: number;
+  /** Original-game prints whose deckplanet front image was confirmed to exist. */
+  frontImages?: number;
   /** Fusion World prints given Bandai's official art (bandai.ts). */
   officialImages?: number;
 }
 
 /** One summary per game, plus the totals, so the settings page reads at a glance. */
 export type CatalogSyncSummaries = CatalogSyncSummary & { games: Record<Game, CatalogSyncSummary> };
+
+/** HEAD-checks a batch of URLs and returns the ones that 404 or error. */
+async function findBrokenImages(urls: Iterable<string>, concurrency: number): Promise<Set<string>> {
+  const list = [...urls];
+  const broken = new Set<string>();
+  let next = 0;
+  const worker = async () => {
+    while (next < list.length) {
+      const url = list[next++];
+      try {
+        const res = await fetch(url, { method: "HEAD" });
+        if (!res.ok) broken.add(url);
+      } catch {
+        broken.add(url);
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(concurrency, list.length) }, worker));
+  return broken;
+}
 
 /**
  * deckplanet only hosts "<number>_b.png" for older sets, so each candidate back
@@ -362,21 +384,34 @@ export type CatalogSyncSummaries = CatalogSyncSummary & { games: Record<Game, Ca
  */
 export async function verifyBackImages(shaped: ShapedCatalog, concurrency = 12): Promise<number> {
   const withBack = shaped.cards.filter((c) => c.backImageUrl);
+  const broken = await findBrokenImages(withBack.map((c) => c.backImageUrl!), concurrency);
+  for (const c of withBack) if (broken.has(c.backImageUrl!)) c.backImageUrl = null;
+  return withBack.length - broken.size;
+}
+
+/**
+ * Front images are guessed from deckplanet's `img_link` the same way, and
+ * deckplanet's bucket turns out to lag its own catalog badly: as of Sep 2026
+ * every Masters-era set from BT19 on (plus recent EX/SD sets and most promos)
+ * 404s, even though the card data itself is there. Each candidate is
+ * HEAD-checked before it is stored; a 404 becomes null so the price sync's
+ * `fillMissingImages` can supply TCGplayer's product photo instead, rather
+ * than the grid holding a link that will never resolve.
+ */
+export async function verifyFrontImages(shaped: ShapedCatalog, concurrency = 40): Promise<number> {
+  if (shaped.game === "fusion") return 0; // deckplanet has no Fusion World art at all; imageFor already left these null
+  const urls = new Set<string>();
+  for (const p of shaped.prints) if (p.imageUrl) urls.add(p.imageUrl);
+  const broken = await findBrokenImages(urls, concurrency);
   let kept = 0;
-  let next = 0;
-  const worker = async () => {
-    while (next < withBack.length) {
-      const c = withBack[next++];
-      try {
-        const res = await fetch(c.backImageUrl!, { method: "HEAD" });
-        if (res.ok) kept++;
-        else c.backImageUrl = null;
-      } catch {
-        c.backImageUrl = null;
-      }
-    }
-  };
-  await Promise.all(Array.from({ length: Math.min(concurrency, withBack.length) }, worker));
+  for (const p of shaped.prints) {
+    if (!p.imageUrl) continue;
+    if (broken.has(p.imageUrl)) p.imageUrl = null;
+    else kept++;
+  }
+  for (const c of shaped.cards) {
+    if (c.imageUrl && broken.has(c.imageUrl)) c.imageUrl = null;
+  }
   return kept;
 }
 
@@ -432,8 +467,13 @@ export async function importCatalog(db: Db, shaped: ShapedCatalog): Promise<Cata
           backSkill: sql`excluded.back_skill`,
           backPower: sql`excluded.back_power`,
           // Fusion World prints Bandai does not show arrive null here; keep the
-          // TCGplayer art the price sync supplied for them.
-          imageUrl: sql`coalesce(excluded.image_url, ${cards.imageUrl})`,
+          // TCGplayer art the price sync supplied for them. But a deckplanet
+          // URL that just failed its HEAD check (verifyFrontImages) must
+          // still land as null — coalesce alone would keep replaying the same
+          // broken guess forever — so a stored value that is itself still a
+          // deckplanet URL always yields to the fresh (possibly null) one.
+          imageUrl: sql`case when ${cards.imageUrl} is null or starts_with(${cards.imageUrl}, ${IMAGE_BASE})
+            then excluded.image_url else coalesce(excluded.image_url, ${cards.imageUrl}) end`,
           // Keep a back image the CardTrader sync supplied when deckplanet has none.
           backImageUrl: sql`coalesce(excluded.back_image_url, ${cards.backImageUrl})`,
           deckplanetId: sql`excluded.deckplanet_id`,
@@ -454,7 +494,8 @@ export async function importCatalog(db: Db, shaped: ShapedCatalog): Promise<Cata
           suffix: sql`excluded.suffix`,
           label: sql`excluded.label`,
           rarity: sql`excluded.rarity`,
-          imageUrl: sql`coalesce(excluded.image_url, ${cardPrints.imageUrl})`,
+          imageUrl: sql`case when ${cardPrints.imageUrl} is null or starts_with(${cardPrints.imageUrl}, ${IMAGE_BASE})
+            then excluded.image_url else coalesce(excluded.image_url, ${cardPrints.imageUrl}) end`,
           isBase: sql`excluded.is_base`,
           deckplanetId: sql`excluded.deckplanet_id`,
         },
@@ -475,7 +516,11 @@ export async function syncCatalogFor(db: Db, game: Game): Promise<CatalogSyncSum
     const backImages = await verifyBackImages(shaped);
     return { ...(await importCatalog(db, shaped)), backImages, officialImages: official.prints };
   }
-  return { ...(await importCatalog(db, shaped)), backImages: await verifyBackImages(shaped) };
+  // Front images are deckplanet's own guess too, and its bucket lags badly
+  // for the original game (see verifyFrontImages); Fusion World has none to
+  // check, so this is a no-op there.
+  const frontImages = await verifyFrontImages(shaped);
+  return { ...(await importCatalog(db, shaped)), backImages: await verifyBackImages(shaped), frontImages };
 }
 
 /** Both games, in order. A failure on either aborts the whole sync run. */
@@ -489,6 +534,7 @@ export async function syncCatalog(db: Db): Promise<CatalogSyncSummaries> {
     cards: total((s) => s.cards),
     prints: total((s) => s.prints),
     backImages: total((s) => s.backImages ?? 0),
+    frontImages: total((s) => s.frontImages ?? 0),
     officialImages: total((s) => s.officialImages ?? 0),
   };
 }
