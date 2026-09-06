@@ -1,8 +1,9 @@
 # Arena rules engine — hand-off spec for the next stage
 
 Written 5 Sep 2026 on branch `feature/arena-counter-chains` and carried on in
-`feature/arena-compiler-next`, which branches off it (neither is merged; the
-owner decides when). This is a self-contained brief for whoever picks the work
+`feature/arena-compiler-next`, which branches off it. The owner asked for both
+to be merged on 6 Sep 2026 and PR #22 was opened against `main`; check whether
+it landed before assuming which branch to work on. This is a self-contained brief for whoever picks the work
 up next, written so that it can be followed step by step without re-deriving
 the design. Read it once top to bottom, then work the backlog in order.
 
