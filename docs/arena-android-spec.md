@@ -1,6 +1,8 @@
 # Arena — the Android app
 
-**Status: planned, not built (5 Sep 2026).** A native Android client for the arena, built for
+**Status: planned, not built (6 Sep 2026).** Step 1 (the contract) is done and serving; nothing
+Kotlin exists yet, and §10 explains what has to be true before it should. A native Android client
+for the arena, built for
 animation fidelity, installed from the app's own domain rather than a store.
 
 Read `docs/arena-client-contract.md` first — it is the wire this app runs on, and the rule it must
@@ -209,26 +211,100 @@ is a link into the web app.
 - `allowBackup="false"` — the credential should not travel to another device through a cloud backup.
 - The app never logs the `Authorization` header, and OkHttp's logging interceptor is release-off.
 
-## 10. Verification
+## 10. Verification, and how to make any of it possible
 
-- **Unit**: `toBeats` equivalents are not reimplemented here, so the tests that matter are
-  serialization ones — the checked-in golden fixtures from contract §7 must round-trip through every
-  `kotlinx.serialization` class. A server shape change breaks the build, not a game.
-- **Screenshot tests** (Roborazzi or Paparazzi) for the board in its states: mid-battle, targeting,
-  counter window, rest/active, awakened leader, game over. Cheap and they catch layout regressions
-  that a person playing would not notice for weeks.
-- **Macrobenchmark** with `FrameTimingMetric` on a scripted beat run: the number that matters is
-  jank percentage during a full attack sequence on the owner's own device, not an emulator.
-- **Manual, on the phone**: install and update from the app's own domain; portrait; insets top and
-  bottom; back gesture on the board; screen stays awake through a Tournament turn; haptics on tap,
-  clash and KO; animator duration scale 0 gives a playable board with no motion; airplane mode gives
-  a clear reconnect state and loses nothing.
+**Today, nothing on this machine can compile a line of Kotlin.** Checked 6 Sep 2026: no `java`, no
+`javac`, no `kotlinc`, no `gradle`, no `ANDROID_HOME`, no Android SDK directory, no Android Studio.
+Writing the app before fixing that means writing code nobody can run, which is worse than writing
+none — unverified code *looks* finished.
+
+The good news is that the risk and the setup cost are not spread evenly. Four tiers:
+
+| Tier | What it can check | Needs | Rough size |
+|---|---|---|---|
+| **0** | The contract: does Kotlin round-trip what the server actually sends? | a JDK | ~200 MB |
+| **1** | Pure logic: beat player, moments, view state, update checks | a JDK | — |
+| **2** | Compose UI rendered to PNG, no device involved | + Android SDK (cmdline-tools) | ~3 GB |
+| **3** | Haptics, wake lock, install/update, real frame timing | + a phone or emulator | the phone you own |
+
+**Tiers 0 and 1 need no Android at all** — no SDK, no emulator, no Studio, just a JDK. That is the
+wedge: the highest-risk part of a thin client is not its UI, it is whether it still understands the
+server, and that is checkable for the price of one download.
+
+### Stage 0 — `android/contract/`, worth building before any UI
+
+A Kotlin/JVM Gradle module with **no Android plugin at all**: `kotlinx-serialization-json`, the
+`Snapshot` / `Beat` / `CardView` data classes hand-written, and one test that walks
+`contract/fixtures/*.json`, decodes each, re-encodes it, and asserts it comes back the same.
+
+Two decoders, deliberately:
+
+- **strict** (`ignoreUnknownKeys = false`) — fails the moment the server grows a field. That is a
+  tripwire, not a bug: someone should look at the new field and decide whether the app wants it.
+- **lenient** (`ignoreUnknownKeys = true`) — proves an *older* app still works against a *newer*
+  server, which is the actual promise contract §7 makes.
+
+One command, a JDK, half a minute: `cd android && ./gradlew :contract:test`.
+
+Worth doing first because it is the thing that breaks silently and at a distance — the server
+changes, everything on the web looks fine, and a phone somewhere stops being able to read a board.
+
+**One gap to close on the server side while doing it:** the fixtures cover four snapshots and the
+playthrough has only ever produced 11 of the 16 beat kinds. `token`, `block`, `markers`, `negated`
+and `say` have never appeared in a real game, so nothing would catch a Kotlin class getting them
+wrong. `scripts/verify-arena.ts` should emit one extra fixture built by hand to contain **one of
+every beat kind**, so the Kotlin round-trip test is actually complete.
+
+### Stage 2 — screenshots without a device
+
+Roborazzi or Paparazzi render Compose to PNG on the JVM. Board states driven from the same fixtures:
+mid-battle, targeting, a counter window, rest/active, an awakened leader, game over. This catches
+layout regressions that a person playing would not notice for weeks, and still never starts an
+emulator.
+
+### Stage 3 — the phone, for what cannot be faked
+
+Haptics, wake lock through a Tournament turn, install and update from the app's own domain, the back
+gesture, airplane mode, `ANIMATOR_DURATION_SCALE = 0`, and Macrobenchmark's `FrameTimingMetric`
+across a full attack sequence. An emulator is mostly avoidable here: the owner has the target device,
+and jank on it is the only number that means anything.
+
+### Where it lives
+
+`android/` with its own Gradle wrapper, ignored by the JS toolchain (`tsc` and ESLint only look at
+`src/` and `scripts/`, so nothing to change). `.gitignore` gains `android/build/`, `android/.gradle/`
+and `android/local.properties`. `npm test` stays JavaScript-only; an `npm run android:test` that
+shells out to `gradlew` is optional sugar, not a requirement.
+
+Pin versions when the module is created rather than from memory — Kotlin, AGP and
+`kotlinx-serialization` all move, and a wrong version in a document is worse than no version.
+
+### CI
+
+`actions/setup-java@v4` with Temurin gets tiers 0 and 1 running on every push in well under a
+minute. Tier 2 adds `android-actions/setup-android`. Tier 3 needs
+`reactivecircus/android-emulator-runner`, which is slow enough to reserve for release tags.
+
+### The recommendation
+
+**Install a JDK, build stage 0, and stop there for now.**
+
+Stage 0 pays for itself whether or not the Android app is ever written: it is a second, independent
+check on the contract, in a different language, which is exactly the kind of check that catches what
+one language's type system waves through.
+
+Everything past stage 0 should wait on one question that is still open. This app's whole
+justification (§1) is animation fidelity the web could not reach — but the web motion board now
+exists and **nobody has watched it run**. If it turns out to be smooth enough on the owner's phone,
+the honest conclusion is that the Android app is not needed, and the cheapest version of this
+project is the one that never gets built.
 
 ## 11. Order of work
 
 | # | Step | Done when |
 |---|---|---|
-| 1 | Contract first — the server side of `docs/arena-client-contract.md` | `/api/v1` serves a real snapshot and `npm test` guards the schema |
+| 0 | A JDK, and `android/contract` — §10 stage 0 | `./gradlew :contract:test` round-trips every fixture, strict and lenient |
+| 1 | ~~Contract — the server side~~ **done** | `/api/v1` serves a real snapshot; `npm test` guards the shape with golden fixtures |
 | 2 | Project skeleton: Gradle, Hilt, theme mirroring the `space` / `ki` tokens, auth screen | The games list loads from the real server |
 | 3 | Static board — `view` rendered, `legal` tappable, no animation at all | A whole hot-seat game is playable, ugly |
 | 4 | Beat player + shared-element flights | Claude's turn is watchable |
