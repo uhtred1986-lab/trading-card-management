@@ -25,12 +25,14 @@ export function Ghosts({ ghosts, art }: { ghosts: Ghost[]; art: Record<string, B
           <motion.div
             key={g.key}
             className="pointer-events-none absolute z-30"
-            initial={{ left: g.from.x, top: g.from.y, opacity: 1, scale: 1, filter: "saturate(1)" }}
-            animate={{ left: g.to.x, top: g.to.y, opacity: 0, scale: 0.7, filter: "saturate(0.15)" }}
+            // A card leaving shudders out and fades to the Drop; one arriving
+            // flies in from its pile, whole, and hands over to the real card.
+            initial={g.kind === "arrive" ? { left: g.from.x, top: g.from.y, opacity: 0.85, scale: 0.9 } : { left: g.from.x, top: g.from.y, opacity: 1, scale: 1, filter: "saturate(1)" }}
+            animate={g.kind === "arrive" ? { left: g.to.x, top: g.to.y, opacity: 1, scale: 1 } : { left: g.to.x, top: g.to.y, opacity: 0, scale: 0.7, filter: "saturate(0.15)" }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.3, ease: "easeIn" }}
+            transition={{ duration: Math.min(0.9, g.ms / 1000), ease: g.kind === "arrive" ? "easeOut" : "easeIn" }}
           >
-            <div className="arena-ghost card-aspect w-[calc(52px*var(--arena,1))] overflow-hidden rounded-[4px] border border-loss/60 bg-space-800">
+            <div className={`arena-card card-aspect w-[calc(52px*var(--arena,1))] overflow-hidden rounded-[4px] border bg-space-800 ${g.kind === "arrive" ? "arena-ring-legal border-ki-400/70" : "arena-ghost border-loss/60"}`}>
               {face.imageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element -- a transient overlay of art the board has already loaded.
                 <img src={face.imageUrl} alt="" className="h-full w-full object-cover" />

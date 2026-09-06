@@ -2,6 +2,8 @@
 
 import type { Beat, NumberedBeat } from "@/lib/arena/beats";
 import type { Feel } from "@/lib/arena/feel";
+import type { Pace } from "@/lib/arena/pace";
+import type { PlayerId } from "@/lib/arena/engine";
 
 /**
  * Every duration on the board, in one table.
@@ -15,8 +17,19 @@ import type { Feel } from "@/lib/arena/feel";
  * design proposal. Nothing exceeds 350 ms and nothing blocks the next tap.
  */
 
-/** How long a beat is given before the next one starts. */
-export function msFor(beat: Beat): number {
+/**
+ * How long a beat is given before the next one starts, at the chosen pace.
+ * `slow` stretches every beat and gives even the quickest a floor long enough
+ * for its sentence to be read; `step` waits for a tap instead, so the number
+ * only sizes the flight of a ghost.
+ */
+export function msFor(beat: Beat, pace: Pace = "normal"): number {
+  const base = baseMs(beat);
+  if (pace === "slow") return Math.max(Math.round(base * 2.4), 800);
+  return base;
+}
+
+function baseMs(beat: Beat): number {
   switch (beat.t) {
     case "draw":
       return 220;
@@ -76,6 +89,20 @@ export function arrives(beat: NumberedBeat): string | null {
   if (beat.t === "token") return beat.card;
   if (beat.t === "move" && VISIBLE.has(beat.to)) return beat.card;
   return null;
+}
+
+/**
+ * A card is arriving from somewhere it could not be seen — the deck, or the
+ * opponent's hand — so there is no element to fly. Draw a ghost from that
+ * pile to where it lands, and the real card appears as the ghost arrives.
+ * Without this a card Claude plays simply pops into the Battle Area, and a
+ * turn watched on a phone is a series of appearances rather than moves.
+ */
+export function arrivesFrom(beat: NumberedBeat, viewer: PlayerId): { card: string; from: string; to: string; owner: string } | null {
+  if (beat.t !== "move" || !VISIBLE.has(beat.to)) return null;
+  const hiddenHand = beat.from === "hand" && beat.owner !== viewer;
+  if (!hiddenHand && VISIBLE.has(beat.from)) return null;
+  return { card: beat.card, from: beat.from, to: beat.to, owner: beat.owner };
 }
 
 /** A card has *gone*: it is already absent from the board, so draw a ghost. */

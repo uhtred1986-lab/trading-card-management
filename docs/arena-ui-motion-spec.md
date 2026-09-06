@@ -155,6 +155,17 @@ the *same code path* as `prefers-reduced-motion`, so neither can rot while the o
 Durations live in one table in `src/components/arena/stage/motion.ts` — reduced motion sets them all
 to zero rather than being a second branch in every component.
 
+**Pace (6 Sep 2026).** Watched on a phone, a turn at the table's durations went past faster than it
+could be read, so the pace is now a remembered preference (`src/lib/arena/pace.ts`, beside buzz and
+sound): **slow**, the default, stretches every beat 2.4× with an 800 ms floor; **normal** is the
+table as written; **step** waits for a tap on *Next ▸* between beats. While the story plays the
+prompt bar's headline is the narration sentence for the beat on screen and its hint says whose move
+it is and "n of N". Two more things the follow-along needed: a card arriving from a pile with no
+card of its own — the deck, or the opponent's hand — now flies in as a ghost from that pile
+(`arrivesFrom` in `motion.ts`) instead of popping into place, and the skill spotlight is bound to
+the `skill` beat on screen rather than the row's last skill, so every ability in a turn gets its
+moment in order.
+
 ---
 
 ## 4. Phase B — the phone

@@ -113,6 +113,10 @@ export function StepBanner({ step }: { step: string }) {
  * clause that resolved. This is where the engine stops being a black box: it
  * says which skill it read, and marks the ones it could not read on its own,
  * which is exactly when Claude was asked to rule instead.
+ *
+ * Bound to the `skill` beat on screen (the board passes one built from the
+ * beat), so every ability in a turn gets its moment in the story's order — and
+ * a reload shows nothing, because a reload replays no beats.
  */
 export function SkillSpotlight({ spotlight }: { spotlight: (Spotlight & { imageUrl: string | null }) | null }) {
   const [shown, setShown] = useState<(Spotlight & { imageUrl: string | null }) | null>(null);
@@ -120,10 +124,7 @@ export function SkillSpotlight({ spotlight }: { spotlight: (Spotlight & { imageU
 
   useEffect(() => {
     if (!spotlight || seen.current === spotlight.seq) return;
-    const first = seen.current === null;
     seen.current = spotlight.seq;
-    // On a reload the last skill is still on the row; don't replay it.
-    if (first) return;
     setShown(spotlight);
     const t = setTimeout(() => setShown(null), 4000);
     return () => clearTimeout(t);
