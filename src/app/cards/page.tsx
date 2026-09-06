@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { db } from "@/db";
-import { COLORS, cardTypesFor, listRarities, listSets, searchCards, type CardSearch } from "@/lib/catalog/queries";
+import { COLORS, cardTypesFor, listAbilityKeywords, listRarities, listSets, listTraits, searchCards, type CardSearch } from "@/lib/catalog/queries";
 import { GAMES, parseGame } from "@/lib/catalog/games";
 import { GameFilter } from "@/components/GameFilter";
 import { allocationForCards } from "@/lib/decks/reservations";
@@ -30,18 +30,23 @@ export default async function CardsPage({ searchParams }: { searchParams: Promis
     type: one(sp.type),
     color: one(sp.color),
     rarity: one(sp.rarity),
+    trait: one(sp.trait),
+    ability: one(sp.ability),
     owned: one(sp.owned) as CardSearch["owned"],
     sort: (one(sp.sort) as CardSearch["sort"]) ?? "newest",
     page: Number(one(sp.page) ?? 1),
   };
 
-  // The set and rarity dropdowns follow the game filter, so a Fusion World
-  // view never offers a Masters set that would empty the page.
-  const [result, allSets, sets, rarities, usdEur] = await Promise.all([
+  // The set, rarity, keyword and ability dropdowns follow the game filter, so
+  // a Fusion World view never offers a Masters set — or trait/ability — that
+  // would empty the page.
+  const [result, allSets, sets, rarities, traits, abilities, usdEur] = await Promise.all([
     searchCards(db, search),
     listSets(db),
     search.game ? listSets(db, { game: search.game }) : listSets(db),
     listRarities(db, { game: search.game }),
+    listTraits(db, { game: search.game }),
+    listAbilityKeywords(db, { game: search.game }),
     latestUsdEur(db),
   ]);
   const gamesPresent = GAMES.filter((g) => allSets.some((s) => s.game === g));
@@ -125,6 +130,22 @@ export default async function CardsPage({ searchParams }: { searchParams: Promis
           {rarities.map((r) => (
             <option key={r.code} value={r.code}>
               {r.label}
+            </option>
+          ))}
+        </select>
+        <select name="trait" defaultValue={search.trait ?? ""} className={select}>
+          <option value="">Any keyword</option>
+          {traits.map((t) => (
+            <option key={t} value={t}>
+              {t}
+            </option>
+          ))}
+        </select>
+        <select name="ability" defaultValue={search.ability ?? ""} className={select}>
+          <option value="">Any ability keyword</option>
+          {abilities.map((a) => (
+            <option key={a} value={a}>
+              {a}
             </option>
           ))}
         </select>

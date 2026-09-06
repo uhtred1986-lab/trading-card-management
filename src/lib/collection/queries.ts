@@ -1,7 +1,9 @@
 import { asc, desc, eq, inArray, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { cardPrints, cardSets, cards, deckCards, ownedCards, storageLocations } from "@/db/schema";
+import { abilityKeywordsOf } from "@/lib/catalog/abilityKeywords";
 import type { Game } from "@/lib/catalog/games";
+import { sameKeyword } from "@/lib/decks/cardRules";
 import type { Currency } from "@/lib/money";
 import { latestUsdEur } from "@/lib/pricing/fx";
 import { basePricesAsOf, priceForFinish, pricesForPrints } from "@/lib/pricing/queries";
@@ -174,6 +176,11 @@ export async function collectionCards(
     set?: string;
     game?: Game;
     color?: string;
+    type?: string;
+    /** A trait/race tag as printed: "Saiyan", "God". */
+    trait?: string;
+    /** A §22 keyword ability the card carries: "Blocker", "Double Strike". */
+    ability?: string;
     finish?: "foil" | "normal";
     location?: number | "none";
     deck?: (number | "none")[];
@@ -228,6 +235,9 @@ export async function collectionCards(
       isBanned: cards.isBanned,
       isLimited: cards.isLimited,
       searchText: cards.searchText,
+      traits: cards.traits,
+      skill: cards.skill,
+      backSkill: cards.backSkill,
       setSort: cardSets.sortKey,
     })
     .from(cards)
@@ -238,6 +248,9 @@ export async function collectionCards(
   let rows = cardRows.map((c) => ({ card: c, ...byCard.get(c.id)! }));
   if (opts.set) rows = rows.filter((r) => r.card.setCode === opts.set);
   if (opts.color) rows = rows.filter((r) => r.card.colors.includes(opts.color!));
+  if (opts.type) rows = rows.filter((r) => r.card.cardType === opts.type);
+  if (opts.trait) rows = rows.filter((r) => r.card.traits.includes(opts.trait!));
+  if (opts.ability) rows = rows.filter((r) => abilityKeywordsOf(r.card).some((t) => sameKeyword(t, opts.ability!)));
   // Filtering by finish keeps the card but both counts stay visible on the tile.
   if (opts.finish === "foil") rows = rows.filter((r) => r.foilQty > 0);
   if (opts.finish === "normal") rows = rows.filter((r) => r.normalQty > 0);
@@ -302,6 +315,11 @@ export async function collectionCopies(
     /** One game's copies only; undefined shows both. */
     game?: Game;
     color?: string;
+    type?: string;
+    /** A trait/race tag as printed: "Saiyan", "God". */
+    trait?: string;
+    /** A §22 keyword ability the card carries: "Blocker", "Double Strike". */
+    ability?: string;
     finish?: "foil" | "normal";
     location?: number | "none";
     /**
@@ -340,6 +358,9 @@ export async function collectionCopies(
         isBanned: cards.isBanned,
         isLimited: cards.isLimited,
         searchText: cards.searchText,
+        traits: cards.traits,
+        skill: cards.skill,
+        backSkill: cards.backSkill,
         setSort: cardSets.sortKey,
         locationId: ownedCards.locationId,
         locationName: storageLocations.name,
@@ -366,6 +387,9 @@ export async function collectionCopies(
   if (opts.game) rows = rows.filter((r) => r.game === opts.game);
   if (opts.set) rows = rows.filter((r) => r.setCode === opts.set);
   if (opts.color) rows = rows.filter((r) => r.colors.includes(opts.color!));
+  if (opts.type) rows = rows.filter((r) => r.cardType === opts.type);
+  if (opts.trait) rows = rows.filter((r) => r.traits.includes(opts.trait!));
+  if (opts.ability) rows = rows.filter((r) => abilityKeywordsOf(r).some((t) => sameKeyword(t, opts.ability!)));
   // Unlike the grid, filtering by finish drops the copies that don't match —
   // in a per-copy list the row *is* the finish.
   if (opts.finish) rows = rows.filter((r) => (opts.finish === "foil" ? r.finish === "foil" : r.finish !== "foil"));

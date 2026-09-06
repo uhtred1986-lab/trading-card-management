@@ -1,6 +1,8 @@
 import { and, asc, desc, eq, ilike, inArray, sql, type SQL } from "drizzle-orm";
 import type { Db } from "@/db";
 import { cardPrints, cardSets, cards, ownedCards } from "@/db/schema";
+import { abilityKeywordsOf } from "./abilityKeywords";
+import { sameKeyword } from "@/lib/decks/cardRules";
 import { GAME_INFO, type Game } from "./games";
 
 /** Card types across both games; Fusion World adds ENERGY MARKER and has no Z- types. */
@@ -22,6 +24,10 @@ export interface CardSearch {
   type?: string;
   color?: string;
   rarity?: string;
+  /** A trait/race tag as printed: "Saiyan", "God". */
+  trait?: string;
+  /** A §22 keyword ability the card carries: "Blocker", "Double Strike". */
+  ability?: string;
   owned?: "yes" | "no";
   sort?: "number" | "name" | "newest";
   page?: number;
@@ -37,7 +43,16 @@ export function searchTerms(q: string): string[] {
     .slice(0, 6);
 }
 
-function whereFor(s: CardSearch): SQL | undefined {
+/** Cards carrying a §22 keyword ability, found in TS since it reads bracket text rather than a column. */
+async function cardIdsWithAbility(db: Db, ability: string, game?: Game): Promise<string[]> {
+  const rows = await db
+    .select({ id: cards.id, skill: cards.skill, backSkill: cards.backSkill })
+    .from(cards)
+    .where(game ? eq(cards.game, game) : undefined);
+  return rows.filter((r) => abilityKeywordsOf(r).some((t) => sameKeyword(t, ability))).map((r) => r.id);
+}
+
+function whereFor(s: CardSearch, abilityIds?: string[]): SQL | undefined {
   const parts: SQL[] = [];
   for (const t of searchTerms(s.q ?? "")) parts.push(ilike(cards.searchText, `%${t.replace(/[%_]/g, "")}%`));
   if (s.game) parts.push(eq(cards.game, s.game));
@@ -45,6 +60,8 @@ function whereFor(s: CardSearch): SQL | undefined {
   if (s.type) parts.push(eq(cards.cardType, s.type));
   if (s.color) parts.push(sql`${s.color} = any(${cards.colors})`);
   if (s.rarity) parts.push(eq(cards.rarityCode, s.rarity));
+  if (s.trait) parts.push(sql`${s.trait} = any(${cards.traits})`);
+  if (abilityIds) parts.push(abilityIds.length ? inArray(cards.id, abilityIds) : sql`false`);
   if (s.owned === "yes")
     parts.push(sql`exists (select 1 from ${ownedCards} o where o.card_id = ${cards.id})`);
   if (s.owned === "no")
@@ -58,7 +75,8 @@ const numberOrder = sql`${cards.id} collate "C"`;
 export async function searchCards(db: Db, s: CardSearch) {
   const pageSize = s.pageSize ?? 60;
   const page = Math.max(1, s.page ?? 1);
-  const where = whereFor(s);
+  const abilityIds = s.ability ? await cardIdsWithAbility(db, s.ability, s.game) : undefined;
+  const where = whereFor(s, abilityIds);
   const order =
     s.sort === "name"
       ? [asc(cards.name), asc(numberOrder)]
@@ -156,6 +174,30 @@ export async function listRarities(db: Db, opts: { game?: Game } = {}) {
     .where(opts.game ? eq(cards.game, opts.game) : undefined)
     .groupBy(cards.rarityCode)
     .orderBy(desc(sql`count(*)`));
+}
+
+/** Trait/race tags actually printed, for the keyword dropdown. */
+export async function listTraits(db: Db, opts: { game?: Game } = {}): Promise<string[]> {
+  const rows = await db
+    .selectDistinct({ trait: sql<string>`unnest(${cards.traits})` })
+    .from(cards)
+    .where(opts.game ? eq(cards.game, opts.game) : undefined);
+  return rows.map((r) => r.trait).sort((a, b) => a.localeCompare(b));
+}
+
+/**
+ * §22 keyword abilities actually carried by some card, for the ability
+ * keyword dropdown. Read from `skill`/`backSkill` rather than a column, so
+ * this scans every card in the game(s) shown — fine at this catalog's size.
+ */
+export async function listAbilityKeywords(db: Db, opts: { game?: Game } = {}): Promise<string[]> {
+  const rows = await db
+    .select({ skill: cards.skill, backSkill: cards.backSkill })
+    .from(cards)
+    .where(opts.game ? eq(cards.game, opts.game) : undefined);
+  const found = new Set<string>();
+  for (const r of rows) for (const t of abilityKeywordsOf(r)) found.add(t);
+  return [...found].sort((a, b) => a.localeCompare(b));
 }
 
 /** Sets grouped by game, for a picker that shows both at once. */

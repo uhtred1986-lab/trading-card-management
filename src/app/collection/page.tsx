@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { db } from "@/db";
-import { COLORS, listSets } from "@/lib/catalog/queries";
+import { COLORS, cardTypesFor, listAbilityKeywords, listSets, listTraits } from "@/lib/catalog/queries";
 import { GAMES, parseGame } from "@/lib/catalog/games";
 import { GameFilter } from "@/components/GameFilter";
 import { collectionCards, collectionCopies, summarise, valuedLots } from "@/lib/collection/queries";
@@ -28,6 +28,9 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
   const set = one(sp.set);
   const game = parseGame(one(sp.game));
   const color = one(sp.color);
+  const type = one(sp.type);
+  const trait = one(sp.trait);
+  const ability = one(sp.ability);
   const finishParam = one(sp.finish);
   const finish = finishParam === "foil" || finishParam === "normal" ? finishParam : undefined;
   const sort = (one(sp.sort) as "value" | "name" | "number" | "recent" | undefined) ?? "recent";
@@ -38,15 +41,18 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
   const deckParams = many(sp.deck);
   const deck = deckParams.map((d) => (d === "none" ? ("none" as const) : Number(d))).filter((d) => d === "none" || Number.isInteger(d));
   const owner = one(sp.owner);
-  const filters: Parameters<typeof collectionCopies>[1] = { q, set, game, color, finish, sort, location, deck, owner };
+  const filters: Parameters<typeof collectionCopies>[1] = { q, set, game, color, type, trait, ability, finish, sort, location, deck, owner };
 
   // The grid aggregates by card; the list is one row per physical copy. Only
-  // the one being shown is fetched — both walk every lot.
-  const [grid, list, allSets, sets, all, decks, locations] = await Promise.all([
+  // the one being shown is fetched — both walk every lot. The set, keyword
+  // and ability dropdowns follow the game filter, same as on /cards.
+  const [grid, list, allSets, sets, traits, abilities, all, decks, locations] = await Promise.all([
     view === "grid" ? collectionCards(db, filters) : null,
     view === "list" ? collectionCopies(db, filters) : null,
     listSets(db),
     game ? listSets(db, { game }) : listSets(db),
+    listTraits(db, { game }),
+    listAbilityKeywords(db, { game }),
     // The header totals honour the game filter, so they agree with the list.
     valuedLots(db, { game }),
     deckOptions(db),
@@ -59,7 +65,7 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
   const shown = grid?.rows.length ?? list?.rows.length ?? 0;
   const select = "tap rounded-md border border-space-600 bg-space-900 px-2 py-1.5 text-sm text-space-100";
 
-  const params = { q, set, game, color, sort: sort === "recent" ? undefined : sort, finish, location: locationParam, deck: deckParams, owner };
+  const params = { q, set, game, color, type, trait, ability, sort: sort === "recent" ? undefined : sort, finish, location: locationParam, deck: deckParams, owner };
 
   const href = (next: string | undefined) => {
     const p = new URLSearchParams();
@@ -67,6 +73,9 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
     if (set) p.set("set", set);
     if (game) p.set("game", game);
     if (color) p.set("color", color);
+    if (type) p.set("type", type);
+    if (trait) p.set("trait", trait);
+    if (ability) p.set("ability", ability);
     if (sort !== "recent") p.set("sort", sort);
     if (next) p.set("finish", next);
     if (view !== "grid") p.set("view", view);
@@ -173,7 +182,20 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
           defaultValue={q}
           placeholder="Filter by name or number"
           className="col-span-2"
-          params={{ set, game, color, sort: sort === "recent" ? undefined : sort, finish, view: view === "grid" ? undefined : view, location: locationParam, deck: deckParams, owner }}
+          params={{
+            set,
+            game,
+            color,
+            type,
+            trait,
+            ability,
+            sort: sort === "recent" ? undefined : sort,
+            finish,
+            view: view === "grid" ? undefined : view,
+            location: locationParam,
+            deck: deckParams,
+            owner,
+          }}
         />
         <select name="set" defaultValue={set ?? ""} className={select}>
           <option value="">All sets</option>
@@ -188,6 +210,30 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
           {COLORS.map((c) => (
             <option key={c} value={c}>
               {c}
+            </option>
+          ))}
+        </select>
+        <select name="type" defaultValue={type ?? ""} className={select}>
+          <option value="">Any type</option>
+          {cardTypesFor(game).map((t) => (
+            <option key={t} value={t}>
+              {t}
+            </option>
+          ))}
+        </select>
+        <select name="trait" defaultValue={trait ?? ""} className={select}>
+          <option value="">Any keyword</option>
+          {traits.map((t) => (
+            <option key={t} value={t}>
+              {t}
+            </option>
+          ))}
+        </select>
+        <select name="ability" defaultValue={ability ?? ""} className={select}>
+          <option value="">Any ability keyword</option>
+          {abilities.map((a) => (
+            <option key={a} value={a}>
+              {a}
             </option>
           ))}
         </select>
