@@ -25,9 +25,14 @@ ECB rate stored in `fx_rates`. Price paid is entered in EUR.
 **Auth is HTTP Basic Auth in `src/proxy.ts`** (same pattern as gullet-cove-dm), active only when
 `BASIC_AUTH_USER` and `BASIC_AUTH_PASSWORD` are both set — they are set in Vercel for Production and
 Preview, and deliberately *not* in `.env.local`, so local dev runs open. `/api/sync/*` is exempt
-because the Vercel cron can't send credentials; it is guarded by `CRON_SECRET` instead. Vercel's
-own deployment protection is off (it is a paid feature on the Pro plan). Removing either variable
-exposes the whole database.
+because the Vercel cron can't send credentials; it is guarded by `CRON_SECRET` instead. The web-app
+manifest, `/icons/*` and `/sw.js` are exempt too — the browser fetches them without credentials, so
+behind auth the app cannot be installed at all. Removing either variable exposes the whole database.
+
+**Vercel's own deployment protection is ON for Preview** (verified 6 Sep 2026: a preview URL
+redirects to `vercel.com/sso-api`). A preview therefore needs a Vercel login *as well as* Basic
+Auth, which makes preview URLs awkward to open on a phone — a Cloudflare tunnel to a local
+`npm run build && npm start` is the quicker way to test on a device.
 
 ## Commands
 
