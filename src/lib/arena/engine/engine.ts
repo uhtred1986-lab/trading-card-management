@@ -2047,11 +2047,6 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
       const ch = pr.choice;
       if (action.cards.some((id) => !ch.candidates.includes(id)) || new Set(action.cards).size !== action.cards.length) throw new IllegalAction("invalid choice");
       if (action.cards.length > ch.max) throw new IllegalAction(`choose at most ${ch.max}`);
-      // The board and the move list answer one card at a time. A prompt that
-      // needs more than one keeps what has been picked and asks again for the
-      // rest, so a "choose 2" is two taps rather than an answer nothing on the
-      // menu could give.
-      if (action.cards.length < ch.min) throw new IllegalAction(`choose at least ${ch.min}`);
       const key = `picking:${ch.continuation}`;
       const sofar = (s.continuations[key] as string[] | undefined) ?? [];
       const picked = [...sofar, ...action.cards];
@@ -2061,7 +2056,14 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
       // nothing left to ask.
       const missing = ch.cover?.filter((c) => !picked.some((id) => cardNow(ctx, s, id).colors.includes(c))) ?? [];
       if (ch.cover) left = missing.length ? left.filter((id) => cardNow(ctx, s, id).colors.some((c) => missing.includes(c))) : [];
-      if (action.cards.length > 0 && action.cards.length < ch.max && left.length > 0) {
+      // The board and the move list answer one card at a time. A prompt that
+      // needs more than one keeps what has been picked and asks again for the
+      // rest, so the minimum is only owed on the *last* answer — checking it on
+      // every answer made a [Union] asking for two characters unanswerable,
+      // because a single card was the only thing on the menu.
+      const willAskAgain = action.cards.length > 0 && action.cards.length < ch.max && left.length > 0;
+      if (!willAskAgain && action.cards.length < ch.min) throw new IllegalAction(`choose at least ${ch.min}`);
+      if (willAskAgain) {
         s.continuations[key] = picked;
         // A colour still missing means the next pick is not optional: offering
         // "choose none" here would let the player stop halfway and lose the

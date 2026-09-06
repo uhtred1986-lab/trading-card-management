@@ -278,7 +278,12 @@ export type Op =
    * clause happens. Taking it silently is not the rule — and "if you don't"
    * has nothing to be the opposite of when the choice was never offered.
    */
-  | { op: "may"; ops: Op[]; reason?: string }
+  /**
+   * `chooser` is who decides, when that is not the player whose skill this is:
+   * "your opponent **may** choose 1 of their Battle Cards and KO it" is their
+   * offer to decline (20-16), and "if they don't" reads the answer.
+   */
+  | { op: "may"; ops: Op[]; reason?: string; chooser?: Side }
   /**
    * Write an effect down now and carry it out later (1-7-2-1-1): "at the end
    * of the turn, KO it". The inner program keeps this frame's variables, so it
@@ -942,7 +947,14 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         }
         frame.awaiting = "may";
         s.flow.unshift({ op: "script.step", frame });
-        s.prompt = { kind: "chooseMode", player: master, reason: op.reason ?? `${face(ctx, s, frame.card).name}: optional`, options: [op.reason ?? "Do it", "Don't"] };
+        s.prompt = {
+          kind: "chooseMode",
+          // 20-16: whoever the card says may do it, decides. The skill is
+          // still yours — only the answer is theirs.
+          player: op.chooser ? sideOf(master, op.chooser)[0] : master,
+          reason: op.reason ?? `${face(ctx, s, frame.card).name}: optional`,
+          options: [op.reason ?? "Do it", "Don't"],
+        };
         return "wait";
       }
 

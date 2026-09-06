@@ -261,6 +261,7 @@ Operations (each is an object with "op"):
   {"op":"if","cond":COND,"then":[...],"else":[...]}
   {"op":"chooseMode","modes":[{"label":"…","ops":[...]},{"label":"…","ops":[...]}]}   "Choose one— ・A ・B"
   {"op":"may","ops":[...],"reason":"draw 1 card"}   "You may …" (20-16): the master decides whether it happens.
+  {"op":"may","ops":[...],"chooser":"opponent"}     "Your opponent may …": theirs to decline, and "if they don't" reads the answer.
     Wrap the optional part only. {"kind":"did","what":"may"} then reads the answer, for "if you do" /
     "if you don't". A clause that is already an "up to" choice declines by choosing nothing — do not wrap those.
   {"op":"moveTo","target":TARGET,"to":"under","under":TARGET}    under another card; omit "under" for this card

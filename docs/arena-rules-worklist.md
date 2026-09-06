@@ -1282,6 +1282,51 @@ is the natural next piece. Reading "if they don't" without it would give the
 condition nothing to be the opposite of, which is the gap it already honestly
 reports.
 
+## Done: an offer the *opponent* declines (6 Sep 2026)
+
+The mechanism the round before stopped at. "Your opponent **may** choose 1 of
+their Battle Cards and KO it. **If they don't**, draw 2 cards" — 27 clauses said
+"if they don't" and had nothing to be the opposite of, because `may` only ever
+knew one decider.
+
+- **`may` gained a `chooser`.** The skill is still yours; only the answer is
+  theirs (20-16). `compileClause` strips "you may" so every pattern below sees
+  a bare instruction, so this strips the other subject and remembers whose
+  decision it was — that difference is the whole feature.
+- The `choose` ops **inside** the offer get the same chooser: "choose 1 of
+  their Battle Cards" is theirs to pick as well as theirs to decline. The
+  selectors already pointed at their cards, because the sentence said "their".
+- "If they don't" then reads their answer through the `did: "may"` condition
+  that already existed, with no change at all.
+- Two descriptions were wrong and are not now: `may` always said "you may", and
+  the `did` chain fell off its end so `may` read as "you negated the attack".
+
+Coverage 85.7 % → **85.9 %**.
+
+## Done: a crash the fuzzer caught, and where it came from (6 Sep 2026)
+
+`arena:fuzz 40` reported one crash, and the honest first question was whether
+the change above had caused it. It had not: restoring the two engine files from
+`HEAD` and re-running the same seed reproduced it exactly. It arrived with a
+**new deck the owner added** — one built around BT6-001, a `[Union-Fusion]`
+Leader.
+
+A `[Union-Fusion]` asks for two characters at once, and both the board and the
+move list answer **one card at a time** — the handler right below the check
+keeps what was picked and asks again for the rest. So the minimum is owed on
+the *last* answer, not on every one; checking it on each made the prompt
+unanswerable, because a single card was the only thing on the menu and the
+engine threw on it.
+
+Two things worth keeping from this:
+
+1. **Check whether a new failure is yours before fixing it.** Copying the
+   changed files aside, `git checkout --` them, and re-running the same seed is
+   a minute's work and settles it.
+2. **A crash only appears when a deck reaches the code.** The fuzzer plays the
+   owner's decks; every deck added is new coverage, and this bug had been
+   sitting in the [Union] path since it was written.
+
 ## Conventions worth keeping
 
 - Card text is **read, never interpreted**: if the compiler cannot read a

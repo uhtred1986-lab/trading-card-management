@@ -4554,4 +4554,77 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.deepEqual(read("[Auto] When you play this card, this card gets +5000 power during that turn.").unsupported, []);
 }
 
+{
+  // 20-16: "your opponent may choose 1 of their Battle Cards and KO it. If
+  // they don't, draw 2 cards." The offer is *theirs* to decline, and the
+  // clause after it reads their answer — 27 clauses said "if they don't" and
+  // had nothing to be the opposite of, because `may` only knew one decider.
+  DEFS.THEIRCHOICE = {
+    ...DEFS.V1,
+    id: "THEIRCHOICE",
+    name: "THEIRCHOICE",
+    energyCost: 1,
+    skill: "[Auto] When you play this card, your opponent may choose 1 of their Battle Cards and KO it. If they don't, draw 2 cards.",
+  };
+  const compiled = compileSkill(parseSkills(DEFS.THEIRCHOICE.skill!)[0]);
+  assert.deepEqual(compiled.unsupported, []);
+  assert.equal(compiled.ops[0].op, "may");
+  assert.equal((compiled.ops[0] as { chooser?: string }).chooser, "opponent");
+  assert.equal(describeScript(compiled.ops).startsWith("your opponent may:"), true);
+
+  const start = () => {
+    // Two of theirs, so the pick is a real choice and they make it (5-2).
+    const g = arena({ hand: ["THEIRCHOICE"], energy: ["V1"], oppBattle: ["V-BLUE", "BIG"] });
+    return play(g, { type: "play", player: "p1", card: find(g, "p1", "hand", "THEIRCHOICE") });
+  };
+
+  // They are the ones asked, on your turn, about their own cards.
+  const s = start();
+  assert.equal(s.prompt.kind, "chooseMode");
+  assert.equal(s.prompt.player, "p2", "20-16: whoever the card says may, decides");
+  const mine = s.players.p1.hand.length;
+  const victim = s.players.p2.battle[0];
+
+  // Taking the offer: they pick which of their cards dies, and you draw nothing.
+  const took = play(s, { type: "chooseMode", player: "p2", index: 0 }, { type: "choose", player: "p2", cards: [victim] });
+  assert.ok(!took.players.p2.battle.includes(victim), "they gave up the card they chose");
+  assert.equal(took.players.p1.hand.length, mine, "…so the other half did not happen");
+  assertConsistent(took);
+
+  // Declining: the card lives and the "if they don't" half fires.
+  const left = play(s, { type: "chooseMode", player: "p2", index: 1 });
+  assert.ok(left.players.p2.battle.includes(victim), "nothing was KO'd");
+  assert.equal(left.players.p1.hand.length, mine + 2, "…and you drew 2 instead");
+  assertConsistent(left);
+}
+
+{
+  // 22-13: a [Union-Fusion] asks for two characters at once, and the board and
+  // the move list answer one card at a time — so the minimum is owed on the
+  // *last* answer, not on every one. Checking it on each made the prompt
+  // unanswerable: a single card was the only thing on the menu, and the engine
+  // threw on it. Found by the fuzzer the day a deck with BT6-001 was added.
+  DEFS.FUSER = {
+    ...DEFS.V1,
+    id: "FUSER",
+    name: "FUSER",
+    energyCost: 3,
+    skill: "[Union-Fusion]{r}: <V1> <UNI-B>",
+  };
+  DEFS["UNI-B"] = { ...DEFS.V1, id: "UNI-B", name: "UNI-B", characters: ["UNI-B"] };
+  let s = arena({ hand: ["FUSER", "V1", "UNI-B"], energy: ["V1", "V1", "V1"] });
+  const fuser = find(s, "p1", "hand", "FUSER");
+  const offer = acts(s).find((a) => a.type === "activate" && a.card === fuser);
+  assert.ok(offer, "22-13: the Union is offered when both characters are in hand");
+  s = play(s, offer!);
+  assert.equal(s.prompt.kind, "chooseCards");
+  // One card at a time, and the first answer must not be refused for being one.
+  const first = (s.prompt as { choice: { candidates: string[] } }).choice.candidates[0];
+  s = play(s, { type: "choose", player: "p1", cards: [first] });
+  assert.equal(s.prompt.kind, "chooseCards", "it asks again for the second");
+  const second = (s.prompt as { choice: { candidates: string[] } }).choice.candidates[0];
+  s = play(s, { type: "choose", player: "p1", cards: [second] });
+  assertConsistent(s);
+}
+
 console.log("verify-arena: all checks passed");

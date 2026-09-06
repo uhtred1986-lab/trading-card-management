@@ -2292,7 +2292,13 @@ function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op
     // unreadable while "send it to the Warp" was not. It says nothing the
     // pending `c.replacing` has not already said, so it comes off first.
     const said = c.replacing ? clause.replace(/[\s,]+instead[.\s]*$/i, "") : clause;
-    let got = compileClause(said, c);
+    // 20-16: "your opponent **may** choose 1 of their Battle Cards and KO it"
+    // — the offer is theirs to decline, and the "if they don't" after it reads
+    // their answer. `compileClause` strips "you may" so every pattern sees a
+    // bare instruction; this strips the other subject and remembers whose
+    // decision it was, which is the whole difference between the two.
+    const theirOffer = /^(?:your opponent|they) may\s+\S/i.test(said.trim());
+    let got = compileClause(theirOffer ? said.trim().replace(/^(?:your opponent|they) may\s+/i, "") : said, c);
     // 20-16: "you may …" is the player's decision. `compileClause` strips the
     // words so that every pattern below sees a bare instruction, which meant
     // 787 compiled skills carried out an optional effect without asking. The
@@ -2337,14 +2343,28 @@ function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op
     }
     // Only who picks changes: the selectors already point at their cards,
     // because the sentence said "their Drop Area".
-    if (opponentDoes) for (const o of got) if (o.op === "choose") o.chooser = "opponent";
+    if (opponentDoes || theirOffer) for (const o of got) if (o.op === "choose") o.chooser = "opponent";
     for (const o of got) track(o, c);
     // The offer wraps whatever the clause turned out to be. A clause whose
     // first op is *already* a declinable choice asks by itself — "you may
     // choose 1 card in your hand and discard it" is answered by taking no card
     // (5-2-4) — so wrapping it would ask twice.
     const alreadyOptional = got[0]?.op === "choose" && got[0].sel.upTo;
-    const said2 = optional && got.length && !alreadyOptional ? [{ op: "may", ops: got, reason: clause.trim().replace(/^(?:you may|you can|the player may)\s+/i, "").replace(/[.]$/, "") } as Op] : got;
+    const offered = optional || theirOffer;
+    const said2 =
+      offered && got.length && !alreadyOptional
+        ? [
+            {
+              op: "may",
+              ops: got,
+              ...(theirOffer ? { chooser: "opponent" as const } : {}),
+              reason: clause
+                .trim()
+                .replace(/^(?:you may|you can|the player may|your opponent may|they may)\s+/i, "")
+                .replace(/[.]$/, ""),
+            } as Op,
+          ]
+        : got;
     // What "if you do" points at is the *offer*, not the last thing inside it.
     if (said2.length) c.lastOp = said2[said2.length - 1].op;
     push(said2);
@@ -2522,7 +2542,21 @@ function describeCond(c: Cond): string {
     case "leaderFlipped":
       return `${c.side === "opponent" ? "their" : "your"} leader ${c.flipped === false ? "has not" : "has"} awakened`;
     case "did":
-      return c.what === "addToHand" ? "you added a card to your hand" : c.what === "play" ? "you played a card" : c.what === "negateLeaderAttack" ? "you negated a Leader's attack" : c.what === "ko" ? "you KO'd a card" : c.what === "draw" ? "you drew a card" : "you negated the attack";
+      // `may` fell off the end of this chain and read as "you negated the
+      // attack", which is a different question entirely.
+      return c.what === "addToHand"
+        ? "you added a card to your hand"
+        : c.what === "play"
+          ? "you played a card"
+          : c.what === "negateLeaderAttack"
+            ? "you negated a Leader's attack"
+            : c.what === "ko"
+              ? "you KO'd a card"
+              : c.what === "draw"
+                ? "you drew a card"
+                : c.what === "may"
+                  ? "the offer was taken"
+                  : "you negated the attack";
     case "not":
       return `not (${describeCond(c.cond)})`;
     case "power": {
@@ -2698,7 +2732,7 @@ export function describeScript(ops: Op[]): string {
         parts.push(`${op.label ?? "later"}: ${describeScript(op.ops)}`);
         break;
       case "may":
-        parts.push(`you may: ${describeScript(op.ops)}`);
+        parts.push(`${op.chooser === "opponent" ? "your opponent" : "you"} may: ${describeScript(op.ops)}`);
         break;
       case "chooseMode":
         parts.push(`choose one — ${op.modes.map((mode) => describeScript(mode.ops)).join(" / ")}`);
