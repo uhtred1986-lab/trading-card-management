@@ -118,6 +118,15 @@ mechanisms in §6.
    because its pattern never matched anything. Write every file containing a
    regex with the editor. Probe scripts are fine (§5.4) but must be deleted
    before committing.
+
+   **The same escape bites the *replacement*, which is the half nobody
+   expects.** `String.prototype.replace` scans a replacement **string** for
+   `$` patterns: `` $` `` inserts everything before the match, `$&` the match
+   itself. Inserting a section into `arena-rules-worklist.md` on 6 Sep 2026
+   duplicated 1,457 lines of it, because the prose being inserted mentioned the
+   `$` anchor next to a backtick. Pass a replacement **function** — `() => text`
+   — whenever the text is not a literal in front of you; a function is never
+   scanned.
 7. **Before every commit:** `npm run typecheck`, `npm run lint`, `npm test`
    (includes `scripts/verify-arena.ts`), `npm run build`, `npm run arena:fuzz 40`
    (must report `0 crashes`). Commit on the feature branch, push, do not merge.
