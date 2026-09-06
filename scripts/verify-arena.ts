@@ -12,6 +12,7 @@ import { appendBeats, toBeats, type Beat, type Beats, type NumberedBeat } from "
 import { buildSnapshot, rejectedFor, type Snapshot } from "../src/lib/arena/snapshot";
 import { boardView } from "../src/lib/arena/view";
 import { pill, priceOf, refusal, sentence, stepText } from "../src/lib/arena/wording";
+import { narrate } from "../src/lib/arena/narration";
 import { parseSkills, keywordOf, orbsIn, eitherOrbsIn, skillLines } from "../src/lib/arena/engine/cards";
 import { parseFilter, matches, parseCondition } from "../src/lib/arena/engine/filters";
 import { addEffect, schedule, move, locate, playCost, powerOf, forbids, has, cardNow, comboCostOf, skillNegated, skillsNegated } from "../src/lib/arena/engine/state";
@@ -5297,6 +5298,52 @@ function assertDisjoint(s: GameState, where: string): RejectedAction[] {
   assert.equal(priceOf({ type: "endMain", player: "p1" }, big, ""), null);
   assert.equal(stepText({ index: 2, count: 3 }), "step 2 of 3");
   assert.equal(stepText({ index: 2, count: 0 }), "step 2");
+}
+
+// ── the opponent's turn, spelled out (`docs/arena-workflow-spec.md` §7, Phase 3)
+
+{
+  const art = { a: { cardId: "X", name: "Son Goku", imageUrl: null }, b: { cardId: "Y", name: "Frieza", imageUrl: null } };
+  const me = { viewer: "p1" as PlayerId, them: "Claude", art };
+  // Every beat kind has a sentence, and it is one sentence.
+  const all: Beat[] = [
+    { t: "phase", phase: "main", player: "p2", turn: 4 },
+    { t: "draw", player: "p2", card: null },
+    { t: "move", card: "a", from: "hand", to: "battle", owner: "p2" },
+    { t: "mode", card: "a", mode: "rest" },
+    { t: "flip", card: "a" },
+    { t: "markers", card: "a", delta: 1, total: 2 },
+    { t: "token", card: "b", owner: "p2" },
+    { t: "attack", attacker: "a", target: "b" },
+    { t: "block", guard: "b", by: "a" },
+    { t: "clash", attacker: "a", guard: "b", attackPower: 20000, guardPower: 10000, hit: true },
+    { t: "damage", player: "p1", amount: 1, critical: true, cards: ["b"] },
+    { t: "ko", card: "b", owner: "p1" },
+    { t: "negated" },
+    { t: "skill", card: "a", label: "Union-Absorb", text: "Place a card under it, then search.", unread: false, owner: "p2" },
+    { t: "say", text: "Your move." },
+    { t: "over", winner: "p2", reason: "no life left" },
+  ];
+  for (const b of all) {
+    const s = narrate(b, me);
+    assert.ok(s && s.length > 6, `${b.t} has a sentence`);
+    assert.ok(/[.!”]$/.test(s!), `${b.t} ends a sentence: ${s}`);
+  }
+  // Whose ability it was comes from `owner`, which is what Phase 1 added the field for.
+  assert.equal(narrate(all[13], me), "Claude uses 《Union-Absorb》 on Son Goku — Place a card under it, then search.");
+  assert.equal(narrate({ ...(all[13] as Extract<Beat, { t: "skill" }>), owner: "p1" }, me), "You use 《Union-Absorb》 on Son Goku — Place a card under it, then search.");
+  // Perspective: the same beat reads differently from the other chair.
+  assert.equal(narrate(all[2], me), "Claude plays Son Goku.");
+  assert.equal(narrate(all[2], { ...me, viewer: "p2" }), "You play Son Goku.");
+  assert.equal(narrate(all[0], me), "Claude's Main Phase.");
+  assert.equal(narrate(all[10], me), "You take 1 damage — Critical.");
+  assert.equal(narrate(all[11], me), "Your Frieza is KO'd.");
+  assert.equal(narrate(all[9], me), "20,000 vs 10,000 — the attack hits.");
+  assert.equal(narrate({ ...(all[9] as Extract<Beat, { t: "clash" }>), hit: false }, me), "20,000 vs 10,000 — Frieza holds.");
+  assert.equal(narrate(all[15], me), "Claude wins — no life left.");
+  // A hidden card is "a card", never a name the viewer may not know.
+  assert.equal(narrate({ t: "move", card: "zz", from: "deck", to: "hand", owner: "p2" }, me), "Claude adds a card from the deck to hand.");
+  assert.equal(narrate({ t: "draw", player: "p1", card: "a" }, me), "You draw Son Goku.");
 }
 
 // ── the client contract: beats, and the snapshot both clients render ───────

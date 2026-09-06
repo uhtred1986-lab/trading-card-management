@@ -1,6 +1,6 @@
 # Arena — every rule as a workflow
 
-**Status: Phase 1 and Phase 2 built (6 Sep 2026); Phases 3–4 not started.** Written to be executed
+**Status: Phases 1–3 built (6 Sep 2026); Phase 4 (Android) not started.** Written to be executed
 by Claude Code in this repository. §9 records what was built and where it departs from the brief.
 
 The board today can only draw what `legalActions` offers, and `legalActions` offers only what is
@@ -371,7 +371,21 @@ What exists, all in `src/components/arena/` and reading only fields Phase 1 adde
 - **The step chip** (`StepChip`) — `prompt.step` as "step N of M", or "step N" alone, in the
   prompt bar and on the search sheet.
 
-Not done: the missing-energy chips the prototype draws beside the energy strip, and any change to
-the beat storyboard. **The gate still stands for Phase 3:** one full Tournament game on the owner's
-phone with the log open, which is also the first time these surfaces meet the real card pool.
+Not done: the missing-energy chips the prototype draws beside the energy strip.
+
+**Phase 3** — the opponent's turn, spelled out — followed in the same session:
+
+- **`src/lib/arena/narration.ts`** — `narrate(beat, narrator)`: one sentence per beat, from the
+  beat stream alone. Names come from the `art` the beats already carry, "you" from the viewer,
+  and whose ability resolved from `owner` on the `skill` beat (§3.4), which reads
+  *"Claude uses 《Union-Absorb》 on Son Goku — Place a card under it, then search."* A hidden card is
+  "a card", never a name the viewer may not know. Pure; every kind covered by `npm test`.
+- **The narration ribbon** (`NarrationRibbon` in `shared.tsx`) — bound to `playback.current`, so
+  the words follow the beat on screen in the story's order, and **held after playback stops**,
+  dimmer and with the beat's number, until the player acts. The prompt bar's hint is blanked while
+  the story plays, because the next prompt's hint would only mislead there.
+
+Nothing new was needed from the engine or the contract. **The gate now stands for Phase 4 and for
+the first real-pool exercise of all three phases:** one full Tournament game on the owner's phone
+with the log open.
 

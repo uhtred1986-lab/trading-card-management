@@ -475,6 +475,29 @@ export function SearchSheet({
   );
 }
 
+/**
+ * The opponent's turn, one sentence at a time (workflow spec §7, Phase 3).
+ *
+ * Bound to the beat on screen while the story plays, and held afterwards —
+ * dimmer, with the beat's number — so a turn that went past too fast can
+ * still be read without opening the log. `mine` colours the tick for a
+ * sentence about your own move, which the same stream also carries.
+ */
+export function NarrationRibbon({ text, n, mine, live }: { text: string; n: number; mine: boolean; live: boolean }) {
+  return (
+    <div
+      className={`flex items-center gap-2 rounded-lg border px-2 py-1 text-[11px] leading-snug sm:text-xs ${
+        mine ? "border-gain/40 bg-space-800/90" : "border-space-600 bg-space-800/90"
+      } ${live ? "text-space-100" : "text-space-300"}`}
+      aria-live="polite"
+    >
+      <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${mine ? "bg-gain shadow-[0_0_0_3px_rgba(52,211,153,0.16)]" : "bg-ki-500 shadow-[0_0_0_3px_rgba(242,140,15,0.16)]"} ${live ? "animate-pulse" : ""}`} aria-hidden />
+      <span key={n} className="arena-drop min-w-0 flex-1 truncate">{text}</span>
+      <span className="shrink-0 font-mono text-[9px] text-space-500">#{n}</span>
+    </div>
+  );
+}
+
 /** The one refusal line under the question, when a tap was just refused. */
 export function refusalLine(why: Requirement[] | undefined, o: Parameters<typeof sentence>[1]): string | null {
   return why?.length ? sentence(why[0], o) : null;

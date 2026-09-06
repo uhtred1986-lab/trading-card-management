@@ -12,7 +12,8 @@ import { useWakeLock } from "@/lib/arena/wake";
 import { type CardState } from "../ArenaCard";
 import { FeelToggle } from "../FeelToggle";
 import { ReportBug } from "../ReportBug";
-import { AttackBeam, CardPreview, CardSheet, Counter, SearchSheet, SkillSpotlight, StepBanner, StepChip, TopStrip, cardsOnTable, refusalLine, shortLabel, type SheetMove } from "../shared";
+import { narrate } from "@/lib/arena/narration";
+import { AttackBeam, CardPreview, CardSheet, Counter, NarrationRibbon, SearchSheet, SkillSpotlight, StepBanner, StepChip, TopStrip, cardsOnTable, refusalLine, shortLabel, type SheetMove } from "../shared";
 import { ZoneAnchor } from "./anchors";
 import { Ghosts } from "./Ghosts";
 import { Hand } from "./Hand";
@@ -43,6 +44,8 @@ export function ArenaStage({ gameId, snapshot }: { gameId: number; snapshot: Sna
   const [shaking, setShaking] = useState<string | null>(null);
   /** The search prompt the player closed to look at the board; it reopens on the next prompt. */
   const [closedSearch, setClosedSearch] = useState<string | null>(null);
+  /** The last sentence the story told, kept after playback stops until you act. */
+  const [held, setHeld] = useState<{ text: string; n: number; mine: boolean } | null>(null);
   const [hover, setHover] = useState<{ card: CardView; box: DOMRect } | null>(null);
   const [logOpen, setLogOpen] = useState(false);
   const asked = useRef(false);
@@ -64,6 +67,26 @@ export function ArenaStage({ gameId, snapshot }: { gameId: number; snapshot: Sna
   const playback = useBeatPlayer(beats, !still, boardRef);
 
   useWakeLock(playable && !view.over);
+
+  // The narration follows the beat on screen (workflow spec §7, Phase 3): one
+  // sentence per beat, from the same stream the motion plays, so the words and
+  // the pictures never disagree about the order of events.
+  const beatNow = playback.current;
+  if (beatNow && held?.n !== beatNow.n) {
+    // Adjusted while rendering rather than in an effect, as the beat player
+    // does: it is a change of props the board reflects on the same paint.
+    const ownerOf = (id: string): typeof view.you.player | null => {
+      for (const side of [view.you, view.them]) {
+        for (const c of [side.leader, side.unison, ...side.battle, ...side.combo, ...side.energy, ...(side.hand ?? []), side.dropTop]) if (c?.id === id) return side.player;
+      }
+      return null;
+    };
+    const text = narrate(beatNow, { viewer: view.you.player, them: view.them.name, art: beats?.art ?? {}, ownerOf });
+    if (text) {
+      const actor = "player" in beatNow ? beatNow.player : "owner" in beatNow ? beatNow.owner : null;
+      setHeld({ text, n: beatNow.n, mine: actor === view.you.player });
+    }
+  }
 
   // Only for arriving at a game that is already mid-turn — a normal move runs
   // the opponent's reply inside `act` itself.
@@ -95,6 +118,7 @@ export function ArenaStage({ gameId, snapshot }: { gameId: number; snapshot: Sna
     setHover(null);
     setError(null);
     setRefusal(null);
+    setHeld(null);
     feel("tap");
     startTransition(async () => {
       const r = await act(gameId, action);
@@ -270,6 +294,8 @@ export function ArenaStage({ gameId, snapshot }: { gameId: number; snapshot: Sna
           <SideRail side={view.you} cardProps={cardProps} onHover={hoverOf} hurt={hurting === view.you.player} className="lg:col-start-1 lg:row-start-1" />
         </div>
 
+        {held && !view.over && <NarrationRibbon text={held.text} n={held.n} mine={held.mine} live={playback.playing} />}
+
         {/* The prompt bar: the one question being asked, or the story being told. */}
         <section
           className={`sticky bottom-2 z-30 flex items-center gap-2 rounded-xl border p-2 pl-3 backdrop-blur sm:gap-3 sm:rounded-2xl sm:p-3 sm:pl-5 ${
@@ -297,7 +323,8 @@ export function ArenaStage({ gameId, snapshot }: { gameId: number; snapshot: Sna
             </p>
             <p className={`mt-0.5 flex items-center gap-2 text-[11px] sm:text-sm ${refusal && !view.over ? "text-loss" : "text-space-300"}`}>
               {/* The refusal line (workflow spec §4): which requirement failed, and what would satisfy it. */}
-              <span className={refusal && !view.over ? "line-clamp-2" : "truncate"}>{view.over ? view.over.reason : (error ?? refusal?.text ?? view.prompt.hint ?? "")}</span>
+              {/* While the story plays the ribbon above has the words; the next prompt's hint would only mislead here. */}
+              <span className={refusal && !view.over ? "line-clamp-2" : "truncate"}>{view.over ? view.over.reason : playback.playing ? "" : (error ?? refusal?.text ?? view.prompt.hint ?? "")}</span>
               {/* "What can I do?" answered as a number, before you have to look. */}
               {!view.over && !playback.playing && playable && yourTurn && moveCount > 0 && !refusal && !searching && (
                 <span className={`shrink-0 rounded-full border px-1.5 py-px text-[10px] tabular-nums ${nudging ? "border-ki-500/60 text-ki-300" : "border-space-600 text-space-400"}`}>
