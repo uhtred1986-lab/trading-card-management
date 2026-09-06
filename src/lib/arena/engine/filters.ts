@@ -6,7 +6,7 @@
  * lets the engine offer the right candidates for Evolve, Union, Z-Stack,
  * Z-Awaken and Swap without a compiled script.
  */
-import { baseType, hasCharacter, hasKeyword, hasTrait, keywordOf } from "./cards";
+import { baseType, hasCharacter, hasKeyword, hasTrait, keywordOf, keywordsOf } from "./cards";
 import type { CardDef, Color, KeywordSkill } from "./types";
 
 export interface CardFilter {
@@ -41,6 +41,12 @@ export interface CardFilter {
    */
   notKeywords: KeywordSkill["name"][];
   /**
+   * "1 red Extra Card with an energy cost of 1 and **no keyword skills**"
+   * (BT29-001, P-247, XD1-08 and eight more). A measure that narrows, so
+   * leaving it unread offered every card in the area instead.
+   */
+  noKeywords: boolean;
+  /**
    * "Face-up ≪Boujack Brigade≫ cards" (3-9-2-1). Unlike every other measure
    * here this one is about the *instance*, not the card, so `matches` cannot
    * answer it — `resolveSelector` checks it where the instance is known.
@@ -74,7 +80,7 @@ const COLOR_WORDS: Record<string, Color> = { red: "Red", blue: "Blue", green: "G
 const TOKEN_STOP = new Set(["of", "your", "their", "the", "opponent's", "opponents", "up", "to", "and", "or", "all", "each", "other", "another"]);
 
 export function parseFilter(text: string): CardFilter {
-  const f: CardFilter = { colors: [], notColors: [], monoColor: false, multiColor: false, characters: [], notCharacters: [], traits: [], notTraits: [], names: [], notNames: [], notKeywords: [], type: null, notType: null, faceUp: false, token: false, notToken: false, costMin: null, costMax: null, powerMin: null, powerMax: null, powerRel: null, z: null };
+  const f: CardFilter = { colors: [], notColors: [], monoColor: false, multiColor: false, characters: [], notCharacters: [], traits: [], notTraits: [], names: [], notNames: [], notKeywords: [], noKeywords: false, type: null, notType: null, faceUp: false, token: false, notToken: false, costMin: null, costMax: null, powerMin: null, powerMax: null, powerRel: null, z: null };
   let t = text.replace(/&lt;/g, "<").replace(/&gt;/g, ">");
   // "Choose up to 1 Battle Card **other than** <Grand Supreme Kai>" (SD15-01,
   // in the owner's own decks) says which card is *excluded*. Read by the loops
@@ -130,6 +136,11 @@ export function parseFilter(text: string): CardFilter {
     const c = COLOR_WORDS[m[2]];
     if (!f.colors.includes(c) && !f.notColors.includes(c)) f.colors.push(c);
   }
+  // "…with an energy cost of 1 **and no keyword skills**" — none at all, which
+  // the sets also write "skill-less" for a card with no text whatsoever. This
+  // one is only about the keywords, so a card with an [Auto] and no keyword
+  // still qualifies.
+  if (/\bno keyword skills?\b|\bno keywords\b/.test(lower)) f.noKeywords = true;
   // "A blue non-[Super Combo] Battle Card" — a keyword the card must not have.
   for (const m of lower.matchAll(/\bnon-\[([a-z0-9:\- ]+)\]/g)) {
     const kw = keywordOf(m[1]);
@@ -222,6 +233,7 @@ export function matches(d: CardDef, f: CardFilter): boolean {
   if (f.colors.length && !colourOk) return false;
   if (f.notColors.some((c) => d.colors.includes(c))) return false;
   if (f.notKeywords.some((k) => hasKeyword(d, k))) return false;
+  if (f.noKeywords && keywordsOf(d).length) return false;
   if (f.monoColor && d.colors.length !== 1) return false;
   if (f.multiColor && d.colors.length < 2) return false;
   if (f.characters.length && !f.characters.some((c) => hasCharacter(d, c))) return false;

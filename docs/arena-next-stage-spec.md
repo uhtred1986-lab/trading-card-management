@@ -26,7 +26,7 @@ Measured on the 6,493 Dragon Ball Super (not Fusion World) cards:
 | resolvable skills the compiler reads end-to-end | 85.9 % of 11,743 | `npm run arena:coverage` |
 | [Permanent] skills the compiler reads | 57.8 % of 1,807 | same |
 | …and that actually emit a standing effect | 52.9 % of 1,807 | same |
-| skills in the owner's 13 decks that compile | 91.7 % of 397 | same (deck tables) |
+| skills in the owner's 13 decks that compile | 92.2 % of 397 | same (deck tables) |
 | skills exactly one unreadable clause away | 1,191 | `npm run arena:gaps` |
 | [Auto] skills that compile but no trigger fires | 655 | `npm run arena:gaps` (§5.3) |
 | [Activate]/[Counter] whose price the engine cannot read | 66 | same |
@@ -119,8 +119,17 @@ mechanisms in §6.
    regex with the editor. Probe scripts are fine (§5.4) but must be deleted
    before committing.
 7. **Before every commit:** `npm run typecheck`, `npm run lint`, `npm test`
-   (includes `scripts/verify-arena.ts`), `npm run arena:fuzz 40` (must report
-   `0 crashes`). Commit on the feature branch, push, do not merge.
+   (includes `scripts/verify-arena.ts`), `npm run build`, `npm run arena:fuzz 40`
+   (must report `0 crashes`). Commit on the feature branch, push, do not merge.
+
+   Two ways that gate lies to you, both hit on 6 Sep 2026. **Read the exit
+   code, not the output** — `npm run build | tail` reports `tail`'s status, so
+   a failed build looks like a passing one; run each check on its own line and
+   echo `$?`. And **a worktree needs its own `npm ci`**: `tsx`, `tsc` and
+   `eslint` resolve up the directory tree to the main checkout's
+   `node_modules` and appear to work, but `next build` looks for
+   `next/package.json` beside the project and fails with "Could not find the
+   Next.js package". A junction does not work; run the install.
 8. Do not spend tokens on Fusion World cards: every measurement filters
    `cards.game === "dbs"`.
 
@@ -784,7 +793,7 @@ work, and they are parked here so they are not lost.
 ## 7. Definition of done for the next stage
 
 - ~~Catalog ≥ 85 % of resolvable skills compile~~ — **met, 85.9 %** (6 Sep
-  2026). The owner's decks ≥ 95 % is still open: 91.7 %, and what is left there
+  2026). The owner's decks ≥ 95 % is still open: 92.2 %, and what is left there
   is listed by `npm run arena:gaps -- --decks`.
 - `arena:gaps` "1 clause in the way" below 800. Still open at 1,191, and that
   figure has barely moved all stretch — because the work went into clauses that

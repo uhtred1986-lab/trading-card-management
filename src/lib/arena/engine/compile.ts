@@ -42,7 +42,7 @@ const TARGET_BEFORE_AND = /(?:^\s*|[,;:]\s+)(?:this card|it|they|them|that card|
  * Only counted when the clause so far opened a description with "with", which
  * is the word that turns the rest of the phrase into a filter.
  */
-const MEASURE_AFTER_AND = /^(?:an? energy cost of \d+|\d+ power)(?: or (?:less|more))?\b/i;
+const MEASURE_AFTER_AND = /^(?:an? energy cost of \d+|\d+ power|no keyword skills?|no keywords)(?: or (?:less|more))?\b/i;
 
 /**
  * A dash the sets use in pairs to hang a description off a target: "play up to
@@ -712,8 +712,8 @@ function withChoice(ref: Ref, clause: string, c: Ctx, act: (target: Ref) => Op):
 
 function durationOf(clause: string): Duration {
   const t = clause.toLowerCase();
-  if (/for the (?:duration of the )?battle|during this battle/.test(t)) return "battle";
-  if (/for the (?:duration of the )?game|during the game|in any area|in all areas/.test(t)) return "game";
+  if (/for the (?:duration of (?:the|this) )?battle|during this battle/.test(t)) return "battle";
+  if (/for the (?:duration of (?:the|this) )?game|during the game|in any area|in all areas/.test(t)) return "game";
   if (/until (?:the start of )?your opponent's next turn/.test(t)) return "opponentTurn";
   // Your *own* next Charge Phase is one step past "your next turn": the effect
   // has to be there when the Active Step runs (7-2-7).
@@ -1163,10 +1163,12 @@ function compileForEach(clause: string, c: Ctx): Op[] | null {
  * matching the action itself can be anchored to the end once they are gone.
  */
 const TRAILING_QUALIFIER =
-  // Some sets print "for the duration of turn", without the second article.
+  // Some sets print "for the duration of turn", without the second article,
+  // and some print "for the duration of **this** turn" — the same duration
+  // with the demonstrative the rest of the line already uses.
   // "During **that** turn" is the turn the sentence has been talking about,
   // which is this one — the same duration said with a different pronoun.
-  /\s+(?:for the (?:duration of (?:the )?)?(?:turn|battle|game)|for the rest of (?:the|this) turn|during (?:this|the|that) turn|this turn|until (?:the )?(?:end|start|beginning) of [a-z' ]+|in (?:all|any) areas?)$/;
+  /\s+(?:for the (?:duration of (?:the |this )?)?(?:turn|battle|game)|for the rest of (?:the|this) turn|during (?:this|the|that) turn|this turn|until (?:the )?(?:end|start|beginning) of [a-z' ]+|in (?:all|any) areas?)$/;
 
 /**
  * The clause with those tails removed.

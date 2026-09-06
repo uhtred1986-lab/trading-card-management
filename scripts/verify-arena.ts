@@ -4771,4 +4771,35 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assertConsistent(s);
 }
 
+
+
+{
+  // Two wordings off the deck-scoped miss list, both a measure short.
+
+  // "…with an energy cost of 1 **and no keyword skills**" (BT29-001, P-246/7/9,
+  // XD1-08, SD15-01 and six more). The "and" was cutting the sentence, and the
+  // measure had no field to land in — so on the five cards that did compile,
+  // the choice was offered every card in the area (ground rule 5).
+  const f = parseFilter("red Extra Card with an energy cost of 1 and no keyword skills");
+  assert.equal(f.noKeywords, true);
+  assert.equal(f.costMax ?? f.costMin, 1);
+  assert.equal(parseFilter("red Extra Card with an energy cost of 1").noKeywords, false);
+  assert.deepEqual(splitClauses("add up to 1 red Extra Card with an energy cost of 1 and no keyword skills from your Drop Area to your hand"), [
+    "add up to 1 red Extra Card with an energy cost of 1 and no keyword skills from your Drop Area to your hand",
+  ]);
+  // It is about the keywords only: a card with an [Auto] and no keyword still
+  // qualifies, which is what separates it from "skill-less".
+  assert.equal(matches({ ...DEFS.V1, skill: "[Auto] When you play this card, draw 1 card." }, f), false, "the cost is wrong, not the keywords");
+  assert.equal(matches({ ...DEFS.V1, type: "EXTRA", colors: ["Red"], energyCost: 1, skill: "[Auto] When you play this card, draw 1 card." }, f), true);
+  assert.equal(matches({ ...DEFS.V1, type: "EXTRA", colors: ["Red"], energyCost: 1, skill: "[Blocker]" }, f), false, "a keyword disqualifies it");
+
+  // "For the duration of **this** turn" (BT3-013, BT1-003) is the same
+  // duration as "for the duration of the turn", one demonstrative apart, and
+  // `TRAILING_QUALIFIER` knew only the article — so the pattern behind it,
+  // which anchors on `$`, never matched.
+  const combo = compileSkill(parseSkills("[Auto] When you combo with this card, this card gains +10000 combo power for the duration of this turn.")[0]);
+  assert.deepEqual(combo.unsupported, []);
+  assert.deepEqual(combo.ops, [{ op: "comboPower", target: { sel: { special: "self" } }, amount: 10000, until: "turn" }]);
+}
+
 console.log("verify-arena: all checks passed");
