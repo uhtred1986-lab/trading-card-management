@@ -3,11 +3,11 @@
 import { LayoutGroup, animate, motion, useMotionValue, useReducedMotion, useTransform } from "motion/react";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { act, advanceGame } from "@/app/arena/actions";
-import type { Beats } from "@/lib/arena/beats";
-import type { Action, LegalAction } from "@/lib/arena/engine";
+
+import type { Action } from "@/lib/arena/engine";
 import { feel } from "@/lib/arena/feel";
-import type { Spotlight } from "@/lib/arena/games";
-import type { BoardView, CardView, SideView, Tappable } from "@/lib/arena/view";
+import type { Snapshot } from "@/lib/arena/snapshot";
+import type { BoardView, CardView, SideView } from "@/lib/arena/view";
 import { useWakeLock } from "@/lib/arena/wake";
 import { type CardState } from "../ArenaCard";
 import { FeelToggle } from "../FeelToggle";
@@ -18,6 +18,7 @@ import { Ghosts } from "./Ghosts";
 import { Hand } from "./Hand";
 import { StageCard, type Moment } from "./StageCard";
 import { useBeatPlayer } from "./useBeatPlayer";
+import { useLiveGame } from "./useLiveGame";
 import { useIdle } from "./useIdle";
 
 /**
@@ -31,28 +32,7 @@ import { useIdle } from "./useIdle";
  *
  * Selected by the `boardStyle` cookie; `?board=classic` goes back.
  */
-export function ArenaStage({
-  gameId,
-  view,
-  legal,
-  taps,
-  log,
-  spotlight,
-  beats,
-  playable,
-  waitingOnServer,
-}: {
-  gameId: number;
-  view: BoardView;
-  legal: LegalAction[];
-  taps: Tappable;
-  log: string[];
-  spotlight: (Spotlight & { imageUrl: string | null }) | null;
-  /** What has happened since you last acted. Null when nothing has. */
-  beats: Beats | null;
-  playable: boolean;
-  waitingOnServer: boolean;
-}) {
+export function ArenaStage({ gameId, snapshot }: { gameId: number; snapshot: Snapshot }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
@@ -63,6 +43,15 @@ export function ArenaStage({
   const asked = useRef(false);
   const boardRef = useRef<HTMLDivElement | null>(null);
 
+  const waitingOnServer = snapshot.waiting === "opponent" || snapshot.waiting === "referee";
+
+  // While the server is deciding, watch the row rather than the clock: Claude's
+  // moves are committed as they are made, so they can be shown as they happen
+  // instead of all at once when the request finally returns.
+  const live = useLiveGame(gameId, snapshot, pending || waitingOnServer);
+  const { view, legal, taps, log, spotlight, beats } = live;
+  const playable = live.game.status === "playing";
+
   // Reduced motion is not a second code path: it simply never queues anything,
   // which is the same state the board reaches the instant you press Skip.
   const still = useReducedMotion();
@@ -70,6 +59,8 @@ export function ArenaStage({
 
   useWakeLock(playable && !view.over);
 
+  // Only for arriving at a game that is already mid-turn — a normal move runs
+  // the opponent's reply inside `act` itself.
   useEffect(() => {
     if (!waitingOnServer || asked.current) return;
     asked.current = true;

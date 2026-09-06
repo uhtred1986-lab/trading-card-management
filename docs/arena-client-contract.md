@@ -219,6 +219,13 @@ because it survives a phone changing networks mid-turn and needs nothing from th
 Cost note: a long-poll holds a Vercel function for up to `wait` seconds. For one user this is
 irrelevant; if it ever is not, the knob is `wait`.
 
+**The web board uses this too**, through `stage/useLiveGame.ts` — the one place either client
+reaches `/api/v1` rather than the functions behind it. `act()` still runs the whole opponent turn
+before it returns, but `advance` commits each of Claude's moves as it makes them, so polling the row
+shows them arriving instead of a pulsing dot for a minute and then everything at once. Verified: a
+20-second poll returned in 4.1 s when an action landed, carrying exactly the beats numbered above
+the client's mark.
+
 ## 7. Versioning and drift
 
 Every payload carries `contract: 1`. It is bumped **only** when a field is removed or its meaning

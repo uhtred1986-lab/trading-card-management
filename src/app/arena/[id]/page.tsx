@@ -80,17 +80,9 @@ export default async function ArenaGamePage({ params, searchParams }: { params: 
       )}
 
       {motion ? (
-        <ArenaStage
-          gameId={id}
-          view={snap.view}
-          legal={snap.legal}
-          taps={snap.taps}
-          log={snap.log}
-          spotlight={snap.spotlight}
-          beats={snap.beats}
-          playable={playing}
-          waitingOnServer={waitingOnServer}
-        />
+        // The whole snapshot, because the motion board keeps watching the game
+        // while the server is deciding and replaces it with what it reads.
+        <ArenaStage gameId={id} snapshot={snap} />
       ) : (
         <ArenaBoard
           gameId={id}
