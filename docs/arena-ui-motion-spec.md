@@ -327,9 +327,18 @@ No AI cost is added by any of this: it is client work, and a game costs exactly 
   nothing; a `ko` produces a beat carrying its own art key; the switch is exhaustive. The same run
   fails if the committed `contract/arena-v1.schema.json` no longer matches the Zod schemas — which
   is what keeps the Android app from finding out at runtime (contract §7).
-- **`npm run arena:playthrough`** already plays a whole game through the database — extended to
-  assert every `apply` produces a well-formed `beats` entry and that `toBeats` never throws across a
-  full game's events.
+- **`npm run arena:playthrough`** plays a whole game through the database, and now audits the beat
+  stream on every move: numbering that only climbs, a queue inside its cap, `seq` equal to the
+  highest beat, and a face carried for **every** card any beat names. This is the check that matters
+  most, because it runs the real card pool — it is the only thing that exercises `toBeats` against
+  the text real decks actually fire.
+
+  Six games over four deck pairs (~700 moves) pass every assertion and produce **11 of the 16 beat
+  kinds**, `ko` and `flip` among them, which are what drive the ghost layer and the awakening.
+  Never yet produced by a real game: `token`, `block`, `markers`, `negated`, `say` — they need token
+  cards, a blocker, a Unison, a negated attack, and an opponent who talks. Those paths are covered by
+  `verify-arena.ts` with synthetic cards, but **no real game has drawn one**, which is worth knowing
+  before trusting them.
 - **`npm run typecheck` / `npm run lint`** clean, as always, before anything is committed.
 - **Phone checklist**, on the owner's Android device, not an emulator: install to home screen;
   portrait lock; safe areas top and bottom; pull-to-refresh cannot fire; double-tap does not zoom;
