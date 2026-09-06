@@ -95,6 +95,7 @@ export function splitClauses(text: string): string[] {
         !TARGET_BEFORE_AND.test(text.slice(start, i)) &&
         !andEndsAList(text, start, i) &&
         !andJoinsTwoAreas(text, start, i) &&
+        !andJoinsTwoCountedAreas(text, start, i) &&
         !andJoinsARange(text, start, i) &&
         !andJoinsTwoSwitched(text, start, i) &&
         // "This card gains +5000 power **and** [Critical] during your turn":
@@ -191,6 +192,23 @@ function andJoinsTwoAreas(text: string, start: number, i: number): boolean {
   if (!AREA_WORD.test(text.slice(start, i))) return false;
   const after = text.slice(i + 5, i + 60).split(/[,.;]/)[0].trim();
   return AREA_WORD.test((after.match(/^(?:(?:your|their|its owner'?s|the)\s+)?[a-z-]+(?: area)?/i)?.[0] ?? "").trim());
+}
+
+/**
+ * The version where each side of the "and" is a whole counted target rather
+ * than a bare area name: "both players choose 1 card from their hand **and**
+ * 1 card from their Battle Area" (BT1-057). `andJoinsTwoAreas` only reads a
+ * bare area word up against the "and", so the "1 card from their" in front of
+ * "Battle Area" defeated it and the sentence split into a fragment with no
+ * verb of its own.
+ */
+const COUNTED_AREA_TARGET = /(?:up to )?\d+ cards? (?:in|from) (?:your|their|its owner'?s) (?:battle area|combo area|leader area|drop area|energy area|unison area|z-energy|z-deck|drop|hand|deck|life|warp|energy|unison)\s*$/i;
+const COUNTED_AREA_TARGET_START = /^(?:up to )?\d+ cards? (?:in|from) (?:your|their|its owner'?s) (?:battle area|combo area|leader area|drop area|energy area|unison area|z-energy|z-deck|drop|hand|deck|life|warp|energy|unison)\b/i;
+
+function andJoinsTwoCountedAreas(text: string, start: number, i: number): boolean {
+  if (!COUNTED_AREA_TARGET.test(text.slice(start, i))) return false;
+  const after = text.slice(i + 5, i + 90).split(/[,.;]/)[0].trim();
+  return COUNTED_AREA_TARGET_START.test(after);
 }
 
 /**
@@ -1388,6 +1406,33 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   if (/^make your opponent choose (\d+) cards? from their hand$/.test(t)) return [{ op: "discard", n: 1, side: "opponent" }];
   if (/^discard (?:it|them)$/.test(t) && c.last) return [{ op: "moveTo", target: { var: c.last }, to: "drop", reveal: true }];
   if ((m = /^both players choose (\d+) cards? (?:in|from) their hands?$/.exec(t))) return [{ op: "discard", n: Number(m[1]), side: "both" }];
+  // "Both players choose 1 card from their hand and 1 card from their Battle
+  // Area, and place those cards in their Drop Areas" (BT1-057): two areas at
+  // once, for both players, is more than the `discard` op says (hand only),
+  // so each side's pair is spelled out as its own choose-then-move — the same
+  // splicing `discard` does for the hand alone.
+  if ((m = /^both players choose (\d+) cards? (?:in|from) their hand and (\d+) cards? (?:in|from) their battle area$/.exec(t))) {
+    const nHand = Number(m[1]);
+    const nBattle = Number(m[2]);
+    const ops: Op[] = [];
+    for (const side of ["you", "opponent"] as const) {
+      const vHand = `c${c.n++}`;
+      const vBattle = `c${c.n++}`;
+      ops.push(
+        { op: "choose", sel: { side, area: "hand", count: nHand }, as: vHand, chooser: side, reason: clause },
+        { op: "moveTo", target: { var: vHand }, to: "drop", reveal: true },
+        { op: "choose", sel: { side, area: "battle", count: nBattle }, as: vBattle, chooser: side, reason: clause },
+        { op: "moveTo", target: { var: vBattle }, to: "drop", reveal: true },
+      );
+    }
+    return ops;
+  }
+  // The same card's next sentence just restates that the chosen cards go to
+  // the Drop — already true the instant they were chosen above. Reading it
+  // again would move an already-dropped card back into itself, which is a
+  // no-op for state but a false "goes to the Drop" line in the turn's
+  // narration, so it is read as nothing left to do rather than run again.
+  if (/^place those cards in their drop areas$/.test(t)) return [];
   // Discarding is often printed the long way round, as a move to the Drop.
   // Only the unqualified form: "1 yellow card in your hand" narrows *which*
   // card, and `discard` cannot yet honour that, so it stays unread.
