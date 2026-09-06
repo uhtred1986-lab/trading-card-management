@@ -641,6 +641,13 @@ export const arenaGames = pgTable(
      * action resolved no skill.
      */
     spotlight: jsonb("spotlight"),
+    /**
+     * What has happened since you last acted, for a client to animate. Engine
+     * events are per-`apply` and would otherwise be gone by the time anything
+     * re-renders; one opponent turn is several applies, so they accumulate
+     * here and are cleared when you next act. See `src/lib/arena/beats.ts`.
+     */
+    beats: jsonb("beats"),
     /** What Claude has cost this game so far — shown on the end screen. */
     aiCalls: integer("ai_calls").notNull().default(0),
     aiInputTokens: integer("ai_input_tokens").notNull().default(0),

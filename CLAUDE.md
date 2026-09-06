@@ -25,9 +25,14 @@ ECB rate stored in `fx_rates`. Price paid is entered in EUR.
 **Auth is HTTP Basic Auth in `src/proxy.ts`** (same pattern as gullet-cove-dm), active only when
 `BASIC_AUTH_USER` and `BASIC_AUTH_PASSWORD` are both set — they are set in Vercel for Production and
 Preview, and deliberately *not* in `.env.local`, so local dev runs open. `/api/sync/*` is exempt
-because the Vercel cron can't send credentials; it is guarded by `CRON_SECRET` instead. Vercel's
-own deployment protection is off (it is a paid feature on the Pro plan). Removing either variable
-exposes the whole database.
+because the Vercel cron can't send credentials; it is guarded by `CRON_SECRET` instead. The web-app
+manifest, `/icons/*` and `/sw.js` are exempt too — the browser fetches them without credentials, so
+behind auth the app cannot be installed at all. Removing either variable exposes the whole database.
+
+**Vercel's own deployment protection is ON for Preview** (verified 6 Sep 2026: a preview URL
+redirects to `vercel.com/sso-api`). A preview therefore needs a Vercel login *as well as* Basic
+Auth, which makes preview URLs awkward to open on a phone — a Cloudflare tunnel to a local
+`npm run build && npm start` is the quicker way to test on a device.
 
 ## Commands
 
@@ -37,6 +42,8 @@ npm run build          # Production build
 npm run typecheck      # tsc --noEmit
 npm run lint           # ESLint
 npm test               # scripts/verify-rules.ts (pure) + scripts/verify-db.mts (migrations + reservation rules on PGlite)
+npm run contract:emit  # rewrite contract/fixtures/*.json after a deliberate Snapshot shape change
+npm run android:test   # Kotlin round-trip of those fixtures, in Docker — no JDK on the machine
 npm run db:generate    # Generate a migration after editing src/db/schema.ts
 npm run db:migrate     # Apply migrations (also run on every Vercel deploy via vercel.json)
 npm run sync:catalog   # Import both games' catalogs from deckplanet + Fusion World art from Bandai (~50 s)
@@ -44,7 +51,9 @@ npm run sync:prices    # Import TCGplayer products + today's prices from tcgcsv 
                        # the USD→EUR rate, and TCGplayer art for prints still without any (~35 s)
 ```
 
-`npm test` needs no database or network. Everything else needs `DATABASE_URL` in `.env.local`.
+`npm test` needs no database or network. Everything else needs `DATABASE_URL` in `.env.local`,
+except `android:test`, which needs Docker and nothing else — the Kotlin toolchain lives in a
+container (`android/Dockerfile`) because the machine has no JDK, no Gradle and no Android SDK.
 There is no test framework — both scripts are plain `assert` scripts run with `tsx`; extend them in
 the same style.
 
@@ -91,7 +100,7 @@ the same style.
   pool is filtered to one game, so the model is never asked to reason across the two; only the
   scanner reads both at once, because a photo can hold a mix.
 - **Lot owner**: every `owned_cards` row records `owner` = the Basic Auth username
-  (`currentUser()` in `src/lib/auth.ts`, read from the `Authorization` header); null when the app
+  (`currentUser()` in `src/lib/auth/index.ts`, read from the `Authorization` header); null when the app
   runs open locally. Every path that creates lots (card page, bulk entry, scan batches, quick
   capture) stamps it — keep that true for new paths.
 - **Deck legality is a flag, never a block** (`src/lib/decks/legality.ts`). A deck saves in any
@@ -155,7 +164,13 @@ the same style.
   from `boardView`, which hides what the player may not see (3-1-3), and every tappable thing comes
   from the engine's `legalActions`, so the UI knows no rules. `npm run arena:playthrough` plays a
   whole game through the database, and `npm run arena:coverage` reports how much card text the
-  compiler reads.
+  compiler reads. The board is `src/components/arena/stage/` — motion-first, cards fly between zones
+  on `layoutId`, and a whole opponent turn is *played back* from the beat stream rather than
+  arriving as a jump. Everything it renders comes from one `Snapshot`
+  (`src/lib/arena/session.ts` + `snapshot.ts`), which `/api/v1` serves to the planned Android app as
+  well, so no client ever evaluates a rule. **`docs/arena-client-contract.md`** is that contract and
+  is read first; `docs/arena-ui-motion-spec.md` records the web board and
+  `docs/arena-android-spec.md` briefs the Android app, which is not built.
 - **Claude as the arena opponent** (`src/lib/arena/ai/`): `view.ts` builds what Claude may see —
   its own hand and decklist plus public state; your hand, life and decklist are never in the
   request. `opponent.ts` picks a number from the engine's legal-move list, so an answer can be
@@ -188,6 +203,11 @@ the same style.
 `.env.local` (gitignored) holds `DATABASE_URL` (Neon, pooled), `ANTHROPIC_API_KEY`,
 `CARDTRADER_API_TOKEN`, `CARDTRADER_ENABLED`. `CRON_SECRET` and `XIMILAR_API_KEY` are optional.
 The same variables must exist in Vercel's project settings for the deployment. See `.env.example`.
+
+The Neon database is in **`eu-central-1`** (AWS Frankfurt), so `vercel.json` pins functions to
+**`fra1`**, the Vercel region co-located with it. That pin used to live only in the Vercel dashboard,
+where nothing in the repo recorded it and nothing would catch it drifting back to the `iad1`
+default — which would put the Atlantic in the middle of every database round-trip.
 
 ## Conventions
 

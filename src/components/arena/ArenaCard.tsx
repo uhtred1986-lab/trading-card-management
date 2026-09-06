@@ -63,7 +63,6 @@ export function ArenaCard({
   onInspect,
   onHover,
   badge,
-  drop = false,
 }: {
   card: CardView;
   width?: number;
@@ -77,8 +76,6 @@ export function ArenaCard({
    */
   onHover?: (box: DOMRect | null) => void;
   badge?: string | null;
-  /** Battle Area cards drop in when they arrive; the animation runs once, on mount. */
-  drop?: boolean;
 }) {
   const [failed, setFailed] = useState(false);
   const height = Math.round((width * 88) / 63);
@@ -89,14 +86,19 @@ export function ArenaCard({
   const long = card.name.length > 18;
 
   // A long press opens the inspector; the timer has to survive re-renders.
+  // `held` is what draws the bar that fills while you hold — without it the
+  // long press is a secret, and a card you keep pressing just sits there.
   const press = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [held, setHeld] = useState(false);
   const startPress = () => {
     if (!onInspect) return;
+    setHeld(true);
     press.current = setTimeout(onInspect, 450);
   };
   const endPress = () => {
     if (press.current) clearTimeout(press.current);
     press.current = null;
+    setHeld(false);
   };
 
   const hoverable = !!onHover && !card.hidden;
@@ -106,7 +108,7 @@ export function ArenaCard({
 
   return (
     // The id is in the DOM so the attack beam can find both of its ends.
-    <div data-arena-card={card.id} className={`relative flex shrink-0 items-center justify-center ${drop ? "arena-drop" : ""}`} style={{ width: px(width), height: px(box) }}>
+    <div data-arena-card={card.id} className="relative flex shrink-0 items-center justify-center" style={{ width: px(width), height: px(box) }}>
       <button
         type="button"
         onClick={onTap}
@@ -189,6 +191,8 @@ export function ArenaCard({
               ))}
           </span>
         )}
+        {/* The long press, made visible: it fills, then the inspector opens. */}
+        {held && <span className="arena-hold pointer-events-none absolute inset-x-0 bottom-0 h-[2px] origin-left bg-ki-400" aria-hidden />}
         {/* Combo is the number that decides a battle from hand — worth its own badge. */}
         {card.comboPower != null && card.comboPower > 0 && chrome && (
           <span
@@ -203,7 +207,9 @@ export function ArenaCard({
       {card.markers > 0 && (
         <span className="pointer-events-none absolute -right-1 -top-1 flex gap-[2px]">
           {Array.from({ length: Math.min(card.markers, 6) }, (_, i) => (
-            <span key={i} className="rounded-full border border-space-950 bg-ki-400" style={{ width: px(9), height: px(9) }} />
+            // Keyed by position, so a marker arriving pops in on its own rather
+            // than the whole row restarting.
+            <span key={i} className="arena-chip rounded-full border border-space-950 bg-ki-400" style={{ width: px(9), height: px(9), animationDelay: `${i * 40}ms` }} />
           ))}
           {card.markers > 6 && (
             <span className="font-mono text-ki-300" style={{ fontSize: px(8) }}>

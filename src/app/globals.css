@@ -57,6 +57,16 @@ body {
   }
 }
 
+/*
+ * No double-tap-to-zoom on anything meant to be tapped. Beyond the delay it
+ * removes, zooming the board mid-game is never what was meant by tapping a
+ * card twice — the second tap is a target, or a confirmation.
+ */
+.tap,
+button {
+  touch-action: manipulation;
+}
+
 /* Hide number-input spinners: quantity fields get their own +/- buttons. */
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
@@ -75,6 +85,13 @@ input[type="number"] {
  */
 .arena {
   --arena: 1;
+  /*
+   * A drag that starts on the board is aimed at a card, never at the page.
+   * Without this, dragging down from the top of a game in Android Chrome is
+   * pull-to-refresh, and a reload mid-turn is the worst thing this screen can
+   * do to you.
+   */
+  overscroll-behavior: contain;
 }
 @media (min-width: 640px) {
   .arena {
@@ -166,10 +183,181 @@ input[type="number"] {
   animation: arena-drop 0.28s ease-out backwards;
 }
 
+/*
+ * "You can tap this." Shown only after a few seconds of nothing happening, on
+ * cards that are already legal — so it answers the beginner's real question
+ * ("what am I supposed to do now?") without nagging anyone who knows.
+ */
+@keyframes arena-nudge {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+.arena-nudge {
+  animation: arena-nudge 1.6s ease-in-out infinite;
+}
+
+/*
+ * The long press, made visible. It runs for exactly as long as the timer that
+ * opens the card inspector, so what you see filling is the thing you are
+ * waiting for. Deliberately *not* disabled under reduced motion: it is a
+ * progress indicator, and hiding it would make the gesture a secret again.
+ */
+@keyframes arena-hold {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+.arena-hold {
+  animation: arena-hold 450ms linear forwards;
+}
+
+/*
+ * The storyboard (docs/arena-ui-motion-spec.md §7), as keyframes.
+ *
+ * These are the moments that happen *to* a card rather than moving it between
+ * two places — a flight needs the layout engine, a lunge does not. They are
+ * driven by the beat on screen, so they play in the story's order rather than
+ * whenever a re-render happens to notice a change.
+ *
+ * All of them run on a child of the element the layout animation projects,
+ * never on that element itself: a transform there breaks its measurement.
+ */
+
+/* The attacker throws itself at what it is attacking, and snaps back. */
+@keyframes arena-lunge-up {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  45% {
+    transform: translateY(-18%) scale(1.06);
+  }
+}
+@keyframes arena-lunge-down {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  45% {
+    transform: translateY(18%) scale(1.06);
+  }
+}
+.arena-lunge-up {
+  animation: arena-lunge-up 300ms cubic-bezier(0.3, 0, 0.2, 1);
+}
+.arena-lunge-down {
+  animation: arena-lunge-down 300ms cubic-bezier(0.3, 0, 0.2, 1);
+}
+
+/* And the thing it hit knows about it. */
+@keyframes arena-hit {
+  0% {
+    filter: brightness(1);
+    transform: translateX(0);
+  }
+  15% {
+    filter: brightness(2.4) saturate(1.5);
+    transform: translateX(-3px);
+  }
+  35% {
+    transform: translateX(3px);
+  }
+  55% {
+    transform: translateX(-2px);
+  }
+  100% {
+    filter: brightness(1);
+    transform: translateX(0);
+  }
+}
+.arena-hit {
+  animation: arena-hit 300ms ease-out;
+}
+
+/* A leader turning over. A full turn, so it lands facing the right way. */
+@keyframes arena-awaken {
+  0% {
+    transform: rotateY(0deg) scale(1);
+  }
+  50% {
+    transform: rotateY(180deg) scale(1.12);
+  }
+  100% {
+    transform: rotateY(360deg) scale(1);
+  }
+}
+.arena-awaken {
+  animation: arena-awaken 350ms ease-in-out;
+  transform-style: preserve-3d;
+}
+
+/* A card arriving from somewhere with no card of its own to fly from. */
+@keyframes arena-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.86) translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.arena-pop {
+  animation: arena-pop 220ms cubic-bezier(0.2, 1.2, 0.4, 1) backwards;
+}
+
+/* Whoever just took damage. */
+@keyframes arena-hurt {
+  0%,
+  100% {
+    transform: translateX(0);
+    box-shadow: none;
+  }
+  20% {
+    transform: translateX(-5px);
+    box-shadow: 0 0 0 2px rgba(248, 113, 113, 0.5);
+  }
+  60% {
+    transform: translateX(5px);
+  }
+}
+.arena-hurt {
+  animation: arena-hurt 340ms ease-out;
+}
+
+/* Unison markers popping in. */
+@keyframes arena-chip {
+  from {
+    transform: scale(0);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+.arena-chip {
+  animation: arena-chip 180ms cubic-bezier(0.2, 1.4, 0.4, 1) backwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .arena-banner,
   .arena-slam,
-  .arena-drop {
+  .arena-drop,
+  .arena-nudge,
+  .arena-lunge-up,
+  .arena-lunge-down,
+  .arena-hit,
+  .arena-awaken,
+  .arena-pop,
+  .arena-hurt,
+  .arena-chip {
     animation-duration: 0.01ms;
     animation-iteration-count: 1;
   }
