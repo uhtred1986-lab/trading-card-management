@@ -751,20 +751,34 @@ not have.
 | SD3-01 | "If you place a black card in the Drop Area with this skill" / "If a card of any other color is placed in the Drop Area" | Both read the three cards the skill's **cost** put in the Drop: a black one among them grants [Critical], a non-black one also grants +5000, and both can apply at once. The cost program would have to bind the cards it milled to a variable the effect can see — `costVarsKey` already carries a price's *choices* across, so this is the same road, for a `mill`. |
 | EX02-01 | "place the remaining cards on the top or bottom of your deck in any order" | You return each un-taken card to the top or the bottom, in an order you choose. Needs `Ref = { var; minus }` (§6.1) **and** a per-card top/bottom prompt, which no op offers. |
 
+The owner's ruling on each of these is stored **in the database**, on the note
+itself, not only here: `npm run arena:rule -- <cardId> [--skill N]
+[--clause "…"] "<the ruling>"` writes it to `card_text_notes.explanation`, and
+`npm run arena:rule -- --list` reads them all back. That is the route to use
+when a ruling arrives in conversation rather than through `/arena/backlog`'s
+box — unlike the box, it asks Claude for nothing and writes down only what was
+said, because the code change that follows is made against every card sharing
+the wording rather than one card at a time.
+
 Two more things this pass turned up that no measure on that page can see:
 
 - **`/arena/backlog` never re-checks a note.** 108 of 131 open notes were
   fixed long ago. `unreadClausesOf` is already the whole test — a sweep that
   closes a note whose clause now compiles would keep the page honest.
-- **Five non-[Permanent] skills read cleanly and then do nothing**: BT30-053,
-  BT21-118, BT22-062, BT27-070 and XD1-05 all compile to `costReduction`, which
-  `script.ts` deliberately does not carry out because `collectStatics` turns it
-  into a standing effect — and that only ever runs over a [Permanent] (9-5-1).
-  "Reduce the combo cost of … **for the duration of the turn**" on an [Auto] is
-  a *timed* cost effect, which no `StaticEffect` kind can express. Marking them
-  unread instead was tried and reverted: the referee would answer with the same
-  inert op, and it contradicts the test that asserts the wording compiles. The
-  fix is a duration on the cost effect, not a change to the compiler.
+- **Five non-[Permanent] skills read cleanly and then did nothing** — BT30-053,
+  BT21-118, BT22-062, BT27-070 and XD1-05. All compile to `costReduction`,
+  which `script.ts` deliberately did not carry out, because `collectStatics`
+  turns it into a standing effect — and that only ever runs over a [Permanent]
+  (9-5-1). "Reduce the combo cost of … **for the duration of the turn**" on an
+  [Auto] is a *timed* cost effect, which no `StaticEffect` kind could express.
+  **Fixed 7 Sep 2026**: `ContinuousEffect` has `cost`/`comboCost` kinds, the
+  `costReduction` op carries an `until`, the interpreter puts it in force when
+  a resolving skill reaches it, and `costOf`/`comboCostOf` read the effects
+  beside the statics. Marking them unread instead was tried and reverted: the
+  referee answers with the same inert op, and it contradicts the test that
+  asserts the wording compiles. The class is now empty; **85 [Permanent] skills
+  still compile and emit no standing effect**, which is §6.12's work and what
+  `arena:coverage` counts.
 
 ---
 

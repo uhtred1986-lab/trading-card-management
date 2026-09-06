@@ -243,7 +243,15 @@ export type Op =
    * says (9-1-3-3). `what` says which cost: the energy cost by default, or the
    * combo cost (5-7-3).
    */
-  | { op: "costReduction"; target: Ref; amount: Amount; what?: "energy" | "combo" }
+  /**
+   * 20-21. On a [Permanent] this is a standing effect and `collectStatics`
+   * emits it; `until` is then the "game" every [Permanent] op carries and is
+   * not read. On any other skill the same sentence is a *timed* change —
+   * "reduce the combo cost of blue and yellow ≪Universe 6≫ cards in your hand
+   * by 1 **for the duration of the turn**" (XD1-05) — and the interpreter puts
+   * it in force for that long.
+   */
+  | { op: "costReduction"; target: Ref; amount: Amount; what?: "energy" | "combo"; until?: Duration }
   /**
    * Take a keyword skill away from a card (9-1-5). Unlike `negateSkills`, which
    * silences everything, this names one — "negate this card's
@@ -855,7 +863,21 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         break;
       }
 
-      case "costReduction":
+      case "costReduction": {
+        // On a [Permanent] this never runs: `collectStatics` reads the op and
+        // emits a standing effect. Reaching it here means an [Auto] or an
+        // [Activate] said the same thing with a duration on it — XD1-05's
+        // "…by 1 for the duration of the turn" — and a skill that resolves has
+        // to put it in force itself, or it resolves to nothing at all.
+        const by = amount(ctx, s, frame, op.amount);
+        if (!by) break;
+        const kind = op.what === "combo" ? "comboCost" : "cost";
+        for (const id of resolveRef(ctx, s, frame, op.target)) {
+          addEffect(s, ev, { master: frame.master, source: frame.card, target: id, kind, value: by, until: op.until ?? "turn" });
+        }
+        break;
+      }
+
       case "negateKeyword":
       case "gains":
       case "replaceLeave":

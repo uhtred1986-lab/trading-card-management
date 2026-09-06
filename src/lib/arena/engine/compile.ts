@@ -1693,7 +1693,12 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
       if (!per) return null;
       by = { count: { ...per, count: undefined, upTo: undefined }, ...(flat === 1 ? {} : { times: flat }) };
     }
-    return [{ op: "costReduction", target: ref, amount: by, ...(m[1] === "combo" ? { what: "combo" as const } : {}) }];
+    // The duration is read off the printed clause, not the qualifier-stripped
+    // one: "…for the duration of the turn" is exactly what `stripQualifiers`
+    // takes off. A [Permanent] holds while its card is valid (9-5-1) and
+    // `holdForGame` rewrites this to "game"; anywhere else it is what says how
+    // long the change is in force.
+    return [{ op: "costReduction", target: ref, amount: by, ...(m[1] === "combo" ? { what: "combo" as const } : {}), until: durationOf(clause) }];
   }
 
   // 9-1-5: negating one named keyword rather than silencing the card.

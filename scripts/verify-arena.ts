@@ -199,6 +199,8 @@ const DEFS: Record<string, CardDef> = defsFrom([
   card("BECOMES", { energyCost: 2, skill: "[Permanent] This card gains ≪Saiyan≫ in all areas." }),
   card("SAIYANKILL", { energyCost: 1, skill: "[Auto] When you play this card, choose 1 of your opponent's ≪Saiyan≫ Battle Cards and KO it." }),
   card("CHEAPCOMBO", { energyCost: 3, comboCost: 2, comboPower: 5000, skill: "[Permanent] Reduce the combo cost of this card in your hand by 2." }),
+  card("BLUECOMBO", { energyCost: 3, colors: ["Blue"], comboCost: 2, comboPower: 5000 }),
+  card("CHEAPENER", { energyCost: 1, skill: "[Auto] When you play this card, reduce the combo cost of blue cards in your hand by 1 for the duration of the turn." }),
   card("ONLYONE", { energyCost: 1, name: "ONLYONE", skill: "[Permanent] Only 1 {ONLYONE} can be played in your Battle Area." }),
   card("RESTCOND", { energyCost: 1, skill: "[Permanent] If this card is in Rest Mode, your Battle Cards get +5000 power." }),
   card("FREEPLAY", { energyCost: 2, power: 5000, skill: "[Permanent] If you have <V1> in your Battle Area or Leader Area, you can play this card from your hand without paying its energy cost." }),
@@ -1482,6 +1484,24 @@ function assertConsistentAfterDrop(s: GameState) {
   const cheap = find(s, "p1", "hand", "CHEAPCOMBO");
   assert.equal(DEFS.CHEAPCOMBO.comboCost, 2, "printed");
   assert.equal(comboCostOf(ctx, s, cheap), 0, "and free after its own [Permanent]");
+}
+
+{
+  const ctx = { defs: DEFS };
+  // 20-21 with a duration on it. `collectStatics` only ever runs over a
+  // [Permanent] (9-5-1), so the same sentence on an [Auto] used to compile to
+  // a `costReduction` the interpreter walked straight past — the skill read
+  // perfectly and did nothing, which no compile figure can show. Five cards in
+  // the catalog print it, XD1-05 among them.
+  let s = arena({ hand: ["CHEAPENER", "BLUECOMBO"], energy: ["V1"] });
+  const blue = find(s, "p1", "hand", "BLUECOMBO");
+  assert.equal(comboCostOf(ctx, s, blue), 2, "printed");
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "CHEAPENER") });
+  assert.equal(comboCostOf(ctx, s, blue), 1, "and 1 less while the skill is in force");
+  assert.ok(
+    s.effects.some((e) => e.kind === "comboCost" && e.target === blue && e.until === "turn"),
+    "as an effect that ends with the turn, not a standing one",
+  );
 }
 
 {
