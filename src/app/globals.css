@@ -183,10 +183,47 @@ input[type="number"] {
   animation: arena-drop 0.28s ease-out backwards;
 }
 
+/*
+ * "You can tap this." Shown only after a few seconds of nothing happening, on
+ * cards that are already legal — so it answers the beginner's real question
+ * ("what am I supposed to do now?") without nagging anyone who knows.
+ */
+@keyframes arena-nudge {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+.arena-nudge {
+  animation: arena-nudge 1.6s ease-in-out infinite;
+}
+
+/*
+ * The long press, made visible. It runs for exactly as long as the timer that
+ * opens the card inspector, so what you see filling is the thing you are
+ * waiting for. Deliberately *not* disabled under reduced motion: it is a
+ * progress indicator, and hiding it would make the gesture a secret again.
+ */
+@keyframes arena-hold {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+.arena-hold {
+  animation: arena-hold 450ms linear forwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .arena-banner,
   .arena-slam,
-  .arena-drop {
+  .arena-drop,
+  .arena-nudge {
     animation-duration: 0.01ms;
     animation-iteration-count: 1;
   }

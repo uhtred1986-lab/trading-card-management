@@ -89,14 +89,19 @@ export function ArenaCard({
   const long = card.name.length > 18;
 
   // A long press opens the inspector; the timer has to survive re-renders.
+  // `held` is what draws the bar that fills while you hold — without it the
+  // long press is a secret, and a card you keep pressing just sits there.
   const press = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [held, setHeld] = useState(false);
   const startPress = () => {
     if (!onInspect) return;
+    setHeld(true);
     press.current = setTimeout(onInspect, 450);
   };
   const endPress = () => {
     if (press.current) clearTimeout(press.current);
     press.current = null;
+    setHeld(false);
   };
 
   const hoverable = !!onHover && !card.hidden;
@@ -189,6 +194,8 @@ export function ArenaCard({
               ))}
           </span>
         )}
+        {/* The long press, made visible: it fills, then the inspector opens. */}
+        {held && <span className="arena-hold pointer-events-none absolute inset-x-0 bottom-0 h-[2px] origin-left bg-ki-400" aria-hidden />}
         {/* Combo is the number that decides a battle from hand — worth its own badge. */}
         {card.comboPower != null && card.comboPower > 0 && chrome && (
           <span

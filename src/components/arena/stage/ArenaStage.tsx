@@ -15,8 +15,10 @@ import { ReportBug } from "../ReportBug";
 import { AttackBeam, CardDetail, CardPreview, Counter, Sheet, SkillSpotlight, StepBanner, TopStrip, cardsOnTable, shortLabel } from "../shared";
 import { ZoneAnchor } from "./anchors";
 import { Ghosts } from "./Ghosts";
+import { Hand } from "./Hand";
 import { StageCard } from "./StageCard";
 import { useBeatPlayer } from "./useBeatPlayer";
+import { useIdle } from "./useIdle";
 
 /**
  * The motion board.
@@ -123,19 +125,26 @@ export function ArenaStage({
 
   const hoverOf = (c: CardView) => (box: DOMRect | null) => setHover(box ? { card: c, box } : null);
 
-  const cardProps = (c: CardView) => ({
-    card: c,
-    state: stateOf(c.id),
-    suppressed: playback.suppressed.has(c.id),
-    onTap: taps.byCard[c.id]?.length || isTargeting ? () => tapCard(c.id) : undefined,
-    onInspect: () => setInspect(c),
-    onHover: hoverOf(c),
-  });
-
   const bare = taps.bare.map((i) => ({ i, l: legal[i] }));
   const modal = view.prompt.kind === "chooseMode";
   const yourTurn = view.prompt.player === view.you.player;
   const step = view.battle ? `battle:${view.battle.step}` : `phase:${view.phase}`;
+
+  // After a few quiet seconds the cards that can be tapped say so. The clock
+  // restarts on anything that changes what you could do, so it never nags.
+  const idle = useIdle(4000, `${view.prompt.question}|${selected}|${busy}|${playback.playing}`);
+  const nudging = idle && playable && yourTurn && !busy && !isTargeting;
+  const choices = Object.keys(taps.byCard).length + bare.length;
+
+  const cardProps = (c: CardView) => ({
+    card: c,
+    state: stateOf(c.id),
+    suppressed: playback.suppressed.has(c.id),
+    nudge: nudging && !!taps.byCard[c.id]?.length,
+    onTap: taps.byCard[c.id]?.length || isTargeting ? () => tapCard(c.id) : undefined,
+    onInspect: () => setInspect(c),
+    onHover: hoverOf(c),
+  });
 
   return (
     <LayoutGroup>
@@ -177,7 +186,15 @@ export function ArenaStage({
                     ? `${view.them.name} is thinking…`
                     : view.prompt.question}
             </p>
-            <p className="mt-0.5 truncate text-[11px] text-space-300 sm:text-sm">{view.over ? view.over.reason : (error ?? view.prompt.hint ?? "")}</p>
+            <p className="mt-0.5 flex items-center gap-2 text-[11px] text-space-300 sm:text-sm">
+              <span className="truncate">{view.over ? view.over.reason : (error ?? view.prompt.hint ?? "")}</span>
+              {/* "What can I do?" answered as a number, before you have to look. */}
+              {!view.over && !playback.playing && playable && yourTurn && choices > 0 && (
+                <span className={`shrink-0 rounded-full border px-1.5 py-px text-[10px] tabular-nums ${nudging ? "border-ki-500/60 text-ki-300" : "border-space-600 text-space-400"}`}>
+                  {choices} {choices === 1 ? "move" : "moves"}
+                </span>
+              )}
+            </p>
           </div>
 
           {playback.playing && (
@@ -186,8 +203,8 @@ export function ArenaStage({
             </button>
           )}
           {!playback.playing && isTargeting && (
-            <button type="button" onClick={() => setSelected(null)} className="tap rounded-lg border border-space-600 px-3 py-2 text-sm text-space-100 sm:px-5 sm:py-2.5 sm:text-base">
-              Back
+            <button type="button" onClick={() => setSelected(null)} className="tap shrink-0 rounded-lg border border-space-600 px-3 py-2 text-sm text-space-100 sm:px-5 sm:py-2.5 sm:text-base">
+              Cancel
             </button>
           )}
           {!playback.playing &&
@@ -226,21 +243,23 @@ export function ArenaStage({
           </div>
         )}
 
-        {/* Your hand, along the bottom edge. */}
-        <section className="relative rounded-t-2xl border-t border-space-700 bg-space-900/95 p-2 pb-3 sm:rounded-2xl sm:border sm:border-space-700/70 sm:p-3" aria-label="Your hand">
-          <ZoneAnchor zone="p1:hand" />
-          <div className="mb-1 flex items-center justify-between text-[10px] uppercase tracking-widest text-space-400 sm:mb-2 sm:text-xs">
-            <span>
-              {view.you.name} · hand {view.you.handCount}
-            </span>
-            <div className="flex items-center gap-3 normal-case tracking-normal">
+        <Hand
+          cards={view.you.hand ?? []}
+          count={view.you.handCount}
+          name={view.you.name}
+          cardProps={cardProps}
+          controls={
+            <>
               <FeelToggle />
               <ReportBug gameId={gameId} cards={cardsOnTable(view)} />
               <button type="button" onClick={() => setLogOpen((x) => !x)} className="tap uppercase tracking-widest text-ki-300 hover:text-ki-400">
                 {logOpen ? "hide log" : "log"}
               </button>
-            </div>
-          </div>
+            </>
+          }
+        >
+          {/* The log no longer replaces the hand: you can read what just
+              happened and look at your cards at the same time. */}
           {logOpen && (
             <ol className="mb-2 max-h-40 space-y-0.5 overflow-y-auto font-mono text-[10px] leading-relaxed text-space-400 sm:max-h-56 sm:text-xs">
               {log.slice(-80).map((line, i) => (
@@ -251,15 +270,7 @@ export function ArenaStage({
               {log.length === 0 && <li>nothing has happened yet</li>}
             </ol>
           )}
-          {/* The log no longer replaces the hand: you can read what just happened
-              and look at your cards at the same time. */}
-          <div className="flex gap-1 overflow-x-auto pb-1 sm:gap-2 sm:[justify-content:safe_center] lg:gap-3">
-            {(view.you.hand ?? []).map((c) => (
-              <StageCard key={c.id} {...cardProps(c)} width={62} />
-            ))}
-            {(view.you.hand ?? []).length === 0 && <span className="py-4 text-xs text-space-500 sm:text-sm">no cards in hand</span>}
-          </div>
-        </section>
+        </Hand>
 
         {view.battle && <AttackBeam from={view.battle.attacker} to={view.battle.guard} hostRef={boardRef} />}
 

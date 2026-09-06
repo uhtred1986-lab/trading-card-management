@@ -24,6 +24,9 @@ export function StageCard({
   width = 56,
   upsideDown = false,
   suppressed = false,
+  fan = 0,
+  lift = 0,
+  nudge = false,
   onTap,
   onInspect,
   onHover,
@@ -34,6 +37,12 @@ export function StageCard({
   upsideDown?: boolean;
   /** Its arrival has not been played yet: keep the space, hide the card. */
   suppressed?: boolean;
+  /** Degrees of tilt in a fanned hand. Applied *inside* the layout element. */
+  fan?: number;
+  /** Pixels of arc, so a fan curves rather than shearing. */
+  lift?: number;
+  /** Idle, and this card can be tapped: say so quietly. */
+  nudge?: boolean;
   onTap?: () => void;
   onInspect?: () => void;
   onHover?: (box: DOMRect | null) => void;
@@ -48,7 +57,15 @@ export function StageCard({
       style={{ visibility: suppressed ? "hidden" : "visible" }}
       className="shrink-0"
     >
-      <ArenaCard card={card} state={state} width={width} upsideDown={upsideDown} onTap={onTap} onInspect={onInspect} onHover={onHover} />
+      {/*
+       * The tilt lives on a plain child, not on the animated element: a
+       * rotation on the element being projected breaks the measurement a
+       * layout animation depends on, and the card would fly to the wrong
+       * place. A CSS transform inside it is invisible to that machinery.
+       */}
+      <div className={`transition-transform duration-200 ${nudge ? "arena-nudge" : ""}`} style={fan || lift ? { transform: `rotate(${fan}deg) translateY(${lift}px)` } : undefined}>
+        <ArenaCard card={card} state={state} width={width} upsideDown={upsideDown} onTap={onTap} onInspect={onInspect} onHover={onHover} />
+      </div>
     </motion.div>
   );
 }

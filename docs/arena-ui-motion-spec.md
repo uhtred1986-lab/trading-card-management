@@ -1,7 +1,10 @@
 # Arena — the animated board (web client)
 
-**Status: planned, not built (5 Sep 2026).** The work brief for a second, motion-first arena board
-in the web app, built for an Android phone and installed from the browser, not a store.
+**Status: phases A–D built (6 Sep 2026); E and F remain.** The work brief for a second, motion-first
+arena board in the web app, built for an Android phone and installed from the browser, not a store.
+
+§1 below is what was true before any of it, kept because it is the argument for the work. Each
+phase says what it actually turned out to need; §11 is the running state.
 
 The arena has **two clients** now, built and improved in parallel:
 
@@ -235,21 +238,28 @@ The board is chosen by a `boardStyle` cookie, set from a control in the game's h
 Motion makes it engaging; these make it easier to play with one thumb. They are listed separately
 because they are worth doing even if every animation is cut.
 
-1. **The hand becomes a bottom sheet.** Today it is a 62 px filmstrip in which a card's text is
-   unreadable without a long press. Peek (a fanned edge) → drag up to a readable fan → tap a card to
-   lift it → tap again to commit, with the legal zones lit while it is lifted. Big single win.
-2. **The log stops eating the hand.** It becomes its own sheet, with the beats that just played
-   highlighted, so "what just happened" and "what do I hold" are answerable at once.
-3. **A visible affordance for the long press.** A ring that fills over the 450 ms, so the inspector
-   stops being a secret.
-4. **"What can I do?"** — the count of legal moves in the prompt bar, and after four idle seconds a
-   soft pulse across every tappable card. This is the difference between learning the game and
-   guessing at it.
-5. **Targeting gets a Cancel that is always there**, and drag-to-target as an alternative to
-   tap-then-tap (the tap flow stays; drag is added, not swapped).
-6. **The tap is acknowledged instantly** — haptic, the card lifts, the prompt bar shows a pending
-   state — even though the answer is a server round-trip away. This is latency cover, not a fix; the
-   fix was declined in decision 3.
+**Built**, except where noted.
+
+1. **The hand opens.** `stage/Hand.tsx`: closed it is the 62 px strip, open the cards are 92 px,
+   fanned and arced so they read as cards. Drag the handle or tap it. Not the fixed bottom sheet
+   the spec imagined — an overlay would have had to fight the prompt bar for the bottom of the
+   screen, and an expanding panel gets the same readable cards for none of that.
+2. **The log stopped eating the hand** — done in Phase C. It sits above the cards rather than
+   instead of them.
+3. **The long press is visible.** A bar that fills across the card for exactly the 450 ms of the
+   timer that opens the inspector. In `ArenaCard`, so the classic board gets it too. Deliberately
+   *not* disabled under reduced motion: it is a progress indicator, and hiding it would put the
+   gesture back in the dark.
+4. **"What can I do?"** — the move count in the prompt bar, and after four idle seconds a soft rise
+   and fall on every tappable card. The clock restarts on anything that changes what you could do,
+   so it answers a beginner without nagging anyone else.
+5. **Cancel** rather than "Back" while targeting, and it never scrolls away.
+6. **The tap is acknowledged instantly** — haptic and a pending state, from Phase B. Latency cover,
+   not a fix; the fix was declined in decision 3.
+
+**Not built: drag-to-target.** Tap-then-tap already works, and drag would mean a gesture layer with
+its own hit-testing against every card rectangle — a lot of surface for a second way to do something
+that is not currently hard. Worth revisiting only if the tap flow proves fiddly in real games.
 
 Explicitly **not** in scope: take-backs. Actions are applied and persisted server-side and the game
 is reproducible from `seed + actions`; undo would mean truncating that list, which is a rules-level
@@ -341,7 +351,7 @@ is also step 1 of the Android plan, so it is done once and both clients start fr
 | 1 | A — beat stream (**shared**, contract §2–§6) | nothing visible; `npm test` covers it | **built** |
 | 2 | B — phone shell | the *current* board, installable and full-bleed, with haptics | **built** |
 | 3 | C — new board behind the cookie | a board to play with, animated from beats | **built** |
-| 4 | D — ergonomics | the hand sheet, the log sheet, "what can I do?" | — |
+| 4 | D — ergonomics | the hand that opens, the long-press bar, "what can I do?" | **built** |
 | 5 | E — storyboard | the moments in §7, one at a time | — |
 | 6 | F — cutover | one board again | — |
 
