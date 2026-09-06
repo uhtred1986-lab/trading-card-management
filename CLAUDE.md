@@ -158,6 +158,14 @@ the same style.
   lessons: `docs/arena-rules-worklist.md`; **the current work brief with code map, checklists
   and backlog: `docs/arena-next-stage-spec.md`** — read it before touching the compiler. Tests:
   `scripts/verify-arena.ts` (part of `npm test`), synthetic cards, sections cited in messages.
+- **The compiler's glossary** (`src/lib/arena/glossary.ts`, shown at `/arena/rules/keywords`): every
+  keyword skill the parser recognises, the keywords that are not skills, the skill types, and the
+  rules a line is read by — each with what the manual *means* and, separately, what this engine
+  actually *does*, including where it approximates. It is the only place either of those is
+  written down, so **it is part of the compiler, not documentation about it**: see the Conventions
+  rule below. `KEYWORDS` is keyed by `KeywordSkill["name"]` so a new keyword fails `npm run
+  typecheck` until it is described, and `npm test` checks every tag printed there is a spelling
+  `keywordOf` really reads.
 - **Arena UI** (`/arena`, `src/components/arena/`, `src/lib/arena/{games,view}.ts`): phone-first
   hot-seat board. A game is one `arena_games` row holding the seed, the action log (the
   reproducible source) and a state snapshot; `applyToGame` is the only writer. The board is drawn
@@ -239,6 +247,15 @@ default — which would put the Atlantic in the middle of every database round-t
 - Money is integer cents + currency code; format with `formatCents`. Never float euros.
 - Card numbers are the catalog's ids (`BT18-020`); print ids add a suffix (`BT18-020_SPR`).
 - Keep `npm run typecheck`, `npm run lint` and `npm test` clean before committing.
+- **Touch the compiler, update the glossary** (`src/lib/arena/glossary.ts`). Any change to what the
+  engine understands or does with card text belongs there in the same commit: a keyword taught to
+  `keywordOf`, a keyword the engine starts or stops playing itself, an approximation fixed or
+  introduced, a new reading rule in `compile.ts`/`filters.ts`/`cards.ts`, a skill type or a
+  bracketed non-skill keyword. The `support` badge and the `engine` line are the claims that go
+  stale first — if a keyword's entry says the engine does something it no longer does, the page is
+  worse than nothing. The typecheck only catches a *missing* keyword; nothing catches a
+  description that has quietly become untrue, which is why this is a rule rather than a test.
+  Files in scope: `src/lib/arena/engine/{cards,compile,filters,engine,state,triggers,script}.ts`.
 - After a PR merges, delete the merged remote branch (`gh pr merge --delete-branch`, or the
   "Delete branch" button on GitHub) — do this unasked, but never delete a branch that hasn't
   merged (`--no-merged` in `git branch -r --merged main`). There is one Neon database for dev,

@@ -14,6 +14,7 @@ import { boardView } from "../src/lib/arena/view";
 import { pill, priceOf, refusal, sentence, stepText } from "../src/lib/arena/wording";
 import { narrate } from "../src/lib/arena/narration";
 import { parseSkills, keywordOf, orbsIn, eitherOrbsIn, skillLines } from "../src/lib/arena/engine/cards";
+import { KEYWORDS, keywordTagSpellings, keywordsByGroup, tagBody, tagParsesTo } from "../src/lib/arena/glossary";
 import { parseFilter, matches, parseCondition } from "../src/lib/arena/engine/filters";
 import { addEffect, schedule, move, locate, playCost, powerOf, forbids, has, cardNow, comboCostOf, skillNegated, skillsNegated } from "../src/lib/arena/engine/state";
 import { compileCostProgram, compileSkill, costIsOnlyOrbs, costText, describeScript, parseConditionClause, parseTarget, priceCondition, splitClauses } from "../src/lib/arena/engine/compile";
@@ -72,6 +73,28 @@ import type { Trigger } from "../src/lib/arena/engine/types";
   assert.deepEqual(orbsIn("{g}{g}, add 1 card"), { Green: 2 });
   assert.equal(parseSkills("[Auto][Bond 2] When this card attacks, draw 1 card.")[0].bond, 2);
   assert.equal(parseSkills("[Activate: Main][Limit 1] Draw 1 card.")[0].limit, 1);
+}
+
+// ── the keyword reference describes the keywords that exist ────────────────
+
+{
+  // `KEYWORDS` is keyed by the engine's own union, so a keyword the parser
+  // learns without a description fails the typecheck. This is the other
+  // direction: every tag the reference prints has to be a spelling the parser
+  // reads back as that keyword, or the page teaches a wording no card parses.
+  for (const { name, tag } of keywordTagSpellings()) {
+    assert.ok(tagParsesTo(tag, name), `the keyword reference prints ${tag} for [${name}], which keywordOf reads as ${JSON.stringify(keywordOf(tagBody(tag)))}`);
+  }
+  // Every group in the chip row has something under it, and the groups
+  // together account for every keyword — a group nothing is filed under, or a
+  // keyword filed under none, would simply not be shown.
+  const grouped = keywordsByGroup();
+  assert.equal(
+    grouped.reduce((n, g) => n + g.entries.length, 0),
+    Object.keys(KEYWORDS).length,
+    "every keyword belongs to exactly one group of the reference",
+  );
+  for (const g of grouped) assert.ok(g.entries.length > 0, `the reference has an empty group: ${g.label}`);
 }
 
 // ── filters and conditions ─────────────────────────────────────────────────

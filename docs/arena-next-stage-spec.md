@@ -151,6 +151,26 @@ mechanisms in §6.
    Next.js package". A junction does not work; run the install.
 8. Do not spend tokens on Fusion World cards: every measurement filters
    `cards.game === "dbs"`.
+9. **What the compiler understands is written down in `src/lib/arena/glossary.ts`,
+   and it is part of the compiler.** Shown at `/arena/rules/keywords`: every
+   keyword skill `keywordOf` recognises, the bracketed keywords that are not
+   skills, the skill types, and the rules a line is read by — each with what
+   the manual *means* and, kept separate, what this engine *does*, including
+   where it approximates (`support: "partial"`). Update it in the same commit
+   as the change: a keyword taught to the parser, a keyword the engine starts
+   or stops playing itself, an approximation fixed or introduced, a new
+   reading rule in `cards.ts` / `filters.ts` / `compile.ts`.
+
+   Only half of it is enforced. `KEYWORDS` is keyed by `KeywordSkill["name"]`,
+   so a *missing* keyword fails the typecheck, and `npm test` checks every tag
+   printed there is a spelling `keywordOf` really reads. Nothing catches an
+   `engine` line that has quietly become untrue — and an entry claiming the
+   engine handles something it no longer does is worse than no entry, because
+   it is the page that says which approximations are known. The five
+   deviations recorded on 6 Sep 2026 ([Unique] keeping the newest, [Overlord]
+   and [Rejuvenate] and [Empower] choosing for you, [Z-Awaken] main-phase
+   only, [Dark Over Realm]'s end-of-turn warp, [Swap] filtering on cost alone)
+   are each a real to-do; clearing one means deleting its sentence there.
 
 ---
 
