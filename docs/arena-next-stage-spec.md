@@ -6,6 +6,9 @@ owner decides when). This is a self-contained brief for whoever picks the work
 up next, written so that it can be followed step by step without re-deriving
 the design. Read it once top to bottom, then work the backlog in order.
 
+Starting a fresh session? `docs/arena-next-session-prompt.md` is a prompt to
+paste, which opens with a quality check of the work described here.
+
 Companion documents: `docs/arena-design-proposal.md` (why the engine is built
 the way it is), `docs/arena-rules-worklist.md` (history of what was built, with
 the lessons), `docs/rules/rulemanual.txt` (the Masters rule manual; every
