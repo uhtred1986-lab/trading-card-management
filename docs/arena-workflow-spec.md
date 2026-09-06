@@ -389,3 +389,24 @@ Nothing new was needed from the engine or the contract. **The gate now stands fo
 the first real-pool exercise of all three phases:** one full Tournament game on the owner's phone
 with the log open.
 
+**Rules in force** (later on 6 Sep 2026, from `docs/arena-compiler-workflow-review.md`): the two
+classes of rule the three phases left out — continuous effects with a duration, and [Permanent]
+skills — got the same treatment. Additive, contract still `1` (contract §3.2, §4):
+
+- `ContinuousEffect.source`, an `effectEnded` event wherever the engine expires an effect, and
+  `effect` / `effectEnded` beats with a sentence each in `narration.ts`; on the board the card
+  surges as a rule lands and settles as it wears off.
+- `CardView.basePower`, `CardView.effects` and `CardView.permanents`; `SideView.rules` for a rule
+  on the player. `src/lib/arena/effects.ts` is the one place a rule becomes a label and a
+  duration. The card face shows a coloured `▲`/`▼` power figure when the number is not the printed
+  one, a green ring on a keyword a skill granted, and an `∞` chip for a [Permanent] — lit while it
+  is in force, dim while it is not, struck when the engine cannot apply it. The sheet lists what
+  is in force with its source and its end, and each [Permanent] with its state and why.
+- `forbidden` carries `until`, so a refusal ends with *"Until the end of the turn."* or *"While
+  Frieza is in play."* rather than *"until that effect ends"*; `oncePerTurn` carries the printed
+  `limit`; `mode` says when a lock will keep the card down.
+- `LegalAction.cost` from the engine, so a skill's orbs are on its row rather than guessed off the
+  label; rejections for the counter window, a `chooseCards` prompt and the blocker prompt.
+- Two engine bugs found on the way, both fixed: [Limit X] did not gate [Activate] skills, and every
+  text [Activate] emitted its `skill` beat twice.
+

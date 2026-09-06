@@ -1,10 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { LegalAction, RejectedAction, Requirement } from "@/lib/arena/engine";
+import type { LegalAction, PlayerId, RejectedAction, Requirement } from "@/lib/arena/engine";
 import type { Spotlight } from "@/lib/arena/games";
-import type { BoardView, CardView, PromptView, SideView } from "@/lib/arena/view";
+import type { BoardView, CardView, PermanentView, PromptView, SideView } from "@/lib/arena/view";
+import { effectLine } from "@/lib/arena/effects";
 import { pill, priceOf, refusal, sentence, stepText } from "@/lib/arena/wording";
+
+/** Whose chair the words are read from: "until the start of your next turn" depends on it. */
+export type Narrator = { viewer: PlayerId; them: string };
+const DEFAULT_NARRATOR: Narrator = { viewer: "p1", them: "your opponent" };
 
 /**
  * The parts of the board that are the same whichever board is drawing it: the
@@ -206,7 +211,7 @@ export function AttackBeam({ from, to, hostRef }: { from: string; to: string; ho
  * read, with the same detail the long press gives on a phone. It sits beside
  * the card it belongs to and flips to the other side near an edge.
  */
-export function CardPreview({ card, box }: { card: CardView; box: DOMRect }) {
+export function CardPreview({ card, box, narrator }: { card: CardView; box: DOMRect; narrator?: Narrator }) {
   const width = 300;
   const gap = 14;
   const toRight = box.right + gap;
@@ -226,13 +231,38 @@ export function CardPreview({ card, box }: { card: CardView; box: DOMRect }) {
         // eslint-disable-next-line @next/next/no-img-element -- transient overlay; the board has already loaded this URL.
         <img src={card.imageUrl} alt="" className="card-aspect mb-2 w-full rounded-lg object-cover" />
       )}
-      <CardDetail card={card} withName />
+      <CardDetail card={card} withName narrator={narrator} />
     </div>
   );
 }
 
-/** A card's numbers, text and the engine's reading of it — shared by the preview and the inspector. */
-export function CardDetail({ card, withName = false }: { card: CardView; withName?: boolean }) {
+/** The words each [Permanent] state wears on the sheet, and the colour. */
+const PERMANENT_STATE: Record<PermanentView["state"], { word: string; className: string; note: string | null }> = {
+  on: { word: "in force", className: "border-gain/60 text-gain", note: null },
+  off: { word: "not now", className: "border-space-600 text-space-400", note: "Its condition does not hold at the moment, or there is nothing for it to apply to." },
+  inert: { word: "not applied", className: "border-dbs-yellow/60 text-dbs-yellow", note: "The engine reads this line but cannot apply what it says yet — it does nothing in play." },
+  unread: { word: "unread", className: "border-dbs-yellow/60 text-dbs-yellow", note: "The engine cannot read this line. A [Permanent] never resolves, so it is never put to Claude — it does nothing in play." },
+};
+
+const EFFECT_COLOUR: Record<string, string> = {
+  power: "text-gain",
+  comboPower: "text-gain",
+  keyword: "text-gain",
+  cost: "text-ki-300",
+  permit: "text-ki-300",
+  negate: "text-loss",
+  forbid: "text-loss",
+  other: "text-space-100",
+};
+
+/**
+ * A card's numbers, text and the engine's reading of it — shared by the
+ * preview and the inspector. Then the two things a card could not say before
+ * (review §3.3, §3.5): every rule in force on it right now, and each of its
+ * own [Permanent] skills with whether it is doing anything at this moment.
+ */
+export function CardDetail({ card, withName = false, narrator = DEFAULT_NARRATOR }: { card: CardView; withName?: boolean; narrator?: Narrator }) {
+  const delta = card.basePower != null && card.power != null ? card.power - card.basePower : 0;
   return (
     <div className="space-y-1.5">
       {withName && <p className="text-sm font-semibold leading-tight text-space-50">{card.name}</p>}
@@ -240,8 +270,42 @@ export function CardDetail({ card, withName = false }: { card: CardView; withNam
         {card.cardId}
         {card.cost ? ` · cost ${card.cost}` : ""}
         {card.power != null ? ` · ${card.power.toLocaleString("en")} power` : ""}
+        {delta !== 0 && <span className={delta > 0 ? "text-gain" : "text-loss"}>{` (${card.basePower!.toLocaleString("en")} printed, ${delta > 0 ? "+" : ""}${delta.toLocaleString("en")})`}</span>}
         {card.comboCost != null ? ` · combo +${(card.comboPower ?? 0).toLocaleString("en")} for ${card.comboCost}` : ""}
       </p>
+      {card.effects && card.effects.length > 0 && (
+        <div className="rounded-lg border-l-2 border-ki-500 bg-space-800 p-2 text-[11px] sm:text-xs">
+          <p className="mb-0.5 text-[10px] uppercase tracking-widest text-space-400">in force</p>
+          <ul className="space-y-0.5">
+            {card.effects.map((e, i) => {
+              const line = effectLine(e, { viewer: narrator.viewer, them: narrator.them, self: card.id });
+              const [what, ...rest] = line.split(" · ");
+              return (
+                <li key={i}>
+                  <span className={`font-semibold ${EFFECT_COLOUR[e.kind] ?? "text-space-100"}`}>{what}</span>
+                  {rest.length > 0 && <span className="text-space-400"> · {rest.join(" · ")}</span>}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+      {card.permanents && card.permanents.length > 0 && (
+        <div className="space-y-1">
+          {card.permanents.map((pm) => {
+            const st = PERMANENT_STATE[pm.state];
+            return (
+              <div key={pm.index} className="rounded-lg border border-space-700 bg-space-800/60 p-2 text-[11px] sm:text-xs">
+                <div className="flex items-start gap-2">
+                  <span className={`mt-px shrink-0 rounded-full border px-1.5 py-px font-mono text-[9px] uppercase tracking-wider ${st.className}`}>∞ {st.word}</span>
+                  <span className="min-w-0 flex-1 leading-snug text-space-200">{plainText(pm.text)}</span>
+                </div>
+                {st.note && <p className="mt-1 text-[10px] leading-snug text-space-400">{st.note}</p>}
+              </div>
+            );
+          })}
+        </div>
+      )}
       {card.keywords.length > 0 && (
         <p className="flex flex-wrap gap-1">
           {card.keywords.map((k) => (
@@ -350,6 +414,7 @@ export function CardSheet({
   rejected,
   onPick,
   onClose,
+  narrator = DEFAULT_NARRATOR,
 }: {
   card: CardView;
   /** The player's own side, for the remedy in an energy refusal. */
@@ -358,12 +423,14 @@ export function CardSheet({
   rejected: RejectedAction[];
   onPick: (move: SheetMove) => void;
   onClose: () => void;
+  narrator?: Narrator;
 }) {
   const inHand = side?.hand?.some((c) => c.id === card.id) ?? false;
+  const word = { side, inHand, them: narrator.them };
   return (
     <Sheet onClose={onClose} title={card.name} eyebrow={moves.length ? <span className="text-[10px] uppercase tracking-widest text-ki-300">what would you like to do?</span> : rejected.length ? <span className="text-[10px] uppercase tracking-widest text-loss">no move right now</span> : undefined}>
       {moves.map((m) => {
-        const price = m.targets ? `${m.targets} target${m.targets === 1 ? "" : "s"}` : priceOf(m.legal.action, card, m.legal.label);
+        const price = m.targets ? `${m.targets} target${m.targets === 1 ? "" : "s"}` : priceOf(m.legal.action, card, m.legal.label, m.legal.cost);
         return (
           <button
             key={m.index}
@@ -378,7 +445,7 @@ export function CardSheet({
       })}
       {rejected.map((r) => {
         const why = r.why[0];
-        const w = refusal(why, { name: card.name, reaching: r.action.type, side, inHand });
+        const w = refusal(why, { name: card.name, reaching: r.action.type, ...word });
         return (
           <div key={r.action.type} className="rounded-lg border border-space-700 bg-space-800/60 px-3 py-2 opacity-80 sm:px-4 sm:py-3" aria-disabled>
             <div className="flex items-center gap-3">
@@ -389,7 +456,7 @@ export function CardSheet({
               {w.fact}
               {w.remedy && <span className="text-ki-300"> {w.remedy}</span>}
             </p>
-            {r.why.length > 1 && <p className="mt-0.5 text-[10px] text-space-400">{r.why.slice(1).map((q) => refusal(q, { name: card.name, reaching: r.action.type, side, inHand }).fact).join(" ")}</p>}
+            {r.why.length > 1 && <p className="mt-0.5 text-[10px] text-space-400">{r.why.slice(1).map((q) => refusal(q, { name: card.name, reaching: r.action.type, ...word }).fact).join(" ")}</p>}
           </div>
         );
       })}
@@ -398,7 +465,7 @@ export function CardSheet({
           // eslint-disable-next-line @next/next/no-img-element -- transient sheet; the board has already loaded this URL.
           <img src={card.imageUrl} alt="" className="card-aspect float-right ml-3 mb-2 w-24 rounded-lg object-cover sm:w-28" />
         )}
-        <CardDetail card={card} />
+        <CardDetail card={card} narrator={narrator} />
       </div>
     </Sheet>
   );

@@ -5,8 +5,9 @@
  * what a player may tap. This turns one state plus the legal moves into a view
  * for one side of the table, hiding what that player may not see (3-1-3).
  */
-import { areaOf, comboPowerOf, describeScript, compileCardCached, face, keywordsInForce, powerOf, skillsOf, type EngineContext, type GameState, type LegalAction, type PlayerId, type RejectedAction, type Requirement } from "./engine";
-import { def, locate } from "./engine/state";
+import { areaOf, comboPowerOf, describeScript, compileCardCached, face, keywordsInForce, powerOf, skillsOf, staticEffects, type EngineContext, type GameState, type LegalAction, type PlayerId, type RejectedAction, type Requirement } from "./engine";
+import { def, emitsStatic, locate, permanentStatics, type StaticEffect } from "./engine/state";
+import { describeEffect, describeStatic, type EffectView } from "./effects";
 
 export interface CardView {
   id: string;
@@ -28,8 +29,44 @@ export interface CardView {
   /** The printed text, and the engine's own reading of it (proposal §6). */
   text: string | null;
   reading: string;
-  /** True when a skill of this card has to be put to the referee. */
+  /**
+   * True when a skill of this card has to be put to the referee when it
+   * resolves. Never for a [Permanent]: those never resolve and the referee is
+   * never asked about one — an unreadable [Permanent] is in `permanents`.
+   */
   referee: boolean;
+  /**
+   * The printed power, when the number shown is not it: a continuous effect
+   * or someone's [Permanent] has changed it. Absent when `power` is the face
+   * value, so a client can draw the difference and nothing else.
+   */
+  basePower?: number;
+  /**
+   * Every rule in force on this card right now — turn-long effects and the
+   * static effects of [Permanent] skills, its own included — so the sheet can
+   * say "+5000 power until the end of the turn, from Kaio-ken". Absent when
+   * there are none.
+   */
+  effects?: EffectView[];
+  /**
+   * This card's own [Permanent] skills and whether each is doing anything at
+   * this moment: `on` (emitting a standing effect), `off` (its condition does
+   * not hold, or nothing to apply it to), `inert` (compiles, but the static
+   * layer has no kind for what it says — it does nothing, and the compile
+   * figures cannot show that), `unread` (the compiler cannot read it).
+   */
+  permanents?: PermanentView[];
+}
+
+/** One [Permanent] skill of a card and its state now (review §3.5). */
+export interface PermanentView {
+  /** Index of the skill in the card's text, the same `skillIndex` the engine uses. */
+  index: number;
+  /** The printed line, without its tag. */
+  text: string;
+  state: "on" | "off" | "inert" | "unread";
+  /** The engine's reading of the line, when it has one. */
+  reading: string;
 }
 
 export interface SideView {
@@ -67,6 +104,13 @@ export interface SideView {
    * and to nobody else. This is what makes a search renderable at all.
    */
   choices?: CardView[];
+  /**
+   * Rules in force on this *player* rather than on a card — "can't attack
+   * with Battle Cards until the start of your next turn", "can't place cards
+   * in the Energy Area" — which no card on the board could carry. Absent when
+   * there are none.
+   */
+  rules?: EffectView[];
 }
 
 export interface BoardView {
@@ -161,7 +205,30 @@ export interface CardArt {
   back: string | null;
 }
 
-function cardView(ctx: EngineContext, s: GameState, id: string, images: Record<string, CardArt>, reveal: boolean): CardView {
+/** A standing effect as the board lists it, with its source named now, while the card is still on the table. */
+function effectView(ctx: EngineContext, s: GameState, d: Pick<EffectView, "kind" | "label" | "keyword">, until: EffectView["until"], source: string | null | undefined, by: PlayerId | null): EffectView {
+  const src = source && s.cards[source] ? source : null;
+  return { ...d, until, source: src, sourceName: src ? face(ctx, s, src).name : null, by };
+}
+
+/** Every rule in force on one card: turn-long effects, then the static effects [Permanent] skills put on it. */
+function effectsOn(ctx: EngineContext, s: GameState, id: string, statics: StaticEffect[]): EffectView[] {
+  const out: EffectView[] = [];
+  for (const e of s.effects) if (e.target === id) out.push(effectView(ctx, s, describeEffect(e), e.until, e.source, e.master));
+  for (const e of statics) if (e.target === id) out.push(effectView(ctx, s, describeStatic(e), "permanent", e.source, s.cards[e.source]?.owner ?? null));
+  return out;
+}
+
+/** The rules in force on a player rather than a card: player-level prohibitions, timed and permanent. */
+function rulesOn(ctx: EngineContext, s: GameState, p: PlayerId, statics: StaticEffect[]): EffectView[] {
+  const out: EffectView[] = [];
+  const about = (player: PlayerId | undefined) => !player || player === p;
+  for (const e of s.effects) if (!e.target && e.kind === "forbid" && e.forbid && about(e.forbid.player)) out.push(effectView(ctx, s, describeEffect(e), e.until, e.source, e.master));
+  for (const e of statics) if (!e.target && e.kind === "forbid" && about((e.value as { player?: PlayerId }).player)) out.push(effectView(ctx, s, describeStatic(e), "permanent", e.source, s.cards[e.source]?.owner ?? null));
+  return out;
+}
+
+function cardView(ctx: EngineContext, s: GameState, id: string, images: Record<string, CardArt>, reveal: boolean, statics: StaticEffect[]): CardView {
   const inst = s.cards[id];
   const d = def(ctx, s, id);
   const f = face(ctx, s, id);
@@ -170,17 +237,29 @@ function cardView(ctx: EngineContext, s: GameState, id: string, images: Record<s
   const scripts = compileCardCached(d, side);
   let reading = "";
   let referee = false;
+  const permanents: PermanentView[] = [];
   for (const sk of skillsOf(d, side)) {
     const sc = scripts.bySkill[sk.index];
     if (!sc) continue;
+    if (sk.kind === "permanent") {
+      // A [Permanent] never resolves, so it is never the referee's; what it
+      // is doing *now* is the only honest thing to say about it.
+      const state: PermanentView["state"] = sc.unsupported.length ? "unread" : !emitsStatic(sc.ops) ? "inert" : (permanentStatics(ctx, s, id, sk.index)?.length ?? 0) > 0 ? "on" : "off";
+      permanents.push({ index: sk.index, text: sk.raw.replace(/^\s*(?:\[[^\]]*\]\s*)+/, "").replace(/\s+/g, " ").trim(), state, reading: sc.unsupported.length ? "" : describeScript(sc.ops, { permanent: true }) });
+      if (!sc.unsupported.length && sc.ops.length) reading += (reading ? " · " : "") + describeScript(sc.ops, { permanent: true });
+      continue;
+    }
     if (sc.unsupported.length) referee = true;
     else if (sc.ops.length) reading += (reading ? " · " : "") + describeScript(sc.ops);
   }
+  const inPlayHere = inPlayArea(s, id);
+  const power = hidden ? null : inPlayHere ? powerOf(ctx, s, id) : f.power;
+  const effects = hidden ? [] : effectsOn(ctx, s, id, statics);
   return {
     id,
     cardId: inst.cardId,
     name: hidden ? "Face-down card" : f.name,
-    power: hidden ? null : (inPlayArea(s, id) ? powerOf(ctx, s, id) : f.power),
+    power,
     colors: hidden ? [] : d.colors,
     // The awakened side has its own art; fall back to the front if the catalog has none.
     imageUrl: hidden ? null : side === "back" ? (images[inst.cardId]?.back ?? images[inst.cardId]?.front ?? null) : (images[inst.cardId]?.front ?? null),
@@ -197,6 +276,9 @@ function cardView(ctx: EngineContext, s: GameState, id: string, images: Record<s
     text: hidden ? null : f.skill,
     reading,
     referee,
+    ...(inPlayHere && power != null && f.power != null && power !== f.power ? { basePower: f.power } : {}),
+    ...(effects.length ? { effects } : {}),
+    ...(!hidden && permanents.length ? { permanents } : {}),
   };
 }
 
@@ -205,10 +287,11 @@ function inPlayArea(s: GameState, id: string): boolean {
   return a === "leader" || a === "battle" || a === "unison" || a === "combo";
 }
 
-function sideView(ctx: EngineContext, s: GameState, p: PlayerId, images: Record<string, CardArt>, ownHand: boolean, viewer: PlayerId): SideView {
+function sideView(ctx: EngineContext, s: GameState, p: PlayerId, images: Record<string, CardArt>, ownHand: boolean, viewer: PlayerId, statics: StaticEffect[]): SideView {
   const ps = s.players[p];
-  const v = (id: string, reveal = true) => cardView(ctx, s, id, images, reveal);
+  const v = (id: string, reveal = true) => cardView(ctx, s, id, images, reveal, statics);
   const choices = hiddenChoices(ctx, s, p, viewer, ownHand);
+  const rules = rulesOn(ctx, s, p, statics);
   return {
     player: p,
     name: ps.name,
@@ -231,6 +314,7 @@ function sideView(ctx: EngineContext, s: GameState, p: PlayerId, images: Record<
     activeEnergy: ps.energy.filter((id) => s.cards[id].mode === "active").length,
     dropTop: ps.drop[0] ? v(ps.drop[0]) : null,
     ...(choices.length ? { choices: choices.map((id) => v(id)) } : {}),
+    ...(rules.length ? { rules } : {}),
   };
 }
 
@@ -277,8 +361,11 @@ function stepFor(s: GameState): PromptView["step"] {
   const label = pr.kind === "chooseCards" ? pr.choice.reason : pr.kind === "chooseMode" ? pr.reason : pr.describe;
   const head = s.flow[0];
   if (head && head.op === "script.step" && head.frame.awaiting) {
+    // Every op that asks the player something, not only `choose`: a "you
+    // may" and a "choose one" are steps too, and an answered one splices its
+    // program in at the same level, so the count stays honest as it grows.
     const frame = head.frame;
-    const asks = frame.ops.map((o, i) => (o.op === "choose" ? i : -1)).filter((i) => i >= 0);
+    const asks = frame.ops.map((o, i) => (o.op === "choose" || o.op === "may" || o.op === "chooseMode" ? i : -1)).filter((i) => i >= 0);
     const index = Math.max(1, asks.filter((i) => i <= frame.ip).length);
     return { index, count: asks.length, label };
   }
@@ -330,9 +417,11 @@ function questionFor(ctx: EngineContext, s: GameState): PromptView {
 
 export function boardView(ctx: EngineContext, s: GameState, viewer: PlayerId, images: Record<string, CardArt>): BoardView {
   const them = viewer === "p1" ? "p2" : "p1";
+  // Read once for the whole board: every card asks which statics are on it.
+  const statics = staticEffects(ctx, s);
   return {
-    you: sideView(ctx, s, viewer, images, true, viewer),
-    them: sideView(ctx, s, them, images, false, viewer),
+    you: sideView(ctx, s, viewer, images, true, viewer, statics),
+    them: sideView(ctx, s, them, images, false, viewer, statics),
     turn: s.turn,
     phase: s.phase,
     turnPlayer: s.turnPlayer,

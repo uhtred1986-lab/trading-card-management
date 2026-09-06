@@ -18,6 +18,7 @@ import { usePace } from "@/lib/arena/pace";
 import type { ArenaSkin } from "@/lib/arena/skin";
 import { ReportBug } from "../ReportBug";
 import { narrate } from "@/lib/arena/narration";
+import { untilWords } from "@/lib/arena/effects";
 import { AttackBeam, CardPreview, CardSheet, Counter, NarrationRibbon, SearchSheet, SkillSpotlight, StepBanner, StepChip, TopStrip, cardsOnTable, refusalLine, shortLabel, type SheetMove } from "../shared";
 import { ZoneAnchor } from "./anchors";
 import { Ghosts } from "./Ghosts";
@@ -236,6 +237,8 @@ export function ArenaStage({ gameId, snapshot, skin = "night" }: { gameId: numbe
   };
 
   const hoverOf = (c: CardView) => (box: DOMRect | null) => setHover(box ? { card: c, box } : null);
+  /** Whose chair the words are read from, for "until the start of your next turn". */
+  const narrator = { viewer: view.you.player, them: view.them.name };
 
   const modal = view.prompt.kind === "chooseMode";
   // A search of a hidden zone: the prompt names cards no zone draws, so the
@@ -270,6 +273,8 @@ export function ArenaStage({ gameId, snapshot, skin = "night" }: { gameId: numbe
     if (beat.t === "clash" && beat.hit && beat.guard === id) return "hit";
     if (beat.t === "flip" && beat.card === id) return "awaken";
     if ((beat.t === "token" && beat.card === id) || (beat.t === "move" && beat.card === id)) return "arrive";
+    if (beat.t === "effect" && beat.card === id) return "surge";
+    if (beat.t === "effectEnded" && beat.card === id) return "settle";
     return null;
   };
   const hurting = beat?.t === "damage" ? beat.player : null;
@@ -304,7 +309,7 @@ export function ArenaStage({ gameId, snapshot, skin = "night" }: { gameId: numbe
         <TopStrip view={view} />
 
         <div className="flex flex-col gap-2 lg:grid lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-start lg:gap-4">
-          <SideRail side={view.them} them cardProps={cardProps} onHover={hoverOf} hurt={hurting === view.them.player} className="lg:col-start-3 lg:row-start-1" />
+          <SideRail side={view.them} them cardProps={cardProps} onHover={hoverOf} hurt={hurting === view.them.player} narrator={narrator} className="lg:col-start-3 lg:row-start-1" />
 
           <section className="arena-stage relative rounded-xl border border-space-700/70 p-2 sm:rounded-2xl sm:p-3 lg:col-start-2 lg:row-start-1 lg:p-4" aria-label="Battle Areas">
             <HandBacks count={view.them.handCount} />
@@ -313,7 +318,7 @@ export function ArenaStage({ gameId, snapshot, skin = "night" }: { gameId: numbe
             <BattleRow cards={view.you.battle} cardProps={cardProps} zone="p1:battle" label="You have no Battle Cards" />
           </section>
 
-          <SideRail side={view.you} cardProps={cardProps} onHover={hoverOf} hurt={hurting === view.you.player} className="lg:col-start-1 lg:row-start-1" />
+          <SideRail side={view.you} cardProps={cardProps} onHover={hoverOf} hurt={hurting === view.you.player} narrator={narrator} className="lg:col-start-1 lg:row-start-1" />
         </div>
 
         {held && !view.over && !playback.playing && <NarrationRibbon text={held.text} n={held.n} mine={held.mine} live={false} />}
@@ -453,12 +458,13 @@ export function ArenaStage({ gameId, snapshot, skin = "night" }: { gameId: numbe
 
         <Ghosts ghosts={playback.ghosts} art={beats?.art ?? {}} />
 
-        {hover && !sheet && !searchOpen && <CardPreview card={hover.card} box={hover.box} />}
+        {hover && !sheet && !searchOpen && <CardPreview card={hover.card} box={hover.box} narrator={narrator} />}
 
         {sheet && (
           <CardSheet
             card={sheet}
             side={view.you}
+            narrator={narrator}
             moves={playable && !busy && !isTargeting ? movesFor(sheet.id) : []}
             rejected={playable && !busy ? rejected.filter((r) => cardIdOf(r.action) === sheet.id) : []}
             onPick={pickMove}
@@ -604,6 +610,7 @@ function SideRail({
   cardProps,
   onHover,
   hurt = false,
+  narrator,
   className = "",
 }: {
   side: SideView;
@@ -612,6 +619,7 @@ function SideRail({
   onHover: (c: CardView) => (box: DOMRect | null) => void;
   /** This player is taking damage right now. */
   hurt?: boolean;
+  narrator: { viewer: PlayerId; them: string };
   className?: string;
 }) {
   const spent = side.energy.length - side.activeEnergy;
@@ -685,6 +693,17 @@ function SideRail({
           {side.energy.length === 0 && <span className="text-[10px] text-space-600">none charged</span>}
         </div>
         {spent > 0 && <p className="mt-0.5 text-[10px] text-space-500 lg:text-center">{spent} rested</p>}
+        {/* Rules in force on the player rather than on a card — "can't attack
+            with Battle Cards" — which no card on the table could carry. */}
+        {side.rules && side.rules.length > 0 && (
+          <ul className="mt-1 space-y-0.5 text-[10px] leading-snug text-loss lg:text-center" aria-label={`Rules on ${them ? side.name : "you"}`}>
+            {side.rules.map((r, i) => (
+              <li key={i}>
+                ⛔ {r.label} · {untilWords(r.until, { master: r.by, viewer: narrator.viewer, them: narrator.them, sourceName: r.sourceName })}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </aside>
   );

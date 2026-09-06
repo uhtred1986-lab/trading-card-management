@@ -17,8 +17,9 @@
  * testable in `npm test`.
  */
 import { compileCardCached, face, skillsOf, type EngineContext, type GameEvent, type GameState, type PlayerId } from "./engine";
-import type { Area } from "./engine";
+import type { Area, EffectUntil } from "./engine";
 import { def } from "./engine/state";
+import { describeEffect, type EffectKind } from "./effects";
 
 export type Beat =
   /** A named step of the game: a phase, or a step within a battle. */
@@ -40,6 +41,14 @@ export type Beat =
   | { t: "negated" }
   /** `owner` is whose skill resolved, so a narration can say whose ability it was. */
   | { t: "skill"; card: string; label: string; text: string; unread: boolean; owner: PlayerId }
+  /**
+   * A rule coming into force (9-9): "+5000 power", "[Critical]", "can't
+   * attack" on `card`, or on `player` when it is about a player rather than a
+   * card. `owner` is whose skill made it; `source` the card that did.
+   */
+  | { t: "effect"; card: string | null; player: PlayerId | null; kind: EffectKind; label: string; until: EffectUntil; source: string | null; owner: PlayerId }
+  /** The same rule reaching the end of its duration, so the number changing back has a moment of its own. */
+  | { t: "effectEnded"; card: string | null; player: PlayerId | null; kind: EffectKind; label: string; source: string | null }
   /** Claude's table talk, added by `run.ts` rather than by the engine. */
   | { t: "say"; text: string }
   | { t: "over"; winner: PlayerId | null; reason: string };
@@ -213,6 +222,22 @@ export function toBeats(ctx: EngineContext, state: GameState, events: GameEvent[
         }
         break;
       }
+      case "effect":
+      case "effectEnded": {
+        const fx = e.effect;
+        // Every card a beat names must bring a face (contract §4), so a
+        // source or target no longer in the game is left out rather than
+        // named without one.
+        const card = fx.target && state.cards[fx.target] ? fx.target : null;
+        const source = fx.source && state.cards[fx.source] ? fx.source : null;
+        if (card) remember(card);
+        if (source) remember(source);
+        const d = describeEffect(fx);
+        const player = card ? null : (fx.forbid?.player ?? null);
+        if (e.type === "effect") push({ t: "effect", card, player, kind: d.kind, label: d.label, until: fx.until, source, owner: fx.master });
+        else push({ t: "effectEnded", card, player, kind: d.kind, label: d.label, source });
+        break;
+      }
       case "gameOver":
         push({ t: "over", winner: e.winner, reason: e.reason });
         break;
@@ -223,7 +248,6 @@ export function toBeats(ctx: EngineContext, state: GameState, events: GameEvent[
       case "action": // the input, not a picture of it
       case "hidden": // a card's facing is already in the view
       case "energyMarker": // a counter in the side panel, with no motion of its own
-      case "effect": // continuous effects show up as changed power figures
       case "delayed": // written down for later; it gets its moment when it fires
       case "stack": // the stacked card's own `move` beat covers the arrival
       case "note": // engine commentary, for the log only

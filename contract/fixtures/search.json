@@ -1624,8 +1624,78 @@
     "bare": [
       40
     ],
-    "attackTargets": {}
+    "attackTargets": {},
+    "whyByCard": {
+      "p1#0": [
+        {
+          "kind": "target",
+          "reason": "add up to 1 <V1> card from your deck to your hand"
+        }
+      ],
+      "p1#15": [
+        {
+          "kind": "target",
+          "reason": "add up to 1 <V1> card from your deck to your hand"
+        }
+      ],
+      "p2#0": [
+        {
+          "kind": "target",
+          "reason": "add up to 1 <V1> card from your deck to your hand"
+        }
+      ]
+    }
   },
+  "rejected": [
+    {
+      "action": {
+        "type": "choose",
+        "player": "p1",
+        "cards": [
+          "p1#0"
+        ]
+      },
+      "label": "Choose L-RED",
+      "why": [
+        {
+          "kind": "target",
+          "reason": "add up to 1 <V1> card from your deck to your hand"
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "choose",
+        "player": "p1",
+        "cards": [
+          "p1#15"
+        ]
+      },
+      "label": "Choose SEARCH",
+      "why": [
+        {
+          "kind": "target",
+          "reason": "add up to 1 <V1> card from your deck to your hand"
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "choose",
+        "player": "p1",
+        "cards": [
+          "p2#0"
+        ]
+      },
+      "label": "Choose L-BLUE",
+      "why": [
+        {
+          "kind": "target",
+          "reason": "add up to 1 <V1> card from your deck to your hand"
+        }
+      ]
+    }
+  ],
   "beats": {
     "seq": 3,
     "list": [

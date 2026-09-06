@@ -59,6 +59,17 @@ data class GameInfo(
 data class LegalAction(
     val label: String,
     val action: JsonElement,
+    /** What the move costs, for the row it sits on; set for skill activations and counters. */
+    val cost: ActionCost? = null,
+)
+
+@Serializable
+data class ActionCost(
+    val energy: Int,
+    val orbs: Map<String, Int>? = null,
+    val markers: Int? = null,
+    /** The price in words, as the row shows it. */
+    val describe: String,
 )
 
 /**
@@ -92,20 +103,20 @@ sealed class Requirement {
     @SerialName("energyColour")
     data class EnergyColour(val colour: String, val need: Int, val have: Int) : Requirement()
 
-    /** The card is resting. */
+    /** The card is resting; `locked` when a rule keeps it from standing up at its next Charge Phase. */
     @Serializable
     @SerialName("mode")
-    data class Mode(val card: String, val mode: String) : Requirement()
+    data class Mode(val card: String, val mode: String, val locked: Boolean? = null) : Requirement()
 
     /** `window` is when it *would* be allowed: "main", "battle", "defense", "nextTurn". */
     @Serializable
     @SerialName("timing")
     data class Timing(val window: String) : Requirement()
 
-    /** Already done this turn: "charge", "skill", "Over Realm", … */
+    /** Already done this turn: "charge", "skill", "Over Realm", …; `limit` is the printed [Limit X] when that is the rule. */
     @Serializable
     @SerialName("oncePerTurn")
-    data class OncePerTurn(val what: String) : Requirement()
+    data class OncePerTurn(val what: String, val limit: Int? = null) : Requirement()
 
     /** `area` is where the card would have to be. */
     @Serializable
@@ -120,10 +131,10 @@ sealed class Requirement {
     @SerialName("target")
     data class Target(val reason: String) : Requirement()
 
-    /** `by` names the card whose rule it is, or null for a turn-long effect. */
+    /** `by` names the card whose rule it is; `until` is how long it holds — a duration, or "permanent". */
     @Serializable
     @SerialName("forbidden")
-    data class Forbidden(val by: String? = null) : Requirement()
+    data class Forbidden(val by: String? = null, val until: String? = null) : Requirement()
 
     @Serializable
     @SerialName("unread")
@@ -194,6 +205,8 @@ data class SideView(
      * deck. Only ever on the side of the player being asked.
      */
     val choices: List<CardView>? = null,
+    /** Rules in force on this player rather than on a card ("can't attack with Battle Cards"). */
+    val rules: List<EffectView>? = null,
 )
 
 @Serializable
@@ -217,8 +230,38 @@ data class CardView(
     val text: String? = null,
     /** The engine's own reading of the card's text (proposal §6). */
     val reading: String,
-    /** True when a skill of this card has to be put to the referee. */
+    /** True when a skill of this card has to be put to the referee. Never for a [Permanent]. */
     val referee: Boolean,
+    /** The printed power, present only when `power` is not it. */
+    val basePower: Int? = null,
+    /** Every rule in force on this card right now. */
+    val effects: List<EffectView>? = null,
+    /** This card's own [Permanent] skills and whether each is doing anything at this moment. */
+    val permanents: List<PermanentView>? = null,
+)
+
+/** One rule in force on a card or a player (`src/lib/arena/effects.ts`). */
+@Serializable
+data class EffectView(
+    /** "power" | "comboPower" | "keyword" | "negate" | "forbid" | "permit" | "cost" | "other" */
+    val kind: String,
+    /** "+5000 power", "[Critical]", "can't attack", "skills negated", "costs 1 less". */
+    val label: String,
+    /** A duration ("turn", "battle", "nextTurn", "opponentTurn", "afterNextCharge", "game") or "permanent". */
+    val until: String,
+    val source: String? = null,
+    val sourceName: String? = null,
+    val by: String? = null,
+    val keyword: String? = null,
+)
+
+/** One [Permanent] skill of a card and its state now: "on" | "off" | "inert" | "unread". */
+@Serializable
+data class PermanentView(
+    val index: Int,
+    val text: String,
+    val state: String,
+    val reading: String,
 )
 
 @Serializable
@@ -379,6 +422,32 @@ sealed class Beat {
     @Serializable
     @SerialName("skill")
     data class Skill(override val n: Int, val card: String, val label: String, val text: String, val unread: Boolean, val owner: String) : Beat()
+
+    /** A rule coming into force on `card`, or on `player` when it is about a player rather than a card. */
+    @Serializable
+    @SerialName("effect")
+    data class Effect(
+        override val n: Int,
+        val card: String? = null,
+        val player: String? = null,
+        val kind: String,
+        val label: String,
+        val until: String,
+        val source: String? = null,
+        val owner: String,
+    ) : Beat()
+
+    /** The same rule reaching the end of its duration. */
+    @Serializable
+    @SerialName("effectEnded")
+    data class EffectEnded(
+        override val n: Int,
+        val card: String? = null,
+        val player: String? = null,
+        val kind: String,
+        val label: String,
+        val source: String? = null,
+    ) : Beat()
 
     @Serializable
     @SerialName("say")

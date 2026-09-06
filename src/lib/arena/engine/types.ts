@@ -289,6 +289,14 @@ export interface Permission {
   filter?: CardFilter;
 }
 
+/**
+ * How long something in force lasts, as a client is told it: a continuous
+ * effect's duration, or "permanent" for a [Permanent] skill, which holds for
+ * as long as its card is where the skill is valid (9-5-1) rather than for any
+ * length of time.
+ */
+export type EffectUntil = ContinuousEffect["until"] | "permanent";
+
 /** A continuous effect (9-9) with a duration. */
 export interface ContinuousEffect {
   id: number;
@@ -308,6 +316,12 @@ export interface ContinuousEffect {
   permit?: Permission;
   /** "nextTurn" runs through the opponent's whole turn and ends as yours begins. */
   until: "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "game";
+  /**
+   * The card whose skill made it, so a client can say "+5000 power from
+   * Kaio-ken" and a refusal can name what forbids it. Absent on effects the
+   * engine's own rules create and on games saved before the field existed.
+   */
+  source?: string;
   /** The turn player when the effect was created, so "for the turn" ends at the right End Phase. */
   ownerTurn: PlayerId;
   /**
@@ -596,6 +610,8 @@ export type GameEvent =
   | { type: "attackNegated" }
   | { type: "skill"; card: string; skill: number; master: PlayerId; text: string }
   | { type: "effect"; effect: ContinuousEffect }
+  /** A continuous effect reaching the end of its duration (9-9): the other end of `effect`. */
+  | { type: "effectEnded"; effect: ContinuousEffect }
   /** An effect written down for later; `label` is the timing in plain words. */
   | { type: "delayed"; card: string; label: string }
   | { type: "token"; card: string; owner: PlayerId }
@@ -708,20 +724,32 @@ export type Requirement =
   | { kind: "energy"; need: number; have: number }
   /** The cost asks for `need` orbs of this colour and only `have` are active. */
   | { kind: "energyColour"; colour: string; need: number; have: number }
-  /** The card is in the wrong mode — resting, so it cannot attack or combo. */
-  | { kind: "mode"; card: string; mode: Mode }
+  /**
+   * The card is in the wrong mode — resting, so it cannot attack or combo.
+   * `locked` when a rule keeps it from standing up at the next Charge Phase,
+   * so the client does not promise a remedy the rules will not deliver.
+   */
+  | { kind: "mode"; card: string; mode: Mode; locked?: boolean }
   /** Not now: `window` is when it *would* be allowed ("main", "battle", "defense", "nextTurn"). */
   | { kind: "timing"; window: string }
-  /** Already done this turn: a charge, Unison growth, a [Once per turn] skill. */
-  | { kind: "oncePerTurn"; what: string }
+  /**
+   * Already done this turn: a charge, Unison growth, a [Once per turn] skill.
+   * `limit` is the printed [Limit X] when that is the rule rather than
+   * [Once per turn] (22-44), so the client can name the right tag.
+   */
+  | { kind: "oncePerTurn"; what: string; limit?: number }
   /** The card is not where the move needs it to be; `area` is where it would have to be. */
   | { kind: "zone"; card: string; area: Area }
   /** The move wants a different kind of card — "a Battle Card". */
   | { kind: "cardType"; card: string; needs: string }
   /** Nothing legal to point at. */
   | { kind: "target"; reason: string }
-  /** A skill in play forbids it (`forbids()`); `by` names the card when a card is the source. */
-  | { kind: "forbidden"; by: string | null }
+  /**
+   * A skill in play forbids it (`forbids()`); `by` names the card when a card
+   * is the source. `until` is how long the rule holds — an effect's duration,
+   * or "permanent" while the source card's [Permanent] skill is valid.
+   */
+  | { kind: "forbidden"; by: string | null; until?: EffectUntil }
   /** The compiler cannot read the card's text, so the engine cannot offer it. */
   | { kind: "unread"; card: string }
   /** A printed condition of the skill that does not hold yet — "When your life is at 4 or less". */

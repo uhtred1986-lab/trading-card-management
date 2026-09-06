@@ -51,7 +51,9 @@ Unique, Revenge, Bond, Sparking, Evolve, Union, Over Realm, Swap, Overlord,
 Z-Stack, Z-Awaken, Field, Awaken, Wish, Offering, Attack, Burst, Spirit Boost,
 Arrival, Empower, Successor, Aegis, Revive, Rejuvenate, Alliance, Invoker,
 Heroic, Villainous, Servant, Limit, Once per turn, Energy-Exhaust). None of
-them goes through the text compiler or the referee.
+them goes through the text compiler or the referee. (Limit was enforced for
+[Auto] skills only until 6 Sep 2026 — `docs/arena-compiler-workflow-review.md`
+§3.1 — and now gates [Activate] skills too.)
 
 What is left is **text**: the effect sentences. 3,340 clauses on 2,037 cards
 need only a phrase pattern (no new mechanism); the rest need one of the

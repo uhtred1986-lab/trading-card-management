@@ -13,6 +13,7 @@
  */
 import type { Area, PlayerId } from "./engine";
 import type { Beat, BeatArt } from "./beats";
+import { untilWords } from "./effects";
 
 export interface Narrator {
   /** Whose side of the table the sentence is read from. */
@@ -118,6 +119,20 @@ export function narrate(b: Beat, n: Narrator): string | null {
       const clause = b.text.replace(/\s+/g, " ").trim().replace(/\.$/, "");
       const short = clause.length > 90 ? `${clause.slice(0, 88)}…` : clause;
       return `${who(b.owner, "use", "uses")} 《${b.label}》 on ${name(b.card)} — ${short}${b.unread ? " (Claude ruled on this)" : ""}.`;
+    }
+    case "effect": {
+      // A rule coming into force, read from the viewer's chair: whose card,
+      // what it now does, and for how long. The label is a phrase already
+      // ("+5000 power", "can't attack"), so only the verb varies by kind.
+      const when = untilWords(b.until, { master: b.owner, viewer: n.viewer, them: n.them, sourceName: b.source ? name(b.source) : null });
+      const subject = b.card ? name(b.card) : b.player ? (you(b.player) ? "You" : n.them) : "Both players";
+      const verb = b.kind === "power" || b.kind === "comboPower" ? "gets" : b.kind === "keyword" ? "gains" : b.kind === "negate" ? "has its" : "";
+      const from = b.source && b.source !== b.card ? ` (${name(b.source)})` : "";
+      return `${subject}${verb ? ` ${verb}` : ""} ${b.label} ${when}${from}.`;
+    }
+    case "effectEnded": {
+      const subject = b.card ? name(b.card) : b.player ? (you(b.player) ? "you" : n.them) : "both players";
+      return `${b.label} on ${subject} wears off.`;
     }
     case "say":
       return `${n.them}: “${b.text}”`;

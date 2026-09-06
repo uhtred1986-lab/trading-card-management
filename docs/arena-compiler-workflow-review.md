@@ -6,6 +6,13 @@ rule is meant to be a visible workflow per ability, does the core compiler and
 the effect layer under it hold up, where are the gaps, and how do **ongoing
 ("for the turn") and [Permanent] effects** fare in that model?
 
+**Status (later on 6 Sep 2026): §3.1–3.8 and the three items of §3.9 are built, on the branch this
+review was written on.** The shapes landed as §3.3–3.5 sketch them (contract §3.2), with one
+addition: `SideView.rules` for a rule on a player rather than a card, which no card could carry.
+The permanent's on-screen surface is the `∞` chip on the card face and the state pills on the
+sheet (workflow spec §9, "Rules in force"). Still open from §4: a `delayed` beat for the moment
+an effect is written down.
+
 Everything below was checked against the tree on that date. Where a claim is
 about behaviour rather than shape, it was reproduced with a probe script
 (synthetic cards, no database, the same harness `scripts/verify-arena.ts`

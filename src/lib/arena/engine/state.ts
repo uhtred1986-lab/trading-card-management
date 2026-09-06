@@ -8,7 +8,7 @@ import { canCombo, hasKeyword, keywordOf, skillsOf, specifiedCostOf, isZ, baseTy
 import { compileCardCached } from "./compile";
 import { matches, powerRelOk } from "./filters";
 import type { Amount, Cond, Op, Ref, ScriptArea, ScriptFrame, Selector, Side } from "./script";
-import type { Area, CardDef, CardFace, Color, ContinuousEffect, DelayedEffect, DelayTiming, ForbiddenAction, FlowStep, Permission, Prohibition, GameEvent, GameState, KeywordSkill, PlayerId, PlayerState, Requirement, Skill, SkillKind } from "./types";
+import type { Area, CardDef, CardFace, Color, ContinuousEffect, DelayedEffect, DelayTiming, EffectUntil, ForbiddenAction, FlowStep, Permission, Prohibition, GameEvent, GameState, KeywordSkill, PlayerId, PlayerState, Requirement, Skill, SkillKind } from "./types";
 import { other } from "./types";
 
 export interface GameContext {
@@ -540,6 +540,42 @@ export function staticEffects(ctx: GameContext, s: GameState): StaticEffect[] {
 }
 
 /**
+ * Whether one [Permanent] skill of one card is doing anything right now: the
+ * standing effects it emits at this moment, on this board. Empty when its
+ * condition does not hold ("during your turn" on the opponent's turn), when
+ * its selector finds nothing, or when the card is somewhere the skill is not
+ * valid. This is what lets a client mark a [Permanent] as on or off, which
+ * the compile figures cannot say. Null while the statics are already being
+ * computed, and for a skill that is not a [Permanent].
+ */
+export function permanentStatics(ctx: GameContext, s: GameState, card: string, skillIndex: number): StaticEffect[] | null {
+  if (computingStatics) return null;
+  const inst = s.cards[card];
+  if (!inst || inst.hidden || skillsNegated(s, card)) return [];
+  const d = def(ctx, s, card);
+  const side = inst.flipped && d.back ? "back" : "front";
+  const sk = skillsOf(d, side).find((k) => k.index === skillIndex);
+  if (!sk || sk.kind !== "permanent") return null;
+  if (skillNegated(s, card, sk.index, sk.kind)) return [];
+  const sc = compileCardCached(d, side).bySkill[sk.index];
+  if (!sc || sc.unsupported.length) return [];
+  // The same areas `staticEffects` reads from (9-1-3-1): anywhere else the
+  // skill is not valid, so it applies nothing.
+  const p = inst.owner;
+  const at = areaOf(s, card);
+  const master = at === "hand" || at === "zDeck" ? p : (locate(s, card)?.owner ?? p);
+  if (!(inPlay(s, card) || at === "hand" || at === "zDeck")) return [];
+  computingStatics = true;
+  try {
+    const out: StaticEffect[] = [];
+    collectStatics(ctx, s, out, card, master, sc.ops, inPlay(s, card));
+    return out;
+  } finally {
+    computingStatics = false;
+  }
+}
+
+/**
  * Guards against a loop: resolving a selector can ask whether a card has
  * [Barrier], which asks for its keywords, which would ask for the static
  * effects again. Static selectors therefore ignore [Barrier] — it governs
@@ -851,8 +887,30 @@ export function addEffect(s: GameState, ev: GameEvent[], e: Omit<ContinuousEffec
   return full;
 }
 
-export function endEffects(s: GameState, until: ContinuousEffect["until"], forPlayer?: PlayerId): void {
-  s.effects = s.effects.filter((e) => !(e.until === until && (forPlayer == null || e.ownerTurn === forPlayer)));
+/**
+ * Take effects out of force, saying so: every one that ends gets an
+ * `effectEnded` event, which is the beat a client draws the number changing
+ * back on. `keep` says which stay.
+ */
+function dropEffects(s: GameState, ev: GameEvent[], keep: (e: ContinuousEffect) => boolean): void {
+  const kept: ContinuousEffect[] = [];
+  for (const e of s.effects) {
+    if (keep(e)) kept.push(e);
+    else ev.push({ type: "effectEnded", effect: e });
+  }
+  s.effects = kept;
+}
+
+export function endEffects(s: GameState, ev: GameEvent[], until: ContinuousEffect["until"], forPlayer?: PlayerId): void {
+  dropEffects(s, ev, (e) => !(e.until === until && (forPlayer == null || e.ownerTurn === forPlayer)));
+}
+
+/**
+ * "…will not switch to Active Mode during your next Charge Phase": spent by
+ * the Active Step it was written for (7-2-7), on the cards that step covered.
+ */
+export function endAfterChargeEffects(s: GameState, ev: GameEvent[], cards: string[]): void {
+  dropEffects(s, ev, (e) => !(e.until === "afterNextCharge" && cards.includes(e.target)));
 }
 
 /**
@@ -869,8 +927,8 @@ export function endEffects(s: GameState, until: ContinuousEffect["until"], forPl
  * [Counter] resolves on the opponent's turn by definition, so every effect one
  * of those created outlasted its wording by a whole turn.
  */
-export function endTurnRelativeEffects(s: GameState): void {
-  s.effects = s.effects.filter((e) => {
+export function endTurnRelativeEffects(s: GameState, ev: GameEvent[]): void {
+  dropEffects(s, ev, (e) => {
     if (e.createdTurn >= s.turn) return true;
     if (e.until === "nextTurn") return s.turnPlayer !== e.master;
     if (e.until === "opponentTurn") return s.turnPlayer === e.master;
@@ -956,13 +1014,13 @@ export function forbids(ctx: GameContext, s: GameState, what: ForbiddenAction, o
  * from `rejectedActions`; `forbids` itself is untouched, so the two must be
  * kept adjacent and changed together.
  */
-export function forbiddenBy(ctx: GameContext, s: GameState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean } = {}): { by: string | null } | null {
-  const rules: { target: string; source: string | null; forbid: Prohibition }[] = [];
-  for (const e of s.effects) if (e.kind === "forbid" && e.forbid) rules.push({ target: e.target, source: null, forbid: e.forbid });
-  for (const e of staticEffects(ctx, s)) if (e.kind === "forbid") rules.push({ target: e.target, source: e.source, forbid: e.value as Prohibition });
-  if (opts.card) for (const f of ownProhibitions(ctx, s, opts.card)) rules.push({ target: opts.card, source: opts.card, forbid: f });
+export function forbiddenBy(ctx: GameContext, s: GameState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean } = {}): { by: string | null; until: EffectUntil } | null {
+  const rules: { target: string; source: string | null; until: EffectUntil; forbid: Prohibition }[] = [];
+  for (const e of s.effects) if (e.kind === "forbid" && e.forbid) rules.push({ target: e.target, source: e.source ?? null, until: e.until, forbid: e.forbid });
+  for (const e of staticEffects(ctx, s)) if (e.kind === "forbid") rules.push({ target: e.target, source: e.source, until: "permanent", forbid: e.value as Prohibition });
+  if (opts.card) for (const f of ownProhibitions(ctx, s, opts.card)) rules.push({ target: opts.card, source: opts.card, until: "permanent", forbid: f });
 
-  for (const { target, source, forbid: f } of rules) {
+  for (const { target, source, until, forbid: f } of rules) {
     if (f.what !== what) continue;
     if (f.bySkill !== undefined && opts.bySkill !== undefined && f.bySkill !== opts.bySkill) continue;
     if (target && target !== opts.card) continue;
@@ -973,7 +1031,7 @@ export function forbiddenBy(ctx: GameContext, s: GameState, what: ForbiddenActio
       if (f.filter && !matches(cardNow(ctx, s, opts.card), f.filter)) continue;
       if (f.name && d.name !== f.name) continue;
     }
-    return { by: source && s.cards[source] ? face(ctx, s, source).name : null };
+    return { by: source && s.cards[source] ? face(ctx, s, source).name : null, until };
   }
   return null;
 }
