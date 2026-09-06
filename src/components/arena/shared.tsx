@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import type { LegalAction, PlayerId, RejectedAction, Requirement } from "@/lib/arena/engine";
 import type { Spotlight } from "@/lib/arena/games";
 import type { BoardView, CardView, PermanentView, PromptView, SideView } from "@/lib/arena/view";
@@ -121,39 +121,108 @@ export function StepBanner({ step }: { step: string }) {
  *
  * Bound to the `skill` beat on screen (the board passes one built from the
  * beat), so every ability in a turn gets its moment in the story's order — and
- * a reload shows nothing, because a reload replays no beats.
+ * a reload shows nothing, because a reload replays no beats. It starts pinned
+ * top-left and auto-dismissing, like a toast — but a multi-line skill can run
+ * past its 3-line clamp, and the spot it lands in can sit over whatever the
+ * board is showing there (a leader's name, a life total), so it can also be
+ * dragged clear, expanded to read in full, and closed by hand — any of which
+ * cancels the auto-dismiss so it stays put until the player is done with it.
  */
 export function SkillSpotlight({ spotlight }: { spotlight: (Spotlight & { imageUrl: string | null }) | null }) {
   const [shown, setShown] = useState<(Spotlight & { imageUrl: string | null }) | null>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
   const seen = useRef<number | null>(null);
+  const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const drag = useRef<{ startX: number; startY: number; from: { x: number; y: number } } | null>(null);
 
   useEffect(() => {
     if (!spotlight || seen.current === spotlight.seq) return;
     seen.current = spotlight.seq;
     setShown(spotlight);
-    const t = setTimeout(() => setShown(null), 4000);
-    return () => clearTimeout(t);
+    setExpanded(false);
+    setOffset({ x: 0, y: 0 });
+    dismissTimer.current = setTimeout(() => setShown(null), 4000);
+    return () => {
+      if (dismissTimer.current) clearTimeout(dismissTimer.current);
+    };
   }, [spotlight]);
+
+  const keepOpen = () => {
+    if (dismissTimer.current) {
+      clearTimeout(dismissTimer.current);
+      dismissTimer.current = null;
+    }
+  };
+
+  const startDrag = (e: ReactPointerEvent<HTMLDivElement>) => {
+    keepOpen();
+    drag.current = { startX: e.clientX, startY: e.clientY, from: offset };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+  const onDrag = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!drag.current) return;
+    const { startX, startY, from } = drag.current;
+    setOffset({ x: from.x + (e.clientX - startX), y: from.y + (e.clientY - startY) });
+  };
+  const endDrag = () => {
+    drag.current = null;
+  };
 
   if (!shown) return null;
   return (
     // Clear of the page header — it may overlay the board, not the game's name.
-    <div className="pointer-events-none fixed left-2 top-24 z-40 w-[19rem] sm:left-4 sm:top-28 sm:w-[23rem]" aria-live="polite">
+    <div
+      className="fixed left-2 top-24 z-40 w-[19rem] sm:left-4 sm:top-28 sm:w-[23rem]"
+      style={{ transform: offset.x || offset.y ? `translate(${offset.x}px, ${offset.y}px)` : undefined }}
+      aria-live="polite"
+    >
       <div
-        className={`arena-drop arena-float flex gap-2 rounded-xl border-l-4 bg-space-900/95 p-2 backdrop-blur ${
+        className={`arena-drop arena-float relative flex gap-2 rounded-xl border-l-4 bg-space-900/95 p-2 pr-6 backdrop-blur ${
           shown.unread ? "border-dbs-yellow" : "border-ki-500"
         }`}
       >
-        {shown.imageUrl && (
-          // eslint-disable-next-line @next/next/no-img-element -- transient overlay, art already loaded by the board.
-          <img src={shown.imageUrl} alt="" className="card-aspect h-16 shrink-0 rounded object-cover sm:h-20" />
-        )}
-        <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-space-50">{shown.name}</p>
-          <span className="mt-0.5 inline-block rounded bg-ki-500/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ki-300">{shown.label}</span>
-          <p className="mt-1 line-clamp-3 text-[11px] leading-snug text-space-200 sm:text-xs">{plainText(shown.text)}</p>
-          {shown.unread && <p className="mt-1 text-[10px] font-semibold text-dbs-yellow">Claude ruled on this one.</p>}
+        <button
+          type="button"
+          onClick={() => {
+            keepOpen();
+            setShown(null);
+          }}
+          className="tap absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full text-space-400 hover:bg-space-800 hover:text-space-50"
+          aria-label="Dismiss"
+        >
+          ×
+        </button>
+        <div
+          className="flex min-w-0 flex-1 cursor-grab touch-none select-none gap-2 active:cursor-grabbing"
+          onPointerDown={startDrag}
+          onPointerMove={onDrag}
+          onPointerUp={endDrag}
+          onPointerCancel={endDrag}
+        >
+          {shown.imageUrl && (
+            // eslint-disable-next-line @next/next/no-img-element -- transient overlay, art already loaded by the board.
+            <img src={shown.imageUrl} alt="" className="card-aspect h-16 shrink-0 rounded object-cover sm:h-20" />
+          )}
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold text-space-50">{shown.name}</p>
+            <span className="mt-0.5 inline-block rounded bg-ki-500/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ki-300">{shown.label}</span>
+            <p className={`mt-1 whitespace-pre-wrap text-[11px] leading-snug text-space-200 sm:text-xs ${expanded ? "max-h-48 overflow-y-auto pr-1" : "line-clamp-3"}`}>
+              {plainText(shown.text)}
+            </p>
+            {shown.unread && <p className="mt-1 text-[10px] font-semibold text-dbs-yellow">Claude ruled on this one.</p>}
+          </div>
         </div>
+        <button
+          type="button"
+          onClick={() => {
+            keepOpen();
+            setExpanded((v) => !v);
+          }}
+          className="tap absolute bottom-1 right-1 rounded px-1 text-[10px] font-semibold uppercase tracking-wide text-ki-300 hover:text-ki-400"
+        >
+          {expanded ? "less" : "more"}
+        </button>
       </div>
     </div>
   );
