@@ -11,6 +11,7 @@ import { apply, createGame, defsFrom, legalActions, rejectedActions, seedFrom, t
 import { appendBeats, toBeats, type Beat, type Beats, type NumberedBeat } from "../src/lib/arena/beats";
 import { buildSnapshot, rejectedFor, type Snapshot } from "../src/lib/arena/snapshot";
 import { boardView } from "../src/lib/arena/view";
+import { pill, priceOf, refusal, sentence, stepText } from "../src/lib/arena/wording";
 import { parseSkills, keywordOf, orbsIn, eitherOrbsIn, skillLines } from "../src/lib/arena/engine/cards";
 import { parseFilter, matches, parseCondition } from "../src/lib/arena/engine/filters";
 import { addEffect, schedule, move, locate, playCost, powerOf, forbids, has, cardNow, comboCostOf, skillNegated, skillsNegated } from "../src/lib/arena/engine/state";
@@ -5233,6 +5234,69 @@ function assertDisjoint(s: GameState, where: string): RejectedAction[] {
     assert.equal(snap.taps.byCard[big], undefined, "and the card has no legal move");
     for (const r of snap.rejected!) assert.ok(!snap.legal.some((l) => JSON.stringify(l.action) === JSON.stringify(r.action)));
   }
+}
+
+// ── how a refusal is worded (`docs/arena-workflow-spec.md` §4) ─────────────
+//
+// The engine never writes a sentence; the client does, from the closed
+// vocabulary. Every kind must come out as one clause of fact and, where one
+// exists this turn, one of remedy — and the two must not be invented.
+
+{
+  const s = arena({ hand: ["BIG"], energy: ["V1", "V1"] });
+  const snap = buildSnapshot({ id: 1, mode: "hotseat", status: "playing", p1Name: "You", p2Name: "Claude", ctx: { defs: DEFS }, state: s, legal: legalActions({ defs: DEFS }, s), log: [], beats: null, spotlight: null, spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, images: {} });
+  const you = snap.view.you;
+  const o = { name: "BIG", reaching: "play" as const, side: you, inHand: true };
+
+  // Energy: the numbers, and a remedy that depends on whether next turn fixes it.
+  const short = refusal({ kind: "energy", need: 5, have: 2 }, o);
+  assert.equal(short.fact, "BIG costs 5 — 2 energy active, 3 short.");
+  assert.match(short.remedy!, /^Charge 3 more energy/, "two energy in play: charging is the only way to five");
+  const rested = refusal({ kind: "energy", need: 2, have: 0 }, o);
+  assert.match(rested.remedy!, /next turn/, "two energy in play, both rested: next turn is enough");
+  assert.equal(refusal({ kind: "energy", need: 5, have: 2 }, { name: "BIG", reaching: "play" }).remedy, null, "no side, no promise");
+
+  // Every kind produces a fact, never an empty string, and `other` passes its detail through.
+  const every: Parameters<typeof refusal>[0][] = [
+    { kind: "energy", need: 3, have: 1 },
+    { kind: "energyColour", colour: "Red", need: 1, have: 0 },
+    { kind: "mode", card: "x", mode: "rest" },
+    { kind: "timing", window: "main" },
+    { kind: "timing", window: "nextTurn" },
+    { kind: "oncePerTurn", what: "charge" },
+    { kind: "oncePerTurn", what: "skill" },
+    { kind: "zone", card: "x", area: "battle" },
+    { kind: "cardType", card: "x", needs: "a Battle Card" },
+    { kind: "target", reason: "nothing may be attacked" },
+    { kind: "forbidden", by: "PERMLOCK" },
+    { kind: "forbidden", by: null },
+    { kind: "unread", card: "x" },
+    { kind: "condition", text: "When your life is at 4 or less" },
+    { kind: "other", detail: "it is the attacking card" },
+  ];
+  for (const r of every) {
+    const w = refusal(r, { name: "Card", reaching: "attack", side: you });
+    assert.ok(w.fact.length > 8 && /[.!]$/.test(w.fact), `${r.kind}: a full sentence of fact (${w.fact})`);
+    assert.ok(pill(r).length > 0, `${r.kind}: a pill`);
+    assert.ok(sentence(r, { name: "Card", reaching: "attack", side: you }).startsWith(w.fact));
+  }
+  assert.equal(refusal({ kind: "mode", card: "x", mode: "rest" }, { name: "Sage", reaching: "attack" }).fact, "Sage is in Rest Mode — it cannot attack.");
+  assert.equal(refusal({ kind: "oncePerTurn", what: "charge" }, o).fact, "You have already charged this turn.");
+  assert.equal(refusal({ kind: "forbidden", by: "PERMLOCK" }, o).fact, "PERMLOCK forbids it.");
+  assert.equal(refusal({ kind: "other", detail: "it is the attacking card" }, o).fact, "It is the attacking card.");
+  assert.equal(refusal({ kind: "zone", card: "x", area: "battle" }, o).remedy, "Play it first.");
+  assert.equal(pill({ kind: "energy", need: 5, have: 2 }), "3 short");
+
+  // Prices, worn on the sheet's rows.
+  const big = you.hand!.find((c) => c.name === "BIG")!;
+  assert.equal(priceOf({ type: "play", player: "p1", card: big.id }, big, "Play BIG (5)"), "5 energy");
+  assert.equal(priceOf({ type: "play", player: "p1", card: big.id, x: 2 }, big, ""), "X = 2");
+  assert.equal(priceOf({ type: "combo", player: "p1", card: big.id }, big, ""), "+5,000 · free");
+  assert.equal(priceOf({ type: "activate", player: "p1", card: big.id, skill: 0 }, big, "Activate BIG (2)"), "2 energy");
+  assert.equal(priceOf({ type: "attack", player: "p1", attacker: big.id, target: "x" }, big, ""), "rests it");
+  assert.equal(priceOf({ type: "endMain", player: "p1" }, big, ""), null);
+  assert.equal(stepText({ index: 2, count: 3 }), "step 2 of 3");
+  assert.equal(stepText({ index: 2, count: 0 }), "step 2");
 }
 
 // ── the client contract: beats, and the snapshot both clients render ───────

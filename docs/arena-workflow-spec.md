@@ -1,6 +1,7 @@
 # Arena — every rule as a workflow
 
-**Status: brief, not built (6 Sep 2026).** Written to be executed by Claude Code in this repository.
+**Status: Phase 1 and Phase 2 built (6 Sep 2026); Phases 3–4 not started.** Written to be executed
+by Claude Code in this repository. §9 records what was built and where it departs from the brief.
 
 The board today can only draw what `legalActions` offers, and `legalActions` offers only what is
 legal. That single fact is the root of everything below: a card you cannot play is silent, a skill
@@ -338,3 +339,39 @@ of Runeterra do on a 360–390 px screen, with sources — is in the project doc
   mis-tap is the worst available answer, and mis-taps are frequent at this size.
 - An optional choice (`min: 0`) needs an explicit "Choose none" button, or the player is stranded in
   a state the rules call legal.
+
+## 9. What was built (6 Sep 2026)
+
+**Phase 1** landed exactly as §3 describes, with one addition to the vocabulary: a `condition`
+kind (`{ kind: "condition"; text }`) for a printed condition that does not hold yet, because the
+first fixture emit showed every Leader's `[Awaken]` condition in the `other` valve on every Main
+Phase snapshot — the signal §3.1 names. `rejectedActions` is built *from* the legal list, so
+`legal ∩ rejected = ∅` holds by construction (keyed by card and action type) and a twin that finds
+nothing surfaces as a counted `other` rather than silence. `step` is read from the script frame's
+`choose` ops when the prompt is inside a compiled skill, otherwise `{ index: 1, count: 0 }`.
+
+**Phase 2** was taken ahead of its gate (§5) at the owner's request, as the Phase F cutover was.
+What exists, all in `src/components/arena/` and reading only fields Phase 1 added:
+
+- **`src/lib/arena/wording.ts`** — the one place the web board turns a `Requirement` into English,
+  in the register of §4: `refusal()` returns a fact and a remedy (or null when nothing this turn
+  will help), `pill()` the two words a disabled row wears, `priceOf()` what a legal move costs.
+  Pure, covered by `npm test`, and the table the Android app should carry in Kotlin.
+- **The card action sheet** (`CardSheet` in `shared.tsx`) — every legal action on one card with its
+  price on it, then every refused move with its reason worded, then the card itself. It opens from
+  a tap when a card has more than one move or a move beside a refusal, and from a long press or a
+  right-click always. A card whose only moves are attacks still goes straight to targeting.
+- **The refusal line** — a tap on a dead card shakes it (`arena-nope`), buzzes `illegal`, and puts
+  the first requirement's sentence in the prompt bar in red for five seconds; a second tap opens
+  the sheet with every reason. A dead card wears a red cost badge before it is tapped
+  (`CardState` `dead`).
+- **The search sheet** (`SearchSheet`) — a full-height list over `view.you.choices`, one row per
+  card, with **Choose none** whenever `prompt.min === 0`. "See the board" closes it for a look and
+  the bar keeps one button, *Choose from N*, to reopen it; the next prompt opens it again.
+- **The step chip** (`StepChip`) — `prompt.step` as "step N of M", or "step N" alone, in the
+  prompt bar and on the search sheet.
+
+Not done: the missing-energy chips the prototype draws beside the energy strip, and any change to
+the beat storyboard. **The gate still stands for Phase 3:** one full Tournament game on the owner's
+phone with the log open, which is also the first time these surfaces meet the real card pool.
+

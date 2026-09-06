@@ -173,9 +173,11 @@ the same style.
   `docs/arena-android-spec.md` briefs the Android app, which is not built.
   `docs/arena-workflow-spec.md` is the current work brief for making every rule a
   visible workflow — read it before touching `legalActions` or the `Snapshot` shape.
-  Phase 1 of it is built: `rejectedActions` beside `legalActions` (a `whyNot*` twin per
+  Phases 1 and 2 of it are built: `rejectedActions` beside `legalActions` (a `whyNot*` twin per
   predicate, never an edit to one), `taps.whyByCard`, `view.you.choices` for a search of a
-  hidden zone, `prompt.min/max/step/cost`, and `owner` on the `skill` beat.
+  hidden zone, `prompt.min/max/step/cost`, `owner` on the `skill` beat — and on the web board the
+  card action sheet, the refusal line, the search sheet and the step chip, all worded by
+  `src/lib/arena/wording.ts`, the only place a `Requirement` becomes a sentence.
 - **Claude as the arena opponent** (`src/lib/arena/ai/`): `view.ts` builds what Claude may see —
   its own hand and decklist plus public state; your hand, life and decklist are never in the
   request. `opponent.ts` picks a number from the engine's legal-move list, so an answer can be
