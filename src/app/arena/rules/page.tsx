@@ -34,13 +34,21 @@ export default async function RulesPage({ searchParams }: { searchParams: Promis
     <div className="space-y-4">
       <div className="flex flex-wrap items-baseline gap-2">
         <h1 className="text-lg font-semibold tracking-tight text-space-50">The rules of your cards</h1>
-        <Link href="/arena" className="ml-auto text-xs text-space-300 hover:text-ki-300">
+        <Link href="/arena/rules/keywords" className="ml-auto text-xs text-space-300 hover:text-ki-300">
+          keywords the engine knows
+        </Link>
+        <Link href="/arena" className="text-xs text-space-300 hover:text-ki-300">
           ← Arena
         </Link>
       </div>
       <p className="text-sm text-space-300">
         Every skill in a deck you can play. Where the engine cannot read a card, Claude rules on it mid-game — which works, but costs tokens, takes a moment and can be
-        wrong. You can set the rule yourself instead: edit the wording, read back what the engine makes of it, and keep it when it says what the card says.
+        wrong. You can set the rule yourself instead: edit the wording, read back what the engine makes of it, and keep it when it says what the card says. What the
+        engine already knows by heart — every keyword skill, and the rules it reads a line by — is on{" "}
+        <Link href="/arena/rules/keywords" className="text-ki-300 hover:underline">
+          the keyword reference
+        </Link>
+        .
       </p>
 
       <div className="flex flex-wrap items-center gap-2 text-xs">
