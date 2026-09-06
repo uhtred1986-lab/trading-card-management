@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { cardSets, cards, deckCards, decks, ownedCards } from "@/db/schema";
 import { gameOr, type Game } from "@/lib/catalog/games";
@@ -23,6 +23,7 @@ export interface OwnedLeader {
 export async function ownedLeaders(db: Db, opts: { color?: string; game?: Game } = {}): Promise<OwnedLeader[]> {
   const where = and(
     eq(cards.cardType, "LEADER"),
+    isNull(ownedCards.archivedAt),
     ...(opts.color ? [sql`${opts.color} = any(${cards.colors})`] : []),
     ...(opts.game ? [eq(cards.game, opts.game)] : []),
   );

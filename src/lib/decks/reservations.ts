@@ -6,7 +6,7 @@
  * Reservations count at the card level — a foil copy still satisfies a deck
  * slot for that card.
  */
-import { and, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { rows } from "@/db/rows";
 import { deckCards, decks, ownedCards } from "@/db/schema";
@@ -25,7 +25,7 @@ export async function allocationForCards(db: Db, cardIds: string[]): Promise<Map
     db
       .select({ cardId: ownedCards.cardId, n: sql<number>`count(*)::int` })
       .from(ownedCards)
-      .where(inArray(ownedCards.cardId, cardIds))
+      .where(and(inArray(ownedCards.cardId, cardIds), isNull(ownedCards.archivedAt)))
       .groupBy(ownedCards.cardId),
     db
       .select({ cardId: deckCards.cardId, n: sql<number>`coalesce(sum(${deckCards.quantity}), 0)::int` })
@@ -69,7 +69,7 @@ export async function buildConflicts(db: Db, deckId: number): Promise<BuildConfl
     ),
     own as (
       select o.card_id, count(*)::int as owned
-      from owned_cards o where o.card_id in (select card_id from need)
+      from owned_cards o where o.card_id in (select card_id from need) and o.archived_at is null
       group by o.card_id
     ),
     res as (

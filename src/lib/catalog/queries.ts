@@ -46,9 +46,9 @@ function whereFor(s: CardSearch): SQL | undefined {
   if (s.color) parts.push(sql`${s.color} = any(${cards.colors})`);
   if (s.rarity) parts.push(eq(cards.rarityCode, s.rarity));
   if (s.owned === "yes")
-    parts.push(sql`exists (select 1 from ${ownedCards} o where o.card_id = ${cards.id})`);
+    parts.push(sql`exists (select 1 from ${ownedCards} o where o.card_id = ${cards.id} and o.archived_at is null)`);
   if (s.owned === "no")
-    parts.push(sql`not exists (select 1 from ${ownedCards} o where o.card_id = ${cards.id})`);
+    parts.push(sql`not exists (select 1 from ${ownedCards} o where o.card_id = ${cards.id} and o.archived_at is null)`);
   return parts.length ? and(...parts) : undefined;
 }
 

@@ -101,9 +101,14 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
             {s.copies} copies · {s.uniqueCards} unique · worth {formatCents(s.valueEurCents)}
           </p>
         </div>
-        <Link href="/add" className="tap rounded-md bg-ki-500 px-3 py-1.5 text-sm font-semibold text-space-950 hover:bg-ki-400">
-          + Add cards
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href="/collection/archived" className="tap rounded-md border border-space-600 px-3 py-1.5 text-sm text-space-200 hover:bg-space-800">
+            Archived
+          </Link>
+          <Link href="/add" className="tap rounded-md bg-ki-500 px-3 py-1.5 text-sm font-semibold text-space-950 hover:bg-ki-400">
+            + Add cards
+          </Link>
+        </div>
       </div>
 
       <GameFilter path="/collection" params={{ ...params, view: view === "grid" ? undefined : view }} game={game} available={gamesPresent} />

@@ -4,7 +4,7 @@
  * from catalog card text we hold — no forum scraping.
  */
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { and, asc, eq, inArray, notInArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, notInArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "@/db";
 import { cardSets, cards, decks, ownedCards } from "@/db/schema";
@@ -187,7 +187,7 @@ async function candidatePool(db: Db, deck: NonNullable<Awaited<ReturnType<typeof
       .selectDistinct(select)
       .from(cards)
       .innerJoin(ownedCards, eq(ownedCards.cardId, cards.id))
-      .where(and(...base))
+      .where(and(...base, isNull(ownedCards.archivedAt)))
       .limit(POOL_CAP);
   }
   const deckSets = [...new Set(deck.cards.map((c) => c.cardId.split("-")[0]))];

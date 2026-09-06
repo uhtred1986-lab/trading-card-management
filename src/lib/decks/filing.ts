@@ -17,7 +17,7 @@
  * The sideboard is left alone: it is a scratch zone, not part of the deck you
  * physically carry.
  */
-import { and, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { deckCards, decks, ownedCards, storageLocations } from "@/db/schema";
 
@@ -55,7 +55,7 @@ export async function fileDeckAtLocation(db: Db, deckId: number): Promise<Filing
     db
       .select({ id: ownedCards.id, cardId: ownedCards.cardId, locationId: ownedCards.locationId })
       .from(ownedCards)
-      .where(inArray(ownedCards.cardId, cardIds)),
+      .where(and(inArray(ownedCards.cardId, cardIds), isNull(ownedCards.archivedAt))),
     db
       .selectDistinct({ locationId: decks.locationId })
       .from(decks)

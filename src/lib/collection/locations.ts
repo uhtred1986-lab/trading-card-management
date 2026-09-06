@@ -6,7 +6,7 @@
  * Locations are archived rather than deleted when they fall out of use, so the
  * copies still say where they were last kept.
  */
-import { asc, eq, inArray, sql } from "drizzle-orm";
+import { asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { decks, ownedCards, storageLocations } from "@/db/schema";
 
@@ -33,6 +33,7 @@ export async function listLocations(db: Db, includeArchived = true): Promise<Sto
     db
       .select({ locationId: ownedCards.locationId, n: sql<number>`count(*)::int` })
       .from(ownedCards)
+      .where(isNull(ownedCards.archivedAt))
       .groupBy(ownedCards.locationId),
     db
       .select({ locationId: decks.locationId, n: sql<number>`count(*)::int` })

@@ -5,7 +5,7 @@
  * (virtual) deck; owned/buy flags come from the collection, never from the model.
  */
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { and, asc, desc, eq, ne, notInArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, ne, notInArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "@/db";
 import { cardSets, cards, deckCards, decks, ownedCards } from "@/db/schema";
@@ -76,7 +76,7 @@ export async function buildPools(db: Db, leaderId: string): Promise<{ leader: ty
     .select({ ...select, owned: sql<number>`count(*)::int` })
     .from(cards)
     .innerJoin(ownedCards, eq(ownedCards.cardId, cards.id))
-    .where(and(...onColour))
+    .where(and(...onColour, isNull(ownedCards.archivedAt)))
     .groupBy(cards.id)
     .orderBy(asc(cards.id))
     .limit(OWNED_CAP);

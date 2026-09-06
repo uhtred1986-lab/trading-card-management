@@ -1,6 +1,6 @@
 "use server";
 
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { cardPrints, ownedCards } from "@/db/schema";
@@ -133,9 +133,46 @@ export async function updateLot(id: number, input: LotInput): Promise<void> {
   revalidate(cardId);
 }
 
+/**
+ * "Delete" a lot — actually archives it (`archivedAt`), so it drops out of the
+ * collection and every count derived from it, but can be brought back from
+ * `/collection/archived`. Use `discardLot` instead for a genuine delete of a
+ * copy that was never really "owned" (e.g. undoing a save from moments ago).
+ */
 export async function deleteLot(id: number): Promise<void> {
+  const [row] = await db
+    .update(ownedCards)
+    .set({ archivedAt: new Date(), updatedAt: new Date() })
+    .where(eq(ownedCards.id, id))
+    .returning({ cardId: ownedCards.cardId });
+  if (row) revalidate(row.cardId);
+  revalidatePath("/collection/archived");
+}
+
+/** A real delete — only for undoing a save made moments ago; never for removing an established copy. */
+export async function discardLot(id: number): Promise<void> {
   const [row] = await db.delete(ownedCards).where(eq(ownedCards.id, id)).returning({ cardId: ownedCards.cardId });
   if (row) revalidate(row.cardId);
+}
+
+/** Bring an archived lot back into the collection. */
+export async function restoreLotAction(id: number): Promise<{ ok: boolean }> {
+  const [row] = await db
+    .update(ownedCards)
+    .set({ archivedAt: null, updatedAt: new Date() })
+    .where(eq(ownedCards.id, id))
+    .returning({ cardId: ownedCards.cardId });
+  if (row) revalidate(row.cardId);
+  revalidatePath("/collection/archived");
+  return { ok: !!row };
+}
+
+/** Permanently remove an archived lot — there is no coming back from this. */
+export async function purgeLotAction(id: number): Promise<{ ok: boolean }> {
+  const [row] = await db.delete(ownedCards).where(eq(ownedCards.id, id)).returning({ cardId: ownedCards.cardId });
+  if (row) revalidate(row.cardId);
+  revalidatePath("/collection/archived");
+  return { ok: !!row };
 }
 
 export interface CopyRow {
@@ -162,7 +199,7 @@ export async function copiesForCardAction(cardId: string): Promise<CopyRow[]> {
     })
     .from(ownedCards)
     .innerJoin(cardPrints, eq(cardPrints.id, ownedCards.printId))
-    .where(eq(ownedCards.cardId, cardId))
+    .where(and(eq(ownedCards.cardId, cardId), isNull(ownedCards.archivedAt)))
     .orderBy(ownedCards.id);
   return rows;
 }
@@ -188,9 +225,9 @@ export async function addCopyAction(cardId: string): Promise<CopyRow[]> {
   return copiesForCardAction(cardId);
 }
 
-/** Remove one physical copy and hand back what is left. */
+/** Archive one physical copy (restorable from /collection/archived) and hand back what is left. */
 export async function removeCopyAction(lotId: number, cardId: string): Promise<CopyRow[]> {
-  await db.delete(ownedCards).where(eq(ownedCards.id, lotId));
+  await db.update(ownedCards).set({ archivedAt: new Date(), updatedAt: new Date() }).where(eq(ownedCards.id, lotId));
   revalidate(cardId);
   return copiesForCardAction(cardId);
 }
@@ -347,12 +384,42 @@ export async function bulkSetFinishAction(lotIds: number[], foil: boolean): Prom
   return { updated: rows.length };
 }
 
+/** Archives the selected copies (restorable from /collection/archived) rather than deleting them. */
 export async function bulkDeleteCopiesAction(lotIds: number[]): Promise<{ deleted: number }> {
   const ids = cleanIds(lotIds);
   if (ids.length === 0) return { deleted: 0 };
+  const rows = await db
+    .update(ownedCards)
+    .set({ archivedAt: new Date(), updatedAt: new Date() })
+    .where(inArray(ownedCards.id, ids))
+    .returning({ cardId: ownedCards.cardId });
+  revalidateCards(rows.map((r) => r.cardId));
+  revalidatePath("/collection/archived");
+  return { deleted: rows.length };
+}
+
+/** Bring archived copies back into the collection. */
+export async function bulkRestoreCopiesAction(lotIds: number[]): Promise<{ restored: number }> {
+  const ids = cleanIds(lotIds);
+  if (ids.length === 0) return { restored: 0 };
+  const rows = await db
+    .update(ownedCards)
+    .set({ archivedAt: null, updatedAt: new Date() })
+    .where(inArray(ownedCards.id, ids))
+    .returning({ cardId: ownedCards.cardId });
+  revalidateCards(rows.map((r) => r.cardId));
+  revalidatePath("/collection/archived");
+  return { restored: rows.length };
+}
+
+/** Permanently remove archived copies — there is no coming back from this. */
+export async function bulkPurgeCopiesAction(lotIds: number[]): Promise<{ purged: number }> {
+  const ids = cleanIds(lotIds);
+  if (ids.length === 0) return { purged: 0 };
   const rows = await db.delete(ownedCards).where(inArray(ownedCards.id, ids)).returning({ cardId: ownedCards.cardId });
   revalidateCards(rows.map((r) => r.cardId));
-  return { deleted: rows.length };
+  revalidatePath("/collection/archived");
+  return { purged: rows.length };
 }
 
 /**
