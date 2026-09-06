@@ -626,6 +626,13 @@ interface Ctx {
   /** The variable the last `choose` bound. */
   last: string | null;
   /**
+   * Every choice the skill has made so far, in order. "The chosen card" means
+   * the last one, but a skill that chooses twice has to name them apart —
+   * "place **the chosen opponent Battle Card** under **the chosen <Majin
+   * Buu>**" (BT3-052, BT3-054) — and the description is what says which.
+   */
+  choices: { var: string; sel: Selector }[];
+  /**
    * A [Permanent] never *acts*, so its "you can …" is a standing permission
    * rather than an offer to do something now (9-5-1) — and wrapping one in a
    * decision hides it from the static layer entirely.
@@ -681,6 +688,52 @@ function headOf(clause: string): string {
   return clause.replace(/\s+(?:with|on top of|beneath)\b.*$/i, "");
 }
 
+/**
+ * "The chosen opponent Battle Card", "the chosen <Majin Buu>" — which of the
+ * choices the skill already made this one means (5-2).
+ *
+ * The description is matched against what each `choose` actually asked for:
+ * whose cards, what type, which characters, traits, names and colours. Every
+ * discriminator the phrase carries has to be one the choice asked for, so
+ * "opponent" can never come back with your own card. Only a single clear
+ * winner is returned — a tie, or a phrase with nothing to tell them apart, is
+ * left to the referee, because naming the wrong half of a two-card choice
+ * moves the wrong card.
+ */
+function chosenRef(desc: string, c: Ctx): Ref | null {
+  if (!c.choices.length) return null;
+  const want = parseFilter(desc);
+  const t = desc.toLowerCase();
+  const side: Side | null = /\bopponent'?s?\b/.test(t) ? "opponent" : /\byour\b|\byou control\b/.test(t) ? "you" : null;
+  const covers = (have: readonly string[], need: readonly string[]) => need.every((n) => have.some((h) => h.toLowerCase() === n.toLowerCase()));
+
+  let best: { name: string; score: number } | null = null;
+  let tied = false;
+  for (const ch of c.choices) {
+    const f = ch.sel.filter;
+    if (side && ch.sel.side && ch.sel.side !== side) continue;
+    // A type the choice did not state is unknown, not a mismatch: "1 of your
+    // opponent's Battle Cards" is read as the Battle Area, which leaves
+    // `type` null on a filter that means Battle Cards all the same.
+    if (want.type && f?.type && want.type !== f.type) continue;
+    if (!covers(f?.characters ?? [], want.characters)) continue;
+    if (!covers(f?.traits ?? [], want.traits)) continue;
+    if (!covers(f?.names ?? [], want.names)) continue;
+    if (!covers(f?.colors ?? [], want.colors)) continue;
+    let score = want.characters.length + want.traits.length + want.names.length + want.colors.length;
+    if (side && ch.sel.side === side) score++;
+    if (want.type && f?.type === want.type) score++;
+    // "The chosen card" says nothing that picks one of them out; the plain
+    // back-reference is what that means.
+    if (!score) continue;
+    if (!best || score > best.score) {
+      best = { name: ch.var, score };
+      tied = false;
+    } else if (score === best.score) tied = true;
+  }
+  return best && !tied ? { var: best.name } : null;
+}
+
 function refFor(clause: string, c: Ctx): Ref | null {
   // "Play up to 1 red ≪Universe 7≫ card from **under this card**" — here
   // "this card" says where to look, or where the card goes, not which card is
@@ -717,7 +770,20 @@ function refFor(clause: string, c: Ctx): Ref | null {
   // this card's skill** can't be switched to Active Mode" is the same thing
   // said the long way, and it used to read as this card — so the restriction
   // landed on the card printing it instead of on what it had just chosen.
-  if (/\bthe chosen cards?\b|\bcards? chosen with this card'?s skill\b/i.test(clause)) return c.last ? { var: c.last } : c.lastTarget;
+  if (/\bcards? chosen with this card'?s skill\b/i.test(clause)) return c.last ? { var: c.last } : c.lastTarget;
+  // "The chosen …" always points back at a choice already made, so it is
+  // answered here or not at all — reading it as a fresh description would turn
+  // "the chosen <Majin Buu>" into every <Majin Buu> you have.
+  if (/\bthe chosen\b/i.test(clause)) {
+    // "Place the chosen opponent Battle Card under the chosen <Majin Buu>":
+    // which choice it means, when the phrase says enough to tell.
+    const ref = chosenRef(clause, c);
+    if (ref) return ref;
+    // "Add a marker to the chosen card": nothing to tell them apart, so it is
+    // the last choice, as it has always been.
+    if (/\bthe chosen cards?\b/i.test(clause)) return c.last ? { var: c.last } : c.lastTarget;
+    return null;
+  }
   // "Add up to 1 <Son Goku> card among them to your hand" names its own target
   // and only says *where to look* for it. Read before "it"/"them", which would
   // otherwise take the "them" and hand back whatever the last clause acted on.
@@ -1063,6 +1129,23 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // "If this card has 3 or more markers on it" (13-2).
   if ((m = /^this card has (\d+) or (more|less|fewer) markers?(?: on it)?$/.exec(t))) {
     return { cond: { kind: "markers", sel: { special: "self" }, ...(m[2] === "more" ? { atLeast: Number(m[1]) } : { atMost: Number(m[1]) }) }, subject: { sel: { special: "self" } } };
+  }
+  // "If **all** of your opponent's energy is in Rest Mode" (XD1-01): the whole
+  // set against the part of it the description picks out. Read as two
+  // selectors so that the description can be a mode as easily as a colour.
+  if ((m = /^all of (.+?) (?:is|are) (.+)$/.exec(t))) {
+    const whole = parseTarget(m[1]);
+    const part = parseTarget(`${m[1]} ${m[2]}`);
+    if (whole && part) {
+      for (const sel of [whole, part]) {
+        delete sel.count;
+        delete sel.upTo;
+      }
+      // A description `parseTarget` did not take in leaves the two selectors
+      // identical, and the condition would then always hold. That is worse
+      // than a gap, so it stays a gap.
+      if (JSON.stringify(whole) !== JSON.stringify(part)) return { cond: { kind: "every", sel: whole, matching: part }, subject: { sel: whole } };
+    }
   }
   // "If this card is in a battle", "if this card isn't in a battle", "if your
   // <Son Goku> card is in a battle" (8-1).
@@ -1877,7 +1960,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // "Choose 1 {Spaceship, Vessel of Hope} in your Unison Area **and place this
   // card under it**": "it" is the card the clause before just chose, which is
   // the only antecedent it can have — the host is never the card being placed.
-  if ((m = /^(?:place|put) (.+?) (?:face ?up )?under (the chosen card|the played card|the card (?:that was |you )?played(?: with this skill)?|your leader(?: card)?|it|them|that card|those cards|\{[^}]+\}(?: in your battle area)?)$/.exec(t))) {
+  if ((m = /^(?:place|put) (.+?) (?:face ?up )?under (the chosen [^,.]+|the played card|the card (?:that was |you )?played(?: with this skill)?|your leader(?: card)?|it|them|that card|those cards|\{[^}]+\}(?: in your battle area)?)$/.exec(t))) {
     const host = refFor(m[2], c);
     const ref = refFor(m[1], c);
     return host && ref ? withChoice(ref, clause, c, (target) => ({ op: "moveTo", target, to: "under", under: host })) : null;
@@ -2254,7 +2337,7 @@ function compileSkillText(skill: Skill): Script {
   const text = stripNotes(skill.effect);
   if (!text) return { ops: [], unsupported: [] };
   const unsupported: string[] = [];
-  const c: Ctx = { permanent: skill.kind === "permanent", last: null, lastSeen: null, lastPlayed: null, lastTarget: null, lastOp: null, replacing: null, n: 0, raw: skill.effect };
+  const c: Ctx = { permanent: skill.kind === "permanent", last: null, choices: [], lastSeen: null, lastPlayed: null, lastTarget: null, lastOp: null, replacing: null, n: 0, raw: skill.effect };
   // A standing permission is one sentence, not a list of actions: "you can
   // activate this card's [Counter] skill from your hand without paying its
   // energy cost **by choosing 1 other black card in your hand and placing it
@@ -2356,6 +2439,7 @@ function compileSkillText(skill: Skill): Script {
 function track(o: Op, c: Ctx): void {
   if (o.op === "choose") {
     c.last = o.as;
+    c.choices.push({ var: o.as, sel: o.sel });
     c.lastTarget = { var: o.as };
   } else if (o.op === "reveal") {
     c.lastSeen = o.as;
@@ -2762,6 +2846,8 @@ function describeCond(c: Cond): string {
     }
     case "inBattle":
       return `${describeSelector(c.sel)} is ${c.not ? "not " : ""}in a battle`;
+    case "every":
+      return `all of ${describeSelector(c.sel)} is ${describeSelector(c.matching)}`;
     case "leaderFlipped":
       return `${c.side === "opponent" ? "their" : "your"} leader ${c.flipped === false ? "has not" : "has"} awakened`;
     case "did":

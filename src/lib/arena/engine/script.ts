@@ -130,6 +130,18 @@ export type Cond =
   | { kind: "markers"; sel: Selector; atLeast?: number; atMost?: number }
   /** "If this card is in a battle" (8-1): any of the selected cards is the attacker or the guard. */
   | { kind: "inBattle"; sel: Selector; not?: boolean }
+  /**
+   * "If **all** of your opponent's energy is in Rest Mode" (XD1-01): every card
+   * `sel` finds is also one that `matching` finds. Two selectors rather than a
+   * filter, because what the sentence asks about is as often the *mode* of a
+   * card as anything in its text, and mode lives on the selector.
+   *
+   * With nothing to find it is **false**, not vacuously true: 0-2-4-1 does not
+   * count a state as reached when there is no object to reach it, and the other
+   * reading fires the skill on an opening turn where the opponent has no
+   * energy at all.
+   */
+  | { kind: "every"; sel: Selector; matching: Selector }
   /** "When your life is at 4 or less, or you have 5 or more energy" — one of several; "all" is every one of them. */
   | { kind: "any"; conds: Cond[] }
   | { kind: "all"; conds: Cond[] }

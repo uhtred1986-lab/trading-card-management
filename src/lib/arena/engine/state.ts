@@ -436,6 +436,13 @@ export function condHolds(ctx: GameContext, s: GameState, frame: ScriptFrame, c:
       const inBattle = !!b && resolveSelector(ctx, s, frame, c.sel).some((id) => b.attacker === id || b.guard === id);
       return c.not ? !inBattle : inBattle;
     }
+    case "every": {
+      const ids = resolveSelector(ctx, s, frame, c.sel);
+      // Nothing there is not "all of it" — see the note on the Cond.
+      if (!ids.length) return false;
+      const ok = new Set(resolveSelector(ctx, s, frame, c.matching));
+      return ids.every((id) => ok.has(id));
+    }
     case "any":
       return c.conds.some((x) => condHolds(ctx, s, frame, x));
     case "all":
