@@ -6,8 +6,8 @@
  * lets the engine offer the right candidates for Evolve, Union, Z-Stack,
  * Z-Awaken and Swap without a compiled script.
  */
-import { baseType, hasCharacter, hasKeyword, hasTrait, keywordOf, keywordsOf } from "./cards";
-import type { CardDef, Color, KeywordSkill } from "./types";
+import { baseType, hasCharacter, hasKeyword, hasTrait, keywordOf, keywordsOf, skillsOf } from "./cards";
+import type { CardDef, Color, KeywordSkill, SkillKindPrefix } from "./types";
 
 export interface CardFilter {
   colors: Color[];
@@ -40,6 +40,28 @@ export interface CardFilter {
    * an effect granted this turn does not make the card one of these.
    */
   notKeywords: KeywordSkill["name"][];
+  /**
+   * "Up to 1 opponent Battle Card **with [Blocker]**", "a yellow ≪Demon Realm≫
+   * card **with an [Evolve] skill**". Ground rule 5's second named widening:
+   * dropped, the phrase chose any card in the area, on 83 selectors.
+   *
+   * Compared by keyword *name* only, so "with the [Revive Blue/Green] skill"
+   * matches a card whose [Revive] names other colours. The narrower reading
+   * would need the parameters, which only two cards in the catalog print.
+   */
+  keywords: KeywordSkill["name"][];
+  /**
+   * "Mono-blue cards **with [Counter] skills**", "an Extra Card with the
+   * [Activate: Main] skill" — a kind of skill rather than a keyword, and the
+   * one shape `keywordOf` cannot answer.
+   */
+  skillKind: SkillKindPrefix | null;
+  /**
+   * A bracketed word in the description that is neither of those. Nothing may
+   * be selected on a guess, so `filterFor` refuses the whole phrase rather
+   * than quietly widening it (ground rule 5).
+   */
+  unreadable: boolean;
   /**
    * "1 red Extra Card with an energy cost of 1 and **no keyword skills**"
    * (BT29-001, P-247, XD1-08 and eight more). A measure that narrows, so
@@ -76,11 +98,23 @@ export interface CardFilter {
 
 const COLOR_WORDS: Record<string, Color> = { red: "Red", blue: "Blue", green: "Green", yellow: "Yellow", black: "Black" };
 
+/**
+ * Keyword families a target description names without the parameters the
+ * printed tag carries: a card "with a **[Union]** skill" means any of
+ * [Union-Fusion], [Union-Potara] and [Union-Absorb], and `keywordOf` only
+ * reads the hyphenated forms. Deliberately a list rather than a rule — every
+ * other keyword is named in full, and guessing at one is how a filter starts
+ * matching cards the text never mentioned.
+ */
+const KEYWORD_FAMILIES = new Set(["union"]);
+
+const titleCase = (s: string) => s.replace(/\b[a-z]/g, (ch) => ch.toUpperCase());
+
 /** Grammar that can sit between the number and a token's name, never part of it. */
 const TOKEN_STOP = new Set(["of", "your", "their", "the", "opponent's", "opponents", "up", "to", "and", "or", "all", "each", "other", "another"]);
 
 export function parseFilter(text: string): CardFilter {
-  const f: CardFilter = { colors: [], notColors: [], monoColor: false, multiColor: false, characters: [], notCharacters: [], traits: [], notTraits: [], names: [], notNames: [], notKeywords: [], noKeywords: false, type: null, notType: null, faceUp: false, token: false, notToken: false, costMin: null, costMax: null, powerMin: null, powerMax: null, powerRel: null, z: null };
+  const f: CardFilter = { colors: [], notColors: [], monoColor: false, multiColor: false, characters: [], notCharacters: [], traits: [], notTraits: [], names: [], notNames: [], notKeywords: [], keywords: [], skillKind: null, unreadable: false, noKeywords: false, type: null, notType: null, faceUp: false, token: false, notToken: false, costMin: null, costMax: null, powerMin: null, powerMax: null, powerRel: null, z: null };
   let t = text.replace(/&lt;/g, "<").replace(/&gt;/g, ">");
   // "Choose up to 1 Battle Card **other than** <Grand Supreme Kai>" (SD15-01,
   // in the owner's own decks) says which card is *excluded*. Read by the loops
@@ -141,6 +175,26 @@ export function parseFilter(text: string): CardFilter {
   // one is only about the keywords, so a card with an [Auto] and no keyword
   // still qualifies.
   if (/\bno keyword skills?\b|\bno keywords\b/.test(lower)) f.noKeywords = true;
+  // "…**with [Blocker]**", "…with an [Evolve] skill", "…with [Counter]
+  // skills". A requirement, and dropping it chose any card in the area (83
+  // selectors). "Without" and "non-" are read below as the opposite; anything
+  // else in brackets that is neither a keyword nor a skill kind makes the
+  // whole description unreadable, because guessing selects the wrong cards.
+  for (const m of lower.matchAll(/\bwith (?:an?|the )?\s*\[([a-z0-9:\- /]+)\](?: skills?)?/g)) {
+    const word = m[1].trim();
+    const kind: SkillKindPrefix | null = /^counter\b/.test(word) ? "counter" : /^activate\b/.test(word) ? "activate" : word === "auto" ? "auto" : word === "permanent" ? "permanent" : null;
+    if (kind) {
+      f.skillKind = kind;
+      continue;
+    }
+    // `keywordOf` wants the parameters the *printed* tag carries — it reads
+    // "[Union-Fusion]" but not the bare "[Union]" a target description uses,
+    // because the family alone is what the description means. Matching is by
+    // name anyway, so the family name is enough.
+    const kw = keywordOf(word) ?? (KEYWORD_FAMILIES.has(word) ? { name: titleCase(word) as KeywordSkill["name"] } : null);
+    if (!kw) f.unreadable = true;
+    else if (!f.keywords.includes(kw.name)) f.keywords.push(kw.name);
+  }
   // "Battle Cards **without [Barrier]** in Active Mode" — the same thing
   // "non-[Barrier]" says, written the long way. Sixteen of the cards that let
   // an active card be attacked carve out [Barrier] like this, and a
@@ -262,6 +316,8 @@ export function matches(d: CardDef, f: CardFilter): boolean {
   if (f.colors.length && !colourOk) return false;
   if (f.notColors.some((c) => d.colors.includes(c))) return false;
   if (f.notKeywords.some((k) => hasKeyword(d, k))) return false;
+  if (f.keywords.some((k) => !hasKeyword(d, k))) return false;
+  if (f.skillKind && !skillsOf(d).some((sk) => sk.kind.startsWith(f.skillKind!))) return false;
   if (f.noKeywords && keywordsOf(d).length) return false;
   if (f.monoColor && d.colors.length !== 1) return false;
   if (f.multiColor && d.colors.length < 2) return false;

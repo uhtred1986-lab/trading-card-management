@@ -1630,6 +1630,61 @@ count of the shapes — "which unreadable clauses are a bare object phrase",
 "which begin with can't" — found it in one pass. When the top of the ranking is
 a list of ones, stop reading it and count something else.
 
+## Done: the keyword a target must have (6 Sep 2026)
+
+Ground rule 5 named two measures the parser still dropped. This closes the
+first: **a keyword the target must *have***. "Up to 1 opponent Battle Card
+**with [Blocker]**", "a yellow ≪Demon Realm≫ card **with an [Evolve] skill]**"
+— 83 selectors carried the words and none of the meaning, so each of them
+chose any card in the area. BT1-036 returned any Battle Card to the opponent's
+hand rather than a blocker; BT2-079 the same.
+
+Three shapes, and they need different answers:
+
+- **A keyword.** `CardFilter.keywords`, compared by name, so "with the [Revive
+  Blue/Green] skill" also matches a [Revive] naming other colours. The narrower
+  reading needs the parameters and only two cards print them.
+- **A keyword *family*.** "With a [Union] skill" means any of [Union-Fusion],
+  [Union-Potara] and [Union-Absorb]; `keywordOf` reads only the hyphenated
+  forms a card is printed with. A one-entry list rather than a rule, because
+  every other keyword is named in full and guessing is how a filter starts
+  matching cards the text never mentioned.
+- **A *kind* of skill, which is not a keyword at all.** "Mono-blue Battle Cards
+  with a [Counter] skill", "an Extra Card with the [Activate: Main] skill" —
+  `CardFilter.skillKind`, the one shape `keywordOf` cannot answer.
+
+**And a bracket that is none of those makes the description unreadable.** That
+is the part worth stating: `filterFor` now returns **three** answers, not two —
+a filter, `undefined` for "nothing here narrows", and **`null` for "this could
+not be read"**. Only the first two may pass. The type change made the compiler
+enumerate all seven callers, and two of them were quietly falling back to a
+type word: "you can't play Battle Cards with [X]" would have banned every
+Battle Card, a wider rule than the card states. [Sparking 7] is the only
+wording left in this family, and it fails honestly on two cards — it is a
+numeric validity condition rather than a keyword, and inventing a reading for
+it would select the wrong cards.
+
+**The bug this turned up in my own earlier work.** The engine assertion failed
+where the compile one passed, and the cause was that `narrows` in `filterFor`
+had never been told about the new measures. A filter whose *only* measure is
+one of them counts as saying nothing, and is thrown away — which is the exact
+silent widening the measures exist to prevent. Four were missing:
+`keywords` and `skillKind` from this round, and **`noKeywords` and `notNames`
+from the two rounds before it**, both shipped that way. Every measure has to be
+added in two places, and the list is now commented to say so.
+
+25 skills go from unreadable to read, 2 fail honestly, and 116 programs carry a
+requirement they had been dropping — checked by compiling the whole catalog
+before and after, with the three new always-present fields normalised out of
+the comparison so the real changes were visible at all. Catalog **86.3 % →
+86.5 %**; the owner's decks stay at 92.9 %. 40 fuzzed games, 0 crashes.
+
+**Worth copying: a compile assertion cannot see this class of bug.** The
+program looked right — the filter was in it — and only asking the engine what
+it actually offered showed the filter had been dropped a layer above. Write the
+engine assertion for any measure that narrows a *choice*, not just the compile
+one.
+
 ## Conventions worth keeping
 
 - Card text is **read, never interpreted**: if the compiler cannot read a

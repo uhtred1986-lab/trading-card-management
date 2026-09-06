@@ -42,7 +42,7 @@ const TARGET_BEFORE_AND = /(?:^\s*|[,;:]\s+)(?:this card|it|they|them|that card|
  * Only counted when the clause so far opened a description with "with", which
  * is the word that turns the rest of the phrase into a filter.
  */
-const MEASURE_AFTER_AND = /^(?:an? energy cost of \d+|\d+ power|no keyword skills?|no keywords)(?: or (?:less|more))?\b/i;
+const MEASURE_AFTER_AND = /^(?:an? energy cost of \d+|\d+ power|no keyword skills?|no keywords|(?:an?|the) \[[a-z0-9:\- /]+\] skill)(?: or (?:less|more))?\b/i;
 
 /**
  * A dash the sets use in pairs to hang a description off a target: "play up to
@@ -350,7 +350,10 @@ export function parseTarget(phrase: string): Selector | null {
   // opponent" is the card the [Counter: Play] is answering, and there is only
   // ever one of those — reading it as a choice asked for a card in play, which
   // is a different card entirely (9-6).
-  if (/\bbeing played\b/.test(t)) return { special: "resolving", filter: filterFor(phrase, null) };
+  if (/\bbeing played\b/.test(t)) {
+    const being = filterFor(phrase, null);
+    return being === null ? null : { special: "resolving", filter: being };
+  }
 
   let side: Side = "you";
   // The sets write the possessive four ways — "your opponent's", "an
@@ -435,6 +438,9 @@ export function parseTarget(phrase: string): Selector | null {
   const excluded = /\bother than (copies of )?this card\b/.exec(t);
   const notSelf = excluded ? (excluded[1] ? "copies" : "card") : undefined;
   const filter = filterFor(phrase, area);
+  // A description the parser could not read is not a target: the clause fails
+  // and the skill goes to the referee, rather than selecting the whole area.
+  if (filter === null) return null;
   if (underHost) return { side: "you", area: "under", filter, count, upTo, mode, notSelf };
   if (bothAreas) return { side, area: "battle", areas: ["battle", "unison"], filter, count, upTo, mode, fromVar, notSelf };
   if (pair) return { side, area: pair[0], areas: pair, filter, count, upTo, mode, fromVar, notSelf };
@@ -474,7 +480,10 @@ function subjectFilterOf(trigger: string): CardFilter | undefined {
   // …but "an energy cost of 5 **or** less" is one bound, not two kinds, and
   // `parseFilter` reads it whole.
   if (/ or /.test(phrase.replace(/\b\d+ or (?:less|fewer|more|greater|higher|lower)\b/g, ""))) return undefined;
-  return filterFor(phrase, null);
+  // A trigger whose subject description cannot be read is left unfiltered
+  // rather than failed: an over-fire is bad, a filter that stops a skill that
+  // should happen is worse (ground rule 6).
+  return filterFor(phrase, null) ?? undefined;
 }
 
 /**
@@ -534,8 +543,17 @@ function counterAltCost(sentence: string, c: Ctx): Op[] | null {
 }
 
 /** Only keep a filter when the phrase actually narrows the cards. */
-function filterFor(phrase: string, area: ScriptArea | null): CardFilter | undefined {
+/**
+ * Three answers, and the difference between the last two is the whole point:
+ * a `CardFilter` narrows the selection, `undefined` means the description said
+ * nothing that narrows it, and **`null` means the description could not be
+ * read** — a bracketed word that is neither a keyword nor a skill kind. Only
+ * the first two may pass; `null` has to fail the clause, or "mono-blue cards
+ * with a [Counter] skill" goes on choosing any mono-blue card (ground rule 5).
+ */
+function filterFor(phrase: string, area: ScriptArea | null): CardFilter | null | undefined {
   const f = parseFilter(phrase);
+  if (f.unreadable) return null;
   // In an area that only holds one kind of card, the type word is noise — and
   // it has to go before the question of whether anything narrows, or "your
   // Battle Cards" would count as narrowed by a word that means nothing there.
@@ -569,6 +587,14 @@ function filterFor(phrase: string, area: ScriptArea | null): CardFilter | undefi
     // Battle Cards" chose black ones as happily as any other.
     f.notColors.length > 0 ||
     f.notKeywords.length > 0 ||
+    // Every measure has to be on this list, or a description whose *only*
+    // measure is that one counts as saying nothing and the filter is thrown
+    // away — the same silent widening the measures exist to prevent. These
+    // four were each added without being listed here.
+    f.keywords.length > 0 ||
+    f.skillKind != null ||
+    f.noKeywords ||
+    f.notNames.length > 0 ||
     f.token ||
     f.notToken ||
     f.faceUp;
@@ -2014,6 +2040,10 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
       if (/^this card\b/.test(what)) return [{ op: "forbid", what: "play", side, until, target: { sel: { special: "self" } } }];
       const filter = filterFor(what, null);
       const type = /\bunison cards?\b/.test(what) ? "UNISON" : /\bextra cards?\b/.test(what) ? "EXTRA" : /\bbattle cards?\b/.test(what) ? "BATTLE" : null;
+      // A description that could not be read must not fall back to the type
+      // alone: "you can't play Battle Cards with [X]" would ban every Battle
+      // Card, which is a wider rule than the card states.
+      if (filter === null) return null;
       if (!filter && !type) return null;
       return [{ op: "forbid", what: "play", side, until, filter: { ...(filter ?? parseFilter("")), ...(type ? { type } : {}) } }];
     }
@@ -2022,6 +2052,9 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
       if (/^attack (?:this card|it)\b/.test(rest)) return [{ op: "forbid", what: "beAttacked", until, target: { sel: { special: "self" } } }];
       const withWhat = /\bwith (.*)$/.exec(rest)?.[1];
       const filter = withWhat ? filterFor(withWhat, null) : undefined;
+      // Same again: an unread description would forbid every attack rather
+      // than the ones the card names.
+      if (filter === null) return null;
       const type = withWhat && /\bleader cards?\b/.test(withWhat) ? "LEADER" : withWhat && /\bbattle cards?\b/.test(withWhat) ? "BATTLE" : null;
       return [{ op: "forbid", what: "attack", side, until, filter: filter || type ? { ...(filter ?? parseFilter("")), ...(type ? { type } : {}) } : undefined }];
     }
@@ -2450,6 +2483,10 @@ function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op
         // When the rule names other cards, they are the ones it is about —
         // not whatever "it" happened to point at in the second half.
         const filter = subject ? filterFor(subject, "battle") : undefined;
+        if (filter === null) {
+          unsupported.push(clause);
+          continue;
+        }
         const target: Ref = subject ? { sel: { side: "you", area: "battle", filter, count: 99 } } : only.target;
         // "…to your energy in Rest Mode instead" — the move said how it
         // arrives as well as where, and the replacement has to carry both.

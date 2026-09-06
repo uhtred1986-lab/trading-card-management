@@ -23,7 +23,7 @@ Measured on the 6,493 Dragon Ball Super (not Fusion World) cards:
 
 | measure | value | command |
 |---|---|---|
-| resolvable skills the compiler reads end-to-end | 86.3 % of 11,743 | `npm run arena:coverage` |
+| resolvable skills the compiler reads end-to-end | 86.5 % of 11,743 | `npm run arena:coverage` |
 | [Permanent] skills the compiler reads | 59.7 % of 1,807 | same |
 | …and that actually emit a standing effect | 54.8 % of 1,807 | same |
 | skills in the owner's 13 decks that compile | 92.9 % of 397 | same (deck tables) |
@@ -105,10 +105,18 @@ mechanisms in §6.
    cards the text rules out. Whenever you add a positive measure, ask what the
    sets write for its opposite.
 
-   Two positive measures are still unread and are known widenings: a required
-   keyword ("up to 1 opponent Battle Card **with [Blocker]**" chooses any), and
-   a **plural** type word ("Battle **Cards**" sets no `type`, because the word
-   is matched with a trailing `\b`).
+   Both of the positive measures once listed here as known widenings are now
+   read: a required keyword (`keywords`, `skillKind`) and the plural type word.
+   What is left is `[Sparking N]`, which fails the clause rather than widening
+   it — it is a numeric validity condition, not a keyword.
+
+   **A measure has to be added in two places.** `parseFilter` reads it *and*
+   `filterFor`'s `narrows` list has to name it, or a description whose only
+   measure is that one counts as saying nothing and the whole filter is thrown
+   away — the very widening the measure was added to prevent. `noKeywords`,
+   `notNames`, `keywords` and `skillKind` were every one of them shipped
+   missing from that list, and only an *engine* assertion caught it: the
+   compiled program looked right, because the filter was in it.
 6. **Never write a regex through a shell heredoc, `node -e`, or a `sed`
    template.** The backslashes are eaten before the file is written: `\b`
    becomes a literal backspace, `\[` becomes `[`, and the result either fails
@@ -801,7 +809,7 @@ work, and they are parked here so they are not lost.
 
 ## 7. Definition of done for the next stage
 
-- ~~Catalog ≥ 85 % of resolvable skills compile~~ — **met, 86.3 %** (6 Sep
+- ~~Catalog ≥ 85 % of resolvable skills compile~~ — **met, 86.5 %** (6 Sep
   2026). The owner's decks ≥ 95 % is still open: 92.9 %, and what is left there
   is listed by `npm run arena:gaps -- --decks`.
 - `arena:gaps` "1 clause in the way" below 800. Still open at 1,191, and that

@@ -4958,4 +4958,65 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.ok(from("V1").includes(s.players.p2.leader));
 }
 
+
+
+{
+  // ------------------------------------------------------------------------
+  // Ground rule 5's second named widening, closed: a keyword the target must
+  // *have*. Dropped, "up to 1 opponent Battle Card with [Blocker]" chose any
+  // card in the area — 83 selectors did.
+  // ------------------------------------------------------------------------
+  const f = (text: string) => parseFilter(text);
+  assert.deepEqual(f("opponent Battle Card with [Blocker]").keywords, ["Blocker"]);
+  assert.deepEqual(f("yellow ≪Demon Realm≫ card with an [Evolve] skill").keywords, ["Evolve"]);
+  assert.deepEqual(f("your yellow Unison Cards with [Rejuvenate] in its skill text").keywords, ["Rejuvenate"]);
+  // The bare family name: "[Union]" means any of the three variants, and
+  // `keywordOf` only reads the hyphenated forms the tag is printed with.
+  assert.deepEqual(f("your black Battle Cards with a [union] skill").keywords, ["Union"]);
+  // A *kind* of skill is not a keyword, and is the one shape keywordOf cannot
+  // answer: "mono-blue Battle Cards with a [Counter] skill".
+  assert.equal(f("mono-blue Battle Cards with a [Counter] skill").skillKind, "counter");
+  assert.equal(f("an Extra Card with the [Activate: Main] skill").skillKind, "activate");
+  assert.deepEqual(f("mono-blue Battle Cards with a [Counter] skill").keywords, []);
+  // Anything else in brackets makes the description unreadable rather than
+  // wider — [Sparking 7] is a numeric validity condition, not a keyword.
+  assert.equal(f("≪Universe 7≫ card with a [Sparking 7] skill").unreadable, true);
+  assert.equal(f("blue ≪Android≫ card").unreadable, false);
+  // "Without [X]" and "non-[X]" stay the opposite of all this.
+  assert.deepEqual(f("Battle Cards without [Barrier]").notKeywords, ["Barrier"]);
+  assert.deepEqual(f("Battle Cards without [Barrier]").keywords, []);
+
+  assert.equal(matches({ ...DEFS.V1, skill: "[Blocker]" }, f("Battle Card with [Blocker]")), true);
+  assert.equal(matches({ ...DEFS.V1, skill: "[Critical]" }, f("Battle Card with [Blocker]")), false, "the requirement narrows");
+  assert.equal(matches({ ...DEFS.V1, skill: "[Counter: Attack] Negate the attack." }, f("Battle Card with a [Counter] skill")), true);
+  assert.equal(matches({ ...DEFS.V1, skill: "[Auto] When you play this card, draw 1 card." }, f("Battle Card with a [Counter] skill")), false);
+
+  // An unreadable description fails the clause rather than selecting the whole
+  // area — the difference between `null` and `undefined` out of `filterFor`.
+  const sparking = compileSkill(parseSkills("[Activate: Main] Play up to 1 red ≪Universe 7≫ card with a [Sparking 7] skill from your Drop.")[0]);
+  assert.equal(sparking.unsupported.length, 1, "9-1: an unread description is an honest gap, not a wide selection");
+  const readable = compileSkill(parseSkills("[Activate: Main] Play up to 1 red ≪Universe 7≫ card with a [Blocker] skill from your Drop.")[0]);
+  assert.deepEqual(readable.unsupported, []);
+
+  // The measure survives the "and" that used to cut it off: "with an energy
+  // cost of 3 and an [EX-Evolve] skill" was losing its second half.
+  assert.deepEqual(splitClauses("play up to 1 Battle Card from your deck with an energy cost of 3 and an [EX-Evolve] skill"), [
+    "play up to 1 Battle Card from your deck with an energy cost of 3 and an [EX-Evolve] skill",
+  ]);
+}
+
+{
+  // The engine assertion: a required keyword really narrows what is offered.
+  DEFS["BLOCK-HUNTER"] = { ...DEFS.V1, id: "BLOCK-HUNTER", name: "BLOCK-HUNTER", energyCost: 1, skill: "[Auto] When you play this card, choose up to 1 opponent Battle Card with [Blocker] and KO that card." };
+  let s = arena({ hand: ["BLOCK-HUNTER"], energy: ["V1", "V1"], oppBattle: ["BLOCKER", "V-BLUE"] });
+  const blocker = find(s, "p2", "battle", "BLOCKER");
+  const plain = find(s, "p2", "battle", "V-BLUE");
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "BLOCK-HUNTER") });
+  assert.equal(s.prompt.kind, "chooseCards");
+  const offered = (s.prompt as { choice: { candidates: string[] } }).choice.candidates;
+  assert.ok(offered.includes(blocker), "the [Blocker] card is on offer");
+  assert.ok(!offered.includes(plain), "…and the one without it is not");
+  assertConsistent(s);
+}
+
 console.log("verify-arena: all checks passed");
