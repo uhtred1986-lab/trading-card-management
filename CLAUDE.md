@@ -155,11 +155,13 @@ the same style.
   from `boardView`, which hides what the player may not see (3-1-3), and every tappable thing comes
   from the engine's `legalActions`, so the UI knows no rules. `npm run arena:playthrough` plays a
   whole game through the database, and `npm run arena:coverage` reports how much card text the
-  compiler reads. Two motion-first arena clients are planned and not yet built — a rebuilt web board
-  and a native Android app — both fed by one server-side snapshot so neither ever evaluates a rule.
-  **`docs/arena-client-contract.md`** is what they share and is read first;
-  `docs/arena-ui-motion-spec.md` is the web board's brief and `docs/arena-android-spec.md` the
-  Android app's.
+  compiler reads. The board is `src/components/arena/stage/` — motion-first, cards fly between zones
+  on `layoutId`, and a whole opponent turn is *played back* from the beat stream rather than
+  arriving as a jump. Everything it renders comes from one `Snapshot`
+  (`src/lib/arena/session.ts` + `snapshot.ts`), which `/api/v1` serves to the planned Android app as
+  well, so no client ever evaluates a rule. **`docs/arena-client-contract.md`** is that contract and
+  is read first; `docs/arena-ui-motion-spec.md` records the web board and
+  `docs/arena-android-spec.md` briefs the Android app, which is not built.
 - **Claude as the arena opponent** (`src/lib/arena/ai/`): `view.ts` builds what Claude may see —
   its own hand and decklist plus public state; your hand, life and decklist are never in the
   request. `opponent.ts` picks a number from the engine's legal-move list, so an answer can be

@@ -63,7 +63,6 @@ export function ArenaCard({
   onInspect,
   onHover,
   badge,
-  drop = false,
 }: {
   card: CardView;
   width?: number;
@@ -77,8 +76,6 @@ export function ArenaCard({
    */
   onHover?: (box: DOMRect | null) => void;
   badge?: string | null;
-  /** Battle Area cards drop in when they arrive; the animation runs once, on mount. */
-  drop?: boolean;
 }) {
   const [failed, setFailed] = useState(false);
   const height = Math.round((width * 88) / 63);
@@ -111,7 +108,7 @@ export function ArenaCard({
 
   return (
     // The id is in the DOM so the attack beam can find both of its ends.
-    <div data-arena-card={card.id} className={`relative flex shrink-0 items-center justify-center ${drop ? "arena-drop" : ""}`} style={{ width: px(width), height: px(box) }}>
+    <div data-arena-card={card.id} className="relative flex shrink-0 items-center justify-center" style={{ width: px(width), height: px(box) }}>
       <button
         type="button"
         onClick={onTap}

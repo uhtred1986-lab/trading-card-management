@@ -1,10 +1,15 @@
 # Arena — the animated board (web client)
 
-**Status: phases A–E built (6 Sep 2026); F remains.** The work brief for a second, motion-first
-arena board in the web app, built for an Android phone and installed from the browser, not a store.
+**Status: built (6 Sep 2026).** All six phases. The motion board is the only board; `ArenaBoard.tsx`
+is gone, and this is now the record of what the web client is rather than a plan for it.
 
-§1 below is what was true before any of it, kept because it is the argument for the work. Each
-phase says what it actually turned out to need; §11 is the running state.
+§1 is what was true before the work, kept because it is the argument for it, with what each point
+became. Each phase says what it actually turned out to need; §11 is the state.
+
+⚠️ **The one thing nobody has done: play a game and watch it.** Every claim here is backed by
+builds, types, lint, `npm test`, server-render checks and a beat audit across ~700 moves of real
+games — not by a person seeing the board move. Phase F was taken on the owner's explicit
+instruction, ahead of the game-on-a-phone gate §8 originally set for it.
 
 The arena has **two clients** now, built and improved in parallel:
 
@@ -57,6 +62,23 @@ laptop, and `prefers-reduced-motion` honoured on all three keyframes.
 One ergonomics bug found while reading, worth fixing whichever board wins: opening the log
 **replaces the hand** (`logOpen ? <ol> : <hand>` in the bottom section), so you cannot read what just
 happened and look at your cards at the same time.
+
+**What each of those became**
+
+1. Cards fly, because `layoutId` is the engine's instance id and a card changing zone is one element
+   changing parent — `stage/StageCard.tsx`.
+2. `toBeats` (`src/lib/arena/beats.ts`) translates the events into what a board can draw, and they
+   are kept on `arena_games.beats` until you next act.
+3. `useBeatPlayer` tells the turn beat by beat, and `useLiveGame` long-polls so it starts while
+   Claude is still deciding the rest of it.
+4. `AppShell` gives a game the whole screen; `manifest.ts`, an icon and `public/sw.js` make it
+   installable — with the manifest, icons and worker exempted from Basic Auth, without which none of
+   it is reachable.
+5. `src/lib/arena/feel.ts` — vibration and synthesised tones, haptics on and sound off by default.
+6. The tap answers on the frame it happens; the wait itself is unchanged, and honestly so
+   (decision 3).
+
+And the log now sits **above** the hand rather than instead of it.
 
 ---
 
@@ -311,10 +333,19 @@ their absence is felt.
 
 ## 8. Phase F — cutover
 
-The new board becomes the default only after it has played one full Tournament game against Claude
-on the owner's phone, start to finish, without falling back. Then the cookie flips, `ArenaBoard.tsx`
-and its private helpers are deleted in one commit, and this document's §1 is rewritten as what was
-built. Any behaviour still only in the old board is a blocker for that commit, not a follow-up.
+**Done.** `ArenaBoard.tsx` (482 lines) is deleted, the `boardStyle` cookie and its `chooseBoard`
+action are gone, and `/arena/[id]` renders `ArenaStage` unconditionally. `ArenaCard`'s `drop` prop
+went with it — the motion board says the same thing with an `arrive` beat.
+
+The blocker check was run rather than assumed: every distinctive string in the old board was looked
+for in the `stage/` tree. One real gap turned up — the hand's `hover:-translate-y-2` lift, which a
+mouse gets and the motion board had never had — and it is now a `lifts` prop on `StageCard`, applied
+below the layout element so a fanned hand still lifts under the pointer.
+
+**This was taken ahead of its gate.** The paragraph here used to require a full Tournament game on
+the owner's phone first, and that game has still not been played; the owner asked for the cutover
+anyway. What that costs is the fallback: there is no second board to switch to if something is
+wrong, and `git revert` is the way back.
 
 ---
 
@@ -375,10 +406,10 @@ is also step 1 of the Android plan, so it is done once and both clients start fr
 |---|---|---|---|
 | 1 | A — beat stream (**shared**, contract §2–§6) | nothing visible; `npm test` covers it | **built** |
 | 2 | B — phone shell | the *current* board, installable and full-bleed, with haptics | **built** |
-| 3 | C — new board behind the cookie | a board to play with, animated from beats | **built** |
+| 3 | C — the motion board (was behind a cookie) | a board to play with, animated from beats | **built** |
 | 4 | D — ergonomics | the hand that opens, the long-press bar, "what can I do?" | **built** |
 | 5 | E — storyboard | the moments in §7, one at a time | **built** (three deferred, §7) |
-| 6 | F — cutover | one board again | — |
+| 6 | F — cutover | one board again | **built** |
 
 Phase C is where `motion` finally gets installed; nothing before it needed a dependency.
 

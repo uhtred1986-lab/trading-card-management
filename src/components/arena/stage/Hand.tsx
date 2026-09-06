@@ -87,6 +87,7 @@ export function Hand({
               // A small tilt and a shallow arc: a hand, not a shear.
               fan={open ? off * 2.5 : 0}
               lift={open ? Math.abs(off) * 2.5 : 0}
+              lifts
             />
           );
         })}

@@ -40,6 +40,7 @@ export function StageCard({
   lift = 0,
   nudge = false,
   moment = null,
+  lifts = false,
   onTap,
   onInspect,
   onHover,
@@ -58,6 +59,8 @@ export function StageCard({
   nudge?: boolean;
   /** The storyboard moment happening to this card right now (§7). */
   moment?: Moment | null;
+  /** Rises under a mouse. What makes a hand feel like cards rather than a strip. */
+  lifts?: boolean;
   onTap?: () => void;
   onInspect?: () => void;
   onHover?: (box: DOMRect | null) => void;
@@ -85,7 +88,7 @@ export function StageCard({
          * turn should lunge twice, and a CSS animation on a class that never
          * changed would play once and then sit still.
          */}
-        <div key={moment ?? "still"} className={MOMENT[moment ?? "none"]}>
+        <div key={moment ?? "still"} className={`${MOMENT[moment ?? "none"]} ${lifts ? "transition-transform duration-200 hover:-translate-y-2" : ""}`}>
           <ArenaCard card={card} state={state} width={width} upsideDown={upsideDown} onTap={onTap} onInspect={onInspect} onHover={onHover} />
         </div>
       </div>

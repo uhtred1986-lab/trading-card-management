@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
@@ -140,18 +139,6 @@ export async function requestReview(gameId: number): Promise<{ error: string | n
   }
   revalidatePath(`/arena/${gameId}`);
   return { error: null };
-}
-
-/**
- * Which board draws a game: the classic one, or the motion board in `stage/`.
- *
- * A cookie rather than a column — it is a per-device preference, it needs no
- * migration to try and none to change your mind, and when the motion board
- * wins in Phase F the cookie simply stops being read.
- */
-export async function chooseBoard(gameId: number, style: "classic" | "stage") {
-  (await cookies()).set("boardStyle", style, { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
-  revalidatePath(`/arena/${gameId}`);
 }
 
 export async function abandon(gameId: number) {

@@ -1,22 +1,20 @@
 import Link from "next/link";
-import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { db } from "@/db";
 import { ArenaStage } from "@/components/arena/stage/ArenaStage";
 import { hasAnthropic } from "@/lib/ai/client";
-import { ArenaBoard } from "@/components/arena/ArenaBoard";
 import { GameOver } from "@/components/arena/GameOver";
 import type { GameReview } from "@/lib/arena/ai/review";
 import { loadGame } from "@/lib/arena/games";
 import { snapshotOfGame } from "@/lib/arena/session";
 import { SubmitButton } from "@/components/SubmitButton";
-import { abandon, chooseBoard } from "../actions";
+import { abandon } from "../actions";
 
 export const dynamic = "force-dynamic";
 /** A Tournament turn can take Claude a while to think through. */
 export const maxDuration = 300;
 
-export default async function ArenaGamePage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ board?: string }> }) {
+export default async function ArenaGamePage({ params }: { params: Promise<{ id: string }> }) {
   const { id: raw } = await params;
   const id = Number(raw);
   if (!Number.isInteger(id)) notFound();
@@ -28,15 +26,7 @@ export default async function ArenaGamePage({ params, searchParams }: { params: 
   // the Android app can never disagree about what the position is.
   const snap = await snapshotOfGame(db, game);
   const playing = snap.game.status === "playing";
-  const waitingOnServer = snap.waiting === "opponent" || snap.waiting === "referee";
   const review = game.review ? (JSON.parse(game.review) as GameReview) : null;
-
-  // Which board. The query wins for one page load, the cookie is the setting;
-  // a cookie rather than a column because it is per-device and needs no
-  // migration to try, and no migration to change your mind.
-  const asked = (await searchParams).board;
-  const cookie = (await cookies()).get("boardStyle")?.value;
-  const motion = asked ? asked === "stage" : cookie === "stage";
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-3">
@@ -50,12 +40,7 @@ export default async function ArenaGamePage({ params, searchParams }: { params: 
         <span className="rounded-full border border-space-700 px-2 py-0.5 text-[11px] uppercase tracking-wider text-space-400">
           {game.mode === "hotseat" ? "hot-seat" : game.mode}
         </span>
-        <form action={chooseBoard.bind(null, id, motion ? "classic" : "stage")} className="ml-auto">
-          <SubmitButton pendingLabel="Switching…" className="tap text-sm text-space-400 hover:text-ki-300">
-            {motion ? "classic board" : "motion board"}
-          </SubmitButton>
-        </form>
-        <Link href={`/arena/${id}/debug`} className="text-sm text-space-400 hover:text-ki-300">
+        <Link href={`/arena/${id}/debug`} className="ml-auto text-sm text-space-400 hover:text-ki-300">
           how Claude played
         </Link>
         {playing && (
@@ -79,22 +64,9 @@ export default async function ArenaGamePage({ params, searchParams }: { params: 
         />
       )}
 
-      {motion ? (
-        // The whole snapshot, because the motion board keeps watching the game
-        // while the server is deciding and replaces it with what it reads.
-        <ArenaStage gameId={id} snapshot={snap} />
-      ) : (
-        <ArenaBoard
-          gameId={id}
-          view={snap.view}
-          legal={snap.legal}
-          taps={snap.taps}
-          log={snap.log}
-          spotlight={snap.spotlight}
-          playable={playing}
-          waitingOnServer={waitingOnServer}
-        />
-      )}
+      {/* The whole snapshot, because the board keeps watching the game while
+          the server is deciding and replaces it with what it reads. */}
+      <ArenaStage gameId={id} snapshot={snap} />
     </div>
   );
 }
