@@ -357,14 +357,19 @@ async function fillMissingImages(db: Db): Promise<number> {
       returning 1 as n
     `),
   ).length;
-  // The card's own image is the base print's.
+  // The card's own image is the base print's. Postgres won't let an
+  // UPDATE ... FROM join reference the target table (`c`) from inside the
+  // join condition, so the card_prints join is folded into its own CTE first.
   const cardsFilled = rows<{ n: number }>(
     await db.execute(sql`
-      with src as (${source})
+      with base as (${source}),
+      src as (
+        select bp.card_id, base.image_url
+        from base
+        join card_prints bp on bp.id = base.print_id and bp.is_base
+      )
       update cards c set image_url = ${big}
-      from src
-      join card_prints bp on bp.id = src.print_id and bp.card_id = c.id and bp.is_base
-      where c.image_url is null
+      from src where src.card_id = c.id and c.image_url is null
       returning 1 as n
     `),
   ).length;
