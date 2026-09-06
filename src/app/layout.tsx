@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Kanit } from "next/font/google";
+import { cookies } from "next/headers";
 import { AppShell } from "@/components/AppShell";
 import { ServiceWorker } from "@/components/ServiceWorker";
+import { SKIN_COOKIE, skinFrom } from "@/lib/arena/skin";
 import "./globals.css";
 
 /**
@@ -25,9 +27,12 @@ export const viewport: Viewport = {
   themeColor: "#090b15",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // The skin paints the whole app (docs/arena-skin-spec.md §8): read here so
+  // the markup the server sends is already the right colour and nothing flashes.
+  const skin = skinFrom((await cookies()).get(SKIN_COOKIE)?.value);
   return (
-    <html lang="en" className={`h-full antialiased ${impact.variable}`}>
+    <html lang="en" className={`h-full antialiased ${impact.variable}`} data-skin={skin}>
       <body className="flex min-h-full flex-col">
         <AppShell>{children}</AppShell>
         <ServiceWorker />

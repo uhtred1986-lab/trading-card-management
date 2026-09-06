@@ -1,7 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import { db } from "@/db";
+import { SKIN_COOKIE, skinFrom } from "@/lib/arena/skin";
 import { syncCatalog } from "@/lib/catalog/deckplanet";
 import { syncFx } from "@/lib/pricing/fx";
 import { syncPrices } from "@/lib/pricing/tcgcsv";
@@ -40,4 +42,10 @@ export async function syncPricesAction(): Promise<void> {
 export async function syncMetaAction(): Promise<void> {
   const { syncMeta } = await import("@/lib/meta/sync");
   await quietly(() => runSync(db, "meta", () => syncMeta(db)));
+}
+
+/** Which skin paints the app: the same cookie the board's toggle sets. */
+export async function chooseSkinAction(skin: string): Promise<void> {
+  (await cookies()).set(SKIN_COOKIE, skinFrom(skin), { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
+  revalidatePath("/", "layout");
 }

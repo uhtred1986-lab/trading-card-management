@@ -179,12 +179,13 @@ the same style.
   card action sheet, the refusal line, the search sheet, the step chip and the narration ribbon.
   `src/lib/arena/wording.ts` is the only place a `Requirement` becomes a sentence and
   `src/lib/arena/narration.ts` the only place a beat does; both are pure and under `npm test`.
-  **Skins** (`docs/arena-skin-spec.md`): the board has two, `anime` (default) and `night`, chosen
-  by the `arenaSkin` cookie and `?skin=` for one load, applied as `data-skin` on the board's root.
+  **Skins** (`docs/arena-skin-spec.md`): the whole app has two, `anime` (default) and `night`,
+  chosen by the `arenaSkin` cookie (Settings → Look, or the board's toggle) and applied as
+  `data-skin` on `<html>` by the root layout; `?skin=` on a game page pins one board for one load.
   A skin is paint only: the theme's `--color-*` tokens are redefined under that attribute in
-  `globals.css`, so every Tailwind utility on the board follows. Keep it that way — no colour
-  literals in `src/components/arena/` (they are named classes painted from tokens), no card size or
-  logic behind a skin check, and card faces keep the night palette under both.
+  `globals.css`, so every Tailwind utility follows. Keep it that way — no colour literals in
+  components (the arena's are named classes painted from tokens), no size or logic behind a skin
+  check, and card faces keep the night palette under both.
   **Pace** (`src/lib/arena/pace.ts`): how fast a turn plays back is a remembered preference —
   slow (default), normal, or step (tap *Next* between beats); while it plays, the prompt bar's
   headline is the narration sentence and a card from a hidden pile flies in as a ghost.

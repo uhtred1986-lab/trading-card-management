@@ -29,6 +29,8 @@ import { SKIN_COOKIE, type ArenaSkin } from "@/lib/arena/skin";
  */
 export async function chooseSkin(gameId: number, skin: ArenaSkin) {
   (await cookies()).set(SKIN_COOKIE, skin, { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
+  // The skin paints the whole app now, so every page is stale.
+  revalidatePath("/", "layout");
   revalidatePath(`/arena/${gameId}`);
 }
 

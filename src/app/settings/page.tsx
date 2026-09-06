@@ -2,7 +2,9 @@ import Link from "next/link";
 import { db } from "@/db";
 import { lastSyncRuns } from "@/lib/sync";
 import { SubmitButton } from "@/components/SubmitButton";
-import { syncCardTraderAction, syncCatalogAction, syncMetaAction, syncPricesAction } from "./actions";
+import { chooseSkinAction, syncCardTraderAction, syncCatalogAction, syncMetaAction, syncPricesAction } from "./actions";
+import { cookies } from "next/headers";
+import { SKIN_COOKIE, skinFrom } from "@/lib/arena/skin";
 
 export const dynamic = "force-dynamic";
 /** Sync actions can run for a couple of minutes on Vercel's fluid compute. */
@@ -17,10 +19,32 @@ export default async function SettingsPage() {
   const hasCardTrader = !!process.env.CARDTRADER_API_TOKEN;
   const cardTraderLive = process.env.CARDTRADER_ENABLED === "true";
   const hasXimilar = !!process.env.XIMILAR_API_KEY;
+  const skin = skinFrom((await cookies()).get(SKIN_COOKIE)?.value);
 
   return (
     <div className="space-y-6">
       <h1 className="text-xl font-semibold text-space-50">Settings & data sync</h1>
+
+      <section className="rounded-xl border border-space-700/70 bg-space-900/50 p-3 text-sm">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="font-semibold text-space-50">Look</h2>
+          <div className="flex gap-2">
+            {(["anime", "night"] as const).map((s) => (
+              <form key={s} action={chooseSkinAction.bind(null, s)}>
+                <SubmitButton
+                  pendingLabel="Switching…"
+                  className={`tap rounded-md border px-3 py-1 text-xs ${skin === s ? "border-ki-500 bg-ki-500/15 text-space-50" : "border-space-600 text-space-100 hover:bg-space-800"}`}
+                >
+                  {s === "anime" ? "Anime sky" : "Night table"}
+                </SubmitButton>
+              </form>
+            ))}
+          </div>
+        </div>
+        <p className="mt-1 text-xs text-space-300">
+          The whole app, this device only. The anime sky is the default; the night table is the dark board the app was designed on.
+        </p>
+      </section>
 
       <section className="grid gap-3 md:grid-cols-2">
         <SyncCard
