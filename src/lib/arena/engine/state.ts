@@ -8,7 +8,7 @@ import { canCombo, hasKeyword, keywordOf, skillsOf, specifiedCostOf, isZ, baseTy
 import { compileCardCached } from "./compile";
 import { matches, powerRelOk } from "./filters";
 import type { Amount, Cond, Op, Ref, ScriptArea, ScriptFrame, Selector, Side } from "./script";
-import type { Area, CardDef, CardFace, Color, ContinuousEffect, DelayedEffect, DelayTiming, ForbiddenAction, FlowStep, Prohibition, GameEvent, GameState, KeywordSkill, PlayerId, PlayerState, Skill, SkillKind } from "./types";
+import type { Area, CardDef, CardFace, Color, ContinuousEffect, DelayedEffect, DelayTiming, ForbiddenAction, FlowStep, Permission, Prohibition, GameEvent, GameState, KeywordSkill, PlayerId, PlayerState, Skill, SkillKind } from "./types";
 import { other } from "./types";
 
 export interface GameContext {
@@ -492,10 +492,10 @@ export interface AltCost {
 
 export interface StaticEffect {
   source: string;
-  kind: "power" | "comboPower" | "keyword" | "cost" | "comboCost" | "negateKeyword" | "gains" | "replaceLeave" | "forbid" | "altCost";
+  kind: "power" | "comboPower" | "keyword" | "cost" | "comboCost" | "negateKeyword" | "gains" | "replaceLeave" | "forbid" | "permit" | "altCost";
   /** The card it is about; empty for a rule about a player rather than a card. */
   target: string;
-  value: number | KeywordSkill | KeywordSkill["name"] | Prohibition | AltCost | Gains | Replacement;
+  value: number | KeywordSkill | KeywordSkill["name"] | Prohibition | Permission | AltCost | Gains | Replacement;
 }
 
 /**
@@ -555,7 +555,7 @@ let computingStatics = false;
  * `arena:coverage` uses so its "applied by the static layer" line means what
  * it says — keep this list beside the switch it describes.
  */
-const STATIC_OPS = new Set<Op["op"]>(["power", "comboPower", "grant", "costReduction", "replaceLeave", "gains", "negateKeyword", "forbid", "altCost"]);
+const STATIC_OPS = new Set<Op["op"]>(["power", "comboPower", "grant", "costReduction", "replaceLeave", "gains", "negateKeyword", "forbid", "permit", "altCost"]);
 
 export function emitsStatic(ops: Op[]): boolean {
   return ops.some((o) => (o.op === "if" ? emitsStatic(o.then) || emitsStatic(o.else ?? []) : STATIC_OPS.has(o.op)));
@@ -619,6 +619,14 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
       } else {
         out.push({ source, kind: "forbid", target: "", value: { what: op.what, player, filter: op.filter, name, bySkill: op.bySkill } });
       }
+      continue;
+    }
+    // 8-1-1 the other way round. Printed as a [Permanent] on most of the cards
+    // that have it ("This card can attack Battle Cards in Active Mode"), so it
+    // belongs here beside the prohibition it mirrors.
+    if (op.op === "permit") {
+      if (!inPlayNow) continue;
+      for (const id of staticTargets(ctx, s, frame, op.target)) out.push({ source, kind: "permit", target: id, value: { what: op.what, filter: op.filter } });
       continue;
     }
     if (!inPlayNow) continue; // the rest only hold while the card is in play
@@ -938,6 +946,23 @@ export function forbids(ctx: GameContext, s: GameState, what: ForbiddenAction, o
     return true;
   }
   return false;
+}
+
+/**
+ * The permissions one card carries — the mirror of `forbids`, and the reader
+ * both `legalActions` and the measurement use, so they cannot drift apart.
+ *
+ * Returns one entry per rule that applies, because each carries its own
+ * description of what may be attacked: "Battle Cards in Active Mode" and
+ * "Battle Cards **without [Barrier]** in Active Mode" are different
+ * permissions, and a card may hold both. An empty array means the ordinary
+ * rule stands (8-1-1).
+ */
+export function permits(ctx: GameContext, s: GameState, card: string, what: Permission["what"]): Permission[] {
+  const out: Permission[] = [];
+  for (const e of s.effects) if (e.kind === "permit" && e.target === card && e.permit?.what === what) out.push(e.permit);
+  for (const e of staticEffects(ctx, s)) if (e.kind === "permit" && e.target === card && (e.value as Permission).what === what) out.push(e.value as Permission);
+  return out;
 }
 
 /**

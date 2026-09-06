@@ -271,6 +271,24 @@ export interface Prohibition {
   bySkill?: boolean;
 }
 
+/**
+ * The other direction: a rule that *lifts* one of the game's own restrictions
+ * for one card. Only one of them exists, and it is printed on 48 clauses —
+ * "This card can attack Battle Cards in Active Mode" (8-1-1, where an attack
+ * may otherwise only be declared against a Leader, a Unison, or a **rested**
+ * Battle Card).
+ *
+ * A permission read too widely lets an illegal attack happen, so `filter` is
+ * not optional in practice: "can attack Battle Cards **without [Barrier]** in
+ * Active Mode" says which active cards, and a clause whose description the
+ * parser cannot read fails rather than permitting everything.
+ */
+export interface Permission {
+  what: "attackActive";
+  /** Which active cards may be attacked. Absent means any of them. */
+  filter?: CardFilter;
+}
+
 /** A continuous effect (9-9) with a duration. */
 export interface ContinuousEffect {
   id: number;
@@ -282,10 +300,12 @@ export interface ContinuousEffect {
    * named by a `SkillKindPrefix` in `value` ("negate that card's [Auto] skill
    * for the turn").
    */
-  kind: "power" | "comboPower" | "keyword" | "negateSkills" | "negateSkill" | "negateSkillKind" | "forbid";
+  kind: "power" | "comboPower" | "keyword" | "negateSkills" | "negateSkill" | "negateSkillKind" | "forbid" | "permit";
   value: number | KeywordSkill | SkillKindPrefix;
   /** Set when `kind` is "forbid". */
   forbid?: Prohibition;
+  /** Set when `kind` is "permit". */
+  permit?: Permission;
   /** "nextTurn" runs through the opponent's whole turn and ends as yours begins. */
   until: "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "game";
   /** The turn player when the effect was created, so "for the turn" ends at the right End Phase. */

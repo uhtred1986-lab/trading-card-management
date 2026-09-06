@@ -1568,6 +1568,68 @@ second *measure* of one card ("with an energy cost of 3 and an [Alliance]
 skill") and belong to `MEASURE_AFTER_AND`; and 21 more of the verb-led shape
 whose verbs are choose/send/add/place rather than switch.
 
+## Done: the one rule of the game a card may lift (6 Sep 2026)
+
+Counting the shapes among the unreadable clauses turned up a wording far
+bigger than anything on the "only thing holding a skill back" list: **"This
+card can attack Battle Cards in Active Mode" — 48 clauses**, two of them in the
+owner's decks. 8-1-1 says an attack may only be declared against a Leader, a
+Unison, or a **rested** Battle Card, and these cards turn that off. It is the
+only permission in the game, so it gets the smallest mechanism that can hold
+it: `Permission`, the mirror of `Prohibition`, with one `what`.
+
+The op went through the five places the conventions list — the `Op` union, the
+interpreter, `OP_NAMES`, `EFFECT_LANGUAGE` in `ai/opponent.ts`, and
+`describeScript` — plus `STATIC_OPS` and `collectStatics`, because most of the
+cards print it as a [Permanent]. `permits()` in `state.ts` is the single reader,
+beside `forbids()`; `legalActions` builds the attack targets per *attacker*
+now rather than once per player, since the permission belongs to the card.
+
+**The carve-out is the part that had to be right.** Sixteen of the forty-eight
+say "Battle Cards **without [Barrier]** in Active Mode", and a permission read
+too widely allows an attack the card forbids — the failure direction that
+matters. `parseFilter` learned "without [X]" (the long way of writing
+"non-[X]"), the filter is required rather than optional, and the engine checks
+it against each candidate.
+
+**Two gaps found on the way, both by the pattern refusing to fire.**
+
+- `filterFor("Battle Cards")` returned **nothing**, because the type words were
+  anchored `\bbattle card\b` and the sets write the plural. So every phrase
+  whose only measure was the type set no type at all and selected the whole
+  area — the widening ground rule 5 names, and it was in 232 programs.
+- Fixing that immediately broke something else, and the whole-catalog diff
+  caught it: "your opponent's Battle Cards **or** Unisons" started coming out
+  as **UNISON alone**, silently dropping the Battle Cards. One field cannot
+  hold two kinds, so it now holds neither — the same refusal `subjectFilterOf`
+  makes for the same reason. That also fixed a *pre-existing* case of it:
+  "Battle Cards or Unison Cards" was already narrowing to Unisons, because
+  `\bunison( card)?\b` matched the plural through its optional group while the
+  Battle Card pattern did not.
+
+Also here, from the same count: a **prohibition with no subject**. "It gets
++10000 power **and** can't attack for the turn" (DB2-004) splits at the "and",
+and the second half arrives with the card it is about in the clause before it.
+Fifteen clauses; `compileProhibition` now takes an empty subject and continues
+`c.lastTarget`.
+
+**51 skills go from unreadable to read, nothing regressed** — checked by
+compiling the whole catalog before and after and reading the 451 changed
+programs by shape. Catalog **86.1 % → 86.3 %**, the owner's decks **92.2 % →
+92.9 %**, and the [Permanent] figures moved most because the permission is
+nearly always one: read 57.8 % → **59.7 %**, emitting a standing effect 52.9 %
+→ **54.8 %**. In the decks, [Permanent] read 66.0 % → **71.7 %** and applied
+62.3 % → **67.9 %**. 40 fuzzed games, 0 crashes — worth more than usual here,
+because this is the first change to what `legalActions` will offer as an
+attack.
+
+**The lesson worth keeping.** The wording that mattered most was not on any
+ranking in `arena:gaps`: that report groups by the *normalised clause*, so 48
+cards phrasing one rule five different ways appear as five entries of ten. A
+count of the shapes — "which unreadable clauses are a bare object phrase",
+"which begin with can't" — found it in one pass. When the top of the ranking is
+a list of ones, stop reading it and count something else.
+
 ## Conventions worth keeping
 
 - Card text is **read, never interpreted**: if the compiler cannot read a

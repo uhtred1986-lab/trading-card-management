@@ -141,6 +141,14 @@ export function parseFilter(text: string): CardFilter {
   // one is only about the keywords, so a card with an [Auto] and no keyword
   // still qualifies.
   if (/\bno keyword skills?\b|\bno keywords\b/.test(lower)) f.noKeywords = true;
+  // "Battle Cards **without [Barrier]** in Active Mode" — the same thing
+  // "non-[Barrier]" says, written the long way. Sixteen of the cards that let
+  // an active card be attacked carve out [Barrier] like this, and a
+  // permission that misses the carve-out allows an attack the card forbids.
+  for (const m of lower.matchAll(/\bwithout \[([a-z0-9:\- ]+)\]/g)) {
+    const kw = keywordOf(m[1]);
+    if (kw && !f.notKeywords.includes(kw.name)) f.notKeywords.push(kw.name);
+  }
   // "A blue non-[Super Combo] Battle Card" — a keyword the card must not have.
   for (const m of lower.matchAll(/\bnon-\[([a-z0-9:\- ]+)\]/g)) {
     const kw = keywordOf(m[1]);
@@ -169,15 +177,27 @@ export function parseFilter(text: string): CardFilter {
   // "Non-Leader card" is the type it must not be, and reading it as the type
   // itself inverted the filter — a stack of "non-Leader cards" became Leaders.
   const typeWord = (re: RegExp): "yes" | "no" | null => (new RegExp(`non-${re.source}`).test(lower) ? "no" : re.test(lower) ? "yes" : null);
-  for (const [re, type] of [
-    [/\bleader( card)?\b/, "LEADER"],
-    [/\bunison( card)?\b/, "UNISON"],
-    [/\bextra( card)?\b/, "EXTRA"],
-    [/\bbattle card\b/, "BATTLE"],
-  ] as const) {
+  // The plural counts too. Anchored with a trailing `\b`, "Battle Card" did
+  // not match "Battle **Cards**" — so every phrase that names the type in the
+  // plural set no type at all and selected every card in the area, and
+  // `filterFor` handed back nothing for a description like "Battle Cards"
+  // whose only measure is the type.
+  const TYPE_WORDS = [
+    [/\bleaders?( cards?)?\b/, "LEADER"],
+    [/\bunisons?( cards?)?\b/, "UNISON"],
+    [/\bextras?( cards?)?\b/, "EXTRA"],
+    [/\bbattle cards?\b/, "BATTLE"],
+  ] as const;
+  // "Your opponent's Battle Cards **or** Unisons" names two kinds, and one
+  // field cannot hold both — so it holds neither. Taking the first would drop
+  // the other half in silence, which is the alternation trap `subjectFilterOf`
+  // refuses for the same reason; the two areas the phrase names already narrow
+  // the selection to what the card meant.
+  const named = TYPE_WORDS.filter(([re]) => typeWord(re) === "yes");
+  for (const [re, type] of TYPE_WORDS) {
     const said = typeWord(re);
     if (said === "no") f.notType ??= type;
-    else if (said === "yes" && !f.type) f.type = type;
+    else if (said === "yes" && named.length === 1 && !f.type) f.type = type;
   }
   let m: RegExpExecArray | null;
   if ((m = /energy cost (?:of )?(\d+) or less/.exec(lower))) f.costMax = Number(m[1]);

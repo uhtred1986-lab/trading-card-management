@@ -44,6 +44,7 @@ import {
   payAltCost,
   paymentOptions,
   payZEnergy,
+  permits,
   planPayment,
   playCost,
   powerOf,
@@ -1550,7 +1551,14 @@ function mainActions(ctx: EngineContext, s: GameState, p: PlayerId): LegalAction
     for (const a of cardsInPlay(s, p)) {
       if (s.cards[a].mode !== "active" || s.cards[a].hidden) continue;
       if (forbids(ctx, s, "attack", { player: p, card: a })) continue;
-      for (const t of targets) {
+      // 8-1-1 says an attack may only be declared against a Leader, a Unison,
+      // or a **rested** Battle Card. "This card can attack Battle Cards in
+      // Active Mode" lifts that, for this attacker only — so the target list
+      // is the shared one plus whatever this card's permissions add.
+      const extra = permits(ctx, s, a, "attackActive").flatMap((rule) =>
+        s.players[opp].battle.filter((id) => s.cards[id].mode === "active" && (!rule.filter || matches(cardNow(ctx, s, id), rule.filter))),
+      );
+      for (const t of [...targets, ...new Set(extra)]) {
         if (forbids(ctx, s, "beAttacked", { player: opp, card: t })) continue;
         out.push({ action: { type: "attack", player: p, attacker: a, target: t }, label: `Attack ${name(t)} with ${name(a)} (${powerOf(ctx, s, a)} vs ${powerOf(ctx, s, t)})` });
       }

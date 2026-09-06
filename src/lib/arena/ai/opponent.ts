@@ -248,6 +248,9 @@ Operations (each is an object with "op"):
              | "placeEnergy" | "beMovedBySkill" | "beNegated"
     "sameNameAsSelf":true narrows a play rule to copies of this card.
     until may also be "nextTurn", which lasts through the opponent's turn and ends as yours begins.
+  {"op":"permit","what":"attackActive","until":"turn","target":TARGET,"filter":{...}}
+    the one rule of the game a card may lift: "this card can attack Battle Cards in Active Mode"
+    (8-1-1). The filter says *which* active cards — leave it out only when the card does.
   {"op":"token","name":"Saibaman Token","power":10000,"comboCost":0,"comboPower":5000,"colors":[],"n":2}
   {"op":"altCost","pay":"none"|"life","n":1}   [Permanent] only: another way to pay for this card's own [Counter]
   {"op":"altCost","pay":"program","ops":[…]}   the same, when the card asks for an action instead of energy

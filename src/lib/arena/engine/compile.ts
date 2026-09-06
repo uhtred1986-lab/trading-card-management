@@ -1700,6 +1700,26 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // being answered, so nothing has to be named.
   if (/^negate the \[counter[^\]]*\](?: skill)?$/.test(t)) return [{ op: "negateCounter" }];
 
+  // 8-1-1 lifted: "This card can attack Battle Cards in Active Mode", "your
+  // red cards can attack your opponent's Battle Cards without [Barrier] in
+  // Active Mode". Forty-eight clauses, and the largest wording left in this
+  // family. The subject may be missing — the sentence is often the second half
+  // of "this card gets +10000 power **and** can attack Battle Cards in Active
+  // Mode" — in which case it is about whatever the clause before it named.
+  if ((m = /^(.*?)\s*can attack (.+?) (?:that are |that is )?in active mode$/.exec(q))) {
+    const who = m[1].trim();
+    const ref = who ? refFor(who, c) : (c.lastTarget ?? { sel: { special: "self" as const } });
+    if (!ref) return null;
+    // What may be attacked. "Your opponent's" says nothing — an attack is
+    // always against theirs (8-1) — but "without [Barrier]" narrows it, and a
+    // description the parser cannot read must fail rather than permit every
+    // active card.
+    const what = m[2].replace(/^(?:your opponent'?s|their|the)\s+/i, "");
+    const filter = filterFor(what, null);
+    if (!filter) return null;
+    return [{ op: "permit", what: "attackActive", target: ref, until: durationOf(t), filter }];
+  }
+
   // Mode switches (1-10).
   // A few cards drop the word: "switch 1 of your Chilled Army tokens to rest".
   if ((m = /^switch (.*?) to (active|rest)(?: mode)?$/.exec(t))) {
@@ -1971,7 +1991,10 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
  */
 function compileProhibition(t: string, c: Ctx): Op[] | null {
   const until = durationOf(t);
-  const m = /^(.*?)\s+(?:can'?t|cannot|will not|won'?t)\s+(.*)$/.exec(t);
+  // The subject may be missing: "it gets +10000 power **and** can't attack for
+  // the turn" splits at the "and", and the second half arrives with the card
+  // it is about in the clause before it. Fifteen clauses.
+  const m = /^(.*?)\s*(?:can'?t|cannot|will not|won'?t)\s+(.*)$/.exec(t);
   if (!m) return null;
   const subject = m[1].trim();
   const rest = m[2].trim();
@@ -2010,8 +2033,11 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
     return null;
   }
 
-  // A sentence about cards: "this card", "it", "your Battle Cards".
-  const target = refFor(subject || "this card", c);
+  // A sentence about cards: "this card", "it", "your Battle Cards". With no
+  // subject at all it continues the clause before it, and only falls back to
+  // this card when nothing was named — which is what the sets mean when they
+  // print "this card gets +5000 power and can't attack for the turn".
+  const target = subject ? refFor(subject, c) : (c.lastTarget ?? refFor("this card", c));
   if (!target) return null;
   // "can't be KO'd by your opponent's skills" — who is stopped from doing it.
   const bySide: Side | undefined = /\bby your opponent'?s? skills?\b/.test(rest) ? "opponent" : /\bby your skills?\b/.test(rest) ? "you" : undefined;
@@ -2773,6 +2799,11 @@ export function describeScript(ops: Op[]): string {
         // of *which* cards replaces that word rather than following it.
         const verb = which ? what.replace(/\s+cards?$/, "") : what;
         parts.push(`${who} can't ${verb}${which ? ` ${which}` : ""} for the ${op.until}`);
+        break;
+      }
+      case "permit": {
+        const which = op.filter ? describeFilter(op.filter) : "cards";
+        parts.push(`${describeRef(op.target)} can attack ${which} in Active Mode for the ${op.until}`);
         break;
       }
       case "addMarker":

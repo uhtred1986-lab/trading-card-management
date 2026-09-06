@@ -279,6 +279,13 @@ export type Op =
    * with Battle Cards"), optionally narrowed by a filter.
    */
   | { op: "forbid"; what: ForbiddenAction; until: Duration; target?: Ref; side?: Side; filter?: CardFilter; sameNameAsSelf?: boolean; bySkill?: boolean }
+  /**
+   * The opposite of `forbid`: a rule of the game lifted for one card.
+   * "This card can attack Battle Cards in Active Mode" (8-1-1). `filter`
+   * says which active cards, and a description the parser cannot read must
+   * fail the clause rather than permit every one of them.
+   */
+  | { op: "permit"; what: "attackActive"; until: Duration; target: Ref; filter?: CardFilter }
   | { op: "if"; cond: Cond; then: Op[]; else?: Op[] }
   /** "Choose one— ・A ・B" (20-2): the master picks one printed option. */
   | { op: "chooseMode"; modes: { label: string; ops: Op[] }[]; reason?: string }
@@ -782,6 +789,14 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         break;
       }
 
+      // 8-1-1 lifted for one card — the opposite of `forbid`, and stored the
+      // same way so that a duration expires it the same way.
+      case "permit":
+        for (const id of resolveRef(ctx, s, frame, op.target)) {
+          addEffect(s, ev, { master: frame.master, target: id, kind: "permit", value: 0, until: op.until, permit: { what: op.what, filter: op.filter } });
+        }
+        break;
+
       case "addMarker":
       case "removeMarker": {
         const n = amount(ctx, s, frame, op.n) * (op.op === "addMarker" ? 1 : -1);
@@ -1047,6 +1062,7 @@ const OP_NAMES = new Set<Op["op"]>([
   "negateOwnSkill",
   "cannotAttack",
   "forbid",
+  "permit",
   "costReduction",
   "negateSkillsOfKind",
   "resolvingPlay",

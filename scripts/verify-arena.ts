@@ -4874,4 +4874,88 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assertConsistent(s);
 }
 
+
+
+{
+  // ------------------------------------------------------------------------
+  // 8-1-1 lifted: "This card can attack Battle Cards in Active Mode". The one
+  // rule of the game a card may turn off, and the largest wording left in the
+  // prohibition family — 48 clauses.
+  // ------------------------------------------------------------------------
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+  const plain = one("[Permanent] This card can attack Battle Cards in Active Mode.");
+  assert.deepEqual(plain.unsupported, []);
+  assert.equal((plain.ops[0] as { op: string }).op, "permit");
+  assert.equal((plain.ops[0] as { what: string }).what, "attackActive");
+  assert.equal((plain.ops[0] as { filter: { type: string } }).filter.type, "BATTLE");
+
+  // "…**without [Barrier]** in Active Mode" carves an exception out, and a
+  // permission read too widely allows an attack the card forbids — so the
+  // keyword has to reach the filter (16 of the 48 print it).
+  const barrier = one("[Permanent] This card can attack Battle Cards without [Barrier] in Active Mode.");
+  assert.deepEqual(barrier.unsupported, []);
+  assert.deepEqual((barrier.ops[0] as { filter: { notKeywords: string[] } }).filter.notKeywords, ["Barrier"]);
+
+  // The sentence is usually the second half of one about power, so the subject
+  // is in the clause before it — and "that are in Active Mode" is the same
+  // thing said longer.
+  const tail = one("[Activate: Main] This card gets +10000 power and can attack Battle Cards that are in Active Mode for the duration of the turn.");
+  assert.deepEqual(tail.unsupported, []);
+  assert.deepEqual(
+    tail.ops.map((o) => o.op),
+    ["power", "permit"],
+  );
+  assert.equal((tail.ops[1] as { until: string }).until, "turn");
+
+  // A prohibition with no subject continues the clause before it too:
+  // "it gets +10000 power and can't attack for the turn" (DB2-004).
+  const cant = one("[Auto] When this card attacks, switch this card to Active Mode, then it gets +10000 power and can't attack for the turn.");
+  assert.deepEqual(cant.unsupported, []);
+  assert.ok(JSON.stringify(cant.ops).includes('"forbid"'));
+
+  // The plural of a card type is the same type. Anchored with a trailing \b,
+  // "Battle Card" did not match "Battle **Cards**", so a phrase whose only
+  // measure was the type set none at all and selected the whole area.
+  assert.equal(parseFilter("your opponent's Battle Cards").type, "BATTLE");
+  assert.equal(parseFilter("your opponent's Unisons").type, "UNISON");
+  assert.equal(parseFilter("skill-less Battle Cards from your Drop Area").type, "BATTLE");
+  // …but two kinds in one phrase cannot both be held, so neither is: taking
+  // the first would drop the other half in silence. "Battle Cards or Unison
+  // Cards" was coming out as UNISON alone.
+  assert.equal(parseFilter("your opponent's Battle Cards or Unison Cards").type, null);
+  assert.equal(parseFilter("your opponent's Battle Cards or Unisons").type, null);
+  assert.equal(parseFilter("non-Leader card under this card").notType, "LEADER", "the negative still reads");
+}
+
+{
+  // The engine assertion: the permission has to reach `legalActions`, and the
+  // carve-out has to hold. 8-1-1 otherwise allows an attack only against a
+  // Leader, a Unison, or a *rested* Battle Card.
+  DEFS["ACTIVE-HUNTER"] = { ...DEFS.V1, id: "ACTIVE-HUNTER", name: "ACTIVE-HUNTER", energyCost: 1, power: 20000, skill: "[Permanent] This card can attack Battle Cards in Active Mode." };
+  DEFS["PICKY-HUNTER"] = {
+    ...DEFS.V1,
+    id: "PICKY-HUNTER",
+    name: "PICKY-HUNTER",
+    energyCost: 1,
+    power: 20000,
+    skill: "[Permanent] This card can attack Battle Cards without [Barrier] in Active Mode.",
+  };
+  DEFS["WALL"] = { ...DEFS.V1, id: "WALL", name: "WALL", energyCost: 1, power: 5000, skill: "[Barrier]" };
+
+  const s = arena({ battle: ["ACTIVE-HUNTER", "PICKY-HUNTER", "V1"], oppBattle: ["V-BLUE", "WALL"] });
+  const target = find(s, "p2", "battle", "V-BLUE");
+  const walled = find(s, "p2", "battle", "WALL");
+  assert.equal(s.cards[target].mode, "active", "the opponent's card is in Active Mode");
+  const attacks = acts(s).filter((a) => a.type === "attack") as { attacker: string; target: string }[];
+  const from = (cardId: string) => attacks.filter((a) => s.cards[a.attacker].cardId === cardId).map((a) => a.target);
+
+  assert.ok(from("ACTIVE-HUNTER").includes(target), "8-1-1 is lifted for the card that says so");
+  assert.ok(!from("V1").includes(target), "…and only for that card");
+  assert.ok(from("PICKY-HUNTER").includes(target), "the carve-out still allows the ordinary case");
+  assert.ok(!from("PICKY-HUNTER").includes(walled), "…but not a [Barrier] card, which the text excludes");
+  assert.ok(from("ACTIVE-HUNTER").includes(walled), "22-16 is about being chosen by a skill, not attacked");
+  // The Leader is attackable by everyone, as always.
+  assert.ok(from("V1").includes(s.players.p2.leader));
+}
+
 console.log("verify-arena: all checks passed");
