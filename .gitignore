@@ -41,3 +41,10 @@ yarn-error.log*
 docs/rules/rulemanual.pdf
 docs/rules/playmanual.pdf
 docs/rules/unison_flowchart.pdf
+
+# Kotlin/Gradle build output (android/ — see docs/arena-android-spec.md §10).
+# The toolchain runs in Docker; nothing here is installed on the machine.
+android/build/
+android/*/build/
+android/.gradle/
+android/local.properties

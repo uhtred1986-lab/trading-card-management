@@ -5,7 +5,11 @@
  * are Rule Manual sections.
  */
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import { apply, createGame, defsFrom, legalActions, seedFrom, type Action, type CardDef, type GameState, type PlayerId } from "../src/lib/arena/engine";
+import { appendBeats, toBeats, type Beat, type Beats, type NumberedBeat } from "../src/lib/arena/beats";
+import { buildSnapshot } from "../src/lib/arena/snapshot";
 import { parseSkills, keywordOf, orbsIn, eitherOrbsIn, skillLines } from "../src/lib/arena/engine/cards";
 import { parseFilter, matches, parseCondition } from "../src/lib/arena/engine/filters";
 import { addEffect, schedule, move, locate, playCost, powerOf, forbids, has, cardNow, comboCostOf, skillNegated, skillsNegated } from "../src/lib/arena/engine/state";
@@ -5017,6 +5021,189 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.ok(offered.includes(blocker), "the [Blocker] card is on offer");
   assert.ok(!offered.includes(plain), "…and the one without it is not");
   assertConsistent(s);
+}
+
+// ── the client contract: beats, and the snapshot both clients render ───────
+//
+// `docs/arena-client-contract.md`. The fixtures below are the anti-drift
+// mechanism: they are written by this file and checked by this file, so a
+// change to the shape a client receives cannot land without showing up as a
+// readable diff. Run `npm run contract:emit` to rewrite them on purpose.
+
+{
+  const ctx = { defs: DEFS };
+
+  // A charge is one card leaving the hand for the Energy Area.
+  {
+    let s = arena({ hand: ["V1"] });
+    const card = find(s, "p1", "hand", "V1");
+    s = play(s, { type: "endMain", player: "p1" });
+    // p2's turn, then back to p1's charge prompt.
+    s = play(s, { type: "charge", player: "p2", card: null }, { type: "endMain", player: "p2" });
+    assert.equal(s.prompt.kind, "charge");
+    const { state, events } = apply(ctx, s, { type: "charge", player: "p1", card });
+    const beats = toBeats(ctx, state, events, 0);
+    const moved = beats.list.find((b) => b.t === "move");
+    assert.ok(moved && moved.t === "move" && moved.from === "hand" && moved.to === "energy", "charging is a move from hand to energy");
+    assert.ok(beats.art[card], "a beat names its card, and carries the face it had at the time");
+    assert.equal(beats.art[card].imageUrl, null, "art is filled in by session.ts, not here");
+  }
+
+  // Events with no picture collapse on purpose, and produce no beats at all.
+  {
+    const s = arena();
+    const quiet = toBeats(ctx, s, [{ type: "note", text: "anything" }, { type: "hidden", card: s.players.p1.deck[0], hidden: true }, { type: "energyMarker", player: "p1", delta: 1 }], 0);
+    assert.deepEqual(quiet.list, [], "note, hidden and energyMarker have nothing to draw");
+    assert.equal(quiet.seq, 0, "and do not advance the numbering");
+  }
+
+  // A KO carries its own face, because the card is gone from any later view.
+  {
+    let s = arena({ hand: ["KILLER"], energy: ["V1"], oppBattle: ["V-BLUE"] });
+    const victim = s.players.p2.battle[0];
+    const r1 = apply(ctx, s, { type: "play", player: "p1", card: find(s, "p1", "hand", "KILLER") });
+    s = r1.state;
+    assert.equal(s.prompt.kind, "chooseCards", "KILLER asks which card to KO");
+    const r2 = apply(ctx, s, { type: "choose", player: "p1", cards: [victim] });
+    const beats = toBeats(ctx, r2.state, r2.events, 0);
+    assert.ok(beats.list.some((b) => b.t === "ko" && b.card === victim), `the KO is a beat — events were ${r2.events.map((e) => e.type).join(", ")}`);
+    assert.ok(beats.art[victim]?.name, "and it brings the face of the card that died");
+  }
+
+  // A token is pushed straight into the Battle Area with no `move` event.
+  {
+    const s = arena({ hand: ["SPAWN"], energy: ["V1"] });
+    const r = apply(ctx, s, { type: "play", player: "p1", card: find(s, "p1", "hand", "SPAWN") });
+    const beats = toBeats(ctx, r.state, r.events, 0);
+    assert.equal(beats.list.filter((b) => b.t === "token").length, 2, "both Saibamen get a beat of their own");
+  }
+
+  // Numbering climbs across batches, which is how one opponent turn — several
+  // applies — replays in order and a client knows what it has not seen.
+  {
+    const s = arena({ hand: ["V1"], energy: ["V1"] });
+    const r = apply(ctx, s, { type: "play", player: "p1", card: find(s, "p1", "hand", "V1") });
+    const first = toBeats(ctx, r.state, r.events, 0);
+    const second = toBeats(ctx, r.state, r.events, first.seq);
+    assert.ok(first.seq > 0 && second.seq === first.seq * 2, "the second batch continues where the first stopped");
+    assert.equal(second.list[0].n, first.seq + 1, "and every beat is numbered, not counted");
+    const joined = appendBeats(first, second);
+    assert.equal(joined.list.length, first.list.length + second.list.length);
+    assert.equal(joined.seq, second.seq);
+
+    // Emptying the queue keeps the counter (see `clearBeats`). A counter that
+    // restarted would make the turn after a long one look already-played, and
+    // a client would sit still through it.
+    const emptied = { seq: joined.seq, list: [], art: {} };
+    const afterClear = appendBeats(emptied, toBeats(ctx, r.state, r.events, emptied.seq));
+    assert.equal(afterClear.list.length, first.list.length, "the beats go, so only the new turn replays");
+    assert.ok(afterClear.list[0].n > joined.seq, "but every number is still above everything already played");
+  }
+
+  // ── golden fixtures ──────────────────────────────────────────────────────
+
+  const snapshotFor = (state: GameState, beats: ReturnType<typeof toBeats> | null) =>
+    buildSnapshot({
+      id: 1,
+      mode: "hotseat",
+      status: state.phase === "over" ? "over" : "playing",
+      p1Name: "You",
+      p2Name: "Claude",
+      ctx,
+      state,
+      legal: legalActions(ctx, state),
+      log: [],
+      beats,
+      spotlight: null,
+      spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 },
+      ai: null,
+      images: {},
+    });
+
+  const fixtures: Record<string, unknown> = {};
+
+  {
+    const s = arena({ hand: ["V1"], energy: ["V1"] });
+    const r = apply(ctx, s, { type: "play", player: "p1", card: find(s, "p1", "hand", "V1") });
+    fixtures.play = snapshotFor(r.state, toBeats(ctx, r.state, r.events, 0));
+  }
+  {
+    let s = arena({ hand: ["KILLER"], energy: ["V1"], oppBattle: ["V-BLUE"] });
+    const victim = s.players.p2.battle[0];
+    s = apply(ctx, s, { type: "play", player: "p1", card: find(s, "p1", "hand", "KILLER") }).state;
+    const r = apply(ctx, s, { type: "choose", player: "p1", cards: [victim] });
+    fixtures.ko = snapshotFor(r.state, toBeats(ctx, r.state, r.events, 0));
+  }
+  {
+    const s = arena({ battle: ["BIG"], oppBattle: ["V-BLUE"] });
+    const r = apply(ctx, s, { type: "attack", player: "p1", attacker: s.players.p1.battle[0], target: s.players.p2.leader! });
+    fixtures.attack = snapshotFor(r.state, toBeats(ctx, r.state, r.events, 0));
+  }
+  {
+    const s = arena();
+    const r = apply(ctx, s, { type: "concede", player: "p1" });
+    fixtures.over = snapshotFor(r.state, toBeats(ctx, r.state, r.events, 0));
+  }
+  {
+    // One of every beat kind, in one snapshot, built by hand.
+    //
+    // No real game produces all of them: `arena:playthrough` over ~700 moves
+    // has never yielded a token, a block, a marker, a negation or a word from
+    // Claude, because those need a token card, a blocker, a Unison, a negated
+    // attack and an opponent who talks. Without this, a client could get five
+    // of the sixteen shapes wrong and nothing would notice — this fixture is
+    // what the Kotlin round-trip tests decode to prove they do not.
+    const s = arena({ battle: ["V1"], oppBattle: ["V-BLUE"] });
+    const mine = s.players.p1.battle[0];
+    const theirs = s.players.p2.battle[0];
+    let n = 0;
+    const at = (b: Beat): NumberedBeat => ({ ...b, n: ++n }) as NumberedBeat;
+    const list: NumberedBeat[] = [
+      at({ t: "phase", phase: "main", player: "p1", turn: s.turn }),
+      at({ t: "draw", player: "p1", card: mine }),
+      at({ t: "move", card: mine, from: "hand", to: "battle", owner: "p1" }),
+      at({ t: "mode", card: mine, mode: "rest" }),
+      at({ t: "flip", card: mine }),
+      at({ t: "markers", card: mine, delta: 1, total: 2 }),
+      at({ t: "token", card: theirs, owner: "p2" }),
+      at({ t: "attack", attacker: mine, target: theirs }),
+      at({ t: "block", guard: theirs, by: theirs }),
+      at({ t: "clash", attacker: mine, guard: theirs, attackPower: 20000, guardPower: 10000, hit: true }),
+      at({ t: "damage", player: "p2", amount: 1, critical: false, cards: [theirs] }),
+      at({ t: "ko", card: theirs, owner: "p2" }),
+      at({ t: "negated" }),
+      at({ t: "skill", card: mine, label: "Auto", text: "When this card attacks, draw 1 card.", unread: false }),
+      at({ t: "say", text: "Let us see how you answer that." }),
+      at({ t: "over", winner: "p1", reason: "no life left" }),
+    ];
+    const art: Beats["art"] = {};
+    for (const id of [mine, theirs]) art[id] = { cardId: s.cards[id].cardId, name: s.cards[id].cardId, imageUrl: null };
+    fixtures["all-beats"] = snapshotFor(s, { seq: n, list, art });
+
+    // If a kind is ever added to the union, this fixture must grow with it.
+    const covered = new Set(list.map((b) => b.t));
+    assert.equal(covered.size, list.length, "every beat kind appears exactly once in the all-beats fixture");
+  }
+
+  // `npm test` runs from the repo root, which is what makes this path right.
+  const dir = path.join(process.cwd(), "contract", "fixtures");
+  const emit = process.argv.includes("--emit");
+  if (emit) fs.mkdirSync(dir, { recursive: true });
+  for (const [name, snapshot] of Object.entries(fixtures)) {
+    const file = path.join(dir, `${name}.json`);
+    const text = JSON.stringify(snapshot, null, 2) + "\n";
+    if (emit) {
+      fs.writeFileSync(file, text);
+      continue;
+    }
+    assert.ok(fs.existsSync(file), `contract/fixtures/${name}.json is missing — run \`npm run contract:emit\``);
+    assert.equal(
+      fs.readFileSync(file, "utf8").replace(/\r\n/g, "\n"),
+      text,
+      `the shape clients receive has changed (contract/fixtures/${name}.json). If that is deliberate, run \`npm run contract:emit\` and review the diff.`,
+    );
+  }
+  if (emit) console.log(`verify-arena: wrote ${Object.keys(fixtures).length} contract fixtures`);
 }
 
 console.log("verify-arena: all checks passed");

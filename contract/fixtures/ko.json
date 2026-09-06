@@ -1,0 +1,269 @@
+{
+  "contract": 1,
+  "game": {
+    "id": 1,
+    "mode": "hotseat",
+    "status": "playing",
+    "turn": 3,
+    "p1Name": "You",
+    "p2Name": "Claude"
+  },
+  "view": {
+    "you": {
+      "player": "p1",
+      "name": "You",
+      "leader": {
+        "id": "p1#0",
+        "cardId": "L-RED",
+        "name": "L-RED",
+        "power": 10000,
+        "colors": [
+          "Red"
+        ],
+        "imageUrl": null,
+        "mode": "active",
+        "hidden": false,
+        "flipped": false,
+        "markers": 0,
+        "underCount": 0,
+        "isToken": false,
+        "cost": null,
+        "comboCost": null,
+        "comboPower": 0,
+        "keywords": [
+          "Awaken"
+        ],
+        "text": "[Awaken] When your life is at 4 or less: Draw 1 card and flip this card over.",
+        "reading": "draw 1",
+        "referee": false
+      },
+      "unison": null,
+      "battle": [
+        {
+          "id": "p1#15",
+          "cardId": "KILLER",
+          "name": "KILLER",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": "[Auto] When you play this card, choose up to 1 of your opponent's Battle Cards and KO it.",
+          "reading": "choose up to 1 in opponent's battle, KO the chosen cards",
+          "referee": false
+        }
+      ],
+      "combo": [],
+      "energy": [
+        {
+          "id": "p1#35",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "rest",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        }
+      ],
+      "hand": [],
+      "handCount": 0,
+      "life": 8,
+      "lifeFaceUp": [],
+      "zDeckFaceUp": [],
+      "deck": 40,
+      "drop": 0,
+      "warp": 0,
+      "zDeck": 0,
+      "zEnergy": 0,
+      "energyMarkers": 0,
+      "activeEnergy": 0,
+      "dropTop": null
+    },
+    "them": {
+      "player": "p2",
+      "name": "Claude",
+      "leader": {
+        "id": "p2#0",
+        "cardId": "L-BLUE",
+        "name": "L-BLUE",
+        "power": 10000,
+        "colors": [
+          "Blue"
+        ],
+        "imageUrl": null,
+        "mode": "active",
+        "hidden": false,
+        "flipped": false,
+        "markers": 0,
+        "underCount": 0,
+        "isToken": false,
+        "cost": null,
+        "comboCost": null,
+        "comboPower": 0,
+        "keywords": [],
+        "text": null,
+        "reading": "",
+        "referee": false
+      },
+      "unison": null,
+      "battle": [],
+      "combo": [],
+      "energy": [],
+      "hand": null,
+      "handCount": 0,
+      "life": 8,
+      "lifeFaceUp": [],
+      "zDeckFaceUp": [],
+      "deck": 41,
+      "drop": 1,
+      "warp": 0,
+      "zDeck": 0,
+      "zEnergy": 0,
+      "energyMarkers": 1,
+      "activeEnergy": 0,
+      "dropTop": {
+        "id": "p2#44",
+        "cardId": "V-BLUE",
+        "name": "V-BLUE",
+        "power": 10000,
+        "colors": [
+          "Blue"
+        ],
+        "imageUrl": null,
+        "mode": "active",
+        "hidden": false,
+        "flipped": false,
+        "markers": 0,
+        "underCount": 0,
+        "isToken": false,
+        "cost": "1",
+        "comboCost": 0,
+        "comboPower": 5000,
+        "keywords": [],
+        "text": null,
+        "reading": "",
+        "referee": false
+      }
+    },
+    "turn": 3,
+    "phase": "main",
+    "turnPlayer": "p1",
+    "battle": null,
+    "prompt": {
+      "kind": "main",
+      "player": "p1",
+      "question": "Your Main Phase.",
+      "hint": "Play cards, attack, or end the turn."
+    },
+    "over": null
+  },
+  "legal": [
+    {
+      "action": {
+        "type": "attack",
+        "player": "p1",
+        "attacker": "p1#0",
+        "target": "p2#0"
+      },
+      "label": "Attack L-BLUE with L-RED (10000 vs 10000)"
+    },
+    {
+      "action": {
+        "type": "attack",
+        "player": "p1",
+        "attacker": "p1#15",
+        "target": "p2#0"
+      },
+      "label": "Attack L-BLUE with KILLER (10000 vs 10000)"
+    },
+    {
+      "action": {
+        "type": "endMain",
+        "player": "p1"
+      },
+      "label": "End turn"
+    }
+  ],
+  "taps": {
+    "byCard": {
+      "p1#0": [
+        0
+      ],
+      "p1#15": [
+        1
+      ]
+    },
+    "bare": [
+      2
+    ],
+    "attackTargets": {
+      "p1#0": {
+        "p2#0": 0
+      },
+      "p1#15": {
+        "p2#0": 1
+      }
+    }
+  },
+  "beats": {
+    "seq": 2,
+    "list": [
+      {
+        "t": "ko",
+        "card": "p2#44",
+        "owner": "p2",
+        "n": 1
+      },
+      {
+        "t": "move",
+        "card": "p2#44",
+        "from": "battle",
+        "to": "drop",
+        "owner": "p2",
+        "n": 2
+      }
+    ],
+    "art": {
+      "p2#44": {
+        "cardId": "V-BLUE",
+        "name": "V-BLUE",
+        "imageUrl": null
+      }
+    }
+  },
+  "spotlight": null,
+  "log": [],
+  "waiting": "you",
+  "spend": {
+    "calls": 0,
+    "input": 0,
+    "output": 0,
+    "cached": 0,
+    "micros": 0
+  },
+  "over": null
+}

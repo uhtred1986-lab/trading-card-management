@@ -1,0 +1,53 @@
+# Run the Kotlin tests without installing anything on the machine.
+#
+#   cd android
+#   docker compose run --rm contract          # the round-trip tests
+#   docker compose run --rm contract gradle --no-daemon :contract:test --info
+#   docker compose run --rm shell             # a prompt inside the toolchain
+#
+# The whole repository is mounted, not just `android/`, because the fixtures
+# the tests read are the ones the server emits — `contract/fixtures/*.json`.
+# Mounting only this directory would mean copying them, and a copied fixture
+# is a fixture that can be stale.
+
+name: dbs-arena
+
+services:
+  contract:
+    build:
+      context: .
+      target: contract
+    volumes:
+      - ../:/work
+      # Gradle's caches survive between runs; without this every run
+      # re-downloads Kotlin and the test framework.
+      - gradle-cache:/gradle
+    working_dir: /work/android
+
+  # Tier 2. Builds a much larger image, so it is never pulled in by the
+  # default `docker compose run contract`.
+  android:
+    build:
+      context: .
+      target: android
+    volumes:
+      - ../:/work
+      - gradle-cache:/gradle
+      - android-sdk:/opt/android-sdk
+    working_dir: /work/android
+    profiles: ["tier2"]
+
+  shell:
+    build:
+      context: .
+      target: contract
+    volumes:
+      - ../:/work
+      - gradle-cache:/gradle
+    working_dir: /work/android
+    entrypoint: ["/bin/bash"]
+    profiles: ["tools"]
+
+volumes:
+  gradle-cache:
+  android-sdk:

@@ -1,0 +1,149 @@
+{
+  "contract": 1,
+  "game": {
+    "id": 1,
+    "mode": "hotseat",
+    "status": "over",
+    "turn": 3,
+    "p1Name": "You",
+    "p2Name": "Claude"
+  },
+  "view": {
+    "you": {
+      "player": "p1",
+      "name": "You",
+      "leader": {
+        "id": "p1#0",
+        "cardId": "L-RED",
+        "name": "L-RED",
+        "power": 10000,
+        "colors": [
+          "Red"
+        ],
+        "imageUrl": null,
+        "mode": "active",
+        "hidden": false,
+        "flipped": false,
+        "markers": 0,
+        "underCount": 0,
+        "isToken": false,
+        "cost": null,
+        "comboCost": null,
+        "comboPower": 0,
+        "keywords": [
+          "Awaken"
+        ],
+        "text": "[Awaken] When your life is at 4 or less: Draw 1 card and flip this card over.",
+        "reading": "draw 1",
+        "referee": false
+      },
+      "unison": null,
+      "battle": [],
+      "combo": [],
+      "energy": [],
+      "hand": [],
+      "handCount": 0,
+      "life": 8,
+      "lifeFaceUp": [],
+      "zDeckFaceUp": [],
+      "deck": 42,
+      "drop": 0,
+      "warp": 0,
+      "zDeck": 0,
+      "zEnergy": 0,
+      "energyMarkers": 0,
+      "activeEnergy": 0,
+      "dropTop": null
+    },
+    "them": {
+      "player": "p2",
+      "name": "Claude",
+      "leader": {
+        "id": "p2#0",
+        "cardId": "L-BLUE",
+        "name": "L-BLUE",
+        "power": 10000,
+        "colors": [
+          "Blue"
+        ],
+        "imageUrl": null,
+        "mode": "active",
+        "hidden": false,
+        "flipped": false,
+        "markers": 0,
+        "underCount": 0,
+        "isToken": false,
+        "cost": null,
+        "comboCost": null,
+        "comboPower": 0,
+        "keywords": [],
+        "text": null,
+        "reading": "",
+        "referee": false
+      },
+      "unison": null,
+      "battle": [],
+      "combo": [],
+      "energy": [],
+      "hand": null,
+      "handCount": 0,
+      "life": 8,
+      "lifeFaceUp": [],
+      "zDeckFaceUp": [],
+      "deck": 42,
+      "drop": 0,
+      "warp": 0,
+      "zDeck": 0,
+      "zEnergy": 0,
+      "energyMarkers": 1,
+      "activeEnergy": 0,
+      "dropTop": null
+    },
+    "turn": 3,
+    "phase": "over",
+    "turnPlayer": "p1",
+    "battle": null,
+    "prompt": {
+      "kind": "gameOver",
+      "player": null,
+      "question": "The game is over.",
+      "hint": null
+    },
+    "over": {
+      "winner": "p2",
+      "reason": "You conceded"
+    }
+  },
+  "legal": [],
+  "taps": {
+    "byCard": {},
+    "bare": [],
+    "attackTargets": {}
+  },
+  "beats": {
+    "seq": 1,
+    "list": [
+      {
+        "t": "over",
+        "winner": "p2",
+        "reason": "You conceded",
+        "n": 1
+      }
+    ],
+    "art": {}
+  },
+  "spotlight": null,
+  "log": [],
+  "waiting": null,
+  "spend": {
+    "calls": 0,
+    "input": 0,
+    "output": 0,
+    "cached": 0,
+    "micros": 0
+  },
+  "over": {
+    "winner": "p2",
+    "reason": "You conceded"
+  }
+}

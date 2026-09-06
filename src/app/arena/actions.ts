@@ -10,7 +10,7 @@ import { noteUnreadText, setNoteStatus, unreadClausesOf } from "@/lib/arena/ai/d
 import { cardDefFrom, deckInputFor } from "@/lib/arena/load";
 import { describeAiError } from "@/lib/ai/client";
 import { IllegalAction, type Action } from "@/lib/arena/engine";
-import { abandonGame, applyToGame, loadGame, startGame, type ArenaMode } from "@/lib/arena/games";
+import { abandonGame, applyToGame, clearBeats, loadGame, startGame, type ArenaMode } from "@/lib/arena/games";
 import { advance } from "@/lib/arena/ai/run";
 import { reviewGame } from "@/lib/arena/ai/review";
 import { clarifyCard } from "@/lib/arena/ai/clarify";
@@ -110,6 +110,10 @@ export async function startGameForm(formData: FormData) {
  */
 export async function act(gameId: number, action: Action): Promise<{ error: string | null }> {
   try {
+    // Empty the animation queue first: from here until you act again, what
+    // accumulates is one story — your move, then everything the server does
+    // in reply. See `src/lib/arena/beats.ts`.
+    await clearBeats(db, gameId);
     await applyToGame(db, gameId, action);
   } catch (err) {
     if (err instanceof IllegalAction) return { error: err.message };

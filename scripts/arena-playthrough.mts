@@ -7,13 +7,72 @@
  *
  * `npm run arena:playthrough [-- deckA deckB]`
  */
+import assert from "node:assert/strict";
 import { db } from "../src/db";
 import { arenaGames, decks } from "../src/db/schema";
 import { eq } from "drizzle-orm";
 import { nextRandom } from "../src/lib/arena/engine";
+import { BEAT_CAP, type Beat, type Beats } from "../src/lib/arena/beats";
 import { applyToGame, loadGame, startGame } from "../src/lib/arena/games";
 import { deckInputFor } from "../src/lib/arena/load";
 import { boardView, tappable, viewerOf } from "../src/lib/arena/view";
+
+/**
+ * The cards a beat names. Each of them must have brought its own face along,
+ * because by the time a client draws one it may be gone from the board.
+ */
+function cardsIn(b: Beat): string[] {
+  switch (b.t) {
+    case "draw":
+      return b.card ? [b.card] : [];
+    case "move":
+    case "mode":
+    case "flip":
+    case "markers":
+    case "token":
+    case "ko":
+    case "skill":
+      return [b.card];
+    case "attack":
+      return [b.attacker, b.target];
+    case "block":
+      return [b.guard, b.by];
+    case "clash":
+      return [b.attacker, b.guard];
+    case "damage":
+      return b.cards;
+    default:
+      return [];
+  }
+}
+
+const kinds = new Map<string, number>();
+
+/**
+ * What a client relies on, checked against the real card pool rather than the
+ * synthetic cards in `verify-arena.ts`: numbering that only ever climbs, a
+ * bounded queue, and a face for every card a beat names.
+ */
+function auditBeats(before: Beats | null, after: Beats | null, move: number): void {
+  assert.ok(after, `move ${move}: applyToGame left no beats`);
+  assert.ok(after.seq >= (before?.seq ?? 0), `move ${move}: the beat counter went backwards`);
+  assert.ok(after.list.length <= BEAT_CAP, `move ${move}: the queue grew past its cap`);
+
+  // Only what this move added: nothing clears the queue here, so the whole
+  // list is still on the row and tallying all of it would count every beat
+  // once per remaining move.
+  const from = before?.seq ?? 0;
+  let last = 0;
+  for (const b of after.list) {
+    assert.ok(b.n > last, `move ${move}: beat numbers are not increasing (${b.n} after ${last})`);
+    last = b.n;
+    if (b.n > from) kinds.set(b.t, (kinds.get(b.t) ?? 0) + 1);
+    for (const card of cardsIn(b)) {
+      assert.ok(after.art[card], `move ${move}: the ${b.t} beat names ${card} but carries no face for it`);
+    }
+  }
+  if (after.list.length) assert.equal(after.seq, last, `move ${move}: seq is not the highest beat number`);
+}
 
 const wanted = process.argv.slice(2).map(Number).filter(Number.isInteger);
 
@@ -54,7 +113,10 @@ for (;;) {
   }
   const pool = game.legal.filter((l) => l.action.type !== "endMain" && l.action.type !== "concede");
   const pick = pool.length && rand() < 0.85 ? pool[Math.floor(rand() * pool.length)] : game.legal[Math.floor(rand() * game.legal.length)];
-  await applyToGame(db, id, pick.action);
+  const next = await applyToGame(db, id, pick.action);
+  // `toBeats` is exhaustive over GameEvent, but only against real card text
+  // does a whole game exercise the events those cards actually fire.
+  auditBeats(game.beats, next.beats, steps);
 }
 
 const done = await loadGame(db, id);
@@ -64,4 +126,11 @@ console.log(`winner: ${done?.state.winner ?? "none"} — ${done?.state.overReaso
 console.log(`actions stored: ${(row?.actions as unknown[]).length}`);
 console.log("\nlast lines of the log:");
 for (const line of (done?.log ?? []).slice(-12)) console.log("  " + line);
+
+// Which beats a real game actually produced. A kind that never appears here is
+// one no client has ever been seen to draw — worth knowing before trusting it.
+const seen = [...kinds.entries()].sort((x, y) => y[1] - x[1]);
+console.log(`\nbeats produced (${seen.reduce((n, [, c]) => n + c, 0)} across ${seen.length} kinds):`);
+console.log("  " + seen.map(([k, c]) => `${k} ${c}`).join(" · "));
+
 process.exit(done?.status === "over" ? 0 : 1);

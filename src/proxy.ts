@@ -15,6 +15,12 @@ import { parseBasicAuth } from "@/lib/auth-header";
  * `/api/sync/*` is exempt: Vercel's cron can't send credentials, and that
  * route already requires the CRON_SECRET bearer token.
  *
+ * The web-app manifest, its icons and the service worker are exempt too. The
+ * browser fetches all three without credentials, so behind auth they 401 and
+ * the app cannot be installed to a home screen at all. What they give away is
+ * the app's name, its icon and a list of public card-image hosts — no data,
+ * and no way in. Everything that reads the database stays protected.
+ *
  * Next 16 runs this on the Node.js runtime, so the database is reachable here.
  * Verifying a scrypt hash costs ~100 ms, so an accepted header is remembered
  * for a few minutes instead of being re-derived on every request.
@@ -71,5 +77,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: "/((?!_next/static|_next/image|favicon.ico|api/sync/).*)",
+  matcher: "/((?!_next/static|_next/image|favicon.ico|icons/|manifest.webmanifest|sw.js|api/sync/).*)",
 };

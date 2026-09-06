@@ -12,8 +12,8 @@ import { hasAnthropic } from "@/lib/ai/client";
 import { arenaGames, cards as cardsTable } from "@/db/schema";
 import { inArray } from "drizzle-orm";
 import { apply, createGame, legalActions, seedFrom, type Action, type CardDef, type EngineContext, type GameEvent, type GameState, type LegalAction } from "./engine";
-import { compileCardCached, face, skillsOf } from "./engine";
-import { def } from "./engine/state";
+import { face } from "./engine";
+import { appendBeats, describeSkillEvent, toBeats, type Beats } from "./beats";
 import { cardDefFrom, deckInputFor } from "./load";
 import { scriptsFor } from "./scripts";
 
@@ -37,42 +37,18 @@ export interface Spotlight {
   unread: boolean;
 }
 
-const SKILL_LABELS: Record<string, string> = {
-  "activate:main": "Activate: Main",
-  "activate:battle": "Activate: Battle",
-  "activate:main/battle": "Activate: Main/Battle",
-  auto: "Auto",
-  permanent: "Permanent",
-  "counter:play": "Counter: Play",
-  "counter:attack": "Counter: Attack",
-  "counter:battle card attack": "Counter: Attack",
-  "counter:counter": "Counter",
-  keyword: "Keyword",
-};
-
-/** The last skill to resolve in this batch of events, or null if none did. */
+/**
+ * The last skill to resolve in this batch of events, or null if none did.
+ * The reading itself is `describeSkillEvent` in `beats.ts`, so the banner and
+ * the `skill` beat can never end up describing the same card differently.
+ */
 function spotlightFrom(ctx: EngineContext, state: GameState, events: GameEvent[], seq: number): Spotlight | null {
   for (let i = events.length - 1; i >= 0; i--) {
     const e = events[i];
     if (e.type !== "skill") continue;
-    const inst = state.cards[e.card];
-    if (!inst) continue;
-    try {
-      const d = def(ctx, state, e.card);
-      const side = inst.flipped && d.back ? "back" : "front";
-      const sk = skillsOf(d, side).find((x) => x.index === e.skill);
-      const compiled = compileCardCached(d, side).bySkill[e.skill];
-      return {
-        seq,
-        cardId: inst.cardId,
-        name: face(ctx, state, e.card).name,
-        label: sk?.tags[0] ?? SKILL_LABELS[sk?.kind ?? ""] ?? "Skill",
-        text: e.text.replace(/\s+/g, " ").trim(),
-        unread: !!compiled?.unsupported.length,
-      };
-    } catch {
-      return null;
-    }
+    if (!state.cards[e.card]) continue;
+    const d = describeSkillEvent(ctx, state, e);
+    return d ? { seq, ...d } : null;
   }
   return null;
 }
@@ -96,6 +72,8 @@ export interface LoadedGame {
   legal: LegalAction[];
   /** The skill that fired on the last action, for the board's banner. */
   spotlight: Spotlight | null;
+  /** What has happened since the human last acted, for a client to animate. */
+  beats: Beats | null;
 }
 
 /** Definitions for every card the state mentions, tokens included. */
@@ -135,6 +113,7 @@ export async function startGame(db: Db, p1DeckId: number, p2DeckId: number, mode
       state,
       actions: [],
       log: describeEvents(ctx, state, events),
+      beats: toBeats(ctx, state, events, 0),
       turn: state.turn,
       debug,
     })
@@ -161,6 +140,7 @@ export async function loadGame(db: Db, id: number): Promise<LoadedGame | null> {
     state,
     log: (row.log as string[]) ?? [],
     spotlight: (row.spotlight as Spotlight | null) ?? null,
+    beats: (row.beats as Beats | null) ?? null,
     legal: legalActions(ctx, state),
     spend: { calls: row.aiCalls, input: row.aiInputTokens, output: row.aiOutputTokens, cached: row.aiCachedTokens, micros: row.aiCostMicros },
     review: row.review,
@@ -177,6 +157,9 @@ export async function applyToGame(db: Db, id: number, action: Action): Promise<L
   const lines = [...game.log, ...describeEvents(game.ctx, state, events)].slice(-400);
   // Null when this action fired no skill, so the banner does not show again.
   const spotlight = spotlightFrom(game.ctx, state, events, lines.length);
+  // One opponent turn is several applies, so beats climb from where the queue
+  // already is; `act()` is what empties it, once, when you take your turn.
+  const beats = appendBeats(game.beats, toBeats(game.ctx, state, events, game.beats?.seq ?? 0));
   const actions = [...((await db.query.arenaGames.findFirst({ where: eq(arenaGames.id, id) }))?.actions as Action[]), action];
   await db
     .update(arenaGames)
@@ -185,6 +168,7 @@ export async function applyToGame(db: Db, id: number, action: Action): Promise<L
       actions,
       log: lines,
       spotlight,
+      beats,
       turn: state.turn,
       status: state.phase === "over" ? "over" : "playing",
       winner: state.winner,
@@ -192,7 +176,26 @@ export async function applyToGame(db: Db, id: number, action: Action): Promise<L
       updatedAt: new Date(),
     })
     .where(eq(arenaGames.id, id));
-  return { ...game, state, log: lines, spotlight, legal: legalActions(game.ctx, state), status: state.phase === "over" ? "over" : "playing" };
+  return { ...game, state, log: lines, spotlight, beats, legal: legalActions(game.ctx, state), status: state.phase === "over" ? "over" : "playing" };
+}
+
+/**
+ * Empty the animation queue. Called once, at the start of your own action, so
+ * what a client then finds is exactly one story: your move, and everything the
+ * server did in reply to it.
+ *
+ * The *counter* survives the emptying, even though the beats do not. A client
+ * replays everything numbered above the last beat it played, so a counter that
+ * restarted at zero would make the turn after a long one look like something
+ * it had already seen — and it would sit still through it.
+ */
+export async function clearBeats(db: Db, id: number): Promise<void> {
+  const row = await db.query.arenaGames.findFirst({ where: eq(arenaGames.id, id) });
+  const seq = (row?.beats as Beats | null)?.seq ?? 0;
+  await db
+    .update(arenaGames)
+    .set({ beats: { seq, list: [], art: {} } satisfies Beats })
+    .where(eq(arenaGames.id, id));
 }
 
 export async function listGames(db: Db, limit = 20) {

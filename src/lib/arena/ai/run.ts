@@ -16,6 +16,7 @@ import { arenaGames } from "@/db/schema";
 import { describeAiError } from "@/lib/ai/client";
 import type { Action, PlayerId } from "../engine";
 import { applyToGame, loadGame, type LoadedGame } from "../games";
+import { appendBeats, type Beats, type NumberedBeat } from "../beats";
 import { noteUnreadText, recordDecision } from "./debug";
 import { stateText } from "./view";
 import { chooseMove, ruleOnCard, type Tier } from "./opponent";
@@ -156,11 +157,24 @@ async function runReferee(db: Db, game: LoadedGame, gameId: number): Promise<str
   return `referee on ${req.cardName}: ${ruling.why}`;
 }
 
+/**
+ * Claude's table talk, to the log and to the animation queue both.
+ *
+ * These land at the end of the batch rather than beside the move each was said
+ * about, because that is when `advance` collects them — the same order the log
+ * has always shown them in.
+ */
 async function appendLog(db: Db, gameId: number, lines: string[]): Promise<void> {
   const row = await db.query.arenaGames.findFirst({ where: eq(arenaGames.id, gameId) });
   if (!row) return;
+  const prev = (row.beats as Beats | null) ?? null;
+  let n = prev?.seq ?? 0;
+  const said = lines.map((text): NumberedBeat => ({ t: "say", text, n: ++n }));
   await db
     .update(arenaGames)
-    .set({ log: [...((row.log as string[]) ?? []), ...lines].slice(-400) })
+    .set({
+      log: [...((row.log as string[]) ?? []), ...lines].slice(-400),
+      beats: appendBeats(prev, { seq: n, list: said, art: {} }),
+    })
     .where(eq(arenaGames.id, gameId));
 }

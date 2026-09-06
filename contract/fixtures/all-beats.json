@@ -1,0 +1,343 @@
+{
+  "contract": 1,
+  "game": {
+    "id": 1,
+    "mode": "hotseat",
+    "status": "playing",
+    "turn": 3,
+    "p1Name": "You",
+    "p2Name": "Claude"
+  },
+  "view": {
+    "you": {
+      "player": "p1",
+      "name": "You",
+      "leader": {
+        "id": "p1#0",
+        "cardId": "L-RED",
+        "name": "L-RED",
+        "power": 10000,
+        "colors": [
+          "Red"
+        ],
+        "imageUrl": null,
+        "mode": "active",
+        "hidden": false,
+        "flipped": false,
+        "markers": 0,
+        "underCount": 0,
+        "isToken": false,
+        "cost": null,
+        "comboCost": null,
+        "comboPower": 0,
+        "keywords": [
+          "Awaken"
+        ],
+        "text": "[Awaken] When your life is at 4 or less: Draw 1 card and flip this card over.",
+        "reading": "draw 1",
+        "referee": false
+      },
+      "unison": null,
+      "battle": [
+        {
+          "id": "p1#15",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        }
+      ],
+      "combo": [],
+      "energy": [],
+      "hand": [],
+      "handCount": 0,
+      "life": 8,
+      "lifeFaceUp": [],
+      "zDeckFaceUp": [],
+      "deck": 41,
+      "drop": 0,
+      "warp": 0,
+      "zDeck": 0,
+      "zEnergy": 0,
+      "energyMarkers": 0,
+      "activeEnergy": 0,
+      "dropTop": null
+    },
+    "them": {
+      "player": "p2",
+      "name": "Claude",
+      "leader": {
+        "id": "p2#0",
+        "cardId": "L-BLUE",
+        "name": "L-BLUE",
+        "power": 10000,
+        "colors": [
+          "Blue"
+        ],
+        "imageUrl": null,
+        "mode": "active",
+        "hidden": false,
+        "flipped": false,
+        "markers": 0,
+        "underCount": 0,
+        "isToken": false,
+        "cost": null,
+        "comboCost": null,
+        "comboPower": 0,
+        "keywords": [],
+        "text": null,
+        "reading": "",
+        "referee": false
+      },
+      "unison": null,
+      "battle": [
+        {
+          "id": "p2#44",
+          "cardId": "V-BLUE",
+          "name": "V-BLUE",
+          "power": 10000,
+          "colors": [
+            "Blue"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        }
+      ],
+      "combo": [],
+      "energy": [],
+      "hand": null,
+      "handCount": 0,
+      "life": 8,
+      "lifeFaceUp": [],
+      "zDeckFaceUp": [],
+      "deck": 41,
+      "drop": 0,
+      "warp": 0,
+      "zDeck": 0,
+      "zEnergy": 0,
+      "energyMarkers": 1,
+      "activeEnergy": 0,
+      "dropTop": null
+    },
+    "turn": 3,
+    "phase": "main",
+    "turnPlayer": "p1",
+    "battle": null,
+    "prompt": {
+      "kind": "main",
+      "player": "p1",
+      "question": "Your Main Phase.",
+      "hint": "Play cards, attack, or end the turn."
+    },
+    "over": null
+  },
+  "legal": [
+    {
+      "action": {
+        "type": "attack",
+        "player": "p1",
+        "attacker": "p1#0",
+        "target": "p2#0"
+      },
+      "label": "Attack L-BLUE with L-RED (10000 vs 10000)"
+    },
+    {
+      "action": {
+        "type": "attack",
+        "player": "p1",
+        "attacker": "p1#15",
+        "target": "p2#0"
+      },
+      "label": "Attack L-BLUE with V1 (10000 vs 10000)"
+    },
+    {
+      "action": {
+        "type": "endMain",
+        "player": "p1"
+      },
+      "label": "End turn"
+    }
+  ],
+  "taps": {
+    "byCard": {
+      "p1#0": [
+        0
+      ],
+      "p1#15": [
+        1
+      ]
+    },
+    "bare": [
+      2
+    ],
+    "attackTargets": {
+      "p1#0": {
+        "p2#0": 0
+      },
+      "p1#15": {
+        "p2#0": 1
+      }
+    }
+  },
+  "beats": {
+    "seq": 16,
+    "list": [
+      {
+        "t": "phase",
+        "phase": "main",
+        "player": "p1",
+        "turn": 3,
+        "n": 1
+      },
+      {
+        "t": "draw",
+        "player": "p1",
+        "card": "p1#15",
+        "n": 2
+      },
+      {
+        "t": "move",
+        "card": "p1#15",
+        "from": "hand",
+        "to": "battle",
+        "owner": "p1",
+        "n": 3
+      },
+      {
+        "t": "mode",
+        "card": "p1#15",
+        "mode": "rest",
+        "n": 4
+      },
+      {
+        "t": "flip",
+        "card": "p1#15",
+        "n": 5
+      },
+      {
+        "t": "markers",
+        "card": "p1#15",
+        "delta": 1,
+        "total": 2,
+        "n": 6
+      },
+      {
+        "t": "token",
+        "card": "p2#44",
+        "owner": "p2",
+        "n": 7
+      },
+      {
+        "t": "attack",
+        "attacker": "p1#15",
+        "target": "p2#44",
+        "n": 8
+      },
+      {
+        "t": "block",
+        "guard": "p2#44",
+        "by": "p2#44",
+        "n": 9
+      },
+      {
+        "t": "clash",
+        "attacker": "p1#15",
+        "guard": "p2#44",
+        "attackPower": 20000,
+        "guardPower": 10000,
+        "hit": true,
+        "n": 10
+      },
+      {
+        "t": "damage",
+        "player": "p2",
+        "amount": 1,
+        "critical": false,
+        "cards": [
+          "p2#44"
+        ],
+        "n": 11
+      },
+      {
+        "t": "ko",
+        "card": "p2#44",
+        "owner": "p2",
+        "n": 12
+      },
+      {
+        "t": "negated",
+        "n": 13
+      },
+      {
+        "t": "skill",
+        "card": "p1#15",
+        "label": "Auto",
+        "text": "When this card attacks, draw 1 card.",
+        "unread": false,
+        "n": 14
+      },
+      {
+        "t": "say",
+        "text": "Let us see how you answer that.",
+        "n": 15
+      },
+      {
+        "t": "over",
+        "winner": "p1",
+        "reason": "no life left",
+        "n": 16
+      }
+    ],
+    "art": {
+      "p1#15": {
+        "cardId": "V1",
+        "name": "V1",
+        "imageUrl": null
+      },
+      "p2#44": {
+        "cardId": "V-BLUE",
+        "name": "V-BLUE",
+        "imageUrl": null
+      }
+    }
+  },
+  "spotlight": null,
+  "log": [],
+  "waiting": "you",
+  "spend": {
+    "calls": 0,
+    "input": 0,
+    "output": 0,
+    "cached": 0,
+    "micros": 0
+  },
+  "over": null
+}
