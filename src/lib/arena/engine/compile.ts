@@ -115,7 +115,18 @@ export function splitClauses(text: string): string[] {
     }
   }
   push(text.length, 0);
-  return out.map((c) => c.replace(/^(?:then|and|if you do|if so)\s+/i, "").trim()).filter(Boolean);
+  return out
+    .map((c) =>
+      c
+        // "If you do so" is "if you do" with a word on the end. The strip
+        // below would take the phrase and leave the "so", which reads as a
+        // bare connective — so the condition was thrown away and everything
+        // the sentence made conditional happened anyway (20-16).
+        .replace(/^(if you (?:do|did))\s+so\b/i, "$1")
+        .replace(/^(?:then|and|if you do|if so)\s+/i, "")
+        .trim(),
+    )
+    .filter(Boolean);
 }
 
 /**
