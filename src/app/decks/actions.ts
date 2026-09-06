@@ -11,6 +11,8 @@ import { decksForCard, parseDeckList, ZONES, type CardDeckMembership, type Zone 
 import { zoneForType, type DeckOption } from "@/lib/decks/add";
 import { buildConflicts, type BuildConflict } from "@/lib/decks/reservations";
 import { fileDeckAtLocation, type FilingResult } from "@/lib/decks/filing";
+import { describeAiError, hasAnthropic } from "@/lib/ai/client";
+import { suggestDeckFromCard } from "@/lib/ai/deck-from-card";
 
 function revalidate(deckId?: number) {
   revalidatePath("/decks");
@@ -241,4 +243,18 @@ export async function createDeckWithCardAction(cardId: string, name: string): Pr
 export async function searchCardsAction(q: string, game?: Game) {
   if (q.trim().length < 2) return [];
   return quickSearch(db, q, 15, undefined, game ? gameOr(game) : undefined);
+}
+
+export type BuildDeckFromCardResponse = { ok: true; deckId: number; leaderName: string; mainCount: number; toBuy: number } | { ok: false; error: string };
+
+/** "Build a deck around this card": Claude also picks the Leader. */
+export async function buildDeckFromCardAction(cardId: string): Promise<BuildDeckFromCardResponse> {
+  if (!hasAnthropic()) return { ok: false, error: "ANTHROPIC_API_KEY is not set." };
+  try {
+    const { deckId, leaderName, mainCount, toBuy } = await suggestDeckFromCard(db, cardId);
+    revalidate();
+    return { ok: true, deckId, leaderName, mainCount, toBuy };
+  } catch (err) {
+    return { ok: false, error: describeAiError(err) };
+  }
 }
