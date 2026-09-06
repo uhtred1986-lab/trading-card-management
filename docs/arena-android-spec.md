@@ -1,9 +1,11 @@
 # Arena — the Android app
 
-**Status: planned, not built (6 Sep 2026).** Step 1 (the contract) is done and serving; nothing
-Kotlin exists yet, and §10 explains what has to be true before it should. A native Android client
-for the arena, built for
-animation fidelity, installed from the app's own domain rather than a store.
+A native Android client for the arena, built for animation fidelity and installed from the app's own
+domain rather than a store.
+
+**Status: not built (6 Sep 2026).** Step 1 — the contract it would run on — is done and serving at
+`/api/v1`. No Kotlin exists yet, and **§10 is the thing to read before any is written**: this
+machine has no JDK, no Gradle and no Android SDK, so today the app could be written but not run.
 
 Read `docs/arena-client-contract.md` first — it is the wire this app runs on, and the rule it must
 not break. The web client's plan is `docs/arena-ui-motion-spec.md`; the two are built and improved
