@@ -211,10 +211,12 @@ export function ArenaStage({ gameId, snapshot, skin = "night" }: { gameId: numbe
     }
     // Only attacks: straight to picking a target, as before. Anything richer —
     // several moves, or a move beside a refusal — is a sheet with the prices
-    // and the reasons on it.
+    // and the reasons on it. Charging is a one-way trip from hand to energy,
+    // so it always goes through the sheet for an explicit second tap, even
+    // when it is the card's only option — a misclick here is too costly.
     const targets = targetsOf(id);
     if (targets && options.every((i) => legal[i].action.type === "attack") && !why?.length) return setSelected(id);
-    if (options.length === 1 && !why?.length) return send(legal[options[0]].action);
+    if (options.length === 1 && !why?.length && legal[options[0]].action.type !== "charge") return send(legal[options[0]].action);
     const card = cardOf(id);
     if (card) setSheet(card);
   };
