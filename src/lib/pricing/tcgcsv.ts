@@ -342,11 +342,15 @@ export async function syncPricesForGame(
 async function fillMissingImages(db: Db): Promise<number> {
   const big = sql`replace(src.image_url, '_200w.jpg', '_in_1000x1000.jpg')`;
   // A print can have several products (foil and non-foil listings); the
-  // unmarked one is the plain card face, so it is preferred.
+  // unmarked one is the plain card face, so it is preferred. A two-sided
+  // Leader's product is named "Front // Back" — and TCGplayer's own photo for
+  // one of these is always the back reveal art, never the front (checked
+  // across several sets), so it is excluded here: using it as a card's or
+  // print's `image_url` would show the wrong face under an un-awakened Leader.
   const source = sql`
     select distinct on (p.print_id) p.print_id, p.image_url
     from tcg_products p
-    where p.print_id is not null and p.image_url is not null
+    where p.print_id is not null and p.image_url is not null and p.name not like '%//%'
     order by p.print_id, (p.marker is null) desc, p.id
   `;
   const prints = rows<{ n: number }>(
@@ -373,7 +377,29 @@ async function fillMissingImages(db: Db): Promise<number> {
       returning 1 as n
     `),
   ).length;
-  return prints + cardsFilled;
+  // The "Front // Back" photo excluded above is exactly the awakened side's
+  // art, so it fills `back_image_url` instead, wherever deckplanet/CardTrader
+  // left the back blank.
+  const backSource = sql`
+    select distinct on (p.print_id) p.print_id, p.image_url
+    from tcg_products p
+    where p.print_id is not null and p.image_url is not null and p.name like '%//%'
+    order by p.print_id, (p.marker is null) desc, p.id
+  `;
+  const backsFilled = rows<{ n: number }>(
+    await db.execute(sql`
+      with base as (${backSource}),
+      src as (
+        select bp.card_id, base.image_url
+        from base
+        join card_prints bp on bp.id = base.print_id and bp.is_base
+      )
+      update cards c set back_image_url = ${big}
+      from src where src.card_id = c.id and c.back_image_url is null
+      returning 1 as n
+    `),
+  ).length;
+  return prints + cardsFilled + backsFilled;
 }
 
 /** Both games, onto one snapshot date. */
