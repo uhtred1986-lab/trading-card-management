@@ -61,6 +61,11 @@ function baseMs(beat: Beat): number {
       return 900;
     case "say":
       return 900;
+    case "effect":
+      // A rule coming into force: the number ticks and the sentence is read.
+      return 650;
+    case "effectEnded":
+      return 450;
     case "phase":
       return 700;
     case "over":

@@ -32,6 +32,28 @@ const KEYWORD_GLYPH: Record<string, string> = {
 };
 
 /**
+ * The one chip a card wears for its [Permanent] skills, summarising the best
+ * of them: lit while any is in force, dim while none is, and marked when the
+ * engine cannot apply what it says (review §3.5). The face says "this card
+ * has a standing rule and here is whether it is doing anything"; the sheet
+ * says what.
+ */
+const PERMANENT_CHIP: Record<NonNullable<CardView["permanents"]>[number]["state"], { title: string; className: string }> = {
+  on: { title: "[Permanent] in force", className: "arena-perm-on bg-space-950/85 text-ki-300 ring-[0.5px] ring-ki-400/70" },
+  off: { title: "[Permanent] not applying right now", className: "bg-space-950/70 text-space-500 ring-[0.5px] ring-space-600/60" },
+  inert: { title: "[Permanent] the engine cannot apply yet", className: "bg-space-950/85 text-dbs-yellow ring-[0.5px] ring-dbs-yellow/50 line-through" },
+  unread: { title: "[Permanent] the engine cannot read", className: "bg-space-950/85 text-dbs-yellow ring-[0.5px] ring-dbs-yellow/50 line-through" },
+};
+
+/** The state a card's permanent chip shows: the most alive of its skills' states. */
+export function permanentState(card: CardView): keyof typeof PERMANENT_CHIP | null {
+  const states = card.permanents?.map((p) => p.state) ?? [];
+  if (!states.length) return null;
+  for (const s of ["on", "off", "inert", "unread"] as const) if (states.includes(s)) return s;
+  return null;
+}
+
+/**
  * `dead`: the card has no move but the engine can say why — it sits a little
  * desaturated and its cost badge turns red, so the board says "not this one"
  * before you even tap it (docs/arena-workflow-spec.md §4).
@@ -116,6 +138,13 @@ export function ArenaCard({
   // Energy sits upside-down and its cost, power and combo mean nothing there —
   // badges would just be clutter on a 22px card.
   const chrome = !card.hidden && !upsideDown;
+  // A rule in force changes the number and the glyphs; the face says so
+  // rather than showing a different card. Keywords a skill granted wear a
+  // different ring from printed ones, and a power that is not the printed
+  // one is coloured by which way it went.
+  const granted = new Set((card.effects ?? []).filter((e) => e.kind === "keyword" && e.keyword).map((e) => e.keyword!));
+  const delta = card.basePower != null && card.power != null ? card.power - card.basePower : 0;
+  const perm = permanentState(card);
 
   return (
     // The id is in the DOM so the attack beam can find both of its ends.
@@ -170,9 +199,11 @@ export function ArenaCard({
         )}
         {chrome && card.power != null && (
           <span
-            className="arena-power absolute inset-x-0 bottom-0 bg-space-950/85 px-[3px] py-[1px] text-center font-mono font-bold text-space-50"
+            className={`arena-power absolute inset-x-0 bottom-0 bg-space-950/85 px-[3px] py-[1px] text-center font-mono font-bold ${delta > 0 ? "arena-power-up text-gain" : delta < 0 ? "arena-power-down text-loss" : "text-space-50"}`}
             style={{ fontSize: px(9) }}
+            title={delta ? `${card.basePower!.toLocaleString("en")} printed, ${delta > 0 ? "+" : ""}${delta.toLocaleString("en")} in force` : undefined}
           >
+            {delta > 0 ? "▲" : delta < 0 ? "▼" : ""}
             {card.power.toLocaleString("en")}
           </span>
         )}
@@ -184,17 +215,23 @@ export function ArenaCard({
             {card.cost}
           </span>
         )}
-        {/* What this card does while it stands there, without having to hover it. */}
+        {/* What this card does while it stands there, without having to hover it:
+            its keywords (a granted one ringed green), and its [Permanent] chip. */}
         {chrome && width >= 40 && (
           <span className="absolute inset-x-0 bottom-[11%] flex flex-wrap justify-center gap-[3px] px-[2px]">
+            {perm && (
+              <span key="perm" title={PERMANENT_CHIP[perm].title} className={`rounded-[2px] px-[2px] font-bold leading-tight ${PERMANENT_CHIP[perm].className}`} style={{ fontSize: px(6) }}>
+                ∞
+              </span>
+            )}
             {card.keywords
               .filter((k) => KEYWORD_GLYPH[k])
-              .slice(0, 3)
+              .slice(0, perm ? 2 : 3)
               .map((k) => (
                 <span
                   key={k}
-                  title={k}
-                  className="rounded-[2px] bg-space-950/85 px-[2px] font-bold leading-tight text-ki-300 ring-[0.5px] ring-ki-500/40"
+                  title={granted.has(k) ? `${k} (granted by a skill)` : k}
+                  className={`rounded-[2px] bg-space-950/85 px-[2px] font-bold leading-tight ring-[0.5px] ${granted.has(k) ? "text-gain ring-gain/70" : "text-ki-300 ring-ki-500/40"}`}
                   style={{ fontSize: px(6) }}
                 >
                   {KEYWORD_GLYPH[k]}

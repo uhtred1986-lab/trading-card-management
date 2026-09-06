@@ -26,6 +26,7 @@ import {
   comboPowerOf,
   def,
   draw,
+  endAfterChargeEffects,
   endEffects,
   endTurnRelativeEffects,
   expireDelayed,
@@ -35,6 +36,7 @@ import {
   has,
   describePayment,
   forbiddenBy,
+  forbiddenForCard,
   inPlay,
   keyword,
   LIFE_AT_START,
@@ -59,7 +61,7 @@ import {
   skillNegated,
   whyNotPay,
 } from "./state";
-import type { Action, Applied, Area, CardDef, CardInstance, Color, FlowStep, GameEvent, GameState, PendingAuto, PlayerId, PlayerState, Prompt, RejectedAction, Requirement, Skill, Trigger } from "./types";
+import type { Action, Applied, Area, CardDef, CardInstance, Color, CounterWindow, FlowStep, GameEvent, GameState, PendingAuto, PlayerId, PlayerState, Prompt, RejectedAction, Requirement, Skill, Trigger } from "./types";
 import { other, PLAYERS } from "./types";
 
 export interface EngineContext extends GameContext {
@@ -229,7 +231,7 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
       // "Until the end of your opponent's turn" and "until the start of your
       // opponent's next turn" are both said from the controller's chair, so
       // they are read against the effect's own master — see the note there.
-      endTurnRelativeEffects(s);
+      endTurnRelativeEffects(s, ev);
       for (const id of cardsInPlay(s, s.turnPlayer)) pendTriggers(ctx, s, "chargeStart", id);
       // 7-1: the same moment from the other side of the table — "at the start
       // of your opponent's turn", which is the turn now opening.
@@ -249,7 +251,7 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
       // Active Step it was written for has now happened, so it is spent. Only
       // this player's cards had one, which is what makes "next" the right one
       // whichever turn the effect was created on.
-      s.effects = s.effects.filter((e) => !(e.until === "afterNextCharge" && mine.includes(e.target)));
+      endAfterChargeEffects(s, ev, mine);
       return "done";
     }
     case "turn.draw": {
@@ -321,7 +323,7 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
     case "turn.cleanup":
       // 7-4-5/6: "for the turn" effects end. 22-15-6 (Over Realm cards back to
       // the Warp) is now one of the delayed effects drained here.
-      endEffects(s, "turn");
+      endEffects(s, ev, "turn");
       s.flow.unshift(...fireDelayed(s, "turnCleanup"));
       return "done";
 
@@ -1172,7 +1174,7 @@ function battleCleanup(ctx: EngineContext, s: GameState, ev: GameEvent[]): "done
   if (b.reactivate && areaOf(s, b.attacker)) setMode(s, ev, b.attacker, "active", ctx);
   for (const p of PLAYERS) for (const id of cardsInPlay(s, p)) pendTriggers(ctx, s, "battleEnd", id);
   const due = fireDelayed(s, "battleEnd");
-  endEffects(s, "battle");
+  endEffects(s, ev, "battle");
   s.battle = null;
   s.flow.unshift(...due, { op: "checkpoint" }, { op: "turn.promptMain" });
   return "done";
@@ -1365,6 +1367,39 @@ export interface LegalAction {
   action: Action;
   /** One line for menus and Claude: "Play Son Goku (3)". */
   label: string;
+  /**
+   * What the move costs, for the row it sits on (`docs/arena-workflow-spec.md`
+   * Phase 2: every action with its price on it). Set for skill activations
+   * and counters, whose price is not in the card's own numbers; a play's
+   * price is its printed cost and a client reads that off the card.
+   */
+  cost?: ActionCost;
+}
+
+export interface ActionCost {
+  /** Energy to rest, orbs of the skill included. */
+  energy: number;
+  /** Which of those must be a colour. */
+  orbs?: Partial<Record<Color, number>>;
+  /** Unison markers added (positive) or removed (negative) as the price (13-4). */
+  markers?: number;
+  /** The price in words, as the row shows it: "2 energy", "{r}{r}", "free", "3 markers". */
+  describe: string;
+}
+
+/** The price of declaring a skill: its orbs, plus the card's own cost for an Extra played from hand (12-2-2). */
+function activationCost(ctx: EngineContext, s: GameState, card: string, sk: Skill, alt: boolean): ActionCost {
+  const { total, specified } = orbTotals(sk);
+  const fromHand = baseType(def(ctx, s, card)) === "EXTRA" && areaOf(s, card) === "hand" && !alt;
+  const c = fromHand ? playCost(ctx, s, card) : { total: 0, specified: {} as Partial<Record<Color, number>> };
+  const orbs: Partial<Record<Color, number>> = { ...c.specified };
+  for (const [colour, n] of Object.entries(specified) as [Color, number][]) orbs[colour] = (orbs[colour] ?? 0) + n;
+  const energy = total + c.total;
+  const bits: string[] = [];
+  if (alt) bits.push("alternative cost");
+  else if (energy) bits.push(`${energy} energy${Object.keys(orbs).length ? ` (${Object.entries(orbs).map(([k, n]) => `${n} ${k.toLowerCase()}`).join(", ")})` : ""}`);
+  if (sk.markerCost != null && sk.markerCost !== 0) bits.push(sk.markerCost > 0 ? `+${sk.markerCost} marker${sk.markerCost === 1 ? "" : "s"}` : `${-sk.markerCost} marker${sk.markerCost === -1 ? "" : "s"}`);
+  return { energy, ...(Object.keys(orbs).length ? { orbs } : {}), ...(sk.markerCost != null ? { markers: sk.markerCost } : {}), describe: bits.join(" · ") || "free" };
 }
 
 export function legalActions(ctx: EngineContext, s: GameState): LegalAction[] {
@@ -1408,15 +1443,15 @@ export function legalActions(ctx: EngineContext, s: GameState): LegalAction[] {
       for (const id of s.players[p].hand) {
         for (const sk of skillsOf(def(ctx, s, id))) {
           const act = activatable(ctx, s, p, id, sk, "battle");
-          if (act) out.push({ action: { type: "activate", player: p, card: id, skill: sk.index }, label: act });
+          if (act) out.push({ action: { type: "activate", player: p, card: id, skill: sk.index }, label: act, cost: activationCost(ctx, s, id, sk, false) });
           const viaAlt = activatable(ctx, s, p, id, sk, "battle", true);
-          if (viaAlt) out.push({ action: { type: "activate", player: p, card: id, skill: sk.index, alt: true }, label: viaAlt });
+          if (viaAlt) out.push({ action: { type: "activate", player: p, card: id, skill: sk.index, alt: true }, label: viaAlt, cost: activationCost(ctx, s, id, sk, true) });
         }
       }
       for (const id of cardsInPlay(s, p)) {
         for (const sk of skillsOfInstance(ctx, s, id)) {
           const act = activatable(ctx, s, p, id, sk, "battle");
-          if (act) out.push({ action: { type: "activate", player: p, card: id, skill: sk.index }, label: act });
+          if (act) out.push({ action: { type: "activate", player: p, card: id, skill: sk.index }, label: act, cost: activationCost(ctx, s, id, sk, false) });
         }
       }
       out.push({ action: { type: "pass", player: p }, label: pr.side === "offense" ? "End Offense Step" : "End Defense Step" });
@@ -1432,7 +1467,8 @@ export function legalActions(ctx: EngineContext, s: GameState): LegalAction[] {
         const cost = playCost(ctx, s, id);
         const orbs = sk ? orbTotals(sk) : { total: 0 };
         if (planPayment(ctx, s, pr.player, cost.total + orbs.total, cost.specified)) {
-          out.push({ action: { type: "counter", player: pr.player, card: id, skill: sk?.index }, label: `Counter with ${name(id)}` });
+          const energy = cost.total + orbs.total;
+          out.push({ action: { type: "counter", player: pr.player, card: id, skill: sk?.index }, label: `Counter with ${name(id)}`, cost: { energy, describe: energy ? `${energy} energy` : "free" } });
         }
         // 5-3: the printed alternative is a second, separate offer — paying it
         // is a different decision, not a cheaper version of the same one.
@@ -1513,16 +1549,16 @@ function mainActions(ctx: EngineContext, s: GameState, p: PlayerId): LegalAction
     // Keyword [Activate : Main] skills from hand and Extras with a native effect.
     for (const sk of skillsOf(d)) {
       const act = activatable(ctx, s, p, id, sk, "main");
-      if (act) out.push({ action: { type: "activate", player: p, card: id, skill: sk.index }, label: act });
+      if (act) out.push({ action: { type: "activate", player: p, card: id, skill: sk.index }, label: act, cost: activationCost(ctx, s, id, sk, false) });
       const viaAlt = activatable(ctx, s, p, id, sk, "main", true);
-      if (viaAlt) out.push({ action: { type: "activate", player: p, card: id, skill: sk.index, alt: true }, label: viaAlt });
+      if (viaAlt) out.push({ action: { type: "activate", player: p, card: id, skill: sk.index, alt: true }, label: viaAlt, cost: activationCost(ctx, s, id, sk, true) });
     }
   }
   // Skills on cards in play.
   for (const id of cardsInPlay(s, p)) {
     for (const sk of skillsOfInstance(ctx, s, id)) {
       const act = activatable(ctx, s, p, id, sk, "main");
-      if (act) out.push({ action: { type: "activate", player: p, card: id, skill: sk.index }, label: act });
+      if (act) out.push({ action: { type: "activate", player: p, card: id, skill: sk.index }, label: act, cost: activationCost(ctx, s, id, sk, false) });
     }
   }
   // 13-3: Unison growth.
@@ -1654,17 +1690,102 @@ export function rejectedActions(ctx: EngineContext, s: GameState, legal: LegalAc
       for (const id of cardsInPlay(s, p)) rejectActivate(id, skillsOfInstance(ctx, s, id), "battle");
       return out;
     }
+    case "counter": {
+      // Every counter card in hand that is not on the menu: a candidate the
+      // energy cannot cover, a counter for another moment, or one the compiler
+      // cannot read — the same gates `counterCandidates` and the menu apply.
+      for (const id of s.players[p].hand) {
+        const why = whyNotCounter(ctx, s, p, id, pr.window, pr.candidates);
+        if (why) push({ type: "counter", player: p, card: id }, `Counter with ${name(id)}`, why);
+      }
+      return out;
+    }
+    case "blocker": {
+      // A [Blocker] that is not offered: resting, or forbidden to block.
+      const b = s.battle;
+      for (const id of cardsInPlay(s, p)) {
+        if (pr.candidates.includes(id) || !has(ctx, s, id, "Blocker")) continue;
+        const why: Requirement[] = [];
+        if (b && id === b.guard) why.push({ kind: "other", detail: "it is the card being attacked" });
+        if (s.cards[id].mode !== "active") why.push(modeWhy(ctx, s, id));
+        const f = forbiddenBy(ctx, s, "block", { player: p, card: id });
+        if (f) why.push({ kind: "forbidden", by: f.by, until: f.until });
+        push({ type: "block", player: p, card: id }, `Block with ${name(id)}`, why);
+      }
+      return out;
+    }
+    case "chooseCards": {
+      // A card on the table the prompt does not offer: [Barrier] or another
+      // rule keeps it from being chosen (22-16, 20-14), or it is simply not
+      // what the skill asks for — the prompt's own reason says what is.
+      const offered = new Set(pr.choice.candidates);
+      for (const side of PLAYERS) {
+        for (const id of [...cardsInPlay(s, side), ...(side === p ? s.players[p].hand : [])]) {
+          if (offered.has(id) || s.cards[id].hidden) continue;
+          const f = forbiddenBy(ctx, s, "beChosen", { card: id });
+          const why: Requirement[] = f ? [{ kind: "forbidden", by: f.by, until: f.until }] : has(ctx, s, id, "Barrier") ? [{ kind: "forbidden", by: name(id), until: "permanent" }] : [{ kind: "target", reason: pr.choice.reason }];
+          push({ type: "choose", player: p, cards: [id] }, `Choose ${name(id)}`, why);
+        }
+      }
+      return out;
+    }
     default:
       return out;
   }
 }
 
-/** The card an action names, the way `Tappable` indexes it. */
+/**
+ * The `why` twin of `counterCandidates` plus the menu's payment test, for a
+ * card in hand during a counter window. Null for a card with no [Counter]
+ * skill at all, which nobody expects to counter with.
+ */
+function whyNotCounter(ctx: EngineContext, s: GameState, p: PlayerId, card: string, window: CounterWindow, candidates: string[]): Requirement[] | null {
+  const d = def(ctx, s, card);
+  const counters = skillsOf(d).filter((k) => k.kind.startsWith("counter:"));
+  if (!counters.length) return null;
+  const why: Requirement[] = [];
+  const cost = playCost(ctx, s, card);
+  if (candidates.includes(card)) {
+    // On the list but not on the menu: only the price stops it.
+    const sk = counters[0];
+    const orbs = orbTotals(sk);
+    why.push(...whyNotPay(ctx, s, p, cost.total + orbs.total, cost.specified, orbs.either));
+    return why;
+  }
+  const fits = counters.filter((sk) => (window === "play" && sk.kind === "counter:play") || (window === "attack" && (sk.kind === "counter:attack" || sk.kind === "counter:battle card attack")) || (window === "counter" && sk.kind === "counter:counter"));
+  if (!fits.length) {
+    why.push({ kind: "timing", window: counters[0].kind.replace("counter:", "") });
+    return why;
+  }
+  const sk = fits[0];
+  const playing = window === "play" && s.resolving ? s.resolving.card : null;
+  if (playing && has(ctx, s, playing, "Deflect")) why.push({ kind: "forbidden", by: face(ctx, s, playing).name, until: "permanent" });
+  if (sk.kind === "counter:battle card attack" && s.battle && baseType(def(ctx, s, s.battle.attacker)) !== "BATTLE") why.push({ kind: "target", reason: "only an attacking Battle Card" });
+  if (!canResolve(ctx, s, card, sk)) why.push({ kind: "unread", card });
+  const f = forbiddenBy(ctx, s, "activateCounter", { player: p, card });
+  if (f) why.push({ kind: "forbidden", by: f.by, until: f.until });
+  const orbs = orbTotals(sk);
+  why.push(...whyNotPay(ctx, s, p, cost.total + orbs.total, cost.specified, orbs.either));
+  return why;
+}
+
+/** The card an action names, the way `Tappable` indexes it — a one-card choice included. */
 function cardOf(a: Action): string | null {
-  const x = a as { card?: string | null; attacker?: string };
+  const x = a as { card?: string | null; attacker?: string; cards?: string[] };
   if (typeof x.card === "string") return x.card;
   if (typeof x.attacker === "string") return x.attacker;
+  if (Array.isArray(x.cards) && x.cards.length === 1) return x.cards[0];
   return null;
+}
+
+/**
+ * A card refused for resting. `locked` when a rule will keep it down through
+ * its next Charge Phase (7-2-7 lifted by 20-14), so the client does not
+ * promise it will stand back up.
+ */
+function modeWhy(ctx: EngineContext, s: GameState, card: string): Requirement {
+  const locked = forbiddenForCard(s, "switchToActive", card, ctx);
+  return { kind: "mode", card, mode: s.cards[card].mode, ...(locked ? { locked: true } : {}) };
 }
 
 /**
@@ -1675,7 +1796,7 @@ function cardOf(a: Action): string | null {
 function whyNotCharge(ctx: EngineContext, s: GameState, p: PlayerId): Requirement[] {
   if (s.prompt.kind !== "charge") return [{ kind: "oncePerTurn", what: "charge" }];
   const f = forbiddenBy(ctx, s, "placeEnergy", { player: p });
-  return f ? [{ kind: "forbidden", by: f.by }] : [];
+  return f ? [{ kind: "forbidden", by: f.by, until: f.until }] : [];
 }
 
 /**
@@ -1710,10 +1831,10 @@ function whyNotAttack(ctx: EngineContext, s: GameState, p: PlayerId, a: string):
   if (!cardsInPlay(s, p).includes(a)) return null;
   const why: Requirement[] = [];
   if (s.turn === 1 && p === s.firstPlayer) why.push({ kind: "timing", window: "nextTurn" });
-  if (s.cards[a].mode !== "active") why.push({ kind: "mode", card: a, mode: s.cards[a].mode });
+  if (s.cards[a].mode !== "active") why.push(modeWhy(ctx, s, a));
   if (s.cards[a].hidden) why.push({ kind: "other", detail: "a face-down card cannot attack" });
   const f = forbiddenBy(ctx, s, "attack", { player: p, card: a });
-  if (f) why.push({ kind: "forbidden", by: f.by });
+  if (f) why.push({ kind: "forbidden", by: f.by, until: f.until });
   const opp = other(p);
   const targets = [s.players[opp].leader, ...(s.players[opp].unison ? [s.players[opp].unison] : []), ...s.players[opp].battle.filter((id) => s.cards[id].mode === "rest")];
   const extra = permits(ctx, s, a, "attackActive").flatMap((rule) =>
@@ -1735,13 +1856,13 @@ function whyNotCombo(ctx: EngineContext, s: GameState, p: PlayerId, card: string
   if (areaOf(s, card) === "battle") {
     if (b && card === b.attacker) why.push({ kind: "other", detail: "it is the attacking card" });
     else if (b && card === b.guard) why.push({ kind: "other", detail: "it is the card being attacked" });
-    if (s.cards[card].mode !== "active") why.push({ kind: "mode", card, mode: s.cards[card].mode });
+    if (s.cards[card].mode !== "active") why.push(modeWhy(ctx, s, card));
     if (s.cards[card].hidden) why.push({ kind: "other", detail: "a face-down card cannot combo" });
   }
   const d = def(ctx, s, card);
   if (!canCombo(d)) why.push({ kind: "cardType", card, needs: "a Battle Card with a combo cost" });
   const f = forbiddenBy(ctx, s, "combo", { player: p, card });
-  if (f) why.push({ kind: "forbidden", by: f.by });
+  if (f) why.push({ kind: "forbidden", by: f.by, until: f.until });
   if (canCombo(d)) why.push(...whyNotPay(ctx, s, p, comboCostOf(ctx, s, card), {}));
   return why;
 }
@@ -1768,7 +1889,7 @@ function whyNotPlay(ctx: EngineContext, s: GameState, p: PlayerId, card: string)
   const twin = s.players[p].battle.find((id) => has(ctx, s, id, "Unique") && face(ctx, s, id).name === d.name);
   if (twin) why.push({ kind: "forbidden", by: face(ctx, s, twin).name });
   const f = forbiddenBy(ctx, s, "play", { player: p, card, bySkill: false });
-  if (f) why.push({ kind: "forbidden", by: f.by });
+  if (f) why.push({ kind: "forbidden", by: f.by, until: f.until });
   return why;
 }
 
@@ -1786,7 +1907,10 @@ function activatable(ctx: EngineContext, s: GameState, p: PlayerId, card: string
   if (skillNegated(s, card, sk.index, sk.kind)) return null;
   // 20-14: a skill nothing forbids, on a card nothing forbids it on.
   if (forbids(ctx, s, "activateSkill", { player: p, card })) return null;
-  if (sk.oncePerTurn && inst.usedThisTurn.includes(sk.index)) return null;
+  // 22-44-3 / 22-44-5: [Limit X] and [Once per turn] are the same count with
+  // a different ceiling. Per instance rather than per card number, the same
+  // approximation `resolveAuto` makes.
+  if (usesLeft(sk, inst) === 0) return null;
   if (sk.bond != null && s.players[p].battle.length < sk.bond) return null;
   if (sk.sparking != null && s.players[p].drop.length < sk.sparking) return null;
   // 22-27 / 22-43: a [Burst] or [Spirit Boost] tag is part of the cost.
@@ -1989,8 +2113,8 @@ function whyNotActivate(ctx: EngineContext, s: GameState, p: PlayerId, card: str
 
   if (skillNegated(s, card, sk.index, sk.kind)) why.push({ kind: "other", detail: "the skill is negated" });
   const f = forbiddenBy(ctx, s, "activateSkill", { player: p, card });
-  if (f) why.push({ kind: "forbidden", by: f.by });
-  if (sk.oncePerTurn && inst.usedThisTurn.includes(sk.index)) why.push({ kind: "oncePerTurn", what: "skill" });
+  if (f) why.push({ kind: "forbidden", by: f.by, until: f.until });
+  if (usesLeft(sk, inst) === 0) why.push({ kind: "oncePerTurn", what: "skill", ...(sk.limit != null && !sk.oncePerTurn ? { limit: sk.limit } : {}) });
   if (sk.bond != null && s.players[p].battle.length < sk.bond) why.push({ kind: "condition", text: `[Bond ${sk.bond}]: ${sk.bond} or more Battle Cards in play` });
   if (sk.sparking != null && s.players[p].drop.length < sk.sparking) why.push({ kind: "condition", text: `[Sparking ${sk.sparking}]: ${sk.sparking} or more cards in your Drop Area` });
   if (!canPayKeywordCosts(s, p, sk)) why.push({ kind: "other", detail: sk.burst != null ? `[Burst ${sk.burst}] needs that many cards in the deck` : "[Spirit Boost] needs the markers" });
@@ -2166,6 +2290,17 @@ function whyNotActivate(ctx: EngineContext, s: GameState, p: PlayerId, card: str
   }
   if (inHand) why.push({ kind: "zone", card, area: "battle" }); // 9-1-3-1
   return why;
+}
+
+/**
+ * How many more times a [Once per turn] or [Limit X] skill may be used this
+ * turn (22-44-3), or null for a skill with no such cap. `usedThisTurn` holds
+ * one entry per use, which is what `activate` and `resolveAuto` both write.
+ */
+function usesLeft(sk: Skill, inst: CardInstance): number | null {
+  const cap = sk.oncePerTurn ? 1 : sk.limit;
+  if (cap == null) return null;
+  return Math.max(0, cap - inst.usedThisTurn.filter((i) => i === sk.index).length);
 }
 
 function conditionHolds(ctx: EngineContext, s: GameState, p: PlayerId, c: ReturnType<typeof parseCondition>): boolean {
@@ -2556,7 +2691,12 @@ function activate(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId
   if (sk.oncePerTurn || sk.limit != null) inst.usedThisTurn.push(sk.index);
   if (sk.markerCost != null) payMarkerCost(s, ev, card, sk.markerCost);
   payKeywordCosts(ctx, s, ev, p, sk);
-  ev.push({ type: "skill", card, skill: sk.index, master: p, text: sk.raw });
+  // One `skill` event per activation. The branches that queue a
+  // `skill.resolve` step get theirs from that step, where the skill actually
+  // resolves; the keywords that resolve right here announce themselves now.
+  // Both used to fire, and every text skill was narrated twice.
+  const resolvesLater = !k || k.name === "Awaken" || k.name === "Wish" || k.name === "Field" || (k.name === "Union" && k.variant === "Absorb");
+  if (!resolvesLater) ev.push({ type: "skill", card, skill: sk.index, master: p, text: sk.raw });
 
   if (k?.name === "Awaken" || k?.name === "Wish") {
     s.flow.unshift({ op: "skill.resolve", card, skill: sk.index, player: p });

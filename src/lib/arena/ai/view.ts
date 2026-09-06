@@ -145,8 +145,10 @@ function engineReading(ctx: EngineContext, d: CardDef): string {
   for (const sk of skillsOf(d)) {
     const sc = scripts.bySkill[sk.index];
     if (!sc || !sk.effect.trim()) continue;
-    if (sc.unsupported.length) notes.push(`line ${sk.index / 10 + 1}: ruled on when it resolves`);
-    else if (sc.ops.length) notes.push(`line ${sk.index / 10 + 1}: ${describeScript(sc.ops)}`);
+    // A [Permanent] never resolves: the referee is never asked about one, and
+    // its reading carries no duration (it holds while the card is in play).
+    if (sc.unsupported.length) notes.push(`line ${sk.index / 10 + 1}: ${sk.kind === "permanent" ? "not applied by the engine" : "ruled on when it resolves"}`);
+    else if (sc.ops.length) notes.push(`line ${sk.index / 10 + 1}: ${describeScript(sc.ops, { permanent: sk.kind === "permanent" })}`);
   }
   return notes.length ? `\n   engine: ${notes.join("; ")}` : "";
 }

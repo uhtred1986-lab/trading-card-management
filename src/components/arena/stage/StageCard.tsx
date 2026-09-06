@@ -6,7 +6,7 @@ import { ArenaCard, type CardState } from "../ArenaCard";
 import { SPRING } from "./motion";
 
 /** A storyboard moment that happens *to* a card, rather than moving it. */
-export type Moment = "lungeUp" | "lungeDown" | "hit" | "awaken" | "arrive" | "refuse";
+export type Moment = "lungeUp" | "lungeDown" | "hit" | "awaken" | "arrive" | "refuse" | "surge" | "settle";
 
 const MOMENT: Record<Moment | "none", string> = {
   lungeUp: "arena-lunge-up",
@@ -16,6 +16,9 @@ const MOMENT: Record<Moment | "none", string> = {
   arrive: "arena-pop",
   /** A tap the rules refused: a headshake while the prompt bar says why. */
   refuse: "arena-nope",
+  /** A rule coming into force on this card, and the same rule wearing off. */
+  surge: "arena-surge",
+  settle: "arena-settle",
   none: "",
 };
 

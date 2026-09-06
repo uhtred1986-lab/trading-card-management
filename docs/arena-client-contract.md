@@ -143,6 +143,69 @@ export interface SideView {
 //   cost?: string;                                       // `payCost` / `optionalCost`'s describe, unflattened
 ```
 
+### 3.2 Rules in force (added 6 Sep 2026, `docs/arena-compiler-workflow-review.md` §3.3–3.5, §3.8)
+
+A rule in force — a "+5000 power for the turn", a "can't attack until the start of your next
+turn", a [Permanent]'s aura — used to reach a client only as a different number. These additions
+make each one a *thing* with a label, a duration and a source. All optional; the contract did not
+bump (§7). `src/lib/arena/effects.ts` is the one place a rule becomes these words.
+
+```ts
+/** One rule in force on a card or a player. */
+export interface EffectView {
+  kind: "power" | "comboPower" | "keyword" | "negate" | "forbid" | "permit" | "cost" | "other";
+  label: string;                 // "+5,000 power", "[Critical]", "can't attack", "skills negated", "costs 1 less"
+  until: Duration | "permanent"; // "permanent" = while the source card's [Permanent] skill is valid
+  source: string | null;         // the card whose skill made it (instance id), or null for the rules' own
+  sourceName: string | null;     // captured now; the card may leave the board
+  by: PlayerId | null;           // whose skill made it — the two turn-relative durations read against this
+  keyword?: string;              // for kind "keyword": which one, so the glyph can be marked granted
+}
+
+/** One [Permanent] skill of a card and whether it is doing anything right now. */
+export interface PermanentView {
+  index: number;                 // the engine's skill index
+  text: string;                  // the printed line without its tag
+  state: "on" | "off" | "inert" | "unread";
+  reading: string;               // the engine's reading, without a duration
+}
+
+export interface CardView {
+  // …unchanged…
+  referee: boolean;              // now never true for a [Permanent]: it never resolves, so the referee is never asked
+  basePower?: number;            // the printed power, present only when `power` is not it
+  effects?: EffectView[];        // every rule in force on this card now, its own [Permanent]'s included
+  permanents?: PermanentView[];  // this card's own [Permanent] skills
+}
+
+export interface SideView {
+  // …unchanged…
+  rules?: EffectView[];          // rules in force on the *player* — "can't attack with Battle Cards"
+}
+
+export interface LegalAction {
+  action: Action;
+  label: string;
+  cost?: { energy: number; orbs?: Partial<Record<Color, number>>; markers?: number; describe: string }; // skills and counters
+}
+
+// Requirement gains, all optional:
+//   { kind: "forbidden"; by; until?: Duration | "permanent" } // how long the rule holds, for the remedy
+//   { kind: "oncePerTurn"; what; limit?: number }             // the printed [Limit X], when that is the rule
+//   { kind: "mode"; card; mode; locked?: boolean }            // a rule keeps it from standing up next Charge Phase
+```
+
+Three properties, the server's job:
+
+- **`effects` and `rules` are read from the engine's state, never inferred from numbers.** A
+  client that subtracts `basePower` from `power` and guesses the rest has broken §1.
+- **A [Permanent]'s state is measured, not compiled.** `on` means the static layer is emitting
+  something from it at this moment on this board; `off` means it compiles and emits but its
+  condition does not hold or nothing matches; `inert` means it compiles to ops the static layer
+  has no kind for, so it does nothing — which the compile figures could never show.
+- **`rejected` now covers the counter window, a `chooseCards` prompt and the blocker prompt** as
+  well as charge, main and combo; a one-card `choose` is keyed by the card it names.
+
 Three properties, all the server's job:
 
 - **`rejected` is computed for the viewer only, and only when the prompt is theirs.** It is the
@@ -183,6 +246,8 @@ export type Beat =
   | { t: "ko"; card: string }
   | { t: "negated" }
   | { t: "skill"; card: string; label: string; text: string; unread: boolean; owner: PlayerId }
+  | { t: "effect"; card: string | null; player: PlayerId | null; kind: EffectKind; label: string; until: Duration | "permanent"; source: string | null; owner: PlayerId }
+  | { t: "effectEnded"; card: string | null; player: PlayerId | null; kind: EffectKind; label: string; source: string | null }
   | { t: "say"; text: string }
   | { t: "over"; winner: PlayerId | null; reason: string };
 
@@ -213,6 +278,12 @@ Four things the build settled that the first draft of this section had wrong:
   `null` only if the card left the game entirely.
 - **`skill` carries `owner`** (6 Sep 2026, workflow spec §3.4): whose ability resolved, so the
   opponent-turn narration can say *"Claude uses 《Union-Absorb》"* rather than a card sliding by.
+- **`effect` and `effectEnded` are beats** (6 Sep 2026, review §3.3): a rule coming into force and
+  the same rule wearing off, so a "+10000 power" before a clash and the number dropping back at
+  the end of the turn each have a moment and a sentence. The engine writes an `effectEnded` event
+  wherever it expires an effect, which is what the second beat is made from. A source or target
+  no longer in the game is left out of the beat rather than named without a face.
+- **One `skill` beat per activation.** A text [Activate] used to emit two (review §3.2).
 
 Three properties the clients depend on, all of which are the server's job:
 
@@ -224,7 +295,7 @@ Three properties the clients depend on, all of which are the server's job:
   the page already runs.
 - **`toBeats` is exhaustive over `GameEvent`.** Adding an engine event becomes a compile error in
   `src/lib/arena/beats.ts`, so the UI cannot silently stop showing something the rules do. Events
-  with no picture (`effect`, `stack`, `hidden`, `note`) map to nothing, deliberately.
+  with no picture (`stack`, `hidden`, `note`, `delayed`) map to nothing, deliberately.
 
 Storage: one `beats jsonb` column on `arena_games` (`0024_grey_la_nuit.sql`), beside the existing
 `spotlight` precedent and nullable like it — the queue is an object, so an `'[]'` default would have

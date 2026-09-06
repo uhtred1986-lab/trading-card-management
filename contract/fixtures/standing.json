@@ -1,0 +1,510 @@
+{
+  "contract": 1,
+  "game": {
+    "id": 1,
+    "mode": "hotseat",
+    "status": "playing",
+    "turn": 3,
+    "p1Name": "You",
+    "p2Name": "Claude"
+  },
+  "view": {
+    "you": {
+      "player": "p1",
+      "name": "You",
+      "leader": {
+        "id": "p1#0",
+        "cardId": "L-RED",
+        "name": "L-RED",
+        "power": 10000,
+        "colors": [
+          "Red"
+        ],
+        "imageUrl": null,
+        "mode": "active",
+        "hidden": false,
+        "flipped": false,
+        "markers": 0,
+        "underCount": 0,
+        "isToken": false,
+        "cost": null,
+        "comboCost": null,
+        "comboPower": 0,
+        "keywords": [
+          "Awaken"
+        ],
+        "text": "[Awaken] When your life is at 4 or less: Draw 1 card and flip this card over.",
+        "reading": "draw 1",
+        "referee": false
+      },
+      "unison": null,
+      "battle": [
+        {
+          "id": "p1#35",
+          "cardId": "AURA",
+          "name": "AURA",
+          "power": 15000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": "[Permanent] Your Battle Cards get +5000 power.",
+          "reading": "all in your battle +5000 power",
+          "referee": false,
+          "basePower": 10000,
+          "effects": [
+            {
+              "kind": "power",
+              "label": "+5,000 power",
+              "until": "permanent",
+              "source": "p1#35",
+              "sourceName": "AURA",
+              "by": "p1"
+            }
+          ],
+          "permanents": [
+            {
+              "index": 0,
+              "text": "Your Battle Cards get +5000 power.",
+              "state": "on",
+              "reading": "all in your battle +5000 power"
+            }
+          ]
+        },
+        {
+          "id": "p1#18",
+          "cardId": "RESTCOND",
+          "name": "RESTCOND",
+          "power": 15000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": "[Permanent] If this card is in Rest Mode, your Battle Cards get +5000 power.",
+          "reading": "if there is 1 or more this card: all in your battle +5000 power",
+          "referee": false,
+          "basePower": 10000,
+          "effects": [
+            {
+              "kind": "power",
+              "label": "+5,000 power",
+              "until": "permanent",
+              "source": "p1#35",
+              "sourceName": "AURA",
+              "by": "p1"
+            }
+          ],
+          "permanents": [
+            {
+              "index": 0,
+              "text": "If this card is in Rest Mode, your Battle Cards get +5000 power.",
+              "state": "off",
+              "reading": "if there is 1 or more this card: all in your battle +5000 power"
+            }
+          ]
+        },
+        {
+          "id": "p1#38",
+          "cardId": "ODDAURA",
+          "name": "ODDAURA",
+          "power": 15000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": "[Permanent] Your Battle Cards resonate with the will of the universe.",
+          "reading": "",
+          "referee": false,
+          "basePower": 10000,
+          "effects": [
+            {
+              "kind": "power",
+              "label": "+5,000 power",
+              "until": "permanent",
+              "source": "p1#35",
+              "sourceName": "AURA",
+              "by": "p1"
+            }
+          ],
+          "permanents": [
+            {
+              "index": 0,
+              "text": "Your Battle Cards resonate with the will of the universe.",
+              "state": "unread",
+              "reading": ""
+            }
+          ]
+        },
+        {
+          "id": "p1#13",
+          "cardId": "INERTPERM",
+          "name": "INERTPERM",
+          "power": 15000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": "[Permanent] Draw 1 card.",
+          "reading": "draw 1",
+          "referee": false,
+          "basePower": 10000,
+          "effects": [
+            {
+              "kind": "power",
+              "label": "+5,000 power",
+              "until": "permanent",
+              "source": "p1#35",
+              "sourceName": "AURA",
+              "by": "p1"
+            }
+          ],
+          "permanents": [
+            {
+              "index": 0,
+              "text": "Draw 1 card.",
+              "state": "inert",
+              "reading": "draw 1"
+            }
+          ]
+        },
+        {
+          "id": "p1#12",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 15000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false,
+          "basePower": 10000,
+          "effects": [
+            {
+              "kind": "power",
+              "label": "+5,000 power",
+              "until": "permanent",
+              "source": "p1#35",
+              "sourceName": "AURA",
+              "by": "p1"
+            }
+          ]
+        }
+      ],
+      "combo": [],
+      "energy": [
+        {
+          "id": "p1#15",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        }
+      ],
+      "hand": [],
+      "handCount": 0,
+      "life": 8,
+      "lifeFaceUp": [],
+      "zDeckFaceUp": [],
+      "deck": 36,
+      "drop": 0,
+      "warp": 0,
+      "zDeck": 0,
+      "zEnergy": 0,
+      "energyMarkers": 0,
+      "activeEnergy": 1,
+      "dropTop": null
+    },
+    "them": {
+      "player": "p2",
+      "name": "Claude",
+      "leader": {
+        "id": "p2#0",
+        "cardId": "L-BLUE",
+        "name": "L-BLUE",
+        "power": 10000,
+        "colors": [
+          "Blue"
+        ],
+        "imageUrl": null,
+        "mode": "active",
+        "hidden": false,
+        "flipped": false,
+        "markers": 0,
+        "underCount": 0,
+        "isToken": false,
+        "cost": null,
+        "comboCost": null,
+        "comboPower": 0,
+        "keywords": [],
+        "text": null,
+        "reading": "",
+        "referee": false
+      },
+      "unison": null,
+      "battle": [
+        {
+          "id": "p2#44",
+          "cardId": "V-BLUE",
+          "name": "V-BLUE",
+          "power": 10000,
+          "colors": [
+            "Blue"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        }
+      ],
+      "combo": [],
+      "energy": [],
+      "hand": null,
+      "handCount": 0,
+      "life": 8,
+      "lifeFaceUp": [],
+      "zDeckFaceUp": [],
+      "deck": 41,
+      "drop": 0,
+      "warp": 0,
+      "zDeck": 0,
+      "zEnergy": 0,
+      "energyMarkers": 1,
+      "activeEnergy": 0,
+      "dropTop": null
+    },
+    "turn": 3,
+    "phase": "main",
+    "turnPlayer": "p1",
+    "battle": null,
+    "prompt": {
+      "kind": "main",
+      "player": "p1",
+      "question": "Your Main Phase.",
+      "hint": "Play cards, attack, or end the turn."
+    },
+    "over": null
+  },
+  "legal": [
+    {
+      "action": {
+        "type": "attack",
+        "player": "p1",
+        "attacker": "p1#0",
+        "target": "p2#0"
+      },
+      "label": "Attack L-BLUE with L-RED (10000 vs 10000)"
+    },
+    {
+      "action": {
+        "type": "attack",
+        "player": "p1",
+        "attacker": "p1#35",
+        "target": "p2#0"
+      },
+      "label": "Attack L-BLUE with AURA (15000 vs 10000)"
+    },
+    {
+      "action": {
+        "type": "attack",
+        "player": "p1",
+        "attacker": "p1#18",
+        "target": "p2#0"
+      },
+      "label": "Attack L-BLUE with RESTCOND (15000 vs 10000)"
+    },
+    {
+      "action": {
+        "type": "attack",
+        "player": "p1",
+        "attacker": "p1#38",
+        "target": "p2#0"
+      },
+      "label": "Attack L-BLUE with ODDAURA (15000 vs 10000)"
+    },
+    {
+      "action": {
+        "type": "attack",
+        "player": "p1",
+        "attacker": "p1#13",
+        "target": "p2#0"
+      },
+      "label": "Attack L-BLUE with INERTPERM (15000 vs 10000)"
+    },
+    {
+      "action": {
+        "type": "attack",
+        "player": "p1",
+        "attacker": "p1#12",
+        "target": "p2#0"
+      },
+      "label": "Attack L-BLUE with V1 (15000 vs 10000)"
+    },
+    {
+      "action": {
+        "type": "endMain",
+        "player": "p1"
+      },
+      "label": "End turn"
+    }
+  ],
+  "taps": {
+    "byCard": {
+      "p1#0": [
+        0
+      ],
+      "p1#35": [
+        1
+      ],
+      "p1#18": [
+        2
+      ],
+      "p1#38": [
+        3
+      ],
+      "p1#13": [
+        4
+      ],
+      "p1#12": [
+        5
+      ]
+    },
+    "bare": [
+      6
+    ],
+    "attackTargets": {
+      "p1#0": {
+        "p2#0": 0
+      },
+      "p1#35": {
+        "p2#0": 1
+      },
+      "p1#18": {
+        "p2#0": 2
+      },
+      "p1#38": {
+        "p2#0": 3
+      },
+      "p1#13": {
+        "p2#0": 4
+      },
+      "p1#12": {
+        "p2#0": 5
+      }
+    },
+    "whyByCard": {
+      "p1#0": [
+        {
+          "kind": "condition",
+          "text": "When your life is at 4 or less"
+        }
+      ]
+    }
+  },
+  "rejected": [
+    {
+      "action": {
+        "type": "activate",
+        "player": "p1",
+        "card": "p1#0",
+        "skill": 0
+      },
+      "label": "Activate L-RED",
+      "why": [
+        {
+          "kind": "condition",
+          "text": "When your life is at 4 or less"
+        }
+      ]
+    }
+  ],
+  "beats": null,
+  "spotlight": null,
+  "log": [],
+  "waiting": "you",
+  "spend": {
+    "calls": 0,
+    "input": 0,
+    "output": 0,
+    "cached": 0,
+    "micros": 0
+  },
+  "over": null
+}

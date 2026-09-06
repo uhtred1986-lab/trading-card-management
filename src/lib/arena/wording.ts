@@ -10,8 +10,9 @@
  * Pure and React-free so `npm test` can read every kind, and so the Android
  * app can carry its own copy of exactly this table in Kotlin.
  */
-import type { Action, Area, Requirement } from "./engine";
+import type { Action, ActionCost, Area, PlayerId, Requirement } from "./engine";
 import type { CardView, SideView } from "./view";
+import { untilWords } from "./effects";
 
 /** What the player was trying to do, for the verb in the sentence. */
 export type Reaching = Action["type"];
@@ -26,6 +27,7 @@ const VERB: Partial<Record<Reaching, string>> = {
   charge: "be charged",
   counter: "counter",
   block: "block",
+  choose: "be chosen",
 };
 
 const AREA: Record<Area, string> = {
@@ -63,9 +65,11 @@ export interface Refusal {
  * own side of the table, so an energy shortfall can say whether next turn
  * fixes it or more charging does.
  */
-export function refusal(r: Requirement, o: { name: string; reaching: Reaching; side?: SideView | null; inHand?: boolean }): Refusal {
+export function refusal(r: Requirement, o: { name: string; reaching: Reaching; side?: SideView | null; inHand?: boolean; them?: string }): Refusal {
   const name = o.name;
   const verb = VERB[o.reaching] ?? "do that";
+  const viewer: PlayerId = o.side?.player ?? "p1";
+  const them = o.them ?? "your opponent";
   switch (r.kind) {
     case "energy": {
       const short = r.need - r.have;
@@ -79,21 +83,29 @@ export function refusal(r: Requirement, o: { name: string; reaching: Reaching; s
       return { fact: `${name} needs ${r.need} ${colour} energy — ${r.have} active.`, remedy: `Charge a ${colour} card.` };
     }
     case "mode":
-      return { fact: `${name} is in Rest Mode — it cannot ${verb}.`, remedy: "It stands back up at the start of your next turn." };
+      // A rule that keeps it down is the one case where "next turn" is a promise the rules will not keep.
+      return { fact: `${name} is in Rest Mode — it cannot ${verb}.`, remedy: r.locked ? "A rule keeps it from standing up at your next Charge Phase." : "It stands back up at the start of your next turn." };
     case "timing":
       return { fact: r.window === "nextTurn" ? `${name} cannot attack yet.` : `${name} cannot ${verb} now.`, remedy: WINDOW[r.window] ?? `Only in the ${r.window}.` };
     case "oncePerTurn":
       if (r.what === "charge") return { fact: "You have already charged this turn.", remedy: "One charge per turn — again next turn." };
-      if (r.what === "skill") return { fact: `${name}'s skill has already been used this turn.`, remedy: "[Once per turn] — again next turn." };
+      if (r.what === "skill") return { fact: `${name}'s skill has already been used ${r.limit != null && r.limit > 1 ? `${r.limit} times ` : ""}this turn.`, remedy: `${r.limit != null ? `[Limit ${r.limit}]` : "[Once per turn]"} — again next turn.` };
       return { fact: `${r.what} has already been used this turn.`, remedy: "Again next turn." };
     case "zone":
       return { fact: `${name} has to be in ${AREA[r.area]} for that.`, remedy: r.area === "battle" && o.inHand ? "Play it first." : null };
     case "cardType":
       return { fact: `${name} is not ${r.needs}.`, remedy: null };
     case "target":
+      if (o.reaching === "choose") return { fact: `${name} is not what the skill asks for — ${r.reason.replace(/\.$/, "")}.`, remedy: null };
       return { fact: `Nothing to ${o.reaching === "attack" ? "attack" : "choose"}: ${r.reason}.`, remedy: null };
-    case "forbidden":
-      return { fact: r.by ? `${r.by} forbids it.` : "A skill in play forbids it.", remedy: "Until that effect ends." };
+    case "forbidden": {
+      // Which rule, and how long it holds — "until that effect ends" told the
+      // player nothing they could plan around.
+      const when = r.until ? untilWords(r.until, { master: null, viewer, them, sourceName: r.by }) : null;
+      const fact = r.by ? `${r.by} forbids it.` : "A rule in force forbids it.";
+      if (!when) return { fact, remedy: "Until that rule ends." };
+      return { fact, remedy: `${when.charAt(0).toUpperCase()}${when.slice(1)}.` };
+    }
     case "unread":
       return { fact: `The engine cannot read ${name}'s text yet.`, remedy: "Explain the card on the backlog page and it plays from the next game." };
     case "condition":
@@ -147,7 +159,10 @@ export function pill(r: Requirement): string {
  * What a legal move costs, worn on its row so the sheet lists every action
  * *with its price on it*. Null when the move has no price worth naming.
  */
-export function priceOf(action: Action, card: CardView, label: string): string | null {
+export function priceOf(action: Action, card: CardView, label: string, cost?: ActionCost): string | null {
+  // The engine's own reckoning when it gives one: a skill's orbs are not in
+  // the card's numbers, and reading them off the label was a guess.
+  if (cost) return cost.describe;
   switch (action.type) {
     case "play":
       if (action.alt) return "alternative cost";

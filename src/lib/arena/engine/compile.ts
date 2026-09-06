@@ -2175,6 +2175,26 @@ function splitModal(text: string): { head: string; options: string[] } | null {
 }
 
 export function compileSkill(skill: Skill): Script {
+  const sc = compileSkillText(skill);
+  // A [Permanent] never resolves, so "for the turn" — the duration every
+  // clause gets when it names none — was a lie on every op it emitted. The
+  // static layer ignores `until`, so nothing played wrongly; but the stored
+  // program, the inspector and the referee's worked examples all said it.
+  // The skill holds while its card is where it is valid (9-5-1), and `game`
+  // is the nearest thing the language has to that.
+  return skill.kind === "permanent" ? { ...sc, ops: holdForGame(sc.ops) } : sc;
+}
+
+function holdForGame(ops: Op[]): Op[] {
+  return ops.map((o) => {
+    if (o.op === "if") return { ...o, then: holdForGame(o.then), ...(o.else ? { else: holdForGame(o.else) } : {}) };
+    if (o.op === "chooseMode") return { ...o, modes: o.modes.map((m) => ({ ...m, ops: holdForGame(m.ops) })) };
+    if ("until" in o && o.until !== undefined && o.op !== "negateOwnSkill") return { ...o, until: "game" as const };
+    return o;
+  });
+}
+
+function compileSkillText(skill: Skill): Script {
   // [Union-Fusion] and [Union-Potara] print two character names where an
   // effect would go, and the engine reads those itself. [Union-Absorb] is
   // different (22-13-6-1): its line really is "cost : effect", and the effect
@@ -2572,7 +2592,8 @@ export function compileCard(card: CardDef, side: "front" | "back" = "front"): Ca
 
 // ── plain-English rendering, for the card inspector ─────────────────────────
 
-const FORBIDDEN_IN_WORDS: Record<ForbiddenAction, string> = {
+/** Each prohibition as the verb phrase a sentence needs after "can't". Shared with `effects.ts`, so the inspector and the board say the same thing. */
+export const FORBIDDEN_IN_WORDS: Record<ForbiddenAction, string> = {
   attack: "attack",
   beAttacked: "be attacked",
   block: "block",
@@ -2594,7 +2615,7 @@ const FORBIDDEN_IN_WORDS: Record<ForbiddenAction, string> = {
  * to be handed a bare filter for this and printed "undefined in your undefined"
  * — the count and the area it wants are not part of a filter.
  */
-function describeFilter(f: CardFilter): string {
+export function describeFilter(f: CardFilter): string {
   const bits: string[] = [];
   if (f.monoColor) bits.push("mono-colour");
   if (f.multiColor) bits.push("multicolour");
@@ -2734,8 +2755,27 @@ function describeCond(c: Cond): string {
 }
 
 /** One short line per op, so the inspector can show the engine's own reading. */
-export function describeScript(ops: Op[]): string {
+/** A duration as the inspector says it. A [Permanent] holds while its card is where the skill is valid (9-5-1), so it gets no clause at all. */
+const DURATION_IN_WORDS: Record<Duration, string> = {
+  turn: " for the turn",
+  battle: " for the battle",
+  nextTurn: " until the end of your opponent's turn",
+  opponentTurn: " until the start of your opponent's next turn",
+  afterNextCharge: " through your next Charge Phase",
+  game: " for the rest of the game",
+};
+
+/**
+ * The inspector's sentence for a program. `permanent` drops every duration:
+ * the compiler stamps `game` on a [Permanent]'s ops (the skill never resolves,
+ * so no length of time is the right one), and "for the rest of the game" on
+ * a card that simply holds while in play would say something it does not
+ * mean.
+ */
+export function describeScript(ops: Op[], o: { permanent?: boolean } = {}): string {
   const parts: string[] = [];
+  const forThe = (until: Duration) => (o.permanent ? "" : DURATION_IN_WORDS[until]);
+  const inner = (ops: Op[]) => describeScript(ops, o);
   for (const op of ops) {
     switch (op.op) {
       case "draw":
@@ -2804,25 +2844,25 @@ export function describeScript(ops: Op[]): string {
         // sit next to the number rather than at the end of the sentence.
         const kind = op.op === "power" ? "power" : "combo power";
         const a = op.amount;
-        if (typeof a === "number") parts.push(`${describeRef(op.target)} ${a >= 0 ? "+" : ""}${a} ${kind} for the ${op.until}`);
-        else if ("count" in a) parts.push(`${describeRef(op.target)} +${a.times ?? 1} ${kind} for each of ${describeEach(a.count)}, for the ${op.until}`);
-        else parts.push(`${describeRef(op.target)} +that many ${kind} for the ${op.until}`);
+        if (typeof a === "number") parts.push(`${describeRef(op.target)} ${a >= 0 ? "+" : ""}${a} ${kind}${forThe(op.until)}`);
+        else if ("count" in a) parts.push(`${describeRef(op.target)} +${a.times ?? 1} ${kind} for each of ${describeEach(a.count)}${forThe(op.until)}`);
+        else parts.push(`${describeRef(op.target)} +that many ${kind}${forThe(op.until)}`);
         break;
       }
       case "grant":
-        parts.push(`${describeRef(op.target)} gains [${(op.keyword as KeywordSkill).name}] for the ${op.until}`);
+        parts.push(`${describeRef(op.target)} gains [${(op.keyword as KeywordSkill).name}]${forThe(op.until)}`);
         break;
       case "negateSkills":
-        parts.push(`negate the skills of ${describeRef(op.target)} for the ${op.until}`);
+        parts.push(`negate the skills of ${describeRef(op.target)}${forThe(op.until)}`);
         break;
       case "resolvingPlay":
         parts.push(op.instead ? `the card being played is not played and goes to the ${op.instead} instead` : op.mode === "rest" ? "the card being played is played in Rest Mode" : "the card being played is played with its skills negated");
         break;
       case "negateSkillsOfKind":
-        parts.push(`negate the [${op.kind === "auto" ? "Auto" : op.kind === "counter" ? "Counter" : op.kind === "permanent" ? "Permanent" : "Activate"}] skills of ${describeRef(op.target)} for the ${op.until}`);
+        parts.push(`negate the [${op.kind === "auto" ? "Auto" : op.kind === "counter" ? "Counter" : op.kind === "permanent" ? "Permanent" : "Activate"}] skills of ${describeRef(op.target)}${forThe(op.until)}`);
         break;
       case "cannotAttack":
-        parts.push(`${describeRef(op.target)} can't attack for the ${op.until}`);
+        parts.push(`${describeRef(op.target)} can't attack${forThe(op.until)}`);
         break;
       case "forbid": {
         // A rule aimed at a card reads the other way round: the card is what is
@@ -2835,12 +2875,12 @@ export function describeScript(ops: Op[]): string {
         // "…can't play **cards**" already names the object, so a description
         // of *which* cards replaces that word rather than following it.
         const verb = which ? what.replace(/\s+cards?$/, "") : what;
-        parts.push(`${who} can't ${verb}${which ? ` ${which}` : ""} for the ${op.until}`);
+        parts.push(`${who} can't ${verb}${which ? ` ${which}` : ""}${forThe(op.until)}`);
         break;
       }
       case "permit": {
         const which = op.filter ? describeFilter(op.filter) : "cards";
-        parts.push(`${describeRef(op.target)} can attack ${which} in Active Mode for the ${op.until}`);
+        parts.push(`${describeRef(op.target)} can attack ${which} in Active Mode${forThe(op.until)}`);
         break;
       }
       case "addMarker":
@@ -2870,7 +2910,7 @@ export function describeScript(ops: Op[]): string {
           op.pay === "none"
             ? "for no energy"
             : op.pay === "program"
-              ? `by: ${describeScript(op.ops ?? [])}`
+              ? `by: ${inner(op.ops ?? [])}`
               : `by adding ${op.n ?? 1} from your life to your hand`;
         parts.push(`${op.for === "play" ? "it may be played" : "its [Counter] may be activated"} ${price}`);
         break;
@@ -2885,19 +2925,19 @@ export function describeScript(ops: Op[]): string {
         parts.push("this skill does not happen again");
         break;
       case "if": {
-        const yes = describeScript(op.then);
-        const no = op.else?.length ? `, otherwise ${describeScript(op.else)}` : "";
+        const yes = inner(op.then);
+        const no = op.else?.length ? `, otherwise ${inner(op.else)}` : "";
         parts.push(`if ${describeCond(op.cond)}: ${yes || "nothing"}${no}`);
         break;
       }
       case "delay":
-        parts.push(`${op.label ?? "later"}: ${describeScript(op.ops)}`);
+        parts.push(`${op.label ?? "later"}: ${inner(op.ops)}`);
         break;
       case "may":
-        parts.push(`${op.chooser === "opponent" ? "your opponent" : "you"} may: ${describeScript(op.ops)}`);
+        parts.push(`${op.chooser === "opponent" ? "your opponent" : "you"} may: ${inner(op.ops)}`);
         break;
       case "chooseMode":
-        parts.push(`choose one — ${op.modes.map((mode) => describeScript(mode.ops)).join(" / ")}`);
+        parts.push(`choose one — ${op.modes.map((mode) => inner(mode.ops)).join(" / ")}`);
         break;
       case "note":
         break;

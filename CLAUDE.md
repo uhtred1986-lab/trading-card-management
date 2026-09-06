@@ -177,8 +177,13 @@ the same style.
   predicate, never an edit to one), `taps.whyByCard`, `view.you.choices` for a search of a
   hidden zone, `prompt.min/max/step/cost`, `owner` on the `skill` beat — and on the web board the
   card action sheet, the refusal line, the search sheet, the step chip and the narration ribbon.
-  `src/lib/arena/wording.ts` is the only place a `Requirement` becomes a sentence and
-  `src/lib/arena/narration.ts` the only place a beat does; both are pure and under `npm test`.
+  `src/lib/arena/wording.ts` is the only place a `Requirement` becomes a sentence,
+  `src/lib/arena/narration.ts` the only place a beat does, and `src/lib/arena/effects.ts` the only
+  place a rule in force (a continuous effect or a [Permanent]'s static) becomes a label and a
+  duration — the card's `effects`/`permanents`, the `effect`/`effectEnded` beats and the side's
+  `rules` all read from it. All three are pure and under `npm test`.
+  `docs/arena-compiler-workflow-review.md` is the review that added the effect and [Permanent]
+  surfaces, with the fixes it found; read it before changing what a card says about itself.
   **Skins** (`docs/arena-skin-spec.md`): the whole app has two, `anime` (default) and `night`,
   chosen by the `arenaSkin` cookie (Settings → Look, or the board's toggle) and applied as
   `data-skin` on `<html>` by the root layout; `?skin=` on a game page pins one board for one load.

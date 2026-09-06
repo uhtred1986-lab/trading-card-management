@@ -199,5 +199,7 @@ private fun Beat.cards(): List<String> = when (this) {
     is Beat.Block -> listOf(guard, by)
     is Beat.Clash -> listOf(attacker, guard)
     is Beat.Damage -> cards
+    is Beat.Effect -> listOfNotNull(card, source)
+    is Beat.EffectEnded -> listOfNotNull(card, source)
     is Beat.Phase, is Beat.Negated, is Beat.Say, is Beat.Over -> emptyList()
 }

@@ -149,6 +149,10 @@ input[type="number"] {
 .arena-power-win {
   filter: drop-shadow(0 0 12px color-mix(in srgb, var(--color-ki-400) 50%, transparent));
 }
+/* A [Permanent] in force: the chip glows the way a legal card's ring does, quietly. */
+.arena-perm-on {
+  box-shadow: 0 0 6px color-mix(in srgb, var(--color-ki-400) 70%, transparent);
+}
 .arena-tick-you {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-gain) 16%, transparent);
 }
@@ -373,6 +377,39 @@ input[type="number"] {
     transform: none;
   }
 }
+/* A rule coming into force on a card: a pulse of ki, so the number changing has a moment. */
+@keyframes arena-surge {
+  0% {
+    filter: brightness(1);
+    transform: scale(1);
+  }
+  35% {
+    filter: brightness(1.6) drop-shadow(0 0 10px color-mix(in srgb, var(--color-ki-400) 80%, transparent));
+    transform: scale(1.06);
+  }
+  100% {
+    filter: brightness(1);
+    transform: scale(1);
+  }
+}
+.arena-surge {
+  animation: arena-surge 500ms ease-out;
+}
+/* The same rule wearing off: a brief dim, the card settling back. */
+@keyframes arena-settle {
+  0% {
+    filter: brightness(1);
+  }
+  40% {
+    filter: brightness(0.7) saturate(0.7);
+  }
+  100% {
+    filter: brightness(1);
+  }
+}
+.arena-settle {
+  animation: arena-settle 400ms ease-out;
+}
 .arena-pop {
   animation: arena-pop 220ms cubic-bezier(0.2, 1.2, 0.4, 1) backwards;
 }
@@ -556,6 +593,12 @@ html[data-skin="anime"] body::before {
   font-family: var(--font-impact), var(--font-mono, ui-monospace), monospace;
   font-style: italic;
   font-weight: 800;
+}
+[data-skin="anime"] .arena-power.arena-power-up {
+  color: #7dffa1;
+}
+[data-skin="anime"] .arena-power.arena-power-down {
+  color: #ff7b72;
 }
 [data-skin="anime"] .arena-cost.bg-loss {
   background: radial-gradient(circle at 35% 30%, #ff9d9d, #d8322f 70%);
