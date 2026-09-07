@@ -21,9 +21,9 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import type { Db } from "@/db";
 import { FAST_MODEL, MODEL, anthropic, hasAnthropic, recordRun } from "@/lib/ai/client";
-import { validateProgram, type EngineContext, type GameState, type LegalAction, type Op, type PlayerId } from "../engine";
-import { def } from "../engine/state";
-import { decklistText, movesText, stateText } from "./view";
+import { comboPowerOf, face, other, powerOf, validateProgram, type EngineContext, type GameState, type LegalAction, type Op, type PlayerId } from "../engine";
+import { def, has } from "../engine/state";
+import { decklistText, money, movesText, stateText } from "./view";
 
 export type Tier = "sparring" | "tournament";
 
@@ -46,6 +46,9 @@ Attacking: switch an active card to Rest Mode to attack the opposing Leader, the
 Winning: your opponent loses when their life or their deck runs out.
 
 What matters, roughly in order: do not let your life run out; trade up in power; keep energy of the colours you still need; a card in hand that you cannot pay for is worth less than the energy it would have been; life in the Drop is gone, life in hand is a card.
+
+Combos, which is where a hand is usually thrown away: both players may add Combo Power, but never at the same moment. The Offense Step comes first and is the attacker's; the Defense Step follows and is the defender's. So combo power you add while attacking is shown to the defender before they answer, and they answer last — they can out-bid it or simply decline, and either way you are a card down for the turn they attack you. Combo on offense only when the extra power settles something they cannot answer cheaply: you are attacking a Battle Card and the number gets you past its printed power, or the comboed card's own text pays you for it. Otherwise pass and keep the card.
+On defense you already know what the attack is worth, so the question is only whether this hit is worth paying for. Add the least that holds — enough to beat the attack outright, not one card more — and only when what you save is worth more than the cards you spend. Ties go to the attacker, so matching the number is not enough. Early in the game, with life to spare, taking the hit is usually the cheaper play: a lost life card comes back to your hand, and a hand emptied on turn 3 is not there on turn 8. Late, or when the hit would be lethal or [Critical], pay whatever it takes.
 
 The engine enforces every rule. You will be given a numbered list of the only moves that are currently legal. Answer with one of those numbers.`;
 
@@ -138,7 +141,11 @@ function freeChoice(ctx: EngineContext, s: GameState, legal: LegalAction[], p: P
 /** Tournament sends the decisions that shape a turn to the stronger model. */
 function modelFor(tier: Tier, s: GameState): { model: string; effort?: "low" | "medium" } {
   if (tier === "sparring") return { model: FAST_MODEL };
-  const heavy = s.prompt.kind === "main" || s.prompt.kind === "counter" || s.prompt.kind === "blocker";
+  // `combo` joined the list after a Tournament game in which Claude spent
+  // three cards on a turn-3 attack it was already winning: how much of a hand
+  // to spend on one battle is exactly the kind of judgement the tier is for,
+  // and it had been going to the fast model every time.
+  const heavy = s.prompt.kind === "main" || s.prompt.kind === "counter" || s.prompt.kind === "blocker" || s.prompt.kind === "combo";
   return heavy ? { model: MODEL, effort: "medium" } : { model: FAST_MODEL };
 }
 
@@ -151,7 +158,7 @@ export async function chooseMove(db: Db, ctx: EngineContext, s: GameState, legal
   if (!hasAnthropic()) return { index: 0, say: null, spend: null, how: "no API key — took the first legal move" };
 
   const { model, effort } = modelFor(tier, s);
-  const question = `${stateText(ctx, s, p)}\n\nYou are being asked: ${promptQuestion(s)}\n\nLEGAL MOVES:\n${movesText(legal)}\n\nAnswer with the number of your move and at most one short sentence.`;
+  const question = `${stateText(ctx, s, p)}\n\nYou are being asked: ${promptQuestion(ctx, s, p)}\n\nLEGAL MOVES:\n${movesText(legal)}\n\nAnswer with the number of your move and at most one short sentence.`;
 
   const res = await anthropic().messages.parse({
     model,
@@ -176,12 +183,53 @@ export async function chooseMove(db: Db, ctx: EngineContext, s: GameState, legal
   };
 }
 
-function promptQuestion(s: GameState): string {
+/**
+ * The combo question, with the arithmetic already done.
+ *
+ * "Whether to add combo power to this battle" is not a question anyone can
+ * answer well: it says nothing about which side of the battle you are on, what
+ * the numbers already are, or what would have to change for the answer to
+ * matter. Asked that way, Claude emptied three cards into its own turn-3
+ * attack on a Leader it was already beating. So the question states the totals,
+ * what is actually at stake if the attack lands, and the exact number that
+ * would change the outcome — the doctrine for weighing that against the cards
+ * is in the cached primer.
+ */
+function comboQuestion(ctx: EngineContext, s: GameState, p: PlayerId): string {
+  const b = s.battle;
+  if (!b) return "whether to add combo power to this battle";
+  const atkP = s.turnPlayer;
+  const defP = other(atkP);
+  const total = (who: PlayerId, card: string) => powerOf(ctx, s, card) + s.players[who].combo.reduce((n, id) => n + comboPowerOf(ctx, s, id), 0);
+  const attack = total(atkP, b.attacker);
+  const guard = total(defP, b.guard);
+  const attacking = p === atkP;
+  const guardIsLeader = b.guard === s.players[defP].leader;
+  // 8-4: the attack lands on a tie, so the defender has to beat it outright.
+  const lands = attack >= guard;
+  const stake = guardIsLeader
+    ? `${defP === p ? "you lose" : "they lose"} 1 life${has(ctx, s, b.attacker, "Critical") ? " to the Drop ([Critical])" : ""}`
+    : `${face(ctx, s, b.guard).name} is KO'd`;
+  const advice = attacking
+    ? lands
+      ? `you are already winning this exchange — they would need ${money(attack + 1)} to hold it, and they answer after you, so every point you add now is one they can see before deciding`
+      : `you are ${money(guard - attack)} short, and anything you add they can still answer afterwards`
+    : lands
+      ? `to hold it you need to beat ${money(attack)} outright — ${money(attack + 1 - guard)} more than you have — and nothing you add beyond that does anything`
+      : "you are already holding it; anything more is spent for nothing";
+  return [
+    `whether to add combo power in the ${attacking ? "Offense" : "Defense"} Step`,
+    `${face(ctx, s, b.attacker).name} attacks ${face(ctx, s, b.guard).name}: ${money(attack)} against ${money(guard)}, so as it stands ${lands ? `the attack lands and ${stake}` : "it bounces off"}`,
+    advice,
+  ].join(". ");
+}
+
+function promptQuestion(ctx: EngineContext, s: GameState, p: PlayerId): string {
   switch (s.prompt.kind) {
     case "main":
       return "what to do in your Main Phase";
     case "combo":
-      return "whether to add combo power to this battle";
+      return comboQuestion(ctx, s, p);
     case "blocker":
       return "whether to block this attack";
     case "counter":

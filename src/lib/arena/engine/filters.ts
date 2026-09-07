@@ -6,7 +6,7 @@
  * lets the engine offer the right candidates for Evolve, Union, Z-Stack,
  * Z-Awaken and Swap without a compiled script.
  */
-import { baseType, hasCharacter, hasKeyword, hasTrait, keywordOf, keywordsOf, skillsOf } from "./cards";
+import { baseType, characterIncludes, hasCharacter, hasKeyword, hasTrait, keywordOf, keywordsOf, nameIncludes, skillsOf } from "./cards";
 import type { CardDef, Color, KeywordSkill, SkillKindPrefix } from "./types";
 
 export interface CardFilter {
@@ -16,6 +16,26 @@ export interface CardFilter {
   multiColor: boolean;
   characters: string[];
   notCharacters: string[];
+  /**
+   * "≪Goku's Lineage≫ with **<Son Goku> in its character name**", "cards with
+   * **<GT> in their character names**" — *part* of a character name rather
+   * than the whole one.
+   *
+   * A separate list because 2-10-1-1 makes the two readings genuinely
+   * different: a bare <Son Goku> is not <Son Goku : GT>, so exact is right for
+   * the bare token and wrong for this phrase. Reading this wording as the bare
+   * token left BT4-096 asking whether "Son Goku: GT" was exactly "Son Goku",
+   * finding it was not, and quietly granting neither the +15000 nor the
+   * [Double Strike] — one of 162 cards in the original game that print one of
+   * these phrases and, until now, matched nothing at all.
+   *
+   * It is answered in the same `some` as `characters`, not as a second
+   * requirement: "<Pan> card or card with <GT> in its character name"
+   * (BT25-068) is one choice with two ways to satisfy it.
+   */
+  charactersIncluding: string[];
+  /** "…without <Turles> in their character names" (BT24-099). */
+  notCharactersIncluding: string[];
   traits: string[];
   notTraits: string[];
   names: string[];
@@ -25,6 +45,14 @@ export interface CardFilter {
    * read as an ordinary name it required the very card it excludes.
    */
   notNames: string[];
+  /**
+   * The same measure against the printed card name: "{SS4} in its card name"
+   * (EX23-49), "card whose card name includes {Baby}" (BT3-017). Shares the
+   * `some` with `names` for the same reason `charactersIncluding` shares one
+   * with `characters`.
+   */
+  namesIncluding: string[];
+  notNamesIncluding: string[];
   type: "LEADER" | "BATTLE" | "EXTRA" | "UNISON" | null;
   /** "Non-Leader card under this card" — the type it must *not* be. */
   notType: "LEADER" | "BATTLE" | "EXTRA" | "UNISON" | null;
@@ -114,7 +142,7 @@ const titleCase = (s: string) => s.replace(/\b[a-z]/g, (ch) => ch.toUpperCase())
 const TOKEN_STOP = new Set(["of", "your", "their", "the", "opponent's", "opponents", "up", "to", "and", "or", "all", "each", "other", "another"]);
 
 export function parseFilter(text: string): CardFilter {
-  const f: CardFilter = { colors: [], notColors: [], monoColor: false, multiColor: false, characters: [], notCharacters: [], traits: [], notTraits: [], names: [], notNames: [], notKeywords: [], keywords: [], skillKind: null, unreadable: false, noKeywords: false, type: null, notType: null, faceUp: false, token: false, notToken: false, costMin: null, costMax: null, powerMin: null, powerMax: null, powerRel: null, z: null };
+  const f: CardFilter = { colors: [], notColors: [], monoColor: false, multiColor: false, characters: [], notCharacters: [], charactersIncluding: [], notCharactersIncluding: [], traits: [], notTraits: [], names: [], notNames: [], namesIncluding: [], notNamesIncluding: [], notKeywords: [], keywords: [], skillKind: null, unreadable: false, noKeywords: false, type: null, notType: null, faceUp: false, token: false, notToken: false, costMin: null, costMax: null, powerMin: null, powerMax: null, powerRel: null, z: null };
   let t = text.replace(/&lt;/g, "<").replace(/&gt;/g, ">");
   // "Choose up to 1 Battle Card **other than** <Grand Supreme Kai>" (SD15-01,
   // in the owner's own decks) says which card is *excluded*. Read by the loops
@@ -134,6 +162,27 @@ export function parseFilter(text: string): CardFilter {
     // and removing the whole phrase would take a following "in your Battle
     // Area" with it on some wordings.
     return " other than ";
+  });
+  // "…with <Son Goku> in its character name", "…{SS4} in its card name",
+  // "…without <Turles> in their character names". Read before the exact loops
+  // below and taken out of the text, so a token the phrase governs cannot also
+  // be claimed as a whole name. See `charactersIncluding`.
+  t = t.replace(/(without\s+|non-)?(<[^>]+>|\{[^}]+\})\s+in (?:its|their) (character|card) names?/gi, (_whole, neg: string | undefined, token: string, which: string) => {
+    const value = token.slice(1, -1).trim();
+    const character = which.toLowerCase() === "character";
+    if (neg) (character ? f.notCharactersIncluding : f.notNamesIncluding).push(value);
+    else (character ? f.charactersIncluding : f.namesIncluding).push(value);
+    return " ";
+  });
+  // The same measure with the phrase in front of the name: "card whose card
+  // name includes {Baby}" (BT3-017), "a card name that includes {Supreme Kai}"
+  // (BT3-037). Not "character names **including** <SH>" (EX24-25), which
+  // counts names rather than looking inside one — hence `includes?` and not
+  // the participle.
+  t = t.replace(/(character|card) names? (?:that |which )?includes?\s+(<[^>]+>|\{[^}]+\})/gi, (_whole, which: string, token: string) => {
+    const value = token.slice(1, -1).trim();
+    (which.toLowerCase() === "character" ? f.charactersIncluding : f.namesIncluding).push(value);
+    return " ";
   });
   for (const m of t.matchAll(/(non-)?<([^>]+)>/g)) (m[1] ? f.notCharacters : f.characters).push(m[2].trim());
   for (const m of t.matchAll(/(non-)?≪([^≫]+)≫/g)) (m[1] ? f.notTraits : f.traits).push(m[2].trim());
@@ -321,12 +370,21 @@ export function matches(d: CardDef, f: CardFilter): boolean {
   if (f.noKeywords && keywordsOf(d).length) return false;
   if (f.monoColor && d.colors.length !== 1) return false;
   if (f.multiColor && d.colors.length < 2) return false;
-  if (f.characters.length && !f.characters.some((c) => hasCharacter(d, c))) return false;
+  // A name asked for whole and a name asked for in part are two ways to
+  // satisfy one choice, so each pair shares a single test rather than becoming
+  // two requirements. `?? []` because a program stored in `card_scripts`, or
+  // one a referee ruling put in a game's action log, carries the filter shape
+  // of the day it was written.
+  const partChars = f.charactersIncluding ?? [];
+  const partNames = f.namesIncluding ?? [];
+  if ((f.characters.length || partChars.length) && !f.characters.some((c) => hasCharacter(d, c)) && !partChars.some((c) => characterIncludes(d, c))) return false;
   if (f.notCharacters.some((c) => hasCharacter(d, c))) return false;
+  if ((f.notCharactersIncluding ?? []).some((c) => characterIncludes(d, c))) return false;
   if (f.traits.length && !f.traits.some((c) => hasTrait(d, c))) return false;
   if (f.notTraits.some((c) => hasTrait(d, c))) return false;
-  if (f.names.length && !f.names.some((n) => n.toLowerCase() === d.name.toLowerCase())) return false;
+  if ((f.names.length || partNames.length) && !f.names.some((n) => n.toLowerCase() === d.name.toLowerCase()) && !partNames.some((n) => nameIncludes(d, n))) return false;
   if (f.notNames.some((n) => n.toLowerCase() === d.name.toLowerCase())) return false;
+  if ((f.notNamesIncluding ?? []).some((n) => nameIncludes(d, n))) return false;
   const cost = typeof d.energyCost === "number" ? d.energyCost : null;
   if (f.costMin != null && (cost == null || cost < f.costMin)) return false;
   if (f.costMax != null && (cost == null || cost > f.costMax)) return false;

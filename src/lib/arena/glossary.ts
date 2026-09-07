@@ -171,7 +171,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     group: "play",
     meaning: "Return this Battle Card to your hand and play a named Battle Card with an energy cost of X from your hand in its place.",
     engine:
-      "Offered from the Battle Area, and the swap happens. The choice is filtered by energy cost only — a [Swap] that names a character offers every cost-X Battle Card in hand, not just that character's.",
+      "Offered from the Battle Area, and the swap happens. 22-22-3 is honoured: with no cost-X Battle Card in hand it is refused before it is offered, rather than taking its orbs and then finding nothing to choose. The choice is still filtered by energy cost only — a [Swap] that names a character offers every cost-X Battle Card in hand, not just that character's.",
     support: "partial",
   },
   Arrival: {
@@ -649,6 +649,10 @@ export const READING_RULES: ReadingRule[] = [
   {
     title: "The target grammar",
     body: "Descriptions such as “Blue <Baby> with an energy cost of 4 or less” or “yellow non-≪Great Ape≫ card” are read into a filter: colours, characters, traits, names, card type, energy cost, and keywords a card must or must not have. That is what lets [Evolve], [Union], [Swap], [Z-Stack] and [Z-Awaken] offer the right cards with no compiled program at all. A phrase the parser drops widens a selection rather than narrowing it, so it is written to refuse rather than to guess.",
+  },
+  {
+    title: "A name in whole, and a name in part",
+    body: "A name in brackets is matched whole. 2-10-1-1 says so outright: <Son Goku> and <Son Goku : Childhood> are different character names however much text they share, so a card asking for one of them is answered exactly. But 162 cards in the original game ask a looser question — “≪Goku's Lineage≫ with <Son Goku> **in its character name**”, “cards with <GT> **in their character names**”, “{SS4} **in its card name**”, “a card name that **includes** {Baby}” — and that phrase is precisely what a card prints when it means every name the token appears inside. Only the phrase gets the loose reading; the bare token keeps the strict one. Read as the bare token, all 162 compiled cleanly and then matched nothing at all, which is how BT4-096 came to check its own <Son Goku: GT> leader for <Son Goku>, decide it was looking at someone else, and grant neither its +15000 nor its [Double Strike]. A name asked for in part and a name asked for whole are answered in the same breath rather than as two demands, because “<Pan> card or card with <GT> in its character name” is one choice with two ways to satisfy it; “without <Turles> in their character names” excludes instead. Three shapes deliberately stay outside it, being different measures rather than looser ones: “2 or more character names including <SH>” counts names, “shares a character name with this card” compares two cards, and “cards with different character names” asks for distinctness.",
   },
   {
     title: "Where a card is picked from",

@@ -14,9 +14,8 @@ import { eq } from "drizzle-orm";
 import type { Db } from "@/db";
 import { arenaGames } from "@/db/schema";
 import { describeAiError } from "@/lib/ai/client";
-import type { Action, PlayerId } from "../engine";
+import { areaOf, face, type Action, type Area, type PlayerId } from "../engine";
 import { applyToGame, loadGame, type LoadedGame } from "../games";
-import { appendBeats, type Beats, type NumberedBeat } from "../beats";
 import { noteUnreadText, recordDecision } from "./debug";
 import { stateText } from "./view";
 import { chooseMove, ruleOnCard, type Tier } from "./opponent";
@@ -55,6 +54,31 @@ async function addSpend(db: Db, gameId: number, spend: { model: string; input: n
     })
     .where(eq(arenaGames.id, gameId));
   return micros;
+}
+
+/** Piles the human cannot see, so a choice made out of one is a search (3-1-3). */
+const HIDDEN_PILES = new Set<Area>(["deck", "hand", "warp", "zDeck"]);
+
+/**
+ * What Claude was shown in a search, and what it took — for a `debug` game
+ * only.
+ *
+ * 3-1-3 keeps the opponent's search private, and in an ordinary game it stays
+ * that way. But a solo game against Claude is also something to *audit*: "it
+ * searched twice and I have no way to tell the turn was legitimate" is a fair
+ * complaint, and the answer is to disclose it where the owner asked for it —
+ * in the log of a game they turned debug on for. Everything here is already in
+ * `arena_decisions`; this only puts it where it can be read during the game.
+ */
+function searchAside(game: LoadedGame, chosen: { action: Action; label: string }): string | null {
+  const prompt = game.state.prompt;
+  if (prompt.kind !== "chooseCards") return null;
+  const cands = prompt.choice.candidates;
+  if (cands.length < 2) return null;
+  if (!cands.some((id) => HIDDEN_PILES.has(areaOf(game.state, id) ?? "deck") || (areaOf(game.state, id) === "life" && !game.state.cards[id]?.faceUp))) return null;
+  const shown = cands.map((id) => face(game.ctx, game.state, id).name).join(", ");
+  const took = chosen.action.type === "choose" ? chosen.action.cards.map((id) => face(game.ctx, game.state, id).name).join(", ") || "nothing" : chosen.label;
+  return `[debug] ${game.state.players[prompt.player].name} looked at: ${shown} — took ${took}`;
 }
 
 export interface AdvanceResult {
@@ -108,13 +132,15 @@ export async function advance(db: Db, gameId: number, maxSteps = 80): Promise<Ad
         spend: choice.spend ? { ...choice.spend, micros } : null,
         latencyMs: choice.spend ? Date.now() - started : null,
       });
-      await applyToGame(db, gameId, chosen.action as Action);
-      if (choice.say) said.push(`${game.state.players[ai].name}: “${choice.say}”`);
+      // Written with the move it explains, not collected for the end of the
+      // batch — see `applyToGame`.
+      const line = choice.say ? `${game.state.players[ai].name}: “${choice.say}”` : null;
+      await applyToGame(db, gameId, chosen.action as Action, { say: line, aside: game.debug ? searchAside(game, chosen) : null });
+      if (line) said.push(line);
     } catch (err) {
       return { steps, said, error: describeAiError(err) };
     }
   }
-  if (said.length) await appendLog(db, gameId, said);
   return { steps, said, error: null };
 }
 
@@ -153,28 +179,8 @@ async function runReferee(db: Db, game: LoadedGame, gameId: number): Promise<str
     latencyMs: ruling.spend ? Date.now() - started : null,
   });
 
-  await applyToGame(db, gameId, { type: "refereeRuling", player: req.master, ops: ruling.ops });
-  return `referee on ${req.cardName}: ${ruling.why}`;
+  const line = `referee on ${req.cardName}: ${ruling.why}`;
+  await applyToGame(db, gameId, { type: "refereeRuling", player: req.master, ops: ruling.ops }, { say: line });
+  return line;
 }
 
-/**
- * Claude's table talk, to the log and to the animation queue both.
- *
- * These land at the end of the batch rather than beside the move each was said
- * about, because that is when `advance` collects them — the same order the log
- * has always shown them in.
- */
-async function appendLog(db: Db, gameId: number, lines: string[]): Promise<void> {
-  const row = await db.query.arenaGames.findFirst({ where: eq(arenaGames.id, gameId) });
-  if (!row) return;
-  const prev = (row.beats as Beats | null) ?? null;
-  let n = prev?.seq ?? 0;
-  const said = lines.map((text): NumberedBeat => ({ t: "say", text, n: ++n }));
-  await db
-    .update(arenaGames)
-    .set({
-      log: [...((row.log as string[]) ?? []), ...lines].slice(-400),
-      beats: appendBeats(prev, { seq: n, list: said, art: {} }),
-    })
-    .where(eq(arenaGames.id, gameId));
-}
