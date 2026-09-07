@@ -169,7 +169,14 @@ export type Op =
   /** Cards leave a hand, chosen by its owner (20-7); `to: "warp"` for "sends 1 card from their hand to their Warp". */
   | { op: "discard"; n: Amount; side?: Side; to?: "warp" }
   | { op: "damage"; n: Amount; side?: Side }
-  | { op: "mill"; n: Amount; side?: Side }
+  /**
+   * `as` names the cards that went to the Drop, so a later clause can ask
+   * about them: "place up to 1 card from the top of your deck in the Drop
+   * Area. **If that card is red**, this card gains +5000 power" (BT2-001).
+   * They land face up, so this is a card both players have seen — the same
+   * footing as a `reveal`, which is why "that card" reads the two alike.
+   */
+  | { op: "mill"; n: Amount; side?: Side; as?: string }
   | { op: "addLife"; n: Amount; side?: Side }
   /** "Add cards from your life to your hand until you have N life" (21-3-2 wording, without damage). */
   | { op: "lifeDownTo"; n: number; side?: Side }
@@ -485,12 +492,23 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         break;
       }
 
-      case "mill":
+      case "mill": {
+        // What actually went, which is fewer than asked for on an empty deck.
+        // The name is bound either way: a clause asking about a card that was
+        // never there has to come out false, not match whatever was bound
+        // before it.
+        const milled: string[] = [];
         for (const p of sideOf(master, op.side)) {
           const n = amount(ctx, s, frame, op.n);
-          for (let i = 0; i < n && s.players[p].deck.length; i++) move(ctx, s, ev, s.players[p].deck[0], "drop", p, { reason: "effect", reveal: true });
+          for (let i = 0; i < n && s.players[p].deck.length; i++) {
+            const id = s.players[p].deck[0];
+            move(ctx, s, ev, id, "drop", p, { reason: "effect", reveal: true });
+            milled.push(id);
+          }
         }
+        if (op.as) frame.vars[op.as] = milled;
         break;
+      }
 
       case "addLife":
         for (const p of sideOf(master, op.side)) {
