@@ -1,5 +1,6 @@
 import { db } from "@/db";
-import { fail, ok } from "@/lib/arena/api";
+import { fail, ok, seatFor } from "@/lib/arena/api";
+import { isVersus, loadGame } from "@/lib/arena/games";
 import { advanceSession } from "@/lib/arena/session";
 
 export const dynamic = "force-dynamic";
@@ -18,7 +19,14 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   const id = Number((await params).id);
   if (!Number.isInteger(id)) return fail("bad_request", "game id must be a number");
 
-  const { snapshot, error } = await advanceSession(db, id);
+  const game = await loadGame(db, id);
+  if (!game) return fail("not_found", `no game ${id}`);
+  const seat = await seatFor(game);
+  if (isVersus(game.mode) && !seat) return fail("not_found", `no game ${id}`);
+
+  // In a 1 v 1 there is no Claude to advance; this only takes referee rulings,
+  // which belong to neither player and are safe for either to trigger.
+  const { snapshot, error } = await advanceSession(db, id, seat);
   if (!snapshot) return fail("not_found", `no game ${id}`);
   // An AI failure is not a lost game: the board is still valid and still
   // playable, so it comes back with the error beside it rather than instead.

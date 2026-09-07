@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
-import { arenaFeedback, cards as cardsTable } from "@/db/schema";
+import { arenaFeedback, arenaGames, cards as cardsTable } from "@/db/schema";
 import { setFeedbackStatus } from "../actions";
 
 export const dynamic = "force-dynamic";
@@ -32,6 +32,17 @@ export default async function FeedbackPage({ searchParams }: { searchParams: Pro
     .orderBy(desc(arenaFeedback.createdAt))
     .limit(100);
 
+  // Which of these games are still being played. A bug filed mid-game copies
+  // the position in, and the log and the move list below name cards from
+  // whichever hand the engine was asking — so in a 1 v 1 a live report would
+  // be a way of reading your opponent's hand off this page. They open once the
+  // game is over, which is when they are wanted anyway.
+  const gameIds = [...new Set(rows.map((r) => r.gameId).filter((x): x is number => !!x))];
+  const live = new Set<number>();
+  if (gameIds.length)
+    for (const g of await db.select({ id: arenaGames.id, status: arenaGames.status }).from(arenaGames).where(inArray(arenaGames.id, gameIds)))
+      if (g.status === "playing") live.add(g.id);
+
   const ids = [...new Set(rows.map((r) => r.cardId).filter((x): x is string => !!x))];
   const names = new Map<string, string>();
   if (ids.length) for (const c of await db.select({ id: cardsTable.id, name: cardsTable.name }).from(cardsTable).where(inArray(cardsTable.id, ids))) names.set(c.id, c.name);
@@ -51,8 +62,9 @@ export default async function FeedbackPage({ searchParams }: { searchParams: Pro
         </Link>
       </div>
       <p className="text-sm text-space-300">
-        Everything said from inside the arena, in one place: bugs reported from the board, cards explained on the backlog, and rules set by hand. A bug carries the
-        whole game with it — the state, every move made, and what was on offer — so it can be replayed exactly as you saw it.
+        Everything said from inside the arena, in one place: bugs reported from the board, cards explained on the backlog, and rules set by hand. Either player in
+        a 1 v 1 can file one, and it says who did. A bug carries the whole game with it — the state, every move made, and what was on offer — so it can be replayed
+        exactly as it was seen.
       </p>
 
       <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -96,6 +108,7 @@ export default async function FeedbackPage({ searchParams }: { searchParams: Pro
                 ) : (
                   <span>{KINDS[r.kind]?.hint}</span>
                 )}
+                {r.reportedBy && <span className="text-space-200">{r.reportedBy}</span>}
                 <span>{r.createdAt.toISOString().slice(0, 16).replace("T", " ")}</span>
               </p>
 
@@ -106,7 +119,11 @@ export default async function FeedbackPage({ searchParams }: { searchParams: Pro
                 </p>
               )}
 
-              {r.kind === "bug" && (
+              {r.kind === "bug" && r.gameId && live.has(r.gameId) && (
+                <p className="mt-2 text-[11px] text-space-500">The game is still being played — the log and what was on offer open when it ends.</p>
+              )}
+
+              {r.kind === "bug" && !(r.gameId && live.has(r.gameId)) && (
               <details className="mt-2 text-[11px]">
                 <summary className="cursor-pointer text-space-400">the log, and what was on offer</summary>
                 <ol className="mt-1 space-y-0.5 font-mono text-[10px] text-space-400">

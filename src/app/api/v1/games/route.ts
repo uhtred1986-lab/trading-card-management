@@ -1,13 +1,15 @@
 import { db } from "@/db";
 import { fail, newGameSchema, ok, readJson } from "@/lib/arena/api";
 import { listGames, startGame } from "@/lib/arena/games";
+import { currentUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 export async function GET(req: Request) {
   const limit = Number(new URL(req.url).searchParams.get("limit") ?? 20);
-  return ok({ games: await listGames(db, Number.isFinite(limit) ? Math.min(Math.max(limit, 1), 100) : 20) });
+  // A 1 v 1 is listed only to the two people in it, same as on the web.
+  return ok({ games: await listGames(db, Number.isFinite(limit) ? Math.min(Math.max(limit, 1), 100) : 20, await currentUser()) });
 }
 
 export async function POST(req: Request) {

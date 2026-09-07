@@ -6,7 +6,8 @@
     "status": "over",
     "turn": 3,
     "p1Name": "You",
-    "p2Name": "Claude"
+    "p2Name": "Claude",
+    "you": "p1"
   },
   "view": {
     "you": {

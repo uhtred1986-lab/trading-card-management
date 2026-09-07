@@ -2,7 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/db";
 import { decisionsFor } from "@/lib/arena/ai/debug";
-import { loadGame } from "@/lib/arena/games";
+import { isVersus, loadGame, seatOf } from "@/lib/arena/games";
+import { currentUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,9 @@ export default async function ArenaDebugPage({ params }: { params: Promise<{ id:
   if (!Number.isInteger(id)) notFound();
   const [game, rows] = await Promise.all([loadGame(db, id), decisionsFor(db, id)]);
   if (!game) notFound();
+  // This page prints the exact prompt the server was given, which for a
+  // referee ruling carries the position. Same seat rule as the board.
+  if (isVersus(game.mode) && !seatOf(game, await currentUser())) notFound();
 
   const paid = rows.filter((r) => r.costMicros > 0 || r.inputTokens > 0);
   const free = rows.length - paid.length;

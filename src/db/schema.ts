@@ -632,8 +632,18 @@ export const arenaGames = pgTable(
     /** Deck names are copied in so a finished game still reads right if a deck is renamed. */
     p1Name: text("p1_name").notNull(),
     p2Name: text("p2_name").notNull(),
+    /**
+     * The `app_users.username` sitting in each seat, or null. A plain stamp
+     * rather than a foreign key, exactly like `owned_cards.owner`: a login can
+     * be deleted without taking a finished game's history with it.
+     *
+     * Only a `versus` game fills both. Every other mode leaves them null and
+     * stays readable by any login, as it always was.
+     */
+    p1User: text("p1_user"),
+    p2User: text("p2_user"),
     seed: integer("seed").notNull(),
-    /** hotseat | sparring | tournament */
+    /** hotseat | sparring | tournament | versus */
     mode: text("mode").notNull().default("hotseat"),
     /** playing | over | abandoned */
     status: text("status").notNull().default("playing"),
@@ -675,10 +685,49 @@ export const arenaGames = pgTable(
     /** Claude's review of the finished game, in the deck-summary pattern. */
     review: text("review"),
     reviewAt: timestamp("review_at", { withTimezone: true }),
+    /**
+     * Bumped by every `applyToGame`, which writes `WHERE version = <what it
+     * read>`. Two people on two devices can legitimately both be poised to
+     * act — a blocker or counter prompt belongs to the player whose turn it is
+     * not — so the read-modify-write this row has always been now needs a
+     * guard. A refused write means the board moved on, and the caller re-reads
+     * it rather than clobbering what it missed.
+     */
+    version: integer("version").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("arena_games_status_idx").on(t.status)],
+);
+
+/**
+ * A 1 v 1 invitation, from "I want to play" until both people have chosen a
+ * deck.
+ *
+ * It is a separate table rather than a half-built `arena_games` row on
+ * purpose: a game *is* its seed plus its actions, and `state` is notNull
+ * because that invariant is worth more than saving a table. A match holds the
+ * two choices; the moment the second one arrives it calls `startGame` and
+ * points at what that returns.
+ */
+export const arenaMatches = pgTable(
+  "arena_matches",
+  {
+    id: serial("id").primaryKey(),
+    /** `app_users.username`, like the seats on `arena_games`. */
+    hostUser: text("host_user").notNull(),
+    hostDeckId: integer("host_deck_id").references(() => decks.id, { onDelete: "set null" }),
+    guestUser: text("guest_user"),
+    guestDeckId: integer("guest_deck_id").references(() => decks.id, { onDelete: "set null" }),
+    /** Carried through to the game the join creates. */
+    debug: boolean("debug").notNull().default(true),
+    gameId: integer("game_id").references(() => arenaGames.id, { onDelete: "set null" }),
+    /** open | started | cancelled */
+    status: text("status").notNull().default("open"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("arena_matches_status_idx").on(t.status, t.createdAt)],
 );
 
 /**
@@ -858,6 +907,8 @@ export const arenaFeedback = pgTable(
     kind: text("kind").notNull().default("bug"),
     /** What was said, in their words. */
     note: text("note").notNull(),
+    /** The `app_users.username` who said it; null when the app runs open. */
+    reportedBy: text("reported_by"),
     /** The card it is about, and which of its skills, when it is about one. */
     cardId: text("card_id"),
     skillIndex: integer("skill_index"),

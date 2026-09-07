@@ -12,8 +12,8 @@
 import { eq, inArray } from "drizzle-orm";
 import type { Db } from "@/db";
 import { arenaGames, cards as cardsTable } from "@/db/schema";
-import type { Action } from "./engine";
-import { applyToGame, clearBeats, loadGame, type LoadedGame } from "./games";
+import type { Action, PlayerId } from "./engine";
+import { applyToGame, clearBeatsForTurn, loadGame, type LoadedGame } from "./games";
 import { advance, aiPlayerOf } from "./ai/run";
 import { buildSnapshot, type Snapshot } from "./snapshot";
 import type { CardArt } from "./view";
@@ -34,15 +34,20 @@ export async function artForGame(db: Db, game: LoadedGame): Promise<Record<strin
 /**
  * For a caller that already holds the game — the board page also wants the
  * damage figures and the post-game review, which are not the board.
+ *
+ * `viewer` is whose eyes to draw it for. A 1 v 1 passes the asking login's
+ * seat, because the same game is drawn twice and each device must stay in its
+ * own chair; everything else leaves it off and `viewerFor` derives one exactly
+ * as it always has.
  */
-export async function snapshotOfGame(db: Db, game: LoadedGame): Promise<Snapshot> {
-  return buildSnapshot({ ...game, ai: aiPlayerOf(game), images: await artForGame(db, game) });
+export async function snapshotOfGame(db: Db, game: LoadedGame, viewer: PlayerId | null = null): Promise<Snapshot> {
+  return buildSnapshot({ ...game, ai: aiPlayerOf(game), viewer, images: await artForGame(db, game) });
 }
 
 /** The board as it stands. Null when there is no such game. */
-export async function snapshotOf(db: Db, gameId: number): Promise<Snapshot | null> {
+export async function snapshotOf(db: Db, gameId: number, viewer: PlayerId | null = null): Promise<Snapshot | null> {
   const game = await loadGame(db, gameId);
-  return game ? snapshotOfGame(db, game) : null;
+  return game ? snapshotOfGame(db, game, viewer) : null;
 }
 
 /**
@@ -50,16 +55,16 @@ export async function snapshotOf(db: Db, gameId: number): Promise<Snapshot | nul
  * Claude. The opponent's turn is `advanceSession`, on its own request, so a
  * client can start animating your own move immediately.
  */
-export async function applyAction(db: Db, gameId: number, action: Action): Promise<Snapshot> {
-  await clearBeats(db, gameId);
+export async function applyAction(db: Db, gameId: number, action: Action, viewer: PlayerId | null = null): Promise<Snapshot> {
+  await clearBeatsForTurn(db, gameId);
   const game = await applyToGame(db, gameId, action);
-  return snapshotOfGame(db, game);
+  return snapshotOfGame(db, game, viewer);
 }
 
 /** Take every decision that is not yours — Claude's moves, and any ruling. */
-export async function advanceSession(db: Db, gameId: number): Promise<{ snapshot: Snapshot | null; error: string | null }> {
+export async function advanceSession(db: Db, gameId: number, viewer: PlayerId | null = null): Promise<{ snapshot: Snapshot | null; error: string | null }> {
   const ran = await advance(db, gameId);
-  return { snapshot: await snapshotOf(db, gameId), error: ran.error };
+  return { snapshot: await snapshotOf(db, gameId, viewer), error: ran.error };
 }
 
 /**
@@ -70,14 +75,14 @@ export async function advanceSession(db: Db, gameId: number): Promise<{ snapshot
  * is how Claude's charge, plays and attack arrive *as they are decided* rather
  * than as one jump at the end of a minute of thinking.
  */
-export async function waitForBeats(db: Db, gameId: number, sinceBeat: number, timeoutMs = 25_000): Promise<Snapshot | null> {
+export async function waitForBeats(db: Db, gameId: number, sinceBeat: number, timeoutMs = 25_000, viewer: PlayerId | null = null): Promise<Snapshot | null> {
   const deadline = Date.now() + timeoutMs;
   const interval = 400;
   for (;;) {
     const [row] = await db.select({ beats: arenaGames.beats }).from(arenaGames).where(eq(arenaGames.id, gameId)).limit(1);
     if (!row) return null;
     const seq = (row.beats as { seq?: number } | null)?.seq ?? 0;
-    if (seq > sinceBeat) return snapshotOf(db, gameId);
+    if (seq > sinceBeat) return snapshotOf(db, gameId, viewer);
     if (Date.now() >= deadline) return null;
     await new Promise((r) => setTimeout(r, Math.min(interval, Math.max(0, deadline - Date.now()))));
   }
