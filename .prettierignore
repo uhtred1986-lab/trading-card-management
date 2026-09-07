@@ -1,0 +1,27 @@
+# Prettier does not read .gitignore, so generated and byte-compared files are
+# listed here by hand. Formatting anything below is at best noise and at worst
+# a broken build.
+
+# Generated output.
+.next/
+out/
+build/
+android/build/
+android/*/build/
+android/.gradle/
+
+# drizzle-kit owns these: the migration SQL and the snapshot JSON it diffs
+# against. Reformatting a snapshot is how you get a migration that regenerates
+# itself (see `npm run db:generate`).
+drizzle/
+
+# `npm test` compares these byte for byte against
+# `JSON.stringify(snapshot, null, 2) + "\n"` — that is the whole point of them,
+# and it is how a change to the shape clients receive gets noticed. Prettier
+# would rewrite all nine and the suite would fail until `npm run contract:emit`
+# put them back, which the next prettier run would undo again.
+contract/fixtures/
+
+# The extracted rule text is a verbatim copy of Bandai's manual; the arena
+# engine cites section numbers into it by line.
+docs/rules/
