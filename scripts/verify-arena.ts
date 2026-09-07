@@ -1286,9 +1286,72 @@ function assertConsistentAfterDrop(s: GameState) {
   assert.equal((one("[Activate: Main] If there are no cards in your opponent's combo area, draw 1 card.").ops[0] as { cond: { atMost?: number } }).cond.atMost, 0);
 
   // Discarding written the long way round, and life written as a count.
-  // 20-16: "you may" wraps it in the offer, so the discard is one level down.
-  assert.deepEqual(ops("[Activate: Main] You may place 1 card from your hand in the drop area."), ["may"]);
+  // 20-16: an optional one is the choice itself, so that declining and having
+  // nothing to give come to the same answer; a mandatory one is the op.
+  assert.deepEqual(ops("[Activate: Main] You may place 1 card from your hand in the drop area."), ["choose", "if"]);
   assert.deepEqual(ops("[Activate: Main] Place 1 card from your hand in the drop area."), ["discard"]);
+  // BT1-077, BT1-078, BT3-054: the optional price and what it buys, in one
+  // branch. Without the "up to" the player would have to pay; without the
+  // branch, an empty hand would buy the rest of the skill for nothing.
+  const bargain = one(
+    "[Counter: Attack] Negate the attack. Then, you may place 1 card from your hand in the Drop Area. If you do so, draw 1 card.",
+  );
+  assert.deepEqual(bargain.unsupported, []);
+  assert.deepEqual(bargain.ops, [
+    { op: "negateAttack" },
+    { op: "choose", sel: { side: "you", area: "hand", count: 1, upTo: true }, as: "cost", reason: "you may place 1 card from your hand in the Drop Area" },
+    {
+      op: "if",
+      cond: { kind: "chose", var: "cost" },
+      then: [
+        { op: "moveTo", target: { var: "cost" }, to: "drop" },
+        { op: "draw", n: 1 },
+      ],
+    },
+  ]);
+  // BT3-103: the price is paid at the end of the battle, so what hangs on it
+  // happens then too. Left outside the delay, the condition was asked before
+  // the delayed program had bound anything and the second half never ran.
+  const later = one(
+    "[Auto] You may place 1 card from your hand in the Drop Area at the end of the battle. If you do so, switch this card to Active Mode."
+  );
+  assert.deepEqual(later.unsupported, []);
+  const wait = later.ops[0] as { op: string; at: string; ops: { op: string; then?: { op: string }[] }[] };
+  assert.deepEqual([wait.op, wait.at], ["delay", "battleEnd"]);
+  assert.deepEqual(
+    wait.ops.map((o) => o.op),
+    ["choose", "if"],
+  );
+  assert.deepEqual(
+    (wait.ops[1].then ?? []).map((o) => o.op),
+    ["moveTo", "switchMode"],
+  );
+  assert.equal(later.ops.length, 1);
+  // BT3-122: a price of 2 cards is not paid by giving one, and the hand keeps
+  // both until it is — otherwise an “up to” choice bought the effect at half
+  // price, and the older reading bought it outright with an empty hand.
+  const two = one(
+    "[Counter: Attack] Negate the attack. Then, you may place 2 cards from your hand in the Drop Area. If you do so, add this card to your hand.",
+  );
+  assert.deepEqual(two.unsupported, []);
+  assert.deepEqual((two.ops[1] as { sel: { count: number; upTo: boolean } }).sel.count, 2);
+  assert.deepEqual((two.ops[2] as { cond: unknown }).cond, { kind: "chose", var: "cost", atLeast: 2 });
+  // BT3-054 whole: the price keeps a name of its own, so the two choices the
+  // effect goes on to make still start at c0 and the price is not spent twice.
+  const buu = one(
+    "[Auto] When you play this card, you may place 1 card from your hand in the Drop Area. If you do so, choose 1 of your <Majin Buu> and 1 of your opponent's Battle Cards with an energy cost of 3 or less. Place the chosen opponent Battle Card under the chosen <Majin Buu>.",
+  );
+  assert.deepEqual(buu.unsupported, []);
+  assert.deepEqual(
+    buu.ops.map((o) => o.op),
+    ["choose", "if"],
+  );
+  const paid = buu.ops[1] as { cond: { kind: string; var: string }; then: { op: string; as?: string }[] };
+  assert.deepEqual(paid.cond, { kind: "chose", var: "cost" });
+  assert.deepEqual(
+    paid.then.map((o) => [o.op, o.as ?? null]),
+    [["moveTo", null], ["choose", "c0"], ["choose", "c1"], ["moveTo", null]],
+  );
   assert.deepEqual(ops("[Activate: Main] Add cards from your life to your hand until you have 6 life left."), ["lifeDownTo"]);
   assert.deepEqual(ops("[Activate: Main] Both players choose 1 card from their hand."), ["discard"]);
 

@@ -471,7 +471,7 @@ export function condHolds(ctx: GameContext, s: GameState, frame: ScriptFrame, c:
       return c.atLeast ? mine >= theirs : mine <= theirs;
     }
     case "chose":
-      return (frame.vars[c.var] ?? []).length > 0;
+      return (frame.vars[c.var] ?? []).length >= (c.atLeast ?? 1);
     // "If that card is a Battle Card": any of the cards the reveal or look
     // bound to the name. A name that bound nothing is not a match.
     case "varMatches":

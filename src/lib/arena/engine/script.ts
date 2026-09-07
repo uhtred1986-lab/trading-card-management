@@ -158,7 +158,13 @@ export type Cond =
   | { kind: "did"; what: "addToHand" | "play" | "negateAttack" | "negateLeaderAttack" | "ko" | "draw" | "may" }
   /** "If you don't" (20-16): the opposite of a condition. */
   | { kind: "not"; cond: Cond }
-  | { kind: "chose"; var: string }
+  /**
+   * "If you do so" (20-16): whether an earlier choice of this same skill was
+   * answered. `atLeast` is how many it had to take — a price of 2 cards is not
+   * paid by giving one, and an “up to” choice is the only way to decline, so
+   * the two readings have to be told apart. Defaults to 1.
+   */
+  | { kind: "chose"; var: string; atLeast?: number }
   /** "If that card is a Battle Card": what a reveal or a look turned up (20-11). */
   | { kind: "varMatches"; var: string; filter: CardFilter }
   /** Whose turn it is (7-1). "opponent" is "during your opponent's turn". */
