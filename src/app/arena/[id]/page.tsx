@@ -9,6 +9,7 @@ import type { GameReview } from "@/lib/arena/ai/review";
 import { isVersus, loadGame, modeLabel, seatOf } from "@/lib/arena/games";
 import { currentUser } from "@/lib/auth";
 import { snapshotOfGame } from "@/lib/arena/session";
+import { LIGHTING_COOKIE, lightingFrom } from "@/lib/arena/lighting";
 import { SKIN_COOKIE, skinFrom } from "@/lib/arena/skin";
 import { STAGING_COOKIE, stagingFrom } from "@/lib/arena/staging";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -48,6 +49,10 @@ export default async function ArenaGamePage({ params, searchParams }: { params: 
   // How a battle is staged, the same way: `?staging=takeover` pins one board
   // for one load, which is what a screenshot needs.
   const staging = stagingFrom(asked.staging ?? jar.get(STAGING_COOKIE)?.value);
+  // Turn lighting, read on the server for exactly the reason the skin is: the
+  // room is painted from the active leader's colour, and a palette read on the
+  // client would flash the default one on every load.
+  const lighting = lightingFrom(jar.get(LIGHTING_COOKIE)?.value);
   const review = game.review ? (JSON.parse(game.review) as GameReview) : null;
 
   return (
@@ -93,7 +98,7 @@ export default async function ArenaGamePage({ params, searchParams }: { params: 
 
       {/* The whole snapshot, because the board keeps watching the game while
           the server is deciding and replaces it with what it reads. */}
-      <ArenaStage gameId={id} snapshot={snap} skin={skin} staging={staging} />
+      <ArenaStage gameId={id} snapshot={snap} skin={skin} staging={staging} lighting={lighting} />
     </div>
   );
 }

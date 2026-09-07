@@ -16,6 +16,7 @@ import { BEAT_CAP, type Beat, type Beats } from "../src/lib/arena/beats";
 import { applyToGame, loadGame, startGame } from "../src/lib/arena/games";
 import { deckInputFor } from "../src/lib/arena/load";
 import { boardView, tappable, viewerOf, type BoardView } from "../src/lib/arena/view";
+import { waitingFor } from "../src/lib/arena/snapshot";
 
 /**
  * The cards a beat names. Each of them must have brought its own face along,
@@ -61,6 +62,27 @@ const battles = { seen: 0, counters: 0, triggers: 0 };
  * not in the fight. Those two are what a chain is numbered and attributed
  * from; either being wrong is a band that lies about who did what.
  */
+/**
+ * `docs/arena-hud-spec.md` §1.1: if the prompt belongs to the viewer and the
+ * viewer has at least one legal action, nothing on the board may state that
+ * the opponent is acting.
+ *
+ * The one-line fix in `ArenaStage` is worth half of nothing if a later
+ * refactor can silently undo it, and every "is the opponent acting" on the
+ * board now comes from `waitingFor`. So the invariant is asserted against the
+ * real card pool on every move of a whole game — which is where the odd prompt
+ * kinds live that a synthetic fixture never reaches.
+ */
+function auditWhoseMove(game: { status: string; state: Parameters<typeof viewerOf>[0]; legal: LegalAction[] }, move: number): void {
+  if (game.status !== "playing" || game.legal.length === 0) return;
+  const viewer = viewerOf(game.state);
+  const prompt = game.state.prompt;
+  const mine = !("player" in prompt) || !prompt.player || prompt.player === viewer;
+  if (!mine) return;
+  const waiting = waitingFor({ ai: null, state: game.state, status: "playing", viewer });
+  assert.equal(waiting, "you", `move ${move}: the prompt is the viewer's with ${game.legal.length} legal actions, but the board would say the opponent is acting`);
+}
+
 function auditBattle(view: BoardView, move: number): void {
   const b = view.battle;
   if (!b) return;
@@ -198,6 +220,7 @@ for (;;) {
   const view = boardView(game.ctx, game.state, viewerOf(game.state), {});
   const taps = tappable(game.legal);
   auditBattle(view, steps + 1);
+  auditWhoseMove(game, steps + 1);
   if (steps === 0) {
     console.log(`first prompt: ${view.prompt.question}`);
     console.log(`taps: ${Object.keys(taps.byCard).length} cards, ${taps.bare.length} buttons`);

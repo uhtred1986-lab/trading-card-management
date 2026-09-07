@@ -15,6 +15,7 @@ import { FeelToggle } from "../FeelToggle";
 import { PaceToggle } from "../PaceToggle";
 import { SkinToggle } from "../SkinToggle";
 import { usePace } from "@/lib/arena/pace";
+import { colourOf, DEFAULT_LIGHTING, turnVars, type TurnLighting } from "@/lib/arena/lighting";
 import type { ArenaSkin } from "@/lib/arena/skin";
 import { ReportBug } from "../ReportBug";
 import { narrate } from "@/lib/arena/narration";
@@ -30,6 +31,7 @@ import {
   StepBanner,
   StepChip,
   TopStrip,
+  TurnStrip,
   cardsOnTable,
   refusalLine,
   shortLabel,
@@ -65,7 +67,19 @@ import { useIdle } from "./useIdle";
  * cards out of their rows so each card is drawn once — a card's `layoutId` is
  * what flies it there and back, so it may exist in exactly one place.
  */
-export function ArenaStage({ gameId, snapshot, skin = "night", staging = "band" }: { gameId: number; snapshot: Snapshot; skin?: ArenaSkin; staging?: ArenaStaging }) {
+export function ArenaStage({
+  gameId,
+  snapshot,
+  skin = "night",
+  staging = "band",
+  lighting = DEFAULT_LIGHTING,
+}: {
+  gameId: number;
+  snapshot: Snapshot;
+  skin?: ArenaSkin;
+  staging?: ArenaStaging;
+  lighting?: TurnLighting;
+}) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
@@ -82,19 +96,37 @@ export function ArenaStage({ gameId, snapshot, skin = "night", staging = "band" 
   const [logOpen, setLogOpen] = useState(false);
   const asked = useRef(false);
   const boardRef = useRef<HTMLDivElement | null>(null);
-  const promptRef = useRef<HTMLElement | null>(null);
+  const promptRef = useRef<HTMLDivElement | null>(null);
 
-  const waitingOnServer = snapshot.waiting === "opponent" || snapshot.waiting === "referee";
-  // Whether the *server* is the thing to wait for. In a 1 v 1 the opponent is
-  // a person on another phone, so there is nothing to kick off — only a
-  // referee ruling is the server's, and either side may trigger that.
-  const serverDecides = snapshot.game.mode !== "versus" ? waitingOnServer : snapshot.waiting === "referee";
+  /**
+   * Whether to start polling — and the **only** thing still derived from the
+   * server-rendered prop (`docs/arena-hud-spec.md` §1, §5).
+   *
+   * It has to be, because it is an argument to the hook that produces `live`:
+   * a value read from `live` could go false before the first poll ever
+   * returned, and the poll would then never start. Everything the board
+   * *states* reads `live` instead, below. Do not "simplify" these two back
+   * into one expression — that is exactly the bug this fixed: the headline
+   * said "Majin Buu is thinking…" over a prompt asking the viewer to act,
+   * because it kept reading a prop that went stale the moment the poll
+   * returned, and the same stale value kept the poll alive to boot.
+   */
+  const pollWhile = snapshot.waiting === "opponent" || snapshot.waiting === "referee";
 
   // While the server is deciding, watch the row rather than the clock: Claude's
   // moves are committed as they are made, so they can be shown as they happen
   // instead of all at once when the request finally returns.
-  const live = useLiveGame(gameId, snapshot, pending || waitingOnServer);
+  const live = useLiveGame(gameId, snapshot, pending || pollWhile);
   const { view, legal, taps, log, beats } = live;
+
+  // Everything rendered reads the live snapshot. `waitingFor` already returns
+  // "you" whenever the prompt belongs to the viewer, so the server was never
+  // wrong about this — only which snapshot this file asked.
+  const waitingOnServer = live.waiting === "opponent" || live.waiting === "referee";
+  // Whether the *server* is the thing to wait for. In a 1 v 1 the opponent is
+  // a person on another phone, so there is nothing to kick off — only a
+  // referee ruling is the server's, and either side may trigger that.
+  const serverDecides = live.game.mode !== "versus" ? waitingOnServer : live.waiting === "referee";
   const rejected = live.rejected ?? [];
   const playable = live.game.status === "playing";
 
@@ -364,6 +396,40 @@ export function ArenaStage({ gameId, snapshot, skin = "night", staging = "band" 
   const yourTurn = view.prompt.player === view.you.player;
   const step = view.battle ? `battle:${view.battle.step}` : `phase:${view.phase}`;
 
+  /**
+   * Whose move the board states (`docs/arena-hud-spec.md` §2.1). One
+   * expression, used once.
+   *
+   * `waitingFor` already means exactly "the prompt belongs to the viewer", so
+   * this is the server's answer and nothing else. There is deliberately no
+   * second opinion about whose move it is anywhere on this screen — that is
+   * what makes §1's contradiction impossible rather than merely fixed.
+   */
+  const yourMove = live.waiting === "you";
+
+  /**
+   * The room belongs to whoever is acting (`docs/arena-turn-presence-spec.md`).
+   *
+   * One expression, used once, from the same `view.turnPlayer` the turn strip
+   * reads — so the words and the light can never end up saying different
+   * things. Everything after this is CSS: no component below learns a rule,
+   * and nothing was added to the snapshot to make it work.
+   */
+  const acting = view.turnPlayer === view.you.player;
+  const actor = acting ? view.you : view.them;
+  const turnStyle = turnVars(
+    {
+      colour: colourOf(actor.leader?.colors),
+      art: actor.leader?.imageUrl ?? null,
+      yours: acting,
+      // Exact primary-colour match only. Two perceptually *close* colours —
+      // Red against Yellow — do not count: a ΔE threshold would be more
+      // correct and much harder to reason about.
+      mirror: !!colourOf(view.you.leader?.colors) && colourOf(view.you.leader?.colors) === colourOf(view.them.leader?.colors),
+    },
+    lighting,
+  ) as React.CSSProperties;
+
   // After a few quiet seconds the cards that can be tapped say so. The clock
   // restarts on anything that changes what you could do, so it never nags.
   const idle = useIdle(4000, `${view.prompt.question}|${selected}|${busy}|${playback.playing}`);
@@ -439,7 +505,7 @@ export function ArenaStage({ gameId, snapshot, skin = "night", staging = "band" 
 
   return (
     <LayoutGroup>
-      <div ref={boardRef} className="arena relative mx-auto flex w-full max-w-7xl flex-col gap-2 sm:gap-3" data-skin={skin}>
+      <div ref={boardRef} className="arena relative mx-auto flex w-full max-w-7xl flex-col gap-2 sm:gap-3" data-skin={skin} style={turnStyle}>
         {/* Speed lines under an attack — a skin's moment, driven by the beat on
             screen like every other; it draws nothing on the night table. */}
         {beat && (beat.t === "attack" || beat.t === "clash") && <div key={beat.n} className="arena-speedlines pointer-events-none absolute inset-0 z-20" aria-hidden />}
@@ -450,7 +516,7 @@ export function ArenaStage({ gameId, snapshot, skin = "night", staging = "band" 
         <TopStrip view={view} />
 
         <div className="flex flex-col gap-2 lg:grid lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-start lg:gap-4">
-          <SideRail side={view.them} them cardProps={cardProps} hurt={hurting === view.them.player} narrator={narrator} lifted={lifted} className="lg:col-start-3 lg:row-start-1" />
+          <SideRail side={view.them} them active={!acting} cardProps={cardProps} hurt={hurting === view.them.player} narrator={narrator} lifted={lifted} className="lg:col-start-3 lg:row-start-1" />
 
           <section className="arena-stage relative rounded-xl border border-space-700/70 p-2 sm:rounded-2xl sm:p-3 lg:col-start-2 lg:row-start-1 lg:p-4" aria-label="Battle Areas">
             {/* Dimmed and blurred under the band, never hidden: the position
@@ -464,103 +530,116 @@ export function ArenaStage({ gameId, snapshot, skin = "night", staging = "band" 
             {bandOn && shape && <DuelBand shape={shape} cardProps={stagedProps} beat={beat} progress={playback.playing ? { index: playback.index, total: playback.total } : null} />}
           </section>
 
-          <SideRail side={view.you} cardProps={cardProps} hurt={hurting === view.you.player} narrator={narrator} lifted={lifted} className="lg:col-start-1 lg:row-start-1" />
+          <SideRail side={view.you} active={acting} cardProps={cardProps} hurt={hurting === view.you.player} narrator={narrator} lifted={lifted} className="lg:col-start-1 lg:row-start-1" />
         </div>
 
         {held && !view.over && !playback.playing && <NarrationRibbon text={held.text} n={held.n} mine={held.mine} live={false} />}
 
-        {/* The prompt bar: the one question being asked, or the story being told.
-            While a takeover has the screen the bar is pinned to the viewport
+        {/* The bottom two slots of the header stack (`docs/arena-hud-spec.md`
+            §2): *whose move*, then *what is being asked*, in that order,
+            always. They share one positioned wrapper because the strip has to
+            stay directly above the ask — a sticky bar with a static strip
+            above it comes apart the moment the board scrolls.
+
+            While a takeover has the screen the pair is pinned to the viewport
             with it, because a sticky bar and a fixed overlay are measured
             against two different things and will always end up on top of each
-            other on a short window. */}
-        <section
-          ref={promptRef}
-          className={`z-30 flex items-center gap-2 rounded-xl border p-2 pl-3 backdrop-blur sm:gap-3 sm:rounded-2xl sm:p-3 sm:pl-5 ${
-            takeoverOn ? "fixed inset-x-2 bottom-2 mx-auto max-w-7xl sm:inset-x-4" : "sticky bottom-2"
-          } ${yourTurn && playable && !playback.playing ? "arena-prompt-live border-ki-500 bg-space-800/95" : "border-space-600 bg-space-800/95"}`}
-          aria-live="polite"
-        >
-          {(waitingOnServer || busy) && !view.over && <span className="arena-pulse h-3.5 w-3.5 shrink-0 animate-pulse rounded-full bg-ki-400" aria-hidden />}
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-space-50 sm:text-base lg:text-lg">
-              {!playback.playing && !view.over && yourTurn && view.prompt.step && (
-                <span className="mr-2 align-middle">
-                  <StepChip step={view.prompt.step} />
+            other on a short window. `promptRef` measures this wrapper rather
+            than the bar alone: it is what tells the takeover where to stop,
+            and the takeover has to clear both. */}
+        <div ref={promptRef} className={`z-30 flex flex-col gap-1.5 ${takeoverOn ? "fixed inset-x-2 bottom-2 mx-auto max-w-7xl sm:inset-x-4" : "sticky bottom-2"}`}>
+          {playable && !view.over && <TurnStrip view={view} yours={yourMove} moves={moveCount} />}
+          <section
+            className={`flex items-center gap-2 rounded-xl border p-2 pl-3 backdrop-blur sm:gap-3 sm:rounded-2xl sm:p-3 sm:pl-5 ${
+              yourTurn && playable && !playback.playing ? "arena-prompt-live border-ki-500 bg-space-800/95" : "border-space-600 bg-space-800/95"
+            }`}
+            aria-live="polite"
+          >
+            {(waitingOnServer || busy) && !view.over && <span className="arena-pulse h-3.5 w-3.5 shrink-0 animate-pulse rounded-full bg-ki-400" aria-hidden />}
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-space-50 sm:text-base lg:text-lg">
+                {!playback.playing && !view.over && yourTurn && view.prompt.step && (
+                  <span className="mr-2 align-middle">
+                    <StepChip step={view.prompt.step} />
+                  </span>
+                )}
+                {playback.playing
+                  ? (held?.text ?? `${view.them.name} is playing…`)
+                  : view.over
+                    ? view.over.winner
+                      ? `${view.over.winner === view.you.player ? view.you.name : view.them.name} wins`
+                      : "A draw"
+                    : waitingOnServer
+                      ? `${view.them.name} is thinking…`
+                      : view.prompt.question}
+              </p>
+              <p className={`mt-0.5 flex items-center gap-2 text-[11px] sm:text-sm ${refusal && !view.over ? "text-loss" : "text-space-300"}`}>
+                {/* The refusal line (workflow spec §4): which requirement failed, and what would satisfy it. */}
+                {/* While the story plays: whose turn it is and where in it we are; the next prompt's hint would only mislead here. */}
+                <span className={refusal && !view.over ? "line-clamp-2" : "truncate"}>
+                  {view.over
+                    ? view.over.reason
+                    : playback.playing
+                      ? `${beat && actorOf(beat) === view.you.player ? "Your move" : `${view.them.name} is playing`} · ${playback.index + 1} of ${playback.total}${pace === "step" ? " · tap Next" : ""}`
+                      : (error ?? refusal?.text ?? view.prompt.hint ?? "")}
                 </span>
-              )}
-              {playback.playing
-                ? (held?.text ?? `${view.them.name} is playing…`)
-                : view.over
-                  ? view.over.winner
-                    ? `${view.over.winner === view.you.player ? view.you.name : view.them.name} wins`
-                    : "A draw"
-                  : waitingOnServer
-                    ? `${view.them.name} is thinking…`
-                    : view.prompt.question}
-            </p>
-            <p className={`mt-0.5 flex items-center gap-2 text-[11px] sm:text-sm ${refusal && !view.over ? "text-loss" : "text-space-300"}`}>
-              {/* The refusal line (workflow spec §4): which requirement failed, and what would satisfy it. */}
-              {/* While the story plays: whose turn it is and where in it we are; the next prompt's hint would only mislead here. */}
-              <span className={refusal && !view.over ? "line-clamp-2" : "truncate"}>
-                {view.over
-                  ? view.over.reason
-                  : playback.playing
-                    ? `${beat && actorOf(beat) === view.you.player ? "Your move" : `${view.them.name} is playing`} · ${playback.index + 1} of ${playback.total}${pace === "step" ? " · tap Next" : ""}`
-                    : (error ?? refusal?.text ?? view.prompt.hint ?? "")}
-              </span>
-              {/* "What can I do?" answered as a number, before you have to look. */}
-              {!view.over && !playback.playing && playable && yourTurn && moveCount > 0 && !refusal && !searching && (
-                <span className={`shrink-0 rounded-full border px-1.5 py-px text-[10px] tabular-nums ${nudging ? "border-ki-500/60 text-ki-300" : "border-space-600 text-space-400"}`}>
-                  {moveCount} {moveCount === 1 ? "move" : "moves"}
-                </span>
-              )}
-            </p>
-          </div>
+                {/* "What can I do?" answered as a number, before you have to look. */}
+                {!view.over && !playback.playing && playable && yourTurn && moveCount > 0 && !refusal && !searching && (
+                  <span className={`shrink-0 rounded-full border px-1.5 py-px text-[10px] tabular-nums ${nudging ? "border-ki-500/60 text-ki-300" : "border-space-600 text-space-400"}`}>
+                    {moveCount} {moveCount === 1 ? "move" : "moves"}
+                  </span>
+                )}
+              </p>
+            </div>
 
-          {playback.playing && pace === "step" && (
-            <button type="button" onClick={playback.next} className="tap shrink-0 rounded-lg bg-ki-500 px-3 py-2 text-sm font-semibold text-space-950 hover:bg-ki-400 sm:rounded-xl sm:px-5 sm:py-2.5">
-              Next ▸
-            </button>
-          )}
-          {playback.playing && (
-            <button type="button" onClick={playback.skip} className="tap shrink-0 rounded-lg border border-space-600 bg-space-700 px-3 py-2 text-sm font-semibold text-space-50 sm:px-5 sm:py-2.5">
-              Skip
-            </button>
-          )}
-          {!playback.playing && isTargeting && (
-            <button type="button" onClick={() => setSelected(null)} className="tap shrink-0 rounded-lg border border-space-600 px-3 py-2 text-sm text-space-100 sm:px-5 sm:py-2.5 sm:text-base">
-              Cancel
-            </button>
-          )}
-          {searching && !searchOpen && (
-            <button
-              type="button"
-              onClick={() => setClosedSearch(null)}
-              className="tap shrink-0 rounded-lg bg-ki-500 px-3 py-2 text-sm font-semibold text-space-950 hover:bg-ki-400 sm:rounded-xl sm:px-5 sm:py-2.5 sm:text-base"
-            >
-              Choose from {choices.length}
-            </button>
-          )}
-          {!playback.playing &&
-            !isTargeting &&
-            playable &&
-            !modal &&
-            bare.slice(0, 3).map(({ i, l }) => (
+            {playback.playing && pace === "step" && (
               <button
-                key={i}
                 type="button"
-                disabled={busy}
-                onClick={() => send(l.action)}
-                className={`tap shrink-0 rounded-lg px-3 py-2 text-sm font-semibold disabled:opacity-50 sm:rounded-xl sm:px-5 sm:py-2.5 sm:text-base ${
-                  l.action.type === "endMain" || l.action.type === "pass" ? "border border-space-600 bg-space-700 text-space-50" : "bg-ki-500 text-space-950 hover:bg-ki-400"
-                }`}
+                onClick={playback.next}
+                className="tap shrink-0 rounded-lg bg-ki-500 px-3 py-2 text-sm font-semibold text-space-950 hover:bg-ki-400 sm:rounded-xl sm:px-5 sm:py-2.5"
               >
-                <span className="sm:hidden">{shortLabel(l.label)}</span>
-                <span className="hidden sm:inline">{l.label}</span>
+                Next ▸
               </button>
-            ))}
-        </section>
+            )}
+            {playback.playing && (
+              <button type="button" onClick={playback.skip} className="tap shrink-0 rounded-lg border border-space-600 bg-space-700 px-3 py-2 text-sm font-semibold text-space-50 sm:px-5 sm:py-2.5">
+                Skip
+              </button>
+            )}
+            {!playback.playing && isTargeting && (
+              <button type="button" onClick={() => setSelected(null)} className="tap shrink-0 rounded-lg border border-space-600 px-3 py-2 text-sm text-space-100 sm:px-5 sm:py-2.5 sm:text-base">
+                Cancel
+              </button>
+            )}
+            {searching && !searchOpen && (
+              <button
+                type="button"
+                onClick={() => setClosedSearch(null)}
+                className="tap shrink-0 rounded-lg bg-ki-500 px-3 py-2 text-sm font-semibold text-space-950 hover:bg-ki-400 sm:rounded-xl sm:px-5 sm:py-2.5 sm:text-base"
+              >
+                Choose from {choices.length}
+              </button>
+            )}
+            {!playback.playing &&
+              !isTargeting &&
+              playable &&
+              !modal &&
+              bare.slice(0, 3).map(({ i, l }) => (
+                <button
+                  key={i}
+                  type="button"
+                  disabled={busy}
+                  onClick={() => send(l.action)}
+                  className={`tap shrink-0 rounded-lg px-3 py-2 text-sm font-semibold disabled:opacity-50 sm:rounded-xl sm:px-5 sm:py-2.5 sm:text-base ${
+                    l.action.type === "endMain" || l.action.type === "pass" ? "border border-space-600 bg-space-700 text-space-50" : "bg-ki-500 text-space-950 hover:bg-ki-400"
+                  }`}
+                >
+                  <span className="sm:hidden">{shortLabel(l.label)}</span>
+                  <span className="hidden sm:inline">{l.label}</span>
+                </button>
+              ))}
+          </section>
+        </div>
 
         {playable && !playback.playing && !isTargeting && (modal || bare.length > 3) && (
           <div className="flex flex-wrap gap-1.5 sm:gap-2">
@@ -698,12 +777,16 @@ function BattleRow({ cards, cardProps, zone, label }: { cards: CardView[]; cardP
 function ClashBand({ view, cardProps, staged = false }: { view: BoardView; cardProps: CardProps; staged?: boolean }) {
   const b = staged ? null : view.battle;
   if (!b) {
+    // The divider keeps the two Battle Areas apart and says nothing else.
+    // Whose turn it was used to be written here — 10 px, grey, centred between
+    // two rows where nothing draws the eye — which is how the most important
+    // fact on the board came to be ignored, and then contradicted by the
+    // headline beneath it. `TurnStrip` says it now, and two turn indicators is
+    // how the first one came to be ignored (`docs/arena-hud-spec.md` §2.1).
     return (
-      <div className="my-2 flex items-center gap-3 sm:my-3">
+      <div className="my-2 flex items-center gap-3 sm:my-3" aria-hidden>
         <span className="h-px flex-1 bg-gradient-to-r from-transparent to-space-700" />
-        <span className="text-[10px] uppercase tracking-[0.25em] text-space-600 sm:text-xs">
-          turn {view.turn} · {view.turnPlayer === view.you.player ? "you" : view.them.name}
-        </span>
+        <span className="h-1 w-1 rounded-full bg-space-700" />
         <span className="h-px flex-1 bg-gradient-to-l from-transparent to-space-700" />
       </div>
     );
@@ -760,6 +843,7 @@ function HandBacks({ count }: { count: number }) {
 function SideRail({
   side,
   them = false,
+  active = false,
   cardProps,
   hurt = false,
   narrator,
@@ -768,6 +852,8 @@ function SideRail({
 }: {
   side: SideView;
   them?: boolean;
+  /** It is this side's turn: its leader owns the room (turn-presence spec §2.3). */
+  active?: boolean;
   cardProps: CardProps;
   /** This player is taking damage right now. */
   hurt?: boolean;
@@ -808,7 +894,13 @@ function SideRail({
           (lifted?.has(side.leader.id) ? (
             <span className="arena-slot" style={{ width: `calc(56px * var(--arena, 1))`, height: `calc(78px * var(--arena, 1))` }} aria-hidden />
           ) : (
-            <StageCard {...cardProps(side.leader)} width={56} />
+            /* The footprint is reserved and the scale happens inside it, so
+               the rail does not reflow when the turn flips — the same rule
+               that keeps layout still between every other pair of states. */
+            <span className={`arena-leader ${active ? "arena-leader-on" : "arena-leader-off"}`} style={{ width: `calc(56px * var(--arena, 1))`, height: `calc(78px * var(--arena, 1))` }}>
+              <StageCard {...cardProps(side.leader)} width={56} />
+              {active && <span className="arena-leader-ring" aria-hidden />}
+            </span>
           ))}
         {side.unison && !lifted?.has(side.unison.id) && <StageCard {...cardProps(side.unison)} width={48} />}
       </div>

@@ -22,10 +22,11 @@ import {
   type Requirement,
 } from "../src/lib/arena/engine";
 import { appendBeats, maskBeats, toBeats, type Beat, type Beats, type NumberedBeat } from "../src/lib/arena/beats";
-import { buildSnapshot, rejectedFor, type Snapshot } from "../src/lib/arena/snapshot";
+import { buildSnapshot, rejectedFor, waitingFor, type Snapshot } from "../src/lib/arena/snapshot";
 import { boardView } from "../src/lib/arena/view";
 import { pill, priceOf, refusal, sentence, stepText } from "../src/lib/arena/wording";
 import { narrate } from "../src/lib/arena/narration";
+import { colourOf, DEFAULT_LIGHTING, encodeLighting, LEADER_COLOURS, lightingFrom, LIGHTING_VERSION, mix, RIVAL, toneFor, TONES, turnVars } from "../src/lib/arena/lighting";
 import { trailingTrigger, parseSkills, keywordOf, orbsIn, eitherOrbsIn, skillLines } from "../src/lib/arena/engine/cards";
 import { KEYWORDS, keywordTagSpellings, keywordsByGroup, tagBody, tagParsesTo } from "../src/lib/arena/glossary";
 import { parseFilter, matches, parseCondition } from "../src/lib/arena/engine/filters";
@@ -7049,6 +7050,125 @@ function assertDisjoint(s: GameState, where: string): RejectedAction[] {
     );
   }
   if (emit) console.log(`verify-arena: wrote ${Object.keys(fixtures).length} contract fixtures`);
+}
+
+// ── whose move it is (docs/arena-hud-spec.md §1.1) ─────────────────────────
+
+{
+  /**
+   * The invariant that makes the stale-prop bug a class rather than an
+   * incident: **if the prompt belongs to the viewer and the viewer has at
+   * least one legal action, nothing on the board may state that the opponent
+   * is acting.**
+   *
+   * The board now derives all of "is the opponent acting" from
+   * `snapshot.waiting`, so this is the whole of it. The screenshot that
+   * started the HUD spec was a board saying "Majin Buu is thinking…" over a
+   * charge prompt that was offering eight moves.
+   */
+  const ctx = { defs: DEFS };
+  // A main phase belonging to p1 with real moves in it — the shape of the
+  // charge step in that screenshot, which is where the contradiction showed.
+  const s = arena({ hand: ["BIG"], energy: ["V1", "V1"] });
+  const legal = legalActions(ctx, s);
+  assert.ok(legal.length > 0, "the fixture's prompt has moves in it");
+  assert.equal((s.prompt as { player: PlayerId }).player, "p1");
+  assert.equal(waitingFor({ ai: null, state: s, status: "playing", viewer: "p1" }), "you", "a prompt that is the viewer's is never the opponent's move");
+
+  // And the same read through a whole snapshot, which is what the board holds.
+  const snap = buildSnapshot({
+    id: 1,
+    mode: "hotseat",
+    status: "playing",
+    p1Name: "You",
+    p2Name: "Claude",
+    ctx,
+    state: s,
+    legal,
+    log: [],
+    beats: null,
+    spotlight: null,
+    spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 },
+    ai: null,
+    images: {},
+  });
+  assert.ok(snap.legal.length > 0);
+  assert.equal(snap.view.prompt.player, snap.view.you.player, "the fixture is in the state the invariant is about");
+  assert.equal(snap.waiting, "you", "the prompt is the viewer's with moves in it — the board may not say the opponent is acting");
+  // The other direction, so the assertion above cannot pass vacuously.
+  assert.equal(waitingFor({ ai: null, state: { ...s, prompt: { ...s.prompt, player: "p2" } } as typeof s, status: "playing", viewer: "p1" }), "opponent");
+}
+
+// ── turn presence: whose room it is (docs/arena-turn-presence-spec.md) ──────
+
+{
+  const on = DEFAULT_LIGHTING;
+  const art = "https://storage.googleapis.com/deckplanet_card_images/BT18-020.png";
+
+  // The one thing a turn flip is allowed to move.
+  const yours = turnVars({ colour: "Red", art, yours: true, mirror: false }, on);
+  const theirs = turnVars({ colour: "Red", art, yours: false, mirror: false }, on);
+  assert.equal(yours["--turn-y"], "88%");
+  assert.equal(theirs["--turn-y"], "12%");
+  assert.equal(yours["--turn-tint"], TONES.Red.tint, "the hue is the printed colour, not a sampled one");
+  assert.deepEqual(
+    Object.entries(yours).filter(([k, v]) => theirs[k] !== v),
+    [["--turn-y", "88%"]],
+    "position is the only thing that differs between the two turns of a non-mirror match",
+  );
+
+  // The dial is per colour: one master strength times the colour's own.
+  for (const c of LEADER_COLOURS) {
+    assert.equal(turnVars({ colour: c, art, yours: true, mirror: false }, on)["--turn-k"], (TONES[c].k / 100).toFixed(2));
+  }
+
+  // No art, no wash — never a broken or half-loaded one. Layer 2 carries it.
+  const noArt = turnVars({ colour: "Blue", art: null, yours: true, mirror: false }, on);
+  assert.equal(noArt["--turn-art"], "none");
+  assert.equal(noArt["--turn-art-on"], "0");
+  assert.equal(noArt["--turn-tint"], TONES.Blue.tint, "a leader with no art still owns the room");
+  // Anything that would have to be escaped to be safe in `url()` is dropped.
+  for (const bad of ["javascript:alert(1)", 'https://x/a").png', "http://insecure/a.png", "https://x/a b.png"]) {
+    assert.equal(turnVars({ colour: "Blue", art: bad, yours: true, mirror: false }, on)["--turn-art"], "none", `refused: ${bad}`);
+  }
+
+  // A mirror match re-hues the *opponent*, never the active player: your own
+  // room must not change colour depending on who moved last.
+  const mine = turnVars({ colour: "Green", art, yours: true, mirror: true }, on);
+  const rival = turnVars({ colour: "Green", art, yours: false, mirror: true }, on);
+  assert.equal(mine["--turn-tint"], TONES.Green.tint);
+  assert.equal(rival["--turn-tint"], RIVAL.tint);
+  assert.notEqual(mine["--turn-tint"], rival["--turn-tint"], "the two turns of a mirror match must be tellable apart");
+  const cooled = turnVars({ colour: "Green", art, yours: false, mirror: true }, { ...on, mirror: "cooled" });
+  assert.equal(cooled["--turn-tint"], mix(TONES.Green.tint, "#64748b", 0.55));
+  assert.equal(turnVars({ colour: "Green", art, yours: false, mirror: true }, { ...on, mirror: "off" })["--turn-tint"], TONES.Green.tint);
+
+  // §2.5: the switch that has to exist for the ambient not to be the only
+  // signal. Off is zero light — the scale, the ring and the strip carry it.
+  assert.equal(turnVars({ colour: "Red", art, yours: true, mirror: false }, { ...on, mode: "off" })["--turn-mode"], "0");
+  assert.equal(turnVars({ colour: "Red", art, yours: true, mirror: false }, { ...on, mode: "subtle" })["--turn-mode"], "0.5");
+
+  // A leader with no colour at all lights nothing; White and Colorless are
+  // real engine colours and fall back to the neutral tone rather than to dark.
+  assert.equal(colourOf([]), null);
+  assert.equal(colourOf(["White"]), "Black");
+  assert.equal(colourOf(["Yellow", "Blue"]), "Yellow", "a multi-colour leader uses colors[0]");
+  assert.equal(turnVars({ colour: null, art, yours: true, mirror: false }, on)["--turn-k"], "0");
+
+  // The settings blob: tolerant of anything, and it stores only what was
+  // tuned, so a future default change reaches a player who never touched it.
+  assert.deepEqual(lightingFrom(null), DEFAULT_LIGHTING);
+  assert.deepEqual(lightingFrom("not json"), DEFAULT_LIGHTING);
+  assert.deepEqual(lightingFrom(JSON.stringify({ v: 99, mode: "off" })), DEFAULT_LIGHTING, "a blob from a future version is not half-read");
+  assert.equal(lightingFrom(JSON.stringify({ v: 1, mode: "nope", mirror: "cooled" })).mode, "on");
+  assert.equal(lightingFrom(JSON.stringify({ v: 1, mirror: "cooled" })).mirror, "cooled");
+  assert.deepEqual(lightingFrom(JSON.stringify({ v: 1, tone: { Red: { tint: "oops", glow: "#ffffff", k: 50 } } })).tone, {}, "a malformed tone is dropped, not stored");
+  const tuned = lightingFrom(JSON.stringify({ v: 1, tone: { Red: { tint: "#112233", glow: "#445566", k: 300 } } }));
+  assert.deepEqual(tuned.tone, { Red: { tint: "#112233", glow: "#445566", k: 200 } }, "intensity is clamped, not trusted");
+  assert.equal(toneFor("Red", tuned).tint, "#112233");
+  assert.equal(toneFor("Blue", tuned).tint, TONES.Blue.tint, "an untuned colour keeps following the shipped default");
+  assert.equal(JSON.parse(encodeLighting(tuned)).v, LIGHTING_VERSION);
+  assert.deepEqual(lightingFrom(encodeLighting(tuned)), tuned, "the cookie round-trips");
 }
 
 console.log("verify-arena: all checks passed");
