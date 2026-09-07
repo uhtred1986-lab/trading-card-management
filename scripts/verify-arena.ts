@@ -183,6 +183,10 @@ const DEFS: Record<string, CardDef> = defsFrom([
   card("NOCOPIES", { energyCost: 1, skill: "[Auto] When you play this card, you can't play copies of this card for the turn." }),
   card("TOUGH", { energyCost: 2, power: 5000, skill: "[Auto] When you play this card, this card can't be KO'd by your opponent's skills until the start of your next turn." }),
   card("STACKER", { energyCost: 1, skill: "[Auto] When you play this card, choose 1 of your Battle Cards and place it under this card." }),
+  card("MILLGATE", {
+    energyCost: 1,
+    skill: "[Auto] When you play this card, place the top card of your deck in your Drop Area. If that card is red, this card gains +5000 power for the duration of the turn.",
+  }),
   card("BUUHOST", { energyCost: 1, power: 5000, characters: ["Majin Buu"] }),
   card("BUUEAT", {
     energyCost: 1,
@@ -197,6 +201,10 @@ const DEFS: Record<string, CardDef> = defsFrom([
   card("PERMLOCK", { energyCost: 2, power: 5000, skill: "[Permanent] Your opponent can't attack with Battle Cards." }),
   card("SELFMUTE", { energyCost: 2, skill: "[Blocker]\n[Permanent] Negate this card's [Blocker] skill in all areas." }),
   card("BECOMES", { energyCost: 2, skill: "[Permanent] This card gains ≪Saiyan≫ in all areas." }),
+  // BT2-001 Vegito's wording: the grant is on *other* cards, and the areas it
+  // names are all of them rather than the table.
+  card("RECOLOR", { energyCost: 2, skill: "[Permanent] Each <RECOLORED> in all of your areas gain red, blue, and green colors." }),
+  card("RECOLORED", { energyCost: 1, colors: ["Yellow"] }),
   card("SAIYANKILL", { energyCost: 1, skill: "[Auto] When you play this card, choose 1 of your opponent's ≪Saiyan≫ Battle Cards and KO it." }),
   card("CHEAPCOMBO", { energyCost: 3, comboCost: 2, comboPower: 5000, skill: "[Permanent] Reduce the combo cost of this card in your hand by 2." }),
   card("BLUECOMBO", { energyCost: 3, colors: ["Blue"], comboCost: 2, comboPower: 5000 }),
@@ -530,6 +538,26 @@ function assertConsistentAfterDrop(s: GameState) {
   // The test removed life cards outright; put them in the drop so the invariant holds.
   const gone = Object.keys(s.cards).filter((id) => s.cards[id].owner === "p1" && !locate(s, id));
   s.players.p1.drop.push(...gone);
+}
+
+// BT2-001: the card the mill just put in the Drop is what "that card" means,
+// and the power only follows when it is red. Played out both ways, because the
+// program this replaced gained the power either way.
+{
+  const ctx = { defs: DEFS };
+  for (const [top, power, why] of [
+    ["V1", 15000, "the milled card is red, so the skill applies"],
+    ["V-BLUE", 10000, "a blue one leaves the power alone"],
+  ] as const) {
+    let s = arena({ hand: ["MILLGATE"], energy: ["V1"] });
+    s.cards[s.players.p1.deck[0]].cardId = top;
+    const dropBefore = s.players.p1.drop.length;
+    s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "MILLGATE") });
+    assert.equal(s.players.p1.drop.length, dropBefore + 1, "the mill happens either way");
+    assert.equal(s.cards[s.players.p1.drop[s.players.p1.drop.length - 1]].cardId, top, "and it is the card that was on top");
+    assert.equal(powerOf(ctx, s, find(s, "p1", "battle", "MILLGATE")), power, why);
+    assertConsistent(s);
+  }
 }
 
 // Two choices, then a clause saying which is which (BT3-052, BT3-054): the
@@ -1512,6 +1540,23 @@ function assertConsistentAfterDrop(s: GameState) {
 
 {
   const ctx = { defs: DEFS };
+  // BT2-001 Vegito, "each <Son Goku> and <Vegeta> in all of your areas gain
+  // red, blue, and green colors": what a card counts as does not depend on
+  // where it is (20-1), and here the areas that matter are the ones off the
+  // table — the colour of a card in your energy is what pays for costs.
+  const s = arena({ battle: ["RECOLOR"], hand: ["RECOLORED"], energy: ["RECOLORED"], oppHand: ["RECOLORED"] });
+  for (const area of ["hand", "energy"] as const) {
+    const id = find(s, "p1", area, "RECOLORED");
+    assert.deepEqual(cardNow(ctx, s, id).colors, ["Yellow", "Red", "Blue", "Green"], `the copy in your ${area} gained the three colours`);
+  }
+  // "Your" areas, so their copy of the same card is untouched.
+  assert.deepEqual(cardNow(ctx, s, find(s, "p2", "hand", "RECOLORED")).colors, ["Yellow"]);
+  // The card printing the skill is not itself a <RECOLORED>.
+  assert.deepEqual(cardNow(ctx, s, find(s, "p1", "battle", "RECOLOR")).colors, ["Red"]);
+}
+
+{
+  const ctx = { defs: DEFS };
   // 20-21: a reducer that names the combo cost reduces the combo cost.
   const s = arena({ hand: ["CHEAPCOMBO"] });
   const cheap = find(s, "p1", "hand", "CHEAPCOMBO");
@@ -2330,9 +2375,40 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.equal((one("choose 2 of your opponent's Battle Cards and place them at the bottom of their owners' decks in any order.").ops[1] as { position?: string }).position, "bottom");
   assert.deepEqual(ops("choose 2 of your opponent's Battle Cards and send them to their owners' Warps."), ["choose", "moveTo"]);
 
-  // The top of the deck to the Drop, either side.
-  assert.deepEqual(one("your opponent places the top card of their deck in their Drop Area.").ops, [{ op: "mill", n: 1, side: "opponent" }]);
-  assert.deepEqual(one("place the top 2 cards of your deck in your Drop Area.").ops, [{ op: "mill", n: 2 }]);
+  // The top of the deck to the Drop, either side. The cards go face up, so the
+  // mill names them for a clause that asks about them afterwards.
+  assert.deepEqual(one("your opponent places the top card of their deck in their Drop Area.").ops, [{ op: "mill", n: 1, side: "opponent", as: "m0" }]);
+  assert.deepEqual(one("place the top 2 cards of your deck in your Drop Area.").ops, [{ op: "mill", n: 2, as: "m0" }]);
+
+  // BT2-001: "If that card is red" is a condition on the rest of the sentence,
+  // and "that card" is the one the mill just put in the Drop. Before the mill
+  // named it there was nothing for the phrase to point at, so the clause was
+  // unread — and the ops it did produce gained the power every time.
+  const vegito = one("place up to 1 card from the top of your deck in the Drop Area. If that card is red, this card gains +5000 power for the duration of the turn.");
+  assert.deepEqual(vegito.unsupported, [], "the whole skill reads");
+  assert.deepEqual(vegito.ops.map((o) => o.op), ["mill", "if"]);
+  const milled = (vegito.ops[0] as { as: string }).as;
+  const gate = vegito.ops[1] as { cond: { kind: string; var: string; filter: { colors: string[] } }; then: { op: string }[] };
+  assert.equal(gate.cond.kind, "varMatches");
+  assert.equal(gate.cond.var, milled, "the condition asks about the card the mill named");
+  assert.deepEqual(gate.cond.filter.colors, ["Red"]);
+  assert.deepEqual(gate.then.map((o) => o.op), ["power"], "and the power is inside the condition, not beside it");
+
+  // The comma was never the problem: the same sentence with a condition the
+  // parser already knew read correctly all along.
+  assert.deepEqual(one("if your Leader Card is red, draw 1 card.").unsupported, []);
+
+  // The other wording for the same move reads the back-reference too.
+  assert.deepEqual(one("place the top card of your deck in your Drop Area. If that card is red, draw 1 card.").unsupported, []);
+
+  // "If that card is **not** a <Broly>": `parseFilter` drops the negation, so
+  // reading it would hold for exactly the card the sentence excludes. It goes
+  // to the referee instead.
+  assert.deepEqual(
+    one("place the top card of your deck in your Drop Area. If that card is not a <Broly>, draw 1 card.").unsupported,
+    ["If that card is not a <Broly>"],
+    "a negation no filter can carry is refused, not read backwards",
+  );
 
   // A delay the table did not have.
   const later = one("at the start of your opponent's next Main Phase, draw 1 card.").ops[0] as { op: string; at?: string; scope?: string };
@@ -2424,7 +2500,7 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   // A discard that ends in the Warp.
   assert.deepEqual(auto("your opponent sends 1 card from their hand to their Warp.").ops, [{ op: "discard", n: 1, side: "opponent", to: "warp" }]);
   // The opponent's deck, to their Drop.
-  assert.deepEqual(auto("place the top card of your opponent's deck into its owner's Drop.").ops, [{ op: "mill", n: 1, side: "opponent" }]);
+  assert.deepEqual(auto("place the top card of your opponent's deck into its owner's Drop.").ops, [{ op: "mill", n: 1, side: "opponent", as: "m0" }]);
   // Placed, not played.
   const placed = auto("place up to 2 {Dragon Ball} from your Drop into the Battle Area.").ops;
   assert.deepEqual(placed.map((o) => o.op), ["choose", "moveTo"]);
@@ -2640,7 +2716,7 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
 {
   const one = (text: string) => compileSkill(parseSkills(text)[0]);
   assert.deepEqual(one("[Auto] When you play this card, draw cards until you have 4 cards in your hand.").ops, [{ op: "draw", n: { handUpTo: 4 } }]);
-  assert.deepEqual(one("[Auto] When you play this card, place 2 cards from the top of your opponent's deck in their Drop Area.").ops, [{ op: "mill", n: 2, side: "opponent" }]);
+  assert.deepEqual(one("[Auto] When you play this card, place 2 cards from the top of your opponent's deck in their Drop Area.").ops, [{ op: "mill", n: 2, side: "opponent", as: "m0" }]);
   const marked = one("[Auto] When you play this card, choose 1 of your Battle Cards. Add a marker to the chosen card.");
   assert.deepEqual(marked.unsupported, []);
   assert.deepEqual(marked.ops[1], { op: "addMarker", target: { var: "c0" }, n: 1 });
@@ -3888,6 +3964,31 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.equal((parseTarget("1 card in your hand with an energy cost of 3 or less") as { area?: string }).area, "hand");
   // "Or" between two things that are not areas says nothing about where.
   assert.equal(areas("1 red or blue card in your Drop"), undefined);
+}
+
+// ── "in all of your areas" is a span, not an area (3-1-1) ──────────────────
+
+{
+  // "Areas" is not an area word, so BT2-001's "each <Son Goku> and <Vegeta> in
+  // all of your areas" fell through to the 20-1-6 default of the table — and a
+  // colour grant that is the Leader's whole point reached nothing in hand,
+  // energy or drop. The "all" in the phrase would also have been read as the
+  // count, which is why the phrase comes off before anything else reads it.
+  const all = parseTarget("each <Son Goku> and <Vegeta> in all of your areas");
+  assert.deepEqual(all?.areas, ["leader", "battle", "unison", "combo", "energy", "hand", "deck", "drop", "life", "warp", "zDeck", "zEnergy"]);
+  assert.equal(all?.area, undefined, "no single area stands for all of them");
+  assert.equal(all?.side, "you");
+  assert.equal(all?.count, 99, "the “all” of the phrase is not the count");
+  assert.deepEqual(all?.filter?.characters, ["Son Goku", "Vegeta"]);
+  // The possessive is the only thing in BT2-001's phrase that says whose cards
+  // these are, so it has to survive the phrase coming off.
+  assert.equal(parseTarget("≪God≫ cards in all of their areas")?.side, "opponent");
+  // The shorter wording, where the subject carries its own possessive (BT23-072).
+  const short = parseTarget("your multicolor <Zamasu> and <Goku Black> cards in all areas");
+  assert.equal(short?.areas?.length, 12);
+  assert.equal(short?.side, "you");
+  // A phrase that names one area still names one.
+  assert.equal(parseTarget("1 card in your hand")?.areas, undefined);
 }
 
 // ── two skills printed without the line break between them (1-5) ───────────
@@ -5383,6 +5484,20 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
 // reach for and why each is not there. The two must never overlap, and each
 // `whyNot*` twin must say the same thing as the predicate beside it.
 
+/**
+ * The identity `rejectedActions` dedupes on: its own `cardOf`, which reads a
+ * one-card `cards` as well as `card` and `attacker`. A `choose` prompt carries
+ * neither of the latter, so keying on those alone would read one rejection per
+ * unofferable card as the same entry repeated.
+ */
+function cardKeyOf(a: Action): string {
+  const x = a as { card?: string | null; attacker?: string; cards?: string[] };
+  if (typeof x.card === "string") return x.card;
+  if (typeof x.attacker === "string") return x.attacker;
+  if (Array.isArray(x.cards)) return x.cards.join(",");
+  return "";
+}
+
 /** No action in both lists, and no rejection without a reason. Run over every state a fixture holds. */
 function assertDisjoint(s: GameState, where: string): RejectedAction[] {
   const ctx = { defs: DEFS };
@@ -5393,13 +5508,12 @@ function assertDisjoint(s: GameState, where: string): RejectedAction[] {
   for (const r of rejected) {
     assert.ok(!offered.has(JSON.stringify(r.action)), `${where}: "${r.label}" is both legal and rejected`);
     assert.ok(r.why.length > 0, `${where}: "${r.label}" is rejected for no reason`);
-    const a = r.action as { type: string; card?: string; attacker?: string };
-    const key = `${a.type}:${a.card ?? a.attacker ?? ""}`;
+    const key = `${r.action.type}:${cardKeyOf(r.action)}`;
     assert.ok(!keys.has(key), `${where}: two rejections for ${key}`);
     keys.add(key);
     // And no legal move of the same type on the same card, which is the
     // stronger promise a client relies on when it indexes by card.
-    assert.ok(!legal.some((l) => `${l.action.type}:${(l.action as { card?: string; attacker?: string }).card ?? (l.action as { attacker?: string }).attacker ?? ""}` === key), `${where}: ${key} is rejected while the same move is offered`);
+    assert.ok(!legal.some((l) => `${l.action.type}:${cardKeyOf(l.action)}` === key), `${where}: ${key} is rejected while the same move is offered`);
   }
   return rejected;
 }

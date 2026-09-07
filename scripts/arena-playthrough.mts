@@ -11,7 +11,7 @@ import assert from "node:assert/strict";
 import { db } from "../src/db";
 import { arenaGames, decks } from "../src/db/schema";
 import { eq } from "drizzle-orm";
-import { legalActions, nextRandom, rejectedActions, type LegalAction } from "../src/lib/arena/engine";
+import { legalActions, nextRandom, rejectedActions, type Action, type LegalAction } from "../src/lib/arena/engine";
 import { BEAT_CAP, type Beat, type Beats } from "../src/lib/arena/beats";
 import { applyToGame, loadGame, startGame } from "../src/lib/arena/games";
 import { deckInputFor } from "../src/lib/arena/load";
@@ -52,6 +52,20 @@ const kinds = new Map<string, number>();
 const rejections = { total: 0, other: new Map<string, number>(), byKind: new Map<string, number>(), ms: 0, legalMs: 0, prompts: 0 };
 
 /**
+ * The identity `rejectedActions` dedupes on: its own `cardOf`, which reads a
+ * one-card `cards` as well as `card` and `attacker`. A `choose` prompt carries
+ * neither of the latter, so keying on those alone would read one rejection per
+ * unofferable card as the same entry repeated.
+ */
+function cardKeyOf(a: Action): string {
+  const x = a as { card?: string | null; attacker?: string; cards?: string[] };
+  if (typeof x.card === "string") return x.card;
+  if (typeof x.attacker === "string") return x.attacker;
+  if (Array.isArray(x.cards)) return x.cards.join(",");
+  return "";
+}
+
+/**
  * `docs/arena-workflow-spec.md` §5: on every move, no action is both legal
  * and rejected, no rejection is without a reason, and the `other` kind is
  * counted — a growing number of them means the vocabulary is missing a kind.
@@ -72,8 +86,7 @@ function auditRejections(game: { ctx: Parameters<typeof rejectedActions>[0]; sta
     rejections.total++;
     assert.ok(r.why.length > 0, `move ${move}: "${r.label}" is rejected for no reason`);
     assert.ok(!legal.has(JSON.stringify(r.action)), `move ${move}: "${r.label}" is both legal and rejected`);
-    const a = r.action as { type: string; card?: string; attacker?: string };
-    const key = `${a.type}:${a.card ?? a.attacker ?? ""}`;
+    const key = `${r.action.type}:${cardKeyOf(r.action)}`;
     assert.ok(!keys.has(key), `move ${move}: two rejections for ${key}`);
     keys.add(key);
     for (const w of r.why) {

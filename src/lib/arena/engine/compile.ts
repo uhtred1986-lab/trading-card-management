@@ -368,6 +368,23 @@ const AREA_NAMED: Record<string, ScriptArea> = {
 const AREA_PAIR_RE = /\b(?:in|from|of|into) (?:your|their)(?: opponent'?s)? ((?:z-)?[a-z]+(?: area)?) or (?:(?:from|in) )?(?:the )?(?:your |their )?(?:opponent'?s )?((?:z-)?[a-z]+(?: area)?)\b/;
 
 /**
+ * "…in all of your areas" (3-1-1): every area a player has, rather than one of
+ * them. "Removed from the game" is not an area, and the pile under a card is
+ * the host's area rather than one of its own, so neither is here.
+ */
+const ALL_AREAS: ScriptArea[] = ["leader", "battle", "unison", "combo", "energy", "hand", "deck", "drop", "life", "warp", "zDeck", "zEnergy"];
+/**
+ * The phrase that names them all. Both of its words mislead the rest of
+ * `parseTarget`, which is why it is taken off the phrase rather than left for
+ * `AREA_WORDS`: "areas" is not an area word, so "each <Son Goku> and <Vegeta>
+ * in all of your areas" fell through to the 20-1-6 default of the table and a
+ * Leader's colour grant reached nothing in hand, energy or drop; and the "all"
+ * in it reads as a count. The possessive is kept, because on BT2-001 it is the
+ * only thing in the phrase that says whose cards these are.
+ */
+const ALL_AREAS_RE = /\bin all (?:of )?(your |their |its owner's )?areas\b/;
+
+/**
  * "up to 2 of your opponent's Battle Cards in Rest Mode" → a selector.
  *
  * `looked` is the variable a `look` earlier in the same skill bound, for the
@@ -388,6 +405,14 @@ export function parseTarget(phrase: string, looked?: string): Selector | null {
   const underHost = /\bunder (?:this card|it)\b/.test(t) && !/^this card\b/.test(t.trim());
   if (underHost) {
     phrase = phrase.replace(/\b(?:from )?under (?:this card|it)\b/gi, " ");
+    t = phrase.toLowerCase();
+  }
+  // "Each <Son Goku> and <Vegeta> **in all of your areas**": the phrase names
+  // every area rather than one, and has to come off before anything else reads
+  // the words in it. See `ALL_AREAS_RE`.
+  const allAreas = ALL_AREAS_RE.test(t);
+  if (allAreas) {
+    phrase = phrase.replace(new RegExp(ALL_AREAS_RE.source, "gi"), (_full, poss?: string) => ` ${poss ?? ""} `);
     t = phrase.toLowerCase();
   }
   // "this card's power" inside a phrase is a measure, not the target.
@@ -432,10 +457,12 @@ export function parseTarget(phrase: string, looked?: string): Selector | null {
     both && AREA_NAMED[both[1]] && AREA_NAMED[both[2]] && AREA_NAMED[both[1]] !== AREA_NAMED[both[2]] ? [AREA_NAMED[both[1]], AREA_NAMED[both[2]]] : null;
 
   let area: ScriptArea | null = null;
-  for (const [re, a] of AREA_WORDS) {
-    if (re.test(t)) {
-      area = a;
-      break;
+  if (!allAreas) {
+    for (const [re, a] of AREA_WORDS) {
+      if (re.test(t)) {
+        area = a;
+        break;
+      }
     }
   }
   // "among them" / "of those cards" keeps working on what was just looked at.
@@ -443,10 +470,10 @@ export function parseTarget(phrase: string, looked?: string): Selector | null {
   // "Choose 1 of your <Majin Buu>" names no area, but 20-1-6 says an
   // unqualified card is one on the table. Without this the choice fails, and
   // then every later "it" in the same skill has nothing to point at.
-  if (!area && !fromVar && filterFor(phrase, null)) area = "play";
+  if (!allAreas && !area && !fromVar && filterFor(phrase, null)) area = "play";
   // The pile under a card is the area, and it was named by words that have
   // already been taken off the phrase.
-  if (!area && !fromVar && !underHost) return null;
+  if (!allAreas && !area && !fromVar && !underHost) return null;
 
   let count = 1;
   let upTo = false;
@@ -490,6 +517,9 @@ export function parseTarget(phrase: string, looked?: string): Selector | null {
   // and the skill goes to the referee, rather than selecting the whole area.
   if (filter === null) return null;
   if (underHost) return { side: "you", area: "under", filter, count, upTo, mode, notSelf };
+  // No single `area` stands for all of them, and leaving one on would be read
+  // as the place the cards must be — so the span is the only thing said.
+  if (allAreas) return { side, areas: ALL_AREAS, filter, count, upTo, mode, notSelf };
   if (bothAreas) return { side, area: "battle", areas: ["battle", "unison"], filter, count, upTo, mode, fromVar, notSelf };
   if (pair) return { side, area: pair[0], areas: pair, filter, count, upTo, mode, fromVar, notSelf };
   return { side, area: area ?? undefined, filter, count, upTo, mode, fromVar, take, fromEnd, notSelf };
@@ -668,8 +698,23 @@ interface Ctx {
    * decision hides it from the static layer entirely.
    */
   permanent: boolean;
-  /** The variable the last `look` or `reveal` bound — what "that card" means. */
+  /**
+   * The variable the last `look` or `reveal` bound: the cards held out in
+   * front of the player, which a following clause may pick *out of* — "look at
+   * the top 3 cards of your deck, add 1 of them to your hand", "choose up to
+   * 1". Only a look or a reveal makes such a pool.
+   */
   lastSeen: string | null;
+  /**
+   * The last name bound to cards the sentence can point back at with "that
+   * card": a look, a reveal, or a mill, whose cards go to the Drop face up.
+   *
+   * Kept apart from `lastSeen` because the two are not the same claim. A mill
+   * gives the sentence something to talk about, but not a pool to draw from —
+   * its cards are in the Drop already, and reading "add 1 card to your hand"
+   * as taking one of them moves a card the text never offered.
+   */
+  lastNamed: string | null;
   /** The variable bound by the last "play …" choice — what "the card you played with this skill" means. */
   lastPlayed: string | null;
   /**
@@ -687,6 +732,18 @@ interface Ctx {
    */
   replacing: { by?: "skill" | "ko" | "skillOrKo"; subject?: string } | null;
   n: number;
+  /**
+   * A counter of its own for the names a mill binds, so `n` keeps its count.
+   *
+   * A skill's price and its effect are compiled separately and both start at
+   * `c0`, and that collision is load-bearing: `runSkill` merges the price's
+   * bindings into the effect's frame by name, which is how "the chosen card"
+   * in an effect means the card its cost chose (4-3-3). Spending `n` on a mill
+   * would push the effect's own first choice to `c1`, leaving the price's `c0`
+   * alive underneath it — and a later reference then moves the card the price
+   * already spent.
+   */
+  mills: number;
   /** The skill text with its explanatory notes still in place. A token's stats are printed there. */
   raw: string;
 }
@@ -1757,7 +1814,8 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   if ((m = /^deal (\d+) damage to (?:your opponent|your opponent's life|them)$/.exec(t))) return [{ op: "damage", n: Number(m[1]), side: "opponent" }];
 
   // Deck manipulation.
-  if ((m = /^place (?:up to )?(\d+) cards? from the top of (your|your opponent's) deck in (?:your |their |its owner's |the )?drop(?: area)?$/.exec(t))) return [{ op: "mill", n: Number(m[1]), ...(m[2] === "your" ? {} : { side: "opponent" as const }) }];
+  if ((m = /^place (?:up to )?(\d+) cards? from the top of (your|your opponent's) deck in (?:your |their |its owner's |the )?drop(?: area)?$/.exec(t)))
+    return [{ op: "mill", n: Number(m[1]), ...(m[2] === "your" ? {} : { side: "opponent" as const }), as: `m${c.mills++}` }];
   // "Draw cards until you have 4 cards in your hand".
   if ((m = /^draw cards until you have (\d+) cards? in your hand$/.exec(t))) return [{ op: "draw", n: { handUpTo: Number(m[1]) } }];
   // "Place the top card of your deck in your Drop Area", "your opponent places
@@ -1766,7 +1824,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     // "Their deck" is the opponent's whichever way round the sentence is
     // built, and the subject may have been dropped before this ran.
     const theirs = m[1] !== "place" || m[3] !== "your";
-    return [{ op: "mill", n: m[2] ? Number(m[2]) : 1, ...(theirs ? { side: "opponent" as const } : {}) }];
+    return [{ op: "mill", n: m[2] ? Number(m[2]) : 1, ...(theirs ? { side: "opponent" as const } : {}), as: `m${c.mills++}` }];
   }
   if (/^add the top card of your deck to your life$/.test(t)) return [{ op: "addLife", n: 1 }];
   // Printed as "add card … to you hand" on some sets; the meaning is the same.
@@ -2033,7 +2091,12 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
 
   // 20-1: what a card counts as, rather than what it does. "This card gains
   // ≪Saiyan≫ in all areas" makes it a Saiyan to every skill that names one.
-  if ((m = /^(.*?) (?:gains?|is (?:also )?treated as(?: an?)?) ((?:(?:non-)?(?:<[^>]+>|≪[^≫]+≫|red|blue|green|yellow|black|white)[\s,]*(?:and\s+|or\s+)?)+)(?: in (?:all|any) areas?)?$/.exec(t))) {
+  //
+  // The list may be followed by the noun it is a list of: BT2-001 Vegito says
+  // "gain red, blue, and green **colors**", where every other card of this
+  // shape stops at the last colour. Anchored as this rule is, that one word
+  // failed the whole match and the Leader's only [Permanent] went unread.
+  if ((m = /^(.*?) (?:gains?|is (?:also )?treated as(?: an?)?) ((?:(?:non-)?(?:<[^>]+>|≪[^≫]+≫|red|blue|green|yellow|black|white)[\s,]*(?:and\s+|or\s+)?)+)(?:\s*colou?rs?)?(?: in (?:all|any) areas?)?$/.exec(t))) {
     const what = m[2];
     const filter = parseFilter(what);
     const colors = filter.colors;
@@ -2611,7 +2674,7 @@ function compileSkillText(skill: Skill): Script {
   const text = stripNotes(skill.effect);
   if (!text) return { ops: [], unsupported: [] };
   const unsupported: string[] = [];
-  const c: Ctx = { permanent: skill.kind === "permanent", last: null, choices: [], lastSeen: null, lastPlayed: null, lastTarget: null, lastOp: null, replacing: null, n: 0, raw: skill.effect };
+  const c: Ctx = { permanent: skill.kind === "permanent", last: null, choices: [], lastSeen: null, lastNamed: null, mills: 0, lastPlayed: null, lastTarget: null, lastOp: null, replacing: null, n: 0, raw: skill.effect };
   // A standing permission is one sentence, not a list of actions: "you can
   // activate this card's [Counter] skill from your hand without paying its
   // energy cost **by choosing 1 other black card in your hand and placing it
@@ -2735,9 +2798,19 @@ function track(o: Op, c: Ctx): void {
     c.lastTarget = { var: o.as };
   } else if (o.op === "reveal") {
     c.lastSeen = o.as;
+    c.lastNamed = o.as;
     c.lastTarget = { var: o.as };
   } else if (o.op === "look") {
     c.lastSeen = o.as;
+    c.lastNamed = o.as;
+  } else if (o.op === "mill" && o.as) {
+    // A card placed in the Drop from the top of the deck is turned over on the
+    // way, so "if that card is red" means it just as much as a card a reveal
+    // turned up. `lastNamed` only: not `lastSeen`, because those cards are in
+    // the Drop rather than held out to be picked from, and not `lastTarget`,
+    // because the sentence is asking *about* the card — reading "it" in a
+    // later clause as the milled card would move a card nothing named.
+    c.lastNamed = o.as;
   } else if ("target" in o && o.target) c.lastTarget = o.target;
 }
 
@@ -2854,14 +2927,29 @@ function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op
     // "If that card is a Battle Card" — what the reveal or the look just
     // turned up. The name only exists here, so the condition is built with
     // the compiler's own bookkeeping rather than by `parseConditionClause`.
-    if (c.lastSeen || c.last) {
+    if (c.lastNamed || c.last) {
       // "If **it's** a Battle Card" is the same sentence contracted, which the
       // reveal wordings print as often as the long form.
       const seen = /^(?:if|when) (?:that card|it|it'?s|the (revealed|chosen) card) (?:is )?(?:an? )?(.+)$/i.exec(clause.trim().replace(/[.,]$/, ""));
       // "The chosen card" is the choice; "that card" is whatever was last
       // turned up, and only falls back to the choice when nothing was.
-      const v = seen?.[1]?.toLowerCase() === "chosen" ? c.last : (c.lastSeen ?? c.last);
-      const filter = seen ? filterFor(seen[2], null) : undefined;
+      const v = seen?.[1]?.toLowerCase() === "chosen" ? c.last : (c.lastNamed ?? c.last);
+      // "If that card is **not** a <Son Gohan: Childhood>" (BT21-148).
+      // `parseFilter` carries some negations and silently drops others: it
+      // reads "non-red" and "other than {King Cold, Imminent Invasion}", but
+      // takes "not a <Son Gohan: Childhood>", "not red" and "not a Battle
+      // Card" as the plain description with a word in front of it. Dropped,
+      // the condition holds for exactly the card the sentence excludes — so
+      // what is checked is the filter rather than the wording: a description
+      // that negates something must come back with a negative measure on it,
+      // or the clause goes to the referee. An unread clause costs tokens; a
+      // backwards one loses the game.
+      const read = seen ? filterFor(seen[2], null) : undefined;
+      const negates = seen ? /\b(?:not|non|other than|except|besides)\b/i.test(seen[2]) : false;
+      const carriesNegative = read
+        ? read.notColors.length > 0 || read.notCharacters.length > 0 || read.notTraits.length > 0 || read.notNames.length > 0 || read.notKeywords.length > 0 || read.notType != null || read.notToken
+        : false;
+      const filter = negates && !carriesNegative ? undefined : read;
       if (seen && filter && v) {
         groups.push({ conds: [{ kind: "varMatches", var: v, filter }], ops: [] });
         c.lastTarget = { var: v };
