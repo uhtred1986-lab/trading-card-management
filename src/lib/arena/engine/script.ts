@@ -136,6 +136,14 @@ export type Cond =
    */
   | { kind: "inBattle"; sel: Selector; not?: boolean; role?: "attacker" | "guard" }
   /**
+   * "If this card participated in a battle …" (BT3-103): the past tense of
+   * `inBattle`, and a different question. A card is only an attack or guard
+   * card until the battle ends (8-1-2-2), and this is asked at the end of one
+   * — by which time `s.battle` says nothing — so it reads the card's own
+   * memory, which lasts the turn. Whose turn it was is asked separately.
+   */
+  | { kind: "battled"; sel: Selector }
+  /**
    * "If **all** of your opponent's energy is in Rest Mode" (XD1-01): every card
    * `sel` finds is also one that `matching` finds. Two selectors rather than a
    * filter, because what the sentence asks about is as often the *mode* of a
@@ -878,6 +886,7 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
             extraAttacks: 0,
             usedThisTurn: [],
             usedMarkerSkill: false,
+            battledThisTurn: false,
             negated: [],
           };
           s.players[p].battle.push(id);

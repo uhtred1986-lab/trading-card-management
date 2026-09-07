@@ -95,7 +95,8 @@ function emptyPlayer(id: PlayerId, name: string): PlayerState {
 }
 
 function instance(id: string, cardId: string, owner: PlayerId, isToken = false): CardInstance {
-  return { id, cardId, owner, mode: "active", hidden: false, flipped: false, markers: 0, under: [], isToken, enteredTurn: 0, extraAttacks: 0, usedThisTurn: [], usedMarkerSkill: false, negated: [] };
+  // prettier-ignore
+  return { id, cardId, owner, mode: "active", hidden: false, flipped: false, markers: 0, under: [], isToken, enteredTurn: 0, extraAttacks: 0, usedThisTurn: [], usedMarkerSkill: false, battledThisTurn: false, negated: [] };
 }
 
 export function createGame(ctx: EngineContext, opts: GameOptions): Applied {
@@ -214,6 +215,7 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
         s.cards[id].usedThisTurn = [];
         s.cards[id].extraAttacks = 0;
         s.cards[id].usedMarkerSkill = false;
+        s.cards[id].battledThisTurn = false;
       }
       const ps = s.players[s.turnPlayer];
       ps.overRealmsThisTurn = 0;
@@ -1032,6 +1034,16 @@ function battleBlocker(ctx: EngineContext, s: GameState): "done" | "wait" {
   return wait(s, { kind: "blocker", player: defender, candidates: cands });
 }
 
+/**
+ * 8-1-2-1: these cards are now the attack card and the guard card, which is
+ * what BT3-103 means by participating in a battle. The roles end with the
+ * battle (8-1-2-2) and the card is asked about it afterwards, so the memory
+ * lives on the card until `turn.next` clears it.
+ */
+function joinsBattle(s: GameState, ...ids: string[]): void {
+  for (const id of ids) if (s.cards[id]) s.cards[id].battledThisTurn = true;
+}
+
 /** 8-1-7: if the attacker or the guard has left, the battle goes straight to its end step. */
 function battleIntact(ctx: EngineContext, s: GameState): boolean {
   const b = s.battle;
@@ -1354,6 +1366,8 @@ function stackOnto(ctx: EngineContext, s: GameState, ev: GameEvent[], top: strin
   for (const e of s.effects) if (e.target === bottom && e.kind === "power") e.target = top;
   s.effects = s.effects.filter((e) => e.target !== bottom);
   if (s.battle) {
+    // 8-1-7-1: the new top *is* the attack or guard card from here on.
+    if (s.battle.attacker === bottom || s.battle.guard === bottom) joinsBattle(s, top);
     if (s.battle.attacker === bottom) s.battle.attacker = top;
     if (s.battle.guard === bottom) s.battle.guard = top;
   }
@@ -2465,6 +2479,7 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
       if (!legal) throw new IllegalAction("illegal attack");
       setMode(s, ev, action.attacker, "rest");
       s.battle = { attacker: action.attacker, guard: action.target, target: action.target, step: "declared", negated: false, blockerOffered: false, revenge: false, reactivate: false };
+      joinsBattle(s, action.attacker, action.target);
       ev.push({ type: "attack", attacker: action.attacker, target: action.target });
       s.flow.unshift({ op: "battle.afterDeclare" });
       break;
@@ -2510,6 +2525,7 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
         if (!pr.candidates.includes(action.card)) throw new IllegalAction("that card can't block");
         setMode(s, ev, action.card, "rest");
         s.battle!.guard = action.card;
+        joinsBattle(s, action.card);
         ev.push({ type: "guardChanged", guard: action.card, by: action.card });
         // 22-4: "when this card activates [Blocker]" — the block itself, which
         // is a different moment from being attacked.
@@ -2834,6 +2850,7 @@ function activate(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId
     for (const e of s.effects) if (e.target === old && e.kind === "power") e.target = card;
     s.effects = s.effects.filter((e) => e.target !== old);
     if (s.battle) {
+      if (s.battle.attacker === old || s.battle.guard === old) joinsBattle(s, card);
       if (s.battle.attacker === old) s.battle.attacker = card;
       if (s.battle.guard === old) s.battle.guard = card;
     }

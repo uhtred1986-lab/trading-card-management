@@ -439,6 +439,34 @@ const find = (s: GameState, p: PlayerId, area: "hand" | "battle" | "energy" | "z
   assert.equal(s.prompt.kind, "combo", "no active Blocker → straight to the Offense Step");
 }
 
+// 8-1-2-1: the attack card and the guard card have been in a battle, and the
+// card remembers it after the battle has ended — which is when BT3-103 asks.
+// The turn forgets it, so the memory is always about the turn in progress.
+{
+  let s = arena({ battle: ["V1"], oppBattle: ["BLOCKER", "V-BLUE"] });
+  const bystander = find(s, "p1", "battle", "V1");
+  const blocker = find(s, "p2", "battle", "BLOCKER");
+  const other = find(s, "p2", "battle", "V-BLUE");
+  const leader = s.players.p1.leader;
+  for (const id of [leader, bystander, blocker, other]) assert.equal(s.cards[id].battledThisTurn, false, `${id} has been in no battle yet`);
+  s = play(s, { type: "attack", player: "p1", attacker: leader, target: s.players.p2.leader });
+  assert.equal(s.cards[leader].battledThisTurn, true, "8-1-2: the attacker is in the battle");
+  assert.equal(s.cards[s.players.p2.leader].battledThisTurn, true, "…and so is the card it attacked");
+  assert.equal(s.prompt.kind, "blocker");
+  s = play(s, { type: "block", player: "p2", card: blocker });
+  assert.equal(s.cards[blocker].battledThisTurn, true, "22-4: a Blocker taking the attack is the guard card");
+  assert.equal(s.cards[bystander].battledThisTurn, false, "a card that stayed out of it was in no battle");
+  assert.equal(s.cards[other].battledThisTurn, false);
+  s = play(s, { type: "pass", player: "p1" }, { type: "pass", player: "p2" });
+  assert.equal(s.battle, null, "8-5-13: the battle is over");
+  assert.equal(s.cards[leader].battledThisTurn, true, "8-1-2-2: the roles end with the battle, the memory does not");
+  // …and the turn does end it.
+  s = play(s, { type: "endMain", player: "p1" });
+  while (s.prompt.kind !== "charge") s = play(s, { type: "pass", player: (s.prompt as { player: PlayerId }).player });
+  assert.equal(s.turnPlayer, "p2");
+  for (const id of Object.keys(s.cards)) assert.equal(s.cards[id].battledThisTurn, false, `${id} starts the turn having been in no battle`);
+}
+
 // [Counter: Attack] "Negate the attack" (22-10-3-2, 8-1-6-1).
 {
   let s = arena({ oppHand: ["E-NEGATE"], oppEnergy: ["V1"] });
@@ -1309,6 +1337,26 @@ function assertConsistentAfterDrop(s: GameState) {
       ],
     },
   ]);
+  // BT3-103 in full: the condition in front of it asks what the card did
+  // earlier in the turn, which the board remembers for it, and whose turn it
+  // is — two conditions the engine already had, asked together.
+  const bergamo = one(
+    "[Auto] If this card participated in a battle during your opponent's turn, you may place 1 card from your hand in the Drop Area at the end of the battle. If you do so, switch this card to Active Mode, and this card gains +5000 power for the duration of the turn."
+  );
+  assert.deepEqual(bergamo.unsupported, []);
+  assert.deepEqual((bergamo.ops[0] as { cond: unknown }).cond, {
+    kind: "all",
+    conds: [
+      { kind: "battled", sel: { special: "self" } },
+      { kind: "isTurnPlayer", who: "opponent" },
+    ],
+  });
+  assert.equal(((bergamo.ops[0] as { then: { op: string }[] }).then[0] ?? {}).op, "delay");
+  // Without the turn half it is the memory alone.
+  const anyTurn = one("[Auto] If this card participated in a battle, draw 1 card.");
+  assert.deepEqual(anyTurn.unsupported, []);
+  assert.deepEqual(anyTurn.ops, [{ op: "if", cond: { kind: "battled", sel: { special: "self" } }, then: [{ op: "draw", n: 1 }] }]);
+
   // BT3-103: the price is paid at the end of the battle, so what hangs on it
   // happens then too. Left outside the delay, the condition was asked before
   // the delayed program had bound anything and the second half never ran.

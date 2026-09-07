@@ -441,6 +441,8 @@ export function condHolds(ctx: GameContext, s: GameState, frame: ScriptFrame, c:
         !!b && resolveSelector(ctx, s, frame, c.sel).some((id) => (c.role === "attacker" ? b.attacker === id : c.role === "guard" ? b.guard === id : b.attacker === id || b.guard === id));
       return c.not ? !inBattle : inBattle;
     }
+    case "battled":
+      return resolveSelector(ctx, s, frame, c.sel).some((id) => s.cards[id]?.battledThisTurn);
     case "every": {
       const ids = resolveSelector(ctx, s, frame, c.sel);
       // Nothing there is not "all of it" — see the note on the Cond.

@@ -1458,6 +1458,23 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
       return { cond: { kind: "inBattle", sel, ...(m[2] === "is" ? {} : { not: true }) }, subject: { sel } };
     }
   }
+  // "If this card participated in a battle during your opponent's turn"
+  // (BT3-103): the past tense of the clause above it, and a different
+  // question — the card is asked at the end of a battle, when nothing is an
+  // attack or guard card any more (8-1-2-2), so what it reads is the card's
+  // own memory of the turn. The turn half is one of the conditions the
+  // compiler already has, and the two are asked together rather than folded
+  // into the memory, which would have to store whose turn it was as well.
+  if ((m = /^(this card|.+?) (?:participated|took part) in a battle(?: during (your|your opponent's) turn)?$/.exec(t))) {
+    const sel: Selector | null = m[1] === "this card" ? { special: "self" } : parseTarget(m[1]);
+    if (sel) {
+      delete sel.count;
+      delete sel.upTo;
+      const was: Cond = { kind: "battled", sel };
+      const turn: Cond | null = m[2] ? { kind: "isTurnPlayer", ...(m[2] === "your" ? {} : { who: "opponent" as const }) } : null;
+      return { cond: turn ? { kind: "all", conds: [was, turn] } : was, subject: { sel } };
+    }
+  }
   // "If your Leader's back side is {Name}", "… is a black <Goku> card" (22-2-5).
   if ((m = /^your leader(?: card)?'s back side is (.+)$/.exec(t))) {
     return { cond: { kind: "leaderMatches", filter: parseFilter(m[1]), back: true }, subject: { sel: { special: "leader" } } };
@@ -3372,6 +3389,8 @@ function describeCond(c: Cond): string {
     }
     case "inBattle":
       return `${describeSelector(c.sel)} is ${c.not ? "not " : ""}${c.role === "guard" ? "being attacked" : c.role === "attacker" ? "attacking" : "in a battle"}`;
+    case "battled":
+      return `${describeSelector(c.sel)} has been in a battle this turn`;
     case "every":
       return `all of ${describeSelector(c.sel)} is ${describeSelector(c.matching)}`;
     case "leaderFlipped":
