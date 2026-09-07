@@ -5399,6 +5399,20 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
 // reach for and why each is not there. The two must never overlap, and each
 // `whyNot*` twin must say the same thing as the predicate beside it.
 
+/**
+ * The identity `rejectedActions` dedupes on: its own `cardOf`, which reads a
+ * one-card `cards` as well as `card` and `attacker`. A `choose` prompt carries
+ * neither of the latter, so keying on those alone would read one rejection per
+ * unofferable card as the same entry repeated.
+ */
+function cardKeyOf(a: Action): string {
+  const x = a as { card?: string | null; attacker?: string; cards?: string[] };
+  if (typeof x.card === "string") return x.card;
+  if (typeof x.attacker === "string") return x.attacker;
+  if (Array.isArray(x.cards)) return x.cards.join(",");
+  return "";
+}
+
 /** No action in both lists, and no rejection without a reason. Run over every state a fixture holds. */
 function assertDisjoint(s: GameState, where: string): RejectedAction[] {
   const ctx = { defs: DEFS };
@@ -5409,13 +5423,12 @@ function assertDisjoint(s: GameState, where: string): RejectedAction[] {
   for (const r of rejected) {
     assert.ok(!offered.has(JSON.stringify(r.action)), `${where}: "${r.label}" is both legal and rejected`);
     assert.ok(r.why.length > 0, `${where}: "${r.label}" is rejected for no reason`);
-    const a = r.action as { type: string; card?: string; attacker?: string };
-    const key = `${a.type}:${a.card ?? a.attacker ?? ""}`;
+    const key = `${r.action.type}:${cardKeyOf(r.action)}`;
     assert.ok(!keys.has(key), `${where}: two rejections for ${key}`);
     keys.add(key);
     // And no legal move of the same type on the same card, which is the
     // stronger promise a client relies on when it indexes by card.
-    assert.ok(!legal.some((l) => `${l.action.type}:${(l.action as { card?: string; attacker?: string }).card ?? (l.action as { attacker?: string }).attacker ?? ""}` === key), `${where}: ${key} is rejected while the same move is offered`);
+    assert.ok(!legal.some((l) => `${l.action.type}:${cardKeyOf(l.action)}` === key), `${where}: ${key} is rejected while the same move is offered`);
   }
   return rejected;
 }
