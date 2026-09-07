@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { db } from "@/db";
+import { encodeLighting, LIGHTING_COOKIE, lightingFrom } from "@/lib/arena/lighting";
 import { SKIN_COOKIE, skinFrom } from "@/lib/arena/skin";
 import { syncCatalog } from "@/lib/catalog/deckplanet";
 import { syncFx } from "@/lib/pricing/fx";
@@ -47,5 +48,22 @@ export async function syncMetaAction(): Promise<void> {
 /** Which skin paints the app: the same cookie the board's toggle sets. */
 export async function chooseSkinAction(skin: string): Promise<void> {
   (await cookies()).set(SKIN_COOKIE, skinFrom(skin), { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
+  revalidatePath("/", "layout");
+}
+
+/**
+ * Turn lighting (`docs/arena-turn-presence-spec.md` §3.5).
+ *
+ * A cookie rather than `localStorage`, like the skin and the staging beside
+ * it: the board is painted on the server, so a palette the client had to read
+ * first would flash the default one on every load. The blob is re-parsed
+ * through `lightingFrom` before it is written, so nothing but a value the
+ * board can actually use ever reaches the cookie — and the empty-tone case
+ * writes a cookie holding no overrides at all, which is what "reset to
+ * defaults" means here.
+ */
+export async function chooseLightingAction(blob: string): Promise<void> {
+  const prefs = lightingFrom(blob);
+  (await cookies()).set(LIGHTING_COOKIE, encodeLighting(prefs), { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
   revalidatePath("/", "layout");
 }

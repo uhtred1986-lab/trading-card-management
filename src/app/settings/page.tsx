@@ -4,7 +4,9 @@ import { lastSyncRuns } from "@/lib/sync";
 import { SubmitButton } from "@/components/SubmitButton";
 import { chooseSkinAction, syncCardTraderAction, syncCatalogAction, syncMetaAction, syncPricesAction } from "./actions";
 import { cookies } from "next/headers";
+import { LIGHTING_COOKIE, lightingFrom } from "@/lib/arena/lighting";
 import { SKIN_COOKIE, skinFrom } from "@/lib/arena/skin";
+import { TurnLighting } from "@/components/arena/TurnLighting";
 
 export const dynamic = "force-dynamic";
 /** Sync actions can run for a couple of minutes on Vercel's fluid compute. */
@@ -19,7 +21,9 @@ export default async function SettingsPage() {
   const hasCardTrader = !!process.env.CARDTRADER_API_TOKEN;
   const cardTraderLive = process.env.CARDTRADER_ENABLED === "true";
   const hasXimilar = !!process.env.XIMILAR_API_KEY;
-  const skin = skinFrom((await cookies()).get(SKIN_COOKIE)?.value);
+  const jar = await cookies();
+  const skin = skinFrom(jar.get(SKIN_COOKIE)?.value);
+  const lighting = lightingFrom(jar.get(LIGHTING_COOKIE)?.value);
 
   return (
     <div className="space-y-6">
@@ -43,6 +47,8 @@ export default async function SettingsPage() {
         </div>
         <p className="mt-1 text-xs text-space-300">The whole app, this device only. The anime sky is the default; the night table is the dark board the app was designed on.</p>
       </section>
+
+      <TurnLighting prefs={lighting} />
 
       <section className="grid gap-3 md:grid-cols-2">
         <SyncCard

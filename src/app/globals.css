@@ -118,6 +118,143 @@ input[type="number"] {
   --card-back: radial-gradient(circle at 50% 135%, var(--color-ki-500) 0 14%, var(--color-space-700) 15% 60%, var(--color-space-900) 61%);
   --ink: var(--color-space-600);
 }
+/* ==========================================================================
+ * Turn presence — the leader owns the room (docs/arena-turn-presence-spec.md).
+ *
+ * Two layers behind the board, and one card's scale. The ground stays the
+ * ground, the ink outlines, card sizes, radii, type and spacing are untouched:
+ * a turn moves *light*, and nothing else. That is the whole contract, and it
+ * is what stops the board becoming a different app every other turn.
+ *
+ * Every value the turn itself changes is set from `turnVars` in
+ * src/lib/arena/lighting.ts. The master dials are here rather than there so a
+ * skin can raise or lower the whole effect in its own scope — the anime sky is
+ * a bright ground and takes the same wash much harder than the night table.
+ * ========================================================================== */
+.arena {
+  /* The two master dials. A skin overrides these; nothing else should. */
+  --turn-master: 0.55;
+  --turn-wash-master: 0.22;
+  --turn-blur: 28px;
+  --lead-scale: 1.1;
+  --lead-dim: 0.65;
+  /* Under 200 ms a turn flip flickers; over 700 it feels like a loading screen. */
+  --turn-ms: 420ms;
+
+  /* Set per render from the active leader; these are only the fallbacks for a
+     board that has not been given a room yet (a game with no leader on table). */
+  --turn-tint: var(--color-space-500);
+  --turn-glow: var(--color-space-400);
+  --turn-art: none;
+  --turn-art-on: 0;
+  --turn-k: 0;
+  --turn-mode: 1;
+  --turn-y: 88%;
+
+  /* One master strength times the colour's own intensity times the on/subtle/
+     off switch — and, for the wash, times "is there art at all". */
+  --turn-strength: calc(var(--turn-master) * var(--turn-k) * var(--turn-mode));
+  --turn-wash: calc(var(--turn-wash-master) * var(--turn-k) * var(--turn-mode) * var(--turn-art-on));
+}
+
+/* Layer 1 — the active leader's artwork, blurred past recognition and masked
+   so it fades out before it reaches the Battle Areas. It is never read as a
+   picture; it is read as weather. The hard blur is the point rather than a
+   softening: leader art is busy and high-contrast, and anything sharp enough
+   to recognise is sharp enough to compete with a 13 px power figure. */
+.arena::after {
+  content: "";
+  position: absolute;
+  inset: -14%;
+  z-index: 0;
+  pointer-events: none;
+  background-image: var(--turn-art);
+  background-size: cover;
+  background-position: center 30%;
+  background-repeat: no-repeat;
+  /* Blurred once, on a static layer. Never animate this — a changing radius
+     re-rasterises every frame and is the one thing here that costs real
+     milliseconds on a phone. */
+  filter: blur(var(--turn-blur)) saturate(1.15);
+  opacity: var(--turn-wash);
+  -webkit-mask-image: radial-gradient(140% 70% at 50% var(--turn-y), #000 0%, transparent 62%);
+  mask-image: radial-gradient(140% 70% at 50% var(--turn-y), #000 0%, transparent 62%);
+  transition:
+    opacity var(--turn-ms) cubic-bezier(0.2, 0.8, 0.2, 1),
+    -webkit-mask-image var(--turn-ms) cubic-bezier(0.2, 0.8, 0.2, 1),
+    mask-image var(--turn-ms) cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Layer 2 — ambient light in the leader's printed colour, whose *position* is
+   the only thing a turn flip changes: the light is physically at the end of
+   the table that is acting. This is the layer that carries the turn when a
+   leader has no art at all. */
+.arena::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(120% 62% at 50% var(--turn-y), color-mix(in oklab, var(--turn-glow) calc(var(--turn-strength) * 42%), transparent) 0%, transparent 68%);
+  transition: background var(--turn-ms) cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* The room's two layers sit at z-index 0, so everything the board draws is
+   lifted above them. Zero specificity on purpose: any child that declares its
+   own position or z-index — the sticky prompt bar, a fixed sheet, an absolute
+   ghost — keeps exactly what it had, and a child added later is above the room
+   without having to know the room exists. `.arena` is left un-isolated: it
+   must not become a stacking context, or the card sheet would fall behind the
+   app header. */
+:where(.arena) > :where(*) {
+  position: relative;
+  z-index: 1;
+}
+
+/* Layer 3 — the leader itself. The footprint is reserved, so the scale is a
+   transform inside a fixed box and nothing on the board reflows when the turn
+   flips. Transform and opacity only: free on a mid-range Android, and correct
+   under prefers-reduced-motion for free. */
+.arena-leader {
+  position: relative;
+  display: block;
+  flex: 0 0 auto;
+  transition:
+    transform var(--turn-ms) cubic-bezier(0.2, 0.9, 0.3, 1),
+    opacity var(--turn-ms),
+    filter var(--turn-ms);
+}
+.arena-leader-on {
+  transform: scale(var(--lead-scale));
+  z-index: 3;
+}
+.arena-leader-off {
+  opacity: var(--lead-dim);
+  filter: saturate(0.55) brightness(0.85);
+}
+/* The breathing ring: the one part of layer 3 that is colour, and the part
+   that still reads in greyscale because it is present or absent rather than
+   one hue or another. */
+.arena-leader-ring {
+  position: absolute;
+  inset: -4px;
+  border-radius: 9px;
+  pointer-events: none;
+  box-shadow:
+    0 0 0 2px var(--turn-glow),
+    0 0 22px 4px color-mix(in oklab, var(--turn-glow) 55%, transparent);
+  animation: arena-breathe 2.6s ease-in-out infinite;
+}
+@keyframes arena-breathe {
+  0%,
+  100% {
+    opacity: 0.75;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
 .arena-card-back {
   background: var(--card-back);
   box-shadow: 0 2px 6px color-mix(in srgb, var(--color-space-950) 50%, transparent);
@@ -671,6 +808,15 @@ input[type="number"] {
 /* The board sets its own card back for the night table; under the sky it takes the skin's. */
 [data-skin="anime"] .arena {
   --card-back: radial-gradient(circle at 50% 135%, var(--gi) 0 16%, #2f6fe0 17% 58%, var(--ink) 59%);
+
+  /* Turn presence, re-tuned for a bright ground (turn-presence spec §3.3).
+     The wash sits on white here instead of deep space, so the same opacity
+     reads much stronger and eats into the ask card's contrast — it comes down.
+     The ambient glow has the opposite problem, washing out against the sky, so
+     the master strength goes up. Both are still well under the ~30 % wash
+     where 4.5:1 on the prompt bar stops holding. */
+  --turn-master: 0.7;
+  --turn-wash-master: 0.13;
 }
 
 /* The sky: the top of every page, with paper-white ground below it. Sized to
@@ -1082,5 +1228,14 @@ html[data-skin="anime"] body::before {
     transition: none;
     filter: none;
     opacity: 0.45;
+  }
+  /* Turn presence still *happens* — it must, it is state, and removing it
+     would remove information. It simply happens in 1 ms instead of 420. */
+  .arena {
+    --turn-ms: 1ms;
+  }
+  .arena-leader-ring {
+    animation: none;
+    opacity: 1;
   }
 }

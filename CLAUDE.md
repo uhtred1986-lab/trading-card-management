@@ -221,6 +221,15 @@ the same style.
   **Pace** (`src/lib/arena/pace.ts`): how fast a turn plays back is a remembered preference —
   slow (default), normal, or step (tap *Next* between beats); while it plays, the prompt bar's
   headline is the narration sentence and a card from a hidden pile flies in as a ghost.
+  **Turn presence** (`src/lib/arena/lighting.ts`, `docs/arena-turn-presence-spec.md`): whose turn
+  it is, readable at arm's length. The acting leader grows and gets a ring, the idle one dims, and
+  the room takes the acting leader's **printed** colour — never one sampled from its art, so both
+  clients derive the same room from `colors[0]` with no image pipeline. `turnVars` is the only
+  place a turn becomes a colour; everything below it is CSS on the `.arena` root, and no snapshot
+  field was added. Two rules to keep: the light is **never the only signal** (Settings → Turn
+  lighting → *Off* must still leave the board unambiguous — that is the test, not a feature), and
+  `.arena` must **not** become a stacking context, or the card sheet falls behind the app header —
+  the room sits at `z-index: 0` and children are lifted at zero specificity instead.
 - **1 v 1** (mode `versus`, `src/lib/arena/matches.ts`, `docs/arena-client-contract.md` §3.3): two
   people, two devices, one game. It needs two `app_users` logins — the seats are
   `arena_games.p1_user`/`p2_user` and `seatOf` reads `currentUser()`. Because each player picks

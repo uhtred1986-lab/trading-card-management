@@ -15,6 +15,7 @@ import { FeelToggle } from "../FeelToggle";
 import { PaceToggle } from "../PaceToggle";
 import { SkinToggle } from "../SkinToggle";
 import { usePace } from "@/lib/arena/pace";
+import { colourOf, DEFAULT_LIGHTING, turnVars, type TurnLighting } from "@/lib/arena/lighting";
 import type { ArenaSkin } from "@/lib/arena/skin";
 import { ReportBug } from "../ReportBug";
 import { narrate } from "@/lib/arena/narration";
@@ -65,7 +66,19 @@ import { useIdle } from "./useIdle";
  * cards out of their rows so each card is drawn once — a card's `layoutId` is
  * what flies it there and back, so it may exist in exactly one place.
  */
-export function ArenaStage({ gameId, snapshot, skin = "night", staging = "band" }: { gameId: number; snapshot: Snapshot; skin?: ArenaSkin; staging?: ArenaStaging }) {
+export function ArenaStage({
+  gameId,
+  snapshot,
+  skin = "night",
+  staging = "band",
+  lighting = DEFAULT_LIGHTING,
+}: {
+  gameId: number;
+  snapshot: Snapshot;
+  skin?: ArenaSkin;
+  staging?: ArenaStaging;
+  lighting?: TurnLighting;
+}) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
@@ -364,6 +377,29 @@ export function ArenaStage({ gameId, snapshot, skin = "night", staging = "band" 
   const yourTurn = view.prompt.player === view.you.player;
   const step = view.battle ? `battle:${view.battle.step}` : `phase:${view.phase}`;
 
+  /**
+   * The room belongs to whoever is acting (`docs/arena-turn-presence-spec.md`).
+   *
+   * One expression, used once, from the same `view.turnPlayer` the turn strip
+   * reads — so the words and the light can never end up saying different
+   * things. Everything after this is CSS: no component below learns a rule,
+   * and nothing was added to the snapshot to make it work.
+   */
+  const acting = view.turnPlayer === view.you.player;
+  const actor = acting ? view.you : view.them;
+  const turnStyle = turnVars(
+    {
+      colour: colourOf(actor.leader?.colors),
+      art: actor.leader?.imageUrl ?? null,
+      yours: acting,
+      // Exact primary-colour match only. Two perceptually *close* colours —
+      // Red against Yellow — do not count: a ΔE threshold would be more
+      // correct and much harder to reason about.
+      mirror: !!colourOf(view.you.leader?.colors) && colourOf(view.you.leader?.colors) === colourOf(view.them.leader?.colors),
+    },
+    lighting,
+  ) as React.CSSProperties;
+
   // After a few quiet seconds the cards that can be tapped say so. The clock
   // restarts on anything that changes what you could do, so it never nags.
   const idle = useIdle(4000, `${view.prompt.question}|${selected}|${busy}|${playback.playing}`);
@@ -439,7 +475,7 @@ export function ArenaStage({ gameId, snapshot, skin = "night", staging = "band" 
 
   return (
     <LayoutGroup>
-      <div ref={boardRef} className="arena relative mx-auto flex w-full max-w-7xl flex-col gap-2 sm:gap-3" data-skin={skin}>
+      <div ref={boardRef} className="arena relative mx-auto flex w-full max-w-7xl flex-col gap-2 sm:gap-3" data-skin={skin} style={turnStyle}>
         {/* Speed lines under an attack — a skin's moment, driven by the beat on
             screen like every other; it draws nothing on the night table. */}
         {beat && (beat.t === "attack" || beat.t === "clash") && <div key={beat.n} className="arena-speedlines pointer-events-none absolute inset-0 z-20" aria-hidden />}
@@ -450,7 +486,7 @@ export function ArenaStage({ gameId, snapshot, skin = "night", staging = "band" 
         <TopStrip view={view} />
 
         <div className="flex flex-col gap-2 lg:grid lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-start lg:gap-4">
-          <SideRail side={view.them} them cardProps={cardProps} hurt={hurting === view.them.player} narrator={narrator} lifted={lifted} className="lg:col-start-3 lg:row-start-1" />
+          <SideRail side={view.them} them active={!acting} cardProps={cardProps} hurt={hurting === view.them.player} narrator={narrator} lifted={lifted} className="lg:col-start-3 lg:row-start-1" />
 
           <section className="arena-stage relative rounded-xl border border-space-700/70 p-2 sm:rounded-2xl sm:p-3 lg:col-start-2 lg:row-start-1 lg:p-4" aria-label="Battle Areas">
             {/* Dimmed and blurred under the band, never hidden: the position
@@ -464,7 +500,7 @@ export function ArenaStage({ gameId, snapshot, skin = "night", staging = "band" 
             {bandOn && shape && <DuelBand shape={shape} cardProps={stagedProps} beat={beat} progress={playback.playing ? { index: playback.index, total: playback.total } : null} />}
           </section>
 
-          <SideRail side={view.you} cardProps={cardProps} hurt={hurting === view.you.player} narrator={narrator} lifted={lifted} className="lg:col-start-1 lg:row-start-1" />
+          <SideRail side={view.you} active={acting} cardProps={cardProps} hurt={hurting === view.you.player} narrator={narrator} lifted={lifted} className="lg:col-start-1 lg:row-start-1" />
         </div>
 
         {held && !view.over && !playback.playing && <NarrationRibbon text={held.text} n={held.n} mine={held.mine} live={false} />}
@@ -760,6 +796,7 @@ function HandBacks({ count }: { count: number }) {
 function SideRail({
   side,
   them = false,
+  active = false,
   cardProps,
   hurt = false,
   narrator,
@@ -768,6 +805,8 @@ function SideRail({
 }: {
   side: SideView;
   them?: boolean;
+  /** It is this side's turn: its leader owns the room (turn-presence spec §2.3). */
+  active?: boolean;
   cardProps: CardProps;
   /** This player is taking damage right now. */
   hurt?: boolean;
@@ -808,7 +847,16 @@ function SideRail({
           (lifted?.has(side.leader.id) ? (
             <span className="arena-slot" style={{ width: `calc(56px * var(--arena, 1))`, height: `calc(78px * var(--arena, 1))` }} aria-hidden />
           ) : (
-            <StageCard {...cardProps(side.leader)} width={56} />
+            /* The footprint is reserved and the scale happens inside it, so
+               the rail does not reflow when the turn flips — the same rule
+               that keeps layout still between every other pair of states. */
+            <span
+              className={`arena-leader ${active ? "arena-leader-on" : "arena-leader-off"}`}
+              style={{ width: `calc(56px * var(--arena, 1))`, height: `calc(78px * var(--arena, 1))` }}
+            >
+              <StageCard {...cardProps(side.leader)} width={56} />
+              {active && <span className="arena-leader-ring" aria-hidden />}
+            </span>
           ))}
         {side.unison && !lifted?.has(side.unison.id) && <StageCard {...cardProps(side.unison)} width={48} />}
       </div>
