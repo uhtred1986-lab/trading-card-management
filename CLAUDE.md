@@ -182,8 +182,10 @@ the same style.
   typecheck` until it is described, and `npm test` checks every tag printed there is a spelling
   `keywordOf` really reads.
 - **Arena UI** (`/arena`, `src/components/arena/`, `src/lib/arena/{games,view}.ts`): phone-first
-  hot-seat board. A game is one `arena_games` row holding the seed, the action log (the
-  reproducible source) and a state snapshot; `applyToGame` is the only writer. The board is drawn
+  board, hot-seat or 1 v 1. A game is one `arena_games` row holding the seed, the action log (the
+  reproducible source) and a state snapshot; `applyToGame` is the only writer, and it writes
+  `WHERE version = <what it read>` so two devices racing cannot lose a move — the loser gets
+  `StaleGame` and re-reads. The board is drawn
   from `boardView`, which hides what the player may not see (3-1-3), and every tappable thing comes
   from the engine's `legalActions`, so the UI knows no rules. `npm run arena:playthrough` plays a
   whole game through the database, and `npm run arena:coverage` reports how much card text the
@@ -217,6 +219,23 @@ the same style.
   **Pace** (`src/lib/arena/pace.ts`): how fast a turn plays back is a remembered preference —
   slow (default), normal, or step (tap *Next* between beats); while it plays, the prompt bar's
   headline is the narration sentence and a card from a hidden pile flies in as a ghost.
+- **1 v 1** (mode `versus`, `src/lib/arena/matches.ts`, `docs/arena-client-contract.md` §3.3): two
+  people, two devices, one game. It needs two `app_users` logins — the seats are
+  `arena_games.p1_user`/`p2_user` and `seatOf` reads `currentUser()`. Because each player picks
+  their own deck and they are not at one keyboard, a 1 v 1 is opened as an `arena_matches` row and
+  the *second* deck is what calls `startGame`, so there is never a half-built game. Three things
+  this mode is the first to need, all now true of every mode: `buildSnapshot` takes an explicit
+  `viewer` (the same game is drawn twice and each device stays in its own chair); `waitingFor`
+  reads against that viewer, so `"opponent"` covers a person and the board's existing long-poll
+  animates their turn with no change to it; and **`maskBeats` strips `Beats.art` to what
+  `revealedTo` allows** — a real leak, since the queue carried the face of every card drawn. Only
+  the face goes, never the beat, so the card still flies face-down. A 1 v 1 belongs to its two
+  seats and to nobody else, over as well as playing (owner's decision, 7 Sep 2026): the board, the
+  debug page and every `/api/v1` route answer `not_found` to anyone else. **With the app running
+  open there is no identity and `seatOf` lets everything through** — the same hole `proxy.ts` has,
+  no wider, and what keeps local dev and `arena:playthrough` working. The referee is on, as in
+  Sparring and Tournament; there is no Claude opponent, and `aiPlayerOf` now *names* the two AI
+  modes rather than excluding hot-seat, so a future mode cannot inherit one by accident.
 - **Claude as the arena opponent** (`src/lib/arena/ai/`): `view.ts` builds what Claude may see —
   its own hand and decklist plus public state; your hand, life and decklist are never in the
   request. `opponent.ts` picks a number from the engine's legal-move list, so an answer can be

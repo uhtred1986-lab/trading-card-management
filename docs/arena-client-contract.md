@@ -34,11 +34,13 @@ src/lib/arena/snapshot.ts     pure: no database, no SDK, no network
   viewerFor(input) / waitingFor(input)
 
 src/lib/arena/session.ts      the database and Claude
-  snapshotOf(db, gameId)           → Snapshot | null
-  snapshotOfGame(db, game)         → Snapshot      // for a caller holding the game
-  applyAction(db, gameId, action)  → Snapshot      // wraps applyToGame
-  advanceSession(db, gameId)       → { snapshot, error }
-  waitForBeats(db, gameId, since, timeoutMs) → Snapshot | null
+  snapshotOf(db, gameId, viewer?)          → Snapshot | null
+  snapshotOfGame(db, game, viewer?)        → Snapshot      // for a caller holding the game
+  applyAction(db, gameId, action, viewer?) → Snapshot      // wraps applyToGame
+  advanceSession(db, gameId, viewer?)      → { snapshot, error }
+  waitForBeats(db, gameId, since, timeoutMs, viewer?) → Snapshot | null
+                               // viewer: the asking player's seat in a 1 v 1 (§3.3);
+                               // null everywhere else, and derived as it always was
 ```
 
 The split is what lets `npm test` build a real snapshot and compare it against a golden fixture
@@ -61,11 +63,16 @@ export interface Snapshot {
   contract: 1;
   game: {
     id: number;
-    mode: "hotseat" | "sparring" | "tournament";
+    mode: "hotseat" | "sparring" | "tournament" | "versus";
     status: "playing" | "over" | "abandoned";
     turn: number;
     p1Name: string;
     p2Name: string;
+    /** Which chair this board was drawn for; `view.you` is this player. §3.3 */
+    you: "p1" | "p2";
+    /** The login in each seat. Null outside a 1 v 1. */
+    p1User?: string | null;
+    p2User?: string | null;
   };
   /** src/lib/arena/view.ts — unchanged, already carries per-card art. */
   view: BoardView;
@@ -223,6 +230,48 @@ Three properties, all the server's job:
 The Android app does not exist yet; `Snapshot.kt` carries every field above from day one, so it
 inherits the workflow model rather than retrofitting it.
 
+### 3.3 Two people, two devices (added 7 Sep 2026)
+
+`versus` is a 1 v 1 between two human beings on two phones. It is the first
+mode where **the same game is rendered twice**, and that is the only thing that
+makes it different from hot-seat — the engine, the flow and the legal-move list
+are untouched.
+
+Three properties, all the server's job:
+
+- **A snapshot is built for a stated viewer.** `buildSnapshot` takes an optional
+  `viewer`; `snapshotOfGame`/`snapshotOf`/`applyAction`/`advanceSession`/
+  `waitForBeats` all pass it through. A 1 v 1 passes the asking login's seat.
+  Everything else passes nothing and `viewerFor` derives one exactly as before:
+  against Claude the human is p1, hot-seat follows whoever is being asked.
+  `game.you` is what it settled on, so a client never works out its own chair.
+- **`waiting` is read against the viewer, not against Claude.** `"opponent"` now
+  means the other player, human or not. Nothing else changed: against Claude the
+  viewer is p1 and the prompt p2, so it still reads `"opponent"`; hot-seat's
+  viewer *is* the asked player, so it still reads `"you"`.
+- **`beats` are masked per viewer** (`maskBeats`). This was a real leak, not a
+  precaution: `Beats.art` carries the true name and picture of every card a beat
+  names, drawn cards included, and `damage` names the Life cards taken — which go
+  to hand unrevealed. Only the *face* is removed; the beat and its instance id
+  stay, so the card still flies, face-down. The rule is `revealedTo`'s in
+  `view.ts`, the same one `sideView`/`cardView` draw by, asked of the board as it
+  stands — a card drawn and then played is public, so its beat is not masked.
+  **A client must never reconstruct a masked face**, from a previous snapshot or
+  anywhere else; that is §1 in the one place it now costs a real secret.
+
+Seats live on `arena_games.p1_user`/`p2_user` (`app_users.username`, null in
+every other mode). A 1 v 1 belongs to its two seats and to nobody else, over as
+well as playing (owner's decision, 7 Sep 2026): every `/api/v1` route resolves
+the seat with `seatFor` and answers `not_found` to anyone else, and a move whose
+prompt belongs to the other seat is `not_your_turn`. Two devices can also write
+at once — a blocker or counter prompt belongs to the player whose turn it is not
+— so `applyToGame` now writes `WHERE version = <what it read>` and a losing race
+gets `stale`, the same answer a failed `basedOn` gets.
+
+There is deliberately **no** endpoint that creates a `versus` game: it takes two
+decks chosen at two moments by two people, so it is opened as a match
+(`src/lib/arena/matches.ts`) and `newGameSchema` still refuses the mode.
+
 ## 4. `Beats` — the animation stream
 
 The engine's own comment on `GameEvent` says *"Append-only log; the UI animates from these"*. Today
@@ -318,7 +367,7 @@ Only the Android app uses these; the web board calls §2 directly.
 | `GET` | `/api/v1/decks` | `?game=dbs` | deck list: id, name, leader art, built/virtual, legality, playable |
 | `GET` | `/api/v1/decks/{id}` | — | deck detail: zones, counts, per-card flags — **read-only** |
 | `GET` | `/api/v1/games` | `?limit=20` | game list, as `/arena` shows it |
-| `POST` | `/api/v1/games` | `{ p1DeckId, p2DeckId, mode, debug }` | `{ id }` |
+| `POST` | `/api/v1/games` | `{ p1DeckId, p2DeckId, mode, debug }` | `{ id }` — `mode` excludes `versus`, §3.3 |
 | `GET` | `/api/v1/games/{id}` | `?sinceBeat=N&wait=25` | `Snapshot` — §6 |
 | `POST` | `/api/v1/games/{id}/actions` | `{ index, basedOn? }` | `Snapshot` — your move only |
 | `POST` | `/api/v1/games/{id}/advance` | — | `Snapshot` once Claude has finished deciding |
@@ -380,6 +429,17 @@ changes; adding an optional field is not a bump.
   new payload leniently, and the fixtures were re-emitted (`search.json` is new — a deck search
   mid-skill, so both clients decode the shape a search sheet is built from).
 
+- **7 Sep 2026 — additive, no bump.** 1 v 1 play (§3.3) added `versus` to `mode`,
+  `game.you` (required, and the only non-optional addition — a client that
+  ignores it behaves as before), `game.p1User`/`p2User`, and the `not_your_turn`
+  error code. `waiting`'s vocabulary is unchanged; `"opponent"` simply now covers
+  a person. **`beats.art` is now viewer-filtered**, which is a narrowing of what
+  a payload carries rather than a change of shape — the field is the same field
+  and an older client renders a missing face as a card back. `GameInfo` in
+  `Snapshot.kt` grew the three fields and the fixtures were re-emitted, with
+  `versus.json` new: a board drawn for p2 with p1's hand hidden and p1's draw
+  beat carrying no face.
+
 - `GET /api/v1/health` returns `minClient`, the oldest Android `versionCode` the server will still
   talk to. Below it the app refuses to play and offers the update (`docs/arena-android-spec.md` §8).
 
@@ -411,8 +471,9 @@ hold the line.
 { "error": { "code": "illegal_action", "message": "that card is already rested" } }
 ```
 
-`illegal_action` · `not_your_turn` · `game_over` · `not_found` · `contract_mismatch` · `ai_error` ·
-`unauthorized`. `IllegalAction` from the engine maps to `illegal_action` with the engine's own
+`illegal_action` · `not_your_turn` · `game_over` · `not_found` · `stale` · `contract_mismatch` ·
+`ai_error`. `not_your_turn` is a 1 v 1 answer: the move is real and the board is
+current, but it belongs to the other seat. `IllegalAction` from the engine maps to `illegal_action` with the engine's own
 message, which is written to be read by a person — a client shows it and re-syncs, never guesses.
 
 ## 9. Auth
@@ -428,6 +489,14 @@ Keystore-backed storage and an optional biometric gate.
 
 If per-device revocation is ever wanted, the bounded step is a `device_tokens` table checked in
 `proxy.ts` alongside `app_users`. Not now.
+
+Since 1 v 1 (§3.3) the login is no longer only a door: `currentUser()` decides
+which chair a request sits in. **With the app running open — no `BASIC_AUTH_*`,
+no `app_users` rows — there is no identity, and `seatOf` deliberately lets
+everything through**, because refusing would lock the owner out of his own
+laptop and stop `npm run arena:playthrough` dead. That hole is exactly as wide
+as the open-dev hole in `proxy.ts` and no wider: with either credential source
+configured, a 1 v 1 is closed to everyone but its two seats.
 
 ## 10. Latency — measure before optimising anything
 

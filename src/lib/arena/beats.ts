@@ -20,6 +20,7 @@ import { compileCardCached, face, skillsOf, type EngineContext, type GameEvent, 
 import type { Area, EffectUntil } from "./engine";
 import { def } from "./engine/state";
 import { describeEffect, type EffectKind } from "./effects";
+import { revealedTo } from "./view";
 
 export type Beat =
   /** A named step of the game: a phase, or a step within a battle. */
@@ -283,4 +284,32 @@ export function appendBeats(prev: Beats | null, next: Beats): Beats {
   const before = prev ?? EMPTY_BEATS;
   const list = [...before.list, ...next.list].slice(-BEAT_CAP);
   return { seq: next.seq, list, art: { ...before.art, ...next.art } };
+}
+
+/**
+ * The same queue, with the faces this viewer may not see taken out.
+ *
+ * Beats are built once per game and `art` carries the true name and picture of
+ * every card they name — including the ones a player draws. On one device that
+ * is harmless. On two it hands your opponent your hand, one card at a time, as
+ * you draw it; `damage` leaks the Life cards you take the same way, since
+ * those go to hand unrevealed.
+ *
+ * **Only the face is removed, never the beat.** A masked card keeps its
+ * instance id, so the card still flies from the deck to the hand and the story
+ * still reads — it simply arrives face-down. An instance id says nothing about
+ * which card it is, which is what makes that safe.
+ *
+ * The rule is `revealedTo`'s, not a second copy of it, and it is asked of the
+ * state *now*: a card drawn and then played is public by the time anyone looks,
+ * so its beat is not masked. The queue is returned unchanged when nothing is
+ * hidden, so a snapshot with nothing to hide is the same object it was.
+ */
+export function maskBeats(state: GameState, beats: Beats | null, viewer: PlayerId): Beats | null {
+  if (!beats) return null;
+  const seen = revealedTo(state, viewer);
+  const art: Beats["art"] = {};
+  for (const [id, a] of Object.entries(beats.art)) if (seen.has(id)) art[id] = a;
+  if (Object.keys(art).length === Object.keys(beats.art).length) return beats;
+  return { ...beats, art };
 }

@@ -17,6 +17,11 @@ import type { Snapshot } from "@/lib/arena/snapshot";
  * so the beat player starts telling the story while Claude is still deciding
  * the rest of it.
  *
+ * It does the same job for a 1 v 1, where "the server deciding" is instead the
+ * other player deciding: `waiting` reads "opponent" for a person exactly as it
+ * does for Claude, so their move arrives here without this hook knowing there
+ * is a difference.
+ *
  * Nothing depends on it working. If the poll fails the board simply behaves as
  * it did before: one jump when the server action finally returns.
  */
@@ -39,17 +44,28 @@ export function useLiveGame(gameId: number, fromServer: Snapshot, active: boolea
     let stopped = false;
     let since = startSeq;
 
+    // A human opponent can think for minutes, over a phone that changes
+    // network on the way. Against Claude a dropped poll cost nothing — the
+    // server action was still running and would revalidate on its own — but
+    // here nothing else is coming, so a dropped poll is a dead board. Back off
+    // and try again instead, and give up only after several failures in a row.
+    let failures = 0;
+    const backoff = () => new Promise((r) => setTimeout(r, Math.min(8000, 500 * 2 ** failures)));
+
     const poll = async () => {
       while (!stopped) {
         let next: Snapshot;
         try {
           const res = await fetch(`/api/v1/games/${gameId}?sinceBeat=${since}&wait=15`, { cache: "no-store" });
-          if (!res.ok) return;
+          // A 404 means this login may not read the game; retrying cannot help.
+          if (res.status === 404) return;
+          if (!res.ok) throw new Error(String(res.status));
           next = (await res.json()) as Snapshot;
+          failures = 0;
         } catch {
-          // Offline, or the request was cut off. The server action is still
-          // running and will revalidate when it finishes.
-          return;
+          if (++failures > 6) return;
+          await backoff();
+          continue;
         }
         if (stopped) return;
         const seq = next.beats?.seq ?? 0;

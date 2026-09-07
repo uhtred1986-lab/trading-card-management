@@ -90,21 +90,42 @@ class ContractTest {
     /**
      * The beat stream is the part a client animates, so its invariants are
      * worth asserting on this side too rather than trusting the server's.
+     *
+     * A face is **not** one of them, and `versus.json` is why (contract §3.3):
+     * the server masks the art of any card this viewer may not identify, so a
+     * beat can legitimately name a card with no face and the client draws a
+     * card back. What must hold is that the *beat* survives — that a card moved
+     * is public even when which card is not — which is what the count below
+     * pins. A client that skipped a faceless beat would sit still through the
+     * opponent's draw.
      */
     @Test
-    fun `beats are numbered, ordered, and carry a face for every card they name`() {
+    fun `beats are numbered and ordered`() {
         for (file in fixtures) {
             val beats = lenient.decodeFromString<Snapshot>(file.readText()).beats ?: continue
             var last = 0
             for (beat in beats.list) {
                 assertTrue(beat.n > last, "${file.name}: beat numbers must climb (${beat.n} after $last)")
                 last = beat.n
-                for (card in beat.cards()) {
-                    assertTrue(beats.art.containsKey(card), "${file.name}: ${beat::class.simpleName} names $card with no face")
-                }
             }
             if (beats.list.isNotEmpty()) assertEquals(last, beats.seq, "${file.name}: seq is not the highest beat")
         }
+    }
+
+    /**
+     * A masked face is a face the viewer may not have, not a beat that went
+     * missing. Pinned to the one fixture built for the far side of a 1 v 1.
+     */
+    @Test
+    fun `a masked card keeps its beat and loses only its face`() {
+        val file = fixtures.firstOrNull { it.name == "versus.json" } ?: fail("versus.json is missing — run `npm run contract:emit`")
+        val snapshot = lenient.decodeFromString<Snapshot>(file.readText())
+        assertEquals("p2", snapshot.game.you, "versus.json is the board as the second player sees it")
+        val beats = snapshot.beats ?: fail("versus.json should carry beats")
+        val named = beats.list.flatMap { it.cards() }.toSet()
+        assertEquals(2, beats.list.size, "both draws are in the story")
+        assertTrue(named.any { !beats.art.containsKey(it) }, "the other player's draw has no face")
+        assertTrue(named.any { beats.art.containsKey(it) }, "and your own still does")
     }
 
     /**

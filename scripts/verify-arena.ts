@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { apply, createGame, defsFrom, legalActions, rejectedActions, seedFrom, type Action, type CardDef, type GameState, type PlayerId, type RejectedAction, type Requirement } from "../src/lib/arena/engine";
-import { appendBeats, toBeats, type Beat, type Beats, type NumberedBeat } from "../src/lib/arena/beats";
+import { appendBeats, maskBeats, toBeats, type Beat, type Beats, type NumberedBeat } from "../src/lib/arena/beats";
 import { buildSnapshot, rejectedFor, type Snapshot } from "../src/lib/arena/snapshot";
 import { boardView } from "../src/lib/arena/view";
 import { pill, priceOf, refusal, sentence, stepText } from "../src/lib/arena/wording";
@@ -6417,6 +6417,94 @@ function assertDisjoint(s: GameState, where: string): RejectedAction[] {
     assert.equal(v1.power, 15000, "RESTCOND is off (the card is active), so only AURA counts");
     assert.deepEqual(v1.effects?.map((e) => [e.kind, e.label, e.until, e.sourceName]), [["power", "+5,000 power", "permanent", "AURA"]]);
     fixtures.standing = snapshotFor(s, null);
+  }
+
+  {
+    // ── 1 v 1: the same game, drawn for the other chair ────────────────────
+    //
+    // Everything above is drawn for p1, because that is who every other mode
+    // shows. A versus game is the first time the server builds a board for p2,
+    // and the three things that must then be true are all checked here.
+    const s = arena({ hand: ["V1"], oppHand: ["KILLER", "BIG"], battle: ["V1"], oppBattle: ["V-BLUE"] });
+    const mine = s.players.p1.hand[0];
+    const theirs = s.players.p2.hand[0];
+    const legal = legalActions(ctx, s);
+    const versus = (viewer: PlayerId) =>
+      buildSnapshot({
+        id: 1,
+        mode: "versus",
+        status: "playing",
+        p1Name: "Red aggro",
+        p2Name: "Blue control",
+        p1User: "patrick",
+        p2User: "brother",
+        ctx,
+        state: s,
+        legal,
+        log: [],
+        // A draw each, so the mask has something to bite on in both directions.
+        beats: {
+          seq: 2,
+          list: [
+            { t: "draw", player: "p1", card: mine, n: 1 },
+            { t: "draw", player: "p2", card: theirs, n: 2 },
+          ] as NumberedBeat[],
+          art: {
+            [mine]: { cardId: s.cards[mine].cardId, name: s.cards[mine].cardId, imageUrl: null },
+            [theirs]: { cardId: s.cards[theirs].cardId, name: s.cards[theirs].cardId, imageUrl: null },
+          },
+        },
+        spotlight: null,
+        spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 },
+        ai: null,
+        viewer,
+        images: {},
+      });
+
+    const forP1 = versus("p1");
+    const forP2 = versus("p2");
+
+    // 1. Each chair keeps its own side, whoever the engine happens to be asking.
+    assert.equal(forP1.game.you, "p1");
+    assert.equal(forP2.game.you, "p2");
+    assert.equal(forP1.view.you.player, "p1", "the viewer is p1's own side, not the asked player's");
+    assert.equal(forP2.view.you.player, "p2");
+    assert.ok(forP1.view.you.hand, "you always see your own hand");
+    assert.ok(forP2.view.you.hand, "and so does the other chair");
+    assert.equal(forP1.view.them.hand, null, "and never the other player's");
+    assert.equal(forP2.view.them.hand, null);
+    assert.equal(forP1.view.them.handCount, s.players.p2.hand.length, "only how many");
+
+    // 2. `waiting` names a person now, not just Claude. It is p1's prompt.
+    assert.equal(s.prompt.kind, "main");
+    assert.equal((s.prompt as { player: PlayerId }).player, "p1");
+    assert.equal(forP1.waiting, "you");
+    assert.equal(forP2.waiting, "opponent", "the other device is told to sit still and watch");
+    assert.ok(!forP2.rejected?.length, "and is never told why it cannot move: the prompt is not its");
+
+    // 3. The beat queue is one queue, but a face is only in the copy that may
+    //    see it. Both beats survive in both — that a card moved is public —
+    //    and the id is kept so it still flies; only the face goes.
+    assert.equal(forP1.beats!.list.length, 2, "the story is the same on both screens");
+    assert.equal(forP2.beats!.list.length, 2);
+    assert.ok(forP1.beats!.art[mine], "your own draw shows its face");
+    assert.ok(!forP1.beats!.art[theirs], "their draw does not");
+    assert.ok(forP2.beats!.art[theirs], "and the same, the other way round");
+    assert.ok(!forP2.beats!.art[mine]);
+
+    fixtures.versus = forP2;
+  }
+
+  {
+    // A card drawn and then *played* is public, so its beat is not masked —
+    // the mask reads the board as it stands, not as it was.
+    const s = arena({ hand: ["V1"], energy: ["V1"] });
+    const card = find(s, "p1", "hand", "V1");
+    const r = apply(ctx, s, { type: "play", player: "p1", card });
+    const beats = toBeats(ctx, r.state, r.events, 0);
+    assert.ok(beats.art[card], "the play put a face in the queue");
+    assert.ok(maskBeats(r.state, beats, "p2")!.art[card], "and it is in the Battle Area, so the opponent sees it");
+    assert.equal(maskBeats(r.state, beats, "p2"), beats, "nothing hidden means the very same queue back");
   }
 
   // Every fixture state: no move is both legal and rejected, and nothing is

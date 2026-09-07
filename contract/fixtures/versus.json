@@ -2,15 +2,132 @@
   "contract": 1,
   "game": {
     "id": 1,
-    "mode": "hotseat",
+    "mode": "versus",
     "status": "playing",
     "turn": 3,
-    "p1Name": "You",
-    "p2Name": "Claude",
-    "you": "p1"
+    "p1Name": "Red aggro",
+    "p2Name": "Blue control",
+    "you": "p2",
+    "p1User": "patrick",
+    "p2User": "brother"
   },
   "view": {
     "you": {
+      "player": "p2",
+      "name": "Claude",
+      "leader": {
+        "id": "p2#0",
+        "cardId": "L-BLUE",
+        "name": "L-BLUE",
+        "power": 10000,
+        "colors": [
+          "Blue"
+        ],
+        "imageUrl": null,
+        "mode": "active",
+        "hidden": false,
+        "flipped": false,
+        "markers": 0,
+        "underCount": 0,
+        "isToken": false,
+        "cost": null,
+        "comboCost": null,
+        "comboPower": 0,
+        "keywords": [],
+        "text": null,
+        "reading": "",
+        "referee": false
+      },
+      "unison": null,
+      "battle": [
+        {
+          "id": "p2#30",
+          "cardId": "V-BLUE",
+          "name": "V-BLUE",
+          "power": 10000,
+          "colors": [
+            "Blue"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        }
+      ],
+      "combo": [],
+      "energy": [],
+      "hand": [
+        {
+          "id": "p2#44",
+          "cardId": "KILLER",
+          "name": "KILLER",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": "[Auto] When you play this card, choose up to 1 of your opponent's Battle Cards and KO it.",
+          "reading": "choose up to 1 in opponent's battle, KO the chosen cards",
+          "referee": false
+        },
+        {
+          "id": "p2#37",
+          "cardId": "BIG",
+          "name": "BIG",
+          "power": 25000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "5",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        }
+      ],
+      "handCount": 2,
+      "life": 8,
+      "lifeFaceUp": [],
+      "zDeckFaceUp": [],
+      "deck": 39,
+      "drop": 0,
+      "warp": 0,
+      "zDeck": 0,
+      "zEnergy": 0,
+      "energyMarkers": 1,
+      "activeEnergy": 0,
+      "dropTop": null
+    },
+    "them": {
       "player": "p1",
       "name": "You",
       "leader": {
@@ -41,9 +158,9 @@
       "unison": null,
       "battle": [
         {
-          "id": "p1#15",
-          "cardId": "KILLER",
-          "name": "KILLER",
+          "id": "p1#35",
+          "cardId": "V1",
+          "name": "V1",
           "power": 10000,
           "colors": [
             "Red"
@@ -59,43 +176,19 @@
           "comboCost": 0,
           "comboPower": 5000,
           "keywords": [],
-          "text": "[Auto] When you play this card, choose up to 1 of your opponent's Battle Cards and KO it.",
-          "reading": "choose up to 1 in opponent's battle, KO the chosen cards",
-          "referee": false
-        }
-      ],
-      "combo": [],
-      "energy": [
-        {
-          "id": "p1#35",
-          "cardId": "V1",
-          "name": "V1",
-          "power": 10000,
-          "colors": [
-            "Red"
-          ],
-          "imageUrl": null,
-          "mode": "rest",
-          "hidden": false,
-          "flipped": false,
-          "markers": 0,
-          "underCount": 0,
-          "isToken": false,
-          "cost": "1",
-          "comboCost": 0,
-          "comboPower": 5000,
-          "keywords": [],
           "text": null,
           "reading": "",
           "referee": false
         }
       ],
-      "hand": [],
-      "handCount": 0,
+      "combo": [],
+      "energy": [],
+      "hand": null,
+      "handCount": 8,
       "life": 8,
       "lifeFaceUp": [],
       "zDeckFaceUp": [],
-      "deck": 40,
+      "deck": 33,
       "drop": 0,
       "warp": 0,
       "zDeck": 0,
@@ -103,72 +196,6 @@
       "energyMarkers": 0,
       "activeEnergy": 0,
       "dropTop": null
-    },
-    "them": {
-      "player": "p2",
-      "name": "Claude",
-      "leader": {
-        "id": "p2#0",
-        "cardId": "L-BLUE",
-        "name": "L-BLUE",
-        "power": 10000,
-        "colors": [
-          "Blue"
-        ],
-        "imageUrl": null,
-        "mode": "active",
-        "hidden": false,
-        "flipped": false,
-        "markers": 0,
-        "underCount": 0,
-        "isToken": false,
-        "cost": null,
-        "comboCost": null,
-        "comboPower": 0,
-        "keywords": [],
-        "text": null,
-        "reading": "",
-        "referee": false
-      },
-      "unison": null,
-      "battle": [],
-      "combo": [],
-      "energy": [],
-      "hand": null,
-      "handCount": 0,
-      "life": 8,
-      "lifeFaceUp": [],
-      "zDeckFaceUp": [],
-      "deck": 41,
-      "drop": 1,
-      "warp": 0,
-      "zDeck": 0,
-      "zEnergy": 0,
-      "energyMarkers": 1,
-      "activeEnergy": 0,
-      "dropTop": {
-        "id": "p2#44",
-        "cardId": "V-BLUE",
-        "name": "V-BLUE",
-        "power": 10000,
-        "colors": [
-          "Blue"
-        ],
-        "imageUrl": null,
-        "mode": "active",
-        "hidden": false,
-        "flipped": false,
-        "markers": 0,
-        "underCount": 0,
-        "isToken": false,
-        "cost": "1",
-        "comboCost": 0,
-        "comboPower": 5000,
-        "keywords": [],
-        "text": null,
-        "reading": "",
-        "referee": false
-      }
     },
     "turn": 3,
     "phase": "main",
@@ -196,10 +223,10 @@
       "action": {
         "type": "attack",
         "player": "p1",
-        "attacker": "p1#15",
+        "attacker": "p1#35",
         "target": "p2#0"
       },
-      "label": "Attack L-BLUE with KILLER (10000 vs 10000)"
+      "label": "Attack L-BLUE with V1 (10000 vs 10000)"
     },
     {
       "action": {
@@ -214,7 +241,7 @@
       "p1#0": [
         0
       ],
-      "p1#15": [
+      "p1#35": [
         1
       ]
     },
@@ -225,65 +252,38 @@
       "p1#0": {
         "p2#0": 0
       },
-      "p1#15": {
+      "p1#35": {
         "p2#0": 1
       }
-    },
-    "whyByCard": {
-      "p1#0": [
-        {
-          "kind": "condition",
-          "text": "When your life is at 4 or less"
-        }
-      ]
     }
   },
-  "rejected": [
-    {
-      "action": {
-        "type": "activate",
-        "player": "p1",
-        "card": "p1#0",
-        "skill": 0
-      },
-      "label": "Activate L-RED",
-      "why": [
-        {
-          "kind": "condition",
-          "text": "When your life is at 4 or less"
-        }
-      ]
-    }
-  ],
   "beats": {
     "seq": 2,
     "list": [
       {
-        "t": "ko",
-        "card": "p2#44",
-        "owner": "p2",
+        "t": "draw",
+        "player": "p1",
+        "card": "p1#9",
         "n": 1
       },
       {
-        "t": "move",
+        "t": "draw",
+        "player": "p2",
         "card": "p2#44",
-        "from": "battle",
-        "to": "drop",
-        "owner": "p2",
         "n": 2
       }
     ],
     "art": {
       "p2#44": {
-        "cardId": "V-BLUE",
-        "name": "V-BLUE",
+        "cardId": "KILLER",
+        "name": "KILLER",
         "imageUrl": null
       }
     }
   },
   "spotlight": null,
   "log": [],
-  "waiting": "you",
+  "waiting": "opponent",
   "spend": {
     "calls": 0,
     "input": 0,

@@ -26,7 +26,10 @@ A screen where you play a full game of the Dragon Ball Super Card Game against C
 - **phone first.** The board is designed for a portrait phone held in one hand; the desktop layout
   is the second layout, not the other way round (§2, §12).
 
-Not in scope for the first version: online play against other people, tournament formats, draft.
+Not in scope for the first version: tournament formats, draft. *(Amended 7 Sep 2026: 1 v 1 between
+two logins on two devices is built — see `docs/arena-client-contract.md` §3.3. It is the narrow
+version of "online play": two named people who already share this app's collection, no lobby, no
+matchmaking, no strangers.)*
 
 ---
 

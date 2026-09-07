@@ -33,9 +33,15 @@ export function costMicros(spend: { model: string; input: number; output: number
   return Math.round(dollars * 1_000_000);
 }
 
-/** In a game against Claude, Claude is always the second player. */
+/**
+ * In a game against Claude, Claude is always the second player.
+ *
+ * Named positively on purpose: written as `mode === "hotseat" ? null : "p2"`
+ * it handed every future mode to Claude by default, and 1 v 1 was the first
+ * one that would have been wrong.
+ */
 export function aiPlayerOf(game: { mode: string }): PlayerId | null {
-  return game.mode === "hotseat" ? null : "p2";
+  return game.mode === "sparring" || game.mode === "tournament" ? "p2" : null;
 }
 
 async function addSpend(db: Db, gameId: number, spend: { model: string; input: number; output: number; cached: number } | null): Promise<number> {

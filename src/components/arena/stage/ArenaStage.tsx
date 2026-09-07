@@ -58,6 +58,10 @@ export function ArenaStage({ gameId, snapshot, skin = "night" }: { gameId: numbe
   const boardRef = useRef<HTMLDivElement | null>(null);
 
   const waitingOnServer = snapshot.waiting === "opponent" || snapshot.waiting === "referee";
+  // Whether the *server* is the thing to wait for. In a 1 v 1 the opponent is
+  // a person on another phone, so there is nothing to kick off — only a
+  // referee ruling is the server's, and either side may trigger that.
+  const serverDecides = snapshot.game.mode !== "versus" ? waitingOnServer : snapshot.waiting === "referee";
 
   // While the server is deciding, watch the row rather than the clock: Claude's
   // moves are committed as they are made, so they can be shown as they happen
@@ -103,13 +107,13 @@ export function ArenaStage({ gameId, snapshot, skin = "night" }: { gameId: numbe
   // Only for arriving at a game that is already mid-turn — a normal move runs
   // the opponent's reply inside `act` itself.
   useEffect(() => {
-    if (!waitingOnServer || asked.current) return;
+    if (!serverDecides || asked.current) return;
     asked.current = true;
     startTransition(async () => {
       const r = await advanceGame(gameId);
       if (r.error) setError(r.error);
     });
-  }, [waitingOnServer, gameId]);
+  }, [serverDecides, gameId]);
 
   // A refusal is said once and then gets out of the way; the card it was
   // about keeps its red badge, which is the board saying it before you tap.

@@ -319,6 +319,41 @@ function sideView(ctx: EngineContext, s: GameState, p: PlayerId, images: Record<
 }
 
 /**
+ * Every card instance whose identity `viewer` is allowed to know right now.
+ *
+ * The same question `sideView` and `cardView` answer per zone, asked once for
+ * the whole board: a card is identifiable when some zone this viewer's board
+ * renders shows its face — both leaders and Unisons, everything in play, the
+ * viewer's *own* hand, face-up Life and Z-Deck (3-9-2-1), the top of each Drop
+ * — and it is not itself face-down (1-10-2). A card being searched for is in
+ * too, because the search sheet shows it to the searcher and to nobody else.
+ *
+ * It exists so `beats.ts` can ask the same question about a card that has
+ * since left the board, without a second set of reveal rules growing up beside
+ * this one. See `maskBeats`.
+ */
+export function revealedTo(s: GameState, viewer: PlayerId): Set<string> {
+  const out = new Set<string>();
+  const add = (id: string | null | undefined) => {
+    const inst = id ? s.cards[id] : null;
+    if (id && inst && !inst.hidden) out.add(id);
+  };
+  for (const p of ["p1", "p2"] as PlayerId[]) {
+    const ps = s.players[p];
+    add(ps.leader);
+    add(ps.unison);
+    for (const id of [...ps.battle, ...ps.combo, ...ps.energy]) add(id);
+    if (p === viewer) for (const id of ps.hand) add(id);
+    for (const id of [...ps.life, ...ps.zDeck]) if (s.cards[id]?.faceUp) add(id);
+    add(ps.drop[0]);
+  }
+  // What a search shows you is yours to see, exactly as `hiddenChoices` has it.
+  const pr = s.prompt;
+  if (pr.kind === "chooseCards" && pr.player === viewer) for (const id of pr.choice.candidates) add(id);
+  return out;
+}
+
+/**
  * The cards a `chooseCards` prompt names on this side of the table that the
  * board does not draw. Only for the player being asked, and only when that
  * player is the viewer: what a search shows you is yours to see (3-1-3), so

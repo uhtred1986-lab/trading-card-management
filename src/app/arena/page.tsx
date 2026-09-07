@@ -1,13 +1,16 @@
 import Link from "next/link";
 import { db } from "@/db";
 import { listDecks } from "@/lib/decks/queries";
-import { listGames } from "@/lib/arena/games";
+import { listGames, modeLabel } from "@/lib/arena/games";
+import { listOpenMatches } from "@/lib/arena/matches";
+import { currentUser } from "@/lib/auth";
+import { listUsers } from "@/lib/auth/users";
 import { compileCardCached, parseSkills } from "@/lib/arena/engine";
 import { cardDefFrom, deckInputFor } from "@/lib/arena/load";
 import { cards as cardsTable } from "@/db/schema";
 import { inArray } from "drizzle-orm";
 import { SubmitButton } from "@/components/SubmitButton";
-import { startGameForm } from "./actions";
+import { cancelMatchAction, joinMatchForm, startGameForm } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +36,11 @@ async function coverageFor(deckId: number): Promise<{ cards: number; referee: nu
 export default async function ArenaPage() {
   // The engine reads the original game's rule manual and nothing else, so
   // Fusion World decks are simply not offered here (owner's decision).
-  const [decks, games] = await Promise.all([listDecks(db, { game: "dbs" }), listGames(db)]);
+  const me = await currentUser();
+  const [decks, games, matches, users] = await Promise.all([listDecks(db, { game: "dbs" }), listGames(db, 20, me), listOpenMatches(db), listUsers(db).catch(() => [])]);
+  // A 1 v 1 is two people, and a person here is an `app_users` row. Without a
+  // second one the form would only throw, so it says so instead.
+  const canVersus = users.filter((u) => u.isActive).length >= 2 && !!me;
   // What games of each kind have actually cost, rather than an estimate.
   const spent: Record<string, string | null> = { sparring: null, tournament: null };
   for (const mode of ["sparring", "tournament"] as const) {
@@ -53,8 +60,8 @@ export default async function ArenaPage() {
       <div>
         <h1 className="text-xl font-semibold tracking-tight text-space-50">Arena</h1>
         <p className="mt-1 text-sm text-space-300">
-          Play a full game against Claude, or hot-seat against yourself. The rules are enforced by the engine, so only legal moves are ever offered — Claude picks
-          from the same list you do, and never sees your hand.
+          Play a full game against Claude, hot-seat against yourself, or 1 v 1 against someone else on their own phone. The rules are enforced by the engine, so
+          only legal moves are ever offered — an opponent, human or Claude, picks from the same list you do and never sees your hand.
         </p>
       </div>
 
@@ -80,7 +87,7 @@ export default async function ArenaPage() {
               </select>
             </label>
             <label className="block text-sm">
-              <span className="mb-1 block text-xs uppercase tracking-wider text-space-400">Second player&rsquo;s deck (Claude&rsquo;s, unless hot-seat)</span>
+              <span className="mb-1 block text-xs uppercase tracking-wider text-space-400">Second player&rsquo;s deck (ignored in a 1 v 1 — they pick their own)</span>
               <select name="p2" className={select} defaultValue={playable[1]?.id ?? playable[0]?.id}>
                 {playable.map((d) => (
                   <option key={d.id} value={d.id}>
@@ -92,15 +99,28 @@ export default async function ArenaPage() {
           </div>
           <fieldset>
             <legend className="mb-1 block text-xs uppercase tracking-wider text-space-400">Opponent</legend>
-            <div className="grid gap-2 sm:grid-cols-3">
+            <div className="grid gap-2 sm:grid-cols-2">
               {[
-                { value: "hotseat", title: "Hot-seat", note: "Both sides are yours. Free." },
+                { value: "hotseat", title: "Hot-seat", note: "Both sides are yours, on this device. Free." },
+                {
+                  value: "versus",
+                  title: "1 v 1",
+                  note: canVersus
+                    ? "Someone else, on their own phone. They join and pick their own deck. Free, apart from rulings on card text the engine cannot read."
+                    : "Needs a second login — add one under Settings → Users. Until then, hot-seat is the two-player game.",
+                  disabled: !canVersus,
+                },
                 { value: "sparring", title: "Sparring", note: `Claude on Haiku 4.5. ${spent.sparring ?? "Measured at about 10 to 15 cents a game."}` },
                 { value: "tournament", title: "Tournament", note: `Claude on Opus 5 for the turns that decide things. ${spent.tournament ?? "Measured at about 20 to 30 cents a game."}` },
               ].map((o, i) => (
-                <label key={o.value} className="tap flex cursor-pointer flex-col rounded-lg border border-space-600 bg-space-900 p-2 text-sm has-[:checked]:border-ki-500 has-[:checked]:bg-space-800">
+                <label
+                  key={o.value}
+                  className={`tap flex flex-col rounded-lg border border-space-600 bg-space-900 p-2 text-sm has-[:checked]:border-ki-500 has-[:checked]:bg-space-800 ${
+                    o.disabled ? "opacity-60" : "cursor-pointer"
+                  }`}
+                >
                   <span className="flex items-center gap-2">
-                    <input type="radio" name="mode" value={o.value} defaultChecked={i === 0} className="accent-ki-500" />
+                    <input type="radio" name="mode" value={o.value} defaultChecked={i === 0} disabled={o.disabled} className="accent-ki-500" />
                     <span className="font-medium text-space-50">{o.title}</span>
                   </span>
                   <span className="mt-0.5 pl-6 text-[11px] text-space-400">{o.note}</span>
@@ -115,7 +135,7 @@ export default async function ArenaPage() {
           <SubmitButton pendingLabel="Flipping…" className="tap w-full rounded-lg bg-ki-500 px-4 py-3 text-sm font-semibold text-space-950">Flip the coin</SubmitButton>
           <p className="text-[11px] text-space-400">
             A game starts with the coin flip, then each side may mulligan once. Life is 8; the player going second gets one energy marker. Against Claude, the second
-            deck is the one it plays.
+            deck is the one it plays. A 1 v 1 waits here until the other player joins and chooses theirs.
           </p>
         </form>
       )}
@@ -158,6 +178,50 @@ export default async function ArenaPage() {
         </section>
       )}
 
+      {matches.length > 0 && (
+        <section>
+          <h2 className="mb-2 text-xs uppercase tracking-widest text-space-400">Waiting for a player</h2>
+          <ul className="space-y-2">
+            {matches.map((m) => {
+              const mine = m.hostUser === me;
+              return (
+                <li key={m.id} className="rounded-xl border border-space-700/70 bg-space-900/50 p-3">
+                  <div className="flex flex-wrap items-baseline gap-x-2">
+                    <span className="text-sm font-medium text-space-50">{mine ? "You" : m.hostUser} want{mine ? "" : "s"} to play</span>
+                    <span className="text-xs text-space-400">with {m.hostDeckName ?? "a deck that is gone"}</span>
+                  </div>
+                  {mine ? (
+                    <form action={cancelMatchAction.bind(null, m.id)} className="mt-2 flex flex-wrap items-center gap-2">
+                      <span className="text-xs text-space-400">Waiting for someone to join.</span>
+                      <SubmitButton pendingLabel="Calling it off…" className="tap ml-auto text-xs text-space-400 hover:text-loss">
+                        call it off
+                      </SubmitButton>
+                    </form>
+                  ) : (
+                    <form action={joinMatchForm} className="mt-2 flex flex-wrap items-end gap-2">
+                      <input type="hidden" name="match" value={m.id} />
+                      <label className="min-w-0 flex-1 text-sm">
+                        <span className="mb-1 block text-xs uppercase tracking-wider text-space-400">Your deck</span>
+                        <select name="deck" className={select} defaultValue={playable[0]?.id}>
+                          {playable.map((d) => (
+                            <option key={d.id} value={d.id}>
+                              {d.name} — {d.leader?.name ?? "no leader"}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <SubmitButton pendingLabel="Flipping…" className="tap rounded-lg bg-ki-500 px-4 py-2.5 text-sm font-semibold text-space-950">
+                        Join
+                      </SubmitButton>
+                    </form>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
       <section>
         <h2 className="mb-2 text-xs uppercase tracking-widest text-space-400">Games</h2>
         {games.length === 0 ? (
@@ -170,8 +234,13 @@ export default async function ArenaPage() {
                   <span className="text-sm font-medium text-space-50">
                     {g.p1Name} <span className="text-space-500">vs</span> {g.p2Name}
                   </span>
+                  {g.p1User && g.p2User && (
+                    <span className="text-xs text-space-400">
+                      {g.p1User} v {g.p2User}
+                    </span>
+                  )}
                   <span className="text-xs text-space-400">turn {g.turn}</span>
-                  <span className="text-xs text-space-500">{g.mode === "hotseat" ? "hot-seat" : g.mode}</span>
+                  <span className="text-xs text-space-500">{modeLabel(g.mode)}</span>
                   <span className={`ml-auto text-xs ${g.status === "playing" ? "text-ki-300" : "text-space-400"}`}>
                     {g.status === "playing" ? "in progress" : g.status === "over" ? (g.winner ? `${g.winner === "p1" ? g.p1Name : g.p2Name} won` : "draw") : "abandoned"}
                   </span>

@@ -12,6 +12,7 @@ import { z } from "zod";
 import type { Db } from "@/db";
 import { arenaGames } from "@/db/schema";
 import { MODEL, anthropic, hasAnthropic, recordRun } from "@/lib/ai/client";
+import type { PlayerId } from "../engine";
 import { loadGame } from "../games";
 import { decklistText } from "./view";
 
@@ -31,7 +32,9 @@ export async function reviewGame(db: Db, gameId: number): Promise<GameReview | n
 
   const s = game.state;
   const outcome = s.winner ? `${s.players[s.winner].name} won — ${s.overReason}` : `A draw — ${s.overReason}`;
-  const human = game.mode === "hotseat" ? "p1" : "p1";
+  // Always p1: against Claude the human is the first player, and in hot-seat
+  // and 1 v 1 both sides are people, so the review is written from p1's chair.
+  const human: PlayerId = "p1";
   const res = await anthropic().messages.parse({
     model: MODEL,
     max_tokens: 6000,

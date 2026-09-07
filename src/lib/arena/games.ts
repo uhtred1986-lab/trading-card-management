@@ -6,18 +6,56 @@
  * makes a game reproducible) and a snapshot of the state so a page load does
  * not have to replay from the beginning.
  */
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import type { Db } from "@/db";
 import { hasAnthropic } from "@/lib/ai/client";
 import { arenaGames, cards as cardsTable } from "@/db/schema";
 import { inArray } from "drizzle-orm";
-import { apply, createGame, legalActions, seedFrom, type Action, type CardDef, type EngineContext, type GameEvent, type GameState, type LegalAction } from "./engine";
+import { apply, createGame, legalActions, seedFrom, type Action, type CardDef, type EngineContext, type GameEvent, type GameState, type LegalAction, type PlayerId } from "./engine";
 import { face } from "./engine";
 import { appendBeats, describeSkillEvent, toBeats, type Beats, type NumberedBeat } from "./beats";
 import { cardDefFrom, deckInputFor } from "./load";
 import { scriptsFor } from "./scripts";
 
-export type ArenaMode = "hotseat" | "sparring" | "tournament";
+export type ArenaMode = "hotseat" | "sparring" | "tournament" | "versus";
+
+/** A 1 v 1 game between two people, each on their own device. */
+export function isVersus(mode: string): boolean {
+  return mode === "versus";
+}
+
+/** The word for a mode, wherever one is shown. */
+export function modeLabel(mode: string): string {
+  return mode === "hotseat" ? "hot-seat" : mode === "versus" ? "1 v 1" : mode;
+}
+
+/** Which seat a game keeps for each side, by `app_users.username`. */
+export interface Seats {
+  p1User: string | null;
+  p2User: string | null;
+}
+
+/**
+ * Which side this login is sitting in, or null when it is nobody's.
+ *
+ * Two deliberate holes, both of which keep everything that is not a 1 v 1
+ * working exactly as it did:
+ *
+ *  - **A game with no seats belongs to whoever is logged in.** That is every
+ *    hot-seat, sparring and tournament game, and every game that existed
+ *    before this column did.
+ *  - **A null user is the open-dev path.** With neither `BASIC_AUTH_*` nor a
+ *    row in `app_users`, `src/proxy.ts` lets everything through and
+ *    `currentUser()` is null. Refusing there would lock the owner out of his
+ *    own laptop and stop `npm run arena:playthrough` dead.
+ */
+export function seatOf(game: Seats, user: string | null): PlayerId | null {
+  if (game.p1User === user) return "p1";
+  if (game.p2User === user) return "p2";
+  if (!game.p1User && !game.p2User) return "p1";
+  if (!user) return "p1";
+  return null;
+}
 
 /**
  * The card whose text just fired, for the banner the board shows. Engine
@@ -64,10 +102,17 @@ export interface LoadedGame {
   debug: boolean;
   p1Name: string;
   p2Name: string;
+  /** The login in each seat; both null except in a 1 v 1. */
+  p1User: string | null;
+  p2User: string | null;
   p1DeckId: number | null;
   p2DeckId: number | null;
+  /** What the row was on when this was read — the guard `applyToGame` writes against. */
+  version: number;
   ctx: EngineContext;
   state: GameState;
+  /** Every action applied so far, in order. */
+  actions: Action[];
   log: string[];
   legal: LegalAction[];
   /** The skill that fired on the last action, for the board's banner. */
@@ -85,7 +130,7 @@ async function defsForState(db: Db, state: GameState): Promise<Record<string, Ca
   return out;
 }
 
-export async function startGame(db: Db, p1DeckId: number, p2DeckId: number, mode: ArenaMode = "hotseat", debug = true): Promise<number> {
+export async function startGame(db: Db, p1DeckId: number, p2DeckId: number, mode: ArenaMode = "hotseat", debug = true, seats: Seats = { p1User: null, p2User: null }): Promise<number> {
   const a = await deckInputFor(db, p1DeckId);
   const b = await deckInputFor(db, p2DeckId);
   // `deckInputFor` also returns null for a Fusion World deck, which the engine
@@ -108,6 +153,8 @@ export async function startGame(db: Db, p1DeckId: number, p2DeckId: number, mode
       p2DeckId,
       p1Name: a.input.name,
       p2Name: b.input.name,
+      p1User: seats.p1User,
+      p2User: seats.p2User,
       seed,
       mode,
       state,
@@ -134,10 +181,14 @@ export async function loadGame(db: Db, id: number): Promise<LoadedGame | null> {
     status: row.status,
     p1Name: row.p1Name,
     p2Name: row.p2Name,
+    p1User: row.p1User,
+    p2User: row.p2User,
     p1DeckId: row.p1DeckId,
     p2DeckId: row.p2DeckId,
+    version: row.version,
     ctx,
     state,
+    actions: (row.actions as Action[]) ?? [],
     log: (row.log as string[]) ?? [],
     spotlight: (row.spotlight as Spotlight | null) ?? null,
     beats: (row.beats as Beats | null) ?? null,
@@ -148,7 +199,25 @@ export async function loadGame(db: Db, id: number): Promise<LoadedGame | null> {
   };
 }
 
-/** Apply one action and save. Throws whatever the engine throws for an illegal move. */
+/**
+ * Someone else wrote the row between reading it and writing it back.
+ *
+ * The caller's move was computed against a board that no longer exists, so it
+ * is refused rather than applied: re-read and decide again. Only reachable in
+ * a 1 v 1, where two people can be poised to act at once — a blocker or
+ * counter prompt belongs to the player whose turn it is not.
+ */
+export class StaleGame extends Error {
+  constructor() {
+    super("the board has moved on — read it again");
+    this.name = "StaleGame";
+  }
+}
+
+/**
+ * Apply one action and save. Throws whatever the engine throws for an illegal
+ * move, and `StaleGame` when the row changed under it.
+ */
 export async function applyToGame(db: Db, id: number, action: Action, told?: { say?: string | null; aside?: string | null }): Promise<LoadedGame> {
   const game = await loadGame(db, id);
   if (!game) throw new Error(`no game ${id}`);
@@ -172,8 +241,11 @@ export async function applyToGame(db: Db, id: number, action: Action, told?: { s
   const said: NumberedBeat[] = say ? [{ t: "say", text: say, n: from + 1 }] : [];
   const moved = toBeats(game.ctx, state, events, from + said.length);
   const beats = appendBeats(game.beats, { seq: moved.seq, list: [...said, ...moved.list], art: moved.art });
-  const actions = [...((await db.query.arenaGames.findFirst({ where: eq(arenaGames.id, id) }))?.actions as Action[]), action];
-  await db
+  const actions = [...game.actions, action];
+  // `WHERE version = <what loadGame read>` is the whole concurrency story: two
+  // devices racing means one of these updates matches no row, and that one is
+  // told to look again instead of overwriting the move it never saw.
+  const written = await db
     .update(arenaGames)
     .set({
       state,
@@ -185,16 +257,45 @@ export async function applyToGame(db: Db, id: number, action: Action, told?: { s
       status: state.phase === "over" ? "over" : "playing",
       winner: state.winner,
       reason: state.overReason,
+      version: game.version + 1,
       updatedAt: new Date(),
     })
-    .where(eq(arenaGames.id, id));
-  return { ...game, state, log: lines, spotlight, beats, legal: legalActions(game.ctx, state), status: state.phase === "over" ? "over" : "playing" };
+    .where(and(eq(arenaGames.id, id), eq(arenaGames.version, game.version)))
+    .returning({ id: arenaGames.id });
+  if (!written.length) throw new StaleGame();
+  return {
+    ...game,
+    state,
+    actions,
+    version: game.version + 1,
+    log: lines,
+    spotlight,
+    beats,
+    legal: legalActions(game.ctx, state),
+    status: state.phase === "over" ? "over" : "playing",
+  };
 }
 
 /**
- * Empty the animation queue. Called once, at the start of your own action, so
- * what a client then finds is exactly one story: your move, and everything the
- * server did in reply to it.
+ * What `act()` calls at the start of your own action — the emptying below,
+ * unless two people are watching this game.
+ *
+ * Clearing is a one-viewer optimisation: with one pair of eyes the queue can
+ * hold exactly one story, because whoever acts has already seen everything
+ * before it. In a 1 v 1 the *other* device has not, and the queue is its only
+ * copy of what it has yet to animate — so there it is left to roll at its 300
+ * cap and each client replays what is numbered above its own mark, which is
+ * what a client does anyway (`docs/arena-client-contract.md` §4).
+ */
+export async function clearBeatsForTurn(db: Db, id: number): Promise<void> {
+  const [row] = await db.select({ mode: arenaGames.mode }).from(arenaGames).where(eq(arenaGames.id, id)).limit(1);
+  if (row && isVersus(row.mode)) return;
+  await clearBeats(db, id);
+}
+
+/**
+ * Empty the animation queue, so what a client then finds is exactly one story:
+ * your move, and everything the server did in reply to it.
  *
  * The *counter* survives the emptying, even though the beats do not. A client
  * replays everything numbered above the last beat it played, so a counter that
@@ -210,12 +311,22 @@ export async function clearBeats(db: Db, id: number): Promise<void> {
     .where(eq(arenaGames.id, id));
 }
 
-export async function listGames(db: Db, limit = 20) {
-  return db
+/**
+ * The games to show, newest first.
+ *
+ * `user` is the login asking. A 1 v 1 belongs to its two seats and to nobody
+ * else — even once it is over — so those rows are dropped for anyone else;
+ * every other mode is listed as it always was. Filtering after the fetch keeps
+ * this one query and one shape, and the list is 20 rows.
+ */
+export async function listGames(db: Db, limit = 20, user: string | null = null) {
+  const rows = await db
     .select({
       id: arenaGames.id,
       p1Name: arenaGames.p1Name,
       p2Name: arenaGames.p2Name,
+      p1User: arenaGames.p1User,
+      p2User: arenaGames.p2User,
       status: arenaGames.status,
       winner: arenaGames.winner,
       reason: arenaGames.reason,
@@ -226,7 +337,8 @@ export async function listGames(db: Db, limit = 20) {
     })
     .from(arenaGames)
     .orderBy(desc(arenaGames.updatedAt))
-    .limit(limit);
+    .limit(limit * 2);
+  return rows.filter((g) => !isVersus(g.mode) || seatOf(g, user) !== null).slice(0, limit);
 }
 
 export async function abandonGame(db: Db, id: number): Promise<void> {

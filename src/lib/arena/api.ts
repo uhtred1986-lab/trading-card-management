@@ -10,6 +10,9 @@
  */
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { currentUser } from "@/lib/auth";
+import type { PlayerId } from "./engine";
+import { isVersus, seatOf, type Seats } from "./games";
 import { CONTRACT_VERSION } from "./snapshot";
 
 export type ErrorCode =
@@ -17,6 +20,7 @@ export type ErrorCode =
   | "not_found"
   | "illegal_action"
   | "game_over"
+  | "not_your_turn"
   | "stale"
   | "ai_error"
   | "contract_mismatch";
@@ -26,6 +30,7 @@ const STATUS: Record<ErrorCode, number> = {
   not_found: 404,
   illegal_action: 409,
   game_over: 409,
+  not_your_turn: 409,
   stale: 409,
   ai_error: 502,
   contract_mismatch: 426,
@@ -53,9 +58,25 @@ export const chooseSchema = z.object({
 export const newGameSchema = z.object({
   p1DeckId: z.number().int(),
   p2DeckId: z.number().int(),
+  // "versus" is deliberately absent: a 1 v 1 is two people choosing two decks
+  // at two moments, so it is opened as a match on the web (`matches.ts`) and
+  // there is nothing here for a client to create in one call.
   mode: z.enum(["hotseat", "sparring", "tournament"]).default("hotseat"),
   debug: z.boolean().default(true),
 });
+
+/**
+ * The chair this request sits in, and whether it may look at all.
+ *
+ * A 1 v 1 is drawn twice — once per device — so every read on this side needs
+ * the asking login's seat, and every write needs it checked. Everything else
+ * has one pair of eyes and gets `null`, which leaves `buildSnapshot` deriving
+ * the viewer exactly as it always has.
+ */
+export async function seatFor(game: Seats & { mode: string }): Promise<PlayerId | null> {
+  if (!isVersus(game.mode)) return null;
+  return seatOf(game, await currentUser());
+}
 
 /** Query parameters of the long-polling board read. */
 export function pollParams(url: URL): { sinceBeat: number; waitMs: number } {

@@ -30,7 +30,10 @@ data class Snapshot(
     val beats: Beats? = null,
     val spotlight: Spotlight? = null,
     val log: List<String>,
-    /** "you" | "opponent" | "referee", or null once the game is over. */
+    /**
+     * "you" | "opponent" | "referee", or null once the game is over.
+     * "opponent" is the other player, whether that is Claude or a person.
+     */
     val waiting: String? = null,
     val spend: Spend,
     val over: Outcome? = null,
@@ -39,11 +42,21 @@ data class Snapshot(
 @Serializable
 data class GameInfo(
     val id: Int,
+    /** "hotseat" | "sparring" | "tournament" | "versus" — a String, so a new mode is not a crash. */
     val mode: String,
     val status: String,
     val turn: Int,
     val p1Name: String,
     val p2Name: String,
+    /**
+     * "p1" | "p2" — which chair this board was drawn for. `view.you` is this
+     * player, so the app never works out which side it is sitting on. In a
+     * 1 v 1 the two devices are sent different values for the same game.
+     */
+    val you: String,
+    /** The login in each seat. Null outside a 1 v 1. */
+    val p1User: String? = null,
+    val p2User: String? = null,
 )
 
 /**

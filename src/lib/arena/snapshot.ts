@@ -13,7 +13,7 @@
  */
 import { rejectedActions, type EngineContext, type GameState, type LegalAction, type PlayerId, type RejectedAction } from "./engine";
 import { boardView, tappable, viewerOf, type BoardView, type CardArt, type Tappable } from "./view";
-import type { Beats } from "./beats";
+import { maskBeats, type Beats } from "./beats";
 import type { ArenaMode, Spotlight } from "./games";
 
 /** Bumped only when a field is removed or its meaning changes. */
@@ -28,6 +28,15 @@ export interface Snapshot {
     turn: number;
     p1Name: string;
     p2Name: string;
+    /**
+     * Which side this board was drawn for. `view.you` is this player, so a
+     * client never has to work out which chair it is sitting in — and the two
+     * devices in a 1 v 1 get different values for the same game.
+     */
+    you: PlayerId;
+    /** The login in each seat, for the names on the board. Null outside a 1 v 1. */
+    p1User?: string | null;
+    p2User?: string | null;
   };
   view: BoardView;
   legal: LegalAction[];
@@ -61,28 +70,53 @@ export interface SnapshotInput {
   beats: Beats | null;
   spotlight: Spotlight | null;
   spend: Snapshot["spend"];
-  /** Claude's side, or null in a hot-seat game. */
+  /** Claude's side, or null when both sides are people. */
   ai: PlayerId | null;
+  /**
+   * Whose eyes this board is for, when the caller knows. A 1 v 1 passes the
+   * asking player's seat; everything else leaves it off and keeps the derived
+   * behaviour below.
+   */
+  viewer?: PlayerId | null;
+  /** The login in each seat, copied onto the snapshot. */
+  p1User?: string | null;
+  p2User?: string | null;
   /** Card art from the catalog, keyed by catalog id. Empty is fine. */
   images: Record<string, CardArt>;
 }
 
 /**
- * Which side the board is drawn from. In a game against Claude the human is
- * always the first player, so the board stays on their side even while Claude
- * is deciding; hot-seat follows whoever is being asked.
+ * Which side the board is drawn from.
+ *
+ * A caller who knows whose board this is says so — that is the 1 v 1 case,
+ * where the same game is drawn twice and each device must stay in its own
+ * chair. Nobody else does, and the two old rules stand: against Claude the
+ * human is always the first player, so the board stays on their side even
+ * while Claude is deciding, and hot-seat follows whoever is being asked, which
+ * is what swings one device between the two hands.
  */
-export function viewerFor(input: Pick<SnapshotInput, "ai" | "state">): PlayerId {
+export function viewerFor(input: Pick<SnapshotInput, "ai" | "state" | "viewer">): PlayerId {
+  if (input.viewer) return input.viewer;
   return input.ai ? "p1" : viewerOf(input.state);
 }
 
-/** Who the game is waiting on, which is what tells a client to sit still. */
-export function waitingFor(input: Pick<SnapshotInput, "ai" | "state" | "status">): Snapshot["waiting"] {
+/**
+ * Who the game is waiting on, which is what tells a client to sit still.
+ *
+ * Read against the viewer rather than against Claude, so "opponent" now covers
+ * a person as well. That is what makes the board's long-poll work for a 1 v 1
+ * without touching it: it already watches while `waiting` is "opponent".
+ *
+ * Unchanged for everything else. Against Claude the viewer is p1 and the
+ * prompt is p2, so it still reads "opponent"; in hot-seat the viewer *is* the
+ * asked player, so it still reads "you" and the one device keeps both chairs.
+ */
+export function waitingFor(input: Pick<SnapshotInput, "ai" | "state" | "status" | "viewer">): Snapshot["waiting"] {
   if (input.status !== "playing") return null;
   const prompt = input.state.prompt;
   if (prompt.kind === "referee") return "referee";
-  if (input.ai && "player" in prompt && prompt.player === input.ai) return "opponent";
-  return "you";
+  if (!("player" in prompt) || !prompt.player) return "you";
+  return prompt.player === viewerFor(input) ? "you" : "opponent";
 }
 
 /**
@@ -90,7 +124,7 @@ export function waitingFor(input: Pick<SnapshotInput, "ai" | "state" | "status">
  * can ask: they are computed for the viewer when the prompt is theirs, and
  * never for Claude, who cannot read them and whose turns would pay for them.
  */
-export function rejectedFor(input: Pick<SnapshotInput, "ai" | "state" | "ctx" | "legal">): RejectedAction[] {
+export function rejectedFor(input: Pick<SnapshotInput, "ai" | "state" | "ctx" | "legal" | "viewer">): RejectedAction[] {
   const prompt = input.state.prompt;
   if (!("player" in prompt) || !prompt.player) return [];
   if (prompt.player !== viewerFor(input) || prompt.player === input.ai) return [];
@@ -109,12 +143,17 @@ export function buildSnapshot(input: SnapshotInput): Snapshot {
       turn: input.state.turn,
       p1Name: input.p1Name,
       p2Name: input.p2Name,
+      you: viewer,
+      ...(input.p1User !== undefined ? { p1User: input.p1User } : {}),
+      ...(input.p2User !== undefined ? { p2User: input.p2User } : {}),
     },
     view: boardView(input.ctx, input.state, viewer, input.images),
     legal: input.legal,
     taps: tappable(input.legal, rejected),
     ...(rejected.length ? { rejected } : {}),
-    beats: withArt(input.beats, input.images),
+    // Masked before the art goes on: a beat naming a card this viewer may not
+    // see must not carry its name or its face. See `maskBeats`.
+    beats: withArt(maskBeats(input.state, input.beats, viewer), input.images),
     spotlight: input.spotlight ? { ...input.spotlight, imageUrl: input.images[input.spotlight.cardId]?.front ?? null } : null,
     log: input.log,
     waiting: waitingFor(input),
