@@ -63,7 +63,10 @@ export function skillLines(text: string | null | undefined): string[] {
     // text spells it the other way.
     .replace(/\bKO-ed\b/gi, "KO'd")
     .replace(/\bKO-s\b/gi, "KOs")
-    .split("\n")
+    // A bare carriage return is a line break too: 307 faces in the original
+    // game separate their skills with one and carry no `<br>` at all, so
+    // splitting on "\n" alone left every skill on those cards fused into one.
+    .split(/\r\n?|\n/)
     .map((l) => l.trim())
     .filter(Boolean);
   // The options of a "Choose one—" are printed on their own lines, but they
@@ -78,6 +81,19 @@ export function skillLines(text: string | null | undefined): string[] {
 
 /** The tag a skill line opens with (1-5). A reference to one mid-sentence is not this. */
 const OPENS_A_SKILL = /^\[(?:auto|activate\s*:|permanent|counter\s*:)/i;
+
+/**
+ * A keyword skill carries its own type instead of a type tag (22-1-1), so
+ * "[Wish]" and "[Aegis Blue/Yellow]" open a skill exactly as "[Auto]" does.
+ * Left out of `OPENS_A_SKILL`, the run-on split below never fired for them:
+ * EX24-01's [Wish] and BT16-129's [Aegis] were absorbed into the skill printed
+ * in front of them and never parsed as skills at all.
+ */
+function opensASkill(rest: string): boolean {
+  if (OPENS_A_SKILL.test(rest)) return true;
+  const tag = /^\[([^\]]+)\]/.exec(rest)?.[1];
+  return !!tag && !!keywordOf(tag);
+}
 
 /**
  * Some cards are printed without the `<br>` between two skills, so a line
@@ -98,7 +114,7 @@ function splitRunOn(line: string): string[] {
     const ch = line[i];
     if (ch === "(" || ch === "（") depth++;
     else if (ch === ")" || ch === "）") depth = Math.max(0, depth - 1);
-    else if (depth === 0 && ch === "[" && i > start && /[.]\s+$/.test(line.slice(start, i)) && OPENS_A_SKILL.test(line.slice(i))) {
+    else if (depth === 0 && ch === "[" && i > start && /[.]\s+$/.test(line.slice(start, i)) && opensASkill(line.slice(i))) {
       const piece = line.slice(start, i).trim();
       if (piece) out.push(piece);
       start = i;

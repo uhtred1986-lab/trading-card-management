@@ -632,7 +632,7 @@ export interface ReadingRule {
 export const READING_RULES: ReadingRule[] = [
   {
     title: "One skill per line",
-    body: "A “<br>” separates a card's skills. The options of a “Choose one—” belong to the line above them rather than being skills of their own, and a card printed without its “<br>” is split again where a sentence ends and a new skill tag opens — left joined, the second skill would be read as part of the first and never happen.",
+    body: "A “<br>” separates a card's skills, and so does a bare carriage return — 307 faces of the original game use one and carry no “<br>” at all, and until the engine read it as a break every skill on those cards was fused into the first. The options of a “Choose one—” belong to the line above them rather than being skills of their own. A card printed without any separator is split again where a sentence ends and a new skill tag opens; that tag may be a type ([Auto], [Activate], [Permanent], [Counter]) or a keyword, since a keyword skill carries its own type instead of a type tag. Left joined, the second skill would be read as part of the first and never happen.",
   },
   {
     title: "Tags, then cost, then effect",
@@ -657,6 +657,10 @@ export const READING_RULES: ReadingRule[] = [
   {
     title: "Keywords that own their line",
     body: "For [Evolve], [Union], [Over Realm], [Swap], [Overlord], [Z-Awaken], [Z-Stack], [Field], [Dual Attack], [Revenge] and [Offering], the text after the tag is a condition or a description, not an effect — the keyword's own rules are the effect. The compiler leaves those lines alone instead of reading the description as a program.",
+  },
+  {
+    title: "A condition, before or after the effect",
+    body: "A condition can be printed in front of the effect — “If your Leader Card is red, draw 1 card” — or behind it: “this card gets +5000 power when all of your opponent's energy is in Rest Mode”. Both orders are read as the same rule, and the effect happens only while the condition holds. “If” is a condition wherever it stands. “When”, “while” and “as long as” are only read as one at the *end* of a [Permanent], which has no trigger and never resolves; at the end of an [Auto] the same word is the skill's trigger — “draw 1 card when this card attacks” — which fires at a different moment, so the engine refuses the line rather than reading one rule as the other.",
   },
   {
     title: "Read, stored, or put to the referee",
