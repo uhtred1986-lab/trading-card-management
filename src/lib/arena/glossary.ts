@@ -648,7 +648,7 @@ export const READING_RULES: ReadingRule[] = [
   },
   {
     title: "Where a card is picked from",
-    body: "A description says which card, and the area words in it say where to look — “from your Drop”, “in your opponent's Battle Area”. A description with no area word in it is a card on the table (20-1-6), except right after a “look at …”: “look at up to 5 cards from the top of your deck, add up to 1 white ≪King Kai's Planet≫ card to your hand” picks out of the five, and standing after the look is the only thing that says so. The older sets printed “among them”; the newer ones dropped it and mean the same. A phrase that points back — “add it to your hand”, “the chosen card” — is neither, and is answered by whatever the skill already settled.",
+    body: "A description says which card, and the area words in it say where to look — “from your Drop”, “in your opponent's Battle Area”. A description with no area word in it is a card on the table (20-1-6), except right after a “look at …”: “look at up to 5 cards from the top of your deck, add up to 1 white ≪King Kai's Planet≫ card to your hand” picks out of the five, and standing after the look is the only thing that says so. The older sets printed “among them”; the newer ones dropped it and mean the same. “In all of your areas” is not an area but a span, and means every one a player has — leader, battle, unison, combo, energy, hand, deck, drop, life, warp and both Z-areas; cards removed from the game are in no area, and a card under another is in its host's. A phrase that points back — “add it to your hand”, “the chosen card” — is neither, and is answered by whatever the skill already settled.",
   },
   {
     title: "Keywords that own their line",

@@ -368,6 +368,23 @@ const AREA_NAMED: Record<string, ScriptArea> = {
 const AREA_PAIR_RE = /\b(?:in|from|of|into) (?:your|their)(?: opponent'?s)? ((?:z-)?[a-z]+(?: area)?) or (?:(?:from|in) )?(?:the )?(?:your |their )?(?:opponent'?s )?((?:z-)?[a-z]+(?: area)?)\b/;
 
 /**
+ * "…in all of your areas" (3-1-1): every area a player has, rather than one of
+ * them. "Removed from the game" is not an area, and the pile under a card is
+ * the host's area rather than one of its own, so neither is here.
+ */
+const ALL_AREAS: ScriptArea[] = ["leader", "battle", "unison", "combo", "energy", "hand", "deck", "drop", "life", "warp", "zDeck", "zEnergy"];
+/**
+ * The phrase that names them all. Both of its words mislead the rest of
+ * `parseTarget`, which is why it is taken off the phrase rather than left for
+ * `AREA_WORDS`: "areas" is not an area word, so "each <Son Goku> and <Vegeta>
+ * in all of your areas" fell through to the 20-1-6 default of the table and a
+ * Leader's colour grant reached nothing in hand, energy or drop; and the "all"
+ * in it reads as a count. The possessive is kept, because on BT2-001 it is the
+ * only thing in the phrase that says whose cards these are.
+ */
+const ALL_AREAS_RE = /\bin all (?:of )?(your |their |its owner's )?areas\b/;
+
+/**
  * "up to 2 of your opponent's Battle Cards in Rest Mode" → a selector.
  *
  * `looked` is the variable a `look` earlier in the same skill bound, for the
@@ -388,6 +405,14 @@ export function parseTarget(phrase: string, looked?: string): Selector | null {
   const underHost = /\bunder (?:this card|it)\b/.test(t) && !/^this card\b/.test(t.trim());
   if (underHost) {
     phrase = phrase.replace(/\b(?:from )?under (?:this card|it)\b/gi, " ");
+    t = phrase.toLowerCase();
+  }
+  // "Each <Son Goku> and <Vegeta> **in all of your areas**": the phrase names
+  // every area rather than one, and has to come off before anything else reads
+  // the words in it. See `ALL_AREAS_RE`.
+  const allAreas = ALL_AREAS_RE.test(t);
+  if (allAreas) {
+    phrase = phrase.replace(new RegExp(ALL_AREAS_RE.source, "gi"), (_full, poss?: string) => ` ${poss ?? ""} `);
     t = phrase.toLowerCase();
   }
   // "this card's power" inside a phrase is a measure, not the target.
@@ -432,10 +457,12 @@ export function parseTarget(phrase: string, looked?: string): Selector | null {
     both && AREA_NAMED[both[1]] && AREA_NAMED[both[2]] && AREA_NAMED[both[1]] !== AREA_NAMED[both[2]] ? [AREA_NAMED[both[1]], AREA_NAMED[both[2]]] : null;
 
   let area: ScriptArea | null = null;
-  for (const [re, a] of AREA_WORDS) {
-    if (re.test(t)) {
-      area = a;
-      break;
+  if (!allAreas) {
+    for (const [re, a] of AREA_WORDS) {
+      if (re.test(t)) {
+        area = a;
+        break;
+      }
     }
   }
   // "among them" / "of those cards" keeps working on what was just looked at.
@@ -443,10 +470,10 @@ export function parseTarget(phrase: string, looked?: string): Selector | null {
   // "Choose 1 of your <Majin Buu>" names no area, but 20-1-6 says an
   // unqualified card is one on the table. Without this the choice fails, and
   // then every later "it" in the same skill has nothing to point at.
-  if (!area && !fromVar && filterFor(phrase, null)) area = "play";
+  if (!allAreas && !area && !fromVar && filterFor(phrase, null)) area = "play";
   // The pile under a card is the area, and it was named by words that have
   // already been taken off the phrase.
-  if (!area && !fromVar && !underHost) return null;
+  if (!allAreas && !area && !fromVar && !underHost) return null;
 
   let count = 1;
   let upTo = false;
@@ -490,6 +517,9 @@ export function parseTarget(phrase: string, looked?: string): Selector | null {
   // and the skill goes to the referee, rather than selecting the whole area.
   if (filter === null) return null;
   if (underHost) return { side: "you", area: "under", filter, count, upTo, mode, notSelf };
+  // No single `area` stands for all of them, and leaving one on would be read
+  // as the place the cards must be — so the span is the only thing said.
+  if (allAreas) return { side, areas: ALL_AREAS, filter, count, upTo, mode, notSelf };
   if (bothAreas) return { side, area: "battle", areas: ["battle", "unison"], filter, count, upTo, mode, fromVar, notSelf };
   if (pair) return { side, area: pair[0], areas: pair, filter, count, upTo, mode, fromVar, notSelf };
   return { side, area: area ?? undefined, filter, count, upTo, mode, fromVar, take, fromEnd, notSelf };
@@ -1854,7 +1884,12 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
 
   // 20-1: what a card counts as, rather than what it does. "This card gains
   // ≪Saiyan≫ in all areas" makes it a Saiyan to every skill that names one.
-  if ((m = /^(.*?) (?:gains?|is (?:also )?treated as(?: an?)?) ((?:(?:non-)?(?:<[^>]+>|≪[^≫]+≫|red|blue|green|yellow|black|white)[\s,]*(?:and\s+|or\s+)?)+)(?: in (?:all|any) areas?)?$/.exec(t))) {
+  //
+  // The list may be followed by the noun it is a list of: BT2-001 Vegito says
+  // "gain red, blue, and green **colors**", where every other card of this
+  // shape stops at the last colour. Anchored as this rule is, that one word
+  // failed the whole match and the Leader's only [Permanent] went unread.
+  if ((m = /^(.*?) (?:gains?|is (?:also )?treated as(?: an?)?) ((?:(?:non-)?(?:<[^>]+>|≪[^≫]+≫|red|blue|green|yellow|black|white)[\s,]*(?:and\s+|or\s+)?)+)(?:\s*colou?rs?)?(?: in (?:all|any) areas?)?$/.exec(t))) {
     const what = m[2];
     const filter = parseFilter(what);
     const colors = filter.colors;
