@@ -433,6 +433,26 @@ export function hasCharacter(def: CardDef, name: string): boolean {
   return def.characters.some((c) => c.toLowerCase() === n);
 }
 
+/**
+ * "<Son Goku> **in its character name**": part of a character name, not the
+ * whole one.
+ *
+ * The loose twin of `hasCharacter`, and separate from it on purpose. 2-10-1-1
+ * says <Son Goku> and <Son Goku : Childhood> are different character names, so
+ * a card that names one exactly must be answered exactly; this phrase is what
+ * a card prints when it means both, and only this phrase gets the loose
+ * reading. See `charactersIncluding` in `filters.ts`.
+ */
+export function characterIncludes(def: CardDef, part: string): boolean {
+  const n = part.toLowerCase();
+  return def.characters.some((c) => c.toLowerCase().includes(n));
+}
+
+/** The same, against the printed card name: "{SS4} in its card name". */
+export function nameIncludes(def: CardDef, part: string): boolean {
+  return def.name.toLowerCase().includes(part.toLowerCase());
+}
+
 export function hasTrait(def: CardDef, name: string): boolean {
   const n = name.toLowerCase();
   return def.traits.some((c) => c.toLowerCase() === n);

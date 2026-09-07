@@ -940,6 +940,24 @@ function successorPool(ctx: EngineContext, s: GameState, p: PlayerId): string[] 
   });
 }
 
+/**
+ * 22-22-3: the cards in hand a [Swap X] could reveal — Battle Cards whose
+ * energy cost is exactly X.
+ *
+ * One list for both the offer and the choice. 22-22-3 is explicit that a
+ * [Swap] which cannot choose one of these cannot be activated at all, and
+ * while `whyNot` did not know that, the skill was offered, charged its orbs and
+ * only then found nothing to choose. The description printed after the tag
+ * ("≪Goku's Lineage≫ with an energy cost of 8") is still read by cost alone —
+ * see the [Swap] entry in `glossary.ts`.
+ */
+function swapCandidates(ctx: EngineContext, s: GameState, p: PlayerId, x: number): string[] {
+  return s.players[p].hand.filter((id) => {
+    const d = def(ctx, s, id);
+    return baseType(d) === "BATTLE" && d.energyCost === x;
+  });
+}
+
 /** Whether some subset of these costs adds up to exactly `target`. */
 function subsetSumExists(costs: number[], target: number): boolean {
   const reachable = new Set<number>([0]);
@@ -1995,6 +2013,8 @@ function activatable(ctx: EngineContext, s: GameState, p: PlayerId, card: string
       }
       case "Swap": {
         if (timing !== "main" || areaOf(s, card) !== "battle" || !costIsOrbsOnly || !canPayOrbs()) return null;
+        // 22-22-3: with nothing in hand to reveal it cannot be activated.
+        if (!swapCandidates(ctx, s, p, k.x).length) return null;
         return `Swap ${name} for a cost-${k.x} card from hand`;
       }
       case "Arrival": {
@@ -2209,6 +2229,8 @@ function whyNotActivate(ctx: EngineContext, s: GameState, p: PlayerId, card: str
       case "Swap": {
         wantTiming("main");
         wantZone("battle");
+        // 22-22-3: with nothing in hand to reveal, [Swap] cannot be activated.
+        if (!swapCandidates(ctx, s, p, k.x).length) why.push({ kind: "target", reason: `no cost-${k.x} Battle Card in your hand` });
         if (!costIsOrbsOnly) unread();
         else why.push(...orbs());
         return why;
@@ -2815,7 +2837,7 @@ function activate(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId
   }
   if (k?.name === "Swap") {
     payOrbs();
-    const cands = ps.hand.filter((id) => baseType(def(ctx, s, id)) === "BATTLE" && def(ctx, s, id).energyCost === k.x);
+    const cands = swapCandidates(ctx, s, p, k.x);
     s.continuations.swap = { card };
     s.flow.unshift({ op: "prompt", prompt: { kind: "chooseCards", player: p, choice: { reason: `Swap: play a cost-${k.x} Battle Card`, candidates: cands, min: 0, max: 1, continuation: "swap" } } }, { op: "choose.apply", what: "swap", card, player: p });
     return;

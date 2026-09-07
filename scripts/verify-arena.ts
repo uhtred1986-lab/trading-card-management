@@ -114,6 +114,50 @@ import type { Trigger } from "../src/lib/arena/engine/types";
   assert.equal(matches({ ...baby, energyCost: 3 }, f), false);
   assert.equal(matches({ ...baby, colors: ["Red"] }, f), false);
 
+  // 2-10-1-1 vs "in its character name". A bare <Son Goku> is not
+  // <Son Goku : GT>; the phrase is what a card prints when it means both.
+  // BT4-096 checked its own leader for one and, read as the other, granted
+  // neither its +15000 nor its [Double Strike] — the whole skill did nothing.
+  const gt: CardDef = { id: "SD5-01", name: "Golden Great Ape Son Goku", type: "LEADER", colors: ["Yellow"], energyCost: null, zEnergyCost: null, power: 10000, comboCost: null, comboPower: null, skill: null, characters: ["Son Goku: GT"], traits: ["Saiyan", "Goku's Lineage"] };
+  const part = parseFilter("≪Goku's Lineage≫ with <Son Goku> in its character name");
+  assert.deepEqual(part.characters, [], "the phrase takes the token out of the exact list");
+  assert.deepEqual(part.charactersIncluding, ["Son Goku"]);
+  assert.equal(matches(gt, part), true, "BT4-096 sees its own leader");
+  assert.equal(matches(gt, parseFilter("<Son Goku> card")), false, "a bare token is still exact (2-10-1-1)");
+
+  // One choice with two ways to satisfy it, not two requirements (BT25-068).
+  const either = parseFilter("<Pan> cards and/or cards with <GT> in their character names");
+  assert.deepEqual(either.characters, ["Pan"]);
+  assert.deepEqual(either.charactersIncluding, ["GT"]);
+  assert.equal(matches({ ...baby, characters: ["Pan"] }, either), true);
+  assert.equal(matches({ ...baby, characters: ["Son Goku: GT"] }, either), true);
+  assert.equal(matches({ ...baby, characters: ["Vegeta"] }, either), false);
+
+  // "without <Turles> in their character names" (BT24-099) excludes; read as a
+  // positive it would have required the one card the sentence rules out.
+  const without = parseFilter("yellow ≪Turles Crusher Corps≫ cards with energy costs of 1 and without <Turles> in their character names");
+  assert.deepEqual(without.charactersIncluding, []);
+  assert.deepEqual(without.notCharactersIncluding, ["Turles"]);
+  assert.equal(matches({ ...baby, characters: ["Turles: Xeno"], traits: ["Turles Crusher Corps"], colors: ["Yellow"], energyCost: 1 }, without), false);
+
+  // The same measure against the printed card name (EX23-49, BT3-017).
+  const inName = parseFilter("your Battle Cards with {SS4} in its card name");
+  assert.deepEqual(inName.names, []);
+  assert.deepEqual(inName.namesIncluding, ["SS4"]);
+  assert.equal(matches({ ...baby, name: "SS4 Bardock, Prismatic Radiance" }, inName), true);
+  assert.equal(matches({ ...baby, name: "Bardock, Prismatic Radiance" }, inName), false);
+  assert.deepEqual(parseFilter("card whose card name includes {Baby}").namesIncluding, ["Baby"]);
+  assert.deepEqual(parseFilter("Battle Card with a card name that includes {Supreme Kai}").namesIncluding, ["Supreme Kai"]);
+  // "2 or more character names including <SH>" counts names rather than
+  // looking inside one, and stays out of the substring reading.
+  assert.deepEqual(parseFilter("Battle Cards with 2 or more character names including <SH>").charactersIncluding, []);
+
+  // A filter written before these fields existed — from `card_scripts`, or a
+  // referee ruling in a saved game's action log — still reads.
+  const legacy = { ...parseFilter("<Baby> card") } as Record<string, unknown>;
+  for (const k of ["charactersIncluding", "notCharactersIncluding", "namesIncluding", "notNamesIncluding"]) delete legacy[k];
+  assert.equal(matches(baby, legacy as unknown as ReturnType<typeof parseFilter>), true, "an old stored filter still matches");
+
   assert.equal(parseCondition("When your life is at 4 or less").lifeAtMost, 4);
   assert.equal(parseCondition("If there is a total of 4 or more energy between you and your opponent").totalEnergyAtLeast, 4);
   assert.equal(parseCondition("When you have a Blue/Green multicolor card in your energy and your life is at 6 or less").recognised, false);
@@ -165,6 +209,10 @@ const DEFS: Record<string, CardDef> = defsFrom([
   card("U1", { type: "UNISON", energyCost: "X", power: 5000, comboCost: null, comboPower: null, skill: "[Blocker]" }),
   card("ZB", { type: "Z-BATTLE", energyCost: 2, zEnergyCost: 1, power: 20000, comboCost: null, comboPower: null, skill: "[Z-Stack 1] Red <V1>." }),
   card("EVO", { energyCost: 3, power: 20000, skill: "[Evolve]{1}: <V1>" }),
+  // 22-22: swaps itself for a cost-3 Battle Card in hand. "BIG" is the only
+  // cost-3 card in DEFS, so a hand without one has nothing to reveal.
+  card("SWAPPER", { energyCost: 2, power: 15000, skill: "[Swap 3]{1}: Red <V1> with an energy cost of 3." }),
+  card("COST3", { energyCost: 3, power: 15000 }),
   card("DRAWER", { energyCost: 1, skill: "[Auto] When you play this card, draw 1 card." }),
   card("KILLER", { energyCost: 1, skill: "[Auto] When you play this card, choose up to 1 of your opponent's Battle Cards and KO it." }),
   card("PUMP", { energyCost: 1, skill: "[Activate: Main] This card gets +5000 power for the turn." }),
@@ -5984,6 +6032,20 @@ function assertDisjoint(s: GameState, where: string): RejectedAction[] {
     assert.deepEqual(row.cost, { energy: 0, describe: "free" });
     const pump = arena({ battle: ["PUMP"], energy: ["V1", "V1"] });
     assert.equal(legalActions(ctx, pump).find((l) => l.action.type === "activate")?.cost?.describe, "free", "PUMP prints no orbs");
+  }
+
+  // 22-22-3: "If you can't choose the specified Battle Card … you can't
+  // activate [Swap]". It was offered on timing and energy alone, took its orbs
+  // and then had nothing to choose — the swap simply vanished, four energy
+  // with it (game 47, turn 12).
+  {
+    const bare = arena({ battle: ["SWAPPER"], energy: ["V1", "V1"], hand: ["V-BLUE"] });
+    const swapper = find(bare, "p1", "battle", "SWAPPER");
+    assert.ok(!labels(bare).some((x) => x.startsWith("Swap")), "no cost-3 card in hand, so no [Swap] on the menu");
+    assert.deepEqual(first(ofCard(rejectedActions(ctx, bare), "activate", swapper)), { kind: "target", reason: "no cost-3 Battle Card in your hand" });
+
+    const armed = arena({ battle: ["SWAPPER"], energy: ["V1", "V1"], hand: ["COST3"] });
+    assert.ok(labels(armed).some((x) => x.startsWith("Swap")), "with one in hand it is offered again");
   }
 
   // The counter window, a choice and a block have rejections of their own (review §3.7).

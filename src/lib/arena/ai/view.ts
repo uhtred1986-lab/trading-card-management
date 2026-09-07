@@ -15,7 +15,7 @@ import { areaOf, comboPowerOf, compileCardCached, describeScript, face, keywords
 import { def } from "../engine/state";
 import { other } from "../engine";
 
-const money = (n: number) => n.toLocaleString("en");
+export const money = (n: number) => n.toLocaleString("en");
 
 function cardLine(ctx: EngineContext, s: GameState, id: string, withText: boolean): string {
   const inst = s.cards[id];
