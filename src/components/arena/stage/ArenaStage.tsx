@@ -31,6 +31,7 @@ import {
   StepBanner,
   StepChip,
   TopStrip,
+  TurnStrip,
   cardsOnTable,
   refusalLine,
   shortLabel,
@@ -95,19 +96,37 @@ export function ArenaStage({
   const [logOpen, setLogOpen] = useState(false);
   const asked = useRef(false);
   const boardRef = useRef<HTMLDivElement | null>(null);
-  const promptRef = useRef<HTMLElement | null>(null);
+  const promptRef = useRef<HTMLDivElement | null>(null);
 
-  const waitingOnServer = snapshot.waiting === "opponent" || snapshot.waiting === "referee";
-  // Whether the *server* is the thing to wait for. In a 1 v 1 the opponent is
-  // a person on another phone, so there is nothing to kick off — only a
-  // referee ruling is the server's, and either side may trigger that.
-  const serverDecides = snapshot.game.mode !== "versus" ? waitingOnServer : snapshot.waiting === "referee";
+  /**
+   * Whether to start polling — and the **only** thing still derived from the
+   * server-rendered prop (`docs/arena-hud-spec.md` §1, §5).
+   *
+   * It has to be, because it is an argument to the hook that produces `live`:
+   * a value read from `live` could go false before the first poll ever
+   * returned, and the poll would then never start. Everything the board
+   * *states* reads `live` instead, below. Do not "simplify" these two back
+   * into one expression — that is exactly the bug this fixed: the headline
+   * said "Majin Buu is thinking…" over a prompt asking the viewer to act,
+   * because it kept reading a prop that went stale the moment the poll
+   * returned, and the same stale value kept the poll alive to boot.
+   */
+  const pollWhile = snapshot.waiting === "opponent" || snapshot.waiting === "referee";
 
   // While the server is deciding, watch the row rather than the clock: Claude's
   // moves are committed as they are made, so they can be shown as they happen
   // instead of all at once when the request finally returns.
-  const live = useLiveGame(gameId, snapshot, pending || waitingOnServer);
+  const live = useLiveGame(gameId, snapshot, pending || pollWhile);
   const { view, legal, taps, log, beats } = live;
+
+  // Everything rendered reads the live snapshot. `waitingFor` already returns
+  // "you" whenever the prompt belongs to the viewer, so the server was never
+  // wrong about this — only which snapshot this file asked.
+  const waitingOnServer = live.waiting === "opponent" || live.waiting === "referee";
+  // Whether the *server* is the thing to wait for. In a 1 v 1 the opponent is
+  // a person on another phone, so there is nothing to kick off — only a
+  // referee ruling is the server's, and either side may trigger that.
+  const serverDecides = live.game.mode !== "versus" ? waitingOnServer : live.waiting === "referee";
   const rejected = live.rejected ?? [];
   const playable = live.game.status === "playing";
 
@@ -378,6 +397,17 @@ export function ArenaStage({
   const step = view.battle ? `battle:${view.battle.step}` : `phase:${view.phase}`;
 
   /**
+   * Whose move the board states (`docs/arena-hud-spec.md` §2.1). One
+   * expression, used once.
+   *
+   * `waitingFor` already means exactly "the prompt belongs to the viewer", so
+   * this is the server's answer and nothing else. There is deliberately no
+   * second opinion about whose move it is anywhere on this screen — that is
+   * what makes §1's contradiction impossible rather than merely fixed.
+   */
+  const yourMove = live.waiting === "you";
+
+  /**
    * The room belongs to whoever is acting (`docs/arena-turn-presence-spec.md`).
    *
    * One expression, used once, from the same `view.turnPlayer` the turn strip
@@ -505,18 +535,26 @@ export function ArenaStage({
 
         {held && !view.over && !playback.playing && <NarrationRibbon text={held.text} n={held.n} mine={held.mine} live={false} />}
 
-        {/* The prompt bar: the one question being asked, or the story being told.
-            While a takeover has the screen the bar is pinned to the viewport
+        {/* The bottom two slots of the header stack (`docs/arena-hud-spec.md`
+            §2): *whose move*, then *what is being asked*, in that order,
+            always. They share one positioned wrapper because the strip has to
+            stay directly above the ask — a sticky bar with a static strip
+            above it comes apart the moment the board scrolls.
+
+            While a takeover has the screen the pair is pinned to the viewport
             with it, because a sticky bar and a fixed overlay are measured
             against two different things and will always end up on top of each
-            other on a short window. */}
-        <section
-          ref={promptRef}
-          className={`z-30 flex items-center gap-2 rounded-xl border p-2 pl-3 backdrop-blur sm:gap-3 sm:rounded-2xl sm:p-3 sm:pl-5 ${
-            takeoverOn ? "fixed inset-x-2 bottom-2 mx-auto max-w-7xl sm:inset-x-4" : "sticky bottom-2"
-          } ${yourTurn && playable && !playback.playing ? "arena-prompt-live border-ki-500 bg-space-800/95" : "border-space-600 bg-space-800/95"}`}
-          aria-live="polite"
-        >
+            other on a short window. `promptRef` measures this wrapper rather
+            than the bar alone: it is what tells the takeover where to stop,
+            and the takeover has to clear both. */}
+        <div ref={promptRef} className={`z-30 flex flex-col gap-1.5 ${takeoverOn ? "fixed inset-x-2 bottom-2 mx-auto max-w-7xl sm:inset-x-4" : "sticky bottom-2"}`}>
+          {playable && !view.over && <TurnStrip view={view} yours={yourMove} moves={moveCount} />}
+          <section
+            className={`flex items-center gap-2 rounded-xl border p-2 pl-3 backdrop-blur sm:gap-3 sm:rounded-2xl sm:p-3 sm:pl-5 ${
+              yourTurn && playable && !playback.playing ? "arena-prompt-live border-ki-500 bg-space-800/95" : "border-space-600 bg-space-800/95"
+            }`}
+            aria-live="polite"
+          >
           {(waitingOnServer || busy) && !view.over && <span className="arena-pulse h-3.5 w-3.5 shrink-0 animate-pulse rounded-full bg-ki-400" aria-hidden />}
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-space-50 sm:text-base lg:text-lg">
@@ -596,7 +634,8 @@ export function ArenaStage({
                 <span className="hidden sm:inline">{l.label}</span>
               </button>
             ))}
-        </section>
+          </section>
+        </div>
 
         {playable && !playback.playing && !isTargeting && (modal || bare.length > 3) && (
           <div className="flex flex-wrap gap-1.5 sm:gap-2">
@@ -734,12 +773,16 @@ function BattleRow({ cards, cardProps, zone, label }: { cards: CardView[]; cardP
 function ClashBand({ view, cardProps, staged = false }: { view: BoardView; cardProps: CardProps; staged?: boolean }) {
   const b = staged ? null : view.battle;
   if (!b) {
+    // The divider keeps the two Battle Areas apart and says nothing else.
+    // Whose turn it was used to be written here — 10 px, grey, centred between
+    // two rows where nothing draws the eye — which is how the most important
+    // fact on the board came to be ignored, and then contradicted by the
+    // headline beneath it. `TurnStrip` says it now, and two turn indicators is
+    // how the first one came to be ignored (`docs/arena-hud-spec.md` §2.1).
     return (
-      <div className="my-2 flex items-center gap-3 sm:my-3">
+      <div className="my-2 flex items-center gap-3 sm:my-3" aria-hidden>
         <span className="h-px flex-1 bg-gradient-to-r from-transparent to-space-700" />
-        <span className="text-[10px] uppercase tracking-[0.25em] text-space-600 sm:text-xs">
-          turn {view.turn} · {view.turnPlayer === view.you.player ? "you" : view.them.name}
-        </span>
+        <span className="h-1 w-1 rounded-full bg-space-700" />
         <span className="h-px flex-1 bg-gradient-to-l from-transparent to-space-700" />
       </div>
     );

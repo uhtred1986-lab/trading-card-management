@@ -65,9 +65,49 @@ export function TopStrip({ view }: { view: BoardView }) {
           ))}
         </>
       )}
-      <span className="ml-auto text-space-600">
-        T{view.turn} · {view.turnPlayer === view.you.player ? "you" : view.them.name}
-      </span>
+    </div>
+  );
+}
+
+/**
+ * Whose move it is (`docs/arena-hud-spec.md` §2.1).
+ *
+ * The most important fact on the board used to be its least visible thing: a
+ * 10 px grey `turn 2 · you` between two rows, which is how it came to be
+ * ignored and then contradicted by the headline beneath it. This states it
+ * full width, directly above the ask, in three channels at once — **colour**
+ * (ki for yours, slate for theirs), **words** (`YOUR MOVE`), and **position**
+ * (the move pill and the pulse sit in the same slot, and only one of them is
+ * ever there) — so losing any single channel still leaves it readable. That is
+ * what carries it through the anime skin, greyscale, sunlight and a
+ * colour-blind viewer, and it is the non-ambient half of the turn-presence
+ * spec's §2.5.
+ *
+ * It states; it never decides. `yours` is one expression computed once by the
+ * board from the live snapshot and passed in.
+ *
+ * The layout is identical in both states — same height, same order, same
+ * padding — because a HUD whose elements jump is one you re-read instead of
+ * glance at.
+ */
+export function TurnStrip({ view, yours, moves }: { view: BoardView; yours: boolean; moves: number }) {
+  return (
+    // Layout here, colour in `globals.css`. This is one of the few places on
+    // the board whose *text* must stay dark in both skins — both fills are
+    // light, and the anime skin inverts the space scale, so `text-space-950`
+    // would be near-white there. Hence named classes painted from each skin's
+    // own tokens, and no colour utilities at all.
+    <div className={`arena-turnstrip ${yours ? "arena-turnstrip-you" : "arena-turnstrip-them"} flex items-center gap-2 rounded-lg px-2.5 py-1 sm:gap-3 sm:rounded-xl sm:px-3 sm:py-1.5`} aria-live="polite">
+      <span className="truncate text-xs font-black uppercase italic tracking-wide sm:text-sm">{yours ? "Your move" : `${view.them.name}'s move`}</span>
+      {/* The move count lives here rather than on the hint's line, where it
+          used to clip the one sentence that says what to do. */}
+      {yours && moves > 0 && (
+        <span className="arena-turnstrip-pill shrink-0 rounded-full px-1.5 font-mono text-[10px] tabular-nums sm:text-[11px]">
+          {moves} {moves === 1 ? "move" : "moves"}
+        </span>
+      )}
+      {!yours && <span className="arena-turnstrip-dot h-2 w-2 shrink-0 rounded-full" aria-hidden />}
+      <span className="arena-turnstrip-turn ml-auto shrink-0 font-mono text-[10px] tabular-nums sm:text-[11px]">turn {view.turn}</span>
     </div>
   );
 }

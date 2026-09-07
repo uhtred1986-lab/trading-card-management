@@ -255,6 +255,43 @@ input[type="number"] {
   }
 }
 
+/* The turn strip — whose move it is (docs/arena-hud-spec.md §2.1).
+ *
+ * Three channels saying one thing: a fill you can tell apart at a glance, the
+ * words themselves, and which of the pill or the pulse is present. Lose any
+ * one of them — greyscale, sunlight, a colour-blind viewer — and the other two
+ * still read.
+ *
+ * Its ink is the one thing on the board that must stay dark in *both* skins:
+ * both fills are light in each, and the anime skin inverts the space scale, so
+ * `--color-space-950` is near-white there. `--strip-ink` is therefore its own
+ * value, redefined per skin, and the component carries no colour utilities. */
+.arena-turnstrip {
+  --strip-ink: var(--color-space-950);
+  color: var(--strip-ink);
+  border: 1px solid color-mix(in srgb, var(--strip-ink) 35%, transparent);
+  transition: background var(--turn-ms) cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.arena-turnstrip-you {
+  background: linear-gradient(180deg, var(--color-ki-300), var(--color-ki-500));
+}
+.arena-turnstrip-them {
+  background: linear-gradient(180deg, var(--color-space-200), var(--color-space-300));
+}
+.arena-turnstrip-pill {
+  background: color-mix(in srgb, white 55%, transparent);
+  border: 1px solid color-mix(in srgb, var(--strip-ink) 40%, transparent);
+}
+.arena-turnstrip-turn {
+  color: color-mix(in srgb, var(--strip-ink) 72%, transparent);
+}
+/* "They are still deciding" — the same beat the prompt bar's dot keeps, so the
+   two never look like two different waits. */
+.arena-turnstrip-dot {
+  background: var(--strip-ink);
+  animation: arena-breathe 1.2s ease-in-out infinite;
+}
+
 .arena-card-back {
   background: var(--card-back);
   box-shadow: 0 2px 6px color-mix(in srgb, var(--color-space-950) 50%, transparent);
@@ -964,6 +1001,22 @@ html[data-skin="anime"] body::before {
 [data-skin="anime"] .arena-stage {
   background: rgba(255, 255, 255, 0.55);
 }
+/* The turn strip under the sky: ink outline and the hard cel shadow every
+   other surface here carries. Both fills are repainted — the ki gradient is
+   the skin's own, and the opponent's slate has to be a *light* slate, because
+   this skin's space-200/300 are dark and the strip's ink text sits on them. */
+[data-skin="anime"] .arena-turnstrip {
+  --strip-ink: var(--ink);
+  border: 2px solid var(--ink);
+  box-shadow: 2px 3px 0 rgba(18, 22, 31, 0.85);
+}
+[data-skin="anime"] .arena-turnstrip-you {
+  background: linear-gradient(180deg, #ffd97a, #f2b21c);
+}
+[data-skin="anime"] .arena-turnstrip-them {
+  background: linear-gradient(180deg, #dbe6f5, #b9cbe4);
+}
+
 [data-skin="anime"] .arena-prompt-live {
   box-shadow:
     3px 4px 0 rgba(18, 22, 31, 0.85),
@@ -1235,6 +1288,12 @@ html[data-skin="anime"] body::before {
     --turn-ms: 1ms;
   }
   .arena-leader-ring {
+    animation: none;
+    opacity: 1;
+  }
+  /* The strip's pulse is information — "they are still deciding" — so it stays
+     on screen; it simply stops blinking. */
+  .arena-turnstrip-dot {
     animation: none;
     opacity: 1;
   }

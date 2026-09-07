@@ -221,6 +221,15 @@ the same style.
   **Pace** (`src/lib/arena/pace.ts`): how fast a turn plays back is a remembered preference —
   slow (default), normal, or step (tap *Next* between beats); while it plays, the prompt bar's
   headline is the narration sentence and a card from a hidden pile flies in as a ghost.
+  **Whose move** (`docs/arena-hud-spec.md`, §1/§1.1/§2.1 built): `TurnStrip` states it full width
+  above the ask, in colour, words and position at once. One rule holds it together — **everything
+  the board says about who is acting reads `live.waiting`, never the `snapshot` prop**. The prop is
+  used for exactly one thing, `useLiveGame`'s `active` argument, because a value read from `live`
+  could go false before the first poll returned; collapsing those two expressions back into one is
+  the bug that made the board say "Claude is thinking…" over the player's own prompt. The invariant
+  is asserted in `npm test` and on every move of `arena:playthrough`. §2.2–§2.6 of that spec (merging
+  the ribbon into the ask, ghost buttons for declines, the hint's own line, the settings behind `⋯`,
+  the collapsed empty Battle Area) are **not** built.
   **Turn presence** (`src/lib/arena/lighting.ts`, `docs/arena-turn-presence-spec.md`): whose turn
   it is, readable at arm's length. The acting leader grows and gets a ring, the idle one dims, and
   the room takes the acting leader's **printed** colour — never one sampled from its art, so both

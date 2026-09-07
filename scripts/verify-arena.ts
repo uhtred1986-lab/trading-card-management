@@ -22,7 +22,7 @@ import {
   type Requirement,
 } from "../src/lib/arena/engine";
 import { appendBeats, maskBeats, toBeats, type Beat, type Beats, type NumberedBeat } from "../src/lib/arena/beats";
-import { buildSnapshot, rejectedFor, type Snapshot } from "../src/lib/arena/snapshot";
+import { buildSnapshot, rejectedFor, waitingFor, type Snapshot } from "../src/lib/arena/snapshot";
 import { boardView } from "../src/lib/arena/view";
 import { pill, priceOf, refusal, sentence, stepText } from "../src/lib/arena/wording";
 import { narrate } from "../src/lib/arena/narration";
@@ -7050,6 +7050,38 @@ function assertDisjoint(s: GameState, where: string): RejectedAction[] {
     );
   }
   if (emit) console.log(`verify-arena: wrote ${Object.keys(fixtures).length} contract fixtures`);
+}
+
+// ── whose move it is (docs/arena-hud-spec.md §1.1) ─────────────────────────
+
+{
+  /**
+   * The invariant that makes the stale-prop bug a class rather than an
+   * incident: **if the prompt belongs to the viewer and the viewer has at
+   * least one legal action, nothing on the board may state that the opponent
+   * is acting.**
+   *
+   * The board now derives all of "is the opponent acting" from
+   * `snapshot.waiting`, so this is the whole of it. The screenshot that
+   * started the HUD spec was a board saying "Majin Buu is thinking…" over a
+   * charge prompt that was offering eight moves.
+   */
+  const ctx = { defs: DEFS };
+  // A main phase belonging to p1 with real moves in it — the shape of the
+  // charge step in that screenshot, which is where the contradiction showed.
+  const s = arena({ hand: ["BIG"], energy: ["V1", "V1"] });
+  const legal = legalActions(ctx, s);
+  assert.ok(legal.length > 0, "the fixture's prompt has moves in it");
+  assert.equal((s.prompt as { player: PlayerId }).player, "p1");
+  assert.equal(waitingFor({ ai: null, state: s, status: "playing", viewer: "p1" }), "you", "a prompt that is the viewer's is never the opponent's move");
+
+  // And the same read through a whole snapshot, which is what the board holds.
+  const snap = buildSnapshot({ id: 1, mode: "hotseat", status: "playing", p1Name: "You", p2Name: "Claude", ctx, state: s, legal, log: [], beats: null, spotlight: null, spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, images: {} });
+  assert.ok(snap.legal.length > 0);
+  assert.equal(snap.view.prompt.player, snap.view.you.player, "the fixture is in the state the invariant is about");
+  assert.equal(snap.waiting, "you", "the prompt is the viewer's with moves in it — the board may not say the opponent is acting");
+  // The other direction, so the assertion above cannot pass vacuously.
+  assert.equal(waitingFor({ ai: null, state: { ...s, prompt: { ...s.prompt, player: "p2" } } as typeof s, status: "playing", viewer: "p1" }), "opponent");
 }
 
 // ── turn presence: whose room it is (docs/arena-turn-presence-spec.md) ──────
