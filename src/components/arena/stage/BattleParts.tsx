@@ -3,7 +3,7 @@
 import { animate, motion, useMotionValue, useTransform } from "motion/react";
 import { useEffect, useState } from "react";
 import { Sheet } from "../shared";
-import type { NumberedBeat } from "@/lib/arena/beats";
+import type { BeatArt, NumberedBeat } from "@/lib/arena/beats";
 import type { BoardView, CardView } from "@/lib/arena/view";
 import { StageCard } from "./StageCard";
 import type { CardState } from "../ArenaCard";
@@ -319,6 +319,64 @@ export function TriggerLine({ beat, name }: { beat: NumberedBeat | null; name: s
       <span className="font-semibold">⚡ {name ?? beat.label}</span>
       <span className="text-space-300"> · {beat.text}</span>
     </motion.p>
+  );
+}
+
+/**
+ * Who won the fight, said out loud.
+ *
+ * A clash used to be a starburst and two numbers changing, which said *that*
+ * it was decided and left the player to work out *who had won it* by comparing
+ * them. This names the card — the attacker when the attack hits, the guard
+ * when it is repelled — at a size that cannot be missed, and holds long enough
+ * to be read (owner's decision, 7 Sep 2026).
+ *
+ * Rendered by the board rather than by a staging, so it appears whichever of
+ * the three is chosen — and, more to the point, whether or not a band is open:
+ * a whole turn of Claude's plays back against a snapshot in which the battle
+ * has already closed, so the band is not there to carry it.
+ *
+ * It decides nothing. `hit` is the engine's verdict (8-4-5), and the two names
+ * are the faces the beat brought with it. `sideOf` answers null for a card the
+ * board can no longer see, and the banner is then simply uncoloured — saying
+ * "theirs" because a card had left would be worse than saying nothing.
+ */
+export function BattleVerdict({ beat, art, sideOf }: { beat: NumberedBeat | null; art: Record<string, BeatArt>; sideOf: (card: string) => "yours" | "theirs" | null }) {
+  if (!beat || (beat.t !== "clash" && beat.t !== "negated")) return null;
+
+  if (beat.t === "negated") {
+    return (
+      <Banner key={beat.n} eyebrow="the attack is negated" tone="neutral" name="No battle" line="It ends here — no Offense Step, no Defense Step." />
+    );
+  }
+  const winner = beat.hit ? beat.attacker : beat.guard;
+  const name = art[winner]?.name ?? "That card";
+  return (
+    <Banner
+      key={beat.n}
+      eyebrow={beat.hit ? "the attack hits" : "the attack is repelled"}
+      tone={sideOf(winner) ?? "neutral"}
+      name={name}
+      line={`${beat.attackPower.toLocaleString("en")} vs ${beat.guardPower.toLocaleString("en")}`}
+      won
+    />
+  );
+}
+
+/** The verdict's one shape, so the three outcomes cannot drift apart. */
+function Banner({ eyebrow, tone, name, line, won = false }: { eyebrow: string; tone: "yours" | "theirs" | "neutral"; name: string; line: string; won?: boolean }) {
+  const colour = tone === "yours" ? "text-ki-300" : tone === "theirs" ? "text-loss" : "text-space-200";
+  return (
+    <div className="pointer-events-none fixed inset-x-0 top-1/3 z-40 flex justify-center px-3" aria-live="polite">
+      <div className="arena-verdict max-w-[92vw] rounded-2xl border border-ki-500/40 px-5 py-3 text-center sm:px-8 sm:py-5">
+        <p className="text-[10px] uppercase tracking-[0.3em] text-space-300 sm:text-xs">{eyebrow}</p>
+        <p className={`arena-verdict-name arena-impact mt-1 text-2xl font-black leading-tight sm:text-4xl ${colour}`}>
+          {name}
+          {won && <span className="ml-2 align-middle text-lg sm:text-2xl">WINS</span>}
+        </p>
+        <p className="mt-1 font-mono text-xs tabular-nums text-space-300 sm:text-base">{line}</p>
+      </div>
+    </div>
   );
 }
 

@@ -170,6 +170,15 @@ Skip keep working through the same path:
 | outcome | 700 | verdict; KO burn, or the shield for a repelled attack |
 | return | 300 | survivors FLIP back to their rows |
 
+**As built, retuned after play (7 Sep 2026).** The table above proved too quick where it mattered
+most. The clash is **1100 ms** and carries a verdict banner naming the winning card; declare is
+460, block 460, damage and KO 560, a negated attack 700, and an in-battle trigger keeps the full
+900 ms a skill gets anywhere else rather than the 520 above — the same sentence takes the same time
+to read wherever it is drawn. The chain accelerator is 0.7 rather than 0.55 and is **never applied
+to the clash, the damage, a KO, a negated attack or the game ending**: the whole point of a chain is
+the moment it resolves, and that is the one part the player is waiting for. `SPRING` was softened
+from 520 to 380 for the same reason. `docs/arena-ui-motion-spec.md` §7 carries the current table.
+
 Two combos, one counter and one trigger comes to about 3.1 s at 1×. That is over the 1.5 s one
 widely-cited essay argues is enough for a whole attack animation, which is precisely why decision 7
 exists. Measure it in `arena:playthrough` and be willing to cut the resolve sweep first.

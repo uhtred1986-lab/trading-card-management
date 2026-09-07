@@ -24,18 +24,29 @@ import type { PlayerId } from "@/lib/arena/engine";
  * only sizes the flight of a ghost.
  *
  * `chain` is how many cards have been added to the open battle so far. Past
- * four, every beat drops to 55 % — a long combo chain accelerates itself
- * rather than growing a skip button, which would be an admission that the
- * default pace is wrong (`docs/arena-battle-staging-spec.md` decision 7).
+ * four, the *additions* start playing back faster — a long combo chain
+ * accelerates itself rather than growing a skip button, which would be an
+ * admission that the default pace is wrong
+ * (`docs/arena-battle-staging-spec.md` decision 7).
+ *
+ * What is decided is never hurried, though. The comparison, the damage, a KO
+ * and a negated attack keep their full length however long the chain that led
+ * to them was: the whole point of the chain is the moment it resolves, and
+ * rushing that is rushing the only part the player is waiting for (owner's
+ * decision, 7 Sep 2026).
  */
 export function msFor(beat: Beat, pace: Pace = "normal", chain = 0): number {
-  const base = Math.round(baseMs(beat) * (chain > CHAIN_ACCEL_AFTER ? 0.55 : 1));
+  const hurried = chain > CHAIN_ACCEL_AFTER && !DECISIVE.has(beat.t);
+  const base = Math.round(baseMs(beat) * (hurried ? 0.7 : 1));
   if (pace === "slow") return Math.max(Math.round(base * 2.4), 800);
   return base;
 }
 
-/** Additions to one battle before it starts playing itself back faster. */
+/** Additions to one battle before they start playing themselves back faster. */
 export const CHAIN_ACCEL_AFTER = 4;
+
+/** The beats that say how something turned out. Never accelerated. */
+const DECISIVE: ReadonlySet<Beat["t"]> = new Set<Beat["t"]>(["clash", "damage", "ko", "negated", "over"]);
 
 function baseMs(beat: Beat): number {
   switch (beat.t) {
@@ -55,22 +66,31 @@ function baseMs(beat: Beat): number {
     case "token":
       return 280;
     case "attack":
-      return 300;
+      // The declaration: two cards leave their rows and square up. It is the
+      // opening of the fight and was over before it registered.
+      return 460;
     case "block":
-      return 280;
+      // A blocker stepping in front changes who the fight is with, which is a
+      // moment of its own and not a piece of bookkeeping.
+      return 460;
     case "clash":
-      return 340;
+      // The verdict: the winner is named on screen and has to be read, not
+      // glimpsed. This is the longest beat on the board on purpose.
+      return 1100;
     case "damage":
-      return 340;
+      return 560;
     case "ko":
-      return 300;
+      return 560;
     case "negated":
-      return 260;
+      // An attack that never happened is still an outcome, and the sentence
+      // explaining why the battle ended here is a long one.
+      return 700;
     case "skill":
-      // Long enough to read the card's name and tag off the spotlight. One
-      // fired inside a battle is drawn on the card itself rather than under a
-      // banner to be read, so it needs less (§3.2).
-      return beat.inBattle ? 520 : 900;
+      // Long enough to read the card's name and tag off the spotlight. A skill
+      // fired inside a battle is drawn on the card rather than under a banner,
+      // but it is the same sentence to read and the spec's shorter 520 ms read
+      // as rushed in play — so it gets the same time wherever it is drawn.
+      return 900;
     case "say":
       return 900;
     case "effect":
@@ -171,5 +191,14 @@ export function departs(beat: NumberedBeat, drawn: ReadonlySet<string> = EMPTY):
  */
 const VISIBLE = new Set(["battle", "combo", "energy", "unison", "leader", "hand"]);
 
-/** The spring the board moves with: fast, and physical rather than floaty. */
-export const SPRING = { type: "spring", stiffness: 520, damping: 40, mass: 0.7 } as const;
+/**
+ * The spring the board moves with: physical rather than floaty, and no longer
+ * quite so fast.
+ *
+ * At 520 a card crossed the board in about a fifth of a second — technically a
+ * flight, but over before the eye had followed it, so cards read as *appearing*
+ * in their new place rather than travelling there. Softened so the journey is
+ * visible (owner's decision, 7 Sep 2026); still well inside every beat's dwell,
+ * so nothing overlaps the beat that follows it.
+ */
+export const SPRING = { type: "spring", stiffness: 380, damping: 36, mass: 0.8 } as const;
