@@ -16,7 +16,7 @@ export const PLAYERS: PlayerId[] = ["p1", "p2"];
 export const other = (p: PlayerId): PlayerId => (p === "p1" ? "p2" : "p1");
 
 /** The five colours (1-8) plus the catalog's "Colorless" for tokens. */
-export type Color = "Red" | "Blue" | "Green" | "Yellow" | "Black" | "Colorless";
+export type Color = "Red" | "Blue" | "Green" | "Yellow" | "Black" | "White" | "Colorless";
 
 export type CardType = "LEADER" | "BATTLE" | "EXTRA" | "UNISON" | "Z-LEADER" | "Z-BATTLE" | "Z-EXTRA" | "Z-UNISON" | "TOKEN";
 

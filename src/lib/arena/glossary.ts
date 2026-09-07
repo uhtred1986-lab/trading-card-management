@@ -640,11 +640,15 @@ export const READING_RULES: ReadingRule[] = [
   },
   {
     title: "What the orbs mean",
-    body: "{r} {u} {g} {y} {k} are red, blue, green, yellow and black — blue is u and black is k. {2} is that many orbs of any colour. {r}/{u} is one orb payable with either of the two named colours, which is not the same as one of any colour. A few sets print ③ for {3}, and it is normalised before anything reads it.",
+    body: "{r} {u} {g} {y} {k} {w} are red, blue, green, yellow, black and white — blue is u and black is k, and white is the sixth colour, which BT28 added. {2} is that many orbs of any colour. {r}/{u} is one orb payable with either of the two named colours, which is not the same as one of any colour. A few sets print ③ for {3}, and it is normalised before anything reads it.",
   },
   {
     title: "The target grammar",
     body: "Descriptions such as “Blue <Baby> with an energy cost of 4 or less” or “yellow non-≪Great Ape≫ card” are read into a filter: colours, characters, traits, names, card type, energy cost, and keywords a card must or must not have. That is what lets [Evolve], [Union], [Swap], [Z-Stack] and [Z-Awaken] offer the right cards with no compiled program at all. A phrase the parser drops widens a selection rather than narrowing it, so it is written to refuse rather than to guess.",
+  },
+  {
+    title: "Where a card is picked from",
+    body: "A description says which card, and the area words in it say where to look — “from your Drop”, “in your opponent's Battle Area”. A description with no area word in it is a card on the table (20-1-6), except right after a “look at …”: “look at up to 5 cards from the top of your deck, add up to 1 white ≪King Kai's Planet≫ card to your hand” picks out of the five, and standing after the look is the only thing that says so. The older sets printed “among them”; the newer ones dropped it and mean the same. A phrase that points back — “add it to your hand”, “the chosen card” — is neither, and is answered by whatever the skill already settled.",
   },
   {
     title: "Keywords that own their line",

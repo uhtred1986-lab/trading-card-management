@@ -10,6 +10,7 @@ const COLOR_BAR: Record<string, string> = {
   Green: "bg-dbs-green",
   Yellow: "bg-dbs-yellow",
   Black: "bg-dbs-black",
+  White: "bg-dbs-white",
   Colorless: "bg-space-500",
 };
 
