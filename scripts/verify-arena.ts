@@ -1910,6 +1910,90 @@ function assertConsistentAfterDrop(s: GameState) {
   for (const tail of ["for the turn", "for the duration of the battle", "until the end of your opponent's turn"]) {
     assert.deepEqual(one(`This card gets +5000 power ${tail}.`).unsupported, [], tail);
   }
+
+}
+
+// ── a condition printed after its effect (XD1-01) ──────────────────────────
+
+{
+  // The skill kind decides how a trailing "when" reads, so these are compiled
+  // with their real tags rather than through a wrapper.
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+
+  // XD1-01 prints its condition *after* the effect. Both halves already read —
+  // the condition by `parseConditionClause`, the effect by the clause patterns
+  // — so the leading and the trailing form must compile to the same program.
+  const trailing = one("[Permanent] This card gets +5000 power when all of your opponent's energy is in Rest Mode.");
+  assert.deepEqual(trailing.unsupported, []);
+  assert.equal(trailing.ops[0].op, "if");
+  const cond = (trailing.ops[0] as { cond: { kind: string; sel: { side: string; area: string }; matching: { mode: string } } }).cond;
+  assert.equal(cond.kind, "every");
+  assert.equal(cond.sel.side, "opponent");
+  assert.equal(cond.sel.area, "energy");
+  assert.equal(cond.matching.mode, "rest");
+  assert.deepEqual(one("[Permanent] If all of your opponent's energy is in Rest Mode, this card gets +5000 power.").ops, trailing.ops, "the two orders are one rule");
+
+  // "While" and "as long as" say the same thing on a [Permanent], which never
+  // resolves: the static layer asks the condition again every time.
+  const leading = one("[Permanent] If your life is at 4 or less, this card gets +5000 power.");
+  for (const word of ["when", "while", "as long as"]) {
+    assert.deepEqual(one(`[Permanent] This card gets +5000 power ${word} your life is at 4 or less.`).ops, leading.ops, word);
+  }
+
+  // On any other skill kind the same word is the skill's *trigger*, asked at a
+  // different moment. Reading it as a condition would quietly turn one rule
+  // into the other, so it stays an honest gap.
+  for (const tag of ["[Auto]", "[Activate: Main]"]) {
+    assert.ok(one(`${tag} Draw 1 card when this card attacks.`).unsupported.length > 0, `a trailing trigger is not a condition (${tag})`);
+  }
+
+  // "If" is a condition wherever it is printed, on any skill kind.
+  const trailingIf = one("[Auto] When you play this card, draw 1 card if your Leader Card is red.");
+  assert.deepEqual(trailingIf.unsupported, []);
+  assert.equal(trailingIf.ops[0].op, "if");
+  assert.deepEqual((trailingIf.ops[0] as { then: unknown }).then, [{ op: "draw", n: 1 }]);
+
+  // A tail that is not a condition at all still fails the whole clause.
+  assert.ok(one("[Permanent] This card gets +5000 power when your opponent is winning.").unsupported.length > 0, "an unreadable condition is a gap");
+
+  // A colon in the tail is a skill's own cost/effect boundary, never
+  // punctuation inside a condition — so a second skill run on after the first
+  // is not a trailing condition, however much it looks like one. Without this
+  // the bare "[Wish]" tag was read as the effect (a tag compiles, to "gains
+  // [Wish]") and the whole of the second skill as its condition. No sentence
+  // ends before the tag here, so `splitRunOn` cannot separate them either, and
+  // the skill's own colon is already spent on its cost — which is exactly how
+  // the second colon reached the effect on EX24-01.
+  const mashed = one("[Activate: Main] Switch this card to Rest Mode: Add 1 card to your hand [Wish] If you have 3 or more cards in your Drop: Draw 1 card.");
+  assert.ok(mashed.unsupported.length > 0, "a second skill on the same line is not a trailing condition");
+}
+
+// ── two skills printed on one line (EX24-01, BT16-129) ─────────────────────
+
+{
+  // A keyword skill carries its own type instead of a type tag, so "[Wish]"
+  // and "[Aegis …]" open a skill just as "[Auto]" does. Until `opensASkill`
+  // knew that, EX24-01's [Wish] was absorbed into the [Activate: Main] printed
+  // before it and never parsed as a skill at all.
+  const wish = parseSkills(
+    "[Activate: Main] Switch this card to Rest Mode: Add up to 2 ≪Power Wish≫ cards from your deck to your hand, then shuffle your deck. [Wish] If you have a total of 7 or more ≪Power Wish≫ cards with different card names among all cards in your Z-Energy and/or Drop: Switch up to 1 of your energy to Active Mode.",
+  );
+  assert.equal(wish.length, 2, "the [Wish] opens a skill of its own");
+  assert.equal(wish[0].kind, "activate:main");
+  assert.equal(wish[1].keyword?.name, "Wish");
+  assert.equal(wish[1].effect, "Switch up to 1 of your energy to Active Mode.");
+  for (const s of wish) assert.deepEqual(compileSkill(s).unsupported, [], s.effect);
+
+  // A bare carriage return separates skills on 307 faces of the original game,
+  // which carry no <br> at all. Split on "\n" alone, every one of those cards
+  // arrived as a single fused skill: BT16-129's [Aegis] and the [Permanent]
+  // after it were one line, and its keyword skills were never their own.
+  const cr = parseSkills("[Blocker]\r [Auto]{y}{y}, if your Leader Card is yellow: When this card is KO'd, draw 1 card.");
+  assert.equal(cr.length, 2, "a carriage return separates skill lines");
+  assert.equal(cr[0].keyword?.name, "Blocker");
+  assert.equal(cr[1].kind, "auto");
+  // \r\n is one break, not two.
+  assert.equal(parseSkills("[Blocker]\r\n[Critical]").length, 2, "CRLF is a single break");
 }
 
 // ── §22 keywords as engine rules ───────────────────────────────────────────

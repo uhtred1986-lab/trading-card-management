@@ -1546,6 +1546,43 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     }
   }
 
+  // The same thing said the other way round: the condition printed *after* the
+  // effect rather than in front of it. "This card gets +5000 power **when** all
+  // of your opponent's energy is in Rest Mode" (XD1-01), "draw 1 card **if**
+  // your Leader Card is red". Both halves already read on their own — the
+  // condition by `parseConditionClause`, the effect by the patterns below — so
+  // the only thing missing was the split. Every condition word was tested at
+  // the *start* of a clause, which is why the leading form compiled and this
+  // one went to the referee.
+  //
+  // "If" is a condition wherever it is printed. "When" / "while" / "as long as"
+  // are only read this way on a [Permanent], which has no trigger and never
+  // resolves, so the static layer asks the condition again every time. On an
+  // [Auto] the same word is the skill's *trigger* ("draw 1 card when this card
+  // attacks") — a different rule, asked at a different moment — and reading it
+  // here would quietly turn one into the other, so those stay a gap.
+  if ((m = /^(.*\S)[\s,]+(if|when|while|as long as)\s+(.+)$/.exec(t)) && (m[2] === "if" || c.permanent)) {
+    // A colon is a skill's own cost/effect boundary, never punctuation inside a
+    // condition. One in the tail means this is not a trailing condition at all
+    // but a second skill printed on the same line — EX24-01 carries an
+    // "[Activate: Main] …" and a "[Wish] If … : …" with no <br> between them,
+    // and without this the "[Wish]" tag was read as the effect and the whole of
+    // that second skill as its condition.
+    // For the same reason the head has to say something of its own: a bare
+    // keyword tag compiles to "gains [Wish]", which is an op, so requiring ops
+    // alone does not catch it.
+    const head = m[1];
+    const tail = m[3];
+    if (!tail.includes(":") && /[a-z0-9]/.test(head.replace(/\[[^\]]*\]/g, ""))) {
+      const cond = parseConditionClause(`if ${tail}`, true);
+      // The head has to be an effect in its own right. When it is not, this was
+      // not a trailing condition at all, and the clause stays a gap rather than
+      // becoming an `if` around nothing.
+      const inner = cond ? compileClause(head, c) : null;
+      if (cond && inner?.length) return [{ op: "if", cond: cond.cond, then: inner }];
+    }
+  }
+
   // The same clause with "for the turn", "in all areas" and the like taken
   // off, so the patterns for the action itself can end in `$`.
   const q = stripQualifiers(t);
