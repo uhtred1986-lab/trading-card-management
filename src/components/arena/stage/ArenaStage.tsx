@@ -21,7 +21,7 @@ import { narrate } from "@/lib/arena/narration";
 import { untilWords } from "@/lib/arena/effects";
 import { AttackBeam, CardPreview, CardSheet, Counter, NarrationRibbon, SearchSheet, SkillSpotlight, StepBanner, StepChip, TopStrip, cardsOnTable, refusalLine, shortLabel, type SheetMove } from "../shared";
 import { ZoneAnchor } from "./anchors";
-import { battleShape, Count, firedInBattle } from "./BattleParts";
+import { battleShape, BattleVerdict, Count, firedInBattle } from "./BattleParts";
 import { DuelBand } from "./DuelBand";
 import { Ghosts } from "./Ghosts";
 import { Hand } from "./Hand";
@@ -321,6 +321,18 @@ export function ArenaStage({ gameId, snapshot, skin = "night", staging = "band" 
   // re-render happens to notice. `docs/arena-ui-motion-spec.md` §7.
   const beat = playback.current;
   const mine = (id: string) => view.you.battle.some((c) => c.id === id) || view.you.leader?.id === id || view.you.unison?.id === id;
+  /**
+   * Whose card this is, or null when the board cannot see it any more. The
+   * verdict colours itself from this, and a card that won a fight and then left
+   * it — a guard KO'd by [Double Strike] — must not be coloured as the
+   * opponent's just because it is no longer in a row.
+   */
+  const sideOf = (id: string): "yours" | "theirs" | null => {
+    for (const side of [view.you, view.them]) {
+      for (const c of [side.leader, side.unison, ...side.battle, ...side.combo, side.dropTop]) if (c?.id === id) return side === view.you ? "yours" : "theirs";
+    }
+    return null;
+  };
   const momentOf = (id: string): Moment | null => {
     if (shaking === id) return "refuse";
     if (!beat) return null;
@@ -531,6 +543,11 @@ export function ArenaStage({ gameId, snapshot, skin = "night", staging = "band" 
         {view.battle && !shape && <AttackBeam from={view.battle.attacker} to={view.battle.guard} hostRef={boardRef} />}
 
         {shape && staging === "takeover" && <Takeover shape={shape} cardProps={stagedProps} beat={beat} progress={playback.playing ? { index: playback.index, total: playback.total } : null} />}
+
+        {/* Who won the fight, named. Outside the stagings on purpose: it must
+            appear on all three, and a battle that has already closed by the
+            time the beats arrive has no band left to carry it. */}
+        <BattleVerdict beat={beat} art={beats?.art ?? {}} sideOf={sideOf} />
 
         <Ghosts ghosts={playback.ghosts} art={beats?.art ?? {}} />
 

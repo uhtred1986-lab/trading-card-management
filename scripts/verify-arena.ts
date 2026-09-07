@@ -6287,8 +6287,9 @@ function assertDisjoint(s: GameState, where: string): RejectedAction[] {
   assert.equal(narrate(all[0], me), "Claude's Main Phase.");
   assert.equal(narrate(all[10], me), "You take 1 damage — Critical.");
   assert.equal(narrate(all[11], me), "Your Frieza is KO'd.");
-  assert.equal(narrate(all[9], me), "20,000 vs 10,000 — the attack hits.");
-  assert.equal(narrate({ ...(all[9] as Extract<Beat, { t: "clash" }>), hit: false }, me), "20,000 vs 10,000 — Frieza holds.");
+  // The winner is named, and named first (owner's decision, 7 Sep 2026).
+  assert.equal(narrate(all[9], me), "Son Goku wins the clash — 20,000 vs 10,000. The attack hits.");
+  assert.equal(narrate({ ...(all[9] as Extract<Beat, { t: "clash" }>), hit: false }, me), "Frieza wins the clash — 20,000 vs 10,000. The attack is repelled.");
   assert.equal(narrate(all[17], me), "Claude wins — no life left.");
   // A rule coming into force and wearing off (review §3.3), from the viewer's chair.
   assert.equal(narrate(all[14], me), "Son Goku gets +5000 power until the end of the turn (Frieza).");

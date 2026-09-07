@@ -105,8 +105,13 @@ export function narrate(b: Beat, n: Narrator): string | null {
       return `${name(b.attacker)} attacks ${name(b.target)}.`;
     case "block":
       return `${name(b.by)} blocks.`;
-    case "clash":
-      return `${b.attackPower.toLocaleString("en")} vs ${b.guardPower.toLocaleString("en")} — ${b.hit ? "the attack hits" : `${name(b.guard)} holds`}.`;
+    case "clash": {
+      // The winner is named first and the figures follow, always in
+      // attack-vs-guard order. The old sentence led with two numbers and left
+      // the reader to work out which card had won with them.
+      const won = b.hit ? name(b.attacker) : name(b.guard);
+      return `${won} wins the clash — ${b.attackPower.toLocaleString("en")} vs ${b.guardPower.toLocaleString("en")}. ${b.hit ? "The attack hits." : "The attack is repelled."}`;
+    }
     case "damage":
       return `${who(b.player, "take", "takes")} ${b.amount} damage${b.critical ? " — Critical" : ""}.`;
     case "ko": {

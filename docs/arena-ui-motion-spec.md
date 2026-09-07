@@ -316,13 +316,13 @@ to the wrong place.
 | Charge energy | `move` hand→energy | `layoutId` flight, landing upside-down | 260 | ◐ |
 | Play a Battle Card | `move` hand→battle | `layoutId` glide, then `arena-pop` as it settles | 280 | ✅ |
 | Rest / Active | `mode` | 90° rotation, already animated by `ArenaCard` | 200 | ✅ |
-| Attack declared | `attack` | `arena-lunge-up`/`-down`, 18 % toward the target and back, with the SVG beam | 300 | ✅ |
-| Combo | `move` →combo | slides in; the power figures **count up** (`Count`, over a motion value) | 250 | ✅ |
-| Clash | `clash` | `arena-slam` on the figures, `arena-hit` flash and shake on the guard | 300 | ✅ |
-| Counter | `move` hand→drop in a counter window | spring from hand, "COUNTER" stamp | 320 | ✗ |
-| Blocker | `block` | blocker slides in front of the target | 280 | ✗ |
-| Damage | `damage` | `arena-hurt` shakes the side that took it, with a red edge; haptic | 340 | ◐ |
-| KO | `ko` | ghost desaturates and slides to the Drop anchor | 300 | ✅ |
+| Attack declared | `attack` | `arena-lunge-up`/`-down`, 18 % toward the target and back, with the SVG beam | 460 | ✅ |
+| Combo | `move` →combo | slides in; the power figures **count up** (`Count`, over a motion value) | 280 | ✅ |
+| Clash | `clash` | `BattleVerdict` names the winner; `arena-hit` flash and shake on the guard | 1100 | ✅ |
+| Counter | `move` hand→drop in a counter window | spring from hand, "COUNTER" stamp | 320 | ✅ |
+| Blocker | `block` | blocker slides in front of the target | 460 | ✗ |
+| Damage | `damage` | `arena-hurt` shakes the side that took it, with a red edge; haptic | 560 | ◐ |
+| KO | `ko` | ghost desaturates and slides to the Drop anchor | 560 | ✅ |
 | Awaken | `flip` | `arena-awaken`, a full 3D `rotateY` with a swell | 350 | ✅ |
 | Unison markers | `markers` | `arena-chip`, popping in on a stagger | 180 | ✅ |
 | Claude plays | `move` from a hidden hand | flies and pops like any other card | 300 | ◐ |
@@ -334,6 +334,14 @@ over *during* the flight; a card Claude plays does not flip from its back on the
 shakes the side that took it rather than flying a life card to the hand. That last one needs UI that
 does not exist — life is a number and eight pips, not cards — so it is a piece of work, not a
 keyframe.
+
+**Retuned after play, 7 Sep 2026 (owner's decision).** The outcome of a fight was being hurried:
+the clash was 300 ms of two numbers changing, and the player had to compare them to work out who
+had won. It is now 1100 ms and carries `BattleVerdict`, which **names the winning card** — the
+attacker when the attack hits, the guard when it is repelled — at a size that cannot be missed;
+`narrate` leads with that name too. Declaring, blocking, damage and a KO all grew for the same
+reason, the chain accelerator was softened (0.55 → 0.7) and is now **never applied to a decisive
+beat**, and `SPRING` went from 520 to 380 so a card is seen to travel rather than to appear.
 
 **✗ — the blocker sliding in front is still not built**: `block` arrives after the guard has already
 changed, so the board has nothing to slide. The **counter stamp is built** (7 Sep 2026,
