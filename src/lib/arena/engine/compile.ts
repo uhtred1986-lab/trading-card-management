@@ -1004,28 +1004,59 @@ export function costText(cost: string): string {
 }
 
 /**
- * A price that is an *action* rather than a condition: "switch this card to
- * Rest Mode", "choose 1 card in your hand and place it in your Drop Area"
- * (4-3-3). It is the same vocabulary as an effect, so it is compiled by the
- * same code — what makes it a cost is only where it is printed.
+ * The *action* a price charges: "switch this card to Rest Mode", "choose 1
+ * card in your hand and place it in your Drop Area" (4-3-3). It is the same
+ * vocabulary as an effect, so it is compiled by the same code — what makes it
+ * a cost is only where it is printed. A price that states a condition first
+ * has been cut in two by `splitPrice`, and this is the second half; the first
+ * is `priceCondition`, and the two are read together, never as alternatives.
  *
  * Whether the engine may actually charge it is a separate question, answered
  * by `canPayCostProgram` in `engine.ts`; a program this returns is not yet a
  * price the player can pay.
  */
-const costPrograms = new Map<string, Script | null>();
 export function compileCostProgram(skill: Skill): Script | null {
-  const said = costText(skill.cost);
-  // Orbs and conditions are the two prices the engine already knew.
-  if (!said || costIsOnlyOrbs(skill.cost) || /^(?:if|when|while|during)\b/i.test(said)) return null;
-  const hit = costPrograms.get(said);
+  return splitPrice(skill).program;
+}
+
+const costPrograms = new Map<string, Script | null>();
+
+/**
+ * Compile one piece of price text as a program. Memoised on the text and the
+ * line's tags, which decide whether a keyword owns the line rather than the
+ * compiler.
+ */
+function compileAction(said: string, skill: Skill): Script | null {
+  const key = `${skill.tags.join("|")} ${said}`;
+  const hit = costPrograms.get(key);
   if (hit !== undefined) return hit;
   // Compiled as an [Activate] so that a leading "when" is not mistaken for a
   // trigger, and with no cost of its own so nothing wraps it in a condition.
-  const sc = compileSkill({ ...skill, kind: "activate:main", keyword: null, cost: "", effect: said });
+  const read = (text: string) => compileSkill({ ...skill, kind: "activate:main", keyword: null, cost: "", effect: text });
+  let sc = read(said);
+  // A printed price is written in the second person and every action pattern
+  // in the compiler is written in the imperative, so one the compiler cannot
+  // read is offered again with its subject taken off. Second and not first,
+  // because a handful of prices do say "you" to the compiler — "you can't play
+  // copies of this card for the turn" — and those are read as they stand.
+  const bare = dropTheSubject(said);
+  if ((sc.unsupported.length || !sc.ops.length) && bare !== said) sc = read(bare);
   const out = sc.unsupported.length || !sc.ops.length ? null : sc;
-  costPrograms.set(said, out);
+  costPrograms.set(key, out);
   return out;
+}
+
+/**
+ * "**You** remove this card in your Drop from the game and discard 1 card from
+ * your hand" → "remove this card …" (BT31-132): the subject of a printed
+ * price, at the front and after each "and"/"then"/"or". Until it came off, no
+ * "you place …", "you discard …" or "you choose …" price was readable at all.
+ *
+ * "You may" stays: that is `may` (20-16), an op of its own, and what follows it
+ * is what is optional rather than what is done.
+ */
+function dropTheSubject(said: string): string {
+  return said.replace(/(^|,\s*|\band\s+|\bthen\s+|\bor\s+)you\s+(?!may\b)/gi, "$1");
 }
 
 /**
@@ -1041,7 +1072,8 @@ export function costIsOnlyOrbs(cost: string): boolean {
 }
 
 /**
- * The condition a price states, when stating one is all it does (9-1-3).
+ * The condition or conditions a price states (9-1-3) — whether or not it also
+ * charges an action, which is `compileCostProgram`.
  *
  * Most cards write "If your Leader Card is red"; a dozen print the same claim
  * bare — "Your Leader Card is a green ≪Android≫ card" — with no condition word
@@ -1051,11 +1083,147 @@ export function costIsOnlyOrbs(cost: string): boolean {
  * that direction would hand the player a free skill.
  */
 export function priceCondition(skill: Skill): { cond: Cond; subject?: Ref } | null {
-  const priced = costText(skill.cost);
-  if (!priced) return null;
-  if (/^(?:if|when|while|during)\b/i.test(priced)) return parseConditionClause(priced);
-  if (compileCostProgram(skill)) return null;
-  return parseConditionClause(priced, true);
+  const conds = splitPrice(skill).conds;
+  if (!conds.length) return null;
+  if (conds.length === 1) return conds[0];
+  // Several conditions in one price all have to hold (9-1-3). None of them is
+  // then *the* subject an effect's "it" points back at, so none is offered.
+  return { cond: { kind: "all", conds: conds.map((x) => x.cond) } };
+}
+
+/**
+ * A price says one of three things, and a few hundred cards say two of them at
+ * once: "[Activate: Main] If your Leader is a white <Cell> card, and you
+ * remove this card in your Drop from the game and discard 1 card from your
+ * hand:" (BT31-132) both names a condition the skill needs (9-1-3) and charges
+ * an action to use it (4-3-3).
+ *
+ * The two halves are separated here so the engine can check the one and charge
+ * the other. A split is only taken when *both* halves are fully read — the
+ * conditions all parse and the rest compiles to a program — because a price
+ * read in half is worse than one not read at all: the skill would be offered
+ * without its condition, or, far more likely, for free.
+ */
+interface PriceSplit {
+  conds: { cond: Cond; subject?: Ref }[];
+  /** The action half, compiled; null when the price only states conditions. */
+  program: Script | null;
+}
+
+const priceSplits = new Map<string, PriceSplit>();
+const NO_PRICE: PriceSplit = { conds: [], program: null };
+
+function splitPrice(skill: Skill): PriceSplit {
+  const said = costText(skill.cost);
+  if (!said || costIsOnlyOrbs(skill.cost)) return NO_PRICE;
+  const key = `${skill.tags.join("|")} ${said}`;
+  const hit = priceSplits.get(key);
+  if (hit) return hit;
+  const out = readPrice(said, skill);
+  priceSplits.set(key, out);
+  return out;
+}
+
+function readPrice(said: string, skill: Skill): PriceSplit {
+  // A price with no condition word in front of it is charged, not merely
+  // checked: the action is the stronger reading, because charging it changes
+  // the game and a condition that holds costs nothing. A dozen cards do state
+  // the condition bare, and they are read once that reading has failed.
+  const cued = /^(?:if|when|while|during)\b/i.test(said);
+  const whole = cued ? null : compileAction(said, skill);
+  if (whole) return { conds: [], program: whole };
+  // "If X, and you do Y": every place the sentence could be cut in two, the
+  // longest condition half first, so a price stating two conditions and an
+  // action keeps both of them.
+  for (const at of joints(said).reverse()) {
+    const head = said.slice(0, at.at).replace(/[\s,]+$/, "");
+    const tail = said.slice(at.at + at.len).trim();
+    if (!head || !tail) continue;
+    const conds = allConditions(head);
+    if (!conds) continue;
+    const program = compileAction(tail, skill);
+    if (program) return { conds, program };
+  }
+  const only = allConditions(said);
+  return only ? { conds: only, program: null } : NO_PRICE;
+}
+
+/** Every "and"/"," a price could be cut at, outside the bracketed card descriptions. */
+function joints(said: string): { at: number; len: number }[] {
+  const out: { at: number; len: number }[] = [];
+  const closers: Record<string, string> = { "<": ">", "≪": "≫", "{": "}", "(": ")", "[": "]" };
+  let close = "";
+  for (let i = 0; i < said.length; i++) {
+    const ch = said[i];
+    if (close) {
+      if (ch === close) close = "";
+      continue;
+    }
+    if (closers[ch]) {
+      close = closers[ch];
+      continue;
+    }
+    const rest = said.slice(i);
+    const m = /^(,\s+and\s+|,\s+|\s+and\s+)/i.exec(rest);
+    if (m) {
+      out.push({ at: i, len: m[1].length });
+      i += m[1].length - 1;
+    }
+  }
+  return out;
+}
+
+/**
+ * A price, or the head of one, read as the one or more conditions it states.
+ *
+ * Cut at every joint first and read the pieces: the patterns below all end in
+ * a greedy tail, so "your Leader Card is red, you have 2 or more energy" read
+ * whole is one condition about a leader that is "red, you have 2 or more
+ * energy" — and the second requirement is gone. The whole is only read when
+ * the pieces do not, which is what keeps "a red and blue card" together.
+ */
+function allConditions(head: string): { cond: Cond; subject?: Ref }[] | null {
+  const parts = joints(head);
+  if (parts.length) {
+    const conds: { cond: Cond; subject?: Ref }[] = [];
+    let from = 0;
+    for (const j of [...parts, { at: head.length, len: 0 }]) {
+      const got = parseConditionClause(head.slice(from, j.at).replace(/[\s,]+$/, "").trim(), true);
+      if (!got) {
+        conds.length = 0;
+        break;
+      }
+      conds.push(got);
+      from = j.at + j.len;
+    }
+    if (conds.length) return conds;
+  }
+  // The pieces did not read, so the whole is tried after all: plenty of single
+  // conditions carry an "and" or a comma of their own — "you and your opponent
+  // have a total of 8 or less life", "at least 1 <Recoome>, <Jeice>, <Burter>,
+  // and <Guldo> card in play" — and cutting those up loses 291 skills to save
+  // the few the `charged` guard already refuses.
+  const whole = parseConditionClause(head, true);
+  return whole ? [whole] : null;
+}
+
+/**
+ * True when a piece of price text reads as an *action* the player takes to pay
+ * (4-3-3) rather than something that has to be true (9-1-3).
+ *
+ * Asked one level deep only: a probe runs the whole compiler, which asks
+ * questions about conditions of its own, and a probe inside a probe would be
+ * answering one nobody asked.
+ */
+let probing = false;
+function readsAsAction(said: string): boolean {
+  if (probing || !said) return false;
+  probing = true;
+  try {
+    return compileAction(said, { kind: "activate:main", index: 0, tags: [], keyword: null, cost: "", effect: said, raw: said, oncePerTurn: false, limit: null, bond: null, sparking: null, burst: null, spiritBoost: null, markerCost: null, energyCost: {}, energyEither: [] }) !== null;
+  } finally {
+    probing = false;
+  }
 }
 
 export function parseConditionClause(clause: string, allowBare = false): { cond: Cond; subject?: Ref } | null {
@@ -1076,15 +1244,26 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // already broken it at the "and".
   if (/ and /.test(t)) {
     const conds: Cond[] = [];
-    for (const part of t.split(/ and /)) {
+    const raw = clause.trim().split(/ and /i);
+    let charged = false;
+    for (const [i, part] of t.split(/ and /).entries()) {
       const got = parseConditionClause(part.trim(), true);
       if (!got) {
         conds.length = 0;
+        // A part the compiler reads as something the player *does* is a price
+        // to charge, not a claim to check (4-3-3). Falling through to the
+        // patterns below would let one of their greedy tails swallow it, and
+        // the skill would then be offered without ever paying for it —
+        // 914 skills read that way, including BT31-132's "and you remove this
+        // card in your Drop from the game". `splitPrice` reads such a price in
+        // two; here the clause is simply not a condition.
+        charged = readsAsAction((raw[i] ?? part).replace(/[\s,]+$/, "").trim());
         break;
       }
       conds.push(got.cond);
     }
     if (conds.length > 1) return { cond: { kind: "all", conds } };
+    if (charged) return null;
   }
   let m: RegExpExecArray | null;
   // "If your Leader Card is a <Baby> card, it gets +10000 power" — the leader is
