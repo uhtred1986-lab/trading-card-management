@@ -97,7 +97,10 @@ export function TurnStrip({ view, yours, moves }: { view: BoardView; yours: bool
     // light, and the anime skin inverts the space scale, so `text-space-950`
     // would be near-white there. Hence named classes painted from each skin's
     // own tokens, and no colour utilities at all.
-    <div className={`arena-turnstrip ${yours ? "arena-turnstrip-you" : "arena-turnstrip-them"} flex items-center gap-2 rounded-lg px-2.5 py-1 sm:gap-3 sm:rounded-xl sm:px-3 sm:py-1.5`} aria-live="polite">
+    <div
+      className={`arena-turnstrip ${yours ? "arena-turnstrip-you" : "arena-turnstrip-them"} flex items-center gap-2 rounded-lg px-2.5 py-1 sm:gap-3 sm:rounded-xl sm:px-3 sm:py-1.5`}
+      aria-live="polite"
+    >
       <span className="truncate text-xs font-black uppercase italic tracking-wide sm:text-sm">{yours ? "Your move" : `${view.them.name}'s move`}</span>
       {/* The move count lives here rather than on the hint's line, where it
           used to clip the one sentence that says what to do. */}

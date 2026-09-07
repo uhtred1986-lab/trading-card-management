@@ -7076,7 +7076,22 @@ function assertDisjoint(s: GameState, where: string): RejectedAction[] {
   assert.equal(waitingFor({ ai: null, state: s, status: "playing", viewer: "p1" }), "you", "a prompt that is the viewer's is never the opponent's move");
 
   // And the same read through a whole snapshot, which is what the board holds.
-  const snap = buildSnapshot({ id: 1, mode: "hotseat", status: "playing", p1Name: "You", p2Name: "Claude", ctx, state: s, legal, log: [], beats: null, spotlight: null, spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, images: {} });
+  const snap = buildSnapshot({
+    id: 1,
+    mode: "hotseat",
+    status: "playing",
+    p1Name: "You",
+    p2Name: "Claude",
+    ctx,
+    state: s,
+    legal,
+    log: [],
+    beats: null,
+    spotlight: null,
+    spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 },
+    ai: null,
+    images: {},
+  });
   assert.ok(snap.legal.length > 0);
   assert.equal(snap.view.prompt.player, snap.view.you.player, "the fixture is in the state the invariant is about");
   assert.equal(snap.waiting, "you", "the prompt is the viewer's with moves in it — the board may not say the opponent is acting");

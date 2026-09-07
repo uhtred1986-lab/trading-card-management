@@ -65,8 +65,7 @@ export function TurnLighting({ prefs }: { prefs: Prefs }) {
     });
   };
 
-  const setTone = (c: LeaderColour, patch: Partial<{ tint: string; glow: string; k: number }>) =>
-    setDraft((d) => ({ ...d, tone: { ...d.tone, [c]: { ...toneFor(c, d), ...patch } } }));
+  const setTone = (c: LeaderColour, patch: Partial<{ tint: string; glow: string; k: number }>) => setDraft((d) => ({ ...d, tone: { ...d.tone, [c]: { ...toneFor(c, d), ...patch } } }));
 
   return (
     <section className="rounded-xl border border-space-700/70 bg-space-900/50 p-3 text-sm">
@@ -88,9 +87,7 @@ export function TurnLighting({ prefs }: { prefs: Prefs }) {
           ))}
         </div>
       </div>
-      <p className="mt-1 text-xs text-space-300">
-        On the arena board, the leader of whoever is acting grows and lights, and the room takes its printed colour. {MODE_WHY[draft.mode]}
-      </p>
+      <p className="mt-1 text-xs text-space-300">On the arena board, the leader of whoever is acting grows and lights, and the room takes its printed colour. {MODE_WHY[draft.mode]}</p>
 
       <h3 className="mt-4 text-xs font-semibold uppercase tracking-widest text-space-400">Same-colour matches</h3>
       <div className="mt-1.5 flex flex-wrap gap-2">
@@ -112,8 +109,8 @@ export function TurnLighting({ prefs }: { prefs: Prefs }) {
 
       <h3 className="mt-4 text-xs font-semibold uppercase tracking-widest text-space-400">Colour tone</h3>
       <p className="mt-1 text-xs text-space-300">
-        The five colours do not carry equal weight as light, so each has its own intensity on top of the master dial. Judge them for <em>perceived</em> equality — no colour should
-        feel like a brighter turn than another — and check both skins.
+        The five colours do not carry equal weight as light, so each has its own intensity on top of the master dial. Judge them for <em>perceived</em> equality — no colour should feel like a brighter
+        turn than another — and check both skins.
       </p>
 
       {/* Every colour's ambient at its own intensity, side by side: the one
@@ -153,15 +150,7 @@ export function TurnLighting({ prefs }: { prefs: Prefs }) {
                   <input type="color" value={t.glow} onChange={(e) => setTone(c, { glow: e.target.value })} className="h-7 w-9 cursor-pointer border-0 bg-transparent p-0" />
                 </label>
                 <label className="flex min-w-[9rem] flex-1 items-center gap-2 text-[10px] uppercase tracking-widest text-space-400">
-                  <input
-                    type="range"
-                    min={40}
-                    max={160}
-                    value={t.k}
-                    onChange={(e) => setTone(c, { k: Number(e.target.value) })}
-                    className="h-6 flex-1 accent-ki-500"
-                    aria-label={`${c} intensity`}
-                  />
+                  <input type="range" min={40} max={160} value={t.k} onChange={(e) => setTone(c, { k: Number(e.target.value) })} className="h-6 flex-1 accent-ki-500" aria-label={`${c} intensity`} />
                   <span className="w-10 shrink-0 text-right font-mono text-[11px] text-ki-300">{t.k}%</span>
                 </label>
                 {tuned && (

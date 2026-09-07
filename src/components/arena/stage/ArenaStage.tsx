@@ -555,85 +555,89 @@ export function ArenaStage({
             }`}
             aria-live="polite"
           >
-          {(waitingOnServer || busy) && !view.over && <span className="arena-pulse h-3.5 w-3.5 shrink-0 animate-pulse rounded-full bg-ki-400" aria-hidden />}
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-space-50 sm:text-base lg:text-lg">
-              {!playback.playing && !view.over && yourTurn && view.prompt.step && (
-                <span className="mr-2 align-middle">
-                  <StepChip step={view.prompt.step} />
+            {(waitingOnServer || busy) && !view.over && <span className="arena-pulse h-3.5 w-3.5 shrink-0 animate-pulse rounded-full bg-ki-400" aria-hidden />}
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-space-50 sm:text-base lg:text-lg">
+                {!playback.playing && !view.over && yourTurn && view.prompt.step && (
+                  <span className="mr-2 align-middle">
+                    <StepChip step={view.prompt.step} />
+                  </span>
+                )}
+                {playback.playing
+                  ? (held?.text ?? `${view.them.name} is playing…`)
+                  : view.over
+                    ? view.over.winner
+                      ? `${view.over.winner === view.you.player ? view.you.name : view.them.name} wins`
+                      : "A draw"
+                    : waitingOnServer
+                      ? `${view.them.name} is thinking…`
+                      : view.prompt.question}
+              </p>
+              <p className={`mt-0.5 flex items-center gap-2 text-[11px] sm:text-sm ${refusal && !view.over ? "text-loss" : "text-space-300"}`}>
+                {/* The refusal line (workflow spec §4): which requirement failed, and what would satisfy it. */}
+                {/* While the story plays: whose turn it is and where in it we are; the next prompt's hint would only mislead here. */}
+                <span className={refusal && !view.over ? "line-clamp-2" : "truncate"}>
+                  {view.over
+                    ? view.over.reason
+                    : playback.playing
+                      ? `${beat && actorOf(beat) === view.you.player ? "Your move" : `${view.them.name} is playing`} · ${playback.index + 1} of ${playback.total}${pace === "step" ? " · tap Next" : ""}`
+                      : (error ?? refusal?.text ?? view.prompt.hint ?? "")}
                 </span>
-              )}
-              {playback.playing
-                ? (held?.text ?? `${view.them.name} is playing…`)
-                : view.over
-                  ? view.over.winner
-                    ? `${view.over.winner === view.you.player ? view.you.name : view.them.name} wins`
-                    : "A draw"
-                  : waitingOnServer
-                    ? `${view.them.name} is thinking…`
-                    : view.prompt.question}
-            </p>
-            <p className={`mt-0.5 flex items-center gap-2 text-[11px] sm:text-sm ${refusal && !view.over ? "text-loss" : "text-space-300"}`}>
-              {/* The refusal line (workflow spec §4): which requirement failed, and what would satisfy it. */}
-              {/* While the story plays: whose turn it is and where in it we are; the next prompt's hint would only mislead here. */}
-              <span className={refusal && !view.over ? "line-clamp-2" : "truncate"}>
-                {view.over
-                  ? view.over.reason
-                  : playback.playing
-                    ? `${beat && actorOf(beat) === view.you.player ? "Your move" : `${view.them.name} is playing`} · ${playback.index + 1} of ${playback.total}${pace === "step" ? " · tap Next" : ""}`
-                    : (error ?? refusal?.text ?? view.prompt.hint ?? "")}
-              </span>
-              {/* "What can I do?" answered as a number, before you have to look. */}
-              {!view.over && !playback.playing && playable && yourTurn && moveCount > 0 && !refusal && !searching && (
-                <span className={`shrink-0 rounded-full border px-1.5 py-px text-[10px] tabular-nums ${nudging ? "border-ki-500/60 text-ki-300" : "border-space-600 text-space-400"}`}>
-                  {moveCount} {moveCount === 1 ? "move" : "moves"}
-                </span>
-              )}
-            </p>
-          </div>
+                {/* "What can I do?" answered as a number, before you have to look. */}
+                {!view.over && !playback.playing && playable && yourTurn && moveCount > 0 && !refusal && !searching && (
+                  <span className={`shrink-0 rounded-full border px-1.5 py-px text-[10px] tabular-nums ${nudging ? "border-ki-500/60 text-ki-300" : "border-space-600 text-space-400"}`}>
+                    {moveCount} {moveCount === 1 ? "move" : "moves"}
+                  </span>
+                )}
+              </p>
+            </div>
 
-          {playback.playing && pace === "step" && (
-            <button type="button" onClick={playback.next} className="tap shrink-0 rounded-lg bg-ki-500 px-3 py-2 text-sm font-semibold text-space-950 hover:bg-ki-400 sm:rounded-xl sm:px-5 sm:py-2.5">
-              Next ▸
-            </button>
-          )}
-          {playback.playing && (
-            <button type="button" onClick={playback.skip} className="tap shrink-0 rounded-lg border border-space-600 bg-space-700 px-3 py-2 text-sm font-semibold text-space-50 sm:px-5 sm:py-2.5">
-              Skip
-            </button>
-          )}
-          {!playback.playing && isTargeting && (
-            <button type="button" onClick={() => setSelected(null)} className="tap shrink-0 rounded-lg border border-space-600 px-3 py-2 text-sm text-space-100 sm:px-5 sm:py-2.5 sm:text-base">
-              Cancel
-            </button>
-          )}
-          {searching && !searchOpen && (
-            <button
-              type="button"
-              onClick={() => setClosedSearch(null)}
-              className="tap shrink-0 rounded-lg bg-ki-500 px-3 py-2 text-sm font-semibold text-space-950 hover:bg-ki-400 sm:rounded-xl sm:px-5 sm:py-2.5 sm:text-base"
-            >
-              Choose from {choices.length}
-            </button>
-          )}
-          {!playback.playing &&
-            !isTargeting &&
-            playable &&
-            !modal &&
-            bare.slice(0, 3).map(({ i, l }) => (
+            {playback.playing && pace === "step" && (
               <button
-                key={i}
                 type="button"
-                disabled={busy}
-                onClick={() => send(l.action)}
-                className={`tap shrink-0 rounded-lg px-3 py-2 text-sm font-semibold disabled:opacity-50 sm:rounded-xl sm:px-5 sm:py-2.5 sm:text-base ${
-                  l.action.type === "endMain" || l.action.type === "pass" ? "border border-space-600 bg-space-700 text-space-50" : "bg-ki-500 text-space-950 hover:bg-ki-400"
-                }`}
+                onClick={playback.next}
+                className="tap shrink-0 rounded-lg bg-ki-500 px-3 py-2 text-sm font-semibold text-space-950 hover:bg-ki-400 sm:rounded-xl sm:px-5 sm:py-2.5"
               >
-                <span className="sm:hidden">{shortLabel(l.label)}</span>
-                <span className="hidden sm:inline">{l.label}</span>
+                Next ▸
               </button>
-            ))}
+            )}
+            {playback.playing && (
+              <button type="button" onClick={playback.skip} className="tap shrink-0 rounded-lg border border-space-600 bg-space-700 px-3 py-2 text-sm font-semibold text-space-50 sm:px-5 sm:py-2.5">
+                Skip
+              </button>
+            )}
+            {!playback.playing && isTargeting && (
+              <button type="button" onClick={() => setSelected(null)} className="tap shrink-0 rounded-lg border border-space-600 px-3 py-2 text-sm text-space-100 sm:px-5 sm:py-2.5 sm:text-base">
+                Cancel
+              </button>
+            )}
+            {searching && !searchOpen && (
+              <button
+                type="button"
+                onClick={() => setClosedSearch(null)}
+                className="tap shrink-0 rounded-lg bg-ki-500 px-3 py-2 text-sm font-semibold text-space-950 hover:bg-ki-400 sm:rounded-xl sm:px-5 sm:py-2.5 sm:text-base"
+              >
+                Choose from {choices.length}
+              </button>
+            )}
+            {!playback.playing &&
+              !isTargeting &&
+              playable &&
+              !modal &&
+              bare.slice(0, 3).map(({ i, l }) => (
+                <button
+                  key={i}
+                  type="button"
+                  disabled={busy}
+                  onClick={() => send(l.action)}
+                  className={`tap shrink-0 rounded-lg px-3 py-2 text-sm font-semibold disabled:opacity-50 sm:rounded-xl sm:px-5 sm:py-2.5 sm:text-base ${
+                    l.action.type === "endMain" || l.action.type === "pass" ? "border border-space-600 bg-space-700 text-space-50" : "bg-ki-500 text-space-950 hover:bg-ki-400"
+                  }`}
+                >
+                  <span className="sm:hidden">{shortLabel(l.label)}</span>
+                  <span className="hidden sm:inline">{l.label}</span>
+                </button>
+              ))}
           </section>
         </div>
 
@@ -893,10 +897,7 @@ function SideRail({
             /* The footprint is reserved and the scale happens inside it, so
                the rail does not reflow when the turn flips — the same rule
                that keeps layout still between every other pair of states. */
-            <span
-              className={`arena-leader ${active ? "arena-leader-on" : "arena-leader-off"}`}
-              style={{ width: `calc(56px * var(--arena, 1))`, height: `calc(78px * var(--arena, 1))` }}
-            >
+            <span className={`arena-leader ${active ? "arena-leader-on" : "arena-leader-off"}`} style={{ width: `calc(56px * var(--arena, 1))`, height: `calc(78px * var(--arena, 1))` }}>
               <StageCard {...cardProps(side.leader)} width={56} />
               {active && <span className="arena-leader-ring" aria-hidden />}
             </span>
