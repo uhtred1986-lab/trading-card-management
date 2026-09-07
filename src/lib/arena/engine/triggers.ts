@@ -3,6 +3,7 @@
  * interpreter can queue triggers too without importing the engine
  * (which imports the interpreter).
  */
+import { effectHead, trailingTrigger } from "./cards";
 import { areaOf, cardsInPlay, def, forbids, move, skillNegated, skillsNegated, skillsOfInstance, type GameContext } from "./state";
 import type { GameEvent, GameState, PlayerId, Skill, Trigger } from "./types";
 import { PLAYERS } from "./types";
@@ -49,16 +50,15 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
    * and no trigger at all. 116 skills do exactly that, and every one of them
    * was pending its whole skill again at every turn end. A trigger is the head
    * of the sentence, so these are matched against the head and nothing else.
+   *
+   * The one exception is a skill with no trigger at all, where the phrase can
+   * only be the trigger — see `trailingTrigger`. Reading it back onto the
+   * front is all that takes, since every timing trigger below is anchored
+   * there, and the phrase carries no wording the others look for.
    */
-  const head = sk.effect
-    .toLowerCase()
-    .trim()
-    // A validity condition may be printed in front of the trigger rather than
-    // before the colon — "If your Leader Card is red, at the end of your turn,
-    // …", or with the sets' own bar between them — and that is still the head
-    // of the sentence. A "when …" in front of it is not: that is the skill's
-    // own trigger, and what follows it is a delayed effect.
-    .replace(/^if [^,|]{0,90}[,|]\s*/, "");
+  const printed = effectHead(sk.effect);
+  const trailing = trailingTrigger(sk);
+  const head = trailing ? `${trailing}, ${printed}` : printed;
   switch (trigger) {
     case "played":
       // 12-2: activating an Extra *is* playing it, and the sets print both.

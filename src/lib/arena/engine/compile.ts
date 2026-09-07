@@ -9,7 +9,7 @@
  * is worse than an honest "Claude decides this one".
  */
 import { parseFilter, type CardFilter } from "./filters";
-import { keywordOf, orbsIn, skillsOf } from "./cards";
+import { keywordOf, orbsIn, skillsOf, trailingTrigger, withoutTrailingTrigger } from "./cards";
 import type { Amount, Cond, Duration, Op, Ref, Script, ScriptArea, Selector, Side } from "./script";
 import type { CardDef, DelayScope, DelayTiming, ForbiddenAction, KeywordSkill, Skill, SkillKindPrefix } from "./types";
 
@@ -2770,7 +2770,13 @@ function compileSkillText(skill: Skill): Script {
   const owners = [skill.keyword, ...skill.tags.map(keywordOf)].filter((k): k is KeywordSkill => !!k);
   const keywordOwnsIt = owners.some((k) => KEYWORD_HANDLES_THE_LINE.has(k.name) && !(k.name === "Union" && k.variant === "Absorb"));
   if (keywordOwnsIt) return { ops: [], unsupported: [] };
-  const text = stripNotes(skill.effect);
+  // A trigger printed at the end of the sentence rather than at its head
+  // (BT3-103) has already happened by the time the effect resolves, exactly
+  // like the leading form the clause loop drops below. Left in the text it
+  // compiles to a delay instead, and the skill then waits for the *next* end
+  // of a battle — one battle too late, every time.
+  const trailing = trailingTrigger(skill);
+  const text = stripNotes(trailing ? withoutTrailingTrigger(skill.effect, trailing) : skill.effect);
   if (!text) return { ops: [], unsupported: [] };
   const unsupported: string[] = [];
   const c: Ctx = { permanent: skill.kind === "permanent", last: null, choices: [], lastSeen: null, lastNamed: null, mills: 0, costs: 0, lastPlayed: null, lastTarget: null, lastOp: null, replacing: null, n: 0, raw: skill.effect };

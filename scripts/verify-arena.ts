@@ -13,7 +13,7 @@ import { buildSnapshot, rejectedFor, type Snapshot } from "../src/lib/arena/snap
 import { boardView } from "../src/lib/arena/view";
 import { pill, priceOf, refusal, sentence, stepText } from "../src/lib/arena/wording";
 import { narrate } from "../src/lib/arena/narration";
-import { parseSkills, keywordOf, orbsIn, eitherOrbsIn, skillLines } from "../src/lib/arena/engine/cards";
+import { trailingTrigger, parseSkills, keywordOf, orbsIn, eitherOrbsIn, skillLines } from "../src/lib/arena/engine/cards";
 import { KEYWORDS, keywordTagSpellings, keywordsByGroup, tagBody, tagParsesTo } from "../src/lib/arena/glossary";
 import { parseFilter, matches, parseCondition } from "../src/lib/arena/engine/filters";
 import { addEffect, schedule, move, locate, placeUnder, playCost, powerOf, forbids, has, cardNow, comboCostOf, skillNegated, skillsNegated } from "../src/lib/arena/engine/state";
@@ -144,6 +144,15 @@ const DEFS: Record<string, CardDef> = defsFrom([
   card("V1", {}),
   card("V-BLUE", { colors: ["Blue"] }),
   card("BLOCKER", { energyCost: 2, skill: "[Blocker]", comboCost: 1, comboPower: 10000 }),
+  // BT3-103, whose whole point is the two skills together: it blocks, then buys
+  // its way back to Active Mode so it can block again.
+  card("BERGAMO", {
+    energyCost: 2,
+    // Enough power to survive the block, or there is nothing left to untap.
+    power: 15000,
+    skill:
+      "[Blocker]<br>[Auto] If this card participated in a battle during your opponent's turn, you may place 1 card from your hand in the Drop Area at the end of the battle. If you do so, switch this card to Active Mode, and this card gains +5000 power for the duration of the turn.",
+  }),
   card("CRIT", { energyCost: 3, power: 15000, skill: "[Critical]" }),
   card("DOUBLE", { energyCost: 4, power: 20000, skill: "[Double Strike]" }),
   card("DUAL", { energyCost: 3, power: 15000, skill: "[Dual Attack]" }),
@@ -465,6 +474,36 @@ const find = (s: GameState, p: PlayerId, area: "hand" | "battle" | "energy" | "z
   while (s.prompt.kind !== "charge") s = play(s, { type: "pass", player: (s.prompt as { player: PlayerId }).player });
   assert.equal(s.turnPlayer, "p2");
   for (const id of Object.keys(s.cards)) assert.equal(s.cards[id].battledThisTurn, false, `${id} starts the turn having been in no battle`);
+}
+
+// BT3-103 end to end: a trigger printed at the end of the sentence, a memory of
+// the battle just fought, and an optional price. None of the three is any use
+// without the other two, so the card is played rather than inspected.
+{
+  let s = arena({ battle: ["BERGAMO"], hand: ["V1"] });
+  const berg = find(s, "p1", "battle", "BERGAMO");
+  // Hand it over to p2, so that the block happens on the opponent's turn.
+  s = play(s, { type: "endMain", player: "p1" });
+  while (s.prompt.kind !== "charge") s = play(s, { type: "pass", player: (s.prompt as { player: PlayerId }).player });
+  assert.equal(s.turnPlayer, "p2");
+  s = play(s, { type: "charge", player: "p2", card: null });
+  s = play(s, { type: "attack", player: "p2", attacker: s.players.p2.leader, target: s.players.p1.leader });
+  assert.equal(s.prompt.kind, "blocker");
+  s = play(s, { type: "block", player: "p1", card: berg });
+  assert.equal(s.cards[berg].mode, "rest", "22-4-2: blocking rests it");
+  assert.equal(s.cards[berg].battledThisTurn, true);
+  s = play(s, { type: "pass", player: "p2" }, { type: "pass", player: "p1" });
+  // The battle is over, and the skill it triggered is asking for its price.
+  assert.equal(s.prompt.kind, "chooseCards", "the [Auto] fired at the end of the battle");
+  const ask = s.prompt as { player: PlayerId; choice: { candidates: string[]; min: number } };
+  assert.equal(ask.player, "p1");
+  assert.equal(ask.choice.min, 0, "5-2-4: the price may be declined");
+  const paid = find(s, "p1", "hand", "V1");
+  assert.ok(ask.choice.candidates.includes(paid));
+  s = play(s, { type: "choose", player: "p1", cards: [paid] });
+  assert.ok(s.players.p1.drop.includes(paid), "the card leaves the hand once the price is met");
+  assert.equal(s.cards[berg].mode, "active", "…and it is ready to block again");
+  assert.equal(powerOf({ defs: DEFS }, s, berg), 20000, "+5000 for the turn");
 }
 
 // [Counter: Attack] "Negate the attack" (22-10-3-2, 8-1-6-1).
@@ -1340,9 +1379,9 @@ function assertConsistentAfterDrop(s: GameState) {
   // BT3-103 in full: the condition in front of it asks what the card did
   // earlier in the turn, which the board remembers for it, and whose turn it
   // is — two conditions the engine already had, asked together.
-  const bergamo = one(
-    "[Auto] If this card participated in a battle during your opponent's turn, you may place 1 card from your hand in the Drop Area at the end of the battle. If you do so, switch this card to Active Mode, and this card gains +5000 power for the duration of the turn."
-  );
+  const bergamoText =
+    "[Auto] If this card participated in a battle during your opponent's turn, you may place 1 card from your hand in the Drop Area at the end of the battle. If you do so, switch this card to Active Mode, and this card gains +5000 power for the duration of the turn.";
+  const bergamo = one(bergamoText);
   assert.deepEqual(bergamo.unsupported, []);
   assert.deepEqual((bergamo.ops[0] as { cond: unknown }).cond, {
     kind: "all",
@@ -1351,17 +1390,23 @@ function assertConsistentAfterDrop(s: GameState) {
       { kind: "isTurnPlayer", who: "opponent" },
     ],
   });
-  assert.equal(((bergamo.ops[0] as { then: { op: string }[] }).then[0] ?? {}).op, "delay");
+  // The “at the end of the battle” is the skill's trigger, so it is gone from
+  // the effect: left in, the skill would wait for the *next* end of a battle.
+  assert.ok(autoTriggerMatches(parseSkills(bergamoText)[0], "battleEnd"), "the trailing timing is the trigger");
+  assert.deepEqual(
+    (bergamo.ops[0] as { then: { op: string }[] }).then.map((o) => o.op),
+    ["choose", "if"],
+  );
   // Without the turn half it is the memory alone.
   const anyTurn = one("[Auto] If this card participated in a battle, draw 1 card.");
   assert.deepEqual(anyTurn.unsupported, []);
   assert.deepEqual(anyTurn.ops, [{ op: "if", cond: { kind: "battled", sel: { special: "self" } }, then: [{ op: "draw", n: 1 }] }]);
 
-  // BT3-103: the price is paid at the end of the battle, so what hangs on it
-  // happens then too. Left outside the delay, the condition was asked before
-  // the delayed program had bound anything and the second half never ran.
+  // A price paid at the end of the battle: what hangs on it happens then too.
+  // Left outside the delay, the condition was asked before the delayed program
+  // had bound anything, and the second half of the skill never ran.
   const later = one(
-    "[Auto] You may place 1 card from your hand in the Drop Area at the end of the battle. If you do so, switch this card to Active Mode."
+    "[Auto] When this card attacks, you may place 1 card from your hand in the Drop Area at the end of the battle. If you do so, switch this card to Active Mode."
   );
   assert.deepEqual(later.unsupported, []);
   const wait = later.ops[0] as { op: string; at: string; ops: { op: string; then?: { op: string }[] }[] };
@@ -4771,6 +4816,24 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   const mid = parseSkills("[Auto] When you play this card, draw 1 card; at the end of the turn, flip all face-up cards in your life face down.")[0];
   assert.ok(autoTriggerMatches(mid, "played"));
   assert.ok(!autoTriggerMatches(mid, "turnEnd"), "116 skills were pending their whole text again at every turn end");
+
+  // …but a skill with no trigger *at all* has nowhere else for its moment to
+  // be. Read by the head rule alone, BT3-103's [Auto] never pended and the
+  // card did nothing whatsoever, so a trailing timing phrase is its trigger —
+  // and, being the trigger, is no longer part of the effect it introduces.
+  const trailing = parseSkills("[Auto] Switch this card to Active Mode at the end of your turn.")[0];
+  assert.ok(autoTriggerMatches(trailing, "turnEnd"), "the only moment it names is the one it happens at");
+  assert.equal(trailingTrigger(trailing), "at the end of your turn");
+  assert.deepEqual(compileSkill(trailing).ops, [{ op: "switchMode", target: { sel: { special: "self" } }, mode: "active" }]);
+  // A moment printed mid-sentence is still only a delay, trigger or no.
+  assert.equal(trailingTrigger(mid), null, "it has a trigger of its own");
+  assert.equal(trailingTrigger(parseSkills("[Auto] At the end of the battle, draw 1 card.")[0]), null, "already at the head");
+  // Two moments joined by an “or” (BT25-040) is a shape this does not read,
+  // and taking one of them would act at a moment the card does not name.
+  assert.equal(
+    trailingTrigger(parseSkills("[Auto] Remove this card from the game at the end of the battle for this card or at the end of the turn.")[0]),
+    null,
+  );
 
   // Every head-anchored timing, positively: an anchor that matches nothing is
   // the same silence as no rule at all, and reads as an improvement in the
