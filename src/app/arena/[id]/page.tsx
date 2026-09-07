@@ -10,6 +10,7 @@ import { isVersus, loadGame, modeLabel, seatOf } from "@/lib/arena/games";
 import { currentUser } from "@/lib/auth";
 import { snapshotOfGame } from "@/lib/arena/session";
 import { SKIN_COOKIE, skinFrom } from "@/lib/arena/skin";
+import { STAGING_COOKIE, stagingFrom } from "@/lib/arena/staging";
 import { SubmitButton } from "@/components/SubmitButton";
 import { abandon } from "../actions";
 
@@ -17,7 +18,7 @@ export const dynamic = "force-dynamic";
 /** A Tournament turn can take Claude a while to think through. */
 export const maxDuration = 300;
 
-export default async function ArenaGamePage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ skin?: string }> }) {
+export default async function ArenaGamePage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ skin?: string; staging?: string }> }) {
   const { id: raw } = await params;
   const id = Number(raw);
   if (!Number.isInteger(id)) notFound();
@@ -41,8 +42,12 @@ export default async function ArenaGamePage({ params, searchParams }: { params: 
   // Which skin. The query wins for one page load (`?skin=anime`), the cookie
   // is the setting; read here so the markup the server sends is already the
   // right colour and nothing flashes.
-  const asked = (await searchParams).skin;
-  const skin = skinFrom(asked ?? (await cookies()).get(SKIN_COOKIE)?.value);
+  const asked = await searchParams;
+  const jar = await cookies();
+  const skin = skinFrom(asked.skin ?? jar.get(SKIN_COOKIE)?.value);
+  // How a battle is staged, the same way: `?staging=takeover` pins one board
+  // for one load, which is what a screenshot needs.
+  const staging = stagingFrom(asked.staging ?? jar.get(STAGING_COOKIE)?.value);
   const review = game.review ? (JSON.parse(game.review) as GameReview) : null;
 
   return (
@@ -88,7 +93,7 @@ export default async function ArenaGamePage({ params, searchParams }: { params: 
 
       {/* The whole snapshot, because the board keeps watching the game while
           the server is deciding and replaces it with what it reads. */}
-      <ArenaStage gameId={id} snapshot={snap} skin={skin} />
+      <ArenaStage gameId={id} snapshot={snap} skin={skin} staging={staging} />
     </div>
   );
 }

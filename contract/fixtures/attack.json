@@ -156,7 +156,11 @@
       "guard": "p2#0",
       "step": "offense",
       "attackPower": 25000,
-      "guardPower": 10000
+      "guardPower": 10000,
+      "contributions": {
+        "p1#15": 25000,
+        "p2#0": 10000
+      }
     },
     "prompt": {
       "kind": "combo",

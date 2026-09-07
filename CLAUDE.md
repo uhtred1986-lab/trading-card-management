@@ -196,6 +196,8 @@ the same style.
   well, so no client ever evaluates a rule. **`docs/arena-client-contract.md`** is that contract and
   is read first; `docs/arena-ui-motion-spec.md` records the web board and
   `docs/arena-android-spec.md` briefs the Android app, which is not built.
+  `docs/arena-battle-staging-spec.md` — the duel band and takeover battle stagings,
+  the in-fight card inspector, and triggered combo/counter skills.
   `docs/arena-workflow-spec.md` is the current work brief for making every rule a
   visible workflow — read it before touching `legalActions` or the `Snapshot` shape.
   Phases 1–3 of it are built: `rejectedActions` beside `legalActions` (a `whyNot*` twin per

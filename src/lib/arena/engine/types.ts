@@ -239,6 +239,24 @@ export interface Battle {
   revenge: boolean;
   /** [X Attack]: reactivate the attacker at battle end. */
   reactivate: boolean;
+  /**
+   * The counter cards played into this battle, in play order, with who played
+   * each. A counter is only a card reaching the Drop, so without this record
+   * nothing downstream can tell one played into a battle from any other card
+   * discarded — which is why the board could never stamp one
+   * (`docs/arena-battle-staging-spec.md` §3.1). The list ends with the battle,
+   * as the roles do (8-1-2-2). Absent on games saved before the field existed.
+   */
+  counters?: {
+    card: string;
+    by: PlayerId;
+    /**
+     * How many combo cards that player had already added when this one was
+     * played. A side's chain is otherwise two lists with no shared order, and
+     * numbering it would be a guess — this makes the merge exact.
+     */
+    after: number;
+  }[];
 }
 
 /**
@@ -618,7 +636,12 @@ export type GameEvent =
   | { type: "damage"; player: PlayerId; amount: number; critical: boolean; cards: string[] }
   | { type: "ko"; card: string; by?: string }
   | { type: "attackNegated" }
-  | { type: "skill"; card: string; skill: number; master: PlayerId; text: string }
+  /**
+   * `inBattle` is read from the open battle at the moment the skill fired. A
+   * client must never infer it from a power figure moving: the engine says a
+   * skill belongs to the battle, and the board only draws it.
+   */
+  | { type: "skill"; card: string; skill: number; master: PlayerId; text: string; inBattle: boolean }
   | { type: "effect"; effect: ContinuousEffect }
   /** A continuous effect reaching the end of its duration (9-9): the other end of `effect`. */
   | { type: "effectEnded"; effect: ContinuousEffect }

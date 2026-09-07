@@ -284,6 +284,32 @@ data class BattleView(
     val step: String,
     val attackPower: Int,
     val guardPower: Int,
+    /**
+     * The counter cards played into THIS battle, in play order. They are in
+     * the Drop by now and indistinguishable there, which is why the engine
+     * keeps the record rather than a client looking for them.
+     */
+    val counters: List<BattleCounter> = emptyList(),
+    /**
+     * Card instance id → the power it is putting into the fight now. The
+     * attacker plus that side's combo cards is `attackPower` exactly; a
+     * counter's figure is the part of the guard's number that came from it,
+     * so it is a breakdown of a figure already counted, not a term beside it.
+     */
+    val contributions: Map<String, Int> = emptyMap(),
+)
+
+@Serializable
+data class BattleCounter(
+    val card: CardView,
+    /** Who played it. */
+    val by: String,
+    /**
+     * How many combo cards that player had already added when this one was
+     * played, so a side's counters and combo cards merge into one numbered
+     * chain in true play order.
+     */
+    val after: Int = 0,
 )
 
 @Serializable
@@ -434,7 +460,7 @@ sealed class Beat {
     /** `owner` is whose skill resolved, so a narration can say whose ability it was. */
     @Serializable
     @SerialName("skill")
-    data class Skill(override val n: Int, val card: String, val label: String, val text: String, val unread: Boolean, val owner: String) : Beat()
+    data class Skill(override val n: Int, val card: String, val label: String, val text: String, val unread: Boolean, val owner: String, val inBattle: Boolean = false) : Beat()
 
     /** A rule coming into force on `card`, or on `player` when it is about a player rather than a card. */
     @Serializable

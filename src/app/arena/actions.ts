@@ -20,6 +20,7 @@ import { clarifyCard } from "@/lib/arena/ai/clarify";
 import { previewRule, removeRule, type RulePreview } from "@/lib/arena/rules";
 import { saveScript } from "@/lib/arena/scripts";
 import { SKIN_COOKIE, type ArenaSkin } from "@/lib/arena/skin";
+import { STAGING_COOKIE, type ArenaStaging } from "@/lib/arena/staging";
 
 /**
  * Which skin paints the board (`docs/arena-skin-spec.md` §3.1).
@@ -33,6 +34,19 @@ export async function chooseSkin(gameId: number, skin: ArenaSkin) {
   (await cookies()).set(SKIN_COOKIE, skin, { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
   // The skin paints the whole app now, so every page is stale.
   revalidatePath("/", "layout");
+  revalidatePath(`/arena/${gameId}`);
+}
+
+/**
+ * How a battle is staged (`docs/arena-battle-staging-spec.md` §3.6).
+ *
+ * A cookie for the same reason the skin is one: the staging decides what the
+ * middle of the board looks like the moment a battle is open, so it is read
+ * on the server and nothing flashes. Only this game's page is stale — a
+ * staging paints nothing outside the board.
+ */
+export async function chooseStaging(gameId: number, staging: ArenaStaging) {
+  (await cookies()).set(STAGING_COOKIE, staging, { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
   revalidatePath(`/arena/${gameId}`);
 }
 

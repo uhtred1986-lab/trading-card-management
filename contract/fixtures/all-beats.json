@@ -329,6 +329,7 @@
         "text": "When this card attacks, draw 1 card.",
         "unread": false,
         "owner": "p1",
+        "inBattle": true,
         "n": 14
       },
       {

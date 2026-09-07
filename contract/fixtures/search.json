@@ -1721,6 +1721,7 @@
         "text": "[Auto] When you play this card, add up to 1 <V1> card from your deck to your hand, then shuffle your deck.",
         "unread": false,
         "owner": "p1",
+        "inBattle": false,
         "n": 3
       }
     ],

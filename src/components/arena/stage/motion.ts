@@ -22,20 +22,30 @@ import type { PlayerId } from "@/lib/arena/engine";
  * `slow` stretches every beat and gives even the quickest a floor long enough
  * for its sentence to be read; `step` waits for a tap instead, so the number
  * only sizes the flight of a ghost.
+ *
+ * `chain` is how many cards have been added to the open battle so far. Past
+ * four, every beat drops to 55 % — a long combo chain accelerates itself
+ * rather than growing a skip button, which would be an admission that the
+ * default pace is wrong (`docs/arena-battle-staging-spec.md` decision 7).
  */
-export function msFor(beat: Beat, pace: Pace = "normal"): number {
-  const base = baseMs(beat);
+export function msFor(beat: Beat, pace: Pace = "normal", chain = 0): number {
+  const base = Math.round(baseMs(beat) * (chain > CHAIN_ACCEL_AFTER ? 0.55 : 1));
   if (pace === "slow") return Math.max(Math.round(base * 2.4), 800);
   return base;
 }
+
+/** Additions to one battle before it starts playing itself back faster. */
+export const CHAIN_ACCEL_AFTER = 4;
 
 function baseMs(beat: Beat): number {
   switch (beat.t) {
     case "draw":
       return 220;
     case "move":
-      // A charge turns the card over on the way; a play lands and settles.
-      return beat.to === "energy" ? 260 : beat.to === "combo" ? 250 : 280;
+      // A charge turns the card over on the way; a play lands and settles. A
+      // card going from hand to Drop is a counter or the discard that paid for
+      // one, and either way it slides in from the side of a fight (§3.2).
+      return beat.to === "energy" ? 260 : beat.to === "combo" ? 280 : beat.from === "hand" && beat.to === "drop" ? 320 : 280;
     case "mode":
       return 200;
     case "flip":
@@ -49,7 +59,7 @@ function baseMs(beat: Beat): number {
     case "block":
       return 280;
     case "clash":
-      return 300;
+      return 340;
     case "damage":
       return 340;
     case "ko":
@@ -57,8 +67,10 @@ function baseMs(beat: Beat): number {
     case "negated":
       return 260;
     case "skill":
-      // Long enough to read the card's name and tag off the spotlight.
-      return 900;
+      // Long enough to read the card's name and tag off the spotlight. One
+      // fired inside a battle is drawn on the card itself rather than under a
+      // banner to be read, so it needs less (§3.2).
+      return beat.inBattle ? 520 : 900;
     case "say":
       return 900;
     case "effect":
@@ -71,6 +83,32 @@ function baseMs(beat: Beat): number {
     case "over":
       return 600;
   }
+}
+
+/**
+ * Where a beat sits in an open battle: the declaration, a card added to a
+ * chain, or the comparison that ends the additions.
+ *
+ * Walked from the beat stream, and used only for *timing* — how long a beat
+ * is given, and when the chain starts accelerating. What is actually in a
+ * battle comes from `view.battle` and never from here: a client that worked
+ * out its own answer to that would be two answers that drift (contract §1).
+ *
+ * `open` is the caller's running flag: true from an `attack` beat until the
+ * `clash`, which is the last moment a card can still be added.
+ */
+export function battleLink(beat: Beat, open: boolean): "declare" | "combo" | "counter" | "trigger" | "clash" | null {
+  if (beat.t === "attack") return "declare";
+  if (beat.t === "clash") return "clash";
+  if (beat.t === "skill") return beat.inBattle ? "trigger" : null;
+  if (beat.t === "move" && beat.to === "combo") return "combo";
+  if (open && beat.t === "move" && beat.from === "hand" && beat.to === "drop") return "counter";
+  return null;
+}
+
+/** Does this beat add a card to the fight? The three the accelerator counts. */
+export function addsToChain(link: ReturnType<typeof battleLink>): boolean {
+  return link === "combo" || link === "counter" || link === "trigger";
 }
 
 /** What a beat should feel like, for the ones that have a physical moment. */
@@ -89,12 +127,21 @@ export function feelFor(beat: Beat): Feel | null {
   }
 }
 
-/** A card is on its way *in*: hold it back until its beat plays. */
-export function arrives(beat: NumberedBeat): string | null {
+/**
+ * A card is on its way *in*: hold it back until its beat plays.
+ *
+ * `drawn` is the cards a surface keeps on screen after they have left a
+ * visible zone — the counters a battle staging holds in the guard's chain.
+ * They arrive like any other card, and they never leave, so they are held
+ * back here and skipped by `departs` rather than flown to the Drop twice.
+ */
+export function arrives(beat: NumberedBeat, drawn: ReadonlySet<string> = EMPTY): string | null {
   if (beat.t === "token") return beat.card;
-  if (beat.t === "move" && VISIBLE.has(beat.to)) return beat.card;
+  if (beat.t === "move" && (VISIBLE.has(beat.to) || drawn.has(beat.card))) return beat.card;
   return null;
 }
+
+const EMPTY: ReadonlySet<string> = new Set<string>();
 
 /**
  * A card is arriving from somewhere it could not be seen — the deck, or the
@@ -111,9 +158,9 @@ export function arrivesFrom(beat: NumberedBeat, viewer: PlayerId): { card: strin
 }
 
 /** A card has *gone*: it is already absent from the board, so draw a ghost. */
-export function departs(beat: NumberedBeat): { card: string; from: string; owner: string } | null {
+export function departs(beat: NumberedBeat, drawn: ReadonlySet<string> = EMPTY): { card: string; from: string; owner: string } | null {
   if (beat.t === "ko") return beat.owner ? { card: beat.card, from: "battle", owner: beat.owner } : null;
-  if (beat.t === "move" && VISIBLE.has(beat.from) && !VISIBLE.has(beat.to)) return { card: beat.card, from: beat.from, owner: beat.owner };
+  if (beat.t === "move" && VISIBLE.has(beat.from) && !VISIBLE.has(beat.to) && !drawn.has(beat.card)) return { card: beat.card, from: beat.from, owner: beat.owner };
   return null;
 }
 
