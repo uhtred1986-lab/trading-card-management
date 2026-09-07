@@ -18,6 +18,7 @@ import { sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { cardPrints, cardSets, cards } from "@/db/schema";
 import { applyOfficialImages, fetchOfficialImageNames } from "./bandai";
+import { correctSkillText, unmatchedCorrections } from "./errata";
 import { GAMES, GAME_INFO, type Game } from "./games";
 import { setCodeOfNumber, setLineFor, setNameFor, setSortKey } from "./sets";
 
@@ -300,7 +301,7 @@ export function shapeCatalog(raw: DpCard[], game: Game = "dbs"): ShapedCatalog {
       power: cleanInt(c.card_power),
       comboCost: cleanInt(c.card_combo_cost),
       comboPower: cleanInt(c.card_combo_power),
-      skill: cleanText(c.card_skill_unstyled),
+      skill: correctSkillText(base, cleanText(c.card_skill_unstyled)),
       characters,
       traits: cleanList(c.card_traits),
       eras: cleanList(c.card_era),
@@ -313,7 +314,7 @@ export function shapeCatalog(raw: DpCard[], game: Game = "dbs"): ShapedCatalog {
       hasErrata: !!c.has_errata,
       isHorizontal: !!c.is_horizontal,
       backName,
-      backSkill: cleanText(c.card_back_skill_unstyled),
+      backSkill: correctSkillText(base, cleanText(c.card_back_skill_unstyled)),
       backPower: cleanInt(c.card_back_power),
       imageUrl: g.prints.get(base)!.imageUrl,
       // Leaders' awakened side lives beside the front as "<number>_b.png".
@@ -507,7 +508,20 @@ export async function importCatalog(db: Db, shaped: ShapedCatalog): Promise<Cata
 
 /** One game's catalog, end to end. */
 export async function syncCatalogFor(db: Db, game: Game): Promise<CatalogSyncSummary> {
-  const shaped = shapeCatalog(await fetchDeckplanet(game), game);
+  const raw = await fetchDeckplanet(game);
+  // Every typo in `errata.ts` is a claim about what the source says today. This
+  // is the one moment the source is in hand, so it is the only place the claim
+  // can be re-checked; a line that no longer matches has been fixed upstream
+  // (delete it) or the wording moved (look at it).
+  const rawText = new Map<string, string[]>();
+  for (const c of raw) {
+    const id = baseNumber(c.card_number.trim());
+    const texts = [c.card_skill_unstyled, c.card_back_skill_unstyled].filter((t): t is string => !!t);
+    if (texts.length) rawText.set(id, [...(rawText.get(id) ?? []), ...texts]);
+  }
+  for (const stale of unmatchedCorrections(rawText)) console.warn(`errata.ts is stale — ${stale}`);
+
+  const shaped = shapeCatalog(raw, game);
   if (game === "fusion") {
     // deckplanet hosts no Fusion World art; Bandai's card list has fronts,
     // leader backs and most alternate prints (bandai.ts).

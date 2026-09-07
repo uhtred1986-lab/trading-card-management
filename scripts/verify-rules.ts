@@ -4,6 +4,7 @@
 import assert from "node:assert/strict";
 import { baseNumber, normaliseRarity, printLabel, printSuffix, shapeCatalog } from "../src/lib/catalog/deckplanet";
 import { applyOfficialImages, officialBackImageName, officialImageName, officialImageUrl, parseImageNames, parseSeriesIds } from "../src/lib/catalog/bandai";
+import { correctSkillText } from "../src/lib/catalog/errata";
 import { gameOfNumber, gameOfSetCode, setCodeOfNumber, setLineFor, setNameFor } from "../src/lib/catalog/sets";
 import { legality, parseDeckList, type DeckCardRow } from "../src/lib/decks/queries";
 import { hasKeyword, leadingTags, parseDeckRules, rulesFor } from "../src/lib/decks/cardRules";
@@ -31,6 +32,22 @@ assert.equal(setLineFor("BT26", null), "masters");
 assert.equal(setLineFor("BT25", null), "legacy");
 assert.equal(setLineFor("SD30", "2025-01-01"), "masters");
 assert.match(setNameFor("BT18"), /Dawn of the Z-Legends/);
+
+// ── typos in the source's card text ────────────────────────────────────────
+// A keyword run up against the word before it, which BT31 prints repeatedly.
+assert.equal(correctSkillText("BT31-141", "Play 2 Cell Jr. Tokens and they gain[Blocker] for the turn."), "Play 2 Cell Jr. Tokens and they gain [Blocker] for the turn.");
+assert.equal(correctSkillText("BT31-135", "You can activate this card's[Counter] skill"), "You can activate this card's [Counter] skill");
+// `[/em]` and `[/li]` are markup and legitimately follow a letter: leave them.
+assert.equal(correctSkillText("FB09-072", "An energy marker placed under a card[/em])"), "An energy marker placed under a card[/em])");
+assert.equal(correctSkillText("P-749", "Switch that card to Rest Mode[/li] [li] Negate"), "Switch that card to Rest Mode[/li] [li] Negate");
+// A per-card correction, and the same text left alone on a different card.
+assert.equal(correctSkillText("BT31-094", "[auto] Whe this card attacks, draw 1 card."), "[auto] When this card attacks, draw 1 card.");
+assert.equal(correctSkillText("BT1-001", "[auto] Whe this card attacks, draw 1 card."), "[auto] Whe this card attacks, draw 1 card.");
+// Correcting twice is correcting once — the sync may reshape a row it already wrote.
+const onceFixed = correctSkillText("BT31-150", "when your opponent's card is plyed, they can't play it")!;
+assert.equal(onceFixed, "when your opponent's card is played, they can't play it");
+assert.equal(correctSkillText("BT31-150", onceFixed), onceFixed);
+assert.equal(correctSkillText("BT31-150", null), null);
 
 // ── the two games are told apart by card-number prefix alone ───────────────
 for (const [code, game] of [
