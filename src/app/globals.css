@@ -187,6 +187,16 @@ input[type="number"] {
   box-shadow: 0 18px 50px color-mix(in srgb, var(--color-space-950) 65%, transparent);
 }
 
+/*
+ * The board while a band is over it, when the player is being asked to tap
+ * something on it. Legible first: a combo is chosen from the Battle Area, and
+ * choosing from cards blurred to 40 % is choosing blind.
+ */
+.arena-behind-soft {
+  opacity: 0.82;
+  transition: opacity 200ms ease-out;
+}
+
 /* The board while a band is over it: visible, dimmed, not gone. */
 .arena-behind {
   filter: blur(1.5px) saturate(0.55);
