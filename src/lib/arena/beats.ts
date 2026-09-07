@@ -40,8 +40,13 @@ export type Beat =
   /** `owner` because a KO'd card is gone: a client must know which side to draw it leaving from. */
   | { t: "ko"; card: string; owner: PlayerId | null }
   | { t: "negated" }
-  /** `owner` is whose skill resolved, so a narration can say whose ability it was. */
-  | { t: "skill"; card: string; label: string; text: string; unread: boolean; owner: PlayerId }
+  /**
+   * `owner` is whose skill resolved, so a narration can say whose ability it
+   * was. `inBattle` is the engine's word that this skill fired as part of the
+   * open battle, so a battle staging can spotlight it on the card that fired
+   * rather than sliding a banner over the fight (staging spec §3.2).
+   */
+  | { t: "skill"; card: string; label: string; text: string; unread: boolean; owner: PlayerId; inBattle: boolean }
   /**
    * A rule coming into force (9-9): "+5000 power", "[Critical]", "can't
    * attack" on `card`, or on `player` when it is about a player rather than a
@@ -219,7 +224,7 @@ export function toBeats(ctx: EngineContext, state: GameState, events: GameEvent[
         const d = describeSkillEvent(ctx, state, e);
         if (d) {
           remember(e.card);
-          push({ t: "skill", card: e.card, label: d.label, text: d.text, unread: d.unread, owner: e.master });
+          push({ t: "skill", card: e.card, label: d.label, text: d.text, unread: d.unread, owner: e.master, inBattle: e.inBattle });
         }
         break;
       }

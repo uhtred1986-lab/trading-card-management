@@ -271,7 +271,47 @@ gets `stale`, the same answer a failed `basedOn` gets.
 There is deliberately **no** endpoint that creates a `versus` game: it takes two
 decks chosen at two moments by two people, so it is opened as a match
 (`src/lib/arena/matches.ts`) and `newGameSchema` still refuses the mode.
+### 3.4 What a battle contains (added 7 Sep 2026, `docs/arena-battle-staging-spec.md` §3.1)
 
+A DBS attack is an attacker, a guard and a chain of combo and counter cards added in order. The
+board could see *that* a fight happened and not *what* decided it: a counter is only a `move` to
+the Drop, so no client could tell one played into a battle from any other discarded card, and a
+total climbing was the only sign a skill had fired. Two additive fields on `BoardView.battle` fix
+both. Optional, so the contract did not bump (§7).
+
+```ts
+export interface BattleView {
+  attacker: string;
+  guard: string;
+  step: string;
+  attackPower: number;
+  guardPower: number;
+  /**
+   * The counter cards played into THIS battle, in play order, while it is
+   * open. Built from the battle's own record (`Battle.counters` in the
+   * engine), never by inspecting the Drop. Absent when none were played.
+   *
+   * `after` is how many combo cards that player had already added when this
+   * one was played, so one side's counters and combo cards merge into a
+   * single numbered chain in true play order rather than a guessed one.
+   */
+  counters?: { card: CardView; by: PlayerId; after: number }[];
+  /**
+   * Card instance id → the power that card is putting into the fight now.
+   *
+   * The attacker, the guard and every combo card add up exactly: attacker +
+   * that side's combo = `attackPower`. A counter's figure is the part of the
+   * *guard's* number that came from it — a counter moves a power rather than
+   * standing beside it — so it is a breakdown of a figure already counted,
+   * never an extra term.
+   */
+  contributions?: Record<string, number>;
+}
+```
+
+A client may draw these and nothing else with them. Working out which cards are in a battle, what
+each contributes, or whether a skill fired is the engine's job — inferring a trigger from a power
+figure changing is the exact failure §1 is about.
 ## 4. `Beats` — the animation stream
 
 The engine's own comment on `GameEvent` says *"Append-only log; the UI animates from these"*. Today
@@ -294,7 +334,7 @@ export type Beat =
   | { t: "damage"; player: PlayerId; amount: number; critical: boolean; cards: string[] }
   | { t: "ko"; card: string }
   | { t: "negated" }
-  | { t: "skill"; card: string; label: string; text: string; unread: boolean; owner: PlayerId }
+  | { t: "skill"; card: string; label: string; text: string; unread: boolean; owner: PlayerId; inBattle: boolean }
   | { t: "effect"; card: string | null; player: PlayerId | null; kind: EffectKind; label: string; until: Duration | "permanent"; source: string | null; owner: PlayerId }
   | { t: "effectEnded"; card: string | null; player: PlayerId | null; kind: EffectKind; label: string; source: string | null }
   | { t: "say"; text: string }

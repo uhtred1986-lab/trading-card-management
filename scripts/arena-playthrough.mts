@@ -15,7 +15,7 @@ import { legalActions, nextRandom, rejectedActions, type Action, type LegalActio
 import { BEAT_CAP, type Beat, type Beats } from "../src/lib/arena/beats";
 import { applyToGame, loadGame, startGame } from "../src/lib/arena/games";
 import { deckInputFor } from "../src/lib/arena/load";
-import { boardView, tappable, viewerOf } from "../src/lib/arena/view";
+import { boardView, tappable, viewerOf, type BoardView } from "../src/lib/arena/view";
 
 /**
  * The cards a beat names. Each of them must have brought its own face along,
@@ -47,6 +47,46 @@ function cardsIn(b: Beat): string[] {
 }
 
 const kinds = new Map<string, number>();
+
+/** What the battle staging relies on, seen over a real game. */
+const battles = { seen: 0, counters: 0, triggers: 0 };
+
+/**
+ * `docs/arena-battle-staging-spec.md` §5: what a battle says about itself has
+ * to hold on every state a real game passes through, because a staging draws
+ * it and computes nothing of its own.
+ *
+ * A counter and a combo card are never the same card — one is in the Drop and
+ * the other in the Combo Area — and `contributions` never names a card that is
+ * not in the fight. Those two are what a chain is numbered and attributed
+ * from; either being wrong is a band that lies about who did what.
+ */
+function auditBattle(view: BoardView, move: number): void {
+  const b = view.battle;
+  if (!b) return;
+  battles.seen++;
+  const combo = new Set([...view.you.combo, ...view.them.combo].map((c) => c.id));
+  const counters = b.counters ?? [];
+  battles.counters += counters.length;
+  for (const c of counters) {
+    assert.ok(!combo.has(c.card.id), `move ${move}: ${c.card.id} is both a counter and a combo card`);
+    assert.ok(c.after >= 0, `move ${move}: a counter with no place in its chain`);
+  }
+  const inFight = new Set([b.attacker, b.guard, ...combo, ...counters.map((c) => c.card.id)]);
+  for (const id of Object.keys(b.contributions ?? {})) {
+    assert.ok(inFight.has(id), `move ${move}: contributions names ${id}, which is not in the battle`);
+  }
+  assert.ok(b.contributions?.[b.attacker] != null, `move ${move}: the attacker contributes nothing to its own attack`);
+  assert.ok(b.contributions?.[b.guard] != null, `move ${move}: the guard contributes nothing to its own defence`);
+  // The figures are the sum of their parts, which is the promise the band's
+  // per-card numbers make. A counter is deliberately not a term: it moved the
+  // guard's power rather than standing beside it.
+  const sum = (side: "you" | "them") => view[side].combo.reduce((n, c) => n + (b.contributions?.[c.id] ?? 0), 0);
+  const attackingSide = view.turnPlayer === view.you.player ? "you" : "them";
+  const guardingSide = attackingSide === "you" ? "them" : "you";
+  assert.equal(b.contributions![b.attacker] + sum(attackingSide), b.attackPower, `move ${move}: the attack figure is not its parts`);
+  assert.equal(b.contributions![b.guard] + sum(guardingSide), b.guardPower, `move ${move}: the guard figure is not its parts`);
+}
 
 /** How the rejection side behaved: the `other` valve, and what it cost. */
 const rejections = { total: 0, other: new Map<string, number>(), byKind: new Map<string, number>(), ms: 0, legalMs: 0, prompts: 0 };
@@ -114,7 +154,14 @@ function auditBeats(before: Beats | null, after: Beats | null, move: number): vo
   for (const b of after.list) {
     assert.ok(b.n > last, `move ${move}: beat numbers are not increasing (${b.n} after ${last})`);
     last = b.n;
-    if (b.n > from) kinds.set(b.t, (kinds.get(b.t) ?? 0) + 1);
+    if (b.n > from) {
+      kinds.set(b.t, (kinds.get(b.t) ?? 0) + 1);
+      // How often a skill said for itself that it belonged to a battle. Not an
+      // assertion about which card: a card that is in no battle at all can
+      // still have an [Auto] that fires during one ("when your opponent
+      // attacks"), so "the card is in the fight" would be a false rule.
+      if (b.t === "skill" && b.inBattle) battles.triggers++;
+    }
     for (const card of cardsIn(b)) {
       assert.ok(after.art[card], `move ${move}: the ${b.t} beat names ${card} but carries no face for it`);
     }
@@ -150,6 +197,7 @@ for (;;) {
   // The board must build on every state, or a page would crash mid-game.
   const view = boardView(game.ctx, game.state, viewerOf(game.state), {});
   const taps = tappable(game.legal);
+  auditBattle(view, steps + 1);
   if (steps === 0) {
     console.log(`first prompt: ${view.prompt.question}`);
     console.log(`taps: ${Object.keys(taps.byCard).length} cards, ${taps.bare.length} buttons`);
@@ -178,6 +226,8 @@ for (const line of (done?.log ?? []).slice(-12)) console.log("  " + line);
 
 // Which beats a real game actually produced. A kind that never appears here is
 // one no client has ever been seen to draw — worth knowing before trusting it.
+console.log(`\nbattles: ${battles.seen} states with one open · ${battles.counters} counters recorded · ${battles.triggers} skills fired inside one`);
+
 const seen = [...kinds.entries()].sort((x, y) => y[1] - x[1]);
 console.log(`\nbeats produced (${seen.reduce((n, [, c]) => n + c, 0)} across ${seen.length} kinds):`);
 console.log("  " + seen.map(([k, c]) => `${k} ${c}`).join(" · "));

@@ -324,17 +324,40 @@ const EFFECT_COLOUR: Record<string, string> = {
   other: "text-space-100",
 };
 
+/** What a card is putting into the open battle, and the figure it is part of. */
+export interface BattleShare {
+  contribution: number;
+  total: number;
+  /** "attack" or "guard": which of the two figures `total` is. */
+  side: "attack" | "guard";
+}
+
 /**
  * A card's numbers, text and the engine's reading of it — shared by the
  * preview and the inspector. Then the two things a card could not say before
  * (review §3.3, §3.5): every rule in force on it right now, and each of its
  * own [Permanent] skills with whether it is doing anything at this moment.
+ *
+ * `battle` is what the card is putting into the fight, straight from
+ * `view.battle.contributions` (`docs/arena-battle-staging-spec.md` §3.5). It
+ * is the answer to "why is the total 35,000?", which is the reason a card in a
+ * fight has to be openable at all.
  */
-export function CardDetail({ card, withName = false, narrator = DEFAULT_NARRATOR }: { card: CardView; withName?: boolean; narrator?: Narrator }) {
+export function CardDetail({ card, withName = false, narrator = DEFAULT_NARRATOR, battle }: { card: CardView; withName?: boolean; narrator?: Narrator; battle?: BattleShare | null }) {
   const delta = card.basePower != null && card.power != null ? card.power - card.basePower : 0;
   return (
     <div className="space-y-1.5">
       {withName && <p className="text-sm font-semibold leading-tight text-space-50">{card.name}</p>}
+      {battle && (
+        <p className="rounded-lg border-l-2 border-ki-500 bg-space-800 p-2 text-[11px] sm:text-xs">
+          <span className="text-[10px] uppercase tracking-widest text-space-400">in this battle </span>
+          <span className="font-mono font-semibold text-ki-300">{battle.contribution.toLocaleString("en")}</span>
+          <span className="text-space-300">
+            {" "}
+            of the {battle.total.toLocaleString("en")} {battle.side === "attack" ? "attacking" : "guarding"}
+          </span>
+        </p>
+      )}
       <p className="text-[11px] text-space-400 sm:text-xs">
         {card.cardId}
         {card.cost ? ` · cost ${card.cost}` : ""}
@@ -484,6 +507,7 @@ export function CardSheet({
   onPick,
   onClose,
   narrator = DEFAULT_NARRATOR,
+  battle,
 }: {
   card: CardView;
   /** The player's own side, for the remedy in an energy refusal. */
@@ -493,6 +517,8 @@ export function CardSheet({
   onPick: (move: SheetMove) => void;
   onClose: () => void;
   narrator?: Narrator;
+  /** What this card is putting into the open battle, when it is in one. */
+  battle?: BattleShare | null;
 }) {
   const inHand = side?.hand?.some((c) => c.id === card.id) ?? false;
   const word = { side, inHand, them: narrator.them };
@@ -534,7 +560,7 @@ export function CardSheet({
           // eslint-disable-next-line @next/next/no-img-element -- transient sheet; the board has already loaded this URL.
           <img src={card.imageUrl} alt="" className="card-aspect float-right ml-3 mb-2 w-24 rounded-lg object-cover sm:w-28" />
         )}
-        <CardDetail card={card} narrator={narrator} />
+        <CardDetail card={card} narrator={narrator} battle={battle} />
       </div>
     </Sheet>
   );

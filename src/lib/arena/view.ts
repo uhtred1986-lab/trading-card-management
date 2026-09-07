@@ -119,9 +119,43 @@ export interface BoardView {
   turn: number;
   phase: string;
   turnPlayer: PlayerId;
-  battle: { attacker: string; guard: string; step: string; attackPower: number; guardPower: number } | null;
+  battle: BattleView | null;
   prompt: PromptView;
   over: { winner: PlayerId | null; reason: string } | null;
+}
+
+/**
+ * The open battle: who is in it, where it has got to, and the two figures.
+ *
+ * `counters` and `contributions` are what let a battle staging say *what*
+ * decided a fight rather than only that one happened
+ * (`docs/arena-battle-staging-spec.md` §3.1). Both come from the engine — a
+ * client that works either of them out for itself has broken the contract.
+ */
+export interface BattleView {
+  attacker: string;
+  guard: string;
+  step: string;
+  attackPower: number;
+  guardPower: number;
+  /**
+   * The counter cards played into this battle, in play order. They are in the
+   * Drop by now, which is exactly why the board cannot find them for itself.
+   * Absent when none have been played, and on games saved before the battle
+   * kept the record.
+   */
+  counters?: { card: CardView; by: PlayerId; after: number }[];
+  /**
+   * Card instance id → the power that card is putting into the fight now, so a
+   * change in a total can be attributed to the card that caused it.
+   *
+   * The attacker, the guard and every combo card carry their own figure, and
+   * those add up exactly: the attacker plus its side's combo is `attackPower`.
+   * A counter's figure is the part of the *guard's* number that came from it —
+   * a counter moves a power rather than standing beside it — so it is a
+   * breakdown of a figure already counted, never an extra term.
+   */
+  contributions?: Record<string, number>;
 }
 
 /** The one-line question the prompt bar asks, and what the engine knows about it beyond the words. */
@@ -450,6 +484,49 @@ function questionFor(ctx: EngineContext, s: GameState): PromptView {
   }
 }
 
+/**
+ * The open battle, with everything in it named.
+ *
+ * The two totals are computed here and nowhere else, and `contributions` is
+ * that same arithmetic kept rather than thrown away — a staging attributes a
+ * change to the card that caused it from this, instead of a client diffing
+ * power figures between two renders.
+ */
+function battleView(ctx: EngineContext, s: GameState, images: Record<string, CardArt>, statics: StaticEffect[]): BattleView | null {
+  const b = s.battle;
+  if (!b) return null;
+  const defender = s.turnPlayer === "p1" ? "p2" : "p1";
+  const contributions: Record<string, number> = {};
+  const power = (id: string) => (contributions[id] = powerOf(ctx, s, id));
+  const combo = (p: PlayerId) =>
+    s.players[p].combo.reduce((n, id) => {
+      const c = comboPowerOf(ctx, s, id);
+      contributions[id] = c;
+      return n + c;
+    }, 0);
+  const attackPower = power(b.attacker) + combo(s.turnPlayer);
+  const guardPower = power(b.guard) + combo(defender);
+  // A counter is already inside the figure it moved, so what it is worth is
+  // the power it put on the attacker or the guard — read off the effects it is
+  // the source of, never inferred from a total changing.
+  const counters = (b.counters ?? []).filter((c) => s.cards[c.card]);
+  for (const c of counters) {
+    let n = 0;
+    for (const e of s.effects) if (e.kind === "power" && e.source === c.card && (e.target === b.attacker || e.target === b.guard)) n += e.value as number;
+    for (const e of statics) if (e.kind === "power" && e.source === c.card && (e.target === b.attacker || e.target === b.guard)) n += e.value as number;
+    contributions[c.card] = n;
+  }
+  return {
+    attacker: b.attacker,
+    guard: b.guard,
+    step: b.step,
+    attackPower,
+    guardPower,
+    ...(counters.length ? { counters: counters.map((c) => ({ card: cardView(ctx, s, c.card, images, true, statics), by: c.by, after: c.after ?? 0 })) } : {}),
+    contributions,
+  };
+}
+
 export function boardView(ctx: EngineContext, s: GameState, viewer: PlayerId, images: Record<string, CardArt>): BoardView {
   const them = viewer === "p1" ? "p2" : "p1";
   // Read once for the whole board: every card asks which statics are on it.
@@ -460,15 +537,7 @@ export function boardView(ctx: EngineContext, s: GameState, viewer: PlayerId, im
     turn: s.turn,
     phase: s.phase,
     turnPlayer: s.turnPlayer,
-    battle: s.battle
-      ? {
-          attacker: s.battle.attacker,
-          guard: s.battle.guard,
-          step: s.battle.step,
-          attackPower: powerOf(ctx, s, s.battle.attacker) + s.players[s.turnPlayer].combo.reduce((n, id) => n + comboPowerOf(ctx, s, id), 0),
-          guardPower: powerOf(ctx, s, s.battle.guard) + s.players[s.turnPlayer === "p1" ? "p2" : "p1"].combo.reduce((n, id) => n + comboPowerOf(ctx, s, id), 0),
-        }
-      : null,
+    battle: battleView(ctx, s, images, statics),
     prompt: questionFor(ctx, s),
     over: s.phase === "over" ? { winner: s.winner, reason: s.overReason ?? "" } : null,
   };

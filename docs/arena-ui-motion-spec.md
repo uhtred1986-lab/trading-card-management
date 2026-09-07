@@ -335,10 +335,11 @@ shakes the side that took it rather than flying a life card to the hand. That la
 does not exist — life is a number and eight pips, not cards — so it is a piece of work, not a
 keyframe.
 
-**✗ — not built.** The counter stamp and the blocker sliding in front both need the board to tell
-apart beats it currently cannot: a counter is only a `move` to the Drop, and `block` arrives after
-the guard has already changed. Worth doing when the cards they belong to come up often enough that
-their absence is felt.
+**✗ — the blocker sliding in front is still not built**: `block` arrives after the guard has already
+changed, so the board has nothing to slide. The **counter stamp is built** (7 Sep 2026,
+`docs/arena-battle-staging-spec.md`): the engine now records the cards played into a battle
+(`Battle.counters` → `view.battle.counters`), so a counter can finally be told apart from any other
+card reaching the Drop, and the duel band stamps it and slots it into the guard's chain.
 
 ---
 

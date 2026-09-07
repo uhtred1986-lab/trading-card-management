@@ -279,6 +279,7 @@
         "text": "[Activate: Main] This card gets +5000 power and [Critical] for the turn.",
         "unread": false,
         "owner": "p1",
+        "inBattle": false,
         "n": 1
       },
       {

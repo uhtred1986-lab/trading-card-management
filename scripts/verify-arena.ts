@@ -574,6 +574,61 @@ const find = (s: GameState, p: PlayerId, area: "hand" | "battle" | "energy" | "z
   assert.equal(s.prompt.kind, "combo");
 }
 
+// What a battle contains (`docs/arena-battle-staging-spec.md` §3.1): the
+// counters played into it, and what every card in it is contributing.
+//
+// A counter is only a card reaching the Drop, so the battle has to write it
+// down as it is played or nothing downstream can ever say one happened. The
+// figures are the same arithmetic the two totals are made of, kept rather
+// than thrown away — which is what lets a board attribute a total changing to
+// the card that changed it instead of diffing numbers between renders.
+{
+  DEFS["E-PUMP"] = { ...DEFS["E-NEGATE"], id: "E-PUMP", name: "E-PUMP", skill: "[Counter: Attack] Your Leader Card gets +10000 power for the duration of the turn." };
+  const ctx = { defs: DEFS };
+  let s = arena({ battle: ["V1"], oppHand: ["E-PUMP"], oppEnergy: ["V1", "BIG"] });
+  const attacker = s.players.p1.leader;
+  const guard = s.players.p2.leader;
+  const pump = find(s, "p2", "hand", "E-PUMP");
+
+  assert.equal(boardView(ctx, s, "p1", {}).battle, null, "no battle, nothing to say about one");
+
+  s = play(s, { type: "attack", player: "p1", attacker, target: guard });
+  const declared = boardView(ctx, s, "p1", {}).battle!;
+  assert.equal(declared.counters, undefined, "a battle nobody has answered names no counters");
+  assert.equal(declared.contributions![attacker], declared.attackPower, "the attacker alone is the whole attack figure");
+  assert.equal(declared.contributions![guard], declared.guardPower);
+
+  assert.equal(s.prompt.kind, "counter");
+  const { state, events } = apply(ctx, s, { type: "counter", player: "p2", card: pump });
+  s = state;
+
+  // The skill said for itself that it belongs to this battle (§3.2). Nothing
+  // may read that off a power figure moving.
+  const fired = toBeats(ctx, s, events, 0).list.find((b) => b.t === "skill");
+  assert.ok(fired && fired.t === "skill" && fired.inBattle, "a counter's skill fires inside the battle");
+
+  const b = boardView(ctx, s, "p1", {}).battle!;
+  assert.equal(b.counters?.length, 1, "the battle remembers the card played into it");
+  assert.equal(b.counters![0].card.id, pump);
+  assert.equal(b.counters![0].by, "p2", "…and who played it");
+  assert.equal(b.counters![0].after, 0, "…and where in that side's chain it belongs");
+  assert.ok(s.players.p2.drop.includes(pump), "22-10-7: which is in the Drop by now, indistinguishable there");
+  assert.equal(b.contributions![pump], 10000, "the counter's share of the guard's figure");
+  assert.equal(b.contributions![guard], b.guardPower, "…which is already inside it, never a term beside it");
+  assert.equal(b.guardPower, declared.guardPower + 10000);
+  assertConsistent(s);
+
+  // A combo card's contribution is its combo power, and the side's cards add
+  // up to that side's total exactly.
+  if (s.prompt.kind === "combo" && s.prompt.player === "p1") {
+    const v1 = find(s, "p1", "battle", "V1");
+    s = play(s, { type: "combo", player: "p1", card: v1 });
+    const c = boardView(ctx, s, "p1", {}).battle!;
+    assert.equal(c.contributions![attacker] + c.contributions![v1], c.attackPower, "attacker + combo is the attack figure");
+    assert.ok(c.contributions![v1] > 0, "a combo card is worth what it added");
+  }
+}
+
 // [Critical] sends life to the Drop (22-6); [Double Strike] deals 2 (22-7).
 {
   let s = arena({ battle: ["CRIT", "DOUBLE"] });
@@ -6212,7 +6267,7 @@ function assertDisjoint(s: GameState, where: string): RejectedAction[] {
     { t: "damage", player: "p1", amount: 1, critical: true, cards: ["b"] },
     { t: "ko", card: "b", owner: "p1" },
     { t: "negated" },
-    { t: "skill", card: "a", label: "Union-Absorb", text: "Place a card under it, then search.", unread: false, owner: "p2" },
+    { t: "skill", card: "a", label: "Union-Absorb", text: "Place a card under it, then search.", unread: false, owner: "p2", inBattle: false },
     { t: "effect", card: "a", player: null, kind: "power", label: "+5000 power", until: "turn", source: "b", owner: "p2" },
     { t: "effectEnded", card: "a", player: null, kind: "power", label: "+5000 power", source: "b" },
     { t: "say", text: "Your move." },
@@ -6544,7 +6599,7 @@ function assertDisjoint(s: GameState, where: string): RejectedAction[] {
       at({ t: "damage", player: "p2", amount: 1, critical: false, cards: [theirs] }),
       at({ t: "ko", card: theirs, owner: "p2" }),
       at({ t: "negated" }),
-      at({ t: "skill", card: mine, label: "Auto", text: "When this card attacks, draw 1 card.", unread: false, owner: "p1" }),
+      at({ t: "skill", card: mine, label: "Auto", text: "When this card attacks, draw 1 card.", unread: false, owner: "p1", inBattle: true }),
       at({ t: "effect", card: mine, player: null, kind: "power", label: "+5000 power", until: "turn", source: mine, owner: "p1" }),
       at({ t: "effectEnded", card: mine, player: null, kind: "power", label: "+5000 power", source: mine }),
       at({ t: "say", text: "Let us see how you answer that." }),

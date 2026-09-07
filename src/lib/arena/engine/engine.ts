@@ -347,7 +347,7 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
     case "skill.resolve": {
       const sk = skillsOfInstance(ctx, s, step.card).find((k) => k.index === step.skill);
       if (!sk) return "done";
-      ev.push({ type: "skill", card: step.card, skill: sk.index, master: step.player, text: sk.raw });
+      ev.push({ type: "skill", card: step.card, skill: sk.index, master: step.player, text: sk.raw, inBattle: !!s.battle });
       const r = resolveKeywordOrText(ctx, s, ev, step.card, sk, step.player, step.trigger);
       return r;
     }
@@ -451,7 +451,7 @@ function resolveAuto(ctx: EngineContext, s: GameState, ev: GameEvent[], p: Pendi
     return wait(s, { kind: "optionalCost", player: p.master, card: p.card, skillIndex: sk.index, describe: describeCost(sk) });
   }
   delete s.continuations[`paid:${p.card}:${sk.index}`];
-  ev.push({ type: "skill", card: p.card, skill: sk.index, master: p.master, text: sk.raw });
+  ev.push({ type: "skill", card: p.card, skill: sk.index, master: p.master, text: sk.raw, inBattle: !!s.battle });
   return resolveKeywordOrText(ctx, s, ev, p.card, sk, p.master, p.trigger, p.subject);
 }
 
@@ -1329,7 +1329,7 @@ function chooseApply(ctx: EngineContext, s: GameState, ev: GameEvent[], step: Ex
       for (const id of chosen) pendTriggers(ctx, s, "restedByAlliance", id, info.card);
       const sk = skillsOfInstance(ctx, s, info.card).find((x) => x.index === info.skillIndex);
       if (!sk) return "done";
-      ev.push({ type: "skill", card: info.card, skill: sk.index, master: p, text: sk.raw });
+      ev.push({ type: "skill", card: info.card, skill: sk.index, master: p, text: sk.raw, inBattle: !!s.battle });
       return runSkill(ctx, s, ev, info.card, sk, p, info.trigger, undefined, { rested: chosen });
     }
     case "revive": {
@@ -2500,7 +2500,7 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
       const legal = mainActions(ctx, s, p).some((a) => a.action.type === "attack" && a.action.attacker === action.attacker && a.action.target === action.target);
       if (!legal) throw new IllegalAction("illegal attack");
       setMode(s, ev, action.attacker, "rest");
-      s.battle = { attacker: action.attacker, guard: action.target, target: action.target, step: "declared", negated: false, blockerOffered: false, revenge: false, reactivate: false };
+      s.battle = { attacker: action.attacker, guard: action.target, target: action.target, step: "declared", negated: false, blockerOffered: false, revenge: false, reactivate: false, counters: [] };
       joinsBattle(s, action.attacker, action.target);
       ev.push({ type: "attack", attacker: action.attacker, target: action.target });
       s.flow.unshift({ op: "battle.afterDeclare" });
@@ -2584,6 +2584,10 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
           pay(s, ev, p, pm);
         }
         // 22-10-7: the card goes to the Drop; its effect resolves as the counter motion.
+        // Which is why the battle has to write it down first: once it is in the
+        // Drop nothing can tell it from any other discarded card, and a board
+        // could never say a counter was played (staging spec §3.1).
+        if (s.battle) (s.battle.counters ??= []).push({ card: action.card, by: p, after: s.players[p].combo.length });
         move(ctx, s, ev, action.card, "drop", p, { reason: "effect", reveal: true });
         // "When your opponent activates a [Counter] skill" (4-3): watched by
         // the other player's cards in play, with the counter card as subject.
@@ -2737,7 +2741,7 @@ function activate(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId
   // resolves; the keywords that resolve right here announce themselves now.
   // Both used to fire, and every text skill was narrated twice.
   const resolvesLater = !k || k.name === "Awaken" || k.name === "Wish" || k.name === "Field" || (k.name === "Union" && k.variant === "Absorb");
-  if (!resolvesLater) ev.push({ type: "skill", card, skill: sk.index, master: p, text: sk.raw });
+  if (!resolvesLater) ev.push({ type: "skill", card, skill: sk.index, master: p, text: sk.raw, inBattle: !!s.battle });
 
   if (k?.name === "Awaken" || k?.name === "Wish") {
     s.flow.unshift({ op: "skill.resolve", card, skill: sk.index, player: p });

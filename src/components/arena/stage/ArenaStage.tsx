@@ -1,6 +1,6 @@
 "use client";
 
-import { LayoutGroup, animate, motion, useMotionValue, useReducedMotion, useTransform } from "motion/react";
+import { LayoutGroup, useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { act, advanceGame } from "@/app/arena/actions";
 
@@ -21,9 +21,14 @@ import { narrate } from "@/lib/arena/narration";
 import { untilWords } from "@/lib/arena/effects";
 import { AttackBeam, CardPreview, CardSheet, Counter, NarrationRibbon, SearchSheet, SkillSpotlight, StepBanner, StepChip, TopStrip, cardsOnTable, refusalLine, shortLabel, type SheetMove } from "../shared";
 import { ZoneAnchor } from "./anchors";
+import { battleShape, Count, firedInBattle } from "./BattleParts";
+import { DuelBand } from "./DuelBand";
 import { Ghosts } from "./Ghosts";
 import { Hand } from "./Hand";
+import { StagingToggle } from "../StagingToggle";
+import type { ArenaStaging } from "@/lib/arena/staging";
 import { StageCard, type Moment } from "./StageCard";
+import { Takeover } from "./Takeover";
 import { useBeatPlayer } from "./useBeatPlayer";
 import { useLiveGame } from "./useLiveGame";
 import { useIdle } from "./useIdle";
@@ -38,8 +43,14 @@ import { useIdle } from "./useIdle";
  * whole opponent turn plays out beat by beat instead of arriving as a jump.
  *
  * Selected by the `boardStyle` cookie; `?board=classic` goes back.
+ *
+ * A battle is staged one of three ways (`docs/arena-battle-staging-spec.md`):
+ * in place, in a band across the board, or as a takeover. All three read the
+ * same `battleShape`, and the two that lift the fight off the board take the
+ * cards out of their rows so each card is drawn once — a card's `layoutId` is
+ * what flies it there and back, so it may exist in exactly one place.
  */
-export function ArenaStage({ gameId, snapshot, skin = "night" }: { gameId: number; snapshot: Snapshot; skin?: ArenaSkin }) {
+export function ArenaStage({ gameId, snapshot, skin = "night", staging = "band" }: { gameId: number; snapshot: Snapshot; skin?: ArenaSkin; staging?: ArenaStaging }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
@@ -75,7 +86,20 @@ export function ArenaStage({ gameId, snapshot, skin = "night" }: { gameId: numbe
   // which is the same state the board reaches the instant you press Skip.
   const still = useReducedMotion();
   const pace = usePace();
-  const playback = useBeatPlayer(beats, !still, boardRef, pace, view.you.player);
+
+  // The fight, worked out once (`BattleParts`) and drawn by whichever staging
+  // is chosen. `inplace` is the original board and lifts nothing.
+  const staged = staging !== "inplace" && !!view.battle;
+  const shape = staged ? battleShape(view, firedInBattle(beats?.list)) : null;
+  // Every card the staging draws, so the rows below do not draw it a second
+  // time: one `layoutId` may exist in exactly one place, and it is what flies
+  // the card out of its row and back again.
+  const lifted = new Set(shape?.cards.map((c) => c.id) ?? []);
+  // The counters are in the Drop but on screen in the chain, so they arrive
+  // like any other card and are never ghosted away to the pile they are in.
+  const kept = new Set((shape ? (view.battle?.counters ?? []) : []).map((c) => c.card.id));
+
+  const playback = useBeatPlayer(beats, !still, boardRef, pace, view.you.player, kept);
 
   useWakeLock(playable && !view.over);
 
@@ -114,6 +138,18 @@ export function ArenaStage({ gameId, snapshot, skin = "night" }: { gameId: numbe
       if (r.error) setError(r.error);
     });
   }, [serverDecides, gameId]);
+
+  /**
+   * Reading a card stops the fight (`docs/arena-battle-staging-spec.md`
+   * decision 6). A battle that runs on behind an open card is the reason the
+   * inspector exists at all. It re-runs when playback starts, so a queue that
+   * arrives while a card is open is held too rather than playing underneath it.
+   */
+  const { pause, resume } = playback;
+  useEffect(() => {
+    if (sheet) pause();
+    else resume();
+  }, [sheet, playback.playing, pause, resume]);
 
   // A refusal is said once and then gets out of the way; the card it was
   // about keeps its red badge, which is the board saying it before you tap.
@@ -242,6 +278,20 @@ export function ArenaStage({ gameId, snapshot, skin = "night" }: { gameId: numbe
     return busy ? "dim" : "legal";
   };
 
+  /**
+   * What a card is putting into the open battle, for the sheet
+   * (`docs/arena-battle-staging-spec.md` §3.5). Which side's figure it is part
+   * of comes from the shape, so a counter reads against the guard's number —
+   * which is the one it moved.
+   */
+  const shareOf = (id: string) => {
+    if (!shape) return null;
+    const n = shape.contributions[id];
+    if (n == null) return null;
+    const onAttack = shape.attack.main?.id === id || shape.attack.chain.some((l) => l.card.id === id);
+    return { contribution: n, total: onAttack ? shape.attack.power : shape.defence.power, side: onAttack ? ("attack" as const) : ("guard" as const) };
+  };
+
   const hoverOf = (c: CardView) => (box: DOMRect | null) => setHover(box ? { card: c, box } : null);
   /** Whose chair the words are read from, for "until the start of your next turn". */
   const narrator = { viewer: view.you.player, them: view.them.name };
@@ -293,6 +343,16 @@ export function ArenaStage({ gameId, snapshot, skin = "night" }: { gameId: numbe
       ? { seq: beat.n, cardId: beats?.art[beat.card]?.cardId ?? "", name: beats?.art[beat.card]?.name ?? "", label: beat.label, text: beat.text, unread: beat.unread, imageUrl: beats?.art[beat.card]?.imageUrl ?? null }
       : null;
 
+  /**
+   * A card in a battle staging always opens (§3.5): a tap on one with no move
+   * reads it rather than doing nothing, because the whole point of lifting the
+   * fight onto its own surface is that you can look at what is in it.
+   */
+  const stagedProps = (c: CardView) => {
+    const p = cardProps(c);
+    return { ...p, onTap: p.onTap ?? (() => setSheet(c)) };
+  };
+
   const cardProps = (c: CardView) => ({
     card: c,
     state: stateOf(c.id),
@@ -311,20 +371,27 @@ export function ArenaStage({ gameId, snapshot, skin = "night" }: { gameId: numbe
             screen like every other; it draws nothing on the night table. */}
         {beat && (beat.t === "attack" || beat.t === "clash") && <div key={beat.n} className="arena-speedlines pointer-events-none absolute inset-0 z-20" aria-hidden />}
         <StepBanner step={step} />
-        <SkillSpotlight spotlight={beatSpotlight} />
+        {/* A skill fired inside a staged battle is said on the card that fired
+            it, so the banner would be the same sentence twice over the fight. */}
+        <SkillSpotlight spotlight={shape && beat?.t === "skill" && beat.inBattle ? null : beatSpotlight} />
         <TopStrip view={view} />
 
         <div className="flex flex-col gap-2 lg:grid lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-start lg:gap-4">
-          <SideRail side={view.them} them cardProps={cardProps} hurt={hurting === view.them.player} narrator={narrator} className="lg:col-start-3 lg:row-start-1" />
+          <SideRail side={view.them} them cardProps={cardProps} hurt={hurting === view.them.player} narrator={narrator} lifted={lifted} className="lg:col-start-3 lg:row-start-1" />
 
           <section className="arena-stage relative rounded-xl border border-space-700/70 p-2 sm:rounded-2xl sm:p-3 lg:col-start-2 lg:row-start-1 lg:p-4" aria-label="Battle Areas">
-            <HandBacks count={view.them.handCount} />
-            <BattleRow cards={view.them.battle} cardProps={cardProps} zone="p2:battle" label={`${view.them.name} has no Battle Cards`} />
-            <ClashBand view={view} cardProps={cardProps} />
-            <BattleRow cards={view.you.battle} cardProps={cardProps} zone="p1:battle" label="You have no Battle Cards" />
+            {/* Dimmed and blurred under the band, never hidden: the position
+                being fought over stays legible while the fight resolves. */}
+            <div className={shape && staging === "band" ? "arena-behind" : ""}>
+              <HandBacks count={view.them.handCount} />
+              <BattleRow cards={view.them.battle.filter((c) => !lifted.has(c.id))} cardProps={cardProps} zone="p2:battle" label={`${view.them.name} has no Battle Cards`} />
+              <ClashBand view={view} cardProps={cardProps} staged={!!shape} />
+              <BattleRow cards={view.you.battle.filter((c) => !lifted.has(c.id))} cardProps={cardProps} zone="p1:battle" label="You have no Battle Cards" />
+            </div>
+            {shape && staging === "band" && <DuelBand shape={shape} cardProps={stagedProps} beat={beat} progress={playback.playing ? { index: playback.index, total: playback.total } : null} />}
           </section>
 
-          <SideRail side={view.you} cardProps={cardProps} hurt={hurting === view.you.player} narrator={narrator} className="lg:col-start-1 lg:row-start-1" />
+          <SideRail side={view.you} cardProps={cardProps} hurt={hurting === view.you.player} narrator={narrator} lifted={lifted} className="lg:col-start-1 lg:row-start-1" />
         </div>
 
         {held && !view.over && !playback.playing && <NarrationRibbon text={held.text} n={held.n} mine={held.mine} live={false} />}
@@ -438,6 +505,7 @@ export function ArenaStage({ gameId, snapshot, skin = "night" }: { gameId: numbe
             <>
               <FeelToggle />
               <PaceToggle />
+              <StagingToggle gameId={gameId} staging={staging} />
               <SkinToggle gameId={gameId} skin={skin} />
               <ReportBug gameId={gameId} cards={cardsOnTable(view)} />
               <button type="button" onClick={() => setLogOpen((x) => !x)} className="tap uppercase tracking-widest text-ki-300 hover:text-ki-400">
@@ -460,7 +528,9 @@ export function ArenaStage({ gameId, snapshot, skin = "night" }: { gameId: numbe
           )}
         </Hand>
 
-        {view.battle && <AttackBeam from={view.battle.attacker} to={view.battle.guard} hostRef={boardRef} />}
+        {view.battle && !shape && <AttackBeam from={view.battle.attacker} to={view.battle.guard} hostRef={boardRef} />}
+
+        {shape && staging === "takeover" && <Takeover shape={shape} cardProps={stagedProps} beat={beat} progress={playback.playing ? { index: playback.index, total: playback.total } : null} />}
 
         <Ghosts ghosts={playback.ghosts} art={beats?.art ?? {}} />
 
@@ -475,6 +545,7 @@ export function ArenaStage({ gameId, snapshot, skin = "night" }: { gameId: numbe
             rejected={playable && !busy ? rejected.filter((r) => cardIdOf(r.action) === sheet.id) : []}
             onPick={pickMove}
             onClose={() => setSheet(null)}
+            battle={shareOf(sheet.id)}
           />
         )}
 
@@ -530,9 +601,15 @@ function BattleRow({ cards, cardProps, zone, label }: { cards: CardView[]; cardP
   );
 }
 
-/** The middle of the stage: the power figures, both Combo Areas, or a quiet line. */
-function ClashBand({ view, cardProps }: { view: BoardView; cardProps: CardProps }) {
-  const b = view.battle;
+/**
+ * The middle of the stage: the power figures, both Combo Areas, or a quiet
+ * line. This is the `inplace` staging's own picture of a fight; when a band or
+ * a takeover is drawing one, those cards are up there instead and this stands
+ * down to the quiet divider, so the strip keeps its height and the board does
+ * not jump as a battle opens.
+ */
+function ClashBand({ view, cardProps, staged = false }: { view: BoardView; cardProps: CardProps; staged?: boolean }) {
+  const b = staged ? null : view.battle;
   if (!b) {
     return (
       <div className="my-2 flex items-center gap-3 sm:my-3">
@@ -574,23 +651,6 @@ function ClashBand({ view, cardProps }: { view: BoardView; cardProps: CardProps 
   );
 }
 
-/**
- * A power figure that climbs to its new value.
- *
- * A combo card is worth counting *up* to: the number is the whole reason you
- * played it, and swapping 25,000 for 30,000 between two renders is the one
- * moment on this board where the arithmetic is the drama.
- */
-function Count({ value, className }: { value: number; className?: string }) {
-  const shown = useMotionValue(value);
-  const text = useTransform(shown, (v) => Math.round(v).toLocaleString("en"));
-  useEffect(() => {
-    const run = animate(shown, value, { duration: 0.25, ease: "easeOut" });
-    return () => run.stop();
-  }, [shown, value]);
-  return <motion.span className={className}>{text}</motion.span>;
-}
-
 /** The opponent's hand: a count, fanned, peeking over the top of the stage. */
 function HandBacks({ count }: { count: number }) {
   const shown = Math.min(count, 10);
@@ -616,6 +676,7 @@ function SideRail({
   cardProps,
   hurt = false,
   narrator,
+  lifted,
   className = "",
 }: {
   side: SideView;
@@ -624,6 +685,8 @@ function SideRail({
   /** This player is taking damage right now. */
   hurt?: boolean;
   narrator: { viewer: PlayerId; them: string };
+  /** Cards a battle staging is drawing, which this rail must not draw twice. */
+  lifted?: ReadonlySet<string>;
   className?: string;
 }) {
   const spent = side.energy.length - side.activeEnergy;
@@ -652,8 +715,15 @@ function SideRail({
     >
       <div className="relative flex shrink-0 items-end gap-1.5 lg:justify-center">
         <ZoneAnchor zone={`${p}:leader`} />
-        {side.leader && <StageCard {...cardProps(side.leader)} width={56} />}
-        {side.unison && <StageCard {...cardProps(side.unison)} width={48} />}
+        {/* A leader up in a band is drawn there and nowhere else, but the slot
+            it left keeps its shape so the rail does not collapse under it. */}
+        {side.leader &&
+          (lifted?.has(side.leader.id) ? (
+            <span className="arena-slot" style={{ width: `calc(56px * var(--arena, 1))`, height: `calc(78px * var(--arena, 1))` }} aria-hidden />
+          ) : (
+            <StageCard {...cardProps(side.leader)} width={56} />
+          ))}
+        {side.unison && !lifted?.has(side.unison.id) && <StageCard {...cardProps(side.unison)} width={48} />}
       </div>
 
       <div className="relative min-w-0 lg:text-center">
