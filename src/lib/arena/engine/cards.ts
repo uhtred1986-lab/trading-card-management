@@ -437,3 +437,68 @@ export function hasTrait(def: CardDef, name: string): boolean {
   const n = name.toLowerCase();
   return def.traits.some((c) => c.toLowerCase() === n);
 }
+
+/**
+ * The moments a skill can be triggered by that are printed as a phrase rather
+ * than a “when …”. Spelled out rather than left as “at the … of anything”: a
+ * loose tail swallows the rest of the sentence, and “at the end of the battle
+ * for this card **or at the end of the turn**” (BT25-040) then reads as one
+ * moment made of both.
+ */
+const TIMING_PHRASE =
+  /at the (?:beginning|start|end) of (?:your opponent'?s|your|the|this|a) (?:next )?(?:turn|battle|charge phase|main phase|offense step|defense step|damage step)/;
+
+/**
+ * The head of a skill's effect: where a trigger has to be printed.
+ *
+ * A validity condition may come before it rather than before the colon — “If
+ * your Leader Card is red, at the end of your turn, …”, or with the sets' own
+ * bar between them — and the trigger after it is still the head of the
+ * sentence. A “when …” in front of it is not: that is the trigger itself, and
+ * what follows is a delayed effect.
+ */
+export function effectHead(effect: string): string {
+  return effect
+    .toLowerCase()
+    .trim()
+    .replace(/^if [^,|]{0,90}[,|]\s*/, "");
+}
+
+/**
+ * The timing phrase an [Auto]'s trigger has to be read from when it is printed
+ * at the *end* of the sentence rather than at its head: “you may place 1 card
+ * from your hand in the Drop Area **at the end of the battle**” (BT3-103).
+ *
+ * A trigger is normally the head and nothing else, because 116 skills merely
+ * *mention* a moment mid-effect and mean a delayed effect by it. But a delayed
+ * effect needs a trigger to schedule it, and a skill like BT3-103 has none: read
+ * by the head rule alone its [Auto] never pends at all, and the card does
+ * nothing. So when there is nothing else to fire on, the trailing phrase is the
+ * trigger after all — and being the trigger, it is no longer part of the effect.
+ *
+ * Only then. A “when …” anywhere is the skill's own trigger — every trigger the
+ * engine reads that is not a timing phrase is written with that word — and the
+ * timing phrase beside it is the delay that trigger schedules.
+ */
+export function trailingTrigger(sk: Skill): string | null {
+  if (sk.kind !== "auto") return null;
+  if (/\bwhen\b/i.test(`${sk.cost} ${sk.effect}`)) return null;
+  const head = effectHead(sk.effect);
+  if (new RegExp(`^${TIMING_PHRASE.source}`).test(head)) return null;
+  // It has to *end* the sentence it is in, rather than sit in the middle of one.
+  const first = (head.split(/(?<=[.])\s+/)[0] ?? head).trim();
+  // And it has to be the only moment that sentence names. “Remove this card from
+  // the game at the end of the battle for this card **or** at the end of the
+  // turn” (BT25-040) names two, which is a shape this does not read — and taking
+  // one of them would remove the card at a moment the text does not say.
+  if ((first.match(new RegExp(TIMING_PHRASE.source, "g")) ?? []).length !== 1) return null;
+  const m = new RegExp(`\\s(${TIMING_PHRASE.source})[.]?$`).exec(first);
+  return m ? m[1] : null;
+}
+
+/** The effect with `phrase` taken out of it — a trigger is not also an effect. */
+export function withoutTrailingTrigger(effect: string, phrase: string): string {
+  const at = effect.toLowerCase().lastIndexOf(phrase);
+  if (at < 0) return effect;
+  return `${effect.slice(0, at).replace(/\s+$/, "")}${effect.slice(at + phrase.length)}`;
+}

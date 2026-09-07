@@ -9,7 +9,7 @@
  * is worse than an honest "Claude decides this one".
  */
 import { parseFilter, type CardFilter } from "./filters";
-import { keywordOf, orbsIn, skillsOf } from "./cards";
+import { keywordOf, orbsIn, skillsOf, trailingTrigger, withoutTrailingTrigger } from "./cards";
 import type { Amount, Cond, Duration, Op, Ref, Script, ScriptArea, Selector, Side } from "./script";
 import type { CardDef, DelayScope, DelayTiming, ForbiddenAction, KeywordSkill, Skill, SkillKindPrefix } from "./types";
 
@@ -744,12 +744,34 @@ interface Ctx {
    * already spent.
    */
   mills: number;
+  /**
+   * And another for the names an optional price binds, and for the same
+   * reason: `n` is the counter the price/effect merge leans on, so spending
+   * it here would leave the price's own `c0` alive under the effect's first
+   * choice.
+   */
+  costs: number;
   /** The skill text with its explanatory notes still in place. A token's stats are printed there. */
   raw: string;
 }
 
 /** "A marker", "an energy" — the article is the number one. */
 const countWord = (w: string) => (/^\d+$/.test(w) ? Number(w) : 1);
+
+/**
+ * The counts a printed price may be spelled out as. Only as far as the
+ * wordings that use them go: a word this does not carry must not quietly
+ * become a number.
+ */
+const WORD_COUNTS: Record<string, number> = { a: 1, an: 1, one: 1, two: 2, three: 3 };
+
+/**
+ * "You may place 1 card from your hand in the Drop Area" — an optional price,
+ * matched against the clause as printed rather than against `t`, because `t`
+ * has the "you may" that makes it optional taken off it already.
+ */
+const OPTIONAL_HAND_PRICE =
+  /^(?:you may|you can|the player may) place (\d+|an?|one|two|three) cards? (?:from|in) your hand in(?:to)? (?:your |the )?drop(?: area)?$/i;
 
 /**
  * Words that point back at whatever the previous clause acted on.
@@ -1436,6 +1458,23 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
       return { cond: { kind: "inBattle", sel, ...(m[2] === "is" ? {} : { not: true }) }, subject: { sel } };
     }
   }
+  // "If this card participated in a battle during your opponent's turn"
+  // (BT3-103): the past tense of the clause above it, and a different
+  // question — the card is asked at the end of a battle, when nothing is an
+  // attack or guard card any more (8-1-2-2), so what it reads is the card's
+  // own memory of the turn. The turn half is one of the conditions the
+  // compiler already has, and the two are asked together rather than folded
+  // into the memory, which would have to store whose turn it was as well.
+  if ((m = /^(this card|.+?) (?:participated|took part) in a battle(?: during (your|your opponent's) turn)?$/.exec(t))) {
+    const sel: Selector | null = m[1] === "this card" ? { special: "self" } : parseTarget(m[1]);
+    if (sel) {
+      delete sel.count;
+      delete sel.upTo;
+      const was: Cond = { kind: "battled", sel };
+      const turn: Cond | null = m[2] ? { kind: "isTurnPlayer", ...(m[2] === "your" ? {} : { who: "opponent" as const }) } : null;
+      return { cond: turn ? { kind: "all", conds: [was, turn] } : was, subject: { sel } };
+    }
+  }
   // "If your Leader's back side is {Name}", "… is a black <Goku> card" (22-2-5).
   if ((m = /^your leader(?: card)?'s back side is (.+)$/.exec(t))) {
     return { cond: { kind: "leaderMatches", filter: parseFilter(m[1]), back: true }, subject: { sel: { special: "leader" } } };
@@ -1842,6 +1881,29 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // no-op for state but a false "goes to the Drop" line in the turn's
   // narration, so it is read as nothing left to do rather than run again.
   if (/^place those cards in their drop areas$/.test(t)) return [];
+  // "You may place 1 card from your hand in the Drop Area. If you do so, …"
+  // (BT1-077, BT1-078, BT3-054): an optional price, with the rest of the skill
+  // hanging on whether it was paid. `compileClause` takes "you may" off before
+  // anything below reads the clause, so the mandatory rule under this one
+  // matched what was left and the offer was rebuilt around the whole discard —
+  // and an offer accepted with an empty hand pays nothing while still counting
+  // as accepted (20-16), which buys the rest of the skill for free. Said as an
+  // "up to" choice instead, declining and having nothing to give are the same
+  // answer (5-2-4), and neither of them pays.
+  //
+  // The move sits inside the condition rather than beside it because the
+  // choice is the decision: nothing leaves the hand until it has been made —
+  // and a price of 2 cards half-taken is not paid, so the hand keeps both.
+  if ((m = OPTIONAL_HAND_PRICE.exec(clause.trim().replace(/[.]$/, "")))) {
+    const word = m[1].toLowerCase();
+    const n = /^\d+$/.test(word) ? Number(word) : WORD_COUNTS[word];
+    const v = c.costs === 0 ? "cost" : `cost${c.costs}`;
+    c.costs++;
+    return [
+      { op: "choose", sel: { side: "you", area: "hand", count: n, upTo: true }, as: v, reason: clause.trim().replace(/[.]$/, "") },
+      { op: "if", cond: { kind: "chose", var: v, ...(n > 1 ? { atLeast: n } : {}) }, then: [{ op: "moveTo", target: { var: v }, to: "drop" }] },
+    ];
+  }
   // Discarding is often printed the long way round, as a move to the Drop.
   // Only the unqualified form: "1 yellow card in your hand" narrows *which*
   // card, and `discard` cannot yet honour that, so it stays unread.
@@ -2708,10 +2770,16 @@ function compileSkillText(skill: Skill): Script {
   const owners = [skill.keyword, ...skill.tags.map(keywordOf)].filter((k): k is KeywordSkill => !!k);
   const keywordOwnsIt = owners.some((k) => KEYWORD_HANDLES_THE_LINE.has(k.name) && !(k.name === "Union" && k.variant === "Absorb"));
   if (keywordOwnsIt) return { ops: [], unsupported: [] };
-  const text = stripNotes(skill.effect);
+  // A trigger printed at the end of the sentence rather than at its head
+  // (BT3-103) has already happened by the time the effect resolves, exactly
+  // like the leading form the clause loop drops below. Left in the text it
+  // compiles to a delay instead, and the skill then waits for the *next* end
+  // of a battle — one battle too late, every time.
+  const trailing = trailingTrigger(skill);
+  const text = stripNotes(trailing ? withoutTrailingTrigger(skill.effect, trailing) : skill.effect);
   if (!text) return { ops: [], unsupported: [] };
   const unsupported: string[] = [];
-  const c: Ctx = { permanent: skill.kind === "permanent", last: null, choices: [], lastSeen: null, lastNamed: null, mills: 0, lastPlayed: null, lastTarget: null, lastOp: null, replacing: null, n: 0, raw: skill.effect };
+  const c: Ctx = { permanent: skill.kind === "permanent", last: null, choices: [], lastSeen: null, lastNamed: null, mills: 0, costs: 0, lastPlayed: null, lastTarget: null, lastOp: null, replacing: null, n: 0, raw: skill.effect };
   // A standing permission is one sentence, not a list of actions: "you can
   // activate this card's [Counter] skill from your hand without paying its
   // energy cost **by choosing 1 other black card in your hand and placing it
@@ -2858,9 +2926,23 @@ const PURE_DURATION = /^(?:during this turn|for the (?:duration of the )?(?:turn
 function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op[] {
   // "if you do" (20-16) makes the rest conditional on the previous choice, and
   // a run of conditions all have to hold, so a group carries a list of them.
-  type Group = { conds: Cond[]; ops: Op[]; delay?: { at: DelayTiming; scope: DelayScope; label: string } };
+  type Group = {
+    conds: Cond[];
+    ops: Op[];
+    delay?: { at: DelayTiming; scope: DelayScope; label: string };
+    /**
+     * Where the next clause is written, when it is not the group's own list:
+     * an `if` a clause built for itself that the clauses after it belong
+     * inside. `sinkCond` is what that branch asks, for an “otherwise”.
+     */
+    sink?: Op[];
+    sinkCond?: Cond;
+  };
   const groups: Group[] = [{ conds: [], ops: [] }];
-  const push = (ops: Op[]) => groups[groups.length - 1].ops.push(...ops);
+  const push = (ops: Op[]) => {
+    const g = groups[groups.length - 1];
+    (g.sink ?? g.ops).push(...ops);
+  };
   for (let i = 0; i < clauses.length; i++) {
     const clause = clauses[i];
     // "During this turn, your opponent can't…", "…, until the end of your
@@ -2888,7 +2970,9 @@ function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op
         unsupported.push(clause);
         continue;
       }
-      const asked: Cond = prev.conds.length === 1 ? prev.conds[0] : { kind: "all", conds: [...prev.conds] };
+      // A branch the group is writing into is part of what was asked.
+      const all = prev.sinkCond ? [...prev.conds, prev.sinkCond] : prev.conds;
+      const asked: Cond = all.length === 1 ? all[0] : { kind: "all", conds: [...all] };
       groups.push({ conds: [{ kind: "not", cond: asked }], ops: [] });
       continue;
     }
@@ -2898,6 +2982,30 @@ function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op
     // until `may` existed, so "if you don't" was simply a gap.
     const decided: Cond | null = c.lastOp === "may" ? { kind: "did", what: "may" } : c.last ? { kind: "chose", var: c.last } : null;
     if (conn === "ifDone") {
+      // "You may place 1 card from your hand in the Drop Area. **If you do so,**
+      // draw 1 card": the clause before it already hung its own half of the
+      // bargain on that very decision, so this is that branch continuing rather
+      // than a second, identical one. What follows is written into that branch
+      // rather than into a group of its own, so it keeps the conditions — and
+      // the timing — the branch is already standing under.
+      const open = groups[groups.length - 1];
+      let host = open.sink ?? open.ops;
+      let last = host[host.length - 1];
+      // "…place 1 card from your hand in the Drop Area **at the end of the
+      // battle**. If you do so, switch this card to Active Mode" (BT3-103): a
+      // trailing timing phrase put the price inside a delay, and what hangs on
+      // it happens there too. Asked out here it would read a name the delayed
+      // program has not bound yet, so it never held and the card's second half
+      // never happened.
+      if (last?.op === "delay") {
+        host = last.ops;
+        last = host[host.length - 1];
+      }
+      if (decided?.kind === "chose" && last?.op === "if" && !last.else && last.cond.kind === "chose" && last.cond.var === decided.var) {
+        open.sink = last.then;
+        open.sinkCond = last.cond;
+        continue;
+      }
       groups.push({ conds: decided ? [decided] : [], ops: [] });
       continue;
     }
@@ -3287,6 +3395,8 @@ function describeCond(c: Cond): string {
     }
     case "inBattle":
       return `${describeSelector(c.sel)} is ${c.not ? "not " : ""}${c.role === "guard" ? "being attacked" : c.role === "attacker" ? "attacking" : "in a battle"}`;
+    case "battled":
+      return `${describeSelector(c.sel)} has been in a battle this turn`;
     case "every":
       return `all of ${describeSelector(c.sel)} is ${describeSelector(c.matching)}`;
     case "leaderFlipped":
@@ -3318,7 +3428,7 @@ function describeCond(c: Cond): string {
     case "all":
       return c.conds.map(describeCond).join(" and ");
     case "chose":
-      return "you took that choice";
+      return c.atLeast && c.atLeast > 1 ? `you took all ${c.atLeast}` : "you took that choice";
     case "varMatches":
       return `that card is ${describeFilter(c.filter)}`;
     case "isTurnPlayer":

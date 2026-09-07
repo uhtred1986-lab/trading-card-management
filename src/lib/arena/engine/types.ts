@@ -180,6 +180,16 @@ export interface CardInstance {
   usedThisTurn: number[];
   /** 13-4-2: once a marker skill resolves on a card, no marker skill on it can be used again this turn. */
   usedMarkerSkill: boolean;
+  /**
+   * 8-1-2-1: this card has been an attack card or a guard card since the turn
+   * began. The roles themselves last only until the battle ends (8-1-2-2), and
+   * BT3-103 asks afterwards — “if this card participated in a battle during
+   * your opponent's turn … at the end of the battle” — so the card keeps the
+   * memory the battle no longer holds. Cleared with the rest of the turn's
+   * bookkeeping in `turn.next`, which is what makes it a claim about *this*
+   * turn; whose turn that was is a condition of its own.
+   */
+  battledThisTurn: boolean;
   /** Skills negated by effects (index list) or all skills. */
   negated: number[] | "all";
 }

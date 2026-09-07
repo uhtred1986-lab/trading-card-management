@@ -441,6 +441,8 @@ export function condHolds(ctx: GameContext, s: GameState, frame: ScriptFrame, c:
         !!b && resolveSelector(ctx, s, frame, c.sel).some((id) => (c.role === "attacker" ? b.attacker === id : c.role === "guard" ? b.guard === id : b.attacker === id || b.guard === id));
       return c.not ? !inBattle : inBattle;
     }
+    case "battled":
+      return resolveSelector(ctx, s, frame, c.sel).some((id) => s.cards[id]?.battledThisTurn);
     case "every": {
       const ids = resolveSelector(ctx, s, frame, c.sel);
       // Nothing there is not "all of it" — see the note on the Cond.
@@ -471,7 +473,7 @@ export function condHolds(ctx: GameContext, s: GameState, frame: ScriptFrame, c:
       return c.atLeast ? mine >= theirs : mine <= theirs;
     }
     case "chose":
-      return (frame.vars[c.var] ?? []).length > 0;
+      return (frame.vars[c.var] ?? []).length >= (c.atLeast ?? 1);
     // "If that card is a Battle Card": any of the cards the reveal or look
     // bound to the name. A name that bound nothing is not a match.
     case "varMatches":
