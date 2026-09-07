@@ -197,6 +197,10 @@ const DEFS: Record<string, CardDef> = defsFrom([
   card("PERMLOCK", { energyCost: 2, power: 5000, skill: "[Permanent] Your opponent can't attack with Battle Cards." }),
   card("SELFMUTE", { energyCost: 2, skill: "[Blocker]\n[Permanent] Negate this card's [Blocker] skill in all areas." }),
   card("BECOMES", { energyCost: 2, skill: "[Permanent] This card gains ≪Saiyan≫ in all areas." }),
+  // BT2-001 Vegito's wording: the grant is on *other* cards, and the areas it
+  // names are all of them rather than the table.
+  card("RECOLOR", { energyCost: 2, skill: "[Permanent] Each <RECOLORED> in all of your areas gain red, blue, and green colors." }),
+  card("RECOLORED", { energyCost: 1, colors: ["Yellow"] }),
   card("SAIYANKILL", { energyCost: 1, skill: "[Auto] When you play this card, choose 1 of your opponent's ≪Saiyan≫ Battle Cards and KO it." }),
   card("CHEAPCOMBO", { energyCost: 3, comboCost: 2, comboPower: 5000, skill: "[Permanent] Reduce the combo cost of this card in your hand by 2." }),
   card("BLUECOMBO", { energyCost: 3, colors: ["Blue"], comboCost: 2, comboPower: 5000 }),
@@ -1475,6 +1479,23 @@ function assertConsistentAfterDrop(s: GameState) {
   // Only one card on their side is a Saiyan, so the choice is forced and taken.
   assert.ok(s.players.p2.drop.includes(becomes), "the ≪Saiyan≫ skill found it");
   assert.ok(s.players.p2.battle.includes(find(s, "p2", "battle", "BIG")), "and left the card that is not one");
+}
+
+{
+  const ctx = { defs: DEFS };
+  // BT2-001 Vegito, "each <Son Goku> and <Vegeta> in all of your areas gain
+  // red, blue, and green colors": what a card counts as does not depend on
+  // where it is (20-1), and here the areas that matter are the ones off the
+  // table — the colour of a card in your energy is what pays for costs.
+  const s = arena({ battle: ["RECOLOR"], hand: ["RECOLORED"], energy: ["RECOLORED"], oppHand: ["RECOLORED"] });
+  for (const area of ["hand", "energy"] as const) {
+    const id = find(s, "p1", area, "RECOLORED");
+    assert.deepEqual(cardNow(ctx, s, id).colors, ["Yellow", "Red", "Blue", "Green"], `the copy in your ${area} gained the three colours`);
+  }
+  // "Your" areas, so their copy of the same card is untouched.
+  assert.deepEqual(cardNow(ctx, s, find(s, "p2", "hand", "RECOLORED")).colors, ["Yellow"]);
+  // The card printing the skill is not itself a <RECOLORED>.
+  assert.deepEqual(cardNow(ctx, s, find(s, "p1", "battle", "RECOLOR")).colors, ["Red"]);
 }
 
 {
@@ -3803,6 +3824,31 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.equal((parseTarget("1 card in your hand with an energy cost of 3 or less") as { area?: string }).area, "hand");
   // "Or" between two things that are not areas says nothing about where.
   assert.equal(areas("1 red or blue card in your Drop"), undefined);
+}
+
+// ── "in all of your areas" is a span, not an area (3-1-1) ──────────────────
+
+{
+  // "Areas" is not an area word, so BT2-001's "each <Son Goku> and <Vegeta> in
+  // all of your areas" fell through to the 20-1-6 default of the table — and a
+  // colour grant that is the Leader's whole point reached nothing in hand,
+  // energy or drop. The "all" in the phrase would also have been read as the
+  // count, which is why the phrase comes off before anything else reads it.
+  const all = parseTarget("each <Son Goku> and <Vegeta> in all of your areas");
+  assert.deepEqual(all?.areas, ["leader", "battle", "unison", "combo", "energy", "hand", "deck", "drop", "life", "warp", "zDeck", "zEnergy"]);
+  assert.equal(all?.area, undefined, "no single area stands for all of them");
+  assert.equal(all?.side, "you");
+  assert.equal(all?.count, 99, "the “all” of the phrase is not the count");
+  assert.deepEqual(all?.filter?.characters, ["Son Goku", "Vegeta"]);
+  // The possessive is the only thing in BT2-001's phrase that says whose cards
+  // these are, so it has to survive the phrase coming off.
+  assert.equal(parseTarget("≪God≫ cards in all of their areas")?.side, "opponent");
+  // The shorter wording, where the subject carries its own possessive (BT23-072).
+  const short = parseTarget("your multicolor <Zamasu> and <Goku Black> cards in all areas");
+  assert.equal(short?.areas?.length, 12);
+  assert.equal(short?.side, "you");
+  // A phrase that names one area still names one.
+  assert.equal(parseTarget("1 card in your hand")?.areas, undefined);
 }
 
 // ── two skills printed without the line break between them (1-5) ───────────
