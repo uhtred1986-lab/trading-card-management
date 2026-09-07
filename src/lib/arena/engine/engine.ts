@@ -2063,7 +2063,10 @@ function activatable(ctx: EngineContext, s: GameState, p: PlayerId, card: string
   // 4-3-3: or the price may be an action — "switch this card to Rest Mode",
   // "choose 1 card in your hand and place it in your Drop Area". Only offered
   // when the engine can charge it, so the effect never happens for free.
-  const actionCost = !costIsOrbsOnly && !condCost ? compileCostProgram(sk) : null;
+  // The two are not alternatives: "If your Leader is a white <Cell> card, and
+  // you remove this card in your Drop from the game …" is both, and reading
+  // only the condition was a skill used for nothing.
+  const actionCost = !costIsOrbsOnly ? compileCostProgram(sk) : null;
   if (!costIsOrbsOnly && !condCost && !actionCost) return null;
   if (condCost && !condHolds(ctx, s, { ops: [], ip: 0, vars: {}, card, master: p }, condCost.cond)) return null;
   if (actionCost && !canPayCostProgram(ctx, s, p, card, actionCost.ops)) return null;
@@ -2277,7 +2280,7 @@ function whyNotActivate(ctx: EngineContext, s: GameState, p: PlayerId, card: str
     if (inst.markers + sk.markerCost < 0) why.push({ kind: "other", detail: `needs ${-sk.markerCost} markers (${inst.markers} on it)` });
   }
   const condCost = !costIsOrbsOnly ? priceCondition(sk) : null;
-  const actionCost = !costIsOrbsOnly && !condCost ? compileCostProgram(sk) : null;
+  const actionCost = !costIsOrbsOnly ? compileCostProgram(sk) : null;
   if (!costIsOrbsOnly && !condCost && !actionCost) unread();
   if (condCost && !condHolds(ctx, s, { ops: [], ip: 0, vars: {}, card, master: p }, condCost.cond)) why.push({ kind: "condition", text: sk.cost });
   if (actionCost && !canPayCostProgram(ctx, s, p, card, actionCost.ops)) why.push({ kind: "other", detail: `cannot pay: ${sk.cost}` });

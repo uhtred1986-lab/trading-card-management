@@ -639,6 +639,10 @@ export const READING_RULES: ReadingRule[] = [
     body: "The brackets a line opens with are its tags: the skill type, the keyword, and any limit such as [Once per turn]. What follows is split at the first colon outside brackets into the cost and the effect. A keyword line whose whole body is orbs — “[Successor]{g}{y}” — is all cost, because the keyword's own rules are the effect.",
   },
   {
+    title: "What a cost asks for",
+    body: "A cost is orbs, a condition that has to be true (9-1-3), an action you carry out to pay (4-3-3) — or, on some 650 cards, a condition and an action at once: “If your Leader is a white <Cell> card, and you remove this card in your Drop from the game and discard 1 card from your hand”. The sentence is cut where the conditions end and the doing begins, and the cut is only taken when both halves read; a price read in half would offer the skill for free, so half a reading is treated as none. The action half is written in the second person, and the subject comes off before it is compiled like any effect.",
+  },
+  {
     title: "What the orbs mean",
     body: "{r} {u} {g} {y} {k} {w} are red, blue, green, yellow, black and white — blue is u and black is k, and white is the sixth colour, which BT28 added. {2} is that many orbs of any colour. {r}/{u} is one orb payable with either of the two named colours, which is not the same as one of any colour. A few sets print ③ for {3}, and it is normalised before anything reads it.",
   },

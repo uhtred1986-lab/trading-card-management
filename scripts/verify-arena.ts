@@ -16,7 +16,7 @@ import { narrate } from "../src/lib/arena/narration";
 import { parseSkills, keywordOf, orbsIn, eitherOrbsIn, skillLines } from "../src/lib/arena/engine/cards";
 import { KEYWORDS, keywordTagSpellings, keywordsByGroup, tagBody, tagParsesTo } from "../src/lib/arena/glossary";
 import { parseFilter, matches, parseCondition } from "../src/lib/arena/engine/filters";
-import { addEffect, schedule, move, locate, playCost, powerOf, forbids, has, cardNow, comboCostOf, skillNegated, skillsNegated } from "../src/lib/arena/engine/state";
+import { addEffect, schedule, move, locate, placeUnder, playCost, powerOf, forbids, has, cardNow, comboCostOf, skillNegated, skillsNegated } from "../src/lib/arena/engine/state";
 import { compileCostProgram, compileSkill, costIsOnlyOrbs, costText, describeScript, parseConditionClause, parseTarget, priceCondition, splitClauses } from "../src/lib/arena/engine/compile";
 import { autoTriggerMatches, koCard } from "../src/lib/arena/engine/triggers";
 import type { Trigger } from "../src/lib/arena/engine/types";
@@ -579,6 +579,39 @@ function assertConsistentAfterDrop(s: GameState) {
   assert.deepEqual(s.cards[host].under, [prey], "23-2: under the <Majin Buu> that was chosen");
   assert.deepEqual(s.cards[find(s, "p1", "battle", "BUUEAT")].under, [], "not under the card that played the skill");
   assert.ok(s.players.p2.battle.includes(spared), "the opponent's other card is untouched");
+  assertConsistent(s);
+}
+
+// 23-2-6: a card that already has a pile of its own takes the pile with it
+// when it is buried under a card in an area of the same name. The fuzzer found
+// this as "BT31-132 found 0 times" — BT3-052 buried an evolved Cell under a
+// <Majin Buu>, the cards under it stayed hanging off a card that was itself in
+// a pile, and nothing in the engine reads a nested pile, so they vanished.
+{
+  let s = arena({ hand: ["BUUEAT"], energy: ["V1", "V1"], battle: ["BUUHOST"], oppBattle: ["V-BLUE", "BLOCKER"] });
+  const host = find(s, "p1", "battle", "BUUHOST");
+  const prey = find(s, "p2", "battle", "V-BLUE");
+  // Give the opponent's card a stack of two, oldest first, as an [Evolve] would.
+  const buried = s.players.p2.deck.splice(0, 2);
+  s.cards[prey].under.push(...buried);
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "BUUEAT") });
+  s = play(s, { type: "choose", player: "p1", cards: [host] });
+  s = play(s, { type: "choose", player: "p1", cards: [prey] });
+  assert.deepEqual(s.cards[prey].under, [], "the pile is not nested under a card in a pile");
+  assert.deepEqual(s.cards[host].under, [prey, ...buried], "23-2-3/23-2-4: in the order they were, on the very bottom");
+  assertConsistent(s);
+}
+
+// 23-2-5: the same card buried under a Leader instead — the Battle Area's name
+// changes, so what was under it goes to its owner's Drop rather than along.
+{
+  const s = arena({ battle: ["V1"], oppBattle: ["V-BLUE"] });
+  const prey = find(s, "p2", "battle", "V-BLUE");
+  const buried = s.players.p2.deck.splice(0, 1);
+  s.cards[prey].under.push(...buried);
+  assert.ok(placeUnder({ defs: DEFS }, s, [], prey, s.players.p1.leader));
+  assert.deepEqual(s.cards[s.players.p1.leader].under, [prey], "only the card itself follows");
+  assert.deepEqual(s.players.p2.drop.slice(0, 1), buried, "23-2-5: to its owner's Drop");
   assertConsistent(s);
 }
 
@@ -3669,6 +3702,58 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   const other = t.players.p1.battle[0];
   for (const id of t.players.p1.hand.slice()) move({ defs: DEFS }, t, [], id, "deck", "p1", { position: "bottom" });
   assert.ok(!canActivate(t, other), "an unpayable price is not offered");
+}
+
+// ── a price that is a condition *and* an action (9-1-3 + 4-3-3) ────────────
+
+{
+  // BT31-132: "If your Leader is a white <Cell> card, and you remove this card
+  // in your Drop from the game and discard 1 card from your hand:". The two
+  // were read as alternatives, so the leading condition matched and a greedy
+  // pattern swallowed the rest — 655 skills were offered without ever paying.
+  const both = parseSkills("[Activate: Main] If your Leader Card is red and you place this card from your hand in your Drop Area : Draw 1 card.")[0];
+  assert.equal(priceCondition(both)?.cond.kind, "leaderMatches", "the condition half still guards the skill");
+  assert.deepEqual(compileCostProgram(both)?.ops.map((o) => o.op), ["moveTo"], "4-3-3: and the action half is charged");
+
+  // Two conditions and an action: every condition is kept, not just the first.
+  const two = parseSkills("[Activate: Main] If your Leader Card is red, you have 2 or more energy, and you discard 1 card from your hand : Draw 1 card.")[0];
+  const chained = priceCondition(two);
+  assert.equal(chained?.cond.kind, "all");
+  assert.equal((chained?.cond as { conds: unknown[] }).conds.length, 2, "9-1-3: both conditions hold the skill back");
+  assert.deepEqual(compileCostProgram(two)?.ops.map((o) => o.op), ["discard"]);
+
+  // A price is only split when both halves are read. When the action half is
+  // not — BT13-115's "choose this card and 1 ≪Android≫ card and discard them
+  // from your hand" — the whole price is unread and the skill goes to the
+  // referee, never the condition alone, which would hand out the effect free.
+  const half = parseSkills("[Activate: Main] If your Leader Card is red and you choose this card and 1 ≪Android≫ card and discard them from your hand : Draw 1 card.")[0];
+  assert.equal(priceCondition(half), null, "no half-read price");
+  assert.equal(compileCostProgram(half), null);
+
+  // A single condition that carries an "and" of its own is still one
+  // condition: the pieces do not read, so the sentence is read whole.
+  const wide = priceCondition(parseSkills("[Activate: Main] If your Leader Card is a red and blue card : Draw 1 card.")[0]);
+  assert.equal(wide?.cond.kind, "leaderMatches");
+  assert.deepEqual((wide?.cond as { filter: { colors: string[] } }).filter.colors, ["Red", "Blue"]);
+
+  // And the whole thing works in a game: the price is charged, then the effect.
+  DEFS.BOTHPAY = { ...DEFS.V1, id: "BOTHPAY", name: "BOTHPAY", skill: "[Activate: Main] If your Leader Card is red and you discard 1 card from your hand : Draw 2 cards." };
+  let s = arena({ battle: ["BOTHPAY"], hand: ["BIG", "BIG"] });
+  const both2 = s.players.p1.battle[0];
+  const hand = s.players.p1.hand.length;
+  assert.ok(canActivate(s, both2), "the leader is red and there is a card to discard");
+  s = play(s, { type: "activate", player: "p1", card: both2, skill: 0 });
+  assert.equal(s.prompt.kind, "chooseCards", "20-7: the discard is the owner's choice");
+  const paid = s.players.p1.hand[0];
+  s = play(s, { type: "choose", player: "p1", cards: [paid] });
+  assert.ok(s.players.p1.drop.includes(paid), "the action half was charged");
+  assert.equal(s.players.p1.hand.length, hand - 1 + 2, "one discarded, two drawn");
+  assertConsistent(s);
+
+  // Empty the hand and the same skill is no longer on offer.
+  const t = arena({ battle: ["BOTHPAY"] });
+  for (const id of t.players.p1.hand.slice()) move({ defs: DEFS }, t, [], id, "deck", "p1", { position: "bottom" });
+  assert.ok(!canActivate(t, t.players.p1.battle[0]), "nothing to discard: the price cannot be paid");
 }
 
 // ── where a card is, remembered but never trusted ──────────────────────────

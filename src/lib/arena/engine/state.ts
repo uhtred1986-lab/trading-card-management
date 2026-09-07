@@ -858,14 +858,18 @@ export function draw(ctx: GameContext, s: GameState, ev: GameEvent[], p: PlayerI
  *
  * A card under another is not in any area of its own, so it leaves the one it
  * was in and takes no state with it (3-1-4). `move` already returns the whole
- * stack to the Drop when the card on top leaves play (23-2-5).
+ * stack to the Drop when the card on top leaves play (23-2-5), and a card that
+ * arrives with a pile of its own has that pile flattened into the host's, the
+ * same way `stackOnto`, Potara and [Z-Awaken] do it.
  */
 export function placeUnder(ctx: GameContext, s: GameState, ev: GameEvent[], id: string, host: string): boolean {
   if (id === host || !s.cards[id] || !s.cards[host]) return false;
+  const from = areaOf(s, id);
   // 3-1-2: a Leader Card does not leave the Leader Area, not even downwards.
-  if (areaOf(s, id) === "leader") return false;
+  if (from === "leader") return false;
   // Nothing can go under a card that is not on the table.
-  if (!["battle", "leader", "unison"].includes(areaOf(s, host) ?? "")) return false;
+  const hostArea = areaOf(s, host);
+  if (!["battle", "leader", "unison"].includes(hostArea ?? "")) return false;
   detach(s, id);
   const inst = s.cards[id];
   inst.mode = "active";
@@ -874,7 +878,24 @@ export function placeUnder(ctx: GameContext, s: GameState, ev: GameEvent[], id: 
   inst.hidden = false;
   inst.negated = [];
   inst.usedThisTurn = [];
-  s.cards[host].under.push(id);
+  // A card that already had a pile of its own — an evolved Battle Card, a
+  // Z-Stack — takes it along into an area of the same name (23-2-6) and leaves
+  // it in the owners' Drop Areas when the name changes (23-2-5). Either way a
+  // stack stays one flat list: a pile hanging off a card that is itself in a
+  // pile is in no area at all, nothing in the engine reads one, and the cards
+  // in it would simply cease to exist.
+  const carried = inst.under.splice(0);
+  const follows = from === null || from === hostArea;
+  // 23-2-3 keeps the order they were in; 23-2-4 puts them on the very bottom.
+  s.cards[host].under.push(id, ...(follows ? carried : []));
+  if (!follows) {
+    for (const u of carried) {
+      // 14-1-4: a Z-card is removed from the game rather than dropped.
+      const dest: Area = isZ(ctx.defs[s.cards[u].cardId]) ? "removed" : "drop";
+      s.players[s.cards[u].owner][dest].unshift(u);
+      ev.push({ type: "move", card: u, from: from!, to: dest, owner: s.cards[u].owner });
+    }
+  }
   ev.push({ type: "stack", top: host, under: s.cards[host].under.slice() });
   return true;
 }
