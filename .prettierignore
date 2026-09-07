@@ -25,3 +25,16 @@ contract/fixtures/
 # The extracted rule text is a verbatim copy of Bandai's manual; the arena
 # engine cites section numbers into it by line.
 docs/rules/
+
+# Markdown is left alone deliberately, and this is the one opinionated entry
+# here. Prettier pads every table cell out to the width of the longest cell in
+# its column, which turns the data-source and decision tables in CLAUDE.md and
+# the arena specs into single lines over 1,500 characters — unreadable in the
+# source, and a whole-table diff every time one word changes. It also rewrites
+# *emphasis* to _emphasis_ throughout for no gain. These documents are prose
+# that gets read and hand-edited far more often than the code does, and the
+# formatting they have is deliberate.
+*.md
+
+# Not tracked; belongs to the local Claude Code setup, not the project.
+.claude/
