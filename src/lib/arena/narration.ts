@@ -114,7 +114,10 @@ export function narrate(b: Beat, n: Narrator): string | null {
       return o ? `${poss(o) === "your" ? "Your" : poss(o)} ${name(b.card)} is KO'd.` : `${name(b.card)} is KO'd.`;
     }
     case "negated":
-      return "The attack is negated.";
+      // 8-1-6-1 sends a negated attack straight to the Battle End Step, so
+      // neither player reaches a combo window. Saying only "negated" left the
+      // attacker looking for the Offense Step they never got.
+      return "The attack is negated — the battle ends here, with no Offense or Defense Step.";
     case "skill": {
       const clause = b.text.replace(/\s+/g, " ").trim().replace(/\.$/, "");
       const short = clause.length > 90 ? `${clause.slice(0, 88)}…` : clause;

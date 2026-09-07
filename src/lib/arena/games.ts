@@ -13,7 +13,7 @@ import { arenaGames, cards as cardsTable } from "@/db/schema";
 import { inArray } from "drizzle-orm";
 import { apply, createGame, legalActions, seedFrom, type Action, type CardDef, type EngineContext, type GameEvent, type GameState, type LegalAction } from "./engine";
 import { face } from "./engine";
-import { appendBeats, describeSkillEvent, toBeats, type Beats } from "./beats";
+import { appendBeats, describeSkillEvent, toBeats, type Beats, type NumberedBeat } from "./beats";
 import { cardDefFrom, deckInputFor } from "./load";
 import { scriptsFor } from "./scripts";
 
@@ -149,17 +149,29 @@ export async function loadGame(db: Db, id: number): Promise<LoadedGame | null> {
 }
 
 /** Apply one action and save. Throws whatever the engine throws for an illegal move. */
-export async function applyToGame(db: Db, id: number, action: Action): Promise<LoadedGame> {
+export async function applyToGame(db: Db, id: number, action: Action, told?: { say?: string | null; aside?: string | null }): Promise<LoadedGame> {
   const game = await loadGame(db, id);
   if (!game) throw new Error(`no game ${id}`);
   if (game.status !== "playing") throw new Error("this game is over");
   const { state, events } = apply(game.ctx, game.state, action);
-  const lines = [...game.log, ...describeEvents(game.ctx, state, events)].slice(-400);
+  // What Claude said about *this* move goes in ahead of it, because it is the
+  // reason for the move that follows. Collecting the whole batch and appending
+  // it at the end put a line said on turn 1 under the turn 2 header, which
+  // read as if Claude had acted out of turn.
+  const say = told?.say ?? null;
+  // An `aside` is the server disclosing something 3-1-3 would normally keep —
+  // what Claude saw in a search. Log only, never a beat: it is a note to the
+  // owner, not something the opponent said, and only a `debug` game has any.
+  const spoken = [...(say ? [say] : []), ...(told?.aside ? [told.aside] : [])];
+  const lines = [...game.log, ...spoken, ...describeEvents(game.ctx, state, events)].slice(-400);
   // Null when this action fired no skill, so the banner does not show again.
   const spotlight = spotlightFrom(game.ctx, state, events, lines.length);
   // One opponent turn is several applies, so beats climb from where the queue
   // already is; `act()` is what empties it, once, when you take your turn.
-  const beats = appendBeats(game.beats, toBeats(game.ctx, state, events, game.beats?.seq ?? 0));
+  const from = game.beats?.seq ?? 0;
+  const said: NumberedBeat[] = say ? [{ t: "say", text: say, n: from + 1 }] : [];
+  const moved = toBeats(game.ctx, state, events, from + said.length);
+  const beats = appendBeats(game.beats, { seq: moved.seq, list: [...said, ...moved.list], art: moved.art });
   const actions = [...((await db.query.arenaGames.findFirst({ where: eq(arenaGames.id, id) }))?.actions as Action[]), action];
   await db
     .update(arenaGames)
@@ -271,7 +283,9 @@ export function describeEvents(ctx: EngineContext, state: GameState, events: Gam
         out.push(`${name(e.card)} is KO'd`);
         break;
       case "attackNegated":
-        out.push("the attack is negated");
+        // 8-1-6-1: the battle goes straight to its end step, so no one gets a
+        // combo window. The bare line read as if the steps had been skipped.
+        out.push("the attack is negated — the battle ends, with no Offense or Defense Step");
         break;
       case "skill":
         out.push(`${name(e.card)}: ${e.text.replace(/\s+/g, " ").slice(0, 90)}`);

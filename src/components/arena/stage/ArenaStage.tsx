@@ -311,7 +311,7 @@ export function ArenaStage({ gameId, snapshot, skin = "night" }: { gameId: numbe
         <TopStrip view={view} />
 
         <div className="flex flex-col gap-2 lg:grid lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-start lg:gap-4">
-          <SideRail side={view.them} them cardProps={cardProps} onHover={hoverOf} hurt={hurting === view.them.player} narrator={narrator} className="lg:col-start-3 lg:row-start-1" />
+          <SideRail side={view.them} them cardProps={cardProps} hurt={hurting === view.them.player} narrator={narrator} className="lg:col-start-3 lg:row-start-1" />
 
           <section className="arena-stage relative rounded-xl border border-space-700/70 p-2 sm:rounded-2xl sm:p-3 lg:col-start-2 lg:row-start-1 lg:p-4" aria-label="Battle Areas">
             <HandBacks count={view.them.handCount} />
@@ -320,7 +320,7 @@ export function ArenaStage({ gameId, snapshot, skin = "night" }: { gameId: numbe
             <BattleRow cards={view.you.battle} cardProps={cardProps} zone="p1:battle" label="You have no Battle Cards" />
           </section>
 
-          <SideRail side={view.you} cardProps={cardProps} onHover={hoverOf} hurt={hurting === view.you.player} narrator={narrator} className="lg:col-start-1 lg:row-start-1" />
+          <SideRail side={view.you} cardProps={cardProps} hurt={hurting === view.you.player} narrator={narrator} className="lg:col-start-1 lg:row-start-1" />
         </div>
 
         {held && !view.over && !playback.playing && <NarrationRibbon text={held.text} n={held.n} mine={held.mine} live={false} />}
@@ -610,7 +610,6 @@ function SideRail({
   side,
   them = false,
   cardProps,
-  onHover,
   hurt = false,
   narrator,
   className = "",
@@ -618,7 +617,6 @@ function SideRail({
   side: SideView;
   them?: boolean;
   cardProps: CardProps;
-  onHover: (c: CardView) => (box: DOMRect | null) => void;
   /** This player is taking damage right now. */
   hurt?: boolean;
   narrator: { viewer: PlayerId; them: string };
@@ -626,6 +624,20 @@ function SideRail({
 }) {
   const spent = side.energy.length - side.activeEnergy;
   const p = side.player;
+  /**
+   * Energy and face-up life are drawn small because they are nearly always a
+   * count rather than a choice. But a prompt can name them — SD5-01's [Awaken]
+   * asks for up to 2 of your energy — and `hiddenChoices` keeps a card the
+   * board already draws out of the search sheet, so this row is the only place
+   * such a choice can be answered. They therefore carry every prop a card in
+   * the Battle Area carries, and grow to a real target while they are askable.
+   * Passing only `suppressed` here left that [Awaken] with no answer on screen
+   * but "Choose none".
+   */
+  const pile = (c: CardView) => {
+    const props = cardProps(c);
+    return { ...props, width: props.onTap ? 44 : 22 };
+  };
   return (
     <aside
       // Keyed on `hurt` so a second hit in the same turn shakes again rather
@@ -658,7 +670,7 @@ function SideRail({
         {(side.lifeFaceUp.length > 0 || side.zDeckFaceUp.length > 0) && (
           <div className="mt-1 flex flex-wrap gap-[2px] lg:justify-center">
             {[...side.lifeFaceUp, ...side.zDeckFaceUp].map((c) => (
-              <StageCard key={c.id} card={c} width={22} suppressed={cardProps(c).suppressed} onHover={onHover(c)} />
+              <StageCard key={c.id} {...pile(c)} />
             ))}
           </div>
         )}
@@ -690,7 +702,7 @@ function SideRail({
         </div>
         <div className="mt-1 flex flex-wrap gap-[2px] lg:justify-center">
           {side.energy.map((c) => (
-            <StageCard key={c.id} card={c} width={22} upsideDown suppressed={cardProps(c).suppressed} onHover={onHover(c)} />
+            <StageCard key={c.id} {...pile(c)} upsideDown />
           ))}
           {side.energy.length === 0 && <span className="text-[10px] text-space-600">none charged</span>}
         </div>
