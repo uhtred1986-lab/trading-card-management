@@ -2679,6 +2679,75 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
 }
 
 {
+  // A clause that stands after a look and says only what to add, never where
+  // from: "look at up to 5 cards from the top of your deck, **add up to 1
+  // white ≪Android≫ card to your hand**". The newer sets stopped printing the
+  // "among them" the block above reads, and without it the description named
+  // no area — so 20-1-6's "an unqualified card is one on the table" took over
+  // and the search offered the Battle Area, where the card was never going to
+  // be. 191 skills across the catalog read that way.
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+  type Choice = { sel: { area?: string; fromVar?: string; count?: number; upTo?: boolean; filter?: { colors: string[]; traits: string[]; costMax: number | null } } };
+
+  const dig = one("[Auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 white ≪Android≫ card to your hand, then shuffle your deck.");
+  assert.deepEqual(dig.unsupported, []);
+  assert.deepEqual(dig.ops.map((o) => o.op), ["look", "choose", "moveTo", "shuffle"]);
+  assert.deepEqual(dig.ops[0], { op: "look", n: 5, as: "looked" });
+  const pick = (dig.ops[1] as Choice).sel;
+  assert.equal(pick.fromVar, "looked", "the card comes out of what was looked at");
+  assert.equal(pick.area, undefined, "and not out of an area");
+  // The look's own "up to 5" belongs to a clause of its own: read off the
+  // whole sentence it would have sized this choice five cards wide.
+  assert.equal(pick.count, 1);
+  assert.equal(pick.upTo, true);
+  assert.deepEqual(pick.filter?.colors, ["White"], "the colour word narrows the choice");
+  // Traits are held as the clause spells them, which by here is lower case;
+  // `matches` compares them that way too.
+  assert.deepEqual(pick.filter?.traits, ["android"], "and so does the trait in guillemets");
+  // Adding is a move out of the cards looked at, not a draw — a draw would
+  // take the top of the deck and leave the chosen card where it was.
+  assert.deepEqual(dig.ops[2], { op: "moveTo", target: { var: "c0" }, to: "hand" });
+  // Nothing is said about the cards not taken, so nothing is emitted for
+  // them; the shuffle that follows is what puts them back.
+  assert.deepEqual(dig.ops[3], { op: "shuffle" });
+
+  // A measure after the trait still reads, and "card" or "cards" makes no
+  // difference to how many are taken.
+  const two = one("[Activate: Main] Look at up to 7 cards from the top of your deck, add up to 2 green ≪Adventure≫ cards to your hand, then shuffle your deck.");
+  assert.deepEqual(two.unsupported, []);
+  assert.equal((two.ops[1] as Choice).sel.count, 2);
+  const measured = one("[Auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 green ≪World Tournament≫ card with an energy cost of 4 or less to your hand, then shuffle your deck.");
+  assert.equal((measured.ops[1] as Choice).sel.filter?.costMax, 4);
+
+  // "Up to 1 card" says nothing about the card at all, which is a description
+  // and not a lack of one: an empty filter here would match nothing.
+  const any = one("[Auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 card to your hand, then shuffle your deck.");
+  assert.deepEqual(any.unsupported, []);
+  assert.equal((any.ops[1] as Choice).sel.fromVar, "looked");
+  assert.equal((any.ops[1] as Choice).sel.filter, undefined, "nothing said, nothing required");
+
+  // An area the text does print still wins: this is a search of the Drop that
+  // happens to follow a look, not a pick out of the look.
+  const drop = one("[Auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 red ≪Saiyan≫ card from your Drop to your hand, then shuffle your deck.");
+  assert.equal((drop.ops[1] as Choice).sel.area, "drop");
+  assert.equal((drop.ops[1] as Choice).sel.fromVar, undefined);
+
+  // With no look before it the clause is the deck search it has always been,
+  // and must not go hunting for a variable nothing bound.
+  const alone = one("[Activate: Main] Add up to 1 red ≪Saiyan≫ card from your deck to your hand, then shuffle your deck.");
+  assert.deepEqual(alone.unsupported, []);
+  assert.equal((alone.ops[0] as Choice).sel.area, "deck");
+  assert.equal((alone.ops[0] as Choice).sel.fromVar, undefined);
+
+  // "Add **it** to your hand" points back at the choice just made. Read as a
+  // fresh description it became a second choice on top of the first, and the
+  // player was asked to pick twice out of the same three cards.
+  const pronoun = one("[Auto] When you play this card, look at the top 3 cards of your deck, choose up to 1 ≪Saiyan≫ card among them, add it to your hand, then shuffle your deck.");
+  assert.deepEqual(pronoun.ops.map((o) => o.op), ["look", "choose", "moveTo", "shuffle"]);
+  assert.deepEqual((pronoun.ops[2] as { target: unknown }).target, { var: "c0" });
+}
+
+{
   // The engine side: a search offers exactly the cards that match, and the
   // rest of the look goes back to the bottom of the deck (20-12-3).
   DEFS.DIGGER = {

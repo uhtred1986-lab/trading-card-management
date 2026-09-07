@@ -9,7 +9,7 @@ import type { CardDef, CardType, Color, DeckInput } from "./engine";
 
 type CardRow = typeof cards.$inferSelect;
 
-const COLORS: Color[] = ["Red", "Blue", "Green", "Yellow", "Black", "Colorless"];
+const COLORS: Color[] = ["Red", "Blue", "Green", "Yellow", "Black", "White", "Colorless"];
 
 /** "4" → 4, "X" → "X", null/"" → null. */
 export function energyCostOf(text: string | null | undefined): number | "X" | null {

@@ -153,7 +153,7 @@ function inNameList(text: string, comma: number): boolean {
  * which is a worse failure than the fragment this is here to prevent.
  */
 const LIST_WORD =
-  /^(?:(?:your|their|its owner'?s|the|an? opponent'?s|your opponent'?s)\s+)?(?:red|blue|green|yellow|black|multicolou?r|battle area|combo area|leader area|drop area|energy area|unison area|z-energy|z-deck|drop|hand|deck|life|warp|energy|unison)\b/i;
+  /^(?:(?:your|their|its owner'?s|the|an? opponent'?s|your opponent'?s)\s+)?(?:red|blue|green|yellow|black|white|multicolou?r|battle area|combo area|leader area|drop area|energy area|unison area|z-energy|z-deck|drop|hand|deck|life|warp|energy|unison)\b/i;
 
 /** A list item, with the "and"/"or"/"and/or" that may introduce the last one. */
 function listItem(seg: string): boolean {
@@ -230,7 +230,7 @@ function andJoinsTwoCountedAreas(text: string, start: number, i: number): boolea
  * colour runs straight on into the rest of the phrase.
  */
 function commaJoinsColours(text: string, comma: number): boolean {
-  return /\b(?:red|blue|green|yellow|black)\s*$/i.test(text.slice(0, comma)) && /^,\s*(?:red|blue|green|yellow|black)\b/i.test(text.slice(comma));
+  return /\b(?:red|blue|green|yellow|black|white)\s*$/i.test(text.slice(0, comma)) && /^,\s*(?:red|blue|green|yellow|black|white)\b/i.test(text.slice(comma));
 }
 
 /**
@@ -240,7 +240,7 @@ function commaJoinsColours(text: string, comma: number): boolean {
  * a bare noun phrase, and neither is a clause.
  */
 function andJoinsColours(text: string, start: number, i: number): boolean {
-  return /\b(?:red|blue|green|yellow|black)\s*$/i.test(text.slice(start, i)) && /^ and (?:red|blue|green|yellow|black)\b/i.test(text.slice(i));
+  return /\b(?:red|blue|green|yellow|black|white)\s*$/i.test(text.slice(start, i)) && /^ and (?:red|blue|green|yellow|black|white)\b/i.test(text.slice(i));
 }
 
 /**
@@ -367,8 +367,16 @@ const AREA_NAMED: Record<string, ScriptArea> = {
 // through to whichever single area matched first.
 const AREA_PAIR_RE = /\b(?:in|from|of|into) (?:your|their)(?: opponent'?s)? ((?:z-)?[a-z]+(?: area)?) or (?:(?:from|in) )?(?:the )?(?:your |their )?(?:opponent'?s )?((?:z-)?[a-z]+(?: area)?)\b/;
 
-/** "up to 2 of your opponent's Battle Cards in Rest Mode" → a selector. */
-export function parseTarget(phrase: string): Selector | null {
+/**
+ * "up to 2 of your opponent's Battle Cards in Rest Mode" → a selector.
+ *
+ * `looked` is the variable a `look` earlier in the same skill bound, for the
+ * clauses that pick out of what was just looked at without saying so — see the
+ * "add … to your hand" rule in `compileClause`. It is passed only once the
+ * caller has established that the phrase names no area of its own, so it can
+ * never overrule an area the text actually printed.
+ */
+export function parseTarget(phrase: string, looked?: string): Selector | null {
   let t = phrase.toLowerCase();
   // "Each non-Leader card under this card" is about the stack; the "this card"
   // in it names the host, not the target (23-2). Read before the shortcut
@@ -431,7 +439,7 @@ export function parseTarget(phrase: string): Selector | null {
     }
   }
   // "among them" / "of those cards" keeps working on what was just looked at.
-  const fromVar = /\bamong them\b|\bof those cards\b|\bfrom among them\b|\bof them\b/.test(t) ? "looked" : undefined;
+  const fromVar = /\bamong them\b|\bof those cards\b|\bfrom among them\b|\bof them\b/.test(t) ? "looked" : looked;
   // "Choose 1 of your <Majin Buu>" names no area, but 20-1-6 says an
   // unqualified card is one on the table. Without this the choice fails, and
   // then every later "it" in the same skill has nothing to point at.
@@ -1639,6 +1647,43 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     }
   }
 
+  // "Look at up to 5 cards from the top of your deck, **add up to 1 white
+  // ≪King Kai's Planet≫ card to your hand**, then shuffle your deck"
+  // (BT30-116; 191 skills in the catalog are phrased this way). The clause says
+  // what to add and never where from: standing after the look is the whole of
+  // what says the card comes out of the cards just looked at. The older sets
+  // printed "among them", which `parseTarget` reads; without it the
+  // description names no area, so 20-1-6's "an unqualified card is one on the
+  // table" took over and the search offered the Battle Area instead — the card
+  // was never among the candidates, and the look was spent for nothing. Read
+  // here, after the look has bound its variable and before the `add … to your
+  // hand` move further down that did that.
+  //
+  // Only when the description names no area of its own: "add up to 1 red card
+  // **from your deck** to your hand" is a search of the deck, look or no look,
+  // and the same test `parseTarget` uses is what says so.
+  {
+    const add = c.lastSeen ? /^add (.+?) to your hand$/.exec(t) : null;
+    const desc = add?.[1];
+    if (desc && !AREA_WORDS.some(([re]) => re.test(desc.toLowerCase()))) {
+      // Only a description that names a card of its own. "Add **it** to your
+      // hand", "add the chosen card to your hand" and "add this card to your
+      // hand" all point back at something the skill has already settled, and
+      // `refFor` is what says which — asked here as well, so the two readings
+      // cannot drift apart. Read as a fresh description they became a second
+      // choice on top of the one the text already made.
+      const back = refFor(desc, c);
+      // A phrase that is nothing but a number of cards names no card either,
+      // so `parseTarget` refuses it on its own and `refFor` hands back
+      // nothing; after a look it is still a description, and the plainest one.
+      const own = back ? "sel" in back && !back.sel.special : /^(?:up to )?\d+ cards?$/i.test(desc);
+      // The look's own "up to 5" belongs to a clause of its own by now, so the
+      // count read here can only be the add's.
+      const sel = own ? parseTarget(desc, c.lastSeen ?? undefined) : null;
+      if (sel && !sel.special) return withChoice({ sel }, clause, c, (target) => ({ op: "moveTo", target, to: "hand" }));
+    }
+  }
+
   // Another way to pay for this card's own [Counter] skill (5-3). The bare
   // sentence with no "by …" tail is only a reminder of where a [Counter] is
   // activated from, and `connective` skips it before we get here.
@@ -1668,7 +1713,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // Matched on `q`, not `t`: a cost change may carry a duration like anything
   // else ("…by 1 **for the duration of the turn**"), and anchoring to the end
   // of the raw clause meant every one of those went unread.
-  if ((m = /^(reduce|increase) the (energy|combo) cost of (.+?) by (\d+|(?:\{[rugyk\d]+\})+)(?: for each (.+))?$/.exec(q))) {
+  if ((m = /^(reduce|increase) the (energy|combo) cost of (.+?) by (\d+|(?:\{[rugykw\d]+\})+)(?: for each (.+))?$/.exec(q))) {
     // 20-21 works in both directions, and the sets print both: "increase the
     // energy cost of this card in your Battle Area by 2" is the same standing
     // effect with the sign turned round.
@@ -1809,7 +1854,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
 
   // 20-1: what a card counts as, rather than what it does. "This card gains
   // ≪Saiyan≫ in all areas" makes it a Saiyan to every skill that names one.
-  if ((m = /^(.*?) (?:gains?|is (?:also )?treated as(?: an?)?) ((?:(?:non-)?(?:<[^>]+>|≪[^≫]+≫|red|blue|green|yellow|black)[\s,]*(?:and\s+|or\s+)?)+)(?: in (?:all|any) areas?)?$/.exec(t))) {
+  if ((m = /^(.*?) (?:gains?|is (?:also )?treated as(?: an?)?) ((?:(?:non-)?(?:<[^>]+>|≪[^≫]+≫|red|blue|green|yellow|black|white)[\s,]*(?:and\s+|or\s+)?)+)(?: in (?:all|any) areas?)?$/.exec(t))) {
     const what = m[2];
     const filter = parseFilter(what);
     const colors = filter.colors;

@@ -112,8 +112,10 @@ function splitRunOn(line: string): string[] {
 /** The bullet a modal option starts with. The catalog uses several. */
 export const BULLET = /^[・･·•‧]\s*/;
 
-const COLOR_BY_LETTER: Record<string, Color> = { r: "Red", u: "Blue", g: "Green", y: "Yellow", k: "Black" };
-const COLOR_BY_NAME: Record<string, Color> = { red: "Red", blue: "Blue", green: "Green", yellow: "Yellow", black: "Black" };
+// None of the letters is the initial of the word it stands for: blue is u,
+// black is k, and White — which BT28 added as a sixth colour — is w.
+const COLOR_BY_LETTER: Record<string, Color> = { r: "Red", u: "Blue", g: "Green", y: "Yellow", k: "Black", w: "White" };
+const COLOR_BY_NAME: Record<string, Color> = { red: "Red", blue: "Blue", green: "Green", yellow: "Yellow", black: "Black", white: "White" };
 
 /** "{g}{g}" / "{u}" orbs in a cost → per-colour counts; "{1}" style numbers → any. */
 /**
@@ -123,13 +125,13 @@ const COLOR_BY_NAME: Record<string, Color> = { red: "Red", blue: "Blue", green: 
  * a loop over numbers.
  */
 export function eitherOrbsIn(text: string): Color[][] {
-  return [...text.matchAll(/\{([rugyk])\}\/\{([rugyk])\}/gi)].map((m) => [COLOR_BY_LETTER[m[1].toLowerCase()], COLOR_BY_LETTER[m[2].toLowerCase()]]);
+  return [...text.matchAll(/\{([rugykw])\}\/\{([rugykw])\}/gi)].map((m) => [COLOR_BY_LETTER[m[1].toLowerCase()], COLOR_BY_LETTER[m[2].toLowerCase()]]);
 }
 
 export function orbsIn(text: string): Partial<Record<Color, number>> & { any?: number } {
   const out: Partial<Record<Color, number>> & { any?: number } = {};
-  const rest = text.replace(/\{[rugyk]\}\/\{[rugyk]\}/gi, "");
-  for (const m of rest.matchAll(/\{([rugyk])\}/gi)) {
+  const rest = text.replace(/\{[rugykw]\}\/\{[rugykw]\}/gi, "");
+  for (const m of rest.matchAll(/\{([rugykw])\}/gi)) {
     const c = COLOR_BY_LETTER[m[1].toLowerCase()];
     out[c] = (out[c] ?? 0) + 1;
   }
@@ -204,7 +206,7 @@ export function keywordOf(tag: string): KeywordSkill | null {
 /** Colour words in a tag tail: "Red/Blue", "Green Yellow", "Blue". */
 function colorsIn(text: string): Color[] {
   const out: Color[] = [];
-  for (const m of text.toLowerCase().matchAll(/red|blue|green|yellow|black/g)) {
+  for (const m of text.toLowerCase().matchAll(/red|blue|green|yellow|black|white/g)) {
     const c = COLOR_BY_NAME[m[0]];
     if (!out.includes(c)) out.push(c);
   }
@@ -283,9 +285,9 @@ function isOnlyOrbs(body: string): boolean {
     .trim();
   // It has to *start* with an orb, or "When this card attacks, draw 1 card"
   // would count as a cost and the whole skill would vanish.
-  if (!/^\{[rugyk\d]\}/i.test(withoutNotes)) return false;
+  if (!/^\{[rugykw\d]\}/i.test(withoutNotes)) return false;
   const rest = withoutNotes
-    .replace(/\{[rugyk\d]\}/gi, "")
+    .replace(/\{[rugykw\d]\}/gi, "")
     .replace(/\//g, "") // "{r}/{u}": either colour
     .replace(/^[\s,]*(?:if|when|while)\b.*$/i, "")
     .trim();

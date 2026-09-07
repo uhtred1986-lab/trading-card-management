@@ -387,7 +387,7 @@ function dropWrongColour(ctx: GameContext, s: GameState, before: number, source:
   s.pending = s.pending.filter((e, i) => {
     if (i < before) return true;
     const sk = skillsOfInstance(ctx, s, e.card).find((x) => x.index === e.skillIndex);
-    const m = /flipped face up by (?:one of )?your (red|blue|green|yellow|black) card skills?/i.exec(sk ? sk.cost + " " + sk.effect : "");
+    const m = /flipped face up by (?:one of )?your (red|blue|green|yellow|black|white) card skills?/i.exec(sk ? sk.cost + " " + sk.effect : "");
     if (!m) return true;
     const want = (m[1][0].toUpperCase() + m[1].slice(1)) as Color;
     return colors.includes(want);

@@ -96,7 +96,7 @@ export interface CardFilter {
   z: boolean | null;
 }
 
-const COLOR_WORDS: Record<string, Color> = { red: "Red", blue: "Blue", green: "Green", yellow: "Yellow", black: "Black" };
+const COLOR_WORDS: Record<string, Color> = { red: "Red", blue: "Blue", green: "Green", yellow: "Yellow", black: "Black", white: "White" };
 
 /**
  * Keyword families a target description names without the parameters the
@@ -137,7 +137,7 @@ export function parseFilter(text: string): CardFilter {
   });
   for (const m of t.matchAll(/(non-)?<([^>]+)>/g)) (m[1] ? f.notCharacters : f.characters).push(m[2].trim());
   for (const m of t.matchAll(/(non-)?≪([^≫]+)≫/g)) (m[1] ? f.notTraits : f.traits).push(m[2].trim());
-  for (const m of t.matchAll(/\{([^}]+)\}/g)) if (!/^[rugyk]$|^\d+$/i.test(m[1])) f.names.push(m[1].trim());
+  for (const m of t.matchAll(/\{([^}]+)\}/g)) if (!/^[rugykw]$|^\d+$/i.test(m[1])) f.names.push(m[1].trim());
   const lower = t.toLowerCase();
   // Colour words are read off the description with every *name* taken out of
   // it. ≪Red Ribbon Army≫, <Goku Black>, <Commander Red>, {Super Saiyan Blue
@@ -153,7 +153,7 @@ export function parseFilter(text: string): CardFilter {
     .replace(/≪[^≫]*≫/g, " ")
     .replace(/\{[^}]*\}/g, " ")
     .replace(/\[[^\]]*\]/g, " ");
-  if (/\bmono-?colou?r\b|\bmono-(red|blue|green|yellow|black)\b/.test(lower)) f.monoColor = true;
+  if (/\bmono-?colou?r\b|\bmono-(red|blue|green|yellow|black|white)\b/.test(lower)) f.monoColor = true;
   if (/\bmulti-?colou?r(?:ed)?\b/.test(lower)) f.multiColor = true;
   // "Use up to 1 face-up ≪Turles Crusher Corps≫ card from your life in a combo"
   // (3-9-2-1). "Face down" is never a way a card is picked out, so only the
@@ -161,11 +161,11 @@ export function parseFilter(text: string): CardFilter {
   if (/\bface[- ]up\b/.test(lower)) f.faceUp = true;
   // "Non-black Battle Cards": the colour is one the card must *not* have, and
   // reading it as an ordinary colour word would invert the phrase.
-  for (const m of colourText.matchAll(/\bnon-(red|blue|green|yellow|black)\b/g)) {
+  for (const m of colourText.matchAll(/\bnon-(red|blue|green|yellow|black|white)\b/g)) {
     const c = COLOR_WORDS[m[1]];
     if (!f.notColors.includes(c)) f.notColors.push(c);
   }
-  for (const m of colourText.matchAll(/(non-)?\b(red|blue|green|yellow|black)\b/g)) {
+  for (const m of colourText.matchAll(/(non-)?\b(red|blue|green|yellow|black|white)\b/g)) {
     if (m[1]) continue;
     const c = COLOR_WORDS[m[2]];
     if (!f.colors.includes(c) && !f.notColors.includes(c)) f.colors.push(c);
