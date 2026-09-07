@@ -22,9 +22,7 @@ export function LocationsAdmin({ locations }: { locations: StorageLocation[] }) 
 
   return (
     <div className="space-y-4">
-      {note ? (
-        <p className={`rounded-xl border p-2 text-sm ${note.ok ? "border-gain/40 bg-gain/5 text-gain" : "border-loss/40 bg-loss/5 text-loss"}`}>{note.ok ? note.message : note.error}</p>
-      ) : null}
+      {note ? <p className={`rounded-xl border p-2 text-sm ${note.ok ? "border-gain/40 bg-gain/5 text-gain" : "border-loss/40 bg-loss/5 text-loss"}`}>{note.ok ? note.message : note.error}</p> : null}
 
       <div className="overflow-x-auto rounded-xl border border-space-700/70">
         <table className="w-full text-sm">
@@ -85,7 +83,11 @@ export function LocationsAdmin({ locations }: { locations: StorageLocation[] }) 
                 </td>
                 <td className="px-3 py-2">
                   <div className="flex flex-wrap justify-end gap-1">
-                    <button onClick={() => run(() => archiveLocationAction(l.id, !l.isArchived))} disabled={pending} className="tap rounded-md border border-space-600 px-2 py-1 text-xs text-space-200 hover:bg-space-800">
+                    <button
+                      onClick={() => run(() => archiveLocationAction(l.id, !l.isArchived))}
+                      disabled={pending}
+                      className="tap rounded-md border border-space-600 px-2 py-1 text-xs text-space-200 hover:bg-space-800"
+                    >
                       {l.isArchived ? "Restore" : "Archive"}
                     </button>
                     <button
@@ -113,7 +115,12 @@ export function LocationsAdmin({ locations }: { locations: StorageLocation[] }) 
           <input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="Binder 1" className={input} />
           <input value={draft.note} onChange={(e) => setDraft({ ...draft, note: e.target.value })} placeholder="note (optional)" className={input} />
           <button
-            onClick={() => run(() => createLocationAction(draft.name, draft.note), () => setDraft({ name: "", note: "" }))}
+            onClick={() =>
+              run(
+                () => createLocationAction(draft.name, draft.note),
+                () => setDraft({ name: "", note: "" }),
+              )
+            }
             disabled={pending || !draft.name.trim()}
             className="tap rounded-md bg-ki-500 px-3 py-1.5 text-sm font-semibold text-space-950 hover:bg-ki-400 disabled:opacity-50"
           >

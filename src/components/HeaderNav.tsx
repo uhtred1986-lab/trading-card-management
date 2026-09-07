@@ -14,9 +14,7 @@ export function HeaderNav() {
         key={href}
         href={href}
         aria-current={active ? "page" : undefined}
-        className={`rounded-md px-3 py-1.5 text-sm transition-colors ${
-          active ? "bg-space-800 text-space-50" : "text-space-200 hover:bg-space-800 hover:text-space-50"
-        }`}
+        className={`rounded-md px-3 py-1.5 text-sm transition-colors ${active ? "bg-space-800 text-space-50" : "text-space-200 hover:bg-space-800 hover:text-space-50"}`}
       >
         <NavLabel label={label} />
       </Link>

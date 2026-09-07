@@ -191,10 +191,7 @@ export function ArenaCard({
         )}
         {/* Rest Mode is already a 90° turn; the band is what names it at a glance. */}
         {rested && !card.hidden && (
-          <span
-            className="absolute inset-x-0 top-1/2 -translate-y-1/2 bg-space-950/70 text-center font-bold uppercase tracking-[0.2em] text-space-100"
-            style={{ fontSize: px(7) }}
-          >
+          <span className="absolute inset-x-0 top-1/2 -translate-y-1/2 bg-space-950/70 text-center font-bold uppercase tracking-[0.2em] text-space-100" style={{ fontSize: px(7) }}>
             rest
           </span>
         )}
@@ -244,10 +241,7 @@ export function ArenaCard({
         {held && <span className="arena-hold pointer-events-none absolute inset-x-0 bottom-0 h-[2px] origin-left bg-ki-400" aria-hidden />}
         {/* Combo is the number that decides a battle from hand — worth its own badge. */}
         {card.comboPower != null && card.comboPower > 0 && chrome && (
-          <span
-            className="absolute right-[2px] top-[2px] rounded-full bg-dbs-blue/90 px-[3px] font-mono font-bold leading-none text-space-50"
-            style={{ fontSize: px(7), paddingBlock: px(2) }}
-          >
+          <span className="absolute right-[2px] top-[2px] rounded-full bg-dbs-blue/90 px-[3px] font-mono font-bold leading-none text-space-50" style={{ fontSize: px(7), paddingBlock: px(2) }}>
             +{Math.round(card.comboPower / 1000)}k
           </span>
         )}

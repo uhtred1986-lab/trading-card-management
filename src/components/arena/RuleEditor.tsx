@@ -102,7 +102,14 @@ export function RuleEditor({
           {pending ? "reading…" : "Read it"}
         </button>
         {line !== printed && (
-          <button type="button" onClick={() => { setLine(printed); setPreview(null); }} className="tap text-[11px] text-space-400">
+          <button
+            type="button"
+            onClick={() => {
+              setLine(printed);
+              setPreview(null);
+            }}
+            className="tap text-[11px] text-space-400"
+          >
             back to the printed text
           </button>
         )}

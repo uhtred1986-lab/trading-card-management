@@ -51,9 +51,7 @@ export function GameFilter({
         key={key ?? "all"}
         href={href(key)}
         aria-current={active}
-        className={`tap rounded-lg border px-2.5 py-1 text-sm transition-colors ${
-          active ? "border-ki-500 bg-ki-500/10 text-space-50" : "border-space-700 text-space-300 hover:border-space-500"
-        }`}
+        className={`tap rounded-lg border px-2.5 py-1 text-sm transition-colors ${active ? "border-ki-500 bg-ki-500/10 text-space-50" : "border-space-700 text-space-300 hover:border-space-500"}`}
       >
         {label}
       </Link>

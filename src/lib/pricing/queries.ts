@@ -67,13 +67,9 @@ export async function pricesForPrints(db: Db, printIds: string[]): Promise<Map<s
 
   for (const [printId, list] of byPrint) {
     // Normal: a non-foil product's Normal price, else any Normal.
-    const normal =
-      list.find((r) => r.sub_type === "Normal" && isNonFoilMarker(r.marker)) ??
-      list.find((r) => r.sub_type === "Normal");
+    const normal = list.find((r) => r.sub_type === "Normal" && isNonFoilMarker(r.marker)) ?? list.find((r) => r.sub_type === "Normal");
     // Foil: a foil-marked product's Normal price, else any foil sub-type.
-    const foil =
-      list.find((r) => r.sub_type === "Normal" && isFoilMarker(r.marker)) ??
-      list.find((r) => isFoilSubType(r.sub_type));
+    const foil = list.find((r) => r.sub_type === "Normal" && isFoilMarker(r.marker)) ?? list.find((r) => isFoilSubType(r.sub_type));
     const newest = list.reduce((a, b) => (a.captured_on >= b.captured_on ? a : b));
     out.set(printId, {
       printId,

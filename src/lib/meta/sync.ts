@@ -80,10 +80,7 @@ export async function syncMeta(db: Db): Promise<MetaSyncSummary> {
           const cardId = resolved.get(dc.cardNumber) ?? null;
           if (cardId) cardsMatched++;
           else cardsUnmatched++;
-          await db
-            .insert(metaResultCards)
-            .values({ resultId: result.id, cardId, cardNumberRaw: dc.cardNumber, zone: dc.zone, quantity: dc.quantity })
-            .onConflictDoNothing();
+          await db.insert(metaResultCards).values({ resultId: result.id, cardId, cardNumberRaw: dc.cardNumber, zone: dc.zone, quantity: dc.quantity }).onConflictDoNothing();
         }
       }
     }

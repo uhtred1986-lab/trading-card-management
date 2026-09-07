@@ -285,9 +285,7 @@ export function shapeCatalog(raw: DpCard[], game: Game = "dbs"): ShapedCatalog {
     const backName = cleanText(c.card_back_name);
     const name = cleanText(c.card_name) ?? base;
     const rarity = normaliseRarity(cleanText(c.card_rarity), game);
-    const searchText = [base, base.replace(/-/g, ""), name, backName ?? "", ...characters]
-      .join(" ")
-      .toLowerCase();
+    const searchText = [base, base.replace(/-/g, ""), name, backName ?? "", ...characters].join(" ").toLowerCase();
 
     cardsOut.push({
       id: base,
@@ -295,7 +293,10 @@ export function shapeCatalog(raw: DpCard[], game: Game = "dbs"): ShapedCatalog {
       game,
       name,
       cardType: (cleanText(c.card_type) ?? "UNKNOWN").toUpperCase(),
-      colors: (cleanText(c.card_color) ?? "").split("/").map((s) => s.trim()).filter(Boolean),
+      colors: (cleanText(c.card_color) ?? "")
+        .split("/")
+        .map((s) => s.trim())
+        .filter(Boolean),
       energyCost: cleanText(c.card_energy_cost),
       zEnergyCost: cleanText(c.z_energy_cost),
       power: cleanInt(c.card_power),
@@ -385,7 +386,10 @@ async function findBrokenImages(urls: Iterable<string>, concurrency: number): Pr
  */
 export async function verifyBackImages(shaped: ShapedCatalog, concurrency = 12): Promise<number> {
   const withBack = shaped.cards.filter((c) => c.backImageUrl);
-  const broken = await findBrokenImages(withBack.map((c) => c.backImageUrl!), concurrency);
+  const broken = await findBrokenImages(
+    withBack.map((c) => c.backImageUrl!),
+    concurrency,
+  );
   for (const c of withBack) if (broken.has(c.backImageUrl!)) c.backImageUrl = null;
   return withBack.length - broken.size;
 }

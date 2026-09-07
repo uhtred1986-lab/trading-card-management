@@ -11,7 +11,21 @@
  * The text form is deliberately terse: it is sent on every decision, so every
  * word is paid for.
  */
-import { areaOf, comboPowerOf, compileCardCached, describeScript, face, keywordsInForce, powerOf, skillsOf, type CardDef, type EngineContext, type GameState, type LegalAction, type PlayerId } from "../engine";
+import {
+  areaOf,
+  comboPowerOf,
+  compileCardCached,
+  describeScript,
+  face,
+  keywordsInForce,
+  powerOf,
+  skillsOf,
+  type CardDef,
+  type EngineContext,
+  type GameState,
+  type LegalAction,
+  type PlayerId,
+} from "../engine";
 import { def } from "../engine/state";
 import { other } from "../engine";
 
@@ -35,7 +49,11 @@ function cardLine(ctx: EngineContext, s: GameState, id: string, withText: boolea
   if (kw.length) bits.push(`[${kw.join("][")}]`);
   let line = bits.join(", ");
   // Full text only for cards that can act: in play, or in Claude's own hand.
-  if (withText && f.skill) line += `\n    text: ${f.skill.replace(/<br\s*\/?>/gi, " / ").replace(/\s+/g, " ").slice(0, 300)}`;
+  if (withText && f.skill)
+    line += `\n    text: ${f.skill
+      .replace(/<br\s*\/?>/gi, " / ")
+      .replace(/\s+/g, " ")
+      .slice(0, 300)}`;
   return line;
 }
 
@@ -73,8 +91,18 @@ function sideText(ctx: EngineContext, s: GameState, p: PlayerId, own: boolean): 
   // is one of the few things either life area may say. The face-down ones stay
   // a number, on both sides.
   const faceUp = (area: string[]) => area.filter((id) => s.cards[id].faceUp);
-  if (faceUp(ps.life).length) lines.push(`  face-up in life: ${faceUp(ps.life).map((id) => cardLine(ctx, s, id, true)).join("; ")}`);
-  if (faceUp(ps.zDeck).length) lines.push(`  face-up in Z-Deck: ${faceUp(ps.zDeck).map((id) => cardLine(ctx, s, id, true)).join("; ")}`);
+  if (faceUp(ps.life).length)
+    lines.push(
+      `  face-up in life: ${faceUp(ps.life)
+        .map((id) => cardLine(ctx, s, id, true))
+        .join("; ")}`,
+    );
+  if (faceUp(ps.zDeck).length)
+    lines.push(
+      `  face-up in Z-Deck: ${faceUp(ps.zDeck)
+        .map((id) => cardLine(ctx, s, id, true))
+        .join("; ")}`,
+    );
   return lines.join("\n");
 }
 
@@ -124,9 +152,20 @@ export function decklistText(ctx: EngineContext, s: GameState, p: PlayerId): str
   for (const [cardId, n] of counts) {
     const d = ctx.defs[cardId];
     if (!d) continue;
-    const kw = [...new Set(skillsOf(d).map((sk) => sk.keyword?.name).filter(Boolean))];
+    const kw = [
+      ...new Set(
+        skillsOf(d)
+          .map((sk) => sk.keyword?.name)
+          .filter(Boolean),
+      ),
+    ];
     const head = `${n}× ${d.name} (${d.id}) — ${d.type.toLowerCase()}, ${d.colors.join("/")}, cost ${d.energyCost ?? "—"}, ${d.power ?? "—"} power${d.comboPower != null ? `, combo +${money(d.comboPower)} for ${d.comboCost}` : ""}${kw.length ? `, [${kw.join("][")}]` : ""}`;
-    const text = d.skill ? `\n   ${d.skill.replace(/<br\s*\/?>/gi, "\n   ").replace(/[ \t]+/g, " ").trim()}` : "";
+    const text = d.skill
+      ? `\n   ${d.skill
+          .replace(/<br\s*\/?>/gi, "\n   ")
+          .replace(/[ \t]+/g, " ")
+          .trim()}`
+      : "";
     lines.push(head + text + engineReading(ctx, d));
   }
   return lines.sort().join("\n");

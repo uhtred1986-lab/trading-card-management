@@ -93,14 +93,7 @@ export default async function CardsPage({ searchParams }: { searchParams: Promis
         {view !== "grid" ? <input type="hidden" name="view" value={view} /> : null}
         {/* The chips above own the game; the form carries the choice through a search. */}
         {search.game ? <input type="hidden" name="game" value={search.game} /> : null}
-        <input
-          type="search"
-          name="q"
-          defaultValue={search.q ?? ""}
-          placeholder="Name, number (BT18-020), character…"
-          className={`${select} col-span-2 lg:col-span-3`}
-          autoComplete="off"
-        />
+        <input type="search" name="q" defaultValue={search.q ?? ""} placeholder="Name, number (BT18-020), character…" className={`${select} col-span-2 lg:col-span-3`} autoComplete="off" />
         <select name="set" defaultValue={search.set ?? ""} className={select}>
           <option value="">All sets</option>
           {sets.map((s) => (
@@ -161,9 +154,7 @@ export default async function CardsPage({ searchParams }: { searchParams: Promis
             <option value="name">Name</option>
           </select>
         </div>
-        <button className="tap col-span-2 rounded-md bg-ki-500 px-3 py-1.5 text-sm font-semibold text-space-950 hover:bg-ki-400 sm:col-span-4 lg:col-span-8">
-          Search
-        </button>
+        <button className="tap col-span-2 rounded-md bg-ki-500 px-3 py-1.5 text-sm font-semibold text-space-950 hover:bg-ki-400 sm:col-span-4 lg:col-span-8">Search</button>
       </form>
 
       {result.rows.length === 0 ? (

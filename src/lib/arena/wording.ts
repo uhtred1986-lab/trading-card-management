@@ -84,12 +84,19 @@ export function refusal(r: Requirement, o: { name: string; reaching: Reaching; s
     }
     case "mode":
       // A rule that keeps it down is the one case where "next turn" is a promise the rules will not keep.
-      return { fact: `${name} is in Rest Mode — it cannot ${verb}.`, remedy: r.locked ? "A rule keeps it from standing up at your next Charge Phase." : "It stands back up at the start of your next turn." };
+      return {
+        fact: `${name} is in Rest Mode — it cannot ${verb}.`,
+        remedy: r.locked ? "A rule keeps it from standing up at your next Charge Phase." : "It stands back up at the start of your next turn.",
+      };
     case "timing":
       return { fact: r.window === "nextTurn" ? `${name} cannot attack yet.` : `${name} cannot ${verb} now.`, remedy: WINDOW[r.window] ?? `Only in the ${r.window}.` };
     case "oncePerTurn":
       if (r.what === "charge") return { fact: "You have already charged this turn.", remedy: "One charge per turn — again next turn." };
-      if (r.what === "skill") return { fact: `${name}'s skill has already been used ${r.limit != null && r.limit > 1 ? `${r.limit} times ` : ""}this turn.`, remedy: `${r.limit != null ? `[Limit ${r.limit}]` : "[Once per turn]"} — again next turn.` };
+      if (r.what === "skill")
+        return {
+          fact: `${name}'s skill has already been used ${r.limit != null && r.limit > 1 ? `${r.limit} times ` : ""}this turn.`,
+          remedy: `${r.limit != null ? `[Limit ${r.limit}]` : "[Once per turn]"} — again next turn.`,
+        };
       return { fact: `${r.what} has already been used this turn.`, remedy: "Again next turn." };
     case "zone":
       return { fact: `${name} has to be in ${AREA[r.area]} for that.`, remedy: r.area === "battle" && o.inHand ? "Play it first." : null };

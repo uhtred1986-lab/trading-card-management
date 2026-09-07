@@ -77,10 +77,6 @@ export async function deleteLocation(db: Db, id: number): Promise<void> {
 
 export async function setCopyLocations(db: Db, lotIds: number[], locationId: number | null): Promise<string[]> {
   if (lotIds.length === 0) return [];
-  const rows = await db
-    .update(ownedCards)
-    .set({ locationId, updatedAt: new Date() })
-    .where(inArray(ownedCards.id, lotIds))
-    .returning({ cardId: ownedCards.cardId });
+  const rows = await db.update(ownedCards).set({ locationId, updatedAt: new Date() }).where(inArray(ownedCards.id, lotIds)).returning({ cardId: ownedCards.cardId });
   return rows.map((r) => r.cardId);
 }

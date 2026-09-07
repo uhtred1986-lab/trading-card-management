@@ -189,7 +189,9 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
             <ul className="divide-y divide-space-800 rounded-xl border border-space-700/70">
               {lots.map((l, i) => (
                 <li key={l.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-sm">
-                  <span className="font-mono text-xs text-space-400" title="One row per physical card">#{i + 1}</span>
+                  <span className="font-mono text-xs text-space-400" title="One row per physical card">
+                    #{i + 1}
+                  </span>
                   <LotPrintPicker lotId={l.id} printId={l.printId} prints={printOptions} />
                   <span className="rounded bg-space-800 px-1.5 text-xs">{l.condition}</span>
                   <LotFinishToggle lotId={l.id} foil={l.finish === "foil"} />
@@ -201,7 +203,9 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
                   {l.notes ? <span className="text-xs italic text-space-300">{l.notes}</span> : null}
                   <form action={deleteLotForm} className="ml-auto">
                     <input type="hidden" name="id" value={l.id} />
-                    <SubmitButton pendingLabel="Removing…" className="tap rounded px-2 py-1 text-xs text-space-300 hover:bg-space-800 hover:text-loss">Remove</SubmitButton>
+                    <SubmitButton pendingLabel="Removing…" className="tap rounded px-2 py-1 text-xs text-space-300 hover:bg-space-800 hover:text-loss">
+                      Remove
+                    </SubmitButton>
                   </form>
                 </li>
               ))}
@@ -261,7 +265,9 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
             <div className="col-span-2 sm:col-span-3">
               <DeckPicker decks={decks} compact />
             </div>
-            <SubmitButton pendingLabel="Adding…" className="tap self-end rounded-md bg-ki-500 px-3 py-1.5 text-sm font-semibold text-space-950 hover:bg-ki-400">Add to collection</SubmitButton>
+            <SubmitButton pendingLabel="Adding…" className="tap self-end rounded-md bg-ki-500 px-3 py-1.5 text-sm font-semibold text-space-950 hover:bg-ki-400">
+              Add to collection
+            </SubmitButton>
           </form>
         </section>
       </div>

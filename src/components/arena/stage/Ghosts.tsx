@@ -34,7 +34,9 @@ export function Ghosts({ ghosts, art }: { ghosts: Ghost[]; art: Record<string, B
             exit={{ opacity: 0 }}
             transition={{ duration: Math.min(0.9, g.ms / 1000), ease: g.kind === "arrive" ? "easeOut" : "easeIn" }}
           >
-            <div className={`arena-card card-aspect w-[calc(52px*var(--arena,1))] overflow-hidden rounded-[4px] border bg-space-800 ${g.kind === "arrive" ? "arena-ring-legal border-ki-400/70" : "arena-ghost border-loss/60"}`}>
+            <div
+              className={`arena-card card-aspect w-[calc(52px*var(--arena,1))] overflow-hidden rounded-[4px] border bg-space-800 ${g.kind === "arrive" ? "arena-ring-legal border-ki-400/70" : "arena-ghost border-loss/60"}`}
+            >
               {!face ? (
                 <span className="arena-card-back grid h-full w-full place-items-center" aria-hidden>
                   <span className="block h-[62%] w-[62%] rounded-full border border-ki-400/35" />

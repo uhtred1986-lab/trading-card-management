@@ -19,7 +19,10 @@ const db = drizzle(client, { schema }) as unknown as Db;
 
 // Apply every migration in order, statement by statement.
 const dir = path.resolve("drizzle");
-for (const file of fs.readdirSync(dir).filter((f) => f.endsWith(".sql")).sort()) {
+for (const file of fs
+  .readdirSync(dir)
+  .filter((f) => f.endsWith(".sql"))
+  .sort()) {
   const sqlText = fs.readFileSync(path.join(dir, file), "utf8");
   for (const stmt of sqlText.split("--> statement-breakpoint")) {
     const s = stmt.trim();
@@ -39,11 +42,9 @@ await db.insert(schema.cardPrints).values([
 ]);
 
 // Own 4 Omega (3 standard + 1 SPR) and 2 Goku, no Vegeta — one row per card.
-await db.insert(schema.ownedCards).values([
-  ...expand({ printId: "BT18-020", cardId: "BT18-020" }, 3),
-  { printId: "BT18-020_SPR", cardId: "BT18-020", finish: "foil" },
-  ...expand({ printId: "BT18-021", cardId: "BT18-021" }, 2),
-]);
+await db
+  .insert(schema.ownedCards)
+  .values([...expand({ printId: "BT18-020", cardId: "BT18-020" }, 3), { printId: "BT18-020_SPR", cardId: "BT18-020", finish: "foil" }, ...expand({ printId: "BT18-021", cardId: "BT18-021" }, 2)]);
 
 const alloc0 = await allocationForCards(db, ["BT18-020", "BT18-021", "BT18-022"]);
 assert.deepEqual(alloc0.get("BT18-020"), { owned: 4, reserved: 0, available: 4 }, "prints of one card pool together");
@@ -78,13 +79,21 @@ assert.deepEqual(
 // Un-build A → B only lacks Vegeta.
 await db.update(schema.decks).set({ isBuilt: false });
 const after = await buildConflicts(db, b.id);
-assert.deepEqual(after.map((c) => c.cardId), ["BT18-022"], "un-building releases reservations");
+assert.deepEqual(
+  after.map((c) => c.cardId),
+  ["BT18-022"],
+  "un-building releases reservations",
+);
 
 // Deleting a deck cascades its cards; deleting a card with lots is refused (restrict on print).
 await db.delete(schema.decks).where((await import("drizzle-orm")).eq(schema.decks.id, a.id));
 const left = await db.select().from(schema.deckCards);
 assert.equal(left.filter((r) => r.deckId === a.id).length, 0, "deck_cards cascade");
-await assert.rejects(db.delete(schema.cardPrints).where((await import("drizzle-orm")).eq(schema.cardPrints.id, "BT18-020")), /Failed query|violates foreign key|restrict/i, "print with owned lots cannot be deleted");
+await assert.rejects(
+  db.delete(schema.cardPrints).where((await import("drizzle-orm")).eq(schema.cardPrints.id, "BT18-020")),
+  /Failed query|violates foreign key|restrict/i,
+  "print with owned lots cannot be deleted",
+);
 
 // Price reduction: foil-only SR still yields a "normal" price; SPR product maps to its print.
 await db.insert(schema.tcgGroups).values({ id: 1, name: "BT18" });
@@ -112,9 +121,23 @@ assert.equal(priceForFinish(prices.get("BT18-020_SPR"), "foil"), 199);
     { id: "BT18-116", setCode: "BT18", name: "Z Battle", cardType: "Z-BATTLE", rarity: "SR", rarityCode: "SR", searchText: "bt18-116" },
   ]);
   const [d] = await db.insert(schema.decks).values({ name: "Acquisitions" }).returning({ id: schema.decks.id });
-  await addCardsToDeck(db, d.id, [{ cardId: "BT18-020", quantity: 3 }, { cardId: "BT18-001", quantity: 1 }, { cardId: "BT18-116", quantity: 1 }]);
-  await addCardsToDeck(db, d.id, [{ cardId: "BT18-020", quantity: 3 }, { cardId: "BT18-002", quantity: 1 }]);
-  const rowsInDeck = (await db.select().from(schema.deckCards).where((await import("drizzle-orm")).eq(schema.deckCards.deckId, d.id))).map((r) => [r.zone, r.cardId, r.quantity]).sort();
+  await addCardsToDeck(db, d.id, [
+    { cardId: "BT18-020", quantity: 3 },
+    { cardId: "BT18-001", quantity: 1 },
+    { cardId: "BT18-116", quantity: 1 },
+  ]);
+  await addCardsToDeck(db, d.id, [
+    { cardId: "BT18-020", quantity: 3 },
+    { cardId: "BT18-002", quantity: 1 },
+  ]);
+  const rowsInDeck = (
+    await db
+      .select()
+      .from(schema.deckCards)
+      .where((await import("drizzle-orm")).eq(schema.deckCards.deckId, d.id))
+  )
+    .map((r) => [r.zone, r.cardId, r.quantity])
+    .sort();
   assert.deepEqual(
     rowsInDeck,
     [
@@ -198,7 +221,10 @@ assert.equal(priceForFinish(prices.get("BT18-020_SPR"), "foil"), 199);
   assert.equal((await suggestionsForDeck(db, d.id)).get("BT18-020")?.length, 1);
 
   // Anything past its expiry is swept on the next read.
-  await db.update(schema.deckSwaps).set({ expiresAt: new Date(Date.now() - 1000) }).where(eqOp(schema.deckSwaps.deckId, d.id));
+  await db
+    .update(schema.deckSwaps)
+    .set({ expiresAt: new Date(Date.now() - 1000) })
+    .where(eqOp(schema.deckSwaps.deckId, d.id));
   assert.equal((await suggestionsForDeck(db, d.id)).size, 0, "expired suggestions are deleted, not just hidden");
   assert.equal((await db.select().from(schema.deckSwaps)).length, 0);
 
@@ -213,8 +239,27 @@ assert.equal(priceForFinish(prices.get("BT18-020_SPR"), "foil"), 199);
   const batchId = await createBatch(db, "batch", target.id);
   const photoId = await storePhoto(db, batchId, 0, Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]), 100, 140);
   assert.deepEqual([...(await photoBytes(db, photoId))!.data], [0xff, 0xd8, 0xff, 0xe0, 1, 2, 3], "bytea round-trips");
-  const cand = { id: "BT18-020", name: "Omega Shenron", setCode: "BT18", imageUrl: null, cardType: "BATTLE", colors: ["Red"], rarityCode: "C", prints: [{ id: "BT18-020", label: "Standard" }, { id: "BT18-020_SPR", label: "Special Rare" }] };
-  const det = (i: number, list: typeof cand[], conf: number) => ({ index: i, seen: { name: "x", number: null, confidence: 0.9, position: "a", box: null, notes: null }, candidates: list, exact: list.length > 0, matchedBy: list.length ? ("number" as const) : null, matchConfidence: conf });
+  const cand = {
+    id: "BT18-020",
+    name: "Omega Shenron",
+    setCode: "BT18",
+    imageUrl: null,
+    cardType: "BATTLE",
+    colors: ["Red"],
+    rarityCode: "C",
+    prints: [
+      { id: "BT18-020", label: "Standard" },
+      { id: "BT18-020_SPR", label: "Special Rare" },
+    ],
+  };
+  const det = (i: number, list: (typeof cand)[], conf: number) => ({
+    index: i,
+    seen: { name: "x", number: null, confidence: 0.9, position: "a", box: null, notes: null },
+    candidates: list,
+    exact: list.length > 0,
+    matchedBy: list.length ? ("number" as const) : null,
+    matchConfidence: conf,
+  });
   const items = await replaceItems(db, batchId, photoId, [det(0, [cand], 0.95), det(1, [], 0)]);
   assert.equal(items.length, 2);
   assert.equal(items[0].printId, "BT18-020", "best candidate's standard print is preselected");
@@ -228,14 +273,24 @@ assert.equal(priceForFinish(prices.get("BT18-020_SPR"), "foil"), 199);
   assert.equal(added, 3, "2 foil SPR + 1 standard");
   assert.equal(deckId, target.id);
   assert.equal(deckAdded, 3, "both lots of the same card land in the deck's main zone");
-  const inDeck = await db.select().from(schema.deckCards).where((await import("drizzle-orm")).eq(schema.deckCards.deckId, target.id));
-  assert.deepEqual(inDeck.map((r) => [r.zone, r.cardId, r.quantity]), [["main", "BT18-020", 3]]);
+  const inDeck = await db
+    .select()
+    .from(schema.deckCards)
+    .where((await import("drizzle-orm")).eq(schema.deckCards.deckId, target.id));
+  assert.deepEqual(
+    inDeck.map((r) => [r.zone, r.cardId, r.quantity]),
+    [["main", "BT18-020", 3]],
+  );
   const lots = (await db.select().from(schema.ownedCards)).slice(before);
-  assert.deepEqual(lots.map((l) => [l.printId, l.finish, l.owner]).sort(), [
-    ["BT18-020", "normal", "patvolny"],
-    ["BT18-020_SPR", "foil", "patvolny"],
-    ["BT18-020_SPR", "foil", "patvolny"],
-  ], "a reviewed quantity of 2 becomes two rows");
+  assert.deepEqual(
+    lots.map((l) => [l.printId, l.finish, l.owner]).sort(),
+    [
+      ["BT18-020", "normal", "patvolny"],
+      ["BT18-020_SPR", "foil", "patvolny"],
+      ["BT18-020_SPR", "foil", "patvolny"],
+    ],
+    "a reviewed quantity of 2 becomes two rows",
+  );
   assert.equal(await photoBytes(db, photoId), null, "photo bytes are dropped on completion");
   assert.equal((await getBatch(db, batchId))!.items.length, 0, "items are dropped on completion");
   assert.equal((await listOpenBatches(db)).length, 0, "completed batch is no longer open");
@@ -263,11 +318,7 @@ assert.equal(priceForFinish(prices.get("BT18-020_SPR"), "foil"), 199);
     rarityCode: "SR",
     searchText: `${id} ${name}`.toLowerCase(),
   });
-  await db.insert(schema.cards).values([
-    fwCard("FB07-025", "Omega Shenron", "LEADER"),
-    fwCard("FB07-021", "Vegeta : DA"),
-    fwCard("FB07-050", "Blue Card", "BATTLE", ["Blue"]),
-  ]);
+  await db.insert(schema.cards).values([fwCard("FB07-025", "Omega Shenron", "LEADER"), fwCard("FB07-021", "Vegeta : DA"), fwCard("FB07-050", "Blue Card", "BATTLE", ["Blue"])]);
   await db.insert(schema.cardPrints).values([
     { id: "FB07-025", cardId: "FB07-025", suffix: "", label: "Standard", rarity: "SR", isBase: true },
     { id: "FB07-021", cardId: "FB07-021", suffix: "", label: "Standard", rarity: "SR", isBase: true },
@@ -307,7 +358,10 @@ assert.equal(priceForFinish(prices.get("BT18-020_SPR"), "foil"), 199);
   const onlyFw = await valuedLots(db, { game: "fusion" });
   assert.equal(onlyFw.lots.length, 1);
   assert.ok(both.lots.length > onlyFw.lots.length, "unfiltered still shows both games");
-  assert.deepEqual((await collectionCopies(db, { game: "fusion" })).rows.map((r) => r.cardId), ["FB07-021"]);
+  assert.deepEqual(
+    (await collectionCopies(db, { game: "fusion" })).rows.map((r) => r.cardId),
+    ["FB07-021"],
+  );
   assert.ok((await collectionCopies(db, { game: "dbs" })).rows.every((r) => r.game === "dbs"));
 }
 
@@ -321,10 +375,12 @@ assert.equal(priceForFinish(prices.get("BT18-020_SPR"), "foil"), 199);
   const { cardDefFrom } = await import("../src/lib/arena/load.ts");
 
   const skilled = (id: string, name: string, skill: string) => ({ ...card(id, name), skill });
-  await db.insert(schema.cards).values([
-    skilled("BT18-030", "Reader", "[Auto] When you play this card, draw 1 card."),
-    skilled("BT18-031", "Puzzle", "[Auto] When you play this card, you and your opponent compliment each other."),
-  ]);
+  await db
+    .insert(schema.cards)
+    .values([
+      skilled("BT18-030", "Reader", "[Auto] When you play this card, draw 1 card."),
+      skilled("BT18-031", "Puzzle", "[Auto] When you play this card, you and your opponent compliment each other."),
+    ]);
   const rows = await db.select().from(schema.cards).where(eq(schema.cards.setCode, "BT18"));
   const byId = new Map(rows.map((r) => [r.id, r]));
 
@@ -357,7 +413,11 @@ assert.equal(priceForFinish(prices.get("BT18-020_SPR"), "foil"), 199);
   assert.equal(after.find((n) => n.clause === "some other wording")!.status, "wontfix", "a wontfix is never touched");
 
   const open = await db.select().from(schema.cardTextNotes).where(eq(schema.cardTextNotes.status, "open"));
-  assert.deepEqual(open.map((n) => n.cardId), ["BT18-031"], "what is left is what the compiler still cannot read");
+  assert.deepEqual(
+    open.map((n) => n.cardId),
+    ["BT18-031"],
+    "what is left is what the compiler still cannot read",
+  );
   assert.equal(await closeNotesNowRead(db), 0, "and a second sweep has nothing to do");
 }
 

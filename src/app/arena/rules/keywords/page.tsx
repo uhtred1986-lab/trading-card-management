@@ -32,9 +32,8 @@ export default function KeywordsPage() {
         </Link>
       </div>
       <p className="text-sm text-space-300">
-        All {total} keyword skills the arena&rsquo;s parser reads, with what the Rule Manual says and what this engine actually does with it. The second line is the one
-        worth reading: {approximate} of them are played to an approximation, and each says where it differs. Section numbers are{" "}
-        <span className="font-mono text-[11px]">docs/rules/rulemanual.txt</span>.
+        All {total} keyword skills the arena&rsquo;s parser reads, with what the Rule Manual says and what this engine actually does with it. The second line is the one worth reading: {approximate} of
+        them are played to an approximation, and each says where it differs. Section numbers are <span className="font-mono text-[11px]">docs/rules/rulemanual.txt</span>.
       </p>
 
       <nav className="flex flex-wrap gap-1.5 text-[11px]">
@@ -84,9 +83,7 @@ export default function KeywordsPage() {
 
       <section id="modifiers" className="scroll-mt-4 space-y-2">
         <h2 className="text-xs uppercase tracking-widest text-space-400">Bracketed words that are not skills</h2>
-        <p className="text-[13px] text-space-300">
-          22-1-2: these limit or price the skill they are printed on without being skills themselves, so the line keeps its own [Auto] or [Activate] type.
-        </p>
+        <p className="text-[13px] text-space-300">22-1-2: these limit or price the skill they are printed on without being skills themselves, so the line keeps its own [Auto] or [Activate] type.</p>
         <ul className="space-y-2">
           {MODIFIERS.map((m) => (
             <li key={m.tag} className="rounded-xl border border-space-700/70 bg-space-900/50 p-3">
@@ -107,8 +104,8 @@ export default function KeywordsPage() {
       <section id="types" className="scroll-mt-4 space-y-2">
         <h2 className="text-xs uppercase tracking-widest text-space-400">Skill types</h2>
         <p className="text-[13px] text-space-300">
-          The tag a skill line opens with decides when it happens. A line with no type tag at all is read as [Permanent], which is why a mis-set tag is one of the
-          easier mistakes to make when you set a card&rsquo;s rule by hand.
+          The tag a skill line opens with decides when it happens. A line with no type tag at all is read as [Permanent], which is why a mis-set tag is one of the easier mistakes to make when you set
+          a card&rsquo;s rule by hand.
         </p>
         <ul className="space-y-2">
           {Object.entries(SKILL_TYPES).map(([kind, t]) => (

@@ -40,7 +40,11 @@ export const KNOWN_RULES: KeywordDeckRule[] = [
 
 export function parseDeckRules(skill: string | null | undefined): KeywordDeckRule[] {
   if (!skill) return [];
-  const text = skill.replace(/\[br\]|<br\s*\/?>/gi, " ").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/[’‘]/g, "'");
+  const text = skill
+    .replace(/\[br\]|<br\s*\/?>/gi, " ")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/[’‘]/g, "'");
   const found: KeywordDeckRule[] = [];
   const unlimited = POOLED_UNLIMITED.exec(text);
   if (unlimited) found.push({ keyword: titled(unlimited[1]), max: Number(unlimited[2]), unlimitedCopies: true });

@@ -9,10 +9,29 @@
  */
 
 const ONES: Record<string, number> = {
-  zero: 0, oh: 0, o: 0, nought: 0,
-  one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9,
-  ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15,
-  sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19,
+  zero: 0,
+  oh: 0,
+  o: 0,
+  nought: 0,
+  one: 1,
+  two: 2,
+  three: 3,
+  four: 4,
+  five: 5,
+  six: 6,
+  seven: 7,
+  eight: 8,
+  nine: 9,
+  ten: 10,
+  eleven: 11,
+  twelve: 12,
+  thirteen: 13,
+  fourteen: 14,
+  fifteen: 15,
+  sixteen: 16,
+  seventeen: 17,
+  eighteen: 18,
+  nineteen: 19,
 };
 const TENS: Record<string, number> = { twenty: 20, thirty: 30, forty: 40, fourty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90 };
 /** Words that carry no meaning here — "card number BT18 dash 020". */
@@ -43,7 +62,10 @@ function takeCounts(text: string, re: RegExp): { total: number; rest: string } {
 
 /** Lower-cases, drops filler, and turns spoken numbers into digits. */
 export function normaliseSpeech(text: string): string {
-  const cleaned = text.toLowerCase().replace(/[.,!?;:]/g, " ").replace(NOISE, " ");
+  const cleaned = text
+    .toLowerCase()
+    .replace(/[.,!?;:]/g, " ")
+    .replace(NOISE, " ");
   const words = cleaned.split(/\s+/).filter(Boolean);
   const out: string[] = [];
   for (let i = 0; i < words.length; i++) {
@@ -148,7 +170,10 @@ export function parseSpoken(text: string): SpokenParse {
     }
   }
   const finishGiven = foil + normal > 0;
-  work = work.replace(/\b(?:cards?|karten?)\b/g, " ").replace(/\s+/g, " ").trim();
+  work = work
+    .replace(/\b(?:cards?|karten?)\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 
   let explicitQuantity: number | null = null;
   const qm = QUANTITY.exec(work);
@@ -160,7 +185,7 @@ export function parseSpoken(text: string): SpokenParse {
   const raw = work.match(/[a-z]+\d+|[a-z]+|\d+/g) ?? [];
   // "b t 18" → "bt 18": spelled-out prefixes arrive as separate letters.
   const tokens: string[] = [];
-  for (let i = 0; i < raw.length; ) {
+  for (let i = 0; i < raw.length;) {
     if (/^[a-z]$/.test(raw[i])) {
       let run = "";
       while (i < raw.length && /^[a-z]$/.test(raw[i])) run += raw[i++];

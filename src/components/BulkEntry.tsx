@@ -190,7 +190,10 @@ export function BulkEntry({ decks, owner, owners, locations }: { decks: DeckOpti
               </Link>
             </>
           ) : null}
-          . <Link href="/collection" className="underline">View collection</Link>
+          .{" "}
+          <Link href="/collection" className="underline">
+            View collection
+          </Link>
         </p>
       ) : null}
 
@@ -218,9 +221,7 @@ export function BulkEntry({ decks, owner, owners, locations }: { decks: DeckOpti
               >
                 <td className="min-w-[16rem] px-2 py-1.5">
                   <CardPicker row={r} autoFocus={i === active} onPick={(hit) => pick(i, hit)} onClear={() => update(i, { card: null, prints: [], printId: "" })} />
-                  {r.card && totalOf(r) > 1 ? (
-                    <div className="mt-0.5 text-[10px] text-space-400">saves as {totalOf(r)} separate cards</div>
-                  ) : null}
+                  {r.card && totalOf(r) > 1 ? <div className="mt-0.5 text-[10px] text-space-400">saves as {totalOf(r)} separate cards</div> : null}
                 </td>
                 <td className="px-2 py-1.5">
                   <Stepper
@@ -282,7 +283,15 @@ export function BulkEntry({ decks, owner, owners, locations }: { decks: DeckOpti
                   </select>
                 </td>
                 <td className="px-2 py-1.5">
-                  <input tabIndex={-1} value={r.pricePaid} inputMode="decimal" placeholder="1,50" aria-label="Price paid" onChange={(e) => update(i, { pricePaid: e.target.value })} className={input} />
+                  <input
+                    tabIndex={-1}
+                    value={r.pricePaid}
+                    inputMode="decimal"
+                    placeholder="1,50"
+                    aria-label="Price paid"
+                    onChange={(e) => update(i, { pricePaid: e.target.value })}
+                    className={input}
+                  />
                 </td>
                 <td className="px-2 py-1.5">
                   <button
@@ -310,7 +319,8 @@ export function BulkEntry({ decks, owner, owners, locations }: { decks: DeckOpti
         </button>
         <p className="text-xs text-space-400">
           Keyboard: type a name or number, <Key>↑</Key>
-          <Key>↓</Key> to choose, <Key>Tab</Key> takes it → <Key>Tab</Key> non-foil → <Key>Tab</Key> foil → <Key>Tab</Key> next row. Each copy is stored separately, so 3 non-foil + 1 foil saves as four cards.
+          <Key>↓</Key> to choose, <Key>Tab</Key> takes it → <Key>Tab</Key> non-foil → <Key>Tab</Key> foil → <Key>Tab</Key> next row. Each copy is stored separately, so 3 non-foil + 1 foil saves as
+          four cards.
         </p>
       </div>
     </div>

@@ -177,11 +177,7 @@ export function SkillSpotlight({ spotlight }: { spotlight: (Spotlight & { imageU
       style={{ transform: offset.x || offset.y ? `translate(${offset.x}px, ${offset.y}px)` : undefined }}
       aria-live="polite"
     >
-      <div
-        className={`arena-drop arena-float relative flex gap-2 rounded-xl border-l-4 bg-space-900/95 p-2 pr-6 backdrop-blur ${
-          shown.unread ? "border-dbs-yellow" : "border-ki-500"
-        }`}
-      >
+      <div className={`arena-drop arena-float relative flex gap-2 rounded-xl border-l-4 bg-space-900/95 p-2 pr-6 backdrop-blur ${shown.unread ? "border-dbs-yellow" : "border-ki-500"}`}>
         <button
           type="button"
           onClick={() => {
@@ -207,9 +203,7 @@ export function SkillSpotlight({ spotlight }: { spotlight: (Spotlight & { imageU
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold text-space-50">{shown.name}</p>
             <span className="mt-0.5 inline-block rounded bg-ki-500/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ki-300">{shown.label}</span>
-            <p className={`mt-1 whitespace-pre-wrap text-[11px] leading-snug text-space-200 sm:text-xs ${expanded ? "max-h-48 overflow-y-auto pr-1" : "line-clamp-3"}`}>
-              {plainText(shown.text)}
-            </p>
+            <p className={`mt-1 whitespace-pre-wrap text-[11px] leading-snug text-space-200 sm:text-xs ${expanded ? "max-h-48 overflow-y-auto pr-1" : "line-clamp-3"}`}>{plainText(shown.text)}</p>
             {shown.unread && <p className="mt-1 text-[10px] font-semibold text-dbs-yellow">Claude ruled on this one.</p>}
           </div>
         </div>
@@ -310,7 +304,11 @@ const PERMANENT_STATE: Record<PermanentView["state"], { word: string; className:
   on: { word: "in force", className: "border-gain/60 text-gain", note: null },
   off: { word: "not now", className: "border-space-600 text-space-400", note: "Its condition does not hold at the moment, or there is nothing for it to apply to." },
   inert: { word: "not applied", className: "border-dbs-yellow/60 text-dbs-yellow", note: "The engine reads this line but cannot apply what it says yet — it does nothing in play." },
-  unread: { word: "unread", className: "border-dbs-yellow/60 text-dbs-yellow", note: "The engine cannot read this line. A [Permanent] never resolves, so it is never put to Claude — it does nothing in play." },
+  unread: {
+    word: "unread",
+    className: "border-dbs-yellow/60 text-dbs-yellow",
+    note: "The engine cannot read this line. A [Permanent] never resolves, so it is never put to Claude — it does nothing in play.",
+  },
 };
 
 const EFFECT_COLOUR: Record<string, string> = {
@@ -433,7 +431,10 @@ export function plainText(html: string): string {
 }
 
 export function shortLabel(label: string): string {
-  return label.replace(/^Don't /, "No ").replace(/ \(the skill does not resolve\)$/, "").slice(0, 22);
+  return label
+    .replace(/^Don't /, "No ")
+    .replace(/ \(the skill does not resolve\)$/, "")
+    .slice(0, 22);
 }
 
 export function Sheet({
@@ -481,7 +482,9 @@ export function Sheet({
  */
 export function StepChip({ step }: { step: PromptView["step"] }) {
   if (!step) return null;
-  return <span className="inline-block whitespace-nowrap rounded-full border border-ki-500 px-1.5 py-px font-mono text-[9px] uppercase tracking-wider text-ki-300 sm:text-[10px]">{stepText(step)}</span>;
+  return (
+    <span className="inline-block whitespace-nowrap rounded-full border border-ki-500 px-1.5 py-px font-mono text-[9px] uppercase tracking-wider text-ki-300 sm:text-[10px]">{stepText(step)}</span>
+  );
 }
 
 /** One move the sheet offers, already resolved to the card it is about. */
@@ -523,7 +526,17 @@ export function CardSheet({
   const inHand = side?.hand?.some((c) => c.id === card.id) ?? false;
   const word = { side, inHand, them: narrator.them };
   return (
-    <Sheet onClose={onClose} title={card.name} eyebrow={moves.length ? <span className="text-[10px] uppercase tracking-widest text-ki-300">what would you like to do?</span> : rejected.length ? <span className="text-[10px] uppercase tracking-widest text-loss">no move right now</span> : undefined}>
+    <Sheet
+      onClose={onClose}
+      title={card.name}
+      eyebrow={
+        moves.length ? (
+          <span className="text-[10px] uppercase tracking-widest text-ki-300">what would you like to do?</span>
+        ) : rejected.length ? (
+          <span className="text-[10px] uppercase tracking-widest text-loss">no move right now</span>
+        ) : undefined
+      }
+    >
       {moves.map((m) => {
         const price = m.targets ? `${m.targets} target${m.targets === 1 ? "" : "s"}` : priceOf(m.legal.action, card, m.legal.label, m.legal.cost);
         return (
@@ -551,7 +564,14 @@ export function CardSheet({
               {w.fact}
               {w.remedy && <span className="text-ki-300"> {w.remedy}</span>}
             </p>
-            {r.why.length > 1 && <p className="mt-0.5 text-[10px] text-space-400">{r.why.slice(1).map((q) => refusal(q, { name: card.name, reaching: r.action.type, ...word }).fact).join(" ")}</p>}
+            {r.why.length > 1 && (
+              <p className="mt-0.5 text-[10px] text-space-400">
+                {r.why
+                  .slice(1)
+                  .map((q) => refusal(q, { name: card.name, reaching: r.action.type, ...word }).fact)
+                  .join(" ")}
+              </p>
+            )}
           </div>
         );
       })}
@@ -655,7 +675,9 @@ export function NarrationRibbon({ text, n, mine, live }: { text: string; n: numb
       aria-live="polite"
     >
       <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${mine ? "arena-tick-you bg-gain" : "arena-tick-them bg-ki-500"} ${live ? "animate-pulse" : ""}`} aria-hidden />
-      <span key={n} className="arena-drop min-w-0 flex-1 truncate">{text}</span>
+      <span key={n} className="arena-drop min-w-0 flex-1 truncate">
+        {text}
+      </span>
       <span className="shrink-0 font-mono text-[9px] text-space-500">#{n}</span>
     </div>
   );
@@ -665,4 +687,3 @@ export function NarrationRibbon({ text, n, mine, live }: { text: string; n: numb
 export function refusalLine(why: Requirement[] | undefined, o: Parameters<typeof sentence>[1]): string | null {
   return why?.length ? sentence(why[0], o) : null;
 }
-

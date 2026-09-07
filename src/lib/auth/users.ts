@@ -12,10 +12,7 @@ export interface AppUser {
 }
 
 export async function listUsers(db: Db): Promise<AppUser[]> {
-  return db
-    .select({ id: appUsers.id, username: appUsers.username, owner: appUsers.owner, isActive: appUsers.isActive, createdAt: appUsers.createdAt })
-    .from(appUsers)
-    .orderBy(asc(appUsers.username));
+  return db.select({ id: appUsers.id, username: appUsers.username, owner: appUsers.owner, isActive: appUsers.isActive, createdAt: appUsers.createdAt }).from(appUsers).orderBy(asc(appUsers.username));
 }
 
 export async function createUser(db: Db, username: string, password: string, owner: string): Promise<AppUser> {
@@ -27,7 +24,10 @@ export async function createUser(db: Db, username: string, password: string, own
 }
 
 export async function setUserPassword(db: Db, id: number, password: string): Promise<void> {
-  await db.update(appUsers).set({ passwordHash: hashPassword(password), updatedAt: new Date() }).where(eq(appUsers.id, id));
+  await db
+    .update(appUsers)
+    .set({ passwordHash: hashPassword(password), updatedAt: new Date() })
+    .where(eq(appUsers.id, id));
 }
 
 export async function setUserOwner(db: Db, id: number, owner: string): Promise<void> {

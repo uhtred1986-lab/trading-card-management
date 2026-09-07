@@ -39,9 +39,7 @@
 
 body {
   background:
-    radial-gradient(1200px 600px at 20% -10%, rgba(242, 140, 15, 0.08), transparent 60%),
-    radial-gradient(900px 500px at 100% 0%, rgba(59, 130, 246, 0.08), transparent 55%),
-    var(--color-space-950);
+    radial-gradient(1200px 600px at 20% -10%, rgba(242, 140, 15, 0.08), transparent 60%), radial-gradient(900px 500px at 100% 0%, rgba(59, 130, 246, 0.08), transparent 55%), var(--color-space-950);
   color: var(--color-space-100);
 }
 
@@ -180,9 +178,7 @@ input[type="number"] {
 
 /* The duel band: a lane over the board, lit from the middle. */
 .arena-band {
-  background:
-    radial-gradient(120% 140% at 50% 50%, color-mix(in srgb, var(--color-ki-500) 12%, transparent), transparent 70%),
-    color-mix(in srgb, var(--color-space-900) 94%, transparent);
+  background: radial-gradient(120% 140% at 50% 50%, color-mix(in srgb, var(--color-ki-500) 12%, transparent), transparent 70%), color-mix(in srgb, var(--color-space-900) 94%, transparent);
   backdrop-filter: blur(6px);
   box-shadow: 0 18px 50px color-mix(in srgb, var(--color-space-950) 65%, transparent);
 }
@@ -208,9 +204,7 @@ input[type="number"] {
 
 /* The takeover: the same fight with the whole screen. */
 .arena-takeover {
-  background:
-    radial-gradient(90% 60% at 50% 45%, color-mix(in srgb, var(--color-ki-500) 10%, transparent), transparent 70%),
-    color-mix(in srgb, var(--color-space-950) 92%, transparent);
+  background: radial-gradient(90% 60% at 50% 45%, color-mix(in srgb, var(--color-ki-500) 10%, transparent), transparent 70%), color-mix(in srgb, var(--color-space-950) 92%, transparent);
   backdrop-filter: blur(10px);
 }
 
@@ -263,9 +257,7 @@ input[type="number"] {
  * disagree with the story. The board unmounts it when the next beat starts.
  */
 .arena-verdict {
-  background:
-    radial-gradient(120% 160% at 50% 50%, color-mix(in srgb, var(--color-ki-500) 18%, transparent), transparent 72%),
-    color-mix(in srgb, var(--color-space-900) 96%, transparent);
+  background: radial-gradient(120% 160% at 50% 50%, color-mix(in srgb, var(--color-ki-500) 18%, transparent), transparent 72%), color-mix(in srgb, var(--color-space-900) 96%, transparent);
   backdrop-filter: blur(8px);
   box-shadow:
     0 0 0 1px color-mix(in srgb, var(--color-ki-500) 25%, transparent),
@@ -625,8 +617,6 @@ input[type="number"] {
   animation: arena-chip 180ms cubic-bezier(0.2, 1.4, 0.4, 1) backwards;
 }
 
-
-
 /* ==========================================================================
  * Anime Sky — the app's skin (docs/arena-skin-spec.md, extended to the whole
  * app on 6 Sep 2026 at the owner's request).
@@ -692,8 +682,7 @@ html[data-skin="anime"] body {
     radial-gradient(closest-side at 34% 7%, rgba(255, 255, 255, 0.9) 0 34%, rgba(255, 255, 255, 0) 72%),
     radial-gradient(closest-side at 72% 6%, rgba(255, 255, 255, 0.95) 0 36%, rgba(255, 255, 255, 0) 74%),
     radial-gradient(closest-side at 90% 17%, rgba(255, 255, 255, 0.8) 0 32%, rgba(255, 255, 255, 0) 70%),
-    radial-gradient(closest-side at 54% 21%, rgba(255, 255, 255, 0.55) 0 34%, rgba(255, 255, 255, 0) 72%),
-    linear-gradient(180deg, var(--sky-deep) 0%, var(--sky) 26%, var(--sky-hi) 62%, #eaf7ff 100%);
+    radial-gradient(closest-side at 54% 21%, rgba(255, 255, 255, 0.55) 0 34%, rgba(255, 255, 255, 0) 72%), linear-gradient(180deg, var(--sky-deep) 0%, var(--sky) 26%, var(--sky-hi) 62%, #eaf7ff 100%);
   background-color: #eaf7ff;
   background-repeat: no-repeat;
   background-size: 100% 100svh;

@@ -19,9 +19,7 @@ export default async function DashboardPage() {
     return (
       <div className="mx-auto max-w-xl space-y-4 py-10 text-center">
         <h1 className="text-2xl font-semibold text-space-50">Your collection is empty</h1>
-        <p className="text-space-300">
-          Add cards by scanning them, typing them in, or straight from any card page.
-        </p>
+        <p className="text-space-300">Add cards by scanning them, typing them in, or straight from any card page.</p>
         <div className="flex flex-wrap justify-center gap-2">
           <Link href="/add" className="tap rounded-md bg-ki-500 px-4 py-2 font-semibold text-space-950 hover:bg-ki-400">
             Add cards
@@ -32,7 +30,11 @@ export default async function DashboardPage() {
         </div>
         {!catalogRun ? (
           <p className="text-sm text-loss">
-            The card catalog hasn&apos;t been imported yet — go to <Link className="underline" href="/settings">Settings</Link>.
+            The card catalog hasn&apos;t been imported yet — go to{" "}
+            <Link className="underline" href="/settings">
+              Settings
+            </Link>
+            .
           </p>
         ) : null}
       </div>
@@ -52,12 +54,7 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <Tile label="Current value" value={formatCents(s.valueEurCents)} hint={`${s.copiesWithValue}/${s.copies} copies priced`} />
         <Tile label="Total spent" value={formatCents(s.spentEurCents)} hint={`${s.copiesWithCost}/${s.copies} copies with a cost`} />
-        <Tile
-          label="Gain / loss"
-          value={formatCents(gain)}
-          tone={gain > 0 ? "gain" : gain < 0 ? "loss" : undefined}
-          hint={s.spentEurCents ? formatPct(gain / s.spentEurCents) : "—"}
-        />
+        <Tile label="Gain / loss" value={formatCents(gain)} tone={gain > 0 ? "gain" : gain < 0 ? "loss" : undefined} hint={s.spentEurCents ? formatPct(gain / s.spentEurCents) : "—"} />
         <Tile label="Cards" value={`${s.copies}`} hint={`${s.uniqueCards} unique · ${s.lots} lots`} />
       </div>
 
@@ -79,9 +76,14 @@ export default async function DashboardPage() {
                     </div>
                     <div className="min-w-0 flex-1 text-sm">
                       <div className="truncate font-medium text-space-50">{m.name}</div>
-                      <div className="font-mono text-xs text-space-300">{m.cardId} · ×{m.qty}</div>
+                      <div className="font-mono text-xs text-space-300">
+                        {m.cardId} · ×{m.qty}
+                      </div>
                       <div className={`mt-1 font-semibold ${m.deltaUsd > 0 ? "text-gain" : "text-loss"}`}>
-                        {formatPct(m.pct)} <span className="text-xs font-normal text-space-300">{conv(m.thenUsd)} → {conv(m.nowUsd)}</span>
+                        {formatPct(m.pct)}{" "}
+                        <span className="text-xs font-normal text-space-300">
+                          {conv(m.thenUsd)} → {conv(m.nowUsd)}
+                        </span>
                       </div>
                     </div>
                   </Link>
@@ -141,7 +143,13 @@ function Table({ rows }: { rows: { key: string; label: string; sub?: string; cop
           <div className="absolute inset-y-0 left-0 bg-ki-500/10" style={{ width: `${(r.value / max) * 100}%` }} aria-hidden />
           <div className="relative flex items-center gap-2">
             <span className="min-w-0 flex-1 truncate text-space-100">
-              {r.href ? <Link href={r.href} className="hover:text-ki-300">{r.label}</Link> : r.label}
+              {r.href ? (
+                <Link href={r.href} className="hover:text-ki-300">
+                  {r.label}
+                </Link>
+              ) : (
+                r.label
+              )}
               {r.sub ? <span className="ml-1 font-mono text-xs text-space-400">{r.sub}</span> : null}
             </span>
             <span className="text-xs text-space-300">×{r.copies}</span>

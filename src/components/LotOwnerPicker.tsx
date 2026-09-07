@@ -65,9 +65,7 @@ export function LotOwnerPicker({ lotId, owner, known }: { lotId: number; owner: 
         }
         save(e.target.value || null);
       }}
-      className={`rounded border border-transparent bg-space-800 px-1 py-0.5 text-[10px] hover:border-space-600 disabled:opacity-50 ${
-        value ? "text-space-300" : "text-space-500"
-      }`}
+      className={`rounded border border-transparent bg-space-800 px-1 py-0.5 text-[10px] hover:border-space-600 disabled:opacity-50 ${value ? "text-space-300" : "text-space-500"}`}
     >
       <option value="">no owner</option>
       {options.map((o) => (

@@ -21,12 +21,7 @@ export interface OwnedLeader {
 
 /** Every LEADER card in the collection, with the decks it leads. */
 export async function ownedLeaders(db: Db, opts: { color?: string; game?: Game } = {}): Promise<OwnedLeader[]> {
-  const where = and(
-    eq(cards.cardType, "LEADER"),
-    isNull(ownedCards.archivedAt),
-    ...(opts.color ? [sql`${opts.color} = any(${cards.colors})`] : []),
-    ...(opts.game ? [eq(cards.game, opts.game)] : []),
-  );
+  const where = and(eq(cards.cardType, "LEADER"), isNull(ownedCards.archivedAt), ...(opts.color ? [sql`${opts.color} = any(${cards.colors})`] : []), ...(opts.game ? [eq(cards.game, opts.game)] : []));
   const rows = await db
     .select({
       id: cards.id,

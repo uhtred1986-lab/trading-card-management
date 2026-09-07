@@ -60,8 +60,8 @@ export default async function ArenaPage() {
       <div>
         <h1 className="text-xl font-semibold tracking-tight text-space-50">Arena</h1>
         <p className="mt-1 text-sm text-space-300">
-          Play a full game against Claude, hot-seat against yourself, or 1 v 1 against someone else on their own phone. The rules are enforced by the engine, so
-          only legal moves are ever offered — an opponent, human or Claude, picks from the same list you do and never sees your hand.
+          Play a full game against Claude, hot-seat against yourself, or 1 v 1 against someone else on their own phone. The rules are enforced by the engine, so only legal moves are ever offered — an
+          opponent, human or Claude, picks from the same list you do and never sees your hand.
         </p>
       </div>
 
@@ -132,10 +132,12 @@ export default async function ArenaPage() {
             <input type="checkbox" name="debug" defaultChecked className="accent-ki-500" />
             Record what Claude was shown for every decision, so the game can be picked apart afterwards
           </label>
-          <SubmitButton pendingLabel="Flipping…" className="tap w-full rounded-lg bg-ki-500 px-4 py-3 text-sm font-semibold text-space-950">Flip the coin</SubmitButton>
+          <SubmitButton pendingLabel="Flipping…" className="tap w-full rounded-lg bg-ki-500 px-4 py-3 text-sm font-semibold text-space-950">
+            Flip the coin
+          </SubmitButton>
           <p className="text-[11px] text-space-400">
-            A game starts with the coin flip, then each side may mulligan once. Life is 8; the player going second gets one energy marker. Against Claude, the second
-            deck is the one it plays. A 1 v 1 waits here until the other player joins and chooses theirs.
+            A game starts with the coin flip, then each side may mulligan once. Life is 8; the player going second gets one energy marker. Against Claude, the second deck is the one it plays. A 1 v 1
+            waits here until the other player joins and chooses theirs.
           </p>
         </form>
       )}
@@ -187,7 +189,9 @@ export default async function ArenaPage() {
               return (
                 <li key={m.id} className="rounded-xl border border-space-700/70 bg-space-900/50 p-3">
                   <div className="flex flex-wrap items-baseline gap-x-2">
-                    <span className="text-sm font-medium text-space-50">{mine ? "You" : m.hostUser} want{mine ? "" : "s"} to play</span>
+                    <span className="text-sm font-medium text-space-50">
+                      {mine ? "You" : m.hostUser} want{mine ? "" : "s"} to play
+                    </span>
                     <span className="text-xs text-space-400">with {m.hostDeckName ?? "a deck that is gone"}</span>
                   </div>
                   {mine ? (

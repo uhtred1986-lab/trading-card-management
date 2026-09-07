@@ -64,15 +64,15 @@ export default async function ArenaGamePage({ params, searchParams }: { params: 
             {game.p1User} v {game.p2User}
           </span>
         )}
-        <span className="rounded-full border border-space-700 px-2 py-0.5 text-[11px] uppercase tracking-wider text-space-400">
-          {modeLabel(game.mode)}
-        </span>
+        <span className="rounded-full border border-space-700 px-2 py-0.5 text-[11px] uppercase tracking-wider text-space-400">{modeLabel(game.mode)}</span>
         <Link href={`/arena/${id}/debug`} className="ml-auto text-sm text-space-400 hover:text-ki-300">
           {isVersus(game.mode) ? "what the server decided" : "how Claude played"}
         </Link>
         {playing && (
           <form action={abandon.bind(null, id)}>
-            <SubmitButton pendingLabel="Giving up…" className="tap text-sm text-space-400 hover:text-loss">give up</SubmitButton>
+            <SubmitButton pendingLabel="Giving up…" className="tap text-sm text-space-400 hover:text-loss">
+              give up
+            </SubmitButton>
           </form>
         )}
       </div>

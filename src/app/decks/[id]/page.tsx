@@ -59,10 +59,17 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
             <Link href="/decks" className="text-xs text-space-300 hover:text-ki-300">
               ← Decks
             </Link>
-            {deck.isBuilt ? <span className="rounded bg-ki-500 px-1.5 py-px text-[10px] font-bold uppercase text-space-950">Built</span> : <span className="rounded bg-space-800 px-1.5 py-px text-[10px] font-bold uppercase text-space-300">Virtual</span>}
+            {deck.isBuilt ? (
+              <span className="rounded bg-ki-500 px-1.5 py-px text-[10px] font-bold uppercase text-space-950">Built</span>
+            ) : (
+              <span className="rounded bg-space-800 px-1.5 py-px text-[10px] font-bold uppercase text-space-300">Virtual</span>
+            )}
             <DeckStatusBadge status={deck.legality.status} />
             {deckLocation ? (
-              <Link href={`/collection?view=list&location=${deckLocation.id}`} className="rounded border border-space-700 px-1.5 py-px text-[11px] text-space-300 hover:border-space-500 hover:text-space-100">
+              <Link
+                href={`/collection?view=list&location=${deckLocation.id}`}
+                className="rounded border border-space-700 px-1.5 py-px text-[11px] text-space-300 hover:border-space-500 hover:text-space-100"
+              >
                 📍 {deckLocation.name}
               </Link>
             ) : null}
@@ -84,9 +91,7 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
             <Stat label="Main" value={mainCountLabel(deck.legality.mainCount, deck.game)} warn={!mainCountOk(deck.legality.mainCount, deck.game)} />
             {/* Fusion World has no Z-Deck, so the tile only appears when the
                 game has one — or when stray Z-cards need pointing at. */}
-            {rules.zMax > 0 || deck.legality.zCount > 0 ? (
-              <Stat label="Z-Deck" value={`${deck.legality.zCount}/${rules.zMax}`} warn={deck.legality.zCount > rules.zMax} />
-            ) : null}
+            {rules.zMax > 0 || deck.legality.zCount > 0 ? <Stat label="Z-Deck" value={`${deck.legality.zCount}/${rules.zMax}`} warn={deck.legality.zCount > rules.zMax} /> : null}
             <Stat label="Leader" value={`${deck.legality.leaderCount}`} warn={deck.legality.leaderCount !== 1} />
             <Stat label="Game" value={GAME_INFO[deck.game].short} />
           </div>
@@ -105,7 +110,9 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
               <section key={zone}>
                 <h2 className="mb-1 flex items-baseline justify-between text-sm font-semibold uppercase tracking-wider text-space-300">
                   {ZONE_LABEL[zone]}
-                  <span className="text-xs font-normal normal-case">{total} card{total === 1 ? "" : "s"}</span>
+                  <span className="text-xs font-normal normal-case">
+                    {total} card{total === 1 ? "" : "s"}
+                  </span>
                 </h2>
                 {rows.length === 0 ? (
                   <p className="rounded-xl border border-dashed border-space-700 p-4 text-center text-sm text-space-300">Search on the right to add cards.</p>
@@ -114,29 +121,29 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
                     {rows.map((r) => (
                       <li key={`${r.zone}:${r.cardId}`} className="px-2 py-1.5 text-sm">
                         <div className="flex items-center gap-2">
-                        <div className="w-9 shrink-0">
-                          <CardImage src={r.imageUrl} alt={r.name} sizes="36px" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <Link href={`/cards/${encodeURIComponent(r.cardId)}`} className="block truncate font-medium text-space-50 hover:text-ki-300">
-                            {r.name}
-                          </Link>
-                          <div className="flex flex-wrap items-center gap-1 text-[11px] text-space-300">
-                            <span className="font-mono">{r.cardId}</span>
-                            {r.energyCost ? <span>· {r.energyCost} energy</span> : null}
-                            {r.power ? <span>· {r.power.toLocaleString()}</span> : null}
-                            {deck.legality.flags[`${r.zone}:${r.cardId}`] ? <CardFlagBadge {...deck.legality.flags[`${r.zone}:${r.cardId}`]} /> : null}
-                            <span
-                              className={`ml-1 rounded px-1 ${
-                                r.alloc.owned >= r.quantity ? "bg-gain/15 text-gain" : r.alloc.owned > 0 ? "bg-dbs-yellow/15 text-yellow-200" : "bg-space-800 text-space-400"
-                              }`}
-                              title="owned / reserved by built decks / available"
-                            >
-                              own {r.alloc.owned} · res {r.alloc.reserved} · free {r.alloc.available}
-                            </span>
+                          <div className="w-9 shrink-0">
+                            <CardImage src={r.imageUrl} alt={r.name} sizes="36px" />
                           </div>
-                        </div>
-                        <DeckCardControls deckId={deck.id} cardId={r.cardId} zone={r.zone} quantity={r.quantity} limit={copyLimit(r, deck.game)} />
+                          <div className="min-w-0 flex-1">
+                            <Link href={`/cards/${encodeURIComponent(r.cardId)}`} className="block truncate font-medium text-space-50 hover:text-ki-300">
+                              {r.name}
+                            </Link>
+                            <div className="flex flex-wrap items-center gap-1 text-[11px] text-space-300">
+                              <span className="font-mono">{r.cardId}</span>
+                              {r.energyCost ? <span>· {r.energyCost} energy</span> : null}
+                              {r.power ? <span>· {r.power.toLocaleString()}</span> : null}
+                              {deck.legality.flags[`${r.zone}:${r.cardId}`] ? <CardFlagBadge {...deck.legality.flags[`${r.zone}:${r.cardId}`]} /> : null}
+                              <span
+                                className={`ml-1 rounded px-1 ${
+                                  r.alloc.owned >= r.quantity ? "bg-gain/15 text-gain" : r.alloc.owned > 0 ? "bg-dbs-yellow/15 text-yellow-200" : "bg-space-800 text-space-400"
+                                }`}
+                                title="owned / reserved by built decks / available"
+                              >
+                                own {r.alloc.owned} · res {r.alloc.reserved} · free {r.alloc.available}
+                              </span>
+                            </div>
+                          </div>
+                          <DeckCardControls deckId={deck.id} cardId={r.cardId} zone={r.zone} quantity={r.quantity} limit={copyLimit(r, deck.game)} />
                         </div>
                         {suggestions.get(r.cardId)?.length ? <SwapSuggestions deckId={deck.id} zone={r.zone} suggestions={suggestions.get(r.cardId)!} /> : null}
                       </li>
@@ -178,7 +185,9 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
                 Meta notes <span className="text-space-400">(given to the AI wizard)</span>
                 <textarea name="metaNotes" defaultValue={deck.metaNotes ?? ""} rows={3} className={input} placeholder="What's popular locally, what you keep losing to…" />
               </label>
-              <SubmitButton pendingLabel="Saving…" className="tap rounded-md bg-space-700 px-3 py-1.5 text-sm text-space-50 hover:bg-space-600">Save</SubmitButton>
+              <SubmitButton pendingLabel="Saving…" className="tap rounded-md bg-space-700 px-3 py-1.5 text-sm text-space-50 hover:bg-space-600">
+                Save
+              </SubmitButton>
             </form>
             {/* Outside the form: it saves on its own, so Save can't clobber it. */}
             <div className="mt-2 border-t border-space-700/70 pt-2">
@@ -191,7 +200,9 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
             <form action={importDeckListForm} className="mt-2 space-y-2">
               <input type="hidden" name="id" value={deck.id} />
               <textarea name="list" rows={6} className={`${input} font-mono text-xs`} placeholder={"# Leader\n1 BT18-001\n# Main deck\n4 BT18-020\n…"} />
-              <SubmitButton pendingLabel="Importing…" className="tap rounded-md bg-space-700 px-3 py-1.5 text-sm text-space-50 hover:bg-space-600">Import lines</SubmitButton>
+              <SubmitButton pendingLabel="Importing…" className="tap rounded-md bg-space-700 px-3 py-1.5 text-sm text-space-50 hover:bg-space-600">
+                Import lines
+              </SubmitButton>
             </form>
             <pre className="mt-3 max-h-64 overflow-auto rounded-md bg-space-950 p-2 font-mono text-[11px] text-space-300">{deckToText(deck.cards) || "(empty)"}</pre>
           </details>
@@ -199,11 +210,15 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
           <div className="flex flex-wrap gap-2">
             <form action={duplicateDeckForm}>
               <input type="hidden" name="id" value={deck.id} />
-              <SubmitButton pendingLabel="Duplicating…" className="tap rounded-md border border-space-600 px-3 py-1.5 text-sm text-space-100 hover:bg-space-800">Duplicate</SubmitButton>
+              <SubmitButton pendingLabel="Duplicating…" className="tap rounded-md border border-space-600 px-3 py-1.5 text-sm text-space-100 hover:bg-space-800">
+                Duplicate
+              </SubmitButton>
             </form>
             <form action={deleteDeckForm}>
               <input type="hidden" name="id" value={deck.id} />
-              <SubmitButton pendingLabel="Deleting…" className="tap rounded-md border border-space-600 px-3 py-1.5 text-sm text-space-300 hover:bg-space-800 hover:text-loss">Delete deck</SubmitButton>
+              <SubmitButton pendingLabel="Deleting…" className="tap rounded-md border border-space-600 px-3 py-1.5 text-sm text-space-300 hover:bg-space-800 hover:text-loss">
+                Delete deck
+              </SubmitButton>
             </form>
           </div>
         </aside>
@@ -264,8 +279,7 @@ function DeckIssues({ legality, game }: { legality: DeckLegality; game: Game }) 
         if (list.length === 0) return null;
         return (
           <div key={g.severity} className="text-xs">
-            <span className={`font-semibold ${g.cls}`}>{g.title}:</span>{" "}
-            <span className="text-space-300">{list.map((i) => i.message).join(" ")}</span>
+            <span className={`font-semibold ${g.cls}`}>{g.title}:</span> <span className="text-space-300">{list.map((i) => i.message).join(" ")}</span>
           </div>
         );
       })}

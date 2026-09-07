@@ -62,10 +62,8 @@ function whereFor(s: CardSearch, abilityIds?: string[]): SQL | undefined {
   if (s.rarity) parts.push(eq(cards.rarityCode, s.rarity));
   if (s.trait) parts.push(sql`${s.trait} = any(${cards.traits})`);
   if (abilityIds) parts.push(abilityIds.length ? inArray(cards.id, abilityIds) : sql`false`);
-  if (s.owned === "yes")
-    parts.push(sql`exists (select 1 from ${ownedCards} o where o.card_id = ${cards.id} and o.archived_at is null)`);
-  if (s.owned === "no")
-    parts.push(sql`not exists (select 1 from ${ownedCards} o where o.card_id = ${cards.id} and o.archived_at is null)`);
+  if (s.owned === "yes") parts.push(sql`exists (select 1 from ${ownedCards} o where o.card_id = ${cards.id} and o.archived_at is null)`);
+  if (s.owned === "no") parts.push(sql`not exists (select 1 from ${ownedCards} o where o.card_id = ${cards.id} and o.archived_at is null)`);
   return parts.length ? and(...parts) : undefined;
 }
 
@@ -77,12 +75,7 @@ export async function searchCards(db: Db, s: CardSearch) {
   const page = Math.max(1, s.page ?? 1);
   const abilityIds = s.ability ? await cardIdsWithAbility(db, s.ability, s.game) : undefined;
   const where = whereFor(s, abilityIds);
-  const order =
-    s.sort === "name"
-      ? [asc(cards.name), asc(numberOrder)]
-      : s.sort === "newest"
-        ? [desc(cardSets.sortKey), asc(numberOrder)]
-        : [asc(cardSets.sortKey), asc(numberOrder)];
+  const order = s.sort === "name" ? [asc(cards.name), asc(numberOrder)] : s.sort === "newest" ? [desc(cardSets.sortKey), asc(numberOrder)] : [asc(cardSets.sortKey), asc(numberOrder)];
 
   const [rows, [{ count }]] = await Promise.all([
     db
@@ -106,7 +99,10 @@ export async function searchCards(db: Db, s: CardSearch) {
       .orderBy(...order)
       .limit(pageSize)
       .offset((page - 1) * pageSize),
-    db.select({ count: sql<number>`count(*)::int` }).from(cards).where(where),
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(cards)
+      .where(where),
   ]);
 
   return { rows, total: count, page, pageSize, pages: Math.max(1, Math.ceil(count / pageSize)) };
@@ -130,28 +126,30 @@ export async function quickSearch(db: Db, q: string, limit = 12, cardType?: stri
     ...(game ? [eq(cards.game, game)] : []),
   );
   const exact = q.trim().toUpperCase();
-  return db
-    .select({
-      id: cards.id,
-      name: cards.name,
-      setCode: cards.setCode,
-      game: cards.game,
-      cardType: cards.cardType,
-      colors: cards.colors,
-      rarityCode: cards.rarityCode,
-      imageUrl: cards.imageUrl,
-    })
-    .from(cards)
-    .where(where)
-    // Exact number match, then number-prefix, then cards whose *name* matches
-    // ahead of ones that merely mention the words in their skill text —
-    // otherwise typing "goku" offers Dende, who only talks about him.
-    .orderBy(
-      sql`case when ${cards.id} = ${exact} then 0 when ${cards.id} like ${exact + "%"} then 1 else 2 end`,
-      sql`case when ${cards.name} ilike ${"%" + q.trim().replace(/[%_]/g, "") + "%"} then 0 else 1 end`,
-      asc(cards.name),
-    )
-    .limit(limit);
+  return (
+    db
+      .select({
+        id: cards.id,
+        name: cards.name,
+        setCode: cards.setCode,
+        game: cards.game,
+        cardType: cards.cardType,
+        colors: cards.colors,
+        rarityCode: cards.rarityCode,
+        imageUrl: cards.imageUrl,
+      })
+      .from(cards)
+      .where(where)
+      // Exact number match, then number-prefix, then cards whose *name* matches
+      // ahead of ones that merely mention the words in their skill text —
+      // otherwise typing "goku" offers Dende, who only talks about him.
+      .orderBy(
+        sql`case when ${cards.id} = ${exact} then 0 when ${cards.id} like ${exact + "%"} then 1 else 2 end`,
+        sql`case when ${cards.name} ilike ${"%" + q.trim().replace(/[%_]/g, "") + "%"} then 0 else 1 end`,
+        asc(cards.name),
+      )
+      .limit(limit)
+  );
 }
 
 export async function listSets(db: Db, opts: { game?: Game } = {}) {
@@ -203,9 +201,7 @@ export async function listAbilityKeywords(db: Db, opts: { game?: Game } = {}): P
 /** Sets grouped by game, for a picker that shows both at once. */
 export async function listSetsByGame(db: Db) {
   const sets = await listSets(db);
-  return (Object.keys(GAME_INFO) as Game[])
-    .map((game) => ({ game, label: GAME_INFO[game].short, sets: sets.filter((s) => s.game === game) }))
-    .filter((g) => g.sets.length > 0);
+  return (Object.keys(GAME_INFO) as Game[]).map((game) => ({ game, label: GAME_INFO[game].short, sets: sets.filter((s) => s.game === game) })).filter((g) => g.sets.length > 0);
 }
 
 export async function getCard(db: Db, id: string) {

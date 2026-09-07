@@ -18,7 +18,13 @@ export default async function ScanPage({ searchParams }: { searchParams: Promise
   const raw = Array.isArray(sp.batch) ? sp.batch[0] : sp.batch;
   const batchId = raw ? Number(raw) : null;
   const owner = await currentOwner();
-  const [open, current, decks, owners, locations] = await Promise.all([listOpenBatches(db), batchId ? getBatch(db, batchId) : null, deckOptions(db), ownerOptions(db, owner), listLocations(db, false)]);
+  const [open, current, decks, owners, locations] = await Promise.all([
+    listOpenBatches(db),
+    batchId ? getBatch(db, batchId) : null,
+    deckOptions(db),
+    ownerOptions(db, owner),
+    listLocations(db, false),
+  ]);
   const active = current && current.batch.status === "open" ? current : null;
   const others = open.filter((b) => b.id !== active?.batch.id);
 
@@ -63,7 +69,9 @@ export default async function ScanPage({ searchParams }: { searchParams: Promise
                   </Link>
                   <form action={deleteBatchForm}>
                     <input type="hidden" name="id" value={b.id} />
-                    <SubmitButton pendingLabel="Discarding…" className="tap rounded-md border border-space-600 px-3 py-1 text-xs text-space-300 hover:bg-space-800 hover:text-loss">Discard</SubmitButton>
+                    <SubmitButton pendingLabel="Discarding…" className="tap rounded-md border border-space-600 px-3 py-1 text-xs text-space-300 hover:bg-space-800 hover:text-loss">
+                      Discard
+                    </SubmitButton>
                   </form>
                 </span>
               </li>

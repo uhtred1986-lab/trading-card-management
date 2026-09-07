@@ -109,7 +109,10 @@ assert.equal(omega.energyCost, null, "'-' cost is null");
 assert.equal(omega.power, 25000);
 assert.equal(omega.rarityCode, "SR");
 assert.deepEqual(
-  shaped.prints.filter((p) => p.cardId === "BT18-020").map((p) => p.id).sort(),
+  shaped.prints
+    .filter((p) => p.cardId === "BT18-020")
+    .map((p) => p.id)
+    .sort(),
   ["BT18-020", "BT18-020_SPR"],
 );
 const promo = shaped.cards.find((c) => c.id === "P-001")!;
@@ -152,7 +155,10 @@ assert.deepEqual(vegeta.traits, ["Saiyan", "Demon Realm"]);
 assert.equal(vegeta.imageUrl, null, "Fusion World art comes from Bandai (below) or the price sync, not deckplanet");
 assert.equal(fwShaped.cards.find((c) => c.id === "E-112")!.cardType, "ENERGY MARKER");
 assert.deepEqual(
-  fwShaped.prints.filter((p) => p.cardId === "FB07-021").map((p) => [p.id, p.rarity]).sort(),
+  fwShaped.prints
+    .filter((p) => p.cardId === "FB07-021")
+    .map((p) => [p.id, p.rarity])
+    .sort(),
   [
     ["FB07-021", "Super Rare[SR]"],
     ["FB07-021_PR", "Super Rare Alt Art[SR★]"],
@@ -172,14 +178,11 @@ assert.equal(officialImageName("FB01-001", "SPR", names), null, "an unknown suff
 assert.equal(officialBackImageName("FB01-001", names), "FB01-001_b");
 assert.equal(officialBackImageName("FB07-021", names), null);
 assert.equal(officialImageUrl("FB01-001_f"), "https://www.dbs-cardgame.com/fw/images/cards/card/en/FB01-001_f.webp");
-assert.deepEqual(
-  parseSeriesIds('<li><a data-val="" class="">ALL</a></li><li><a data-val="583011">FB11</a></li><li><a data-val="583001">FB01</a></li><li><a data-val="583011">dup</a></li>'),
-  ["583011", "583001"],
-);
-assert.deepEqual(
-  parseImageNames('<img data-src="../../images/cards/card/en/FB11-001_f.webp"><img src="../../images/cards/card/en/FB11-002_p1.webp">'),
-  ["FB11-001_f", "FB11-002_p1"],
-);
+assert.deepEqual(parseSeriesIds('<li><a data-val="" class="">ALL</a></li><li><a data-val="583011">FB11</a></li><li><a data-val="583001">FB01</a></li><li><a data-val="583011">dup</a></li>'), [
+  "583011",
+  "583001",
+]);
+assert.deepEqual(parseImageNames('<img data-src="../../images/cards/card/en/FB11-001_f.webp"><img src="../../images/cards/card/en/FB11-002_p1.webp">'), ["FB11-001_f", "FB11-002_p1"]);
 {
   const applied = applyOfficialImages(fwShaped, names);
   assert.deepEqual(applied, { prints: 3, cards: 2, backs: 0 });
@@ -282,18 +285,12 @@ assert.equal(illegal.flags["main:B"]?.severity, "illegal");
 const extra = (n: number, tag = "X") => Array.from({ length: Math.ceil(n / 4) }, (_, i) => row(`${tag}${i}`, "main", Math.min(4, n - i * 4)));
 assert.equal(legality([row("L", "leader", 1), ...fullMain, ...extra(1)]).status, "legal", "51 cards is legal");
 assert.equal(legality([row("L", "leader", 1), ...fullMain, ...extra(10)]).status, "legal", "60 cards is legal");
-assert.match(
-  legality([row("L", "leader", 1), ...fullMain, ...extra(11)]).issues.find((i) => i.severity === "illegal")!.message,
-  /61 cards — 1 over the 60-card maximum/,
-);
+assert.match(legality([row("L", "leader", 1), ...fullMain, ...extra(11)]).issues.find((i) => i.severity === "illegal")!.message, /61 cards — 1 over the 60-card maximum/);
 assert.equal(legality([row("L", "leader", 1), ...fullMain.slice(0, 5)]).status, "incomplete", "under 50 is still incomplete");
 // 6-1-4: the Z-Deck holds up to 10.
 const zed = (n: number) => Array.from({ length: Math.ceil(n / 4) }, (_, i) => row(`ZZ${i}`, "z", Math.min(4, n - i * 4), { cardType: "Z-BATTLE" }));
 assert.equal(legality([row("L", "leader", 1), ...fullMain, ...zed(10)]).status, "legal", "a 10-card Z-Deck is legal");
-assert.match(
-  legality([row("L", "leader", 1), ...fullMain, ...zed(11)]).issues.find((i) => i.severity === "illegal")!.message,
-  /Z-Deck has 11 cards; the maximum is 10/,
-);
+assert.match(legality([row("L", "leader", 1), ...fullMain, ...zed(11)]).issues.find((i) => i.severity === "illegal")!.message, /Z-Deck has 11 cards; the maximum is 10/);
 
 // A Z-deck card's own limit wins over the default of 4.
 assert.equal(legality([row("Z1", "z", 7, { cardType: "Z-BATTLE", limitedTo: 7 })]).flags["z:Z1"], undefined);
@@ -310,8 +307,7 @@ assert.deepEqual(legality([row("L", "leader", 1), ...fullMain, row("S", "side", 
 // ── Fusion World deck rules ────────────────────────────────────────────────
 // Same shape of deck, three rules that differ: no Z-Deck, colour is a hard
 // rule, and a card from the other game can never be played.
-const fw = (cardId: string, zone: DeckCardRow["zone"], quantity: number, extra: Partial<DeckCardRow> = {}) =>
-  row(cardId, zone, quantity, { game: "fusion", ...extra });
+const fw = (cardId: string, zone: DeckCardRow["zone"], quantity: number, extra: Partial<DeckCardRow> = {}) => row(cardId, zone, quantity, { game: "fusion", ...extra });
 const fwMain = [...Array.from({ length: 12 }, (_, i) => fw(`F${i}`, "main", 4)), fw("F99", "main", 2)];
 const fwLegal = legality([fw("FL", "leader", 1), ...fwMain], "fusion");
 assert.equal(fwLegal.mainCount, 50);
@@ -332,7 +328,10 @@ assert.equal(fwOffColour.status, "illegal", "the leader's colours are enforced, 
 // There is no Z-Deck to put anything in.
 const fwZ = legality([fw("FL", "leader", 1), ...fwMain, fw("Z1", "z", 1, { cardType: "BATTLE" })], "fusion");
 assert.equal(fwZ.status, "illegal");
-assert.ok(fwZ.issues.some((i) => /no Z-Deck/.test(i.message)), "the reason names the missing zone");
+assert.ok(
+  fwZ.issues.some((i) => /no Z-Deck/.test(i.message)),
+  "the reason names the missing zone",
+);
 
 // Energy Markers are game pieces, not deck cards.
 const fwMarker = legality([fw("FL", "leader", 1), ...fwMain.slice(1), fw("E-112", "main", 4, { cardType: "ENERGY MARKER" })], "fusion");
@@ -349,17 +348,13 @@ assert.match(mixedBack.flags["main:FB07-021"]!.label, /Fusion World card in a Su
 // A mismatched card is reported once, as the wrong game — not also as off-colour.
 assert.equal(mixed.issues.filter((i) => i.cardId === "BT18-020").length, 1);
 
-
 // ── Deck-building rules printed on the cards themselves ───────────────────
-const DB_TEXT =
-  "[Dragon Ball] (You can include as many copies of cards with [Dragon Ball] in your deck as you like, as long as the total number doesn't exceed 7.) [Activate: Main] Draw 1 card.";
+const DB_TEXT = "[Dragon Ball] (You can include as many copies of cards with [Dragon Ball] in your deck as you like, as long as the total number doesn't exceed 7.) [Activate: Main] Draw 1 card.";
 const SC_TEXT = "[Super Combo] (You can only include up to 4 cards with [Super Combo] in your deck.) [Auto] Something.";
 assert.deepEqual(parseDeckRules(DB_TEXT), [{ keyword: "Dragon Ball", max: 7, unlimitedCopies: true }]);
 assert.deepEqual(parseDeckRules(SC_TEXT), [{ keyword: "Super Combo", max: 4, unlimitedCopies: false }]);
 // The reminder text is printed in lower case on some cards.
-assert.deepEqual(parseDeckRules("[super combo] (You can only include up to 4 cards with [super combo] in your deck"), [
-  { keyword: "Super Combo", max: 4, unlimitedCopies: false },
-]);
+assert.deepEqual(parseDeckRules("[super combo] (You can only include up to 4 cards with [super combo] in your deck"), [{ keyword: "Super Combo", max: 4, unlimitedCopies: false }]);
 // Carrying a keyword means printing it as a leading tag. Merely naming one in
 // a sentence does not — Bulma (BT5-107) fetches Dragon Balls but is not one,
 // and the SD7 Shenron leader counts them in the Drop without carrying it.
@@ -379,7 +374,10 @@ assert.deepEqual(sixBalls.keywordRules, [{ keyword: "Dragon Ball", max: 7, used:
 // Eight breaks the pooled limit.
 const eightBalls = legality([row("L", "leader", 1), ball(8), ...fill(42)]);
 assert.equal(eightBalls.status, "illegal");
-assert.ok(eightBalls.issues.some((i) => /8 \[Dragon Ball\] cards/.test(i.message)), JSON.stringify(eightBalls.issues));
+assert.ok(
+  eightBalls.issues.some((i) => /8 \[Dragon Ball\] cards/.test(i.message)),
+  JSON.stringify(eightBalls.issues),
+);
 // The rule applies even when the card carries the keyword without restating it.
 const quiet = legality([row("L", "leader", 1), row("BALL", "main", 8, { skill: "[Dragon Ball][Activate: Main] Draw 1 card." }), ...fill(42)]);
 assert.equal(quiet.status, "illegal");
@@ -393,12 +391,7 @@ const searcher = legality([
 assert.equal(searcher.status, "legal", JSON.stringify(searcher.issues));
 assert.deepEqual(searcher.keywordRules, [{ keyword: "Dragon Ball", max: 7, used: 6, unlimitedCopies: true }]);
 // [Super Combo] is a pooled 4 across *different* cards.
-const combos = legality([
-  row("L", "leader", 1),
-  row("SC1", "main", 3, { skill: SC_TEXT }),
-  row("SC2", "main", 3, { skill: SC_TEXT }),
-  ...fill(44),
-]);
+const combos = legality([row("L", "leader", 1), row("SC1", "main", 3, { skill: SC_TEXT }), row("SC2", "main", 3, { skill: SC_TEXT }), ...fill(44)]);
 assert.equal(combos.status, "illegal");
 assert.ok(combos.issues.some((i) => /6 \[Super Combo\] cards/.test(i.message)));
 assert.equal(legality([row("L", "leader", 1), row("SC1", "main", 4, { skill: SC_TEXT }), ...fill(46)]).status, "legal");
@@ -569,7 +562,10 @@ const L = (seller: string, card: string, price: number, qty = 4, shipping = 300)
 });
 // One seller has everything cheaply once shipping is counted.
 const plan = greedyOptimise(
-  [{ cardId: "A", quantity: 2 }, { cardId: "B", quantity: 1 }],
+  [
+    { cardId: "A", quantity: 2 },
+    { cardId: "B", quantity: 1 },
+  ],
   [L("s1", "A", 100), L("s1", "B", 100), L("s2", "A", 50, 4, 400), L("s3", "B", 10, 1, 500)],
 );
 assert.equal(plan.missing.length, 0);

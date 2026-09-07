@@ -48,12 +48,7 @@ export function ArchivedList({ rows }: { rows: ArchivedCopy[] }) {
           <thead>
             <tr className="border-b border-space-700/70">
               <th className="w-8 px-2 py-1.5">
-                <input
-                  type="checkbox"
-                  checked={allOn}
-                  onChange={(e) => setSelected(e.target.checked ? new Set(ids) : new Set())}
-                  className="h-3.5 w-3.5 accent-ki-500"
-                />
+                <input type="checkbox" checked={allOn} onChange={(e) => setSelected(e.target.checked ? new Set(ids) : new Set())} className="h-3.5 w-3.5 accent-ki-500" />
               </th>
               <th className="px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wider text-space-400">Card</th>
               <th className="px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wider text-space-400">Print</th>

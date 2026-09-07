@@ -18,7 +18,8 @@ export type CartExplanation = z.infer<typeof CartExplanationSchema>;
 function planText(label: string, p: Plan | null): string {
   if (!p) return `${label}: not possible`;
   const lines = p.sellers.map(
-    (s) => `  ${s.seller} (${s.country}${s.lines.some((l) => l.listing.condition) ? "" : ""}): items €${(s.itemsCents / 100).toFixed(2)} + shipping €${(s.shippingCents / 100).toFixed(2)} — ${s.lines.map((l) => `${l.quantity}× ${l.listing.cardId} @ €${(l.listing.priceCents / 100).toFixed(2)}`).join(", ")}`,
+    (s) =>
+      `  ${s.seller} (${s.country}${s.lines.some((l) => l.listing.condition) ? "" : ""}): items €${(s.itemsCents / 100).toFixed(2)} + shipping €${(s.shippingCents / 100).toFixed(2)} — ${s.lines.map((l) => `${l.quantity}× ${l.listing.cardId} @ €${(l.listing.priceCents / 100).toFixed(2)}`).join(", ")}`,
   );
   const missing = p.missing.length ? `  missing: ${p.missing.map((m) => `${m.quantity}× ${m.cardId}`).join(", ")}` : "";
   return [`${label}: total €${(p.totalCents / 100).toFixed(2)} across ${p.sellers.length} seller(s)`, ...lines, missing].filter(Boolean).join("\n");
@@ -30,7 +31,8 @@ export async function explainCart(db: Db, best: Plan, fewestSellers: Plan | null
     max_tokens: 4000,
     thinking: { type: "adaptive" },
     output_config: { effort: "low", format: zodOutputFormat(CartExplanationSchema) },
-    system: "You help a Dragon Ball Super card collector in Austria choose between shopping-cart plans computed by a deterministic optimiser. Do not recompute totals; reason about the trade-offs given. Prices are EUR.",
+    system:
+      "You help a Dragon Ball Super card collector in Austria choose between shopping-cart plans computed by a deterministic optimiser. Do not recompute totals; reason about the trade-offs given. Prices are EUR.",
     messages: [
       {
         role: "user",

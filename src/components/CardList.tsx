@@ -70,15 +70,9 @@ export function CardList({ rows }: { rows: CardListRow[] }) {
                 </span>
               </td>
               <td className={`${cell} text-right`}>
-                {ownedQty ? (
-                  <span className="rounded-md bg-ki-500 px-1.5 py-0.5 text-xs font-bold text-space-950">×{ownedQty}</span>
-                ) : (
-                  <span className="text-xs text-space-600">—</span>
-                )}
+                {ownedQty ? <span className="rounded-md bg-ki-500 px-1.5 py-0.5 text-xs font-bold text-space-950">×{ownedQty}</span> : <span className="text-xs text-space-600">—</span>}
               </td>
-              <td className={`${cell} text-right text-xs`}>
-                {priceLabel ? <span className="font-medium text-space-100">{priceLabel}</span> : <span className="text-space-500">—</span>}
-              </td>
+              <td className={`${cell} text-right text-xs`}>{priceLabel ? <span className="font-medium text-space-100">{priceLabel}</span> : <span className="text-space-500">—</span>}</td>
             </tr>
           ))}
         </tbody>

@@ -792,7 +792,8 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
       case "power":
       case "comboPower": {
         const n = amount(ctx, s, frame, op.amount);
-        for (const id of resolveRef(ctx, s, frame, op.target)) addEffect(s, ev, { master: frame.master, source: frame.card, target: id, kind: op.op === "power" ? "power" : "comboPower", value: n, until: op.until });
+        for (const id of resolveRef(ctx, s, frame, op.target))
+          addEffect(s, ev, { master: frame.master, source: frame.card, target: id, kind: op.op === "power" ? "power" : "comboPower", value: n, until: op.until });
         break;
       }
 
@@ -823,7 +824,8 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         break;
 
       case "cannotAttack":
-        for (const id of resolveRef(ctx, s, frame, op.target)) addEffect(s, ev, { master: frame.master, source: frame.card, target: id, kind: "forbid", value: 0, until: op.until, forbid: { what: "attack" } });
+        for (const id of resolveRef(ctx, s, frame, op.target))
+          addEffect(s, ev, { master: frame.master, source: frame.card, target: id, kind: "forbid", value: 0, until: op.until, forbid: { what: "attack" } });
         break;
 
       case "forbid": {
@@ -833,7 +835,8 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         if (op.target) {
           // On a card, the side says *whose* action is forbidden — "can't be
           // KO'd by your opponent's skills" is a rule about the opponent.
-          for (const id of resolveRef(ctx, s, frame, op.target)) addEffect(s, ev, { master: frame.master, source: frame.card, target: id, kind: "forbid", value: 0, until: op.until, forbid: { what: op.what, player: players[0] } });
+          for (const id of resolveRef(ctx, s, frame, op.target))
+            addEffect(s, ev, { master: frame.master, source: frame.card, target: id, kind: "forbid", value: 0, until: op.until, forbid: { what: op.what, player: players[0] } });
           break;
         }
         addEffect(s, ev, {

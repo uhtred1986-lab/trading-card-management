@@ -18,8 +18,7 @@ export interface SpokenCard {
 }
 
 export type SpokenResult =
-  | { ok: true; card: SpokenCard; prints: { id: string; label: string }[]; foil: number; normal: number; heard: string; via: "number" | "name" }
-  | { ok: false; heard: string; reason: string };
+  { ok: true; card: SpokenCard; prints: { id: string; label: string }[]; foil: number; normal: number; heard: string; via: "number" | "name" } | { ok: false; heard: string; reason: string };
 
 async function load(cardId: string): Promise<{ card: SpokenCard; prints: { id: string; label: string }[] } | null> {
   const card = await db.query.cards.findFirst({

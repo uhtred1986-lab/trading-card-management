@@ -55,9 +55,7 @@ function assign(wants: Want[], listings: Listing[], allowedSellers: Set<string> 
 
   for (const w of wants) {
     let need = w.quantity;
-    const options = listings
-      .filter((l) => l.cardId === w.cardId && (allowedSellers ? allowedSellers.has(l.seller) : true))
-      .sort((a, b) => a.priceCents - b.priceCents);
+    const options = listings.filter((l) => l.cardId === w.cardId && (allowedSellers ? allowedSellers.has(l.seller) : true)).sort((a, b) => a.priceCents - b.priceCents);
     for (const l of options) {
       if (need <= 0) break;
       const stock = remainingStock.get(l.id) ?? 0;
@@ -101,8 +99,7 @@ export function greedyOptimise(wants: Want[], listings: Listing[]): Plan {
   if (sellers.length <= 40) for (const s of sellers) consider([s]);
   if (sellers.length <= 25) for (let i = 0; i < sellers.length; i++) for (let j = i + 1; j < sellers.length; j++) consider([sellers[i], sellers[j]]);
   if (sellers.length <= 12)
-    for (let i = 0; i < sellers.length; i++)
-      for (let j = i + 1; j < sellers.length; j++) for (let k = j + 1; k < sellers.length; k++) consider([sellers[i], sellers[j], sellers[k]]);
+    for (let i = 0; i < sellers.length; i++) for (let j = i + 1; j < sellers.length; j++) for (let k = j + 1; k < sellers.length; k++) consider([sellers[i], sellers[j], sellers[k]]);
 
   // Local search: try removing each seller (consolidating onto others) while it helps.
   let improved = true;

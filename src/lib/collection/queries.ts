@@ -79,12 +79,7 @@ export async function valuedLots(db: Db, opts: { game?: Game } = {}): Promise<{ 
         locationId: ownedCards.locationId,
       })
       .from(ownedCards)
-      .where(
-        and(
-          isNull(ownedCards.archivedAt),
-          opts.game ? sql`exists (select 1 from ${cards} c where c.id = ${ownedCards.cardId} and c.game = ${opts.game})` : undefined,
-        ),
-      ),
+      .where(and(isNull(ownedCards.archivedAt), opts.game ? sql`exists (select 1 from ${cards} c where c.id = ${ownedCards.cardId} and c.game = ${opts.game})` : undefined)),
     latestUsdEur(db),
   ]);
   const prices = await pricesForPrints(db, [...new Set(lots.map((l) => l.printId))]);
@@ -209,10 +204,7 @@ export async function collectionCards(
     const inAny = new Set(anyDeck.map((d) => d.cardId));
     lots = lots.filter((l) => inChosen.has(l.cardId) || (wantUndecked && !inAny.has(l.cardId)));
   }
-  const byCard = new Map<
-    string,
-    { qty: number; foilQty: number; normalQty: number; valueEur: number; spentEur: number; unpriced: number; latest: number }
-  >();
+  const byCard = new Map<string, { qty: number; foilQty: number; normalQty: number; valueEur: number; spentEur: number; unpriced: number; latest: number }>();
   for (const l of lots) {
     const agg = byCard.get(l.cardId) ?? { qty: 0, foilQty: 0, normalQty: 0, valueEur: 0, spentEur: 0, unpriced: 0, latest: 0 };
     agg.qty += 1;
@@ -421,8 +413,7 @@ export async function collectionCopies(
     rows = rows.filter((r) => terms.every((t) => r.searchText.includes(t)));
   }
 
-  const byNumber = (a: (typeof rows)[number], b: (typeof rows)[number]) =>
-    a.setSort - b.setSort || a.cardId.localeCompare(b.cardId) || a.id - b.id;
+  const byNumber = (a: (typeof rows)[number], b: (typeof rows)[number]) => a.setSort - b.setSort || a.cardId.localeCompare(b.cardId) || a.id - b.id;
   switch (opts.sort) {
     case "value":
       rows.sort((a, b) => (b.marketEurCents ?? 0) - (a.marketEurCents ?? 0) || byNumber(a, b));
@@ -526,7 +517,10 @@ export async function movers(db: Db, days = 7, limit = 8) {
   rows.sort((x, y) => Math.abs(y.deltaUsd * y.qty) - Math.abs(x.deltaUsd * x.qty));
   const top = rows.slice(0, limit);
   const names = top.length
-    ? await db.select({ id: cards.id, name: cards.name, imageUrl: cards.imageUrl }).from(cards).where(sql`${cards.id} in ${top.map((t) => t.cardId)}`)
+    ? await db
+        .select({ id: cards.id, name: cards.name, imageUrl: cards.imageUrl })
+        .from(cards)
+        .where(sql`${cards.id} in ${top.map((t) => t.cardId)}`)
     : [];
   const nameMap = new Map(names.map((n) => [n.id, n]));
   return { rows: top.map((t) => ({ ...t, ...nameMap.get(t.cardId)! })), usdEur, days };

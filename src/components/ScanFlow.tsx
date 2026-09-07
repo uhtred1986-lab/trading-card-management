@@ -286,10 +286,12 @@ export function ScanFlow({
           <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => onFiles(e.target.files)} />
         </label>
         <p className="w-full text-xs text-space-300">
-          Select as many photos as you like — each is read separately. {mode === "single" ? "Fill the frame with one card, number readable in the bottom corner." : "Lay cards out flat with no overlap; a binder page works well."}{" "}
+          Select as many photos as you like — each is read separately.{" "}
+          {mode === "single" ? "Fill the frame with one card, number readable in the bottom corner." : "Lay cards out flat with no overlap; a binder page works well."}{" "}
           {batchId ? (
             <>
-              Progress is saved in <span className="text-space-100">{batchName ?? `batch #${batchId}`}</span> — open <span className="font-mono text-space-100">/add/scan</span> on another device to continue there. Photos are deleted once you confirm or discard.
+              Progress is saved in <span className="text-space-100">{batchName ?? `batch #${batchId}`}</span> — open <span className="font-mono text-space-100">/add/scan</span> on another device to
+              continue there. Photos are deleted once you confirm or discard.
             </>
           ) : (
             "Photos and your review are saved as a batch, so you can upload from the phone and finish on the PC."
@@ -315,7 +317,10 @@ export function ScanFlow({
               </Link>
             </>
           ) : null}
-          . <Link href="/collection" className="underline">View collection</Link>
+          .{" "}
+          <Link href="/collection" className="underline">
+            View collection
+          </Link>
         </p>
       ) : null}
 
@@ -349,7 +354,9 @@ export function ScanFlow({
                   </button>
                 </div>
               ) : shown.status === "done" && shown.unreadable ? (
-                <p className="text-xs text-space-400">{shown.unreadable} card{shown.unreadable === 1 ? "" : "s"} visible but unreadable.</p>
+                <p className="text-xs text-space-400">
+                  {shown.unreadable} card{shown.unreadable === 1 ? "" : "s"} visible but unreadable.
+                </p>
               ) : null}
             </div>
           ) : null}
@@ -372,10 +379,18 @@ export function ScanFlow({
               {rows.length - reviewCount} confident · {reviewCount - unmatched} unsure · {unmatched} unmatched
             </span>
             <span className="ml-auto flex gap-2">
-              <button onClick={discard} disabled={pending || busy} className="tap rounded-md border border-space-600 px-3 py-1.5 text-sm text-space-300 hover:bg-space-800 hover:text-loss disabled:opacity-50">
+              <button
+                onClick={discard}
+                disabled={pending || busy}
+                className="tap rounded-md border border-space-600 px-3 py-1.5 text-sm text-space-300 hover:bg-space-800 hover:text-loss disabled:opacity-50"
+              >
                 Discard
               </button>
-              <button onClick={confirm} disabled={pending || busy || ready.length === 0} className="tap rounded-md bg-ki-500 px-4 py-1.5 text-sm font-semibold text-space-950 hover:bg-ki-400 disabled:opacity-50">
+              <button
+                onClick={confirm}
+                disabled={pending || busy || ready.length === 0}
+                className="tap rounded-md bg-ki-500 px-4 py-1.5 text-sm font-semibold text-space-950 hover:bg-ki-400 disabled:opacity-50"
+              >
                 {pending ? "Saving…" : `Add ${ready.reduce((n, r) => n + r.quantity, 0)} to collection`}
               </button>
             </span>
@@ -503,7 +518,14 @@ function ScanRow({
                   ))}
                 </select>
               ) : null}
-              <input type="number" min={1} value={r.quantity} onChange={(e) => onPatch({ quantity: Math.max(1, Number(e.target.value) || 1) })} className={`${selectClass} w-14`} aria-label="Quantity" />
+              <input
+                type="number"
+                min={1}
+                value={r.quantity}
+                onChange={(e) => onPatch({ quantity: Math.max(1, Number(e.target.value) || 1) })}
+                className={`${selectClass} w-14`}
+                aria-label="Quantity"
+              />
               <select value={r.condition} onChange={(e) => onPatch({ condition: e.target.value })} className={selectClass}>
                 {CONDITIONS.map((c) => (
                   <option key={c}>{c}</option>
@@ -538,8 +560,8 @@ function ScanRow({
             </div>
           </div>
           <p className="col-span-2 text-xs text-space-300">
-            Claude read <span className="text-space-100">{seen.name}</span> {seen.number ? <span className="font-mono text-space-100">{seen.number}</span> : "(no number)"} at {Math.round(seen.confidence * 100)}% read confidence.{" "}
-            {r.manual ? "You linked this card by hand." : describeMatch(r)}
+            Claude read <span className="text-space-100">{seen.name}</span> {seen.number ? <span className="font-mono text-space-100">{seen.number}</span> : "(no number)"} at{" "}
+            {Math.round(seen.confidence * 100)}% read confidence. {r.manual ? "You linked this card by hand." : describeMatch(r)}
           </p>
         </div>
       ) : null}

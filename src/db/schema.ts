@@ -1,20 +1,5 @@
 import { sql } from "drizzle-orm";
-import {
-  boolean,
-  customType,
-  date,
-  index,
-  integer,
-  jsonb,
-  pgTable,
-  primaryKey,
-  real,
-  serial,
-  text,
-  timestamp,
-  unique,
-  uniqueIndex,
-} from "drizzle-orm/pg-core";
+import { boolean, customType, date, index, integer, jsonb, pgTable, primaryKey, real, serial, text, timestamp, unique, uniqueIndex } from "drizzle-orm/pg-core";
 
 /*
  * ──────────────────────────────────────────────────────────────────────────
@@ -186,11 +171,7 @@ export const tcgProducts = pgTable(
     printId: text("print_id").references(() => cardPrints.id, { onDelete: "set null" }),
     modifiedOn: timestamp("modified_on", { withTimezone: true }),
   },
-  (t) => [
-    index("tcg_products_card_idx").on(t.cardId),
-    index("tcg_products_print_idx").on(t.printId),
-    index("tcg_products_number_idx").on(t.number),
-  ],
+  (t) => [index("tcg_products_card_idx").on(t.cardId), index("tcg_products_print_idx").on(t.printId), index("tcg_products_number_idx").on(t.number)],
 );
 
 export const tcgPrices = pgTable(
@@ -208,10 +189,7 @@ export const tcgPrices = pgTable(
     highCents: integer("high_cents"),
     directLowCents: integer("direct_low_cents"),
   },
-  (t) => [
-    primaryKey({ columns: [t.productId, t.subType, t.capturedOn] }),
-    index("tcg_prices_captured_idx").on(t.capturedOn),
-  ],
+  (t) => [primaryKey({ columns: [t.productId, t.subType, t.capturedOn] }), index("tcg_prices_captured_idx").on(t.capturedOn)],
 );
 
 /** Daily USD→EUR so USD market prices can be shown in the user's currency. */
@@ -243,15 +221,19 @@ export const syncRuns = pgTable("sync_runs", {
  * Maintained in settings and attached to individual copies, so a card can be
  * found again without turning the shelf out.
  */
-export const storageLocations = pgTable("storage_locations", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  note: text("note"),
-  /** Hidden from the pickers without deleting it, so old assignments survive. */
-  isArchived: boolean("is_archived").notNull().default(false),
-  sortKey: integer("sort_key").notNull().default(0),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-}, (t) => [uniqueIndex("storage_locations_name_unique").on(t.name)]);
+export const storageLocations = pgTable(
+  "storage_locations",
+  {
+    id: serial("id").primaryKey(),
+    name: text("name").notNull(),
+    note: text("note"),
+    /** Hidden from the pickers without deleting it, so old assignments survive. */
+    isArchived: boolean("is_archived").notNull().default(false),
+    sortKey: integer("sort_key").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("storage_locations_name_unique").on(t.name)],
+);
 
 /*
  * ──────────────────────────────────────────────────────────────────────────
@@ -296,12 +278,7 @@ export const ownedCards = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [
-    index("owned_cards_card_idx").on(t.cardId),
-    index("owned_cards_print_idx").on(t.printId),
-    index("owned_cards_owner_idx").on(t.owner),
-    index("owned_cards_archived_idx").on(t.archivedAt),
-  ],
+  (t) => [index("owned_cards_card_idx").on(t.cardId), index("owned_cards_print_idx").on(t.printId), index("owned_cards_owner_idx").on(t.owner), index("owned_cards_archived_idx").on(t.archivedAt)],
 );
 
 /*
@@ -348,10 +325,7 @@ export const deckCards = pgTable(
     zone: text("zone").notNull().default("main"),
     quantity: integer("quantity").notNull().default(1),
   },
-  (t) => [
-    primaryKey({ columns: [t.deckId, t.cardId, t.zone] }),
-    index("deck_cards_card_idx").on(t.cardId),
-  ],
+  (t) => [primaryKey({ columns: [t.deckId, t.cardId, t.zone] }), index("deck_cards_card_idx").on(t.cardId)],
 );
 
 /*
@@ -452,11 +426,7 @@ export const metaResults = pgTable(
     deckSourceId: text("deck_source_id").notNull(),
     sourceUrl: text("source_url").notNull(),
   },
-  (t) => [
-    index("meta_results_event_idx").on(t.eventId),
-    index("meta_results_leader_idx").on(t.leaderCardId),
-    uniqueIndex("meta_results_deck_unique").on(t.eventId, t.deckSourceId),
-  ],
+  (t) => [index("meta_results_event_idx").on(t.eventId), index("meta_results_leader_idx").on(t.leaderCardId), uniqueIndex("meta_results_deck_unique").on(t.eventId, t.deckSourceId)],
 );
 
 export const metaResultCards = pgTable(
@@ -652,9 +622,13 @@ export const arenaGames = pgTable(
     turn: integer("turn").notNull().default(0),
     state: jsonb("state").notNull(),
     /** Every action applied, in order — the game replays from seed + these. */
-    actions: jsonb("actions").notNull().default(sql`'[]'::jsonb`),
+    actions: jsonb("actions")
+      .notNull()
+      .default(sql`'[]'::jsonb`),
     /** One line per event, for the log the board shows. */
-    log: jsonb("log").notNull().default(sql`'[]'::jsonb`),
+    log: jsonb("log")
+      .notNull()
+      .default(sql`'[]'::jsonb`),
     /**
      * The skill that resolved on the last action, so the board can name the
      * card whose text just fired. Engine events are per-`apply` and would

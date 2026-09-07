@@ -34,10 +34,7 @@ export function CollectionList({ rows, owners, decks, locations }: { rows: Colle
   const chosen = useMemo(() => ids.filter((id) => selected.has(id)), [ids, selected]);
   const allOn = chosen.length > 0 && chosen.length === ids.length;
 
-  const ownerNames = useMemo(
-    () => [...new Set([...owners, ...rows.map((r) => r.owner).filter((o): o is string => !!o)])].sort((a, b) => a.localeCompare(b)),
-    [owners, rows],
-  );
+  const ownerNames = useMemo(() => [...new Set([...owners, ...rows.map((r) => r.owner).filter((o): o is string => !!o)])].sort((a, b) => a.localeCompare(b)), [owners, rows]);
 
   const toggleOne = (lotId: number, index: number, shift: boolean) => {
     setSelected((prev) => {
@@ -162,15 +159,9 @@ export function CollectionList({ rows, owners, decks, locations }: { rows: Colle
                   </td>
                   <td className={`${cell} text-xs ${r.owner ? "text-space-200" : "text-space-500"}`}>{r.owner ?? "—"}</td>
                   <td className={`${cell} hidden text-xs lg:table-cell ${r.locationName ? "text-space-200" : "text-space-500"}`}>{r.locationName ?? "—"}</td>
-                  <td className={`${cell} hidden text-right text-xs text-space-300 md:table-cell`}>
-                    {r.pricePaidCents != null ? formatCents(r.pricePaidCents, r.currency) : "—"}
-                  </td>
+                  <td className={`${cell} hidden text-right text-xs text-space-300 md:table-cell`}>{r.pricePaidCents != null ? formatCents(r.pricePaidCents, r.currency) : "—"}</td>
                   <td className={`${cell} text-right text-xs`}>
-                    {r.marketEurCents != null ? (
-                      <span className="font-medium text-space-100">{formatCents(r.marketEurCents)}</span>
-                    ) : (
-                      <span className="text-space-500">unpriced</span>
-                    )}
+                    {r.marketEurCents != null ? <span className="font-medium text-space-100">{formatCents(r.marketEurCents)}</span> : <span className="text-space-500">unpriced</span>}
                   </td>
                   <td className={`${cell} text-right`}>
                     <button

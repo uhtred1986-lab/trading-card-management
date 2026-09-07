@@ -236,7 +236,9 @@ console.log("  " + seen.map(([k, c]) => `${k} ${c}`).join(" · "));
 // vocabulary a real game used, how often the `other` valve was needed, and
 // what computing it cost per prompt against the menu itself.
 const byKind = [...rejections.byKind.entries()].sort((x, y) => y[1] - x[1]);
-console.log(`\nrejections: ${rejections.total} across ${rejections.prompts} prompts, ${(rejections.ms / Math.max(1, rejections.prompts)).toFixed(2)} ms each (the menu itself: ${(rejections.legalMs / Math.max(1, rejections.prompts)).toFixed(2)} ms)`);
+console.log(
+  `\nrejections: ${rejections.total} across ${rejections.prompts} prompts, ${(rejections.ms / Math.max(1, rejections.prompts)).toFixed(2)} ms each (the menu itself: ${(rejections.legalMs / Math.max(1, rejections.prompts)).toFixed(2)} ms)`,
+);
 console.log("  " + (byKind.map(([k, c]) => `${k} ${c}`).join(" · ") || "none"));
 const others = [...rejections.other.entries()].sort((x, y) => y[1] - x[1]);
 console.log(`other (${others.reduce((n, [, c]) => n + c, 0)}):`);

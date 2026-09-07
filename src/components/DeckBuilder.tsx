@@ -34,9 +34,12 @@ export function DeckBuilder({ deckId, game }: { deckId: number; game: Game }) {
     }
     timer.current = setTimeout(async () => setHits(await searchCardsAction(value, game)), 150);
   };
-  useEffect(() => () => {
-    if (timer.current) clearTimeout(timer.current);
-  }, []);
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    [],
+  );
 
   const add = (hit: Hit) =>
     start(async () => {
@@ -51,13 +54,7 @@ export function DeckBuilder({ deckId, game }: { deckId: number; game: Game }) {
   return (
     <div className="rounded-xl border border-space-700/70 bg-space-900/50 p-3">
       <div className="flex gap-2">
-        <input
-          value={q}
-          onChange={(e) => onQuery(e.target.value)}
-          placeholder="Search name or number…"
-          className={`${select} min-w-0 flex-1`}
-          autoComplete="off"
-        />
+        <input value={q} onChange={(e) => onQuery(e.target.value)} placeholder="Search name or number…" className={`${select} min-w-0 flex-1`} autoComplete="off" />
         <select value={zone} onChange={(e) => setZone(e.target.value as Zone)} className={select} aria-label="Add to zone">
           <option value="main">Main</option>
           {rules.zMax > 0 ? <option value="z">Z-Deck</option> : null}

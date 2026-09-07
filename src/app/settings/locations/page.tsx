@@ -16,7 +16,9 @@ export default async function LocationsPage() {
           ← Settings
         </Link>
         <h1 className="text-xl font-semibold text-space-50">Storage locations</h1>
-        <span className="ml-auto text-xs text-space-400">{filed} card{filed === 1 ? "" : "s"} filed</span>
+        <span className="ml-auto text-xs text-space-400">
+          {filed} card{filed === 1 ? "" : "s"} filed
+        </span>
       </div>
 
       <p className="rounded-xl border border-space-700/70 bg-space-900/40 p-3 text-xs text-space-300">
@@ -24,8 +26,7 @@ export default async function LocationsPage() {
         <Link href="/collection?view=list" className="text-ki-300 hover:underline">
           copies view
         </Link>
-        , one at a time or to a whole selection at once, then filter by location to find a card again. Archiving keeps a location on the cards already filed
-        there but takes it out of the pickers.
+        , one at a time or to a whole selection at once, then filter by location to find a card again. Archiving keeps a location on the cards already filed there but takes it out of the pickers.
       </p>
 
       <LocationsAdmin locations={locations} />

@@ -19,13 +19,7 @@
 const CACHE = "dbs-card-art-v1";
 
 /** The hosts in `next.config.ts` — the only ones this worker will touch. */
-const ART_HOSTS = new Set([
-  "storage.googleapis.com",
-  "www.dbs-cardgame.com",
-  "tcgplayer-cdn.tcgplayer.com",
-  "www.cardtrader.com",
-  "cardtrader.com",
-]);
+const ART_HOSTS = new Set(["storage.googleapis.com", "www.dbs-cardgame.com", "tcgplayer-cdn.tcgplayer.com", "www.cardtrader.com", "cardtrader.com"]);
 
 const OFFLINE_PAGE = `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">

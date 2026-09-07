@@ -142,7 +142,38 @@ const titleCase = (s: string) => s.replace(/\b[a-z]/g, (ch) => ch.toUpperCase())
 const TOKEN_STOP = new Set(["of", "your", "their", "the", "opponent's", "opponents", "up", "to", "and", "or", "all", "each", "other", "another"]);
 
 export function parseFilter(text: string): CardFilter {
-  const f: CardFilter = { colors: [], notColors: [], monoColor: false, multiColor: false, characters: [], notCharacters: [], charactersIncluding: [], notCharactersIncluding: [], traits: [], notTraits: [], names: [], notNames: [], namesIncluding: [], notNamesIncluding: [], notKeywords: [], keywords: [], skillKind: null, unreadable: false, noKeywords: false, type: null, notType: null, faceUp: false, token: false, notToken: false, costMin: null, costMax: null, powerMin: null, powerMax: null, powerRel: null, z: null };
+  const f: CardFilter = {
+    colors: [],
+    notColors: [],
+    monoColor: false,
+    multiColor: false,
+    characters: [],
+    notCharacters: [],
+    charactersIncluding: [],
+    notCharactersIncluding: [],
+    traits: [],
+    notTraits: [],
+    names: [],
+    notNames: [],
+    namesIncluding: [],
+    notNamesIncluding: [],
+    notKeywords: [],
+    keywords: [],
+    skillKind: null,
+    unreadable: false,
+    noKeywords: false,
+    type: null,
+    notType: null,
+    faceUp: false,
+    token: false,
+    notToken: false,
+    costMin: null,
+    costMax: null,
+    powerMin: null,
+    powerMax: null,
+    powerRel: null,
+    z: null,
+  };
   let t = text.replace(/&lt;/g, "<").replace(/&gt;/g, ">");
   // "Choose up to 1 Battle Card **other than** <Grand Supreme Kai>" (SD15-01,
   // in the owner's own decks) says which card is *excluded*. Read by the loops
@@ -327,9 +358,20 @@ export function parseFilter(text: string): CardFilter {
   else if ((m = /\b(?:with|and) (\d+) power\b/.exec(lower))) f.powerMin = f.powerMax = Number(m[1]);
   // "with power less than or equal to this card's power", "with power greater
   // than this card's power" — measured against the card the skill is on.
-  if ((m = /power (less than or equal to|equal to or less than|no more than|at or below|less than|lower than|greater than or equal to|equal to or greater than|no less than|at or above|greater than|higher than|more than) (?:this card'?s|its) power/.exec(lower))) {
+  if (
+    (m =
+      /power (less than or equal to|equal to or less than|no more than|at or below|less than|lower than|greater than or equal to|equal to or greater than|no less than|at or above|greater than|higher than|more than) (?:this card'?s|its) power/.exec(
+        lower,
+      ))
+  ) {
     const w = m[1];
-    const cmp = /^(?:less than or equal|equal to or less|no more|at or below)/.test(w) ? "<=" : /^(?:less|lower)/.test(w) ? "<" : /^(?:greater than or equal|equal to or greater|no less|at or above)/.test(w) ? ">=" : ">";
+    const cmp = /^(?:less than or equal|equal to or less|no more|at or below)/.test(w)
+      ? "<="
+      : /^(?:less|lower)/.test(w)
+        ? "<"
+        : /^(?:greater than or equal|equal to or greater|no less|at or above)/.test(w)
+          ? ">="
+          : ">";
     f.powerRel = { of: "self", cmp };
   }
   return f;

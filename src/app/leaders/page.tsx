@@ -112,7 +112,9 @@ export default async function LeadersPage({ searchParams }: { searchParams: Prom
                     <ul className="space-y-1">
                       {l.decks.map((d) => (
                         <li key={d.id} className="flex items-center gap-1.5">
-                          <span className={`rounded px-1.5 py-px text-[10px] font-bold uppercase ${d.isBuilt ? "bg-ki-500 text-space-950" : "bg-space-700 text-space-200"}`}>{d.isBuilt ? "Built" : "Virtual"}</span>
+                          <span className={`rounded px-1.5 py-px text-[10px] font-bold uppercase ${d.isBuilt ? "bg-ki-500 text-space-950" : "bg-space-700 text-space-200"}`}>
+                            {d.isBuilt ? "Built" : "Virtual"}
+                          </span>
                           <Link href={`/decks/${d.id}`} className="min-w-0 truncate text-space-100 hover:text-ki-300">
                             {d.name}
                           </Link>
@@ -134,7 +136,8 @@ export default async function LeadersPage({ searchParams }: { searchParams: Prom
       )}
 
       <p className="text-xs text-space-400">
-        &ldquo;Build a deck&rdquo; asks Claude for a full 50-card list around that leader, using the on-colour cards you own first and adding cards to buy only where they matter. The result is saved as a new <em>virtual</em> deck with the shopping list in its description — nothing is reserved until you mark it built.
+        &ldquo;Build a deck&rdquo; asks Claude for a full 50-card list around that leader, using the on-colour cards you own first and adding cards to buy only where they matter. The result is saved
+        as a new <em>virtual</em> deck with the shopping list in its description — nothing is reserved until you mark it built.
       </p>
     </div>
   );

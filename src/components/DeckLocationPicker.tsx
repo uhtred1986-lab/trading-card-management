@@ -14,17 +14,7 @@ import type { FilingResult } from "@/lib/decks/filing";
  * select on every re-render, so a pick could be snapped back to the old value
  * before it was ever saved.
  */
-export function DeckLocationPicker({
-  deckId,
-  locationId,
-  locations,
-  isBuilt,
-}: {
-  deckId: number;
-  locationId: number | null;
-  locations: StorageLocation[];
-  isBuilt: boolean;
-}) {
+export function DeckLocationPicker({ deckId, locationId, locations, isBuilt }: { deckId: number; locationId: number | null; locations: StorageLocation[]; isBuilt: boolean }) {
   const [value, setValue] = useState<number | null>(locationId);
   const [result, setResult] = useState<FilingResult | null>(null);
   const [failed, setFailed] = useState(false);
@@ -80,9 +70,7 @@ export function DeckLocationPicker({
                 : "Saved. Cards move here when you mark the deck built."}
         </p>
       ) : null}
-      {!result && !pending && value != null && !isBuilt ? (
-        <p className="text-[11px] text-space-400">Cards move here when you mark the deck built.</p>
-      ) : null}
+      {!result && !pending && value != null && !isBuilt ? <p className="text-[11px] text-space-400">Cards move here when you mark the deck built.</p> : null}
     </div>
   );
 }

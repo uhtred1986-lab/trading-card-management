@@ -83,11 +83,7 @@ export function NewDeckFromCard({ enabled }: { enabled: boolean }) {
           on the Leaders page instead.
         </p>
       ) : (
-        <button
-          onClick={draft}
-          disabled={!picked || drafting}
-          className="tap mt-2 w-full rounded-md bg-ki-500 px-3 py-1.5 text-sm font-semibold text-space-950 hover:bg-ki-400 disabled:opacity-50"
-        >
+        <button onClick={draft} disabled={!picked || drafting} className="tap mt-2 w-full rounded-md bg-ki-500 px-3 py-1.5 text-sm font-semibold text-space-950 hover:bg-ki-400 disabled:opacity-50">
           {drafting ? "Drafting… (a minute or two)" : picked ? "Draft a deck with Claude" : "Pick a card first"}
         </button>
       )}

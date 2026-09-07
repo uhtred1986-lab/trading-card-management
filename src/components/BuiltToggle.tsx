@@ -14,17 +14,7 @@ import type { FilingResult } from "@/lib/decks/filing";
  * caused by another deck can be solved by breaking that deck up instead of
  * buying.
  */
-export function BuiltToggle({
-  deckId,
-  isBuilt,
-  initialConflicts,
-  reservers,
-}: {
-  deckId: number;
-  isBuilt: boolean;
-  initialConflicts: BuildConflict[];
-  reservers: Record<string, Reserver[]>;
-}) {
+export function BuiltToggle({ deckId, isBuilt, initialConflicts, reservers }: { deckId: number; isBuilt: boolean; initialConflicts: BuildConflict[]; reservers: Record<string, Reserver[]> }) {
   const [pending, start] = useTransition();
   const [conflicts, setConflicts] = useState<BuildConflict[]>(initialConflicts);
   const [filing, setFiling] = useState<FilingResult | null>(null);

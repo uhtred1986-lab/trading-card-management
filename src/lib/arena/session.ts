@@ -22,10 +22,7 @@ import type { CardArt } from "./view";
 export async function artForGame(db: Db, game: LoadedGame): Promise<Record<string, CardArt>> {
   const ids = [...new Set(Object.values(game.state.cards).map((c) => c.cardId))].filter((x) => !x.startsWith("TOKEN:"));
   if (!ids.length) return {};
-  const rows = await db
-    .select({ id: cardsTable.id, imageUrl: cardsTable.imageUrl, backImageUrl: cardsTable.backImageUrl })
-    .from(cardsTable)
-    .where(inArray(cardsTable.id, ids));
+  const rows = await db.select({ id: cardsTable.id, imageUrl: cardsTable.imageUrl, backImageUrl: cardsTable.backImageUrl }).from(cardsTable).where(inArray(cardsTable.id, ids));
   const images: Record<string, CardArt> = {};
   for (const r of rows) images[r.id] = { front: r.imageUrl, back: r.backImageUrl };
   return images;
