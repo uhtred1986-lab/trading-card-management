@@ -22,8 +22,8 @@ export default async function UsersPage() {
       </div>
 
       <p className="rounded-xl border border-space-700/70 bg-space-900/40 p-3 text-xs text-space-300">
-        Everyone here can sign in with HTTP Basic Auth, and each login carries an <span className="text-space-100">owner</span> — the name stamped on cards that
-        person adds. Two logins can share one owner, and any add screen can override it for a single session.
+        Everyone here can sign in with HTTP Basic Auth, and each login carries an <span className="text-space-100">owner</span> — the name stamped on cards that person adds. Two logins can share one
+        owner, and any add screen can override it for a single session.
         {envUser ? (
           <>
             {" "}

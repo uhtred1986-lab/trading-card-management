@@ -7,7 +7,20 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { apply, createGame, defsFrom, legalActions, rejectedActions, seedFrom, type Action, type CardDef, type GameState, type PlayerId, type RejectedAction, type Requirement } from "../src/lib/arena/engine";
+import {
+  apply,
+  createGame,
+  defsFrom,
+  legalActions,
+  rejectedActions,
+  seedFrom,
+  type Action,
+  type CardDef,
+  type GameState,
+  type PlayerId,
+  type RejectedAction,
+  type Requirement,
+} from "../src/lib/arena/engine";
 import { appendBeats, maskBeats, toBeats, type Beat, type Beats, type NumberedBeat } from "../src/lib/arena/beats";
 import { buildSnapshot, rejectedFor, type Snapshot } from "../src/lib/arena/snapshot";
 import { boardView } from "../src/lib/arena/view";
@@ -55,13 +68,17 @@ import type { Trigger } from "../src/lib/arena/engine/types";
   assert.deepEqual(nail[0].energyCost, { any: 2 });
   assert.equal(nail[0].effect, "<Nail>");
 
-  const unison = parseSkills("[Empower Green 5]<br>[+1][Activate: Main] Place 1 card from your hand at the bottom of your deck: Draw 1 card.<br>[-6][Activate: Main] Your opponent discards 2 cards from their hand.");
+  const unison = parseSkills(
+    "[Empower Green 5]<br>[+1][Activate: Main] Place 1 card from your hand at the bottom of your deck: Draw 1 card.<br>[-6][Activate: Main] Your opponent discards 2 cards from their hand.",
+  );
   assert.deepEqual(unison[0].keyword, { name: "Empower", color: "Green", x: 5 });
   assert.equal(unison[1].markerCost, 1);
   assert.equal(unison[1].kind, "activate:main");
   assert.equal(unison[2].markerCost, -6);
 
-  const counter = parseSkills("[Energy-Exhaust] (If this card is placed in an Energy Area from any area, it must be placed there in Rest Mode.)<br>[Counter: Play] The Battle Card your opponent is playing is played in Rest Mode.");
+  const counter = parseSkills(
+    "[Energy-Exhaust] (If this card is placed in an Energy Area from any area, it must be placed there in Rest Mode.)<br>[Counter: Play] The Battle Card your opponent is playing is played in Rest Mode.",
+  );
   assert.deepEqual(counter[0].keyword, { name: "Energy-Exhaust" });
   assert.equal(counter[1].kind, "counter:play");
 
@@ -109,7 +126,20 @@ import type { Trigger } from "../src/lib/arena/engine/types";
   assert.deepEqual(g.notTraits, ["Great Ape"]);
   assert.deepEqual(g.characters, ["Son Goku: Childhood"]);
   assert.equal(g.costMax, 3);
-  const baby: CardDef = { id: "X", name: "Baby", type: "BATTLE", colors: ["Blue"], energyCost: 4, zEnergyCost: null, power: 1, comboCost: 0, comboPower: 0, skill: null, characters: ["Baby"], traits: [] };
+  const baby: CardDef = {
+    id: "X",
+    name: "Baby",
+    type: "BATTLE",
+    colors: ["Blue"],
+    energyCost: 4,
+    zEnergyCost: null,
+    power: 1,
+    comboCost: 0,
+    comboPower: 0,
+    skill: null,
+    characters: ["Baby"],
+    traits: [],
+  };
   assert.equal(matches(baby, f), true);
   assert.equal(matches({ ...baby, energyCost: 3 }, f), false);
   assert.equal(matches({ ...baby, colors: ["Red"] }, f), false);
@@ -118,7 +148,20 @@ import type { Trigger } from "../src/lib/arena/engine/types";
   // <Son Goku : GT>; the phrase is what a card prints when it means both.
   // BT4-096 checked its own leader for one and, read as the other, granted
   // neither its +15000 nor its [Double Strike] — the whole skill did nothing.
-  const gt: CardDef = { id: "SD5-01", name: "Golden Great Ape Son Goku", type: "LEADER", colors: ["Yellow"], energyCost: null, zEnergyCost: null, power: 10000, comboCost: null, comboPower: null, skill: null, characters: ["Son Goku: GT"], traits: ["Saiyan", "Goku's Lineage"] };
+  const gt: CardDef = {
+    id: "SD5-01",
+    name: "Golden Great Ape Son Goku",
+    type: "LEADER",
+    colors: ["Yellow"],
+    energyCost: null,
+    zEnergyCost: null,
+    power: 10000,
+    comboCost: null,
+    comboPower: null,
+    skill: null,
+    characters: ["Son Goku: GT"],
+    traits: ["Saiyan", "Goku's Lineage"],
+  };
   const part = parseFilter("≪Goku's Lineage≫ with <Son Goku> in its character name");
   assert.deepEqual(part.characters, [], "the phrase takes the token out of the exact list");
   assert.deepEqual(part.charactersIncluding, ["Son Goku"]);
@@ -183,7 +226,14 @@ const card = (id: string, o: Partial<CardDef>): CardDef => ({
 });
 
 const DEFS: Record<string, CardDef> = defsFrom([
-  card("L-RED", { type: "LEADER", energyCost: null, comboCost: null, comboPower: null, skill: "[Awaken] When your life is at 4 or less: Draw 1 card and flip this card over.", back: { name: "L-RED awakened", power: 15000, skill: null } }),
+  card("L-RED", {
+    type: "LEADER",
+    energyCost: null,
+    comboCost: null,
+    comboPower: null,
+    skill: "[Awaken] When your life is at 4 or less: Draw 1 card and flip this card over.",
+    back: { name: "L-RED awakened", power: 15000, skill: null },
+  }),
   card("L-BLUE", { type: "LEADER", colors: ["Blue"], energyCost: null, comboCost: null, comboPower: null }),
   card("V1", {}),
   card("V-BLUE", { colors: ["Blue"] }),
@@ -248,7 +298,8 @@ const DEFS: Record<string, CardDef> = defsFrom([
   card("BUUEAT", {
     energyCost: 1,
     characters: ["Majin Buu"],
-    skill: "[Auto] When you play this card, choose 1 of your <Majin Buu> and 1 of your opponent's Battle Cards with an energy cost of 3 or less. Place the chosen opponent Battle Card under the chosen <Majin Buu>.",
+    skill:
+      "[Auto] When you play this card, choose 1 of your <Majin Buu> and 1 of your opponent's Battle Cards with an energy cost of 3 or less. Place the chosen opponent Battle Card under the chosen <Majin Buu>.",
   }),
   card("TWOKILL", { energyCost: 1, skill: "[Auto] When you play this card, choose 2 of your opponent's Battle Cards and KO them." }),
   card("GRABBER", { energyCost: 1, skill: "[Auto] When you play this card, choose 1 of your opponent's cards and place it in its owner's drop area." }),
@@ -278,7 +329,8 @@ const DEFS: Record<string, CardDef> = defsFrom([
     power: null,
     comboCost: null,
     comboPower: null,
-    skill: "[Counter: Attack] Negate the attack.<br>[Permanent] You can activate this card's [Counter] skill from your hand by adding a card from your life to your hand instead of paying its energy cost.",
+    skill:
+      "[Counter: Attack] Negate the attack.<br>[Permanent] You can activate this card's [Counter] skill from your hand by adding a card from your life to your hand instead of paying its energy cost.",
   }),
   card("MODAL", { energyCost: 1, skill: "[Auto] When you play this card, choose one-<br>・Draw 1 card.<br>・Your opponent discards 1 card." }),
   // For the workflow spec: a search of the deck, and a skill the turn uses up.
@@ -315,7 +367,9 @@ function assertConsistent(s: GameState): void {
   const seen = new Map<string, number>();
   for (const p of ["p1", "p2"] as PlayerId[]) {
     const ps = s.players[p];
-    const all = [ps.leader, ps.unison, ...ps.deck, ...ps.hand, ...ps.drop, ...ps.warp, ...ps.life, ...ps.battle, ...ps.combo, ...ps.energy, ...ps.zDeck, ...ps.zEnergy, ...ps.removed].filter(Boolean) as string[];
+    const all = [ps.leader, ps.unison, ...ps.deck, ...ps.hand, ...ps.drop, ...ps.warp, ...ps.life, ...ps.battle, ...ps.combo, ...ps.energy, ...ps.zDeck, ...ps.zEnergy, ...ps.removed].filter(
+      Boolean,
+    ) as string[];
     for (const id of all) seen.set(id, (seen.get(id) ?? 0) + 1);
     for (const id of all) for (const u of s.cards[id].under) seen.set(u, (seen.get(u) ?? 0) + 1);
     // 3-9 sets no ceiling on life: [Rejuvenate] and "place the top card of
@@ -363,7 +417,10 @@ function assertConsistent(s: GameState): void {
   assert.equal(s.players.p1.energy.length, 1);
   assert.equal(s.prompt.kind, "main");
   const l = labels(s);
-  assert.ok(l.some((x) => x.startsWith("Play V1")), "can play a 1-cost with 1 energy");
+  assert.ok(
+    l.some((x) => x.startsWith("Play V1")),
+    "can play a 1-cost with 1 energy",
+  );
   assert.ok(!l.some((x) => x.startsWith("Attack")), "no attack on turn 1");
   assert.ok(l.includes("End turn"));
 
@@ -382,10 +439,16 @@ function assertConsistent(s: GameState): void {
   assert.equal(s.cards[s.players.p1.energy[0]].mode, "rest", "opponent's energy stays rested on my turn");
   s = play(s, { type: "charge", player: "p2", card: s.players.p2.hand[0] });
   const l2 = labels(s);
-  assert.ok(l2.some((x) => x.startsWith("Attack L-RED with L-BLUE")), "8-1-1: the leader can attack the leader");
+  assert.ok(
+    l2.some((x) => x.startsWith("Attack L-RED with L-BLUE")),
+    "8-1-1: the leader can attack the leader",
+  );
   assert.ok(!l2.some((x) => x.includes(`with ${v}`)), "opponent's cards don't attack for me");
   assert.ok(!l2.some((x) => x.startsWith("Attack V1")), "8-1-1: active battle cards can't be attacked");
-  assert.ok(l2.some((x) => x.startsWith("Play V-BLUE")), "1-14: an energy marker plus one energy pays cost 2? no — cost 1 with two sources");
+  assert.ok(
+    l2.some((x) => x.startsWith("Play V-BLUE")),
+    "1-14: an energy marker plus one energy pays cost 2? no — cost 1 with two sources",
+  );
 
   // Attack the leader: offense → defense → damage. 10000 vs 10000 hits (8-4-6).
   s = play(s, { type: "attack", player: "p2", attacker: s.players.p2.leader, target: s.players.p1.leader });
@@ -450,7 +513,10 @@ const find = (s: GameState, p: PlayerId, area: "hand" | "battle" | "energy" | "z
   const opp = s.players.p2.battle[0];
   s.cards[opp].mode = "rest";
   const l = labels(s);
-  assert.ok(l.some((x) => x.startsWith("Attack V-BLUE with L-RED")), "8-1-1: a rested battle card is a legal target");
+  assert.ok(
+    l.some((x) => x.startsWith("Attack V-BLUE with L-RED")),
+    "8-1-1: a rested battle card is a legal target",
+  );
   s = play(s, { type: "attack", player: "p1", attacker: s.players.p1.leader, target: opp });
   // Offense: combo from hand costs 0 and adds 5000.
   const c1 = find(s, "p1", "hand", "V1");
@@ -696,7 +762,10 @@ const find = (s: GameState, p: PlayerId, area: "hand" | "battle" | "energy" | "z
   assert.ok(!labels(s).some((x) => x.startsWith("Awaken")), "life 8 > 4");
   s.players.p1.life.splice(4); // drop to 4 life for the test
   assertConsistentAfterDrop(s);
-  assert.ok(labels(s).some((x) => x.startsWith("Awaken")), "life ≤ 4");
+  assert.ok(
+    labels(s).some((x) => x.startsWith("Awaken")),
+    "life ≤ 4",
+  );
   const before = s.players.p1.hand.length;
   s = play(s, { type: "activate", player: "p1", card: s.players.p1.leader, skill: 0 });
   assert.equal(s.cards[s.players.p1.leader].flipped, true, "22-2-4: flipped after the effect");
@@ -793,7 +862,10 @@ function assertConsistentAfterDrop(s: GameState) {
   s = play(s, { type: "playUnison", player: "p1", card: u, x: 2 });
   assert.equal(s.players.p1.unison, u);
   assert.equal(s.cards[u].markers, 2, "13-2-1-3: markers equal the energy paid");
-  assert.ok(labels(s).some((x) => x.startsWith("Grow U1")), "13-3-2: a copy in hand can grow it");
+  assert.ok(
+    labels(s).some((x) => x.startsWith("Grow U1")),
+    "13-3-2: a copy in hand can grow it",
+  );
   const copy = find(s, "p1", "hand", "U1");
   s = play(s, { type: "growUnison", player: "p1", card: copy });
   assert.equal(s.cards[u].markers, 3);
@@ -819,7 +891,10 @@ function assertConsistentAfterDrop(s: GameState) {
   assert.equal(s.prompt.kind, "zEnergyFromCombo");
   s = play(s, { type: "zEnergyFromCombo", player: "p1", card: c });
   assert.deepEqual(s.players.p1.zEnergy, [c]);
-  assert.ok(labels(s).some((x) => x.startsWith("Play Z-Battle ZB")), "now affordable");
+  assert.ok(
+    labels(s).some((x) => x.startsWith("Play Z-Battle ZB")),
+    "now affordable",
+  );
   const zb = find(s, "p1", "zDeck", "ZB");
   s = play(s, { type: "playZ", player: "p1", card: zb });
   assert.equal(s.players.p1.zEnergy.length, 0, "5-4-1: Z-Energy paid to the Drop");
@@ -897,14 +972,8 @@ function assertConsistentAfterDrop(s: GameState) {
 
 {
   // Clause splitting keeps card names and traits, which contain commas, in one piece.
-  assert.deepEqual(splitClauses("Choose 1 {Four-Star Ball, Parasitic Darkness} from your deck, then draw 1 card"), [
-    "Choose 1 {Four-Star Ball, Parasitic Darkness} from your deck",
-    "draw 1 card",
-  ]);
-  assert.deepEqual(splitClauses("Draw 1 card and place 1 card from your hand at the bottom of your deck"), [
-    "Draw 1 card",
-    "place 1 card from your hand at the bottom of your deck",
-  ]);
+  assert.deepEqual(splitClauses("Choose 1 {Four-Star Ball, Parasitic Darkness} from your deck, then draw 1 card"), ["Choose 1 {Four-Star Ball, Parasitic Darkness} from your deck", "draw 1 card"]);
+  assert.deepEqual(splitClauses("Draw 1 card and place 1 card from your hand at the bottom of your deck"), ["Draw 1 card", "place 1 card from your hand at the bottom of your deck"]);
   // 20-16: "if you do so" is the same connective as "if you do". Stripping the
   // phrase used to leave the "so" behind, which reads as a bare connective —
   // the condition vanished and the rest of the sentence happened regardless.
@@ -930,9 +999,7 @@ function assertConsistentAfterDrop(s: GameState) {
   const pump = one("[Activate: Main] This card gets +5000 power for the battle.");
   assert.deepEqual(pump.ops, [{ op: "power", target: { sel: { special: "self" } }, amount: 5000, until: "battle" }]);
 
-  const look = one(
-    "[Auto] When you play this card, look at up to 7 cards from the top of your deck, choose up to 1 card among them, place it in your energy in Rest Mode, then shuffle your deck.",
-  );
+  const look = one("[Auto] When you play this card, look at up to 7 cards from the top of your deck, choose up to 1 card among them, place it in your energy in Rest Mode, then shuffle your deck.");
   assert.deepEqual(look.unsupported, []);
   assert.deepEqual(
     look.ops.map((o) => o.op),
@@ -964,9 +1031,7 @@ function assertConsistentAfterDrop(s: GameState) {
   assert.deepEqual(one("[Evolve]{2}: <Nail>").ops, []);
 
   // A comma between two names is not a sentence break.
-  assert.deepEqual(splitClauses("choose 1 <Son Goku: GT>, <Trunks: GT>, or <Pan> with 15000 or less power"), [
-    "choose 1 <Son Goku: GT>, <Trunks: GT>, or <Pan> with 15000 or less power",
-  ]);
+  assert.deepEqual(splitClauses("choose 1 <Son Goku: GT>, <Trunks: GT>, or <Pan> with 15000 or less power"), ["choose 1 <Son Goku: GT>, <Trunks: GT>, or <Pan> with 15000 or less power"]);
 
   // A clause the parser cannot read marks the whole skill for the referee.
   const partial = one("[Auto] When you play this card, draw 1 card, then rearrange the stars in the sky.");
@@ -1140,7 +1205,10 @@ function assertConsistentAfterDrop(s: GameState) {
   const u = find(s, "p1", "hand", "UNI2");
   s = play(s, { type: "playUnison", player: "p1", card: u, x: 3 });
   assert.equal(s.cards[u].markers, 3);
-  assert.ok(labels(s).some((x) => x.startsWith("Activate UNI2")), "the [-1] skill is offered");
+  assert.ok(
+    labels(s).some((x) => x.startsWith("Activate UNI2")),
+    "the [-1] skill is offered",
+  );
   const handBefore = s.players.p1.hand.length;
   s = play(s, { type: "activate", player: "p1", card: u, skill: 0 });
   assert.equal(s.cards[u].markers, 2, "13-4-1-3: one marker was removed as the cost");
@@ -1324,10 +1392,7 @@ function assertConsistentAfterDrop(s: GameState) {
   let s = arena({ hand: ["LOCKDOWN"], energy: ["V1"], oppBattle: ["BIG"] });
   s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "LOCKDOWN") }, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
   const attacker = find(s, "p2", "battle", "BIG");
-  assert.ok(
-    !labels(s).some((x) => x.includes("Attack") && x.includes("BIG")),
-    "20-14: their Battle Card is not offered an attack",
-  );
+  assert.ok(!labels(s).some((x) => x.includes("Attack") && x.includes("BIG")), "20-14: their Battle Card is not offered an attack");
   assert.ok(
     labels(s).some((x) => x.includes("Attack") && x.includes("L-BLUE")),
     "but their Leader still can — the rule named Battle Cards",
@@ -1354,10 +1419,7 @@ function assertConsistentAfterDrop(s: GameState) {
   // "You can't play copies of this card" is about the name, not the card.
   let s = arena({ hand: ["NOCOPIES", "NOCOPIES"], energy: ["V1", "V1"] });
   s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "NOCOPIES") });
-  assert.ok(
-    !labels(s).some((x) => x.startsWith("Play NOCOPIES")),
-    "the second copy is not offered",
-  );
+  assert.ok(!labels(s).some((x) => x.startsWith("Play NOCOPIES")), "the second copy is not offered");
   assert.throws(() => apply({ defs: DEFS }, s, { type: "play", player: "p1", card: find(s, "p1", "hand", "NOCOPIES") }), /can't be played/);
 }
 
@@ -1463,9 +1525,7 @@ function assertConsistentAfterDrop(s: GameState) {
   // BT1-077, BT1-078, BT3-054: the optional price and what it buys, in one
   // branch. Without the "up to" the player would have to pay; without the
   // branch, an empty hand would buy the rest of the skill for nothing.
-  const bargain = one(
-    "[Counter: Attack] Negate the attack. Then, you may place 1 card from your hand in the Drop Area. If you do so, draw 1 card.",
-  );
+  const bargain = one("[Counter: Attack] Negate the attack. Then, you may place 1 card from your hand in the Drop Area. If you do so, draw 1 card.");
   assert.deepEqual(bargain.unsupported, []);
   assert.deepEqual(bargain.ops, [
     { op: "negateAttack" },
@@ -1508,9 +1568,7 @@ function assertConsistentAfterDrop(s: GameState) {
   // A price paid at the end of the battle: what hangs on it happens then too.
   // Left outside the delay, the condition was asked before the delayed program
   // had bound anything, and the second half of the skill never ran.
-  const later = one(
-    "[Auto] When this card attacks, you may place 1 card from your hand in the Drop Area at the end of the battle. If you do so, switch this card to Active Mode."
-  );
+  const later = one("[Auto] When this card attacks, you may place 1 card from your hand in the Drop Area at the end of the battle. If you do so, switch this card to Active Mode.");
   assert.deepEqual(later.unsupported, []);
   const wait = later.ops[0] as { op: string; at: string; ops: { op: string; then?: { op: string }[] }[] };
   assert.deepEqual([wait.op, wait.at], ["delay", "battleEnd"]);
@@ -1526,9 +1584,7 @@ function assertConsistentAfterDrop(s: GameState) {
   // BT3-122: a price of 2 cards is not paid by giving one, and the hand keeps
   // both until it is — otherwise an “up to” choice bought the effect at half
   // price, and the older reading bought it outright with an empty hand.
-  const two = one(
-    "[Counter: Attack] Negate the attack. Then, you may place 2 cards from your hand in the Drop Area. If you do so, add this card to your hand.",
-  );
+  const two = one("[Counter: Attack] Negate the attack. Then, you may place 2 cards from your hand in the Drop Area. If you do so, add this card to your hand.");
   assert.deepEqual(two.unsupported, []);
   assert.deepEqual((two.ops[1] as { sel: { count: number; upTo: boolean } }).sel.count, 2);
   assert.deepEqual((two.ops[2] as { cond: unknown }).cond, { kind: "chose", var: "cost", atLeast: 2 });
@@ -1546,7 +1602,12 @@ function assertConsistentAfterDrop(s: GameState) {
   assert.deepEqual(paid.cond, { kind: "chose", var: "cost" });
   assert.deepEqual(
     paid.then.map((o) => [o.op, o.as ?? null]),
-    [["moveTo", null], ["choose", "c0"], ["choose", "c1"], ["moveTo", null]],
+    [
+      ["moveTo", null],
+      ["choose", "c0"],
+      ["choose", "c1"],
+      ["moveTo", null],
+    ],
   );
   assert.deepEqual(ops("[Activate: Main] Add cards from your life to your hand until you have 6 life left."), ["lifeDownTo"]);
   assert.deepEqual(ops("[Activate: Main] Both players choose 1 card from their hand."), ["discard"]);
@@ -1719,10 +1780,7 @@ function assertConsistentAfterDrop(s: GameState) {
   let s = arena({ battle: ["PERMLOCK"], oppBattle: ["BIG"] });
   const lock = find(s, "p1", "battle", "PERMLOCK");
   s = play(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
-  assert.ok(
-    !labels(s).some((x) => x.includes("Attack") && x.includes("BIG")),
-    "their Battle Card cannot attack while the permanent skill is in play",
-  );
+  assert.ok(!labels(s).some((x) => x.includes("Attack") && x.includes("BIG")), "their Battle Card cannot attack while the permanent skill is in play");
   assert.ok(
     labels(s).some((x) => x.includes("Attack") && x.includes("L-BLUE")),
     "their Leader still can — the rule named Battle Cards",
@@ -1790,7 +1848,10 @@ function assertConsistentAfterDrop(s: GameState) {
   // one — this is about what the card *is*, not what it does.
   let s = arena({ hand: ["SAIYANKILL"], energy: ["V1"], oppBattle: ["BECOMES", "BIG"] });
   const becomes = find(s, "p2", "battle", "BECOMES");
-  assert.ok(cardNow(ctx, s, becomes).traits.some((t) => t.toLowerCase() === "saiyan"), "it counts as a ≪Saiyan≫");
+  assert.ok(
+    cardNow(ctx, s, becomes).traits.some((t) => t.toLowerCase() === "saiyan"),
+    "it counts as a ≪Saiyan≫",
+  );
   s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "SAIYANKILL") });
   // Only one card on their side is a Saiyan, so the choice is forced and taken.
   assert.ok(s.players.p2.drop.includes(becomes), "the ≪Saiyan≫ skill found it");
@@ -1851,10 +1912,7 @@ function assertConsistentAfterDrop(s: GameState) {
     "the first is playable",
   );
   s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "ONLYONE") });
-  assert.ok(
-    !labels(s).some((x) => x.startsWith("Play ONLYONE")),
-    "the second is not, while the first is in play",
-  );
+  assert.ok(!labels(s).some((x) => x.startsWith("Play ONLYONE")), "the second is not, while the first is in play");
 }
 
 {
@@ -2009,7 +2067,10 @@ function assertConsistentAfterDrop(s: GameState) {
   const each = one("[Activate: Main] Draw 1 card for each of your Battle Cards.");
   assert.deepEqual(each.unsupported, []);
   assert.deepEqual(each.ops, [
-    { op: "draw", n: { count: { side: "you", area: "battle", filter: undefined, count: 99, upTo: false, mode: undefined, fromVar: undefined, take: undefined, fromEnd: undefined, notSelf: undefined } } },
+    {
+      op: "draw",
+      n: { count: { side: "you", area: "battle", filter: undefined, count: 99, upTo: false, mode: undefined, fromVar: undefined, take: undefined, fromEnd: undefined, notSelf: undefined } },
+    },
   ]);
 
   // "+5000 power for each" is a multiple of the count, not the count.
@@ -2082,7 +2143,10 @@ function assertConsistentAfterDrop(s: GameState) {
   assert.equal(sel.side, "opponent");
 
   // Each area alone still resolves to just that one.
-  assert.equal((one("[Auto] When you play this card, choose up to 1 of your opponent's Unisons and remove 1 marker from it.").ops[0] as { sel: { area: string; areas?: string[] } }).sel.area, "unison");
+  assert.equal(
+    (one("[Auto] When you play this card, choose up to 1 of your opponent's Unisons and remove 1 marker from it.").ops[0] as { sel: { area: string; areas?: string[] } }).sel.area,
+    "unison",
+  );
   assert.equal((one("[Auto] When you play this card, choose up to 1 of your opponent's Battle Cards and KO it.").ops[0] as { sel: { areas?: string[] } }).sel.areas, undefined);
 }
 
@@ -2202,7 +2266,6 @@ function assertConsistentAfterDrop(s: GameState) {
   for (const tail of ["for the turn", "for the duration of the battle", "until the end of your opponent's turn"]) {
     assert.deepEqual(one(`This card gets +5000 power ${tail}.`).unsupported, [], tail);
   }
-
 }
 
 // ── a condition printed after its effect (XD1-01) ──────────────────────────
@@ -2422,7 +2485,10 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   let s = arena({ hand: ["SUCC"], battle: ["G2", "Y3", "G4"], energy: ["G2", "Y3"] });
   const succ = find(s, "p1", "hand", "SUCC");
   const [g2, y3, g4] = s.players.p1.battle;
-  assert.ok(labels(s).some((x) => x.startsWith("Successor: play SUCC")), "22-38-2: a sum of 5 exists (2 + 3)");
+  assert.ok(
+    labels(s).some((x) => x.startsWith("Successor: play SUCC")),
+    "22-38-2: a sum of 5 exists (2 + 3)",
+  );
   s = play(s, { type: "activate", player: "p1", card: succ, skill: 0 });
   assert.equal(s.prompt.kind, "chooseCards");
   assert.deepEqual((s.prompt as { choice: { candidates: string[] } }).choice.candidates, [g2, y3], "4 alone can never reach 5, so it is not offered");
@@ -2433,7 +2499,10 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.ok(s.players.p1.battle.includes(succ), "22-38-4: played");
   assert.ok(s.players.p1.drop.includes(g2) && s.players.p1.drop.includes(y3), "22-38-3: the chosen cards were dropped");
   assert.ok(s.players.p1.battle.includes(g4), "the rest stay");
-  assert.ok(s.players.p1.energy.every((id) => s.cards[id].mode === "rest"), "{g}{y} was paid");
+  assert.ok(
+    s.players.p1.energy.every((id) => s.cards[id].mode === "rest"),
+    "{g}{y} was paid",
+  );
   assertConsistent(s);
 
   const n = arena({ hand: ["SUCC"], battle: ["G4", "G4"], energy: ["G2", "Y3"] });
@@ -2455,7 +2524,10 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.ok(!canActivate(s, aeg), "22-30-4: not in the Offense Step");
   s = play(s, { type: "pass", player: "p2" });
   assert.equal((s.prompt as { side: string }).side, "defense");
-  assert.ok(labels(s).some((x) => x.startsWith("Aegis Red/Blue")), "22-30-4: the Defense Step of the opponent's turn");
+  assert.ok(
+    labels(s).some((x) => x.startsWith("Aegis Red/Blue")),
+    "22-30-4: the Defense Step of the opponent's turn",
+  );
   s = play(s, { type: "activate", player: "p1", card: aeg, skill: 0 });
   assert.equal(s.cards[e3].mode, "rest", "the {r} was paid");
   assert.equal(s.prompt.kind, "chooseCards");
@@ -2562,7 +2634,14 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   // [Alliance X/Y] (22-32): as it attacks, its owner may rest other Battle
   // Cards of the named colours; the printed effect then reads "the total
   // power of the cards switched to Rest Mode by this skill" off those cards.
-  DEFS.ALLY = { ...DEFS.V1, id: "ALLY", name: "ALLY", colors: ["Red", "Green"], energyCost: 3, skill: "[Alliance Red/Green] This card gains power equal to the total power of the cards switched to Rest Mode by this skill and [Double Strike] for the battle, then draw 1 card." };
+  DEFS.ALLY = {
+    ...DEFS.V1,
+    id: "ALLY",
+    name: "ALLY",
+    colors: ["Red", "Green"],
+    energyCost: 3,
+    skill: "[Alliance Red/Green] This card gains power equal to the total power of the cards switched to Rest Mode by this skill and [Double Strike] for the battle, then draw 1 card.",
+  };
   DEFS.GRN = { ...DEFS.V1, id: "GRN", name: "GRN", colors: ["Green"], power: 15000 };
   let s = arena({ battle: ["ALLY", "V1", "GRN", "V-BLUE"], oppBattle: ["BIG"] });
   const [ally, v1, grn] = s.players.p1.battle;
@@ -2598,7 +2677,12 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
 
   // A printed condition on the keyword ("If your Leader Card is blue:") is
   // read before asking.
-  DEFS.ALLYC = { ...DEFS.ALLY, id: "ALLYC", name: "ALLYC", skill: "[Alliance Red/Green] If your Leader Card is blue: This card gains power equal to the total power of the cards switched to Rest Mode by this skill for the battle." };
+  DEFS.ALLYC = {
+    ...DEFS.ALLY,
+    id: "ALLYC",
+    name: "ALLYC",
+    skill: "[Alliance Red/Green] If your Leader Card is blue: This card gains power equal to the total power of the cards switched to Rest Mode by this skill for the battle.",
+  };
   let c = arena({ battle: ["ALLYC", "V1"], oppBattle: ["BIG"] });
   c.cards[c.players.p2.battle[0]].mode = "rest";
   c = play(c, { type: "attack", player: "p1", attacker: c.players.p1.battle[0], target: c.players.p2.battle[0] });
@@ -2615,7 +2699,10 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   const e = find(s, "p1", "hand", "E-RB");
   const l = labels(s);
   assert.ok(!l.includes("Activate E-RB (2)"), "one energy cannot pay 2");
-  assert.ok(l.some((x) => x.startsWith("Activate E-RB by resting a Red/Blue energy")), "22-37: [Invoker] in play and a Red/Blue energy active");
+  assert.ok(
+    l.some((x) => x.startsWith("Activate E-RB by resting a Red/Blue energy")),
+    "22-37: [Invoker] in play and a Red/Blue energy active",
+  );
   const hand = s.players.p1.hand.length;
   s = play(s, { type: "activate", player: "p1", card: e, skill: 0, alt: true });
   assert.equal(s.cards[s.players.p1.energy[0]].mode, "rest", "the Red/Blue energy was rested");
@@ -2663,7 +2750,10 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.ok((read("if your Leader's back side is a black <Goku> card") as { back?: boolean }).back);
   const either = read("when your life is at 4 or less, or you have 5 or more energy");
   assert.equal(either?.kind, "any");
-  assert.deepEqual((either as { conds: { kind: string }[] }).conds.map((x) => x.kind), ["life", "count"]);
+  assert.deepEqual(
+    (either as { conds: { kind: string }[] }).conds.map((x) => x.kind),
+    ["life", "count"],
+  );
   const bothOf = read("if your life is at 4 or less and you have 3 or more energy");
   assert.equal(bothOf?.kind, "all");
   assert.equal(read("if your life is at 4 or less, or the moon is full"), undefined, "one unreadable part fails the whole condition");
@@ -2671,7 +2761,10 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.deepEqual(read("if this card's power is 30000 or more"), { kind: "power", sel: { special: "self" }, atLeast: 30000 });
   const trait = read("if your Leader Card has ≪Saiyan≫ in its special trait");
   assert.equal(trait?.kind, "leaderMatches");
-  assert.deepEqual((trait as { filter: { traits: string[] } }).filter.traits.map((x) => x.toLowerCase()), ["saiyan"]);
+  assert.deepEqual(
+    (trait as { filter: { traits: string[] } }).filter.traits.map((x) => x.toLowerCase()),
+    ["saiyan"],
+  );
   assert.equal(read("when your life is at 4 or less or your opponent's Leader Card's back is facing up")?.kind, "any");
   // "red or blue" and "4 or less" are not alternatives.
   assert.equal(read("if your Leader Card is red or blue")?.kind, "leaderMatches");
@@ -2687,7 +2780,9 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   // "Choose up to 1 of your opponent's Battle Cards with power less than or
   // equal to this card's power" used to read "this card" as the target and
   // pick the card itself. The bound is measured where the skill runs.
-  const sc = compileSkill(parseSkills("[Auto] When this card attacks, choose up to 1 of your opponent's Battle Cards with power less than or equal to this card's power, ignoring [Barrier], and KO it.")[0]);
+  const sc = compileSkill(
+    parseSkills("[Auto] When this card attacks, choose up to 1 of your opponent's Battle Cards with power less than or equal to this card's power, ignoring [Barrier], and KO it.")[0],
+  );
   assert.deepEqual(sc.unsupported, []);
   const sel = (sc.ops[0] as { sel: { side?: string; area?: string; ignoreBarrier?: boolean; filter?: { powerRel: unknown } } }).sel;
   assert.equal(sel.side, "opponent");
@@ -2695,7 +2790,13 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.deepEqual(sel.filter?.powerRel, { of: "self", cmp: "<=" });
   assert.ok(sel.ignoreBarrier);
 
-  DEFS.RELKO = { ...DEFS.V1, id: "RELKO", name: "RELKO", power: 15000, skill: "[Auto] When this card attacks, choose up to 1 of your opponent's Battle Cards with power less than or equal to this card's power and KO it." };
+  DEFS.RELKO = {
+    ...DEFS.V1,
+    id: "RELKO",
+    name: "RELKO",
+    power: 15000,
+    skill: "[Auto] When this card attacks, choose up to 1 of your opponent's Battle Cards with power less than or equal to this card's power and KO it.",
+  };
   let s = arena({ battle: ["RELKO"], oppBattle: ["V-BLUE", "BIG"] });
   const [small, big] = s.players.p2.battle;
   s.cards[big].mode = "rest";
@@ -2729,13 +2830,20 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   // unread — and the ops it did produce gained the power every time.
   const vegito = one("place up to 1 card from the top of your deck in the Drop Area. If that card is red, this card gains +5000 power for the duration of the turn.");
   assert.deepEqual(vegito.unsupported, [], "the whole skill reads");
-  assert.deepEqual(vegito.ops.map((o) => o.op), ["mill", "if"]);
+  assert.deepEqual(
+    vegito.ops.map((o) => o.op),
+    ["mill", "if"],
+  );
   const milled = (vegito.ops[0] as { as: string }).as;
   const gate = vegito.ops[1] as { cond: { kind: string; var: string; filter: { colors: string[] } }; then: { op: string }[] };
   assert.equal(gate.cond.kind, "varMatches");
   assert.equal(gate.cond.var, milled, "the condition asks about the card the mill named");
   assert.deepEqual(gate.cond.filter.colors, ["Red"]);
-  assert.deepEqual(gate.then.map((o) => o.op), ["power"], "and the power is inside the condition, not beside it");
+  assert.deepEqual(
+    gate.then.map((o) => o.op),
+    ["power"],
+    "and the power is inside the condition, not beside it",
+  );
 
   // The comma was never the problem: the same sentence with a condition the
   // parser already knew read correctly all along.
@@ -2775,7 +2883,13 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   const tail = did.ops[did.ops.length - 1] as { op: string; cond?: { kind: string; what?: string } };
   assert.equal(tail.op, "if");
   assert.deepEqual(tail.cond, { kind: "did", what: "addToHand" });
-  DEFS.DIDDRAW = { ...DEFS.V1, id: "DIDDRAW", name: "DIDDRAW", energyCost: 1, skill: "[Auto] When you play this card, choose up to 1 card in your Drop Area and add it to your hand. If you added a card to your hand, draw 1 card." };
+  DEFS.DIDDRAW = {
+    ...DEFS.V1,
+    id: "DIDDRAW",
+    name: "DIDDRAW",
+    energyCost: 1,
+    skill: "[Auto] When you play this card, choose up to 1 card in your Drop Area and add it to your hand. If you added a card to your hand, draw 1 card.",
+  };
   let d = arena({ hand: ["DIDDRAW", "DIDDRAW"], energy: ["V1", "V1"] });
   let hand = d.players.p1.hand.length;
   d = play(d, { type: "play", player: "p1", card: find(d, "p1", "hand", "DIDDRAW") });
@@ -2814,7 +2928,10 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   // "Negate this skill for the turn" is the same idea for one skill.
   DEFS.SELFMUTET = { ...DEFS.V1, id: "SELFMUTET", name: "SELFMUTET", skill: "[Auto] When this card attacks, draw 1 card, then negate this skill for the turn." };
   const sc = compileSkill(parseSkills(DEFS.SELFMUTET.skill!)[0]);
-  assert.deepEqual(sc.ops, [{ op: "draw", n: 1 }, { op: "negateOwnSkill", until: "turn" }]);
+  assert.deepEqual(sc.ops, [
+    { op: "draw", n: 1 },
+    { op: "negateOwnSkill", until: "turn" },
+  ]);
   let t = arena({ battle: ["SELFMUTET"] });
   const sm = t.players.p1.battle[0];
   const hand = t.players.p1.hand.length;
@@ -2846,11 +2963,17 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.deepEqual(auto("place the top card of your opponent's deck into its owner's Drop.").ops, [{ op: "mill", n: 1, side: "opponent", as: "m0" }]);
   // Placed, not played.
   const placed = auto("place up to 2 {Dragon Ball} from your Drop into the Battle Area.").ops;
-  assert.deepEqual(placed.map((o) => o.op), ["choose", "moveTo"]);
+  assert.deepEqual(
+    placed.map((o) => o.op),
+    ["choose", "moveTo"],
+  );
   assert.equal((placed[0] as { sel: { area?: string } }).sel.area, "drop");
   assert.equal((placed[1] as { to: string }).to, "battle");
   // Shuffled in.
-  assert.deepEqual(auto("choose 1 card in your Drop Area and shuffle it into your deck.").ops.map((o) => o.op), ["choose", "moveTo", "shuffle"]);
+  assert.deepEqual(
+    auto("choose 1 card in your Drop Area and shuffle it into your deck.").ops.map((o) => o.op),
+    ["choose", "moveTo", "shuffle"],
+  );
   // "isn't in play".
   const absent = auto("if {Demonic Invasion Majin Buu} isn't in play in your Battle Area, draw 1 card.").ops[0] as { op: string; cond: { kind: string; atMost?: number } };
   assert.equal(absent.op, "if");
@@ -2864,9 +2987,12 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   const either2 = auto("you may choose 1 card in your hand and discard it. If you don't, your opponent draws 1 card.");
   assert.deepEqual(either2.unsupported, []);
   assert.equal(either2.ops[either2.ops.length - 1].op, "if");
-  assert.equal(((either2.ops[either2.ops.length - 1] as { cond: { kind: string } }).cond).kind, "not");
+  assert.equal((either2.ops[either2.ops.length - 1] as { cond: { kind: string } }).cond.kind, "not");
   // Looking's housekeeping is not an effect.
-  assert.deepEqual(auto("look at the top 3 cards of your deck, then put them back in any order.").ops.map((o) => o.op), ["look"]);
+  assert.deepEqual(
+    auto("look at the top 3 cards of your deck, then put them back in any order.").ops.map((o) => o.op),
+    ["look"],
+  );
   // A card in the opponent's hand is a hand card.
   assert.equal((auto("choose up to 1 card in your opponent's hand and discard it.").ops[0] as { sel: { area?: string; side?: string } }).sel.area, "hand");
 
@@ -2883,7 +3009,10 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
 
   // "Switch the target of the attack to it" — a redirect from a skill.
   DEFS["E-DECOY"] = { ...DEFS["E-NEGATE"], id: "E-DECOY", name: "E-DECOY", skill: "[Counter: Attack] Choose 1 of your Battle Cards and switch the target of the attack to it." };
-  assert.deepEqual(one(DEFS["E-DECOY"].skill!).ops.map((o) => o.op), ["choose", "redirectAttack"]);
+  assert.deepEqual(
+    one(DEFS["E-DECOY"].skill!).ops.map((o) => o.op),
+    ["choose", "redirectAttack"],
+  );
   let r = arena({ oppHand: ["E-DECOY"], oppEnergy: ["V1"], oppBattle: ["BIG"] });
   const big = r.players.p2.battle[0];
   r = play(r, { type: "attack", player: "p1", attacker: r.players.p1.leader, target: r.players.p2.leader });
@@ -2899,9 +3028,15 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   // a number in it has to be a choice first — "add 1 card from your Drop to
   // your hand" used to add the whole Drop.
   const sc = compileSkill(parseSkills("[Auto] When you play this card, add 1 card from your Drop to your hand.")[0]);
-  assert.deepEqual(sc.ops.map((o) => o.op), ["choose", "moveTo"]);
+  assert.deepEqual(
+    sc.ops.map((o) => o.op),
+    ["choose", "moveTo"],
+  );
   // A bare plural still means all of them.
-  assert.deepEqual(compileSkill(parseSkills("[Auto] When you play this card, return your opponent's Battle Cards to their owners' hands.")[0]).ops.map((o) => o.op), ["moveTo"]);
+  assert.deepEqual(
+    compileSkill(parseSkills("[Auto] When you play this card, return your opponent's Battle Cards to their owners' hands.")[0]).ops.map((o) => o.op),
+    ["moveTo"],
+  );
 
   DEFS.FETCH = { ...DEFS.V1, id: "FETCH", name: "FETCH", energyCost: 1, skill: "[Auto] When you play this card, add 1 card from your Drop to your hand." };
   let s = arena({ hand: ["FETCH"], energy: ["V1"] });
@@ -2925,7 +3060,10 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   // A trigger split on its "and" is still the trigger; a condition riding on it wraps the effect.
   const kos = one("[Auto][Once per turn] When this card attacks and KOs an opponent's Battle Card, your opponent chooses 1 card in their hand and discards it.");
   assert.deepEqual(kos.unsupported, []);
-  assert.deepEqual(kos.ops.map((o) => o.op), ["discard"]);
+  assert.deepEqual(
+    kos.ops.map((o) => o.op),
+    ["discard"],
+  );
   const riding = one("[Auto] When you play this card from your hand and your Leader Card is a ≪Universe 6≫ card, draw 1 card.");
   assert.deepEqual(riding.unsupported, []);
   assert.equal(riding.ops[0].op, "if");
@@ -2936,18 +3074,26 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.ok(autoTriggerMatches(sk, "kos"));
 
   // Names joined by "and" are one phrase.
-  assert.deepEqual(splitClauses("When your opponent plays a red Battle Card with both <Son Goku> and <Piccolo>, play this card."), ["When your opponent plays a red Battle Card with both <Son Goku> and <Piccolo>", "play this card"]);
+  assert.deepEqual(splitClauses("When your opponent plays a red Battle Card with both <Son Goku> and <Piccolo>, play this card."), [
+    "When your opponent plays a red Battle Card with both <Son Goku> and <Piccolo>",
+    "play this card",
+  ]);
 
   // Under a named host, from an area.
   const under = one("[Auto] When you play this card, place up to 1 yellow ≪Frieza Clan≫ card from your Drop under {Wickedest Clan} in your Battle Area.");
   assert.deepEqual(under.unsupported, []);
-  assert.deepEqual(under.ops.map((o) => o.op), ["choose", "moveTo"]);
+  assert.deepEqual(
+    under.ops.map((o) => o.op),
+    ["choose", "moveTo"],
+  );
   assert.equal((under.ops[1] as { to: string }).to, "under");
 
   // Under a host that is one of two earlier choices (BT3-052, BT3-054). "The
   // chosen opponent Battle Card" and "the chosen <Majin Buu>" are told apart
   // by what each choice asked for, so each half points at its own.
-  const buu = one("[Activate: Main] If your Leader Card is <Majin Buu>, choose 1 of your <Majin Buu> and 1 of your opponent's Battle Cards. Place the chosen opponent Battle Card under the chosen <Majin Buu>.");
+  const buu = one(
+    "[Activate: Main] If your Leader Card is <Majin Buu>, choose 1 of your <Majin Buu> and 1 of your opponent's Battle Cards. Place the chosen opponent Battle Card under the chosen <Majin Buu>.",
+  );
   assert.deepEqual(buu.unsupported, [], "the whole card reads");
   const flat = JSON.stringify(buu.ops);
   const buried = flat.match(/"op":"moveTo","target":\{"var":"(c\d+)"\},"to":"under","under":\{"var":"(c\d+)"\}/);
@@ -2983,7 +3129,9 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   // "If you use this skill to play a Battle Card with [Over Realm]" (BT3-121):
   // what the play earlier in this same skill turned out to be, not anything
   // the board holds.
-  const overRealm = one("[Activate: Main] Choose up to 1 Battle Card in your Warp with an energy cost of 4 or less and play it. If you use this skill to play a Battle Card with [Over Realm], draw 1 card.");
+  const overRealm = one(
+    "[Activate: Main] Choose up to 1 Battle Card in your Warp with an energy cost of 4 or less and play it. If you use this skill to play a Battle Card with [Over Realm], draw 1 card.",
+  );
   assert.deepEqual(overRealm.unsupported, []);
   assert.match(JSON.stringify(overRealm.ops), /"op":"if","cond":\{"kind":"varMatches","var":"c0"/);
   assert.match(JSON.stringify(overRealm.ops), /"keywords":\["Over Realm"\]/);
@@ -2997,7 +3145,9 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   // action spelled out again, and "they instead …" is the same branch saying
   // so twice. Both halves of the sentence have to read, or the trailing move
   // binds to the card that was *not* chosen.
-  const orElse = one("[Auto] When you play this card, your opponent may choose 1 of their Battle Cards and KO it. If they don't KO a card this way, they instead choose 2 cards in their hand and place them in their Drop Area.");
+  const orElse = one(
+    "[Auto] When you play this card, your opponent may choose 1 of their Battle Cards and KO it. If they don't KO a card this way, they instead choose 2 cards in their hand and place them in their Drop Area.",
+  );
   assert.deepEqual(orElse.unsupported, []);
   const branch = JSON.stringify(orElse.ops).match(/"cond":\{"kind":"not","cond":\{"kind":"chose","var":"c0"\}\},"then":\[([^\]]*)\]/);
   assert.ok(branch, "the second sentence is the other branch of the offer");
@@ -3019,7 +3169,10 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   // A combo from the Drop.
   const cf = one("[Activate: Battle] Use up to 1 green card with 5000 combo power from your Drop in a combo with its skills negated for the battle.");
   assert.deepEqual(cf.unsupported, []);
-  assert.deepEqual(cf.ops.map((o) => o.op), ["choose", "comboFrom"]);
+  assert.deepEqual(
+    cf.ops.map((o) => o.op),
+    ["choose", "comboFrom"],
+  );
   assert.equal((cf.ops[1] as { negated?: boolean }).negated, true);
   assert.deepEqual(ops("[Activate: Battle] Use this card from your Drop in a combo."), ["comboFrom"]);
   DEFS.GRAVE = { ...DEFS["E-DRAW"], id: "GRAVE", name: "GRAVE", skill: "[Activate: Battle] Use up to 1 card with 5000 combo power from your Drop in a combo with its skills negated for the battle." };
@@ -3029,7 +3182,10 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   s = play(s, { type: "attack", player: "p1", attacker: s.players.p1.leader, target: s.players.p2.leader });
   assert.equal(s.prompt.kind, "combo");
   const grave = find(s, "p1", "hand", "GRAVE");
-  assert.ok(acts(s).some((a) => a.type === "activate" && a.card === grave), "[Activate: Battle] from hand during the combo step");
+  assert.ok(
+    acts(s).some((a) => a.type === "activate" && a.card === grave),
+    "[Activate: Battle] from hand during the combo step",
+  );
   s = play(s, { type: "activate", player: "p1", card: grave, skill: 0 });
   if (s.prompt.kind === "chooseCards") s = play(s, { type: "choose", player: "p1", cards: [dropped] });
   assert.ok(s.players.p1.combo.includes(dropped), "5-7: in the Combo Area");
@@ -3049,8 +3205,14 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   // 20-16: the flip is offered, and "if you do" is the answer to that offer.
   // It used to be read as simply done, and the draw simply followed.
   const mayFlip = one("[Auto] When one of your yellow Battle Cards is switched to Rest Mode by a skill, you may flip this card over. If you do, draw 1 card.");
-  assert.deepEqual(mayFlip.ops.map((o) => o.op), ["may", "if"]);
-  assert.deepEqual((mayFlip.ops[0] as { ops: { op: string }[] }).ops.map((o) => o.op), ["flip"]);
+  assert.deepEqual(
+    mayFlip.ops.map((o) => o.op),
+    ["may", "if"],
+  );
+  assert.deepEqual(
+    (mayFlip.ops[0] as { ops: { op: string }[] }).ops.map((o) => o.op),
+    ["flip"],
+  );
   assert.deepEqual((mayFlip.ops[1] as { cond: unknown }).cond, { kind: "did", what: "may" });
   // On an [Awaken] the flip is the engine's, not an effect.
   assert.deepEqual(ops("[Awaken] When your life is at 4 or less: Draw 1 card and flip this card over."), ["draw"]);
@@ -3068,10 +3230,17 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.deepEqual((kod.ops[kod.ops.length - 1] as { cond: unknown }).cond, { kind: "did", what: "ko" });
   assert.ok(autoTriggerMatches(parseSkills("[Auto] When you Combo with this card, draw 1 card.")[0], "comboed"));
 
-  assert.deepEqual(one("[Awaken] If you have 5 or more ≪Saiyan≫ cards in your Warp: Draw 2 cards and add card from your life to you hand until you have 6 life left.").ops, [{ op: "draw", n: 2 }, { op: "lifeDownTo", n: 6 }]);
-  const under = one("[Activate: Main] Choose up to 1 <Majin Buu> card from your Energy Area and play it. If you played a card, choose up to 1 Battle Card in your Drop Area and place it under the card you played with this skill.");
+  assert.deepEqual(one("[Awaken] If you have 5 or more ≪Saiyan≫ cards in your Warp: Draw 2 cards and add card from your life to you hand until you have 6 life left.").ops, [
+    { op: "draw", n: 2 },
+    { op: "lifeDownTo", n: 6 },
+  ]);
+  const under = one(
+    "[Activate: Main] Choose up to 1 <Majin Buu> card from your Energy Area and play it. If you played a card, choose up to 1 Battle Card in your Drop Area and place it under the card you played with this skill.",
+  );
   assert.deepEqual(under.unsupported, []);
-  const noDraw = one("[Auto] When this card attacks, look at the top card of your deck, and if it's a red card, add it to your hand. If you did not draw a card with this skill, this card gets +5000 power for the battle.");
+  const noDraw = one(
+    "[Auto] When this card attacks, look at the top card of your deck, and if it's a red card, add it to your hand. If you did not draw a card with this skill, this card gets +5000 power for the battle.",
+  );
   assert.ok(noDraw.unsupported.length <= 1, "only the look-and-add may still be a gap here");
 
   // "Draw until you have 4" draws what is missing, and nothing when there is nothing missing.
@@ -3091,7 +3260,10 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   // one card description, and splitting on it left both halves unreadable.
   const search = one("[Auto] When you play this card, add up to 1 yellow <Son Goku> card with an energy cost of 3 and 5000 power from your deck to your hand, then shuffle your deck.");
   assert.deepEqual(search.unsupported, []);
-  assert.deepEqual(search.ops.map((o) => o.op), ["choose", "moveTo", "shuffle"]);
+  assert.deepEqual(
+    search.ops.map((o) => o.op),
+    ["choose", "moveTo", "shuffle"],
+  );
   const found = (search.ops[0] as { sel: { area?: string; filter?: { costMin: number | null; powerMin: number | null } } }).sel;
   assert.equal(found.area, "deck");
   assert.equal(found.filter?.costMin, 3, "the cost is read");
@@ -3110,9 +3282,14 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
 
   // "Among them" names its own target and only says where to look for it.
   // Read as an "it" this became *this card*, which was silently wrong.
-  const dig = one("[Auto] When you play this card, look at the top 3 cards of your deck, add up to 1 <Son Goku> card among them to your hand, and place the rest at the bottom of your deck in any order.");
+  const dig = one(
+    "[Auto] When you play this card, look at the top 3 cards of your deck, add up to 1 <Son Goku> card among them to your hand, and place the rest at the bottom of your deck in any order.",
+  );
   assert.deepEqual(dig.unsupported, []);
-  assert.deepEqual(dig.ops.map((o) => o.op), ["look", "choose", "moveTo", "moveTo"]);
+  assert.deepEqual(
+    dig.ops.map((o) => o.op),
+    ["look", "choose", "moveTo", "moveTo"],
+  );
   assert.equal((dig.ops[1] as { sel: { fromVar?: string } }).sel.fromVar, "looked");
   // "The rest" is what the choice did not take, so the card added to the hand
   // is not put back at the bottom of the deck.
@@ -3122,7 +3299,10 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   // narrowing — without it the phrase named no area and the clause failed.
   const host = one("[Auto] When you play this card, place up to 1 red <Android 17> card from your deck under a Z-Extra in your Battle Area, then shuffle your deck.");
   assert.deepEqual(host.unsupported, []);
-  assert.deepEqual(host.ops.map((o) => o.op), ["choose", "moveTo", "shuffle"]);
+  assert.deepEqual(
+    host.ops.map((o) => o.op),
+    ["choose", "moveTo", "shuffle"],
+  );
 
   // "Up to the number of cards in your Battle Area" — read off the board.
   const many = one("[Activate: Main] Look at cards from the top of your deck up to the number of cards in your Battle Area.");
@@ -3143,7 +3323,10 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
 
   const dig = one("[Auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 white ≪Android≫ card to your hand, then shuffle your deck.");
   assert.deepEqual(dig.unsupported, []);
-  assert.deepEqual(dig.ops.map((o) => o.op), ["look", "choose", "moveTo", "shuffle"]);
+  assert.deepEqual(
+    dig.ops.map((o) => o.op),
+    ["look", "choose", "moveTo", "shuffle"],
+  );
   assert.deepEqual(dig.ops[0], { op: "look", n: 5, as: "looked" });
   const pick = (dig.ops[1] as Choice).sel;
   assert.equal(pick.fromVar, "looked", "the card comes out of what was looked at");
@@ -3168,7 +3351,9 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   const two = one("[Activate: Main] Look at up to 7 cards from the top of your deck, add up to 2 green ≪Adventure≫ cards to your hand, then shuffle your deck.");
   assert.deepEqual(two.unsupported, []);
   assert.equal((two.ops[1] as Choice).sel.count, 2);
-  const measured = one("[Auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 green ≪World Tournament≫ card with an energy cost of 4 or less to your hand, then shuffle your deck.");
+  const measured = one(
+    "[Auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 green ≪World Tournament≫ card with an energy cost of 4 or less to your hand, then shuffle your deck.",
+  );
   assert.equal((measured.ops[1] as Choice).sel.filter?.costMax, 4);
 
   // "Up to 1 card" says nothing about the card at all, which is a description
@@ -3195,7 +3380,10 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   // fresh description it became a second choice on top of the first, and the
   // player was asked to pick twice out of the same three cards.
   const pronoun = one("[Auto] When you play this card, look at the top 3 cards of your deck, choose up to 1 ≪Saiyan≫ card among them, add it to your hand, then shuffle your deck.");
-  assert.deepEqual(pronoun.ops.map((o) => o.op), ["look", "choose", "moveTo", "shuffle"]);
+  assert.deepEqual(
+    pronoun.ops.map((o) => o.op),
+    ["look", "choose", "moveTo", "shuffle"],
+  );
   assert.deepEqual((pronoun.ops[2] as { target: unknown }).target, { var: "c0" });
 }
 
@@ -3232,25 +3420,40 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   // one handed the player their whole deck to pick from (20-12).
   const top = one("[Auto] When you play this card, place the top card of your deck in your energy in Rest Mode.");
   assert.deepEqual(top.unsupported, []);
-  assert.deepEqual(top.ops.map((o) => o.op), ["moveTo"], "no choice: the deck is not searched");
+  assert.deepEqual(
+    top.ops.map((o) => o.op),
+    ["moveTo"],
+    "no choice: the deck is not searched",
+  );
   assert.equal((top.ops[0] as { target: { sel?: { take?: number } } }).target.sel?.take, 1);
 
   // A number in the phrase is still a choice, and `switchMode` had never been
   // wrapped in one — "up to 1 of your energy" switched all of it.
   const sw = one("[Activate: Main] Draw 1 card, switch up to 1 of your energy to Active Mode, and add up to 1 card from your hand to your energy.");
   assert.deepEqual(sw.unsupported, []);
-  assert.deepEqual(sw.ops.map((o) => o.op), ["draw", "choose", "switchMode", "choose", "moveTo"]);
+  assert.deepEqual(
+    sw.ops.map((o) => o.op),
+    ["draw", "choose", "switchMode", "choose", "moveTo"],
+  );
 
   // Whose energy area, which is not always the card's owner (3-8).
-  const gift = one("[Auto] When you play this card, reveal the top card of your opponent's deck. If that card is a Battle Card, place it in your opponent's energy in Rest Mode, otherwise draw 1 card.");
+  const gift = one(
+    "[Auto] When you play this card, reveal the top card of your opponent's deck. If that card is a Battle Card, place it in your opponent's energy in Rest Mode, otherwise draw 1 card.",
+  );
   assert.deepEqual(gift.unsupported, []);
-  assert.deepEqual(gift.ops.map((o) => o.op), ["reveal", "if", "if"]);
+  assert.deepEqual(
+    gift.ops.map((o) => o.op),
+    ["reveal", "if", "if"],
+  );
   const then = (gift.ops[1] as { then: { op: string; owner?: string; mode?: string }[] }).then[0];
   assert.equal(then.owner, "opponent", "into their energy, not its owner's");
   assert.equal(then.mode, "rest");
   // "Otherwise" is the opposite of the condition just asked.
   assert.equal((gift.ops[2] as { cond: { kind: string } }).cond.kind, "not");
-  assert.deepEqual((gift.ops[2] as { then: { op: string }[] }).then.map((o) => o.op), ["draw"]);
+  assert.deepEqual(
+    (gift.ops[2] as { then: { op: string }[] }).then.map((o) => o.op),
+    ["draw"],
+  );
 
   // Looking at a hand is a whole area, not an end of a deck.
   assert.deepEqual(one("[Activate: Main] Look at your opponent's hand.").ops, [{ op: "look", n: 99, as: "looked", side: "opponent", area: "hand" }]);
@@ -3303,7 +3506,10 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   // that has to outlive "your next turn" by one step (7-2-7).
   const lock = one("[Activate: Main] Choose 1 of your opponent's Battle Cards and switch it to Rest Mode. The chosen card will not switch to Active Mode during your next Charge Phase.");
   assert.deepEqual(lock.unsupported, []);
-  assert.deepEqual(lock.ops.map((o) => o.op), ["choose", "switchMode", "forbid"]);
+  assert.deepEqual(
+    lock.ops.map((o) => o.op),
+    ["choose", "switchMode", "forbid"],
+  );
   assert.equal((lock.ops[2] as { until: string }).until, "afterNextCharge");
 
   // A [Counter: Play] asking about the card it is answering (9-6).
@@ -3344,7 +3550,13 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
 {
   // A card whose skills can't be negated keeps them, and keeps its keywords.
   DEFS.STUBBORN = { ...DEFS.BLOCKER, id: "STUBBORN", name: "STUBBORN", skill: "[Blocker]<br>[Permanent] This card's skills can't be negated in any area." };
-  DEFS.SILENCER = { ...DEFS.V1, id: "SILENCER", name: "SILENCER", energyCost: 1, skill: "[Auto] When you play this card, choose 1 of your opponent's Battle Cards and negate its skills for the turn." };
+  DEFS.SILENCER = {
+    ...DEFS.V1,
+    id: "SILENCER",
+    name: "SILENCER",
+    energyCost: 1,
+    skill: "[Auto] When you play this card, choose 1 of your opponent's Battle Cards and negate its skills for the turn.",
+  };
   let s = arena({ hand: ["SILENCER"], energy: ["V1"], oppBattle: ["STUBBORN"] });
   const stubborn = s.players.p2.battle[0];
   s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "SILENCER") });
@@ -3528,8 +3740,15 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   // A printed "[Counter]" covers every counter kind, so the stored value is a
   // prefix. And the tag must be read *before* the bare "negate … skills"
   // pattern, whose subject would otherwise swallow it and silence the card.
-  assert.equal((one("[Auto] When you play this card, choose 1 of your opponent's Battle Cards and negate that card's [Counter] skills for the turn.").ops[1] as { op: string; kind?: string }).kind, "counter");
-  assert.equal((one("[Auto] When you play this card, choose 1 of your opponent's Battle Cards and negate that card's skills for the turn.").ops[1] as { op: string }).op, "negateSkills", "a bare 'skills' still silences everything");
+  assert.equal(
+    (one("[Auto] When you play this card, choose 1 of your opponent's Battle Cards and negate that card's [Counter] skills for the turn.").ops[1] as { op: string; kind?: string }).kind,
+    "counter",
+  );
+  assert.equal(
+    (one("[Auto] When you play this card, choose 1 of your opponent's Battle Cards and negate that card's skills for the turn.").ops[1] as { op: string }).op,
+    "negateSkills",
+    "a bare 'skills' still silences everything",
+  );
 
   // "Negate this skill for the battle" — the third duration, which had to be
   // an effect rather than a mark, because the skill comes back.
@@ -3625,11 +3844,16 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   // The full-width hyphen-minus after "choose one". Left out of the dash
   // class it survived into the options list as an option of its own — which
   // is where the six bare "－" clauses in the gap report came from.
-  const modal = one("[Auto] When this card is played from your hand, choose one－<br>・Choose up to 1 of your opponent's Battle Cards and place it at the bottom of its owner's deck.<br>・If your Leader Card is a green <Son Goku> card, draw 1 card.");
+  const modal = one(
+    "[Auto] When this card is played from your hand, choose one－<br>・Choose up to 1 of your opponent's Battle Cards and place it at the bottom of its owner's deck.<br>・If your Leader Card is a green <Son Goku> card, draw 1 card.",
+  );
   assert.deepEqual(modal.unsupported, []);
   const modes = (modal.ops.find((o) => o.op === "chooseMode") as { modes: { label: string; ops: unknown[] }[] } | undefined)?.modes;
   assert.equal(modes?.length, 2, "two printed options, and no dash among them");
-  assert.ok(modes?.every((mode) => mode.ops.length), "both of them do something");
+  assert.ok(
+    modes?.every((mode) => mode.ops.length),
+    "both of them do something",
+  );
 
   // "All cards in your opponent's Battle Cards and Unisons" names two areas.
   // Split on the "and", the second half was a bare area word and the first
@@ -3671,7 +3895,10 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   // "their Drop Area"; what was missing was who picks which one.
   const warp = one("[Auto] When this card attacks, your opponent sends 1 Battle Card from their Drop Area to their Warp.");
   assert.deepEqual(warp.unsupported, []);
-  assert.deepEqual(warp.ops.map((o) => o.op), ["choose", "moveTo"]);
+  assert.deepEqual(
+    warp.ops.map((o) => o.op),
+    ["choose", "moveTo"],
+  );
   assert.equal((warp.ops[0] as { chooser?: string; sel: { side?: string } }).chooser, "opponent");
   assert.equal((warp.ops[0] as { sel: { side?: string } }).sel.side, "opponent");
 
@@ -3744,7 +3971,10 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   // "Your Leaders" is the Leader Area; the plural was not in the area words,
   // so the phrase fell through to "cards on the table" and included the
   // Battle Area.
-  assert.equal((one("[Auto] When this card is played, choose up to 1 of your Leaders, and it gets +5000 power until the end of your opponent's turn.").ops[0] as { sel: { area?: string } }).sel.area, "leader");
+  assert.equal(
+    (one("[Auto] When this card is played, choose up to 1 of your Leaders, and it gets +5000 power until the end of your opponent's turn.").ops[0] as { sel: { area?: string } }).sel.area,
+    "leader",
+  );
 
   // "They" after "when your opponent combos" is the opponent.
   assert.deepEqual(one("[Auto] When your opponent combos, they choose 1 card in their hand and place it in their Drop Area.").ops, [{ op: "discard", n: 1, side: "opponent" }]);
@@ -3915,7 +4145,10 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.deepEqual(both.unsupported, []);
   const gate = (both.ops[0] as { op: string; cond: { kind: string; conds?: { kind: string }[] } }).cond;
   assert.equal(gate.kind, "all");
-  assert.deepEqual(gate.conds?.map((c) => c.kind), ["leaderMatches", "count"]);
+  assert.deepEqual(
+    gate.conds?.map((c) => c.kind),
+    ["leaderMatches", "count"],
+  );
 
   // A price the engine cannot read still fails the skill rather than running
   // the effect for free.
@@ -3972,14 +4205,21 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   // pattern swallowed the rest — 655 skills were offered without ever paying.
   const both = parseSkills("[Activate: Main] If your Leader Card is red and you place this card from your hand in your Drop Area : Draw 1 card.")[0];
   assert.equal(priceCondition(both)?.cond.kind, "leaderMatches", "the condition half still guards the skill");
-  assert.deepEqual(compileCostProgram(both)?.ops.map((o) => o.op), ["moveTo"], "4-3-3: and the action half is charged");
+  assert.deepEqual(
+    compileCostProgram(both)?.ops.map((o) => o.op),
+    ["moveTo"],
+    "4-3-3: and the action half is charged",
+  );
 
   // Two conditions and an action: every condition is kept, not just the first.
   const two = parseSkills("[Activate: Main] If your Leader Card is red, you have 2 or more energy, and you discard 1 card from your hand : Draw 1 card.")[0];
   const chained = priceCondition(two);
   assert.equal(chained?.cond.kind, "all");
   assert.equal((chained?.cond as { conds: unknown[] }).conds.length, 2, "9-1-3: both conditions hold the skill back");
-  assert.deepEqual(compileCostProgram(two)?.ops.map((o) => o.op), ["discard"]);
+  assert.deepEqual(
+    compileCostProgram(two)?.ops.map((o) => o.op),
+    ["discard"],
+  );
 
   // A price is only split when both halves are read. When the action half is
   // not — BT13-115's "choose this card and 1 ≪Android≫ card and discard them
@@ -4054,7 +4294,10 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   // so the keyword must not swallow the text.
   const sc = compileSkill(sk);
   assert.deepEqual(sc.unsupported, []);
-  assert.deepEqual(sc.ops.map((o) => o.op), ["choose", "play", "shuffle"]);
+  assert.deepEqual(
+    sc.ops.map((o) => o.op),
+    ["choose", "play", "shuffle"],
+  );
   // "On top of this card" names the *host*. Left in the phrase, `parseTarget`
   // took the whole thing for "this card" and the skill played the card onto
   // itself.
@@ -4196,7 +4439,10 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   // A second energy for the orbs, and the offer is real.
   const roomy = arena({ battle: ["INVOKE"], hand: ["E-COSTLY"], energy: ["V-PURPLE", "V1"] });
   const two = find(roomy, "p1", "hand", "E-COSTLY");
-  assert.ok(acts(roomy).some((a) => a.type === "activate" && a.card === two && a.alt), "one to rest for [Invoker], one for the {r}");
+  assert.ok(
+    acts(roomy).some((a) => a.type === "activate" && a.card === two && a.alt),
+    "one to rest for [Invoker], one for the {r}",
+  );
 }
 
 // ── a pronoun in a trailing modifier is not an antecedent ──────────────────
@@ -4213,7 +4459,11 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.equal(chosen(negated).special, undefined, "not this card");
   assert.deepEqual(chosen(negated).filter?.names, ["piccolo, bestowed power"], "the named card, not this one");
   assert.equal((negated.ops[1] as { negated?: string }).negated, "turn", "and the negation itself is read");
-  assert.equal((one("[Auto] When you play this card, play up to 1 {X} from your deck with its skills negated for game.").ops[1] as { negated?: string }).negated, "game", "'for game' without the article");
+  assert.equal(
+    (one("[Auto] When you play this card, play up to 1 {X} from your deck with its skills negated for game.").ops[1] as { negated?: string }).negated,
+    "game",
+    "'for game' without the article",
+  );
 
   // Same for "with a marker on it".
   const marked = one("[Auto] When you play this card, play up to 1 {Spaceship, Vessel of Hope} from your deck with a marker on it.");
@@ -4400,7 +4650,10 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   // battle — a clause that compiled and did two things wrong at once.
   const both = one("[Auto] When this card attacks, this card gets +6000 power for each card in your energy and [Triple Strike] for the duration of the battle.");
   assert.deepEqual(both.unsupported, []);
-  assert.deepEqual(both.ops.map((o) => o.op), ["power", "grant"]);
+  assert.deepEqual(
+    both.ops.map((o) => o.op),
+    ["power", "grant"],
+  );
   assert.equal((both.ops[0] as { until: string }).until, "battle");
   assert.equal((both.ops[1] as { until: string }).until, "battle");
   assert.deepEqual((both.ops[1] as { keyword: unknown }).keyword, { name: "Strike", x: 3 });
@@ -4414,7 +4667,10 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.equal((plain.ops[0] as { until: string }).until, "turn");
 
   // And a count with nothing after it is unchanged.
-  assert.deepEqual(one("[Auto] When this card attacks, draw 1 card for each of your Battle Cards.").ops.map((o) => o.op), ["draw"]);
+  assert.deepEqual(
+    one("[Auto] When this card attacks, draw 1 card for each of your Battle Cards.").ops.map((o) => o.op),
+    ["draw"],
+  );
 }
 
 // ── the keywords that had a rule and no test ───────────────────────────────
@@ -4658,7 +4914,9 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.deepEqual(paid.unsupported, []);
   assert.deepEqual(paid.ops, [{ op: "addMarker", target: { var: "c0" }, n: 1 }]);
   // …and the price itself compiles, with the same name bound.
-  const price = compileCostProgram(parseSkills("[Activate: Main] Choose 1 {Tree of Might, Divine Roots} in your Unison Area and place this card under the chosen card: Add a marker to the chosen card.")[0]);
+  const price = compileCostProgram(
+    parseSkills("[Activate: Main] Choose 1 {Tree of Might, Divine Roots} in your Unison Area and place this card under the chosen card: Add a marker to the chosen card.")[0],
+  );
   assert.ok(price, "the price is an action the engine can charge");
   assert.equal((price.ops[0] as { as?: string }).as, "c0", "and it binds the name the effect uses");
 
@@ -4685,21 +4943,30 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   // missed in silence, which is worse. Both have to get the power.
   const two = one("[Auto] When you play a ≪Demon Clan≫ card, this card and your Leader get +5000 power for the turn.");
   assert.deepEqual(two.unsupported, []);
-  assert.deepEqual(two.ops.map((o) => o.op), ["power", "power"]);
+  assert.deepEqual(
+    two.ops.map((o) => o.op),
+    ["power", "power"],
+  );
   assert.deepEqual((two.ops[0] as { target: unknown }).target, { sel: { special: "self" } });
   assert.equal((two.ops[1] as { target: { sel?: { area?: string } } }).target.sel?.area, "leader");
 
   // The same with a pronoun for the card just chosen.
   const both = one("[Auto] When this card attacks, choose up to 1 of your opponent's Battle Cards, and it and this card get -10000 power for the turn.");
   assert.deepEqual(both.unsupported, []);
-  assert.deepEqual(both.ops.map((o) => o.op), ["choose", "power", "power"]);
+  assert.deepEqual(
+    both.ops.map((o) => o.op),
+    ["choose", "power", "power"],
+  );
   assert.deepEqual((both.ops[1] as { target: unknown }).target, { var: "c0" });
   assert.deepEqual((both.ops[2] as { target: unknown }).target, { sel: { special: "self" } });
 
   // A phrase that names two *areas* is one target and must not be cut in half.
   const areas = one("[Auto] When this card attacks, all of your opponent's Battle Cards and Unisons get -5000 power for the turn.");
   assert.deepEqual(areas.unsupported, []);
-  assert.deepEqual(areas.ops.map((o) => o.op), ["power"]);
+  assert.deepEqual(
+    areas.ops.map((o) => o.op),
+    ["power"],
+  );
   assert.deepEqual((areas.ops[0] as { target: { sel?: { areas?: string[] } } }).target.sel?.areas, ["battle", "unison"]);
 
   // A trigger split at its own "and" is still the trigger, not the first
@@ -4748,12 +5015,18 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   // A clause that is already a declinable choice asks once, not twice —
   // taking no card *is* declining (5-2-4).
   const sc = compileSkill(parseSkills("[Activate: Main] You may choose 1 card in your hand and discard it.")[0]);
-  assert.deepEqual(sc.ops.map((o) => o.op), ["choose", "moveTo"]);
+  assert.deepEqual(
+    sc.ops.map((o) => o.op),
+    ["choose", "moveTo"],
+  );
   // And a [Permanent]'s "you can …" is a standing permission, not an offer:
   // wrapped in a decision it disappears from the static layer altogether.
   const perm = compileSkill(parseSkills("[Permanent] You can activate this card's [Counter] skill from your hand by adding a card from your life to your hand instead of paying its energy cost.")[0]);
   assert.deepEqual(sc.unsupported, []);
-  assert.ok(perm.ops.some((o) => o.op === "altCost"), "9-5-1: still a standing effect");
+  assert.ok(
+    perm.ops.some((o) => o.op === "altCost"),
+    "9-5-1: still a standing effect",
+  );
 }
 
 {
@@ -4825,10 +5098,17 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   // 20-7: a discard the text describes is still the owner's choice, but only
   // among the cards described — which the `discard` op cannot say.
   const filtered = compileCostProgram(parseSkills("[Activate: Main] Discard 1 mono-green card from your hand : Draw 1 card.")[0]);
-  assert.deepEqual(filtered?.ops.map((o) => o.op), ["choose", "moveTo"], "the description makes it a choose plus a move");
+  assert.deepEqual(
+    filtered?.ops.map((o) => o.op),
+    ["choose", "moveTo"],
+    "the description makes it a choose plus a move",
+  );
   // Naming the card outright is the opposite: nobody chooses.
   const named = compileCostProgram(parseSkills("[Activate: Main] Discard this card from your hand : Draw 1 card.")[0]);
-  assert.deepEqual(named?.ops.map((o) => o.op), ["moveTo"]);
+  assert.deepEqual(
+    named?.ops.map((o) => o.op),
+    ["moveTo"],
+  );
 
   // 19: a token is named by what it is, and only a token carries that name.
   const tokenDef = { ...DEFS.V1, id: "TOKEN:x", name: "Earthling", type: "TOKEN" as const };
@@ -4864,7 +5144,10 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   // The one that may only be played by a skill is not offered as a play.
   const labelsNow = labels(s);
   assert.ok(!labelsNow.some((x) => x.includes("ONLYSKILLPLAY")), "20-14: not a play the player may declare");
-  assert.ok(labelsNow.some((x) => x.includes("NOSKILLPLAY")), "…while the other bans only the skill, so the player may still play it");
+  assert.ok(
+    labelsNow.some((x) => x.includes("NOSKILLPLAY")),
+    "…while the other bans only the skill, so the player may still play it",
+  );
 
   // Now put both in the Drop and let a skill try to fetch one.
   move(ctx, s, [], banned, "drop", "p1");
@@ -4933,10 +5216,7 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.equal(trailingTrigger(parseSkills("[Auto] At the end of the battle, draw 1 card.")[0]), null, "already at the head");
   // Two moments joined by an “or” (BT25-040) is a shape this does not read,
   // and taking one of them would act at a moment the card does not name.
-  assert.equal(
-    trailingTrigger(parseSkills("[Auto] Remove this card from the game at the end of the battle for this card or at the end of the turn.")[0]),
-    null,
-  );
+  assert.equal(trailingTrigger(parseSkills("[Auto] Remove this card from the game at the end of the battle for this card or at the end of the turn.")[0]), null);
 
   // Every head-anchored timing, positively: an anchor that matches nothing is
   // the same silence as no rule at all, and reads as an improvement in the
@@ -5052,10 +5332,9 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   // from the outside.
 
   // A pair of dashes hangs a description off the target, commas and all.
-  assert.deepEqual(
-    splitClauses("Play up to 1 <Son Goku: GT> or <Vegeta: GT> card ―both mono-green, with an energy cost of 5 and 20000 power― from your Drop."),
-    ["Play up to 1 <Son Goku: GT> or <Vegeta: GT> card ―both mono-green, with an energy cost of 5 and 20000 power― from your Drop"],
-  );
+  assert.deepEqual(splitClauses("Play up to 1 <Son Goku: GT> or <Vegeta: GT> card ―both mono-green, with an energy cost of 5 and 20000 power― from your Drop."), [
+    "Play up to 1 <Son Goku: GT> or <Vegeta: GT> card ―both mono-green, with an energy cost of 5 and 20000 power― from your Drop",
+  ]);
   // A lone dash is ordinary punctuation and must not swallow the rest.
   assert.equal(splitClauses("Draw 1 card ― then draw 1 card, and draw 1 card.").length, 3);
 
@@ -5074,7 +5353,11 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   // 20-16: the other half of "if you do" — the half that decides whether the
   // rest of the skill happens.
   assert.deepEqual(
-    compileSkill(parseSkills("[Auto] When you play this card, look at up to 3 cards from the top of your deck. Choose up to 1 card among them and add it to your hand, then place the rest in your Drop Area. If you chose not to add any cards to your hand, choose up to 1 of your opponent's Battle Cards in Rest Mode and KO it.")[0]).unsupported,
+    compileSkill(
+      parseSkills(
+        "[Auto] When you play this card, look at up to 3 cards from the top of your deck. Choose up to 1 card among them and add it to your hand, then place the rest in your Drop Area. If you chose not to add any cards to your hand, choose up to 1 of your opponent's Battle Cards in Rest Mode and KO it.",
+      )[0],
+    ).unsupported,
     [],
   );
 
@@ -5160,7 +5443,8 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
     id: "ALTC",
     name: "ALTC",
     energyCost: 3,
-    skill: "[Counter: Attack] Negate the attack.<br>[Permanent] You can activate this card's [Counter] skill from your hand without paying its energy cost by choosing 1 other black card in your hand and placing it in your Drop Area.",
+    skill:
+      "[Counter: Attack] Negate the attack.<br>[Permanent] You can activate this card's [Counter] skill from your hand without paying its energy cost by choosing 1 other black card in your hand and placing it in your Drop Area.",
   };
   DEFS.BLACKCARD = { ...DEFS.V1, id: "BLACKCARD", name: "BLACKCARD", colors: ["Black"] };
 
@@ -5249,7 +5533,10 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   // A [Permanent] holds while its card is where the skill is valid (9-5-1):
   // its ops carry `game` rather than the turn every clause used to get, and
   // the inspector says no duration at all for one.
-  assert.ok(crit.ops.every((o) => JSON.stringify(o).includes('"until":"game"')), "a [Permanent]'s ops hold for the game, not a turn");
+  assert.ok(
+    crit.ops.every((o) => JSON.stringify(o).includes('"until":"game"')),
+    "a [Permanent]'s ops hold for the game, not a turn",
+  );
   assert.equal(describeScript(crit.ops, { permanent: true }), "if your life is no more than theirs: if it is your turn: this card +5000 power, this card gains [Critical]");
   assert.equal(describeScript(read("[Activate: Main] This card gets +5000 power for the turn.").ops), "this card +5000 power for the turn");
   assert.equal(
@@ -5346,7 +5633,7 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   // token name — otherwise it is a token called "non".
   const notToken = parseFilter("your opponent's non-token Battle Cards");
   assert.ok(notToken.notToken);
-  assert.deepEqual(notToken.names, [], "not a token named \"non\"");
+  assert.deepEqual(notToken.names, [], 'not a token named "non"');
   assert.ok(!matches({ ...DEFS.V1, type: "TOKEN" }, notToken));
 }
 
@@ -5447,8 +5734,6 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   s = play(s, { type: "choose", player: "p1", cards: [second] });
   assertConsistent(s);
 }
-
-
 
 {
   // ------------------------------------------------------------------------
@@ -5561,8 +5846,6 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assertConsistent(s);
 }
 
-
-
 {
   // Refusing to *resolve* to this card is only half of "other than this card":
   // read as nothing, the phrase still offered this card among the candidates,
@@ -5589,8 +5872,6 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.equal(powerOf({ defs: DEFS }, s, self), 20000, "…and the card that said so is not");
   assertConsistent(s);
 }
-
-
 
 {
   // Two wordings off the deck-scoped miss list, both a measure short.
@@ -5620,8 +5901,6 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.deepEqual(combo.unsupported, []);
   assert.deepEqual(combo.ops, [{ op: "comboPower", target: { sel: { special: "self" } }, amount: 10000, until: "turn" }]);
 }
-
-
 
 {
   // ------------------------------------------------------------------------
@@ -5687,13 +5966,14 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.equal(s.cards[self].mode, "rest", "1-10: this card is switched");
   assert.equal(s.prompt.kind, "chooseCards", "…and the energy is a choice of its own");
   const energy = (s.prompt as { choice: { candidates: string[] } }).choice.candidates;
-  assert.ok(energy.every((id) => s.players.p1.energy.includes(id)), "the candidates are your energy");
+  assert.ok(
+    energy.every((id) => s.players.p1.energy.includes(id)),
+    "the candidates are your energy",
+  );
   s = play(s, { type: "choose", player: "p1", cards: [energy[0]] });
   assert.equal(s.cards[energy[0]].mode, "rest", "…and it is switched too");
   assertConsistent(s);
 }
-
-
 
 {
   // ------------------------------------------------------------------------
@@ -5777,8 +6057,6 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.ok(from("V1").includes(s.players.p2.leader));
 }
 
-
-
 {
   // ------------------------------------------------------------------------
   // Ground rule 5's second named widening, closed: a keyword the target must
@@ -5826,7 +6104,13 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
 
 {
   // The engine assertion: a required keyword really narrows what is offered.
-  DEFS["BLOCK-HUNTER"] = { ...DEFS.V1, id: "BLOCK-HUNTER", name: "BLOCK-HUNTER", energyCost: 1, skill: "[Auto] When you play this card, choose up to 1 opponent Battle Card with [Blocker] and KO that card." };
+  DEFS["BLOCK-HUNTER"] = {
+    ...DEFS.V1,
+    id: "BLOCK-HUNTER",
+    name: "BLOCK-HUNTER",
+    energyCost: 1,
+    skill: "[Auto] When you play this card, choose up to 1 opponent Battle Card with [Blocker] and KO that card.",
+  };
   let s = arena({ hand: ["BLOCK-HUNTER"], energy: ["V1", "V1"], oppBattle: ["BLOCKER", "V-BLUE"] });
   const blocker = find(s, "p2", "battle", "BLOCKER");
   const plain = find(s, "p2", "battle", "V-BLUE");
@@ -5882,7 +6166,9 @@ function assertDisjoint(s: GameState, where: string): RejectedAction[] {
 {
   const ctx = { defs: DEFS };
   const first = (r: RejectedAction | undefined): Requirement | undefined => r?.why[0];
-  const ofCard = (list: RejectedAction[], type: string, card: string) => list.find((r) => r.action.type === type && (r.action as { card?: string; attacker?: string }).card === card) ?? list.find((r) => r.action.type === type && (r.action as { attacker?: string }).attacker === card);
+  const ofCard = (list: RejectedAction[], type: string, card: string) =>
+    list.find((r) => r.action.type === type && (r.action as { card?: string; attacker?: string }).card === card) ??
+    list.find((r) => r.action.type === type && (r.action as { attacker?: string }).attacker === card);
 
   // A hand card costing more than the active energy: exactly one play
   // rejection, and the first reason is the energy with the right numbers.
@@ -5927,7 +6213,11 @@ function assertDisjoint(s: GameState, where: string): RejectedAction[] {
     const chooser = (s.prompt as { player: PlayerId }).player;
     s = play(s, { type: "chooseFirst", player: chooser, first: "p1" }, { type: "mulligan", player: "p1", redraw: false }, { type: "mulligan", player: "p2", redraw: false });
     assert.equal(s.prompt.kind, "charge");
-    assert.deepEqual(assertDisjoint(s, "charge prompt").filter((r) => r.action.type === "charge"), [], "in the Charge Phase every hand card may be charged");
+    assert.deepEqual(
+      assertDisjoint(s, "charge prompt").filter((r) => r.action.type === "charge"),
+      [],
+      "in the Charge Phase every hand card may be charged",
+    );
     s = play(s, { type: "charge", player: "p1", card: s.players.p1.hand[0] });
     const again = ofCard(assertDisjoint(s, "after charging"), "charge", s.players.p1.hand[0]);
     assert.deepEqual(first(again), { kind: "oncePerTurn", what: "charge" });
@@ -6015,14 +6305,39 @@ function assertDisjoint(s: GameState, where: string): RejectedAction[] {
     assert.equal(r.state.prompt.kind, "chooseCards", "SEARCH asks which card to add");
     const choice = (r.state.prompt as { choice: { candidates: string[]; min: number; max: number } }).choice;
     assert.ok(choice.candidates.length > 1 && choice.candidates.every((id) => r.state.players.p1.deck.includes(id)), "the candidates are deck cards");
-    const snap = buildSnapshot({ id: 1, mode: "hotseat", status: "playing", p1Name: "You", p2Name: "Claude", ctx, state: r.state, legal: legalActions(ctx, r.state), log: [], beats: null, spotlight: null, spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, images: {} });
-    assert.deepEqual(snap.view.you.choices?.map((c) => c.id), choice.candidates, "you.choices is exactly what the prompt names");
-    assert.ok(snap.view.you.choices!.every((c) => !c.hidden && c.name === "V1"), "…revealed to the searcher");
+    const snap = buildSnapshot({
+      id: 1,
+      mode: "hotseat",
+      status: "playing",
+      p1Name: "You",
+      p2Name: "Claude",
+      ctx,
+      state: r.state,
+      legal: legalActions(ctx, r.state),
+      log: [],
+      beats: null,
+      spotlight: null,
+      spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 },
+      ai: null,
+      images: {},
+    });
+    assert.deepEqual(
+      snap.view.you.choices?.map((c) => c.id),
+      choice.candidates,
+      "you.choices is exactly what the prompt names",
+    );
+    assert.ok(
+      snap.view.you.choices!.every((c) => !c.hidden && c.name === "V1"),
+      "…revealed to the searcher",
+    );
     assert.equal(snap.view.them.choices, undefined, "and absent from the other side");
     assert.equal(snap.view.prompt.min, 0);
     assert.equal(snap.view.prompt.max, 1);
     assert.deepEqual(snap.view.prompt.step, { index: 1, count: 1, label: snap.view.prompt.question }, "the step comes from the script's own chain");
-    assert.ok(snap.legal.some((l) => l.action.type === "choose" && l.action.cards.length === 0), "min 0 is offered as 'Choose none'");
+    assert.ok(
+      snap.legal.some((l) => l.action.type === "choose" && l.action.cards.length === 0),
+      "min 0 is offered as 'Choose none'",
+    );
     // Every choice can be tapped: the legal `choose` for it exists.
     for (const c of snap.view.you.choices!) assert.ok(snap.taps.byCard[c.id]?.length, `${c.id} is reachable`);
     // The opponent, looking at the same moment, is shown nothing of the deck.
@@ -6039,7 +6354,19 @@ function assertDisjoint(s: GameState, where: string): RejectedAction[] {
     assert.equal((s.prompt as { player: PlayerId }).player, "p2");
     const input = { ctx, state: s, legal: legalActions(ctx, s), ai: "p2" as PlayerId };
     assert.deepEqual(rejectedFor(input), [], "the prompt is Claude's: nothing is computed");
-    const snap = buildSnapshot({ id: 1, mode: "sparring", status: "playing", p1Name: "You", p2Name: "Claude", log: [], beats: null, spotlight: null, spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, images: {}, ...input });
+    const snap = buildSnapshot({
+      id: 1,
+      mode: "sparring",
+      status: "playing",
+      p1Name: "You",
+      p2Name: "Claude",
+      log: [],
+      beats: null,
+      spotlight: null,
+      spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 },
+      images: {},
+      ...input,
+    });
     assert.equal(snap.rejected, undefined);
     assert.equal(snap.taps.whyByCard, undefined);
     // Hot-seat: the board flips to whoever is asked, so p2's rejections are theirs.
@@ -6050,10 +6377,28 @@ function assertDisjoint(s: GameState, where: string): RejectedAction[] {
   {
     const s = arena({ hand: ["BIG"], energy: ["V1"] });
     const big = find(s, "p1", "hand", "BIG");
-    const snap = buildSnapshot({ id: 1, mode: "hotseat", status: "playing", p1Name: "You", p2Name: "Claude", ctx, state: s, legal: legalActions(ctx, s), log: [], beats: null, spotlight: null, spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, images: {} });
+    const snap = buildSnapshot({
+      id: 1,
+      mode: "hotseat",
+      status: "playing",
+      p1Name: "You",
+      p2Name: "Claude",
+      ctx,
+      state: s,
+      legal: legalActions(ctx, s),
+      log: [],
+      beats: null,
+      spotlight: null,
+      spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 },
+      ai: null,
+      images: {},
+    });
     assert.ok(snap.rejected && snap.rejected.length > 0);
     assert.deepEqual(snap.taps.whyByCard?.[big]?.[0], { kind: "energy", need: 5, have: 1 });
-    assert.ok(snap.taps.whyByCard?.[big]?.some((w) => w.kind === "oncePerTurn" && w.what === "charge"), "the charge that has gone by is there too");
+    assert.ok(
+      snap.taps.whyByCard?.[big]?.some((w) => w.kind === "oncePerTurn" && w.what === "charge"),
+      "the charge that has gone by is there too",
+    );
     assert.equal(snap.taps.byCard[big], undefined, "and the card has no legal move");
     for (const r of snap.rejected!) assert.ok(!snap.legal.some((l) => JSON.stringify(l.action) === JSON.stringify(r.action)));
   }
@@ -6065,7 +6410,10 @@ function assertDisjoint(s: GameState, where: string): RejectedAction[] {
   const ctx = { defs: DEFS };
   const first = (r: RejectedAction | undefined): Requirement | undefined => r?.why[0];
   const ofCard = (list: RejectedAction[], type: string, card: string) =>
-    list.find((r) => r.action.type === type && ((r.action as { card?: string }).card === card || (r.action as { attacker?: string }).attacker === card || (r.action as { cards?: string[] }).cards?.[0] === card));
+    list.find(
+      (r) =>
+        r.action.type === type && ((r.action as { card?: string }).card === card || (r.action as { attacker?: string }).attacker === card || (r.action as { cards?: string[] }).cards?.[0] === card),
+    );
 
   // 22-44-3 / 22-44-5: [Limit X] caps an [Activate] skill like [Once per
   // turn] does, and the refusal names the tag (review §3.1).
@@ -6081,7 +6429,10 @@ function assertDisjoint(s: GameState, where: string): RejectedAction[] {
     assert.deepEqual(first(ofCard(rejectedActions(ctx, s), "activate", lim)), { kind: "oncePerTurn", what: "skill", limit: 2 });
     assert.throws(() => apply(ctx, s, { type: "activate", player: "p1", card: lim, skill: 0 }), "the engine refuses it too");
     const next = play(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null }, { type: "endMain", player: "p2" }, { type: "charge", player: "p1", card: null });
-    assert.ok(legalActions(ctx, next).some((l) => l.action.type === "activate" && l.action.card === lim), "again next turn");
+    assert.ok(
+      legalActions(ctx, next).some((l) => l.action.type === "activate" && l.action.card === lim),
+      "again next turn",
+    );
     // The price is on the row: the engine's own reckoning, not a guess off the label.
     const row = legalActions(ctx, next).find((l) => l.action.type === "activate" && l.action.card === lim)!;
     assert.deepEqual(row.cost, { energy: 0, describe: "free" });
@@ -6100,7 +6451,10 @@ function assertDisjoint(s: GameState, where: string): RejectedAction[] {
     assert.deepEqual(first(ofCard(rejectedActions(ctx, bare), "activate", swapper)), { kind: "target", reason: "no cost-3 Battle Card in your hand" });
 
     const armed = arena({ battle: ["SWAPPER"], energy: ["V1", "V1"], hand: ["COST3"] });
-    assert.ok(labels(armed).some((x) => x.startsWith("Swap")), "with one in hand it is offered again");
+    assert.ok(
+      labels(armed).some((x) => x.startsWith("Swap")),
+      "with one in hand it is offered again",
+    );
   }
 
   // The counter window, a choice and a block have rejections of their own (review §3.7).
@@ -6154,7 +6508,10 @@ function assertDisjoint(s: GameState, where: string): RejectedAction[] {
     assert.deepEqual(first(r), { kind: "forbidden", by: "LOCKDOWN", until: "nextTurn" });
     // And the rule is on the player's side of the board, not on any card.
     const them = boardView(ctx, s, "p1", {}).them;
-    assert.deepEqual(them.rules?.map((x) => [x.kind, x.label, x.until, x.sourceName]), [["forbid", "can't attack battle card", "nextTurn", "LOCKDOWN"]]);
+    assert.deepEqual(
+      them.rules?.map((x) => [x.kind, x.label, x.until, x.sourceName]),
+      [["forbid", "can't attack battle card", "nextTurn", "LOCKDOWN"]],
+    );
     assert.equal(boardView(ctx, s, "p1", {}).you.rules, undefined, "and not on yours");
   }
 
@@ -6179,7 +6536,22 @@ function assertDisjoint(s: GameState, where: string): RejectedAction[] {
 
 {
   const s = arena({ hand: ["BIG"], energy: ["V1", "V1"] });
-  const snap = buildSnapshot({ id: 1, mode: "hotseat", status: "playing", p1Name: "You", p2Name: "Claude", ctx: { defs: DEFS }, state: s, legal: legalActions({ defs: DEFS }, s), log: [], beats: null, spotlight: null, spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, images: {} });
+  const snap = buildSnapshot({
+    id: 1,
+    mode: "hotseat",
+    status: "playing",
+    p1Name: "You",
+    p2Name: "Claude",
+    ctx: { defs: DEFS },
+    state: s,
+    legal: legalActions({ defs: DEFS }, s),
+    log: [],
+    beats: null,
+    spotlight: null,
+    spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 },
+    ai: null,
+    images: {},
+  });
   const you = snap.view.you;
   const o = { name: "BIG", reaching: "play" as const, side: you, inHand: true };
 
@@ -6228,7 +6600,10 @@ function assertDisjoint(s: GameState, where: string): RejectedAction[] {
   assert.equal(refusal({ kind: "oncePerTurn", what: "skill", limit: 2 }, o).remedy, "[Limit 2] — again next turn.");
   assert.equal(refusal({ kind: "oncePerTurn", what: "skill" }, o).remedy, "[Once per turn] — again next turn.");
   assert.match(refusal({ kind: "mode", card: "x", mode: "rest", locked: true }, o).remedy!, /keeps it from standing up/, "no promise the rules will not keep");
-  assert.equal(refusal({ kind: "target", reason: "choose 1 of your opponent's Battle Cards" }, { name: "Goku", reaching: "choose" }).fact, "Goku is not what the skill asks for — choose 1 of your opponent's Battle Cards.");
+  assert.equal(
+    refusal({ kind: "target", reason: "choose 1 of your opponent's Battle Cards" }, { name: "Goku", reaching: "choose" }).fact,
+    "Goku is not what the skill asks for — choose 1 of your opponent's Battle Cards.",
+  );
   assert.equal(refusal({ kind: "other", detail: "it is the attacking card" }, o).fact, "It is the attacking card.");
   assert.equal(refusal({ kind: "zone", card: "x", area: "battle" }, o).remedy, "Play it first.");
   assert.equal(pill({ kind: "energy", need: 5, have: 2 }), "3 short");
@@ -6240,7 +6615,10 @@ function assertDisjoint(s: GameState, where: string): RejectedAction[] {
   assert.equal(priceOf({ type: "combo", player: "p1", card: big.id }, big, ""), "+5,000 · free");
   assert.equal(priceOf({ type: "activate", player: "p1", card: big.id, skill: 0 }, big, "Activate BIG (2)"), "2 energy");
   // The engine's own reckoning wins over the label when it gives one (review §3.8).
-  assert.equal(priceOf({ type: "activate", player: "p1", card: big.id, skill: 0 }, big, "Activate BIG: Draw 1 card.", { energy: 2, orbs: { Red: 2 }, describe: "2 energy (2 red)" }), "2 energy (2 red)");
+  assert.equal(
+    priceOf({ type: "activate", player: "p1", card: big.id, skill: 0 }, big, "Activate BIG: Draw 1 card.", { energy: 2, orbs: { Red: 2 }, describe: "2 energy (2 red)" }),
+    "2 energy (2 red)",
+  );
   assert.equal(priceOf({ type: "attack", player: "p1", attacker: big.id, target: "x" }, big, ""), "rests it");
   assert.equal(priceOf({ type: "endMain", player: "p1" }, big, ""), null);
   assert.equal(stepText({ index: 2, count: 3 }), "step 2 of 3");
@@ -6294,8 +6672,14 @@ function assertDisjoint(s: GameState, where: string): RejectedAction[] {
   // A rule coming into force and wearing off (review §3.3), from the viewer's chair.
   assert.equal(narrate(all[14], me), "Son Goku gets +5000 power until the end of the turn (Frieza).");
   assert.equal(narrate(all[15], me), "+5000 power on Son Goku wears off.");
-  assert.equal(narrate({ t: "effect", card: "a", player: null, kind: "keyword", label: "[Critical]", until: "nextTurn", source: null, owner: "p2" }, me), "Son Goku gains [Critical] until the start of Claude's next turn.");
-  assert.equal(narrate({ t: "effect", card: null, player: "p1", kind: "forbid", label: "can't attack with battle cards", until: "opponentTurn", source: "b", owner: "p2" }, me), "You can't attack with battle cards until the start of your next turn (Frieza).");
+  assert.equal(
+    narrate({ t: "effect", card: "a", player: null, kind: "keyword", label: "[Critical]", until: "nextTurn", source: null, owner: "p2" }, me),
+    "Son Goku gains [Critical] until the start of Claude's next turn.",
+  );
+  assert.equal(
+    narrate({ t: "effect", card: null, player: "p1", kind: "forbid", label: "can't attack with battle cards", until: "opponentTurn", source: "b", owner: "p2" }, me),
+    "You can't attack with battle cards until the start of your next turn (Frieza).",
+  );
   // A hidden card is "a card", never a name the viewer may not know.
   assert.equal(narrate({ t: "move", card: "zz", from: "deck", to: "hand", owner: "p2" }, me), "Claude adds a card from the deck to hand.");
   assert.equal(narrate({ t: "draw", player: "p1", card: "a" }, me), "You draw Son Goku.");
@@ -6330,7 +6714,16 @@ function assertDisjoint(s: GameState, where: string): RejectedAction[] {
   // Events with no picture collapse on purpose, and produce no beats at all.
   {
     const s = arena();
-    const quiet = toBeats(ctx, s, [{ type: "note", text: "anything" }, { type: "hidden", card: s.players.p1.deck[0], hidden: true }, { type: "energyMarker", player: "p1", delta: 1 }], 0);
+    const quiet = toBeats(
+      ctx,
+      s,
+      [
+        { type: "note", text: "anything" },
+        { type: "hidden", card: s.players.p1.deck[0], hidden: true },
+        { type: "energyMarker", player: "p1", delta: 1 },
+      ],
+      0,
+    );
     assert.deepEqual(quiet.list, [], "note, hidden and energyMarker have nothing to draw");
     assert.equal(quiet.seq, 0, "and do not advance the numbering");
   }
@@ -6344,7 +6737,10 @@ function assertDisjoint(s: GameState, where: string): RejectedAction[] {
     assert.equal(s.prompt.kind, "chooseCards", "KILLER asks which card to KO");
     const r2 = apply(ctx, s, { type: "choose", player: "p1", cards: [victim] });
     const beats = toBeats(ctx, r2.state, r2.events, 0);
-    assert.ok(beats.list.some((b) => b.t === "ko" && b.card === victim), `the KO is a beat — events were ${r2.events.map((e) => e.type).join(", ")}`);
+    assert.ok(
+      beats.list.some((b) => b.t === "ko" && b.card === victim),
+      `the KO is a beat — events were ${r2.events.map((e) => e.type).join(", ")}`,
+    );
     assert.ok(beats.art[victim]?.name, "and it brings the face of the card that died");
   }
 
@@ -6437,14 +6833,30 @@ function assertDisjoint(s: GameState, where: string): RejectedAction[] {
     const pump = find(s, "p1", "battle", "PUMPCRIT");
     const r = apply(ctx, s, { type: "activate", player: "p1", card: pump, skill: 0 });
     const beats = toBeats(ctx, r.state, r.events, 0);
-    assert.deepEqual(beats.list.map((b) => b.t), ["skill", "effect", "effect"], "one skill beat, then one beat per effect");
+    assert.deepEqual(
+      beats.list.map((b) => b.t),
+      ["skill", "effect", "effect"],
+      "one skill beat, then one beat per effect",
+    );
     const fx = beats.list.filter((b): b is Extract<NumberedBeat, { t: "effect" }> => b.t === "effect");
-    assert.deepEqual(fx.map((b) => [b.kind, b.label, b.until, b.source, b.owner]), [["power", "+5,000 power", "turn", pump, "p1"], ["keyword", "[Critical]", "turn", pump, "p1"]]);
+    assert.deepEqual(
+      fx.map((b) => [b.kind, b.label, b.until, b.source, b.owner]),
+      [
+        ["power", "+5,000 power", "turn", pump, "p1"],
+        ["keyword", "[Critical]", "turn", pump, "p1"],
+      ],
+    );
     const snap = snapshotFor(r.state, beats);
     const cv = snap.view.you.battle.find((c) => c.id === pump)!;
     assert.equal(cv.power, 15000);
     assert.equal(cv.basePower, 10000, "the printed power travels with the changed one");
-    assert.deepEqual(cv.effects?.map((e) => [e.kind, e.label, e.until, e.source, e.keyword ?? null]), [["power", "+5,000 power", "turn", pump, null], ["keyword", "[Critical]", "turn", pump, "Critical"]]);
+    assert.deepEqual(
+      cv.effects?.map((e) => [e.kind, e.label, e.until, e.source, e.keyword ?? null]),
+      [
+        ["power", "+5,000 power", "turn", pump, null],
+        ["keyword", "[Critical]", "turn", pump, "Critical"],
+      ],
+    );
     assert.equal(cv.effects?.[0].sourceName, "PUMPCRIT");
     fixtures.activate = snap;
     // The turn ending: the effects wear off, and each says so.
@@ -6471,7 +6883,10 @@ function assertDisjoint(s: GameState, where: string): RejectedAction[] {
     const v1 = byId("V1");
     assert.equal(v1.basePower, 10000, "AURA's +5000 is on it, and the card says what the printed number was");
     assert.equal(v1.power, 15000, "RESTCOND is off (the card is active), so only AURA counts");
-    assert.deepEqual(v1.effects?.map((e) => [e.kind, e.label, e.until, e.sourceName]), [["power", "+5,000 power", "permanent", "AURA"]]);
+    assert.deepEqual(
+      v1.effects?.map((e) => [e.kind, e.label, e.until, e.sourceName]),
+      [["power", "+5,000 power", "permanent", "AURA"]],
+    );
     fixtures.standing = snapshotFor(s, null);
   }
 

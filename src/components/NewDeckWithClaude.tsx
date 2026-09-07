@@ -88,8 +88,7 @@ export function NewDeckWithClaude({ enabled }: { enabled: boolean }) {
             <span className="block truncate text-sm font-medium text-space-50">{picked.name}</span>
             <span className="text-[11px] text-space-400">
               {/* The leader decides the game, so the draft's rules follow from this pick. */}
-              {picked.id} · {GAME_INFO[picked.game].short} · {picked.colors.join("/")} ·{" "}
-              {picked.owned ? `you own ${picked.owned}` : "not in your collection"}
+              {picked.id} · {GAME_INFO[picked.game].short} · {picked.colors.join("/")} · {picked.owned ? `you own ${picked.owned}` : "not in your collection"}
             </span>
           </div>
         </div>
@@ -117,11 +116,7 @@ export function NewDeckWithClaude({ enabled }: { enabled: boolean }) {
         </ul>
       )}
 
-      <button
-        onClick={draft}
-        disabled={!picked || drafting}
-        className="tap mt-2 w-full rounded-md bg-ki-500 px-3 py-1.5 text-sm font-semibold text-space-950 hover:bg-ki-400 disabled:opacity-50"
-      >
+      <button onClick={draft} disabled={!picked || drafting} className="tap mt-2 w-full rounded-md bg-ki-500 px-3 py-1.5 text-sm font-semibold text-space-950 hover:bg-ki-400 disabled:opacity-50">
         {drafting ? "Drafting… (a minute or two)" : picked ? "Draft a deck with Claude" : "Pick a leader first"}
       </button>
       <p className="mt-1 text-[11px] text-space-400">

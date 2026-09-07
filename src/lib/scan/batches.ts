@@ -71,7 +71,10 @@ export async function createBatch(db: Db, mode: ScanMode, deckId: number | null 
 }
 
 export async function setBatchOwner(db: Db, batchId: number, owner: string | null): Promise<void> {
-  await db.update(scanBatches).set({ owner: owner?.trim() || null, updatedAt: new Date() }).where(eq(scanBatches.id, batchId));
+  await db
+    .update(scanBatches)
+    .set({ owner: owner?.trim() || null, updatedAt: new Date() })
+    .where(eq(scanBatches.id, batchId));
 }
 
 /** Where the whole batch is filed once it is confirmed. */
@@ -85,7 +88,17 @@ export async function setBatchDeck(db: Db, batchId: number, deckId: number | nul
 
 export async function listOpenBatches(db: Db): Promise<ScanBatchSummary[]> {
   const batches = await db
-    .select({ id: scanBatches.id, name: scanBatches.name, mode: scanBatches.mode, deckId: scanBatches.deckId, deckName: decks.name, owner: scanBatches.owner, locationId: scanBatches.locationId, createdAt: scanBatches.createdAt, updatedAt: scanBatches.updatedAt })
+    .select({
+      id: scanBatches.id,
+      name: scanBatches.name,
+      mode: scanBatches.mode,
+      deckId: scanBatches.deckId,
+      deckName: decks.name,
+      owner: scanBatches.owner,
+      locationId: scanBatches.locationId,
+      createdAt: scanBatches.createdAt,
+      updatedAt: scanBatches.updatedAt,
+    })
     .from(scanBatches)
     .leftJoin(decks, eq(decks.id, scanBatches.deckId))
     .where(eq(scanBatches.status, "open"))
@@ -99,7 +112,15 @@ export async function listOpenBatches(db: Db): Promise<ScanBatchSummary[]> {
       .where(inArray(scanPhotos.batchId, ids))
       .groupBy(scanPhotos.batchId),
     db
-      .select({ batchId: scanItems.batchId, chosen: scanItems.chosen, manual: scanItems.manual, detection: scanItems.detection, include: scanItems.include, printId: scanItems.printId, quantity: scanItems.quantity })
+      .select({
+        batchId: scanItems.batchId,
+        chosen: scanItems.chosen,
+        manual: scanItems.manual,
+        detection: scanItems.detection,
+        include: scanItems.include,
+        printId: scanItems.printId,
+        quantity: scanItems.quantity,
+      })
       .from(scanItems)
       .where(inArray(scanItems.batchId, ids)),
   ]);
@@ -123,7 +144,14 @@ export async function listOpenBatches(db: Db): Promise<ScanBatchSummary[]> {
   });
 }
 
-export async function getBatch(db: Db, id: number): Promise<{ batch: { id: number; name: string; mode: ScanMode; status: string; deckId: number | null; owner: string | null; locationId: number | null }; photos: ScanPhotoMeta[]; items: ScanItemRow[] } | null> {
+export async function getBatch(
+  db: Db,
+  id: number,
+): Promise<{
+  batch: { id: number; name: string; mode: ScanMode; status: string; deckId: number | null; owner: string | null; locationId: number | null };
+  photos: ScanPhotoMeta[];
+  items: ScanItemRow[];
+} | null> {
   const batch = await db.query.scanBatches.findFirst({ where: eq(scanBatches.id, id) });
   if (!batch) return null;
   const [photos, items] = await Promise.all([
@@ -175,10 +203,7 @@ export async function photoBytes(db: Db, id: number): Promise<{ data: Buffer; ba
 
 /** Store the prepared image before identification so a retry never needs the phone again. */
 export async function storePhoto(db: Db, batchId: number, position: number, data: Buffer, width: number, height: number): Promise<number> {
-  const [row] = await db
-    .insert(scanPhotos)
-    .values({ batchId, position, data, width, height, status: "reading" })
-    .returning({ id: scanPhotos.id });
+  const [row] = await db.insert(scanPhotos).values({ batchId, position, data, width, height, status: "reading" }).returning({ id: scanPhotos.id });
   await touch(db, batchId);
   return row.id;
 }
@@ -243,7 +268,10 @@ export async function completeBatch(db: Db, batchId: number, owner: string | nul
     const batch = await tx.query.scanBatches.findFirst({ where: eq(scanBatches.id, batchId), columns: { deckId: true, owner: true, locationId: true } });
     const lotOwner = batch?.owner ?? owner;
     const locationId = batch?.locationId ?? null;
-    const items = await tx.select().from(scanItems).where(and(eq(scanItems.batchId, batchId), eq(scanItems.include, true)));
+    const items = await tx
+      .select()
+      .from(scanItems)
+      .where(and(eq(scanItems.batchId, batchId), eq(scanItems.include, true)));
     const printIds = [...new Set(items.map((i) => i.printId).filter((p): p is string => !!p))];
     const prints = printIds.length ? await tx.select({ id: cardPrints.id, cardId: cardPrints.cardId }).from(cardPrints).where(inArray(cardPrints.id, printIds)) : [];
     const cardOf = new Map(prints.map((p) => [p.id, p.cardId]));
@@ -254,7 +282,16 @@ export async function completeBatch(db: Db, batchId: number, owner: string | nul
     if (lots.length) await tx.insert(ownedCards).values(lots);
     const added = lots.length;
     const deckId = batch?.deckId ?? null;
-    const deckAdded = deckId && lots.length ? (await addCardsToDeck(tx as unknown as Db, deckId, lots.map((l) => ({ cardId: l.cardId, quantity: 1 })))).added : 0;
+    const deckAdded =
+      deckId && lots.length
+        ? (
+            await addCardsToDeck(
+              tx as unknown as Db,
+              deckId,
+              lots.map((l) => ({ cardId: l.cardId, quantity: 1 })),
+            )
+          ).added
+        : 0;
     await tx.delete(scanItems).where(eq(scanItems.batchId, batchId));
     await tx.update(scanPhotos).set({ data: null }).where(eq(scanPhotos.batchId, batchId));
     await tx.update(scanBatches).set({ status: "done", addedCount: added, completedAt: new Date(), updatedAt: new Date() }).where(eq(scanBatches.id, batchId));

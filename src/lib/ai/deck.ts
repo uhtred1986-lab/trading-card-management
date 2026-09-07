@@ -29,26 +29,32 @@ function systemFor(game: Game): string {
     "Refer to cards by their exact card number (e.g. BT18-020) as given. Be concrete and concise.",
     `Deck rules for this game: 1 Leader, ${r.main}–${r.mainMax} cards in the main deck, at most ${r.copies} copies of a card number` +
       (r.zMax > 0 ? `, and a Z-Deck of up to ${r.zMax} Z- cards.` : ", and no Z-Deck at all.") +
-      (r.colorStrict
-        ? " Every card in the deck MUST share a colour with the Leader — an off-colour card is illegal, not merely weak."
-        : " Off-colour cards are legal but usually a mistake."),
+      (r.colorStrict ? " Every card in the deck MUST share a colour with the Leader — an off-colour card is illegal, not merely weak." : " Off-colour cards are legal but usually a mistake."),
   ].join("\n");
 }
 
 /** Compact one-line card row for prompts. */
-export function cardLine(c: {
-  id: string;
-  name: string;
-  cardType: string;
-  colors: string[];
-  energyCost: string | null;
-  power: number | null;
-  skill: string | null;
-  characters?: string[];
-  traits?: string[];
-  rarityCode?: string;
-}, maxSkill = 320): string {
-  const skill = (c.skill ?? "").replace(/<br\s*\/?>/gi, " / ").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/\s+/g, " ").trim();
+export function cardLine(
+  c: {
+    id: string;
+    name: string;
+    cardType: string;
+    colors: string[];
+    energyCost: string | null;
+    power: number | null;
+    skill: string | null;
+    characters?: string[];
+    traits?: string[];
+    rarityCode?: string;
+  },
+  maxSkill = 320,
+): string {
+  const skill = (c.skill ?? "")
+    .replace(/<br\s*\/?>/gi, " / ")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/\s+/g, " ")
+    .trim();
   const parts = [
     c.id,
     c.name,
@@ -205,12 +211,7 @@ async function candidatePool(db: Db, deck: NonNullable<Awaited<ReturnType<typeof
  * feels top-heavy", "optimise for going second"). It is stored with each
  * suggestion so a week-old piece of advice still says what it was answering.
  */
-export async function runWizard(
-  db: Db,
-  deckId: number,
-  scope: "owned" | "any",
-  context: string | null = null,
-): Promise<{ runId: number; assessment: string; swaps: WizardSwap[] }> {
+export async function runWizard(db: Db, deckId: number, scope: "owned" | "any", context: string | null = null): Promise<{ runId: number; assessment: string; swaps: WizardSwap[] }> {
   const deck = await getDeck(db, deckId);
   if (!deck) throw new Error("Deck not found");
   if (deck.cards.length === 0) throw new Error("The deck is empty.");
@@ -238,7 +239,10 @@ ${deck.metaNotes ? `PLAYER'S META NOTES:\n${deck.metaNotes}\n\n` : ""}${context 
       max_tokens: 12000,
       thinking: { type: "adaptive" },
       output_config: { effort: "high", format: zodOutputFormat(WizardSchema) },
-      system: [{ type: "text", text: systemFor(deck.game) }, { type: "text", text: poolBlock, cache_control: { type: "ephemeral" } }],
+      system: [
+        { type: "text", text: systemFor(deck.game) },
+        { type: "text", text: poolBlock, cache_control: { type: "ephemeral" } },
+      ],
       messages: [{ role: "user", content: message }],
     });
 
@@ -263,7 +267,9 @@ ${deck.metaNotes ? `PLAYER'S META NOTES:\n${deck.metaNotes}\n\n` : ""}${context 
   }
 
   const ids = [...new Set(output.swaps.flatMap((s) => [s.outCardId, s.inCardId]))];
-  const meta = ids.length ? await db.select({ id: cards.id, name: cards.name, imageUrl: cards.imageUrl, cardType: cards.cardType, colors: cards.colors }).from(cards).where(inArray(cards.id, ids)) : [];
+  const meta = ids.length
+    ? await db.select({ id: cards.id, name: cards.name, imageUrl: cards.imageUrl, cardType: cards.cardType, colors: cards.colors }).from(cards).where(inArray(cards.id, ids))
+    : [];
   const m = new Map(meta.map((r) => [r.id, r]));
   const { allocationForCards } = await import("@/lib/decks/reservations");
   const alloc = await allocationForCards(db, ids);
@@ -305,7 +311,10 @@ export const SetReviewSchema = z.object({
   overview: z.string().describe("2–4 sentences: what the set is about and its overall power level"),
   standouts: z.array(z.object({ cardId: z.string(), why: z.string(), rating: z.number().int().min(1).max(5) })).max(15),
   archetypes: z.array(z.object({ name: z.string(), colors: z.array(z.string()), impact: z.string(), keyCards: z.array(z.string()).max(6) })).max(8),
-  sleepers: z.array(z.object({ cardId: z.string(), why: z.string() })).max(5).describe("Underrated cards worth picking up early"),
+  sleepers: z
+    .array(z.object({ cardId: z.string(), why: z.string() }))
+    .max(5)
+    .describe("Underrated cards worth picking up early"),
 });
 export type SetReview = z.infer<typeof SetReviewSchema>;
 

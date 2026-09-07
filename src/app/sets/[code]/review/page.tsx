@@ -24,7 +24,12 @@ export default async function SetReviewPage({ params }: { params: Promise<{ code
     .limit(1);
   const review = (run?.output ?? null) as SetReview | null;
   const ids = review ? [...new Set([...review.standouts.map((s) => s.cardId), ...review.sleepers.map((s) => s.cardId)])] : [];
-  const meta = ids.length ? await db.select({ id: cards.id, name: cards.name, imageUrl: cards.imageUrl }).from(cards).where(sql`${cards.id} in ${ids}`) : [];
+  const meta = ids.length
+    ? await db
+        .select({ id: cards.id, name: cards.name, imageUrl: cards.imageUrl })
+        .from(cards)
+        .where(sql`${cards.id} in ${ids}`)
+    : [];
   const m = new Map(meta.map((r) => [r.id, r]));
 
   return (
@@ -35,7 +40,11 @@ export default async function SetReviewPage({ params }: { params: Promise<{ code
             ← {set.name}
           </Link>
           <h1 className="text-xl font-semibold text-space-50">Set review · {code}</h1>
-          {run ? <p className="text-xs text-space-400">Generated {run.createdAt.toISOString().slice(0, 10)} · {run.inputTokens} in / {run.outputTokens} out tokens</p> : null}
+          {run ? (
+            <p className="text-xs text-space-400">
+              Generated {run.createdAt.toISOString().slice(0, 10)} · {run.inputTokens} in / {run.outputTokens} out tokens
+            </p>
+          ) : null}
         </div>
         <form action={reviewSetForm}>
           <input type="hidden" name="code" value={code} />

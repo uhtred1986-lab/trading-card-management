@@ -28,7 +28,9 @@ const DeckFromCardDraftSchema = z.object({
     .array(z.object({ cardId: z.string(), quantity: z.number().int().min(1).max(4) }))
     .max(8)
     .describe("Z-Deck cards (Z-BATTLE/Z-EXTRA/Z-UNISON/Z-LEADER), up to 8 total; empty if none fit, and ALWAYS empty for a game with no Z-Deck"),
-  purchases: z.array(z.object({ cardId: z.string(), quantity: z.number().int().min(1).max(4), why: z.string() })).describe("Every card used that is NOT owned, with a one-line reason it's worth buying"),
+  purchases: z
+    .array(z.object({ cardId: z.string(), quantity: z.number().int().min(1).max(4), why: z.string() }))
+    .describe("Every card used that is NOT owned, with a one-line reason it's worth buying"),
 });
 type DeckFromCardDraft = z.infer<typeof DeckFromCardDraftSchema>;
 
@@ -223,7 +225,10 @@ export async function suggestDeckFromCard(db: Db, cardId: string): Promise<{ dec
     .join("\n")
     .trim();
 
-  const [deck] = await db.insert(decks).values({ name: `${draft.name} (Claude draft)`, game, description }).returning({ id: decks.id });
+  const [deck] = await db
+    .insert(decks)
+    .values({ name: `${draft.name} (Claude draft)`, game, description })
+    .returning({ id: decks.id });
   const values = [
     { deckId: deck.id, cardId: chosenLeader.id, zone: "leader", quantity: 1 },
     ...sanitised.main.map((m) => ({ deckId: deck.id, cardId: m.cardId, zone: "main", quantity: m.quantity })),

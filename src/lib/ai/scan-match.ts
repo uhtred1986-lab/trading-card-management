@@ -71,9 +71,7 @@ export function assessMatch(seen: { name: string; confidence: number }, candidat
   const sim = nameSimilarity(seen.name, candidate.name);
   const round = (x: number) => Math.round(x * 100) / 100;
   if (exactNumber) {
-    return sim >= 0.5
-      ? { matchedBy: "number", confidence: round(read), nameSimilarity: sim }
-      : { matchedBy: "number-name-differs", confidence: round(read * 0.5), nameSimilarity: sim };
+    return sim >= 0.5 ? { matchedBy: "number", confidence: round(read), nameSimilarity: sim } : { matchedBy: "number-name-differs", confidence: round(read * 0.5), nameSimilarity: sim };
   }
   return { matchedBy: "name", confidence: round(read * (sim >= 0.8 ? 0.6 : 0.4)), nameSimilarity: sim };
 }

@@ -150,8 +150,8 @@ export function VoiceEntry({ onCard }: { onCard: (card: SpokenCard, prints: { id
       </div>
 
       <p className="mt-1 text-xs text-space-400">
-        Say the card number, then how many — and which finish if you like:{" "}
-        <span className="text-space-200">&ldquo;BT eighteen zero twenty, one card foiled, three cards non-foil&rdquo;</span>. Plain counts (&ldquo;times four&rdquo;) are stored non-foil. A rising chime means it landed in the table; a low buzz means it didn&apos;t. Card names work too.
+        Say the card number, then how many — and which finish if you like: <span className="text-space-200">&ldquo;BT eighteen zero twenty, one card foiled, three cards non-foil&rdquo;</span>. Plain
+        counts (&ldquo;times four&rdquo;) are stored non-foil. A rising chime means it landed in the table; a low buzz means it didn&apos;t. Card names work too.
       </p>
       {error ? <p className="mt-1 text-xs text-loss">{error}</p> : null}
 

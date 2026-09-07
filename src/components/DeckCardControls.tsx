@@ -30,7 +30,13 @@ export function DeckCardControls({ deckId, cardId, zone, quantity, limit }: { de
         <span className={`w-6 text-center font-semibold tabular-nums ${quantity > limit ? "text-loss" : "text-space-50"}`} title={quantity > limit ? `Over the ${limit}-copy limit` : undefined}>
           {quantity}
         </span>
-        <button className={btn} onClick={() => set(quantity + 1)} disabled={pending || quantity >= 99} aria-label="Add one" title={quantity >= limit ? `Past the ${limit}-copy limit — the deck will be flagged illegal` : undefined}>
+        <button
+          className={btn}
+          onClick={() => set(quantity + 1)}
+          disabled={pending || quantity >= 99}
+          aria-label="Add one"
+          title={quantity >= limit ? `Past the ${limit}-copy limit — the deck will be flagged illegal` : undefined}
+        >
           +
         </button>
       </div>

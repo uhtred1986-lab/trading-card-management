@@ -24,7 +24,9 @@ export const DeckDraftSchema = z.object({
     .array(z.object({ cardId: z.string(), quantity: z.number().int().min(1).max(4) }))
     .max(8)
     .describe("Z-Deck cards (Z-BATTLE/Z-EXTRA/Z-UNISON/Z-LEADER), up to 8 total; empty if none fit, and ALWAYS empty for a game with no Z-Deck"),
-  purchases: z.array(z.object({ cardId: z.string(), quantity: z.number().int().min(1).max(4), why: z.string() })).describe("Every card used that is NOT owned, with a one-line reason it's worth buying"),
+  purchases: z
+    .array(z.object({ cardId: z.string(), quantity: z.number().int().min(1).max(4), why: z.string() }))
+    .describe("Every card used that is NOT owned, with a one-line reason it's worth buying"),
 });
 export type DeckDraft = z.infer<typeof DeckDraftSchema>;
 
@@ -65,12 +67,7 @@ export async function buildPools(db: Db, leaderId: string): Promise<{ leader: ty
   // The deck is built for the leader's own game, start to finish.
   const game = gameOr(leader.game);
   const colours = [...leader.colors, "Colorless"];
-  const onColour = [
-    eq(cards.isBanned, false),
-    eq(cards.game, game),
-    notInArray(cards.cardType, ["LEADER", ...gameInfo(game).nonDeckTypes]),
-    sql`${cards.colors} <@ ${textArray(colours)}`,
-  ];
+  const onColour = [eq(cards.isBanned, false), eq(cards.game, game), notInArray(cards.cardType, ["LEADER", ...gameInfo(game).nonDeckTypes]), sql`${cards.colors} <@ ${textArray(colours)}`];
 
   const owned = await db
     .select({ ...select, owned: sql<number>`count(*)::int` })
@@ -133,7 +130,10 @@ export function sanitiseDraft(draft: DeckDraft, pool: Map<string, PoolCard>, gam
         want = Math.min(want, Math.max(0, rule.max - used + (out.get(id) ?? 0)));
         spent.set(rule.keyword, used - (out.get(id) ?? 0) + want);
       }
-      if (want <= 0) { dropped.push(e.cardId); continue; }
+      if (want <= 0) {
+        dropped.push(e.cardId);
+        continue;
+      }
       out.set(id, want);
     }
     return [...out].map(([cardId, quantity]) => {
@@ -169,9 +169,7 @@ export async function suggestDeck(db: Db, leaderId: string): Promise<{ deckId: n
     `You are an expert ${info.promptName} deck builder.`,
     `Build a competitive, coherent ${rules.main}-card main deck for the given Leader. Card text uses [brackets] for keywords, {braces} for card names, <angle brackets> for traits.`,
     `Rules: exactly ${rules.main} main-deck cards (the legal range is ${rules.main}–${rules.mainMax}, but build ${rules.main}); at most ${rules.copies} copies of any card number (fewer if the pool row says a lower limit); ` +
-      (rules.zMax > 0
-        ? `only Z- type cards go in the Z-Deck (max ${rules.zMax}); `
-        : "this game has NO Z-Deck — leave `zDeck` empty; ") +
+      (rules.zMax > 0 ? `only Z- type cards go in the Z-Deck (max ${rules.zMax}); ` : "this game has NO Z-Deck — leave `zDeck` empty; ") +
       "all cards must come from the pool below; refer to cards by exact card number.",
     ...(rules.colorStrict ? ["Every card in the deck must share a colour with the Leader. The pool below is already filtered to legal colours, so simply do not invent cards."] : []),
     ...ruleLines(poolRules),
@@ -185,7 +183,10 @@ export async function suggestDeck(db: Db, leaderId: string): Promise<{ deckId: n
     max_tokens: 12000,
     thinking: { type: "adaptive" },
     output_config: { effort: "high", format: zodOutputFormat(DeckDraftSchema) },
-    system: [{ type: "text", text: system }, { type: "text", text: poolBlock, cache_control: { type: "ephemeral" } }],
+    system: [
+      { type: "text", text: system },
+      { type: "text", text: poolBlock, cache_control: { type: "ephemeral" } },
+    ],
     messages: [{ role: "user", content: ask }],
   });
   const { output: draft } = await recordRun<DeckDraft>(db, "deck_wizard", { leaderId, game, mode: "build", ownedPool: owned.length, buyPool: buy.length }, res);
@@ -204,7 +205,10 @@ export async function suggestDeck(db: Db, leaderId: string): Promise<{ deckId: n
     .join("\n")
     .trim();
 
-  const [deck] = await db.insert(decks).values({ name: `${draft.name} (Claude draft)`, game, description }).returning({ id: decks.id });
+  const [deck] = await db
+    .insert(decks)
+    .values({ name: `${draft.name} (Claude draft)`, game, description })
+    .returning({ id: decks.id });
   const values = [
     { deckId: deck.id, cardId: leader.id, zone: "leader", quantity: 1 },
     ...sanitised.main.map((m) => ({ deckId: deck.id, cardId: m.cardId, zone: "main", quantity: m.quantity })),

@@ -57,12 +57,15 @@ function tally(defs: CardDef[], misses: Map<string, number>): Tally {
           if (isPermanent) {
             t.permanentCompiled++;
             if (emitsStatic(script.ops)) t.permanentApplied++;
-          }
-          else t.compiled++;
+          } else t.compiled++;
         } else {
           full = false;
           for (const clause of script.unsupported) {
-            const key = clause.toLowerCase().replace(/\d+/g, "N").replace(/<[^>]*>|\{[^}]*\}|≪[^≫]*≫/g, "…").slice(0, 60);
+            const key = clause
+              .toLowerCase()
+              .replace(/\d+/g, "N")
+              .replace(/<[^>]*>|\{[^}]*\}|≪[^≫]*≫/g, "…")
+              .slice(0, 60);
             misses.set(key, (misses.get(key) ?? 0) + 1);
           }
         }

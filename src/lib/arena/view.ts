@@ -5,7 +5,23 @@
  * what a player may tap. This turns one state plus the legal moves into a view
  * for one side of the table, hiding what that player may not see (3-1-3).
  */
-import { areaOf, comboPowerOf, describeScript, compileCardCached, face, keywordsInForce, powerOf, skillsOf, staticEffects, type EngineContext, type GameState, type LegalAction, type PlayerId, type RejectedAction, type Requirement } from "./engine";
+import {
+  areaOf,
+  comboPowerOf,
+  describeScript,
+  compileCardCached,
+  face,
+  keywordsInForce,
+  powerOf,
+  skillsOf,
+  staticEffects,
+  type EngineContext,
+  type GameState,
+  type LegalAction,
+  type PlayerId,
+  type RejectedAction,
+  type Requirement,
+} from "./engine";
 import { def, emitsStatic, locate, permanentStatics, type StaticEffect } from "./engine/state";
 import { describeEffect, describeStatic, type EffectView } from "./effects";
 
@@ -240,7 +256,14 @@ export interface CardArt {
 }
 
 /** A standing effect as the board lists it, with its source named now, while the card is still on the table. */
-function effectView(ctx: EngineContext, s: GameState, d: Pick<EffectView, "kind" | "label" | "keyword">, until: EffectView["until"], source: string | null | undefined, by: PlayerId | null): EffectView {
+function effectView(
+  ctx: EngineContext,
+  s: GameState,
+  d: Pick<EffectView, "kind" | "label" | "keyword">,
+  until: EffectView["until"],
+  source: string | null | undefined,
+  by: PlayerId | null,
+): EffectView {
   const src = source && s.cards[source] ? source : null;
   return { ...d, until, source: src, sourceName: src ? face(ctx, s, src).name : null, by };
 }
@@ -258,7 +281,8 @@ function rulesOn(ctx: EngineContext, s: GameState, p: PlayerId, statics: StaticE
   const out: EffectView[] = [];
   const about = (player: PlayerId | undefined) => !player || player === p;
   for (const e of s.effects) if (!e.target && e.kind === "forbid" && e.forbid && about(e.forbid.player)) out.push(effectView(ctx, s, describeEffect(e), e.until, e.source, e.master));
-  for (const e of statics) if (!e.target && e.kind === "forbid" && about((e.value as { player?: PlayerId }).player)) out.push(effectView(ctx, s, describeStatic(e), "permanent", e.source, s.cards[e.source]?.owner ?? null));
+  for (const e of statics)
+    if (!e.target && e.kind === "forbid" && about((e.value as { player?: PlayerId }).player)) out.push(effectView(ctx, s, describeStatic(e), "permanent", e.source, s.cards[e.source]?.owner ?? null));
   return out;
 }
 
@@ -279,7 +303,15 @@ function cardView(ctx: EngineContext, s: GameState, id: string, images: Record<s
       // A [Permanent] never resolves, so it is never the referee's; what it
       // is doing *now* is the only honest thing to say about it.
       const state: PermanentView["state"] = sc.unsupported.length ? "unread" : !emitsStatic(sc.ops) ? "inert" : (permanentStatics(ctx, s, id, sk.index)?.length ?? 0) > 0 ? "on" : "off";
-      permanents.push({ index: sk.index, text: sk.raw.replace(/^\s*(?:\[[^\]]*\]\s*)+/, "").replace(/\s+/g, " ").trim(), state, reading: sc.unsupported.length ? "" : describeScript(sc.ops, { permanent: true }) });
+      permanents.push({
+        index: sk.index,
+        text: sk.raw
+          .replace(/^\s*(?:\[[^\]]*\]\s*)+/, "")
+          .replace(/\s+/g, " ")
+          .trim(),
+        state,
+        reading: sc.unsupported.length ? "" : describeScript(sc.ops, { permanent: true }),
+      });
       if (!sc.unsupported.length && sc.ops.length) reading += (reading ? " · " : "") + describeScript(sc.ops, { permanent: true });
       continue;
     }
@@ -464,7 +496,14 @@ function questionFor(ctx: EngineContext, s: GameState): PromptView {
     case "counter":
       return { kind: pr.kind, player: pr.player, question: "Play a counter?", hint: "Counter cards are activated from hand and go to the Drop." };
     case "chooseCards":
-      return withStep({ kind: pr.kind, player: pr.player, question: pr.choice.reason, hint: `Choose ${pr.choice.min === pr.choice.max ? pr.choice.min : `${pr.choice.min} to ${pr.choice.max}`}.`, min: pr.choice.min, max: pr.choice.max });
+      return withStep({
+        kind: pr.kind,
+        player: pr.player,
+        question: pr.choice.reason,
+        hint: `Choose ${pr.choice.min === pr.choice.max ? pr.choice.min : `${pr.choice.min} to ${pr.choice.max}`}.`,
+        min: pr.choice.min,
+        max: pr.choice.max,
+      });
     case "chooseMode":
       return withStep({ kind: pr.kind, player: pr.player, question: pr.reason, hint: "The card offers these; exactly one happens (20-2)." });
     case "zEnergyFromCombo":
@@ -472,9 +511,21 @@ function questionFor(ctx: EngineContext, s: GameState): PromptView {
     case "offering":
       return { kind: pr.kind, player: pr.player, question: "[Offering]: drop one life, or let them draw two?", hint: null };
     case "optionalCost":
-      return withStep({ kind: pr.kind, player: pr.player, question: `Pay ${pr.describe} for ${nameOf(pr.card)}?`, hint: "An [Auto] skill's cost may be declined; then it does not resolve.", cost: pr.describe });
+      return withStep({
+        kind: pr.kind,
+        player: pr.player,
+        question: `Pay ${pr.describe} for ${nameOf(pr.card)}?`,
+        hint: "An [Auto] skill's cost may be declined; then it does not resolve.",
+        cost: pr.describe,
+      });
     case "payCost":
-      return withStep({ kind: pr.kind, player: pr.player, question: `Which energy do you rest to ${pr.describe}?`, hint: "The colours you keep active decide what you can still do this turn.", cost: pr.describe });
+      return withStep({
+        kind: pr.kind,
+        player: pr.player,
+        question: `Which energy do you rest to ${pr.describe}?`,
+        hint: "The colours you keep active decide what you can still do this turn.",
+        cost: pr.describe,
+      });
     case "referee":
       return { kind: pr.kind, player: pr.player, question: `Claude is ruling on ${pr.request.cardName}…`, hint: pr.request.unsupported.join(" · ") };
     case "orderPending":

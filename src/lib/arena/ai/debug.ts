@@ -80,12 +80,7 @@ export function clausePattern(clause: string): string {
 }
 
 /** Note that a card's clause could not be read. Safe to call repeatedly. */
-export async function noteUnreadText(
-  db: Db,
-  entries: { cardId: string; skillIndex: number; clause: string; skillText: string }[],
-  seen: boolean,
-  ruling?: { ops: Op[]; why: string },
-): Promise<void> {
+export async function noteUnreadText(db: Db, entries: { cardId: string; skillIndex: number; clause: string; skillText: string }[], seen: boolean, ruling?: { ops: Op[]; why: string }): Promise<void> {
   for (const e of entries) {
     if (!e.clause.trim()) continue;
     await db
@@ -143,7 +138,10 @@ export async function closeNotesNowRead(db: Db): Promise<number> {
     .where(eq(cardTextNotes.status, "open"));
   if (!open.length) return 0;
 
-  const rows = await db.select().from(cardsTable).where(inArray(cardsTable.id, [...new Set(open.map((n) => n.cardId))]));
+  const rows = await db
+    .select()
+    .from(cardsTable)
+    .where(inArray(cardsTable.id, [...new Set(open.map((n) => n.cardId))]));
   const stillUnread = new Set(rows.flatMap((r) => unreadClausesOf(cardDefFrom(r))).map(noteKey));
   // A card that could not be read back is no evidence that its clause now
   // compiles, so its notes are left exactly as they are.

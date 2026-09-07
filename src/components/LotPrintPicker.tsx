@@ -22,17 +22,7 @@ export interface PrintOption {
  * "Special Rare" and "SPR" are how the same thing gets said in different
  * places, and the one you remember is whichever is printed on the card.
  */
-export function LotPrintPicker({
-  lotId,
-  printId,
-  prints,
-  compact = false,
-}: {
-  lotId: number;
-  printId: string;
-  prints: PrintOption[];
-  compact?: boolean;
-}) {
+export function LotPrintPicker({ lotId, printId, prints, compact = false }: { lotId: number; printId: string; prints: PrintOption[]; compact?: boolean }) {
   const [value, setValue] = useState(printId);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();

@@ -19,10 +19,7 @@ export async function runSync<T>(db: Db, source: SyncSource, fn: () => Promise<T
     return summary;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    await db
-      .update(syncRuns)
-      .set({ status: "error", finishedAt: new Date(), error: message })
-      .where(eq(syncRuns.id, run.id));
+    await db.update(syncRuns).set({ status: "error", finishedAt: new Date(), error: message }).where(eq(syncRuns.id, run.id));
     throw err;
   }
 }

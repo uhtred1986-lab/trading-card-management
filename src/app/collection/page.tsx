@@ -155,7 +155,9 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
             {deckParams.length === 0
               ? "Any deck"
               : deckParams.length === 1
-                ? (deckParams[0] === "none" ? "In no deck" : (decks.find((d) => String(d.id) === deckParams[0])?.name ?? "1 deck"))
+                ? deckParams[0] === "none"
+                  ? "In no deck"
+                  : (decks.find((d) => String(d.id) === deckParams[0])?.name ?? "1 deck")
                 : `${deckParams.length} decks`}
             <span className="float-right text-space-400">▾</span>
           </summary>

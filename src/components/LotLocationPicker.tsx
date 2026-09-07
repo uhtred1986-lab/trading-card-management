@@ -11,17 +11,7 @@ const NEW = "__new";
  * names a box on the spot rather than sending you to settings first — you are
  * usually holding the card when you find out it needs one.
  */
-export function LotLocationPicker({
-  lotId,
-  locationId,
-  locations,
-  compact = false,
-}: {
-  lotId: number;
-  locationId: number | null;
-  locations: StorageLocation[];
-  compact?: boolean;
-}) {
+export function LotLocationPicker({ lotId, locationId, locations, compact = false }: { lotId: number; locationId: number | null; locations: StorageLocation[]; compact?: boolean }) {
   const [value, setValue] = useState(locationId);
   const [known, setKnown] = useState(locations);
   const [adding, setAdding] = useState(false);

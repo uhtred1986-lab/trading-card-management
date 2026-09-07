@@ -123,8 +123,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     section: "22-3",
     type: "[Activate: Main]",
     group: "play",
-    meaning:
-      "An Extra Card that stays on the table in Active Mode instead of going to the Drop Area. Its other skills work from there, and playing another [Field] Extra drops the one already out.",
+    meaning: "An Extra Card that stays on the table in Active Mode instead of going to the Drop Area. Its other skills work from there, and playing another [Field] Extra drops the one already out.",
     engine: "Offered from hand for the card's own energy cost; the engine drops your other [Field] Extras first and then places this one face-up in the Battle Area.",
     support: "engine",
   },
@@ -188,8 +187,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     section: "22-38",
     type: "[Activate: Main]",
     group: "play",
-    meaning:
-      "Drop any number of mono-green, mono-yellow or Green/Yellow Battle Cards from your Battle Area whose energy costs add up to exactly this card's printed cost, and play it from hand.",
+    meaning: "Drop any number of mono-green, mono-yellow or Green/Yellow Battle Cards from your Battle Area whose energy costs add up to exactly this card's printed cost, and play it from hand.",
     engine: "Only offered when some set of your Battle Cards really does add up; the cards are then chosen one at a time until the sum is met.",
     support: "engine",
   },
@@ -235,7 +233,8 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     type: "[Permanent]",
     group: "play",
     meaning: "While a card with [Unique] is in play you can't play another card with the same name. If two are somehow in play at once, their master keeps one and drops the rest.",
-    engine: "The play is blocked, with the card already out named as the reason. When two do end up in play the engine keeps the newest instead of asking which to keep — 21-11 gives that choice to the master.",
+    engine:
+      "The play is blocked, with the card already out named as the reason. When two do end up in play the engine keeps the newest instead of asking which to keep — 21-11 gives that choice to the master.",
     support: "partial",
   },
   Overlord: {
@@ -262,7 +261,8 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     section: "22-45",
     type: "[Permanent]",
     group: "play",
-    meaning: "When you play this Unison Card over one whose colour matches, you may move up to Y markers from the Unison being replaced onto this one. An [Empower] naming no colour takes them from a Unison of any colour.",
+    meaning:
+      "When you play this Unison Card over one whose colour matches, you may move up to Y markers from the Unison being replaced onto this one. An [Empower] naming no colour takes them from a Unison of any colour.",
     engine: "Read before the old Unison leaves play, because leaving clears its markers. The engine carries as many as it can rather than asking how many of the “up to Y” you want.",
     support: "partial",
   },
@@ -331,8 +331,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     type: "[Activate: Battle]",
     group: "battle",
     meaning: "In the Defense Step of your opponent's turn, drop cards from your hand covering the named colours to switch up to two of your energy from Rest to Active Mode.",
-    engine:
-      "Only offered in the Defense Step, and only cards that can still be part of a set covering every named colour are offered — so a pick cannot dead-end after the orbs are already spent.",
+    engine: "Only offered in the Defense Step, and only cards that can still be part of a set covering every named colour are offered — so a pick cannot dead-end after the orbs are already spent.",
     support: "engine",
   },
   "Victory Strike": {
@@ -450,8 +449,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     type: "[Permanent]",
     group: "deck",
     meaning: "A deck may hold at most four cards with [Super Combo], counted across all of them.",
-    engine:
-      "Counted by the deck checker, which marks a deck over four illegal. Nothing happens in a game beyond target descriptions that name it — “a blue non-[Super Combo] Battle Card”.",
+    engine: "Counted by the deck checker, which marks a deck over four illegal. Nothing happens in a game beyond target descriptions that name it — “a blue non-[Super Combo] Battle Card”.",
     support: "deck",
   },
   "Dragon Ball": {

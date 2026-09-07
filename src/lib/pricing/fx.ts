@@ -22,11 +22,6 @@ export async function syncFx(db: Db): Promise<{ asOf: string; usdEur: number }> 
 
 /** Latest known USD→EUR rate, or null if FX has never synced. */
 export async function latestUsdEur(db: Db): Promise<number | null> {
-  const [row] = await db
-    .select({ rate: fxRates.rate })
-    .from(fxRates)
-    .where(eq(fxRates.base, "USD"))
-    .orderBy(desc(fxRates.asOf))
-    .limit(1);
+  const [row] = await db.select({ rate: fxRates.rate }).from(fxRates).where(eq(fxRates.base, "USD")).orderBy(desc(fxRates.asOf)).limit(1);
   return row?.rate ?? null;
 }

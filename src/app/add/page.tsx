@@ -14,17 +14,23 @@ export default async function AddPage() {
           <span className="font-semibold text-ki-300">
             {open.length} open scan batch{open.length === 1 ? "" : "es"}
           </span>{" "}
-          <span className="text-space-300">— {open.reduce((n, b) => n + b.items, 0)} cards waiting for review, {open.reduce((n, b) => n + b.needsReview, 0)} need a look. Continue →</span>
+          <span className="text-space-300">
+            — {open.reduce((n, b) => n + b.items, 0)} cards waiting for review, {open.reduce((n, b) => n + b.needsReview, 0)} need a look. Continue →
+          </span>
         </Link>
       ) : null}
       <Link href="/add/quick" className="block rounded-xl border-2 border-ki-500/60 bg-ki-500/5 p-4 hover:border-ki-500">
         <div className="text-lg font-semibold text-space-50">⚡ Quick capture</div>
-        <p className="mt-1 text-sm text-space-300">One card at a time, phone-first: snap it, it&apos;s identified on the spot, tap the number of copies, save — the camera opens again for the next card.</p>
+        <p className="mt-1 text-sm text-space-300">
+          One card at a time, phone-first: snap it, it&apos;s identified on the spot, tap the number of copies, save — the camera opens again for the next card.
+        </p>
       </Link>
       <div className="grid gap-3 sm:grid-cols-2">
         <Link href="/add/scan" className="rounded-xl border border-space-700/70 bg-space-900/60 p-4 hover:border-ki-500/50">
           <div className="text-lg font-semibold text-space-50">📷 Scan</div>
-          <p className="mt-1 text-sm text-space-300">Photograph one card or a whole binder page. Every match is reviewed before it&apos;s saved — upload from the phone, finish on the PC. Photos are kept only until the batch is confirmed.</p>
+          <p className="mt-1 text-sm text-space-300">
+            Photograph one card or a whole binder page. Every match is reviewed before it&apos;s saved — upload from the phone, finish on the PC. Photos are kept only until the batch is confirmed.
+          </p>
         </Link>
         <Link href="/add/bulk" className="rounded-xl border border-space-700/70 bg-space-900/60 p-4 hover:border-ki-500/50">
           <div className="text-lg font-semibold text-space-50">⌨️ Type them in</div>

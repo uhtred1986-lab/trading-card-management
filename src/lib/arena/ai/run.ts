@@ -189,4 +189,3 @@ async function runReferee(db: Db, game: LoadedGame, gameId: number): Promise<str
   await applyToGame(db, gameId, { type: "refereeRuling", player: req.master, ops: ruling.ops }, { say: line });
   return line;
 }
-

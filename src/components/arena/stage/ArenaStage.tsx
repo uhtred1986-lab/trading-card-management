@@ -19,7 +19,22 @@ import type { ArenaSkin } from "@/lib/arena/skin";
 import { ReportBug } from "../ReportBug";
 import { narrate } from "@/lib/arena/narration";
 import { untilWords } from "@/lib/arena/effects";
-import { AttackBeam, CardPreview, CardSheet, Counter, NarrationRibbon, SearchSheet, SkillSpotlight, StepBanner, StepChip, TopStrip, cardsOnTable, refusalLine, shortLabel, type SheetMove } from "../shared";
+import {
+  AttackBeam,
+  CardPreview,
+  CardSheet,
+  Counter,
+  NarrationRibbon,
+  SearchSheet,
+  SkillSpotlight,
+  StepBanner,
+  StepChip,
+  TopStrip,
+  cardsOnTable,
+  refusalLine,
+  shortLabel,
+  type SheetMove,
+} from "../shared";
 import { ZoneAnchor } from "./anchors";
 import { battleShape, BattleVerdict, Count, firedInBattle } from "./BattleParts";
 import { DuelBand } from "./DuelBand";
@@ -390,7 +405,15 @@ export function ArenaStage({ gameId, snapshot, skin = "night", staging = "band" 
   // only ever names the last one.
   const beatSpotlight =
     beat?.t === "skill"
-      ? { seq: beat.n, cardId: beats?.art[beat.card]?.cardId ?? "", name: beats?.art[beat.card]?.name ?? "", label: beat.label, text: beat.text, unread: beat.unread, imageUrl: beats?.art[beat.card]?.imageUrl ?? null }
+      ? {
+          seq: beat.n,
+          cardId: beats?.art[beat.card]?.cardId ?? "",
+          name: beats?.art[beat.card]?.name ?? "",
+          label: beat.label,
+          text: beat.text,
+          unread: beat.unread,
+          imageUrl: beats?.art[beat.card]?.imageUrl ?? null,
+        }
       : null;
 
   /**
@@ -511,7 +534,11 @@ export function ArenaStage({ gameId, snapshot, skin = "night", staging = "band" 
             </button>
           )}
           {searching && !searchOpen && (
-            <button type="button" onClick={() => setClosedSearch(null)} className="tap shrink-0 rounded-lg bg-ki-500 px-3 py-2 text-sm font-semibold text-space-950 hover:bg-ki-400 sm:rounded-xl sm:px-5 sm:py-2.5 sm:text-base">
+            <button
+              type="button"
+              onClick={() => setClosedSearch(null)}
+              className="tap shrink-0 rounded-lg bg-ki-500 px-3 py-2 text-sm font-semibold text-space-950 hover:bg-ki-400 sm:rounded-xl sm:px-5 sm:py-2.5 sm:text-base"
+            >
               Choose from {choices.length}
             </button>
           )}

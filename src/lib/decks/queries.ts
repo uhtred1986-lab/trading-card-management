@@ -71,9 +71,15 @@ export async function listDecks(db: Db, opts: { game?: Game } = {}) {
   const leaderIds = rows.map((r) => r.leaderId).filter((x): x is string => !!x);
   const [leaders, legalities] = await Promise.all([
     leaderIds.length
-      ? db.select({ id: cards.id, name: cards.name, imageUrl: cards.imageUrl, colors: cards.colors }).from(cards).where(sql`${cards.id} in ${leaderIds}`)
+      ? db
+          .select({ id: cards.id, name: cards.name, imageUrl: cards.imageUrl, colors: cards.colors })
+          .from(cards)
+          .where(sql`${cards.id} in ${leaderIds}`)
       : Promise.resolve([]),
-    legalityForDecks(db, rows.map((r) => r.id)),
+    legalityForDecks(
+      db,
+      rows.map((r) => r.id),
+    ),
   ]);
   const lm = new Map(leaders.map((l) => [l.id, l]));
   return rows.map((r) => {

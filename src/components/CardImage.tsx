@@ -23,24 +23,12 @@ export function CardImage({
   const [failed, setFailed] = useState(false);
   if (!src || failed) {
     return (
-      <div
-        className={`card-aspect flex items-center justify-center rounded-lg border border-dashed border-space-600 bg-space-900 p-2 text-center text-xs text-space-300 ${className}`}
-      >
-        {alt}
-      </div>
+      <div className={`card-aspect flex items-center justify-center rounded-lg border border-dashed border-space-600 bg-space-900 p-2 text-center text-xs text-space-300 ${className}`}>{alt}</div>
     );
   }
   return (
     <div className={`card-aspect relative overflow-hidden rounded-lg bg-space-900 ${className}`}>
-      <Image
-        src={src}
-        alt={alt}
-        fill
-        sizes={sizes}
-        priority={priority}
-        className="object-contain"
-        onError={() => setFailed(true)}
-      />
+      <Image src={src} alt={alt} fill sizes={sizes} priority={priority} className="object-contain" onError={() => setFailed(true)} />
     </div>
   );
 }

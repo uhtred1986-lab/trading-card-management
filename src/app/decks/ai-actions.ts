@@ -43,10 +43,7 @@ export async function suggestionsAction(deckId: number): Promise<Record<string, 
 }
 
 /** Swap the cards over: out goes down, in goes up, in the deck's own zone. */
-export async function applySwapAction(
-  deckId: number,
-  swap: { id?: number; outCardId: string; outQuantity: number; inCardId: string; inQuantity: number; zone?: string },
-): Promise<SwapActionResponse> {
+export async function applySwapAction(deckId: number, swap: { id?: number; outCardId: string; outQuantity: number; inCardId: string; inQuantity: number; zone?: string }): Promise<SwapActionResponse> {
   const { deckCardQuantity } = await import("./actions");
   const zone = (swap.zone ?? "main") as "leader" | "main" | "z" | "side";
   const outNow = await deckCardQuantity(deckId, swap.outCardId, zone);

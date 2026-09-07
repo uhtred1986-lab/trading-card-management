@@ -61,7 +61,26 @@ import {
   skillNegated,
   whyNotPay,
 } from "./state";
-import type { Action, Applied, Area, CardDef, CardInstance, Color, CounterWindow, FlowStep, GameEvent, GameState, PendingAuto, PlayerId, PlayerState, Prompt, RejectedAction, Requirement, Skill, Trigger } from "./types";
+import type {
+  Action,
+  Applied,
+  Area,
+  CardDef,
+  CardInstance,
+  Color,
+  CounterWindow,
+  FlowStep,
+  GameEvent,
+  GameState,
+  PendingAuto,
+  PlayerId,
+  PlayerState,
+  Prompt,
+  RejectedAction,
+  Requirement,
+  Skill,
+  Trigger,
+} from "./types";
 import { other, PLAYERS } from "./types";
 
 export interface EngineContext extends GameContext {
@@ -91,7 +110,29 @@ export interface GameOptions {
 }
 
 function emptyPlayer(id: PlayerId, name: string): PlayerState {
-  return { id, name, deck: [], hand: [], drop: [], warp: [], life: [], leader: "", battle: [], combo: [], energy: [], unison: null, zDeck: [], zEnergy: [], removed: [], energyMarkers: 0, mulliganed: false, overRealmsThisTurn: 0, zAwakenedThisTurn: false, grewUnisonThisTurn: false, damageTaken: 0 };
+  return {
+    id,
+    name,
+    deck: [],
+    hand: [],
+    drop: [],
+    warp: [],
+    life: [],
+    leader: "",
+    battle: [],
+    combo: [],
+    energy: [],
+    unison: null,
+    zDeck: [],
+    zEnergy: [],
+    removed: [],
+    energyMarkers: 0,
+    mulliganed: false,
+    overRealmsThisTurn: 0,
+    zAwakenedThisTurn: false,
+    grewUnisonThisTurn: false,
+    damageTaken: 0,
+  };
 }
 
 function instance(id: string, cardId: string, owner: PlayerId, isToken = false): CardInstance {
@@ -702,7 +743,11 @@ function resolveKeywordOrText(ctx: EngineContext, s: GameState, ev: GameEvent[],
         if (!cands.length) return "done";
         s.continuations.zstack = { card, x: k.x };
         s.flow.unshift({ op: "choose.apply", what: "zstack", card, player: master });
-        return wait(s, { kind: "chooseCards", player: master, choice: { reason: `Z-Stack ${k.x}: cards to place under ${face(ctx, s, card).name}`, candidates: cands, min: 0, max: k.x, continuation: "zstack" } });
+        return wait(s, {
+          kind: "chooseCards",
+          player: master,
+          choice: { reason: `Z-Stack ${k.x}: cards to place under ${face(ctx, s, card).name}`, candidates: cands, min: 0, max: k.x, continuation: "zstack" },
+        });
       }
       case "Awaken":
       case "Wish":
@@ -733,7 +778,13 @@ function resolveKeywordOrText(ctx: EngineContext, s: GameState, ev: GameEvent[],
         return wait(s, {
           kind: "chooseCards",
           player: master,
-          choice: { reason: `Alliance ${k.colors.join("/")}: Battle Cards to switch to Rest Mode for ${face(ctx, s, card).name}, or none`, candidates: cands, min: 0, max: cands.length, continuation: "alliance" },
+          choice: {
+            reason: `Alliance ${k.colors.join("/")}: Battle Cards to switch to Rest Mode for ${face(ctx, s, card).name}, or none`,
+            candidates: cands,
+            min: 0,
+            max: cands.length,
+            continuation: "alliance",
+          },
         });
       }
       case "Revive": {
@@ -749,7 +800,13 @@ function resolveKeywordOrText(ctx: EngineContext, s: GameState, ev: GameEvent[],
         return wait(s, {
           kind: "chooseCards",
           player: master,
-          choice: { reason: `Revive ${k.colors.join("/")}: drop cards covering both colours to play ${face(ctx, s, card).name} back, or none`, candidates: cands, min: 0, max: k.colors.length, continuation: "revive" },
+          choice: {
+            reason: `Revive ${k.colors.join("/")}: drop cards covering both colours to play ${face(ctx, s, card).name} back, or none`,
+            candidates: cands,
+            min: 0,
+            max: k.colors.length,
+            continuation: "revive",
+          },
         });
       }
       case "Field":
@@ -772,7 +829,17 @@ function resolveKeywordOrText(ctx: EngineContext, s: GameState, ev: GameEvent[],
 /** Where a skill leaves what its price chose, for the effect that follows it. */
 const costVarsKey = (card: string, skillIndex: number) => `costvars:${card}:${skillIndex}`;
 
-function runSkill(ctx: EngineContext, s: GameState, ev: GameEvent[], card: string, sk: Skill, master: PlayerId, trigger?: Trigger, subject?: string, vars: Record<string, string[]> = {}): "done" | "wait" {
+function runSkill(
+  ctx: EngineContext,
+  s: GameState,
+  ev: GameEvent[],
+  card: string,
+  sk: Skill,
+  master: PlayerId,
+  trigger?: Trigger,
+  subject?: string,
+  vars: Record<string, string[]> = {},
+): "done" | "wait" {
   const script = scriptFor(ctx, s, card, sk.index);
   if (script) {
     if (script.ops.length === 0) return "done";
@@ -851,7 +918,6 @@ function costIsReadable(sk: Skill): boolean {
   return priceCondition(sk) !== null || compileCostProgram(sk) !== null;
 }
 
-
 /** "2 Green energy and 1 marker" — what an optional cost asks for. */
 function describeCost(sk: Skill): string {
   const parts: string[] = [];
@@ -876,15 +942,7 @@ function canResolve(ctx: EngineContext, s: GameState, card: string, sk: Skill): 
  * colours left active afterwards would differ (3-8-2). Returns the waiting
  * state, or null when the engine should just pay.
  */
-function askForPayment(
-  ctx: EngineContext,
-  s: GameState,
-  p: PlayerId,
-  action: Action,
-  total: number,
-  specified: Partial<Record<Color, number>>,
-  describe: string,
-): GameState | null {
+function askForPayment(ctx: EngineContext, s: GameState, p: PlayerId, action: Action, total: number, specified: Partial<Record<Color, number>>, describe: string): GameState | null {
   if ("pay" in action && action.pay) return null;
   if (total <= 0) return null;
   const options = paymentOptions(ctx, s, p, total, specified);
@@ -991,7 +1049,14 @@ function successorAsk(ctx: EngineContext, s: GameState, card: string, p: PlayerI
     return subsetSumExists(rest, left - c);
   });
   s.flow.unshift(
-    { op: "prompt", prompt: { kind: "chooseCards", player: p, choice: { reason: `Successor: ${left} more energy worth of green/yellow Battle Cards to drop`, candidates: cands, min: 1, max: 1, continuation: "successor" } } },
+    {
+      op: "prompt",
+      prompt: {
+        kind: "chooseCards",
+        player: p,
+        choice: { reason: `Successor: ${left} more energy worth of green/yellow Battle Cards to drop`, candidates: cands, min: 1, max: 1, continuation: "successor" },
+      },
+    },
     { op: "choose.apply", what: "successor", card, player: p },
   );
 }
@@ -1029,12 +1094,7 @@ function battleAfterDeclare(ctx: EngineContext, s: GameState): "done" | "wait" {
   if (b.guard === s.players[defender].leader) {
     for (const id of cardsInPlay(s, defender)) if (id !== b.guard) pendTriggers(ctx, s, "yourLeaderAttacked", id, b.guard);
   }
-  s.flow.unshift(
-    { op: "counter", window: "attack", responder: other(s.turnPlayer) },
-    { op: "battle.blocker" },
-    { op: "checkpoint" },
-    { op: "battle.offense" },
-  );
+  s.flow.unshift({ op: "counter", window: "attack", responder: other(s.turnPlayer) }, { op: "battle.blocker" }, { op: "checkpoint" }, { op: "battle.offense" });
   return "done";
 }
 
@@ -1429,8 +1489,18 @@ function activationCost(ctx: EngineContext, s: GameState, card: string, sk: Skil
   const energy = total + c.total;
   const bits: string[] = [];
   if (alt) bits.push("alternative cost");
-  else if (energy) bits.push(`${energy} energy${Object.keys(orbs).length ? ` (${Object.entries(orbs).map(([k, n]) => `${n} ${k.toLowerCase()}`).join(", ")})` : ""}`);
-  if (sk.markerCost != null && sk.markerCost !== 0) bits.push(sk.markerCost > 0 ? `+${sk.markerCost} marker${sk.markerCost === 1 ? "" : "s"}` : `${-sk.markerCost} marker${sk.markerCost === -1 ? "" : "s"}`);
+  else if (energy)
+    bits.push(
+      `${energy} energy${
+        Object.keys(orbs).length
+          ? ` (${Object.entries(orbs)
+              .map(([k, n]) => `${n} ${k.toLowerCase()}`)
+              .join(", ")})`
+          : ""
+      }`,
+    );
+  if (sk.markerCost != null && sk.markerCost !== 0)
+    bits.push(sk.markerCost > 0 ? `+${sk.markerCost} marker${sk.markerCost === 1 ? "" : "s"}` : `${-sk.markerCost} marker${sk.markerCost === -1 ? "" : "s"}`);
   return { energy, ...(Object.keys(orbs).length ? { orbs } : {}), ...(sk.markerCost != null ? { markers: sk.markerCost } : {}), describe: bits.join(" · ") || "free" };
 }
 
@@ -1461,7 +1531,8 @@ export function legalActions(ctx: EngineContext, s: GameState): LegalAction[] {
       const b = s.battle!;
       for (const id of s.players[p].hand) {
         const d = def(ctx, s, id);
-        if (canCombo(d) && !forbids(ctx, s, "combo", { player: p, card: id }) && planPayment(ctx, s, p, comboCostOf(ctx, s, id), {})) out.push({ action: { type: "combo", player: p, card: id }, label: `Combo ${name(id)} from hand (+${comboPowerOf(ctx, s, id)}, cost ${comboCostOf(ctx, s, id)})` });
+        if (canCombo(d) && !forbids(ctx, s, "combo", { player: p, card: id }) && planPayment(ctx, s, p, comboCostOf(ctx, s, id), {}))
+          out.push({ action: { type: "combo", player: p, card: id }, label: `Combo ${name(id)} from hand (+${comboPowerOf(ctx, s, id)}, cost ${comboCostOf(ctx, s, id)})` });
       }
       for (const id of s.players[p].battle) {
         if (id === b.attacker || id === b.guard || s.cards[id].mode !== "active" || s.cards[id].hidden) continue;
@@ -1560,7 +1631,8 @@ function mainActions(ctx: EngineContext, s: GameState, p: PlayerId): LegalAction
     const d = def(ctx, s, id);
     const bt = baseType(d);
     if (bt === "BATTLE" && d.energyCost !== "X") {
-      if (planPayment(ctx, s, p, playCost(ctx, s, id).total, playCost(ctx, s, id).specified) && canPlay(ctx, s, p, id)) out.push({ action: { type: "play", player: p, card: id }, label: `Play ${name(id)} (${d.energyCost ?? 0})` });
+      if (planPayment(ctx, s, p, playCost(ctx, s, id).total, playCost(ctx, s, id).specified) && canPlay(ctx, s, p, id))
+        out.push({ action: { type: "play", player: p, card: id }, label: `Play ${name(id)} (${d.energyCost ?? 0})` });
       // 5-3: a card may print another price for playing it, which is often the
       // only reason it is playable at all.
       const alt = canPlay(ctx, s, p, id) ? altCostFor(ctx, s, id, p, "play") : null;
@@ -1576,7 +1648,8 @@ function mainActions(ctx: EngineContext, s: GameState, p: PlayerId): LegalAction
     if (bt === "UNISON" && !isZ(d) && canPlay(ctx, s, p, id)) {
       const max = d.energyCost === "X" ? energyCount : (d.energyCost ?? 0);
       const min = d.energyCost === "X" ? 1 : (d.energyCost ?? 0);
-      for (let x = min; x <= max; x++) if (planPayment(ctx, s, p, x, {})) out.push({ action: { type: "playUnison", player: p, card: id, x }, label: `Play Unison ${name(id)} with ${x} marker${x === 1 ? "" : "s"}` });
+      for (let x = min; x <= max; x++)
+        if (planPayment(ctx, s, p, x, {})) out.push({ action: { type: "playUnison", player: p, card: id, x }, label: `Play Unison ${name(id)} with ${x} marker${x === 1 ? "" : "s"}` });
     }
     // Keyword [Activate : Main] skills from hand and Extras with a native effect.
     for (const sk of skillsOf(d)) {
@@ -1608,11 +1681,13 @@ function mainActions(ctx: EngineContext, s: GameState, p: PlayerId): LegalAction
     if (ps.zEnergy.length < zc) continue;
     if (d.type === "Z-UNISON") {
       const max = d.energyCost === "X" ? energyCount : (d.energyCost ?? 0);
-      for (let x = d.energyCost === "X" ? 1 : max; x <= max; x++) if (planPayment(ctx, s, p, x, {})) out.push({ action: { type: "playZ", player: p, card: id, x }, label: `Play Z-Unison ${name(id)} with ${x} markers` });
+      for (let x = d.energyCost === "X" ? 1 : max; x <= max; x++)
+        if (planPayment(ctx, s, p, x, {})) out.push({ action: { type: "playZ", player: p, card: id, x }, label: `Play Z-Unison ${name(id)} with ${x} markers` });
       continue;
     }
     const c = playCost(ctx, s, id);
-    if (planPayment(ctx, s, p, c.total, c.specified)) out.push({ action: { type: "playZ", player: p, card: id }, label: `Play ${d.type === "Z-EXTRA" ? "Z-Extra" : "Z-Battle"} ${name(id)} (${c.total}, Z${zc})` });
+    if (planPayment(ctx, s, p, c.total, c.specified))
+      out.push({ action: { type: "playZ", player: p, card: id }, label: `Play ${d.type === "Z-EXTRA" ? "Z-Extra" : "Z-Battle"} ${name(id)} (${c.total}, Z${zc})` });
   }
   // 8-1: attacks — not on the first player's first turn (7-3-4-4-1).
   if (!(s.turn === 1 && p === s.firstPlayer)) {
@@ -1755,7 +1830,11 @@ export function rejectedActions(ctx: EngineContext, s: GameState, legal: LegalAc
         for (const id of [...cardsInPlay(s, side), ...(side === p ? s.players[p].hand : [])]) {
           if (offered.has(id) || s.cards[id].hidden) continue;
           const f = forbiddenBy(ctx, s, "beChosen", { card: id });
-          const why: Requirement[] = f ? [{ kind: "forbidden", by: f.by, until: f.until }] : has(ctx, s, id, "Barrier") ? [{ kind: "forbidden", by: name(id), until: "permanent" }] : [{ kind: "target", reason: pr.choice.reason }];
+          const why: Requirement[] = f
+            ? [{ kind: "forbidden", by: f.by, until: f.until }]
+            : has(ctx, s, id, "Barrier")
+              ? [{ kind: "forbidden", by: name(id), until: "permanent" }]
+              : [{ kind: "target", reason: pr.choice.reason }];
           push({ type: "choose", player: p, cards: [id] }, `Choose ${name(id)}`, why);
         }
       }
@@ -1784,7 +1863,12 @@ function whyNotCounter(ctx: EngineContext, s: GameState, p: PlayerId, card: stri
     why.push(...whyNotPay(ctx, s, p, cost.total + orbs.total, cost.specified, orbs.either));
     return why;
   }
-  const fits = counters.filter((sk) => (window === "play" && sk.kind === "counter:play") || (window === "attack" && (sk.kind === "counter:attack" || sk.kind === "counter:battle card attack")) || (window === "counter" && sk.kind === "counter:counter"));
+  const fits = counters.filter(
+    (sk) =>
+      (window === "play" && sk.kind === "counter:play") ||
+      (window === "attack" && (sk.kind === "counter:attack" || sk.kind === "counter:battle card attack")) ||
+      (window === "counter" && sk.kind === "counter:counter"),
+  );
   if (!fits.length) {
     why.push({ kind: "timing", window: counters[0].kind.replace("counter:", "") });
     return why;
@@ -1985,10 +2069,12 @@ function activatable(ctx: EngineContext, s: GameState, p: PlayerId, card: string
         if (k.variant === "Absorb") {
           if (areaOf(s, card) !== "battle") return null;
           if (!canPayOrbs() || !canResolve(ctx, s, card, sk)) return null;
-          const priceOk = costIsOrbsOnly || (() => {
-            const prog = compileCostProgram(sk);
-            return prog ? canPayCostProgram(ctx, s, p, card, prog.ops) : false;
-          })();
+          const priceOk =
+            costIsOrbsOnly ||
+            (() => {
+              const prog = compileCostProgram(sk);
+              return prog ? canPayCostProgram(ctx, s, p, card, prog.ops) : false;
+            })();
           return priceOk ? `Union-Absorb ${name}: ${sk.effect.slice(0, 40)}` : null;
         }
         if (!costIsOrbsOnly || !canPayOrbs()) return null;
@@ -2193,10 +2279,12 @@ function whyNotActivate(ctx: EngineContext, s: GameState, p: PlayerId, card: str
           wantZone("battle");
           why.push(...orbs());
           if (!canResolve(ctx, s, card, sk)) unread();
-          const priceOk = costIsOrbsOnly || (() => {
-            const prog = compileCostProgram(sk);
-            return prog ? canPayCostProgram(ctx, s, p, card, prog.ops) : false;
-          })();
+          const priceOk =
+            costIsOrbsOnly ||
+            (() => {
+              const prog = compileCostProgram(sk);
+              return prog ? canPayCostProgram(ctx, s, p, card, prog.ops) : false;
+            })();
           if (!priceOk) why.push({ kind: "other", detail: `cannot pay: ${sk.cost}` });
           return why;
         }
@@ -2210,7 +2298,8 @@ function whyNotActivate(ctx: EngineContext, s: GameState, p: PlayerId, card: str
         }
         const pool = k.variant === "Fusion" ? s.players[p].hand.filter((id) => id !== card) : s.players[p].battle;
         const found = names.map((n) => pool.find((id) => def(ctx, s, id).characters.some((c) => c.toLowerCase() === n.toLowerCase())));
-        if (found.some((x) => !x) || new Set(found).size < names.length) why.push({ kind: "target", reason: `needs ${names.join(" and ")} ${k.variant === "Fusion" ? "in hand" : "in your Battle Area"}` });
+        if (found.some((x) => !x) || new Set(found).size < names.length)
+          why.push({ kind: "target", reason: `needs ${names.join(" and ")} ${k.variant === "Fusion" ? "in hand" : "in your Battle Area"}` });
         else if (k.variant === "Fusion" && new Set(found.map((x) => def(ctx, s, x!).power)).size !== 1) why.push({ kind: "target", reason: "the two cards must have equal power" });
         return why;
       }
@@ -2250,7 +2339,13 @@ function whyNotActivate(ctx: EngineContext, s: GameState, p: PlayerId, card: str
         else why.push(...orbs());
         const need = costOf(d);
         if (need <= 0) why.push({ kind: "other", detail: "the card has no energy cost to match" });
-        else if (!subsetSumExists(successorPool(ctx, s, p).map((id) => costOf(def(ctx, s, id))), need)) why.push({ kind: "target", reason: `no green/yellow Battle Cards adding up to ${need}` });
+        else if (
+          !subsetSumExists(
+            successorPool(ctx, s, p).map((id) => costOf(def(ctx, s, id))),
+            need,
+          )
+        )
+          why.push({ kind: "target", reason: `no green/yellow Battle Cards adding up to ${need}` });
         return why;
       }
       case "Aegis": {
@@ -2296,7 +2391,8 @@ function whyNotActivate(ctx: EngineContext, s: GameState, p: PlayerId, card: str
         if (!leader || !s.cards[leader].flipped || isZ(def(ctx, s, leader))) why.push({ kind: "condition", text: "your Leader is awakened and not yet a Z-Leader" });
         else {
           const filter = parseFilter(sk.effect || sk.cost);
-          if (!matches(cardNow(ctx, s, leader), filter) && !(filter.characters.length && def(ctx, s, leader).characters.some((c) => filter.characters.includes(c)))) why.push({ kind: "target", reason: `your Leader is not ${sk.effect || sk.cost}` });
+          if (!matches(cardNow(ctx, s, leader), filter) && !(filter.characters.length && def(ctx, s, leader).characters.some((c) => filter.characters.includes(c))))
+            why.push({ kind: "target", reason: `your Leader is not ${sk.effect || sk.cost}` });
         }
         if (ps.zEnergy.length < (d.zEnergyCost ?? 0)) why.push({ kind: "condition", text: `${d.zEnergyCost} Z-Energy (${ps.zEnergy.length} there)` });
         if (!costIsOrbsOnly) unread();
@@ -2467,7 +2563,11 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
       if (!payZEnergy(ctx, s, ev, p, d.zEnergyCost ?? 0)) throw new IllegalAction("can't pay the Z-Energy cost");
       pay(s, ev, p, pm);
       s.resolving = { card: action.card, player: p };
-      s.flow.unshift({ op: "counter", window: "play", responder: other(p) }, { op: "play.resolve", card: action.card, player: p, markers: d.type === "Z-UNISON" ? pm.rest.length + pm.markers : undefined }, { op: "turn.promptMain" });
+      s.flow.unshift(
+        { op: "counter", window: "play", responder: other(p) },
+        { op: "play.resolve", card: action.card, player: p, markers: d.type === "Z-UNISON" ? pm.rest.length + pm.markers : undefined },
+        { op: "turn.promptMain" },
+      );
       break;
     }
     case "growUnison": {
@@ -2681,7 +2781,10 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
         payKeywordCosts(ctx, s, ev, p, sk);
         // 9-6-4-2: paid, so the skill activates and resolves.
         s.continuations[`paid:${info.card}:${info.skillIndex}`] = true;
-        s.flow.unshift({ op: "auto.resolve", pending: { card: info.card, skillIndex: info.skillIndex, master: info.master, trigger: info.trigger ?? "played", subject: info.subject } }, { op: "checkpoint" });
+        s.flow.unshift(
+          { op: "auto.resolve", pending: { card: info.card, skillIndex: info.skillIndex, master: info.master, trigger: info.trigger ?? "played", subject: info.subject } },
+          { op: "checkpoint" },
+        );
       }
       break;
     }
@@ -2752,7 +2855,10 @@ function activate(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId
     const filter = parseFilter(sk.effect || sk.cost);
     const cands = ps.battle.filter((id) => matches(cardNow(ctx, s, id), filter));
     s.continuations.evolve = { card, xeno: k.variant === "Xeno-Evolve" };
-    s.flow.unshift({ op: "prompt", prompt: { kind: "chooseCards", player: p, choice: { reason: `${k.variant}: choose the card to evolve`, candidates: cands, min: 1, max: 1, continuation: "evolve" } } }, { op: "choose.apply", what: "evolve", card, player: p });
+    s.flow.unshift(
+      { op: "prompt", prompt: { kind: "chooseCards", player: p, choice: { reason: `${k.variant}: choose the card to evolve`, candidates: cands, min: 1, max: 1, continuation: "evolve" } } },
+      { op: "choose.apply", what: "evolve", card, player: p },
+    );
     return;
   }
   if (k?.name === "Union" && k.variant !== "Absorb") {
@@ -2764,7 +2870,17 @@ function activate(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId
     // play. The moment is the activation, not the choice that follows it.
     for (const id of cardsInPlay(s, p)) pendTriggers(ctx, s, "unionActivated", id, card);
     s.continuations.union = { card, variant: k.variant };
-    s.flow.unshift({ op: "prompt", prompt: { kind: "chooseCards", player: p, choice: { reason: `Union-${k.variant}: choose ${names.join(" and ")}`, candidates: cands, min: names.length, max: names.length, continuation: "union" } } }, { op: "choose.apply", what: "union", card, player: p });
+    s.flow.unshift(
+      {
+        op: "prompt",
+        prompt: {
+          kind: "chooseCards",
+          player: p,
+          choice: { reason: `Union-${k.variant}: choose ${names.join(" and ")}`, candidates: cands, min: names.length, max: names.length, continuation: "union" },
+        },
+      },
+      { op: "choose.apply", what: "union", card, player: p },
+    );
     return;
   }
   if (k?.name === "Over Realm") {
@@ -2811,7 +2927,14 @@ function activate(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId
     });
     s.continuations.aegis = { card, colors: k.colors };
     s.flow.unshift(
-      { op: "prompt", prompt: { kind: "chooseCards", player: p, choice: { reason: `Aegis: drop ${k.colors.join(" and ")} from your hand`, candidates: cands, min: 1, max: k.colors.length, continuation: "aegis", cover: k.colors } } },
+      {
+        op: "prompt",
+        prompt: {
+          kind: "chooseCards",
+          player: p,
+          choice: { reason: `Aegis: drop ${k.colors.join(" and ")} from your hand`, candidates: cands, min: 1, max: k.colors.length, continuation: "aegis", cover: k.colors },
+        },
+      },
       { op: "choose.apply", what: "aegis", card, player: p },
     );
     return;
@@ -2843,7 +2966,10 @@ function activate(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId
     payOrbs();
     const cands = swapCandidates(ctx, s, p, k.x);
     s.continuations.swap = { card };
-    s.flow.unshift({ op: "prompt", prompt: { kind: "chooseCards", player: p, choice: { reason: `Swap: play a cost-${k.x} Battle Card`, candidates: cands, min: 0, max: 1, continuation: "swap" } } }, { op: "choose.apply", what: "swap", card, player: p });
+    s.flow.unshift(
+      { op: "prompt", prompt: { kind: "chooseCards", player: p, choice: { reason: `Swap: play a cost-${k.x} Battle Card`, candidates: cands, min: 0, max: 1, continuation: "swap" } } },
+      { op: "choose.apply", what: "swap", card, player: p },
+    );
     return;
   }
   if (k?.name === "Overlord") {

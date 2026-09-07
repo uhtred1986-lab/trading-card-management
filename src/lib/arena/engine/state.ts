@@ -8,7 +8,28 @@ import { canCombo, hasKeyword, keywordOf, skillsOf, specifiedCostOf, isZ, baseTy
 import { compileCardCached } from "./compile";
 import { matches, powerRelOk } from "./filters";
 import type { Amount, Cond, Op, Ref, ScriptArea, ScriptFrame, Selector, Side } from "./script";
-import type { Area, CardDef, CardFace, Color, ContinuousEffect, DelayedEffect, DelayTiming, EffectUntil, ForbiddenAction, FlowStep, Permission, Prohibition, GameEvent, GameState, KeywordSkill, PlayerId, PlayerState, Requirement, Skill, SkillKind } from "./types";
+import type {
+  Area,
+  CardDef,
+  CardFace,
+  Color,
+  ContinuousEffect,
+  DelayedEffect,
+  DelayTiming,
+  EffectUntil,
+  ForbiddenAction,
+  FlowStep,
+  Permission,
+  Prohibition,
+  GameEvent,
+  GameState,
+  KeywordSkill,
+  PlayerId,
+  PlayerState,
+  Requirement,
+  Skill,
+  SkillKind,
+} from "./types";
 import { other } from "./types";
 
 export interface GameContext {
@@ -255,7 +276,11 @@ export function keywordsInForce(ctx: GameContext, s: GameState, id: string): Key
   // card. Applied last, so it beats a grant of the same keyword — and the
   // prohibition that saves it (20-14) is only worth asking about when there is
   // something to save it from. This runs for every keyword check in the game.
-  const gone = new Set(staticEffects(ctx, s).filter((e) => e.kind === "negateKeyword" && e.target === id).map((e) => e.value as KeywordSkill["name"]));
+  const gone = new Set(
+    staticEffects(ctx, s)
+      .filter((e) => e.kind === "negateKeyword" && e.target === id)
+      .map((e) => e.value as KeywordSkill["name"]),
+  );
   if (!gone.size) return out;
   if (forbids(ctx, s, "beNegated", { card: id })) return out;
   return out.filter((k) => !gone.has(k.name));
@@ -346,11 +371,11 @@ export function resolveSelector(ctx: GameContext, s: GameState, frame: ScriptFra
             : sel.special === "subject"
               ? frame.subject
               : sel.special === "resolving"
-              ? // 9-6: the card whose play this skill is answering.
-                (s.resolving?.card ?? null)
-              : sel.special === "leader"
-                ? s.players[frame.master].leader
-                : s.players[other(frame.master)].leader;
+                ? // 9-6: the card whose play this skill is answering.
+                  (s.resolving?.card ?? null)
+                : sel.special === "leader"
+                  ? s.players[frame.master].leader
+                  : s.players[other(frame.master)].leader;
     out = pick && s.cards[pick] ? [pick] : [];
   } else if (sel.fromVar) {
     out = (frame.vars[sel.fromVar] ?? []).filter((id) => s.cards[id]);
@@ -482,7 +507,6 @@ export function condHolds(ctx: GameContext, s: GameState, frame: ScriptFrame, c:
       return c.who === "opponent" ? s.turnPlayer !== frame.master : s.turnPlayer === frame.master;
   }
 }
-
 
 // ── static effects from [Permanent] skills (9-5, 9-9) ──────────────────────
 
@@ -1049,7 +1073,12 @@ export function forbids(ctx: GameContext, s: GameState, what: ForbiddenAction, o
  * from `rejectedActions`; `forbids` itself is untouched, so the two must be
  * kept adjacent and changed together.
  */
-export function forbiddenBy(ctx: GameContext, s: GameState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean } = {}): { by: string | null; until: EffectUntil } | null {
+export function forbiddenBy(
+  ctx: GameContext,
+  s: GameState,
+  what: ForbiddenAction,
+  opts: { player?: PlayerId; card?: string; bySkill?: boolean } = {},
+): { by: string | null; until: EffectUntil } | null {
   const rules: { target: string; source: string | null; until: EffectUntil; forbid: Prohibition }[] = [];
   for (const e of s.effects) if (e.kind === "forbid" && e.forbid) rules.push({ target: e.target, source: e.source ?? null, until: e.until, forbid: e.forbid });
   for (const e of staticEffects(ctx, s)) if (e.kind === "forbid") rules.push({ target: e.target, source: e.source, until: "permanent", forbid: e.value as Prohibition });
@@ -1254,10 +1283,7 @@ export function fireDelayed(s: GameState, at: DelayTiming): FlowStep[] {
   if (!ready.length) return [];
   const ids = new Set(ready.map((d) => d.id));
   s.delayed = s.delayed.filter((d) => !ids.has(d.id));
-  return ready.flatMap((d): FlowStep[] => [
-    { op: "script.step", frame: { ops: d.ops, ip: 0, vars: d.vars, card: d.card, master: d.master, subject: d.subject } },
-    { op: "checkpoint" },
-  ]);
+  return ready.flatMap((d): FlowStep[] => [{ op: "script.step", frame: { ops: d.ops, ip: 0, vars: d.vars, card: d.card, master: d.master, subject: d.subject } }, { op: "checkpoint" }]);
 }
 
 /**
@@ -1347,10 +1373,11 @@ export function planPayment(
       }
     }
     let m = markers;
-    for (const c of leader) while (m > 0 && (need[c] ?? 0) > 0) {
-      need[c]!--;
-      m--;
-    }
+    for (const c of leader)
+      while (m > 0 && (need[c] ?? 0) > 0) {
+        need[c]!--;
+        m--;
+      }
     if (Object.values(need).some((n) => (n ?? 0) > 0)) return null;
     return { rest: explicit, markers };
   }
@@ -1400,15 +1427,7 @@ export function planPayment(
  * colours fight over) is reported as `other`, so a drifted pair shows up as
  * a counted `other` in the playthrough audit rather than as silence.
  */
-export function whyNotPay(
-  ctx: GameContext,
-  s: GameState,
-  p: PlayerId,
-  total: number,
-  specified: Partial<Record<Color, number>>,
-  either?: Color[][],
-  exclude?: string[],
-): Requirement[] {
+export function whyNotPay(ctx: GameContext, s: GameState, p: PlayerId, total: number, specified: Partial<Record<Color, number>>, either?: Color[][], exclude?: string[]): Requirement[] {
   const why: Requirement[] = [];
   const active = exclude?.length ? activeEnergy(s, p).filter((id) => !exclude.includes(id)) : activeEnergy(s, p);
   const ps = s.players[p];
@@ -1436,14 +1455,7 @@ export function whyNotPay(
  * are the same choice, so they are folded together; when only one survives,
  * the choice cannot matter and the caller pays it without asking.
  */
-export function paymentOptions(
-  ctx: GameContext,
-  s: GameState,
-  p: PlayerId,
-  total: number,
-  specified: Partial<Record<Color, number>>,
-  limit = 8,
-): Payment[] {
+export function paymentOptions(ctx: GameContext, s: GameState, p: PlayerId, total: number, specified: Partial<Record<Color, number>>, limit = 8): Payment[] {
   const ps = s.players[p];
   const leader = leaderColors(ctx, s, p);
   const colorsOf = (id: string) => def(ctx, s, id).colors;

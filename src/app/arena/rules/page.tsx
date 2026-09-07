@@ -42,9 +42,9 @@ export default async function RulesPage({ searchParams }: { searchParams: Promis
         </Link>
       </div>
       <p className="text-sm text-space-300">
-        Every skill in a deck you can play. Where the engine cannot read a card, Claude rules on it mid-game — which works, but costs tokens, takes a moment and can be
-        wrong. You can set the rule yourself instead: edit the wording, read back what the engine makes of it, and keep it when it says what the card says. What the
-        engine already knows by heart — every keyword skill, and the rules it reads a line by — is on{" "}
+        Every skill in a deck you can play. Where the engine cannot read a card, Claude rules on it mid-game — which works, but costs tokens, takes a moment and can be wrong. You can set the rule
+        yourself instead: edit the wording, read back what the engine makes of it, and keep it when it says what the card says. What the engine already knows by heart — every keyword skill, and the
+        rules it reads a line by — is on{" "}
         <Link href="/arena/rules/keywords" className="text-ki-300 hover:underline">
           the keyword reference
         </Link>
@@ -53,7 +53,11 @@ export default async function RulesPage({ searchParams }: { searchParams: Promis
 
       <div className="flex flex-wrap items-center gap-2 text-xs">
         {TABS.map((t) => (
-          <Link key={t.key} href={`/arena/rules?tab=${t.key}${q ? `&q=${encodeURIComponent(q)}` : ""}`} className={`tap rounded-md px-3 py-1.5 ${tab === t.key ? "bg-space-800 text-space-50" : "text-space-300"}`}>
+          <Link
+            key={t.key}
+            href={`/arena/rules?tab=${t.key}${q ? `&q=${encodeURIComponent(q)}` : ""}`}
+            className={`tap rounded-md px-3 py-1.5 ${tab === t.key ? "bg-space-800 text-space-50" : "text-space-300"}`}
+          >
             {t.label} ({counts[t.key]})
           </Link>
         ))}

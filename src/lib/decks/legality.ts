@@ -184,13 +184,7 @@ export function legality(rows: LegalityCard[], game: Game = DEFAULT_GAME): DeckL
     if (r.zone === "leader" && !isLeaderCard) flag(r, "illegal", "not a Leader card");
     if (r.zone !== "leader" && isLeaderCard) flag(r, "illegal", "Leader cards belong in the leader slot");
     if (r.zone === "z" && !r.cardType.startsWith("Z-")) flag(r, "illegal", "only Z- cards go in the Z-Deck");
-    if (
-      r.zone !== "leader" &&
-      leaderColors.size > 0 &&
-      r.colors.length > 0 &&
-      !r.colors.includes("Colorless") &&
-      !r.colors.some((c) => leaderColors.has(c))
-    ) {
+    if (r.zone !== "leader" && leaderColors.size > 0 && r.colors.length > 0 && !r.colors.includes("Colorless") && !r.colors.some((c) => leaderColors.has(c))) {
       // Fusion World forbids off-colour cards outright; the original game
       // only makes them a bad idea.
       const why = `off-colour for a ${[...leaderColors].join("/")} leader`;
@@ -199,11 +193,7 @@ export function legality(rows: LegalityCard[], game: Game = DEFAULT_GAME): DeckL
     }
   }
 
-  const status: DeckStatus = issues.some((i) => i.severity === "illegal")
-    ? "illegal"
-    : issues.some((i) => i.severity === "incomplete")
-      ? "incomplete"
-      : "legal";
+  const status: DeckStatus = issues.some((i) => i.severity === "illegal") ? "illegal" : issues.some((i) => i.severity === "incomplete") ? "incomplete" : "legal";
   return { status, keywordRules, leaderCount, mainCount, zCount, sideCount, issues, flags };
 }
 

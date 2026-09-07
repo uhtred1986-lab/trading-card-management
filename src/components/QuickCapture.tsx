@@ -25,7 +25,11 @@ interface Saved {
   printLabel: string;
 }
 
-type Phase = { kind: "idle" } | { kind: "reading"; preview: string } | { kind: "error"; message: string; preview: string } | { kind: "confirm"; preview: string; detections: ScanDetection[]; chosenIndex: number };
+type Phase =
+  | { kind: "idle" }
+  | { kind: "reading"; preview: string }
+  | { kind: "error"; message: string; preview: string }
+  | { kind: "confirm"; preview: string; detections: ScanDetection[]; chosenIndex: number };
 
 /**
  * Phone loop: take a photo → identified at once → confirm quantity with big
@@ -96,9 +100,19 @@ export function QuickCapture({ owner, decks, owners, locations }: { owner: strin
     if (autoNext) openCamera();
     const snapshot = { chosen, printId, quantity, condition, finish, deckId, owner: asOwner, locationId };
     start(async () => {
-      const { ids } = await addLot({ printId: snapshot.printId, quantity: snapshot.quantity, condition: snapshot.condition, finish: snapshot.finish, owner: snapshot.owner, locationId: snapshot.locationId }, snapshot.deckId);
+      const { ids } = await addLot(
+        { printId: snapshot.printId, quantity: snapshot.quantity, condition: snapshot.condition, finish: snapshot.finish, owner: snapshot.owner, locationId: snapshot.locationId },
+        snapshot.deckId,
+      );
       setSaved((s) => [
-        { lotIds: ids, cardId: snapshot.chosen.id, name: snapshot.chosen.name, imageUrl: snapshot.chosen.imageUrl, quantity: snapshot.quantity, printLabel: snapshot.chosen.prints.find((p) => p.id === snapshot.printId)?.label ?? "" },
+        {
+          lotIds: ids,
+          cardId: snapshot.chosen.id,
+          name: snapshot.chosen.name,
+          imageUrl: snapshot.chosen.imageUrl,
+          quantity: snapshot.quantity,
+          printLabel: snapshot.chosen.prints.find((p) => p.id === snapshot.printId)?.label ?? "",
+        },
         ...s,
       ]);
       if (phase.kind !== "idle" && "preview" in phase) URL.revokeObjectURL(phase.preview);
@@ -189,7 +203,11 @@ export function QuickCapture({ owner, decks, owners, locations }: { owner: strin
                     {manual ? (
                       <span className="rounded-full border border-space-600 px-2 py-0.5 text-[11px] text-space-200">linked by you</span>
                     ) : (
-                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${confidence >= REVIEW_THRESHOLD ? "bg-gain/15 text-gain" : confidence >= 0.5 ? "bg-ki-500/20 text-ki-300" : "bg-loss/15 text-loss"}`}>{Math.round(confidence * 100)}% match</span>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${confidence >= REVIEW_THRESHOLD ? "bg-gain/15 text-gain" : confidence >= 0.5 ? "bg-ki-500/20 text-ki-300" : "bg-loss/15 text-loss"}`}
+                      >
+                        {Math.round(confidence * 100)}% match
+                      </span>
                     )}
                   </div>
                   <button onClick={() => setSearching(true)} className="tap mt-1 text-xs text-space-400 underline hover:text-space-50">

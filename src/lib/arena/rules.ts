@@ -51,8 +51,14 @@ export async function rulesForDecks(db: Db): Promise<RuleRow[]> {
   }
   if (!inDecks.size) return [];
 
-  const rows = await db.select().from(cardsTable).where(inArray(cardsTable.id, [...inDecks.keys()]));
-  const stored = await db.select().from(cardScripts).where(inArray(cardScripts.cardId, [...inDecks.keys()]));
+  const rows = await db
+    .select()
+    .from(cardsTable)
+    .where(inArray(cardsTable.id, [...inDecks.keys()]));
+  const stored = await db
+    .select()
+    .from(cardScripts)
+    .where(inArray(cardScripts.cardId, [...inDecks.keys()]));
   const storedBy = new Map(stored.map((s) => [`${s.cardId}#${s.side}#${s.skillIndex}`, s]));
 
   const out: RuleRow[] = [];

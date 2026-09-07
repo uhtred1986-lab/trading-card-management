@@ -137,5 +137,8 @@ export async function clarifyCard(db: Db, noteId: number, explanation: string): 
 
 /** Cards with a stored program already, so the page can show what is settled. */
 export async function explainedNotes(db: Db) {
-  return db.select().from(cardTextNotes).where(and(eq(cardTextNotes.status, "open")));
+  return db
+    .select()
+    .from(cardTextNotes)
+    .where(and(eq(cardTextNotes.status, "open")));
 }

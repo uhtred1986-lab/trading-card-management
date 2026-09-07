@@ -70,7 +70,12 @@ export function DeckPicker({
             placeholder="New deck name"
             className={`${select} min-w-0 flex-1`}
           />
-          <button type="button" onClick={create} disabled={busy || !newName.trim()} className="tap rounded-md bg-ki-500 px-3 py-1.5 text-sm font-semibold text-space-950 hover:bg-ki-400 disabled:opacity-50">
+          <button
+            type="button"
+            onClick={create}
+            disabled={busy || !newName.trim()}
+            className="tap rounded-md bg-ki-500 px-3 py-1.5 text-sm font-semibold text-space-950 hover:bg-ki-400 disabled:opacity-50"
+          >
             {busy ? "…" : "Create"}
           </button>
           <button type="button" onClick={() => setCreating(false)} className="tap rounded-md px-2 py-1.5 text-xs text-space-400 hover:text-space-50">

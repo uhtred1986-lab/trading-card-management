@@ -58,9 +58,7 @@ export default async function ArenaDebugPage({ params }: { params: Promise<{ id:
       </div>
 
       {rows.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-space-700 p-6 text-center text-sm text-space-300">
-          Nothing recorded yet. Decisions appear here as the game is played.
-        </p>
+        <p className="rounded-xl border border-dashed border-space-700 p-6 text-center text-sm text-space-300">Nothing recorded yet. Decisions appear here as the game is played.</p>
       ) : (
         <>
           <dl className="grid grid-cols-2 gap-2 sm:grid-cols-5">
@@ -89,9 +87,7 @@ export default async function ArenaDebugPage({ params }: { params: Promise<{ id:
             {cachedShare > 0 ? (
               <p className="mt-2 text-[11px] text-space-400">{cachedShare} % of input tokens came from cache, billed at a tenth.</p>
             ) : (
-              <p className="mt-2 text-[11px] text-dbs-yellow">
-                Nothing was served from cache. On Haiku 4.5 the prompt has to reach 4,096 tokens before anything caches at all; this one does not.
-              </p>
+              <p className="mt-2 text-[11px] text-dbs-yellow">Nothing was served from cache. On Haiku 4.5 the prompt has to reach 4,096 tokens before anything caches at all; this one does not.</p>
             )}
           </section>
 

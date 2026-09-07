@@ -200,10 +200,21 @@ const FUSION: StarterDeck[] = [
     source: "alcasthq.com FS01 decklist; sums to 51 (50 + Leader).",
     entries: [
       { quantity: 1, leader: true },
-      id(4, "FS01-02"), id(4, "FS01-03"), id(2, "FS01-04"), id(4, "FS01-05"),
-      id(4, "FS01-06"), id(4, "FS01-07"), id(2, "FS01-08"), id(2, "FS01-09"),
-      id(4, "FS01-10"), id(4, "FS01-11"), id(2, "FS01-12"), id(4, "FS01-13"),
-      id(4, "FS01-14"), id(2, "FS01-15"), id(4, "FS01-16"),
+      id(4, "FS01-02"),
+      id(4, "FS01-03"),
+      id(2, "FS01-04"),
+      id(4, "FS01-05"),
+      id(4, "FS01-06"),
+      id(4, "FS01-07"),
+      id(2, "FS01-08"),
+      id(2, "FS01-09"),
+      id(4, "FS01-10"),
+      id(4, "FS01-11"),
+      id(2, "FS01-12"),
+      id(4, "FS01-13"),
+      id(4, "FS01-14"),
+      id(2, "FS01-15"),
+      id(4, "FS01-16"),
     ],
   },
   {
@@ -213,10 +224,21 @@ const FUSION: StarterDeck[] = [
     source: "alcasthq.com FS02 decklist; sums to 51 (50 + Leader).",
     entries: [
       { quantity: 1, leader: true },
-      id(4, "FS02-02"), id(2, "FS02-03"), id(4, "FS02-04"), id(4, "FS02-05"),
-      id(4, "FS02-06"), id(2, "FS02-07"), id(4, "FS02-08"), id(4, "FS02-09"),
-      id(2, "FS02-10"), id(4, "FS02-11"), id(4, "FS02-12"), id(2, "FS02-13"),
-      id(4, "FS02-14"), id(2, "FS02-15"), id(4, "FS02-16"),
+      id(4, "FS02-02"),
+      id(2, "FS02-03"),
+      id(4, "FS02-04"),
+      id(4, "FS02-05"),
+      id(4, "FS02-06"),
+      id(2, "FS02-07"),
+      id(4, "FS02-08"),
+      id(4, "FS02-09"),
+      id(2, "FS02-10"),
+      id(4, "FS02-11"),
+      id(4, "FS02-12"),
+      id(2, "FS02-13"),
+      id(4, "FS02-14"),
+      id(2, "FS02-15"),
+      id(4, "FS02-16"),
     ],
   },
   {
@@ -226,10 +248,21 @@ const FUSION: StarterDeck[] = [
     source: "alcasthq.com FS03 decklist; sums to 51 (50 + Leader).",
     entries: [
       { quantity: 1, leader: true },
-      id(4, "FS03-02"), id(4, "FS03-03"), id(2, "FS03-04"), id(4, "FS03-05"),
-      id(4, "FS03-06"), id(2, "FS03-07"), id(4, "FS03-08"), id(4, "FS03-09"),
-      id(2, "FS03-10"), id(2, "FS03-11"), id(4, "FS03-12"), id(4, "FS03-13"),
-      id(4, "FS03-14"), id(2, "FS03-15"), id(4, "FS03-16"),
+      id(4, "FS03-02"),
+      id(4, "FS03-03"),
+      id(2, "FS03-04"),
+      id(4, "FS03-05"),
+      id(4, "FS03-06"),
+      id(2, "FS03-07"),
+      id(4, "FS03-08"),
+      id(4, "FS03-09"),
+      id(2, "FS03-10"),
+      id(2, "FS03-11"),
+      id(4, "FS03-12"),
+      id(4, "FS03-13"),
+      id(4, "FS03-14"),
+      id(2, "FS03-15"),
+      id(4, "FS03-16"),
     ],
   },
   {
@@ -239,10 +272,21 @@ const FUSION: StarterDeck[] = [
     source: "alcasthq.com FS04 decklist, cross-checked against tcgviert.com; sums to 51 (50 + Leader).",
     entries: [
       { quantity: 1, leader: true },
-      id(4, "FS04-02"), id(2, "FS04-03"), id(2, "FS04-04"), id(2, "FS04-05"),
-      id(4, "FS04-06"), id(4, "FS04-07"), id(4, "FS04-08"), id(4, "FS04-09"),
-      id(4, "FS04-10"), id(4, "FS04-11"), id(2, "FS04-12"), id(4, "FS04-13"),
-      id(4, "FS04-14"), id(4, "FS04-15"), id(2, "FS04-16"),
+      id(4, "FS04-02"),
+      id(2, "FS04-03"),
+      id(2, "FS04-04"),
+      id(2, "FS04-05"),
+      id(4, "FS04-06"),
+      id(4, "FS04-07"),
+      id(4, "FS04-08"),
+      id(4, "FS04-09"),
+      id(4, "FS04-10"),
+      id(4, "FS04-11"),
+      id(2, "FS04-12"),
+      id(4, "FS04-13"),
+      id(4, "FS04-14"),
+      id(4, "FS04-15"),
+      id(2, "FS04-16"),
     ],
   },
 ];
@@ -295,10 +339,7 @@ async function resolveDeck(deck: StarterDeck): Promise<{ rows: Resolved[]; probl
   const problems: string[] = [];
   const rows: Resolved[] = [];
 
-  const inSet = (await db
-    .select(CARD_COLUMNS)
-    .from(cards)
-    .where(eq(cards.setCode, deck.setCode))) as CardRow[];
+  const inSet = (await db.select(CARD_COLUMNS).from(cards).where(eq(cards.setCode, deck.setCode))) as CardRow[];
 
   const names = deck.entries.filter((e) => e.name).map((e) => norm(e.name!));
   const byName = new Map<string, CardRow[]>();
@@ -308,7 +349,15 @@ async function resolveDeck(deck: StarterDeck): Promise<{ rows: Resolved[]; probl
     const found = (await db
       .select(CARD_COLUMNS)
       .from(cards)
-      .where(and(eq(cards.game, deck.game), inArray(sql`lower(regexp_replace(${cards.name}, '[^A-Za-z0-9'']+', ' ', 'g'))`, names.map((x) => x))))) as CardRow[];
+      .where(
+        and(
+          eq(cards.game, deck.game),
+          inArray(
+            sql`lower(regexp_replace(${cards.name}, '[^A-Za-z0-9'']+', ' ', 'g'))`,
+            names.map((x) => x),
+          ),
+        ),
+      )) as CardRow[];
     for (const c of found) {
       const k = norm(c.name);
       byName.set(k, [...(byName.get(k) ?? []), c]);
@@ -327,10 +376,7 @@ async function resolveDeck(deck: StarterDeck): Promise<{ rows: Resolved[]; probl
       }
       hit = leaders[0];
     } else if (e.number) {
-      hit = (await db
-        .select(CARD_COLUMNS)
-        .from(cards)
-        .where(eq(cards.id, e.number)))[0] as CardRow | undefined;
+      hit = (await db.select(CARD_COLUMNS).from(cards).where(eq(cards.id, e.number)))[0] as CardRow | undefined;
       if (!hit) problems.push(`${e.number}: no such card in the catalog`);
     } else if (e.name) {
       const matches = byName.get(norm(e.name)) ?? [];
@@ -397,7 +443,18 @@ for (const deck of ALL) {
   const check = legality(
     rows.map((r) => {
       const c = catalog.get(r.cardId)!;
-      return { cardId: r.cardId, zone: r.zone, quantity: r.quantity, name: c.name, cardType: c.cardType, colors: c.colors, limitedTo: c.limitedTo, isBanned: c.isBanned, skill: c.skill, game: deck.game };
+      return {
+        cardId: r.cardId,
+        zone: r.zone,
+        quantity: r.quantity,
+        name: c.name,
+        cardType: c.cardType,
+        colors: c.colors,
+        limitedTo: c.limitedTo,
+        isBanned: c.isBanned,
+        skill: c.skill,
+        game: deck.game,
+      };
     }),
     deck.game,
   );
@@ -418,9 +475,5 @@ for (const deck of ALL) {
   created++;
 }
 
-console.log(
-  COMMIT
-    ? `\nDone: ${created} deck(s) created, ${skipped} skipped.`
-    : `\nDry run — nothing written. ${skipped} skipped. Re-run with --commit to create the rest.`,
-);
+console.log(COMMIT ? `\nDone: ${created} deck(s) created, ${skipped} skipped.` : `\nDry run — nothing written. ${skipped} skipped. Re-run with --commit to create the rest.`);
 process.exit(0);

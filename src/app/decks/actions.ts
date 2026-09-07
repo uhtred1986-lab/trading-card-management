@@ -107,12 +107,7 @@ export async function duplicateDeckForm(formData: FormData) {
  * is allowed only while the collection can still cover it — otherwise the deck
  * would silently over-reserve.
  */
-export async function setDeckCard(
-  deckId: number,
-  cardId: string,
-  zone: Zone,
-  quantity: number,
-): Promise<{ ok: true } | { ok: false; conflicts: BuildConflict[] }> {
+export async function setDeckCard(deckId: number, cardId: string, zone: Zone, quantity: number): Promise<{ ok: true } | { ok: false; conflicts: BuildConflict[] }> {
   if (!ZONES.includes(zone)) throw new Error("Bad zone");
   const q = Math.max(0, Math.floor(quantity));
   // Conflicts are computed *inside* the transaction (against the proposed
@@ -173,7 +168,14 @@ export async function importDeckList(deckId: number, text: string): Promise<{ ad
   const parsed = parseDeckList(text);
   if (!parsed.length) return { added: 0, unknown: [] };
   const ids = [...new Set(parsed.map((p) => p.cardId))];
-  const known = new Set((await db.select({ id: cards.id }).from(cards).where(sql`${cards.id} in ${ids}`)).map((r) => r.id));
+  const known = new Set(
+    (
+      await db
+        .select({ id: cards.id })
+        .from(cards)
+        .where(sql`${cards.id} in ${ids}`)
+    ).map((r) => r.id),
+  );
   const unknown = ids.filter((i) => !known.has(i));
   let added = 0;
   for (const p of parsed) {

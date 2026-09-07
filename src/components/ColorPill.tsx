@@ -10,29 +10,13 @@ const COLOR_CLASS: Record<string, string> = {
 
 export function ColorPill({ color, small = false }: { color: string; small?: boolean }) {
   const cls = COLOR_CLASS[color] ?? COLOR_CLASS.Colorless;
-  return (
-    <span
-      className={`inline-flex items-center rounded-full font-medium ring-1 ${cls} ${
-        small ? "px-1.5 py-px text-[10px]" : "px-2 py-0.5 text-xs"
-      }`}
-    >
-      {color}
-    </span>
-  );
+  return <span className={`inline-flex items-center rounded-full font-medium ring-1 ${cls} ${small ? "px-1.5 py-px text-[10px]" : "px-2 py-0.5 text-xs"}`}>{color}</span>;
 }
 
 export function RarityBadge({ code }: { code: string }) {
-  return (
-    <span className="inline-flex items-center rounded bg-space-800 px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide text-space-200 ring-1 ring-space-600">
-      {code}
-    </span>
-  );
+  return <span className="inline-flex items-center rounded bg-space-800 px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide text-space-200 ring-1 ring-space-600">{code}</span>;
 }
 
 export function TypeBadge({ type }: { type: string }) {
-  return (
-    <span className="inline-flex items-center rounded bg-space-800 px-1.5 py-px text-[10px] font-medium uppercase tracking-wide text-space-300">
-      {type}
-    </span>
-  );
+  return <span className="inline-flex items-center rounded bg-space-800 px-1.5 py-px text-[10px] font-medium uppercase tracking-wide text-space-300">{type}</span>;
 }

@@ -52,7 +52,9 @@ export default async function DecksPage({ searchParams }: { searchParams: Promis
             {/* A deck belongs to one game from the moment it exists — its rules
                 and the cards its builder offers both follow from this. */}
             <GameSelect value={game} className="tap rounded-md border border-space-600 bg-space-900 px-2 py-1.5 text-sm text-space-100" />
-            <SubmitButton pendingLabel="Creating…" className="tap rounded-md bg-ki-500 px-3 py-1.5 text-sm font-semibold text-space-950 hover:bg-ki-400">Create</SubmitButton>
+            <SubmitButton pendingLabel="Creating…" className="tap rounded-md bg-ki-500 px-3 py-1.5 text-sm font-semibold text-space-950 hover:bg-ki-400">
+              Create
+            </SubmitButton>
           </form>
         </div>
       </div>
@@ -83,13 +85,11 @@ export default async function DecksPage({ searchParams }: { searchParams: Promis
       ) : null}
 
       <p className="rounded-xl border border-space-700/70 bg-space-900/40 p-3 text-xs text-space-300">
-        <span className="font-semibold text-ki-300">Built</span> decks are physical stacks: every copy they contain is reserved from your collection, and a deck can only be marked built while you own enough copies for it and every other built deck.{" "}
-        <span className="font-semibold text-space-100">Virtual</span> decks are unlimited and can use any card.
+        <span className="font-semibold text-ki-300">Built</span> decks are physical stacks: every copy they contain is reserved from your collection, and a deck can only be marked built while you own
+        enough copies for it and every other built deck. <span className="font-semibold text-space-100">Virtual</span> decks are unlimited and can use any card.
       </p>
 
-      {decks.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-space-700 p-8 text-center text-space-300">No decks yet — create one above.</p>
-      ) : null}
+      {decks.length === 0 ? <p className="rounded-xl border border-dashed border-space-700 p-8 text-center text-space-300">No decks yet — create one above.</p> : null}
 
       {sections
         .filter((s) => s.rows.length)
@@ -108,9 +108,7 @@ export default async function DecksPage({ searchParams }: { searchParams: Promis
                         <span className="truncate font-medium text-space-50">{d.name}</span>
                         {d.isBuilt ? <span className="rounded bg-ki-500 px-1.5 py-px text-[10px] font-bold uppercase text-space-950">Built</span> : null}
                         {/* Only the odd one out is labelled — most decks are the original game. */}
-                        {d.game !== "dbs" ? (
-                          <span className="rounded border border-space-600 px-1.5 py-px text-[10px] font-semibold uppercase text-space-300">{GAME_INFO[d.game].short}</span>
-                        ) : null}
+                        {d.game !== "dbs" ? <span className="rounded border border-space-600 px-1.5 py-px text-[10px] font-semibold uppercase text-space-300">{GAME_INFO[d.game].short}</span> : null}
                         <DeckStatusBadge status={d.legality.status} small title={d.legality.issues.map((i) => i.message).join(" ")} />
                       </div>
                       <div className="truncate text-xs text-space-300">

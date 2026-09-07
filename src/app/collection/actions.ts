@@ -84,7 +84,15 @@ export async function addLots(inputs: LotInput[], deckId: number | null = null):
   const rows = clean.flatMap((i, idx) => expand({ printId: i.printId, cardId: cardIds[idx], owner: i.owner?.trim() || fallback, ...normalise(i) }, i.quantity));
   const deckAdded = await db.transaction(async (tx) => {
     await tx.insert(ownedCards).values(rows);
-    return deckId ? (await addCardsToDeck(tx as unknown as typeof db, deckId, rows.map((r) => ({ cardId: r.cardId, quantity: 1 })))).added : 0;
+    return deckId
+      ? (
+          await addCardsToDeck(
+            tx as unknown as typeof db,
+            deckId,
+            rows.map((r) => ({ cardId: r.cardId, quantity: 1 })),
+          )
+        ).added
+      : 0;
   });
   for (const id of new Set(cardIds)) revalidate(id);
   if (deckId) revalidatePath(`/decks/${deckId}`);
@@ -140,11 +148,7 @@ export async function setLotPrintAction(lotId: number, printId: string): Promise
  */
 export async function setLotOwnerAction(lotId: number, owner: string | null): Promise<{ ok: boolean; owner: string | null }> {
   const clean = owner?.trim().slice(0, 64) || null;
-  const [row] = await db
-    .update(ownedCards)
-    .set({ owner: clean, updatedAt: new Date() })
-    .where(eq(ownedCards.id, lotId))
-    .returning({ cardId: ownedCards.cardId });
+  const [row] = await db.update(ownedCards).set({ owner: clean, updatedAt: new Date() }).where(eq(ownedCards.id, lotId)).returning({ cardId: ownedCards.cardId });
   if (!row) return { ok: false, owner: null };
   revalidate(row.cardId);
   return { ok: true, owner: clean };
@@ -166,11 +170,7 @@ export async function updateLot(id: number, input: LotInput): Promise<void> {
  * copy that was never really "owned" (e.g. undoing a save from moments ago).
  */
 export async function deleteLot(id: number): Promise<void> {
-  const [row] = await db
-    .update(ownedCards)
-    .set({ archivedAt: new Date(), updatedAt: new Date() })
-    .where(eq(ownedCards.id, id))
-    .returning({ cardId: ownedCards.cardId });
+  const [row] = await db.update(ownedCards).set({ archivedAt: new Date(), updatedAt: new Date() }).where(eq(ownedCards.id, id)).returning({ cardId: ownedCards.cardId });
   if (row) revalidate(row.cardId);
   revalidatePath("/collection/archived");
 }
@@ -183,11 +183,7 @@ export async function discardLot(id: number): Promise<void> {
 
 /** Bring an archived lot back into the collection. */
 export async function restoreLotAction(id: number): Promise<{ ok: boolean }> {
-  const [row] = await db
-    .update(ownedCards)
-    .set({ archivedAt: null, updatedAt: new Date() })
-    .where(eq(ownedCards.id, id))
-    .returning({ cardId: ownedCards.cardId });
+  const [row] = await db.update(ownedCards).set({ archivedAt: null, updatedAt: new Date() }).where(eq(ownedCards.id, id)).returning({ cardId: ownedCards.cardId });
   if (row) revalidate(row.cardId);
   revalidatePath("/collection/archived");
   return { ok: !!row };
@@ -259,7 +255,10 @@ export async function removeCopyAction(lotId: number, cardId: string): Promise<C
 }
 
 export async function setCopyFinishAction(lotId: number, foil: boolean, cardId: string): Promise<CopyRow[]> {
-  await db.update(ownedCards).set({ finish: foil ? "foil" : "normal", updatedAt: new Date() }).where(eq(ownedCards.id, lotId));
+  await db
+    .update(ownedCards)
+    .set({ finish: foil ? "foil" : "normal", updatedAt: new Date() })
+    .where(eq(ownedCards.id, lotId));
   revalidate(cardId);
   return copiesForCardAction(cardId);
 }
@@ -388,11 +387,7 @@ export async function bulkSetOwnerAction(lotIds: number[], owner: string | null)
   const ids = cleanIds(lotIds);
   if (ids.length === 0) return { updated: 0 };
   const clean = owner?.trim().slice(0, 64) || null;
-  const rows = await db
-    .update(ownedCards)
-    .set({ owner: clean, updatedAt: new Date() })
-    .where(inArray(ownedCards.id, ids))
-    .returning({ cardId: ownedCards.cardId });
+  const rows = await db.update(ownedCards).set({ owner: clean, updatedAt: new Date() }).where(inArray(ownedCards.id, ids)).returning({ cardId: ownedCards.cardId });
   revalidateCards(rows.map((r) => r.cardId));
   return { updated: rows.length };
 }
@@ -414,11 +409,7 @@ export async function bulkSetFinishAction(lotIds: number[], foil: boolean): Prom
 export async function bulkDeleteCopiesAction(lotIds: number[]): Promise<{ deleted: number }> {
   const ids = cleanIds(lotIds);
   if (ids.length === 0) return { deleted: 0 };
-  const rows = await db
-    .update(ownedCards)
-    .set({ archivedAt: new Date(), updatedAt: new Date() })
-    .where(inArray(ownedCards.id, ids))
-    .returning({ cardId: ownedCards.cardId });
+  const rows = await db.update(ownedCards).set({ archivedAt: new Date(), updatedAt: new Date() }).where(inArray(ownedCards.id, ids)).returning({ cardId: ownedCards.cardId });
   revalidateCards(rows.map((r) => r.cardId));
   revalidatePath("/collection/archived");
   return { deleted: rows.length };
@@ -428,11 +419,7 @@ export async function bulkDeleteCopiesAction(lotIds: number[]): Promise<{ delete
 export async function bulkRestoreCopiesAction(lotIds: number[]): Promise<{ restored: number }> {
   const ids = cleanIds(lotIds);
   if (ids.length === 0) return { restored: 0 };
-  const rows = await db
-    .update(ownedCards)
-    .set({ archivedAt: null, updatedAt: new Date() })
-    .where(inArray(ownedCards.id, ids))
-    .returning({ cardId: ownedCards.cardId });
+  const rows = await db.update(ownedCards).set({ archivedAt: null, updatedAt: new Date() }).where(inArray(ownedCards.id, ids)).returning({ cardId: ownedCards.cardId });
   revalidateCards(rows.map((r) => r.cardId));
   revalidatePath("/collection/archived");
   return { restored: rows.length };
@@ -459,7 +446,11 @@ export async function bulkAddToDeckAction(lotIds: number[], deckId: number): Pro
   const rows = await db.select({ cardId: ownedCards.cardId }).from(ownedCards).where(inArray(ownedCards.id, ids));
   const totals = new Map<string, number>();
   for (const r of rows) totals.set(r.cardId, (totals.get(r.cardId) ?? 0) + 1);
-  const result = await addCardsToDeck(db, deckId, [...totals].map(([cardId, quantity]) => ({ cardId, quantity })));
+  const result = await addCardsToDeck(
+    db,
+    deckId,
+    [...totals].map(([cardId, quantity]) => ({ cardId, quantity })),
+  );
   revalidatePath(`/decks/${deckId}`);
   revalidatePath("/decks");
   revalidateCards([...totals.keys()]);

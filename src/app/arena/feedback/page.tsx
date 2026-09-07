@@ -40,8 +40,7 @@ export default async function FeedbackPage({ searchParams }: { searchParams: Pro
   const gameIds = [...new Set(rows.map((r) => r.gameId).filter((x): x is number => !!x))];
   const live = new Set<number>();
   if (gameIds.length)
-    for (const g of await db.select({ id: arenaGames.id, status: arenaGames.status }).from(arenaGames).where(inArray(arenaGames.id, gameIds)))
-      if (g.status === "playing") live.add(g.id);
+    for (const g of await db.select({ id: arenaGames.id, status: arenaGames.status }).from(arenaGames).where(inArray(arenaGames.id, gameIds))) if (g.status === "playing") live.add(g.id);
 
   const ids = [...new Set(rows.map((r) => r.cardId).filter((x): x is string => !!x))];
   const names = new Map<string, string>();
@@ -62,9 +61,8 @@ export default async function FeedbackPage({ searchParams }: { searchParams: Pro
         </Link>
       </div>
       <p className="text-sm text-space-300">
-        Everything said from inside the arena, in one place: bugs reported from the board, cards explained on the backlog, and rules set by hand. Either player in
-        a 1 v 1 can file one, and it says who did. A bug carries the whole game with it — the state, every move made, and what was on offer — so it can be replayed
-        exactly as it was seen.
+        Everything said from inside the arena, in one place: bugs reported from the board, cards explained on the backlog, and rules set by hand. Either player in a 1 v 1 can file one, and it says who
+        did. A bug carries the whole game with it — the state, every move made, and what was on offer — so it can be replayed exactly as it was seen.
       </p>
 
       <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -124,17 +122,17 @@ export default async function FeedbackPage({ searchParams }: { searchParams: Pro
               )}
 
               {r.kind === "bug" && !(r.gameId && live.has(r.gameId)) && (
-              <details className="mt-2 text-[11px]">
-                <summary className="cursor-pointer text-space-400">the log, and what was on offer</summary>
-                <ol className="mt-1 space-y-0.5 font-mono text-[10px] text-space-400">
-                  {((r.log as string[]) ?? []).slice(-14).map((line, i) => (
-                    <li key={i} className={line.startsWith("—") ? "mt-1 text-space-200" : ""}>
-                      {line}
-                    </li>
-                  ))}
-                </ol>
-                <p className="mt-1 text-space-500">On offer: {((r.legal as string[]) ?? []).join(" · ") || "nothing"}</p>
-              </details>
+                <details className="mt-2 text-[11px]">
+                  <summary className="cursor-pointer text-space-400">the log, and what was on offer</summary>
+                  <ol className="mt-1 space-y-0.5 font-mono text-[10px] text-space-400">
+                    {((r.log as string[]) ?? []).slice(-14).map((line, i) => (
+                      <li key={i} className={line.startsWith("—") ? "mt-1 text-space-200" : ""}>
+                        {line}
+                      </li>
+                    ))}
+                  </ol>
+                  <p className="mt-1 text-space-500">On offer: {((r.legal as string[]) ?? []).join(" · ") || "nothing"}</p>
+                </details>
               )}
 
               <form action={setFeedbackStatus.bind(null, r.id, r.status === "open" ? "fixed" : "open")} className="mt-1">

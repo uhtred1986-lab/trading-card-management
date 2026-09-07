@@ -15,15 +15,7 @@ import type { PlayerId } from "./engine";
 import { isVersus, seatOf, type Seats } from "./games";
 import { CONTRACT_VERSION } from "./snapshot";
 
-export type ErrorCode =
-  | "bad_request"
-  | "not_found"
-  | "illegal_action"
-  | "game_over"
-  | "not_your_turn"
-  | "stale"
-  | "ai_error"
-  | "contract_mismatch";
+export type ErrorCode = "bad_request" | "not_found" | "illegal_action" | "game_over" | "not_your_turn" | "stale" | "ai_error" | "contract_mismatch";
 
 const STATUS: Record<ErrorCode, number> = {
   bad_request: 400,

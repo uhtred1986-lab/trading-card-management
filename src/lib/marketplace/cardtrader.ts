@@ -331,7 +331,10 @@ export async function blueprintCountFor(db: Db, cardId: string): Promise<number>
 }
 
 export async function blueprintsFor(db: Db, cardId: string) {
-  return db.select().from(ctBlueprints).where(and(eq(ctBlueprints.cardId, cardId)));
+  return db
+    .select()
+    .from(ctBlueprints)
+    .where(and(eq(ctBlueprints.cardId, cardId)));
 }
 
 /**
@@ -350,7 +353,10 @@ const TCG_SEARCH_SLUG: Record<Game, string> = {
 
 export function externalLinks(card: { id: string; name: string; game?: string | null }, tcgUrl?: string | null, cardMarketIds?: unknown) {
   const q = encodeURIComponent(`${card.name} ${card.id}`);
-  const cm = Array.isArray(cardMarketIds) && cardMarketIds.length ? `https://www.cardmarket.com/en/DragonBallSuper/Products/Singles?idProduct=${cardMarketIds[0]}` : `https://www.cardmarket.com/en/DragonBallSuper/Products/Search?searchString=${encodeURIComponent(card.name)}`;
+  const cm =
+    Array.isArray(cardMarketIds) && cardMarketIds.length
+      ? `https://www.cardmarket.com/en/DragonBallSuper/Products/Singles?idProduct=${cardMarketIds[0]}`
+      : `https://www.cardmarket.com/en/DragonBallSuper/Products/Search?searchString=${encodeURIComponent(card.name)}`;
   return {
     cardtrader: `https://www.cardtrader.com/en/search?q=${q}`,
     tcgplayer: tcgUrl ?? `https://www.tcgplayer.com/search/${TCG_SEARCH_SLUG[gameOr(card.game)]}/product?q=${q}`,

@@ -120,11 +120,7 @@ export async function loadLookup(db: Db): Promise<Lookup> {
   };
 }
 
-export function matchProduct(
-  number: string | null,
-  name: string,
-  lookup: Lookup,
-): { cardId: string | null; printId: string | null } {
+export function matchProduct(number: string | null, name: string, lookup: Lookup): { cardId: string | null; printId: string | null } {
   if (!number) return { cardId: null, printId: null };
   const n = number.trim().replace(/\s+/g, "");
   const base = baseNumber(n);
@@ -225,10 +221,7 @@ export async function syncPricesForGame(
   const setDates = new Map<string, string>();
 
   await mapLimit(groups, 4, async (g) => {
-    const [prodList, priceList] = await Promise.all([
-      getJson<TcgProduct>(categoryId, `${g.groupId}/products`),
-      getJson<TcgPrice>(categoryId, `${g.groupId}/prices`),
-    ]);
+    const [prodList, priceList] = await Promise.all([getJson<TcgProduct>(categoryId, `${g.groupId}/products`), getJson<TcgPrice>(categoryId, `${g.groupId}/prices`)]);
 
     const rows = prodList.map((p) => {
       const number = ext(p, "Number");
@@ -403,10 +396,7 @@ async function fillMissingImages(db: Db): Promise<number> {
 }
 
 /** Both games, onto one snapshot date. */
-export async function syncPrices(
-  db: Db,
-  opts: { onProgress?: (done: number, total: number, name: string) => void } = {},
-): Promise<PriceSyncSummary> {
+export async function syncPrices(db: Db, opts: { onProgress?: (done: number, total: number, name: string) => void } = {}): Promise<PriceSyncSummary> {
   const capturedOn = new Date().toISOString().slice(0, 10);
   const lookup = await loadLookup(db);
   const games = {} as Record<Game, Omit<PriceSyncSummary, "capturedOn" | "games">>;

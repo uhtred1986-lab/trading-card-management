@@ -233,7 +233,10 @@ function colorsIn(text: string): Color[] {
 
 function kindOf(tags: string[], keyword: KeywordSkill | null): SkillKind {
   for (const raw of tags) {
-    const t = raw.toLowerCase().replace(/\s*:\s*/, ":").replace(/\s+/g, " ");
+    const t = raw
+      .toLowerCase()
+      .replace(/\s*:\s*/, ":")
+      .replace(/\s+/g, " ");
     if (t === "activate:main") return "activate:main";
     if (t === "activate:battle") return "activate:battle";
     if (t === "activate:main/battle") return "activate:main/battle";
@@ -465,8 +468,7 @@ export function hasTrait(def: CardDef, name: string): boolean {
  * for this card **or at the end of the turn**” (BT25-040) then reads as one
  * moment made of both.
  */
-const TIMING_PHRASE =
-  /at the (?:beginning|start|end) of (?:your opponent'?s|your|the|this|a) (?:next )?(?:turn|battle|charge phase|main phase|offense step|defense step|damage step)/;
+const TIMING_PHRASE = /at the (?:beginning|start|end) of (?:your opponent'?s|your|the|this|a) (?:next )?(?:turn|battle|charge phase|main phase|offense step|defense step|damage step)/;
 
 /**
  * The head of a skill's effect: where a trigger has to be printed.

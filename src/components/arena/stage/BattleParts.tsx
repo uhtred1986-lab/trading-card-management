@@ -208,7 +208,9 @@ export function ChainCard({ link, cardProps, width, mine, resolving }: { link: B
         {link.ordinal}
       </span>
       {link.kind === "counter" && (
-        <span className="pointer-events-none absolute -bottom-1 left-1/2 z-10 -translate-x-1/2 rounded-sm bg-loss px-1 py-px font-mono text-[7px] font-bold uppercase tracking-wider text-space-50 sm:text-[8px]">counter</span>
+        <span className="pointer-events-none absolute -bottom-1 left-1/2 z-10 -translate-x-1/2 rounded-sm bg-loss px-1 py-px font-mono text-[7px] font-bold uppercase tracking-wider text-space-50 sm:text-[8px]">
+          counter
+        </span>
       )}
       {/* Grey has no honest state: nothing but the engine knows a card has a
           battle trigger before it fires, and no client may guess from its text. */}
@@ -229,7 +231,21 @@ export function ChainCard({ link, cardProps, width, mine, resolving }: { link: B
  * cards nearest the fight are the ones still resolving, so they are the ones
  * that stay on the lane.
  */
-export function Chain({ side, cardProps, width, outward, beat, max = 3 }: { side: BattleSide; cardProps: StagingProps["cardProps"]; width: number; outward: "left" | "right"; beat: NumberedBeat | null; max?: number }) {
+export function Chain({
+  side,
+  cardProps,
+  width,
+  outward,
+  beat,
+  max = 3,
+}: {
+  side: BattleSide;
+  cardProps: StagingProps["cardProps"];
+  width: number;
+  outward: "left" | "right";
+  beat: NumberedBeat | null;
+  max?: number;
+}) {
   const [open, setOpen] = useState(false);
   if (!side.chain.length) return null;
   const resolving = beat && "card" in beat ? (beat as { card: string }).card : null;
@@ -258,10 +274,18 @@ export function Chain({ side, cardProps, width, outward, beat, max = 3 }: { side
         <Sheet title={`${side.name}'s chain`} eyebrow={<span className="text-[10px] uppercase tracking-widest text-ki-300">everything added, in play order</span>} onClose={() => setOpen(false)}>
           {side.chain.map((l) => (
             <div key={l.card.id} className="flex items-center gap-3 rounded-lg border border-space-700 bg-space-800/60 px-3 py-2">
-              <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-bold tabular-nums ${side.mine ? "bg-ki-500 text-space-950" : "bg-dbs-blue text-space-50"}`}>{l.ordinal}</span>
+              <span
+                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-bold tabular-nums ${side.mine ? "bg-ki-500 text-space-950" : "bg-dbs-blue text-space-50"}`}
+              >
+                {l.ordinal}
+              </span>
               <span className="min-w-0 flex-1 truncate text-sm text-space-100">{l.card.name}</span>
               {l.kind === "counter" && <span className="shrink-0 rounded-sm bg-loss px-1 py-px font-mono text-[8px] font-bold uppercase tracking-wider text-space-50">counter</span>}
-              {l.fired && <span className="shrink-0 text-xs text-ki-300" title="a skill of this card fired">⚡</span>}
+              {l.fired && (
+                <span className="shrink-0 text-xs text-ki-300" title="a skill of this card fired">
+                  ⚡
+                </span>
+              )}
               <span className="shrink-0 font-mono text-xs text-ki-300">{l.contribution.toLocaleString("en")}</span>
             </div>
           ))}
@@ -289,7 +313,12 @@ export function Totals({ left, right, big = false }: { left: BattleSide; right: 
       <div className="flex min-w-0 flex-1 flex-col items-end gap-1">
         <Count value={left.power} className={`arena-impact font-mono font-black tabular-nums ${figure} ${ahead ? "arena-power-win text-ki-300" : "text-space-400"}`} />
         <span className="h-1.5 w-full overflow-hidden rounded-full bg-space-800" aria-hidden>
-          <motion.span className="block h-full rounded-full bg-ki-400" animate={{ width: `${(left.power / top) * 100}%` }} transition={{ duration: 0.26, ease: "easeOut" }} style={{ marginLeft: "auto" }} />
+          <motion.span
+            className="block h-full rounded-full bg-ki-400"
+            animate={{ width: `${(left.power / top) * 100}%` }}
+            transition={{ duration: 0.26, ease: "easeOut" }}
+            style={{ marginLeft: "auto" }}
+          />
         </span>
       </div>
       <span className="shrink-0 self-start font-mono text-[9px] font-bold tracking-[0.3em] text-space-500 sm:text-xs">VS</span>
@@ -310,12 +339,7 @@ export function Totals({ left, right, big = false }: { left: BattleSide; right: 
 export function TriggerLine({ beat, name }: { beat: NumberedBeat | null; name: string | null }) {
   if (!beat || beat.t !== "skill" || !beat.inBattle) return null;
   return (
-    <motion.p
-      key={beat.n}
-      initial={{ opacity: 0, y: -4 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="mt-1 truncate text-center text-[10px] leading-snug text-ki-300 sm:text-xs"
-    >
+    <motion.p key={beat.n} initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="mt-1 truncate text-center text-[10px] leading-snug text-ki-300 sm:text-xs">
       <span className="font-semibold">⚡ {name ?? beat.label}</span>
       <span className="text-space-300"> · {beat.text}</span>
     </motion.p>
@@ -345,9 +369,7 @@ export function BattleVerdict({ beat, art, sideOf }: { beat: NumberedBeat | null
   if (!beat || (beat.t !== "clash" && beat.t !== "negated")) return null;
 
   if (beat.t === "negated") {
-    return (
-      <Banner key={beat.n} eyebrow="the attack is negated" tone="neutral" name="No battle" line="It ends here — no Offense Step, no Defense Step." />
-    );
+    return <Banner key={beat.n} eyebrow="the attack is negated" tone="neutral" name="No battle" line="It ends here — no Offense Step, no Defense Step." />;
   }
   const winner = beat.hit ? beat.attacker : beat.guard;
   const name = art[winner]?.name ?? "That card";

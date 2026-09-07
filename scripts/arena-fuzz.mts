@@ -14,7 +14,9 @@ function check(s: GameState): void {
   const seen = new Map<string, number>();
   for (const p of ["p1", "p2"] as PlayerId[]) {
     const ps = s.players[p];
-    const all = [ps.leader, ps.unison, ...ps.deck, ...ps.hand, ...ps.drop, ...ps.warp, ...ps.life, ...ps.battle, ...ps.combo, ...ps.energy, ...ps.zDeck, ...ps.zEnergy, ...ps.removed].filter(Boolean) as string[];
+    const all = [ps.leader, ps.unison, ...ps.deck, ...ps.hand, ...ps.drop, ...ps.warp, ...ps.life, ...ps.battle, ...ps.combo, ...ps.energy, ...ps.zDeck, ...ps.zEnergy, ...ps.removed].filter(
+      Boolean,
+    ) as string[];
     for (const id of all) {
       seen.set(id, (seen.get(id) ?? 0) + 1);
       for (const u of s.cards[id].under) seen.set(u, (seen.get(u) ?? 0) + 1);
@@ -69,7 +71,9 @@ for (let g = 0; g < games; g++) {
       check(s);
       steps++;
     }
-    results.push(`${a.name} vs ${b.name}: ${s.phase === "over" ? `${s.winner ? s.players[s.winner].name + " won" : "draw"} (${s.overReason}) after turn ${s.turn}` : `still running after ${steps} actions, turn ${s.turn}`}`);
+    results.push(
+      `${a.name} vs ${b.name}: ${s.phase === "over" ? `${s.winner ? s.players[s.winner].name + " won" : "draw"} (${s.overReason}) after turn ${s.turn}` : `still running after ${steps} actions, turn ${s.turn}`}`,
+    );
   } catch (err) {
     crashes++;
     console.error(`CRASH in ${a.name} vs ${b.name} (seed ${seed}) after ${steps} actions, last action "${last}":`, err);

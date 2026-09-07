@@ -92,31 +92,31 @@ export function CopiesPopover({
               {copies.map((c, i) => (
                 <li key={c.id} className="space-y-1 rounded bg-space-900/70 px-1.5 py-1 text-xs">
                   <div className="flex items-center gap-1.5">
-                  <span className="w-4 shrink-0 font-mono text-[10px] text-space-500">#{i + 1}</span>
-                  <span className="min-w-0 flex-1 truncate text-space-200" title={`${c.printLabel} · ${c.condition} · ${c.language}`}>
-                    {c.printLabel} · {c.condition}
-                  </span>
-                  <label
-                    className={`flex cursor-pointer items-center gap-1 rounded px-1 ${c.finish === "foil" ? "text-amber-300" : "text-space-400"}`}
-                    title={c.finish === "foil" ? "Foil — untick for non-foil" : "Tick to mark foil"}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={c.finish === "foil"}
+                    <span className="w-4 shrink-0 font-mono text-[10px] text-space-500">#{i + 1}</span>
+                    <span className="min-w-0 flex-1 truncate text-space-200" title={`${c.printLabel} · ${c.condition} · ${c.language}`}>
+                      {c.printLabel} · {c.condition}
+                    </span>
+                    <label
+                      className={`flex cursor-pointer items-center gap-1 rounded px-1 ${c.finish === "foil" ? "text-amber-300" : "text-space-400"}`}
+                      title={c.finish === "foil" ? "Foil — untick for non-foil" : "Tick to mark foil"}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={c.finish === "foil"}
+                        disabled={pending}
+                        onChange={(e) => run(() => setCopyFinishAction(c.id, e.target.checked, cardId))}
+                        className="h-3 w-3 accent-amber-400"
+                      />
+                      ✦
+                    </label>
+                    <button
+                      onClick={() => run(() => removeCopyAction(c.id, cardId), "Copy removed.")}
                       disabled={pending}
-                      onChange={(e) => run(() => setCopyFinishAction(c.id, e.target.checked, cardId))}
-                      className="h-3 w-3 accent-amber-400"
-                    />
-                    ✦
-                  </label>
-                  <button
-                    onClick={() => run(() => removeCopyAction(c.id, cardId), "Copy removed.")}
-                    disabled={pending}
-                    title="Remove this copy"
-                    className="rounded px-1 text-space-500 hover:bg-space-800 hover:text-loss disabled:opacity-40"
-                  >
-                    ×
-                  </button>
+                      title="Remove this copy"
+                      className="rounded px-1 text-space-500 hover:bg-space-800 hover:text-loss disabled:opacity-40"
+                    >
+                      ×
+                    </button>
                   </div>
                   <div className="flex items-center gap-1">
                     <span className="shrink-0 text-[10px] text-space-500" title="Where this copy is kept">

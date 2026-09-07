@@ -111,7 +111,10 @@ export async function identifyCards(
     messages: [
       {
         role: "user",
-        content: [{ type: "image", source: { type: "base64", media_type: mediaType, data } }, { type: "text", text: instruction }],
+        content: [
+          { type: "image", source: { type: "base64", media_type: mediaType, data } },
+          { type: "text", text: instruction },
+        ],
       },
     ],
   });
@@ -139,7 +142,11 @@ async function matchDetection(db: Db, seen: { name: string; number: string | nul
       const hits = await quickSearch(db, id, 1);
       const hit = hits.find((h) => h.id === id);
       if (!hit) continue;
-      const prints = await db.select({ id: cardPrints.id, label: cardPrints.label }).from(cardPrints).where(sql`${cardPrints.cardId} = ${id}`).orderBy(cardPrints.isBase);
+      const prints = await db
+        .select({ id: cardPrints.id, label: cardPrints.label })
+        .from(cardPrints)
+        .where(sql`${cardPrints.cardId} = ${id}`)
+        .orderBy(cardPrints.isBase);
       found.set(id, { ...hit, prints: prints.reverse() });
     }
   };

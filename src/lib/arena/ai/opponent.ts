@@ -207,9 +207,7 @@ function comboQuestion(ctx: EngineContext, s: GameState, p: PlayerId): string {
   const guardIsLeader = b.guard === s.players[defP].leader;
   // 8-4: the attack lands on a tie, so the defender has to beat it outright.
   const lands = attack >= guard;
-  const stake = guardIsLeader
-    ? `${defP === p ? "you lose" : "they lose"} 1 life${has(ctx, s, b.attacker, "Critical") ? " to the Drop ([Critical])" : ""}`
-    : `${face(ctx, s, b.guard).name} is KO'd`;
+  const stake = guardIsLeader ? `${defP === p ? "you lose" : "they lose"} 1 life${has(ctx, s, b.attacker, "Critical") ? " to the Drop ([Critical])" : ""}` : `${face(ctx, s, b.guard).name} is KO'd`;
   const advice = attacking
     ? lands
       ? `you are already winning this exchange — they would need ${money(attack + 1)} to hold it, and they answer after you, so every point you add now is one they can see before deciding`

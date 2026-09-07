@@ -59,7 +59,10 @@ async function wantsFrom(sp: Params): Promise<{ wants: Want[]; source: string; b
 }
 
 async function breakdownFor(wants: Want[]): Promise<Map<string, WantBreakdown>> {
-  const alloc = await allocationForCards(db, wants.map((w) => w.cardId));
+  const alloc = await allocationForCards(
+    db,
+    wants.map((w) => w.cardId),
+  );
   const out = new Map<string, WantBreakdown>();
   for (const [id, a] of alloc) out.set(id, { owned: a.owned, reservedElsewhere: a.reserved });
   return out;
@@ -69,7 +72,17 @@ export default async function CartPage({ searchParams }: { searchParams: Promise
   const sp = await searchParams;
   const { wants, source, breakdown, deckId: sourceDeckId } = await wantsFrom(sp);
   const cfg = await cartSettings(db);
-  const names = wants.length ? await db.select({ id: cards.id, name: cards.name }).from(cards).where(inArray(cards.id, wants.map((w) => w.cardId))) : [];
+  const names = wants.length
+    ? await db
+        .select({ id: cards.id, name: cards.name })
+        .from(cards)
+        .where(
+          inArray(
+            cards.id,
+            wants.map((w) => w.cardId),
+          ),
+        )
+    : [];
   const nameOf = new Map(names.map((n) => [n.id, n.name]));
   const result = wants.length ? await optimiseCart(db, wants, cfg) : null;
   const tiedUpIds = wants.filter((w) => (breakdown.get(w.cardId)?.reservedElsewhere ?? 0) > 0).map((w) => w.cardId);
@@ -88,7 +101,11 @@ export default async function CartPage({ searchParams }: { searchParams: Promise
         <h1 className="text-xl font-semibold text-space-50">Cart optimiser</h1>
         <p className="text-sm text-space-300">
           Cheapest combination of CardTrader sellers to cover a want-list, shipping counted once per seller.{" "}
-          {!cardTraderConfigured() ? <span className="text-loss">No CardTrader token configured.</span> : !cardTraderEnabled() ? <span className="text-ki-300">Live calls are disabled (CARDTRADER_ENABLED=false) — working from cached listings only.</span> : null}
+          {!cardTraderConfigured() ? (
+            <span className="text-loss">No CardTrader token configured.</span>
+          ) : !cardTraderEnabled() ? (
+            <span className="text-ki-300">Live calls are disabled (CARDTRADER_ENABLED=false) — working from cached listings only.</span>
+          ) : null}
         </p>
       </div>
 
@@ -123,7 +140,8 @@ export default async function CartPage({ searchParams }: { searchParams: Promise
                     </div>
                     {tiedUp > 0 ? (
                       <p className="mt-0.5 text-loss">
-                        Reserved by {holders.map((h, i) => (
+                        Reserved by{" "}
+                        {holders.map((h, i) => (
                           <span key={h.id}>
                             {i > 0 ? ", " : ""}
                             <Link href={`/decks/${h.id}`} className="underline hover:text-ki-300">
@@ -145,7 +163,9 @@ export default async function CartPage({ searchParams }: { searchParams: Promise
           {result && result.listings > 0 ? (
             <div className="grid gap-4 lg:grid-cols-2">
               <PlanCard title="Cheapest" plan={result.best} nameOf={nameOf} refined={result.refinedSellers} />
-              {result.fewestSellers && result.fewestSellers.totalCents !== result.best.totalCents ? <PlanCard title="Single seller" plan={result.fewestSellers} nameOf={nameOf} refined={result.refinedSellers} /> : null}
+              {result.fewestSellers && result.fewestSellers.totalCents !== result.best.totalCents ? (
+                <PlanCard title="Single seller" plan={result.fewestSellers} nameOf={nameOf} refined={result.refinedSellers} />
+              ) : null}
             </div>
           ) : result ? (
             <p className="rounded-xl border border-dashed border-space-700 p-4 text-sm text-space-300">No cached listings for these cards yet — fetch them above.</p>
@@ -172,7 +192,9 @@ export default async function CartPage({ searchParams }: { searchParams: Promise
             Soft preferences (for the AI explanation)
             <input name="preferences" defaultValue={cfg.preferences} placeholder="Prefer fewer sellers unless it costs more than €2" className={input} />
           </label>
-          <SubmitButton pendingLabel="Saving…" className="tap rounded-md bg-space-700 px-3 py-1.5 text-sm text-space-50 hover:bg-space-600 sm:col-span-2">Save</SubmitButton>
+          <SubmitButton pendingLabel="Saving…" className="tap rounded-md bg-space-700 px-3 py-1.5 text-sm text-space-50 hover:bg-space-600 sm:col-span-2">
+            Save
+          </SubmitButton>
         </form>
       </details>
     </div>
@@ -212,11 +234,7 @@ function PlanCard({ title, plan, nameOf, refined }: { title: string; plan: impor
           </li>
         ))}
       </ul>
-      {plan.missing.length ? (
-        <p className="mt-2 text-xs text-loss">
-          Not available: {plan.missing.map((m) => `${m.quantity}× ${nameOf.get(m.cardId) ?? m.cardId}`).join(", ")}
-        </p>
-      ) : null}
+      {plan.missing.length ? <p className="mt-2 text-xs text-loss">Not available: {plan.missing.map((m) => `${m.quantity}× ${nameOf.get(m.cardId) ?? m.cardId}`).join(", ")}</p> : null}
     </section>
   );
 }

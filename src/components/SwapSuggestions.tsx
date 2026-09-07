@@ -97,11 +97,7 @@ export function SwapSuggestions({ deckId, zone, suggestions }: { deckId: number;
 
   return (
     <div className="mt-1">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-1 rounded px-1 py-0.5 text-[11px] text-ki-300 hover:bg-space-800"
-        aria-expanded={open}
-      >
+      <button onClick={() => setOpen((o) => !o)} className="flex items-center gap-1 rounded px-1 py-0.5 text-[11px] text-ki-300 hover:bg-space-800" aria-expanded={open}>
         <span aria-hidden>{open ? "▾" : "▸"}</span>
         {live.length} swap suggestion{live.length === 1 ? "" : "s"}
       </button>
@@ -124,35 +120,19 @@ export function SwapSuggestions({ deckId, zone, suggestions }: { deckId: number;
 
           {/* Both cards side by side: the trade is a stat comparison first. */}
           <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5">
-            <SwapSide
-              cardId={s.outCardId}
-              name={s.outName}
-              imageUrl={s.outImageUrl}
-              quantity={s.outQuantity}
-              cost={s.outEnergyCost}
-              power={s.outPower}
-              other={s.inPower}
-              label="out"
-            />
+            <SwapSide cardId={s.outCardId} name={s.outName} imageUrl={s.outImageUrl} quantity={s.outQuantity} cost={s.outEnergyCost} power={s.outPower} other={s.inPower} label="out" />
             <span aria-hidden className="text-sm text-space-500">
               →
             </span>
-            <SwapSide
-              cardId={s.inCardId}
-              name={s.inName}
-              imageUrl={s.inImageUrl}
-              quantity={s.inQuantity}
-              cost={s.inEnergyCost}
-              power={s.inPower}
-              other={s.outPower}
-              label="in"
-            />
+            <SwapSide cardId={s.inCardId} name={s.inName} imageUrl={s.inImageUrl} quantity={s.inQuantity} cost={s.inEnergyCost} power={s.inPower} other={s.outPower} label="in" />
           </div>
 
           <p className="mt-1.5 text-xs text-space-200">{s.rationale}</p>
           <p className="mt-0.5 text-[11px] text-space-400">
             {canSwap ? (
-              <span className="text-gain">you own {s.inAvailable} free — enough for all {s.inQuantity}</span>
+              <span className="text-gain">
+                you own {s.inAvailable} free — enough for all {s.inQuantity}
+              </span>
             ) : s.inOwned > 0 ? (
               <span className="text-dbs-yellow">
                 own {s.inOwned}, {s.inAvailable} free of the {s.inQuantity} needed — the rest are in built decks

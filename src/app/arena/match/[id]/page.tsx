@@ -34,19 +34,16 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
 
   return (
     <div className="mx-auto max-w-md space-y-4 py-8 text-center">
-      <h1 className="text-lg font-semibold tracking-tight text-space-50">
-        {mine ? "Waiting for your opponent" : `${match.hostUser} is waiting for a player`}
-      </h1>
+      <h1 className="text-lg font-semibold tracking-tight text-space-50">{mine ? "Waiting for your opponent" : `${match.hostUser} is waiting for a player`}</h1>
       <p className="text-sm text-space-300">
         {mine ? (
           <>
-            You are in with <span className="text-space-100">{deck?.name ?? "a deck that is gone"}</span>. This screen takes you to the board the moment they pick
-            theirs — leave it open, or come back to the arena and it will be listed there.
+            You are in with <span className="text-space-100">{deck?.name ?? "a deck that is gone"}</span>. This screen takes you to the board the moment they pick theirs — leave it open, or come back
+            to the arena and it will be listed there.
           </>
         ) : (
           <>
-            They are in with <span className="text-space-100">{deck?.name ?? "a deck that is gone"}</span>. Choose your own deck back on the arena page to start
-            the game.
+            They are in with <span className="text-space-100">{deck?.name ?? "a deck that is gone"}</span>. Choose your own deck back on the arena page to start the game.
           </>
         )}
       </p>

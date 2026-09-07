@@ -118,10 +118,7 @@ export async function suggestionsForDeck(db: Db, deckId: number): Promise<Map<st
     .orderBy(asc(deckSwaps.outCardId), sql`case ${deckSwaps.priority} when 'high' then 0 when 'medium' then 1 else 2 end`, desc(deckSwaps.createdAt));
   if (rows.length === 0) return new Map();
 
-  const [alloc, wanted] = await Promise.all([
-    allocationForCards(db, [...new Set(rows.map((r) => r.inCardId))]),
-    db.select({ cardId: wantList.cardId }).from(wantList),
-  ]);
+  const [alloc, wanted] = await Promise.all([allocationForCards(db, [...new Set(rows.map((r) => r.inCardId))]), db.select({ cardId: wantList.cardId }).from(wantList)]);
   const onList = new Set(wanted.map((w) => w.cardId));
 
   const out = new Map<string, SwapSuggestion[]>();

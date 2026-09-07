@@ -224,11 +224,7 @@ export async function act(gameId: number, action: Action): Promise<{ error: stri
  * about to do all of that again — a guard has no business paying for it twice.
  */
 async function refuse(gameId: number, needTurn: boolean): Promise<string | null> {
-  const [row] = await db
-    .select({ mode: arenaGames.mode, p1User: arenaGames.p1User, p2User: arenaGames.p2User, state: arenaGames.state })
-    .from(arenaGames)
-    .where(eq(arenaGames.id, gameId))
-    .limit(1);
+  const [row] = await db.select({ mode: arenaGames.mode, p1User: arenaGames.p1User, p2User: arenaGames.p2User, state: arenaGames.state }).from(arenaGames).where(eq(arenaGames.id, gameId)).limit(1);
   if (!row || !isVersus(row.mode)) return null;
   const seat = seatOf(row, await currentUser());
   if (!seat) return "this is not your game";
@@ -284,7 +280,10 @@ export async function sweepBacklog() {
     if (input) for (const id of input.cardIds) ids.add(id);
   }
   if (ids.size) {
-    const rows = await db.select().from(cardsTable).where(inArray(cardsTable.id, [...ids]));
+    const rows = await db
+      .select()
+      .from(cardsTable)
+      .where(inArray(cardsTable.id, [...ids]));
     for (const row of rows) await noteUnreadText(db, unreadClausesOf(cardDefFrom(row)), false);
   }
   // Adding first, then closing: a clause just written down is unread by

@@ -47,7 +47,11 @@ export default async function MetaPage({ searchParams }: { searchParams: Promise
         <div className="rounded-xl border border-dashed border-space-700 p-8 text-center text-sm text-space-300">
           <p>No regional results yet.</p>
           <p className="mt-1">
-            Go to <Link href="/settings" className="text-ki-300 hover:underline">Settings</Link> and refresh regional results.
+            Go to{" "}
+            <Link href="/settings" className="text-ki-300 hover:underline">
+              Settings
+            </Link>{" "}
+            and refresh regional results.
           </p>
         </div>
       ) : (

@@ -36,7 +36,15 @@ export async function searchLeadersAction(q: string): Promise<LeaderChoice[]> {
   const counts = await db
     .select({ cardId: ownedCards.cardId, n: sql<number>`count(*)::int` })
     .from(ownedCards)
-    .where(and(inArray(ownedCards.cardId, leaders.map((l) => l.id)), isNull(ownedCards.archivedAt)))
+    .where(
+      and(
+        inArray(
+          ownedCards.cardId,
+          leaders.map((l) => l.id),
+        ),
+        isNull(ownedCards.archivedAt),
+      ),
+    )
     .groupBy(ownedCards.cardId);
   const owned = new Map(counts.map((c) => [c.cardId, c.n]));
   return leaders.map((l) => ({ id: l.id, name: l.name, setCode: l.setCode, game: gameOr(l.game), colors: l.colors, imageUrl: l.imageUrl, owned: owned.get(l.id) ?? 0 }));

@@ -23,7 +23,10 @@ async function main() {
   fs.mkdirSync(out, { recursive: true });
 
   for (const size of [192, 512]) {
-    await sharp(svg, { density: 384 }).resize(size, size).png().toFile(path.join(out, `icon-${size}.png`));
+    await sharp(svg, { density: 384 })
+      .resize(size, size)
+      .png()
+      .toFile(path.join(out, `icon-${size}.png`));
     console.log(`icons: icon-${size}.png`);
   }
 

@@ -45,8 +45,8 @@ export default async function BacklogPage({ searchParams }: { searchParams: Prom
           </Link>
         </div>
         <p className="mt-1 text-sm text-space-300">
-          Each row is one shape of wording that defeats the compiler. Adding a rule for it in <code className="text-space-400">compile.ts</code> usually fixes every card
-          in the group at once. Until then Claude rules on these cards when they resolve, which works but costs tokens and is slower.
+          Each row is one shape of wording that defeats the compiler. Adding a rule for it in <code className="text-space-400">compile.ts</code> usually fixes every card in the group at once. Until
+          then Claude rules on these cards when they resolve, which works but costs tokens and is slower.
         </p>
       </div>
 
@@ -58,7 +58,9 @@ export default async function BacklogPage({ searchParams }: { searchParams: Prom
           Done
         </Link>
         <form action={sweepBacklog} className="ml-auto">
-          <SubmitButton pendingLabel="Scanning…" className="tap rounded-md border border-space-600 px-3 py-1.5 text-space-100 hover:bg-space-800">Scan my decks again</SubmitButton>
+          <SubmitButton pendingLabel="Scanning…" className="tap rounded-md border border-space-600 px-3 py-1.5 text-space-100 hover:bg-space-800">
+            Scan my decks again
+          </SubmitButton>
         </form>
       </div>
 

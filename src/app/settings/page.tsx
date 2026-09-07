@@ -41,9 +41,7 @@ export default async function SettingsPage() {
             ))}
           </div>
         </div>
-        <p className="mt-1 text-xs text-space-300">
-          The whole app, this device only. The anime sky is the default; the night table is the dark board the app was designed on.
-        </p>
+        <p className="mt-1 text-xs text-space-300">The whole app, this device only. The anime sky is the default; the night table is the dark board the app was designed on.</p>
       </section>
 
       <section className="grid gap-3 md:grid-cols-2">
@@ -86,9 +84,7 @@ export default async function SettingsPage() {
             Manage logins →
           </Link>
         </div>
-        <p className="mt-1 text-xs text-space-300">
-          Add people who can sign in, change their passwords, and choose the owner name each login records on the cards it adds.
-        </p>
+        <p className="mt-1 text-xs text-space-300">Add people who can sign in, change their passwords, and choose the owner name each login records on the cards it adds.</p>
       </section>
 
       <section className="rounded-xl border border-space-700/70 bg-space-900/50 p-3 text-sm">
@@ -98,9 +94,7 @@ export default async function SettingsPage() {
             Manage locations →
           </Link>
         </div>
-        <p className="mt-1 text-xs text-space-300">
-          Keep a list of binders, boxes and shelves, then file individual copies — or a whole selection at once — so you can find a card when you want it.
-        </p>
+        <p className="mt-1 text-xs text-space-300">Keep a list of binders, boxes and shelves, then file individual copies — or a whole selection at once — so you can find a card when you want it.</p>
       </section>
 
       <section className="rounded-xl border border-space-700/70 bg-space-900/50 p-3 text-sm">
@@ -110,7 +104,9 @@ export default async function SettingsPage() {
           <Row
             ok={hasCardTrader}
             label="CardTrader API"
-            note={hasCardTrader ? (cardTraderLive ? "token set · live calls enabled" : "token set · live calls disabled (CARDTRADER_ENABLED=false)") : "no token — EU listings and cart optimiser disabled"}
+            note={
+              hasCardTrader ? (cardTraderLive ? "token set · live calls enabled" : "token set · live calls disabled (CARDTRADER_ENABLED=false)") : "no token — EU listings and cart optimiser disabled"
+            }
           />
           <Row ok={hasXimilar} label="Ximilar" note={hasXimilar ? "batch photo detection via Ximilar" : "not set — batch scans use Claude vision"} />
         </ul>
