@@ -7,7 +7,7 @@ import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { arenaFeedback, arenaGames, cardTextNotes, cards as cardsTable } from "@/db/schema";
 import { listDecks } from "@/lib/decks/queries";
-import { noteUnreadText, setNoteStatus, unreadClausesOf } from "@/lib/arena/ai/debug";
+import { closeNotesNowRead, noteUnreadText, setNoteStatus, unreadClausesOf } from "@/lib/arena/ai/debug";
 import { cardDefFrom, deckInputFor } from "@/lib/arena/load";
 import { describeAiError } from "@/lib/ai/client";
 import { IllegalAction, type Action } from "@/lib/arena/engine";
@@ -164,7 +164,10 @@ export async function abandon(gameId: number) {
   redirect("/arena");
 }
 
-/** Fill the backlog from every deck you can actually play. */
+/**
+ * Fill the backlog from every deck you can actually play, and close whatever
+ * the compiler has learned to read since it was written down.
+ */
 export async function sweepBacklog() {
   // Only the decks the arena can play: the compiler this backlog feeds reads
   // the original game's card text, not Fusion World's.
@@ -179,6 +182,9 @@ export async function sweepBacklog() {
     const rows = await db.select().from(cardsTable).where(inArray(cardsTable.id, [...ids]));
     for (const row of rows) await noteUnreadText(db, unreadClausesOf(cardDefFrom(row)), false);
   }
+  // Adding first, then closing: a clause just written down is unread by
+  // definition, so it survives the pass that follows it.
+  await closeNotesNowRead(db);
   revalidatePath("/arena/backlog");
 }
 

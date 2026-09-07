@@ -311,5 +311,55 @@ assert.equal(priceForFinish(prices.get("BT18-020_SPR"), "foil"), 199);
   assert.ok((await collectionCopies(db, { game: "dbs" })).rows.every((r) => r.game === "dbs"));
 }
 
+// ── The backlog closes what the compiler has since learned to read ─────────
+// `/arena/backlog` is read as what is left to do on the compiler, so a note
+// that a later rule cleared has to stop being counted. The test is the
+// compiler itself: a clause that no longer comes back unread is done.
+{
+  const { eq } = await import("drizzle-orm");
+  const { closeNotesNowRead, unreadClausesOf } = await import("../src/lib/arena/ai/debug.ts");
+  const { cardDefFrom } = await import("../src/lib/arena/load.ts");
+
+  const skilled = (id: string, name: string, skill: string) => ({ ...card(id, name), skill });
+  await db.insert(schema.cards).values([
+    skilled("BT18-030", "Reader", "[Auto] When you play this card, draw 1 card."),
+    skilled("BT18-031", "Puzzle", "[Auto] When you play this card, you and your opponent compliment each other."),
+  ]);
+  const rows = await db.select().from(schema.cards).where(eq(schema.cards.setCode, "BT18"));
+  const byId = new Map(rows.map((r) => [r.id, r]));
+
+  const stillUnread = unreadClausesOf(cardDefFrom(byId.get("BT18-031")!));
+  assert.ok(stillUnread.length, "the nonsense clause is one the compiler cannot read");
+  assert.deepEqual(unreadClausesOf(cardDefFrom(byId.get("BT18-030")!)), [], "and the plain one reads in full");
+
+  const note = (cardId: string, clause: string, extra: Record<string, unknown> = {}) => ({
+    cardId,
+    skillIndex: 0,
+    clause,
+    pattern: clause,
+    skillText: byId.get(cardId)!.skill!,
+    ...extra,
+  });
+  await db.insert(schema.cardTextNotes).values([
+    // Written down before the compiler could read it; it can now.
+    note("BT18-030", "draw 1 card", { explanation: "the owner's ruling, which must survive" }),
+    // Never learned, so it is still work.
+    note("BT18-031", stillUnread[0].clause),
+    // Ruled out by hand: not this function's business either way.
+    note("BT18-030", "some other wording", { status: "wontfix" }),
+  ]);
+
+  assert.equal(await closeNotesNowRead(db), 1, "only the clause that now reads is closed");
+  const after = await db.select().from(schema.cardTextNotes).where(eq(schema.cardTextNotes.cardId, "BT18-030"));
+  const closed = after.find((n) => n.clause === "draw 1 card")!;
+  assert.equal(closed.status, "done");
+  assert.equal(closed.explanation, "the owner's ruling, which must survive", "closing a note keeps what was written on it");
+  assert.equal(after.find((n) => n.clause === "some other wording")!.status, "wontfix", "a wontfix is never touched");
+
+  const open = await db.select().from(schema.cardTextNotes).where(eq(schema.cardTextNotes.status, "open"));
+  assert.deepEqual(open.map((n) => n.cardId), ["BT18-031"], "what is left is what the compiler still cannot read");
+  assert.equal(await closeNotesNowRead(db), 0, "and a second sweep has nothing to do");
+}
+
 await client.close();
 console.log("verify-db: all checks passed");
