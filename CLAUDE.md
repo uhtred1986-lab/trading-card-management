@@ -61,7 +61,7 @@ the same style.
 
 | What | Source | Notes |
 |---|---|---|
-| Card catalog | `https://api.deckplanet.net/cardsearch/{dbs_masters_cards,fusion_world_cards}?limit=100000` | One call per game; the `dragogodev/cgs` repo the spec names is only a *pointer* to the first. 6.5k cards for the original game, ~2k for Fusion World. Alternate prints appear as top-level entries **and** in `variants[]`; `shapeCatalog` collapses them to one card per base number + a print list. The Fusion World payload differs in three ways, all handled in `deckplanet.ts`: bare rarity codes ("SR", normalised to "Super Rare[SR]" by `normaliseRarity`), no character/era lists, and a numeric energy cost. |
+| Card catalog | `https://api.deckplanet.net/cardsearch/{dbs_masters_cards,fusion_world_cards}?limit=100000` | One call per game; the `dragogodev/cgs` repo the spec names is only a *pointer* to the first. 6.5k cards for the original game, ~2k for Fusion World. Alternate prints appear as top-level entries **and** in `variants[]`; `shapeCatalog` collapses them to one card per base number + a print list. The Fusion World payload differs in three ways, all handled in `deckplanet.ts`: bare rarity codes ("SR", normalised to "Super Rare[SR]" by `normaliseRarity`), no character/era lists, and a numeric energy cost. **Its skill text carries typos** — see `errata.ts` below. |
 | Card images | `https://storage.googleapis.com/deckplanet_card_images/{number}.png` | Hot-linked via `next/image`; a few prints 404 and fall back to a placeholder. **Fusion World is not in this bucket at all** — its art comes from Bandai's own card list, `https://www.dbs-cardgame.com/fw/images/cards/card/en/{number}.webp` (leaders `_f`/`_b`, alternate prints `_p1`, `_p2`…; no User-Agent or Referer check). `src/lib/catalog/bandai.ts` crawls the card list's series pages for the exact image names at catalog sync and only assigns URLs that exist, since deckplanet lists ~700 more alternate prints than Bandai shows. Whatever is still null afterwards gets the matched TCGplayer product photo (`_200w.jpg` rewritten to `_in_1000x1000.jpg`) from `fillMissingImages` during the price sync. The catalog upserts therefore `coalesce` `image_url` instead of overwriting it. |
 | Leader back sides | deckplanet `{number}_b.png` (older sets only, HEAD-verified at catalog sync) → else CardTrader blueprint `back_image` (Masters-era sets, backfilled by the CardTrader sync); Fusion World leaders use Bandai's `{number}_b.webp`, inferred from the `_f` front and HEAD-verified the same way | Stored in `cards.back_image_url`; the catalog upsert `coalesce`s so a CardTrader back survives re-syncs. `CardFaces` shows front + awakened when present. |
 | Prices | `https://tcgcsv.com/tcgplayer/{27,80}/...` | **Requires a browser-like User-Agent** (401 otherwise). Category 27 is the original game, 80 is Fusion World; 27 also carries a stray duplicate of Fusion World's FB01 group, which is skipped there. Products join to cards on the printed `Number`; SR+ cards only exist as a foil sub-type, so `priceForFinish` falls back foil↔normal — and the foil sub-type is called `Foil` in category 27 but `Holofoil` in 80 (`FOIL_SUB_TYPES`). |
@@ -77,6 +77,21 @@ the same style.
 - **Catalog is immutable app data**: `card_sets` → `cards` → `card_prints`. Ownership (`owned_cards`)
   always references a *print* so foil/alt-art copies are distinct; deck slots (`deck_cards`)
   reference a *card*, because any print satisfies a deck slot.
+- **The source's card-text typos are corrected on the way in**, in
+  `src/lib/catalog/errata.ts` — "Whe this card attacks", "the card is plyed", "gain[Blocker]"
+  with no space. Not cosmetic: the arena's compiler reads this text literally, so one missing
+  letter costs a whole skill, and "Whe" alone was three [Auto]s that parsed and then waited for a
+  trigger that never matched. **Never fix one of these with an UPDATE** — the catalog upsert sets
+  `skill = excluded.skill`, so a hand-edited row is overwritten by the next `sync:catalog` and the
+  bug returns with nothing recording why. Each entry is a claim that the source is wrong, so
+  `syncCatalogFor` re-checks every one against the payload it just fetched and warns on any that
+  stops matching; `npm test` cannot, having no catalog to read. Only unambiguous errors are
+  corrected — the catalog is full of names that look like typos (`{Stop You Fiend!}`,
+  `<Haze Shenron>`, `{Upa}`), and a scan that flags those is the scan being wrong. A correction
+  that changes a card *name* is checked against Bandai's art first, never guessed:
+  `https://www.dbs-cardgame.com/fw/images/cards/card/en/<number>.webp` is readable and settled
+  SB01-046. There is no equivalent public path for the original game, which is exactly why its
+  typos are the hard ones to catch.
 - **No card-number prefix belongs to both games** — the original uses BT/EX/SD/TB/EB/DB/XD/P/TOKEN
   and Fusion World FB/FS/FP/SB/ST/E — so `gameOfSetCode` is a lookup, not a guess, and card ids
   never collide. Watch the `E`/`E01` pair: it is matched whole before being read as a family plus
