@@ -698,8 +698,23 @@ interface Ctx {
    * decision hides it from the static layer entirely.
    */
   permanent: boolean;
-  /** The variable the last `look` or `reveal` bound — what "that card" means. */
+  /**
+   * The variable the last `look` or `reveal` bound: the cards held out in
+   * front of the player, which a following clause may pick *out of* — "look at
+   * the top 3 cards of your deck, add 1 of them to your hand", "choose up to
+   * 1". Only a look or a reveal makes such a pool.
+   */
   lastSeen: string | null;
+  /**
+   * The last name bound to cards the sentence can point back at with "that
+   * card": a look, a reveal, or a mill, whose cards go to the Drop face up.
+   *
+   * Kept apart from `lastSeen` because the two are not the same claim. A mill
+   * gives the sentence something to talk about, but not a pool to draw from —
+   * its cards are in the Drop already, and reading "add 1 card to your hand"
+   * as taking one of them moves a card the text never offered.
+   */
+  lastNamed: string | null;
   /** The variable bound by the last "play …" choice — what "the card you played with this skill" means. */
   lastPlayed: string | null;
   /**
@@ -717,6 +732,18 @@ interface Ctx {
    */
   replacing: { by?: "skill" | "ko" | "skillOrKo"; subject?: string } | null;
   n: number;
+  /**
+   * A counter of its own for the names a mill binds, so `n` keeps its count.
+   *
+   * A skill's price and its effect are compiled separately and both start at
+   * `c0`, and that collision is load-bearing: `runSkill` merges the price's
+   * bindings into the effect's frame by name, which is how "the chosen card"
+   * in an effect means the card its cost chose (4-3-3). Spending `n` on a mill
+   * would push the effect's own first choice to `c1`, leaving the price's `c0`
+   * alive underneath it — and a later reference then moves the card the price
+   * already spent.
+   */
+  mills: number;
   /** The skill text with its explanatory notes still in place. A token's stats are printed there. */
   raw: string;
 }
@@ -1608,7 +1635,8 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   if ((m = /^deal (\d+) damage to (?:your opponent|your opponent's life|them)$/.exec(t))) return [{ op: "damage", n: Number(m[1]), side: "opponent" }];
 
   // Deck manipulation.
-  if ((m = /^place (?:up to )?(\d+) cards? from the top of (your|your opponent's) deck in (?:your |their |its owner's |the )?drop(?: area)?$/.exec(t))) return [{ op: "mill", n: Number(m[1]), ...(m[2] === "your" ? {} : { side: "opponent" as const }) }];
+  if ((m = /^place (?:up to )?(\d+) cards? from the top of (your|your opponent's) deck in (?:your |their |its owner's |the )?drop(?: area)?$/.exec(t)))
+    return [{ op: "mill", n: Number(m[1]), ...(m[2] === "your" ? {} : { side: "opponent" as const }), as: `m${c.mills++}` }];
   // "Draw cards until you have 4 cards in your hand".
   if ((m = /^draw cards until you have (\d+) cards? in your hand$/.exec(t))) return [{ op: "draw", n: { handUpTo: Number(m[1]) } }];
   // "Place the top card of your deck in your Drop Area", "your opponent places
@@ -1617,7 +1645,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     // "Their deck" is the opponent's whichever way round the sentence is
     // built, and the subject may have been dropped before this ran.
     const theirs = m[1] !== "place" || m[3] !== "your";
-    return [{ op: "mill", n: m[2] ? Number(m[2]) : 1, ...(theirs ? { side: "opponent" as const } : {}) }];
+    return [{ op: "mill", n: m[2] ? Number(m[2]) : 1, ...(theirs ? { side: "opponent" as const } : {}), as: `m${c.mills++}` }];
   }
   if (/^add the top card of your deck to your life$/.test(t)) return [{ op: "addLife", n: 1 }];
   // Printed as "add card … to you hand" on some sets; the meaning is the same.
@@ -2467,7 +2495,7 @@ function compileSkillText(skill: Skill): Script {
   const text = stripNotes(skill.effect);
   if (!text) return { ops: [], unsupported: [] };
   const unsupported: string[] = [];
-  const c: Ctx = { permanent: skill.kind === "permanent", last: null, choices: [], lastSeen: null, lastPlayed: null, lastTarget: null, lastOp: null, replacing: null, n: 0, raw: skill.effect };
+  const c: Ctx = { permanent: skill.kind === "permanent", last: null, choices: [], lastSeen: null, lastNamed: null, mills: 0, lastPlayed: null, lastTarget: null, lastOp: null, replacing: null, n: 0, raw: skill.effect };
   // A standing permission is one sentence, not a list of actions: "you can
   // activate this card's [Counter] skill from your hand without paying its
   // energy cost **by choosing 1 other black card in your hand and placing it
@@ -2591,9 +2619,19 @@ function track(o: Op, c: Ctx): void {
     c.lastTarget = { var: o.as };
   } else if (o.op === "reveal") {
     c.lastSeen = o.as;
+    c.lastNamed = o.as;
     c.lastTarget = { var: o.as };
   } else if (o.op === "look") {
     c.lastSeen = o.as;
+    c.lastNamed = o.as;
+  } else if (o.op === "mill" && o.as) {
+    // A card placed in the Drop from the top of the deck is turned over on the
+    // way, so "if that card is red" means it just as much as a card a reveal
+    // turned up. `lastNamed` only: not `lastSeen`, because those cards are in
+    // the Drop rather than held out to be picked from, and not `lastTarget`,
+    // because the sentence is asking *about* the card — reading "it" in a
+    // later clause as the milled card would move a card nothing named.
+    c.lastNamed = o.as;
   } else if ("target" in o && o.target) c.lastTarget = o.target;
 }
 
@@ -2710,14 +2748,29 @@ function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op
     // "If that card is a Battle Card" — what the reveal or the look just
     // turned up. The name only exists here, so the condition is built with
     // the compiler's own bookkeeping rather than by `parseConditionClause`.
-    if (c.lastSeen || c.last) {
+    if (c.lastNamed || c.last) {
       // "If **it's** a Battle Card" is the same sentence contracted, which the
       // reveal wordings print as often as the long form.
       const seen = /^(?:if|when) (?:that card|it|it'?s|the (revealed|chosen) card) (?:is )?(?:an? )?(.+)$/i.exec(clause.trim().replace(/[.,]$/, ""));
       // "The chosen card" is the choice; "that card" is whatever was last
       // turned up, and only falls back to the choice when nothing was.
-      const v = seen?.[1]?.toLowerCase() === "chosen" ? c.last : (c.lastSeen ?? c.last);
-      const filter = seen ? filterFor(seen[2], null) : undefined;
+      const v = seen?.[1]?.toLowerCase() === "chosen" ? c.last : (c.lastNamed ?? c.last);
+      // "If that card is **not** a <Son Gohan: Childhood>" (BT21-148).
+      // `parseFilter` carries some negations and silently drops others: it
+      // reads "non-red" and "other than {King Cold, Imminent Invasion}", but
+      // takes "not a <Son Gohan: Childhood>", "not red" and "not a Battle
+      // Card" as the plain description with a word in front of it. Dropped,
+      // the condition holds for exactly the card the sentence excludes — so
+      // what is checked is the filter rather than the wording: a description
+      // that negates something must come back with a negative measure on it,
+      // or the clause goes to the referee. An unread clause costs tokens; a
+      // backwards one loses the game.
+      const read = seen ? filterFor(seen[2], null) : undefined;
+      const negates = seen ? /\b(?:not|non|other than|except|besides)\b/i.test(seen[2]) : false;
+      const carriesNegative = read
+        ? read.notColors.length > 0 || read.notCharacters.length > 0 || read.notTraits.length > 0 || read.notNames.length > 0 || read.notKeywords.length > 0 || read.notType != null || read.notToken
+        : false;
+      const filter = negates && !carriesNegative ? undefined : read;
       if (seen && filter && v) {
         groups.push({ conds: [{ kind: "varMatches", var: v, filter }], ops: [] });
         c.lastTarget = { var: v };
