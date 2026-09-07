@@ -762,9 +762,17 @@ the wording rather than one card at a time.
 
 Two more things this pass turned up that no measure on that page can see:
 
-- **`/arena/backlog` never re-checks a note.** 108 of 131 open notes were
-  fixed long ago. `unreadClausesOf` is already the whole test — a sweep that
-  closes a note whose clause now compiles would keep the page honest.
+- ~~**`/arena/backlog` never re-checks a note.**~~ **Fixed 7 Sep 2026.** It
+  only ever added, so every group a later rule cleared stayed on the page: of
+  the 133 notes open that day, **120 were wordings the compiler already read**
+  and the 13 that were real are the table above. `closeNotesNowRead` in
+  `ai/debug.ts` re-reads every card that has an open note — not just the cards
+  in a deck, since a stale note on a card you have stopped playing is just as
+  wrong — and closes the notes whose clause no longer comes back from
+  `unreadClausesOf`. It runs at the end of `sweepBacklog`, after the adding
+  pass, so a clause written down that moment survives it. Only the status
+  moves; rulings, explanations and briefs stay on the row and a `wontfix` is
+  never touched. Covered in `verify-db.mts`.
 - **Five non-[Permanent] skills read cleanly and then did nothing** — BT30-053,
   BT21-118, BT22-062, BT27-070 and XD1-05. All compile to `costReduction`,
   which `script.ts` deliberately did not carry out, because `collectStatics`

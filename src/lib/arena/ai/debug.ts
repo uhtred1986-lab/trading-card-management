@@ -7,10 +7,11 @@
  * only improves if the clauses that defeat it are written down where they can
  * be worked through.
  */
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import type { Db } from "@/db";
-import { arenaDecisions, cardTextNotes } from "@/db/schema";
+import { arenaDecisions, cardTextNotes, cards as cardsTable } from "@/db/schema";
 import { compileCardCached, parseSkills, type CardDef, type Op } from "../engine";
+import { cardDefFrom } from "../load";
 
 export interface DecisionRecord {
   gameId: number;
@@ -109,6 +110,48 @@ export async function noteUnreadText(
         },
       });
   }
+}
+
+/** What makes one note the note for one clause of one skill of one card. */
+const noteKey = (e: { cardId: string; skillIndex: number; clause: string }) => `${e.cardId} ${e.skillIndex} ${e.clause}`;
+
+/**
+ * Close the notes whose clause the compiler has since learned to read.
+ *
+ * Nothing ever re-checked a note and the list only ever grew, so a rule that
+ * cleared a whole group left every one of its rows sitting open — and that
+ * page is read as what is left to do. It overstated it badly: of the 133 notes
+ * open on 7 Sep 2026, 120 were wordings the compiler already read.
+ *
+ * `unreadClausesOf` is the whole test. A note whose clause no longer comes
+ * back from the card it is about is finished by definition, so this re-reads
+ * every card that has an open note — not only the cards in a deck, because a
+ * stale note on a card you have stopped playing is just as wrong.
+ *
+ * Only the status moves: what was ruled, explained or briefed stays on the
+ * row, and a `wontfix` is never touched. A note reopened by hand will close
+ * again on the next sweep if the clause reads, which is the right way round —
+ * the count has to mean something, and `mark done` is still there for a clause
+ * that reads but reads *wrongly*, which no measure here can see.
+ *
+ * Returns how many it closed.
+ */
+export async function closeNotesNowRead(db: Db): Promise<number> {
+  const open = await db
+    .select({ id: cardTextNotes.id, cardId: cardTextNotes.cardId, skillIndex: cardTextNotes.skillIndex, clause: cardTextNotes.clause })
+    .from(cardTextNotes)
+    .where(eq(cardTextNotes.status, "open"));
+  if (!open.length) return 0;
+
+  const rows = await db.select().from(cardsTable).where(inArray(cardsTable.id, [...new Set(open.map((n) => n.cardId))]));
+  const stillUnread = new Set(rows.flatMap((r) => unreadClausesOf(cardDefFrom(r))).map(noteKey));
+  // A card that could not be read back is no evidence that its clause now
+  // compiles, so its notes are left exactly as they are.
+  const reRead = new Set(rows.map((r) => r.id));
+  const stale = open.filter((n) => reRead.has(n.cardId) && !stillUnread.has(noteKey(n))).map((n) => n.id);
+
+  if (stale.length) await db.update(cardTextNotes).set({ status: "done" }).where(inArray(cardTextNotes.id, stale));
+  return stale.length;
 }
 
 /** Every clause of a card the compiler cannot read, ready for the backlog. */
