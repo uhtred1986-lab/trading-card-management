@@ -4,10 +4,9 @@
  * how much power it has, and paying costs. Everything mutates the state it
  * is given; `engine.ts` clones before calling.
  */
-import { canCombo, hasKeyword, keywordOf, skillsOf, specifiedCostOf, isZ, baseType } from "./cards";
-import { compileCardCached } from "./compile";
+import { hasKeyword, keywordOf, skillsOf, specifiedCostOf, isZ, baseType } from "./cards";
 import { matches, powerRelOk } from "./filters";
-import type { Amount, Cond, Op, Ref, ScriptArea, ScriptFrame, Selector, Side } from "./script";
+import { NO_RULES, type Amount, type CardScripts, type Cond, type Op, type Ref, type ScriptArea, type ScriptFrame, type Selector, type Side } from "./script";
 import type {
   Area,
   CardDef,
@@ -34,6 +33,18 @@ import { other } from "./types";
 
 export interface GameContext {
   defs: Record<string, CardDef>;
+  /**
+   * The rules the cards play by, from `card_rules`: keyed by catalog id for a
+   * front and `<id>#back` for a leader's awakened side. Nothing in the engine
+   * compiles text — a card with no entry here has no rules and is played as
+   * blank, and the log says so.
+   */
+  scripts?: Record<string, CardScripts>;
+}
+
+/** The programs of one card face, as the game was given them. */
+export function programsOf(ctx: GameContext, d: CardDef, side: "front" | "back"): CardScripts {
+  return ctx.scripts?.[side === "back" ? `${d.id}#back` : d.id] ?? NO_RULES;
 }
 
 export const LIFE_AT_START = 8;
@@ -560,7 +571,7 @@ export function staticEffects(ctx: GameContext, s: GameState): StaticEffect[] {
         if (!inst || inst.hidden || skillsNegated(s, src)) continue;
         const d = def(ctx, s, src);
         const side = inst.flipped && d.back ? "back" : "front";
-        const scripts = compileCardCached(d, side);
+        const scripts = programsOf(ctx, d, side);
         const inPlayNow = inPlay(s, src);
         for (const sk of skillsOf(d, side)) {
           if (sk.kind !== "permanent") continue;
@@ -595,7 +606,7 @@ export function permanentStatics(ctx: GameContext, s: GameState, card: string, s
   const sk = skillsOf(d, side).find((k) => k.index === skillIndex);
   if (!sk || sk.kind !== "permanent") return null;
   if (skillNegated(s, card, sk.index, sk.kind)) return [];
-  const sc = compileCardCached(d, side).bySkill[sk.index];
+  const sc = programsOf(ctx, d, side).bySkill[sk.index];
   if (!sc || sc.unsupported.length) return [];
   // The same areas `staticEffects` reads from (9-1-3-1): anywhere else the
   // skill is not valid, so it applies nothing.
@@ -1020,7 +1031,7 @@ function ownProhibitions(ctx: GameContext, s: GameState, card: string): Prohibit
   if (!inst || inst.hidden || skillsNegated(s, card)) return [];
   const d = def(ctx, s, card);
   const side = inst.flipped && d.back ? "back" : "front";
-  const scripts = compileCardCached(d, side);
+  const scripts = programsOf(ctx, d, side);
   const out: Prohibition[] = [];
   for (const sk of skillsOf(d, side)) {
     if (sk.kind !== "permanent" || skillNegated(s, card, sk.index, sk.kind)) continue;
@@ -1568,19 +1579,6 @@ export function playCost(ctx: GameContext, s: GameState, id: string, x = 0): { t
     cut = { total: cut.total, specified: {} };
   }
   return cut;
-}
-
-export function canAffordPlay(ctx: GameContext, s: GameState, p: PlayerId, id: string, x = 0): boolean {
-  const c = playCost(ctx, s, id, x);
-  const d = def(ctx, s, id);
-  if (d.zEnergyCost != null && s.players[p].zEnergy.length < d.zEnergyCost) return false;
-  return planPayment(ctx, s, p, c.total, c.specified) !== null;
-}
-
-export function canAffordCombo(ctx: GameContext, s: GameState, p: PlayerId, id: string): boolean {
-  const d = def(ctx, s, id);
-  if (!canCombo(d)) return false;
-  return planPayment(ctx, s, p, d.comboCost ?? 0, {}) !== null;
 }
 
 // ── misc ───────────────────────────────────────────────────────────────────

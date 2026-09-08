@@ -9,7 +9,7 @@ import {
   areaOf,
   comboPowerOf,
   describeScript,
-  compileCardCached,
+  programsOf,
   face,
   keywordsInForce,
   powerOf,
@@ -292,7 +292,7 @@ function cardView(ctx: EngineContext, s: GameState, id: string, images: Record<s
   const f = face(ctx, s, id);
   const hidden = inst.hidden || !reveal;
   const side = inst.flipped && d.back ? "back" : "front";
-  const scripts = compileCardCached(d, side);
+  const scripts = programsOf(ctx, d, side);
   let reading = "";
   let referee = false;
   const permanents: PermanentView[] = [];

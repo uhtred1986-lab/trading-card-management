@@ -6,6 +6,7 @@ import { db } from "../src/db";
 import { decks } from "../src/db/schema";
 import { apply, createGame, legalActions, nextRandom, type GameState, type PlayerId } from "../src/lib/arena/engine";
 import { deckInputFor, defsForCards } from "../src/lib/arena/load";
+import { rulesFor } from "../src/lib/arena/rules-store";
 
 const games = Number(process.argv[2] ?? 20);
 const fixed = process.argv.length >= 5 ? [Number(process.argv[3]), Number(process.argv[4])] : null;
@@ -50,7 +51,8 @@ for (let g = 0; g < games; g++) {
   const da = (await deckInputFor(db, a.id))!;
   const dbk = (await deckInputFor(db, b.id))!;
   const defs = await defsForCards(db, [...da.cardIds, ...dbk.cardIds]);
-  const ctx = { defs };
+  // Rows, not a compile: the same context a real game gets.
+  const ctx = { defs, scripts: await rulesFor(db, defs) };
   const seed = Math.floor(rand() * 1e9);
   let s: GameState;
   let steps = 0;

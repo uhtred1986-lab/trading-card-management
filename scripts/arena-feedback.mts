@@ -17,7 +17,8 @@
 import { desc, eq, inArray } from "drizzle-orm";
 import { db } from "./../src/db";
 import { arenaFeedback, cards as cardsTable } from "../src/db/schema";
-import { compileCard, parseSkills, type GameState } from "../src/lib/arena/engine";
+import type { GameState } from "../src/lib/arena/engine";
+import { loadRules } from "../src/lib/arena/rules-store";
 import { skillLines } from "../src/lib/arena/engine/cards";
 import { cardDefFrom } from "../src/lib/arena/load";
 
@@ -52,14 +53,10 @@ for (const r of rows) {
     const d = cardDefFrom(card);
     console.log(`  card: ${d.id} ${d.name} — cost ${d.energyCost ?? "—"}, ${d.type}`);
     for (const line of skillLines(card.skill)) console.log(`    | ${line}`);
-    // What the compiler makes of it is usually where the answer is.
-    const sc = compileCard(d);
-    for (const sk of parseSkills(card.skill)) {
-      if (!sk.effect.trim()) continue;
-      const script = sc.bySkill[sk.index];
-      if (!script) continue;
-      const verdict = script.unsupported.length ? `unread: ${JSON.stringify(script.unsupported)}` : JSON.stringify(script.ops);
-      console.log(`    skill ${sk.index} [${sk.kind}] ${verdict.slice(0, 400)}`);
+    // The rule rows are usually where the answer is.
+    for (const rule of (await loadRules(db, [d.id])).sort((a, b) => a.side.localeCompare(b.side) || a.skillIndex - b.skillIndex)) {
+      const verdict = rule.status === "open" ? `unread: ${JSON.stringify(rule.unread)}` : `${rule.reads || "nothing"} — ${JSON.stringify(rule.ops)}`;
+      console.log(`    ${rule.side} skill ${rule.skillIndex} [${rule.kind}] ${rule.status}/${rule.source}: ${verdict.slice(0, 400)}`);
     }
   }
 

@@ -29,11 +29,14 @@ import { narrate } from "../src/lib/arena/narration";
 import { colourOf, DEFAULT_LIGHTING, encodeLighting, LEADER_COLOURS, lightingFrom, LIGHTING_VERSION, mix, RIVAL, toneFor, TONES, turnVars } from "../src/lib/arena/lighting";
 import { trailingTrigger, parseSkills, keywordOf, orbsIn, eitherOrbsIn, skillLines } from "../src/lib/arena/engine/cards";
 import { KEYWORDS, keywordTagSpellings, keywordsByGroup, tagBody, tagParsesTo } from "../src/lib/arena/glossary";
-import { parseFilter, matches, parseCondition } from "../src/lib/arena/engine/filters";
+import { parseFilter, matches, parseCondition, type CardFilter } from "../src/lib/arena/engine/filters";
 import { addEffect, schedule, move, locate, placeUnder, playCost, powerOf, forbids, has, cardNow, comboCostOf, skillNegated, skillsNegated } from "../src/lib/arena/engine/state";
-import { compileCostProgram, compileSkill, costIsOnlyOrbs, costText, describeScript, parseConditionClause, parseTarget, priceCondition, splitClauses } from "../src/lib/arena/engine/compile";
+import { compileCostProgram, compileSkill, costIsOnlyOrbs, costText, parseConditionClause, parseTarget, priceCondition, splitClauses } from "../src/lib/arena/engine/compile";
+import { OP_SCHEMA, describeScript, opSignature, validateProgram as validate, type Op as SchemaOp } from "../src/lib/arena/engine/script";
 import { autoTriggerMatches, koCard } from "../src/lib/arena/engine/triggers";
 import type { Trigger } from "../src/lib/arena/engine/types";
+import { canonical, hoist, programShape, rulesFromCompiler, skillRecords } from "../src/lib/arena/draft";
+import { clauseShape, describeTrigger, mechanismOf, triggersOf } from "../src/lib/arena/gaps";
 
 // ── skill text parsing ─────────────────────────────────────────────────────
 
@@ -196,7 +199,7 @@ import type { Trigger } from "../src/lib/arena/engine/types";
   // looking inside one, and stays out of the substring reading.
   assert.deepEqual(parseFilter("Battle Cards with 2 or more character names including <SH>").charactersIncluding, []);
 
-  // A filter written before these fields existed — from `card_scripts`, or a
+  // A filter written before these fields existed — from `card_rules`, or a
   // referee ruling in a saved game's action log — still reads.
   const legacy = { ...parseFilter("<Baby> card") } as Record<string, unknown>;
   for (const k of ["charactersIncluding", "notCharactersIncluding", "namesIncluding", "notNamesIncluding"]) delete legacy[k];
@@ -346,21 +349,26 @@ const DEFS: Record<string, CardDef> = defsFrom([
   card("MUTEAUTO", { energyCost: 1, skill: "[Auto] When you play this card, choose 1 of your opponent's Battle Cards and negate that card's [Auto] skills in all areas." }),
   card("E-MYSTERY", { type: "EXTRA", energyCost: 1, power: null, comboCost: null, comboPower: null, skill: "[Activate: Main] Bend the fabric of reality to your will." }),
 ]);
+// What a real game gets from `card_rules` once every card is drafted: the
+// tests need no database, so the drafter's own compile stands in for the rows
+// (lazily, because tests below add cards to DEFS as they go).
+const CTX = { defs: DEFS, scripts: rulesFromCompiler(DEFS) };
+
 
 const fifty = (id: string) => Array.from({ length: 50 }, () => id);
 
 function game(seed = 1, p1 = fifty("V1"), p2 = fifty("V-BLUE"), z: string[] = []) {
-  return createGame({ defs: DEFS }, { seed, p1: { name: "You", leader: "L-RED", main: p1, z }, p2: { name: "Claude", leader: "L-BLUE", main: p2 } }).state;
+  return createGame(CTX, { seed, p1: { name: "You", leader: "L-RED", main: p1, z }, p2: { name: "Claude", leader: "L-BLUE", main: p2 } }).state;
 }
 
 /** Apply a list of actions, asserting each is legal. */
 function play(s: GameState, ...actions: Action[]): GameState {
-  for (const a of actions) s = apply({ defs: DEFS }, s, a).state;
+  for (const a of actions) s = apply(CTX, s, a).state;
   return s;
 }
 
 function labels(s: GameState): string[] {
-  return legalActions({ defs: DEFS }, s).map((a) => a.label);
+  return legalActions(CTX, s).map((a) => a.label);
 }
 
 /** Every card instance is in exactly one area (3-1). */
@@ -487,7 +495,7 @@ function arena(opts: { hand?: string[]; energy?: string[]; battle?: string[]; op
   s = play(s, { type: "charge", player: "p1", card: null });
   assert.equal(s.prompt.kind, "main");
   // Set the table by hand: swap deck cards for the wanted definitions and move them.
-  const ctx = { defs: DEFS };
+  const ctx = CTX;
   const give = (p: PlayerId, ids: string[], area: "hand" | "energy" | "battle") => {
     for (const cardId of ids) {
       const inst = s.players[p].deck.find((id) => s.cards[id].cardId === "V1" || s.cards[id].cardId === "V-BLUE")!;
@@ -618,7 +626,7 @@ const find = (s: GameState, p: PlayerId, area: "hand" | "battle" | "energy" | "z
   s = play(s, { type: "choose", player: "p1", cards: [paid] });
   assert.ok(s.players.p1.drop.includes(paid), "the card leaves the hand once the price is met");
   assert.equal(s.cards[berg].mode, "active", "…and it is ready to block again");
-  assert.equal(powerOf({ defs: DEFS }, s, berg), 20000, "+5000 for the turn");
+  assert.equal(powerOf(CTX, s, berg), 20000, "+5000 for the turn");
 }
 
 // [Counter: Attack] "Negate the attack" (22-10-3-2, 8-1-6-1).
@@ -651,7 +659,7 @@ const find = (s: GameState, p: PlayerId, area: "hand" | "battle" | "energy" | "z
 // the card that changed it instead of diffing numbers between renders.
 {
   DEFS["E-PUMP"] = { ...DEFS["E-NEGATE"], id: "E-PUMP", name: "E-PUMP", skill: "[Counter: Attack] Your Leader Card gets +10000 power for the duration of the turn." };
-  const ctx = { defs: DEFS };
+  const ctx = CTX;
   let s = arena({ battle: ["V1"], oppHand: ["E-PUMP"], oppEnergy: ["V1", "BIG"] });
   const attacker = s.players.p1.leader;
   const guard = s.players.p2.leader;
@@ -771,7 +779,7 @@ const find = (s: GameState, p: PlayerId, area: "hand" | "battle" | "energy" | "z
   s = play(s, { type: "activate", player: "p1", card: s.players.p1.leader, skill: 0 });
   assert.equal(s.cards[s.players.p1.leader].flipped, true, "22-2-4: flipped after the effect");
   assert.equal(s.players.p1.hand.length, before + 1, "the Draw 1 in the text ran");
-  assert.equal(powerOf({ defs: DEFS }, s, s.players.p1.leader), 15000, "the back side's power counts");
+  assert.equal(powerOf(CTX, s, s.players.p1.leader), 15000, "the back side's power counts");
   assert.ok(!labels(s).some((x) => x.startsWith("Awaken")), "can't awaken twice");
 }
 function assertConsistentAfterDrop(s: GameState) {
@@ -784,7 +792,7 @@ function assertConsistentAfterDrop(s: GameState) {
 // and the power only follows when it is red. Played out both ways, because the
 // program this replaced gained the power either way.
 {
-  const ctx = { defs: DEFS };
+  const ctx = CTX;
   for (const [top, power, why] of [
     ["V1", 15000, "the milled card is red, so the skill applies"],
     ["V-BLUE", 10000, "a blue one leaves the power alone"],
@@ -849,7 +857,7 @@ function assertConsistentAfterDrop(s: GameState) {
   const prey = find(s, "p2", "battle", "V-BLUE");
   const buried = s.players.p2.deck.splice(0, 1);
   s.cards[prey].under.push(...buried);
-  assert.ok(placeUnder({ defs: DEFS }, s, [], prey, s.players.p1.leader));
+  assert.ok(placeUnder(CTX, s, [], prey, s.players.p1.leader));
   assert.deepEqual(s.cards[s.players.p1.leader].under, [prey], "only the card itself follows");
   assert.deepEqual(s.players.p2.drop.slice(0, 1), buried, "23-2-5: to its owner's Drop");
   assertConsistent(s);
@@ -1105,7 +1113,7 @@ function assertConsistentAfterDrop(s: GameState) {
   s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "SPAWN") });
   const tokens = s.players.p1.battle.filter((id) => s.cards[id].isToken);
   assert.equal(tokens.length, 2, "two tokens entered the Battle Area");
-  assert.equal(powerOf({ defs: DEFS }, s, tokens[0]), 10000);
+  assert.equal(powerOf(CTX, s, tokens[0]), 10000);
   assertConsistent(s);
   // 19-1-7: a token that would leave play is removed from the game instead.
   const t0 = tokens[0];
@@ -1128,7 +1136,7 @@ function assertConsistentAfterDrop(s: GameState) {
 
 // …and put to the referee when one is, whose ruling is a program in this same language.
 {
-  const refCtx = { defs: DEFS, referee: true };
+  const refCtx = { ...CTX, referee: true };
   let s = arena({ hand: ["MYSTERY"], energy: ["V1"] });
   s = apply(refCtx, s, { type: "play", player: "p1", card: find(s, "p1", "hand", "MYSTERY") }).state;
   assert.equal(s.prompt.kind, "referee");
@@ -1236,7 +1244,7 @@ function assertConsistentAfterDrop(s: GameState) {
   s = play(s, { type: "attack", player: "p1", attacker, target: s.players.p2.leader });
   assert.equal(s.prompt.kind, "combo");
   // Something removes the attacker mid-battle.
-  const ctx = { defs: DEFS };
+  const ctx = CTX;
   move(ctx, s, [], attacker, "drop", "p1");
   s = play(s, { type: "pass", player: "p1" });
   assert.equal(s.players.p2.life.length, 8, "no damage was dealt");
@@ -1251,7 +1259,7 @@ function assertConsistentAfterDrop(s: GameState) {
   // A power buff applies to every matching card, and stops when the source leaves.
   let s = arena({ hand: ["AURA"], energy: ["V1"], battle: ["V1"] });
   const ally = s.players.p1.battle[0];
-  const ctx = { defs: DEFS };
+  const ctx = CTX;
   assert.equal(powerOf(ctx, s, ally), 10000, "no buff before it is played");
   const aura = find(s, "p1", "hand", "AURA");
   s = play(s, { type: "play", player: "p1", card: aura });
@@ -1265,7 +1273,7 @@ function assertConsistentAfterDrop(s: GameState) {
   // 9-1-3-3: a cost reducer names the hand, so it applies there and nowhere else.
   const s = arena({ hand: ["CHEAP"], energy: ["V1", "V1"] });
   const cheap = find(s, "p1", "hand", "CHEAP");
-  const ctx = { defs: DEFS };
+  const ctx = CTX;
   assert.equal(playCost(ctx, s, cheap).total, 2, "printed 3, reduced by 1");
   assert.ok(
     labels(s).some((x) => x.startsWith("Play CHEAP")),
@@ -1277,7 +1285,7 @@ function assertConsistentAfterDrop(s: GameState) {
   // A [Permanent] the compiler cannot read simply does nothing — there is no
   // moment at which the referee could be asked about it.
   const s = arena({ battle: ["ODDAURA", "V1"] });
-  const ctx = { defs: DEFS };
+  const ctx = CTX;
   assert.equal(powerOf(ctx, s, find(s, "p1", "battle", "V1")), 10000);
 }
 
@@ -1398,7 +1406,7 @@ function assertConsistentAfterDrop(s: GameState) {
     labels(s).some((x) => x.includes("Attack") && x.includes("L-BLUE")),
     "but their Leader still can — the rule named Battle Cards",
   );
-  assert.throws(() => apply({ defs: DEFS }, s, { type: "attack", player: "p2", attacker, target: s.players.p1.leader }), /illegal attack/);
+  assert.throws(() => apply(CTX, s, { type: "attack", player: "p2", attacker, target: s.players.p1.leader }), /illegal attack/);
 }
 
 {
@@ -1421,7 +1429,7 @@ function assertConsistentAfterDrop(s: GameState) {
   let s = arena({ hand: ["NOCOPIES", "NOCOPIES"], energy: ["V1", "V1"] });
   s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "NOCOPIES") });
   assert.ok(!labels(s).some((x) => x.startsWith("Play NOCOPIES")), "the second copy is not offered");
-  assert.throws(() => apply({ defs: DEFS }, s, { type: "play", player: "p1", card: find(s, "p1", "hand", "NOCOPIES") }), /can't be played/);
+  assert.throws(() => apply(CTX, s, { type: "play", player: "p1", card: find(s, "p1", "hand", "NOCOPIES") }), /can't be played/);
 }
 
 {
@@ -1762,7 +1770,7 @@ function assertConsistentAfterDrop(s: GameState) {
   // A [Permanent] holds for as long as the card is where the skill is valid,
   // with no duration to expire — so unlike the same sentence on an [Auto], it
   // is still true next turn, and it stops the moment the card leaves play.
-  const ctx = { defs: DEFS };
+  const ctx = CTX;
   let s = arena({ battle: ["PERMTOUGH"], oppHand: ["KILLER"], oppEnergy: ["V1"] });
   const tough = find(s, "p1", "battle", "PERMTOUGH");
   s = play(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
@@ -1777,7 +1785,7 @@ function assertConsistentAfterDrop(s: GameState) {
 
 {
   // The same thing about a player rather than a card.
-  const ctx = { defs: DEFS };
+  const ctx = CTX;
   let s = arena({ battle: ["PERMLOCK"], oppBattle: ["BIG"] });
   const lock = find(s, "p1", "battle", "PERMLOCK");
   s = play(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
@@ -1836,7 +1844,7 @@ function assertConsistentAfterDrop(s: GameState) {
 // ── what a [Permanent] can say about the card itself (9-1-5, 20-1, 20-21) ──
 
 {
-  const ctx = { defs: DEFS };
+  const ctx = CTX;
   // 9-1-5: one named keyword goes, the card keeps the rest of itself.
   const s = arena({ battle: ["SELFMUTE"] });
   const mute = find(s, "p1", "battle", "SELFMUTE");
@@ -1844,7 +1852,7 @@ function assertConsistentAfterDrop(s: GameState) {
 }
 
 {
-  const ctx = { defs: DEFS };
+  const ctx = CTX;
   // 20-1: a card that gains a trait is that trait to every skill that names
   // one — this is about what the card *is*, not what it does.
   let s = arena({ hand: ["SAIYANKILL"], energy: ["V1"], oppBattle: ["BECOMES", "BIG"] });
@@ -1860,7 +1868,7 @@ function assertConsistentAfterDrop(s: GameState) {
 }
 
 {
-  const ctx = { defs: DEFS };
+  const ctx = CTX;
   // BT2-001 Vegito, "each <Son Goku> and <Vegeta> in all of your areas gain
   // red, blue, and green colors": what a card counts as does not depend on
   // where it is (20-1), and here the areas that matter are the ones off the
@@ -1877,7 +1885,7 @@ function assertConsistentAfterDrop(s: GameState) {
 }
 
 {
-  const ctx = { defs: DEFS };
+  const ctx = CTX;
   // 20-21: a reducer that names the combo cost reduces the combo cost.
   const s = arena({ hand: ["CHEAPCOMBO"] });
   const cheap = find(s, "p1", "hand", "CHEAPCOMBO");
@@ -1886,7 +1894,7 @@ function assertConsistentAfterDrop(s: GameState) {
 }
 
 {
-  const ctx = { defs: DEFS };
+  const ctx = CTX;
   // 20-21 with a duration on it. `collectStatics` only ever runs over a
   // [Permanent] (9-5-1), so the same sentence on an [Auto] used to compile to
   // a `costReduction` the interpreter walked straight past — the skill read
@@ -1917,7 +1925,7 @@ function assertConsistentAfterDrop(s: GameState) {
 }
 
 {
-  const ctx = { defs: DEFS };
+  const ctx = CTX;
   // A card's own mode as a condition, re-read every time it is asked.
   const s = arena({ battle: ["RESTCOND", "V1"] });
   const cond = find(s, "p1", "battle", "RESTCOND");
@@ -2153,7 +2161,7 @@ function assertConsistentAfterDrop(s: GameState) {
 
 {
   // And it finds cards in both areas at once.
-  const ctx = { defs: DEFS };
+  const ctx = CTX;
   DEFS.RESTBOTH = { ...DEFS.V1, id: "RESTBOTH", name: "RESTBOTH", skill: "[Auto] When you play this card, choose 1 of your opponent's Battle Cards or Unisons and switch it to Rest Mode." };
   let s = arena({ hand: ["RESTBOTH"], energy: ["V1"] });
   // Their only card in either area is a Unison, so the choice is forced.
@@ -2354,7 +2362,7 @@ function assertConsistentAfterDrop(s: GameState) {
 
 // ── §22 keywords as engine rules ───────────────────────────────────────────
 
-const acts = (s: GameState) => legalActions({ defs: DEFS }, s).map((a) => a.action);
+const acts = (s: GameState) => legalActions(CTX, s).map((a) => a.action);
 const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type === "activate" && a.card === card);
 
 {
@@ -2897,7 +2905,7 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   if (d.prompt.kind === "chooseCards") d = play(d, { type: "choose", player: "p1", cards: [] });
   assert.equal(d.players.p1.hand.length, hand - 1, "an empty Drop: nothing added, nothing drawn");
   const dropped = d.players.p1.deck[0];
-  move({ defs: DEFS }, d, [], dropped, "drop", "p1");
+  move(CTX, d, [], dropped, "drop", "p1");
   hand = d.players.p1.hand.length;
   d = play(d, { type: "play", player: "p1", card: find(d, "p1", "hand", "DIDDRAW") });
   assert.equal(d.prompt.kind, "chooseCards");
@@ -2910,7 +2918,7 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   // Negation for a duration (9-1-5) is a continuous effect: it was being
   // written into the state and never read, so "negate its skills for the
   // turn" did nothing — and the card was marked negated for the game as well.
-  const ctx = { defs: DEFS };
+  const ctx = CTX;
   DEFS.MUTER = { ...DEFS.V1, id: "MUTER", name: "MUTER", energyCost: 1, skill: "[Auto] When you play this card, choose 1 of your opponent's Battle Cards and negate its skills for the turn." };
   assert.deepEqual(compileSkill(parseSkills(DEFS.MUTER.skill!)[0]).unsupported, []);
   let s = arena({ hand: ["MUTER"], energy: ["V1"], oppBattle: ["BLOCKER"] });
@@ -3042,8 +3050,8 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   DEFS.FETCH = { ...DEFS.V1, id: "FETCH", name: "FETCH", energyCost: 1, skill: "[Auto] When you play this card, add 1 card from your Drop to your hand." };
   let s = arena({ hand: ["FETCH"], energy: ["V1"] });
   const [d1, d2] = s.players.p1.deck;
-  move({ defs: DEFS }, s, [], d1, "drop", "p1");
-  move({ defs: DEFS }, s, [], d2, "drop", "p1");
+  move(CTX, s, [], d1, "drop", "p1");
+  move(CTX, s, [], d2, "drop", "p1");
   const hand = s.players.p1.hand.length;
   s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "FETCH") });
   assert.equal(s.prompt.kind, "chooseCards", "which one is the player's to say");
@@ -3179,7 +3187,7 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   DEFS.GRAVE = { ...DEFS["E-DRAW"], id: "GRAVE", name: "GRAVE", skill: "[Activate: Battle] Use up to 1 card with 5000 combo power from your Drop in a combo with its skills negated for the battle." };
   let s = arena({ hand: ["GRAVE"], energy: ["V1"], battle: ["BLOCKER"] });
   const dropped = s.players.p1.deck[0];
-  move({ defs: DEFS }, s, [], dropped, "drop", "p1");
+  move(CTX, s, [], dropped, "drop", "p1");
   s = play(s, { type: "attack", player: "p1", attacker: s.players.p1.leader, target: s.players.p2.leader });
   assert.equal(s.prompt.kind, "combo");
   const grave = find(s, "p1", "hand", "GRAVE");
@@ -3247,7 +3255,7 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   // "Draw until you have 4" draws what is missing, and nothing when there is nothing missing.
   DEFS.REFILL = { ...DEFS.V1, id: "REFILL", name: "REFILL", energyCost: 1, skill: "[Auto] When you play this card, draw cards until you have 4 cards in your hand." };
   let s = arena({ hand: ["REFILL"], energy: ["V1"] });
-  for (const id of s.players.p1.hand.slice()) if (s.cards[id].cardId !== "REFILL") move({ defs: DEFS }, s, [], id, "deck", "p1", { position: "bottom" });
+  for (const id of s.players.p1.hand.slice()) if (s.cards[id].cardId !== "REFILL") move(CTX, s, [], id, "deck", "p1", { position: "bottom" });
   s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "REFILL") });
   assert.equal(s.players.p1.hand.length, 4);
 }
@@ -3571,10 +3579,10 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   // player, and the Charge Phase is the one place it bites.
   DEFS.DROUGHT = { ...DEFS.V1, id: "DROUGHT", name: "DROUGHT", energyCost: 1, skill: "[Permanent] Your opponent can't place cards in their energy." };
   let s = arena({ hand: ["DROUGHT"], energy: ["V1"] });
-  assert.ok(!forbids({ defs: DEFS }, s, "placeEnergy", { player: "p2" }), "nothing forbids it yet");
+  assert.ok(!forbids(CTX, s, "placeEnergy", { player: "p2" }), "nothing forbids it yet");
   s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "DROUGHT") });
-  assert.ok(forbids({ defs: DEFS }, s, "placeEnergy", { player: "p2" }), "the [Permanent] holds while the card is in play");
-  assert.ok(!forbids({ defs: DEFS }, s, "placeEnergy", { player: "p1" }), "and only against them");
+  assert.ok(forbids(CTX, s, "placeEnergy", { player: "p2" }), "the [Permanent] holds while the card is in play");
+  assert.ok(!forbids(CTX, s, "placeEnergy", { player: "p1" }), "and only against them");
   // Their Charge Phase then offers nothing to charge.
   s = play(s, { type: "endMain", player: "p1" });
   assert.equal(s.prompt.kind, "charge", "it is their Charge Phase");
@@ -3612,11 +3620,11 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   DEFS.PILE = { ...DEFS.V1, id: "PILE", name: "PILE", skill: "[Permanent] This card gets +5000 power for each card placed under it." };
   const s = arena({ battle: ["PILE"] });
   const pile = s.players.p1.battle[0];
-  const base = powerOf({ defs: DEFS }, s, pile);
+  const base = powerOf(CTX, s, pile);
   const [a, b] = s.players.p1.deck;
   s.cards[pile].under.push(a, b);
   s.players.p1.deck = s.players.p1.deck.filter((id) => id !== a && id !== b);
-  assert.equal(powerOf({ defs: DEFS }, s, pile), base + 10000, "two cards under it, +10000");
+  assert.equal(powerOf(CTX, s, pile), base + 10000, "two cards under it, +10000");
 }
 
 // ── what a replacement replaces (9-10) ─────────────────────────────────────
@@ -3650,7 +3658,7 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   DEFS.PHOENIX = { ...DEFS.V1, id: "PHOENIX", name: "PHOENIX", skill: "[Permanent] If this card would be KO'd, send it to the Warp instead." };
   const s = arena({ battle: ["PHOENIX"], oppBattle: ["BIG"] });
   const bird = s.players.p1.battle[0];
-  koCard({ defs: DEFS }, s, [], bird);
+  koCard(CTX, s, [], bird);
   assert.ok(s.players.p1.warp.includes(bird), "9-10: it went to the Warp, not the Drop");
   assert.ok(!s.players.p1.drop.includes(bird));
   assertConsistent(s);
@@ -3658,7 +3666,7 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   // …and leaves an ordinary skill-move alone, which is what `by` is for.
   const t = arena({ battle: ["PHOENIX"] });
   const bird2 = t.players.p1.battle[0];
-  move({ defs: DEFS }, t, [], bird2, "hand", "p1", { reason: "effect" });
+  move(CTX, t, [], bird2, "hand", "p1", { reason: "effect" });
   assert.ok(t.players.p1.hand.includes(bird2), "a return to hand is not a KO");
   assertConsistent(t);
 }
@@ -3676,12 +3684,12 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   const peasant = s.players.p1.battle.find((id) => s.cards[id].cardId === "PEASANT")!;
   const big = s.players.p1.battle.find((id) => s.cards[id].cardId === "BIG")!;
   const energy = s.players.p1.energy.length;
-  koCard({ defs: DEFS }, s, [], peasant);
+  koCard(CTX, s, [], peasant);
   assert.ok(s.players.p1.energy.includes(peasant), "the ≪Earthling≫ card went to the energy");
   assert.equal(s.players.p1.energy.length, energy + 1);
   assert.equal(s.cards[peasant].mode, "rest", "and in Rest Mode, as printed");
   // A card the filter does not name still goes to the Drop.
-  koCard({ defs: DEFS }, s, [], big);
+  koCard(CTX, s, [], big);
   assert.ok(s.players.p1.drop.includes(big), "9-10 only replaces what the skill names");
   assertConsistent(s);
 }
@@ -3721,12 +3729,12 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   DEFS.CHEAP.characters = ["CHEAP"];
   const s = arena({ hand: ["CHEAP"], battle: ["DISCOUNT"] });
   const cheap = find(s, "p1", "hand", "CHEAP");
-  assert.equal(playCost({ defs: DEFS }, s, cheap).total, 4, "no blue Battle Cards yet");
+  assert.equal(playCost(CTX, s, cheap).total, 4, "no blue Battle Cards yet");
   // One blue Battle Card on the board takes one off.
   const blue = s.players.p1.deck.find((id) => s.cards[id].cardId === "V-BLUE") ?? s.players.p1.deck[0];
-  move({ defs: DEFS }, s, [], blue, "battle", "p1");
+  move(CTX, s, [], blue, "battle", "p1");
   s.cards[blue].cardId = "V-BLUE";
-  assert.equal(playCost({ defs: DEFS }, s, cheap).total, 3, "20-21: one blue Battle Card, one less");
+  assert.equal(playCost(CTX, s, cheap).total, 3, "20-21: one blue Battle Card, one less");
 }
 
 // ── negating one kind of skill, not all of them (9-1-5) ────────────────────
@@ -4015,13 +4023,13 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   let s = arena({ battle: ["WATCH"], oppBattle: ["BIG"] });
   s = play(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
   const attacker = s.players.p2.battle.find((id) => s.cards[id].cardId === "BIG")!;
-  const before = powerOf({ defs: DEFS }, s, attacker);
+  const before = powerOf(CTX, s, attacker);
   s = play(s, { type: "attack", player: "p2", attacker, target: s.players.p1.leader });
   assert.equal(s.prompt.kind, "chooseCards", "the defender's card watches the attack");
   assert.equal(s.prompt.player, "p1");
   // 5-2-4: declining an optional choice does nothing.
   s = play(s, { type: "choose", player: "p1", cards: [] });
-  assert.equal(powerOf({ defs: DEFS }, s, attacker), before, "no choice, no effect");
+  assert.equal(powerOf(CTX, s, attacker), before, "no choice, no effect");
   assertConsistent(s);
 }
 
@@ -4098,7 +4106,7 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   let s = arena({ hand: ["SUMMON"], energy: ["V1"] });
   const sleeping = s.players.p1.deck.find((id) => s.cards[id].cardId === "V1")!;
   s.cards[sleeping].cardId = "ARRIVES";
-  move({ defs: DEFS }, s, [], sleeping, "drop", "p1");
+  move(CTX, s, [], sleeping, "drop", "p1");
   const hand = s.players.p1.hand.length;
   s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "SUMMON") });
   if (s.prompt.kind === "chooseCards") s = play(s, { type: "choose", player: "p1", cards: [sleeping] });
@@ -4193,7 +4201,7 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   // With an empty hand there is nothing to pay with, so it is not offered.
   const t = arena({ battle: ["TITHE"] });
   const other = t.players.p1.battle[0];
-  for (const id of t.players.p1.hand.slice()) move({ defs: DEFS }, t, [], id, "deck", "p1", { position: "bottom" });
+  for (const id of t.players.p1.hand.slice()) move(CTX, t, [], id, "deck", "p1", { position: "bottom" });
   assert.ok(!canActivate(t, other), "an unpayable price is not offered");
 }
 
@@ -4252,7 +4260,7 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
 
   // Empty the hand and the same skill is no longer on offer.
   const t = arena({ battle: ["BOTHPAY"] });
-  for (const id of t.players.p1.hand.slice()) move({ defs: DEFS }, t, [], id, "deck", "p1", { position: "bottom" });
+  for (const id of t.players.p1.hand.slice()) move(CTX, t, [], id, "deck", "p1", { position: "bottom" });
   assert.ok(!canActivate(t, t.players.p1.battle[0]), "nothing to discard: the price cannot be paid");
 }
 
@@ -4267,7 +4275,7 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   assert.equal(locate(s, first)?.area, "battle");
   assert.equal(locate(s, first)?.index, 0);
   // Move it the honest way: the hint follows.
-  move({ defs: DEFS }, s, [], first, "drop", "p1");
+  move(CTX, s, [], first, "drop", "p1");
   assert.equal(locate(s, first)?.area, "drop", "the hint was refreshed");
   assert.equal(locate(s, second)?.area, "battle");
 
@@ -4504,7 +4512,7 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   let s = arena({ hand: ["MUZZLE"], energy: ["V1"] });
   const loud = s.players.p1.deck.find((id) => s.cards[id].cardId === "V1")!;
   s.cards[loud].cardId = "LOUD";
-  move({ defs: DEFS }, s, [], loud, "drop", "p1");
+  move(CTX, s, [], loud, "drop", "p1");
   const hand = s.players.p1.hand.length;
   s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "MUZZLE") });
   if (s.prompt.kind === "chooseCards") s = play(s, { type: "choose", player: "p1", cards: [loud] });
@@ -4525,13 +4533,13 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   const s = arena({ battle: ["PILEHOST"] });
   const host = s.players.p1.battle[0];
   const buried = s.players.p1.deck[0];
-  move({ defs: DEFS }, s, [], buried, "removed", "p1");
+  move(CTX, s, [], buried, "removed", "p1");
   s.players.p1.removed = s.players.p1.removed.filter((id) => id !== buried);
   s.cards[host].under.push(buried);
   assert.equal(locate(s, buried), null, "a card in a pile is in no area");
 
   // Moving it out the ordinary way takes it out of the pile.
-  move({ defs: DEFS }, s, [], buried, "hand", "p1");
+  move(CTX, s, [], buried, "hand", "p1");
   assert.ok(s.players.p1.hand.includes(buried));
   assert.ok(!s.cards[host].under.includes(buried), "and not still underneath");
   assertConsistent(s);
@@ -4682,7 +4690,7 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   DEFS.SERV = { ...DEFS.V1, id: "SERV", name: "SERV", skill: "[Servant]" };
   let s = arena({ battle: ["SERV"] });
   const serv = s.players.p1.battle[0];
-  assert.equal(powerOf({ defs: DEFS }, s, serv), (DEFS.V1.power ?? 0) + 10000, "22-40-2: +10000");
+  assert.equal(powerOf(CTX, s, serv), (DEFS.V1.power ?? 0) + 10000, "22-40-2: +10000");
   s.cards[serv].mode = "rest";
   // Round to p1's next Charge Phase.
   s = play(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null }, { type: "endMain", player: "p2" });
@@ -4697,7 +4705,7 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   DEFS.ULT = { ...DEFS.V1, id: "ULT", name: "ULT", skill: "[Ultimate]" };
   const s = arena({ battle: ["ULT"] });
   const ult = s.players.p1.battle[0];
-  koCard({ defs: DEFS }, s, [], ult);
+  koCard(CTX, s, [], ult);
   assert.ok(s.players.p1.removed.includes(ult), "22-14-3: removed from the game");
   assert.ok(!s.players.p1.drop.includes(ult), "not the Drop");
   assertConsistent(s);
@@ -4710,10 +4718,10 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   DEFS.U7GUY = { ...DEFS.V1, id: "U7GUY", name: "U7GUY", energyCost: 1, traits: ["Universe 7"], colors: ["Red"] };
   // Without it, a red card needs red energy.
   const bare = arena({ hand: ["U7GUY"], energy: ["V-BLUE"] });
-  assert.deepEqual(playCost({ defs: DEFS }, bare, find(bare, "p1", "hand", "U7GUY")).specified, { Red: 1 });
+  assert.deepEqual(playCost(CTX, bare, find(bare, "p1", "hand", "U7GUY")).specified, { Red: 1 });
   // With it in play, the specified cost is gone.
   const helped = arena({ battle: ["WU7"], hand: ["U7GUY"], energy: ["V-BLUE"] });
-  assert.deepEqual(playCost({ defs: DEFS }, helped, find(helped, "p1", "hand", "U7GUY")).specified, {}, "22-19-2");
+  assert.deepEqual(playCost(CTX, helped, find(helped, "p1", "hand", "U7GUY")).specified, {}, "22-19-2");
   assert.ok(
     acts(helped).some((a) => a.type === "play" && a.card === find(helped, "p1", "hand", "U7GUY")),
     "so blue energy can pay for a red Universe 7 card",
@@ -4836,7 +4844,7 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
     g.cards[me].enteredTurn = 0;
     const uni = g.players.p2.deck[0];
     g.cards[uni].cardId = "UNI";
-    move({ defs: DEFS }, g, [], uni, "unison", "p2");
+    move(CTX, g, [], uni, "unison", "p2");
     g.cards[uni].markers = 3;
     g = play(g, { type: "attack", player: "p1", attacker: me, target: uni });
     while (g.prompt.kind === "counter" || g.prompt.kind === "blocker" || g.prompt.kind === "combo") {
@@ -4878,7 +4886,7 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   DEFS.ORB2 = { ...DEFS.V1, id: "ORB2", name: "ORB2", energyCost: 1, skill: "[Over Realm 1]" };
   const dropOne = (g: GameState) => {
     const id = g.players.p1.deck[0];
-    move({ defs: DEFS }, g, [], id, "drop", "p1");
+    move(CTX, g, [], id, "drop", "p1");
   };
   // 22-15-4: activating it sends the *whole* Drop to the Warp, so the second
   // one needs the Drop refilled — otherwise 22-15-3 stops it for want of
@@ -5071,7 +5079,7 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
 
   // Taking it as damage is the ordinary rule: a face-up life card is drawn
   // like any other, and stops being face up once it has left (3-1-4).
-  const ctx = { defs: DEFS };
+  const ctx = CTX;
   const after = structuredClone(s);
   move(ctx, after, [], target, "hand", "p1");
   assert.equal(after.cards[target].faceUp, false, "3-1-4: a card that changed area is a new card");
@@ -5139,7 +5147,7 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   DEFS.DROPCALLER = { ...DEFS.V1, id: "DROPCALLER", name: "DROPCALLER", energyCost: 1, skill: "[Auto] When you play this card, play up to 1 card from your drop area." };
 
   let s = arena({ hand: ["DROPCALLER", "NOSKILLPLAY", "ONLYSKILLPLAY"], energy: ["V1", "V1"] });
-  const ctx = { defs: DEFS };
+  const ctx = CTX;
   const banned = find(s, "p1", "hand", "NOSKILLPLAY");
   const onlyBySkill = find(s, "p1", "hand", "ONLYSKILLPLAY");
   // The one that may only be played by a skill is not offered as a play.
@@ -5248,7 +5256,7 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   // effect one of those makes has to be read against its own master — keyed on
   // the turn player at the time, every one of them lasted a whole turn longer
   // than it says.
-  const ctx = { defs: DEFS };
+  const ctx = CTX;
   let s = arena({ battle: ["V1"] });
   const mine = s.players.p1.battle[0];
   const base = powerOf(ctx, s, mine);
@@ -5378,7 +5386,7 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   DEFS.MYSAIYAN = { ...DEFS.V1, id: "MYSAIYAN", name: "MYSAIYAN", traits: ["Saiyan"] };
   DEFS.MYPLAIN = { ...DEFS.V1, id: "MYPLAIN", name: "MYPLAIN", traits: ["Android"] };
 
-  const ctx = { defs: DEFS };
+  const ctx = CTX;
   const koing = (victimId: string, ko = true) => {
     const s = arena({ battle: ["MOURNER", victimId], oppBattle: ["GLOATER"] });
     const mine = s.players.p1.hand.length;
@@ -5869,8 +5877,8 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   const big = find(s, "p1", "battle", "BIG");
   s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "SHRINK") });
   const self = s.players.p1.battle.find((id) => s.cards[id].cardId === "SHRINK")!;
-  assert.equal(powerOf({ defs: DEFS }, s, big), 25000 - 15000, "every other Battle Card is shrunk");
-  assert.equal(powerOf({ defs: DEFS }, s, self), 20000, "…and the card that said so is not");
+  assert.equal(powerOf(CTX, s, big), 25000 - 15000, "every other Battle Card is shrunk");
+  assert.equal(powerOf(CTX, s, self), 20000, "…and the card that said so is not");
   assertConsistent(s);
 }
 
@@ -6146,7 +6154,7 @@ function cardKeyOf(a: Action): string {
 
 /** No action in both lists, and no rejection without a reason. Run over every state a fixture holds. */
 function assertDisjoint(s: GameState, where: string): RejectedAction[] {
-  const ctx = { defs: DEFS };
+  const ctx = CTX;
   const legal = legalActions(ctx, s);
   const rejected = rejectedActions(ctx, s, legal);
   const offered = new Set(legal.map((l) => JSON.stringify(l.action)));
@@ -6165,7 +6173,7 @@ function assertDisjoint(s: GameState, where: string): RejectedAction[] {
 }
 
 {
-  const ctx = { defs: DEFS };
+  const ctx = CTX;
   const first = (r: RejectedAction | undefined): Requirement | undefined => r?.why[0];
   const ofCard = (list: RejectedAction[], type: string, card: string) =>
     list.find((r) => r.action.type === type && (r.action as { card?: string; attacker?: string }).card === card) ??
@@ -6408,7 +6416,7 @@ function assertDisjoint(s: GameState, where: string): RejectedAction[] {
 // ── the review's fixes (`docs/arena-compiler-workflow-review.md`) ──────────
 
 {
-  const ctx = { defs: DEFS };
+  const ctx = CTX;
   const first = (r: RejectedAction | undefined): Requirement | undefined => r?.why[0];
   const ofCard = (list: RejectedAction[], type: string, card: string) =>
     list.find(
@@ -6543,9 +6551,9 @@ function assertDisjoint(s: GameState, where: string): RejectedAction[] {
     status: "playing",
     p1Name: "You",
     p2Name: "Claude",
-    ctx: { defs: DEFS },
+    ctx: CTX,
     state: s,
-    legal: legalActions({ defs: DEFS }, s),
+    legal: legalActions(CTX, s),
     log: [],
     beats: null,
     spotlight: null,
@@ -6694,7 +6702,7 @@ function assertDisjoint(s: GameState, where: string): RejectedAction[] {
 // readable diff. Run `npm run contract:emit` to rewrite them on purpose.
 
 {
-  const ctx = { defs: DEFS };
+  const ctx = CTX;
 
   // A charge is one card leaving the hand for the Energy Area.
   {
@@ -7066,7 +7074,7 @@ function assertDisjoint(s: GameState, where: string): RejectedAction[] {
    * started the HUD spec was a board saying "Majin Buu is thinking…" over a
    * charge prompt that was offering eight moves.
    */
-  const ctx = { defs: DEFS };
+  const ctx = CTX;
   // A main phase belonging to p1 with real moves in it — the shape of the
   // charge step in that screenshot, which is where the contradiction showed.
   const s = arena({ hand: ["BIG"], energy: ["V1", "V1"] });
@@ -7169,6 +7177,156 @@ function assertDisjoint(s: GameState, where: string): RejectedAction[] {
   assert.equal(toneFor("Blue", tuned).tint, TONES.Blue.tint, "an untuned colour keeps following the shipped default");
   assert.equal(JSON.parse(encodeLighting(tuned)).v, LIGHTING_VERSION);
   assert.deepEqual(lightingFrom(encodeLighting(tuned)), tuned, "the cookie round-trips");
+}
+
+// ── OP_SCHEMA: one definition of the effect language, read by everyone ──────
+{
+  // The type `Record<Op["op"], OpSpec>` already forces a row per op; this is
+  // the runtime half: every row's sentence renders for a minimal op built from
+  // its own required fields, so a row cannot be a placeholder.
+  const sample = (t: unknown): unknown => {
+    if (typeof t === "object" && t !== null) return "enum" in (t as object) ? (t as { enum: readonly string[] }).enum[0] : [];
+    return {
+      amount: 1,
+      ref: { sel: { special: "self" } },
+      selector: { side: "you", area: "battle", count: 1 },
+      side: "you",
+      area: "drop",
+      duration: "turn",
+      cond: { kind: "isTurnPlayer" },
+      ops: [{ op: "draw", n: 1 }],
+      string: "x",
+      number: 1,
+      boolean: true,
+      keyword: { name: "Blocker" },
+      filter: undefined,
+      modes: [{ label: "a", ops: [{ op: "draw", n: 1 }] }],
+    }[t as string];
+  };
+  for (const [name, spec] of Object.entries(OP_SCHEMA)) {
+    const op: Record<string, unknown> = { op: name };
+    for (const f of spec.fields) if (f.required) op[f.name] = sample(f.type);
+    assert.equal(validate([op]), true, `a minimal ${name} validates`);
+    if (name !== "note") assert.ok(describeScript([op as unknown as SchemaOp]).length > 0, `${name} has a sentence`);
+    assert.match(opSignature(name as SchemaOp["op"]), new RegExp(`^\\{"op":"${name}"`), `${name} has a signature for the referee`);
+  }
+  // The validator reads the rows: a missing required field, a value outside an
+  // enum and an unknown op are all refused; optional fields may be left out.
+  assert.equal(validate([{ op: "ko" }]), false, "ko needs a target");
+  assert.equal(validate([{ op: "delay", at: "never", ops: [] }]), false, "a delay timing the engine never drains is refused");
+  assert.equal(validate([{ op: "delay", at: "turnEnd", scope: "someday", ops: [] }]), false);
+  assert.equal(validate([{ op: "delay", at: "turnEnd", ops: [{ op: "ko", target: { var: "t" } }] }]), true);
+  assert.equal(validate([{ op: "forbid", what: "fly", until: "turn" }]), false, "an unknown prohibition is refused");
+  assert.equal(validate([{ op: "forbid", what: "attack", until: "turn", target: { var: "t" } }]), true);
+  assert.equal(validate([{ op: "token", name: "Saibaman", power: 10000, comboCost: null, comboPower: null, colors: [], n: 1 }]), true, "null is a value where the schema says so");
+  assert.equal(validate([{ op: "token", name: "Saibaman", power: 10000, colors: [], n: 1 }]), false, "…but leaving it out is not");
+  assert.equal(validate([{ op: "chooseMode", modes: [] }]), false, "a modal choice with no options");
+  assert.equal(validate([{ op: "if", cond: { kind: "isTurnPlayer" }, then: [{ op: "nope" }] }]), false, "nested programs are checked too");
+  assert.equal(validate([{ op: "draw", n: 1, side: "them" }]), false, "a side the engine does not know");
+  // The shapes the referee gets wrong most: a bare selector where a ref belongs, an empty ref, a special the engine does not know, a condition without a kind.
+  assert.equal(validate([{ op: "ko", target: { special: "self" } }]), false, "a selector is not a ref — two of three BT18 reviews died describing this");
+  assert.equal(validate([{ op: "ko", target: {} }]), false);
+  assert.equal(validate([{ op: "ko", target: { sel: { special: "self" } } }]), true);
+  assert.equal(validate([{ op: "ko", target: { sel: { special: "myself" } } }]), false);
+  assert.equal(validate([{ op: "if", cond: { atLeast: 2 }, then: [] }]), false, "a condition needs a kind");
+  // The renderer reads the same rows: templates, hints and conditional segments.
+  assert.equal(describeScript([{ op: "draw", n: 1, side: "opponent" }]), "opponent draws 1");
+  assert.equal(describeScript([{ op: "discard", n: 1, to: "warp" }]), "discard 1 to the Warp");
+  assert.equal(describeScript([{ op: "hidden", target: { var: "t" }, hidden: false }]), "switch the chosen cards to Revealed Mode");
+  assert.equal(describeScript([{ op: "faceUp", target: { var: "t" } }]), "turn the chosen cards face up", "a default fills an absent field");
+  assert.equal(describeScript([{ op: "negateSkillsOfKind", target: { var: "t" }, kind: "auto", until: "turn" }]), "negate the [Auto] skills of the chosen cards for the turn");
+  assert.equal(describeScript([{ op: "power", target: { var: "t" }, amount: { count: { side: "you", area: "battle", count: 99 }, times: 5000 }, until: "battle" }]), "the chosen cards +5000 power for each of your Battle Cards for the battle");
+  assert.equal(describeScript([{ op: "if", cond: { kind: "isTurnPlayer" }, then: [], else: [{ op: "draw", n: 1 }] }]), "if it is your turn: nothing, otherwise draw 1");
+  assert.equal(describeScript([{ op: "may", ops: [{ op: "draw", n: 1 }], chooser: "opponent" }]), "your opponent may: draw 1");
+  assert.equal(describeScript([{ op: "note", text: "x" }, { op: "shuffle" }]), "shuffle", "a note says nothing");
+  assert.equal(opSignature("ko"), '{"op":"ko","target":TARGET}');
+  assert.equal(opSignature("negateAttack"), '{"op":"negateAttack"}');
+  assert.match(opSignature("draw"), /"side"\?:"you"\|"opponent"/, "an optional field is marked");
+}
+
+// ── the drafter: card text → one record per skill, ready for a person ────────
+{
+  const d = card("DRAFTED", {
+    type: "LEADER",
+    skill: "[Auto] When you play this card, choose up to 1 of your opponent's Battle Cards and KO it.<br>[Blocker]<br>[Permanent] If your Leader is red, this card gets +5000 power.<br>[Activate: Main] {r}{r}, Once per turn: Draw 1 card.",
+    back: { name: "DRAFTED (awakened)", power: 20000, skill: "[Auto] When this card attacks, draw 1 card." },
+  });
+  const recs = skillRecords(d);
+  // [Blocker] alone is a rule the engine plays natively, so there is nothing to confirm about it.
+  assert.deepEqual(
+    recs.map((r) => `${r.side}#${r.skillIndex}:${r.kind}`),
+    ["front#0:auto", "front#20:permanent", "front#30:activate:main", "back#0:auto"],
+  );
+  const play = recs[0];
+  assert.deepEqual(play.trigger, ["played"], "the WHEN line comes from the same matcher the engine pends with");
+  assert.equal(describeTrigger(play.trigger), "when this card is played");
+  assert.equal(play.unread.length, 0);
+  assert.equal(play.pattern, "choose→ko", "drafts group by the shape of what the compiler produced");
+  assert.equal(play.reads, "choose up to 1 in opponent's battle, KO the chosen cards");
+  assert.equal(play.cost, null);
+  // A program that is one wrapping `if` is shown as IF + DO; the reading still covers the whole thing.
+  const perm = recs[1];
+  assert.equal(perm.cond?.kind, "leaderMatches", "the wrapping if is hoisted into IF");
+  assert.equal(perm.ops.length, 1);
+  assert.equal(perm.reads, "if your leader is Red: this card +5000 power", "…and the reading still covers the whole program");
+  assert.equal(perm.trigger.length, 0, "a [Permanent] has no trigger");
+  // The price before the colon is read into the record without a game state.
+  const act = recs[2];
+  assert.deepEqual(act.cost?.orbs, { Red: 2 });
+  assert.equal(act.cost?.text, "Once per turn", "the orbs come off the price text; the limit stays in it");
+  assert.equal(act.printed.startsWith("[Activate: Main]"), true, "the printed line is the whole line, tags included");
+  assert.deepEqual(recs[3].trigger, ["attacks"]);
+  assert.deepEqual(hoist([{ op: "if", cond: { kind: "isTurnPlayer" }, then: [{ op: "draw", n: 1 }], else: [] }]).cond, { kind: "isTurnPlayer" }, "an empty else is still no else");
+  assert.equal(hoist([{ op: "if", cond: { kind: "isTurnPlayer" }, then: [], else: [{ op: "draw", n: 1 }] }]).cond, null, "an if with an else keeps its shape");
+  assert.equal(programShape([{ op: "choose", sel: { side: "you", area: "battle", count: 1 }, as: "t" }, { op: "delay", at: "turnEnd", ops: [{ op: "ko", target: { var: "t" } }] }]), "choose→delay:turnEnd[ko]");
+  assert.equal(programShape([{ op: "forbid", what: "attack", until: "turn", target: { var: "t" } }, { op: "grant", target: { var: "t" }, keyword: { name: "Blocker" }, until: "turn" }]), "forbid:attack→grant:Blocker");
+  // Open rows group by the shape of the first unread clause; the mechanism says what it would take.
+  const unread = card("UNREAD", { skill: "[Auto] When you play this card, your opponent skips their next Charge Phase." });
+  const [u] = skillRecords(unread);
+  assert.equal(u.unread.length > 0, true);
+  assert.equal(u.pattern, clauseShape(u.unread[0]));
+  assert.equal(mechanismOf("skip your next charge phase"), "turn structure");
+  assert.equal(mechanismOf("choose 1 <Frieza> card in your hand"), "phrasing only");
+  assert.equal(clauseShape("Choose up to 2 of your opponent's <Son Goku> cards with 15000 power"), "choose up to N of your opponent's … cards with N power");
+  // Keyword skills that carry a trigger of their own are pended by it.
+  const revenge = parseSkills("[Revenge] When this card is attacked, draw 1 card.")[0];
+  assert.equal(triggersOf(revenge).includes("attacked"), true);
+  // What the drafter compares: jsonb's key order and its dropped `undefined`s
+  // are not changes — the first full draft run rewrote 8,341 rows because they were.
+  assert.equal(JSON.stringify(canonical({ b: 1, a: { mode: undefined, side: "you" } })), JSON.stringify(canonical({ a: { side: "you" }, b: 1 })));
+  assert.notEqual(JSON.stringify(canonical({ a: null })), JSON.stringify(canonical({})), "an explicit null is a value");
+}
+
+// A filter written by hand or by Claude carries only the fields it means; the
+// engine fills it up rather than crashing on the first `.some` — the fuzzer's
+// two crashes in the first row-backed run were one such row (BT31-132).
+{
+  const sparse = { colors: ["Red"], traits: ["Saiyan"] } as unknown as CardFilter;
+  assert.equal(matches(DEFS.V1, sparse), false, "V1 is red but not a Saiyan");
+  assert.equal(matches({ ...DEFS.V1, traits: ["Saiyan"] }, sparse), true);
+  const ctx = { defs: DEFS, scripts: { KILLER: { bySkill: { 0: { ops: [{ op: "choose", sel: { side: "opponent", area: "battle", count: 1, filter: sparse }, as: "t" }, { op: "ko", target: { var: "t" } }], unsupported: [] } }, complete: true, unsupported: [] } } };
+  const s = arena({ hand: ["KILLER"], energy: ["V1"], oppBattle: ["V-BLUE", "V1"] });
+  const r = apply(ctx as never, s, { type: "play", player: "p1", card: find(s, "p1", "hand", "KILLER") });
+  assert.notEqual(r.state.prompt.kind, "gameOver");
+  void r;
+}
+
+// ── the engine reads rows and nothing else ───────────────────────────────────
+{
+  // The same card, the same play, two contexts: with rules it draws, without
+  // any it is played as blank — and the log says so rather than staying quiet.
+  const bare = { defs: DEFS };
+  let s = arena({ hand: ["DRAWER"], energy: ["V1"] });
+  const hand = s.players.p1.hand.length;
+  const r = apply(bare, s, { type: "play", player: "p1", card: find(s, "p1", "hand", "DRAWER") });
+  assert.equal(r.state.players.p1.hand.length, hand - 1, "nothing was drawn: the card has no rule");
+  assert.ok(r.events.some((e) => e.type === "note" && /no rule stored — played as blank/.test(e.text)), "and the log names the gap");
+  s = arena({ hand: ["DRAWER"], energy: ["V1"] });
+  assert.equal(apply(CTX, s, { type: "play", player: "p1", card: find(s, "p1", "hand", "DRAWER") }).state.players.p1.hand.length, hand, "with its rule it draws");
+  // A [Permanent] is read from the same rows — the static layer compiles nothing.
+  const t = arena({ battle: ["AURA", "V1"] });
+  assert.equal(powerOf(bare, t, find(t, "p1", "battle", "V1")), 10000, "no rules, no aura");
+  assert.equal(powerOf(CTX, t, find(t, "p1", "battle", "V1")), 15000, "the aura holds from its row");
 }
 
 console.log("verify-arena: all checks passed");

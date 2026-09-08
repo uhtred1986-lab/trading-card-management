@@ -371,7 +371,9 @@ assert.equal(priceForFinish(prices.get("BT18-020_SPR"), "foil"), 199);
 // compiler itself: a clause that no longer comes back unread is done.
 {
   const { eq } = await import("drizzle-orm");
-  const { closeNotesNowRead, unreadClausesOf } = await import("../src/lib/arena/ai/debug.ts");
+  const { closeNotesNowRead, unreadClausesFor } = await import("../src/lib/arena/ai/debug.ts");
+  const { draftCards } = await import("../src/lib/arena/draft.ts");
+  const { countRules, rulesFor } = await import("../src/lib/arena/rules-store.ts");
   const { cardDefFrom } = await import("../src/lib/arena/load.ts");
 
   const skilled = (id: string, name: string, skill: string) => ({ ...card(id, name), skill });
@@ -384,9 +386,21 @@ assert.equal(priceForFinish(prices.get("BT18-020_SPR"), "foil"), 199);
   const rows = await db.select().from(schema.cards).where(eq(schema.cards.setCode, "BT18"));
   const byId = new Map(rows.map((r) => [r.id, r]));
 
-  const stillUnread = unreadClausesOf(cardDefFrom(byId.get("BT18-031")!));
+  // The drafter writes the rows the engine and the backlog read; on PGlite
+  // like on Neon, so the store's SQL is under test here.
+  const drafted = await draftCards(db, ["BT18-030", "BT18-031"]);
+  assert.deepEqual([drafted.cards, drafted.skills, drafted.inserted], [2, 2, 2]);
+  assert.deepEqual(await countRules(db, ["BT18-030", "BT18-031"]), { open: 1, draft: 1, confirmed: 0, corrected: 0 });
+  const again = await draftCards(db, ["BT18-030", "BT18-031"]);
+  assert.deepEqual([again.inserted, again.updated], [0, 0], "a second draft of unchanged text touches nothing");
+  const scripts = await rulesFor(db, { "BT18-030": cardDefFrom(byId.get("BT18-030")!), "BT18-031": cardDefFrom(byId.get("BT18-031")!) });
+  assert.deepEqual(scripts["BT18-030"].bySkill[0].ops, [{ op: "draw", n: 1 }], "the engine gets the draft's program");
+  assert.equal(scripts["BT18-031"].bySkill[0].ops.length, 0, "an open row plays as blank…");
+  assert.ok(scripts["BT18-031"].bySkill[0].unsupported.length, "…and still carries what did not read");
+
+  const stillUnread = await unreadClausesFor(db, ["BT18-031"]);
   assert.ok(stillUnread.length, "the nonsense clause is one the compiler cannot read");
-  assert.deepEqual(unreadClausesOf(cardDefFrom(byId.get("BT18-030")!)), [], "and the plain one reads in full");
+  assert.deepEqual(await unreadClausesFor(db, ["BT18-030"]), [], "and the plain one reads in full");
 
   const note = (cardId: string, clause: string, extra: Record<string, unknown> = {}) => ({
     cardId,
@@ -419,6 +433,24 @@ assert.equal(priceForFinish(prices.get("BT18-020_SPR"), "foil"), 199);
     "what is left is what the compiler still cannot read",
   );
   assert.equal(await closeNotesNowRead(db), 0, "and a second sweep has nothing to do");
+}
+
+// ── The catalog sync hands the drafter exactly the cards whose text arrived or changed ──
+{
+  const { changedCardIds } = await import("../src/lib/catalog/deckplanet.ts");
+  const before = new Map([
+    ["BT18-030", { skill: "[Auto] When you play this card, draw 1 card.", backSkill: null }],
+    ["BT18-031", { skill: "old text", backSkill: null }],
+    ["BT18-032", { skill: null, backSkill: "front unchanged, back changed" }],
+  ]);
+  const after = [
+    { id: "BT18-030", skill: "[Auto] When you play this card, draw 1 card.", backSkill: null },
+    { id: "BT18-031", skill: "new text", backSkill: null },
+    { id: "BT18-032", skill: null, backSkill: "front unchanged, back changed too" },
+    { id: "BT19-001", skill: "[Blocker]", backSkill: null },
+  ];
+  assert.deepEqual(changedCardIds(before, after), { inserted: ["BT19-001"], changed: ["BT18-031", "BT18-032"] });
+  assert.deepEqual(changedCardIds(before, [{ id: "BT18-032", skill: "", backSkill: "front unchanged, back changed" }]).changed, [], "null and empty text are the same text");
 }
 
 await client.close();

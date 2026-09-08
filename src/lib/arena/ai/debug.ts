@@ -7,11 +7,12 @@
  * only improves if the clauses that defeat it are written down where they can
  * be worked through.
  */
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import type { Db } from "@/db";
-import { arenaDecisions, cardTextNotes, cards as cardsTable } from "@/db/schema";
-import { compileCardCached, parseSkills, type CardDef, type Op } from "../engine";
-import { cardDefFrom } from "../load";
+import { arenaDecisions, cardTextNotes } from "@/db/schema";
+import type { Op } from "../engine";
+import { clauseShape } from "../gaps";
+import { loadRules } from "../rules-store";
 
 export interface DecisionRecord {
   gameId: number;
@@ -70,15 +71,6 @@ export async function recordDecision(db: Db, rec: DecisionRecord): Promise<void>
  * your <Vegeta> cards" land on the same row of the backlog. That grouping is
  * the whole point: one rule in the compiler usually clears many cards at once.
  */
-export function clausePattern(clause: string): string {
-  return clause
-    .toLowerCase()
-    .replace(/<[^>]*>|\{[^}]*\}|≪[^≫]*≫/g, "…")
-    .replace(/\d[\d,]*/g, "N")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 /** Note that a card's clause could not be read. Safe to call repeatedly. */
 export async function noteUnreadText(db: Db, entries: { cardId: string; skillIndex: number; clause: string; skillText: string }[], seen: boolean, ruling?: { ops: Op[]; why: string }): Promise<void> {
   for (const e of entries) {
@@ -89,7 +81,7 @@ export async function noteUnreadText(db: Db, entries: { cardId: string; skillInd
         cardId: e.cardId,
         skillIndex: e.skillIndex,
         clause: e.clause,
-        pattern: clausePattern(e.clause),
+        pattern: clauseShape(e.clause),
         skillText: e.skillText,
         timesSeen: seen ? 1 : 0,
         lastSeenAt: seen ? new Date() : null,
@@ -118,10 +110,10 @@ const noteKey = (e: { cardId: string; skillIndex: number; clause: string }) => `
  * page is read as what is left to do. It overstated it badly: of the 133 notes
  * open on 7 Sep 2026, 120 were wordings the compiler already read.
  *
- * `unreadClausesOf` is the whole test. A note whose clause no longer comes
- * back from the card it is about is finished by definition, so this re-reads
- * every card that has an open note — not only the cards in a deck, because a
- * stale note on a card you have stopped playing is just as wrong.
+ * The open rows of `card_rules` are the whole test. A note whose clause no
+ * longer stands unread on the card it is about is finished by definition, so
+ * this reads every card that has an open note — not only the cards in a deck,
+ * because a stale note on a card you have stopped playing is just as wrong.
  *
  * Only the status moves: what was ruled, explained or briefed stays on the
  * row, and a `wontfix` is never touched. A note reopened by hand will close
@@ -138,32 +130,23 @@ export async function closeNotesNowRead(db: Db): Promise<number> {
     .where(eq(cardTextNotes.status, "open"));
   if (!open.length) return 0;
 
-  const rows = await db
-    .select()
-    .from(cardsTable)
-    .where(inArray(cardsTable.id, [...new Set(open.map((n) => n.cardId))]));
-  const stillUnread = new Set(rows.flatMap((r) => unreadClausesOf(cardDefFrom(r))).map(noteKey));
-  // A card that could not be read back is no evidence that its clause now
-  // compiles, so its notes are left exactly as they are.
-  const reRead = new Set(rows.map((r) => r.id));
-  const stale = open.filter((n) => reRead.has(n.cardId) && !stillUnread.has(noteKey(n))).map((n) => n.id);
+  const ids = [...new Set(open.map((n) => n.cardId))];
+  const stillUnread = new Set((await unreadClausesFor(db, ids)).map(noteKey));
+  // A card with no rule row at all is no evidence that its clause now
+  // compiles — nothing has drafted it — so its notes are left exactly as they are.
+  const drafted = new Set((await loadRules(db, ids)).map((r) => r.cardId));
+  const stale = open.filter((n) => drafted.has(n.cardId) && !stillUnread.has(noteKey(n))).map((n) => n.id);
 
   if (stale.length) await db.update(cardTextNotes).set({ status: "done" }).where(inArray(cardTextNotes.id, stale));
   return stale.length;
 }
 
-/** Every clause of a card the compiler cannot read, ready for the backlog. */
-export function unreadClausesOf(card: CardDef): { cardId: string; skillIndex: number; clause: string; skillText: string }[] {
+/** Every clause the compiler could not read, from the open rows of `card_rules`, ready for the backlog. */
+export async function unreadClausesFor(db: Db, cardIds: string[]): Promise<{ cardId: string; skillIndex: number; clause: string; skillText: string }[]> {
   const out: { cardId: string; skillIndex: number; clause: string; skillText: string }[] = [];
-  for (const side of ["front", "back"] as const) {
-    const text = side === "front" ? card.skill : card.back?.skill;
-    if (!text) continue;
-    const scripts = compileCardCached(card, side);
-    for (const sk of parseSkills(text)) {
-      const sc = scripts.bySkill[sk.index];
-      if (!sc || !sc.unsupported.length) continue;
-      for (const clause of sc.unsupported) out.push({ cardId: card.id, skillIndex: sk.index, clause, skillText: sk.raw });
-    }
+  for (const row of await loadRules(db, cardIds)) {
+    if (row.status !== "open") continue;
+    for (const clause of row.unread) out.push({ cardId: row.cardId, skillIndex: row.skillIndex, clause, skillText: row.printed });
   }
   return out;
 }
@@ -191,8 +174,4 @@ export async function backlogByPattern(db: Db, status: "open" | "done" | "wontfi
 
 export async function decisionsFor(db: Db, gameId: number) {
   return db.select().from(arenaDecisions).where(eq(arenaDecisions.gameId, gameId)).orderBy(arenaDecisions.seq);
-}
-
-export async function openNoteFor(db: Db, cardId: string, skillIndex: number) {
-  return db.query.cardTextNotes.findFirst({ where: and(eq(cardTextNotes.cardId, cardId), eq(cardTextNotes.skillIndex, skillIndex)) });
 }

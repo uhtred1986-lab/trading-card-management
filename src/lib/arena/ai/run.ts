@@ -14,7 +14,8 @@ import { eq } from "drizzle-orm";
 import type { Db } from "@/db";
 import { arenaGames } from "@/db/schema";
 import { describeAiError } from "@/lib/ai/client";
-import { areaOf, face, type Action, type Area, type PlayerId } from "../engine";
+import { areaOf, face, skillsOf, type Action, type Area, type PlayerId } from "../engine";
+import { saveRule } from "../rules-store";
 import { applyToGame, loadGame, type LoadedGame } from "../games";
 import { noteUnreadText, recordDecision } from "./debug";
 import { stateText } from "./view";
@@ -184,6 +185,18 @@ async function runReferee(db: Db, game: LoadedGame, gameId: number): Promise<str
     spend: ruling.spend ? { ...ruling.spend, micros } : null,
     latencyMs: ruling.spend ? Date.now() - started : null,
   });
+
+  // Nothing Claude decides is invisible again: a ruling that was a program
+  // becomes the card's draft rule, with Claude's reason as its explanation.
+  // It shows up in the worklist like any other draft — and the next game
+  // loads it from the row, so the card is not put to the referee twice.
+  if (ruling.valid) {
+    const inst = game.state.cards[req.card];
+    const d = game.ctx.defs[req.cardId];
+    const side = inst?.flipped && d?.back ? "back" : "front";
+    const sk = d ? skillsOf(d, side).find((k) => k.index === req.skillIndex) : undefined;
+    await saveRule(db, { cardId: req.cardId, side, skillIndex: req.skillIndex, ops: ruling.ops, source: "claude", status: "draft", explanation: ruling.why, printed: req.text, kind: sk?.kind ?? "auto" });
+  }
 
   const line = `referee on ${req.cardName}: ${ruling.why}`;
   await applyToGame(db, gameId, { type: "refereeRuling", player: req.master, ops: ruling.ops }, { say: line });

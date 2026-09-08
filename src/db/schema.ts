@@ -787,36 +787,65 @@ export const cardTextNotes = pgTable(
 );
 
 /**
- * A stored effect program for one skill of one card, overriding what the
- * compiler managed to read.
+ * A rule is a record: one row per skill, per card face, holding the program the
+ * engine runs (the `Op` language of src/lib/arena/engine/script.ts) together
+ * with where it came from and whether a person has looked at it.
  *
- * This is how a card you have explained starts playing correctly straight
- * away: the engine prefers a row here over its own reading, so the card stops
- * going to the referee, stops costing tokens, and stops being slow — without
- * waiting for the compiler to learn the wording.
+ *   status  open       no program — the engine plays the skill as blank and
+ *                      says so in the log
+ *           draft      the compiler (or Claude) wrote it; nobody has looked
+ *           confirmed  a person accepted the draft as it stands
+ *           corrected  a person or Claude wrote a program that differs from
+ *                      the compiler's
+ *   source  compiler | claude | user
+ *
+ * A confirmed or corrected row belongs to the person: the drafter may set
+ * `compiler_diff` on it when the compiler now reads the text differently, and
+ * never touches `ops`. Everything the record is about — the printed line, the
+ * skill kind, its trigger and cost — is copied in at draft time so a row reads
+ * on its own.
  */
-export const cardScripts = pgTable(
-  "card_scripts",
+export const cardRules = pgTable(
+  "card_rules",
   {
     id: serial("id").primaryKey(),
     cardId: text("card_id")
       .notNull()
       .references(() => cards.id, { onDelete: "cascade" }),
-    skillIndex: integer("skill_index").notNull(),
     /** front | back — a leader's awakened side has its own skills. */
-    side: text("side").notNull().default("front"),
-    /** The program, in the effect language of src/lib/arena/engine/script.ts. */
-    ops: jsonb("ops").notNull(),
-    /** user | claude | compiler — where the program came from. */
-    source: text("source").notNull().default("claude"),
-    /** What the owner said the card means, in their own words. */
+    side: text("side").notNull(),
+    skillIndex: integer("skill_index").notNull(),
+    /** The skill line as printed. */
+    printed: text("printed").notNull(),
+    /** "Auto" | "Activate: Main" | "Permanent" | … — the tag as the engine reads it. */
+    kind: text("kind").notNull(),
+    /** The `Trigger` names an [Auto] skill answers to, from `autoTriggerMatches`. */
+    trigger: jsonb("trigger").$type<string[]>(),
+    /** The parsed skill cost, or null when the skill has none. */
+    cost: jsonb("cost"),
+    /** A top-level condition hoisted from a program that is one wrapping `if`. */
+    cond: jsonb("cond"),
+    ops: jsonb("ops").notNull().default([]),
+    /** open | draft | confirmed | corrected */
+    status: text("status").notNull(),
+    /** compiler | claude | user */
+    source: text("source").notNull(),
+    /** The clauses the compiler could not read. */
+    unread: jsonb("unread").$type<string[]>().notNull().default([]),
+    /** Which compiler rules produced the draft, for grouping siblings. */
+    pattern: text("pattern"),
+    /** The owner's or Claude's words, when the source is not the compiler. */
     explanation: text("explanation"),
-    /** Claude's one-line restatement of the same thing. */
-    meaning: text("meaning"),
+    /** `describeScript(ops)`, regenerated on every write. */
+    reads: text("reads").notNull().default(""),
+    version: integer("version").notNull().default(1),
+    /** What the compiler reads now, when that differs from a row a person owns. */
+    compilerDiff: jsonb("compiler_diff"),
+    confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [unique("card_scripts_skill_key").on(t.cardId, t.skillIndex, t.side), index("card_scripts_card_idx").on(t.cardId)],
+  (t) => [uniqueIndex("card_rules_skill").on(t.cardId, t.side, t.skillIndex), index("card_rules_status").on(t.status)],
 );
 
 export const aiRuns = pgTable(
