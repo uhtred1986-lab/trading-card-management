@@ -13,7 +13,7 @@ import { eq, inArray, and } from "drizzle-orm";
 import type { Db } from "@/db";
 import { cardRules, cards as cardsTable } from "@/db/schema";
 import { DEFAULT_GAME } from "@/lib/catalog/games";
-import { compileSkill, parseSkills, skillLines, type CardDef, type Op } from "./engine";
+import { compileCardCached, compileSkill, parseSkills, skillLines, type CardDef, type CardScripts, type Op } from "./engine";
 import { compileCostProgram, costText, priceCondition } from "./engine/compile";
 import type { Cond } from "./engine/script";
 import { describeScript } from "./engine/script";
@@ -153,7 +153,13 @@ export interface DraftSummary {
   deleted: number;
 }
 
-const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+/** jsonb hands keys back in its own order, so equality is read off a key-sorted form. */
+function canon(v: unknown): unknown {
+  if (Array.isArray(v)) return v.map(canon);
+  if (v && typeof v === "object") return Object.fromEntries(Object.keys(v as object).sort().map((k) => [k, canon((v as Record<string, unknown>)[k])]));
+  return v ?? null;
+}
+const same = (a: unknown, b: unknown) => JSON.stringify(canon(a)) === JSON.stringify(canon(b));
 const compilerOwns = (r: RuleRow) => r.source === "compiler" && (r.status === "open" || r.status === "draft");
 
 /**
@@ -250,4 +256,24 @@ export async function catalogIds(db: Db, set?: string): Promise<string[]> {
     .from(cardsTable)
     .where(set ? and(eq(cardsTable.game, DEFAULT_GAME), eq(cardsTable.setCode, set)) : eq(cardsTable.game, DEFAULT_GAME));
   return rows.map((r) => r.id);
+}
+
+/**
+ * What `rulesFor` would return had every card been drafted and every draft
+ * confirmed — for the tests and the fuzzer, which have no database. Evaluated
+ * on access and memoised, so a definition added to `defs` after the context
+ * was built (the tests do this) has its rules too. The one place besides
+ * `skillRecords` that compiles a whole card.
+ */
+export function rulesFromCompiler(defs: Record<string, CardDef>): Record<string, CardScripts> {
+  // Memoised per definition object, not per id: a test that redefines a card
+  // under the same id gets the new card's rules.
+  return new Proxy({} as Record<string, CardScripts>, {
+    get(_, key) {
+      if (typeof key !== "string") return undefined;
+      const [id, back] = key.split("#");
+      const d = defs[id];
+      return d ? compileCardCached(d, back === "back" ? "back" : "front") : undefined;
+    },
+  });
 }

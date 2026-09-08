@@ -292,8 +292,8 @@ export async function ruleOnCard(
   db: Db,
   request: { cardId: string; cardName: string; text: string; unsupported: string[] },
   situation: string,
-): Promise<{ ops: Op[]; why: string; spend: { model: string; input: number; output: number; cached: number } | null }> {
-  if (!hasAnthropic()) return { ops: [], why: "no API key, so the skill did nothing", spend: null };
+): Promise<{ ops: Op[]; why: string; valid: boolean; spend: { model: string; input: number; output: number; cached: number } | null }> {
+  if (!hasAnthropic()) return { ops: [], why: "no API key, so the skill did nothing", valid: false, spend: null };
   const res = await anthropic().messages.parse({
     model: MODEL,
     max_tokens: 4000,
@@ -317,6 +317,6 @@ export async function ruleOnCard(
   const usage = res.usage as { input_tokens: number; output_tokens: number; cache_read_input_tokens?: number };
   const spend = { model: MODEL, input: usage.input_tokens, output: usage.output_tokens, cached: usage.cache_read_input_tokens ?? 0 };
   // A malformed ruling is treated as "nothing happens" rather than trusted.
-  if (!validateProgram(ops)) return { ops: [], why: `${output.why} (the ruling was not a valid program, so nothing happened)`, spend };
-  return { ops: ops as Op[], why: output.why, spend };
+  if (!validateProgram(ops)) return { ops: [], why: `${output.why} (the ruling was not a valid program, so nothing happened)`, valid: false, spend };
+  return { ops: ops as Op[], why: output.why, valid: true, spend };
 }

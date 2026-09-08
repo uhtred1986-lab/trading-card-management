@@ -10,7 +10,7 @@
  */
 import { parseFilter, type CardFilter } from "./filters";
 import { keywordOf, orbsIn, skillsOf, trailingTrigger, withoutTrailingTrigger } from "./cards";
-import type { Amount, Cond, Duration, Op, Ref, Script, ScriptArea, Selector, Side } from "./script";
+import type { Amount, CardScripts, Cond, Duration, Op, Ref, Script, ScriptArea, Selector, Side } from "./script";
 import type { CardDef, DelayScope, DelayTiming, KeywordSkill, Skill, SkillKindPrefix } from "./types";
 
 // ── clause splitting ───────────────────────────────────────────────────────
@@ -3333,17 +3333,9 @@ function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op
   return ops;
 }
 
-export interface CardScripts {
-  /** Keyed by skill index; only skills with text appear. */
-  bySkill: Record<number, Script>;
-  /** True when every skill either compiled or is a pure keyword skill. */
-  complete: boolean;
-  unsupported: string[];
-}
-
 const cardCache = new WeakMap<CardDef, { front: CardScripts; back: CardScripts }>();
 
-/** `compileCard`, memoised per definition — the same card is compiled once. */
+/** `compileCard`, memoised per definition — the same card is compiled once. Off the game path: the engine reads `card_rules`; this serves the drafter, the coverage CLIs and the tests. */
 export function compileCardCached(card: CardDef, side: "front" | "back" = "front"): CardScripts {
   let entry = cardCache.get(card);
   if (!entry) {

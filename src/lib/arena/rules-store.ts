@@ -9,7 +9,7 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { cardRules } from "@/db/schema";
-import { compileCardCached, describeScript, type CardDef, type CardScripts, type Op } from "./engine";
+import { describeScript, type CardDef, type CardScripts, type Op } from "./engine";
 import type { Cond } from "./engine/script";
 
 export type RuleRow = typeof cardRules.$inferSelect;
@@ -40,9 +40,9 @@ export async function loadRules(db: Db, cardIds: string[]): Promise<RuleRow[]> {
 }
 
 /**
- * The programs the engine reads, from rows. Until the engine reads rows and
- * nothing else, skills without a row fall back to the compiler's reading so a
- * half-drafted catalog still plays.
+ * The programs the engine reads, from rows and nothing else. A skill with no
+ * row has no program: the engine plays it as blank and says so in the log,
+ * which is what `arena:draft` is for.
  */
 export async function rulesFor(db: Db, defs: Record<string, CardDef>): Promise<Record<string, CardScripts>> {
   const rows = await loadRules(db, Object.keys(defs));
@@ -52,7 +52,7 @@ export async function rulesFor(db: Db, defs: Record<string, CardDef>): Promise<R
     if (!d) continue;
     const side: Side = row.side === "back" ? "back" : "front";
     const key = scriptsKey(row.cardId, side);
-    const base = out[key] ?? clone(compileCardCached(d, side));
+    const base = out[key] ?? { bySkill: {}, complete: true, unsupported: [] };
     // An open row has no program: the skill is played as blank, and the
     // unread clauses stay on it so the log and the referee can say why.
     base.bySkill[row.skillIndex] = row.status === "open" ? { ops: [], unsupported: row.unread } : { ops: programOf(row), unsupported: [] };
@@ -61,10 +61,6 @@ export async function rulesFor(db: Db, defs: Record<string, CardDef>): Promise<R
     out[key] = base;
   }
   return out;
-}
-
-function clone(s: CardScripts): CardScripts {
-  return { bySkill: { ...s.bySkill }, complete: s.complete, unsupported: [...s.unsupported] };
 }
 
 export interface RuleWrite {

@@ -360,6 +360,18 @@ export interface Script {
   unsupported: string[];
 }
 
+/** The programs of one card face, by skill index. What `card_rules` holds for a card and what `ctx.scripts` carries into a game. */
+export interface CardScripts {
+  /** Keyed by skill index; only skills with text appear. */
+  bySkill: Record<number, Script>;
+  /** True when every skill either has a program or is a pure keyword skill. */
+  complete: boolean;
+  unsupported: string[];
+}
+
+/** What the engine has for a card nobody drafted: nothing, and it says so. */
+export const NO_RULES: CardScripts = Object.freeze({ bySkill: {}, complete: false, unsupported: [] }) as CardScripts;
+
 /** One running program. Stored in the flow, so a game can be saved mid-effect. */
 export interface ScriptFrame {
   ops: Op[];

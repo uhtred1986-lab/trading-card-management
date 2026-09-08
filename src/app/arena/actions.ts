@@ -3,12 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { eq, inArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { arenaFeedback, arenaGames, cardTextNotes, cards as cardsTable } from "@/db/schema";
+import { arenaFeedback, arenaGames, cardTextNotes } from "@/db/schema";
 import { listDecks } from "@/lib/decks/queries";
-import { closeNotesNowRead, noteUnreadText, setNoteStatus, unreadClausesOf } from "@/lib/arena/ai/debug";
-import { cardDefFrom, deckInputFor } from "@/lib/arena/load";
+import { closeNotesNowRead, noteUnreadText, setNoteStatus, unreadClausesFor } from "@/lib/arena/ai/debug";
+import { deckInputFor } from "@/lib/arena/load";
 import { describeAiError } from "@/lib/ai/client";
 import { IllegalAction, type Action, type GameState } from "@/lib/arena/engine";
 import { abandonGame, applyToGame, clearBeatsForTurn, isVersus, loadGame, seatOf, StaleGame, startGame, type ArenaMode } from "@/lib/arena/games";
@@ -279,13 +279,7 @@ export async function sweepBacklog() {
     const input = await deckInputFor(db, d.id);
     if (input) for (const id of input.cardIds) ids.add(id);
   }
-  if (ids.size) {
-    const rows = await db
-      .select()
-      .from(cardsTable)
-      .where(inArray(cardsTable.id, [...ids]));
-    for (const row of rows) await noteUnreadText(db, unreadClausesOf(cardDefFrom(row)), false);
-  }
+  if (ids.size) await noteUnreadText(db, await unreadClausesFor(db, [...ids]), false);
   // Adding first, then closing: a clause just written down is unread by
   // definition, so it survives the pass that follows it.
   await closeNotesNowRead(db);

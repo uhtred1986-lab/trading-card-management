@@ -9,9 +9,9 @@
  * state storable mid-prompt and replayable from the action log.
  */
 import { baseType, canCombo, isZ, keywordOf, skillsOf, specifiedCostOf } from "./cards";
-import { compileCard, compileCostProgram, costIsOnlyOrbs, costText, parseConditionClause, priceCondition, type CardScripts } from "./compile";
+import { compileCostProgram, costIsOnlyOrbs, costText, parseConditionClause, priceCondition } from "./compile";
 import { matches, parseCondition, parseFilter } from "./filters";
-import { stepScript, validateProgram, type Op, type ScriptFrame } from "./script";
+import { stepScript, validateProgram, type CardScripts, type Op, type ScriptFrame } from "./script";
 import { koCard, pendTriggers } from "./triggers";
 import { nextRandom, shuffle } from "./rng";
 import {
@@ -60,6 +60,7 @@ import {
   liftFromPile,
   skillNegated,
   whyNotPay,
+  programsOf,
 } from "./state";
 import type {
   Action,
@@ -84,8 +85,6 @@ import type {
 import { other, PLAYERS } from "./types";
 
 export interface EngineContext extends GameContext {
-  /** Compiled effect programs, by catalog card id. Built once by `scriptsFor()`. */
-  scripts?: Record<string, CardScripts>;
   /**
    * When set, a skill whose text did not compile stops the game and asks the
    * referee (Claude) for a program in the effect language. Without it — tests,
@@ -860,7 +859,11 @@ function runSkill(
       request: { card, cardId: d.id, cardName: face(ctx, s, card).name, skillIndex: sk.index, text: sk.raw, unsupported: unread, master, trigger },
     });
   }
-  note(ev, `${d.id} skill ${sk.index} was not applied — the compiler could not read "${sk.effect.slice(0, 70)}"`);
+  // The two ways a skill has no program: no row was ever drafted for it, or
+  // the row is open because a clause did not read. Both play as blank, and
+  // the log says which, so a silent nothing is never mistaken for a rule.
+  const row = scriptsOf(ctx, s, card).bySkill[sk.index];
+  note(ev, row ? `${d.id} [skill ${sk.index}]: no rule confirmed — the compiler could not read "${row.unsupported[0]?.slice(0, 70) ?? sk.effect.slice(0, 70)}"` : `${d.id} [skill ${sk.index}]: no rule stored — played as blank`);
   return "done";
 }
 
@@ -877,21 +880,11 @@ function orbTotals(sk: Skill): { total: number; specified: Partial<Record<Color,
   return { total: total + sk.energyEither.length, specified, either: sk.energyEither };
 }
 
-/** Compiled programs for the face-up side of a card, memoised per definition. */
-const scriptCache = new WeakMap<CardDef, { front: CardScripts; back: CardScripts }>();
-
+/** The rules for the face-up side of a card, as the game was given them. */
 function scriptsOf(ctx: EngineContext, s: GameState, card: string): CardScripts {
   const d = def(ctx, s, card);
   const inst = s.cards[card];
-  const side = inst.flipped && d.back ? "back" : "front";
-  const stored = ctx.scripts?.[side === "back" ? `${d.id}#back` : d.id];
-  if (stored) return stored;
-  let entry = scriptCache.get(d);
-  if (!entry) {
-    entry = { front: compileCard(d, "front"), back: compileCard(d, "back") };
-    scriptCache.set(d, entry);
-  }
-  return side === "back" ? entry.back : entry.front;
+  return programsOf(ctx, d, inst.flipped && d.back ? "back" : "front");
 }
 
 /** The program for one skill, or null when a clause of it could not be read. */

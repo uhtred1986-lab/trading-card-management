@@ -1,11 +1,11 @@
 import Link from "next/link";
-import { inArray } from "drizzle-orm";
+import { inArray, ne } from "drizzle-orm";
 import { db } from "@/db";
 import { cards as cardsTable } from "@/db/schema";
 import { ExplainCard } from "@/components/arena/ExplainCard";
 import { SubmitButton } from "@/components/SubmitButton";
 import { backlogByPattern } from "@/lib/arena/ai/debug";
-import { cardScripts } from "@/db/schema";
+import { cardRules } from "@/db/schema";
 import { markNote, sweepBacklog } from "../actions";
 
 export const dynamic = "force-dynamic";
@@ -29,8 +29,10 @@ export default async function BacklogPage({ searchParams }: { searchParams: Prom
     for (const r of await db.select({ id: cardsTable.id, name: cardsTable.name }).from(cardsTable).where(inArray(cardsTable.id, cardIds))) names.set(r.id, r.name);
   }
 
-  // Cards with a stored program already play correctly, whatever the compiler thinks.
-  const scripted = new Set((await db.select({ cardId: cardScripts.cardId, skillIndex: cardScripts.skillIndex }).from(cardScripts)).map((r) => `${r.cardId}#${r.skillIndex}`));
+  // Skills with a program a person or Claude wrote already play, whatever the compiler thinks.
+  const scripted = new Set(
+    (await db.select({ cardId: cardRules.cardId, skillIndex: cardRules.skillIndex }).from(cardRules).where(ne(cardRules.source, "compiler"))).map((r) => `${r.cardId}#${r.skillIndex}`),
+  );
 
   const totalCards = groups.reduce((n, g) => n + g.cards.length, 0);
   const seen = groups.filter((g) => g.timesSeen > 0).length;

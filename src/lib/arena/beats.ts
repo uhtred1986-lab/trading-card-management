@@ -16,7 +16,7 @@
  * up — and `session.ts` fills in the image URLs, which is what keeps this
  * testable in `npm test`.
  */
-import { compileCardCached, face, skillsOf, type EngineContext, type GameEvent, type GameState, type PlayerId } from "./engine";
+import { face, programsOf, skillsOf, type EngineContext, type GameEvent, type GameState, type PlayerId } from "./engine";
 import type { Area, EffectUntil } from "./engine";
 import { def } from "./engine/state";
 import { describeEffect, type EffectKind } from "./effects";
@@ -115,7 +115,7 @@ export function describeSkillEvent(
     const d = def(ctx, state, e.card);
     const side = inst.flipped && d.back ? "back" : "front";
     const sk = skillsOf(d, side).find((x) => x.index === e.skill);
-    const compiled = compileCardCached(d, side).bySkill[e.skill];
+    const compiled = programsOf(ctx, d, side).bySkill[e.skill];
     return {
       cardId: inst.cardId,
       name: face(ctx, state, e.card).name,

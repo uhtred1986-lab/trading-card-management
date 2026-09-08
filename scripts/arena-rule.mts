@@ -23,7 +23,7 @@ import { and, desc, eq, isNotNull } from "drizzle-orm";
 import { db } from "../src/db";
 import { cards as cardsTable, cardTextNotes } from "../src/db/schema";
 import { parseSkills } from "../src/lib/arena/engine";
-import { noteUnreadText, unreadClausesOf } from "../src/lib/arena/ai/debug";
+import { noteUnreadText, unreadClausesFor } from "../src/lib/arena/ai/debug";
 import { clauseShape } from "../src/lib/arena/gaps";
 import { cardDefFrom } from "../src/lib/arena/load";
 
@@ -66,7 +66,7 @@ const skillIndex = skillArg == null ? null : Number(skillArg);
 
 // A note per unread clause is what the backlog already holds, so a ruling
 // lands on the row the page will show it on.
-let targets = unreadClausesOf(def).filter((u) => (skillIndex == null || u.skillIndex === skillIndex) && (!clauseArg || u.clause.toLowerCase().includes(clauseArg.toLowerCase())));
+let targets = (await unreadClausesFor(db, [cardId])).filter((u) => (skillIndex == null || u.skillIndex === skillIndex) && (!clauseArg || u.clause.toLowerCase().includes(clauseArg.toLowerCase())));
 
 // Nothing unread: the ruling is about text the compiler *does* read, which is
 // the more valuable kind. Hang it on the skill line itself.
