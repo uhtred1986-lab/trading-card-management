@@ -45,7 +45,9 @@ export const MECHANISMS: { key: string; needs: string; test: RegExp }[] = [
     needs: "moving and re-orienting energy as an effect (3-8)",
     test: /\b(?:of|in|to|from|into) your (?:opponent's )?energy\b|\benergy (?:area|marker)\b|\bas energy\b|\benergy to (?:active|rest) mode\b/,
   },
-  { key: "turn structure", needs: "skipping or adding phases and turns (20-13)", test: /\bskip\b|\bextra turn\b|\banother turn\b/ },
+  // "skips their next Charge Phase" is the commonest way a card says this, and
+  // `\bskip\b` does not match "skips" — those clauses were counted as phrasing.
+  { key: "turn structure", needs: "skipping or adding phases and turns (20-13)", test: /\bskips?\b|\bextra turn\b|\banother turn\b/ },
 ];
 
 export const PHRASING_ONLY = "phrasing only";

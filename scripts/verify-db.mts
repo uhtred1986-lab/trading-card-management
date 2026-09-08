@@ -435,6 +435,55 @@ assert.equal(priceForFinish(prices.get("BT18-020_SPR"), "foil"), 199);
   assert.equal(await closeNotesNowRead(db), 0, "and a second sweep has nothing to do");
 }
 
+// ── The worklist over the whole catalog: filtered, paged, confirmed in bulk ──
+// The decks page holds its whole list in memory; this one cannot, so the page
+// and the count come from the database and a bulk confirm is aimed at the
+// filter rather than at the rows on screen.
+{
+  const { and, eq, inArray } = await import("drizzle-orm");
+  const { draftCards } = await import("../src/lib/arena/draft.ts");
+  const { confirmMatching, statusCounts, undoConfirmed, worklistPage } = await import("../src/lib/arena/rules-store.ts");
+
+  await db.insert(schema.cardSets).values({ code: "BT19", name: "Fighting Spirit", line: "legacy", sortKey: 19 });
+  const drawer = (id: string, setCode: string, name: string) => ({ ...card(id, name), setCode, skill: "[Auto] When you play this card, draw 1 card." });
+  await db.insert(schema.cards).values([
+    drawer("BT18-040", "BT18", "Eighteen"),
+    drawer("BT18-041", "BT18", "Krillin"),
+    drawer("BT19-001", "BT19", "Piccolo"),
+    { ...card("BT19-002", "Nappa"), setCode: "BT19", skill: "[Auto] When you play this card, your opponent skips their next Charge Phase." },
+  ]);
+  const ids = ["BT18-040", "BT18-041", "BT19-001", "BT19-002"];
+  await draftCards(db, ids);
+
+  const all = await worklistPage(db, { cardIds: ids }, { limit: 100, offset: 0 });
+  assert.equal(all.total, 4);
+  assert.equal(all.rows[0].status, "open", "open first: the engine plays those as blank");
+  assert.deepEqual(await statusCounts(db, { cardIds: ids }), { open: 1, draft: 3, confirmed: 0, corrected: 0 });
+  assert.deepEqual(await statusCounts(db, { cardIds: ids, status: "open" }), { open: 1, draft: 3, confirmed: 0, corrected: 0 }, "the segment row counts every state, whichever is showing");
+
+  const page = await worklistPage(db, { cardIds: ids }, { limit: 2, offset: 2 });
+  assert.deepEqual([page.rows.length, page.total], [2, 4], "a page says how many the filter matches, not how many it shows");
+  const bySet = await worklistPage(db, { cardIds: ids, setCode: "BT19" }, { limit: 100, offset: 0 });
+  assert.deepEqual(bySet.rows.map((r) => r.cardId).sort(), ["BT19-001", "BT19-002"]);
+  assert.equal((await worklistPage(db, { cardIds: ids, q: "Krillin" }, { limit: 100, offset: 0 })).total, 1, "a search reads the card's name");
+  assert.equal((await worklistPage(db, { cardIds: ids, mechanism: "turn structure" }, { limit: 100, offset: 0 })).rows[0]?.cardId, "BT19-002", "a mechanism is read off the clause the compiler could not read");
+  assert.equal((await worklistPage(db, { cardIds: [] }, { limit: 100, offset: 0 })).total, 0, "no cards is no rules, not every rule");
+
+  // Bulk confirm: exactly the filter's drafts, and nothing else.
+  const batch = await confirmMatching(db, { cardIds: ids, setCode: "BT18" });
+  assert.equal(batch.rules.length, 2, "both BT18 drafts");
+  assert.deepEqual(await statusCounts(db, { cardIds: ids }), { open: 1, draft: 1, confirmed: 2, corrected: 0 });
+  assert.equal((await confirmMatching(db, { cardIds: ids, mechanism: "turn structure" })).rules.length, 0, "an open row is not a draft");
+
+  // …and the way back, which must not undo the work that followed it.
+  await db.update(schema.cardRules).set({ status: "corrected", source: "user", version: 9 }).where(and(inArray(schema.cardRules.cardId, ["BT18-041"]), eq(schema.cardRules.skillIndex, 0)));
+  const undone = await undoConfirmed(db, batch);
+  assert.deepEqual([undone.reverted, undone.kept], [1, 1], "the row edited since is left exactly as it is");
+  assert.deepEqual(await statusCounts(db, { cardIds: ids }), { open: 1, draft: 2, confirmed: 0, corrected: 1 });
+  await db.delete(schema.cardRules).where(inArray(schema.cardRules.cardId, ids));
+  await db.delete(schema.cards).where(inArray(schema.cards.id, ids));
+}
+
 // ── The catalog sync hands the drafter exactly the cards whose text arrived or changed ──
 {
   const { changedCardIds } = await import("../src/lib/catalog/deckplanet.ts");

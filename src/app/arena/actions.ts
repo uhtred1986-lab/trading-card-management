@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, isNotNull } from "drizzle-orm";
 import { db } from "@/db";
 import { arenaFeedback, arenaGames, cardTextNotes } from "@/db/schema";
 import { listDecks } from "@/lib/decks/queries";
@@ -17,7 +17,7 @@ import { currentUser } from "@/lib/auth";
 import { advance } from "@/lib/arena/ai/run";
 import { reviewGame } from "@/lib/arena/ai/review";
 import { clarifyCard, clarifyRule } from "@/lib/arena/ai/clarify";
-import { blankRule, confirmRule, ruleById, saveRule, setCompilerDiff, takeCompilerDiff } from "@/lib/arena/rules-store";
+import { blankRule, confirmMatching, confirmRule, ruleById, saveRule, setCompilerDiff, takeCompilerDiff, undoConfirmed, type ConfirmBatch, type RuleFilter, type RuleSource, type RuleStatus } from "@/lib/arena/rules-store";
 import { SKIN_COOKIE, type ArenaSkin } from "@/lib/arena/skin";
 import { STAGING_COOKIE, type ArenaStaging } from "@/lib/arena/staging";
 
@@ -164,6 +164,79 @@ export async function keepMineAction(id: number): Promise<{ error: string | null
   await setCompilerDiff(db, id, null);
   await noteRule(id, "kept their own reading over the compiler's", null);
   return { error: null };
+}
+
+// ── confirming in bulk ──────────────────────────────────────────────────────
+
+const STATUSES: RuleStatus[] = ["open", "draft", "confirmed", "corrected"];
+const SOURCES: RuleSource[] = ["compiler", "claude", "user"];
+
+/**
+ * A filter arrives from the browser, so it is read field by field rather than
+ * trusted: this one decides which rows an update touches.
+ */
+function readFilter(raw: unknown): RuleFilter {
+  const f = (raw ?? {}) as Record<string, unknown>;
+  const str = (v: unknown, max = 200) => (typeof v === "string" && v.trim() ? v.trim().slice(0, max) : undefined);
+  return {
+    cardIds: Array.isArray(f.cardIds) ? f.cardIds.filter((x): x is string => typeof x === "string").slice(0, 20000) : undefined,
+    status: STATUSES.includes(f.status as RuleStatus) ? (f.status as RuleStatus) : undefined,
+    setCode: str(f.setCode, 20),
+    source: SOURCES.includes(f.source as RuleSource) ? (f.source as RuleSource) : undefined,
+    pattern: str(f.pattern, 300),
+    mechanism: str(f.mechanism, 60),
+    q: str(f.q),
+  };
+}
+
+/** A short account of what a bulk confirm was aimed at, for the feedback row. */
+function filterInWords(f: RuleFilter): string {
+  const bits = [f.setCode, f.source && `by ${f.source}`, f.pattern && `pattern ${f.pattern}`, f.q && `matching “${f.q}”`, f.cardIds && "in your decks"].filter(Boolean);
+  return bits.length ? bits.join(" · ") : "the whole catalog";
+}
+
+/**
+ * Confirm every draft the filter matches — 400 rows of one wording in one
+ * press, which is the only way 11,375 drafts are ever going to be looked at.
+ * The rows it moved are kept on the feedback row so Undo can put back exactly
+ * those, and nothing that happened afterwards.
+ */
+export async function confirmAllAction(rawFilter: unknown): Promise<{ error: string | null; confirmed: number; batchId: number | null }> {
+  const filter = readFilter(rawFilter);
+  const batch = await confirmMatching(db, filter);
+  if (!batch.rules.length) return { error: null, confirmed: 0, batchId: null };
+  const [row] = await db
+    .insert(arenaFeedback)
+    .values({ kind: "rule", note: `confirmed ${batch.rules.length} draft${batch.rules.length === 1 ? "" : "s"}: ${filterInWords(filter)}`, batch })
+    .returning({ id: arenaFeedback.id });
+  revalidatePath("/arena/rules");
+  revalidatePath("/arena/rules/all");
+  revalidatePath("/arena/rules/patterns");
+  return { error: null, confirmed: batch.rules.length, batchId: row?.id ?? null };
+}
+
+/** …and take it back. A row edited since is left alone, and said so. */
+export async function undoConfirmAction(batchId: number): Promise<{ error: string | null; reverted: number; kept: number }> {
+  const row = await db.query.arenaFeedback.findFirst({ where: eq(arenaFeedback.id, batchId) });
+  const batch = row?.batch as ConfirmBatch | null | undefined;
+  if (!row || !batch?.rules?.length) return { error: "there is nothing to undo", reverted: 0, kept: 0 };
+  const { reverted, kept } = await undoConfirmed(db, batch);
+  // The batch is spent: nulling it keeps the note and stops a second undo
+  // from putting back what has been confirmed again since.
+  await db
+    .update(arenaFeedback)
+    .set({ batch: null, resolution: `undone: ${reverted} back to draft${kept ? `, ${kept} left as they were changed since` : ""}` })
+    .where(eq(arenaFeedback.id, batchId));
+  revalidatePath("/arena/rules");
+  revalidatePath("/arena/rules/all");
+  revalidatePath("/arena/rules/patterns");
+  return { error: null, reverted, kept };
+}
+
+/** The bulk confirms that can still be taken back, newest first. */
+export async function recentBatches(): Promise<{ id: number; note: string; n: number }[]> {
+  const rows = await db.select({ id: arenaFeedback.id, note: arenaFeedback.note, batch: arenaFeedback.batch }).from(arenaFeedback).where(and(eq(arenaFeedback.kind, "rule"), isNotNull(arenaFeedback.batch))).orderBy(desc(arenaFeedback.id)).limit(5);
+  return rows.map((r) => ({ id: r.id, note: r.note, n: ((r.batch as ConfirmBatch | null)?.rules ?? []).length }));
 }
 
 /** You explain the card; Claude answers with a program that lands as its draft, and a brief for the compiler. */

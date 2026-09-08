@@ -7333,6 +7333,7 @@ theEffectLanguageIsOneTable();
   assert.equal(u.unread.length > 0, true);
   assert.equal(u.pattern, clauseShape(u.unread[0]));
   assert.equal(mechanismOf("skip your next charge phase"), "turn structure");
+  assert.equal(mechanismOf("your opponent skips their next Charge Phase"), "turn structure", "the way cards actually phrase it");
   assert.equal(mechanismOf("choose 1 <Frieza> card in your hand"), "phrasing only");
   assert.equal(clauseShape("Choose up to 2 of your opponent's <Son Goku> cards with 15000 power"), "choose up to N of your opponent's … cards with N power");
   // Keyword skills that carry a trigger of their own are pended by it.

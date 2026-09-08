@@ -6,11 +6,12 @@
  * that changes a row goes through here so the reading (`reads`) and the
  * version stay honest.
  */
-import { and, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, asc, eq, ilike, inArray, ne, or, sql, type SQL } from "drizzle-orm";
 import type { Db } from "@/db";
 import { cardRules, cards } from "@/db/schema";
 import { describeScript, type CardDef, type CardScripts, type Op } from "./engine";
 import type { Cond } from "./engine/script";
+import { mechanismOf } from "./gaps";
 
 export type RuleRow = typeof cardRules.$inferSelect;
 export type RuleStatus = "open" | "draft" | "confirmed" | "corrected";
@@ -201,4 +202,161 @@ export async function siblingsOf(db: Db, row: Pick<RuleRow, "id" | "pattern">): 
     .where(and(eq(cardRules.pattern, row.pattern), ne(cardRules.id, row.id)));
   const ids = [...new Set(rows.map((r) => r.cardId))];
   return { count: ids.length, ids: ids.slice(0, 5) };
+}
+
+
+// ── the worklist over the whole catalog ─────────────────────────────────────
+
+/**
+ * Which rules a page is looking at. Everything here is a column except
+ * `mechanism`, which is read off the first unread clause of an open row and
+ * so is applied in TypeScript — over the 2,183 open rows, not the 13,563.
+ */
+export interface RuleFilter {
+  /** Only these cards. Absent is the whole catalog; empty matches nothing. */
+  cardIds?: string[];
+  status?: RuleStatus;
+  setCode?: string;
+  source?: RuleSource;
+  pattern?: string;
+  mechanism?: string;
+  /** Card name, card id or printed text. */
+  q?: string;
+}
+
+/** The filter as SQL, minus the parts that are not columns. `ignoreStatus` is for the segment counts. */
+function rulePredicate(f: RuleFilter, ignoreStatus = false): SQL | undefined {
+  const cs: (SQL | undefined)[] = [];
+  if (f.cardIds) cs.push(f.cardIds.length ? inArray(cardRules.cardId, [...new Set(f.cardIds)]) : sql`false`);
+  // A mechanism is a property of an open row, so asking for one asks for open rows.
+  if (f.mechanism) cs.push(eq(cardRules.status, "open"));
+  else if (f.status && !ignoreStatus) cs.push(eq(cardRules.status, f.status));
+  if (f.setCode) cs.push(eq(cards.setCode, f.setCode));
+  if (f.source) cs.push(eq(cardRules.source, f.source));
+  if (f.pattern) cs.push(eq(cardRules.pattern, f.pattern));
+  if (f.q?.trim()) {
+    const like = `%${f.q.trim()}%`;
+    cs.push(or(ilike(cards.name, like), ilike(cardRules.cardId, like), ilike(cardRules.printed, like)));
+  }
+  return cs.length ? and(...cs) : undefined;
+}
+
+/** Open first — those are the ones the engine plays as blank — then drafts, corrections, confirmed. */
+const STATUS_ORDER = sql`case ${cardRules.status} when 'open' then 0 when 'draft' then 1 when 'corrected' then 2 else 3 end`;
+
+export interface WorklistPage {
+  rows: WorklistRow[];
+  /** How many the filter matches, not how many are on this page. */
+  total: number;
+}
+
+/**
+ * One page of the worklist. The catalog is 13,563 rules, so the page asks the
+ * database for the rows it shows and counts the rest.
+ */
+export async function worklistPage(db: Db, f: RuleFilter, page: { limit: number; offset: number }): Promise<WorklistPage> {
+  const base = db
+    .select({ rule: cardRules, name: cards.name, setCode: cards.setCode })
+    .from(cardRules)
+    .innerJoin(cards, eq(cards.id, cardRules.cardId))
+    .where(rulePredicate(f))
+    .$dynamic();
+
+  // A mechanism cannot be asked of the database: it is read off the clause the
+  // compiler could not read. Open rows are few enough to sort here.
+  if (f.mechanism) {
+    const all = (await base.orderBy(STATUS_ORDER, asc(cardRules.cardId), asc(cardRules.skillIndex))).map((r) => ({ ...r.rule, name: r.name, setCode: r.setCode }));
+    const mine = all.filter((r) => mechanismOf(r.unread[0] ?? "") === f.mechanism);
+    return { rows: mine.slice(page.offset, page.offset + page.limit), total: mine.length };
+  }
+
+  const [rows, counted] = await Promise.all([
+    base.orderBy(STATUS_ORDER, asc(cardRules.cardId), asc(cardRules.skillIndex)).limit(page.limit).offset(page.offset),
+    db.select({ n: sql<number>`count(*)::int` }).from(cardRules).innerJoin(cards, eq(cards.id, cardRules.cardId)).where(rulePredicate(f)),
+  ]);
+  return { rows: rows.map((r) => ({ ...r.rule, name: r.name, setCode: r.setCode })), total: counted[0]?.n ?? 0 };
+}
+
+/** The segment row's numbers: the same filter, counted per status, with the status itself ignored. */
+export async function statusCounts(db: Db, f: RuleFilter): Promise<RuleCounts> {
+  const out: RuleCounts = { open: 0, draft: 0, confirmed: 0, corrected: 0 };
+  if (f.mechanism) {
+    const { total } = await worklistPage(db, f, { limit: 0, offset: 0 });
+    out.open = total;
+    return out;
+  }
+  const rows = await db
+    .select({ status: cardRules.status, n: sql<number>`count(*)::int` })
+    .from(cardRules)
+    .innerJoin(cards, eq(cards.id, cardRules.cardId))
+    .where(rulePredicate(f, true))
+    .groupBy(cardRules.status);
+  for (const r of rows) if (r.status in out) out[r.status as RuleStatus] = r.n;
+  return out;
+}
+
+/** Every set that has rules, for the All-cards filter. */
+export async function setsWithRules(db: Db): Promise<{ setCode: string; n: number }[]> {
+  const rows = await db
+    .select({ setCode: cards.setCode, n: sql<number>`count(*)::int` })
+    .from(cardRules)
+    .innerJoin(cards, eq(cards.id, cardRules.cardId))
+    .groupBy(cards.setCode);
+  return rows.sort((a, b) => a.setCode.localeCompare(b.setCode));
+}
+
+// ── confirming in bulk, and taking it back ──────────────────────────────────
+
+/**
+ * What one bulk confirm changed. Kept whole rather than as a filter, because
+ * Undo has to put back exactly the rows it moved: re-running the filter would
+ * also catch drafts confirmed since, and miss rows the filter no longer
+ * matches. The version is what tells "still as I left it" from "edited since".
+ */
+export interface ConfirmBatch {
+  at: string;
+  rules: { id: number; version: number }[];
+}
+
+/**
+ * Confirm every draft the filter matches — the page's "Confirm all drafts in
+ * view", and the Patterns page's "Confirm the pattern", which is the same
+ * thing keyed by `pattern`.
+ */
+export async function confirmMatching(db: Db, f: RuleFilter): Promise<ConfirmBatch> {
+  // An open row is not a draft, so a mechanism filter never confirms anything.
+  if (f.mechanism) return { at: new Date().toISOString(), rules: [] };
+  const matching = db
+    .select({ id: cardRules.id })
+    .from(cardRules)
+    .innerJoin(cards, eq(cards.id, cardRules.cardId))
+    .where(and(rulePredicate(f, true), eq(cardRules.status, "draft")));
+  const rules = await db
+    .update(cardRules)
+    .set({ status: "confirmed", confirmedAt: new Date(), updatedAt: new Date() })
+    .where(inArray(cardRules.id, matching))
+    .returning({ id: cardRules.id, version: cardRules.version });
+  return { at: new Date().toISOString(), rules };
+}
+
+/**
+ * Put a bulk confirm back. A row edited since — its version has moved, or it
+ * is no longer confirmed — is left exactly as it is and counted, because the
+ * undo of a mistake must not undo the work that followed it.
+ */
+export async function undoConfirmed(db: Db, batch: ConfirmBatch): Promise<{ reverted: number; kept: number }> {
+  let reverted = 0;
+  const byVersion = new Map<number, number[]>();
+  for (const r of batch.rules) byVersion.set(r.version, [...(byVersion.get(r.version) ?? []), r.id]);
+  for (const [version, ids] of byVersion) {
+    for (let i = 0; i < ids.length; i += 500) {
+      const back = await db
+        .update(cardRules)
+        .set({ status: "draft", confirmedAt: null, updatedAt: new Date() })
+        .where(and(inArray(cardRules.id, ids.slice(i, i + 500)), eq(cardRules.status, "confirmed"), eq(cardRules.version, version)))
+        .returning({ id: cardRules.id });
+      reverted += back.length;
+    }
+  }
+  return { reverted, kept: batch.rules.length - reverted };
 }

@@ -935,6 +935,13 @@ export const arenaFeedback = pgTable(
     status: text("status").notNull().default("open"),
     /** What was done about it, written back when it is fixed. */
     resolution: text("resolution"),
+    /**
+     * The rules one bulk confirm moved, as `{id, version}` pairs — what Undo
+     * puts back. Kept whole rather than as the filter that matched them: a
+     * filter re-run later would also catch what was confirmed since, and miss
+     * what no longer matches.
+     */
+    batch: jsonb("batch"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     resolvedAt: timestamp("resolved_at", { withTimezone: true }),
   },

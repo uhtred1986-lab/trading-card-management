@@ -1,0 +1,1 @@
+ALTER TABLE "arena_feedback" ADD COLUMN "batch" jsonb;
