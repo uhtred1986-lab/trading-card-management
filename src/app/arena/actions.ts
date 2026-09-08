@@ -3,12 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, isNotNull } from "drizzle-orm";
 import { db } from "@/db";
-import { arenaFeedback, arenaGames, cardTextNotes } from "@/db/schema";
-import { listDecks } from "@/lib/decks/queries";
-import { closeNotesNowRead, noteUnreadText, setNoteStatus, unreadClausesFor } from "@/lib/arena/ai/debug";
-import { deckInputFor } from "@/lib/arena/load";
+import { arenaFeedback, arenaGames } from "@/db/schema";
 import { describeAiError } from "@/lib/ai/client";
 import { IllegalAction, validateProgram, type Action, type GameState } from "@/lib/arena/engine";
 import { abandonGame, applyToGame, clearBeatsForTurn, isVersus, loadGame, seatOf, StaleGame, startGame, type ArenaMode } from "@/lib/arena/games";
@@ -16,8 +13,8 @@ import { cancelMatch, joinMatch, matchById, openMatch } from "@/lib/arena/matche
 import { currentUser } from "@/lib/auth";
 import { advance } from "@/lib/arena/ai/run";
 import { reviewGame } from "@/lib/arena/ai/review";
-import { clarifyCard, clarifyRule } from "@/lib/arena/ai/clarify";
-import { blankRule, confirmRule, ruleById, saveRule, setCompilerDiff, takeCompilerDiff } from "@/lib/arena/rules-store";
+import { clarifyRule } from "@/lib/arena/ai/clarify";
+import { blankRule, confirmMatching, confirmRule, ruleById, saveRule, setBrief, setCompilerDiff, takeCompilerDiff, undoConfirmed, type ConfirmBatch, type RuleFilter, type RuleSource, type RuleStatus } from "@/lib/arena/rules-store";
 import { SKIN_COOKIE, type ArenaSkin } from "@/lib/arena/skin";
 import { STAGING_COOKIE, type ArenaStaging } from "@/lib/arena/staging";
 
@@ -125,19 +122,13 @@ export async function saveRuleAction(id: number, ops: unknown, explanation: stri
   if (!row) return { error: "no such rule" };
   const saved = await saveRule(db, { cardId: row.cardId, side: row.side === "back" ? "back" : "front", skillIndex: row.skillIndex, ops, source: "user", status: "corrected", explanation });
   if (patternWrong && row.pattern) {
-    const clause = row.unread[0] ?? row.printed.replace(/^\s*(?:\[[^\]]*\]\s*)+/, "").trim();
-    await noteUnreadText(db, [{ cardId: row.cardId, skillIndex: row.skillIndex, clause, skillText: row.printed }], false);
-    await db
-      .update(cardTextNotes)
-      .set({
-        explanation: explanation ?? `corrected by hand on the workbench; the pattern "${row.pattern}" reads this wording wrongly`,
-        explainedAt: new Date(),
-        lastRuling: ops,
-        lastRulingWhy: saved.reads,
-        brief: `## Wording\n${row.printed}\n\n## What it should emit\n\`\`\`json\n${JSON.stringify(ops, null, 2)}\n\`\`\`\n\nThe compiler's pattern \`${row.pattern}\` produced a different program for this and ${row.pattern ? "its siblings" : "this card"}; the owner corrected this one by hand and marked the pattern wrong.`,
-      })
-      .where(and(eq(cardTextNotes.cardId, row.cardId), eq(cardTextNotes.skillIndex, row.skillIndex), eq(cardTextNotes.clause, clause)));
-    revalidatePath("/arena/backlog");
+    // The correction fixes this card; the brief is what fixes every card the
+    // same pattern misreads, and it belongs on the row the reading is on.
+    await setBrief(db, id, {
+      brief: `## Wording\n${row.printed}\n\n## What it should emit\n\`\`\`json\n${JSON.stringify(ops, null, 2)}\n\`\`\`\n\nThe compiler's pattern \`${row.pattern}\` produced a different program for this card and its siblings; the owner corrected this one by hand and marked the pattern wrong.`,
+      explanation: explanation ?? `corrected by hand on the workbench; the pattern "${row.pattern}" reads this wording wrongly`,
+    });
+    revalidatePath("/arena/rules/patterns");
   }
   await noteRule(id, `corrected by hand${patternWrong ? " (the pattern is wrong)" : ""}: ${row.printed}`, saved.reads);
   return { error: null };
@@ -166,18 +157,91 @@ export async function keepMineAction(id: number): Promise<{ error: string | null
   return { error: null };
 }
 
+// ── confirming in bulk ──────────────────────────────────────────────────────
+
+const STATUSES: RuleStatus[] = ["open", "draft", "confirmed", "corrected"];
+const SOURCES: RuleSource[] = ["compiler", "claude", "user"];
+
+/**
+ * A filter arrives from the browser, so it is read field by field rather than
+ * trusted: this one decides which rows an update touches.
+ */
+function readFilter(raw: unknown): RuleFilter {
+  const f = (raw ?? {}) as Record<string, unknown>;
+  const str = (v: unknown, max = 200) => (typeof v === "string" && v.trim() ? v.trim().slice(0, max) : undefined);
+  return {
+    cardIds: Array.isArray(f.cardIds) ? f.cardIds.filter((x): x is string => typeof x === "string").slice(0, 20000) : undefined,
+    status: STATUSES.includes(f.status as RuleStatus) ? (f.status as RuleStatus) : undefined,
+    setCode: str(f.setCode, 20),
+    source: SOURCES.includes(f.source as RuleSource) ? (f.source as RuleSource) : undefined,
+    pattern: str(f.pattern, 300),
+    mechanism: str(f.mechanism, 60),
+    q: str(f.q),
+  };
+}
+
+/** A short account of what a bulk confirm was aimed at, for the feedback row. */
+function filterInWords(f: RuleFilter): string {
+  const bits = [f.setCode, f.source && `by ${f.source}`, f.pattern && `pattern ${f.pattern}`, f.q && `matching “${f.q}”`, f.cardIds && "in your decks"].filter(Boolean);
+  return bits.length ? bits.join(" · ") : "the whole catalog";
+}
+
+/**
+ * Confirm every draft the filter matches — 400 rows of one wording in one
+ * press, which is the only way 11,375 drafts are ever going to be looked at.
+ * The rows it moved are kept on the feedback row so Undo can put back exactly
+ * those, and nothing that happened afterwards.
+ */
+export async function confirmAllAction(rawFilter: unknown): Promise<{ error: string | null; confirmed: number; batchId: number | null }> {
+  const filter = readFilter(rawFilter);
+  const batch = await confirmMatching(db, filter);
+  if (!batch.rules.length) return { error: null, confirmed: 0, batchId: null };
+  const [row] = await db
+    .insert(arenaFeedback)
+    .values({ kind: "rule", note: `confirmed ${batch.rules.length} draft${batch.rules.length === 1 ? "" : "s"}: ${filterInWords(filter)}`, batch })
+    .returning({ id: arenaFeedback.id });
+  revalidatePath("/arena/rules");
+  revalidatePath("/arena/rules/all");
+  revalidatePath("/arena/rules/patterns");
+  return { error: null, confirmed: batch.rules.length, batchId: row?.id ?? null };
+}
+
+/** …and take it back. A row edited since is left alone, and said so. */
+export async function undoConfirmAction(batchId: number): Promise<{ error: string | null; reverted: number; kept: number }> {
+  const row = await db.query.arenaFeedback.findFirst({ where: eq(arenaFeedback.id, batchId) });
+  const batch = row?.batch as ConfirmBatch | null | undefined;
+  if (!row || !batch?.rules?.length) return { error: "there is nothing to undo", reverted: 0, kept: 0 };
+  const { reverted, kept } = await undoConfirmed(db, batch);
+  // The batch is spent: nulling it keeps the note and stops a second undo
+  // from putting back what has been confirmed again since.
+  await db
+    .update(arenaFeedback)
+    .set({ batch: null, resolution: `undone: ${reverted} back to draft${kept ? `, ${kept} left as they were changed since` : ""}` })
+    .where(eq(arenaFeedback.id, batchId));
+  revalidatePath("/arena/rules");
+  revalidatePath("/arena/rules/all");
+  revalidatePath("/arena/rules/patterns");
+  return { error: null, reverted, kept };
+}
+
+/** The bulk confirms that can still be taken back, newest first. */
+export async function recentBatches(): Promise<{ id: number; note: string; n: number }[]> {
+  const rows = await db.select({ id: arenaFeedback.id, note: arenaFeedback.note, batch: arenaFeedback.batch }).from(arenaFeedback).where(and(eq(arenaFeedback.kind, "rule"), isNotNull(arenaFeedback.batch))).orderBy(desc(arenaFeedback.id)).limit(5);
+  return rows.map((r) => ({ id: r.id, note: r.note, n: ((r.batch as ConfirmBatch | null)?.rules ?? []).length }));
+}
+
 /** You explain the card; Claude answers with a program that lands as its draft, and a brief for the compiler. */
 export async function explainRuleAction(id: number, explanation: string): Promise<{ error: string | null }> {
   const row = await ruleById(db, id);
   if (!row) return { error: "no such rule" };
   try {
     const r = await clarifyRule(db, row, explanation);
-    await db.insert(arenaFeedback).values({ kind: "card", noteId: r.noteId, cardId: row.cardId, skillIndex: row.skillIndex, note: explanation.trim(), resolution: r.clarification.meaning });
+    await db.insert(arenaFeedback).values({ kind: "card", noteId: row.id, cardId: row.cardId, skillIndex: row.skillIndex, note: explanation.trim(), resolution: r.clarification.meaning });
   } catch (err) {
     return { error: describeAiError(err) };
   }
   revalidatePath("/arena/rules");
-  revalidatePath("/arena/backlog");
+  revalidatePath("/arena/rules/patterns");
   revalidatePath("/arena/feedback");
   return { error: null };
 }
@@ -316,56 +380,3 @@ export async function abandon(gameId: number) {
   redirect("/arena");
 }
 
-/**
- * Fill the backlog from every deck you can actually play, and close whatever
- * the compiler has learned to read since it was written down.
- */
-export async function sweepBacklog() {
-  // Only the decks the arena can play: the compiler this backlog feeds reads
-  // the original game's card text, not Fusion World's.
-  const all = await listDecks(db, { game: "dbs" });
-  const playable = all.filter((d) => d.leader && d.mainCount >= 50);
-  const ids = new Set<string>();
-  for (const d of playable) {
-    const input = await deckInputFor(db, d.id);
-    if (input) for (const id of input.cardIds) ids.add(id);
-  }
-  if (ids.size) await noteUnreadText(db, await unreadClausesFor(db, [...ids]), false);
-  // Adding first, then closing: a clause just written down is unread by
-  // definition, so it survives the pass that follows it.
-  await closeNotesNowRead(db);
-  revalidatePath("/arena/backlog");
-}
-
-export async function markNote(noteId: number, status: "open" | "done") {
-  await setNoteStatus(db, noteId, status);
-  revalidatePath("/arena/backlog");
-}
-
-/**
- * You explain a card; Claude saves a program for it and writes the work item
- * for teaching the compiler the wording.
- */
-export async function explainCard(noteId: number, explanation: string): Promise<{ error: string | null }> {
-  let meaning: string | null = null;
-  try {
-    const r = await clarifyCard(db, noteId, explanation);
-    meaning = r.clarification.meaning;
-  } catch (err) {
-    return { error: describeAiError(err) };
-  }
-  // Explaining a card is the same kind of thing as reporting a bug: you saw
-  // something the measurements cannot. It goes to the same place.
-  const note = await db.query.cardTextNotes.findFirst({ where: eq(cardTextNotes.id, noteId) });
-  await db.insert(arenaFeedback).values({
-    kind: "card",
-    noteId,
-    cardId: note?.cardId ?? null,
-    skillIndex: note?.skillIndex ?? null,
-    note: explanation.trim(),
-    resolution: meaning,
-  });
-  revalidatePath("/arena/backlog");
-  revalidatePath("/arena/feedback");
-  return { error: null };
-}

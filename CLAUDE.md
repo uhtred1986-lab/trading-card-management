@@ -271,15 +271,15 @@ the same style.
   a card's text defeats the compiler. `run.ts` drives Claude's side and totals what it spent onto
   the game row. Caching note: the cached prefix is ~3,200 tokens, over Opus 5's 512-token minimum
   but under Haiku 4.5's 4,096, so Tournament games cache and Sparring games do not.
-- **Arena debug and backlog** (`src/lib/arena/ai/debug.ts`): every decision the server takes is
+- **Arena debug** (`src/lib/arena/ai/debug.ts`): every decision the server takes is
   written to `arena_decisions` — the prompt kind, the whole menu offered, what was chosen, whether a
   rule or Claude decided it, the model, tokens, cost and latency, plus the exact prompt text when
-  the game has `debug` on. `/arena/[id]/debug` reads it back. Clauses the compiler cannot read go
-  to `card_text_notes`, grouped by clause shape at `/arena/backlog`: the referee bumps a row when
-  the text actually comes up and stores the program Claude produced as a worked example, and
-  "scan my decks again" fills it from the decks you play. That page is the to-do list for
-  `compile.ts` — one rule usually clears a whole group.
-- **Rules are records** (`docs/arena-rules-workbench-spec.md`, phase 1 built 8 Sep 2026): the
+  the game has `debug` on. `/arena/[id]/debug` reads it back. What the compiler cannot read is
+  **not** a second list: it is `card_rules.unread` on the rule itself, grouped at
+  `/arena/rules/patterns` (`card_text_notes` was folded in and dropped, migration 0030). The
+  referee bumps `times_seen` on the rule when the text actually comes up, and the program it
+  produced is that rule's Claude draft, so the worked example is the record.
+- **Rules are records** (`docs/arena-rules-workbench-spec.md`, phases 1 and 2 built 8 Sep 2026): the
   engine plays from `card_rules` — one row per skill per card face with the program, trigger,
   cost, hoisted condition, provenance (`compiler | claude | user`), state (`open | draft |
   confirmed | corrected`), unread clauses, plain reading and version — and **never compiles
@@ -288,20 +288,30 @@ the same style.
   (`draftCards`, and `reviewOpenRules`, which asks Claude about what the compiler left open,
   within the `arena.reviewBudget` setting). A row a person confirmed or corrected is never
   rewritten by a script: the compiler's newer reading lands beside it as `compiler_diff`. The
-  effect language is defined once, in `OP_SCHEMA` (`engine/script.ts`): the validator, the plain
-  reading, the referee's prompt and the workbench's editor read it, so a new op is one interpreter
-  case and one row. `/arena/rules` is the workbench — worklist, record (WHEN / COST / IF / DO as
-  chips, JSON view, Confirm / Correct by hand / Explain to Claude / does nothing), history.
-  `npm run arena:draft` fills the table; the catalog sync drafts every new or changed card.
-- **Explaining a card** (`src/lib/arena/ai/clarify.ts`, `/arena/backlog` and the workbench): you say
+  effect language is defined once, in `OP_SCHEMA` and `COND_SCHEMA` (`engine/script.ts`): the
+  validator, the plain reading, the referee's prompt and the workbench's chip editor read them, so
+  a new operation or condition kind is one interpreter case and one row. The workbench has three
+  worklists over the same records: `/arena/rules` the cards in the decks the arena can play,
+  `/arena/rules/all` the whole catalog (filtered by set, source, mechanism, pattern or text, 200
+  rows a page), `/arena/rules/patterns` the same rules grouped by the wording that produced them.
+  The record is WHEN / COST / IF / DO as chips — reorderable, nested programs, modal options and
+  conditions included — with a JSON view of the same program, Confirm / Correct by hand / Explain
+  to Claude / does nothing, and history. **Confirm all drafts in view** confirms exactly what the
+  *filter* matches (not the rows on screen); the rows it moved are kept on the `arena_feedback`
+  row as `{id, version}` pairs so **Undo** puts back exactly those and leaves anything edited since
+  alone. `npm run arena:draft` fills the table; the catalog sync drafts every new or changed card.
+  A rule with no steps and a `keyword:` pattern is not blank — the keyword is the rule the engine
+  plays, and the record says which, from `glossary.ts`.
+- **Explaining a card** (`src/lib/arena/ai/clarify.ts`, from any record on the workbench): you say
   what a card does in plain words; Claude returns a program in the effect language, saved as the
   card's **draft** rule (`source: claude`, for you to confirm), and a markdown work item for
-  teaching `compile.ts` the *wording*. The referee's mid-game rulings land the same way, so
-  nothing Claude decides is invisible. The program fixes one card; the work item is what fixes
-  every card phrased the same way. The two are not the same fix and the page says so.
-  **A ruling that arrives in conversation goes to the same table, not into a commit message**:
+  teaching `compile.ts` the *wording*, kept as `card_rules.brief` and shown on the record and on
+  its Patterns group. The referee's mid-game rulings land the same way, so nothing Claude decides
+  is invisible. The program fixes one card; the work item is what fixes every card phrased the
+  same way. The two are not the same fix and the page says so.
+  **A ruling that arrives in conversation goes to the same row, not into a commit message**:
   `npm run arena:rule -- <cardId> [--skill N] [--clause "…"] "<the ruling>"` writes it to
-  `card_text_notes.explanation` (`--list` reads them all back). Unlike the page's box it asks
+  `card_rules.explanation` (`--list` reads them all back). Unlike the page's box it asks
   Claude for nothing — it records what the owner said, and the code change is then made
   deliberately against every card sharing the wording. Owner's instruction, 7 Sep 2026: when a
   ruling is given in chat, store it there first, then wait to be asked for the code change.

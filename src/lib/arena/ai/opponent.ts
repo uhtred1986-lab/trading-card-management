@@ -22,7 +22,7 @@ import { z } from "zod";
 import type { Db } from "@/db";
 import { FAST_MODEL, MODEL, anthropic, hasAnthropic, recordRun } from "@/lib/ai/client";
 import { comboPowerOf, face, other, powerOf, validateProgram, type EngineContext, type GameState, type LegalAction, type Op, type PlayerId } from "../engine";
-import { AREAS, DURATIONS, OP_SCHEMA, opSignature } from "../engine/script";
+import { AREAS, COND_SCHEMA, DURATIONS, OP_SCHEMA, condSignature, opSignature, type Cond } from "../engine/script";
 import { def, has } from "../engine/state";
 import { decklistText, money, movesText, stateText } from "./view";
 
@@ -261,6 +261,11 @@ const OPERATIONS = (Object.keys(OP_SCHEMA) as Op["op"][])
   .map((k) => `  ${opSignature(k)}${OP_SCHEMA[k].doc ? `\n    ${OP_SCHEMA[k].doc}` : ""}`)
   .join("\n");
 
+/** …and the conditions off `COND_SCHEMA`, for the same reason. */
+const CONDITIONS = (Object.keys(COND_SCHEMA) as Cond["kind"][])
+  .map((k) => `  ${condSignature(k)}${COND_SCHEMA[k].doc ? `\n    ${COND_SCHEMA[k].doc}` : ""}`)
+  .join("\n");
+
 export const EFFECT_LANGUAGE = `You are ruling on one skill of one card in a Dragon Ball Super Card Game engine. Answer with a JSON array of operations that carries out exactly what the skill's text says — no more, no less. The engine runs it and still enforces every rule, so an operation that would break a rule is simply refused.
 
 Operations (each is an object with "op"; a field marked ? may be left out):
@@ -274,13 +279,18 @@ SELECTOR: {"side":"you"|"opponent"|"both","area":"battle"|"hand"|"deck"|"drop"|"
   ("resolving" is the card whose play a [Counter: Play] is answering).
   "count":99 means all of them, and a count is always a choice; "take":2 is "the top 2 cards" instead ("fromEnd":true for the bottom).
   A filter may hold colors, characters, traits, names, costMin, costMax, powerMin, powerMax.
-COND: {"kind":"life","side":"you","atMost":4} | {"kind":"count","sel":SELECTOR,"atLeast":2} | {"kind":"leaderColor","color":"Red"} | {"kind":"chose","var":"t"}
-   | {"kind":"varMatches","var":"revealed","filter":{...}}   "if that card is a Battle Card"
+COND is one of these (a field marked ? may be left out):
+${CONDITIONS}
+  "During your opponent's turn" is a CONDITION, {"kind":"isTurnPlayer","who":"opponent"} — not a duration. A
+  duration says how long an effect this skill applies lasts; a condition says when the skill does anything at all.
 TIMING: "turnStart" | "mainStart" | "turnEnd" | "turnCleanup" | "battleEnd"
 SCOPE: "thisTurn" (default) | "nextTurn" | "yourNextTurn" | "opponentNextTurn"
 AREA: ${AREAS.map((a) => `"${a}"`).join(" | ")}
 DURATION: ${DURATIONS.map((d) => `"${d}"`).join(" | ")} — "nextTurn" lasts through the opponent's turn and ends as yours begins.
 FILTER: {"colors":[…],"characters":[…],"traits":[…],"names":[…],"costMin":N,"costMax":N,"powerMin":N,"powerMax":N}, any subset.
+  The brackets a card prints say which list a word belongs in: <Son Goku> is a character, ≪Saiyan≫ a trait, and
+  {Angel Halo} a card *name* — "names", never "characters". A card names itself in braces and its character
+  in angle brackets, and they are different cards.
   "At the end of the turn, KO it" is {"op":"choose",...} then {"op":"delay","at":"turnEnd","ops":[{"op":"ko","target":{"var":"t"}}]}.
   A delayed program keeps the variables bound before it, so "it" still means the card chosen now.
 

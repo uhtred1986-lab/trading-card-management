@@ -17,7 +17,7 @@ const [version] = rows<{ version: string }>(await db.execute(sql`select version(
 console.log(`driver: ${driver} · ${Date.now() - started} ms to first answer`);
 console.log(version.version);
 
-for (const table of ["cards", "decks", "card_rules", "card_text_notes", "arena_games"]) {
+for (const table of ["cards", "decks", "card_rules", "arena_decisions", "arena_games"]) {
   const [r] = rows<{ n: number }>(await db.execute(sql.raw(`select count(*)::int as n from ${table}`)));
   console.log(`${table.padEnd(16)} ${r.n}`);
 }

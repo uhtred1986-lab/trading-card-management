@@ -465,6 +465,19 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
 
 export type KeywordEntry = KeywordDoc & { name: string };
 
+/**
+ * What plays a skill whose whole program is empty because the keyword *is*
+ * the rule — "[Z-Stack 1] Yellow <Son Goku> …", "[Triple Strike] (This card
+ * inflicts 3 damage …)". Their record used to read "nothing — the engine
+ * treats this skill as blank", which is the opposite of true: the engine
+ * plays them, it just does not play them from a program. Null for a name no
+ * keyword carries.
+ */
+export function keywordPlays(name: string): { tag: string; engine: string; support: Support } | null {
+  const doc = (KEYWORDS as Record<string, KeywordDoc | undefined>)[name];
+  return doc ? { tag: doc.tag, engine: doc.engine, support: doc.support } : null;
+}
+
 /** Every keyword, grouped for reading, in `GROUP_ORDER`. */
 export function keywordsByGroup(): { group: KeywordGroup; label: string; entries: KeywordEntry[] }[] {
   const all: KeywordEntry[] = Object.entries(KEYWORDS).map(([name, doc]) => ({ ...doc, name }));

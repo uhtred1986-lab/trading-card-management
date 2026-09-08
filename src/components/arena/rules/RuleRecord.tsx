@@ -3,8 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { blankRuleAction, confirmRuleAction, explainRuleAction, keepMineAction, saveRuleAction, takeCompilerAction } from "@/app/arena/actions";
-import { OP_SCHEMA, describeCond, describeScript, validateProgram, type Cond, type Op } from "@/lib/arena/engine/script";
-import { StepChip, blankOp } from "./OpEditor";
+import { keywordPlays } from "@/lib/arena/glossary";
+import { describeScript, validateProgram, type Cond, type Op } from "@/lib/arena/engine/script";
+import { CondChip, OpList, blankCond } from "./OpEditor";
 
 /**
  * The record: one skill of one card, as the engine plays it — WHEN, COST, IF
@@ -32,6 +33,10 @@ export interface RecordProps {
   source: "compiler" | "claude" | "user";
   version: number;
   explanation: string | null;
+  /** The work item for teaching the compiler this wording, when one has been written. */
+  brief: string | null;
+  /** How often a game has actually reached this skill and put it to the referee. */
+  timesSeen: number;
   pattern: string | null;
   reads: string;
   decks: string[];
@@ -71,6 +76,10 @@ export function RuleRecord(r: RecordProps) {
 
   const program = useMemo(() => programOf(cond, ops), [cond, ops]);
   const reads = useMemo(() => describeScript(program, { permanent: r.permanent }), [program, r.permanent]);
+  // A keyword line whose whole program is empty is not a blank skill: the
+  // keyword is the rule, and the engine plays it. `plays` is the glossary's
+  // word for that, and the only place it is written down.
+  const plays = r.pattern?.startsWith("keyword:") ? keywordPlays(r.pattern.slice("keyword:".length)) : null;
   const dirty = JSON.stringify(program) !== JSON.stringify(programOf(r.cond, r.ops));
 
   const run = (label: string, fn: () => Promise<{ error: string | null }>) => {
@@ -114,9 +123,6 @@ export function RuleRecord(r: RecordProps) {
     setJsonOpen(!jsonOpen);
   };
 
-  const updateOp = (i: number, op: Op) => setOps(ops.map((o, j) => (j === i ? op : o)));
-  const removeOp = (i: number) => setOps(ops.filter((_, j) => j !== i));
-
   const printed = r.printed.replace(/\s+/g, " ").trim();
   const mark = r.status === "open" ? r.unread[0] : null;
   const badge = BADGE[r.status];
@@ -138,6 +144,7 @@ export function RuleRecord(r: RecordProps) {
         <p className="text-xs text-space-400">
           {r.decks.length ? `in ${r.decks.join(", ")}` : "not in a deck you play"}
           {r.siblings.count ? ` · ${r.siblings.count} other card${r.siblings.count === 1 ? "" : "s"} in the catalog phrase this the same way` : ""}
+          {r.timesSeen > 0 ? ` · a game has reached this skill ${r.timesSeen}×` : ""}
         </p>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${badge.cls}`}>
@@ -204,41 +211,29 @@ export function RuleRecord(r: RecordProps) {
           <Row k="IF" tone="text-dbs-blue">
             {cond ? (
               <Chip>
-                {describeCond(cond)}
-                {editing && (
-                  <button type="button" onClick={() => setCond(null)} className="ml-1 text-space-500 hover:text-loss" title="drop the condition">
-                    ×
-                  </button>
-                )}
+                <CondChip cond={cond} editing={editing} onChange={setCond} onRemove={editing ? () => setCond(null) : undefined} />
               </Chip>
             ) : (
-              <span className="text-[11px] text-space-500">no condition — add one through the JSON view as a wrapping “if”</span>
+              <button type="button" className="tap rounded-lg border border-dashed border-space-600 px-2 py-1 text-xs text-space-300" onClick={() => setCond(blankCond("isTurnPlayer"))}>
+                + condition
+              </button>
             )}
           </Row>
         )}
         <Row k="DO" tone="text-ki-300">
-          <div className="flex w-full flex-col gap-1.5">
-            {ops.length === 0 && <div className="rounded-lg border border-loss/50 px-2 py-1.5 text-[12px] text-loss">nothing — the engine treats this skill as blank</div>}
-            {ops.map((op, i) => (
-              <StepChip key={i} op={op} index={i} editing={editing} onChange={(o) => updateOp(i, o)} onRemove={() => removeOp(i)} />
-            ))}
-            {editing && (
-              <div className="flex flex-wrap items-center gap-2">
-                <select className="tap rounded-lg border border-dashed border-space-600 bg-transparent px-2 py-1 text-xs text-space-300" value="" onChange={(e) => e.target.value && setOps([...ops, blankOp(e.target.value as Op["op"])])}>
-                  <option value="">+ step</option>
-                  {(Object.keys(OP_SCHEMA) as Op["op"][]).map((k) => (
-                      <option key={k} value={k}>
-                        {k}
-                      </option>
-                    ))}
-                </select>
-                <span className="text-[11px] text-space-500">{Object.keys(OP_SCHEMA).length} step kinds — the same ones the engine runs</span>
-              </div>
-            )}
-          </div>
+          {r.status === "draft" && r.source === "compiler" && !ops.length && !cond && plays ? (
+            <Chip>
+              <span className="text-space-300">
+                played by the engine&rsquo;s <b className="font-semibold text-ki-300">{plays.tag}</b> rule
+              </span>
+            </Chip>
+          ) : (
+            <OpList ops={ops} editing={editing} onChange={setOps} />
+          )}
         </Row>
         <div className="border-t border-space-700 px-4 py-3 text-xs text-space-300">
-          The engine will: <b className="font-semibold text-space-50">{reads || "nothing"}</b>
+          The engine will: <b className="font-semibold text-space-50">{reads || (plays ? `play this as ${plays.tag}` : "nothing")}</b>
+          {plays && !dirty && <span className="text-space-400"> — {plays.engine}</span>}
           {r.status === "open" && !dirty && <span className="text-loss"> — the printed text says more than that.</span>}
         </div>
       </div>
@@ -351,6 +346,12 @@ export function RuleRecord(r: RecordProps) {
           </button>
         )}
       </div>
+      {r.brief && (
+        <details className="rounded-xl border border-space-700 bg-space-950/60">
+          <summary className="cursor-pointer p-2 text-[11px] text-ki-300">the work item for teaching the compiler this wording</summary>
+          <pre className="max-h-80 overflow-auto whitespace-pre-wrap p-2 font-mono text-[10px] leading-relaxed text-space-300">{r.brief}</pre>
+        </details>
+      )}
       {r.explanation && (
         <p className="rounded-lg border-l-2 border-gain bg-space-900/60 p-2 text-[11px] text-space-300">
           <span className="text-space-500">explanation on file: </span>
