@@ -86,7 +86,7 @@ export const EMPTY_BEATS: Beats = { seq: 0, list: [], art: {} };
 /** How many beats a game keeps. A whole opponent turn is a few dozen. */
 export const BEAT_CAP = 300;
 
-const SKILL_LABELS: Record<string, string> = {
+export const SKILL_LABELS: Record<string, string> = {
   "activate:main": "Activate: Main",
   "activate:battle": "Activate: Battle",
   "activate:main/battle": "Activate: Main/Battle",

@@ -3,22 +3,21 @@
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { arenaFeedback, arenaGames, cardTextNotes } from "@/db/schema";
 import { listDecks } from "@/lib/decks/queries";
 import { closeNotesNowRead, noteUnreadText, setNoteStatus, unreadClausesFor } from "@/lib/arena/ai/debug";
 import { deckInputFor } from "@/lib/arena/load";
 import { describeAiError } from "@/lib/ai/client";
-import { IllegalAction, type Action, type GameState } from "@/lib/arena/engine";
+import { IllegalAction, validateProgram, type Action, type GameState } from "@/lib/arena/engine";
 import { abandonGame, applyToGame, clearBeatsForTurn, isVersus, loadGame, seatOf, StaleGame, startGame, type ArenaMode } from "@/lib/arena/games";
 import { cancelMatch, joinMatch, matchById, openMatch } from "@/lib/arena/matches";
 import { currentUser } from "@/lib/auth";
 import { advance } from "@/lib/arena/ai/run";
 import { reviewGame } from "@/lib/arena/ai/review";
-import { clarifyCard } from "@/lib/arena/ai/clarify";
-import { previewRule, removeRule, type RulePreview } from "@/lib/arena/rules";
-import { saveRule as storeRule } from "@/lib/arena/rules-store";
+import { clarifyCard, clarifyRule } from "@/lib/arena/ai/clarify";
+import { blankRule, confirmRule, ruleById, saveRule, setCompilerDiff, takeCompilerDiff } from "@/lib/arena/rules-store";
 import { SKIN_COOKIE, type ArenaSkin } from "@/lib/arena/skin";
 import { STAGING_COOKIE, type ArenaStaging } from "@/lib/arena/staging";
 
@@ -94,41 +93,93 @@ export async function setFeedbackStatus(id: number, status: "open" | "fixed" | "
   revalidatePath("/arena/feedback");
 }
 
-/**
- * What the engine would make of a line of card text, without keeping it.
- *
- * This is the whole point of the rules page: the compiler is the parser for
- * this language, so the honest way to let you set a rule is to let you write
- * the wording and read back what it means.
- */
-export async function checkRule(line: string): Promise<RulePreview> {
-  return previewRule(line);
-}
+// ── the Rules Workbench ─────────────────────────────────────────────────────
+// Every write here regenerates the row's reading through the store and files
+// an `arena_feedback` row of kind `rule`, so `arena:feedback` still lists what
+// a person decided about a card.
 
-/** Keep that reading against the card, where the engine will prefer it. */
-export async function saveRule(cardId: string, skillIndex: number, side: "front" | "back", line: string): Promise<{ error: string | null }> {
-  const p = previewRule(line);
-  if (p.unsupported.length) return { error: `still unread: ${p.unsupported.join(" | ")}` };
-  if (!p.ops.length) return { error: "that reads as doing nothing — save it only if the skill really does nothing" };
-  await storeRule(db, { cardId, skillIndex, side, ops: p.ops, source: "user", status: "corrected", explanation: line.trim(), printed: line.trim(), kind: p.kind ?? "auto" });
-  // Setting a rule by hand is you telling me the compiler could not read
-  // something, which no coverage run can say — so it lands with the rest.
-  await db.insert(arenaFeedback).values({ kind: "rule", cardId, skillIndex, note: line.trim(), resolution: p.reads });
+async function noteRule(id: number, note: string, resolution: string | null) {
+  const row = await ruleById(db, id);
+  await db.insert(arenaFeedback).values({ kind: "rule", cardId: row?.cardId ?? null, skillIndex: row?.skillIndex ?? null, note, resolution });
   revalidatePath("/arena/rules");
   revalidatePath("/arena/feedback");
+}
+
+/** Draft → confirmed: the program stays, the person's acceptance is recorded. */
+export async function confirmRuleAction(id: number): Promise<{ error: string | null }> {
+  const row = await ruleById(db, id);
+  if (!row) return { error: "no such rule" };
+  await confirmRule(db, id);
+  await noteRule(id, `confirmed: ${row.printed}`, row.reads);
   return { error: null };
 }
 
-/** Save a program that reads as nothing, for skills the engine should ignore. */
-export async function saveEmptyRule(cardId: string, skillIndex: number, side: "front" | "back", line: string): Promise<{ error: string | null }> {
-  await storeRule(db, { cardId, skillIndex, side, ops: [], source: "user", status: "corrected", explanation: line.trim(), printed: line.trim(), kind: "auto" });
-  revalidatePath("/arena/rules");
+/**
+ * A program written by hand (or corrected in the JSON view). `patternWrong`
+ * also files a compiler brief on the backlog with this program as the
+ * expected reading, for the case where every card phrased this way is misread.
+ */
+export async function saveRuleAction(id: number, ops: unknown, explanation: string | null, patternWrong = false): Promise<{ error: string | null }> {
+  if (!validateProgram(ops)) return { error: "that is not a valid program — every step needs its required fields and known values" };
+  const row = await ruleById(db, id);
+  if (!row) return { error: "no such rule" };
+  const saved = await saveRule(db, { cardId: row.cardId, side: row.side === "back" ? "back" : "front", skillIndex: row.skillIndex, ops, source: "user", status: "corrected", explanation });
+  if (patternWrong && row.pattern) {
+    const clause = row.unread[0] ?? row.printed.replace(/^\s*(?:\[[^\]]*\]\s*)+/, "").trim();
+    await noteUnreadText(db, [{ cardId: row.cardId, skillIndex: row.skillIndex, clause, skillText: row.printed }], false);
+    await db
+      .update(cardTextNotes)
+      .set({
+        explanation: explanation ?? `corrected by hand on the workbench; the pattern "${row.pattern}" reads this wording wrongly`,
+        explainedAt: new Date(),
+        lastRuling: ops,
+        lastRulingWhy: saved.reads,
+        brief: `## Wording\n${row.printed}\n\n## What it should emit\n\`\`\`json\n${JSON.stringify(ops, null, 2)}\n\`\`\`\n\nThe compiler's pattern \`${row.pattern}\` produced a different program for this and ${row.pattern ? "its siblings" : "this card"}; the owner corrected this one by hand and marked the pattern wrong.`,
+      })
+      .where(and(eq(cardTextNotes.cardId, row.cardId), eq(cardTextNotes.skillIndex, row.skillIndex), eq(cardTextNotes.clause, clause)));
+    revalidatePath("/arena/backlog");
+  }
+  await noteRule(id, `corrected by hand${patternWrong ? " (the pattern is wrong)" : ""}: ${row.printed}`, saved.reads);
   return { error: null };
 }
 
-export async function clearRule(cardId: string, skillIndex: number, side: "front" | "back") {
-  await removeRule(db, cardId, skillIndex, side);
+/** An empty program, owned by the person: the skill does nothing the engine should carry out. */
+export async function blankRuleAction(id: number, explanation: string | null): Promise<{ error: string | null }> {
+  const row = await ruleById(db, id);
+  if (!row) return { error: "no such rule" };
+  await blankRule(db, id, explanation);
+  await noteRule(id, `marked as does nothing: ${row.printed}`, null);
+  return { error: null };
+}
+
+/** The compiler now reads the text differently, and the person yields to it. */
+export async function takeCompilerAction(id: number): Promise<{ error: string | null }> {
+  await takeCompilerDiff(db, id);
+  await noteRule(id, "took the compiler's newer reading", (await ruleById(db, id))?.reads ?? null);
+  return { error: null };
+}
+
+/** …or keeps their own; the diff is cleared until the compiler changes its mind again. */
+export async function keepMineAction(id: number): Promise<{ error: string | null }> {
+  await setCompilerDiff(db, id, null);
+  await noteRule(id, "kept their own reading over the compiler's", null);
+  return { error: null };
+}
+
+/** You explain the card; Claude answers with a program that lands as its draft, and a brief for the compiler. */
+export async function explainRuleAction(id: number, explanation: string): Promise<{ error: string | null }> {
+  const row = await ruleById(db, id);
+  if (!row) return { error: "no such rule" };
+  try {
+    const r = await clarifyRule(db, row, explanation);
+    await db.insert(arenaFeedback).values({ kind: "card", noteId: r.noteId, cardId: row.cardId, skillIndex: row.skillIndex, note: explanation.trim(), resolution: r.clarification.meaning });
+  } catch (err) {
+    return { error: describeAiError(err) };
+  }
   revalidatePath("/arena/rules");
+  revalidatePath("/arena/backlog");
+  revalidatePath("/arena/feedback");
+  return { error: null };
 }
 
 export async function startGameForm(formData: FormData) {

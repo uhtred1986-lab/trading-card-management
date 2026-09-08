@@ -6,9 +6,9 @@
  * that changes a row goes through here so the reading (`reads`) and the
  * version stay honest.
  */
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, ne, sql } from "drizzle-orm";
 import type { Db } from "@/db";
-import { cardRules } from "@/db/schema";
+import { cardRules, cards } from "@/db/schema";
 import { describeScript, type CardDef, type CardScripts, type Op } from "./engine";
 import type { Cond } from "./engine/script";
 
@@ -165,4 +165,40 @@ export async function countRules(db: Db, cardIds?: string[]): Promise<RuleCounts
     .groupBy(cardRules.status);
   for (const r of rows) if (r.status in out) out[r.status as RuleStatus] = r.n;
   return out;
+}
+
+// ── reads for the workbench ─────────────────────────────────────────────────
+
+export type WorklistRow = RuleRow & { name: string; setCode: string };
+
+/** Every rule of the given cards, with the card's name and set beside it. */
+export async function worklist(db: Db, cardIds: string[]): Promise<WorklistRow[]> {
+  const ids = [...new Set(cardIds)];
+  if (!ids.length) return [];
+  const rows = await db
+    .select({ rule: cardRules, name: cards.name, setCode: cards.setCode })
+    .from(cardRules)
+    .innerJoin(cards, eq(cards.id, cardRules.cardId))
+    .where(inArray(cardRules.cardId, ids));
+  return rows.map((r) => ({ ...r.rule, name: r.name, setCode: r.setCode }));
+}
+
+export async function ruleById(db: Db, id: number): Promise<WorklistRow | null> {
+  const [r] = await db
+    .select({ rule: cardRules, name: cards.name, setCode: cards.setCode })
+    .from(cardRules)
+    .innerJoin(cards, eq(cards.id, cardRules.cardId))
+    .where(eq(cardRules.id, id));
+  return r ? { ...r.rule, name: r.name, setCode: r.setCode } : null;
+}
+
+/** The other rules that share a pattern key: how many, and five to look at. */
+export async function siblingsOf(db: Db, row: Pick<RuleRow, "id" | "pattern">): Promise<{ count: number; ids: string[] }> {
+  if (!row.pattern) return { count: 0, ids: [] };
+  const rows = await db
+    .select({ cardId: cardRules.cardId })
+    .from(cardRules)
+    .where(and(eq(cardRules.pattern, row.pattern), ne(cardRules.id, row.id)));
+  const ids = [...new Set(rows.map((r) => r.cardId))];
+  return { count: ids.length, ids: ids.slice(0, 5) };
 }
