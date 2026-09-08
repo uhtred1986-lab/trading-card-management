@@ -1,5 +1,9 @@
 /**
- * `npm run arena:draft [-- --card BT16-042] [--set BT16] [--only-open]`
+ * `npm run arena:draft [-- --card BT16-042] [--set BT16] [--only-open] [--review] [--budget N]`
+ *
+ * `--review` then asks Claude for every skill still open among the drafted
+ * cards — the full-catalog backfill is `--review --budget 0` (unlimited), run
+ * by hand and never by the sync, which has its own budget setting.
  *
  * Compile the catalog offline and write the drafts into `card_rules`. Rows a
  * person owns are never rewritten — the compiler's newer reading lands beside
@@ -12,7 +16,7 @@ const { loadEnvConfig } = nextEnv;
 loadEnvConfig(process.cwd());
 
 const { db } = await import("../src/db/index.ts");
-const { catalogIds, draftCards } = await import("../src/lib/arena/draft.ts");
+const { catalogIds, draftCards, reviewOpenRules } = await import("../src/lib/arena/draft.ts");
 const { countRules } = await import("../src/lib/arena/rules-store.ts");
 const { cardRules, decks } = await import("../src/db/schema.ts");
 const { deckInputFor } = await import("../src/lib/arena/load.ts");
@@ -25,12 +29,18 @@ const flag = (name: string) => {
 const card = flag("--card");
 const set = flag("--set");
 const onlyOpen = args.includes("--only-open");
+const review = args.includes("--review");
+const budgetArg = flag("--budget");
 
 const ids = card ? [card] : await catalogIds(db, set ?? undefined);
 console.log(`Drafting ${ids.length} card${ids.length === 1 ? "" : "s"}${set ? ` of ${set}` : ""}${onlyOpen ? ", open rows only" : ""}…`);
 const started = Date.now();
 const s = await draftCards(db, ids, { onlyOpen });
 console.log(`${s.cards} cards · ${s.skills} skills · ${s.inserted} inserted · ${s.updated} compiler rows updated · ${s.diffed} person-owned rows now differ from the compiler · ${s.agreed} agree again · ${s.deleted} stale rows removed · ${((Date.now() - started) / 1000).toFixed(1)} s`);
+if (review) {
+  const r = await reviewOpenRules(db, ids, budgetArg == null ? {} : { budget: Number(budgetArg) });
+  console.log(`Claude asked about ${r.asked} open skill${r.asked === 1 ? "" : "s"} · ${r.drafted} drafted · ${r.failed} failed (see arena:feedback) · ${r.stillOpen} still open`);
+}
 
 const line = (label: string, c: Record<string, number>) => {
   const total = c.open + c.draft + c.confirmed + c.corrected;

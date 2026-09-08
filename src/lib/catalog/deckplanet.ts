@@ -14,13 +14,15 @@
  * bucket** — those come from TCGplayer during the price sync, so the upserts
  * here `coalesce` the image columns instead of overwriting them.
  */
-import { sql } from "drizzle-orm";
+import { inArray, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { cardPrints, cardSets, cards } from "@/db/schema";
 import { applyOfficialImages, fetchOfficialImageNames } from "./bandai";
 import { correctSkillText, unmatchedCorrections } from "./errata";
 import { GAMES, GAME_INFO, type Game } from "./games";
 import { setCodeOfNumber, setLineFor, setNameFor, setSortKey } from "./sets";
+import { draftCards, reviewOpenRules } from "@/lib/arena/draft";
+import { countRules } from "@/lib/arena/rules-store";
 
 export function catalogUrl(game: Game): string {
   return `https://api.deckplanet.net/cardsearch/${GAME_INFO[game].catalogPath}?limit=100000`;
@@ -349,6 +351,13 @@ export interface CatalogSyncSummary {
   sets: number;
   cards: number;
   prints: number;
+  /** Cards the import had not seen before, and cards whose skill text changed (errata, a corrected scrape). */
+  cardsNew?: number;
+  cardsChanged?: number;
+  /** The arena's drafter over exactly those cards: skills drafted, open ones Claude drafted, open ones left. */
+  drafted?: number;
+  reviewed?: number;
+  stillOpen?: number;
   backImages?: number;
   /** Original-game prints whose deckplanet front image was confirmed to exist. */
   frontImages?: number;
@@ -420,7 +429,27 @@ export async function verifyFrontImages(shaped: ShapedCatalog, concurrency = 40)
   return kept;
 }
 
-export async function importCatalog(db: Db, shaped: ShapedCatalog): Promise<CatalogSyncSummary> {
+/**
+ * The cards whose text has just arrived or changed — what the arena's drafter
+ * has to look at. Read before the upsert, decided after it, from the same
+ * columns the rules are compiled from.
+ */
+export function changedCardIds(before: Map<string, { skill: string | null; backSkill: string | null }>, after: readonly Pick<CatalogCard, "id" | "skill" | "backSkill">[]): { inserted: string[]; changed: string[] } {
+  const inserted: string[] = [];
+  const changed: string[] = [];
+  for (const c of after) {
+    const was = before.get(c.id);
+    if (!was) inserted.push(c.id);
+    else if ((was.skill ?? "") !== (c.skill ?? "") || (was.backSkill ?? "") !== (c.backSkill ?? "")) changed.push(c.id);
+  }
+  return { inserted, changed };
+}
+
+export async function importCatalog(db: Db, shaped: ShapedCatalog): Promise<CatalogSyncSummary & { touched: string[] }> {
+  const before = new Map<string, { skill: string | null; backSkill: string | null }>();
+  for (const batch of chunk(shaped.cards.map((c) => c.id), 500)) {
+    for (const r of await db.select({ id: cards.id, skill: cards.skill, backSkill: cards.backSkill }).from(cards).where(inArray(cards.id, batch))) before.set(r.id, { skill: r.skill, backSkill: r.backSkill });
+  }
   // Sets first (cards reference them). Preserve any release date already known.
   await db
     .insert(cardSets)
@@ -507,11 +536,34 @@ export async function importCatalog(db: Db, shaped: ShapedCatalog): Promise<Cata
       });
   }
 
-  return { sets: shaped.sets.length, cards: shaped.cards.length, prints: shaped.prints.length };
+  const { inserted, changed } = changedCardIds(before, shaped.cards);
+  return { sets: shaped.sets.length, cards: shaped.cards.length, prints: shaped.prints.length, cardsNew: inserted.length, cardsChanged: changed.length, touched: [...inserted, ...changed] };
+}
+
+export interface CatalogSyncOptions {
+  /** Ask Claude for the skills the compiler left open. Default on; `--no-review` turns it off. */
+  review?: boolean;
+  /** Calls per run; 0 is unlimited. Defaults to the `arena.reviewBudget` setting, else 400. */
+  budget?: number;
+}
+
+/**
+ * New and changed cards get a rule now, not later (brief §3.7): the drafter
+ * runs over exactly the cards this import touched, and Claude is asked about
+ * every skill it left open, within the budget. Original game only — the arena
+ * does not play Fusion World.
+ */
+async function draftTouched(db: Db, game: Game, touched: string[], opts: CatalogSyncOptions): Promise<Pick<CatalogSyncSummary, "drafted" | "reviewed" | "stillOpen">> {
+  if (game !== "dbs" || !touched.length) return {};
+  const d = await draftCards(db, touched);
+  const drafted = d.inserted + d.updated;
+  if (opts.review === false) return { drafted, reviewed: 0, stillOpen: (await countRules(db, touched)).open };
+  const r = await reviewOpenRules(db, touched, opts.budget == null ? {} : { budget: opts.budget });
+  return { drafted, reviewed: r.drafted, stillOpen: r.stillOpen };
 }
 
 /** One game's catalog, end to end. */
-export async function syncCatalogFor(db: Db, game: Game): Promise<CatalogSyncSummary> {
+export async function syncCatalogFor(db: Db, game: Game, opts: CatalogSyncOptions = {}): Promise<CatalogSyncSummary> {
   const raw = await fetchDeckplanet(game);
   // Every typo in `errata.ts` is a claim about what the source says today. This
   // is the one moment the source is in hand, so it is the only place the claim
@@ -532,19 +584,21 @@ export async function syncCatalogFor(db: Db, game: Game): Promise<CatalogSyncSum
     const official = applyOfficialImages(shaped, await fetchOfficialImageNames());
     // Backs are inferred from the leader's front, so they get the same HEAD check.
     const backImages = await verifyBackImages(shaped);
-    return { ...(await importCatalog(db, shaped)), backImages, officialImages: official.prints };
+    const { touched, ...imported } = await importCatalog(db, shaped);
+    return { ...imported, ...(await draftTouched(db, game, touched, opts)), backImages, officialImages: official.prints };
   }
   // Front images are deckplanet's own guess too, and its bucket lags badly
   // for the original game (see verifyFrontImages); Fusion World has none to
   // check, so this is a no-op there.
   const frontImages = await verifyFrontImages(shaped);
-  return { ...(await importCatalog(db, shaped)), backImages: await verifyBackImages(shaped), frontImages };
+  const { touched, ...imported } = await importCatalog(db, shaped);
+  return { ...imported, ...(await draftTouched(db, game, touched, opts)), backImages: await verifyBackImages(shaped), frontImages };
 }
 
 /** Both games, in order. A failure on either aborts the whole sync run. */
-export async function syncCatalog(db: Db): Promise<CatalogSyncSummaries> {
+export async function syncCatalog(db: Db, opts: CatalogSyncOptions = {}): Promise<CatalogSyncSummaries> {
   const games = {} as Record<Game, CatalogSyncSummary>;
-  for (const game of GAMES) games[game] = await syncCatalogFor(db, game);
+  for (const game of GAMES) games[game] = await syncCatalogFor(db, game, opts);
   const total = (pick: (s: CatalogSyncSummary) => number) => GAMES.reduce((n, g) => n + pick(games[g]), 0);
   return {
     games,
@@ -554,5 +608,10 @@ export async function syncCatalog(db: Db): Promise<CatalogSyncSummaries> {
     backImages: total((s) => s.backImages ?? 0),
     frontImages: total((s) => s.frontImages ?? 0),
     officialImages: total((s) => s.officialImages ?? 0),
+    cardsNew: total((s) => s.cardsNew ?? 0),
+    cardsChanged: total((s) => s.cardsChanged ?? 0),
+    drafted: total((s) => s.drafted ?? 0),
+    reviewed: total((s) => s.reviewed ?? 0),
+    stillOpen: total((s) => s.stillOpen ?? 0),
   };
 }

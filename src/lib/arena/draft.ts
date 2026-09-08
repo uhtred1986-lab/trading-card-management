@@ -11,7 +11,8 @@
  */
 import { eq, inArray, and } from "drizzle-orm";
 import type { Db } from "@/db";
-import { cardRules, cards as cardsTable } from "@/db/schema";
+import { arenaFeedback, cardRules, cards as cardsTable, settings } from "@/db/schema";
+import { hasAnthropic } from "@/lib/ai/client";
 import { DEFAULT_GAME } from "@/lib/catalog/games";
 import { compileCardCached, compileSkill, parseSkills, skillLines, type CardDef, type CardScripts, type Op } from "./engine";
 import { compileCostProgram, costText, priceCondition } from "./engine/compile";
@@ -19,6 +20,7 @@ import type { Cond } from "./engine/script";
 import { describeScript } from "./engine/script";
 import { clauseShape, triggersOf } from "./gaps";
 import { cardDefFrom } from "./load";
+import { clarifyRule } from "./ai/clarify";
 import { loadRules, programOf, type RuleRow, type Side } from "./rules-store";
 
 /** The skill cost as the record shows it, all read without a game state. */
@@ -276,4 +278,64 @@ export function rulesFromCompiler(defs: Record<string, CardDef>): Record<string,
       return d ? compileCardCached(d, back === "back" ? "back" : "front") : undefined;
     },
   });
+}
+
+// ── new and changed cards at sync: what the compiler cannot read, Claude drafts ──
+
+export interface ReviewSummary {
+  /** Open rows put to Claude. */
+  asked: number;
+  /** …that came back as a program and are now Claude's drafts. */
+  drafted: number;
+  /** …that failed (no program, invalid, or an error), noted in `arena_feedback` and left open. */
+  failed: number;
+  /** Open rows left over, budget included. */
+  stillOpen: number;
+}
+
+export const DEFAULT_REVIEW_BUDGET = 400;
+
+/** The review budget per sync run: a setting, so it is changed without a deploy. 0 means unlimited. */
+export async function reviewBudget(db: Db): Promise<number> {
+  const row = await db.query.settings.findFirst({ where: eq(settings.key, "arena") });
+  const v = (row?.value as { reviewBudget?: unknown } | null)?.reviewBudget;
+  return typeof v === "number" && v >= 0 ? v : DEFAULT_REVIEW_BUDGET;
+}
+
+/**
+ * For every skill of these cards the compiler left open, ask Claude for a
+ * program through the same path the workbench's "Explain to Claude" uses —
+ * with nobody's explanation, so the prompt says "read the card yourself".
+ * What comes back is Claude's draft (`source: claude`, `status: draft`) and is
+ * listed under the worklist's "Claude drafted" chip for one sitting's review.
+ * Every call is an `ai_runs` row, so the cost is visible.
+ */
+export async function reviewOpenRules(db: Db, ids: string[], opts: { budget?: number } = {}): Promise<ReviewSummary> {
+  const budget = opts.budget ?? (await reviewBudget(db));
+  const out: ReviewSummary = { asked: 0, drafted: 0, failed: 0, stillOpen: 0 };
+  const open = (await loadRules(db, ids)).filter((r) => r.status === "open");
+  out.stillOpen = open.length;
+  if (!open.length) return out;
+  if (!hasAnthropic()) {
+    await db.insert(arenaFeedback).values({ kind: "rule", note: `review skipped: ${open.length} open rule${open.length === 1 ? "" : "s"} and no ANTHROPIC_API_KEY` });
+    return out;
+  }
+  for (const row of open) {
+    if (budget > 0 && out.asked >= budget) break;
+    out.asked++;
+    try {
+      const r = await clarifyRule(db, row, null);
+      if (r.saved) {
+        out.drafted++;
+        out.stillOpen--;
+      } else {
+        out.failed++;
+        await db.insert(arenaFeedback).values({ kind: "rule", cardId: row.cardId, skillIndex: row.skillIndex, note: `Claude could not draft this at sync: ${r.clarification.question || r.clarification.meaning || "no program came back"}` });
+      }
+    } catch (err) {
+      out.failed++;
+      await db.insert(arenaFeedback).values({ kind: "rule", cardId: row.cardId, skillIndex: row.skillIndex, note: `Claude review failed at sync: ${err instanceof Error ? err.message : String(err)}` });
+    }
+  }
+  return out;
 }

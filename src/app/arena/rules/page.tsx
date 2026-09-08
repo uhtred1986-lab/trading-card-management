@@ -9,6 +9,7 @@ import { describeTrigger, mechanismNeeds, mechanismOf, PHRASING_ONLY } from "@/l
 import { deckInputFor } from "@/lib/arena/load";
 import { countRules, siblingsOf, worklist, type CompilerDiff, type RuleStatus, type WorklistRow } from "@/lib/arena/rules-store";
 import { listDecks } from "@/lib/decks/queries";
+import { lastSyncRuns } from "@/lib/sync";
 
 export const dynamic = "force-dynamic";
 
@@ -96,7 +97,8 @@ export default async function RulesPage({ searchParams }: { searchParams: Promis
     .sort((a, b) => ORDER[a.status as RuleStatus] - ORDER[b.status as RuleStatus] || b.decks.length - a.decks.length || a.name.localeCompare(b.name) || a.skillIndex - b.skillIndex);
   const counts = Object.fromEntries(SEGMENTS.map((s) => [s.key, s.key === "all" ? rows.length : rows.filter((r) => r.status === s.key).length]));
 
-  const [inDecks, catalog] = await Promise.all([countRules(db, allDeckCards), countRules(db)]);
+  const [inDecks, catalog, syncs] = await Promise.all([countRules(db, allDeckCards), countRules(db), lastSyncRuns(db)]);
+  const lastSync = syncs.latest.get("catalog")?.summary as { stillOpen?: number; cardsNew?: number; cardsChanged?: number } | null | undefined;
   const readable = (c: Record<RuleStatus, number>) => {
     const total = c.open + c.draft + c.confirmed + c.corrected;
     return total ? `${(Math.round(((total - c.open) / total) * 1000) / 10).toFixed(1)} %` : "—";
@@ -161,6 +163,7 @@ export default async function RulesPage({ searchParams }: { searchParams: Promis
           <Kpi n={inDecks.draft} label="drafts to confirm" tone={inDecks.draft ? "text-ki-300" : ""} />
           <Kpi n={readable(inDecks)} label="your decks readable" />
           <Kpi n={readable(catalog)} label="catalog readable" />
+          {lastSync && (lastSync.cardsNew || lastSync.cardsChanged) ? <Kpi n={lastSync.stillOpen ?? 0} label="open since last sync" tone={lastSync.stillOpen ? "text-loss" : ""} /> : null}
         </div>
         <div className="flex gap-3 text-xs">
           <Link href="/arena/backlog" className="text-space-300 hover:text-ki-300">

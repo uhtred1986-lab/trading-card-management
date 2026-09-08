@@ -435,5 +435,23 @@ assert.equal(priceForFinish(prices.get("BT18-020_SPR"), "foil"), 199);
   assert.equal(await closeNotesNowRead(db), 0, "and a second sweep has nothing to do");
 }
 
+// ── The catalog sync hands the drafter exactly the cards whose text arrived or changed ──
+{
+  const { changedCardIds } = await import("../src/lib/catalog/deckplanet.ts");
+  const before = new Map([
+    ["BT18-030", { skill: "[Auto] When you play this card, draw 1 card.", backSkill: null }],
+    ["BT18-031", { skill: "old text", backSkill: null }],
+    ["BT18-032", { skill: null, backSkill: "front unchanged, back changed" }],
+  ]);
+  const after = [
+    { id: "BT18-030", skill: "[Auto] When you play this card, draw 1 card.", backSkill: null },
+    { id: "BT18-031", skill: "new text", backSkill: null },
+    { id: "BT18-032", skill: null, backSkill: "front unchanged, back changed too" },
+    { id: "BT19-001", skill: "[Blocker]", backSkill: null },
+  ];
+  assert.deepEqual(changedCardIds(before, after), { inserted: ["BT19-001"], changed: ["BT18-031", "BT18-032"] });
+  assert.deepEqual(changedCardIds(before, [{ id: "BT18-032", skill: "", backSkill: "front unchanged, back changed" }]).changed, [], "null and empty text are the same text");
+}
+
 await client.close();
 console.log("verify-db: all checks passed");
