@@ -31,7 +31,8 @@ import { trailingTrigger, parseSkills, keywordOf, orbsIn, eitherOrbsIn, skillLin
 import { KEYWORDS, keywordTagSpellings, keywordsByGroup, tagBody, tagParsesTo } from "../src/lib/arena/glossary";
 import { parseFilter, matches, parseCondition } from "../src/lib/arena/engine/filters";
 import { addEffect, schedule, move, locate, placeUnder, playCost, powerOf, forbids, has, cardNow, comboCostOf, skillNegated, skillsNegated } from "../src/lib/arena/engine/state";
-import { compileCostProgram, compileSkill, costIsOnlyOrbs, costText, describeScript, parseConditionClause, parseTarget, priceCondition, splitClauses } from "../src/lib/arena/engine/compile";
+import { compileCostProgram, compileSkill, costIsOnlyOrbs, costText, parseConditionClause, parseTarget, priceCondition, splitClauses } from "../src/lib/arena/engine/compile";
+import { OP_SCHEMA, describeScript, opSignature, validateProgram as validate, type Op as SchemaOp } from "../src/lib/arena/engine/script";
 import { autoTriggerMatches, koCard } from "../src/lib/arena/engine/triggers";
 import type { Trigger } from "../src/lib/arena/engine/types";
 
@@ -7169,6 +7170,65 @@ function assertDisjoint(s: GameState, where: string): RejectedAction[] {
   assert.equal(toneFor("Blue", tuned).tint, TONES.Blue.tint, "an untuned colour keeps following the shipped default");
   assert.equal(JSON.parse(encodeLighting(tuned)).v, LIGHTING_VERSION);
   assert.deepEqual(lightingFrom(encodeLighting(tuned)), tuned, "the cookie round-trips");
+}
+
+// ── OP_SCHEMA: one definition of the effect language, read by everyone ──────
+{
+  // The type `Record<Op["op"], OpSpec>` already forces a row per op; this is
+  // the runtime half: every row's sentence renders for a minimal op built from
+  // its own required fields, so a row cannot be a placeholder.
+  const sample = (t: unknown): unknown => {
+    if (typeof t === "object" && t !== null) return "enum" in (t as object) ? (t as { enum: readonly string[] }).enum[0] : [];
+    return {
+      amount: 1,
+      ref: { sel: { special: "self" } },
+      selector: { side: "you", area: "battle", count: 1 },
+      side: "you",
+      area: "drop",
+      duration: "turn",
+      cond: { kind: "isTurnPlayer" },
+      ops: [{ op: "draw", n: 1 }],
+      string: "x",
+      number: 1,
+      boolean: true,
+      keyword: { name: "Blocker" },
+      filter: undefined,
+      modes: [{ label: "a", ops: [{ op: "draw", n: 1 }] }],
+    }[t as string];
+  };
+  for (const [name, spec] of Object.entries(OP_SCHEMA)) {
+    const op: Record<string, unknown> = { op: name };
+    for (const f of spec.fields) if (f.required) op[f.name] = sample(f.type);
+    assert.equal(validate([op]), true, `a minimal ${name} validates`);
+    if (name !== "note") assert.ok(describeScript([op as unknown as SchemaOp]).length > 0, `${name} has a sentence`);
+    assert.match(opSignature(name as SchemaOp["op"]), new RegExp(`^\\{"op":"${name}"`), `${name} has a signature for the referee`);
+  }
+  // The validator reads the rows: a missing required field, a value outside an
+  // enum and an unknown op are all refused; optional fields may be left out.
+  assert.equal(validate([{ op: "ko" }]), false, "ko needs a target");
+  assert.equal(validate([{ op: "delay", at: "never", ops: [] }]), false, "a delay timing the engine never drains is refused");
+  assert.equal(validate([{ op: "delay", at: "turnEnd", scope: "someday", ops: [] }]), false);
+  assert.equal(validate([{ op: "delay", at: "turnEnd", ops: [{ op: "ko", target: { var: "t" } }] }]), true);
+  assert.equal(validate([{ op: "forbid", what: "fly", until: "turn" }]), false, "an unknown prohibition is refused");
+  assert.equal(validate([{ op: "forbid", what: "attack", until: "turn", target: { var: "t" } }]), true);
+  assert.equal(validate([{ op: "token", name: "Saibaman", power: 10000, comboCost: null, comboPower: null, colors: [], n: 1 }]), true, "null is a value where the schema says so");
+  assert.equal(validate([{ op: "token", name: "Saibaman", power: 10000, colors: [], n: 1 }]), false, "…but leaving it out is not");
+  assert.equal(validate([{ op: "chooseMode", modes: [] }]), false, "a modal choice with no options");
+  assert.equal(validate([{ op: "if", cond: { kind: "isTurnPlayer" }, then: [{ op: "nope" }] }]), false, "nested programs are checked too");
+  assert.equal(validate([{ op: "draw", n: 1, side: "them" }]), false, "a side the engine does not know");
+  // The renderer reads the same rows: templates, hints and conditional segments.
+  assert.equal(describeScript([{ op: "draw", n: 1, side: "opponent" }]), "opponent draws 1");
+  assert.equal(describeScript([{ op: "discard", n: 1, to: "warp" }]), "discard 1 to the Warp");
+  assert.equal(describeScript([{ op: "hidden", target: { var: "t" }, hidden: false }]), "switch the chosen cards to Revealed Mode");
+  assert.equal(describeScript([{ op: "faceUp", target: { var: "t" } }]), "turn the chosen cards face up", "a default fills an absent field");
+  assert.equal(describeScript([{ op: "negateSkillsOfKind", target: { var: "t" }, kind: "auto", until: "turn" }]), "negate the [Auto] skills of the chosen cards for the turn");
+  assert.equal(describeScript([{ op: "power", target: { var: "t" }, amount: { count: { side: "you", area: "battle", count: 99 }, times: 5000 }, until: "battle" }]), "the chosen cards +5000 power for each of your Battle Cards for the battle");
+  assert.equal(describeScript([{ op: "if", cond: { kind: "isTurnPlayer" }, then: [], else: [{ op: "draw", n: 1 }] }]), "if it is your turn: nothing, otherwise draw 1");
+  assert.equal(describeScript([{ op: "may", ops: [{ op: "draw", n: 1 }], chooser: "opponent" }]), "your opponent may: draw 1");
+  assert.equal(describeScript([{ op: "note", text: "x" }, { op: "shuffle" }]), "shuffle", "a note says nothing");
+  assert.equal(opSignature("ko"), '{"op":"ko","target":TARGET}');
+  assert.equal(opSignature("negateAttack"), '{"op":"negateAttack"}');
+  assert.match(opSignature("draw"), /"side"\?:"you"\|"opponent"/, "an optional field is marked");
 }
 
 console.log("verify-arena: all checks passed");

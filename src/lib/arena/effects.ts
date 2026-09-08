@@ -13,7 +13,7 @@
  * Pure: no database, no React. Covered by `npm test`, and the table the
  * Android app carries in Kotlin.
  */
-import { FORBIDDEN_IN_WORDS, describeFilter } from "./engine/compile";
+import { FORBIDDEN_IN_WORDS, describeFilter } from "./engine/script";
 import type { StaticEffect } from "./engine/state";
 import type { ContinuousEffect, EffectUntil, KeywordSkill, Permission, PlayerId, Prohibition, SkillKindPrefix } from "./engine/types";
 
