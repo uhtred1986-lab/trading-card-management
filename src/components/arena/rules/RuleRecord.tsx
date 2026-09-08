@@ -33,6 +33,10 @@ export interface RecordProps {
   source: "compiler" | "claude" | "user";
   version: number;
   explanation: string | null;
+  /** The work item for teaching the compiler this wording, when one has been written. */
+  brief: string | null;
+  /** How often a game has actually reached this skill and put it to the referee. */
+  timesSeen: number;
   pattern: string | null;
   reads: string;
   decks: string[];
@@ -140,6 +144,7 @@ export function RuleRecord(r: RecordProps) {
         <p className="text-xs text-space-400">
           {r.decks.length ? `in ${r.decks.join(", ")}` : "not in a deck you play"}
           {r.siblings.count ? ` · ${r.siblings.count} other card${r.siblings.count === 1 ? "" : "s"} in the catalog phrase this the same way` : ""}
+          {r.timesSeen > 0 ? ` · a game has reached this skill ${r.timesSeen}×` : ""}
         </p>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${badge.cls}`}>
@@ -341,6 +346,12 @@ export function RuleRecord(r: RecordProps) {
           </button>
         )}
       </div>
+      {r.brief && (
+        <details className="rounded-xl border border-space-700 bg-space-950/60">
+          <summary className="cursor-pointer p-2 text-[11px] text-ki-300">the work item for teaching the compiler this wording</summary>
+          <pre className="max-h-80 overflow-auto whitespace-pre-wrap p-2 font-mono text-[10px] leading-relaxed text-space-300">{r.brief}</pre>
+        </details>
+      )}
       {r.explanation && (
         <p className="rounded-lg border-l-2 border-gain bg-space-900/60 p-2 text-[11px] text-space-300">
           <span className="text-space-500">explanation on file: </span>

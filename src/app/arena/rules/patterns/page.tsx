@@ -50,7 +50,7 @@ export default async function PatternsPage({ searchParams }: { searchParams: Pro
       <p className="text-xs text-space-300">
         {half === "drafts"
           ? "Each group is one reading the compiler produced for many cards. Confirming the group says that reading is right for all of them; if it is wrong, open one card and correct it — the record asks whether the pattern is wrong or only that card."
-          : "Each group is one shape of wording the compiler cannot read, gathered by what it would take. A rule in compile.ts clears a whole group at once; until then the engine plays these skills as blank and says so in the log."}
+          : "Each group is one shape of wording the compiler cannot read, gathered by what it would take. A rule in compile.ts clears a whole group at once; until then the engine plays these skills as blank and says so in the log. Wordings a game has actually met come first."}
       </p>
 
       {groups.length === 0 ? (
@@ -75,10 +75,24 @@ function Group({ g, batches }: { g: PatternGroup; batches: { id: number; note: s
         {g.mechanism && <span className={`rounded-full px-2 py-0.5 text-[10px] ${g.mechanism === PHRASING_ONLY ? "bg-space-800 text-space-300" : "bg-ki-500/15 text-ki-300"}`}>{g.mechanism}</span>}
         <span className="ml-auto shrink-0 text-xs text-space-400">
           {g.rules} rule{g.rules === 1 ? "" : "s"} on {g.cards} card{g.cards === 1 ? "" : "s"}
+          {g.timesSeen > 0 && <span className="text-ki-300"> · came up {g.timesSeen}×</span>}
         </span>
       </div>
 
       {g.mechanism && <p className="mt-1 text-[11px] text-space-400">→ {mechanismNeeds(g.mechanism)}</p>}
+
+      {g.explanation && (
+        <p className="mt-2 rounded border-l-2 border-gain bg-space-950/60 p-2 text-[11px] text-space-300">
+          <span className="text-space-500">what it means, on file: </span>
+          {g.explanation}
+        </p>
+      )}
+      {g.brief && (
+        <details className="mt-2 rounded-lg border border-space-700 bg-space-950/60">
+          <summary className="cursor-pointer p-2 text-[11px] text-ki-300">the work item for teaching the compiler this wording</summary>
+          <pre className="max-h-80 overflow-auto whitespace-pre-wrap p-2 font-mono text-[10px] leading-relaxed text-space-300">{g.brief}</pre>
+        </details>
+      )}
 
       <ul className="mt-2 space-y-1.5">
         {g.examples.map((e) => (

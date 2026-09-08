@@ -115,6 +115,31 @@ export async function saveRule(db: Db, w: RuleWrite): Promise<RuleRow> {
   return row;
 }
 
+/**
+ * The work item for teaching the compiler this wording, and the owner's or
+ * Claude's words about the card. Written beside the program rather than into
+ * it: the program fixes this card, the brief fixes every card phrased the
+ * same way, and only the second ends the problem.
+ */
+export async function setBrief(db: Db, id: number, brief: { brief?: string | null; explanation?: string | null }): Promise<void> {
+  await db
+    .update(cardRules)
+    .set({ ...(brief.brief !== undefined ? { brief: brief.brief } : {}), ...(brief.explanation !== undefined ? { explanation: brief.explanation } : {}), updatedAt: new Date() })
+    .where(eq(cardRules.id, id));
+}
+
+/**
+ * This skill came up in a game and the referee had to rule on it. The count is
+ * what sorts the Patterns page: a wording that has actually been played is
+ * worth teaching the compiler before one that has not.
+ */
+export async function markRuleSeen(db: Db, cardId: string, side: Side, skillIndex: number): Promise<void> {
+  await db
+    .update(cardRules)
+    .set({ timesSeen: sql`${cardRules.timesSeen} + 1`, lastSeenAt: new Date() })
+    .where(and(eq(cardRules.cardId, cardId), eq(cardRules.side, side), eq(cardRules.skillIndex, skillIndex)));
+}
+
 /** A person accepted the draft as it stands. */
 export async function confirmRule(db: Db, id: number): Promise<void> {
   await db.update(cardRules).set({ status: "confirmed", confirmedAt: new Date(), updatedAt: new Date() }).where(eq(cardRules.id, id));
@@ -385,6 +410,10 @@ export interface PatternGroup {
   mechanism?: string;
   rules: number;
   cards: number;
+  /** What is on file about the wording: the work item, the owner's words, and whether a game has met it. */
+  brief: string | null;
+  explanation: string | null;
+  timesSeen: number;
   examples: { id: number; cardId: string; name: string; printed: string; reads: string; unread: string[] }[];
 }
 
@@ -400,11 +429,18 @@ interface GroupRow {
 /** Compiler drafts, grouped by the reading they came out as. */
 export async function draftPatterns(db: Db, limit = 60): Promise<PatternGroup[]> {
   const counted = await db
-    .select({ pattern: cardRules.pattern, rules: sql<number>`count(*)::int`, cards: sql<number>`count(distinct ${cardRules.cardId})::int` })
+    .select({
+      pattern: cardRules.pattern,
+      rules: sql<number>`count(*)::int`,
+      cards: sql<number>`count(distinct ${cardRules.cardId})::int`,
+      brief: sql<string | null>`max(${cardRules.brief})`,
+      explanation: sql<string | null>`max(${cardRules.explanation})`,
+      timesSeen: sql<number>`sum(${cardRules.timesSeen})::int`,
+    })
     .from(cardRules)
     .where(eq(cardRules.status, "draft"))
     .groupBy(cardRules.pattern)
-    .orderBy(sql`count(*) desc`)
+    .orderBy(sql`sum(${cardRules.timesSeen}) desc, count(*) desc`)
     .limit(limit);
   const keys = counted.map((c) => c.pattern).filter((p): p is string => !!p);
   const examples = keys.length
@@ -426,6 +462,9 @@ export async function draftPatterns(db: Db, limit = 60): Promise<PatternGroup[]>
       label: c.pattern!,
       rules: c.rules,
       cards: c.cards,
+      brief: c.brief,
+      explanation: c.explanation,
+      timesSeen: c.timesSeen ?? 0,
       examples: examples.filter((e) => e.pattern === c.pattern).map(asExample),
     }));
 }
@@ -433,7 +472,17 @@ export async function draftPatterns(db: Db, limit = 60): Promise<PatternGroup[]>
 /** Open rules, grouped by what their first unread clause would need, then by its shape. */
 export async function openPatterns(db: Db): Promise<PatternGroup[]> {
   const open = await db
-    .select({ id: cardRules.id, cardId: cardRules.cardId, name: cards.name, printed: cardRules.printed, reads: cardRules.reads, unread: cardRules.unread })
+    .select({
+      id: cardRules.id,
+      cardId: cardRules.cardId,
+      name: cards.name,
+      printed: cardRules.printed,
+      reads: cardRules.reads,
+      unread: cardRules.unread,
+      brief: cardRules.brief,
+      explanation: cardRules.explanation,
+      timesSeen: cardRules.timesSeen,
+    })
     .from(cardRules)
     .innerJoin(cards, eq(cards.id, cardRules.cardId))
     .where(eq(cardRules.status, "open"));
@@ -443,15 +492,19 @@ export async function openPatterns(db: Db): Promise<PatternGroup[]> {
     const mechanism = mechanismOf(clause);
     const label = clauseShape(clause);
     const key = `${mechanism}\u0000${label}`;
-    const g = groups.get(key) ?? { key: mechanism, kind: "open" as const, label, mechanism, rules: 0, cards: 0, examples: [], cardIds: new Set<string>() };
+    const g = groups.get(key) ?? { key: mechanism, kind: "open" as const, label, mechanism, rules: 0, cards: 0, brief: null, explanation: null, timesSeen: 0, examples: [], cardIds: new Set<string>() };
     g.rules++;
     g.cardIds.add(r.cardId);
+    g.timesSeen += r.timesSeen;
+    g.brief ??= r.brief;
+    g.explanation ??= r.explanation;
     if (g.examples.length < 5) g.examples.push({ id: r.id, cardId: r.cardId, name: r.name, printed: r.printed, reads: r.reads, unread: r.unread });
     groups.set(key, g);
   }
   return [...groups.values()]
     .map(({ cardIds, ...g }) => ({ ...g, cards: cardIds.size }))
-    .sort((a, b) => b.rules - a.rules || a.label.localeCompare(b.label));
+    // A wording a game has actually met is the one worth teaching the compiler first.
+    .sort((a, b) => b.timesSeen - a.timesSeen || b.rules - a.rules || a.label.localeCompare(b.label));
 }
 
 function asExample(r: GroupRow): PatternGroup["examples"][number] {

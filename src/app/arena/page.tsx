@@ -144,7 +144,7 @@ export default async function ArenaPage() {
             <Link href="/arena/feedback" className="text-xs text-space-300 hover:text-ki-300">
               what you told me
             </Link>
-            <Link href="/arena/backlog" className="text-xs text-ki-300 hover:underline">
+            <Link href="/arena/rules/patterns?half=open" className="text-xs text-ki-300 hover:underline">
               what it cannot read →
             </Link>
           </div>

@@ -211,6 +211,13 @@
       "when": 1788875872378,
       "tag": "0029_skinny_lady_deathstrike",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1788876613914,
+      "tag": "0030_foamy_dust",
+      "breakpoints": true
     }
   ]
 }

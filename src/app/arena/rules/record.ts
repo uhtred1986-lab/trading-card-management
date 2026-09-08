@@ -75,6 +75,8 @@ export async function buildRecord(db: Db, selected: WorklistRow, decks: string[]
     source: selected.source as "compiler" | "claude" | "user",
     version: selected.version,
     explanation: selected.explanation,
+    brief: selected.brief,
+    timesSeen: selected.timesSeen,
     pattern: selected.pattern,
     reads: selected.reads,
     decks,
