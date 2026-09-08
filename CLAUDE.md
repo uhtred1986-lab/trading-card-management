@@ -211,6 +211,11 @@ the same style.
   predicate, never an edit to one), `taps.whyByCard`, `view.you.choices` for a search of a
   hidden zone, `prompt.min/max/step/cost`, `owner` on the `skill` beat — and on the web board the
   card action sheet, the refusal line, the search sheet, the step chip and the narration ribbon.
+  **One rejection per card per action type — except an activation, which is one per skill line**
+  (§3.2, amended 8 Sep 2026): a card prints up to nine of them and one being on the menu says
+  nothing about the others. The two places that promise is asserted are
+  `scripts/verify/harness.ts` and `scripts/arena-playthrough.mts`; they must say the same thing.
+  `docs/arena-refusals-spec.md` is the brief that measured it, and holds what is still unworded.
   `src/lib/arena/wording.ts` is the only place a `Requirement` becomes a sentence,
   `src/lib/arena/narration.ts` the only place a beat does, and `src/lib/arena/effects.ts` the only
   place a rule in force (a continuous effect or a [Permanent]'s static) becomes a label and a

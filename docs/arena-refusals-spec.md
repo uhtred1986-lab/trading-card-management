@@ -250,6 +250,42 @@ the worklist already holds them:
 
 ## 4. One piece of housekeeping
 
-`scripts/_why.mts` is a scratch analysis script committed by accident in `3f6398a`. Nothing in
-`package.json`, `docs/` or `CLAUDE.md` refers to it. Proposed: delete it. It is listed here
-rather than done quietly because deleting a file is the owner's call.
+`scripts/_why.mts` was a scratch analysis script committed by accident in `3f6398a`. Nothing in
+`package.json`, `docs/` or `CLAUDE.md` referred to it. Deleted.
+
+---
+
+## 5. What was built (8 Sep 2026)
+
+Both findings, in two commits. **(b) was not built** — see the recommendation in §2, which the
+owner took.
+
+- **Finding 1** — the twin reads `skillsNegated` as well as `skillNegated`, and `rejectedActions`
+  hands it the printed skills for a wholly negated card in play. `skillNegated`, `activatable` and
+  every other predicate untouched. Sweep unchanged, exactly as predicted here: this is a
+  correctness fix the default scenario cannot see.
+- **Finding 2 (a)** — activations are keyed by skill index and every line is reported.
+  **678 → 74** refusals with no reason, every other number in the sweep identical. §3.2 of
+  `docs/arena-workflow-spec.md` carries the amendment.
+
+Two consequences the change forced rather than chose, both in the same commit: the rejection label
+names the skill line the way the menu does (six contract fixtures moved by that one string, no
+shape change), and the card action sheet stopped keying its rows on the action type alone.
+
+`npm test` · `lint` · `typecheck` · `build` clean; `arena:fuzz -- 100` → 100 games, 0 crashes;
+`arena:playthrough` passes and its `other` bucket carries no "not offered by the engine", so no
+twin drift shows in a real game. `android:test` needs a Docker daemon the sandbox has none of; CI
+runs it.
+
+### What is left, with numbers
+
+The 74, none of which is a price:
+
+- **31** — the probe stops at a `counter` prompt, and `rejectedActions`' `counter` case files
+  counter cards only and never calls `rejectActivate`. A real gap, and the next thing here.
+  `BT29-044` belongs with it: a Unison the staging removes from the game before the move is
+  reached.
+- **43** — 29 keywords with no activation of their own and 14 `[Auto]`s, both of which
+  `whyNotActivate` rightly declines to invent a rejection for. Probe staging, so they go with §3.
+- **(b)**, unstarted and unchanged: the five sites in `engine.ts` that still compile a price during
+  a game.
