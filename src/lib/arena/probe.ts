@@ -58,6 +58,24 @@ export interface ProbeRule {
   unread: string[];
 }
 
+/**
+ * A `card_rules` row as a rule to try. `program` is what the engine would run
+ * — the row's hoisted condition already wrapped back around its steps, which
+ * is `programOf` in the store; the probe never reads the table itself.
+ */
+export function ruleFrom(row: { side: string; skillIndex: number; kind: string; trigger: unknown; status: string; unread: string[] }, def: CardDef, program: Op[]): ProbeRule {
+  return {
+    def,
+    side: row.side === "back" ? "back" : "front",
+    skillIndex: row.skillIndex,
+    kind: row.kind,
+    trigger: Array.isArray(row.trigger) ? (row.trigger as string[]) : [],
+    ops: program,
+    open: row.status === "open",
+    unread: row.unread,
+  };
+}
+
 export type ProbeFamily = "play" | "attack" | "combo" | "activateMain" | "activateBattle" | "counter" | "permanent" | "keyword" | "moment" | "none";
 export type ProbeVariant = "default" | "noTarget" | "negated" | "opponentTurn" | "inHand";
 

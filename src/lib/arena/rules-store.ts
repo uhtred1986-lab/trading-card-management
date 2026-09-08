@@ -6,7 +6,7 @@
  * that changes a row goes through here so the reading (`reads`) and the
  * version stay honest.
  */
-import { and, asc, eq, ilike, inArray, ne, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, eq, ilike, inArray, isNotNull, ne, or, sql, type SQL } from "drizzle-orm";
 import type { Db } from "@/db";
 import { cardRules, cards } from "@/db/schema";
 import { describeScript, type CardDef, type CardScripts, type Op } from "./engine";
@@ -509,4 +509,35 @@ export async function openPatterns(db: Db): Promise<PatternGroup[]> {
 
 function asExample(r: GroupRow): PatternGroup["examples"][number] {
   return { id: r.id, cardId: r.card_id, name: r.name, printed: r.printed, reads: r.reads, unread: r.unread ?? [] };
+}
+
+/**
+ * The last probe of a rule, as the row keeps it: what was tried, what it
+ * concluded, and the digest a re-probe compares. Written when a person
+ * confirms the rule — that is the moment the answer is worth keeping — and by
+ * `arena:probe --fill` for the rows confirmed before there were probes.
+ */
+export interface StoredProbe {
+  scenario: string;
+  outcome: string;
+  digest: string;
+  applied: string[];
+  result: string[];
+  assumptions: string[];
+  /** ISO day, so the record can say when the answer was taken. */
+  at: string;
+}
+
+export async function setProbe(db: Db, id: number, probe: StoredProbe): Promise<void> {
+  await db.update(cardRules).set({ probe, updatedAt: new Date() }).where(eq(cardRules.id, id));
+}
+
+/** Every rule that carries a probe, for `arena:reprobe`. */
+export async function probedRules(db: Db): Promise<WorklistRow[]> {
+  const rows = await db
+    .select({ rule: cardRules, name: cards.name, setCode: cards.setCode })
+    .from(cardRules)
+    .innerJoin(cards, eq(cards.id, cardRules.cardId))
+    .where(isNotNull(cardRules.probe));
+  return rows.map((r) => ({ ...r.rule, name: r.name, setCode: r.setCode }));
 }

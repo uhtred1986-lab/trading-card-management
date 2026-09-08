@@ -14,9 +14,9 @@ import { currentUser } from "@/lib/auth";
 import { advance } from "@/lib/arena/ai/run";
 import { reviewGame } from "@/lib/arena/ai/review";
 import { clarifyRule } from "@/lib/arena/ai/clarify";
-import { blankRule, confirmMatching, confirmRule, programOf, ruleById, saveRule, setBrief, setCompilerDiff, takeCompilerDiff, undoConfirmed, type ConfirmBatch, type RuleFilter, type RuleSource, type RuleStatus } from "@/lib/arena/rules-store";
+import { blankRule, confirmMatching, confirmRule, programOf, ruleById, setProbe, saveRule, setBrief, setCompilerDiff, takeCompilerDiff, undoConfirmed, type ConfirmBatch, type RuleFilter, type RuleSource, type RuleStatus } from "@/lib/arena/rules-store";
 import { defsForCards } from "@/lib/arena/load";
-import { probe, scenariosFor, type ProbeRule, type ProbeRun, type ProbeScenario } from "@/lib/arena/probe";
+import { probe, ruleFrom, scenariosFor, type ProbeRule, type ProbeRun, type ProbeScenario } from "@/lib/arena/probe";
 import { SKIN_COOKIE, type ArenaSkin } from "@/lib/arena/skin";
 import { STAGING_COOKIE, type ArenaStaging } from "@/lib/arena/staging";
 
@@ -104,11 +104,25 @@ async function noteRule(id: number, note: string, resolution: string | null) {
   revalidatePath("/arena/feedback");
 }
 
-/** Draft → confirmed: the program stays, the person's acceptance is recorded. */
+/**
+ * Draft → confirmed: the program stays, the person's acceptance is recorded —
+ * and so is a probe of it.
+ *
+ * The probe is the point of confirming rather than a decoration on it: what
+ * is kept is what this rule *did* on the board it was confirmed against, so a
+ * later engine change can be asked whether it still does it
+ * (`npm run arena:reprobe`). A bulk confirm writes none — 11,375 staged games
+ * inside one press is not a press — and `arena:probe --fill` catches those up.
+ */
 export async function confirmRuleAction(id: number): Promise<{ error: string | null }> {
   const row = await ruleById(db, id);
   if (!row) return { error: "no such rule" };
   await confirmRule(db, id);
+  const found = await probeRuleFor(id);
+  if (found) {
+    const run = probe(found.rule, found.scenarios[0]);
+    await setProbe(db, id, { scenario: run.scenario.key, outcome: run.outcome, digest: run.digest, applied: run.applied, result: run.result, assumptions: run.assumptions, at: new Date().toISOString() });
+  }
   await noteRule(id, `confirmed: ${row.printed}`, row.reads);
   return { error: null };
 }
@@ -394,16 +408,7 @@ export async function probeRuleFor(id: number): Promise<{ rule: ProbeRule; scena
   const defs = await defsForCards(db, [row.cardId]);
   const def = defs[row.cardId];
   if (!def) return null;
-  const rule: ProbeRule = {
-    def,
-    side: row.side === "back" ? "back" : "front",
-    skillIndex: row.skillIndex,
-    kind: row.kind,
-    trigger: (row.trigger as string[] | null) ?? [],
-    ops: programOf(row),
-    open: row.status === "open",
-    unread: row.unread,
-  };
+  const rule = ruleFrom(row, def, programOf(row));
   return { rule, scenarios: scenariosFor(rule) };
 }
 

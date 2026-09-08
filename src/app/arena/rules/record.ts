@@ -12,8 +12,8 @@ import { describeCond, type Cond } from "@/lib/arena/engine/script";
 import type { CostRecord } from "@/lib/arena/draft";
 import { describeTrigger, mechanismNeeds, mechanismOf } from "@/lib/arena/gaps";
 import { defsForCards } from "@/lib/arena/load";
-import { scenariosFor } from "@/lib/arena/probe";
-import { siblingsOf, type CompilerDiff, type RuleStatus, type WorklistRow } from "@/lib/arena/rules-store";
+import { ruleFrom, scenariosFor } from "@/lib/arena/probe";
+import { programOf, siblingsOf, type CompilerDiff, type RuleStatus, type StoredProbe, type WorklistRow } from "@/lib/arena/rules-store";
 
 /** The parsed price as a sentence, for the COST row. */
 export function costSentence(cost: CostRecord | null): string | null {
@@ -36,6 +36,8 @@ export function historyOf(r: WorklistRow): { when: string; what: string }[] {
   const out: { when: string; what: string }[] = [];
   const diff = r.compilerDiff as CompilerDiff | null;
   if (diff) out.push({ when: day(diff.at), what: `the compiler now reads this differently: “${describeScript(diff.ops) || "nothing"}”${diff.unread.length ? ` (unread: ${diff.unread.join(" | ")})` : ""}` });
+  const probed = r.probe as StoredProbe | null;
+  if (probed) out.push({ when: day(probed.at), what: `probed on ${probed.scenario}: ${probed.outcome}${probed.result.length ? ` — ${probed.result[0]}` : ""}` });
   if (r.confirmedAt) out.push({ when: day(r.confirmedAt), what: "confirmed by you" });
   if (r.source !== "compiler" || r.status === "corrected") out.push({ when: day(r.updatedAt), what: r.source === "claude" ? `program written by Claude · v${r.version}` : `corrected by hand · v${r.version}` });
   else if (r.version > 1) out.push({ when: day(r.updatedAt), what: `re-drafted by the compiler · v${r.version}` });
@@ -62,16 +64,7 @@ export async function probeScenarios(db: Db, row: WorklistRow): Promise<{ ruleId
   const defs = await defsForCards(db, [row.cardId]);
   const def = defs[row.cardId];
   if (!def) return null;
-  const scenarios = scenariosFor({
-    def,
-    side: row.side === "back" ? "back" : "front",
-    skillIndex: row.skillIndex,
-    kind: row.kind,
-    trigger: (row.trigger as string[] | null) ?? [],
-    ops: (row.ops as Op[]) ?? [],
-    open: row.status === "open",
-    unread: row.unread,
-  });
+  const scenarios = scenariosFor(ruleFrom(row, def, programOf(row)));
   return { ruleId: row.id, scenarios: scenarios.map((s) => ({ key: s.key, title: s.title })) };
 }
 
