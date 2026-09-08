@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Arena · Rules Workbench — prototype</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0d1220; --panel:#131a2a; --raised:#1a2336; --line:#27324a; --line-strong:#3a4864;
+  --text:#e7ecf7; --muted:#8e9cb8; --dim:#5f6d8a;
+  --ki:#ffc02e; --ki-deep:#f0711a; --gain:#34c37e; --loss:#ef5350; --sky:#5aa9ff; --violet:#b48cff;
+  --r:10px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:Manrope,system-ui,sans-serif;font-size:14px;line-height:1.45}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+select,input,textarea{font:inherit;color:inherit}
+a{color:var(--sky)}
+
+/* ---------- frame ---------- */
+.top{display:flex;align-items:center;gap:18px;padding:12px 20px;border-bottom:1px solid var(--line);background:var(--panel)}
+.top .brand{font-weight:800;letter-spacing:-.01em;font-size:16px}
+.top .brand span{color:var(--ki)}
+.top nav{display:flex;gap:4px;margin-left:8px}
+.top nav button{padding:6px 10px;border-radius:8px;color:var(--muted)}
+.top nav button.on{background:var(--raised);color:var(--text)}
+.kpis{margin-left:auto;display:flex;gap:22px}
+.kpi{display:flex;flex-direction:column;line-height:1.15}
+.kpi b{font-size:18px;font-weight:800}
+.kpi small{color:var(--muted);font-size:11.5px}
+.kpi.warn b{color:var(--ki)}
+.kpi.bad b{color:var(--loss)}
+
+.wrap{display:grid;grid-template-columns:320px 1fr 340px;height:calc(100vh - 57px)}
+.pane{overflow:auto;min-width:0}
+.list{border-right:1px solid var(--line);background:var(--panel)}
+.probe{border-left:1px solid var(--line);background:var(--panel)}
+
+/* ---------- worklist ---------- */
+.filters{position:sticky;top:0;background:var(--panel);padding:12px 14px 8px;border-bottom:1px solid var(--line);z-index:2}
+.seg{display:flex;gap:2px;background:var(--bg);padding:3px;border-radius:9px}
+.seg button{flex:1;padding:6px 4px;border-radius:7px;color:var(--muted);font-size:12.5px;font-weight:600}
+.seg button.on{background:var(--raised);color:var(--text)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.chip{border:1px solid var(--line-strong);border-radius:999px;padding:3px 10px;font-size:12px;color:var(--muted)}
+.chip.on{border-color:var(--ki);color:var(--ki)}
+.group{padding:12px 14px 4px;color:var(--dim);font-size:12px;font-weight:700}
+.item{display:grid;grid-template-columns:10px 1fr auto;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line);cursor:pointer;align-items:start}
+.item:hover{background:var(--raised)}
+.item.on{background:var(--raised);box-shadow:inset 3px 0 0 var(--ki)}
+.dot{width:10px;height:10px;border-radius:50%;margin-top:5px}
+.item .name{font-weight:700}
+.item .id{color:var(--muted);font-size:12px;margin-left:6px;font-weight:500}
+.item .reads{color:var(--muted);font-size:12.5px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item .kind{font-size:11.5px;color:var(--dim);white-space:nowrap}
+.s-open{background:var(--loss)} .s-draft{background:var(--sky)} .s-confirmed{background:var(--gain)} .s-corrected{background:var(--ki)}
+
+/* ---------- record ---------- */
+.rec{padding:22px 28px 60px;max-width:860px}
+.crumbs{color:var(--muted);font-size:12.5px}
+.crumbs b{color:var(--text)}
+h1{font-size:24px;font-weight:800;letter-spacing:-.02em;margin:6px 0 2px}
+.meta{color:var(--muted);font-size:13px}
+.status-row{display:flex;gap:8px;align-items:center;margin:14px 0 18px;flex-wrap:wrap}
+.badge{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:4px 10px;font-size:12px;font-weight:700}
+.badge i{width:8px;height:8px;border-radius:50%}
+.b-open{background:rgba(239,83,80,.15);color:#ff8a87}.b-open i{background:var(--loss)}
+.b-draft{background:rgba(90,169,255,.15);color:#8cc2ff}.b-draft i{background:var(--sky)}
+.b-confirmed{background:rgba(52,195,126,.15);color:#6fdba4}.b-confirmed i{background:var(--gain)}
+.b-corrected{background:rgba(255,192,46,.15);color:var(--ki)}.b-corrected i{background:var(--ki)}
+.prov{color:var(--muted);font-size:12.5px}
+
+.printed{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--ki-deep);border-radius:var(--r);padding:12px 16px;margin:0 0 18px;font-size:14.5px;line-height:1.55}
+.printed .kw{color:var(--ki);font-weight:800}
+.printed mark{background:rgba(239,83,80,.18);color:#ffb3b1;border-radius:3px;padding:0 3px}
+
+/* the hero: the rule as a sentence block */
+.rule{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.row{display:grid;grid-template-columns:78px 1fr;border-bottom:1px solid var(--line);min-height:52px}
+.row:last-child{border-bottom:0}
+.row .k{padding:14px 0 0 16px;font-weight:800;font-size:13px;letter-spacing:.02em;color:var(--ki)}
+.row.if .k{color:var(--sky)} .row.cost .k{color:var(--violet)} .row.until .k{color:var(--muted)}
+.row .v{padding:10px 14px 10px 6px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.step{display:inline-flex;align-items:center;gap:6px;background:var(--raised);border:1px solid var(--line-strong);border-radius:9px;padding:6px 10px;font-size:13.5px;flex-wrap:wrap}
+.step .n{width:18px;height:18px;border-radius:50%;background:var(--bg);color:var(--muted);font-size:11px;display:inline-flex;align-items:center;justify-content:center;font-weight:700}
+.step select,.step input{background:var(--bg);border:1px solid var(--line-strong);border-radius:6px;padding:2px 6px;font-size:13px;color:var(--ki);font-weight:700;max-width:170px}
+.step input[type=number]{width:74px;text-align:right}
+.step .x{color:var(--dim);margin-left:4px;font-size:15px;line-height:1}
+.step .x:hover{color:var(--loss)}
+.step.nested{border-style:dashed}
+.step.sub{margin-left:26px;border-color:var(--line)}
+.add{color:var(--muted);font-size:13px;border:1px dashed var(--line-strong);border-radius:9px;padding:6px 10px}
+.add:hover{color:var(--text);border-color:var(--text)}
+.plain{color:var(--muted);font-size:13px;padding:14px 16px;background:var(--panel);border-top:1px solid var(--line);}
+.plain b{color:var(--text);font-weight:600}
+.rule.readonly select,.rule.readonly input{pointer-events:none;border-color:transparent;background:transparent;padding:0;appearance:none;-webkit-appearance:none}
+.rule.readonly .x,.rule.readonly .add{display:none}
+
+.actions{display:flex;gap:8px;margin:16px 0 8px;flex-wrap:wrap}
+.btn{border:1px solid var(--line-strong);border-radius:9px;padding:8px 14px;font-weight:700;font-size:13px}
+.btn:hover{border-color:var(--text)}
+.btn.primary{background:var(--ki);color:#1a1200;border-color:var(--ki)}
+.btn.primary:hover{background:#ffd062}
+.btn.danger{color:#ff8a87}
+.btn.quiet{color:var(--muted);border-color:transparent}
+.hint{color:var(--dim);font-size:12.5px;margin:6px 0 0}
+
+.json{display:none;margin-top:14px}
+.json textarea{width:100%;min-height:180px;background:#0a0e19;border:1px solid var(--line);border-radius:10px;padding:12px;font-family:'JetBrains Mono',monospace;font-size:12.5px;line-height:1.5;color:#cbd5ea}
+.json.on{display:block}
+
+.pattern{margin-top:22px;border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:linear-gradient(90deg,rgba(255,192,46,.06),transparent 60%)}
+.pattern h3{margin:0 0 4px;font-size:14px}
+.pattern p{margin:0;color:var(--muted);font-size:13px}
+.pattern .btn{margin-top:10px}
+.siblings{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.siblings span{font-size:11.5px;color:var(--muted);background:var(--raised);border-radius:6px;padding:2px 7px}
+
+.explain{margin-top:22px;display:none}
+.explain.on{display:block}
+.explain textarea{width:100%;min-height:80px;background:var(--panel);border:1px solid var(--line-strong);border-radius:10px;padding:10px 12px}
+
+/* ---------- probe pane ---------- */
+.probe h2{font-size:13px;color:var(--muted);margin:0;padding:14px 16px 8px;font-weight:700}
+.probe .box{margin:0 12px 12px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.probe select.full{width:100%;background:var(--raised);border:1px solid var(--line-strong);border-radius:8px;padding:7px 8px;margin-bottom:8px}
+.trace{font-size:12.5px;line-height:1.5}
+.trace .h{color:var(--text);font-weight:800;margin-top:8px}
+.trace .h:first-child{margin-top:0}
+.trace .l{color:var(--muted);padding-left:12px;position:relative}
+.trace .l::before{content:"–";position:absolute;left:0;color:var(--dim)}
+.trace .ok{color:#6fdba4}.trace .warn{color:var(--ki)}.trace .bad{color:#ff8a87}
+.edge{display:flex;justify-content:space-between;padding:6px 0;border-top:1px solid var(--line);font-size:12.5px}
+.edge:first-of-type{border-top:0}
+.pass{color:#6fdba4;font-weight:700}.fail{color:#ff8a87;font-weight:700}.todo{color:var(--dim)}
+.hist{font-size:12.5px;color:var(--muted)}
+.hist div{padding:5px 0;border-top:1px solid var(--line)}
+.hist div:first-child{border-top:0}
+.hist b{color:var(--text)}
+.empty{color:var(--dim);font-size:12.5px}
+
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--raised);border:1px solid var(--line-strong);padding:10px 16px;border-radius:10px;font-weight:600;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.on{opacity:1}
+
+@media (max-width:1100px){.wrap{grid-template-columns:280px 1fr}.probe{grid-column:1/-1;border-left:0;border-top:1px solid var(--line)}.wrap{height:auto}}
+@media (max-width:760px){
+  .wrap{grid-template-columns:1fr}.list{max-height:40vh;border-right:0;border-bottom:1px solid var(--line)}
+  .rec{padding:16px}.kpis{display:none}.row{grid-template-columns:62px 1fr}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">Arena <span>/ Rules</span></div>
+  <nav>
+    <button class="on">Worklist</button>
+    <button>All cards</button>
+    <button>Patterns</button>
+    <button>Feedback</button>
+  </nav>
+  <div class="kpis">
+    <div class="kpi bad"><b id="k-open">4</b><small>open in your decks</small></div>
+    <div class="kpi warn"><b id="k-draft">38</b><small>drafts to confirm</small></div>
+    <div class="kpi"><b>96 %</b><small>your decks readable</small></div>
+    <div class="kpi"><b>72.6 %</b><small>catalog readable</small></div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ============ worklist ============ -->
+  <aside class="pane list">
+    <div class="filters">
+      <div class="seg" id="seg">
+        <button data-f="all" class="on">All</button>
+        <button data-f="open">Open</button>
+        <button data-f="draft">Drafts</button>
+        <button data-f="confirmed">Confirmed</button>
+        <button data-f="corrected">Corrected</button>
+      </div>
+      <div class="chips">
+        <span class="chip on">My decks</span>
+        <span class="chip">Vegeta Aggro</span>
+        <span class="chip">Blue Control</span>
+        <span class="chip">mechanism: static layer</span>
+        <span class="chip">mechanism: delayed</span>
+      </div>
+    </div>
+    <div id="items"></div>
+  </aside>
+
+  <!-- ============ record ============ -->
+  <main class="pane">
+    <div class="rec" id="rec"></div>
+  </main>
+
+  <!-- ============ probe ============ -->
+  <aside class="pane probe" id="probe"></aside>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ---------------- sample data (illustrative card texts, shaped like the real catalog) ---------------- */
+const RULES = [
+  { id:"BT16-042", name:"Son Goku, Rising Fist", side:"front", skill:0, kind:"Auto", set:"BT16", decks:["Vegeta Aggro"],
+    printed:"[Auto] When you play this card, choose up to 1 of your opponent's Battle Cards and KO it.",
+    status:"draft", source:"compiler", pattern:"when you play this card → choose … KO it", siblings:412, version:1,
+    when:{ trigger:"play", who:"you" }, cond:null, cost:null,
+    ops:[ {op:"choose", side:"opponent", area:"battle", count:1, upTo:true, as:"t"}, {op:"ko", target:"t"} ],
+    history:[["6 Sep","compiled by pattern <b>play→choose→ko</b>, 0 clauses unread"]] },
+
+  { id:"BT16-078", name:"Frieza, Emperor's Decree", side:"front", skill:1, kind:"Activate: Main", set:"BT16", decks:["Blue Control"],
+    printed:"[Activate: Main] ①, place this card in your Drop Area: Choose up to 1 of your opponent's Battle Cards with an energy cost of 3 or less and return it to its owner's hand.",
+    status:"confirmed", source:"compiler", pattern:"cost: rest 1 energy, drop self → choose … return to hand", siblings:96, version:1,
+    when:{ trigger:"activateMain", who:"you" }, cond:null, cost:"rest 1 energy · place this card in the Drop",
+    ops:[ {op:"choose", side:"opponent", area:"battle", count:1, upTo:true, filter:"energy cost ≤ 3", as:"t"}, {op:"moveTo", target:"t", to:"hand"} ],
+    history:[["6 Sep","<b>confirmed by you</b> after probe passed"],["5 Sep","compiled, 0 clauses unread"]] },
+
+  { id:"BT15-101", name:"Pan, Curious Explorer", side:"front", skill:0, kind:"Auto", set:"BT15", decks:["Vegeta Aggro"],
+    printed:"[Auto] When you combo with this card, if your Leader Card is yellow and your life is at 4 or less, draw 1 card.",
+    status:"draft", source:"compiler", pattern:"when you combo → if leader colour ∧ life ≤ n → draw", siblings:58, version:1,
+    when:{ trigger:"combo", who:"you" }, cond:"all", conds:[{kind:"leaderColor", color:"yellow"},{kind:"life", side:"you", atMost:4}], cost:null,
+    ops:[ {op:"draw", n:1, side:"you"} ],
+    history:[["6 Sep","compiled; the second condition used to be dropped — fixed 5 Sep"]] },
+
+  { id:"BT17-055", name:"Broly, Unstoppable Rage", side:"front", skill:0, kind:"Permanent", set:"BT17", decks:["Vegeta Aggro"],
+    printed:"[Permanent] This card can't be KO'd by your opponent's skills.",
+    status:"open", source:"compiler", unread:"can't be KO'd by your opponent's skills", mechanism:"static layer", pattern:"[Permanent] this card can't be KO'd by …", siblings:233, version:0,
+    when:{ trigger:"permanent", who:"you" }, cond:null, cost:null, ops:[],
+    history:[["6 Sep","compiler read the prohibition but <b>[Permanent] prohibitions are not applied</b> — the static layer emits only power, combo power, keywords and cost"]] },
+
+  { id:"BT14-020", name:"Bulma, Ingenious Inventor", side:"front", skill:0, kind:"Activate: Main", set:"BT14", decks:["Blue Control"],
+    printed:"[Activate: Main] Choose one— ・Draw 1 card. ・Your opponent discards 1 card from their hand.",
+    status:"corrected", source:"claude", explanation:"Pick one of the two: either I draw, or the opponent discards a card of their choice.", pattern:"choose one— ・A ・B", siblings:201, version:2,
+    when:{ trigger:"activateMain", who:"you" }, cond:null, cost:null,
+    ops:[ {op:"chooseMode", modes:[{label:"Draw 1 card", ops:[{op:"draw", n:1, side:"you"}]},{label:"Opponent discards 1", ops:[{op:"discard", n:1, side:"opponent"}]}]} ],
+    history:[["6 Sep","<b>program written by Claude</b> from your explanation; brief filed for the compiler"],["5 Sep","open — each bullet arrived as its own skill"]] },
+
+  { id:"BT18-009", name:"Vegeta, Overwhelming Warp", side:"front", skill:1, kind:"Auto", set:"BT18", decks:["Vegeta Aggro","Blue Control"],
+    printed:"[Auto] At the end of the turn, place this card in the Warp.",
+    status:"draft", source:"compiler", pattern:"at the end of the turn → moveTo warp", siblings:574, version:1,
+    when:{ trigger:"permanent", who:"you" }, cond:null, cost:null,
+    ops:[ {op:"delay", at:"turnEnd", ops:[{op:"moveTo", target:"self", to:"warp"}]} ],
+    history:[["6 Sep","compiled; delayed effects landed 4 Sep"]] },
+];
+
+const TRIGGERS = { play:"you play this card", combo:"you combo with this card", attack:"this card attacks", ko:"this card is KO'd", activateMain:"you activate it in your Main Phase", activateBattle:"you activate it in a battle", permanent:"this card is in the Battle Area", counter:"counter timing" };
+const AREAS = ["battle","hand","deck","drop","life","energy","combo","unison","warp","under"];
+const SIDES = ["you","opponent","both"];
+const OPS = ["choose","ko","draw","discard","damage","mill","moveTo","play","switchMode","power","comboPower","grant","negateSkills","forbid","addMarker","token","delay","if","chooseMode","note"];
+const DELAYS = { turnStart:"at the start of the turn", mainStart:"at the start of the Main Phase", turnEnd:"at the end of the turn", battleEnd:"at the end of the battle" };
+
+/* ---------------- state ---------------- */
+let filter="all", cur=RULES[0], editing=false, jsonOpen=false, explainOpen=false;
+
+/* ---------------- worklist ---------------- */
+function renderList(){
+  const host=document.getElementById("items");
+  const rows=RULES.filter(r=>filter==="all"||r.status===filter);
+  const order={open:0,draft:1,corrected:2,confirmed:3};
+  rows.sort((a,b)=>order[a.status]-order[b.status]);
+  let html="", last="";
+  for(const r of rows){
+    const g={open:"Open — the engine plays these as blank",draft:"Drafts — read by the compiler, not yet confirmed",corrected:"Corrected — a program you or Claude set",confirmed:"Confirmed"}[r.status];
+    if(g!==last){html+=`<div class="group">${g}</div>`;last=g;}
+    html+=`<div class="item ${r===cur?"on":""}" data-id="${r.id}-${r.skill}">
+      <span class="dot s-${r.status}"></span>
+      <div><span class="name">${r.name}</span><span class="id">${r.id}</span>
+        <div class="reads">${r.status==="open"?`could not read: ${r.unread}`:reads(r)}</div></div>
+      <span class="kind">[${r.kind}]</span></div>`;
+  }
+  host.innerHTML=html;
+  host.querySelectorAll(".item").forEach(el=>el.onclick=()=>{cur=RULES.find(r=>`${r.id}-${r.skill}`===el.dataset.id);editing=false;jsonOpen=false;explainOpen=false;renderAll();});
+}
+document.querySelectorAll("#seg button").forEach(b=>b.onclick=()=>{document.querySelectorAll("#seg button").forEach(x=>x.classList.remove("on"));b.classList.add("on");filter=b.dataset.f;renderList();});
+
+/* ---------------- plain-language reading (mirrors describeScript) ---------------- */
+function selText(o){ return `${o.upTo?"up to ":""}${o.count??1} of ${o.side==="opponent"?"your opponent's":o.side==="you"?"your":"either player's"} ${o.area==="battle"?"Battle Cards":o.area+" cards"}${o.filter?" with "+o.filter:""}`; }
+function opText(o){
+  switch(o.op){
+    case "choose": return `choose ${selText(o)}`;
+    case "ko": return `KO ${o.target==="self"?"this card":"it"}`;
+    case "draw": return `${o.side==="opponent"?"your opponent draws":"draw"} ${o.n} card${o.n==1?"":"s"}`;
+    case "discard": return `${o.side==="opponent"?"your opponent discards":"discard"} ${o.n} card${o.n==1?"":"s"}`;
+    case "damage": return `deal ${o.n} damage${o.side==="you"?" to yourself":""}`;
+    case "mill": return `${o.n} from the top of the deck to the Drop`;
+    case "moveTo": return `move ${o.target==="self"?"this card":"it"} to ${o.to==="hand"?"its owner's hand":"the "+o.to}`;
+    case "power": return `${o.target==="self"?"this card":"it"} gets ${o.amount>=0?"+":""}${o.amount} power for the ${o.until}`;
+    case "delay": return `${DELAYS[o.at]}, ${o.ops.map(opText).join(", then ")}`;
+    case "chooseMode": return `choose one: ${o.ops?"":""}${o.modes.map(m=>m.ops.map(opText).join(", ")).join(" — or — ")}`;
+    case "forbid": return `${o.target==="self"?"this card":"it"} can't ${o.what} for the ${o.until}`;
+    default: return o.op;
+  }
+}
+function condText(c){ return c.kind==="leaderColor"?`your Leader is ${c.color}`:c.kind==="life"?`${c.side==="you"?"your":"your opponent's"} life is at ${c.atMost??c.atLeast} or ${c.atMost!=null?"less":"more"}`:c.kind; }
+function reads(r){
+  if(!r.ops.length) return "nothing";
+  let s=r.ops.map(opText).join(", then ");
+  if(r.conds) s=`if ${r.conds.map(condText).join(" and ")}: ${s}`;
+  return s.charAt(0).toUpperCase()+s.slice(1);
+}
+
+/* ---------------- record ---------------- */
+function sel(name, opts, val, idx, key){ return `<select data-i="${idx}" data-k="${key}">${opts.map(o=>`<option ${o==val?"selected":""}>${o}</option>`).join("")}</select>`; }
+function num(val, idx, key){ return `<input type="number" value="${val}" data-i="${idx}" data-k="${key}">`; }
+
+function stepHtml(o, i, sub){
+  let body="";
+  switch(o.op){
+    case "choose": body=`choose ${sel("upTo",["up to","exactly"],o.upTo?"up to":"exactly",i,"upTo")} ${num(o.count??1,i,"count")} of ${sel("side",SIDES,o.side,i,"side")} ${sel("area",AREAS,o.area,i,"area")} cards ${o.filter?`with <input value="${o.filter}" data-i="${i}" data-k="filter" style="width:140px">`:`<button class="add" style="padding:1px 8px;font-size:12px" data-addfilter="${i}">+ filter</button>`} → as “${o.as}”`; break;
+    case "ko": body=`KO ${sel("target",["it","this card","the attacker","the guard"],o.target==="self"?"this card":"it",i,"target")}`; break;
+    case "draw": case "discard": body=`${sel("side",SIDES,o.side,i,"side")} ${o.op==="draw"?"draws":"discards"} ${num(o.n,i,"n")} card(s)`; break;
+    case "damage": body=`deal ${num(o.n,i,"n")} damage to ${sel("side",SIDES,o.side||"opponent",i,"side")}`; break;
+    case "moveTo": body=`move ${sel("target",["it","this card"],o.target==="self"?"this card":"it",i,"target")} to ${sel("to",["hand","drop","deck","energy","life","warp","removed","battle"],o.to,i,"to")}`; break;
+    case "power": body=`${sel("target",["it","this card"],o.target==="self"?"this card":"it",i,"target")} gets ${num(o.amount,i,"amount")} power for the ${sel("until",["battle","turn","game"],o.until,i,"until")}`; break;
+    case "forbid": body=`${o.target==="self"?"this card":"it"} can't ${sel("what",["attack","beAttacked","block","beKOd","beKOdBySkill","beChosen","play","combo"],o.what,i,"what")} for the ${sel("until",["turn","opponentTurn","nextTurn","game"],o.until,i,"until")}`; break;
+    case "delay": return `<div class="step nested"><span class="n">${i+1}</span>${sel("at",Object.keys(DELAYS),o.at,i,"at")} → then <span class="x" title="remove">×</span></div>`+o.ops.map((s,j)=>`<div class="step sub">${stepHtml(s,`${i}.${j}`,true).replace('class="step"','')}</div>`).join("");
+    case "chooseMode": return `<div class="step nested"><span class="n">${i+1}</span>the master chooses one <span class="x">×</span></div>`+o.modes.map((m,j)=>`<div class="step sub"><span class="n">${String.fromCharCode(65+j)}</span>${m.ops.map(opText).join(", ")}</div>`).join("");
+    default: body=o.op;
+  }
+  return `<div class="step"><span class="n">${(typeof i==="number")?i+1:i}</span>${body}<span class="x" title="remove" data-rm="${i}">×</span></div>`;
+}
+
+function renderRec(){
+  const r=cur, badge={open:"Open — Claude decides at runtime",draft:"Draft — compiled, not confirmed",confirmed:"Confirmed",corrected:"Corrected"}[r.status];
+  const prov = r.source==="compiler" ? `compiled 6 Sep 2026 · pattern <b>${r.pattern}</b> · v${r.version}` : `program by Claude from your explanation · v${r.version}`;
+  const printed = r.status==="open" ? r.printed.replace(r.unread,`<mark>${r.unread}</mark>`) : r.printed;
+  const ro = editing?"":"readonly";
+  const el=document.getElementById("rec");
+  el.innerHTML=`
+    <div class="crumbs">Worklist / ${r.set} / <b>${r.id}</b> · skill ${r.skill+1} · ${r.side}</div>
+    <h1>${r.name}</h1>
+    <div class="meta">in ${r.decks.join(", ")} · ${r.siblings} cards in the catalog phrase this skill the same way</div>
+    <div class="status-row"><span class="badge b-${r.status}"><i></i>${badge}</span><span class="prov">${prov}</span></div>
+
+    <p class="printed">${printed.replace(/\[(.+?)\]/g,'<span class="kw">[$1]</span>')}</p>
+
+    <div class="rule ${ro}" id="rule">
+      <div class="row when"><div class="k">WHEN</div><div class="v"><div class="step">[${r.kind}] · ${editing?sel("trigger",Object.keys(TRIGGERS),r.when.trigger,"when","trigger"):TRIGGERS[r.when.trigger]}</div></div></div>
+      ${r.cost?`<div class="row cost"><div class="k">COST</div><div class="v"><div class="step">${r.cost}</div></div></div>`:""}
+      ${r.conds?`<div class="row if"><div class="k">IF</div><div class="v">${r.conds.map((c,i)=>`<div class="step">${condText(c)}<span class="x">×</span></div>${i<r.conds.length-1?'<span style="color:var(--dim);font-weight:700">and</span>':""}`).join("")}${editing?'<button class="add">+ condition</button>':""}</div></div>`:(editing?`<div class="row if"><div class="k">IF</div><div class="v"><button class="add">+ condition</button></div></div>`:"")}
+      <div class="row"><div class="k">DO</div><div class="v" style="flex-direction:column;align-items:stretch">
+        ${r.ops.length? r.ops.map((o,i)=>stepHtml(o,i)).join("") : `<div class="step" style="border-color:var(--loss);color:#ff8a87">nothing — the engine treats this skill as blank</div>`}
+        ${editing?`<div><button class="add" id="addstep">+ step</button> &nbsp;<span class="hint" style="display:inline">${OPS.length} step kinds — the same ones the engine runs</span></div>`:""}
+      </div></div>
+      <div class="plain">The engine will: <b>${reads(r)}</b>${r.status==="open"?` — <span style="color:#ff8a87">the printed text says more than that.</span>`:""}</div>
+    </div>
+
+    <div class="actions">
+      ${r.status!=="confirmed"&&!editing?`<button class="btn primary" data-act="confirm">Confirm — plays exactly like this</button>`:""}
+      ${editing?`<button class="btn primary" data-act="save">Save as corrected</button><button class="btn quiet" data-act="cancel">Cancel</button>`:`<button class="btn" data-act="edit">Correct by hand</button>`}
+      <button class="btn" data-act="explain">Explain to Claude</button>
+      <button class="btn" data-act="json">${jsonOpen?"Hide":"Show"} program (JSON)</button>
+      <button class="btn danger quiet" data-act="blank">Mark as does nothing</button>
+    </div>
+    <p class="hint">Confirming stores this program against the card. A later compiler change will re-draft it and show you the diff instead of overwriting.</p>
+
+    <div class="json ${jsonOpen?"on":""}"><textarea spellcheck="false">${JSON.stringify(r.ops,null,2)}</textarea><p class="hint">Edits here are validated with the same validator the engine uses; the block view and the plain reading update on blur.</p></div>
+
+    <div class="explain ${explainOpen?"on":""}">
+      <textarea placeholder="Say what the card does, as you would to a friend at the table…">${r.explanation||""}</textarea>
+      <div class="actions"><button class="btn primary" data-act="askclaude">Ask Claude for a program</button><span class="hint">Claude answers in the engine's own step language. You still confirm it.</span></div>
+    </div>
+
+    <div class="pattern">
+      <h3>${r.siblings} cards share this wording${r.status==="open"?` — mechanism: ${r.mechanism}`:""}</h3>
+      <p>${r.status==="open"?"Confirming a program here fixes one card. Teaching the compiler the wording fixes all of them, and this one lands in the worklist of every deck that runs any of them.":"This card's program came from a compiler pattern. If you correct it here, decide whether the pattern is wrong (fix all) or only this card is odd (fix one)."}</p>
+      <div class="siblings"><span>BT16-011</span><span>BT16-023</span><span>BT17-004</span><span>EB03-31</span><span>BT18-072</span><span>+${Math.max(0,r.siblings-5)} more</span></div>
+      <button class="btn" data-act="brief">${r.status==="open"?"Write the compiler brief":"Open the pattern"}</button>
+    </div>`;
+
+  el.querySelectorAll("[data-act]").forEach(b=>b.onclick=()=>act(b.dataset.act));
+  if(editing){
+    el.querySelectorAll("select,input").forEach(inp=>inp.onchange=()=>{applyEdit(inp);renderRec();});
+    el.querySelectorAll("[data-rm]").forEach(x=>x.onclick=()=>{const i=x.dataset.rm;if(!i.includes("."))cur.ops.splice(+i,1);renderRec();});
+    const add=el.querySelector("#addstep"); if(add) add.onclick=()=>{cur.ops.push({op:"draw",n:1,side:"you"});renderRec();};
+    el.querySelectorAll("[data-addfilter]").forEach(x=>x.onclick=()=>{cur.ops[+x.dataset.addfilter].filter="energy cost ≤ 3";renderRec();});
+  }
+}
+function applyEdit(inp){
+  const i=inp.dataset.i, k=inp.dataset.k; let v=inp.value;
+  if(i==="when"){cur.when.trigger=v;return;}
+  const o=i.includes(".")?cur.ops[+i.split(".")[0]].ops[+i.split(".")[1]]:cur.ops[+i];
+  if(k==="upTo") v=(v==="up to"); else if(k==="target") v=(v==="this card")?"self":"t"; else if(inp.type==="number") v=+v;
+  o[k]=v;
+}
+function act(a){
+  if(a==="confirm"){cur.status="confirmed";cur.history.unshift(["now","<b>confirmed by you</b>"]);toast("Confirmed — the engine plays it exactly like this.");}
+  if(a==="edit"){editing=true;}
+  if(a==="cancel"){editing=false;}
+  if(a==="save"){editing=false;cur.status="corrected";cur.source="user";cur.version++;cur.history.unshift(["now","<b>corrected by hand</b> · v"+cur.version]);toast("Saved as corrected — filed for the compiler too.");}
+  if(a==="json"){jsonOpen=!jsonOpen;}
+  if(a==="explain"){explainOpen=!explainOpen;}
+  if(a==="askclaude"){toast("Claude would answer here with a program in the step language.");}
+  if(a==="blank"){cur.ops=[];cur.status="corrected";cur.history.unshift(["now","<b>marked as does nothing</b>"]);toast("Stored as an empty program.");}
+  if(a==="brief"){toast("Opens the pattern page with the brief for compile.ts.");}
+  renderAll();
+}
+
+/* ---------------- probe ---------------- */
+function renderProbe(){
+  const r=cur, host=document.getElementById("probe");
+  const scen = { play:"You play it · opponent has 2 Battle Cards (one with [Barrier])", combo:"You combo with it · Leader yellow, life 3", activateMain:"Main Phase · 4 active energy · opponent has a 3-cost and a 5-cost Battle Card", permanent:"Opponent activates a KO skill targeting it" }[r.when.trigger] || "Default scenario for this trigger";
+  const trace = r.status==="open"
+    ? `<div class="h">1. Input</div><div class="l">${scen}</div><div class="h">2. Applied rule</div><div class="l bad">no program — the KO resolves</div><div class="h">3. Result</div><div class="l bad">this card is KO'd, although the text says it can't be</div><div class="h">4. Why</div><div class="l">[Permanent] prohibitions are not in the static layer yet</div>`
+    : r.when.trigger==="play"
+    ? `<div class="h">1. Input</div><div class="l">${scen}</div><div class="h">2. Applied rule</div><div class="l">trigger fires on play (9-6)</div><div class="l">choose up to 1 of opponent's Battle Cards — <span class="warn">1 candidate; the [Barrier] card is not offered (22-16)</span></div><div class="l">KO it → Drop Area</div><div class="h">3. Result</div><div class="l ok">1 card KO'd, prompt shown once</div><div class="h">4. Assumptions</div><div class="l">"up to" allows choosing none (5-2-4)</div>`
+    : r.when.trigger==="combo"
+    ? `<div class="h">1. Input</div><div class="l">${scen}</div><div class="h">2. Applied rule</div><div class="l">Leader is yellow ✓ · life 3 ≤ 4 ✓</div><div class="l">draw 1</div><div class="h">3. Result</div><div class="l ok">hand +1</div><div class="h">Edge</div><div class="l">life 5 → nothing happens ✓</div>`
+    : r.when.trigger==="activateMain" && r.cost
+    ? `<div class="h">1. Input</div><div class="l">${scen}</div><div class="h">2. Applied rule</div><div class="l">pay ① and drop this card</div><div class="l">choose ≤1 opponent Battle Card with cost ≤ 3 — <span class="ok">1 candidate (the 5-cost is filtered)</span></div><div class="l">return it to hand</div><div class="h">3. Result</div><div class="l ok">opponent hand +1, board −1</div>`
+    : r.ops[0]&&r.ops[0].op==="delay"
+    ? `<div class="h">1. Input</div><div class="l">In play at the end of your turn</div><div class="h">2. Applied rule</div><div class="l">delayed effect scheduled at turnEnd (1-7-2-1-1)</div><div class="l">move this card → Warp</div><div class="h">3. Result</div><div class="l ok">card in Warp before cleanup</div><div class="h">Assumptions</div><div class="l">fires at your end phase, not your opponent's (approximation noted in worklist)</div>`
+    : `<div class="h">1. Input</div><div class="l">Main Phase, no cost</div><div class="h">2. Applied rule</div><div class="l">prompt: choose one (20-2)</div><div class="l">A → draw 1 · B → opponent discards 1</div><div class="h">3. Result</div><div class="l ok">exactly one option resolves</div>`;
+  host.innerHTML=`
+    <h2>Probe — what actually happens</h2>
+    <div class="box">
+      <select class="full"><option>${scen}</option><option>Empty target set</option><option>Opponent's turn</option><option>Skills negated on this card</option></select>
+      <button class="btn" style="width:100%" onclick="toast('Runs the pure engine on a synthetic state and prints the log.')">Run probe</button>
+      <div class="trace" style="margin-top:12px">${trace}</div>
+    </div>
+    <h2>Edge cases</h2>
+    <div class="box">
+      <div class="edge"><span>No legal target</span><span class="${r.status==="open"?"todo":"pass"}">${r.status==="open"?"—":"skips"}</span></div>
+      <div class="edge"><span>Target has [Barrier]</span><span class="${r.status==="open"?"todo":"pass"}">${r.status==="open"?"—":"not offered"}</span></div>
+      <div class="edge"><span>This card's skills negated</span><span class="${r.status==="open"?"todo":"pass"}">${r.status==="open"?"—":"does not fire"}</span></div>
+      <div class="edge"><span>Opponent's turn</span><span class="${r.status==="open"?"fail":"pass"}">${r.status==="open"?"KO'd":"n/a"}</span></div>
+    </div>
+    <h2>History</h2>
+    <div class="box hist">${r.history.map(h=>`<div><b>${h[0]}</b> — ${h[1]}</div>`).join("")}</div>`;
+}
+
+function toast(m){const t=document.getElementById("toast");t.textContent=m;t.classList.add("on");clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove("on"),2200);}
+function renderAll(){renderList();renderRec();renderProbe();document.getElementById("k-open").textContent=RULES.filter(r=>r.status==="open").length;document.getElementById("k-draft").textContent=RULES.filter(r=>r.status==="draft").length+34;}
+renderAll();
+</script>
+</body>
+</html>
