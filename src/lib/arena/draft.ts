@@ -222,9 +222,12 @@ export async function draftCards(db: Db, ids: string[], opts: { onlyOpen?: boole
         }
         // A row a person owns: the program is theirs. Refresh what the record
         // is *about* — the printed line and the parsed metadata — and note the
-        // compiler's own reading beside it when the two differ.
+        // compiler's own reading beside it when the two differ. A skill the
+        // compiler cannot read has no reading to offer: every Claude draft of an
+        // open skill was getting a "the compiler reads this differently" strip
+        // that offered a blank program with unread clauses.
         const fresh = rec.cond ? [{ op: "if" as const, cond: rec.cond, then: rec.ops }] : rec.ops;
-        const differs = !same(fresh, programOf(have)) || rec.unread.length > 0;
+        const differs = rec.unread.length === 0 && !same(fresh, programOf(have));
         const diff = differs ? { ops: fresh, unread: rec.unread, at } : null;
         const hadDiff = have.compilerDiff != null;
         const diffChanged = differs ? !same({ ops: (have.compilerDiff as { ops?: Op[] } | null)?.ops, unread: (have.compilerDiff as { unread?: string[] } | null)?.unread }, { ops: fresh, unread: rec.unread }) : hadDiff;

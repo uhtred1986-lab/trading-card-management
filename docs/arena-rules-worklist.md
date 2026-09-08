@@ -1746,10 +1746,18 @@ versions to 2. `canonical()` now drops such keys. **Two of 100 fuzzed games
 crashed on one row**: the `claude/corrected` program carried over for BT31-132
 had a filter with only the fields it meant, and `matches` read the rest
 unguarded. The engine now fills a filter up before reading it; a row a person
-or Claude writes may say only what it means. The review step (`--review
---budget 3` on BT18) could not run — no `ANTHROPIC_API_KEY` in the sandbox — so
-the 56 open BT18 skills are still open; the script records the skipped review
-on `arena_feedback` as designed.
+or Claude writes may say only what it means. **The review step** (`--review
+--budget 3` on BT18) ran three times: once without a key (skipped and recorded
+on `arena_feedback` as designed — Claude Code on the web reserves
+`ANTHROPIC_API_KEY`, hence `APP_ANTHROPIC_API_KEY`), then twice with one. Six
+Opus 5 calls, three BT18 skills now Claude's drafts (BT18-043, BT18-044,
+BT18-119), one honest "could not draft" (BT18-034's cost-as-action price), and
+two failures that were ours: Claude wrote `{"special":"self"}` where a ref
+wants `{"sel":{…}}`, the validator accepted any object as a ref, and describing
+the answer threw. The validator now knows what a ref, a selector and a
+condition are. BT18: 56 → 53 open. The drafts are drafts — BT18-044 reads
+`{Angel Halo}` as a character rather than a name and models "on your opponent's
+turn" as a duration — which is exactly what the confirm step is for.
 
 Tests: the three suites pass with 76 new assertions — every schema row renders
 and validates, the validator's refusals, the drafter's records and hoisting,
