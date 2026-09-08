@@ -76,7 +76,11 @@ async function sweep(): Promise<number> {
   console.log(`probing ${rules.length} rule${rules.length === 1 ? "" : "s"}…`);
   const counts = new Map<string, number>();
   const families = new Map<string, number>();
+  // Outcome by family: a family where nothing is ever offered is a staging
+  // problem, and the totals alone would not say which one.
+  const cross = new Map<string, number>();
   const broke: string[] = [];
+  const unsaid: string[] = [];
   let filled = 0;
   const started = Date.now();
   for (const { row, rule } of rules) {
@@ -84,6 +88,10 @@ async function sweep(): Promise<number> {
     const run = probe(rule, scenario);
     counts.set(run.outcome, (counts.get(run.outcome) ?? 0) + 1);
     families.set(scenario.family, (families.get(scenario.family) ?? 0) + 1);
+    cross.set(`${scenario.family}\t${run.outcome}`, (cross.get(`${scenario.family}\t${run.outcome}`) ?? 0) + 1);
+    // A refusal the engine cannot word is worth counting on its own: the
+    // workflow spec's promise is that every move off the menu has a reason.
+    if (run.outcome === "notOffered" && run.result.some((r) => /gives no reason/.test(r))) unsaid.push(`${row.cardId} [${row.kind} ${row.skillIndex}]`);
     if (run.outcome === "error") broke.push(`${row.cardId} [${row.side} ${row.skillIndex}] ${scenario.key}: ${run.result.join(" ")}`);
     if (flag("card") || rules.length <= 20) console.log(`  ${row.cardId} [${row.kind}] ${scenario.key} → ${run.outcome}: ${run.result.join(" | ") || "—"}`);
     if (flag("fill") && row.status === "confirmed" && !row.probe) {
@@ -95,7 +103,13 @@ async function sweep(): Promise<number> {
   console.log(`\n${rules.length} rules in ${secs} s`);
   console.log([...counts.entries()].sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k} ${n}`).join(" · "));
   console.log([...families.entries()].sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k} ${n}`).join(" · "));
+  console.log("");
+  for (const [family] of [...families.entries()].sort((a, b) => b[1] - a[1])) {
+    const mine = [...cross.entries()].filter(([k]) => k.startsWith(`${family}\t`)).sort((a, b) => b[1] - a[1]);
+    console.log(`  ${family.padEnd(15)} ${mine.map(([k, n]) => `${k.split("\t")[1]} ${n}`).join(" · ")}`);
+  }
   if (filled) console.log(`${filled} confirmed rules now carry a probe`);
+  if (unsaid.length) console.log(`\n${unsaid.length} refusals with no reason at all (the engine offers the move nowhere and explains it nowhere), e.g. ${unsaid.slice(0, 5).join(", ")}`);
   if (broke.length) {
     console.log(`\n${broke.length} broke:`);
     for (const line of broke.slice(0, 40)) console.log(`  ${line}`);

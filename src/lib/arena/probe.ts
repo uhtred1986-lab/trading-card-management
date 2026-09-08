@@ -33,6 +33,7 @@ import {
   type PlayerId,
   type Skill,
 } from "./engine";
+import { parseFilter } from "./engine/filters";
 import { addEffect, move } from "./engine/state";
 import { toBeats } from "./beats";
 import { describeEffect, untilWords } from "./effects";
@@ -135,6 +136,7 @@ const ENERGY = "PROBE-ENERGY";
 const BODY = "PROBE-BODY";
 const BARRIER = "PROBE-BARRIER";
 const KILLER = "PROBE-KO";
+const MATCH = "PROBE-MATCH";
 const LEADER = "PROBE-LEADER";
 const THEIR_LEADER = "PROBE-RIVAL";
 
@@ -145,6 +147,7 @@ const NAMES: Record<string, string> = {
   [BODY]: "Rival Fighter",
   [BARRIER]: "Barrier Fighter",
   [KILLER]: "Rival Executioner",
+  [MATCH]: "Kindred Fighter",
   [LEADER]: "Your Leader",
   [THEIR_LEADER]: "Rival Leader",
 };
@@ -175,7 +178,14 @@ function body(id: string, o: Partial<CardDef> = {}): CardDef {
 /** The two decks, the two leaders and the opponent's props — coloured to match the card under test. */
 function propsFor(rule: ProbeRule): { defs: Record<string, CardDef>; scripts: Record<string, CardScripts> } {
   const colors = rule.def.colors.length ? rule.def.colors : (["Red"] as CardDef["colors"]);
-  const leader = (id: string): CardDef => body(id, { type: "LEADER", colors, energyCost: null, comboCost: null, comboPower: null, power: 20000 });
+  // The Leader is made to match the card: same colours, same characters, same
+  // traits. Half the catalog's [Activate] skills are printed with "if your
+  // Leader is a <Gotenks>" in front of them, and a nameless Leader answers
+  // every one of them with "not met" — which is a fact about the board the
+  // probe built, not about the rule it was asked to try. The input line says
+  // so, because a board built in the card's favour has to be declared.
+  const leader = (id: string): CardDef =>
+    body(id, { type: "LEADER", colors, energyCost: null, comboCost: null, comboPower: null, power: 20000, characters: rule.def.characters, traits: rule.def.traits });
   const defs: Record<string, CardDef> = {};
   for (const d of [
     leader(LEADER),
@@ -183,6 +193,7 @@ function propsFor(rule: ProbeRule): { defs: Record<string, CardDef>; scripts: Re
     body(FILLER, { colors }),
     body(ENERGY, { colors }),
     body(BODY, { colors }),
+    body(MATCH, { colors }),
     body(BARRIER, { colors, skill: "[Barrier]" }),
     body(KILLER, { colors, energyCost: 1, skill: "[Activate: Main] Choose up to 1 of your opponent's Battle Cards and KO it." }),
     rule.def,
@@ -397,9 +408,11 @@ function stage(rule: ProbeRule, scenario: ProbeScenario): Staged {
   for (let i = 0; i < 6; i++) put(ctx, s, YOU, ENERGY, "energy");
   for (let i = 0; i < 6; i++) put(ctx, s, THEM, ENERGY, "energy");
   input.push("6 energy each");
+  if (rule.def.characters.length || rule.def.traits.length) input.push(`your Leader shares this card's colours${rule.def.characters.length ? `, ${rule.def.characters.join("/")}` : ""}${rule.def.traits.length ? ` and ${rule.def.traits.join("/")}` : ""}`);
 
+  let theirBody: string | null = null;
   if (scenario.variant !== "noTarget") {
-    put(ctx, s, THEM, BODY, "battle");
+    theirBody = put(ctx, s, THEM, BODY, "battle");
     put(ctx, s, THEM, BARRIER, "battle");
     input.push("the opponent has two Battle Cards, one with [Barrier]");
   } else input.push("the opponent has nothing in play");
@@ -419,7 +432,18 @@ function stage(rule: ProbeRule, scenario: ProbeScenario): Staged {
     goals.push({ what: "a Battle Card is played", by: actor, at: ["main"], match: (a) => a.type === "play" && a.card === other });
   } else if (family === "attack" && !theyAttack) {
     const attacker = home === "battle" ? card : put(ctx, s, YOU, FILLER, "battle");
-    goals.push({ what: "attack the opponent's Leader", by: YOU, at: ["main"], match: (a) => a.type === "attack" && a.attacker === attacker });
+    // "When this card KOs a Battle Card" needs something it can KO: a rested
+    // body, since 8-1-1 offers no active one, and a weak one so the clash goes
+    // the attacker's way. Everything else attacks the Leader, which is the
+    // move a card without a target still has.
+    const kills = rule.trigger.some((t) => ["kos", "dealtDamage"].includes(t));
+    if (kills && theirBody) {
+      s.cards[theirBody].mode = "rest";
+      ctx.defs[BODY] = body(BODY, { colors: rule.def.colors, power: 5000 });
+      input.push("their Battle Card is rested and weaker, so the attack can take it");
+    }
+    const target = kills && theirBody ? theirBody : s.players[THEM].leader;
+    goals.push({ what: `attack ${target === theirBody ? "their Battle Card" : "the opponent's Leader"}`, by: YOU, at: ["main"], match: (a) => a.type === "attack" && a.attacker === attacker && a.target === target });
   } else if (family === "attack") {
     // "When this card is attacked" needs it rested; the rest of the wordings
     // are about the Leader being attacked (8-1-1 offers no active card).
@@ -454,6 +478,22 @@ function stage(rule: ProbeRule, scenario: ProbeScenario): Staged {
     input.push("the opponent has a card whose skill KOs one of yours");
     goals.push({ what: "the opponent activates a KO skill", by: THEM, at: ["main"], match: (a) => a.type === "activate" && a.card === killer });
   } else if (family === "keyword") {
+    // [Evolve]{2}: <Nail> is offered only when a <Nail> is in play (22-5), and
+    // the same is true of [Union], [Revive] and [Successor]. Staging a body
+    // the keyword's own description matches is what makes the probe say what
+    // the keyword *does* rather than that it was not offered.
+    if (fromHand && skill) {
+      const wanted = parseFilter(skill.effect || skill.cost);
+      const named = put(ctx, s, YOU, MATCH, "battle");
+      ctx.defs[MATCH] = body(MATCH, {
+        colors: wanted.colors.length ? wanted.colors : rule.def.colors,
+        characters: wanted.characters.length ? wanted.characters : wanted.charactersIncluding,
+        traits: wanted.traits,
+        name: wanted.characters[0] ?? wanted.names[0] ?? NAMES[MATCH],
+      });
+      input.push(`a Battle Card in your Battle Area that the keyword's description matches (${ctx.defs[MATCH].name})`);
+      void named;
+    }
     if (!fromHand) {
       goals.push({ what: "the opponent attacks your Leader", by: THEM, at: ["main"], match: (a) => a.type === "attack" && a.target === s.players[YOU].leader });
     }
