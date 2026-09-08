@@ -86,14 +86,16 @@ export function StageCard({
        * layout animation depends on, and the card would fly to the wrong
        * place. A CSS transform inside it is invisible to that machinery.
        */}
-      <div className={`transition-transform duration-200 ${nudge ? "arena-nudge" : ""}`} style={fan || lift ? { transform: `rotate(${fan}deg) translateY(${lift}px)` } : undefined}>
+      <div className={`group transition-transform duration-200 ${nudge ? "arena-nudge" : ""}`} style={fan || lift ? { transform: `rotate(${fan}deg) translateY(${lift}px)` } : undefined}>
         {/*
          * The moment gets its own element and is keyed on which moment it is,
          * so re-mounting restarts the animation — a card attacking twice in a
          * turn should lunge twice, and a CSS animation on a class that never
          * changed would play once and then sit still.
          */}
-        <div key={moment ?? "still"} className={`${MOMENT[moment ?? "none"]} ${lifts ? "transition-transform duration-200 hover:-translate-y-2" : ""}`}>
+        {/* The lift reads the parent hover, not its own: an element that moves
+            out from under the cursor un-hovers itself, drops back, and oscillates. */}
+        <div key={moment ?? "still"} className={`${MOMENT[moment ?? "none"]} ${lifts ? "transition-transform duration-200 group-hover:-translate-y-2" : ""}`}>
           <ArenaCard card={card} state={state} width={width} upsideDown={upsideDown} onTap={onTap} onInspect={onInspect} onHover={onHover} />
         </div>
       </div>
