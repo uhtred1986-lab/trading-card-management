@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { boolean, customType, date, index, integer, jsonb, pgTable, primaryKey, real, serial, text, timestamp, unique, uniqueIndex } from "drizzle-orm/pg-core";
+import { boolean, customType, date, index, integer, jsonb, pgTable, primaryKey, real, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 /*
  * ──────────────────────────────────────────────────────────────────────────
@@ -747,76 +747,64 @@ export const arenaDecisions = pgTable(
   (t) => [index("arena_decisions_game_idx").on(t.gameId, t.seq)],
 );
 
-/**
- * Card text the compiler could not read — the working list for extending
- * `src/lib/arena/engine/compile.ts`. A row is one clause of one card's skill.
- * The catalog sweep fills it for the decks you actually play; a referee ruling
- * bumps `timesSeen` and records what Claude decided, which is a strong hint at
- * what the compiler should emit.
- */
-export const cardTextNotes = pgTable(
-  "card_text_notes",
+export const cardRules = pgTable(
+  "card_rules",
   {
     id: serial("id").primaryKey(),
     cardId: text("card_id")
       .notNull()
       .references(() => cards.id, { onDelete: "cascade" }),
-    skillIndex: integer("skill_index").notNull(),
-    /** The exact clause that defeated the parser. */
-    clause: text("clause").notNull(),
-    /** Its shape with numbers and names blanked, so like clauses group together. */
-    pattern: text("pattern").notNull(),
-    /** The whole printed skill line, for context when writing the rule. */
-    skillText: text("skill_text").notNull(),
-    /** How often it has actually come up in a game. */
-    timesSeen: integer("times_seen").notNull().default(0),
-    /** open | done | wontfix */
-    status: text("status").notNull().default("open"),
-    /** The last program Claude produced for it, as a worked example. */
-    lastRuling: jsonb("last_ruling"),
-    lastRulingWhy: text("last_ruling_why"),
-    /** What the owner said this wording means, in their own words. */
-    explanation: text("explanation"),
-    explainedAt: timestamp("explained_at", { withTimezone: true }),
-    /** A ready-to-hand brief for teaching the compiler this wording for good. */
-    brief: text("brief"),
-    firstSeenAt: timestamp("first_seen_at", { withTimezone: true }).notNull().defaultNow(),
-    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
-  },
-  (t) => [unique("card_text_notes_clause_key").on(t.cardId, t.skillIndex, t.clause), index("card_text_notes_pattern_idx").on(t.pattern)],
-);
-
-/**
- * A stored effect program for one skill of one card, overriding what the
- * compiler managed to read.
- *
- * This is how a card you have explained starts playing correctly straight
- * away: the engine prefers a row here over its own reading, so the card stops
- * going to the referee, stops costing tokens, and stops being slow — without
- * waiting for the compiler to learn the wording.
- */
-export const cardScripts = pgTable(
-  "card_scripts",
-  {
-    id: serial("id").primaryKey(),
-    cardId: text("card_id")
-      .notNull()
-      .references(() => cards.id, { onDelete: "cascade" }),
-    skillIndex: integer("skill_index").notNull(),
     /** front | back — a leader's awakened side has its own skills. */
-    side: text("side").notNull().default("front"),
-    /** The program, in the effect language of src/lib/arena/engine/script.ts. */
-    ops: jsonb("ops").notNull(),
-    /** user | claude | compiler — where the program came from. */
-    source: text("source").notNull().default("claude"),
-    /** What the owner said the card means, in their own words. */
+    side: text("side").notNull(),
+    skillIndex: integer("skill_index").notNull(),
+    /** The skill line as printed. */
+    printed: text("printed").notNull(),
+    /** "Auto" | "Activate: Main" | "Permanent" | … — the tag as the engine reads it. */
+    kind: text("kind").notNull(),
+    /** The `Trigger` names an [Auto] skill answers to, from `autoTriggerMatches`. */
+    trigger: jsonb("trigger").$type<string[]>(),
+    /** The parsed skill cost, or null when the skill has none. */
+    cost: jsonb("cost"),
+    /** A top-level condition hoisted from a program that is one wrapping `if`. */
+    cond: jsonb("cond"),
+    ops: jsonb("ops").notNull().default([]),
+    /** open | draft | confirmed | corrected */
+    status: text("status").notNull(),
+    /** compiler | claude | user */
+    source: text("source").notNull(),
+    /** The clauses the compiler could not read. */
+    unread: jsonb("unread").$type<string[]>().notNull().default([]),
+    /** Which compiler rules produced the draft, for grouping siblings. */
+    pattern: text("pattern"),
+    /** The owner's or Claude's words, when the source is not the compiler. */
     explanation: text("explanation"),
-    /** Claude's one-line restatement of the same thing. */
-    meaning: text("meaning"),
+    /** `describeScript(ops)`, regenerated on every write. */
+    reads: text("reads").notNull().default(""),
+    version: integer("version").notNull().default(1),
+    /** What the compiler reads now, when that differs from a row a person owns. */
+    compilerDiff: jsonb("compiler_diff"),
+    /**
+     * A ready-to-hand work item for teaching the compiler this wording for
+     * good. The program fixes this card; the brief fixes every card phrased
+     * the same way, and only the second ends the problem.
+     */
+    brief: text("brief"),
+    /**
+     * The last probe run against this rule, kept when it is confirmed: the
+     * scenario, what it concluded and the digest over that conclusion. A later
+     * engine change re-runs every stored probe (`npm run arena:reprobe`) and
+     * lists the rules whose answer moved — the regression suite the rules
+     * never had.
+     */
+    probe: jsonb("probe"),
+    /** How often this skill has actually come up in a game the referee had to rule on. */
+    timesSeen: integer("times_seen").notNull().default(0),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
+    confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [unique("card_scripts_skill_key").on(t.cardId, t.skillIndex, t.side), index("card_scripts_card_idx").on(t.cardId)],
+  (t) => [uniqueIndex("card_rules_skill").on(t.cardId, t.side, t.skillIndex), index("card_rules_status").on(t.status)],
 );
 
 export const aiRuns = pgTable(
@@ -864,10 +852,10 @@ export const appUsers = pgTable("app_users", {
  * that a rule had to be set by hand. Those three are the same kind of thing —
  * a person noticing — and they are worth nothing if they are scattered.
  *
- * `card_text_notes` is deliberately *not* folded in here. Its rows are a
- * measurement: every clause the compiler cannot read, generated by a scan.
- * Merging them would bury the handful of things actually said under a thousand
- * things counted.
+ * The measurement is deliberately *not* folded in here: which clauses the
+ * compiler cannot read lives on `card_rules.unread`, one row per skill, where
+ * it is generated. Merging it in would bury the handful of things actually
+ * said under thousands of things counted.
  */
 export const arenaFeedback = pgTable(
   "arena_feedback",
@@ -875,7 +863,7 @@ export const arenaFeedback = pgTable(
     id: serial("id").primaryKey(),
     /**
      * bug — something went wrong in a game, reported from the board.
-     * card — a card explained in the owner's own words, from the backlog.
+     * card — a card explained in the owner's own words, from its record.
      * rule — a rule set by hand, from the rules page.
      */
     kind: text("kind").notNull().default("bug"),
@@ -886,7 +874,10 @@ export const arenaFeedback = pgTable(
     /** The card it is about, and which of its skills, when it is about one. */
     cardId: text("card_id"),
     skillIndex: integer("skill_index"),
-    /** The backlog row it came from, for a `card` note. */
+    /**
+     * The `card_rules` row it is about, for a `card` note. Older rows point at
+     * `card_text_notes`, which was folded into `card_rules` in migration 0030.
+     */
     noteId: integer("note_id"),
     /** The game it happened in, for a `bug`. */
     gameId: integer("game_id").references(() => arenaGames.id, { onDelete: "set null" }),
@@ -906,6 +897,13 @@ export const arenaFeedback = pgTable(
     status: text("status").notNull().default("open"),
     /** What was done about it, written back when it is fixed. */
     resolution: text("resolution"),
+    /**
+     * The rules one bulk confirm moved, as `{id, version}` pairs — what Undo
+     * puts back. Kept whole rather than as the filter that matched them: a
+     * filter re-run later would also catch what was confirmed since, and miss
+     * what no longer matches.
+     */
+    batch: jsonb("batch"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     resolvedAt: timestamp("resolved_at", { withTimezone: true }),
   },

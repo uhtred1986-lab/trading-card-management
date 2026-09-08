@@ -365,13 +365,16 @@ assert.equal(priceForFinish(prices.get("BT18-020_SPR"), "foil"), 199);
   assert.ok((await collectionCopies(db, { game: "dbs" })).rows.every((r) => r.game === "dbs"));
 }
 
-// ── The backlog closes what the compiler has since learned to read ─────────
-// `/arena/backlog` is read as what is left to do on the compiler, so a note
-// that a later rule cleared has to stop being counted. The test is the
-// compiler itself: a clause that no longer comes back unread is done.
+// ── What the compiler cannot read is on the rule, and so is the brief ──────
+// `card_text_notes` held both the measurement and the writing about it. The
+// measurement has been on `card_rules.unread` since the rules became records,
+// so migration 0030 moved the writing there too and dropped the table: a
+// clause the compiler learns to read stops being unread by itself, with no
+// second list to sweep.
 {
   const { eq } = await import("drizzle-orm");
-  const { closeNotesNowRead, unreadClausesOf } = await import("../src/lib/arena/ai/debug.ts");
+  const { draftCards } = await import("../src/lib/arena/draft.ts");
+  const { countRules, markRuleSeen, rulesFor, setBrief } = await import("../src/lib/arena/rules-store.ts");
   const { cardDefFrom } = await import("../src/lib/arena/load.ts");
 
   const skilled = (id: string, name: string, skill: string) => ({ ...card(id, name), skill });
@@ -384,41 +387,152 @@ assert.equal(priceForFinish(prices.get("BT18-020_SPR"), "foil"), 199);
   const rows = await db.select().from(schema.cards).where(eq(schema.cards.setCode, "BT18"));
   const byId = new Map(rows.map((r) => [r.id, r]));
 
-  const stillUnread = unreadClausesOf(cardDefFrom(byId.get("BT18-031")!));
-  assert.ok(stillUnread.length, "the nonsense clause is one the compiler cannot read");
-  assert.deepEqual(unreadClausesOf(cardDefFrom(byId.get("BT18-030")!)), [], "and the plain one reads in full");
+  // The drafter writes the rows the engine reads; on PGlite like on Neon, so
+  // the store's SQL is under test here.
+  const drafted = await draftCards(db, ["BT18-030", "BT18-031"]);
+  assert.deepEqual([drafted.cards, drafted.skills, drafted.inserted], [2, 2, 2]);
+  assert.deepEqual(await countRules(db, ["BT18-030", "BT18-031"]), { open: 1, draft: 1, confirmed: 0, corrected: 0 });
+  const again = await draftCards(db, ["BT18-030", "BT18-031"]);
+  assert.deepEqual([again.inserted, again.updated], [0, 0], "a second draft of unchanged text touches nothing");
+  const scripts = await rulesFor(db, { "BT18-030": cardDefFrom(byId.get("BT18-030")!), "BT18-031": cardDefFrom(byId.get("BT18-031")!) });
+  assert.deepEqual(scripts["BT18-030"].bySkill[0].ops, [{ op: "draw", n: 1 }], "the engine gets the draft's program");
+  assert.equal(scripts["BT18-031"].bySkill[0].ops.length, 0, "an open row plays as blank…");
+  assert.ok(scripts["BT18-031"].bySkill[0].unsupported.length, "…and still carries what did not read");
 
-  const note = (cardId: string, clause: string, extra: Record<string, unknown> = {}) => ({
-    cardId,
-    skillIndex: 0,
-    clause,
-    pattern: clause,
-    skillText: byId.get(cardId)!.skill!,
-    ...extra,
-  });
-  await db.insert(schema.cardTextNotes).values([
-    // Written down before the compiler could read it; it can now.
-    note("BT18-030", "draw 1 card", { explanation: "the owner's ruling, which must survive" }),
-    // Never learned, so it is still work.
-    note("BT18-031", stillUnread[0].clause),
-    // Ruled out by hand: not this function's business either way.
-    note("BT18-030", "some other wording", { status: "wontfix" }),
+  const [puzzle] = await db.select().from(schema.cardRules).where(eq(schema.cardRules.cardId, "BT18-031"));
+  assert.deepEqual([puzzle.brief, puzzle.timesSeen], [null, 0], "a fresh rule has nothing written about its wording yet");
+  await setBrief(db, puzzle.id, { brief: "## Wording\ncompliment each other", explanation: "the owner's ruling, which must survive" });
+  await markRuleSeen(db, "BT18-031", "front", 0);
+  await markRuleSeen(db, "BT18-031", "front", 0);
+
+  // A re-draft is the compiler's business and leaves the writing alone.
+  await draftCards(db, ["BT18-030", "BT18-031"]);
+  const [after] = await db.select().from(schema.cardRules).where(eq(schema.cardRules.cardId, "BT18-031"));
+  assert.equal(after.brief?.startsWith("## Wording"), true, "the brief survives a re-draft");
+  assert.equal(after.explanation, "the owner's ruling, which must survive");
+  assert.equal(after.timesSeen, 2, "and so does the count of games that met the wording");
+
+  const groups = await (await import("../src/lib/arena/rules-store.ts")).openPatterns(db);
+  const met = groups.find((g) => g.examples.some((e) => e.cardId === "BT18-031"));
+  assert.equal(met?.timesSeen, 2, "which is what sorts the Patterns page");
+  assert.equal(met?.brief?.startsWith("## Wording"), true, "with the work item on the group");
+}
+
+// ── The worklist over the whole catalog: filtered, paged, confirmed in bulk ──
+// The decks page holds its whole list in memory; this one cannot, so the page
+// and the count come from the database and a bulk confirm is aimed at the
+// filter rather than at the rows on screen.
+{
+  const { and, eq, inArray } = await import("drizzle-orm");
+  const { draftCards } = await import("../src/lib/arena/draft.ts");
+  const { confirmMatching, statusCounts, undoConfirmed, worklistPage } = await import("../src/lib/arena/rules-store.ts");
+
+  await db.insert(schema.cardSets).values({ code: "BT19", name: "Fighting Spirit", line: "legacy", sortKey: 19 });
+  const drawer = (id: string, setCode: string, name: string) => ({ ...card(id, name), setCode, skill: "[Auto] When you play this card, draw 1 card." });
+  await db.insert(schema.cards).values([
+    drawer("BT18-040", "BT18", "Eighteen"),
+    drawer("BT18-041", "BT18", "Krillin"),
+    drawer("BT19-001", "BT19", "Piccolo"),
+    { ...card("BT19-002", "Nappa"), setCode: "BT19", skill: "[Auto] When you play this card, your opponent skips their next Charge Phase." },
   ]);
+  const ids = ["BT18-040", "BT18-041", "BT19-001", "BT19-002"];
+  await draftCards(db, ids);
 
-  assert.equal(await closeNotesNowRead(db), 1, "only the clause that now reads is closed");
-  const after = await db.select().from(schema.cardTextNotes).where(eq(schema.cardTextNotes.cardId, "BT18-030"));
-  const closed = after.find((n) => n.clause === "draw 1 card")!;
-  assert.equal(closed.status, "done");
-  assert.equal(closed.explanation, "the owner's ruling, which must survive", "closing a note keeps what was written on it");
-  assert.equal(after.find((n) => n.clause === "some other wording")!.status, "wontfix", "a wontfix is never touched");
+  const all = await worklistPage(db, { cardIds: ids }, { limit: 100, offset: 0 });
+  assert.equal(all.total, 4);
+  assert.equal(all.rows[0].status, "open", "open first: the engine plays those as blank");
+  assert.deepEqual(await statusCounts(db, { cardIds: ids }), { open: 1, draft: 3, confirmed: 0, corrected: 0 });
+  assert.deepEqual(await statusCounts(db, { cardIds: ids, status: "open" }), { open: 1, draft: 3, confirmed: 0, corrected: 0 }, "the segment row counts every state, whichever is showing");
 
-  const open = await db.select().from(schema.cardTextNotes).where(eq(schema.cardTextNotes.status, "open"));
+  const page = await worklistPage(db, { cardIds: ids }, { limit: 2, offset: 2 });
+  assert.deepEqual([page.rows.length, page.total], [2, 4], "a page says how many the filter matches, not how many it shows");
+  const bySet = await worklistPage(db, { cardIds: ids, setCode: "BT19" }, { limit: 100, offset: 0 });
+  assert.deepEqual(bySet.rows.map((r) => r.cardId).sort(), ["BT19-001", "BT19-002"]);
+  assert.equal((await worklistPage(db, { cardIds: ids, q: "Krillin" }, { limit: 100, offset: 0 })).total, 1, "a search reads the card's name");
+  assert.equal((await worklistPage(db, { cardIds: ids, mechanism: "turn structure" }, { limit: 100, offset: 0 })).rows[0]?.cardId, "BT19-002", "a mechanism is read off the clause the compiler could not read");
+  assert.equal((await worklistPage(db, { cardIds: [] }, { limit: 100, offset: 0 })).total, 0, "no cards is no rules, not every rule");
+
+  // Bulk confirm: exactly the filter's drafts, and nothing else.
+  const batch = await confirmMatching(db, { cardIds: ids, setCode: "BT18" });
+  assert.equal(batch.rules.length, 2, "both BT18 drafts");
+  assert.deepEqual(await statusCounts(db, { cardIds: ids }), { open: 1, draft: 1, confirmed: 2, corrected: 0 });
+  assert.equal((await confirmMatching(db, { cardIds: ids, mechanism: "turn structure" })).rules.length, 0, "an open row is not a draft");
+
+  // …and the way back, which must not undo the work that followed it.
+  await db.update(schema.cardRules).set({ status: "corrected", source: "user", version: 9 }).where(and(inArray(schema.cardRules.cardId, ["BT18-041"]), eq(schema.cardRules.skillIndex, 0)));
+  const undone = await undoConfirmed(db, batch);
+  assert.deepEqual([undone.reverted, undone.kept], [1, 1], "the row edited since is left exactly as it is");
+  assert.deepEqual(await statusCounts(db, { cardIds: ids }), { open: 1, draft: 2, confirmed: 0, corrected: 1 });
+  // The same rules, grouped by the wording that produced them.
+  const { draftPatterns, openPatterns } = await import("../src/lib/arena/rules-store.ts");
+  await db.update(schema.cardRules).set({ status: "draft", source: "compiler", version: 1 }).where(inArray(schema.cardRules.cardId, ["BT18-040", "BT18-041", "BT19-001"]));
+  const drafts = await draftPatterns(db);
+  const draw = drafts.find((g) => g.label === "draw");
+  assert.ok((draw?.rules ?? 0) >= 3, "one reading over many cards is one group");
   assert.deepEqual(
-    open.map((n) => n.cardId),
-    ["BT18-031"],
-    "what is left is what the compiler still cannot read",
+    draw?.examples.filter((e) => ids.includes(e.cardId)).map((e) => e.cardId),
+    ["BT18-040", "BT18-041", "BT19-001"],
+    "…with the cards to look at, in order",
   );
-  assert.equal(await closeNotesNowRead(db), 0, "and a second sweep has nothing to do");
+  assert.ok(draw!.examples.every((e) => e.reads === "draw 1"), "and what the compiler read them as");
+  const open = await openPatterns(db);
+  const skip = open.find((g) => g.mechanism === "turn structure");
+  assert.equal(skip?.rules, 1, "open rules group by what the wording would need, then by its shape");
+  assert.equal(skip?.key, "turn structure", "and the group links to that mechanism in the worklist");
+  assert.ok((await confirmMatching(db, { pattern: "draw" })).rules.length >= 3, "confirming the pattern confirms the group");
+  assert.deepEqual(await statusCounts(db, { cardIds: ids }), { open: 1, draft: 0, confirmed: 3, corrected: 0 }, "…every draft of it, in one press");
+
+  await db.delete(schema.cardRules).where(inArray(schema.cardRules.cardId, ids));
+  await db.delete(schema.cards).where(inArray(schema.cards.id, ids));
+}
+
+// ── The catalog sync hands the drafter exactly the cards whose text arrived or changed ──
+{
+  const { changedCardIds } = await import("../src/lib/catalog/deckplanet.ts");
+  const before = new Map([
+    ["BT18-030", { skill: "[Auto] When you play this card, draw 1 card.", backSkill: null }],
+    ["BT18-031", { skill: "old text", backSkill: null }],
+    ["BT18-032", { skill: null, backSkill: "front unchanged, back changed" }],
+  ]);
+  const after = [
+    { id: "BT18-030", skill: "[Auto] When you play this card, draw 1 card.", backSkill: null },
+    { id: "BT18-031", skill: "new text", backSkill: null },
+    { id: "BT18-032", skill: null, backSkill: "front unchanged, back changed too" },
+    { id: "BT19-001", skill: "[Blocker]", backSkill: null },
+  ];
+  assert.deepEqual(changedCardIds(before, after), { inserted: ["BT19-001"], changed: ["BT18-031", "BT18-032"] });
+  assert.deepEqual(changedCardIds(before, [{ id: "BT18-032", skill: "", backSkill: "front unchanged, back changed" }]).changed, [], "null and empty text are the same text");
+}
+
+
+// ── A probe is kept on the rule it was run against ─────────────────────────
+// The regression suite the rules never had: what a rule *did* on the board it
+// was confirmed against, so `arena:reprobe` can ask whether it still does it.
+// The probe itself is pure and tested in `verify-arena`; what is tested here
+// is that the row carries it, and that only rules that have one come back.
+{
+  const { eq } = await import("drizzle-orm");
+  const { probedRules, programOf, setProbe } = await import("../src/lib/arena/rules-store.ts");
+  const { probe, ruleFrom, scenariosFor } = await import("../src/lib/arena/probe.ts");
+  const { cardDefFrom } = await import("../src/lib/arena/load.ts");
+
+  const [row] = await db.select().from(schema.cardRules).where(eq(schema.cardRules.cardId, "BT18-030"));
+  assert.equal(row.probe, null, "a rule carries no probe until one is kept on it");
+  assert.deepEqual(await probedRules(db), [], "and nothing to re-run");
+
+  const [def] = await db.select().from(schema.cards).where(eq(schema.cards.id, "BT18-030"));
+  const rule = ruleFrom(row, cardDefFrom(def), programOf(row));
+  const run = probe(rule, scenariosFor(rule)[0]);
+  assert.equal(run.outcome, "fired", `the drafted rule draws when it is played: ${run.result.join(" | ")}`);
+  await setProbe(db, row.id, { scenario: run.scenario.key, outcome: run.outcome, digest: run.digest, applied: run.applied, result: run.result, assumptions: run.assumptions, at: new Date().toISOString() });
+
+  const kept = await probedRules(db);
+  assert.equal(kept.length, 1, "the rule with a probe is the one that comes back");
+  const stored = kept[0].probe as { scenario: string; digest: string; outcome: string };
+  assert.deepEqual([stored.scenario, stored.outcome, stored.digest], [run.scenario.key, run.outcome, run.digest]);
+  // The same rule on the same board is the same answer: that is what makes a
+  // difference after an engine change worth reading.
+  assert.equal(probe(rule, scenariosFor(rule)[0]).digest, stored.digest, "re-running it agrees with what was kept");
 }
 
 await client.close();

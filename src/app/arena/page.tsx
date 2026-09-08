@@ -5,10 +5,8 @@ import { listGames, modeLabel } from "@/lib/arena/games";
 import { listOpenMatches } from "@/lib/arena/matches";
 import { currentUser } from "@/lib/auth";
 import { listUsers } from "@/lib/auth/users";
-import { compileCardCached, parseSkills } from "@/lib/arena/engine";
-import { cardDefFrom, deckInputFor } from "@/lib/arena/load";
-import { cards as cardsTable } from "@/db/schema";
-import { inArray } from "drizzle-orm";
+import { deckInputFor } from "@/lib/arena/load";
+import { loadRules } from "@/lib/arena/rules-store";
 import { SubmitButton } from "@/components/SubmitButton";
 import { cancelMatchAction, joinMatchForm, startGameForm } from "./actions";
 
@@ -19,18 +17,9 @@ async function coverageFor(deckId: number): Promise<{ cards: number; referee: nu
   const input = await deckInputFor(db, deckId);
   if (!input) return null;
   const ids = [...new Set(input.cardIds)];
-  const rows = await db.select().from(cardsTable).where(inArray(cardsTable.id, ids));
-  let referee = 0;
-  for (const row of rows) {
-    const d = cardDefFrom(row);
-    const scripts = compileCardCached(d, "front");
-    const needs = parseSkills(d.skill).some((sk) => {
-      const sc = scripts.bySkill[sk.index];
-      return !!sc && sc.unsupported.length > 0;
-    });
-    if (needs) referee++;
-  }
-  return { cards: rows.length, referee };
+  // A card with an open rule row is played as blank or put to the referee.
+  const open = new Set((await loadRules(db, ids)).filter((r) => r.status === "open").map((r) => r.cardId));
+  return { cards: ids.length, referee: open.size };
 }
 
 export default async function ArenaPage() {
@@ -155,7 +144,7 @@ export default async function ArenaPage() {
             <Link href="/arena/feedback" className="text-xs text-space-300 hover:text-ki-300">
               what you told me
             </Link>
-            <Link href="/arena/backlog" className="text-xs text-ki-300 hover:underline">
+            <Link href="/arena/rules/patterns?half=open" className="text-xs text-ki-300 hover:underline">
               what it cannot read →
             </Link>
           </div>

@@ -750,7 +750,7 @@
         "card": "p1#0",
         "skill": 0
       },
-      "label": "Activate L-RED",
+      "label": "Activate L-RED: [Awaken]",
       "why": [
         {
           "kind": "condition",

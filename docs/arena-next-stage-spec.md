@@ -188,7 +188,7 @@ All under `src/lib/arena/engine/` unless stated.
 | `triggers.ts` | `Trigger` wordings (`autoTriggerMatches`), keyword triggers, `pendTriggers`, `koCard`, `masterOf` |
 | `engine.ts` | `apply` (the only mutator), `legalActions`, the flow steps, `activatable`/`activate` (what can be declared and how it is paid), `resolveAuto`/`resolveKeywordOrText` (how a pending skill resolves), `chooseApply` (continuations after a `chooseCards` prompt), battle steps, keyword rules |
 | `types.ts` | `GameState`, `Prompt`, `Action`, `FlowStep`, `Trigger`, `ContinuousEffect`, `Skill`, `KeywordSkill` |
-| `../ai/opponent.ts` | `EFFECT_LANGUAGE` — the spec the referee (Claude) is given. **Every new op, Amount or Cond must be described there** or the referee can never use it |
+| `../ai/opponent.ts` | `EFFECT_LANGUAGE` — the spec the referee (Claude) is given. Its operation list is generated from `OP_SCHEMA` in `script.ts`; an Amount or Cond shape still has to be described in the hand-written legend |
 | `scripts/verify-arena.ts` | the test file (plain `assert`); see §4 |
 | `scripts/arena-coverage.mts`, `arena-gaps.mts`, `arena-fuzz.mts`, `arena-feedback.mts` | measurement and the fuzzer |
 
@@ -218,12 +218,14 @@ cost, or a readable condition) **and** `canResolve` (compiled with no
 1. `script.ts`: add to the `Op` union with a doc comment citing the rule.
 2. `script.ts` `stepScript`: a `case` that does it (use `move`, `setMode`,
    `addEffect`, `koCard`, `pendTriggers`; resolve targets with `resolveRef`).
-3. `script.ts` `OP_NAMES`: add the name (`validateProgram` uses it).
-4. `../ai/opponent.ts` `EFFECT_LANGUAGE`: one line with the JSON shape.
-5. `compile.ts` `describeScript`: a `case` (the inspector drops unknown ops).
-6. `compile.ts` `compileClause`: the wording → op; wrap targets with
-   `withChoice` when a count is involved.
-7. `scripts/verify-arena.ts`: a compile assertion **and** an engine assertion.
+3. `script.ts` `OP_SCHEMA`: one row — fields, types, required, a sentence
+   template and the one-line `doc` the referee is told. The validator, the
+   plain reading, the referee's prompt and the workbench editor read it.
+4. `compile.ts` `compileClause`: the wording → op; wrap targets with
+   `withChoice` when a count is involved. Then `npm run arena:draft` — the
+   engine plays from `card_rules`, so a compiler change reaches a game only
+   through a re-draft.
+5. `scripts/verify-arena.ts`: a compile assertion **and** an engine assertion.
 
 **New condition**: `Cond` union (`script.ts`) → `condHolds` (`state.ts`) →
 `parseConditionClause` (`compile.ts`) → `describeCond` (`compile.ts`) → test.
@@ -725,7 +727,8 @@ is why no fuzzed game has produced one.
 
 ### 6.15 Rules page and feedback
 
-`/arena/rules` lets the owner attach a program to a card by describing it;
+`/arena/rules` is the Rules Workbench (`docs/arena-rules-workbench-spec.md`):
+every skill of the owner's decks as a `card_rules` row to confirm or correct;
 `/arena/feedback` (table `arena_feedback`, kinds bug/card/rule) is the one
 inbox — `npm run arena:feedback` prints it. Work items filed there take
 precedence over this backlog when they concern a deck the owner plays.

@@ -1,7 +1,7 @@
 /**
- * Record a ruling on a card, from the terminal rather than from `/arena/backlog`.
+ * Record a ruling on a card, from the terminal rather than from the workbench.
  *
- * The backlog page's "explain a card" box asks Claude for a program and a
+ * The workbench's "Explain to Claude" box asks Claude for a program and a
  * brief on the spot. This does not: it writes down what the owner said and
  * stops there, because the code change that follows is made deliberately, by
  * hand, against the whole set of cards that share the wording — not one card
@@ -11,30 +11,28 @@
  *   npm run arena:rule -- BT3-096 "when this card evolves it is played from the Combo Area"
  *   npm run arena:rule -- BT3-096 --skill 10 "…"
  *   npm run arena:rule -- BT3-096 --clause "evolve it into this card" "…"
- *   npm run arena:rule -- --list            # every note that carries a ruling
+ *   npm run arena:rule -- --list            # every rule that carries a ruling
  *
- * With no `--clause` it rules on every clause of that card the compiler cannot
- * read; with no `--skill` it rules on every skill. A card whose text the
- * compiler now reads has no note to hang a ruling on, so one is made for the
- * whole skill line — a ruling on a card that reads *wrongly* is worth keeping
- * too, and that is the case no measure can find on its own.
+ * With no `--skill` it rules on every skill of the card, and `--clause` picks
+ * the one whose unread text says that. A ruling on a card the compiler reads
+ * *wrongly* is worth keeping too — that is the case no measurement can find on
+ * its own — so a card with nothing unread is ruled on all the same.
  */
 import { and, desc, eq, isNotNull } from "drizzle-orm";
 import { db } from "../src/db";
-import { cards as cardsTable, cardTextNotes } from "../src/db/schema";
-import { parseSkills } from "../src/lib/arena/engine";
-import { clausePattern, noteUnreadText, unreadClausesOf } from "../src/lib/arena/ai/debug";
-import { cardDefFrom } from "../src/lib/arena/load";
+import { cardRules, cards as cardsTable } from "../src/db/schema";
+import { loadRules } from "../src/lib/arena/rules-store";
 
 const argv = process.argv.slice(2);
 
 if (argv.includes("--list")) {
-  const rows = await db.select().from(cardTextNotes).where(isNotNull(cardTextNotes.explanation)).orderBy(desc(cardTextNotes.explainedAt));
+  const rows = await db.select().from(cardRules).where(isNotNull(cardRules.explanation)).orderBy(desc(cardRules.updatedAt));
   if (!rows.length) console.log("No rulings recorded yet.");
   for (const r of rows) {
-    console.log(`\n${r.cardId} #${r.skillIndex} [${r.status}]  ${r.explainedAt?.toISOString().slice(0, 10) ?? ""}`);
-    console.log(`  clause: ${r.clause.replace(/\s+/g, " ")}`);
-    console.log(`  ruling: ${r.explanation?.replace(/\s+/g, " ")}`);
+    console.log(`\n${r.cardId} #${r.skillIndex} [${r.status}/${r.source}]  ${r.updatedAt.toISOString().slice(0, 10)}`);
+    console.log(`  printed: ${r.printed.replace(/\s+/g, " ")}`);
+    if (r.unread.length) console.log(`  unread:  ${r.unread.join(" | ")}`);
+    console.log(`  ruling:  ${r.explanation?.replace(/\s+/g, " ")}`);
   }
   process.exit(0);
 }
@@ -54,38 +52,26 @@ if (!cardId || !explanation) {
   process.exit(1);
 }
 
-const row = await db.query.cards.findFirst({ where: eq(cardsTable.id, cardId) });
-if (!row) {
+const card = await db.query.cards.findFirst({ where: eq(cardsTable.id, cardId) });
+if (!card) {
   console.error(`No such card: ${cardId}`);
   process.exit(1);
 }
 
-const def = cardDefFrom(row);
 const skillIndex = skillArg == null ? null : Number(skillArg);
+const targets = (await loadRules(db, [cardId])).filter(
+  (r) => (skillIndex == null || r.skillIndex === skillIndex) && (!clauseArg || r.unread.some((u) => u.toLowerCase().includes(clauseArg.toLowerCase())) || r.printed.toLowerCase().includes(clauseArg.toLowerCase())),
+);
 
-// A note per unread clause is what the backlog already holds, so a ruling
-// lands on the row the page will show it on.
-let targets = unreadClausesOf(def).filter((u) => (skillIndex == null || u.skillIndex === skillIndex) && (!clauseArg || u.clause.toLowerCase().includes(clauseArg.toLowerCase())));
-
-// Nothing unread: the ruling is about text the compiler *does* read, which is
-// the more valuable kind. Hang it on the skill line itself.
 if (!targets.length) {
-  const lines = [...parseSkills(def.skill ?? ""), ...parseSkills(def.back?.skill ?? "")].filter((sk) => sk.effect.trim() && (skillIndex == null || sk.index === skillIndex));
-  if (!lines.length) {
-    console.error(`${cardId} has no skill${skillIndex == null ? "" : ` #${skillIndex}`} to rule on.`);
-    process.exit(1);
-  }
-  targets = lines.map((sk) => ({ cardId, skillIndex: sk.index, clause: clauseArg ?? sk.effect.replace(/\s+/g, " ").trim(), skillText: sk.raw }));
-  console.log(`(${cardId} reads cleanly — the ruling is filed against the skill line itself.)`);
+  console.error(`${cardId} has no rule${skillIndex == null ? "" : ` #${skillIndex}`}${clauseArg ? ` mentioning "${clauseArg}"` : ""} to rule on. Run \`npm run arena:draft -- --card ${cardId}\` first.`);
+  process.exit(1);
 }
 
-await noteUnreadText(db, targets, false);
 for (const t of targets) {
-  await db
-    .update(cardTextNotes)
-    .set({ explanation, explainedAt: new Date() })
-    .where(and(eq(cardTextNotes.cardId, t.cardId), eq(cardTextNotes.skillIndex, t.skillIndex), eq(cardTextNotes.clause, t.clause)));
-  console.log(`${t.cardId} #${t.skillIndex}  ${clausePattern(t.clause)}`);
+  await db.update(cardRules).set({ explanation, updatedAt: new Date() }).where(and(eq(cardRules.id, t.id)));
+  console.log(`${t.cardId} #${t.skillIndex} [${t.status}]  ${t.unread[0] ?? (t.reads || "reads cleanly")}`);
 }
-console.log(`\nRuling recorded on ${targets.length} note${targets.length === 1 ? "" : "s"}: ${explanation}`);
+console.log(`\nRuling recorded on ${targets.length} rule${targets.length === 1 ? "" : "s"}: ${explanation}`);
+console.log("The program that follows from it is attached on /arena/rules.");
 process.exit(0);

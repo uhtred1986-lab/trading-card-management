@@ -1685,6 +1685,189 @@ it actually offered showed the filter had been dropped a layer above. Write the
 engine assertion for any measure that narrows a *choice*, not just the compile
 one.
 
+## Done: rules as records — the Rules Workbench, phase 1 (8 Sep 2026)
+
+`docs/arena-rules-workbench-spec.md` §3, built in eight commits on PR #56. A
+rule is now a row of `card_rules` — one per skill per card face, with the
+program, its trigger, cost and hoisted condition, provenance (compiler | claude
+| user), state (open | draft | confirmed | corrected), the unread clauses, the
+plain reading and a version. The engine reads those rows and nothing else;
+`npm run arena:draft` is the compiler run offline as a drafter; `/arena/rules`
+is where a person confirms or corrects; the catalog sync drafts every new or
+changed card and asks Claude about the skills the compiler left open.
+
+**What the brief did not expect, and what was done about it.** `engine.ts`
+did read `ctx.scripts` first, but the static layer in `state.ts` never did —
+`staticEffects`, `permanentStatics` and `ownProhibitions` compiled the card
+themselves, so a stored program for a [Permanent] was silently ignored.
+`scripts` moved onto `GameContext` and `programsOf` is the one lookup. The
+sync entry point is `importCatalog` in `src/lib/catalog/deckplanet.ts`, not a
+`sync.ts`; text comes from deckplanet with errata.ts applied, CardTrader
+touches none. `card_scripts` was classified by what was stored beside each
+row — the old rules page saved the compiler's own rendering as `meaning`, so
+those are the owner's; `clarify.ts` saved Claude's restatement and stamped it
+`user` anyway, so those are Claude's — and migration 0028 copies leftovers as
+Claude's before dropping, so a deploy cannot race the one-off script.
+
+**OP_SCHEMA.** One row per op in `script.ts`: fields, types, required,
+default, a sentence template (a function for the four ops whose prose turns on
+field combinations). `validateProgram`, `describeScript`, the referee's
+`EFFECT_LANGUAGE` and the workbench's chip editor read it. Four field types the
+brief's list lacked were needed by real ops — `keyword`, `filter`, `list`,
+`modes` — and are in the table rather than worked around. Adding an op is one
+interpreter case and one row.
+
+**The line count did not come down.** `src/lib/arena` is 17,431 lines against
+16,826 on `main`. The layer the brief expected to be the fat was about 200
+lines in this tree; the store, the drafter with its review step, the shared
+grouping and the schema table are new function that has to live somewhere.
+Every line that stays has one owner, which was the rule behind the number.
+
+**Still compiled at game time:** the price before the colon (`costIsReadable`,
+`canPayCostProgram`) — the row carries it as `cost.condition` / `cost.program`
+and moving the engine onto that is phase 2's. Nested programs, conditions and
+modal options are edited through the JSON view, not chips (phase 1 by design).
+
+**The first run against the database (8 Sep 2026, PR #56).** Migrations 0027
+and 0028 applied over HTTPS; the two `card_scripts` rows were carried over (one
+the owner's, one Claude's; none used `cannotAttack`). The drafter wrote
+**13,563 rules for 6,493 cards** in the original game: 2,186 open, 11,375
+draft, 2 corrected — **83.9 % of skills readable** catalog-wide, **91.6 %** for
+the owner's decks (489 rules, 41 open). `arena:gaps` reads the same rows, so
+its numbers are these by construction; the old compile-based 86.5 % counted
+resolvable skills only, without [Permanent]s, which is why it was higher. Of
+the 2,946 unread clauses, 2,090 on 1,473 cards need only a phrase pattern.
+
+The run found two bugs, both fixed in the follow-up commit. **The second
+draft pass rewrote 8,341 rows**: the compiler's selectors carry keys whose
+value is `undefined`, jsonb never sees those, and the comparison mapped them to
+`null` on the fresh side — so every pass looked like a change and bumped 4,781
+versions to 2. `canonical()` now drops such keys. **Two of 100 fuzzed games
+crashed on one row**: the `claude/corrected` program carried over for BT31-132
+had a filter with only the fields it meant, and `matches` read the rest
+unguarded. The engine now fills a filter up before reading it; a row a person
+or Claude writes may say only what it means. **The review step** (`--review
+--budget 3` on BT18) ran three times: once without a key (skipped and recorded
+on `arena_feedback` as designed — Claude Code on the web reserves
+`ANTHROPIC_API_KEY`, hence `APP_ANTHROPIC_API_KEY`), then twice with one. Six
+Opus 5 calls, three BT18 skills now Claude's drafts (BT18-043, BT18-044,
+BT18-119), one honest "could not draft" (BT18-034's cost-as-action price), and
+two failures that were ours: Claude wrote `{"special":"self"}` where a ref
+wants `{"sel":{…}}`, the validator accepted any object as a ref, and describing
+the answer threw. The validator now knows what a ref, a selector and a
+condition are. BT18: 56 → 53 open. The drafts are drafts — BT18-044 reads
+`{Angel Halo}` as a character rather than a name and models "on your opponent's
+turn" as a duration — which is exactly what the confirm step is for.
+
+Tests: the three suites pass with 76 new assertions — every schema row renders
+and validates, the validator's refusals, the drafter's records and hoisting,
+the engine playing a card as blank without its row and from it with, a
+[Permanent] read from rows, a sparse filter tolerated, the comparison's dropped
+`undefined`s, and on PGlite the drafter writing rows, a second pass touching
+nothing, and the sync's change detection.
+
+## Done: the catalog and the patterns — the Rules Workbench, phase 2 (8 Sep 2026)
+
+`docs/arena-rules-workbench-spec.md` §4, built in eight commits on PR #57. The
+workbench now has three worklists over the same records — the cards in your
+decks, the whole catalog, and the rules grouped by the wording that produced
+them — the chip editor covers the whole effect language, and `card_text_notes`
+is gone.
+
+**What the database said before any of it was planned.** 13,563 rules: 2,183
+open, 11,375 compiler drafts, 3 Claude drafts, 2 corrected. Three numbers
+changed the plan:
+
+- **1,136 drafts carried no pattern key at all**, because their program is
+  empty — and 1,089 of those are keyword lines whose reminder or specification
+  text compiles to no steps (`[Z-Stack 1] Yellow <Son Goku> …`, `[Triple
+  Strike] (This card inflicts 3 damage …)`). The record called them "nothing —
+  the engine treats this skill as blank", which is the opposite of true: the
+  engine plays them, from its keyword rules. They group as `keyword:<name>`
+  now, the record reads "played by the engine's [Z-Stack X] rule" with the
+  glossary's own line under it, and the 47 that really are empty group as
+  `nothing`.
+- **Clause shape is too fine a key for open rows**: 1,654 groups for 2,183
+  rows, 1,347 of them singletons, the largest 12. So the Patterns page groups
+  open rules by *mechanism* first — the same 16 buckets `arena:gaps` counts —
+  and by shape within it.
+- **`card_text_notes` was down to 190 rows on 120 skills**: 7 briefs, 9
+  explanations, 7 rulings, one clause a game had met. Everything else it held
+  had moved to `card_rules.unread` when the rules became records. Migration
+  0030 copies the writing onto the rule and drops the table.
+
+**Confirm all drafts in view** is what the page is for: 11,375 drafts are
+never reviewed one at a time. It confirms exactly what the *filter* matches,
+not the 200 rows on screen, and keeps the rows it moved on the
+`arena_feedback` row as `{id, version}` pairs — so Undo puts back exactly
+those, survives a reload, and leaves a row edited since alone rather than
+undoing the work that followed the mistake.
+
+**`COND_SCHEMA`.** `OP_SCHEMA` collapsed the operations into one row each and
+left the conditions written out three times, with a validator that asked only
+for a `kind` — so `{"kind":"count","atLeast":2}` with nothing to count
+validated, stored, and threw when a game read it. One row per condition kind
+now, read by the validator, the plain reading, the referee's prompt and the
+editor. That is what let the chips cover nested `if`, `chooseMode`, `delay`,
+modal options and the IF row itself; phase 1 sent all of those to the JSON
+view.
+
+**Two readings were wrong, not merely terse.** `describeSelector` dropped the
+filter, so a skill that can only take a blue ≪Another World Budokai≫ card read
+"choose up to 1 in your warp" — the one detail that tells siblings apart. And
+a count over an unfiltered selector read "there is 2 or more in your drop",
+missing the noun. Both fixed; three contract fixtures moved by those words,
+with the Snapshot's shape unchanged.
+
+**Two things the tests found.** The `turn structure` mechanism tested
+`\bskip\b`, which does not match "skips" — and "your opponent skips their next
+Charge Phase" is how cards actually phrase it, so those clauses were counted
+as phrasing-only. And `verify-arena.ts` hit TypeScript's control-flow limit
+("the containing function or module body is too large"), which silently turned
+three lambda parameters into `any`; the schema tests moved into a function to
+get the analysis back. That file will need splitting before it grows much more.
+
+**The legend Claude is given** now lists every condition off `COND_SCHEMA`,
+and answers the two mistakes the BT18 reviews made in writing rather than
+leaving the validator to reject the answer: `{Angel Halo}` is a card *name*,
+not a character, and "if it's your opponent's turn" is a condition, not a
+duration. ~11,600 characters, near 2,900 tokens — still over Opus 5's
+512-token cache minimum and under Haiku 4.5's 4,096, so Tournament games cache
+and Sparring games do not, as before.
+
+**The database run (8 Sep 2026, PR #57).** Migrations 0029 and 0030 applied
+over HTTPS — in fact the branch's own Vercel preview build got there first,
+since `db:migrate` runs in it and there is one database for dev, preview and
+production. The fold-in landed whole: **7 briefs and `times_seen` 1 copied
+across unchanged, explanations 9 → 13** (5 the rules already had, 9 copied,
+1 overlap where `coalesce` correctly kept the rule's own words).
+
+The full re-draft rewrote **6,804 compiler rows in 867 s and bumped no
+versions at all** — the version histogram is identical before and after
+(5,881 · 7,481 · 200 · 1), which is the claim the pass existed to test: the
+rewrite touches the pattern key and the reading, never a program. Drafts with
+no pattern key went **1,136 → 0**; pattern groups 2,118 → 2,151, and the seven
+new groups over 50 rows are exactly the seven keywords that clear it —
+`keyword:Evolve` alone is 287 and enters the top five. **100 fuzzed games, 0
+crashes** (phase 1's first run had 2). `arena:gaps` reads 2,943 unread clauses,
+2,087 of them phrasing-only — 71 %, which is the argument for the Patterns tab
+in one number.
+
+**One property of migration 0030 worth knowing.** Its copy joins on
+`card_id`, `skill_index` **and** `side = 'front'`, so a note whose skill no
+longer exists as a front rule is dropped by the `DROP TABLE` rather than
+carried. The run checked before migrating, which was the only moment the
+question could still be asked: 2 of the 120 note groups had no matching rule,
+and all three of their columns were empty, so nothing was lost. A future
+fold-in of a keyed side table should count what will land before it drops the
+source.
+
+**Not in this phase, deliberately:** the price before the colon is still
+compiled at game time (`costIsReadable`, `canPayCostProgram`) although the row
+carries `cost.condition` / `cost.program`. It is engine, not workbench, and it
+touches `activate`, `canResolve` and `altCostFor` — its own change, with the
+fuzzer run against it.
+
 ## Conventions worth keeping
 
 - Card text is **read, never interpreted**: if the compiler cannot read a
@@ -1692,9 +1875,160 @@ one.
 - Only skills the engine can both **pay for and resolve** are offered as actions.
 - Anything Claude decides comes from `legalActions`, so an answer can be wrong
   but never illegal.
-- Every new op must be added in four places: the `Op` union, the interpreter
-  switch, `OP_NAMES`/`validateProgram`, and `EFFECT_LANGUAGE` in
-  `src/lib/arena/ai/opponent.ts`. Miss the last one and the referee will never
-  use it.
-- `describeScript` in `compile.ts` renders programs for the card inspector; add
-  a case there too, or the inspector silently drops the op.
+- Every new op is added in exactly two places: the interpreter `switch` in
+  `script.ts` and a row in `OP_SCHEMA` beside it. The validator, the plain
+  reading, the referee's prompt and the workbench's editor all read the row —
+  a missing row fails the typecheck, a wrong row shows on `/arena/rules`.
+- The engine never compiles card text. A rule reaches a game as a `card_rules`
+  row through `rulesFor`; the compiler runs as `npm run arena:draft` and at
+  catalog sync, and a compiler change reaches the board only through a
+  re-draft — deliberately, so a person has looked at what plays.
+
+## Done: the probe — the Rules Workbench, phase 3 (8 Sep 2026)
+
+`docs/arena-rules-workbench-spec.md` §5, built in five commits on PR #58. A
+record says what the engine *will* play; a probe says what it *does*.
+`probe(rule, scenario)` builds a game with `createGame` and two minimal decks,
+stages the board that rule's moment needs, plays the one move under test,
+answers every prompt by a fixed policy, and reports Input / Applied rule /
+Result / Assumptions with a digest over the conclusion. The right-hand pane
+runs it; confirming a rule keeps the run on the row; `npm run arena:reprobe`
+re-runs every stored probe and lists the rules whose answer moved.
+
+**The test file had to be split first.** `scripts/verify-arena.ts` was 7,404
+lines in one module body, past TypeScript's control-flow limit — the limit
+phase 2 met and worked around by wrapping the schema tests in a function.
+Past it, the analysis stops for the whole file and lambda parameters quietly
+become `any`. It is eleven files under `scripts/verify/` now, with a shared
+`harness.ts` and an entry file whose import order *is* the contract, because
+the blocks add cards to the shared `DEFS` as they go. 1,873 assertions before
+the split and 1,873 after; the phase-2 workaround went back to being an
+ordinary top-level block.
+
+**What the probe refuses to do** was as much of the design as what it does. It
+never calls the compiler — the cards it stages around the rule carry
+hand-written `Op[]` programs, so `draft.ts` stays the only module compiling
+text in production. It invents no wording: the log is `toBeats` → `narrate`,
+a refusal is `wording.sentence`, a question is `view.ts`'s `questionFor`
+(exported for it, one word). And it states no approximation of its own — an
+assumption is a `note` in the program, a note the engine logged, a clause the
+compiler could not read, or the glossary's `engine` line for a keyword marked
+`partial`. §5 suggested teaching `compile.ts` to emit its approximations as
+`note` ops; that stayed out, because a `note` is a step the engine runs and
+`describeScript` reads out, so it would rewrite the reading of thousands of
+rows and need a full re-draft to land. It is its own change.
+
+**A [Permanent] is read, not resolved.** Power with and without the rule, the
+keywords in force, and — for a prohibition — whether the opponent's KO skill
+was offered the card at all. That reading is taken on the board as it was
+*staged*: the first version took it after the run, so a [Permanent] whose card
+had just been KO'd read as a [Permanent] that does nothing.
+
+**What the first sweep found was mostly about the board, not the rules.** Three
+things were staged from the card itself afterwards: the Leader now shares the
+card's colours, characters and traits (a nameless Leader answers every "if
+your Leader is a ≪Phantom Demon≫ card" with "not met" — activateMain fired
+1,154 → 1,391); a keyword gets a body its own description matches, read with
+`parseFilter` ([Evolve]{2}: <Nail> is offered only when a <Nail> is in play —
+keyword fired 497 → 620); and an attack whose trigger is "when this card KOs"
+gets something it can KO. A board built in the card's favour has to be
+declared, so each of those is a line in Input.
+
+**The sweep, 8 Sep 2026:** 13,563 rules in 67 s, **0 errors** — fired 5,674 ·
+notOffered 3,505 · blank 1,330 · inForce 1,114 · noScenario 1,042 ·
+didNotFire 898. By family: activateMain 3,246 · play 2,582 · permanent 1,811 ·
+keyword 1,573 · attack 1,453 · none 1,042 · activateBattle 707 · counter 543 ·
+combo 387 · moment 219. `blank` is the honest answer for an open row — it
+fired and did nothing — and `noScenario` is the honest answer for the 1,042
+rules whose moment the engine does not know.
+
+**Two findings the probe made, neither fixed here.** A card whose skills are
+negated by a continuous effect disappears from `legalActions` **and** from
+`rejectedActions`: `skillsOfInstance` returns nothing, so the `whyNot` twin
+has no skill to explain and the board can give no reason at all. And the
+sweep counts **678 rules refused with no reason** — most of them second and
+third skill lines whose price is an action, which is the compile-at-game-time
+corner phase 2 deliberately left alone. The refusal for a price the engine
+cannot read was still sending people to "the backlog page", a redirect since
+phase 2; that one *was* fixed, and points at the workbench.
+
+**Where the staging is still thin**, and worth knowing before reading a
+number: attack triggers about being attacked or KO'd (623 `didNotFire`),
+and the keywords whose cost is in the Drop or the hand — [Union], [Over
+Realm], [Successor] — which the probe cannot pay for and which therefore
+report "not offered" with the engine's own reason.
+
+## Done: both of the probe's findings, worded (8 Sep 2026)
+
+`docs/arena-refusals-spec.md`, two commits. Both findings above are the same
+promise — §3.1 of the workflow spec: a move off the menu can always be worded
+— and both turned out to be holes in the *reporting* side, not in the rules.
+No predicate was touched, which is the rule §3.2 exists to protect.
+
+**The negated card.** A card whose skills a continuous effect has silenced
+(9-1-5) was in neither list. Reduced to four lines on the test harness, and
+the diagnosis came from the contrast: the *single-skill* form of the same
+negation answered "the skill is negated" correctly on the same board. So the
+vocabulary was not missing a kind — `rejectedActions` fed `rejectActivate`
+from `skillsOfInstance`, which empties a wholly negated card, and
+`skillNegated` (what the twin consults) reads `negateSkill` but not
+`negateSkills`. The twin now asks both questions and reads the printed skills
+for that one case; `skillNegated` itself is untouched, because ten callers
+share it. The sweep does not see this — the `negated` variant is not the
+default scenario — and saying so was the honest half of the commit.
+
+**The 678, measured before they were explained.** PR #58 read them as second
+and third skill lines whose price is an action. The first half held and the
+second did not: **640 of 678 were not the card's first skill and 591 were its
+last**, while price shape explained only 478 — 191 carried no price at all
+and 9 were plain orbs. The cause was the one-rejection-per-card cap §3.2 asked
+for, implemented twice (`rejectActivate` returned after the first skill that
+answered; `push` keyed on the card). A rule is one skill line, so a rejection
+filed under skill 0 cannot answer a question about skill 20. Keying
+activations by skill index and reporting every line:
+
+**678 → 74 refusals with no reason (−604, 89 %)**, with every other number in
+the sweep identical — fired 5,674 · notOffered 3,505 · blank 1,330 · inForce
+1,114 · noScenario 1,042 · didNotFire 898, all ten family rows unchanged. A
+wording change that moved no outcome, which is what one should look like.
+
+Two things rode along, both forced by the change rather than chosen: the
+rejection label now names the skill line the way the menu does (three greyed
+rows reading "Activate Piccolo" identify nothing), which moved six contract
+fixtures by that one string; and the card action sheet had been keying its
+rows on the action type alone, a duplicate React key the moment a card has
+two. The `arena:playthrough` audit caught the second copy of the invariant
+still keyed on the card — that is what it is for.
+
+**What is still unworded: 74**, and none of it is a price. 29 keywords with no
+activation of their own ([Double Strike], [Alliance]), 14 [Auto]s — both of
+which `whyNotActivate` correctly declines to invent a rejection for, so they
+are the probe's goal shape rather than the engine — and 31 where the probe
+stops at a `counter` prompt whose `rejectedActions` case files counter cards
+only and never calls `rejectActivate`. That last one is a real gap and is the
+next thing here, together with `BT29-044`, a Unison the staging removes from
+the game before the move under test is reached.
+
+**And then the price itself** (own commit, same day). `Script` gained a
+`price` — the condition and the action, read together (4-3-3) — so a program
+and its price travel as one record. `rulesFor` fills it from `card_rules.cost`,
+which the drafter has written since phase 2 and nobody read; `compileCard`
+fills it from the text, which is what keeps `npm test` and the probe playing
+prices without the engine calling the compiler. `engine.ts` no longer imports
+`compileCostProgram` or `priceCondition` at all, and no program is compiled
+during a game.
+
+The sweep is **byte-identical** before and after — every outcome, every family
+row, and the 74. That sameness is the result: over 13,563 rules the price the
+drafter stored and the price the engine used to recompute agree everywhere.
+`arena:fuzz -- 100` gave 100 games and 0 crashes, and `arena:playthrough`
+still shows action prices charged and refused in a real game.
+
+A sweep that does not move is easy to mistake for a change that did not land,
+so the test is what earns it: it fails when `priceFor` is made to fall back to
+compiling, and it pins the board that separates the two readings — a record
+whose *effect* is readable but which carries **no price** is refused rather
+than offered for free. The first version of that test passed for the wrong
+reason (the effect was unread too), which the mutation run caught. One
+behaviour changed on purpose: a skill with no record has an *unknown* price
+rather than a free one.

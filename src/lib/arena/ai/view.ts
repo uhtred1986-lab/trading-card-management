@@ -14,7 +14,7 @@
 import {
   areaOf,
   comboPowerOf,
-  compileCardCached,
+  programsOf,
   describeScript,
   face,
   keywordsInForce,
@@ -179,7 +179,7 @@ export function decklistText(ctx: EngineContext, s: GameState, p: PlayerId): str
  * mid-game.
  */
 function engineReading(ctx: EngineContext, d: CardDef): string {
-  const scripts = compileCardCached(d, "front");
+  const scripts = programsOf(ctx, d, "front");
   const notes: string[] = [];
   for (const sk of skillsOf(d)) {
     const sc = scripts.bySkill[sk.index];

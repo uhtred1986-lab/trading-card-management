@@ -3,22 +3,20 @@
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { eq, inArray } from "drizzle-orm";
+import { and, desc, eq, isNotNull } from "drizzle-orm";
 import { db } from "@/db";
-import { arenaFeedback, arenaGames, cardTextNotes, cards as cardsTable } from "@/db/schema";
-import { listDecks } from "@/lib/decks/queries";
-import { closeNotesNowRead, noteUnreadText, setNoteStatus, unreadClausesOf } from "@/lib/arena/ai/debug";
-import { cardDefFrom, deckInputFor } from "@/lib/arena/load";
+import { arenaFeedback, arenaGames } from "@/db/schema";
 import { describeAiError } from "@/lib/ai/client";
-import { IllegalAction, type Action, type GameState } from "@/lib/arena/engine";
+import { IllegalAction, validateProgram, type Action, type GameState } from "@/lib/arena/engine";
 import { abandonGame, applyToGame, clearBeatsForTurn, isVersus, loadGame, seatOf, StaleGame, startGame, type ArenaMode } from "@/lib/arena/games";
 import { cancelMatch, joinMatch, matchById, openMatch } from "@/lib/arena/matches";
 import { currentUser } from "@/lib/auth";
 import { advance } from "@/lib/arena/ai/run";
 import { reviewGame } from "@/lib/arena/ai/review";
-import { clarifyCard } from "@/lib/arena/ai/clarify";
-import { previewRule, removeRule, type RulePreview } from "@/lib/arena/rules";
-import { saveScript } from "@/lib/arena/scripts";
+import { clarifyRule } from "@/lib/arena/ai/clarify";
+import { blankRule, confirmMatching, confirmRule, programOf, ruleById, setProbe, saveRule, setBrief, setCompilerDiff, takeCompilerDiff, undoConfirmed, type ConfirmBatch, type RuleFilter, type RuleSource, type RuleStatus } from "@/lib/arena/rules-store";
+import { defsForCards } from "@/lib/arena/load";
+import { probe, ruleFrom, scenariosFor, type ProbeRule, type ProbeRun, type ProbeScenario } from "@/lib/arena/probe";
 import { SKIN_COOKIE, type ArenaSkin } from "@/lib/arena/skin";
 import { STAGING_COOKIE, type ArenaStaging } from "@/lib/arena/staging";
 
@@ -94,41 +92,174 @@ export async function setFeedbackStatus(id: number, status: "open" | "fixed" | "
   revalidatePath("/arena/feedback");
 }
 
-/**
- * What the engine would make of a line of card text, without keeping it.
- *
- * This is the whole point of the rules page: the compiler is the parser for
- * this language, so the honest way to let you set a rule is to let you write
- * the wording and read back what it means.
- */
-export async function checkRule(line: string): Promise<RulePreview> {
-  return previewRule(line);
-}
+// ── the Rules Workbench ─────────────────────────────────────────────────────
+// Every write here regenerates the row's reading through the store and files
+// an `arena_feedback` row of kind `rule`, so `arena:feedback` still lists what
+// a person decided about a card.
 
-/** Keep that reading against the card, where the engine will prefer it. */
-export async function saveRule(cardId: string, skillIndex: number, side: "front" | "back", line: string): Promise<{ error: string | null }> {
-  const p = previewRule(line);
-  if (p.unsupported.length) return { error: `still unread: ${p.unsupported.join(" | ")}` };
-  if (!p.ops.length) return { error: "that reads as doing nothing — save it only if the skill really does nothing" };
-  await saveScript(db, { cardId, skillIndex, side, ops: p.ops, source: "user", explanation: line.trim(), meaning: p.reads });
-  // Setting a rule by hand is you telling me the compiler could not read
-  // something, which no coverage run can say — so it lands with the rest.
-  await db.insert(arenaFeedback).values({ kind: "rule", cardId, skillIndex, note: line.trim(), resolution: p.reads });
+async function noteRule(id: number, note: string, resolution: string | null) {
+  const row = await ruleById(db, id);
+  await db.insert(arenaFeedback).values({ kind: "rule", cardId: row?.cardId ?? null, skillIndex: row?.skillIndex ?? null, note, resolution });
   revalidatePath("/arena/rules");
   revalidatePath("/arena/feedback");
+}
+
+/**
+ * Draft → confirmed: the program stays, the person's acceptance is recorded —
+ * and so is a probe of it.
+ *
+ * The probe is the point of confirming rather than a decoration on it: what
+ * is kept is what this rule *did* on the board it was confirmed against, so a
+ * later engine change can be asked whether it still does it
+ * (`npm run arena:reprobe`). A bulk confirm writes none — 11,375 staged games
+ * inside one press is not a press — and `arena:probe --fill` catches those up.
+ */
+export async function confirmRuleAction(id: number): Promise<{ error: string | null }> {
+  const row = await ruleById(db, id);
+  if (!row) return { error: "no such rule" };
+  await confirmRule(db, id);
+  const found = await probeRuleFor(id);
+  if (found) {
+    const run = probe(found.rule, found.scenarios[0]);
+    await setProbe(db, id, { scenario: run.scenario.key, outcome: run.outcome, digest: run.digest, applied: run.applied, result: run.result, assumptions: run.assumptions, at: new Date().toISOString() });
+  }
+  await noteRule(id, `confirmed: ${row.printed}`, row.reads);
   return { error: null };
 }
 
-/** Save a program that reads as nothing, for skills the engine should ignore. */
-export async function saveEmptyRule(cardId: string, skillIndex: number, side: "front" | "back", line: string): Promise<{ error: string | null }> {
-  await saveScript(db, { cardId, skillIndex, side, ops: [], source: "user", explanation: line.trim(), meaning: "deliberately does nothing" });
-  revalidatePath("/arena/rules");
+/**
+ * A program written by hand (or corrected in the JSON view). `patternWrong`
+ * also files a compiler brief on the backlog with this program as the
+ * expected reading, for the case where every card phrased this way is misread.
+ */
+export async function saveRuleAction(id: number, ops: unknown, explanation: string | null, patternWrong = false): Promise<{ error: string | null }> {
+  if (!validateProgram(ops)) return { error: "that is not a valid program — every step needs its required fields and known values" };
+  const row = await ruleById(db, id);
+  if (!row) return { error: "no such rule" };
+  const saved = await saveRule(db, { cardId: row.cardId, side: row.side === "back" ? "back" : "front", skillIndex: row.skillIndex, ops, source: "user", status: "corrected", explanation });
+  if (patternWrong && row.pattern) {
+    // The correction fixes this card; the brief is what fixes every card the
+    // same pattern misreads, and it belongs on the row the reading is on.
+    await setBrief(db, id, {
+      brief: `## Wording\n${row.printed}\n\n## What it should emit\n\`\`\`json\n${JSON.stringify(ops, null, 2)}\n\`\`\`\n\nThe compiler's pattern \`${row.pattern}\` produced a different program for this card and its siblings; the owner corrected this one by hand and marked the pattern wrong.`,
+      explanation: explanation ?? `corrected by hand on the workbench; the pattern "${row.pattern}" reads this wording wrongly`,
+    });
+    revalidatePath("/arena/rules/patterns");
+  }
+  await noteRule(id, `corrected by hand${patternWrong ? " (the pattern is wrong)" : ""}: ${row.printed}`, saved.reads);
   return { error: null };
 }
 
-export async function clearRule(cardId: string, skillIndex: number, side: "front" | "back") {
-  await removeRule(db, cardId, skillIndex, side);
+/** An empty program, owned by the person: the skill does nothing the engine should carry out. */
+export async function blankRuleAction(id: number, explanation: string | null): Promise<{ error: string | null }> {
+  const row = await ruleById(db, id);
+  if (!row) return { error: "no such rule" };
+  await blankRule(db, id, explanation);
+  await noteRule(id, `marked as does nothing: ${row.printed}`, null);
+  return { error: null };
+}
+
+/** The compiler now reads the text differently, and the person yields to it. */
+export async function takeCompilerAction(id: number): Promise<{ error: string | null }> {
+  await takeCompilerDiff(db, id);
+  await noteRule(id, "took the compiler's newer reading", (await ruleById(db, id))?.reads ?? null);
+  return { error: null };
+}
+
+/** …or keeps their own; the diff is cleared until the compiler changes its mind again. */
+export async function keepMineAction(id: number): Promise<{ error: string | null }> {
+  await setCompilerDiff(db, id, null);
+  await noteRule(id, "kept their own reading over the compiler's", null);
+  return { error: null };
+}
+
+// ── confirming in bulk ──────────────────────────────────────────────────────
+
+const STATUSES: RuleStatus[] = ["open", "draft", "confirmed", "corrected"];
+const SOURCES: RuleSource[] = ["compiler", "claude", "user"];
+
+/**
+ * A filter arrives from the browser, so it is read field by field rather than
+ * trusted: this one decides which rows an update touches.
+ */
+function readFilter(raw: unknown): RuleFilter {
+  const f = (raw ?? {}) as Record<string, unknown>;
+  const str = (v: unknown, max = 200) => (typeof v === "string" && v.trim() ? v.trim().slice(0, max) : undefined);
+  return {
+    cardIds: Array.isArray(f.cardIds) ? f.cardIds.filter((x): x is string => typeof x === "string").slice(0, 20000) : undefined,
+    status: STATUSES.includes(f.status as RuleStatus) ? (f.status as RuleStatus) : undefined,
+    setCode: str(f.setCode, 20),
+    source: SOURCES.includes(f.source as RuleSource) ? (f.source as RuleSource) : undefined,
+    pattern: str(f.pattern, 300),
+    mechanism: str(f.mechanism, 60),
+    q: str(f.q),
+  };
+}
+
+/** A short account of what a bulk confirm was aimed at, for the feedback row. */
+function filterInWords(f: RuleFilter): string {
+  const bits = [f.setCode, f.source && `by ${f.source}`, f.pattern && `pattern ${f.pattern}`, f.q && `matching “${f.q}”`, f.cardIds && "in your decks"].filter(Boolean);
+  return bits.length ? bits.join(" · ") : "the whole catalog";
+}
+
+/**
+ * Confirm every draft the filter matches — 400 rows of one wording in one
+ * press, which is the only way 11,375 drafts are ever going to be looked at.
+ * The rows it moved are kept on the feedback row so Undo can put back exactly
+ * those, and nothing that happened afterwards.
+ */
+export async function confirmAllAction(rawFilter: unknown): Promise<{ error: string | null; confirmed: number; batchId: number | null }> {
+  const filter = readFilter(rawFilter);
+  const batch = await confirmMatching(db, filter);
+  if (!batch.rules.length) return { error: null, confirmed: 0, batchId: null };
+  const [row] = await db
+    .insert(arenaFeedback)
+    .values({ kind: "rule", note: `confirmed ${batch.rules.length} draft${batch.rules.length === 1 ? "" : "s"}: ${filterInWords(filter)}`, batch })
+    .returning({ id: arenaFeedback.id });
   revalidatePath("/arena/rules");
+  revalidatePath("/arena/rules/all");
+  revalidatePath("/arena/rules/patterns");
+  return { error: null, confirmed: batch.rules.length, batchId: row?.id ?? null };
+}
+
+/** …and take it back. A row edited since is left alone, and said so. */
+export async function undoConfirmAction(batchId: number): Promise<{ error: string | null; reverted: number; kept: number }> {
+  const row = await db.query.arenaFeedback.findFirst({ where: eq(arenaFeedback.id, batchId) });
+  const batch = row?.batch as ConfirmBatch | null | undefined;
+  if (!row || !batch?.rules?.length) return { error: "there is nothing to undo", reverted: 0, kept: 0 };
+  const { reverted, kept } = await undoConfirmed(db, batch);
+  // The batch is spent: nulling it keeps the note and stops a second undo
+  // from putting back what has been confirmed again since.
+  await db
+    .update(arenaFeedback)
+    .set({ batch: null, resolution: `undone: ${reverted} back to draft${kept ? `, ${kept} left as they were changed since` : ""}` })
+    .where(eq(arenaFeedback.id, batchId));
+  revalidatePath("/arena/rules");
+  revalidatePath("/arena/rules/all");
+  revalidatePath("/arena/rules/patterns");
+  return { error: null, reverted, kept };
+}
+
+/** The bulk confirms that can still be taken back, newest first. */
+export async function recentBatches(): Promise<{ id: number; note: string; n: number }[]> {
+  const rows = await db.select({ id: arenaFeedback.id, note: arenaFeedback.note, batch: arenaFeedback.batch }).from(arenaFeedback).where(and(eq(arenaFeedback.kind, "rule"), isNotNull(arenaFeedback.batch))).orderBy(desc(arenaFeedback.id)).limit(5);
+  return rows.map((r) => ({ id: r.id, note: r.note, n: ((r.batch as ConfirmBatch | null)?.rules ?? []).length }));
+}
+
+/** You explain the card; Claude answers with a program that lands as its draft, and a brief for the compiler. */
+export async function explainRuleAction(id: number, explanation: string): Promise<{ error: string | null }> {
+  const row = await ruleById(db, id);
+  if (!row) return { error: "no such rule" };
+  try {
+    const r = await clarifyRule(db, row, explanation);
+    await db.insert(arenaFeedback).values({ kind: "card", noteId: row.id, cardId: row.cardId, skillIndex: row.skillIndex, note: explanation.trim(), resolution: r.clarification.meaning });
+  } catch (err) {
+    return { error: describeAiError(err) };
+  }
+  revalidatePath("/arena/rules");
+  revalidatePath("/arena/rules/patterns");
+  revalidatePath("/arena/feedback");
+  return { error: null };
 }
 
 export async function startGameForm(formData: FormData) {
@@ -265,62 +396,42 @@ export async function abandon(gameId: number) {
   redirect("/arena");
 }
 
+
 /**
- * Fill the backlog from every deck you can actually play, and close whatever
- * the compiler has learned to read since it was written down.
+ * The rule as the probe wants it: the row's program, and the card the engine
+ * reads its skill kinds and triggers off. One place, so the pane, the CLI and
+ * a stored probe all try the same rule.
  */
-export async function sweepBacklog() {
-  // Only the decks the arena can play: the compiler this backlog feeds reads
-  // the original game's card text, not Fusion World's.
-  const all = await listDecks(db, { game: "dbs" });
-  const playable = all.filter((d) => d.leader && d.mainCount >= 50);
-  const ids = new Set<string>();
-  for (const d of playable) {
-    const input = await deckInputFor(db, d.id);
-    if (input) for (const id of input.cardIds) ids.add(id);
-  }
-  if (ids.size) {
-    const rows = await db
-      .select()
-      .from(cardsTable)
-      .where(inArray(cardsTable.id, [...ids]));
-    for (const row of rows) await noteUnreadText(db, unreadClausesOf(cardDefFrom(row)), false);
-  }
-  // Adding first, then closing: a clause just written down is unread by
-  // definition, so it survives the pass that follows it.
-  await closeNotesNowRead(db);
-  revalidatePath("/arena/backlog");
+export async function probeRuleFor(id: number): Promise<{ rule: ProbeRule; scenarios: ProbeScenario[] } | null> {
+  const row = await ruleById(db, id);
+  if (!row) return null;
+  const defs = await defsForCards(db, [row.cardId]);
+  const def = defs[row.cardId];
+  if (!def) return null;
+  const rule = ruleFrom(row, def, programOf(row));
+  return { rule, scenarios: scenariosFor(rule) };
 }
 
-export async function markNote(noteId: number, status: "open" | "done") {
-  await setNoteStatus(db, noteId, status);
-  revalidatePath("/arena/backlog");
+/** Run one rule on one board. Pure once the row is read, so it costs a query and nothing else. */
+export async function probeRuleAction(id: number, scenarioKey?: string): Promise<{ error: string | null; run: ProbeRun | null }> {
+  const found = await probeRuleFor(id);
+  if (!found) return { error: "no such rule", run: null };
+  const scenario = found.scenarios.find((s) => s.key === scenarioKey) ?? found.scenarios[0];
+  return { error: null, run: probe(found.rule, scenario) };
 }
 
 /**
- * You explain a card; Claude saves a program for it and writes the work item
- * for teaching the compiler the wording.
+ * Every board this rule can be tried on, run. Each is a staged game in the
+ * pure engine, so the whole set costs the one query the rule was read with.
  */
-export async function explainCard(noteId: number, explanation: string): Promise<{ error: string | null }> {
-  let meaning: string | null = null;
-  try {
-    const r = await clarifyCard(db, noteId, explanation);
-    meaning = r.clarification.meaning;
-  } catch (err) {
-    return { error: describeAiError(err) };
-  }
-  // Explaining a card is the same kind of thing as reporting a bug: you saw
-  // something the measurements cannot. It goes to the same place.
-  const note = await db.query.cardTextNotes.findFirst({ where: eq(cardTextNotes.id, noteId) });
-  await db.insert(arenaFeedback).values({
-    kind: "card",
-    noteId,
-    cardId: note?.cardId ?? null,
-    skillIndex: note?.skillIndex ?? null,
-    note: explanation.trim(),
-    resolution: meaning,
-  });
-  revalidatePath("/arena/backlog");
-  revalidatePath("/arena/feedback");
-  return { error: null };
+export async function probeAllAction(id: number): Promise<{ error: string | null; runs: { key: string; title: string; outcome: ProbeRun["outcome"]; headline: string }[] }> {
+  const found = await probeRuleFor(id);
+  if (!found) return { error: "no such rule", runs: [] };
+  return {
+    error: null,
+    runs: found.scenarios.map((scenario) => {
+      const run = probe(found.rule, scenario);
+      return { key: scenario.key, title: scenario.title, outcome: run.outcome, headline: run.result[0] ?? "nothing to report" };
+    }),
+  };
 }

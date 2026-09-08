@@ -187,6 +187,21 @@ answer, in the cheapest way that does not disturb its callers:
 - Cap the output. A hand of ten cards times several branches is a long list nobody reads; return at
   most one `RejectedAction` per card per action type, keeping the most decisive requirement first.
 
+  **Amended 8 Sep 2026, after the probe measured what the cap costs: an activation is one entry per
+  *skill line*, not one per card.** A card prints up to nine of them, and one being on the menu says
+  nothing about the others — keyed by the card alone, the first line answered for all of them, and
+  the sweep found **678 of the catalog's 13,563 rules refused with no reason at all**, 640 of them
+  not the card's first skill. A rejection filed under skill 0 cannot answer a question about skill
+  20. Keying activations by skill index took that count to **74**, with every other outcome in the
+  sweep unmoved. The cap is unchanged for play, charge, attack, combo, counter and block, where one
+  card really does have one such move; an [Invoker]'s alternative price is still the same skill
+  under the same index and so still one entry. Two consequences the change carries with it: the
+  label names the skill line (`Activate NAME: <the first 40 characters of its effect>`, the same
+  text the menu uses), because three rows reading `Activate NAME` identify nothing; and any client
+  keying a rejection list on the action type alone now needs the skill index too. The invariant is
+  written down in exactly two places, `scripts/verify/harness.ts` and `scripts/arena-playthrough.mts`,
+  and they must say the same thing.
+
 ### 3.3 The view — `view.ts`
 
 Three additions, all optional:

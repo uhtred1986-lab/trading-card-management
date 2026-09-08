@@ -1,121 +1,137 @@
 import Link from "next/link";
 import { db } from "@/db";
-import { RuleEditor } from "@/components/arena/RuleEditor";
-import { rulesForDecks, type RuleRow } from "@/lib/arena/rules";
+import { ConfirmAll } from "@/components/arena/rules/ConfirmAll";
+import { RulesHeader } from "@/components/arena/rules/RulesHeader";
+import { Segments, Workbench, chipClass, statusRank } from "@/components/arena/rules/Workbench";
+import { mechanismOf, PHRASING_ONLY } from "@/lib/arena/gaps";
+import { deckInputFor } from "@/lib/arena/load";
+import { countRules, worklist, type RuleStatus, type WorklistRow } from "@/lib/arena/rules-store";
+import { listDecks } from "@/lib/decks/queries";
+import { lastSyncRuns } from "@/lib/sync";
+import { recentBatches } from "../actions";
+import { buildRecord, historyOf, probeScenarios } from "./record";
 
 export const dynamic = "force-dynamic";
 
-const TABS: { key: string; label: string; keep: (r: RuleRow) => boolean }[] = [
-  { key: "referee", label: "Claude decides these", keep: (r) => r.state === "referee" },
-  { key: "stored", label: "You set these", keep: (r) => r.state === "stored" },
-  { key: "read", label: "The engine reads these", keep: (r) => r.state === "read" },
-  { key: "all", label: "All", keep: () => true },
-];
-
 /**
- * The rules of the cards in your decks, and where to change one.
- *
- * Every skill is in one of three states, and the first tab is the one that
- * matters: those are the cards Claude has to rule on mid-game, which costs
- * tokens, takes a moment, and can be wrong. Setting a rule here moves a card
- * out of that list for good.
+ * The rules of the cards in the decks the arena can play: the worklist that is
+ * worth working through first, because these are the skills a game will
+ * actually reach. `/arena/rules/all` is the same list over the catalog.
  */
+type Row = WorklistRow & { decks: string[] };
+
+const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
+
 export default async function RulesPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const sp = await searchParams;
-  const tab = (Array.isArray(sp.tab) ? sp.tab[0] : sp.tab) ?? "referee";
-  const q = ((Array.isArray(sp.q) ? sp.q[0] : sp.q) ?? "").trim().toLowerCase();
+  const seg = one(sp.seg) || "all";
+  const deckParam = one(sp.deck);
+  const mech = one(sp.mech);
+  const claudeOnly = one(sp.claude) === "1";
+  const q = one(sp.q).trim().toLowerCase();
+  const ruleParam = Number(one(sp.rule)) || null;
 
-  const all = await rulesForDecks(db);
-  const counts = Object.fromEntries(TABS.map((t) => [t.key, all.filter(t.keep).length]));
-  const keep = (TABS.find((t) => t.key === tab) ?? TABS[0]).keep;
-  const rows = all.filter(keep).filter((r) => !q || r.name.toLowerCase().includes(q) || r.cardId.toLowerCase().includes(q) || r.printed.toLowerCase().includes(q));
+  // The cards in the decks the arena can play: the worklist's default scope.
+  const decks = (await listDecks(db, { game: "dbs" })).filter((d) => d.leader && d.mainCount >= 50);
+  const deckCards = new Map<number, Set<string>>();
+  const decksOf = new Map<string, string[]>();
+  for (const d of decks) {
+    const input = await deckInputFor(db, d.id);
+    if (!input) continue;
+    const ids = new Set(input.cardIds);
+    deckCards.set(d.id, ids);
+    for (const id of ids) decksOf.set(id, [...(decksOf.get(id) ?? []), d.name]);
+  }
+  const allDeckCards = [...decksOf.keys()];
+  const scope = deckParam && deckCards.has(Number(deckParam)) ? [...deckCards.get(Number(deckParam))!] : allDeckCards;
+
+  const rows: Row[] = (await worklist(db, scope)).map((r) => ({ ...r, decks: decksOf.get(r.cardId) ?? [] }));
+  const mechanisms = new Map<string, number>();
+  for (const r of rows) if (r.status === "open") mechanisms.set(mechanismOf(r.unread[0] ?? ""), (mechanisms.get(mechanismOf(r.unread[0] ?? "")) ?? 0) + 1);
+  const claudeDrafted = rows.filter((r) => r.source === "claude" && r.status === "draft").length;
+
+  const shown = rows
+    .filter((r) => seg === "all" || r.status === seg)
+    .filter((r) => !mech || (r.status === "open" && mechanismOf(r.unread[0] ?? "") === mech))
+    .filter((r) => !claudeOnly || (r.source === "claude" && r.status === "draft"))
+    .filter((r) => !q || r.name.toLowerCase().includes(q) || r.cardId.toLowerCase().includes(q) || r.printed.toLowerCase().includes(q))
+    // Inside a state, a card in more of your decks is the one to look at first.
+    .sort((a, b) => statusRank(a) - statusRank(b) || b.decks.length - a.decks.length || a.name.localeCompare(b.name) || a.skillIndex - b.skillIndex);
+  const counts = Object.fromEntries([["all", rows.length], ...(["open", "draft", "confirmed", "corrected"] as RuleStatus[]).map((k) => [k, rows.filter((r) => r.status === k).length])]);
+
+  const [inDecks, catalog, syncs, batches] = await Promise.all([countRules(db, allDeckCards), countRules(db), lastSyncRuns(db), recentBatches()]);
+  const lastSync = syncs.latest.get("catalog")?.summary as { stillOpen?: number; cardsNew?: number; cardsChanged?: number } | null | undefined;
+
+  const selected = shown.find((r) => r.id === ruleParam) ?? shown[0] ?? null;
+  const record = selected ? await buildRecord(db, selected, selected.decks) : null;
+  const probe = selected ? await probeScenarios(db, selected) : null;
+
+  const href = (patch: Record<string, string | null>) => {
+    const params = new URLSearchParams();
+    const cur: Record<string, string> = { seg, deck: deckParam, mech, claude: claudeOnly ? "1" : "", q, rule: ruleParam ? String(ruleParam) : "" };
+    for (const [k, v] of Object.entries({ ...cur, ...patch })) if (v) params.set(k, v);
+    const s = params.toString();
+    return `/arena/rules${s ? `?${s}` : ""}`;
+  };
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-baseline gap-2">
-        <h1 className="text-lg font-semibold tracking-tight text-space-50">The rules of your cards</h1>
-        <Link href="/arena/rules/keywords" className="ml-auto text-xs text-space-300 hover:text-ki-300">
-          keywords the engine knows
-        </Link>
-        <Link href="/arena" className="text-xs text-space-300 hover:text-ki-300">
-          ← Arena
-        </Link>
-      </div>
-      <p className="text-sm text-space-300">
-        Every skill in a deck you can play. Where the engine cannot read a card, Claude rules on it mid-game — which works, but costs tokens, takes a moment and can be wrong. You can set the rule
-        yourself instead: edit the wording, read back what the engine makes of it, and keep it when it says what the card says. What the engine already knows by heart — every keyword skill, and the
-        rules it reads a line by — is on{" "}
-        <Link href="/arena/rules/keywords" className="text-ki-300 hover:underline">
-          the keyword reference
-        </Link>
-        .
-      </p>
-
-      <div className="flex flex-wrap items-center gap-2 text-xs">
-        {TABS.map((t) => (
-          <Link
-            key={t.key}
-            href={`/arena/rules?tab=${t.key}${q ? `&q=${encodeURIComponent(q)}` : ""}`}
-            className={`tap rounded-md px-3 py-1.5 ${tab === t.key ? "bg-space-800 text-space-50" : "text-space-300"}`}
-          >
-            {t.label} ({counts[t.key]})
-          </Link>
-        ))}
-        <form className="ml-auto" action="/arena/rules">
-          <input type="hidden" name="tab" value={tab} />
-          <input name="q" defaultValue={q} placeholder="find a card…" className="w-40 rounded-md border border-space-600 bg-space-900 px-2 py-1.5 text-xs text-space-100" />
-        </form>
-      </div>
+    <div className="space-y-3">
+      <RulesHeader tab="/arena/rules" inDecks={inDecks} catalog={catalog} openSinceSync={lastSync && (lastSync.cardsNew || lastSync.cardsChanged) ? (lastSync.stillOpen ?? 0) : null} />
 
       {rows.length === 0 ? (
         <p className="rounded-xl border border-dashed border-space-700 p-6 text-center text-sm text-space-300">
-          {all.length === 0 ? "No deck the arena can play yet — a deck needs a leader and 50 cards." : "Nothing here."}
+          {decks.length === 0
+            ? "No deck the arena can play yet — a deck needs a leader and 50 cards."
+            : "No rules drafted for the cards in your decks yet. Run `npm run arena:draft` once; after that every new card is drafted at catalog sync."}
         </p>
       ) : (
-        <ol className="space-y-2">
-          {rows.map((r) => (
-            <li key={`${r.cardId}#${r.side}#${r.skillIndex}`} className="rounded-xl border border-space-700/70 bg-space-900/50 p-3">
-              <div className="flex flex-wrap items-baseline gap-2">
-                <Link href={`/cards/${encodeURIComponent(r.cardId)}`} className="text-sm font-medium text-space-100 hover:text-ki-300">
-                  {r.name}
+        <Workbench
+          rows={shown}
+          record={record}
+          history={selected ? historyOf(selected) : []}
+          mechanism={record?.mechanism ?? null}
+          probe={probe}
+          href={(id) => href({ rule: String(id) })}
+          empty="Nothing here."
+          head={
+            <>
+              <Segments seg={seg} counts={counts} href={(key) => href({ seg: key, rule: null })} />
+              <div className="flex flex-wrap gap-1.5">
+                <Link href={href({ deck: null, rule: null })} className={chipClass(!deckParam)}>
+                  My decks
                 </Link>
-                <span className="font-mono text-[10px] text-space-500">{r.cardId}</span>
-                <span className="text-[10px] text-space-500">{r.kind}</span>
-                <span
-                  className={`ml-auto shrink-0 rounded px-1.5 py-0.5 text-[10px] ${
-                    r.state === "referee" ? "bg-dbs-yellow/20 text-dbs-yellow" : r.state === "stored" ? "bg-ki-500/20 text-ki-300" : "bg-gain/15 text-gain"
-                  }`}
-                >
-                  {r.state === "referee" ? "Claude decides" : r.state === "stored" ? "you set it" : "read"}
-                </span>
+                {decks.map((d) => (
+                  <Link key={d.id} href={href({ deck: deckParam === String(d.id) ? null : String(d.id), rule: null })} className={chipClass(deckParam === String(d.id))}>
+                    {d.name}
+                  </Link>
+                ))}
+                {claudeDrafted > 0 && (
+                  <Link href={href({ claude: claudeOnly ? null : "1", rule: null })} className={chipClass(claudeOnly)}>
+                    Claude drafted — unconfirmed ({claudeDrafted})
+                  </Link>
+                )}
+                {[...mechanisms.entries()]
+                  .sort((a, b) => b[1] - a[1])
+                  .map(([key, n]) => (
+                    <Link key={key} href={href({ mech: mech === key ? null : key, seg: "open", rule: null })} className={chipClass(mech === key)}>
+                      {key === PHRASING_ONLY ? "phrasing only" : `mechanism: ${key}`} ({n})
+                    </Link>
+                  ))}
               </div>
-
-              <p className="mt-1 font-mono text-[11px] leading-relaxed text-space-300">{r.printed}</p>
-
-              {r.state === "referee" ? (
-                <p className="mt-1 text-[11px] text-dbs-yellow">could not read: {r.unsupported.join(" | ")}</p>
-              ) : (
-                <p className="mt-1 text-[11px] text-space-400">
-                  <span className="text-space-500">the engine will: </span>
-                  {r.reads || "nothing"}
-                </p>
-              )}
-
-              <p className="mt-1 text-[10px] text-space-500">in {r.decks.join(", ")}</p>
-
-              <RuleEditor cardId={r.cardId} skillIndex={r.skillIndex} side={r.side} printed={r.printed} stored={r.stored} />
-            </li>
-          ))}
-        </ol>
+              <form action="/arena/rules" className="flex gap-1">
+                {seg !== "all" && <input type="hidden" name="seg" value={seg} />}
+                {deckParam && <input type="hidden" name="deck" value={deckParam} />}
+                <input name="q" defaultValue={q} placeholder="find a card…" className="w-full rounded-md border border-space-600 bg-space-950 px-2 py-1 text-xs text-space-100" />
+              </form>
+              <ConfirmAll
+                filter={{ cardIds: scope, status: "draft", mechanism: mech || undefined, q: q || undefined, source: claudeOnly ? "claude" : undefined }}
+                drafts={shown.filter((r) => r.status === "draft").length}
+                batches={batches}
+              />
+            </>
+          }
+        />
       )}
-
-      <p className="text-[11px] text-space-500">
-        Would rather explain it in your own words and let Claude write the program? That is on the{" "}
-        <Link href="/arena/backlog" className="text-ki-300 hover:underline">
-          backlog page
-        </Link>
-        , which also produces the work item for teaching the compiler the wording for good — the fix that covers every card phrased the same way.
-      </p>
     </div>
   );
 }

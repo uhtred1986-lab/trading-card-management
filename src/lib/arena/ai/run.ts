@@ -14,9 +14,10 @@ import { eq } from "drizzle-orm";
 import type { Db } from "@/db";
 import { arenaGames } from "@/db/schema";
 import { describeAiError } from "@/lib/ai/client";
-import { areaOf, face, type Action, type Area, type PlayerId } from "../engine";
+import { areaOf, face, skillsOf, type Action, type Area, type PlayerId } from "../engine";
+import { markRuleSeen, saveRule } from "../rules-store";
 import { applyToGame, loadGame, type LoadedGame } from "../games";
-import { noteUnreadText, recordDecision } from "./debug";
+import { recordDecision } from "./debug";
 import { stateText } from "./view";
 import { chooseMove, ruleOnCard, type Tier } from "./opponent";
 
@@ -159,15 +160,6 @@ async function runReferee(db: Db, game: LoadedGame, gameId: number): Promise<str
   const ruling = await ruleOnCard(db, { cardId: req.cardId, cardName: req.cardName, text: req.text, unsupported: req.unsupported }, situation);
   const micros = await addSpend(db, gameId, ruling.spend);
 
-  // The clauses that got us here go on the backlog, with what Claude decided
-  // as a worked example of what the compiler should learn to emit.
-  await noteUnreadText(
-    db,
-    req.unsupported.map((clause) => ({ cardId: req.cardId, skillIndex: req.skillIndex, clause, skillText: req.text })),
-    true,
-    { ops: ruling.ops, why: ruling.why },
-  );
-
   await recordDecision(db, {
     gameId,
     turn: game.state.turn,
@@ -184,6 +176,23 @@ async function runReferee(db: Db, game: LoadedGame, gameId: number): Promise<str
     spend: ruling.spend ? { ...ruling.spend, micros } : null,
     latencyMs: ruling.spend ? Date.now() - started : null,
   });
+
+  // Nothing Claude decides is invisible again: a ruling that was a program
+  // becomes the card's draft rule, with Claude's reason as its explanation.
+  // It shows up in the worklist like any other draft — and the next game
+  // loads it from the row, so the card is not put to the referee twice.
+  const inst = game.state.cards[req.card];
+  const d = game.ctx.defs[req.cardId];
+  const side = inst?.flipped && d?.back ? "back" : "front";
+  if (ruling.valid) {
+    const sk = d ? skillsOf(d, side).find((k) => k.index === req.skillIndex) : undefined;
+    await saveRule(db, { cardId: req.cardId, side, skillIndex: req.skillIndex, ops: ruling.ops, source: "claude", status: "draft", explanation: ruling.why, printed: req.text, kind: sk?.kind ?? "auto" });
+  }
+  // The skill has now actually come up in a game, which is what sorts the
+  // Patterns page: a wording a game has met is worth teaching the compiler
+  // before one that has not. The worked example is the draft written above,
+  // so there is nowhere else for it to be kept.
+  await markRuleSeen(db, req.cardId, side, req.skillIndex);
 
   const line = `referee on ${req.cardName}: ${ruling.why}`;
   await applyToGame(db, gameId, { type: "refereeRuling", player: req.master, ops: ruling.ops }, { say: line });

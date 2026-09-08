@@ -8,17 +8,20 @@
  *      be handed straight to Claude Code.
  *
  * The split matters: the program fixes one card now, the brief fixes the
- * pattern permanently. Only the second one ends the problem.
+ * pattern permanently. Only the second one ends the problem. Both live on the
+ * rule's own row — the program in `ops`, the brief beside it — so what Claude
+ * decided is never in a different place from what it decided about.
  */
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "@/db";
-import { cards as cardsTable, cardTextNotes } from "@/db/schema";
+import { cards as cardsTable, cardRules } from "@/db/schema";
 import { MODEL, anthropic, hasAnthropic, recordRun } from "@/lib/ai/client";
 import { parseSkills, validateProgram, type Op } from "../engine";
+import { clauseShape } from "../gaps";
 import { EFFECT_LANGUAGE } from "./opponent";
-import { saveScript } from "../scripts";
+import { saveRule, setBrief, type RuleRow } from "../rules-store";
 
 export const ClarificationSchema = z.object({
   meaning: z.string().max(300).describe("One sentence restating what the card does, in rules terms"),
@@ -55,16 +58,29 @@ export interface ClarifyResult {
   saved: boolean;
 }
 
-export async function clarifyCard(db: Db, noteId: number, explanation: string): Promise<ClarifyResult> {
-  if (!hasAnthropic()) throw new Error("ANTHROPIC_API_KEY is not set — this needs Claude.");
-  const note = await db.query.cardTextNotes.findFirst({ where: eq(cardTextNotes.id, noteId) });
-  if (!note) throw new Error("no such note");
-  const card = await db.query.cards.findFirst({ where: eq(cardsTable.id, note.cardId) });
-  if (!card) throw new Error("no such card");
+/** The rule row's fields this needs — the workbench passes a whole row, the sync a fresh one. */
+export type RuleToClarify = Pick<RuleRow, "id" | "cardId" | "side" | "skillIndex" | "printed" | "unread" | "pattern" | "kind">;
 
+/**
+ * Ask Claude what one skill does, and keep both halves of the answer.
+ *
+ * `explanation` may be null: the catalog sync asks Claude to read a new card
+ * on its own, with nobody at the table to explain it.
+ */
+export async function clarifyRule(db: Db, rule: RuleToClarify, explanation: string | null): Promise<ClarifyResult> {
+  if (!hasAnthropic()) throw new Error("ANTHROPIC_API_KEY is not set — this needs Claude.");
+  const card = await db.query.cards.findFirst({ where: eq(cardsTable.id, rule.cardId) });
+  if (!card) throw new Error("no such card");
+  const side = rule.side === "back" ? "back" : "front";
+
+  // The clause this is about: what the compiler could not read, or — when it
+  // read the skill but read it wrongly — the effect itself.
+  const clause = rule.unread[0] ?? rule.printed.replace(/^\s*(?:\[[^\]]*\]\s*)+/, "").replace(/\s+/g, " ").trim();
   // Every other card whose wording has the same shape: what one rule would fix.
-  const siblings = await db.select({ cardId: cardTextNotes.cardId, clause: cardTextNotes.clause }).from(cardTextNotes).where(eq(cardTextNotes.pattern, note.pattern));
-  const skill = parseSkills(card.skill).find((s) => s.index === note.skillIndex);
+  const shape = rule.unread.length ? clauseShape(clause) : rule.pattern;
+  const siblings = shape ? await db.select({ cardId: cardRules.cardId }).from(cardRules).where(eq(cardRules.pattern, shape)) : [];
+  const skill = parseSkills(side === "back" ? card.backSkill : card.skill).find((s) => s.index === rule.skillIndex);
+  const said = explanation?.trim() ?? "";
 
   const res = await anthropic().messages.parse({
     model: MODEL,
@@ -80,16 +96,18 @@ export async function clarifyCard(db: Db, noteId: number, explanation: string): 
         role: "user",
         content: [
           `CARD: ${card.name} (${card.id}), ${card.cardType}, ${card.colors.join("/")}, cost ${card.energyCost ?? "—"}, ${card.power ?? "—"} power.`,
-          `THE SKILL LINE: ${note.skillText.replace(/\s+/g, " ")}`,
+          `THE SKILL LINE: ${rule.printed.replace(/\s+/g, " ")}`,
           skill ? `The engine reads the tags as: ${skill.kind}${skill.cost ? `, cost "${skill.cost}"` : ""}.` : "",
-          `THE PART IT COULD NOT READ: "${note.clause}"`,
+          `THE PART IT COULD NOT READ: "${clause}"`,
           "",
-          `THE OWNER, WHO PLAYS THIS GAME, EXPLAINS IT LIKE THIS:`,
-          explanation.trim(),
+          said ? `THE OWNER, WHO PLAYS THIS GAME, EXPLAINS IT LIKE THIS:` : "NOBODY HAS EXPLAINED THIS CARD. Read it yourself, as the printed rules text of a released card; where the text is genuinely ambiguous, say so in `question` and set `confident` to false.",
+          said,
           "",
           `${siblings.length} card${siblings.length === 1 ? "" : "s"} phrase it the same way: ${siblings.map((s) => s.cardId).join(", ")}.`,
           "",
-          "Give the program for this card, and the brief for teaching the compiler the wording. Trust the owner's explanation over your own reading of the text where they differ, but say so in `meaning` if they differ.",
+          said
+            ? "Give the program for this card, and the brief for teaching the compiler the wording. Trust the owner's explanation over your own reading of the text where they differ, but say so in `meaning` if they differ."
+            : "Give the program for this card, and the brief for teaching the compiler the wording.",
         ]
           .filter(Boolean)
           .join("\n"),
@@ -97,7 +115,7 @@ export async function clarifyCard(db: Db, noteId: number, explanation: string): 
     ],
   });
 
-  const { output } = await recordRun<Clarification>(db, "arena_referee", { noteId, cardId: note.cardId, explanation }, res, undefined, MODEL);
+  const { output } = await recordRun<Clarification>(db, "arena_referee", { ruleId: rule.id, cardId: rule.cardId, explanation: said || null }, res, undefined, MODEL);
 
   let parsed: unknown = [];
   try {
@@ -108,37 +126,24 @@ export async function clarifyCard(db: Db, noteId: number, explanation: string): 
   const ok = validateProgram(parsed);
   const ops = ok ? (parsed as Op[]) : [];
   if (ok && ops.length) {
-    await saveScript(db, {
-      cardId: note.cardId,
-      skillIndex: note.skillIndex,
+    // Claude wrote the program, so it is Claude's draft — the owner's words
+    // are the explanation, not the authorship. It shows up for confirmation.
+    await saveRule(db, {
+      cardId: rule.cardId,
+      side,
+      skillIndex: rule.skillIndex,
       ops,
-      source: "user",
-      explanation: explanation.trim(),
-      meaning: output.meaning,
+      source: "claude",
+      status: "draft",
+      explanation: said ? `${said}\n\nClaude: ${output.meaning}` : output.meaning,
+      printed: rule.printed,
+      kind: rule.kind ?? skill?.kind ?? "auto",
     });
   }
-
-  await db
-    .update(cardTextNotes)
-    .set({
-      explanation: explanation.trim(),
-      explainedAt: new Date(),
-      brief: output.brief,
-      lastRuling: ops,
-      lastRulingWhy: output.meaning,
-      // Only the compiler learning the wording closes it for good; a saved
-      // program fixes this one card, which is not the same thing.
-      status: note.status,
-    })
-    .where(eq(cardTextNotes.id, noteId));
+  // The brief is kept whether or not a program came back: teaching the
+  // compiler the wording is the half that fixes every card phrased this way,
+  // and it is worth having even when this one card could not be expressed.
+  await setBrief(db, rule.id, { brief: output.brief, ...(ok && ops.length ? {} : { explanation: said || output.meaning }) });
 
   return { clarification: output, ops, saved: ok && ops.length > 0 };
-}
-
-/** Cards with a stored program already, so the page can show what is settled. */
-export async function explainedNotes(db: Db) {
-  return db
-    .select()
-    .from(cardTextNotes)
-    .where(and(eq(cardTextNotes.status, "open")));
 }

@@ -317,8 +317,6 @@ export type Op =
    * still negatable by anything else, it simply never triggers again.
    */
   | { op: "negateOwnSkill"; until?: "turn" | "battle" }
-  /** Kept for programs written before `forbid` existed; the same thing. */
-  | { op: "cannotAttack"; target: Ref; until: Duration }
   /**
    * Forbid an action (20-14). Name a `target` for a rule about particular
    * cards, or a `side` for one about a player ("your opponent can't attack
@@ -354,11 +352,47 @@ export type Op =
   | { op: "delay"; at: DelayTiming; scope?: DelayScope; ops: Op[]; label?: string }
   | { op: "note"; text: string };
 
+/**
+ * The price before the colon, as the record holds it (4-3-3). Both halves are
+ * read together and never as alternatives: "If your Leader is red, and you
+ * place 1 card from your hand in the Drop Area:" is a condition *and* an
+ * action. Either may be null; both null on a skill whose price is more than
+ * orbs means the compiler could not read the price, and the engine says so
+ * rather than resolving an effect it did not charge for.
+ *
+ * The same shape as `CostRecord.condition` / `CostRecord.program` on the
+ * `card_rules` row. It lives here so the store can hand a price to the engine
+ * without either of them importing the compiler.
+ */
+export interface SkillPrice {
+  condition: Cond | null;
+  ops: Op[] | null;
+}
+
 export interface Script {
   ops: Op[];
   /** Clauses the compiler could not read; non-empty means the referee handles the skill. */
   unsupported: string[];
+  /**
+   * The price the record carries. Absent means *no record*, which is not the
+   * same as a skill with no price: since 8 Sep 2026 the engine reads the price
+   * rather than compiling it, so a skill nobody drafted has an unknown price
+   * rather than a free one.
+   */
+  price?: SkillPrice;
 }
+
+/** The programs of one card face, by skill index. What `card_rules` holds for a card and what `ctx.scripts` carries into a game. */
+export interface CardScripts {
+  /** Keyed by skill index; only skills with text appear. */
+  bySkill: Record<number, Script>;
+  /** True when every skill either has a program or is a pure keyword skill. */
+  complete: boolean;
+  unsupported: string[];
+}
+
+/** What the engine has for a card nobody drafted: nothing, and it says so. */
+export const NO_RULES: CardScripts = Object.freeze({ bySkill: {}, complete: false, unsupported: [] }) as CardScripts;
 
 /** One running program. Stored in the flow, so a game can be saved mid-effect. */
 export interface ScriptFrame {
@@ -823,11 +857,6 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         }
         break;
 
-      case "cannotAttack":
-        for (const id of resolveRef(ctx, s, frame, op.target))
-          addEffect(s, ev, { master: frame.master, source: frame.card, target: id, kind: "forbid", value: 0, until: op.until, forbid: { what: "attack" } });
-        break;
-
       case "forbid": {
         // "both" and an absent side alike mean the rule is about neither
         // player in particular, so it holds for both.
@@ -1104,80 +1133,788 @@ function shuffleDeck(s: GameState, players: PlayerId[]): void {
   }
 }
 
-// ── validation, for programs that did not come from the compiler ───────────
-
-const OP_NAMES = new Set<Op["op"]>([
-  "draw",
-  "discard",
-  "damage",
-  "mill",
-  "addLife",
-  "lifeDownTo",
-  "shuffle",
-  "energyMarker",
-  "choose",
-  "look",
-  "reveal",
-  "ko",
-  "moveTo",
-  "play",
-  "switchMode",
-  "power",
-  "comboPower",
-  "grant",
-  "negateSkills",
-  "hidden",
-  "redirectAttack",
-  "comboFrom",
-  "flip",
-  "faceUp",
-  "addMarker",
-  "removeMarker",
-  "token",
-  "negateAttack",
-  "negateCounter",
-  "negateOwnSkill",
-  "cannotAttack",
-  "forbid",
-  "permit",
-  "costReduction",
-  "negateSkillsOfKind",
-  "resolvingPlay",
-  "negateKeyword",
-  "gains",
-  "replaceLeave",
-  "altCost",
-  "if",
-  "chooseMode",
-  "may",
-  "delay",
-  "note",
-]);
-
-const DELAY_TIMINGS = new Set<DelayTiming>(["turnStart", "mainStart", "turnEnd", "turnCleanup", "battleEnd"]);
-const DELAY_SCOPES = new Set<DelayScope>(["thisTurn", "nextTurn", "yourNextTurn", "opponentNextTurn"]);
+// ── the schema: one row per op, read by everything that is not the interpreter ──
 
 /**
- * Structural check for a program supplied by the referee. It only proves the
- * shape is executable — the engine still enforces every rule while running it,
- * so a bad ruling can be wrong but never illegal.
+ * What each field of each op is. `validateProgram`, `describeScript`, the
+ * referee's prompt and the workbench's editor all read this table, so adding
+ * an op is one interpreter case above and one row here — nowhere else.
+ *
+ * `{ enum }` lists the values a field may take; `{ list }` is an array of
+ * strings or of one enum. `keyword` is a `KeywordSkill` object, `filter` a
+ * `CardFilter`, `modes` the `chooseMode` options.
+ */
+export type FieldType =
+  | "amount"
+  | "ref"
+  | "selector"
+  | "side"
+  | "area"
+  | "duration"
+  | "cond"
+  | "conds"
+  | "ops"
+  | "string"
+  | "number"
+  | "boolean"
+  | "keyword"
+  | "filter"
+  | "modes"
+  | { enum: readonly string[] }
+  | { list: "string" | { enum: readonly string[] } };
+
+export interface OpField {
+  name: string;
+  type: FieldType;
+  required?: boolean;
+  /** What the interpreter assumes when the field is left out. */
+  default?: unknown;
+  /** `null` is a value here ("no combo cost"), not an omission. */
+  nullable?: boolean;
+}
+
+/**
+ * `sentence` is the op in words. A string is a template: `{field}` renders
+ * the field, `{field:hint}` hands the describer a hint (a noun for an amount,
+ * "A|B" for a side, boolean or two-valued enum, a fallback for a string,
+ * filter or list of ops), and `{field? text with {field}}` renders only when
+ * the field is set. Four ops whose prose turns on how their fields combine
+ * carry a function instead. `doc` is the one line the referee is told.
+ */
+export interface OpSpec {
+  fields: OpField[];
+  sentence: string | ((op: Op, r: RenderOptions) => string);
+  doc?: string;
+}
+
+export interface RenderOptions {
+  /** A [Permanent] holds while its card is where the skill is valid (9-5-1), so no duration is said. */
+  permanent?: boolean;
+}
+
+const COLORS = ["Red", "Blue", "Green", "Yellow", "Black", "White", "Colorless"] as const satisfies readonly Color[];
+export const SIDES = ["you", "opponent", "both"] as const satisfies readonly Side[];
+export const SPECIAL_TARGETS = ["self", "attacker", "guard", "subject", "leader", "opponentLeader", "resolving"] as const satisfies readonly SpecialTarget[];
+export const AREAS = ["hand", "deck", "drop", "life", "battle", "combo", "energy", "unison", "leader", "warp", "zDeck", "zEnergy", "under", "play", "removed"] as const satisfies readonly ScriptArea[];
+export const DURATIONS = ["battle", "turn", "opponentTurn", "nextTurn", "afterNextCharge", "game"] as const satisfies readonly Duration[];
+const DELAY_TIMINGS = ["turnStart", "mainStart", "turnEnd", "turnCleanup", "battleEnd"] as const satisfies readonly DelayTiming[];
+const DELAY_SCOPES = ["thisTurn", "nextTurn", "yourNextTurn", "opponentNextTurn"] as const satisfies readonly DelayScope[];
+const SKILL_KIND_PREFIXES = ["auto", "activate", "counter", "permanent"] as const satisfies readonly SkillKindPrefix[];
+export const KEYWORD_NAMES = [
+  "Awaken", "Wish", "Field", "Blocker", "Critical", "Strike", "Attack", "Revenge", "Indestructible", "Barrier", "Deflect", "Unique", "Servant", "Energy-Exhaust", "Victory Strike",
+  "Warrior of Universe 7", "Ultimate", "Super Combo", "Dragon Ball", "Wormhole", "Invoker", "Heroic", "Villainous", "Offering", "Evolve", "Union", "Over Realm", "Swap", "Arrival", "Aegis",
+  "Alliance", "Revive", "Successor", "Overlord", "Rejuvenate", "Spirit Boost", "Empower", "Z-Awaken", "Z-Stack",
+] as const satisfies readonly KeywordSkill["name"][];
+// A keyword the parser knows but this list does not would fail the referee and the editor silently; make it fail the typecheck instead.
+type MissingKeyword = Exclude<KeywordSkill["name"], (typeof KEYWORD_NAMES)[number]>;
+const _everyKeywordListed: MissingKeyword extends never ? true : never = true;
+void _everyKeywordListed;
+
+/** Each prohibition as the verb phrase a sentence needs after "can't". Shared with `effects.ts`, so the inspector and the board say the same thing. */
+export const FORBIDDEN_IN_WORDS: Record<ForbiddenAction, string> = {
+  attack: "attack",
+  beAttacked: "be attacked",
+  block: "block",
+  play: "play cards",
+  activateSkill: "activate skills",
+  activateCounter: "activate [Counter] skills",
+  combo: "combo",
+  beKOd: "be KO'd",
+  beKOdBySkill: "be KO'd by skills",
+  beChosen: "be chosen by skills",
+  switchToActive: "switch to Active Mode",
+  placeEnergy: "place cards in the Energy Area",
+  beMovedBySkill: "be removed from a Battle Area by skills",
+  beNegated: "have their skills negated",
+};
+const FORBIDDEN_ACTIONS = Object.keys(FORBIDDEN_IN_WORDS) as readonly ForbiddenAction[];
+
+const SIDE: OpField = { name: "side", type: "side", default: "you" };
+const TARGET: OpField = { name: "target", type: "ref", required: true };
+const SELF: OpField = { name: "target", type: "ref", default: { sel: { special: "self" } } };
+const UNTIL: OpField = { name: "until", type: "duration", required: true };
+const MODE = { enum: ["active", "rest"] } as const;
+const POSITION = { enum: ["top", "bottom"] } as const;
+const n = (required = true): OpField => ({ name: "n", type: "amount", required });
+
+type OpOf<K extends Op["op"]> = Extract<Op, { op: K }>;
+
+export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
+  draw: { fields: [n(), SIDE], sentence: "{side:opponent draws|draw} {n}" },
+  discard: { fields: [n(), SIDE, { name: "to", type: { enum: ["warp"] } }], sentence: "{side:opponent discards|discard} {n}{to? to the Warp}", doc: 'cards leave a hand for the Drop (20-7); "to":"warp" for the Warp' },
+  damage: { fields: [n(), SIDE], sentence: "deal {n} damage", doc: "life to hand" },
+  mill: { fields: [n(), SIDE, { name: "as", type: "string" }], sentence: "{n} from the top of the deck to the Drop", doc: 'deck to Drop; "as" names the cards for a later clause ("if that card is red")' },
+  addLife: { fields: [n(), SIDE], sentence: "add {n} to life" },
+  lifeDownTo: { fields: [{ name: "n", type: "number", required: true }, SIDE], sentence: "life down to {n}, the cards going to hand", doc: "add cards from life to hand until that many life remain (21-3-2)" },
+  shuffle: { fields: [SIDE], sentence: "shuffle" },
+  energyMarker: { fields: [n(), SIDE], sentence: "{n} energy marker" },
+  choose: {
+    fields: [{ name: "sel", type: "selector", required: true }, { name: "as", type: "string", required: true }, { name: "reason", type: "string" }, { name: "chooser", type: "side" }],
+    sentence: "choose {sel}",
+    doc: 'binds the chosen cards to the name in "as"; "chooser":"opponent" when the card says *they* choose ("your opponent sends 1 Battle Card…")',
+  },
+  look: {
+    fields: [n(), { name: "as", type: "string", required: true }, SIDE, { name: "from", type: POSITION, default: "top" }, { name: "area", type: "area", default: "deck" }],
+    sentence: "look at the top {n}",
+    doc: "top of your deck, seen only by you; the cards are bound to the name in \"as\" (20-11)",
+  },
+  reveal: { fields: [{ name: "sel", type: "selector", required: true }, { name: "as", type: "string", required: true }], sentence: "reveal {sel}", doc: "shown to both players; the cards stay where they are (20-11-2)" },
+  ko: { fields: [TARGET], sentence: "KO {target}" },
+  moveTo: {
+    fields: [
+      TARGET,
+      { name: "to", type: "area", required: true },
+      { name: "position", type: POSITION },
+      { name: "mode", type: MODE },
+      { name: "reveal", type: "boolean" },
+      { name: "under", type: "ref" },
+      { name: "owner", type: "side" },
+      { name: "faceUp", type: "boolean" },
+    ],
+    sentence: "move {target} to {to}{faceUp? face up}",
+    doc: '"to":"under" puts the card under "under" (or under this card, 23-2); "owner":"opponent" for "place it in your opponent\'s energy" — the area is theirs, not the card owner\'s (3-8)',
+  },
+  play: {
+    fields: [TARGET, { name: "mode", type: MODE }, { name: "onto", type: "ref" }, { name: "negated", type: { enum: ["turn", "game"] } }],
+    sentence: "play {target}{mode? in {mode} mode}",
+    doc: '"onto" plays it on top of another card ([Union-Absorb], 22-13-6-3); "negated" is "played with its skills negated" (9-1-5)',
+  },
+  switchMode: { fields: [TARGET, { name: "mode", type: MODE, required: true }], sentence: "switch {target} to {mode} mode" },
+  power: {
+    fields: [TARGET, { name: "amount", type: "amount", required: true }, UNTIL],
+    sentence: "{target} {amount:power}{until}",
+    doc: 'an amount may also be {"count":SELECTOR,"times":5000} (so much for each card) or {"sumPower":{"var":"rested"}} (the total power of named cards)',
+  },
+  comboPower: { fields: [TARGET, { name: "amount", type: "amount", required: true }, UNTIL], sentence: "{target} {amount:combo power}{until}" },
+  grant: { fields: [TARGET, { name: "keyword", type: "keyword", required: true }, UNTIL], sentence: "{target} gains [{keyword}]{until}" },
+  negateSkills: { fields: [TARGET, UNTIL], sentence: "negate the skills of {target}{until}" },
+  negateSkillsOfKind: {
+    fields: [TARGET, { name: "kind", type: { enum: SKILL_KIND_PREFIXES }, required: true }, UNTIL],
+    sentence: "negate the [{kind:auto=Auto|activate=Activate|counter=Counter|permanent=Permanent}] skills of {target}{until}",
+    doc: '"negate that card\'s [Auto] skill for the turn" — one kind, not the whole card (9-1-5)',
+  },
+  hidden: { fields: [TARGET, { name: "hidden", type: "boolean", required: true }], sentence: "switch {target} to {hidden:Hidden|Revealed} Mode", doc: "Hidden Mode / Revealed Mode (23-5)" },
+  redirectAttack: { fields: [TARGET], sentence: "switch the target of the attack to {target}", doc: '"switch the target of the attack to it" (22-4-2)' },
+  comboFrom: { fields: [TARGET, { name: "negated", type: "boolean" }], sentence: "use {target} in a combo{negated? with its skills negated}", doc: '"use it in a combo from your Drop (with its skills negated)" (5-7)' },
+  flip: { fields: [TARGET], sentence: "flip {target} over", doc: 'a Leader awakens ("flip this card over", 22-2-4)' },
+  faceUp: { fields: [TARGET, { name: "faceUp", type: "boolean", default: true }], sentence: "turn {target} face {faceUp:up|down}", doc: "turn a card in a life area face up (3-9-2-1); false turns it back down" },
+  addMarker: { fields: [TARGET, n()], sentence: "add {n} marker" },
+  removeMarker: { fields: [TARGET, n()], sentence: "remove {n} marker" },
+  token: {
+    fields: [
+      { name: "name", type: "string", required: true },
+      { name: "power", type: "number", required: true },
+      { name: "comboCost", type: "number", required: true, nullable: true },
+      { name: "comboPower", type: "number", required: true, nullable: true },
+      { name: "colors", type: { list: { enum: COLORS } }, required: true },
+      n(),
+      SIDE,
+    ],
+    sentence: "play {n} {name} ({power} power)",
+    doc: 'a token (19): {"op":"token","name":"Saibaman Token","power":10000,"comboCost":0,"comboPower":5000,"colors":[],"n":2}',
+  },
+  costReduction: {
+    fields: [TARGET, { name: "amount", type: "amount", required: true }, { name: "what", type: { enum: ["energy", "combo"] }, default: "energy" }, { name: "until", type: "duration" }],
+    sentence: "{target} costs {amount:less|more}",
+    doc: '[Permanent] only unless a duration is given (20-21): "reduce the energy cost of your <Son Goku> cards in your hand by 1" — the selector names the area the text names, usually the hand',
+  },
+  negateKeyword: { fields: [{ name: "keyword", type: { enum: KEYWORD_NAMES }, required: true }, SELF], sentence: "negate the [{keyword}] skill of {target}", doc: 'take one named keyword away ("negate this card\'s [Energy-Exhaust] skill in all areas", 9-1-5); the keyword is its printed name, e.g. "Blocker"' },
+  gains: {
+    fields: [{ name: "traits", type: { list: "string" } }, { name: "characters", type: { list: "string" } }, { name: "colors", type: { list: { enum: COLORS } } }, SELF],
+    sentence: "{target} also counts as{traits? ≪{traits}≫}{characters? <{characters}>}{colors? {colors}}",
+    doc: 'the card counts as having these too, wherever it is ("gains ≪Saiyan≫ in all areas", "is also treated as red", 20-1)',
+  },
+  replaceLeave: {
+    fields: [{ name: "to", type: "area", required: true }, { name: "by", type: { enum: ["skill", "ko", "skillOrKo"] } }, { name: "mode", type: MODE }, SELF],
+    sentence: (raw) => {
+      const op = raw as OpOf<"replaceLeave">;
+      const cause = op.by === "ko" ? "be KO'd" : op.by === "skill" ? "be removed from the Battle Area by a skill" : op.by === "skillOrKo" ? "be removed from the Battle Area by a skill or KO'd" : "leave the Battle Area";
+      return `if ${describeRef(op.target ?? { sel: { special: "self" } })} would ${cause}, it goes to the ${op.to}${op.mode === "rest" ? " in Rest Mode" : ""} instead`;
+    },
+    doc: '[Permanent] only (9-10): "if this card would be KO\'d, send it to the Warp instead". "by" is which departure it replaces: omitted = any, "skill" = removed by an effect, "ko" = the KO, "skillOrKo" = either. Omit "target" for this card',
+  },
+  altCost: {
+    fields: [{ name: "pay", type: { enum: ["none", "life", "program"] }, required: true }, { name: "n", type: "number" }, { name: "for", type: { enum: ["counter", "play"] }, default: "counter" }, { name: "ops", type: "ops" }],
+    sentence: (raw, r) => {
+      const op = raw as OpOf<"altCost">;
+      const price = op.pay === "none" ? "for no energy" : op.pay === "program" ? `by: ${describeScript(op.ops ?? [], r)}` : `by adding ${op.n ?? 1} from your life to your hand`;
+      return `${op.for === "play" ? "it may be played" : "its [Counter] may be activated"} ${price}`;
+    },
+    doc: '[Permanent] only: another way to pay for this card\'s own [Counter] (5-3) — "none", by "life" (n cards), or a "program" the card asks for instead of energy',
+  },
+  resolvingPlay: {
+    fields: [{ name: "instead", type: "area" }, { name: "position", type: POSITION }, { name: "mode", type: { enum: ["rest"] } }, { name: "negated", type: "boolean" }],
+    sentence: (raw) => {
+      const op = raw as OpOf<"resolvingPlay">;
+      return op.instead
+        ? `the card being played is not played and goes to the ${op.instead} instead`
+        : op.mode === "rest"
+          ? "the card being played is played in Rest Mode"
+          : "the card being played is played with its skills negated";
+    },
+    doc: '[Counter: Play] only (9-6). With "instead" the play is negated and the card goes there; without it the play happens and only the manner changes ("mode":"rest" or "negated":true)',
+  },
+  negateAttack: { fields: [], sentence: "negate the attack" },
+  negateCounter: { fields: [], sentence: "negate the counter being answered", doc: "negate the [Counter] this one is answering (9-7)" },
+  negateOwnSkill: { fields: [{ name: "until", type: { enum: ["turn", "battle"] } }], sentence: "this skill does not happen again", doc: '"negate this skill for the game / turn / battle" (9-1-5)' },
+  forbid: {
+    fields: [
+      { name: "what", type: { enum: FORBIDDEN_ACTIONS }, required: true },
+      UNTIL,
+      { name: "target", type: "ref" },
+      { name: "side", type: "side" },
+      { name: "filter", type: "filter" },
+      { name: "sameNameAsSelf", type: "boolean" },
+      { name: "bySkill", type: "boolean" },
+    ],
+    sentence: (raw, r) => {
+      const op = raw as OpOf<"forbid">;
+      // A rule aimed at a card reads the other way round: the card is what is
+      // played, not what plays. "You can't play …" is the player's version.
+      const who = op.target ? describeRef(op.target) : op.side === "opponent" ? "your opponent" : "you";
+      const what = op.target && op.what === "play" ? `be played${op.bySkill === true ? " by a skill" : op.bySkill === false ? " except by a skill" : ""}` : FORBIDDEN_IN_WORDS[op.what];
+      // Which cards the ban is about, when it is about cards rather than the
+      // player: "you can't play cards" said nothing about *which*.
+      const which = op.sameNameAsSelf ? "another copy of this card" : op.filter ? describeFilter(op.filter) : "";
+      // "…can't play **cards**" already names the object, so a description
+      // of *which* cards replaces that word rather than following it.
+      const verb = which ? what.replace(/\s+cards?$/, "") : what;
+      return `${who} can't ${verb}${which ? ` ${which}` : ""}${forThe(op.until, r)}`;
+    },
+    doc: `forbid an action (20-14): a "target" for a rule about particular cards, or a "side" for one about a player, narrowed by a "filter"; "sameNameAsSelf":true narrows a play rule to copies of this card. "what" is one of ${FORBIDDEN_ACTIONS.map((w) => `"${w}"`).join(" | ")}`,
+  },
+  permit: {
+    fields: [{ name: "what", type: { enum: ["attackActive"] }, required: true }, UNTIL, TARGET, { name: "filter", type: "filter" }],
+    sentence: "{target} can attack {filter:cards} in Active Mode{until}",
+    doc: 'the one rule of the game a card may lift: "this card can attack Battle Cards in Active Mode" (8-1-1). The filter says *which* active cards — leave it out only when the card does',
+  },
+  if: { fields: [{ name: "cond", type: "cond", required: true }, { name: "then", type: "ops", required: true }, { name: "else", type: "ops" }], sentence: "if {cond}: {then:nothing}{else?, otherwise {else}}" },
+  chooseMode: { fields: [{ name: "modes", type: "modes", required: true }, { name: "reason", type: "string" }], sentence: "choose one — {modes}", doc: '"Choose one— ・A ・B" (20-2): the master picks one printed option' },
+  may: {
+    fields: [{ name: "ops", type: "ops", required: true }, { name: "reason", type: "string" }, { name: "chooser", type: "side" }],
+    sentence: "{chooser:your opponent|you} may: {ops}",
+    doc: '"You may …" (20-16): wrap only the optional part; {"kind":"did","what":"may"} then reads the answer for "if you do" / "if you don\'t". "chooser":"opponent" when it is theirs to decline. A clause that is already an "up to" choice declines by choosing nothing — do not wrap those',
+  },
+  delay: {
+    fields: [{ name: "at", type: { enum: DELAY_TIMINGS }, required: true }, { name: "scope", type: { enum: DELAY_SCOPES }, default: "thisTurn" }, { name: "ops", type: "ops", required: true }, { name: "label", type: "string" }],
+    sentence: "{label:later}: {ops}",
+    doc: 'the inner operations happen later (1-7-2-1-1): "At the end of the turn, KO it" is a choose, then a delay at "turnEnd" whose ops KO {"var":"t"}. A delayed program keeps the variables bound before it',
+  },
+  note: { fields: [{ name: "text", type: "string", required: true }], sentence: "", doc: "a remark in the log; does nothing" },
+};
+
+/**
+ * A condition in the same form as an op: its fields, and the sentence it makes.
+ *
+ * The same reason `OP_SCHEMA` exists. A condition kind used to be written in
+ * three places — the `Cond` union, the interpreter in `state.ts`, and a
+ * hand-written `switch` in `describeCond` — and nothing checked its fields at
+ * all: the validator accepted any object carrying a `kind`, so
+ * `{"kind":"count"}` with no selector passed, was stored, and threw when the
+ * engine read it. Adding a kind is now one interpreter case and one row here.
+ *
+ * Most sentences turn on which bound is set ("2 or more" against "no"), so
+ * they are functions rather than templates; the fields beside them are what
+ * the validator and the workbench's editor read.
+ */
+export interface CondSpec {
+  fields: OpField[];
+  sentence: (cond: Cond) => string;
+  doc?: string;
+}
+
+type CondOf<K extends Cond["kind"]> = Extract<Cond, { kind: K }>;
+
+const SEL: OpField = { name: "sel", type: "selector", required: true };
+const AT_LEAST: OpField = { name: "atLeast", type: "number" };
+const AT_MOST: OpField = { name: "atMost", type: "number" };
+
+/** "2 or more", "no", "any" — the bound a counting condition puts on a number. */
+function bound(c: { atLeast?: number; atMost?: number }, most = "or fewer"): string {
+  if (c.atMost === 0) return "no";
+  if (c.atLeast != null) return `${c.atLeast} or more`;
+  if (c.atMost != null) return `${c.atMost} ${most}`;
+  return "any";
+}
+
+const DID_IN_WORDS: Record<CondOf<"did">["what"], string> = {
+  addToHand: "you added a card to your hand",
+  play: "you played a card",
+  negateAttack: "you negated the attack",
+  negateLeaderAttack: "you negated a Leader's attack",
+  ko: "you KO'd a card",
+  draw: "you drew a card",
+  may: "the offer was taken",
+};
+const DID_WHATS = Object.keys(DID_IN_WORDS) as readonly CondOf<"did">["what"][];
+
+export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
+  count: {
+    fields: [SEL, AT_LEAST, AT_MOST],
+    sentence: (raw) => {
+      const c = raw as CondOf<"count">;
+      // "all" is the count this borrows to name the cards; what is left says
+      // which and where. With no filter it starts at the area — "there is 2 or
+      // more in your drop" — so the noun the selector had nothing to say about
+      // is put back.
+      const what = describeSelector({ ...c.sel, count: 99 }).replace(/^all /, "");
+      return `there are ${bound(c)} ${what.startsWith("in ") ? `cards ${what}` : what}`;
+    },
+    doc: "how many cards a selector finds",
+  },
+  life: {
+    fields: [{ name: "side", type: "side", required: true }, AT_LEAST, AT_MOST],
+    sentence: (raw) => {
+      const c = raw as CondOf<"life">;
+      const whose = c.side === "opponent" ? "their" : "your";
+      if (c.atMost != null) return `${whose} life is ${c.atMost} or less`;
+      if (c.atLeast != null) return `${whose} life is ${c.atLeast} or more`;
+      return `${whose} life`;
+    },
+  },
+  lifeVsOpponent: {
+    fields: [
+      { name: "atLeast", type: "boolean" },
+      { name: "atMost", type: "boolean" },
+    ],
+    sentence: (raw) => ((raw as CondOf<"lifeVsOpponent">).atLeast ? "your life is at least theirs" : "your life is no more than theirs"),
+    doc: "the two life counts against each other",
+  },
+  leaderColor: {
+    fields: [{ name: "color", type: { enum: COLORS }, required: true }],
+    sentence: (raw) => `your leader is ${(raw as CondOf<"leaderColor">).color}`,
+  },
+  leaderMatches: {
+    fields: [
+      { name: "filter", type: "filter", required: true },
+      { name: "side", type: "side" },
+      { name: "back", type: "boolean" },
+    ],
+    sentence: (raw) => {
+      const c = raw as CondOf<"leaderMatches">;
+      const f = c.filter;
+      const bits = [...f.colors, ...f.characters.map((x) => `<${x}>`), ...f.traits.map((x) => `\u226a${x}\u226b`)];
+      return `${c.side === "opponent" ? "their" : "your"} leader${c.back ? "'s back side" : ""} is ${bits.join(" ") || f.names?.join("/") || "a match"}`;
+    },
+    doc: '"If your Leader is a <Baby> card" — colour, character name and traits alike',
+  },
+  markers: {
+    fields: [SEL, AT_LEAST, AT_MOST],
+    sentence: (raw) => {
+      const c = raw as CondOf<"markers">;
+      return `${describeSelector(c.sel)} has ${bound(c)} markers`;
+    },
+  },
+  inBattle: {
+    fields: [SEL, { name: "not", type: "boolean" }, { name: "role", type: { enum: ["attacker", "guard"] } }],
+    sentence: (raw) => {
+      const c = raw as CondOf<"inBattle">;
+      return `${describeSelector(c.sel)} is ${c.not ? "not " : ""}${c.role === "guard" ? "being attacked" : c.role === "attacker" ? "attacking" : "in a battle"}`;
+    },
+  },
+  battled: { fields: [SEL], sentence: (raw) => `${describeSelector((raw as CondOf<"battled">).sel)} has been in a battle this turn` },
+  every: {
+    fields: [SEL, { name: "matching", type: "selector", required: true }],
+    sentence: (raw) => {
+      const c = raw as CondOf<"every">;
+      return `all of ${describeSelector(c.sel)} is ${describeSelector(c.matching)}`;
+    },
+    doc: "every card the first selector finds is also one the second finds; false when there is nothing to find (0-2-4-1)",
+  },
+  any: { fields: [{ name: "conds", type: "conds", required: true }], sentence: (raw) => (raw as CondOf<"any">).conds.map(describeCond).join(", or ") },
+  all: { fields: [{ name: "conds", type: "conds", required: true }], sentence: (raw) => (raw as CondOf<"all">).conds.map(describeCond).join(" and ") },
+  leaderFlipped: {
+    fields: [
+      { name: "side", type: "side" },
+      { name: "flipped", type: "boolean" },
+    ],
+    sentence: (raw) => {
+      const c = raw as CondOf<"leaderFlipped">;
+      return `${c.side === "opponent" ? "their" : "your"} leader ${c.flipped === false ? "has not" : "has"} awakened`;
+    },
+  },
+  power: {
+    fields: [SEL, AT_LEAST, AT_MOST],
+    sentence: (raw) => {
+      const c = raw as CondOf<"power">;
+      return `${describeSelector(c.sel)} has ${bound(c, "or less")} power`;
+    },
+  },
+  did: {
+    fields: [{ name: "what", type: { enum: DID_WHATS }, required: true }],
+    sentence: (raw) => DID_IN_WORDS[(raw as CondOf<"did">).what],
+    doc: 'whether an earlier step of this same skill did that — {"what":"may"} reads the answer to a "you may"',
+  },
+  not: { fields: [{ name: "cond", type: "cond", required: true }], sentence: (raw) => `not (${describeCond((raw as CondOf<"not">).cond)})` },
+  chose: {
+    fields: [{ name: "var", type: "string", required: true }, AT_LEAST],
+    sentence: (raw) => {
+      const c = raw as CondOf<"chose">;
+      return c.atLeast && c.atLeast > 1 ? `you took all ${c.atLeast}` : "you took that choice";
+    },
+    doc: '"If you do so" (20-16): whether an earlier choice was answered, and with how many',
+  },
+  varMatches: {
+    fields: [
+      { name: "var", type: "string", required: true },
+      { name: "filter", type: "filter", required: true },
+    ],
+    sentence: (raw) => `that card is ${describeFilter((raw as CondOf<"varMatches">).filter)}`,
+  },
+  isTurnPlayer: {
+    fields: [{ name: "who", type: { enum: ["you", "opponent"] } }],
+    sentence: (raw) => ((raw as CondOf<"isTurnPlayer">).who === "opponent" ? "it is your opponent's turn" : "it is your turn"),
+    doc: 'whose turn it is (7-1) — "during your opponent\'s turn" is this, not a duration',
+  },
+};
+
+// ── validation, for programs that did not come from the compiler ───────────
+
+/**
+ * Structural check for a program supplied by the referee, the workbench or a
+ * stored row: every op is in the schema, every required field is there and
+ * every enumerated field holds one of its values. It only proves the shape is
+ * executable — the engine still enforces every rule while running it, so a
+ * bad ruling can be wrong but never illegal. Nested programs are checked to
+ * the depth a real card ever needs.
  */
 export function validateProgram(ops: unknown, depth = 0): ops is Op[] {
   if (!Array.isArray(ops) || depth > 4) return false;
   return ops.every((raw) => {
     if (!raw || typeof raw !== "object") return false;
-    const o = raw as { op?: unknown; then?: unknown; else?: unknown; ops?: unknown; at?: unknown; scope?: unknown; modes?: unknown[] };
-    if (typeof o.op !== "string" || !OP_NAMES.has(o.op as Op["op"])) return false;
-    if (o.op === "if") return validateProgram(o.then, depth + 1) && (o.else === undefined || validateProgram(o.else, depth + 1));
-    if (o.op === "chooseMode") return Array.isArray(o.modes) && o.modes.length > 0 && o.modes.every((mode) => validateProgram((mode as { ops?: unknown }).ops, depth + 1));
-    if (o.op === "may") return validateProgram(o.ops, depth + 1);
-    // A delay with a timing the engine never drains would sit in the state for
-    // the rest of the game, so the timing is checked as well as the shape.
-    if (o.op === "delay") {
-      if (!DELAY_TIMINGS.has(o.at as DelayTiming)) return false;
-      if (o.scope !== undefined && !DELAY_SCOPES.has(o.scope as DelayScope)) return false;
-      return validateProgram(o.ops, depth + 1);
-    }
-    return true;
+    const o = raw as Record<string, unknown>;
+    const spec = typeof o.op === "string" ? OP_SCHEMA[o.op as Op["op"]] : undefined;
+    if (!spec) return false;
+    return spec.fields.every((f) => {
+      const v = o[f.name];
+      if (v === undefined) return !f.required;
+      if (v === null) return !!f.nullable;
+      return fieldHolds(f.type, v, depth);
+    });
   });
+}
+
+function selectorHolds(v: unknown): boolean {
+  if (typeof v !== "object" || v === null) return false;
+  const special = (v as { special?: unknown }).special;
+  return special === undefined || (SPECIAL_TARGETS as readonly string[]).includes(special as string);
+}
+
+/**
+ * A condition's shape, from `COND_SCHEMA`. Until this existed the validator
+ * asked only for a `kind`, so a condition missing the selector it counts was
+ * stored happily and threw when a game read it.
+ */
+function condShapeHolds(v: unknown, depth: number): boolean {
+  if (typeof v !== "object" || v === null || depth > 4) return false;
+  const c = v as Record<string, unknown>;
+  const spec = typeof c.kind === "string" ? COND_SCHEMA[c.kind as Cond["kind"]] : undefined;
+  if (!spec) return false;
+  return spec.fields.every((f) => {
+    const x = c[f.name];
+    if (x === undefined) return !f.required;
+    if (x === null) return !!f.nullable;
+    return fieldHolds(f.type, x, depth);
+  });
+}
+
+function fieldHolds(type: FieldType, v: unknown, depth: number): boolean {
+  if (typeof type === "object") {
+    if ("enum" in type) return typeof v === "string" && type.enum.includes(v);
+    return Array.isArray(v) && v.every((x) => (type.list === "string" ? typeof x === "string" : typeof x === "string" && type.list.enum.includes(x)));
+  }
+  switch (type) {
+    case "amount":
+      return typeof v === "number" || (typeof v === "object" && v !== null);
+    // A ref is a bound name or a selector — a bare selector written where a
+    // ref belongs ({"special":"self"} for {"sel":{"special":"self"}}) is the
+    // mistake Claude makes most, and read as a ref it threw while being
+    // described. Refused here, it comes back as "not a valid program".
+    case "ref":
+      return typeof v === "object" && v !== null && (typeof (v as { var?: unknown }).var === "string" || selectorHolds((v as { sel?: unknown }).sel));
+    case "selector":
+      return selectorHolds(v);
+    case "cond":
+      return condShapeHolds(v, depth);
+    case "conds":
+      return Array.isArray(v) && v.length > 0 && v.every((c) => condShapeHolds(c, depth + 1));
+    case "filter":
+      return typeof v === "object" && v !== null;
+    case "keyword":
+      return typeof v === "object" && v !== null && typeof (v as { name?: unknown }).name === "string";
+    case "side":
+      return typeof v === "string" && (SIDES as readonly string[]).includes(v);
+    case "area":
+      return typeof v === "string" && (AREAS as readonly string[]).includes(v);
+    case "duration":
+      return typeof v === "string" && (DURATIONS as readonly string[]).includes(v);
+    case "ops":
+      return validateProgram(v, depth + 1);
+    case "modes":
+      return Array.isArray(v) && v.length > 0 && v.every((m) => !!m && typeof m === "object" && validateProgram((m as { ops?: unknown }).ops, depth + 1));
+    case "string":
+      return typeof v === "string";
+    case "number":
+      return typeof v === "number" && Number.isFinite(v);
+    case "boolean":
+      return typeof v === "boolean";
+  }
+}
+
+// ── plain-English rendering, for the inspector, the workbench and the log ───
+
+/**
+ * What a filter says, in words. `describeSelector` used to be handed a bare
+ * filter for this and printed "undefined in your undefined" — the count and
+ * the area it wants are not part of a filter.
+ */
+export function describeFilter(f: CardFilter): string {
+  const bits: string[] = [];
+  if (f.monoColor) bits.push("mono-colour");
+  if (f.multiColor) bits.push("multicolour");
+  bits.push(...f.colors.map((c) => c.toLowerCase()));
+  bits.push(...f.traits.map((x) => `≪${x}≫`));
+  bits.push(...f.characters.map((x) => `<${x}>`));
+  bits.push(...f.names.map((x) => `{${x}}`));
+  if (f.token) bits.push("token");
+  if (f.z) bits.push("Z-card");
+  if (f.type) bits.push(`${f.type.toLowerCase()} card`);
+  else if (f.notType) bits.push(`non-${f.notType.toLowerCase()} card`);
+  else if (!bits.length) bits.push("card");
+  if (f.faceUp) bits.push("that is face up");
+  if (f.costMin != null && f.costMin === f.costMax) bits.push(`with an energy cost of ${f.costMin}`);
+  else if (f.costMax != null) bits.push(`with an energy cost of ${f.costMax} or less`);
+  else if (f.costMin != null) bits.push(`with an energy cost of ${f.costMin} or more`);
+  if (f.powerMax != null) bits.push(`with ${f.powerMax} power or less`);
+  else if (f.powerMin != null) bits.push(`with ${f.powerMin} power or more`);
+  return bits.join(" ");
+}
+
+/**
+ * The filter's words, unless they only repeat what the area already says: a
+ * selector over the Battle Area whose filter is "battle card" would read "1
+ * battle card in your battle".
+ */
+function selectorWords(sel: Selector): string {
+  if (!sel.filter) return "";
+  const words = describeFilter(sel.filter);
+  const areas = (sel.areas?.length ? sel.areas : [sel.area]).filter(Boolean).map((a) => `${String(a).toLowerCase()} card`);
+  return words === "card" || areas.includes(words) ? "" : words;
+}
+
+/**
+ * Which cards, in words. The filter is part of the answer: without it the
+ * worklist read "choose up to 1 in your warp" for a skill that can only take
+ * a blue ≪Another World Budokai≫ card, which is exactly the detail that tells
+ * two cards phrased alike apart.
+ */
+function describeSelector(sel: Selector): string {
+  if (sel.special)
+    return {
+      self: "this card",
+      attacker: "the attacking card",
+      guard: "the guard card",
+      subject: "that card",
+      leader: "your leader",
+      opponentLeader: "the opposing leader",
+      resolving: "the card being played",
+    }[sel.special];
+  const who = sel.side === "opponent" ? "opponent's " : sel.side === "both" ? "each player's " : "your ";
+  const count = sel.count === 99 ? "all" : sel.upTo ? `up to ${sel.count}` : `${sel.count}`;
+  const words = selectorWords(sel);
+  const where = sel.fromVar ? "of the cards looked at" : `in ${who}${sel.areas?.length ? sel.areas.join(" or ") : sel.area}`;
+  const mode = sel.mode ? ` in ${sel.mode} mode` : "";
+  return `${count} ${words ? `${words} ` : ""}${where}${mode}`;
+}
+
+function describeRef(ref: Ref): string {
+  return "var" in ref ? "the chosen cards" : describeSelector(ref.sel);
+}
+
+/**
+ * A number in words. With a `noun` ("power") it is the signed change cards
+ * print — "+5000 power", "+5000 power for each of your Battle Cards" — so the
+ * noun sits next to the number rather than at the end of the sentence.
+ */
+function describeAmount(a: Amount, noun?: string): string {
+  if (noun) {
+    if (typeof a === "number") return `${a >= 0 ? "+" : ""}${a} ${noun}`;
+    if ("count" in a) return `+${a.times ?? 1} ${noun} for each of ${describeEach(a.count)}`;
+    return `+that many ${noun}`;
+  }
+  if (typeof a === "number") return `${a}`;
+  if ("var" in a) return "that many";
+  if ("sumPower" in a) return "the total power of the cards rested";
+  if ("handUpTo" in a) return `up to ${a.handUpTo} in hand`;
+  return `${a.times ?? 1} for each of ${describeEach(a.count)}`;
+}
+
+/** The area as a person would name it, for "for each of your Battle Cards". */
+const AREA_NOUNS: Partial<Record<ScriptArea, string>> = {
+  play: "cards in play",
+  battle: "Battle Cards",
+  unison: "Unison Cards",
+  leader: "Leader",
+  drop: "cards in the Drop",
+  hand: "cards in hand",
+  deck: "cards in the deck",
+  life: "life cards",
+  energy: "energy",
+  warp: "cards in the Warp",
+  combo: "combo cards",
+  zDeck: "Z-Deck cards",
+  zEnergy: "Z-Energy",
+  removed: "removed cards",
+  under: "cards underneath",
+};
+
+function describeEach(sel: Selector): string {
+  if (sel.special) return describeSelector(sel);
+  const who = sel.side === "opponent" ? "their " : sel.side === "both" ? "" : "your ";
+  const mode = sel.mode ? ` in ${sel.mode} mode` : "";
+  const nouns = (sel.areas?.length ? sel.areas : [sel.area ?? "play"]).map((a) => AREA_NOUNS[a] ?? "cards");
+  return `${who}${nouns.join(" or ")}${mode}`;
+}
+
+/**
+ * A condition in plain words. The workbench shows this back before you keep a
+ * reading, and "if a condition holds" would tell you nothing about whether the
+ * engine understood the condition you meant.
+ */
+export function describeCond(c: Cond): string {
+  return COND_SCHEMA[c.kind].sentence(c);
+}
+
+/** A duration as the inspector says it. A [Permanent] holds while its card is where the skill is valid (9-5-1), so it gets no clause at all. */
+const DURATION_IN_WORDS: Record<Duration, string> = {
+  turn: " for the turn",
+  battle: " for the battle",
+  nextTurn: " until the end of your opponent's turn",
+  opponentTurn: " until the start of your opponent's next turn",
+  afterNextCharge: " through your next Charge Phase",
+  game: " for the rest of the game",
+};
+const forThe = (until: Duration | undefined, r: RenderOptions) => (r.permanent || !until ? "" : DURATION_IN_WORDS[until]);
+
+/** Whether a field counts as given, for `{field? …}`: unset, false and an empty list are not. */
+function given(v: unknown): boolean {
+  return v !== undefined && v !== null && v !== false && !(Array.isArray(v) && v.length === 0);
+}
+
+/** One field in words, by its type; `hint` is what the template wrote after the colon. */
+function describeField(f: OpField, v: unknown, hint: string | undefined, r: RenderOptions): string {
+  const t = f.type;
+  const two = (flag: boolean) => (hint ? (hint.split("|")[flag ? 0 : 1] ?? "") : String(flag));
+  if (typeof t === "object") {
+    if ("enum" in t) {
+      // "auto=Auto|counter=Counter" maps the values; "A|B" is for a two-valued enum.
+      if (hint?.includes("=")) return hint.split("|").map((kv) => kv.split("=")).find(([k]) => k === v)?.[1] ?? String(v);
+      return v === undefined ? (hint ?? "") : t.enum.length === 2 && hint ? two(v === t.enum[0]) : String(v);
+    }
+    return Array.isArray(v) ? v.join(", ") : (hint ?? "");
+  }
+  switch (t) {
+    case "amount":
+      return describeAmount(v as Amount, hint);
+    case "ref":
+      return describeRef(v as Ref);
+    case "selector":
+      return describeSelector(v as Selector);
+    case "side":
+      return hint ? two(v === "opponent") : String(v ?? f.default ?? "you");
+    case "area":
+      return String(v);
+    case "duration":
+      return forThe(v as Duration | undefined, r);
+    case "cond":
+      return describeCond(v as Cond);
+    case "conds":
+      return ((v as Cond[] | undefined) ?? []).map(describeCond).join(" and ");
+    case "ops": {
+      const inner = describeScript((v as Op[] | undefined) ?? [], r);
+      return inner || (hint ?? "");
+    }
+    case "keyword":
+      return (v as KeywordSkill).name;
+    case "filter":
+      return v ? describeFilter(v as CardFilter) : (hint ?? "");
+    case "modes":
+      return ((v as { ops: Op[] }[]) ?? []).map((m) => describeScript(m.ops, r)).join(" / ");
+    case "string":
+      return typeof v === "string" && v ? v : (hint ?? "");
+    case "number":
+      return String(v);
+    case "boolean":
+      return hint ? two(Boolean(v ?? f.default)) : String(v);
+  }
+}
+
+/** `costs {amount:less|more}`: 20-21 goes both ways, and "costs -2 less" is not English. */
+function describeCostChange(a: Amount): string {
+  if (typeof a === "number" && a < 0) return `${-a} more`;
+  return `${describeAmount(a)} less`;
+}
+
+/**
+ * Fill a sentence template from an op. `{f}` and `{f:hint}` render the field;
+ * `{f? …}` renders its text, with the same substitutions inside, only when the
+ * field is given.
+ */
+function renderTemplate(template: string, op: Record<string, unknown>, fields: OpField[], r: RenderOptions): string {
+  const byName = new Map(fields.map((f) => [f.name, f]));
+  const one = (name: string, hint?: string): string => {
+    const f = byName.get(name);
+    if (!f) return "";
+    const v = op[name] ?? f.default;
+    if (f.name === "amount" && hint === "less|more") return describeCostChange(v as Amount);
+    if (v === undefined && !hint) return "";
+    return describeField(f, v, hint, r);
+  };
+  return template
+    .replace(/\{(\w+)\?([^{}]*(?:\{\w+(?::[^{}]*)?\}[^{}]*)*)\}/g, (_, name: string, text: string) => (given(op[name]) ? text.replace(/\{(\w+)(?::([^{}]*))?\}/g, (__, n2: string, h2?: string) => one(n2, h2)) : ""))
+    .replace(/\{(\w+)(?::([^{}]*))?\}/g, (_, name: string, hint?: string) => one(name, hint));
+}
+
+/**
+ * A program in words, one clause per op. `permanent` drops every duration:
+ * the compiler stamps `game` on a [Permanent]'s ops (the skill never resolves,
+ * so no length of time is the right one), and "for the rest of the game" on
+ * a card that simply holds while in play would say something it does not
+ * mean.
+ */
+export function describeScript(ops: Op[], o: RenderOptions = {}): string {
+  const parts: string[] = [];
+  for (const op of ops) {
+    const spec = OP_SCHEMA[op.op];
+    if (!spec) continue;
+    const text = typeof spec.sentence === "function" ? spec.sentence(op, o) : renderTemplate(spec.sentence, op as unknown as Record<string, unknown>, spec.fields, o);
+    if (text) parts.push(text);
+  }
+  return parts.join(", ");
+}
+
+/**
+ * The op's shape as the referee is shown it: `{"op":"draw","n":AMOUNT,"side"?:SIDE}`.
+ * Optional fields carry a `?`; the placeholders are defined once under the list.
+ */
+export function opSignature(name: Op["op"]): string {
+  const shape = (t: FieldType): string => {
+    if (typeof t === "object") {
+      if ("enum" in t) return t.enum.length > 6 ? `${t.enum.slice(0, 3).map((e) => `"${e}"`).join("|")}|…` : t.enum.map((e) => `"${e}"`).join("|");
+      return t.list === "string" ? '["…"]' : `[${t.list.enum.map((e) => `"${e}"`).join("|")}]`;
+    }
+    return { amount: "AMOUNT", ref: "TARGET", selector: "SELECTOR", side: '"you"|"opponent"', area: "AREA", duration: "DURATION", cond: "COND", conds: "[COND]", ops: "[…]", string: '"…"', number: "N", boolean: "true|false", keyword: '{"name":"Blocker"}', filter: "FILTER", modes: '[{"label":"…","ops":[…]}]' }[t];
+  };
+  const fields = OP_SCHEMA[name].fields.map((f) => `"${f.name}"${f.required ? "" : "?"}:${shape(f.type)}`);
+  return `{"op":"${name}"${fields.length ? "," : ""}${fields.join(",")}}`;
+}
+
+/** The same, for a condition: `{"kind":"count","sel":SELECTOR,"atLeast"?:N}`. */
+export function condSignature(kind: Cond["kind"]): string {
+  const shape = (t: FieldType): string => {
+    if (typeof t === "object") return "enum" in t ? (t.enum.length > 4 ? `${t.enum.slice(0, 3).map((e) => `"${e}"`).join("|")}|…` : t.enum.map((e) => `"${e}"`).join("|")) : "[…]";
+    return { selector: "SELECTOR", side: '"you"|"opponent"', cond: "COND", conds: "[COND]", filter: "FILTER", string: '"…"', number: "N", boolean: "true|false", amount: "AMOUNT", ref: "TARGET", area: "AREA", duration: "DURATION", ops: "[…]", keyword: '{"name":"Blocker"}', modes: "[…]" }[t];
+  };
+  const fields = COND_SCHEMA[kind].fields.map((f) => `"${f.name}"${f.required ? "" : "?"}:${shape(f.type)}`);
+  return `{"kind":"${kind}"${fields.length ? "," : ""}${fields.join(",")}}`;
 }

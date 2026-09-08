@@ -141,8 +141,9 @@ const titleCase = (s: string) => s.replace(/\b[a-z]/g, (ch) => ch.toUpperCase())
 /** Grammar that can sit between the number and a token's name, never part of it. */
 const TOKEN_STOP = new Set(["of", "your", "their", "the", "opponent's", "opponents", "up", "to", "and", "or", "all", "each", "other", "another"]);
 
-export function parseFilter(text: string): CardFilter {
-  const f: CardFilter = {
+/** A filter that says nothing: every measure at rest. What a program's filter is filled up from before it is read. */
+export function emptyFilter(): CardFilter {
+  return {
     colors: [],
     notColors: [],
     monoColor: false,
@@ -173,7 +174,11 @@ export function parseFilter(text: string): CardFilter {
     powerMax: null,
     powerRel: null,
     z: null,
-  };
+  };;
+}
+
+export function parseFilter(text: string): CardFilter {
+  const f = emptyFilter();
   let t = text.replace(/&lt;/g, "<").replace(/&gt;/g, ">");
   // "Choose up to 1 Battle Card **other than** <Grand Supreme Kai>" (SD15-01,
   // in the owner's own decks) says which card is *excluded*. Read by the loops
@@ -392,7 +397,11 @@ export function powerRelOk(f: CardFilter, power: number, own: number): boolean {
   }
 }
 
-export function matches(d: CardDef, f: CardFilter): boolean {
+export function matches(d: CardDef, given: CardFilter): boolean {
+  // The compiler writes every field; a program a person or Claude wrote — a
+  // `card_rules` row, a referee ruling — carries only the fields it means, and
+  // read as written it crashed the engine on the first `.some`. Fill it up.
+  const f: CardFilter = { ...emptyFilter(), ...given };
   if (f.z != null && d.type.startsWith("Z-") !== f.z) return false;
   if (f.token && d.type !== "TOKEN") return false;
   if (f.notToken && d.type === "TOKEN") return false;
@@ -414,7 +423,7 @@ export function matches(d: CardDef, f: CardFilter): boolean {
   if (f.multiColor && d.colors.length < 2) return false;
   // A name asked for whole and a name asked for in part are two ways to
   // satisfy one choice, so each pair shares a single test rather than becoming
-  // two requirements. `?? []` because a program stored in `card_scripts`, or
+  // two requirements. `?? []` because a program stored in `card_rules`, or
   // one a referee ruling put in a game's action log, carries the filter shape
   // of the day it was written.
   const partChars = f.charactersIncluding ?? [];

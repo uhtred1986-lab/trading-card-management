@@ -4,7 +4,7 @@
  * (which imports the interpreter).
  */
 import { effectHead, trailingTrigger } from "./cards";
-import { areaOf, cardsInPlay, def, forbids, move, skillNegated, skillsNegated, skillsOfInstance, type GameContext } from "./state";
+import { areaOf, cardsInPlay, forbids, move, skillNegated, skillsNegated, skillsOfInstance, type GameContext } from "./state";
 import type { GameEvent, GameState, PlayerId, Skill, Trigger } from "./types";
 import { PLAYERS } from "./types";
 
@@ -313,9 +313,4 @@ export function koCard(ctx: GameContext, s: GameState, ev: GameEvent[], card: st
   // whether by battle or by its own skill.
   if (by && by !== card && s.cards[by] && p !== masterOf(s, by)) pendTriggers(ctx, s, "kos", by);
   move(ctx, s, ev, card, "drop", p, { reason: "ko" });
-}
-
-/** Whether a card is a Battle Card in a Battle Area (20-1-2). */
-export function isBattleCardInPlay(ctx: GameContext, s: GameState, id: string): boolean {
-  return areaOf(s, id) === "battle" && !s.cards[id].hidden && def(ctx, s, id).type !== "Z-EXTRA";
 }

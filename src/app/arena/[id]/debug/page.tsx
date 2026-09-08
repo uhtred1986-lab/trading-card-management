@@ -52,8 +52,8 @@ export default async function ArenaDebugPage({ params }: { params: Promise<{ id:
         <h1 className="text-lg font-semibold tracking-tight text-space-50">
           How Claude played · {game.p1Name} vs {game.p2Name}
         </h1>
-        <Link href="/arena/backlog" className="ml-auto text-xs text-ki-300 hover:underline">
-          card-text backlog →
+        <Link href="/arena/rules/patterns?half=open" className="ml-auto text-xs text-ki-300 hover:underline">
+          card-text patterns →
         </Link>
       </div>
 

@@ -46,7 +46,14 @@ npm run contract:emit  # rewrite contract/fixtures/*.json after a deliberate Sna
 npm run android:test   # Kotlin round-trip of those fixtures, in Docker — no JDK on the machine
 npm run db:generate    # Generate a migration after editing src/db/schema.ts
 npm run db:migrate     # Apply migrations (also run on every Vercel deploy via vercel.json)
-npm run sync:catalog   # Import both games' catalogs from deckplanet + Fusion World art from Bandai (~50 s)
+npm run sync:catalog   # Import both games' catalogs from deckplanet + Fusion World art from Bandai (~50 s),
+                       # then draft arena rules for every new or changed card and ask Claude about the
+                       # skills the compiler could not read (--no-review, --budget N)
+npm run arena:draft    # Compile the catalog offline into card_rules drafts (--card, --set, --only-open, --review)
+npm run arena:probe    # Try stored rules on a board built for each (--card, --set, --all, --limit, --fill)
+npm run arena:reprobe  # Re-run every probe a rule carries and list the ones whose answer moved (--write)
+npm run db:check       # Can this machine reach the database, and over which driver?
+npm run db:migrate:http # db:migrate for a sandbox that allows HTTPS only (see DB_DRIVER below)
 npm run sync:prices    # Import TCGplayer products + today's prices from tcgcsv (both categories),
                        # the USD→EUR rate, and TCGplayer art for prints still without any (~35 s)
 ```
@@ -204,6 +211,11 @@ the same style.
   predicate, never an edit to one), `taps.whyByCard`, `view.you.choices` for a search of a
   hidden zone, `prompt.min/max/step/cost`, `owner` on the `skill` beat — and on the web board the
   card action sheet, the refusal line, the search sheet, the step chip and the narration ribbon.
+  **One rejection per card per action type — except an activation, which is one per skill line**
+  (§3.2, amended 8 Sep 2026): a card prints up to nine of them and one being on the menu says
+  nothing about the others. The two places that promise is asserted are
+  `scripts/verify/harness.ts` and `scripts/arena-playthrough.mts`; they must say the same thing.
+  `docs/arena-refusals-spec.md` is the brief that measured it, and holds what is still unworded.
   `src/lib/arena/wording.ts` is the only place a `Requirement` becomes a sentence,
   `src/lib/arena/narration.ts` the only place a beat does, and `src/lib/arena/effects.ts` the only
   place a rule in force (a continuous effect or a [Permanent]'s static) becomes a label and a
@@ -266,23 +278,71 @@ the same style.
   a card's text defeats the compiler. `run.ts` drives Claude's side and totals what it spent onto
   the game row. Caching note: the cached prefix is ~3,200 tokens, over Opus 5's 512-token minimum
   but under Haiku 4.5's 4,096, so Tournament games cache and Sparring games do not.
-- **Arena debug and backlog** (`src/lib/arena/ai/debug.ts`): every decision the server takes is
+- **Arena debug** (`src/lib/arena/ai/debug.ts`): every decision the server takes is
   written to `arena_decisions` — the prompt kind, the whole menu offered, what was chosen, whether a
   rule or Claude decided it, the model, tokens, cost and latency, plus the exact prompt text when
-  the game has `debug` on. `/arena/[id]/debug` reads it back. Clauses the compiler cannot read go
-  to `card_text_notes`, grouped by clause shape at `/arena/backlog`: the referee bumps a row when
-  the text actually comes up and stores the program Claude produced as a worked example, and
-  "scan my decks again" fills it from the decks you play. That page is the to-do list for
-  `compile.ts` — one rule usually clears a whole group.
-- **Explaining a card** (`src/lib/arena/ai/clarify.ts`, `/arena/backlog`): you say what a card does in
-  plain words; Claude returns a program in the effect language, saved to `card_scripts`, and a
-  markdown work item for teaching `compile.ts` the *wording*. `src/lib/arena/scripts.ts` lays stored
-  programs over the compiler's own reading through `ctx.scripts`, so an explained card plays
-  correctly from the next game — no referee call, no tokens — while the work item is what fixes
-  every card phrased the same way. The two are not the same fix and the page says so.
-  **A ruling that arrives in conversation goes to the same table, not into a commit message**:
+  the game has `debug` on. `/arena/[id]/debug` reads it back. What the compiler cannot read is
+  **not** a second list: it is `card_rules.unread` on the rule itself, grouped at
+  `/arena/rules/patterns` (`card_text_notes` was folded in and dropped, migration 0030). The
+  referee bumps `times_seen` on the rule when the text actually comes up, and the program it
+  produced is that rule's Claude draft, so the worked example is the record.
+- **Rules are records** (`docs/arena-rules-workbench-spec.md`, phases 1-3 built 8 Sep 2026): the
+  engine plays from `card_rules` — one row per skill per card face with the program, trigger,
+  cost, hoisted condition, provenance (`compiler | claude | user`), state (`open | draft |
+  confirmed | corrected`), unread clauses, plain reading and version — and **never compiles
+  card text at game time**. That last claim became true of the *price* too on 8 Sep 2026: the
+  cost before the colon is read off `card_rules.cost` (carried on `Script.price`, filled by
+  `rulesFor` from the row and by `compileCard` from the text), so a skill with no record has an
+  **unknown** price rather than a free one. `src/lib/arena/rules-store.ts` is the only module that touches the
+  table; `src/lib/arena/draft.ts` is the only one that calls the compiler in production
+  (`draftCards`, and `reviewOpenRules`, which asks Claude about what the compiler left open,
+  within the `arena.reviewBudget` setting). A row a person confirmed or corrected is never
+  rewritten by a script: the compiler's newer reading lands beside it as `compiler_diff`. The
+  effect language is defined once, in `OP_SCHEMA` and `COND_SCHEMA` (`engine/script.ts`): the
+  validator, the plain reading, the referee's prompt and the workbench's chip editor read them, so
+  a new operation or condition kind is one interpreter case and one row. The workbench has three
+  worklists over the same records: `/arena/rules` the cards in the decks the arena can play,
+  `/arena/rules/all` the whole catalog (filtered by set, source, mechanism, pattern or text, 200
+  rows a page), `/arena/rules/patterns` the same rules grouped by the wording that produced them.
+  The record is WHEN / COST / IF / DO as chips — reorderable, nested programs, modal options and
+  conditions included — with a JSON view of the same program, Confirm / Correct by hand / Explain
+  to Claude / does nothing, and history. **Confirm all drafts in view** confirms exactly what the
+  *filter* matches (not the rows on screen); the rows it moved are kept on the `arena_feedback`
+  row as `{id, version}` pairs so **Undo** puts back exactly those and leaves anything edited since
+  alone. `npm run arena:draft` fills the table; the catalog sync drafts every new or changed card.
+  A rule with no steps and a `keyword:` pattern is not blank — the keyword is the rule the engine
+  plays, and the record says which, from `glossary.ts`.
+- **The probe** (`src/lib/arena/probe.ts`, the record's right-hand pane, phase 3 of the same
+  brief): a record says what the engine *will* play, a probe says what it *does*.
+  `probe(rule, scenario)` builds a game with `createGame` and two minimal decks, stages the one
+  board that rule's moment needs, plays the move under test, answers every prompt by a fixed
+  policy, and reports **Input / Applied rule / Result / Assumptions** with a digest over the
+  conclusion. Pure — no database, no network, and **no compiler**: the cards it stages around the
+  rule carry hand-written programs, so `draft.ts` stays the only module that compiles text. It
+  invents no wording either: the log is `toBeats` → `narrate`, a refusal is `wording.sentence`, a
+  question is `view.ts`'s own `questionFor`, and an *assumption* is only ever a `note` in the
+  program, a note the engine logged, a clause the compiler could not read, or the glossary's
+  `engine` line for a keyword it plays only partly. Ten families (`familyOf`) cover the catalog's
+  shapes with two or three edge boards each — no legal target, skills negated, the opponent's
+  turn, the card in hand; the rules whose moment the engine does not know get `none`, whose
+  honest answer is that sentence. **The board is built in the card's favour and says so**: the
+  Leader shares the card's colours, characters and traits, a keyword gets a body its own
+  description matches, and each of those is a line in Input. A [Permanent] and a keyword are
+  *read* rather than resolved — power with and without the rule, the keywords in force, and
+  whether the opponent's KO skill was offered the card at all. Confirming a rule keeps its probe
+  on the row (`card_rules.probe`), so `npm run arena:reprobe` after an engine change lists the
+  rules whose answer moved: the regression suite the rules never had. `npm run arena:probe --all`
+  sweeps the catalog in ~70 s.
+- **Explaining a card** (`src/lib/arena/ai/clarify.ts`, from any record on the workbench): you say
+  what a card does in plain words; Claude returns a program in the effect language, saved as the
+  card's **draft** rule (`source: claude`, for you to confirm), and a markdown work item for
+  teaching `compile.ts` the *wording*, kept as `card_rules.brief` and shown on the record and on
+  its Patterns group. The referee's mid-game rulings land the same way, so nothing Claude decides
+  is invisible. The program fixes one card; the work item is what fixes every card phrased the
+  same way. The two are not the same fix and the page says so.
+  **A ruling that arrives in conversation goes to the same row, not into a commit message**:
   `npm run arena:rule -- <cardId> [--skill N] [--clause "…"] "<the ruling>"` writes it to
-  `card_text_notes.explanation` (`--list` reads them all back). Unlike the page's box it asks
+  `card_rules.explanation` (`--list` reads them all back). Unlike the page's box it asks
   Claude for nothing — it records what the owner said, and the code change is then made
   deliberately against every card sharing the wording. Owner's instruction, 7 Sep 2026: when a
   ruling is given in chat, store it there first, then wait to be asked for the code change.
@@ -294,6 +354,12 @@ the same style.
 `.env.local` (gitignored) holds `DATABASE_URL` (Neon, pooled), `ANTHROPIC_API_KEY`,
 `CARDTRADER_API_TOKEN`, `CARDTRADER_ENABLED`. `CRON_SECRET` and `XIMILAR_API_KEY` are optional.
 The same variables must exist in Vercel's project settings for the deployment. See `.env.example`.
+`APP_ANTHROPIC_API_KEY` is the same Anthropic key under a second name, read when the first is absent:
+Claude Code on the web reserves `ANTHROPIC_API_KEY` for its own session and refuses to store it.
+`DB_DRIVER=neon-http` sends queries to Neon over HTTPS instead of Postgres TCP — for sandboxes
+(Claude Code on the web is one) that let 443 out and nothing on 5432; the HTTP driver has no
+interactive transactions, so it is for the scripts, not the app server. The `arena:*` scripts
+tolerate a missing `.env.local`, so an environment that provides the variables itself needs none.
 
 The Neon database is in **`eu-central-1`** (AWS Frankfurt), so `vercel.json` pins functions to
 **`fra1`**, the Vercel region co-located with it. That pin used to live only in the Vercel dashboard,

@@ -1,0 +1,1 @@
+ALTER TABLE "card_rules" ADD COLUMN "probe" jsonb;

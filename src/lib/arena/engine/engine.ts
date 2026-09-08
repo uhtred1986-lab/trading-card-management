@@ -9,9 +9,14 @@
  * state storable mid-prompt and replayable from the action log.
  */
 import { baseType, canCombo, isZ, keywordOf, skillsOf, specifiedCostOf } from "./cards";
-import { compileCard, compileCostProgram, costIsOnlyOrbs, costText, parseConditionClause, priceCondition, type CardScripts } from "./compile";
+// Not the compiler's programs: `costIsOnlyOrbs` and `costText` are spelling
+// tests over the printed price and `parseConditionClause` reads a keyword's
+// own reminder. Nothing here builds a program — since 8 Sep 2026 the price
+// before the colon comes off the record (`priceFor`), which was the last place
+// a game compiled card text.
+import { costIsOnlyOrbs, costText, parseConditionClause } from "./compile";
 import { matches, parseCondition, parseFilter } from "./filters";
-import { stepScript, validateProgram, type Op, type ScriptFrame } from "./script";
+import { stepScript, validateProgram, type CardScripts, type Cond, type Op, type ScriptFrame } from "./script";
 import { koCard, pendTriggers } from "./triggers";
 import { nextRandom, shuffle } from "./rng";
 import {
@@ -59,7 +64,9 @@ import {
   invokerEnergy,
   liftFromPile,
   skillNegated,
+  skillsNegated,
   whyNotPay,
+  programsOf,
 } from "./state";
 import type {
   Action,
@@ -84,8 +91,6 @@ import type {
 import { other, PLAYERS } from "./types";
 
 export interface EngineContext extends GameContext {
-  /** Compiled effect programs, by catalog card id. Built once by `scriptsFor()`. */
-  scripts?: Record<string, CardScripts>;
   /**
    * When set, a skill whose text did not compile stops the game and asks the
    * referee (Claude) for a program in the effect language. Without it — tests,
@@ -860,7 +865,16 @@ function runSkill(
       request: { card, cardId: d.id, cardName: face(ctx, s, card).name, skillIndex: sk.index, text: sk.raw, unsupported: unread, master, trigger },
     });
   }
-  note(ev, `${d.id} skill ${sk.index} was not applied — the compiler could not read "${sk.effect.slice(0, 70)}"`);
+  // The two ways a skill has no program: no row was ever drafted for it, or
+  // the row is open because a clause did not read. Both play as blank, and
+  // the log says which, so a silent nothing is never mistaken for a rule.
+  const row = scriptsOf(ctx, s, card).bySkill[sk.index];
+  note(
+    ev,
+    row
+      ? `${d.id} [skill ${sk.index}]: no rule confirmed — the compiler could not read "${row.unsupported[0]?.slice(0, 70) ?? sk.effect.slice(0, 70)}"`
+      : `${d.id} [skill ${sk.index}]: no rule stored — played as blank`,
+  );
   return "done";
 }
 
@@ -877,21 +891,11 @@ function orbTotals(sk: Skill): { total: number; specified: Partial<Record<Color,
   return { total: total + sk.energyEither.length, specified, either: sk.energyEither };
 }
 
-/** Compiled programs for the face-up side of a card, memoised per definition. */
-const scriptCache = new WeakMap<CardDef, { front: CardScripts; back: CardScripts }>();
-
+/** The rules for the face-up side of a card, as the game was given them. */
 function scriptsOf(ctx: EngineContext, s: GameState, card: string): CardScripts {
   const d = def(ctx, s, card);
   const inst = s.cards[card];
-  const side = inst.flipped && d.back ? "back" : "front";
-  const stored = ctx.scripts?.[side === "back" ? `${d.id}#back` : d.id];
-  if (stored) return stored;
-  let entry = scriptCache.get(d);
-  if (!entry) {
-    entry = { front: compileCard(d, "front"), back: compileCard(d, "back") };
-    scriptCache.set(d, entry);
-  }
-  return side === "back" ? entry.back : entry.front;
+  return programsOf(ctx, d, inst.flipped && d.back ? "back" : "front");
 }
 
 /** The program for one skill, or null when a clause of it could not be read. */
@@ -908,14 +912,36 @@ function scriptFor(ctx: EngineContext, s: GameState, card: string, skillIndex: n
  * because resolving the effect without its cost would be worse than not
  * resolving it at all.
  */
-function costIsReadable(sk: Skill): boolean {
+function costIsReadable(ctx: EngineContext, s: GameState, card: string, sk: Skill): boolean {
   if (costIsOnlyOrbs(sk.cost)) return true;
   // The orbs and any reminder text come off first — a card that costs both
   // orbs and a condition never *starts* with the condition, and testing the
   // raw text meant 1,626 skills whose effects compile were never offered.
   // A dozen cards state the condition bare, with no "if" in front of it, which
-  // `priceCondition` reads once the price has failed to be an action.
-  return priceCondition(sk) !== null || compileCostProgram(sk) !== null;
+  // the drafter's `priceCondition` read once the price had failed to be an
+  // action. Both halves come off the record now; the reading itself is
+  // unchanged, only where it happens.
+  const p = priceFor(ctx, s, card, sk);
+  return p.condition !== null || p.ops !== null;
+}
+
+/**
+ * The price the engine charges for a skill, **read from the record, never
+ * compiled here** (CLAUDE.md, "Rules are records"). `card_rules.cost` has
+ * carried both halves since phase 2; until 8 Sep 2026 the engine rebuilt them
+ * from the card's text on every activation and every menu enumeration, which
+ * was the last place a game compiled card text.
+ *
+ * A skill with no record has an **unknown** price, not a free one: `known` is
+ * false, and every caller treats that as unreadable. That is the honest answer
+ * for a card `arena:draft` has never seen, and it is the one behavioural
+ * change of the move — a context built from card text (`rulesFromCompiler`,
+ * which `npm test` and the probe use) carries the price with the program, so
+ * it is only ever an undrafted card in a real game.
+ */
+function priceFor(ctx: EngineContext, s: GameState, card: string, sk: Skill): { condition: Cond | null; ops: Op[] | null; known: boolean } {
+  const price = scriptsOf(ctx, s, card).bySkill[sk.index]?.price;
+  return { condition: price?.condition ?? null, ops: price?.ops ?? null, known: price !== undefined };
 }
 
 /** "2 Green energy and 1 marker" — what an optional cost asks for. */
@@ -930,7 +956,7 @@ function describeCost(sk: Skill): string {
 
 /** Whether the engine can carry out this skill on its own (or will ask the referee). */
 function canResolve(ctx: EngineContext, s: GameState, card: string, sk: Skill): boolean {
-  if (!costIsReadable(sk)) return !!ctx.referee;
+  if (!costIsReadable(ctx, s, card, sk)) return !!ctx.referee;
   if (!sk.effect.trim()) return true;
   const sc = scriptsOf(ctx, s, card).bySkill[sk.index];
   if (sc && sc.unsupported.length === 0) return true;
@@ -1744,26 +1770,62 @@ export function rejectedActions(ctx: EngineContext, s: GameState, legal: LegalAc
   const p = pr.player;
   const out: RejectedAction[] = [];
   const name = (id: string) => face(ctx, s, id).name;
-  // "activate:p1#3" — the card-and-type pairs the menu already offers. A card
-  // playable by its alternative price is playable; a skill offered under one
-  // index is offered. Anything offered is not rejected.
-  const offered = new Set(legal.map((l) => `${l.action.type}:${cardOf(l.action) ?? ""}`));
+  // "play:p1#3", "activate:p1#3#20" — the entries the menu already offers.
+  // Anything offered is not rejected, and a card playable by its alternative
+  // price is playable.
+  //
+  // An activation carries its *skill index* in the key, and everything else
+  // only its card. A card prints up to nine skill lines, and one of them being
+  // on the menu says nothing about the others: keyed by the card alone, the
+  // first line answered for all of them, and 678 of the catalog's rules were
+  // refused with no reason at all because a rejection filed under skill 0
+  // cannot answer a question about skill 20. An [Invoker]'s alternative price
+  // is still the same skill under the same index, so it is still one entry.
+  // §3.2's cap is unchanged for play, charge, attack, combo, counter and block.
+  const keyOf = (a: Action) => `${a.type}:${cardOf(a) ?? ""}${a.type === "activate" ? `#${a.skill}` : ""}`;
+  const offered = new Set(legal.map((l) => keyOf(l.action)));
   const seen = new Set<string>();
   const push = (action: Action, label: string, why: Requirement[]) => {
-    const key = `${action.type}:${cardOf(action) ?? ""}`;
+    const key = keyOf(action);
     if (offered.has(key) || seen.has(key)) return;
     seen.add(key);
     // Never empty: a twin that found nothing is a drifted twin, and an `other`
     // here is what the playthrough audit counts.
     out.push({ action, label, why: why.length ? why : [{ kind: "other", detail: "not offered by the engine" }] });
   };
-  /** The first skill of the card that is a real activation, with its reasons. */
+  /**
+   * The skills to explain for a card in play. `skillsOfInstance` is what the
+   * menu reads, and it empties a card whose skills a continuous effect has
+   * negated (9-1-5) — so asking it here would leave that card out of *both*
+   * lists and the board with no reason to give. The printed skills are the
+   * ones to explain in that case; `whyNotActivate` names the negation, and
+   * `offered` keeps anything actually on the menu out of the rejected list.
+   */
+  const skillsToExplain = (id: string) => (skillsNegated(s, id) ? skillsOf(def(ctx, s, id), s.cards[id].flipped && def(ctx, s, id).back ? "back" : "front") : skillsOfInstance(ctx, s, id));
+  /**
+   * A card can now carry one rejection per skill line, so the label has to say
+   * *which* line, the way the menu's own label does — three greyed rows all
+   * reading "Activate Piccolo" is the move nobody can identify. The keyword
+   * names itself; a text skill is named by the start of its effect, which is
+   * the same 40 characters `activatable` puts on the menu.
+   */
+  function activateLabel(id: string, sk: Skill): string {
+    const what = sk.keyword ? `[${sk.keyword.name}]` : sk.effect.slice(0, 40);
+    return what ? `Activate ${name(id)}: ${what}` : `Activate ${name(id)}`;
+  }
+  /**
+   * Every skill of the card that is a real activation, with its reasons — one
+   * rejection each, because one rule is one skill line and a player reaching
+   * for the third one is owed an answer about the third one. A `why` that is
+   * null is a skill never declared at all (an [Auto], a [Permanent], a keyword
+   * with no activation of its own) and invents nothing; an empty one is a
+   * skill the menu is offering, which `offered` drops.
+   */
   const rejectActivate = (id: string, skills: Skill[], timing: "main" | "battle") => {
     for (const sk of skills) {
       const why = whyNotActivate(ctx, s, p, id, sk, timing);
       if (!why) continue;
-      push({ type: "activate", player: p, card: id, skill: sk.index }, `Activate ${name(id)}`, why);
-      return;
+      push({ type: "activate", player: p, card: id, skill: sk.index }, activateLabel(id, sk), why);
     }
   };
 
@@ -1781,7 +1843,7 @@ export function rejectedActions(ctx: EngineContext, s: GameState, legal: LegalAc
         push({ type: "charge", player: p, card: id }, `Charge ${name(id)}`, whyNotCharge(ctx, s, p));
       }
       for (const id of cardsInPlay(s, p)) {
-        rejectActivate(id, skillsOfInstance(ctx, s, id), "main");
+        rejectActivate(id, skillsToExplain(id), "main");
         const why = whyNotAttack(ctx, s, p, id);
         if (why) push({ type: "attack", player: p, attacker: id, target: s.players[other(p)].leader }, `Attack with ${name(id)}`, why);
       }
@@ -1794,7 +1856,7 @@ export function rejectedActions(ctx: EngineContext, s: GameState, legal: LegalAc
         rejectActivate(id, skillsOf(def(ctx, s, id)), "battle");
       }
       for (const id of ps.battle) push({ type: "combo", player: p, card: id }, `Combo ${name(id)}`, whyNotCombo(ctx, s, p, id));
-      for (const id of cardsInPlay(s, p)) rejectActivate(id, skillsOfInstance(ctx, s, id), "battle");
+      for (const id of cardsInPlay(s, p)) rejectActivate(id, skillsToExplain(id), "battle");
       return out;
     }
     case "counter": {
@@ -2072,8 +2134,8 @@ function activatable(ctx: EngineContext, s: GameState, p: PlayerId, card: string
           const priceOk =
             costIsOrbsOnly ||
             (() => {
-              const prog = compileCostProgram(sk);
-              return prog ? canPayCostProgram(ctx, s, p, card, prog.ops) : false;
+              const prog = priceFor(ctx, s, card, sk).ops;
+              return prog ? canPayCostProgram(ctx, s, p, card, prog) : false;
             })();
           return priceOk ? `Union-Absorb ${name}: ${sk.effect.slice(0, 40)}` : null;
         }
@@ -2179,17 +2241,17 @@ function activatable(ctx: EngineContext, s: GameState, p: PlayerId, card: string
   }
   // "[Activate: Main] If your Leader Card is red: Draw 1 card" — a cost that
   // is only a condition (9-1-3) is a skill that can be used when it holds.
-  const condCost = !costIsOrbsOnly ? priceCondition(sk) : null;
+  const condCost = !costIsOrbsOnly ? priceFor(ctx, s, card, sk).condition : null;
   // 4-3-3: or the price may be an action — "switch this card to Rest Mode",
   // "choose 1 card in your hand and place it in your Drop Area". Only offered
   // when the engine can charge it, so the effect never happens for free.
   // The two are not alternatives: "If your Leader is a white <Cell> card, and
   // you remove this card in your Drop from the game …" is both, and reading
   // only the condition was a skill used for nothing.
-  const actionCost = !costIsOrbsOnly ? compileCostProgram(sk) : null;
+  const actionCost = !costIsOrbsOnly ? priceFor(ctx, s, card, sk).ops : null;
   if (!costIsOrbsOnly && !condCost && !actionCost) return null;
-  if (condCost && !condHolds(ctx, s, { ops: [], ip: 0, vars: {}, card, master: p }, condCost.cond)) return null;
-  if (actionCost && !canPayCostProgram(ctx, s, p, card, actionCost.ops)) return null;
+  if (condCost && !condHolds(ctx, s, { ops: [], ip: 0, vars: {}, card, master: p }, condCost)) return null;
+  if (actionCost && !canPayCostProgram(ctx, s, p, card, actionCost)) return null;
   if (!canPayOrbs()) return null;
   if (!canResolve(ctx, s, card, sk)) return null;
   if (baseType(d) === "EXTRA" && inHand) {
@@ -2234,7 +2296,13 @@ function whyNotActivate(ctx: EngineContext, s: GameState, p: PlayerId, card: str
   const textActivate = sk.kind === "activate:main" || sk.kind === "activate:battle" || sk.kind === "activate:main/battle";
   if (k ? !ACTIVATED_KEYWORDS.includes(k.name) : !textActivate) return null;
 
-  if (skillNegated(s, card, sk.index, sk.kind)) why.push({ kind: "other", detail: "the skill is negated" });
+  // 9-1-5 comes in two shapes and the twin has to know both: one skill by
+  // index (`negateSkill`) and the whole card at once (`negateSkills`).
+  // `skillNegated` reads only the first, because `skillsOfInstance` already
+  // empties the card for the second — which is exactly what left a negated
+  // card out of both lists. Widening `skillNegated` itself would change a
+  // predicate ten callers share (§3.2); the twin asks both questions instead.
+  if (skillsNegated(s, card) || skillNegated(s, card, sk.index, sk.kind)) why.push({ kind: "other", detail: "the skill is negated" });
   const f = forbiddenBy(ctx, s, "activateSkill", { player: p, card });
   if (f) why.push({ kind: "forbidden", by: f.by, until: f.until });
   if (usesLeft(sk, inst) === 0) why.push({ kind: "oncePerTurn", what: "skill", ...(sk.limit != null && !sk.oncePerTurn ? { limit: sk.limit } : {}) });
@@ -2282,8 +2350,8 @@ function whyNotActivate(ctx: EngineContext, s: GameState, p: PlayerId, card: str
           const priceOk =
             costIsOrbsOnly ||
             (() => {
-              const prog = compileCostProgram(sk);
-              return prog ? canPayCostProgram(ctx, s, p, card, prog.ops) : false;
+              const prog = priceFor(ctx, s, card, sk).ops;
+              return prog ? canPayCostProgram(ctx, s, p, card, prog) : false;
             })();
           if (!priceOk) why.push({ kind: "other", detail: `cannot pay: ${sk.cost}` });
           return why;
@@ -2411,11 +2479,11 @@ function whyNotActivate(ctx: EngineContext, s: GameState, p: PlayerId, card: str
     if (inst.usedMarkerSkill) why.push({ kind: "oncePerTurn", what: "marker skill" });
     if (inst.markers + sk.markerCost < 0) why.push({ kind: "other", detail: `needs ${-sk.markerCost} markers (${inst.markers} on it)` });
   }
-  const condCost = !costIsOrbsOnly ? priceCondition(sk) : null;
-  const actionCost = !costIsOrbsOnly ? compileCostProgram(sk) : null;
+  const condCost = !costIsOrbsOnly ? priceFor(ctx, s, card, sk).condition : null;
+  const actionCost = !costIsOrbsOnly ? priceFor(ctx, s, card, sk).ops : null;
   if (!costIsOrbsOnly && !condCost && !actionCost) unread();
-  if (condCost && !condHolds(ctx, s, { ops: [], ip: 0, vars: {}, card, master: p }, condCost.cond)) why.push({ kind: "condition", text: sk.cost });
-  if (actionCost && !canPayCostProgram(ctx, s, p, card, actionCost.ops)) why.push({ kind: "other", detail: `cannot pay: ${sk.cost}` });
+  if (condCost && !condHolds(ctx, s, { ops: [], ip: 0, vars: {}, card, master: p }, condCost)) why.push({ kind: "condition", text: sk.cost });
+  if (actionCost && !canPayCostProgram(ctx, s, p, card, actionCost)) why.push({ kind: "other", detail: `cannot pay: ${sk.cost}` });
   why.push(...orbs());
   if (!canResolve(ctx, s, card, sk)) unread();
   if (baseType(d) === "EXTRA" && inHand) {
@@ -3032,8 +3100,8 @@ function activate(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId
   s.flow.unshift({ op: "counter", window: "skill", responder: other(p) }, { op: "skill.resolve", card, skill: sk.index, player: p }, { op: "extra.finish", card }, { op: "checkpoint" });
   // 4-3-3: an action price is paid on activation, before the counter window
   // opens — so it goes on the front of the flow, after everything else.
-  const actionCost = compileCostProgram(sk);
-  if (actionCost) s.flow.unshift({ op: "script.step", frame: { ops: actionCost.ops, ip: 0, vars: {}, card, master: p, skillIndex: sk.index, saveVarsAs: costVarsKey(card, sk.index) } });
+  const actionCost = priceFor(ctx, s, card, sk).ops;
+  if (actionCost) s.flow.unshift({ op: "script.step", frame: { ops: actionCost, ip: 0, vars: {}, card, master: p, skillIndex: sk.index, saveVarsAs: costVarsKey(card, sk.index) } });
 }
 
 // ── views ──────────────────────────────────────────────────────────────────

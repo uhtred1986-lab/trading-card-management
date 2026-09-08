@@ -22,6 +22,7 @@ import { z } from "zod";
 import type { Db } from "@/db";
 import { FAST_MODEL, MODEL, anthropic, hasAnthropic, recordRun } from "@/lib/ai/client";
 import { comboPowerOf, face, other, powerOf, validateProgram, type EngineContext, type GameState, type LegalAction, type Op, type PlayerId } from "../engine";
+import { AREAS, COND_SCHEMA, DURATIONS, OP_SCHEMA, condSignature, opSignature, type Cond } from "../engine/script";
 import { def, has } from "../engine/state";
 import { decklistText, money, movesText, stateText } from "./view";
 
@@ -252,70 +253,25 @@ const RulingSchema = z.object({
   why: z.string().max(200).describe("One sentence on how you read the card"),
 });
 
+/**
+ * The operation list is read off `OP_SCHEMA`, so an op the interpreter learns
+ * reaches the referee the moment it has a schema row.
+ */
+const OPERATIONS = (Object.keys(OP_SCHEMA) as Op["op"][])
+  .map((k) => `  ${opSignature(k)}${OP_SCHEMA[k].doc ? `\n    ${OP_SCHEMA[k].doc}` : ""}`)
+  .join("\n");
+
+/** …and the conditions off `COND_SCHEMA`, for the same reason. */
+const CONDITIONS = (Object.keys(COND_SCHEMA) as Cond["kind"][])
+  .map((k) => `  ${condSignature(k)}${COND_SCHEMA[k].doc ? `\n    ${COND_SCHEMA[k].doc}` : ""}`)
+  .join("\n");
+
 export const EFFECT_LANGUAGE = `You are ruling on one skill of one card in a Dragon Ball Super Card Game engine. Answer with a JSON array of operations that carries out exactly what the skill's text says — no more, no less. The engine runs it and still enforces every rule, so an operation that would break a rule is simply refused.
 
-Operations (each is an object with "op"):
-  {"op":"draw","n":1,"side":"you"|"opponent"}
-  {"op":"discard","n":1,"side":"opponent"}        cards leave a hand for the Drop (add "to":"warp" for the Warp)
-  {"op":"damage","n":1,"side":"opponent"}         life to hand
-  {"op":"mill","n":2,"side":"you"}                deck to Drop
-  {"op":"addLife","n":1} | {"op":"lifeDownTo","n":4}
-  {"op":"shuffle"} | {"op":"energyMarker","n":1}
-  {"op":"choose","sel":SELECTOR,"as":"t","reason":"..."}   binds the chosen cards to a name
-    add "chooser":"opponent" when the card says *they* choose ("your opponent sends 1 Battle Card…")
-  {"op":"look","n":5,"as":"looked"}               top of your deck, seen only by you
-  {"op":"reveal","sel":SELECTOR,"as":"revealed"}  shown to both players; the cards stay where they are
-  {"op":"ko","target":TARGET}
-  {"op":"moveTo","target":TARGET,"to":"drop"|"hand"|"deck"|"energy"|"life"|"warp"|"removed"|"battle","position":"top"|"bottom","mode":"rest"|"active"}
-    add "owner":"opponent" for "place it in your opponent's energy" — the area is theirs, not the card owner's
-  {"op":"play","target":TARGET}
-  {"op":"switchMode","target":TARGET,"mode":"rest"|"active"}
-  {"op":"hidden","target":TARGET,"hidden":true|false}     Hidden Mode / Revealed Mode (23-5)
-  {"op":"redirectAttack","target":TARGET}                 "switch the target of the attack to it"
-  {"op":"comboFrom","target":TARGET,"negated":true}       "use it in a combo from your Drop (with its skills negated)"
-  {"op":"flip","target":TARGET}                           a Leader awakens ("flip this card over")
-  {"op":"faceUp","target":TARGET}                         turn a card in a life area face up (3-9-2-1); faceUp:false turns it back down
-  {"op":"power","target":TARGET,"amount":5000,"until":"battle"|"turn"|"game"}
-    an amount may also be {"count":SELECTOR,"times":5000} (so much for each card) or {"sumPower":{"var":"rested"}} (the total power of named cards)
-  {"op":"comboPower","target":TARGET,"amount":5000,"until":"battle"}
-  {"op":"grant","target":TARGET,"keyword":{"name":"Blocker"},"until":"turn"}
-  {"op":"negateSkills","target":TARGET,"until":"turn"} | {"op":"negateAttack"}
-  {"op":"resolvingPlay","instead":"drop"|"deck"|"warp","position":"bottom"}   [Counter: Play] only (9-6)
-    negates the play: the card goes there instead of into play. Without "instead" the play happens and
-    only the manner changes — {"op":"resolvingPlay","mode":"rest"} or {"op":"resolvingPlay","negated":true}.
-  {"op":"negateSkillsOfKind","target":TARGET,"kind":"auto"|"activate"|"counter"|"permanent","until":"turn"}
-    "negate that card's [Auto] skill for the turn" — one kind, not the whole card
-  {"op":"negateOwnSkill"} | {"op":"negateOwnSkill","until":"turn"|"battle"}   "negate this skill for the game / turn / battle"
-  {"op":"addMarker","target":TARGET,"n":1} | {"op":"removeMarker","target":TARGET,"n":1}
-  {"op":"forbid","what":FORBIDDEN,"until":"turn","target":TARGET}        a rule about particular cards
-  {"op":"forbid","what":"play","until":"turn","side":"opponent","filter":{...}}   a rule about a player
-    FORBIDDEN: "attack" | "beAttacked" | "block" | "play" | "activateSkill" | "activateCounter"
-             | "combo" | "beKOd" | "beKOdBySkill" | "beChosen" | "switchToActive"
-             | "placeEnergy" | "beMovedBySkill" | "beNegated"
-    "sameNameAsSelf":true narrows a play rule to copies of this card.
-    until may also be "nextTurn", which lasts through the opponent's turn and ends as yours begins.
-  {"op":"permit","what":"attackActive","until":"turn","target":TARGET,"filter":{...}}
-    the one rule of the game a card may lift: "this card can attack Battle Cards in Active Mode"
-    (8-1-1). The filter says *which* active cards — leave it out only when the card does.
-  {"op":"token","name":"Saibaman Token","power":10000,"comboCost":0,"comboPower":5000,"colors":[],"n":2}
-  {"op":"altCost","pay":"none"|"life","n":1}   [Permanent] only: another way to pay for this card's own [Counter]
-  {"op":"altCost","pay":"program","ops":[…]}   the same, when the card asks for an action instead of energy
-  {"op":"costReduction","target":TARGET,"amount":1,"what":"energy"|"combo"}   [Permanent] only (20-21)
-    "reduce the energy cost of your <Son Goku> cards in your hand by 1" — the selector must name the
-    area the text names, usually the hand; the amount may be a count amount, as power may.
-  {"op":"replaceLeave","to":"warp","by":"ko","mode":"rest","target":TARGET}   [Permanent] only (9-10)
-    "if this card would be KO'd, send it to the Warp instead". "by" is which departure it replaces:
-    omitted = any, "skill" = removed by an effect, "ko" = the KO, "skillOrKo" = either.
-    Omit "target" for this card; give one to cover other cards by filter.
-  {"op":"if","cond":COND,"then":[...],"else":[...]}
-  {"op":"chooseMode","modes":[{"label":"…","ops":[...]},{"label":"…","ops":[...]}]}   "Choose one— ・A ・B"
-  {"op":"may","ops":[...],"reason":"draw 1 card"}   "You may …" (20-16): the master decides whether it happens.
-  {"op":"may","ops":[...],"chooser":"opponent"}     "Your opponent may …": theirs to decline, and "if they don't" reads the answer.
-    Wrap the optional part only. {"kind":"did","what":"may"} then reads the answer, for "if you do" /
-    "if you don't". A clause that is already an "up to" choice declines by choosing nothing — do not wrap those.
-  {"op":"moveTo","target":TARGET,"to":"under","under":TARGET}    under another card; omit "under" for this card
-  {"op":"delay","at":TIMING,"scope":SCOPE,"ops":[...]}   the inner operations happen later, not now
+Operations (each is an object with "op"; a field marked ? may be left out):
+${OPERATIONS}
 
+AMOUNT is a number, {"var":"t"} (how many cards that name holds), {"count":SELECTOR,"times":N} (so much for each matching card), {"sumPower":{"var":"t"}} or {"handUpTo":N}.
 TARGET is {"var":"t"} for something chosen earlier, or {"sel":SELECTOR}.
   {"var":"looked","minus":"t"} is "the rest": the cards of one name that another name did not take.
 SELECTOR: {"side":"you"|"opponent"|"both","area":"battle"|"hand"|"deck"|"drop"|"life"|"energy"|"unison"|"leader"|"warp"|"combo"|"zDeck"|"zEnergy"|"play","count":1,"upTo":true,"mode":"rest"|"active","filter":{...}}
@@ -323,10 +279,18 @@ SELECTOR: {"side":"you"|"opponent"|"both","area":"battle"|"hand"|"deck"|"drop"|"
   ("resolving" is the card whose play a [Counter: Play] is answering).
   "count":99 means all of them, and a count is always a choice; "take":2 is "the top 2 cards" instead ("fromEnd":true for the bottom).
   A filter may hold colors, characters, traits, names, costMin, costMax, powerMin, powerMax.
-COND: {"kind":"life","side":"you","atMost":4} | {"kind":"count","sel":SELECTOR,"atLeast":2} | {"kind":"leaderColor","color":"Red"} | {"kind":"chose","var":"t"}
-   | {"kind":"varMatches","var":"revealed","filter":{...}}   "if that card is a Battle Card"
+COND is one of these (a field marked ? may be left out):
+${CONDITIONS}
+  "During your opponent's turn" is a CONDITION, {"kind":"isTurnPlayer","who":"opponent"} — not a duration. A
+  duration says how long an effect this skill applies lasts; a condition says when the skill does anything at all.
 TIMING: "turnStart" | "mainStart" | "turnEnd" | "turnCleanup" | "battleEnd"
 SCOPE: "thisTurn" (default) | "nextTurn" | "yourNextTurn" | "opponentNextTurn"
+AREA: ${AREAS.map((a) => `"${a}"`).join(" | ")}
+DURATION: ${DURATIONS.map((d) => `"${d}"`).join(" | ")} — "nextTurn" lasts through the opponent's turn and ends as yours begins.
+FILTER: {"colors":[…],"characters":[…],"traits":[…],"names":[…],"costMin":N,"costMax":N,"powerMin":N,"powerMax":N}, any subset.
+  The brackets a card prints say which list a word belongs in: <Son Goku> is a character, ≪Saiyan≫ a trait, and
+  {Angel Halo} a card *name* — "names", never "characters". A card names itself in braces and its character
+  in angle brackets, and they are different cards.
   "At the end of the turn, KO it" is {"op":"choose",...} then {"op":"delay","at":"turnEnd","ops":[{"op":"ko","target":{"var":"t"}}]}.
   A delayed program keeps the variables bound before it, so "it" still means the card chosen now.
 
@@ -336,8 +300,8 @@ export async function ruleOnCard(
   db: Db,
   request: { cardId: string; cardName: string; text: string; unsupported: string[] },
   situation: string,
-): Promise<{ ops: Op[]; why: string; spend: { model: string; input: number; output: number; cached: number } | null }> {
-  if (!hasAnthropic()) return { ops: [], why: "no API key, so the skill did nothing", spend: null };
+): Promise<{ ops: Op[]; why: string; valid: boolean; spend: { model: string; input: number; output: number; cached: number } | null }> {
+  if (!hasAnthropic()) return { ops: [], why: "no API key, so the skill did nothing", valid: false, spend: null };
   const res = await anthropic().messages.parse({
     model: MODEL,
     max_tokens: 4000,
@@ -361,6 +325,6 @@ export async function ruleOnCard(
   const usage = res.usage as { input_tokens: number; output_tokens: number; cache_read_input_tokens?: number };
   const spend = { model: MODEL, input: usage.input_tokens, output: usage.output_tokens, cached: usage.cache_read_input_tokens ?? 0 };
   // A malformed ruling is treated as "nothing happens" rather than trusted.
-  if (!validateProgram(ops)) return { ops: [], why: `${output.why} (the ruling was not a valid program, so nothing happened)`, spend };
-  return { ops: ops as Op[], why: output.why, spend };
+  if (!validateProgram(ops)) return { ops: [], why: `${output.why} (the ruling was not a valid program, so nothing happened)`, valid: false, spend };
+  return { ops: ops as Op[], why: output.why, valid: true, spend };
 }
