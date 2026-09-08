@@ -15,7 +15,7 @@ import { apply, createGame, legalActions, seedFrom, type Action, type CardDef, t
 import { face } from "./engine";
 import { appendBeats, describeSkillEvent, toBeats, type Beats, type NumberedBeat } from "./beats";
 import { cardDefFrom, deckInputFor } from "./load";
-import { scriptsFor } from "./scripts";
+import { rulesFor } from "./rules-store";
 
 export type ArenaMode = "hotseat" | "sparring" | "tournament" | "versus";
 
@@ -143,7 +143,7 @@ export async function startGame(db: Db, p1DeckId: number, p2DeckId: number, mode
     .where(inArray(cardsTable.id, [...new Set([...a.cardIds, ...b.cardIds])]));
   const defs: Record<string, CardDef> = {};
   for (const r of rows) defs[r.id] = cardDefFrom(r);
-  const ctx: EngineContext = { defs, scripts: await scriptsFor(db, defs), referee: hasAnthropic() && mode !== "hotseat" };
+  const ctx: EngineContext = { defs, scripts: await rulesFor(db, defs), referee: hasAnthropic() && mode !== "hotseat" };
   const seed = seedFrom(`${p1DeckId}:${p2DeckId}:${Date.now()}`);
   const { state, events } = createGame(ctx, { seed, p1: a.input, p2: b.input });
   const [row] = await db
@@ -173,8 +173,8 @@ export async function loadGame(db: Db, id: number): Promise<LoadedGame | null> {
   if (!row) return null;
   const state = row.state as GameState;
   const defs = await defsForState(db, state);
-  // Programs you have explained win over whatever the compiler managed to read.
-  const ctx: EngineContext = { defs, scripts: await scriptsFor(db, defs), referee: hasAnthropic() && row.mode !== "hotseat" };
+  // The rules the engine plays by come from `card_rules`, not from a compile.
+  const ctx: EngineContext = { defs, scripts: await rulesFor(db, defs), referee: hasAnthropic() && row.mode !== "hotseat" };
   return {
     id: row.id,
     mode: row.mode as ArenaMode,

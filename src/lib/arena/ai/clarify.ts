@@ -18,7 +18,7 @@ import { cards as cardsTable, cardTextNotes } from "@/db/schema";
 import { MODEL, anthropic, hasAnthropic, recordRun } from "@/lib/ai/client";
 import { parseSkills, validateProgram, type Op } from "../engine";
 import { EFFECT_LANGUAGE } from "./opponent";
-import { saveScript } from "../scripts";
+import { saveRule } from "../rules-store";
 
 export const ClarificationSchema = z.object({
   meaning: z.string().max(300).describe("One sentence restating what the card does, in rules terms"),
@@ -108,13 +108,18 @@ export async function clarifyCard(db: Db, noteId: number, explanation: string): 
   const ok = validateProgram(parsed);
   const ops = ok ? (parsed as Op[]) : [];
   if (ok && ops.length) {
-    await saveScript(db, {
+    // Claude wrote the program, so it is Claude's draft — the owner's words
+    // are the explanation, not the authorship. It shows up for confirmation.
+    await saveRule(db, {
       cardId: note.cardId,
+      side: "front",
       skillIndex: note.skillIndex,
       ops,
-      source: "user",
+      source: "claude",
+      status: "draft",
       explanation: explanation.trim(),
-      meaning: output.meaning,
+      printed: note.skillText,
+      kind: skill?.kind ?? "auto",
     });
   }
 

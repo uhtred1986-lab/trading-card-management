@@ -18,7 +18,7 @@ import { advance } from "@/lib/arena/ai/run";
 import { reviewGame } from "@/lib/arena/ai/review";
 import { clarifyCard } from "@/lib/arena/ai/clarify";
 import { previewRule, removeRule, type RulePreview } from "@/lib/arena/rules";
-import { saveScript } from "@/lib/arena/scripts";
+import { saveRule as storeRule } from "@/lib/arena/rules-store";
 import { SKIN_COOKIE, type ArenaSkin } from "@/lib/arena/skin";
 import { STAGING_COOKIE, type ArenaStaging } from "@/lib/arena/staging";
 
@@ -110,7 +110,7 @@ export async function saveRule(cardId: string, skillIndex: number, side: "front"
   const p = previewRule(line);
   if (p.unsupported.length) return { error: `still unread: ${p.unsupported.join(" | ")}` };
   if (!p.ops.length) return { error: "that reads as doing nothing — save it only if the skill really does nothing" };
-  await saveScript(db, { cardId, skillIndex, side, ops: p.ops, source: "user", explanation: line.trim(), meaning: p.reads });
+  await storeRule(db, { cardId, skillIndex, side, ops: p.ops, source: "user", status: "corrected", explanation: line.trim(), printed: line.trim(), kind: p.kind ?? "auto" });
   // Setting a rule by hand is you telling me the compiler could not read
   // something, which no coverage run can say — so it lands with the rest.
   await db.insert(arenaFeedback).values({ kind: "rule", cardId, skillIndex, note: line.trim(), resolution: p.reads });
@@ -121,7 +121,7 @@ export async function saveRule(cardId: string, skillIndex: number, side: "front"
 
 /** Save a program that reads as nothing, for skills the engine should ignore. */
 export async function saveEmptyRule(cardId: string, skillIndex: number, side: "front" | "back", line: string): Promise<{ error: string | null }> {
-  await saveScript(db, { cardId, skillIndex, side, ops: [], source: "user", explanation: line.trim(), meaning: "deliberately does nothing" });
+  await storeRule(db, { cardId, skillIndex, side, ops: [], source: "user", status: "corrected", explanation: line.trim(), printed: line.trim(), kind: "auto" });
   revalidatePath("/arena/rules");
   return { error: null };
 }
