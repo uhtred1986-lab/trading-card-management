@@ -2009,10 +2009,26 @@ only and never calls `rejectActivate`. That last one is a real gap and is the
 next thing here, together with `BT29-044`, a Unison the staging removes from
 the game before the move under test is reached.
 
-**Still not done, and still deliberate:** the price before the colon is read
-at game time. `costIsReadable` and `canPayCostProgram` remain the five places
-the engine compiles card text during a game, against CLAUDE.md's own "Rules
-are records". It is worth at most the ~20 action-priced entries left in the
-74, so its case is architectural rather than this number — and running it in
-the same sweep as the change above would have made both unreadable. Its own
-session, its own before and after, and the fuzzer run the owner asked for.
+**And then the price itself** (own commit, same day). `Script` gained a
+`price` — the condition and the action, read together (4-3-3) — so a program
+and its price travel as one record. `rulesFor` fills it from `card_rules.cost`,
+which the drafter has written since phase 2 and nobody read; `compileCard`
+fills it from the text, which is what keeps `npm test` and the probe playing
+prices without the engine calling the compiler. `engine.ts` no longer imports
+`compileCostProgram` or `priceCondition` at all, and no program is compiled
+during a game.
+
+The sweep is **byte-identical** before and after — every outcome, every family
+row, and the 74. That sameness is the result: over 13,563 rules the price the
+drafter stored and the price the engine used to recompute agree everywhere.
+`arena:fuzz -- 100` gave 100 games and 0 crashes, and `arena:playthrough`
+still shows action prices charged and refused in a real game.
+
+A sweep that does not move is easy to mistake for a change that did not land,
+so the test is what earns it: it fails when `priceFor` is made to fall back to
+compiling, and it pins the board that separates the two readings — a record
+whose *effect* is readable but which carries **no price** is refused rather
+than offered for free. The first version of that test passed for the wrong
+reason (the effect was unread too), which the mutation run caught. One
+behaviour changed on purpose: a skill with no record has an *unknown* price
+rather than a free one.

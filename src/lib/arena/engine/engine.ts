@@ -9,9 +9,14 @@
  * state storable mid-prompt and replayable from the action log.
  */
 import { baseType, canCombo, isZ, keywordOf, skillsOf, specifiedCostOf } from "./cards";
-import { compileCostProgram, costIsOnlyOrbs, costText, parseConditionClause, priceCondition } from "./compile";
+// Not the compiler's programs: `costIsOnlyOrbs` and `costText` are spelling
+// tests over the printed price and `parseConditionClause` reads a keyword's
+// own reminder. Nothing here builds a program — since 8 Sep 2026 the price
+// before the colon comes off the record (`priceFor`), which was the last place
+// a game compiled card text.
+import { costIsOnlyOrbs, costText, parseConditionClause } from "./compile";
 import { matches, parseCondition, parseFilter } from "./filters";
-import { stepScript, validateProgram, type CardScripts, type Op, type ScriptFrame } from "./script";
+import { stepScript, validateProgram, type CardScripts, type Cond, type Op, type ScriptFrame } from "./script";
 import { koCard, pendTriggers } from "./triggers";
 import { nextRandom, shuffle } from "./rng";
 import {
@@ -907,14 +912,36 @@ function scriptFor(ctx: EngineContext, s: GameState, card: string, skillIndex: n
  * because resolving the effect without its cost would be worse than not
  * resolving it at all.
  */
-function costIsReadable(sk: Skill): boolean {
+function costIsReadable(ctx: EngineContext, s: GameState, card: string, sk: Skill): boolean {
   if (costIsOnlyOrbs(sk.cost)) return true;
   // The orbs and any reminder text come off first — a card that costs both
   // orbs and a condition never *starts* with the condition, and testing the
   // raw text meant 1,626 skills whose effects compile were never offered.
   // A dozen cards state the condition bare, with no "if" in front of it, which
-  // `priceCondition` reads once the price has failed to be an action.
-  return priceCondition(sk) !== null || compileCostProgram(sk) !== null;
+  // the drafter's `priceCondition` read once the price had failed to be an
+  // action. Both halves come off the record now; the reading itself is
+  // unchanged, only where it happens.
+  const p = priceFor(ctx, s, card, sk);
+  return p.condition !== null || p.ops !== null;
+}
+
+/**
+ * The price the engine charges for a skill, **read from the record, never
+ * compiled here** (CLAUDE.md, "Rules are records"). `card_rules.cost` has
+ * carried both halves since phase 2; until 8 Sep 2026 the engine rebuilt them
+ * from the card's text on every activation and every menu enumeration, which
+ * was the last place a game compiled card text.
+ *
+ * A skill with no record has an **unknown** price, not a free one: `known` is
+ * false, and every caller treats that as unreadable. That is the honest answer
+ * for a card `arena:draft` has never seen, and it is the one behavioural
+ * change of the move — a context built from card text (`rulesFromCompiler`,
+ * which `npm test` and the probe use) carries the price with the program, so
+ * it is only ever an undrafted card in a real game.
+ */
+function priceFor(ctx: EngineContext, s: GameState, card: string, sk: Skill): { condition: Cond | null; ops: Op[] | null; known: boolean } {
+  const price = scriptsOf(ctx, s, card).bySkill[sk.index]?.price;
+  return { condition: price?.condition ?? null, ops: price?.ops ?? null, known: price !== undefined };
 }
 
 /** "2 Green energy and 1 marker" — what an optional cost asks for. */
@@ -929,7 +956,7 @@ function describeCost(sk: Skill): string {
 
 /** Whether the engine can carry out this skill on its own (or will ask the referee). */
 function canResolve(ctx: EngineContext, s: GameState, card: string, sk: Skill): boolean {
-  if (!costIsReadable(sk)) return !!ctx.referee;
+  if (!costIsReadable(ctx, s, card, sk)) return !!ctx.referee;
   if (!sk.effect.trim()) return true;
   const sc = scriptsOf(ctx, s, card).bySkill[sk.index];
   if (sc && sc.unsupported.length === 0) return true;
@@ -2107,8 +2134,8 @@ function activatable(ctx: EngineContext, s: GameState, p: PlayerId, card: string
           const priceOk =
             costIsOrbsOnly ||
             (() => {
-              const prog = compileCostProgram(sk);
-              return prog ? canPayCostProgram(ctx, s, p, card, prog.ops) : false;
+              const prog = priceFor(ctx, s, card, sk).ops;
+              return prog ? canPayCostProgram(ctx, s, p, card, prog) : false;
             })();
           return priceOk ? `Union-Absorb ${name}: ${sk.effect.slice(0, 40)}` : null;
         }
@@ -2214,17 +2241,17 @@ function activatable(ctx: EngineContext, s: GameState, p: PlayerId, card: string
   }
   // "[Activate: Main] If your Leader Card is red: Draw 1 card" — a cost that
   // is only a condition (9-1-3) is a skill that can be used when it holds.
-  const condCost = !costIsOrbsOnly ? priceCondition(sk) : null;
+  const condCost = !costIsOrbsOnly ? priceFor(ctx, s, card, sk).condition : null;
   // 4-3-3: or the price may be an action — "switch this card to Rest Mode",
   // "choose 1 card in your hand and place it in your Drop Area". Only offered
   // when the engine can charge it, so the effect never happens for free.
   // The two are not alternatives: "If your Leader is a white <Cell> card, and
   // you remove this card in your Drop from the game …" is both, and reading
   // only the condition was a skill used for nothing.
-  const actionCost = !costIsOrbsOnly ? compileCostProgram(sk) : null;
+  const actionCost = !costIsOrbsOnly ? priceFor(ctx, s, card, sk).ops : null;
   if (!costIsOrbsOnly && !condCost && !actionCost) return null;
-  if (condCost && !condHolds(ctx, s, { ops: [], ip: 0, vars: {}, card, master: p }, condCost.cond)) return null;
-  if (actionCost && !canPayCostProgram(ctx, s, p, card, actionCost.ops)) return null;
+  if (condCost && !condHolds(ctx, s, { ops: [], ip: 0, vars: {}, card, master: p }, condCost)) return null;
+  if (actionCost && !canPayCostProgram(ctx, s, p, card, actionCost)) return null;
   if (!canPayOrbs()) return null;
   if (!canResolve(ctx, s, card, sk)) return null;
   if (baseType(d) === "EXTRA" && inHand) {
@@ -2323,8 +2350,8 @@ function whyNotActivate(ctx: EngineContext, s: GameState, p: PlayerId, card: str
           const priceOk =
             costIsOrbsOnly ||
             (() => {
-              const prog = compileCostProgram(sk);
-              return prog ? canPayCostProgram(ctx, s, p, card, prog.ops) : false;
+              const prog = priceFor(ctx, s, card, sk).ops;
+              return prog ? canPayCostProgram(ctx, s, p, card, prog) : false;
             })();
           if (!priceOk) why.push({ kind: "other", detail: `cannot pay: ${sk.cost}` });
           return why;
@@ -2452,11 +2479,11 @@ function whyNotActivate(ctx: EngineContext, s: GameState, p: PlayerId, card: str
     if (inst.usedMarkerSkill) why.push({ kind: "oncePerTurn", what: "marker skill" });
     if (inst.markers + sk.markerCost < 0) why.push({ kind: "other", detail: `needs ${-sk.markerCost} markers (${inst.markers} on it)` });
   }
-  const condCost = !costIsOrbsOnly ? priceCondition(sk) : null;
-  const actionCost = !costIsOrbsOnly ? compileCostProgram(sk) : null;
+  const condCost = !costIsOrbsOnly ? priceFor(ctx, s, card, sk).condition : null;
+  const actionCost = !costIsOrbsOnly ? priceFor(ctx, s, card, sk).ops : null;
   if (!costIsOrbsOnly && !condCost && !actionCost) unread();
-  if (condCost && !condHolds(ctx, s, { ops: [], ip: 0, vars: {}, card, master: p }, condCost.cond)) why.push({ kind: "condition", text: sk.cost });
-  if (actionCost && !canPayCostProgram(ctx, s, p, card, actionCost.ops)) why.push({ kind: "other", detail: `cannot pay: ${sk.cost}` });
+  if (condCost && !condHolds(ctx, s, { ops: [], ip: 0, vars: {}, card, master: p }, condCost)) why.push({ kind: "condition", text: sk.cost });
+  if (actionCost && !canPayCostProgram(ctx, s, p, card, actionCost)) why.push({ kind: "other", detail: `cannot pay: ${sk.cost}` });
   why.push(...orbs());
   if (!canResolve(ctx, s, card, sk)) unread();
   if (baseType(d) === "EXTRA" && inHand) {
@@ -3073,8 +3100,8 @@ function activate(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId
   s.flow.unshift({ op: "counter", window: "skill", responder: other(p) }, { op: "skill.resolve", card, skill: sk.index, player: p }, { op: "extra.finish", card }, { op: "checkpoint" });
   // 4-3-3: an action price is paid on activation, before the counter window
   // opens — so it goes on the front of the flow, after everything else.
-  const actionCost = compileCostProgram(sk);
-  if (actionCost) s.flow.unshift({ op: "script.step", frame: { ops: actionCost.ops, ip: 0, vars: {}, card, master: p, skillIndex: sk.index, saveVarsAs: costVarsKey(card, sk.index) } });
+  const actionCost = priceFor(ctx, s, card, sk).ops;
+  if (actionCost) s.flow.unshift({ op: "script.step", frame: { ops: actionCost, ip: 0, vars: {}, card, master: p, skillIndex: sk.index, saveVarsAs: costVarsKey(card, sk.index) } });
 }
 
 // ── views ──────────────────────────────────────────────────────────────────

@@ -651,7 +651,7 @@ export const READING_RULES: ReadingRule[] = [
   },
   {
     title: "What a cost asks for",
-    body: "A cost is orbs, a condition that has to be true (9-1-3), an action you carry out to pay (4-3-3) — or, on some 650 cards, a condition and an action at once: “If your Leader is a white <Cell> card, and you remove this card in your Drop from the game and discard 1 card from your hand”. The sentence is cut where the conditions end and the doing begins, and the cut is only taken when both halves read; a price read in half would offer the skill for free, so half a reading is treated as none. The action half is written in the second person, and the subject comes off before it is compiled like any effect.",
+    body: "A cost is orbs, a condition that has to be true (9-1-3), an action you carry out to pay (4-3-3) — or, on some 650 cards, a condition and an action at once: “If your Leader is a white <Cell> card, and you remove this card in your Drop from the game and discard 1 card from your hand”. The sentence is cut where the conditions end and the doing begins, and the cut is only taken when both halves read; a price read in half would offer the skill for free, so half a reading is treated as none. The action half is written in the second person, and the subject comes off before it is compiled like any effect. Both halves are read **once, when the card is drafted**, and stored on the rule\u2019s record as `cost.condition` and `cost.program`; a game reads them off the record and never re-reads the sentence, so what a card charges is a record you can see and correct rather than something the engine works out again mid-turn.",
   },
   {
     title: "What the orbs mean",
@@ -699,7 +699,7 @@ export const READING_RULES: ReadingRule[] = [
   },
   {
     title: "Only what it can pay for and resolve",
-    body: "A skill is offered as an action only when the engine can both charge its cost and carry out its effect. That is why coverage is not the same as playability: a skill the compiler reads perfectly still does nothing until its price is one the engine can read too.",
+    body: "A skill is offered as an action only when the engine can both charge its cost and carry out its effect. That is why coverage is not the same as playability: a skill the compiler reads perfectly still does nothing until its price is one the engine can read too. Both come off the rule\u2019s record, so a skill with no record has an *unknown* price rather than a free one \u2014 it is refused, and the refusal says the text is unread. Draft the card and it plays from the next game.",
   },
   {
     title: "Negating a keyword",

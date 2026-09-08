@@ -352,10 +352,34 @@ export type Op =
   | { op: "delay"; at: DelayTiming; scope?: DelayScope; ops: Op[]; label?: string }
   | { op: "note"; text: string };
 
+/**
+ * The price before the colon, as the record holds it (4-3-3). Both halves are
+ * read together and never as alternatives: "If your Leader is red, and you
+ * place 1 card from your hand in the Drop Area:" is a condition *and* an
+ * action. Either may be null; both null on a skill whose price is more than
+ * orbs means the compiler could not read the price, and the engine says so
+ * rather than resolving an effect it did not charge for.
+ *
+ * The same shape as `CostRecord.condition` / `CostRecord.program` on the
+ * `card_rules` row. It lives here so the store can hand a price to the engine
+ * without either of them importing the compiler.
+ */
+export interface SkillPrice {
+  condition: Cond | null;
+  ops: Op[] | null;
+}
+
 export interface Script {
   ops: Op[];
   /** Clauses the compiler could not read; non-empty means the referee handles the skill. */
   unsupported: string[];
+  /**
+   * The price the record carries. Absent means *no record*, which is not the
+   * same as a skill with no price: since 8 Sep 2026 the engine reads the price
+   * rather than compiling it, so a skill nobody drafted has an unknown price
+   * rather than a free one.
+   */
+  price?: SkillPrice;
 }
 
 /** The programs of one card face, by skill index. What `card_rules` holds for a card and what `ctx.scripts` carries into a game. */

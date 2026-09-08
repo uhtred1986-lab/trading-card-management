@@ -290,7 +290,10 @@ the same style.
   engine plays from `card_rules` — one row per skill per card face with the program, trigger,
   cost, hoisted condition, provenance (`compiler | claude | user`), state (`open | draft |
   confirmed | corrected`), unread clauses, plain reading and version — and **never compiles
-  card text at game time**. `src/lib/arena/rules-store.ts` is the only module that touches the
+  card text at game time**. That last claim became true of the *price* too on 8 Sep 2026: the
+  cost before the colon is read off `card_rules.cost` (carried on `Script.price`, filled by
+  `rulesFor` from the row and by `compileCard` from the text), so a skill with no record has an
+  **unknown** price rather than a free one. `src/lib/arena/rules-store.ts` is the only module that touches the
   table; `src/lib/arena/draft.ts` is the only one that calls the compiler in production
   (`draftCards`, and `reviewOpenRules`, which asks Claude about what the compiler left open,
   within the `arena.reviewBudget` setting). A row a person confirmed or corrected is never

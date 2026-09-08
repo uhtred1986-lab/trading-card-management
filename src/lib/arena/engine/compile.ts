@@ -10,7 +10,7 @@
  */
 import { parseFilter, type CardFilter } from "./filters";
 import { keywordOf, orbsIn, skillsOf, trailingTrigger, withoutTrailingTrigger } from "./cards";
-import type { Amount, CardScripts, Cond, Duration, Op, Ref, Script, ScriptArea, Selector, Side } from "./script";
+import type { Amount, CardScripts, Cond, Duration, Op, Ref, Script, ScriptArea, Selector, Side, SkillPrice } from "./script";
 import type { CardDef, DelayScope, DelayTiming, KeywordSkill, Skill, SkillKindPrefix } from "./types";
 
 // ── clause splitting ───────────────────────────────────────────────────────
@@ -3350,8 +3350,20 @@ export function compileCard(card: CardDef, side: "front" | "back" = "front"): Ca
   const unsupported: string[] = [];
   for (const sk of skillsOf(card, side)) {
     const script = compileSkill(sk);
-    bySkill[sk.index] = script;
+    // The price rides with the program. This is the only place it is read for
+    // a context built from card text — `rulesFor` reads the row instead — and
+    // it is what keeps `npm test` and the probe playing prices at all now that
+    // the engine no longer compiles one mid-game.
+    bySkill[sk.index] = { ...script, price: priceFromText(sk) };
     unsupported.push(...script.unsupported);
   }
   return { bySkill, complete: unsupported.length === 0, unsupported };
+}
+
+/**
+ * The two halves of a price, read together (4-3-3). Module-local on purpose:
+ * outside the compiler a price comes off the record, never off the text.
+ */
+function priceFromText(skill: Skill): SkillPrice {
+  return { condition: priceCondition(skill)?.cond ?? null, ops: compileCostProgram(skill)?.ops ?? null };
 }
