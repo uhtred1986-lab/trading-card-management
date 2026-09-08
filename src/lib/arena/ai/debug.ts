@@ -11,6 +11,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { arenaDecisions, cardTextNotes, cards as cardsTable } from "@/db/schema";
 import { compileCardCached, parseSkills, type CardDef, type Op } from "../engine";
+import { clauseShape } from "../gaps";
 import { cardDefFrom } from "../load";
 
 export interface DecisionRecord {
@@ -70,15 +71,6 @@ export async function recordDecision(db: Db, rec: DecisionRecord): Promise<void>
  * your <Vegeta> cards" land on the same row of the backlog. That grouping is
  * the whole point: one rule in the compiler usually clears many cards at once.
  */
-export function clausePattern(clause: string): string {
-  return clause
-    .toLowerCase()
-    .replace(/<[^>]*>|\{[^}]*\}|≪[^≫]*≫/g, "…")
-    .replace(/\d[\d,]*/g, "N")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 /** Note that a card's clause could not be read. Safe to call repeatedly. */
 export async function noteUnreadText(db: Db, entries: { cardId: string; skillIndex: number; clause: string; skillText: string }[], seen: boolean, ruling?: { ops: Op[]; why: string }): Promise<void> {
   for (const e of entries) {
@@ -89,7 +81,7 @@ export async function noteUnreadText(db: Db, entries: { cardId: string; skillInd
         cardId: e.cardId,
         skillIndex: e.skillIndex,
         clause: e.clause,
-        pattern: clausePattern(e.clause),
+        pattern: clauseShape(e.clause),
         skillText: e.skillText,
         timesSeen: seen ? 1 : 0,
         lastSeenAt: seen ? new Date() : null,

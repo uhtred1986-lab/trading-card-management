@@ -23,7 +23,8 @@ import { and, desc, eq, isNotNull } from "drizzle-orm";
 import { db } from "../src/db";
 import { cards as cardsTable, cardTextNotes } from "../src/db/schema";
 import { parseSkills } from "../src/lib/arena/engine";
-import { clausePattern, noteUnreadText, unreadClausesOf } from "../src/lib/arena/ai/debug";
+import { noteUnreadText, unreadClausesOf } from "../src/lib/arena/ai/debug";
+import { clauseShape } from "../src/lib/arena/gaps";
 import { cardDefFrom } from "../src/lib/arena/load";
 
 const argv = process.argv.slice(2);
@@ -85,7 +86,7 @@ for (const t of targets) {
     .update(cardTextNotes)
     .set({ explanation, explainedAt: new Date() })
     .where(and(eq(cardTextNotes.cardId, t.cardId), eq(cardTextNotes.skillIndex, t.skillIndex), eq(cardTextNotes.clause, t.clause)));
-  console.log(`${t.cardId} #${t.skillIndex}  ${clausePattern(t.clause)}`);
+  console.log(`${t.cardId} #${t.skillIndex}  ${clauseShape(t.clause)}`);
 }
 console.log(`\nRuling recorded on ${targets.length} note${targets.length === 1 ? "" : "s"}: ${explanation}`);
 process.exit(0);

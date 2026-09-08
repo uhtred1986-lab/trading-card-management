@@ -35,6 +35,8 @@ import { compileCostProgram, compileSkill, costIsOnlyOrbs, costText, parseCondit
 import { OP_SCHEMA, describeScript, opSignature, validateProgram as validate, type Op as SchemaOp } from "../src/lib/arena/engine/script";
 import { autoTriggerMatches, koCard } from "../src/lib/arena/engine/triggers";
 import type { Trigger } from "../src/lib/arena/engine/types";
+import { hoist, programShape, skillRecords } from "../src/lib/arena/draft";
+import { clauseShape, describeTrigger, mechanismOf, triggersOf } from "../src/lib/arena/gaps";
 
 // ── skill text parsing ─────────────────────────────────────────────────────
 
@@ -7229,6 +7231,55 @@ function assertDisjoint(s: GameState, where: string): RejectedAction[] {
   assert.equal(opSignature("ko"), '{"op":"ko","target":TARGET}');
   assert.equal(opSignature("negateAttack"), '{"op":"negateAttack"}');
   assert.match(opSignature("draw"), /"side"\?:"you"\|"opponent"/, "an optional field is marked");
+}
+
+// ── the drafter: card text → one record per skill, ready for a person ────────
+{
+  const d = card("DRAFTED", {
+    type: "LEADER",
+    skill: "[Auto] When you play this card, choose up to 1 of your opponent's Battle Cards and KO it.<br>[Blocker]<br>[Permanent] If your Leader is red, this card gets +5000 power.<br>[Activate: Main] {r}{r}, Once per turn: Draw 1 card.",
+    back: { name: "DRAFTED (awakened)", power: 20000, skill: "[Auto] When this card attacks, draw 1 card." },
+  });
+  const recs = skillRecords(d);
+  // [Blocker] alone is a rule the engine plays natively, so there is nothing to confirm about it.
+  assert.deepEqual(
+    recs.map((r) => `${r.side}#${r.skillIndex}:${r.kind}`),
+    ["front#0:auto", "front#20:permanent", "front#30:activate:main", "back#0:auto"],
+  );
+  const play = recs[0];
+  assert.deepEqual(play.trigger, ["played"], "the WHEN line comes from the same matcher the engine pends with");
+  assert.equal(describeTrigger(play.trigger), "when this card is played");
+  assert.equal(play.unread.length, 0);
+  assert.equal(play.pattern, "choose→ko", "drafts group by the shape of what the compiler produced");
+  assert.equal(play.reads, "choose up to 1 in opponent's battle, KO the chosen cards");
+  assert.equal(play.cost, null);
+  // A program that is one wrapping `if` is shown as IF + DO; the reading still covers the whole thing.
+  const perm = recs[1];
+  assert.equal(perm.cond?.kind, "leaderMatches", "the wrapping if is hoisted into IF");
+  assert.equal(perm.ops.length, 1);
+  assert.equal(perm.reads, "if your leader is Red: this card +5000 power", "…and the reading still covers the whole program");
+  assert.equal(perm.trigger.length, 0, "a [Permanent] has no trigger");
+  // The price before the colon is read into the record without a game state.
+  const act = recs[2];
+  assert.deepEqual(act.cost?.orbs, { Red: 2 });
+  assert.equal(act.cost?.text, "Once per turn", "the orbs come off the price text; the limit stays in it");
+  assert.equal(act.printed.startsWith("[Activate: Main]"), true, "the printed line is the whole line, tags included");
+  assert.deepEqual(recs[3].trigger, ["attacks"]);
+  assert.deepEqual(hoist([{ op: "if", cond: { kind: "isTurnPlayer" }, then: [{ op: "draw", n: 1 }], else: [] }]).cond, { kind: "isTurnPlayer" }, "an empty else is still no else");
+  assert.equal(hoist([{ op: "if", cond: { kind: "isTurnPlayer" }, then: [], else: [{ op: "draw", n: 1 }] }]).cond, null, "an if with an else keeps its shape");
+  assert.equal(programShape([{ op: "choose", sel: { side: "you", area: "battle", count: 1 }, as: "t" }, { op: "delay", at: "turnEnd", ops: [{ op: "ko", target: { var: "t" } }] }]), "choose→delay:turnEnd[ko]");
+  assert.equal(programShape([{ op: "forbid", what: "attack", until: "turn", target: { var: "t" } }, { op: "grant", target: { var: "t" }, keyword: { name: "Blocker" }, until: "turn" }]), "forbid:attack→grant:Blocker");
+  // Open rows group by the shape of the first unread clause; the mechanism says what it would take.
+  const unread = card("UNREAD", { skill: "[Auto] When you play this card, your opponent skips their next Charge Phase." });
+  const [u] = skillRecords(unread);
+  assert.equal(u.unread.length > 0, true);
+  assert.equal(u.pattern, clauseShape(u.unread[0]));
+  assert.equal(mechanismOf("your opponent skips their next charge phase"), "turn structure");
+  assert.equal(mechanismOf("choose 1 <Frieza> card in your hand"), "phrasing only");
+  assert.equal(clauseShape("Choose up to 2 of your opponent's <Son Goku> cards with 15000 power"), "choose up to N of your opponent's … cards with N power");
+  // Keyword skills that carry a trigger of their own are pended by it.
+  const revenge = parseSkills("[Revenge] When this card is attacked, draw 1 card.")[0];
+  assert.equal(triggersOf(revenge).includes("attacked"), true);
 }
 
 console.log("verify-arena: all checks passed");

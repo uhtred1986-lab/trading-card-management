@@ -10,6 +10,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { cardRules } from "@/db/schema";
 import { compileCardCached, describeScript, type CardDef, type CardScripts, type Op } from "./engine";
+import type { Cond } from "./engine/script";
 
 export type RuleRow = typeof cardRules.$inferSelect;
 export type RuleStatus = "open" | "draft" | "confirmed" | "corrected";
@@ -19,6 +20,12 @@ export interface CompilerDiff {
   ops: Op[];
   unread: string[];
   at: string;
+}
+
+/** The program the engine runs: the hoisted condition, if any, wrapped back around the steps. */
+export function programOf(row: Pick<RuleRow, "ops" | "cond">): Op[] {
+  const ops = (row.ops as Op[]) ?? [];
+  return row.cond ? [{ op: "if", cond: row.cond as Cond, then: ops }] : ops;
 }
 
 /** The key `ctx.scripts` is read by: the catalog id for a front, `<id>#back` for a leader's awakened side. */
@@ -48,7 +55,7 @@ export async function rulesFor(db: Db, defs: Record<string, CardDef>): Promise<R
     const base = out[key] ?? clone(compileCardCached(d, side));
     // An open row has no program: the skill is played as blank, and the
     // unread clauses stay on it so the log and the referee can say why.
-    base.bySkill[row.skillIndex] = row.status === "open" ? { ops: [], unsupported: row.unread } : { ops: (row.ops as Op[]) ?? [], unsupported: [] };
+    base.bySkill[row.skillIndex] = row.status === "open" ? { ops: [], unsupported: row.unread } : { ops: programOf(row), unsupported: [] };
     base.unsupported = Object.values(base.bySkill).flatMap((s) => s.unsupported);
     base.complete = base.unsupported.length === 0;
     out[key] = base;
@@ -86,6 +93,7 @@ export async function saveRule(db: Db, w: RuleWrite): Promise<RuleRow> {
       .update(cardRules)
       .set({
         ops: w.ops,
+        cond: null,
         source: w.source,
         status: w.status,
         explanation: w.explanation ?? existing.explanation,
@@ -135,6 +143,7 @@ export async function takeCompilerDiff(db: Db, id: number): Promise<void> {
     .update(cardRules)
     .set({
       ops: diff.ops,
+      cond: null,
       unread: diff.unread,
       reads: describeScript(diff.ops, { permanent: row.kind.toLowerCase() === "permanent" }),
       status: diff.unread.length ? "open" : "draft",
@@ -145,4 +154,19 @@ export async function takeCompilerDiff(db: Db, id: number): Promise<void> {
       updatedAt: new Date(),
     })
     .where(eq(cardRules.id, id));
+}
+
+export type RuleCounts = Record<RuleStatus, number>;
+
+/** How many rules stand in each state, over the whole table or over some cards. */
+export async function countRules(db: Db, cardIds?: string[]): Promise<RuleCounts> {
+  const out: RuleCounts = { open: 0, draft: 0, confirmed: 0, corrected: 0 };
+  if (cardIds && !cardIds.length) return out;
+  const rows = await db
+    .select({ status: cardRules.status, n: sql<number>`count(*)::int` })
+    .from(cardRules)
+    .where(cardIds ? inArray(cardRules.cardId, [...new Set(cardIds)]) : undefined)
+    .groupBy(cardRules.status);
+  for (const r of rows) if (r.status in out) out[r.status as RuleStatus] = r.n;
+  return out;
 }
