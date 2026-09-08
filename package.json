@@ -15,6 +15,7 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "db:check": "tsx scripts/db-check.mts",
+    "db:migrate:http": "tsx scripts/db-migrate.mts",
     "sync:catalog": "tsx scripts/sync-catalog.mts",
     "sync:prices": "tsx scripts/sync-prices.mts",
     "sync:meta": "tsx scripts/sync-meta.mts",

@@ -40,10 +40,20 @@ function modernise(ops: Loose[]): Loose[] {
   });
 }
 
-// Read with raw SQL: the table has no Drizzle definition any more, and the
-// migration that drops it only runs after this script has had its turn.
+// Read with raw SQL: the table has no Drizzle definition any more. When
+// migration 0028 has already run — a deploy got there first — the table is
+// gone and its rows sit in card_rules as Claude's, copied by the migration's
+// own INSERT; the second pass below then classifies those from `reads`, which
+// holds the old `meaning`, by the same rule.
 type OldRow = { cardId: string; skillIndex: number; side: string; ops: Loose[]; source: string; explanation: string | null; meaning: string | null; createdAt: string; updatedAt: string };
-const old = rows<OldRow>(await db.execute(sql`select card_id as "cardId", skill_index as "skillIndex", side, ops, source, explanation, meaning, created_at as "createdAt", updated_at as "updatedAt" from card_scripts`));
+const [exists] = rows<{ n: number }>(await db.execute(sql`select count(*)::int as n from information_schema.tables where table_name = 'card_scripts'`));
+let old: OldRow[] = [];
+if (exists.n) old = rows<OldRow>(await db.execute(sql`select card_id as "cardId", skill_index as "skillIndex", side, ops, source, explanation, meaning, created_at as "createdAt", updated_at as "updatedAt" from card_scripts`));
+else {
+  const copied = await db.select().from(cardRules).where(sql`${cardRules.source} = 'claude' and ${cardRules.status} = 'corrected' and ${cardRules.version} = 1`);
+  old = copied.map((r) => ({ cardId: r.cardId, skillIndex: r.skillIndex, side: r.side, ops: (r.ops as Loose[]) ?? [], source: r.source, explanation: r.explanation, meaning: r.reads || null, createdAt: r.createdAt.toISOString(), updatedAt: r.updatedAt.toISOString() }));
+  console.log(`card_scripts is already dropped; ${copied.length} row${copied.length === 1 ? "" : "s"} the migration copied are classified from what it kept`);
+}
 console.log(`${old.length} card_scripts row${old.length === 1 ? "" : "s"} to carry over`);
 let user = 0;
 let claude = 0;

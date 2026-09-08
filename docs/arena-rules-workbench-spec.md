@@ -1,6 +1,6 @@
 # Arena — rules as records: the Rules Workbench
 
-**Status: brief, not built (8 Sep 2026). Branch `feature/arena-rules-records` carries this file, the prototype and `docs/CLAUDE-TASK.md`.** Written to be executed by Claude Code in this repository.
+**Status: phase 1 (§3) built, 8 Sep 2026, PR #56; phases 2 and 3 are later sessions. The findings that changed the plan are in `docs/arena-rules-worklist.md`, "Done: rules as records".** Written to be executed by Claude Code in this repository.
 Companion prototype: `docs/arena-rules-workbench-prototype.html` (open it in a browser; it is the
 UX target, not code to copy).
 

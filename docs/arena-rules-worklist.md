@@ -1685,6 +1685,56 @@ it actually offered showed the filter had been dropped a layer above. Write the
 engine assertion for any measure that narrows a *choice*, not just the compile
 one.
 
+## Done: rules as records — the Rules Workbench, phase 1 (8 Sep 2026)
+
+`docs/arena-rules-workbench-spec.md` §3, built in eight commits on PR #56. A
+rule is now a row of `card_rules` — one per skill per card face, with the
+program, its trigger, cost and hoisted condition, provenance (compiler | claude
+| user), state (open | draft | confirmed | corrected), the unread clauses, the
+plain reading and a version. The engine reads those rows and nothing else;
+`npm run arena:draft` is the compiler run offline as a drafter; `/arena/rules`
+is where a person confirms or corrects; the catalog sync drafts every new or
+changed card and asks Claude about the skills the compiler left open.
+
+**What the brief did not expect, and what was done about it.** `engine.ts`
+did read `ctx.scripts` first, but the static layer in `state.ts` never did —
+`staticEffects`, `permanentStatics` and `ownProhibitions` compiled the card
+themselves, so a stored program for a [Permanent] was silently ignored.
+`scripts` moved onto `GameContext` and `programsOf` is the one lookup. The
+sync entry point is `importCatalog` in `src/lib/catalog/deckplanet.ts`, not a
+`sync.ts`; text comes from deckplanet with errata.ts applied, CardTrader
+touches none. `card_scripts` was classified by what was stored beside each
+row — the old rules page saved the compiler's own rendering as `meaning`, so
+those are the owner's; `clarify.ts` saved Claude's restatement and stamped it
+`user` anyway, so those are Claude's — and migration 0028 copies leftovers as
+Claude's before dropping, so a deploy cannot race the one-off script.
+
+**OP_SCHEMA.** One row per op in `script.ts`: fields, types, required,
+default, a sentence template (a function for the four ops whose prose turns on
+field combinations). `validateProgram`, `describeScript`, the referee's
+`EFFECT_LANGUAGE` and the workbench's chip editor read it. Four field types the
+brief's list lacked were needed by real ops — `keyword`, `filter`, `list`,
+`modes` — and are in the table rather than worked around. Adding an op is one
+interpreter case and one row.
+
+**The line count did not come down.** `src/lib/arena` is 17,431 lines against
+16,826 on `main`. The layer the brief expected to be the fat was about 200
+lines in this tree; the store, the drafter with its review step, the shared
+grouping and the schema table are new function that has to live somewhere.
+Every line that stays has one owner, which was the rule behind the number.
+
+**Still compiled at game time:** the price before the colon (`costIsReadable`,
+`canPayCostProgram`) — the row carries it as `cost.condition` / `cost.program`
+and moving the engine onto that is phase 2's. Nested programs, conditions and
+modal options are edited through the JSON view, not chips (phase 1 by design).
+
+Tests: the three suites pass with 71 new assertions — every schema row renders
+and validates, the validator's refusals, the drafter's records and hoisting,
+the engine playing a card as blank without its row and from it with, a
+[Permanent] read from rows, and on PGlite the drafter writing rows, a second
+pass touching nothing, and the sync's change detection. The database-backed
+numbers (rows drafted, coverage, 100 fuzzed games) are in the PR description.
+
 ## Conventions worth keeping
 
 - Card text is **read, never interpreted**: if the compiler cannot read a
@@ -1692,9 +1742,11 @@ one.
 - Only skills the engine can both **pay for and resolve** are offered as actions.
 - Anything Claude decides comes from `legalActions`, so an answer can be wrong
   but never illegal.
-- Every new op must be added in four places: the `Op` union, the interpreter
-  switch, `OP_NAMES`/`validateProgram`, and `EFFECT_LANGUAGE` in
-  `src/lib/arena/ai/opponent.ts`. Miss the last one and the referee will never
-  use it.
-- `describeScript` in `compile.ts` renders programs for the card inspector; add
-  a case there too, or the inspector silently drops the op.
+- Every new op is added in exactly two places: the interpreter `switch` in
+  `script.ts` and a row in `OP_SCHEMA` beside it. The validator, the plain
+  reading, the referee's prompt and the workbench's editor all read the row —
+  a missing row fails the typecheck, a wrong row shows on `/arena/rules`.
+- The engine never compiles card text. A rule reaches a game as a `card_rules`
+  row through `rulesFor`; the compiler runs as `npm run arena:draft` and at
+  catalog sync, and a compiler change reaches the board only through a
+  re-draft — deliberately, so a person has looked at what plays.

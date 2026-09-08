@@ -46,7 +46,12 @@ npm run contract:emit  # rewrite contract/fixtures/*.json after a deliberate Sna
 npm run android:test   # Kotlin round-trip of those fixtures, in Docker — no JDK on the machine
 npm run db:generate    # Generate a migration after editing src/db/schema.ts
 npm run db:migrate     # Apply migrations (also run on every Vercel deploy via vercel.json)
-npm run sync:catalog   # Import both games' catalogs from deckplanet + Fusion World art from Bandai (~50 s)
+npm run sync:catalog   # Import both games' catalogs from deckplanet + Fusion World art from Bandai (~50 s),
+                       # then draft arena rules for every new or changed card and ask Claude about the
+                       # skills the compiler could not read (--no-review, --budget N)
+npm run arena:draft    # Compile the catalog offline into card_rules drafts (--card, --set, --only-open, --review)
+npm run db:check       # Can this machine reach the database, and over which driver?
+npm run db:migrate:http # db:migrate for a sandbox that allows HTTPS only (see DB_DRIVER below)
 npm run sync:prices    # Import TCGplayer products + today's prices from tcgcsv (both categories),
                        # the USD→EUR rate, and TCGplayer art for prints still without any (~35 s)
 ```
@@ -274,11 +279,25 @@ the same style.
   the text actually comes up and stores the program Claude produced as a worked example, and
   "scan my decks again" fills it from the decks you play. That page is the to-do list for
   `compile.ts` — one rule usually clears a whole group.
-- **Explaining a card** (`src/lib/arena/ai/clarify.ts`, `/arena/backlog`): you say what a card does in
-  plain words; Claude returns a program in the effect language, saved to `card_scripts`, and a
-  markdown work item for teaching `compile.ts` the *wording*. `src/lib/arena/scripts.ts` lays stored
-  programs over the compiler's own reading through `ctx.scripts`, so an explained card plays
-  correctly from the next game — no referee call, no tokens — while the work item is what fixes
+- **Rules are records** (`docs/arena-rules-workbench-spec.md`, phase 1 built 8 Sep 2026): the
+  engine plays from `card_rules` — one row per skill per card face with the program, trigger,
+  cost, hoisted condition, provenance (`compiler | claude | user`), state (`open | draft |
+  confirmed | corrected`), unread clauses, plain reading and version — and **never compiles
+  card text at game time**. `src/lib/arena/rules-store.ts` is the only module that touches the
+  table; `src/lib/arena/draft.ts` is the only one that calls the compiler in production
+  (`draftCards`, and `reviewOpenRules`, which asks Claude about what the compiler left open,
+  within the `arena.reviewBudget` setting). A row a person confirmed or corrected is never
+  rewritten by a script: the compiler's newer reading lands beside it as `compiler_diff`. The
+  effect language is defined once, in `OP_SCHEMA` (`engine/script.ts`): the validator, the plain
+  reading, the referee's prompt and the workbench's editor read it, so a new op is one interpreter
+  case and one row. `/arena/rules` is the workbench — worklist, record (WHEN / COST / IF / DO as
+  chips, JSON view, Confirm / Correct by hand / Explain to Claude / does nothing), history.
+  `npm run arena:draft` fills the table; the catalog sync drafts every new or changed card.
+- **Explaining a card** (`src/lib/arena/ai/clarify.ts`, `/arena/backlog` and the workbench): you say
+  what a card does in plain words; Claude returns a program in the effect language, saved as the
+  card's **draft** rule (`source: claude`, for you to confirm), and a markdown work item for
+  teaching `compile.ts` the *wording*. The referee's mid-game rulings land the same way, so
+  nothing Claude decides is invisible. The program fixes one card; the work item is what fixes
   every card phrased the same way. The two are not the same fix and the page says so.
   **A ruling that arrives in conversation goes to the same table, not into a commit message**:
   `npm run arena:rule -- <cardId> [--skill N] [--clause "…"] "<the ruling>"` writes it to
@@ -294,6 +313,10 @@ the same style.
 `.env.local` (gitignored) holds `DATABASE_URL` (Neon, pooled), `ANTHROPIC_API_KEY`,
 `CARDTRADER_API_TOKEN`, `CARDTRADER_ENABLED`. `CRON_SECRET` and `XIMILAR_API_KEY` are optional.
 The same variables must exist in Vercel's project settings for the deployment. See `.env.example`.
+`DB_DRIVER=neon-http` sends queries to Neon over HTTPS instead of Postgres TCP — for sandboxes
+(Claude Code on the web is one) that let 443 out and nothing on 5432; the HTTP driver has no
+interactive transactions, so it is for the scripts, not the app server. The `arena:*` scripts
+tolerate a missing `.env.local`, so an environment that provides the variables itself needs none.
 
 The Neon database is in **`eu-central-1`** (AWS Frankfurt), so `vercel.json` pins functions to
 **`fra1`**, the Vercel region co-located with it. That pin used to live only in the Vercel dashboard,
