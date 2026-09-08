@@ -102,7 +102,7 @@
           "comboPower": 5000,
           "keywords": [],
           "text": "[Permanent] If this card is in Rest Mode, your Battle Cards get +5000 power.",
-          "reading": "if there is 1 or more this card: all in your battle +5000 power",
+          "reading": "if there are 1 or more this card: all in your battle +5000 power",
           "referee": false,
           "basePower": 10000,
           "effects": [
@@ -120,7 +120,7 @@
               "index": 0,
               "text": "If this card is in Rest Mode, your Battle Cards get +5000 power.",
               "state": "off",
-              "reading": "if there is 1 or more this card: all in your battle +5000 power"
+              "reading": "if there are 1 or more this card: all in your battle +5000 power"
             }
           ]
         },

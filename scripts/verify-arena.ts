@@ -32,7 +32,7 @@ import { KEYWORDS, keywordTagSpellings, keywordsByGroup, tagBody, tagParsesTo } 
 import { parseFilter, matches, parseCondition, type CardFilter } from "../src/lib/arena/engine/filters";
 import { addEffect, schedule, move, locate, placeUnder, playCost, powerOf, forbids, has, cardNow, comboCostOf, skillNegated, skillsNegated } from "../src/lib/arena/engine/state";
 import { compileCostProgram, compileSkill, costIsOnlyOrbs, costText, parseConditionClause, parseTarget, priceCondition, splitClauses } from "../src/lib/arena/engine/compile";
-import { OP_SCHEMA, describeScript, opSignature, validateProgram as validate, type Op as SchemaOp } from "../src/lib/arena/engine/script";
+import { COND_SCHEMA, OP_SCHEMA, describeCond, describeScript, opSignature, validateProgram as validate, type Op as SchemaOp } from "../src/lib/arena/engine/script";
 import { autoTriggerMatches, koCard } from "../src/lib/arena/engine/triggers";
 import type { Trigger } from "../src/lib/arena/engine/types";
 import { canonical, hoist, patternKey, programShape, rulesFromCompiler, skillRecords } from "../src/lib/arena/draft";
@@ -5663,7 +5663,7 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
   // knows — and it has to be read before the general form, which would take
   // "copy of this card" for a description of the cards and fail on it.
   const copies = read("[Permanent] Only 1 copy of this card can be played in your Battle Area.");
-  assert.equal(describeScript(copies.ops, { permanent: true }), "if there is 1 or more in your battle: you can't play another copy of this card");
+  assert.equal(describeScript(copies.ops, { permanent: true }), "if there are 1 or more cards in your battle: you can't play another copy of this card");
 
   // 20-12-3: a search of *their* deck is theirs to shuffle afterwards.
   assert.deepEqual(read("[Auto] When you play this card, your opponent shuffles their deck.").ops, [{ op: "shuffle", side: "opponent" }]);
@@ -7180,70 +7180,109 @@ function assertDisjoint(s: GameState, where: string): RejectedAction[] {
   assert.deepEqual(lightingFrom(encodeLighting(tuned)), tuned, "the cookie round-trips");
 }
 
-// ── OP_SCHEMA: one definition of the effect language, read by everyone ──────
-{
-  // The type `Record<Op["op"], OpSpec>` already forces a row per op; this is
-  // the runtime half: every row's sentence renders for a minimal op built from
-  // its own required fields, so a row cannot be a placeholder.
-  const sample = (t: unknown): unknown => {
-    if (typeof t === "object" && t !== null) return "enum" in (t as object) ? (t as { enum: readonly string[] }).enum[0] : [];
-    return {
-      amount: 1,
-      ref: { sel: { special: "self" } },
-      selector: { side: "you", area: "battle", count: 1 },
-      side: "you",
-      area: "drop",
-      duration: "turn",
-      cond: { kind: "isTurnPlayer" },
-      ops: [{ op: "draw", n: 1 }],
-      string: "x",
-      number: 1,
-      boolean: true,
-      keyword: { name: "Blocker" },
-      filter: undefined,
-      modes: [{ label: "a", ops: [{ op: "draw", n: 1 }] }],
-    }[t as string];
-  };
-  for (const [name, spec] of Object.entries(OP_SCHEMA)) {
-    const op: Record<string, unknown> = { op: name };
-    for (const f of spec.fields) if (f.required) op[f.name] = sample(f.type);
-    assert.equal(validate([op]), true, `a minimal ${name} validates`);
-    if (name !== "note") assert.ok(describeScript([op as unknown as SchemaOp]).length > 0, `${name} has a sentence`);
-    assert.match(opSignature(name as SchemaOp["op"]), new RegExp(`^\\{"op":"${name}"`), `${name} has a signature for the referee`);
+// ── OP_SCHEMA and COND_SCHEMA: one definition of the effect language ───────
+//
+// A function rather than the file's usual top-level block: with these in the
+// module body TypeScript gives up on control-flow analysis for the whole file
+// ("the containing function or module body is too large"), and every lambda
+// in it silently loses its inferred parameter types.
+function theEffectLanguageIsOneTable() {
+  // ── OP_SCHEMA: one definition of the effect language, read by everyone ──────
+  {
+    // The type `Record<Op["op"], OpSpec>` already forces a row per op; this is
+    // the runtime half: every row's sentence renders for a minimal op built from
+    // its own required fields, so a row cannot be a placeholder.
+    const sample = (t: unknown): unknown => {
+      if (typeof t === "object" && t !== null) return "enum" in (t as object) ? (t as { enum: readonly string[] }).enum[0] : [];
+      return {
+        amount: 1,
+        ref: { sel: { special: "self" } },
+        selector: { side: "you", area: "battle", count: 1 },
+        side: "you",
+        area: "drop",
+        duration: "turn",
+        cond: { kind: "isTurnPlayer" },
+        ops: [{ op: "draw", n: 1 }],
+        string: "x",
+        number: 1,
+        boolean: true,
+        keyword: { name: "Blocker" },
+        filter: undefined,
+        modes: [{ label: "a", ops: [{ op: "draw", n: 1 }] }],
+      }[t as string];
+    };
+    for (const [name, spec] of Object.entries(OP_SCHEMA)) {
+      const op: Record<string, unknown> = { op: name };
+      for (const f of spec.fields) if (f.required) op[f.name] = sample(f.type);
+      assert.equal(validate([op]), true, `a minimal ${name} validates`);
+      if (name !== "note") assert.ok(describeScript([op as unknown as SchemaOp]).length > 0, `${name} has a sentence`);
+      assert.match(opSignature(name as SchemaOp["op"]), new RegExp(`^\\{"op":"${name}"`), `${name} has a signature for the referee`);
+    }
+    // The validator reads the rows: a missing required field, a value outside an
+    // enum and an unknown op are all refused; optional fields may be left out.
+    assert.equal(validate([{ op: "ko" }]), false, "ko needs a target");
+    assert.equal(validate([{ op: "delay", at: "never", ops: [] }]), false, "a delay timing the engine never drains is refused");
+    assert.equal(validate([{ op: "delay", at: "turnEnd", scope: "someday", ops: [] }]), false);
+    assert.equal(validate([{ op: "delay", at: "turnEnd", ops: [{ op: "ko", target: { var: "t" } }] }]), true);
+    assert.equal(validate([{ op: "forbid", what: "fly", until: "turn" }]), false, "an unknown prohibition is refused");
+    assert.equal(validate([{ op: "forbid", what: "attack", until: "turn", target: { var: "t" } }]), true);
+    assert.equal(validate([{ op: "token", name: "Saibaman", power: 10000, comboCost: null, comboPower: null, colors: [], n: 1 }]), true, "null is a value where the schema says so");
+    assert.equal(validate([{ op: "token", name: "Saibaman", power: 10000, colors: [], n: 1 }]), false, "…but leaving it out is not");
+    assert.equal(validate([{ op: "chooseMode", modes: [] }]), false, "a modal choice with no options");
+    assert.equal(validate([{ op: "if", cond: { kind: "isTurnPlayer" }, then: [{ op: "nope" }] }]), false, "nested programs are checked too");
+    assert.equal(validate([{ op: "draw", n: 1, side: "them" }]), false, "a side the engine does not know");
+    // The shapes the referee gets wrong most: a bare selector where a ref belongs, an empty ref, a special the engine does not know, a condition without a kind.
+    assert.equal(validate([{ op: "ko", target: { special: "self" } }]), false, "a selector is not a ref — two of three BT18 reviews died describing this");
+    assert.equal(validate([{ op: "ko", target: {} }]), false);
+    assert.equal(validate([{ op: "ko", target: { sel: { special: "self" } } }]), true);
+    assert.equal(validate([{ op: "ko", target: { sel: { special: "myself" } } }]), false);
+    assert.equal(validate([{ op: "if", cond: { atLeast: 2 }, then: [] }]), false, "a condition needs a kind");
+    // The renderer reads the same rows: templates, hints and conditional segments.
+    assert.equal(describeScript([{ op: "draw", n: 1, side: "opponent" }]), "opponent draws 1");
+    assert.equal(describeScript([{ op: "discard", n: 1, to: "warp" }]), "discard 1 to the Warp");
+    assert.equal(describeScript([{ op: "hidden", target: { var: "t" }, hidden: false }]), "switch the chosen cards to Revealed Mode");
+    assert.equal(describeScript([{ op: "faceUp", target: { var: "t" } }]), "turn the chosen cards face up", "a default fills an absent field");
+    assert.equal(describeScript([{ op: "negateSkillsOfKind", target: { var: "t" }, kind: "auto", until: "turn" }]), "negate the [Auto] skills of the chosen cards for the turn");
+    assert.equal(describeScript([{ op: "power", target: { var: "t" }, amount: { count: { side: "you", area: "battle", count: 99 }, times: 5000 }, until: "battle" }]), "the chosen cards +5000 power for each of your Battle Cards for the battle");
+    assert.equal(describeScript([{ op: "if", cond: { kind: "isTurnPlayer" }, then: [], else: [{ op: "draw", n: 1 }] }]), "if it is your turn: nothing, otherwise draw 1");
+    assert.equal(describeScript([{ op: "may", ops: [{ op: "draw", n: 1 }], chooser: "opponent" }]), "your opponent may: draw 1");
+    assert.equal(describeScript([{ op: "note", text: "x" }, { op: "shuffle" }]), "shuffle", "a note says nothing");
+    assert.equal(opSignature("ko"), '{"op":"ko","target":TARGET}');
+    assert.equal(opSignature("negateAttack"), '{"op":"negateAttack"}');
+    assert.match(opSignature("draw"), /"side"\?:"you"\|"opponent"/, "an optional field is marked");
   }
-  // The validator reads the rows: a missing required field, a value outside an
-  // enum and an unknown op are all refused; optional fields may be left out.
-  assert.equal(validate([{ op: "ko" }]), false, "ko needs a target");
-  assert.equal(validate([{ op: "delay", at: "never", ops: [] }]), false, "a delay timing the engine never drains is refused");
-  assert.equal(validate([{ op: "delay", at: "turnEnd", scope: "someday", ops: [] }]), false);
-  assert.equal(validate([{ op: "delay", at: "turnEnd", ops: [{ op: "ko", target: { var: "t" } }] }]), true);
-  assert.equal(validate([{ op: "forbid", what: "fly", until: "turn" }]), false, "an unknown prohibition is refused");
-  assert.equal(validate([{ op: "forbid", what: "attack", until: "turn", target: { var: "t" } }]), true);
-  assert.equal(validate([{ op: "token", name: "Saibaman", power: 10000, comboCost: null, comboPower: null, colors: [], n: 1 }]), true, "null is a value where the schema says so");
-  assert.equal(validate([{ op: "token", name: "Saibaman", power: 10000, colors: [], n: 1 }]), false, "…but leaving it out is not");
-  assert.equal(validate([{ op: "chooseMode", modes: [] }]), false, "a modal choice with no options");
-  assert.equal(validate([{ op: "if", cond: { kind: "isTurnPlayer" }, then: [{ op: "nope" }] }]), false, "nested programs are checked too");
-  assert.equal(validate([{ op: "draw", n: 1, side: "them" }]), false, "a side the engine does not know");
-  // The shapes the referee gets wrong most: a bare selector where a ref belongs, an empty ref, a special the engine does not know, a condition without a kind.
-  assert.equal(validate([{ op: "ko", target: { special: "self" } }]), false, "a selector is not a ref — two of three BT18 reviews died describing this");
-  assert.equal(validate([{ op: "ko", target: {} }]), false);
-  assert.equal(validate([{ op: "ko", target: { sel: { special: "self" } } }]), true);
-  assert.equal(validate([{ op: "ko", target: { sel: { special: "myself" } } }]), false);
-  assert.equal(validate([{ op: "if", cond: { atLeast: 2 }, then: [] }]), false, "a condition needs a kind");
-  // The renderer reads the same rows: templates, hints and conditional segments.
-  assert.equal(describeScript([{ op: "draw", n: 1, side: "opponent" }]), "opponent draws 1");
-  assert.equal(describeScript([{ op: "discard", n: 1, to: "warp" }]), "discard 1 to the Warp");
-  assert.equal(describeScript([{ op: "hidden", target: { var: "t" }, hidden: false }]), "switch the chosen cards to Revealed Mode");
-  assert.equal(describeScript([{ op: "faceUp", target: { var: "t" } }]), "turn the chosen cards face up", "a default fills an absent field");
-  assert.equal(describeScript([{ op: "negateSkillsOfKind", target: { var: "t" }, kind: "auto", until: "turn" }]), "negate the [Auto] skills of the chosen cards for the turn");
-  assert.equal(describeScript([{ op: "power", target: { var: "t" }, amount: { count: { side: "you", area: "battle", count: 99 }, times: 5000 }, until: "battle" }]), "the chosen cards +5000 power for each of your Battle Cards for the battle");
-  assert.equal(describeScript([{ op: "if", cond: { kind: "isTurnPlayer" }, then: [], else: [{ op: "draw", n: 1 }] }]), "if it is your turn: nothing, otherwise draw 1");
-  assert.equal(describeScript([{ op: "may", ops: [{ op: "draw", n: 1 }], chooser: "opponent" }]), "your opponent may: draw 1");
-  assert.equal(describeScript([{ op: "note", text: "x" }, { op: "shuffle" }]), "shuffle", "a note says nothing");
-  assert.equal(opSignature("ko"), '{"op":"ko","target":TARGET}');
-  assert.equal(opSignature("negateAttack"), '{"op":"negateAttack"}');
-  assert.match(opSignature("draw"), /"side"\?:"you"\|"opponent"/, "an optional field is marked");
+
+  // ── COND_SCHEMA: the other half of the language, in the same one table ──────
+  {
+    const sample = (t: unknown): unknown => {
+      if (typeof t === "object" && t && "enum" in t) return (t as { enum: readonly string[] }).enum[0];
+      return { selector: { side: "you", area: "battle", count: 1 }, side: "you", number: 1, boolean: true, string: "t", filter: parseFilter("red card"), cond: { kind: "isTurnPlayer" }, conds: [{ kind: "isTurnPlayer" }] }[t as string];
+    };
+    for (const [kind, spec] of Object.entries(COND_SCHEMA)) {
+      const cond: Record<string, unknown> = { kind };
+      for (const f of spec.fields) if (f.required) cond[f.name] = sample(f.type);
+      assert.equal(validate([{ op: "if", cond, then: [] }]), true, `a minimal ${kind} validates`);
+      assert.ok(describeCond(cond as unknown as Parameters<typeof describeCond>[0]).length > 0, `${kind} has a sentence`);
+    }
+    // The validator reads the rows here too — before this it asked only for a
+    // `kind`, so a count with nothing to count was stored and threw in a game.
+    assert.equal(validate([{ op: "if", cond: { kind: "count", atLeast: 2 }, then: [] }]), false, "a count needs the selector it counts");
+    assert.equal(validate([{ op: "if", cond: { kind: "count", sel: { side: "you", area: "drop", count: 99 }, atLeast: 2 }, then: [] }]), true);
+    assert.equal(validate([{ op: "if", cond: { kind: "life", side: "them", atMost: 4 }, then: [] }]), false, "a side the engine does not know");
+    assert.equal(validate([{ op: "if", cond: { kind: "did", what: "shuffle" }, then: [] }]), false, "…and a question it never asks");
+    assert.equal(validate([{ op: "if", cond: { kind: "any", conds: [] }, then: [] }]), false, "one of nothing is nothing");
+    assert.equal(validate([{ op: "if", cond: { kind: "any", conds: [{ kind: "isTurnPlayer" }, { kind: "nope" }] }, then: [] }]), false, "nested conditions are checked too");
+    assert.equal(validate([{ op: "if", cond: { kind: "not", cond: { kind: "isTurnPlayer" } }, then: [] }]), true);
+    // …and the sentences are the ones the workbench and the log printed before.
+    assert.equal(describeCond({ kind: "count", sel: { side: "you", area: "drop", count: 99, filter: parseFilter("{Angel Halo}") }, atLeast: 2 }), "there are 2 or more {Angel Halo} in your drop");
+    assert.equal(describeCond({ kind: "count", sel: { side: "opponent", area: "battle", count: 99 }, atMost: 0 }), "there are no cards in opponent's battle", "the noun the selector had nothing to say about is put back");
+    assert.equal(describeCond({ kind: "isTurnPlayer", who: "opponent" }), "it is your opponent's turn");
+    assert.equal(describeCond({ kind: "did", what: "may" }), "the offer was taken");
+    assert.equal(describeCond({ kind: "all", conds: [{ kind: "isTurnPlayer" }, { kind: "life", side: "you", atMost: 4 }] }), "it is your turn and your life is 4 or less");
+  }
+
 }
+theEffectLanguageIsOneTable();
 
 // ── the drafter: card text → one record per skill, ready for a person ────────
 {

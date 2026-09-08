@@ -1128,6 +1128,7 @@ export type FieldType =
   | "area"
   | "duration"
   | "cond"
+  | "conds"
   | "ops"
   | "string"
   | "number"
@@ -1378,6 +1379,171 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
   note: { fields: [{ name: "text", type: "string", required: true }], sentence: "", doc: "a remark in the log; does nothing" },
 };
 
+/**
+ * A condition in the same form as an op: its fields, and the sentence it makes.
+ *
+ * The same reason `OP_SCHEMA` exists. A condition kind used to be written in
+ * three places — the `Cond` union, the interpreter in `state.ts`, and a
+ * hand-written `switch` in `describeCond` — and nothing checked its fields at
+ * all: the validator accepted any object carrying a `kind`, so
+ * `{"kind":"count"}` with no selector passed, was stored, and threw when the
+ * engine read it. Adding a kind is now one interpreter case and one row here.
+ *
+ * Most sentences turn on which bound is set ("2 or more" against "no"), so
+ * they are functions rather than templates; the fields beside them are what
+ * the validator and the workbench's editor read.
+ */
+export interface CondSpec {
+  fields: OpField[];
+  sentence: (cond: Cond) => string;
+  doc?: string;
+}
+
+type CondOf<K extends Cond["kind"]> = Extract<Cond, { kind: K }>;
+
+const SEL: OpField = { name: "sel", type: "selector", required: true };
+const AT_LEAST: OpField = { name: "atLeast", type: "number" };
+const AT_MOST: OpField = { name: "atMost", type: "number" };
+
+/** "2 or more", "no", "any" — the bound a counting condition puts on a number. */
+function bound(c: { atLeast?: number; atMost?: number }, most = "or fewer"): string {
+  if (c.atMost === 0) return "no";
+  if (c.atLeast != null) return `${c.atLeast} or more`;
+  if (c.atMost != null) return `${c.atMost} ${most}`;
+  return "any";
+}
+
+const DID_IN_WORDS: Record<CondOf<"did">["what"], string> = {
+  addToHand: "you added a card to your hand",
+  play: "you played a card",
+  negateAttack: "you negated the attack",
+  negateLeaderAttack: "you negated a Leader's attack",
+  ko: "you KO'd a card",
+  draw: "you drew a card",
+  may: "the offer was taken",
+};
+const DID_WHATS = Object.keys(DID_IN_WORDS) as readonly CondOf<"did">["what"][];
+
+export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
+  count: {
+    fields: [SEL, AT_LEAST, AT_MOST],
+    sentence: (raw) => {
+      const c = raw as CondOf<"count">;
+      // "all" is the count this borrows to name the cards; what is left says
+      // which and where. With no filter it starts at the area — "there is 2 or
+      // more in your drop" — so the noun the selector had nothing to say about
+      // is put back.
+      const what = describeSelector({ ...c.sel, count: 99 }).replace(/^all /, "");
+      return `there are ${bound(c)} ${what.startsWith("in ") ? `cards ${what}` : what}`;
+    },
+    doc: "how many cards a selector finds",
+  },
+  life: {
+    fields: [{ name: "side", type: "side", required: true }, AT_LEAST, AT_MOST],
+    sentence: (raw) => {
+      const c = raw as CondOf<"life">;
+      const whose = c.side === "opponent" ? "their" : "your";
+      if (c.atMost != null) return `${whose} life is ${c.atMost} or less`;
+      if (c.atLeast != null) return `${whose} life is ${c.atLeast} or more`;
+      return `${whose} life`;
+    },
+  },
+  lifeVsOpponent: {
+    fields: [
+      { name: "atLeast", type: "boolean" },
+      { name: "atMost", type: "boolean" },
+    ],
+    sentence: (raw) => ((raw as CondOf<"lifeVsOpponent">).atLeast ? "your life is at least theirs" : "your life is no more than theirs"),
+    doc: "the two life counts against each other",
+  },
+  leaderColor: {
+    fields: [{ name: "color", type: { enum: COLORS }, required: true }],
+    sentence: (raw) => `your leader is ${(raw as CondOf<"leaderColor">).color}`,
+  },
+  leaderMatches: {
+    fields: [
+      { name: "filter", type: "filter", required: true },
+      { name: "side", type: "side" },
+      { name: "back", type: "boolean" },
+    ],
+    sentence: (raw) => {
+      const c = raw as CondOf<"leaderMatches">;
+      const f = c.filter;
+      const bits = [...f.colors, ...f.characters.map((x) => `<${x}>`), ...f.traits.map((x) => `\u226a${x}\u226b`)];
+      return `${c.side === "opponent" ? "their" : "your"} leader${c.back ? "'s back side" : ""} is ${bits.join(" ") || f.names?.join("/") || "a match"}`;
+    },
+    doc: '"If your Leader is a <Baby> card" — colour, character name and traits alike',
+  },
+  markers: {
+    fields: [SEL, AT_LEAST, AT_MOST],
+    sentence: (raw) => {
+      const c = raw as CondOf<"markers">;
+      return `${describeSelector(c.sel)} has ${bound(c)} markers`;
+    },
+  },
+  inBattle: {
+    fields: [SEL, { name: "not", type: "boolean" }, { name: "role", type: { enum: ["attacker", "guard"] } }],
+    sentence: (raw) => {
+      const c = raw as CondOf<"inBattle">;
+      return `${describeSelector(c.sel)} is ${c.not ? "not " : ""}${c.role === "guard" ? "being attacked" : c.role === "attacker" ? "attacking" : "in a battle"}`;
+    },
+  },
+  battled: { fields: [SEL], sentence: (raw) => `${describeSelector((raw as CondOf<"battled">).sel)} has been in a battle this turn` },
+  every: {
+    fields: [SEL, { name: "matching", type: "selector", required: true }],
+    sentence: (raw) => {
+      const c = raw as CondOf<"every">;
+      return `all of ${describeSelector(c.sel)} is ${describeSelector(c.matching)}`;
+    },
+    doc: "every card the first selector finds is also one the second finds; false when there is nothing to find (0-2-4-1)",
+  },
+  any: { fields: [{ name: "conds", type: "conds", required: true }], sentence: (raw) => (raw as CondOf<"any">).conds.map(describeCond).join(", or ") },
+  all: { fields: [{ name: "conds", type: "conds", required: true }], sentence: (raw) => (raw as CondOf<"all">).conds.map(describeCond).join(" and ") },
+  leaderFlipped: {
+    fields: [
+      { name: "side", type: "side" },
+      { name: "flipped", type: "boolean" },
+    ],
+    sentence: (raw) => {
+      const c = raw as CondOf<"leaderFlipped">;
+      return `${c.side === "opponent" ? "their" : "your"} leader ${c.flipped === false ? "has not" : "has"} awakened`;
+    },
+  },
+  power: {
+    fields: [SEL, AT_LEAST, AT_MOST],
+    sentence: (raw) => {
+      const c = raw as CondOf<"power">;
+      return `${describeSelector(c.sel)} has ${bound(c, "or less")} power`;
+    },
+  },
+  did: {
+    fields: [{ name: "what", type: { enum: DID_WHATS }, required: true }],
+    sentence: (raw) => DID_IN_WORDS[(raw as CondOf<"did">).what],
+    doc: 'whether an earlier step of this same skill did that — {"what":"may"} reads the answer to a "you may"',
+  },
+  not: { fields: [{ name: "cond", type: "cond", required: true }], sentence: (raw) => `not (${describeCond((raw as CondOf<"not">).cond)})` },
+  chose: {
+    fields: [{ name: "var", type: "string", required: true }, AT_LEAST],
+    sentence: (raw) => {
+      const c = raw as CondOf<"chose">;
+      return c.atLeast && c.atLeast > 1 ? `you took all ${c.atLeast}` : "you took that choice";
+    },
+    doc: '"If you do so" (20-16): whether an earlier choice was answered, and with how many',
+  },
+  varMatches: {
+    fields: [
+      { name: "var", type: "string", required: true },
+      { name: "filter", type: "filter", required: true },
+    ],
+    sentence: (raw) => `that card is ${describeFilter((raw as CondOf<"varMatches">).filter)}`,
+  },
+  isTurnPlayer: {
+    fields: [{ name: "who", type: { enum: ["you", "opponent"] } }],
+    sentence: (raw) => ((raw as CondOf<"isTurnPlayer">).who === "opponent" ? "it is your opponent's turn" : "it is your turn"),
+    doc: 'whose turn it is (7-1) — "during your opponent\'s turn" is this, not a duration',
+  },
+};
+
 // ── validation, for programs that did not come from the compiler ───────────
 
 /**
@@ -1410,6 +1576,24 @@ function selectorHolds(v: unknown): boolean {
   return special === undefined || (SPECIAL_TARGETS as readonly string[]).includes(special as string);
 }
 
+/**
+ * A condition's shape, from `COND_SCHEMA`. Until this existed the validator
+ * asked only for a `kind`, so a condition missing the selector it counts was
+ * stored happily and threw when a game read it.
+ */
+function condShapeHolds(v: unknown, depth: number): boolean {
+  if (typeof v !== "object" || v === null || depth > 4) return false;
+  const c = v as Record<string, unknown>;
+  const spec = typeof c.kind === "string" ? COND_SCHEMA[c.kind as Cond["kind"]] : undefined;
+  if (!spec) return false;
+  return spec.fields.every((f) => {
+    const x = c[f.name];
+    if (x === undefined) return !f.required;
+    if (x === null) return !!f.nullable;
+    return fieldHolds(f.type, x, depth);
+  });
+}
+
 function fieldHolds(type: FieldType, v: unknown, depth: number): boolean {
   if (typeof type === "object") {
     if ("enum" in type) return typeof v === "string" && type.enum.includes(v);
@@ -1427,7 +1611,9 @@ function fieldHolds(type: FieldType, v: unknown, depth: number): boolean {
     case "selector":
       return selectorHolds(v);
     case "cond":
-      return typeof v === "object" && v !== null && typeof (v as { kind?: unknown }).kind === "string";
+      return condShapeHolds(v, depth);
+    case "conds":
+      return Array.isArray(v) && v.length > 0 && v.every((c) => condShapeHolds(c, depth + 1));
     case "filter":
       return typeof v === "object" && v !== null;
     case "keyword":
@@ -1572,72 +1758,7 @@ function describeEach(sel: Selector): string {
  * engine understood the condition you meant.
  */
 export function describeCond(c: Cond): string {
-  switch (c.kind) {
-    case "count": {
-      const what = describeSelector({ ...c.sel, count: 99 }).replace(/^all /, "");
-      const bound = c.atMost === 0 ? "no" : c.atLeast != null ? `${c.atLeast} or more` : c.atMost != null ? `${c.atMost} or fewer` : "any";
-      return `there ${c.atMost === 0 ? "are" : "is"} ${bound} ${what}`;
-    }
-    case "life": {
-      const whose = c.side === "opponent" ? "their" : "your";
-      if (c.atMost != null) return `${whose} life is ${c.atMost} or less`;
-      if (c.atLeast != null) return `${whose} life is ${c.atLeast} or more`;
-      return `${whose} life`;
-    }
-    case "lifeVsOpponent":
-      return c.atLeast ? "your life is at least theirs" : "your life is no more than theirs";
-    case "leaderColor":
-      return `your leader is ${c.color}`;
-    case "leaderMatches": {
-      const f = c.filter;
-      const bits = [...f.colors, ...f.characters.map((x) => `<${x}>`), ...f.traits.map((x) => `≪${x}≫`)];
-      return `${c.side === "opponent" ? "their" : "your"} leader${c.back ? "'s back side" : ""} is ${bits.join(" ") || f.names?.join("/") || "a match"}`;
-    }
-    case "markers": {
-      const bound = c.atLeast != null ? `${c.atLeast} or more` : c.atMost != null ? `${c.atMost} or fewer` : "any";
-      return `${describeSelector(c.sel)} has ${bound} markers`;
-    }
-    case "inBattle":
-      return `${describeSelector(c.sel)} is ${c.not ? "not " : ""}${c.role === "guard" ? "being attacked" : c.role === "attacker" ? "attacking" : "in a battle"}`;
-    case "battled":
-      return `${describeSelector(c.sel)} has been in a battle this turn`;
-    case "every":
-      return `all of ${describeSelector(c.sel)} is ${describeSelector(c.matching)}`;
-    case "leaderFlipped":
-      return `${c.side === "opponent" ? "their" : "your"} leader ${c.flipped === false ? "has not" : "has"} awakened`;
-    case "did":
-      // `may` fell off the end of this chain and read as "you negated the
-      // attack", which is a different question entirely.
-      return c.what === "addToHand"
-        ? "you added a card to your hand"
-        : c.what === "play"
-          ? "you played a card"
-          : c.what === "negateLeaderAttack"
-            ? "you negated a Leader's attack"
-            : c.what === "ko"
-              ? "you KO'd a card"
-              : c.what === "draw"
-                ? "you drew a card"
-                : c.what === "may"
-                  ? "the offer was taken"
-                  : "you negated the attack";
-    case "not":
-      return `not (${describeCond(c.cond)})`;
-    case "power": {
-      const bound = c.atLeast != null ? `${c.atLeast} or more` : c.atMost != null ? `${c.atMost} or less` : "any";
-      return `${describeSelector(c.sel)} has ${bound} power`;
-    }
-    case "any":
-      return c.conds.map(describeCond).join(", or ");
-    case "all":
-      return c.conds.map(describeCond).join(" and ");
-    case "chose":
-      return c.atLeast && c.atLeast > 1 ? `you took all ${c.atLeast}` : "you took that choice";
-    case "varMatches":
-      return `that card is ${describeFilter(c.filter)}`;
-    case "isTurnPlayer":
-      return c.who === "opponent" ? "it is your opponent's turn" : "it is your turn";
-  }
+  return COND_SCHEMA[c.kind].sentence(c);
 }
 
 /** A duration as the inspector says it. A [Permanent] holds while its card is where the skill is valid (9-5-1), so it gets no clause at all. */
@@ -1649,7 +1770,6 @@ const DURATION_IN_WORDS: Record<Duration, string> = {
   afterNextCharge: " through your next Charge Phase",
   game: " for the rest of the game",
 };
-
 const forThe = (until: Duration | undefined, r: RenderOptions) => (r.permanent || !until ? "" : DURATION_IN_WORDS[until]);
 
 /** Whether a field counts as given, for `{field? …}`: unset, false and an empty list are not. */
@@ -1684,6 +1804,8 @@ function describeField(f: OpField, v: unknown, hint: string | undefined, r: Rend
       return forThe(v as Duration | undefined, r);
     case "cond":
       return describeCond(v as Cond);
+    case "conds":
+      return ((v as Cond[] | undefined) ?? []).map(describeCond).join(" and ");
     case "ops": {
       const inner = describeScript((v as Op[] | undefined) ?? [], r);
       return inner || (hint ?? "");
@@ -1757,7 +1879,7 @@ export function opSignature(name: Op["op"]): string {
       if ("enum" in t) return t.enum.length > 6 ? `${t.enum.slice(0, 3).map((e) => `"${e}"`).join("|")}|…` : t.enum.map((e) => `"${e}"`).join("|");
       return t.list === "string" ? '["…"]' : `[${t.list.enum.map((e) => `"${e}"`).join("|")}]`;
     }
-    return { amount: "AMOUNT", ref: "TARGET", selector: "SELECTOR", side: '"you"|"opponent"', area: "AREA", duration: "DURATION", cond: "COND", ops: "[…]", string: '"…"', number: "N", boolean: "true|false", keyword: '{"name":"Blocker"}', filter: "FILTER", modes: '[{"label":"…","ops":[…]}]' }[t];
+    return { amount: "AMOUNT", ref: "TARGET", selector: "SELECTOR", side: '"you"|"opponent"', area: "AREA", duration: "DURATION", cond: "COND", conds: "[COND]", ops: "[…]", string: '"…"', number: "N", boolean: "true|false", keyword: '{"name":"Blocker"}', filter: "FILTER", modes: '[{"label":"…","ops":[…]}]' }[t];
   };
   const fields = OP_SCHEMA[name].fields.map((f) => `"${f.name}"${f.required ? "" : "?"}:${shape(f.type)}`);
   return `{"op":"${name}"${fields.length ? "," : ""}${fields.join(",")}}`;
