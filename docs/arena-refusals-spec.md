@@ -287,5 +287,41 @@ The 74, none of which is a price:
   reached.
 - **43** — 29 keywords with no activation of their own and 14 `[Auto]`s, both of which
   `whyNotActivate` rightly declines to invent a rejection for. Probe staging, so they go with §3.
-- **(b)**, unstarted and unchanged: the five sites in `engine.ts` that still compile a price during
-  a game.
+- **(b)** — done, see §6 below.
+
+---
+
+## 6. (b), done separately (8 Sep 2026)
+
+Its own commit, its own before and after, as §2 argued for.
+
+**What moved.** `Script` gained `price` (`SkillPrice`: the condition and the action, read together,
+4-3-3), so a program and its price travel as one record. `rulesFor` fills it from
+`card_rules.cost`, which the drafter has written since phase 2 and nobody read; `compileCard` fills
+it from the text, which is what keeps `npm test` and the probe playing prices without the engine
+calling the compiler. `priceFor` in `engine.ts` is the one reader, and the six sites — `canResolve`,
+two branches of `activatable`, two of `whyNotActivate`, and the payment in `activate` — use it.
+
+**`engine.ts` no longer imports `compileCostProgram` or `priceCondition`.** What remains of its
+compile import is `costIsOnlyOrbs` and `costText` (spelling tests over the printed price, no program
+built) and `parseConditionClause` for a keyword's own reminder. No program is compiled during a game.
+
+**The measurement is a sameness, and that is the point.** Sweep before and after, 13,563 rules,
+0 errors: `fired 5674 · notOffered 3505 · blank 1330 · inForce 1114 · noScenario 1042 ·
+didNotFire 898`, all ten family rows, and 74 refusals with no reason — **byte-identical**. Over the
+whole catalog the price the drafter stored and the price the engine used to recompute agree
+everywhere. `arena:fuzz -- 100`: 100 games, 0 crashes. `arena:playthrough` passes, and its `other`
+bucket still shows action prices charged and refused, which is the record-driven price working in a
+real game.
+
+**One behaviour changes, deliberately.** A skill with **no record** has an *unknown* price, not a
+free one: it is refused and the refusal says the text is unread. That is the honest answer for a
+card `arena:draft` has never seen, and it matches an undrafted skill already having no effect
+program. All 13,563 catalog rules have a row.
+
+A sweep that does not move is easy to mistake for a change that did not land, so the test is the
+part that earns it: it fails when `priceFor` is made to fall back to compiling, and it pins the one
+board that separates the two readings — a record whose *effect* is readable but which carries **no
+price** is refused rather than offered for free. An earlier version of that test passed for the
+wrong reason (the effect was unread too, so the price was never the deciding gate); the mutation run
+is what caught it.
