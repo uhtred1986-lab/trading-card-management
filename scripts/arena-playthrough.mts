@@ -13,6 +13,7 @@ import { arenaGames, decks } from "../src/db/schema";
 import { eq } from "drizzle-orm";
 import { legalActions, nextRandom, rejectedActions, type Action, type LegalAction } from "../src/lib/arena/engine";
 import { BEAT_CAP, type Beat, type Beats } from "../src/lib/arena/beats";
+import { isEngineId } from "../src/lib/arena/engines";
 import { applyToGame, loadGame, startGame } from "../src/lib/arena/games";
 import { deckInputFor } from "../src/lib/arena/load";
 import { boardView, tappable, viewerOf, type BoardView } from "../src/lib/arena/view";
@@ -196,7 +197,11 @@ function auditBeats(before: Beats | null, after: Beats | null, move: number): vo
   if (after.list.length) assert.equal(after.seq, last, `move ${move}: seq is not the highest beat number`);
 }
 
-const wanted = process.argv.slice(2).map(Number).filter(Number.isInteger);
+const argv = process.argv.slice(2);
+const engineArg = argv.indexOf("--engine");
+const engine = engineArg >= 0 ? argv[engineArg + 1] : undefined;
+if (engine !== undefined && !isEngineId(engine)) throw new Error(`--engine must be one of legacy, rules; got ${engine}`);
+const wanted = argv.filter((a, i) => i !== engineArg && i !== engineArg + 1).map(Number).filter(Number.isInteger);
 
 const all = await db.select({ id: decks.id, name: decks.name }).from(decks);
 const usable: number[] = [];
@@ -207,7 +212,7 @@ for (const d of all) {
 const [a, b] = wanted.length === 2 ? wanted : [usable[0], usable[1] ?? usable[0]];
 if (!a || !b) throw new Error("need two playable decks");
 
-const id = await startGame(db, a, b, "hotseat");
+const id = await startGame(db, a, b, "hotseat", true, undefined, engine ?? "legacy");
 console.log(`game ${id}: deck ${a} vs deck ${b}`);
 
 let rng = 20260904;

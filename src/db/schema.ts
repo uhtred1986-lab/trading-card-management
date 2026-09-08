@@ -615,6 +615,15 @@ export const arenaGames = pgTable(
     seed: integer("seed").notNull(),
     /** hotseat | sparring | tournament | versus */
     mode: text("mode").notNull().default("hotseat"),
+    /**
+     * Which engine plays this game: `legacy` (the hand-written one in
+     * `src/lib/arena/engine/`) or `rules` (the configuration-driven one being
+     * built beside it). Chosen when the game is made and never changed, because
+     * `state` is the shape that engine writes and `actions` replay only on it.
+     */
+    engine: text("engine").notNull().default("legacy"),
+    /** The card game the decks belong to (`src/lib/catalog/games.ts`), copied from the deck. */
+    game: text("game").notNull().default("dbs"),
     /** playing | over | abandoned */
     status: text("status").notNull().default("playing"),
     winner: text("winner"),
@@ -695,6 +704,8 @@ export const arenaMatches = pgTable(
     guestDeckId: integer("guest_deck_id").references(() => decks.id, { onDelete: "set null" }),
     /** Carried through to the game the join creates. */
     debug: boolean("debug").notNull().default(true),
+    /** Carried through the same way: the host chooses the engine, the joiner only a deck. */
+    engine: text("engine").notNull().default("legacy"),
     gameId: integer("game_id").references(() => arenaGames.id, { onDelete: "set null" }),
     /** open | started | cancelled */
     status: text("status").notNull().default("open"),

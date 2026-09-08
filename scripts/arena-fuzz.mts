@@ -1,15 +1,22 @@
 /**
  * Play random legal games between real decks to shake out engine crashes.
- * Needs DATABASE_URL: `npm run arena:fuzz -- [games] [deckA deckB]` (uses --env-file=.env.local).
+ * Needs DATABASE_URL: `npm run arena:fuzz -- [games] [deckA deckB] [--engine legacy|rules]` (uses --env-file=.env.local).
  */
 import { db } from "../src/db";
 import { decks } from "../src/db/schema";
-import { apply, createGame, legalActions, nextRandom, type GameState, type PlayerId } from "../src/lib/arena/engine";
+import { nextRandom, type GameState, type PlayerId } from "../src/lib/arena/engine";
+import { engineFor, isEngineId } from "../src/lib/arena/engines";
 import { deckInputFor, defsForCards } from "../src/lib/arena/load";
 import { rulesFor } from "../src/lib/arena/rules-store";
 
-const games = Number(process.argv[2] ?? 20);
-const fixed = process.argv.length >= 5 ? [Number(process.argv[3]), Number(process.argv[4])] : null;
+const argv = process.argv.slice(2);
+const engineArg = argv.indexOf("--engine");
+const engineId = engineArg >= 0 ? argv[engineArg + 1] : "legacy";
+if (!isEngineId(engineId)) throw new Error(`--engine must be one of legacy, rules; got ${engineId}`);
+const { createGame, apply, legalActions } = engineFor(engineId);
+const positional = argv.filter((a, i) => i !== engineArg && i !== engineArg + 1);
+const games = Number(positional[0] ?? 20);
+const fixed = positional.length >= 3 ? [Number(positional[1]), Number(positional[2])] : null;
 
 function check(s: GameState): void {
   const seen = new Map<string, number>();

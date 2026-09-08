@@ -11,10 +11,12 @@
  * lets `npm test` build snapshots and compare them against golden fixtures.
  * `session.ts` is the half that reaches the database.
  */
-import { rejectedActions, type EngineContext, type GameState, type LegalAction, type PlayerId, type RejectedAction } from "./engine";
+import type { EngineContext, GameState, LegalAction, PlayerId, RejectedAction } from "./engine";
+import { DEFAULT_ENGINE, engineFor, type EngineId } from "./engines";
 import { boardView, tappable, viewerOf, type BoardView, type CardArt, type Tappable } from "./view";
 import { maskBeats, type Beats } from "./beats";
 import type { ArenaMode, Spotlight } from "./games";
+import { DEFAULT_GAME, type Game } from "@/lib/catalog/games";
 
 /** Bumped only when a field is removed or its meaning changes. */
 export const CONTRACT_VERSION = 1;
@@ -24,6 +26,13 @@ export interface Snapshot {
   game: {
     id: number;
     mode: ArenaMode;
+    /**
+     * Which engine is playing this game (`engines.ts`) and which card game
+     * the decks belong to. A client shows the engine as a badge and reads
+     * nothing else off either: what the board is, `view` says.
+     */
+    engine: EngineId;
+    game: Game;
     status: string;
     turn: number;
     p1Name: string;
@@ -60,6 +69,9 @@ export interface Snapshot {
 export interface SnapshotInput {
   id: number;
   mode: ArenaMode;
+  /** Left off by tests built by hand, which are all on the legacy engine and the original game. */
+  engine?: EngineId;
+  game?: Game;
   status: string;
   p1Name: string;
   p2Name: string;
@@ -124,11 +136,11 @@ export function waitingFor(input: Pick<SnapshotInput, "ai" | "state" | "status" 
  * can ask: they are computed for the viewer when the prompt is theirs, and
  * never for Claude, who cannot read them and whose turns would pay for them.
  */
-export function rejectedFor(input: Pick<SnapshotInput, "ai" | "state" | "ctx" | "legal" | "viewer">): RejectedAction[] {
+export function rejectedFor(input: Pick<SnapshotInput, "ai" | "state" | "ctx" | "legal" | "viewer" | "engine">): RejectedAction[] {
   const prompt = input.state.prompt;
   if (!("player" in prompt) || !prompt.player) return [];
   if (prompt.player !== viewerFor(input) || prompt.player === input.ai) return [];
-  return rejectedActions(input.ctx, input.state, input.legal);
+  return engineFor(input.engine ?? DEFAULT_ENGINE).rejectedActions(input.ctx, input.state, input.legal);
 }
 
 export function buildSnapshot(input: SnapshotInput): Snapshot {
@@ -139,6 +151,8 @@ export function buildSnapshot(input: SnapshotInput): Snapshot {
     game: {
       id: input.id,
       mode: input.mode,
+      engine: input.engine ?? DEFAULT_ENGINE,
+      game: input.game ?? DEFAULT_GAME,
       status: input.status,
       turn: input.state.turn,
       p1Name: input.p1Name,

@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { db } from "@/db";
+import { setDefaultEngine } from "@/lib/arena/engine-setting";
+import { engineOr } from "@/lib/arena/engines";
 import { encodeLighting, LIGHTING_COOKIE, lightingFrom } from "@/lib/arena/lighting";
 import { SKIN_COOKIE, skinFrom } from "@/lib/arena/skin";
 import { syncCatalog } from "@/lib/catalog/deckplanet";
@@ -43,6 +45,13 @@ export async function syncPricesAction(): Promise<void> {
 export async function syncMetaAction(): Promise<void> {
   const { syncMeta } = await import("@/lib/meta/sync");
   await quietly(() => runSync(db, "meta", () => syncMeta(db)));
+}
+
+/** The engine a new arena game is made on unless the form says otherwise (`engines.ts`). A setting, so it is flipped without a deploy. */
+export async function chooseEngineAction(id: string): Promise<void> {
+  await setDefaultEngine(db, engineOr(id));
+  revalidatePath("/settings");
+  revalidatePath("/arena");
 }
 
 /** Which skin paints the app: the same cookie the board's toggle sets. */

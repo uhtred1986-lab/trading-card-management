@@ -3,8 +3,10 @@ import { hasAnthropic as hasAnthropicKey } from "@/lib/ai/client";
 import { db } from "@/db";
 import { lastSyncRuns } from "@/lib/sync";
 import { SubmitButton } from "@/components/SubmitButton";
-import { chooseSkinAction, syncCardTraderAction, syncCatalogAction, syncMetaAction, syncPricesAction } from "./actions";
+import { chooseEngineAction, chooseSkinAction, syncCardTraderAction, syncCatalogAction, syncMetaAction, syncPricesAction } from "./actions";
 import { cookies } from "next/headers";
+import { defaultEngine } from "@/lib/arena/engine-setting";
+import { ENGINE_IDS, ENGINE_INFO } from "@/lib/arena/engines";
 import { LIGHTING_COOKIE, lightingFrom } from "@/lib/arena/lighting";
 import { SKIN_COOKIE, skinFrom } from "@/lib/arena/skin";
 import { TurnLighting } from "@/components/arena/TurnLighting";
@@ -25,6 +27,7 @@ export default async function SettingsPage() {
   const jar = await cookies();
   const skin = skinFrom(jar.get(SKIN_COOKIE)?.value);
   const lighting = lightingFrom(jar.get(LIGHTING_COOKIE)?.value);
+  const engine = await defaultEngine(db);
 
   return (
     <div className="space-y-6">
@@ -50,6 +53,29 @@ export default async function SettingsPage() {
       </section>
 
       <TurnLighting prefs={lighting} />
+
+      <section className="rounded-xl border border-space-700/70 bg-space-900/50 p-3 text-sm">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="font-semibold text-space-50">Arena engine</h2>
+          <div className="flex gap-2">
+            {ENGINE_IDS.map((id) => (
+              <form key={id} action={chooseEngineAction.bind(null, id)}>
+                <SubmitButton
+                  disabled={!ENGINE_INFO[id].available}
+                  pendingLabel="Switching…"
+                  className={`tap rounded-md border px-3 py-1 text-xs disabled:opacity-50 ${engine === id ? "border-ki-500 bg-ki-500/15 text-space-50" : "border-space-600 text-space-100 hover:bg-space-800"}`}
+                >
+                  {ENGINE_INFO[id].label}
+                </SubmitButton>
+              </form>
+            ))}
+          </div>
+        </div>
+        <p className="mt-1 text-xs text-space-300">
+          The engine a new game is made on unless the form says otherwise. Every game keeps the engine it was made on, so flipping this changes nothing already being played.{" "}
+          {ENGINE_INFO.rules.available ? "" : "The rules engine is being built beside the legacy one and cannot be chosen until it plays."}
+        </p>
+      </section>
 
       <section className="grid gap-3 md:grid-cols-2">
         <SyncCard

@@ -12,6 +12,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { currentUser } from "@/lib/auth";
 import type { PlayerId } from "./engine";
+import { ENGINE_IDS } from "./engines";
 import { isVersus, seatOf, type Seats } from "./games";
 import { CONTRACT_VERSION } from "./snapshot";
 
@@ -55,6 +56,8 @@ export const newGameSchema = z.object({
   // there is nothing here for a client to create in one call.
   mode: z.enum(["hotseat", "sparring", "tournament"]).default("hotseat"),
   debug: z.boolean().default(true),
+  /** Which engine plays it (`engines.ts`); left out, the `arena.engine` setting decides. */
+  engine: z.enum(ENGINE_IDS).optional(),
 });
 
 /**

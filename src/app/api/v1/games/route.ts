@@ -1,5 +1,6 @@
 import { db } from "@/db";
 import { fail, newGameSchema, ok, readJson } from "@/lib/arena/api";
+import { defaultEngine } from "@/lib/arena/engine-setting";
 import { listGames, startGame } from "@/lib/arena/games";
 import { currentUser } from "@/lib/auth";
 
@@ -14,13 +15,13 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   const parsed = newGameSchema.safeParse(await readJson(req));
-  if (!parsed.success) return fail("bad_request", "expected { p1DeckId, p2DeckId, mode?, debug? }");
-  const { p1DeckId, p2DeckId, mode, debug } = parsed.data;
+  if (!parsed.success) return fail("bad_request", "expected { p1DeckId, p2DeckId, mode?, debug?, engine? }");
+  const { p1DeckId, p2DeckId, mode, debug, engine } = parsed.data;
   try {
-    return ok({ id: await startGame(db, p1DeckId, p2DeckId, mode, debug) });
+    return ok({ id: await startGame(db, p1DeckId, p2DeckId, mode, debug, undefined, engine ?? (await defaultEngine(db))) });
   } catch (err) {
-    // `startGame` refuses a deck with no leader, or a Fusion World deck: the
-    // arena's rules engine only plays the original game.
+    // `startGame` refuses a deck with no leader, a Fusion World deck (the
+    // arena only plays the original game) and an engine that is not built yet.
     return fail("bad_request", err instanceof Error ? err.message : "could not start that game");
   }
 }

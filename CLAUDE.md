@@ -52,6 +52,10 @@ npm run sync:catalog   # Import both games' catalogs from deckplanet + Fusion Wo
 npm run arena:draft    # Compile the catalog offline into card_rules drafts (--card, --set, --only-open, --review)
 npm run arena:probe    # Try stored rules on a board built for each (--card, --set, --all, --limit, --fill)
 npm run arena:reprobe  # Re-run every probe a rule carries and list the ones whose answer moved (--write)
+npm run arena:tally    # Compiler coverage over the live deckplanet catalog, with op/cond usage and unread
+                       # clause shapes — no database needed (--misses N)
+npm run arena:diff     # Replay a saved game's action log from its seed and compare with the row
+                       # (-- <gameId> [--engine legacy|rules] | --all): the oracle check between the engines
 npm run db:check       # Can this machine reach the database, and over which driver?
 npm run db:migrate:http # db:migrate for a sandbox that allows HTTPS only (see DB_DRIVER below)
 npm run sync:prices    # Import TCGplayer products + today's prices from tcgcsv (both categories),
@@ -188,6 +192,19 @@ the same style.
   rule below. `KEYWORDS` is keyed by `KeywordSkill["name"]` so a new keyword fails `npm run
   typecheck` until it is described, and `npm test` checks every tag printed there is a spelling
   `keywordOf` really reads.
+- **Two engines, chosen per game** (`src/lib/arena/engines.ts`, since 9 Sep 2026): `legacy` is
+  `src/lib/arena/engine/` — frozen, bug fixes only — and `rules` is the configuration-driven
+  engine being built beside it under `src/lib/arena/vm/` (the programme: the plan the owner
+  approved on 9 Sep 2026; specs to come in `docs/arena-rules-language.md` and
+  `docs/arena-ruleset-spec.md`). A game keeps the engine it was made on (`arena_games.engine`,
+  and `arena_matches.engine` for a 1 v 1), because `state` is that engine's shape and `actions`
+  replay only on it. `engineFor(row.engine)` is the one switch; `games.ts`, `snapshot.ts` and
+  the scripts go through it and never import `./engine` to play a saved game. `ENGINE_INFO`
+  says which engines can play; the `/arena` form greys the rest, and the `arena.engine`
+  setting (Settings → Arena engine, `engine-setting.ts`) is the default until the owner flips
+  it. The old engine stays the **oracle**: `arena:diff` replays a game's actions on either
+  engine and must land on the row's state. `Snapshot.game.engine`/`.game` are the one
+  contract change. Until the rules engine plays, `engineFor("rules")` throws `EngineNotBuilt`.
 - **Arena UI** (`/arena`, `src/components/arena/`, `src/lib/arena/{games,view}.ts`): phone-first
   board, hot-seat or 1 v 1. A game is one `arena_games` row holding the seed, the action log (the
   reproducible source) and a state snapshot; `applyToGame` is the only writer, and it writes
