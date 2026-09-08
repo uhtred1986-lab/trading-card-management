@@ -498,7 +498,7 @@ export function Sheet({
   tall?: boolean;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-space-950/70 p-0 sm:items-center sm:p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center arena-scrim p-0 sm:items-center sm:p-4" onClick={onClose}>
       <div
         className={`flex w-full max-w-md flex-col rounded-t-2xl border border-space-700 bg-space-900 p-4 pb-8 sm:max-w-lg sm:rounded-2xl sm:pb-4 ${tall ? "h-[92dvh] sm:h-auto sm:max-h-[85dvh]" : "max-h-[75dvh]"}`}
         onClick={(e) => e.stopPropagation()}
