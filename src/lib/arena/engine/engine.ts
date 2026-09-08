@@ -59,6 +59,7 @@ import {
   invokerEnergy,
   liftFromPile,
   skillNegated,
+  skillsNegated,
   whyNotPay,
   programsOf,
 } from "./state";
@@ -863,7 +864,12 @@ function runSkill(
   // the row is open because a clause did not read. Both play as blank, and
   // the log says which, so a silent nothing is never mistaken for a rule.
   const row = scriptsOf(ctx, s, card).bySkill[sk.index];
-  note(ev, row ? `${d.id} [skill ${sk.index}]: no rule confirmed — the compiler could not read "${row.unsupported[0]?.slice(0, 70) ?? sk.effect.slice(0, 70)}"` : `${d.id} [skill ${sk.index}]: no rule stored — played as blank`);
+  note(
+    ev,
+    row
+      ? `${d.id} [skill ${sk.index}]: no rule confirmed — the compiler could not read "${row.unsupported[0]?.slice(0, 70) ?? sk.effect.slice(0, 70)}"`
+      : `${d.id} [skill ${sk.index}]: no rule stored — played as blank`,
+  );
   return "done";
 }
 
@@ -1750,6 +1756,15 @@ export function rejectedActions(ctx: EngineContext, s: GameState, legal: LegalAc
     // here is what the playthrough audit counts.
     out.push({ action, label, why: why.length ? why : [{ kind: "other", detail: "not offered by the engine" }] });
   };
+  /**
+   * The skills to explain for a card in play. `skillsOfInstance` is what the
+   * menu reads, and it empties a card whose skills a continuous effect has
+   * negated (9-1-5) — so asking it here would leave that card out of *both*
+   * lists and the board with no reason to give. The printed skills are the
+   * ones to explain in that case; `whyNotActivate` names the negation, and
+   * `offered` keeps anything actually on the menu out of the rejected list.
+   */
+  const skillsToExplain = (id: string) => (skillsNegated(s, id) ? skillsOf(def(ctx, s, id), s.cards[id].flipped && def(ctx, s, id).back ? "back" : "front") : skillsOfInstance(ctx, s, id));
   /** The first skill of the card that is a real activation, with its reasons. */
   const rejectActivate = (id: string, skills: Skill[], timing: "main" | "battle") => {
     for (const sk of skills) {
@@ -1774,7 +1789,7 @@ export function rejectedActions(ctx: EngineContext, s: GameState, legal: LegalAc
         push({ type: "charge", player: p, card: id }, `Charge ${name(id)}`, whyNotCharge(ctx, s, p));
       }
       for (const id of cardsInPlay(s, p)) {
-        rejectActivate(id, skillsOfInstance(ctx, s, id), "main");
+        rejectActivate(id, skillsToExplain(id), "main");
         const why = whyNotAttack(ctx, s, p, id);
         if (why) push({ type: "attack", player: p, attacker: id, target: s.players[other(p)].leader }, `Attack with ${name(id)}`, why);
       }
@@ -1787,7 +1802,7 @@ export function rejectedActions(ctx: EngineContext, s: GameState, legal: LegalAc
         rejectActivate(id, skillsOf(def(ctx, s, id)), "battle");
       }
       for (const id of ps.battle) push({ type: "combo", player: p, card: id }, `Combo ${name(id)}`, whyNotCombo(ctx, s, p, id));
-      for (const id of cardsInPlay(s, p)) rejectActivate(id, skillsOfInstance(ctx, s, id), "battle");
+      for (const id of cardsInPlay(s, p)) rejectActivate(id, skillsToExplain(id), "battle");
       return out;
     }
     case "counter": {
@@ -2227,7 +2242,13 @@ function whyNotActivate(ctx: EngineContext, s: GameState, p: PlayerId, card: str
   const textActivate = sk.kind === "activate:main" || sk.kind === "activate:battle" || sk.kind === "activate:main/battle";
   if (k ? !ACTIVATED_KEYWORDS.includes(k.name) : !textActivate) return null;
 
-  if (skillNegated(s, card, sk.index, sk.kind)) why.push({ kind: "other", detail: "the skill is negated" });
+  // 9-1-5 comes in two shapes and the twin has to know both: one skill by
+  // index (`negateSkill`) and the whole card at once (`negateSkills`).
+  // `skillNegated` reads only the first, because `skillsOfInstance` already
+  // empties the card for the second — which is exactly what left a negated
+  // card out of both lists. Widening `skillNegated` itself would change a
+  // predicate ten callers share (§3.2); the twin asks both questions instead.
+  if (skillsNegated(s, card) || skillNegated(s, card, sk.index, sk.kind)) why.push({ kind: "other", detail: "the skill is negated" });
   const f = forbiddenBy(ctx, s, "activateSkill", { player: p, card });
   if (f) why.push({ kind: "forbidden", by: f.by, until: f.until });
   if (usesLeft(sk, inst) === 0) why.push({ kind: "oncePerTurn", what: "skill", ...(sk.limit != null && !sk.oncePerTurn ? { limit: sk.limit } : {}) });

@@ -7,6 +7,7 @@
 import assert from "node:assert/strict";
 import {
   CTX,
+  addEffect,
   apply,
   arena,
   assertDisjoint,
@@ -162,6 +163,28 @@ import type { Beat, PlayerId, RejectedAction, Requirement } from "./harness";
     assert.equal(ofCard(rejected, "activate", find(s, "p1", "hand", "AURA")), undefined, "[Permanent] is not activated");
     // With one energy each of them is playable, so no play rejection either.
     assert.equal(rejected.filter((r) => r.action.type === "play").length, 0);
+  }
+
+  // 9-1-5 in both its shapes. A negated skill is off the menu — that part was
+  // never in doubt — and the promise this pair keeps is that it is on the
+  // *other* list with a reason. `negateSkill` silences one skill by index and
+  // `negateSkills` the whole card; the second used to leave the card out of
+  // both lists, because `skillsOfInstance` hands `rejectedActions` nothing.
+  // Both are asserted here so the two shapes cannot drift apart again.
+  for (const kind of ["negateSkill", "negateSkills"] as const) {
+    const s = arena({ battle: ["PUMP"], energy: ["V1", "V1", "V1"] });
+    const inst = find(s, "p1", "battle", "PUMP");
+    assert.ok(
+      legalActions(CTX, s).some((l) => l.action.type === "activate" && l.action.card === inst),
+      "PUMP's [Activate: Main] is on the menu before the negation",
+    );
+    // `value` is the skill index for `negateSkill` and unread for `negateSkills`; PUMP has one skill, at 0.
+    addEffect(s, [], { target: inst, kind, value: 0, until: "turn", master: "p2" });
+    assert.ok(!legalActions(CTX, s).some((l) => l.action.type === "activate" && l.action.card === inst), `${kind}: the activation is off the menu`);
+    const r = ofCard(assertDisjoint(s, kind), "activate", inst);
+    assert.ok(r, `${kind}: the negated card is on the rejected list`);
+    assert.deepEqual(first(r), { kind: "other", detail: "the skill is negated" }, `${kind}: and the reason names the negation`);
+    assert.equal(r!.label, "Activate PUMP");
   }
 
   // The compiler cannot read E-MYSTERY, and says so rather than staying silent.
