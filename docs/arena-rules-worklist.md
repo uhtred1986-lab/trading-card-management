@@ -1835,6 +1835,33 @@ duration. ~11,600 characters, near 2,900 tokens — still over Opus 5's
 512-token cache minimum and under Haiku 4.5's 4,096, so Tournament games cache
 and Sparring games do not, as before.
 
+**The database run (8 Sep 2026, PR #57).** Migrations 0029 and 0030 applied
+over HTTPS — in fact the branch's own Vercel preview build got there first,
+since `db:migrate` runs in it and there is one database for dev, preview and
+production. The fold-in landed whole: **7 briefs and `times_seen` 1 copied
+across unchanged, explanations 9 → 13** (5 the rules already had, 9 copied,
+1 overlap where `coalesce` correctly kept the rule's own words).
+
+The full re-draft rewrote **6,804 compiler rows in 867 s and bumped no
+versions at all** — the version histogram is identical before and after
+(5,881 · 7,481 · 200 · 1), which is the claim the pass existed to test: the
+rewrite touches the pattern key and the reading, never a program. Drafts with
+no pattern key went **1,136 → 0**; pattern groups 2,118 → 2,151, and the seven
+new groups over 50 rows are exactly the seven keywords that clear it —
+`keyword:Evolve` alone is 287 and enters the top five. **100 fuzzed games, 0
+crashes** (phase 1's first run had 2). `arena:gaps` reads 2,943 unread clauses,
+2,087 of them phrasing-only — 71 %, which is the argument for the Patterns tab
+in one number.
+
+**One property of migration 0030 worth knowing.** Its copy joins on
+`card_id`, `skill_index` **and** `side = 'front'`, so a note whose skill no
+longer exists as a front rule is dropped by the `DROP TABLE` rather than
+carried. The run checked before migrating, which was the only moment the
+question could still be asked: 2 of the 120 note groups had no matching rule,
+and all three of their columns were empty, so nothing was lost. A future
+fold-in of a keyed side table should count what will land before it drops the
+source.
+
 **Not in this phase, deliberately:** the price before the colon is still
 compiled at game time (`costIsReadable`, `canPayCostProgram`) although the row
 carries `cost.condition` / `cost.program`. It is engine, not workbench, and it
