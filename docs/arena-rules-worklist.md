@@ -1883,3 +1883,77 @@ fuzzer run against it.
   row through `rulesFor`; the compiler runs as `npm run arena:draft` and at
   catalog sync, and a compiler change reaches the board only through a
   re-draft — deliberately, so a person has looked at what plays.
+
+## Done: the probe — the Rules Workbench, phase 3 (8 Sep 2026)
+
+`docs/arena-rules-workbench-spec.md` §5, built in five commits on PR #58. A
+record says what the engine *will* play; a probe says what it *does*.
+`probe(rule, scenario)` builds a game with `createGame` and two minimal decks,
+stages the board that rule's moment needs, plays the one move under test,
+answers every prompt by a fixed policy, and reports Input / Applied rule /
+Result / Assumptions with a digest over the conclusion. The right-hand pane
+runs it; confirming a rule keeps the run on the row; `npm run arena:reprobe`
+re-runs every stored probe and lists the rules whose answer moved.
+
+**The test file had to be split first.** `scripts/verify-arena.ts` was 7,404
+lines in one module body, past TypeScript's control-flow limit — the limit
+phase 2 met and worked around by wrapping the schema tests in a function.
+Past it, the analysis stops for the whole file and lambda parameters quietly
+become `any`. It is eleven files under `scripts/verify/` now, with a shared
+`harness.ts` and an entry file whose import order *is* the contract, because
+the blocks add cards to the shared `DEFS` as they go. 1,873 assertions before
+the split and 1,873 after; the phase-2 workaround went back to being an
+ordinary top-level block.
+
+**What the probe refuses to do** was as much of the design as what it does. It
+never calls the compiler — the cards it stages around the rule carry
+hand-written `Op[]` programs, so `draft.ts` stays the only module compiling
+text in production. It invents no wording: the log is `toBeats` → `narrate`,
+a refusal is `wording.sentence`, a question is `view.ts`'s `questionFor`
+(exported for it, one word). And it states no approximation of its own — an
+assumption is a `note` in the program, a note the engine logged, a clause the
+compiler could not read, or the glossary's `engine` line for a keyword marked
+`partial`. §5 suggested teaching `compile.ts` to emit its approximations as
+`note` ops; that stayed out, because a `note` is a step the engine runs and
+`describeScript` reads out, so it would rewrite the reading of thousands of
+rows and need a full re-draft to land. It is its own change.
+
+**A [Permanent] is read, not resolved.** Power with and without the rule, the
+keywords in force, and — for a prohibition — whether the opponent's KO skill
+was offered the card at all. That reading is taken on the board as it was
+*staged*: the first version took it after the run, so a [Permanent] whose card
+had just been KO'd read as a [Permanent] that does nothing.
+
+**What the first sweep found was mostly about the board, not the rules.** Three
+things were staged from the card itself afterwards: the Leader now shares the
+card's colours, characters and traits (a nameless Leader answers every "if
+your Leader is a ≪Phantom Demon≫ card" with "not met" — activateMain fired
+1,154 → 1,391); a keyword gets a body its own description matches, read with
+`parseFilter` ([Evolve]{2}: <Nail> is offered only when a <Nail> is in play —
+keyword fired 497 → 620); and an attack whose trigger is "when this card KOs"
+gets something it can KO. A board built in the card's favour has to be
+declared, so each of those is a line in Input.
+
+**The sweep, 8 Sep 2026:** 13,563 rules in 67 s, **0 errors** — fired 5,674 ·
+notOffered 3,505 · blank 1,330 · inForce 1,114 · noScenario 1,042 ·
+didNotFire 898. By family: activateMain 3,246 · play 2,582 · permanent 1,811 ·
+keyword 1,573 · attack 1,453 · none 1,042 · activateBattle 707 · counter 543 ·
+combo 387 · moment 219. `blank` is the honest answer for an open row — it
+fired and did nothing — and `noScenario` is the honest answer for the 1,042
+rules whose moment the engine does not know.
+
+**Two findings the probe made, neither fixed here.** A card whose skills are
+negated by a continuous effect disappears from `legalActions` **and** from
+`rejectedActions`: `skillsOfInstance` returns nothing, so the `whyNot` twin
+has no skill to explain and the board can give no reason at all. And the
+sweep counts **678 rules refused with no reason** — most of them second and
+third skill lines whose price is an action, which is the compile-at-game-time
+corner phase 2 deliberately left alone. The refusal for a price the engine
+cannot read was still sending people to "the backlog page", a redirect since
+phase 2; that one *was* fixed, and points at the workbench.
+
+**Where the staging is still thin**, and worth knowing before reading a
+number: attack triggers about being attacked or KO'd (623 `didNotFire`),
+and the keywords whose cost is in the Drop or the hand — [Union], [Over
+Realm], [Successor] — which the probe cannot pay for and which therefore
+report "not offered" with the engine's own reason.
