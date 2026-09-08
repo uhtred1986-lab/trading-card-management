@@ -114,7 +114,7 @@ export function refusal(r: Requirement, o: { name: string; reaching: Reaching; s
       return { fact, remedy: `${when.charAt(0).toUpperCase()}${when.slice(1)}.` };
     }
     case "unread":
-      return { fact: `The engine cannot read ${name}'s text yet.`, remedy: "Explain the card on the backlog page and it plays from the next game." };
+      return { fact: `The engine cannot read ${name}'s text yet.`, remedy: "Explain the card on the rules workbench and it plays from the next game." };
     case "condition":
       return { fact: `${name} needs: ${r.text.replace(/\.$/, "")}.`, remedy: "Not met yet." };
     case "other":

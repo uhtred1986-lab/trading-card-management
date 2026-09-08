@@ -475,7 +475,7 @@ function stepFor(s: GameState): PromptView["step"] {
 }
 
 /** The one-line question the prompt bar asks, and the hint under it. */
-function questionFor(ctx: EngineContext, s: GameState): PromptView {
+export function questionFor(ctx: EngineContext, s: GameState): PromptView {
   const pr = s.prompt;
   const nameOf = (id: string) => face(ctx, s, id).name;
   const step = stepFor(s);

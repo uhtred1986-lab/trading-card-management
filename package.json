@@ -29,6 +29,8 @@
     "arena:feedback": "tsx --env-file-if-exists=.env.local scripts/arena-feedback.mts",
     "arena:rule": "tsx --env-file-if-exists=.env.local scripts/arena-rule.mts",
     "arena:draft": "tsx scripts/arena-draft.mts",
+    "arena:probe": "tsx --env-file-if-exists=.env.local scripts/arena-probe.mts",
+    "arena:reprobe": "tsx --env-file-if-exists=.env.local scripts/arena-probe.mts --reprobe",
     "arena:migrate-scripts": "tsx scripts/arena-migrate-scripts.mts",
     "icons": "tsx scripts/make-icons.mts",
     "android:test": "docker compose -f android/compose.yaml run --rm contract"

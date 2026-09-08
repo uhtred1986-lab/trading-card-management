@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { SKILL_LABELS } from "@/lib/arena/beats";
 import type { RuleStatus, WorklistRow } from "@/lib/arena/rules-store";
+import { ProbePane } from "./ProbePane";
 import { RuleRecord, type RecordProps } from "./RuleRecord";
 
 /**
@@ -44,6 +45,7 @@ export function Workbench({
   record,
   history,
   mechanism,
+  probe,
   empty,
   footer,
 }: {
@@ -54,6 +56,8 @@ export function Workbench({
   record: RecordProps | null;
   history: { when: string; what: string }[];
   mechanism: { key: string; needs: string } | null;
+  /** The boards this rule can be tried on; absent when the card has no catalog row to build one from. */
+  probe: { ruleId: number; scenarios: { key: string; title: string }[] } | null;
   empty: React.ReactNode;
   /** Paging, under the list. */
   footer?: React.ReactNode;
@@ -91,13 +95,7 @@ export function Workbench({
       <main className="min-w-0">{record ? <RuleRecord key={record.id} {...record} /> : <p className="p-6 text-center text-sm text-space-400">Pick a rule on the left.</p>}</main>
 
       <aside className="space-y-3 lg:sticky lg:top-3">
-        <section className="rounded-xl border border-space-700/70 bg-space-900/50 p-3">
-          <h2 className="text-xs font-semibold text-space-300">Probe — what actually happens</h2>
-          <p className="mt-2 text-[11px] text-space-500">
-            Not built yet (phase 3). A probe will run the pure engine on a synthetic state built for this rule&rsquo;s trigger and print the log as Input → Applied rule → Result → Assumptions, so a rule
-            can be checked without playing a game.
-          </p>
-        </section>
+        {probe && <ProbePane key={probe.ruleId} ruleId={probe.ruleId} scenarios={probe.scenarios} />}
         {mechanism && (
           <section className="rounded-xl border border-space-700/70 bg-space-900/50 p-3">
             <h2 className="text-xs font-semibold text-space-300">What it would need</h2>

@@ -9,7 +9,7 @@ import { countRules, worklist, type RuleStatus, type WorklistRow } from "@/lib/a
 import { listDecks } from "@/lib/decks/queries";
 import { lastSyncRuns } from "@/lib/sync";
 import { recentBatches } from "../actions";
-import { buildRecord, historyOf } from "./record";
+import { buildRecord, historyOf, probeScenarios } from "./record";
 
 export const dynamic = "force-dynamic";
 
@@ -64,6 +64,7 @@ export default async function RulesPage({ searchParams }: { searchParams: Promis
 
   const selected = shown.find((r) => r.id === ruleParam) ?? shown[0] ?? null;
   const record = selected ? await buildRecord(db, selected, selected.decks) : null;
+  const probe = selected ? await probeScenarios(db, selected) : null;
 
   const href = (patch: Record<string, string | null>) => {
     const params = new URLSearchParams();
@@ -89,6 +90,7 @@ export default async function RulesPage({ searchParams }: { searchParams: Promis
           record={record}
           history={selected ? historyOf(selected) : []}
           mechanism={record?.mechanism ?? null}
+          probe={probe}
           href={(id) => href({ rule: String(id) })}
           empty="Nothing here."
           head={

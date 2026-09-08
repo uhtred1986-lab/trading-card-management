@@ -11,7 +11,9 @@ import { describeScript, type Op } from "@/lib/arena/engine";
 import { describeCond, type Cond } from "@/lib/arena/engine/script";
 import type { CostRecord } from "@/lib/arena/draft";
 import { describeTrigger, mechanismNeeds, mechanismOf } from "@/lib/arena/gaps";
-import { siblingsOf, type CompilerDiff, type RuleStatus, type WorklistRow } from "@/lib/arena/rules-store";
+import { defsForCards } from "@/lib/arena/load";
+import { ruleFrom, scenariosFor } from "@/lib/arena/probe";
+import { programOf, siblingsOf, type CompilerDiff, type RuleStatus, type StoredProbe, type WorklistRow } from "@/lib/arena/rules-store";
 
 /** The parsed price as a sentence, for the COST row. */
 export function costSentence(cost: CostRecord | null): string | null {
@@ -34,6 +36,8 @@ export function historyOf(r: WorklistRow): { when: string; what: string }[] {
   const out: { when: string; what: string }[] = [];
   const diff = r.compilerDiff as CompilerDiff | null;
   if (diff) out.push({ when: day(diff.at), what: `the compiler now reads this differently: “${describeScript(diff.ops) || "nothing"}”${diff.unread.length ? ` (unread: ${diff.unread.join(" | ")})` : ""}` });
+  const probed = r.probe as StoredProbe | null;
+  if (probed) out.push({ when: day(probed.at), what: `probed on ${probed.scenario}: ${probed.outcome}${probed.result.length ? ` — ${probed.result[0]}` : ""}` });
   if (r.confirmedAt) out.push({ when: day(r.confirmedAt), what: "confirmed by you" });
   if (r.source !== "compiler" || r.status === "corrected") out.push({ when: day(r.updatedAt), what: r.source === "claude" ? `program written by Claude · v${r.version}` : `corrected by hand · v${r.version}` });
   else if (r.version > 1) out.push({ when: day(r.updatedAt), what: `re-drafted by the compiler · v${r.version}` });
@@ -49,6 +53,19 @@ function triggerLine(row: WorklistRow): string {
   if (row.kind.startsWith("activate")) return "when you activate it";
   if (row.kind.startsWith("counter")) return "at the counter timing the tag names";
   return "the engine knows no moment for this wording";
+}
+
+/**
+ * The boards this rule can be tried on, for the probe pane. Reading the card
+ * is what it costs: `scenariosFor` is pure, and the run itself happens in the
+ * action when the button is pressed.
+ */
+export async function probeScenarios(db: Db, row: WorklistRow): Promise<{ ruleId: number; scenarios: { key: string; title: string }[] } | null> {
+  const defs = await defsForCards(db, [row.cardId]);
+  const def = defs[row.cardId];
+  if (!def) return null;
+  const scenarios = scenariosFor(ruleFrom(row, def, programOf(row)));
+  return { ruleId: row.id, scenarios: scenarios.map((s) => ({ key: s.key, title: s.title })) };
 }
 
 export async function buildRecord(db: Db, selected: WorklistRow, decks: string[]): Promise<RecordProps> {

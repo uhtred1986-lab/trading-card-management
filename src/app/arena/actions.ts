@@ -14,7 +14,9 @@ import { currentUser } from "@/lib/auth";
 import { advance } from "@/lib/arena/ai/run";
 import { reviewGame } from "@/lib/arena/ai/review";
 import { clarifyRule } from "@/lib/arena/ai/clarify";
-import { blankRule, confirmMatching, confirmRule, ruleById, saveRule, setBrief, setCompilerDiff, takeCompilerDiff, undoConfirmed, type ConfirmBatch, type RuleFilter, type RuleSource, type RuleStatus } from "@/lib/arena/rules-store";
+import { blankRule, confirmMatching, confirmRule, programOf, ruleById, setProbe, saveRule, setBrief, setCompilerDiff, takeCompilerDiff, undoConfirmed, type ConfirmBatch, type RuleFilter, type RuleSource, type RuleStatus } from "@/lib/arena/rules-store";
+import { defsForCards } from "@/lib/arena/load";
+import { probe, ruleFrom, scenariosFor, type ProbeRule, type ProbeRun, type ProbeScenario } from "@/lib/arena/probe";
 import { SKIN_COOKIE, type ArenaSkin } from "@/lib/arena/skin";
 import { STAGING_COOKIE, type ArenaStaging } from "@/lib/arena/staging";
 
@@ -102,11 +104,25 @@ async function noteRule(id: number, note: string, resolution: string | null) {
   revalidatePath("/arena/feedback");
 }
 
-/** Draft → confirmed: the program stays, the person's acceptance is recorded. */
+/**
+ * Draft → confirmed: the program stays, the person's acceptance is recorded —
+ * and so is a probe of it.
+ *
+ * The probe is the point of confirming rather than a decoration on it: what
+ * is kept is what this rule *did* on the board it was confirmed against, so a
+ * later engine change can be asked whether it still does it
+ * (`npm run arena:reprobe`). A bulk confirm writes none — 11,375 staged games
+ * inside one press is not a press — and `arena:probe --fill` catches those up.
+ */
 export async function confirmRuleAction(id: number): Promise<{ error: string | null }> {
   const row = await ruleById(db, id);
   if (!row) return { error: "no such rule" };
   await confirmRule(db, id);
+  const found = await probeRuleFor(id);
+  if (found) {
+    const run = probe(found.rule, found.scenarios[0]);
+    await setProbe(db, id, { scenario: run.scenario.key, outcome: run.outcome, digest: run.digest, applied: run.applied, result: run.result, assumptions: run.assumptions, at: new Date().toISOString() });
+  }
   await noteRule(id, `confirmed: ${row.printed}`, row.reads);
   return { error: null };
 }
@@ -380,3 +396,42 @@ export async function abandon(gameId: number) {
   redirect("/arena");
 }
 
+
+/**
+ * The rule as the probe wants it: the row's program, and the card the engine
+ * reads its skill kinds and triggers off. One place, so the pane, the CLI and
+ * a stored probe all try the same rule.
+ */
+export async function probeRuleFor(id: number): Promise<{ rule: ProbeRule; scenarios: ProbeScenario[] } | null> {
+  const row = await ruleById(db, id);
+  if (!row) return null;
+  const defs = await defsForCards(db, [row.cardId]);
+  const def = defs[row.cardId];
+  if (!def) return null;
+  const rule = ruleFrom(row, def, programOf(row));
+  return { rule, scenarios: scenariosFor(rule) };
+}
+
+/** Run one rule on one board. Pure once the row is read, so it costs a query and nothing else. */
+export async function probeRuleAction(id: number, scenarioKey?: string): Promise<{ error: string | null; run: ProbeRun | null }> {
+  const found = await probeRuleFor(id);
+  if (!found) return { error: "no such rule", run: null };
+  const scenario = found.scenarios.find((s) => s.key === scenarioKey) ?? found.scenarios[0];
+  return { error: null, run: probe(found.rule, scenario) };
+}
+
+/**
+ * Every board this rule can be tried on, run. Each is a staged game in the
+ * pure engine, so the whole set costs the one query the rule was read with.
+ */
+export async function probeAllAction(id: number): Promise<{ error: string | null; runs: { key: string; title: string; outcome: ProbeRun["outcome"]; headline: string }[] }> {
+  const found = await probeRuleFor(id);
+  if (!found) return { error: "no such rule", runs: [] };
+  return {
+    error: null,
+    runs: found.scenarios.map((scenario) => {
+      const run = probe(found.rule, scenario);
+      return { key: scenario.key, title: scenario.title, outcome: run.outcome, headline: run.result[0] ?? "nothing to report" };
+    }),
+  };
+}

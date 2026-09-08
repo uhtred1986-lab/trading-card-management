@@ -789,6 +789,14 @@ export const cardRules = pgTable(
      * the same way, and only the second ends the problem.
      */
     brief: text("brief"),
+    /**
+     * The last probe run against this rule, kept when it is confirmed: the
+     * scenario, what it concluded and the digest over that conclusion. A later
+     * engine change re-runs every stored probe (`npm run arena:reprobe`) and
+     * lists the rules whose answer moved — the regression suite the rules
+     * never had.
+     */
+    probe: jsonb("probe"),
     /** How often this skill has actually come up in a game the referee had to rule on. */
     timesSeen: integer("times_seen").notNull().default(0),
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),

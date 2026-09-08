@@ -50,6 +50,8 @@ npm run sync:catalog   # Import both games' catalogs from deckplanet + Fusion Wo
                        # then draft arena rules for every new or changed card and ask Claude about the
                        # skills the compiler could not read (--no-review, --budget N)
 npm run arena:draft    # Compile the catalog offline into card_rules drafts (--card, --set, --only-open, --review)
+npm run arena:probe    # Try stored rules on a board built for each (--card, --set, --all, --limit, --fill)
+npm run arena:reprobe  # Re-run every probe a rule carries and list the ones whose answer moved (--write)
 npm run db:check       # Can this machine reach the database, and over which driver?
 npm run db:migrate:http # db:migrate for a sandbox that allows HTTPS only (see DB_DRIVER below)
 npm run sync:prices    # Import TCGplayer products + today's prices from tcgcsv (both categories),
@@ -279,7 +281,7 @@ the same style.
   `/arena/rules/patterns` (`card_text_notes` was folded in and dropped, migration 0030). The
   referee bumps `times_seen` on the rule when the text actually comes up, and the program it
   produced is that rule's Claude draft, so the worked example is the record.
-- **Rules are records** (`docs/arena-rules-workbench-spec.md`, phases 1 and 2 built 8 Sep 2026): the
+- **Rules are records** (`docs/arena-rules-workbench-spec.md`, phases 1-3 built 8 Sep 2026): the
   engine plays from `card_rules` — one row per skill per card face with the program, trigger,
   cost, hoisted condition, provenance (`compiler | claude | user`), state (`open | draft |
   confirmed | corrected`), unread clauses, plain reading and version — and **never compiles
@@ -302,6 +304,27 @@ the same style.
   alone. `npm run arena:draft` fills the table; the catalog sync drafts every new or changed card.
   A rule with no steps and a `keyword:` pattern is not blank — the keyword is the rule the engine
   plays, and the record says which, from `glossary.ts`.
+- **The probe** (`src/lib/arena/probe.ts`, the record's right-hand pane, phase 3 of the same
+  brief): a record says what the engine *will* play, a probe says what it *does*.
+  `probe(rule, scenario)` builds a game with `createGame` and two minimal decks, stages the one
+  board that rule's moment needs, plays the move under test, answers every prompt by a fixed
+  policy, and reports **Input / Applied rule / Result / Assumptions** with a digest over the
+  conclusion. Pure — no database, no network, and **no compiler**: the cards it stages around the
+  rule carry hand-written programs, so `draft.ts` stays the only module that compiles text. It
+  invents no wording either: the log is `toBeats` → `narrate`, a refusal is `wording.sentence`, a
+  question is `view.ts`'s own `questionFor`, and an *assumption* is only ever a `note` in the
+  program, a note the engine logged, a clause the compiler could not read, or the glossary's
+  `engine` line for a keyword it plays only partly. Ten families (`familyOf`) cover the catalog's
+  shapes with two or three edge boards each — no legal target, skills negated, the opponent's
+  turn, the card in hand; the rules whose moment the engine does not know get `none`, whose
+  honest answer is that sentence. **The board is built in the card's favour and says so**: the
+  Leader shares the card's colours, characters and traits, a keyword gets a body its own
+  description matches, and each of those is a line in Input. A [Permanent] and a keyword are
+  *read* rather than resolved — power with and without the rule, the keywords in force, and
+  whether the opponent's KO skill was offered the card at all. Confirming a rule keeps its probe
+  on the row (`card_rules.probe`), so `npm run arena:reprobe` after an engine change lists the
+  rules whose answer moved: the regression suite the rules never had. `npm run arena:probe --all`
+  sweeps the catalog in ~70 s.
 - **Explaining a card** (`src/lib/arena/ai/clarify.ts`, from any record on the workbench): you say
   what a card does in plain words; Claude returns a program in the effect language, saved as the
   card's **draft** rule (`source: claude`, for you to confirm), and a markdown work item for

@@ -504,5 +504,36 @@ assert.equal(priceForFinish(prices.get("BT18-020_SPR"), "foil"), 199);
   assert.deepEqual(changedCardIds(before, [{ id: "BT18-032", skill: "", backSkill: "front unchanged, back changed" }]).changed, [], "null and empty text are the same text");
 }
 
+
+// ── A probe is kept on the rule it was run against ─────────────────────────
+// The regression suite the rules never had: what a rule *did* on the board it
+// was confirmed against, so `arena:reprobe` can ask whether it still does it.
+// The probe itself is pure and tested in `verify-arena`; what is tested here
+// is that the row carries it, and that only rules that have one come back.
+{
+  const { eq } = await import("drizzle-orm");
+  const { probedRules, programOf, setProbe } = await import("../src/lib/arena/rules-store.ts");
+  const { probe, ruleFrom, scenariosFor } = await import("../src/lib/arena/probe.ts");
+  const { cardDefFrom } = await import("../src/lib/arena/load.ts");
+
+  const [row] = await db.select().from(schema.cardRules).where(eq(schema.cardRules.cardId, "BT18-030"));
+  assert.equal(row.probe, null, "a rule carries no probe until one is kept on it");
+  assert.deepEqual(await probedRules(db), [], "and nothing to re-run");
+
+  const [def] = await db.select().from(schema.cards).where(eq(schema.cards.id, "BT18-030"));
+  const rule = ruleFrom(row, cardDefFrom(def), programOf(row));
+  const run = probe(rule, scenariosFor(rule)[0]);
+  assert.equal(run.outcome, "fired", `the drafted rule draws when it is played: ${run.result.join(" | ")}`);
+  await setProbe(db, row.id, { scenario: run.scenario.key, outcome: run.outcome, digest: run.digest, applied: run.applied, result: run.result, assumptions: run.assumptions, at: new Date().toISOString() });
+
+  const kept = await probedRules(db);
+  assert.equal(kept.length, 1, "the rule with a probe is the one that comes back");
+  const stored = kept[0].probe as { scenario: string; digest: string; outcome: string };
+  assert.deepEqual([stored.scenario, stored.outcome, stored.digest], [run.scenario.key, run.outcome, run.digest]);
+  // The same rule on the same board is the same answer: that is what makes a
+  // difference after an engine change worth reading.
+  assert.equal(probe(rule, scenariosFor(rule)[0]).digest, stored.digest, "re-running it agrees with what was kept");
+}
+
 await client.close();
 console.log("verify-db: all checks passed");

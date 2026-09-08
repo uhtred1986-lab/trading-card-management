@@ -1,6 +1,6 @@
 # Arena — rules as records: the Rules Workbench
 
-**Status: phase 1 (§3) built 8 Sep 2026, PR #56; phase 2 (§4) built 8 Sep 2026, PR #57; phase 3 (§5, the probe) is a later session. What each phase found, and what it changed about the plan, is in `docs/arena-rules-worklist.md` — "Done: rules as records" and "Done: the catalog and the patterns".** Written to be executed by Claude Code in this repository.
+**Status: phase 1 (§3) built 8 Sep 2026, PR #56; phase 2 (§4) built 8 Sep 2026, PR #57; phase 3 (§5, the probe) built 8 Sep 2026, PR #58. What each phase found, and what it changed about the plan, is in `docs/arena-rules-worklist.md` — "Done: rules as records" and "Done: the catalog and the patterns".** Written to be executed by Claude Code in this repository.
 Companion prototype: `docs/arena-rules-workbench-prototype.html` (open it in a browser; it is the
 UX target, not code to copy).
 
@@ -388,7 +388,7 @@ the page could show them at all. Editing conditions as chips needed `COND_SCHEMA
 bulk confirm needed somewhere durable to keep what it moved (`arena_feedback.batch`), or Undo can
 only guess.
 
-## 5. Phase 3 — the probe
+## 5. Phase 3 — the probe *(built, PR #58)*
 
 - `src/lib/arena/probe.ts`: `probe(rule, scenario) → { log, prompts, result }`. Scenarios are
   built per trigger kind from a small table: `play` (card in hand, 6 energy, opponent has two
