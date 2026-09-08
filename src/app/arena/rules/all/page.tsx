@@ -8,7 +8,7 @@ import { deckInputFor } from "@/lib/arena/load";
 import { countRules, setsWithRules, statusCounts, worklistPage, type RuleFilter, type RuleSource, type RuleStatus } from "@/lib/arena/rules-store";
 import { listDecks } from "@/lib/decks/queries";
 import { recentBatches } from "../../actions";
-import { buildRecord, historyOf } from "../record";
+import { buildRecord, historyOf, probeScenarios } from "../record";
 
 export const dynamic = "force-dynamic";
 
@@ -57,6 +57,7 @@ export default async function AllRulesPage({ searchParams }: { searchParams: Pro
 
   const selected = rows.find((r) => r.id === ruleParam) ?? rows[0] ?? null;
   const record = selected ? await buildRecord(db, selected, []) : null;
+  const probe = selected ? await probeScenarios(db, selected) : null;
   const segCounts = { all: counts.open + counts.draft + counts.confirmed + counts.corrected, ...counts };
 
   const href = (patch: Record<string, string | null>) => {
@@ -80,6 +81,7 @@ export default async function AllRulesPage({ searchParams }: { searchParams: Pro
         record={record}
         history={selected ? historyOf(selected) : []}
         mechanism={record?.mechanism ?? null}
+        probe={probe}
         href={(id) => href({ rule: String(id) })}
         empty="No rule matches that."
         footer={

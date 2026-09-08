@@ -11,6 +11,8 @@ import { describeScript, type Op } from "@/lib/arena/engine";
 import { describeCond, type Cond } from "@/lib/arena/engine/script";
 import type { CostRecord } from "@/lib/arena/draft";
 import { describeTrigger, mechanismNeeds, mechanismOf } from "@/lib/arena/gaps";
+import { defsForCards } from "@/lib/arena/load";
+import { scenariosFor } from "@/lib/arena/probe";
 import { siblingsOf, type CompilerDiff, type RuleStatus, type WorklistRow } from "@/lib/arena/rules-store";
 
 /** The parsed price as a sentence, for the COST row. */
@@ -49,6 +51,28 @@ function triggerLine(row: WorklistRow): string {
   if (row.kind.startsWith("activate")) return "when you activate it";
   if (row.kind.startsWith("counter")) return "at the counter timing the tag names";
   return "the engine knows no moment for this wording";
+}
+
+/**
+ * The boards this rule can be tried on, for the probe pane. Reading the card
+ * is what it costs: `scenariosFor` is pure, and the run itself happens in the
+ * action when the button is pressed.
+ */
+export async function probeScenarios(db: Db, row: WorklistRow): Promise<{ ruleId: number; scenarios: { key: string; title: string }[] } | null> {
+  const defs = await defsForCards(db, [row.cardId]);
+  const def = defs[row.cardId];
+  if (!def) return null;
+  const scenarios = scenariosFor({
+    def,
+    side: row.side === "back" ? "back" : "front",
+    skillIndex: row.skillIndex,
+    kind: row.kind,
+    trigger: (row.trigger as string[] | null) ?? [],
+    ops: (row.ops as Op[]) ?? [],
+    open: row.status === "open",
+    unread: row.unread,
+  });
+  return { ruleId: row.id, scenarios: scenarios.map((s) => ({ key: s.key, title: s.title })) };
 }
 
 export async function buildRecord(db: Db, selected: WorklistRow, decks: string[]): Promise<RecordProps> {
