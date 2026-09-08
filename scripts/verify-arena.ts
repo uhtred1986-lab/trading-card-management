@@ -7223,6 +7223,12 @@ function assertDisjoint(s: GameState, where: string): RejectedAction[] {
   assert.equal(validate([{ op: "chooseMode", modes: [] }]), false, "a modal choice with no options");
   assert.equal(validate([{ op: "if", cond: { kind: "isTurnPlayer" }, then: [{ op: "nope" }] }]), false, "nested programs are checked too");
   assert.equal(validate([{ op: "draw", n: 1, side: "them" }]), false, "a side the engine does not know");
+  // The shapes the referee gets wrong most: a bare selector where a ref belongs, an empty ref, a special the engine does not know, a condition without a kind.
+  assert.equal(validate([{ op: "ko", target: { special: "self" } }]), false, "a selector is not a ref — two of three BT18 reviews died describing this");
+  assert.equal(validate([{ op: "ko", target: {} }]), false);
+  assert.equal(validate([{ op: "ko", target: { sel: { special: "self" } } }]), true);
+  assert.equal(validate([{ op: "ko", target: { sel: { special: "myself" } } }]), false);
+  assert.equal(validate([{ op: "if", cond: { atLeast: 2 }, then: [] }]), false, "a condition needs a kind");
   // The renderer reads the same rows: templates, hints and conditional segments.
   assert.equal(describeScript([{ op: "draw", n: 1, side: "opponent" }]), "opponent draws 1");
   assert.equal(describeScript([{ op: "discard", n: 1, to: "warp" }]), "discard 1 to the Warp");

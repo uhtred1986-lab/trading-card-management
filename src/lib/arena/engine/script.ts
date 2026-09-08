@@ -1169,6 +1169,7 @@ export interface RenderOptions {
 
 const COLORS = ["Red", "Blue", "Green", "Yellow", "Black", "White", "Colorless"] as const satisfies readonly Color[];
 export const SIDES = ["you", "opponent", "both"] as const satisfies readonly Side[];
+export const SPECIAL_TARGETS = ["self", "attacker", "guard", "subject", "leader", "opponentLeader", "resolving"] as const satisfies readonly SpecialTarget[];
 export const AREAS = ["hand", "deck", "drop", "life", "battle", "combo", "energy", "unison", "leader", "warp", "zDeck", "zEnergy", "under", "play", "removed"] as const satisfies readonly ScriptArea[];
 export const DURATIONS = ["battle", "turn", "opponentTurn", "nextTurn", "afterNextCharge", "game"] as const satisfies readonly Duration[];
 const DELAY_TIMINGS = ["turnStart", "mainStart", "turnEnd", "turnCleanup", "battleEnd"] as const satisfies readonly DelayTiming[];
@@ -1403,6 +1404,12 @@ export function validateProgram(ops: unknown, depth = 0): ops is Op[] {
   });
 }
 
+function selectorHolds(v: unknown): boolean {
+  if (typeof v !== "object" || v === null) return false;
+  const special = (v as { special?: unknown }).special;
+  return special === undefined || (SPECIAL_TARGETS as readonly string[]).includes(special as string);
+}
+
 function fieldHolds(type: FieldType, v: unknown, depth: number): boolean {
   if (typeof type === "object") {
     if ("enum" in type) return typeof v === "string" && type.enum.includes(v);
@@ -1411,9 +1418,16 @@ function fieldHolds(type: FieldType, v: unknown, depth: number): boolean {
   switch (type) {
     case "amount":
       return typeof v === "number" || (typeof v === "object" && v !== null);
+    // A ref is a bound name or a selector — a bare selector written where a
+    // ref belongs ({"special":"self"} for {"sel":{"special":"self"}}) is the
+    // mistake Claude makes most, and read as a ref it threw while being
+    // described. Refused here, it comes back as "not a valid program".
     case "ref":
+      return typeof v === "object" && v !== null && (typeof (v as { var?: unknown }).var === "string" || selectorHolds((v as { sel?: unknown }).sel));
     case "selector":
+      return selectorHolds(v);
     case "cond":
+      return typeof v === "object" && v !== null && typeof (v as { kind?: unknown }).kind === "string";
     case "filter":
       return typeof v === "object" && v !== null;
     case "keyword":
