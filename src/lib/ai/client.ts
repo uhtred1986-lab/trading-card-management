@@ -19,13 +19,24 @@ export const FAST_MODEL = "claude-haiku-4-5";
 
 let cached: Anthropic | null = null;
 
+/**
+ * `ANTHROPIC_API_KEY` as everywhere else, or `APP_ANTHROPIC_API_KEY` where
+ * the first name is taken: Claude Code on the web reserves it for the session's
+ * own authentication and refuses to store it as an environment variable, so a
+ * sandbox that runs the arena scripts needs a second name for the same key.
+ */
+export function anthropicKey(): string | undefined {
+  return process.env.ANTHROPIC_API_KEY || process.env.APP_ANTHROPIC_API_KEY || undefined;
+}
+
 export function hasAnthropic(): boolean {
-  return !!process.env.ANTHROPIC_API_KEY;
+  return !!anthropicKey();
 }
 
 export function anthropic(): Anthropic {
-  if (!hasAnthropic()) throw new Error("ANTHROPIC_API_KEY is not set — AI features are disabled.");
-  return (cached ??= new Anthropic());
+  const apiKey = anthropicKey();
+  if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not set — AI features are disabled.");
+  return (cached ??= new Anthropic({ apiKey }));
 }
 
 export type RunKind = "deck_summary" | "deck_wizard" | "set_review" | "scan_identify" | "cart_explain" | "arena_move" | "arena_referee" | "arena_review";

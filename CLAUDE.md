@@ -313,6 +313,8 @@ the same style.
 `.env.local` (gitignored) holds `DATABASE_URL` (Neon, pooled), `ANTHROPIC_API_KEY`,
 `CARDTRADER_API_TOKEN`, `CARDTRADER_ENABLED`. `CRON_SECRET` and `XIMILAR_API_KEY` are optional.
 The same variables must exist in Vercel's project settings for the deployment. See `.env.example`.
+`APP_ANTHROPIC_API_KEY` is the same Anthropic key under a second name, read when the first is absent:
+Claude Code on the web reserves `ANTHROPIC_API_KEY` for its own session and refuses to store it.
 `DB_DRIVER=neon-http` sends queries to Neon over HTTPS instead of Postgres TCP — for sandboxes
 (Claude Code on the web is one) that let 443 out and nothing on 5432; the HTTP driver has no
 interactive transactions, so it is for the scripts, not the app server. The `arena:*` scripts

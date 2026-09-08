@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { hasAnthropic as hasAnthropicKey } from "@/lib/ai/client";
 import { db } from "@/db";
 import { lastSyncRuns } from "@/lib/sync";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -17,7 +18,7 @@ export default async function SettingsPage() {
   const catalog = latest.get("catalog");
   const prices = latest.get("prices");
   const fx = latest.get("fx");
-  const hasAnthropic = !!process.env.ANTHROPIC_API_KEY;
+  const hasAnthropic = hasAnthropicKey();
   const hasCardTrader = !!process.env.CARDTRADER_API_TOKEN;
   const cardTraderLive = process.env.CARDTRADER_ENABLED === "true";
   const hasXimilar = !!process.env.XIMILAR_API_KEY;

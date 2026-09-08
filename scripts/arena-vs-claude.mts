@@ -19,7 +19,10 @@ const maxCalls = process.argv[2] != null ? Number(process.argv[2]) : 6;
 const tier = (process.argv[3] as ArenaMode) ?? "sparring";
 const wanted = process.argv.slice(4).map(Number).filter(Number.isInteger);
 
-if (maxCalls === 0) delete process.env.ANTHROPIC_API_KEY;
+if (maxCalls === 0) {
+  delete process.env.ANTHROPIC_API_KEY;
+  delete process.env.APP_ANTHROPIC_API_KEY;
+}
 
 const all = await db.select({ id: decks.id, name: decks.name }).from(decks);
 const usable: number[] = [];
