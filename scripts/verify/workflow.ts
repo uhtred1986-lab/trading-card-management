@@ -208,6 +208,55 @@ import type { Beat, GameState, PlayerId, RejectedAction, Requirement } from "./h
     assert.equal(mine[0].label, "Activate TWOLINE: Draw 1 card.", "the label says which line it is");
   }
 
+  // The price before the colon comes off the **record**, not off the card's
+  // text (CLAUDE.md, "Rules are records"): until 8 Sep 2026 `activatable`,
+  // `canResolve` and `activate` each rebuilt it with the compiler mid-game.
+  // Reading it changes no answer — the drafter stored what the compiler read —
+  // but it moves *when* the reading happens, and these two boards are the
+  // difference that proves it.
+  {
+    DEFS.PRICED = {
+      ...DEFS.V1,
+      id: "PRICED",
+      name: "PRICED",
+      skill: "[Activate: Main] Choose 1 card in your hand and place it in the Drop Area: Draw 1 card.",
+    };
+    const s = arena({ battle: ["PRICED"], hand: ["V1", "BIG"] });
+    const priced = find(s, "p1", "battle", "PRICED");
+    const sk = parseSkills(DEFS.PRICED.skill!)[0];
+
+    // With the record's price: offered, and paying it really costs the card.
+    assert.ok(
+      legalActions(CTX, s).some((l) => l.action.type === "activate" && l.action.card === priced),
+      "an action price the record carries is a price the engine charges",
+    );
+    const before = s.players.p1.hand.length;
+    let after = play(s, { type: "activate", player: "p1", card: priced, skill: sk.index });
+    while (after.prompt.kind === "chooseCards") {
+      const pick = (after.prompt as { choice: { candidates: string[] } }).choice.candidates[0];
+      after = play(after, { type: "choose", player: "p1", cards: [pick] });
+    }
+    assert.equal(after.players.p1.hand.length, before, "one card paid, one card drawn");
+    assert.equal(after.players.p1.drop.length, 1, "…and the card paid is in the Drop");
+
+    // The half that matters: a record whose **effect** is perfectly readable
+    // but that carries **no price**. The price is then unknown, not free — the
+    // skill stays off the menu and the refusal says the text is unread, rather
+    // than handing the player an effect the engine never charged for. Before
+    // this change the engine would have compiled the price here and offered it,
+    // which is what makes this the assertion the move is worth.
+    const priceless: typeof CTX = {
+      defs: CTX.defs,
+      scripts: { ...CTX.scripts, PRICED: { bySkill: { [sk.index]: { ops: [{ op: "draw", n: 1 }], unsupported: [] } }, complete: true, unsupported: [] } },
+    };
+    assert.ok(!legalActions(priceless, s).some((l) => l.action.type === "activate" && l.action.card === priced), "a readable effect whose price the record does not carry is not offered for free");
+    const why = rejectedActions(priceless, s, legalActions(priceless, s)).find((r) => r.action.type === "activate" && (r.action as { card?: string }).card === priced);
+    assert.ok(
+      why?.why.some((w) => w.kind === "unread"),
+      `and the refusal says the text is unread: ${JSON.stringify(why?.why)}`,
+    );
+  }
+
   // 9-1-5 in both its shapes. A negated skill is off the menu — that part was
   // never in doubt — and the promise this pair keeps is that it is on the
   // *other* list with a reason. `negateSkill` silences one skill by index and

@@ -33,6 +33,7 @@ import {
   type PlayerId,
   type Skill,
 } from "./engine";
+import type { Cond, SkillPrice } from "./engine/script";
 import { parseFilter } from "./engine/filters";
 import { addEffect, move } from "./engine/state";
 import { toBeats } from "./beats";
@@ -57,6 +58,14 @@ export interface ProbeRule {
   /** An open row: no program, played as blank, and the log says so. */
   open: boolean;
   unread: string[];
+  /**
+   * The price before the colon, off the row's `cost`. The engine reads this
+   * rather than compiling it (8 Sep 2026), so a probe that did not carry it
+   * would report every action-priced skill as unpayable — a fact about the
+   * probe, not about the rule. Reading the record is not compiling: the probe
+   * still never calls the compiler.
+   */
+  price: SkillPrice;
 }
 
 /**
@@ -64,8 +73,10 @@ export interface ProbeRule {
  * — the row's hoisted condition already wrapped back around its steps, which
  * is `programOf` in the store; the probe never reads the table itself.
  */
-export function ruleFrom(row: { side: string; skillIndex: number; kind: string; trigger: unknown; status: string; unread: string[] }, def: CardDef, program: Op[]): ProbeRule {
+export function ruleFrom(row: { side: string; skillIndex: number; kind: string; trigger: unknown; status: string; unread: string[]; cost?: unknown }, def: CardDef, program: Op[]): ProbeRule {
+  const cost = row.cost as { condition?: Cond | null; program?: Op[] | null } | null | undefined;
   return {
+    price: { condition: cost?.condition ?? null, ops: cost?.program ?? null },
     def,
     side: row.side === "back" ? "back" : "front",
     skillIndex: row.skillIndex,
@@ -152,6 +163,8 @@ const NAMES: Record<string, string> = {
   [THEIR_LEADER]: "Rival Leader",
 };
 
+const NO_PRICE: SkillPrice = { condition: null, ops: null };
+
 const KO_PROGRAM: Op[] = [
   { op: "choose", sel: { side: "opponent", area: "battle", count: 1, upTo: true }, as: "t", reason: "choose a Battle Card to KO" },
   { op: "ko", target: { var: "t" } },
@@ -200,11 +213,11 @@ function propsFor(rule: ProbeRule): { defs: Record<string, CardDef>; scripts: Re
   ])
     defs[d.id] = d;
   const scripts: Record<string, CardScripts> = {
-    [KILLER]: { bySkill: { 0: { ops: KO_PROGRAM, unsupported: [] } }, complete: true, unsupported: [] },
+    [KILLER]: { bySkill: { 0: { ops: KO_PROGRAM, unsupported: [], price: NO_PRICE } }, complete: true, unsupported: [] },
   };
   const key = rule.side === "back" ? `${rule.def.id}#back` : rule.def.id;
   scripts[key] = {
-    bySkill: { [rule.skillIndex]: rule.open ? { ops: [], unsupported: rule.unread } : { ops: rule.ops, unsupported: [] } },
+    bySkill: { [rule.skillIndex]: rule.open ? { ops: [], unsupported: rule.unread, price: rule.price } : { ops: rule.ops, unsupported: [], price: rule.price } },
     complete: !rule.open,
     unsupported: rule.open ? rule.unread : [],
   };

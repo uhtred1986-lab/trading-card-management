@@ -25,6 +25,9 @@ function ruleFor(def: CardDef, index = 0): ProbeRule {
     ops: rec.cond ? [{ op: "if", cond: rec.cond, then: rec.ops }] : rec.ops,
     open: rec.unread.length > 0,
     unread: rec.unread,
+    // The price rides on the row, as it does in the database: the engine reads
+    // it rather than compiling it, so a rule built without one has no price.
+    price: { condition: rec.cost?.condition ?? null, ops: rec.cost?.program ?? null },
   };
 }
 
@@ -57,7 +60,7 @@ const said = (r: ProbeRun) => [...r.result, ...r.applied, ...r.log].join(" | ");
   assert.equal(familyOf(ruleFor(card("P-PERM", { skill: "[Permanent] This card gets +5000 power." }))), "permanent");
   // A moment the engine does not know is not an error and not a blank probe:
   // it is the one true sentence about 802 rules of the catalog.
-  const orphan: ProbeRule = { def: card("P-ORPHAN", {}), side: "front", skillIndex: 0, kind: "auto", trigger: [], ops: [], open: false, unread: [] };
+  const orphan: ProbeRule = { def: card("P-ORPHAN", {}), side: "front", skillIndex: 0, kind: "auto", trigger: [], ops: [], open: false, unread: [], price: { condition: null, ops: null } };
   assert.equal(familyOf(orphan), "none");
   const none = probe(orphan, scenariosFor(orphan)[0]);
   assert.equal(none.outcome, "noScenario");
@@ -121,7 +124,17 @@ const said = (r: ProbeRun) => [...r.result, ...r.applied, ...r.log].join(" | ");
 // ── a rule with no program, and a rule with a clause nobody could read ─────
 
 {
-  const open: ProbeRule = { def: card("P-OPEN", { skill: "[Auto] When you play this card, do something nobody has taught the compiler." }), side: "front", skillIndex: 0, kind: "auto", trigger: ["played"], ops: [], open: true, unread: ["do something nobody has taught the compiler"] };
+  const open: ProbeRule = {
+    def: card("P-OPEN", { skill: "[Auto] When you play this card, do something nobody has taught the compiler." }),
+    side: "front",
+    skillIndex: 0,
+    kind: "auto",
+    trigger: ["played"],
+    ops: [],
+    open: true,
+    unread: ["do something nobody has taught the compiler"],
+    price: { condition: null, ops: null },
+  };
   const r = probe(open, scenariosFor(open)[0]);
   // It fires and does nothing: that is the answer, not a failure.
   assert.equal(r.outcome, "blank");
@@ -177,7 +190,17 @@ const said = (r: ProbeRun) => [...r.result, ...r.applied, ...r.log].join(" | ");
 
   // 1,089 keyword rules have an empty program and are played all the same. The
   // probe must say what the engine does with the keyword, not "nothing".
-  const kw: ProbeRule = { def: card("P-BLOCK", { skill: "[Blocker]" }), side: "front", skillIndex: 0, kind: "keyword", trigger: [], ops: [], open: false, unread: [] };
+  const kw: ProbeRule = {
+    def: card("P-BLOCK", { skill: "[Blocker]" }),
+    side: "front",
+    skillIndex: 0,
+    kind: "keyword",
+    trigger: [],
+    ops: [],
+    open: false,
+    unread: [],
+    price: { condition: null, ops: null },
+  };
   const blocker = probe(kw, scenariosFor(kw)[0]);
   assert.equal(blocker.outcome, "fired");
   assert.ok(

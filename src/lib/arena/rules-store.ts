@@ -10,7 +10,7 @@ import { and, asc, eq, ilike, inArray, isNotNull, ne, or, sql, type SQL } from "
 import type { Db } from "@/db";
 import { cardRules, cards } from "@/db/schema";
 import { describeScript, type CardDef, type CardScripts, type Op } from "./engine";
-import type { Cond } from "./engine/script";
+import type { Cond, SkillPrice } from "./engine/script";
 import { rows as rowsOf } from "@/db/rows";
 import { textArray } from "@/db/sqlx";
 import { clauseShape, mechanismOf } from "./gaps";
@@ -29,6 +29,22 @@ export interface CompilerDiff {
 export function programOf(row: Pick<RuleRow, "ops" | "cond">): Op[] {
   const ops = (row.ops as Op[]) ?? [];
   return row.cond ? [{ op: "if", cond: row.cond as Cond, then: ops }] : ops;
+}
+
+/**
+ * The price the engine charges, off the row (4-3-3). Until 8 Sep 2026 the
+ * engine rebuilt this from the card's text on every activation, against the
+ * rule that it never compiles card text at game time; the drafter has written
+ * both halves to `card_rules.cost` since phase 2, and this hands them over.
+ *
+ * A row with no `cost` is a skill with **no** price, which is not the same as
+ * a skill whose price the compiler could not read \u2014 that one has a `cost`
+ * with both halves null, and the engine refuses it rather than resolving an
+ * effect it did not charge for.
+ */
+function priceOfRow(row: Pick<RuleRow, "cost">): SkillPrice {
+  const cost = row.cost as { condition?: Cond | null; program?: Op[] | null } | null;
+  return { condition: cost?.condition ?? null, ops: cost?.program ?? null };
 }
 
 /** The key `ctx.scripts` is read by: the catalog id for a front, `<id>#back` for a leader's awakened side. */
@@ -58,7 +74,8 @@ export async function rulesFor(db: Db, defs: Record<string, CardDef>): Promise<R
     const base = out[key] ?? { bySkill: {}, complete: true, unsupported: [] };
     // An open row has no program: the skill is played as blank, and the
     // unread clauses stay on it so the log and the referee can say why.
-    base.bySkill[row.skillIndex] = row.status === "open" ? { ops: [], unsupported: row.unread } : { ops: programOf(row), unsupported: [] };
+    const price = priceOfRow(row);
+    base.bySkill[row.skillIndex] = row.status === "open" ? { ops: [], unsupported: row.unread, price } : { ops: programOf(row), unsupported: [], price };
     base.unsupported = Object.values(base.bySkill).flatMap((s) => s.unsupported);
     base.complete = base.unsupported.length === 0;
     out[key] = base;
