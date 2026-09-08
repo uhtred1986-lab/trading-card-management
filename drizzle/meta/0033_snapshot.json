@@ -1,6 +1,6 @@
 {
-  "id": "3f5b9c21-7d84-4e6a-9c13-5a2e8b47d90f",
-  "prevId": "72c4e052-6221-4f08-8461-9729809bf444",
+  "id": "65e000e2-1fd6-4009-b490-916ed9c8d1f0",
+  "prevId": "3f5b9c21-7d84-4e6a-9c13-5a2e8b47d90f",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -587,6 +587,20 @@
           "notNull": true,
           "default": "'hotseat'"
         },
+        "engine": {
+          "name": "engine",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'legacy'"
+        },
+        "game": {
+          "name": "game",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'dbs'"
+        },
         "status": {
           "name": "status",
           "type": "text",
@@ -812,6 +826,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": true
+        },
+        "engine": {
+          "name": "engine",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'legacy'"
         },
         "game_id": {
           "name": "game_id",

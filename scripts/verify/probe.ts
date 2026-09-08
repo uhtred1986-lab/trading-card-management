@@ -253,6 +253,9 @@ const said = (r: ProbeRun) => [...r.result, ...r.applied, ...r.log].join(" | ");
 // a readable diff — which is what lets the rules engine be built beside the
 // legacy one and checked against it (`docs/arena-ruleset-spec.md`). Run
 // `npm run contract:emit` to accept a change on purpose.
+//
+// It lives beside `contract/fixtures/`, not in it: the Kotlin round-trip
+// decodes every JSON file in that folder as a `Snapshot`, and this is not one.
 
 {
   const digests: Record<string, { outcome: string; digest: string }> = {};
@@ -263,14 +266,14 @@ const said = (r: ProbeRun) => [...r.result, ...r.applied, ...r.log].join(" | ");
       digests[`${def.id}#${rec.skillIndex}`] = { outcome: r.outcome, digest: r.digest };
     }
   }
-  const file = path.join(process.cwd(), "contract", "fixtures", "probe-digests.json");
+  const file = path.join(process.cwd(), "contract", "probe-digests.json");
   const text = JSON.stringify(digests, null, 2) + "\n";
   if (process.argv.includes("--emit")) {
     fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.writeFileSync(file, text);
     console.log(`verify-arena: wrote ${Object.keys(digests).length} probe digests`);
   } else {
-    assert.ok(fs.existsSync(file), "contract/fixtures/probe-digests.json is missing — run `npm run contract:emit`");
+    assert.ok(fs.existsSync(file), "contract/probe-digests.json is missing — run `npm run contract:emit`");
     const stored = JSON.parse(fs.readFileSync(file, "utf8")) as typeof digests;
     const moved = Object.keys(digests).filter((k) => stored[k]?.digest !== digests[k].digest);
     assert.deepEqual(

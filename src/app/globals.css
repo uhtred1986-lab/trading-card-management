@@ -117,6 +117,7 @@ input[type="number"] {
   /* The back of a card: the ki dot on deep space. Shared by the face-down card and the opponent's hand. */
   --card-back: radial-gradient(circle at 50% 135%, var(--color-ki-500) 0 14%, var(--color-space-700) 15% 60%, var(--color-space-900) 61%);
   --ink: var(--color-space-600);
+  --scrim: color-mix(in srgb, var(--color-space-950) 70%, transparent);
 }
 /* ==========================================================================
  * Turn presence — the leader owns the room (docs/arena-turn-presence-spec.md).
@@ -334,6 +335,16 @@ input[type="number"] {
 /* Panels that float over the board: the skill spotlight and the hover preview. */
 .arena-float {
   box-shadow: 0 12px 40px color-mix(in srgb, var(--color-space-950) 60%, transparent);
+}
+
+/*
+ * The scrim behind a sheet. Painted from its own token per skin, never from
+ * --color-space-950 directly: the anime skin inverts that scale to near-white,
+ * which made the scrim a pale veil on a pale page and stopped a sheet reading
+ * as being over the board at all.
+ */
+.arena-scrim {
+  background: var(--scrim, color-mix(in srgb, #090b15 70%, transparent));
 }
 .arena-banner.arena-impact {
   filter: drop-shadow(0 4px 24px color-mix(in srgb, var(--color-ki-500) 70%, transparent));
@@ -845,6 +856,7 @@ input[type="number"] {
 /* The board sets its own card back for the night table; under the sky it takes the skin's. */
 [data-skin="anime"] .arena {
   --card-back: radial-gradient(circle at 50% 135%, var(--gi) 0 16%, #2f6fe0 17% 58%, var(--ink) 59%);
+  --scrim: color-mix(in srgb, var(--ink) 45%, transparent);
 
   /* Turn presence, re-tuned for a bright ground (turn-presence spec §3.3).
      The wash sits on white here instead of deep space, so the same opacity
@@ -1248,6 +1260,7 @@ html[data-skin="anime"] body::before {
   --color-loss: #f87171;
   --ink: var(--color-space-600);
   --card-back: radial-gradient(circle at 50% 135%, var(--color-ki-500) 0 14%, var(--color-space-700) 15% 60%, var(--color-space-900) 61%);
+  --scrim: color-mix(in srgb, var(--color-space-950) 70%, transparent);
 }
 
 /* Reduced motion zeroes every animation, the skin's included — kept after the skin so it wins. */

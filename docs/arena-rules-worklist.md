@@ -2047,7 +2047,9 @@ Stages 1 and 3.
 Stage 0 is the safety net and the switch, and changes no rule:
 
 - `arena_games.engine` (`legacy | rules`, default legacy) and `arena_matches.engine`,
-  migration `0032`; `arena_games.game` copied from the deck. `src/lib/arena/engines.ts`
+  migration `0033` — it was `0032` until `main` merged a repair under that number, and
+  it says `IF NOT EXISTS` because the columns had already been applied under the old
+  name; `arena_games.game` copied from the deck. `src/lib/arena/engines.ts`
   is the registry (`ENGINE_INFO`, `engineFor`, `EngineNotBuilt`); `games.ts`,
   `snapshot.ts`, `arena:fuzz` and `arena:playthrough` go through it. The `/arena`
   form and the 1 v 1 waiting room offer the engine (the rules engine greyed until it
@@ -2060,7 +2062,8 @@ Stage 0 is the safety net and the switch, and changes no rule:
   probes** to re-run — no row has been confirmed with a probe since phase 3 shipped —
   so it was no regression net at all. `scripts/verify/probe.ts` now probes every
   harness card's rule on its first scenario and holds the 143 digests in
-  `contract/fixtures/probe-digests.json`; `verify/language.ts` keeps `EFFECT_LANGUAGE`
+  `contract/probe-digests.json` (beside the fixtures folder, which the Kotlin
+  round-trip decodes whole as `Snapshot`s); `verify/language.ts` keeps `EFFECT_LANGUAGE`
   and one `stateText` board as fixtures. Both are what "the rules engine changed
   nothing" will be measured by.
 - `npm run arena:tally` — the coverage figure off the public deckplanet feed with no

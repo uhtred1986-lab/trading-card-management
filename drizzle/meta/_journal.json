@@ -229,8 +229,15 @@
     {
       "idx": 32,
       "version": "7",
-      "when": 1788907790494,
-      "tag": "0032_burly_white_tiger",
+      "when": 1789000000000,
+      "tag": "0032_repair_missing_arena_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1788910259175,
+      "tag": "0033_giant_black_tarantula",
       "breakpoints": true
     }
   ]
