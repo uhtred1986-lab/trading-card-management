@@ -155,13 +155,25 @@ export interface DraftSummary {
   deleted: number;
 }
 
-/** jsonb hands keys back in its own order, so equality is read off a key-sorted form. */
-function canon(v: unknown): unknown {
-  if (Array.isArray(v)) return v.map(canon);
-  if (v && typeof v === "object") return Object.fromEntries(Object.keys(v as object).sort().map((k) => [k, canon((v as Record<string, unknown>)[k])]));
+/**
+ * jsonb hands keys back in its own order and never saw a key whose value was
+ * `undefined` (JSON.stringify drops those on the way in), so equality is read
+ * off a key-sorted form with the same keys dropped. Without the second half
+ * every pass rewrote 8,000 rows: the compiler's selectors carry `mode:
+ * undefined` and friends, and `undefined` against a missing key read as a change.
+ */
+export function canonical(v: unknown): unknown {
+  if (Array.isArray(v)) return v.map(canonical);
+  if (v && typeof v === "object")
+    return Object.fromEntries(
+      Object.keys(v as object)
+        .filter((k) => (v as Record<string, unknown>)[k] !== undefined)
+        .sort()
+        .map((k) => [k, canonical((v as Record<string, unknown>)[k])]),
+    );
   return v ?? null;
 }
-const same = (a: unknown, b: unknown) => JSON.stringify(canon(a)) === JSON.stringify(canon(b));
+const same = (a: unknown, b: unknown) => JSON.stringify(canonical(a)) === JSON.stringify(canonical(b));
 const compilerOwns = (r: RuleRow) => r.source === "compiler" && (r.status === "open" || r.status === "draft");
 
 /**

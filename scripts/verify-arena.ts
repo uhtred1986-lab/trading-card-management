@@ -29,13 +29,13 @@ import { narrate } from "../src/lib/arena/narration";
 import { colourOf, DEFAULT_LIGHTING, encodeLighting, LEADER_COLOURS, lightingFrom, LIGHTING_VERSION, mix, RIVAL, toneFor, TONES, turnVars } from "../src/lib/arena/lighting";
 import { trailingTrigger, parseSkills, keywordOf, orbsIn, eitherOrbsIn, skillLines } from "../src/lib/arena/engine/cards";
 import { KEYWORDS, keywordTagSpellings, keywordsByGroup, tagBody, tagParsesTo } from "../src/lib/arena/glossary";
-import { parseFilter, matches, parseCondition } from "../src/lib/arena/engine/filters";
+import { parseFilter, matches, parseCondition, type CardFilter } from "../src/lib/arena/engine/filters";
 import { addEffect, schedule, move, locate, placeUnder, playCost, powerOf, forbids, has, cardNow, comboCostOf, skillNegated, skillsNegated } from "../src/lib/arena/engine/state";
 import { compileCostProgram, compileSkill, costIsOnlyOrbs, costText, parseConditionClause, parseTarget, priceCondition, splitClauses } from "../src/lib/arena/engine/compile";
 import { OP_SCHEMA, describeScript, opSignature, validateProgram as validate, type Op as SchemaOp } from "../src/lib/arena/engine/script";
 import { autoTriggerMatches, koCard } from "../src/lib/arena/engine/triggers";
 import type { Trigger } from "../src/lib/arena/engine/types";
-import { hoist, programShape, rulesFromCompiler, skillRecords } from "../src/lib/arena/draft";
+import { canonical, hoist, programShape, rulesFromCompiler, skillRecords } from "../src/lib/arena/draft";
 import { clauseShape, describeTrigger, mechanismOf, triggersOf } from "../src/lib/arena/gaps";
 
 // ── skill text parsing ─────────────────────────────────────────────────────
@@ -7285,6 +7285,24 @@ function assertDisjoint(s: GameState, where: string): RejectedAction[] {
   // Keyword skills that carry a trigger of their own are pended by it.
   const revenge = parseSkills("[Revenge] When this card is attacked, draw 1 card.")[0];
   assert.equal(triggersOf(revenge).includes("attacked"), true);
+  // What the drafter compares: jsonb's key order and its dropped `undefined`s
+  // are not changes — the first full draft run rewrote 8,341 rows because they were.
+  assert.equal(JSON.stringify(canonical({ b: 1, a: { mode: undefined, side: "you" } })), JSON.stringify(canonical({ a: { side: "you" }, b: 1 })));
+  assert.notEqual(JSON.stringify(canonical({ a: null })), JSON.stringify(canonical({})), "an explicit null is a value");
+}
+
+// A filter written by hand or by Claude carries only the fields it means; the
+// engine fills it up rather than crashing on the first `.some` — the fuzzer's
+// two crashes in the first row-backed run were one such row (BT31-132).
+{
+  const sparse = { colors: ["Red"], traits: ["Saiyan"] } as unknown as CardFilter;
+  assert.equal(matches(DEFS.V1, sparse), false, "V1 is red but not a Saiyan");
+  assert.equal(matches({ ...DEFS.V1, traits: ["Saiyan"] }, sparse), true);
+  const ctx = { defs: DEFS, scripts: { KILLER: { bySkill: { 0: { ops: [{ op: "choose", sel: { side: "opponent", area: "battle", count: 1, filter: sparse }, as: "t" }, { op: "ko", target: { var: "t" } }], unsupported: [] } }, complete: true, unsupported: [] } } };
+  const s = arena({ hand: ["KILLER"], energy: ["V1"], oppBattle: ["V-BLUE", "V1"] });
+  const r = apply(ctx as never, s, { type: "play", player: "p1", card: find(s, "p1", "hand", "KILLER") });
+  assert.notEqual(r.state.prompt.kind, "gameOver");
+  void r;
 }
 
 // ── the engine reads rows and nothing else ───────────────────────────────────

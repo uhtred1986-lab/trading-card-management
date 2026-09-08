@@ -1728,12 +1728,35 @@ Every line that stays has one owner, which was the rule behind the number.
 and moving the engine onto that is phase 2's. Nested programs, conditions and
 modal options are edited through the JSON view, not chips (phase 1 by design).
 
-Tests: the three suites pass with 71 new assertions — every schema row renders
+**The first run against the database (8 Sep 2026, PR #56).** Migrations 0027
+and 0028 applied over HTTPS; the two `card_scripts` rows were carried over (one
+the owner's, one Claude's; none used `cannotAttack`). The drafter wrote
+**13,563 rules for 6,493 cards** in the original game: 2,186 open, 11,375
+draft, 2 corrected — **83.9 % of skills readable** catalog-wide, **91.6 %** for
+the owner's decks (489 rules, 41 open). `arena:gaps` reads the same rows, so
+its numbers are these by construction; the old compile-based 86.5 % counted
+resolvable skills only, without [Permanent]s, which is why it was higher. Of
+the 2,946 unread clauses, 2,090 on 1,473 cards need only a phrase pattern.
+
+The run found two bugs, both fixed in the follow-up commit. **The second
+draft pass rewrote 8,341 rows**: the compiler's selectors carry keys whose
+value is `undefined`, jsonb never sees those, and the comparison mapped them to
+`null` on the fresh side — so every pass looked like a change and bumped 4,781
+versions to 2. `canonical()` now drops such keys. **Two of 100 fuzzed games
+crashed on one row**: the `claude/corrected` program carried over for BT31-132
+had a filter with only the fields it meant, and `matches` read the rest
+unguarded. The engine now fills a filter up before reading it; a row a person
+or Claude writes may say only what it means. The review step (`--review
+--budget 3` on BT18) could not run — no `ANTHROPIC_API_KEY` in the sandbox — so
+the 56 open BT18 skills are still open; the script records the skipped review
+on `arena_feedback` as designed.
+
+Tests: the three suites pass with 76 new assertions — every schema row renders
 and validates, the validator's refusals, the drafter's records and hoisting,
 the engine playing a card as blank without its row and from it with, a
-[Permanent] read from rows, and on PGlite the drafter writing rows, a second
-pass touching nothing, and the sync's change detection. The database-backed
-numbers (rows drafted, coverage, 100 fuzzed games) are in the PR description.
+[Permanent] read from rows, a sparse filter tolerated, the comparison's dropped
+`undefined`s, and on PGlite the drafter writing rows, a second pass touching
+nothing, and the sync's change detection.
 
 ## Conventions worth keeping
 
