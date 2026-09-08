@@ -1,6 +1,6 @@
 # Arena — rules as records: the Rules Workbench
 
-**Status: phase 1 (§3) built 8 Sep 2026, PR #56; phase 2 (§4) built 8 Sep 2026, PR #57; phase 3 (§5, the probe) is a later session. What each phase found, and what it changed about the plan, is in `docs/arena-rules-worklist.md` — "Done: rules as records" and "Done: the catalog and the patterns".** Written to be executed by Claude Code in this repository.
+**Status: phase 1 (§3) built 8 Sep 2026, PR #56; phase 2 (§4) built 8 Sep 2026, PR #57; phase 3 (§5, the probe) is in progress on `claude/rules-workbench-phase-3`, planned in that branch's pull request. What each phase found, and what it changed about the plan, is in `docs/arena-rules-worklist.md` — "Done: rules as records" and "Done: the catalog and the patterns".** Written to be executed by Claude Code in this repository.
 Companion prototype: `docs/arena-rules-workbench-prototype.html` (open it in a browser; it is the
 UX target, not code to copy).
 
