@@ -2,14 +2,16 @@
 
 import { useState } from "react";
 import { parseFilter, type CardFilter } from "@/lib/arena/engine/filters";
-import { AREAS, DURATIONS, KEYWORD_NAMES, OP_SCHEMA, SIDES, describeCond, describeFilter, describeScript, type FieldType, type Op, type OpField } from "@/lib/arena/engine/script";
+import { AREAS, COND_SCHEMA, DURATIONS, KEYWORD_NAMES, OP_SCHEMA, SIDES, describeCond, describeFilter, describeScript, type Cond, type FieldType, type Op, type OpField } from "@/lib/arena/engine/script";
 
 /**
  * One step of a program as a chip, read-only or with a control per field.
  *
- * Every control comes from the field's type in `OP_SCHEMA`, so a new op is
- * editable the moment it has a row. Nested programs, conditions and modal
- * options are shown but edited through the JSON view (phase 1).
+ * Every control comes from the field's type in `OP_SCHEMA` — and every
+ * condition from its row in `COND_SCHEMA` — so a new op or a new condition
+ * kind is editable the moment it has a row. Nested programs, modal options
+ * and conditions are edited here too; the JSON view is a second way to see
+ * the same program, not the only way to change part of it.
  */
 
 type Loose = Record<string, unknown>;
@@ -52,6 +54,8 @@ function blankValue(f: OpField): unknown {
       return "turn";
     case "cond":
       return { kind: "isTurnPlayer" };
+    case "conds":
+      return [{ kind: "isTurnPlayer" }];
     case "ops":
       return [];
     case "string":
@@ -63,7 +67,9 @@ function blankValue(f: OpField): unknown {
     case "keyword":
       return { name: "Blocker" };
     case "filter":
-      return undefined;
+      // A filter the schema requires has to be a whole one: "card" is the
+      // filter that matches anything, and `matches` reads every field.
+      return f.required ? parseFilter("card") : undefined;
     case "modes":
       return [
         { label: "A", ops: [] },
@@ -72,7 +78,91 @@ function blankValue(f: OpField): unknown {
   }
 }
 
-export function StepChip({ op, index, editing, onChange, onRemove }: { op: Op; index: number; editing: boolean; onChange: (op: Op) => void; onRemove: () => void }) {
+/** A minimal condition of this kind: every required field filled from its type. */
+export function blankCond(kind: Cond["kind"]): Cond {
+  const cond: Loose = { kind };
+  for (const f of COND_SCHEMA[kind].fields) if (f.required) cond[f.name] = blankValue(f);
+  return cond as unknown as Cond;
+}
+
+/**
+ * A program as an ordered list of chips: the DO row, and every nested program
+ * inside one. Order is part of the meaning — "choose, then KO it" is not "KO
+ * it, then choose" — so it is edited here rather than only in the JSON.
+ */
+export function OpList({ ops, editing, onChange, nested = false }: { ops: Op[]; editing: boolean; onChange: (ops: Op[]) => void; nested?: boolean }) {
+  const move = (i: number, by: number) => {
+    const to = i + by;
+    if (to < 0 || to >= ops.length) return;
+    const next = [...ops];
+    [next[i], next[to]] = [next[to], next[i]];
+    onChange(next);
+  };
+  return (
+    <div className={`flex w-full flex-col gap-1.5 ${nested ? "rounded-lg border border-dashed border-space-600 p-1.5" : ""}`}>
+      {ops.length === 0 && !editing && <div className={nested ? "text-[11px] text-space-500" : "rounded-lg border border-loss/50 px-2 py-1.5 text-[12px] text-loss"}>{nested ? "nothing" : "nothing — the engine treats this skill as blank"}</div>}
+      {ops.map((op, i) => (
+        <StepChip key={i} op={op} index={i} editing={editing} first={i === 0} last={i === ops.length - 1} onChange={(o) => onChange(ops.map((x, j) => (j === i ? o : x)))} onMove={(by) => move(i, by)} onRemove={() => onChange(ops.filter((_, j) => j !== i))} />
+      ))}
+      {editing && (
+        <span>
+          <select className="tap rounded-lg border border-dashed border-space-600 bg-transparent px-2 py-1 text-xs text-space-300" value="" onChange={(e) => e.target.value && onChange([...ops, blankOp(e.target.value as Op["op"])])}>
+            <option value="">+ step</option>
+            {(Object.keys(OP_SCHEMA) as Op["op"][]).map((k) => (
+              <option key={k} value={k}>
+                {k}
+              </option>
+            ))}
+          </select>
+        </span>
+      )}
+    </div>
+  );
+}
+
+/** One condition, from its row: the kind, then a control per field. */
+export function CondChip({ cond, editing, onChange, onRemove }: { cond: Cond; editing: boolean; onChange: (c: Cond) => void; onRemove?: () => void }) {
+  const spec = COND_SCHEMA[cond.kind];
+  const loose = cond as unknown as Loose;
+  const set = (name: string, v: unknown) => {
+    const next: Loose = { ...loose };
+    if (v === undefined) delete next[name];
+    else next[name] = v;
+    onChange(next as unknown as Cond);
+  };
+  if (!editing) return <span className="rounded bg-space-950 px-1.5 py-0.5 text-space-300">{describeCondSafely(cond)}</span>;
+  return (
+    <span className="inline-flex flex-wrap items-center gap-1 rounded border border-dashed border-space-600 px-1 py-0.5">
+      <select className={select} value={cond.kind} onChange={(e) => onChange(blankCond(e.target.value as Cond["kind"]))} title="which condition">
+        {(Object.keys(COND_SCHEMA) as Cond["kind"][]).map((k) => (
+          <option key={k}>{k}</option>
+        ))}
+      </select>
+      {spec.fields.map((f) => (
+        <label key={f.name} className="inline-flex items-center gap-1 text-[10px] text-space-400">
+          {f.name}
+          <FieldControl field={f} value={loose[f.name]} onChange={(v) => set(f.name, v)} />
+        </label>
+      ))}
+      {onRemove && (
+        <button type="button" onClick={onRemove} className="ml-0.5 text-space-500 hover:text-loss" title="remove this condition">
+          ×
+        </button>
+      )}
+    </span>
+  );
+}
+
+/** A half-built condition is a normal state while editing; its sentence is not. */
+function describeCondSafely(cond: Cond): string {
+  try {
+    return describeCond(cond);
+  } catch {
+    return `${cond.kind} — not filled in yet`;
+  }
+}
+
+export function StepChip({ op, index, editing, first, last, onChange, onMove, onRemove }: { op: Op; index: number; editing: boolean; first: boolean; last: boolean; onChange: (op: Op) => void; onMove: (by: number) => void; onRemove: () => void }) {
   const spec = OP_SCHEMA[op.op];
   const loose = op as unknown as Loose;
   const set = (name: string, v: unknown) => {
@@ -99,7 +189,13 @@ export function StepChip({ op, index, editing, onChange, onRemove }: { op: Op; i
               <FieldControl field={f} value={loose[f.name]} onChange={(v) => set(f.name, v)} />
             </label>
           ))}
-          <button type="button" onClick={onRemove} className="ml-1 text-space-500 hover:text-loss" title="remove this step">
+          <button type="button" disabled={first} onClick={() => onMove(-1)} className="ml-1 text-space-500 hover:text-ki-300 disabled:opacity-25" title="one step earlier">
+            ↑
+          </button>
+          <button type="button" disabled={last} onClick={() => onMove(1)} className="text-space-500 hover:text-ki-300 disabled:opacity-25" title="one step later">
+            ↓
+          </button>
+          <button type="button" onClick={onRemove} className="text-space-500 hover:text-loss" title="remove this step">
             ×
           </button>
         </>
@@ -167,16 +263,49 @@ function FieldControl({ field, value, onChange }: { field: OpField; value: unkno
     case "filter":
       return <FilterControl value={value as CardFilter | undefined} onChange={onChange} />;
     case "cond":
-      return <span className="rounded bg-space-950 px-1.5 py-0.5 text-space-300">{value ? describeCond(value as Parameters<typeof describeCond>[0]) : "—"} <i className="text-space-500">(edit in JSON)</i></span>;
+      return <CondChip cond={(value as Cond) ?? blankCond("isTurnPlayer")} editing onChange={onChange} onRemove={optional ? () => onChange(undefined) : undefined} />;
+    case "conds":
+      return <CondListControl value={(value as Cond[]) ?? []} onChange={onChange} />;
     case "ops":
-      return <span className="rounded bg-space-950 px-1.5 py-0.5 text-space-300">{Array.isArray(value) && value.length ? describeScript(value as Op[]) : "nothing"} <i className="text-space-500">(edit in JSON)</i></span>;
+      return <OpList ops={(value as Op[]) ?? []} editing onChange={onChange} nested />;
     case "modes":
-      return (
-        <span className="rounded bg-space-950 px-1.5 py-0.5 text-space-300">
-          {((value as { ops: Op[] }[]) ?? []).map((m) => describeScript(m.ops) || "nothing").join(" / ")} <i className="text-space-500">(edit in JSON)</i>
-        </span>
-      );
+      return <ModesControl value={(value as { label: string; ops: Op[] }[]) ?? []} onChange={onChange} />;
   }
+}
+
+/** "One of these": the conditions `any` and `all` join. */
+function CondListControl({ value, onChange }: { value: Cond[]; onChange: (v: unknown) => void }) {
+  return (
+    <span className="inline-flex flex-wrap items-center gap-1">
+      {value.map((c, i) => (
+        <CondChip key={i} cond={c} editing onChange={(next) => onChange(value.map((x, j) => (j === i ? next : x)))} onRemove={() => onChange(value.filter((_, j) => j !== i))} />
+      ))}
+      <button type="button" className="tap rounded border border-dashed border-space-600 px-1.5 py-0.5 text-[10px] text-space-300" onClick={() => onChange([...value, blankCond("isTurnPlayer")])}>
+        + condition
+      </button>
+    </span>
+  );
+}
+
+/** The printed options of a "Choose one—": a label the player reads, and what it does. */
+function ModesControl({ value, onChange }: { value: { label: string; ops: Op[] }[]; onChange: (v: unknown) => void }) {
+  const set = (i: number, mode: { label: string; ops: Op[] }) => onChange(value.map((m, j) => (j === i ? mode : m)));
+  return (
+    <span className="inline-flex w-full flex-col gap-1">
+      {value.map((m, i) => (
+        <span key={i} className="inline-flex flex-wrap items-start gap-1 rounded border border-dashed border-space-600 p-1">
+          <input className={`${input} w-40`} value={m.label} placeholder="what the option says" onChange={(e) => set(i, { ...m, label: e.target.value })} />
+          <OpList ops={m.ops} editing onChange={(ops) => set(i, { ...m, ops })} nested />
+          <button type="button" onClick={() => onChange(value.filter((_, j) => j !== i))} className="text-space-500 hover:text-loss" title="remove this option">
+            ×
+          </button>
+        </span>
+      ))}
+      <button type="button" className="tap self-start rounded border border-dashed border-space-600 px-1.5 py-0.5 text-[10px] text-space-300" onClick={() => onChange([...value, { label: "", ops: [] }])}>
+        + option
+      </button>
+    </span>
+  );
 }
 
 function AmountControl({ value, onChange }: { value: unknown; onChange: (v: unknown) => void }) {
