@@ -11,7 +11,9 @@ import type { Db } from "@/db";
 import { cardRules, cards } from "@/db/schema";
 import { describeScript, type CardDef, type CardScripts, type Op } from "./engine";
 import type { Cond } from "./engine/script";
-import { mechanismOf } from "./gaps";
+import { rows as rowsOf } from "@/db/rows";
+import { textArray } from "@/db/sqlx";
+import { clauseShape, mechanismOf } from "./gaps";
 
 export type RuleRow = typeof cardRules.$inferSelect;
 export type RuleStatus = "open" | "draft" | "confirmed" | "corrected";
@@ -359,4 +361,99 @@ export async function undoConfirmed(db: Db, batch: ConfirmBatch): Promise<{ reve
     }
   }
   return { reverted, kept: batch.rules.length - reverted };
+}
+
+// ── the same rules, grouped by the wording that produced them ───────────────
+
+/**
+ * One group of the Patterns page: rules that came out of the compiler the same
+ * way, or open rules whose text defeats it the same way.
+ *
+ * Two groupings, because the two halves are worked down differently. A draft
+ * group is one compiler reading over many cards, and the question is whether
+ * that reading is right — answered once for all of them. An open group is one
+ * wording the compiler cannot read, and the question is what it would take;
+ * grouping those by clause shape alone gives 1,654 groups for 2,183 rows, so
+ * they are gathered by mechanism first and shape within it.
+ */
+export interface PatternGroup {
+  /** What a link filters on: the pattern key, or the mechanism. */
+  key: string;
+  kind: "draft" | "open";
+  /** The wording, or the shape of it. */
+  label: string;
+  mechanism?: string;
+  rules: number;
+  cards: number;
+  examples: { id: number; cardId: string; name: string; printed: string; reads: string; unread: string[] }[];
+}
+
+interface GroupRow {
+  id: number;
+  card_id: string;
+  name: string;
+  printed: string;
+  reads: string;
+  unread: string[];
+}
+
+/** Compiler drafts, grouped by the reading they came out as. */
+export async function draftPatterns(db: Db, limit = 60): Promise<PatternGroup[]> {
+  const counted = await db
+    .select({ pattern: cardRules.pattern, rules: sql<number>`count(*)::int`, cards: sql<number>`count(distinct ${cardRules.cardId})::int` })
+    .from(cardRules)
+    .where(eq(cardRules.status, "draft"))
+    .groupBy(cardRules.pattern)
+    .orderBy(sql`count(*) desc`)
+    .limit(limit);
+  const keys = counted.map((c) => c.pattern).filter((p): p is string => !!p);
+  const examples = keys.length
+    ? rowsOf<GroupRow & { pattern: string }>(
+        await db.execute(sql`
+          select pattern, id, card_id, name, printed, reads, unread from (
+            select r.id, r.card_id, r.pattern, c.name, r.printed, r.reads, r.unread,
+                   row_number() over (partition by r.pattern order by r.card_id, r.skill_index) as rn
+            from ${cardRules} r join ${cards} c on c.id = r.card_id
+            where r.status = 'draft' and r.pattern = any(${textArray(keys)})
+          ) t where rn <= 5`),
+      )
+    : [];
+  return counted
+    .filter((c) => c.pattern)
+    .map((c) => ({
+      key: c.pattern!,
+      kind: "draft" as const,
+      label: c.pattern!,
+      rules: c.rules,
+      cards: c.cards,
+      examples: examples.filter((e) => e.pattern === c.pattern).map(asExample),
+    }));
+}
+
+/** Open rules, grouped by what their first unread clause would need, then by its shape. */
+export async function openPatterns(db: Db): Promise<PatternGroup[]> {
+  const open = await db
+    .select({ id: cardRules.id, cardId: cardRules.cardId, name: cards.name, printed: cardRules.printed, reads: cardRules.reads, unread: cardRules.unread })
+    .from(cardRules)
+    .innerJoin(cards, eq(cards.id, cardRules.cardId))
+    .where(eq(cardRules.status, "open"));
+  const groups = new Map<string, PatternGroup & { cardIds: Set<string> }>();
+  for (const r of open) {
+    const clause = r.unread[0] ?? "";
+    const mechanism = mechanismOf(clause);
+    const label = clauseShape(clause);
+    const key = `${mechanism}\u0000${label}`;
+    const g = groups.get(key) ?? { key: mechanism, kind: "open" as const, label, mechanism, rules: 0, cards: 0, examples: [], cardIds: new Set<string>() };
+    g.rules++;
+    g.cardIds.add(r.cardId);
+    if (g.examples.length < 5) g.examples.push({ id: r.id, cardId: r.cardId, name: r.name, printed: r.printed, reads: r.reads, unread: r.unread });
+    groups.set(key, g);
+  }
+  return [...groups.values()]
+    .map(({ cardIds, ...g }) => ({ ...g, cards: cardIds.size }))
+    .sort((a, b) => b.rules - a.rules || a.label.localeCompare(b.label));
+}
+
+function asExample(r: GroupRow): PatternGroup["examples"][number] {
+  return { id: r.id, cardId: r.card_id, name: r.name, printed: r.printed, reads: r.reads, unread: r.unread ?? [] };
 }

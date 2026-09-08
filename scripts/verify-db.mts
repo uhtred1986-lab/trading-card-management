@@ -480,6 +480,25 @@ assert.equal(priceForFinish(prices.get("BT18-020_SPR"), "foil"), 199);
   const undone = await undoConfirmed(db, batch);
   assert.deepEqual([undone.reverted, undone.kept], [1, 1], "the row edited since is left exactly as it is");
   assert.deepEqual(await statusCounts(db, { cardIds: ids }), { open: 1, draft: 2, confirmed: 0, corrected: 1 });
+  // The same rules, grouped by the wording that produced them.
+  const { draftPatterns, openPatterns } = await import("../src/lib/arena/rules-store.ts");
+  await db.update(schema.cardRules).set({ status: "draft", source: "compiler", version: 1 }).where(inArray(schema.cardRules.cardId, ["BT18-040", "BT18-041", "BT19-001"]));
+  const drafts = await draftPatterns(db);
+  const draw = drafts.find((g) => g.label === "draw");
+  assert.ok((draw?.rules ?? 0) >= 3, "one reading over many cards is one group");
+  assert.deepEqual(
+    draw?.examples.filter((e) => ids.includes(e.cardId)).map((e) => e.cardId),
+    ["BT18-040", "BT18-041", "BT19-001"],
+    "…with the cards to look at, in order",
+  );
+  assert.ok(draw!.examples.every((e) => e.reads === "draw 1"), "and what the compiler read them as");
+  const open = await openPatterns(db);
+  const skip = open.find((g) => g.mechanism === "turn structure");
+  assert.equal(skip?.rules, 1, "open rules group by what the wording would need, then by its shape");
+  assert.equal(skip?.key, "turn structure", "and the group links to that mechanism in the worklist");
+  assert.ok((await confirmMatching(db, { pattern: "draw" })).rules.length >= 3, "confirming the pattern confirms the group");
+  assert.deepEqual(await statusCounts(db, { cardIds: ids }), { open: 1, draft: 0, confirmed: 3, corrected: 0 }, "…every draft of it, in one press");
+
   await db.delete(schema.cardRules).where(inArray(schema.cardRules.cardId, ids));
   await db.delete(schema.cards).where(inArray(schema.cards.id, ids));
 }
