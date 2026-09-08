@@ -1,6 +1,6 @@
 # Arena — rules as records: the Rules Workbench
 
-**Status: phase 1 (§3) built, 8 Sep 2026, PR #56; phase 2 (§4) started 8 Sep 2026 on branch `claude/rules-workbench-phase-2` — its plan, decisions and cleanup ledger are that PR's description; phase 3 is a later session. The findings that changed the plan are in `docs/arena-rules-worklist.md`, "Done: rules as records".** Written to be executed by Claude Code in this repository.
+**Status: phase 1 (§3) built 8 Sep 2026, PR #56; phase 2 (§4) built 8 Sep 2026, PR #57; phase 3 (§5, the probe) is a later session. What each phase found, and what it changed about the plan, is in `docs/arena-rules-worklist.md` — "Done: rules as records" and "Done: the catalog and the patterns".** Written to be executed by Claude Code in this repository.
 Companion prototype: `docs/arena-rules-workbench-prototype.html` (open it in a browser; it is the
 UX target, not code to copy).
 
@@ -369,7 +369,7 @@ Rules for the diff:
 - `npm test`, `lint`, `typecheck` clean. `docs/arena-rules-worklist.md` gains a "Done" section
   with the numbers.
 
-## 4. Phase 2 — the catalog and the patterns
+## 4. Phase 2 — the catalog and the patterns *(built, PR #57)*
 
 - "All cards" tab: the same worklist over the full catalog, filter by set and mechanism, bulk
   **Confirm all drafts in view** with a count and an undo (sets them back to draft).
@@ -379,6 +379,14 @@ Rules for the diff:
   that replaces `/arena/backlog`. Fold `card_text_notes` into it.
 - Chip reordering, and nested `if`/`chooseMode`/`delay` editing (phase 1 shows them read-only
   inside the chip and allows editing via JSON).
+
+**What it took that this list did not say.** Open rules had to be grouped by *mechanism* first —
+by clause shape alone they are 1,654 groups for 2,183 rows. The 1,136 drafts with no pattern key
+(1,089 of them keyword lines the engine plays without a program) needed keys of their own before
+the page could show them at all. Editing conditions as chips needed `COND_SCHEMA`, the same table
+`OP_SCHEMA` is for operations — without it the IF row and every nested `if` stay JSON-only. And a
+bulk confirm needed somewhere durable to keep what it moved (`arena_feedback.batch`), or Undo can
+only guess.
 
 ## 5. Phase 3 — the probe
 

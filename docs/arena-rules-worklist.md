@@ -1766,6 +1766,81 @@ the engine playing a card as blank without its row and from it with, a
 `undefined`s, and on PGlite the drafter writing rows, a second pass touching
 nothing, and the sync's change detection.
 
+## Done: the catalog and the patterns — the Rules Workbench, phase 2 (8 Sep 2026)
+
+`docs/arena-rules-workbench-spec.md` §4, built in eight commits on PR #57. The
+workbench now has three worklists over the same records — the cards in your
+decks, the whole catalog, and the rules grouped by the wording that produced
+them — the chip editor covers the whole effect language, and `card_text_notes`
+is gone.
+
+**What the database said before any of it was planned.** 13,563 rules: 2,183
+open, 11,375 compiler drafts, 3 Claude drafts, 2 corrected. Three numbers
+changed the plan:
+
+- **1,136 drafts carried no pattern key at all**, because their program is
+  empty — and 1,089 of those are keyword lines whose reminder or specification
+  text compiles to no steps (`[Z-Stack 1] Yellow <Son Goku> …`, `[Triple
+  Strike] (This card inflicts 3 damage …)`). The record called them "nothing —
+  the engine treats this skill as blank", which is the opposite of true: the
+  engine plays them, from its keyword rules. They group as `keyword:<name>`
+  now, the record reads "played by the engine's [Z-Stack X] rule" with the
+  glossary's own line under it, and the 47 that really are empty group as
+  `nothing`.
+- **Clause shape is too fine a key for open rows**: 1,654 groups for 2,183
+  rows, 1,347 of them singletons, the largest 12. So the Patterns page groups
+  open rules by *mechanism* first — the same 16 buckets `arena:gaps` counts —
+  and by shape within it.
+- **`card_text_notes` was down to 190 rows on 120 skills**: 7 briefs, 9
+  explanations, 7 rulings, one clause a game had met. Everything else it held
+  had moved to `card_rules.unread` when the rules became records. Migration
+  0030 copies the writing onto the rule and drops the table.
+
+**Confirm all drafts in view** is what the page is for: 11,375 drafts are
+never reviewed one at a time. It confirms exactly what the *filter* matches,
+not the 200 rows on screen, and keeps the rows it moved on the
+`arena_feedback` row as `{id, version}` pairs — so Undo puts back exactly
+those, survives a reload, and leaves a row edited since alone rather than
+undoing the work that followed the mistake.
+
+**`COND_SCHEMA`.** `OP_SCHEMA` collapsed the operations into one row each and
+left the conditions written out three times, with a validator that asked only
+for a `kind` — so `{"kind":"count","atLeast":2}` with nothing to count
+validated, stored, and threw when a game read it. One row per condition kind
+now, read by the validator, the plain reading, the referee's prompt and the
+editor. That is what let the chips cover nested `if`, `chooseMode`, `delay`,
+modal options and the IF row itself; phase 1 sent all of those to the JSON
+view.
+
+**Two readings were wrong, not merely terse.** `describeSelector` dropped the
+filter, so a skill that can only take a blue ≪Another World Budokai≫ card read
+"choose up to 1 in your warp" — the one detail that tells siblings apart. And
+a count over an unfiltered selector read "there is 2 or more in your drop",
+missing the noun. Both fixed; three contract fixtures moved by those words,
+with the Snapshot's shape unchanged.
+
+**Two things the tests found.** The `turn structure` mechanism tested
+`\bskip\b`, which does not match "skips" — and "your opponent skips their next
+Charge Phase" is how cards actually phrase it, so those clauses were counted
+as phrasing-only. And `verify-arena.ts` hit TypeScript's control-flow limit
+("the containing function or module body is too large"), which silently turned
+three lambda parameters into `any`; the schema tests moved into a function to
+get the analysis back. That file will need splitting before it grows much more.
+
+**The legend Claude is given** now lists every condition off `COND_SCHEMA`,
+and answers the two mistakes the BT18 reviews made in writing rather than
+leaving the validator to reject the answer: `{Angel Halo}` is a card *name*,
+not a character, and "if it's your opponent's turn" is a condition, not a
+duration. ~11,600 characters, near 2,900 tokens — still over Opus 5's
+512-token cache minimum and under Haiku 4.5's 4,096, so Tournament games cache
+and Sparring games do not, as before.
+
+**Not in this phase, deliberately:** the price before the colon is still
+compiled at game time (`costIsReadable`, `canPayCostProgram`) although the row
+carries `cost.condition` / `cost.program`. It is engine, not workbench, and it
+touches `activate`, `canResolve` and `altCostFor` — its own change, with the
+fuzzer run against it.
+
 ## Conventions worth keeping
 
 - Card text is **read, never interpreted**: if the compiler cannot read a
