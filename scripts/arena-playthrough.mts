@@ -118,10 +118,15 @@ const rejections = { total: 0, other: new Map<string, number>(), byKind: new Map
  * one-card `cards` as well as `card` and `attacker`. A `choose` prompt carries
  * neither of the latter, so keying on those alone would read one rejection per
  * unofferable card as the same entry repeated.
+ *
+ * An activation is keyed by its skill index too — one rejection per card per
+ * action type, except an activation, which is one per skill line. The same
+ * shape as `scripts/verify/harness.ts`, and the two are the only two places
+ * that promise is written down.
  */
 function cardKeyOf(a: Action): string {
-  const x = a as { card?: string | null; attacker?: string; cards?: string[] };
-  if (typeof x.card === "string") return x.card;
+  const x = a as { card?: string | null; attacker?: string; cards?: string[]; skill?: number };
+  if (typeof x.card === "string") return x.card + (a.type === "activate" && typeof x.skill === "number" ? `#${x.skill}` : "");
   if (typeof x.attacker === "string") return x.attacker;
   if (Array.isArray(x.cards)) return x.cards.join(",");
   return "";

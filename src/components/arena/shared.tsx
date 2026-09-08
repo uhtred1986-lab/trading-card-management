@@ -598,7 +598,9 @@ export function CardSheet({
         const why = r.why[0];
         const w = refusal(why, { name: card.name, reaching: r.action.type, ...word });
         return (
-          <div key={r.action.type} className="rounded-lg border border-space-700 bg-space-800/60 px-3 py-2 opacity-80 sm:px-4 sm:py-3" aria-disabled>
+          // One card can be refused several activations — one per skill line —
+          // so the action type alone is no longer a key.
+          <div key={`${r.action.type}:${"skill" in r.action ? r.action.skill : ""}`} className="rounded-lg border border-space-700 bg-space-800/60 px-3 py-2 opacity-80 sm:px-4 sm:py-3" aria-disabled>
             <div className="flex items-center gap-3">
               <span className="min-w-0 flex-1 text-sm font-semibold text-space-300 sm:text-base">{r.label}</span>
               <span className="shrink-0 rounded-full border border-loss/50 px-2 py-px font-mono text-[10px] text-loss sm:text-xs">{pill(why)}</span>
