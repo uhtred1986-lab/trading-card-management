@@ -5,6 +5,9 @@
  * Part of `npm test`; run from `scripts/verify-arena.ts`, which fixes the order.
  */
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import { stateText } from "../../src/lib/arena/ai/view";
 import {
   COND_SCHEMA,
   CTX,
@@ -246,4 +249,31 @@ import type { CardFilter, SchemaOp } from "./harness";
   const t = arena({ battle: ["AURA", "V1"] });
   assert.equal(powerOf(bare, t, find(t, "p1", "battle", "V1")), 10000, "no rules, no aura");
   assert.equal(powerOf(CTX, t, find(t, "p1", "battle", "V1")), 15000, "the aura holds from its row");
+}
+
+// ── what Claude is told, kept ───────────────────────────────────────────────
+//
+// The referee's language and the board as the opponent reads it are prose
+// built in code. While that prose moves out of code and into the game's
+// definition (`docs/arena-ruleset-spec.md`), byte-equality with these two
+// fixtures is what proves the move changed nothing Claude sees. Run
+// `npm run contract:emit` to accept a deliberate change.
+{
+  const s = arena({ hand: ["V1", "BIG"], battle: ["BLOCKER"], energy: ["V1", "V-BLUE"], oppBattle: ["V-BLUE"], oppHand: ["KILLER"] });
+  const fixtures: Record<string, string> = {
+    "effect-language.txt": EFFECT_LANGUAGE,
+    "state-text.txt": stateText(CTX, s, "p1"),
+  };
+  const dir = path.join(process.cwd(), "contract", "fixtures");
+  const emit = process.argv.includes("--emit");
+  for (const [name, text] of Object.entries(fixtures)) {
+    const file = path.join(dir, name);
+    if (emit) {
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(file, text);
+      continue;
+    }
+    assert.ok(fs.existsSync(file), `contract/fixtures/${name} is missing — run \`npm run contract:emit\``);
+    assert.equal(fs.readFileSync(file, "utf8").replace(/\r\n/g, "\n"), text.replace(/\r\n/g, "\n"), `what Claude is told has changed (contract/fixtures/${name}). If that is deliberate, run \`npm run contract:emit\` and review the diff.`);
+  }
 }

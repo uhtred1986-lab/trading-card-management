@@ -2032,3 +2032,50 @@ than offered for free. The first version of that test passed for the wrong
 reason (the effect was unread too), which the mutation run caught. One
 behaviour changed on purpose: a skill with no record has an *unknown* price
 rather than a free one.
+
+## Done: two engines, one switch — Stage 0 of the rules-language programme (9 Sep 2026)
+
+The owner's decision this day, after three drafts: the arena becomes a
+**configuration-based rules engine** — one language for a card's rule
+(`WHEN / COST / IF / THEN`, written like SQL), for the game's own definition
+and for the referee — and the new engine is built **beside** the old one, not
+in place, so the old one stays playable until the new one is proven. The plan
+with its stages and the model each runs on is what the owner approved; the
+specs (`docs/arena-rules-language.md`, `docs/arena-ruleset-spec.md`) land with
+Stages 1 and 3.
+
+Stage 0 is the safety net and the switch, and changes no rule:
+
+- `arena_games.engine` (`legacy | rules`, default legacy) and `arena_matches.engine`,
+  migration `0033` — it was `0032` until `main` merged a repair under that number, and
+  it says `IF NOT EXISTS` because the columns had already been applied under the old
+  name; `arena_games.game` copied from the deck. `src/lib/arena/engines.ts`
+  is the registry (`ENGINE_INFO`, `engineFor`, `EngineNotBuilt`); `games.ts`,
+  `snapshot.ts`, `arena:fuzz` and `arena:playthrough` go through it. The `/arena`
+  form and the 1 v 1 waiting room offer the engine (the rules engine greyed until it
+  plays), Settings → Arena engine holds the default (`arena.engine`,
+  `engine-setting.ts`), `POST /api/v1/games` takes `engine?`, and a game not on the
+  legacy engine wears a badge. `Snapshot.game.engine` / `.game` are the one contract
+  change; nine fixtures re-emitted. **`npm run android:test` was not run: the Docker
+  daemon is off on this machine** — run it before merging.
+- **The digests, without a database.** `arena:reprobe` turned out to have **0 stored
+  probes** to re-run — no row has been confirmed with a probe since phase 3 shipped —
+  so it was no regression net at all. `scripts/verify/probe.ts` now probes every
+  harness card's rule on its first scenario and holds the 143 digests in
+  `contract/probe-digests.json` (beside the fixtures folder, which the Kotlin
+  round-trip decodes whole as `Snapshot`s); `verify/language.ts` keeps `EFFECT_LANGUAGE`
+  and one `stateText` board as fixtures. Both are what "the rules engine changed
+  nothing" will be measured by.
+- `npm run arena:tally` — the coverage figure off the public deckplanet feed with no
+  database, plus which ops and conditions compiled programs use and the unread clause
+  shapes. `npm run arena:diff -- <gameId> [--engine …]` replays a game's action log
+  from its seed and reports the first action where an engine parts company with the
+  row.
+
+**Baseline, 9 Sep 2026:** whole catalog 6,493 cards, 11,752 resolvable skills → **87.3 %**
+compiled, 1,811 [Permanent] → **61.5 %** read / 56.7 % applied, 3,705 keyword-only; the
+owner's decks 93.3 % of 535 resolvable and 87.7 % of 73 [Permanent]. Unread: **2,948
+clauses over 2,154 shapes** (the tally). `arena:fuzz 40`: 40 games, 0 crashes.
+`arena:reprobe`: 0 stored probes. Top unread in the decks: "if the Battle Card your
+opponent is playing has N power or less", "after you combo with this card", "evolve it
+into this card", "your opponent can only attack one more time", "reduce its skill cost".

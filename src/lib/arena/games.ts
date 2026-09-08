@@ -11,11 +11,13 @@ import type { Db } from "@/db";
 import { hasAnthropic } from "@/lib/ai/client";
 import { arenaGames, cards as cardsTable } from "@/db/schema";
 import { inArray } from "drizzle-orm";
-import { apply, createGame, legalActions, seedFrom, type Action, type CardDef, type EngineContext, type GameEvent, type GameState, type LegalAction, type PlayerId } from "./engine";
+import { seedFrom, type Action, type CardDef, type EngineContext, type GameEvent, type GameState, type LegalAction, type PlayerId } from "./engine";
 import { face } from "./engine";
 import { appendBeats, describeSkillEvent, toBeats, type Beats, type NumberedBeat } from "./beats";
+import { engineFor, engineOr, type EngineId } from "./engines";
 import { cardDefFrom, deckInputFor } from "./load";
 import { rulesFor } from "./rules-store";
+import { gameOr, type Game } from "@/lib/catalog/games";
 
 export type ArenaMode = "hotseat" | "sparring" | "tournament" | "versus";
 
@@ -94,6 +96,10 @@ function spotlightFrom(ctx: EngineContext, state: GameState, events: GameEvent[]
 export interface LoadedGame {
   id: number;
   mode: ArenaMode;
+  /** Which engine wrote `state` and replays `actions` (`engines.ts`). */
+  engine: EngineId;
+  /** The card game the decks belong to. */
+  game: Game;
   status: string;
   /** What Claude has cost this game, and its review once it exists. */
   spend: { calls: number; input: number; output: number; cached: number; micros: number };
@@ -130,13 +136,24 @@ async function defsForState(db: Db, state: GameState): Promise<Record<string, Ca
   return out;
 }
 
-export async function startGame(db: Db, p1DeckId: number, p2DeckId: number, mode: ArenaMode = "hotseat", debug = true, seats: Seats = { p1User: null, p2User: null }): Promise<number> {
+export async function startGame(
+  db: Db,
+  p1DeckId: number,
+  p2DeckId: number,
+  mode: ArenaMode = "hotseat",
+  debug = true,
+  seats: Seats = { p1User: null, p2User: null },
+  engineId: EngineId = "legacy",
+): Promise<number> {
+  // Resolved first: an engine that cannot play refuses before any deck is read.
+  const engine = engineFor(engineId);
   const a = await deckInputFor(db, p1DeckId);
   const b = await deckInputFor(db, p2DeckId);
   // `deckInputFor` also returns null for a Fusion World deck, which the engine
   // has no rules for.
   if (!a) throw new Error("the first deck has no leader or is not a Dragon Ball Super deck, so it cannot be played");
   if (!b) throw new Error("the second deck has no leader or is not a Dragon Ball Super deck, so it cannot be played");
+  if (a.game !== b.game) throw new Error("the two decks belong to different games");
   const rows = await db
     .select()
     .from(cardsTable)
@@ -145,7 +162,7 @@ export async function startGame(db: Db, p1DeckId: number, p2DeckId: number, mode
   for (const r of rows) defs[r.id] = cardDefFrom(r);
   const ctx: EngineContext = { defs, scripts: await rulesFor(db, defs), referee: hasAnthropic() && mode !== "hotseat" };
   const seed = seedFrom(`${p1DeckId}:${p2DeckId}:${Date.now()}`);
-  const { state, events } = createGame(ctx, { seed, p1: a.input, p2: b.input });
+  const { state, events } = engine.createGame(ctx, { seed, p1: a.input, p2: b.input });
   const [row] = await db
     .insert(arenaGames)
     .values({
@@ -157,6 +174,8 @@ export async function startGame(db: Db, p1DeckId: number, p2DeckId: number, mode
       p2User: seats.p2User,
       seed,
       mode,
+      engine: engine.id,
+      game: a.game,
       state,
       actions: [],
       log: describeEvents(ctx, state, events),
@@ -175,9 +194,12 @@ export async function loadGame(db: Db, id: number): Promise<LoadedGame | null> {
   const defs = await defsForState(db, state);
   // The rules the engine plays by come from `card_rules`, not from a compile.
   const ctx: EngineContext = { defs, scripts: await rulesFor(db, defs), referee: hasAnthropic() && row.mode !== "hotseat" };
+  const engine = engineFor(engineOr(row.engine));
   return {
     id: row.id,
     mode: row.mode as ArenaMode,
+    engine: engine.id,
+    game: gameOr(row.game),
     status: row.status,
     p1Name: row.p1Name,
     p2Name: row.p2Name,
@@ -192,7 +214,7 @@ export async function loadGame(db: Db, id: number): Promise<LoadedGame | null> {
     log: (row.log as string[]) ?? [],
     spotlight: (row.spotlight as Spotlight | null) ?? null,
     beats: (row.beats as Beats | null) ?? null,
-    legal: legalActions(ctx, state),
+    legal: engine.legalActions(ctx, state),
     spend: { calls: row.aiCalls, input: row.aiInputTokens, output: row.aiOutputTokens, cached: row.aiCachedTokens, micros: row.aiCostMicros },
     review: row.review,
     debug: row.debug,
@@ -222,7 +244,8 @@ export async function applyToGame(db: Db, id: number, action: Action, told?: { s
   const game = await loadGame(db, id);
   if (!game) throw new Error(`no game ${id}`);
   if (game.status !== "playing") throw new Error("this game is over");
-  const { state, events } = apply(game.ctx, game.state, action);
+  const engine = engineFor(game.engine);
+  const { state, events } = engine.apply(game.ctx, game.state, action);
   // What Claude said about *this* move goes in ahead of it, because it is the
   // reason for the move that follows. Collecting the whole batch and appending
   // it at the end put a line said on turn 1 under the turn 2 header, which
@@ -271,7 +294,7 @@ export async function applyToGame(db: Db, id: number, action: Action, told?: { s
     log: lines,
     spotlight,
     beats,
-    legal: legalActions(game.ctx, state),
+    legal: engine.legalActions(game.ctx, state),
     status: state.phase === "over" ? "over" : "playing",
   };
 }
@@ -332,6 +355,7 @@ export async function listGames(db: Db, limit = 20, user: string | null = null) 
       reason: arenaGames.reason,
       turn: arenaGames.turn,
       mode: arenaGames.mode,
+      engine: arenaGames.engine,
       costMicros: arenaGames.aiCostMicros,
       updatedAt: arenaGames.updatedAt,
     })

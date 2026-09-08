@@ -1,0 +1,127 @@
+You are ruling on one skill of one card in a Dragon Ball Super Card Game engine. Answer with a JSON array of operations that carries out exactly what the skill's text says — no more, no less. The engine runs it and still enforces every rule, so an operation that would break a rule is simply refused.
+
+Operations (each is an object with "op"; a field marked ? may be left out):
+  {"op":"draw","n":AMOUNT,"side"?:"you"|"opponent"}
+  {"op":"discard","n":AMOUNT,"side"?:"you"|"opponent","to"?:"warp"}
+    cards leave a hand for the Drop (20-7); "to":"warp" for the Warp
+  {"op":"damage","n":AMOUNT,"side"?:"you"|"opponent"}
+    life to hand
+  {"op":"mill","n":AMOUNT,"side"?:"you"|"opponent","as"?:"…"}
+    deck to Drop; "as" names the cards for a later clause ("if that card is red")
+  {"op":"addLife","n":AMOUNT,"side"?:"you"|"opponent"}
+  {"op":"lifeDownTo","n":N,"side"?:"you"|"opponent"}
+    add cards from life to hand until that many life remain (21-3-2)
+  {"op":"shuffle","side"?:"you"|"opponent"}
+  {"op":"energyMarker","n":AMOUNT,"side"?:"you"|"opponent"}
+  {"op":"choose","sel":SELECTOR,"as":"…","reason"?:"…","chooser"?:"you"|"opponent"}
+    binds the chosen cards to the name in "as"; "chooser":"opponent" when the card says *they* choose ("your opponent sends 1 Battle Card…")
+  {"op":"look","n":AMOUNT,"as":"…","side"?:"you"|"opponent","from"?:"top"|"bottom","area"?:AREA}
+    top of your deck, seen only by you; the cards are bound to the name in "as" (20-11)
+  {"op":"reveal","sel":SELECTOR,"as":"…"}
+    shown to both players; the cards stay where they are (20-11-2)
+  {"op":"ko","target":TARGET}
+  {"op":"moveTo","target":TARGET,"to":AREA,"position"?:"top"|"bottom","mode"?:"active"|"rest","reveal"?:true|false,"under"?:TARGET,"owner"?:"you"|"opponent","faceUp"?:true|false}
+    "to":"under" puts the card under "under" (or under this card, 23-2); "owner":"opponent" for "place it in your opponent's energy" — the area is theirs, not the card owner's (3-8)
+  {"op":"play","target":TARGET,"mode"?:"active"|"rest","onto"?:TARGET,"negated"?:"turn"|"game"}
+    "onto" plays it on top of another card ([Union-Absorb], 22-13-6-3); "negated" is "played with its skills negated" (9-1-5)
+  {"op":"switchMode","target":TARGET,"mode":"active"|"rest"}
+  {"op":"power","target":TARGET,"amount":AMOUNT,"until":DURATION}
+    an amount may also be {"count":SELECTOR,"times":5000} (so much for each card) or {"sumPower":{"var":"rested"}} (the total power of named cards)
+  {"op":"comboPower","target":TARGET,"amount":AMOUNT,"until":DURATION}
+  {"op":"grant","target":TARGET,"keyword":{"name":"Blocker"},"until":DURATION}
+  {"op":"negateSkills","target":TARGET,"until":DURATION}
+  {"op":"negateSkillsOfKind","target":TARGET,"kind":"auto"|"activate"|"counter"|"permanent","until":DURATION}
+    "negate that card's [Auto] skill for the turn" — one kind, not the whole card (9-1-5)
+  {"op":"hidden","target":TARGET,"hidden":true|false}
+    Hidden Mode / Revealed Mode (23-5)
+  {"op":"redirectAttack","target":TARGET}
+    "switch the target of the attack to it" (22-4-2)
+  {"op":"comboFrom","target":TARGET,"negated"?:true|false}
+    "use it in a combo from your Drop (with its skills negated)" (5-7)
+  {"op":"flip","target":TARGET}
+    a Leader awakens ("flip this card over", 22-2-4)
+  {"op":"faceUp","target":TARGET,"faceUp"?:true|false}
+    turn a card in a life area face up (3-9-2-1); false turns it back down
+  {"op":"addMarker","target":TARGET,"n":AMOUNT}
+  {"op":"removeMarker","target":TARGET,"n":AMOUNT}
+  {"op":"token","name":"…","power":N,"comboCost":N,"comboPower":N,"colors":["Red"|"Blue"|"Green"|"Yellow"|"Black"|"White"|"Colorless"],"n":AMOUNT,"side"?:"you"|"opponent"}
+    a token (19): {"op":"token","name":"Saibaman Token","power":10000,"comboCost":0,"comboPower":5000,"colors":[],"n":2}
+  {"op":"costReduction","target":TARGET,"amount":AMOUNT,"what"?:"energy"|"combo","until"?:DURATION}
+    [Permanent] only unless a duration is given (20-21): "reduce the energy cost of your <Son Goku> cards in your hand by 1" — the selector names the area the text names, usually the hand
+  {"op":"negateKeyword","keyword":"Awaken"|"Wish"|"Field"|…,"target"?:TARGET}
+    take one named keyword away ("negate this card's [Energy-Exhaust] skill in all areas", 9-1-5); the keyword is its printed name, e.g. "Blocker"
+  {"op":"gains","traits"?:["…"],"characters"?:["…"],"colors"?:["Red"|"Blue"|"Green"|"Yellow"|"Black"|"White"|"Colorless"],"target"?:TARGET}
+    the card counts as having these too, wherever it is ("gains ≪Saiyan≫ in all areas", "is also treated as red", 20-1)
+  {"op":"replaceLeave","to":AREA,"by"?:"skill"|"ko"|"skillOrKo","mode"?:"active"|"rest","target"?:TARGET}
+    [Permanent] only (9-10): "if this card would be KO'd, send it to the Warp instead". "by" is which departure it replaces: omitted = any, "skill" = removed by an effect, "ko" = the KO, "skillOrKo" = either. Omit "target" for this card
+  {"op":"altCost","pay":"none"|"life"|"program","n"?:N,"for"?:"counter"|"play","ops"?:[…]}
+    [Permanent] only: another way to pay for this card's own [Counter] (5-3) — "none", by "life" (n cards), or a "program" the card asks for instead of energy
+  {"op":"resolvingPlay","instead"?:AREA,"position"?:"top"|"bottom","mode"?:"rest","negated"?:true|false}
+    [Counter: Play] only (9-6). With "instead" the play is negated and the card goes there; without it the play happens and only the manner changes ("mode":"rest" or "negated":true)
+  {"op":"negateAttack"}
+  {"op":"negateCounter"}
+    negate the [Counter] this one is answering (9-7)
+  {"op":"negateOwnSkill","until"?:"turn"|"battle"}
+    "negate this skill for the game / turn / battle" (9-1-5)
+  {"op":"forbid","what":"attack"|"beAttacked"|"block"|…,"until":DURATION,"target"?:TARGET,"side"?:"you"|"opponent","filter"?:FILTER,"sameNameAsSelf"?:true|false,"bySkill"?:true|false}
+    forbid an action (20-14): a "target" for a rule about particular cards, or a "side" for one about a player, narrowed by a "filter"; "sameNameAsSelf":true narrows a play rule to copies of this card. "what" is one of "attack" | "beAttacked" | "block" | "play" | "activateSkill" | "activateCounter" | "combo" | "beKOd" | "beKOdBySkill" | "beChosen" | "switchToActive" | "placeEnergy" | "beMovedBySkill" | "beNegated"
+  {"op":"permit","what":"attackActive","until":DURATION,"target":TARGET,"filter"?:FILTER}
+    the one rule of the game a card may lift: "this card can attack Battle Cards in Active Mode" (8-1-1). The filter says *which* active cards — leave it out only when the card does
+  {"op":"if","cond":COND,"then":[…],"else"?:[…]}
+  {"op":"chooseMode","modes":[{"label":"…","ops":[…]}],"reason"?:"…"}
+    "Choose one— ・A ・B" (20-2): the master picks one printed option
+  {"op":"may","ops":[…],"reason"?:"…","chooser"?:"you"|"opponent"}
+    "You may …" (20-16): wrap only the optional part; {"kind":"did","what":"may"} then reads the answer for "if you do" / "if you don't". "chooser":"opponent" when it is theirs to decline. A clause that is already an "up to" choice declines by choosing nothing — do not wrap those
+  {"op":"delay","at":"turnStart"|"mainStart"|"turnEnd"|"turnCleanup"|"battleEnd","scope"?:"thisTurn"|"nextTurn"|"yourNextTurn"|"opponentNextTurn","ops":[…],"label"?:"…"}
+    the inner operations happen later (1-7-2-1-1): "At the end of the turn, KO it" is a choose, then a delay at "turnEnd" whose ops KO {"var":"t"}. A delayed program keeps the variables bound before it
+  {"op":"note","text":"…"}
+    a remark in the log; does nothing
+
+AMOUNT is a number, {"var":"t"} (how many cards that name holds), {"count":SELECTOR,"times":N} (so much for each matching card), {"sumPower":{"var":"t"}} or {"handUpTo":N}.
+TARGET is {"var":"t"} for something chosen earlier, or {"sel":SELECTOR}.
+  {"var":"looked","minus":"t"} is "the rest": the cards of one name that another name did not take.
+SELECTOR: {"side":"you"|"opponent"|"both","area":"battle"|"hand"|"deck"|"drop"|"life"|"energy"|"unison"|"leader"|"warp"|"combo"|"zDeck"|"zEnergy"|"play","count":1,"upTo":true,"mode":"rest"|"active","filter":{...}}
+  or {"special":"self"|"attacker"|"guard"|"leader"|"opponentLeader"|"resolving"} for a single known card
+  ("resolving" is the card whose play a [Counter: Play] is answering).
+  "count":99 means all of them, and a count is always a choice; "take":2 is "the top 2 cards" instead ("fromEnd":true for the bottom).
+  A filter may hold colors, characters, traits, names, costMin, costMax, powerMin, powerMax.
+COND is one of these (a field marked ? may be left out):
+  {"kind":"count","sel":SELECTOR,"atLeast"?:N,"atMost"?:N}
+    how many cards a selector finds
+  {"kind":"life","side":"you"|"opponent","atLeast"?:N,"atMost"?:N}
+  {"kind":"lifeVsOpponent","atLeast"?:true|false,"atMost"?:true|false}
+    the two life counts against each other
+  {"kind":"leaderColor","color":"Red"|"Blue"|"Green"|…}
+  {"kind":"leaderMatches","filter":FILTER,"side"?:"you"|"opponent","back"?:true|false}
+    "If your Leader is a <Baby> card" — colour, character name and traits alike
+  {"kind":"markers","sel":SELECTOR,"atLeast"?:N,"atMost"?:N}
+  {"kind":"inBattle","sel":SELECTOR,"not"?:true|false,"role"?:"attacker"|"guard"}
+  {"kind":"battled","sel":SELECTOR}
+  {"kind":"every","sel":SELECTOR,"matching":SELECTOR}
+    every card the first selector finds is also one the second finds; false when there is nothing to find (0-2-4-1)
+  {"kind":"any","conds":[COND]}
+  {"kind":"all","conds":[COND]}
+  {"kind":"leaderFlipped","side"?:"you"|"opponent","flipped"?:true|false}
+  {"kind":"power","sel":SELECTOR,"atLeast"?:N,"atMost"?:N}
+  {"kind":"did","what":"addToHand"|"play"|"negateAttack"|…}
+    whether an earlier step of this same skill did that — {"what":"may"} reads the answer to a "you may"
+  {"kind":"not","cond":COND}
+  {"kind":"chose","var":"…","atLeast"?:N}
+    "If you do so" (20-16): whether an earlier choice was answered, and with how many
+  {"kind":"varMatches","var":"…","filter":FILTER}
+  {"kind":"isTurnPlayer","who"?:"you"|"opponent"}
+    whose turn it is (7-1) — "during your opponent's turn" is this, not a duration
+  "During your opponent's turn" is a CONDITION, {"kind":"isTurnPlayer","who":"opponent"} — not a duration. A
+  duration says how long an effect this skill applies lasts; a condition says when the skill does anything at all.
+TIMING: "turnStart" | "mainStart" | "turnEnd" | "turnCleanup" | "battleEnd"
+SCOPE: "thisTurn" (default) | "nextTurn" | "yourNextTurn" | "opponentNextTurn"
+AREA: "hand" | "deck" | "drop" | "life" | "battle" | "combo" | "energy" | "unison" | "leader" | "warp" | "zDeck" | "zEnergy" | "under" | "play" | "removed"
+DURATION: "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "game" — "nextTurn" lasts through the opponent's turn and ends as yours begins.
+FILTER: {"colors":[…],"characters":[…],"traits":[…],"names":[…],"costMin":N,"costMax":N,"powerMin":N,"powerMax":N}, any subset.
+  The brackets a card prints say which list a word belongs in: <Son Goku> is a character, ≪Saiyan≫ a trait, and
+  {Angel Halo} a card *name* — "names", never "characters". A card names itself in braces and its character
+  in angle brackets, and they are different cards.
+  "At the end of the turn, KO it" is {"op":"choose",...} then {"op":"delay","at":"turnEnd","ops":[{"op":"ko","target":{"var":"t"}}]}.
+  A delayed program keeps the variables bound before it, so "it" still means the card chosen now.
+
+Rules of thumb: "up to N" means "upTo":true; "choose 1 ... and KO it" is a choose followed by a ko on that variable; a skill that only restricts or renames something you cannot express should be an empty array rather than a guess.

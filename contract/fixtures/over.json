@@ -3,6 +3,8 @@
   "game": {
     "id": 1,
     "mode": "hotseat",
+    "engine": "legacy",
+    "game": "dbs",
     "status": "over",
     "turn": 3,
     "p1Name": "You",

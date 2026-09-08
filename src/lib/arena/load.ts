@@ -5,9 +5,11 @@
 import { eq, inArray } from "drizzle-orm";
 import type { Db } from "@/db";
 import { cards, deckCards, decks } from "@/db/schema";
+import { gameOr, type Game } from "@/lib/catalog/games";
 import type { CardDef, CardType, Color, DeckInput } from "./engine";
 
-type CardRow = typeof cards.$inferSelect;
+/** The columns a card definition is read from — a catalog record straight off deckplanet has the same ones. */
+type CardRow = Pick<typeof cards.$inferSelect, "id" | "name" | "cardType" | "colors" | "energyCost" | "zEnergyCost" | "power" | "comboCost" | "comboPower" | "skill" | "characters" | "traits" | "backName" | "backPower" | "backSkill">;
 
 const COLORS: Color[] = ["Red", "Blue", "Green", "Yellow", "Black", "White", "Colorless"];
 
@@ -47,8 +49,8 @@ export async function defsForCards(db: Db, ids: string[]): Promise<Record<string
   return out;
 }
 
-/** A saved deck as the engine wants it: leader id, main list with repeats, Z-deck. */
-export async function deckInputFor(db: Db, deckId: number): Promise<{ input: DeckInput; cardIds: string[] } | null> {
+/** A saved deck as the engine wants it: leader id, main list with repeats, Z-deck — and which game it is. */
+export async function deckInputFor(db: Db, deckId: number): Promise<{ input: DeckInput; cardIds: string[]; game: Game } | null> {
   const deck = await db.query.decks.findFirst({ where: eq(decks.id, deckId) });
   if (!deck) return null;
   // The engine implements the original game's rule manual only; a Fusion World
@@ -60,5 +62,5 @@ export async function deckInputFor(db: Db, deckId: number): Promise<{ input: Dec
   const expand = (zone: string) => rows.filter((r) => r.zone === zone).flatMap((r) => Array.from({ length: r.quantity }, () => r.cardId));
   const main = expand("main");
   const z = expand("z");
-  return { input: { name: deck.name, leader, main, z }, cardIds: [leader, ...main, ...z] };
+  return { input: { name: deck.name, leader, main, z }, cardIds: [leader, ...main, ...z], game: gameOr(deck.game) };
 }

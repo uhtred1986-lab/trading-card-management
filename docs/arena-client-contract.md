@@ -64,6 +64,15 @@ export interface Snapshot {
   game: {
     id: number;
     mode: "hotseat" | "sparring" | "tournament" | "versus";
+    /**
+     * Which engine is playing this game and which card game the decks belong
+     * to (added 9 Sep 2026, `src/lib/arena/engines.ts`). A client shows the
+     * engine as a badge and reads nothing else off either: what the board is,
+     * `view` says. `legacy` is the hand-written engine; `rules` the
+     * configuration-driven one being built beside it.
+     */
+    engine: "legacy" | "rules";
+    game: "dbs" | "fusion";
     status: "playing" | "over" | "abandoned";
     turn: number;
     p1Name: string;

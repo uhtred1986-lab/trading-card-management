@@ -3,6 +3,8 @@
   "game": {
     "id": 1,
     "mode": "versus",
+    "engine": "legacy",
+    "game": "dbs",
     "status": "playing",
     "turn": 3,
     "p1Name": "Red aggro",

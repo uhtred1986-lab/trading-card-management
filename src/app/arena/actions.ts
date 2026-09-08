@@ -8,6 +8,8 @@ import { db } from "@/db";
 import { arenaFeedback, arenaGames } from "@/db/schema";
 import { describeAiError } from "@/lib/ai/client";
 import { IllegalAction, validateProgram, type Action, type GameState } from "@/lib/arena/engine";
+import { defaultEngine } from "@/lib/arena/engine-setting";
+import { engineOr } from "@/lib/arena/engines";
 import { abandonGame, applyToGame, clearBeatsForTurn, isVersus, loadGame, seatOf, StaleGame, startGame, type ArenaMode } from "@/lib/arena/games";
 import { cancelMatch, joinMatch, matchById, openMatch } from "@/lib/arena/matches";
 import { currentUser } from "@/lib/auth";
@@ -267,18 +269,21 @@ export async function startGameForm(formData: FormData) {
   const p2 = Number(formData.get("p2"));
   const mode = String(formData.get("mode") ?? "hotseat") as ArenaMode;
   const debug = formData.get("debug") != null;
+  // The form offers every engine; one it did not name, or named wrongly, falls
+  // back to the setting. `startGame`/`openMatch` refuse an engine that cannot play.
+  const engine = engineOr(formData.get("engine"), await defaultEngine(db));
   if (!Number.isInteger(p1)) throw new Error("pick a deck");
 
   // A 1 v 1 cannot be created here: the other player picks their own deck, and
   // they are not at this keyboard. This opens the invitation and waits.
   if (isVersus(mode)) {
-    const matchId = await openMatch(db, await currentUser(), p1, debug);
+    const matchId = await openMatch(db, await currentUser(), p1, debug, engine);
     revalidatePath("/arena");
     redirect(`/arena/match/${matchId}`);
   }
 
   if (!Number.isInteger(p2)) throw new Error("pick two decks");
-  const id = await startGame(db, p1, p2, mode, debug);
+  const id = await startGame(db, p1, p2, mode, debug, undefined, engine);
   revalidatePath("/arena");
   redirect(`/arena/${id}`);
 }

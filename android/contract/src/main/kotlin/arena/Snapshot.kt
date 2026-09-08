@@ -57,6 +57,14 @@ data class GameInfo(
     /** The login in each seat. Null outside a 1 v 1. */
     val p1User: String? = null,
     val p2User: String? = null,
+    /**
+     * Which engine is playing the game ("legacy" | "rules") and which card
+     * game the decks belong to ("dbs" | "fusion"). Strings with defaults, so a
+     * server that does not send them yet, or sends a new one, is not a crash.
+     * The app shows the engine as a badge and reads nothing else off either.
+     */
+    val engine: String = "legacy",
+    val game: String = "dbs",
 )
 
 /**

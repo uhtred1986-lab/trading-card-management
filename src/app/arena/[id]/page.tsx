@@ -6,6 +6,7 @@ import { ArenaStage } from "@/components/arena/stage/ArenaStage";
 import { hasAnthropic } from "@/lib/ai/client";
 import { GameOver } from "@/components/arena/GameOver";
 import type { GameReview } from "@/lib/arena/ai/review";
+import { ENGINE_INFO } from "@/lib/arena/engines";
 import { isVersus, loadGame, modeLabel, seatOf } from "@/lib/arena/games";
 import { currentUser } from "@/lib/auth";
 import { snapshotOfGame } from "@/lib/arena/session";
@@ -70,6 +71,11 @@ export default async function ArenaGamePage({ params, searchParams }: { params: 
           </span>
         )}
         <span className="rounded-full border border-space-700 px-2 py-0.5 text-[11px] uppercase tracking-wider text-space-400">{modeLabel(game.mode)}</span>
+        {game.engine !== "legacy" && (
+          <span className="rounded-full border border-ki-500/50 px-2 py-0.5 text-[11px] uppercase tracking-wider text-ki-300" title={ENGINE_INFO[game.engine].note}>
+            {ENGINE_INFO[game.engine].label}
+          </span>
+        )}
         <Link href={`/arena/${id}/debug`} className="ml-auto text-sm text-space-400 hover:text-ki-300">
           {isVersus(game.mode) ? "what the server decided" : "how Claude played"}
         </Link>

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { db } from "@/db";
 import { listDecks } from "@/lib/decks/queries";
+import { defaultEngine } from "@/lib/arena/engine-setting";
+import { ENGINE_IDS, ENGINE_INFO, engineOr } from "@/lib/arena/engines";
 import { listGames, modeLabel } from "@/lib/arena/games";
 import { listOpenMatches } from "@/lib/arena/matches";
 import { currentUser } from "@/lib/auth";
@@ -26,7 +28,7 @@ export default async function ArenaPage() {
   // The engine reads the original game's rule manual and nothing else, so
   // Fusion World decks are simply not offered here (owner's decision).
   const me = await currentUser();
-  const [decks, games, matches, users] = await Promise.all([listDecks(db, { game: "dbs" }), listGames(db, 20, me), listOpenMatches(db), listUsers(db).catch(() => [])]);
+  const [decks, games, matches, users, engine] = await Promise.all([listDecks(db, { game: "dbs" }), listGames(db, 20, me), listOpenMatches(db), listUsers(db).catch(() => []), defaultEngine(db)]);
   // A 1 v 1 is two people, and a person here is an `app_users` row. Without a
   // second one the form would only throw, so it says so instead.
   const canVersus = users.filter((u) => u.isActive).length >= 2 && !!me;
@@ -116,6 +118,33 @@ export default async function ArenaPage() {
                 </label>
               ))}
             </div>
+          </fieldset>
+          <fieldset>
+            <legend className="mb-1 block text-xs uppercase tracking-wider text-space-400">Engine</legend>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {ENGINE_IDS.map((id) => {
+                const o = ENGINE_INFO[id];
+                return (
+                  <label
+                    key={id}
+                    className={`tap flex flex-col rounded-lg border border-space-600 bg-space-900 p-2 text-sm has-[:checked]:border-ki-500 has-[:checked]:bg-space-800 ${o.available ? "cursor-pointer" : "opacity-60"}`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <input type="radio" name="engine" value={id} defaultChecked={id === engine} disabled={!o.available} className="accent-ki-500" />
+                      <span className="font-medium text-space-50">{o.label}</span>
+                    </span>
+                    <span className="mt-0.5 pl-6 text-[11px] text-space-400">{o.note}</span>
+                  </label>
+                );
+              })}
+            </div>
+            <p className="mt-1 text-[11px] text-space-500">
+              A game keeps the engine it was made on. The default is set under{" "}
+              <Link href="/settings" className="text-space-300 hover:text-ki-300">
+                Settings → Arena engine
+              </Link>
+              .
+            </p>
           </fieldset>
           <label className="flex items-center gap-2 text-xs text-space-300">
             <input type="checkbox" name="debug" defaultChecked className="accent-ki-500" />
@@ -234,6 +263,7 @@ export default async function ArenaPage() {
                   )}
                   <span className="text-xs text-space-400">turn {g.turn}</span>
                   <span className="text-xs text-space-500">{modeLabel(g.mode)}</span>
+                  {g.engine !== "legacy" && <span className="rounded-full border border-ki-500/50 px-1.5 text-[10px] uppercase tracking-wider text-ki-300">{ENGINE_INFO[engineOr(g.engine)].label}</span>}
                   <span className={`ml-auto text-xs ${g.status === "playing" ? "text-ki-300" : "text-space-400"}`}>
                     {g.status === "playing" ? "in progress" : g.status === "over" ? (g.winner ? `${g.winner === "p1" ? g.p1Name : g.p2Name} won` : "draw") : "abandoned"}
                   </span>

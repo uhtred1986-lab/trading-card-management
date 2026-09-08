@@ -14,6 +14,7 @@
 import { and, desc, eq } from "drizzle-orm";
 import type { Db } from "@/db";
 import { arenaMatches, decks as decksTable } from "@/db/schema";
+import { engineFor, engineOr, type EngineId } from "./engines";
 import { startGame } from "./games";
 
 export interface OpenMatch {
@@ -22,6 +23,7 @@ export interface OpenMatch {
   hostDeckId: number | null;
   hostDeckName: string | null;
   debug: boolean;
+  engine: EngineId;
   createdAt: Date;
 }
 
@@ -32,9 +34,11 @@ export interface OpenMatch {
  * people, and with the app running open (no `BASIC_AUTH_*`, no `app_users`)
  * there is nobody to be the second. Hot-seat is what that machine wants.
  */
-export async function openMatch(db: Db, hostUser: string | null, hostDeckId: number, debug: boolean): Promise<number> {
+export async function openMatch(db: Db, hostUser: string | null, hostDeckId: number, debug: boolean, engine: EngineId = "legacy"): Promise<number> {
   if (!hostUser) throw new Error("a 1 v 1 needs two logins — add one at Settings → Users, or play hot-seat");
-  const [row] = await db.insert(arenaMatches).values({ hostUser, hostDeckId, debug }).returning({ id: arenaMatches.id });
+  // Refused now rather than when the other player joins, which is the wrong moment to learn it.
+  engineFor(engine);
+  const [row] = await db.insert(arenaMatches).values({ hostUser, hostDeckId, debug, engine }).returning({ id: arenaMatches.id });
   return row.id;
 }
 
@@ -47,13 +51,15 @@ export async function listOpenMatches(db: Db): Promise<OpenMatch[]> {
       hostDeckId: arenaMatches.hostDeckId,
       hostDeckName: decksTable.name,
       debug: arenaMatches.debug,
+      engine: arenaMatches.engine,
       createdAt: arenaMatches.createdAt,
     })
     .from(arenaMatches)
     .leftJoin(decksTable, eq(decksTable.id, arenaMatches.hostDeckId))
     .where(eq(arenaMatches.status, "open"))
     .orderBy(desc(arenaMatches.createdAt))
-    .limit(20);
+    .limit(20)
+    .then((rows) => rows.map((r) => ({ ...r, engine: engineOr(r.engine) })));
 }
 
 /** One match, for the host's waiting screen. */
@@ -91,7 +97,7 @@ export async function joinMatch(db: Db, id: number, guestUser: string | null, gu
   if (!claimed.length) throw new Error("that match has already started");
 
   try {
-    const gameId = await startGame(db, match.hostDeckId, guestDeckId, "versus", match.debug, { p1User: match.hostUser, p2User: guestUser });
+    const gameId = await startGame(db, match.hostDeckId, guestDeckId, "versus", match.debug, { p1User: match.hostUser, p2User: guestUser }, engineOr(match.engine));
     await db.update(arenaMatches).set({ gameId, status: "started", updatedAt: new Date() }).where(eq(arenaMatches.id, id));
     return gameId;
   } catch (err) {

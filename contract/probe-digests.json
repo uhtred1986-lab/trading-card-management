@@ -1,0 +1,574 @@
+{
+  "ABSORBER#0": {
+    "outcome": "notOffered",
+    "digest": "f69a1a70"
+  },
+  "ACTIVE-HUNTER#0": {
+    "outcome": "inForce",
+    "digest": "befb97a9"
+  },
+  "ALLY#0": {
+    "outcome": "noScenario",
+    "digest": "b80d3483"
+  },
+  "ALLYC#0": {
+    "outcome": "notOffered",
+    "digest": "3ac271f1"
+  },
+  "ALTC#0": {
+    "outcome": "fired",
+    "digest": "d748b6c2"
+  },
+  "ALTC#10": {
+    "outcome": "inForce",
+    "digest": "bc0aaf7c"
+  },
+  "ARRIVES#0": {
+    "outcome": "didNotFire",
+    "digest": "d55f4c52"
+  },
+  "AURA#0": {
+    "outcome": "inForce",
+    "digest": "943102c8"
+  },
+  "AUTOCOST#0": {
+    "outcome": "fired",
+    "digest": "d724c4b4"
+  },
+  "BECOMES#0": {
+    "outcome": "inForce",
+    "digest": "0559159a"
+  },
+  "BERGAMO#10": {
+    "outcome": "fired",
+    "digest": "3a2de619"
+  },
+  "BLOCK-HUNTER#0": {
+    "outcome": "fired",
+    "digest": "75a6d628"
+  },
+  "BLUEWATCH#0": {
+    "outcome": "noScenario",
+    "digest": "b80d3483"
+  },
+  "BOOSTWATCH#0": {
+    "outcome": "noScenario",
+    "digest": "b80d3483"
+  },
+  "BOTHPAY#0": {
+    "outcome": "notOffered",
+    "digest": "7cee2d23"
+  },
+  "BOUNCE#0": {
+    "outcome": "fired",
+    "digest": "8620ac57"
+  },
+  "BURSTER#0": {
+    "outcome": "fired",
+    "digest": "e9b44d26"
+  },
+  "BUUEAT#0": {
+    "outcome": "fired",
+    "digest": "949c0104"
+  },
+  "CHEAPCOMBO#0": {
+    "outcome": "inForce",
+    "digest": "778b074c"
+  },
+  "CHEAPENER#0": {
+    "outcome": "fired",
+    "digest": "2f5d4118"
+  },
+  "COMBOWATCH#0": {
+    "outcome": "didNotFire",
+    "digest": "5266a50a"
+  },
+  "CONDACT#0": {
+    "outcome": "fired",
+    "digest": "3ccbde73"
+  },
+  "CONDACTB#0": {
+    "outcome": "notOffered",
+    "digest": "b577a6aa"
+  },
+  "CONDDRAW#0": {
+    "outcome": "fired",
+    "digest": "6b1bf429"
+  },
+  "CONDOR#0": {
+    "outcome": "fired",
+    "digest": "c10445be"
+  },
+  "DELAYDRAW#0": {
+    "outcome": "fired",
+    "digest": "d3e0d48b"
+  },
+  "DELAYKO#0": {
+    "outcome": "fired",
+    "digest": "da83601c"
+  },
+  "DELAYOPP#0": {
+    "outcome": "fired",
+    "digest": "569fdba3"
+  },
+  "DIDDRAW#0": {
+    "outcome": "fired",
+    "digest": "122fb39f"
+  },
+  "DIGGER#0": {
+    "outcome": "fired",
+    "digest": "ceec9c86"
+  },
+  "DISCOUNT#0": {
+    "outcome": "inForce",
+    "digest": "a44f9ad0"
+  },
+  "DRAWER#0": {
+    "outcome": "fired",
+    "digest": "349243ca"
+  },
+  "DROPCALLER#0": {
+    "outcome": "fired",
+    "digest": "a10071f5"
+  },
+  "DROUGHT#0": {
+    "outcome": "inForce",
+    "digest": "7f83e1d0"
+  },
+  "E-CC#0": {
+    "outcome": "didNotFire",
+    "digest": "23db99f7"
+  },
+  "E-COSTLY#0": {
+    "outcome": "fired",
+    "digest": "086db9a6"
+  },
+  "E-DECOY#0": {
+    "outcome": "fired",
+    "digest": "daaea49b"
+  },
+  "E-DRAW#0": {
+    "outcome": "fired",
+    "digest": "f6573d6b"
+  },
+  "E-LIFE#0": {
+    "outcome": "fired",
+    "digest": "8b3fe4de"
+  },
+  "E-LIFE#10": {
+    "outcome": "inForce",
+    "digest": "bc0aaf7c"
+  },
+  "E-MYSTERY#0": {
+    "outcome": "notOffered",
+    "digest": "897857d0"
+  },
+  "E-NEGATE#0": {
+    "outcome": "fired",
+    "digest": "af5daf46"
+  },
+  "E-PUMP#0": {
+    "outcome": "fired",
+    "digest": "25d7d4ed"
+  },
+  "E-RB#0": {
+    "outcome": "fired",
+    "digest": "172db48f"
+  },
+  "E-STOP#0": {
+    "outcome": "fired",
+    "digest": "480f1206"
+  },
+  "E-TIRE#0": {
+    "outcome": "fired",
+    "digest": "aa09b91d"
+  },
+  "EITHER#0": {
+    "outcome": "fired",
+    "digest": "b25bd92a"
+  },
+  "EVO#0": {
+    "outcome": "fired",
+    "digest": "dbd9d091"
+  },
+  "EXILE#0": {
+    "outcome": "fired",
+    "digest": "cd0b2a6a"
+  },
+  "FETCH#0": {
+    "outcome": "fired",
+    "digest": "30465fd6"
+  },
+  "FLIPPER#0": {
+    "outcome": "fired",
+    "digest": "51109403"
+  },
+  "FORCEKILL#0": {
+    "outcome": "fired",
+    "digest": "f41c59a9"
+  },
+  "FREEPLAY#0": {
+    "outcome": "inForce",
+    "digest": "c6ea6c7a"
+  },
+  "FUSER#0": {
+    "outcome": "notOffered",
+    "digest": "4548188c"
+  },
+  "GLOATER#0": {
+    "outcome": "noScenario",
+    "digest": "b80d3483"
+  },
+  "GRABBER#0": {
+    "outcome": "fired",
+    "digest": "c1ae25a6"
+  },
+  "GRAVE#0": {
+    "outcome": "fired",
+    "digest": "215bfc08"
+  },
+  "GRUDGE#0": {
+    "outcome": "noScenario",
+    "digest": "b80d3483"
+  },
+  "HIDER#0": {
+    "outcome": "fired",
+    "digest": "0bc84a47"
+  },
+  "HUNTER#0": {
+    "outcome": "fired",
+    "digest": "82518973"
+  },
+  "HUSH#0": {
+    "outcome": "fired",
+    "digest": "f1bc44c0"
+  },
+  "INERTPERM#0": {
+    "outcome": "inForce",
+    "digest": "7da44342"
+  },
+  "KILLER#0": {
+    "outcome": "fired",
+    "digest": "ca56ac9b"
+  },
+  "L-RED#0": {
+    "outcome": "notOffered",
+    "digest": "45a2bd90"
+  },
+  "LEADERWATCH#0": {
+    "outcome": "fired",
+    "digest": "09a4fa50"
+  },
+  "LEADS#0": {
+    "outcome": "notOffered",
+    "digest": "3ac271f1"
+  },
+  "LIFEGIVER#0": {
+    "outcome": "fired",
+    "digest": "fa8473c5"
+  },
+  "LIFEWATCH#0": {
+    "outcome": "noScenario",
+    "digest": "b80d3483"
+  },
+  "LIMITED2#0": {
+    "outcome": "fired",
+    "digest": "6050007e"
+  },
+  "LOCKDOWN#0": {
+    "outcome": "fired",
+    "digest": "8700fc8a"
+  },
+  "LOCKER#0": {
+    "outcome": "fired",
+    "digest": "32df6edb"
+  },
+  "LOUD#0": {
+    "outcome": "fired",
+    "digest": "e8248803"
+  },
+  "MAYBE#0": {
+    "outcome": "fired",
+    "digest": "ee3f202f"
+  },
+  "MILLGATE#0": {
+    "outcome": "fired",
+    "digest": "8633ab44"
+  },
+  "MODAL#0": {
+    "outcome": "fired",
+    "digest": "0caa77d6"
+  },
+  "MOURNER#0": {
+    "outcome": "noScenario",
+    "digest": "b80d3483"
+  },
+  "MUTEAUTO#0": {
+    "outcome": "fired",
+    "digest": "63c66822"
+  },
+  "MUTER#0": {
+    "outcome": "fired",
+    "digest": "fb1bc753"
+  },
+  "MUZZLE#0": {
+    "outcome": "fired",
+    "digest": "9117674b"
+  },
+  "MYEND#0": {
+    "outcome": "fired",
+    "digest": "ae4a0295"
+  },
+  "MYSTERY#0": {
+    "outcome": "blank",
+    "digest": "34dcf27a"
+  },
+  "NOCOPIES#0": {
+    "outcome": "fired",
+    "digest": "1d4c03c1"
+  },
+  "NOSKILLPLAY#0": {
+    "outcome": "inForce",
+    "digest": "36dffc2a"
+  },
+  "NOSY#0": {
+    "outcome": "didNotFire",
+    "digest": "16bdaa6b"
+  },
+  "ODDAURA#0": {
+    "outcome": "blank",
+    "digest": "e4dc9636"
+  },
+  "OLD-KILL#0": {
+    "outcome": "fired",
+    "digest": "b5b67485"
+  },
+  "ONCE#0": {
+    "outcome": "fired",
+    "digest": "26b9b873"
+  },
+  "ONCEONLY#0": {
+    "outcome": "fired",
+    "digest": "94656674"
+  },
+  "ONLYONE#0": {
+    "outcome": "inForce",
+    "digest": "26b886d2"
+  },
+  "ONLYSKILLPLAY#0": {
+    "outcome": "inForce",
+    "digest": "cac4ae74"
+  },
+  "OVERWATCH#0": {
+    "outcome": "noScenario",
+    "digest": "b80d3483"
+  },
+  "PEEK#0": {
+    "outcome": "fired",
+    "digest": "d382bd59"
+  },
+  "PEEP#0": {
+    "outcome": "fired",
+    "digest": "36efed50"
+  },
+  "PERMLOCK#0": {
+    "outcome": "inForce",
+    "digest": "96e3ee24"
+  },
+  "PERMTOUGH#0": {
+    "outcome": "inForce",
+    "digest": "e59caa2f"
+  },
+  "PHOENIX#0": {
+    "outcome": "inForce",
+    "digest": "8aa546a8"
+  },
+  "PICKY-HUNTER#0": {
+    "outcome": "inForce",
+    "digest": "26d1430d"
+  },
+  "PILE#0": {
+    "outcome": "inForce",
+    "digest": "f6b9158e"
+  },
+  "PRICED#0": {
+    "outcome": "notOffered",
+    "digest": "95489e0a"
+  },
+  "PUMP#0": {
+    "outcome": "fired",
+    "digest": "2d5dc87d"
+  },
+  "PUMPCRIT#0": {
+    "outcome": "fired",
+    "digest": "e0775813"
+  },
+  "RECOLOR#0": {
+    "outcome": "inForce",
+    "digest": "aee83502"
+  },
+  "REFILL#0": {
+    "outcome": "fired",
+    "digest": "acb0bb13"
+  },
+  "REJ#0": {
+    "outcome": "notOffered",
+    "digest": "15a11623"
+  },
+  "RELKO#0": {
+    "outcome": "fired",
+    "digest": "f3d33480"
+  },
+  "RESTBOTH#0": {
+    "outcome": "fired",
+    "digest": "3b3c3890"
+  },
+  "RESTCOND#0": {
+    "outcome": "inForce",
+    "digest": "c82a2756"
+  },
+  "RESTER#0": {
+    "outcome": "fired",
+    "digest": "c02d678f"
+  },
+  "RESTLOCK#0": {
+    "outcome": "fired",
+    "digest": "9d6d8d7c"
+  },
+  "RESTWATCH#0": {
+    "outcome": "noScenario",
+    "digest": "b80d3483"
+  },
+  "SAIYANKILL#0": {
+    "outcome": "fired",
+    "digest": "8b0fa7d9"
+  },
+  "SAIYANWATCH#0": {
+    "outcome": "fired",
+    "digest": "4ccccaad"
+  },
+  "SEARCH#0": {
+    "outcome": "fired",
+    "digest": "6039b1e2"
+  },
+  "SELFMUTE#10": {
+    "outcome": "inForce",
+    "digest": "a33a7038"
+  },
+  "SELFMUTET#0": {
+    "outcome": "fired",
+    "digest": "4f32d988"
+  },
+  "SHRINK#0": {
+    "outcome": "fired",
+    "digest": "0057712c"
+  },
+  "SILENCER#0": {
+    "outcome": "fired",
+    "digest": "0316549b"
+  },
+  "SPAWN#0": {
+    "outcome": "fired",
+    "digest": "781ef92f"
+  },
+  "SPIRIT#0": {
+    "outcome": "notOffered",
+    "digest": "a44a2b3a"
+  },
+  "SPIRIT2#0": {
+    "outcome": "notOffered",
+    "digest": "a44a2b3a"
+  },
+  "STACKER#0": {
+    "outcome": "fired",
+    "digest": "7f95d72c"
+  },
+  "STEALER#0": {
+    "outcome": "fired",
+    "digest": "0dec7c74"
+  },
+  "STUBBORN#10": {
+    "outcome": "inForce",
+    "digest": "2a4f515a"
+  },
+  "SUMMON#0": {
+    "outcome": "fired",
+    "digest": "f9b544a8"
+  },
+  "SWAPPER#0": {
+    "outcome": "fired",
+    "digest": "ca3d56c8"
+  },
+  "TAX#0": {
+    "outcome": "didNotFire",
+    "digest": "18faf1a4"
+  },
+  "THEIRCHOICE#0": {
+    "outcome": "fired",
+    "digest": "e33557b1"
+  },
+  "THEIREND#0": {
+    "outcome": "didNotFire",
+    "digest": "16bdaa6b"
+  },
+  "THEIRPICK#0": {
+    "outcome": "fired",
+    "digest": "7e83b449"
+  },
+  "TIRED#0": {
+    "outcome": "fired",
+    "digest": "4616d25d"
+  },
+  "TITHE#0": {
+    "outcome": "notOffered",
+    "digest": "7dea9ca0"
+  },
+  "TOUGH#0": {
+    "outcome": "fired",
+    "digest": "015c59fa"
+  },
+  "TWOKILL#0": {
+    "outcome": "fired",
+    "digest": "6add85dc"
+  },
+  "TWOLINE#0": {
+    "outcome": "fired",
+    "digest": "1db80043"
+  },
+  "TWOLINE#10": {
+    "outcome": "fired",
+    "digest": "0a0f0cd0"
+  },
+  "TWOSKILL#0": {
+    "outcome": "fired",
+    "digest": "95fd2f87"
+  },
+  "TWOSKILL#10": {
+    "outcome": "fired",
+    "digest": "a783cacc"
+  },
+  "UNI2#0": {
+    "outcome": "notOffered",
+    "digest": "e2ce4101"
+  },
+  "UWATCH#0": {
+    "outcome": "noScenario",
+    "digest": "b80d3483"
+  },
+  "WARDEN#0": {
+    "outcome": "inForce",
+    "digest": "bdffc264"
+  },
+  "WARPER#0": {
+    "outcome": "inForce",
+    "digest": "d5b7cb80"
+  },
+  "WATCH#0": {
+    "outcome": "fired",
+    "digest": "2d99c1d9"
+  },
+  "ZB#0": {
+    "outcome": "notOffered",
+    "digest": "908e4eec"
+  }
+}

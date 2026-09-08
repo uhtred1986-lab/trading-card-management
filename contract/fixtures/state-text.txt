@@ -1,0 +1,25 @@
+Turn 3, your turn, phase main.
+
+YOU (You)
+  life 8, deck 30, hand 9, drop 0
+  energy: Red 1 active, Blue 1 active
+  leader: L-RED (L-RED), 10,000 power, active, [Awaken]
+    text: [Awaken] When your life is at 4 or less: Draw 1 card and flip this card over.
+  battle area: BLOCKER (BLOCKER), 10,000 power, active, cost 2, combo +10,000 for 1, [Blocker]
+    text: [Blocker]
+  your hand:
+    · V1 (V1), 10,000 power, cost 1, combo +5,000 for 0
+    · V1 (V1), 10,000 power, cost 1, combo +5,000 for 0
+    · V1 (V1), 10,000 power, cost 1, combo +5,000 for 0
+    · V1 (V1), 10,000 power, cost 1, combo +5,000 for 0
+    · V1 (V1), 10,000 power, cost 1, combo +5,000 for 0
+    · V1 (V1), 10,000 power, cost 1, combo +5,000 for 0
+    · V1 (V1), 10,000 power, cost 1, combo +5,000 for 0
+    · V1 (V1), 10,000 power, cost 1, combo +5,000 for 0
+    · BIG (BIG), 25,000 power, cost 5, combo +5,000 for 0
+
+OPPONENT (Claude)
+  life 8, deck 40, hand 1, drop 0
+  energy: 1 energy marker(s)
+  leader: L-BLUE (L-BLUE), 10,000 power, active
+  battle area: V-BLUE (V-BLUE), 10,000 power, active, cost 1, combo +5,000 for 0
