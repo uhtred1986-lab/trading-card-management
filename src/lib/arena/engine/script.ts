@@ -1884,3 +1884,13 @@ export function opSignature(name: Op["op"]): string {
   const fields = OP_SCHEMA[name].fields.map((f) => `"${f.name}"${f.required ? "" : "?"}:${shape(f.type)}`);
   return `{"op":"${name}"${fields.length ? "," : ""}${fields.join(",")}}`;
 }
+
+/** The same, for a condition: `{"kind":"count","sel":SELECTOR,"atLeast"?:N}`. */
+export function condSignature(kind: Cond["kind"]): string {
+  const shape = (t: FieldType): string => {
+    if (typeof t === "object") return "enum" in t ? (t.enum.length > 4 ? `${t.enum.slice(0, 3).map((e) => `"${e}"`).join("|")}|…` : t.enum.map((e) => `"${e}"`).join("|")) : "[…]";
+    return { selector: "SELECTOR", side: '"you"|"opponent"', cond: "COND", conds: "[COND]", filter: "FILTER", string: '"…"', number: "N", boolean: "true|false", amount: "AMOUNT", ref: "TARGET", area: "AREA", duration: "DURATION", ops: "[…]", keyword: '{"name":"Blocker"}', modes: "[…]" }[t];
+  };
+  const fields = COND_SCHEMA[kind].fields.map((f) => `"${f.name}"${f.required ? "" : "?"}:${shape(f.type)}`);
+  return `{"kind":"${kind}"${fields.length ? "," : ""}${fields.join(",")}}`;
+}

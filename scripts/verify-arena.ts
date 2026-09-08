@@ -32,11 +32,12 @@ import { KEYWORDS, keywordTagSpellings, keywordsByGroup, tagBody, tagParsesTo } 
 import { parseFilter, matches, parseCondition, type CardFilter } from "../src/lib/arena/engine/filters";
 import { addEffect, schedule, move, locate, placeUnder, playCost, powerOf, forbids, has, cardNow, comboCostOf, skillNegated, skillsNegated } from "../src/lib/arena/engine/state";
 import { compileCostProgram, compileSkill, costIsOnlyOrbs, costText, parseConditionClause, parseTarget, priceCondition, splitClauses } from "../src/lib/arena/engine/compile";
-import { COND_SCHEMA, OP_SCHEMA, describeCond, describeScript, opSignature, validateProgram as validate, type Op as SchemaOp } from "../src/lib/arena/engine/script";
+import { COND_SCHEMA, OP_SCHEMA, condSignature, describeCond, describeScript, opSignature, validateProgram as validate, type Op as SchemaOp } from "../src/lib/arena/engine/script";
 import { autoTriggerMatches, koCard } from "../src/lib/arena/engine/triggers";
 import type { Trigger } from "../src/lib/arena/engine/types";
 import { canonical, hoist, patternKey, programShape, rulesFromCompiler, skillRecords } from "../src/lib/arena/draft";
 import { keywordPlays } from "../src/lib/arena/glossary";
+import { EFFECT_LANGUAGE } from "../src/lib/arena/ai/opponent";
 import { clauseShape, describeTrigger, mechanismOf, triggersOf } from "../src/lib/arena/gaps";
 
 // ── skill text parsing ─────────────────────────────────────────────────────
@@ -7279,6 +7280,19 @@ function theEffectLanguageIsOneTable() {
     assert.equal(describeCond({ kind: "isTurnPlayer", who: "opponent" }), "it is your opponent's turn");
     assert.equal(describeCond({ kind: "did", what: "may" }), "the offer was taken");
     assert.equal(describeCond({ kind: "all", conds: [{ kind: "isTurnPlayer" }, { kind: "life", side: "you", atMost: 4 }] }), "it is your turn and your life is 4 or less");
+
+    // The referee is told the language off the same rows, so a kind the
+    // interpreter learns reaches Claude the moment it has one.
+    for (const kind of Object.keys(COND_SCHEMA)) {
+      assert.match(condSignature(kind as Parameters<typeof condSignature>[0]), new RegExp(`^\\{"kind":"${kind}"`), `${kind} has a signature for the referee`);
+      assert.ok(EFFECT_LANGUAGE.includes(`"kind":"${kind}"`), `${kind} is in the language Claude is given`);
+    }
+    assert.equal(condSignature("isTurnPlayer"), '{"kind":"isTurnPlayer","who"?:"you"|"opponent"}');
+    assert.equal(condSignature("battled"), '{"kind":"battled","sel":SELECTOR}');
+    // The two mistakes the BT18 reviews made, answered in the legend rather
+    // than left for the validator to catch afterwards.
+    assert.ok(EFFECT_LANGUAGE.includes('a card *name* — "names", never "characters"'), "{Angel Halo} is a name, not a character");
+    assert.ok(EFFECT_LANGUAGE.includes("is a CONDITION"), "and your opponent's turn is a condition, not a duration");
   }
 
 }
