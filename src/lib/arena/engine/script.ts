@@ -1480,6 +1480,24 @@ export function describeFilter(f: CardFilter): string {
   return bits.join(" ");
 }
 
+/**
+ * The filter's words, unless they only repeat what the area already says: a
+ * selector over the Battle Area whose filter is "battle card" would read "1
+ * battle card in your battle".
+ */
+function selectorWords(sel: Selector): string {
+  if (!sel.filter) return "";
+  const words = describeFilter(sel.filter);
+  const areas = (sel.areas?.length ? sel.areas : [sel.area]).filter(Boolean).map((a) => `${String(a).toLowerCase()} card`);
+  return words === "card" || areas.includes(words) ? "" : words;
+}
+
+/**
+ * Which cards, in words. The filter is part of the answer: without it the
+ * worklist read "choose up to 1 in your warp" for a skill that can only take
+ * a blue ≪Another World Budokai≫ card, which is exactly the detail that tells
+ * two cards phrased alike apart.
+ */
 function describeSelector(sel: Selector): string {
   if (sel.special)
     return {
@@ -1493,8 +1511,10 @@ function describeSelector(sel: Selector): string {
     }[sel.special];
   const who = sel.side === "opponent" ? "opponent's " : sel.side === "both" ? "each player's " : "your ";
   const count = sel.count === 99 ? "all" : sel.upTo ? `up to ${sel.count}` : `${sel.count}`;
+  const words = selectorWords(sel);
   const where = sel.fromVar ? "of the cards looked at" : `in ${who}${sel.areas?.length ? sel.areas.join(" or ") : sel.area}`;
-  return `${count} ${where}`;
+  const mode = sel.mode ? ` in ${sel.mode} mode` : "";
+  return `${count} ${words ? `${words} ` : ""}${where}${mode}`;
 }
 
 function describeRef(ref: Ref): string {

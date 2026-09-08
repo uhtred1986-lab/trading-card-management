@@ -35,7 +35,8 @@ import { compileCostProgram, compileSkill, costIsOnlyOrbs, costText, parseCondit
 import { OP_SCHEMA, describeScript, opSignature, validateProgram as validate, type Op as SchemaOp } from "../src/lib/arena/engine/script";
 import { autoTriggerMatches, koCard } from "../src/lib/arena/engine/triggers";
 import type { Trigger } from "../src/lib/arena/engine/types";
-import { canonical, hoist, programShape, rulesFromCompiler, skillRecords } from "../src/lib/arena/draft";
+import { canonical, hoist, patternKey, programShape, rulesFromCompiler, skillRecords } from "../src/lib/arena/draft";
+import { keywordPlays } from "../src/lib/arena/glossary";
 import { clauseShape, describeTrigger, mechanismOf, triggersOf } from "../src/lib/arena/gaps";
 
 // ── skill text parsing ─────────────────────────────────────────────────────
@@ -7263,6 +7264,13 @@ function assertDisjoint(s: GameState, where: string): RejectedAction[] {
   assert.equal(play.unread.length, 0);
   assert.equal(play.pattern, "choose→ko", "drafts group by the shape of what the compiler produced");
   assert.equal(play.reads, "choose up to 1 in opponent's battle, KO the chosen cards");
+  // What the selector picks is part of the reading: two cards phrased alike
+  // are told apart by their filter, and the worklist used to hide it.
+  assert.equal(
+    describeScript(compileSkill(parseSkills("[Auto] When you play this card, choose up to 1 blue ≪Another World Budokai≫ card in your Warp and place it in your Drop Area.")[0]).ops),
+    "choose up to 1 blue ≪Another World Budokai≫ in your warp, move the chosen cards to drop",
+  );
+  assert.equal(describeScript([{ op: "choose", sel: { side: "opponent", area: "battle", count: 1, mode: "rest" }, as: "t" }]), "choose 1 in opponent's battle in rest mode");
   assert.equal(play.cost, null);
   // A program that is one wrapping `if` is shown as IF + DO; the reading still covers the whole thing.
   const perm = recs[1];
@@ -7295,6 +7303,16 @@ function assertDisjoint(s: GameState, where: string): RejectedAction[] {
   // are not changes — the first full draft run rewrote 8,341 rows because they were.
   assert.equal(JSON.stringify(canonical({ b: 1, a: { mode: undefined, side: "you" } })), JSON.stringify(canonical({ a: { side: "you" }, b: 1 })));
   assert.notEqual(JSON.stringify(canonical({ a: null })), JSON.stringify(canonical({})), "an explicit null is a value");
+
+  // A skill with no unread text and no program is not "nothing": the keyword
+  // is the rule the engine plays, and the record has to say which one.
+  const stack = card("STACKED", { type: "LEADER", skill: "[Z-Stack 1] Yellow <Son Goku> with an energy cost of 2." });
+  const [z] = skillRecords(stack);
+  assert.deepEqual([z.ops.length, z.unread.length], [0, 0], "the specification text compiles to no steps");
+  assert.equal(z.pattern, "keyword:Z-Stack", "…so it groups by the keyword that plays it");
+  assert.equal(keywordPlays("Z-Stack")?.tag, "[Z-Stack X]", "and the record can say what the engine does with it");
+  assert.equal(keywordPlays("Not A Keyword"), null);
+  assert.equal(patternKey({ keyword: null }, [], []), "nothing", "and a skill that really is empty groups with the others that are");
 }
 
 // A filter written by hand or by Claude carries only the fields it means; the

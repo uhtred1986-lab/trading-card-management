@@ -60,7 +60,7 @@
           "comboPower": 5000,
           "keywords": [],
           "text": "[Auto] When you play this card, add up to 1 <V1> card from your deck to your hand, then shuffle your deck.",
-          "reading": "choose up to 1 in your deck, move the chosen cards to hand, shuffle",
+          "reading": "choose up to 1 <v1> in your deck, move the chosen cards to hand, shuffle",
           "referee": false
         }
       ],

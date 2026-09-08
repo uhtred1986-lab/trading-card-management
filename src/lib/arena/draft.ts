@@ -14,7 +14,7 @@ import type { Db } from "@/db";
 import { arenaFeedback, cardRules, cards as cardsTable, settings } from "@/db/schema";
 import { hasAnthropic } from "@/lib/ai/client";
 import { DEFAULT_GAME } from "@/lib/catalog/games";
-import { compileCardCached, compileSkill, parseSkills, skillLines, type CardDef, type CardScripts, type Op } from "./engine";
+import { compileCardCached, compileSkill, parseSkills, skillLines, type CardDef, type CardScripts, type KeywordSkill, type Op } from "./engine";
 import { compileCostProgram, costText, priceCondition } from "./engine/compile";
 import type { Cond } from "./engine/script";
 import { describeScript } from "./engine/script";
@@ -81,7 +81,7 @@ export function skillRecords(def: CardDef): SkillRecord[] {
         cond,
         ops,
         unread,
-        pattern: unread.length ? clauseShape(unread[0]) : programShape(script.ops) || null,
+        pattern: patternKey(sk, unread, script.ops),
         reads: describeScript(script.ops, { permanent }),
       });
     }
@@ -103,6 +103,22 @@ function costRecord(sk: ReturnType<typeof parseSkills>[number]): CostRecord | nu
     condition: priceCondition(sk)?.cond ?? null,
     program: compileCostProgram(sk)?.ops ?? null,
   };
+}
+
+/**
+ * How a record is grouped with its siblings: the shape of the first clause the
+ * compiler could not read, or the shape of the program it produced.
+ *
+ * A skill with neither — no unread text and no program — is not "nothing".
+ * 1,089 of them are keyword lines whose reminder or specification text
+ * compiles to no steps because the keyword itself is the rule the engine
+ * plays ("[Z-Stack 1] Yellow <Son Goku> …"), and grouping them under `null`
+ * put the largest group on the Patterns page out of sight. They group by
+ * keyword; the 47 that are genuinely empty group together as `nothing`.
+ */
+export function patternKey(sk: { keyword: KeywordSkill | null }, unread: string[], ops: Op[]): string {
+  if (unread.length) return clauseShape(unread[0]);
+  return programShape(ops) || (sk.keyword ? `keyword:${sk.keyword.name}` : "nothing");
 }
 
 /** A program that is exactly one `if` with no `else` is shown as IF + DO; anything else keeps its shape. */
