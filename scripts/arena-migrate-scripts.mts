@@ -20,43 +20,47 @@ loadEnvConfig(process.cwd());
 
 const { eq, sql } = await import("drizzle-orm");
 const { db } = await import("../src/db/index.ts");
-const { cardRules, cardScripts, cards: cardsTable } = await import("../src/db/schema.ts");
+const { cardRules, cards: cardsTable } = await import("../src/db/schema.ts");
 const { describeScript, validateProgram } = await import("../src/lib/arena/engine/script.ts");
 const { catalogIds, draftCards, skillRecords } = await import("../src/lib/arena/draft.ts");
 const { cardDefFrom } = await import("../src/lib/arena/load.ts");
 const { rows } = await import("../src/db/rows.ts");
 type Op = import("../src/lib/arena/engine/script.ts").Op;
 
-/** `cannotAttack` was the word before `forbid` existed; the same thing. */
-function modernise(ops: Op[]): Op[] {
+/** `cannotAttack` was the word before `forbid` existed; the same thing. The old rows are read loosely — the op is no longer in the language. */
+type Loose = Record<string, unknown> & { op: string };
+function modernise(ops: Loose[]): Loose[] {
   return ops.map((o) => {
     if (o.op === "cannotAttack") return { op: "forbid", what: "attack", until: o.until, target: o.target };
-    if (o.op === "if") return { ...o, then: modernise(o.then), ...(o.else ? { else: modernise(o.else) } : {}) };
-    if (o.op === "may" || o.op === "delay") return { ...o, ops: modernise(o.ops) };
-    if (o.op === "chooseMode") return { ...o, modes: o.modes.map((m) => ({ ...m, ops: modernise(m.ops) })) };
-    if (o.op === "altCost" && o.ops) return { ...o, ops: modernise(o.ops) };
+    if (o.op === "if") return { ...o, then: modernise(o.then as Loose[]), ...(o.else ? { else: modernise(o.else as Loose[]) } : {}) };
+    if (o.op === "may" || o.op === "delay") return { ...o, ops: modernise(o.ops as Loose[]) };
+    if (o.op === "chooseMode") return { ...o, modes: (o.modes as { ops: Loose[] }[]).map((m) => ({ ...m, ops: modernise(m.ops) })) };
+    if (o.op === "altCost" && o.ops) return { ...o, ops: modernise(o.ops as Loose[]) };
     return o;
   });
 }
 
-const old = await db.select().from(cardScripts);
+// Read with raw SQL: the table has no Drizzle definition any more, and the
+// migration that drops it only runs after this script has had its turn.
+type OldRow = { cardId: string; skillIndex: number; side: string; ops: Loose[]; source: string; explanation: string | null; meaning: string | null; createdAt: string; updatedAt: string };
+const old = rows<OldRow>(await db.execute(sql`select card_id as "cardId", skill_index as "skillIndex", side, ops, source, explanation, meaning, created_at as "createdAt", updated_at as "updatedAt" from card_scripts`));
 console.log(`${old.length} card_scripts row${old.length === 1 ? "" : "s"} to carry over`);
 let user = 0;
 let claude = 0;
 let rewritten = 0;
 let invalid = 0;
 for (const r of old) {
-  const raw = (r.ops as Op[]) ?? [];
+  const raw = r.ops ?? [];
   if (!validateProgram(raw)) {
     invalid++;
     console.warn(`  ${r.cardId} ${r.side} [${r.skillIndex}]: stored program is not valid in today's language — carried as an open row`);
   }
-  const ops = modernise(raw);
+  const ops = modernise(raw) as unknown as Op[];
   if (JSON.stringify(ops) !== JSON.stringify(raw)) rewritten++;
   const card = await db.query.cards.findFirst({ where: eq(cardsTable.id, r.cardId) });
   const rec = card ? skillRecords(cardDefFrom(card)).find((s) => s.side === r.side && s.skillIndex === r.skillIndex) : undefined;
   const permanent = (rec?.kind ?? "") === "permanent";
-  const mechanical = r.meaning === "deliberately does nothing" || (r.meaning != null && r.meaning === describeScript(raw, { permanent }));
+  const mechanical = r.meaning === "deliberately does nothing" || (r.meaning != null && validateProgram(raw) && r.meaning === describeScript(raw, { permanent }));
   const source = mechanical ? "user" : "claude";
   if (source === "user") user++;
   else claude++;
@@ -78,8 +82,8 @@ for (const r of old) {
       source,
       explanation: r.explanation,
       reads: valid ? describeScript(ops, { permanent }) : "",
-      createdAt: r.createdAt,
-      updatedAt: r.updatedAt,
+      createdAt: new Date(r.createdAt),
+      updatedAt: new Date(r.updatedAt),
     })
     .onConflictDoUpdate({
       target: [cardRules.cardId, cardRules.side, cardRules.skillIndex],

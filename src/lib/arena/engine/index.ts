@@ -1,7 +1,7 @@
 export * from "./types";
 export { createGame, apply, legalActions, rejectedActions, IllegalAction, defsFrom, type EngineContext, type GameOptions, type DeckInput, type LegalAction, type ActionCost } from "./engine";
 export { koCard, pendTriggers, masterOf } from "./triggers";
-export { compileCard, compileCardCached, compileSkill, splitClauses } from "./compile";
+export { compileCardCached, compileSkill, splitClauses } from "./compile";
 export { validateProgram, describeScript, opSignature, OP_SCHEMA, NO_RULES, resolveSelector, type CardScripts, type Op, type OpField, type OpSpec, type FieldType, type Script, type ScriptFrame, type Selector } from "./script";
 export { tokenCardId, tokenDefOf, permanentStatics, programsOf, emitsStatic } from "./state";
 export { parseSkills, skillsOf, keywordsOf, keywordOf, specifiedCostOf, canCombo, baseType, isZ, skillLines, orbsIn } from "./cards";

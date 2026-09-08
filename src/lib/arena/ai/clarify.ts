@@ -163,11 +163,3 @@ export async function clarifyRule(db: Db, rule: { id: number; cardId: string; si
   if (!note) throw new Error("the backlog note could not be written");
   return { ...(await clarifyCard(db, note.id, explanation, side)), noteId: note.id };
 }
-
-/** Cards with a stored program already, so the page can show what is settled. */
-export async function explainedNotes(db: Db) {
-  return db
-    .select()
-    .from(cardTextNotes)
-    .where(and(eq(cardTextNotes.status, "open")));
-}

@@ -4,7 +4,7 @@
  * how much power it has, and paying costs. Everything mutates the state it
  * is given; `engine.ts` clones before calling.
  */
-import { canCombo, hasKeyword, keywordOf, skillsOf, specifiedCostOf, isZ, baseType } from "./cards";
+import { hasKeyword, keywordOf, skillsOf, specifiedCostOf, isZ, baseType } from "./cards";
 import { matches, powerRelOk } from "./filters";
 import { NO_RULES, type Amount, type CardScripts, type Cond, type Op, type Ref, type ScriptArea, type ScriptFrame, type Selector, type Side } from "./script";
 import type {
@@ -1579,19 +1579,6 @@ export function playCost(ctx: GameContext, s: GameState, id: string, x = 0): { t
     cut = { total: cut.total, specified: {} };
   }
   return cut;
-}
-
-export function canAffordPlay(ctx: GameContext, s: GameState, p: PlayerId, id: string, x = 0): boolean {
-  const c = playCost(ctx, s, id, x);
-  const d = def(ctx, s, id);
-  if (d.zEnergyCost != null && s.players[p].zEnergy.length < d.zEnergyCost) return false;
-  return planPayment(ctx, s, p, c.total, c.specified) !== null;
-}
-
-export function canAffordCombo(ctx: GameContext, s: GameState, p: PlayerId, id: string): boolean {
-  const d = def(ctx, s, id);
-  if (!canCombo(d)) return false;
-  return planPayment(ctx, s, p, d.comboCost ?? 0, {}) !== null;
 }
 
 // ── misc ───────────────────────────────────────────────────────────────────

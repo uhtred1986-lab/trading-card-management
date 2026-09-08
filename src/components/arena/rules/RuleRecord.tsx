@@ -226,15 +226,13 @@ export function RuleRecord(r: RecordProps) {
               <div className="flex flex-wrap items-center gap-2">
                 <select className="tap rounded-lg border border-dashed border-space-600 bg-transparent px-2 py-1 text-xs text-space-300" value="" onChange={(e) => e.target.value && setOps([...ops, blankOp(e.target.value as Op["op"])])}>
                   <option value="">+ step</option>
-                  {(Object.keys(OP_SCHEMA) as Op["op"][])
-                    .filter((k) => k !== "cannotAttack")
-                    .map((k) => (
+                  {(Object.keys(OP_SCHEMA) as Op["op"][]).map((k) => (
                       <option key={k} value={k}>
                         {k}
                       </option>
                     ))}
                 </select>
-                <span className="text-[11px] text-space-500">{Object.keys(OP_SCHEMA).length - 1} step kinds — the same ones the engine runs</span>
+                <span className="text-[11px] text-space-500">{Object.keys(OP_SCHEMA).length} step kinds — the same ones the engine runs</span>
               </div>
             )}
           </div>

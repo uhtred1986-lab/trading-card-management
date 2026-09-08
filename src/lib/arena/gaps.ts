@@ -49,7 +49,7 @@ export const MECHANISMS: { key: string; needs: string; test: RegExp }[] = [
 ];
 
 export const PHRASING_ONLY = "phrasing only";
-export const PHRASING_NEEDS = "a phrase pattern in the compiler, no new mechanism";
+const PHRASING_NEEDS = "a phrase pattern in the compiler, no new mechanism";
 
 /** The first mechanism a clause names, or "phrasing only" when it names none. */
 export function mechanismOf(clause: string): string {
@@ -73,7 +73,7 @@ export function clauseShape(clause: string): string {
 }
 
 /** Every moment the engine knows about, in the words a card would use for it. */
-export const TRIGGER_IN_WORDS: Record<Trigger, string> = {
+const TRIGGER_IN_WORDS: Record<Trigger, string> = {
   leaderPlaced: "when your Leader is placed",
   played: "when this card is played",
   attacks: "when this card attacks",

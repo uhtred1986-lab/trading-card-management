@@ -293,7 +293,7 @@ export interface ReviewSummary {
   stillOpen: number;
 }
 
-export const DEFAULT_REVIEW_BUDGET = 400;
+const DEFAULT_REVIEW_BUDGET = 400;
 
 /** The review budget per sync run: a setting, so it is changed without a deploy. 0 means unlimited. */
 export async function reviewBudget(db: Db): Promise<number> {

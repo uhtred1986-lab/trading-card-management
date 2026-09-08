@@ -317,8 +317,6 @@ export type Op =
    * still negatable by anything else, it simply never triggers again.
    */
   | { op: "negateOwnSkill"; until?: "turn" | "battle" }
-  /** Kept for programs written before `forbid` existed; the same thing. */
-  | { op: "cannotAttack"; target: Ref; until: Duration }
   /**
    * Forbid an action (20-14). Name a `target` for a rule about particular
    * cards, or a `side` for one about a player ("your opponent can't attack
@@ -835,11 +833,6 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         }
         break;
 
-      case "cannotAttack":
-        for (const id of resolveRef(ctx, s, frame, op.target))
-          addEffect(s, ev, { master: frame.master, source: frame.card, target: id, kind: "forbid", value: 0, until: op.until, forbid: { what: "attack" } });
-        break;
-
       case "forbid": {
         // "both" and an absent side alike mean the rule is about neither
         // player in particular, so it holds for both.
@@ -1174,13 +1167,13 @@ export interface RenderOptions {
   permanent?: boolean;
 }
 
-export const COLORS = ["Red", "Blue", "Green", "Yellow", "Black", "White", "Colorless"] as const satisfies readonly Color[];
+const COLORS = ["Red", "Blue", "Green", "Yellow", "Black", "White", "Colorless"] as const satisfies readonly Color[];
 export const SIDES = ["you", "opponent", "both"] as const satisfies readonly Side[];
 export const AREAS = ["hand", "deck", "drop", "life", "battle", "combo", "energy", "unison", "leader", "warp", "zDeck", "zEnergy", "under", "play", "removed"] as const satisfies readonly ScriptArea[];
 export const DURATIONS = ["battle", "turn", "opponentTurn", "nextTurn", "afterNextCharge", "game"] as const satisfies readonly Duration[];
-export const DELAY_TIMINGS = ["turnStart", "mainStart", "turnEnd", "turnCleanup", "battleEnd"] as const satisfies readonly DelayTiming[];
-export const DELAY_SCOPES = ["thisTurn", "nextTurn", "yourNextTurn", "opponentNextTurn"] as const satisfies readonly DelayScope[];
-export const SKILL_KIND_PREFIXES = ["auto", "activate", "counter", "permanent"] as const satisfies readonly SkillKindPrefix[];
+const DELAY_TIMINGS = ["turnStart", "mainStart", "turnEnd", "turnCleanup", "battleEnd"] as const satisfies readonly DelayTiming[];
+const DELAY_SCOPES = ["thisTurn", "nextTurn", "yourNextTurn", "opponentNextTurn"] as const satisfies readonly DelayScope[];
+const SKILL_KIND_PREFIXES = ["auto", "activate", "counter", "permanent"] as const satisfies readonly SkillKindPrefix[];
 export const KEYWORD_NAMES = [
   "Awaken", "Wish", "Field", "Blocker", "Critical", "Strike", "Attack", "Revenge", "Indestructible", "Barrier", "Deflect", "Unique", "Servant", "Energy-Exhaust", "Victory Strike",
   "Warrior of Universe 7", "Ultimate", "Super Combo", "Dragon Ball", "Wormhole", "Invoker", "Heroic", "Villainous", "Offering", "Evolve", "Union", "Over Realm", "Swap", "Arrival", "Aegis",
@@ -1208,7 +1201,7 @@ export const FORBIDDEN_IN_WORDS: Record<ForbiddenAction, string> = {
   beMovedBySkill: "be removed from a Battle Area by skills",
   beNegated: "have their skills negated",
 };
-export const FORBIDDEN_ACTIONS = Object.keys(FORBIDDEN_IN_WORDS) as readonly ForbiddenAction[];
+const FORBIDDEN_ACTIONS = Object.keys(FORBIDDEN_IN_WORDS) as readonly ForbiddenAction[];
 
 const SIDE: OpField = { name: "side", type: "side", default: "you" };
 const TARGET: OpField = { name: "target", type: "ref", required: true };
@@ -1338,7 +1331,6 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
   negateAttack: { fields: [], sentence: "negate the attack" },
   negateCounter: { fields: [], sentence: "negate the counter being answered", doc: "negate the [Counter] this one is answering (9-7)" },
   negateOwnSkill: { fields: [{ name: "until", type: { enum: ["turn", "battle"] } }], sentence: "this skill does not happen again", doc: '"negate this skill for the game / turn / battle" (9-1-5)' },
-  cannotAttack: { fields: [TARGET, UNTIL], sentence: "{target} can't attack{until}", doc: "kept for programs written before forbid existed; the same thing" },
   forbid: {
     fields: [
       { name: "what", type: { enum: FORBIDDEN_ACTIONS }, required: true },
@@ -1474,7 +1466,7 @@ export function describeFilter(f: CardFilter): string {
   return bits.join(" ");
 }
 
-export function describeSelector(sel: Selector): string {
+function describeSelector(sel: Selector): string {
   if (sel.special)
     return {
       self: "this card",
@@ -1491,7 +1483,7 @@ export function describeSelector(sel: Selector): string {
   return `${count} ${where}`;
 }
 
-export function describeRef(ref: Ref): string {
+function describeRef(ref: Ref): string {
   return "var" in ref ? "the chosen cards" : describeSelector(ref.sel);
 }
 
@@ -1500,7 +1492,7 @@ export function describeRef(ref: Ref): string {
  * print — "+5000 power", "+5000 power for each of your Battle Cards" — so the
  * noun sits next to the number rather than at the end of the sentence.
  */
-export function describeAmount(a: Amount, noun?: string): string {
+function describeAmount(a: Amount, noun?: string): string {
   if (noun) {
     if (typeof a === "number") return `${a >= 0 ? "+" : ""}${a} ${noun}`;
     if ("count" in a) return `+${a.times ?? 1} ${noun} for each of ${describeEach(a.count)}`;
@@ -1615,7 +1607,7 @@ export function describeCond(c: Cond): string {
 }
 
 /** A duration as the inspector says it. A [Permanent] holds while its card is where the skill is valid (9-5-1), so it gets no clause at all. */
-export const DURATION_IN_WORDS: Record<Duration, string> = {
+const DURATION_IN_WORDS: Record<Duration, string> = {
   turn: " for the turn",
   battle: " for the battle",
   nextTurn: " until the end of your opponent's turn",

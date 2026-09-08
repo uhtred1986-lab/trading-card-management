@@ -143,7 +143,6 @@ export type KeywordSkill =
 
 /** Every area of 3-1, per player. */
 export type Area = "deck" | "hand" | "drop" | "leader" | "battle" | "combo" | "energy" | "life" | "warp" | "unison" | "zDeck" | "zEnergy" | "removed";
-export const OPEN_AREAS: Area[] = ["drop", "leader", "battle", "combo", "energy", "warp", "unison", "zEnergy", "removed"];
 
 export type Mode = "active" | "rest";
 

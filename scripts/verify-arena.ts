@@ -199,7 +199,7 @@ import { clauseShape, describeTrigger, mechanismOf, triggersOf } from "../src/li
   // looking inside one, and stays out of the substring reading.
   assert.deepEqual(parseFilter("Battle Cards with 2 or more character names including <SH>").charactersIncluding, []);
 
-  // A filter written before these fields existed — from `card_scripts`, or a
+  // A filter written before these fields existed — from `card_rules`, or a
   // referee ruling in a saved game's action log — still reads.
   const legacy = { ...parseFilter("<Baby> card") } as Record<string, unknown>;
   for (const k of ["charactersIncluding", "notCharactersIncluding", "namesIncluding", "notNamesIncluding"]) delete legacy[k];

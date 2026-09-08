@@ -414,7 +414,7 @@ export function matches(d: CardDef, f: CardFilter): boolean {
   if (f.multiColor && d.colors.length < 2) return false;
   // A name asked for whole and a name asked for in part are two ways to
   // satisfy one choice, so each pair shares a single test rather than becoming
-  // two requirements. `?? []` because a program stored in `card_scripts`, or
+  // two requirements. `?? []` because a program stored in `card_rules`, or
   // one a referee ruling put in a game's action log, carries the filter shape
   // of the day it was written.
   const partChars = f.charactersIncluding ?? [];

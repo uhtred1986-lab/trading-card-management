@@ -89,9 +89,7 @@ export function StepChip({ op, index, editing, onChange, onRemove }: { op: Op; i
       ) : (
         <>
           <select className={select} value={op.op} onChange={(e) => onChange(blankOp(e.target.value as Op["op"]))} title="which step">
-            {(Object.keys(OP_SCHEMA) as Op["op"][])
-              .filter((k) => k !== "cannotAttack")
-              .map((k) => (
+            {(Object.keys(OP_SCHEMA) as Op["op"][]).map((k) => (
                 <option key={k}>{k}</option>
               ))}
           </select>

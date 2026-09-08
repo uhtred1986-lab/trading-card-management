@@ -7,7 +7,7 @@
  * only improves if the clauses that defeat it are written down where they can
  * be worked through.
  */
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { arenaDecisions, cardTextNotes } from "@/db/schema";
 import type { Op } from "../engine";
@@ -174,8 +174,4 @@ export async function backlogByPattern(db: Db, status: "open" | "done" | "wontfi
 
 export async function decisionsFor(db: Db, gameId: number) {
   return db.select().from(arenaDecisions).where(eq(arenaDecisions.gameId, gameId)).orderBy(arenaDecisions.seq);
-}
-
-export async function openNoteFor(db: Db, cardId: string, skillIndex: number) {
-  return db.query.cardTextNotes.findFirst({ where: and(eq(cardTextNotes.cardId, cardId), eq(cardTextNotes.skillIndex, skillIndex)) });
 }

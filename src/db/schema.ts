@@ -787,39 +787,6 @@ export const cardTextNotes = pgTable(
 );
 
 /**
- * A stored effect program for one skill of one card, overriding what the
- * compiler managed to read.
- *
- * This is how a card you have explained starts playing correctly straight
- * away: the engine prefers a row here over its own reading, so the card stops
- * going to the referee, stops costing tokens, and stops being slow — without
- * waiting for the compiler to learn the wording.
- */
-export const cardScripts = pgTable(
-  "card_scripts",
-  {
-    id: serial("id").primaryKey(),
-    cardId: text("card_id")
-      .notNull()
-      .references(() => cards.id, { onDelete: "cascade" }),
-    skillIndex: integer("skill_index").notNull(),
-    /** front | back — a leader's awakened side has its own skills. */
-    side: text("side").notNull().default("front"),
-    /** The program, in the effect language of src/lib/arena/engine/script.ts. */
-    ops: jsonb("ops").notNull(),
-    /** user | claude | compiler — where the program came from. */
-    source: text("source").notNull().default("claude"),
-    /** What the owner said the card means, in their own words. */
-    explanation: text("explanation"),
-    /** Claude's one-line restatement of the same thing. */
-    meaning: text("meaning"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => [unique("card_scripts_skill_key").on(t.cardId, t.skillIndex, t.side), index("card_scripts_card_idx").on(t.cardId)],
-);
-
-/**
  * A rule is a record: one row per skill, per card face, holding the program the
  * engine runs (the `Op` language of src/lib/arena/engine/script.ts) together
  * with where it came from and whether a person has looked at it.

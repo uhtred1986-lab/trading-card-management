@@ -29,7 +29,7 @@ export function programOf(row: Pick<RuleRow, "ops" | "cond">): Op[] {
 }
 
 /** The key `ctx.scripts` is read by: the catalog id for a front, `<id>#back` for a leader's awakened side. */
-export function scriptsKey(cardId: string, side: Side): string {
+function scriptsKey(cardId: string, side: Side): string {
   return side === "back" ? `${cardId}#back` : cardId;
 }
 

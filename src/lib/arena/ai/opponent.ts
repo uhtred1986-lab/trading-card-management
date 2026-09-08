@@ -255,11 +255,9 @@ const RulingSchema = z.object({
 
 /**
  * The operation list is read off `OP_SCHEMA`, so an op the interpreter learns
- * reaches the referee the moment it has a schema row. `cannotAttack` is an
- * alias kept for stored programs and is not offered.
+ * reaches the referee the moment it has a schema row.
  */
 const OPERATIONS = (Object.keys(OP_SCHEMA) as Op["op"][])
-  .filter((k) => k !== "cannotAttack")
   .map((k) => `  ${opSignature(k)}${OP_SCHEMA[k].doc ? `\n    ${OP_SCHEMA[k].doc}` : ""}`)
   .join("\n");
 
