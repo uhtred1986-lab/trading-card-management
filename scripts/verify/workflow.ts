@@ -7,6 +7,8 @@
 import assert from "node:assert/strict";
 import {
   CTX,
+  DEFS,
+  addEffect,
   apply,
   arena,
   assertDisjoint,
@@ -28,7 +30,7 @@ import {
   sentence,
   stepText,
 } from "./harness";
-import type { Beat, PlayerId, RejectedAction, Requirement } from "./harness";
+import type { Beat, GameState, PlayerId, RejectedAction, Requirement } from "./harness";
 
 // ── every rule as a workflow: rejections, choices, steps ───────────────────
 //
@@ -108,7 +110,9 @@ import type { Beat, PlayerId, RejectedAction, Requirement } from "./harness";
     assert.equal(s.prompt.kind, "main");
     const r = ofCard(assertDisjoint(s, "ONCE used"), "activate", once);
     assert.deepEqual(first(r), { kind: "oncePerTurn", what: "skill" });
-    assert.equal(r!.label, "Activate ONCE");
+    // The label names the skill line, not just the card: one card can now be
+    // refused several activations and three identical rows identify nothing.
+    assert.equal(r!.label, "Activate ONCE: Draw 1 card.");
   }
 
   // 20-14: a prohibition names the card whose rule it is.
@@ -162,6 +166,68 @@ import type { Beat, PlayerId, RejectedAction, Requirement } from "./harness";
     assert.equal(ofCard(rejected, "activate", find(s, "p1", "hand", "AURA")), undefined, "[Permanent] is not activated");
     // With one energy each of them is playable, so no play rejection either.
     assert.equal(rejected.filter((r) => r.action.type === "play").length, 0);
+  }
+
+  // §3.2 as amended: one rejection per card per action type, **except an
+  // activation, which is one per skill line**. A card's second skill being
+  // unusable is not answered by its first skill being fine — keyed by the card
+  // alone it was, and 678 of the catalog's rules were refused in silence
+  // because of it.
+  {
+    DEFS.TWOLINE = {
+      ...DEFS.V1,
+      id: "TWOLINE",
+      name: "TWOLINE",
+      skill: "[Activate: Main] This card gets +5000 power for the turn.<br>[Activate: Main][Once per turn] Draw 1 card.",
+    };
+    let s = arena({ battle: ["TWOLINE"] });
+    const two = find(s, "p1", "battle", "TWOLINE");
+    const skills = parseSkills(DEFS.TWOLINE.skill!);
+    assert.equal(skills.length, 2, "the card really does have two activations");
+    const acts = (t: GameState) => legalActions(CTX, t).filter((l) => l.action.type === "activate" && l.action.card === two);
+    assert.equal(acts(s).length, 2, "both lines start on the menu");
+    assert.deepEqual(
+      assertDisjoint(s, "TWOLINE fresh").filter((r) => r.action.type === "activate" && r.action.card === two),
+      [],
+      "and neither is rejected",
+    );
+
+    // Use the [Once per turn] line. The other is still offered, and the used
+    // one is now refused — under its own skill index, with its own label.
+    s = play(s, { type: "activate", player: "p1", card: two, skill: skills[1].index });
+    assert.equal(s.prompt.kind, "main");
+    assert.deepEqual(
+      acts(s).map((l) => l.action.type === "activate" && l.action.skill),
+      [skills[0].index],
+      "the first line is still on the menu",
+    );
+    const mine = assertDisjoint(s, "TWOLINE half used").filter((r) => r.action.type === "activate" && r.action.card === two);
+    assert.equal(mine.length, 1, "exactly one rejection, for the line that is spent");
+    assert.equal(mine[0].action.type === "activate" && mine[0].action.skill, skills[1].index, "…filed under that line's index, not the card's first");
+    assert.deepEqual(first(mine[0]), { kind: "oncePerTurn", what: "skill" });
+    assert.equal(mine[0].label, "Activate TWOLINE: Draw 1 card.", "the label says which line it is");
+  }
+
+  // 9-1-5 in both its shapes. A negated skill is off the menu — that part was
+  // never in doubt — and the promise this pair keeps is that it is on the
+  // *other* list with a reason. `negateSkill` silences one skill by index and
+  // `negateSkills` the whole card; the second used to leave the card out of
+  // both lists, because `skillsOfInstance` hands `rejectedActions` nothing.
+  // Both are asserted here so the two shapes cannot drift apart again.
+  for (const kind of ["negateSkill", "negateSkills"] as const) {
+    const s = arena({ battle: ["PUMP"], energy: ["V1", "V1", "V1"] });
+    const inst = find(s, "p1", "battle", "PUMP");
+    assert.ok(
+      legalActions(CTX, s).some((l) => l.action.type === "activate" && l.action.card === inst),
+      "PUMP's [Activate: Main] is on the menu before the negation",
+    );
+    // `value` is the skill index for `negateSkill` and unread for `negateSkills`; PUMP has one skill, at 0.
+    addEffect(s, [], { target: inst, kind, value: 0, until: "turn", master: "p2" });
+    assert.ok(!legalActions(CTX, s).some((l) => l.action.type === "activate" && l.action.card === inst), `${kind}: the activation is off the menu`);
+    const r = ofCard(assertDisjoint(s, kind), "activate", inst);
+    assert.ok(r, `${kind}: the negated card is on the rejected list`);
+    assert.deepEqual(first(r), { kind: "other", detail: "the skill is negated" }, `${kind}: and the reason names the negation`);
+    assert.equal(r!.label, "Activate PUMP: This card gets +5000 power for the turn.");
   }
 
   // The compiler cannot read E-MYSTERY, and says so rather than staying silent.

@@ -1957,3 +1957,62 @@ number: attack triggers about being attacked or KO'd (623 `didNotFire`),
 and the keywords whose cost is in the Drop or the hand — [Union], [Over
 Realm], [Successor] — which the probe cannot pay for and which therefore
 report "not offered" with the engine's own reason.
+
+## Done: both of the probe's findings, worded (8 Sep 2026)
+
+`docs/arena-refusals-spec.md`, two commits. Both findings above are the same
+promise — §3.1 of the workflow spec: a move off the menu can always be worded
+— and both turned out to be holes in the *reporting* side, not in the rules.
+No predicate was touched, which is the rule §3.2 exists to protect.
+
+**The negated card.** A card whose skills a continuous effect has silenced
+(9-1-5) was in neither list. Reduced to four lines on the test harness, and
+the diagnosis came from the contrast: the *single-skill* form of the same
+negation answered "the skill is negated" correctly on the same board. So the
+vocabulary was not missing a kind — `rejectedActions` fed `rejectActivate`
+from `skillsOfInstance`, which empties a wholly negated card, and
+`skillNegated` (what the twin consults) reads `negateSkill` but not
+`negateSkills`. The twin now asks both questions and reads the printed skills
+for that one case; `skillNegated` itself is untouched, because ten callers
+share it. The sweep does not see this — the `negated` variant is not the
+default scenario — and saying so was the honest half of the commit.
+
+**The 678, measured before they were explained.** PR #58 read them as second
+and third skill lines whose price is an action. The first half held and the
+second did not: **640 of 678 were not the card's first skill and 591 were its
+last**, while price shape explained only 478 — 191 carried no price at all
+and 9 were plain orbs. The cause was the one-rejection-per-card cap §3.2 asked
+for, implemented twice (`rejectActivate` returned after the first skill that
+answered; `push` keyed on the card). A rule is one skill line, so a rejection
+filed under skill 0 cannot answer a question about skill 20. Keying
+activations by skill index and reporting every line:
+
+**678 → 74 refusals with no reason (−604, 89 %)**, with every other number in
+the sweep identical — fired 5,674 · notOffered 3,505 · blank 1,330 · inForce
+1,114 · noScenario 1,042 · didNotFire 898, all ten family rows unchanged. A
+wording change that moved no outcome, which is what one should look like.
+
+Two things rode along, both forced by the change rather than chosen: the
+rejection label now names the skill line the way the menu does (three greyed
+rows reading "Activate Piccolo" identify nothing), which moved six contract
+fixtures by that one string; and the card action sheet had been keying its
+rows on the action type alone, a duplicate React key the moment a card has
+two. The `arena:playthrough` audit caught the second copy of the invariant
+still keyed on the card — that is what it is for.
+
+**What is still unworded: 74**, and none of it is a price. 29 keywords with no
+activation of their own ([Double Strike], [Alliance]), 14 [Auto]s — both of
+which `whyNotActivate` correctly declines to invent a rejection for, so they
+are the probe's goal shape rather than the engine — and 31 where the probe
+stops at a `counter` prompt whose `rejectedActions` case files counter cards
+only and never calls `rejectActivate`. That last one is a real gap and is the
+next thing here, together with `BT29-044`, a Unison the staging removes from
+the game before the move under test is reached.
+
+**Still not done, and still deliberate:** the price before the colon is read
+at game time. `costIsReadable` and `canPayCostProgram` remain the five places
+the engine compiles card text during a game, against CLAUDE.md's own "Rules
+are records". It is worth at most the ~20 action-priced entries left in the
+74, so its case is architectural rather than this number — and running it in
+the same sweep as the change above would have made both unreadable. Its own
+session, its own before and after, and the fuzzer run the owner asked for.

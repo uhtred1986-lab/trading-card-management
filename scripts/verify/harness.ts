@@ -182,7 +182,6 @@ const DEFS: Record<string, CardDef> = defsFrom([
 // (lazily, because tests below add cards to DEFS as they go).
 const CTX = { defs: DEFS, scripts: rulesFromCompiler(DEFS) };
 
-
 const fifty = (id: string) => Array.from({ length: 50 }, () => id);
 
 function game(seed = 1, p1 = fifty("V1"), p2 = fifty("V-BLUE"), z: string[] = []) {
@@ -260,10 +259,17 @@ const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type =
  * one-card `cards` as well as `card` and `attacker`. A `choose` prompt carries
  * neither of the latter, so keying on those alone would read one rejection per
  * unofferable card as the same entry repeated.
+ *
+ * An activation is keyed by its skill index too, and that is the whole of the
+ * promise §3.2 makes today: **one rejection per card per action type — except
+ * an activation, which is one per skill line.** A card prints up to nine of
+ * them and one being on the menu says nothing about the rest. Every other
+ * action type still gets exactly one.
  */
 function cardKeyOf(a: Action): string {
-  const x = a as { card?: string | null; attacker?: string; cards?: string[] };
-  if (typeof x.card === "string") return x.card;
+  const x = a as { card?: string | null; attacker?: string; cards?: string[]; skill?: number };
+  const skill = a.type === "activate" && typeof x.skill === "number" ? `#${x.skill}` : "";
+  if (typeof x.card === "string") return x.card + skill;
   if (typeof x.attacker === "string") return x.attacker;
   if (Array.isArray(x.cards)) return x.cards.join(",");
   return "";
