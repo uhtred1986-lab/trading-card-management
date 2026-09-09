@@ -53,7 +53,10 @@ npm run arena:draft    # Compile the catalog offline into card_rules drafts (--c
 npm run arena:probe    # Try stored rules on a board built for each (--card, --set, --all, --limit, --fill)
 npm run arena:reprobe  # Re-run every probe a rule carries and list the ones whose answer moved (--write)
 npm run arena:tally    # Compiler coverage over the live deckplanet catalog, with op/cond usage and unread
-                       # clause shapes — no database needed (--misses N)
+                       # clause shapes — no database needed (--misses N, --show "<a wording>")
+npm run arena:readings # The other half: what the compiler reads every skill to *mean*, printed text
+                       # beside the program in words. Diff it before and after a compiler change — a
+                       # clause that compiles and reads wrongly moves no coverage number (--grep, --unread)
 npm run arena:diff     # Replay a saved game's action log from its seed and compare with the row
                        # (-- <gameId> [--engine legacy|rules] | --all): the oracle check between the engines
 npm run db:check       # Can this machine reach the database, and over which driver?

@@ -310,7 +310,11 @@ import type { GameState, Trigger } from "./harness";
     ["power", "power"],
   );
   assert.deepEqual((two.ops[0] as { target: unknown }).target, { sel: { special: "self" } });
-  assert.equal((two.ops[1] as { target: { sel?: { area?: string } } }).target.sel?.area, "leader");
+  // "Your Leader" is the one card a player has in that area (3-1-2), so it is
+  // the special rather than a search of the Leader Area — the reading that
+  // also lets "your **opponent's** Leader" mean the Leader and not any card
+  // they happen to have on the table.
+  assert.deepEqual((two.ops[1] as { target: unknown }).target, { sel: { special: "leader" } });
 
   // The same with a pronoun for the card just chosen.
   const both = one("[Auto] When this card attacks, choose up to 1 of your opponent's Battle Cards, and it and this card get -10000 power for the turn.");

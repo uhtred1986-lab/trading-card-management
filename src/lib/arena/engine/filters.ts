@@ -339,12 +339,17 @@ export function parseFilter(text: string): CardFilter {
     else if (said === "yes" && named.length === 1 && !f.type) f.type = type;
   }
   let m: RegExpExecArray | null;
-  if ((m = /energy cost (?:of )?(\d+) or less/.exec(lower))) f.costMax = Number(m[1]);
-  else if ((m = /energy cost (?:of )?(\d+) or more/.exec(lower))) f.costMin = Number(m[1]);
+  // A phrase naming several cards puts the noun in the plural — "choose all of
+  // your opponent's Battle Cards with energy **costs** of 7 or less" — and only
+  // the "between" line admitted it, so the other three read no cost at all and
+  // handed back every card in the area. Silent, and the wrong direction: the
+  // filter that vanishes is always the one that was narrowing the target.
+  if ((m = /energy costs? (?:of )?(\d+) or less/.exec(lower))) f.costMax = Number(m[1]);
+  else if ((m = /energy costs? (?:of )?(\d+) or more/.exec(lower))) f.costMin = Number(m[1]);
   else if ((m = /energy costs? (?:of )?between (\d+) and (\d+)/.exec(lower))) {
     f.costMin = Number(m[1]);
     f.costMax = Number(m[2]);
-  } else if ((m = /energy cost (?:of )?(\d+)\b/.exec(lower))) f.costMin = f.costMax = Number(m[1]);
+  } else if ((m = /energy costs? (?:of )?(\d+)\b/.exec(lower))) f.costMin = f.costMax = Number(m[1]);
   // "Battle Cards with power between 30000 and 35000", "up to 2 black Battle
   // Cards with powers between 20000 and 30000" — the same range the cost line
   // above already reads, which the sets also write for power. Read before the

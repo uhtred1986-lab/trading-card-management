@@ -433,7 +433,12 @@ const tripFilter = (filter: CardFilter, what: string) => tripSelector({ side: "y
   // back exactly as it is written. A grammar reference nobody checks is the
   // first thing to go stale, and a wrong example there costs more than no
   // example: it is what a person copies when they are stuck.
-  const doc = fs.readFileSync(path.join(__dirname, "../../docs/arena-rules-language.md"), "utf8");
+  // Git's `core.autocrlf` is on by default on Windows, so the checked-out doc
+  // has CRLF endings and every pattern below — which the printer writes with
+  // LF — matched nothing. The whole check then failed on the count, on a
+  // machine where nothing was wrong: the gate has to be runnable where the
+  // work happens.
+  const doc = fs.readFileSync(path.join(__dirname, "../../docs/arena-rules-language.md"), "utf8").replace(/\r\n/g, "\n");
   const examples = [...doc.matchAll(/```\n(WHEN[\s\S]*?)```/g)].map((m) => m[1].replace(/\s+$/, ""));
   assert.ok(examples.length >= 5, `only ${examples.length} worked examples in the language doc`);
   for (const src of examples) {

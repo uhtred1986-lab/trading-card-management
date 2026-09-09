@@ -2197,3 +2197,72 @@ the gap set and **none appeared**, checked by diffing the whole 2,154-shape list
 and every surviving new reading was read back by hand. `npm test`, `lint`, `typecheck`, `build`
 clean; `arena:fuzz 40` 40 games, 0 crashes; the probe digests gained exactly one entry (the new
 harness card) and none moved.
+
+---
+
+## Done: the target grammar — Stage 2, second increment (9 Sep 2026)
+
+The increment before this one wrote "negate the skills **of** X", measured it, found it read three
+of its cards wrongly and threw it away, leaving a comment that named the three and said the fix
+belonged in `parseTarget`. This is that fix. It is worth more than the clause that found it — every
+selector in the catalog saying "leader" or "other" reads through the same code — and, as expected,
+most of what it did was **correct readings that had been quietly wrong**, not new coverage.
+
+**`npm run arena:readings` is the new instrument, and the reason any of this is checkable.**
+`arena:tally` counts what the compiler *cannot* read; this prints what it thinks it *can* — one
+entry per skill in the catalog, printed text beside `describeScript` — so the protocol for a
+compiler change is: dump it before, dump it after, diff, and sign off every line that moved. The
+gap-set diff alone was clean on the day three cards were being read wrongly. 13,563 skills, no
+database. (It sorts the catalog by card id; the deckplanet feed does not, and two dumps of the same
+corpus otherwise diff as thirty thousand moved lines.)
+
+**Four readings taught, all in `parseTarget` / `filterFor`:**
+
+- **A Leader is a card, not a search.** "Your Leader", "your opponent's Leader" → the `leader` /
+  `opponentLeader` specials the engine already had. The area words only admitted "leader **card**"
+  and "**your** leader", so "your opponent's Leader" named no area at all and fell through to the
+  20-1-6 default of the whole play area — a negation that could land on a Battle Card. 56 readings.
+- **"Other" is `notSelf`.** "All other Battle Cards", "all other cards in your Battle Area" → the
+  field the filter already had, and — where the sentence names no owner, as the sets do when they
+  mean everyone's — **both** Battle Areas. Read as your own, a board wipe cleared only the caster's
+  side and took the caster with it, which on the two [Permanent]s printing "negate the skills of all
+  other Battle Cards" was the card negating itself.
+- **The plural of a cost.** "Battle Cards with energy **costs** of 7 or less": only the "between"
+  line admitted the plural, so the other three read no cost and handed back every card in the area.
+  131 readings — the largest single group, and every one of them a *narrowing* that had vanished.
+- **Three qualifiers refused outright.** "Cards **sent to** Warps by this skill", anything else
+  qualified "**by this skill**", "the card **on top of** this card" — each names cards by their
+  history, which no selector can describe. "On top of this card" was the worst: it satisfied the
+  "this card" shortcut, so fourteen [Permanent]s granting [Barrier], [Critical] or power to the card
+  *above* them granted it to themselves.
+
+**And one in `refFor`: a plural pronoun is never answered with *this card*.** "Them", "they",
+"those cards" resolving to a single card is a category error, and it is what a failed clause earlier
+in the sentence leaves behind — an [Auto] seeds the antecedent to the card it is on. It read
+BT13-106 as negating itself, BT21-088's "those cards get +5000 power" as this card, TB2-039's
+"KO them" as KO this card, and P-037's "play them" as playing this card. 24 skills now read as
+nothing at all, and every one of them was reading as something wrong.
+
+**Then the rule went back in.** "Negate the skills of X", with the eleven cards printing it listed
+in the comment above it as the sign-off. Two of the eleven — EX21-15/BT13-096 ("sent to Warps by
+this skill") and BT23-070 ("on top of this card") — are deliberately still unread. Two details the
+rule needed and the older ones did not: the target phrase is taken off the *unstripped* clause,
+because `stripQualifiers` removes "in all areas" and that is the target's scope, not a duration; and
+the duration is read off the tail alone, because `durationOf` maps "in all areas" to *for the game*
+(the approximation `gains` rests on) and BT9-136's one-turn negation came back permanent.
+
+**Numbers.** Fully compiled cards 4,660 → **4,643**, and resolvable skills 87.3 % → **87.1 %** — a
+*fall*, which is the point: 52 clause shapes entered the gap set (46 of them "by this skill" or "on
+top of this card") against 6 that left, and each one had been compiling into something the card does
+not say. [Permanent] read 62.5 % → **62.6 %**. 311 readings changed in all, every one read back by
+hand against the printed text.
+
+One thing this uncovered and did not fix: **"the card on top of this card"** is a real primitive the
+stack mechanic wants, and the gap set now names it honestly in eight shapes. The engine models
+`under`; it has no special for the card above.
+
+`npm run typecheck`, `lint`, `test`, `build` clean; `arena:fuzz 40` 40 games, 0 crashes;
+`contract:emit` produced no change. One test moved: `verify/wordings.ts` asserted "your Leader"
+reads as the Leader *area*, and now asserts the special. `verify/lang.ts` read the language doc
+without normalising CRLF, so `npm test` failed on a Windows checkout for reasons unrelated to any
+change; the gate has to be runnable where the work happens.

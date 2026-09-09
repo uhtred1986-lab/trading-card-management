@@ -1785,8 +1785,17 @@ function describeSelector(sel: Selector): string {
   const words = selectorWords(sel);
   const where = sel.fromVar ? "of the cards looked at" : `in ${who}${sel.areas?.length ? sel.areas.join(" or ") : sel.area}`;
   const mode = sel.mode ? ` in ${sel.mode} mode` : "";
-  return `${count} ${words ? `${words} ` : ""}${where}${mode}`;
+  return `${count} ${words ? `${words} ` : ""}${where}${mode}${describeNotSelf(sel)}`;
 }
+
+/**
+ * "…other than this card". Left out of the reading until 9 Sep 2026, when
+ * reading "all other Battle Cards" as `notSelf` made it the difference between
+ * a board wipe and a board wipe that also takes the card casting it — which
+ * the sentence "all in each player's battle" said nothing about either way.
+ */
+const describeNotSelf = (sel: Selector): string =>
+  sel.notSelf === "card" ? " other than this card" : sel.notSelf === "copies" ? " other than copies of this card" : "";
 
 function describeRef(ref: Ref): string {
   return "var" in ref ? "the chosen cards" : describeSelector(ref.sel);
@@ -1834,7 +1843,7 @@ function describeEach(sel: Selector): string {
   const who = sel.side === "opponent" ? "their " : sel.side === "both" ? "" : "your ";
   const mode = sel.mode ? ` in ${sel.mode} mode` : "";
   const nouns = (sel.areas?.length ? sel.areas : [sel.area ?? "play"]).map((a) => AREA_NOUNS[a] ?? "cards");
-  return `${who}${nouns.join(" or ")}${mode}`;
+  return `${who}${nouns.join(" or ")}${mode}${describeNotSelf(sel)}`;
 }
 
 /**
