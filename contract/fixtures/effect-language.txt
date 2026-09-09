@@ -65,6 +65,8 @@ Operations (each is an object with "op"; a field marked ? may be left out):
     "negate this skill for the game / turn / battle" (9-1-5)
   {"op":"forbid","what":"attack"|"beAttacked"|"block"|…,"until":DURATION,"target"?:TARGET,"side"?:"you"|"opponent","filter"?:FILTER,"sameNameAsSelf"?:true|false,"bySkill"?:true|false}
     forbid an action (20-14): a "target" for a rule about particular cards, or a "side" for one about a player, narrowed by a "filter"; "sameNameAsSelf":true narrows a play rule to copies of this card. "what" is one of "attack" | "beAttacked" | "block" | "play" | "activateSkill" | "activateCounter" | "combo" | "beKOd" | "beKOdBySkill" | "beChosen" | "switchToActive" | "placeEnergy" | "beMovedBySkill" | "beNegated"
+  {"op":"immune","until":DURATION,"target"?:TARGET,"from"?:"you"|"opponent","fromFilter"?:FILTER}
+    9-1-4: a card no skill may touch (stronger than "forbid":"beChosen", which only stops a skill choosing it); "from" and "fromFilter" narrow whose skills, and both absent means every skill
   {"op":"permit","what":"attackActive","until":DURATION,"target":TARGET,"filter"?:FILTER}
     the one rule of the game a card may lift: "this card can attack Battle Cards in Active Mode" (8-1-1). The filter says *which* active cards — leave it out only when the card does
   {"op":"if","cond":COND,"then":[…],"else"?:[…]}

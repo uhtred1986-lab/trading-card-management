@@ -2794,6 +2794,13 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     if (forbid) return forbid;
   }
 
+  // 9-1-4: a card no skill may touch, said as "isn't affected by …" rather
+  // than as a prohibition, so it does not fall under the "can't" dispatch above.
+  if (/\b(?:is not|isn'?t)\s+affected by\b/.test(t)) {
+    const immune = compileImmunity(t, c);
+    if (immune) return immune;
+  }
+
   // 9-7: answering a counter with a counter. "The [Counter]" is always the one
   // being answered, so nothing has to be named.
   if (/^negate the \[counter[^\]]*\](?: skill)?$/.test(t)) return [{ op: "negateCounter" }];
@@ -3085,6 +3092,65 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   }
 
   return null;
+}
+
+/**
+ * "This card isn't affected by your opponent's skills" (9-1-4) and its
+ * variants — a card no skill may touch, not merely one that can't be chosen
+ * (`forbid: "beChosen"`). The head names *which* cards this is about, the
+ * same grammar `compileProhibition` reads; the tail after "affected by"
+ * names *whose* skills are blocked, either as a bare player ("your
+ * opponent's") or as a description of the source card itself
+ * ("non-<Gogeta: GT>", "the skills of red ≪Saiyan≫ cards with 20000 power or
+ * less in any of your opponent's areas").
+ */
+function compileImmunity(t: string, c: Ctx): Op[] | null {
+  const m = /^(.*?)\s*(?:is not|isn'?t)\s+affected by\s+(.+)$/.exec(t);
+  if (!m) return null;
+  const subject = m[1].trim();
+
+  // BT9-119: "until the start of your next Main Phase" lands a phase later
+  // than any duration this engine can name exactly — `afterNextCharge`
+  // expires a phase early, while the card is still exposed — so the clause
+  // is refused rather than landed on a wrong approximation.
+  if (/\bnext main phase\b/.test(m[2])) return null;
+
+  const target = subject ? refFor(subject, c) : (c.lastTarget ?? refFor("this card", c));
+  if (!target) return null;
+  const until = durationOf(t);
+
+  const tail = stripQualifiers(m[2].trim());
+  let mm: RegExpExecArray | null;
+  let sourceDesc: string | null = null;
+  if ((mm = /^the skills of (.+)$/.exec(tail))) sourceDesc = mm[1];
+  else if ((mm = /^(.+?) skills$/.exec(tail))) sourceDesc = mm[1];
+  if (sourceDesc == null) return null;
+
+  // A bare rule about the side, naming no cards at all — the same shape
+  // `forbid` reads with no filter.
+  if (/^your opponent'?s?$/.test(sourceDesc)) return [{ op: "immune", until, target, from: "opponent" }];
+
+  // Whose skills, said the long way: a player named in front of the source
+  // cards ("opponent's non-Extra cards") or implied by where they are
+  // ("… in any of your opponent's areas"). Absent means either side, same
+  // convention as `forbid`'s own `side`.
+  let rest = sourceDesc;
+  let from: Side | undefined;
+  if ((mm = /^(?:your\s+)?opponent'?s\s+(.+)$/.exec(rest))) {
+    from = "opponent";
+    rest = mm[1];
+  } else if ((mm = /^(.+?)\s+in (?:any of )?your opponent'?s areas$/.exec(rest))) {
+    from = "opponent";
+    rest = mm[1];
+  }
+
+  // A description the parser cannot read must refuse the clause rather than
+  // widen it to every skill — the same rule a `forbid` filter follows.
+  const filter = filterFor(rest, null);
+  if (filter === null) return null;
+  if (!filter && !from) return null;
+
+  return [{ op: "immune", until, target, from, fromFilter: filter || undefined }];
 }
 
 /**

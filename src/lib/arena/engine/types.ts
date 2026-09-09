@@ -326,6 +326,20 @@ export interface Permission {
 }
 
 /**
+ * A card no skill may touch (9-1-4) — stronger than `Prohibition`'s
+ * `beChosen`, which only stops a skill *choosing* it. Enforced where a
+ * selector chooses a card, which is narrower than the rule (see the
+ * glossary's "What a card no skill may touch" entry): an effect that never
+ * chooses the card at all slips through.
+ */
+export interface Immunity {
+  /** Whose skills are blocked. Absent means either player's. */
+  from?: PlayerId;
+  /** Which cards' skills are blocked. Absent means any card's. */
+  fromFilter?: CardFilter;
+}
+
+/**
  * How long something in force lasts, as a client is told it: a continuous
  * effect's duration, or "permanent" for a [Permanent] skill, which holds for
  * as long as its card is where the skill is valid (9-5-1) rather than for any
@@ -344,12 +358,14 @@ export interface ContinuousEffect {
    * named by a `SkillKindPrefix` in `value` ("negate that card's [Auto] skill
    * for the turn").
    */
-  kind: "power" | "comboPower" | "keyword" | "negateSkills" | "negateSkill" | "negateSkillKind" | "forbid" | "permit" | "cost" | "comboCost";
+  kind: "power" | "comboPower" | "keyword" | "negateSkills" | "negateSkill" | "negateSkillKind" | "forbid" | "permit" | "immune" | "cost" | "comboCost";
   value: number | KeywordSkill | SkillKindPrefix;
   /** Set when `kind` is "forbid". */
   forbid?: Prohibition;
   /** Set when `kind` is "permit". */
   permit?: Permission;
+  /** Set when `kind` is "immune". */
+  immune?: Immunity;
   /** "nextTurn" runs through the opponent's whole turn and ends as yours begins. */
   until: "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "game";
   /**

@@ -239,7 +239,10 @@ export function parseFilter(text: string): CardFilter {
   for (const m of t.matchAll(/(non-)?<([^>]+)>/g)) (m[1] ? f.notCharacters : f.characters).push(m[2].trim());
   for (const m of t.matchAll(/(non-)?≪([^≫]+)≫/g)) (m[1] ? f.notTraits : f.traits).push(m[2].trim());
   for (const m of t.matchAll(/\{([^}]+)\}/g)) if (!/^[rugykbw]$|^\d+$/i.test(m[1])) f.names.push(m[1].trim());
-  const lower = t.toLowerCase();
+  // "Cards other than Battle Cards" (BT23-140) says the same as "non-Battle
+  // Cards" the long way, naming a *type* rather than the named cards `EXCLUDED`
+  // reads above — rewritten so the ordinary "non-" reading below catches it.
+  const lower = t.toLowerCase().replace(/\bother than ((?:leader|unison|extra|battle) cards?)\b/g, "non-$1");
   // Colour words are read off the description with every *name* taken out of
   // it. ≪Red Ribbon Army≫, <Goku Black>, <Commander Red>, {Super Saiyan Blue
   // Vegeta} and [Revive Blue/Green] all carry a colour word that says nothing
