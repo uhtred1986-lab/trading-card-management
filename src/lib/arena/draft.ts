@@ -16,26 +16,19 @@ import { hasAnthropic } from "@/lib/ai/client";
 import { DEFAULT_GAME } from "@/lib/catalog/games";
 import { compileCardCached, compileSkill, parseSkills, skillLines, type CardDef, type CardScripts, type KeywordSkill, type Op } from "./engine";
 import { compileCostProgram, costText, priceCondition } from "./engine/compile";
-import type { Cond } from "./engine/script";
+import type { Cond, CostRecord } from "./engine/script";
 import { describeScript } from "./engine/script";
+
+/**
+ * The price shape moved to `script.ts` on 9 Sep 2026, so the rules language
+ * can print and parse a whole record without importing the drafter (which
+ * reaches the database). The name is re-exported from where it was born.
+ */
+export type { CostRecord };
 import { clauseShape, triggersOf } from "./gaps";
 import { cardDefFrom } from "./load";
 import { clarifyRule } from "./ai/clarify";
 import { loadRules, programOf, type RuleRow, type Side } from "./rules-store";
-
-/** The skill cost as the record shows it, all read without a game state. */
-export interface CostRecord {
-  text: string;
-  orbs: Record<string, number>;
-  either: string[][];
-  marker: number | null;
-  burst: number | null;
-  spiritBoost: number | null;
-  /** "If your Leader is red" — a condition the price states. */
-  condition: Cond | null;
-  /** "Switch this card to Rest Mode" — an action the price charges. */
-  program: Op[] | null;
-}
 
 /** One skill of one card face, as the drafter would write it. */
 export interface SkillRecord {
@@ -236,26 +229,32 @@ export async function draftCards(db: Db, ids: string[], opts: { onlyOpen?: boole
           summary.updated++;
           continue;
         }
-        // A row a person owns: the program is theirs. Refresh what the record
-        // is *about* — the printed line and the parsed metadata — and note the
-        // compiler's own reading beside it when the two differ. A skill the
-        // compiler cannot read has no reading to offer: every Claude draft of an
-        // open skill was getting a "the compiler reads this differently" strip
-        // that offered a blank program with unread clauses.
+        // A row a person owns: the record is theirs. Refresh only what the
+        // record is *about* — the printed line and the skill's tag, which come
+        // off the card and are not editable — and note the compiler's own
+        // reading beside it when the two differ. A skill the compiler cannot
+        // read has no reading to offer: every Claude draft of an open skill was
+        // getting a "the compiler reads this differently" strip that offered a
+        // blank program with unread clauses.
+        //
+        // `trigger` and `cost` are **not** refreshed any more (9 Sep 2026).
+        // They used to be, on the grounds that they were parsed metadata rather
+        // than a reading; since Stage 1 the workbench can edit both and the
+        // engine plays both off the row, so overwriting them here would revert
+        // a person's WHEN or price on the next `arena:draft` with nothing
+        // recording why. A `compilerDiff` for those two is Stage 2's.
         const fresh = rec.cond ? [{ op: "if" as const, cond: rec.cond, then: rec.ops }] : rec.ops;
         const differs = rec.unread.length === 0 && !same(fresh, programOf(have));
         const diff = differs ? { ops: fresh, unread: rec.unread, at } : null;
         const hadDiff = have.compilerDiff != null;
         const diffChanged = differs ? !same({ ops: (have.compilerDiff as { ops?: Op[] } | null)?.ops, unread: (have.compilerDiff as { unread?: string[] } | null)?.unread }, { ops: fresh, unread: rec.unread }) : hadDiff;
-        const metaChanged = have.printed !== rec.printed || have.kind !== rec.kind || !same(have.trigger, rec.trigger) || !same(have.cost, rec.cost);
+        const metaChanged = have.printed !== rec.printed || have.kind !== rec.kind;
         if (!diffChanged && !metaChanged) continue;
         await db
           .update(cardRules)
           .set({
             printed: rec.printed,
             kind: rec.kind,
-            trigger: rec.trigger,
-            cost: rec.cost,
             ...(diffChanged ? { compilerDiff: diff } : {}),
             updatedAt: new Date(),
           })

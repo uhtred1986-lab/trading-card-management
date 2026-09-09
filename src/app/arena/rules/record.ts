@@ -8,27 +8,12 @@ import type { Db } from "@/db";
 import type { RecordProps } from "@/components/arena/rules/RuleRecord";
 import { SKILL_LABELS } from "@/lib/arena/beats";
 import { describeScript, type Op } from "@/lib/arena/engine";
-import { describeCond, type Cond } from "@/lib/arena/engine/script";
-import type { CostRecord } from "@/lib/arena/draft";
-import { describeTrigger, mechanismNeeds, mechanismOf } from "@/lib/arena/gaps";
+import type { Cond, CostRecord } from "@/lib/arena/engine/script";
+import type { Trigger } from "@/lib/arena/engine";
+import { mechanismNeeds, mechanismOf } from "@/lib/arena/gaps";
 import { defsForCards } from "@/lib/arena/load";
 import { ruleFrom, scenariosFor } from "@/lib/arena/probe";
 import { programOf, siblingsOf, type CompilerDiff, type RuleStatus, type StoredProbe, type WorklistRow } from "@/lib/arena/rules-store";
-
-/** The parsed price as a sentence, for the COST row. */
-export function costSentence(cost: CostRecord | null): string | null {
-  if (!cost) return null;
-  const parts: string[] = [];
-  for (const [c, n] of Object.entries(cost.orbs)) parts.push(`${n} ${c === "any" ? "energy" : `${c} energy`}`);
-  for (const either of cost.either) parts.push(`1 ${either.join(" or ")} energy`);
-  if (cost.marker != null) parts.push(cost.marker >= 0 ? `add ${cost.marker} marker${cost.marker === 1 ? "" : "s"}` : `remove ${-cost.marker} marker${cost.marker === -1 ? "" : "s"}`);
-  if (cost.burst != null) parts.push(`Burst ${cost.burst}`);
-  if (cost.spiritBoost != null) parts.push(`Spirit Boost ${cost.spiritBoost}`);
-  if (cost.condition) parts.push(`if ${describeCond(cost.condition)}`);
-  if (cost.program) parts.push(describeScript(cost.program));
-  else if (cost.text && !cost.condition) parts.push(cost.text);
-  return parts.join(" · ") || null;
-}
 
 /** The right pane's History, read off the row rather than a log table. */
 export function historyOf(r: WorklistRow): { when: string; what: string }[] {
@@ -43,16 +28,6 @@ export function historyOf(r: WorklistRow): { when: string; what: string }[] {
   else if (r.version > 1) out.push({ when: day(r.updatedAt), what: `re-drafted by the compiler · v${r.version}` });
   out.push({ when: day(r.createdAt), what: r.unread.length ? `drafted: ${r.unread.length} clause${r.unread.length === 1 ? "" : "s"} unread` : `drafted by the compiler${r.pattern ? ` · pattern ${r.pattern}` : ""}` });
   return out;
-}
-
-/** The WHEN line for a skill kind the engine answers to at a fixed moment. */
-function triggerLine(row: WorklistRow): string {
-  const said = describeTrigger(row.trigger ?? []);
-  if (said) return said;
-  if (row.kind === "permanent") return "while this card is where the skill is valid";
-  if (row.kind.startsWith("activate")) return "when you activate it";
-  if (row.kind.startsWith("counter")) return "at the counter timing the tag names";
-  return "the engine knows no moment for this wording";
 }
 
 /**
@@ -81,10 +56,16 @@ export async function buildRecord(db: Db, selected: WorklistRow, decks: string[]
     side: selected.side === "back" ? "back" : "front",
     skillIndex: selected.skillIndex,
     kind: SKILL_LABELS[selected.kind] ?? selected.kind,
+    // The printed tag as the row stores it, which is what the rules language
+    // writes in WHEN and refuses to let anyone change.
+    tag: selected.kind,
     permanent: selected.kind === "permanent",
     printed: selected.printed,
-    trigger: triggerLine(selected),
-    cost: costSentence(selected.cost as CostRecord | null),
+    // WHEN and COST arrive as the record holds them, not as sentences: both
+    // are editable now, so the sentences are made in the browser from whatever
+    // is in the box at the time.
+    trigger: (selected.trigger ?? []) as Trigger[],
+    cost: (selected.cost as CostRecord | null) ?? null,
     cond: (selected.cond as Cond | null) ?? null,
     ops: (selected.ops as Op[]) ?? [],
     unread: selected.unread,

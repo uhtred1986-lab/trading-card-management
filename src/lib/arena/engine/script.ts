@@ -369,10 +369,63 @@ export interface SkillPrice {
   ops: Op[] | null;
 }
 
+/**
+ * The skill cost as the record shows it, all read without a game state.
+ *
+ * The same shape as `card_rules.cost`. It lives beside `SkillPrice` — the two
+ * halves the engine actually charges — because the rules language prints and
+ * parses a whole record, price included, and must not reach the drafter (which
+ * reaches the database) to know what a price looks like.
+ */
+export interface CostRecord {
+  text: string;
+  orbs: Record<string, number>;
+  either: string[][];
+  marker: number | null;
+  burst: number | null;
+  spiritBoost: number | null;
+  /** "If your Leader is red" — a condition the price states. */
+  condition: Cond | null;
+  /** "Switch this card to Rest Mode" — an action the price charges. */
+  program: Op[] | null;
+}
+
+/**
+ * The price in words, for the record's COST row. It sits here rather than on
+ * the page that used to own it because the workbench now edits the price in
+ * the rules language, and the chip beside the text has to be redrawn in the
+ * browser as it is typed — which means the sentence has to be reachable
+ * without importing anything that touches the database.
+ */
+export function costSentence(cost: CostRecord | null): string | null {
+  if (!cost) return null;
+  const parts: string[] = [];
+  for (const [c, n] of Object.entries(cost.orbs)) parts.push(`${n} ${c === "any" ? "energy" : `${c} energy`}`);
+  for (const either of cost.either) parts.push(`1 ${either.join(" or ")} energy`);
+  if (cost.marker != null) parts.push(cost.marker >= 0 ? `add ${cost.marker} marker${cost.marker === 1 ? "" : "s"}` : `remove ${-cost.marker} marker${cost.marker === -1 ? "" : "s"}`);
+  if (cost.burst != null) parts.push(`Burst ${cost.burst}`);
+  if (cost.spiritBoost != null) parts.push(`Spirit Boost ${cost.spiritBoost}`);
+  if (cost.condition) parts.push(`if ${describeCond(cost.condition)}`);
+  if (cost.program) parts.push(describeScript(cost.program));
+  else if (cost.text && !cost.condition) parts.push(cost.text);
+  return parts.join(" · ") || null;
+}
+
 export interface Script {
   ops: Op[];
   /** Clauses the compiler could not read; non-empty means the referee handles the skill. */
   unsupported: string[];
+  /**
+   * The moments this skill answers to, off the record (`card_rules.trigger`).
+   *
+   * The precedent is the price of 8 Sep 2026: the engine plays from rows, so a
+   * WHEN edited on the workbench has to be the WHEN the engine matches —
+   * otherwise the edit is a label on a card and nothing more. `undefined` means
+   * *no record*, and `pendTriggers` falls back to reading the printed text, so
+   * a card nobody drafted still fires where the drafter would have put it.
+   * An empty array is a record that says this skill answers to nothing.
+   */
+  trigger?: Trigger[];
   /**
    * The price the record carries. Absent means *no record*, which is not the
    * same as a skill with no price: since 8 Sep 2026 the engine reads the price

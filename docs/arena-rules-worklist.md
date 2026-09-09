@@ -2079,3 +2079,71 @@ clauses over 2,154 shapes** (the tally). `arena:fuzz 40`: 40 games, 0 crashes.
 `arena:reprobe`: 0 stored probes. Top unread in the decks: "if the Battle Card your
 opponent is playing has N power or less", "after you combo with this card", "evolve it
 into this card", "your opponent can only attack one more time", "reduce its skill cost".
+
+---
+
+## Done: the language, and an editable WHEN — Stage 1 of the rules-language programme (9 Sep 2026)
+
+Stage 1 of the plan the owner approved on 9 Sep 2026. Three things, and the third is the reason
+for the first two.
+
+**`src/lib/arena/lang/` — the language.** `tokens.ts` (lexer, offsets kept so an error has a line
+and a column and a keyword name can be taken back off the source), `ast.ts` (the `Rule`, plus
+`SELECTOR_FIELDS` and `FILTER_FIELDS` — the two shapes the effect language had never described in a
+table, each with a `never` check so a new field fails the typecheck until it is written down),
+`print.ts`, `parse.ts`, `validate.ts`. Client-safe: the workbench imports it straight into the
+browser. Statements and conditions are generated from `OP_SCHEMA` / `COND_SCHEMA`, so adding an
+operation is still one interpreter case and one schema row — the grammar follows.
+
+**The promise is an equality, not a likeness.** `parse(print(x))` is `x`, checked in
+`scripts/verify/lang.ts` over a minimal *and* a maximal instance of every op and every condition,
+every sugar both ways, every field of a `Selector` and of a `CardFilter` one at a time, every
+keyword literal, every compiled program and every drafter record for every harness card — and the
+five worked examples in `docs/arena-rules-language.md`, so the reference cannot drift. Printing is
+idempotent too, so a record does not churn its version each time it is opened.
+
+Two shapes had to be declared equal to get there, both places where the engine cannot tell two
+JSON objects apart: a selector switch written `false` (`upTo`, `fromEnd`, `ignoreBarrier`, all read
+truthily) and an `area` sitting beside an `areas` list (`Selector` says `areas` is read *instead*).
+The compiler writes both; a person types neither. Deliberately a named list rather than "any
+false": `faceUp: false` is turn the card face *down* and `hidden: false` is Revealed Mode, and
+dropping those would lose half of what two ops can say.
+
+**The engine now plays the record's WHEN.** `skillAnswersTo` (`engine/triggers.ts`) reads
+`Script.trigger`, filled by `rulesFor` from `card_rules.trigger`; `undefined` is *no record* and
+falls back to `autoTriggerMatches` on the printed text, so a card nobody drafted still plays, and
+an empty list is a record that says "no moment". This is the price precedent of 8 Sep 2026 applied
+to the second of the record's four parts — without it an edited WHEN would have been a label on a
+row and nothing more, and the workbench would have been telling a story about a skill it could not
+move. A keyword's own moments (§22) stay the engine's rule and are not read off the row.
+
+**The workbench's text view.** *Show as text* on a record prints the whole thing in the language;
+what is typed is parsed, checked and shown back as chips before it can be saved. It is the only
+place WHEN and COST can be edited, and the skill tag in brackets is refused if it changes.
+`RecordProps` now carries `tag`, `trigger` and `cost` as the record holds them rather than as
+sentences, because both sentences are made in the browser as you type; `costSentence` moved to
+`script.ts` beside `CostRecord` (which moved there from `draft.ts`) so it can be. `saveRuleAction`
+takes a whole rule and `saveRule` writes `trigger`, `cost`, `cond` and `ops` — `cost: null` is a
+price being removed and is not the same as leaving it out, so the three are read with `!== undefined`.
+
+**And the drafter stops overwriting them.** On a row a person owns, `draftCards` used to refresh
+`trigger` and `cost` from the compiler along with the printed line, on the grounds that they were
+parsed metadata rather than a reading. They are not metadata any more: both are editable and both
+are played off the row, so the next `arena:draft` would have reverted a corrected WHEN or price
+with nothing recording why. It now refreshes only `printed` and `kind`, which do come off the card.
+A `compilerDiff` for those two is Stage 2's.
+
+**A one-line bug found on the way** (`arena-fuzz.mts`, `arena-playthrough.mts`, both Stage 0):
+`argv.filter((a, i) => i !== engineArg && i !== engineArg + 1)` drops index 0 when `--engine` was
+not given, because `engineArg` is then `-1`. `arena:fuzz 40` had been quietly running 20 games, and
+`arena:playthrough <deckId>` ignoring the deck. **`arena:fuzz 40`: 40 games, 0 crashes**;
+`arena:reprobe` 0 stored probes (unchanged — nothing has been confirmed with a probe yet);
+`arena:playthrough` plays a whole game, 456 beats, 597 rejections over 141 prompts. The workbench
+was **not** opened in a browser: this machine's `.env.local` carries `BASIC_AUTH_USER`, so local dev
+is behind Basic Auth here and there were no credentials to hand.
+
+Not in Stage 1, by the plan: the `DEFINE …` grammar (Stage 3), the new primitives from the gap
+table (Stage 2), the referee answering in the language, chip editors for WHEN and COST,
+`compilerDiff` for a changed trigger or price, multi-error reporting, editing the kind.
+
+`npm run typecheck`, `lint`, `test` and `build` clean.

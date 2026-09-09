@@ -11,6 +11,7 @@ import type { Db } from "@/db";
 import { cardRules, cards } from "@/db/schema";
 import { describeScript, type CardDef, type CardScripts, type Op } from "./engine";
 import type { Cond, SkillPrice } from "./engine/script";
+import type { Trigger } from "./engine/types";
 import { rows as rowsOf } from "@/db/rows";
 import { textArray } from "@/db/sqlx";
 import { clauseShape, mechanismOf } from "./gaps";
@@ -75,7 +76,11 @@ export async function rulesFor(db: Db, defs: Record<string, CardDef>): Promise<R
     // An open row has no program: the skill is played as blank, and the
     // unread clauses stay on it so the log and the referee can say why.
     const price = priceOfRow(row);
-    base.bySkill[row.skillIndex] = row.status === "open" ? { ops: [], unsupported: row.unread, price } : { ops: programOf(row), unsupported: [], price };
+    // The WHEN comes off the row too, for the same reason the price does: the
+    // workbench can edit it, and a trigger the engine did not read would make
+    // that edit a label and nothing more (`skillAnswersTo` in `triggers.ts`).
+    const trigger = (row.trigger ?? []) as Trigger[];
+    base.bySkill[row.skillIndex] = row.status === "open" ? { ops: [], unsupported: row.unread, price, trigger } : { ops: programOf(row), unsupported: [], price, trigger };
     base.unsupported = Object.values(base.bySkill).flatMap((s) => s.unsupported);
     base.complete = base.unsupported.length === 0;
     out[key] = base;
@@ -91,29 +96,44 @@ export interface RuleWrite {
   source: RuleSource;
   status: RuleStatus;
   explanation?: string | null;
+  /**
+   * The rest of the record, when the caller edited it — the text view on the
+   * workbench does, the JSON view and "does nothing" do not. Left out, each
+   * keeps what the row has; `cost: null` is a price being *removed* and is not
+   * the same as leaving it out, so the three are read with `!== undefined`.
+   */
+  trigger?: string[];
+  cost?: unknown;
+  cond?: Cond | null;
   /** Needed when the row does not exist yet; a row that exists keeps its own. */
   printed?: string;
   kind?: string;
 }
 
 /**
- * Write a program against a skill. A person's or Claude's program replaces
+ * Write a record against a skill. A person's or Claude's program replaces
  * whatever was there and bumps the version; `reads` is regenerated so the row
  * never says one thing and does another.
  */
 export async function saveRule(db: Db, w: RuleWrite): Promise<RuleRow> {
-  const reads = describeScript(w.ops, { permanent: (w.kind ?? "").toLowerCase() === "permanent" });
   const existing = await db.query.cardRules.findFirst({ where: and(eq(cardRules.cardId, w.cardId), eq(cardRules.side, w.side), eq(cardRules.skillIndex, w.skillIndex)) });
+  const kind = existing?.kind ?? w.kind ?? "";
+  // The hoisted condition is part of the program, so the reading has to be of
+  // the whole thing; describing the steps alone dropped the IF from the line
+  // the workbench shows back.
+  const reads = describeScript(programOf({ ops: w.ops, cond: w.cond ?? null }), { permanent: kind.toLowerCase() === "permanent" });
   if (existing) {
     const [row] = await db
       .update(cardRules)
       .set({
         ops: w.ops,
-        cond: null,
+        cond: w.cond ?? null,
+        ...(w.trigger !== undefined ? { trigger: w.trigger } : {}),
+        ...(w.cost !== undefined ? { cost: w.cost } : {}),
         source: w.source,
         status: w.status,
         explanation: w.explanation ?? existing.explanation,
-        reads: describeScript(w.ops, { permanent: existing.kind.toLowerCase() === "permanent" }),
+        reads,
         unread: [],
         compilerDiff: null,
         version: sql`${cardRules.version} + 1`,
@@ -127,7 +147,21 @@ export async function saveRule(db: Db, w: RuleWrite): Promise<RuleRow> {
   if (w.printed == null || w.kind == null) throw new Error(`no rule row for ${w.cardId} ${w.side} [${w.skillIndex}] and no printed line to create one from`);
   const [row] = await db
     .insert(cardRules)
-    .values({ cardId: w.cardId, side: w.side, skillIndex: w.skillIndex, printed: w.printed, kind: w.kind, ops: w.ops, source: w.source, status: w.status, explanation: w.explanation ?? null, reads })
+    .values({
+      cardId: w.cardId,
+      side: w.side,
+      skillIndex: w.skillIndex,
+      printed: w.printed,
+      kind: w.kind,
+      ops: w.ops,
+      cond: w.cond ?? null,
+      ...(w.trigger !== undefined ? { trigger: w.trigger } : {}),
+      ...(w.cost !== undefined ? { cost: w.cost } : {}),
+      source: w.source,
+      status: w.status,
+      explanation: w.explanation ?? null,
+      reads,
+    })
     .returning();
   return row;
 }

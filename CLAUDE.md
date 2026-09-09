@@ -205,6 +205,25 @@ the same style.
   it. The old engine stays the **oracle**: `arena:diff` replays a game's actions on either
   engine and must land on the row's state. `Snapshot.game.engine`/`.game` are the one
   contract change. Until the rules engine plays, `engineFor("rules")` throws `EngineNotBuilt`.
+- **The rules language** (`src/lib/arena/lang/`, `docs/arena-rules-language.md`, since 9 Sep
+  2026): one closed grammar for a card's rule — WHEN / COST / IF / THEN — printed and parsed
+  from `OP_SCHEMA`/`COND_SCHEMA` plus the `SELECTOR_FIELDS`/`FILTER_FIELDS` tables in
+  `lang/ast.ts`, so **adding an operation is still one interpreter case and one schema row**
+  and the grammar follows. Client-safe; the workbench's *Show as text* imports it into the
+  browser. The promise it rests on is an equality — `parse(print(x))` is `x`, over every op,
+  condition, selector, filter, keyword, every compiled program and every drafter record, and
+  the doc's own examples (`scripts/verify/lang.ts`, in `npm test`) — so the printer never has
+  a choice of forms and the parser is the generous one. A filter is printed in its own words
+  only when `parseFilter` reads them back *equal*; otherwise field by field. Later stages add
+  the `DEFINE …` grammar for `rulesets/*.rules` and the referee's answers; the language is
+  shared, not dialected.
+- **The record's WHEN is the engine's WHEN** (`skillAnswersTo` in `engine/triggers.ts`): an
+  [Auto] skill's moment comes off `card_rules.trigger` (carried on `Script.trigger` by
+  `rulesFor`), and only a skill with *no* record falls back to reading the printed text. The
+  same precedent as the price of 8 Sep 2026, and the reason the text view's WHEN does
+  anything at all. A keyword's own moments (§22) stay the engine's rule. The text view is the
+  only editor for WHEN and COST — the chips have none and are not getting one — and the
+  printed skill tag is read-only.
 - **Arena UI** (`/arena`, `src/components/arena/`, `src/lib/arena/{games,view}.ts`): phone-first
   board, hot-seat or 1 v 1. A game is one `arena_games` row holding the seed, the action log (the
   reproducible source) and a state snapshot; `applyToGame` is the only writer, and it writes

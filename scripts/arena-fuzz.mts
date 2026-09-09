@@ -14,7 +14,9 @@ const engineArg = argv.indexOf("--engine");
 const engineId = engineArg >= 0 ? argv[engineArg + 1] : "legacy";
 if (!isEngineId(engineId)) throw new Error(`--engine must be one of legacy, rules; got ${engineId}`);
 const { createGame, apply, legalActions } = engineFor(engineId);
-const positional = argv.filter((a, i) => i !== engineArg && i !== engineArg + 1);
+// `engineArg` is -1 when `--engine` was not given, and `-1 + 1` is the index of
+// the *first* positional — which is how `arena:fuzz 40` quietly ran 20 games.
+const positional = argv.filter((a, i) => engineArg < 0 || (i !== engineArg && i !== engineArg + 1));
 const games = Number(positional[0] ?? 20);
 const fixed = positional.length >= 3 ? [Number(positional[1]), Number(positional[2])] : null;
 
