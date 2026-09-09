@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   images: {
     remotePatterns: [
       // Canonical card art from the deckplanet catalog (see src/lib/catalog/deckplanet.ts).

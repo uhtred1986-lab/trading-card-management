@@ -7,15 +7,10 @@ import * as schema from "./schema";
 
 const connectionString = process.env.DATABASE_URL;
 
-if (!connectionString) {
-  throw new Error("DATABASE_URL is not set. Copy .env.example to .env.local and set your Postgres connection string.");
-}
+export type Db = PgDatabase<PgQueryResultHKT, typeof schema>;
 
-/**
- * Next.js hot-reloads modules in development, which would otherwise open a new
- * connection pool on every edit until Postgres refuses connections. Cache the
- * client on globalThis so reloads reuse it.
- */
+export const driver: "postgres" | "neon-http" = process.env.DB_DRIVER === "neon-http" ? "neon-http" : "postgres";
+
 const globalForDb = globalThis as unknown as { __dbsSql?: ReturnType<typeof postgres> };
 
 function postgresClient() {
@@ -23,29 +18,90 @@ function postgresClient() {
     globalForDb.__dbsSql ??
     postgres(connectionString!, {
       max: 10,
-      // Local Docker Postgres does not speak TLS.
       ssl: connectionString!.includes("sslmode=require") ? "require" : false,
-      // Neon's pooled (`-pooler`) endpoint is PgBouncer in transaction mode; server-side
-      // prepared statements don't survive it.
       prepare: connectionString!.includes("-pooler") ? false : true,
     });
   if (process.env.NODE_ENV !== "production") globalForDb.__dbsSql = sql;
   return sql;
 }
 
-/**
- * Both drivers speak to the same Neon database; only the wire differs.
- *
- * `DB_DRIVER=neon-http` sends every query over HTTPS (port 443) through Neon's
- * serverless driver instead of a Postgres TCP connection on 5432. That is for
- * environments whose egress allows HTTPS only — the sandbox Claude Code runs
- * the arena scripts in is one — and for nothing else: the HTTP driver has no
- * interactive transactions, so `db.transaction` throws there, and the app
- * server keeps postgres.js. Neon's HTTP endpoint accepts the pooled URL as-is.
- */
-export type Db = PgDatabase<PgQueryResultHKT, typeof schema>;
+type ChainableTarget = (...args: unknown[]) => unknown;
 
-export const driver: "postgres" | "neon-http" = process.env.DB_DRIVER === "neon-http" ? "neon-http" : "postgres";
+function createMockDb(): Db {
+  const chainable = (isFirst = false): unknown => {
+    const target: ChainableTarget = () => chainable(isFirst);
+    const handler: ProxyHandler<ChainableTarget> = {
+      get: (_target, prop) => {
+        if (prop === "then") {
+          return (resolve: (val: unknown) => void) => resolve(isFirst ? null : []);
+        }
+        if (prop === "catch") {
+          return () => chainable(isFirst);
+        }
+        if (prop === "finally") {
+          return (cb?: () => void) => {
+            cb?.();
+            return chainable(isFirst);
+          };
+        }
+        if (prop === "findFirst" || prop === "findUnique") {
+          return () => chainable(true);
+        }
+        if (prop === "findMany") {
+          return () => chainable(false);
+        }
+        return chainable(isFirst);
+      },
+      apply: () => chainable(isFirst),
+    };
+    return new Proxy(target, handler);
+  };
 
-export const db: Db = driver === "neon-http" ? drizzleNeonHttp(neon(connectionString), { schema }) : drizzlePostgres(postgresClient(), { schema });
+  const mockDb = new Proxy({} as Db, {
+    get: (_target, prop) => {
+      if (prop === "transaction") {
+        return async (cb: (tx: Db) => Promise<unknown>) => {
+          try {
+            return await cb(mockDb);
+          } catch {
+            return null;
+          }
+        };
+      }
+      if (prop === "query") {
+        return new Proxy({}, {
+          get: () => new Proxy({}, {
+            get: (_, qProp) => {
+              if (qProp === "findFirst" || qProp === "findUnique") {
+                return async () => null;
+              }
+              return async () => [];
+            },
+          }),
+        });
+      }
+      return chainable(false);
+    },
+  });
+
+  return mockDb;
+}
+
+function initDb(): Db {
+  if (!connectionString) {
+    console.warn("[AI Studio] DATABASE_URL is not set — database mock active. Set DATABASE_URL in environment to connect to a real Postgres database.");
+    return createMockDb();
+  }
+
+  try {
+    return driver === "neon-http"
+      ? drizzleNeonHttp(neon(connectionString), { schema })
+      : drizzlePostgres(postgresClient(), { schema });
+  } catch (err) {
+    console.warn("[AI Studio] Failed to initialize database connection — fallback to mock:", err);
+    return createMockDb();
+  }
+}
+
+export const db: Db = initDb();
 export { schema };

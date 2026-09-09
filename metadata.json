@@ -1,0 +1,6 @@
+{
+  "name": "DBS Card Companion",
+  "description": "Collection, decks, prices and AI analysis for the Dragon Ball Super Card Game.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
