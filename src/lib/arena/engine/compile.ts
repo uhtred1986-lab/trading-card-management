@@ -443,7 +443,7 @@ const AREA_WORDS: [RegExp, ScriptArea][] = [
   // The adjectives between the possessive and the word include the slash of
   // "your **Red/Blue multicolor** energy", which the class did not admit — so
   // six cards that rest a multicolour energy went looking on the table for it.
-  [/\benergy area\b|\b(?:your opponent's|their|your)(?: [a-z/-]+)* energy\b(?! cost)/, "energy"],
+  [/\benergy area\b|(?<!equal to )\b(?:your opponent's|their|your)(?: [a-z/-]+)* energy\b(?! cost)/, "energy"],
   [/\bfrom your hand\b|\bin your hand\b|\btheir hand\b|\byour hand\b|\byour opponent's hand\b/, "hand"],
   [/\bfrom your deck\b|\bin your deck\b|\byour deck\b|\byour opponent'?s deck\b|\btheir deck\b/, "deck"],
   // "Flip up to 1 card in your opponent's life face up" (BT12-069/070): the
@@ -744,9 +744,6 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
     // named its source with "from your …"; a clause with no source of its own
     // keeps "in your opponent's Battle Area" as the place to look.
     .replace(/\bin (?:your |their )?opponent'?s (?:z-)?[a-z]+(?: area)?\b/g, (whole) => (/\bfrom your\b/.test(t) ? " " : whole));
-  if (/\bopponent'?s\b|\byour opponent\b|\btheir\b/.test(owner)) side = "opponent";
-  else if (/\bopponent (?:rest mode |active mode |skill-less )?(?:battle|unison|extra|leader|z-battle|z-extra)s?\b/.test(t)) side = "opponent";
-  if (/\ball players\b|\beach player\b|\bboth players\b/.test(t)) side = "both";
   // "Choose **all** Battle Cards" names no owner, and a card that names none
   // is every one of them (the sets say "all other Battle Cards **you
   // control**" when they mean only yours). The default of `you` is right for
@@ -788,7 +785,6 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
     /\b(?:other than|except for|besides) (?:copies of )?(?:this card|it)?(?:\s*(?:,|and\/or|and|or)\s*)?(?:(?:your |their |its owner's )?(?:<[^>]+>|≪[^≫]+≫|\{[^}]+\})(?:\s*(?:,|and\/or|and|or)\s*)?)*/g,
     " ",
   );
-  if ((otherAdj || sweep) && !/\byour\b|\btheir\b|\bopponent\b|\byou control\b/.test(chosen)) side = "both";
 
   // "Your opponent's Battle Cards or Unisons" names two areas at once, which
   // is the one such phrase the game prints often enough to be worth reading.
@@ -803,14 +799,31 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
   const pair: [ScriptArea, ScriptArea] | null = both && AREA_NAMED[both[1]] && AREA_NAMED[both[2]] && AREA_NAMED[both[1]] !== AREA_NAMED[both[2]] ? [AREA_NAMED[both[1]], AREA_NAMED[both[2]]] : null;
 
   let area: ScriptArea | null = null;
+  let areaMatch: RegExpExecArray | null = null;
   if (!allAreas && !otherAreas) {
     for (const [re, a] of AREA_WORDS) {
-      if (re.test(t)) {
+      const match = re.exec(t);
+      if (match) {
         area = a;
+        areaMatch = match;
         break;
       }
     }
   }
+  // The owner is part of the phrase naming the selected area, not necessarily
+  // the whole clause: destinations and measures routinely name another player.
+  const areaPhrase = areaMatch && t.slice(0, areaMatch.index + areaMatch[0].length);
+  const areaOwners = areaPhrase?.match(/\b(?:your opponent'?s|an opponent'?s|the opponent'?s|opponent'?s|your|their)\b/g);
+  const areaOwner = areaOwners?.[areaOwners.length - 1];
+  if (areaOwner) {
+    if (/opponent'?s|\btheir\b/.test(areaOwner)) side = "opponent";
+    else if (areaOwner === "your") side = "you";
+  } else {
+    if (/\bopponent'?s\b|\byour opponent\b|\btheir\b/.test(owner)) side = "opponent";
+    else if (/\bopponent (?:rest mode |active mode |skill-less )?(?:battle|unison|extra|leader|z-battle|z-extra)s?\b/.test(t)) side = "opponent";
+  }
+  if (/\ball players\b|\beach player\b|\bboth players\b/.test(t)) side = "both";
+  if ((otherAdj || sweep) && !/\byour\b|\btheir\b|\bopponent\b|\byou control\b/.test(chosen)) side = "both";
   // "among them" / "of those cards" keeps working on what was just looked at.
   //
   // "**From it**" is the same phrase after a reveal, and the nineteen cards

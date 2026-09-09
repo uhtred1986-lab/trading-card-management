@@ -1122,6 +1122,17 @@ import type { GameState, Trigger } from "./harness";
   assert.equal(oppSel("up to 1 of your Battle Cards"), "you", "and yours is still yours");
   assert.equal(oppSel("1 card in your hand"), "you");
 
+  // A possessive after the source names a destination or a measure, not the
+  // cards selected from the source area.
+  assert.equal(oppSel("up to 1 card from your deck to your opponent's Battle Area"), "you");
+  assert.equal(oppSel("up to 1 of your opponent's Rest Mode Battle Cards"), "opponent");
+  assert.equal(oppSel("up to 1 Battle Card in your opponent's Battle Area"), "opponent");
+  for (const number of ["DB1-059", "EX08-06"]) {
+    const target = parseTarget("up to 1 of your opponent's Battle Cards with an energy cost greater than or equal to your opponent's energy");
+    assert.equal(target?.area, "battle", `${number}: the comparison is not an energy area`);
+    assert.equal(target?.side, "opponent", `${number}: the source Battle Card belongs to the opponent`);
+  }
+
   // 2. "**Other than** this card" names the one card the target is not, and
   // "this card's power" is a measure of some other card. `refFor` tested only
   // whether the words appeared, so both read as this card: "play up to 1
