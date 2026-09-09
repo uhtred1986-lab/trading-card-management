@@ -381,7 +381,7 @@ export function ArenaStage({
   /** Whose chair the words are read from, for "until the start of your next turn". */
   const narrator = { viewer: view.you.player, them: view.them.name };
 
-  const modal = view.prompt.kind === "chooseMode";
+  const modal = view.prompt.kind === "chooseMode" || view.prompt.kind === "replaceMove";
   // A search of a hidden zone: the prompt names cards no zone draws, so the
   // board opens them as a list. Keyed on the prompt so closing it to look at
   // the board does not close the next one too.

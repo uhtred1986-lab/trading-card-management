@@ -20,6 +20,7 @@ import {
   areaOf,
   cardNow,
   cardsInPlay,
+  replacementChoicesFor,
   skillsOfInstance,
   draw as drawCards,
   face,
@@ -35,7 +36,7 @@ import {
   type GameContext,
 } from "./state";
 import { koCard, masterOf, pendTriggers } from "./triggers";
-import type { Color, DelayScope, DelayTiming, FlowStep, ForbiddenAction, GameEvent, GameState, KeywordSkill, PlayerId, SkillKindPrefix, Trigger } from "./types";
+import type { Area, Color, DelayScope, DelayTiming, FlowStep, ForbiddenAction, GameEvent, GameState, KeywordSkill, MoveReason, PlayerId, ReplacementChoice, ReplacementResult, SkillKindPrefix, Trigger } from "./types";
 
 // ── the language ───────────────────────────────────────────────────────────
 
@@ -317,7 +318,7 @@ export type Op =
    * 9-10: where this card goes instead, when it would leave the Battle Area.
    * `by: "skill"` narrows it to departures a skill caused.
    */
-  | { op: "replaceLeave"; to: ScriptArea; by?: "skill" | "ko" | "skillOrKo"; mode?: "active" | "rest"; target?: Ref }
+  | { op: "replaceLeave"; to: ScriptArea; by?: "skill" | "ko" | "skillOrKo"; mode?: "active" | "rest"; optional?: boolean; target?: Ref }
   /**
    * Another way to pay for a card's own [Counter] skill (5-3): for nothing, by
    * adding cards from your life to your hand, by a reduced energy price
@@ -524,6 +525,23 @@ export interface ScriptFrame {
   saveVarsAs?: string;
   /** What this program has done so far, for "if you added a card to your hand" (20-16). */
   did?: { addToHand?: boolean; play?: boolean; negateAttack?: boolean; negateLeaderAttack?: boolean; ko?: boolean; draw?: boolean; may?: boolean };
+  /** A `moveTo`/`ko` loop suspended for a replacement choice. */
+  moveLoop?: {
+    kind: "moveTo" | "ko";
+    ids: string[];
+    index: number;
+    to?: Area;
+    owner?: PlayerId;
+    reason?: MoveReason;
+    position?: "top" | "bottom";
+    reveal?: boolean;
+    mode?: "active" | "rest";
+    faceUp?: boolean;
+    leftBattle?: boolean;
+    beforeDrop?: number;
+    choices?: ReplacementChoice[];
+    allowNone?: boolean;
+  };
 }
 
 /** How each timing reads in the log when the card text does not say it better. */
@@ -538,6 +556,36 @@ export const DELAY_LABELS: Record<DelayTiming, string> = {
 // ── the interpreter ────────────────────────────────────────────────────────
 
 export { resolveSelector };
+
+function replacementPrompt(card: string, to: Area, choices: ReplacementChoice[], allowNone: boolean): { reason: string; options: string[] } {
+  const area = (x: Area) =>
+    ({
+      drop: "the Drop",
+      warp: "the Warp",
+      hand: "the hand",
+      energy: "the Energy Area",
+      life: "life",
+      removed: "out of the game",
+      deck: "the deck",
+      zEnergy: "Z-Energy",
+      zDeck: "the Z-Deck",
+      battle: "the Battle Area",
+      unison: "the Unison Area",
+      leader: "the Leader Area",
+      combo: "the Combo Area",
+    })[x] ?? x;
+  return {
+    reason: `${card}: choose where it goes instead of ${area(to)}`,
+    options: [...choices.map((c) => `To ${area(c.to)}${c.mode === "rest" ? " in Rest Mode" : ""}`), ...(allowNone ? [`Keep going to ${area(to)}`] : [])],
+  };
+}
+
+function pickedReplacement(loop: NonNullable<ScriptFrame["moveLoop"]>, index: number | null): ReplacementResult | null | undefined {
+  if (!loop.choices?.length) return undefined;
+  if (index == null || index < 0 || index >= loop.choices.length) return null;
+  const picked = loop.choices[index];
+  return picked ? { to: picked.to, mode: picked.mode } : null;
+}
 
 /**
  * Every card that flips a life card face up says *which* skills count: "when
@@ -781,41 +829,112 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
       }
 
       case "ko":
-        for (const id of resolveRef(ctx, s, frame, op.target)) {
+        frame.moveLoop ??= { kind: "ko", ids: resolveRef(ctx, s, frame, op.target), index: 0, reason: "ko" };
+        while (frame.moveLoop && frame.moveLoop.kind === "ko" && frame.moveLoop.index < frame.moveLoop.ids.length) {
+          const id = frame.moveLoop.ids[frame.moveLoop.index];
           // 22-12: [Indestructible] cannot be KO'd by an opponent's skill.
-          if (has(ctx, s, id, "Indestructible") && s.cards[id].owner !== master) continue;
+          if (has(ctx, s, id, "Indestructible") && s.cards[id].owner !== master) {
+            frame.moveLoop.index++;
+            continue;
+          }
           // 20-14: the same thing spelled out on the card rather than keyworded.
-          if (forbids(ctx, s, "beKOdBySkill", { player: master, card: id })) continue;
+          if (forbids(ctx, s, "beKOdBySkill", { player: master, card: id })) {
+            frame.moveLoop.index++;
+            continue;
+          }
           if (areaOf(s, id) === "battle") {
-            const before = s.players[s.cards[id].owner].drop.length;
-            koCard(ctx, s, ev, id, frame.card);
+            let replaced: ReplacementResult | null | undefined;
+            if (frame.awaiting === "replaceMove") {
+              replaced = pickedReplacement(frame.moveLoop, s.lastMode);
+              s.lastMode = null;
+              frame.awaiting = undefined;
+            } else {
+              const choices = replacementChoicesFor(ctx, s, id, "ko");
+              const allowNone = choices.some((c) => c.optional);
+              if (choices.length > 1 || allowNone) {
+                frame.awaiting = "replaceMove";
+                frame.moveLoop.beforeDrop = s.players[s.cards[id].owner].drop.length;
+                frame.moveLoop.choices = choices;
+                frame.moveLoop.allowNone = allowNone;
+                s.flow.unshift({ op: "script.step", frame });
+                const prompt = replacementPrompt(face(ctx, s, id).name, "drop", choices, allowNone);
+                s.prompt = { kind: "replaceMove", player: masterOf(s, id), card: id, reason: prompt.reason, options: prompt.options };
+                return "wait";
+              }
+              if (choices.length === 1) replaced = { to: choices[0].to, mode: choices[0].mode };
+            }
+            const before = frame.moveLoop.beforeDrop ?? s.players[s.cards[id].owner].drop.length;
+            frame.moveLoop.beforeDrop = undefined;
+            koCard(ctx, s, ev, id, frame.card, replaced === undefined ? {} : { replaced });
             // "If you KO'd a card" (20-16): only a KO that happened counts.
             if (s.players[s.cards[id].owner].drop.length > before) (frame.did ??= {}).ko = true;
           }
+          frame.moveLoop.index++;
         }
+        frame.moveLoop = undefined;
         break;
 
       case "moveTo": {
         // 23-2: under a card is not an area of its own, so it is its own move.
         const host = op.to === "under" ? (op.under ? resolveRef(ctx, s, frame, op.under)[0] : frame.card) : null;
-        for (const id of resolveRef(ctx, s, frame, op.target)) {
+        frame.moveLoop ??= {
+          kind: "moveTo",
+          ids: resolveRef(ctx, s, frame, op.target),
+          index: 0,
+          to: op.to === "play" ? "battle" : (op.to as Area),
+          position: op.position,
+          reveal: op.reveal,
+          mode: op.mode,
+          faceUp: op.faceUp,
+          reason: "effect",
+        };
+        while (frame.moveLoop && frame.moveLoop.kind === "moveTo" && frame.moveLoop.index < frame.moveLoop.ids.length) {
+          const id = frame.moveLoop.ids[frame.moveLoop.index];
           // 3-1-2: a Leader Card stays in the Leader Area. Skills may change
           // its power or negate it, but nothing puts it anywhere else — and
           // an empty Leader Area is a state the rest of the engine cannot read.
-          if (areaOf(s, id) === "leader") continue;
+          if (areaOf(s, id) === "leader") {
+            frame.moveLoop.index++;
+            continue;
+          }
           // 20-14: "can't be removed from a Battle Area by your opponent's
           // skills". The rule is about the opponent's skills, so a card its
           // own master moves is unaffected.
-          if (s.cards[id].owner !== master && areaOf(s, id) === "battle" && forbids(ctx, s, "beMovedBySkill", { card: id })) continue;
+          if (s.cards[id].owner !== master && areaOf(s, id) === "battle" && forbids(ctx, s, "beMovedBySkill", { card: id })) {
+            frame.moveLoop.index++;
+            continue;
+          }
           if (op.to === "under") {
             if (host) placeUnder(ctx, s, ev, id, host);
+            frame.moveLoop.index++;
             continue;
           }
           const owner = op.owner ? sideOf(master, op.owner)[0] : op.to === "battle" || op.to === "unison" ? master : s.cards[id].owner;
-          // "play" is not an area of its own either (3-1); it means the Battle Area.
           const dest = op.to === "play" ? "battle" : op.to;
-          const leftBattle = areaOf(s, id) === "battle";
-          move(ctx, s, ev, id, dest, owner, { position: op.position, reveal: op.reveal, reason: "effect" });
+          let replaced: ReplacementResult | null | undefined;
+          const leftBattle = frame.moveLoop.leftBattle ?? (areaOf(s, id) === "battle");
+          if (frame.awaiting === "replaceMove") {
+            replaced = pickedReplacement(frame.moveLoop, s.lastMode);
+            s.lastMode = null;
+            frame.awaiting = undefined;
+          } else {
+            const choices = replacementChoicesFor(ctx, s, id, "effect");
+            const allowNone = choices.some((c) => c.optional);
+            if (choices.length > 1 || allowNone) {
+              frame.awaiting = "replaceMove";
+              frame.moveLoop.owner = owner;
+              frame.moveLoop.to = dest;
+              frame.moveLoop.leftBattle = leftBattle;
+              frame.moveLoop.choices = choices;
+              frame.moveLoop.allowNone = allowNone;
+              s.flow.unshift({ op: "script.step", frame });
+              const prompt = replacementPrompt(face(ctx, s, id).name, dest, choices, allowNone);
+              s.prompt = { kind: "replaceMove", player: masterOf(s, id), card: id, reason: prompt.reason, options: prompt.options };
+              return "wait";
+            }
+            if (choices.length === 1) replaced = { to: choices[0].to, mode: choices[0].mode };
+          }
+          move(ctx, s, ev, id, dest, owner, { position: op.position, reveal: op.reveal, reason: "effect", ...(replaced === undefined ? {} : { replaced }) });
           // 3-1: "when this card is removed from a Battle Area by a skill",
           // and the commoner narrowing to the *opponent's* skills. A card that
           // went nowhere — a replacement sent it back — was not removed.
@@ -840,7 +959,10 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
           // after the move because 3-1-4 clears the flag on the way.
           if (op.faceUp) s.cards[id].faceUp = true;
           if (dest === "hand" && owner === master) (frame.did ??= {}).addToHand = true;
+          frame.moveLoop.leftBattle = undefined;
+          frame.moveLoop.index++;
         }
+        frame.moveLoop = undefined;
         break;
       }
 
@@ -1498,13 +1620,13 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     doc: 'the card counts as having these too, wherever it is ("gains ≪Saiyan≫ in all areas", "is also treated as red", 20-1); "names" is a whole card name it is also treated as ("also treated as {Planet M-2}"), never a replacement for its own',
   },
   replaceLeave: {
-    fields: [{ name: "to", type: "area", required: true }, { name: "by", type: { enum: ["skill", "ko", "skillOrKo"] } }, { name: "mode", type: MODE }, SELF],
+    fields: [{ name: "to", type: "area", required: true }, { name: "by", type: { enum: ["skill", "ko", "skillOrKo"] } }, { name: "mode", type: MODE }, { name: "optional", type: "boolean" }, SELF],
     sentence: (raw) => {
       const op = raw as OpOf<"replaceLeave">;
       const cause = op.by === "ko" ? "be KO'd" : op.by === "skill" ? "be removed from the Battle Area by a skill" : op.by === "skillOrKo" ? "be removed from the Battle Area by a skill or KO'd" : "leave the Battle Area";
-      return `if ${describeRef(op.target ?? { sel: { special: "self" } })} would ${cause}, it goes to the ${op.to}${op.mode === "rest" ? " in Rest Mode" : ""} instead`;
+      return `if ${describeRef(op.target ?? { sel: { special: "self" } })} would ${cause}, it ${op.optional ? "may go" : "goes"} to the ${op.to}${op.mode === "rest" ? " in Rest Mode" : ""} instead`;
     },
-    doc: '[Permanent] only (9-10): "if this card would be KO\'d, send it to the Warp instead". "by" is which departure it replaces: omitted = any, "skill" = removed by an effect, "ko" = the KO, "skillOrKo" = either. Omit "target" for this card',
+    doc: '[Permanent] only (9-10): "if this card would be KO\'d, send it to the Warp instead". "by" is which departure it replaces: omitted = any, "skill" = removed by an effect, "ko" = the KO, "skillOrKo" = either. "optional" is 9-10-3\'s "you may". Omit "target" for this card',
   },
   altCost: {
     fields: [

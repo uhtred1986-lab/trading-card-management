@@ -4403,7 +4403,7 @@ function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op
         const target: Ref = subject ? { sel: { side: "you", area: "battle", filter, count: 99 } } : only.target;
         // "…to your energy in Rest Mode instead" — the move said how it
         // arrives as well as where, and the replacement has to carry both.
-        push([{ op: "replaceLeave", to: only.to, target, ...(by ? { by } : {}), ...(only.mode ? { mode: only.mode } : {}) }]);
+        push([{ op: "replaceLeave", to: only.to, target, ...(by ? { by } : {}), ...(only.mode ? { mode: only.mode } : {}), ...(optional ? { optional: true } : {}) }]);
         continue;
       }
       // Anything else is a replacement this language cannot say yet, and

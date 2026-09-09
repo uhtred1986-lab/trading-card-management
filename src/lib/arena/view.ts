@@ -458,8 +458,8 @@ function hiddenChoices(ctx: EngineContext, s: GameState, p: PlayerId, viewer: Pl
  */
 function stepFor(s: GameState): PromptView["step"] {
   const pr = s.prompt;
-  if (pr.kind !== "chooseCards" && pr.kind !== "chooseMode" && pr.kind !== "optionalCost" && pr.kind !== "payCost") return undefined;
-  const label = pr.kind === "chooseCards" ? pr.choice.reason : pr.kind === "chooseMode" ? pr.reason : pr.describe;
+  if (pr.kind !== "chooseCards" && pr.kind !== "chooseMode" && pr.kind !== "replaceMove" && pr.kind !== "optionalCost" && pr.kind !== "payCost") return undefined;
+  const label = pr.kind === "chooseCards" ? pr.choice.reason : pr.kind === "chooseMode" || pr.kind === "replaceMove" ? pr.reason : pr.describe;
   const head = s.flow[0];
   if (head && head.op === "script.step" && head.frame.awaiting) {
     // Every op that asks the player something, not only `choose`: a "you
@@ -467,10 +467,11 @@ function stepFor(s: GameState): PromptView["step"] {
     // program in at the same level, so the count stays honest as it grows.
     const frame = head.frame;
     const asks = frame.ops.map((o, i) => (o.op === "choose" || o.op === "may" || o.op === "chooseMode" ? i : -1)).filter((i) => i >= 0);
-    const index = Math.max(1, asks.filter((i) => i <= frame.ip).length);
-    return { index, count: asks.length, label };
+    const askedNow = frame.awaiting === "replaceMove" ? 1 : 0;
+    const index = Math.max(1, asks.filter((i) => i <= frame.ip).length + askedNow);
+    return { index, count: asks.length + askedNow, label };
   }
-  if (pr.kind === "chooseCards" || pr.kind === "chooseMode") return { index: 1, count: 0, label };
+  if (pr.kind === "chooseCards" || pr.kind === "chooseMode" || pr.kind === "replaceMove") return { index: 1, count: 0, label };
   return undefined;
 }
 
@@ -506,6 +507,8 @@ export function questionFor(ctx: EngineContext, s: GameState): PromptView {
       });
     case "chooseMode":
       return withStep({ kind: pr.kind, player: pr.player, question: pr.reason, hint: "The card offers these; exactly one happens (20-2)." });
+    case "replaceMove":
+      return withStep({ kind: pr.kind, player: pr.player, question: pr.reason, hint: "Choose one replacement, or let the original move happen." });
     case "zEnergyFromCombo":
       return { kind: pr.kind, player: pr.player, question: "Send one combo card to Z-Energy?", hint: "At the end of a battle, one card may go there instead of the Drop." };
     case "offering":
