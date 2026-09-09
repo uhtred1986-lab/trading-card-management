@@ -4,7 +4,7 @@
  * (which imports the interpreter).
  */
 import { effectHead, trailingTrigger } from "./cards";
-import { areaOf, cardsInPlay, forbids, move, skillNegated, skillsNegated, skillsOfInstance, type GameContext } from "./state";
+import { areaOf, cardsInPlay, def, forbids, move, programsOf, skillNegated, skillsNegated, skillsOfInstance, type GameContext } from "./state";
 import type { GameEvent, GameState, PlayerId, Skill, Trigger } from "./types";
 import { PLAYERS } from "./types";
 
@@ -255,7 +255,29 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
   }
 }
 
-/** Queue every [Auto] skill on `card` whose printed trigger matches (9-6-2). */
+/**
+ * Does this skill answer to this moment? The record's WHEN if it has one, the
+ * printed text if it has not (9-6-2).
+ *
+ * The precedent is the price of 8 Sep 2026, and the reason is the same: the
+ * engine plays from `card_rules`, so the WHEN a person edits on the workbench
+ * has to be the WHEN the engine matches. Read off the text instead, an edited
+ * trigger would be a label on a record and nothing else — the skill would go
+ * on firing where the compiler's regexes put it, and the workbench would say
+ * otherwise.
+ *
+ * `undefined` is *no record* and falls back to the text, so a card nobody has
+ * drafted still plays. An empty array is a record that says this skill answers
+ * to nothing, and is honoured as that.
+ */
+function skillAnswersTo(ctx: GameContext, s: GameState, card: string, sk: Skill, trigger: Trigger): boolean {
+  const d = def(ctx, s, card);
+  const inst = s.cards[card];
+  const recorded = programsOf(ctx, d, inst.flipped && d.back ? "back" : "front").bySkill[sk.index]?.trigger;
+  return recorded ? recorded.includes(trigger) : autoTriggerMatches(sk, trigger);
+}
+
+/** Queue every [Auto] skill on `card` whose trigger matches (9-6-2). */
 export function pendTriggers(ctx: GameContext, s: GameState, trigger: Trigger, card: string, subject?: string): void {
   const inst = s.cards[card];
   if (!inst || inst.hidden || skillsNegated(s, card)) return;
@@ -284,7 +306,7 @@ export function pendTriggers(ctx: GameContext, s: GameState, trigger: Trigger, c
     const isAuto = sk.kind === "auto";
     const isKeyword = sk.kind === "keyword" && keywordTriggers(sk, trigger);
     if (!isAuto && !isKeyword) continue;
-    if (isAuto && !autoTriggerMatches(sk, trigger)) continue;
+    if (isAuto && !skillAnswersTo(ctx, s, card, sk, trigger)) continue;
     // 22-11-5 / 22-44-5: once-per-turn and [Limit X] skills stop pending once used up.
     const used = inst.usedThisTurn.filter((i) => i === sk.index).length;
     if (sk.oncePerTurn && used >= 1) continue;

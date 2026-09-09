@@ -4,7 +4,10 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { blankRuleAction, confirmRuleAction, explainRuleAction, keepMineAction, saveRuleAction, takeCompilerAction } from "@/app/arena/actions";
 import { keywordPlays } from "@/lib/arena/glossary";
-import { describeScript, validateProgram, type Cond, type Op } from "@/lib/arena/engine/script";
+import { costSentence, describeScript, validateProgram, type Cond, type CostRecord, type Op } from "@/lib/arena/engine/script";
+import type { Trigger } from "@/lib/arena/engine";
+import { describeTrigger } from "@/lib/arena/gaps";
+import { parseRule, printRule, validateRule, type Rule } from "@/lib/arena/lang";
 import { CondChip, OpList, blankCond } from "./OpEditor";
 
 /**
@@ -13,6 +16,13 @@ import { CondChip, OpList, blankCond } from "./OpEditor";
  * reading below, regenerated live while you edit. Confirming keeps it as it
  * stands; correcting by hand, the JSON view and "does nothing" write a program
  * of your own; "Explain to Claude" asks for a draft you then confirm.
+ *
+ * The **text view** is the whole record in the rules language, and the only
+ * place WHEN and COST can be edited: the chips have no editor for either, and
+ * the plan of 9 Sep 2026 deliberately gave them none. What is typed there is
+ * parsed, checked and shown back as chips before it can be saved, so a rule is
+ * never stored in a form the engine would read differently from the words in
+ * the box.
  */
 export interface RecordProps {
   id: number;
@@ -21,11 +31,14 @@ export interface RecordProps {
   setCode: string;
   side: "front" | "back";
   skillIndex: number;
+  /** The skill kind in words, for the WHEN chip. */
   kind: string;
+  /** …and as the row stores it ("auto", "counter:attack"), which is what the language prints and will not let you change. */
+  tag: string;
   permanent: boolean;
   printed: string;
-  trigger: string;
-  cost: string | null;
+  trigger: Trigger[];
+  cost: CostRecord | null;
   cond: Cond | null;
   ops: Op[];
   unread: string[];
@@ -59,28 +72,52 @@ function programOf(cond: Cond | null, ops: Op[]): Op[] {
   return cond ? [{ op: "if", cond, then: ops }] : ops;
 }
 
+/**
+ * The WHEN line. A skill with no named moment is not silent: the kind says
+ * when the engine looks at it, and only an [Auto] whose wording nobody could
+ * place has nothing to offer.
+ */
+function whenLine(trigger: Trigger[], tag: string): string {
+  const said = describeTrigger(trigger);
+  if (said) return said;
+  if (tag === "permanent") return "while this card is where the skill is valid";
+  if (tag.startsWith("activate")) return "when you activate it";
+  if (tag.startsWith("counter")) return "at the counter timing the tag names";
+  return "the engine knows no moment for this wording";
+}
+
 export function RuleRecord(r: RecordProps) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [editing, setEditing] = useState(false);
   const [ops, setOps] = useState<Op[]>(r.ops);
   const [cond, setCond] = useState<Cond | null>(r.cond);
+  const [trigger, setTrigger] = useState<Trigger[]>(r.trigger);
+  const [cost, setCost] = useState<CostRecord | null>(r.cost);
   const [jsonOpen, setJsonOpen] = useState(false);
   const [jsonText, setJsonText] = useState(() => JSON.stringify(programOf(r.cond, r.ops), null, 2));
   const [jsonError, setJsonError] = useState<string | null>(null);
+  const [textOpen, setTextOpen] = useState(false);
+  const [text, setText] = useState("");
+  const [textError, setTextError] = useState<string | null>(null);
   const [explainOpen, setExplainOpen] = useState(false);
   const [explanation, setExplanation] = useState("");
   const [patternWrong, setPatternWrong] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
 
+  const rule: Rule = useMemo(() => ({ kind: r.tag, trigger, cost, cond, ops }), [r.tag, trigger, cost, cond, ops]);
   const program = useMemo(() => programOf(cond, ops), [cond, ops]);
   const reads = useMemo(() => describeScript(program, { permanent: r.permanent }), [program, r.permanent]);
   // A keyword line whose whole program is empty is not a blank skill: the
   // keyword is the rule, and the engine plays it. `plays` is the glossary's
   // word for that, and the only place it is written down.
   const plays = r.pattern?.startsWith("keyword:") ? keywordPlays(r.pattern.slice("keyword:".length)) : null;
-  const dirty = JSON.stringify(program) !== JSON.stringify(programOf(r.cond, r.ops));
+  // Dirty against the printed form of the record rather than its JSON: a rule
+  // that came back from the text view differing only in a `false` the printer
+  // leaves out is the same rule, and offering to save it would churn the
+  // version for nothing.
+  const dirty = printRule(rule) !== printRule({ kind: r.tag, trigger: r.trigger, cost: r.cost, cond: r.cond, ops: r.ops });
 
   const run = (label: string, fn: () => Promise<{ error: string | null }>) => {
     setError(null);
@@ -121,6 +158,40 @@ export function RuleRecord(r: RecordProps) {
   const openJson = () => {
     if (!jsonOpen) setJsonText(JSON.stringify(program, null, 2));
     setJsonOpen(!jsonOpen);
+  };
+
+  /**
+   * The text view, read back. Same contract as the JSON view — the last valid
+   * rule is kept and the error says where — with two more checks, because this
+   * box can change WHEN and COST: the printed skill tag may not be edited, and
+   * a moment the engine never fires is refused rather than stored as a skill
+   * that silently never happens.
+   */
+  const readText = () => {
+    const parsed = parseRule(text);
+    if (!parsed.ok) {
+      const e = parsed.error;
+      setTextError(`${e.clause}, line ${e.line} column ${e.col}: ${e.message}${e.expected.length ? ` — expected ${e.expected.slice(0, 6).join(", ")}` : ""}`);
+      return;
+    }
+    const bad = validateRule(parsed.value, r.tag);
+    if (bad) {
+      setTextError(`${bad.field.toUpperCase()}: ${bad.message}`);
+      return;
+    }
+    setTextError(null);
+    setTrigger(parsed.value.trigger);
+    setCost(parsed.value.cost);
+    setCond(parsed.value.cond);
+    setOps(parsed.value.ops);
+    setEditing(true);
+  };
+  const openText = () => {
+    if (!textOpen) {
+      setText(printRule(rule));
+      setTextError(null);
+    }
+    setTextOpen(!textOpen);
   };
 
   const printed = r.printed.replace(/\s+/g, " ").trim();
@@ -199,12 +270,17 @@ export function RuleRecord(r: RecordProps) {
       <div className="overflow-hidden rounded-2xl border border-space-700 bg-space-900/60">
         <Row k="WHEN" tone="text-ki-300">
           <Chip>
-            [{r.kind}] · {r.trigger}
+            [{r.kind}] · {whenLine(trigger, r.tag)}
           </Chip>
+          {!textOpen && (
+            <button type="button" className="tap rounded-lg border border-dashed border-space-600 px-2 py-1 text-[11px] text-space-400" onClick={openText}>
+              edit as text
+            </button>
+          )}
         </Row>
-        {r.cost && (
+        {costSentence(cost) && (
           <Row k="COST" tone="text-space-300">
-            <Chip>{r.cost}</Chip>
+            <Chip>{costSentence(cost)}</Chip>
           </Row>
         )}
         {(cond || editing) && (
@@ -246,7 +322,7 @@ export function RuleRecord(r: RecordProps) {
         )}
         {editing ? (
           <>
-            <button type="button" disabled={pending || !!jsonError} className={primary} onClick={() => run("Saved as corrected.", () => saveRuleAction(r.id, program, explanation.trim() || null, patternWrong))}>
+            <button type="button" disabled={pending || !!jsonError || !!textError} className={primary} onClick={() => run("Saved as corrected.", () => saveRuleAction(r.id, rule, explanation.trim() || null, patternWrong))}>
               Save as corrected
             </button>
             <button
@@ -256,7 +332,11 @@ export function RuleRecord(r: RecordProps) {
                 setEditing(false);
                 setOps(r.ops);
                 setCond(r.cond);
+                setTrigger(r.trigger);
+                setCost(r.cost);
+                setText(printRule({ kind: r.tag, trigger: r.trigger, cost: r.cost, cond: r.cond, ops: r.ops }));
                 setJsonError(null);
+                setTextError(null);
               }}
             >
               Cancel
@@ -269,6 +349,9 @@ export function RuleRecord(r: RecordProps) {
         )}
         <button type="button" className={btn} onClick={() => setExplainOpen(!explainOpen)}>
           Explain to Claude
+        </button>
+        <button type="button" className={btn} onClick={openText}>
+          {textOpen ? "Hide" : "Show"} as text
         </button>
         <button type="button" className={btn} onClick={openJson}>
           {jsonOpen ? "Hide" : "Show"} program (JSON)
@@ -289,6 +372,29 @@ export function RuleRecord(r: RecordProps) {
           </label>
         )}
       </p>
+
+      {textOpen && (
+        <div>
+          <textarea
+            spellCheck={false}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onBlur={readText}
+            rows={Math.min(24, text.split("\n").length + 1)}
+            className="w-full rounded-xl border border-space-700 bg-space-950 p-3 font-mono text-[11px] leading-relaxed text-space-200"
+          />
+          <p className="text-[11px] text-space-500">
+            {textError ? (
+              <span className="text-loss">{textError} — the last valid rule is kept.</span>
+            ) : (
+              <>
+                The whole record in the rules language, and the only place WHEN and COST can be changed. It is read when you leave the box; the chips above follow. The skill tag in brackets comes off the card
+                and cannot be edited.
+              </>
+            )}
+          </p>
+        </div>
+      )}
 
       {jsonOpen && (
         <div>

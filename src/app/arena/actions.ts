@@ -7,7 +7,8 @@ import { and, desc, eq, isNotNull } from "drizzle-orm";
 import { db } from "@/db";
 import { arenaFeedback, arenaGames } from "@/db/schema";
 import { describeAiError } from "@/lib/ai/client";
-import { IllegalAction, validateProgram, type Action, type GameState } from "@/lib/arena/engine";
+import { IllegalAction, type Action, type GameState } from "@/lib/arena/engine";
+import { printRule, readRule } from "@/lib/arena/lang";
 import { defaultEngine } from "@/lib/arena/engine-setting";
 import { engineOr } from "@/lib/arena/engines";
 import { abandonGame, applyToGame, clearBeatsForTurn, isVersus, loadGame, seatOf, StaleGame, startGame, type ArenaMode } from "@/lib/arena/games";
@@ -130,20 +131,31 @@ export async function confirmRuleAction(id: number): Promise<{ error: string | n
 }
 
 /**
- * A program written by hand (or corrected in the JSON view). `patternWrong`
- * also files a compiler brief on the backlog with this program as the
- * expected reading, for the case where every card phrased this way is misread.
+ * A record written by hand — from the chips, the JSON view or the text view.
+ * The whole rule arrives, not just the steps: since 9 Sep 2026 the text view
+ * can change WHEN and COST too, and both are things the engine reads off the
+ * row, so both are saved with it.
+ *
+ * The rule comes from a browser, so it is checked rather than trusted, and the
+ * printed skill tag it carries has to be the one the row already has —
+ * `validateRule` refuses anything else.
+ *
+ * `patternWrong` also files a compiler brief on the backlog with this program
+ * as the expected reading, for the case where every card phrased this way is
+ * misread.
  */
-export async function saveRuleAction(id: number, ops: unknown, explanation: string | null, patternWrong = false): Promise<{ error: string | null }> {
-  if (!validateProgram(ops)) return { error: "that is not a valid program — every step needs its required fields and known values" };
+export async function saveRuleAction(id: number, rule: unknown, explanation: string | null, patternWrong = false): Promise<{ error: string | null }> {
   const row = await ruleById(db, id);
   if (!row) return { error: "no such rule" };
-  const saved = await saveRule(db, { cardId: row.cardId, side: row.side === "back" ? "back" : "front", skillIndex: row.skillIndex, ops, source: "user", status: "corrected", explanation });
+  const read = readRule(rule, row.kind);
+  if ("error" in read) return { error: read.error.message };
+  const { trigger, cost, cond, ops } = read.rule;
+  const saved = await saveRule(db, { cardId: row.cardId, side: row.side === "back" ? "back" : "front", skillIndex: row.skillIndex, ops, cond, trigger, cost, source: "user", status: "corrected", explanation });
   if (patternWrong && row.pattern) {
     // The correction fixes this card; the brief is what fixes every card the
     // same pattern misreads, and it belongs on the row the reading is on.
     await setBrief(db, id, {
-      brief: `## Wording\n${row.printed}\n\n## What it should emit\n\`\`\`json\n${JSON.stringify(ops, null, 2)}\n\`\`\`\n\nThe compiler's pattern \`${row.pattern}\` produced a different program for this card and its siblings; the owner corrected this one by hand and marked the pattern wrong.`,
+      brief: `## Wording\n${row.printed}\n\n## What it should emit\n\`\`\`\n${printRule(read.rule)}\n\`\`\`\n\nThe compiler's pattern \`${row.pattern}\` produced a different program for this card and its siblings; the owner corrected this one by hand and marked the pattern wrong.`,
       explanation: explanation ?? `corrected by hand on the workbench; the pattern "${row.pattern}" reads this wording wrongly`,
     });
     revalidatePath("/arena/rules/patterns");

@@ -98,6 +98,16 @@ The pain is entirely in the layer around them.
    program is always one click away and round-trips through the same validator. There is no
    free-text-to-program path in the editor; that is what "Explain to Claude" is for, and its answer
    is a draft.
+
+   **Amended 9 Sep 2026 (Stage 1 of the rules-language programme).** There is now a third view of
+   the same record: the **rules language** (`src/lib/arena/lang/`, `docs/arena-rules-language.md`),
+   a closed grammar isomorphic to the program — `parse(print(x))` is `x`, checked over every op,
+   condition, selector, filter and keyword in `scripts/verify/lang.ts`. It is *not* the free-text
+   path this decision rules out: nothing is guessed, and a word the grammar does not know is an
+   error with a line and a column, never a widening. It exists because WHEN and COST have no chip
+   editor and are not getting one, and they now need editing — the engine reads the row's trigger
+   (`skillAnswersTo` in `engine/triggers.ts`), so a WHEN a person changes is a WHEN the engine
+   matches. The skill tag in brackets stays read-only: it comes off the card.
 7. **Patterns stay first-class.** The number of sibling cards with the same wording is on every
    record, and correcting a compiled draft asks "fix this card" or "fix the pattern" (the latter
    files a compiler brief, as `/arena/backlog` does today). The workbench must not make it easy to

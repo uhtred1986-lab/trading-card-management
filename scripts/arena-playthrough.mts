@@ -201,7 +201,12 @@ const argv = process.argv.slice(2);
 const engineArg = argv.indexOf("--engine");
 const engine = engineArg >= 0 ? argv[engineArg + 1] : undefined;
 if (engine !== undefined && !isEngineId(engine)) throw new Error(`--engine must be one of legacy, rules; got ${engine}`);
-const wanted = argv.filter((a, i) => i !== engineArg && i !== engineArg + 1).map(Number).filter(Number.isInteger);
+// Same guard as the fuzzer: with no `--engine`, `engineArg + 1` is 0 and the
+// first deck id would be dropped.
+const wanted = argv
+  .filter((a, i) => engineArg < 0 || (i !== engineArg && i !== engineArg + 1))
+  .map(Number)
+  .filter(Number.isInteger);
 
 const all = await db.select({ id: decks.id, name: decks.name }).from(decks);
 const usable: number[] = [];
