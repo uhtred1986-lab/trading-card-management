@@ -52,7 +52,7 @@ const STREAMS = [
     title: "Rules VM build-out",
     status: "Queued",
     note: "Continue the new rules language and ruleset path without changing the frozen legacy engine more than needed.",
-    doc: "/docs/arena-ruleset-spec.md",
+    doc: "/docs/arena-rules-language.md",
     href: "/arena/rules/keywords",
     cta: "compiler glossary",
     parallel: true,

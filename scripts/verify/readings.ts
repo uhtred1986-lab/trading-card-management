@@ -489,12 +489,12 @@ import {
     labels(s),
     ["To the Warp", "Keep going to the Drop"],
   );
-  let accepted = play(s, { type: "chooseMode", player: "p1", index: 0 });
+  const accepted = play(s, { type: "chooseMode", player: "p1", index: 0 });
   assert.ok(accepted.players.p1.warp.includes(may), "taking the offer sends it to the Warp");
   assert.ok(!accepted.players.p1.drop.includes(may));
   assertConsistent(accepted);
 
-  let declined = play(s, { type: "chooseMode", player: "p1", index: 1 });
+  const declined = play(s, { type: "chooseMode", player: "p1", index: 1 });
   assert.ok(declined.players.p1.drop.includes(may), "declining keeps the ordinary KO");
   assert.ok(!declined.players.p1.warp.includes(may));
   assertConsistent(declined);
@@ -515,6 +515,26 @@ import {
   assert.ok(s.players.p1.energy.includes(earthwarp), "the chosen replacement is the one that happens");
   assert.equal(s.cards[earthwarp].mode, "rest");
   assert.ok(!s.players.p1.warp.includes(earthwarp));
+  assertConsistent(s);
+}
+
+{
+  // A mandatory replacement still happens when an optional one also applies.
+  DEFS.MAYEARTH = {
+    ...DEFS.V1,
+    id: "MAYEARTH",
+    name: "MAYEARTH",
+    traits: ["Earthling"],
+    skill: "[Permanent] If this card would leave the Battle Area, you may send it to your Warp instead.",
+  };
+  let s = arena({ battle: ["MAYEARTH", "WARDEN"], oppHand: ["KILLER"], oppEnergy: ["V1"] });
+  const mayearth = find(s, "p1", "battle", "MAYEARTH");
+  s = play(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+  s = play(s, { type: "play", player: "p2", card: find(s, "p2", "hand", "KILLER") }, { type: "choose", player: "p2", cards: [mayearth] });
+  assert.equal(s.prompt.kind, "replaceMove");
+  assert.deepEqual(labels(s), ["To the Warp", "To the Energy Area in Rest Mode"]);
+  s = play(s, { type: "chooseMode", player: "p1", index: 0 });
+  assert.ok(s.players.p1.warp.includes(mayearth), "the optional replacement may still be chosen");
   assertConsistent(s);
 }
 

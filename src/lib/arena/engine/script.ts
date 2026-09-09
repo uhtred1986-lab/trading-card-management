@@ -850,7 +850,7 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
               frame.awaiting = undefined;
             } else {
               const choices = replacementChoicesFor(ctx, s, id, "ko");
-              const allowNone = choices.some((c) => c.optional);
+              const allowNone = choices.every((c) => c.optional);
               if (choices.length > 1 || allowNone) {
                 frame.awaiting = "replaceMove";
                 frame.moveLoop.beforeDrop = s.players[s.cards[id].owner].drop.length;
@@ -919,7 +919,7 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
             frame.awaiting = undefined;
           } else {
             const choices = replacementChoicesFor(ctx, s, id, "effect");
-            const allowNone = choices.some((c) => c.optional);
+            const allowNone = choices.every((c) => c.optional);
             if (choices.length > 1 || allowNone) {
               frame.awaiting = "replaceMove";
               frame.moveLoop.owner = owner;
