@@ -1,158 +1,203 @@
 ﻿param(
-  [string]$Repo = "uhtred1986-lab/trading-card-management"
+  [string]$Repo = "uhtred1986-lab/trading-card-management",
+  [switch]$DryRun,
+  [switch]$UpdateExisting
 )
 
+# Creates (and with -UpdateExisting rewrites) the Arena backlog on GitHub from
+# docs/arena-backlog/*.md — see docs/arena-backlog.md §6 and docs/arena-backlog/_README.md.
+# Idempotent: issues are matched by exact title; milestones and labels are created only when
+# absent; every tracking issue's task list is rebuilt from the current issue numbers each run.
+
 $ErrorActionPreference = "Stop"
+$root = Split-Path -Parent $PSScriptRoot
+$issueDir = Join-Path $root "docs\arena-backlog"
+$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 
 function Assert-GhReady {
-  $gh = Get-Command gh -ErrorAction SilentlyContinue
-  if (-not $gh) {
+  if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
     throw "GitHub CLI (gh) is not installed. Install it first: https://cli.github.com/"
   }
-
   gh auth status 1>$null 2>$null
-  if ($LASTEXITCODE -ne 0) {
-    throw "You are not authenticated. Run: gh auth login"
+  if ($LASTEXITCODE -ne 0) { throw "You are not authenticated. Run: gh auth login" }
+}
+
+function Read-IssueFile {
+  param([string]$Path)
+  $text = [System.IO.File]::ReadAllText($Path, [System.Text.Encoding]::UTF8)
+  $lines = $text -split "`r?`n"
+  if ($lines[0] -ne "---") { throw "${Path}: no front matter" }
+  $meta = @{}
+  $i = 1
+  while ($i -lt $lines.Count -and $lines[$i] -ne "---") {
+    $line = $lines[$i]
+    $idx = $line.IndexOf(":")
+    if ($idx -lt 0) { throw "${Path}: bad front matter line '$line'" }
+    $meta[$line.Substring(0, $idx).Trim()] = $line.Substring($idx + 1).Trim()
+    $i++
+  }
+  if ($i -ge $lines.Count) { throw "${Path}: front matter never closed" }
+  $body = ($lines[($i + 1)..($lines.Count - 1)] -join "`n").Trim()
+  foreach ($k in "title", "milestone", "labels", "stage") {
+    if (-not $meta.ContainsKey($k)) { throw "${Path}: front matter lacks '$k'" }
+  }
+  return [pscustomobject]@{
+    File      = [System.IO.Path]::GetFileName($Path)
+    Title     = $meta.title
+    Milestone = $meta.milestone
+    Labels    = @($meta.labels -split "," | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+    Stage     = $meta.stage
+    Tracking  = ($meta.ContainsKey("tracking") -and $meta.tracking -eq "true")
+    Body      = $body
   }
 }
 
 function Get-AllIssues {
-  $json = gh issue list --repo $Repo --state all --limit 500 --json number,title
+  $json = gh issue list --repo $Repo --state all --limit 1000 --json number,title,state
   if ([string]::IsNullOrWhiteSpace($json)) { return @() }
-  return $json | ConvertFrom-Json
+  return @($json | ConvertFrom-Json)
 }
 
 function Ensure-Milestone {
-  param([string]$Title)
-
-  $openJson = gh api "repos/$Repo/milestones?state=all&per_page=100"
-  $all = @()
-  if (-not [string]::IsNullOrWhiteSpace($openJson)) {
-    $all = $openJson | ConvertFrom-Json
-  }
-
-  $existing = $all | Where-Object { $_.title -eq $Title } | Select-Object -First 1
-  if ($existing) {
-    Write-Host "Milestone exists: $Title"
-    return [int]$existing.number
-  }
-
-  $createdJson = gh api "repos/$Repo/milestones" -f title="$Title" -f state="open"
-  $created = $createdJson | ConvertFrom-Json
-  Write-Host "Milestone created: $Title"
+  param([string]$Title, [hashtable]$Existing)
+  if ($Existing.ContainsKey($Title)) { return $Existing[$Title] }
+  if ($DryRun) { Write-Host "  [dry] would create milestone: $Title"; return -1 }
+  $created = gh api "repos/$Repo/milestones" -f title="$Title" -f state="open" | ConvertFrom-Json
+  Write-Host "  milestone created: $Title"
+  $Existing[$Title] = [int]$created.number
   return [int]$created.number
 }
 
 function Ensure-Label {
-  param(
-    [string]$Name,
-    [string]$Color,
-    [string]$Description
-  )
-
+  param([string]$Name, [string]$Color, [string]$Description)
+  if ($DryRun) { return }
   gh label create "$Name" --repo $Repo --color "$Color" --description "$Description" --force 1>$null
-  Write-Host "Label ensured: $Name"
 }
 
-function New-BacklogIssueIfMissing {
-  param(
-    [hashtable]$Issue,
-    [hashtable]$MilestoneNumbers,
-    [array]$ExistingIssues
-  )
+function Write-BodyFile {
+  param([string]$Body)
+  $tmp = [System.IO.Path]::GetTempFileName()
+  [System.IO.File]::WriteAllText($tmp, $Body, $utf8NoBom)
+  return $tmp
+}
 
-  $match = $ExistingIssues | Where-Object { $_.title -eq $Issue.Title } | Select-Object -First 1
+function Expand-Children {
+  param([pscustomobject]$Issue, [array]$All, [hashtable]$Numbers, [array]$Existing)
+  $rows = @()
+  foreach ($child in ($All | Where-Object { -not $_.Tracking -and $_.Stage -eq $Issue.Stage } | Sort-Object File)) {
+    $n = $Numbers[$child.Title]
+    if (-not $n) { $rows += "- [ ] $($child.Title) (not created yet)"; continue }
+    $state = ($Existing | Where-Object { $_.number -eq $n } | Select-Object -First 1).state
+    $box = if ($state -eq "CLOSED") { "[x]" } else { "[ ]" }
+    $rows += "- $box #$n $($child.Title)"
+  }
+  return $Issue.Body.Replace("{{children}}", ($rows -join "`n"))
+}
+
+function Publish-Issue {
+  param([pscustomobject]$Issue, [string]$Body, [hashtable]$Milestones, [array]$Existing, [hashtable]$Numbers)
+  $match = $Existing | Where-Object { $_.title -eq $Issue.Title } | Select-Object -First 1
+  $labelsCsv = ($Issue.Labels -join ",")
   if ($match) {
-    Write-Host "Issue exists (#$($match.number)): $($Issue.Title)"
+    $Numbers[$Issue.Title] = [int]$match.number
+    if ($UpdateExisting -or $Issue.Tracking) {
+      if ($DryRun) { Write-Host "  [dry] would update #$($match.number): $($Issue.Title)"; return }
+      $tmp = Write-BodyFile $Body
+      try {
+        gh issue edit $match.number --repo $Repo --body-file $tmp --add-label "$labelsCsv" --milestone "$($Issue.Milestone)" 1>$null
+      } finally { Remove-Item $tmp -Force }
+      Write-Host "  updated #$($match.number): $($Issue.Title)"
+    } else {
+      Write-Host "  exists  #$($match.number): $($Issue.Title)"
+    }
     return
   }
-
-  $labelsCsv = ($Issue.Labels -join ",")
-  $milestoneNumber = $MilestoneNumbers[$Issue.Milestone]
-
-  $body = @"
-Source: $($Issue.Source)
-
-Scope:
-$($Issue.Scope)
-
-Acceptance checks:
-- npm run typecheck
-- npm run lint
-- npm test
-- Scenario proof: document a concrete arena/game/card flow that demonstrates correct behavior.
-"@
-
-  gh issue create --repo $Repo --title "$($Issue.Title)" --body "$body" --label "$labelsCsv" --milestone "$milestoneNumber" 1>$null
-  Write-Host "Issue created: $($Issue.Title)"
+  if ($DryRun) { Write-Host "  [dry] would create: $($Issue.Title)  [$labelsCsv] {$($Issue.Milestone)}"; return }
+  $tmp = Write-BodyFile $Body
+  try {
+    $url = gh issue create --repo $Repo --title "$($Issue.Title)" --body-file $tmp --label "$labelsCsv" --milestone "$($Issue.Milestone)"
+  } finally { Remove-Item $tmp -Force }
+  $number = [int]($url -replace ".*/", "")
+  $Numbers[$Issue.Title] = $number
+  Write-Host "  created #${number}: $($Issue.Title)"
 }
 
 Assert-GhReady
-
-$milestones = @(
-  "Arena M1 — Rules correctness and parser coverage",
-  "Arena M2 — Gameplay UX/HUD completion",
-  "Arena M3 — Battle staging and inspector",
-  "Arena M4 — Android client enablement",
-  "Arena M5 — Engine capability gaps and advanced mechanics"
-)
 
 $labels = @(
   @{ Name = "backlog"; Color = "1D76DB"; Description = "Arena backlog tracking item" },
   @{ Name = "ready-for-agent"; Color = "0E8A16"; Description = "Issue is pickup-ready for a future agent" },
   @{ Name = "needs-owner-ruling"; Color = "B60205"; Description = "Blocked pending owner ruling" },
   @{ Name = "blocked"; Color = "D93F0B"; Description = "Blocked by external dependency or prior task" },
-  @{ Name = "area:arena-compiler"; Color = "5319E7"; Description = "Arena compiler/parser work" },
-  @{ Name = "area:arena-engine"; Color = "5319E7"; Description = "Arena engine/runtime work" },
+  @{ Name = "epic"; Color = "3E4B9E"; Description = "A stage's tracking issue; its task list is the stage's progress" },
+  @{ Name = "area:arena-compiler"; Color = "5319E7"; Description = "Arena compiler/parser work (compile.ts, filters.ts, the drafter)" },
+  @{ Name = "area:arena-engine"; Color = "5319E7"; Description = "Legacy arena engine (src/lib/arena/engine)" },
+  @{ Name = "area:arena-vm"; Color = "5319E7"; Description = "Rules engine (src/lib/arena/vm)" },
+  @{ Name = "area:arena-lang"; Color = "5319E7"; Description = "The rules language (src/lib/arena/lang)" },
+  @{ Name = "area:arena-rulesets"; Color = "5319E7"; Description = "Ruleset definition files and loader (src/lib/arena/rulesets)" },
   @{ Name = "area:arena-ui"; Color = "5319E7"; Description = "Arena UI and board experience work" },
   @{ Name = "area:arena-contract"; Color = "5319E7"; Description = "Arena snapshot/API contract work" },
   @{ Name = "area:arena-android"; Color = "5319E7"; Description = "Arena Android client work" },
   @{ Name = "area:arena-workbench"; Color = "5319E7"; Description = "Arena rules workbench workflow" },
-  @{ Name = "phase:rules-stage2"; Color = "C2E0C6"; Description = "Arena rules stage 2 scope" },
+  @{ Name = "area:arena-docs"; Color = "5319E7"; Description = "Arena documentation (language, ruleset, guides)" },
+  @{ Name = "phase:rules-stage2"; Color = "C2E0C6"; Description = "Rules programme Stage 2: primitives and compiler correctness" },
+  @{ Name = "phase:rules-stage3"; Color = "C2E0C6"; Description = "Rules programme Stage 3: definitions in the language" },
+  @{ Name = "phase:rules-stage4"; Color = "C2E0C6"; Description = "Rules programme Stage 4: rules engine core" },
+  @{ Name = "phase:rules-stage5"; Color = "C2E0C6"; Description = "Rules programme Stage 5: actions and costs" },
+  @{ Name = "phase:rules-stage6"; Color = "C2E0C6"; Description = "Rules programme Stage 6: battle" },
+  @{ Name = "phase:rules-stage7"; Color = "C2E0C6"; Description = "Rules programme Stage 7: keywords as macros" },
+  @{ Name = "phase:rules-stage8"; Color = "C2E0C6"; Description = "Rules programme Stage 8: everything else from config" },
+  @{ Name = "phase:rules-stage9"; Color = "C2E0C6"; Description = "Rules programme Stage 9: parity and the flip" },
+  @{ Name = "phase:rules-stage10"; Color = "C2E0C6"; Description = "Rules programme Stage 10: retire the legacy engine" },
+  @{ Name = "phase:rules-docs"; Color = "C2E0C6"; Description = "Rules programme documentation" },
   @{ Name = "phase:hud-workflow"; Color = "C2E0C6"; Description = "Arena HUD/workflow completion scope" },
   @{ Name = "phase:battle-staging"; Color = "C2E0C6"; Description = "Arena battle staging scope" },
   @{ Name = "phase:android-client"; Color = "C2E0C6"; Description = "Arena Android client scope" },
-  @{ Name = "phase:capability-gap"; Color = "C2E0C6"; Description = "Arena engine capability-gap scope" }
+  @{ Name = "phase:capability-gap"; Color = "C2E0C6"; Description = "Arena engine capability-gap scope" },
+  @{ Name = "model:opus-5"; Color = "FBCA04"; Description = "Plan recommends running this on Opus 5 (design, engine, keywords)" },
+  @{ Name = "model:sonnet-5"; Color = "FEF2C0"; Description = "Plan recommends running this on Sonnet 5 (mechanical ports, UI, docs)" }
 )
 
-$issues = @(
-  @{ Title = "Arena: run clause near-miss audit and fix wrong readings"; Milestone = "Arena M1 — Rules correctness and parser coverage"; Labels = @("backlog","ready-for-agent","enhancement","area:arena-compiler","phase:rules-stage2"); Source = "docs/arena-next-session-prompt.md §4(a)"; Scope = "Systematically audit regex near-misses, prefer unread over wrong read, and land verified fixes with reading diffs." },
-  @{ Title = "Arena: implement structural side parsing fix in parseTarget"; Milestone = "Arena M1 — Rules correctness and parser coverage"; Labels = @("backlog","ready-for-agent","bug","area:arena-compiler","phase:rules-stage2"); Source = "docs/arena-side-scope.md"; Scope = "Stop whole-clause possessive side inference; derive side from area phrase match with safe fallback." },
-  @{ Title = "Arena: fix OR disjunction handling in parseConditionClause"; Milestone = "Arena M1 — Rules correctness and parser coverage"; Labels = @("backlog","ready-for-agent","bug","area:arena-compiler","phase:rules-stage2"); Source = "docs/arena-next-session-prompt.md §4(c)"; Scope = "Fix green X or yellow Y being parsed as AND across fields." },
-  @{ Title = "Arena: implement specified-cost reducer mechanics"; Milestone = "Arena M1 — Rules correctness and parser coverage"; Labels = @("backlog","ready-for-agent","enhancement","area:arena-engine","area:arena-compiler","phase:rules-stage2"); Source = "docs/arena-next-session-prompt.md §4(c), docs/arena-markers-stage-scope.md §2/§4"; Scope = "Make specified-cost reductions affect coloured requirements (not total cost) and integrate with play-cost payment logic." },
-  @{ Title = "Arena: implement skill-cost reduction family (orbTotals + scope safety)"; Milestone = "Arena M1 — Rules correctness and parser coverage"; Labels = @("backlog","ready-for-agent","enhancement","area:arena-engine","area:arena-compiler","phase:rules-stage2"); Source = "docs/arena-next-session-prompt.md §4(c), docs/arena-next-stage-spec.md §6.6"; Scope = "Add safe handling for reduce skill cost effects, including scoped application." },
-  @{ Title = "Arena: finish HUD spec sections 2.2–2.6"; Milestone = "Arena M2 — Gameplay UX/HUD completion"; Labels = @("backlog","ready-for-agent","enhancement","area:arena-ui","phase:hud-workflow"); Source = "docs/arena-hud-spec.md §2.2–§2.6"; Scope = "Merge last+ask card, normalize ghost/filled actions, hint row cleanup, settings overflow menu, and collapsed empty battle area." },
-  @{ Title = "Arena: execute and document manual HUD verification matrix"; Milestone = "Arena M2 — Gameplay UX/HUD completion"; Labels = @("backlog","ready-for-agent","documentation","area:arena-ui","phase:hud-workflow"); Source = "docs/arena-hud-spec.md §4, §6.4"; Scope = "Run by-hand phone checks (both skins), capture outcomes, and record defects as follow-up issues." },
-  @{ Title = "Arena: add missing-energy chips to workflow UI"; Milestone = "Arena M2 — Gameplay UX/HUD completion"; Labels = @("backlog","ready-for-agent","enhancement","area:arena-ui","phase:hud-workflow"); Source = "docs/arena-workflow-spec.md §9"; Scope = "Implement missing-energy affordance referenced as outstanding in workflow build notes." },
-  @{ Title = "Arena: implement battle counters/combos staged duel band"; Milestone = "Arena M3 — Battle staging and inspector"; Labels = @("backlog","ready-for-agent","enhancement","area:arena-ui","area:arena-contract","phase:battle-staging"); Source = "docs/arena-battle-staging-spec.md §3.1–§3.4"; Scope = "Add battle payload and beats for counters/combos and render dual staging with takeover compatibility." },
-  @{ Title = "Arena: implement in-fight card inspector details"; Milestone = "Arena M3 — Battle staging and inspector"; Labels = @("backlog","ready-for-agent","enhancement","area:arena-ui","phase:battle-staging"); Source = "docs/arena-battle-staging-spec.md §3.5"; Scope = "Ensure any battle card can open inspector with combo stats, printed text, and engine reading context." },
-  @{ Title = "Arena: add battle staging preference and persistence"; Milestone = "Arena M3 — Battle staging and inspector"; Labels = @("backlog","ready-for-agent","enhancement","area:arena-ui","phase:battle-staging"); Source = "docs/arena-battle-staging-spec.md §3.6"; Scope = "Persist staging mode and ensure safe fallback across sessions/devices." },
-  @{ Title = "Arena: implement Android /api/v1 deck endpoints"; Milestone = "Arena M4 — Android client enablement"; Labels = @("backlog","ready-for-agent","enhancement","area:arena-contract","area:arena-android","phase:android-client"); Source = "docs/arena-client-contract.md §5"; Scope = "Build not-yet-implemented deck endpoints needed for Android read-only deck flows." },
-  @{ Title = "Arena: implement Android Stage 1 app shell and snapshot polling"; Milestone = "Arena M4 — Android client enablement"; Labels = @("backlog","ready-for-agent","enhancement","area:arena-android","phase:android-client"); Source = "docs/arena-android-spec.md §11"; Scope = "Build initial Android app modules, auth, board shell, and live snapshot consumption." },
-  @{ Title = "Arena: implement Android battle playback and animation parity"; Milestone = "Arena M4 — Android client enablement"; Labels = @("backlog","ready-for-agent","enhancement","area:arena-android","phase:android-client"); Source = "docs/arena-android-spec.md §5/§6"; Scope = "Add beat playback and board animation behavior aligned with web semantics and contract." },
-  @{ Title = "Arena: implement move replacement choice architecture (9-10-2/9-10-3)"; Milestone = "Arena M5 — Engine capability gaps and advanced mechanics"; Labels = @("backlog","ready-for-agent","enhancement","area:arena-engine","area:arena-compiler","phase:capability-gap"); Source = "docs/arena-move-replacement-scope.md"; Scope = "Add prompt-capable replacement selection path at suspendable call sites while preserving deterministic behavior elsewhere." },
-  @{ Title = "Arena: implement Empower up to Y player choice"; Milestone = "Arena M5 — Engine capability gaps and advanced mechanics"; Labels = @("backlog","ready-for-agent","bug","area:arena-engine","phase:capability-gap"); Source = "docs/arena-markers-stage-scope.md §2/§4"; Scope = "Replace auto-carry with explicit player choice for marker inheritance up to Y." },
-  @{ Title = "Arena: add Empower inheritance transfer beat and board animation"; Milestone = "Arena M5 — Engine capability gaps and advanced mechanics"; Labels = @("backlog","ready-for-agent","enhancement","area:arena-contract","area:arena-ui","phase:capability-gap"); Source = "docs/arena-markers-stage-scope.md §3/§4"; Scope = "Introduce beat naming source+target card for marker transfer and animate transfer on board." },
-  @{ Title = "Arena: support keyword parse for [Empower XY/ZY]"; Milestone = "Arena M5 — Engine capability gaps and advanced mechanics"; Labels = @("backlog","ready-for-agent","enhancement","area:arena-compiler","phase:capability-gap"); Source = "docs/arena-markers-stage-scope.md §2"; Scope = "Extend keyword parser for two-colour Empower syntax; keep low priority until cards require it." }
-)
+Write-Host "Reading $issueDir ..."
+$issues = @(Get-ChildItem -Path $issueDir -Filter "*.md" | Where-Object { $_.Name -notlike "_*" } | ForEach-Object { Read-IssueFile $_.FullName })
+Write-Host "  $($issues.Count) issue files ($(@($issues | Where-Object Tracking).Count) tracking)"
+
+$dupes = $issues | Group-Object Title | Where-Object { $_.Count -gt 1 }
+if ($dupes) { throw "Duplicate titles: $($dupes.Name -join '; ')" }
 
 Write-Host "Ensuring milestones..."
-$milestoneNumbers = @{}
-foreach ($m in $milestones) {
-  $milestoneNumbers[$m] = Ensure-Milestone -Title $m
+$milestones = @{}
+$existingJson = gh api "repos/$Repo/milestones?state=all&per_page=100"
+if (-not [string]::IsNullOrWhiteSpace($existingJson)) {
+  foreach ($m in ($existingJson | ConvertFrom-Json)) { $milestones[$m.title] = [int]$m.number }
+}
+foreach ($title in ($issues | Select-Object -ExpandProperty Milestone -Unique)) {
+  [void](Ensure-Milestone -Title $title -Existing $milestones)
 }
 
 Write-Host "Ensuring labels..."
-foreach ($l in $labels) {
-  Ensure-Label -Name $l.Name -Color $l.Color -Description $l.Description
+$known = @{}
+foreach ($l in $labels) { $known[$l.Name] = $true; Ensure-Label -Name $l.Name -Color $l.Color -Description $l.Description }
+foreach ($l in ($issues | ForEach-Object { $_.Labels } | Select-Object -Unique)) {
+  if (-not $known.ContainsKey($l) -and $l -notin @("bug", "enhancement", "documentation")) {
+    Write-Warning "label '$l' is not in the script's list; gh will refuse it unless it already exists"
+  }
 }
 
 Write-Host "Loading existing issues..."
-$existingIssues = Get-AllIssues
+$existing = Get-AllIssues
+$numbers = @{}
 
-Write-Host "Creating backlog issues (if missing)..."
-foreach ($i in $issues) {
-  New-BacklogIssueIfMissing -Issue $i -MilestoneNumbers $milestoneNumbers -ExistingIssues $existingIssues
+Write-Host "Issues..."
+foreach ($i in ($issues | Where-Object { -not $_.Tracking } | Sort-Object File)) {
+  Publish-Issue -Issue $i -Body $i.Body -Milestones $milestones -Existing $existing -Numbers $numbers
+}
+
+Write-Host "Tracking issues..."
+$existing = if ($DryRun) { $existing } else { Get-AllIssues }
+foreach ($i in ($issues | Where-Object { $_.Tracking } | Sort-Object File)) {
+  $body = Expand-Children -Issue $i -All $issues -Numbers $numbers -Existing $existing
+  Publish-Issue -Issue $i -Body $body -Milestones $milestones -Existing $existing -Numbers $numbers
 }
 
 Write-Host "Done."
