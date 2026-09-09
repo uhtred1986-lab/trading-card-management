@@ -68,7 +68,6 @@ function New-BacklogIssueIfMissing {
   }
 
   $labelsCsv = ($Issue.Labels -join ",")
-  $milestoneNumber = $MilestoneNumbers[$Issue.Milestone]
 
   $body = @"
 Source: $($Issue.Source)
@@ -83,7 +82,8 @@ Acceptance checks:
 - Scenario proof: document a concrete arena/game/card flow that demonstrates correct behavior.
 "@
 
-  gh issue create --repo $Repo --title "$($Issue.Title)" --body "$body" --label "$labelsCsv" --milestone "$milestoneNumber" 1>$null
+  # gh issue create's --milestone flag expects the milestone's title, not its numeric id.
+  gh issue create --repo $Repo --title "$($Issue.Title)" --body "$body" --label "$labelsCsv" --milestone "$($Issue.Milestone)" 1>$null
   Write-Host "Issue created: $($Issue.Title)"
 }
 
