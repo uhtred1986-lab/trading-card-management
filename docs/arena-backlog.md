@@ -81,3 +81,22 @@ For every new Arena bug, feature, or rules/ruling follow-up:
 6. Mark `ready-for-agent` only when the issue is pickup-ready.
 
 If an item is not ready for implementation, keep it in backlog with `needs-owner-ruling` or `blocked` and state the missing decision.
+
+## 5) Local import script (PowerShell)
+
+To create milestones, labels, and backlog issues from this prepared list, run:
+
+```powershell
+cd /home/runner/work/trading-card-management/trading-card-management
+pwsh -File /home/runner/work/trading-card-management/trading-card-management/scripts/import-arena-backlog.ps1
+```
+
+Requirements:
+- GitHub CLI installed (`gh`)
+- Authenticated session (`gh auth login`)
+
+Optional:
+
+```powershell
+pwsh -File /home/runner/work/trading-card-management/trading-card-management/scripts/import-arena-backlog.ps1 -Repo "uhtred1986-lab/trading-card-management"
+```

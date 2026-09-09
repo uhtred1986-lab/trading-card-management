@@ -46,3 +46,5 @@ Arena rework planning and intake now live in `docs/arena-backlog.md`.
 When new Arena bugs/features are found, file them as GitHub issues with the
 `Arena backlog item` template and include milestone + phase/area labels so
 future agents can pick them up directly.
+To import the prepared Arena backlog milestones/labels/issues in one run, use
+`/home/runner/work/trading-card-management/trading-card-management/scripts/import-arena-backlog.ps1`.
