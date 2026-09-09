@@ -16,8 +16,17 @@ import type { CardDef, DelayScope, DelayTiming, KeywordSkill, Skill, SkillKindPr
 // ── clause splitting ───────────────────────────────────────────────────────
 
 /** Split on commas, semicolons, full stops and "then"/"and", ignoring anything inside brackets. */
-/** After an " and ": nothing but a name, so the "and" joins names rather than clauses. */
-const NAME_AFTER_AND = /^(?:<[^>]+>|≪[^≫]+≫|\{[^}]+\})(?:\s*(?:,|\.|$|cards?\b|battle cards?\b|and\b|or\b|in\b|with\b))/i;
+/**
+ * After an " and ": nothing but a name, so the "and" joins names rather than
+ * clauses.
+ *
+ * The "non-" is part of the name for this purpose: "you can't play
+ * non-<Zamasu> **and** non-<Goku Black> Battle Cards for the game" (BT16-088)
+ * split in two, and both halves lost by it — the first became a prohibition on
+ * <Zamasu> alone, and the second, which is where "for the game" is printed,
+ * read as nothing at all. A negated name is still a name.
+ */
+const NAME_AFTER_AND = /^(?:non-)?(?:<[^>]+>|≪[^≫]+≫|\{[^}]+\})(?:\s*(?:,|\.|$|cards?\b|battle cards?\b|and\b|or\b|in\b|with\b))/i;
 
 /**
  * After an " and ": the second of two areas one phrase names — "all cards in
@@ -403,6 +412,23 @@ const ALL_AREAS: ScriptArea[] = ["leader", "battle", "unison", "combo", "energy"
 const ALL_AREAS_RE = /\bin all (?:of )?(your |their |its owner's )?areas\b/;
 
 /**
+ * "…in areas other than your deck, hand, or life" (BT7-125 through BT7-129,
+ * one per colour): every area *except* the ones it lists. The list is the one
+ * part of the phrase that must not be read as the place to look, and
+ * `AREA_WORDS` is first-match-wins, so it read "your deck" — the exact inverse
+ * of what the card says, and a mono-colour lock that checked the pile the
+ * cards are least likely to be in. `Selector.areas` states a span, so the
+ * complement is written out.
+ *
+ * Only "in", never "from": "when a card is placed in your life face up **from**
+ * any area other than your life" (BT12-023) is a trigger saying where the card
+ * came from, not a description of cards, and it is not this phrase.
+ */
+const AREAS_OTHER_THAN_RE = /\bin (?:any |all )?areas? other than ((?:your |their |its owner's |an? owner's |the )?(?:z-)?[a-z]+(?: area)?(?:(?:\s*,\s*or\s+|\s*,\s*|\s+or\s+)(?:your |their |its owner's |an? owner's |the )?(?:z-)?[a-z]+(?: area)?)*)\b/;
+/** The "or" of that list is a separator, not the shortest area word there is. */
+const AREA_LIST_SEP = /\s*,\s*or\s+|\s*,\s*|\s+or\s+/;
+
+/**
  * "up to 2 of your opponent's Battle Cards in Rest Mode" → a selector.
  *
  * `looked` is the variable a `look` earlier in the same skill bound, for the
@@ -493,6 +519,24 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
     phrase = phrase.replace(new RegExp(ALL_AREAS_RE.source, "gi"), (_full, poss?: string) => ` ${poss ?? ""} `);
     t = phrase.toLowerCase();
   }
+  // "…in areas other than your deck, hand, or life": the same, said as a
+  // complement. See `AREAS_OTHER_THAN_RE`.
+  const otherThan = AREAS_OTHER_THAN_RE.exec(t);
+  let otherAreas: ScriptArea[] | null = null;
+  if (otherThan) {
+    const named = otherThan[1]
+      .split(new RegExp(AREA_LIST_SEP.source))
+      .map((w) => w.replace(/^(?:your |their |its owner's |an? owner's |the )/, "").trim())
+      .filter(Boolean);
+    const listed = named.map((w) => AREA_NAMED[w] ?? null);
+    // One area word this table does not know and the complement would be too
+    // wide — it would name an area the card excludes, which is worse than not
+    // reading the phrase at all (ground rule 5).
+    if (listed.some((a) => a === null)) return null;
+    otherAreas = ALL_AREAS.filter((a) => !listed.includes(a));
+    phrase = phrase.replace(new RegExp(AREAS_OTHER_THAN_RE.source, "gi"), " ");
+    t = phrase.toLowerCase();
+  }
   // "this card's power" inside a phrase is a measure, not the target.
   if (/\bthis card\b(?!'s)/.test(t) && !/\bother\b/.test(t)) return { special: "self" };
   if (/\bthe attack(?:ing)? card\b/.test(t)) return { special: "attacker" };
@@ -571,7 +615,7 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
   const pair: [ScriptArea, ScriptArea] | null = both && AREA_NAMED[both[1]] && AREA_NAMED[both[2]] && AREA_NAMED[both[1]] !== AREA_NAMED[both[2]] ? [AREA_NAMED[both[1]], AREA_NAMED[both[2]]] : null;
 
   let area: ScriptArea | null = null;
-  if (!allAreas) {
+  if (!allAreas && !otherAreas) {
     for (const [re, a] of AREA_WORDS) {
       if (re.test(t)) {
         area = a;
@@ -652,6 +696,7 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
   // No single `area` stands for all of them, and leaving one on would be read
   // as the place the cards must be — so the span is the only thing said.
   if (allAreas) return { side, areas: ALL_AREAS, filter, count, upTo, mode, notSelf };
+  if (otherAreas) return { side, areas: otherAreas, filter, count, upTo, mode, notSelf };
   if (bothAreas) return { side, area: "battle", areas: ["battle", "unison"], filter, count, upTo, mode, fromVar, notSelf };
   if (pair) return { side, area: pair[0], areas: pair, filter, count, upTo, mode, fromVar, notSelf };
   return { side, area: area ?? undefined, filter, count, upTo, mode, fromVar, take, fromEnd, notSelf };
