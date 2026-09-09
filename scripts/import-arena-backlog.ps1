@@ -113,6 +113,7 @@ function Publish-Issue {
     return
   }
   if ($DryRun) { Write-Host "  [dry] would create: $($Issue.Title)  [$labelsCsv] {$($Issue.Milestone)}"; return }
+  # gh issue create's --milestone flag expects the milestone's title, not its numeric id.
   $tmp = Write-BodyFile $Body
   try {
     $url = gh issue create --repo $Repo --title "$($Issue.Title)" --body-file $tmp --label "$labelsCsv" --milestone "$($Issue.Milestone)"
