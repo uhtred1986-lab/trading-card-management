@@ -358,7 +358,7 @@ export interface ContinuousEffect {
    * named by a `SkillKindPrefix` in `value` ("negate that card's [Auto] skill
    * for the turn").
    */
-  kind: "power" | "comboPower" | "keyword" | "negateSkills" | "negateSkill" | "negateSkillKind" | "forbid" | "permit" | "immune" | "cost" | "comboCost" | "altCost";
+  kind: "power" | "comboPower" | "keyword" | "negateSkills" | "negateSkill" | "negateSkillKind" | "forbid" | "permit" | "immune" | "cost" | "comboCost" | "altCost" | "zEnergy";
   value: number | KeywordSkill | SkillKindPrefix;
   /** Set when `kind` is "forbid". */
   forbid?: Prohibition;

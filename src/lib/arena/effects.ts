@@ -126,6 +126,10 @@ export function describeEffect(e: ContinuousEffect): Pick<EffectView, "kind" | "
     // own `case "altCost"` for the card's [Permanent] offer about itself.
     case "altCost":
       return { kind: "cost", label: "another way to pay" };
+    case "zEnergy": {
+      const n = e.value as number;
+      return { kind: "cost", label: n < 0 ? `Z-Energy cost ${-n} more` : `Z-Energy cost ${n} less` };
+    }
   }
 }
 
@@ -147,6 +151,10 @@ export function describeStatic(e: StaticEffect): Pick<EffectView, "kind" | "labe
     case "comboCost": {
       const n = e.value as number;
       return { kind: "cost", label: n < 0 ? `combo costs ${-n} more` : `combo costs ${n} less` };
+    }
+    case "zEnergy": {
+      const n = e.value as number;
+      return { kind: "cost", label: n < 0 ? `Z-Energy cost ${-n} more` : `Z-Energy cost ${n} less` };
     }
     case "negateKeyword":
       return { kind: "negate", label: `[${e.value as string}] negated` };

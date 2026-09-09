@@ -280,8 +280,9 @@ export type Op =
   | { op: "token"; name: string; power: number; comboCost: number | null; comboPower: number | null; colors: Color[]; n: Amount; side?: Side }
   /**
    * A [Permanent] cost reducer, applied while the card sits where the skill
-   * says (9-1-3-3). `what` says which cost: the energy cost by default, or the
-   * combo cost (5-7-3).
+   * says (9-1-3-3). `what` says which cost: the energy cost by default, the
+   * combo cost (5-7-3), or the Z-Energy cost (5-4) a Z-Card pays out of the
+   * Z-Energy Area rather than the hand.
    */
   /**
    * 20-21. On a [Permanent] this is a standing effect and `collectStatics`
@@ -291,7 +292,7 @@ export type Op =
    * by 1 **for the duration of the turn**" (XD1-05) — and the interpreter puts
    * it in force for that long.
    */
-  | { op: "costReduction"; target: Ref; amount: Amount; what?: "energy" | "combo"; until?: Duration }
+  | { op: "costReduction"; target: Ref; amount: Amount; what?: "energy" | "combo" | "zEnergy"; until?: Duration }
   /**
    * Take a keyword skill away from a card (9-1-5). Unlike `negateSkills`, which
    * silences everything, this names one — "negate this card's
@@ -1048,7 +1049,7 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         // to put it in force itself, or it resolves to nothing at all.
         const by = amount(ctx, s, frame, op.amount);
         if (!by) break;
-        const kind = op.what === "combo" ? "comboCost" : "cost";
+        const kind = op.what === "combo" ? "comboCost" : op.what === "zEnergy" ? "zEnergy" : "cost";
         for (const id of resolveRef(ctx, s, frame, op.target)) {
           addEffect(s, ev, { master: frame.master, source: frame.card, target: id, kind, value: by, until: op.until ?? "turn" });
         }
@@ -1439,9 +1440,9 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     doc: 'a token (19): {"op":"token","name":"Saibaman Token","power":10000,"comboCost":0,"comboPower":5000,"colors":[],"n":2}',
   },
   costReduction: {
-    fields: [TARGET, { name: "amount", type: "amount", required: true }, { name: "what", type: { enum: ["energy", "combo"] }, default: "energy" }, { name: "until", type: "duration" }],
+    fields: [TARGET, { name: "amount", type: "amount", required: true }, { name: "what", type: { enum: ["energy", "combo", "zEnergy"] }, default: "energy" }, { name: "until", type: "duration" }],
     sentence: "{target} costs {amount:less|more}",
-    doc: '[Permanent] only unless a duration is given (20-21): "reduce the energy cost of your <Son Goku> cards in your hand by 1" — the selector names the area the text names, usually the hand',
+    doc: '[Permanent] only unless a duration is given (20-21): "reduce the energy cost of your <Son Goku> cards in your hand by 1" — the selector names the area the text names, usually the hand; "zEnergy" is the Z-Energy cost a Z-Card pays from the Z-Energy Area (5-4), read by `zEnergyCostOf`, never `d.zEnergyCost` raw',
   },
   negateKeyword: { fields: [{ name: "keyword", type: { enum: KEYWORD_NAMES }, required: true }, SELF], sentence: "negate the [{keyword}] skill of {target}", doc: 'take one named keyword away ("negate this card\'s [Energy-Exhaust] skill in all areas", 9-1-5); the keyword is its printed name, e.g. "Blocker"' },
   gains: {

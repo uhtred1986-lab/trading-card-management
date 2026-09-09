@@ -337,6 +337,22 @@ export function comboCostOf(ctx: GameContext, s: GameState, id: string): number 
   return Math.max(0, base - reduction);
 }
 
+/**
+ * 5-4, 20-21: the Z-Energy cost as it stands, after any reducer — the same
+ * shape as `comboCostOf`. Every site that pays or gates a Z-Energy cost
+ * (`payZEnergy`'s two call sites and the three legality gates around it in
+ * `engine.ts`) has to go through this rather than read `d.zEnergyCost` raw,
+ * or a "reduce the Z-Energy cost of X in your Z-Deck by N" skill compiles,
+ * reads correctly and changes nothing on the board.
+ */
+export function zEnergyCostOf(ctx: GameContext, s: GameState, id: string): number {
+  const base = def(ctx, s, id).zEnergyCost ?? 0;
+  let reduction = 0;
+  for (const e of staticEffects(ctx, s)) if (e.kind === "zEnergy" && e.target === id) reduction += e.value as number;
+  for (const e of s.effects) if (e.kind === "zEnergy" && e.target === id) reduction += e.value as number;
+  return Math.max(0, base - reduction);
+}
+
 export function comboPowerOf(ctx: GameContext, s: GameState, id: string): number {
   const d = def(ctx, s, id);
   let p = d.comboPower ?? 0;
@@ -571,7 +587,7 @@ export interface AltCost {
 
 export interface StaticEffect {
   source: string;
-  kind: "power" | "comboPower" | "keyword" | "cost" | "comboCost" | "negateKeyword" | "gains" | "replaceLeave" | "forbid" | "permit" | "immune" | "altCost";
+  kind: "power" | "comboPower" | "keyword" | "cost" | "comboCost" | "zEnergy" | "negateKeyword" | "gains" | "replaceLeave" | "forbid" | "permit" | "immune" | "altCost";
   /** The card it is about; empty for a rule about a player rather than a card. */
   target: string;
   value: number | KeywordSkill | KeywordSkill["name"] | Prohibition | Permission | Immunity | AltCost | Gains | Replacement;
@@ -685,7 +701,7 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
       continue;
     }
     if (op.op === "costReduction") {
-      const kind = op.what === "combo" ? "comboCost" : "cost";
+      const kind = op.what === "combo" ? "comboCost" : op.what === "zEnergy" ? "zEnergy" : "cost";
       // "…by 1 for each of your blue Battle Cards" — the same count/markers
       // amounts the power statics take, and for the same reason: a
       // [Permanent] has no frame that ever bound a variable, so only those two
