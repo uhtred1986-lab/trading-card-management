@@ -486,7 +486,7 @@ import {
   assert.equal(s.prompt.kind, "replaceMove");
   assert.equal((s.prompt as { player: string }).player, "p1");
   assert.deepEqual(
-    acts(s).map((a) => a.label),
+    labels(s),
     ["To the Warp", "Keep going to the Drop"],
   );
   let accepted = play(s, { type: "chooseMode", player: "p1", index: 0 });
@@ -508,7 +508,7 @@ import {
   s = play(s, { type: "play", player: "p2", card: find(s, "p2", "hand", "KILLER") }, { type: "choose", player: "p2", cards: [earthwarp] });
   assert.equal(s.prompt.kind, "replaceMove");
   assert.deepEqual(
-    acts(s).map((a) => a.label),
+    labels(s),
     ["To the Warp", "To the Energy Area in Rest Mode"],
   );
   s = play(s, { type: "chooseMode", player: "p1", index: 1 });
