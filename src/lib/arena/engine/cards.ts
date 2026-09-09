@@ -214,6 +214,8 @@ export function keywordOf(tag: string): KeywordSkill | null {
   if (t === "overlord") return { name: "Overlord" };
   if (t === "rejuvenate") return { name: "Rejuvenate" };
   if ((m = /^spirit boost(?: (\d+))?$/.exec(t))) return { name: "Spirit Boost", x: Number(m[1] ?? 1) };
+  // Issue #110 (ui-110-empower-two-colour.md): 22-45-3-1 defines [Empower XY/ZY], but catalog tally
+  // confirms 0 cards currently print the two-colour form. Deferred until a card requires it.
   if ((m = /^empower(?: ([a-z]+))?(?: (\d+))?$/.exec(t))) {
     const color = m[1] ? (COLOR_BY_NAME[m[1]] ?? null) : null;
     return { name: "Empower", color, x: Number(m[2] ?? (m[1] && /^\d+$/.test(m[1]) ? m[1] : 0)) };
