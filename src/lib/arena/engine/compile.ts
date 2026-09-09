@@ -413,6 +413,21 @@ const ALL_AREAS_RE = /\bin all (?:of )?(your |their |its owner's )?areas\b/;
  */
 export function parseTarget(phrase: string, looked?: string): Selector | null {
   let t = phrase.toLowerCase();
+  // Qualifiers this grammar does not read, and cannot afford to drop. Each of
+  // them narrows a phrase to a handful of cards by their *history* rather than
+  // by anything a selector can describe — which cards this very skill moved,
+  // where a card sits in a stack — and every rule below would quietly hand
+  // back the whole area instead:
+  //
+  // - "negate the skills of all cards **sent to Warps by this skill**"
+  //   (EX21-15, BT13-096) → every card in the Warp, both of them permanent;
+  // - "negate the skills of Battle Cards **on top of this card**" (BT23-070) →
+  //   read as *this card*, because "on top of this card" says "this card" and
+  //   the shortcut below asks no more than that.
+  //
+  // Refusing is ground rule 5: the clause goes to the referee, which is what
+  // the card needs anyway.
+  if (/\bby this skill\b|\bsent to\b|\bon top of\b/.test(t)) return null;
   // "Each non-Leader card under this card" is about the stack; the "this card"
   // in it names the host, not the target (23-2). Read before the shortcut
   // below, which took the whole phrase for the card on top.
@@ -437,6 +452,20 @@ export function parseTarget(phrase: string, looked?: string): Selector | null {
   if (/\bthis card\b(?!'s)/.test(t) && !/\bother\b/.test(t)) return { special: "self" };
   if (/\bthe attack(?:ing)? card\b/.test(t)) return { special: "attacker" };
   if (/\bthe guard card\b/.test(t)) return { special: "guard" };
+  // "Your opponent's Leader", "your Leader Card": a player has exactly one
+  // (3-1-2), so this names a card rather than describing a search — and the
+  // engine already has both of them as specials.
+  //
+  // Without this the phrase named no area at all: `AREA_WORDS` reads "leader
+  // card**s**" and "**your** leader", and "your opponent's Leader" is neither,
+  // so it fell through to the 20-1-6 default of the whole play area and the
+  // clause aimed at *any one card the opponent has on the table* — a Battle
+  // Card as readily as the Leader. Only the bare phrase is read this way: once
+  // it says more ("your opponent's Leader in Rest Mode"), it goes on to the
+  // area grammar as before, which reads the extra words.
+  if (/^(?:(?:the|that|your|their|an?) )?(?:(?:the |your |an? )?opponent'?s )?leader(?: cards?)?$/.test(t.trim())) {
+    return { special: /\bopponent|\btheir\b/.test(t) ? "opponentLeader" : "leader" };
+  }
   // "1 Battle Card with an energy cost of 2 or less being played by your
   // opponent" is the card the [Counter: Play] is answering, and there is only
   // ever one of those — reading it as a choice asked for a card in play, which
@@ -445,6 +474,15 @@ export function parseTarget(phrase: string, looked?: string): Selector | null {
     const being = filterFor(phrase, null);
     return being === null ? null : { special: "resolving", filter: being };
   }
+
+  // "All **other** Battle Cards", "all other cards in your Battle Area": the
+  // adjective rules out the card the skill is on, which is exactly `notSelf`.
+  // Read as nothing, a clause that bounced or silenced every Battle Card did
+  // it to this one too — and on the two [Permanent]s that print
+  // "negate the skills of all other Battle Cards" that is the card negating
+  // itself. "Other than this card" is the same thing spelled out and is read
+  // below; "each other player" is a player, not a card.
+  const otherAdj = /\bother\b/.test(t) && !/\bother than\b/.test(t) && !/\bother player/.test(t);
 
   let side: Side = "you";
   // The sets write the possessive four ways — "your opponent's", "an
@@ -460,6 +498,14 @@ export function parseTarget(phrase: string, looked?: string): Selector | null {
   if (/\bopponent'?s\b|\byour opponent\b|\btheir\b/.test(t)) side = "opponent";
   else if (/\bopponent (?:rest mode |active mode |skill-less )?(?:battle|unison|extra|leader|z-battle|z-extra)s?\b/.test(t)) side = "opponent";
   if (/\ball players\b|\beach player\b|\bboth players\b/.test(t)) side = "both";
+  // "Choose **all other** Battle Cards" names no owner, and a card that names
+  // none is every one of them (the sets say "all other Battle Cards **you
+  // control**" when they mean only yours). The default of `you` is right for
+  // an unqualified singular — "choose 1 Battle Card" is your own — but wrong
+  // here, and it made a board wipe clear only the caster's own side. Narrowed
+  // to the phrases that say "other" and name nobody: anything printing "your",
+  // "their", "opponent" or "you control" keeps the side it just read.
+  if (otherAdj && !/\byour\b|\btheir\b|\bopponent\b|\byou control\b/.test(t)) side = "both";
 
   // "Your opponent's Battle Cards or Unisons" names two areas at once, which
   // is the one such phrase the game prints often enough to be worth reading.
@@ -536,7 +582,7 @@ export function parseTarget(phrase: string, looked?: string): Selector | null {
   // rules out. Read as nothing it stayed among the candidates, so a clause
   // that shrank every Battle Card shrank this one too.
   const excluded = /\bother than (copies of )?this card\b/.exec(t);
-  const notSelf = excluded ? (excluded[1] ? "copies" : "card") : undefined;
+  const notSelf = excluded ? (excluded[1] ? "copies" : "card") : otherAdj ? "card" : undefined;
   const filter = filterFor(phrase, area);
   // A description the parser could not read is not a target: the clause fails
   // and the skill goes to the referee, rather than selecting the whole area.
@@ -809,6 +855,8 @@ const OPTIONAL_HAND_PRICE = /^(?:you may|you can|the player may) place (\d+|an?|
  */
 const IT = /\b(?:it|its|them|they|that card|those cards|the chosen cards?)\b/;
 const BARE_IT = /^(?:it|its|them|they|their|that card|those cards)$/i;
+/** The pronouns that can only mean more than one card — see `refFor`. */
+const PLURAL_IT = /^(?:them|they|their|those cards)$/i;
 
 /**
  * A target phrase without its trailing modifier: "1 {Piccolo} from your deck
@@ -932,6 +980,15 @@ function refFor(clause: string, c: Ctx): Ref | null {
   // the "its" of a trailing "with …" was read as a reference.
   const head = headOf(clause);
   if (IT.test(head.toLowerCase()) || BARE_IT.test(head.trim().replace(/[.,]$/, ""))) {
+    // A **plural** pronoun answered by *this card* is a category error, and it
+    // is what a failed clause earlier in the sentence leaves behind: an [Auto]
+    // seeds the antecedent to the card it is on, so when "choose any number of
+    // you and your opponent's Battle Cards and Unison Cards" goes unread, the
+    // "those cards" after it lands on the card printing the skill — BT13-106
+    // negating itself instead of the whole board. Nothing was lost by the
+    // clause that named the cards; something was, and this says so (ground
+    // rule 5).
+    if (PLURAL_IT.test(head.trim().toLowerCase().replace(/[.,]$/, "")) && !c.last && c.lastTarget && "sel" in c.lastTarget && c.lastTarget.sel.special === "self") return null;
     if (c.lastTarget) return c.lastTarget;
     if (c.last) return { var: c.last };
     return null;
@@ -1701,13 +1758,23 @@ function compileForEach(clause: string, c: Ctx): Op[] | null {
  * what it does. `durationOf` reads them off the whole clause, so a pattern
  * matching the action itself can be anchored to the end once they are gone.
  */
-const TRAILING_QUALIFIER =
-  // Some sets print "for the duration of turn", without the second article,
-  // and some print "for the duration of **this** turn" — the same duration
-  // with the demonstrative the rest of the line already uses.
-  // "During **that** turn" is the turn the sentence has been talking about,
-  // which is this one — the same duration said with a different pronoun.
-  /\s+(?:for the (?:duration of (?:the |this )?)?(?:turn|battle|game)|for the rest of (?:the|this) turn|during (?:this|the|that) turn|this turn|until (?:the )?(?:end|start|beginning) of [a-z' ]+|in (?:all|any) areas?)$/;
+// Some sets print "for the duration of turn", without the second article,
+// and some print "for the duration of **this** turn" — the same duration
+// with the demonstrative the rest of the line already uses.
+// "During **that** turn" is the turn the sentence has been talking about,
+// which is this one — the same duration said with a different pronoun.
+const DURATION_TAIL_SRC =
+  "for the (?:duration of (?:the |this )?)?(?:turn|battle|game)|for the rest of (?:the|this) turn|during (?:this|the|that) turn|this turn|until (?:the )?(?:end|start|beginning) of [a-z' ]+";
+/**
+ * How long, on its own. A pattern that takes a whole *target phrase* off the
+ * end of a clause has to cut the duration itself rather than work from
+ * `stripQualifiers`, because "in all areas" is part of the target and
+ * `TRAILING_QUALIFIER` takes it away: BT9-136's "negate the skills of your
+ * opponent's non-Extra Cards **in all areas** until the end of your opponent's
+ * next turn" came back as the play area, for the rest of the game.
+ */
+const DURATION_TAIL = new RegExp(`\\s+(?:${DURATION_TAIL_SRC})$`);
+const TRAILING_QUALIFIER = new RegExp(`\\s+(?:${DURATION_TAIL_SRC}|in (?:all|any) areas?)$`);
 
 /**
  * The clause with those tails removed.
@@ -2347,24 +2414,33 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   }
   /*
    * "Negate the skills **of** X" — the same clause with the target behind the
-   * noun — is deliberately **not** read, though seven cards print it and the
-   * pattern is a one-liner. Written and then measured (9 Sep 2026), it read
-   * three of those seven wrongly, each time because the target phrase went
-   * further than the target grammar can follow:
+   * noun. Written once on 9 Sep 2026 and thrown away the same day: it read
+   * three of the cards printing it wrongly, and all three failures were in the
+   * target grammar underneath rather than in this line. With those fixed
+   * (a Leader as `special`, "other" as `notSelf`, and the qualifiers
+   * `parseTarget` now refuses outright) it is back, and the eleven cards read
+   * as follows — the list is the sign-off, not decoration:
    *
-   * - "your opponent's Leader" became *any one card in their play area*, so
-   *   the negation could land on a Battle Card instead (BT28-149);
-   * - "all **other** Battle Cards" became *all of your own* — the wrong side
-   *   and this card included (BT10-153, DB1-066);
-   * - "those cards", with the skill's own choice unread, became this card,
-   *   because an [Auto] triggered by "when this card is played" seeds the
-   *   sentence's antecedent to itself (BT13-106).
-   *
-   * All three are gaps in `parseTarget`, not in this rule, and each one would
-   * silently mis-aim a negation on every wording that reaches it. Seven cards
-   * unread beats three read wrongly (ground rule 5). The target grammar is
-   * where this gets fixed: a Leader as `special`, and "other" as `notSelf`.
+   * - your opponent's Leader (BT28-149) → the opposing leader;
+   * - all other Battle Cards (BT10-153, DB1-066) → both Battle Areas, this
+   *   card excluded — a [Permanent] that negated itself before;
+   * - those cards (BT13-106, BT23-135) → the choice the same skill just made;
+   * - all cards in your opponent's Combo Area (BT20-086), your opponent's
+   *   non-Extra Cards in all areas (BT9-136), their Battle Cards with energy
+   *   costs of 4 or less (TB1-048) → as printed;
+   * - cards sent to Warps by this skill (EX21-15, BT13-096) and Battle Cards
+   *   on top of this card (BT23-070) → **not read**, and left to the referee:
+   *   they name cards by their history, which no selector can describe.
    */
+  if ((m = /^negate the skills of (.+)$/.exec(t.replace(DURATION_TAIL, "")))) {
+    const ref = refFor(m[1], c);
+    // The length of time comes off the tail alone, not off the whole clause:
+    // `durationOf` reads "in all areas" as *for the game* (the approximation
+    // `gains` rests on), and here those words are the target's scope, so
+    // BT9-136's one-turn negation came back permanent.
+    const tail = DURATION_TAIL.exec(t)?.[0];
+    return ref ? [{ op: "negateSkills", target: ref, until: durationOf(tail ?? t) }] : null;
+  }
   if ((m = /^negate (.*?)(?:'s)? skills$/.exec(q))) {
     const ref = refFor(m[1], c);
     return ref ? [{ op: "negateSkills", target: ref, until: durationOf(t) }] : null;
