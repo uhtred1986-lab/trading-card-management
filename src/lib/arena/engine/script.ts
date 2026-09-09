@@ -281,8 +281,15 @@ export type Op =
   /**
    * A [Permanent] cost reducer, applied while the card sits where the skill
    * says (9-1-3-3). `what` says which cost: the energy cost by default, the
-   * combo cost (5-7-3), or the Z-Energy cost (5-4) a Z-Card pays out of the
-   * Z-Energy Area rather than the hand.
+   * combo cost (5-7-3), the Z-Energy cost (5-4) a Z-Card pays out of the
+   * Z-Energy Area rather than the hand, or the **specified** (coloured) part
+   * of an X-cost card's price — owner's ruling on BT19-039, 9 Sep 2026,
+   * validated against 13-2-1-3/20-21-2: this relaxes only which colours the
+   * card demands ("2 blue" down to "1 blue"), never the total, so `playCost`
+   * keeps it apart from an ordinary reduction rather than folding it into the
+   * same number. `colors` then carries the orbs it relaxes — printed as
+   * `{u}`/`{y}{y}`/… and never a bare count, since a specified-cost change
+   * with no colour would say nothing.
    */
   /**
    * 20-21. On a [Permanent] this is a standing effect and `collectStatics`
@@ -292,7 +299,7 @@ export type Op =
    * by 1 **for the duration of the turn**" (XD1-05) — and the interpreter puts
    * it in force for that long.
    */
-  | { op: "costReduction"; target: Ref; amount: Amount; what?: "energy" | "combo" | "zEnergy"; until?: Duration }
+  | { op: "costReduction"; target: Ref; amount: Amount; what?: "energy" | "combo" | "zEnergy" | "specified"; colors?: (Color | "any")[]; until?: Duration }
   /**
    * Take a keyword skill away from a card (9-1-5). Unlike `negateSkills`, which
    * silences everything, this names one — "negate this card's
@@ -1049,6 +1056,17 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         // to put it in force itself, or it resolves to nothing at all.
         const by = amount(ctx, s, frame, op.amount);
         if (!by) break;
+        // "specified" carries its own value shape — see `collectStatics` and
+        // `playCost` (state.ts) — because the colours it relaxes, not a flat
+        // number, are what a reader needs to apply it.
+        if (op.what === "specified") {
+          if (!op.colors?.length) break;
+          const sign: 1 | -1 = by < 0 ? -1 : 1;
+          for (const id of resolveRef(ctx, s, frame, op.target)) {
+            addEffect(s, ev, { master: frame.master, source: frame.card, target: id, kind: "specifiedCost", value: { colors: op.colors, sign }, until: op.until ?? "turn" });
+          }
+          break;
+        }
         const kind = op.what === "combo" ? "comboCost" : op.what === "zEnergy" ? "zEnergy" : "cost";
         for (const id of resolveRef(ctx, s, frame, op.target)) {
           addEffect(s, ev, { master: frame.master, source: frame.card, target: id, kind, value: by, until: op.until ?? "turn" });
@@ -1357,6 +1375,14 @@ const FORBIDDEN_ACTIONS = Object.keys(FORBIDDEN_IN_WORDS) as readonly ForbiddenA
 
 const SIDE: OpField = { name: "side", type: "side", default: "you" };
 const TARGET: OpField = { name: "target", type: "ref", required: true };
+/** `costReduction`'s fields, named so its `sentence` function (below) can hand them to `renderTemplate` for the non-"specified" branch without reaching into `OP_SCHEMA` mid-construction. */
+const COST_REDUCTION_FIELDS: OpField[] = [
+  TARGET,
+  { name: "amount", type: "amount", required: true },
+  { name: "what", type: { enum: ["energy", "combo", "zEnergy", "specified"] }, default: "energy" },
+  { name: "colors", type: { list: { enum: ["any", ...COLORS] } } },
+  { name: "until", type: "duration" },
+];
 const SELF: OpField = { name: "target", type: "ref", default: { sel: { special: "self" } } };
 const UNTIL: OpField = { name: "until", type: "duration", required: true };
 const MODE = { enum: ["active", "rest"] } as const;
@@ -1440,9 +1466,22 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     doc: 'a token (19): {"op":"token","name":"Saibaman Token","power":10000,"comboCost":0,"comboPower":5000,"colors":[],"n":2}',
   },
   costReduction: {
-    fields: [TARGET, { name: "amount", type: "amount", required: true }, { name: "what", type: { enum: ["energy", "combo", "zEnergy"] }, default: "energy" }, { name: "until", type: "duration" }],
-    sentence: "{target} costs {amount:less|more}",
-    doc: '[Permanent] only unless a duration is given (20-21): "reduce the energy cost of your <Son Goku> cards in your hand by 1" — the selector names the area the text names, usually the hand; "zEnergy" is the Z-Energy cost a Z-Card pays from the Z-Energy Area (5-4), read by `zEnergyCostOf`, never `d.zEnergyCost` raw',
+    fields: COST_REDUCTION_FIELDS,
+    // "Specified" is not "costs N less" — that would say the total moved,
+    // which is exactly what the owner's ruling on BT19-039 (9 Sep 2026) says
+    // it does not — so it gets its own sentence rather than sharing the
+    // generic template's `{amount:less|more}`, which knows only a flat
+    // number and would print a true-looking but wrong reading.
+    sentence: (raw, r) => {
+      const op = raw as OpOf<"costReduction">;
+      if (op.what !== "specified") return renderTemplate("{target} costs {amount:less|more}", raw as unknown as Record<string, unknown>, COST_REDUCTION_FIELDS, r);
+      const counts = new Map<string, number>();
+      for (const c of op.colors ?? []) counts.set(c, (counts.get(c) ?? 0) + 1);
+      const orbs = [...counts.entries()].map(([c, n]) => `${n} ${c === "any" ? "energy" : c.toLowerCase()}`).join(", ");
+      const amt = typeof op.amount === "number" ? op.amount : 0;
+      return `${describeRef(op.target)}'s specified cost is ${amt < 0 ? `${-amt} more` : `${amt} less`}${orbs ? ` (${orbs})` : ""}`;
+    },
+    doc: '[Permanent] only unless a duration is given (20-21): "reduce the energy cost of your <Son Goku> cards in your hand by 1" — the selector names the area the text names, usually the hand; "zEnergy" is the Z-Energy cost a Z-Card pays from the Z-Energy Area (5-4), read by `zEnergyCostOf`, never `d.zEnergyCost` raw. "specified" is the coloured part of an X-cost card\'s price (owner\'s ruling on BT19-039, 9 Sep 2026): it never touches the total, only which colours `playCost` demands, and `colors` carries the orbs it relaxes — always printed as `{u}`/`{y}{y}`/…, never a bare count.',
   },
   negateKeyword: { fields: [{ name: "keyword", type: { enum: KEYWORD_NAMES }, required: true }, SELF], sentence: "negate the [{keyword}] skill of {target}", doc: 'take one named keyword away ("negate this card\'s [Energy-Exhaust] skill in all areas", 9-1-5); the keyword is its printed name, e.g. "Blocker"' },
   gains: {
@@ -1899,7 +1938,7 @@ export function describeFilter(f: CardFilter): string {
   else if (f.powerMin != null && f.powerMax != null) bits.push(`with power between ${f.powerMin} and ${f.powerMax}`);
   else if (f.powerMax != null) bits.push(`with ${f.powerMax} power or less`);
   else if (f.powerMin != null) bits.push(`with ${f.powerMin} power or more`);
-  if (f.powerRel) bits.push(`with power ${POWER_REL_WORDS[f.powerRel.cmp]} this card's power`);
+  if (f.powerRel) bits.push(`with power ${POWER_REL_WORDS[f.powerRel.cmp]} ${f.powerRel.of === "chosen" ? "the chosen card's" : "this card's"} power`);
   if (f.noKeywords) bits.push("and no keyword skills");
   return bits.join(" ");
 }

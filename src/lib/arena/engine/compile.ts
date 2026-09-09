@@ -54,6 +54,47 @@ const TARGET_BEFORE_AND = /(?:^\s*|[,;:]\s+)(?:this card|it|they|them|that card|
 const MEASURE_AFTER_AND = /^(?:an? energy cost of \d+|\d+ power|no keyword skills?|no keywords|(?:an?|the) \[[a-z0-9:\- /]+\] skill)(?: or (?:less|more))?\b/i;
 
 /**
+ * "Choose all of your opponent's skill-less Battle Cards **and** Battle Cards
+ * with 15000 power or less" (EX25-35): the "and" joins a second description of
+ * the same choice — one target, two ways to qualify for it — not a new
+ * clause. Split here, the second description arrives with the possessive that
+ * named its side left behind in the first half, and a rest-lock printed for
+ * one side reads as aimed at the other (`compileProhibition`'s subject
+ * defaults to "you" when nothing says otherwise). The tell is narrow on
+ * purpose: the clause so far is a "choose" naming Battle Cards and stops
+ * exactly there, and what follows "and" opens the same way — "Battle Cards",
+ * bare or qualified by "with…" — rather than a clause with a verb of its own.
+ */
+const CHOICE_OPENING = /^choose\b.*\bbattle cards$/i;
+const CHOICE_CONTINUES = /^battle cards?\b/i;
+
+function andJoinsChoiceList(text: string, start: number, i: number): boolean {
+  return CHOICE_OPENING.test(text.slice(start, i).trim()) && CHOICE_CONTINUES.test(text.slice(i + 5));
+}
+/**
+ * Two *different* named cards, each counted on its own: "1 <Android 17> card
+ * and 1 <Hell Fighter 17> card", "1 <Android 14> and 1 <Android 15> card".
+ * Matched at both ends of the "and" by `andJoinsTwoNamedCards` below.
+ */
+const NAMED_QTY_CARD = /(?:up to )?\d+\s+(?:(?:red|blue|green|yellow|black|white|multicolou?r|mono-\w+)\s+)?(?:<[^>]+>|≪[^≫]+≫)(?:\s+cards?)?/i;
+const NAMED_QTY_CARD_END = new RegExp(`${NAMED_QTY_CARD.source}\\s*$`, "i");
+// No trailing `\b`: the phrase as often as not ends in ">" (a name's closing
+// bracket), and `\b` between two non-word characters (">" then a space) never
+// matches — which silently failed this the same way for every name with no
+// "card" printed after it, e.g. "1 <Son Goku: Xeno> and up to 1 <Vegeta: Xeno>
+// card" (BT24-123).
+const NAMED_QTY_CARD_START = new RegExp(`^${NAMED_QTY_CARD.source}`, "i");
+// The same pair, found anywhere rather than pinned to a split point: a
+// "choose"/"play"/"add" verb sits in front of the first name as often as not
+// ("choose up to 1 red <Son Goku: Br> card and 1 red <Vegeta: Br> card from
+// your Drop Area"), which an anchored `^` would miss. Used by `parseTarget`
+// to refuse the shape outright rather than read it as one filter with two
+// names, which `filterFor` would otherwise do — a fewer-cards-than-printed
+// read (an "or" of the two names, satisfied by either alone) rather than the
+// name lost outright, but still not what the card says.
+const TWO_NAMED_CARDS = new RegExp(`${NAMED_QTY_CARD.source}\\s+and\\s+${NAMED_QTY_CARD.source}`, "i");
+
+/**
  * A dash the sets use in pairs to hang a description off a target: "play up to
  * 1 <Son Goku: GT> or <Vegeta: GT> card ―both mono-green, with an energy cost
  * of 5 and 20000 power― from your Drop". Everything between the pair belongs
@@ -114,7 +155,9 @@ export function splitClauses(text: string): string[] {
         !TARGET_BEFORE_AND.test(text.slice(start, i)) &&
         !andEndsAList(text, start, i) &&
         !andJoinsTwoAreas(text, start, i) &&
+        !andJoinsChoiceList(text, start, i) &&
         !andJoinsTwoCountedAreas(text, start, i) &&
+        !andJoinsTwoNamedCards(text, start, i) &&
         !andJoinsARange(text, start, i) &&
         !andJoinsColours(text, start, i) &&
         !andJoinsTwoSwitched(text, start, i) &&
@@ -256,6 +299,35 @@ function andJoinsTwoCountedAreas(text: string, start: number, i: number): boolea
     .split(/[,.;]/)[0]
     .trim();
   return COUNTED_AREA_TARGET_START.test(after);
+}
+
+/**
+ * "Play up to 1 <Android 17> card **and** 1 <Hell Fighter 17> card—both green
+ * and with energy costs of 1—from your deck and/or Drop with their skills
+ * negated for the turn" (BT20-077, and the same shape on BT20-079, BT24-123,
+ * EB1-32, BT19-032 among others): two *different* named cards, each counted
+ * on its own, share one trailing aside and one trailing source. Split at this
+ * "and" — which nothing above catches, because neither side is a bare name
+ * (`NAME_AFTER_AND`), an area, or a range — the first name is left with
+ * nothing after it and the second inherits the aside, the source, *and* the
+ * "and" itself, which is where the audit found it: the first card read as
+ * already on the board and the second's side flipped to the opponent's, both
+ * from one clause split in the wrong place.
+ *
+ * Gated on a source ("from your/their/its owner's deck or Drop") appearing
+ * soon after the second name, which is the tell of this "search and play"
+ * family — as opposed to "choose 1 <A> card and 1 <B> card in your Drop Area
+ * and send them to their owners' Warps", where the target is already named
+ * and nothing here needs protecting. `compileClause` still does not know how
+ * to search for two different names from one shared source: keeping the
+ * clause whole only stops the wrong split, and `refFor` refuses the merged
+ * phrase outright rather than guess at it (ground rule 5).
+ */
+function andJoinsTwoNamedCards(text: string, start: number, i: number): boolean {
+  if (!NAMED_QTY_CARD_END.test(text.slice(start, i))) return false;
+  const after = text.slice(i + 5);
+  if (!NAMED_QTY_CARD_START.test(after)) return false;
+  return /^[^.;]{0,120}\bfrom (?:your|their|its owner'?s|the) (?:deck|drop(?: area)?)\b/i.test(after);
 }
 
 /**
@@ -468,6 +540,21 @@ const AREA_LIST_SEP = /\s*,\s*or\s+|\s*,\s*|\s+or\s+/;
  * (BT13-024, BT6-074).
  */
 export function parseTarget(phrase: string, looked?: string, pool?: string): Selector | null {
+  // "1 <Android 17> card and 1 <Hell Fighter 17> card—both green and with
+  // energy costs of 1—from your deck and/or Drop", "choose up to 1 red <Son
+  // Goku: Br> card and 1 red <Vegeta: Br> card from your Drop Area and add
+  // them to your hand": `andJoinsTwoNamedCards` (in `splitClauses`) keeps a
+  // two-named-card search whole instead of cutting it at the "and" and losing
+  // one name — but nothing here can yet search for two different names from
+  // one shared source. Read as a single filter, "name A or name B" is not the
+  // same target as "one of A *and* one of B": it is satisfied, and stops
+  // looking, the moment it finds either — a card fewer than the text promises
+  // rather than a name lost outright, but still not what the card says
+  // (BT20-077, BT20-079, BT24-123, EB1-32, BT19-032, BT6-012, BT7-051, and the
+  // "choose … and add/send them" family beside them). Refused whole rather
+  // than guessed at (ground rule 5); a two-name search is a primitive of its
+  // own, not built.
+  if (TWO_NAMED_CARDS.test(phrase)) return null;
   let t = phrase.toLowerCase();
   // Qualifiers this grammar does not read, and cannot afford to drop: they
   // narrow a phrase to a handful of cards by their *history* — which cards
@@ -625,7 +712,38 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
   // owner's Drop" went looking in the opponent's Warp (BT27-015, and BT29-095,
   // BT29-108, P-710 the same way). Stripped like the name phrases beside it,
   // because it says nothing about whose cards are being chosen.
-  const owner = t.replace(/\bin their (?:character names|card names|special traits)\b/g, " ").replace(/\btheir owners?'?s?\b/g, " ");
+  //
+  // "…**to your opponent's Battle Area**" is the other half of the same
+  // mistake. Seven cards hand the opponent a card — "play up to 1 <Pan: SH>
+  // **from your deck** to **your opponent's** Battle Area" — and the side was
+  // read off the whole clause, so the destination at the end decided where the
+  // *search* happened and the card went looking in the opponent's deck. That is
+  // the printed mechanic inverted, not merely narrowed (BT13-028, BT13-029,
+  // BT16-021 and its back, BT18-087, BT22-006, and independently in BT21-068
+  // and BT21-092).
+  //
+  // This is the second phrase stripped for this reason, and the mechanism is
+  // the real problem: the side is decided by a scan of the whole clause rather
+  // than of the phrase that names the source. `docs/arena-side-scope.md` is the
+  // structural fix; each of these strips is a card-shaped patch until it lands.
+  const owner = t
+    .replace(/\bin their (?:character names|card names|special traits)\b/g, " ")
+    .replace(/\btheir owners?'?s?\b/g, " ")
+    // Only "to" and "into" — never "in". "Choose 1 of your opponent's Battle
+    // Cards **in** your opponent's Battle Area" names where to look, and
+    // stripping that would send the search to your own board: the same bug in
+    // the other direction.
+    // …and never after "equal", where the "to" belongs to the comparison
+    // rather than to a destination: "an energy cost greater than or equal **to
+    // your opponent's energy**" is a measure, and DB1-059 and EX08-06 print it.
+    .replace(/(?<!\bequal )\b(?:to|into) (?:your |their )?opponent'?s (?:z-)?[a-z]+(?: area)?\b/g, " ")
+    // The sets also write "in" where they mean "into" — "play up to 1 <Pan: SH>
+    // **from your deck** … **in your opponent's Battle Area**" (BT16-021 and
+    // its back, BT18-087, BT21-092). That collides with the ordinary source
+    // phrase, so it is only read as a destination when the clause has already
+    // named its source with "from your …"; a clause with no source of its own
+    // keeps "in your opponent's Battle Area" as the place to look.
+    .replace(/\bin (?:your |their )?opponent'?s (?:z-)?[a-z]+(?: area)?\b/g, (whole) => (/\bfrom your\b/.test(t) ? " " : whole));
   if (/\bopponent'?s\b|\byour opponent\b|\btheir\b/.test(owner)) side = "opponent";
   else if (/\bopponent (?:rest mode |active mode |skill-less )?(?:battle|unison|extra|leader|z-battle|z-extra)s?\b/.test(t)) side = "opponent";
   if (/\ball players\b|\beach player\b|\bboth players\b/.test(t)) side = "both";
@@ -915,7 +1033,7 @@ function altCostHow(rawHow: string, c: Ctx): Op[] | null {
     const unread: string[] = [];
     // A fresh variable counter well clear of the effect's own, because the
     // price is a program of its own that runs before the skill.
-    const price = compileClauseList(splitClauses(m[1]).map(imperative), { ...c, n: c.n + 50, last: null, lastTarget: null, stale: null }, unread);
+    const price = compileClauseList(splitClauses(m[1]).map(imperative), { ...c, n: c.n + 50, last: null, lastTarget: null, stale: null, twoNamedCardsRefused: false }, unread);
     if (price.length && !unread.length) return [{ op: "altCost", pay: "program", ops: price }];
   }
   return null;
@@ -1053,6 +1171,14 @@ interface Ctx {
    * pointing at that rather than at the hole.
    */
   stale: Ref | null;
+  /**
+   * Set once a refused clause was itself a two-named-card search
+   * (`TWO_NAMED_CARDS`, in `parseTarget`) — the one case where a plural
+   * pronoun after a stale target must not fall back to it even though the
+   * stale target is not `self`. See the `c.stale` check in `refFor` for why
+   * this is narrower than generalising that check to every subject.
+   */
+  twoNamedCardsRefused: boolean;
   /** The op the previous clause produced, for wordings that restate it. */
   lastOp: string | null;
   /**
@@ -1263,6 +1389,17 @@ function refFor(clause: string, c: Ctx): Ref | null {
     // P-645's "it gains [Double Strike]" follows a play the compiler refused
     // and belongs to the card that play would have brought out.
     if (c.stale && c.stale === c.lastTarget && "sel" in c.lastTarget && c.lastTarget.sel.special === "self") return null;
+    // The same trap with a *different* stale target: "if your Leader Card is
+    // a red ≪Saiyan≫ card, choose 1 <A> card and 1 <B> card from your Drop
+    // Area and add **them** to your hand" (BT6-012, and P-095, P-108 beside
+    // it) leaves the leader as the last-bound target once the two-named-card
+    // choice between them is refused (`parseTarget`'s `TWO_NAMED_CARDS`
+    // guard), and "them" then read as *your Leader*, sent to hand — a card
+    // the skill never named at all. `c.twoNamedCardsRefused` is set only by
+    // that one refusal, so this stays as narrow as the bug it answers rather
+    // than widening the check above to every stale target, which silenced far
+    // more of the catalog than this family accounts for.
+    if (c.twoNamedCardsRefused && c.stale === c.lastTarget) return null;
     if (c.lastTarget) return c.lastTarget;
     if (c.last) return { var: c.last };
     return null;
@@ -1589,6 +1726,21 @@ function splitPrice(skill: Skill): PriceSplit {
 }
 
 function readPrice(said: string, skill: Skill): PriceSplit {
+  // BT15-022's "{r}{1}, if your opponent has 3 or more energy, there's a red
+  // [Field] Extra Card with an energy cost of 2 in your Drop Area, and you
+  // place this card in its owner's Drop Area" — two conditions and an action
+  // ANDed together, the harder chain a prior audit reported as merging into
+  // one wrong condition (the "3 or more" bound landing on the second
+  // condition's filter, the side flipping to the opponent's, the price action
+  // dropped outright). That does not reproduce here: the reversed-joints loop
+  // below already tries the *last* joint first, so `allConditions` reads the
+  // two leading conditions off the head correctly scoped ("in your Drop",
+  // not "opponent's") and `compileAction` reads the trailing "you place this
+  // card…" as the program in the same pass. Left as found — investigated for
+  // Lane G, 9 Sep 2026 — because the failure the audit named is not here to
+  // fix; whatever produced it either predates this loop's current shape or
+  // was on a since-corrected catalog entry.
+  //
   // A price with no condition word in front of it is charged, not merely
   // checked: the action is the stronger reading, because charging it changes
   // the game and a condition that holds costs nothing. A dozen cards do state
@@ -1917,8 +2069,19 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
     }
   }
   // "If you don't have a Unison in play", "if you don't have any Battle Cards in play".
-  if ((m = /^you don'?t have (?:an?|any) (.+?)(?: in play)?$/.exec(t))) {
-    const sel = parseTarget(`your ${m[1]}`) ?? parseTarget(`your ${m[1]} card`);
+  //
+  // And the same sentence about the other player: "if **your opponent doesn't
+  // have** a Unison Card in play". The positive form is read by
+  // `parseCountCondition` for either player, but the negative auxiliary was
+  // only ever read for "you" — so BT29-047's "if your Leader is a green
+  // <Lucifer> card **and your opponent doesn't have a Unison in play**" lost
+  // the second half of its condition and offered the play in exactly the
+  // situation the card forbids. BT10-003 and BT15-062b lost theirs too, though
+  // those only cost a gap.
+  if ((m = /^(?:(you) don'?t|(your opponent) does\s?n'?o?t) have (?:an?|any) (.+?)(?: in play)?$/.exec(t))) {
+    const whose = m[1] ? "your" : "your opponent's";
+    const what = m[3];
+    const sel = parseTarget(`${whose} ${what}`) ?? parseTarget(`${whose} ${what} card`);
     if (sel) {
       delete sel.count;
       delete sel.upTo;
@@ -2565,16 +2728,19 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // is reduced by N"; and "decrease" as a plain synonym for "reduce". "Cost
   // **on** X" stands beside "cost **of** X" (BT24-139, BT28-148), and the
   // bare "the cost of X" with no "energy"/"combo" word defaults to energy,
-  // same as an unqualified specified cost does everywhere else. Left alone on
-  // purpose: a *skill's* cost ("the skill cost of …", "the activation cost of
-  // …'s [Counter] skill") is a different number `playCost` computes with no
-  // hook to lower (`orbTotals`, `engine.ts:882`), and a *specified* cost mixes
-  // colour and total in a way the owner has not ruled on — both fail the
-  // match here because neither spells the noun as bare "cost"/"costs", which
-  // is deliberate: see `glossary.ts`. A Z-Energy cost **does** spell it that
-  // way and is read below: `zEnergyCostOf` is the hook `d.zEnergyCost` never
-  // had, and the five call sites that used to read the field raw now go
-  // through it (`state.ts`).
+  // same as a bare "cost" does everywhere else. Left alone on purpose: a
+  // *skill's* cost ("the skill cost of …", "the activation cost of …'s
+  // [Counter] skill") is a different number `playCost` computes with no hook
+  // to lower (`orbTotals`, `engine.ts:882`) — it fails the match here because
+  // it does not spell the noun as bare "cost"/"costs", which is deliberate:
+  // see `glossary.ts`. A Z-Energy cost **does** spell it that way and is read
+  // below: `zEnergyCostOf` is the hook `d.zEnergyCost` never had, and the
+  // five call sites that used to read the field raw now go through it
+  // (`state.ts`). A **specified** cost also fails this match — it never
+  // spells the noun bare either, always with "specified" in front — and is
+  // read by its own pair of clauses just below instead, now that the owner
+  // has ruled on what it means (BT19-039, 9 Sep 2026): unlike this generic
+  // reducer, it changes only which colours are demanded, never the total.
   let qq = q;
   let possessive: RegExpExecArray | null;
   if ((possessive = /^(reduce|increase|decrease) (this card|that card|its|their)'?s? ((?:energy|combo|z-energy) )?costs?(?: in (?:your|their) (?:hand|z-deck))? by (.+)$/.exec(qq))) {
@@ -2601,6 +2767,57 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     const orbs = /^\d+$/.test(m[2]) ? null : orbsIn(m[2]);
     const flat = sign * (orbs ? Object.values(orbs).reduce<number>((sum, n) => sum + (n ?? 0), 0) : Number(m[2]));
     return [{ op: "costReduction", target: c.lastTarget, amount: flat, what: "zEnergy" as const, until: durationOf(clause) }];
+  }
+  // "Reduce/increase the specified cost of X by {u}" (BT19-039, BT19-040,
+  // BT15-063, BT20-118, P-673, P-600) and its bare continuation "reduce the
+  // specified cost by {y}" (P-733): the noun the general reducer above
+  // deliberately does not spell as bare "cost" (see the comment above it, and
+  // `glossary.ts`) now has an owner's ruling to read it by — BT19-039, 9 Sep
+  // 2026, validated against 13-2-1-3/20-21-2: this relaxes or tightens only
+  // which colours are demanded, never the total (the total is what the
+  // player chooses for an X cost, or what is printed for a fixed one), so it
+  // is kept apart as `what: "specified"` rather than folded into the flat
+  // reducer. Always printed as orbs, never a bare number — there is no total
+  // for an unqualified count to come off, only colours to name — so a
+  // specified-cost sentence with no orb notation stays unread rather than
+  // guessing which colour was meant.
+  //
+  // Three of the nine cards printing this shape stay unread regardless of
+  // this pair, for reasons this pair does not touch:
+  // - BT27-002's "reduce **its** specified cost by {r}" names a Z-Unison a
+  //   "the next time you play a red Z-Unison with an [Empower] skill from
+  //   your Z-Deck" clause bound — a per-future-play reference no `delay` here
+  //   models (see the "next time you play" note further down); "its" is left
+  //   unnormalised into "the specified cost of it" for that reason, not
+  //   compiled and then misapplied to the wrong card.
+  // - P-733's "reduce the specified cost by {y}" sits inside "when you would
+  //   play a Unison with [Empower] from your hand" — a replacement on a
+  //   hypothetical future play, which nothing in this compiler models either.
+  // - BT22-104's "reduce the specified cost of a {Devilmite Beam} in your
+  //   Z-Deck by {y}" would compile through this pair on its own (checked by
+  //   hand: `refFor` resolves the named Z-Deck target fine) but never reaches
+  //   it — it hangs on "if the revealed card's energy cost is the same as
+  //   **the declared number**", a back-reference to an earlier "Declare 1
+  //   number" clause this compiler cannot read, and an unread "if" refuses
+  //   every clause it governs (see the `if`/`while`/`unless` refusal further
+  //   down) rather than compiling the "then" half in a vacuum.
+  if ((m = /^(reduce|increase|decrease) the specified costs? (?:of|on) (.+?) by ((?:\{[rugykbw]\})+)$/.exec(qq))) {
+    const sign = m[1] === "increase" ? -1 : 1;
+    const ref = refFor(m[2], c);
+    if (!ref || (c.stale && ref === c.stale)) return null;
+    const colors = orbsToList(orbsIn(m[3]));
+    if (!colors.length) return null;
+    return [{ op: "costReduction", target: ref, amount: sign * colors.length, what: "specified" as const, colors, until: durationOf(clause) }];
+  }
+  if (
+    (m = /^(reduce|increase|decrease) the specified costs? by ((?:\{[rugykbw]\})+)$/.exec(qq)) &&
+    c.lastTarget &&
+    !(c.stale && c.lastTarget === c.stale)
+  ) {
+    const sign = m[1] === "increase" ? -1 : 1;
+    const colors = orbsToList(orbsIn(m[2]));
+    if (!colors.length) return null;
+    return [{ op: "costReduction", target: c.lastTarget, amount: sign * colors.length, what: "specified" as const, colors, until: durationOf(clause) }];
   }
   // "Reduce the energy cost and Z-Energy cost of X … by N" (BT22-085,
   // P-476b): one amount named for two costs at once, so it has to become two
@@ -3270,6 +3487,13 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
       sel.count ??= 1;
       sel.upTo = true;
     }
+    // "…with power less than or equal to **the chosen card's** power"
+    // (BT19-096): `parseFilter` cannot know which variable that is — only the
+    // compiler does, and only right here, before this clause's own choice
+    // overwrites `c.last` with a new one. Left unresolved (no prior choice to
+    // point at) the filter still measures nothing rather than a card it was
+    // never told about; see the field's comment in `filters.ts`.
+    if (sel.filter?.powerRel?.of === "chosen" && c.last) sel = { ...sel, filter: { ...sel.filter, powerRel: { ...sel.filter.powerRel, var: c.last } } };
     const v = `c${c.n++}`;
     return [{ op: "choose", sel, as: v, reason: clause }];
   }
@@ -3593,6 +3817,7 @@ function compileSkillText(skill: Skill): Script {
     lastPlayed: null,
     lastTarget: null,
     stale: null,
+    twoNamedCardsRefused: false,
     lastOp: null,
     replacing: null,
     n: 0,
@@ -3725,7 +3950,12 @@ function compileSkillText(skill: Skill): Script {
     }
   }
 
-  const ops = compileClauseList(clauses, c, unsupported);
+  const unsupportedBeforeHead = unsupported.length;
+  let ops = compileClauseList(clauses, c, unsupported);
+  // Whether the head itself read clean, before the modal's own options add
+  // any refusals of their own — an option's unread clause must not stop the
+  // head's condition from being restored below.
+  const headReadClean = unsupported.length === unsupportedBeforeHead;
   if (modal) {
     // Each option is compiled on its own, carrying what the head established
     // ("If your Leader is a <Baby> card, it gets +10000 power, then choose
@@ -3745,6 +3975,22 @@ function compileSkillText(skill: Skill): Script {
       return { ops: [], unsupported: unsupported.length ? unsupported : silent };
     }
     if (modes.some((mode) => mode.ops.length)) ops.push({ op: "chooseMode", modes });
+    // "If your Leader Card is a green <Cheelai: Br> card or yellow <Broly:
+    // Br> card, choose one— ・…" (EX19-13, TB3-066): the head is nothing but
+    // the condition that gates the whole menu, with no effect of its own for
+    // it to attach to before the bullets — and `compileClauseList`'s own
+    // flush drops a condition group whose body came back empty
+    // (`if (!g.ops.length) continue`), exactly the case a bare head leaves
+    // behind. `parseConditionClause` already reads the head fine, which is
+    // how it was ever split off as the modal's head at all; the read is
+    // simply thrown away one step later. Read again here and used to wrap
+    // the menu — but only when nothing in the head actually failed, so a
+    // head that could not be read in full still refuses instead of
+    // silently gaining a condition weaker than what it printed.
+    if (ops.length && !ops.some((o) => o.op === "if") && clauses.length && headReadClean) {
+      const read = allConditions(clauses.join(" and "));
+      if (read) ops = [{ op: "if", cond: read.length > 1 ? { kind: "all", conds: read.map((r) => r.cond) } : read[0].cond, then: ops }];
+    }
   }
   // "[Auto] If your Leader Card is red: When you play this card, draw 1 card"
   // — a condition written before the colon is part of the skill's validity
@@ -3831,6 +4077,10 @@ function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op
   const refuse = (text: string) => {
     unsupported.push(text);
     c.stale = c.lastTarget;
+    // See `c.twoNamedCardsRefused` and the `refFor` check it feeds: a refused
+    // two-named-card search is the one case where a stale target that is not
+    // `self` must still block the pronoun after it.
+    if (TWO_NAMED_CARDS.test(text)) c.twoNamedCardsRefused = true;
   };
   const push = (ops: Op[]) => {
     const g = groups[groups.length - 1];
