@@ -238,7 +238,7 @@ export function parseFilter(text: string): CardFilter {
   });
   for (const m of t.matchAll(/(non-)?<([^>]+)>/g)) (m[1] ? f.notCharacters : f.characters).push(m[2].trim());
   for (const m of t.matchAll(/(non-)?≪([^≫]+)≫/g)) (m[1] ? f.notTraits : f.traits).push(m[2].trim());
-  for (const m of t.matchAll(/\{([^}]+)\}/g)) if (!/^[rugykw]$|^\d+$/i.test(m[1])) f.names.push(m[1].trim());
+  for (const m of t.matchAll(/\{([^}]+)\}/g)) if (!/^[rugykbw]$|^\d+$/i.test(m[1])) f.names.push(m[1].trim());
   const lower = t.toLowerCase();
   // Colour words are read off the description with every *name* taken out of
   // it. ≪Red Ribbon Army≫, <Goku Black>, <Commander Red>, {Super Saiyan Blue
