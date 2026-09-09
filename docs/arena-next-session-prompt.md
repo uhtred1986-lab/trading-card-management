@@ -56,6 +56,76 @@ EX24-32 and P-396 — are exactly the three this increment fixes, so that commit
 longer has a price attached. If a revert of it is ever wanted, the individual
 commits are on PR #68; on `main` the three of them are one squashed commit.
 
+## The next piece of work, and why it is first
+
+**Fix the instrument.** Measured on the live catalog after the fourth increment
+merged (9 Sep 2026), the readings — the only check on a clause that compiles and
+reads wrongly — cannot be signed off on 145 of the 13,563 skills they print,
+because they print the word `undefined` in the middle of the sentence. Four
+shapes, all in `describeScript`/`describeSelector`, none of them a compiler bug:
+
+- `all of undefined in your energy is undefined mono-colour blue …` — 89 lines,
+  the `allMatch` condition printing a selector that has no count and no noun.
+- `reveal undefined in opponent's hand` — 20 lines, a whole-area reveal.
+- `choose undefined …`, `move undefined …` — 12 lines, the same missing count.
+- `if undefined {SSG Son Goku} … is in a battle` — 25 lines, the `inBattle`
+  condition (BT17-109, BT18-085).
+
+And the other half of the same instrument: **`describeFilter` still prints only
+some of a filter.** `notColors`, `notCharacters`, `notTraits`, `notNames`,
+`keywords`, `notKeywords`, `skillKind`, `noKeywords`, `notToken` and `powerRel`
+are all silent — see the comment already standing above `partial` in
+`script.ts`, written when the four `*Including` measures went in. A measure the
+reading cannot print is a measure nobody can sign off, and every one of these is
+a way for a filter to narrow wrongly in silence.
+
+Neither changes a program, so the gap set must not move at all and `contract:emit`
+must produce no change — but the readings diff will be large by design, and each
+line of it is a sentence gaining words rather than a card changing its answer.
+
+**One live bug found while measuring this, worth taking in the same commit:**
+"your opponent reveals their hand. Choose up to 1 card with an energy cost of 7
+or less **from it** and discard it" (BT16-005 and two others of the nineteen
+cards that reveal a hand) reads "choose … **in your play**" — "from it" after a
+reveal is the revealed hand, and read as no area at all it discards one of your
+own cards. This is the same rule as "among them" after a look, which is already
+read; the reveal wordings were never given it.
+
+## Then, the rest of Stage 2 — the families, re-measured
+
+Counted on the live catalog on 9 Sep 2026, after the fourth increment:
+
+- **The cost-reduction family is 145 unread clauses over 84 shapes**, not the 46
+  the plan's table says — "reduce the skill cost by {o}" is only the largest of
+  them, beside "reduce the energy cost of this card in your hand", "reduce the
+  combo cost", "reduce the Z-Energy cost", "reduce the specified cost". They are
+  not one primitive: some reduce a *named skill's* cost by coloured orbs once,
+  some reduce a card's own energy cost while it sits in a hand or a Z-Deck. The
+  consumer is `orbTotals` and the payment planner, in the frozen legacy engine.
+  Scope it before starting, and say which of the four it covers.
+- **The "instead" family is 75 clauses**, the biggest single shapes being
+  "remove it from the game instead" (11), "it's sent to its owner's Warp
+  instead" (10 across two spellings) and "add it to your hand instead" (4). The
+  destination-only subset is what `replaceLeave` already does; what pays is
+  widening the **event** (leaving the Combo Area, leaving Life, a card being
+  played) and the **subject** (not just this card). 9-10 replacement happens
+  inside `move()`, which is synchronous and called from everywhere, and a
+  replacement block can prompt — say plainly where it stops.
+- **"isn't affected by your opponent's skills" is 13 clauses** over seven
+  shapes: `immune(target, from, until)`, genuinely new and contained. The
+  smallest of the three, and the one most likely to fit in one sitting.
+- **"for each marker on this card" (5)** — `Amount` → expression, the start of
+  the `expr` work Stage 2 lists.
+- **Alternative costs** ("you can activate this card's [Counter] from your hand
+  by X instead of paying its energy cost", 7+): `altCost` with `pay: "program"`
+  already says this. **Wording gap**, not a primitive.
+
+Two smaller things the readings diff turned up earlier and left alone, both
+honest gaps rather than wrong readings: **"choose all Battle Cards"** with no
+possessive is read as your own (BT7-110 — the "other" fix narrowed the
+both-sides default to phrases saying "other", deliberately), and **"original
+energy cost"** is read as the current one.
+
 ## How to do it safely — this is the part that matters
 
 The failure mode here is not a clause that fails to compile. It is a clause that
@@ -83,50 +153,6 @@ knows to ask about.
 Also useful: `arena:tally -- --show "<a wording>"` prints the actual cards behind
 a shape count. Read it before believing any row of the plan's gap table — the
 first increment measured the table against the cards and found it half wrong.
-
-## The rest of Stage 2, re-ordered by the evidence
-
-Measured on the live catalog, 9 Sep 2026 (`arena:tally`). The plan's table is in
-the plan; this is what the cards actually print:
-
-- **"reduce the skill cost by {o}" — 46 clauses, the largest single family.**
-  A genuine primitive (`costModifier`), and the deepest: the cards reduce a
-  *named skill's* cost ("the next time you activate a [Union] skill on a yellow
-  <Vegito> card in your hand"), by **coloured orbs**, usually **once**. The
-  consumer is `orbTotals` and the payment planner, in the frozen legacy engine.
-  Scope it before starting; it is not a one-sitting job.
-- **The "instead" family — a real `replace(event, with: block)`.** ~25 clauses.
-  Note the hard part before you begin: 9-10 replacement happens *inside*
-  `move()`, which is synchronous and called from everywhere, and a replacement
-  *block* can prompt. The destination-only subset is what `replaceLeave`
-  already does; the widening that pays is the **event** (leaving the Combo Area,
-  leaving Life, a card being played) and the **subject** (not just this card).
-  Say plainly where it stops.
-- **Alternative costs** ("you can activate this card's [Counter] from your hand
-  by X instead of paying its energy cost", 7+): `altCost` with `pay: "program"`
-  already says this. **Wording gap**, not a primitive.
-- **"isn't affected by your opponent's skills" (7)** — `immune(target, from,
-  until)`, genuinely new and contained.
-- **"for each marker on this card" (5)** — `Amount` → expression, the start of
-  the `expr` work Stage 2 lists.
-
-Two smaller things the readings diff turned up and left alone, both honest gaps
-rather than wrong readings: **"choose all Battle Cards"** with no possessive is
-read as your own (BT7-110 — the "other" fix narrowed the both-sides default to
-phrases saying "other", deliberately), and **"original energy cost"** is read as
-the current one.
-
-Two the third increment turned up, both in the *reading* rather than the
-compiling, and both found the same way — by printing a program and failing to
-recognise the card in it:
-
-- **`describeFilter` still prints only some of a filter.** Four `*Including`
-  measures went in; `notColors`, `notCharacters`, `notTraits`, `notNames`,
-  `keywords`, `notKeywords`, `skillKind`, `noKeywords`, `notToken` and
-  `powerRel` are all still silent. A measure the reading cannot print is a
-  measure nobody can sign off, so this is the instrument, not a nicety.
-- **"if undefined … is attacking"** — a literal `undefined` in the reading of
-  the `inBattle` condition (BT17-109, BT18-085). A one-line printing bug.
 
 ## The gate, every commit
 
