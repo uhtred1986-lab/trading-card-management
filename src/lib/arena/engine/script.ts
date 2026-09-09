@@ -52,11 +52,19 @@ export type Duration = "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterN
 
 /**
  * Cards the source skill can point at without choosing: itself, the battle
- * roles, the trigger's subject, and `resolving` — the card whose play a
+ * roles, the trigger's subject, `resolving` — the card whose play a
  * [Counter: Play] is answering ("if the Battle Card being played has an energy
- * cost of 7 or less").
+ * cost of 7 or less") — and `onTop`, the card this one is under.
+ *
+ * `onTop` is the other half of the `under` area (23-2). A stack is one card
+ * with a pile beneath it, so the card "on top of this card" is the single card
+ * whose pile holds this one, whichever area the stack stands in
+ * (23-2-2-2) — and it is a *different* card from the one asking (23-2-2-3),
+ * which is the whole point: fourteen [Permanent]s printed on the buried card
+ * grant a keyword or power to the card above, and until 9 Sep 2026 every one
+ * of them read as *this card* and granted it to itself.
  */
-export type SpecialTarget = "self" | "attacker" | "guard" | "subject" | "leader" | "opponentLeader" | "resolving";
+export type SpecialTarget = "self" | "attacker" | "guard" | "subject" | "leader" | "opponentLeader" | "resolving" | "onTop";
 
 export interface Selector {
   side?: Side;
@@ -1247,7 +1255,7 @@ export interface RenderOptions {
 
 const COLORS = ["Red", "Blue", "Green", "Yellow", "Black", "White", "Colorless"] as const satisfies readonly Color[];
 export const SIDES = ["you", "opponent", "both"] as const satisfies readonly Side[];
-export const SPECIAL_TARGETS = ["self", "attacker", "guard", "subject", "leader", "opponentLeader", "resolving"] as const satisfies readonly SpecialTarget[];
+export const SPECIAL_TARGETS = ["self", "attacker", "guard", "subject", "leader", "opponentLeader", "resolving", "onTop"] as const satisfies readonly SpecialTarget[];
 export const AREAS = ["hand", "deck", "drop", "life", "battle", "combo", "energy", "unison", "leader", "warp", "zDeck", "zEnergy", "under", "play", "removed"] as const satisfies readonly ScriptArea[];
 export const DURATIONS = ["battle", "turn", "opponentTurn", "nextTurn", "afterNextCharge", "game"] as const satisfies readonly Duration[];
 const DELAY_TIMINGS = ["turnStart", "mainStart", "turnEnd", "turnCleanup", "battleEnd"] as const satisfies readonly DelayTiming[];
@@ -1739,9 +1747,25 @@ export function describeFilter(f: CardFilter): string {
   bits.push(...f.names.map((x) => `{${x}}`));
   if (f.token) bits.push("token");
   if (f.z) bits.push("Z-card");
+  // The noun has to be settled before the trailing measures are hung off it,
+  // and a name asked for **in part** is one of those — printed after the word
+  // it qualifies, the way the card prints it.
+  const partial = [
+    ...f.charactersIncluding.map((x) => `with <${x}> in its character name`),
+    ...f.namesIncluding.map((x) => `with {${x}} in its card name`),
+    ...f.notCharactersIncluding.map((x) => `without <${x}> in its character name`),
+    ...f.notNamesIncluding.map((x) => `without {${x}} in its card name`),
+  ];
   if (f.type) bits.push(`${f.type.toLowerCase()} card`);
   else if (f.notType) bits.push(`non-${f.notType.toLowerCase()} card`);
   else if (!bits.length) bits.push("card");
+  // Printed nowhere until 9 Sep 2026, which is what let "choose up to 1 of
+  // your Battle Cards **with <Son Gohan> in its character name**" (BT19-130)
+  // read as "choose up to 1 in your battle" — a filter the compiler had,
+  // printed as though it had none. The reading is the only check on a filter
+  // that narrows wrongly, so a measure it cannot print is a measure nobody can
+  // sign off.
+  bits.push(...partial);
   if (f.faceUp) bits.push("that is face up");
   if (f.costMin != null && f.costMin === f.costMax) bits.push(`with an energy cost of ${f.costMin}`);
   else if (f.costMax != null) bits.push(`with an energy cost of ${f.costMax} or less`);
@@ -1770,6 +1794,13 @@ function selectorWords(sel: Selector): string {
  * two cards phrased alike apart.
  */
 function describeSelector(sel: Selector): string {
+  // The one special a filter can narrow and the reading has to keep: "the
+  // <Majin Buu> on top of this card" and "the Leader on top of this card" are
+  // different cards, and dropping the words would print them the same.
+  if (sel.special === "onTop") {
+    const words = selectorWords(sel);
+    return `the ${words ? `${words} ` : "card "}on top of this card`;
+  }
   if (sel.special)
     return {
       self: "this card",

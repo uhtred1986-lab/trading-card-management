@@ -391,7 +391,12 @@ export function resolveSelector(ctx: GameContext, s: GameState, frame: ScriptFra
                   (s.resolving?.card ?? null)
                 : sel.special === "leader"
                   ? s.players[frame.master].leader
-                  : s.players[other(frame.master)].leader;
+                  : sel.special === "onTop"
+                    ? // 23-2: the card whose pile holds this one. Null while
+                      // the card is in no pile, which is most of the time —
+                      // these skills are printed on the card that gets buried.
+                      hostOf(s, frame.card)
+                    : s.players[other(frame.master)].leader;
     out = pick && s.cards[pick] ? [pick] : [];
   } else if (sel.fromVar) {
     out = (frame.vars[sel.fromVar] ?? []).filter((id) => s.cards[id]);
@@ -753,6 +758,18 @@ function list(ps: PlayerState, area: Area): string[] | null {
  * needs this, or the card is added to its new area while still in the pile and
  * exists twice.
  */
+/**
+ * The card `id` is under, or null when it is not in a pile — the other half of
+ * the `under` area (23-2). A pile is held as a list on the card at the top, so
+ * there is exactly one answer and it is found by asking who holds this card;
+ * a stack is one card with everything else beneath it (23-2-2), so "the card
+ * on top of this card" is never a card halfway up.
+ */
+export function hostOf(s: GameState, id: string): string | null {
+  for (const [host, inst] of Object.entries(s.cards)) if (inst.under.includes(id)) return host;
+  return null;
+}
+
 export function liftFromPile(s: GameState, id: string): boolean {
   for (const inst of Object.values(s.cards)) {
     const i = inst.under.indexOf(id);
