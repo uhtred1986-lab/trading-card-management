@@ -140,7 +140,7 @@ function freeChoice(ctx: EngineContext, s: GameState, legal: LegalAction[], p: P
     // 22-45-3: carrying markers with [Empower] cannot go wrong, so take the maximum without an API call.
     const max = s.prompt.kind === "empowerCarry" ? s.prompt.max : 0;
     const i = legal.findIndex((l) => l.action.type === "empowerCarry" && l.action.amount === max);
-    return i >= 0 ? { index: i, how: `carries maximum ${max} Empower markers` } : { index: legal.length - 1, how: "carries Empower markers" };
+    return i >= 0 ? { index: i, how: `carries maximum ${max} Empower markers` } : null;
   }
   return null;
 }
