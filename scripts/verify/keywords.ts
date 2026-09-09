@@ -133,16 +133,38 @@ import {
 }
 
 {
-  // [Empower X Y] (22-45): a Unison replacing one of colour X keeps up to Y of its markers.
+  // [Empower X Y] (22-45-3, owner's ruling 9 Sep 2026): a Unison replacing one
+  // of colour X *may* carry up to Y of its markers over — a choice the master
+  // makes, not an automatic maximum, so playing it asks rather than deciding
+  // for them. This used to assert the maximum was applied with no question
+  // asked; that was the bug 22-45-3's "may" describes, not a description of it.
   DEFS.EMP = { ...DEFS.U1, id: "EMP", name: "EMP", skill: "[Empower Red 2]" };
   let s = arena({ hand: ["U1", "EMP"], energy: ["V1", "V1", "V1", "V1", "V1"] });
   s = play(s, { type: "playUnison", player: "p1", card: find(s, "p1", "hand", "U1"), x: 3 });
   const old = s.players.p1.unison!;
   s = play(s, { type: "playUnison", player: "p1", card: find(s, "p1", "hand", "EMP"), x: 1 });
+  assert.equal(s.prompt.kind, "empowerCarry", "22-45-3: carrying is asked, not assumed");
+  assert.equal((s.prompt as { from: string }).from, old);
+  assert.equal((s.prompt as { max: number }).max, 2, "capped by the printed Y of 2, though the old Unison had 3 markers");
+  s = play(s, { type: "empowerCarry", player: "p1", amount: 2 });
   const emp = s.players.p1.unison!;
   assert.equal(s.cards[emp].cardId, "EMP");
   assert.ok(s.players.p1.drop.includes(old), "13-2-3: the old Unison went to the Drop");
   assert.equal(s.cards[emp].markers, 3, "22-45-2: 1 paid plus 2 carried over (of the 3 it had)");
+  assertConsistent(s);
+}
+
+{
+  // Choosing fewer than the maximum — including none at all — is just as
+  // legal an answer, and is the whole point of the choice existing.
+  DEFS.EMP2 = { ...DEFS.U1, id: "EMP2", name: "EMP2", skill: "[Empower Red 2]" };
+  let s = arena({ hand: ["U1", "EMP2"], energy: ["V1", "V1", "V1", "V1", "V1"] });
+  s = play(s, { type: "playUnison", player: "p1", card: find(s, "p1", "hand", "U1"), x: 3 });
+  s = play(s, { type: "playUnison", player: "p1", card: find(s, "p1", "hand", "EMP2"), x: 1 });
+  assert.equal(s.prompt.kind, "empowerCarry");
+  s = play(s, { type: "empowerCarry", player: "p1", amount: 0 });
+  const emp2 = s.players.p1.unison!;
+  assert.equal(s.cards[emp2].markers, 1, "22-45-3: declining the carry leaves only the marker paid for");
   assertConsistent(s);
 }
 

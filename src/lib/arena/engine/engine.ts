@@ -390,7 +390,7 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
     }
 
     case "play.resolve":
-      return resolvePlay(ctx, s, ev, step.card, step.player, step.markers, step.onto, step.negated);
+      return resolvePlay(ctx, s, ev, step.card, step.player, step.markers, step.onto, step.negated, step.empowerCarry);
     case "skill.resolve": {
       const sk = skillsOfInstance(ctx, s, step.card).find((k) => k.index === step.skill);
       if (!sk) return "done";
@@ -619,21 +619,42 @@ function openCounterWindow(ctx: EngineContext, s: GameState, ev: GameEvent[], wi
 
 // ── playing cards (5-5, 13-2, 16-2, 17-2, 18-2) ────────────────────────────
 
-function resolvePlay(ctx: EngineContext, s: GameState, ev: GameEvent[], card: string, p: PlayerId, markers?: number, onto?: string, negated?: "turn" | "game"): "done" | "wait" {
+function resolvePlay(
+  ctx: EngineContext,
+  s: GameState,
+  ev: GameEvent[],
+  card: string,
+  p: PlayerId,
+  markers?: number,
+  onto?: string,
+  negated?: "turn" | "game",
+  empowerCarry?: number,
+): "done" | "wait" {
   const d = def(ctx, s, card);
   const bt = baseType(d);
   const ps = s.players[p];
   if (bt === "UNISON") {
-    // 22-45: [Empower XY] carries up to Y markers over from the Unison this
-    // one replaces, if that Unison is the colour it names (any colour when it
-    // names none). Read before the old one goes, because leaving play clears
-    // its markers.
-    let carried = 0;
+    // 22-45-3: [Empower XY] lets the master carry up to Y markers over from
+    // the Unison this one replaces, if that Unison is the colour it names
+    // (any colour when it names none) — "may", not "does": the maximum is a
+    // ceiling, not the amount, and it can matter (a threshold skill reading
+    // "3 or more markers", or leaving the old Unison's markers behind on
+    // purpose). Read before the old one goes, because leaving play clears its
+    // markers (5-13-3).
     const empower = keyword(ctx, s, card, "Empower");
-    if (ps.unison && empower && empower.x > 0) {
-      const old = ps.unison;
-      if (empower.color == null || cardNow(ctx, s, old).colors.includes(empower.color)) carried = Math.min(empower.x, s.cards[old].markers);
+    const old = ps.unison;
+    let max = 0;
+    if (old && empower && empower.x > 0 && (empower.color == null || cardNow(ctx, s, old).colors.includes(empower.color))) {
+      max = Math.min(empower.x, s.cards[old].markers);
     }
+    // A real choice only when it could go either way. Reached once: the flow
+    // step is requeued with the answer already on it, so `empowerCarry` is
+    // defined the second time through and this does not ask twice.
+    if (max > 0 && empowerCarry === undefined) {
+      s.flow.unshift({ op: "play.resolve", card, player: p, markers, onto, negated });
+      return wait(s, { kind: "empowerCarry", player: p, card, from: old!, max, markers, onto, negated });
+    }
+    const carried = Math.min(Math.max(0, empowerCarry ?? 0), max);
     // 3-11-5: an existing Unison goes to the Drop.
     if (ps.unison) move(ctx, s, ev, ps.unison, "drop", p, { reason: "rule" });
     move(ctx, s, ev, card, "unison", p, { reason: "play", reveal: true });
@@ -1617,6 +1638,11 @@ export function legalActions(ctx: EngineContext, s: GameState): LegalAction[] {
     case "offering":
       out.push({ action: { type: "offering", player: pr.player, dropLife: true }, label: "Drop 1 life (deny the draw)" });
       out.push({ action: { type: "offering", player: pr.player, dropLife: false }, label: "Keep life (opponent draws 2)" });
+      return out;
+    case "empowerCarry":
+      // 22-45-3: "may" carry up to `max`, not must — every amount from 0 (decline
+      // the carry entirely) to the cap is a legal answer.
+      for (let n = 0; n <= pr.max; n++) out.push({ action: { type: "empowerCarry", player: pr.player, amount: n }, label: n === 0 ? "Carry no markers" : `Carry ${n} marker${n === 1 ? "" : "s"}` });
       return out;
     case "chooseCards":
       for (const id of pr.choice.candidates) out.push({ action: { type: "choose", player: pr.player, cards: [id] }, label: `Choose ${name(id)}` });
@@ -2791,6 +2817,12 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
         const life = ps.life[0];
         if (life) move(ctx, s, ev, life, "drop", p, { reason: "effect", reveal: true });
       } else draw(ctx, s, ev, info.master, 2);
+      break;
+    }
+    case "empowerCarry": {
+      if (pr.kind !== "empowerCarry") throw new IllegalAction("no [Empower] carry pending");
+      if (action.amount < 0 || action.amount > pr.max) throw new IllegalAction(`carry between 0 and ${pr.max} markers`);
+      s.flow.unshift({ op: "play.resolve", card: pr.card, player: p, markers: pr.markers, onto: pr.onto, negated: pr.negated, empowerCarry: action.amount });
       break;
     }
     case "choose": {

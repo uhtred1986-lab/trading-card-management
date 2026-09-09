@@ -46,8 +46,8 @@ Operations (each is an object with "op"; a field marked ? may be left out):
   {"op":"removeMarker","target":TARGET,"n":AMOUNT}
   {"op":"token","name":"…","power":N,"comboCost":N,"comboPower":N,"colors":["Red"|"Blue"|"Green"|"Yellow"|"Black"|"White"|"Colorless"],"n":AMOUNT,"side"?:"you"|"opponent"}
     a token (19): {"op":"token","name":"Saibaman Token","power":10000,"comboCost":0,"comboPower":5000,"colors":[],"n":2}
-  {"op":"costReduction","target":TARGET,"amount":AMOUNT,"what"?:"energy"|"combo"|"zEnergy","until"?:DURATION}
-    [Permanent] only unless a duration is given (20-21): "reduce the energy cost of your <Son Goku> cards in your hand by 1" — the selector names the area the text names, usually the hand; "zEnergy" is the Z-Energy cost a Z-Card pays from the Z-Energy Area (5-4), read by `zEnergyCostOf`, never `d.zEnergyCost` raw
+  {"op":"costReduction","target":TARGET,"amount":AMOUNT,"what"?:"energy"|"combo"|"zEnergy"|"specified","colors"?:["any"|"Red"|"Blue"|"Green"|"Yellow"|"Black"|"White"|"Colorless"],"until"?:DURATION}
+    [Permanent] only unless a duration is given (20-21): "reduce the energy cost of your <Son Goku> cards in your hand by 1" — the selector names the area the text names, usually the hand; "zEnergy" is the Z-Energy cost a Z-Card pays from the Z-Energy Area (5-4), read by `zEnergyCostOf`, never `d.zEnergyCost` raw. "specified" is the coloured part of an X-cost card's price (owner's ruling on BT19-039, 9 Sep 2026): it never touches the total, only which colours `playCost` demands, and `colors` carries the orbs it relaxes — always printed as `{u}`/`{y}{y}`/…, never a bare count.
   {"op":"negateKeyword","keyword":"Awaken"|"Wish"|"Field"|…,"target"?:TARGET}
     take one named keyword away ("negate this card's [Energy-Exhaust] skill in all areas", 9-1-5); the keyword is its printed name, e.g. "Blocker"
   {"op":"gains","traits"?:["…"],"characters"?:["…"],"colors"?:["Red"|"Blue"|"Green"|"Yellow"|"Black"|"White"|"Colorless"],"names"?:["…"],"target"?:TARGET}

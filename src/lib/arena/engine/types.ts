@@ -358,8 +358,14 @@ export interface ContinuousEffect {
    * named by a `SkillKindPrefix` in `value` ("negate that card's [Auto] skill
    * for the turn").
    */
-  kind: "power" | "comboPower" | "keyword" | "negateSkills" | "negateSkill" | "negateSkillKind" | "forbid" | "permit" | "immune" | "cost" | "comboCost" | "altCost" | "zEnergy";
-  value: number | KeywordSkill | SkillKindPrefix;
+  kind: "power" | "comboPower" | "keyword" | "negateSkills" | "negateSkill" | "negateSkillKind" | "forbid" | "permit" | "immune" | "cost" | "comboCost" | "altCost" | "zEnergy" | "specifiedCost";
+  /**
+   * `specifiedCost`'s value is the orbs it relaxes or demands (`sign: 1` reduces,
+   * `-1` increases) rather than a flat number — see `costReduction` (script.ts)
+   * and `playCost` (state.ts), which keep it apart from an ordinary cost change
+   * because it never touches the total, only which colours are required.
+   */
+  value: number | KeywordSkill | SkillKindPrefix | { colors: (Color | "any")[]; sign: 1 | -1 };
   /** Set when `kind` is "forbid". */
   forbid?: Prohibition;
   /** Set when `kind` is "permit". */
@@ -581,6 +587,17 @@ export type Prompt =
    */
   | { kind: "payCost"; player: PlayerId; action: Action; options: Payment[]; describe: string }
   | { kind: "offering"; player: PlayerId; card: string }
+  /**
+   * 22-45-3: [Empower]'s "may carry up to Y markers" — a choice, not the
+   * maximum. `from` is the outgoing Unison the markers would come from,
+   * `max` the cap `resolvePlay` already worked out (colour checked, capped
+   * by what `from` actually has); an answer of 0 declines the carry
+   * entirely. `markers`/`onto`/`negated` are the rest of what `play.resolve`
+   * needs to finish the play once this is answered — carried so `apply`'s
+   * "empowerCarry" case can requeue that step without reaching into state
+   * the prompt itself is the only record of.
+   */
+  | { kind: "empowerCarry"; player: PlayerId; card: string; from: string; max: number; markers?: number; onto?: string; negated?: "turn" | "game" }
   /** A skill the compiler could not read; Claude answers with a program in the effect language. */
   | { kind: "referee"; player: PlayerId; request: RefereeRequest }
   | { kind: "gameOver" };
@@ -644,6 +661,8 @@ export type Action =
   | { type: "chooseMode"; player: PlayerId; index: number }
   | { type: "zEnergyFromCombo"; player: PlayerId; card: string | null }
   | { type: "offering"; player: PlayerId; dropLife: boolean }
+  /** Answers an "empowerCarry" prompt (22-45-3): how many markers, 0 up to the prompt's `max`, to carry over. */
+  | { type: "empowerCarry"; player: PlayerId; amount: number }
   /** The referee's answer: a program in the effect language, or an empty one for "nothing happens". */
   | { type: "refereeRuling"; player: PlayerId; ops: Op[] }
   | { type: "concede"; player: PlayerId };
@@ -755,7 +774,14 @@ export type FlowStep =
    * response resolves first — and can mark this one negated on its way past.
    */
   | { op: "counter.resolve"; card: string; skill: number; player: PlayerId; negated?: boolean }
-  | { op: "play.resolve"; card: string; player: PlayerId; markers?: number; mode?: "active" | "rest"; onto?: string; negated?: "turn" | "game" }
+  /**
+   * `empowerCarry` is the answer to an "empowerCarry" prompt (22-45-3): how
+   * many markers, up to the printed [Empower]'s cap, to carry from the
+   * outgoing Unison. Absent the first time a Unison with room to carry any
+   * is played — `resolvePlay` asks then and requeues this same step with the
+   * answer on it, so the step never asks twice.
+   */
+  | { op: "play.resolve"; card: string; player: PlayerId; markers?: number; mode?: "active" | "rest"; onto?: string; negated?: "turn" | "game"; empowerCarry?: number }
   | { op: "script.step"; frame: ScriptFrame }
   | { op: "flipLeader"; card: string }
   | { op: "skill.resolve"; card: string; skill: number; player: PlayerId; trigger?: Trigger }

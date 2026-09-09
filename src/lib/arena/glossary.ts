@@ -263,8 +263,9 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     group: "play",
     meaning:
       "When you play this Unison Card over one whose colour matches, you may move up to Y markers from the Unison being replaced onto this one. An [Empower] naming no colour takes them from a Unison of any colour.",
-    engine: "Read before the old Unison leaves play, because leaving clears its markers. The engine carries as many as it can rather than asking how many of the “up to Y” you want.",
-    support: "partial",
+    engine:
+      "Read before the old Unison leaves play, because leaving clears its markers (5-13-3). “Up to Y” is asked, not assumed — the master is prompted for how many to carry, from 0 to the cap `resolvePlay` works out (colour checked, capped by what the outgoing Unison actually has), and the play does not finish until it is answered (owner's ruling, 9 Sep 2026).",
+    support: "engine",
   },
 
   // ── Battle ───────────────────────────────────────────────────────────────

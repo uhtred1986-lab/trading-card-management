@@ -587,10 +587,14 @@ export interface AltCost {
 
 export interface StaticEffect {
   source: string;
-  kind: "power" | "comboPower" | "keyword" | "cost" | "comboCost" | "zEnergy" | "negateKeyword" | "gains" | "replaceLeave" | "forbid" | "permit" | "immune" | "altCost";
+  kind: "power" | "comboPower" | "keyword" | "cost" | "comboCost" | "zEnergy" | "specifiedCost" | "negateKeyword" | "gains" | "replaceLeave" | "forbid" | "permit" | "immune" | "altCost";
   /** The card it is about; empty for a rule about a player rather than a card. */
   target: string;
-  value: number | KeywordSkill | KeywordSkill["name"] | Prohibition | Permission | Immunity | AltCost | Gains | Replacement;
+  /**
+   * `specifiedCost` carries the orbs it relaxes or demands, not a flat number
+   * — see `playCost`, which is the only reader.
+   */
+  value: number | KeywordSkill | KeywordSkill["name"] | Prohibition | Permission | Immunity | AltCost | Gains | Replacement | { colors: (Color | "any")[]; sign: 1 | -1 };
 }
 
 /**
@@ -701,6 +705,17 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
       continue;
     }
     if (op.op === "costReduction") {
+      // The coloured part alone, never the total (owner's ruling on BT19-039,
+      // 9 Sep 2026) — kept as its own kind so `playCost` cannot fold it into
+      // an ordinary reduction by accident. Always a fixed list of orbs, never
+      // a "for each" amount, so `op.amount`'s sign (not `amount()`) is all
+      // that is read here.
+      if (op.what === "specified") {
+        if (!op.colors?.length || typeof op.amount !== "number") continue;
+        const sign: 1 | -1 = op.amount < 0 ? -1 : 1;
+        for (const id of staticTargets(ctx, s, frame, op.target)) out.push({ source, kind: "specifiedCost", target: id, value: { colors: op.colors, sign } });
+        continue;
+      }
       const kind = op.what === "combo" ? "comboCost" : op.what === "zEnergy" ? "zEnergy" : "cost";
       // "…by 1 for each of your blue Battle Cards" — the same count/markers
       // amounts the power statics take, and for the same reason: a
@@ -1700,6 +1715,43 @@ export function playCost(ctx: GameContext, s: GameState, id: string, x = 0): { t
     if (!c) break;
     cut.specified[c] = cut.specified[c]! - 1;
     if (!cut.specified[c]) delete cut.specified[c];
+  }
+  // The coloured part alone (owner's ruling on BT19-039, 9 Sep 2026, validated
+  // against 13-2-1-3/20-21-2): a printed or granted "reduce/increase the
+  // specified cost … by {colour}" relaxes or tightens which colours are
+  // demanded without moving `total` at all — the total is what the player
+  // chooses to pay for an X cost, or what is printed for a fixed one, and
+  // neither is what this sentence is about. Read apart from the flat `cost`
+  // reducer above rather than folded into it, and read the colour named on
+  // the print rather than a bare count, because the colour is the point:
+  // relaxing "2 blue" to "1 blue" is not the same change as relaxing some
+  // other colour by one.
+  //
+  // This is currently a no-op for every X-cost card that prints it
+  // (BT19-039, BT19-040, BT15-063, BT20-118, P-673, P-600): `specified` above
+  // is unconditionally `{}` for an X cost, because `specifiedCostOf` has no
+  // convention for what an X-cost card's own specified requirement actually
+  // is (a Unison's "2 blue" is knowledge no field in the catalog carries),
+  // and nothing populates `d.specifiedCost` to say otherwise. That baseline
+  // is a separate, larger gap than the eight clauses this lane reads — see
+  // `docs/arena-markers-stage-scope.md` — and is deliberately not guessed at
+  // here rather than invented wrong.
+  const specifiedOps: { colors: (Color | "any")[]; sign: 1 | -1 }[] = [];
+  for (const e of staticEffects(ctx, s)) if (e.kind === "specifiedCost" && e.target === id) specifiedOps.push(e.value as { colors: (Color | "any")[]; sign: 1 | -1 });
+  for (const e of s.effects) if (e.kind === "specifiedCost" && e.target === id) specifiedOps.push(e.value as { colors: (Color | "any")[]; sign: 1 | -1 });
+  for (const { colors, sign } of specifiedOps) {
+    for (const orb of colors) {
+      if (sign === 1) {
+        const c = orb === "any" ? (Object.keys(cut.specified) as Color[]).find((k) => (cut.specified[k] ?? 0) > 0) : (cut.specified[orb] ?? 0) > 0 ? orb : undefined;
+        if (!c) continue;
+        cut.specified[c] = cut.specified[c]! - 1;
+        if (!cut.specified[c]) delete cut.specified[c];
+      } else {
+        const c = orb === "any" ? ((Object.keys(cut.specified)[0] as Color | undefined) ?? d.colors.find((x) => x !== "Colorless")) : orb;
+        if (!c) continue;
+        cut.specified[c] = (cut.specified[c] ?? 0) + 1;
+      }
+    }
   }
   // 22-19: [Warrior of Universe 7] on a card the player controls removes specified costs of Universe 7 cards.
   if (d.traits.some((t) => /universe 7/i.test(t)) && [s.players[owner].leader, ...s.players[owner].battle].some((c) => c && has(ctx, s, c, "Warrior of Universe 7"))) {
