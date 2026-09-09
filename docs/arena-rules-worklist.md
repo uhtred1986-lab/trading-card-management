@@ -2409,3 +2409,57 @@ the text rests one of the opponent's.
 `contract:emit` produced no change — no probe digest moved. One test moved with the rule:
 `verify/keywords.ts`'s look-and-add card now has two gaps rather than one, because the "+5000 power"
 hanging on "if you did not draw a card with this skill" is no longer granted every time.
+
+## Fix the instrument — Stage 2, fifth increment (9 Sep 2026)
+
+The readings are the only check on a clause that **compiles and reads wrongly**, and no coverage
+number and no test knows to ask about one. On 9 Sep 2026 they could not be signed off on 145 of the
+13,563 skills they print, because the sentence contained the word `undefined`; and `describeFilter`
+was silent on ten of the measures a filter can carry, so a filter that narrows wrongly printed as
+though it had none. Neither is a compiler bug, so **the gap set does not move in this commit** —
+fully compiled cards stay at 4,625, unread clauses at 3,133 over 2,267 shapes, and `contract:emit`
+produces no change. What moves is 587 readings, all but six of them a sentence gaining words.
+
+**`undefined` in the middle of a sentence**, four shapes, all in `describeSelector` and the
+condition schema. A selector with no count of its own is every card it finds — `resolveSelector`
+returns the whole area — and the count was printed straight, so it read `move undefined in your
+energy to energy`. It is now worded "all", and `take` ("the top 3 cards of your deck", the area's
+own order rather than a choice among it) is worded as what it takes rather than as a number to pick.
+Three conditions **test** a set rather than take from it, and each says so in its own word:
+`inBattle` and `battled` ask whether **any** of the cards is (`.some`), and `every` — whose two
+selectors are built with their counts deleted — reads "every card in your energy is also
+mono-colour blue in your energy" rather than the "all of all in your energy" the shared default
+produced.
+
+**The ten silent measures**: `notColors`, `notCharacters`, `notTraits`, `notNames`, `keywords`,
+`notKeywords`, `skillKind`, `noKeywords`, `notToken` and `powerRel` are all printed now, in the
+wordings `parseFilter` reads back — so `printFilter`'s round-trip keeps more filters in their own
+words instead of falling to field-by-field. Two bounds were not merely silent but **wider than the
+filter**: a cost or power with *both* bounds printed only the ceiling ("or less", the floor
+dropped), and an *exact* cost or power printed as "or less" too. Both now print the range and the
+exact value.
+
+The 25 readings that gained a measure rather than a word are the point of the exercise:
+BT19-050 "choose up to 1 **card** with an energy cost of 5 or less" was `non-<Pan: SH>` all along,
+BT10-027's "3 or more cards in your battle" was `non-token`, BT13-132's was "card with
+[Over Realm]", BT15-079's "if that card is card" was `non-≪Saiyan≫`.
+
+**Two compiler bugs the new words immediately exposed**, left for their own commit rather than
+smuggled into this one: **BT7-129** prints "non-black cards in areas **other than** your deck, hand,
+or life" and reads "in your **deck**" — the area is inverted; and **BT16-088** prints "non-<Zamasu>
+**and** non-<Goku Black>" and reads only the first, with "for the game" read as "for the turn".
+Neither was visible before, because both printed as the word "card".
+
+**One live bug taken in the same commit, because it is the same rule.** "Your opponent reveals their
+hand. Choose up to 1 card with an energy cost of 7 or less **from it** and discard it" (BT16-005)
+named no area, so 20-1-6's "an unqualified card is one on the table" took over and the card
+discarded was **your own**. "From it" after a look or a reveal is the pool being held out — the rule
+"among them" has already — and `parseTarget` now reads it, but only when there *is* a pool: with
+nothing held out, "it" is a pronoun for the sentence to answer and not an area to invent. The same
+change fixes a second half of it: the pool variable was the literal name `"looked"`, which a
+**reveal** never binds (it binds `"revealed"`), so "choose 1 card among them" after a reveal was a
+choice with no candidates at all. Six readings: BT16-005, BT4-124, BT9-100b, P-134 (all reveals) and
+BT10-004, P-147 (looks); BT13-024's dangling variable is bound at last.
+
+`npm run typecheck`, `lint`, `test`, `build` clean; `arena:fuzz 40` 40 games, 0 crashes;
+`contract:emit` produced no change. The gap-set diff is empty, by design.

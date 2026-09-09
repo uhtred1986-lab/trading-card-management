@@ -410,8 +410,15 @@ const ALL_AREAS_RE = /\bin all (?:of )?(your |their |its owner's )?areas\b/;
  * "add … to your hand" rule in `compileClause`. It is passed only once the
  * caller has established that the phrase names no area of its own, so it can
  * never overrule an area the text actually printed.
+ *
+ * `pool` is the weaker claim, and the ordinary one: the cards a look or a
+ * reveal is holding out, which this phrase draws from **only if it says so**.
+ * Until 9 Sep 2026 no caller passed either, so a phrase that did say so was
+ * given the literal name `"looked"` — right after a look, and a variable
+ * nothing had bound after a reveal, which is a choice with no candidates
+ * (BT13-024, BT6-074).
  */
-export function parseTarget(phrase: string, looked?: string): Selector | null {
+export function parseTarget(phrase: string, looked?: string, pool?: string): Selector | null {
   let t = phrase.toLowerCase();
   // Qualifiers this grammar does not read, and cannot afford to drop: they
   // narrow a phrase to a handful of cards by their *history* — which cards
@@ -573,7 +580,17 @@ export function parseTarget(phrase: string, looked?: string): Selector | null {
     }
   }
   // "among them" / "of those cards" keeps working on what was just looked at.
-  const fromVar = /\bamong them\b|\bof those cards\b|\bfrom among them\b|\bof them\b/.test(t) ? "looked" : looked;
+  //
+  // "**From it**" is the same phrase after a reveal, and the nineteen cards
+  // that reveal a hand are where it is printed: "your opponent reveals their
+  // hand. Choose up to 1 card with an energy cost of 7 or less **from it** and
+  // discard it" (BT16-005) named no area at all, so 20-1-6's "an unqualified
+  // card is one on the table" took over and the card discarded was **your
+  // own**. Only when a pool exists — with nothing held out, "it" is a pronoun
+  // for a later clause to answer and there is no area here to read it as.
+  const seen = looked ?? pool;
+  const namesPool = /\bamong them\b|\bof those cards\b|\bfrom among them\b|\bof them\b/.test(t) || (!!seen && /\bfrom it\b/.test(t));
+  const fromVar = namesPool ? (seen ?? "looked") : looked;
   // "Choose 1 of your <Majin Buu>" names no area, but 20-1-6 says an
   // unqualified card is one on the table. Without this the choice fails, and
   // then every later "it" in the same skill has nothing to point at.
@@ -1040,7 +1057,7 @@ function refFor(clause: string, c: Ctx): Ref | null {
   // and only says *where to look* for it. Read before "it"/"them", which would
   // otherwise take the "them" and hand back whatever the last clause acted on.
   if (/\b(?:among them|from among them|of those cards)\b/i.test(clause)) {
-    const among = parseTarget(clause);
+    const among = parseTarget(clause, undefined, c.lastSeen ?? undefined);
     if (among) return { sel: among };
   }
   // A pronoun inside a trailing modifier is not pointing at an earlier clause,
@@ -2811,7 +2828,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
 
   // Choosing (5-2). Late, because many clauses open with "choose" plus an action.
   if (/^choose /.test(t)) {
-    let sel = parseTarget(clause);
+    let sel = parseTarget(clause, undefined, c.lastSeen ?? undefined);
     // "When your opponent plays a Battle Card, you may choose **that card**":
     // the trigger already named it, so there is nothing to pick out of an area
     // — the only question is whether to take it.
@@ -2834,7 +2851,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // splits on the "and", and the second half arrives with the verb left
   // behind. A bare target phrase after a choice is another choice.
   if (c.last && /^(?:up to )?\d+ /.test(t)) {
-    const sel = parseTarget(clause);
+    const sel = parseTarget(clause, undefined, c.lastSeen ?? undefined);
     if (sel) {
       const v = `c${c.n++}`;
       return [{ op: "choose", sel, as: v, reason: clause }];

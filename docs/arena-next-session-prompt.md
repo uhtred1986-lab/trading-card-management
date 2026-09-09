@@ -3,18 +3,18 @@
 Paste the block below into a fresh session. It is written to be handed over
 without editing; everything it needs to find is in the repo.
 
-Rewritten 9 Sep 2026, after Stage 1 and the first four increments of Stage 2
+Rewritten 9 Sep 2026, after Stage 1 and the first five increments of Stage 2
 of the rules-language programme merged.
 
 ---
 
 Continue the arena rules-language programme. The plan the owner approved on
 9 Sep 2026 has ten stages; **Stage 0** (two engines and the switch), **Stage 1**
-(the language, and an editable WHEN) and the **first four increments of Stage
+(the language, and an editable WHEN) and the **first five increments of Stage
 2** are merged into `main`. Read, in this order:
 
-1. `docs/arena-rules-worklist.md` — the last six entries are Stages 0, 1 and the
-   four Stage 2 increments, with the numbers and the reasoning. Start at the
+1. `docs/arena-rules-worklist.md` — the last seven entries are Stages 0, 1 and the
+   five Stage 2 increments, with the numbers and the reasoning. Start at the
    bottom.
 2. `docs/arena-rules-language.md` — the grammar, the round-trip promise, and
    what Stage 1 deliberately left out.
@@ -26,74 +26,45 @@ branch is `wip/compiler-uncommitted`, which is old — leave it alone.
 
 ## Where the last increment got to
 
-**What a refused clause leaves behind is fixed**, which was the precondition the
-increment before it named. A clause the compiler cannot read is not silent for
-the clauses after it, and three things were answering that wrongly:
+**The instrument is fixed.** The readings are the only check on a clause that
+compiles and *reads* wrongly, and they could not be signed off on 145 of the
+13,563 skills because the sentence contained the word `undefined`, nor trusted
+on any filter carrying one of ten measures `describeFilter` never printed. Both
+are now printed. **The gap set did not move** — fully compiled cards stay at
+4,625, unread clauses at 3,133 over 2,267 shapes, `contract:emit` no change —
+and 587 readings did, all but six of them a sentence gaining words.
 
-- A pronoun after the hole was answered with **this card**, because an [Auto]
-  seeds the antecedent to the card it is on (P-645, P-279). The antecedent is
-  now marked at the moment of a refusal, held by identity, so any clause that
-  binds something of its own clears it and only a back-reference landing on the
-  still-seeded self is refused.
-- **"If you do"** with no decision behind it made everything hanging on it
-  happen every time (BT12-042 playing a 5-cost <Gogeta> for free). The rest of
-  the sentence is now refused with the word that governs it; "if you don't" too.
-- A **modal option** that failed to compile left an empty branch — a mode that
-  silently does nothing (P-396). One empty option now fails the whole skill.
+- A selector with no count of its own is every card it finds; it says "all", and
+  `take` says "the top 3" rather than a number to pick. `inBattle` and `battled`
+  say "any of" (they are `.some`), and `every` says "every card in … is also …"
+  instead of "all of all in …".
+- The ten measures — `notColors`, `notCharacters`, `notTraits`, `notNames`,
+  `keywords`, `notKeywords`, `skillKind`, `noKeywords`, `notToken`, `powerRel` —
+  print in the wordings `parseFilter` reads back, so `printFilter` keeps more
+  filters in their own words. Two bounds were also *wider than the filter*: both
+  bounds set printed only the ceiling, and an exact cost or power printed as "or
+  less". Both are ranges and exact values now.
+- The bug the doc named went in with it: **"from it" after a look or a reveal**
+  is the pool being held out, the rule "among them" already had. BT16-005 was
+  discarding one of **your own** cards; six readings fixed (BT16-005, BT4-124,
+  BT9-100b, P-134, BT10-004, P-147), and BT13-024's pool variable — the literal
+  `"looked"`, which a *reveal* never binds — is bound at last.
 
-Fully compiled cards 4,627 → **4,625**. 55 shapes entered the gap set and none
-left it: this commit is entirely the compiler saying out loud what it cannot
-read. 73 readings moved, 70 of them fixes; the three that are the price are
-BT1-002b and BT10-036/040, where the refused clause is itself about this card.
-The narrower rule that would keep them is written down in the worklist entry and
-was deliberately not taken.
+**Two compiler bugs the new words exposed, deliberately not fixed here** — the
+commit had to leave the gap set still. Take them first if you want a short one:
 
-Every future refusal now costs what it says it costs and nothing more, which is
-why this went before the rest of Stage 2.
+- **BT7-129** prints "non-black cards in areas **other than** your deck, hand,
+  or life" and reads "in your **deck**". The area is inverted, not missing.
+- **BT16-088** prints "non-<Zamasu> **and** non-<Goku Black>" and reads only the
+  first; "for the game" also reads as "for the turn".
 
-The three cards the pile-under-another-card commit was making read worse — P-645,
-EX24-32 and P-396 — are exactly the three this increment fixes, so that commit no
-longer has a price attached. If a revert of it is ever wanted, the individual
-commits are on PR #68; on `main` the three of them are one squashed commit.
-
-## The next piece of work, and why it is first
-
-**Fix the instrument.** Measured on the live catalog after the fourth increment
-merged (9 Sep 2026), the readings — the only check on a clause that compiles and
-reads wrongly — cannot be signed off on 145 of the 13,563 skills they print,
-because they print the word `undefined` in the middle of the sentence. Four
-shapes, all in `describeScript`/`describeSelector`, none of them a compiler bug:
-
-- `all of undefined in your energy is undefined mono-colour blue …` — 89 lines,
-  the `allMatch` condition printing a selector that has no count and no noun.
-- `reveal undefined in opponent's hand` — 20 lines, a whole-area reveal.
-- `choose undefined …`, `move undefined …` — 12 lines, the same missing count.
-- `if undefined {SSG Son Goku} … is in a battle` — 25 lines, the `inBattle`
-  condition (BT17-109, BT18-085).
-
-And the other half of the same instrument: **`describeFilter` still prints only
-some of a filter.** `notColors`, `notCharacters`, `notTraits`, `notNames`,
-`keywords`, `notKeywords`, `skillKind`, `noKeywords`, `notToken` and `powerRel`
-are all silent — see the comment already standing above `partial` in
-`script.ts`, written when the four `*Including` measures went in. A measure the
-reading cannot print is a measure nobody can sign off, and every one of these is
-a way for a filter to narrow wrongly in silence.
-
-Neither changes a program, so the gap set must not move at all and `contract:emit`
-must produce no change — but the readings diff will be large by design, and each
-line of it is a sentence gaining words rather than a card changing its answer.
-
-**One live bug found while measuring this, worth taking in the same commit:**
-"your opponent reveals their hand. Choose up to 1 card with an energy cost of 7
-or less **from it** and discard it" (BT16-005 and two others of the nineteen
-cards that reveal a hand) reads "choose … **in your play**" — "from it" after a
-reveal is the revealed hand, and read as no area at all it discards one of your
-own cards. This is the same rule as "among them" after a look, which is already
-read; the reveal wordings were never given it.
+Both printed as the bare word "card" until this increment, which is the whole
+argument for having done it first.
 
 ## Then, the rest of Stage 2 — the families, re-measured
 
-Counted on the live catalog on 9 Sep 2026, after the fourth increment:
+Counted on the live catalog on 9 Sep 2026, after the fourth increment (the fifth
+moved no gap, so these still stand):
 
 - **The cost-reduction family is 145 unread clauses over 84 shapes**, not the 46
   the plan's table says — "reduce the skill cost by {o}" is only the largest of
