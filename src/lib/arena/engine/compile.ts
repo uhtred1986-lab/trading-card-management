@@ -3673,6 +3673,23 @@ function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op
     if (!got) {
       if (c.replacing) c.replacing = null;
       refuse(clause);
+      // A clause that opens with "if" is a condition whether or not this
+      // compiler can read it, and everything after it hangs on it. Refused
+      // alone, the clauses it governs became a skill that happens *always* —
+      // 56 of them: BT2-018 played itself from hand for nothing whether or not
+      // <Son Gohan: Adolescence> was anywhere, BT15-075 granted [Blocker] with
+      // no [Field] Extra Card in play, and a dozen cost reductions were simply
+      // always on. The rest of the sentence goes with the word that governs
+      // it, the same as "if you do" above and for the same reason.
+      //
+      // Reached only once every pattern has refused the clause, so a
+      // condition one of them *can* read is unaffected — and only for the
+      // conditional openers: "if this card would leave the Battle Area" (9-10)
+      // is a replacement, not a condition, and has already been taken above.
+      if (/^\s*(?:if|while|as long as|unless)\b/i.test(clause)) {
+        for (const rest of clauses.slice(i + 1)) refuse(rest);
+        break;
+      }
       continue;
     }
     // 9-10: the clause after "if this card would leave the Battle Area" is
