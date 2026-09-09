@@ -452,8 +452,16 @@ export function resolveSelector(ctx: GameContext, s: GameState, frame: ScriptFra
     // this copy, not about the card, so `matches` cannot see it.
     if (sel.filter?.faceUp && !inst.faceUp) return false;
     // "with power less than or equal to this card's power": measured against
-    // the card the skill is on, as it stands now.
-    if (sel.filter?.powerRel && !powerRelOk(sel.filter, powerOf(ctx, s, id), powerOf(ctx, s, frame.card))) return false;
+    // the card the skill is on, as it stands now. "…**the chosen card's**
+    // power" (BT19-096) measures against a card an earlier clause in the same
+    // skill chose instead — `powerRelVar` names that variable, filled in at
+    // compile time (the only place that still knows which one). No variable
+    // to point at is a filter that matches nothing, not one that falls back
+    // to this card — ground rule 5.
+    if (sel.filter?.powerRel) {
+      const against = sel.filter.powerRel.of === "chosen" ? (sel.filter.powerRel.var ? (frame.vars[sel.filter.powerRel.var]?.[0] ?? null) : null) : frame.card;
+      if (!against || !powerRelOk(sel.filter, powerOf(ctx, s, id), powerOf(ctx, s, against))) return false;
+    }
     if (!sel.special && !sel.ignoreBarrier && sel.side !== "you" && has(ctx, s, id, "Barrier") && s.cards[id].owner !== frame.master && areaOf(s, id) !== "hand") return false;
     // 20-4: the same shape as [Barrier], but printed as a prohibition.
     if (!sel.special && s.cards[id].owner !== frame.master && forbids(ctx, s, "beChosen", { card: id })) return false;

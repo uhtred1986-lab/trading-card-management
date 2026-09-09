@@ -119,8 +119,28 @@ export interface CardFilter {
    * "with power less than or equal to this card's power" — a bound read off
    * the card whose skill this is, so it is applied where the skill runs
    * (`resolveSelector`), not here.
+   *
+   * "…**the chosen card's** power" (BT19-096) measures against a card a
+   * clause earlier in the same skill chose, not the card printing the skill —
+   * `of: "chosen"` is a placeholder `compileClause` resolves to the actual
+   * bound variable (`c.last`) at the point it builds the `choose` op, because
+   * that is the only place the compiler still knows which variable that is.
    */
-  powerRel: { of: "self"; cmp: "<=" | "<" | ">=" | ">" } | null;
+  powerRel: {
+    of: "self" | "chosen";
+    cmp: "<=" | "<" | ">=" | ">";
+    /**
+     * The bound variable `of: "chosen"` measures against — filled in by
+     * `compileClause` (`c.last`) once the filter comes back from parsing,
+     * which is the only place still holding the name; `parseFilter` cannot
+     * set it, having no `Ctx`. Unset while `of` is `"self"`, and if a
+     * "chosen" bound somehow reaches here with nothing to point at,
+     * `resolveSelector` treats the filter as failing to match rather than
+     * falling back to `frame.card` — that would silently measure against the
+     * wrong card instead of naming none.
+     */
+    var?: string;
+  } | null;
   z: boolean | null;
 }
 
@@ -397,7 +417,7 @@ export function parseFilter(text: string): CardFilter {
   // than this card's power" — measured against the card the skill is on.
   if (
     (m =
-      /power (less than or equal to|equal to or less than|no more than|at or below|less than|lower than|greater than or equal to|equal to or greater than|no less than|at or above|greater than|higher than|more than) (?:this card'?s|its) power/.exec(
+      /power (less than or equal to|equal to or less than|no more than|at or below|less than|lower than|greater than or equal to|equal to or greater than|no less than|at or above|greater than|higher than|more than) (?:this card'?s|its|the chosen card'?s) power/.exec(
         lower,
       ))
   ) {
@@ -409,7 +429,7 @@ export function parseFilter(text: string): CardFilter {
         : /^(?:greater than or equal|equal to or greater|no less|at or above)/.test(w)
           ? ">="
           : ">";
-    f.powerRel = { of: "self", cmp };
+    f.powerRel = { of: /the chosen card/.test(m[0]) ? "chosen" : "self", cmp };
   }
   return f;
 }

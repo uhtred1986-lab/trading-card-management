@@ -272,6 +272,10 @@ const tripFilter = (filter: CardFilter, what: string) => tripSelector({ side: "y
     { powerMin: 10000 },
     { powerMax: 15000 },
     { powerRel: { of: "self", cmp: "<=" } },
+    // "…the chosen card's power" (BT19-096): measured against a bound
+    // variable, not this card — the shape `compileClause` builds by filling
+    // in `var` after `parseFilter` returns.
+    { powerRel: { of: "chosen", cmp: "<=", var: "c1" } },
     { z: true },
     { z: false },
     { colors: ["Blue"], traits: ["Saiyan"], type: "BATTLE", costMax: 3 },

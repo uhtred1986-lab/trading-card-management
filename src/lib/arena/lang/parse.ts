@@ -552,8 +552,11 @@ class Parser {
       case "powerRel": {
         if (this.eatKw("null")) return null;
         const of = this.word("self");
+        // "chosen" carries which choice it means — a card an earlier clause
+        // in the same skill picked, not the card printing the skill.
+        const v = of === "chosen" && this.isPunct("$") ? this.variable() : undefined;
         const cmp = this.tok.kind === "punct" ? this.toks[this.i++].text : this.fail("expected a comparison", ["<=", "<", ">=", ">"]);
-        return { of, cmp };
+        return v === undefined ? { of, cmp } : { of, cmp, var: v };
       }
     }
   }
