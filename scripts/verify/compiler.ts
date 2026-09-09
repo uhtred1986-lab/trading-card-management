@@ -21,6 +21,7 @@ import {
   has,
   labels,
   legalActions,
+  matches,
   move,
   parseFilter,
   parseSkills,
@@ -919,6 +920,52 @@ import type { PlayerId } from "./harness";
   // Only one card on their side is a Saiyan, so the choice is forced and taken.
   assert.ok(s.players.p2.drop.includes(becomes), "the ≪Saiyan≫ skill found it");
   assert.ok(s.players.p2.battle.includes(find(s, "p2", "battle", "BIG")), "and left the card that is not one");
+}
+
+{
+  const ctx = CTX;
+  // 20-1: the fourth thing a card can be "also treated as" — a whole card
+  // name. Eight cards print it ("this card is also treated as {Planet M-2} in
+  // all areas") and the compiler read none of them until 9 Sep 2026, so every
+  // skill naming the card they become passed them over.
+  const compiled = compileSkill(parseSkills("[Permanent] This card is also treated as {Planet M-2} in all areas.")[0]);
+  assert.deepEqual(compiled.unsupported, [], "the wording reads");
+  assert.deepEqual(compiled.ops, [{ op: "gains", target: { sel: { special: "self" } }, traits: [], characters: [], colors: [], names: ["planet m-2"] }], "the clause is read lowercased, as every trait and character from this rule is; every name comparison is case-insensitive");
+
+  // …and the card answers to both names, in any area, to anything that asks
+  // what a card *is*.
+  const s = arena({ battle: ["RENAMED"], hand: ["RENAMED"] });
+  const asked = parseFilter("{Planet M-2}");
+  for (const area of ["battle", "hand"] as const) {
+    const id = find(s, "p1", area, "RENAMED");
+    assert.ok(matches(cardNow(ctx, s, id), asked), `the copy in your ${area} is found by its gained name`);
+    assert.ok(matches(cardNow(ctx, s, id), parseFilter("{RENAMED}")), "…and still by its own");
+  }
+  // A card without the skill is not: the gain is this card's, not the name's.
+  assert.ok(!matches(cardNow(ctx, s, s.players.p1.leader), asked));
+  // "Other than {Planet M-2}" reads the same list, so the exclusion catches it too.
+  assert.ok(!matches(cardNow(ctx, s, find(s, "p1", "battle", "RENAMED")), parseFilter("card other than {Planet M-2}")));
+}
+
+{
+  // 9-1-5, the same sentence with the target after the keyword rather than in
+  // front of it: "negate the [K] skill **on** X". Ten wordings across the
+  // catalog are printed this way and none of them read until 9 Sep 2026 — the
+  // rule beside this one only knows "negate X's [K]".
+  const one = (text: string) => compileSkill(parseSkills(`[Permanent] ${text}`)[0]);
+  const on = one("Negate the [Energy-Exhaust] skill on your Red/Yellow multicolor ≪God≫ cards in all areas.");
+  assert.deepEqual(on.unsupported, [], "the word order reads");
+  assert.equal(on.ops.length, 1);
+  assert.equal((on.ops[0] as { op: string; keyword?: string }).op, "negateKeyword");
+  assert.equal((on.ops[0] as { keyword?: string }).keyword, "Energy-Exhaust");
+  // Plural, and "of" for "on": the same sentence, the same reading.
+  assert.deepEqual(one("Negate the [Energy-Exhaust] skills of all <Android 16> cards in all of your areas.").unsupported, []);
+  // A tag naming a *kind* of skill is not a keyword, so this rule lets it go
+  // by rather than inventing one. Nothing else reads that word order yet, so
+  // the clause stays unread — which is the point: it is not read *wrongly*.
+  const kind = one("Negate the [Auto] skills of your opponent's Battle Cards.");
+  assert.deepEqual(kind.ops, []);
+  assert.equal(kind.unsupported.length, 1);
 }
 
 {

@@ -285,7 +285,7 @@ export type Op =
    * read by every rule that looks at what a card *is*, not by the ones that
    * look at what it does.
    */
-  | { op: "gains"; traits?: string[]; characters?: string[]; colors?: Color[]; target?: Ref }
+  | { op: "gains"; traits?: string[]; characters?: string[]; colors?: Color[]; names?: string[]; target?: Ref }
   /**
    * 9-10: where this card goes instead, when it would leave the Battle Area.
    * `by: "skill"` narrows it to departures a skill caused.
@@ -1373,9 +1373,17 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
   },
   negateKeyword: { fields: [{ name: "keyword", type: { enum: KEYWORD_NAMES }, required: true }, SELF], sentence: "negate the [{keyword}] skill of {target}", doc: 'take one named keyword away ("negate this card\'s [Energy-Exhaust] skill in all areas", 9-1-5); the keyword is its printed name, e.g. "Blocker"' },
   gains: {
-    fields: [{ name: "traits", type: { list: "string" } }, { name: "characters", type: { list: "string" } }, { name: "colors", type: { list: { enum: COLORS } } }, SELF],
-    sentence: "{target} also counts as{traits? ≪{traits}≫}{characters? <{characters}>}{colors? {colors}}",
-    doc: 'the card counts as having these too, wherever it is ("gains ≪Saiyan≫ in all areas", "is also treated as red", 20-1)',
+    fields: [
+      { name: "traits", type: { list: "string" } },
+      { name: "characters", type: { list: "string" } },
+      { name: "colors", type: { list: { enum: COLORS } } },
+      { name: "names", type: { list: "string" } },
+      SELF,
+    ],
+    // A literal brace cannot appear in a template — `renderTemplate` reads it
+    // as a field — so a gained card name is written out in words instead.
+    sentence: "{target} also counts as{traits? ≪{traits}≫}{characters? <{characters}>}{colors? {colors}}{names? the card named {names}}",
+    doc: 'the card counts as having these too, wherever it is ("gains ≪Saiyan≫ in all areas", "is also treated as red", 20-1); "names" is a whole card name it is also treated as ("also treated as {Planet M-2}"), never a replacement for its own',
   },
   replaceLeave: {
     fields: [{ name: "to", type: "area", required: true }, { name: "by", type: { enum: ["skill", "ko", "skillOrKo"] } }, { name: "mode", type: MODE }, SELF],

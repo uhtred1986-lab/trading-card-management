@@ -419,6 +419,10 @@
     "outcome": "fired",
     "digest": "f3d33480"
   },
+  "RENAMED#0": {
+    "outcome": "inForce",
+    "digest": "af7fba2a"
+  },
   "RESTBOTH#0": {
     "outcome": "fired",
     "digest": "3b3c3890"

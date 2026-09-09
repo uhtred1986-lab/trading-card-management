@@ -132,6 +132,8 @@ export interface Gains {
   traits: string[];
   characters: string[];
   colors: Color[];
+  /** "This card is also treated as {Planet M-2} in all areas" — a whole card name, not a character. */
+  names: string[];
 }
 
 /**
@@ -144,7 +146,7 @@ export function cardNow(ctx: GameContext, s: GameState, id: string): CardDef {
   const d = def(ctx, s, id);
   const gains = staticEffects(ctx, s).filter((e) => e.kind === "gains" && e.target === id);
   if (!gains.length) return d;
-  const out = { ...d, traits: [...d.traits], characters: [...d.characters], colors: [...d.colors] };
+  const out = { ...d, traits: [...d.traits], characters: [...d.characters], colors: [...d.colors], alsoNames: [...(d.alsoNames ?? [])] };
   const add = (list: string[], more: string[]) => {
     for (const x of more) if (!list.some((y) => y.toLowerCase() === x.toLowerCase())) list.push(x);
   };
@@ -153,6 +155,9 @@ export function cardNow(ctx: GameContext, s: GameState, id: string): CardDef {
     add(out.traits, g.traits);
     add(out.characters, g.characters);
     add(out.colors, g.colors);
+    // A name it is *also* treated as; the printed one is never replaced, so a
+    // filter naming either finds the card (`namesOf` in `filters.ts`).
+    add(out.alsoNames, g.names ?? []);
   }
   return out;
 }
@@ -678,7 +683,7 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
     // "In all areas" again: what a card counts as does not depend on where it is.
     if (op.op === "gains") {
       const targets = op.target ? staticTargets(ctx, s, frame, op.target) : [source];
-      for (const id of targets) out.push({ source, kind: "gains", target: id, value: { traits: op.traits ?? [], characters: op.characters ?? [], colors: op.colors ?? [] } });
+      for (const id of targets) out.push({ source, kind: "gains", target: id, value: { traits: op.traits ?? [], characters: op.characters ?? [], colors: op.colors ?? [], names: op.names ?? [] } });
       continue;
     }
     if (op.op === "negateKeyword") {

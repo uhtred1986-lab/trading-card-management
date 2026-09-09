@@ -43,6 +43,15 @@ export interface CardDef {
   back?: { name: string; power: number | null; skill: string | null } | null;
   /** Coloured orbs of the energy cost; one orb per colour by default. */
   specifiedCost?: Partial<Record<Color, number>>;
+  /**
+   * Card names a skill gave this card "in all areas" (20-1) — "this card is
+   * also treated as {Planet M-2} in all areas". *Also*, never instead: the
+   * card keeps its printed `name` and answers to both.
+   *
+   * Set only by `cardNow`, which is what every check of what a card *is* goes
+   * through, so nothing that reads a catalog row has to know about it.
+   */
+  alsoNames?: string[];
 }
 
 /** One printed skill line, parsed by `cards.ts`. */

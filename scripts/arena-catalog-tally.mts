@@ -23,6 +23,14 @@ const value = (name: string) => {
   return i >= 0 ? args[i + 1] : undefined;
 };
 const missRows = Number(value("misses") ?? 45) || 45;
+/**
+ * `--show "reduce the skill cost"` prints the actual cards behind a shape,
+ * card id and unread clause each. A shape says how many cards print a wording;
+ * only the wordings themselves say what the language has to be able to mean,
+ * and reading them is the first step of every primitive in Stage 2.
+ */
+const show = value("show")?.toLowerCase();
+const examples: string[] = [];
 
 const raw = await fetchDeckplanet("dbs");
 const shaped = shapeCatalog(raw, "dbs");
@@ -96,6 +104,9 @@ for (const d of defs) {
         for (const cl of s.unsupported) {
           unreadClauses++;
           bump(misses, shape(cl));
+          if (show && (cl.toLowerCase().includes(show) || shape(cl).includes(show))) {
+            examples.push(`${d.id} [${sk.index}] ${sk.kind}\n    printed: ${sk.raw.replace(/\s+/g, " ").slice(0, 220)}\n    unread:  ${cl}`);
+          }
         }
       }
     }
@@ -118,5 +129,6 @@ console.log(`\nskill kinds\n${top(kinds, 20)}`);
 console.log(`\nops used (${ops.size} kinds)\n${top(ops, 60)}`);
 console.log(`\nconditions used (${conds.size} kinds)\n${top(conds, 30)}`);
 console.log(`\ncost shapes\n${top(costs, 25)}`);
+if (show) console.log(`\ncards printing "${show}" (${examples.length})\n${examples.slice(0, 40).join("\n")}`);
 console.log(`\nunread shapes\n${top(misses, missRows)}`);
 process.exit(0);
