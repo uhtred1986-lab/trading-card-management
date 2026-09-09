@@ -3752,7 +3752,12 @@ function compileSkillText(skill: Skill): Script {
     }
   }
 
-  const ops = compileClauseList(clauses, c, unsupported);
+  const unsupportedBeforeHead = unsupported.length;
+  let ops = compileClauseList(clauses, c, unsupported);
+  // Whether the head itself read clean, before the modal's own options add
+  // any refusals of their own — an option's unread clause must not stop the
+  // head's condition from being restored below.
+  const headReadClean = unsupported.length === unsupportedBeforeHead;
   if (modal) {
     // Each option is compiled on its own, carrying what the head established
     // ("If your Leader is a <Baby> card, it gets +10000 power, then choose
@@ -3772,6 +3777,22 @@ function compileSkillText(skill: Skill): Script {
       return { ops: [], unsupported: unsupported.length ? unsupported : silent };
     }
     if (modes.some((mode) => mode.ops.length)) ops.push({ op: "chooseMode", modes });
+    // "If your Leader Card is a green <Cheelai: Br> card or yellow <Broly:
+    // Br> card, choose one— ・…" (EX19-13, TB3-066): the head is nothing but
+    // the condition that gates the whole menu, with no effect of its own for
+    // it to attach to before the bullets — and `compileClauseList`'s own
+    // flush drops a condition group whose body came back empty
+    // (`if (!g.ops.length) continue`), exactly the case a bare head leaves
+    // behind. `parseConditionClause` already reads the head fine, which is
+    // how it was ever split off as the modal's head at all; the read is
+    // simply thrown away one step later. Read again here and used to wrap
+    // the menu — but only when nothing in the head actually failed, so a
+    // head that could not be read in full still refuses instead of
+    // silently gaining a condition weaker than what it printed.
+    if (ops.length && !ops.some((o) => o.op === "if") && clauses.length && headReadClean) {
+      const read = allConditions(clauses.join(" and "));
+      if (read) ops = [{ op: "if", cond: read.length > 1 ? { kind: "all", conds: read.map((r) => r.cond) } : read[0].cond, then: ops }];
+    }
   }
   // "[Auto] If your Leader Card is red: When you play this card, draw 1 card"
   // — a condition written before the colon is part of the skill's validity
