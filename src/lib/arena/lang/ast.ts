@@ -76,6 +76,7 @@ export const SELECTOR_FIELDS: Record<keyof Selector, SelectorPart> = {
   area: "places",
   areas: "places",
   mode: "flag",
+  hidden: "flag",
   ignoreBarrier: "flag",
   notSelf: "flag",
 };

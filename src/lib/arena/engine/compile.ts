@@ -754,6 +754,18 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
   const modeSaid = (which: "rest" | "active"): boolean =>
     new RegExp(`\\bin ${which} mode\\b|\\b${which} mode (?:[a-z-]+ )*cards?\\b`).test(t);
   const mode = modeSaid("rest") ? "rest" : modeSaid("active") ? "active" : undefined;
+  // 23-5: "Hidden Mode" is a card's face-down state, not the active/rest
+  // orientation `mode` reads — a card is one of Active or Rest *and*
+  // separately Hidden or Revealed (`inst.hidden` is its own flag in
+  // `CardInstance`, not a third value of `mode`). Same two spellings as
+  // above ("1 of your **Hidden Mode** cards", "1 of your energy **in Hidden
+  // Mode**"), read only when nothing else narrows the choice: a face-down
+  // card has none of its front-side information (23-5-2), so a selector
+  // combining Hidden Mode with a colour, character or trait cannot be
+  // answered and is refused below rather than quietly widened to "any card"
+  // (ground rule 5) — the catalog does not print that combination today, but
+  // this is the seam where it would appear.
+  const hiddenSaid = /\bin hidden mode\b|\bhidden mode (?:[a-z-]+ )*(?:cards?|energy)\b/.test(t);
   // "Choose all Battle Cards **other than this card**" — the card the phrase
   // rules out. Read as nothing it stayed among the candidates, so a clause
   // that shrank every Battle Card shrank this one too.
@@ -763,14 +775,20 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
   // A description the parser could not read is not a target: the clause fails
   // and the skill goes to the referee, rather than selecting the whole area.
   if (filter === null) return null;
-  if (underHost) return { side: "you", area: "under", filter, count, upTo, mode, notSelf };
+  // A face-down card carries none of the information `filter` would check
+  // (23-5-2) — "Hidden Mode" combined with anything else is not a choice this
+  // engine can answer, and refusing it beats reading "Hidden Mode" away and
+  // offering every card the other measure matches (ground rule 5).
+  if (hiddenSaid && filter) return null;
+  const hidden = hiddenSaid || undefined;
+  if (underHost) return { side: "you", area: "under", filter, count, upTo, mode, hidden, notSelf };
   // No single `area` stands for all of them, and leaving one on would be read
   // as the place the cards must be — so the span is the only thing said.
-  if (allAreas) return { side, areas: ALL_AREAS, filter, count, upTo, mode, notSelf };
-  if (otherAreas) return { side, areas: otherAreas, filter, count, upTo, mode, notSelf };
-  if (bothAreas) return { side, area: "battle", areas: ["battle", "unison"], filter, count, upTo, mode, fromVar, notSelf };
-  if (pair) return { side, area: pair[0], areas: pair, filter, count, upTo, mode, fromVar, notSelf };
-  return { side, area: area ?? undefined, filter, count, upTo, mode, fromVar, take, fromEnd, notSelf };
+  if (allAreas) return { side, areas: ALL_AREAS, filter, count, upTo, mode, hidden, notSelf };
+  if (otherAreas) return { side, areas: otherAreas, filter, count, upTo, mode, hidden, notSelf };
+  if (bothAreas) return { side, area: "battle", areas: ["battle", "unison"], filter, count, upTo, mode, hidden, fromVar, notSelf };
+  if (pair) return { side, area: pair[0], areas: pair, filter, count, upTo, mode, hidden, fromVar, notSelf };
+  return { side, area: area ?? undefined, filter, count, upTo, mode, hidden, fromVar, take, fromEnd, notSelf };
 }
 
 /**
