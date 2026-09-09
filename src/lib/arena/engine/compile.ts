@@ -707,7 +707,21 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
     if (end[1] === "bottom") fromEnd = true;
   }
 
-  const mode = /\bin rest mode\b/.test(t) ? "rest" : /\bin active mode\b/.test(t) ? "active" : undefined;
+  // Which mode the cards must be in. The sets say it two ways and only the
+  // prepositional one was read: "1 of your opponent's Battle Cards **in Rest
+  // Mode**" and "1 of your opponent's **Rest Mode** Battle Cards" are the same
+  // card, and seventy skills print the second. Read without it, BT23-109's
+  // "choose up to 1 of your opponent's Rest Mode Battle Cards and KO it" was
+  // offered every Battle Card the opponent had — a KO aimed at a card that had
+  // already attacked, pointed at whatever you liked.
+  //
+  // The mode words also name a *destination* — "switch this card **to** Rest
+  // Mode", "play it **in** Rest Mode" — which is not a description of what to
+  // pick. The attributive reading is therefore taken only in front of a noun,
+  // where a destination never stands.
+  const modeSaid = (which: "rest" | "active"): boolean =>
+    new RegExp(`\\bin ${which} mode\\b|\\b${which} mode (?:[a-z-]+ )*cards?\\b`).test(t);
+  const mode = modeSaid("rest") ? "rest" : modeSaid("active") ? "active" : undefined;
   // "Choose all Battle Cards **other than this card**" — the card the phrase
   // rules out. Read as nothing it stayed among the candidates, so a clause
   // that shrank every Battle Card shrank this one too.
