@@ -30,7 +30,7 @@ import { colourOf, DEFAULT_LIGHTING, encodeLighting, LEADER_COLOURS, lightingFro
 import { trailingTrigger, parseSkills, keywordOf, orbsIn, eitherOrbsIn, skillLines } from "../../src/lib/arena/engine/cards";
 import { KEYWORDS, keywordTagSpellings, keywordsByGroup, tagBody, tagParsesTo } from "../../src/lib/arena/glossary";
 import { parseFilter, matches, parseCondition, type CardFilter } from "../../src/lib/arena/engine/filters";
-import { addEffect, schedule, move, locate, placeUnder, playCost, powerOf, forbids, has, cardNow, comboCostOf, skillNegated, skillsNegated } from "../../src/lib/arena/engine/state";
+import { addEffect, schedule, move, locate, placeUnder, playCost, powerOf, forbids, has, cardNow, comboCostOf, zEnergyCostOf, skillNegated, skillsNegated } from "../../src/lib/arena/engine/state";
 import { compileCostProgram, compileSkill, costIsOnlyOrbs, costText, parseConditionClause, parseTarget, priceCondition, splitClauses } from "../../src/lib/arena/engine/compile";
 import { COND_SCHEMA, OP_SCHEMA, condSignature, describeCond, describeScript, opSignature, validateProgram as validate, type Op as SchemaOp } from "../../src/lib/arena/engine/script";
 import { autoTriggerMatches, koCard } from "../../src/lib/arena/engine/triggers";
@@ -90,6 +90,12 @@ const DEFS: Record<string, CardDef> = defsFrom([
   card("E-DRAW", { type: "EXTRA", energyCost: 1, power: null, comboCost: null, comboPower: null, skill: "[Activate: Main] Draw 2 cards." }),
   card("U1", { type: "UNISON", energyCost: "X", power: 5000, comboCost: null, comboPower: null, skill: "[Blocker]" }),
   card("ZB", { type: "Z-BATTLE", energyCost: 2, zEnergyCost: 1, power: 20000, comboCost: null, comboPower: null, skill: "[Z-Stack 1] Red <V1>." }),
+  // Lane D: a Z-Energy cost reducer, proving the discount is paid rather than
+  // merely read. `payZEnergy`'s two call sites and the three legality gates
+  // around it in `engine.ts` used to read `d.zEnergyCost` raw — a
+  // `costReduction` naming "zEnergy" compiled and read correctly there, and
+  // did nothing on the board (`state.ts:653`).
+  card("ZCHEAP", { type: "Z-BATTLE", energyCost: 2, zEnergyCost: 2, power: 20000, comboCost: null, comboPower: null, skill: "[Permanent] Reduce the Z-Energy cost of this card in your Z-Deck by 1." }),
   card("EVO", { energyCost: 3, power: 20000, skill: "[Evolve]{1}: <V1>" }),
   // 22-22: swaps itself for a cost-3 Battle Card in hand. "BIG" is the only
   // cost-3 card in DEFS, so a hand without one has nothing to reveal.
@@ -399,5 +405,6 @@ export {
   turnVars,
   validate,
   waitingFor,
+  zEnergyCostOf,
 };
 export type { Action, Beat, Beats, CardDef, CardFilter, GameState, NumberedBeat, PlayerId, RejectedAction, Requirement, SchemaOp, Snapshot, Trigger };

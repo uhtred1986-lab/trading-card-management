@@ -118,6 +118,7 @@ export function splitClauses(text: string): string[] {
         !andJoinsARange(text, start, i) &&
         !andJoinsColours(text, start, i) &&
         !andJoinsTwoSwitched(text, start, i) &&
+        !andJoinsTwoCosts(text, start, i) &&
         // "This card gains +5000 power **and** [Critical] during your turn":
         // one subject given two things, and the half after the "and" is a
         // keyword tag with no verb of its own to be read as a clause.
@@ -290,6 +291,18 @@ function andJoinsColours(text: string, start: number, i: number): boolean {
  */
 function andJoinsARange(text: string, start: number, i: number): boolean {
   return /\bbetween [\d,]+\s*$/i.test(text.slice(start, i)) && /^[\d,]+\b/.test(text.slice(i + 5));
+}
+
+/**
+ * "Reduce the energy cost **and** Z-Energy cost of X in your Z-Deck by 1"
+ * (BT22-085, P-476b): one amount, two costs it comes off, one "of X by N"
+ * shared between them. Split at the "and" and neither half is a sentence —
+ * "reduce the energy cost" has no amount, and "Z-Energy cost of X … by 1" has
+ * no verb — so both went unread. `compileClause` reads the kept-whole clause
+ * as two `costReduction` ops.
+ */
+function andJoinsTwoCosts(text: string, start: number, i: number): boolean {
+  return /\b(?:reduce|increase|decrease) the energy costs?\s*$/i.test(text.slice(start, i)) && /^z-energy costs?\b/i.test(text.slice(i + 5));
 }
 
 /**
@@ -2458,23 +2471,59 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // same as an unqualified specified cost does everywhere else. Left alone on
   // purpose: a *skill's* cost ("the skill cost of …", "the activation cost of
   // …'s [Counter] skill") is a different number `playCost` computes with no
-  // hook to lower (`orbTotals`, `engine.ts:882`), a *specified* cost mixes
-  // colour and total in a way the owner has not ruled on, and a Z-Energy cost
-  // is `d.zEnergyCost`, read raw in five call sites `costReduction` cannot
-  // reach — all three fail the match here because none of them spell the
-  // noun as bare "cost"/"costs", which is deliberate: see `glossary.ts`.
+  // hook to lower (`orbTotals`, `engine.ts:882`), and a *specified* cost mixes
+  // colour and total in a way the owner has not ruled on — both fail the
+  // match here because neither spells the noun as bare "cost"/"costs", which
+  // is deliberate: see `glossary.ts`. A Z-Energy cost **does** spell it that
+  // way and is read below: `zEnergyCostOf` is the hook `d.zEnergyCost` never
+  // had, and the five call sites that used to read the field raw now go
+  // through it (`state.ts`).
   let qq = q;
   let possessive: RegExpExecArray | null;
-  if ((possessive = /^(reduce|increase|decrease) (this card|that card|its|their)'?s? ((?:energy|combo) )?costs?(?: in (?:your|their) (?:hand|z-deck))? by (.+)$/.exec(qq))) {
+  if ((possessive = /^(reduce|increase|decrease) (this card|that card|its|their)'?s? ((?:energy|combo|z-energy) )?costs?(?: in (?:your|their) (?:hand|z-deck))? by (.+)$/.exec(qq))) {
     const subject = possessive[2] === "its" ? "it" : possessive[2] === "their" ? "them" : possessive[2];
     qq = `${possessive[1]} the ${possessive[3] ?? ""}cost of ${subject} by ${possessive[4]}`;
   }
   let passive: RegExpExecArray | null;
-  if ((passive = /^the ((?:energy|combo) )?costs? of (.+?) (?:is|are) (reduced|increased|decreased) by (.+)$/.exec(qq))) {
+  if ((passive = /^the ((?:energy|combo|z-energy) )?costs? of (.+?) (?:is|are) (reduced|increased|decreased) by (.+)$/.exec(qq))) {
     const verb = passive[3].slice(0, -1); // "reduced"/"increased"/"decreased" -> the bare verb.
     qq = `${verb} the ${passive[1] ?? ""}cost of ${passive[2]} by ${passive[4]}`;
   }
-  if ((m = /^(reduce|increase|decrease) the ((?:energy|combo) )?costs? (?:of|on) (.+?) by (\d+|(?:\{[rugykbw\d]+\})+),?(?: for each (.+))?$/.exec(qq))) {
+  // "Reduce the Z-Energy cost by 1" (BT22-034): the bare, no-subject
+  // continuation that "reduce the energy/combo cost by N" stays unread for
+  // everywhere else in the catalog (deliberately — the noun alone does not
+  // say whose cost it is). "Z-Energy" is unambiguous, so the card the
+  // sentence was already about — `c.lastTarget`, set by the clause just
+  // before this one — is a safe subject rather than a guess.
+  if (
+    (m = /^(reduce|increase|decrease) the z-energy costs? by (\d+|(?:\{[rugykbw\d]+\})+)$/.exec(qq)) &&
+    c.lastTarget &&
+    !(c.stale && c.lastTarget === c.stale)
+  ) {
+    const sign = m[1] === "increase" ? -1 : 1;
+    const orbs = /^\d+$/.test(m[2]) ? null : orbsIn(m[2]);
+    const flat = sign * (orbs ? Object.values(orbs).reduce<number>((sum, n) => sum + (n ?? 0), 0) : Number(m[2]));
+    return [{ op: "costReduction", target: c.lastTarget, amount: flat, what: "zEnergy" as const, until: durationOf(clause) }];
+  }
+  // "Reduce the energy cost and Z-Energy cost of X … by N" (BT22-085,
+  // P-476b): one amount named for two costs at once, so it has to become two
+  // ops rather than one. `andJoinsTwoCosts` (in `splitClauses`) is what keeps
+  // this from being cut in half at its "and" first, with "reduce the energy
+  // cost" and "Z-Energy cost of X … by N" left as two clauses, neither of
+  // them a sentence.
+  if ((m = /^(reduce|increase|decrease) the energy costs? and z-energy costs? (?:of|on) (.+?) by (\d+|(?:\{[rugykbw\d]+\})+)$/.exec(qq))) {
+    const sign = m[1] === "increase" ? -1 : 1;
+    const ref = refFor(m[2], c);
+    if (!ref || (c.stale && ref === c.stale)) return null;
+    const orbs = /^\d+$/.test(m[3]) ? null : orbsIn(m[3]);
+    const flat = sign * (orbs ? Object.values(orbs).reduce<number>((sum, n) => sum + (n ?? 0), 0) : Number(m[3]));
+    const until = durationOf(clause);
+    return [
+      { op: "costReduction", target: ref, amount: flat, until },
+      { op: "costReduction", target: ref, amount: flat, what: "zEnergy" as const, until },
+    ];
+  }
+  if ((m = /^(reduce|increase|decrease) the ((?:energy|combo|z-energy) )?costs? (?:of|on) (.+?) by (\d+|(?:\{[rugykbw\d]+\})+),?(?: for each (.+))?$/.exec(qq))) {
     // 20-21 works in both directions, and the sets print both: "increase the
     // energy cost of this card in your Battle Area by 2" is the same standing
     // effect with the sign turned round; "decrease" already reads as "reduce".
@@ -2518,7 +2567,8 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     // takes off. A [Permanent] holds while its card is valid (9-5-1) and
     // `holdForGame` rewrites this to "game"; anywhere else it is what says how
     // long the change is in force.
-    return [{ op: "costReduction", target: ref, amount: by, ...(kindWord?.trim() === "combo" ? { what: "combo" as const } : {}), until: durationOf(clause) }];
+    const what = kindWord?.trim() === "combo" ? ({ what: "combo" as const }) : kindWord?.trim() === "z-energy" ? ({ what: "zEnergy" as const }) : {};
+    return [{ op: "costReduction", target: ref, amount: by, ...what, until: durationOf(clause) }];
   }
 
   // "X get -N combo cost" (BT22-055, BT22-056, BT23-072): the same standing
@@ -3867,6 +3917,25 @@ function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op
         c,
       );
       opponentDoes = !!got;
+    }
+    // "For each green Unison Card in your Drop, reduce the Z-Energy cost of
+    // this card in your Z-Deck by 1. (Up to 2)" (P-464): a per-card count and
+    // a stacking cap, and this clause carries neither by the time it reaches
+    // here. The count is the clause right before this one — "for each …" has
+    // no verb of its own, so it never became anything and is already
+    // refused. The cap is gone earlier still: `stripNotes` reads the
+    // parenthetical as a reminder (1-5-8) and drops it before `splitClauses`
+    // ever runs, and this one is not a reminder. Compiling "reduce … by 1"
+    // alone would apply the reduction flatly, unconditionally and without a
+    // ceiling — none of which the card says — so it is refused here instead.
+    if (i > 0 && /^for (?:each|every)\b/i.test(clauses[i - 1].trim()) && got?.some((o) => o.op === "costReduction" && o.what === "zEnergy")) {
+      got = null;
+    }
+    // The same cap, on the chance it ever survives `stripNotes` as a clause
+    // of its own rather than being swallowed by the parenthesis check above —
+    // belt and braces, not reached by any card in the catalog today.
+    if (got && i + 1 < clauses.length && /^\(up to \d+\)\.?$/i.test(clauses[i + 1].trim()) && got.some((o) => o.op === "costReduction")) {
+      got = null;
     }
     if (!got) {
       if (c.replacing) c.replacing = null;

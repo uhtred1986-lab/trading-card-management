@@ -574,5 +574,9 @@
   "ZB#0": {
     "outcome": "notOffered",
     "digest": "908e4eec"
+  },
+  "ZCHEAP#0": {
+    "outcome": "inForce",
+    "digest": "ba649c79"
   }
 }
