@@ -453,6 +453,19 @@ export function parseTarget(phrase: string, looked?: string): Selector | null {
     return above === null ? null : { special: "onTop", filter: above };
   }
   if (/\bon top of\b/.test(t)) return null;
+  // The pile under a card is an area this grammar can name only when the card
+  // is *this* one, which `underHost` below reads. Any other host — "use up to
+  // 1 card **from under your <Kefla> Battle Card** in a combo" (EX25-39),
+  // "play up to 1 <X> card **from under your Leader Card**" — has no selector
+  // to stand for it, and the words naming the host were read as the target
+  // instead: `AREA_WORDS` took the "battle" out of "your <Kefla> Battle Card"
+  // and the description off the host, so EX25-39 combo'd the <Kefla> itself
+  // rather than a card beneath it, and the Leader wordings chose the Leader.
+  // Sixty-odd clause shapes say this, all of them refused here rather than
+  // read into the wrong card (ground rule 5); naming the pile under a card
+  // other than this one is its own primitive and is not built.
+  if (/\bunder\b/.test(t) && !/\bunder (?:this card|it)\b/.test(t)) return null;
+  // "Each non-Leader card under this card" is about the stack; the "this card"
   // "Each non-Leader card under this card" is about the stack; the "this card"
   // in it names the host, not the target (23-2). Read before the shortcut
   // below, which took the whole phrase for the card on top.

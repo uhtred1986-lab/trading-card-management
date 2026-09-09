@@ -2327,3 +2327,28 @@ against the printed text.
 `npm run typecheck`, `lint`, `test`, `build` clean; `arena:fuzz 40` 40 games, 0 crashes;
 `contract:emit` produced no change — no probe digest moved, so no rule the engine already plays
 changed its answer.
+
+### Measured, ready, and deliberately not shipped: the pile under *another* card
+
+The second commit on this branch refuses "from under your <Kefla> Battle Card", "from under your
+Leader Card", "cards under {King Kai's Planet}" — sixty-odd clause shapes naming a pile that is not
+this card's. They are all being read into the **host** today, because `AREA_WORDS` takes the
+"battle" out of "your <Kefla> Battle Card" and the description off the host: EX25-39 combos the
+<Kefla> itself rather than a card beneath it, and the Leader wordings choose the Leader. Refusing
+them costs 38 fully compiled cards and clears 40 wrong readings.
+
+It is a separate commit because it is not free. Three cards read *worse* afterwards, all for one
+reason — **a refused clause leaves the clauses after it pointing at nothing**, and an [Auto] seeds
+that antecedent to the card it is on. P-645's "play 1 {Majin Buu, Unadulterated Destruction} from
+under your green <Majin Buu> card, and **it** gains [Double Strike]" grants it to this card;
+EX24-32's "and if you do" wrapper collapses so its second half happens unconditionally; P-396 is
+left with an empty modal option, a mode that silently does nothing. This is the singular twin of the
+plural-pronoun rule of the last increment, and it cannot be fixed the same way — "it" after "when
+this card is played" usually *does* mean this card. The honest fix is for the compiler to know that
+an earlier clause in the same skill went unread, which is its own increment.
+
+Without that commit, two cards this increment made reachable read wrongly: **EX25-39** and
+**EX23-27** (whose "place it under a <Super 17> card on top of this card" puts the card under
+*this* one). Both were wrong before and merely unreachable; neither is new text.
+
+`npm run typecheck`, `lint`, `test`, `build` clean; `arena:fuzz 40` 40 games, 0 crashes.
