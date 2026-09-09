@@ -553,7 +553,7 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
   // this shortcut: BT1-086's "place all Rest Mode Battle Cards except for this
   // card in the Drop Area" came back as *self*, so the card dropped itself and
   // left every card it was aimed at standing.
-  if (/\bthis card\b(?!'s)/.test(t) && !/\bother\b|\bexcept\b/.test(t)) return { special: "self" };
+  if (/\bthis card\b(?!'s)/.test(t) && !/\bother\b|\bexcept\b|\bbesides\b/.test(t)) return { special: "self" };
   if (/\bthe attack(?:ing)? card\b/.test(t)) return { special: "attacker" };
   if (/\bthe guard card\b/.test(t)) return { special: "guard" };
   // "Your opponent's Leader", "your Leader Card": a player has exactly one
@@ -604,7 +604,15 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
   // to a player, and reading it as a player handed sixteen skills the
   // opponent's board — BT22-086 giving +5000 power to the cards it was meant
   // to be fighting. The phrase says whose cards these are once, at the front.
-  const owner = t.replace(/\bin their (?:character names|card names|special traits)\b/g, " ");
+  // "…to **their owner's** Drop Area" is the idiom for every card going back to
+  // whoever owns it (2-4), and it is printed on 113 skills. Read by the bare
+  // "their" below it made the phrase say *opponent*, and worse, it said so
+  // about the **source** — the possessive sits in the destination half of the
+  // sentence, so "play up to 4 ≪Saiyan≫ cards from **your** Warp into their
+  // owner's Drop" went looking in the opponent's Warp (BT27-015, and BT29-095,
+  // BT29-108, P-710 the same way). Stripped like the name phrases beside it,
+  // because it says nothing about whose cards are being chosen.
+  const owner = t.replace(/\bin their (?:character names|card names|special traits)\b/g, " ").replace(/\btheir owners?'?s?\b/g, " ");
   if (/\bopponent'?s\b|\byour opponent\b|\btheir\b/.test(owner)) side = "opponent";
   else if (/\bopponent (?:rest mode |active mode |skill-less )?(?:battle|unison|extra|leader|z-battle|z-extra)s?\b/.test(t)) side = "opponent";
   if (/\ball players\b|\beach player\b|\bboth players\b/.test(t)) side = "both";
@@ -646,7 +654,7 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
   // and spares one of yours, so the "your" in it must not hold the sweep to
   // your own side.
   const chosen = t.replace(
-    /\b(?:other than|except for) (?:copies of )?(?:this card|it)?(?:\s*(?:,|and\/or|and|or)\s*)?(?:(?:your |their |its owner's )?(?:<[^>]+>|≪[^≫]+≫|\{[^}]+\})(?:\s*(?:,|and\/or|and|or)\s*)?)*/g,
+    /\b(?:other than|except for|besides) (?:copies of )?(?:this card|it)?(?:\s*(?:,|and\/or|and|or)\s*)?(?:(?:your |their |its owner's )?(?:<[^>]+>|≪[^≫]+≫|\{[^}]+\})(?:\s*(?:,|and\/or|and|or)\s*)?)*/g,
     " ",
   );
   if ((otherAdj || sweep) && !/\byour\b|\btheir\b|\bopponent\b|\byou control\b/.test(chosen)) side = "both";
@@ -749,7 +757,7 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
   // "Choose all Battle Cards **other than this card**" — the card the phrase
   // rules out. Read as nothing it stayed among the candidates, so a clause
   // that shrank every Battle Card shrank this one too.
-  const excluded = /\b(?:other than|except for) (copies of )?this card\b/.exec(t);
+  const excluded = /\b(?:other than|except for|besides) (copies of )?this card\b/.exec(t);
   const notSelf = excluded ? (excluded[1] ? "copies" : "card") : otherAdj ? "card" : undefined;
   const filter = filterFor(phrase, area);
   // A description the parser could not read is not a target: the clause fails
@@ -1137,7 +1145,7 @@ function refFor(clause: string, c: Ctx): Ref | null {
   //   and "you can activate **this card's** [Activate: Battle]" are about this
   //   one — which is the same head/tail distinction the pronoun test below
   //   makes, for the same reason.
-  const mentions = named.replace(/\b(?:other than|except for) (?:copies of )?this card\b/gi, " ");
+  const mentions = named.replace(/\b(?:other than|except for|besides) (?:copies of )?this card\b/gi, " ");
   if (/\bthis card\b(?!'s)/i.test(mentions) || /\bthis card's\b/i.test(headOf(mentions))) return { sel: { special: "self" } };
   // "…play up to 1 card from under this card, and place this card under the
   // played card": the card this skill just played, if it played one; otherwise
@@ -1863,7 +1871,14 @@ function parseCountCondition(t: string): Cond | null {
   // until a refused condition started taking its clause with it, and is now
   // simply refused. Nothing else about those sentences was ever the problem —
   // "blue/yellow multicolor card" reads perfectly well.
-  const m = /^(?:you have|your opponent has|there(?: (?:are|is)|'s|'re)) (?:(no)|(?:an?|any) |(\d+) or (more|less|fewer) )?(.+)$/.exec(t);
+  //
+  // "You have **only** 3 or less cards other than this card in your hand" is
+  // the same kind of miss one word further along: the adverb sits where the
+  // number is expected, so no count was read at all and the whole tail became
+  // the description — which then failed and left `atLeast: 1`, turning a gate
+  // that asks for a nearly empty hand into one that holds almost always
+  // (BT2-032, BT2-006).
+  const m = /^(?:you have|your opponent has|there(?: (?:are|is)|'s|'re)) (?:only )?(?:(no)|(?:an?|any) |(\d+) or (more|less|fewer) )?(.+)$/.exec(t);
   if (!m) return null;
   const [, none, num, dir, rest] = m;
   // "you have" / "your opponent has" says whose cards, which the phrase after
@@ -3282,15 +3297,35 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
 function compileToken(clause: string, c: Ctx): Op[] | null {
   const m = /play (?:up to )?(\d+) (.+?) tokens?/i.exec(clause);
   if (!m) return null;
-  const stats = /([\d,]+) power[^.]*?([\d,]+) combo cost[^.]*?([\d,]+) combo power/i.exec(c.raw);
+  // The reminder text states the token's stats, and they were read as one
+  // triad — power, then combo cost, then combo power. A reminder that gives
+  // only the power failed the whole match, and the token was then built with a
+  // **hard-coded 5000**: a Ghost Token printed at 15000 arrived at 5000, and
+  // Chilled's Army, Frieza's Army, Clone and Shadow Tokens printed at 10000 all
+  // did the same, across some twenty-five skills. The power is read on its own,
+  // and the combo pair after it, so a reminder that stops early costs only what
+  // it did not say. The remaining fallbacks are the rules' own defaults, not a
+  // guess: a token that never combos has no combo cost to state.
+  // Anchored on "Tokens have", not on the first number in the text: the skill
+  // above the reminder says things like "this card gets +10000 power for the
+  // turn", and a bare power pattern took that instead — which would have given
+  // the Demon Realm Soldier Token 10000 when its reminder plainly says 5000.
   const num = (x: string) => Number(x.replace(/,/g, ""));
+  //
+  // The sets print the reminder two ways and both have to be read, or the one
+  // that is missed falls back to the default and loses the printed figure:
+  // "(Ghost Tokens **have** 15000 power)" and, inline after the name, "play 1
+  // Earthling Token **(1000 power**, 0 combo cost, 0 combo power)".
+  const said = /(?:tokens? have|\()\s*([\d,]+) power(?:[^.)]*?([\d,]+) combo cost)?(?:[^.)]*?([\d,]+) combo power)?/i.exec(c.raw);
+  const power = said ? [said[0], said[1]] : null;
+  const combo = said?.[2] != null && said[3] != null ? [said[0], said[2], said[3]] : null;
   return [
     {
       op: "token",
       name: `${m[2].trim()} Token`,
-      power: stats ? num(stats[1]) : 5000,
-      comboCost: stats ? num(stats[2]) : 0,
-      comboPower: stats ? num(stats[3]) : 5000,
+      power: power ? num(power[1]) : 5000,
+      comboCost: combo ? num(combo[1]) : 0,
+      comboPower: combo ? num(combo[2]) : 5000,
       colors: [],
       n: Number(m[1]),
     },
