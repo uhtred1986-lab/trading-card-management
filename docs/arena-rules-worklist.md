@@ -2352,3 +2352,60 @@ Without that commit, two cards this increment made reachable read wrongly: **EX2
 *this* one). Both were wrong before and merely unreachable; neither is new text.
 
 `npm run typecheck`, `lint`, `test`, `build` clean; `arena:fuzz 40` 40 games, 0 crashes.
+
+## What a refused clause leaves behind — Stage 2, fourth increment (9 Sep 2026)
+
+The precondition the last increment named and could not pay for itself. A clause the compiler
+cannot read is not silent for the clauses after it: the sentence goes on talking about what that
+clause named, and nothing is bound to it. Three separate ways that was being answered wrongly, all
+in this commit, because each is the same bug wearing different words — and each would have been
+paid for again by every future refusal.
+
+**A pronoun after the hole was answered with *this card*.** An [Auto] seeds the antecedent to the
+card it is on, so "…, and **it** gains [Double Strike]" after a play the compiler refused gave the
+keyword to the card printing the skill (P-645), and "then you choose up to 1 of your opponent's
+Battle Cards and **KO it**" KO'd the caster (P-279). The plural half of this went in last increment
+— "them" is never this card — and the singular half cannot be fixed the same way, because "it"
+after "when this card is played" usually *does* mean this card. So the antecedent standing at the
+moment of a refusal is **marked**, by identity rather than as a flag: any clause that binds
+something of its own writes a fresh one and clears the mark, and only a back-reference that would
+land on the still-seeded self after a hole is refused. Where nothing was refused, "it" reads exactly
+as it always did.
+
+**"If you do" hung on a decision nothing had made.** Dropping the hinge alone does not leave what
+follows conditional — it makes it happen *every* time. BT12-042 played a 5-cost blue <Gogeta> from
+hand without paying the {u}{u} it offers to pay; BT14-087 KO'd a Battle Card whether or not the
+opponent removed the marker they were offered; P-350 drew 2 cards whether or not the opponent looked.
+The rest of the sentence is now refused with the word that governs it, and "if you don't" the same
+way — it had the identical hole.
+
+**A modal option that failed to compile left an empty branch**, and the menu then offered a mode
+that silently does nothing (P-396, BT30-144/146/148, BT8-039, BT9-126b, DB3-138, EX06-26, EX07-07,
+P-459, BT18-119). A mode is only a choice if every option on the menu is one, so a single empty
+branch now fails the whole skill and the referee is asked what the card actually prints.
+
+**Numbers.** Fully compiled cards 4,627 → **4,625**; [Permanent] read 63.4 % → 63.2 %; unread
+clauses 3,005 → 3,133 over 2,212 → 2,267 shapes. **55 shapes entered the gap set and none left it** —
+this commit is entirely the compiler saying out loud what it cannot read, which is why the shapes
+that appear are almost all wordings it *can* read in another sentence ("draw N cards", "negate the
+attack", "play it"). They are refused because the word that governs them is not.
+
+73 readings moved and every one was read back against the printed text. Three of them are the price:
+**BT1-002b** ("if this card attacks a Battle Card, **it** gains +5000 power") and **BT10-036/040**
+("if this card is in your energy, place **it** in its owner's Drop Area") were correct and are now
+unread, because the clause refused in front of the pronoun is itself about this card. A narrower
+rule could keep them — do not mark the antecedent when the refused clause names this card — and it
+was left out on purpose: EX09-01's refused clause names *that* card and the pronoun after it was
+KO'ing the wrong one, so the narrow rule would have to tell those two apart by the verb. Three
+correct readings are not worth a rule that guesses (ground rule 5).
+
+The other 70 are all fixes. Roughly half were a conditional half of a skill firing unconditionally,
+and half were an effect landing on the card printing it: BT16-146, BT4-106 and P-048 sent **this
+card** to the Warp where the text sends a card from the opponent's hand; BT26-032 returned this card
+to hand where the text returns the pile under another one; BT27-074 and P-337 rested this card where
+the text rests one of the opponent's.
+
+`npm run typecheck`, `lint`, `test`, `build` clean; `arena:fuzz 40` 40 games, 0 crashes;
+`contract:emit` produced no change — no probe digest moved. One test moved with the rule:
+`verify/keywords.ts`'s look-and-add card now has two gaps rather than one, because the "+5000 power"
+hanging on "if you did not draw a card with this skill" is no longer granted every time.

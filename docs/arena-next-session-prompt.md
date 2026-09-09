@@ -3,18 +3,18 @@
 Paste the block below into a fresh session. It is written to be handed over
 without editing; everything it needs to find is in the repo.
 
-Rewritten 9 Sep 2026, after Stage 1 and the first three increments of Stage 2
+Rewritten 9 Sep 2026, after Stage 1 and the first four increments of Stage 2
 of the rules-language programme merged.
 
 ---
 
 Continue the arena rules-language programme. The plan the owner approved on
 9 Sep 2026 has ten stages; **Stage 0** (two engines and the switch), **Stage 1**
-(the language, and an editable WHEN) and the **first three increments of Stage
+(the language, and an editable WHEN) and the **first four increments of Stage
 2** are merged into `main`. Read, in this order:
 
-1. `docs/arena-rules-worklist.md` — the last five entries are Stages 0, 1 and the
-   three Stage 2 increments, with the numbers and the reasoning. Start at the
+1. `docs/arena-rules-worklist.md` — the last six entries are Stages 0, 1 and the
+   four Stage 2 increments, with the numbers and the reasoning. Start at the
    bottom.
 2. `docs/arena-rules-language.md` — the grammar, the round-trip promise, and
    what Stage 1 deliberately left out.
@@ -26,57 +26,36 @@ branch is `wip/compiler-uncommitted`, which is old — leave it alone.
 
 ## Where the last increment got to
 
-**"The card on top of this card" is built.** `onTop` is a special target and the
-other half of the `under` area: a pile is one card with everything else beneath
-it (23-2-2), so `hostOf` finds the one answer by asking who holds this card.
-Only the phrase that *ends* in the words is a target — the same words elsewhere
-name a destination and stay refused — and "above this card" is the same
-primitive in other words. "If this card is under a yellow ≪Heroic≫ Battle Card"
-had to be read in the same commit, or the grant fires whatever the card above
-is.
+**What a refused clause leaves behind is fixed**, which was the precondition the
+increment before it named. A clause the compiler cannot read is not silent for
+the clauses after it, and three things were answering that wrongly:
 
-The readings diff turned up four filters that compiled and read wrongly and
-they went in too: four measures missing from `narrows` (a name asked for *in
-part*, so BT19-130 chose any Battle Card you had), `describeFilter` printing
-none of those four — the instrument blind to the bug it exists to catch — "in
-**their** character names" read as a player, and "that does not include <X>"
-matched as a positive.
+- A pronoun after the hole was answered with **this card**, because an [Auto]
+  seeds the antecedent to the card it is on (P-645, P-279). The antecedent is
+  now marked at the moment of a refusal, held by identity, so any clause that
+  binds something of its own clears it and only a back-reference landing on the
+  still-seeded self is refused.
+- **"If you do"** with no decision behind it made everything hanging on it
+  happen every time (BT12-042 playing a 5-cost <Gogeta> for free). The rest of
+  the sentence is now refused with the word that governs it; "if you don't" too.
+- A **modal option** that failed to compile left an empty branch — a mode that
+  silently does nothing (P-396). One empty option now fails the whole skill.
 
-A second commit refuses **the pile under another card** ("from under your
-<Kefla> Battle Card", "from under your Leader Card"): sixty-odd shapes, all
-read into the host today. It is separate on purpose — read the worklist's
-"Measured, ready, and deliberately not shipped" section before touching it.
+Fully compiled cards 4,627 → **4,625**. 55 shapes entered the gap set and none
+left it: this commit is entirely the compiler saying out loud what it cannot
+read. 73 readings moved, 70 of them fixes; the three that are the price are
+BT1-002b and BT10-036/040, where the refused clause is itself about this card.
+The narrower rule that would keep them is written down in the worklist entry and
+was deliberately not taken.
 
-Fully compiled cards 4,643 → 4,665 with the first commit, → 4,627 with the
-second. 36 shapes left the gap set and none entered it in the first; 60 entered
-it in the second, which is that commit saying out loud what it cannot read.
+Every future refusal now costs what it says it costs and nothing more, which is
+why this went before the rest of Stage 2.
 
-## The next piece of work, and why it is first
+The three cards the pile-under-another-card commit was making read worse — P-645,
+EX24-32 and P-396 — are exactly the three this increment fixes, so that commit no
+longer has a price attached. If a revert of it is ever wanted, the individual
+commits are on PR #68; on `main` the three of them are one squashed commit.
 
-**A refused clause leaves the clauses after it pointing at nothing.** An [Auto]
-seeds the antecedent to the card it is on, so when a clause goes unread the "it"
-or "the chosen cards" after it lands on the card printing the skill. The last
-increment fixed the plural half of this ("them" is never *this card*); the
-singular half cannot be fixed the same way, because "it" after "when this card
-is played" usually *does* mean this card.
-
-The fix is for the compiler to know that an *earlier clause in the same skill*
-went unread, and to refuse a back-reference that would resolve to the seeded
-self after one did. Three named casualties to check it against: P-645
-("play 1 {Majin Buu, Unadulterated Destruction} from under your green <Majin
-Buu> card, and **it** gains [Double Strike]"), EX24-32 (its "and if you do"
-wrapper collapses, so the second half happens unconditionally) and P-396 (an
-empty modal option — a mode that silently does nothing, which is arguably the
-whole modal's problem rather than this one's).
-
-It is the precondition for every future refusal, which is why it comes before
-the rest of Stage 2: each of the primitives below will refuse something on its
-way in, and each will pay this same cost until it is fixed.
-
-Two cards the second commit leaves reading wrongly if it is reverted: EX25-39
-and EX23-27. Neither is new text; both were wrong and merely unreachable.
-
-Then the rest of Stage 2, below.
 ## How to do it safely — this is the part that matters
 
 The failure mode here is not a clause that fails to compile. It is a clause that
@@ -137,8 +116,8 @@ read as your own (BT7-110 — the "other" fix narrowed the both-sides default to
 phrases saying "other", deliberately), and **"original energy cost"** is read as
 the current one.
 
-And three the third increment turned up, all in the *reading* rather than the
-compiling, and all found the same way — by printing a program and failing to
+Two the third increment turned up, both in the *reading* rather than the
+compiling, and both found the same way — by printing a program and failing to
 recognise the card in it:
 
 - **`describeFilter` still prints only some of a filter.** Four `*Including`
@@ -148,9 +127,6 @@ recognise the card in it:
   measure nobody can sign off, so this is the instrument, not a nicety.
 - **"if undefined … is attacking"** — a literal `undefined` in the reading of
   the `inBattle` condition (BT17-109, BT18-085). A one-line printing bug.
-- **A modal option that fails to compile leaves an empty branch**, which reads
-  as a mode that silently does nothing (P-396). The whole skill should fail
-  instead.
 
 ## The gate, every commit
 
