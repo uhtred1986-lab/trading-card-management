@@ -71,6 +71,28 @@ const CHOICE_CONTINUES = /^battle cards?\b/i;
 function andJoinsChoiceList(text: string, start: number, i: number): boolean {
   return CHOICE_OPENING.test(text.slice(start, i).trim()) && CHOICE_CONTINUES.test(text.slice(i + 5));
 }
+/**
+ * Two *different* named cards, each counted on its own: "1 <Android 17> card
+ * and 1 <Hell Fighter 17> card", "1 <Android 14> and 1 <Android 15> card".
+ * Matched at both ends of the "and" by `andJoinsTwoNamedCards` below.
+ */
+const NAMED_QTY_CARD = /(?:up to )?\d+\s+(?:(?:red|blue|green|yellow|black|white|multicolou?r|mono-\w+)\s+)?(?:<[^>]+>|≪[^≫]+≫)(?:\s+cards?)?/i;
+const NAMED_QTY_CARD_END = new RegExp(`${NAMED_QTY_CARD.source}\\s*$`, "i");
+// No trailing `\b`: the phrase as often as not ends in ">" (a name's closing
+// bracket), and `\b` between two non-word characters (">" then a space) never
+// matches — which silently failed this the same way for every name with no
+// "card" printed after it, e.g. "1 <Son Goku: Xeno> and up to 1 <Vegeta: Xeno>
+// card" (BT24-123).
+const NAMED_QTY_CARD_START = new RegExp(`^${NAMED_QTY_CARD.source}`, "i");
+// The same pair, found anywhere rather than pinned to a split point: a
+// "choose"/"play"/"add" verb sits in front of the first name as often as not
+// ("choose up to 1 red <Son Goku: Br> card and 1 red <Vegeta: Br> card from
+// your Drop Area"), which an anchored `^` would miss. Used by `parseTarget`
+// to refuse the shape outright rather than read it as one filter with two
+// names, which `filterFor` would otherwise do — a fewer-cards-than-printed
+// read (an "or" of the two names, satisfied by either alone) rather than the
+// name lost outright, but still not what the card says.
+const TWO_NAMED_CARDS = new RegExp(`${NAMED_QTY_CARD.source}\\s+and\\s+${NAMED_QTY_CARD.source}`, "i");
 
 /**
  * A dash the sets use in pairs to hang a description off a target: "play up to
@@ -135,6 +157,7 @@ export function splitClauses(text: string): string[] {
         !andJoinsTwoAreas(text, start, i) &&
         !andJoinsChoiceList(text, start, i) &&
         !andJoinsTwoCountedAreas(text, start, i) &&
+        !andJoinsTwoNamedCards(text, start, i) &&
         !andJoinsARange(text, start, i) &&
         !andJoinsColours(text, start, i) &&
         !andJoinsTwoSwitched(text, start, i) &&
@@ -276,6 +299,35 @@ function andJoinsTwoCountedAreas(text: string, start: number, i: number): boolea
     .split(/[,.;]/)[0]
     .trim();
   return COUNTED_AREA_TARGET_START.test(after);
+}
+
+/**
+ * "Play up to 1 <Android 17> card **and** 1 <Hell Fighter 17> card—both green
+ * and with energy costs of 1—from your deck and/or Drop with their skills
+ * negated for the turn" (BT20-077, and the same shape on BT20-079, BT24-123,
+ * EB1-32, BT19-032 among others): two *different* named cards, each counted
+ * on its own, share one trailing aside and one trailing source. Split at this
+ * "and" — which nothing above catches, because neither side is a bare name
+ * (`NAME_AFTER_AND`), an area, or a range — the first name is left with
+ * nothing after it and the second inherits the aside, the source, *and* the
+ * "and" itself, which is where the audit found it: the first card read as
+ * already on the board and the second's side flipped to the opponent's, both
+ * from one clause split in the wrong place.
+ *
+ * Gated on a source ("from your/their/its owner's deck or Drop") appearing
+ * soon after the second name, which is the tell of this "search and play"
+ * family — as opposed to "choose 1 <A> card and 1 <B> card in your Drop Area
+ * and send them to their owners' Warps", where the target is already named
+ * and nothing here needs protecting. `compileClause` still does not know how
+ * to search for two different names from one shared source: keeping the
+ * clause whole only stops the wrong split, and `refFor` refuses the merged
+ * phrase outright rather than guess at it (ground rule 5).
+ */
+function andJoinsTwoNamedCards(text: string, start: number, i: number): boolean {
+  if (!NAMED_QTY_CARD_END.test(text.slice(start, i))) return false;
+  const after = text.slice(i + 5);
+  if (!NAMED_QTY_CARD_START.test(after)) return false;
+  return /^[^.;]{0,120}\bfrom (?:your|their|its owner'?s|the) (?:deck|drop(?: area)?)\b/i.test(after);
 }
 
 /**
@@ -488,6 +540,21 @@ const AREA_LIST_SEP = /\s*,\s*or\s+|\s*,\s*|\s+or\s+/;
  * (BT13-024, BT6-074).
  */
 export function parseTarget(phrase: string, looked?: string, pool?: string): Selector | null {
+  // "1 <Android 17> card and 1 <Hell Fighter 17> card—both green and with
+  // energy costs of 1—from your deck and/or Drop", "choose up to 1 red <Son
+  // Goku: Br> card and 1 red <Vegeta: Br> card from your Drop Area and add
+  // them to your hand": `andJoinsTwoNamedCards` (in `splitClauses`) keeps a
+  // two-named-card search whole instead of cutting it at the "and" and losing
+  // one name — but nothing here can yet search for two different names from
+  // one shared source. Read as a single filter, "name A or name B" is not the
+  // same target as "one of A *and* one of B": it is satisfied, and stops
+  // looking, the moment it finds either — a card fewer than the text promises
+  // rather than a name lost outright, but still not what the card says
+  // (BT20-077, BT20-079, BT24-123, EB1-32, BT19-032, BT6-012, BT7-051, and the
+  // "choose … and add/send them" family beside them). Refused whole rather
+  // than guessed at (ground rule 5); a two-name search is a primitive of its
+  // own, not built.
+  if (TWO_NAMED_CARDS.test(phrase)) return null;
   let t = phrase.toLowerCase();
   // Qualifiers this grammar does not read, and cannot afford to drop: they
   // narrow a phrase to a handful of cards by their *history* — which cards
@@ -966,7 +1033,7 @@ function altCostHow(rawHow: string, c: Ctx): Op[] | null {
     const unread: string[] = [];
     // A fresh variable counter well clear of the effect's own, because the
     // price is a program of its own that runs before the skill.
-    const price = compileClauseList(splitClauses(m[1]).map(imperative), { ...c, n: c.n + 50, last: null, lastTarget: null, stale: null }, unread);
+    const price = compileClauseList(splitClauses(m[1]).map(imperative), { ...c, n: c.n + 50, last: null, lastTarget: null, stale: null, twoNamedCardsRefused: false }, unread);
     if (price.length && !unread.length) return [{ op: "altCost", pay: "program", ops: price }];
   }
   return null;
@@ -1104,6 +1171,14 @@ interface Ctx {
    * pointing at that rather than at the hole.
    */
   stale: Ref | null;
+  /**
+   * Set once a refused clause was itself a two-named-card search
+   * (`TWO_NAMED_CARDS`, in `parseTarget`) — the one case where a plural
+   * pronoun after a stale target must not fall back to it even though the
+   * stale target is not `self`. See the `c.stale` check in `refFor` for why
+   * this is narrower than generalising that check to every subject.
+   */
+  twoNamedCardsRefused: boolean;
   /** The op the previous clause produced, for wordings that restate it. */
   lastOp: string | null;
   /**
@@ -1314,6 +1389,17 @@ function refFor(clause: string, c: Ctx): Ref | null {
     // P-645's "it gains [Double Strike]" follows a play the compiler refused
     // and belongs to the card that play would have brought out.
     if (c.stale && c.stale === c.lastTarget && "sel" in c.lastTarget && c.lastTarget.sel.special === "self") return null;
+    // The same trap with a *different* stale target: "if your Leader Card is
+    // a red ≪Saiyan≫ card, choose 1 <A> card and 1 <B> card from your Drop
+    // Area and add **them** to your hand" (BT6-012, and P-095, P-108 beside
+    // it) leaves the leader as the last-bound target once the two-named-card
+    // choice between them is refused (`parseTarget`'s `TWO_NAMED_CARDS`
+    // guard), and "them" then read as *your Leader*, sent to hand — a card
+    // the skill never named at all. `c.twoNamedCardsRefused` is set only by
+    // that one refusal, so this stays as narrow as the bug it answers rather
+    // than widening the check above to every stale target, which silenced far
+    // more of the catalog than this family accounts for.
+    if (c.twoNamedCardsRefused && c.stale === c.lastTarget) return null;
     if (c.lastTarget) return c.lastTarget;
     if (c.last) return { var: c.last };
     return null;
@@ -1640,6 +1726,21 @@ function splitPrice(skill: Skill): PriceSplit {
 }
 
 function readPrice(said: string, skill: Skill): PriceSplit {
+  // BT15-022's "{r}{1}, if your opponent has 3 or more energy, there's a red
+  // [Field] Extra Card with an energy cost of 2 in your Drop Area, and you
+  // place this card in its owner's Drop Area" — two conditions and an action
+  // ANDed together, the harder chain a prior audit reported as merging into
+  // one wrong condition (the "3 or more" bound landing on the second
+  // condition's filter, the side flipping to the opponent's, the price action
+  // dropped outright). That does not reproduce here: the reversed-joints loop
+  // below already tries the *last* joint first, so `allConditions` reads the
+  // two leading conditions off the head correctly scoped ("in your Drop",
+  // not "opponent's") and `compileAction` reads the trailing "you place this
+  // card…" as the program in the same pass. Left as found — investigated for
+  // Lane G, 9 Sep 2026 — because the failure the audit named is not here to
+  // fix; whatever produced it either predates this loop's current shape or
+  // was on a since-corrected catalog entry.
+  //
   // A price with no condition word in front of it is charged, not merely
   // checked: the action is the stronger reading, because charging it changes
   // the game and a condition that holds costs nothing. A dozen cards do state
@@ -3662,6 +3763,7 @@ function compileSkillText(skill: Skill): Script {
     lastPlayed: null,
     lastTarget: null,
     stale: null,
+    twoNamedCardsRefused: false,
     lastOp: null,
     replacing: null,
     n: 0,
@@ -3921,6 +4023,10 @@ function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op
   const refuse = (text: string) => {
     unsupported.push(text);
     c.stale = c.lastTarget;
+    // See `c.twoNamedCardsRefused` and the `refFor` check it feeds: a refused
+    // two-named-card search is the one case where a stale target that is not
+    // `self` must still block the pronoun after it.
+    if (TWO_NAMED_CARDS.test(text)) c.twoNamedCardsRefused = true;
   };
   const push = (ops: Op[]) => {
     const g = groups[groups.length - 1];
