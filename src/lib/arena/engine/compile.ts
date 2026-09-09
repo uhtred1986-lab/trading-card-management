@@ -11,7 +11,7 @@
 import { parseFilter, type CardFilter } from "./filters";
 import { keywordOf, orbsIn, skillsOf, trailingTrigger, withoutTrailingTrigger } from "./cards";
 import type { Amount, CardScripts, Cond, Duration, Op, Ref, Script, ScriptArea, Selector, Side, SkillPrice } from "./script";
-import type { CardDef, DelayScope, DelayTiming, KeywordSkill, Skill, SkillKindPrefix } from "./types";
+import type { CardDef, Color, DelayScope, DelayTiming, KeywordSkill, Skill, SkillKindPrefix } from "./types";
 
 // ── clause splitting ───────────────────────────────────────────────────────
 
@@ -867,14 +867,36 @@ function imperative(clause: string): string {
  * so the same reader compiles it; most of them ask the player to pick a card,
  * which is why the engine charges that one through the flow rather than inline.
  */
-function counterAltCost(sentence: string, c: Ctx): Op[] | null {
-  const said = /^activate this card's \[counter[^\]]*\](?: skill)? from your hand (.+?)\.?$/.exec(sentence);
-  if (!said) return null;
-  const how = said[1].replace(/^without paying (?:its|the) energy cost,? /, "").replace(/,? instead of paying (?:its|the) energy cost$/, "");
-  if (/^without paying (?:its|the) energy cost$/.test(how)) return [{ op: "altCost", pay: "none" }];
+/** One entry per orb — `{r: 2}` becomes `["Red", "Red"]` — the shape `altCost`'s `orbs` field takes (5-3). */
+function orbsToList(orbs: Partial<Record<Color, number>> & { any?: number }): (Color | "any")[] {
+  const out: (Color | "any")[] = [];
+  for (const [k, n] of Object.entries(orbs)) for (let i = 0; i < (n ?? 0); i++) out.push(k as Color | "any");
+  return out;
+}
+
+/**
+ * The "…" half of "you can activate […] from your hand …" (5-3): what the
+ * card asks for instead of the energy cost. Shared by the self-only reading
+ * (`counterAltCost`, below) and the one that grants the same offer to *other*
+ * cards for a span (BT11-033) — the price is worded identically either way,
+ * only who it is about differs.
+ */
+function altCostHow(rawHow: string, c: Ctx): Op[] | null {
+  // "Their energy costs" (plural) is how the same waiver reads when it is
+  // granted to more than one card at once (BT11-033) rather than printed on
+  // the one card paying it — "its"/"the" everywhere else.
+  const how = rawHow.replace(/^without paying (?:its|the|their) energy costs?,? /, "").replace(/,? instead of (?:paying )?(?:its|the|their) energy costs?$/, "");
+  if (/^without paying (?:its|the|their) energy costs?$/.test(how)) return [{ op: "altCost", pay: "none" }];
   let m: RegExpExecArray | null;
   if ((m = /^by adding (a|an|\d+) cards? from your life to your hand$/.exec(how))) {
     return [{ op: "altCost", pay: "life", n: countWord(m[1]) }];
+  }
+  // "By paying {1}" (BT18-088): a reduced but still-energy price, not a free
+  // one — `program` has no op that rests energy as a cost, and reading this
+  // as one would have offered the [Counter] for a choice that costs nothing.
+  if ((m = /^by paying ((?:\{[a-z0-9]+\})+)$/i.exec(how))) {
+    const orbs = orbsToList(orbsIn(m[1]));
+    if (orbs.length) return [{ op: "altCost", pay: "energy", orbs }];
   }
   if ((m = /^by (.+)$/.exec(how))) {
     const unread: string[] = [];
@@ -884,6 +906,12 @@ function counterAltCost(sentence: string, c: Ctx): Op[] | null {
     if (price.length && !unread.length) return [{ op: "altCost", pay: "program", ops: price }];
   }
   return null;
+}
+
+function counterAltCost(sentence: string, c: Ctx): Op[] | null {
+  const said = /^activate this card's \[counter[^\]]*\](?: skill)? from your hand (.+?)\.?$/.exec(sentence);
+  if (!said) return null;
+  return altCostHow(said[1], c);
 }
 
 /** Only keep a filter when the phrase actually narrows the cards. */
@@ -2966,6 +2994,13 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     const ref = refFor(m[2], c);
     return ref ? [{ op: "removeMarker", target: ref, n: countWord(m[1]) }] : null;
   }
+  // "Pay the cost for [Spirit Boost 2]" (22-43-3), as an alt-cost's own price
+  // rather than a skill's own — the marker cost that keyword names is fixed
+  // wherever it is spent, off your Unison Card (BT14-019/043/083/109,
+  // BT17-109's [Permanent]s all name it this way instead of writing it out).
+  if ((m = /^pay the cost for \[spirit boost (\d+)\]$/.exec(t))) {
+    return [{ op: "removeMarker", target: { sel: { side: "you", area: "unison" } }, n: Number(m[1]) }];
+  }
 
   // Under another card (23-2). Not an area, so it is not in the table below.
   // Only "under this card" is read: any other host is an antecedent the
@@ -3048,6 +3083,41 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     if ((m = re.exec(t))) {
       const ref = refFor(m[1], c);
       return ref ? withChoice(ref, clause, c, (target) => ({ op: "moveTo", target, to, ...opts })) : null;
+    }
+  }
+
+  // "Until the start of your next turn, you can activate mono-blue cards
+  // with [Counter] skills from your hand by …" (BT11-033): the same offer
+  // `counterAltCost` reads for a card's own [Counter], granted instead to
+  // *other* cards a filter names, for a stated span. Tried before the
+  // ordinary "activate a card" read just below, which would otherwise take
+  // the whole selector-plus-price phrase for one long card description — its
+  // greedy `(.+?)` reaches straight through "with [Counter] skills from your
+  // hand" and swallows the price after it too, so the price's own count
+  // ("choosing 2 other cards") was read as the *selector's* count instead,
+  // and "activate" as an instruction to play the cards it found. A duration
+  // split onto this clause by `PURE_DURATION` above lands at the end, which
+  // is where `durationOf` looks for it; without one printed here the shape is
+  // not a case this reads, so the clause is left to the referee rather than
+  // guessed a duration of "the turn".
+  if (/\buntil\b/i.test(clause)) {
+    const other = /^activate (.+? with \[counter[^\]]*\] skills?) from your hand /.exec(q);
+    if (other) {
+      const filter = filterFor(other[1], "hand");
+      if (filter === null) return null; // ground rule 5: an unreadable filter must not widen to "any card"
+      // The price can run past a comma or "and …ing" that `splitClauses`
+      // treats as a clause boundary of its own elsewhere ("…choosing 2 other
+      // cards in your hand **and discarding them**") — read here, the tail
+      // this clause carries would already have lost that second half, and
+      // `altCostHow` would hand back a price that only chose the cards and
+      // never spent them. Reading it instead from `c.raw`, the sentence as
+      // printed, is what the self-only reading below this one is already
+      // spared from having to do, because it runs before any splitting at all.
+      const whole = /you (?:can|may) activate .+? with \[counter[^\]]*\] skills? from your hand ([^.]+)\.?/i.exec(c.raw);
+      const alt = whole ? altCostHow(whole[1].trim(), c) : null;
+      if (!alt) return null;
+      const target: Ref = { sel: { side: "you", area: "hand", ...(filter ? { filter } : {}) } };
+      return alt.map((o) => (o.op === "altCost" ? { ...o, target, until: durationOf(clause) } : o));
     }
   }
 

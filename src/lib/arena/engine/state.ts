@@ -554,15 +554,19 @@ export interface AltCost {
    * `program`: an action the card names — "by choosing 1 other black card in
    * your hand and placing it in your Drop" — compiled by the same reader as an
    * ordinary action price (4-3-3) and charged the same way, through the flow,
-   * because most of them need the player to pick a card.
+   * because most of them need the player to pick a card. `energy`: a reduced
+   * but still-energy price — "by paying {1} instead of its energy cost"
+   * (BT18-088) — read the same way a printed cost's orbs are (`orbs`).
    */
-  pay: "none" | "life" | "invoker" | "program";
+  pay: "none" | "life" | "invoker" | "program" | "energy";
   /** Cards to add from your life to your hand, for `pay: "life"`. */
   n: number;
   /** Which cost it replaces: the [Counter] skill's, or playing the card. */
   for: "counter" | "play";
   /** The price to run, for `pay: "program"`. */
   ops?: Op[];
+  /** The orbs to rest, one entry per orb, for `pay: "energy"`. */
+  orbs?: (Color | "any")[];
 }
 
 export interface StaticEffect {
@@ -714,9 +718,16 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
       continue;
     }
     // Like a cost reducer, this one is about the card in hand, so it is read
-    // whether or not the card is on the table.
+    // whether or not the card is on the table. Printed on the card itself
+    // this is about that card alone (no `target`); a duration (`until`) means
+    // it was granted to other cards for a span instead, which holds through
+    // the timed path in `exec` (script.ts) rather than here — a [Permanent]
+    // never resolves, so nothing would ever expire it.
     if (op.op === "altCost") {
-      out.push({ source, kind: "altCost", target: source, value: { pay: op.pay, n: op.n ?? 1, for: op.for ?? "counter", ...(op.ops ? { ops: op.ops } : {}) } });
+      if (op.until) continue;
+      const targets = op.target ? staticTargets(ctx, s, frame, op.target) : [source];
+      const value: AltCost = { pay: op.pay, n: op.n ?? 1, for: op.for ?? "counter", ...(op.ops ? { ops: op.ops } : {}), ...(op.orbs ? { orbs: op.orbs } : {}) };
+      for (const id of targets) out.push({ source, kind: "altCost", target: id, value });
       continue;
     }
     // 20-14: a prohibition printed as a [Permanent] skill holds for as long as
@@ -1250,6 +1261,17 @@ export function canPayCostProgram(ctx: GameContext, s: GameState, p: PlayerId, c
         if ("var" in op.target) break;
         if (!resolveRef(ctx, s, frame, op.target).length) return false;
         break;
+      // "Pay the cost for [Spirit Boost 2]" (22-43-3) reads to this — the
+      // marker count named is fixed the same way `discard`'s and `mill`'s are,
+      // never a variable, so an amount that is not a plain number is refused
+      // rather than assumed payable.
+      case "removeMarker": {
+        if (typeof op.n !== "number") return false;
+        if ("var" in op.target) break;
+        const cards = resolveRef(ctx, s, frame, op.target);
+        if (!cards.length || cards.some((id) => s.cards[id].markers < (op.n as number))) return false;
+        break;
+      }
       default:
         return false;
     }
@@ -1258,16 +1280,35 @@ export function canPayCostProgram(ctx: GameContext, s: GameState, p: PlayerId, c
 }
 
 /**
+ * The energy `pay: "energy"` orbs would cost, planned the same way a printed
+ * cost's orbs are — null when the board cannot cover them (5-3-3).
+ */
+function orbPayment(ctx: GameContext, s: GameState, payer: PlayerId, orbs: (Color | "any")[]): Payment | null {
+  const specified: Partial<Record<Color, number>> = {};
+  for (const o of orbs) if (o !== "any") specified[o] = (specified[o] ?? 0) + 1;
+  return planPayment(ctx, s, payer, orbs.length, specified);
+}
+
+/**
  * The other way this card's [Counter] skill may be paid for, if it has one
  * (5-3), and whether the player can actually meet it right now.
+ *
+ * Two sources, checked together because a card can offer the alternative
+ * about itself (a [Permanent], read through `staticEffects`, `target` always
+ * this card and never expiring) or have it granted by another card for a span
+ * (a plain continuous effect, `s.effects`, with `target`/`until` of its own —
+ * BT11-033's "until the start of your next turn, mono-blue [Counter] cards in
+ * your hand …"). Either way the candidate still has to be affordable now.
  */
 export function altCostFor(ctx: GameContext, s: GameState, card: string, payer: PlayerId, which: "counter" | "play" = "counter"): AltCost | null {
-  for (const e of staticEffects(ctx, s)) {
-    if (e.kind !== "altCost" || e.target !== card) continue;
-    const alt = e.value as AltCost;
+  const candidates: AltCost[] = [];
+  for (const e of s.effects) if (e.kind === "altCost" && e.target === card && e.altCost) candidates.push(e.altCost);
+  for (const e of staticEffects(ctx, s)) if (e.kind === "altCost" && e.target === card) candidates.push(e.value as AltCost);
+  for (const alt of candidates) {
     // Programs stored before playing had its own waiver are about a [Counter].
     if ((alt.for ?? "counter") !== which) continue;
     if (alt.pay === "life" && s.players[payer].life.length < alt.n) continue;
+    if (alt.pay === "energy" && !orbPayment(ctx, s, payer, alt.orbs ?? [])) continue;
     // 4-3-3: an action price is only an offer when the board can meet it, or
     // the skill happens and the price quietly does not. Only the [Counter]
     // path charges one — the two play sites pay inline and have nowhere to ask
@@ -1308,6 +1349,12 @@ export function payAltCost(ctx: GameContext, s: GameState, ev: GameEvent[], paye
     const e = invokerEnergy(ctx, s, payer);
     if (!e) return false;
     setMode(s, ev, e, "rest", ctx);
+    return true;
+  }
+  if (alt.pay === "energy") {
+    const pm = orbPayment(ctx, s, payer, alt.orbs ?? []);
+    if (!pm) return false;
+    pay(s, ev, payer, pm);
     return true;
   }
   if (s.players[payer].life.length < alt.n) return false;
