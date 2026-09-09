@@ -1578,15 +1578,19 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
     fields: [SEL, { name: "not", type: "boolean" }, { name: "role", type: { enum: ["attacker", "guard"] } }],
     sentence: (raw) => {
       const c = raw as CondOf<"inBattle">;
-      return `${describeSelector(c.sel)} is ${c.not ? "not " : ""}${c.role === "guard" ? "being attacked" : c.role === "attacker" ? "attacking" : "in a battle"}`;
+      return `${describeSelector(c.sel, "any of")} is ${c.not ? "not " : ""}${c.role === "guard" ? "being attacked" : c.role === "attacker" ? "attacking" : "in a battle"}`;
     },
   },
-  battled: { fields: [SEL], sentence: (raw) => `${describeSelector((raw as CondOf<"battled">).sel)} has been in a battle this turn` },
+  battled: { fields: [SEL], sentence: (raw) => `${describeSelector((raw as CondOf<"battled">).sel, "any of")} has been in a battle this turn` },
   every: {
     fields: [SEL, { name: "matching", type: "selector", required: true }],
     sentence: (raw) => {
       const c = raw as CondOf<"every">;
-      return `all of ${describeSelector(c.sel)} is ${describeSelector(c.matching)}`;
+      // Both selectors are built by `parseTarget` with the count deleted (see
+      // `compile.ts`), so the quantifier is the sentence's own word: "all of
+      // all in your energy is all mono-colour blue in your energy" was the
+      // stutter that came of letting each of them claim one.
+      return `every card ${describeSelector(c.sel, "")} is also ${describeSelector(c.matching, "")}`;
     },
     doc: "every card the first selector finds is also one the second finds; false when there is nothing to find (0-2-4-1)",
   },
@@ -1737,15 +1741,31 @@ function fieldHolds(type: FieldType, v: unknown, depth: number): boolean {
  * filter for this and printed "undefined in your undefined" — the count and
  * the area it wants are not part of a filter.
  */
+/** How a relative power bound is worded, in the words `parseFilter` reads back. */
+const POWER_REL_WORDS: Record<NonNullable<CardFilter["powerRel"]>["cmp"], string> = {
+  "<=": "less than or equal to",
+  "<": "less than",
+  ">=": "greater than or equal to",
+  ">": "greater than",
+};
+
 export function describeFilter(f: CardFilter): string {
   const bits: string[] = [];
   if (f.monoColor) bits.push("mono-colour");
   if (f.multiColor) bits.push("multicolour");
   bits.push(...f.colors.map((c) => c.toLowerCase()));
+  // Every measure that *narrows by exclusion* was silent until 9 Sep 2026,
+  // and a measure the reading drops always reads as the wider filter — the
+  // one direction ground rule 5 forbids. "Non-black Battle Cards" printed as
+  // "battle card" is the same sentence as no filter at all.
+  bits.push(...f.notColors.map((c) => `non-${c.toLowerCase()}`));
   bits.push(...f.traits.map((x) => `≪${x}≫`));
+  bits.push(...f.notTraits.map((x) => `non-≪${x}≫`));
   bits.push(...f.characters.map((x) => `<${x}>`));
+  bits.push(...f.notCharacters.map((x) => `non-<${x}>`));
   bits.push(...f.names.map((x) => `{${x}}`));
   if (f.token) bits.push("token");
+  else if (f.notToken) bits.push("non-token");
   if (f.z) bits.push("Z-card");
   // The noun has to be settled before the trailing measures are hung off it,
   // and a name asked for **in part** is one of those — printed after the word
@@ -1755,7 +1775,16 @@ export function describeFilter(f: CardFilter): string {
     ...f.namesIncluding.map((x) => `with {${x}} in its card name`),
     ...f.notCharactersIncluding.map((x) => `without <${x}> in its character name`),
     ...f.notNamesIncluding.map((x) => `without {${x}} in its card name`),
+    // A name the target must *not* have. Written the way the cards write it,
+    // which is also the only wording `parseFilter` reads it back from.
+    ...f.notNames.map((x) => `other than {${x}}`),
+    // "…with [Blocker]", "…with an [Evolve] skill", "…with [Counter] skills".
+    // One "with" apiece rather than a list, so the phrase reads back as the
+    // same set of keywords it printed.
+    ...f.keywords.map((k) => `with [${k}]`),
+    ...f.notKeywords.map((k) => `non-[${k}]`),
   ];
+  if (f.skillKind) partial.push(`with [${f.skillKind === "activate" ? "Activate" : f.skillKind === "counter" ? "Counter" : f.skillKind === "auto" ? "Auto" : "Permanent"}] skills`);
   if (f.type) bits.push(`${f.type.toLowerCase()} card`);
   else if (f.notType) bits.push(`non-${f.notType.toLowerCase()} card`);
   else if (!bits.length) bits.push("card");
@@ -1767,11 +1796,19 @@ export function describeFilter(f: CardFilter): string {
   // sign off.
   bits.push(...partial);
   if (f.faceUp) bits.push("that is face up");
+  // A range said only half of itself: a filter with both bounds printed as
+  // "or less" and dropped the floor, and an *exact* cost or power printed as
+  // "or less" too — a reading strictly wider than the filter in both cases.
   if (f.costMin != null && f.costMin === f.costMax) bits.push(`with an energy cost of ${f.costMin}`);
+  else if (f.costMin != null && f.costMax != null) bits.push(`with an energy cost of between ${f.costMin} and ${f.costMax}`);
   else if (f.costMax != null) bits.push(`with an energy cost of ${f.costMax} or less`);
   else if (f.costMin != null) bits.push(`with an energy cost of ${f.costMin} or more`);
-  if (f.powerMax != null) bits.push(`with ${f.powerMax} power or less`);
+  if (f.powerMin != null && f.powerMin === f.powerMax) bits.push(`with ${f.powerMin} power`);
+  else if (f.powerMin != null && f.powerMax != null) bits.push(`with power between ${f.powerMin} and ${f.powerMax}`);
+  else if (f.powerMax != null) bits.push(`with ${f.powerMax} power or less`);
   else if (f.powerMin != null) bits.push(`with ${f.powerMin} power or more`);
+  if (f.powerRel) bits.push(`with power ${POWER_REL_WORDS[f.powerRel.cmp]} this card's power`);
+  if (f.noKeywords) bits.push("and no keyword skills");
   return bits.join(" ");
 }
 
@@ -1792,8 +1829,14 @@ function selectorWords(sel: Selector): string {
  * worklist read "choose up to 1 in your warp" for a skill that can only take
  * a blue ≪Another World Budokai≫ card, which is exactly the detail that tells
  * two cards phrased alike apart.
+ *
+ * `all` is the word for a selector with no count of its own, which is every
+ * card it finds. A condition that *tests* the cards rather than taking them
+ * says so differently — `inBattle` and `battled` ask whether **any** of them
+ * is, `every` asks about each — so they pass their own word rather than let
+ * the sentence claim a quantifier the engine does not use.
  */
-function describeSelector(sel: Selector): string {
+function describeSelector(sel: Selector, all = "all"): string {
   // The one special a filter can narrow and the reading has to keep: "the
   // <Majin Buu> on top of this card" and "the Leader on top of this card" are
   // different cards, and dropping the words would print them the same.
@@ -1812,11 +1855,26 @@ function describeSelector(sel: Selector): string {
       resolving: "the card being played",
     }[sel.special];
   const who = sel.side === "opponent" ? "opponent's " : sel.side === "both" ? "each player's " : "your ";
-  const count = sel.count === 99 ? "all" : sel.upTo ? `up to ${sel.count}` : `${sel.count}`;
+  // A selector with neither a count nor a `take` is every card the filter
+  // matches — `resolveSelector` returns the whole area — and printing
+  // `${undefined}` said so as "undefined in your energy", on 145 readings.
+  // `take` is the area's own order rather than a choice among it (see
+  // `Selector.take`), so it is worded as the cards it takes, not as a number
+  // of them to pick.
+  const count =
+    sel.take != null
+      ? `the ${sel.fromEnd ? "bottom" : "top"} ${sel.take}`
+      : sel.count == null
+        ? all
+        : sel.count === 99
+          ? "all"
+          : sel.upTo
+            ? `up to ${sel.count}`
+            : `${sel.count}`;
   const words = selectorWords(sel);
   const where = sel.fromVar ? "of the cards looked at" : `in ${who}${sel.areas?.length ? sel.areas.join(" or ") : sel.area}`;
   const mode = sel.mode ? ` in ${sel.mode} mode` : "";
-  return `${count} ${words ? `${words} ` : ""}${where}${mode}${describeNotSelf(sel)}`;
+  return [count, words, where].filter(Boolean).join(" ") + mode + describeNotSelf(sel);
 }
 
 /**
