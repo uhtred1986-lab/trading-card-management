@@ -1278,17 +1278,46 @@ function durationOf(clause: string): Duration {
 function parseWouldLeave(clause: string): { by?: "skill" | "ko" | "skillOrKo"; subject?: string } | null {
   const t = clean(clause);
   if (/your opponent'?s? skills?/.test(t)) return null;
-  const opener = /^(?:if|when)?\s*(.*?) would (leave|be removed from|be sent from) (?:your |the |a )?battle area(?: by (?:a|your) skills?)?( or (?:be )?ko'?d)?$/.exec(t);
+  // "Would … the Battle Area" is the hypothetical phrasing; six cards
+  // (BT14-153, BT14-154, BT15-153, BT15-154, BT16-107, BT17-148) print the
+  // same rule as an accomplished fact — "if/when this card **is** removed
+  // from your Battle Area" — one word short of the modal this opener used to
+  // require. Read the same way: "is removed from" carries no cause of its
+  // own, so it defaults to "skill" exactly as "would be removed from" does.
+  const opener = /^(?:if|when)?\s*(.*?) (?:would (leave|be removed from|be sent from)|is (removed from)) (?:your |the |a )?battle area(?: by (?:a|your) skills?)?( or (?:be )?ko'?d)?$/.exec(t);
   if (opener) {
+    const verb = opener[2] ?? opener[3];
     // "Removed from a Battle Area by a skill or KO'd" covers both causes;
     // "would leave" covers every cause, so it has no restriction at all.
-    const by = opener[2] === "leave" ? undefined : opener[3] ? ("skillOrKo" as const) : ("skill" as const);
+    const by = verb === "leave" ? undefined : opener[4] ? ("skillOrKo" as const) : ("skill" as const);
     const who = opener[1].trim();
     // "A ≪Slug's Army≫ card with a combo cost of 1 would leave your Battle
     // Area" — the rule is about other cards, so the subject is kept.
     if (/^(?:this card|it)$/.test(who)) return { by };
     return who ? { by, subject: who } : { by };
   }
+  // "A ≪Turles Crusher Corps≫ card in your Battle Area would be placed in its
+  // owner's Drop Area by one of your skills" (BT12-056(+b), BT15-092(+b),
+  // BT15-097) — the ordinary route out (a skill sending it to the Drop) named
+  // in full rather than as "leave"/"removed from" the Battle Area. Same
+  // event, same default cause.
+  const droppedBySkill = /^(?:if|when)?\s*(.*?) in (?:your |the )?battle area would be placed in (?:its owner'?s?|their owners?'?s?|your|their) drop area by (?:a|one of your) skills?$/.exec(t);
+  if (droppedBySkill) {
+    const who = droppedBySkill[1].trim();
+    if (/^(?:this card|it)$/.test(who)) return { by: "skill" };
+    return who ? { by: "skill", subject: who } : { by: "skill" };
+  }
+  // "When this card is placed in a Drop Area from a Combo Area" (P-182) / "…
+  // from a Battle Area or Combo Area" (DB2-137/140/151/153) is deliberately
+  // NOT read as the same replacement: `move()` (state.ts:857) only checks
+  // `replaceLeave` when the card was leaving `leader`/`battle`/`unison`
+  // (`wasInPlay`) — leaving the *Combo Area* (`wasCombo`) never reaches that
+  // check at all. Reading these as "removed from the Battle Area" would be
+  // wrong twice over: for P-182 the compiled rule would never fire (its only
+  // path out is the Combo Area), and for the DB2 cards it would fire too
+  // often — misapplying the redirect to a Battle-Area departure the printed
+  // text does gate on "or Combo Area" for, but that path itself still can't
+  // be read. Left unread rather than read wide (ground rule 5).
   // "If this card would be KO'd" replaces the KO and nothing else: a card its
   // owner returns to hand is still returned to hand.
   if (/^(?:if|when)?\s*(?:this card|it) would be ko'?d$/.test(t)) return { by: "ko" };
@@ -2958,6 +2987,11 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     [/^return (.+?) to (?:your|their) hands?$/, "hand", {}],
     [/^add (.+?) to your hand$/, "hand", {}],
     [/^send (.+?) to (?:your|their|its owner'?s?|their owners?'?s?|the) warps?$/, "warp", {}],
+    // The passive said the same as the active line above — "it's sent to its
+    // owner's Warp" (9-10, ten cards) rather than "send it to Warp" — and the
+    // subject is always the pronoun a replacement clause already resolved.
+    [/^(it)(?:'s| is) sent to (?:its owner'?s?|your|their|the) warps?$/, "warp", {}],
+    [/^(it)(?:'s| is) placed at the bottom of (?:its owner'?s?|your|their) decks?$/, "deck", { position: "bottom" }],
     // 3-8: whose energy area matters, and it is not always the card's owner —
     // "place it in your opponent's energy in Rest Mode" hands them a card.
     [/^(?:add|place) (.+?) (?:to|in) your opponent'?s energy(?: area)? in rest mode$/, "energy", { mode: "rest", reveal: true, owner: "opponent" }],
