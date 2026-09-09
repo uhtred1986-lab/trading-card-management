@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Arena backlog policy
+    url: https://github.com/uhtred1986-lab/trading-card-management/blob/main/docs/arena-backlog.md
+    about: Read the required Arena backlog process before filing new Arena work.

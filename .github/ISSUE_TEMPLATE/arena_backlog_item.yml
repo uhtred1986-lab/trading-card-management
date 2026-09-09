@@ -1,0 +1,88 @@
+name: Arena backlog item
+description: File a pickup-ready Arena bug, feature, or follow-up task.
+title: "Arena: "
+labels:
+  - backlog
+body:
+  - type: dropdown
+    id: item_type
+    attributes:
+      label: Item type
+      options:
+        - Bug
+        - Feature
+        - Rules/ruling follow-up
+        - Refactor/tech debt
+    validations:
+      required: true
+
+  - type: input
+    id: source_refs
+    attributes:
+      label: Source references
+      description: Exact docs/rules/manual/replay references (with section numbers).
+      placeholder: docs/arena-next-session-prompt.md §4(c); card BT3-104; replay <id>
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem statement
+      description: What is wrong or missing, in concrete terms.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior/outcome
+      description: What correct behavior should be.
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope boundaries
+      description: What is in scope vs explicitly out of scope.
+      placeholder: |
+        In scope:
+        - ...
+        Out of scope:
+        - ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance checks
+      description: Commands and scenario proof needed before closure.
+      placeholder: |
+        - npm run typecheck
+        - npm run lint
+        - npm test
+        - Scenario proof:
+    validations:
+      required: true
+
+  - type: textarea
+    id: labels_milestone
+    attributes:
+      label: Required triage metadata
+      description: Assign at least one area label, one phase label, and one Arena milestone.
+      placeholder: |
+        Area labels: area:arena-...
+        Phase labels: phase:...
+        Milestone: Arena M...
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: readiness
+    attributes:
+      label: Ready for agent pickup
+      options:
+        - label: This issue is specific enough for a future agent to implement without extra clarification.
+          required: true
