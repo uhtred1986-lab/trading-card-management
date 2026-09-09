@@ -4332,7 +4332,8 @@ function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op
     // clause is read as usual and then wrapped in the offer.
     // "You can only play mono-yellow ≪Saiyan≫ cards" is a prohibition rather
     // than an offer, and is read by `compileProhibition`.
-    const optional = !c.permanent && /^(?:you may|you can(?! only)|the player may)\s+\S/i.test(said.trim());
+    const offered = /^(?:you may|you can(?! only)|the player may)\s+\S/i.test(said.trim());
+    const optional = !c.permanent && offered;
     // Only as a fallback: several patterns read the subject themselves and say
     // it better than this can — "your opponent sends 1 card from their hand to
     // their Warp" is a discard (20-7), chosen by its owner because it is a
@@ -4403,7 +4404,7 @@ function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op
         const target: Ref = subject ? { sel: { side: "you", area: "battle", filter, count: 99 } } : only.target;
         // "…to your energy in Rest Mode instead" — the move said how it
         // arrives as well as where, and the replacement has to carry both.
-        push([{ op: "replaceLeave", to: only.to, target, ...(by ? { by } : {}), ...(only.mode ? { mode: only.mode } : {}) }]);
+        push([{ op: "replaceLeave", to: only.to, target, ...(by ? { by } : {}), ...(only.mode ? { mode: only.mode } : {}), ...(offered ? { optional: true } : {}) }]);
         continue;
       }
       // Anything else is a replacement this language cannot say yet, and
@@ -4420,9 +4421,9 @@ function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op
     // choose 1 card in your hand and discard it" is answered by taking no card
     // (5-2-4) — so wrapping it would ask twice.
     const alreadyOptional = got[0]?.op === "choose" && got[0].sel.upTo;
-    const offered = optional || theirOffer;
+    const offeredClause = optional || theirOffer;
     const said2 =
-      offered && got.length && !alreadyOptional
+      offeredClause && got.length && !alreadyOptional
         ? [
             {
               op: "may",

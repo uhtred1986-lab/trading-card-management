@@ -183,6 +183,10 @@
     "outcome": "fired",
     "digest": "aa09b91d"
   },
+  "EARTHWARP#0": {
+    "outcome": "inForce",
+    "digest": "81fbfb94"
+  },
   "EITHER#0": {
     "outcome": "fired",
     "digest": "b25bd92a"
@@ -290,6 +294,14 @@
   "MAYBE#0": {
     "outcome": "fired",
     "digest": "ee3f202f"
+  },
+  "MAYEARTH#0": {
+    "outcome": "inForce",
+    "digest": "6b48f004"
+  },
+  "MAYWARP#0": {
+    "outcome": "inForce",
+    "digest": "d76e6bde"
   },
   "MILLGATE#0": {
     "outcome": "fired",

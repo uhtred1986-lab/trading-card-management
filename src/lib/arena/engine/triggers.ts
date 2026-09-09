@@ -4,7 +4,7 @@
  * (which imports the interpreter).
  */
 import { effectHead, trailingTrigger } from "./cards";
-import { areaOf, cardsInPlay, def, forbids, move, programsOf, skillNegated, skillsNegated, skillsOfInstance, type GameContext } from "./state";
+import { areaOf, cardsInPlay, def, forbids, move, programsOf, skillNegated, skillsNegated, skillsOfInstance, type GameContext, type MoveOptions } from "./state";
 import type { GameEvent, GameState, PlayerId, Skill, Trigger } from "./types";
 import { PLAYERS } from "./types";
 
@@ -316,7 +316,7 @@ export function pendTriggers(ctx: GameContext, s: GameState, trigger: Trigger, c
 }
 
 /** 5-12 / 21-14: move a Battle Card from the Battle Area to its owner's Drop Area. */
-export function koCard(ctx: GameContext, s: GameState, ev: GameEvent[], card: string, by?: string): void {
+export function koCard(ctx: GameContext, s: GameState, ev: GameEvent[], card: string, by?: string, opts: Pick<MoveOptions, "replaced"> = {}): void {
   // 20-14: a card that can't be KO'd at all is not KO'd by battle damage
   // either, so the check belongs here rather than in the `ko` operation.
   if (forbids(ctx, s, "beKOd", { card })) return;
@@ -334,5 +334,5 @@ export function koCard(ctx: GameContext, s: GameState, ev: GameEvent[], card: st
   // "When this card KOs an opponent's Battle Card": the card that did it,
   // whether by battle or by its own skill.
   if (by && by !== card && s.cards[by] && p !== masterOf(s, by)) pendTriggers(ctx, s, "kos", by);
-  move(ctx, s, ev, card, "drop", p, { reason: "ko" });
+  move(ctx, s, ev, card, "drop", p, { reason: "ko", ...opts });
 }

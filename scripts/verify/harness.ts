@@ -161,6 +161,8 @@ const DEFS: Record<string, CardDef> = defsFrom([
   card("RESTCOND", { energyCost: 1, skill: "[Permanent] If this card is in Rest Mode, your Battle Cards get +5000 power." }),
   card("FREEPLAY", { energyCost: 2, power: 5000, skill: "[Permanent] If you have <V1> in your Battle Area or Leader Area, you can play this card from your hand without paying its energy cost." }),
   card("EXILE", { energyCost: 2, power: 5000, skill: "[Permanent] If this card would leave the Battle Area, remove it from the game instead." }),
+  card("MAYWARP", { energyCost: 2, power: 5000, skill: "[Permanent] If this card would leave the Battle Area, you may send it to your Warp instead." }),
+  card("EARTHWARP", { energyCost: 2, power: 5000, traits: ["Earthling"], skill: "[Permanent] If this card would leave the Battle Area, send it to your Warp instead." }),
   card("WARPER", { energyCost: 2, power: 5000, skill: "[Permanent] If this card would be removed from your Battle Area by a skill, send this card to your Warp instead." }),
   card("E-STOP", { type: "EXTRA", energyCost: 1, power: null, comboCost: null, comboPower: null, skill: "[Counter: Counter] Negate the [Counter]." }),
   card("E-LIFE", {

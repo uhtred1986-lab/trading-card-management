@@ -1648,6 +1648,9 @@ export function legalActions(ctx: EngineContext, s: GameState): LegalAction[] {
       for (const id of pr.choice.candidates) out.push({ action: { type: "choose", player: pr.player, cards: [id] }, label: `Choose ${name(id)}` });
       if (pr.choice.min === 0) out.push({ action: { type: "choose", player: pr.player, cards: [] }, label: s.continuations[`picking:${pr.choice.continuation}`] ? "Done choosing" : "Choose none" });
       return out;
+    case "replaceMove":
+      pr.options.forEach((label, i) => out.push({ action: { type: "chooseMode", player: pr.player, index: i }, label: label.length > 90 ? `${label.slice(0, 88)}…` : label }));
+      return out;
     case "chooseMode":
       // 20-2: the printed options, in the order they are printed.
       pr.options.forEach((label, i) => out.push({ action: { type: "chooseMode", player: pr.player, index: i }, label: label.length > 90 ? `${label.slice(0, 88)}…` : label }));
@@ -2860,7 +2863,7 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
       break;
     }
     case "chooseMode": {
-      if (pr.kind !== "chooseMode") throw new IllegalAction("no option is being offered");
+      if (pr.kind !== "chooseMode" && pr.kind !== "replaceMove") throw new IllegalAction("no option is being offered");
       if (!Number.isInteger(action.index) || action.index < 0 || action.index >= pr.options.length) throw new IllegalAction("no such option");
       s.lastMode = action.index;
       break;

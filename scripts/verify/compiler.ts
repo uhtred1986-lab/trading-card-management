@@ -1102,9 +1102,10 @@ import type { PlayerId } from "./harness";
   // A rule about other cards keeps its subject rather than the "it" that follows.
   const other = one("[Permanent] When a ≪Saiyan≫ card would leave your Battle Area, you may place it in your Z-Energy instead.");
   assert.deepEqual(other.unsupported, []);
-  const op = other.ops[0] as { op: string; to: string; target: { sel: { area: string; filter?: { traits: string[] } } } };
+  const op = other.ops[0] as { op: string; to: string; optional?: boolean; target: { sel: { area: string; filter?: { traits: string[] } } } };
   assert.equal(op.op, "replaceLeave");
   assert.equal(op.to, "zEnergy");
+  assert.equal(op.optional, true);
   assert.deepEqual(op.target.sel.filter?.traits, ["saiyan"]);
 
   // "By your opponent's skills" is left unread on purpose: `move` knows a

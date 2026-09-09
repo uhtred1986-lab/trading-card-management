@@ -154,6 +154,21 @@ export type KeywordSkill =
 export type Area = "deck" | "hand" | "drop" | "leader" | "battle" | "combo" | "energy" | "life" | "warp" | "unison" | "zDeck" | "zEnergy" | "removed";
 
 export type Mode = "active" | "rest";
+export type MoveReason = "ko" | "effect" | "rule" | "cost" | "play" | "combo" | "damage" | "draw" | "charge";
+
+/** A replacement effect that may change where a card about to leave play goes. */
+export interface ReplacementChoice {
+  source: string;
+  to: Area;
+  mode?: Mode;
+  optional?: boolean;
+}
+
+/** A move route chosen before `move()` begins; null means keep the original route. */
+export interface ReplacementResult {
+  to: Area;
+  mode?: Mode;
+}
 
 /** A physical card in the game. `id` is unique per game ("p1#17"); `cardId` is the catalog id. */
 export interface CardInstance {
@@ -574,6 +589,8 @@ export type Prompt =
   | { kind: "chooseCards"; player: PlayerId; choice: CardChoice }
   /** "Choose one— ・A ・B" (20-2): which printed option is taken. */
   | { kind: "chooseMode"; player: PlayerId; reason: string; options: string[] }
+  /** 9-10: the affected player chooses which replacement, if any, applies. */
+  | { kind: "replaceMove"; player: PlayerId; card: string; reason: string; options: string[] }
   | { kind: "zEnergyFromCombo"; player: PlayerId; candidates: string[] }
   /**
    * An [Auto] skill whose cost the master may decline to pay (9-6-4). Costs

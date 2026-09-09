@@ -27,8 +27,11 @@ import type {
   PlayerId,
   PlayerState,
   Requirement,
+  ReplacementChoice,
+  ReplacementResult,
   Skill,
   SkillKind,
+  MoveReason,
 } from "./types";
 import { other } from "./types";
 
@@ -104,6 +107,8 @@ export interface Replacement {
   by?: "skill" | "ko" | "skillOrKo";
   /** "Add that card to your energy in Rest Mode instead" — the mode it arrives in. */
   mode?: "active" | "rest";
+  /** 9-10-3: the affected player may choose not to apply it. */
+  optional?: boolean;
 }
 
 /**
@@ -121,6 +126,7 @@ function replacementFor(ctx: GameContext, s: GameState, id: string, reason: Move
   for (const e of staticEffects(ctx, s)) {
     if (e.kind !== "replaceLeave" || e.target !== id) continue;
     const r = e.value as Replacement;
+    if (r.optional) continue;
     // "By a skill" means an effect put it out, not a battle or a rule; the
     // longer form adds the KO, which is the one other cause cards name.
     if (r.by === "skill" && reason !== "effect") continue;
@@ -129,6 +135,19 @@ function replacementFor(ctx: GameContext, s: GameState, id: string, reason: Move
     return r;
   }
   return null;
+}
+
+export function replacementChoicesFor(ctx: GameContext, s: GameState, id: string, reason: MoveReason | undefined): ReplacementChoice[] {
+  const out: ReplacementChoice[] = [];
+  for (const e of staticEffects(ctx, s)) {
+    if (e.kind !== "replaceLeave" || e.target !== id) continue;
+    const r = e.value as Replacement;
+    if (r.by === "skill" && reason !== "effect") continue;
+    if (r.by === "ko" && reason !== "ko") continue;
+    if (r.by === "skillOrKo" && reason !== "effect" && reason !== "ko") continue;
+    out.push({ source: e.source, to: r.to, mode: r.mode, optional: r.optional });
+  }
+  return out;
 }
 
 /** What a card counts as, once its skills have had their say (20-1). */
@@ -745,7 +764,7 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
       if (!inPlayNow) continue;
       const dest = op.to === "play" ? "battle" : op.to === "under" ? "drop" : (op.to as Area);
       const targets = op.target ? staticTargets(ctx, s, frame, op.target) : [source];
-      for (const id of targets) out.push({ source, kind: "replaceLeave", target: id, value: { to: dest, by: op.by, mode: op.mode } });
+      for (const id of targets) out.push({ source, kind: "replaceLeave", target: id, value: { to: dest, by: op.by, mode: op.mode, optional: op.optional } });
       continue;
     }
     // "In all areas" again: what a card counts as does not depend on where it is.
@@ -886,7 +905,9 @@ export interface MoveOptions {
   /** Keep mode/markers/effects (3-1-4-1: battle→combo, combo→battle, gaining control). */
   carry?: boolean;
   /** A rule- or effect-caused move whose cause matters for triggers (KO). */
-  reason?: "ko" | "effect" | "rule" | "cost" | "play" | "combo" | "damage" | "draw" | "charge";
+  reason?: MoveReason;
+  /** A caller-decided replacement, or null to suppress replacement lookup entirely. */
+  replaced?: ReplacementResult | null;
 }
 
 /**
@@ -912,11 +933,22 @@ export function move(ctx: GameContext, s: GameState, ev: GameEvent[], id: string
   // what a card *is* — a token, a Z-card — outranks an effect (0-2-5).
   let insteadMode: "active" | "rest" | undefined;
   if (wasInPlay && !goesToPlay && !goesToCombo) {
-    const instead = replacementFor(ctx, s, id, opts.reason);
-    if (instead && instead.to !== to) {
-      note(ev, `${face(ctx, s, id).name} goes to the ${instead.to} instead`);
-      to = instead.to;
-      insteadMode = instead.mode;
+    if ("replaced" in opts) {
+      const instead = opts.replaced;
+      if (instead && instead.to !== to) {
+        note(ev, `${face(ctx, s, id).name} goes to the ${instead.to} instead`);
+        to = instead.to;
+        insteadMode = instead.mode;
+      } else if (instead) {
+        insteadMode = instead.mode;
+      }
+    } else {
+      const instead = replacementFor(ctx, s, id, opts.reason);
+      if (instead && instead.to !== to) {
+        note(ev, `${face(ctx, s, id).name} goes to the ${instead.to} instead`);
+        to = instead.to;
+        insteadMode = instead.mode;
+      }
     }
   }
 

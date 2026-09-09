@@ -588,6 +588,8 @@ function answerFor(s: GameState, prefer: string): Action | null {
       return { type: "orderPending", player: pr.player, index: pr.candidates[0] };
     case "chooseMode":
       return { type: "chooseMode", player: pr.player, index: 0 };
+    case "replaceMove":
+      return { type: "chooseMode", player: pr.player, index: 0 };
     case "zEnergyFromCombo":
       return { type: "zEnergyFromCombo", player: pr.player, card: null };
     case "offering":
