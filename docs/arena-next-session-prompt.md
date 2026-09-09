@@ -3,18 +3,18 @@
 Paste the block below into a fresh session. It is written to be handed over
 without editing; everything it needs to find is in the repo.
 
-Rewritten 9 Sep 2026, after Stage 1 and the first two increments of Stage 2 of
-the rules-language programme merged.
+Rewritten 9 Sep 2026, after Stage 1 and the first three increments of Stage 2
+of the rules-language programme merged.
 
 ---
 
 Continue the arena rules-language programme. The plan the owner approved on
 9 Sep 2026 has ten stages; **Stage 0** (two engines and the switch), **Stage 1**
-(the language, and an editable WHEN) and the **first two increments of Stage 2**
-are merged into `main`. Read, in this order:
+(the language, and an editable WHEN) and the **first three increments of Stage
+2** are merged into `main`. Read, in this order:
 
-1. `docs/arena-rules-worklist.md` — the last four entries are Stages 0, 1 and the
-   two Stage 2 increments, with the numbers and the reasoning. Start at the
+1. `docs/arena-rules-worklist.md` — the last five entries are Stages 0, 1 and the
+   three Stage 2 increments, with the numbers and the reasoning. Start at the
    bottom.
 2. `docs/arena-rules-language.md` — the grammar, the round-trip promise, and
    what Stage 1 deliberately left out.
@@ -26,39 +26,57 @@ branch is `wip/compiler-uncommitted`, which is old — leave it alone.
 
 ## Where the last increment got to
 
-The target grammar is fixed, which was the whole of the second increment.
-"Your opponent's Leader" is now the Leader rather than any card on their table,
-"all other Battle Cards" is both Battle Areas without this one, "energy
-**costs** of 4 or less" narrows again (only the singular was read), a plural
-pronoun is never answered with *this card*, and three qualifiers the grammar
-cannot follow are refused outright. "Negate the skills of X" went back in, with
-the eleven cards printing it listed in the comment above it as the sign-off.
+**"The card on top of this card" is built.** `onTop` is a special target and the
+other half of the `under` area: a pile is one card with everything else beneath
+it (23-2-2), so `hostOf` finds the one answer by asking who holds this card.
+Only the phrase that *ends* in the words is a target — the same words elsewhere
+name a destination and stay refused — and "above this card" is the same
+primitive in other words. "If this card is under a yellow ≪Heroic≫ Battle Card"
+had to be read in the same commit, or the grant fires whatever the card above
+is.
 
-Coverage **fell** — 4,660 fully compiled cards to 4,643 — and that is the
-increment working: 46 of the 52 new gap shapes are wordings that had been
-compiling into something the card does not say.
+The readings diff turned up four filters that compiled and read wrongly and
+they went in too: four measures missing from `narrows` (a name asked for *in
+part*, so BT19-130 chose any Battle Card you had), `describeFilter` printing
+none of those four — the instrument blind to the bug it exists to catch — "in
+**their** character names" read as a player, and "that does not include <X>"
+matched as a positive.
+
+A second commit refuses **the pile under another card** ("from under your
+<Kefla> Battle Card", "from under your Leader Card"): sixty-odd shapes, all
+read into the host today. It is separate on purpose — read the worklist's
+"Measured, ready, and deliberately not shipped" section before touching it.
+
+Fully compiled cards 4,643 → 4,665 with the first commit, → 4,627 with the
+second. 36 shapes left the gap set and none entered it in the first; 60 entered
+it in the second, which is that commit saying out loud what it cannot read.
 
 ## The next piece of work, and why it is first
 
-That increment uncovered one thing it did not fix, and it is the obvious next
-primitive.
+**A refused clause leaves the clauses after it pointing at nothing.** An [Auto]
+seeds the antecedent to the card it is on, so when a clause goes unread the "it"
+or "the chosen cards" after it lands on the card printing the skill. The last
+increment fixed the plural half of this ("them" is never *this card*); the
+singular half cannot be fixed the same way, because "it" after "when this card
+is played" usually *does* mean this card.
 
-**"The card on top of this card."** The engine models `under` and has no way to
-name the card *above*. Eight clause shapes in the gap set say it and fourteen
-[Permanent]s print it — "If this card is under a yellow ≪Heroic≫ Battle Card,
-the card on top of this card gains [Double Strike]" — and every one of them used
-to read as *this card*, the card underneath granting itself the keyword, because
-the phrase satisfies `parseTarget`'s "this card" shortcut. They are honestly
-unread now, and should stay that way until there is a target that means it.
+The fix is for the compiler to know that an *earlier clause in the same skill*
+went unread, and to refuse a back-reference that would resolve to the seeded
+self after one did. Three named casualties to check it against: P-645
+("play 1 {Majin Buu, Unadulterated Destruction} from under your green <Majin
+Buu> card, and **it** gains [Double Strike]"), EX24-32 (its "and if you do"
+wrapper collapses, so the second half happens unconditionally) and P-396 (an
+empty modal option — a mode that silently does nothing, which is arguably the
+whole modal's problem rather than this one's).
 
-It is contained: a `special` target and its `resolveSelector` case in
-`state.ts`, the wordings in `parseTarget`, the glossary's "target grammar"
-entry, and the `on top of` alternative of the refusal guard comes back out.
-Check the stack rules (23-2, 23-3) for what the card on top actually is before
-writing it.
+It is the precondition for every future refusal, which is why it comes before
+the rest of Stage 2: each of the primitives below will refuse something on its
+way in, and each will pay this same cost until it is fixed.
+
+Two cards the second commit leaves reading wrongly if it is reverted: EX25-39
+and EX23-27. Neither is new text; both were wrong and merely unreachable.
 
 Then the rest of Stage 2, below.
-
 ## How to do it safely — this is the part that matters
 
 The failure mode here is not a clause that fails to compile. It is a clause that
@@ -118,6 +136,21 @@ rather than wrong readings: **"choose all Battle Cards"** with no possessive is
 read as your own (BT7-110 — the "other" fix narrowed the both-sides default to
 phrases saying "other", deliberately), and **"original energy cost"** is read as
 the current one.
+
+And three the third increment turned up, all in the *reading* rather than the
+compiling, and all found the same way — by printing a program and failing to
+recognise the card in it:
+
+- **`describeFilter` still prints only some of a filter.** Four `*Including`
+  measures went in; `notColors`, `notCharacters`, `notTraits`, `notNames`,
+  `keywords`, `notKeywords`, `skillKind`, `noKeywords`, `notToken` and
+  `powerRel` are all still silent. A measure the reading cannot print is a
+  measure nobody can sign off, so this is the instrument, not a nicety.
+- **"if undefined … is attacking"** — a literal `undefined` in the reading of
+  the `inBattle` condition (BT17-109, BT18-085). A one-line printing bug.
+- **A modal option that fails to compile leaves an empty branch**, which reads
+  as a mode that silently does nothing (P-396). The whole skill should fail
+  instead.
 
 ## The gate, every commit
 
