@@ -1899,7 +1899,7 @@ export function describeFilter(f: CardFilter): string {
   else if (f.powerMin != null && f.powerMax != null) bits.push(`with power between ${f.powerMin} and ${f.powerMax}`);
   else if (f.powerMax != null) bits.push(`with ${f.powerMax} power or less`);
   else if (f.powerMin != null) bits.push(`with ${f.powerMin} power or more`);
-  if (f.powerRel) bits.push(`with power ${POWER_REL_WORDS[f.powerRel.cmp]} this card's power`);
+  if (f.powerRel) bits.push(`with power ${POWER_REL_WORDS[f.powerRel.cmp]} ${f.powerRel.of === "chosen" ? "the chosen card's" : "this card's"} power`);
   if (f.noKeywords) bits.push("and no keyword skills");
   return bits.join(" ");
 }

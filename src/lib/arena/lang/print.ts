@@ -145,7 +145,9 @@ function printFilterValue(kind: FilterFieldType, v: unknown): string {
       return String(v);
     case "powerRel": {
       const r = v as CardFilter["powerRel"];
-      return r === null ? "null" : `${r.of} ${r.cmp}`;
+      if (r === null) return "null";
+      // "the chosen card's power" (BT19-096) carries which choice it means.
+      return r.of === "chosen" && r.var ? `chosen $${r.var} ${r.cmp}` : `${r.of} ${r.cmp}`;
     }
   }
 }

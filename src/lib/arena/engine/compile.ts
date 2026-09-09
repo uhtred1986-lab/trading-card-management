@@ -3270,6 +3270,13 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
       sel.count ??= 1;
       sel.upTo = true;
     }
+    // "…with power less than or equal to **the chosen card's** power"
+    // (BT19-096): `parseFilter` cannot know which variable that is — only the
+    // compiler does, and only right here, before this clause's own choice
+    // overwrites `c.last` with a new one. Left unresolved (no prior choice to
+    // point at) the filter still measures nothing rather than a card it was
+    // never told about; see the field's comment in `filters.ts`.
+    if (sel.filter?.powerRel?.of === "chosen" && c.last) sel = { ...sel, filter: { ...sel.filter, powerRel: { ...sel.filter.powerRel, var: c.last } } };
     const v = `c${c.n++}`;
     return [{ op: "choose", sel, as: v, reason: clause }];
   }
