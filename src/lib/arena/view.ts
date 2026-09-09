@@ -510,6 +510,15 @@ export function questionFor(ctx: EngineContext, s: GameState): PromptView {
       return { kind: pr.kind, player: pr.player, question: "Send one combo card to Z-Energy?", hint: "At the end of a battle, one card may go there instead of the Drop." };
     case "offering":
       return { kind: pr.kind, player: pr.player, question: "[Offering]: drop one life, or let them draw two?", hint: null };
+    case "empowerCarry":
+      return {
+        kind: pr.kind,
+        player: pr.player,
+        question: `[Empower]: carry up to ${pr.max} marker${pr.max === 1 ? "" : "s"} from ${nameOf(pr.from)} to ${nameOf(pr.card)}?`,
+        hint: "You may carry fewer than the maximum, or none at all (22-45-3).",
+        min: 0,
+        max: pr.max,
+      };
     case "optionalCost":
       return withStep({
         kind: pr.kind,

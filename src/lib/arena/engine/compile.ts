@@ -2728,16 +2728,19 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // is reduced by N"; and "decrease" as a plain synonym for "reduce". "Cost
   // **on** X" stands beside "cost **of** X" (BT24-139, BT28-148), and the
   // bare "the cost of X" with no "energy"/"combo" word defaults to energy,
-  // same as an unqualified specified cost does everywhere else. Left alone on
-  // purpose: a *skill's* cost ("the skill cost of …", "the activation cost of
-  // …'s [Counter] skill") is a different number `playCost` computes with no
-  // hook to lower (`orbTotals`, `engine.ts:882`), and a *specified* cost mixes
-  // colour and total in a way the owner has not ruled on — both fail the
-  // match here because neither spells the noun as bare "cost"/"costs", which
-  // is deliberate: see `glossary.ts`. A Z-Energy cost **does** spell it that
-  // way and is read below: `zEnergyCostOf` is the hook `d.zEnergyCost` never
-  // had, and the five call sites that used to read the field raw now go
-  // through it (`state.ts`).
+  // same as a bare "cost" does everywhere else. Left alone on purpose: a
+  // *skill's* cost ("the skill cost of …", "the activation cost of …'s
+  // [Counter] skill") is a different number `playCost` computes with no hook
+  // to lower (`orbTotals`, `engine.ts:882`) — it fails the match here because
+  // it does not spell the noun as bare "cost"/"costs", which is deliberate:
+  // see `glossary.ts`. A Z-Energy cost **does** spell it that way and is read
+  // below: `zEnergyCostOf` is the hook `d.zEnergyCost` never had, and the
+  // five call sites that used to read the field raw now go through it
+  // (`state.ts`). A **specified** cost also fails this match — it never
+  // spells the noun bare either, always with "specified" in front — and is
+  // read by its own pair of clauses just below instead, now that the owner
+  // has ruled on what it means (BT19-039, 9 Sep 2026): unlike this generic
+  // reducer, it changes only which colours are demanded, never the total.
   let qq = q;
   let possessive: RegExpExecArray | null;
   if ((possessive = /^(reduce|increase|decrease) (this card|that card|its|their)'?s? ((?:energy|combo|z-energy) )?costs?(?: in (?:your|their) (?:hand|z-deck))? by (.+)$/.exec(qq))) {
@@ -2764,6 +2767,57 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     const orbs = /^\d+$/.test(m[2]) ? null : orbsIn(m[2]);
     const flat = sign * (orbs ? Object.values(orbs).reduce<number>((sum, n) => sum + (n ?? 0), 0) : Number(m[2]));
     return [{ op: "costReduction", target: c.lastTarget, amount: flat, what: "zEnergy" as const, until: durationOf(clause) }];
+  }
+  // "Reduce/increase the specified cost of X by {u}" (BT19-039, BT19-040,
+  // BT15-063, BT20-118, P-673, P-600) and its bare continuation "reduce the
+  // specified cost by {y}" (P-733): the noun the general reducer above
+  // deliberately does not spell as bare "cost" (see the comment above it, and
+  // `glossary.ts`) now has an owner's ruling to read it by — BT19-039, 9 Sep
+  // 2026, validated against 13-2-1-3/20-21-2: this relaxes or tightens only
+  // which colours are demanded, never the total (the total is what the
+  // player chooses for an X cost, or what is printed for a fixed one), so it
+  // is kept apart as `what: "specified"` rather than folded into the flat
+  // reducer. Always printed as orbs, never a bare number — there is no total
+  // for an unqualified count to come off, only colours to name — so a
+  // specified-cost sentence with no orb notation stays unread rather than
+  // guessing which colour was meant.
+  //
+  // Three of the nine cards printing this shape stay unread regardless of
+  // this pair, for reasons this pair does not touch:
+  // - BT27-002's "reduce **its** specified cost by {r}" names a Z-Unison a
+  //   "the next time you play a red Z-Unison with an [Empower] skill from
+  //   your Z-Deck" clause bound — a per-future-play reference no `delay` here
+  //   models (see the "next time you play" note further down); "its" is left
+  //   unnormalised into "the specified cost of it" for that reason, not
+  //   compiled and then misapplied to the wrong card.
+  // - P-733's "reduce the specified cost by {y}" sits inside "when you would
+  //   play a Unison with [Empower] from your hand" — a replacement on a
+  //   hypothetical future play, which nothing in this compiler models either.
+  // - BT22-104's "reduce the specified cost of a {Devilmite Beam} in your
+  //   Z-Deck by {y}" would compile through this pair on its own (checked by
+  //   hand: `refFor` resolves the named Z-Deck target fine) but never reaches
+  //   it — it hangs on "if the revealed card's energy cost is the same as
+  //   **the declared number**", a back-reference to an earlier "Declare 1
+  //   number" clause this compiler cannot read, and an unread "if" refuses
+  //   every clause it governs (see the `if`/`while`/`unless` refusal further
+  //   down) rather than compiling the "then" half in a vacuum.
+  if ((m = /^(reduce|increase|decrease) the specified costs? (?:of|on) (.+?) by ((?:\{[rugykbw]\})+)$/.exec(qq))) {
+    const sign = m[1] === "increase" ? -1 : 1;
+    const ref = refFor(m[2], c);
+    if (!ref || (c.stale && ref === c.stale)) return null;
+    const colors = orbsToList(orbsIn(m[3]));
+    if (!colors.length) return null;
+    return [{ op: "costReduction", target: ref, amount: sign * colors.length, what: "specified" as const, colors, until: durationOf(clause) }];
+  }
+  if (
+    (m = /^(reduce|increase|decrease) the specified costs? by ((?:\{[rugykbw]\})+)$/.exec(qq)) &&
+    c.lastTarget &&
+    !(c.stale && c.lastTarget === c.stale)
+  ) {
+    const sign = m[1] === "increase" ? -1 : 1;
+    const colors = orbsToList(orbsIn(m[2]));
+    if (!colors.length) return null;
+    return [{ op: "costReduction", target: c.lastTarget, amount: sign * colors.length, what: "specified" as const, colors, until: durationOf(clause) }];
   }
   // "Reduce the energy cost and Z-Energy cost of X … by N" (BT22-085,
   // P-476b): one amount named for two costs at once, so it has to become two

@@ -592,6 +592,13 @@ function answerFor(s: GameState, prefer: string): Action | null {
       return { type: "zEnergyFromCombo", player: pr.player, card: null };
     case "offering":
       return { type: "offering", player: pr.player, dropLife: false };
+    // 22-45-3: the probe takes the maximum carry, the same reading the
+    // engine gave every [Empower] before the choice existed — the most
+    // informative answer for showing the interaction with a card's own
+    // marker-counting skills, and never the wrong one to offer since "up to
+    // Y" always permits it.
+    case "empowerCarry":
+      return { type: "empowerCarry", player: pr.player, amount: pr.max };
     case "chooseCards": {
       const ch = pr.choice;
       const order = ch.candidates.includes(prefer) ? [prefer, ...ch.candidates.filter((id) => id !== prefer)] : ch.candidates;

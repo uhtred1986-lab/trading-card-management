@@ -15,7 +15,7 @@
  */
 import { FORBIDDEN_IN_WORDS, describeFilter } from "./engine/script";
 import type { StaticEffect } from "./engine/state";
-import type { ContinuousEffect, EffectUntil, Immunity, KeywordSkill, Permission, PlayerId, Prohibition, SkillKindPrefix } from "./engine/types";
+import type { Color, ContinuousEffect, EffectUntil, Immunity, KeywordSkill, Permission, PlayerId, Prohibition, SkillKindPrefix } from "./engine/types";
 
 export type EffectKind = "power" | "comboPower" | "keyword" | "negate" | "forbid" | "permit" | "cost" | "other";
 
@@ -70,6 +70,18 @@ export function keywordName(k: KeywordSkill): string {
 const KIND_WORDS: Record<SkillKindPrefix, string> = { auto: "Auto", activate: "Activate", counter: "Counter", permanent: "Permanent" };
 
 const signed = (n: number) => `${n >= 0 ? "+" : ""}${n.toLocaleString("en")}`;
+
+/**
+ * `specifiedCost`'s label (9-9/20-21, owner's ruling on BT19-039, 9 Sep
+ * 2026): unlike a flat cost reducer this names colours, not a total, so the
+ * label does too — "specified cost 1 blue less" rather than "costs 1 less".
+ */
+function specifiedCostLabel(v: { colors: (Color | "any")[]; sign: 1 | -1 }): string {
+  const counts = new Map<string, number>();
+  for (const c of v.colors) counts.set(c, (counts.get(c) ?? 0) + 1);
+  const orbs = [...counts.entries()].map(([c, n]) => `${n} ${c === "any" ? "energy" : c.toLowerCase()}`).join(", ");
+  return `specified cost ${orbs} ${v.sign === 1 ? "less" : "more"}`;
+}
 
 function forbidLabel(f: Prohibition): string {
   const what = FORBIDDEN_IN_WORDS[f.what];
@@ -130,6 +142,8 @@ export function describeEffect(e: ContinuousEffect): Pick<EffectView, "kind" | "
       const n = e.value as number;
       return { kind: "cost", label: n < 0 ? `Z-Energy cost ${-n} more` : `Z-Energy cost ${n} less` };
     }
+    case "specifiedCost":
+      return { kind: "cost", label: specifiedCostLabel(e.value as { colors: (Color | "any")[]; sign: 1 | -1 }) };
   }
 }
 
@@ -156,6 +170,8 @@ export function describeStatic(e: StaticEffect): Pick<EffectView, "kind" | "labe
       const n = e.value as number;
       return { kind: "cost", label: n < 0 ? `Z-Energy cost ${-n} more` : `Z-Energy cost ${n} less` };
     }
+    case "specifiedCost":
+      return { kind: "cost", label: specifiedCostLabel(e.value as { colors: (Color | "any")[]; sign: 1 | -1 }) };
     case "negateKeyword":
       return { kind: "negate", label: `[${e.value as string}] negated` };
     case "forbid":
