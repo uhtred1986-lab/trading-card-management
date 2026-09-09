@@ -111,8 +111,11 @@ export interface Replacement {
  *
  * 9-10-2 gives the choice to the affected player when several replacements
  * apply at once. Two on the same card is rare enough that the first one wins
- * here and the log says which; when that turns up in a real game it is one
- * prompt away.
+ * here and the log says which. Turning that into a real prompt is not one
+ * prompt away: `move()` is synchronous with no suspension path, and by the
+ * time this function's caller could know a choice is needed the card may
+ * already be mid-move — see `docs/arena-move-replacement-scope.md` for what
+ * a fix costs and where it stops.
  */
 function replacementFor(ctx: GameContext, s: GameState, id: string, reason: MoveOptions["reason"]): Replacement | null {
   for (const e of staticEffects(ctx, s)) {
