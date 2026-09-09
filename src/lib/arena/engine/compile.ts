@@ -538,7 +538,12 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
     t = phrase.toLowerCase();
   }
   // "this card's power" inside a phrase is a measure, not the target.
-  if (/\bthis card\b(?!'s)/.test(t) && !/\bother\b/.test(t)) return { special: "self" };
+  // "…**except for** this card" is "other than this card" said the other way,
+  // and reading it as a mention rather than an exclusion sent the phrase down
+  // this shortcut: BT1-086's "place all Rest Mode Battle Cards except for this
+  // card in the Drop Area" came back as *self*, so the card dropped itself and
+  // left every card it was aimed at standing.
+  if (/\bthis card\b(?!'s)/.test(t) && !/\bother\b|\bexcept\b/.test(t)) return { special: "self" };
   if (/\bthe attack(?:ing)? card\b/.test(t)) return { special: "attacker" };
   if (/\bthe guard card\b/.test(t)) return { special: "guard" };
   // "Your opponent's Leader", "your Leader Card": a player has exactly one
@@ -625,7 +630,16 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
   // wrong is the one to leave standing (ground rule 5). The phrase still
   // carries the verb that chose the cards, so this cannot anchor to the front.
   const sweep = /\ball\s+(?!in\b|of\b|the following\b)[a-z]/.test(t) || /\bin all battle areas\b/.test(t);
-  if ((otherAdj || sweep) && !/\byour\b|\btheir\b|\bopponent\b|\byou control\b/.test(t)) side = "both";
+  // A possessive inside the exclusion belongs to the card being ruled *out*,
+  // not to the cards being chosen: TB1-015's "all Battle Cards with 25000 or
+  // less power other than this card **or your <Caulifla>**" sweeps both boards
+  // and spares one of yours, so the "your" in it must not hold the sweep to
+  // your own side.
+  const chosen = t.replace(
+    /\b(?:other than|except for) (?:copies of )?(?:this card|it)?(?:\s*(?:,|and\/or|and|or)\s*)?(?:(?:your |their |its owner's )?(?:<[^>]+>|≪[^≫]+≫|\{[^}]+\})(?:\s*(?:,|and\/or|and|or)\s*)?)*/g,
+    " ",
+  );
+  if ((otherAdj || sweep) && !/\byour\b|\btheir\b|\bopponent\b|\byou control\b/.test(chosen)) side = "both";
 
   // "Your opponent's Battle Cards or Unisons" names two areas at once, which
   // is the one such phrase the game prints often enough to be worth reading.
@@ -725,7 +739,7 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
   // "Choose all Battle Cards **other than this card**" — the card the phrase
   // rules out. Read as nothing it stayed among the candidates, so a clause
   // that shrank every Battle Card shrank this one too.
-  const excluded = /\bother than (copies of )?this card\b/.exec(t);
+  const excluded = /\b(?:other than|except for) (copies of )?this card\b/.exec(t);
   const notSelf = excluded ? (excluded[1] ? "copies" : "card") : otherAdj ? "card" : undefined;
   const filter = filterFor(phrase, area);
   // A description the parser could not read is not a target: the clause fails
@@ -1102,7 +1116,10 @@ function refFor(clause: string, c: Ctx): Ref | null {
   //   Clan≫ card among them other than copies of this card" played this card.
   //   The wording is matched whole rather than by a bare "other", so "you
   //   can't play this card from any area with skills other than [Revive
-  //   Blue/Green]" still means this card.
+  //   Blue/Green]" still means this card. "**Except for** this card" is the
+  //   same exclusion said the other way, and reading it as a mention rather
+  //   than an exclusion is what made BT1-086's "place all Rest Mode Battle
+  //   Cards except for this card in the Drop Area" drop the card printing it.
   // - "this card's **power**" in a trailing measure describes some *other*
   //   card: "return 1 of your opponent's Battle Cards with power less than or
   //   equal to this card's power to their hand" returned this card. Only in
@@ -1110,7 +1127,7 @@ function refFor(clause: string, c: Ctx): Ref | null {
   //   and "you can activate **this card's** [Activate: Battle]" are about this
   //   one — which is the same head/tail distinction the pronoun test below
   //   makes, for the same reason.
-  const mentions = named.replace(/\bother than (?:copies of )?this card\b/gi, " ");
+  const mentions = named.replace(/\b(?:other than|except for) (?:copies of )?this card\b/gi, " ");
   if (/\bthis card\b(?!'s)/i.test(mentions) || /\bthis card's\b/i.test(headOf(mentions))) return { sel: { special: "self" } };
   // "…play up to 1 card from under this card, and place this card under the
   // played card": the card this skill just played, if it played one; otherwise
