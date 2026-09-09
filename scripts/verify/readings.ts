@@ -544,12 +544,7 @@ import {
   const may = find(s, "p1", "battle", "MAYWARP");
   const plain = s.players.p1.battle.find((id) => id !== may)!;
   s = play(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
-  s = play(
-    s,
-    { type: "play", player: "p2", card: find(s, "p2", "hand", "TWOKILL") },
-    { type: "choose", player: "p2", cards: [may] },
-    { type: "choose", player: "p2", cards: [plain] },
-  );
+  s = play(s, { type: "play", player: "p2", card: find(s, "p2", "hand", "TWOKILL") });
   assert.equal(s.prompt.kind, "replaceMove");
   s = play(s, { type: "chooseMode", player: "p1", index: 1 });
   assert.ok(s.players.p1.drop.includes(may), "the prompted card still follows the answer");
