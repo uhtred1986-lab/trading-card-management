@@ -31,6 +31,7 @@ import {
   schedule,
   setMode,
   tokenCardId,
+  type AltCost,
   type GameContext,
 } from "./state";
 import { koCard, masterOf, pendTriggers } from "./triggers";
@@ -302,12 +303,33 @@ export type Op =
    */
   | { op: "replaceLeave"; to: ScriptArea; by?: "skill" | "ko" | "skillOrKo"; mode?: "active" | "rest"; target?: Ref }
   /**
-   * Another way to pay for this card's own [Counter] skill (5-3): for nothing,
-   * or by adding cards from your life to your hand. Read from the hand, like
-   * a cost reducer, because that is where the skill says it applies.
+   * Another way to pay for a card's own [Counter] skill (5-3): for nothing, by
+   * adding cards from your life to your hand, by a reduced energy price
+   * (`orbs`), or by an action price (`ops`). Read from the hand, like a cost
+   * reducer, because that is where the skill says it applies.
+   *
+   * Printed on the card itself this is `[Permanent]`-only and about that card
+   * (no `target`, no `until` — see `collectStatics`). A card can also grant it
+   * to *other* cards for a stated span — "Until the start of your next turn,
+   * you can activate mono-blue cards with [Counter] skills from your hand by
+   * …" (BT11-033) — which is what `target` and `until` are for: read off a
+   * live `Ref` and expiring like any other continuous effect, rather than
+   * defaulting to the source card and holding forever.
    */
-  /** `ops` is the price to run, for `pay: "program"` — an action the card asks for instead of the energy cost (5-3). */
-  | { op: "altCost"; pay: "none" | "life" | "program"; n?: number; for?: "counter" | "play"; ops?: Op[] }
+  | {
+      op: "altCost";
+      pay: "none" | "life" | "program" | "energy";
+      n?: number;
+      for?: "counter" | "play";
+      /** The price to run, for `pay: "program"` — an action the card asks for instead of the energy cost (5-3). */
+      ops?: Op[];
+      /** The reduced energy price, one entry per orb, for `pay: "energy"` — "by paying {1}" is `["any"]` (BT18-088). */
+      orbs?: (Color | "any")[];
+      /** Omit for "this card"; a filter offers the alternative to other cards it names. */
+      target?: Ref;
+      /** Omit only for the permanent, self-only form printed as [Permanent]. */
+      until?: Duration;
+    }
   /**
    * What a [Counter: Play] does to the card it is answering (9-6). `instead`
    * stops the play outright and sends the card there rather than into play;
@@ -1028,10 +1050,23 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
       case "negateKeyword":
       case "gains":
       case "replaceLeave":
-      case "altCost":
         // Continuous by nature: read by `playCost` and by the counter window,
         // not applied here.
         break;
+
+      // The card's own offer about itself (no `until`) is [Permanent]-only
+      // and never reaches `exec` at all — `collectStatics` reads it instead,
+      // because a [Permanent] never resolves. Reaching this case means the
+      // card is granting the alternative to *other* cards for a span
+      // (BT11-033), so it is applied the way any other timed continuous
+      // effect is, on the cards the selector names right now.
+      case "altCost": {
+        if (!op.until) break;
+        const value: AltCost = { pay: op.pay, n: op.n ?? 1, for: op.for ?? "counter", ...(op.ops ? { ops: op.ops } : {}), ...(op.orbs ? { orbs: op.orbs } : {}) };
+        for (const id of resolveRef(ctx, s, frame, op.target ?? { sel: { special: "self" } }))
+          addEffect(s, ev, { master: frame.master, source: frame.card, target: id, kind: "altCost", value: 0, until: op.until, altCost: value });
+        break;
+      }
 
       case "resolvingPlay": {
         const card = s.resolving?.card;
@@ -1424,13 +1459,30 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     doc: '[Permanent] only (9-10): "if this card would be KO\'d, send it to the Warp instead". "by" is which departure it replaces: omitted = any, "skill" = removed by an effect, "ko" = the KO, "skillOrKo" = either. Omit "target" for this card',
   },
   altCost: {
-    fields: [{ name: "pay", type: { enum: ["none", "life", "program"] }, required: true }, { name: "n", type: "number" }, { name: "for", type: { enum: ["counter", "play"] }, default: "counter" }, { name: "ops", type: "ops" }],
+    fields: [
+      { name: "pay", type: { enum: ["none", "life", "program", "energy"] }, required: true },
+      { name: "n", type: "number" },
+      { name: "for", type: { enum: ["counter", "play"] }, default: "counter" },
+      { name: "ops", type: "ops" },
+      { name: "orbs", type: { list: { enum: ["any", ...COLORS] } } },
+      SELF,
+      { name: "until", type: "duration" },
+    ],
     sentence: (raw, r) => {
       const op = raw as OpOf<"altCost">;
-      const price = op.pay === "none" ? "for no energy" : op.pay === "program" ? `by: ${describeScript(op.ops ?? [], r)}` : `by adding ${op.n ?? 1} from your life to your hand`;
-      return `${op.for === "play" ? "it may be played" : "its [Counter] may be activated"} ${price}`;
+      const price =
+        op.pay === "none"
+          ? "for no energy"
+          : op.pay === "program"
+            ? `by: ${describeScript(op.ops ?? [], r)}`
+            : op.pay === "energy"
+              ? `for ${(op.orbs ?? []).map((o) => (o === "any" ? "{any}" : `{${o}}`)).join("")}`
+              : `by adding ${op.n ?? 1} from your life to your hand`;
+      const who = op.target ? describeRef(op.target) : "this card";
+      const until = op.until ? ` until ${op.until === "game" ? "the game ends" : op.until}` : "";
+      return `${op.for === "play" ? `${who} may be played` : `${who}'s [Counter] may be activated`} ${price}${until}`;
     },
-    doc: '[Permanent] only: another way to pay for this card\'s own [Counter] (5-3) — "none", by "life" (n cards), or a "program" the card asks for instead of energy',
+    doc: 'another way to pay for a [Counter] (or a play, "for":"play") (5-3) — "none", "life" (n cards), a reduced "energy" price ("orbs"), or a "program" the card asks for instead. Printed on the card itself this is [Permanent]-only and omits "target"/"until"; a card that grants it to *other* cards for a span carries both — "Until the start of your next turn, you can activate mono-blue cards with [Counter] skills from your hand by …" (BT11-033)',
   },
   resolvingPlay: {
     fields: [{ name: "instead", type: "area" }, { name: "position", type: POSITION }, { name: "mode", type: { enum: ["rest"] } }, { name: "negated", type: "boolean" }],

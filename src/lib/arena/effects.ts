@@ -122,6 +122,10 @@ export function describeEffect(e: ContinuousEffect): Pick<EffectView, "kind" | "
       const n = e.value as number;
       return { kind: "cost", label: n < 0 ? `combo costs ${-n} more` : `combo costs ${n} less` };
     }
+    // Granted to other cards for a span (BT11-033) — see `describeStatic`'s
+    // own `case "altCost"` for the card's [Permanent] offer about itself.
+    case "altCost":
+      return { kind: "cost", label: "another way to pay" };
   }
 }
 
