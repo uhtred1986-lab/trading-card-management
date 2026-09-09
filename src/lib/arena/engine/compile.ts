@@ -2311,7 +2311,19 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   }
 
   // ("You can" has already been stripped from the front of `t`.)
-  if (/^activate this card's \[counter[^\]]*\](?: skill)? from your hand /.test(t)) return counterAltCost(t, c);
+  //
+  // Reached only when the whole-sentence read above failed, which means this
+  // clause is a *piece* of the offer rather than all of it. A waiver and a
+  // price out of your life are each said in one clause and survive that
+  // intact; a price that is a program cannot, because the split is what took
+  // the rest of it away — "by choosing 2 other cards in your hand" arrives
+  // here with "and discarding them" already gone, and reading it would offer
+  // the [Counter] for a choice that costs nothing. Refusing leaves the skill
+  // to the referee with its price whole in the text (ground rule 5).
+  if (/^activate this card's \[counter[^\]]*\](?: skill)? from your hand /.test(t)) {
+    const alt = counterAltCost(t, c);
+    return alt?.every((o) => o.op !== "altCost" || o.pay !== "program") ? alt : null;
+  }
 
   // Cost reduction on a [Permanent] skill (9-1-3-3, 20-21). The amount is
   // printed either as a number or as the orbs it takes off — "by {r}" is one
@@ -3142,14 +3154,46 @@ function compileSkillText(skill: Skill): Script {
   // energy cost **by choosing 1 other black card in your hand and placing it
   // in your Drop Area**". Splitting it first hands the price's second half to
   // the clause list as an orphan, so the whole sentence is read before that.
-  const permission = counterAltCost(
-    text
-      .toLowerCase()
-      .trim()
-      .replace(/^you (?:can|may)\s+/, ""),
-    c,
-  );
-  if (permission) return { ops: permission, unsupported: [] };
+  //
+  // Ten of the eleven cards that print such a price open with a condition of
+  // their own — "**If all of your energy is mono-red,** you can activate this
+  // card's [Counter] skill from your hand without paying its energy cost by
+  // choosing 2 other cards in your hand **and discarding them**" — and this
+  // read only stripped "you can". So it never fired for any of them, the
+  // sentence went to the clause list after all, and the half of the price
+  // after the "and" was orphaned exactly as the comment above says it must not
+  // be: the [Counter] was offered for a choice that cost nothing. The
+  // condition comes off first and goes back on around the permission, the way
+  // the two-sentence form below already does it.
+  const said = text.toLowerCase().trim();
+  const opener = /^if (.+?),\s*(?=you (?:can|may)\s)/.exec(said);
+  const permission = counterAltCost(said.slice(opener?.[0].length ?? 0).replace(/^you (?:can|may)\s+/, ""), c);
+  // Only a *program* price needs the opener taken off. A waiver and a price
+    // out of your life are each said in one clause, so the clause list reads
+    // them and their conditions exactly as it always did — and it reads some
+    // of those conditions better than this does. BT19-092's "if your Leader is
+    // a green <Gogeta: Br> card **and** at least 1 <Son Goku: Br> card and 1
+    // <Vegeta: Br> card are in your Z-Energy" defeats `allConditions`, which
+    // falls back to reading the whole as one condition and gets a Leader
+    // answering to three names with nothing asked of the Z-Energy — wider than
+    // the card, where the clause list was merely narrower.
+  if (permission && (!opener || permission.some((o) => o.op === "altCost" && o.pay === "program"))) {
+    if (!opener) return { ops: permission, unsupported: [] };
+    // Read through `allConditions`, never `parseConditionClause`: these
+    // openers state two and three requirements at once — "if your Leader is a
+    // yellow <Son Gohan: Youth> card, your life is at 4 or less, **and** you
+    // have a yellow ≪Great Ape≫ <Son Gohan: Youth> card in play" — and a
+    // single-condition read keeps the first and the last and drops what is
+    // between them. Each one is its own `if`, which is what the clause list
+    // already made of these sentences before this read existed.
+    //
+    // A condition that cannot be read must refuse the permission rather than
+    // come off in front of it: a price waived on fewer terms than the card
+    // states is a wider offer than the card makes (ground rule 5).
+    const conds = allConditions(opener[1]);
+    if (!conds) return { ops: [], unsupported: [opener[1]] };
+    return { ops: conds.reduceRight<Op[]>((then, { cond }) => [{ op: "if", cond, then }], permission), unsupported: [] };
+  }
   // The same offer told over two sentences (BT4-070, BT4-097): the price
   // first, as something you may do at the moment the [Counter] is activated,
   // and the waiver second, hanging on "if you do so". Read clause by clause it
