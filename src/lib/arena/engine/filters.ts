@@ -203,7 +203,13 @@ export function parseFilter(text: string): CardFilter {
   // "…without <Turles> in their character names". Read before the exact loops
   // below and taken out of the text, so a token the phrase governs cannot also
   // be claimed as a whole name. See `charactersIncluding`.
-  t = t.replace(/(without\s+|non-)?(<[^>]+>|\{[^}]+\})\s+in (?:its|their) (character|card) names?/gi, (_whole, neg: string | undefined, token: string, which: string) => {
+  // The negation is written three ways and only two were read: BT21-040 prints
+  // "your opponent's Battle Cards **that does not include** <Son Goku: GT> in
+  // its character name", and matched as a positive it named the one card the
+  // sentence rules out. Until 9 Sep 2026 nothing noticed, because the measure
+  // was thrown away before it reached a selector (see `narrows` in
+  // `compile.ts`) — the filter was wrong and the selector had none at all.
+  t = t.replace(/(without\s+|non-|(?:that |which )?does\s?n'?o?t include\s+)?(<[^>]+>|\{[^}]+\})\s+in (?:its|their) (character|card) names?/gi, (_whole, neg: string | undefined, token: string, which: string) => {
     const value = token.slice(1, -1).trim();
     const character = which.toLowerCase() === "character";
     if (neg) (character ? f.notCharactersIncluding : f.notNamesIncluding).push(value);

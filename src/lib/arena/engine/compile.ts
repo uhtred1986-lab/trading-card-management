@@ -413,21 +413,59 @@ const ALL_AREAS_RE = /\bin all (?:of )?(your |their |its owner's )?areas\b/;
  */
 export function parseTarget(phrase: string, looked?: string): Selector | null {
   let t = phrase.toLowerCase();
-  // Qualifiers this grammar does not read, and cannot afford to drop. Each of
-  // them narrows a phrase to a handful of cards by their *history* rather than
-  // by anything a selector can describe — which cards this very skill moved,
-  // where a card sits in a stack — and every rule below would quietly hand
-  // back the whole area instead:
-  //
-  // - "negate the skills of all cards **sent to Warps by this skill**"
-  //   (EX21-15, BT13-096) → every card in the Warp, both of them permanent;
-  // - "negate the skills of Battle Cards **on top of this card**" (BT23-070) →
-  //   read as *this card*, because "on top of this card" says "this card" and
-  //   the shortcut below asks no more than that.
+  // Qualifiers this grammar does not read, and cannot afford to drop: they
+  // narrow a phrase to a handful of cards by their *history* — which cards
+  // this very skill moved — rather than by anything a selector can describe,
+  // and every rule below would quietly hand back the whole area instead.
+  // "Negate the skills of all cards **sent to Warps by this skill**" (EX21-15,
+  // BT13-096) is every card in the Warp, both of them permanent.
   //
   // Refusing is ground rule 5: the clause goes to the referee, which is what
   // the card needs anyway.
-  if (/\bby this skill\b|\bsent to\b|\bon top of\b/.test(t)) return null;
+  if (/\bby this skill\b|\bsent to\b/.test(t)) return null;
+  // "The card on top of this card" (23-2), and the descriptions that name it:
+  // "the <Majin Buu> on top of this card", "the Leader on top of this card",
+  // "Battle Cards on top of this card". A pile is one card with everything
+  // else beneath it, so this names exactly one card and `onTop` is it.
+  //
+  // Only the phrase that *ends* there is read. Every other use of the words is
+  // a destination — "play up to 1 green <Piccolo> card with an energy cost of
+  // 4 **on top of this card** from your deck" — where the same reading would
+  // point the search at the card above instead of naming where the card goes,
+  // and those stay refused with the history phrases above. That is why the
+  // guard was written whole in the first place; this is the half of it that
+  // has a target to be read into.
+  // "The card **above** this card" is the same card in other words (BT20-017,
+  // BT20-019, BT20-091, BT20-092), and read as *this card* until 9 Sep 2026 by
+  // the same shortcut — BT20-091 gave itself the [Barrier] it grants upward.
+  const onTop = /^(?:(?:the|a|an|each|all|any)\s+)?(.*?)\s*(?:on top of|above) this card$/i.exec(phrase.trim());
+  if (onTop) {
+    // What comes before the words has to be a *description* and nothing more.
+    // BT21-032 prints "choose up to 1 of your opponent's Battle Cards with
+    // power less than or equal to the card on top of this card, then KO it":
+    // the phrase ends in these words while naming an opponent's card measured
+    // against the one above, and read whole it KO'd the card on top — your own
+    // <Son Goku>. A comparison or a second owner means the words are a measure
+    // inside a longer phrase, not the head of it, and the clause goes to the
+    // referee (ground rule 5).
+    if (/\bthan\b|\bequal to\b|\bopponent|\bof (?:your|their)\b|\bup to \d/.test(onTop[1])) return null;
+    const above = filterFor(onTop[1] || "card", null);
+    return above === null ? null : { special: "onTop", filter: above };
+  }
+  if (/\bon top of\b/.test(t)) return null;
+  // The pile under a card is an area this grammar can name only when the card
+  // is *this* one, which `underHost` below reads. Any other host — "use up to
+  // 1 card **from under your <Kefla> Battle Card** in a combo" (EX25-39),
+  // "play up to 1 <X> card **from under your Leader Card**" — has no selector
+  // to stand for it, and the words naming the host were read as the target
+  // instead: `AREA_WORDS` took the "battle" out of "your <Kefla> Battle Card"
+  // and the description off the host, so EX25-39 combo'd the <Kefla> itself
+  // rather than a card beneath it, and the Leader wordings chose the Leader.
+  // Sixty-odd clause shapes say this, all of them refused here rather than
+  // read into the wrong card (ground rule 5); naming the pile under a card
+  // other than this one is its own primitive and is not built.
+  if (/\bunder\b/.test(t) && !/\bunder (?:this card|it)\b/.test(t)) return null;
+  // "Each non-Leader card under this card" is about the stack; the "this card"
   // "Each non-Leader card under this card" is about the stack; the "this card"
   // in it names the host, not the target (23-2). Read before the shortcut
   // below, which took the whole phrase for the card on top.
@@ -495,7 +533,13 @@ export function parseTarget(phrase: string, looked?: string): Selector | null {
   // returned it — the wrong-effect failure ground rule 1 is about, and the
   // opposite of what the card says. Only the attributive form is read that
   // way: a bare "an opponent discards a card" is a player, not a card.
-  if (/\bopponent'?s\b|\byour opponent\b|\btheir\b/.test(t)) side = "opponent";
+  // "Choose all of **your** Battle Cards with <Son Goku> in **their**
+  // character names": the possessive in the tail belongs to the *cards*, not
+  // to a player, and reading it as a player handed sixteen skills the
+  // opponent's board — BT22-086 giving +5000 power to the cards it was meant
+  // to be fighting. The phrase says whose cards these are once, at the front.
+  const owner = t.replace(/\bin their (?:character names|card names|special traits)\b/g, " ");
+  if (/\bopponent'?s\b|\byour opponent\b|\btheir\b/.test(owner)) side = "opponent";
   else if (/\bopponent (?:rest mode |active mode |skill-less )?(?:battle|unison|extra|leader|z-battle|z-extra)s?\b/.test(t)) side = "opponent";
   if (/\ball players\b|\beach player\b|\bboth players\b/.test(t)) side = "both";
   // "Choose **all other** Battle Cards" names no owner, and a card that names
@@ -746,6 +790,17 @@ function filterFor(phrase: string, area: ScriptArea | null): CardFilter | null |
     f.notNames.length > 0 ||
     f.token ||
     f.notToken ||
+    // A name asked for *in part* is a measure like any other, and these four
+    // were the next ones added without being listed — so a description whose
+    // only measure was one of them threw the whole filter away. "Choose up to
+    // 1 of your Battle Cards **with <Son Gohan> in its character name**"
+    // (BT19-130) chose any Battle Card you had: the type word is noise in the
+    // Battle Area and is struck out above, which left nothing on this list at
+    // all. `parseFilter` had read the name the whole time.
+    f.charactersIncluding.length > 0 ||
+    f.notCharactersIncluding.length > 0 ||
+    f.namesIncluding.length > 0 ||
+    f.notNamesIncluding.length > 0 ||
     f.faceUp;
   if (!narrows) return undefined;
   return f;
@@ -919,7 +974,11 @@ function refFor(clause: string, c: Ctx): Ref | null {
   // "Play up to 1 red ≪Universe 7≫ card from **under this card**" — here
   // "this card" says where to look, or where the card goes, not which card is
   // meant. Taken as the target it played this card instead (23-2).
-  const named = clause.replace(/\b(?:from |place )?(?:under|on top of|beneath) this card\b/gi, "");
+  // "Above this card" is struck out with the rest of them, or the "this card"
+  // inside it answers the phrase before `parseTarget` ever sees it: BT20-091
+  // and BT20-092 print "the card **above this card** gains [barrier]" and
+  // "…can't be KO'd", and both landed on the card underneath.
+  const named = clause.replace(/\b(?:from |place )?(?:under|on top of|above|beneath) this card\b/gi, "");
   // Two ways a phrase mentions this card without meaning it, both of which
   // this test used to read as "this card" because it only asked whether the
   // words appeared at all:
@@ -1488,6 +1547,19 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
     return { cond: { kind: "count", sel: { special: "resolving", filter }, atLeast: 1 }, subject: { sel: { special: "resolving" } } };
   }
 
+  // "If this card is under a yellow ≪Heroic≫ Battle Card" (23-2): the same
+  // question as the target it guards, asked the other way up — the card on top
+  // of this one is a yellow ≪Heroic≫ Battle Card. Written the moment `onTop`
+  // existed to say it, because these thirteen [Permanent]s print the condition
+  // and the grant as one sentence: read the grant alone and the card above
+  // gains [Double Strike] whatever it is, which is a wider skill than the one
+  // printed. The area a stack stands in is the area of the card on top
+  // (23-2-2-2), so "in a Battle Area" narrows nothing and comes off.
+  if ((m = /^this card is under (.+?)(?: in (?:a|an|the|your|your opponent's) [a-z- ]*area)?$/.exec(t))) {
+    const above = filterFor(m[1], null);
+    if (above === null) return null;
+    return { cond: { kind: "count", sel: { special: "onTop", filter: above }, atLeast: 1 }, subject: { sel: { special: "onTop", filter: above } } };
+  }
   // A card's own mode as a condition (1-10).
   if ((m = /^this card is in (rest|active) mode$/.exec(t))) {
     return { cond: { kind: "count", sel: { special: "self", mode: m[1] as "rest" | "active" }, atLeast: 1 }, subject: { sel: { special: "self" } } };
@@ -2428,9 +2500,12 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
    * - all cards in your opponent's Combo Area (BT20-086), your opponent's
    *   non-Extra Cards in all areas (BT9-136), their Battle Cards with energy
    *   costs of 4 or less (TB1-048) → as printed;
-   * - cards sent to Warps by this skill (EX21-15, BT13-096) and Battle Cards
-   *   on top of this card (BT23-070) → **not read**, and left to the referee:
-   *   they name cards by their history, which no selector can describe.
+   * - Battle Cards on top of this card (BT23-070) → the card this one is
+   *   under (23-2), which is `onTop` since 9 Sep 2026 — before that the phrase
+   *   read as *this card*, and the [Permanent] negated itself;
+   * - cards sent to Warps by this skill (EX21-15, BT13-096) → **not read**,
+   *   and left to the referee: they name cards by their history, which no
+   *   selector can describe.
    */
   if ((m = /^negate the skills of (.+)$/.exec(t.replace(DURATION_TAIL, "")))) {
     const ref = refFor(m[1], c);

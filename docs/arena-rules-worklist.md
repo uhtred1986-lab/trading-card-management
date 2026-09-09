@@ -2266,3 +2266,89 @@ stack mechanic wants, and the gap set now names it honestly in eight shapes. The
 reads as the Leader *area*, and now asserts the special. `verify/lang.ts` read the language doc
 without normalising CRLF, so `npm test` failed on a Windows checkout for reasons unrelated to any
 change; the gate has to be runnable where the work happens.
+
+## The card on top of this card — Stage 2, third increment (9 Sep 2026)
+
+The primitive the last increment uncovered and left honestly unread. The engine modelled `under`
+and had no way to name the card *above*, so "the card on top of this card" satisfied `parseTarget`'s
+"this card" shortcut and every [Permanent] granting a keyword or power upward granted it to itself.
+
+**`onTop` is a special target, and the other half of the `under` area.** A pile is one card with
+everything else beneath it (23-2-2), held as a list on the card at the top, so there is exactly one
+answer and `hostOf` finds it by asking who holds this card. It is a *different* card from the one
+asking (23-2-2-3), which is the whole point, and it is found wherever the stack stands, because the
+area of a buried card is the area of the card on top (23-2-2-2). A description in front of the
+words narrows it as any other selector's does: "the <Majin Buu> on top of this card", "the Leader on
+top of this card".
+
+**Only the phrase that *ends* there is a target.** The same words anywhere else name a
+**destination** — "play up to 1 green <Piccolo> card … **on top of this card** from your deck" —
+and stay refused with "by this skill". Two guards make that stick, and both were written after the
+readings diff caught them: the description before the words may not contain a comparison or a second
+owner (BT21-032 prints "choose up to 1 of your opponent's Battle Cards with power less than or equal
+to the card on top of this card, then KO it", and read whole it KO'd your own <Son Goku>), and
+"above this card" had to be struck out in `refFor` alongside "under" and "on top of", or the "this
+card" inside it answers the phrase before `parseTarget` ever sees it.
+
+**"If this card is under a yellow ≪Heroic≫ Battle Card" is the same question the other way up**, and
+it had to be written in the same commit. Thirteen [Permanent]s print the condition and the grant as
+one sentence; reading the grant alone gives the card above [Double Strike] whatever it is, which is
+a wider skill than the one printed. It is `count(onTop matching X) ≥ 1`, and its `subject` is what
+makes BT17-092's "**that card** gets +1000 power" land on the host.
+
+**Three bugs the readings diff turned up on the way, each a filter that compiled and read wrongly:**
+
+- **Four measures were missing from `narrows`.** `charactersIncluding`, `namesIncluding` and their
+  negatives — a name asked for *in part* — so a description whose only measure was one of them threw
+  the whole filter away. "Choose up to 1 of your Battle Cards **with <Son Gohan> in its character
+  name**" (BT19-130) chose any Battle Card you had: the type word is noise in the Battle Area and is
+  struck out first, which left nothing on the list at all. `parseFilter` had read the name the whole
+  time. The comment above that list already said every measure has to be on it.
+- **`describeFilter` printed none of those four**, so the instrument could not see the bug it was
+  there to catch: a filter the compiler had, printed as though it had none. That is why this is
+  listed as a fix and not a nicety — a measure the reading cannot print is a measure nobody can sign
+  off.
+- **The possessive in "in **their** character names" was read as a player.** "Choose all of **your**
+  Battle Cards with <Son Goku> in their character names" handed sixteen skills the opponent's board;
+  BT22-086 gave +5000 power to the cards it was meant to be fighting. The phrase says whose cards
+  these are once, at the front.
+- **And the negation is written three ways, of which two were read.** BT21-040 prints "your
+  opponent's Battle Cards **that does not include** <Son Goku: GT> in its character name", matched as
+  a positive. Nothing had noticed, because the measure was thrown away before it reached a selector.
+
+**Numbers.** Fully compiled cards 4,643 → **4,665**, resolvable skills 87.1 % → **87.2 %**,
+[Permanent] read 62.6 % → **64.0 %**. 36 clause shapes left the gap set and **none entered it**.
+115 readings moved: 21 that read as nothing now read, 2 that read as something now honestly read as
+nothing (BT20-017/019, whose em-dash-qualified filter is unreadable, and which were granting
+themselves the power they grant upward), and 92 that differ only by a gained partial-name measure, a
+gained under-condition, an `onTop` target, or the corrected side. Every one was read back by hand
+against the printed text.
+
+`npm run typecheck`, `lint`, `test`, `build` clean; `arena:fuzz 40` 40 games, 0 crashes;
+`contract:emit` produced no change — no probe digest moved, so no rule the engine already plays
+changed its answer.
+
+### Measured, ready, and deliberately not shipped: the pile under *another* card
+
+The second commit on this branch refuses "from under your <Kefla> Battle Card", "from under your
+Leader Card", "cards under {King Kai's Planet}" — sixty-odd clause shapes naming a pile that is not
+this card's. They are all being read into the **host** today, because `AREA_WORDS` takes the
+"battle" out of "your <Kefla> Battle Card" and the description off the host: EX25-39 combos the
+<Kefla> itself rather than a card beneath it, and the Leader wordings choose the Leader. Refusing
+them costs 38 fully compiled cards and clears 40 wrong readings.
+
+It is a separate commit because it is not free. Three cards read *worse* afterwards, all for one
+reason — **a refused clause leaves the clauses after it pointing at nothing**, and an [Auto] seeds
+that antecedent to the card it is on. P-645's "play 1 {Majin Buu, Unadulterated Destruction} from
+under your green <Majin Buu> card, and **it** gains [Double Strike]" grants it to this card;
+EX24-32's "and if you do" wrapper collapses so its second half happens unconditionally; P-396 is
+left with an empty modal option, a mode that silently does nothing. This is the singular twin of the
+plural-pronoun rule of the last increment, and it cannot be fixed the same way — "it" after "when
+this card is played" usually *does* mean this card. The honest fix is for the compiler to know that
+an earlier clause in the same skill went unread, which is its own increment.
+
+Without that commit, two cards this increment made reachable read wrongly: **EX25-39** and
+**EX23-27** (whose "place it under a <Super 17> card on top of this card" puts the card under
+*this* one). Both were wrong before and merely unreachable; neither is new text.
+
+`npm run typecheck`, `lint`, `test`, `build` clean; `arena:fuzz 40` 40 games, 0 crashes.
