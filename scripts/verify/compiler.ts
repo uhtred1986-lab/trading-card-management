@@ -29,6 +29,7 @@ import {
   playCost,
   powerOf,
   splitClauses,
+  zEnergyCostOf,
 } from "./harness";
 import type { PlayerId } from "./harness";
 
@@ -1013,6 +1014,35 @@ import type { PlayerId } from "./harness";
 }
 
 {
+  const ctx = CTX;
+  // 5-4, 20-21: a reducer that names the Z-Energy cost has to lower what
+  // `payZEnergy` actually asks for at the board, not just what `zEnergyCostOf`
+  // answers in isolation — the failure `state.ts:653` warns about is a rule
+  // that compiles, reads correctly, and changes nothing on the board because
+  // the five call sites around `payZEnergy` in `engine.ts` still read
+  // `d.zEnergyCost` raw.
+  let s = arena({ hand: ["V1"], energy: ["V1", "V1"], z: ["ZCHEAP", "V1"] });
+  const zc = find(s, "p1", "zDeck", "ZCHEAP");
+  assert.equal(DEFS.ZCHEAP.zEnergyCost, 2, "printed");
+  assert.equal(zEnergyCostOf(ctx, s, zc), 1, "1 less while its own [Permanent] is in force");
+  // Build exactly 1 Z-Energy card — one short of the printed cost of 2, but
+  // exactly the reduced one — by comboing a card at the end of a battle (8-5-2).
+  s = play(s, { type: "attack", player: "p1", attacker: s.players.p1.leader, target: s.players.p2.leader });
+  const c = find(s, "p1", "hand", "V1");
+  s = play(s, { type: "combo", player: "p1", card: c }, { type: "pass", player: "p1" }, { type: "pass", player: "p2" });
+  assert.equal(s.prompt.kind, "zEnergyFromCombo");
+  s = play(s, { type: "zEnergyFromCombo", player: "p1", card: c });
+  assert.deepEqual(s.players.p1.zEnergy, [c]);
+  assert.ok(
+    labels(s).some((x) => x.startsWith("Play Z-Battle ZCHEAP")),
+    "offered on 1 Z-Energy — the printed 2 would refuse this, so the legality gate is reading the reduction",
+  );
+  s = play(s, { type: "playZ", player: "p1", card: zc });
+  assert.equal(s.players.p1.zEnergy.length, 0, "5-4-1: the one Z-Energy card paid the whole (reduced) cost, not 2");
+  assert.ok(s.players.p1.battle.includes(zc), "and the card actually entered play");
+}
+
+{
   // "Only 1 {ONLYONE} can be played in your Battle Area" — the rule switches
   // itself on once one is there, which a [Permanent] can say because the
   // static layer asks again every time.
@@ -1179,7 +1209,7 @@ import type { PlayerId } from "./harness";
   assert.deepEqual(each.ops, [
     {
       op: "draw",
-      n: { count: { side: "you", area: "battle", filter: undefined, count: 99, upTo: false, mode: undefined, fromVar: undefined, take: undefined, fromEnd: undefined, notSelf: undefined } },
+      n: { count: { side: "you", area: "battle", filter: undefined, count: 99, upTo: false, mode: undefined, hidden: undefined, fromVar: undefined, take: undefined, fromEnd: undefined, notSelf: undefined } },
     },
   ]);
 

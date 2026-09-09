@@ -11,7 +11,7 @@
 import { parseFilter, type CardFilter } from "./filters";
 import { keywordOf, orbsIn, skillsOf, trailingTrigger, withoutTrailingTrigger } from "./cards";
 import type { Amount, CardScripts, Cond, Duration, Op, Ref, Script, ScriptArea, Selector, Side, SkillPrice } from "./script";
-import type { CardDef, DelayScope, DelayTiming, KeywordSkill, Skill, SkillKindPrefix } from "./types";
+import type { CardDef, Color, DelayScope, DelayTiming, KeywordSkill, Skill, SkillKindPrefix } from "./types";
 
 // ── clause splitting ───────────────────────────────────────────────────────
 
@@ -118,6 +118,7 @@ export function splitClauses(text: string): string[] {
         !andJoinsARange(text, start, i) &&
         !andJoinsColours(text, start, i) &&
         !andJoinsTwoSwitched(text, start, i) &&
+        !andJoinsTwoCosts(text, start, i) &&
         // "This card gains +5000 power **and** [Critical] during your turn":
         // one subject given two things, and the half after the "and" is a
         // keyword tag with no verb of its own to be read as a clause.
@@ -290,6 +291,18 @@ function andJoinsColours(text: string, start: number, i: number): boolean {
  */
 function andJoinsARange(text: string, start: number, i: number): boolean {
   return /\bbetween [\d,]+\s*$/i.test(text.slice(start, i)) && /^[\d,]+\b/.test(text.slice(i + 5));
+}
+
+/**
+ * "Reduce the energy cost **and** Z-Energy cost of X in your Z-Deck by 1"
+ * (BT22-085, P-476b): one amount, two costs it comes off, one "of X by N"
+ * shared between them. Split at the "and" and neither half is a sentence —
+ * "reduce the energy cost" has no amount, and "Z-Energy cost of X … by 1" has
+ * no verb — so both went unread. `compileClause` reads the kept-whole clause
+ * as two `costReduction` ops.
+ */
+function andJoinsTwoCosts(text: string, start: number, i: number): boolean {
+  return /\b(?:reduce|increase|decrease) the energy costs?\s*$/i.test(text.slice(start, i)) && /^z-energy costs?\b/i.test(text.slice(i + 5));
 }
 
 /**
@@ -553,7 +566,7 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
   // this shortcut: BT1-086's "place all Rest Mode Battle Cards except for this
   // card in the Drop Area" came back as *self*, so the card dropped itself and
   // left every card it was aimed at standing.
-  if (/\bthis card\b(?!'s)/.test(t) && !/\bother\b|\bexcept\b/.test(t)) return { special: "self" };
+  if (/\bthis card\b(?!'s)/.test(t) && !/\bother\b|\bexcept\b|\bbesides\b/.test(t)) return { special: "self" };
   if (/\bthe attack(?:ing)? card\b/.test(t)) return { special: "attacker" };
   if (/\bthe guard card\b/.test(t)) return { special: "guard" };
   // "Your opponent's Leader", "your Leader Card": a player has exactly one
@@ -604,7 +617,15 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
   // to a player, and reading it as a player handed sixteen skills the
   // opponent's board — BT22-086 giving +5000 power to the cards it was meant
   // to be fighting. The phrase says whose cards these are once, at the front.
-  const owner = t.replace(/\bin their (?:character names|card names|special traits)\b/g, " ");
+  // "…to **their owner's** Drop Area" is the idiom for every card going back to
+  // whoever owns it (2-4), and it is printed on 113 skills. Read by the bare
+  // "their" below it made the phrase say *opponent*, and worse, it said so
+  // about the **source** — the possessive sits in the destination half of the
+  // sentence, so "play up to 4 ≪Saiyan≫ cards from **your** Warp into their
+  // owner's Drop" went looking in the opponent's Warp (BT27-015, and BT29-095,
+  // BT29-108, P-710 the same way). Stripped like the name phrases beside it,
+  // because it says nothing about whose cards are being chosen.
+  const owner = t.replace(/\bin their (?:character names|card names|special traits)\b/g, " ").replace(/\btheir owners?'?s?\b/g, " ");
   if (/\bopponent'?s\b|\byour opponent\b|\btheir\b/.test(owner)) side = "opponent";
   else if (/\bopponent (?:rest mode |active mode |skill-less )?(?:battle|unison|extra|leader|z-battle|z-extra)s?\b/.test(t)) side = "opponent";
   if (/\ball players\b|\beach player\b|\bboth players\b/.test(t)) side = "both";
@@ -646,7 +667,7 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
   // and spares one of yours, so the "your" in it must not hold the sweep to
   // your own side.
   const chosen = t.replace(
-    /\b(?:other than|except for) (?:copies of )?(?:this card|it)?(?:\s*(?:,|and\/or|and|or)\s*)?(?:(?:your |their |its owner's )?(?:<[^>]+>|≪[^≫]+≫|\{[^}]+\})(?:\s*(?:,|and\/or|and|or)\s*)?)*/g,
+    /\b(?:other than|except for|besides) (?:copies of )?(?:this card|it)?(?:\s*(?:,|and\/or|and|or)\s*)?(?:(?:your |their |its owner's )?(?:<[^>]+>|≪[^≫]+≫|\{[^}]+\})(?:\s*(?:,|and\/or|and|or)\s*)?)*/g,
     " ",
   );
   if ((otherAdj || sweep) && !/\byour\b|\btheir\b|\bopponent\b|\byou control\b/.test(chosen)) side = "both";
@@ -746,23 +767,41 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
   const modeSaid = (which: "rest" | "active"): boolean =>
     new RegExp(`\\bin ${which} mode\\b|\\b${which} mode (?:[a-z-]+ )*cards?\\b`).test(t);
   const mode = modeSaid("rest") ? "rest" : modeSaid("active") ? "active" : undefined;
+  // 23-5: "Hidden Mode" is a card's face-down state, not the active/rest
+  // orientation `mode` reads — a card is one of Active or Rest *and*
+  // separately Hidden or Revealed (`inst.hidden` is its own flag in
+  // `CardInstance`, not a third value of `mode`). Same two spellings as
+  // above ("1 of your **Hidden Mode** cards", "1 of your energy **in Hidden
+  // Mode**"), read only when nothing else narrows the choice: a face-down
+  // card has none of its front-side information (23-5-2), so a selector
+  // combining Hidden Mode with a colour, character or trait cannot be
+  // answered and is refused below rather than quietly widened to "any card"
+  // (ground rule 5) — the catalog does not print that combination today, but
+  // this is the seam where it would appear.
+  const hiddenSaid = /\bin hidden mode\b|\bhidden mode (?:[a-z-]+ )*(?:cards?|energy)\b/.test(t);
   // "Choose all Battle Cards **other than this card**" — the card the phrase
   // rules out. Read as nothing it stayed among the candidates, so a clause
   // that shrank every Battle Card shrank this one too.
-  const excluded = /\b(?:other than|except for) (copies of )?this card\b/.exec(t);
+  const excluded = /\b(?:other than|except for|besides) (copies of )?this card\b/.exec(t);
   const notSelf = excluded ? (excluded[1] ? "copies" : "card") : otherAdj ? "card" : undefined;
   const filter = filterFor(phrase, area);
   // A description the parser could not read is not a target: the clause fails
   // and the skill goes to the referee, rather than selecting the whole area.
   if (filter === null) return null;
-  if (underHost) return { side: "you", area: "under", filter, count, upTo, mode, notSelf };
+  // A face-down card carries none of the information `filter` would check
+  // (23-5-2) — "Hidden Mode" combined with anything else is not a choice this
+  // engine can answer, and refusing it beats reading "Hidden Mode" away and
+  // offering every card the other measure matches (ground rule 5).
+  if (hiddenSaid && filter) return null;
+  const hidden = hiddenSaid || undefined;
+  if (underHost) return { side: "you", area: "under", filter, count, upTo, mode, hidden, notSelf };
   // No single `area` stands for all of them, and leaving one on would be read
   // as the place the cards must be — so the span is the only thing said.
-  if (allAreas) return { side, areas: ALL_AREAS, filter, count, upTo, mode, notSelf };
-  if (otherAreas) return { side, areas: otherAreas, filter, count, upTo, mode, notSelf };
-  if (bothAreas) return { side, area: "battle", areas: ["battle", "unison"], filter, count, upTo, mode, fromVar, notSelf };
-  if (pair) return { side, area: pair[0], areas: pair, filter, count, upTo, mode, fromVar, notSelf };
-  return { side, area: area ?? undefined, filter, count, upTo, mode, fromVar, take, fromEnd, notSelf };
+  if (allAreas) return { side, areas: ALL_AREAS, filter, count, upTo, mode, hidden, notSelf };
+  if (otherAreas) return { side, areas: otherAreas, filter, count, upTo, mode, hidden, notSelf };
+  if (bothAreas) return { side, area: "battle", areas: ["battle", "unison"], filter, count, upTo, mode, hidden, fromVar, notSelf };
+  if (pair) return { side, area: pair[0], areas: pair, filter, count, upTo, mode, hidden, fromVar, notSelf };
+  return { side, area: area ?? undefined, filter, count, upTo, mode, hidden, fromVar, take, fromEnd, notSelf };
 }
 
 /**
@@ -841,14 +880,36 @@ function imperative(clause: string): string {
  * so the same reader compiles it; most of them ask the player to pick a card,
  * which is why the engine charges that one through the flow rather than inline.
  */
-function counterAltCost(sentence: string, c: Ctx): Op[] | null {
-  const said = /^activate this card's \[counter[^\]]*\](?: skill)? from your hand (.+?)\.?$/.exec(sentence);
-  if (!said) return null;
-  const how = said[1].replace(/^without paying (?:its|the) energy cost,? /, "").replace(/,? instead of paying (?:its|the) energy cost$/, "");
-  if (/^without paying (?:its|the) energy cost$/.test(how)) return [{ op: "altCost", pay: "none" }];
+/** One entry per orb — `{r: 2}` becomes `["Red", "Red"]` — the shape `altCost`'s `orbs` field takes (5-3). */
+function orbsToList(orbs: Partial<Record<Color, number>> & { any?: number }): (Color | "any")[] {
+  const out: (Color | "any")[] = [];
+  for (const [k, n] of Object.entries(orbs)) for (let i = 0; i < (n ?? 0); i++) out.push(k as Color | "any");
+  return out;
+}
+
+/**
+ * The "…" half of "you can activate […] from your hand …" (5-3): what the
+ * card asks for instead of the energy cost. Shared by the self-only reading
+ * (`counterAltCost`, below) and the one that grants the same offer to *other*
+ * cards for a span (BT11-033) — the price is worded identically either way,
+ * only who it is about differs.
+ */
+function altCostHow(rawHow: string, c: Ctx): Op[] | null {
+  // "Their energy costs" (plural) is how the same waiver reads when it is
+  // granted to more than one card at once (BT11-033) rather than printed on
+  // the one card paying it — "its"/"the" everywhere else.
+  const how = rawHow.replace(/^without paying (?:its|the|their) energy costs?,? /, "").replace(/,? instead of (?:paying )?(?:its|the|their) energy costs?$/, "");
+  if (/^without paying (?:its|the|their) energy costs?$/.test(how)) return [{ op: "altCost", pay: "none" }];
   let m: RegExpExecArray | null;
   if ((m = /^by adding (a|an|\d+) cards? from your life to your hand$/.exec(how))) {
     return [{ op: "altCost", pay: "life", n: countWord(m[1]) }];
+  }
+  // "By paying {1}" (BT18-088): a reduced but still-energy price, not a free
+  // one — `program` has no op that rests energy as a cost, and reading this
+  // as one would have offered the [Counter] for a choice that costs nothing.
+  if ((m = /^by paying ((?:\{[a-z0-9]+\})+)$/i.exec(how))) {
+    const orbs = orbsToList(orbsIn(m[1]));
+    if (orbs.length) return [{ op: "altCost", pay: "energy", orbs }];
   }
   if ((m = /^by (.+)$/.exec(how))) {
     const unread: string[] = [];
@@ -858,6 +919,12 @@ function counterAltCost(sentence: string, c: Ctx): Op[] | null {
     if (price.length && !unread.length) return [{ op: "altCost", pay: "program", ops: price }];
   }
   return null;
+}
+
+function counterAltCost(sentence: string, c: Ctx): Op[] | null {
+  const said = /^activate this card's \[counter[^\]]*\](?: skill)? from your hand (.+?)\.?$/.exec(sentence);
+  if (!said) return null;
+  return altCostHow(said[1], c);
 }
 
 /** Only keep a filter when the phrase actually narrows the cards. */
@@ -1137,7 +1204,7 @@ function refFor(clause: string, c: Ctx): Ref | null {
   //   and "you can activate **this card's** [Activate: Battle]" are about this
   //   one — which is the same head/tail distinction the pronoun test below
   //   makes, for the same reason.
-  const mentions = named.replace(/\b(?:other than|except for) (?:copies of )?this card\b/gi, " ");
+  const mentions = named.replace(/\b(?:other than|except for|besides) (?:copies of )?this card\b/gi, " ");
   if (/\bthis card\b(?!'s)/i.test(mentions) || /\bthis card's\b/i.test(headOf(mentions))) return { sel: { special: "self" } };
   // "…play up to 1 card from under this card, and place this card under the
   // played card": the card this skill just played, if it played one; otherwise
@@ -1278,17 +1345,46 @@ function durationOf(clause: string): Duration {
 function parseWouldLeave(clause: string): { by?: "skill" | "ko" | "skillOrKo"; subject?: string } | null {
   const t = clean(clause);
   if (/your opponent'?s? skills?/.test(t)) return null;
-  const opener = /^(?:if|when)?\s*(.*?) would (leave|be removed from|be sent from) (?:your |the |a )?battle area(?: by (?:a|your) skills?)?( or (?:be )?ko'?d)?$/.exec(t);
+  // "Would … the Battle Area" is the hypothetical phrasing; six cards
+  // (BT14-153, BT14-154, BT15-153, BT15-154, BT16-107, BT17-148) print the
+  // same rule as an accomplished fact — "if/when this card **is** removed
+  // from your Battle Area" — one word short of the modal this opener used to
+  // require. Read the same way: "is removed from" carries no cause of its
+  // own, so it defaults to "skill" exactly as "would be removed from" does.
+  const opener = /^(?:if|when)?\s*(.*?) (?:would (leave|be removed from|be sent from)|is (removed from)) (?:your |the |a )?battle area(?: by (?:a|your) skills?)?( or (?:be )?ko'?d)?$/.exec(t);
   if (opener) {
+    const verb = opener[2] ?? opener[3];
     // "Removed from a Battle Area by a skill or KO'd" covers both causes;
     // "would leave" covers every cause, so it has no restriction at all.
-    const by = opener[2] === "leave" ? undefined : opener[3] ? ("skillOrKo" as const) : ("skill" as const);
+    const by = verb === "leave" ? undefined : opener[4] ? ("skillOrKo" as const) : ("skill" as const);
     const who = opener[1].trim();
     // "A ≪Slug's Army≫ card with a combo cost of 1 would leave your Battle
     // Area" — the rule is about other cards, so the subject is kept.
     if (/^(?:this card|it)$/.test(who)) return { by };
     return who ? { by, subject: who } : { by };
   }
+  // "A ≪Turles Crusher Corps≫ card in your Battle Area would be placed in its
+  // owner's Drop Area by one of your skills" (BT12-056(+b), BT15-092(+b),
+  // BT15-097) — the ordinary route out (a skill sending it to the Drop) named
+  // in full rather than as "leave"/"removed from" the Battle Area. Same
+  // event, same default cause.
+  const droppedBySkill = /^(?:if|when)?\s*(.*?) in (?:your |the )?battle area would be placed in (?:its owner'?s?|their owners?'?s?|your|their) drop area by (?:a|one of your) skills?$/.exec(t);
+  if (droppedBySkill) {
+    const who = droppedBySkill[1].trim();
+    if (/^(?:this card|it)$/.test(who)) return { by: "skill" };
+    return who ? { by: "skill", subject: who } : { by: "skill" };
+  }
+  // "When this card is placed in a Drop Area from a Combo Area" (P-182) / "…
+  // from a Battle Area or Combo Area" (DB2-137/140/151/153) is deliberately
+  // NOT read as the same replacement: `move()` (state.ts:857) only checks
+  // `replaceLeave` when the card was leaving `leader`/`battle`/`unison`
+  // (`wasInPlay`) — leaving the *Combo Area* (`wasCombo`) never reaches that
+  // check at all. Reading these as "removed from the Battle Area" would be
+  // wrong twice over: for P-182 the compiled rule would never fire (its only
+  // path out is the Combo Area), and for the DB2 cards it would fire too
+  // often — misapplying the redirect to a Battle-Area departure the printed
+  // text does gate on "or Combo Area" for, but that path itself still can't
+  // be read. Left unread rather than read wide (ground rule 5).
   // "If this card would be KO'd" replaces the KO and nothing else: a card its
   // owner returns to hand is still returned to hand.
   if (/^(?:if|when)?\s*(?:this card|it) would be ko'?d$/.test(t)) return { by: "ko" };
@@ -1856,7 +1952,21 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
  */
 function parseCountCondition(t: string): Cond | null {
   // "a Battle Card" and a bare plural both mean "at least one"; "no" means none.
-  const m = /^(?:you have|your opponent has|there (?:are|is)) (?:(no)|(?:an?|any) |(\d+) or (more|less|fewer) )?(.+)$/.exec(t);
+  // The sets print the contraction as readily as the long form — "**if
+  // there's** a Blue/Yellow multicolor card in your energy" — and only "there
+  // is" was read. Seven skills say it, and what it cost was not the condition
+  // but the whole skill: BT15-146's combo-cost reduction was simply always on
+  // until a refused condition started taking its clause with it, and is now
+  // simply refused. Nothing else about those sentences was ever the problem —
+  // "blue/yellow multicolor card" reads perfectly well.
+  //
+  // "You have **only** 3 or less cards other than this card in your hand" is
+  // the same kind of miss one word further along: the adverb sits where the
+  // number is expected, so no count was read at all and the whole tail became
+  // the description — which then failed and left `atLeast: 1`, turning a gate
+  // that asks for a nearly empty hand into one that holds almost always
+  // (BT2-032, BT2-006).
+  const m = /^(?:you have|your opponent has|there(?: (?:are|is)|'s|'re)) (?:only )?(?:(no)|(?:an?|any) |(\d+) or (more|less|fewer) )?(.+)$/.exec(t);
   if (!m) return null;
   const [, none, num, dir, rest] = m;
   // "you have" / "your opponent has" says whose cards, which the phrase after
@@ -2458,23 +2568,59 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // same as an unqualified specified cost does everywhere else. Left alone on
   // purpose: a *skill's* cost ("the skill cost of …", "the activation cost of
   // …'s [Counter] skill") is a different number `playCost` computes with no
-  // hook to lower (`orbTotals`, `engine.ts:882`), a *specified* cost mixes
-  // colour and total in a way the owner has not ruled on, and a Z-Energy cost
-  // is `d.zEnergyCost`, read raw in five call sites `costReduction` cannot
-  // reach — all three fail the match here because none of them spell the
-  // noun as bare "cost"/"costs", which is deliberate: see `glossary.ts`.
+  // hook to lower (`orbTotals`, `engine.ts:882`), and a *specified* cost mixes
+  // colour and total in a way the owner has not ruled on — both fail the
+  // match here because neither spells the noun as bare "cost"/"costs", which
+  // is deliberate: see `glossary.ts`. A Z-Energy cost **does** spell it that
+  // way and is read below: `zEnergyCostOf` is the hook `d.zEnergyCost` never
+  // had, and the five call sites that used to read the field raw now go
+  // through it (`state.ts`).
   let qq = q;
   let possessive: RegExpExecArray | null;
-  if ((possessive = /^(reduce|increase|decrease) (this card|that card|its|their)'?s? ((?:energy|combo) )?costs?(?: in (?:your|their) (?:hand|z-deck))? by (.+)$/.exec(qq))) {
+  if ((possessive = /^(reduce|increase|decrease) (this card|that card|its|their)'?s? ((?:energy|combo|z-energy) )?costs?(?: in (?:your|their) (?:hand|z-deck))? by (.+)$/.exec(qq))) {
     const subject = possessive[2] === "its" ? "it" : possessive[2] === "their" ? "them" : possessive[2];
     qq = `${possessive[1]} the ${possessive[3] ?? ""}cost of ${subject} by ${possessive[4]}`;
   }
   let passive: RegExpExecArray | null;
-  if ((passive = /^the ((?:energy|combo) )?costs? of (.+?) (?:is|are) (reduced|increased|decreased) by (.+)$/.exec(qq))) {
+  if ((passive = /^the ((?:energy|combo|z-energy) )?costs? of (.+?) (?:is|are) (reduced|increased|decreased) by (.+)$/.exec(qq))) {
     const verb = passive[3].slice(0, -1); // "reduced"/"increased"/"decreased" -> the bare verb.
     qq = `${verb} the ${passive[1] ?? ""}cost of ${passive[2]} by ${passive[4]}`;
   }
-  if ((m = /^(reduce|increase|decrease) the ((?:energy|combo) )?costs? (?:of|on) (.+?) by (\d+|(?:\{[rugykbw\d]+\})+),?(?: for each (.+))?$/.exec(qq))) {
+  // "Reduce the Z-Energy cost by 1" (BT22-034): the bare, no-subject
+  // continuation that "reduce the energy/combo cost by N" stays unread for
+  // everywhere else in the catalog (deliberately — the noun alone does not
+  // say whose cost it is). "Z-Energy" is unambiguous, so the card the
+  // sentence was already about — `c.lastTarget`, set by the clause just
+  // before this one — is a safe subject rather than a guess.
+  if (
+    (m = /^(reduce|increase|decrease) the z-energy costs? by (\d+|(?:\{[rugykbw\d]+\})+)$/.exec(qq)) &&
+    c.lastTarget &&
+    !(c.stale && c.lastTarget === c.stale)
+  ) {
+    const sign = m[1] === "increase" ? -1 : 1;
+    const orbs = /^\d+$/.test(m[2]) ? null : orbsIn(m[2]);
+    const flat = sign * (orbs ? Object.values(orbs).reduce<number>((sum, n) => sum + (n ?? 0), 0) : Number(m[2]));
+    return [{ op: "costReduction", target: c.lastTarget, amount: flat, what: "zEnergy" as const, until: durationOf(clause) }];
+  }
+  // "Reduce the energy cost and Z-Energy cost of X … by N" (BT22-085,
+  // P-476b): one amount named for two costs at once, so it has to become two
+  // ops rather than one. `andJoinsTwoCosts` (in `splitClauses`) is what keeps
+  // this from being cut in half at its "and" first, with "reduce the energy
+  // cost" and "Z-Energy cost of X … by N" left as two clauses, neither of
+  // them a sentence.
+  if ((m = /^(reduce|increase|decrease) the energy costs? and z-energy costs? (?:of|on) (.+?) by (\d+|(?:\{[rugykbw\d]+\})+)$/.exec(qq))) {
+    const sign = m[1] === "increase" ? -1 : 1;
+    const ref = refFor(m[2], c);
+    if (!ref || (c.stale && ref === c.stale)) return null;
+    const orbs = /^\d+$/.test(m[3]) ? null : orbsIn(m[3]);
+    const flat = sign * (orbs ? Object.values(orbs).reduce<number>((sum, n) => sum + (n ?? 0), 0) : Number(m[3]));
+    const until = durationOf(clause);
+    return [
+      { op: "costReduction", target: ref, amount: flat, until },
+      { op: "costReduction", target: ref, amount: flat, what: "zEnergy" as const, until },
+    ];
+  }
+  if ((m = /^(reduce|increase|decrease) the ((?:energy|combo|z-energy) )?costs? (?:of|on) (.+?) by (\d+|(?:\{[rugykbw\d]+\})+),?(?: for each (.+))?$/.exec(qq))) {
     // 20-21 works in both directions, and the sets print both: "increase the
     // energy cost of this card in your Battle Area by 2" is the same standing
     // effect with the sign turned round; "decrease" already reads as "reduce".
@@ -2518,7 +2664,8 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     // takes off. A [Permanent] holds while its card is valid (9-5-1) and
     // `holdForGame` rewrites this to "game"; anywhere else it is what says how
     // long the change is in force.
-    return [{ op: "costReduction", target: ref, amount: by, ...(kindWord?.trim() === "combo" ? { what: "combo" as const } : {}), until: durationOf(clause) }];
+    const what = kindWord?.trim() === "combo" ? ({ what: "combo" as const }) : kindWord?.trim() === "z-energy" ? ({ what: "zEnergy" as const }) : {};
+    return [{ op: "costReduction", target: ref, amount: by, ...what, until: durationOf(clause) }];
   }
 
   // "X get -N combo cost" (BT22-055, BT22-056, BT23-072): the same standing
@@ -2897,6 +3044,13 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     const ref = refFor(m[2], c);
     return ref ? [{ op: "removeMarker", target: ref, n: countWord(m[1]) }] : null;
   }
+  // "Pay the cost for [Spirit Boost 2]" (22-43-3), as an alt-cost's own price
+  // rather than a skill's own — the marker cost that keyword names is fixed
+  // wherever it is spent, off your Unison Card (BT14-019/043/083/109,
+  // BT17-109's [Permanent]s all name it this way instead of writing it out).
+  if ((m = /^pay the cost for \[spirit boost (\d+)\]$/.exec(t))) {
+    return [{ op: "removeMarker", target: { sel: { side: "you", area: "unison" } }, n: Number(m[1]) }];
+  }
 
   // Under another card (23-2). Not an area, so it is not in the table below.
   // Only "under this card" is read: any other host is an antecedent the
@@ -2958,6 +3112,11 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     [/^return (.+?) to (?:your|their) hands?$/, "hand", {}],
     [/^add (.+?) to your hand$/, "hand", {}],
     [/^send (.+?) to (?:your|their|its owner'?s?|their owners?'?s?|the) warps?$/, "warp", {}],
+    // The passive said the same as the active line above — "it's sent to its
+    // owner's Warp" (9-10, ten cards) rather than "send it to Warp" — and the
+    // subject is always the pronoun a replacement clause already resolved.
+    [/^(it)(?:'s| is) sent to (?:its owner'?s?|your|their|the) warps?$/, "warp", {}],
+    [/^(it)(?:'s| is) placed at the bottom of (?:its owner'?s?|your|their) decks?$/, "deck", { position: "bottom" }],
     // 3-8: whose energy area matters, and it is not always the card's owner —
     // "place it in your opponent's energy in Rest Mode" hands them a card.
     [/^(?:add|place) (.+?) (?:to|in) your opponent'?s energy(?: area)? in rest mode$/, "energy", { mode: "rest", reveal: true, owner: "opponent" }],
@@ -2974,6 +3133,41 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     if ((m = re.exec(t))) {
       const ref = refFor(m[1], c);
       return ref ? withChoice(ref, clause, c, (target) => ({ op: "moveTo", target, to, ...opts })) : null;
+    }
+  }
+
+  // "Until the start of your next turn, you can activate mono-blue cards
+  // with [Counter] skills from your hand by …" (BT11-033): the same offer
+  // `counterAltCost` reads for a card's own [Counter], granted instead to
+  // *other* cards a filter names, for a stated span. Tried before the
+  // ordinary "activate a card" read just below, which would otherwise take
+  // the whole selector-plus-price phrase for one long card description — its
+  // greedy `(.+?)` reaches straight through "with [Counter] skills from your
+  // hand" and swallows the price after it too, so the price's own count
+  // ("choosing 2 other cards") was read as the *selector's* count instead,
+  // and "activate" as an instruction to play the cards it found. A duration
+  // split onto this clause by `PURE_DURATION` above lands at the end, which
+  // is where `durationOf` looks for it; without one printed here the shape is
+  // not a case this reads, so the clause is left to the referee rather than
+  // guessed a duration of "the turn".
+  if (/\buntil\b/i.test(clause)) {
+    const other = /^activate (.+? with \[counter[^\]]*\] skills?) from your hand /.exec(q);
+    if (other) {
+      const filter = filterFor(other[1], "hand");
+      if (filter === null) return null; // ground rule 5: an unreadable filter must not widen to "any card"
+      // The price can run past a comma or "and …ing" that `splitClauses`
+      // treats as a clause boundary of its own elsewhere ("…choosing 2 other
+      // cards in your hand **and discarding them**") — read here, the tail
+      // this clause carries would already have lost that second half, and
+      // `altCostHow` would hand back a price that only chose the cards and
+      // never spent them. Reading it instead from `c.raw`, the sentence as
+      // printed, is what the self-only reading below this one is already
+      // spared from having to do, because it runs before any splitting at all.
+      const whole = /you (?:can|may) activate .+? with \[counter[^\]]*\] skills? from your hand ([^.]+)\.?/i.exec(c.raw);
+      const alt = whole ? altCostHow(whole[1].trim(), c) : null;
+      if (!alt) return null;
+      const target: Ref = { sel: { side: "you", area: "hand", ...(filter ? { filter } : {}) } };
+      return alt.map((o) => (o.op === "altCost" ? { ...o, target, until: durationOf(clause) } : o));
     }
   }
 
@@ -3275,15 +3469,35 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
 function compileToken(clause: string, c: Ctx): Op[] | null {
   const m = /play (?:up to )?(\d+) (.+?) tokens?/i.exec(clause);
   if (!m) return null;
-  const stats = /([\d,]+) power[^.]*?([\d,]+) combo cost[^.]*?([\d,]+) combo power/i.exec(c.raw);
+  // The reminder text states the token's stats, and they were read as one
+  // triad — power, then combo cost, then combo power. A reminder that gives
+  // only the power failed the whole match, and the token was then built with a
+  // **hard-coded 5000**: a Ghost Token printed at 15000 arrived at 5000, and
+  // Chilled's Army, Frieza's Army, Clone and Shadow Tokens printed at 10000 all
+  // did the same, across some twenty-five skills. The power is read on its own,
+  // and the combo pair after it, so a reminder that stops early costs only what
+  // it did not say. The remaining fallbacks are the rules' own defaults, not a
+  // guess: a token that never combos has no combo cost to state.
+  // Anchored on "Tokens have", not on the first number in the text: the skill
+  // above the reminder says things like "this card gets +10000 power for the
+  // turn", and a bare power pattern took that instead — which would have given
+  // the Demon Realm Soldier Token 10000 when its reminder plainly says 5000.
   const num = (x: string) => Number(x.replace(/,/g, ""));
+  //
+  // The sets print the reminder two ways and both have to be read, or the one
+  // that is missed falls back to the default and loses the printed figure:
+  // "(Ghost Tokens **have** 15000 power)" and, inline after the name, "play 1
+  // Earthling Token **(1000 power**, 0 combo cost, 0 combo power)".
+  const said = /(?:tokens? have|\()\s*([\d,]+) power(?:[^.)]*?([\d,]+) combo cost)?(?:[^.)]*?([\d,]+) combo power)?/i.exec(c.raw);
+  const power = said ? [said[0], said[1]] : null;
+  const combo = said?.[2] != null && said[3] != null ? [said[0], said[2], said[3]] : null;
   return [
     {
       op: "token",
       name: `${m[2].trim()} Token`,
-      power: stats ? num(stats[1]) : 5000,
-      comboCost: stats ? num(stats[2]) : 0,
-      comboPower: stats ? num(stats[3]) : 5000,
+      power: power ? num(power[1]) : 5000,
+      comboCost: combo ? num(combo[1]) : 0,
+      comboPower: combo ? num(combo[2]) : 5000,
       colors: [],
       n: Number(m[1]),
     },
@@ -3867,6 +4081,25 @@ function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op
         c,
       );
       opponentDoes = !!got;
+    }
+    // "For each green Unison Card in your Drop, reduce the Z-Energy cost of
+    // this card in your Z-Deck by 1. (Up to 2)" (P-464): a per-card count and
+    // a stacking cap, and this clause carries neither by the time it reaches
+    // here. The count is the clause right before this one — "for each …" has
+    // no verb of its own, so it never became anything and is already
+    // refused. The cap is gone earlier still: `stripNotes` reads the
+    // parenthetical as a reminder (1-5-8) and drops it before `splitClauses`
+    // ever runs, and this one is not a reminder. Compiling "reduce … by 1"
+    // alone would apply the reduction flatly, unconditionally and without a
+    // ceiling — none of which the card says — so it is refused here instead.
+    if (i > 0 && /^for (?:each|every)\b/i.test(clauses[i - 1].trim()) && got?.some((o) => o.op === "costReduction" && o.what === "zEnergy")) {
+      got = null;
+    }
+    // The same cap, on the chance it ever survives `stripNotes` as a clause
+    // of its own rather than being swallowed by the parenthesis check above —
+    // belt and braces, not reached by any card in the catalog today.
+    if (got && i + 1 < clauses.length && /^\(up to \d+\)\.?$/i.test(clauses[i + 1].trim()) && got.some((o) => o.op === "costReduction")) {
+      got = null;
     }
     if (!got) {
       if (c.replacing) c.replacing = null;

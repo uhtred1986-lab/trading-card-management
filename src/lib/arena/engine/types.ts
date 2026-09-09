@@ -9,7 +9,7 @@
 
 import type { CardFilter } from "./filters";
 import type { Op, ScriptFrame } from "./script";
-import type { Payment } from "./state";
+import type { AltCost, Payment } from "./state";
 
 export type PlayerId = "p1" | "p2";
 export const PLAYERS: PlayerId[] = ["p1", "p2"];
@@ -358,7 +358,7 @@ export interface ContinuousEffect {
    * named by a `SkillKindPrefix` in `value` ("negate that card's [Auto] skill
    * for the turn").
    */
-  kind: "power" | "comboPower" | "keyword" | "negateSkills" | "negateSkill" | "negateSkillKind" | "forbid" | "permit" | "immune" | "cost" | "comboCost";
+  kind: "power" | "comboPower" | "keyword" | "negateSkills" | "negateSkill" | "negateSkillKind" | "forbid" | "permit" | "immune" | "cost" | "comboCost" | "altCost" | "zEnergy";
   value: number | KeywordSkill | SkillKindPrefix;
   /** Set when `kind` is "forbid". */
   forbid?: Prohibition;
@@ -366,6 +366,13 @@ export interface ContinuousEffect {
   permit?: Permission;
   /** Set when `kind` is "immune". */
   immune?: Immunity;
+  /**
+   * Set when `kind` is "altCost": another way to pay for the target card's own
+   * [Counter] (or its play), granted for a duration rather than printed on the
+   * card itself — "Until the start of your next turn, you can activate
+   * mono-blue cards with [Counter] skills from your hand by …" (BT11-033).
+   */
+  altCost?: AltCost;
   /** "nextTurn" runs through the opponent's whole turn and ends as yours begins. */
   until: "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "game";
   /**

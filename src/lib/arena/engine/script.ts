@@ -31,6 +31,7 @@ import {
   schedule,
   setMode,
   tokenCardId,
+  type AltCost,
   type GameContext,
 } from "./state";
 import { koCard, masterOf, pendTriggers } from "./triggers";
@@ -79,6 +80,14 @@ export interface Selector {
   special?: SpecialTarget;
   /** Only cards in this mode (1-10). */
   mode?: "active" | "rest";
+  /**
+   * Only Hidden Mode cards, or (`false`) only Revealed Mode ones (23-5). A
+   * face-down card has none of its front-side information (23-5-2), so this
+   * is the one measure a Hidden Mode selector can carry — the compiler never
+   * pairs it with `filter`, and `resolveSelector` does not try to check one
+   * against a card it cannot read.
+   */
+  hidden?: boolean;
   /** Draw the candidates from a bound variable instead of an area. */
   fromVar?: string;
   /** How many to take. `upTo` allows zero (5-2-4). */
@@ -271,8 +280,9 @@ export type Op =
   | { op: "token"; name: string; power: number; comboCost: number | null; comboPower: number | null; colors: Color[]; n: Amount; side?: Side }
   /**
    * A [Permanent] cost reducer, applied while the card sits where the skill
-   * says (9-1-3-3). `what` says which cost: the energy cost by default, or the
-   * combo cost (5-7-3).
+   * says (9-1-3-3). `what` says which cost: the energy cost by default, the
+   * combo cost (5-7-3), or the Z-Energy cost (5-4) a Z-Card pays out of the
+   * Z-Energy Area rather than the hand.
    */
   /**
    * 20-21. On a [Permanent] this is a standing effect and `collectStatics`
@@ -282,7 +292,7 @@ export type Op =
    * by 1 **for the duration of the turn**" (XD1-05) — and the interpreter puts
    * it in force for that long.
    */
-  | { op: "costReduction"; target: Ref; amount: Amount; what?: "energy" | "combo"; until?: Duration }
+  | { op: "costReduction"; target: Ref; amount: Amount; what?: "energy" | "combo" | "zEnergy"; until?: Duration }
   /**
    * Take a keyword skill away from a card (9-1-5). Unlike `negateSkills`, which
    * silences everything, this names one — "negate this card's
@@ -302,12 +312,33 @@ export type Op =
    */
   | { op: "replaceLeave"; to: ScriptArea; by?: "skill" | "ko" | "skillOrKo"; mode?: "active" | "rest"; target?: Ref }
   /**
-   * Another way to pay for this card's own [Counter] skill (5-3): for nothing,
-   * or by adding cards from your life to your hand. Read from the hand, like
-   * a cost reducer, because that is where the skill says it applies.
+   * Another way to pay for a card's own [Counter] skill (5-3): for nothing, by
+   * adding cards from your life to your hand, by a reduced energy price
+   * (`orbs`), or by an action price (`ops`). Read from the hand, like a cost
+   * reducer, because that is where the skill says it applies.
+   *
+   * Printed on the card itself this is `[Permanent]`-only and about that card
+   * (no `target`, no `until` — see `collectStatics`). A card can also grant it
+   * to *other* cards for a stated span — "Until the start of your next turn,
+   * you can activate mono-blue cards with [Counter] skills from your hand by
+   * …" (BT11-033) — which is what `target` and `until` are for: read off a
+   * live `Ref` and expiring like any other continuous effect, rather than
+   * defaulting to the source card and holding forever.
    */
-  /** `ops` is the price to run, for `pay: "program"` — an action the card asks for instead of the energy cost (5-3). */
-  | { op: "altCost"; pay: "none" | "life" | "program"; n?: number; for?: "counter" | "play"; ops?: Op[] }
+  | {
+      op: "altCost";
+      pay: "none" | "life" | "program" | "energy";
+      n?: number;
+      for?: "counter" | "play";
+      /** The price to run, for `pay: "program"` — an action the card asks for instead of the energy cost (5-3). */
+      ops?: Op[];
+      /** The reduced energy price, one entry per orb, for `pay: "energy"` — "by paying {1}" is `["any"]` (BT18-088). */
+      orbs?: (Color | "any")[];
+      /** Omit for "this card"; a filter offers the alternative to other cards it names. */
+      target?: Ref;
+      /** Omit only for the permanent, self-only form printed as [Permanent]. */
+      until?: Duration;
+    }
   /**
    * What a [Counter: Play] does to the card it is answering (9-6). `instead`
    * stops the play outright and sends the card there rather than into play;
@@ -1018,7 +1049,7 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         // to put it in force itself, or it resolves to nothing at all.
         const by = amount(ctx, s, frame, op.amount);
         if (!by) break;
-        const kind = op.what === "combo" ? "comboCost" : "cost";
+        const kind = op.what === "combo" ? "comboCost" : op.what === "zEnergy" ? "zEnergy" : "cost";
         for (const id of resolveRef(ctx, s, frame, op.target)) {
           addEffect(s, ev, { master: frame.master, source: frame.card, target: id, kind, value: by, until: op.until ?? "turn" });
         }
@@ -1028,10 +1059,23 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
       case "negateKeyword":
       case "gains":
       case "replaceLeave":
-      case "altCost":
         // Continuous by nature: read by `playCost` and by the counter window,
         // not applied here.
         break;
+
+      // The card's own offer about itself (no `until`) is [Permanent]-only
+      // and never reaches `exec` at all — `collectStatics` reads it instead,
+      // because a [Permanent] never resolves. Reaching this case means the
+      // card is granting the alternative to *other* cards for a span
+      // (BT11-033), so it is applied the way any other timed continuous
+      // effect is, on the cards the selector names right now.
+      case "altCost": {
+        if (!op.until) break;
+        const value: AltCost = { pay: op.pay, n: op.n ?? 1, for: op.for ?? "counter", ...(op.ops ? { ops: op.ops } : {}), ...(op.orbs ? { orbs: op.orbs } : {}) };
+        for (const id of resolveRef(ctx, s, frame, op.target ?? { sel: { special: "self" } }))
+          addEffect(s, ev, { master: frame.master, source: frame.card, target: id, kind: "altCost", value: 0, until: op.until, altCost: value });
+        break;
+      }
 
       case "resolvingPlay": {
         const card = s.resolving?.card;
@@ -1396,9 +1440,9 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     doc: 'a token (19): {"op":"token","name":"Saibaman Token","power":10000,"comboCost":0,"comboPower":5000,"colors":[],"n":2}',
   },
   costReduction: {
-    fields: [TARGET, { name: "amount", type: "amount", required: true }, { name: "what", type: { enum: ["energy", "combo"] }, default: "energy" }, { name: "until", type: "duration" }],
+    fields: [TARGET, { name: "amount", type: "amount", required: true }, { name: "what", type: { enum: ["energy", "combo", "zEnergy"] }, default: "energy" }, { name: "until", type: "duration" }],
     sentence: "{target} costs {amount:less|more}",
-    doc: '[Permanent] only unless a duration is given (20-21): "reduce the energy cost of your <Son Goku> cards in your hand by 1" — the selector names the area the text names, usually the hand',
+    doc: '[Permanent] only unless a duration is given (20-21): "reduce the energy cost of your <Son Goku> cards in your hand by 1" — the selector names the area the text names, usually the hand; "zEnergy" is the Z-Energy cost a Z-Card pays from the Z-Energy Area (5-4), read by `zEnergyCostOf`, never `d.zEnergyCost` raw',
   },
   negateKeyword: { fields: [{ name: "keyword", type: { enum: KEYWORD_NAMES }, required: true }, SELF], sentence: "negate the [{keyword}] skill of {target}", doc: 'take one named keyword away ("negate this card\'s [Energy-Exhaust] skill in all areas", 9-1-5); the keyword is its printed name, e.g. "Blocker"' },
   gains: {
@@ -1424,13 +1468,30 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     doc: '[Permanent] only (9-10): "if this card would be KO\'d, send it to the Warp instead". "by" is which departure it replaces: omitted = any, "skill" = removed by an effect, "ko" = the KO, "skillOrKo" = either. Omit "target" for this card',
   },
   altCost: {
-    fields: [{ name: "pay", type: { enum: ["none", "life", "program"] }, required: true }, { name: "n", type: "number" }, { name: "for", type: { enum: ["counter", "play"] }, default: "counter" }, { name: "ops", type: "ops" }],
+    fields: [
+      { name: "pay", type: { enum: ["none", "life", "program", "energy"] }, required: true },
+      { name: "n", type: "number" },
+      { name: "for", type: { enum: ["counter", "play"] }, default: "counter" },
+      { name: "ops", type: "ops" },
+      { name: "orbs", type: { list: { enum: ["any", ...COLORS] } } },
+      SELF,
+      { name: "until", type: "duration" },
+    ],
     sentence: (raw, r) => {
       const op = raw as OpOf<"altCost">;
-      const price = op.pay === "none" ? "for no energy" : op.pay === "program" ? `by: ${describeScript(op.ops ?? [], r)}` : `by adding ${op.n ?? 1} from your life to your hand`;
-      return `${op.for === "play" ? "it may be played" : "its [Counter] may be activated"} ${price}`;
+      const price =
+        op.pay === "none"
+          ? "for no energy"
+          : op.pay === "program"
+            ? `by: ${describeScript(op.ops ?? [], r)}`
+            : op.pay === "energy"
+              ? `for ${(op.orbs ?? []).map((o) => (o === "any" ? "{any}" : `{${o}}`)).join("")}`
+              : `by adding ${op.n ?? 1} from your life to your hand`;
+      const who = op.target ? describeRef(op.target) : "this card";
+      const until = op.until ? ` until ${op.until === "game" ? "the game ends" : op.until}` : "";
+      return `${op.for === "play" ? `${who} may be played` : `${who}'s [Counter] may be activated`} ${price}${until}`;
     },
-    doc: '[Permanent] only: another way to pay for this card\'s own [Counter] (5-3) — "none", by "life" (n cards), or a "program" the card asks for instead of energy',
+    doc: 'another way to pay for a [Counter] (or a play, "for":"play") (5-3) — "none", "life" (n cards), a reduced "energy" price ("orbs"), or a "program" the card asks for instead. Printed on the card itself this is [Permanent]-only and omits "target"/"until"; a card that grants it to *other* cards for a span carries both — "Until the start of your next turn, you can activate mono-blue cards with [Counter] skills from your hand by …" (BT11-033)',
   },
   resolvingPlay: {
     fields: [{ name: "instead", type: "area" }, { name: "position", type: POSITION }, { name: "mode", type: { enum: ["rest"] } }, { name: "negated", type: "boolean" }],
@@ -1904,9 +1965,18 @@ function describeSelector(sel: Selector, all = "all"): string {
             : `${sel.count}`;
   const words = selectorWords(sel);
   const where = sel.fromVar ? "of the cards looked at" : `in ${who}${sel.areas?.length ? sel.areas.join(" or ") : sel.area}`;
-  const mode = sel.mode ? ` in ${sel.mode} mode` : "";
+  const mode = describeMode(sel);
   return [count, words, where].filter(Boolean).join(" ") + mode + describeNotSelf(sel);
 }
+
+/**
+ * "In Rest Mode" / "In Hidden Mode" — the two axes a card instance carries
+ * (§23-5's Hidden/Revealed is orthogonal to §1-10's Active/Rest, and the
+ * compiler never sets both on one selector, so there is no case where they
+ * would need to be said together).
+ */
+const describeMode = (sel: Selector): string =>
+  sel.mode ? ` in ${sel.mode} mode` : sel.hidden === true ? " in Hidden Mode" : sel.hidden === false ? " in Revealed Mode" : "";
 
 /**
  * "…other than this card". Left out of the reading until 9 Sep 2026, when
@@ -1963,7 +2033,7 @@ const AREA_NOUNS: Partial<Record<ScriptArea, string>> = {
 function describeEach(sel: Selector): string {
   if (sel.special) return describeSelector(sel);
   const who = sel.side === "opponent" ? "their " : sel.side === "both" ? "" : "your ";
-  const mode = sel.mode ? ` in ${sel.mode} mode` : "";
+  const mode = describeMode(sel);
   const nouns = (sel.areas?.length ? sel.areas : [sel.area ?? "play"]).map((a) => AREA_NOUNS[a] ?? "cards");
   return `${who}${nouns.join(" or ")}${mode}${describeNotSelf(sel)}`;
 }

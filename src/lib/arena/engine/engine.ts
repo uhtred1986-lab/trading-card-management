@@ -67,6 +67,7 @@ import {
   skillsNegated,
   whyNotPay,
   programsOf,
+  zEnergyCostOf,
 } from "./state";
 import type {
   Action,
@@ -1703,7 +1704,7 @@ function mainActions(ctx: EngineContext, s: GameState, p: PlayerId): LegalAction
     const d = def(ctx, s, id);
     if (!isZ(d) || d.type === "Z-LEADER") continue; // 6-1-4: only Z-cards; Z-Leaders enter via [Z-Awaken]
     if (!canPlay(ctx, s, p, id)) continue; // 20-14
-    const zc = d.zEnergyCost ?? 0;
+    const zc = zEnergyCostOf(ctx, s, id);
     if (ps.zEnergy.length < zc) continue;
     if (d.type === "Z-UNISON") {
       const max = d.energyCost === "X" ? energyCount : (d.energyCost ?? 0);
@@ -2220,7 +2221,7 @@ function activatable(ctx: EngineContext, s: GameState, p: PlayerId, card: string
         if (!leader || !s.cards[leader].flipped || isZ(def(ctx, s, leader))) return null;
         const filter = parseFilter(sk.effect || sk.cost);
         if (!matches(cardNow(ctx, s, leader), filter) && !(filter.characters.length && def(ctx, s, leader).characters.some((c) => filter.characters.includes(c)))) return null;
-        if (ps.zEnergy.length < (d.zEnergyCost ?? 0)) return null;
+        if (ps.zEnergy.length < zEnergyCostOf(ctx, s, card)) return null;
         if (!costIsOrbsOnly || !canPayOrbs()) return null;
         return `Z-Awaken: ${name} on ${face(ctx, s, leader).name}`;
       }
@@ -2462,7 +2463,8 @@ function whyNotActivate(ctx: EngineContext, s: GameState, p: PlayerId, card: str
           if (!matches(cardNow(ctx, s, leader), filter) && !(filter.characters.length && def(ctx, s, leader).characters.some((c) => filter.characters.includes(c))))
             why.push({ kind: "target", reason: `your Leader is not ${sk.effect || sk.cost}` });
         }
-        if (ps.zEnergy.length < (d.zEnergyCost ?? 0)) why.push({ kind: "condition", text: `${d.zEnergyCost} Z-Energy (${ps.zEnergy.length} there)` });
+        const zc = zEnergyCostOf(ctx, s, card);
+        if (ps.zEnergy.length < zc) why.push({ kind: "condition", text: `${zc} Z-Energy (${ps.zEnergy.length} there)` });
         if (!costIsOrbsOnly) unread();
         else why.push(...orbs());
         return why;
@@ -2628,7 +2630,7 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
       if (askedZ) return { state: askedZ, events: ev };
       const pm = planPayment(ctx, s, p, c.total, c.specified, action.pay);
       if (!pm) throw new IllegalAction("can't pay the energy cost");
-      if (!payZEnergy(ctx, s, ev, p, d.zEnergyCost ?? 0)) throw new IllegalAction("can't pay the Z-Energy cost");
+      if (!payZEnergy(ctx, s, ev, p, zEnergyCostOf(ctx, s, action.card))) throw new IllegalAction("can't pay the Z-Energy cost");
       pay(s, ev, p, pm);
       s.resolving = { card: action.card, player: p };
       s.flow.unshift(
@@ -3058,7 +3060,7 @@ function activate(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId
   }
   if (k?.name === "Z-Awaken") {
     payOrbs();
-    payZEnergy(ctx, s, ev, p, d.zEnergyCost ?? 0);
+    payZEnergy(ctx, s, ev, p, zEnergyCostOf(ctx, s, card));
     ps.zAwakenedThisTurn = true;
     const old = ps.leader;
     ps.zDeck.splice(ps.zDeck.indexOf(card), 1);
