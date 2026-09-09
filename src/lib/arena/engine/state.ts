@@ -445,11 +445,17 @@ export function resolveRef(ctx: GameContext, s: GameState, frame: ScriptFrame, r
   return resolveSelector(ctx, s, frame, ref.sel);
 }
 
+/** The markers on the selected cards, added up (13-2) — the one sum both the `markers` condition and the `markers` amount ask for. */
+function markersOn(ctx: GameContext, s: GameState, frame: ScriptFrame, sel: Selector): number {
+  return resolveSelector(ctx, s, frame, sel).reduce((t, id) => t + s.cards[id].markers, 0);
+}
+
 export function amount(ctx: GameContext, s: GameState, frame: ScriptFrame, a: Amount): number {
   if (typeof a === "number") return a;
   if ("var" in a) return (frame.vars[a.var] ?? []).length;
   if ("sumPower" in a) return (frame.vars[a.sumPower.var] ?? []).reduce((t, id) => t + powerOf(ctx, s, id), 0);
   if ("handUpTo" in a) return Math.max(0, a.handUpTo - s.players[frame.master].hand.length);
+  if ("markers" in a) return markersOn(ctx, s, frame, a.markers) * (a.times ?? 1);
   return resolveSelector(ctx, s, frame, a.count).length * (a.times ?? 1);
 }
 
@@ -478,7 +484,7 @@ export function condHolds(ctx: GameContext, s: GameState, frame: ScriptFrame, c:
       return matches(cardNow(ctx, s, l), c.filter);
     }
     case "markers": {
-      const n = resolveSelector(ctx, s, frame, c.sel).reduce((t, id) => t + s.cards[id].markers, 0);
+      const n = markersOn(ctx, s, frame, c.sel);
       return (c.atLeast == null || n >= c.atLeast) && (c.atMost == null || n <= c.atMost);
     }
     case "inBattle": {
@@ -666,10 +672,11 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
     }
     if (op.op === "costReduction") {
       const kind = op.what === "combo" ? "comboCost" : "cost";
-      // "…by 1 for each of your blue Battle Cards" — the same count amount the
-      // power statics take, and for the same reason: a [Permanent] has no
-      // frame that ever bound a variable, so only `count` can be evaluated.
-      const value = typeof op.amount === "number" ? op.amount : "count" in op.amount ? amount(ctx, s, frame, op.amount) : null;
+      // "…by 1 for each of your blue Battle Cards" — the same count/markers
+      // amounts the power statics take, and for the same reason: a
+      // [Permanent] has no frame that ever bound a variable, so only those two
+      // can be evaluated.
+      const value = typeof op.amount === "number" ? op.amount : "count" in op.amount || "markers" in op.amount ? amount(ctx, s, frame, op.amount) : null;
       if (value == null) continue;
       for (const id of staticTargets(ctx, s, frame, op.target)) out.push({ source, kind, target: id, value });
       continue;
@@ -726,11 +733,12 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
     }
     if (!inPlayNow) continue; // the rest only hold while the card is in play
     if (op.op === "power" || op.op === "comboPower") {
-      // "+5000 power for each card placed under it" — a number read off the
-      // board. Only `count` amounts: the others are named by a variable, and a
+      // "+5000 power for each card placed under it", "+5000 power for each
+      // marker on this card" — a number read off the board. Only `count` and
+      // `markers` amounts: the others are named by a variable, and a
       // [Permanent] has no frame that ever bound one. `staticEffects` refuses
       // to recurse, so the count may safely ask the board about itself.
-      const value = typeof op.amount === "number" ? op.amount : "count" in op.amount ? amount(ctx, s, frame, op.amount) : null;
+      const value = typeof op.amount === "number" ? op.amount : "count" in op.amount || "markers" in op.amount ? amount(ctx, s, frame, op.amount) : null;
       if (value == null) continue;
       for (const id of staticTargets(ctx, s, frame, op.target)) out.push({ source, kind: op.op, target: id, value });
     } else if (op.op === "grant") {

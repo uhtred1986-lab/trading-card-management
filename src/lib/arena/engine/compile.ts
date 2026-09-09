@@ -1874,35 +1874,70 @@ function connective(clause: string): "skip" | "ifDone" | "ifNotDone" | "otherwis
  */
 function compileForEach(clause: string, c: Ctx): Op[] | null {
   const t = clean(clause);
-  const m = /^(.+?)\s+(?:for each|equal to the number of)\s+(.+)$/.exec(t);
-  if (!m) return null;
+  // "For each marker on this card, this card gets +5000 power during your
+  // turn" (BT27-003/004/005/006, EX19-21): the count leads the sentence,
+  // comma-joined, instead of trailing it. `compileClauseList` deliberately
+  // keeps that comma from splitting the clause in two (see
+  // `PURE_FOREACH_MARKERS_ON_SELF`) only for "on this card", so this is
+  // reached with the count and the effect still both in hand; every other
+  // leading "for each" phrase in the catalog is still split apart on its own
+  // and stays unread, same as before.
+  const lead = /^for (?:each|every) (markers?\s+on\s+.+?)\s*,\s*(.+)$/.exec(t);
+  const m = lead ? null : /^(.+?)\s+(?:for each|equal to the number of)\s+(.+)$/.exec(t);
+  if (!lead && !m) return null;
+  const headSrc = lead ? lead[2] : m![1];
   // What is being counted ends at its noun. "…+6000 power for each card in
   // your energy **and [Triple Strike] for the duration of the battle**"
   // carries on about the card, not about what is counted, and taking the whole
   // tail as the counted phrase dropped the keyword and the duration in
-  // silence — the power lasted the turn instead of the battle.
-  const cut = /(?:,?\s+and\s+\[)|(?:\s+for the (?:duration of the |rest of the )?(?:turn|battle|game)\b)|(?:\s+until\s)|(?:\s+during (?:this|your)\b)/i.exec(m[2]);
-  const counted = cut ? m[2].slice(0, cut.index) : m[2];
-  const tail = cut ? m[2].slice(cut.index) : "";
-  const sel = parseTarget(counted);
+  // silence — the power lasted the turn instead of the battle. The leading
+  // form has no such tail: the comma already ends the counted phrase.
+  const cut = lead ? null : /(?:,?\s+and\s+\[)|(?:\s+for the (?:duration of the |rest of the )?(?:turn|battle|game)\b)|(?:\s+until\s)|(?:\s+during (?:this|your)\b)/i.exec(m![2]);
+  const counted = lead ? lead[1] : cut ? m![2].slice(0, cut.index) : m![2];
+  const tail = lead ? "" : cut ? m![2].slice(cut.index) : "";
+  // "For each marker on X" is a marker total, not a count of matching cards —
+  // reading it as `count` asked how many cards are named "this card" (always
+  // 1) and printed a flat bonus with no markers in it at all.
+  const markersOn = /^markers?\s+on\s+(.+)$/.exec(counted);
+  const sel = parseTarget(markersOn ? markersOn[1] : counted);
   if (!sel) return null;
-  // A count reads the whole area, not one card out of it.
-  const counting: Selector = { ...sel, count: 99, upTo: false };
+  // A count (or a marker total) reads the whole area, not one card out of it.
+  const broad: Selector = { ...sel, count: 99, upTo: false };
+  const amountFor = (printed: number): Amount =>
+    markersOn ? { markers: broad, ...(printed === 1 ? {} : { times: printed }) } : { count: broad, ...(printed === 1 ? {} : { times: printed }) };
   // "Draw cards equal to the number of …" prints no number at all, because the
-  // count is the number.
-  if (/^draw cards?$/.test(m[1])) return [{ op: "draw", n: { count: counting } }];
+  // count is the number. Only the trailing "equal to" form says this; the
+  // leading marker form always prints a number to multiply.
+  if (!lead && /^draw cards?$/.test(headSrc)) return [{ op: "draw", n: { count: broad } }];
   // The tail goes back on the head, where the patterns that read "and
   // [Keyword]" and the duration can see it.
-  const head = compileClause(`${m[1]}${tail}`, c);
+  const head = compileClause(`${headSrc}${tail}`, c);
   if (!head?.length) return null;
   const [op, ...rest] = head;
-  // Only the ops whose whole point is a number, and only when that number was
-  // printed — anything else would be a guess about which part varies.
+  const swapped = swapForEachAmount(op, amountFor);
+  return swapped && [swapped, ...rest];
+}
+
+/**
+ * Swaps a flat printed number for a computed `Amount` inside the single op a
+ * "for each" clause's head compiled to — diving through an `if` wrapper
+ * ("…during your turn", read as a condition rather than a duration, see the
+ * trailing-condition case in `compileClause`) to reach the number underneath,
+ * since a [Permanent] as ordinary as "for each marker on this card, this card
+ * gets +5000 power during your turn" (BT27-003) compiles that way. Only ever
+ * one op deep of one `if`: two conditions or two effects would leave the
+ * printed number ambiguous, which is worse than leaving the clause unread.
+ */
+function swapForEachAmount(op: Op, amountFor: (printed: number) => Amount): Op | null {
+  if (op.op === "if" && !op.else && op.then.length === 1) {
+    const inner = swapForEachAmount(op.then[0], amountFor);
+    return inner && { ...op, then: [inner] };
+  }
   if ((op.op === "draw" || op.op === "discard" || op.op === "damage" || op.op === "mill" || op.op === "addLife" || op.op === "energyMarker") && typeof op.n === "number") {
-    return [{ ...op, n: { count: counting, ...(op.n === 1 ? {} : { times: op.n }) } }, ...rest];
+    return { ...op, n: amountFor(op.n) };
   }
   if ((op.op === "power" || op.op === "comboPower") && typeof op.amount === "number") {
-    return [{ ...op, amount: { count: counting, ...(op.amount === 1 ? {} : { times: op.amount }) } }, ...rest];
+    return { ...op, amount: amountFor(op.amount) };
   }
   return null;
 }
@@ -2083,6 +2118,16 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   if (/\bfor each\b|\bequal to the number of\b/.test(t)) {
     const counted = compileForEach(t, c);
     if (counted) return counted;
+    // "For each marker on this card, **it** gets +5000 power" (EX19-21):
+    // `compileForEach` refused this one because "it" cannot be resolved, but
+    // falling through leaves "for each marker on this card, it" for the
+    // patterns below to read as an ordinary subject phrase — and `refFor`'s
+    // "this card" test matches *anywhere* in it, so "it" silently became this
+    // card instead of staying unresolved. Once the leading count is known to
+    // be a marker total glued onto an effect (`PURE_FOREACH_MARKERS_ON_SELF`,
+    // reattached above), a failure to compile the effect refuses the whole
+    // clause rather than exposing that leftover phrase to anything else.
+    if (/^for (?:each|every) markers? on this card\s*,/.test(t)) return null;
   }
 
   // Draw (5-1). "You may draw" is treated as taken: declining never helps.
@@ -3300,6 +3345,17 @@ function track(o: Op, c: Ctx): void {
 const PURE_DURATION =
   /^(?:during this turn|for the (?:duration of the )?(?:turn|battle)|for the rest of the turn|until the end of (?:your|your opponent's|the)(?: next)? turn|until the (?:start|beginning) of your (?:next )?turn|until the (?:start|beginning) of your opponent's next turn)[.,]?$/i;
 
+/**
+ * A clause that is nothing but "for each marker on this card", split off from
+ * the effect it multiplies (BT27-003/004/005/006, EX19-21). Scoped to "this
+ * card" alone, not to a marker phrase in general: the catalog's other three
+ * "for each marker on …" cards (BT15-095, BT24-139, BT28-054) reduce a cost
+ * rather than a power, which `compileForEach` does not swap an amount into
+ * today, so merging their clause the same way would only change which text
+ * shows up unread, not whether it reads — left split, as before.
+ */
+const PURE_FOREACH_MARKERS_ON_SELF = /^for (?:each|every) markers? on this card[.,]?$/i;
+
 /** The clause loop, shared by a skill's body and by each modal option. */
 function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op[] {
   // "if you do" (20-16) makes the rest conditional on the previous choice, and
@@ -3339,6 +3395,14 @@ function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op
     // belongs to the clause after it, where `durationOf` will find it.
     if (PURE_DURATION.test(clause.trim()) && i + 1 < clauses.length) {
       clauses[i + 1] = `${clauses[i + 1].replace(/[.]$/, "")} ${clause.trim()}`;
+      continue;
+    }
+    // "For each marker on this card, this card gets +5000 power during your
+    // turn" — the reverse of a duration: the count leads the effect it
+    // multiplies rather than trailing it, so it is reattached in front, not
+    // behind, and `compileForEach` reads it out of the merged clause.
+    if (PURE_FOREACH_MARKERS_ON_SELF.test(clause.trim()) && i + 1 < clauses.length) {
+      clauses[i + 1] = `${clause.trim().replace(/[.,]$/, "")}, ${clauses[i + 1]}`;
       continue;
     }
     // "Otherwise, draw 1 card" — the else of the condition just before it,

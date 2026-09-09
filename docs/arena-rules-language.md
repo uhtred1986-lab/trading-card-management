@@ -65,6 +65,7 @@ stmt   := name "(" ( value | field ":" value ) ( "," field ":" value )* ")"
 cond   := comparison | name "(" … ")" | "NOT" cond | cond "AND" cond | cond "OR" cond | "(" cond ")"
 expr   := number | "$" name | "count" "(" SEL ")" ( "*" number )?
         | "sumPower" "(" "$" name ")" | "handUpTo" "(" number ")"
+        | "markers" "(" SEL ")" ( "*" number )?
 REF    := "$" name ( "MINUS" "$" name )? | SEL
 SEL    := part+                                    parts in any order; "any" when there are none
 part   := "[" special "]" | "FROM" "$" name | number | "UP TO" number? | "TOP" number

@@ -389,6 +389,27 @@ interface Staged {
 
 const onCard = (a: Action, id: string) => ("card" in a && a.card === id) || ("attacker" in a && a.attacker === id);
 
+/** Whether a condition asks about markers, through `not`/`any`/`all`. */
+function condMentionsMarkers(cond: Cond): boolean {
+  if (cond.kind === "markers") return true;
+  if (cond.kind === "not") return condMentionsMarkers(cond.cond);
+  if (cond.kind === "any" || cond.kind === "all") return cond.conds.some(condMentionsMarkers);
+  return false;
+}
+
+/**
+ * Whether a program reads the markers on a card, through an `if`'s condition
+ * or branches — a rule like this stages nothing to count without one
+ * (`stage` never otherwise puts a marker on anything, see the caller).
+ */
+function usesMarkers(ops: Op[]): boolean {
+  return ops.some((op) => {
+    if (op.op === "if") return condMentionsMarkers(op.cond) || usesMarkers(op.then) || (op.else ? usesMarkers(op.else) : false);
+    const amt = "amount" in op ? op.amount : "n" in op ? op.n : null;
+    return !!amt && typeof amt === "object" && "markers" in amt;
+  });
+}
+
 function stage(rule: ProbeRule, scenario: ProbeScenario): Staged {
   const { defs, scripts } = propsFor(rule);
   const ctx: EngineContext = { defs, scripts };
@@ -416,6 +437,15 @@ function stage(rule: ProbeRule, scenario: ProbeScenario): Staged {
     card = put(ctx, s, YOU, rule.def.id, where);
   }
   input.push(`${rule.def.name} in ${where === "hand" ? "your hand" : where === "leader" ? "your Leader Area" : `your ${where === "unison" ? "Unison" : "Battle"} Area`}`);
+
+  // A rule that reads its own markers ("for each marker on this card") is
+  // otherwise staged on a card with none, which cannot tell a working
+  // `markers` amount from a broken one — every board built for these cards
+  // needs some to count.
+  if (usesMarkers(rule.ops)) {
+    s.cards[card].markers = 2;
+    input.push(`${rule.def.name} has 2 markers on it`);
+  }
 
   // Energy for both sides: the price is never what a probe is meant to fail on.
   for (let i = 0; i < 6; i++) put(ctx, s, YOU, ENERGY, "energy");
