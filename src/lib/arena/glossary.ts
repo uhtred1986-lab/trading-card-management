@@ -655,7 +655,7 @@ export const READING_RULES: ReadingRule[] = [
   },
   {
     title: "What the orbs mean",
-    body: "{r} {u} {g} {y} {k} {w} are red, blue, green, yellow, black and white — blue is u and black is k, and white is the sixth colour, which BT28 added. {2} is that many orbs of any colour. {r}/{u} is one orb payable with either of the two named colours, which is not the same as one of any colour. A few sets print ③ for {3}, and it is normalised before anything reads it.",
+    body: "{r} {u} {g} {y} {b} {w} are red, blue, green, yellow, black and white — blue is u rather than the initial it shares with black, and white is the sixth colour, which BT28 added. {k} is accepted as a second spelling of black, but the catalog never prints it: every one of 248 black orbs is written {b}, which the letter table did not recognise until 9 Sep 2026 — every skill cost, cost reduction or filter written in black was reading as an unrecognised letter and losing the whole clause with it (BT17-119's {b} activation cost, BT29-140's {b}{w} reduction). {2} is that many orbs of any colour. {r}/{u} is one orb payable with either of the two named colours, which is not the same as one of any colour. A few sets print ③ for {3}, and it is normalised before anything reads it.",
   },
   {
     title: "The target grammar",
