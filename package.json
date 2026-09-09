@@ -35,6 +35,8 @@
     "arena:readings": "tsx scripts/arena-readings.mts",
     "arena:diff": "tsx --env-file-if-exists=.env.local scripts/arena-diff.mts",
     "arena:migrate-scripts": "tsx scripts/arena-migrate-scripts.mts",
+    "arena:backlog:sync": "tsx scripts/sync-arena-backlog.mts --sync",
+    "arena:backlog:close": "tsx scripts/sync-arena-backlog.mts --all-closed",
     "icons": "tsx scripts/make-icons.mts",
     "android:test": "docker compose -f android/compose.yaml run --rm contract"
   },

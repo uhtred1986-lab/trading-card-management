@@ -1498,3 +1498,29 @@ import type { GameState, Trigger } from "./harness";
   assert.ok(!offered.includes(plain), "…and the one without it is not");
   assertConsistent(s);
 }
+
+{
+  // BT7-129: "areas other than your deck, hand, or life" (20-1-6)
+  // The area list is inverted into the complement over ALL_AREAS, rather than
+  // matching "your deck" and searching the exact areas the text excludes.
+  const sk = parseSkills(
+    "[Permanent] If you have any non-black cards in areas other than your deck, hand, or life, you can't play this card from any area."
+  )[0];
+  const compiled = compileSkill(sk);
+  assert.equal(compiled.unsupported.length, 0);
+  const reading = describeScript(compiled.ops, { permanent: true });
+  assert.ok(reading.includes("in your leader or battle or unison or combo or energy or drop or warp or zDeck or zEnergy"));
+  assert.ok(!reading.includes("in your deck"));
+
+  // BT16-088: "non-<Zamasu> and non-<Goku Black>" Battle Cards for the game
+  // Two negated names survive clause-splitting and merge into one filter carrying both exclusions,
+  // with "for the game" parsed as until: "game".
+  const sk2 = parseSkills(
+    "[Activate: Main][Limit 1] If your Leader Card is a yellow ≪Shenron≫ <Zamasu> or yellow ≪Shenron≫ <Goku Black> card: Play this card from your Warp, and you can't play non-<Zamasu> and non-<Goku Black> Battle Cards for the game."
+  )[0];
+  const compiled2 = compileSkill(sk2);
+  assert.equal(compiled2.unsupported.length, 0);
+  const reading2 = describeScript(compiled2.ops);
+  assert.ok(reading2.includes("non-<zamasu> non-<goku black> battle card for the rest of the game"));
+}
+
