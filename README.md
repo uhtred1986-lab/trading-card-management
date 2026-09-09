@@ -39,3 +39,10 @@ each build and a daily cron hits `/api/sync/prices` (needs `CRON_SECRET`).
 ```powershell
 npm run typecheck && npm run lint && npm test
 ```
+
+## Arena backlog workflow
+
+Arena rework planning and intake now live in `docs/arena-backlog.md`.
+When new Arena bugs/features are found, file them as GitHub issues with the
+`Arena backlog item` template and include milestone + phase/area labels so
+future agents can pick them up directly.
