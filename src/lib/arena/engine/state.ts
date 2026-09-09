@@ -413,6 +413,10 @@ export function resolveSelector(ctx: GameContext, s: GameState, frame: ScriptFra
     const inst = s.cards[id];
     if (!inst) return false;
     if (sel.mode && inst.mode !== sel.mode) return false;
+    // 23-5-2: a Hidden Mode selector asks *for* the very cards the rule below
+    // would otherwise exclude from a filtered choice, so it is answered here,
+    // ahead of `sel.filter`, and never alongside it.
+    if (sel.hidden != null && inst.hidden !== sel.hidden) return false;
     // "…other than this card" / "…other than copies of this card": the one
     // card the phrase says the target is not.
     if (sel.notSelf && frame.card) {

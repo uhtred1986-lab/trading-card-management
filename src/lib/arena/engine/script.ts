@@ -79,6 +79,14 @@ export interface Selector {
   special?: SpecialTarget;
   /** Only cards in this mode (1-10). */
   mode?: "active" | "rest";
+  /**
+   * Only Hidden Mode cards, or (`false`) only Revealed Mode ones (23-5). A
+   * face-down card has none of its front-side information (23-5-2), so this
+   * is the one measure a Hidden Mode selector can carry — the compiler never
+   * pairs it with `filter`, and `resolveSelector` does not try to check one
+   * against a card it cannot read.
+   */
+  hidden?: boolean;
   /** Draw the candidates from a bound variable instead of an area. */
   fromVar?: string;
   /** How many to take. `upTo` allows zero (5-2-4). */
@@ -1904,9 +1912,18 @@ function describeSelector(sel: Selector, all = "all"): string {
             : `${sel.count}`;
   const words = selectorWords(sel);
   const where = sel.fromVar ? "of the cards looked at" : `in ${who}${sel.areas?.length ? sel.areas.join(" or ") : sel.area}`;
-  const mode = sel.mode ? ` in ${sel.mode} mode` : "";
+  const mode = describeMode(sel);
   return [count, words, where].filter(Boolean).join(" ") + mode + describeNotSelf(sel);
 }
+
+/**
+ * "In Rest Mode" / "In Hidden Mode" — the two axes a card instance carries
+ * (§23-5's Hidden/Revealed is orthogonal to §1-10's Active/Rest, and the
+ * compiler never sets both on one selector, so there is no case where they
+ * would need to be said together).
+ */
+const describeMode = (sel: Selector): string =>
+  sel.mode ? ` in ${sel.mode} mode` : sel.hidden === true ? " in Hidden Mode" : sel.hidden === false ? " in Revealed Mode" : "";
 
 /**
  * "…other than this card". Left out of the reading until 9 Sep 2026, when
@@ -1963,7 +1980,7 @@ const AREA_NOUNS: Partial<Record<ScriptArea, string>> = {
 function describeEach(sel: Selector): string {
   if (sel.special) return describeSelector(sel);
   const who = sel.side === "opponent" ? "their " : sel.side === "both" ? "" : "your ";
-  const mode = sel.mode ? ` in ${sel.mode} mode` : "";
+  const mode = describeMode(sel);
   const nouns = (sel.areas?.length ? sel.areas : [sel.area ?? "play"]).map((a) => AREA_NOUNS[a] ?? "cards");
   return `${who}${nouns.join(" or ")}${mode}${describeNotSelf(sel)}`;
 }

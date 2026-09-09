@@ -24,6 +24,8 @@ const SELECTOR_FLAGS: Record<string, (s: Selector) => void> = {
   any: () => {},
   active: (s) => (s.mode = "active"),
   rest: (s) => (s.mode = "rest"),
+  hidden: (s) => (s.hidden = true),
+  revealed: (s) => (s.hidden = false),
   fromEnd: (s) => (s.fromEnd = true),
   ignoringBarrier: (s) => (s.ignoreBarrier = true),
   otherThanSelf: (s) => (s.notSelf = "card"),

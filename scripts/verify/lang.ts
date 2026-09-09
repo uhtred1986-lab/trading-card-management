@@ -219,6 +219,8 @@ const tripFilter = (filter: CardFilter, what: string) => tripSelector({ side: "y
     { side: "both" as const, areas: ["battle", "unison", "leader"] as const },
     { mode: "active" as const },
     { mode: "rest" as const },
+    { hidden: true },
+    { hidden: false },
     { ignoreBarrier: true },
     { notSelf: "card" as const },
     { notSelf: "copies" as const },

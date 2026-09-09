@@ -1179,7 +1179,7 @@ import type { PlayerId } from "./harness";
   assert.deepEqual(each.ops, [
     {
       op: "draw",
-      n: { count: { side: "you", area: "battle", filter: undefined, count: 99, upTo: false, mode: undefined, fromVar: undefined, take: undefined, fromEnd: undefined, notSelf: undefined } },
+      n: { count: { side: "you", area: "battle", filter: undefined, count: 99, upTo: false, mode: undefined, hidden: undefined, fromVar: undefined, take: undefined, fromEnd: undefined, notSelf: undefined } },
     },
   ]);
 

@@ -118,6 +118,7 @@ export function printSelector(sel: Selector): string {
   if (zones !== undefined) parts.push(`IN ${sel.side === undefined ? "" : `${sel.side}.`}${zones}`);
   else if (sel.side !== undefined) parts.push(`OF ${sel.side}`);
   if (sel.mode !== undefined) parts.push(sel.mode);
+  if (sel.hidden !== undefined) parts.push(sel.hidden ? "hidden" : "revealed");
   if (sel.ignoreBarrier) parts.push("ignoringBarrier");
   if (sel.notSelf === "card") parts.push("otherThanSelf");
   else if (sel.notSelf === "copies") parts.push("otherThanCopies");
