@@ -117,7 +117,9 @@ export type Amount =
   /** The total power of the cards bound to a name — "the cards switched to Rest Mode by this skill" ([Alliance], 22-32). */
   | { sumPower: { var: string } }
   /** "Draw cards until you have 4 cards in your hand": however many that takes, never fewer than none. */
-  | { handUpTo: number };
+  | { handUpTo: number }
+  /** "For each marker on this card, +5000 power" — the markers on the selected cards, added up, the same board fact the `markers` condition asks about. */
+  | { markers: Selector; times?: number };
 
 /**
  * `minus` is "the rest": the cards bound to `var` that a later choice did not
@@ -1899,12 +1901,14 @@ function describeAmount(a: Amount, noun?: string): string {
   if (noun) {
     if (typeof a === "number") return `${a >= 0 ? "+" : ""}${a} ${noun}`;
     if ("count" in a) return `+${a.times ?? 1} ${noun} for each of ${describeEach(a.count)}`;
+    if ("markers" in a) return `+${a.times ?? 1} ${noun} for each marker on ${describeEach(a.markers)}`;
     return `+that many ${noun}`;
   }
   if (typeof a === "number") return `${a}`;
   if ("var" in a) return "that many";
   if ("sumPower" in a) return "the total power of the cards rested";
   if ("handUpTo" in a) return `up to ${a.handUpTo} in hand`;
+  if ("markers" in a) return `${a.times ?? 1} for each marker on ${describeEach(a.markers)}`;
   return `${a.times ?? 1} for each of ${describeEach(a.count)}`;
 }
 

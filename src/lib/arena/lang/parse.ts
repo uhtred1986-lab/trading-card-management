@@ -401,7 +401,14 @@ class Parser {
       this.want(")");
       return { handUpTo: n };
     }
-    return this.number("a number, $var, count(…), sumPower($v) or handUpTo(N)");
+    if (this.isKw("markers") && this.isPunct("(", this.ahead(1))) {
+      this.i += 2;
+      const sel = this.selector();
+      this.want(")");
+      if (!this.eatPunct("*")) return { markers: sel };
+      return { markers: sel, times: this.number() };
+    }
+    return this.number("a number, $var, count(…), sumPower($v), handUpTo(N) or markers(…)");
   }
 
   private ref(): Ref {
