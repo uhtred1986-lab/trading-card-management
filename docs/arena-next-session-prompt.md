@@ -3,14 +3,14 @@
 Paste the block below into a fresh session. It is written to be handed over
 without editing; everything it needs to find is in the repo.
 
-Rewritten 9 Sep 2026, after Stage 1 and the first **eleven** increments of
-Stage 2 of the rules-language programme merged.
+Rewritten 9 Sep 2026, after Stage 1, the first **thirteen** increments of Stage 2
+and **two rounds of parallel lanes** merged.
 
 ---
 
 Continue the arena rules-language programme. The plan the owner approved on
 9 Sep 2026 has ten stages; **Stage 0** (two engines and the switch), **Stage 1**
-(the language, and an editable WHEN) and the **first eleven increments of Stage
+(the language, and an editable WHEN) and the **first thirteen increments and two parallel rounds of Stage
 2** are merged into `main`. Read, in this order:
 
 1. `docs/arena-rules-worklist.md` — the entries for Stages 0, 1 and the Stage 2
@@ -20,29 +20,55 @@ Continue the arena rules-language programme. The plan the owner approved on
 3. `CLAUDE.md`, the arena bullets — "the rules language", "the record's WHEN is
    the engine's WHEN", "two engines, chosen per game".
 
-Branch fresh off `main`; there is nothing in flight. The only unmerged remote
-branch is `wip/compiler-uncommitted`, which is old — leave it alone.
+Branch fresh off `main`. **Five lanes may still be in flight** — check
+`git branch -r --no-merged origin/main` and the open PRs before starting, and
+read "What is known-wrong" below, which says who owns what. `wip/compiler-uncommitted`
+is old; leave it alone.
 
 ## The measurements to diff against
 
 Take your own baseline; do not trust a number written in a document, this one
-included. As of the eleventh increment:
+included. As of the round-two integration (PR #81):
 
 ```
-cards 6493, fully compiled 4634 (71.4 %)
-unread clauses 3553 over 2464 distinct shapes
+cards 6493, fully compiled 4686 (72.2 %)
+unread clauses 3449 over 2408 distinct shapes
 ```
 
 `npm run arena:tally` fetches the live deckplanet catalog, so it needs the
-network and fails transiently: a "gap set" that comes back as fourteen lines is
-a fetch error, not a catastrophe. `npm run arena:readings` needs neither
-network nor database.
+network and **fails transiently**: a "gap set" that comes back as fourteen lines
+is a fetch error, not a catastrophe, and three separate lanes have now been
+fooled by an intermediate run showing deltas that did not reproduce on a clean
+re-fetch of identical code. Re-run before believing a surprise.
+`npm run arena:readings` needs neither network nor database.
 
-## Where the last six increments got to
+## What the two parallel rounds actually taught
 
-All six were the same kind of bug — a clause that **compiles and reads
+Worth reading before running lanes again, because both lessons cost real time.
+
+**Measure the merge, not the branches.** Every lane measures itself against the
+same `main` and none of them sees the others. In round one the parts summed to
+3,500 unread clauses and the whole was 3,502 — two clauses behaved differently
+together than apart, because one lane taught a cost reduction to read while
+another started refusing the unreadable condition in front of it. In round two
+the parts summed *exactly* to the whole. Neither result was predictable, and
+only the merged measurement could tell them apart.
+
+**An instrument can be blind to the change it is measuring.** One lane added a
+`Selector` field that compiled correctly but had no words in `describeSelector`,
+so its first readings diff came back clean **by accident**. Another lane's
+"25+ skills" turned out to be 4 on measurement, and the card it offered as a
+correct *control* was itself broken. Where many readings move, prove a property
+— "every moved line differs only by the phrase I added", "every surviving
+reading is a strict prefix of the one it replaced" — and then still check one
+named card by hand.
+
+## Where the last eight increments got to
+
+All eight were the same kind of bug — a clause that **compiles and reads
 wrongly** — and not one of them would have been found by a coverage number.
-Five of the six moved the fully-compiled count by two cards in total.
+Between them they moved the fully-compiled count by nine cards, which is the
+point: the damage was never in what failed to compile.
 
 - **Sixth.** BT16-088's "you can't play non-\<Zamasu\> **and** non-\<Goku
   Black\> Battle Cards for the game" was split at the "and", so the ban was on
@@ -70,28 +96,62 @@ Five of the six moved the fully-compiled count by two cards in total.
   fully-compiled count did not move by one card, because every affected skill
   was on a card that already had a gap. That is the argument for the readings
   in a single number.
+- **Twelfth.** A **contraction**: the sets print "if **there's** a Blue/Yellow
+  multicolor card in your energy" as readily as "there is", and only the long
+  form was read. Seven skills print it, and because a refused condition now
+  takes its clause with it, that apostrophe cost five whole skills — one of them
+  a *wrong* reading, BT15-022 hunting the opponent's Drop for a card it wants in
+  yours.
+- **Thirteenth.** "**Their owner's**" is the idiom for a card going back to
+  whoever owns it, printed on 113 skills and living in the *destination* half of
+  the sentence — read as an ordinary "their" it made five cards search the
+  opponent's area for cards the text takes from your own. A token's power fell
+  back to a hard-coded 5000 whenever its reminder did not state all three stats
+  in one run (Ghost Tokens print 15000). And "you have **only** 3 or less"
+  derailed the count regex, holding open two gates that should have been shut.
+
+Then two parallel rounds: round one merged six branches for 4625 → 4664 cards,
+round two another six for 4664 → **4686**. What they contained is in the git
+log; what they *taught* is above, under "What the two parallel rounds actually
+taught".
 
 ## What is known-wrong and not yet fixed
 
-Measured, reproducible, and left for a deliberate commit:
+Measured and reproducible. **Five lanes are working on most of this right now**
+(branches `claude/lane-{f,g,h,i,j}-*`), so check what is in flight before
+starting: F is the specified cost and [Empower]'s choice, G the two audit
+findings, H a second read-only audit pass, I the small leftovers, J the `move()`
+refactor.
 
-- **"Hidden Mode" is not a measure the grammar has.** 152 printed lines say it;
-  `Selector` has `mode` for active/rest but nothing for hidden, and
-  `state.ts:426` excludes a hidden card from any *filtered* selection, so
-  "choose 1 Hidden Mode card" is offered every card instead. Adding it is a
-  `Selector` field with the round-trip obligations that carries
-  (`SELECTOR_FIELDS` in `lang/ast.ts`, `print.ts`, `parse.ts`, `verify/lang.ts`).
-  BT28-124's [Counter] price is the case that shows it.
-- **Two leading conditions the compiler *can* read are still dropped** — the
-  eleventh increment left them; they are a plumbing bug rather than a grammar
-  gap, and the scan that finds them is four lines of `parseConditionClause`
-  over the readings dump.
-- **BT19-096** drops "with power less than or equal to the chosen card's power"
-  entirely: `powerRel` measures against *this* card, and this phrase measures
-  against a card the same skill chose.
+- **The `move()` refactor is the biggest single unlock left.** A replacement
+  cannot ask a question: `move()` is synchronous, has ~48 call sites, no frame
+  and no `"wait"` path, so assigning `s.prompt` inside it is silently lost. The
+  point of no return is `state.ts:852`, `detach(s, id)` — after it the card is
+  in no area and no prompt could serialise. That puts all 13 "you may … instead"
+  clauses (9-10-3) out of reach and leaves 9-10-2's mandated choice
+  unimplemented, which `replacementFor`'s own header comment admits while
+  calling it "one prompt away". It is not; it is a refactor away.
+- **BT19-096** drops "with power less than or equal to the chosen card's power":
+  `powerRel` measures against *this* card and the phrase measures against a card
+  the same skill chose a clause earlier.
 - **EX25-35** reads its second half as a fragment whose possessive stayed in the
-  first, so a rest-lock aimed at the opponent reads as one aimed at you. Left
-  narrow deliberately; the fix is in `splitClauses`, not in the side test.
+  first, so a rest-lock aimed at the opponent reads as one aimed at you. The fix
+  is in `splitClauses`, not the side test — and that function is the most
+  load-bearing in the compiler; three separate fixed bugs came from changing how
+  it cuts.
+- **Two leading conditions the compiler *can* read are still dropped** — plumbing
+  left over from the eleventh increment, not a grammar gap.
+- **The two-name "and" play list** (BT20-077, BT20-079, BT24-123, EB1-32,
+  EX23-37): the first card reads as already in play and the second flips to the
+  opponent's deck. **BT15-022's three-condition chain** merges two conditions and
+  a price into one wrong condition.
+- **Cost-reduction sub-family A** (71 clauses) stays unread and is not a lane:
+  `orbTotals` is a pure function with eleven call sites, and the *scoping* half
+  of those sentences is itself unread — 45 clauses over 40 shapes. Compiling the
+  discount without the scope gives every skill on the board a permanent,
+  unlimited, untargeted discount.
+- **[Empower XY/ZY]** cannot be parsed (22-45-3-1). No card prints it; theoretical
+  until one does.
 
 ## Then, the rest of Stage 2 — the families, re-measured
 
