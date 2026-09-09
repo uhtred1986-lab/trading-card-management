@@ -54,6 +54,25 @@ const TARGET_BEFORE_AND = /(?:^\s*|[,;:]\s+)(?:this card|it|they|them|that card|
 const MEASURE_AFTER_AND = /^(?:an? energy cost of \d+|\d+ power|no keyword skills?|no keywords|(?:an?|the) \[[a-z0-9:\- /]+\] skill)(?: or (?:less|more))?\b/i;
 
 /**
+ * "Choose all of your opponent's skill-less Battle Cards **and** Battle Cards
+ * with 15000 power or less" (EX25-35): the "and" joins a second description of
+ * the same choice — one target, two ways to qualify for it — not a new
+ * clause. Split here, the second description arrives with the possessive that
+ * named its side left behind in the first half, and a rest-lock printed for
+ * one side reads as aimed at the other (`compileProhibition`'s subject
+ * defaults to "you" when nothing says otherwise). The tell is narrow on
+ * purpose: the clause so far is a "choose" naming Battle Cards and stops
+ * exactly there, and what follows "and" opens the same way — "Battle Cards",
+ * bare or qualified by "with…" — rather than a clause with a verb of its own.
+ */
+const CHOICE_OPENING = /^choose\b.*\bbattle cards$/i;
+const CHOICE_CONTINUES = /^battle cards?\b/i;
+
+function andJoinsChoiceList(text: string, start: number, i: number): boolean {
+  return CHOICE_OPENING.test(text.slice(start, i).trim()) && CHOICE_CONTINUES.test(text.slice(i + 5));
+}
+
+/**
  * A dash the sets use in pairs to hang a description off a target: "play up to
  * 1 <Son Goku: GT> or <Vegeta: GT> card ―both mono-green, with an energy cost
  * of 5 and 20000 power― from your Drop". Everything between the pair belongs
@@ -114,6 +133,7 @@ export function splitClauses(text: string): string[] {
         !TARGET_BEFORE_AND.test(text.slice(start, i)) &&
         !andEndsAList(text, start, i) &&
         !andJoinsTwoAreas(text, start, i) &&
+        !andJoinsChoiceList(text, start, i) &&
         !andJoinsTwoCountedAreas(text, start, i) &&
         !andJoinsARange(text, start, i) &&
         !andJoinsColours(text, start, i) &&
