@@ -1,348 +1,214 @@
-# Prompt for the next arena session
+# Continuing the arena rules programme
 
-Paste the block below into a fresh session. It is written to be handed over
-without editing; everything it needs to find is in the repo.
+Written 9 Sep 2026, after Stage 1, fourteen increments of Stage 2 and three
+rounds of parallel work merged. It assumes no knowledge of the sessions that
+came before and no particular tooling — any coding client can pick this up.
 
-Rewritten 9 Sep 2026, after Stage 1, the first **thirteen** increments of Stage 2
-and **two rounds of parallel lanes** merged.
+Read `CLAUDE.md` first for the app as a whole. This document is only the arena
+compiler and engine.
 
 ---
 
-Continue the arena rules-language programme. The plan the owner approved on
-9 Sep 2026 has ten stages; **Stage 0** (two engines and the switch), **Stage 1**
-(the language, and an editable WHEN) and the **first thirteen increments and two parallel rounds of Stage
-2** are merged into `main`. Read, in this order:
+## 1. What the arena is, in one paragraph
 
-1. `docs/arena-rules-worklist.md` — the entries for Stages 0, 1 and the Stage 2
-   increments, with the numbers and the reasoning. Start at the bottom.
-2. `docs/arena-rules-language.md` — the grammar, the round-trip promise, and
-   what Stage 1 deliberately left out.
-3. `CLAUDE.md`, the arena bullets — "the rules language", "the record's WHEN is
-   the engine's WHEN", "two engines, chosen per game".
+The arena plays Dragon Ball Super Card Game games from the printed text of real
+cards. `src/lib/arena/engine/compile.ts` reads a card's skill into a program in
+a small effect language; the engine runs it; anything the compiler cannot read
+goes to a referee. **The engine never compiles card text at game time** — rules
+live as rows in `card_rules`, drafted offline. `src/lib/arena/glossary.ts` is
+the written record of what the compiler understands, and it is part of the
+compiler rather than documentation about it: change what the engine reads, and
+that file changes in the same commit.
 
-Branch fresh off `main`. **Five lanes may still be in flight** — check
-`git branch -r --no-merged origin/main` and the open PRs before starting, and
-read "What is known-wrong" below, which says who owns what. `wip/compiler-uncommitted`
-is old; leave it alone.
-
-## The measurements to diff against
-
-Take your own baseline; do not trust a number written in a document, this one
-included. As of the round-two integration (PR #81):
+## 2. Where it stands
 
 ```
-cards 6493, fully compiled 4686 (72.2 %)
-unread clauses 3449 over 2408 distinct shapes
+cards 6493, fully compiled 4678 (72.0 %)
+unread clauses 3455 over 2416 distinct shapes
 ```
 
-`npm run arena:tally` fetches the live deckplanet catalog, so it needs the
-network and **fails transiently**: a "gap set" that comes back as fourteen lines
-is a fetch error, not a catastrophe, and three separate lanes have now been
-fooled by an intermediate run showing deltas that did not reproduce on a clean
-re-fetch of identical code. Re-run before believing a surprise.
-`npm run arena:readings` needs neither network nor database.
+**Take your own baseline. Do not trust that number, including here.**
 
-## What the two parallel rounds actually taught
+```
+npm run arena:tally -- --misses 100000 > gap-before.txt   # ~11 s, needs network
+npm run arena:readings > read-before.txt                  # ~8 s, needs nothing
+```
 
-Worth reading before running lanes again, because both lessons cost real time.
+`arena:tally` fetches the live catalog and **fails transiently** — a result of
+about fourteen lines is a fetch error, and three separate work streams have been
+fooled by an intermediate run whose deltas did not reproduce. Re-run before
+believing a surprise.
 
-**Measure the merge, not the branches.** Every lane measures itself against the
-same `main` and none of them sees the others. In round one the parts summed to
-3,500 unread clauses and the whole was 3,502 — two clauses behaved differently
-together than apart, because one lane taught a cost reduction to read while
-another started refusing the unreadable condition in front of it. In round two
-the parts summed *exactly* to the whole. Neither result was predictable, and
-only the merged measurement could tell them apart.
+## 3. The one thing that matters
 
-**An instrument can be blind to the change it is measuring.** One lane added a
-`Selector` field that compiled correctly but had no words in `describeSelector`,
-so its first readings diff came back clean **by accident**. Another lane's
-"25+ skills" turned out to be 4 on measurement, and the card it offered as a
-correct *control* was itself broken. Where many readings move, prove a property
-— "every moved line differs only by the phrase I added", "every surviving
-reading is a strict prefix of the one it replaced" — and then still check one
-named card by hand.
+**The failure mode is not a clause that fails to compile. It is a clause that
+compiles and reads wrongly.** No coverage number catches it and no test knows to
+ask. Fourteen increments of evidence:
 
-## Where the last eight increments got to
+- A board wipe that cleared only its own side.
+- A KO offered every card on the board, because "Rest Mode Battle Cards" was
+  read only when the words came *after* the noun.
+- A [Counter] charged half its printed price.
+- 149 skills that happened whether or not their condition held.
+- A card that played itself from hand for free with no requirement.
+- Seven cards that searched the opponent's deck for cards the text takes from
+  their own, because a *destination* phrase at the end of the sentence decided
+  where the *search* happened.
+- A token that arrived with 5000 power where its reminder printed 15000.
+- A contraction — "there's" where the parser knew only "there is" — that cost
+  five whole skills their condition.
 
-All eight were the same kind of bug — a clause that **compiles and reads
-wrongly** — and not one of them would have been found by a coverage number.
-Between them they moved the fully-compiled count by nine cards, which is the
-point: the damage was never in what failed to compile.
+Every one of those compiled cleanly and reported a plausible-looking reading.
 
-- **Sixth.** BT16-088's "you can't play non-\<Zamasu\> **and** non-\<Goku
-  Black\> Battle Cards for the game" was split at the "and", so the ban was on
-  the wrong cards and expired at the end of the turn: a negated name is a name.
-  BT7-129's "in areas other than your deck, hand, or life" read as "in your
-  deck" — the complement is now written out area by area.
-- **Seventh.** Eleven cards let a [Counter] go off for half its price. The
-  whole-sentence read that exists to prevent exactly that stripped only "you
-  can", and ten of the eleven open with a condition.
-- **Eighth.** Nine board wipes cleared only the caster's own side. Five said so
-  themselves via "ignoring [Barrier]" (22-16-2); the other four are the owner's
-  ruling of 9 Sep 2026, recorded on their rows.
-- **Ninth.** "Rest Mode Battle Cards" in front of the noun was never read, only
-  "Battle Cards in Rest Mode" — so sixty removal skills written for a card that
-  had already attacked were offered anything on the board.
-- **Tenth.** The exclusion run stopped at its first item, its possessive was
-  read as the chooser's side, and **"25000 or less power" was a word order the
-  compiler had never read** — 41 lines print it and only 3 carried a bound.
-  TB1-015 had all four wrong at once and KO'd precisely the cards it spared.
-- **Eleventh, and the largest.** A clause opening with "if" is a condition
-  whether or not the compiler can read it, and everything after it hangs on it.
-  Refused alone, the clauses it governed happened **always**: 149 skills, among
-  them two cards that played themselves from hand for free with no requirement
-  and a board wipe offered every turn. 430 clauses entered the gap set and the
-  fully-compiled count did not move by one card, because every affected skill
-  was on a card that already had a gap. That is the argument for the readings
-  in a single number.
-- **Twelfth.** A **contraction**: the sets print "if **there's** a Blue/Yellow
-  multicolor card in your energy" as readily as "there is", and only the long
-  form was read. Seven skills print it, and because a refused condition now
-  takes its clause with it, that apostrophe cost five whole skills — one of them
-  a *wrong* reading, BT15-022 hunting the opponent's Drop for a card it wants in
-  yours.
-- **Thirteenth.** "**Their owner's**" is the idiom for a card going back to
-  whoever owns it, printed on 113 skills and living in the *destination* half of
-  the sentence — read as an ordinary "their" it made five cards search the
-  opponent's area for cards the text takes from your own. A token's power fell
-  back to a hard-coded 5000 whenever its reminder did not state all three stats
-  in one run (Ghost Tokens print 15000). And "you have **only** 3 or less"
-  derailed the count regex, holding open two gates that should have been shut.
+### The discipline that finds them
 
-Then two parallel rounds: round one merged six branches for 4625 → 4664 cards,
-round two another six for 4664 → **4686**. What they contained is in the git
-log; what they *taught* is above, under "What the two parallel rounds actually
-taught".
-
-## What is known-wrong and not yet fixed
-
-Measured and reproducible. **Five lanes are working on most of this right now**
-(branches `claude/lane-{f,g,h,i,j}-*`), so check what is in flight before
-starting: F is the specified cost and [Empower]'s choice, G the two audit
-findings, H a second read-only audit pass, I the small leftovers, J the `move()`
-refactor.
-
-- **The `move()` refactor is the biggest single unlock left.** A replacement
-  cannot ask a question: `move()` is synchronous, has ~48 call sites, no frame
-  and no `"wait"` path, so assigning `s.prompt` inside it is silently lost. The
-  point of no return is `state.ts:852`, `detach(s, id)` — after it the card is
-  in no area and no prompt could serialise. That puts all 13 "you may … instead"
-  clauses (9-10-3) out of reach and leaves 9-10-2's mandated choice
-  unimplemented, which `replacementFor`'s own header comment admits while
-  calling it "one prompt away". It is not; it is a refactor away.
-- **BT19-096** drops "with power less than or equal to the chosen card's power":
-  `powerRel` measures against *this* card and the phrase measures against a card
-  the same skill chose a clause earlier.
-- **EX25-35** reads its second half as a fragment whose possessive stayed in the
-  first, so a rest-lock aimed at the opponent reads as one aimed at you. The fix
-  is in `splitClauses`, not the side test — and that function is the most
-  load-bearing in the compiler; three separate fixed bugs came from changing how
-  it cuts.
-- **Two leading conditions the compiler *can* read are still dropped** — plumbing
-  left over from the eleventh increment, not a grammar gap.
-- **The two-name "and" play list** (BT20-077, BT20-079, BT24-123, EB1-32,
-  EX23-37): the first card reads as already in play and the second flips to the
-  opponent's deck. **BT15-022's three-condition chain** merges two conditions and
-  a price into one wrong condition.
-- **Cost-reduction sub-family A** (71 clauses) stays unread and is not a lane:
-  `orbTotals` is a pure function with eleven call sites, and the *scoping* half
-  of those sentences is itself unread — 45 clauses over 40 shapes. Compiling the
-  discount without the scope gives every skill on the board a permanent,
-  unlimited, untargeted discount.
-- **[Empower XY/ZY]** cannot be parsed (22-45-3-1). No card prints it; theoretical
-  until one does.
-
-## Then, the rest of Stage 2 — the families, re-measured
-
-**Each family was scoped against the live catalog on 9 Sep 2026, and the table
-below it is wrong in specific ways. Read these corrections first; they are the
-measurement, the table is the plan.**
-
-- **Cost reduction is a wording gap, not a missing primitive.** `costReduction`
-  already exists (`script.ts:283`), `playCost` and `comboCostOf` already consume
-  it, `staticEffects` already scans the Z-Deck, and the op is compiled 339 times
-  — but only **one regex** ever emits it, at `compile.ts:2353`. Widening that
-  one pattern to accept *decrease*, the passive "is reduced by", the possessive
-  "this card's … cost", the plural "costs", a bare "cost" with no "energy",
-  "for every N" as a divisor and `z-deck` targets takes **~40 of the 145
-  clauses with no new op, no new `StaticEffect` kind and no engine change**.
-  Five of the seven combo-cost clauses are the same `splitClauses` "and" bug the
-  sixth increment fixed for names, which also answers the open question at
-  `docs/arena-next-stage-spec.md:590`.
-  **Leave sub-family A (71 clauses, "reduce the skill cost by {o}") alone**, for
-  a reason the plan does not mention: its *scoping* half is itself unread —
-  "the next time you activate [Arrival] on a \<Beerus\> card … during this turn"
-  is a separate unread clause, and there are 45 such over 40 shapes. Compile the
-  discount without the scope and you have a permanent, unlimited, untargeted
-  discount on every skill on the board.
-  **Leave sub-family D (8 "specified cost" clauses) until the owner rules**:
-  `glossary.ts:401` treats the specified cost as the colour part alone, while
-  `costReduction` with an orb amount lowers total *and* colour.
-  The plan's "46" for this family exists nowhere: `arena-next-stage-spec.md:467`
-  totals 42, `arena-design-proposal.md:592` says 74 cards, the measurement says
-  145 over 84 shapes.
-
-- **"Instead": the wording half pays first, not the event and subject.** 16 of
-  the plan's own 21 headline clauses are wording gaps in the existing
-  primitive — ten Warp clauses fail only on the passive "it's sent to its
-  owner's Warp", and six remove-from-game clauses fail only because
-  `parseWouldLeave` (`compile.ts:1213`) demands the literal " would " where they
-  print "is removed". The subject is not new either: `replaceLeave` already
-  carries `target`, and BT19-100 and BT30-016b ship it in production readings.
-  **And no replacement can prompt at all today.** `move()` (`state.ts:819`) is
-  synchronous with 48 call sites, has no frame and no `"wait"` path, so
-  assigning `s.prompt` inside it is silently lost; the point of no return is
-  `state.ts:852`, `detach(s, id)`, after which the card is in no area and no
-  prompt could serialise. That puts all 13 "you may … instead" clauses (9-10-3)
-  out of reach, and makes `replacementFor`'s comment that 9-10-2's mandated
-  choice is "one prompt away" optimistic — it is a refactor away.
-
-- **`immune` needs a fourth field.** Four of its thirteen cards filter the
-  *source* card, which `target`/`from`/`until` cannot say: BT18-019
-  `non-\<Gogeta: GT\>`, BT23-140 "cards other than Battle Cards", EX23-36
-  non-Extra, BT19-019 "red ≪Saiyan≫ with 20000 power or less". Add
-  `fromFilter: CardFilter`, mirroring the `side` + `filter` pair `forbid`
-  already carries. BT18-019 names no owner, so `from` is **both**. Put it in
-  `STATIC_OPS` (`state.ts:653`) or the eleven [Permanent]s compile, read
-  correctly and do nothing. Do not count the 19 `[Deflect]` reminder skills.
-
-- **"For each marker" is not "5 unread" — it is 1 unread and 4 wrong.**
-  BT27-003/004/005/006 read "For each marker on this card, this card gets +5000
-  power" as a **flat +5000 with no markers on the board**. And the owner's
-  ruling of 9 Sep 2026 (recorded on BT27-003, read it with `arena:rule --list`)
-  makes this family much larger than an `Amount`: markers are counters on a
-  Unison equal to the **specified energy paid** for its X cost, tokens are real
-  Battle Cards and must not be conflated with them, and **[Empower \<colour\>
-  N]** carries up to N markers from a Unison already in play — old one to the
-  Drop, inherited markers added on top of the ones the energy bought. The owner
-  asked for full arena support including animation. None of it exists.
-  When the `Amount` is added, note that `state.ts:733` drops a static whose
-  amount is not a number or a `count` — leave that line alone and the whole
-  family compiles, reads correctly and does nothing on the board — and that
-  `verify/lang.ts:65` samples only `1` and `count(…)`, so **`sumPower` and
-  `handUpTo` have no round-trip coverage today** and a new shape would get none
-  either.
-
-- **Alternative costs: half the family is a wording gap, half is not.**
-  BT18-088 "by paying {1} instead of its energy cost" needs a `pay:"energy"`
-  that does not exist; BT11-033 needs `target` and `until` on `altCost`;
-  BT20-044 and P-396 need a selector for cards under a *named* host; BT31-135,
-  BT31-069 and the five [Spirit Boost] cards need `canPayCostProgram`
-  (`state.ts:1176`) to admit `moveTo to:"under"`, `flip` and `removeMarker`.
-
-
-Counted on the live catalog on 9 Sep 2026, after the fourth increment (the fifth
-moved no gap, so these still stand):
-
-- **The cost-reduction family is 145 unread clauses over 84 shapes**, not the 46
-  the plan's table says — "reduce the skill cost by {o}" is only the largest of
-  them, beside "reduce the energy cost of this card in your hand", "reduce the
-  combo cost", "reduce the Z-Energy cost", "reduce the specified cost". They are
-  not one primitive: some reduce a *named skill's* cost by coloured orbs once,
-  some reduce a card's own energy cost while it sits in a hand or a Z-Deck. The
-  consumer is `orbTotals` and the payment planner, in the frozen legacy engine.
-  Scope it before starting, and say which of the four it covers.
-- **The "instead" family is 75 clauses**, the biggest single shapes being
-  "remove it from the game instead" (11), "it's sent to its owner's Warp
-  instead" (10 across two spellings) and "add it to your hand instead" (4). The
-  destination-only subset is what `replaceLeave` already does; what pays is
-  widening the **event** (leaving the Combo Area, leaving Life, a card being
-  played) and the **subject** (not just this card). 9-10 replacement happens
-  inside `move()`, which is synchronous and called from everywhere, and a
-  replacement block can prompt — say plainly where it stops.
-- **"isn't affected by your opponent's skills" is 13 clauses** over seven
-  shapes: `immune(target, from, until)`, genuinely new and contained. The
-  smallest of the three, and the one most likely to fit in one sitting.
-- **"for each marker on this card" (5)** — `Amount` → expression, the start of
-  the `expr` work Stage 2 lists.
-- **Alternative costs** ("you can activate this card's [Counter] from your hand
-  by X instead of paying its energy cost", 7+): `altCost` with `pay: "program"`
-  already says this. **Wording gap**, not a primitive.
-
-Two smaller things the readings diff turned up earlier and left alone, both
-honest gaps rather than wrong readings: **"choose all Battle Cards"** with no
-possessive is read as your own (BT7-110 — the "other" fix narrowed the
-both-sides default to phrases saying "other", deliberately), and **"original
-energy cost"** is read as the current one.
-
-## How to do it safely — this is the part that matters
-
-The failure mode here is not a clause that fails to compile. It is a clause that
-**compiles and reads wrongly**, which no coverage number catches and no test
-knows to ask about.
-
-1. **Snapshot both measurements before you touch anything:**
-   `npm run arena:tally -- --misses 100000 > gap-before.txt` and
-   `npm run arena:readings > read-before.txt`.
+1. Snapshot **both** measurements before touching anything (§2).
 2. Make the change.
-3. **Diff the gap set** (strip the counts, sort, `diff`). Shapes that *appear*
-   are as important as shapes that vanish, and a coverage number that *falls* is
-   usually the change working.
-4. **Diff the readings and sign off every line that moved.**
-   `npm run arena:readings` prints the printed text beside `describeScript` for
-   all 13,563 skills, with no database; `-- --grep "<a wording>"` narrows it to
-   one wording and `--unread` adds the clauses that did not read. Key the diff
-   by card and skill (`awk '/^[A-Z0-9]/{k=$0} /^  reads:/{print k" || "$0}'`,
-   sorted) rather than diffing the files line by line. The gap-set diff *was*
-   clean on the day three cards were being read wrongly; this is the check that
-   catches that, and it is not optional.
-5. Prefer unread to wrongly read (ground rule 5). If you leave a rule out, leave
-   the comment in, naming the cards.
+3. **Diff the gap set.** Shapes that appear matter as much as shapes that vanish.
+   A coverage number that *falls* is often the change working.
+4. **Diff the readings and sign off every line that moved**, keyed by card:
+   ```
+   awk '/^[A-Z0-9]/{k=$0} /^  reads:/{print k" || "$0}' read-after.txt | sort
+   ```
+   Where many lines move, prove a **property** instead of reading them all —
+   "every moved line differs only by the phrase I added", "every surviving
+   reading is a strict prefix of the one it replaced". Both have been used and
+   both caught real problems. **Then still check one named card by hand**: an
+   instrument can be blind to the change it is measuring. One field compiled
+   correctly but had no words in `describeSelector`, so its first readings diff
+   came back clean *by accident*.
+5. **Prefer unread to wrongly read.** A gap costs tokens; a wrong reading loses
+   games. Refusing a family outright is a good outcome, and reducing the
+   fully-compiled count can be the right answer — twelve cards left it in round
+   three, every one of which had counted as complete only because a wrong
+   reading hid a gap.
+6. **Touch the compiler, update `glossary.ts`** in the same commit. That
+   includes a family you decide to refuse.
 
-Also useful: `arena:tally -- --show "<a wording>"` prints the actual cards behind
-a shape count. Read it before believing any row of the plan's gap table — the
-first increment measured the table against the cards and found it half wrong.
+### The gate, every commit
 
-## The gate, every commit
+```
+npm run typecheck && npm run lint && npm test && npm run build
+npx tsx --env-file-if-exists=.env.local scripts/arena-fuzz.mts 40   # 0 crashes
+```
 
-`npm run typecheck`, `npm run lint`, `npm test`, `npm run build`,
-`npx tsx --env-file-if-exists=.env.local scripts/arena-fuzz.mts 40` (0 crashes
-required). A compiler change also needs the gap-set **and readings** diffs above.
-A change to what the referee is told, or to a harness card, needs
-`npm run contract:emit` — **review that diff**, and expect the probe digests to
-change by exactly the cards you added.
+Changing a harness card, an `OP_SCHEMA` row or what the referee is told also
+needs `npm run contract:emit`, and **review that diff** — expect exactly the
+cards you touched. The fixtures are written LF and checked out CRLF, so a
+`contract:emit` reporting twelve modified files with empty diffs is noise:
+confirm, then `git checkout -- contract/`.
 
-## Things that cost an hour each to relearn
+## 4. What to do next, in priority order
 
-- **Never write engine source through `node -e`** — `\b` in a shell-quoted
-  string becomes a backspace and silently kills a regex. Use the Edit tool.
-  There is no `python` on this machine either.
-- **The repo stores LF and Windows checks it out as CRLF** (`core.autocrlf` is
-  on globally here, and there is no `.gitattributes`). Two consequences worth
-  knowing before losing time to either: anything reading a repo file and
-  matching on `\n` has to normalise first (`verify/lang.ts` did not, and `npm
-  test` failed on the language doc for reasons unrelated to any change), and
-  `npm run contract:emit` rewrites the fixtures with LF, so `git status` shows
-  twelve modified files whose diff is empty — `git checkout -- contract/` after
-  confirming the diff really is empty.
-- **`npm run typecheck` can fail inside `.next/dev`** with unterminated string
-  and regex errors in `routes.d.ts` / `validator.ts`. That is a stale generated
-  directory from a dev server, not your code: `rm -rf .next/dev` and run again.
-- **A Vercel deploy that fails with a `0ms` build, no duration and no
-  retrievable logs is almost certainly `npm run db:migrate` failing, not your
-  code** — `vercel.json` runs it before `next build`, and the CLI cannot show
-  logs for a deployment that never reached READY. On 9 Sep 2026 three
-  deployments failed this way; running the same migration locally cleared it and
-  every deploy since has been green. Check the code separately with a clean
-  `npm run build` before believing it is yours.
-- **`vercel build --yes` creates a new Vercel project** if the directory is not
-  linked, and connects it to the GitHub repo. Do not run it in a worktree
-  without intending that; remove the project afterwards.
-- **`arena:fuzz 40` really does run 40 games now** — the argument used to be
-  dropped when `--engine` was absent.
-- The owner's `.env.local` carries `BASIC_AUTH_USER`, so **local dev sits behind
-  Basic Auth on this machine** even though `CLAUDE.md` says it should not.
-  Anything that needs the browser needs credentials from the owner.
-- Ask about a rule only after the manual, Bandai's Q&A pages and the forums have
-  come up empty — and when they have not settled it, say so in the note beside
-  the rule. A ruling given in chat goes to the row first
-  (`npm run arena:rule -- <cardId> "<the ruling>"`), and the code change waits to
-  be asked for.
+### (a) Keep hunting wrongly-read clauses — the best value per hour
 
-## Still open from Stage 1
+Two systematic passes have run and both paid. The method: take every regex in
+`compile.ts` and `filters.ts` that anchors on a literal phrase and grep the
+catalog for **near-misses** — contractions, reversed word order, singular
+against plural, passive against active, synonyms. Two of the best finds were a
+word order ("25000 or less power" against "25000 power or less", 41 lines with
+only 3 read) and a contraction. Also compare printed text against reading for a
+measure present in one and absent in the other, and watch for side or area
+leakage — a reading that says "opponent" where the text never does.
 
-The workbench's text view was never opened in a browser — the machine's Basic
-Auth blocked it. Worth doing by hand once: open a corrected record, **Show as
-text**, add a second trigger to WHEN, save, and check the probe pane's `attack`
-scenario reports *fired*.
+**Verify every count against the readings dump before reporting it.** One audit
+claimed 25+ skills for a bug whose real figure was 4, and offered as a correct
+*control* a card that was itself broken.
+
+### (b) The side test — a structural fix with a document waiting
+
+`docs/arena-side-scope.md`. `parseTarget` decides whose cards a phrase means by
+scanning the **whole clause** for a possessive, so a possessive belonging to a
+destination, a measure or a name sets the side for the source. **Three bugs have
+come from this**, each fixed by stripping the offending phrase, and the third
+needed two guards to avoid colliding with the first two. The document sets out
+the real fix — decide the side from the phrase that names the area — and says
+why it is its own piece of work. It names a fourth instance nobody has touched:
+DB1-059 and EX08-06 read "an energy cost greater than or equal to your
+opponent's energy" as an *area to search*.
+
+### (c) Known-wrong and unfixed, each measured
+
+- **`parseConditionClause` merges "green X *or* yellow Y" as an AND across
+  fields** rather than a disjunction — wider than printed. Found while fixing
+  something else and deliberately not fixed there.
+- **The specified-cost reducer is wired but inert.** `playCost` gives every
+  X-cost card an empty specified-cost *baseline*, because nothing in the catalog
+  feed says a Unison's "2 blue" is 2 rather than 1 or 3. Six cards read
+  correctly and change nothing on the board; see the comment in `state.ts`.
+- **Cost-reduction sub-family A** (71 clauses, "reduce the skill cost by {o}")
+  stays unread for two reasons: `orbTotals` is a pure function of the parsed
+  skill with eleven call sites, and — worse — the *scoping* half of those
+  sentences is itself unread, 45 clauses over 40 shapes. Compile the discount
+  without the scope and every skill on the board gets a permanent, unlimited,
+  untargeted discount.
+- **`[Empower XY/ZY]`** (two colours, 22-45-3-1) cannot be parsed. No card
+  prints it; theoretical until one does.
+
+### (d) The `move()` refactor — the largest single unlock, and not urgent
+
+`docs/arena-move-replacement-scope.md`. A replacement effect cannot ask a
+question: `move()` is synchronous with ~48 call sites, no frame and no `"wait"`
+path, so assigning `s.prompt` inside it is silently lost. The point of no return
+is `detach(s, id)` in `state.ts` — after it the card is in no area and no prompt
+could serialise. This blocks all 13 "you may … instead" clauses (9-10-3) and
+9-10-2's mandated choice.
+
+**Two things make it less urgent than it looks.** Those 13 cards are *correctly
+refused* today — nothing reads wrongly, so this is a capability gap rather than
+bleeding. And the obvious safety argument does not hold: `replacementFor`
+discriminates only on `opts.reason`, and `reason: "effect"` is emitted both by
+sites that can suspend and by five in `engine.ts` that cannot, so there is no
+compile-time way to gate prompting on reachability. Read the document before
+committing anyone to this.
+
+### (e) Markers, [Empower] and the board
+
+`docs/arena-markers-stage-scope.md`. Its headline is that **most of this already
+works** — an earlier note claiming otherwise was wrong, and the cost of
+believing it would have been a rewrite around a bug that is not there. What is
+left: the [Empower] beat does not name both cards, so the board cannot show
+markers *moving* from the Unison being replaced. That is a `Snapshot` change and
+therefore a contract change.
+
+## 5. Running work in parallel
+
+Three rounds have been run this way and it works, with one rule that is not
+optional.
+
+Give each stream its own checkout branched off `main`, and let each measure
+itself. Then **merge them all into one integration branch and measure the
+whole**, because a stream's own clean diff does not prove the merged result is
+clean. In round one the parts summed to 3,500 unread clauses and the whole was
+3,502 — one stream taught a cost reduction to read while another began refusing
+the unreadable condition in front of it. In rounds two and three the parts
+summed exactly. **Neither outcome was predictable**, and only the merged
+measurement distinguishes them. Verify each stream's headline cards in the
+*merged* tree, not in its own.
+
+Expect conflicts in `compile.ts` (different functions, usually additive),
+`glossary.ts` (two streams appending to the same entry), and the generated
+`contract/fixtures/*` — regenerate those with `contract:emit` rather than
+merging them by hand.
+
+## 6. Traps that cost an hour each
+
+- **Never write engine source through `node -e`**: `\b` in a shell-quoted string
+  becomes a backspace and silently kills a regex. There is no `python` here.
+- `splitClauses` is the most load-bearing function in the compiler. Several
+  fixed bugs came from changing how it cuts, and one attempt to generalise a
+  guard silenced ~30 unrelated shapes. Scope changes to the family in hand.
+- A test asserting the old behaviour is sometimes the bug rather than a
+  description of it. Three have been rewritten for that reason; say why in the
+  commit.
+- `npm run typecheck` failing inside `.next/dev` is a stale generated directory:
+  `rm -rf .next/dev`.
+- Local dev sits behind Basic Auth on the owner's machine even though
+  `CLAUDE.md` says it should not; anything needing a browser needs credentials.
+- **A ruling given in conversation goes to the database first**:
+  `npm run arena:rule -- <cardId> "<the ruling>"`, then the code change is made
+  deliberately against every card sharing the wording. `--list` reads them back.
+  Two rulings are recorded; one *corrected* its own first version, which is
+  exactly why they are stored rather than left in a commit message. Check the
+  rule manual (`docs/rules/rulemanual.txt`) and Bandai's Q&A before asking, and
+  validate a ruling against them afterwards — both recorded rulings were.

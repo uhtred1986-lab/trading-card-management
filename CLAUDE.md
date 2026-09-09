@@ -69,7 +69,10 @@ npm run sync:prices    # Import TCGplayer products + today's prices from tcgcsv 
 except `android:test`, which needs Docker and nothing else — the Kotlin toolchain lives in a
 container (`android/Dockerfile`) because the machine has no JDK, no Gradle and no Android SDK.
 There is no test framework — both scripts are plain `assert` scripts run with `tsx`; extend them in
-the same style.
+the same style. **`docs/arena-tooling.md` explains every arena instrument** — what `arena:readings`
+and `arena:tally` prove and how to diff them, which of `verify-arena`'s twelve suites means what
+when it fails, when `contract:emit` and the oracle `arena:diff` are required, and the practices
+learned the expensive way. Read it before changing the compiler or the engine.
 
 ## Data sources (verified 2 Sep 2026)
 
@@ -187,6 +190,14 @@ the same style.
   lessons: `docs/arena-rules-worklist.md`; **the current work brief with code map, checklists
   and backlog: `docs/arena-next-stage-spec.md`** — read it before touching the compiler. Tests:
   `scripts/verify-arena.ts` (part of `npm test`), synthetic cards, sections cited in messages.
+  **Picking the work up cold: `docs/arena-next-session-prompt.md`** says where the programme stands,
+  what to do next in priority order, and how to run streams in parallel; `docs/arena-tooling.md`
+  says how to tell whether you broke something. Three pieces of work are scoped but not built, each
+  with its own document and each deliberately *not* smuggled into a wording commit:
+  `docs/arena-side-scope.md` (the side test, three bugs from one mechanism),
+  `docs/arena-move-replacement-scope.md` (letting a replacement prompt — the largest unlock, and a
+  capability gap rather than a live bug) and `docs/arena-markers-stage-scope.md` (markers and
+  [Empower], where most of it already works).
 - **The compiler's glossary** (`src/lib/arena/glossary.ts`, shown at `/arena/rules/keywords`): every
   keyword skill the parser recognises, the keywords that are not skills, the skill types, and the
   rules a line is read by — each with what the manual *means* and, separately, what this engine
