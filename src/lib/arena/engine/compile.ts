@@ -593,14 +593,39 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
   if (/\bopponent'?s\b|\byour opponent\b|\btheir\b/.test(owner)) side = "opponent";
   else if (/\bopponent (?:rest mode |active mode |skill-less )?(?:battle|unison|extra|leader|z-battle|z-extra)s?\b/.test(t)) side = "opponent";
   if (/\ball players\b|\beach player\b|\bboth players\b/.test(t)) side = "both";
-  // "Choose **all other** Battle Cards" names no owner, and a card that names
-  // none is every one of them (the sets say "all other Battle Cards **you
+  // "Choose **all** Battle Cards" names no owner, and a card that names none
+  // is every one of them (the sets say "all other Battle Cards **you
   // control**" when they mean only yours). The default of `you` is right for
   // an unqualified singular — "choose 1 Battle Card" is your own — but wrong
-  // here, and it made a board wipe clear only the caster's own side. Narrowed
-  // to the phrases that say "other" and name nobody: anything printing "your",
-  // "their", "opponent" or "you control" keeps the side it just read.
-  if (otherAdj && !/\byour\b|\btheir\b|\bopponent\b|\byou control\b/.test(t)) side = "both";
+  // for a sweep, and it made a board wipe clear only the caster's own side.
+  //
+  // Until 9 Sep 2026 this covered only the phrases saying "other", which left
+  // nine sweeps reading as the caster's own board. Five of them say otherwise
+  // outright: "ignoring [Barrier]" is dead text unless the choice reaches the
+  // opponent, 22-16-2 defining the keyword against "the skills of cards
+  // mastered by your opponent" (BT7-110, BT6-018, BT8-137, SD22-02), and
+  // BT7-037's "then all players who returned cards to their decks shuffle"
+  // presupposes both did. The other four carry no such tell and no Bandai Q&A
+  // entry, and are the owner's ruling of 9 Sep 2026, recorded on their rows:
+  // BT21-023, BT19-096, BT1-086, TB1-015. BT1-086 was the worst reading in the
+  // catalog — "place all Rest Mode Battle Cards except for this card in the
+  // Drop Area" read as "move this card to drop", so the card dropped itself
+  // and nothing else.
+  //
+  // Anything printing "your", "their", "opponent" or "you control" keeps the
+  // side it just read: "all Battle Cards **in your Drop Area**" (BT7-126) and
+  // "all Battle Cards **in your energy**" (BT25-145) are the caster's own.
+  // "All" counts only where it is the determiner of the cards — "all Battle
+  // Cards", not "―all in Rest Mode―". EX25-35 prints "choose all of your
+  // opponent's skill-less Battle Cards **and** Battle Cards with 15000 power
+  // or less ―all in Rest Mode―", whose second half arrives here as a fragment
+  // with the possessive left behind in the first; its "all" governs a
+  // preposition, and taking it would sweep both boards for a rest-lock the
+  // card aims at one. That clause reads wrongly either way, and the narrower
+  // wrong is the one to leave standing (ground rule 5). The phrase still
+  // carries the verb that chose the cards, so this cannot anchor to the front.
+  const sweep = /\ball\s+(?!in\b|of\b|the following\b)[a-z]/.test(t) || /\bin all battle areas\b/.test(t);
+  if ((otherAdj || sweep) && !/\byour\b|\btheir\b|\bopponent\b|\byou control\b/.test(t)) side = "both";
 
   // "Your opponent's Battle Cards or Unisons" names two areas at once, which
   // is the one such phrase the game prints often enough to be worth reading.
