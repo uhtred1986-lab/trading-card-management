@@ -729,7 +729,7 @@ function counterAltCost(sentence: string, c: Ctx): Op[] | null {
     const unread: string[] = [];
     // A fresh variable counter well clear of the effect's own, because the
     // price is a program of its own that runs before the skill.
-    const price = compileClauseList(splitClauses(m[1]).map(imperative), { ...c, n: c.n + 50, last: null, lastTarget: null }, unread);
+    const price = compileClauseList(splitClauses(m[1]).map(imperative), { ...c, n: c.n + 50, last: null, lastTarget: null, stale: null }, unread);
     if (price.length && !unread.length) return [{ op: "altCost", pay: "program", ops: price }];
   }
   return null;
@@ -849,6 +849,18 @@ interface Ctx {
    * this card — so the last target of any clause counts, not only a choice.
    */
   lastTarget: Ref | null;
+  /**
+   * The antecedent that was standing when a clause in this skill went unread.
+   *
+   * A refusal is not silent for the clauses after it: the sentence goes on
+   * talking about what the refused clause named, and there is nothing bound to
+   * it. An [Auto] seeds the antecedent to the card it is on, so "…, and **it**
+   * gains [Double Strike]" after an unread play lands on the card printing the
+   * skill (P-645). Held by identity, not as a flag: any clause that does bind
+   * something new writes a fresh `lastTarget`, and the reference after it is
+   * pointing at that rather than at the hole.
+   */
+  stale: Ref | null;
   /** The op the previous clause produced, for wordings that restate it. */
   lastOp: string | null;
   /**
@@ -1048,6 +1060,14 @@ function refFor(clause: string, c: Ctx): Ref | null {
     // clause that named the cards; something was, and this says so (ground
     // rule 5).
     if (PLURAL_IT.test(head.trim().toLowerCase().replace(/[.,]$/, "")) && !c.last && c.lastTarget && "sel" in c.lastTarget && c.lastTarget.sel.special === "self") return null;
+    // The singular half of the same bug, which the plural test cannot reach:
+    // "it" after "when this card is played" usually *does* mean this card, so
+    // the seeded antecedent is only wrong once a clause between the seeding
+    // and the pronoun has gone unread. `c.stale` is that ref, held by
+    // identity, so a clause that bound something of its own since clears it —
+    // P-645's "it gains [Double Strike]" follows a play the compiler refused
+    // and belongs to the card that play would have brought out.
+    if (c.stale && c.stale === c.lastTarget && "sel" in c.lastTarget && c.lastTarget.sel.special === "self") return null;
     if (c.lastTarget) return c.lastTarget;
     if (c.last) return { var: c.last };
     return null;
@@ -3049,6 +3069,7 @@ function compileSkillText(skill: Skill): Script {
     costs: 0,
     lastPlayed: null,
     lastTarget: null,
+    stale: null,
     lastOp: null,
     replacing: null,
     n: 0,
@@ -3155,6 +3176,19 @@ function compileSkillText(skill: Skill): Script {
     // ("If your Leader is a <Baby> card, it gets +10000 power, then choose
     // one— ・…" — "it" still means the leader inside the options).
     const modes = modal.options.map((option) => ({ label: option, ops: compileClauseList(splitClauses(option), { ...c }, unsupported) }));
+    // An option the compiler could not read is an empty branch, and the menu
+    // then offers a mode that silently does nothing — the player picks it and
+    // the game moves on (P-396). A mode is only a choice if every option on
+    // the menu is one, so a single empty branch fails the whole skill and the
+    // referee is asked the question the card actually printed.
+    if (modes.some((mode) => !mode.ops.length)) {
+      // Its own clauses are already in `unsupported` — unless the option was
+      // read away to nothing without refusing anything, and then the option
+      // itself is what could not be said, or the skill would come back empty
+      // and be counted as fully compiled.
+      const silent = modal.options.filter((_, i) => !modes[i].ops.length);
+      return { ops: [], unsupported: unsupported.length ? unsupported : silent };
+    }
     if (modes.some((mode) => mode.ops.length)) ops.push({ op: "chooseMode", modes });
   }
   // "[Auto] If your Leader Card is red: When you play this card, draw 1 card"
@@ -3221,6 +3255,17 @@ function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op
     sinkCond?: Cond;
   };
   const groups: Group[] = [{ conds: [], ops: [] }];
+  /**
+   * A clause the compiler cannot read. Everything the sentence said about it
+   * is gone with it, so the antecedent standing at that moment is marked: the
+   * clauses after it may still be talking about what this one named, and a
+   * pronoun that resolves to the seeded self is then pointing at the hole
+   * rather than at the card printing the skill.
+   */
+  const refuse = (text: string) => {
+    unsupported.push(text);
+    c.stale = c.lastTarget;
+  };
   const push = (ops: Op[]) => {
     const g = groups[groups.length - 1];
     (g.sink ?? g.ops).push(...ops);
@@ -3249,7 +3294,7 @@ function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op
       // condition to be the opposite of there is nothing to say.
       const prev = groups[groups.length - 1];
       if (!prev.conds.length) {
-        unsupported.push(clause);
+        refuse(clause);
         continue;
       }
       // A branch the group is writing into is part of what was asked.
@@ -3288,15 +3333,27 @@ function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op
         open.sinkCond = last.cond;
         continue;
       }
-      groups.push({ conds: decided ? [decided] : [], ops: [] });
+      // Nothing before it made a decision — usually because the clause that
+      // would have made one went unread — so what "if you do" asks cannot be
+      // stated.
+      // Dropping the connective alone does not leave the rest free to happen:
+      // it makes them happen unconditionally, which is what EX24-32 was
+      // doing, placing cards whether or not the play it hangs on occurred.
+      // The rest of the sentence goes with the word that governs it.
+      if (!decided) {
+        for (const rest of clauses.slice(i)) refuse(rest);
+        break;
+      }
+      groups.push({ conds: [decided], ops: [] });
       continue;
     }
     if (conn === "ifNotDone") {
       // With nothing before it to be the opposite of, this is a gap rather
-      // than an always-true condition.
+      // than an always-true condition — and, as above, the clauses hanging on
+      // it are not free to happen without it.
       if (!decided) {
-        unsupported.push(clause);
-        continue;
+        for (const rest of clauses.slice(i)) refuse(rest);
+        break;
       }
       groups.push({ conds: [{ kind: "not", cond: decided }], ops: [] });
       continue;
@@ -3331,7 +3388,7 @@ function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op
       if (delay.rest) {
         const got = compileClause(delay.rest, c);
         if (got) groups[groups.length - 1].ops.push(...got);
-        else unsupported.push(delay.rest);
+        else refuse(delay.rest);
       }
       continue;
     }
@@ -3347,7 +3404,7 @@ function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op
         push([{ op: "delay", at: trailing.at, scope: trailing.scope, ops: got, label: trailing.label }]);
         continue;
       }
-      unsupported.push(clause);
+      refuse(clause);
       continue;
     }
 
@@ -3453,7 +3510,7 @@ function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op
     }
     if (!got) {
       if (c.replacing) c.replacing = null;
-      unsupported.push(clause);
+      refuse(clause);
       continue;
     }
     // 9-10: the clause after "if this card would leave the Battle Area" is
@@ -3467,7 +3524,7 @@ function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op
         // not whatever "it" happened to point at in the second half.
         const filter = subject ? filterFor(subject, "battle") : undefined;
         if (filter === null) {
-          unsupported.push(clause);
+          refuse(clause);
           continue;
         }
         const target: Ref = subject ? { sel: { side: "you", area: "battle", filter, count: 99 } } : only.target;
@@ -3478,7 +3535,7 @@ function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op
       }
       // Anything else is a replacement this language cannot say yet, and
       // half of one is worse than none.
-      unsupported.push(clause);
+      refuse(clause);
       continue;
     }
     // Only who picks changes: the selectors already point at their cards,

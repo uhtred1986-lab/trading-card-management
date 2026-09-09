@@ -1275,6 +1275,60 @@ import {
   assert.deepEqual((one("[Auto] When you play this card, choose 1 of your opponent's Battle Cards and KO it.").ops[1] as { target: unknown }).target, { var: "c0" });
 }
 
+// ── what a refused clause leaves behind ────────────────────────────────────
+
+{
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+
+  // An [Auto] seeds the antecedent to the card it is on, so a clause the
+  // compiler cannot read hands the pronoun after it this card. P-645's "play
+  // 1 {Majin Buu, Unadulterated Destruction} from under your green <Majin
+  // Buu> card, and **it** gains [Double Strike]" gave the keyword to the card
+  // printing the skill; P-279's "KO it" KO'd it.
+  const stale = one("[Auto] When this card is played, draw 1 card, reduce the skill cost of your next [Union] skill by {r}, and it gains [Barrier] for the turn.");
+  assert.deepEqual(
+    stale.ops.map((o) => o.op),
+    ["draw"],
+    "the draw stands; the pronoun after the hole does not",
+  );
+  assert.equal(stale.unsupported.length, 2, "both the clause that went unread and the one pointing at it");
+  // Nothing between the trigger and the pronoun went unread here, so "it" is
+  // still this card — the seeded antecedent is only wrong once there is a hole.
+  assert.deepEqual((one("[Auto] When this card attacks, switch this card to Active Mode and it gains [Barrier] for the turn.").ops[1] as { target: unknown }).target, {
+    sel: { special: "self" },
+  });
+
+  // 20-16: "if you do" hangs on a decision. When the clause that would have
+  // made it went unread, dropping the hinge alone makes what follows happen
+  // every time — BT12-042 played a 5-cost <Gogeta> without paying the {u}{u}.
+  const hinge = one("[Auto] When this card is played, you may pay {u}{u}. If you do, draw 2 cards.");
+  assert.deepEqual(hinge.ops, [], "the price is unread, so what it buys is not free");
+  assert.ok(
+    hinge.unsupported.some((u) => /draw 2 cards/i.test(u)),
+    "and the clause it governs says so",
+  );
+  // The hinge with a decision behind it still reads as it always did.
+  const kept = one("[Auto] When this card is played, you may draw 1 card. If you do, place 1 card from your hand in the Drop Area.");
+  assert.deepEqual(kept.unsupported, []);
+  assert.deepEqual(
+    kept.ops.map((o) => o.op),
+    ["may", "if"],
+  );
+
+  // A modal option the compiler could not read is an empty branch, and the
+  // menu then offers a mode that does nothing at all (P-396). One empty
+  // option fails the skill, so the referee is asked what the card prints.
+  const modal = one("[Activate: Main] Choose one- ・Draw 1 card. ・Reduce the skill cost of your next [Union] skill by {r}.");
+  assert.deepEqual(modal.ops, [], "a mode that silently does nothing is not a choice");
+  assert.ok(modal.unsupported.length > 0);
+  // Both options readable, and the menu stands.
+  const both = one("[Activate: Main] Choose one- ・Draw 1 card. ・Choose up to 1 of your opponent's Battle Cards and KO it.");
+  assert.deepEqual(
+    both.ops.map((o) => o.op),
+    ["chooseMode"],
+  );
+}
+
 {
   // The engine side: a card played with its skills negated for the game does
   // not fire its own [Auto] on the way in (9-1-5).
