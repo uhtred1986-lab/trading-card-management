@@ -152,12 +152,22 @@ function loadAllIssues(dir: string): IssueMeta[] {
 
 async function listRemoteIssues(repo: string): Promise<GhIssue[]> {
   try {
-    const data = await ghFetch(`repos/${repo}/issues?state=all&per_page=100`, repo);
-    return (data as any[]).map((d) => ({
-      number: d.number,
-      title: d.title,
-      state: d.state === "closed" ? "CLOSED" : "OPEN",
-    }));
+    const all: GhIssue[] = [];
+    let page = 1;
+    while (page <= 10) {
+      const data = await ghFetch(`repos/${repo}/issues?state=all&per_page=100&page=${page}`, repo);
+      if (!Array.isArray(data) || data.length === 0) break;
+      for (const d of data) {
+        all.push({
+          number: d.number,
+          title: d.title,
+          state: d.state === "closed" ? "CLOSED" : "OPEN",
+        });
+      }
+      if (data.length < 100) break;
+      page++;
+    }
+    return all;
   } catch (err: any) {
     console.warn(`[warn] Could not list remote issues directly: ${err.message}`);
     return [];
