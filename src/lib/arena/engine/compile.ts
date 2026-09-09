@@ -625,7 +625,38 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
   // owner's Drop" went looking in the opponent's Warp (BT27-015, and BT29-095,
   // BT29-108, P-710 the same way). Stripped like the name phrases beside it,
   // because it says nothing about whose cards are being chosen.
-  const owner = t.replace(/\bin their (?:character names|card names|special traits)\b/g, " ").replace(/\btheir owners?'?s?\b/g, " ");
+  //
+  // "…**to your opponent's Battle Area**" is the other half of the same
+  // mistake. Seven cards hand the opponent a card — "play up to 1 <Pan: SH>
+  // **from your deck** to **your opponent's** Battle Area" — and the side was
+  // read off the whole clause, so the destination at the end decided where the
+  // *search* happened and the card went looking in the opponent's deck. That is
+  // the printed mechanic inverted, not merely narrowed (BT13-028, BT13-029,
+  // BT16-021 and its back, BT18-087, BT22-006, and independently in BT21-068
+  // and BT21-092).
+  //
+  // This is the second phrase stripped for this reason, and the mechanism is
+  // the real problem: the side is decided by a scan of the whole clause rather
+  // than of the phrase that names the source. `docs/arena-side-scope.md` is the
+  // structural fix; each of these strips is a card-shaped patch until it lands.
+  const owner = t
+    .replace(/\bin their (?:character names|card names|special traits)\b/g, " ")
+    .replace(/\btheir owners?'?s?\b/g, " ")
+    // Only "to" and "into" — never "in". "Choose 1 of your opponent's Battle
+    // Cards **in** your opponent's Battle Area" names where to look, and
+    // stripping that would send the search to your own board: the same bug in
+    // the other direction.
+    // …and never after "equal", where the "to" belongs to the comparison
+    // rather than to a destination: "an energy cost greater than or equal **to
+    // your opponent's energy**" is a measure, and DB1-059 and EX08-06 print it.
+    .replace(/(?<!\bequal )\b(?:to|into) (?:your |their )?opponent'?s (?:z-)?[a-z]+(?: area)?\b/g, " ")
+    // The sets also write "in" where they mean "into" — "play up to 1 <Pan: SH>
+    // **from your deck** … **in your opponent's Battle Area**" (BT16-021 and
+    // its back, BT18-087, BT21-092). That collides with the ordinary source
+    // phrase, so it is only read as a destination when the clause has already
+    // named its source with "from your …"; a clause with no source of its own
+    // keeps "in your opponent's Battle Area" as the place to look.
+    .replace(/\bin (?:your |their )?opponent'?s (?:z-)?[a-z]+(?: area)?\b/g, (whole) => (/\bfrom your\b/.test(t) ? " " : whole));
   if (/\bopponent'?s\b|\byour opponent\b|\btheir\b/.test(owner)) side = "opponent";
   else if (/\bopponent (?:rest mode |active mode |skill-less )?(?:battle|unison|extra|leader|z-battle|z-extra)s?\b/.test(t)) side = "opponent";
   if (/\ball players\b|\beach player\b|\bboth players\b/.test(t)) side = "both";
@@ -1917,8 +1948,19 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
     }
   }
   // "If you don't have a Unison in play", "if you don't have any Battle Cards in play".
-  if ((m = /^you don'?t have (?:an?|any) (.+?)(?: in play)?$/.exec(t))) {
-    const sel = parseTarget(`your ${m[1]}`) ?? parseTarget(`your ${m[1]} card`);
+  //
+  // And the same sentence about the other player: "if **your opponent doesn't
+  // have** a Unison Card in play". The positive form is read by
+  // `parseCountCondition` for either player, but the negative auxiliary was
+  // only ever read for "you" — so BT29-047's "if your Leader is a green
+  // <Lucifer> card **and your opponent doesn't have a Unison in play**" lost
+  // the second half of its condition and offered the play in exactly the
+  // situation the card forbids. BT10-003 and BT15-062b lost theirs too, though
+  // those only cost a gap.
+  if ((m = /^(?:(you) don'?t|(your opponent) does\s?n'?o?t) have (?:an?|any) (.+?)(?: in play)?$/.exec(t))) {
+    const whose = m[1] ? "your" : "your opponent's";
+    const what = m[3];
+    const sel = parseTarget(`${whose} ${what}`) ?? parseTarget(`${whose} ${what} card`);
     if (sel) {
       delete sel.count;
       delete sel.upTo;
