@@ -87,7 +87,17 @@ export function splitClauses(text: string): string[] {
     if ("([{<≪".includes(ch)) depth++;
     else if (")]}>≫".includes(ch)) depth = Math.max(0, depth - 1);
     else if (depth === 0) {
-      if ((ch === "," || ch === ";") && !inNameList(text, i) && !(ch === "," && (inList(text, i) || commaJoinsColours(text, i) || /^,\s*except\b/i.test(text.slice(i))))) {
+      // "…by {b}, for each ≪Saiyan≫ card in your Warp" (BT27-123): the comma
+      // introduces the multiplier the amount before it needs, not a second
+      // clause. Split here and the first half compiles alone — a flat,
+      // unconditional reduction with the scope that was meant to divide it
+      // sitting next to it as an orphaned, separately unread fragment, which
+      // is a wrong number silently applied rather than an honest gap.
+      if (
+        (ch === "," || ch === ";") &&
+        !inNameList(text, i) &&
+        !(ch === "," && (inList(text, i) || commaJoinsColours(text, i) || /^,\s*except\b/i.test(text.slice(i)) || /^,\s*for each\b/i.test(text.slice(i))))
+      ) {
         push(i, 1);
       } else if (ch === "." && (i + 1 >= text.length || (text[i + 1] === " " && !/^ [a-z]/.test(text.slice(i + 1, i + 3))))) {
         // A full stop inside an abbreviation is not the end of a sentence:
@@ -2320,28 +2330,73 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // Matched on `q`, not `t`: a cost change may carry a duration like anything
   // else ("…by 1 **for the duration of the turn**"), and anchoring to the end
   // of the raw clause meant every one of those went unread.
-  if ((m = /^(reduce|increase) the (energy|combo) cost of (.+?) by (\d+|(?:\{[rugykw\d]+\})+)(?: for each (.+))?$/.exec(q))) {
+  //
+  // Three more shapes of the same sentence are folded down to this one rather
+  // than re-derived: the possessive "this card's"/"that card's"/"its"/
+  // "their" cost in place of "the cost of X" (normalised below, so `refFor`
+  // sees the same "this card"/"that card"/pronoun text it already reads
+  // everywhere else — a trailing area phrase on the possessive, "this card's
+  // energy cost **in your hand**", is dropped along with the possessive
+  // pronoun itself rather than read, since a self/pronoun reference already
+  // finds the one card regardless of area); the passive "the energy cost of X
+  // is reduced by N"; and "decrease" as a plain synonym for "reduce". "Cost
+  // **on** X" stands beside "cost **of** X" (BT24-139, BT28-148), and the
+  // bare "the cost of X" with no "energy"/"combo" word defaults to energy,
+  // same as an unqualified specified cost does everywhere else. Left alone on
+  // purpose: a *skill's* cost ("the skill cost of …", "the activation cost of
+  // …'s [Counter] skill") is a different number `playCost` computes with no
+  // hook to lower (`orbTotals`, `engine.ts:882`), a *specified* cost mixes
+  // colour and total in a way the owner has not ruled on, and a Z-Energy cost
+  // is `d.zEnergyCost`, read raw in five call sites `costReduction` cannot
+  // reach — all three fail the match here because none of them spell the
+  // noun as bare "cost"/"costs", which is deliberate: see `glossary.ts`.
+  let qq = q;
+  let possessive: RegExpExecArray | null;
+  if ((possessive = /^(reduce|increase|decrease) (this card|that card|its|their)'?s? ((?:energy|combo) )?costs?(?: in (?:your|their) (?:hand|z-deck))? by (.+)$/.exec(qq))) {
+    const subject = possessive[2] === "its" ? "it" : possessive[2] === "their" ? "them" : possessive[2];
+    qq = `${possessive[1]} the ${possessive[3] ?? ""}cost of ${subject} by ${possessive[4]}`;
+  }
+  let passive: RegExpExecArray | null;
+  if ((passive = /^the ((?:energy|combo) )?costs? of (.+?) (?:is|are) (reduced|increased|decreased) by (.+)$/.exec(qq))) {
+    const verb = passive[3].slice(0, -1); // "reduced"/"increased"/"decreased" -> the bare verb.
+    qq = `${verb} the ${passive[1] ?? ""}cost of ${passive[2]} by ${passive[4]}`;
+  }
+  if ((m = /^(reduce|increase|decrease) the ((?:energy|combo) )?costs? (?:of|on) (.+?) by (\d+|(?:\{[rugykbw\d]+\})+),?(?: for each (.+))?$/.exec(qq))) {
     // 20-21 works in both directions, and the sets print both: "increase the
     // energy cost of this card in your Battle Area by 2" is the same standing
-    // effect with the sign turned round.
+    // effect with the sign turned round; "decrease" already reads as "reduce".
     const sign = m[1] === "increase" ? -1 : 1;
-    m = [m[0], m[2], m[3], m[4], m[5]] as unknown as RegExpExecArray;
+    const kindWord = m[2];
+    const targetText = m[3];
+    const amountText = m[4];
+    const perText = m[5];
     // The area the phrase names is part of the target, not noise: a reducer
     // for cards "in your hand" that selects cards in play does nothing at all,
     // which is what stripping it here used to produce.
-    let ref = refFor(m[2], c);
+    let ref = refFor(targetText, c);
     if (!ref) return null;
+    // A pronoun that resolves to a stale target is a wrong answer, not a
+    // right one for the wrong reason — see the `c.stale` note in `refFor`.
+    // That guard only covers a seeded self; a *bound choice* going stale is
+    // the same failure and reaches here just as often, because "its"/"that
+    // card"/"them" is exactly the possessive/passive normalisation above
+    // turns into: BT29-018's "…and the next time you play a red <Broly>
+    // card from your Z-Deck during this turn, reduce **its** energy cost by
+    // 1" would otherwise land the reduction on `c0` — the card chosen and
+    // already moved to Z-Energy two clauses earlier — instead of the
+    // not-yet-played Broly the unread "next time" clause names.
+    if (c.stale && ref === c.stale) return null;
     // "Reduce the energy cost of a {Power Pole}" names no area, and 20-1-6's
     // default — a card on the table — is the one place a cost reduction can
     // never matter. What it is about is the card you are about to play.
-    if ("sel" in ref && ref.sel.area === "play" && !/\b(?:hand|deck|drop|energy|warp|life|battle area)\b/i.test(m[2])) {
+    if ("sel" in ref && ref.sel.area === "play" && !/\b(?:hand|deck|drop|energy|warp|life|battle area)\b/i.test(targetText)) {
       ref = { sel: { ...ref.sel, area: "hand", count: 99 } };
     }
-    const orbs = /^\d+$/.test(m[3]) ? null : orbsIn(m[3]);
-    const flat: number = sign * (orbs ? Object.values(orbs).reduce<number>((sum, n) => sum + (n ?? 0), 0) : Number(m[3]));
+    const orbs = /^\d+$/.test(amountText) ? null : orbsIn(amountText);
+    const flat: number = sign * (orbs ? Object.values(orbs).reduce<number>((sum, n) => sum + (n ?? 0), 0) : Number(amountText));
     let by: Amount = flat;
-    if (m[4]) {
-      const per = parseTarget(m[4]);
+    if (perText) {
+      const per = parseTarget(perText);
       if (!per) return null;
       by = { count: { ...per, count: undefined, upTo: undefined }, ...(flat === 1 ? {} : { times: flat }) };
     }
@@ -2350,7 +2405,20 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     // takes off. A [Permanent] holds while its card is valid (9-5-1) and
     // `holdForGame` rewrites this to "game"; anywhere else it is what says how
     // long the change is in force.
-    return [{ op: "costReduction", target: ref, amount: by, ...(m[1] === "combo" ? { what: "combo" as const } : {}), until: durationOf(clause) }];
+    return [{ op: "costReduction", target: ref, amount: by, ...(kindWord?.trim() === "combo" ? { what: "combo" as const } : {}), until: durationOf(clause) }];
+  }
+
+  // "X get -N combo cost" (BT22-055, BT22-056, BT23-072): the same standing
+  // reducer said the way the sibling rule just below reads "X get -N combo
+  // power". The sign on the card is the direction, not decoration — "-1"
+  // lowers the cost — the same inversion `costReduction`'s own sign takes for
+  // the active "increase" verb above.
+  if ((m = /^(.*?) (?:gets?|gains?) ([+-]\d+) combo cost$/.exec(q))) {
+    const refs = refsFor(m[1], c);
+    // Same stale-pronoun guard as the rule above — see its comment.
+    if (refs?.some((r) => c.stale && r === c.stale)) return null;
+    const until = durationOf(t);
+    return refs ? refs.map((target) => ({ op: "costReduction", target, amount: -Number(m![2]), what: "combo" as const, until }) as Op) : null;
   }
 
   // 9-1-5: negating one named keyword rather than silencing the card.
