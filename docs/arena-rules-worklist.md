@@ -2147,3 +2147,53 @@ table (Stage 2), the referee answering in the language, chip editors for WHEN an
 `compilerDiff` for a changed trigger or price, multi-error reporting, editing the kind.
 
 `npm run typecheck`, `lint`, `test` and `build` clean.
+
+---
+
+## Done: what a card is also treated as — Stage 2, first increment (9 Sep 2026)
+
+Stage 2 is "new primitives from the gap table". The first thing this increment did was **read the
+cards behind the table**, and that changed what the stage is: `npm run arena:tally -- --show "<a
+wording>"` now prints the actual cards and their unread clauses beside the shape counts, with no
+database. Run against the plan's gap table, most of the "in all areas" family turns out **not** to
+be a missing primitive at all — `gains` has had that scope since it was written, and it is the
+*compiler* that cannot read the sentence. The plan's own rule settles those: a primitive says
+something no combination of others can, so a wording gap gets a compile pattern and nothing else.
+
+One thing in the family was a real gap in the language, and it is the primitive of this increment.
+
+**`gains.names` — a card also treated as another card's *name* (20-1).** Eight cards print "this
+card is also treated as {Planet M-2} in all areas", and the `gains` op could say a trait, a
+character and a colour but not a name. `Gains.names` → `CardDef.alsoNames` (set only by `cardNow`)
+→ `namesOf` in `filters.ts`, which `matches` and `nameIncludes` now read instead of `d.name`. It is
+*also*, never instead: the card keeps its printed name and answers to both, so a skill naming
+{Planet M-2} finds it and a skill refusing {Planet M-2} passes it over. The compile rule that reads
+"is also treated as …" gained `{…}` in its alternation; everything else it already did is unchanged.
+
+**One compile pattern: the other word order for negating a keyword.** "Negate the [Energy-Exhaust]
+skill **on** your Red/Yellow multicolor ≪God≫ cards in all areas" — ten wordings across the catalog,
+none of which read, because the rule beside it only knows "negate **X's** [K]". A tag naming a
+*kind* of skill still falls through to the rule for those.
+
+**One compile pattern written, measured, and thrown away.** "Negate the skills **of** X" is the same
+one-line change and seven cards print it. Measured, it read three of the seven wrongly — and each
+failure was in the target grammar rather than the rule:
+
+| the card says | the grammar hears |
+|---|---|
+| "your opponent's **Leader**" (BT28-149) | any one card in their play area |
+| "all **other** Battle Cards" (BT10-153, DB1-066) | all of *your own*, this card included |
+| "those cards", the skill's own choice unread (BT13-106) | this card — an [Auto] triggered by "when this card is played" seeds the sentence's antecedent to itself |
+
+All three compile, read plausibly, and aim a negation at the wrong cards. Seven unread beats three
+read wrongly (ground rule 5), so the rule is a comment naming the three and the fix belongs in
+`parseTarget`: a Leader as a `special` target, and "other" as the `notSelf` it already has a field
+for. **That is the next piece of work on this stage**, and it is worth more than the clause that
+found it — every selector in the catalog that says "leader" or "other" reads through the same code.
+
+**Numbers.** Fully compiled cards 4,653 → **4,660**; [Permanent] read **61.5 % → 62.5 %**; resolvable
+skills 87.3 % (unchanged — the family is almost all [Permanent]). Eleven clause shapes vanished from
+the gap set and **none appeared**, checked by diffing the whole 2,154-shape list before and after,
+and every surviving new reading was read back by hand. `npm test`, `lint`, `typecheck`, `build`
+clean; `arena:fuzz 40` 40 games, 0 crashes; the probe digests gained exactly one entry (the new
+harness card) and none moved.

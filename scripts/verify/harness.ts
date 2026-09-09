@@ -146,6 +146,8 @@ const DEFS: Record<string, CardDef> = defsFrom([
   card("RECOLOR", { energyCost: 2, skill: "[Permanent] Each <RECOLORED> in all of your areas gain red, blue, and green colors." }),
   card("RECOLORED", { energyCost: 1, colors: ["Yellow"] }),
   card("SAIYANKILL", { energyCost: 1, skill: "[Auto] When you play this card, choose 1 of your opponent's ≪Saiyan≫ Battle Cards and KO it." }),
+  // 20-1, the fourth thing a card can be "also treated as": a whole card name.
+  card("RENAMED", { energyCost: 2, name: "RENAMED", skill: "[Permanent] This card is also treated as {Planet M-2} in all areas." }),
   card("CHEAPCOMBO", { energyCost: 3, comboCost: 2, comboPower: 5000, skill: "[Permanent] Reduce the combo cost of this card in your hand by 2." }),
   card("BLUECOMBO", { energyCost: 3, colors: ["Blue"], comboCost: 2, comboPower: 5000 }),
   card("CHEAPENER", { energyCost: 1, skill: "[Auto] When you play this card, reduce the combo cost of blue cards in your hand by 1 for the duration of the turn." }),

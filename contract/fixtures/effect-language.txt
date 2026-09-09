@@ -50,8 +50,8 @@ Operations (each is an object with "op"; a field marked ? may be left out):
     [Permanent] only unless a duration is given (20-21): "reduce the energy cost of your <Son Goku> cards in your hand by 1" — the selector names the area the text names, usually the hand
   {"op":"negateKeyword","keyword":"Awaken"|"Wish"|"Field"|…,"target"?:TARGET}
     take one named keyword away ("negate this card's [Energy-Exhaust] skill in all areas", 9-1-5); the keyword is its printed name, e.g. "Blocker"
-  {"op":"gains","traits"?:["…"],"characters"?:["…"],"colors"?:["Red"|"Blue"|"Green"|"Yellow"|"Black"|"White"|"Colorless"],"target"?:TARGET}
-    the card counts as having these too, wherever it is ("gains ≪Saiyan≫ in all areas", "is also treated as red", 20-1)
+  {"op":"gains","traits"?:["…"],"characters"?:["…"],"colors"?:["Red"|"Blue"|"Green"|"Yellow"|"Black"|"White"|"Colorless"],"names"?:["…"],"target"?:TARGET}
+    the card counts as having these too, wherever it is ("gains ≪Saiyan≫ in all areas", "is also treated as red", 20-1); "names" is a whole card name it is also treated as ("also treated as {Planet M-2}"), never a replacement for its own
   {"op":"replaceLeave","to":AREA,"by"?:"skill"|"ko"|"skillOrKo","mode"?:"active"|"rest","target"?:TARGET}
     [Permanent] only (9-10): "if this card would be KO'd, send it to the Warp instead". "by" is which departure it replaces: omitted = any, "skill" = removed by an effect, "ko" = the KO, "skillOrKo" = either. Omit "target" for this card
   {"op":"altCost","pay":"none"|"life"|"program","n"?:N,"for"?:"counter"|"play","ops"?:[…]}

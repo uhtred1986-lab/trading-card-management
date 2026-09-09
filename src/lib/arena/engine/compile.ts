@@ -2143,6 +2143,20 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     }
     if (!/^(?:auto|activate|counter|permanent)\b/.test(m[2])) return null;
   }
+  // The same sentence with the target after the keyword rather than in front
+  // of it — "Negate the [Energy-Exhaust] skill **on** your Red/Yellow
+  // multicolor ≪God≫ cards in all areas". The possessive form above reads only
+  // "negate X's [K]", so this word order went unread on every card that uses
+  // it. A tag naming a *kind* of skill falls through to the rule for those,
+  // exactly as it does above.
+  if ((m = /^negate the \[([a-z0-9\- ]+)\] skills? (?:on|of) (.+)$/.exec(q))) {
+    const kw = keywordOf(m[1]);
+    if (kw) {
+      const ref = refFor(m[2], c);
+      return ref ? [{ op: "negateKeyword", keyword: kw.name, target: ref }] : null;
+    }
+    if (!/^(?:auto|activate|counter|permanent)\b/.test(m[1])) return null;
+  }
 
   // "Only 1 {SS2 Trunks} can be played in your Battle Area" — a prohibition
   // that switches itself on once the card is there, which a [Permanent] can
@@ -2247,17 +2261,21 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // failed the whole match and the Leader's only [Permanent] went unread.
   if (
     (m =
-      /^(.*?) (?:gains?|is (?:also )?treated as(?: an?)?) ((?:(?:non-)?(?:<[^>]+>|≪[^≫]+≫|red|blue|green|yellow|black|white)[\s,]*(?:and\s+|or\s+)?)+)(?:\s*colou?rs?)?(?: in (?:all|any) areas?)?$/.exec(
+      /^(.*?) (?:gains?|is (?:also )?treated as(?: an?)?) ((?:(?:non-)?(?:\{[^}]+\}|<[^>]+>|≪[^≫]+≫|red|blue|green|yellow|black|white)[\s,]*(?:and\s+|or\s+)?)+)(?:\s*colou?rs?)?(?: in (?:all|any) areas?)?$/.exec(
         t,
       ))
   ) {
     const what = m[2];
     const filter = parseFilter(what);
     const colors = filter.colors;
-    if (!filter.traits.length && !filter.characters.length && !colors.length) return null;
-    if (filter.notTraits.length || filter.notCharacters.length) return null;
+    // A whole card name is the fourth thing a card can be "also treated as",
+    // and the one this rule could not read: eight cards print "this card is
+    // also treated as {Planet M-2} in all areas", which is what makes every
+    // skill naming that card find this one (20-1).
+    if (!filter.traits.length && !filter.characters.length && !colors.length && !filter.names.length) return null;
+    if (filter.notTraits.length || filter.notCharacters.length || filter.notNames.length) return null;
     const ref = refFor(m[1] || "this card", c);
-    return ref ? [{ op: "gains", target: ref, traits: filter.traits, characters: filter.characters, colors }] : null;
+    return ref ? [{ op: "gains", target: ref, traits: filter.traits, characters: filter.characters, colors, ...(filter.names.length ? { names: filter.names } : {}) }] : null;
   }
 
   // Granting keyword skills (20-18); one clause can grant several.
@@ -2327,6 +2345,26 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     const ref = refFor(m[1], c);
     return ref ? [{ op: "negateSkills", target: ref, until: durationOf(t) }] : null;
   }
+  /*
+   * "Negate the skills **of** X" — the same clause with the target behind the
+   * noun — is deliberately **not** read, though seven cards print it and the
+   * pattern is a one-liner. Written and then measured (9 Sep 2026), it read
+   * three of those seven wrongly, each time because the target phrase went
+   * further than the target grammar can follow:
+   *
+   * - "your opponent's Leader" became *any one card in their play area*, so
+   *   the negation could land on a Battle Card instead (BT28-149);
+   * - "all **other** Battle Cards" became *all of your own* — the wrong side
+   *   and this card included (BT10-153, DB1-066);
+   * - "those cards", with the skill's own choice unread, became this card,
+   *   because an [Auto] triggered by "when this card is played" seeds the
+   *   sentence's antecedent to itself (BT13-106).
+   *
+   * All three are gaps in `parseTarget`, not in this rule, and each one would
+   * silently mis-aim a negation on every wording that reaches it. Seven cards
+   * unread beats three read wrongly (ground rule 5). The target grammar is
+   * where this gets fixed: a Leader as `special`, and "other" as `notSelf`.
+   */
   if ((m = /^negate (.*?)(?:'s)? skills$/.exec(q))) {
     const ref = refFor(m[1], c);
     return ref ? [{ op: "negateSkills", target: ref, until: durationOf(t) }] : null;

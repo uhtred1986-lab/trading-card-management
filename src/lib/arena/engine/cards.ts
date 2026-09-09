@@ -452,8 +452,18 @@ export function characterIncludes(def: CardDef, part: string): boolean {
 }
 
 /** The same, against the printed card name: "{SS4} in its card name". */
+/**
+ * Every card name this card answers to (20-1): its printed one, and any it was
+ * "also treated as in all areas". Only `cardNow` ever fills the second, so a
+ * plain catalog row is just its own name.
+ */
+export function namesOf(def: CardDef): string[] {
+  return def.alsoNames?.length ? [def.name, ...def.alsoNames] : [def.name];
+}
+
 export function nameIncludes(def: CardDef, part: string): boolean {
-  return def.name.toLowerCase().includes(part.toLowerCase());
+  const p = part.toLowerCase();
+  return namesOf(def).some((n) => n.toLowerCase().includes(p));
 }
 
 export function hasTrait(def: CardDef, name: string): boolean {

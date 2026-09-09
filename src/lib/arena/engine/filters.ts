@@ -6,7 +6,7 @@
  * lets the engine offer the right candidates for Evolve, Union, Z-Stack,
  * Z-Awaken and Swap without a compiled script.
  */
-import { baseType, characterIncludes, hasCharacter, hasKeyword, hasTrait, keywordOf, keywordsOf, nameIncludes, skillsOf } from "./cards";
+import { baseType, characterIncludes, hasCharacter, hasKeyword, hasTrait, keywordOf, keywordsOf, nameIncludes, namesOf, skillsOf } from "./cards";
 import type { CardDef, Color, KeywordSkill, SkillKindPrefix } from "./types";
 
 export interface CardFilter {
@@ -433,8 +433,13 @@ export function matches(d: CardDef, given: CardFilter): boolean {
   if ((f.notCharactersIncluding ?? []).some((c) => characterIncludes(d, c))) return false;
   if (f.traits.length && !f.traits.some((c) => hasTrait(d, c))) return false;
   if (f.notTraits.some((c) => hasTrait(d, c))) return false;
-  if ((f.names.length || partNames.length) && !f.names.some((n) => n.toLowerCase() === d.name.toLowerCase()) && !partNames.some((n) => nameIncludes(d, n))) return false;
-  if (f.notNames.some((n) => n.toLowerCase() === d.name.toLowerCase())) return false;
+  // Every name the card answers to: its printed one, plus any it was "also
+  // treated as in all areas" (20-1). A card that gained {Planet M-2} is found
+  // by a skill naming {Planet M-2}, and excluded by one naming it as the card
+  // *not* to choose — both readings come from the same list.
+  const names = namesOf(d);
+  if ((f.names.length || partNames.length) && !f.names.some((n) => names.some((own) => own.toLowerCase() === n.toLowerCase())) && !partNames.some((n) => nameIncludes(d, n))) return false;
+  if (f.notNames.some((n) => names.some((own) => own.toLowerCase() === n.toLowerCase()))) return false;
   if ((f.notNamesIncluding ?? []).some((n) => nameIncludes(d, n))) return false;
   const cost = typeof d.energyCost === "number" ? d.energyCost : null;
   if (f.costMin != null && (cost == null || cost < f.costMin)) return false;
