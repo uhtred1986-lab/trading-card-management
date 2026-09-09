@@ -128,9 +128,13 @@ function splitRunOn(line: string): string[] {
 /** The bullet a modal option starts with. The catalog uses several. */
 export const BULLET = /^[・･·•‧]\s*/;
 
-// None of the letters is the initial of the word it stands for: blue is u,
-// black is k, and White — which BT28 added as a sixth colour — is w.
-const COLOR_BY_LETTER: Record<string, Color> = { r: "Red", u: "Blue", g: "Green", y: "Yellow", k: "Black", w: "White" };
+// Blue is u rather than b, to leave b for black; White — which BT28 added as
+// a sixth colour — is w. `k` is kept as a second spelling of black alongside
+// the catalog's own `b`: nothing in 6,493 cards ever prints `{k}` (`{b}`
+// appears 248 times), so it cost nothing to find out {b} was the one
+// actually missing — every skill-cost or cost-reduction orb written in black
+// was reading as an unrecognised letter and losing the whole clause.
+const COLOR_BY_LETTER: Record<string, Color> = { r: "Red", u: "Blue", g: "Green", y: "Yellow", k: "Black", b: "Black", w: "White" };
 const COLOR_BY_NAME: Record<string, Color> = { red: "Red", blue: "Blue", green: "Green", yellow: "Yellow", black: "Black", white: "White" };
 
 /** "{g}{g}" / "{u}" orbs in a cost → per-colour counts; "{1}" style numbers → any. */
@@ -141,13 +145,13 @@ const COLOR_BY_NAME: Record<string, Color> = { red: "Red", blue: "Blue", green: 
  * a loop over numbers.
  */
 export function eitherOrbsIn(text: string): Color[][] {
-  return [...text.matchAll(/\{([rugykw])\}\/\{([rugykw])\}/gi)].map((m) => [COLOR_BY_LETTER[m[1].toLowerCase()], COLOR_BY_LETTER[m[2].toLowerCase()]]);
+  return [...text.matchAll(/\{([rugykbw])\}\/\{([rugykbw])\}/gi)].map((m) => [COLOR_BY_LETTER[m[1].toLowerCase()], COLOR_BY_LETTER[m[2].toLowerCase()]]);
 }
 
 export function orbsIn(text: string): Partial<Record<Color, number>> & { any?: number } {
   const out: Partial<Record<Color, number>> & { any?: number } = {};
-  const rest = text.replace(/\{[rugykw]\}\/\{[rugykw]\}/gi, "");
-  for (const m of rest.matchAll(/\{([rugykw])\}/gi)) {
+  const rest = text.replace(/\{[rugykbw]\}\/\{[rugykbw]\}/gi, "");
+  for (const m of rest.matchAll(/\{([rugykbw])\}/gi)) {
     const c = COLOR_BY_LETTER[m[1].toLowerCase()];
     out[c] = (out[c] ?? 0) + 1;
   }
@@ -304,11 +308,18 @@ function isOnlyOrbs(body: string): boolean {
     .trim();
   // It has to *start* with an orb, or "When this card attacks, draw 1 card"
   // would count as a cost and the whole skill would vanish.
-  if (!/^\{[rugykw\d]\}/i.test(withoutNotes)) return false;
+  if (!/^\{[rugykbw\d]\}/i.test(withoutNotes)) return false;
   const rest = withoutNotes
-    .replace(/\{[rugykw\d]\}/gi, "")
+    .replace(/\{[rugykbw\d]\}/gi, "")
     .replace(/\//g, "") // "{r}/{u}": either colour
-    .replace(/^[\s,]*(?:if|when|while)\b.*$/i, "")
+    // Only a *bare* condition, with no comma of its own: "{g}{y}, if your
+    // Leader is a green <Frieza> card" is validity and nothing else, but
+    // "{u}, when this card is played, choose up to 1 …" (P-523) is a trigger
+    // followed by the effect the trigger sets up, and `.*` used to run past
+    // that comma to the end of the line — swallowing the entire effect into
+    // the cost and leaving nothing for the skill to do (found when widening
+    // the orb letters exposed the same shape for {b}, BT31-097 and P-709).
+    .replace(/^[\s,]*(?:if|when|while)\b[^,]*$/i, "")
     .trim();
   return rest.length === 0;
 }

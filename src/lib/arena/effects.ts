@@ -15,7 +15,7 @@
  */
 import { FORBIDDEN_IN_WORDS, describeFilter } from "./engine/script";
 import type { StaticEffect } from "./engine/state";
-import type { ContinuousEffect, EffectUntil, KeywordSkill, Permission, PlayerId, Prohibition, SkillKindPrefix } from "./engine/types";
+import type { ContinuousEffect, EffectUntil, Immunity, KeywordSkill, Permission, PlayerId, Prohibition, SkillKindPrefix } from "./engine/types";
 
 export type EffectKind = "power" | "comboPower" | "keyword" | "negate" | "forbid" | "permit" | "cost" | "other";
 
@@ -83,6 +83,11 @@ function permitLabel(p: Permission): string {
   return `can attack ${p.filter ? describeFilter(p.filter) : "cards"} in Active Mode`;
 }
 
+/** Shared by `describeEffect` and `describeStatic` — see `case "immune"` on each. */
+function immuneLabel(im: Immunity): string {
+  return `isn't affected by ${im.fromFilter ? `${describeFilter(im.fromFilter)} ` : ""}skills`;
+}
+
 /** The kind, label and keyword of a continuous effect (9-9). */
 export function describeEffect(e: ContinuousEffect): Pick<EffectView, "kind" | "label" | "keyword"> {
   switch (e.kind) {
@@ -104,6 +109,8 @@ export function describeEffect(e: ContinuousEffect): Pick<EffectView, "kind" | "
       return { kind: "forbid", label: e.forbid ? forbidLabel(e.forbid) : "forbidden" };
     case "permit":
       return { kind: "permit", label: e.permit ? permitLabel(e.permit) : "permitted" };
+    case "immune":
+      return { kind: "other", label: e.immune ? immuneLabel(e.immune) : "isn't affected by skills" };
     // 20-21 said with a duration on it, so it is in force rather than standing.
     // The wording is `describeStatic`'s, because the player is being told the
     // same thing either way.
@@ -143,6 +150,8 @@ export function describeStatic(e: StaticEffect): Pick<EffectView, "kind" | "labe
       return { kind: "forbid", label: forbidLabel(e.value as Prohibition) };
     case "permit":
       return { kind: "permit", label: permitLabel(e.value as Permission) };
+    case "immune":
+      return { kind: "other", label: immuneLabel(e.value as Immunity) };
     case "gains": {
       const g = e.value as { traits: string[]; characters: string[]; colors: string[] };
       const bits = [...g.colors.map((c) => c.toLowerCase()), ...g.traits.map((t) => `≪${t}≫`), ...g.characters.map((c) => `<${c}>`)];

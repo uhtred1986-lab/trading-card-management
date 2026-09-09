@@ -186,8 +186,18 @@ export function parseFilter(text: string): CardFilter {
   // than widened, which is the worst way for a selector to be wrong. It is the
   // same thing "non-<X>" says, so it lands in the same lists; the tokens are
   // then taken out of the text so the positive loops cannot see them.
-  const NAMED = /<[^>]+>|≪[^≫]+≫|\{[^}]+\}/;
-  const EXCLUDED = new RegExp(`\\bother than (?:copies of )?((?:(?:${NAMED.source})(?:\\s*(?:,|and/or|and|or)\\s*)?)+)`, "g");
+  //
+  // The run may open with "this card", which is not a name and is answered by
+  // the selector's own `notSelf` rather than by a list here — but leaving it
+  // to anchor the phrase meant the names *after* it were never reached.
+  // TB1-015's "choose all Battle Cards with 25000 or less power other than
+  // this card **or your <Caulifla>**, and KO them" excluded the card printing
+  // it and then required <Caulifla>, so the skill KO'd precisely the cards it
+  // was written to spare. A possessive may stand in front of each name for the
+  // same reason.
+  const NAMED = /(?:your |their |its owner's )?(?:<[^>]+>|≪[^≫]+≫|\{[^}]+\})/;
+  const JOIN = /(?:\s*(?:,|and\/or|and|or)\s*)?/;
+  const EXCLUDED = new RegExp(`\\bother than (?:copies of )?(?:this card${JOIN.source})?((?:${NAMED.source}${JOIN.source})+)`, "g");
   t = t.replace(EXCLUDED, (whole, run: string) => {
     for (const m of run.matchAll(/<([^>]+)>|≪([^≫]+)≫|\{([^}]+)\}/g)) {
       if (m[1]) f.notCharacters.push(m[1].trim());
@@ -228,8 +238,11 @@ export function parseFilter(text: string): CardFilter {
   });
   for (const m of t.matchAll(/(non-)?<([^>]+)>/g)) (m[1] ? f.notCharacters : f.characters).push(m[2].trim());
   for (const m of t.matchAll(/(non-)?≪([^≫]+)≫/g)) (m[1] ? f.notTraits : f.traits).push(m[2].trim());
-  for (const m of t.matchAll(/\{([^}]+)\}/g)) if (!/^[rugykw]$|^\d+$/i.test(m[1])) f.names.push(m[1].trim());
-  const lower = t.toLowerCase();
+  for (const m of t.matchAll(/\{([^}]+)\}/g)) if (!/^[rugykbw]$|^\d+$/i.test(m[1])) f.names.push(m[1].trim());
+  // "Cards other than Battle Cards" (BT23-140) says the same as "non-Battle
+  // Cards" the long way, naming a *type* rather than the named cards `EXCLUDED`
+  // reads above — rewritten so the ordinary "non-" reading below catches it.
+  const lower = t.toLowerCase().replace(/\bother than ((?:leader|unison|extra|battle) cards?)\b/g, "non-$1");
   // Colour words are read off the description with every *name* taken out of
   // it. ≪Red Ribbon Army≫, <Goku Black>, <Commander Red>, {Super Saiyan Blue
   // Vegeta} and [Revive Blue/Green] all carry a colour word that says nothing
@@ -367,6 +380,14 @@ export function parseFilter(text: string): CardFilter {
     f.powerMax = Number(m[2].replace(/,/g, ""));
   } else if ((m = /(\d+) power or less/.exec(lower))) f.powerMax = Number(m[1]);
   else if ((m = /(\d+) power or more/.exec(lower))) f.powerMin = Number(m[1]);
+  // The sets print the same bound with the words the other way round —
+  // "Battle Cards with 25000 **or less power**" — on 41 lines, and only the
+  // first order was read, so some thirty-eight selectors carried no bound at
+  // all and were offered every card in the area. TB1-015 is the one that shows
+  // what that costs: with its exclusion fixed but its bound still missing, it
+  // KO'd every Battle Card on both boards instead of the small ones.
+  else if ((m = /([\d,]+) or less power\b/.exec(lower))) f.powerMax = Number(m[1].replace(/,/g, ""));
+  else if ((m = /([\d,]+) or more power\b/.exec(lower))) f.powerMin = Number(m[1].replace(/,/g, ""));
   // An exact power, which searches print alongside the cost: "a yellow
   // <Son Goku> card with an energy cost of 3 and 5000 power". Only after
   // "with"/"and", so that "it gets +5000 power for the turn" is not read as a

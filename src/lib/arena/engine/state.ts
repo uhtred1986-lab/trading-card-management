@@ -18,6 +18,7 @@ import type {
   EffectUntil,
   ForbiddenAction,
   FlowStep,
+  Immunity,
   Permission,
   Prohibition,
   GameEvent,
@@ -433,6 +434,11 @@ export function resolveSelector(ctx: GameContext, s: GameState, frame: ScriptFra
     if (!sel.special && !sel.ignoreBarrier && sel.side !== "you" && has(ctx, s, id, "Barrier") && s.cards[id].owner !== frame.master && areaOf(s, id) !== "hand") return false;
     // 20-4: the same shape as [Barrier], but printed as a prohibition.
     if (!sel.special && s.cards[id].owner !== frame.master && forbids(ctx, s, "beChosen", { card: id })) return false;
+    // 9-1-4: a card no skill may touch. Narrower than the rule — this only
+    // catches an effect that *chooses* the card, not one that never does —
+    // and the glossary says so; `!sel.special` keeps the card usable as an
+    // attacker or a guard, which is right.
+    if (!sel.special && s.cards[id].owner !== frame.master && isImmuneTo(ctx, s, id, frame.card)) return false;
     return true;
   });
 }
@@ -445,11 +451,17 @@ export function resolveRef(ctx: GameContext, s: GameState, frame: ScriptFrame, r
   return resolveSelector(ctx, s, frame, ref.sel);
 }
 
+/** The markers on the selected cards, added up (13-2) — the one sum both the `markers` condition and the `markers` amount ask for. */
+function markersOn(ctx: GameContext, s: GameState, frame: ScriptFrame, sel: Selector): number {
+  return resolveSelector(ctx, s, frame, sel).reduce((t, id) => t + s.cards[id].markers, 0);
+}
+
 export function amount(ctx: GameContext, s: GameState, frame: ScriptFrame, a: Amount): number {
   if (typeof a === "number") return a;
   if ("var" in a) return (frame.vars[a.var] ?? []).length;
   if ("sumPower" in a) return (frame.vars[a.sumPower.var] ?? []).reduce((t, id) => t + powerOf(ctx, s, id), 0);
   if ("handUpTo" in a) return Math.max(0, a.handUpTo - s.players[frame.master].hand.length);
+  if ("markers" in a) return markersOn(ctx, s, frame, a.markers) * (a.times ?? 1);
   return resolveSelector(ctx, s, frame, a.count).length * (a.times ?? 1);
 }
 
@@ -478,7 +490,7 @@ export function condHolds(ctx: GameContext, s: GameState, frame: ScriptFrame, c:
       return matches(cardNow(ctx, s, l), c.filter);
     }
     case "markers": {
-      const n = resolveSelector(ctx, s, frame, c.sel).reduce((t, id) => t + s.cards[id].markers, 0);
+      const n = markersOn(ctx, s, frame, c.sel);
       return (c.atLeast == null || n >= c.atLeast) && (c.atMost == null || n <= c.atMost);
     }
     case "inBattle": {
@@ -551,10 +563,10 @@ export interface AltCost {
 
 export interface StaticEffect {
   source: string;
-  kind: "power" | "comboPower" | "keyword" | "cost" | "comboCost" | "negateKeyword" | "gains" | "replaceLeave" | "forbid" | "permit" | "altCost";
+  kind: "power" | "comboPower" | "keyword" | "cost" | "comboCost" | "negateKeyword" | "gains" | "replaceLeave" | "forbid" | "permit" | "immune" | "altCost";
   /** The card it is about; empty for a rule about a player rather than a card. */
   target: string;
-  value: number | KeywordSkill | KeywordSkill["name"] | Prohibition | Permission | AltCost | Gains | Replacement;
+  value: number | KeywordSkill | KeywordSkill["name"] | Prohibition | Permission | Immunity | AltCost | Gains | Replacement;
 }
 
 /**
@@ -650,7 +662,7 @@ let computingStatics = false;
  * `arena:coverage` uses so its "applied by the static layer" line means what
  * it says — keep this list beside the switch it describes.
  */
-const STATIC_OPS = new Set<Op["op"]>(["power", "comboPower", "grant", "costReduction", "replaceLeave", "gains", "negateKeyword", "forbid", "permit", "altCost"]);
+const STATIC_OPS = new Set<Op["op"]>(["power", "comboPower", "grant", "costReduction", "replaceLeave", "gains", "negateKeyword", "forbid", "permit", "immune", "altCost"]);
 
 export function emitsStatic(ops: Op[]): boolean {
   return ops.some((o) => (o.op === "if" ? emitsStatic(o.then) || emitsStatic(o.else ?? []) : STATIC_OPS.has(o.op)));
@@ -666,10 +678,11 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
     }
     if (op.op === "costReduction") {
       const kind = op.what === "combo" ? "comboCost" : "cost";
-      // "…by 1 for each of your blue Battle Cards" — the same count amount the
-      // power statics take, and for the same reason: a [Permanent] has no
-      // frame that ever bound a variable, so only `count` can be evaluated.
-      const value = typeof op.amount === "number" ? op.amount : "count" in op.amount ? amount(ctx, s, frame, op.amount) : null;
+      // "…by 1 for each of your blue Battle Cards" — the same count/markers
+      // amounts the power statics take, and for the same reason: a
+      // [Permanent] has no frame that ever bound a variable, so only those two
+      // can be evaluated.
+      const value = typeof op.amount === "number" ? op.amount : "count" in op.amount || "markers" in op.amount ? amount(ctx, s, frame, op.amount) : null;
       if (value == null) continue;
       for (const id of staticTargets(ctx, s, frame, op.target)) out.push({ source, kind, target: id, value });
       continue;
@@ -716,6 +729,16 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
       }
       continue;
     }
+    // 9-1-4: a card no skill may touch, printed as a [Permanent] on most of
+    // the cards that have it — so it belongs here, stored the same way
+    // `forbid` is, with `op.until` unused for the same reason.
+    if (op.op === "immune") {
+      if (!inPlayNow) continue;
+      const player = op.from && op.from !== "both" ? sideOf(master, op.from)[0] : undefined;
+      const targets = op.target ? staticTargets(ctx, s, frame, op.target) : [source];
+      for (const id of targets) out.push({ source, kind: "immune", target: id, value: { from: player, fromFilter: op.fromFilter } });
+      continue;
+    }
     // 8-1-1 the other way round. Printed as a [Permanent] on most of the cards
     // that have it ("This card can attack Battle Cards in Active Mode"), so it
     // belongs here beside the prohibition it mirrors.
@@ -726,11 +749,12 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
     }
     if (!inPlayNow) continue; // the rest only hold while the card is in play
     if (op.op === "power" || op.op === "comboPower") {
-      // "+5000 power for each card placed under it" — a number read off the
-      // board. Only `count` amounts: the others are named by a variable, and a
+      // "+5000 power for each card placed under it", "+5000 power for each
+      // marker on this card" — a number read off the board. Only `count` and
+      // `markers` amounts: the others are named by a variable, and a
       // [Permanent] has no frame that ever bound one. `staticEffects` refuses
       // to recurse, so the count may safely ask the board about itself.
-      const value = typeof op.amount === "number" ? op.amount : "count" in op.amount ? amount(ctx, s, frame, op.amount) : null;
+      const value = typeof op.amount === "number" ? op.amount : "count" in op.amount || "markers" in op.amount ? amount(ctx, s, frame, op.amount) : null;
       if (value == null) continue;
       for (const id of staticTargets(ctx, s, frame, op.target)) out.push({ source, kind: op.op, target: id, value });
     } else if (op.op === "grant") {
@@ -1068,6 +1092,20 @@ function ownProhibitions(ctx: GameContext, s: GameState, card: string): Prohibit
     }
   }
   return out;
+}
+
+/**
+ * 9-1-4: whether `id` is immune to a skill whose source card is `source`.
+ * The one place this is checked (`resolveSelector`, beside [Barrier] and
+ * `forbid: "beChosen"`), so unlike `forbids` it takes no `player` — the
+ * caller already only asks when someone other than the card's own owner is
+ * choosing, which is exactly what a stored `from` names.
+ */
+function isImmuneTo(ctx: GameContext, s: GameState, id: string, source: string | undefined): boolean {
+  const rules: Immunity[] = [];
+  for (const e of s.effects) if (e.kind === "immune" && e.target === id && e.immune) rules.push(e.immune);
+  for (const e of staticEffects(ctx, s)) if (e.kind === "immune" && e.target === id) rules.push(e.value as Immunity);
+  return rules.some((im) => !im.fromFilter || (!!source && !!s.cards[source] && matches(cardNow(ctx, s, source), im.fromFilter)));
 }
 
 export function forbids(ctx: GameContext, s: GameState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean } = {}): boolean {

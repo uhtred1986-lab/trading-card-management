@@ -117,7 +117,9 @@ export type Amount =
   /** The total power of the cards bound to a name — "the cards switched to Rest Mode by this skill" ([Alliance], 22-32). */
   | { sumPower: { var: string } }
   /** "Draw cards until you have 4 cards in your hand": however many that takes, never fewer than none. */
-  | { handUpTo: number };
+  | { handUpTo: number }
+  /** "For each marker on this card, +5000 power" — the markers on the selected cards, added up, the same board fact the `markers` condition asks about. */
+  | { markers: Selector; times?: number };
 
 /**
  * `minus` is "the rest": the cards bound to `var` that a later choice did not
@@ -331,6 +333,14 @@ export type Op =
    * with Battle Cards"), optionally narrowed by a filter.
    */
   | { op: "forbid"; what: ForbiddenAction; until: Duration; target?: Ref; side?: Side; filter?: CardFilter; sameNameAsSelf?: boolean; bySkill?: boolean }
+  /**
+   * 9-1-4: a card no skill may touch — stronger than `forbid: "beChosen"`,
+   * which only stops a skill from *choosing* it. `from`/`fromFilter` say
+   * *whose* skills are blocked, mirroring `forbid`'s `side`/`filter` pair but
+   * aimed at the source of the effect rather than the actor; both absent
+   * means every skill. Omit `target` for this card.
+   */
+  | { op: "immune"; until: Duration; target?: Ref; from?: Side; fromFilter?: CardFilter }
   /**
    * The opposite of `forbid`: a rule of the game lifted for one card.
    * "This card can attack Battle Cards in Active Mode" (8-1-1). `filter`
@@ -941,6 +951,17 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         break;
       }
 
+      // 9-1-4: stored the same way `forbid` is, so a duration expires it the
+      // same way; enforced in `resolveSelector` (state.ts), beside [Barrier]
+      // and `forbid: "beChosen"`.
+      case "immune": {
+        const players = op.from && op.from !== "both" ? sideOf(master, op.from) : [];
+        const targets = op.target ? resolveRef(ctx, s, frame, op.target) : [frame.card];
+        for (const id of targets)
+          addEffect(s, ev, { master: frame.master, source: frame.card, target: id, kind: "immune", value: 0, until: op.until, immune: { from: players[0], fromFilter: op.fromFilter } });
+        break;
+      }
+
       // 8-1-1 lifted for one card — the opposite of `forbid`, and stored the
       // same way so that a duration expires it the same way.
       case "permit":
@@ -1452,6 +1473,16 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     },
     doc: `forbid an action (20-14): a "target" for a rule about particular cards, or a "side" for one about a player, narrowed by a "filter"; "sameNameAsSelf":true narrows a play rule to copies of this card. "what" is one of ${FORBIDDEN_ACTIONS.map((w) => `"${w}"`).join(" | ")}`,
   },
+  immune: {
+    fields: [UNTIL, SELF, { name: "from", type: "side" }, { name: "fromFilter", type: "filter" }],
+    sentence: (raw, r) => {
+      const op = raw as OpOf<"immune">;
+      const who = op.from === "opponent" ? "your opponent's" : op.from === "you" ? "your" : "";
+      const whose = [who, op.fromFilter ? describeFilter(op.fromFilter) : ""].filter(Boolean).join(" ");
+      return `${describeRef(op.target ?? { sel: { special: "self" } })} isn't affected by ${whose ? `${whose} ` : ""}skills${forThe(op.until, r)}`;
+    },
+    doc: '9-1-4: a card no skill may touch (stronger than "forbid":"beChosen", which only stops a skill choosing it); "from" and "fromFilter" narrow whose skills, and both absent means every skill',
+  },
   permit: {
     fields: [{ name: "what", type: { enum: ["attackActive"] }, required: true }, UNTIL, TARGET, { name: "filter", type: "filter" }],
     sentence: "{target} can attack {filter:cards} in Active Mode{until}",
@@ -1899,12 +1930,14 @@ function describeAmount(a: Amount, noun?: string): string {
   if (noun) {
     if (typeof a === "number") return `${a >= 0 ? "+" : ""}${a} ${noun}`;
     if ("count" in a) return `+${a.times ?? 1} ${noun} for each of ${describeEach(a.count)}`;
+    if ("markers" in a) return `+${a.times ?? 1} ${noun} for each marker on ${describeEach(a.markers)}`;
     return `+that many ${noun}`;
   }
   if (typeof a === "number") return `${a}`;
   if ("var" in a) return "that many";
   if ("sumPower" in a) return "the total power of the cards rested";
   if ("handUpTo" in a) return `up to ${a.handUpTo} in hand`;
+  if ("markers" in a) return `${a.times ?? 1} for each marker on ${describeEach(a.markers)}`;
   return `${a.times ?? 1} for each of ${describeEach(a.count)}`;
 }
 

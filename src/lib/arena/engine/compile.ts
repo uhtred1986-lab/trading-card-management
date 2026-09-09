@@ -16,8 +16,17 @@ import type { CardDef, DelayScope, DelayTiming, KeywordSkill, Skill, SkillKindPr
 // ── clause splitting ───────────────────────────────────────────────────────
 
 /** Split on commas, semicolons, full stops and "then"/"and", ignoring anything inside brackets. */
-/** After an " and ": nothing but a name, so the "and" joins names rather than clauses. */
-const NAME_AFTER_AND = /^(?:<[^>]+>|≪[^≫]+≫|\{[^}]+\})(?:\s*(?:,|\.|$|cards?\b|battle cards?\b|and\b|or\b|in\b|with\b))/i;
+/**
+ * After an " and ": nothing but a name, so the "and" joins names rather than
+ * clauses.
+ *
+ * The "non-" is part of the name for this purpose: "you can't play
+ * non-<Zamasu> **and** non-<Goku Black> Battle Cards for the game" (BT16-088)
+ * split in two, and both halves lost by it — the first became a prohibition on
+ * <Zamasu> alone, and the second, which is where "for the game" is printed,
+ * read as nothing at all. A negated name is still a name.
+ */
+const NAME_AFTER_AND = /^(?:non-)?(?:<[^>]+>|≪[^≫]+≫|\{[^}]+\})(?:\s*(?:,|\.|$|cards?\b|battle cards?\b|and\b|or\b|in\b|with\b))/i;
 
 /**
  * After an " and ": the second of two areas one phrase names — "all cards in
@@ -78,7 +87,17 @@ export function splitClauses(text: string): string[] {
     if ("([{<≪".includes(ch)) depth++;
     else if (")]}>≫".includes(ch)) depth = Math.max(0, depth - 1);
     else if (depth === 0) {
-      if ((ch === "," || ch === ";") && !inNameList(text, i) && !(ch === "," && (inList(text, i) || commaJoinsColours(text, i) || /^,\s*except\b/i.test(text.slice(i))))) {
+      // "…by {b}, for each ≪Saiyan≫ card in your Warp" (BT27-123): the comma
+      // introduces the multiplier the amount before it needs, not a second
+      // clause. Split here and the first half compiles alone — a flat,
+      // unconditional reduction with the scope that was meant to divide it
+      // sitting next to it as an orphaned, separately unread fragment, which
+      // is a wrong number silently applied rather than an honest gap.
+      if (
+        (ch === "," || ch === ";") &&
+        !inNameList(text, i) &&
+        !(ch === "," && (inList(text, i) || commaJoinsColours(text, i) || /^,\s*except\b/i.test(text.slice(i)) || /^,\s*for each\b/i.test(text.slice(i))))
+      ) {
         push(i, 1);
       } else if (ch === "." && (i + 1 >= text.length || (text[i + 1] === " " && !/^ [a-z]/.test(text.slice(i + 1, i + 3))))) {
         // A full stop inside an abbreviation is not the end of a sentence:
@@ -403,6 +422,23 @@ const ALL_AREAS: ScriptArea[] = ["leader", "battle", "unison", "combo", "energy"
 const ALL_AREAS_RE = /\bin all (?:of )?(your |their |its owner's )?areas\b/;
 
 /**
+ * "…in areas other than your deck, hand, or life" (BT7-125 through BT7-129,
+ * one per colour): every area *except* the ones it lists. The list is the one
+ * part of the phrase that must not be read as the place to look, and
+ * `AREA_WORDS` is first-match-wins, so it read "your deck" — the exact inverse
+ * of what the card says, and a mono-colour lock that checked the pile the
+ * cards are least likely to be in. `Selector.areas` states a span, so the
+ * complement is written out.
+ *
+ * Only "in", never "from": "when a card is placed in your life face up **from**
+ * any area other than your life" (BT12-023) is a trigger saying where the card
+ * came from, not a description of cards, and it is not this phrase.
+ */
+const AREAS_OTHER_THAN_RE = /\bin (?:any |all )?areas? other than ((?:your |their |its owner's |an? owner's |the )?(?:z-)?[a-z]+(?: area)?(?:(?:\s*,\s*or\s+|\s*,\s*|\s+or\s+)(?:your |their |its owner's |an? owner's |the )?(?:z-)?[a-z]+(?: area)?)*)\b/;
+/** The "or" of that list is a separator, not the shortest area word there is. */
+const AREA_LIST_SEP = /\s*,\s*or\s+|\s*,\s*|\s+or\s+/;
+
+/**
  * "up to 2 of your opponent's Battle Cards in Rest Mode" → a selector.
  *
  * `looked` is the variable a `look` earlier in the same skill bound, for the
@@ -493,8 +529,31 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
     phrase = phrase.replace(new RegExp(ALL_AREAS_RE.source, "gi"), (_full, poss?: string) => ` ${poss ?? ""} `);
     t = phrase.toLowerCase();
   }
+  // "…in areas other than your deck, hand, or life": the same, said as a
+  // complement. See `AREAS_OTHER_THAN_RE`.
+  const otherThan = AREAS_OTHER_THAN_RE.exec(t);
+  let otherAreas: ScriptArea[] | null = null;
+  if (otherThan) {
+    const named = otherThan[1]
+      .split(new RegExp(AREA_LIST_SEP.source))
+      .map((w) => w.replace(/^(?:your |their |its owner's |an? owner's |the )/, "").trim())
+      .filter(Boolean);
+    const listed = named.map((w) => AREA_NAMED[w] ?? null);
+    // One area word this table does not know and the complement would be too
+    // wide — it would name an area the card excludes, which is worse than not
+    // reading the phrase at all (ground rule 5).
+    if (listed.some((a) => a === null)) return null;
+    otherAreas = ALL_AREAS.filter((a) => !listed.includes(a));
+    phrase = phrase.replace(new RegExp(AREAS_OTHER_THAN_RE.source, "gi"), " ");
+    t = phrase.toLowerCase();
+  }
   // "this card's power" inside a phrase is a measure, not the target.
-  if (/\bthis card\b(?!'s)/.test(t) && !/\bother\b/.test(t)) return { special: "self" };
+  // "…**except for** this card" is "other than this card" said the other way,
+  // and reading it as a mention rather than an exclusion sent the phrase down
+  // this shortcut: BT1-086's "place all Rest Mode Battle Cards except for this
+  // card in the Drop Area" came back as *self*, so the card dropped itself and
+  // left every card it was aimed at standing.
+  if (/\bthis card\b(?!'s)/.test(t) && !/\bother\b|\bexcept\b/.test(t)) return { special: "self" };
   if (/\bthe attack(?:ing)? card\b/.test(t)) return { special: "attacker" };
   if (/\bthe guard card\b/.test(t)) return { special: "guard" };
   // "Your opponent's Leader", "your Leader Card": a player has exactly one
@@ -549,14 +608,48 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
   if (/\bopponent'?s\b|\byour opponent\b|\btheir\b/.test(owner)) side = "opponent";
   else if (/\bopponent (?:rest mode |active mode |skill-less )?(?:battle|unison|extra|leader|z-battle|z-extra)s?\b/.test(t)) side = "opponent";
   if (/\ball players\b|\beach player\b|\bboth players\b/.test(t)) side = "both";
-  // "Choose **all other** Battle Cards" names no owner, and a card that names
-  // none is every one of them (the sets say "all other Battle Cards **you
+  // "Choose **all** Battle Cards" names no owner, and a card that names none
+  // is every one of them (the sets say "all other Battle Cards **you
   // control**" when they mean only yours). The default of `you` is right for
   // an unqualified singular — "choose 1 Battle Card" is your own — but wrong
-  // here, and it made a board wipe clear only the caster's own side. Narrowed
-  // to the phrases that say "other" and name nobody: anything printing "your",
-  // "their", "opponent" or "you control" keeps the side it just read.
-  if (otherAdj && !/\byour\b|\btheir\b|\bopponent\b|\byou control\b/.test(t)) side = "both";
+  // for a sweep, and it made a board wipe clear only the caster's own side.
+  //
+  // Until 9 Sep 2026 this covered only the phrases saying "other", which left
+  // nine sweeps reading as the caster's own board. Five of them say otherwise
+  // outright: "ignoring [Barrier]" is dead text unless the choice reaches the
+  // opponent, 22-16-2 defining the keyword against "the skills of cards
+  // mastered by your opponent" (BT7-110, BT6-018, BT8-137, SD22-02), and
+  // BT7-037's "then all players who returned cards to their decks shuffle"
+  // presupposes both did. The other four carry no such tell and no Bandai Q&A
+  // entry, and are the owner's ruling of 9 Sep 2026, recorded on their rows:
+  // BT21-023, BT19-096, BT1-086, TB1-015. BT1-086 was the worst reading in the
+  // catalog — "place all Rest Mode Battle Cards except for this card in the
+  // Drop Area" read as "move this card to drop", so the card dropped itself
+  // and nothing else.
+  //
+  // Anything printing "your", "their", "opponent" or "you control" keeps the
+  // side it just read: "all Battle Cards **in your Drop Area**" (BT7-126) and
+  // "all Battle Cards **in your energy**" (BT25-145) are the caster's own.
+  // "All" counts only where it is the determiner of the cards — "all Battle
+  // Cards", not "―all in Rest Mode―". EX25-35 prints "choose all of your
+  // opponent's skill-less Battle Cards **and** Battle Cards with 15000 power
+  // or less ―all in Rest Mode―", whose second half arrives here as a fragment
+  // with the possessive left behind in the first; its "all" governs a
+  // preposition, and taking it would sweep both boards for a rest-lock the
+  // card aims at one. That clause reads wrongly either way, and the narrower
+  // wrong is the one to leave standing (ground rule 5). The phrase still
+  // carries the verb that chose the cards, so this cannot anchor to the front.
+  const sweep = /\ball\s+(?!in\b|of\b|the following\b)[a-z]/.test(t) || /\bin all battle areas\b/.test(t);
+  // A possessive inside the exclusion belongs to the card being ruled *out*,
+  // not to the cards being chosen: TB1-015's "all Battle Cards with 25000 or
+  // less power other than this card **or your <Caulifla>**" sweeps both boards
+  // and spares one of yours, so the "your" in it must not hold the sweep to
+  // your own side.
+  const chosen = t.replace(
+    /\b(?:other than|except for) (?:copies of )?(?:this card|it)?(?:\s*(?:,|and\/or|and|or)\s*)?(?:(?:your |their |its owner's )?(?:<[^>]+>|≪[^≫]+≫|\{[^}]+\})(?:\s*(?:,|and\/or|and|or)\s*)?)*/g,
+    " ",
+  );
+  if ((otherAdj || sweep) && !/\byour\b|\btheir\b|\bopponent\b|\byou control\b/.test(chosen)) side = "both";
 
   // "Your opponent's Battle Cards or Unisons" names two areas at once, which
   // is the one such phrase the game prints often enough to be worth reading.
@@ -571,7 +664,7 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
   const pair: [ScriptArea, ScriptArea] | null = both && AREA_NAMED[both[1]] && AREA_NAMED[both[2]] && AREA_NAMED[both[1]] !== AREA_NAMED[both[2]] ? [AREA_NAMED[both[1]], AREA_NAMED[both[2]]] : null;
 
   let area: ScriptArea | null = null;
-  if (!allAreas) {
+  if (!allAreas && !otherAreas) {
     for (const [re, a] of AREA_WORDS) {
       if (re.test(t)) {
         area = a;
@@ -638,11 +731,25 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
     if (end[1] === "bottom") fromEnd = true;
   }
 
-  const mode = /\bin rest mode\b/.test(t) ? "rest" : /\bin active mode\b/.test(t) ? "active" : undefined;
+  // Which mode the cards must be in. The sets say it two ways and only the
+  // prepositional one was read: "1 of your opponent's Battle Cards **in Rest
+  // Mode**" and "1 of your opponent's **Rest Mode** Battle Cards" are the same
+  // card, and seventy skills print the second. Read without it, BT23-109's
+  // "choose up to 1 of your opponent's Rest Mode Battle Cards and KO it" was
+  // offered every Battle Card the opponent had — a KO aimed at a card that had
+  // already attacked, pointed at whatever you liked.
+  //
+  // The mode words also name a *destination* — "switch this card **to** Rest
+  // Mode", "play it **in** Rest Mode" — which is not a description of what to
+  // pick. The attributive reading is therefore taken only in front of a noun,
+  // where a destination never stands.
+  const modeSaid = (which: "rest" | "active"): boolean =>
+    new RegExp(`\\bin ${which} mode\\b|\\b${which} mode (?:[a-z-]+ )*cards?\\b`).test(t);
+  const mode = modeSaid("rest") ? "rest" : modeSaid("active") ? "active" : undefined;
   // "Choose all Battle Cards **other than this card**" — the card the phrase
   // rules out. Read as nothing it stayed among the candidates, so a clause
   // that shrank every Battle Card shrank this one too.
-  const excluded = /\bother than (copies of )?this card\b/.exec(t);
+  const excluded = /\b(?:other than|except for) (copies of )?this card\b/.exec(t);
   const notSelf = excluded ? (excluded[1] ? "copies" : "card") : otherAdj ? "card" : undefined;
   const filter = filterFor(phrase, area);
   // A description the parser could not read is not a target: the clause fails
@@ -652,6 +759,7 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
   // No single `area` stands for all of them, and leaving one on would be read
   // as the place the cards must be — so the span is the only thing said.
   if (allAreas) return { side, areas: ALL_AREAS, filter, count, upTo, mode, notSelf };
+  if (otherAreas) return { side, areas: otherAreas, filter, count, upTo, mode, notSelf };
   if (bothAreas) return { side, area: "battle", areas: ["battle", "unison"], filter, count, upTo, mode, fromVar, notSelf };
   if (pair) return { side, area: pair[0], areas: pair, filter, count, upTo, mode, fromVar, notSelf };
   return { side, area: area ?? undefined, filter, count, upTo, mode, fromVar, take, fromEnd, notSelf };
@@ -1018,7 +1126,10 @@ function refFor(clause: string, c: Ctx): Ref | null {
   //   Clan≫ card among them other than copies of this card" played this card.
   //   The wording is matched whole rather than by a bare "other", so "you
   //   can't play this card from any area with skills other than [Revive
-  //   Blue/Green]" still means this card.
+  //   Blue/Green]" still means this card. "**Except for** this card" is the
+  //   same exclusion said the other way, and reading it as a mention rather
+  //   than an exclusion is what made BT1-086's "place all Rest Mode Battle
+  //   Cards except for this card in the Drop Area" drop the card printing it.
   // - "this card's **power**" in a trailing measure describes some *other*
   //   card: "return 1 of your opponent's Battle Cards with power less than or
   //   equal to this card's power to their hand" returned this card. Only in
@@ -1026,7 +1137,7 @@ function refFor(clause: string, c: Ctx): Ref | null {
   //   and "you can activate **this card's** [Activate: Battle]" are about this
   //   one — which is the same head/tail distinction the pronoun test below
   //   makes, for the same reason.
-  const mentions = named.replace(/\bother than (?:copies of )?this card\b/gi, " ");
+  const mentions = named.replace(/\b(?:other than|except for) (?:copies of )?this card\b/gi, " ");
   if (/\bthis card\b(?!'s)/i.test(mentions) || /\bthis card's\b/i.test(headOf(mentions))) return { sel: { special: "self" } };
   // "…play up to 1 card from under this card, and place this card under the
   // played card": the card this skill just played, if it played one; otherwise
@@ -1829,35 +1940,70 @@ function connective(clause: string): "skip" | "ifDone" | "ifNotDone" | "otherwis
  */
 function compileForEach(clause: string, c: Ctx): Op[] | null {
   const t = clean(clause);
-  const m = /^(.+?)\s+(?:for each|equal to the number of)\s+(.+)$/.exec(t);
-  if (!m) return null;
+  // "For each marker on this card, this card gets +5000 power during your
+  // turn" (BT27-003/004/005/006, EX19-21): the count leads the sentence,
+  // comma-joined, instead of trailing it. `compileClauseList` deliberately
+  // keeps that comma from splitting the clause in two (see
+  // `PURE_FOREACH_MARKERS_ON_SELF`) only for "on this card", so this is
+  // reached with the count and the effect still both in hand; every other
+  // leading "for each" phrase in the catalog is still split apart on its own
+  // and stays unread, same as before.
+  const lead = /^for (?:each|every) (markers?\s+on\s+.+?)\s*,\s*(.+)$/.exec(t);
+  const m = lead ? null : /^(.+?)\s+(?:for each|equal to the number of)\s+(.+)$/.exec(t);
+  if (!lead && !m) return null;
+  const headSrc = lead ? lead[2] : m![1];
   // What is being counted ends at its noun. "…+6000 power for each card in
   // your energy **and [Triple Strike] for the duration of the battle**"
   // carries on about the card, not about what is counted, and taking the whole
   // tail as the counted phrase dropped the keyword and the duration in
-  // silence — the power lasted the turn instead of the battle.
-  const cut = /(?:,?\s+and\s+\[)|(?:\s+for the (?:duration of the |rest of the )?(?:turn|battle|game)\b)|(?:\s+until\s)|(?:\s+during (?:this|your)\b)/i.exec(m[2]);
-  const counted = cut ? m[2].slice(0, cut.index) : m[2];
-  const tail = cut ? m[2].slice(cut.index) : "";
-  const sel = parseTarget(counted);
+  // silence — the power lasted the turn instead of the battle. The leading
+  // form has no such tail: the comma already ends the counted phrase.
+  const cut = lead ? null : /(?:,?\s+and\s+\[)|(?:\s+for the (?:duration of the |rest of the )?(?:turn|battle|game)\b)|(?:\s+until\s)|(?:\s+during (?:this|your)\b)/i.exec(m![2]);
+  const counted = lead ? lead[1] : cut ? m![2].slice(0, cut.index) : m![2];
+  const tail = lead ? "" : cut ? m![2].slice(cut.index) : "";
+  // "For each marker on X" is a marker total, not a count of matching cards —
+  // reading it as `count` asked how many cards are named "this card" (always
+  // 1) and printed a flat bonus with no markers in it at all.
+  const markersOn = /^markers?\s+on\s+(.+)$/.exec(counted);
+  const sel = parseTarget(markersOn ? markersOn[1] : counted);
   if (!sel) return null;
-  // A count reads the whole area, not one card out of it.
-  const counting: Selector = { ...sel, count: 99, upTo: false };
+  // A count (or a marker total) reads the whole area, not one card out of it.
+  const broad: Selector = { ...sel, count: 99, upTo: false };
+  const amountFor = (printed: number): Amount =>
+    markersOn ? { markers: broad, ...(printed === 1 ? {} : { times: printed }) } : { count: broad, ...(printed === 1 ? {} : { times: printed }) };
   // "Draw cards equal to the number of …" prints no number at all, because the
-  // count is the number.
-  if (/^draw cards?$/.test(m[1])) return [{ op: "draw", n: { count: counting } }];
+  // count is the number. Only the trailing "equal to" form says this; the
+  // leading marker form always prints a number to multiply.
+  if (!lead && /^draw cards?$/.test(headSrc)) return [{ op: "draw", n: { count: broad } }];
   // The tail goes back on the head, where the patterns that read "and
   // [Keyword]" and the duration can see it.
-  const head = compileClause(`${m[1]}${tail}`, c);
+  const head = compileClause(`${headSrc}${tail}`, c);
   if (!head?.length) return null;
   const [op, ...rest] = head;
-  // Only the ops whose whole point is a number, and only when that number was
-  // printed — anything else would be a guess about which part varies.
+  const swapped = swapForEachAmount(op, amountFor);
+  return swapped && [swapped, ...rest];
+}
+
+/**
+ * Swaps a flat printed number for a computed `Amount` inside the single op a
+ * "for each" clause's head compiled to — diving through an `if` wrapper
+ * ("…during your turn", read as a condition rather than a duration, see the
+ * trailing-condition case in `compileClause`) to reach the number underneath,
+ * since a [Permanent] as ordinary as "for each marker on this card, this card
+ * gets +5000 power during your turn" (BT27-003) compiles that way. Only ever
+ * one op deep of one `if`: two conditions or two effects would leave the
+ * printed number ambiguous, which is worse than leaving the clause unread.
+ */
+function swapForEachAmount(op: Op, amountFor: (printed: number) => Amount): Op | null {
+  if (op.op === "if" && !op.else && op.then.length === 1) {
+    const inner = swapForEachAmount(op.then[0], amountFor);
+    return inner && { ...op, then: [inner] };
+  }
   if ((op.op === "draw" || op.op === "discard" || op.op === "damage" || op.op === "mill" || op.op === "addLife" || op.op === "energyMarker") && typeof op.n === "number") {
-    return [{ ...op, n: { count: counting, ...(op.n === 1 ? {} : { times: op.n }) } }, ...rest];
+    return { ...op, n: amountFor(op.n) };
   }
   if ((op.op === "power" || op.op === "comboPower") && typeof op.amount === "number") {
-    return [{ ...op, amount: { count: counting, ...(op.amount === 1 ? {} : { times: op.amount }) } }, ...rest];
+    return { ...op, amount: amountFor(op.amount) };
   }
   return null;
 }
@@ -2038,6 +2184,16 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   if (/\bfor each\b|\bequal to the number of\b/.test(t)) {
     const counted = compileForEach(t, c);
     if (counted) return counted;
+    // "For each marker on this card, **it** gets +5000 power" (EX19-21):
+    // `compileForEach` refused this one because "it" cannot be resolved, but
+    // falling through leaves "for each marker on this card, it" for the
+    // patterns below to read as an ordinary subject phrase — and `refFor`'s
+    // "this card" test matches *anywhere* in it, so "it" silently became this
+    // card instead of staying unresolved. Once the leading count is known to
+    // be a marker total glued onto an effect (`PURE_FOREACH_MARKERS_ON_SELF`,
+    // reattached above), a failure to compile the effect refuses the whole
+    // clause rather than exposing that leftover phrase to anything else.
+    if (/^for (?:each|every) markers? on this card\s*,/.test(t)) return null;
   }
 
   // Draw (5-1). "You may draw" is treated as taken: declining never helps.
@@ -2266,7 +2422,19 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   }
 
   // ("You can" has already been stripped from the front of `t`.)
-  if (/^activate this card's \[counter[^\]]*\](?: skill)? from your hand /.test(t)) return counterAltCost(t, c);
+  //
+  // Reached only when the whole-sentence read above failed, which means this
+  // clause is a *piece* of the offer rather than all of it. A waiver and a
+  // price out of your life are each said in one clause and survive that
+  // intact; a price that is a program cannot, because the split is what took
+  // the rest of it away — "by choosing 2 other cards in your hand" arrives
+  // here with "and discarding them" already gone, and reading it would offer
+  // the [Counter] for a choice that costs nothing. Refusing leaves the skill
+  // to the referee with its price whole in the text (ground rule 5).
+  if (/^activate this card's \[counter[^\]]*\](?: skill)? from your hand /.test(t)) {
+    const alt = counterAltCost(t, c);
+    return alt?.every((o) => o.op !== "altCost" || o.pay !== "program") ? alt : null;
+  }
 
   // Cost reduction on a [Permanent] skill (9-1-3-3, 20-21). The amount is
   // printed either as a number or as the orbs it takes off — "by {r}" is one
@@ -2275,28 +2443,73 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // Matched on `q`, not `t`: a cost change may carry a duration like anything
   // else ("…by 1 **for the duration of the turn**"), and anchoring to the end
   // of the raw clause meant every one of those went unread.
-  if ((m = /^(reduce|increase) the (energy|combo) cost of (.+?) by (\d+|(?:\{[rugykw\d]+\})+)(?: for each (.+))?$/.exec(q))) {
+  //
+  // Three more shapes of the same sentence are folded down to this one rather
+  // than re-derived: the possessive "this card's"/"that card's"/"its"/
+  // "their" cost in place of "the cost of X" (normalised below, so `refFor`
+  // sees the same "this card"/"that card"/pronoun text it already reads
+  // everywhere else — a trailing area phrase on the possessive, "this card's
+  // energy cost **in your hand**", is dropped along with the possessive
+  // pronoun itself rather than read, since a self/pronoun reference already
+  // finds the one card regardless of area); the passive "the energy cost of X
+  // is reduced by N"; and "decrease" as a plain synonym for "reduce". "Cost
+  // **on** X" stands beside "cost **of** X" (BT24-139, BT28-148), and the
+  // bare "the cost of X" with no "energy"/"combo" word defaults to energy,
+  // same as an unqualified specified cost does everywhere else. Left alone on
+  // purpose: a *skill's* cost ("the skill cost of …", "the activation cost of
+  // …'s [Counter] skill") is a different number `playCost` computes with no
+  // hook to lower (`orbTotals`, `engine.ts:882`), a *specified* cost mixes
+  // colour and total in a way the owner has not ruled on, and a Z-Energy cost
+  // is `d.zEnergyCost`, read raw in five call sites `costReduction` cannot
+  // reach — all three fail the match here because none of them spell the
+  // noun as bare "cost"/"costs", which is deliberate: see `glossary.ts`.
+  let qq = q;
+  let possessive: RegExpExecArray | null;
+  if ((possessive = /^(reduce|increase|decrease) (this card|that card|its|their)'?s? ((?:energy|combo) )?costs?(?: in (?:your|their) (?:hand|z-deck))? by (.+)$/.exec(qq))) {
+    const subject = possessive[2] === "its" ? "it" : possessive[2] === "their" ? "them" : possessive[2];
+    qq = `${possessive[1]} the ${possessive[3] ?? ""}cost of ${subject} by ${possessive[4]}`;
+  }
+  let passive: RegExpExecArray | null;
+  if ((passive = /^the ((?:energy|combo) )?costs? of (.+?) (?:is|are) (reduced|increased|decreased) by (.+)$/.exec(qq))) {
+    const verb = passive[3].slice(0, -1); // "reduced"/"increased"/"decreased" -> the bare verb.
+    qq = `${verb} the ${passive[1] ?? ""}cost of ${passive[2]} by ${passive[4]}`;
+  }
+  if ((m = /^(reduce|increase|decrease) the ((?:energy|combo) )?costs? (?:of|on) (.+?) by (\d+|(?:\{[rugykbw\d]+\})+),?(?: for each (.+))?$/.exec(qq))) {
     // 20-21 works in both directions, and the sets print both: "increase the
     // energy cost of this card in your Battle Area by 2" is the same standing
-    // effect with the sign turned round.
+    // effect with the sign turned round; "decrease" already reads as "reduce".
     const sign = m[1] === "increase" ? -1 : 1;
-    m = [m[0], m[2], m[3], m[4], m[5]] as unknown as RegExpExecArray;
+    const kindWord = m[2];
+    const targetText = m[3];
+    const amountText = m[4];
+    const perText = m[5];
     // The area the phrase names is part of the target, not noise: a reducer
     // for cards "in your hand" that selects cards in play does nothing at all,
     // which is what stripping it here used to produce.
-    let ref = refFor(m[2], c);
+    let ref = refFor(targetText, c);
     if (!ref) return null;
+    // A pronoun that resolves to a stale target is a wrong answer, not a
+    // right one for the wrong reason — see the `c.stale` note in `refFor`.
+    // That guard only covers a seeded self; a *bound choice* going stale is
+    // the same failure and reaches here just as often, because "its"/"that
+    // card"/"them" is exactly the possessive/passive normalisation above
+    // turns into: BT29-018's "…and the next time you play a red <Broly>
+    // card from your Z-Deck during this turn, reduce **its** energy cost by
+    // 1" would otherwise land the reduction on `c0` — the card chosen and
+    // already moved to Z-Energy two clauses earlier — instead of the
+    // not-yet-played Broly the unread "next time" clause names.
+    if (c.stale && ref === c.stale) return null;
     // "Reduce the energy cost of a {Power Pole}" names no area, and 20-1-6's
     // default — a card on the table — is the one place a cost reduction can
     // never matter. What it is about is the card you are about to play.
-    if ("sel" in ref && ref.sel.area === "play" && !/\b(?:hand|deck|drop|energy|warp|life|battle area)\b/i.test(m[2])) {
+    if ("sel" in ref && ref.sel.area === "play" && !/\b(?:hand|deck|drop|energy|warp|life|battle area)\b/i.test(targetText)) {
       ref = { sel: { ...ref.sel, area: "hand", count: 99 } };
     }
-    const orbs = /^\d+$/.test(m[3]) ? null : orbsIn(m[3]);
-    const flat: number = sign * (orbs ? Object.values(orbs).reduce<number>((sum, n) => sum + (n ?? 0), 0) : Number(m[3]));
+    const orbs = /^\d+$/.test(amountText) ? null : orbsIn(amountText);
+    const flat: number = sign * (orbs ? Object.values(orbs).reduce<number>((sum, n) => sum + (n ?? 0), 0) : Number(amountText));
     let by: Amount = flat;
-    if (m[4]) {
-      const per = parseTarget(m[4]);
+    if (perText) {
+      const per = parseTarget(perText);
       if (!per) return null;
       by = { count: { ...per, count: undefined, upTo: undefined }, ...(flat === 1 ? {} : { times: flat }) };
     }
@@ -2305,7 +2518,20 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     // takes off. A [Permanent] holds while its card is valid (9-5-1) and
     // `holdForGame` rewrites this to "game"; anywhere else it is what says how
     // long the change is in force.
-    return [{ op: "costReduction", target: ref, amount: by, ...(m[1] === "combo" ? { what: "combo" as const } : {}), until: durationOf(clause) }];
+    return [{ op: "costReduction", target: ref, amount: by, ...(kindWord?.trim() === "combo" ? { what: "combo" as const } : {}), until: durationOf(clause) }];
+  }
+
+  // "X get -N combo cost" (BT22-055, BT22-056, BT23-072): the same standing
+  // reducer said the way the sibling rule just below reads "X get -N combo
+  // power". The sign on the card is the direction, not decoration — "-1"
+  // lowers the cost — the same inversion `costReduction`'s own sign takes for
+  // the active "increase" verb above.
+  if ((m = /^(.*?) (?:gets?|gains?) ([+-]\d+) combo cost$/.exec(q))) {
+    const refs = refsFor(m[1], c);
+    // Same stale-pronoun guard as the rule above — see its comment.
+    if (refs?.some((r) => c.stale && r === c.stale)) return null;
+    const until = durationOf(t);
+    return refs ? refs.map((target) => ({ op: "costReduction", target, amount: -Number(m![2]), what: "combo" as const, until }) as Op) : null;
   }
 
   // 9-1-5: negating one named keyword rather than silencing the card.
@@ -2566,6 +2792,13 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   if (/\bcan'?t\b|\bcannot\b|\bwill not\b|\bwon'?t\b/.test(t)) {
     const forbid = compileProhibition(t, c);
     if (forbid) return forbid;
+  }
+
+  // 9-1-4: a card no skill may touch, said as "isn't affected by …" rather
+  // than as a prohibition, so it does not fall under the "can't" dispatch above.
+  if (/\b(?:is not|isn'?t)\s+affected by\b/.test(t)) {
+    const immune = compileImmunity(t, c);
+    if (immune) return immune;
   }
 
   // 9-7: answering a counter with a counter. "The [Counter]" is always the one
@@ -2862,6 +3095,65 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
 }
 
 /**
+ * "This card isn't affected by your opponent's skills" (9-1-4) and its
+ * variants — a card no skill may touch, not merely one that can't be chosen
+ * (`forbid: "beChosen"`). The head names *which* cards this is about, the
+ * same grammar `compileProhibition` reads; the tail after "affected by"
+ * names *whose* skills are blocked, either as a bare player ("your
+ * opponent's") or as a description of the source card itself
+ * ("non-<Gogeta: GT>", "the skills of red ≪Saiyan≫ cards with 20000 power or
+ * less in any of your opponent's areas").
+ */
+function compileImmunity(t: string, c: Ctx): Op[] | null {
+  const m = /^(.*?)\s*(?:is not|isn'?t)\s+affected by\s+(.+)$/.exec(t);
+  if (!m) return null;
+  const subject = m[1].trim();
+
+  // BT9-119: "until the start of your next Main Phase" lands a phase later
+  // than any duration this engine can name exactly — `afterNextCharge`
+  // expires a phase early, while the card is still exposed — so the clause
+  // is refused rather than landed on a wrong approximation.
+  if (/\bnext main phase\b/.test(m[2])) return null;
+
+  const target = subject ? refFor(subject, c) : (c.lastTarget ?? refFor("this card", c));
+  if (!target) return null;
+  const until = durationOf(t);
+
+  const tail = stripQualifiers(m[2].trim());
+  let mm: RegExpExecArray | null;
+  let sourceDesc: string | null = null;
+  if ((mm = /^the skills of (.+)$/.exec(tail))) sourceDesc = mm[1];
+  else if ((mm = /^(.+?) skills$/.exec(tail))) sourceDesc = mm[1];
+  if (sourceDesc == null) return null;
+
+  // A bare rule about the side, naming no cards at all — the same shape
+  // `forbid` reads with no filter.
+  if (/^your opponent'?s?$/.test(sourceDesc)) return [{ op: "immune", until, target, from: "opponent" }];
+
+  // Whose skills, said the long way: a player named in front of the source
+  // cards ("opponent's non-Extra cards") or implied by where they are
+  // ("… in any of your opponent's areas"). Absent means either side, same
+  // convention as `forbid`'s own `side`.
+  let rest = sourceDesc;
+  let from: Side | undefined;
+  if ((mm = /^(?:your\s+)?opponent'?s\s+(.+)$/.exec(rest))) {
+    from = "opponent";
+    rest = mm[1];
+  } else if ((mm = /^(.+?)\s+in (?:any of )?your opponent'?s areas$/.exec(rest))) {
+    from = "opponent";
+    rest = mm[1];
+  }
+
+  // A description the parser cannot read must refuse the clause rather than
+  // widen it to every skill — the same rule a `forbid` filter follows.
+  const filter = filterFor(rest, null);
+  if (filter === null) return null;
+  if (!filter && !from) return null;
+
+  return [{ op: "immune", until, target, from, fromFilter: filter || undefined }];
+}
+
+/**
  * "Play 2 Cell Jr. tokens" — the stats are printed in the explanatory note
  * that follows, which is stripped from the clause, so they are read from the
  * untouched skill text (19-1-2).
@@ -3097,14 +3389,46 @@ function compileSkillText(skill: Skill): Script {
   // energy cost **by choosing 1 other black card in your hand and placing it
   // in your Drop Area**". Splitting it first hands the price's second half to
   // the clause list as an orphan, so the whole sentence is read before that.
-  const permission = counterAltCost(
-    text
-      .toLowerCase()
-      .trim()
-      .replace(/^you (?:can|may)\s+/, ""),
-    c,
-  );
-  if (permission) return { ops: permission, unsupported: [] };
+  //
+  // Ten of the eleven cards that print such a price open with a condition of
+  // their own — "**If all of your energy is mono-red,** you can activate this
+  // card's [Counter] skill from your hand without paying its energy cost by
+  // choosing 2 other cards in your hand **and discarding them**" — and this
+  // read only stripped "you can". So it never fired for any of them, the
+  // sentence went to the clause list after all, and the half of the price
+  // after the "and" was orphaned exactly as the comment above says it must not
+  // be: the [Counter] was offered for a choice that cost nothing. The
+  // condition comes off first and goes back on around the permission, the way
+  // the two-sentence form below already does it.
+  const said = text.toLowerCase().trim();
+  const opener = /^if (.+?),\s*(?=you (?:can|may)\s)/.exec(said);
+  const permission = counterAltCost(said.slice(opener?.[0].length ?? 0).replace(/^you (?:can|may)\s+/, ""), c);
+  // Only a *program* price needs the opener taken off. A waiver and a price
+    // out of your life are each said in one clause, so the clause list reads
+    // them and their conditions exactly as it always did — and it reads some
+    // of those conditions better than this does. BT19-092's "if your Leader is
+    // a green <Gogeta: Br> card **and** at least 1 <Son Goku: Br> card and 1
+    // <Vegeta: Br> card are in your Z-Energy" defeats `allConditions`, which
+    // falls back to reading the whole as one condition and gets a Leader
+    // answering to three names with nothing asked of the Z-Energy — wider than
+    // the card, where the clause list was merely narrower.
+  if (permission && (!opener || permission.some((o) => o.op === "altCost" && o.pay === "program"))) {
+    if (!opener) return { ops: permission, unsupported: [] };
+    // Read through `allConditions`, never `parseConditionClause`: these
+    // openers state two and three requirements at once — "if your Leader is a
+    // yellow <Son Gohan: Youth> card, your life is at 4 or less, **and** you
+    // have a yellow ≪Great Ape≫ <Son Gohan: Youth> card in play" — and a
+    // single-condition read keeps the first and the last and drops what is
+    // between them. Each one is its own `if`, which is what the clause list
+    // already made of these sentences before this read existed.
+    //
+    // A condition that cannot be read must refuse the permission rather than
+    // come off in front of it: a price waived on fewer terms than the card
+    // states is a wider offer than the card makes (ground rule 5).
+    const conds = allConditions(opener[1]);
+    if (!conds) return { ops: [], unsupported: [opener[1]] };
+    return { ops: conds.reduceRight<Op[]>((then, { cond }) => [{ op: "if", cond, then }], permission), unsupported: [] };
+  }
   // The same offer told over two sentences (BT4-070, BT4-097): the price
   // first, as something you may do at the moment the [Counter] is activated,
   // and the waiver second, hanging on "if you do so". Read clause by clause it
@@ -3255,6 +3579,17 @@ function track(o: Op, c: Ctx): void {
 const PURE_DURATION =
   /^(?:during this turn|for the (?:duration of the )?(?:turn|battle)|for the rest of the turn|until the end of (?:your|your opponent's|the)(?: next)? turn|until the (?:start|beginning) of your (?:next )?turn|until the (?:start|beginning) of your opponent's next turn)[.,]?$/i;
 
+/**
+ * A clause that is nothing but "for each marker on this card", split off from
+ * the effect it multiplies (BT27-003/004/005/006, EX19-21). Scoped to "this
+ * card" alone, not to a marker phrase in general: the catalog's other three
+ * "for each marker on …" cards (BT15-095, BT24-139, BT28-054) reduce a cost
+ * rather than a power, which `compileForEach` does not swap an amount into
+ * today, so merging their clause the same way would only change which text
+ * shows up unread, not whether it reads — left split, as before.
+ */
+const PURE_FOREACH_MARKERS_ON_SELF = /^for (?:each|every) markers? on this card[.,]?$/i;
+
 /** The clause loop, shared by a skill's body and by each modal option. */
 function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op[] {
   // "if you do" (20-16) makes the rest conditional on the previous choice, and
@@ -3294,6 +3629,14 @@ function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op
     // belongs to the clause after it, where `durationOf` will find it.
     if (PURE_DURATION.test(clause.trim()) && i + 1 < clauses.length) {
       clauses[i + 1] = `${clauses[i + 1].replace(/[.]$/, "")} ${clause.trim()}`;
+      continue;
+    }
+    // "For each marker on this card, this card gets +5000 power during your
+    // turn" — the reverse of a duration: the count leads the effect it
+    // multiplies rather than trailing it, so it is reattached in front, not
+    // behind, and `compileForEach` reads it out of the merged clause.
+    if (PURE_FOREACH_MARKERS_ON_SELF.test(clause.trim()) && i + 1 < clauses.length) {
+      clauses[i + 1] = `${clause.trim().replace(/[.,]$/, "")}, ${clauses[i + 1]}`;
       continue;
     }
     // "Otherwise, draw 1 card" — the else of the condition just before it,
@@ -3528,6 +3871,23 @@ function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op
     if (!got) {
       if (c.replacing) c.replacing = null;
       refuse(clause);
+      // A clause that opens with "if" is a condition whether or not this
+      // compiler can read it, and everything after it hangs on it. Refused
+      // alone, the clauses it governs became a skill that happens *always* —
+      // 56 of them: BT2-018 played itself from hand for nothing whether or not
+      // <Son Gohan: Adolescence> was anywhere, BT15-075 granted [Blocker] with
+      // no [Field] Extra Card in play, and a dozen cost reductions were simply
+      // always on. The rest of the sentence goes with the word that governs
+      // it, the same as "if you do" above and for the same reason.
+      //
+      // Reached only once every pattern has refused the clause, so a
+      // condition one of them *can* read is unaffected — and only for the
+      // conditional openers: "if this card would leave the Battle Area" (9-10)
+      // is a replacement, not a condition, and has already been taken above.
+      if (/^\s*(?:if|while|as long as|unless)\b/i.test(clause)) {
+        for (const rest of clauses.slice(i + 1)) refuse(rest);
+        break;
+      }
       continue;
     }
     // 9-10: the clause after "if this card would leave the Battle Area" is

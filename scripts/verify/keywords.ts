@@ -526,11 +526,14 @@ import {
 
   // "If that card is **not** a <Broly>": `parseFilter` drops the negation, so
   // reading it would hold for exactly the card the sentence excludes. It goes
-  // to the referee instead.
+  // to the referee instead — and, since 9 Sep 2026, so does the clause it
+  // governs. Refusing the condition alone left the draw happening every time,
+  // which is a wider skill than the card prints; the move before it is kept,
+  // because nothing about it hangs on the condition that follows.
   assert.deepEqual(
     one("place the top card of your deck in your Drop Area. If that card is not a <Broly>, draw 1 card.").unsupported,
-    ["If that card is not a <Broly>"],
-    "a negation no filter can carry is refused, not read backwards",
+    ["If that card is not a <Broly>", "draw 1 card"],
+    "a refused condition takes the clause it governs with it",
   );
 
   // A delay the table did not have.
@@ -788,8 +791,13 @@ import {
   assert.deepEqual(every.unsupported, []);
   assert.match(JSON.stringify(every.ops), /"kind":"every","sel":\{"side":"opponent","area":"energy"\},"matching":\{"side":"opponent","area":"energy","mode":"rest"\}/);
   // A description `parseTarget` cannot take in would leave the two selectors
-  // identical and the condition always true, which is worse than a gap.
-  assert.deepEqual(one("[Auto] When this card attacks, if all of your energy is thoroughly cromulent, draw 1 card.").unsupported, ["if all of your energy is thoroughly cromulent"]);
+  // identical and the condition always true, which is worse than a gap — and
+  // the draw goes with it, because refusing the condition alone left the skill
+  // drawing on every attack (9 Sep 2026).
+  assert.deepEqual(one("[Auto] When this card attacks, if all of your energy is thoroughly cromulent, draw 1 card.").unsupported, [
+    "if all of your energy is thoroughly cromulent",
+    "draw 1 card",
+  ]);
 
   // One end of the battle rather than either (BT4-085). A card of yours doing
   // the attacking is not one being attacked, and "one of" is the article.

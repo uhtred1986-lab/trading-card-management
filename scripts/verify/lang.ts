@@ -19,7 +19,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { emptyFilter, type CardFilter } from "../../src/lib/arena/engine/filters";
-import { AREAS, COND_SCHEMA, KEYWORD_NAMES, OP_SCHEMA, SPECIAL_TARGETS, type Cond, type CostRecord, type FieldType, type Op, type OpField, type Selector } from "../../src/lib/arena/engine/script";
+import { AREAS, COND_SCHEMA, KEYWORD_NAMES, OP_SCHEMA, SPECIAL_TARGETS, type Amount, type Cond, type CostRecord, type FieldType, type Op, type OpField, type Selector } from "../../src/lib/arena/engine/script";
 import { pendTriggers } from "../../src/lib/arena/engine/triggers";
 import type { CardScripts, GameState, KeywordSkill, Trigger } from "../../src/lib/arena/engine";
 import { parseRule, printRule, printCond, printOps, printSelector, validateRule, deepEqual, type Rule } from "../../src/lib/arena/lang";
@@ -123,6 +123,22 @@ const tripFilter = (filter: CardFilter, what: string) => tripSelector({ side: "y
       tripCond(cond, `${kind} (${wide ? "every field" : "required fields only"})`);
     }
   }
+
+  // Every `Amount` shape, at least once — `sample("amount", …)` above only
+  // ever returns a flat number or a `count`, so `sumPower` and `handUpTo` had
+  // no round-trip coverage at all until this loop, and a bare `markers` union
+  // member could be added, typecheck, and never once be printed or parsed.
+  const AMOUNTS: Amount[] = [
+    1,
+    { var: "n" },
+    { count: { side: "you", area: "battle", count: 99 } },
+    { count: { side: "you", area: "battle", count: 99 }, times: 5000 },
+    { sumPower: { var: "rested" } },
+    { handUpTo: 4 },
+    { markers: { special: "self" } },
+    { markers: { side: "opponent", area: "unison", count: 99 }, times: 5000 },
+  ];
+  for (const n of AMOUNTS) tripOps([{ op: "draw", n }], `draw amount ${JSON.stringify(n)}`);
 }
 
 // ── the sugars, both ways ───────────────────────────────────────────────────

@@ -84,6 +84,7 @@ export function printAmount(a: Amount): string {
   if ("var" in a) return `$${a.var}`;
   if ("sumPower" in a) return `sumPower($${a.sumPower.var})`;
   if ("handUpTo" in a) return `handUpTo(${a.handUpTo})`;
+  if ("markers" in a) return `markers(${printSelector(a.markers)})${a.times === undefined ? "" : ` * ${a.times}`}`;
   return `count(${printSelector(a.count)})${a.times === undefined ? "" : ` * ${a.times}`}`;
 }
 

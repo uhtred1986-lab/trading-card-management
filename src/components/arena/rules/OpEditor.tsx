@@ -309,7 +309,20 @@ function ModesControl({ value, onChange }: { value: { label: string; ops: Op[] }
 }
 
 function AmountControl({ value, onChange }: { value: unknown; onChange: (v: unknown) => void }) {
-  const mode = typeof value === "number" ? "n" : value && typeof value === "object" && "count" in (value as object) ? "each" : value && typeof value === "object" && "var" in (value as object) ? "var" : value && typeof value === "object" && "sumPower" in (value as object) ? "sum" : value && typeof value === "object" && "handUpTo" in (value as object) ? "hand" : "n";
+  const mode =
+    typeof value === "number"
+      ? "n"
+      : value && typeof value === "object" && "count" in (value as object)
+        ? "each"
+        : value && typeof value === "object" && "markers" in (value as object)
+          ? "markers"
+          : value && typeof value === "object" && "var" in (value as object)
+            ? "var"
+            : value && typeof value === "object" && "sumPower" in (value as object)
+              ? "sum"
+              : value && typeof value === "object" && "handUpTo" in (value as object)
+                ? "hand"
+                : "n";
   const v = value as Loose;
   return (
     <span className="inline-flex flex-wrap items-center gap-1">
@@ -318,11 +331,24 @@ function AmountControl({ value, onChange }: { value: unknown; onChange: (v: unkn
         value={mode}
         onChange={(e) => {
           const m = e.target.value;
-          onChange(m === "n" ? 1 : m === "each" ? { count: { side: "you", area: "battle", count: 99 }, times: 1 } : m === "var" ? { var: "t" } : m === "sum" ? { sumPower: { var: "t" } } : { handUpTo: 4 });
+          onChange(
+            m === "n"
+              ? 1
+              : m === "each"
+                ? { count: { side: "you", area: "battle", count: 99 }, times: 1 }
+                : m === "markers"
+                  ? { markers: { special: "self" }, times: 1 }
+                  : m === "var"
+                    ? { var: "t" }
+                    : m === "sum"
+                      ? { sumPower: { var: "t" } }
+                      : { handUpTo: 4 },
+          );
         }}
       >
         <option value="n">a number</option>
         <option value="each">for each…</option>
+        <option value="markers">for each marker on…</option>
         <option value="var">that many</option>
         <option value="sum">total power of…</option>
         <option value="hand">hand up to</option>
@@ -332,6 +358,12 @@ function AmountControl({ value, onChange }: { value: unknown; onChange: (v: unkn
         <>
           <input type="number" className={`${input} w-20 text-right`} value={(v.times as number) ?? 1} onChange={(e) => onChange({ ...v, times: Number(e.target.value) })} title="times" />
           × <SelectorControl value={(v.count as Loose) ?? {}} onChange={(sel) => onChange({ ...v, count: sel })} />
+        </>
+      )}
+      {mode === "markers" && (
+        <>
+          <input type="number" className={`${input} w-20 text-right`} value={(v.times as number) ?? 1} onChange={(e) => onChange({ ...v, times: Number(e.target.value) })} title="times" />
+          × marker on <SelectorControl value={(v.markers as Loose) ?? {}} onChange={(sel) => onChange({ ...v, markers: sel })} />
         </>
       )}
       {(mode === "var" || mode === "sum") && <input className={`${input} w-16`} value={mode === "var" ? (v.var as string) : ((v.sumPower as Loose).var as string)} onChange={(e) => onChange(mode === "var" ? { var: e.target.value } : { sumPower: { var: e.target.value } })} title="the bound name" />}

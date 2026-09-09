@@ -146,6 +146,8 @@ export const EXPR_SCHEMA = {
   countTimes: "count(SELECTOR) * 5000",
   sumPower: "sumPower($rested)",
   handUpTo: "handUpTo(4)",
+  markers: "markers(SELECTOR)",
+  markersTimes: "markers(SELECTOR) * 5000",
 } as const;
 
 /** The words the language reserves. A field or a variable may not be one of them. */
