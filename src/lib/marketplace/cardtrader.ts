@@ -120,6 +120,7 @@ export interface CtSyncSummary {
   matchedByTcgPlayer: number;
   matchedByNumber: number;
   unmatched: number;
+  frontImagesFilled: number;
   backImagesFilled: number;
 }
 
@@ -246,6 +247,26 @@ export async function syncCardTraderCatalog(db: Db): Promise<CtSyncSummary> {
         });
     }
   }
+  // Leaders' front art: deckplanet's bucket 404s for every Masters-era set from
+  // BT19 on (verifyFrontImages), and the price sync's fillMissingImages
+  // deliberately skips a Leader's TCGplayer product ("Front // Back", whose
+  // photo is the back reveal art) rather than show the wrong face — so a
+  // Leader synced after BT19 has no other source for its front. CardTrader's
+  // own blueprint image is that source.
+  const frontfilled = rows<{ n: number }>(
+    await db.execute(sql`
+      with src as (
+        select distinct on (card_id) card_id, image_url
+        from ct_blueprints
+        where card_id is not null and image_url is not null
+        order by card_id, (print_id = card_id) desc, id
+      )
+      update cards c set image_url = src.image_url
+      from src
+      where src.card_id = c.id and c.image_url is null
+      returning 1 as n
+    `),
+  ).length;
   // Leaders whose awakened side deckplanet doesn't host (Masters-era sets) get CardTrader's.
   const backfilled = rows<{ n: number }>(
     await db.execute(sql`
@@ -261,7 +282,7 @@ export async function syncCardTraderCatalog(db: Db): Promise<CtSyncSummary> {
       returning 1 as n
     `),
   ).length;
-  return { game: game.display_name, expansions: exps.length, blueprints, matchedByTcgPlayer: byTcgN, matchedByNumber: byNumN, unmatched, backImagesFilled: backfilled };
+  return { game: game.display_name, expansions: exps.length, blueprints, matchedByTcgPlayer: byTcgN, matchedByNumber: byNumN, unmatched, frontImagesFilled: frontfilled, backImagesFilled: backfilled };
 }
 
 // ── on-demand listings ─────────────────────────────────────────────────────
