@@ -1856,7 +1856,14 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
  */
 function parseCountCondition(t: string): Cond | null {
   // "a Battle Card" and a bare plural both mean "at least one"; "no" means none.
-  const m = /^(?:you have|your opponent has|there (?:are|is)) (?:(no)|(?:an?|any) |(\d+) or (more|less|fewer) )?(.+)$/.exec(t);
+  // The sets print the contraction as readily as the long form — "**if
+  // there's** a Blue/Yellow multicolor card in your energy" — and only "there
+  // is" was read. Seven skills say it, and what it cost was not the condition
+  // but the whole skill: BT15-146's combo-cost reduction was simply always on
+  // until a refused condition started taking its clause with it, and is now
+  // simply refused. Nothing else about those sentences was ever the problem —
+  // "blue/yellow multicolor card" reads perfectly well.
+  const m = /^(?:you have|your opponent has|there(?: (?:are|is)|'s|'re)) (?:(no)|(?:an?|any) |(\d+) or (more|less|fewer) )?(.+)$/.exec(t);
   if (!m) return null;
   const [, none, num, dir, rest] = m;
   // "you have" / "your opponent has" says whose cards, which the phrase after
