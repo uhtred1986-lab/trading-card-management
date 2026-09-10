@@ -20,6 +20,7 @@ import type { ArenaSkin } from "@/lib/arena/skin";
 import { ReportBug } from "../ReportBug";
 import { narrate } from "@/lib/arena/narration";
 import { untilWords } from "@/lib/arena/effects";
+import { missingEnergyChips, type MissingEnergyChip } from "@/lib/arena/wording";
 import {
   AttackBeam,
   CardPreview,
@@ -249,6 +250,11 @@ export function ArenaStage({
     return () => clearTimeout(t);
   }, [shaking]);
 
+  const select = (id: string | null) => {
+    setSelected(id);
+    setRefusal(null);
+  };
+
   const send = (action: Action) => {
     setSheet(null);
     setSelected(null);
@@ -283,6 +289,12 @@ export function ArenaStage({
   };
   const whyOf = (id: string): Requirement[] | undefined => taps.whyByCard?.[id];
   const reaching = (id: string) => rejected.find((r) => cardIdOf(r.action) === id)?.action.type ?? "play";
+
+  // Missing energy chips beside the energy strip (ui-100-missing-energy-chips.md).
+  // Shown for the card the player has selected or the last refused tap, hidden during playback.
+  const focusCard = selected ?? (sheet ? sheet.id : null) ?? (refusal ? refusal.card : null);
+  const focusWhy = focusCard && !playback.playing ? (whyOf(focusCard) ?? rejected.find((r) => cardIdOf(r.action) === focusCard)?.why ?? []) : [];
+  const energyChips = focusWhy.length > 0 ? missingEnergyChips(focusWhy) : [];
 
   /** The rows the action sheet lists for one card: attacks folded into one row that starts targeting. */
   const movesFor = (id: string): SheetMove[] => {
@@ -325,7 +337,7 @@ export function ArenaStage({
     if (isTargeting) {
       const idx = targetsOf(selected!)?.[id];
       if (idx != null) return send(legal[idx].action);
-      setSelected(null);
+      select(null);
       return;
     }
     const options = taps.byCard[id];
@@ -340,7 +352,7 @@ export function ArenaStage({
     // so it always goes through the sheet for an explicit second tap, even
     // when it is the card's only option — a misclick here is too costly.
     const targets = targetsOf(id);
-    if (targets && options.every((i) => legal[i].action.type === "attack") && !why?.length) return setSelected(id);
+    if (targets && options.every((i) => legal[i].action.type === "attack") && !why?.length) return select(id);
     if (options.length === 1 && !why?.length && legal[options[0]].action.type !== "charge") return send(legal[options[0]].action);
     const card = cardOf(id);
     if (card) setSheet(card);
@@ -349,7 +361,7 @@ export function ArenaStage({
   const pickMove = (m: SheetMove) => {
     if (m.targets) {
       setSheet(null);
-      setSelected(cardIdOf(m.legal.action)!);
+      select(cardIdOf(m.legal.action)!);
       return;
     }
     send(m.legal.action);
@@ -530,7 +542,7 @@ export function ArenaStage({
             {bandOn && shape && <DuelBand shape={shape} cardProps={stagedProps} beat={beat} progress={playback.playing ? { index: playback.index, total: playback.total } : null} />}
           </section>
 
-          <SideRail side={view.you} active={acting} cardProps={cardProps} hurt={hurting === view.you.player} narrator={narrator} lifted={lifted} className="lg:col-start-1 lg:row-start-1" />
+          <SideRail side={view.you} active={acting} cardProps={cardProps} hurt={hurting === view.you.player} narrator={narrator} lifted={lifted} energyChips={energyChips} className="lg:col-start-1 lg:row-start-1" />
         </div>
 
         {held && !view.over && !playback.playing && <NarrationRibbon text={held.text} n={held.n} mine={held.mine} live={false} />}
@@ -607,7 +619,7 @@ export function ArenaStage({
               </button>
             )}
             {!playback.playing && isTargeting && (
-              <button type="button" onClick={() => setSelected(null)} className="tap shrink-0 rounded-lg border border-space-600 px-3 py-2 text-sm text-space-100 sm:px-5 sm:py-2.5 sm:text-base">
+              <button type="button" onClick={() => select(null)} className="tap shrink-0 rounded-lg border border-space-600 px-3 py-2 text-sm text-space-100 sm:px-5 sm:py-2.5 sm:text-base">
                 Cancel
               </button>
             )}
@@ -848,6 +860,7 @@ function SideRail({
   hurt = false,
   narrator,
   lifted,
+  energyChips,
   className = "",
 }: {
   side: SideView;
@@ -860,6 +873,7 @@ function SideRail({
   narrator: { viewer: PlayerId; them: string };
   /** Cards a battle staging is drawing, which this rail must not draw twice. */
   lifted?: ReadonlySet<string>;
+  energyChips?: MissingEnergyChip[];
   className?: string;
 }) {
   const spent = side.energy.length - side.activeEnergy;
@@ -945,13 +959,26 @@ function SideRail({
 
       <div className="relative ml-auto min-w-0 lg:ml-0">
         <ZoneAnchor zone={`${p}:energy`} />
-        <div className="flex items-baseline gap-1 lg:justify-center">
+        <div className="flex flex-wrap items-baseline gap-1 lg:justify-center">
           <span className="font-mono text-base font-bold text-ki-300 sm:text-lg">
             {side.activeEnergy}
             <span className="text-space-500">/{side.energy.length}</span>
           </span>
           <span className="text-[10px] uppercase tracking-widest text-space-500">energy</span>
           {side.energyMarkers > 0 && <span className="rounded bg-ki-500/20 px-1 font-mono text-[10px] text-ki-300">+{side.energyMarkers}</span>}
+          {energyChips && energyChips.length > 0 && (
+            <span className="ml-1 inline-flex flex-wrap items-center gap-1">
+              {energyChips.map((chip, i) => (
+                <span
+                  key={i}
+                  className="rounded border border-loss/30 bg-loss/15 px-1.5 py-0.5 font-mono text-[10px] font-medium leading-none text-loss whitespace-nowrap"
+                  title={chip.text}
+                >
+                  {chip.text}
+                </span>
+              ))}
+            </span>
+          )}
         </div>
         <div className="mt-1 flex flex-wrap gap-[2px] lg:justify-center">
           {side.energy.map((c) => (
