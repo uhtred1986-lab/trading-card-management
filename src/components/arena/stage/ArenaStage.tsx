@@ -800,12 +800,19 @@ function MenuSection({ title, children }: { title: string; children: ReactNode }
 }
 
 function ReferenceCounts({ side }: { side: SideView }) {
+  const p = side.player;
   return (
     <div className="rounded-lg border border-space-700 bg-space-800/60 px-3 py-2">
       <p className="text-sm font-semibold text-space-100">{side.name}</p>
       <dl className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-space-400 sm:text-xs">
-        <Counter label="deck" value={side.deck} />
-        <Counter label="drop" value={side.drop} />
+        <span className="relative">
+          <ZoneAnchor zone={`${p}:deck`} />
+          <Counter label="deck" value={side.deck} />
+        </span>
+        <span className="relative">
+          <ZoneAnchor zone={`${p}:drop`} />
+          <Counter label="drop" value={side.drop} />
+        </span>
         {side.zDeck > 0 && <Counter label="Z" value={side.zDeck} />}
         {side.zEnergy > 0 && <Counter label="Z energy" value={side.zEnergy} />}
         {side.warp > 0 && <Counter label="warp" value={side.warp} />}
@@ -823,9 +830,11 @@ function BattleRow({ cards, cardProps, zone, label }: { cards: CardView[]; cardP
         <StageCard key={c.id} {...cardProps(c)} width={52} />
       ))}
       {cards.length === 0 && (
-        <p className="text-[11px] text-space-500" aria-label={label}>
-          no Battle Cards yet
-        </p>
+        <div className="flex w-full items-center gap-2" aria-label={label}>
+          <span className="h-px flex-1 border-t border-dashed border-space-700/80" aria-hidden />
+          <p className="text-[11px] text-space-500">no Battle Cards yet</p>
+          <span className="h-px flex-1 border-t border-dashed border-space-700/80" aria-hidden />
+        </div>
       )}
     </div>
   );
