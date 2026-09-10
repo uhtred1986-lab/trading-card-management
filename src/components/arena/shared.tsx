@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } f
 import type { LegalAction, PlayerId, RejectedAction, Requirement } from "@/lib/arena/engine";
 import type { Spotlight } from "@/lib/arena/games";
 import type { BoardView, CardView, PermanentView, PromptView, SideView } from "@/lib/arena/view";
+import { isGhostAction } from "@/lib/arena/action-tone";
 import { effectLine } from "@/lib/arena/effects";
 import { pill, priceOf, refusal, sentence, stepText } from "@/lib/arena/wording";
 
@@ -480,6 +481,8 @@ export function shortLabel(label: string): string {
     .slice(0, 22);
 }
 
+export { isGhostAction };
+
 export function Sheet({
   title,
   eyebrow,
@@ -706,24 +709,22 @@ export function SearchSheet({
 /**
  * The opponent's turn, one sentence at a time (workflow spec §7, Phase 3).
  *
- * Bound to the beat on screen while the story plays, and held afterwards —
- * dimmer, with the beat's number — so a turn that went past too fast can
- * still be read without opening the log. `mine` colours the tick for a
- * sentence about your own move, which the same stream also carries.
+ * Held at the top of the prompt card once playback ends, so the last sentence
+ * stays readable without competing with the live ask. During playback the
+ * narration is the headline instead (`ArenaStage`'s `held?.text` branch), so
+ * this line hides altogether. `mine` only colours the label, because the card
+ * already decides the rest of the hierarchy.
  */
 export function NarrationRibbon({ text, n, mine, live }: { text: string; n: number; mine: boolean; live: boolean }) {
   return (
     <div
-      className={`flex items-center gap-2 rounded-lg border px-2 py-1 text-[11px] leading-snug sm:text-xs ${
-        mine ? "border-gain/40 bg-space-800/90" : "border-space-600 bg-space-800/90"
-      } ${live ? "text-space-100" : "text-space-300"}`}
+      className={`flex items-center gap-2 border-b border-space-700/80 px-3 py-1 text-[11.5px] leading-snug sm:px-5 sm:py-1.5 ${live ? "text-space-100" : "text-space-300"}`}
       aria-live="polite"
     >
-      <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${mine ? "arena-tick-you bg-gain" : "arena-tick-them bg-ki-500"} ${live ? "animate-pulse" : ""}`} aria-hidden />
+      <span className={`shrink-0 font-semibold uppercase tracking-[0.22em] ${mine ? "text-ki-300" : "text-space-500"}`}>{live ? "NOW" : "LAST"}</span>
       <span key={n} className="arena-drop min-w-0 flex-1 truncate">
         {text}
       </span>
-      <span className="shrink-0 font-mono text-[9px] text-space-500">#{n}</span>
     </div>
   );
 }

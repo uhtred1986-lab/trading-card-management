@@ -7,6 +7,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { isGhostAction } from "../../src/lib/arena/action-tone";
 import {
   CTX,
   DEFAULT_LIGHTING,
@@ -398,6 +399,34 @@ import type { Beat, Beats, GameState, NumberedBeat, PlayerId, Snapshot } from ".
     );
   }
   if (emit) console.log(`verify-arena: wrote ${Object.keys(fixtures).length} contract fixtures`);
+
+  // The bare-button tone on both clients (`docs/arena-hud-spec.md` §2.3): an
+  // action that declines, skips, passes, ends or cancels is rendered as a
+  // ghost button, and the contract fixtures prove the shapes clients receive.
+  const expectedGhosts: Record<string, number> = {
+    activate: 1,
+    attack: 1,
+    "all-beats": 1,
+    ko: 1,
+    over: 0,
+    play: 1,
+    search: 1,
+    standing: 1,
+    versus: 1,
+  };
+  for (const [name, snap] of Object.entries(fixtures)) {
+    const sn = snap as Snapshot;
+    const ghosts = sn.legal.filter((l) => isGhostAction(l.action));
+    assert.equal(ghosts.length, expectedGhosts[name], `${name}: expected ${expectedGhosts[name]} ghost action(s), saw ${ghosts.map((l) => l.label).join(", ") || "none"}`);
+  }
+  assert.equal(isGhostAction({ type: "charge", player: "p1", card: null }), true, "skipping charge is a ghost action");
+  assert.equal(isGhostAction({ type: "charge", player: "p1", card: "p1#1" }), false, "charging a card stays filled");
+  assert.equal(isGhostAction({ type: "block", player: "p1", card: null }), true, "blocking with no card is a decline");
+  assert.equal(isGhostAction({ type: "block", player: "p1", card: "p1#1" }), false, "a real blocker is an action");
+  assert.equal(isGhostAction({ type: "counter", player: "p1", card: null }), true, "countering with no card is a decline");
+  assert.equal(isGhostAction({ type: "counter", player: "p1", card: "p1#1" }), false, "a played counter stays filled");
+  assert.equal(isGhostAction({ type: "optionalCost", player: "p1", pay: false }), true, "declining an optional cost is a ghost action");
+  assert.equal(isGhostAction({ type: "optionalCost", player: "p1", pay: true }), false, "paying an optional cost stays filled");
 }
 
 // ── whose move it is (docs/arena-hud-spec.md §1.1) ─────────────────────────

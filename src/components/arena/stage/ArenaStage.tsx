@@ -1,7 +1,7 @@
 "use client";
 
 import { LayoutGroup, useReducedMotion } from "motion/react";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { act, advanceGame } from "@/app/arena/actions";
 
 import type { Action, PlayerId, Requirement } from "@/lib/arena/engine";
@@ -28,12 +28,14 @@ import {
   Counter,
   NarrationRibbon,
   SearchSheet,
+  Sheet,
   SkillSpotlight,
   StepBanner,
   StepChip,
   TopStrip,
   TurnStrip,
   cardsOnTable,
+  isGhostAction,
   refusalLine,
   shortLabel,
   type SheetMove,
@@ -95,6 +97,7 @@ export function ArenaStage({
   const [held, setHeld] = useState<{ text: string; n: number; mine: boolean } | null>(null);
   const [hover, setHover] = useState<{ card: CardView; box: DOMRect } | null>(null);
   const [logOpen, setLogOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const asked = useRef(false);
   const boardRef = useRef<HTMLDivElement | null>(null);
   const promptRef = useRef<HTMLDivElement | null>(null);
@@ -405,6 +408,8 @@ export function ArenaStage({
   // The bar's buttons. While a search is on, "Choose none" lives in the sheet
   // and the bar keeps one button that reopens it, so the question has room.
   const bare = taps.bare.filter((i) => !(searching && i === chooseNone)).map((i) => ({ i, l: legal[i] }));
+  const inlineBare = !playback.playing && !isTargeting && playable && !modal ? bare.slice(0, 3) : [];
+  const primaryBare = inlineBare.findIndex(({ l }) => !isGhostAction(l.action));
   const yourTurn = view.prompt.player === view.you.player;
   const step = view.battle ? `battle:${view.battle.step}` : `phase:${view.phase}`;
 
@@ -545,8 +550,6 @@ export function ArenaStage({
           <SideRail side={view.you} active={acting} cardProps={cardProps} hurt={hurting === view.you.player} narrator={narrator} lifted={lifted} energyChips={energyChips} className="lg:col-start-1 lg:row-start-1" />
         </div>
 
-        {held && !view.over && !playback.playing && <NarrationRibbon text={held.text} n={held.n} mine={held.mine} live={false} />}
-
         {/* The bottom two slots of the header stack (`docs/arena-hud-spec.md`
             §2): *whose move*, then *what is being asked*, in that order,
             always. They share one positioned wrapper because the strip has to
@@ -562,94 +565,90 @@ export function ArenaStage({
         <div ref={promptRef} className={`z-30 flex flex-col gap-1.5 ${takeoverOn ? "fixed inset-x-2 bottom-2 mx-auto max-w-7xl sm:inset-x-4" : "sticky bottom-2"}`}>
           {playable && !view.over && <TurnStrip view={view} yours={yourMove} moves={moveCount} />}
           <section
-            className={`flex items-center gap-2 rounded-xl border p-2 pl-3 backdrop-blur sm:gap-3 sm:rounded-2xl sm:p-3 sm:pl-5 ${
+            className={`rounded-xl border backdrop-blur ${
               yourTurn && playable && !playback.playing ? "arena-prompt-live border-ki-500 bg-space-800/95" : "border-space-600 bg-space-800/95"
             }`}
             aria-live="polite"
           >
-            {(waitingOnServer || busy) && !view.over && <span className="arena-pulse h-3.5 w-3.5 shrink-0 animate-pulse rounded-full bg-ki-400" aria-hidden />}
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-space-50 sm:text-base lg:text-lg">
-                {!playback.playing && !view.over && yourTurn && view.prompt.step && (
-                  <span className="mr-2 align-middle">
-                    <StepChip step={view.prompt.step} />
+            {!playback.playing && held && !view.over && <NarrationRibbon text={held.text} n={held.n} mine={held.mine} live={false} />}
+            <div className="flex items-center gap-2 p-2 pl-3 sm:gap-3 sm:p-3 sm:pl-5">
+              {(waitingOnServer || busy) && !view.over && <span className="arena-pulse h-3.5 w-3.5 shrink-0 animate-pulse rounded-full bg-ki-400" aria-hidden />}
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-space-50 sm:text-base lg:text-lg">
+                  {!playback.playing && !view.over && yourTurn && view.prompt.step && (
+                    <span className="mr-2 align-middle">
+                      <StepChip step={view.prompt.step} />
+                    </span>
+                  )}
+                  {playback.playing
+                    ? (held?.text ?? `${view.them.name} is playing…`)
+                    : view.over
+                      ? view.over.winner
+                        ? `${view.over.winner === view.you.player ? view.you.name : view.them.name} wins`
+                        : "A draw"
+                      : waitingOnServer
+                        ? `${view.them.name} is thinking…`
+                        : view.prompt.question}
+                </p>
+                <p className={`mt-0.5 text-[11px] sm:text-sm ${refusal && !view.over ? "text-loss" : "text-space-300"}`}>
+                  {/* The refusal line (workflow spec §4): which requirement failed, and what would satisfy it. */}
+                  {/* While the story plays: whose turn it is and where in it we are; the next prompt's hint would only mislead here. */}
+                  <span className="line-clamp-2">
+                    {view.over
+                      ? view.over.reason
+                      : playback.playing
+                        ? `${beat && actorOf(beat) === view.you.player ? "Your move" : `${view.them.name} is playing`} · ${playback.index + 1} of ${playback.total}${pace === "step" ? " · tap Next" : ""}`
+                        : (error ?? refusal?.text ?? view.prompt.hint ?? "")}
                   </span>
-                )}
-                {playback.playing
-                  ? (held?.text ?? `${view.them.name} is playing…`)
-                  : view.over
-                    ? view.over.winner
-                      ? `${view.over.winner === view.you.player ? view.you.name : view.them.name} wins`
-                      : "A draw"
-                    : waitingOnServer
-                      ? `${view.them.name} is thinking…`
-                      : view.prompt.question}
-              </p>
-              <p className={`mt-0.5 flex items-center gap-2 text-[11px] sm:text-sm ${refusal && !view.over ? "text-loss" : "text-space-300"}`}>
-                {/* The refusal line (workflow spec §4): which requirement failed, and what would satisfy it. */}
-                {/* While the story plays: whose turn it is and where in it we are; the next prompt's hint would only mislead here. */}
-                <span className={refusal && !view.over ? "line-clamp-2" : "truncate"}>
-                  {view.over
-                    ? view.over.reason
-                    : playback.playing
-                      ? `${beat && actorOf(beat) === view.you.player ? "Your move" : `${view.them.name} is playing`} · ${playback.index + 1} of ${playback.total}${pace === "step" ? " · tap Next" : ""}`
-                      : (error ?? refusal?.text ?? view.prompt.hint ?? "")}
-                </span>
-                {/* "What can I do?" answered as a number, before you have to look. */}
-                {!view.over && !playback.playing && playable && yourTurn && moveCount > 0 && !refusal && !searching && (
-                  <span className={`shrink-0 rounded-full border px-1.5 py-px text-[10px] tabular-nums ${nudging ? "border-ki-500/60 text-ki-300" : "border-space-600 text-space-400"}`}>
-                    {moveCount} {moveCount === 1 ? "move" : "moves"}
-                  </span>
-                )}
-              </p>
-            </div>
+                </p>
+              </div>
 
-            {playback.playing && pace === "step" && (
-              <button
-                type="button"
-                onClick={playback.next}
-                className="tap shrink-0 rounded-lg bg-ki-500 px-3 py-2 text-sm font-semibold text-space-950 hover:bg-ki-400 sm:rounded-xl sm:px-5 sm:py-2.5"
-              >
-                Next ▸
-              </button>
-            )}
-            {playback.playing && (
-              <button type="button" onClick={playback.skip} className="tap shrink-0 rounded-lg border border-space-600 bg-space-700 px-3 py-2 text-sm font-semibold text-space-50 sm:px-5 sm:py-2.5">
-                Skip
-              </button>
-            )}
-            {!playback.playing && isTargeting && (
-              <button type="button" onClick={() => select(null)} className="tap shrink-0 rounded-lg border border-space-600 px-3 py-2 text-sm text-space-100 sm:px-5 sm:py-2.5 sm:text-base">
-                Cancel
-              </button>
-            )}
-            {searching && !searchOpen && (
-              <button
-                type="button"
-                onClick={() => setClosedSearch(null)}
-                className="tap shrink-0 rounded-lg bg-ki-500 px-3 py-2 text-sm font-semibold text-space-950 hover:bg-ki-400 sm:rounded-xl sm:px-5 sm:py-2.5 sm:text-base"
-              >
-                Choose from {choices.length}
-              </button>
-            )}
-            {!playback.playing &&
-              !isTargeting &&
-              playable &&
-              !modal &&
-              bare.slice(0, 3).map(({ i, l }) => (
+              {playback.playing && pace === "step" && (
                 <button
-                  key={i}
                   type="button"
-                  disabled={busy}
-                  onClick={() => send(l.action)}
-                  className={`tap shrink-0 rounded-lg px-3 py-2 text-sm font-semibold disabled:opacity-50 sm:rounded-xl sm:px-5 sm:py-2.5 sm:text-base ${
-                    l.action.type === "endMain" || l.action.type === "pass" ? "border border-space-600 bg-space-700 text-space-50" : "bg-ki-500 text-space-950 hover:bg-ki-400"
-                  }`}
+                  onClick={playback.next}
+                  className="tap shrink-0 rounded-lg bg-ki-500 px-3 py-2 text-sm font-semibold text-space-950 hover:bg-ki-400 sm:rounded-xl sm:px-5 sm:py-2.5"
                 >
-                  <span className="sm:hidden">{shortLabel(l.label)}</span>
-                  <span className="hidden sm:inline">{l.label}</span>
+                  Next ▸
                 </button>
-              ))}
+              )}
+              {playback.playing && (
+                <button type="button" onClick={playback.skip} className="tap shrink-0 rounded-lg border border-space-600 bg-space-700 px-3 py-2 text-sm font-semibold text-space-50 sm:px-5 sm:py-2.5">
+                  Skip
+                </button>
+              )}
+              {!playback.playing && isTargeting && (
+                <button type="button" onClick={() => select(null)} className="tap shrink-0 rounded-lg border border-space-600 px-3 py-2 text-sm text-space-100 sm:px-5 sm:py-2.5 sm:text-base">
+                  Cancel
+                </button>
+              )}
+              {searching && !searchOpen && (
+                <button
+                  type="button"
+                  onClick={() => setClosedSearch(null)}
+                  className="tap shrink-0 rounded-lg bg-ki-500 px-3 py-2 text-sm font-semibold text-space-950 hover:bg-ki-400 sm:rounded-xl sm:px-5 sm:py-2.5 sm:text-base"
+                >
+                  Choose from {choices.length}
+                </button>
+              )}
+              {inlineBare.map(({ i, l }, index) => {
+                const ghost = isGhostAction(l.action) || (primaryBare >= 0 && index !== primaryBare);
+                return (
+                  <button
+                    key={i}
+                    type="button"
+                    disabled={busy}
+                    onClick={() => send(l.action)}
+                    className={`tap shrink-0 rounded-lg px-3 py-2 text-sm font-semibold disabled:opacity-50 sm:rounded-xl sm:px-5 sm:py-2.5 sm:text-base ${
+                      ghost ? "border border-space-600 bg-space-700 text-space-50" : "bg-ki-500 text-space-950 hover:bg-ki-400"
+                    }`}
+                  >
+                    <span className="sm:hidden">{shortLabel(l.label)}</span>
+                    <span className="hidden sm:inline">{l.label}</span>
+                  </button>
+                );
+              })}
+            </div>
           </section>
         </div>
 
@@ -676,13 +675,16 @@ export function ArenaStage({
           cardProps={cardProps}
           controls={
             <>
-              <FeelToggle />
-              <PaceToggle />
-              <StagingToggle gameId={gameId} staging={staging} />
-              <SkinToggle gameId={gameId} skin={skin} />
-              <ReportBug gameId={gameId} cards={cardsOnTable(view)} />
               <button type="button" onClick={() => setLogOpen((x) => !x)} className="tap uppercase tracking-widest text-ki-300 hover:text-ki-400">
                 {logOpen ? "hide log" : "log"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setMoreOpen(true)}
+                className="tap flex h-11 w-11 items-center justify-center rounded-full border border-space-600 text-xl leading-none text-space-300 hover:border-ki-500/60 hover:text-ki-300"
+                aria-label="Open arena settings and counts"
+              >
+                ⋯
               </button>
             </>
           }
@@ -702,6 +704,34 @@ export function ArenaStage({
         </Hand>
 
         {view.battle && !shape && <AttackBeam from={view.battle.attacker} to={view.battle.guard} hostRef={boardRef} />}
+
+        {moreOpen && (
+          <Sheet title="Board controls" onClose={() => setMoreOpen(false)}>
+            <MenuSection title="Feel">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-[11px] uppercase tracking-widest text-space-300 sm:text-xs">
+                <FeelToggle />
+                <PaceToggle />
+              </div>
+            </MenuSection>
+            <MenuSection title="Board">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-[11px] uppercase tracking-widest text-space-300 sm:text-xs">
+                <StagingToggle gameId={gameId} staging={staging} />
+                <SkinToggle gameId={gameId} skin={skin} />
+              </div>
+            </MenuSection>
+            <MenuSection title="Reference">
+              <div className="space-y-2">
+                <ReferenceCounts side={view.you} />
+                <ReferenceCounts side={view.them} />
+              </div>
+            </MenuSection>
+            <MenuSection title="Help">
+              <div className="text-[11px] text-space-300 sm:text-xs">
+                <ReportBug gameId={gameId} cards={cardsOnTable(view)} />
+              </div>
+            </MenuSection>
+          </Sheet>
+        )}
 
         {takeoverOn && <Takeover shape={shape} cardProps={stagedProps} beat={beat} progress={playback.playing ? { index: playback.index, total: playback.total } : null} />}
 
@@ -760,19 +790,50 @@ type CardProps = (c: CardView) => {
   onHover: (box: DOMRect | null) => void;
 };
 
-/** One player's Battle Area. The row keeps its height so the board never jumps. */
+function MenuSection({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="space-y-2">
+      <h4 className="text-[10px] font-semibold uppercase tracking-[0.24em] text-space-500">{title}</h4>
+      {children}
+    </section>
+  );
+}
+
+function ReferenceCounts({ side }: { side: SideView }) {
+  const p = side.player;
+  return (
+    <div className="rounded-lg border border-space-700 bg-space-800/60 px-3 py-2">
+      <p className="text-sm font-semibold text-space-100">{side.name}</p>
+      <dl className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-space-400 sm:text-xs">
+        <span className="relative">
+          <ZoneAnchor zone={`${p}:deck`} />
+          <Counter label="deck" value={side.deck} />
+        </span>
+        <span className="relative">
+          <ZoneAnchor zone={`${p}:drop`} />
+          <Counter label="drop" value={side.drop} />
+        </span>
+        {side.zDeck > 0 && <Counter label="Z" value={side.zDeck} />}
+        {side.zEnergy > 0 && <Counter label="Z energy" value={side.zEnergy} />}
+        {side.warp > 0 && <Counter label="warp" value={side.warp} />}
+      </dl>
+    </div>
+  );
+}
+
+/** One player's Battle Area, collapsed until it holds a card. */
 function BattleRow({ cards, cardProps, zone, label }: { cards: CardView[]; cardProps: CardProps; zone: string; label: string }) {
   return (
-    <div className="relative flex min-h-[calc(78px*var(--arena,1))] items-center gap-1.5 overflow-x-auto [justify-content:safe_center] sm:gap-2 lg:gap-3">
+    <div className={`relative flex items-center gap-1.5 overflow-x-auto [justify-content:safe_center] sm:gap-2 lg:gap-3 ${cards.length > 0 ? "min-h-[calc(78px*var(--arena,1))]" : "min-h-[30px] justify-center"}`}>
       <ZoneAnchor zone={zone} />
       {cards.map((c) => (
         <StageCard key={c.id} {...cardProps(c)} width={52} />
       ))}
       {cards.length === 0 && (
-        <div className="flex items-center gap-2" aria-label={label}>
-          {Array.from({ length: 3 }, (_, i) => (
-            <span key={i} className="arena-slot" style={{ width: `calc(52px * var(--arena, 1))`, height: `calc(73px * var(--arena, 1))` }} />
-          ))}
+        <div className="flex w-full items-center gap-2" aria-label={label}>
+          <span className="h-px flex-1 border-t border-dashed border-space-700/80" aria-hidden />
+          <p className="text-[11px] text-space-500">no Battle Cards yet</p>
+          <span className="h-px flex-1 border-t border-dashed border-space-700/80" aria-hidden />
         </div>
       )}
     </div>
@@ -943,21 +1004,9 @@ function SideRail({
         )}
       </div>
 
-      <dl className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-space-400 sm:text-xs lg:justify-center">
-        <span className="relative">
-          <ZoneAnchor zone={`${p}:deck`} />
-          <Counter label="deck" value={side.deck} />
-        </span>
-        <span className="relative">
-          <ZoneAnchor zone={`${p}:drop`} />
-          <Counter label="drop" value={side.drop} />
-        </span>
-        {side.zDeck > 0 && <Counter label="Z" value={side.zDeck} />}
-        {side.zEnergy > 0 && <Counter label="Z energy" value={side.zEnergy} />}
-        {side.warp > 0 && <Counter label="warp" value={side.warp} />}
-      </dl>
-
       <div className="relative ml-auto min-w-0 lg:ml-0">
+        <ZoneAnchor zone={`${p}:deck`} />
+        <ZoneAnchor zone={`${p}:drop`} />
         <ZoneAnchor zone={`${p}:energy`} />
         <div className="flex flex-wrap items-baseline gap-1 lg:justify-center">
           <span className="font-mono text-base font-bold text-ki-300 sm:text-lg">
