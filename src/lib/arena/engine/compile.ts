@@ -2803,6 +2803,35 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     return alt?.every((o) => o.op !== "altCost" || o.pay !== "program") ? alt : null;
   }
 
+  const skillKindFromTag = (tag: string): SkillKindPrefix | null => {
+    const word = tag.trim().toLowerCase();
+    if (/^counter\b/.test(word)) return "counter";
+    if (/^activate\b/.test(word)) return "activate";
+    if (word === "auto") return "auto";
+    if (word === "permanent") return "permanent";
+    return null;
+  };
+
+  const skillScope = (raw: string): { target: Ref; skillKind?: SkillKindPrefix } | null => {
+    let mSkill: RegExpExecArray | null;
+    // "…of [Counter] skills on yellow <Vegito> cards in your hand…"
+    if ((mSkill = /^(?:your|their|the)\s+\[([a-z0-9:\- /]+)\] skills? (?:on|of) (.+)$/i.exec(raw))) {
+      const kind = skillKindFromTag(mSkill[1]);
+      const target = refFor(mSkill[2], c);
+      return kind && target && !(c.stale && target === c.stale) ? { target, skillKind: kind } : null;
+    }
+    // "…of this card's [Counter] skill…"
+    if ((mSkill = /^(.+?)'?s \[([a-z0-9:\- /]+)\] skills?$/i.exec(raw))) {
+      const kind = skillKindFromTag(mSkill[2]);
+      const target = refFor(mSkill[1], c);
+      return kind && target && !(c.stale && target === c.stale) ? { target, skillKind: kind } : null;
+    }
+    // Any other explicit "skill(s)" scope is refused whole rather than guessed.
+    if (/\bskills?\b/i.test(raw)) return null;
+    const target = refFor(raw, c);
+    return target && !(c.stale && target === c.stale) ? { target } : null;
+  };
+
   // Cost reduction on a [Permanent] skill (9-1-3-3, 20-21). The amount is
   // printed either as a number or as the orbs it takes off — "by {r}" is one
   // less, and `playCost` already lowers a specified colour along with the
@@ -2822,12 +2851,10 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // is reduced by N"; and "decrease" as a plain synonym for "reduce". "Cost
   // **on** X" stands beside "cost **of** X" (BT24-139, BT28-148), and the
   // bare "the cost of X" with no "energy"/"combo" word defaults to energy,
-  // same as a bare "cost" does everywhere else. Left alone on purpose: a
-  // *skill's* cost ("the skill cost of …", "the activation cost of …'s
-  // [Counter] skill") is a different number `playCost` computes with no hook
-  // to lower (`orbTotals`, `engine.ts:882`) — it fails the match here because
-  // it does not spell the noun as bare "cost"/"costs", which is deliberate:
-  // see `glossary.ts`. A Z-Energy cost **does** spell it that way and is read
+  // same as a bare "cost" does everywhere else. A skill/evolve cost is read by
+  // the same shape only when its scope can be read whole (selector + duration);
+  // an unread scope refuses the clause rather than granting an unscoped discount.
+  // A Z-Energy cost **does** spell it that way and is read
   // below: `zEnergyCostOf` is the hook `d.zEnergyCost` never had, and the
   // five call sites that used to read the field raw now go through it
   // (`state.ts`). A **specified** cost also fails this match — it never
@@ -2837,15 +2864,16 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // reducer, it changes only which colours are demanded, never the total.
   let qq = q;
   let possessive: RegExpExecArray | null;
-  if ((possessive = /^(reduce|increase|decrease) (this card|that card|its|their)'?s? ((?:energy|combo|z-energy) )?costs?(?: in (?:your|their) (?:hand|z-deck))? by (.+)$/.exec(qq))) {
+  if ((possessive = /^(reduce|increase|decrease) (this card|that card|its|their)'?s? ((?:energy|skill|evolve|combo|z-energy) )?costs?(?: in (?:your|their) (?:hand|z-deck))? by (.+)$/.exec(qq))) {
     const subject = possessive[2] === "its" ? "it" : possessive[2] === "their" ? "them" : possessive[2];
     qq = `${possessive[1]} the ${possessive[3] ?? ""}cost of ${subject} by ${possessive[4]}`;
   }
   let passive: RegExpExecArray | null;
-  if ((passive = /^the ((?:energy|combo|z-energy) )?costs? of (.+?) (?:is|are) (reduced|increased|decreased) by (.+)$/.exec(qq))) {
+  if ((passive = /^the ((?:energy|skill|evolve|combo|z-energy) )?costs? of (.+?) (?:is|are) (reduced|increased|decreased) by (.+)$/.exec(qq))) {
     const verb = passive[3].slice(0, -1); // "reduced"/"increased"/"decreased" -> the bare verb.
     qq = `${verb} the ${passive[1] ?? ""}cost of ${passive[2]} by ${passive[4]}`;
   }
+  qq = qq.replace(/\bactivation costs?\b/g, "skill cost");
   // "Reduce the Z-Energy cost by 1" (BT22-034): the bare, no-subject
   // continuation that "reduce the energy/combo cost by N" stays unread for
   // everywhere else in the catalog (deliberately — the noun alone does not
@@ -2931,7 +2959,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
       { op: "costReduction", target: ref, amount: flat, what: "zEnergy" as const, until },
     ];
   }
-  if ((m = /^(reduce|increase|decrease) the ((?:energy|combo|z-energy) )?costs? (?:of|on) (.+?) by (\d+|(?:\{[rugykbw\d]+\})+),?(?: for each (.+))?$/.exec(qq))) {
+  if ((m = /^(reduce|increase|decrease) the ((?:energy|skill|evolve|combo|z-energy) )?costs? (?:of|on) (.+?) by (\d+|(?:\{[rugykbw\d]+\})+),?(?: for each (.+))?$/.exec(qq))) {
     // 20-21 works in both directions, and the sets print both: "increase the
     // energy cost of this card in your Battle Area by 2" is the same standing
     // effect with the sign turned round; "decrease" already reads as "reduce".
@@ -2944,7 +2972,14 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     // for cards "in your hand" that selects cards in play does nothing at all,
     // which is what stripping it here used to produce.
     let ref = refFor(targetText, c);
-    if (!ref) return null;
+    const kindWordTrim = kindWord?.trim();
+    let skillKind: SkillKindPrefix | undefined;
+    if (kindWordTrim === "skill" || kindWordTrim === "evolve") {
+      const scope = skillScope(targetText);
+      if (!scope) return null;
+      ref = scope.target;
+      skillKind = scope.skillKind;
+    } else if (!ref) return null;
     // A pronoun that resolves to a stale target is a wrong answer, not a
     // right one for the wrong reason — see the `c.stale` note in `refFor`.
     // That guard only covers a seeded self; a *bound choice* going stale is
@@ -2975,8 +3010,17 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     // takes off. A [Permanent] holds while its card is valid (9-5-1) and
     // `holdForGame` rewrites this to "game"; anywhere else it is what says how
     // long the change is in force.
-    const what = kindWord?.trim() === "combo" ? ({ what: "combo" as const }) : kindWord?.trim() === "z-energy" ? ({ what: "zEnergy" as const }) : {};
-    return [{ op: "costReduction", target: ref, amount: by, ...what, until: durationOf(clause) }];
+    const what =
+      kindWordTrim === "combo"
+        ? ({ what: "combo" as const })
+        : kindWordTrim === "z-energy"
+          ? ({ what: "zEnergy" as const })
+          : kindWordTrim === "skill"
+            ? ({ what: "skill" as const })
+            : kindWordTrim === "evolve"
+              ? ({ what: "evolve" as const })
+              : {};
+    return [{ op: "costReduction", target: ref, amount: by, ...what, ...(skillKind ? { skillKind } : {}), until: durationOf(clause) }];
   }
 
   // "X get -N combo cost" (BT22-055, BT22-056, BT23-072): the same standing

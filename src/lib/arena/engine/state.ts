@@ -31,6 +31,7 @@ import type {
   ReplacementResult,
   Skill,
   SkillKind,
+  SkillKindPrefix,
   MoveReason,
 } from "./types";
 import { other } from "./types";
@@ -617,7 +618,7 @@ export interface AltCost {
 
 export interface StaticEffect {
   source: string;
-  kind: "power" | "comboPower" | "keyword" | "cost" | "comboCost" | "zEnergy" | "specifiedCost" | "negateKeyword" | "gains" | "replaceLeave" | "forbid" | "permit" | "immune" | "altCost";
+  kind: "power" | "comboPower" | "keyword" | "cost" | "skillCost" | "evolveCost" | "comboCost" | "zEnergy" | "specifiedCost" | "negateKeyword" | "gains" | "replaceLeave" | "forbid" | "permit" | "immune" | "altCost";
   /** The card it is about; empty for a rule about a player rather than a card. */
   target: string;
   /**
@@ -625,6 +626,8 @@ export interface StaticEffect {
    * — see `playCost`, which is the only reader.
    */
   value: number | KeywordSkill | KeywordSkill["name"] | Prohibition | Permission | Immunity | AltCost | Gains | Replacement | { colors: (Color | "any")[]; sign: 1 | -1 };
+  /** Set when `kind` is "skillCost" or "evolveCost". */
+  skillKind?: SkillKindPrefix;
 }
 
 /**
@@ -746,14 +749,23 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
         for (const id of staticTargets(ctx, s, frame, op.target)) out.push({ source, kind: "specifiedCost", target: id, value: { colors: op.colors, sign } });
         continue;
       }
-      const kind = op.what === "combo" ? "comboCost" : op.what === "zEnergy" ? "zEnergy" : "cost";
+      const kind =
+        op.what === "combo"
+          ? "comboCost"
+          : op.what === "zEnergy"
+            ? "zEnergy"
+            : op.what === "skill"
+              ? "skillCost"
+              : op.what === "evolve"
+                ? "evolveCost"
+                : "cost";
       // "…by 1 for each of your blue Battle Cards" — the same count/markers
       // amounts the power statics take, and for the same reason: a
       // [Permanent] has no frame that ever bound a variable, so only those two
       // can be evaluated.
       const value = typeof op.amount === "number" ? op.amount : "count" in op.amount || "markers" in op.amount ? amount(ctx, s, frame, op.amount) : null;
       if (value == null) continue;
-      for (const id of staticTargets(ctx, s, frame, op.target)) out.push({ source, kind, target: id, value });
+      for (const id of staticTargets(ctx, s, frame, op.target)) out.push({ source, kind, target: id, value, ...(op.skillKind ? { skillKind: op.skillKind } : {}) });
       continue;
     }
     // "In all areas", so it is read wherever the card is — which is the point

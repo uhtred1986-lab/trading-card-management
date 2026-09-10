@@ -130,6 +130,15 @@ export function describeEffect(e: ContinuousEffect): Pick<EffectView, "kind" | "
       const n = e.value as number;
       return { kind: "cost", label: n < 0 ? `costs ${-n} more` : `costs ${n} less` };
     }
+    case "skillCost": {
+      const n = e.value as number;
+      const scope = e.skillKind ? ` [${KIND_WORDS[e.skillKind]}]` : "";
+      return { kind: "cost", label: n < 0 ? `skill${scope} costs ${-n} more` : `skill${scope} costs ${n} less` };
+    }
+    case "evolveCost": {
+      const n = e.value as number;
+      return { kind: "cost", label: n < 0 ? `[Evolve] costs ${-n} more` : `[Evolve] costs ${n} less` };
+    }
     case "comboCost": {
       const n = e.value as number;
       return { kind: "cost", label: n < 0 ? `combo costs ${-n} more` : `combo costs ${n} less` };
@@ -161,6 +170,15 @@ export function describeStatic(e: StaticEffect): Pick<EffectView, "kind" | "labe
     case "cost": {
       const n = e.value as number;
       return { kind: "cost", label: n < 0 ? `costs ${-n} more` : `costs ${n} less` };
+    }
+    case "skillCost": {
+      const n = e.value as number;
+      const scope = e.skillKind ? ` [${KIND_WORDS[e.skillKind]}]` : "";
+      return { kind: "cost", label: n < 0 ? `skill${scope} costs ${-n} more` : `skill${scope} costs ${n} less` };
+    }
+    case "evolveCost": {
+      const n = e.value as number;
+      return { kind: "cost", label: n < 0 ? `[Evolve] costs ${-n} more` : `[Evolve] costs ${n} less` };
     }
     case "comboCost": {
       const n = e.value as number;

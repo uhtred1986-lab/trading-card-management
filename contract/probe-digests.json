@@ -99,6 +99,14 @@
     "outcome": "fired",
     "digest": "c10445be"
   },
+  "COUNTER_RR#0": {
+    "outcome": "fired",
+    "digest": "434bb13f"
+  },
+  "COUNTER_UU#0": {
+    "outcome": "fired",
+    "digest": "83669441"
+  },
   "DELAYDRAW#0": {
     "outcome": "fired",
     "digest": "d3e0d48b"
@@ -486,6 +494,10 @@
   "SILENCER#0": {
     "outcome": "fired",
     "digest": "0316549b"
+  },
+  "SKILLCHEAP#0": {
+    "outcome": "fired",
+    "digest": "46c155f6"
   },
   "SPAWN#0": {
     "outcome": "fired",

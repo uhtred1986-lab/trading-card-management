@@ -29,6 +29,38 @@ import {
 // ── §22 keywords as engine rules ───────────────────────────────────────────
 
 {
+  // Skill-cost modifiers: a red-scoped reduction lowers a red [Counter] skill's
+  // orbs, does not lower a blue one, and ends at its printed `until`.
+  DEFS.COUNTER_RR = { ...DEFS["E-NEGATE"], id: "COUNTER_RR", name: "COUNTER_RR", colors: ["Red"], energyCost: 0, skill: "[Counter: Attack]{r}{r}: Negate the attack." };
+  DEFS.COUNTER_UU = { ...DEFS["E-NEGATE"], id: "COUNTER_UU", name: "COUNTER_UU", colors: ["Blue"], energyCost: 0, skill: "[Counter: Attack]{r}{r}: Negate the attack." };
+  DEFS.SKILLCHEAP = {
+    ...DEFS.V1,
+    id: "SKILLCHEAP",
+    name: "SKILLCHEAP",
+    energyCost: 1,
+    skill: "[Auto] When you play this card, reduce the skill cost of your red cards in your hand by {r} until the start of your next turn.",
+  };
+  let s = arena({ hand: ["SKILLCHEAP", "COUNTER_RR", "COUNTER_UU"], energy: ["V1", "V1"] });
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "SKILLCHEAP") }, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null }, {
+    type: "attack",
+    player: "p2",
+    attacker: s.players.p2.leader,
+    target: s.players.p1.leader,
+  });
+  assert.equal(s.prompt.kind, "counter");
+  assert.ok(labels(s).some((x) => x.startsWith("Counter with COUNTER_RR")), "the red [Counter] is reduced to {r}");
+  assert.ok(!labels(s).some((x) => x.startsWith("Counter with COUNTER_UU")), "the blue card still costs {r}{r}");
+  s = play(s, { type: "counter", player: "p1", card: null }, { type: "pass", player: "p2" }, { type: "pass", player: "p1" }, { type: "endMain", player: "p2" }, { type: "charge", player: "p1", card: null }, {
+    type: "endMain",
+    player: "p1",
+  }, { type: "charge", player: "p2", card: null });
+  s.cards[s.players.p1.energy[0]].mode = "rest";
+  s = play(s, { type: "attack", player: "p2", attacker: s.players.p2.leader, target: s.players.p1.leader });
+  assert.equal(s.prompt.kind, "combo", "once `until` passes, 1 energy no longer offers the {r}{r} counter");
+  assertConsistent(s);
+}
+
+{
   // [Burst X] (22-27): X cards from the top of the deck to the Drop as a cost;
   // with fewer than X cards in the deck the cost cannot be paid.
   DEFS.BURSTER = { ...DEFS.V1, id: "BURSTER", name: "BURSTER", skill: "[Burst 2][Activate: Main] Draw 1 card." };
