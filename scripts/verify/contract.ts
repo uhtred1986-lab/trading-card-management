@@ -7,7 +7,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { isGhostAction } from "../../src/components/arena/shared";
+import { isGhostAction } from "../../src/lib/arena/action-tone";
 import {
   CTX,
   DEFAULT_LIGHTING,

@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import type { Action, LegalAction, PlayerId, RejectedAction, Requirement } from "@/lib/arena/engine";
+import type { LegalAction, PlayerId, RejectedAction, Requirement } from "@/lib/arena/engine";
 import type { Spotlight } from "@/lib/arena/games";
 import type { BoardView, CardView, PermanentView, PromptView, SideView } from "@/lib/arena/view";
+import { isGhostAction } from "@/lib/arena/action-tone";
 import { effectLine } from "@/lib/arena/effects";
 import { pill, priceOf, refusal, sentence, stepText } from "@/lib/arena/wording";
 
@@ -480,23 +481,7 @@ export function shortLabel(label: string): string {
     .slice(0, 22);
 }
 
-export function isGhostAction(action: Action): boolean {
-  switch (action.type) {
-    case "endMain":
-    case "pass":
-      return true;
-    case "charge":
-    case "block":
-    case "counter":
-      return action.card == null;
-    case "optionalCost":
-      return !action.pay;
-    case "choose":
-      return action.cards.length === 0;
-    default:
-      return false;
-  }
-}
+export { isGhostAction };
 
 export function Sheet({
   title,
