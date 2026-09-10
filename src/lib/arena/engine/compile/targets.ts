@@ -95,9 +95,32 @@ const ALL_AREAS_RE = /\bin all (?:of )?(your |their |its owner's )?areas\b/;
  * any area other than your life" (BT12-023) is a trigger saying where the card
  * came from, not a description of cards, and it is not this phrase.
  */
-const AREAS_OTHER_THAN_RE = /\bin (?:any |all )?areas? other than ((?:your |their |its owner's |an? owner's |the )?(?:z-)?[a-z]+(?: area)?(?:(?:\s*,\s*or\s+|\s*,\s*|\s+or\s+)(?:your |their |its owner's |an? owner's |the )?(?:z-)?[a-z]+(?: area)?)*)\b/;
+const AREAS_OTHER_THAN_HEAD_RE = /\bin (?:any |all )?areas? other than /i;
 /** The "or" of that list is a separator, not the shortest area word there is. */
 const AREA_LIST_SEP = /\s*,\s*or\s+|\s*,\s*|\s+or\s+/;
+const AREA_NAME_RE = /^(?:your |their |its owner's |an? owner's |the )?(?:z-)?[a-z]+(?: area)?/i;
+
+function parseAreasOtherThan(text: string): { matched: string; listed: ScriptArea[] } | null {
+  const head = AREAS_OTHER_THAN_HEAD_RE.exec(text);
+  if (!head) return null;
+  const rest = text.slice(head.index + head[0].length);
+  const named: string[] = [];
+  let at = 0;
+  while (at < rest.length) {
+    while (/\s/.test(rest[at] ?? "")) at++;
+    const area = AREA_NAME_RE.exec(rest.slice(at));
+    if (!area) break;
+    named.push(area[0]);
+    at += area[0].length;
+    const sep = AREA_LIST_SEP.exec(rest.slice(at));
+    if (!sep || sep.index !== 0) break;
+    at += sep[0].length;
+  }
+  if (!named.length) return null;
+  const listed: (ScriptArea | null)[] = named.map((w) => AREA_NAMED[w.replace(/^(?:your |their |its owner's |an? owner's |the )/i, "").trim().toLowerCase()] ?? null);
+  if (listed.some((area) => area === null)) return null;
+  return { matched: text.slice(head.index, head.index + head[0].length + at), listed: listed as ScriptArea[] };
+}
 
 /**
  * "up to 2 of your opponent's Battle Cards in Rest Mode" → a selector.
@@ -209,20 +232,11 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
   }
   // "…in areas other than your deck, hand, or life": the same, said as a
   // complement. See `AREAS_OTHER_THAN_RE`.
-  const otherThan = AREAS_OTHER_THAN_RE.exec(t);
+  const otherThan = parseAreasOtherThan(phrase);
   let otherAreas: ScriptArea[] | null = null;
   if (otherThan) {
-    const named = otherThan[1]
-      .split(new RegExp(AREA_LIST_SEP.source))
-      .map((w) => w.replace(/^(?:your |their |its owner's |an? owner's |the )/, "").trim())
-      .filter(Boolean);
-    const listed = named.map((w) => AREA_NAMED[w] ?? null);
-    // One area word this table does not know and the complement would be too
-    // wide — it would name an area the card excludes, which is worse than not
-    // reading the phrase at all (ground rule 5).
-    if (listed.some((a) => a === null)) return null;
-    otherAreas = ALL_AREAS.filter((a) => !listed.includes(a));
-    phrase = phrase.replace(new RegExp(AREAS_OTHER_THAN_RE.source, "gi"), " ");
+    otherAreas = ALL_AREAS.filter((a) => !otherThan.listed.includes(a));
+    phrase = phrase.replace(otherThan.matched, " ");
     t = phrase.toLowerCase();
   }
   // "this card's power" inside a phrase is a measure, not the target.
