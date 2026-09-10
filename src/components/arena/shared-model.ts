@@ -12,9 +12,21 @@ export const DEFAULT_NARRATOR: Narrator = { viewer: "p1", them: "your opponent" 
  * arrives as `&lt;Majin Buu&gt;` and would be shown raw.
  */
 export function plainText(html: string): string {
-  return html
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<[^>]+>/g, "")
+  const withBreaks = html.replace(/<br\s*\/?>/gi, "\n");
+  let out = "";
+  let inTag = false;
+  for (const ch of withBreaks) {
+    if (ch === "<") {
+      inTag = true;
+      continue;
+    }
+    if (ch === ">") {
+      inTag = false;
+      continue;
+    }
+    if (!inTag) out += ch;
+  }
+  return out
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
