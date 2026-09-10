@@ -22,6 +22,7 @@ import { defsForCards } from "@/lib/arena/load";
 import { probe, ruleFrom, scenariosFor, type ProbeRule, type ProbeRun, type ProbeScenario } from "@/lib/arena/probe";
 import { SKIN_COOKIE, type ArenaSkin } from "@/lib/arena/skin";
 import { STAGING_COOKIE, type ArenaStaging } from "@/lib/arena/staging";
+import { syncFeedbackItem, syncAllFeedbackItems, syncBacklogIssues, type FeedbackItem } from "@/lib/github";
 
 /**
  * Which skin paints the board (`docs/arena-skin-spec.md` §3.1).
@@ -93,6 +94,36 @@ export async function setFeedbackStatus(id: number, status: "open" | "fixed" | "
     .set({ status, resolvedAt: status === "open" ? null : new Date() })
     .where(eq(arenaFeedback.id, id));
   revalidatePath("/arena/feedback");
+}
+
+export async function syncFeedbackToGitHubAction(id: number): Promise<void> {
+  const [row] = await db.select().from(arenaFeedback).where(eq(arenaFeedback.id, id)).limit(1);
+  if (!row) return;
+  try {
+    await syncFeedbackItem(row as unknown as FeedbackItem);
+    revalidatePath("/arena/feedback");
+  } catch (err) {
+    console.error("[github] Failed to sync feedback item:", err);
+  }
+}
+
+export async function syncAllFeedbackAction(): Promise<void> {
+  const rows = await db.select().from(arenaFeedback);
+  try {
+    await syncAllFeedbackItems(rows as unknown as FeedbackItem[]);
+    revalidatePath("/arena/feedback");
+  } catch (err) {
+    console.error("[github] Failed to sync all feedback:", err);
+  }
+}
+
+export async function syncBacklogAction(): Promise<void> {
+  try {
+    await syncBacklogIssues({ allClosed: true });
+    revalidatePath("/arena/backlog");
+  } catch (err) {
+    console.error("[github] Failed to sync backlog:", err);
+  }
 }
 
 // ── the Rules Workbench ─────────────────────────────────────────────────────
