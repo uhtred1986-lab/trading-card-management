@@ -1125,12 +1125,19 @@ import type { GameState, Trigger } from "./harness";
   // A possessive after the source names a destination or a measure, not the
   // cards selected from the source area.
   assert.equal(oppSel("up to 1 card from your deck to your opponent's Battle Area"), "you");
+  assert.equal(oppSel("up to 1 <Pan: SH> from your deck to your opponent's Battle Area"), "you", "BT13-028");
+  assert.equal(oppSel("up to 1 <Pan: SH> from your deck in your opponent's Battle Area"), "you", "BT16-021");
+  assert.equal(oppSel("up to 1 card from your deck into your opponent's Battle Area"), "you", "BT18-087");
+  assert.equal(oppSel("up to 1 card from your Drop to your opponent's Battle Area"), "you", "BT22-006");
   assert.equal(oppSel("up to 1 of your opponent's Rest Mode Battle Cards"), "opponent");
   assert.equal(oppSel("up to 1 Battle Card in your opponent's Battle Area"), "opponent");
   for (const number of ["DB1-059", "EX08-06"]) {
     const target = parseTarget("up to 1 of your opponent's Battle Cards with an energy cost greater than or equal to your opponent's energy");
     assert.equal(target?.area, "battle", `${number}: the comparison is not an energy area`);
     assert.equal(target?.side, "opponent", `${number}: the source Battle Card belongs to the opponent`);
+    const printedTarget = parseTarget("1 Battle Card with an energy cost greater than or equal to your opponent's energy");
+    assert.equal(printedTarget?.area, "battle", `${number} printed: area is battle`);
+    assert.equal(printedTarget?.side, "you", `${number} printed: side is you`);
   }
   {
     const ex25 = parseTarget("all of your opponent's skill-less Battle Cards and Battle Cards with 15000 power or less ―all in Rest Mode―");
@@ -1142,6 +1149,10 @@ import type { GameState, Trigger } from "./harness";
     assert.equal(bt21?.area, "battle", "BT21-092: primary area is battle");
     assert.equal(bt21?.side, "opponent", "BT21-092: belongs to the opponent");
     assert.deepEqual(bt21?.areas, ["battle", "unison"], "BT21-092: disjunction includes unison");
+
+    const bt21Play = parseTarget("up to 1 <Android 17> from your deck or Drop into your opponent's Battle Area with their skills negated");
+    assert.equal(bt21Play?.side, "you", "BT21-092 play: source cards belong to you");
+    assert.deepEqual(bt21Play?.areas, ["deck", "drop"], "BT21-092 play: source areas are deck or drop");
 
     const noArea = parseTarget("up to 1 of your opponent's cards");
     assert.equal(noArea?.side, "opponent", "no-area fallback: possessive opponent is preserved");

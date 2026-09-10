@@ -743,4 +743,8 @@ export const READING_RULES: ReadingRule[] = [
     title: "Conditions joined by \"or\"",
     body: "“If you have a green <Trunks> or a yellow <Vegeta> in play” names two separate conditions joined by “or”, and compiles as a disjunction (`any`) of two count conditions rather than a single filter. Read into one filter, the two colours and two character names would combine into an AND-across-fields cross product, which is wider than printed in one direction (a green <Vegeta> would satisfy it) and narrower in another. Where the two halves share a subject without introducing distinct qualifiers — “a green or yellow Battle Card” or “red or blue” — the single-filter reading is preserved.",
   },
+  {
+    title: "Whose cards a phrase names",
+    body: "A clause routinely names more than one player: a source area, a destination area, a measure of energy, a card name, or a trait with “their”. Reading the side off a scan of the whole clause let any trailing possessive hijack the source selector — sending “play up to 1 <Pan: SH> from your deck to your opponent's Battle Area” searching the opponent's deck instead of your own (BT13-028, BT16-021, BT18-087, BT22-006, BT21-068, BT21-092), and reading “an energy cost greater than or equal to your opponent's energy” (DB1-059, EX08-06) as an energy area search. The side is now read strictly from the phrase up to and including the matched area or area pair, so destination possessives and trailing comparisons never reassign the source. The whole-clause scan is preserved solely as a fallback when no area was named at all (“up to 1 of your opponent's cards”, which 20-1-6 places in play).",
+  },
 ];

@@ -452,7 +452,7 @@ const AREA_WORDS: [RegExp, ScriptArea][] = [
   [/\bin your life\b|\bfrom your life\b|\byour life\b|\byour opponent'?s life\b|\btheir life\b|\blife area\b/, "life"],
   [/\bwarp\b/, "warp"],
   [/\bcombo area\b/, "combo"],
-  [/\bunison area\b|\bunison cards?\b|\bunisons\b/, "unison"],
+  [/\bunison area\b/, "unison"],
   [/\bz-deck\b/, "zDeck"],
   [/\bz-energy\b/, "zEnergy"],
   [/\bunder this card\b/, "under"],
@@ -460,8 +460,12 @@ const AREA_WORDS: [RegExp, ScriptArea][] = [
   // has to be read before either area alone — otherwise "in your Battle Area
   // or Leader Area" becomes a Battle Area holding a Leader, which is nothing.
   [/\b(?:battle|leader) area or (?:battle|leader) area\b/, "play"],
+  [/\bleader area\b/, "leader"],
+  [/\bbattle area\b/, "battle"],
+  // Noun card types when no explicit area preposition was named
   [/\bleader cards?\b|\byour leaders?\b/, "leader"],
-  [/\bbattle area\b|\bbattle cards?\b/, "battle"],
+  [/\bbattle cards?\b/, "battle"],
+  [/\bunison cards?\b|\bunisons\b/, "unison"],
   // 20-1-6: an unqualified "cards" means the Leader Area and the Battle Area.
   [/\b(?:your|their|opponent's) (?:[a-z-]+ )*cards\b/, "play"],
 ];
@@ -713,37 +717,13 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
   // BT29-108, P-710 the same way). Stripped like the name phrases beside it,
   // because it says nothing about whose cards are being chosen.
   //
-  // "…**to your opponent's Battle Area**" is the other half of the same
-  // mistake. Seven cards hand the opponent a card — "play up to 1 <Pan: SH>
-  // **from your deck** to **your opponent's** Battle Area" — and the side was
-  // read off the whole clause, so the destination at the end decided where the
-  // *search* happened and the card went looking in the opponent's deck. That is
-  // the printed mechanic inverted, not merely narrowed (BT13-028, BT13-029,
-  // BT16-021 and its back, BT18-087, BT22-006, and independently in BT21-068
-  // and BT21-092).
-  //
-  // This is the second phrase stripped for this reason, and the mechanism is
-  // the real problem: the side is decided by a scan of the whole clause rather
-  // than of the phrase that names the source. `docs/arena-side-scope.md` is the
-  // structural fix; each of these strips is a card-shaped patch until it lands.
+  // When no area was matched (20-1-6), `owner` is scanned as a fallback. We strip
+  // phrases where "their" refers to card traits, names, or owners rather than
+  // the player owning the cards. Destination area phrases no longer need stripping
+  // here because `areaPhrase` is structurally scoped to the source area match.
   const owner = t
     .replace(/\bin their (?:character names|card names|special traits)\b/g, " ")
-    .replace(/\btheir owners?'?s?\b/g, " ")
-    // Only "to" and "into" — never "in". "Choose 1 of your opponent's Battle
-    // Cards **in** your opponent's Battle Area" names where to look, and
-    // stripping that would send the search to your own board: the same bug in
-    // the other direction.
-    // …and never after "equal", where the "to" belongs to the comparison
-    // rather than to a destination: "an energy cost greater than or equal **to
-    // your opponent's energy**" is a measure, and DB1-059 and EX08-06 print it.
-    .replace(/(?<!\bequal )\b(?:to|into) (?:your |their )?opponent'?s (?:z-)?[a-z]+(?: area)?\b/g, " ")
-    // The sets also write "in" where they mean "into" — "play up to 1 <Pan: SH>
-    // **from your deck** … **in your opponent's Battle Area**" (BT16-021 and
-    // its back, BT18-087, BT21-092). That collides with the ordinary source
-    // phrase, so it is only read as a destination when the clause has already
-    // named its source with "from your …"; a clause with no source of its own
-    // keeps "in your opponent's Battle Area" as the place to look.
-    .replace(/\bin (?:your |their )?opponent'?s (?:z-)?[a-z]+(?: area)?\b/g, (whole) => (/\bfrom your\b/.test(t) ? " " : whole));
+    .replace(/\btheir owners?'?s?\b/g, " ");
   // "Choose **all** Battle Cards" names no owner, and a card that names none
   // is every one of them (the sets say "all other Battle Cards **you
   // control**" when they mean only yours). The default of `you` is right for
@@ -795,30 +775,45 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
   // dropped and the search quietly looked in half the places it should. The
   // catalog prints sixteen such pairs in both orders, so they are read from a
   // table of the area words rather than listed one by one.
-  const both = AREA_PAIR_RE.exec(t);
+  const tTarget = t.replace(/\b(?:for each|for every)\b.*$/, "");
+  const both = AREA_PAIR_RE.exec(tTarget) ?? AREA_PAIR_RE.exec(t);
   const pair: [ScriptArea, ScriptArea] | null = both && AREA_NAMED[both[1]] && AREA_NAMED[both[2]] && AREA_NAMED[both[1]] !== AREA_NAMED[both[2]] ? [AREA_NAMED[both[1]], AREA_NAMED[both[2]]] : null;
 
   let area: ScriptArea | null = null;
   let areaMatch: RegExpExecArray | null = null;
   if (!allAreas && !otherAreas) {
     for (const [re, a] of AREA_WORDS) {
-      const match = re.exec(t);
+      const match = re.exec(tTarget);
       if (match) {
         area = a;
         areaMatch = match;
         break;
       }
     }
+    if (!areaMatch) {
+      for (const [re, a] of AREA_WORDS) {
+        const match = re.exec(t);
+        if (match) {
+          area = a;
+          areaMatch = match;
+          break;
+        }
+      }
+    }
   }
   // The owner is part of the phrase naming the selected area, not necessarily
-  // the whole clause: destinations and measures routinely name another player.
-  const areaPhrase = areaMatch && t.slice(0, areaMatch.index + areaMatch[0].length);
-  const areaOwners = areaPhrase?.match(/\b(?:your opponent'?s|an opponent'?s|the opponent'?s|opponent'?s|your|their)\b/g);
+  // the whole clause: destinations, measures and names routinely carry another
+  // player's possessive. When an area (or area pair) is matched, the side comes
+  // from the phrase up to and including that area. The whole-clause scan is kept
+  // ONLY as a fallback when no area was named ("your opponent's cards", 20-1-6).
+  const targetMatch = pair ? both : areaMatch;
+  const areaPhrase = targetMatch && t.slice(0, targetMatch.index + targetMatch[0].length);
+  const areaOwners = areaPhrase?.match(/\b(?:your opponent'?s|an opponent'?s|the opponent'?s|opponent'?s|opponent|your|their)\b/g);
   const areaOwner = areaOwners?.[areaOwners.length - 1];
   if (areaOwner) {
-    if (/opponent'?s|\btheir\b/.test(areaOwner)) side = "opponent";
+    if (/opponent|\btheir\b/.test(areaOwner)) side = "opponent";
     else if (areaOwner === "your") side = "you";
-  } else {
+  } else if (!targetMatch) {
     if (/\bopponent'?s\b|\byour opponent\b|\btheir\b/.test(owner)) side = "opponent";
     else if (/\bopponent (?:rest mode |active mode |skill-less )?(?:battle|unison|extra|leader|z-battle|z-extra)s?\b/.test(t)) side = "opponent";
   }
