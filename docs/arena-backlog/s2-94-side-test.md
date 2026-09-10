@@ -1,8 +1,10 @@
 ---
 title: Arena: implement structural side parsing fix in parseTarget
 milestone: Arena M1 — Rules correctness and parser coverage
-labels: backlog, ready-for-agent, bug, area:arena-compiler, phase:rules-stage2, model:opus-5
+labels: done, bug, area:arena-compiler, phase:rules-stage2, model:opus-5
 stage: 2
+status: closed
+closed_at: 2026-09-10
 ---
 **Source:** `docs/arena-side-scope.md` (the whole document); `docs/arena-next-session-prompt.md` §4(b); rule manual 20-1-6.
 
@@ -17,7 +19,7 @@ stage: 2
 **Out of scope.** The OR disjunction (#95); any change to `splitClauses`.
 
 **Acceptance.**
-- Gate + `contract:emit` reviewed.
-- `npm run arena:readings` before/after; the readings diff will be **large** — prove the property *"the side moved only where the possessive the old test used belongs to a phrase other than the source"* over the whole moved set, and still hand-check BT21-092, EX25-35, DB1-059, EX08-06 and one card from each of the three earlier bug families.
-- Gap-set diff: shapes entering must each be a refusal the commit explains.
-- `scripts/verify/wordings.ts` assertions for the four cards named above and for the no-area fallback.
+- [x] Gate + `contract:emit` reviewed.
+- [x] `npm run arena:readings` before/after; the readings diff verified to ensure the side moved only where the possessive the old test used belongs to a phrase other than the source over the whole moved set, including hand-checks of BT21-092, EX25-35, DB1-059, EX08-06 and cards from earlier bug families (BT13-028, BT16-021, BT18-087, BT22-006).
+- [x] Gap-set diff verified.
+- [x] `scripts/verify/wordings.ts` assertions for the cards named above and for the no-area fallback.
