@@ -34,6 +34,20 @@ redirects to `vercel.com/sso-api`). A preview therefore needs a Vercel login *as
 Auth, which makes preview URLs awkward to open on a phone — a Cloudflare tunnel to a local
 `npm run build && npm start` is the quicker way to test on a device.
 
+## Working efficiently in this repo
+
+Before opening arena docs or engine source for a specific question, start with
+`docs/arena-tooling.md` (what each verify/probe/tally script proves) and
+`docs/arena-next-session-prompt.md` (current state, priority order) — both are short and meant
+as the entry point. There are 20+ other `docs/arena-*.md` files (several 400–900+ lines); grep
+them for the term you need rather than reading multiple specs end to end. `src/lib/arena/engine/`
+is large (`compile.ts`, `engine.ts`, `script.ts`, `state.ts` are each 1,800–4,600 lines) — grep for
+the symbol first and read a line range, don't open these files whole. For iterating on pure rule
+logic, `npx tsx scripts/verify-rules.ts` and `npx tsx scripts/verify-arena.ts` are much faster than
+full `npm test` (which also runs `verify-db.mts`, spinning up PGlite + migrations every time); run
+the full suite before finalizing. Never run `sync:catalog`/`sync:prices` just to inspect state —
+they hit real network endpoints and take 30–50s.
+
 ## Commands
 
 ```powershell
