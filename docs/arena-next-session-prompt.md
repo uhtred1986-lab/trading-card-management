@@ -12,8 +12,9 @@ compiler and engine.
 ## 1. What the arena is, in one paragraph
 
 The arena plays Dragon Ball Super Card Game games from the printed text of real
-cards. `src/lib/arena/engine/compile.ts` reads a card's skill into a program in
-a small effect language; the engine runs it; anything the compiler cannot read
+cards. `src/lib/arena/engine/compile/` reads a card's skill into a program in a
+small effect language, with `compile.ts` kept as its stable public barrel; the
+engine runs it; anything the compiler cannot read
 goes to a referee. **The engine never compiles card text at game time** — rules
 live as rows in `card_rules`, drafted offline. `src/lib/arena/glossary.ts` is
 the written record of what the compiler understands, and it is part of the
@@ -103,7 +104,7 @@ confirm, then `git checkout -- contract/`.
 ### (a) Keep hunting wrongly-read clauses — the best value per hour
 
 Two systematic passes have run and both paid. The method: take every regex in
-`compile.ts` and `filters.ts` that anchors on a literal phrase and grep the
+`engine/compile/` and `filters.ts` that anchors on a literal phrase and grep the
 catalog for **near-misses** — contractions, reversed word order, singular
 against plural, passive against active, synonyms. Two of the best finds were a
 word order ("25000 or less power" against "25000 power or less", 41 lines with
@@ -186,7 +187,7 @@ summed exactly. **Neither outcome was predictable**, and only the merged
 measurement distinguishes them. Verify each stream's headline cards in the
 *merged* tree, not in its own.
 
-Expect conflicts in `compile.ts` (different functions, usually additive),
+Expect conflicts in `engine/compile/` (different functions, usually additive),
 `glossary.ts` (two streams appending to the same entry), and the generated
 `contract/fixtures/*` — regenerate those with `contract:emit` rather than
 merging them by hand.
