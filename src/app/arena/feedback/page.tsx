@@ -78,7 +78,7 @@ export default async function FeedbackPage({ searchParams }: { searchParams: Pro
 
         <div className="ml-auto flex items-center gap-2">
           <a
-            href="https://github.com/uhtred1986-lab/trading-card-management/issues?q=is%3Aissue+label%3Afeedback"
+            href="https://github.com/uhtred1986-lab/trading-card-management/issues?q=is%3Aissue+%22%5BFeedback%22"
             target="_blank"
             rel="noopener noreferrer"
             className="tap inline-flex items-center gap-1.5 rounded-md border border-space-700/60 bg-space-900/60 px-2.5 py-1 text-[11px] text-space-300 hover:text-ki-300 hover:border-ki-500/40"
