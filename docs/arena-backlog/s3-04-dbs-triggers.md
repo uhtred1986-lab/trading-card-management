@@ -10,7 +10,7 @@ stage: 3
 
 **Build.**
 1. `src/lib/arena/rulesets/dbs/triggers.rules`: one `DEFINE TRIGGER name ON <event pattern> [WHERE cond] BIND subject` per `Trigger` name, with the manual section as a comment. The counter windows (attack declared, blocker declared, skill activated — 9-8) are declared here too, as the moments a `[Counter:…]` answers to.
-2. Where a legacy trigger name turns out to bundle two moments, or two names one moment, record it in the worklist and in `docs/arena-ruleset-spec.md`; do not change the legacy engine.
+2. Where a legacy trigger name turns out to bundle two moments, or two names one moment, record it in `docs/arena-history-lessons.md` and in `docs/arena-ruleset-spec.md`; do not change the legacy engine.
 3. Keyword-timing triggers from the Stage 2 issue (Evolve used, Union activated …) are declared alongside so the record's WHEN vocabulary is the same list on both engines.
 
 **Out of scope.** Firing anything (Stage 4's event-pattern matcher).

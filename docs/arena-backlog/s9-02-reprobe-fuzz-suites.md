@@ -11,4 +11,4 @@ stage: 9
 2. `npx tsx --env-file-if-exists=.env.local scripts/arena-fuzz.mts 200 --engine rules`: 0 crashes; crashes fixed in `vm/` with a `verify/*` case each.
 3. `npm test` runs `verify-arena` on **both** engines by default (`test:rules` folded in); `docs/arena-tooling.md` updated; `CLAUDE.md`'s gate line updated.
 
-**Acceptance.** The three commands above clean, numbers in the worklist.
+**Acceptance.** The three commands above clean, numbers in the history archive.

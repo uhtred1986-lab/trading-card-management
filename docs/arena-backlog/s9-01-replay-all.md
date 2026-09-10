@@ -13,4 +13,4 @@ stage: 9
 2. Fix each in `vm/` — or, when the legacy engine is the one that is wrong, record the ruling with `npm run arena:rule` and fix both, noting that the saved game's state will then differ from *both* engines' replay and why that is acceptable.
 3. A deck edited since a game was played changes the shuffle; the runner already says so — list those games separately.
 
-**Acceptance.** The run reports 0 unexplained divergences; the worklist entry lists every game id with its outcome.
+**Acceptance.** The run reports 0 unexplained divergences; the history entry lists every game id with its outcome.

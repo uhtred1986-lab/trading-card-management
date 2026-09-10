@@ -12,7 +12,7 @@ closed_at: 2026-09-10
 
 **Build.**
 1. Read "A or B" in a condition clause as a disjunction of two conditions (the `any` kind already exists in `COND_SCHEMA`; use it rather than adding a kind). Where the two halves share a subject ("a green or yellow Battle Card") keep the single-filter reading — that one is correct and common.
-2. Measure the family first: `npm run arena:tally -- --show " or "` limited to condition clauses, and list the cards in the worklist entry.
+2. Measure the family first: `npm run arena:tally -- --show " or "` limited to condition clauses, and list the cards in the history entry.
 3. `describeCondition` words the disjunction; glossary entry under conditions.
 
 **Out of scope.** "Or" inside a *target* ("choose 1 Battle Card or Leader") — check whether the same bug exists there, and file it separately if it does.

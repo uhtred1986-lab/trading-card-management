@@ -18,4 +18,4 @@ stage: ui
 **Acceptance.**
 - Gate; `npx tsx --env-file-if-exists=.env.local scripts/arena-fuzz.mts 200` = 0 crashes (this touches `GameState`/`ScriptFrame`); `npm run arena:diff -- --all` = no divergence on every saved game; `npm run contract:emit` and `android:test` (new `Prompt` kind is a contract change).
 - `verify/keywords.ts`: two mandatory replacements on one card produce a prompt with two choices; one produces none.
-- Re-measure before starting (the document's own first rule); worklist entry with the numbers.
+- Re-measure before starting (the document's own first rule); history entry with the numbers.

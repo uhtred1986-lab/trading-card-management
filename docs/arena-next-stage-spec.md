@@ -11,7 +11,7 @@ Starting a fresh session? `docs/arena-next-session-prompt.md` is a prompt to
 paste, which opens with a quality check of the work described here.
 
 Companion documents: `docs/arena-design-proposal.md` (why the engine is built
-the way it is), `docs/arena-rules-worklist.md` (history of what was built, with
+the way it is), `docs/arena-history-lessons.md` (history of what was built, with
 the lessons), `docs/rules/rulemanual.txt` (the Masters rule manual; every
 engine rule cites a section number from it — keep doing that).
 
@@ -42,7 +42,7 @@ teaching the compiler a phrase moves skills out of "unreadable" and into "reads
 fine, never fires". Read the three lines together, never one alone.
 
 Numbers as of 6 Sep 2026, after the commits described at the end of
-`docs/arena-rules-worklist.md`. Where they touch the backlog below, the item
+`docs/arena-history-lessons.md`. Where they touch the backlog below, the item
 says what is left.
 
 Every keyword in §22 of the rule manual now has an engine rule (Blocker,
@@ -98,7 +98,7 @@ mechanisms in §6.
    pass. The same trap in reverse: a phrase the parser reads *wrongly* compiles
    cleanly and is never reported, so check what a new pattern's neighbours
    already do before adding it — five of the fixes on 5 Sep 2026 and six more
-   on 6 Sep were of that kind, and are listed in the worklist.
+   on 6 Sep were of that kind, and are listed in the archive.
 
    **The negative half of a measure is the easy one to miss, and it fails
    worst.** "Non-black", "non-<Commander Red>", "other than <Grand Supreme
@@ -795,7 +795,7 @@ Two more things this pass turned up that no measure on that page can see:
 
 ## 6a. What this stretch of work taught (5–6 Sep 2026)
 
-`docs/arena-rules-worklist.md` has the round-by-round history. These are the
+`docs/arena-history-lessons.md` has the round-by-round history. These are the
 parts that generalise — read them before choosing what to do next, because
 three of them changed what "next" meant.
 
@@ -902,7 +902,7 @@ work, and they are parked here so they are not lost.
 - Sections 6.2–6.5 implemented with tests; 6.6–6.12 at least the wordings
   named above.
 - `npm test`, `lint`, `typecheck` clean; `arena:fuzz 100` with 0 crashes.
-- `docs/arena-rules-worklist.md` gains a "Done" section with the numbers and
-  the lessons, in the same style as the existing ones.
+- `docs/arena-history-lessons.md` gains a dated history entry with the numbers
+  and the lessons.
 - Nothing merged to `main` unless the owner asks; then rebase on `main`, run
   everything again, and open the PR.
