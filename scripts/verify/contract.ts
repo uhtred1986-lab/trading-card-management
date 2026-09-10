@@ -419,6 +419,8 @@ import type { Beat, Beats, GameState, NumberedBeat, PlayerId, Snapshot } from ".
     const ghosts = sn.legal.filter((l) => isGhostAction(l.action));
     assert.equal(ghosts.length, expectedGhosts[name], `${name}: expected ${expectedGhosts[name]} ghost action(s), saw ${ghosts.map((l) => l.label).join(", ") || "none"}`);
   }
+  assert.equal(isGhostAction({ type: "charge", player: "p1", card: null }), true, "skipping charge is a ghost action");
+  assert.equal(isGhostAction({ type: "charge", player: "p1", card: "p1#1" }), false, "charging a card stays filled");
   assert.equal(isGhostAction({ type: "block", player: "p1", card: null }), true, "blocking with no card is a decline");
   assert.equal(isGhostAction({ type: "block", player: "p1", card: "p1#1" }), false, "a real blocker is an action");
   assert.equal(isGhostAction({ type: "counter", player: "p1", card: null }), true, "countering with no card is a decline");
