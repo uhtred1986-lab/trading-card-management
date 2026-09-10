@@ -23,8 +23,9 @@ the term you need first instead of reading each in full.
 
 ## 2. Find code by symbol, not by file
 
-`compile.ts` (4,614 lines), `engine.ts` (3,226), `script.ts` (2,378), `state.ts` (1,838) are too
-large to read whole. Search for the function/type name, then view only the surrounding lines.
+The compiler implementation now lives under `src/lib/arena/engine/compile/`; `compile.ts` is the
+stable public barrel. `engine.ts` (3,226), `script.ts` (2,378), and `state.ts` (1,838) are still
+too large to read whole. Search for the function/type name, then view only the surrounding lines.
 
 ## 3. Fast feedback loop
 

@@ -11,9 +11,10 @@ AI tool is being used.
   `docs/arena-next-session-prompt.md` (current state, priority order). There are 20+ other
   `docs/arena-*.md` files (several 400-2,400+ lines) — grep them for the term you need rather than
   reading multiple specs end to end.
-- `src/lib/arena/engine/` is large: `compile.ts`, `engine.ts`, `script.ts`, `state.ts` are each
-  1,800-4,600 lines. Search for the symbol/function first and read only the surrounding region —
-  don't open these files in full.
+- `src/lib/arena/engine/` is large: the compiler implementation now lives under
+  `src/lib/arena/engine/compile/`, `compile.ts` is its stable public barrel, and `engine.ts`,
+  `script.ts`, `state.ts` are each 1,800-4,600 lines. Search for the symbol/function first and
+  read only the surrounding region — don't open these files in full.
 - For iterating on pure rule logic, run `npx tsx scripts/verify-rules.ts` and
   `npx tsx scripts/verify-arena.ts` — much faster than the full `npm test`, which also runs
   `verify-db.mts` (spins up PGlite + migrations every time). Run the full suite before finalizing.

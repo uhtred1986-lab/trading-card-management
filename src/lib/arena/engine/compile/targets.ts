@@ -231,7 +231,7 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
     t = phrase.toLowerCase();
   }
   // "…in areas other than your deck, hand, or life": the same, said as a
-  // complement. See `AREAS_OTHER_THAN_RE`.
+  // complement. See `parseAreasOtherThan`.
   const otherThan = parseAreasOtherThan(phrase);
   let otherAreas: ScriptArea[] | null = null;
   if (otherThan) {
