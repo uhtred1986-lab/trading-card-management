@@ -6,6 +6,8 @@ came before and no particular tooling — any coding client can pick this up.
 
 Read `CLAUDE.md` first for the app as a whole. This document is only the arena
 compiler and engine.
+For the short state-of-the-world snapshot and doc-status convention, read
+`docs/arena-CURRENT.md` first.
 
 ---
 
