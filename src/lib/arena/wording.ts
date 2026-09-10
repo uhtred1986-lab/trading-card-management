@@ -207,6 +207,109 @@ export function stepText(step: { index: number; count: number }): string {
   return step.count > 0 ? `step ${step.index} of ${step.count}` : `step ${step.index}`;
 }
 
+export interface MissingEnergyChip {
+  kind: "energy" | "energyColour";
+  colour?: string;
+  need: number;
+  have: number;
+  short: number;
+  text: string;
+}
+
+const ORB_LETTERS: Record<string, string> = {
+  red: "r",
+  blue: "u",
+  green: "g",
+  yellow: "y",
+  black: "b",
+  white: "w",
+  r: "r",
+  u: "u",
+  g: "g",
+  y: "y",
+  b: "b",
+  k: "b",
+  w: "w",
+};
+
+/**
+ * Normalized orb letter for a colour name (e.g. "Red" -> "r", "Red/Blue" -> "r/u").
+ */
+export function orbLetter(colour: string): string {
+  const lower = colour.toLowerCase();
+  if (ORB_LETTERS[lower]) return ORB_LETTERS[lower];
+  if (lower.includes("/")) {
+    return lower
+      .split("/")
+      .map((c) => ORB_LETTERS[c.trim()] ?? c.trim())
+      .join("/");
+  }
+  return lower;
+}
+
+/**
+ * Words a single energy requirement into a chip string beside the energy strip
+ * (`docs/arena-workflow-spec.md` §9, issue #100): "needs {r}{r}, you have {r}".
+ */
+export function missingEnergyChip(r: Requirement): string | null {
+  if (r.kind === "energyColour") {
+    const orb = orbLetter(r.colour);
+    let needStr = "";
+    let haveStr = "";
+    if (orb.includes("/")) {
+      const parts = orb
+        .split("/")
+        .map((p) => `{${p}}`)
+        .join("/");
+      needStr = parts;
+      haveStr = r.have > 0 ? parts : "0";
+    } else {
+      needStr = `{${orb}}`.repeat(r.need);
+      haveStr = r.have > 0 ? `{${orb}}`.repeat(r.have) : "0";
+    }
+    return `needs ${needStr}, you have ${haveStr}`;
+  }
+  if (r.kind === "energy") {
+    return `needs ${r.need}, you have ${r.have}`;
+  }
+  return null;
+}
+
+/**
+ * Derives missing energy chips from a card's refusal requirements.
+ * The arithmetic comes from the engine's Requirement without recomputation.
+ */
+export function missingEnergyChips(why: Requirement[]): MissingEnergyChip[] {
+  const chips: MissingEnergyChip[] = [];
+  for (const r of why) {
+    if (r.kind === "energyColour") {
+      const text = missingEnergyChip(r);
+      if (text) {
+        chips.push({
+          kind: "energyColour",
+          colour: r.colour,
+          need: r.need,
+          have: r.have,
+          short: r.need - r.have,
+          text,
+        });
+      }
+    } else if (r.kind === "energy") {
+      const text = missingEnergyChip(r);
+      if (text) {
+        chips.push({
+          kind: "energy",
+          need: r.need,
+          have: r.have,
+          short: r.need - r.have,
+          text,
+        });
+      }
+    }
+  }
+  return chips;
+}
+
 function capital(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }

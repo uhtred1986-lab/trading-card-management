@@ -24,7 +24,7 @@ import {
 import { appendBeats, maskBeats, toBeats, type Beat, type Beats, type NumberedBeat } from "../../src/lib/arena/beats";
 import { buildSnapshot, rejectedFor, waitingFor, type Snapshot } from "../../src/lib/arena/snapshot";
 import { boardView } from "../../src/lib/arena/view";
-import { pill, priceOf, refusal, sentence, stepText } from "../../src/lib/arena/wording";
+import { missingEnergyChip, missingEnergyChips, pill, priceOf, refusal, sentence, stepText } from "../../src/lib/arena/wording";
 import { narrate } from "../../src/lib/arena/narration";
 import { colourOf, DEFAULT_LIGHTING, encodeLighting, LEADER_COLOURS, lightingFrom, LIGHTING_VERSION, mix, RIVAL, toneFor, TONES, turnVars } from "../../src/lib/arena/lighting";
 import { trailingTrigger, parseSkills, keywordOf, orbsIn, eitherOrbsIn, skillLines } from "../../src/lib/arena/engine/cards";
@@ -366,6 +366,8 @@ export {
   maskBeats,
   matches,
   mechanismOf,
+  missingEnergyChip,
+  missingEnergyChips,
   mix,
   move,
   narrate,
