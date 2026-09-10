@@ -14,6 +14,7 @@ import { readFileSync } from "node:fs";
 
 const MARKER = "<!-- ac-check-comment -->";
 const stripNullBytes = (s) => s.replace(/\u0000/g, "");
+const CLAUDE_LIMIT_RE = /\b(weekly limit|rate limit|quota)\b/i;
 
 function gh(args, input) {
   return execFileSync("gh", args, {
@@ -46,6 +47,23 @@ function extractClosingRefs(body) {
     }
   }
   return refs;
+}
+
+function runClaude(prompt) {
+  try {
+    return execFileSync("claude", ["-p", "--output-format", "text"], {
+      encoding: "utf-8",
+      maxBuffer: 20 * 1024 * 1024,
+      input: prompt,
+    }).trim();
+  } catch (err) {
+    const output = `${err?.stdout ?? ""}\n${err?.stderr ?? ""}\n${err?.message ?? ""}`;
+    if (CLAUDE_LIMIT_RE.test(output)) {
+      console.warn("Claude check skipped: quota/limit reached.");
+      return `| Issue | Verdict | Why (one sentence) |\n| --- | --- | --- |\n| (all referenced issues) | PARTIAL | Automated acceptance-criteria check was skipped because the Claude CI quota/limit was reached; please verify issue-closure claims manually before merge. |\n\n## Risk\nMerging this PR can still auto-close referenced issues on GitHub even if the work is incomplete, so a manual check is required for this run.`;
+    }
+    throw err;
+  }
 }
 
 function main() {
@@ -106,11 +124,7 @@ Be skeptical: a PR claiming to close an issue with no related file changes is NO
 Output ONLY a markdown table with columns: Issue | Verdict | Why (one sentence). Then, if any issue is NOT DELIVERED or PARTIAL, add a short "## Risk" section below the table explaining that merging this PR will auto-close those issues on GitHub regardless of whether the work is done, since the PR body references them. Keep the whole response under 400 words. No preamble, no other sections.`);
 
   console.log(`Running Claude Code over ${refs.length} referenced issue(s)...`);
-  const verdict = execFileSync("claude", ["-p", "--output-format", "text"], {
-    encoding: "utf-8",
-    maxBuffer: 20 * 1024 * 1024,
-    input: prompt,
-  }).trim();
+  const verdict = runClaude(prompt);
 
   const commentBody = `${MARKER}\n## Acceptance-criteria check\n\nAutomated cross-check of this PR's \`Closes #N\` claims against its actual diff.\n\n${verdict}\n\n<sub>This is a heuristic LLM read, not a substitute for human review — it can miss context the issue doesn't spell out.</sub>`;
 
