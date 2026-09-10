@@ -14,6 +14,7 @@ import { readFileSync } from "node:fs";
 
 const MARKER = "<!-- ac-check-comment -->";
 const stripNullBytes = (s) => s.replace(/\u0000/g, "");
+const CLAUDE_LIMIT_RE = /\b(weekly limit|rate limit|quota)\b/i;
 
 function gh(args, input) {
   return execFileSync("gh", args, {
@@ -46,6 +47,23 @@ function extractClosingRefs(body) {
     }
   }
   return refs;
+}
+
+function runClaude(prompt) {
+  try {
+    return execFileSync("claude", ["-p", "--output-format", "text"], {
+      encoding: "utf-8",
+      maxBuffer: 20 * 1024 * 1024,
+      input: prompt,
+    }).trim();
+  } catch (err) {
+    const output = `${err?.stdout ?? ""}\n${err?.stderr ?? ""}\n${err?.message ?? ""}`;
+    if (CLAUDE_LIMIT_RE.test(output)) {
+      console.warn("Claude check skipped: quota/limit reached.");
+      return `| Issue | Verdict | Why (one sentence) |\n| --- | --- | --- |\n| (all referenced issues) | PARTIAL | Automated acceptance-criteria check was skipped because the Claude CI quota/limit was reached; please verify issue-closure claims manually before merge. |\n\n## Risk\nMerging this PR can still auto-close referenced issues on GitHub even if the work is incomplete, so a manual check is required for this run.`;
+    }
+    throw err;
+  }
 }
 
 function main() {

@@ -18,16 +18,13 @@
 import {
   apply,
   createGame,
-  keywordsInForce,
   legalActions,
-  powerOf,
   rejectedActions,
   skillsOf,
   type Action,
   type CardDef,
   type CardScripts,
   type EngineContext,
-  type GameEvent,
   type GameState,
   type Op,
   type PlayerId,
@@ -36,37 +33,10 @@ import {
 import type { Cond, SkillPrice } from "./engine/script";
 import { parseFilter } from "./engine/filters";
 import { addEffect, move } from "./engine/state";
-import { toBeats } from "./beats";
-import { describeEffect, untilWords } from "./effects";
-import { narrate } from "./narration";
-import { keywordPlays } from "./glossary";
-import { questionFor } from "./view";
 import { sentence } from "./wording";
-
-/** The rule under test, as the row holds it. */
-export interface ProbeRule {
-  /** The card as the engine sees it — its printed text included, since the engine reads kinds and triggers off it. */
-  def: CardDef;
-  side: "front" | "back";
-  skillIndex: number;
-  /** The row's `kind`: "auto" | "activate:main" | "permanent" | … */
-  kind: string;
-  /** The row's `trigger` names, from `triggersOf`. */
-  trigger: string[];
-  /** The program the engine would run — the hoisted condition already wrapped back around it. */
-  ops: Op[];
-  /** An open row: no program, played as blank, and the log says so. */
-  open: boolean;
-  unread: string[];
-  /**
-   * The price before the colon, off the row's `cost`. The engine reads this
-   * rather than compiling it (8 Sep 2026), so a probe that did not carry it
-   * would report every action-priced skill as unpayable — a fact about the
-   * probe, not about the rule. Reading the record is not compiling: the probe
-   * still never calls the compiler.
-   */
-  price: SkillPrice;
-}
+import { assumptionsOf, askedQuestion, boardChanges, candidatesOf, digestOf, emptyProbe, IDLE_PROMPTS, logLines, staticReading, type ProbeStep } from "./probe-report";
+import type { ProbeFamily, ProbeOutcome, ProbeRule, ProbeRun, ProbeScenario, ProbeVariant } from "./probe-types";
+export type { ProbeFamily, ProbeOutcome, ProbeRule, ProbeRun, ProbeScenario, ProbeVariant } from "./probe-types";
 
 /**
  * A `card_rules` row as a rule to try. `program` is what the engine would run
@@ -88,51 +58,6 @@ export function ruleFrom(row: { side: string; skillIndex: number; kind: string; 
   };
 }
 
-export type ProbeFamily = "play" | "attack" | "combo" | "activateMain" | "activateBattle" | "counter" | "permanent" | "keyword" | "moment" | "none";
-export type ProbeVariant = "default" | "noTarget" | "negated" | "opponentTurn" | "inHand";
-
-export interface ProbeScenario {
-  /** "play" or "play:noTarget" — stable, so a stored probe can be re-run. */
-  key: string;
-  family: ProbeFamily;
-  variant: ProbeVariant;
-  /** The board in one line, as the select shows it. */
-  title: string;
-}
-
-export type ProbeOutcome =
-  /** The skill fired and its steps ran. */
-  | "fired"
-  /** There is no program: the engine played the skill as blank and said so. */
-  | "blank"
-  /** The move was made and the skill's moment came, and it did not fire — a printed condition that does not hold. */
-  | "didNotFire"
-  /** The engine would not offer the move; `result` carries the reasons. */
-  | "notOffered"
-  /** A [Permanent] or a keyword: nothing is "applied", the board simply reads differently. */
-  | "inForce"
-  /** No scenario covers this rule's moment. */
-  | "noScenario"
-  | "error";
-
-export interface ProbeRun {
-  scenario: ProbeScenario;
-  /** What was staged, in words. */
-  input: string[];
-  /** The rule's own beats: the trigger, each choice, each step. */
-  applied: string[];
-  /** What changed on the board. */
-  result: string[];
-  /** What the run took for granted, and where the engine knowingly approximates. */
-  assumptions: string[];
-  /** Every question the engine asked, and the answer the probe gave. */
-  prompts: { ask: string; chose: string }[];
-  /** The whole narrated log. */
-  log: string[];
-  outcome: ProbeOutcome;
-  /** Stable over outcome + applied + result: what `arena:reprobe` compares. */
-  digest: string;
-}
 
 // ── the cards the probe stages around the rule ─────────────────────────────
 //
@@ -612,145 +537,9 @@ function answerFor(s: GameState, prefer: string): Action | null {
   }
 }
 
-// ── reading the run back ───────────────────────────────────────────────────
-
-interface Step {
-  state: GameState;
-  events: GameEvent[];
-  ask: string | null;
-  chose: string;
-  /** What a `chooseCards` prompt was offering, so a card that could not be chosen can be named. */
-  candidates: string[] | null;
-}
-
-/** The question, said from the chair it is asked in — the probe watches from p1's. */
-function asked_(ctx: EngineContext, s: GameState): string {
-  const q = questionFor(ctx, s);
-  return q.player && q.player !== YOU ? `the opponent is asked: ${q.question}` : q.question;
-}
-
-const candidatesOf = (s: GameState) => (s.prompt.kind === "chooseCards" ? s.prompt.choice.candidates : null);
-
-/** The log, in the board's own words. */
-function lines(ctx: EngineContext, steps: Step[], from = 0): string[] {
-  const out: string[] = [];
-  for (const step of steps.slice(from)) {
-    const beats = toBeats(ctx, step.state, step.events, 0);
-    for (const b of beats.list) {
-      const said = narrate(b, { viewer: YOU, them: "Opponent", art: beats.art, ownerOf: (id) => step.state.cards[id]?.owner ?? null });
-      if (said) out.push(said);
-    }
-  }
-  return out;
-}
-
-const AREA_WORDS: Record<string, string> = {
-  hand: "hand",
-  drop: "the Drop",
-  battle: "the Battle Area",
-  combo: "the Combo Area",
-  energy: "the Energy Area",
-  life: "life",
-  warp: "the Warp",
-  unison: "the Unison Area",
-  deck: "the deck",
-  zDeck: "the Z-Deck",
-  zEnergy: "Z-Energy",
-  removed: "out of the game",
-  leader: "the Leader Area",
-};
-
-/** What changed on the board, counted off the events rather than read out one by one. */
-function changes(ctx: EngineContext, steps: Step[], from: number): string[] {
-  const out: string[] = [];
-  const drew: Record<PlayerId, number> = { p1: 0, p2: 0 };
-  const damage: Record<PlayerId, number> = { p1: 0, p2: 0 };
-  const named = (state: GameState, id: string) => {
-    const inst = state.cards[id];
-    return inst ? (ctx.defs[inst.cardId]?.name ?? inst.cardId) : id;
-  };
-  const who = (p: PlayerId) => (p === YOU ? "you" : "the opponent");
-  for (const step of steps.slice(from)) {
-    for (const e of step.events) {
-      if (e.type === "draw") drew[e.player]++;
-      else if (e.type === "damage") damage[e.player] += e.amount;
-      else if (e.type === "ko") out.push(`${named(step.state, e.card)} is KO'd`);
-      else if (e.type === "effect") {
-        const label = describeEffect(e.effect).label;
-        const until = untilWords(e.effect.until, { master: e.effect.master, viewer: YOU, them: "the opponent" });
-        out.push(`${e.effect.target ? named(step.state, e.effect.target) : "a rule"}: ${label} ${until}`.trim());
-      } else if (e.type === "move" && e.from !== e.to && e.from !== "deck") out.push(`${named(step.state, e.card)} goes from ${AREA_WORDS[e.from] ?? e.from} to ${AREA_WORDS[e.to] ?? e.to}`);
-      else if (e.type === "gameOver") out.push(e.winner ? `the game ends: ${who(e.winner)} win` : "the game ends in a draw");
-    }
-  }
-  for (const p of [YOU, THEM] as PlayerId[]) {
-    if (drew[p]) out.push(`${who(p)} draw${p === YOU ? "" : "s"} ${drew[p]} card${drew[p] === 1 ? "" : "s"}`);
-    if (damage[p]) out.push(`${who(p)} take${p === YOU ? "" : "s"} ${damage[p]} damage`);
-  }
-  return out;
-}
-
-/** Every `note` step in a program, however deeply nested: the program saying what it does not carry out. */
-function notesIn(ops: Op[]): string[] {
-  const out: string[] = [];
-  const walk = (list: unknown[]): void => {
-    for (const item of list) {
-      if (!item || typeof item !== "object") continue;
-      const o = item as Record<string, unknown>;
-      if (o.op === "note" && typeof o.text === "string") out.push(o.text);
-      for (const v of Object.values(o)) if (Array.isArray(v)) walk(v);
-    }
-  };
-  walk(ops);
-  return out;
-}
-
-/**
- * What the run took for granted. Every line comes from something already
- * written down — a `note` in the program, a note the engine logged, a clause
- * the compiler could not read, or the glossary's own account of a keyword it
- * plays only partly. The probe states no approximation of its own.
- */
-function assumptionsOf(ctx: EngineContext, s: GameState, card: string, rule: ProbeRule, steps: Step[]): string[] {
-  const out = new Set<string>();
-  for (const t of notesIn(rule.ops)) out.add(t);
-  for (const step of steps) for (const e of step.events) if (e.type === "note") out.add(e.text);
-  for (const clause of rule.unread) out.add(`the compiler could not read "${clause}", so that much of the line does nothing`);
-  if (s.cards[card]) {
-    for (const k of keywordsInForce(ctx, s, card)) {
-      const plays = keywordPlays(k.name);
-      if (plays && plays.support === "partial") out.add(`${plays.tag} ${plays.engine}`);
-    }
-  }
-  return [...out];
-}
-
-/** Stable over what a run concluded, so two runs of the same scenario can be compared. */
-function digestOf(outcome: string, applied: string[], result: string[]): string {
-  let h = 0x811c9dc5;
-  for (const ch of [outcome, ...applied, ...result].join(" ")) {
-    h ^= ch.charCodeAt(0);
-    h = Math.imul(h, 0x01000193);
-  }
-  return (h >>> 0).toString(16).padStart(8, "0");
-}
-
 // ── the probe ──────────────────────────────────────────────────────────────
 
-/** Prompts the probe treats as "nothing further is happening". */
-const IDLE = ["main", "charge", "gameOver"];
-
-const empty = (scenario: ProbeScenario, outcome: ProbeOutcome, said: string[]): ProbeRun => ({
-  scenario,
-  input: [],
-  applied: [],
-  result: said,
-  assumptions: [],
-  prompts: [],
-  log: [],
-  outcome,
-  digest: digestOf(outcome, [], said),
-});
+const empty = (scenario: ProbeScenario, outcome: ProbeOutcome, said: string[]): ProbeRun => emptyProbe(scenario, outcome, said);
 
 /**
  * Run one rule on one board and say what happened.
@@ -777,7 +566,7 @@ function runProbe(rule: ProbeRule, scenario: ProbeScenario): ProbeRun {
   const staged = stage(rule, scenario);
   const ctx = staged.ctx;
   let s = staged.state;
-  const steps: Step[] = [];
+  const steps: ProbeStep[] = [];
   let goalIndex = 0;
   let testedAt = -1;
   let missed: Goal | null = null;
@@ -788,7 +577,7 @@ function runProbe(rule: ProbeRule, scenario: ProbeScenario): ProbeRun {
     const asked = "player" in s.prompt ? s.prompt.player : null;
     const hit = goal ? legalActions(ctx, s).find((l) => goal.match(l.action)) : undefined;
     if (goal && hit) {
-      const ask = asked_(ctx, s);
+      const ask = askedQuestion(ctx, s);
       const r = apply(ctx, s, hit.action);
       steps.push({ state: r.state, events: r.events, ask, chose: hit.label, candidates: candidatesOf(s) });
       s = r.state;
@@ -802,25 +591,27 @@ function runProbe(rule: ProbeRule, scenario: ProbeScenario): ProbeRun {
       missedAt = s;
       break;
     }
-    if (!goal && IDLE.includes(s.prompt.kind)) break;
+    if (!goal && IDLE_PROMPTS.includes(s.prompt.kind as (typeof IDLE_PROMPTS)[number])) break;
     const answer = answerFor(s, staged.card);
     if (!answer) break;
-    const ask = asked_(ctx, s);
+    const ask = askedQuestion(ctx, s);
     const r = apply(ctx, s, answer);
     steps.push({ state: r.state, events: r.events, ask, chose: label(ctx, s, answer), candidates: candidatesOf(s) });
     s = r.state;
   }
 
   const from = testedAt < 0 ? steps.length : testedAt;
-  const applied = lines(ctx, steps, from);
-  const result = changes(ctx, steps, from);
+  const applied = logLines(ctx, steps, from);
+  const result = boardChanges(ctx, steps, from);
   const assumptions = assumptionsOf(ctx, s, staged.card, rule, steps);
   const prompts = steps.filter((st) => st.ask).map((st) => ({ ask: st.ask as string, chose: st.chose }));
   const fired = steps.some((st) => st.events.some((e) => e.type === "skill" && e.card === staged.card && e.skill === rule.skillIndex));
   // Read on the board as it was staged: a [Permanent] whose card is KO'd a
   // moment later is not a [Permanent] that does nothing.
   const statics =
-    scenario.family === "permanent" || scenario.family === "keyword" ? reading(ctx, staged.state, staged.card, rule, scenario.family === "keyword" ? (staged.skill?.keyword?.name ?? null) : null) : [];
+    scenario.family === "permanent" || scenario.family === "keyword"
+      ? staticReading(ctx, staged.state, staged.card, rule, scenario.family === "keyword" ? (staged.skill?.keyword?.name ?? null) : null)
+      : [];
   const koed = steps.some((st) => st.events.some((e) => e.type === "ko" && e.card === staged.card));
   const held = scenario.family === "permanent" && !koed && steps.length && !staged.inHand ? ["the opponent's KO skill could not take this card — it was never among the targets it was offered"] : [];
 
@@ -843,31 +634,10 @@ function runProbe(rule: ProbeRule, scenario: ProbeScenario): ProbeRun {
     result: said.length ? said : [outcome === "blank" ? "nothing happened: the skill has no program" : "nothing changed on the board"],
     assumptions,
     prompts,
-    log: lines(ctx, steps),
+    log: logLines(ctx, steps),
     outcome,
     digest: digestOf(outcome, missed ? [] : applied, said),
   };
-}
-
-/** A [Permanent] or a keyword is not something that "happens": it is read off the board. */
-function reading(ctx: EngineContext, s: GameState, card: string, rule: ProbeRule, keyword: string | null): string[] {
-  if (!s.cards[card]) return [];
-  // A keyword is a rule the engine plays for itself: what it does with it is
-  // written in the glossary, and that is the honest answer here.
-  if (keyword) {
-    const plays = keywordPlays(keyword);
-    const inForce = keywordsInForce(ctx, s, card).map((k) => `[${k.name}]`);
-    return [plays ? `${plays.tag} — ${plays.engine}` : `[${keyword}] is not a keyword the engine knows`, ...(inForce.length ? [`keywords in force: ${inForce.join(", ")}`] : [])];
-  }
-  if (s.players[YOU].hand.includes(card)) return ["the card is in hand, where a [Permanent] skill is not valid (9-1-3)"];
-  const bare: EngineContext = { defs: ctx.defs, scripts: Object.fromEntries(Object.entries(ctx.scripts ?? {}).filter(([k]) => k !== rule.def.id && k !== `${rule.def.id}#back`)) };
-  const out: string[] = [];
-  const withRule = powerOf(ctx, s, card);
-  const without = powerOf(bare, s, card);
-  out.push(withRule === without ? `power on the board: ${withRule}` : `power on the board: ${withRule} — ${without} without this rule`);
-  const keywords = keywordsInForce(ctx, s, card);
-  if (keywords.length) out.push(`keywords in force: ${keywords.map((k) => `[${k.name}]`).join(", ")}`);
-  return out;
 }
 
 /** Why the move was not on the menu, in the words a client shows. */
