@@ -27,7 +27,7 @@ permissions:
 jobs:
   bugbot:
     runs-on: ubuntu-latest
-    if: github.actor != 'dependabot[bot]'
+    if: github.actor != 'dependabot[bot]' && (github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository)
     steps:
       # The action reads `pull_request` off the triggering event payload,
       # which workflow_dispatch doesn't carry. Fetch the PR and check out its
@@ -44,7 +44,7 @@ jobs:
           echo "GITHUB_EVENT_PATH=$RUNNER_TEMP/event.json" >> "$GITHUB_ENV"
 
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && env.HEAD_SHA || github.event.pull_request.head.sha }}
           # Full history so BugBot's history lens can check whether the PR

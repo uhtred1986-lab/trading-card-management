@@ -116,7 +116,21 @@ Output ONLY a markdown table with columns: Issue | Verdict | Why (one sentence).
   const prior = existing.find((c) => typeof c.body === "string" && c.body.includes(MARKER));
 
   if (prior) {
-    gh(["api", `repos/${repo}/issues/comments/${prior.id}`, "-X", "PATCH", "-f", `body=${commentBody}`]);
+    gh(
+      [
+        "api",
+        `repos/${repo}/issues/comments/${prior.id}`,
+        "-X",
+        "PATCH",
+        "-H",
+        "Accept: application/vnd.github+json",
+        "-H",
+        "Content-Type: application/json",
+        "--input",
+        "-",
+      ],
+      JSON.stringify({ body: commentBody })
+    );
     console.log("Updated existing acceptance-criteria comment.");
   } else {
     gh(["pr", "comment", String(prNumber), "--repo", repo, "--body", commentBody]);
