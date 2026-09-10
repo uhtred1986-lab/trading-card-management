@@ -413,7 +413,9 @@ export function readBacklogFile(filePath: string): BacklogItem {
 
   const body = lines.slice(i + 1).join("\n").trim();
   const file = path.basename(filePath);
-  const id = file.replace(/\.md$/, "").replace(/-(.*)$/, "");
+  // Preserve stage prefix and sequence number (e.g., s2-94, ui-100, docs-01, s10-02)
+  const idMatch = file.match(/^([a-z0-9]+-\d+)/i);
+  const id = idMatch ? idMatch[1] : file.replace(/\.md$/, "");
 
   return {
     file,
@@ -431,6 +433,19 @@ export function readBacklogFile(filePath: string): BacklogItem {
     closedAt: meta.closed_at,
     body,
   };
+}
+
+/**
+ * Normalizes title string for robust matching across minor typography variations.
+ */
+function normalizeIssueTitle(title: string): string {
+  return title
+    .trim()
+    .toLowerCase()
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/[\u2014\u2013]/g, "-")
+    .replace(/\s+/g, " ");
 }
 
 /**
@@ -454,8 +469,9 @@ export async function getBacklogItemsWithGitHub(
   const remote = options.remoteIssues || (options.fetchRemote !== false ? await listRemoteIssues(repo) : []);
 
   return items.map((item) => {
-    // 1. Direct match by exact title
-    const match = remote.find((r) => r.title.trim().toLowerCase() === item.title.trim().toLowerCase());
+    // Match by normalized title (stable key across backlog files and remote issues)
+    const normItemTitle = normalizeIssueTitle(item.title);
+    const match = remote.find((r) => normalizeIssueTitle(r.title) === normItemTitle);
     if (match) {
       return {
         ...item,
@@ -465,23 +481,78 @@ export async function getBacklogItemsWithGitHub(
       };
     }
 
-    // 2. Match by file prefix number if encoded in filename (e.g. ui-101 -> #101)
-    const numMatch = item.file.match(/^(?:ui|s\d+)-(\d+)/);
-    if (numMatch) {
-      const candidateNum = parseInt(numMatch[1], 10);
-      const numMatched = remote.find((r) => r.number === candidateNum);
-      if (numMatched) {
-        return {
-          ...item,
-          githubIssueNumber: numMatched.number,
-          githubUrl: numMatched.html_url || getIssueUrl(numMatched.number, repo),
-          githubState: numMatched.state,
-        };
-      }
-    }
-
     return item;
   });
+}
+
+/**
+ * Repository-compliant intake metadata for feedback items according to
+ * README.md and .github/ISSUE_TEMPLATE/arena_backlog_item.yml.
+ */
+export interface FeedbackMetadata {
+  area: string;
+  phase: string;
+  milestoneNumber: number;
+  milestoneTitle: string;
+  itemType: string;
+  labels: string[];
+}
+
+export function getFeedbackMetadata(feedback: {
+  kind: string;
+  status?: string;
+  cardId?: string | null;
+  gameId?: number | null;
+}): FeedbackMetadata {
+  const isBug = feedback.kind === "bug";
+  const isCard = feedback.kind === "card";
+  const isRule = feedback.kind === "rule";
+
+  let area = "area:arena-ui";
+  let phase = "phase:hud-workflow";
+  let milestoneNumber = 2; // Arena M2 — Gameplay UX/HUD completion
+  let milestoneTitle = "Arena M2 — Gameplay UX/HUD completion";
+  let itemType = "Bug";
+
+  if (isCard) {
+    area = "area:arena-compiler";
+    phase = "phase:rules-stage2";
+    milestoneNumber = 1; // Arena M1 — Rules correctness and parser coverage
+    milestoneTitle = "Arena M1 — Rules correctness and parser coverage";
+    itemType = "Rules/ruling follow-up";
+  } else if (isRule) {
+    area = "area:arena-rulesets";
+    phase = "phase:capability-gap";
+    milestoneNumber = 1; // Arena M1 — Rules correctness and parser coverage
+    milestoneTitle = "Arena M1 — Rules correctness and parser coverage";
+    itemType = "Rules/ruling follow-up";
+  } else {
+    area = "area:arena-ui";
+    phase = "phase:hud-workflow";
+    milestoneNumber = 2;
+    milestoneTitle = "Arena M2 — Gameplay UX/HUD completion";
+    itemType = "Bug";
+  }
+
+  // Repository-valid labels: avoid unprovisioned labels like 'feedback'
+  const labels: string[] = ["backlog", "ready-for-agent", area, phase];
+  if (isBug) {
+    labels.push("bug");
+  } else {
+    labels.push("enhancement");
+  }
+  if (feedback.status === "wontfix") {
+    labels.push("wontfix");
+  }
+
+  return {
+    area,
+    phase,
+    milestoneNumber,
+    milestoneTitle,
+    itemType,
+    labels,
+  };
 }
 
 /**
@@ -494,10 +565,11 @@ export function formatFeedbackIssueTitle(feedback: { id: number; kind: string; n
 }
 
 /**
- * Formats a GitHub issue markdown body for a feedback item.
+ * Formats a GitHub issue markdown body for a feedback item matching the Arena backlog item intake template.
  */
 export function formatFeedbackIssueBody(feedback: FeedbackItem, repo?: string): string {
-  const r = repo || getGitHubConfig().repo;
+  const targetRepo = repo || getGitHubConfig().repo;
+  const meta = getFeedbackMetadata(feedback);
   let reportedDateStr = "N/A";
   if (feedback.createdAt) {
     try {
@@ -510,46 +582,77 @@ export function formatFeedbackIssueBody(feedback: FeedbackItem, repo?: string): 
     }
   }
 
+  const cardRef = feedback.cardId
+    ? `; card [${feedback.cardId}](https://github.com/${targetRepo})`
+    : "";
+  const gameRef = feedback.gameId ? `; game #${feedback.gameId}` : "";
+
   const lines: string[] = [
-    `### Arena Feedback #${feedback.id}`,
+    `### Item type`,
+    meta.itemType,
     ``,
-    `**Kind:** \`${feedback.kind}\`  `,
-    `**Status:** \`${feedback.status}\`  `,
-    `**Reported:** ${reportedDateStr}  `,
-    feedback.reportedBy ? `**Reported by:** ${feedback.reportedBy}  ` : ``,
-    feedback.cardId ? `**Card:** [${feedback.cardId}](https://github.com/${r})  ` : ``,
-    feedback.gameId ? `**Game:** #${feedback.gameId} (turn ${feedback.turn ?? 0}${feedback.phase ? `, ${feedback.phase}` : ""})  ` : ``,
-    feedback.prompt ? `**Prompt Waiting:** ${feedback.prompt}  ` : ``,
+    `### Source references`,
+    `Arena feedback #${feedback.id}${cardRef}${gameRef}`,
     ``,
-    `#### User Note`,
-    `> ${feedback.note.replace(/\n/g, "\n> ")}`,
+    `### Problem statement`,
+    feedback.note,
     ``,
+    `### Expected behavior/outcome`,
+    feedback.resolution
+      ? feedback.resolution
+      : feedback.kind === "bug"
+      ? "Game engine and UI operate cleanly according to rules without unexpected state or missed choices."
+      : "Card rules and parser accurately reflect the intended ruleset text.",
+    ``,
+    `### Scope boundaries`,
+    `In scope:`,
+    `- Address feedback report #${feedback.id}${feedback.cardId ? ` for card ${feedback.cardId}` : ""}.`,
+    `Out of scope:`,
+    `- Unrelated engine or UI restructurings.`,
+    ``,
+    `### Acceptance checks`,
+    `- npm run typecheck`,
+    `- npm run lint`,
+    `- npm test`,
+    `- Scenario proof: Verify reproduction of report #${feedback.id}${feedback.cardId ? ` (${feedback.cardId})` : ""}.`,
+    ``,
+    `### Required triage metadata`,
+    `Area labels: ${meta.area}`,
+    `Phase labels: ${meta.phase}`,
+    `Milestone: ${meta.milestoneTitle}`,
+    ``,
+    `### Ready for agent pickup`,
+    `- [x] This issue is specific enough for a future agent to implement without extra clarification.`,
+    ``,
+    `---`,
+    `*Reported:* ${reportedDateStr}${feedback.reportedBy ? ` by ${feedback.reportedBy}` : ""}  `,
   ];
 
-  if (feedback.resolution) {
-    lines.push(`#### Resolution`, `${feedback.resolution}`, ``);
+  if (feedback.gameId) {
+    lines.push(`*Game:* #${feedback.gameId} (turn ${feedback.turn ?? 0}${feedback.phase ? `, ${feedback.phase}` : ""})  `);
+  }
+  if (feedback.prompt) {
+    lines.push(`*Prompt Waiting:* ${feedback.prompt}  `);
   }
 
-  lines.push(`---`, `*Synced automatically from Arena Feedback table.*`);
-  return lines.filter(Boolean).join("\n");
+  return lines.join("\n");
 }
 
 /**
- * Looks for an existing GitHub issue matching a feedback item.
+ * Looks for an existing GitHub issue matching a feedback item safely (non-digit boundary to prevent prefix collisions).
  */
 export function matchFeedbackToGitHubIssue(
   feedback: { id: number },
   remoteIssues: GitHubIssue[]
 ): GitHubIssue | undefined {
-  const prefix = `[Feedback #${feedback.id}]`;
-  const altPrefix = `Feedback #${feedback.id}`;
-  return remoteIssues.find((issue) => issue.title.includes(prefix) || issue.title.includes(altPrefix));
+  const exactRegex = new RegExp(`\\[Feedback #${feedback.id}\\]|\\bFeedback #${feedback.id}\\b`, "i");
+  return remoteIssues.find((issue) => exactRegex.test(issue.title));
 }
 
 /**
  * Returns the GitHub URL and status for a feedback item.
  * If an existing issue is found, returns the direct issue link.
- * If not, returns a pre-filled GitHub new issue creation link.
+ * If not, returns a pre-filled GitHub new issue creation link with proper milestone and area/phase labels.
  */
 export function getFeedbackGitHubLink(
   feedback: FeedbackItem,
@@ -573,46 +676,69 @@ export function getFeedbackGitHubLink(
     };
   }
 
-  // Pre-filled new issue URL fallback
+  // Pre-filled new issue URL fallback with repository intake metadata
+  const meta = getFeedbackMetadata(feedback);
   const title = formatFeedbackIssueTitle(feedback);
   const body = formatFeedbackIssueBody(feedback, targetRepo);
-  const labels = ["feedback", "area:arena-ui", feedback.kind === "bug" ? "bug" : "enhancement"];
 
   return {
-    url: getNewIssueUrl({ title, body, labels }, targetRepo),
+    url: getNewIssueUrl(
+      {
+        title,
+        body,
+        labels: meta.labels,
+        milestone: meta.milestoneTitle,
+      },
+      targetRepo
+    ),
     isExisting: false,
   };
 }
 
 /**
  * Syncs a single feedback item to GitHub: creates it if missing, or updates its status (closed/reopened).
+ * Accepts optional cachedRemote to prevent repeated full-table fetches in batch loops.
  */
 export async function syncFeedbackItem(
   feedback: FeedbackItem,
-  repo?: string
+  repo?: string,
+  cachedRemote?: GitHubIssue[]
 ): Promise<{ issue: GitHubIssue; action: "created" | "updated" | "closed" | "noop" }> {
   const targetRepo = repo || getGitHubConfig().repo;
-  const remote = await listRemoteIssues(targetRepo, { forceRefresh: true });
+  const remote = cachedRemote || (await listRemoteIssues(targetRepo, { forceRefresh: false }));
   const existing = matchFeedbackToGitHubIssue(feedback, remote);
 
-  const desiredState = feedback.status === "fixed" ? "closed" : "open";
+  const isClosed = feedback.status === "fixed" || feedback.status === "wontfix";
+  const desiredState: "open" | "closed" = isClosed ? "closed" : "open";
+  const desiredReason: "completed" | "not_planned" | "reopened" =
+    feedback.status === "wontfix"
+      ? "not_planned"
+      : desiredState === "closed"
+      ? "completed"
+      : "reopened";
+
+  const meta = getFeedbackMetadata(feedback);
   const title = formatFeedbackIssueTitle(feedback);
   const body = formatFeedbackIssueBody(feedback, targetRepo);
-  const labels = ["feedback", "area:arena-ui", feedback.kind === "bug" ? "bug" : "enhancement"];
 
   if (!existing) {
     const created = await createGitHubIssue(
       {
         title,
         body,
-        labels,
+        labels: meta.labels,
+        milestone: meta.milestoneNumber,
       },
       targetRepo
     );
 
     if (desiredState === "closed") {
-      await updateGitHubIssue(created.number, { state: "closed", state_reason: "completed" }, targetRepo);
+      await updateGitHubIssue(created.number, { state: "closed", state_reason: desiredReason }, targetRepo);
       created.state = "closed";
+    }
+
+    if (cachedRemote) {
+      cachedRemote.push(created);
     }
 
     return { issue: created, action: "created" };
@@ -624,10 +750,13 @@ export async function syncFeedbackItem(
       existing.number,
       {
         state: desiredState,
-        state_reason: desiredState === "closed" ? "completed" : "reopened",
+        state_reason: desiredReason,
       },
       targetRepo
     );
+
+    existing.state = desiredState;
+
     return { issue: updated, action: desiredState === "closed" ? "closed" : "updated" };
   }
 
@@ -636,6 +765,7 @@ export async function syncFeedbackItem(
 
 /**
  * Syncs multiple feedback items to GitHub issues.
+ * Reuses a single remote list fetch across the batch to avoid rate and execution limits.
  */
 export async function syncAllFeedbackItems(
   feedbackList: FeedbackItem[],
@@ -647,9 +777,12 @@ export async function syncAllFeedbackItems(
   let closed = 0;
   const errors: Array<{ id: number; error: string }> = [];
 
+  // Fetch the remote issue list ONCE for the entire batch
+  const remote = await listRemoteIssues(targetRepo, { forceRefresh: true });
+
   for (const item of feedbackList) {
     try {
-      const res = await syncFeedbackItem(item, targetRepo);
+      const res = await syncFeedbackItem(item, targetRepo, remote);
       if (res.action === "created") created++;
       else if (res.action === "updated") updated++;
       else if (res.action === "closed") closed++;
@@ -697,14 +830,15 @@ export async function syncBacklogIssues(
   } else if (options.closeIds && options.closeIds.length > 0) {
     for (const id of options.closeIds) {
       const match = backlogItems.find(
-        (i) => i.file.startsWith(id) || i.id === id || i.title.toLowerCase().includes(id.toLowerCase())
+        (i) => i.file.startsWith(id) || i.id === id || normalizeIssueTitle(i.title).includes(normalizeIssueTitle(id))
       );
       if (match) targetsToClose.push(match);
     }
   }
 
   for (const item of targetsToClose) {
-    const remote = remoteIssues.find((r) => r.title.trim() === item.title.trim());
+    const normItemTitle = normalizeIssueTitle(item.title);
+    const remote = remoteIssues.find((r) => normalizeIssueTitle(r.title) === normItemTitle);
     if (remote && remote.state === "open") {
       if (!options.dryRun) {
         const closingComment = `### Verified and Completed\nCompleted and verified in the codebase repository.\n\n${item.body.slice(-400)}`;
