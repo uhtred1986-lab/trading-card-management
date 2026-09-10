@@ -4,6 +4,7 @@
  * Part of `npm test`; run from `scripts/verify-arena.ts`, which fixes the order.
  */
 import assert from "node:assert/strict";
+import { legalActions } from "../../src/lib/arena/engine";
 import {
   CTX,
   DEFS,
@@ -66,9 +67,23 @@ import {
   s = play(s, absorbAction);
   assert.equal(s.players.p1.hand.length, handBeforeAbsorb + 2, "the activation and the timing [Auto] both resolve");
   assertConsistent(s);
+  DEFS.UABSWATCH = {
+    ...DEFS.V1,
+    id: "UABSWATCH",
+    name: "UABSWATCH",
+    skill: "[Auto] When you activate a [Union] skill, draw 1 card.",
+  };
+  s = arena({ battle: ["UABS", "UABSWATCH"] });
+  const handBeforeUnionWatch = s.players.p1.hand.length;
+  const absorbWithWatcher = acts(s).find((a) => a.type === "activate" && a.card === s.players.p1.battle[0] && !a.alt);
+  assert.ok(absorbWithWatcher, "the [Union-Absorb] activation is still offered with a [Union] watcher in play");
+  s = play(s, absorbWithWatcher);
+  assert.equal(s.players.p1.hand.length, handBeforeUnionWatch + 3, "[Union-Absorb] activation also fires [Union] timing [Auto]s");
+  assertConsistent(s);
   delete DEFS.EVOTRIG;
   delete DEFS.EVOHOST;
   delete DEFS.UABS;
+  delete DEFS.UABSWATCH;
 }
 
 {
@@ -92,6 +107,8 @@ import {
   );
   assert.equal(s.prompt.kind, "counter");
   assert.ok(labels(s).some((x) => x.includes("Counter with CFREE (for no energy)")), "the free counter is offered from hand");
+  const freeCounterOffer = legalActions(CTX, s).find((a) => a.action.type === "counter" && a.action.card === find(s, "p1", "hand", "CFREE") && a.action.alt);
+  assert.equal(freeCounterOffer?.cost?.energy, 0, "the free counter metadata says it rests 0 energy");
   const handBeforeFreeCounter = s.players.p1.hand.length;
   const activeBefore = s.players.p1.energy.filter((id) => s.cards[id].mode === "active").length;
   const freeCounter = acts(s).find((a) => a.type === "counter" && a.card === find(s, "p1", "hand", "CFREE") && a.alt);
@@ -115,6 +132,23 @@ import {
   s = play(s, paidCounter);
   assert.equal(s.players.p1.hand.length, handBeforePaidCounter - 1, "paying the [Counter] energy cost does not fire the free-counter timing");
   assertConsistent(s);
+  DEFS.CINVK = { ...DEFS["E-NEGATE"], id: "CINVK", name: "CINVK", colors: ["Red", "Blue"], energyCost: 2, skill: "[Counter: Attack] Negate the attack." };
+  DEFS.INVK = { ...DEFS.V1, id: "INVK", name: "INVK", colors: ["Red", "Blue"], skill: "[Invoker]" };
+  DEFS.RB = { ...DEFS.V1, id: "RB", name: "RB", colors: ["Red", "Blue"] };
+  s = arena({ hand: ["CINVK"], battle: ["INVK"], energy: ["RB"] });
+  s = play(
+    s,
+    { type: "endMain", player: "p1" },
+    { type: "charge", player: "p2", card: null },
+    { type: "attack", player: "p2", attacker: s.players.p2.leader, target: s.players.p1.leader },
+  );
+  const invokerCounter = legalActions(CTX, s).find((a) => a.action.type === "counter" && a.action.card === find(s, "p1", "hand", "CINVK") && a.action.alt);
+  assert.ok(invokerCounter, "the [Invoker] counter offer is present");
+  assert.equal(invokerCounter.cost?.energy, 1, "the [Invoker] counter metadata says it rests 1 energy");
+  assert.equal(invokerCounter.cost?.describe, "[Invoker]");
+  delete DEFS.CINVK;
+  delete DEFS.INVK;
+  delete DEFS.RB;
   delete DEFS.CFREE;
 }
 

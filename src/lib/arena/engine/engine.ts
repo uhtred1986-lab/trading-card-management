@@ -1712,6 +1712,8 @@ export function legalActions(ctx: EngineContext, s: GameState): LegalAction[] {
           const cost: ActionCost =
             alt.pay === "none"
               ? { energy: 0, describe: "free" }
+              : alt.pay === "invoker"
+                ? { energy: 1, describe: "[Invoker]" }
               : alt.pay === "energy"
                 ? { energy: (alt.orbs ?? []).length, describe: (alt.orbs ?? []).length ? (alt.orbs ?? []).map((o) => (o === "any" ? "{any}" : `{${o}}`)).join("") : "free" }
                 : { energy: 0, describe: "alternative cost" };
@@ -2909,6 +2911,7 @@ function activate(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId
   }
   if (k?.name === "Union" && k.variant === "Absorb") {
     pendTriggers(ctx, s, "unionAbsorbActivated", card);
+    for (const id of cardsInPlay(s, p)) pendTriggers(ctx, s, "unionActivated", id, card);
   }
   if (k?.name === "Evolve") {
     // 22-5: "when using this card's [Evolve] from your hand" is this
