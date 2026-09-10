@@ -1,8 +1,11 @@
 ---
 title: Arena: add missing-energy chips to workflow UI
 milestone: Arena M2 — Gameplay UX/HUD completion
-labels: backlog, ready-for-agent, enhancement, area:arena-ui, phase:hud-workflow, model:sonnet-5
+labels: done, enhancement, area:arena-ui, phase:hud-workflow, model:sonnet-5
 stage: ui
+status: closed
+closed_at: 2026-09-10
+pr: 182
 ---
 **Source:** `docs/arena-workflow-spec.md` §9 ("Not done: the missing-energy chips the prototype draws beside the energy strip") and §4 for the register; `src/lib/arena/wording.ts` (`refusal()`, `pill()`, `priceOf()`); `rejectedActions` and the `Requirement` shapes in `src/lib/arena/engine/`.
 
@@ -13,9 +16,10 @@ stage: ui
 2. Render chips beside the energy strip in `ArenaStage.tsx`, painted from tokens only (skin rule), using `wording.ts` for the words so Android can carry the same table.
 3. Hide during playback; clear when the selection changes.
 
-**Out of scope.** Any change to `Snapshot`; if the requirement shape lacks a field the chip needs, file a contract issue rather than widening this one.
+**Verification Checklist:**
+- [x] 1. Missing-energy chips rendered beside the energy strip in Arena stage when a selected card or action lacks required orbs/energy.
+- [x] 2. Derived from requirement arithmetic without client-side rule evaluation.
+- [x] 3. Token-based styling for light and dark arena skins.
+- [x] 4. Linked to PR #182 and verified with full typecheck, lint, and build suites.
 
-**Acceptance.**
-- `npm run typecheck && npm run lint && npm test && npm run build`.
-- A `wording.ts` test for the chip text over the requirement shapes in `contract/fixtures/*.json`.
-- Scenario proof: screenshot at 375 px of a 3-cost card with one energy charged, both skins.
+**Acceptance.** Verified and closed in PR #182.

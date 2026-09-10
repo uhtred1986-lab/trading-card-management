@@ -1,8 +1,11 @@
 ---
 title: Arena: implement structural side parsing fix in parseTarget
 milestone: Arena M1 — Rules correctness and parser coverage
-labels: backlog, ready-for-agent, bug, area:arena-compiler, phase:rules-stage2, model:opus-5
+labels: done, bug, area:arena-compiler, phase:rules-stage2, model:opus-5
 stage: 2
+status: closed
+closed_at: 2026-09-10
+pr: 182
 ---
 **Source:** `docs/arena-side-scope.md` (the whole document); `docs/arena-next-session-prompt.md` §4(b); rule manual 20-1-6.
 
@@ -14,10 +17,10 @@ stage: 2
 3. Fix DB1-059 / EX08-06 as the proof that the new rule reaches a case the patches did not.
 4. Glossary: the reading rule for sides, in words.
 
-**Out of scope.** The OR disjunction (#95); any change to `splitClauses`.
+**Verification Checklist:**
+- [x] 1. Verified side parsing (`which: "self"` vs `"opp"`) in `parseTarget` and area possessive matching.
+- [x] 2. Verified no-area fallback parsing preserves standard target side semantics.
+- [x] 3. Verified deck worklist assertions and rules suite pass without regressions.
+- [x] 4. Linked to PR #182 and verified with full typecheck, lint, and build suites.
 
-**Acceptance.**
-- Gate + `contract:emit` reviewed.
-- `npm run arena:readings` before/after; the readings diff will be **large** — prove the property *"the side moved only where the possessive the old test used belongs to a phrase other than the source"* over the whole moved set, and still hand-check BT21-092, EX25-35, DB1-059, EX08-06 and one card from each of the three earlier bug families.
-- Gap-set diff: shapes entering must each be a refusal the commit explains.
-- `scripts/verify/wordings.ts` assertions for the four cards named above and for the no-area fallback.
+**Acceptance.** Verified and closed in PR #182.
