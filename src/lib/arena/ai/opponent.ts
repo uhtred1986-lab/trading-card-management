@@ -136,6 +136,12 @@ function freeChoice(ctx: EngineContext, s: GameState, legal: LegalAction[], p: P
     const i = legal.findIndex((l) => l.action.type === "zEnergyFromCombo" && l.action.card);
     return i >= 0 ? { index: i, how: "keeps the Z-Energy" } : null;
   }
+  if (kind === "empowerCarry") {
+    // 22-45-3: carrying markers with [Empower] cannot go wrong, so take the maximum without an API call.
+    const max = s.prompt.kind === "empowerCarry" ? s.prompt.max : 0;
+    const i = legal.findIndex((l) => l.action.type === "empowerCarry" && l.action.amount === max);
+    return i >= 0 ? { index: i, how: `carries maximum ${max} Empower markers` } : null;
+  }
   return null;
 }
 

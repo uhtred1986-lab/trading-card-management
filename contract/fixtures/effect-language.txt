@@ -102,7 +102,9 @@ COND is one of these (a field marked ? may be left out):
   {"kind":"every","sel":SELECTOR,"matching":SELECTOR}
     every card the first selector finds is also one the second finds; false when there is nothing to find (0-2-4-1)
   {"kind":"any","conds":[COND]}
+    at least one of the conditions holds (disjunction)
   {"kind":"all","conds":[COND]}
+    every condition holds (conjunction)
   {"kind":"leaderFlipped","side"?:"you"|"opponent","flipped"?:true|false}
   {"kind":"power","sel":SELECTOR,"atLeast"?:N,"atMost"?:N}
   {"kind":"did","what":"addToHand"|"play"|"negateAttack"|…}

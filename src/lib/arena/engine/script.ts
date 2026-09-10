@@ -1847,8 +1847,8 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
     },
     doc: "every card the first selector finds is also one the second finds; false when there is nothing to find (0-2-4-1)",
   },
-  any: { fields: [{ name: "conds", type: "conds", required: true }], sentence: (raw) => (raw as CondOf<"any">).conds.map(describeCond).join(", or ") },
-  all: { fields: [{ name: "conds", type: "conds", required: true }], sentence: (raw) => (raw as CondOf<"all">).conds.map(describeCond).join(" and ") },
+  any: { fields: [{ name: "conds", type: "conds", required: true }], sentence: (raw) => (raw as CondOf<"any">).conds.map(describeCond).join(", or "), doc: "at least one of the conditions holds (disjunction)" },
+  all: { fields: [{ name: "conds", type: "conds", required: true }], sentence: (raw) => (raw as CondOf<"all">).conds.map(describeCond).join(" and "), doc: "every condition holds (conjunction)" },
   leaderFlipped: {
     fields: [
       { name: "side", type: "side" },

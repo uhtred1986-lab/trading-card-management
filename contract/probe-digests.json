@@ -371,6 +371,10 @@
     "outcome": "inForce",
     "digest": "cac4ae74"
   },
+  "OR-DRAWER#0": {
+    "outcome": "notOffered",
+    "digest": "03e2c26c"
+  },
   "OVERWATCH#0": {
     "outcome": "noScenario",
     "digest": "b80d3483"

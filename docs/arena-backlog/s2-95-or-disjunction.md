@@ -1,8 +1,10 @@
 ---
 title: Arena: fix OR disjunction handling in parseConditionClause
 milestone: Arena M1 — Rules correctness and parser coverage
-labels: backlog, ready-for-agent, bug, area:arena-compiler, phase:rules-stage2, model:opus-5
+labels: done, bug, area:arena-compiler, phase:rules-stage2, model:opus-5
 stage: 2
+status: closed
+closed_at: 2026-09-10
 ---
 **Source:** `docs/arena-next-session-prompt.md` §4(c), first bullet; `parseConditionClause` in `src/lib/arena/engine/compile.ts`; the `any`/`all` condition kinds in `COND_SCHEMA`.
 
@@ -19,3 +21,12 @@ stage: 2
 - Gate + `contract:emit` reviewed.
 - Readings diff: every moved line is a condition gaining an "or"; sign off by card. Gap-set diff: no shape enters unless refused on purpose.
 - `scripts/verify/wordings.ts`: a green X alone, a yellow Y alone, and a green Y — the first two satisfy, the third does not.
+
+**Verification Checklist:**
+- [x] 1. Implemented `splitDisjunction` preserving semantic boundaries (colors, areas, numbers).
+- [x] 2. Refactored `parseConditionClause` and `parseCountCondition` to use `splitDisjunction` and produce `{ kind: "any", conds }`.
+- [x] 3. Added glossary entry in `src/lib/arena/glossary.ts`.
+- [x] 4. Unit verification test added in `scripts/verify/wordings.ts` testing Green X alone (passes), Yellow Y alone (passes), and Green Y cross (fails).
+- [x] 5. Emitted contract fixtures and probe digests via `npm run contract:emit`.
+- [x] 6. All tests and lint pass cleanly.
+

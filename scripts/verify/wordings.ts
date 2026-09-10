@@ -1498,3 +1498,57 @@ import type { GameState, Trigger } from "./harness";
   assert.ok(!offered.includes(plain), "…and the one without it is not");
   assertConsistent(s);
 }
+
+{
+  // BT7-129: "areas other than your deck, hand, or life" (20-1-6)
+  // The area list is inverted into the complement over ALL_AREAS, rather than
+  // matching "your deck" and searching the exact areas the text excludes.
+  const sk = parseSkills(
+    "[Permanent] If you have any non-black cards in areas other than your deck, hand, or life, you can't play this card from any area."
+  )[0];
+  const compiled = compileSkill(sk);
+  assert.equal(compiled.unsupported.length, 0);
+  const reading = describeScript(compiled.ops, { permanent: true });
+  assert.ok(reading.includes("in your leader or battle or unison or combo or energy or drop or warp or zDeck or zEnergy"));
+  assert.ok(!reading.includes("in your deck"));
+
+  // BT16-088: "non-<Zamasu> and non-<Goku Black>" Battle Cards for the game
+  // Two negated names survive clause-splitting and merge into one filter carrying both exclusions,
+  // with "for the game" parsed as until: "game".
+  const sk2 = parseSkills(
+    "[Activate: Main][Limit 1] If your Leader Card is a yellow ≪Shenron≫ <Zamasu> or yellow ≪Shenron≫ <Goku Black> card: Play this card from your Warp, and you can't play non-<Zamasu> and non-<Goku Black> Battle Cards for the game."
+  )[0];
+  const compiled2 = compileSkill(sk2);
+  assert.equal(compiled2.unsupported.length, 0);
+  const reading2 = describeScript(compiled2.ops);
+  assert.ok(reading2.includes("non-<zamasu> non-<goku black> battle card for the rest of the game"));
+}
+
+{
+  // s2-95: OR disjunction handling in condition clauses.
+  // "If you have a green X or a yellow Y in play": a green X alone and a yellow Y alone
+  // satisfy the disjunction; a green Y (combining one color with the other character) does not.
+  DEFS["G-TRUNKS"] = { ...DEFS.V1, id: "G-TRUNKS", name: "G-TRUNKS", colors: ["Green"], characters: ["Trunks"] };
+  DEFS["Y-VEGETA"] = { ...DEFS.V1, id: "Y-VEGETA", name: "Y-VEGETA", colors: ["Yellow"], characters: ["Vegeta"] };
+  DEFS["G-VEGETA"] = { ...DEFS.V1, id: "G-VEGETA", name: "G-VEGETA", colors: ["Green"], characters: ["Vegeta"] };
+  DEFS["OR-DRAWER"] = {
+    ...DEFS.V1,
+    id: "OR-DRAWER",
+    name: "OR-DRAWER",
+    skill: "[Activate: Main] If you have a green <Trunks> or a yellow <Vegeta> in play: Draw 1 card.",
+  };
+
+  const sGreenX = arena({ battle: ["OR-DRAWER", "G-TRUNKS"] });
+  const sYellowY = arena({ battle: ["OR-DRAWER", "Y-VEGETA"] });
+  const sGreenY = arena({ battle: ["OR-DRAWER", "G-VEGETA"] });
+
+  const cardX = find(sGreenX, "p1", "battle", "OR-DRAWER");
+  const cardY = find(sYellowY, "p1", "battle", "OR-DRAWER");
+  const cardCross = find(sGreenY, "p1", "battle", "OR-DRAWER");
+
+  assert.ok(canActivate(sGreenX, cardX), "a green X alone satisfies");
+  assert.ok(canActivate(sYellowY, cardY), "a yellow Y alone satisfies");
+  assert.ok(!canActivate(sGreenY, cardCross), "a green Y does not satisfy the disjunction");
+}
+
+

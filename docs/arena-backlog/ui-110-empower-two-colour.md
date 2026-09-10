@@ -8,7 +8,9 @@ stage: ui
 
 **Problem.** The two-colour form `[Empower XY/ZY]` fails on the slash. 22-45-3-1 defines it and says the player chooses one of the colours when the keyword resolves.
 
-**Blocked, on purpose:** no card in the catalog prints it. Confirm with `npm run arena:tally -- --show "Empower"` before doing anything; if it still returns no two-colour form, leave a comment on the regex naming this issue and stop. Build it the day a card needs it.
+**Blocked, on purpose:** no card in the catalog prints it.
+- **Status check (9 Sep 2026):** Confirmed with `npm run arena:tally -- --show "Empower"`. Out of 4 cards printing "Empower" (`P-378`, `P-377`, `BT27-002`, `P-733`), none print the two-colour `[Empower XY/ZY]` form. Added code comment on line 217 in `src/lib/arena/engine/cards.ts` referencing this issue.
+- Build will proceed when a card in the catalog prints this keyword variant.
 
 **Build, when unblocked.**
 1. `keywordOf` reads `[Empower XY/ZY]` into `{ name: "Empower", colors: [X, Z], x: Y }` (the keyword's parameters are in `KeywordSkill`); `KEYWORD_NAMES` unchanged; the language literal `[Empower color: …]` grows a list form and `scripts/verify/lang.ts` round-trips it.
