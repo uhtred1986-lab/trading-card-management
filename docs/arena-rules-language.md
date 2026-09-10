@@ -153,6 +153,14 @@ THEN
   power(target: 99 IN you.battle, amount: count(99 "≪Saiyan≫" IN you.battle) * 5000, until: game)
 ```
 
+A counted prohibition with an escape clause:
+
+```
+WHEN [auto] played
+THEN
+  forbid(what: attack, until: turn, side: opponent, filter: "battle card", uses: 1, unless: count(99 IN opponent.energy) >= 3)
+```
+
 A price paid by an action rather than energy, and a marker cost:
 
 ```

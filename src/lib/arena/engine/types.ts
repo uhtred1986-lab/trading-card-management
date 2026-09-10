@@ -8,7 +8,7 @@
  */
 
 import type { CardFilter } from "./filters";
-import type { Op, ScriptFrame } from "./script";
+import type { Cond, Op, ScriptFrame } from "./script";
 import type { AltCost, Payment } from "./state";
 
 export type PlayerId = "p1" | "p2";
@@ -307,6 +307,10 @@ export type ForbiddenAction =
 
 export interface Prohibition {
   what: ForbiddenAction;
+  /** Allowed uses before the prohibition starts applying. */
+  uses?: number;
+  /** Escape condition: while this holds, the prohibition does not apply. */
+  unless?: Cond;
   /** Whose action is forbidden. Absent means either player's. */
   player?: PlayerId;
   /** Which cards it is about. Absent means any card. */
@@ -860,7 +864,7 @@ export type Requirement =
    * is the source. `until` is how long the rule holds — an effect's duration,
    * or "permanent" while the source card's [Permanent] skill is valid.
    */
-  | { kind: "forbidden"; by: string | null; until?: EffectUntil }
+  | { kind: "forbidden"; by: string | null; until?: EffectUntil; unless?: string }
   /** The compiler cannot read the card's text, so the engine cannot offer it. */
   | { kind: "unread"; card: string }
   /** A printed condition of the skill that does not hold yet — "When your life is at 4 or less". */

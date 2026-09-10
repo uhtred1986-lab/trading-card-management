@@ -154,7 +154,7 @@ export function rejectedActions(ctx: EngineContext, s: GameState, legal: LegalAc
         if (b && id === b.guard) why.push({ kind: "other", detail: "it is the card being attacked" });
         if (s.cards[id].mode !== "active") why.push(deps.modeWhy(ctx, s, id));
         const f = forbiddenBy(ctx, s, "block", { player: p, card: id });
-        if (f) why.push({ kind: "forbidden", by: f.by, until: f.until });
+        if (f) why.push({ kind: "forbidden", by: f.by, until: f.until, ...(f.unless ? { unless: f.unless } : {}) });
         push({ type: "block", player: p, card: id }, `Block with ${name(id)}`, why);
       }
       return out;
@@ -169,7 +169,7 @@ export function rejectedActions(ctx: EngineContext, s: GameState, legal: LegalAc
           if (offered.has(id) || s.cards[id].hidden) continue;
           const f = forbiddenBy(ctx, s, "beChosen", { card: id });
           const why: Requirement[] = f
-            ? [{ kind: "forbidden", by: f.by, until: f.until }]
+            ? [{ kind: "forbidden", by: f.by, until: f.until, ...(f.unless ? { unless: f.unless } : {}) }]
             : has(ctx, s, id, "Barrier")
               ? [{ kind: "forbidden", by: name(id), until: "permanent" }]
               : [{ kind: "target", reason: pr.choice.reason }];
