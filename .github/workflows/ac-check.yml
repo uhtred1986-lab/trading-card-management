@@ -1,0 +1,45 @@
+# Cross-checks a PR's own "Closes #N" / "Fixes #N" / "Resolves #N" claims
+# against what its diff actually delivers, and comments the verdict.
+#
+# This catches a different failure than bugbot.yml: a diff can be entirely
+# bug-free and still not implement what the PR claims to close. GitHub
+# auto-closes every referenced issue the moment such a PR merges, whether or
+# not the work is really there — see PR #182, where the body claimed to
+# close six issues with zero related code in the diff.
+name: Acceptance criteria check
+
+on:
+  pull_request:
+    types: [opened, synchronize, edited]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: read
+
+jobs:
+  ac-check:
+    runs-on: ubuntu-latest
+    if: github.actor != 'dependabot[bot]'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Bypass onboarding for CI
+        run: |
+          mkdir -p ~/.claude
+          echo '{"hasCompletedOnboarding":true,"autoUpdaterStatus":"disabled","enableTelemetry":false}' > ~/.claude.json
+
+      - name: Configure Claude auth
+        env:
+          SETUP_TOKEN: ${{ secrets.CLAUDE_SETUP_TOKEN }}
+        run: echo "CLAUDE_CODE_OAUTH_TOKEN=$SETUP_TOKEN" >> "$GITHUB_ENV"
+
+      - name: Run acceptance-criteria check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/ci/check-acceptance-criteria.mjs
