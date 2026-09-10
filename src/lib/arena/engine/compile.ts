@@ -1880,6 +1880,42 @@ function readsAsAction(said: string): boolean {
   }
 }
 
+const COLOR_NAMES_PATTERN = "(?:an?\\s+)?(?:red|blue|green|yellow|black|colorless)";
+const AREA_NAMES_PATTERN = "(?:(?:your|your opponent's|the|an?)\\s+)?(?:hand|deck|drop|warp|life|battle|unison|energy|leader|combo|play|z-deck|z-energy|zdeck|zenergy)(?: area)?";
+
+export function splitDisjunction(text: string): string[] {
+  const regex = /(?:,\s+)?\bor\b/gi;
+  let match: RegExpExecArray | null;
+  const splitIndices: { start: number; end: number }[] = [];
+
+  while ((match = regex.exec(text)) !== null) {
+    const before = text.slice(0, match.index).trim();
+    const after = text.slice(match.index + match[0].length).trim();
+
+    if (/\d+\s*$/i.test(before) && /^(?:more|less|fewer)\b/i.test(after)) {
+      continue;
+    }
+    if (new RegExp(COLOR_NAMES_PATTERN + "$", "i").test(before) && new RegExp("^" + COLOR_NAMES_PATTERN, "i").test(after)) {
+      continue;
+    }
+    if (new RegExp(AREA_NAMES_PATTERN + "$", "i").test(before) && new RegExp("^" + AREA_NAMES_PATTERN, "i").test(after)) {
+      continue;
+    }
+    splitIndices.push({ start: match.index, end: match.index + match[0].length });
+  }
+
+  if (splitIndices.length === 0) return [text];
+
+  const parts: string[] = [];
+  let lastIndex = 0;
+  for (const idx of splitIndices) {
+    parts.push(text.slice(lastIndex, idx.start).trim());
+    lastIndex = idx.end;
+  }
+  parts.push(text.slice(lastIndex).trim());
+  return parts.filter((p) => p.length > 0);
+}
+
 export function parseConditionClause(clause: string, allowBare = false): { cond: Cond; subject?: Ref } | null {
   const trimmed = clause.toLowerCase().trim();
   // "During your turn" is a condition too, and reads as one everywhere else in
@@ -1919,15 +1955,40 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
     if (conds.length > 1) return { cond: { kind: "all", conds } };
     if (charged) return null;
   }
+  // Several conditions joined by "or"; "or" binds loosest.
+  // Every part has to read, or the whole condition is a gap.
+  const JOIN = /(?=you |your |there |it'?s |it is |this card |all )/;
+  const alternatives = t.split(new RegExp(`,? or ${JOIN.source}`));
+  if (alternatives.length > 1) {
+    const conds = alternatives.map((part) => parseConditionClause(part.trim(), true)?.cond ?? null);
+    if (conds.every((x) => x)) return { cond: { kind: "any", conds: conds as Cond[] } };
+  }
   let m: RegExpExecArray | null;
   // "If your Leader Card is a <Baby> card, it gets +10000 power" — the leader is
   // both the condition's subject and what "it" then refers to.
   if ((m = /^your leader(?: card)? is (.+)$/.exec(t))) {
+    const parts = splitDisjunction(m[1]);
+    if (parts.length > 1) {
+      const conds = parts.map((part) => ({
+        kind: "leaderMatches" as const,
+        filter: parseFilter(part),
+      }));
+      return { cond: { kind: "any", conds }, subject: { sel: { special: "leader" } } };
+    }
     const filter = parseFilter(m[1]);
     return { cond: { kind: "leaderMatches", filter }, subject: { sel: { special: "leader" } } };
   }
   // "If your opponent's Leader Card is red or blue" — the same test, other side.
   if ((m = /^your opponent's leader(?: card)? is (.+)$/.exec(t))) {
+    const parts = splitDisjunction(m[1]);
+    if (parts.length > 1) {
+      const conds = parts.map((part) => ({
+        kind: "leaderMatches" as const,
+        side: "opponent" as const,
+        filter: parseFilter(part),
+      }));
+      return { cond: { kind: "any", conds }, subject: { sel: { special: "opponentLeader" } } };
+    }
     return { cond: { kind: "leaderMatches", side: "opponent", filter: parseFilter(m[1]) }, subject: { sel: { special: "opponentLeader" } } };
   }
   // Life, both sides and both directions. "Or more" reads the other bound of
@@ -2065,6 +2126,15 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   }
   // "If your Leader's back side is {Name}", "… is a black <Goku> card" (22-2-5).
   if ((m = /^your leader(?: card)?'s back side is (.+)$/.exec(t))) {
+    const parts = splitDisjunction(m[1]);
+    if (parts.length > 1) {
+      const conds = parts.map((part) => ({
+        kind: "leaderMatches" as const,
+        filter: parseFilter(part),
+        back: true,
+      }));
+      return { cond: { kind: "any", conds }, subject: { sel: { special: "leader" } } };
+    }
     return { cond: { kind: "leaderMatches", filter: parseFilter(m[1]), back: true }, subject: { sel: { special: "leader" } } };
   }
   // "If {Son Goku, Hero} is in play in your Unison Area", "if your <Vegeta>
@@ -2103,15 +2173,7 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   }
   const counted = parseCountCondition(t);
   if (counted) return { cond: counted };
-  // "When your life is at 4 or less, or you have 5 or more energy and a
-  // <Goku> card in play" — several conditions joined; "or" binds loosest.
-  // Every part has to read, or the whole condition is a gap.
-  const JOIN = /(?=you |your |there |it'?s |it is |this card |all |an? )/;
-  const alternatives = t.split(new RegExp(`,? or ${JOIN.source}`));
-  if (alternatives.length > 1) {
-    const conds = alternatives.map((part) => parseConditionClause(part, true)?.cond ?? null);
-    return conds.every((x) => x) ? { cond: { kind: "any", conds: conds as Cond[] } } : null;
-  }
+  // Several conditions joined; "and" binds tightly.
   const both = t.split(new RegExp(`,? and ${JOIN.source}`));
   if (both.length > 1) {
     const conds = both.map((part) => parseConditionClause(part, true)?.cond ?? null);
@@ -2149,6 +2211,30 @@ function parseCountCondition(t: string): Cond | null {
   // the number usually does not repeat.
   const mine = /^you have/.test(t);
   const theirs = /^your opponent has/.test(t);
+
+  const parts = splitDisjunction(rest);
+  if (parts.length > 1) {
+    const trailingAreaMatch = /\s+(in (?:play(?: in (?:a|an|the|your|your opponent's) [a-z- ]*area)?|(?:a|an|the|your|your opponent's) [a-z- ]+? area|(?:your|your opponent's) (?:drop|warp|hand|energy|deck|life|combo|battle|unison|z-deck|z-energy)|play))$/i.exec(parts[parts.length - 1]);
+    const trailingArea = trailingAreaMatch ? trailingAreaMatch[1] : null;
+
+    const conds: Cond[] = [];
+    for (let i = 0; i < parts.length; i++) {
+      let part = parts[i];
+      if (trailingArea && !/\bin (?:play|your|your opponent's)/i.test(part)) {
+        part = `${part} ${trailingArea}`;
+      }
+      const phrase = mine ? `your ${part}` : theirs ? `your opponent's ${part}` : part;
+      const sel = parseTarget(phrase);
+      if (!sel) return null;
+      delete sel.count;
+      delete sel.upTo;
+      if (none) conds.push({ kind: "count", sel, atMost: 0 });
+      else if (!num) conds.push({ kind: "count", sel, atLeast: 1 });
+      else conds.push({ kind: "count", sel, ...(dir === "more" ? { atLeast: Number(num) } : { atMost: Number(num) }) });
+    }
+    return { kind: "any", conds };
+  }
+
   const phrase = mine ? `your ${rest}` : theirs ? `your opponent's ${rest}` : rest;
   const sel = parseTarget(phrase);
   if (!sel) return null;

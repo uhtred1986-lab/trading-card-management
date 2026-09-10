@@ -1524,3 +1524,31 @@ import type { GameState, Trigger } from "./harness";
   assert.ok(reading2.includes("non-<zamasu> non-<goku black> battle card for the rest of the game"));
 }
 
+{
+  // s2-95: OR disjunction handling in condition clauses.
+  // "If you have a green X or a yellow Y in play": a green X alone and a yellow Y alone
+  // satisfy the disjunction; a green Y (combining one color with the other character) does not.
+  DEFS["G-TRUNKS"] = { ...DEFS.V1, id: "G-TRUNKS", name: "G-TRUNKS", colors: ["Green"], characters: ["Trunks"] };
+  DEFS["Y-VEGETA"] = { ...DEFS.V1, id: "Y-VEGETA", name: "Y-VEGETA", colors: ["Yellow"], characters: ["Vegeta"] };
+  DEFS["G-VEGETA"] = { ...DEFS.V1, id: "G-VEGETA", name: "G-VEGETA", colors: ["Green"], characters: ["Vegeta"] };
+  DEFS["OR-DRAWER"] = {
+    ...DEFS.V1,
+    id: "OR-DRAWER",
+    name: "OR-DRAWER",
+    skill: "[Activate: Main] If you have a green <Trunks> or a yellow <Vegeta> in play: Draw 1 card.",
+  };
+
+  const sGreenX = arena({ battle: ["OR-DRAWER", "G-TRUNKS"] });
+  const sYellowY = arena({ battle: ["OR-DRAWER", "Y-VEGETA"] });
+  const sGreenY = arena({ battle: ["OR-DRAWER", "G-VEGETA"] });
+
+  const cardX = find(sGreenX, "p1", "battle", "OR-DRAWER");
+  const cardY = find(sYellowY, "p1", "battle", "OR-DRAWER");
+  const cardCross = find(sGreenY, "p1", "battle", "OR-DRAWER");
+
+  assert.ok(canActivate(sGreenX, cardX), "a green X alone satisfies");
+  assert.ok(canActivate(sYellowY, cardY), "a yellow Y alone satisfies");
+  assert.ok(!canActivate(sGreenY, cardCross), "a green Y does not satisfy the disjunction");
+}
+
+

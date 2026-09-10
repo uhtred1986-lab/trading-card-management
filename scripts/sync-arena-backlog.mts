@@ -64,7 +64,7 @@ function hasGhCli(): boolean {
 async function ghFetch(
   endpoint: string,
   repo: string,
-  options: { method?: string; body?: any } = {}
+  options: { method?: string; body?: unknown } = {}
 ) {
   const token = getAuthToken();
   const method = options.method || "GET";
@@ -168,8 +168,9 @@ async function listRemoteIssues(repo: string): Promise<GhIssue[]> {
       page++;
     }
     return all;
-  } catch (err: any) {
-    console.warn(`[warn] Could not list remote issues directly: ${err.message}`);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn(`[warn] Could not list remote issues directly: ${msg}`);
     return [];
   }
 }
