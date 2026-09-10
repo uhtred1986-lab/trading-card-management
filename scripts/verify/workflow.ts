@@ -19,6 +19,8 @@ import {
   game,
   labels,
   legalActions,
+  missingEnergyChip,
+  missingEnergyChips,
   narrate,
   parseSkills,
   pill,
@@ -596,6 +598,35 @@ import type { Beat, GameState, PlayerId, RejectedAction, Requirement } from "./h
   assert.equal(refusal({ kind: "other", detail: "it is the attacking card" }, o).fact, "It is the attacking card.");
   assert.equal(refusal({ kind: "zone", card: "x", area: "battle" }, o).remedy, "Play it first.");
   assert.equal(pill({ kind: "energy", need: 5, have: 2 }), "3 short");
+
+  // Missing-energy chips beside the energy strip (ui-100-missing-energy-chips.md).
+  // "needs {r}{r}, you have {r}"
+  assert.equal(missingEnergyChip({ kind: "energyColour", colour: "Red", need: 2, have: 1 }), "needs {r}{r}, you have {r}");
+  assert.equal(missingEnergyChip({ kind: "energyColour", colour: "Red", need: 1, have: 0 }), "needs {r}, you have 0");
+  assert.equal(missingEnergyChip({ kind: "energyColour", colour: "Blue", need: 3, have: 0 }), "needs {u}{u}{u}, you have 0");
+  assert.equal(missingEnergyChip({ kind: "energyColour", colour: "Red/Blue", need: 1, have: 0 }), "needs {r}/{u}, you have 0");
+  assert.equal(missingEnergyChip({ kind: "energy", need: 3, have: 1 }), "needs 3, you have 1");
+  assert.equal(missingEnergyChip({ kind: "energy", need: 1, have: 0 }), "needs 1, you have 0");
+  assert.equal(missingEnergyChip({ kind: "mode", card: "x", mode: "rest" }), null);
+
+  // Derived chips list for requirements from contract/fixtures/play.json
+  const playFixtureWhy: Requirement[] = [
+    { kind: "energy", need: 1, have: 0 },
+    { kind: "energyColour", colour: "Red", need: 1, have: 0 },
+  ];
+  const chips = missingEnergyChips(playFixtureWhy);
+  assert.equal(chips.length, 2);
+  assert.deepEqual(chips[0], { kind: "energy", need: 1, have: 0, short: 1, text: "needs 1, you have 0" });
+  assert.deepEqual(chips[1], { kind: "energyColour", colour: "Red", need: 1, have: 0, short: 1, text: "needs {r}, you have 0" });
+
+  const twoRedWhy: Requirement[] = [
+    { kind: "energy", need: 3, have: 1 },
+    { kind: "energyColour", colour: "Red", need: 2, have: 1 },
+  ];
+  const twoRedChips = missingEnergyChips(twoRedWhy);
+  assert.equal(twoRedChips.length, 2);
+  assert.equal(twoRedChips[0].text, "needs 3, you have 1");
+  assert.equal(twoRedChips[1].text, "needs {r}{r}, you have {r}");
 
   // Prices, worn on the sheet's rows.
   const big = you.hand!.find((c) => c.name === "BIG")!;

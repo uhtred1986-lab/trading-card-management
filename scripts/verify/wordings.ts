@@ -1132,6 +1132,21 @@ import type { GameState, Trigger } from "./harness";
     assert.equal(target?.area, "battle", `${number}: the comparison is not an energy area`);
     assert.equal(target?.side, "opponent", `${number}: the source Battle Card belongs to the opponent`);
   }
+  {
+    const ex25 = parseTarget("all of your opponent's skill-less Battle Cards and Battle Cards with 15000 power or less ―all in Rest Mode―");
+    assert.equal(ex25?.area, "battle", "EX25-35: source area is battle");
+    assert.equal(ex25?.side, "opponent", "EX25-35: belongs to the opponent");
+    assert.equal(ex25?.count, 99, "EX25-35: all cards");
+
+    const bt21 = parseTarget("up to 1 of your opponent's Battle Cards with an energy cost of 3 or less or up to 1 of their Unisons with 2 or less markers");
+    assert.equal(bt21?.area, "battle", "BT21-092: primary area is battle");
+    assert.equal(bt21?.side, "opponent", "BT21-092: belongs to the opponent");
+    assert.deepEqual(bt21?.areas, ["battle", "unison"], "BT21-092: disjunction includes unison");
+
+    const noArea = parseTarget("up to 1 of your opponent's cards");
+    assert.equal(noArea?.side, "opponent", "no-area fallback: possessive opponent is preserved");
+    assert.equal(noArea?.area, "play", "no-area fallback: defaults to play");
+  }
 
   // 2. "**Other than** this card" names the one card the target is not, and
   // "this card's power" is a measure of some other card. `refFor` tested only
