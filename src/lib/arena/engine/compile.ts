@@ -2805,8 +2805,8 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
 
   const skillKindFromTag = (tag: string): SkillKindPrefix | null => {
     const word = tag.trim().toLowerCase();
-    if (/^counter\b/.test(word)) return "counter";
-    if (/^activate\b/.test(word)) return "activate";
+    if (word === "counter") return "counter";
+    if (word === "activate") return "activate";
     if (word === "auto") return "auto";
     if (word === "permanent") return "permanent";
     return null;
