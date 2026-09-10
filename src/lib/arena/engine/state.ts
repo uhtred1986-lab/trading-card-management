@@ -628,6 +628,8 @@ export interface StaticEffect {
   value: number | KeywordSkill | KeywordSkill["name"] | Prohibition | Permission | Immunity | AltCost | Gains | Replacement | { colors: (Color | "any")[]; sign: 1 | -1 };
   /** Set when `kind` is "skillCost" or "evolveCost". */
   skillKind?: SkillKindPrefix;
+  /** Printed orb kinds for `skillCost`/`evolveCost` modifiers, when colour-scoped. */
+  colors?: (Color | "any")[];
 }
 
 /**
@@ -765,7 +767,8 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
       // can be evaluated.
       const value = typeof op.amount === "number" ? op.amount : "count" in op.amount || "markers" in op.amount ? amount(ctx, s, frame, op.amount) : null;
       if (value == null) continue;
-      for (const id of staticTargets(ctx, s, frame, op.target)) out.push({ source, kind, target: id, value, ...(op.skillKind ? { skillKind: op.skillKind } : {}) });
+      for (const id of staticTargets(ctx, s, frame, op.target))
+        out.push({ source, kind, target: id, value, ...(op.skillKind ? { skillKind: op.skillKind } : {}), ...(op.colors?.length ? { colors: op.colors } : {}) });
       continue;
     }
     // "In all areas", so it is read wherever the card is — which is the point

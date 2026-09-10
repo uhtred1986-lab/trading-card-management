@@ -396,6 +396,8 @@ export interface ContinuousEffect {
   altCost?: AltCost;
   /** Set when `kind` is "skillCost" or "evolveCost". */
   skillKind?: SkillKindPrefix;
+  /** Printed orb kinds for `skillCost`/`evolveCost` modifiers, when colour-scoped. */
+  colors?: (Color | "any")[];
   /** "nextTurn" runs through the opponent's whole turn and ends as yours begins. */
   until: "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "game";
   /**

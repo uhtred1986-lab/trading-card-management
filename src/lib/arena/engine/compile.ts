@@ -2815,7 +2815,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   const skillScope = (raw: string): { target: Ref; skillKind?: SkillKindPrefix } | null => {
     let mSkill: RegExpExecArray | null;
     // "…of [Counter] skills on yellow <Vegito> cards in your hand…"
-    if ((mSkill = /^(?:your|their|the)\s+\[([a-z0-9:\- /]+)\] skills? (?:on|of) (.+)$/i.exec(raw))) {
+    if ((mSkill = /^(?:(?:your|their|the)\s+)?\[([a-z0-9:\- /]+)\] skills? (?:on|of) (.+)$/i.exec(raw))) {
       const kind = skillKindFromTag(mSkill[1]);
       const target = refFor(mSkill[2], c);
       return kind && target && !(c.stale && target === c.stale) ? { target, skillKind: kind } : null;
@@ -3020,7 +3020,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
             : kindWordTrim === "evolve"
               ? ({ what: "evolve" as const })
               : {};
-    return [{ op: "costReduction", target: ref, amount: by, ...what, ...(skillKind ? { skillKind } : {}), until: durationOf(clause) }];
+    return [{ op: "costReduction", target: ref, amount: by, ...what, ...(skillKind ? { skillKind } : {}), ...(orbs ? { colors: orbsToList(orbs) } : {}), until: durationOf(clause) }];
   }
 
   // "X get -N combo cost" (BT22-055, BT22-056, BT23-072): the same standing

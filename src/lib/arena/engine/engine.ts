@@ -602,7 +602,7 @@ function counterCandidates(ctx: EngineContext, s: GameState, responder: PlayerId
       const orbs = orbTotals(ctx, s, id, sk);
       // 5-3: some cards print another way to pay, which is the only way the
       // card is playable when the energy is not there.
-      const affordable = !!planPayment(ctx, s, responder, cost.total + orbs.total, cost.specified, undefined, orbs.either);
+      const affordable = !!planPayment(ctx, s, responder, cost.total + orbs.total, mergeSpecified(cost.specified, orbs.specified), undefined, orbs.either);
       if (!affordable && !altCostFor(ctx, s, id, responder)) continue;
       out.push({ card: id, skill: sk.index });
     }
@@ -902,6 +902,42 @@ function runSkill(
 }
 
 /** The energy orbs in a skill cost after any matching skill/evolve cost modifiers. */
+function mergeSpecified(a: Partial<Record<Color, number>>, b: Partial<Record<Color, number>>): Partial<Record<Color, number>> {
+  const out: Partial<Record<Color, number>> = { ...a };
+  for (const [c, n] of Object.entries(b) as [Color, number][]) out[c] = (out[c] ?? 0) + n;
+  return out;
+}
+
+function reduceAnyOrb(specified: Partial<Record<Color, number>>, either: Color[][], generic: { n: number }): boolean {
+  const c = (Object.keys(specified) as Color[]).find((k) => (specified[k] ?? 0) > 0);
+  if (c) {
+    specified[c] = specified[c]! - 1;
+    if (!specified[c]) delete specified[c];
+    return true;
+  }
+  if (either.length) {
+    either.pop();
+    return true;
+  }
+  if (generic.n > 0) {
+    generic.n--;
+    return true;
+  }
+  return false;
+}
+
+function reduceColorOrb(specified: Partial<Record<Color, number>>, either: Color[][], color: Color): boolean {
+  if ((specified[color] ?? 0) > 0) {
+    specified[color] = specified[color]! - 1;
+    if (!specified[color]) delete specified[color];
+    return true;
+  }
+  const i = either.findIndex((pick) => pick.includes(color));
+  if (i < 0) return false;
+  either.splice(i, 1);
+  return true;
+}
+
 function orbTotals(
   ctx: EngineContext,
   s: GameState,
@@ -915,25 +951,39 @@ function orbTotals(
     total += v ?? 0;
     if (k !== "any") specified[k as Color] = v;
   }
-  const either = sk.energyEither.slice();
+  const either = sk.energyEither.map((pick) => pick.slice());
   total += either.length;
-  let reduction = 0;
+  const generic = { n: Math.max(0, total - Object.values(specified).reduce((sum, n) => sum + (n ?? 0), 0) - either.length) };
   const effectKind = kind === "evolve" ? "evolveCost" : "skillCost";
   const applies = (skillKind: string | undefined) => !skillKind || sk.kind.startsWith(skillKind);
-  for (const e of staticEffects(ctx, s)) if (e.kind === effectKind && e.target === card && applies(e.skillKind)) reduction += e.value as number;
-  for (const e of s.effects) if (e.kind === effectKind && e.target === card && applies(e.skillKind)) reduction += e.value as number;
-  const cutSpecified = { ...specified };
-  for (let left = reduction; left > 0; left--) {
-    const c = (Object.keys(cutSpecified) as Color[]).find((k) => (cutSpecified[k] ?? 0) > 0);
-    if (!c) {
-      if (!either.length) break;
-      either.pop();
+  const mods = [
+    ...staticEffects(ctx, s).filter((e) => e.kind === effectKind && e.target === card && applies(e.skillKind)),
+    ...s.effects.filter((e) => e.kind === effectKind && e.target === card && applies(e.skillKind)),
+  ];
+  for (const e of mods) {
+    const by = e.value as number;
+    if (!Number.isFinite(by) || by === 0) continue;
+    if (by > 0) {
+      const colors = e.colors?.length ? e.colors : null;
+      for (let i = 0; i < by; i++) {
+        const want = colors?.[i % colors.length];
+        let cut = false;
+        if (!want || want === "any") cut = reduceAnyOrb(specified, either, generic);
+        else cut = reduceColorOrb(specified, either, want);
+        if (!cut) continue;
+        total = Math.max(0, total - 1);
+      }
       continue;
     }
-    cutSpecified[c] = cutSpecified[c]! - 1;
-    if (!cutSpecified[c]) delete cutSpecified[c];
+    const colors = e.colors?.length ? e.colors : null;
+    for (let i = 0; i < -by; i++) {
+      const want = colors?.[i % colors.length];
+      total += 1;
+      if (!want || want === "any") generic.n += 1;
+      else specified[want] = (specified[want] ?? 0) + 1;
+    }
   }
-  return { total: Math.max(0, total - reduction), specified: cutSpecified, either };
+  return { total, specified, either };
 }
 
 /** The rules for the face-up side of a card, as the game was given them. */
@@ -1639,8 +1689,8 @@ export function legalActions(ctx: EngineContext, s: GameState): LegalAction[] {
       for (const id of pr.candidates) {
         const sk = skillsOf(def(ctx, s, id)).find((k) => k.kind.startsWith("counter:"));
         const cost = playCost(ctx, s, id);
-        const orbs = sk ? orbTotals(ctx, s, id, sk) : { total: 0 };
-        if (planPayment(ctx, s, pr.player, cost.total + orbs.total, cost.specified)) {
+        const orbs = sk ? orbTotals(ctx, s, id, sk) : { total: 0, specified: {}, either: [] as Color[][] };
+        if (planPayment(ctx, s, pr.player, cost.total + orbs.total, mergeSpecified(cost.specified, orbs.specified), undefined, orbs.either)) {
           const energy = cost.total + orbs.total;
           out.push({ action: { type: "counter", player: pr.player, card: id, skill: sk?.index }, label: `Counter with ${name(id)}`, cost: { energy, describe: energy ? `${energy} energy` : "free" } });
         }
@@ -1975,7 +2025,7 @@ function whyNotCounter(ctx: EngineContext, s: GameState, p: PlayerId, card: stri
     // On the list but not on the menu: only the price stops it.
     const sk = counters[0];
     const orbs = orbTotals(ctx, s, card, sk);
-    why.push(...whyNotPay(ctx, s, p, cost.total + orbs.total, cost.specified, orbs.either));
+    why.push(...whyNotPay(ctx, s, p, cost.total + orbs.total, mergeSpecified(cost.specified, orbs.specified), orbs.either));
     return why;
   }
   const fits = counters.filter(
@@ -1996,7 +2046,7 @@ function whyNotCounter(ctx: EngineContext, s: GameState, p: PlayerId, card: stri
   const f = forbiddenBy(ctx, s, "activateCounter", { player: p, card });
   if (f) why.push({ kind: "forbidden", by: f.by, until: f.until });
   const orbs = orbTotals(ctx, s, card, sk);
-  why.push(...whyNotPay(ctx, s, p, cost.total + orbs.total, cost.specified, orbs.either));
+  why.push(...whyNotPay(ctx, s, p, cost.total + orbs.total, mergeSpecified(cost.specified, orbs.specified), orbs.either));
   return why;
 }
 
@@ -2801,7 +2851,7 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
         } else {
           const c = playCost(ctx, s, action.card);
           const orbs = orbTotals(ctx, s, action.card, sk);
-          const pm = planPayment(ctx, s, p, c.total + orbs.total, { ...c.specified }, action.pay, orbs.either);
+          const pm = planPayment(ctx, s, p, c.total + orbs.total, mergeSpecified(c.specified, orbs.specified), action.pay, orbs.either);
           if (!pm) throw new IllegalAction("can't pay the counter's cost");
           pay(s, ev, p, pm);
         }

@@ -1209,7 +1209,16 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
                   ? "evolveCost"
                   : "cost";
         for (const id of resolveRef(ctx, s, frame, op.target)) {
-          addEffect(s, ev, { master: frame.master, source: frame.card, target: id, kind, value: by, until: op.until ?? "turn", ...(op.skillKind ? { skillKind: op.skillKind } : {}) });
+          addEffect(s, ev, {
+            master: frame.master,
+            source: frame.card,
+            target: id,
+            kind,
+            value: by,
+            until: op.until ?? "turn",
+            ...(op.skillKind ? { skillKind: op.skillKind } : {}),
+            ...(op.colors?.length ? { colors: op.colors } : {}),
+          });
         }
         break;
       }
