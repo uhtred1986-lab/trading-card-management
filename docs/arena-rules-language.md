@@ -77,6 +77,8 @@ item   := "{" colour "}"+ | "{" colour "/" colour "}" | ±n "marker" | "burst" n
         | "spiritBoost" n | "TEXT" "…" | "IF" cond | "DO" "{" stmt* "}"
 ```
 
+`trigger` names the engine's fired moments (validated by `validateRule`), including keyword-timing moments that are not plain phase names: `evolveFromHandActivated`, `unionAbsorbActivated`, and `counterFreeFromHand`. The free-counter wording is modelled as a WHEN moment (not as a COST item), so one printed form round-trips to one record shape.
+
 `--` starts a comment to the end of the line. The printer never writes one, and the parser never
 keeps one — a note that the next save would silently eat is worse than no note at all.
 

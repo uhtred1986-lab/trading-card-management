@@ -4,6 +4,7 @@
  * Part of `npm test`; run from `scripts/verify-arena.ts`, which fixes the order.
  */
 import assert from "node:assert/strict";
+import { legalActions } from "../../src/lib/arena/engine";
 import {
   CTX,
   DEFS,
@@ -27,6 +28,129 @@ import {
 } from "./harness";
 
 // ── §22 keywords as engine rules ───────────────────────────────────────────
+
+{
+  // Trigger moments that are keyword timings, not plain phase timings, are
+  // named in WHEN and fired by the engine where the keyword is used.
+  DEFS.EVOHOST = { ...DEFS.V1, id: "EVOHOST", name: "EVOHOST", characters: ["Evo Host"] };
+  DEFS.EVOTRIG = {
+    ...DEFS.V1,
+    id: "EVOTRIG",
+    name: "EVOTRIG",
+    energyCost: 2,
+    skill: "[Auto] When using this card's [Evolve] from your hand, draw 1 card.\n[Evolve]{r}: <Evo Host>",
+  };
+  let s = arena({ hand: ["EVOTRIG"], battle: ["EVOHOST"], energy: ["V1", "V1"] });
+  const handBeforePlay = s.players.p1.hand.length;
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "EVOTRIG") });
+  assert.equal(s.players.p1.hand.length, handBeforePlay - 1, "playing from hand is not the [Evolve] timing");
+
+  s = arena({ hand: ["EVOTRIG"], battle: ["EVOHOST"], energy: ["V1", "V1"] });
+  const handBeforeEvolve = s.players.p1.hand.length;
+  const evolveAction = acts(s).find((a) => a.type === "activate" && a.card === find(s, "p1", "hand", "EVOTRIG") && !a.alt);
+  assert.ok(evolveAction, "the [Evolve] activation is offered from hand");
+  s = play(s, evolveAction);
+  if (s.prompt.kind === "chooseCards") s = play(s, { type: "choose", player: "p1", cards: [s.players.p1.battle[0]] });
+  assert.equal(s.players.p1.hand.length, handBeforeEvolve, "using [Evolve] from hand fires the [Auto] once");
+  assertConsistent(s);
+
+  DEFS.UABS = {
+    ...DEFS.V1,
+    id: "UABS",
+    name: "UABS",
+    skill: "[Auto] When this card's [Union-Absorb] is activated, draw 1 card.\n[Union-Absorb][Activate: Main] Draw 1 card.",
+  };
+  s = arena({ battle: ["UABS"] });
+  const handBeforeAbsorb = s.players.p1.hand.length;
+  const absorbAction = acts(s).find((a) => a.type === "activate" && a.card === s.players.p1.battle[0] && !a.alt);
+  assert.ok(absorbAction, "the [Union-Absorb] activation is offered");
+  s = play(s, absorbAction);
+  assert.equal(s.players.p1.hand.length, handBeforeAbsorb + 2, "the activation and the timing [Auto] both resolve");
+  assertConsistent(s);
+  DEFS.UABSWATCH = {
+    ...DEFS.V1,
+    id: "UABSWATCH",
+    name: "UABSWATCH",
+    skill: "[Auto] When you activate a [Union] skill, draw 1 card.",
+  };
+  s = arena({ battle: ["UABS", "UABSWATCH"] });
+  const handBeforeUnionWatch = s.players.p1.hand.length;
+  const absorbWithWatcher = acts(s).find((a) => a.type === "activate" && a.card === s.players.p1.battle[0] && !a.alt);
+  assert.ok(absorbWithWatcher, "the [Union-Absorb] activation is still offered with a [Union] watcher in play");
+  s = play(s, absorbWithWatcher);
+  assert.equal(s.players.p1.hand.length, handBeforeUnionWatch + 3, "[Union-Absorb] activation also fires [Union] timing [Auto]s");
+  assertConsistent(s);
+  delete DEFS.EVOTRIG;
+  delete DEFS.EVOHOST;
+  delete DEFS.UABS;
+  delete DEFS.UABSWATCH;
+}
+
+{
+  // Free [Counter] from hand is a timing of its own.
+  DEFS.CFREE = {
+    ...DEFS["E-NEGATE"],
+    id: "CFREE",
+    name: "CFREE",
+    energyCost: 2,
+    skill:
+      "[Permanent] You may activate this card's [Counter] skill from your hand without paying its energy cost.\n" +
+      "[Auto] When you activate this card's [Counter] skill from your hand without paying its energy cost, draw 1 card.\n" +
+      "[Counter: Attack] Negate the attack.",
+  };
+  let s = arena({ hand: ["CFREE"], energy: ["V1"] });
+  s = play(
+    s,
+    { type: "endMain", player: "p1" },
+    { type: "charge", player: "p2", card: null },
+    { type: "attack", player: "p2", attacker: s.players.p2.leader, target: s.players.p1.leader },
+  );
+  assert.equal(s.prompt.kind, "counter");
+  assert.ok(labels(s).some((x) => x.includes("Counter with CFREE (for no energy)")), "the free counter is offered from hand");
+  const freeCounterOffer = legalActions(CTX, s).find((a) => a.action.type === "counter" && a.action.card === find(s, "p1", "hand", "CFREE") && a.action.alt);
+  assert.equal(freeCounterOffer?.cost?.energy, 0, "the free counter metadata says it rests 0 energy");
+  const handBeforeFreeCounter = s.players.p1.hand.length;
+  const activeBefore = s.players.p1.energy.filter((id) => s.cards[id].mode === "active").length;
+  const freeCounter = acts(s).find((a) => a.type === "counter" && a.card === find(s, "p1", "hand", "CFREE") && a.alt);
+  assert.ok(freeCounter, "the free counter action is legal");
+  s = play(s, freeCounter);
+  const activeAfter = s.players.p1.energy.filter((id) => s.cards[id].mode === "active").length;
+  assert.equal(activeAfter, activeBefore, "free [Counter] from hand rests no energy");
+  assert.equal(s.players.p1.hand.length, handBeforeFreeCounter, "the free-counter timing [Auto] drew 1 card");
+  assertConsistent(s);
+
+  s = arena({ hand: ["CFREE"], energy: ["V1", "V1", "V1"] });
+  s = play(
+    s,
+    { type: "endMain", player: "p1" },
+    { type: "charge", player: "p2", card: null },
+    { type: "attack", player: "p2", attacker: s.players.p2.leader, target: s.players.p1.leader },
+  );
+  const handBeforePaidCounter = s.players.p1.hand.length;
+  const paidCounter = acts(s).find((a) => a.type === "counter" && a.card === find(s, "p1", "hand", "CFREE") && !a.alt);
+  assert.ok(paidCounter, "the paid counter action is legal too");
+  s = play(s, paidCounter);
+  assert.equal(s.players.p1.hand.length, handBeforePaidCounter - 1, "paying the [Counter] energy cost does not fire the free-counter timing");
+  assertConsistent(s);
+  DEFS.CINVK = { ...DEFS["E-NEGATE"], id: "CINVK", name: "CINVK", colors: ["Red", "Blue"], energyCost: 2, skill: "[Counter: Attack] Negate the attack." };
+  DEFS.INVK = { ...DEFS.V1, id: "INVK", name: "INVK", colors: ["Red", "Blue"], skill: "[Invoker]" };
+  DEFS.RB = { ...DEFS.V1, id: "RB", name: "RB", colors: ["Red", "Blue"] };
+  s = arena({ hand: ["CINVK"], battle: ["INVK"], energy: ["RB"] });
+  s = play(
+    s,
+    { type: "endMain", player: "p1" },
+    { type: "charge", player: "p2", card: null },
+    { type: "attack", player: "p2", attacker: s.players.p2.leader, target: s.players.p1.leader },
+  );
+  const invokerCounter = legalActions(CTX, s).find((a) => a.action.type === "counter" && a.action.card === find(s, "p1", "hand", "CINVK") && a.action.alt);
+  assert.ok(invokerCounter, "the [Invoker] counter offer is present");
+  assert.equal(invokerCounter.cost?.energy, 1, "the [Invoker] counter metadata says it rests 1 energy");
+  assert.equal(invokerCounter.cost?.describe, "[Invoker]");
+  delete DEFS.CINVK;
+  delete DEFS.INVK;
+  delete DEFS.RB;
+  delete DEFS.CFREE;
+}
 
 {
   // Skill-cost modifiers: a red-scoped reduction lowers a red [Counter] skill's

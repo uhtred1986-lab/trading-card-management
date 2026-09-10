@@ -326,6 +326,7 @@ const tripFilter = (filter: CardFilter, what: string) => tripSelector({ side: "y
     ruleOf([], { kind: "activate:main/battle" }),
     ruleOf([{ op: "draw", n: 1 }], { trigger: ["played"] as Trigger[] }),
     ruleOf([{ op: "draw", n: 1 }], { trigger: ["played", "attacks", "battleEnd"] as Trigger[] }),
+    ruleOf([{ op: "draw", n: 1 }], { trigger: ["evolveFromHandActivated", "unionAbsorbActivated", "counterFreeFromHand"] as Trigger[] }),
     ruleOf([{ op: "draw", n: 1 }], { cost: cost({ orbs: { Red: 2, any: 1 } }) }),
     ruleOf([{ op: "draw", n: 1 }], { cost: cost({ either: [["Red", "Blue"]] }) }),
     ruleOf([{ op: "draw", n: 1 }], { cost: cost({ orbs: { Red: 1 }, either: [["Green", "Yellow"], ["Red", "Black"]], marker: -1, burst: 2, spiritBoost: 1 }) }),
@@ -388,6 +389,7 @@ const tripFilter = (filter: CardFilter, what: string) => tripSelector({ side: "y
   assert.equal(ok("WHEN [auto] played\nTHEN\n  draw(n: 1)"), null);
   assert.equal(ok("WHEN [auto] played\nTHEN\n  draw(n: 1)", "permanent")?.field, "kind", "the printed tag comes off the card and is not editable");
   assert.equal(ok("WHEN [auto] whenever\nTHEN")?.field, "trigger", "a moment the engine never fires is a skill that never happens");
+  assert.equal(ok("WHEN [auto] evolveFromHandActivated | unionAbsorbActivated | counterFreeFromHand\nTHEN"), null);
   assert.equal(ok("WHEN [auto] played | played\nTHEN")?.field, "trigger");
   assert.equal(ok("WHEN [auto] played\nCOST {Red/Red}\nTHEN"), null, "two of the same colour is odd but sayable");
   assert.equal(ok("WHEN [auto] played\nTHEN"), null, "a rule that does nothing is valid");

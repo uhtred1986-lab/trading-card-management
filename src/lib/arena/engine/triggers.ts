@@ -127,8 +127,12 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       return /when this card is removed from [a-z' ]*battle area by (?:an? |one of )?(?:your )?opponent'?s? skill/.test(t);
     case "evolvedInto":
       return /when a card evolves into this card|when this card evolves\b/.test(t);
+    case "evolveFromHandActivated":
+      return /when using this card'?s \[evolve\] from your hand|when you (?:use|activate) this card'?s \[evolve\](?: skill)? from your hand/.test(t);
     case "opponentCounter":
       return /when your opponent activates a \[counter/.test(t);
+    case "counterFreeFromHand":
+      return /when you activate this card'?s \[counter[^\]]*\](?: skill)? from your hand without paying (?:its|the) energy cost/.test(t);
     case "kos":
       // The same moment said the other way round — "when an opponent's Battle
       // Card is KO'd **by this card's attack**" — which is still this card
@@ -164,6 +168,8 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     // 22: a keyword skill being used, which the cards name by its own bracket.
     case "unionActivated":
       return /when you activate a \[union[^\]]*\](?: skill)?/.test(t);
+    case "unionAbsorbActivated":
+      return /when this card'?s \[union-absorb\] is activated/.test(t);
     case "overlordActivated":
       return /when you activate an \[overlord\](?: skill)?/.test(t);
     case "overRealmPlayed":
@@ -297,6 +303,8 @@ export function pendTriggers(ctx: GameContext, s: GameState, trigger: Trigger, c
     trigger === "droppedFromBattle" ||
     trigger === "removedByOpponent" ||
     trigger === "addedToZEnergy" ||
+    trigger === "evolveFromHandActivated" ||
+    trigger === "counterFreeFromHand" ||
     // 3-9-2-1: the card this fires on is sitting in a Life Area.
     trigger === "flippedFaceUp";
   if (!valid && !elsewhere) return;
