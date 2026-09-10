@@ -266,20 +266,30 @@ inverts the space scale, so `text-space-950` is near-white there. `--strip-ink`
 is redefined per skin, the anime block repaints both fills (its `space-200/300`
 are dark), and the component carries no colour utilities at all.
 
-### 6.4 What §4 still owes
+### 6.4 §4 verification matrix (2026-09-10)
 
-`npm run typecheck`, `npm run lint`, `npm test` and `npm run build` are clean.
+| §4 row | Result | Evidence | Defect issue |
+| --- | --- | --- | --- |
+| `npm run typecheck` | Pass | Clean run on 2026-09-10 (`tsc --noEmit`) | — |
+| `npm run lint` | Pass | Clean run on 2026-09-10 (`eslint`) | — |
+| `npm test` | Pass | `verify-rules`, `verify/lang`, `verify-arena`, `verify-db` all passed on 2026-09-10 | — |
+| `npm run arena:playthrough` | Blocked | Run attempted once on 2026-09-10; environment had no `DATABASE_URL`/playable decks (`Error: need two playable decks`) | — |
+| Exact screenshot state (finish turn → Claude move → poll return headline) | Blocked | Phone/manual flow not executable in this cloud session (no phone/tunnel session attached) | — |
+| Reference artifact states (charge, main, Claude deciding, playback, refusal, targeting) | Blocked | Same execution blocker as above | — |
+| Greyscale/night readability glance check | Blocked | Same execution blocker as above | — |
+| `design:accessibility-review` or manual WCAG AA check | Pass | Manual WCAG contrast check completed (below) | — |
 
-**`npm run arena:playthrough` has not been run.** It plays a whole game through
-the one shared Neon database, which is also production; that is the owner's
-call to make, not something to do unasked. The `auditWhoseMove` assertion is in
-place and will fire the moment it is run.
+#### Turn-strip contrast figures (manual WCAG AA)
 
-Nothing has been checked by eye. The whole of §4's by-hand list is open, and the
-two that matter most here are **the exact state from the screenshot** — finish a
-turn, let Claude move, watch the headline as the poll returns — and
-**`design:accessibility-review` on both strip fills**, ki-with-ink and
-slate-with-ink, in both skins.
+Text colour is the strip ink (`--strip-ink`). Each fill is a gradient, so the
+worst stop ratio is recorded.
+
+| Skin | Fill | Foreground | Background stops | Worst ratio | AA (4.5:1) |
+| --- | --- | --- | --- | --- | --- |
+| Night | Yours (`.arena-turnstrip-you`) | `#090b15` | `#ffc46b` → `#f28c0f` | **7.97:1** | Pass |
+| Night | Theirs (`.arena-turnstrip-them`) | `#090b15` | `#aab5d1` → `#7d8bb0` | **5.79:1** | Pass |
+| Anime | Yours (`.arena-turnstrip-you`) | `#12161f` | `#ffd97a` → `#f2b21c` | **9.62:1** | Pass |
+| Anime | Theirs (`.arena-turnstrip-them`) | `#12161f` | `#dbe6f5` → `#b9cbe4` | **10.97:1** | Pass |
 
 ### 6.5 Note on the header stack
 
