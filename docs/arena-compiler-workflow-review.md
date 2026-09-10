@@ -1,5 +1,10 @@
 # Arena — the rule compiler under the workflow UI: a review
 
+> **Historical note (10 Sep 2026):** This is a point-in-time review from 6 Sep 2026. Its findings
+> are useful background, but the current sources of truth are `docs/arena-workflow-spec.md`,
+> `docs/arena-client-contract.md`, `docs/arena-next-stage-spec.md`, and the start-here docs in
+> `docs/arena-INDEX.md`.
+
 Written 6 Sep 2026 on `main` after the three workflow phases landed
 (`docs/arena-workflow-spec.md` §9). The question asked was: now that every
 rule is meant to be a visible workflow per ability, does the core compiler and

@@ -3,7 +3,7 @@
  *
  * The engine reads printed card text: `engine/cards.ts` turns a line into a
  * skill with a type and a keyword, `engine/filters.ts` reads the target
- * grammar, `engine/compile.ts` turns the rest into a program, and the referee
+ * grammar, `engine/compile/` turns the rest into a program, and the referee
  * takes whatever is left. Every one of those steps is a decision about
  * meaning, and until now the only way to see one was to read the code.
  *
