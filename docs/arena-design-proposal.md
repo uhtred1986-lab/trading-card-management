@@ -1,5 +1,10 @@
 # Arena — play against Claude
 
+> **Historical note (10 Sep 2026):** This is the original arena design brief and storyboard. For
+> current implementation details or active work, start with `docs/arena-INDEX.md`, then read
+> `docs/arena-next-session-prompt.md`, `docs/arena-tooling.md`, and the focused spec for the area
+> you are changing. Keep this file for background, rationale and the shared board storyboard.
+
 **Status: design settled, build starting (3 Sep 2026).** The four open questions were answered by the
 owner and are recorded in §12. This document is the brief for Claude Design (§11 is paste-ready) and
 the plan phase 1 is built from. Mockups live in the Claude Design project "DBS Arena — play against

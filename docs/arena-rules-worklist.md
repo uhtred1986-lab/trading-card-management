@@ -1,5 +1,11 @@
 # Arena rules engine — the work list
 
+> **Historical note (10 Sep 2026):** This file is the early round-by-round work log for the rules
+> programme. It is still useful for history and lessons learned, but it is no longer the cheapest
+> or most current entry point; start with `docs/arena-INDEX.md`, then
+> `docs/arena-next-session-prompt.md`, `docs/arena-tooling.md`, `docs/arena-next-stage-spec.md`,
+> and `docs/arena-backlog.md`.
+
 Written 4 Sep 2026, so a new session can start on the next mechanism without
 re-deriving how the engine fits together. `docs/arena-design-proposal.md` §15
 says *what* is missing and why it matters; this file says *where the code goes*.
