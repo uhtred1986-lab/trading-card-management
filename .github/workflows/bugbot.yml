@@ -27,7 +27,7 @@ permissions:
 jobs:
   bugbot:
     runs-on: ubuntu-latest
-    if: github.actor != 'dependabot[bot]'
+    if: github.actor != 'dependabot[bot]' && github.event.pull_request.head.repo.full_name == github.repository
     steps:
       # The action reads `pull_request` off the triggering event payload,
       # which workflow_dispatch doesn't carry. Fetch the PR and check out its
