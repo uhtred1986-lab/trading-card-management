@@ -136,7 +136,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     meaning:
       "From hand: pay the cost, choose one of your Battle Cards matching the printed description, and play this card on top of it. [Xeno-Evolve] sends the chosen card to the Warp instead of stacking onto it.",
     engine:
-      "The description is read with the target grammar, so only cards that qualify are offered — and the skill is not offered at all when none do. The stack keeps the position and the power effects of the card underneath.",
+      "The description is read with the target grammar, so only cards that qualify are offered — and the skill is not offered at all when none do. The stack keeps the position and the power effects of the card underneath. Cards that say “when using this card's [Evolve] from your hand” fire at this activation.",
     support: "engine",
   },
   Union: {
@@ -148,7 +148,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     meaning:
       "Three ways to play a Battle Card by naming characters. Fusion drops one of each named character from your hand, both of equal power. Potara plays this card on top of two named characters in your Battle Area. Absorb is activated from the Battle Area, and its text says which card is played onto this one.",
     engine:
-      "All three, with Absorb resolving its printed text like an ordinary skill rather than by names. Cards watching “when you activate a [Union] skill” fire at the activation, not at the choice that follows it.",
+      "All three, with Absorb resolving its printed text like an ordinary skill rather than by names. Cards watching “when you activate a [Union] skill” fire at the activation, not at the choice that follows it, and “when this card's [Union-Absorb] is activated” fires at Absorb's own activation.",
     support: "engine",
   },
   "Over Realm": {
@@ -613,7 +613,7 @@ export const SKILL_TYPES: Record<Exclude<SkillKind, "keyword">, SkillTypeDoc> = 
     tag: "[Counter: Attack]",
     section: "22-10",
     meaning: "Pends when your opponent declares an attack.",
-    engine: "Offered in the counter window that follows the declaration.",
+    engine: "Offered in the counter window that follows the declaration. A line saying “when you activate this card's [Counter] from your hand without paying its energy cost” is its own timing and fires only on that free-from-hand path.",
   },
   "counter:battle card attack": {
     tag: "[Counter: Battle Card Attack]",

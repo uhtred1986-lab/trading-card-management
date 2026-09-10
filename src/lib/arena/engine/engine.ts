@@ -1699,8 +1699,23 @@ export function legalActions(ctx: EngineContext, s: GameState): LegalAction[] {
         // is a different decision, not a cheaper version of the same one.
         const alt = altCostFor(ctx, s, id, pr.player);
         if (alt) {
-          const how = alt.pay === "none" ? "for no energy" : alt.pay === "invoker" ? "by resting a Red/Blue energy ([Invoker])" : `by adding ${alt.n} from your life to your hand`;
-          out.push({ action: { type: "counter", player: pr.player, card: id, skill: sk?.index, alt: true }, label: `Counter with ${name(id)} (${how})` });
+          const how =
+            alt.pay === "none"
+              ? "for no energy"
+              : alt.pay === "invoker"
+                ? "by resting a Red/Blue energy ([Invoker])"
+                : alt.pay === "energy"
+                  ? `for ${(alt.orbs ?? []).map((o) => (o === "any" ? "{any}" : `{${o}}`)).join("")}`
+                  : alt.pay === "program"
+                    ? "by an alternative action cost"
+                    : `by adding ${alt.n} from your life to your hand`;
+          const cost: ActionCost =
+            alt.pay === "none"
+              ? { energy: 0, describe: "free" }
+              : alt.pay === "energy"
+                ? { energy: (alt.orbs ?? []).length, describe: (alt.orbs ?? []).length ? (alt.orbs ?? []).map((o) => (o === "any" ? "{any}" : `{${o}}`)).join("") : "free" }
+                : { energy: 0, describe: "alternative cost" };
+          out.push({ action: { type: "counter", player: pr.player, card: id, skill: sk?.index, alt: true }, label: `Counter with ${name(id)} (${how})`, cost });
         }
       }
       out.push({ action: { type: "counter", player: pr.player, card: null }, label: "No counter" });
@@ -2707,6 +2722,7 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
           const alt = altCostFor(ctx, s, action.card, p);
           if (!alt) throw new IllegalAction("that card has no other cost to pay");
           if (!payAltCost(ctx, s, ev, p, alt)) throw new IllegalAction("can't pay the counter's cost");
+          if (alt.pay === "none") pendTriggers(ctx, s, "counterFreeFromHand", action.card);
           // An action price asks the player to pick cards, so it is charged
           // through the flow rather than inline — put on the front below, so
           // that it runs before the counter it is paying for.
@@ -2891,7 +2907,13 @@ function activate(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId
     s.flow.unshift({ op: "skill.resolve", card, skill: sk.index, player: p });
     return;
   }
+  if (k?.name === "Union" && k.variant === "Absorb") {
+    pendTriggers(ctx, s, "unionAbsorbActivated", card);
+  }
   if (k?.name === "Evolve") {
+    // 22-5: "when using this card's [Evolve] from your hand" is this
+    // activation itself, before the play it leads to.
+    pendTriggers(ctx, s, "evolveFromHandActivated", card);
     payOrbs();
     const filter = parseFilter(sk.effect || sk.cost);
     const cands = ps.battle.filter((id) => matches(cardNow(ctx, s, id), filter));
