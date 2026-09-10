@@ -204,6 +204,7 @@ const tripFilter = (filter: CardFilter, what: string) => tripSelector({ side: "y
     { special: "self" as const },
     ...SPECIAL_TARGETS.map((special) => ({ special })),
     { fromVar: "looked" },
+    { area: "under", underHost: { special: "leader" as const } },
     { count: 1 },
     { count: 2, upTo: true },
     { upTo: true },

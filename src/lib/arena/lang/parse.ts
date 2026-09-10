@@ -453,6 +453,12 @@ class Parser {
       sel.fromVar = this.variable();
       return;
     }
+    if (this.eatKw("UNDER")) {
+      this.want("(");
+      sel.underHost = this.selector();
+      this.want(")");
+      return;
+    }
     if (this.eatKw("UP")) {
       if (!this.eatKw("TO")) this.fail('expected "UP TO"', ["TO"]);
       sel.upTo = true;

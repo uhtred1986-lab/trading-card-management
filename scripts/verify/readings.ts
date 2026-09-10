@@ -1351,6 +1351,16 @@ import {
   assert.equal(counted.area, "under");
   assert.equal(counted.count, 99);
 
+  // "from under your <Kefla> Battle Card" / "from under your Leader Card":
+  // the pile belongs to the named host, not this card.
+  const host = parseTarget("up to 1 card from under your <Kefla> Battle Card");
+  assert.equal(host?.area, "under");
+  assert.equal(host?.underHost?.area, "battle");
+  assert.deepEqual(host?.underHost?.filter?.characters, ["Kefla"]);
+  const leader = parseTarget("up to 1 card from under your Leader Card");
+  assert.equal(leader?.area, "under");
+  assert.equal(leader?.underHost?.special, "leader");
+
   // A phrase that really is a pronoun still is one.
   assert.deepEqual((one("[Auto] When you play this card, choose 1 of your opponent's Battle Cards and KO it.").ops[1] as { target: unknown }).target, { var: "c0" });
 }

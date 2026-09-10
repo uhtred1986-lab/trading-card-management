@@ -443,7 +443,13 @@ export function resolveSelector(ctx: GameContext, s: GameState, frame: ScriptFra
   } else {
     // A phrase may name two areas — "your opponent's Battle Cards or Unisons".
     const areas = sel.areas?.length ? sel.areas : [sel.area ?? "battle"];
-    for (const p of sideOf(frame.master, sel.side)) for (const area of areas) out.push(...areaCards(s, p, area, frame));
+    for (const area of areas) {
+      if (area === "under" && sel.underHost) {
+        for (const host of resolveSelector(ctx, s, frame, sel.underHost)) out.push(...(s.cards[host]?.under ?? []));
+        continue;
+      }
+      for (const p of sideOf(frame.master, sel.side)) out.push(...areaCards(s, p, area, frame));
+    }
   }
   // "The top 2 cards of your deck" — the area's own order decides, and the
   // filter is not applied first, because the cards are not being searched for.

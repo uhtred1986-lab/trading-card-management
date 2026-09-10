@@ -67,6 +67,7 @@ export type SelectorPart = "special" | "fromVar" | "count" | "take" | "filter" |
 export const SELECTOR_FIELDS: Record<keyof Selector, SelectorPart> = {
   special: "special",
   fromVar: "fromVar",
+  underHost: "places",
   count: "count",
   upTo: "count",
   take: "take",
@@ -152,4 +153,4 @@ export const EXPR_SCHEMA = {
 } as const;
 
 /** The words the language reserves. A field or a variable may not be one of them. */
-export const RESERVED = new Set(["WHEN", "COST", "IF", "THEN", "DO", "TEXT", "AND", "OR", "NOT", "IN", "FROM", "ANY", "TOP", "BOTTOM", "UP", "TO", "MINUS", "NULL", "TRUE", "FALSE", "ALL"]);
+export const RESERVED = new Set(["WHEN", "COST", "IF", "THEN", "DO", "TEXT", "AND", "OR", "NOT", "IN", "FROM", "UNDER", "ANY", "TOP", "BOTTOM", "UP", "TO", "MINUS", "NULL", "TRUE", "FALSE", "ALL"]);

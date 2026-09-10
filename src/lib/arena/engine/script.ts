@@ -91,6 +91,11 @@ export interface Selector {
   hidden?: boolean;
   /** Draw the candidates from a bound variable instead of an area. */
   fromVar?: string;
+  /**
+   * For `area: "under"`, whose pile that is: "from under your <Kefla> Battle
+   * Card", "from under your Leader Card". Absent means this card's own pile.
+   */
+  underHost?: Selector;
   /** How many to take. `upTo` allows zero (5-2-4). */
   count?: number;
   upTo?: boolean;
@@ -2160,9 +2165,39 @@ function describeSelector(sel: Selector, all = "all"): string {
             ? `up to ${sel.count}`
             : `${sel.count}`;
   const words = selectorWords(sel);
-  const where = sel.fromVar ? "of the cards looked at" : `in ${who}${sel.areas?.length ? sel.areas.join(" or ") : sel.area}`;
+  const host = sel.underHost ? describeUnderHost(sel.underHost) : null;
+  const where = sel.fromVar
+    ? "of the cards looked at"
+    : host
+      ? `under ${host}`
+      : `in ${who}${sel.areas?.length ? sel.areas.join(" or ") : sel.area}`;
   const mode = describeMode(sel);
   return [count, words, where].filter(Boolean).join(" ") + mode + describeNotSelf(sel);
+}
+
+function describeUnderHost(sel: Selector): string {
+  if (sel.special)
+    return {
+      self: "this card",
+      attacker: "the attacking card",
+      guard: "the guard card",
+      subject: "that card",
+      leader: "your leader card",
+      opponentLeader: "your opponent's leader card",
+      resolving: "the card being played",
+      onTop: "the card on top of this card",
+    }[sel.special];
+  const who = sel.side === "opponent" ? "your opponent's " : sel.side === "both" ? "each player's " : "your ";
+  const words = selectorWords(sel);
+  const kind =
+    sel.area === "leader"
+      ? "leader card"
+      : sel.area === "unison"
+        ? "unison card"
+        : sel.area === "battle" || sel.area === "play" || sel.area == null
+          ? "card"
+          : `${sel.area} card`;
+  return `${who}${words ? `${words} ` : ""}${kind}`;
 }
 
 /**
