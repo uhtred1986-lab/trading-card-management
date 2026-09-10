@@ -30,7 +30,7 @@ export function Hand({
   count: number;
   name: string;
   cardProps: (c: CardView) => React.ComponentProps<typeof StageCard>;
-  /** The buzz/sound/report/log row. */
+  /** The inline controls row above the hand. */
   controls: React.ReactNode;
   /** The log, when it is open — above the cards, never instead of them. */
   children?: React.ReactNode;
@@ -67,7 +67,7 @@ export function Hand({
         </button>
       </motion.div>
 
-      {/* Six controls do not fit beside the label on a phone; the row wraps rather than squeezing the words. */}
+      {/* The label keeps its own line when the inline controls need the width. */}
       <div className="mb-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[10px] uppercase tracking-widest text-space-400 sm:mb-2 sm:text-xs">
         <span className="whitespace-nowrap">
           {name} · hand {count}

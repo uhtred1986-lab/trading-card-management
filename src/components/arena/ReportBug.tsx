@@ -48,7 +48,7 @@ export function ReportBug({ gameId, cards }: { gameId: number; cards: { cardId: 
   const choices = [...new Map(cards.map((c) => [c.cardId, c])).values()].sort((a, b) => a.name.localeCompare(b.name));
 
   return (
-    <div className="fixed inset-x-2 bottom-2 z-30 space-y-2 rounded-xl border border-space-600 bg-space-900/95 p-3 shadow-lg backdrop-blur sm:inset-x-auto sm:right-4 sm:w-96">
+    <div className="fixed inset-x-2 bottom-2 z-[60] space-y-2 rounded-xl border border-space-600 bg-space-900/95 p-3 shadow-lg backdrop-blur sm:inset-x-auto sm:right-4 sm:w-96">
       <label className="block text-xs text-space-200">
         What happened that should not have?
         <textarea
