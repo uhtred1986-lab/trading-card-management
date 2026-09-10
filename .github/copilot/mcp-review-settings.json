@@ -1,0 +1,48 @@
+{
+  "mcpServers": {
+    "filesystem": {
+      "type": "local",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "${COPILOT_MCP_REPO_ROOT:-.}"
+      ],
+      "tools": [
+        "read_text_file",
+        "read_media_file",
+        "read_multiple_files",
+        "list_directory",
+        "list_directory_with_sizes",
+        "directory_tree",
+        "search_files",
+        "get_file_info",
+        "list_allowed_directories"
+      ]
+    },
+    "lsp": {
+      "type": "local",
+      "command": "npx",
+      "args": [
+        "-y",
+        "language-server-mcp"
+      ],
+      "tools": [
+        "hover",
+        "definition",
+        "type_definition",
+        "implementation",
+        "references",
+        "document_symbols",
+        "workspace_symbols",
+        "call_hierarchy_prepare",
+        "call_hierarchy_incoming",
+        "call_hierarchy_outgoing",
+        "diagnostics",
+        "list_servers",
+        "search_servers",
+        "server_status"
+      ]
+    }
+  }
+}
