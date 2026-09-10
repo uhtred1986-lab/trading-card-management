@@ -1,0 +1,36 @@
+# Reviews every PR's diff for bugs and acceptance-criteria gaps, posting inline
+# comments. Third-party action (not Anthropic/GitHub) — pinned to a commit SHA,
+# not a movable tag, so a future push to the v1.0.14 tag can't change what runs
+# here unreviewed.
+name: Claude BugBot
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+permissions:
+  contents: read
+  # pull-requests: write is required for posting inline review comments and
+  # auto-resolving threads when a bug is fixed in a follow-up commit. Also
+  # requires Settings -> Actions -> General -> Workflow permissions -> "Read
+  # and write permissions" in the repo, or this is silently downgraded.
+  pull-requests: write
+
+jobs:
+  bugbot:
+    runs-on: ubuntu-latest
+    if: github.actor != 'dependabot[bot]'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          # Full history so BugBot's history lens can check whether the PR
+          # silently undoes an earlier fix.
+          fetch-depth: 0
+
+      - name: Run Claude BugBot
+        # rekpero/claude-bugbot-github-action, tag v1.0.14, pinned by commit SHA.
+        uses: rekpero/claude-bugbot-github-action@8eedc356796c3b6e73a2d2288fe10643702b8bfb
+        with:
+          claude-setup-token: ${{ secrets.CLAUDE_SETUP_TOKEN }}
+          model: sonnet
