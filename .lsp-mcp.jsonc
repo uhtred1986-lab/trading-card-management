@@ -1,0 +1,18 @@
+{
+  // The project only needs TypeScript/TSX navigation and diagnostics for review.
+  "lsp": {
+    "servers": {
+      "typescript": {
+        "registry": "typescript"
+      }
+    }
+  },
+  // Review should stay read-only; no workspace command execution.
+  "commands": {
+    "enabled": false
+  },
+  // Keep any applied edits, if someone opts into them locally, inside the repo.
+  "security": {
+    "allowExternalFiles": false
+  }
+}
