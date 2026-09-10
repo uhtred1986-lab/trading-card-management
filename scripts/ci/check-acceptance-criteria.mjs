@@ -13,6 +13,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 
 const MARKER = "<!-- ac-check-comment -->";
+const stripNullBytes = (s) => s.replace(/\u0000/g, "");
 
 function gh(args, input) {
   return execFileSync("gh", args, {
@@ -80,7 +81,7 @@ function main() {
     )
     .join("\n\n---\n\n");
 
-  const prompt = `You are checking whether a pull request's diff actually implements what it claims to close.
+  const prompt = stripNullBytes(`You are checking whether a pull request's diff actually implements what it claims to close.
 
 The PR body references these issues via "Closes #N" / "Fixes #N" / "Resolves #N":
 ${refs.map((n) => `#${n}`).join(", ")}
@@ -102,7 +103,7 @@ For EACH referenced issue, decide one of:
 
 Be skeptical: a PR claiming to close an issue with no related file changes is NOT DELIVERED, full stop. Do not give benefit of the doubt to vague or superficial changes.
 
-Output ONLY a markdown table with columns: Issue | Verdict | Why (one sentence). Then, if any issue is NOT DELIVERED or PARTIAL, add a short "## Risk" section below the table explaining that merging this PR will auto-close those issues on GitHub regardless of whether the work is done, since the PR body references them. Keep the whole response under 400 words. No preamble, no other sections.`;
+Output ONLY a markdown table with columns: Issue | Verdict | Why (one sentence). Then, if any issue is NOT DELIVERED or PARTIAL, add a short "## Risk" section below the table explaining that merging this PR will auto-close those issues on GitHub regardless of whether the work is done, since the PR body references them. Keep the whole response under 400 words. No preamble, no other sections.`);
 
   console.log(`Running Claude Code over ${refs.length} referenced issue(s)...`);
   const verdict = execFileSync("claude", ["-p", prompt, "--output-format", "text"], {
