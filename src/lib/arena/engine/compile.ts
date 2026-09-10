@@ -600,18 +600,20 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
     return above === null ? null : { special: "onTop", filter: above };
   }
   if (/\bon top of\b/.test(t)) return null;
-  // The pile under a card is an area this grammar can name only when the card
-  // is *this* one, which `underHost` below reads. Any other host — "use up to
-  // 1 card **from under your <Kefla> Battle Card** in a combo" (EX25-39),
-  // "play up to 1 <X> card **from under your Leader Card**" — has no selector
-  // to stand for it, and the words naming the host were read as the target
-  // instead: `AREA_WORDS` took the "battle" out of "your <Kefla> Battle Card"
-  // and the description off the host, so EX25-39 combo'd the <Kefla> itself
-  // rather than a card beneath it, and the Leader wordings chose the Leader.
-  // Sixty-odd clause shapes say this, all of them refused here rather than
-  // read into the wrong card (ground rule 5); naming the pile under a card
-  // other than this one is its own primitive and is not built.
-  if (/\bunder\b/.test(t) && !/\bunder (?:this card|it)\b/.test(t)) return null;
+  // "From under your <Kefla> Battle Card", "from under your Leader Card", and
+  // "cards under {King Kai's Planet}" — the pile under *another* card.
+  // "under this card" is the existing self-hosted area and is read below.
+  let underHostSel: Selector | undefined;
+  if (/\bunder\b/.test(t) && !/\bunder (?:this card|it)\b/.test(t)) {
+    const underHost = /\b(?:from\s+)?under\s+(.+?)\s*$/i.exec(phrase.trim());
+    if (!underHost) return null;
+    // Ground rule 5: if the host phrase itself is unreadable, refuse rather
+    // than reading the target into the wrong card again.
+    underHostSel = parseTarget(underHost[1].replace(/[,.]\s*$/, "").trim()) ?? undefined;
+    if (!underHostSel) return null;
+    phrase = phrase.replace(underHost[0], " ");
+    t = phrase.toLowerCase();
+  }
   // "Each non-Leader card under this card" is about the stack; the "this card"
   // "Each non-Leader card under this card" is about the stack; the "this card"
   // in it names the host, not the target (23-2). Read before the shortcut
@@ -620,8 +622,8 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
   // The rest of the phrase is then read as usual: "**each** card under this
   // card" and "**up to 1** card from under this card" are the same area and
   // different counts, and hard-coding "all" here played every card in the pile.
-  const underHost = /\bunder (?:this card|it)\b/.test(t) && !/^this card\b/.test(t.trim());
-  if (underHost) {
+  const underSelf = /\bunder (?:this card|it)\b/.test(t) && !/^this card\b/.test(t.trim());
+  if (underSelf) {
     phrase = phrase.replace(/\b(?:from )?under (?:this card|it)\b/gi, " ");
     t = phrase.toLowerCase();
   }
@@ -837,7 +839,7 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
   if (!allAreas && !area && !fromVar && filterFor(phrase, null)) area = "play";
   // The pile under a card is the area, and it was named by words that have
   // already been taken off the phrase.
-  if (!allAreas && !area && !fromVar && !underHost) return null;
+  if (!allAreas && !area && !fromVar && !underSelf && !underHostSel) return null;
 
   let count = 1;
   let upTo = false;
@@ -920,7 +922,7 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
   // offering every card the other measure matches (ground rule 5).
   if (hiddenSaid && filter) return null;
   const hidden = hiddenSaid || undefined;
-  if (underHost) return { side: "you", area: "under", filter, count, upTo, mode, hidden, notSelf };
+  if (underSelf || underHostSel) return { side: "you", area: "under", underHost: underHostSel, filter, count, upTo, mode, hidden, notSelf };
   // No single `area` stands for all of them, and leaving one on would be read
   // as the place the cards must be — so the span is the only thing said.
   if (allAreas) return { side, areas: ALL_AREAS, filter, count, upTo, mode, hidden, notSelf };

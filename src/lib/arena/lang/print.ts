@@ -109,6 +109,7 @@ export function printSelector(sel: Selector): string {
   const parts: string[] = [];
   if (sel.special !== undefined) parts.push(`[${sel.special}]`);
   if (sel.fromVar !== undefined) parts.push(`FROM $${sel.fromVar}`);
+  if (sel.underHost !== undefined) parts.push(`UNDER (${printSelector(sel.underHost)})`);
   if (sel.upTo) parts.push(sel.count === undefined ? "UP TO" : `UP TO ${sel.count}`);
   else if (sel.count !== undefined) parts.push(String(sel.count));
   if (sel.take !== undefined) parts.push(`${sel.fromEnd ? "BOTTOM" : "TOP"} ${sel.take}`);
