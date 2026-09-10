@@ -6,7 +6,7 @@ stage: 2
 status: closed
 closed_at: 2026-09-09
 ---
-**Source:** `docs/arena-rules-worklist.md`, "Fix the instrument — Stage 2, fifth increment (9 Sep 2026)"; rule manual 20-1-6.
+**Source:** `docs/arena-history-lessons.md`, "Fix the instrument — Stage 2, fifth increment (9 Sep 2026)"; rule manual 20-1-6.
 
 **Problem.** Two compiler bugs were exposed by the readings instrument:
 - **BT7-129** prints "non-black cards in areas **other than** your deck, hand, or life".

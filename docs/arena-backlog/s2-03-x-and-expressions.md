@@ -19,6 +19,6 @@ stage: 2
 **Acceptance.**
 - Gate + `contract:emit` reviewed (`effect-language.txt` moves: expected).
 - `scripts/verify/lang.ts` covers every expression kind, minimal and maximal; `verify/compiler.ts` has one assertion per motivating wording.
-- Tally delta recorded in the worklist naming the wordings unlocked; readings diff signed off.
+- Tally delta recorded in the history archive naming the wordings unlocked; readings diff signed off.
 - Scenario proof: a harness card "pay X energy: draw X cards" prompts for X, charges it and draws that many.
 - `docs/arena-rules-language.md` §3 grammar updated in the same PR.

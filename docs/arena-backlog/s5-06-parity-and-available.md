@@ -16,6 +16,6 @@ stage: 5
 **Out of scope.** Battle (Stage 6); the default flip (Stage 9).
 
 **Acceptance.**
-- `arena:diff` reports 0 divergent games in the set above, listed in the worklist by id.
+- `arena:diff` reports 0 divergent games in the set above, listed in the history archive by id.
 - Gate; `contract:emit` no change (the engine field exists since Stage 0); `android:test` green.
 - Scenario proof: a Sparring game created on the rules engine from `/arena` is played through Charge and Main on the phone.

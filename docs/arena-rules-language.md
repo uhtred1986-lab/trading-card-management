@@ -1,6 +1,6 @@
 # The rules language
 
-Written 9 Sep 2026, Stage 1 of the programme in `docs/arena-rules-worklist.md`. Code:
+Written 9 Sep 2026, Stage 1 of the programme in `docs/arena-history-lessons.md`. Code:
 `src/lib/arena/lang/`. Tests: `scripts/verify/lang.ts`, part of `npm test`.
 
 One grammar for three things, of which only the first exists today:

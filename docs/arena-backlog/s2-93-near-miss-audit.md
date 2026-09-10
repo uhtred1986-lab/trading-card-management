@@ -4,7 +4,7 @@ milestone: Arena M1 — Rules correctness and parser coverage
 labels: backlog, ready-for-agent, enhancement, area:arena-compiler, phase:rules-stage2, model:opus-5
 stage: 2
 ---
-**Source:** `docs/arena-next-session-prompt.md` §3 and §4(a); `docs/arena-tooling.md` §1; memory of the two passes already run (worklist entries of 9 Sep 2026).
+**Source:** `docs/arena-next-session-prompt.md` §3 and §4(a); `docs/arena-tooling.md` §1; memory of the two passes already run (`docs/arena-history-lessons.md`, entries of 9 Sep 2026).
 
 **Problem.** The failure mode that matters is a clause that **compiles and reads wrongly** — a board wipe that cleared one side, a KO offered every card, a [Counter] charged half its price, 149 skills firing whether or not their condition held. No coverage number catches these. Two systematic passes over the compiler's literal-phrase regexes have each paid for themselves; a third is the best value per hour in the programme, and it is repeatable work an agent can pick up cold.
 
@@ -19,5 +19,5 @@ stage: 2
 
 **Acceptance.**
 - Gate: `npm run typecheck && npm run lint && npm test && npm run build`; `npx tsx --env-file-if-exists=.env.local scripts/arena-fuzz.mts 40` = 0 crashes; `npm run contract:emit` reviewed.
-- A worklist entry listing each family found, the cards, the before/after numbers, and the shapes that entered and left the gap set.
+- A dated history entry in `docs/arena-history-lessons.md` listing each family found, the cards, the before/after numbers, and the shapes that entered and left the gap set.
 - One `scripts/verify/wordings.ts` assertion per family fixed.

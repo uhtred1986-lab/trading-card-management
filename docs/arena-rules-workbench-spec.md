@@ -1,6 +1,6 @@
 # Arena — rules as records: the Rules Workbench
 
-**Status: phase 1 (§3) built 8 Sep 2026, PR #56; phase 2 (§4) built 8 Sep 2026, PR #57; phase 3 (§5, the probe) built 8 Sep 2026, PR #58. What each phase found, and what it changed about the plan, is in `docs/arena-rules-worklist.md` — "Done: rules as records" and "Done: the catalog and the patterns".** Written to be executed by Claude Code in this repository.
+**Status: phase 1 (§3) built 8 Sep 2026, PR #56; phase 2 (§4) built 8 Sep 2026, PR #57; phase 3 (§5, the probe) built 8 Sep 2026, PR #58. What each phase found, and what it changed about the plan, is in `docs/arena-history-lessons.md` — "Done: rules as records" and "Done: the catalog and the patterns".** Written to be executed by Claude Code in this repository.
 Companion prototype: `docs/arena-rules-workbench-prototype.html` (open it in a browser; it is the
 UX target, not code to copy).
 
@@ -376,8 +376,8 @@ Rules for the diff:
   ones to Claude within the budget, and the worklist shows them under "Claude drafted".
 - `src/lib/arena` has fewer lines than on `main`; the PR description lists what was removed
   (§3.8) and `ts-prune` reports nothing under `src/lib/arena`.
-- `npm test`, `lint`, `typecheck` clean. `docs/arena-rules-worklist.md` gains a "Done" section
-  with the numbers.
+- `npm test`, `lint`, `typecheck` clean. `docs/arena-history-lessons.md` gains a dated
+  history entry with the numbers.
 
 ## 4. Phase 2 — the catalog and the patterns *(built, PR #57)*
 

@@ -185,8 +185,8 @@ declared move) or where the prompt the probe stopped at enumerates no activation
 
 None of the 74 is a price. Two are engine gaps worth their own line (the `counter` prompt case,
 and `BT29-044`, a Unison the staging removes from the game before the move is reached); the
-rest is probe staging, which belongs with the thin-board session the worklist already carves
-out.
+rest is probe staging, which belongs with the thin-board session the history archive already
+carves out.
 
 ### (a) The wording — a `rejectedActions` change only
 
@@ -241,7 +241,7 @@ Its case is architectural, not this number.
 ## 3. Not in this brief
 
 Named so they are not mistaken for forgotten. Both are probe staging, not engine faults, and
-the worklist already holds them:
+the history archive already holds them:
 
 - attack triggers about being attacked or KO'd — 623 `didNotFire`;
 - keywords whose price is in the Drop or the hand — `[Union]`, `[Over Realm]`, `[Successor]` —

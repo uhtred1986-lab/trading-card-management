@@ -11,6 +11,6 @@ stage: 10
 **Build.**
 1. Move what `vm/` still imports from `engine/` (`stepScript`, `OP_SCHEMA`/`COND_SCHEMA`, `rng`, `filters` adapter, the compiler — which stays, as the drafter of records) into their own homes; delete `engine.ts`, `state.ts`'s DBS content, `triggers.ts`'s name matching.
 2. `Engine` interface stays (a second game is a second definition, same interface); `ENGINE_IDS` shrinks or keeps `legacy` as a read-only marker per the decision issue; `--engine` removed from the scripts.
-3. Docs: `CLAUDE.md`, `docs/arena-tooling.md`, `games.ts` comment, the worklist's final entry with the ledger.
+3. Docs: `CLAUDE.md`, `docs/arena-tooling.md`, `games.ts` comment, the history archive's final entry with the ledger.
 
 **Acceptance.** Gate; `src/lib/arena` has fewer lines than before Stage 0 (the ledger says by how much); `arena:fuzz 200` clean; `contract:emit` no change.

@@ -7,7 +7,8 @@ Read, in this order:
 1. `docs/arena-rules-workbench-spec.md` — the brief. It is the contract.
 2. `docs/arena-rules-workbench-prototype.html` — open it in a browser. It is the UX target for
    `/arena/rules`; do not copy its code, match its layout, states and wording.
-3. `docs/arena-rules-worklist.md` and `docs/arena-design-proposal.md` §14 — what exists today
+3. `docs/arena-rules-worklist.md` for the short current worklist, then
+   `docs/arena-history-lessons.md` and `docs/arena-design-proposal.md` §14 — what exists today
    and why. The interpreter, flow, keywords and triggers are kept; read those sections before
    assuming what has to change.
 

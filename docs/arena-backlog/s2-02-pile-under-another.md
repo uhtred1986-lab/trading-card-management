@@ -4,7 +4,7 @@ milestone: Arena M1 — Rules correctness and parser coverage
 labels: backlog, ready-for-agent, bug, area:arena-compiler, phase:rules-stage2, model:opus-5
 stage: 2
 ---
-**Source:** `docs/arena-rules-worklist.md`, "The card on top of this card — Stage 2, third increment" (section *Measured, ready, and deliberately not shipped*) and the fourth increment; rule manual 23-2; `docs/arena-next-stage-spec.md` §6.8.
+**Source:** `docs/arena-history-lessons.md`, "The card on top of this card — Stage 2, third increment" (section *Measured, ready, and deliberately not shipped*) and the fourth increment; rule manual 23-2; `docs/arena-next-stage-spec.md` §6.8.
 
 **Problem.** "From under your <Kefla> Battle Card", "from under your Leader Card", "cards under {King Kai's Planet}" — some sixty clause shapes naming a pile that is **not this card's** — are read into the *host* today, because `AREA_WORDS` takes the "battle" out of "your <Kefla> Battle Card" and the description off the host. EX25-39 combos the <Kefla> itself rather than a card beneath it; EX23-27's "place it under a <Super 17> card on top of this card" puts the card under *this* one. A refusing commit was written and measured (−38 fully compiled cards, −40 wrong readings) but not shipped, because three cards read *worse* after it: a refused clause left the clauses after it pointing at nothing. **That precondition has since been paid** by the fourth increment (a refusal now marks the antecedent and governs "if you do").
 

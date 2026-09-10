@@ -9,8 +9,8 @@ milestones, labels and issues from them.
 ## 1. The design being tracked
 
 The arena is being converted to a **configuration-based rules engine** driven by one rules
-language (owner's decisions of 9 Sep 2026; `docs/arena-rules-language.md`, the worklist entries
-from Stage 0 on in `docs/arena-rules-worklist.md`, the living handover in
+language (owner's decisions of 9 Sep 2026; `docs/arena-rules-language.md`, the archived Stage 0+ entries
+in `docs/arena-history-lessons.md`, the living handover in
 `docs/arena-next-session-prompt.md`). The aim, in the owner's words: **fix each card by setting the
 right DSL statement**. Four decisions shape every issue:
 
@@ -57,7 +57,7 @@ for compiler work (`move()` replacement prompting, #107) or are engine bugs (#10
 
 | Milestone | Source |
 |---|---|
-| Arena M1 — Rules correctness and parser coverage | Stage 2: `docs/arena-next-session-prompt.md`, `docs/arena-side-scope.md`, the worklist's Stage 2 entries |
+| Arena M1 — Rules correctness and parser coverage | Stage 2: `docs/arena-next-session-prompt.md`, `docs/arena-side-scope.md`, the archive's Stage 2 entries |
 | Arena M2 — Gameplay UX/HUD completion | `docs/arena-hud-spec.md`, `docs/arena-workflow-spec.md` |
 | Arena M3 — Battle staging and inspector | `docs/arena-battle-staging-spec.md` — **largely built**; its three issues are verify-and-close |
 | Arena M4 — Android client enablement | `docs/arena-android-spec.md`, `docs/arena-client-contract.md` |

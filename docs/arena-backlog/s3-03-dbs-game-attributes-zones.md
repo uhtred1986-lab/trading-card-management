@@ -13,11 +13,11 @@ stage: 3
 - `attributes.rules`: `DEFINE ATTRIBUTE` for colors, energyCost | X, specifiedCost orbs, power, comboCost, comboPower, characters, traits, type, zEnergyCost; **derived** attributes `power`, `costOf`, `comboCostOf` as expressions (the ones the engine computes with layers today — say which layer order applies).
 - `zones.rules`: `DEFINE ZONE` for hand, deck, life, leader{single}, battle{inPlay, modes}, combo, energy{markers}, unison{single}, warp, zDeck, zEnergy, removed, under{host} — visibility per side, ordered or not, what "in play" means (§9-1-3 of the manual).
 
-Write the three files so that `loadRuleset` accepts them and `verify/rulesets.ts` (its own issue) can compare them with the engine's unions. Where the language cannot say something the manual needs, **do not stretch the file**: record the gap in the worklist entry and open a `DEFINE` grammar follow-up.
+Write the three files so that `loadRuleset` accepts them and `verify/rulesets.ts` (its own issue) can compare them with the engine's unions. Where the language cannot say something the manual needs, **do not stretch the file**: record the gap in a history entry and open a `DEFINE` grammar follow-up.
 
 **Out of scope.** Triggers, keywords, words, prompts (separate issues); any interpreter.
 
 **Acceptance.**
 - Gate; `npm test` loads the three files without error.
 - Every `Area` in `types.ts` appears as a `ZONE`; every `CardDef` field as an `ATTRIBUTE` (asserted by the completeness issue — this one must leave nothing for it to report).
-- The worklist entry lists what the manual says that the files could not, if anything.
+- The history entry lists what the manual says that the files could not, if anything.
