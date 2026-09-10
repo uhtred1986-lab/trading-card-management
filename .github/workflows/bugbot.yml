@@ -1,0 +1,59 @@
+# Reviews every PR's diff for bugs and acceptance-criteria gaps, posting inline
+# comments. Third-party action (not Anthropic/GitHub) — pinned to a commit SHA,
+# not a movable tag, so a future push to the v1.0.14 tag can't change what runs
+# here unreviewed.
+name: Claude BugBot
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+  # Lets an already-open PR (one that predates this workflow, or that needs a
+  # re-run without a new commit) be reviewed on demand from the Actions tab.
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "PR number to review"
+        required: true
+        type: number
+
+permissions:
+  contents: read
+  # pull-requests: write is required for posting inline review comments and
+  # auto-resolving threads when a bug is fixed in a follow-up commit. Also
+  # requires Settings -> Actions -> General -> Workflow permissions -> "Read
+  # and write permissions" in the repo, or this is silently downgraded.
+  pull-requests: write
+
+jobs:
+  bugbot:
+    runs-on: ubuntu-latest
+    if: github.actor != 'dependabot[bot]'
+    steps:
+      # The action reads `pull_request` off the triggering event payload,
+      # which workflow_dispatch doesn't carry. Fetch the PR and check out its
+      # head so a manual run looks the same as a real pull_request event.
+      - name: Resolve PR for manual run
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/${{ github.repository }}/pulls/${{ inputs.pr_number }}" > "$RUNNER_TEMP/pr.json"
+          HEAD_SHA=$(jq -r '.head.sha' "$RUNNER_TEMP/pr.json")
+          echo "HEAD_SHA=$HEAD_SHA" >> "$GITHUB_ENV"
+          jq -n --slurpfile pr "$RUNNER_TEMP/pr.json" '{pull_request: $pr[0]}' > "$RUNNER_TEMP/event.json"
+          echo "GITHUB_EVENT_PATH=$RUNNER_TEMP/event.json" >> "$GITHUB_ENV"
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && env.HEAD_SHA || github.event.pull_request.head.sha }}
+          # Full history so BugBot's history lens can check whether the PR
+          # silently undoes an earlier fix.
+          fetch-depth: 0
+
+      - name: Run Claude BugBot
+        # rekpero/claude-bugbot-github-action, tag v1.0.14, pinned by commit SHA.
+        uses: rekpero/claude-bugbot-github-action@8eedc356796c3b6e73a2d2288fe10643702b8bfb
+        with:
+          claude-setup-token: ${{ secrets.CLAUDE_SETUP_TOKEN }}
+          model: sonnet
