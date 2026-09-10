@@ -1,7 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: "standalone",
+  // Keep standalone output for self-hosted builds, but let Vercel package the
+  // default build output so it can read the trace files its adapter expects.
+  output: process.env.VERCEL ? undefined : "standalone",
   images: {
     remotePatterns: [
       // Canonical card art from the deckplanet catalog (see src/lib/catalog/deckplanet.ts).
