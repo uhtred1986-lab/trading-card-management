@@ -2873,7 +2873,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     const verb = passive[3].slice(0, -1); // "reduced"/"increased"/"decreased" -> the bare verb.
     qq = `${verb} the ${passive[1] ?? ""}cost of ${passive[2]} by ${passive[4]}`;
   }
-  qq = qq.replace(/\bactivation costs?\b/g, "skill cost");
+  qq = qq.replace(/\bactivation costs?\b/gi, "skill cost");
   // "Reduce the Z-Energy cost by 1" (BT22-034): the bare, no-subject
   // continuation that "reduce the energy/combo cost by N" stays unread for
   // everywhere else in the catalog (deliberately — the noun alone does not
