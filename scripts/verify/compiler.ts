@@ -1043,6 +1043,21 @@ import type { PlayerId } from "./harness";
 }
 
 {
+  // A skill-cost reducer compiles only when its scope reads as a selector plus
+  // a duration; an unread scope refuses the whole clause rather than granting
+  // an unscoped discount to every skill.
+  const scoped = compileSkill(parseSkills("[Auto] When you play this card, reduce the skill cost of your red battle cards in your hand by {r} for the duration of the turn.")[0]);
+  assert.deepEqual(scoped.unsupported, [], "the scoped skill-cost clause reads");
+  assert.ok(
+    scoped.ops.some((o) => o.op === "costReduction" && o.what === "skill" && "target" in o),
+    "as a skill cost reduction",
+  );
+  const unscoped = compileSkill(parseSkills("[Auto] When you play this card, reduce the skill cost of your next [Union] skill by {r}.")[0]);
+  assert.deepEqual(unscoped.ops, [], "an unread scope does not leave a global discount behind");
+  assert.ok(unscoped.unsupported.length > 0);
+}
+
+{
   // "Only 1 {ONLYONE} can be played in your Battle Area" — the rule switches
   // itself on once one is there, which a [Permanent] can say because the
   // static layer asks again every time.

@@ -282,9 +282,10 @@ export type Op =
   /**
    * A [Permanent] cost reducer, applied while the card sits where the skill
    * says (9-1-3-3). `what` says which cost: the energy cost by default, the
-   * combo cost (5-7-3), the Z-Energy cost (5-4) a Z-Card pays out of the
-   * Z-Energy Area rather than the hand, or the **specified** (coloured) part
-   * of an X-cost card's price — owner's ruling on BT19-039, 9 Sep 2026,
+   * combo cost (5-7-3), a skill/evolve cost paid as orbs, the Z-Energy cost
+   * (5-4) a Z-Card pays out of the Z-Energy Area rather than the hand, or the
+   * **specified** (coloured) part of an X-cost card's price — owner's ruling
+   * on BT19-039, 9 Sep 2026,
    * validated against 13-2-1-3/20-21-2: this relaxes only which colours the
    * card demands ("2 blue" down to "1 blue"), never the total, so `playCost`
    * keeps it apart from an ordinary reduction rather than folding it into the
@@ -300,7 +301,15 @@ export type Op =
    * by 1 **for the duration of the turn**" (XD1-05) — and the interpreter puts
    * it in force for that long.
    */
-  | { op: "costReduction"; target: Ref; amount: Amount; what?: "energy" | "combo" | "zEnergy" | "specified"; colors?: (Color | "any")[]; until?: Duration }
+  | {
+      op: "costReduction";
+      target: Ref;
+      amount: Amount;
+      what?: "energy" | "skill" | "evolve" | "combo" | "zEnergy" | "specified";
+      colors?: (Color | "any")[];
+      skillKind?: SkillKindPrefix;
+      until?: Duration;
+    }
   /**
    * Take a keyword skill away from a card (9-1-5). Unlike `negateSkills`, which
    * silences everything, this names one — "negate this card's
@@ -1189,9 +1198,27 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
           }
           break;
         }
-        const kind = op.what === "combo" ? "comboCost" : op.what === "zEnergy" ? "zEnergy" : "cost";
+        const kind =
+          op.what === "combo"
+            ? "comboCost"
+            : op.what === "zEnergy"
+              ? "zEnergy"
+              : op.what === "skill"
+                ? "skillCost"
+                : op.what === "evolve"
+                  ? "evolveCost"
+                  : "cost";
         for (const id of resolveRef(ctx, s, frame, op.target)) {
-          addEffect(s, ev, { master: frame.master, source: frame.card, target: id, kind, value: by, until: op.until ?? "turn" });
+          addEffect(s, ev, {
+            master: frame.master,
+            source: frame.card,
+            target: id,
+            kind,
+            value: by,
+            until: op.until ?? "turn",
+            ...(op.skillKind ? { skillKind: op.skillKind } : {}),
+            ...(op.colors?.length ? { colors: op.colors } : {}),
+          });
         }
         break;
       }
@@ -1501,7 +1528,8 @@ const TARGET: OpField = { name: "target", type: "ref", required: true };
 const COST_REDUCTION_FIELDS: OpField[] = [
   TARGET,
   { name: "amount", type: "amount", required: true },
-  { name: "what", type: { enum: ["energy", "combo", "zEnergy", "specified"] }, default: "energy" },
+  { name: "what", type: { enum: ["energy", "skill", "evolve", "combo", "zEnergy", "specified"] }, default: "energy" },
+  { name: "skillKind", type: { enum: SKILL_KIND_PREFIXES } },
   { name: "colors", type: { list: { enum: ["any", ...COLORS] } } },
   { name: "until", type: "duration" },
 ];
@@ -1596,14 +1624,21 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     // number and would print a true-looking but wrong reading.
     sentence: (raw, r) => {
       const op = raw as OpOf<"costReduction">;
-      if (op.what !== "specified") return renderTemplate("{target} costs {amount:less|more}", raw as unknown as Record<string, unknown>, COST_REDUCTION_FIELDS, r);
+      if (op.what !== "specified") {
+        if ((op.what === undefined || op.what === "energy" || op.what === "combo" || op.what === "zEnergy") && !op.skillKind) {
+          return renderTemplate("{target} costs {amount:less|more}", raw as unknown as Record<string, unknown>, COST_REDUCTION_FIELDS, r);
+        }
+        const noun = op.what === "combo" ? "combo cost" : op.what === "zEnergy" ? "Z-Energy cost" : op.what === "skill" ? "skill cost" : op.what === "evolve" ? "[Evolve] cost" : "cost";
+        const scoped = op.skillKind ? ` for [${op.skillKind === "activate" ? "Activate" : op.skillKind === "counter" ? "Counter" : op.skillKind === "auto" ? "Auto" : "Permanent"}] skills` : "";
+        return `${describeRef(op.target)}'s ${noun}${scoped} is ${describeCostChange(op.amount)}`;
+      }
       const counts = new Map<string, number>();
       for (const c of op.colors ?? []) counts.set(c, (counts.get(c) ?? 0) + 1);
       const orbs = [...counts.entries()].map(([c, n]) => `${n} ${c === "any" ? "energy" : c.toLowerCase()}`).join(", ");
       const amt = typeof op.amount === "number" ? op.amount : 0;
       return `${describeRef(op.target)}'s specified cost is ${amt < 0 ? `${-amt} more` : `${amt} less`}${orbs ? ` (${orbs})` : ""}`;
     },
-    doc: '[Permanent] only unless a duration is given (20-21): "reduce the energy cost of your <Son Goku> cards in your hand by 1" — the selector names the area the text names, usually the hand; "zEnergy" is the Z-Energy cost a Z-Card pays from the Z-Energy Area (5-4), read by `zEnergyCostOf`, never `d.zEnergyCost` raw. "specified" is the coloured part of an X-cost card\'s price (owner\'s ruling on BT19-039, 9 Sep 2026): it never touches the total, only which colours `playCost` demands, and `colors` carries the orbs it relaxes — always printed as `{u}`/`{y}{y}`/…, never a bare count.',
+    doc: '[Permanent] only unless a duration is given (20-21): "reduce the energy cost of your <Son Goku> cards in your hand by 1" — the selector names the area the text names, usually the hand; "skill"/"evolve" are orb costs read by `orbTotals` for one skill on one card; "zEnergy" is the Z-Energy cost a Z-Card pays from the Z-Energy Area (5-4), read by `zEnergyCostOf`, never `d.zEnergyCost` raw. "specified" is the coloured part of an X-cost card\'s price (owner\'s ruling on BT19-039, 9 Sep 2026): it never touches the total, only which colours `playCost` demands, and `colors` carries the orbs it relaxes — always printed as `{u}`/`{y}{y}`/…, never a bare count.',
   },
   negateKeyword: { fields: [{ name: "keyword", type: { enum: KEYWORD_NAMES }, required: true }, SELF], sentence: "negate the [{keyword}] skill of {target}", doc: 'take one named keyword away ("negate this card\'s [Energy-Exhaust] skill in all areas", 9-1-5); the keyword is its printed name, e.g. "Blocker"' },
   gains: {
