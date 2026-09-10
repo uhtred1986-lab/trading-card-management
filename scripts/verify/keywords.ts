@@ -32,7 +32,7 @@ import {
   // Skill-cost modifiers: a red-scoped reduction lowers a red [Counter] skill's
   // orbs, does not lower a blue one, and ends at its printed `until`.
   DEFS.COUNTER_RR = { ...DEFS["E-NEGATE"], id: "COUNTER_RR", name: "COUNTER_RR", colors: ["Red"], energyCost: 0, skill: "[Counter: Attack]{r}{r}: Negate the attack." };
-  DEFS.COUNTER_UU = { ...DEFS["E-NEGATE"], id: "COUNTER_UU", name: "COUNTER_UU", colors: ["Blue"], energyCost: 0, skill: "[Counter: Attack]{r}{r}: Negate the attack." };
+  DEFS.COUNTER_UU = { ...DEFS["E-NEGATE"], id: "COUNTER_UU", name: "COUNTER_UU", colors: ["Blue"], energyCost: 0, skill: "[Counter: Attack]{u}{u}: Negate the attack." };
   DEFS.SKILLCHEAP = {
     ...DEFS.V1,
     id: "SKILLCHEAP",
