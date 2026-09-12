@@ -38,7 +38,7 @@ is a GitHub milestone with a tracking issue whose task list is the stage's progr
 |---|---|---|---|---|
 | 0 | — | engine selector, safety net, DB-free tally | Sonnet 5 | **done**, PR #62 |
 | 1 | — | the language over today's schema, workbench text view, editable WHEN/COST, engine honours the row's trigger | Opus 5 | **done** |
-| 2 | Arena M1 — Rules correctness and parser coverage | every gap-table primitive built or explained as a macro; no known wrong reading unlisted | Opus 5 | in progress, 5 increments merged |
+| 2 | Arena M1 — Rules correctness and parser coverage | every gap-table primitive built or explained as a macro; no known wrong reading unlisted | Opus 5 | in progress — #94, #95, #97, #120, #121, #129 closed; #124 in PR #207; #93, #96, #122, #123, #125–#128, #130 open (12 Sep 2026) |
 | 3 | Arena M6 — Definitions in the language | `DEFINE` grammar; DBS written as declarations; completeness proven against the legacy unions | Opus 5 | not started |
 | 4 | Arena M7 — Rules engine core | `vm/` plays turn to turn with pass/concede; renders on the board | Opus 5 | not started |
 | 5 | Arena M8 — Rules engine actions and costs | `arena:diff` green on staged games; engine selectable | Opus 5 | not started |
@@ -71,6 +71,7 @@ for compiler work (`move()` replacement prompting, #107) or are engine bugs (#10
 | Arena M12 — Parity and the flip (Stage 9) | plan Stage 9 |
 | Arena M13 — Retire the legacy engine (Stage 10) | plan Stage 10 |
 | Arena M14 — Rules language and ruleset documentation | plan "Docs" |
+| Arena M15 — Backlog tooling and CI | review of 12 Sep 2026: the issue sync, the PR template and the ac-check |
 
 ## 3. Labels
 
@@ -175,3 +176,20 @@ Needs the GitHub CLI (`gh`) and an authenticated session (`gh auth login`). Wind
 works (`powershell -File …`). The script is idempotent: it matches issues by exact title, creates
 milestones and labels only when absent, and rebuilds every tracking issue's task list from the
 current issue numbers on each run.
+
+### Backlog tooling — Arena M15 (no tracking issue)
+
+| File | Title | Kind |
+|---|---|---|
+| tooling-01 | Arena backlog: make the issue sync work without PowerShell — body updates, tracking refresh and an issue number in the front matter (#208) | tooling |
+| tooling-02 | Arena backlog: PR template with a Closes line, and an ac-check that reads the issue's acceptance section only (#209) | CI |
+
+## 7. Review of 12 Sep 2026
+
+The Stage 2 language issues, all of Stage 3 and Stage 4, and the documentation issues were checked
+against the tree at `77cf236` and each file gained a **"Review of 12 Sep 2026"** section: a code map
+with the current file paths and line numbers (the compiler split of PR #201 and the `script.ts` /
+`script-schema.ts` split of PR #203 had made the older text stale), the steps in order, what "done"
+looks like, and the traps — written so a Sonnet-class agent can start from the issue alone. The three
+tracking issues carry the recommended order. Findings that were not about the arena itself became
+the two M15 files above. Three Stage 2 files (`s2-02`, `s2-10`, `s2-97`) were marked closed to match GitHub; #93, #96, #107, #110 and #167 were **reopened** on GitHub because PR #182 auto-closed them without delivering them (only #100 was in that PR).
