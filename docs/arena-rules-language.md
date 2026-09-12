@@ -320,9 +320,11 @@ The parser refuses what it cannot read: an unknown kind, an unknown field, a fie
 value outside a closed list, and a **required field left out** — which fails at the declaration's
 own line, with `clause` naming the kind, exactly as a rule's missing argument fails at the call
 (§5). Everything that needs a second declaration to check is the loader's, not the grammar's: a
-**dangling reference** (an `ACTION` naming a `COST` nothing declares, a `TRIGGER` naming an unknown
-zone), a **duplicate name**, and an **unknown hook point**. Those arrive with the ruleset loader
-(`rulesets/load.ts`), in the same `LangError` shape.
+**dangling reference** (an `ACTION` naming a `COST` nothing declares, a `TRIGGER` — or any program
+— naming an unknown zone), a **duplicate name**, and an **unknown hook point**. Those are the
+ruleset loader's (`rulesets/load.ts`, built 12 Sep 2026), in the same `LangError` shape plus the
+file, pointed at the line and column of the offending word.
+`docs/arena-ruleset-spec.md` §3 lists them one by one.
 
 ## 4. Worked examples
 
