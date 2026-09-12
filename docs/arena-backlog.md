@@ -177,6 +177,30 @@ works (`powershell -File …`). The script is idempotent: it matches issues by e
 milestones and labels only when absent, and rebuilds every tracking issue's task list from the
 current issue numbers on each run.
 
+The same operations, without PowerShell or `gh` (Node + `tsx`, authenticated with `GITHUB_TOKEN`
+or `GH_TOKEN` — `gh api` is still the fallback when neither is set):
+
+```sh
+npx tsx scripts/sync-arena-backlog.mts --push                       # create or update every local file's issue
+npx tsx scripts/sync-arena-backlog.mts --push s3-01-define-grammar.md --dry-run   # one file, print the PATCH
+npx tsx scripts/sync-arena-backlog.mts --sync                       # rebuild every tracking issue's {{children}}
+npx tsx scripts/sync-arena-backlog.mts --check                      # exit non-zero on status/path drift (see below)
+npx tsx scripts/sync-arena-backlog.mts --close s2-01 --dry-run      # close one issue, preview the comment (unchanged)
+npx tsx scripts/sync-arena-backlog.mts --all-closed                 # close every file already marked status: closed
+```
+
+`--push` matches a file to its GitHub issue by the front-matter `issue:` number first (see
+`docs/arena-backlog/_README.md`), the exact title second, and creates the issue when neither
+matches — writing `issue: N` back into the file so a later title change cannot detach it. `--sync`
+is the Node port of `Expand-Children` above: it rewrites every `tracking: true` issue's body from
+the live state of its stage's other issues, which is what tracking issue checklists like #169's
+depend on staying current. `--check` is read-only and needs nothing but `GITHUB_TOKEN`: it flags a
+file whose `status:` disagrees with its issue's open/closed state, and any path cited in a file's
+`**Source:**` line that no longer exists in the tree (the `Build` section names paths the issue's
+own work will create, so those are not checked). It runs in CI as the `backlog` job in
+`.github/workflows/checks.yml`, on every push and pull request, with the workflow's own read-only
+`GITHUB_TOKEN` — no secret to configure.
+
 ### Backlog tooling — Arena M15 (no tracking issue)
 
 | File | Title | Kind |

@@ -1,13 +1,19 @@
-# The checks that need neither a database nor a network.
+# The checks that need no database, plus one that needs only the GitHub API.
 #
 # `npm test` is the rules engine and the migrations on PGlite; the Kotlin job
 # is tier 0 of `docs/arena-android-spec.md` §10 — it decodes the golden
 # fixtures the server emits and proves a client still understands them.
 #
-# The two are separate jobs on purpose. When the server's Snapshot shape
+# Those two are separate jobs on purpose. When the server's Snapshot shape
 # changes, exactly one of them goes red, and which one tells you whether the
 # change was deliberate (fixtures regenerated, Kotlin not yet updated) or an
 # accident (neither updated).
+#
+# `backlog` is `scripts/sync-arena-backlog.mts --check` (`docs/arena-backlog.md`
+# §6): read-only against the GitHub API via the workflow's own `GITHUB_TOKEN`,
+# it catches a backlog file whose `status:` disagrees with the issue's state
+# and a `**Source:**` citation whose path no longer exists in the tree — the
+# drift the review of 12 Sep 2026 found by hand.
 name: checks
 
 on:
@@ -47,3 +53,20 @@ jobs:
       # should not pay to build an image.
       - run: gradle --no-daemon :contract:test
         working-directory: android
+
+  backlog:
+    name: arena backlog drift
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx tsx scripts/sync-arena-backlog.mts --check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
