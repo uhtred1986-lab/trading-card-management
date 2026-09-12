@@ -211,6 +211,27 @@ and, like `arena-fuzz.mts` and `arena-diff.mts`, takes `--engine legacy|rules`
 catalog offline into `card_rules` drafts — **the only module that calls the
 compiler in production is `draft.ts`**; the engine reads rows.
 
+### `arena:specified` — what the feed does not say
+
+```
+npm run arena:specified            # the report, loudest cards first
+npm run arena:specified -- --all   # every X-cost card with no baseline
+```
+
+Needs the network, no database. A play's price has two halves — the total, and
+the **specified cost**, meaning how much of that total must be paid in a named
+colour. The engine fills a fixed cost's orbs by convention (`specifiedCostOf`:
+one per colour, capped by the total) and **refuses to invent them for an X
+cost**, because the catalog carries none: this script is that refusal, checked
+rather than asserted. It reads the deckplanet feed the catalog sync imports,
+prints every distinct value of the cost field so the claim can be seen, and
+lists the cards left without a baseline — the seven printing a specified-cost
+clause first, since those have a rule that reads correctly and changes nothing
+(BT19-039, BT19-040, BT15-063, BT20-118, P-673, P-600, BT25-004). Run it before
+believing a specified-cost rule is inert for any other reason, and run it again
+if a future feed starts spelling orbs in the cost field, which is the one thing
+that would turn this refusal back into a parsing job.
+
 ---
 
 ## 5. Recording a ruling
