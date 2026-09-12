@@ -1,8 +1,10 @@
 ---
 title: Arena: DBS declarations — game.rules, attributes.rules and zones.rules
 milestone: Arena M6 — Definitions in the language (Stage 3)
-labels: backlog, ready-for-agent, enhancement, area:arena-rulesets, phase:rules-stage3, model:opus-5
+labels: done, enhancement, area:arena-rulesets, phase:rules-stage3, model:opus-5
 stage: 3
+status: closed
+closed_at: 2026-09-12
 ---
 **Source:** plan Stage 3; rule manual `docs/rules/rulemanual.txt` (setup §5, areas §3, card information §4); `src/lib/arena/engine/types.ts` (`PlayerState`, `Area`, `CardDef`), `state.ts` (`playCost`, `specifiedCostOf`).
 
