@@ -1,0 +1,241 @@
+-- Every keyword skill KEYWORD_NAMES (engine/script-schema.ts) lists, in that
+-- order. TAKES is the arity KeywordSkill (engine/types.ts) carries and
+-- keywordOf (engine/cards.ts) reads back; scripts/verify/rulesets.ts checks
+-- both against this file. text: is the glossary's meaning line, verbatim
+-- (src/lib/arena/glossary.ts), so /arena/rules/keywords can render it from
+-- here once Stage 8 (#159) swaps the reader. No HOOK bodies yet — that is
+-- Stage 7 (#153-#157); a keyword's own moments stay the engine's until then.
+
+-- 22-2
+DEFINE KEYWORD Awaken
+  TAKES (surge: boolean)
+  text: "A Leader's own skill. Meet the printed condition, pay the cost, carry out the effect, then flip the Leader onto its awakened side. [Awaken: Surge] is the same skill under another name, and card text saying “[Awaken] skills” means both."
+  -- Stage 7 (#153–#157)
+
+-- 22-25
+DEFINE KEYWORD Wish
+  TAKES ()
+  text: "The same shape as [Awaken]: a condition, an effect, and then the Leader is flipped over."
+  -- Stage 7 (#153–#157)
+
+-- 22-3
+DEFINE KEYWORD Field
+  TAKES ()
+  text: "An Extra Card that stays on the table in Active Mode instead of going to the Drop Area. Its other skills work from there, and playing another [Field] Extra drops the one already out."
+  -- Stage 7 (#153–#157)
+
+-- 22-4
+DEFINE KEYWORD Blocker
+  TAKES ()
+  text: "When one of your other cards is attacked, switch this card to Rest Mode to become the guard card instead."
+  -- Stage 7 (#153–#157)
+
+-- 22-6
+DEFINE KEYWORD Critical
+  TAKES ()
+  text: "Life damage this card deals by attacking goes to the opponent's Drop Area instead of their hand."
+  -- Stage 7 (#153–#157)
+
+-- 22-7
+DEFINE KEYWORD Strike
+  TAKES (x: number)
+  text: "When this card would deal less than X life damage by attacking, it deals X instead — 2, 3 or 4."
+  -- Stage 7 (#153–#157)
+
+-- 22-8
+DEFINE KEYWORD Attack
+  TAKES (x: number)
+  text: "When this card attacks, it switches back to Active Mode at the end of the battle — X−1 times a turn."
+  -- Stage 7 (#153–#157)
+
+-- 22-9
+DEFINE KEYWORD Revenge
+  TAKES ()
+  text: "When this card becomes the guard card, KO the attacking card at the end of the battle."
+  -- Stage 7 (#153–#157)
+
+-- 22-12
+DEFINE KEYWORD Indestructible
+  TAKES ()
+  text: "This card can't be KO'd or moved out of your Battle Area by the opponent's skills or as a result of battle."
+  -- Stage 7 (#153–#157)
+
+-- 22-16
+DEFINE KEYWORD Barrier
+  TAKES ()
+  text: "This card can't be chosen by the skills of cards your opponent masters."
+  -- Stage 7 (#153–#157)
+
+-- 22-20
+DEFINE KEYWORD Deflect
+  TAKES ()
+  text: "This card isn't affected by your opponent's [Counter: Play] skills. Valid in every area."
+  -- Stage 7 (#153–#157)
+
+-- 22-39
+DEFINE KEYWORD Unique
+  TAKES ()
+  text: "While a card with [Unique] is in play you can't play another card with the same name. If two are somehow in play at once, their master keeps one and drops the rest."
+  -- Stage 7 (#153–#157)
+
+-- 22-40
+DEFINE KEYWORD Servant
+  TAKES ()
+  text: "+10000 power, and the card does not switch to Active Mode during its master's Charge Phase."
+  -- Stage 7 (#153–#157)
+
+-- 22-31
+DEFINE KEYWORD "Energy-Exhaust"
+  TAKES ()
+  text: "When this card is placed in an Energy Area, it arrives in Rest Mode. Valid in every area."
+  -- Stage 7 (#153–#157)
+
+-- 22-18
+DEFINE KEYWORD "Victory Strike"
+  TAKES ()
+  text: "Deal life damage by attacking with this card and you win the game."
+  -- Stage 7 (#153–#157)
+
+-- 22-19
+DEFINE KEYWORD "Warrior of Universe 7"
+  TAKES ()
+  text: "Treat your ≪Universe 7≫ cards in every area as having no specified cost — the coloured part of a play's price."
+  -- Stage 7 (#153–#157)
+
+-- 22-14
+DEFINE KEYWORD Ultimate
+  TAKES ()
+  text: "A deck may hold at most one card with [Ultimate], and a card with it that leaves play is removed from the game rather than going anywhere else."
+  -- Stage 7 (#153–#157)
+
+-- 22-17
+DEFINE KEYWORD "Super Combo"
+  TAKES ()
+  text: "A deck may hold at most four cards with [Super Combo], counted across all of them."
+  -- Stage 7 (#153–#157)
+
+-- 22-28
+DEFINE KEYWORD "Dragon Ball"
+  TAKES ()
+  text: "As many copies of a [Dragon Ball] card as you like, as long as no more than seven [Dragon Ball] cards are in the deck all told."
+  -- Stage 7 (#153–#157)
+
+-- 22-24
+DEFINE KEYWORD Wormhole
+  TAKES ()
+  text: "[Over Realm] and [Dark Over Realm] may be activated twice a turn between them instead of once."
+  -- Stage 7 (#153–#157)
+
+-- 22-37
+DEFINE KEYWORD Invoker
+  TAKES ()
+  text: "A Red/Blue multicolour Extra Card in your hand may be activated by switching one active Red/Blue multicolour energy to Rest Mode instead of paying its energy cost."
+  -- Stage 7 (#153–#157)
+
+-- 22-35
+DEFINE KEYWORD Heroic
+  TAKES ()
+  text: "When you play another card with [Heroic], draw 1 card; the skill is then negated on this card for the rest of the turn."
+  -- Stage 7 (#153–#157)
+
+-- 22-36
+DEFINE KEYWORD Villainous
+  TAKES ()
+  text: "When you play another card with [Villainous], your opponent chooses a card in their hand and drops it; the skill is then negated for the rest of the turn."
+  -- Stage 7 (#153–#157)
+
+-- 22-33
+DEFINE KEYWORD Offering
+  TAKES ()
+  text: "When this Battle Card is played, your opponent may put one of their life cards in their Drop Area. If they don't, you draw 2 cards."
+  -- Stage 7 (#153–#157)
+
+-- 22-5
+DEFINE KEYWORD Evolve
+  TAKES (variant: string)
+  text: "From hand: pay the cost, choose one of your Battle Cards matching the printed description, and play this card on top of it. [Xeno-Evolve] sends the chosen card to the Warp instead of stacking onto it."
+  -- Stage 7 (#153–#157)
+
+-- 22-13
+DEFINE KEYWORD Union
+  TAKES (variant: string)
+  text: "Three ways to play a Battle Card by naming characters. Fusion drops one of each named character from your hand, both of equal power. Potara plays this card on top of two named characters in your Battle Area. Absorb is activated from the Battle Area, and its text says which card is played onto this one."
+  -- Stage 7 (#153–#157)
+
+-- 22-15, 22-23
+DEFINE KEYWORD "Over Realm"
+  TAKES (x: number, dark: boolean)
+  text: "With X or more cards in your Drop Area — X or more black cards, for the dark one — send your whole Drop Area to the Warp as the cost and play this card from hand. The two share one activation a turn. A card played with [Over Realm] goes to the Warp at the end of that turn."
+  -- Stage 7 (#153–#157)
+
+-- 22-22
+DEFINE KEYWORD Swap
+  TAKES (x: number)
+  text: "Return this Battle Card to your hand and play a named Battle Card with an energy cost of X from your hand in its place."
+  -- Stage 7 (#153–#157)
+
+-- 22-29
+DEFINE KEYWORD Arrival
+  TAKES (colors: colors)
+  text: "During a battle, when the original colours of the Battle Cards in your Combo Area cover every colour named, pay the cost and play this card from hand."
+  -- Stage 7 (#153–#157)
+
+-- 22-30
+DEFINE KEYWORD Aegis
+  TAKES (colors: colors)
+  text: "In the Defense Step of your opponent's turn, drop cards from your hand covering the named colours to switch up to two of your energy from Rest to Active Mode."
+  -- Stage 7 (#153–#157)
+
+-- 22-32
+DEFINE KEYWORD Alliance
+  TAKES (colors: colors)
+  text: "When this card attacks, you may switch one or more of your other Battle Cards of the named colours to Rest Mode as the cost of the printed effect."
+  -- Stage 7 (#153–#157)
+
+-- 22-34
+DEFINE KEYWORD Revive
+  TAKES (colors: colors)
+  text: "When this Battle Card is KO'd, drop cards from hand whose original colours cover both named colours to play it back from your Drop Area. [Revive] is then negated on it for the turn."
+  -- Stage 7 (#153–#157)
+
+-- 22-38
+DEFINE KEYWORD Successor
+  TAKES ()
+  text: "Drop any number of mono-green, mono-yellow or Green/Yellow Battle Cards from your Battle Area whose energy costs add up to exactly this card's printed cost, and play it from hand."
+  -- Stage 7 (#153–#157)
+
+-- 22-41
+DEFINE KEYWORD Overlord
+  TAKES ()
+  text: "Put one of your Battle Cards with [Servant] at the bottom of your deck as the cost, and draw 1 card."
+  -- Stage 7 (#153–#157)
+
+-- 22-42
+DEFINE KEYWORD Rejuvenate
+  TAKES ()
+  text: "A Unison Card with cards beneath it: drop one of them and pay the skill cost, then add the top card of your deck to your life."
+  -- Stage 7 (#153–#157)
+
+-- 22-43
+DEFINE KEYWORD "Spirit Boost"
+  TAKES (x: number)
+  text: "Part of a skill's cost: remove X markers from your Unison Card. A skill whose [Spirit Boost] can't be paid can't be activated."
+  -- Stage 7 (#153–#157)
+
+-- 22-45
+DEFINE KEYWORD Empower
+  TAKES (color: color, x: number)
+  text: "When you play this Unison Card over one whose colour matches, you may move up to Y markers from the Unison being replaced onto this one. An [Empower] naming no colour takes them from a Unison of any colour."
+  -- Stage 7 (#153–#157)
+
+-- 22-46
+DEFINE KEYWORD "Z-Awaken"
+  TAKES ()
+  text: "From the Z-Deck, once a turn: pay the Z-Energy cost and the skill cost and place this Z-Leader on top of your already-awakened Leader, which has to match the printed description. The stack is one card from then on."
+  -- Stage 7 (#153–#157)
+
+-- 22-47
+DEFINE KEYWORD "Z-Stack"
+  TAKES (x: number)
+  text: "When this Z-Card is placed on your Leader or into a Battle or Unison Area, put up to X cards matching the printed description from your Z-Deck underneath it. They become part of the card on top."
+  -- Stage 7 (#153–#157)

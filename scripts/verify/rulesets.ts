@@ -19,7 +19,8 @@
  * Part of `npm test`; run from `scripts/verify-arena.ts`, which fixes the order.
  */
 import assert from "node:assert/strict";
-import { loadRuleset, loadDbs, rulesetFor, HOOK_POINTS, type RulesetError } from "../../src/lib/arena/rulesets";
+import { loadRuleset, loadDbs, rulesetFor, HOOK_POINTS, type KeywordDef, type RulesetError } from "../../src/lib/arena/rulesets";
+import { KEYWORD_NAMES } from "../../src/lib/arena/engine/script-schema";
 
 const lines = (...rows: string[]): string => rows.join("\n");
 
@@ -189,17 +190,89 @@ assert.equal(unknownHook.clause, "KEYWORD");
 
 // ── what the app loads ──────────────────────────────────────────────────────
 
-// Empty until #133–#135 write the files; the claim an empty set can carry is
-// that the path the app takes works at all.
+// zones.rules, words.rules and prompts.rules are still to come (#136 and the
+// owner's word on DEFINE WORDS/PROMPT, #131); the claim an empty set of those
+// can carry is that the path the app takes works at all. keywords.rules is
+// #135's, and is checked against KEYWORD_NAMES below.
 const dbs = loadDbs();
 assert.ok(dbs.ok, `the DBS ruleset did not load: ${dbs.ok ? "" : JSON.stringify(dbs.errors, null, 2)}`);
 if (dbs.ok) {
   assert.equal(dbs.definition.id, "dbs");
-  assert.deepEqual(dbs.definition.definitions, [], "the DBS ruleset has files now — grow this check with them (#136)");
+  assert.equal(dbs.definition.definitions.length, KEYWORD_NAMES.length, "the DBS ruleset does not hold one declaration per keyword — grow this check with the other files as they land (#136)");
   assert.deepEqual(dbs.vocabulary.areas, []);
 }
 assert.equal(loadDbs(), dbs, "the ruleset is parsed again on every read");
 assert.equal(rulesetFor("dbs").ok, true);
 assert.equal(rulesetFor("fusion").ok, false, "Fusion World has no ruleset yet and must say so rather than load an empty one");
+
+// ── keywords.rules against KEYWORD_NAMES, both directions ──────────────────
+
+/**
+ * The parameters `keywordOf` (`engine/cards.ts`) builds for each keyword, as
+ * `keywords.rules`' own `TAKES` should read them. Hand-written against the
+ * `KeywordSkill` union (`engine/types.ts`) rather than derived from it — a
+ * union has no runtime shape to walk — but `Record` over `KEYWORD_NAMES`'
+ * own element type means a keyword added to one list and not the other
+ * fails `npm run typecheck` before this file ever runs, the same guard
+ * `npm test` already has for the glossary.
+ */
+const KEYWORD_ARITY: Record<(typeof KEYWORD_NAMES)[number], { name: string; type: string }[]> = {
+  Awaken: [{ name: "surge", type: "boolean" }],
+  Wish: [],
+  Field: [],
+  Blocker: [],
+  Critical: [],
+  Strike: [{ name: "x", type: "number" }],
+  Attack: [{ name: "x", type: "number" }],
+  Revenge: [],
+  Indestructible: [],
+  Barrier: [],
+  Deflect: [],
+  Unique: [],
+  Servant: [],
+  "Energy-Exhaust": [],
+  "Victory Strike": [],
+  "Warrior of Universe 7": [],
+  Ultimate: [],
+  "Super Combo": [],
+  "Dragon Ball": [],
+  Wormhole: [],
+  Invoker: [],
+  Heroic: [],
+  Villainous: [],
+  Offering: [],
+  Evolve: [{ name: "variant", type: "string" }],
+  Union: [{ name: "variant", type: "string" }],
+  "Over Realm": [
+    { name: "x", type: "number" },
+    { name: "dark", type: "boolean" },
+  ],
+  Swap: [{ name: "x", type: "number" }],
+  Arrival: [{ name: "colors", type: "colors" }],
+  Aegis: [{ name: "colors", type: "colors" }],
+  Alliance: [{ name: "colors", type: "colors" }],
+  Revive: [{ name: "colors", type: "colors" }],
+  Successor: [],
+  Overlord: [],
+  Rejuvenate: [],
+  "Spirit Boost": [{ name: "x", type: "number" }],
+  Empower: [
+    { name: "color", type: "color" },
+    { name: "x", type: "number" },
+  ],
+  "Z-Awaken": [],
+  "Z-Stack": [{ name: "x", type: "number" }],
+};
+
+if (dbs.ok) {
+  const declared = Object.keys(dbs.definition.keywords).sort();
+  const expected = [...KEYWORD_NAMES].sort();
+  assert.deepEqual(declared, expected, "keywords.rules and KEYWORD_NAMES do not name the same keywords");
+  for (const name of KEYWORD_NAMES) {
+    const keyword: KeywordDef | undefined = dbs.definition.keywords[name];
+    assert.ok(keyword, `keywords.rules has no DEFINE KEYWORD ${JSON.stringify(name)}`);
+    assert.deepEqual(keyword.takes ?? [], KEYWORD_ARITY[name], `DEFINE KEYWORD ${name} TAKES the wrong parameters for what keywordOf reads`);
+  }
+}
 
 console.log("verify/rulesets: ok");

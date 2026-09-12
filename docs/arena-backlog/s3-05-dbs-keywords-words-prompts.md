@@ -46,3 +46,36 @@ stage: 3
 4. Tests in `scripts/verify/rulesets.ts`: every `KEYWORD_NAMES` entry is declared with the arity `keywordOf` (`engine/cards.ts`, grep) reads; every `Prompt["kind"]` is declared. The prompt-kind list has no runtime array today — add `PROMPT_KINDS` beside `KEYWORD_NAMES` in `script-schema.ts` with the same `never`-check so the union and the array cannot drift.
 
 **Done when** the three files load, both set-equality tests pass, and `git diff --stat src/lib/arena/engine` shows only the new `PROMPT_KINDS` constant.
+
+---
+
+## Built 12 Sep 2026 — keywords.rules only; words.rules and prompts.rules still wait on #131
+
+Only the first of the three files landed. `DEFINE WORDS` and `DEFINE PROMPT` are not in the eleven
+`DEFINE_SCHEMA` kinds §3b of `docs/arena-rules-language.md` fixed, and adding either needs the
+owner's word — raised as #131's closing question — on whether the words table and the prompt
+questions are declarations of their own or fields of `DEFINE GAME`. Until that lands, `words.rules`
+and `prompts.rules` cannot be written; this file (and the issue) stays open rather than `status:
+closed`.
+
+What is built:
+- `src/lib/arena/rulesets/dbs/keywords.rules`: one `DEFINE KEYWORD` per `KEYWORD_NAMES` entry (39,
+  `engine/script-schema.ts`), in that list's order. `TAKES` is the parameter arity `KeywordSkill`
+  (`engine/types.ts`) carries and `keywordOf` (`engine/cards.ts`) reads back; `text:` is
+  `KEYWORDS[name].meaning` (`glossary.ts`), copied verbatim; the manual section is a `--` comment
+  above the declaration, not the `section:` field, per the review's step 1; every body ends with a
+  `-- Stage 7 (#153–#157)` comment in place of a `HOOK` line — Stage 7 fills those in.
+- `PROMPT_KINDS` added beside `KEYWORD_NAMES` in `engine/script-schema.ts`, with the same
+  `never`-check, over all 18 of `Prompt["kind"]` (`engine/types.ts`) — one more than the review's
+  own count named, which listed 17; the extra is a mis-count in the review text, not a kind added
+  here. It exists so `prompts.rules` and the union cannot drift once `DEFINE PROMPT` is answered,
+  even though the file itself is not written yet.
+- `scripts/verify/rulesets.ts` (part of `npm test`): `loadDbs()` now carries 39 declarations rather
+  than none, and a new section checks `keywords.rules` against `KEYWORD_NAMES` both ways — every
+  name declared, no name declared that `KEYWORD_NAMES` does not have — plus a hand-written
+  `KEYWORD_ARITY` table (`Record` over `KEYWORD_NAMES`' own element type, so a keyword missing from
+  either list fails `npm run typecheck`) asserting each declaration's `TAKES` against the shape
+  `keywordOf` actually builds.
+
+What is still open, tracked by the still-open **Build** section above: `words.rules`, `prompts.rules`,
+and the `verify/rulesets.ts` growth that checks them (part of #136's own scope, not repeated here).
