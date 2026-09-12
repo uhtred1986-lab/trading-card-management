@@ -8,10 +8,11 @@
  * They share this module rather than each growing a dialect.
  */
 export { printRule, printOps, printOp, printCond, printCost, printSelector, printFilter, printAmount, printRef, printDefinition, printDefinitions, canonical, deepEqual } from "./print";
-export { parseRule, parseCond, parseDefinitions } from "./parse";
+export { parseRule, parseCond, parseDefinitions, SELECTOR_FLAGS } from "./parse";
 export { validateRule, readRule, type Invalid } from "./validate";
 export { lex, positionOf, LangSyntaxError, type Token } from "./tokens";
 export {
+  COST_ITEMS,
   DEFINE_KINDS,
   DEFINE_SCHEMA,
   EXPR_ATTRS,

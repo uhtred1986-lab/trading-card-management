@@ -8,6 +8,10 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { stateText } from "../../src/lib/arena/ai/view";
+import { TRIGGERS } from "../../src/lib/arena/gaps";
+import { COST_ITEMS, FILTER_FIELDS, SELECTOR_FIELDS } from "../../src/lib/arena/lang/ast";
+import { languageReference } from "../../src/lib/arena/lang/reference";
+import { SELECTOR_FLAGS } from "../../src/lib/arena/lang/parse";
 import {
   COND_CLASS,
   COND_SCHEMA,
@@ -333,18 +337,47 @@ import type { CardFilter, SchemaOp } from "./harness";
   assert.equal(powerOf(CTX, t, find(t, "p1", "battle", "V1")), 15000, "the aura holds from its row");
 }
 
+// ── the generated language reference: exactly the schemas, nothing hand-kept ─
+//
+// `/arena/rules/language` (`src/app/arena/rules/language/page.tsx`) reads
+// `languageReference()` and nothing else, so this checks that the function's
+// own promise holds: every row is the schema's row, not a copy of it that
+// could drift.
+{
+  const ref = languageReference();
+  assert.deepEqual(ref.ops.map((o) => o.name).sort(), Object.keys(OP_SCHEMA).sort(), "every op in OP_SCHEMA has a row, and no other");
+  assert.deepEqual(ref.conds.map((c) => c.kind).sort(), Object.keys(COND_SCHEMA).sort(), "every condition in COND_SCHEMA has a row, and no other");
+  for (const op of ref.ops) if (op.name !== "note") assert.ok(op.sentence.length > 0, `${op.name}'s reference row has a worked sentence`);
+  for (const cond of ref.conds) assert.ok(cond.sentence.length > 0, `${cond.kind}'s reference row has a worked sentence`);
+  assert.deepEqual(ref.selectorFields.map((f) => f.field).sort(), Object.keys(SELECTOR_FIELDS).sort());
+  assert.deepEqual(ref.selectorFlags.map((f) => f.word).sort(), Object.keys(SELECTOR_FLAGS).sort());
+  assert.deepEqual(ref.filterFields.map((f) => f.field).sort(), Object.keys(FILTER_FIELDS).sort());
+  assert.deepEqual(
+    ref.triggers.map((t) => t.name),
+    TRIGGERS,
+    "the trigger vocabulary is validateRule's own list, in its own order",
+  );
+  assert.equal(ref.costItems.length, COST_ITEMS.length);
+  // Every op's and condition's referee shape still opens with its own name —
+  // the same promise `opSignature`/`condSignature` already assert on their own.
+  for (const op of ref.ops) assert.match(op.signature, new RegExp(`^\\{"op":"${op.name}"`));
+  for (const cond of ref.conds) assert.match(cond.signature, new RegExp(`^\\{"kind":"${cond.kind}"`));
+}
+
 // ── what Claude is told, kept ───────────────────────────────────────────────
 //
 // The referee's language and the board as the opponent reads it are prose
 // built in code. While that prose moves out of code and into the game's
-// definition (`docs/arena-ruleset-spec.md`), byte-equality with these two
-// fixtures is what proves the move changed nothing Claude sees. Run
-// `npm run contract:emit` to accept a deliberate change.
+// definition (`docs/arena-ruleset-spec.md`), byte-equality with these
+// fixtures is what proves the move changed nothing Claude sees — and, for
+// `language-reference.txt`, nothing the text view's player-facing reference
+// says either. Run `npm run contract:emit` to accept a deliberate change.
 {
   const s = arena({ hand: ["V1", "BIG"], battle: ["BLOCKER"], energy: ["V1", "V-BLUE"], oppBattle: ["V-BLUE"], oppHand: ["KILLER"] });
   const fixtures: Record<string, string> = {
     "effect-language.txt": EFFECT_LANGUAGE,
     "state-text.txt": stateText(CTX, s, "p1"),
+    "language-reference.txt": `${JSON.stringify(languageReference(), null, 2)}\n`,
   };
   const dir = path.join(process.cwd(), "contract", "fixtures");
   const emit = process.argv.includes("--emit");

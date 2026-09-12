@@ -1,0 +1,2495 @@
+{
+  "ops": [
+    {
+      "name": "draw",
+      "class": "macro over `move`",
+      "signature": "{\"op\":\"draw\",\"n\":AMOUNT,\"side\"?:\"you\"|\"opponent\"}",
+      "fields": [
+        {
+          "name": "n",
+          "required": true,
+          "nullable": false,
+          "type": "amount"
+        },
+        {
+          "name": "side",
+          "required": false,
+          "nullable": false,
+          "defaultText": "\"you\"",
+          "type": "side"
+        }
+      ],
+      "sentence": "draw 1"
+    },
+    {
+      "name": "discard",
+      "class": "macro over `choose` + `move`",
+      "signature": "{\"op\":\"discard\",\"n\":AMOUNT,\"side\"?:\"you\"|\"opponent\",\"to\"?:\"warp\"}",
+      "fields": [
+        {
+          "name": "n",
+          "required": true,
+          "nullable": false,
+          "type": "amount"
+        },
+        {
+          "name": "side",
+          "required": false,
+          "nullable": false,
+          "defaultText": "\"you\"",
+          "type": "side"
+        },
+        {
+          "name": "to",
+          "required": false,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "warp"
+          ]
+        }
+      ],
+      "sentence": "discard 1",
+      "doc": "cards leave a hand for the Drop (20-7); \"to\":\"warp\" for the Warp"
+    },
+    {
+      "name": "damage",
+      "class": "macro over `move`",
+      "signature": "{\"op\":\"damage\",\"n\":AMOUNT,\"side\"?:\"you\"|\"opponent\"}",
+      "fields": [
+        {
+          "name": "n",
+          "required": true,
+          "nullable": false,
+          "type": "amount"
+        },
+        {
+          "name": "side",
+          "required": false,
+          "nullable": false,
+          "defaultText": "\"you\"",
+          "type": "side"
+        }
+      ],
+      "sentence": "deal 1 damage",
+      "doc": "life to hand"
+    },
+    {
+      "name": "mill",
+      "class": "macro over `move`",
+      "signature": "{\"op\":\"mill\",\"n\":AMOUNT,\"side\"?:\"you\"|\"opponent\",\"as\"?:\"…\"}",
+      "fields": [
+        {
+          "name": "n",
+          "required": true,
+          "nullable": false,
+          "type": "amount"
+        },
+        {
+          "name": "side",
+          "required": false,
+          "nullable": false,
+          "defaultText": "\"you\"",
+          "type": "side"
+        },
+        {
+          "name": "as",
+          "required": false,
+          "nullable": false,
+          "type": "string"
+        }
+      ],
+      "sentence": "1 from the top of the deck to the Drop",
+      "doc": "deck to Drop; \"as\" names the cards for a later clause (\"if that card is red\")"
+    },
+    {
+      "name": "addLife",
+      "class": "macro over `move`",
+      "signature": "{\"op\":\"addLife\",\"n\":AMOUNT,\"side\"?:\"you\"|\"opponent\"}",
+      "fields": [
+        {
+          "name": "n",
+          "required": true,
+          "nullable": false,
+          "type": "amount"
+        },
+        {
+          "name": "side",
+          "required": false,
+          "nullable": false,
+          "defaultText": "\"you\"",
+          "type": "side"
+        }
+      ],
+      "sentence": "add 1 to life"
+    },
+    {
+      "name": "lifeDownTo",
+      "class": "macro over `move`",
+      "signature": "{\"op\":\"lifeDownTo\",\"n\":N,\"side\"?:\"you\"|\"opponent\"}",
+      "fields": [
+        {
+          "name": "n",
+          "required": true,
+          "nullable": false,
+          "type": "number"
+        },
+        {
+          "name": "side",
+          "required": false,
+          "nullable": false,
+          "defaultText": "\"you\"",
+          "type": "side"
+        }
+      ],
+      "sentence": "life down to 1, the cards going to hand",
+      "doc": "add cards from life to hand until that many life remain (21-3-2)"
+    },
+    {
+      "name": "shuffle",
+      "class": "primitive",
+      "signature": "{\"op\":\"shuffle\",\"side\"?:\"you\"|\"opponent\"}",
+      "fields": [
+        {
+          "name": "side",
+          "required": false,
+          "nullable": false,
+          "defaultText": "\"you\"",
+          "type": "side"
+        }
+      ],
+      "sentence": "shuffle"
+    },
+    {
+      "name": "energyMarker",
+      "class": "macro over `modifyAttr`",
+      "signature": "{\"op\":\"energyMarker\",\"n\":AMOUNT,\"side\"?:\"you\"|\"opponent\"}",
+      "fields": [
+        {
+          "name": "n",
+          "required": true,
+          "nullable": false,
+          "type": "amount"
+        },
+        {
+          "name": "side",
+          "required": false,
+          "nullable": false,
+          "defaultText": "\"you\"",
+          "type": "side"
+        }
+      ],
+      "sentence": "1 energy marker"
+    },
+    {
+      "name": "choose",
+      "class": "primitive",
+      "signature": "{\"op\":\"choose\",\"sel\":SELECTOR,\"as\":\"…\",\"reason\"?:\"…\",\"chooser\"?:\"you\"|\"opponent\",\"bindX\"?:true|false}",
+      "fields": [
+        {
+          "name": "sel",
+          "required": true,
+          "nullable": false,
+          "type": "selector"
+        },
+        {
+          "name": "as",
+          "required": true,
+          "nullable": false,
+          "type": "string"
+        },
+        {
+          "name": "reason",
+          "required": false,
+          "nullable": false,
+          "type": "string"
+        },
+        {
+          "name": "chooser",
+          "required": false,
+          "nullable": false,
+          "type": "side"
+        },
+        {
+          "name": "bindX",
+          "required": false,
+          "nullable": false,
+          "type": "boolean"
+        }
+      ],
+      "sentence": "choose 1 in your battle",
+      "doc": "binds the chosen cards to the name in \"as\"; \"chooser\":\"opponent\" when the card says *they* choose (\"your opponent sends 1 Battle Card…\"); \"bindX\":true also binds X to how many were chosen (20-5)"
+    },
+    {
+      "name": "look",
+      "class": "macro over `reveal`",
+      "signature": "{\"op\":\"look\",\"n\":AMOUNT,\"as\":\"…\",\"side\"?:\"you\"|\"opponent\",\"from\"?:\"top\"|\"bottom\",\"area\"?:AREA}",
+      "fields": [
+        {
+          "name": "n",
+          "required": true,
+          "nullable": false,
+          "type": "amount"
+        },
+        {
+          "name": "as",
+          "required": true,
+          "nullable": false,
+          "type": "string"
+        },
+        {
+          "name": "side",
+          "required": false,
+          "nullable": false,
+          "defaultText": "\"you\"",
+          "type": "side"
+        },
+        {
+          "name": "from",
+          "required": false,
+          "nullable": false,
+          "defaultText": "\"top\"",
+          "type": "enum",
+          "enumValues": [
+            "top",
+            "bottom"
+          ]
+        },
+        {
+          "name": "area",
+          "required": false,
+          "nullable": false,
+          "defaultText": "\"deck\"",
+          "type": "area"
+        }
+      ],
+      "sentence": "look at the top 1",
+      "doc": "top of your deck, seen only by you; the cards are bound to the name in \"as\" (20-11)"
+    },
+    {
+      "name": "reveal",
+      "class": "primitive",
+      "signature": "{\"op\":\"reveal\",\"sel\":SELECTOR,\"as\":\"…\"}",
+      "fields": [
+        {
+          "name": "sel",
+          "required": true,
+          "nullable": false,
+          "type": "selector"
+        },
+        {
+          "name": "as",
+          "required": true,
+          "nullable": false,
+          "type": "string"
+        }
+      ],
+      "sentence": "reveal 1 in your battle",
+      "doc": "shown to both players; the cards stay where they are (20-11-2)"
+    },
+    {
+      "name": "ko",
+      "class": "macro over `move`",
+      "signature": "{\"op\":\"ko\",\"target\":TARGET}",
+      "fields": [
+        {
+          "name": "target",
+          "required": true,
+          "nullable": false,
+          "type": "ref"
+        }
+      ],
+      "sentence": "KO this card"
+    },
+    {
+      "name": "moveTo",
+      "class": "primitive",
+      "signature": "{\"op\":\"moveTo\",\"target\":TARGET,\"to\":AREA,\"position\"?:\"top\"|\"bottom\",\"mode\"?:\"active\"|\"rest\",\"reveal\"?:true|false,\"under\"?:TARGET,\"owner\"?:\"you\"|\"opponent\",\"faceUp\"?:true|false}",
+      "fields": [
+        {
+          "name": "target",
+          "required": true,
+          "nullable": false,
+          "type": "ref"
+        },
+        {
+          "name": "to",
+          "required": true,
+          "nullable": false,
+          "type": "area"
+        },
+        {
+          "name": "position",
+          "required": false,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "top",
+            "bottom"
+          ]
+        },
+        {
+          "name": "mode",
+          "required": false,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "active",
+            "rest"
+          ]
+        },
+        {
+          "name": "reveal",
+          "required": false,
+          "nullable": false,
+          "type": "boolean"
+        },
+        {
+          "name": "under",
+          "required": false,
+          "nullable": false,
+          "type": "ref"
+        },
+        {
+          "name": "owner",
+          "required": false,
+          "nullable": false,
+          "type": "side"
+        },
+        {
+          "name": "faceUp",
+          "required": false,
+          "nullable": false,
+          "type": "boolean"
+        }
+      ],
+      "sentence": "move this card to drop",
+      "doc": "\"to\":\"under\" puts the card under \"under\" (or under this card, 23-2); \"owner\":\"opponent\" for \"place it in your opponent's energy\" — the area is theirs, not the card owner's (3-8)"
+    },
+    {
+      "name": "play",
+      "class": "primitive",
+      "signature": "{\"op\":\"play\",\"target\":TARGET,\"mode\"?:\"active\"|\"rest\",\"onto\"?:TARGET,\"negated\"?:\"turn\"|\"game\"}",
+      "fields": [
+        {
+          "name": "target",
+          "required": true,
+          "nullable": false,
+          "type": "ref"
+        },
+        {
+          "name": "mode",
+          "required": false,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "active",
+            "rest"
+          ]
+        },
+        {
+          "name": "onto",
+          "required": false,
+          "nullable": false,
+          "type": "ref"
+        },
+        {
+          "name": "negated",
+          "required": false,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "turn",
+            "game"
+          ]
+        }
+      ],
+      "sentence": "play this card",
+      "doc": "\"onto\" plays it on top of another card ([Union-Absorb], 22-13-6-3); \"negated\" is \"played with its skills negated\" (9-1-5)"
+    },
+    {
+      "name": "switchMode",
+      "class": "macro over `modifyAttr`",
+      "signature": "{\"op\":\"switchMode\",\"target\":TARGET,\"mode\":\"active\"|\"rest\"}",
+      "fields": [
+        {
+          "name": "target",
+          "required": true,
+          "nullable": false,
+          "type": "ref"
+        },
+        {
+          "name": "mode",
+          "required": true,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "active",
+            "rest"
+          ]
+        }
+      ],
+      "sentence": "switch this card to active mode"
+    },
+    {
+      "name": "modifyAttr",
+      "class": "primitive",
+      "signature": "{\"op\":\"modifyAttr\",\"target\"?:TARGET,\"attr\":\"power\"|\"comboPower\"|\"colors\"|\"characters\"|\"traits\"|\"names\",\"amount\"?:AMOUNT,\"values\"?:[\"…\"],\"until\"?:DURATION}",
+      "fields": [
+        {
+          "name": "target",
+          "required": false,
+          "nullable": false,
+          "defaultText": "{\"sel\":{\"special\":\"self\"}}",
+          "type": "ref"
+        },
+        {
+          "name": "attr",
+          "required": true,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "power",
+            "comboPower",
+            "colors",
+            "characters",
+            "traits",
+            "names"
+          ]
+        },
+        {
+          "name": "amount",
+          "required": false,
+          "nullable": false,
+          "defaultText": "0",
+          "type": "amount"
+        },
+        {
+          "name": "values",
+          "required": false,
+          "nullable": false,
+          "type": "list",
+          "listOf": "string"
+        },
+        {
+          "name": "until",
+          "required": false,
+          "nullable": false,
+          "type": "duration"
+        }
+      ],
+      "sentence": "this card +0 power",
+      "doc": "the primitive under \"power\", \"comboPower\" and \"gains\" (docs/arena-ruleset-spec.md §2.3): one attribute of one card, \"amount\" for the two numbers and \"values\" for the lists it also counts as. Those three spellings are still what the compiler writes and what a stored rule holds — prefer them; this row is what they mean"
+    },
+    {
+      "name": "power",
+      "class": "macro over `modifyAttr`",
+      "signature": "{\"op\":\"power\",\"target\":TARGET,\"amount\":AMOUNT,\"until\":DURATION}",
+      "fields": [
+        {
+          "name": "target",
+          "required": true,
+          "nullable": false,
+          "type": "ref"
+        },
+        {
+          "name": "amount",
+          "required": true,
+          "nullable": false,
+          "type": "amount"
+        },
+        {
+          "name": "until",
+          "required": true,
+          "nullable": false,
+          "type": "duration"
+        }
+      ],
+      "sentence": "this card +1 power for the turn",
+      "doc": "an amount may also be {\"count\":SELECTOR,\"times\":5000} (so much for each card), {\"sumPower\":{\"var\":\"rested\"}} (the total power of named cards) or {\"sumOf\":SELECTOR,\"attr\":\"comboPower\"} (any measure of them, added up)"
+    },
+    {
+      "name": "comboPower",
+      "class": "macro over `modifyAttr`",
+      "signature": "{\"op\":\"comboPower\",\"target\":TARGET,\"amount\":AMOUNT,\"until\":DURATION}",
+      "fields": [
+        {
+          "name": "target",
+          "required": true,
+          "nullable": false,
+          "type": "ref"
+        },
+        {
+          "name": "amount",
+          "required": true,
+          "nullable": false,
+          "type": "amount"
+        },
+        {
+          "name": "until",
+          "required": true,
+          "nullable": false,
+          "type": "duration"
+        }
+      ],
+      "sentence": "this card +1 combo power for the turn"
+    },
+    {
+      "name": "grant",
+      "class": "macro over `modifyAttr`",
+      "signature": "{\"op\":\"grant\",\"target\":TARGET,\"keyword\":{\"name\":\"Blocker\"},\"until\":DURATION}",
+      "fields": [
+        {
+          "name": "target",
+          "required": true,
+          "nullable": false,
+          "type": "ref"
+        },
+        {
+          "name": "keyword",
+          "required": true,
+          "nullable": false,
+          "type": "keyword"
+        },
+        {
+          "name": "until",
+          "required": true,
+          "nullable": false,
+          "type": "duration"
+        }
+      ],
+      "sentence": "this card gains [Blocker] for the turn"
+    },
+    {
+      "name": "negateSkills",
+      "class": "macro over `negate`",
+      "signature": "{\"op\":\"negateSkills\",\"target\":TARGET,\"until\":DURATION}",
+      "fields": [
+        {
+          "name": "target",
+          "required": true,
+          "nullable": false,
+          "type": "ref"
+        },
+        {
+          "name": "until",
+          "required": true,
+          "nullable": false,
+          "type": "duration"
+        }
+      ],
+      "sentence": "negate the skills of this card for the turn"
+    },
+    {
+      "name": "negateSkillsOfKind",
+      "class": "macro over `negate`",
+      "signature": "{\"op\":\"negateSkillsOfKind\",\"target\":TARGET,\"kind\":\"auto\"|\"activate\"|\"counter\"|\"permanent\",\"until\":DURATION}",
+      "fields": [
+        {
+          "name": "target",
+          "required": true,
+          "nullable": false,
+          "type": "ref"
+        },
+        {
+          "name": "kind",
+          "required": true,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "auto",
+            "activate",
+            "counter",
+            "permanent"
+          ]
+        },
+        {
+          "name": "until",
+          "required": true,
+          "nullable": false,
+          "type": "duration"
+        }
+      ],
+      "sentence": "negate the [Auto] skills of this card for the turn",
+      "doc": "\"negate that card's [Auto] skill for the turn\" — one kind, not the whole card (9-1-5)"
+    },
+    {
+      "name": "hidden",
+      "class": "macro over `modifyAttr`",
+      "signature": "{\"op\":\"hidden\",\"target\":TARGET,\"hidden\":true|false}",
+      "fields": [
+        {
+          "name": "target",
+          "required": true,
+          "nullable": false,
+          "type": "ref"
+        },
+        {
+          "name": "hidden",
+          "required": true,
+          "nullable": false,
+          "type": "boolean"
+        }
+      ],
+      "sentence": "switch this card to Hidden Mode",
+      "doc": "Hidden Mode / Revealed Mode (23-5)"
+    },
+    {
+      "name": "redirectAttack",
+      "class": "macro over `modifyAttr`",
+      "signature": "{\"op\":\"redirectAttack\",\"target\":TARGET}",
+      "fields": [
+        {
+          "name": "target",
+          "required": true,
+          "nullable": false,
+          "type": "ref"
+        }
+      ],
+      "sentence": "switch the target of the attack to this card",
+      "doc": "\"switch the target of the attack to it\" (22-4-2)"
+    },
+    {
+      "name": "comboFrom",
+      "class": "macro over `move` + `negate`",
+      "signature": "{\"op\":\"comboFrom\",\"target\":TARGET,\"negated\"?:true|false}",
+      "fields": [
+        {
+          "name": "target",
+          "required": true,
+          "nullable": false,
+          "type": "ref"
+        },
+        {
+          "name": "negated",
+          "required": false,
+          "nullable": false,
+          "type": "boolean"
+        }
+      ],
+      "sentence": "use this card in a combo",
+      "doc": "\"use it in a combo from your Drop (with its skills negated)\" (5-7)"
+    },
+    {
+      "name": "flip",
+      "class": "macro over `modifyAttr`",
+      "signature": "{\"op\":\"flip\",\"target\":TARGET}",
+      "fields": [
+        {
+          "name": "target",
+          "required": true,
+          "nullable": false,
+          "type": "ref"
+        }
+      ],
+      "sentence": "flip this card over",
+      "doc": "a Leader awakens (\"flip this card over\", 22-2-4)"
+    },
+    {
+      "name": "faceUp",
+      "class": "macro over `modifyAttr`",
+      "signature": "{\"op\":\"faceUp\",\"target\":TARGET,\"faceUp\"?:true|false}",
+      "fields": [
+        {
+          "name": "target",
+          "required": true,
+          "nullable": false,
+          "type": "ref"
+        },
+        {
+          "name": "faceUp",
+          "required": false,
+          "nullable": false,
+          "defaultText": "true",
+          "type": "boolean"
+        }
+      ],
+      "sentence": "turn this card face up",
+      "doc": "turn a card in a life area face up (3-9-2-1); false turns it back down"
+    },
+    {
+      "name": "addMarker",
+      "class": "macro over `modifyAttr`",
+      "signature": "{\"op\":\"addMarker\",\"target\":TARGET,\"n\":AMOUNT}",
+      "fields": [
+        {
+          "name": "target",
+          "required": true,
+          "nullable": false,
+          "type": "ref"
+        },
+        {
+          "name": "n",
+          "required": true,
+          "nullable": false,
+          "type": "amount"
+        }
+      ],
+      "sentence": "add 1 marker"
+    },
+    {
+      "name": "removeMarker",
+      "class": "macro over `modifyAttr`",
+      "signature": "{\"op\":\"removeMarker\",\"target\":TARGET,\"n\":AMOUNT}",
+      "fields": [
+        {
+          "name": "target",
+          "required": true,
+          "nullable": false,
+          "type": "ref"
+        },
+        {
+          "name": "n",
+          "required": true,
+          "nullable": false,
+          "type": "amount"
+        }
+      ],
+      "sentence": "remove 1 marker"
+    },
+    {
+      "name": "token",
+      "class": "primitive",
+      "signature": "{\"op\":\"token\",\"name\":\"…\",\"power\":N,\"comboCost\":N,\"comboPower\":N,\"colors\":[\"Red\"|\"Blue\"|\"Green\"|\"Yellow\"|\"Black\"|\"White\"|\"Colorless\"],\"n\":AMOUNT,\"side\"?:\"you\"|\"opponent\"}",
+      "fields": [
+        {
+          "name": "name",
+          "required": true,
+          "nullable": false,
+          "type": "string"
+        },
+        {
+          "name": "power",
+          "required": true,
+          "nullable": false,
+          "type": "number"
+        },
+        {
+          "name": "comboCost",
+          "required": true,
+          "nullable": true,
+          "type": "number"
+        },
+        {
+          "name": "comboPower",
+          "required": true,
+          "nullable": true,
+          "type": "number"
+        },
+        {
+          "name": "colors",
+          "required": true,
+          "nullable": false,
+          "type": "list",
+          "listOf": "enum",
+          "enumValues": [
+            "Red",
+            "Blue",
+            "Green",
+            "Yellow",
+            "Black",
+            "White",
+            "Colorless"
+          ]
+        },
+        {
+          "name": "n",
+          "required": true,
+          "nullable": false,
+          "type": "amount"
+        },
+        {
+          "name": "side",
+          "required": false,
+          "nullable": false,
+          "defaultText": "\"you\"",
+          "type": "side"
+        }
+      ],
+      "sentence": "play 1 x (1 power)",
+      "doc": "a token (19): {\"op\":\"token\",\"name\":\"Saibaman Token\",\"power\":10000,\"comboCost\":0,\"comboPower\":5000,\"colors\":[],\"n\":2}"
+    },
+    {
+      "name": "costReduction",
+      "class": "macro over `costModifier`",
+      "signature": "{\"op\":\"costReduction\",\"target\":TARGET,\"amount\":AMOUNT,\"what\"?:\"energy\"|\"skill\"|\"evolve\"|\"combo\"|\"zEnergy\"|\"specified\",\"skillKind\"?:\"auto\"|\"activate\"|\"counter\"|\"permanent\",\"colors\"?:[\"any\"|\"Red\"|\"Blue\"|\"Green\"|\"Yellow\"|\"Black\"|\"White\"|\"Colorless\"],\"until\"?:DURATION}",
+      "fields": [
+        {
+          "name": "target",
+          "required": true,
+          "nullable": false,
+          "type": "ref"
+        },
+        {
+          "name": "amount",
+          "required": true,
+          "nullable": false,
+          "type": "amount"
+        },
+        {
+          "name": "what",
+          "required": false,
+          "nullable": false,
+          "defaultText": "\"energy\"",
+          "type": "enum",
+          "enumValues": [
+            "energy",
+            "skill",
+            "evolve",
+            "combo",
+            "zEnergy",
+            "specified"
+          ]
+        },
+        {
+          "name": "skillKind",
+          "required": false,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "auto",
+            "activate",
+            "counter",
+            "permanent"
+          ]
+        },
+        {
+          "name": "colors",
+          "required": false,
+          "nullable": false,
+          "type": "list",
+          "listOf": "enum",
+          "enumValues": [
+            "any",
+            "Red",
+            "Blue",
+            "Green",
+            "Yellow",
+            "Black",
+            "White",
+            "Colorless"
+          ]
+        },
+        {
+          "name": "until",
+          "required": false,
+          "nullable": false,
+          "type": "duration"
+        }
+      ],
+      "sentence": "this card costs 1 less",
+      "doc": "[Permanent] only unless a duration is given (20-21): \"reduce the energy cost of your <Son Goku> cards in your hand by 1\" — the selector names the area the text names, usually the hand; \"skill\"/\"evolve\" are orb costs read by `orbTotals` for one skill on one card; \"zEnergy\" is the Z-Energy cost a Z-Card pays from the Z-Energy Area (5-4), read by `zEnergyCostOf`, never `d.zEnergyCost` raw. \"specified\" is the coloured part of an X-cost card's price (owner's ruling on BT19-039, 9 Sep 2026): it never touches the total, only which colours `playCost` demands, and `colors` carries the orbs it relaxes — always printed as `{u}`/`{y}{y}`/…, never a bare count."
+    },
+    {
+      "name": "negateKeyword",
+      "class": "macro over `negate`",
+      "signature": "{\"op\":\"negateKeyword\",\"keyword\":\"Awaken\"|\"Wish\"|\"Field\"|…,\"target\"?:TARGET}",
+      "fields": [
+        {
+          "name": "keyword",
+          "required": true,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "Awaken",
+            "Wish",
+            "Field",
+            "Blocker",
+            "Critical",
+            "Strike",
+            "Attack",
+            "Revenge",
+            "Indestructible",
+            "Barrier",
+            "Deflect",
+            "Unique",
+            "Servant",
+            "Energy-Exhaust",
+            "Victory Strike",
+            "Warrior of Universe 7",
+            "Ultimate",
+            "Super Combo",
+            "Dragon Ball",
+            "Wormhole",
+            "Invoker",
+            "Heroic",
+            "Villainous",
+            "Offering",
+            "Evolve",
+            "Union",
+            "Over Realm",
+            "Swap",
+            "Arrival",
+            "Aegis",
+            "Alliance",
+            "Revive",
+            "Successor",
+            "Overlord",
+            "Rejuvenate",
+            "Spirit Boost",
+            "Empower",
+            "Z-Awaken",
+            "Z-Stack"
+          ]
+        },
+        {
+          "name": "target",
+          "required": false,
+          "nullable": false,
+          "defaultText": "{\"sel\":{\"special\":\"self\"}}",
+          "type": "ref"
+        }
+      ],
+      "sentence": "negate the [Awaken] skill of this card",
+      "doc": "take one named keyword away (\"negate this card's [Energy-Exhaust] skill in all areas\", 9-1-5); the keyword is its printed name, e.g. \"Blocker\""
+    },
+    {
+      "name": "gains",
+      "class": "macro over `modifyAttr`",
+      "signature": "{\"op\":\"gains\",\"traits\"?:[\"…\"],\"characters\"?:[\"…\"],\"colors\"?:[\"Red\"|\"Blue\"|\"Green\"|\"Yellow\"|\"Black\"|\"White\"|\"Colorless\"],\"names\"?:[\"…\"],\"target\"?:TARGET}",
+      "fields": [
+        {
+          "name": "traits",
+          "required": false,
+          "nullable": false,
+          "type": "list",
+          "listOf": "string"
+        },
+        {
+          "name": "characters",
+          "required": false,
+          "nullable": false,
+          "type": "list",
+          "listOf": "string"
+        },
+        {
+          "name": "colors",
+          "required": false,
+          "nullable": false,
+          "type": "list",
+          "listOf": "enum",
+          "enumValues": [
+            "Red",
+            "Blue",
+            "Green",
+            "Yellow",
+            "Black",
+            "White",
+            "Colorless"
+          ]
+        },
+        {
+          "name": "names",
+          "required": false,
+          "nullable": false,
+          "type": "list",
+          "listOf": "string"
+        },
+        {
+          "name": "target",
+          "required": false,
+          "nullable": false,
+          "defaultText": "{\"sel\":{\"special\":\"self\"}}",
+          "type": "ref"
+        }
+      ],
+      "sentence": "this card also counts as",
+      "doc": "the card counts as having these too, wherever it is (\"gains ≪Saiyan≫ in all areas\", \"is also treated as red\", 20-1); \"names\" is a whole card name it is also treated as (\"also treated as {Planet M-2}\"), never a replacement for its own"
+    },
+    {
+      "name": "replaceLeave",
+      "class": "macro over `replace`",
+      "signature": "{\"op\":\"replaceLeave\",\"to\":AREA,\"by\"?:\"skill\"|\"ko\"|\"skillOrKo\",\"mode\"?:\"active\"|\"rest\",\"optional\"?:true|false,\"target\"?:TARGET}",
+      "fields": [
+        {
+          "name": "to",
+          "required": true,
+          "nullable": false,
+          "type": "area"
+        },
+        {
+          "name": "by",
+          "required": false,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "skill",
+            "ko",
+            "skillOrKo"
+          ]
+        },
+        {
+          "name": "mode",
+          "required": false,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "active",
+            "rest"
+          ]
+        },
+        {
+          "name": "optional",
+          "required": false,
+          "nullable": false,
+          "type": "boolean"
+        },
+        {
+          "name": "target",
+          "required": false,
+          "nullable": false,
+          "defaultText": "{\"sel\":{\"special\":\"self\"}}",
+          "type": "ref"
+        }
+      ],
+      "sentence": "if this card would leave the Battle Area, it goes to the drop instead",
+      "doc": "[Permanent] only (9-10): \"if this card would be KO'd, send it to the Warp instead\". \"by\" is which departure it replaces: omitted = any, \"skill\" = removed by an effect, \"ko\" = the KO, \"skillOrKo\" = either. \"optional\" is 9-10-3's \"you may\". Omit \"target\" for this card"
+    },
+    {
+      "name": "altCost",
+      "class": "macro over `costModifier`",
+      "signature": "{\"op\":\"altCost\",\"pay\":\"none\"|\"life\"|\"program\"|\"energy\",\"n\"?:N,\"for\"?:\"counter\"|\"play\",\"ops\"?:[…],\"orbs\"?:[\"any\"|\"Red\"|\"Blue\"|\"Green\"|\"Yellow\"|\"Black\"|\"White\"|\"Colorless\"],\"target\"?:TARGET,\"until\"?:DURATION}",
+      "fields": [
+        {
+          "name": "pay",
+          "required": true,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "none",
+            "life",
+            "program",
+            "energy"
+          ]
+        },
+        {
+          "name": "n",
+          "required": false,
+          "nullable": false,
+          "type": "number"
+        },
+        {
+          "name": "for",
+          "required": false,
+          "nullable": false,
+          "defaultText": "\"counter\"",
+          "type": "enum",
+          "enumValues": [
+            "counter",
+            "play"
+          ]
+        },
+        {
+          "name": "ops",
+          "required": false,
+          "nullable": false,
+          "type": "ops"
+        },
+        {
+          "name": "orbs",
+          "required": false,
+          "nullable": false,
+          "type": "list",
+          "listOf": "enum",
+          "enumValues": [
+            "any",
+            "Red",
+            "Blue",
+            "Green",
+            "Yellow",
+            "Black",
+            "White",
+            "Colorless"
+          ]
+        },
+        {
+          "name": "target",
+          "required": false,
+          "nullable": false,
+          "defaultText": "{\"sel\":{\"special\":\"self\"}}",
+          "type": "ref"
+        },
+        {
+          "name": "until",
+          "required": false,
+          "nullable": false,
+          "type": "duration"
+        }
+      ],
+      "sentence": "this card's [Counter] may be activated for no energy",
+      "doc": "another way to pay for a [Counter] (or a play, \"for\":\"play\") (5-3) — \"none\", \"life\" (n cards), a reduced \"energy\" price (\"orbs\"), or a \"program\" the card asks for instead. Printed on the card itself this is [Permanent]-only and omits \"target\"/\"until\"; a card that grants it to *other* cards for a span carries both — \"Until the start of your next turn, you can activate mono-blue cards with [Counter] skills from your hand by …\" (BT11-033)"
+    },
+    {
+      "name": "resolvingPlay",
+      "class": "macro over `replace`",
+      "signature": "{\"op\":\"resolvingPlay\",\"instead\"?:AREA,\"position\"?:\"top\"|\"bottom\",\"mode\"?:\"rest\",\"negated\"?:true|false}",
+      "fields": [
+        {
+          "name": "instead",
+          "required": false,
+          "nullable": false,
+          "type": "area"
+        },
+        {
+          "name": "position",
+          "required": false,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "top",
+            "bottom"
+          ]
+        },
+        {
+          "name": "mode",
+          "required": false,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "rest"
+          ]
+        },
+        {
+          "name": "negated",
+          "required": false,
+          "nullable": false,
+          "type": "boolean"
+        }
+      ],
+      "sentence": "the card being played is played with its skills negated",
+      "doc": "[Counter: Play] only (9-6). With \"instead\" the play is negated and the card goes there; without it the play happens and only the manner changes (\"mode\":\"rest\" or \"negated\":true)"
+    },
+    {
+      "name": "negateAttack",
+      "class": "macro over `replace`",
+      "signature": "{\"op\":\"negateAttack\"}",
+      "fields": [],
+      "sentence": "negate the attack"
+    },
+    {
+      "name": "negateCounter",
+      "class": "macro over `replace`",
+      "signature": "{\"op\":\"negateCounter\"}",
+      "fields": [],
+      "sentence": "negate the counter being answered",
+      "doc": "negate the [Counter] this one is answering (9-7)"
+    },
+    {
+      "name": "negateOwnSkill",
+      "class": "macro over `negate`",
+      "signature": "{\"op\":\"negateOwnSkill\",\"until\"?:\"turn\"|\"battle\"}",
+      "fields": [
+        {
+          "name": "until",
+          "required": false,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "turn",
+            "battle"
+          ]
+        }
+      ],
+      "sentence": "this skill does not happen again",
+      "doc": "\"negate this skill for the game / turn / battle\" (9-1-5)"
+    },
+    {
+      "name": "forbid",
+      "class": "primitive",
+      "signature": "{\"op\":\"forbid\",\"what\":\"attack\"|\"beAttacked\"|\"block\"|…,\"until\":DURATION,\"target\"?:TARGET,\"side\"?:\"you\"|\"opponent\",\"filter\"?:FILTER,\"sameNameAsSelf\"?:true|false,\"bySkill\"?:true|false,\"uses\"?:AMOUNT,\"unless\"?:COND}",
+      "fields": [
+        {
+          "name": "what",
+          "required": true,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "attack",
+            "beAttacked",
+            "block",
+            "play",
+            "activateSkill",
+            "activateCounter",
+            "combo",
+            "beKOd",
+            "beKOdBySkill",
+            "beChosen",
+            "switchToActive",
+            "placeEnergy",
+            "beMovedBySkill",
+            "beNegated"
+          ]
+        },
+        {
+          "name": "until",
+          "required": true,
+          "nullable": false,
+          "type": "duration"
+        },
+        {
+          "name": "target",
+          "required": false,
+          "nullable": false,
+          "type": "ref"
+        },
+        {
+          "name": "side",
+          "required": false,
+          "nullable": false,
+          "type": "side"
+        },
+        {
+          "name": "filter",
+          "required": false,
+          "nullable": false,
+          "type": "filter"
+        },
+        {
+          "name": "sameNameAsSelf",
+          "required": false,
+          "nullable": false,
+          "type": "boolean"
+        },
+        {
+          "name": "bySkill",
+          "required": false,
+          "nullable": false,
+          "type": "boolean"
+        },
+        {
+          "name": "uses",
+          "required": false,
+          "nullable": false,
+          "type": "amount"
+        },
+        {
+          "name": "unless",
+          "required": false,
+          "nullable": false,
+          "type": "cond"
+        }
+      ],
+      "sentence": "you can't attack for the turn",
+      "doc": "forbid an action (20-14): a \"target\" for a rule about particular cards, or a \"side\" for one about a player, narrowed by a \"filter\"; \"sameNameAsSelf\":true narrows a play rule to copies of this card; \"uses\" is how many times that action may still happen before the prohibition starts applying, and \"unless\" is the escape condition. \"what\" is one of \"attack\" | \"beAttacked\" | \"block\" | \"play\" | \"activateSkill\" | \"activateCounter\" | \"combo\" | \"beKOd\" | \"beKOdBySkill\" | \"beChosen\" | \"switchToActive\" | \"placeEnergy\" | \"beMovedBySkill\" | \"beNegated\""
+    },
+    {
+      "name": "immune",
+      "class": "primitive",
+      "signature": "{\"op\":\"immune\",\"until\":DURATION,\"target\"?:TARGET,\"from\"?:\"you\"|\"opponent\",\"fromFilter\"?:FILTER}",
+      "fields": [
+        {
+          "name": "until",
+          "required": true,
+          "nullable": false,
+          "type": "duration"
+        },
+        {
+          "name": "target",
+          "required": false,
+          "nullable": false,
+          "defaultText": "{\"sel\":{\"special\":\"self\"}}",
+          "type": "ref"
+        },
+        {
+          "name": "from",
+          "required": false,
+          "nullable": false,
+          "type": "side"
+        },
+        {
+          "name": "fromFilter",
+          "required": false,
+          "nullable": false,
+          "type": "filter"
+        }
+      ],
+      "sentence": "this card isn't affected by skills for the turn",
+      "doc": "9-1-4: a card no skill may touch (stronger than \"forbid\":\"beChosen\", which only stops a skill choosing it); \"from\" and \"fromFilter\" narrow whose skills, and both absent means every skill"
+    },
+    {
+      "name": "permit",
+      "class": "primitive",
+      "signature": "{\"op\":\"permit\",\"what\":\"attackActive\",\"until\":DURATION,\"target\":TARGET,\"filter\"?:FILTER}",
+      "fields": [
+        {
+          "name": "what",
+          "required": true,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "attackActive"
+          ]
+        },
+        {
+          "name": "until",
+          "required": true,
+          "nullable": false,
+          "type": "duration"
+        },
+        {
+          "name": "target",
+          "required": true,
+          "nullable": false,
+          "type": "ref"
+        },
+        {
+          "name": "filter",
+          "required": false,
+          "nullable": false,
+          "type": "filter"
+        }
+      ],
+      "sentence": "this card can attack cards in Active Mode for the turn",
+      "doc": "the one rule of the game a card may lift: \"this card can attack Battle Cards in Active Mode\" (8-1-1). The filter says *which* active cards — leave it out only when the card does"
+    },
+    {
+      "name": "if",
+      "class": "primitive",
+      "signature": "{\"op\":\"if\",\"cond\":COND,\"then\":[…],\"else\"?:[…]}",
+      "fields": [
+        {
+          "name": "cond",
+          "required": true,
+          "nullable": false,
+          "type": "cond"
+        },
+        {
+          "name": "then",
+          "required": true,
+          "nullable": false,
+          "type": "ops"
+        },
+        {
+          "name": "else",
+          "required": false,
+          "nullable": false,
+          "type": "ops"
+        }
+      ],
+      "sentence": "if it is your turn: draw 1"
+    },
+    {
+      "name": "chooseMode",
+      "class": "primitive",
+      "signature": "{\"op\":\"chooseMode\",\"modes\":[{\"label\":\"…\",\"ops\":[…]}],\"reason\"?:\"…\"}",
+      "fields": [
+        {
+          "name": "modes",
+          "required": true,
+          "nullable": false,
+          "type": "modes"
+        },
+        {
+          "name": "reason",
+          "required": false,
+          "nullable": false,
+          "type": "string"
+        }
+      ],
+      "sentence": "choose one — draw 1",
+      "doc": "\"Choose one— ・A ・B\" (20-2): the master picks one printed option"
+    },
+    {
+      "name": "may",
+      "class": "macro over `chooseMode`",
+      "signature": "{\"op\":\"may\",\"ops\":[…],\"reason\"?:\"…\",\"chooser\"?:\"you\"|\"opponent\"}",
+      "fields": [
+        {
+          "name": "ops",
+          "required": true,
+          "nullable": false,
+          "type": "ops"
+        },
+        {
+          "name": "reason",
+          "required": false,
+          "nullable": false,
+          "type": "string"
+        },
+        {
+          "name": "chooser",
+          "required": false,
+          "nullable": false,
+          "type": "side"
+        }
+      ],
+      "sentence": "you may: draw 1",
+      "doc": "\"You may …\" (20-16): wrap only the optional part; {\"kind\":\"did\",\"what\":\"may\"} then reads the answer for \"if you do\" / \"if you don't\". \"chooser\":\"opponent\" when it is theirs to decline. A clause that is already an \"up to\" choice declines by choosing nothing — do not wrap those"
+    },
+    {
+      "name": "delay",
+      "class": "primitive",
+      "signature": "{\"op\":\"delay\",\"at\":\"turnStart\"|\"mainStart\"|\"turnEnd\"|\"turnCleanup\"|\"battleEnd\",\"scope\"?:\"thisTurn\"|\"nextTurn\"|\"yourNextTurn\"|\"opponentNextTurn\",\"ops\":[…],\"label\"?:\"…\"}",
+      "fields": [
+        {
+          "name": "at",
+          "required": true,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "turnStart",
+            "mainStart",
+            "turnEnd",
+            "turnCleanup",
+            "battleEnd"
+          ]
+        },
+        {
+          "name": "scope",
+          "required": false,
+          "nullable": false,
+          "defaultText": "\"thisTurn\"",
+          "type": "enum",
+          "enumValues": [
+            "thisTurn",
+            "nextTurn",
+            "yourNextTurn",
+            "opponentNextTurn"
+          ]
+        },
+        {
+          "name": "ops",
+          "required": true,
+          "nullable": false,
+          "type": "ops"
+        },
+        {
+          "name": "label",
+          "required": false,
+          "nullable": false,
+          "type": "string"
+        }
+      ],
+      "sentence": "later: draw 1",
+      "doc": "the inner operations happen later (1-7-2-1-1): \"At the end of the turn, KO it\" is a choose, then a delay at \"turnEnd\" whose ops KO {\"var\":\"t\"}. A delayed program keeps the variables bound before it"
+    },
+    {
+      "name": "note",
+      "class": "primitive",
+      "signature": "{\"op\":\"note\",\"text\":\"…\"}",
+      "fields": [
+        {
+          "name": "text",
+          "required": true,
+          "nullable": false,
+          "type": "string"
+        }
+      ],
+      "sentence": "",
+      "doc": "a remark in the log; does nothing"
+    }
+  ],
+  "conds": [
+    {
+      "kind": "count",
+      "class": "primitive",
+      "signature": "{\"kind\":\"count\",\"sel\":SELECTOR,\"atLeast\"?:N,\"atMost\"?:N}",
+      "fields": [
+        {
+          "name": "sel",
+          "required": true,
+          "nullable": false,
+          "type": "selector"
+        },
+        {
+          "name": "atLeast",
+          "required": false,
+          "nullable": false,
+          "type": "number"
+        },
+        {
+          "name": "atMost",
+          "required": false,
+          "nullable": false,
+          "type": "number"
+        }
+      ],
+      "sentence": "there are any cards in your battle",
+      "doc": "how many cards a selector finds"
+    },
+    {
+      "kind": "life",
+      "class": "macro over `count`",
+      "signature": "{\"kind\":\"life\",\"side\":\"you\"|\"opponent\",\"atLeast\"?:N,\"atMost\"?:N}",
+      "fields": [
+        {
+          "name": "side",
+          "required": true,
+          "nullable": false,
+          "type": "side"
+        },
+        {
+          "name": "atLeast",
+          "required": false,
+          "nullable": false,
+          "type": "number"
+        },
+        {
+          "name": "atMost",
+          "required": false,
+          "nullable": false,
+          "type": "number"
+        }
+      ],
+      "sentence": "your life"
+    },
+    {
+      "kind": "lifeVsOpponent",
+      "class": "macro over `count`",
+      "signature": "{\"kind\":\"lifeVsOpponent\",\"atLeast\"?:true|false,\"atMost\"?:true|false}",
+      "fields": [
+        {
+          "name": "atLeast",
+          "required": false,
+          "nullable": false,
+          "type": "boolean"
+        },
+        {
+          "name": "atMost",
+          "required": false,
+          "nullable": false,
+          "type": "boolean"
+        }
+      ],
+      "sentence": "your life is no more than theirs",
+      "doc": "the two life counts against each other"
+    },
+    {
+      "kind": "leaderColor",
+      "class": "macro over `count`",
+      "signature": "{\"kind\":\"leaderColor\",\"color\":\"Red\"|\"Blue\"|\"Green\"|…}",
+      "fields": [
+        {
+          "name": "color",
+          "required": true,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "Red",
+            "Blue",
+            "Green",
+            "Yellow",
+            "Black",
+            "White",
+            "Colorless"
+          ]
+        }
+      ],
+      "sentence": "your leader is Red"
+    },
+    {
+      "kind": "leaderMatches",
+      "class": "macro over `count`",
+      "signature": "{\"kind\":\"leaderMatches\",\"filter\":FILTER,\"side\"?:\"you\"|\"opponent\",\"back\"?:true|false}",
+      "fields": [
+        {
+          "name": "filter",
+          "required": true,
+          "nullable": false,
+          "type": "filter"
+        },
+        {
+          "name": "side",
+          "required": false,
+          "nullable": false,
+          "type": "side"
+        },
+        {
+          "name": "back",
+          "required": false,
+          "nullable": false,
+          "type": "boolean"
+        }
+      ],
+      "sentence": "your leader is Red",
+      "doc": "\"If your Leader is a <Baby> card\" — colour, character name and traits alike"
+    },
+    {
+      "kind": "markers",
+      "class": "macro over `count`",
+      "signature": "{\"kind\":\"markers\",\"sel\":SELECTOR,\"atLeast\"?:N,\"atMost\"?:N}",
+      "fields": [
+        {
+          "name": "sel",
+          "required": true,
+          "nullable": false,
+          "type": "selector"
+        },
+        {
+          "name": "atLeast",
+          "required": false,
+          "nullable": false,
+          "type": "number"
+        },
+        {
+          "name": "atMost",
+          "required": false,
+          "nullable": false,
+          "type": "number"
+        }
+      ],
+      "sentence": "1 in your battle has any markers"
+    },
+    {
+      "kind": "inBattle",
+      "class": "macro over `count`",
+      "signature": "{\"kind\":\"inBattle\",\"sel\":SELECTOR,\"not\"?:true|false,\"role\"?:\"attacker\"|\"guard\"}",
+      "fields": [
+        {
+          "name": "sel",
+          "required": true,
+          "nullable": false,
+          "type": "selector"
+        },
+        {
+          "name": "not",
+          "required": false,
+          "nullable": false,
+          "type": "boolean"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "attacker",
+            "guard"
+          ]
+        }
+      ],
+      "sentence": "1 in your battle is in a battle"
+    },
+    {
+      "kind": "battled",
+      "class": "macro over `count`",
+      "signature": "{\"kind\":\"battled\",\"sel\":SELECTOR}",
+      "fields": [
+        {
+          "name": "sel",
+          "required": true,
+          "nullable": false,
+          "type": "selector"
+        }
+      ],
+      "sentence": "1 in your battle has been in a battle this turn"
+    },
+    {
+      "kind": "every",
+      "class": "macro over `count` + `not`",
+      "signature": "{\"kind\":\"every\",\"sel\":SELECTOR,\"matching\":SELECTOR}",
+      "fields": [
+        {
+          "name": "sel",
+          "required": true,
+          "nullable": false,
+          "type": "selector"
+        },
+        {
+          "name": "matching",
+          "required": true,
+          "nullable": false,
+          "type": "selector"
+        }
+      ],
+      "sentence": "every card 1 in your battle is also 1 in your battle",
+      "doc": "every card the first selector finds is also one the second finds; false when there is nothing to find (0-2-4-1)"
+    },
+    {
+      "kind": "any",
+      "class": "primitive",
+      "signature": "{\"kind\":\"any\",\"conds\":[COND]}",
+      "fields": [
+        {
+          "name": "conds",
+          "required": true,
+          "nullable": false,
+          "type": "conds"
+        }
+      ],
+      "sentence": "it is your turn",
+      "doc": "at least one of the conditions holds (disjunction)"
+    },
+    {
+      "kind": "all",
+      "class": "macro over `any` + `not`",
+      "signature": "{\"kind\":\"all\",\"conds\":[COND]}",
+      "fields": [
+        {
+          "name": "conds",
+          "required": true,
+          "nullable": false,
+          "type": "conds"
+        }
+      ],
+      "sentence": "it is your turn",
+      "doc": "every condition holds (conjunction)"
+    },
+    {
+      "kind": "leaderFlipped",
+      "class": "macro over `count`",
+      "signature": "{\"kind\":\"leaderFlipped\",\"side\"?:\"you\"|\"opponent\",\"flipped\"?:true|false}",
+      "fields": [
+        {
+          "name": "side",
+          "required": false,
+          "nullable": false,
+          "type": "side"
+        },
+        {
+          "name": "flipped",
+          "required": false,
+          "nullable": false,
+          "type": "boolean"
+        }
+      ],
+      "sentence": "your leader has awakened"
+    },
+    {
+      "kind": "power",
+      "class": "macro over `count`",
+      "signature": "{\"kind\":\"power\",\"sel\":SELECTOR,\"atLeast\"?:N,\"atMost\"?:N}",
+      "fields": [
+        {
+          "name": "sel",
+          "required": true,
+          "nullable": false,
+          "type": "selector"
+        },
+        {
+          "name": "atLeast",
+          "required": false,
+          "nullable": false,
+          "type": "number"
+        },
+        {
+          "name": "atMost",
+          "required": false,
+          "nullable": false,
+          "type": "number"
+        }
+      ],
+      "sentence": "1 in your battle has any power"
+    },
+    {
+      "kind": "did",
+      "class": "primitive",
+      "signature": "{\"kind\":\"did\",\"what\":\"addToHand\"|\"play\"|\"negateAttack\"|…}",
+      "fields": [
+        {
+          "name": "what",
+          "required": true,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "addToHand",
+            "play",
+            "negateAttack",
+            "negateLeaderAttack",
+            "ko",
+            "draw",
+            "may"
+          ]
+        }
+      ],
+      "sentence": "you added a card to your hand",
+      "doc": "whether an earlier step of this same skill did that — {\"what\":\"may\"} reads the answer to a \"you may\""
+    },
+    {
+      "kind": "not",
+      "class": "primitive",
+      "signature": "{\"kind\":\"not\",\"cond\":COND}",
+      "fields": [
+        {
+          "name": "cond",
+          "required": true,
+          "nullable": false,
+          "type": "cond"
+        }
+      ],
+      "sentence": "not (it is your turn)"
+    },
+    {
+      "kind": "chose",
+      "class": "macro over `count`",
+      "signature": "{\"kind\":\"chose\",\"var\":\"…\",\"atLeast\"?:N}",
+      "fields": [
+        {
+          "name": "var",
+          "required": true,
+          "nullable": false,
+          "type": "string"
+        },
+        {
+          "name": "atLeast",
+          "required": false,
+          "nullable": false,
+          "type": "number"
+        }
+      ],
+      "sentence": "you took that choice",
+      "doc": "\"If you do so\" (20-16): whether an earlier choice was answered, and with how many"
+    },
+    {
+      "kind": "varMatches",
+      "class": "macro over `count`",
+      "signature": "{\"kind\":\"varMatches\",\"var\":\"…\",\"filter\":FILTER}",
+      "fields": [
+        {
+          "name": "var",
+          "required": true,
+          "nullable": false,
+          "type": "string"
+        },
+        {
+          "name": "filter",
+          "required": true,
+          "nullable": false,
+          "type": "filter"
+        }
+      ],
+      "sentence": "that card is red"
+    },
+    {
+      "kind": "isTurnPlayer",
+      "class": "primitive",
+      "signature": "{\"kind\":\"isTurnPlayer\",\"who\"?:\"you\"|\"opponent\"}",
+      "fields": [
+        {
+          "name": "who",
+          "required": false,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "you",
+            "opponent"
+          ]
+        }
+      ],
+      "sentence": "it is your turn",
+      "doc": "whose turn it is (7-1) — \"during your opponent's turn\" is this, not a duration"
+    }
+  ],
+  "selectorFields": [
+    {
+      "field": "special",
+      "part": "special"
+    },
+    {
+      "field": "fromVar",
+      "part": "fromVar"
+    },
+    {
+      "field": "underHost",
+      "part": "places"
+    },
+    {
+      "field": "count",
+      "part": "count"
+    },
+    {
+      "field": "upTo",
+      "part": "count"
+    },
+    {
+      "field": "take",
+      "part": "take"
+    },
+    {
+      "field": "fromEnd",
+      "part": "take"
+    },
+    {
+      "field": "filter",
+      "part": "filter"
+    },
+    {
+      "field": "side",
+      "part": "places"
+    },
+    {
+      "field": "area",
+      "part": "places"
+    },
+    {
+      "field": "areas",
+      "part": "places"
+    },
+    {
+      "field": "mode",
+      "part": "flag"
+    },
+    {
+      "field": "hidden",
+      "part": "flag"
+    },
+    {
+      "field": "ignoreBarrier",
+      "part": "flag"
+    },
+    {
+      "field": "notSelf",
+      "part": "flag"
+    }
+  ],
+  "selectorFlags": [
+    {
+      "word": "any",
+      "doc": "no filter, no count — every card the area holds (the printer's own word for an empty selector)"
+    },
+    {
+      "word": "active",
+      "doc": "cards in Active Mode"
+    },
+    {
+      "word": "rest",
+      "doc": "cards in Rest Mode"
+    },
+    {
+      "word": "hidden",
+      "doc": "cards in Hidden Mode (23-5)"
+    },
+    {
+      "word": "revealed",
+      "doc": "cards in Revealed Mode (23-5)"
+    },
+    {
+      "word": "fromEnd",
+      "doc": "count from the bottom of the area's order instead of the top"
+    },
+    {
+      "word": "ignoringBarrier",
+      "doc": "may target a card with [Barrier] all the same"
+    },
+    {
+      "word": "otherThanSelf",
+      "doc": "excludes this card"
+    },
+    {
+      "word": "otherThanCopies",
+      "doc": "excludes every copy of this card, not only this one"
+    }
+  ],
+  "filterFields": [
+    {
+      "field": "colors",
+      "type": "colors",
+      "printed": "red"
+    },
+    {
+      "field": "notColors",
+      "type": "colors",
+      "printed": "non-red"
+    },
+    {
+      "field": "monoColor",
+      "type": "boolean",
+      "printed": "mono-colour"
+    },
+    {
+      "field": "multiColor",
+      "type": "boolean",
+      "printed": "multicolour"
+    },
+    {
+      "field": "characters",
+      "type": "strings",
+      "printed": "<Saiyan>"
+    },
+    {
+      "field": "notCharacters",
+      "type": "strings",
+      "printed": "non-<Saiyan>"
+    },
+    {
+      "field": "charactersIncluding",
+      "type": "strings",
+      "printed": "card with <Saiyan> in its character name"
+    },
+    {
+      "field": "notCharactersIncluding",
+      "type": "strings",
+      "printed": "card without <Saiyan> in its character name"
+    },
+    {
+      "field": "traits",
+      "type": "strings",
+      "printed": "≪Saiyan≫"
+    },
+    {
+      "field": "notTraits",
+      "type": "strings",
+      "printed": "non-≪Saiyan≫"
+    },
+    {
+      "field": "names",
+      "type": "strings",
+      "printed": "{Saiyan}"
+    },
+    {
+      "field": "notNames",
+      "type": "strings",
+      "printed": "card other than {Saiyan}"
+    },
+    {
+      "field": "namesIncluding",
+      "type": "strings",
+      "printed": "card with {Saiyan} in its card name"
+    },
+    {
+      "field": "notNamesIncluding",
+      "type": "strings",
+      "printed": "card without {Saiyan} in its card name"
+    },
+    {
+      "field": "keywords",
+      "type": "keywords",
+      "printed": "card with [Blocker]"
+    },
+    {
+      "field": "notKeywords",
+      "type": "keywords",
+      "printed": "card non-[Blocker]"
+    },
+    {
+      "field": "type",
+      "type": "cardType",
+      "printed": "battle card"
+    },
+    {
+      "field": "notType",
+      "type": "cardType",
+      "printed": "non-battle card"
+    },
+    {
+      "field": "skillKind",
+      "type": "skillKind",
+      "printed": "card with [Activate] skills"
+    },
+    {
+      "field": "unreadable",
+      "type": "boolean",
+      "printed": "card"
+    },
+    {
+      "field": "noKeywords",
+      "type": "boolean",
+      "printed": "card and no keyword skills"
+    },
+    {
+      "field": "faceUp",
+      "type": "boolean",
+      "printed": "card that is face up"
+    },
+    {
+      "field": "token",
+      "type": "boolean",
+      "printed": "token"
+    },
+    {
+      "field": "notToken",
+      "type": "boolean",
+      "printed": "non-token"
+    },
+    {
+      "field": "costMin",
+      "type": "number",
+      "printed": "card with an energy cost of 3 or more"
+    },
+    {
+      "field": "costMax",
+      "type": "number",
+      "printed": "card with an energy cost of 3 or less"
+    },
+    {
+      "field": "powerMin",
+      "type": "number",
+      "printed": "card with 3 power or more"
+    },
+    {
+      "field": "powerMax",
+      "type": "number",
+      "printed": "card with 3 power or less"
+    },
+    {
+      "field": "powerRel",
+      "type": "powerRel",
+      "printed": "card with power less than or equal to this card's power"
+    },
+    {
+      "field": "z",
+      "type": "tri",
+      "printed": "Z-card"
+    }
+  ],
+  "expressions": [
+    {
+      "key": "count",
+      "call": "count",
+      "args": [
+        "selector"
+      ],
+      "example": "count(SELECTOR)",
+      "maxExample": "count(SELECTOR) * 5000"
+    },
+    {
+      "key": "markers",
+      "call": "markers",
+      "args": [
+        "selector"
+      ],
+      "example": "markers(SELECTOR)",
+      "maxExample": "markers(SELECTOR) * 5000"
+    },
+    {
+      "key": "sumPower",
+      "call": "sumPower",
+      "args": [
+        "var"
+      ],
+      "example": "sumPower($rested)"
+    },
+    {
+      "key": "handUpTo",
+      "call": "handUpTo",
+      "args": [
+        "number"
+      ],
+      "example": "handUpTo(4)"
+    },
+    {
+      "key": "x",
+      "call": "X",
+      "args": [],
+      "example": "X",
+      "maxExample": "X * 1000"
+    },
+    {
+      "key": "life",
+      "call": "life",
+      "args": [
+        "side"
+      ],
+      "example": "life(you)",
+      "maxExample": "life(both) * 2"
+    },
+    {
+      "key": "attr",
+      "call": "attr",
+      "args": [
+        "ref",
+        "attr"
+      ],
+      "example": "attr($t, energyCost)",
+      "maxExample": "attr($t, energyCost) * 1000"
+    },
+    {
+      "key": "sumOf",
+      "call": "sumOf",
+      "args": [
+        "selector",
+        "attr"
+      ],
+      "example": "sumOf(SELECTOR, comboPower)",
+      "maxExample": "sumOf(SELECTOR, comboPower) * 2"
+    }
+  ],
+  "exprLiterals": [
+    {
+      "key": "number",
+      "syntax": "5000"
+    },
+    {
+      "key": "var",
+      "syntax": "$n"
+    },
+    {
+      "key": "plus",
+      "syntax": "count(SELECTOR) + 1"
+    }
+  ],
+  "exprAttrs": [
+    "power",
+    "comboPower",
+    "energyCost",
+    "comboCost"
+  ],
+  "costItems": [
+    {
+      "syntax": "{Red}",
+      "doc": "an energy orb of a colour; repeat or mix freely ({Red}{Red}{any})"
+    },
+    {
+      "syntax": "{Red/Blue}",
+      "doc": "an either-orb: pay with any one of the listed colours"
+    },
+    {
+      "syntax": "+1 marker",
+      "doc": "add that many markers to the card paying this price"
+    },
+    {
+      "syntax": "burst N",
+      "doc": "a [Burst] cost of that many"
+    },
+    {
+      "syntax": "spiritBoost N",
+      "doc": "a [Spirit Boost] cost of that many"
+    },
+    {
+      "syntax": "X",
+      "doc": "an X price, optionally bounded (X min 1 max 3); the effect reads it back as X (20-5)"
+    },
+    {
+      "syntax": "TEXT",
+      "doc": "the price as printed, kept for the part the engine cannot charge itself"
+    },
+    {
+      "syntax": "IF",
+      "doc": "a condition the price also requires, in addition to the orbs"
+    },
+    {
+      "syntax": "DO",
+      "doc": "a program the price runs as part of paying it"
+    }
+  ],
+  "triggers": [
+    {
+      "name": "leaderPlaced",
+      "words": "when your Leader is placed"
+    },
+    {
+      "name": "played",
+      "words": "when this card is played"
+    },
+    {
+      "name": "attacks",
+      "words": "when this card attacks"
+    },
+    {
+      "name": "attacked",
+      "words": "when this card is attacked"
+    },
+    {
+      "name": "koed",
+      "words": "when this card is KO'd"
+    },
+    {
+      "name": "kos",
+      "words": "when this card KOs a card"
+    },
+    {
+      "name": "yourCardKoed",
+      "words": "when one of your cards is KO'd"
+    },
+    {
+      "name": "opponentCardKoed",
+      "words": "when an opponent's card is KO'd"
+    },
+    {
+      "name": "dealtDamage",
+      "words": "when this card deals damage"
+    },
+    {
+      "name": "chargeStart",
+      "words": "at the start of your Charge Phase"
+    },
+    {
+      "name": "mainStart",
+      "words": "at the start of your Main Phase"
+    },
+    {
+      "name": "mainEnd",
+      "words": "at the end of your Main Phase"
+    },
+    {
+      "name": "turnEnd",
+      "words": "at the end of your turn"
+    },
+    {
+      "name": "opponentTurnEnd",
+      "words": "at the end of your opponent's turn"
+    },
+    {
+      "name": "opponentTurnStart",
+      "words": "at the start of your opponent's turn"
+    },
+    {
+      "name": "battleEnd",
+      "words": "at the end of the battle"
+    },
+    {
+      "name": "comboed",
+      "words": "when this card is used in a combo"
+    },
+    {
+      "name": "opponentPlayed",
+      "words": "when your opponent plays a card"
+    },
+    {
+      "name": "youPlayed",
+      "words": "when you play a card"
+    },
+    {
+      "name": "opponentAttacks",
+      "words": "when your opponent attacks"
+    },
+    {
+      "name": "opponentCombos",
+      "words": "when your opponent combos"
+    },
+    {
+      "name": "youCombo",
+      "words": "when you combo"
+    },
+    {
+      "name": "placed",
+      "words": "when this card is placed in a Battle Area"
+    },
+    {
+      "name": "removedFromBattle",
+      "words": "when this card is removed from a Battle Area by a skill"
+    },
+    {
+      "name": "removedByOpponent",
+      "words": "when this card is removed from a Battle Area by an opponent's skill"
+    },
+    {
+      "name": "droppedFromBattle",
+      "words": "when a skill sends this card from a Battle Area to the Drop"
+    },
+    {
+      "name": "leftBattleToDrop",
+      "words": "when this card goes from a Battle Area to the Drop"
+    },
+    {
+      "name": "yourLeaderAttacked",
+      "words": "when your Leader is attacked"
+    },
+    {
+      "name": "youTookDamage",
+      "words": "when you take damage from a skill"
+    },
+    {
+      "name": "opponentTookDamage",
+      "words": "when your opponent takes damage from a skill"
+    },
+    {
+      "name": "lifeLeft",
+      "words": "when a card leaves your life"
+    },
+    {
+      "name": "evolvedInto",
+      "words": "when a card evolves into this card"
+    },
+    {
+      "name": "evolveFromHandActivated",
+      "words": "when you use this card's [Evolve] from your hand"
+    },
+    {
+      "name": "opponentCounter",
+      "words": "when your opponent activates a [Counter] skill"
+    },
+    {
+      "name": "counterFreeFromHand",
+      "words": "when you activate this card's [Counter] from your hand without paying its energy cost"
+    },
+    {
+      "name": "opponentMainStart",
+      "words": "at the start of your opponent's Main Phase"
+    },
+    {
+      "name": "blockerUsed",
+      "words": "when this card activates [Blocker]"
+    },
+    {
+      "name": "restedByAlliance",
+      "words": "when this card is rested by an [Alliance] skill"
+    },
+    {
+      "name": "addedToZEnergy",
+      "words": "when this card is added to your Z-Energy"
+    },
+    {
+      "name": "energyToDrop",
+      "words": "when a card goes from your energy to the Drop"
+    },
+    {
+      "name": "unisonToDrop",
+      "words": "when your Unison goes to the Drop"
+    },
+    {
+      "name": "markerRemoved",
+      "words": "when a marker is removed from this card"
+    },
+    {
+      "name": "restedBySkill",
+      "words": "when this card is rested by one of your skills"
+    },
+    {
+      "name": "restedTheirsBySkill",
+      "words": "when your skill rests an opponent's card"
+    },
+    {
+      "name": "unionActivated",
+      "words": "when you activate a [Union] skill"
+    },
+    {
+      "name": "unionAbsorbActivated",
+      "words": "when this card's [Union-Absorb] is activated"
+    },
+    {
+      "name": "overlordActivated",
+      "words": "when you activate an [Overlord] skill"
+    },
+    {
+      "name": "overRealmPlayed",
+      "words": "when you play a card using [Over Realm]"
+    },
+    {
+      "name": "spiritBoostPaid",
+      "words": "when you pay a [Spirit Boost] cost from this card"
+    },
+    {
+      "name": "flippedFaceUp",
+      "words": "when a card in your life is flipped face up"
+    },
+    {
+      "name": "offenseStart",
+      "words": "at the start of the offense step"
+    },
+    {
+      "name": "defenseStart",
+      "words": "at the start of the defense step"
+    },
+    {
+      "name": "damageStart",
+      "words": "at the start of the damage step"
+    }
+  ],
+  "literals": [
+    {
+      "written": "[self]  [attacker]  [guard]  [subject]  [leader]  [opponentLeader]  [resolving]  [onTop]",
+      "is": "a special target"
+    },
+    {
+      "written": "[Blocker]   [Strike x: 3]   [Empower color: Red, x: 2]",
+      "is": "a keyword skill, with its parameters — one of the 39 keywords the parser knows (/arena/rules/keywords)"
+    },
+    {
+      "written": "[auto]   [activate:main]   [counter:attack]   [permanent]",
+      "is": "the printed skill tag, in WHEN — read-only"
+    },
+    {
+      "written": "$t,  $looked MINUS $kept",
+      "is": "cards bound by an earlier step"
+    },
+    {
+      "written": "you · opponent · both   |   hand · deck · drop · life · battle · combo · energy · unison · leader · warp · zDeck · zEnergy · under · play · removed   |   battle · turn · opponentTurn · nextTurn · afterNextCharge · game",
+      "is": "a side, a zone, a duration"
+    },
+    {
+      "written": "\"…\"   null   true   [Red, Blue]",
+      "is": "a text, an absent value, a flag, a list"
+    }
+  ]
+}
