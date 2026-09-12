@@ -1,8 +1,10 @@
 ---
 title: Arena docs: write docs/arena-ruleset-spec.md — the interpreter contract and the definition files
 milestone: Arena M14 — Rules language and ruleset documentation
-labels: backlog, ready-for-agent, documentation, area:arena-docs, area:arena-vm, area:arena-rulesets, phase:rules-docs, model:opus-5
+labels: done, documentation, area:arena-docs, area:arena-vm, area:arena-rulesets, phase:rules-docs, model:opus-5
 stage: docs
+status: closed
+closed_at: 2026-09-12
 ---
 **Source:** the plan's Docs section; `CLAUDE.md` already points at `docs/arena-ruleset-spec.md` as "to come"; `engines.ts`'s header comment refers to it.
 

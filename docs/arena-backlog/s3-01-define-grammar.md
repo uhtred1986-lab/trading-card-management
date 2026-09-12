@@ -1,8 +1,10 @@
 ---
 title: Arena: the DEFINE grammar in the rules language, with round-trip tests
 milestone: Arena M6 — Definitions in the language (Stage 3)
-labels: backlog, ready-for-agent, enhancement, area:arena-lang, phase:rules-stage3, model:opus-5
+labels: done, enhancement, area:arena-lang, phase:rules-stage3, model:opus-5
 stage: 3
+status: closed
+closed_at: 2026-09-12
 ---
 **Source:** plan Stage 3 (`docs/arena-backlog.md` §1); `docs/arena-rules-language.md` §2 (the round-trip promise) and §8; `src/lib/arena/lang/{tokens,ast,parse,print}.ts`.
 
