@@ -1,6 +1,6 @@
 import type { CardFilter } from "./filters";
 import type { Amount, CardAttr, Cond, Duration, Op, Ref, ScriptArea, Selector, Side, SpecialTarget } from "./script";
-import type { Color, DelayScope, DelayTiming, ForbiddenAction, KeywordSkill, SkillKindPrefix } from "./types";
+import type { Area, CardDef, Color, DelayScope, DelayTiming, ForbiddenAction, KeywordSkill, Phase, Prompt, SkillKindPrefix } from "./types";
 
 // ── the schema: one row per op, read by everything that is not the interpreter ──
 
@@ -79,6 +79,58 @@ export const KEYWORD_NAMES = [
 type MissingKeyword = Exclude<KeywordSkill["name"], (typeof KEYWORD_NAMES)[number]>;
 const _everyKeywordListed: MissingKeyword extends never ? true : never = true;
 void _everyKeywordListed;
+
+// ── the legacy engine's other unions, as runtime arrays (#136) ──────────────
+//
+// `Area`, `Phase` and `Prompt["kind"]` have no runtime array of their own —
+// they are read off the board, never printed by a schema — so
+// `scripts/verify/rulesets.ts` needs one to check a `.rules` ruleset's
+// declarations against, by name, in both directions. Each gets the same
+// never-check as `KEYWORD_NAMES` above: a member added to the union and not
+// listed here fails the typecheck rather than going unnoticed by the suite.
+
+/** `Area` (13), the places a card can actually be. `AREAS` above is `ScriptArea` (15): the two extra values, `under` and `play`, are effect-language routes ("place it under this card", "the card resolving a skill"), not board zones a `.rules` file declares. */
+export const AREA_NAMES = ["hand", "deck", "drop", "life", "battle", "combo", "energy", "unison", "leader", "warp", "zDeck", "zEnergy", "removed"] as const satisfies readonly Area[];
+type MissingArea = Exclude<Area, (typeof AREA_NAMES)[number]>;
+const _everyAreaListed: MissingArea extends never ? true : never = true;
+void _everyAreaListed;
+
+export const PHASES = ["setup", "charge", "main", "mainEnd", "end", "over"] as const satisfies readonly Phase[];
+type MissingPhase = Exclude<Phase, (typeof PHASES)[number]>;
+const _everyPhaseListed: MissingPhase extends never ? true : never = true;
+void _everyPhaseListed;
+
+/**
+ * `Prompt["kind"]` (engine/types.ts). No `.rules` file declares `DEFINE
+ * PROMPT` yet — §3b of `docs/arena-rules-language.md` leaves it an open
+ * question (#131) — so today this is only the closed list the completeness
+ * suite checks a ruleset's declared step prompts against.
+ */
+export const PROMPT_KINDS = [
+  "chooseFirst", "mulligan", "charge", "main", "combo", "blocker", "counter", "orderPending", "chooseCards", "chooseMode",
+  "replaceMove", "zEnergyFromCombo", "optionalCost", "payCost", "offering", "empowerCarry", "referee", "gameOver",
+] as const satisfies readonly Prompt["kind"][];
+type MissingPromptKind = Exclude<Prompt["kind"], (typeof PROMPT_KINDS)[number]>;
+const _everyPromptKindListed: MissingPromptKind extends never ? true : never = true;
+void _everyPromptKindListed;
+
+/**
+ * The `CardDef` fields `attributes.rules` (#133) declares one `DEFINE
+ * ATTRIBUTE` for (manual §4: colours, energy cost and X, specified-cost
+ * orbs, power, combo cost and power, characters, traits, type, Z-Energy
+ * cost). `id`/`name` are identity rather than an attribute, `skill` is
+ * parsed into a `Skill[]` of its own, `back` is a whole second face rather
+ * than a value, and `alsoNames` is never printed — a skill grants it, so it
+ * is a `modifyAttr` target, not something a card declares about itself.
+ */
+type ExcludedCardAttribute = "id" | "name" | "skill" | "back" | "alsoNames";
+export const CARD_ATTRIBUTES = ["type", "colors", "energyCost", "zEnergyCost", "power", "comboCost", "comboPower", "characters", "traits", "specifiedCost"] as const satisfies readonly Exclude<
+  keyof CardDef,
+  ExcludedCardAttribute
+>[];
+type MissingCardAttribute = Exclude<keyof CardDef, ExcludedCardAttribute | (typeof CARD_ATTRIBUTES)[number]>;
+const _everyCardAttributeListed: MissingCardAttribute extends never ? true : never = true;
+void _everyCardAttributeListed;
 
 /** Each prohibition as the verb phrase a sentence needs after "can't". Shared with `effects.ts`, so the inspector and the board say the same thing. */
 export const FORBIDDEN_IN_WORDS: Record<ForbiddenAction, string> = {
