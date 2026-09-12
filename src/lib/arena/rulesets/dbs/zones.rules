@@ -1,0 +1,181 @@
+-- The areas of the Dragon Ball Super Card Game, as declarations.
+--
+-- Every section cited is `docs/rules/rulemanual.txt`: §3 is the areas
+-- themselves, §1-10 card positions (Active and Rest Mode), §1-11 markers,
+-- §9-1-3-1 where a card's own skills are valid, §20-10 removal from the game
+-- and §23-2 cards placed under other cards.
+--
+-- The manual counts twelve areas (§3). Three more are declared below because
+-- a program has to be able to name them: `removed` (§20-10, where a card
+-- removed from the game is kept, which the manual pointedly says is no area
+-- at all), `under` (§23-2, the cards beneath another card) and `play`, which
+-- is the word for the three areas together in which a card is in play
+-- (§9-1-3-1). Each says so in its own text.
+--
+-- Two conventions, held to on every declaration so that a reader never has to
+-- ask what a missing line meant:
+--   `ordered: true`  the order of the cards is fixed by the rules and no
+--                    player may rearrange it (§3-2-2, §3-9-2). Every other
+--                    area lets its owner change the order freely, and is
+--                    written `ordered: false` rather than left out.
+--   `visibility`     who may read the faces: `none` is a secret area neither
+--                    player may check, `owner` a secret area its own player
+--                    may read, `all` an open area (§3-1-3).
+--
+-- Each player possesses one of every area, and two areas of the same name
+-- with different masters are different areas (§3-1-1) — which is what
+-- `owner: player` says. No area of this game is shared.
+
+DEFINE ZONE deck                                                          -- §3-2
+  owner: player
+  visibility: none
+  ordered: true
+  single: false
+  markers: false
+  inPlay: false
+  host: false
+  text: "the deck, face down: neither player may check its contents or change its order (3-2-2)"
+
+DEFINE ZONE hand                                                          -- §3-3
+  owner: player
+  visibility: owner
+  ordered: false
+  single: false
+  markers: false
+  inPlay: false
+  host: false
+  text: "the cards a player holds: their own to read and reorder, and no limit on how many (3-3-2, 3-3-4)"
+
+DEFINE ZONE drop                                                          -- §3-4
+  owner: player
+  visibility: all
+  ordered: false
+  single: false
+  markers: false
+  inPlay: false
+  host: false
+  text: "where KO'd Battle Cards, spent Unison Cards and activated Extra Cards are placed, face up (3-4-1, 3-4-3)"
+
+DEFINE ZONE leader                                                        -- §3-5
+  owner: player
+  visibility: all
+  ordered: false
+  single: true
+  markers: false
+  inPlay: true
+  host: true
+  modes: [active, rest]
+  text: "the one Leader Card, face up, which no effect or rule may move out of this area (3-5-1, 3-5-3)"
+
+DEFINE ZONE battle                                                        -- §3-6
+  owner: player
+  visibility: all
+  ordered: false
+  single: false
+  markers: false
+  inPlay: true
+  host: true
+  modes: [active, rest]
+  text: "where Battle Cards and some Extra Cards are played, revealed and active, with no limit on how many (3-6-1, 3-6-3)"
+
+DEFINE ZONE combo                                                         -- §3-7
+  owner: player
+  visibility: all
+  ordered: false
+  single: false
+  markers: false
+  inPlay: false
+  host: true
+  text: "the Battle Cards used in a combo, face up (3-7-1, 3-7-2)"
+
+DEFINE ZONE energy                                                        -- §3-8
+  owner: player
+  visibility: all
+  ordered: false
+  single: false
+  markers: true
+  inPlay: false
+  host: false
+  modes: [active, rest]
+  text: "the energy a player pays costs with, face up and active, and where energy markers are kept (3-8-1, 3-8-3, 1-14-3)"
+
+DEFINE ZONE life                                                          -- §3-9
+  owner: player
+  visibility: none
+  ordered: true
+  single: false
+  markers: false
+  inPlay: false
+  host: false
+  text: "the Leader's life, face down: its order may not be changed, but any card may be chosen when one leaves (3-9-2, 3-9-4)"
+
+DEFINE ZONE warp                                                          -- §3-10
+  owner: player
+  visibility: all
+  ordered: false
+  single: false
+  markers: false
+  inPlay: false
+  host: false
+  text: "where cards sent to the Warp are placed, face up and readable by either player (3-10-2)"
+
+DEFINE ZONE unison                                                        -- §3-11
+  owner: player
+  visibility: all
+  ordered: false
+  single: true
+  markers: true
+  inPlay: true
+  host: true
+  modes: [active, rest]
+  text: "the one Unison Card, revealed and active, carrying the markers its skills are counted in (3-11-3, 3-11-4, 1-11-1)"
+
+DEFINE ZONE zDeck                                                         -- §3-12
+  owner: player
+  visibility: owner
+  ordered: false
+  single: false
+  markers: false
+  inPlay: false
+  host: false
+  text: "the Z-Deck, face down but its owner's to read and reorder; a face-up card in it is in an open area (3-12-2, 3-12-2-1)"
+
+DEFINE ZONE zEnergy                                                       -- §3-13
+  owner: player
+  visibility: all
+  ordered: false
+  single: false
+  markers: false
+  inPlay: false
+  host: false
+  text: "the Z-Energy a player pays Z-Energy costs with, face up (3-13-2, 3-13-3)"
+
+DEFINE ZONE removed                                                       -- §20-10
+  owner: player
+  visibility: all
+  ordered: false
+  single: false
+  markers: false
+  inPlay: false
+  host: false
+  text: "cards removed from the game: face up, visible to all, and in no area of the game at all (20-10-2, 20-10-3)"
+
+DEFINE ZONE under                                                         -- §23-2
+  owner: player
+  visibility: all
+  ordered: true
+  single: false
+  markers: false
+  inPlay: false
+  host: false
+  text: "the cards beneath another card, face up and skills negated; the area they count as being in is the area of the card on top (23-2-2, 23-2-2-2)"
+
+DEFINE ZONE play                                                          -- §9-1-3-1
+  owner: player
+  visibility: all
+  ordered: false
+  single: false
+  markers: false
+  inPlay: true
+  host: false
+  text: "not a place a card is put: the word for the Leader, Battle and Unison Areas together, the areas a card's own skills are valid in (9-1-3-1)"

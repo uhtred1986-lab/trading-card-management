@@ -2597,3 +2597,73 @@ or more power" (BT3-026) asks about either Leader, which `power` states of one s
 Gate: `npm run typecheck`, `lint`, `test`, `build` clean; `arena:fuzz 40` — 40 games, 0 crashes;
 `contract:emit` adds exactly one probe digest, for the one harness card family 4 added, and moves
 none of the other 152.
+
+---
+
+## The game as declarations — DBS `game.rules`, `attributes.rules`, `zones.rules` (12 Sep 2026)
+
+Stage 3's third issue (#133), on top of the `DEFINE` grammar (#131) and the loader (#132): the
+Dragon Ball Super Card Game written as data — 69 declarations over three files in
+`src/lib/arena/rulesets/dbs/`, every one carrying the `docs/rules/rulemanual.txt` section it comes
+from as a `--` comment. Declarations only: no `DO` program, no interpreter, and
+`git diff --stat src/lib/arena/engine` empty.
+
+- `zones.rules` — 15 `ZONE`s: the manual's twelve areas (§3) plus `removed` (20-10), `under`
+  (23-2) and `play` (9-1-3-1).
+- `attributes.rules` — 19 `ATTRIBUTE`s: every field of `CardDef`, the three derived costs with
+  their layer order, and the player's energy markers.
+- `game.rules` — one `GAME`, six `PHASE`s, 26 `STEP`s and two `WIN`s.
+
+`scripts/verify/rulesets.ts` now loads the real set instead of asserting the directory is empty,
+and prints the whole ruleset and reads it back equal. `docs/arena-ruleset-spec.md` §3 has the file
+table and the conventions.
+
+### What the manual says that the files could not
+
+The issue asked for this list, and it is the point of writing a game out: a grammar is only proved
+by a game it has to carry. Six gaps, none of them stretched into the file — each is a `--` comment
+where it would have gone, so the absence is legible in the file rather than only here.
+
+1. **A deck is 50 *to* 60 cards (6-1-3) and a Z-Deck is *up to* 10 (6-1-4).** `DEFINE GAME` has
+   `deck:` and `zDeck:`, one number each, so the file reads them as the deck's minimum and the
+   Z-Deck's maximum and says so. There is no way to write a range.
+2. **A deck may hold up to 4 copies of one card number (6-1-5-1).** No field for a copy limit, and
+   no kind that is about deck construction. It matters for #139, which will check a ruleset against
+   the catalog.
+3. **Only the player who goes *second* places an energy marker (6-2-1-11).** `startMarkers:` is one
+   number for both players. It is left out and the `setupEnergyMarker` step carries the rule in its
+   `text:` instead — which is honest but unreadable by anything.
+4. **Conceding (0-1-3-4), a card that makes a player win or lose (0-1-3-5), and the draw when both
+   players are defeated at once (0-1-3-3).** A `DEFINE WIN`'s `IF` is a condition over the board.
+   None of these three is on the board: conceding is a player's act that no card may cause or
+   replace (0-2-2-1), a card's effect is the card's, and "both players fulfil a defeat condition
+   simultaneously" is a statement about the *other* `WIN` declarations. Only life-out and deck-out
+   are declared.
+5. **An attribute's real domain.** `value:` knows five shapes — number, string, strings, colors,
+   boolean — and no enum, no union and no map. So the card types cannot be listed (2-1), an X cost
+   cannot be said to be either a number or X (1-2-2-2), and the specified cost's orbs per colour
+   are written as a list of colours with repeats rather than as a count per colour (1-2-3). Each
+   one's `text:` carries the domain in words, which is what a person reads and no loader can check.
+6. **A card's back side is a face of its own (1-9).** `CardDef.back` carries a name, a power and a
+   skill; there is no `DEFINE FACE`, and an attribute is one value. `back` is declared as the
+   boolean "does this card have one", with its `text:` saying exactly what it does not carry.
+
+A seventh is not a gap in the grammar but a difference between the engine and the manual, recorded
+so that #136 does not read it as an error: **the Main Phase End Step is a step of the Main Phase in
+the manual (7-3-5) and a phase of its own in this engine** (`Phase` in `engine/types.ts` has
+`mainEnd`). The declaration follows the engine, because the engine is what the definition has to
+describe, and says so in its `text:`.
+
+### Lessons
+
+- **Writing the game out is what finds the grammar's edges.** Five of the six gaps above are
+  invisible from the schema alone: `startMarkers` reads perfectly well until a game needs it to be
+  asymmetric, and `value:` looks complete until an enum is the honest answer. The plan's claim that
+  "the only honest way to find out whether the language can say a whole game is to write one" held.
+- **A field left out is not the same as a field that says "no".** Every zone in `zones.rules`
+  writes `ordered:`, `single:`, `markers:`, `inPlay:` and `host:` explicitly, including the falses.
+  A reader of a printed ruleset cannot tell a default from a decision, and a zone is read by five
+  different parts of a future engine.
+- **The `--` comment is where a gap belongs, not only the history file.** A gap written only here
+  is a gap nobody editing the file will see. Each one above is also one comment at the place the
+  field would have been.
