@@ -1817,11 +1817,18 @@ export function payZEnergy(ctx: GameContext, s: GameState, ev: GameEvent[], p: P
   return true;
 }
 
-/** Total + specified cost of playing a card from hand, after cost-reducing effects (none modelled yet). */
+/**
+ * Total + specified cost of playing a card from hand, after cost-reducing
+ * effects. `x` is the value the card's master chose for an X cost (1-2-2-2-1),
+ * and is the whole of the total in that case; the coloured requirement is the
+ * card's own either way and comes from `specifiedCostOf`, which is the one
+ * place that convention lives. It used to be hardcoded `{}` for an X cost
+ * here, which meant a def that *did* carry the orbs was ignored (issue #96).
+ */
 export function playCost(ctx: GameContext, s: GameState, id: string, x = 0): { total: number; specified: Partial<Record<Color, number>> } {
   const d = def(ctx, s, id);
   const total = d.energyCost === "X" ? x : (d.energyCost ?? 0);
-  const specified = d.energyCost === "X" ? {} : specifiedCostOf(d);
+  const specified = specifiedCostOf(d);
   const owner = s.cards[id].owner;
   // A cost reducer lowers both the total and the specified cost (20-21-2) —
   // whether it stands from a [Permanent] or was put in force for the turn by a
@@ -1847,15 +1854,16 @@ export function playCost(ctx: GameContext, s: GameState, id: string, x = 0): { t
   // relaxing "2 blue" to "1 blue" is not the same change as relaxing some
   // other colour by one.
   //
-  // This is currently a no-op for every X-cost card that prints it
-  // (BT19-039, BT19-040, BT15-063, BT20-118, P-673, P-600): `specified` above
-  // is unconditionally `{}` for an X cost, because `specifiedCostOf` has no
-  // convention for what an X-cost card's own specified requirement actually
-  // is (a Unison's "2 blue" is knowledge no field in the catalog carries),
-  // and nothing populates `d.specifiedCost` to say otherwise. That baseline
-  // is a separate, larger gap than the eight clauses this lane reads — see
-  // `docs/arena-markers-stage-scope.md` — and is deliberately not guessed at
-  // here rather than invented wrong.
+  // The reduction runs, and the menu, the payment planner and the refusal all
+  // read it (issue #96). What it has nothing to bite on today is the printed
+  // baseline of an X-cost card: the deckplanet feed carries no cost orbs at
+  // all, so `specifiedCostOf` refuses to invent one and answers `{}` — see the
+  // comment on it, which records the check. On such a card this arithmetic is
+  // exact and lands on an empty requirement, which is a *lenient* price rather
+  // than a wrong one, and the moment a def carries its orbs the same lines
+  // relax them. `specifiedCostUnknown` is how a report tells that `{}` from a
+  // card that genuinely demands no colour; `npm run arena:specified` lists
+  // them (BT19-039, BT19-040, BT15-063, BT20-118, P-673, P-600 among them).
   const specifiedOps: { colors: (Color | "any")[]; sign: 1 | -1 }[] = [];
   for (const e of staticEffects(ctx, s)) if (e.kind === "specifiedCost" && e.target === id) specifiedOps.push(e.value as { colors: (Color | "any")[]; sign: 1 | -1 });
   for (const e of s.effects) if (e.kind === "specifiedCost" && e.target === id) specifiedOps.push(e.value as { colors: (Color | "any")[]; sign: 1 | -1 });

@@ -231,6 +231,10 @@
     "outcome": "noScenario",
     "digest": "b80d3483"
   },
+  "GOTEN#0": {
+    "outcome": "inForce",
+    "digest": "ed3cd9c3"
+  },
   "GRABBER#0": {
     "outcome": "fired",
     "digest": "c1ae25a6"

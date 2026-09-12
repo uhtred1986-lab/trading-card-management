@@ -67,16 +67,30 @@ Four gaps, none of them the foundational work the earlier note implied.
    22-45-3-1 defines it and says you choose one of the colours. **No card in this
    catalog prints it**, so this is theoretical until one does — worth a comment,
    not a build.
-3. **The specified-cost reduction is unimplemented**, and it is the piece that
-   touches markers. Per the owner's ruling of 9 Sep 2026, "reduce the specified
-   cost of this card in your hand by {u}" relaxes only the **colour requirement**
-   (2 blue down to 1 blue); the total is X and the player chooses it. Markers
-   then follow what was actually paid, so paying less means arriving with fewer —
-   which is the interaction that makes this worth doing carefully rather than as
-   a compiler one-liner. Eight clauses: BT19-039, BT19-040, BT15-063, BT20-118
-   and four more. Needs `costReduction`'s `what: "specified"` plus a `playCost`
-   branch that subtracts from the coloured requirement alone, the same shape the
-   [Warrior of Universe 7] branch already has (`state.ts:1603`).
+3. **The specified-cost reduction was unimplemented; it is built as of 12 Sep
+   2026, bar its baseline** (issue #96, step A below). Per the owner's ruling of
+   9 Sep 2026, "reduce the specified cost of this card in your hand by {u}"
+   relaxes only the **colour requirement** (2 blue down to 1 blue); the total is
+   X and the player chooses it. Markers then follow what was actually paid, so
+   paying less means arriving with fewer — which is the interaction that makes
+   this worth doing carefully rather than as a compiler one-liner. Seven clauses
+   print it: BT19-039, BT19-040, BT15-063, BT20-118, P-673, P-600, BT25-004.
+   `costReduction`'s `what: "specified"` and the `playCost` arithmetic that
+   subtracts from the coloured requirement alone — the same shape the [Warrior of
+   Universe 7] branch has — now run for real: the menus, `apply` and the `whyNot`
+   twins read the coloured requirement instead of an assumed `{}`, and a Unison
+   still arrives with markers equal to the total rested.
+
+   What none of that can reach is **the printed baseline of an X cost**. The
+   deckplanet feed carries no cost orbs on any card — `card_energy_cost` is a
+   bare number, `"X"` or blank across all 6,493, and the orb images live only in
+   skill text — so nothing says BT19-039's requirement is 2 blue rather than 1 or
+   3. The fixed-cost convention (one orb per colour) would say 1 and the owner's
+   ruling says 2, so it is refused rather than stretched: `specifiedCostOf`
+   answers `{}` for an X cost unless the def carries `specifiedCost`, and
+   `npm run arena:specified` re-checks the feed and lists the cards waiting. The
+   price charged is therefore lenient on those seven, not wrong, and becomes
+   exact the day a baseline exists to read.
 4. **"For each marker" was fixed on 9 Sep 2026** (lane 3, merged) — BT27-003 to
    BT27-006 had been reading a flat +5000 with no markers on the board. Named
    here only so nobody re-finds it.
@@ -103,14 +117,16 @@ Nothing here is a single stage, and none of it blocks the compiler work.
 
 | step | what | size | independent? |
 |---|---|---|---|
-| A | `what: "specified"` on `costReduction` plus the `playCost` branch — 8 clauses | small | yes |
+| A | `what: "specified"` on `costReduction` plus the `playCost` branch — 7 clauses. **Done 12 Sep 2026 except the baseline**, which the catalog cannot supply (see §2 item 3); a follow-up has to enter the orbs by hand or read them off Bandai's art | small | yes |
 | B | the "up to Y" prompt in `resolvePlay` | small-medium | yes |
 | C | an [Empower] beat naming both cards, and the board animating the carry | medium — touches `Snapshot`, so `contract:emit` and the Android contract | after B, ideally |
 | D | `[Empower XY/ZY]` parsing | trivial | yes, and pointless until a card prints it |
 
 Recommended order: **A**, because it is the owner's open ruling and the only one
 with cards waiting on it; then **B**, which is a rules correctness fix; then **C**
-if the board is worth the contract change. **D** when a card needs it.
+if the board is worth the contract change. **D** when a card needs it. A is built
+as of 12 Sep 2026 and the seven cards still wait — on their cost orbs, not on the
+engine — so the next thing here is B.
 
 What this document deliberately does not propose: rebuilding marker handling. It
 works. The temptation to treat this as a greenfield stage came from a summary

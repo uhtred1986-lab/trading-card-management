@@ -70,6 +70,8 @@ npm run arena:probe    # Try stored rules on a board built for each (--card, --s
 npm run arena:reprobe  # Re-run every probe a rule carries and list the ones whose answer moved (--write)
 npm run arena:tally    # Compiler coverage over the live deckplanet catalog, with op/cond usage and unread
                        # clause shapes — no database needed (--misses N, --show "<a wording>")
+npm run arena:specified # The specified (coloured) half of a play's price: proves the catalog feed carries
+                       # no cost orbs and lists the X-cost cards whose baseline is therefore refused (--all)
 npm run arena:readings # The other half: what the compiler reads every skill to *mean*, printed text
                        # beside the program in words. Diff it before and after a compiler change — a
                        # clause that compiles and reads wrongly moves no coverage number (--grep, --unread)

@@ -12,6 +12,7 @@ import {
   arena,
   assertConsistent,
   autoTriggerMatches,
+  boardView,
   canActivate,
   compileSkill,
   eitherOrbsIn,
@@ -23,6 +24,9 @@ import {
   parseConditionClause,
   parseSkills,
   play,
+  priceOf,
+  rejectedActions,
+  sentence,
   skillNegated,
   splitClauses,
 } from "./harness";
@@ -321,6 +325,82 @@ import {
   s = play(s, { type: "empowerCarry", player: "p1", amount: 0 });
   const emp2 = s.players.p1.unison!;
   assert.equal(s.cards[emp2].markers, 1, "22-45-3: declining the carry leaves only the marker paid for");
+  assertConsistent(s);
+}
+
+{
+  // Issue #96 — the **specified** cost, and the reducer that relaxes it.
+  //
+  // The owner's ruling of 9 Sep 2026 on BT19-039, read off 13-2-1-3 and
+  // 20-21-2: "reduce the specified cost of this card in your hand by {u}"
+  // moves the *colour* requirement (2 blue down to 1 blue) and nothing else.
+  // The total stays X, the master still picks it, and the Unison arrives with
+  // markers equal to the total paid — so paying less means arriving with
+  // fewer, which is the interaction the ruling is really about.
+  //
+  // GOTEN is BT19-039's shape: a blue Unison with an X cost whose print
+  // demands 2 blue. The catalog carries no cost orbs for any card, so no real
+  // card can say that yet (`specifiedCostOf` refuses to guess, and
+  // `npm run arena:specified` lists what is waiting) — the def says it here,
+  // which is the mechanism under test either way.
+  DEFS.TRUNKS = { ...DEFS.V1, id: "TRUNKS", name: "TRUNKS", colors: ["Blue"], characters: ["Trunks"] };
+  DEFS.GOTEN = {
+    ...DEFS.U1,
+    id: "GOTEN",
+    name: "GOTEN",
+    colors: ["Blue"],
+    specifiedCost: { Blue: 2 },
+    skill: "[Permanent] If you have a card with <Trunks> in its character name in play, reduce the specified cost of this card in your hand by {u}.",
+  };
+
+  // No <Trunks>, no reduction: one blue among three energy cannot answer two
+  // blue orbs, so no value of X is on the menu — and the refusal names the
+  // colour rather than leaving a dead card with no answer.
+  let s = arena({ hand: ["GOTEN"], energy: ["V-BLUE", "V1", "V1"] });
+  const cold = find(s, "p1", "hand", "GOTEN");
+  assert.ok(
+    !acts(s).some((a) => a.type === "playUnison" && a.card === cold),
+    "2 blue is not met by 1 blue, whatever the player picks for X",
+  );
+  // `rejections.ts` words a card in hand as one "play" refusal whatever its
+  // type, so that is where a Unison's answer arrives.
+  const refused = rejectedActions(CTX, s).find((r) => r.action.type === "play" && r.action.card === cold);
+  assert.ok(refused, "and the move is refused rather than silently absent");
+  const colour = refused.why.find((r) => r.kind === "energyColour");
+  assert.ok(colour, `the reason is the colour it is short of, not the total (got ${JSON.stringify(refused.why)})`);
+  assert.equal(sentence(colour, { name: "GOTEN", reaching: "playUnison" }), "GOTEN needs 2 Blue energy — 1 active. Charge a Blue card.");
+
+  // With a <Trunks> in play the requirement is one blue, which the board can
+  // answer — and every X from 1 to the energy available is offered, because
+  // the reduction never touched the total.
+  s = arena({ hand: ["GOTEN"], battle: ["TRUNKS"], energy: ["V-BLUE", "V1", "V1"] });
+  const warm = find(s, "p1", "hand", "GOTEN");
+  const offers = legalActions(CTX, s).filter((a) => a.action.type === "playUnison" && a.action.card === warm);
+  assert.deepEqual(
+    offers.map((a) => (a.action as { x: number }).x),
+    [1, 2, 3],
+    "20-21-2: the colour requirement moved, the total did not",
+  );
+  assert.deepEqual(offers[0].cost?.orbs, { Blue: 1 }, "one blue off two leaves one, and the row carries it");
+  const view = boardView(CTX, s, "p1", {}).you.hand!.find((c) => c.name === "GOTEN")!;
+  assert.equal(priceOf(offers[2].action, view, offers[2].label, offers[2].cost), "3 markers (1 blue)", "the price sentence shows the relaxed requirement");
+
+  // 13-2-1-3: the markers are the **total** paid, not the coloured part — pay
+  // three and it arrives with three, of which only one had to be blue.
+  s = play(s, offers[2].action);
+  const unison = s.players.p1.unison!;
+  assert.equal(s.cards[unison].cardId, "GOTEN");
+  assert.equal(s.cards[unison].markers, 3, "13-2-1-3: markers equal the energy rested, X and not the specified part");
+  assert.equal(s.players.p1.energy.filter((id) => s.cards[id].mode === "rest").length, 3, "and all three were actually paid");
+  assertConsistent(s);
+
+  // Paying less means arriving with fewer, which is the consequence the
+  // ruling spells out: X = 1 buys one marker, and one blue is all it needs.
+  s = arena({ hand: ["GOTEN"], battle: ["TRUNKS"], energy: ["V-BLUE", "V1", "V1"] });
+  s = play(s, { type: "playUnison", player: "p1", card: find(s, "p1", "hand", "GOTEN"), x: 1 });
+  const small = s.players.p1.unison!;
+  assert.equal(s.cards[small].markers, 1, "paying less arrives with fewer markers");
+  assert.equal(s.players.p1.energy.filter((id) => s.cards[id].mode === "rest" && s.cards[id].cardId === "V-BLUE").length, 1, "and the one orb paid was the blue one");
   assertConsistent(s);
 }
 
