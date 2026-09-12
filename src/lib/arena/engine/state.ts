@@ -776,7 +776,7 @@ let computingStatics = false;
  * `arena:coverage` uses so its "applied by the static layer" line means what
  * it says — keep this list beside the switch it describes.
  */
-const STATIC_OPS = new Set<Op["op"]>(["power", "comboPower", "grant", "costReduction", "replaceLeave", "gains", "negateKeyword", "forbid", "permit", "immune", "altCost"]);
+const STATIC_OPS = new Set<Op["op"]>(["power", "comboPower", "modifyAttr", "grant", "costReduction", "replaceLeave", "gains", "negateKeyword", "forbid", "permit", "immune", "altCost"]);
 
 export function emitsStatic(ops: Op[]): boolean {
   return ops.some((o) => (o.op === "if" ? emitsStatic(o.then) || emitsStatic(o.else ?? []) : STATIC_OPS.has(o.op)));
@@ -831,6 +831,23 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
       const dest = op.to === "play" ? "battle" : op.to === "under" ? "drop" : (op.to as Area);
       const targets = op.target ? staticTargets(ctx, s, frame, op.target) : [source];
       for (const id of targets) out.push({ source, kind: "replaceLeave", target: id, value: { to: dest, by: op.by, mode: op.mode, optional: op.optional } });
+      continue;
+    }
+    // The same sentence said by the primitive (`docs/arena-ruleset-spec.md`
+    // §2.3): one list at a time, so the value is built with the other three
+    // empty. It is collected here rather than below for the same reason
+    // `gains` is — what a card counts as does not depend on where it sits —
+    // and the two numbers are collected beside `power` instead.
+    if (op.op === "modifyAttr" && op.attr !== "power" && op.attr !== "comboPower") {
+      const vals = op.values ?? [];
+      const value = {
+        traits: op.attr === "traits" ? vals : [],
+        characters: op.attr === "characters" ? vals : [],
+        // The schema takes the values as plain words; the colours among them are the game's own.
+        colors: op.attr === "colors" ? (vals as Color[]) : [],
+        names: op.attr === "names" ? vals : [],
+      };
+      for (const id of op.target ? staticTargets(ctx, s, frame, op.target) : [source]) out.push({ source, kind: "gains", target: id, value });
       continue;
     }
     // "In all areas" again: what a card counts as does not depend on where it is.
@@ -901,6 +918,14 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
       const value = typeof op.amount === "number" ? op.amount : "count" in op.amount || "markers" in op.amount ? amount(ctx, s, frame, op.amount) : null;
       if (value == null) continue;
       for (const id of staticTargets(ctx, s, frame, op.target)) out.push({ source, kind: op.op, target: id, value });
+    } else if (op.op === "modifyAttr" && (op.attr === "power" || op.attr === "comboPower")) {
+      // The same read as the two ops above, including which amounts a
+      // [Permanent] can evaluate at all: it has no frame that ever bound a
+      // variable, so `count` and `markers` are the only shapes with an answer.
+      const a = op.amount ?? 0;
+      const value = typeof a === "number" ? a : "count" in a || "markers" in a ? amount(ctx, s, frame, a) : null;
+      if (value == null) continue;
+      for (const id of staticTargets(ctx, s, frame, op.target ?? { sel: { special: "self" } })) out.push({ source, kind: op.attr, target: id, value });
     } else if (op.op === "grant") {
       for (const id of staticTargets(ctx, s, frame, op.target)) out.push({ source, kind: "keyword", target: id, value: op.keyword });
     }
@@ -1637,6 +1662,11 @@ export interface Payment {
  * mono-colour matches first, then the rest from whatever is most plentiful,
  * then energy markers. Returns null when the cost can't be paid (5-3-3).
  */
+/** How much energy a coloured requirement alone accounts for. */
+export function orbCount(specified: Partial<Record<Color, number>>): number {
+  return Object.values(specified).reduce((a: number, b) => a + (b ?? 0), 0);
+}
+
 export function planPayment(
   ctx: GameContext,
   s: GameState,
@@ -1669,6 +1699,17 @@ export function planPayment(
     }
     return null;
   }
+  // A price cannot demand more orbs than it charges energy. The planner fills
+  // the specified colours first and then tops up to `total`, so a requirement
+  // larger than the total skipped the top-up entirely and handed back a
+  // payment *bigger* than the price asked for — the caller then rested every
+  // card in it and a Unison arrived with markers to match, contradicting the
+  // number on the offer it came from. An X cost is the only way the pair can
+  // arrive incoherent (the player names the total and the card names the
+  // orbs), and 1-2-2-2-1 does not let the choice go below what the card
+  // demands, so the honest answer is that this price is unpayable as stated
+  // rather than payable at a silently higher figure.
+  if (orbCount(specified) > total) return null;
   const active = exclude?.length ? activeEnergy(s, p).filter((id) => !exclude.includes(id)) : activeEnergy(s, p);
   const ps = s.players[p];
   const leader = leaderColors(ctx, s, p);
@@ -1861,11 +1902,18 @@ export function payZEnergy(ctx: GameContext, s: GameState, ev: GameEvent[], p: P
   return true;
 }
 
-/** Total + specified cost of playing a card from hand, after cost-reducing effects (none modelled yet). */
+/**
+ * Total + specified cost of playing a card from hand, after cost-reducing
+ * effects. `x` is the value the card's master chose for an X cost (1-2-2-2-1),
+ * and is the whole of the total in that case; the coloured requirement is the
+ * card's own either way and comes from `specifiedCostOf`, which is the one
+ * place that convention lives. It used to be hardcoded `{}` for an X cost
+ * here, which meant a def that *did* carry the orbs was ignored (issue #96).
+ */
 export function playCost(ctx: GameContext, s: GameState, id: string, x = 0): { total: number; specified: Partial<Record<Color, number>> } {
   const d = def(ctx, s, id);
   const total = d.energyCost === "X" ? x : (d.energyCost ?? 0);
-  const specified = d.energyCost === "X" ? {} : specifiedCostOf(d);
+  const specified = specifiedCostOf(d);
   const owner = s.cards[id].owner;
   // A cost reducer lowers both the total and the specified cost (20-21-2) —
   // whether it stands from a [Permanent] or was put in force for the turn by a
@@ -1891,15 +1939,16 @@ export function playCost(ctx: GameContext, s: GameState, id: string, x = 0): { t
   // relaxing "2 blue" to "1 blue" is not the same change as relaxing some
   // other colour by one.
   //
-  // This is currently a no-op for every X-cost card that prints it
-  // (BT19-039, BT19-040, BT15-063, BT20-118, P-673, P-600): `specified` above
-  // is unconditionally `{}` for an X cost, because `specifiedCostOf` has no
-  // convention for what an X-cost card's own specified requirement actually
-  // is (a Unison's "2 blue" is knowledge no field in the catalog carries),
-  // and nothing populates `d.specifiedCost` to say otherwise. That baseline
-  // is a separate, larger gap than the eight clauses this lane reads — see
-  // `docs/arena-markers-stage-scope.md` — and is deliberately not guessed at
-  // here rather than invented wrong.
+  // The reduction runs, and the menu, the payment planner and the refusal all
+  // read it (issue #96). What it has nothing to bite on today is the printed
+  // baseline of an X-cost card: the deckplanet feed carries no cost orbs at
+  // all, so `specifiedCostOf` refuses to invent one and answers `{}` — see the
+  // comment on it, which records the check. On such a card this arithmetic is
+  // exact and lands on an empty requirement, which is a *lenient* price rather
+  // than a wrong one, and the moment a def carries its orbs the same lines
+  // relax them. `specifiedCostUnknown` is how a report tells that `{}` from a
+  // card that genuinely demands no colour; `npm run arena:specified` lists
+  // them (BT19-039, BT19-040, BT15-063, BT20-118, P-673, P-600 among them).
   const specifiedOps: { colors: (Color | "any")[]; sign: 1 | -1 }[] = [];
   for (const e of staticEffects(ctx, s)) if (e.kind === "specifiedCost" && e.target === id) specifiedOps.push(e.value as { colors: (Color | "any")[]; sign: 1 | -1 });
   for (const e of s.effects) if (e.kind === "specifiedCost" && e.target === id) specifiedOps.push(e.value as { colors: (Color | "any")[]; sign: 1 | -1 });

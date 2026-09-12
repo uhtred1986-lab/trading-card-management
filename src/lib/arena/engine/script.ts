@@ -236,6 +236,15 @@ export type Cond =
   /** Whose turn it is (7-1). "opponent" is "during your opponent's turn". */
   | { kind: "isTurnPlayer"; who?: "you" | "opponent" };
 
+/**
+ * The attributes `modifyAttr` may change: the two numbers a continuous effect
+ * carries, and the four lists a card *also counts as* (20-1). Mode, markers,
+ * face-up and the rest are attributes too, but they are the spellings' own
+ * ops until Stage 3 declares the attribute list (`docs/arena-ruleset-spec.md`
+ * §2.5); adding one here without a case below would be a field that lies.
+ */
+export type CardAttr = "power" | "comboPower" | "colors" | "characters" | "traits" | "names";
+
 export type Op =
   | { op: "draw"; n: Amount; side?: Side }
   /** Cards leave a hand, chosen by its owner (20-7); `to: "warp"` for "sends 1 card from their hand to their Warp". */
@@ -287,6 +296,21 @@ export type Op =
   /** `negated` is "played … with its skills negated" (9-1-5), for the turn or for as long as it is in play. */
   | { op: "play"; target: Ref; mode?: "active" | "rest"; onto?: Ref; negated?: "turn" | "game" }
   | { op: "switchMode"; target: Ref; mode: "active" | "rest" }
+  /**
+   * The primitive under `power`, `comboPower` and `gains`
+   * (`docs/arena-ruleset-spec.md` §2.3): one attribute of one card, by a
+   * delta (`amount`, for the two numbers) or by the values it also counts as
+   * (`values`, for the four lists), for a duration or — printed as a
+   * [Permanent] — for as long as the rule holds.
+   *
+   * The three short spellings below are kept and are still what the compiler
+   * writes, so no stored record changes and no card's reading moves; Stage 3
+   * re-declares them over this row as macros (#137). A list attribute is read
+   * wherever the card is, like the `gains` it stands for, so it is collected
+   * by the static layer (`collectStatics`, state.ts) rather than applied when
+   * a skill resolves.
+   */
+  | { op: "modifyAttr"; target?: Ref; attr: CardAttr; amount?: Amount; values?: string[]; until?: Duration }
   | { op: "power"; target: Ref; amount: Amount; until: Duration }
   | { op: "comboPower"; target: Ref; amount: Amount; until: Duration }
   | { op: "grant"; target: Ref; keyword: KeywordSkill; until: Duration }
@@ -1141,6 +1165,21 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         b.guard = id;
         ev.push({ type: "guardChanged", guard: id, by: frame.card });
         pendTriggers(ctx, s, "attacked", id);
+        break;
+      }
+
+      // The primitive the two cases below are spellings of
+      // (`docs/arena-ruleset-spec.md` §2.3). It makes the same continuous
+      // effects, so a rule written either way plays identically; the list
+      // attributes are what a card *counts as*, which is read wherever the
+      // card is and never applied here — the same reason `gains` falls
+      // through to the "continuous by nature" case further down.
+      case "modifyAttr": {
+        if (op.attr !== "power" && op.attr !== "comboPower") break;
+        if (!op.until) break;
+        const n = amount(ctx, s, frame, op.amount ?? 0);
+        for (const id of resolveRef(ctx, s, frame, op.target ?? { sel: { special: "self" } }))
+          addEffect(s, ev, { master: frame.master, source: frame.card, target: id, kind: op.attr, value: n, until: op.until });
         break;
       }
 

@@ -14,7 +14,26 @@ stage: 2
 3. Markers on arrival follow the amount paid (22-45 for Unisons); add the assertion.
 4. Glossary entry for `costReduction what: specified`; `wording.ts` price sentence shows the relaxed requirement.
 
-**Out of scope.** Skill-cost reduction (#97); X as a bound expression (see the X/expressions issue — this issue may land first with a fixed baseline).
+**Findings, 12 Sep 2026 — the baseline is refused, the mechanism is built.**
+Step 1 asked for the baseline to be derived from the printed cost orbs and verified against the
+catalog, refusing rather than guessing where the feed is silent. **The feed is silent everywhere.**
+The deckplanet payload was read card by card: `card_energy_cost` is a bare number, `"X"`, `""` or
+null on all 6,493 cards of the original game, orb markup appears only inside skill text, and no
+other field carries a cost. There is nothing to derive a baseline from, so `specifiedCostOf` refuses
+one for an X cost and says why; `npm run arena:specified` re-checks the feed on every run and lists
+what is waiting. All 167 X-cost cards are Unisons or Z-Unisons, and seven print a specified-cost
+clause: BT19-039, BT19-040, BT15-063, BT20-118, P-673, P-600, BT25-004. Stretching the fixed-cost
+convention (one orb per colour) over the gap would read BT19-039 as 1 blue where the owner's ruling
+says 2, so it is not stretched.
+
+Steps 2–4 did not need the baseline and are built. The mechanism runs off `CardDef.specifiedCost`,
+which the tests supply and a hand-entered baseline could later: `playCost` no longer hardcodes an
+empty specified cost for an X cost, the play/Unison/Z-Unison menus, `apply` and the `whyNot` twins
+all read the coloured requirement instead of `{}`, markers still follow the total paid (13-2-1-3),
+and the row's price shows the relaxed requirement. What is missing on the seven cards above is the
+data, not the reading.
+
+**Out of scope.** Skill-cost reduction (#97); X as a bound expression (see the X/expressions issue — this issue may land first with a fixed baseline). Entering a baseline for the seven cards above — a `specified_cost` column, a workbench field, or reading Bandai's card art — is its own issue and is not guessed at here.
 
 **Acceptance.**
 - Gate + `contract:emit` reviewed.

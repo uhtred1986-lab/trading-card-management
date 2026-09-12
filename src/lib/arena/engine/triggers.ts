@@ -37,6 +37,29 @@ export function keywordTriggers(sk: Skill, trigger: Trigger): boolean {
 }
 
 /**
+ * Both players' turns, named as one moment: "at the end of **you and your
+ * opponent's turns**" (BT21-100, EX24-20, P-700), "at the end of **your or
+ * your opponent's turn**" (EX07-01), "at the end of **each player's turn**".
+ * And the Main Phase said the same way: "at the start of **you and your
+ * opponent's Main Phases**" (BT21-109, BT21-110, BT21-114, BT31-115b,
+ * EX24-29), "at the start of **your or your opponent's Main Phase**" (P-688).
+ *
+ * Neither wording matched the one-sided phrase either case was anchored on, so
+ * twelve [Auto] skills answered to no trigger at all and never fired once —
+ * a card that stands itself up every Main Phase simply stayed rested. And
+ * nothing said so: the timing clause is consumed wherever it appears, whether
+ * or not a trigger was found for it, so these carried no unread clause and no
+ * gap to count.
+ *
+ * The phrase is one moment in the text and two in the engine, which is exactly
+ * what this predicate is shaped for — a skill answers to both, and only one of
+ * them can happen at a time (7-1), so it fires once per turn either way. The
+ * same precedent as "when you play or combo with this card" below.
+ */
+const EVERY_TURN_END = /^at the end of (?:(?:you|your) (?:and|or) your opponent'?s turns?|each player'?s turn)\b/;
+const EVERY_MAIN_START = /^at the (?:beginning|start) of (?:(?:you|your) (?:and|or) your opponent'?s main phases?|each player'?s main phase)\b/;
+
+/**
  * Read the "When …" clause of an [Auto] skill. Unrecognised wording never
  * pends — a skill the engine cannot place in time is better left out than
  * fired at the wrong moment.
@@ -148,15 +171,15 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     // end of your turn" also acted at the end of the opponent's, and 13 that
     // wait for the opponent's turn fired a turn early as well.
     case "turnEnd":
-      return /^at the end of (?:your|the|this) turn\b/.test(head);
+      return /^at the end of (?:your|the|this) turn\b/.test(head) || EVERY_TURN_END.test(head);
     case "opponentTurnEnd":
-      return /^at the end of your opponent'?s turn\b/.test(head);
+      return /^at the end of your opponent'?s turn\b/.test(head) || EVERY_TURN_END.test(head);
     case "opponentTurnStart":
       return /^at the (?:beginning|start) of your opponent'?s turn\b/.test(head);
     case "mainStart":
-      return /^at the (?:beginning|start) of (?:your|the) main phase\b/.test(head);
+      return /^at the (?:beginning|start) of (?:your|the) main phase\b/.test(head) || EVERY_MAIN_START.test(head);
     case "opponentMainStart":
-      return /^at the (?:beginning|start) of your opponent'?s main phase\b/.test(head);
+      return /^at the (?:beginning|start) of your opponent'?s main phase\b/.test(head) || EVERY_MAIN_START.test(head);
     case "blockerUsed":
       return /when this card activates (?:its )?\[blocker\]/.test(t);
     // Both wordings are the same moment: "when **this card** in your life is

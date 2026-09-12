@@ -1,6 +1,6 @@
 import { parseFilter, type CardFilter } from "../filters";
 import type { ScriptArea, Selector, Side } from "../script";
-import { TWO_NAMED_CARDS } from "./clauses";
+import { BOTH_SIDES, TWO_NAMED_CARDS } from "./clauses";
 
 // ── target phrases ─────────────────────────────────────────────────────────
 
@@ -172,6 +172,20 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
   // *all* of them, chosen outright rather than up to. Refused (ground rule 5)
   // until a selector can carry an amount, which is its own piece of work.
   if (/^(?:up to )?x\s/.test(t.trim())) return null;
+  // "Then choose **the rest of** your and your opponent's cards in the Battle
+  // Area" (TB3-066), "place **the rest of** the cards in the Drop Area"
+  // (BT3-062), "you choose **the rest of** their Battle Cards" (BT15-128): the
+  // cards of that description *except the ones this skill has already picked
+  // out*. A `Selector` states a description and an area; it has no way to say
+  // "except what the last choice took", and read without those words the
+  // phrase is simply every card — which on TB3-066 sweeps away the very card
+  // the option before it chose to spare, and on BT3-062 sends the card just
+  // added to hand to the Drop instead of the cards left behind.
+  //
+  // Refused rather than approximated (ground rule 5): the whole point of the
+  // sentence is the exception. Not the duration that shares the words — "for
+  // the rest of the turn" is a phrase about time and never names a card.
+  if (/\bthe rest of\b(?!\s+(?:the|this)\s+(?:turn|game|battle)\b)/.test(t)) return null;
   // "The card on top of this card" (23-2), and the descriptions that name it:
   // "the <Majin Buu> on top of this card", "the Leader on top of this card",
   // "Battle Cards on top of this card". A pile is one card with everything
@@ -413,6 +427,18 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
     else if (/\bopponent (?:rest mode |active mode |skill-less )?(?:battle|unison|extra|leader|z-battle|z-extra)s?\b/.test(t)) side = "opponent";
   }
   if (/\ball players\b|\beach player\b|\bboth players\b/.test(t)) side = "both";
+  // "Choose up to 1 of **you or your opponent's** Battle Cards" (BT26-016),
+  // "choose up to 1 card in **your or your opponent's** Battle Area"
+  // (BT31-032): the phrase names both boards, and the possessive nearest the
+  // area word is the opponent's — so `areaOwner` read the whole choice as
+  // theirs and the card the text lets you pick from your own side was never
+  // on the menu. BT4-045 prints the proof on its own face: "choose up to 1 of
+  // your or your opponent's Battle Cards … **If that card was your own Battle
+  // Card, draw 1 card**", a clause that can never fire if the choice only ever
+  // reaches the other player. Read after `areaOwner` rather than inside it,
+  // because the phrase says *both* whichever possessive happens to sit closest
+  // to the area word ("you or your opponent's", "your and your opponent's").
+  if (BOTH_SIDES.test(t)) side = "both";
   if ((otherAdj || sweep) && !/\byour\b|\btheir\b|\bopponent\b|\byou control\b/.test(chosen)) side = "both";
   // "among them" / "of those cards" keeps working on what was just looked at.
   //

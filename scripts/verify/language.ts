@@ -9,15 +9,18 @@ import fs from "node:fs";
 import path from "node:path";
 import { stateText } from "../../src/lib/arena/ai/view";
 import {
+  COND_CLASS,
   COND_SCHEMA,
   CTX,
   DEFS,
   EFFECT_LANGUAGE,
+  OP_CLASS,
   OP_SCHEMA,
   apply,
   arena,
   canonical,
   card,
+  cardNow,
   clauseShape,
   compileSkill,
   condSignature,
@@ -107,6 +110,41 @@ import type { CardFilter, SchemaOp } from "./harness";
   assert.equal(opSignature("ko"), '{"op":"ko","target":TARGET}');
   assert.equal(opSignature("negateAttack"), '{"op":"negateAttack"}');
   assert.match(opSignature("draw"), /"side"\?:"you"\|"opponent"/, "an optional field is marked");
+}
+
+// ── primitive or macro: the spec's table is the code's table ───────────────
+//
+// The decision for every row of the language is written twice on purpose:
+// `docs/arena-ruleset-spec.md` §2 carries the reason a person reads, and
+// `OP_CLASS`/`COND_CLASS` carry the decision the code reads. The `Record`
+// types already force a row per op and per condition; this is the other half.
+// A row added to the schema and not to the document — or classified one way
+// in the table and another in the code — fails here rather than being found
+// a stage later, when Stage 3 is writing the macro that was never decided.
+{
+  const doc = fs.readFileSync(path.join(__dirname, "../../docs/arena-ruleset-spec.md"), "utf8").replace(/\r\n/g, "\n");
+  const section = (from: string, to: string) => {
+    const start = doc.indexOf(from);
+    const end = doc.indexOf(to, start + 1);
+    assert.ok(start >= 0 && end > start, `${from} is missing from the ruleset spec`);
+    return doc.slice(start, end);
+  };
+  /** The rows of one table, as name → the class column, exactly as written. */
+  const table = (text: string): Record<string, string> =>
+    Object.fromEntries([...text.matchAll(/^\| `([A-Za-z]+)` \| (primitive|macro over [^|]+?) \| [^|]+ \|$/gm)].map((m) => [m[1], m[2]]));
+
+  for (const [what, written, decided] of [
+    ["OP_CLASS", table(section("### 2.3 The operations", "### 2.4")), OP_CLASS as Record<string, string>],
+    ["COND_CLASS", table(section("### 2.4 The conditions", "### 2.5")), COND_CLASS as Record<string, string>],
+  ] as const) {
+    assert.deepEqual(Object.keys(written).sort(), Object.keys(decided).sort(), `${what}: the spec §2 and the code classify the same rows`);
+    for (const [name, cls] of Object.entries(written)) assert.equal(decided[name], cls, `${what}: the spec and the code disagree about ${name}`);
+  }
+  // …and every primitive a row lowers to is one §2.2 names, so "macro over
+  // `move`" cannot point at a word the document never explains.
+  const vocabulary = section("### 2.2 The primitive vocabulary", "### 2.3");
+  for (const cls of [...Object.values(OP_CLASS), ...Object.values(COND_CLASS)])
+    for (const [, target] of cls.matchAll(/`([A-Za-z]+)`/g)) assert.ok(vocabulary.includes(`| \`${target}\``), `§2.2 does not list the primitive \`${target}\``);
 }
 
 // ── COND_SCHEMA: the other half of the language, in the same one table ──────
@@ -234,6 +272,47 @@ import type { CardFilter, SchemaOp } from "./harness";
   const r = apply(ctx as never, s, { type: "play", player: "p1", card: find(s, "p1", "hand", "KILLER") });
   assert.notEqual(r.state.prompt.kind, "gameOver");
   void r;
+}
+
+// ── modifyAttr: the primitive plays as the spellings it stands under ────────
+//
+// `docs/arena-ruleset-spec.md` §2.3 says `power`, `comboPower` and `gains`
+// are one mechanism. That is only true if a rule written either way lands in
+// the same place, so it is asserted here rather than argued in the document:
+// the same board, the same skill, two programs, one answer. Three paths,
+// because the mechanism has three — a skill that resolves, and the static
+// layer's two halves (a number while the card is in play, a list in every
+// area).
+{
+  const rule = (name: string, ops: unknown) => ({ defs: DEFS, scripts: { [name]: { bySkill: { 0: { ops, unsupported: [] } }, complete: true, unsupported: [] } } }) as never;
+  const yourBattle = { sel: { side: "you", area: "battle", count: 99 } };
+
+  // Resolving: an [Auto] that pumps your Battle Cards when it is played.
+  const played = (ops: unknown) => {
+    const ctx = rule("DRAWER", ops);
+    const s = arena({ hand: ["DRAWER"], energy: ["V1"], battle: ["V1"] });
+    const target = find(s, "p1", "battle", "V1");
+    const r = apply(ctx, s, { type: "play", player: "p1", card: find(s, "p1", "hand", "DRAWER") });
+    return powerOf(ctx, r.state, target);
+  };
+  const spelled = played([{ op: "power", target: yourBattle, amount: 5000, until: "turn" }]);
+  assert.equal(spelled, 15000, "the `power` op still pumps");
+  assert.equal(played([{ op: "modifyAttr", target: yourBattle, attr: "power", amount: 5000, until: "turn" }]), spelled, "modifyAttr(power) is the same continuous effect");
+
+  // The static layer, for a [Permanent] that never resolves.
+  const aura = (ops: unknown) => {
+    const ctx = rule("AURA", ops);
+    const s = arena({ battle: ["AURA", "V1"] });
+    return { ctx, s, v1: find(s, "p1", "battle", "V1") };
+  };
+  const power = aura([{ op: "modifyAttr", target: yourBattle, attr: "power", amount: 5000, until: "game" }]);
+  assert.equal(powerOf(power.ctx, power.s, power.v1), 15000, "…and the same aura from the static layer");
+
+  // A list attribute is read wherever the card is, which is what `gains` says.
+  const gained = aura([{ op: "gains", target: yourBattle, traits: ["Saiyan"] }]);
+  const counts = aura([{ op: "modifyAttr", target: yourBattle, attr: "traits", values: ["Saiyan"] }]);
+  assert.deepEqual(cardNow(counts.ctx, counts.s, counts.v1).traits, cardNow(gained.ctx, gained.s, gained.v1).traits, "modifyAttr(traits) is `gains`");
+  assert.ok(cardNow(counts.ctx, counts.s, counts.v1).traits.includes("Saiyan"), "…and both of them gained it");
 }
 
 // ── the engine reads rows and nothing else ───────────────────────────────────

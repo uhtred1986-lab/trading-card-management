@@ -163,6 +163,18 @@ export function pill(r: Requirement): string {
   }
 }
 
+/** A play's coloured requirement, said after its total: " (1 blue)". */
+function orbSuffix(cost?: ActionCost): string {
+  const orbs = cost?.orbs;
+  if (!orbs) return "";
+  const parts = Object.entries(orbs)
+    .filter(([, n]) => (n ?? 0) > 0)
+    .map(([c, n]) => `${n} ${c.toLowerCase()}`);
+  return parts.length ? ` (${parts.join(", ")})` : "";
+}
+
+const PLAY_ACTIONS = new Set<Action["type"]>(["play", "playUnison", "playZ"]);
+
 /**
  * What a legal move costs, worn on its row so the sheet lists every action
  * *with its price on it*. Null when the move has no price worth naming.
@@ -170,17 +182,25 @@ export function pill(r: Requirement): string {
 export function priceOf(action: Action, card: CardView, label: string, cost?: ActionCost): string | null {
   // The engine's own reckoning when it gives one: a skill's orbs are not in
   // the card's numbers, and reading them off the label was a guess.
-  if (cost) return cost.describe;
+  //
+  // A play is the one kind where the engine hands over *half* a price. Its
+  // total is printed on the card and the row reads it there; the coloured
+  // requirement is not — an X cost has no total to hang orbs on, and a
+  // "reduce the specified cost of this card by {u}" relaxes what the print
+  // demands (owner's ruling on BT19-039, issue #96) — so the orbs arrive on
+  // `cost` and the sentence is still assembled here.
+  const orbs = PLAY_ACTIONS.has(action.type) ? orbSuffix(cost) : "";
+  if (cost && !PLAY_ACTIONS.has(action.type)) return cost.describe;
   switch (action.type) {
     case "play":
       if (action.alt) return "alternative cost";
-      if (action.x != null) return `X = ${action.x}`;
-      return card.cost && card.cost !== "0" ? `${card.cost} energy` : "free";
+      if (action.x != null) return `X = ${action.x}${orbs}`;
+      return (card.cost && card.cost !== "0" ? `${card.cost} energy` : "free") + orbs;
     case "playUnison":
-      return `${action.x} marker${action.x === 1 ? "" : "s"}`;
+      return `${action.x} marker${action.x === 1 ? "" : "s"}${orbs}`;
     case "playZ":
-      if (action.x != null) return `${action.x} marker${action.x === 1 ? "" : "s"}`;
-      return card.cost ? `${card.cost} energy + Z` : "Z-Energy";
+      if (action.x != null) return `${action.x} marker${action.x === 1 ? "" : "s"}${orbs}`;
+      return (card.cost ? `${card.cost} energy + Z` : "Z-Energy") + orbs;
     case "combo":
       return `+${(card.comboPower ?? 0).toLocaleString("en")} · ${card.comboCost ? `${card.comboCost} energy` : "free"}`;
     case "attack":

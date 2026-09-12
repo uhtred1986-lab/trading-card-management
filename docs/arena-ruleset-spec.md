@@ -8,10 +8,10 @@ It is the companion to `docs/arena-rules-language.md`, which specifies the *gram
 declarations are written in. That doc says how a rule is spelled; this one says what a rule is
 allowed to mean, where the meanings live, and how a new one is added.
 
-Three sections here (§2, §3, §4) are deliberately headings with a single line under them: they are
+Two sections here (§3, §4) are deliberately headings with a single line under them: they are
 filled by the stage issues that produce their content, and checked back against this document when
-they land. The other four (§1, §5, §6, §7) are written now, so those issues have somewhere to
-write.
+they land. The rest are written: §1, §5, §6 and §7 since 12 Sep 2026 (#114), and §2 — the
+primitive-or-macro decision for every row of the effect language — with #130.
 
 ---
 
@@ -64,12 +64,191 @@ and the interpreter can prove it implements everything a game declares.
 
 ## 2. The primitives and the expression language
 
-*Filled by #130* (Stage 2's primitive-or-macro table, `OP_CLASS`/`COND_CLASS` beside the schemas,
-and the expression grammar). Until then the operations and conditions are the schema rows
-themselves: `OP_SCHEMA` (45 ops) and `COND_SCHEMA` (18 conditions) in
-`src/lib/arena/engine/script-schema.ts`, with the closed word lists `SIDES`, `SPECIAL_TARGETS`,
-`AREAS`, `DURATIONS` and `KEYWORD_NAMES` above them, and the grammar in
-`docs/arena-rules-language.md` §3.
+Written 12 Sep 2026 (issue #130). Stage 4's engine interprets **primitives**; Stage 3 re-declares
+everything else as a `DEFINE OP` macro over them (#137). This section is the decision, one row per
+row of `OP_SCHEMA` and `COND_SCHEMA` — so that a mechanism is added once, and a spelling of an
+existing mechanism is never added as a case in an interpreter again.
+
+### 2.1 What a primitive is, and what marking a row *macro* does not do
+
+The rule, from the plan: a primitive **says something no combination of the others can**. Anything
+else is a macro. Four things follow, and they are the reason the tables below are worth having.
+
+- **A macro is not a deletion.** Every op keeps its name, its `OP_SCHEMA` row, its printed form and
+  its stored programs; `parse(print(x)) = x` holds over the macro's *name*, not its expansion
+  (#137). `power`, `comboPower` and `gains` are this issue's worked example: `modifyAttr` is added beside
+  them, they keep parsing, printing and playing exactly as before, and no card's reading moves.
+- **A macro's target may not exist yet.** The table names the primitive as it will be, with today's
+  spelling beside it in §2.2. `move` is `moveTo` today; `costModifier`, `negate` and `replace` are
+  the general forms of rows the engine already has; `control`, `skip` and `copySkills` are Stage 2
+  issues (#126, #123) that will arrive as primitives.
+- **Layering and duration are not ops.** The plan's `effect(layer)` row is the interpreter's
+  bookkeeping — what `until` means, which effect wins, when it expires (§1, §7). Every op that
+  carries a duration uses it; none of them *is* it.
+- **A primitive may still be split into readable cases.** The classification says what the language
+  needs, not how many `case` labels an interpreter is allowed. What it forbids is the opposite: a
+  new *row* for something an existing primitive already says.
+
+### 2.2 The primitive vocabulary
+
+Nineteen primitives carry every row below — fourteen operations and five conditions.
+
+| Primitive | Today | What it says |
+|---|---|---|
+| `move` | `moveTo` | A card changes area, with a cause. Prohibitions, replacements, and the moments of leaving and arriving hang off this one op. |
+| `modifyAttr` | `modifyAttr` | One attribute of one subject, by a delta or by a value, for a duration or for as long as the rule holds. |
+| `costModifier` | `costReduction` | What something costs to play, activate or evolve — a whole price, not a number (§2.5). |
+| `negate` | `negateSkills` | A rule stops applying: a card's skills, one kind of them, one named keyword, or the skill resolving now. |
+| `replace` | `replaceLeave` | An event that is about to happen happens differently, or not at all (9-10, #125). |
+| `choose` | `choose` | A player picks cards from a selector; the cards are bound to a name the rest of the program reads. |
+| `reveal` | `reveal` | Who has seen a card changes, without the card moving. |
+| `shuffle` | `shuffle` | A pile is randomised with the game's seeded RNG. |
+| `token` | `token` | A card that was in no deck comes into being. |
+| `play` | `play` | The game's own play action is invoked for a card (5-5). |
+| `forbid` | `forbid` | A standing rule that an action may not happen, with a budget and an escape (20-14). |
+| `permit` | `permit` | A rule of the game is lifted for one card (8-1-1). |
+| `immune` | `immune` | A card no skill may touch (9-1-4). |
+| `if` | `if` | A branch taken on a condition. |
+| `chooseMode` | `chooseMode` | A branch a player picks (20-2). |
+| `delay` | `delay` | A program runs at a later declared moment, with the variables bound now. |
+| `note` | `note` | A remark in the log. Not a mechanism, and nothing to lower it to. |
+| `count` (condition) | `count` | A bound on how many cards a selector finds — the comparison predicate (§2.6). |
+| `did` (condition) | `did` | What an earlier step of *this* resolution did (20-16). |
+| `not` (condition) | `not` | Negation. |
+| `any` (condition) | `any` | Disjunction: the other half of the propositional core. |
+| `isTurnPlayer` (condition) | `isTurnPlayer` | Whose turn it is (7-1). |
+
+Two rows in that list are honest about being provisional. `play` is a primitive only until Stage 3
+declares the play action itself (§3): which zone the card ends in, whether its text resolves and
+which moments fire are that action's steps, and a `move` cannot say any of them. `permit` is the
+same layer as `forbid` with the sign flipped and a vocabulary of its own (`attackActive` is not a
+`ForbiddenAction`); merging the two into one `permission` primitive would be a rename, not a change
+of mechanism, and Stage 3 may do it.
+
+### 2.3 The operations
+
+One row per key of `OP_SCHEMA` (`src/lib/arena/engine/script-schema.ts`). The same decision is
+carried in code as `OP_CLASS` beside the schema, and `scripts/verify/language.ts` fails if the two
+disagree or if a row is missing from either.
+
+| Op | Class | Why |
+|---|---|---|
+| `draw` | macro over `move` | *n* from the top of a deck to its owner's hand. Losing on an empty deck is the game's own win condition (§3), not part of the op. |
+| `discard` | macro over `choose` + `move` | Already a macro in code: `stepScript` splices a `choose` the *owner* answers and a move to the Drop or the Warp (20-7), rather than teaching the op to prompt. |
+| `damage` | macro over `move` | *n* from the top of a Life Area to its owner's hand with the cause `damage` (5-10, 21-3). The cause is the whole difference from `lifeDownTo`, which moves the same cards and is not damage (1-13-2). |
+| `mill` | macro over `move` | Top of deck to the Drop, face up, bound to `as`. Naming what moved is the move's own answer, not a second mechanism. |
+| `addLife` | macro over `move` | Top of deck to the Life Area. |
+| `lifeDownTo` | macro over `move` | "Until you have *n* life" is `count(you.life) − n` cards from life to hand: a move with a computed amount, so it needs the arithmetic §2.6 does not have yet (#122). |
+| `shuffle` | primitive | An order nobody chose. No sequence of moves reproduces it, and the RNG is the interpreter's (§7). |
+| `energyMarker` | macro over `modifyAttr` | A counter on the **player**, not on a card — the first of the three widenings §2.5 asks for. |
+| `choose` | primitive | The only op that binds cards a player picked to a name; every "the chosen cards" downstream reads that binding. |
+| `look` | macro over `reveal` | The same act with a narrower audience (20-11): the cards stay where they are and are bound to a name. "The top *n*" is the selector's `TOP n`, "your opponent's hand" its area. |
+| `reveal` | primitive | Changes who has seen a card without moving it (20-11-2). Visibility does not follow from position. |
+| `ko` | macro over `move` | To the owner's Drop with the cause `ko`. [Indestructible], "can't be KO'd by skills" and the replacement offers belong to `move` — they apply to any departure — so the macro is a destination and a cause. |
+| `moveTo` | primitive | This **is** `move`. |
+| `play` | primitive | The play action, not a destination (5-5); see §2.2 for why this row is provisional. |
+| `switchMode` | macro over `modifyAttr` | Active or Rest is an attribute of the card; "switched to Rest Mode by one of your skills" (1-10) is a trigger on the change and its cause. |
+| `modifyAttr` | primitive | One attribute of one card, by a delta (`amount`) or by the values it also counts as (`values`), for a duration or — printed as a [Permanent] — for as long as the rule holds. The row the three below lower to, and the reason they are one mechanism rather than three. |
+| `power` | macro over `modifyAttr` | Attribute `power`, by a delta, for a duration. |
+| `comboPower` | macro over `modifyAttr` | Attribute `comboPower`. The only difference from the row above is which attribute — which is the argument this table exists to make. |
+| `grant` | macro over `modifyAttr` | Attribute `keywords`: the card gains a keyword skill for a duration. What the keyword then does is the hook contract (§4). |
+| `negateSkills` | macro over `negate` | Scope: every skill of a card (9-1-5). |
+| `negateSkillsOfKind` | macro over `negate` | Scope: one printed skill kind of a card. |
+| `negateKeyword` | macro over `negate` | Scope: one named keyword, in every area. |
+| `negateOwnSkill` | macro over `negate` | Scope: the skill resolving now, for the turn, the battle or the game. |
+| `hidden` | macro over `modifyAttr` | Attribute `hidden`: Hidden Mode and Revealed Mode (23-5). |
+| `redirectAttack` | macro over `modifyAttr` | The guard is an attribute of the **battle in progress** (8-1, 22-4-2) — the second widening in §2.5. |
+| `comboFrom` | macro over `move` + `negate` | Into the Combo Area with the cause `combo` (5-7), optionally with the card's skills negated. |
+| `flip` | macro over `modifyAttr` | Attribute `flipped`: which face of a Leader is in play (22-2-4). |
+| `faceUp` | macro over `modifyAttr` | Attribute `faceUp` on a card in a Life Area (3-9-2-1). |
+| `addMarker` | macro over `modifyAttr` | Attribute `markers`, by +*n*. The plan's sketch kept `marker` as a primitive of its own; a marker count is a number on a card and behaves like one, so it is not. |
+| `removeMarker` | macro over `modifyAttr` | Attribute `markers`, by −*n*; "when a marker is removed" is a trigger on the change. |
+| `token` | primitive | Nothing that moves cards can make one (19). |
+| `costReduction` | macro over `costModifier` | Which cost (energy, skill, evolve, combo, Z-Energy, specified) is an argument, not six mechanisms — that was #96 and #97's finding before it was this table's. |
+| `gains` | macro over `modifyAttr` | Attributes `colors`, `characters`, `traits` and `names`, in every area (20-1). |
+| `replaceLeave` | macro over `replace` | Event: a card leaving the Battle Area (9-10). |
+| `altCost` | macro over `costModifier` | A price is replaced, not reduced — which is why the primitive takes a price rather than a number (§2.5). |
+| `resolvingPlay` | macro over `replace` | Event: the play being resolved, negated or altered (9-6). |
+| `negateAttack` | macro over `replace` | Event: the attack in progress resolves to nothing. |
+| `negateCounter` | macro over `replace` | Event: the [Counter] this one is answering resolves to nothing (9-7). |
+| `forbid` | primitive | A prohibition is not an attribute of a card: it is a rule in force, read by whatever would act (20-14). |
+| `immune` | primitive | 9-1-4, and the only rule read by the skill trying to act rather than by the actor — stronger than `forbid: beChosen` for exactly that reason. |
+| `permit` | primitive | The one rule of the game a card may lift (8-1-1); provisional, per §2.2. |
+| `if` | primitive | A branch on a condition. |
+| `chooseMode` | primitive | A branch a player picks (20-2). |
+| `may` | macro over `chooseMode` | Two options, the second empty (20-16). The answer has to be bound either way, because "if you do" reads it — which is a requirement on the primitive, not a reason for a second one. |
+| `delay` | primitive | The one op that moves work to a later moment with the variables bound now (1-7-2-1-1). |
+| `note` | primitive | A remark in the log; nothing to lower it to. |
+
+### 2.4 The conditions
+
+One row per key of `COND_SCHEMA`, carried in code as `COND_CLASS` and checked the same way. The
+theme is one sentence long: **most conditions are `count` with the right selector**, once a filter
+can name the attributes the engine keeps in code (§2.5).
+
+| Condition | Class | Why |
+|---|---|---|
+| `count` | primitive | A bound on how many cards a selector finds. §2.6 widens it to a bound on an *expression*, which is what the rest of this table lowers to. |
+| `life` | macro over `count` | The cards in a side's Life Area, counted. |
+| `lifeVsOpponent` | macro over `count` | Two counts against each other — the one shape §2.6 cannot write yet (#122). |
+| `leaderColor` | macro over `count` | `count(1 <colour> card IN you.leader) >= 1`. |
+| `leaderMatches` | macro over `count` | The same with a whole filter. `back: true` asks about the Leader's back face, which no selector can name yet (§2.5). |
+| `markers` | macro over `count` | `markers(SELECTOR)` is already an expression (§2.6); this row is a bound on it. |
+| `inBattle` | macro over `count` | "Attacking", "being attacked" and "in a battle" are roles of the battle in progress; as filter fields they are a count of the cards in the role. |
+| `battled` | macro over `count` | "Has been in a battle this turn" is a flag the engine keeps on the card; as a filter field it counts. |
+| `every` | macro over `count` + `not` | Every card the first selector finds is also one the second finds: a bound of zero on the difference, plus the bound that makes the empty case false (0-2-4-1) rather than vacuously true. |
+| `any` | primitive | Disjunction. A clause list is already a conjunction; nothing else says "or". |
+| `all` | macro over `any` + `not` | De Morgan. The interpreter may keep the case for legibility; the language does not need it. |
+| `leaderFlipped` | macro over `count` | "Has awakened" is the `flipped` attribute of a Leader (§2.5). |
+| `power` | macro over `count` | Filters already carry `powerMin` and `powerMax`, so this is a count of the cards the filter finds. |
+| `did` | primitive | The resolution's own record (20-16). No amount of counting the board says whether *this skill* drew a card. |
+| `not` | primitive | Negation. |
+| `chose` | macro over `count` | How many cards were bound to the named variable: a count over `FROM $var`. |
+| `varMatches` | macro over `count` | `count(FROM $var matching the filter) >= 1`. |
+| `isTurnPlayer` | primitive | A fact about the game rather than about any card or pile (7-1). Stage 3 declares the turn player as a game attribute, which will make this a comparison like the rest. |
+
+### 2.5 What the tables ask for
+
+Five requirements fall out of the classification. They are what Stage 3 and Stage 4 have to build
+for the macros above to be writable; none of them is built by #130, which delivered the table and
+`modifyAttr` alone.
+
+1. **`modifyAttr` must reach three kinds of subject** — a card (`power`, `gains`, `markers`, `mode`,
+   `hidden`, `faceUp`, `flipped`, `keywords`), a **player** (`energyMarker`) and the **battle in
+   progress** (`redirectAttack`). Today's row takes a card `Ref`. The widening belongs with
+   `attributes.rules` (#133), which is where each subject's attributes get declared.
+2. **`move` must carry a cause.** `damage`, `ko`, `combo`, `effect` and a plain draw are the same
+   move with different causes, and the triggers tell them apart by it — the legacy `move()` already
+   takes one, so this is a schema field, not a mechanism.
+3. **Filters must name the attributes the engine keeps in code.** `flipped`, `markers`, the
+   battle's roles and "battled this turn" are what five condition rows lower to. Selectors already
+   carry `mode` and `hidden`; filters already carry power, cost, `faceUp`, keywords and type.
+4. **A price is not a number.** `costModifier` takes orbs, a life payment or a whole program
+   (`altCost`), and the specified cost never touches a total at all (owner's ruling on BT19-039,
+   9 Sep 2026). That is why costs are not folded into `modifyAttr` even though a cost is an
+   attribute of a card: the value is structured, and `playCost`'s payment search reads it.
+5. **Amounts must become expressions** (#122): subtraction for `lifeDownTo`, a comparison of two
+   expressions for `lifeVsOpponent` and `every`, and X for the cards that bind one.
+
+### 2.6 The expression language
+
+An operation's fields are not all constants: four shapes carry a computation, and they are the
+expression language the table above leans on.
+
+- **`Amount`** — a number, `$var`, `count(SELECTOR)` or `markers(SELECTOR)` (each optionally
+  `* n`), `sumPower($var)`, `handUpTo(n)`. This is `EXPR_SCHEMA` in `src/lib/arena/lang/ast.ts`,
+  and it is the whole arithmetic the language has: there is no addition, no subtraction and no
+  comparison of two expressions. #122 is where those arrive, with X.
+- **`Ref`** — what an op acts on: a selector, or `$var` (optionally `MINUS $var`, the one set
+  operation the language has).
+- **`Selector`** — which cards, where, whose, how many, in which mode: the fields of
+  `SELECTOR_FIELDS`, evaluated by the interpreter (§7), never by a card.
+- **`CardFilter`** — what a card *is*: colours, characters, traits, names, keywords, type, cost and
+  power bounds (`FILTER_FIELDS`). Requirement 3 above is a list of what it cannot say yet.
+
+A condition is the predicate half of the same language: `count` bounds an expression, and §2.4 is
+the argument that the other seventeen rows are that one row with the right selector, the right
+filter or the right boolean around it.
 
 ---
 

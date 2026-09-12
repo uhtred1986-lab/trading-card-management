@@ -423,7 +423,26 @@ export function baseType(def: CardDef): "LEADER" | "BATTLE" | "EXTRA" | "UNISON"
 
 /**
  * Specified cost by convention (proposal §9.1): one orb of each of the card's
- * colours, capped by the total cost. Colorless tokens and X costs get none.
+ * colours, capped by the total cost. Colorless tokens get none.
+ *
+ * **An X cost has no baseline this function will invent** (issue #96). The
+ * convention above reads the *total* to cap the orbs, and an X cost has no
+ * total until the player names one, so there is nothing to read. Nor does the
+ * catalog say: the deckplanet feed was checked card by card on 12 Sep 2026 and
+ * carries no cost orbs at all — `card_energy_cost` is a bare number, `"X"` or
+ * blank on every one of the 6,493 cards, and the orb images appear only inside
+ * skill text. BT19-039 is the proof the convention must not be stretched over
+ * the gap rather than the reason it could be: the owner's ruling of 9 Sep 2026
+ * puts its printed requirement at **2** blue, and one-orb-per-colour would say
+ * one. So an X cost answers `{}` — no colour demanded — and `playCost` charges
+ * the total alone, which is the same price the engine charged before and is
+ * wrong only in being lenient.
+ *
+ * `def.specifiedCost` is the way out, and it is honoured for an X cost like any
+ * other: a card whose orbs are actually known — a synthetic one in the tests, a
+ * hand-entered baseline later — carries them and the whole mechanism runs. What
+ * is missing is the data, not the reading. `npm run arena:specified` lists every
+ * card still waiting on it.
  */
 export function specifiedCostOf(def: CardDef): Partial<Record<Color, number>> {
   if (def.specifiedCost) return def.specifiedCost;
@@ -436,6 +455,21 @@ export function specifiedCostOf(def: CardDef): Partial<Record<Color, number>> {
     left--;
   }
   return out;
+}
+
+/**
+ * True when this card's coloured requirement is the engine declining to guess
+ * rather than a fact — an X cost with no `specifiedCost` on the def.
+ *
+ * `specifiedCostOf` answers `{}` for both "this card demands no colour" and
+ * "nobody knows what this card demands", and the two are not the same claim:
+ * the first is a price, the second is a gap. Anything that *reports* on a cost
+ * — the workbench, the probe's assumptions, `arena:specified` — asks this so it
+ * can say which it is. Nothing that *charges* one needs to: an unknown baseline
+ * is charged as no colour either way.
+ */
+export function specifiedCostUnknown(def: CardDef): boolean {
+  return def.energyCost === "X" && !def.specifiedCost;
 }
 
 /** 5-7-2: a card can only combo with both a non-negative combo cost and combo power. */
@@ -491,7 +525,13 @@ export function hasTrait(def: CardDef, name: string): boolean {
  * for this card **or at the end of the turn**” (BT25-040) then reads as one
  * moment made of both.
  */
-const TIMING_PHRASE = /at the (?:beginning|start|end) of (?:your opponent'?s|your|the|this|a) (?:next )?(?:turn|battle|charge phase|main phase|offense step|defense step|damage step)/;
+// The possessive admits both players named at once — "at the end of you and
+// your opponent's turns" (EX24-20), "at the end of each player's turn" — for
+// the same reason `EVERY_TURN_END` reads them in `triggers.ts`: a phrase this
+// does not admit is not a trailing trigger, so EX24-20's [Auto] had no moment
+// to fire at and the card never left the game. Plurals with it: the wording
+// that names both players names their turns in the plural.
+const TIMING_PHRASE = /at the (?:beginning|start|end) of (?:(?:you|your) (?:and|or) your opponent'?s|each player'?s|your opponent'?s|your|the|this|a) (?:next )?(?:turns?|battle|charge phase|main phases?|offense step|defense step|damage step)/;
 
 /**
  * The head of a skill's effect: where a trigger has to be printed.

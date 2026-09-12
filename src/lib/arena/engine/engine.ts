@@ -54,6 +54,7 @@ import {
   paymentOptions,
   payZEnergy,
   permits,
+  orbCount,
   planPayment,
   playCost,
   powerOf,
@@ -1635,8 +1636,42 @@ export interface ActionCost {
   orbs?: Partial<Record<Color, number>>;
   /** Unison markers added (positive) or removed (negative) as the price (13-4). */
   markers?: number;
-  /** The price in words, as the row shows it: "2 energy", "{r}{r}", "free", "3 markers". */
+  /**
+   * The price in words, as the row shows it: "2 energy", "{r}{r}", "free",
+   * "3 markers" — **except on a play**, where it is the coloured requirement
+   * alone ("1 blue"). A play's total is printed on the card and the row reads
+   * it there; only the specified cost can have been relaxed out from under the
+   * print (owner's ruling on BT19-039), so that is the half the engine has to
+   * hand over, and `priceOf` in `wording.ts` is still the one place the two
+   * halves become a sentence.
+   */
   describe: string;
+}
+
+/**
+ * A play's price, worn on the row only when its **coloured** requirement is
+ * something the card itself does not say (issue #96): an X cost, whose printed
+ * total is no place to hang orbs, or a requirement an effect has moved off the
+ * print — relaxed by "reduce the specified cost of this card by {u}", or
+ * cleared by [Warrior of Universe 7]. A plain cost-3 red card's one red orb is
+ * on the card and stays off the row, so nothing that had nothing to add
+ * changes.
+ */
+function playPrice(c: { total: number; specified: Partial<Record<Color, number>> }, d: CardDef): { cost: ActionCost } | undefined {
+  const orbs = Object.fromEntries(Object.entries(c.specified).filter(([, n]) => (n ?? 0) > 0)) as Partial<Record<Color, number>>;
+  if (!Object.keys(orbs).length) return undefined;
+  const printed = specifiedCostOf(d);
+  const asPrinted = d.energyCost !== "X" && JSON.stringify(Object.entries(printed).sort()) === JSON.stringify(Object.entries(orbs).sort());
+  if (asPrinted) return undefined;
+  return {
+    cost: {
+      energy: c.total,
+      orbs,
+      describe: Object.entries(orbs)
+        .map(([k, n]) => `${n} ${k.toLowerCase()}`)
+        .join(", "),
+    },
+  };
 }
 
 /** The price of declaring a skill: its orbs, plus the card's own cost for an Extra played from hand (12-2-2). */
@@ -1816,8 +1851,9 @@ function mainActions(ctx: EngineContext, s: GameState, p: PlayerId): LegalAction
     const d = def(ctx, s, id);
     const bt = baseType(d);
     if (bt === "BATTLE" && d.energyCost !== "X") {
-      if (planPayment(ctx, s, p, playCost(ctx, s, id).total, playCost(ctx, s, id).specified) && canPlay(ctx, s, p, id))
-        out.push({ action: { type: "play", player: p, card: id }, label: `Play ${name(id)} (${d.energyCost ?? 0})` });
+      const c = playCost(ctx, s, id);
+      if (planPayment(ctx, s, p, c.total, c.specified) && canPlay(ctx, s, p, id))
+        out.push({ action: { type: "play", player: p, card: id }, label: `Play ${name(id)} (${d.energyCost ?? 0})`, ...playPrice(c, d) });
       // 5-3: a card may print another price for playing it, which is often the
       // only reason it is playable at all.
       const alt = canPlay(ctx, s, p, id) ? altCostFor(ctx, s, id, p, "play") : null;
@@ -1828,13 +1864,30 @@ function mainActions(ctx: EngineContext, s: GameState, p: PlayerId): LegalAction
     }
     // 1-2-2-2-1: with an X cost the card's master picks the value.
     if (bt === "BATTLE" && d.energyCost === "X" && canPlay(ctx, s, p, id)) {
-      for (let x = 0; x <= energyCount; x++) if (planPayment(ctx, s, p, x, {})) out.push({ action: { type: "play", player: p, card: id, x }, label: `Play ${name(id)} with X = ${x}` });
+      // The colours are the card's own whatever the player picks for X — the
+      // reducer relaxes them, it never moves the total (owner's ruling on
+      // BT19-039) — so each candidate X is offered only if its orbs can be met,
+      // and X starts at the number of orbs **as they now stand**, rather than
+      // at 0. Below that the price asks for more energy than it charges, which
+      // is not a cheaper way to play the card but an incoherent one. The count
+      // is read off `playCost` and not off the print precisely because a
+      // reducer in force is what moves it: relaxing "2 blue" to "1 blue" lowers
+      // this floor by one, which is the whole of what the sentence buys.
+      // `whyNotPlayFromHand` floors it the same way, and the two must not
+      // disagree.
+      for (let x = orbCount(playCost(ctx, s, id).specified); x <= energyCount; x++) {
+        const c = playCost(ctx, s, id, x);
+        if (planPayment(ctx, s, p, c.total, c.specified)) out.push({ action: { type: "play", player: p, card: id, x }, label: `Play ${name(id)} with X = ${x}`, ...playPrice(c, d) });
+      }
     }
     if (bt === "UNISON" && !isZ(d) && canPlay(ctx, s, p, id)) {
       const max = d.energyCost === "X" ? energyCount : (d.energyCost ?? 0);
-      const min = d.energyCost === "X" ? 1 : (d.energyCost ?? 0);
-      for (let x = min; x <= max; x++)
-        if (planPayment(ctx, s, p, x, {})) out.push({ action: { type: "playUnison", player: p, card: id, x }, label: `Play Unison ${name(id)} with ${x} marker${x === 1 ? "" : "s"}` });
+      const min = Math.max(d.energyCost === "X" ? 1 : (d.energyCost ?? 0), orbCount(playCost(ctx, s, id).specified));
+      for (let x = min; x <= max; x++) {
+        const c = playCost(ctx, s, id, x);
+        if (planPayment(ctx, s, p, c.total, c.specified))
+          out.push({ action: { type: "playUnison", player: p, card: id, x }, label: `Play Unison ${name(id)} with ${x} marker${x === 1 ? "" : "s"}`, ...playPrice(c, d) });
+      }
     }
     // Keyword [Activate : Main] skills from hand and Extras with a native effect.
     for (const sk of skillsOf(d)) {
@@ -1866,13 +1919,15 @@ function mainActions(ctx: EngineContext, s: GameState, p: PlayerId): LegalAction
     if (ps.zEnergy.length < zc) continue;
     if (d.type === "Z-UNISON") {
       const max = d.energyCost === "X" ? energyCount : (d.energyCost ?? 0);
-      for (let x = d.energyCost === "X" ? 1 : max; x <= max; x++)
-        if (planPayment(ctx, s, p, x, {})) out.push({ action: { type: "playZ", player: p, card: id, x }, label: `Play Z-Unison ${name(id)} with ${x} markers` });
+      for (let x = Math.max(d.energyCost === "X" ? 1 : max, orbCount(playCost(ctx, s, id).specified)); x <= max; x++) {
+        const zu = playCost(ctx, s, id, x);
+        if (planPayment(ctx, s, p, zu.total, zu.specified)) out.push({ action: { type: "playZ", player: p, card: id, x }, label: `Play Z-Unison ${name(id)} with ${x} markers`, ...playPrice(zu, d) });
+      }
       continue;
     }
     const c = playCost(ctx, s, id);
     if (planPayment(ctx, s, p, c.total, c.specified))
-      out.push({ action: { type: "playZ", player: p, card: id }, label: `Play ${d.type === "Z-EXTRA" ? "Z-Extra" : "Z-Battle"} ${name(id)} (${c.total}, Z${zc})` });
+      out.push({ action: { type: "playZ", player: p, card: id }, label: `Play ${d.type === "Z-EXTRA" ? "Z-Extra" : "Z-Battle"} ${name(id)} (${c.total}, Z${zc})`, ...playPrice(c, d) });
   }
   // 8-1: attacks — not on the first player's first turn (7-3-4-4-1).
   if (!(s.turn === 1 && p === s.firstPlayer)) {
@@ -2010,11 +2065,19 @@ function whyNotPlayFromHand(ctx: EngineContext, s: GameState, p: PlayerId, card:
     const c = playCost(ctx, s, card);
     return [...whyNotPay(ctx, s, p, c.total, c.specified), ...whyNotPlay(ctx, s, p, card)];
   }
-  // 1-2-2-2-1: X may be 0, so only `canPlay` can stop it.
-  if (bt === "BATTLE" && d.energyCost === "X") return whyNotPlay(ctx, s, p, card);
+  // 1-2-2-2-1: X may be 0, so nothing but `canPlay` can stop it — unless the
+  // card demands colours, which no value of X waives (issue #96). The smallest
+  // X that could satisfy them is the number of orbs, and that is the price the
+  // refusal is worded against.
+  if (bt === "BATTLE" && d.energyCost === "X") {
+    const c = playCost(ctx, s, card, 0);
+    return [...whyNotPlay(ctx, s, p, card), ...whyNotPay(ctx, s, p, orbCount(c.specified), c.specified)];
+  }
   if (bt === "UNISON" && !isZ(d)) {
-    const min = d.energyCost === "X" ? 1 : (d.energyCost ?? 0);
-    return [...whyNotPlay(ctx, s, p, card), ...whyNotPay(ctx, s, p, min, {})];
+    const floor = d.energyCost === "X" ? 1 : (d.energyCost ?? 0);
+    const c = playCost(ctx, s, card, floor);
+    const min = Math.max(floor, orbCount(c.specified));
+    return [...whyNotPlay(ctx, s, p, card), ...whyNotPay(ctx, s, p, min, c.specified)];
   }
   return null;
 }
@@ -2618,7 +2681,7 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
         if (!alt) throw new IllegalAction("that card has no other price to pay");
         if (!payAltCost(ctx, s, ev, p, alt)) throw new IllegalAction("can't pay that price");
       } else {
-        const c = d.energyCost === "X" ? { total: action.x ?? 0, specified: {} } : playCost(ctx, s, action.card);
+        const c = playCost(ctx, s, action.card, action.x ?? 0);
         const asked = askForPayment(ctx, s, p, action, c.total, c.specified, `play ${face(ctx, s, action.card).name}`);
         if (asked) return { state: asked, events: ev };
         const pm = planPayment(ctx, s, p, c.total, c.specified, action.pay);
@@ -2638,9 +2701,10 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
       spendProhibitionUse(ctx, s, "play", { player: p, card: action.card, bySkill: false });
       const x = d.energyCost === "X" ? action.x : (d.energyCost ?? 0);
       if (d.energyCost === "X" && x < 1) throw new IllegalAction("X must be at least 1");
-      const askedUnison = askForPayment(ctx, s, p, action, x, {}, `play ${face(ctx, s, action.card).name}`);
+      const uc = playCost(ctx, s, action.card, x);
+      const askedUnison = askForPayment(ctx, s, p, action, uc.total, uc.specified, `play ${face(ctx, s, action.card).name}`);
       if (askedUnison) return { state: askedUnison, events: ev };
-      const pm = planPayment(ctx, s, p, x, {}, action.pay);
+      const pm = planPayment(ctx, s, p, uc.total, uc.specified, action.pay);
       if (!pm) throw new IllegalAction("can't pay the energy cost");
       pay(s, ev, p, pm);
       s.resolving = { card: action.card, player: p };
@@ -2656,7 +2720,7 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
       if (!canPlay(ctx, s, p, action.card)) throw new IllegalAction("that card can't be played now");
       spendProhibitionUse(ctx, s, "play", { player: p, card: action.card, bySkill: false });
       const x = d.energyCost === "X" ? (action.x ?? 0) : (d.energyCost ?? 0);
-      const c = d.energyCost === "X" ? { total: x, specified: {} } : playCost(ctx, s, action.card);
+      const c = playCost(ctx, s, action.card, x);
       const askedZ = askForPayment(ctx, s, p, action, c.total, c.specified, `play ${face(ctx, s, action.card).name}`);
       if (askedZ) return { state: askedZ, events: ev };
       const pm = planPayment(ctx, s, p, c.total, c.specified, action.pay);

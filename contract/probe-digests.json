@@ -199,6 +199,10 @@
     "outcome": "fired",
     "digest": "b25bd92a"
   },
+  "EVERY-MAIN#0": {
+    "outcome": "didNotFire",
+    "digest": "16bdaa6b"
+  },
   "EVO#0": {
     "outcome": "fired",
     "digest": "c84aadcf"
@@ -230,6 +234,10 @@
   "GLOATER#0": {
     "outcome": "noScenario",
     "digest": "b80d3483"
+  },
+  "GOTEN#0": {
+    "outcome": "inForce",
+    "digest": "ed3cd9c3"
   },
   "GRABBER#0": {
     "outcome": "fired",

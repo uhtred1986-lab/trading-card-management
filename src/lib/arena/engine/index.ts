@@ -4,7 +4,7 @@ export { koCard, pendTriggers, masterOf } from "./triggers";
 export { compileCardCached, compileSkill, splitClauses } from "./compile";
 export { validateProgram, describeScript, opSignature, OP_SCHEMA, NO_RULES, resolveSelector, type CardScripts, type Op, type OpField, type OpSpec, type FieldType, type Script, type ScriptFrame, type Selector } from "./script";
 export { tokenCardId, tokenDefOf, permanentStatics, programsOf, emitsStatic } from "./state";
-export { parseSkills, skillsOf, keywordsOf, keywordOf, specifiedCostOf, canCombo, baseType, isZ, skillLines, orbsIn } from "./cards";
+export { parseSkills, skillsOf, keywordsOf, keywordOf, specifiedCostOf, specifiedCostUnknown, canCombo, baseType, isZ, skillLines, orbsIn } from "./cards";
 export { parseFilter, matches, parseCondition } from "./filters";
 export {
   face,

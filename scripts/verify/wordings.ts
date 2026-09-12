@@ -22,6 +22,7 @@ import {
   labels,
   matches,
   move,
+  parseConditionClause,
   parseFilter,
   parseSkills,
   parseTarget,
@@ -1590,4 +1591,159 @@ import type { GameState, Trigger } from "./harness";
   assert.ok(canActivate(sGreenX, cardX), "a green X alone satisfies");
   assert.ok(canActivate(sYellowY, cardY), "a yellow Y alone satisfies");
   assert.ok(!canActivate(sGreenY, cardCross), "a green Y does not satisfy the disjunction");
+}
+
+{
+  // s2-93 family 1: "you or your opponent's Battle Cards" names both boards.
+  //
+  // `parseTarget` reads the side off the possessive nearest the area word, and
+  // in this phrase that possessive is the opponent's — so nine skills offered
+  // a choice over one board where the text prints two, and the card on your
+  // own side that the text lets you pick was never on the menu. BT4-045 prints
+  // the proof on its own face: its next clause asks whether the card you chose
+  // "was your own Battle Card", which can never be true if the choice only
+  // ever reached the other player.
+  const both = parseTarget("up to 1 of you or your opponent's battle cards");
+  assert.equal(both?.side, "both", "BT26-016: 'you or your opponent's' is both boards");
+  assert.equal(both?.area, "battle");
+  // The sets write the first half as "your" as readily as "you", and join the
+  // halves with "and" as readily as "or".
+  assert.equal(parseTarget("up to 1 card in your or your opponent's battle area")?.side, "both", "BT31-032");
+  assert.equal(parseTarget("all of your and your opponent's battle cards")?.side, "both", "BT5-108");
+  // The possessive after the joiner is what makes the phrase one description
+  // of cards. "You and your opponent draw 1 card" names two players doing
+  // something, and must not be read as a side at all.
+  assert.notEqual(parseTarget("your opponent's battle cards")?.side, "both", "one side stays one side");
+  assert.equal(parseTarget("your battle cards")?.side, "you");
+}
+
+{
+  // s2-93 family 2: the "and" of "you and your opponent's cards" joins two
+  // players, not two clauses.
+  //
+  // `splitClauses` cut there, and the two halves were both ruined: "choose all
+  // of you" is a choice with no cards in it, and "your opponent's Battle
+  // Cards" is a description with no verb. Fifteen skills were cut this way,
+  // and the damage was not always an honest gap — EX13-07 kept the tail, so a
+  // sweep printed for every card on the table read as your own Leader taking
+  // -10000 power and nothing else.
+  assert.deepEqual(
+    splitClauses("Choose all of you and your opponent's Rest Mode Battle Cards, ignoring [barrier], and KO them"),
+    ["Choose all of you and your opponent's Rest Mode Battle Cards", "ignoring [barrier]", "KO them"],
+    "P-565: the phrase survives, the sentence still breaks where it should",
+  );
+  assert.deepEqual(
+    splitClauses("choose all of your and your opponent's Battle Cards with energy costs of 4 or less and place them into their owner's Drop"),
+    ["choose all of your and your opponent's Battle Cards with energy costs of 4 or less", "place them into their owner's Drop"],
+    "BT31-130",
+  );
+  // Two players *acting* is two clauses, and must still be cut: the possessive
+  // after the joiner is what makes the phrase one description of cards.
+  assert.deepEqual(splitClauses("you and your opponent draw 1 card"), ["you and your opponent draw 1 card"]);
+  assert.ok(splitClauses("draw 1 card and your opponent draws 1 card").length === 2, "an ordinary 'and' still breaks the sentence");
+}
+
+{
+  // s2-93 family 3: "the rest of" is an exception a Selector cannot state.
+  //
+  // "Choose 1 of your and your opponent's Battle Cards ignoring [Barrier].
+  // Then choose **the rest of** your and your opponent's cards in the Battle
+  // Area … and shuffle them into their owners' decks" (TB3-066): the whole
+  // point of the option is the card the first choice spared, and a selector
+  // states a description and an area with no way to subtract the last choice
+  // from it. Read without those words the phrase is every card, so the sweep
+  // took the survivor with it.
+  assert.equal(parseTarget("the rest of your and your opponent's cards in the battle area"), null);
+  assert.equal(parseTarget("the rest of their battle cards"), null);
+  // The duration that shares the words is a phrase about time and never names
+  // a card, so it must not be caught by this.
+  assert.ok(parseTarget("1 of your battle cards for the rest of the turn"), "'for the rest of the turn' is not this phrase");
+  // The one shape that does read it: "the rest" of a pool a look held out is
+  // what was looked at minus what was chosen, which `moveTo` can say (BT3-062).
+  const sk = parseSkills(
+    "[Auto] When you play this card, look at up to 2 cards from the top of your deck. Choose up to 1 ≪Saiyan≫ among them and add it to your hand. Then, place the rest of the cards in the Drop Area.",
+  )[0];
+  const last = compileSkill(sk).ops.at(-1) as { op: string; target: { var: string; minus?: string } };
+  assert.equal(last.op, "moveTo");
+  assert.equal(last.target.minus, "c0", "BT3-062: the looked-at cards *minus* the one added to hand");
+}
+
+{
+  // s2-93 family 4: both players' turns named as one moment.
+  //
+  // "At the start of you and your opponent's Main Phases", "at the end of you
+  // and your opponent's turns", "at the end of each player's turn". Neither
+  // wording matched the one-sided phrase each trigger was anchored on, so
+  // twelve [Auto] skills answered to no trigger at all and never fired once —
+  // and nothing said so, because a timing clause is consumed whether or not a
+  // trigger was found for it, so these carried no unread clause and no gap to
+  // count. One moment in the text, two in the engine: the skill answers to
+  // both, and 7-1 means only one of them can happen at a time.
+  const every = parseSkills("[auto] At the start of you and your opponent's Main Phases, switch this card to Active Mode.")[0];
+  assert.ok(autoTriggerMatches(every, "mainStart"), "BT21-109: your own Main Phase");
+  assert.ok(autoTriggerMatches(every, "opponentMainStart"), "…and your opponent's");
+  const ends = parseSkills("[Auto] At the end of you and your opponent's turns, draw 1 card.")[0];
+  assert.ok(autoTriggerMatches(ends, "turnEnd") && autoTriggerMatches(ends, "opponentTurnEnd"), "BT21-100");
+  const each = parseSkills("[Auto] At the end of each player's turn, draw 1 card.")[0];
+  assert.ok(autoTriggerMatches(each, "turnEnd") && autoTriggerMatches(each, "opponentTurnEnd"), "BT15-032b");
+  const or = parseSkills("[Auto] At the end of your or your opponent's turn, return this card to its owner's hand.")[0];
+  assert.ok(autoTriggerMatches(or, "turnEnd") && autoTriggerMatches(or, "opponentTurnEnd"), "EX07-01");
+  // The one-sided wordings keep answering to one trigger and not the other —
+  // 7-1 is the rule this widening must not cross.
+  const mine = parseSkills("[Auto] At the end of your turn, draw 1 card.")[0];
+  assert.ok(autoTriggerMatches(mine, "turnEnd") && !autoTriggerMatches(mine, "opponentTurnEnd"), "one side stays one side");
+  const theirs = parseSkills("[auto] At the start of your opponent's Main Phase, switch this card to Active Mode.")[0];
+  assert.ok(autoTriggerMatches(theirs, "opponentMainStart") && !autoTriggerMatches(theirs, "mainStart"));
+  // EX24-20 prints the phrase at the *end* of its sentence, so `TIMING_PHRASE`
+  // has to admit it too or there is no trailing trigger to read and the card
+  // never leaves the game.
+  const trailing = parseSkills("[auto] Remove this card from the game at the end of you and your opponent's turns.")[0];
+  assert.equal(trailingTrigger(trailing), "at the end of you and your opponent's turns", "EX24-20");
+  assert.equal(compileSkill(trailing).unsupported.length, 0, "…and the phrase is then no longer part of the effect");
+
+  // The moment itself, on the board: a card that stands up every Main Phase
+  // was staying rested through the opponent's.
+  DEFS["EVERY-MAIN"] = {
+    ...DEFS.V1,
+    id: "EVERY-MAIN",
+    name: "EVERY-MAIN",
+    skill: "[auto] At the start of you and your opponent's Main Phases, switch this card to Active Mode.",
+  };
+  let s = arena({ battle: ["EVERY-MAIN"] });
+  const card = find(s, "p1", "battle", "EVERY-MAIN");
+  s.cards[card].mode = "rest";
+  s = play(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+  assert.equal(s.turnPlayer, "p2", "…it is now the opponent's Main Phase");
+  assert.equal(s.cards[card].mode, "active", "and the card stood up on it");
+  assertConsistent(s);
+}
+
+{
+  // s2-93 family 5: a card's power as a condition, in the sets' other word
+  // orders.
+  //
+  // The compiler read only "if this card's power is 30000 or more". The same
+  // question is printed with the verb "has", and with the measure on either
+  // side of the noun — "if this card has 20000 **power or more**", "if your
+  // opponent's Leader Card has 10000 **or less power**" — and seven skills
+  // went unread for those three small differences. An unread condition takes
+  // its clause with it, so BT28-003 and EX25-31, whose whole text is the
+  // condition and the grant, read as nothing at all.
+  const cond = (s: string) => parseConditionClause(s)?.cond ?? null;
+  assert.deepEqual(cond("if this card has 20000 power or more"), { kind: "power", sel: { special: "self" }, atLeast: 20000 }, "BT20-090");
+  assert.deepEqual(cond("if this card's power is 20000 or more"), { kind: "power", sel: { special: "self" }, atLeast: 20000 }, "…the same condition as the wording already read");
+  assert.deepEqual(cond("if your Leader Card has 15000 power or less"), { kind: "power", sel: { special: "leader" }, atMost: 15000 }, "BT15-028");
+  assert.deepEqual(cond("if your opponent's Leader Card has 10000 or less power"), { kind: "power", sel: { special: "opponentLeader" }, atMost: 10000 }, "BT1-015");
+  // A subject the grammar cannot name stays unread rather than being guessed
+  // at: these are a measure of a card an earlier clause named, and a condition
+  // is parsed with no antecedent to resolve them against (ground rule 5).
+  assert.equal(cond("if its power is 20000 or more"), null, "BT3-001");
+  assert.equal(cond("if you or your opponent's Leader Card has 15000 or more power"), null, "BT3-026: either Leader, which `power` states of one selector");
+
+  // The whole [Permanent], which read as nothing before: EX25-31.
+  const perm = compileSkill(parseSkills("[Permanent] If this card has 15000 power or more, it gains [Barrier] and [Blocker].")[0]);
+  assert.equal(perm.unsupported.length, 0);
+  const reading = describeScript(perm.ops, { permanent: true });
+  assert.ok(reading.includes("if this card has 15000 or more power"), reading);
+  assert.ok(reading.includes("[Barrier]") && reading.includes("[Blocker]"), reading);
 }

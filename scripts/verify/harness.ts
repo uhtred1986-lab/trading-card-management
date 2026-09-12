@@ -30,9 +30,9 @@ import { colourOf, DEFAULT_LIGHTING, encodeLighting, LEADER_COLOURS, lightingFro
 import { trailingTrigger, parseSkills, keywordOf, orbsIn, eitherOrbsIn, skillLines } from "../../src/lib/arena/engine/cards";
 import { KEYWORDS, keywordTagSpellings, keywordsByGroup, tagBody, tagParsesTo } from "../../src/lib/arena/glossary";
 import { parseFilter, matches, parseCondition, type CardFilter } from "../../src/lib/arena/engine/filters";
-import { addEffect, schedule, move, locate, placeUnder, playCost, powerOf, forbids, has, cardNow, comboCostOf, zEnergyCostOf, skillNegated, skillsNegated } from "../../src/lib/arena/engine/state";
+import { addEffect, schedule, move, locate, placeUnder, planPayment, playCost, powerOf, forbids, has, cardNow, comboCostOf, zEnergyCostOf, skillNegated, skillsNegated } from "../../src/lib/arena/engine/state";
 import { compileCostProgram, compileSkill, costIsOnlyOrbs, costText, parseConditionClause, parseTarget, priceCondition, priceX, splitClauses } from "../../src/lib/arena/engine/compile";
-import { COND_SCHEMA, OP_SCHEMA, condSignature, describeCond, describeScript, opSignature, validateProgram as validate, type Op as SchemaOp } from "../../src/lib/arena/engine/script";
+import { COND_CLASS, COND_SCHEMA, OP_CLASS, OP_SCHEMA, condSignature, describeCond, describeScript, opSignature, validateProgram as validate, type Op as SchemaOp } from "../../src/lib/arena/engine/script";
 import { autoTriggerMatches, koCard } from "../../src/lib/arena/engine/triggers";
 import type { Trigger } from "../../src/lib/arena/engine/types";
 import { canonical, hoist, patternKey, programShape, rulesFromCompiler, skillRecords } from "../../src/lib/arena/draft";
@@ -310,6 +310,7 @@ function assertDisjoint(s: GameState, where: string): RejectedAction[] {
 }
 
 export {
+  COND_CLASS,
   COND_SCHEMA,
   CTX,
   DEFAULT_LIGHTING,
@@ -318,6 +319,7 @@ export {
   KEYWORDS,
   LEADER_COLOURS,
   LIGHTING_VERSION,
+  OP_CLASS,
   OP_SCHEMA,
   RIVAL,
   TONES,
@@ -385,6 +387,7 @@ export {
   patternKey,
   pill,
   placeUnder,
+  planPayment,
   play,
   playCost,
   powerOf,
