@@ -80,6 +80,26 @@ const NAMED_QTY_CARD_START = new RegExp(`^${NAMED_QTY_CARD.source}`, "i");
 export const TWO_NAMED_CARDS = new RegExp(`${NAMED_QTY_CARD.source}\\s+and\\s+${NAMED_QTY_CARD.source}`, "i");
 
 /**
+ * Both players named at once as the owners of one set of cards: "you or your
+ * opponent's Battle Cards", "your and your opponent's Drop Areas", "you and
+ * your opponent's Battle Areas". The sets write the first half both ways —
+ * "you" as often as "your" — and join the two with "and", "or" or "and/or"
+ * without changing what the phrase means: every card of that description, on
+ * either side of the table.
+ *
+ * The word after the joiner must carry the possessive. "You **and your
+ * opponent draw** 1 card" and "you and your opponent have a total of 8 or less
+ * life" name two *players* doing something rather than one description of
+ * cards belonging to both, and they are read elsewhere.
+ *
+ * Used twice, for the two halves of the same miss: `parseTarget` reads the
+ * side off it (the possessive nearest the area word is the opponent's, which
+ * made the phrase name one board), and `splitClauses` declines to cut a clause
+ * at an "and" that is inside it.
+ */
+export const BOTH_SIDES = /\b(?:your|you)\s+(?:and\/or|and|or)\s+your opponent'?s\b/i;
+
+/**
  * A dash the sets use in pairs to hang a description off a target: "play up to
  * 1 <Son Goku: GT> or <Vegeta: GT> card ―both mono-green, with an energy cost
  * of 5 and 20000 power― from your Drop". Everything between the pair belongs

@@ -1,6 +1,6 @@
 import { parseFilter, type CardFilter } from "../filters";
 import type { ScriptArea, Selector, Side } from "../script";
-import { TWO_NAMED_CARDS } from "./clauses";
+import { BOTH_SIDES, TWO_NAMED_CARDS } from "./clauses";
 
 // ── target phrases ─────────────────────────────────────────────────────────
 
@@ -406,6 +406,18 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
     else if (/\bopponent (?:rest mode |active mode |skill-less )?(?:battle|unison|extra|leader|z-battle|z-extra)s?\b/.test(t)) side = "opponent";
   }
   if (/\ball players\b|\beach player\b|\bboth players\b/.test(t)) side = "both";
+  // "Choose up to 1 of **you or your opponent's** Battle Cards" (BT26-016),
+  // "choose up to 1 card in **your or your opponent's** Battle Area"
+  // (BT31-032): the phrase names both boards, and the possessive nearest the
+  // area word is the opponent's — so `areaOwner` read the whole choice as
+  // theirs and the card the text lets you pick from your own side was never
+  // on the menu. BT4-045 prints the proof on its own face: "choose up to 1 of
+  // your or your opponent's Battle Cards … **If that card was your own Battle
+  // Card, draw 1 card**", a clause that can never fire if the choice only ever
+  // reaches the other player. Read after `areaOwner` rather than inside it,
+  // because the phrase says *both* whichever possessive happens to sit closest
+  // to the area word ("you or your opponent's", "your and your opponent's").
+  if (BOTH_SIDES.test(t)) side = "both";
   if ((otherAdj || sweep) && !/\byour\b|\btheir\b|\bopponent\b|\byou control\b/.test(chosen)) side = "both";
   // "among them" / "of those cards" keeps working on what was just looked at.
   //

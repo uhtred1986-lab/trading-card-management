@@ -1591,3 +1591,27 @@ import type { GameState, Trigger } from "./harness";
   assert.ok(canActivate(sYellowY, cardY), "a yellow Y alone satisfies");
   assert.ok(!canActivate(sGreenY, cardCross), "a green Y does not satisfy the disjunction");
 }
+
+{
+  // s2-93 family 1: "you or your opponent's Battle Cards" names both boards.
+  //
+  // `parseTarget` reads the side off the possessive nearest the area word, and
+  // in this phrase that possessive is the opponent's — so nine skills offered
+  // a choice over one board where the text prints two, and the card on your
+  // own side that the text lets you pick was never on the menu. BT4-045 prints
+  // the proof on its own face: its next clause asks whether the card you chose
+  // "was your own Battle Card", which can never be true if the choice only
+  // ever reached the other player.
+  const both = parseTarget("up to 1 of you or your opponent's battle cards");
+  assert.equal(both?.side, "both", "BT26-016: 'you or your opponent's' is both boards");
+  assert.equal(both?.area, "battle");
+  // The sets write the first half as "your" as readily as "you", and join the
+  // halves with "and" as readily as "or".
+  assert.equal(parseTarget("up to 1 card in your or your opponent's battle area")?.side, "both", "BT31-032");
+  assert.equal(parseTarget("all of your and your opponent's battle cards")?.side, "both", "BT5-108");
+  // The possessive after the joiner is what makes the phrase one description
+  // of cards. "You and your opponent draw 1 card" names two players doing
+  // something, and must not be read as a side at all.
+  assert.notEqual(parseTarget("your opponent's battle cards")?.side, "both", "one side stays one side");
+  assert.equal(parseTarget("your battle cards")?.side, "you");
+}
