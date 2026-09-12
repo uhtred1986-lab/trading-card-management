@@ -1,8 +1,10 @@
 ---
 title: Arena: ruleset loader — rulesets/load.ts to GameDefinition and Vocabulary
 milestone: Arena M6 — Definitions in the language (Stage 3)
-labels: backlog, ready-for-agent, enhancement, area:arena-rulesets, area:arena-lang, phase:rules-stage3, model:opus-5
+labels: done, enhancement, area:arena-rulesets, area:arena-lang, phase:rules-stage3, model:opus-5
 stage: 3
+status: closed
+closed_at: 2026-09-12
 ---
 **Source:** plan Stage 3; the `DEFINE` grammar issue (this one depends on it); `src/lib/arena/engine/script.ts` (`AREAS`, `KEYWORD_NAMES`, the `Trigger` union in `types.ts`).
 
