@@ -1,8 +1,10 @@
 ---
 title: Arena: keyword-timing triggers as data — 'when using this card's [Evolve]', free [Counter] from hand (22-5, 22-10)
 milestone: Arena M1 — Rules correctness and parser coverage
-labels: backlog, ready-for-agent, enhancement, area:arena-compiler, area:arena-engine, phase:rules-stage2, model:opus-5
+labels: done, enhancement, area:arena-compiler, area:arena-engine, phase:rules-stage2, model:opus-5
 stage: 2
+status: closed
+closed_at: 2026-09-10
 ---
 **Source:** plan Stage 2 gap table, last row: keyword-timing triggers (7 clauses) and free [Counter] from hand (7); rule manual 22-5, 22-10; `src/lib/arena/engine/triggers.ts` (`skillAnswersTo`); `docs/arena-rules-language.md` §7.
 

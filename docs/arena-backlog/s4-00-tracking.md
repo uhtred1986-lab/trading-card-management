@@ -18,3 +18,11 @@ Stage 4 of the rules-language programme (plan summary in `docs/arena-backlog.md`
 Child issues:
 
 {{children}}
+
+---
+
+## Review of 12 Sep 2026
+
+**State of the stage on 12 Sep 2026.** `src/lib/arena/vm/` does not exist. `engineFor("rules")` throws `EngineNotBuilt` (`src/lib/arena/engines.ts` line 87). The `Engine` interface has four calls; the app still calls the legacy `boardView` (`snapshot.ts` line 164), `toBeats` (`beats.ts` line 137) and `createGame` (`probe.ts` line 261, `scripts/verify/harness.ts` line 198) directly, which is what #138 widens. Stage 4 depends on Stage 3's files (#133 zones/attributes, #134 triggers) for its data, and on #130/#137 for macro expansion in #142.
+
+**Order:** #138 (skeleton + widened interface, no behaviour change) → #139 (attributes/zones, opening board equal to legacy from the same seed) → #140 (flow runner, pass-only games) → #141 (events + trigger patterns) → #142 (effects/prompts, shared `stepScript`) ; #143 (the `--engine` flag on every script) can run any time after #138 and should run early because #140–#142 are proven with it.

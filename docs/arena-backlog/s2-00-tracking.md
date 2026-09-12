@@ -18,3 +18,11 @@ Stage 2 of the rules-language programme (`docs/arena-history-lessons.md`, entrie
 Child issues:
 
 {{children}}
+
+---
+
+## Review of 12 Sep 2026
+
+**State.** Seven of sixteen children are closed with their work in the tree (#94, #95, #97, #120, #121, #129; #93 and #96 are *not* — see below). #124 is in draft PR #207 and should be finished from that branch, not restarted. The remaining primitives (#122, #123, #125–#128) are independent of each other; **#130 (primitive or macro) gates Stage 3's #137 and Stage 4's #142 and should go first.** #93 and #96 were auto-closed on 10 Sep by the merge of PR #182 (which delivered only #100) and were reopened today.
+
+**Code facts every child now carries in its own "Review of 12 Sep 2026" section:** `OP_SCHEMA`/`COND_SCHEMA` moved to `src/lib/arena/engine/script-schema.ts` (PR #203); the compiler is the directory `src/lib/arena/engine/compile/` (PR #201); the `Trigger` union has 53 names; the trigger vocabulary `validateRule` reads is `TRIGGERS` in `src/lib/arena/gaps.ts`. The older text in each issue that cites `compile.ts` or `script.ts` line numbers is stale — the review section says where the symbols are now.

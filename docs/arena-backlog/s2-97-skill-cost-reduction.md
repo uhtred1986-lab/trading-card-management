@@ -1,8 +1,10 @@
 ---
 title: Arena: implement skill-cost reduction family (orbTotals + scope safety)
 milestone: Arena M1 — Rules correctness and parser coverage
-labels: backlog, ready-for-agent, enhancement, area:arena-engine, area:arena-compiler, phase:rules-stage2, model:opus-5
+labels: done, enhancement, area:arena-engine, area:arena-compiler, phase:rules-stage2, model:opus-5
 stage: 2
+status: closed
+closed_at: 2026-09-10
 ---
 **Source:** `docs/arena-next-session-prompt.md` §4(c), third bullet; `docs/arena-next-stage-spec.md` §6.6; plan Stage 2 row `costModifier(target, costKind, delta, until)`; `orbTotals` in `src/lib/arena/engine/engine.ts` (~line 904, eleven call sites).
 
