@@ -35,7 +35,7 @@ import type {
   SkillKindPrefix,
   MoveReason,
 } from "./types";
-import { other } from "./types";
+import { PLAYERS, other } from "./types";
 
 export interface GameContext {
   defs: Record<string, CardDef>;
@@ -205,7 +205,7 @@ function runReplacement(ctx: GameContext, s: GameState, ev: GameEvent[], id: str
   if (applyingReplacement || !r.ops?.length) return;
   applyingReplacement = true;
   try {
-    stepScript(ctx, s, ev, { ops: r.ops, ip: 0, vars: {}, card: r.source ?? id, master: r.master ?? s.cards[id].owner, subject: id });
+    stepScript(ctx, s, ev, { ops: r.ops, ip: 0, vars: {}, card: r.source ?? id, master: r.master ?? masterOf(s, id), subject: id });
   } finally {
     applyingReplacement = false;
   }
@@ -251,6 +251,13 @@ export function player(s: GameState, p: PlayerId): PlayerState {
 }
 
 export interface Location {
+  /**
+   * The player whose *area* holds the card — its **master** (0-3-4-1), not its
+   * owner (0-3-3-1). The two coincide for every card in a deck built by its
+   * owner, and the field is named for that coincidence; a card taken by the
+   * other player is where they come apart, which is why every reader of this
+   * field is listed in the owner/master audit in `glossary.ts`.
+   */
   owner: PlayerId;
   area: Area;
   index: number;
@@ -548,14 +555,14 @@ export function resolveSelector(ctx: GameContext, s: GameState, frame: ScriptFra
       const against = sel.filter.powerRel.of === "chosen" ? (sel.filter.powerRel.var ? (frame.vars[sel.filter.powerRel.var]?.[0] ?? null) : null) : frame.card;
       if (!against || !powerRelOk(sel.filter, powerOf(ctx, s, id), powerOf(ctx, s, against))) return false;
     }
-    if (!sel.special && !sel.ignoreBarrier && sel.side !== "you" && has(ctx, s, id, "Barrier") && s.cards[id].owner !== frame.master && areaOf(s, id) !== "hand") return false;
+    if (!sel.special && !sel.ignoreBarrier && sel.side !== "you" && has(ctx, s, id, "Barrier") && masterOf(s, id) !== frame.master && areaOf(s, id) !== "hand") return false;
     // 20-4: the same shape as [Barrier], but printed as a prohibition.
-    if (!sel.special && s.cards[id].owner !== frame.master && forbids(ctx, s, "beChosen", { card: id })) return false;
+    if (!sel.special && masterOf(s, id) !== frame.master && forbids(ctx, s, "beChosen", { card: id })) return false;
     // 9-1-4: a card no skill may touch. Narrower than the rule — this only
     // catches an effect that *chooses* the card, not one that never does —
     // and the glossary says so; `!sel.special` keeps the card usable as an
     // attacker or a guard, which is right.
-    if (!sel.special && s.cards[id].owner !== frame.master && isImmuneTo(ctx, s, id, frame.card)) return false;
+    if (!sel.special && masterOf(s, id) !== frame.master && isImmuneTo(ctx, s, id, frame.card)) return false;
     return true;
   });
 }
@@ -1347,7 +1354,7 @@ function ownProhibitions(ctx: GameContext, s: GameState, card: string): Prohibit
       // hold everywhere: anything aimed at other cards is the static layer's.
       if (op.op !== "forbid" || op.until !== "game" || op.bySkill === undefined) continue;
       if (!op.target || !("sel" in op.target) || op.target.sel.special !== "self") continue;
-      out.push({ what: op.what, ...(op.uses != null ? { uses: amount(ctx, s, { ops: [], ip: 0, vars: {}, card, master: inst.owner }, op.uses) } : {}), ...(op.unless ? { unless: op.unless, master: inst.owner } : {}), bySkill: op.bySkill });
+      out.push({ what: op.what, ...(op.uses != null ? { uses: amount(ctx, s, { ops: [], ip: 0, vars: {}, card, master: masterOf(s, card) }, op.uses) } : {}), ...(op.unless ? { unless: op.unless, master: masterOf(s, card) } : {}), bySkill: op.bySkill });
     }
   }
   return out;
@@ -1401,7 +1408,7 @@ function unlessInWords(f: Prohibition, viewer: PlayerId | undefined): string {
 function unlessHolds(ctx: GameContext, s: GameState, f: Prohibition, opts: { player?: PlayerId; card?: string }, source?: string | null): boolean {
   if (!f.unless) return false;
   const card = source && s.cards[source] ? source : opts.card && s.cards[opts.card] ? opts.card : "";
-  const master = f.master ?? (card ? s.cards[card].owner : undefined) ?? opts.player ?? "p1";
+  const master = f.master ?? (card ? masterOf(s, card) : undefined) ?? opts.player ?? "p1";
   return condHolds(ctx, s, { ops: [], ip: 0, vars: {}, master, card }, f.unless);
 }
 
@@ -1462,7 +1469,7 @@ export function forbiddenBy(
   for (const { target, source, until, forbid: f } of rules) {
     if (!matchesProhibition(ctx, s, what, target, f, opts, source)) continue;
     if ((f.uses ?? 0) > 0) continue;
-    return { by: source && s.cards[source] ? face(ctx, s, source).name : null, until, ...(f.unless ? { unless: unlessInWords(f, opts.player ?? (opts.card && s.cards[opts.card] ? s.cards[opts.card].owner : undefined)) } : {}) };
+    return { by: source && s.cards[source] ? face(ctx, s, source).name : null, until, ...(f.unless ? { unless: unlessInWords(f, opts.player ?? (opts.card && s.cards[opts.card] ? masterOf(s, opts.card) : undefined)) } : {}) };
   }
   return null;
 }
@@ -1991,7 +1998,12 @@ export function playCost(ctx: GameContext, s: GameState, id: string, x = 0): { t
   const d = def(ctx, s, id);
   const total = d.energyCost === "X" ? x : (d.energyCost ?? 0);
   const specified = specifiedCostOf(d);
-  const owner = s.cards[id].owner;
+  // 0-3-4-1: whoever is holding the card is the player its ‹Warrior of
+  // Universe 7› board read below is about. A card being priced is in a hand or
+  // a Z-Deck, where the master is the owner, so this is the same answer today
+  // — said the way the audit in `glossary.ts` ruled it, so it stays right if
+  // a price is ever asked of a card in play.
+  const owner = masterOf(s, id);
   // A cost reducer lowers both the total and the specified cost (20-21-2) —
   // whether it stands from a [Permanent] or was put in force for the turn by a
   // skill that resolved.
@@ -2063,6 +2075,18 @@ export function isLeader(ctx: GameContext, s: GameState, id: string): boolean {
 export function cardsInPlay(s: GameState, p: PlayerId): string[] {
   const ps = s.players[p];
   return [ps.leader, ...(ps.unison ? [ps.unison] : []), ...ps.battle].filter(Boolean);
+}
+
+/**
+ * The player currently using a card (0-3-4-1): whose area it sits in, falling
+ * back to its owner when it is not in play. **Not** `CardInstance.owner`,
+ * which is who built the deck (0-3-3-1) and never changes — the two coincide
+ * until a card is controlled by the other player (20-9), and the audit in
+ * `glossary.ts` lists every site that reads one or the other and why.
+ */
+export function masterOf(s: GameState, card: string): PlayerId {
+  for (const p of PLAYERS) if (cardsInPlay(s, p).includes(card)) return p;
+  return s.cards[card].owner;
 }
 
 export function note(ev: GameEvent[], text: string): void {

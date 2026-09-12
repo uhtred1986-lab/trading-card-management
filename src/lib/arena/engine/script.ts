@@ -1019,7 +1019,7 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         while (frame.moveLoop && frame.moveLoop.kind === "ko" && frame.moveLoop.index < frame.moveLoop.ids.length) {
           const id = frame.moveLoop.ids[frame.moveLoop.index];
           // 22-12: [Indestructible] cannot be KO'd by an opponent's skill.
-          if (has(ctx, s, id, "Indestructible") && s.cards[id].owner !== master) {
+          if (has(ctx, s, id, "Indestructible") && masterOf(s, id) !== master) {
             frame.moveLoop.index++;
             continue;
           }
@@ -1086,7 +1086,7 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
           // 20-14: "can't be removed from a Battle Area by your opponent's
           // skills". The rule is about the opponent's skills, so a card its
           // own master moves is unaffected.
-          if (s.cards[id].owner !== master && areaOf(s, id) === "battle" && forbids(ctx, s, "beMovedBySkill", { card: id })) {
+          if (masterOf(s, id) !== master && areaOf(s, id) === "battle" && forbids(ctx, s, "beMovedBySkill", { card: id })) {
             frame.moveLoop.index++;
             continue;
           }
@@ -1203,7 +1203,7 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
           // by everything that player has in play. One moment, two wordings.
           const before = s.pending.length;
           pendTriggers(ctx, s, "flippedFaceUp", id, frame.card);
-          for (const w of cardsInPlay(s, s.cards[id].owner)) if (w !== id) pendTriggers(ctx, s, "flippedFaceUp", w, id);
+          for (const w of cardsInPlay(s, masterOf(s, id))) if (w !== id) pendTriggers(ctx, s, "flippedFaceUp", w, id);
           dropWrongColour(ctx, s, before, frame.card);
         }
         break;

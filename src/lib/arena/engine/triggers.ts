@@ -4,15 +4,13 @@
  * (which imports the interpreter).
  */
 import { effectHead, trailingTrigger } from "./cards";
-import { areaOf, cardsInPlay, def, forbids, move, programsOf, skillNegated, skillsNegated, skillsOfInstance, type GameContext, type MoveOptions } from "./state";
-import type { GameEvent, GameState, PlayerId, Skill, Trigger } from "./types";
-import { PLAYERS } from "./types";
-
-/** The player whose area the card sits in; its owner when it is not in play. */
-export function masterOf(s: GameState, card: string): PlayerId {
-  for (const p of PLAYERS) if (cardsInPlay(s, p).includes(card)) return p;
-  return s.cards[card].owner;
-}
+import { areaOf, cardsInPlay, def, forbids, masterOf, move, programsOf, skillNegated, skillsNegated, skillsOfInstance, type GameContext, type MoveOptions } from "./state";
+// `masterOf` lives in `state.ts` — it is a question about where a card *is*,
+// and the ownership audit in `glossary.ts` made every one of its callers a
+// reader of that file. Re-exported here because the engine has imported it
+// from this module since it was written.
+export { masterOf } from "./state";
+import type { GameEvent, GameState, Skill, Trigger } from "./types";
 
 /** Keyword [Auto] skills and the events that make them pending (22). */
 export function keywordTriggers(sk: Skill, trigger: Trigger): boolean {
@@ -365,5 +363,10 @@ export function koCard(ctx: GameContext, s: GameState, ev: GameEvent[], card: st
   // "When this card KOs an opponent's Battle Card": the card that did it,
   // whether by battle or by its own skill.
   if (by && by !== card && s.cards[by] && p !== masterOf(s, by)) pendTriggers(ctx, s, "kos", by);
-  move(ctx, s, ev, card, "drop", p, { reason: "ko", ...opts });
+  // 5-12-1: "its **owner's** Drop Area" — the owner, not the master, which is
+  // the whole of the difference once a card can be controlled by the other
+  // player. `move` clamps a non-play destination to the owner anyway
+  // (3-1-6-1, `state.ts`), so this is what has always happened; saying it here
+  // means the KO does not depend on that clamp to be right.
+  move(ctx, s, ev, card, "drop", s.cards[card].owner, { reason: "ko", ...opts });
 }

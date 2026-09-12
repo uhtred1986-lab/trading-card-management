@@ -634,6 +634,13 @@ export const SKILL_TYPES: Record<Exclude<SkillKind, "keyword">, SkillTypeDoc> = 
 export interface ReadingRule {
   title: string;
   body: string;
+  /**
+   * An audit, when the entry is one: a fixed-width list the page renders as a
+   * table rather than folding into the prose. Prose is the right shape for a
+   * rule and the wrong shape for forty call sites, and an audit that is not
+   * legible is an audit nobody checks against the code.
+   */
+  table?: { head: string[]; rows: string[][] };
 }
 
 /**
@@ -642,6 +649,42 @@ export interface ReadingRule {
  * keywords rather than left in the code.
  */
 export const READING_RULES: ReadingRule[] = [
+  {
+    title: "Owner and master, read site by site",
+    body: "0-3-3 and 0-3-4 name two different players and the engine has, until now, had only one field for both. The **owner** is who built the deck the card came in (0-3-3-1); the **master** is who is using it right now, and for a card in an area it is simply the player that area belongs to (0-3-4-1). Nothing could tell them apart while every card sat in its owner's own areas, so `CardInstance.owner` was read for both questions and `Location.owner` — which is the *area holder*, and therefore the master — was named after the coincidence rather than after what it holds. Gaining control of a card (20-9-1) is exactly the move that separates them, so before the operation was built every read was listed and ruled on against the manual. The table below is that audit, and it is the specification the `control` operation was then written against: the sites marked **master** are the ones whose answer changes when the card is in the other player's Battle Area, and the ones marked **owner** are the ones that must not. Two general rules came out of it and are worth stating on their own. A card is only ever in an area belonging to someone other than its owner if that area is a Leader, Battle, Unison or Combo Area (3-1-6-1), and `move` clamps every other destination back to the owner — which is why a KO has always reached the right Drop Area even though `koCard` passed the master (5-12-1 says the owner; it now says so in the argument too, the one change made with the audit). And the master of a skill is the master of the card that has it (0-3-4-2..5), never its owner, so a [Permanent] on a card you have taken is *yours* while you hold it. `rejections.ts` is absent from the table on purpose: it asks no ownership question of its own, putting every one through the same predicates `legalActions` uses.",
+    table: {
+      head: ["Site", "What it reads", "Means", "Verdict"],
+      rows: [
+        ["engine/types.ts:191 `CardInstance.owner`", "the field itself", "owner", "0-3-3-1: who had the card in their deck. The one field that is the owner, and it never changes."],
+        ["engine/state.ts:254 `Location.owner`", "the area holder", "master", "0-3-4-1. Named for the coincidence; every `locate(…)?.owner` read below is a master read."],
+        ["engine/triggers.ts:12 `masterOf`", "the area holder, else the owner", "master", "Already right, and the function the corrected sites now call."],
+        ["engine/state.ts:551 [Barrier]", "`cards[id].owner !== frame.master`", "master", "22-25: “the skills of cards your opponent **masters**”. Corrected."],
+        ["engine/state.ts:553 `forbid: beChosen`", "`cards[id].owner !== frame.master`", "master", "“Can't be chosen by your opponent's skills” is about whose skill it is, not whose deck the card came from. Corrected."],
+        ["engine/state.ts:558 `isImmuneTo`", "`cards[id].owner !== frame.master`", "master", "9-1-4, same question as the two above. Corrected."],
+        ["engine/state.ts:810 `permanentStatics`", "`locate(…)?.owner`, else the owner in hand/Z-Deck", "master", "0-3-4-3. Already right."],
+        ["engine/state.ts:1058 `detach`", "`players[loc.owner]`", "master", "The array the card is actually in. Already right."],
+        ["engine/state.ts:1131/1133 `move`", "`inst.owner` as the clamp", "owner", "3-1-6-1: only Leader/Battle/Unison/Combo may belong to another player; everything else goes to the owner's own area."],
+        ["engine/state.ts:1143/1237 the under-stack", "`cards[u].owner`", "owner", "23-2-5 with 3-1-6: the cards underneath go to their own owners' Drop Areas, which need not be one player's."],
+        ["engine/state.ts:1350 self-prohibitions", "`inst.owner` as the rule's master", "master", "0-3-4-3. Corrected."],
+        ["engine/state.ts:1404/1465 `unlessHolds` / `unlessInWords`", "`cards[card].owner` as the frame's master", "master", "The escape clause is read from the source card's chair (0-3-4-3). Corrected."],
+        ["engine/state.ts:1994 `playCost`", "`cards[id].owner`", "master", "A card being priced is in a hand or a Z-Deck, where the two coincide; corrected anyway so the ‹Warrior of Universe 7› board read below it cannot drift."],
+        ["engine/state.ts:196/208 `replacementFor`", "`cards[id].owner` as the fallback master", "master", "9-10-2-1: the master of the replaced card makes the choice. Corrected."],
+        ["engine/script.ts:742 `replacePlay`", "`cards[card].owner`", "owner", "5-5-4: a play that fails puts the card in its owner's Drop Area."],
+        ["engine/script.ts:1022 [Indestructible]", "`cards[id].owner !== master`", "master", "22-18 reads “your opponent's skills” the same way [Barrier] does. Corrected."],
+        ["engine/script.ts:1042/1052/1056 the KO probe", "`players[cards[id].owner].drop`", "owner", "5-12-1: a KO lands in the owner's Drop, so that is the pile to measure."],
+        ["engine/script.ts:1089 `beMovedBySkill`", "`cards[id].owner !== master`", "master", "“An opponent's card” at the moment the skill moves it. Corrected."],
+        ["engine/script.ts:1098 `moveTo`'s destination", "`master` for battle/unison, else `cards[id].owner`", "both, correctly", "3-8 for the named area, 3-1-6 for every other. The one site that already said both out loud."],
+        ["engine/script.ts:1206 `flippedFaceUp` witnesses", "`cardsInPlay(s, cards[id].owner)`", "master", "21-x: the board that watches it is the one the card is on. Corrected."],
+        ["engine/engine.ts:148 `instance`", "sets `owner`", "owner", "Set once as the decks are dealt."],
+        ["engine/engine.ts:1613/3208 `move` events", "the destination area's player", "master", "The event's `owner` field is the area holder, which is what a client draws the card into. Already right."],
+        ["engine/engine.ts:3146 the displaced Unison's stack", "`cards[beneath].owner`", "owner", "3-1-6 again."],
+        ["engine/triggers.ts:349 `koCard`", "`masterOf` as the Drop's player", "owner", "5-12-1. Harmless — `move` clamped it — and now passed as the owner, which is what the comment above it always said."],
+        ["view.ts:448 `about`", "`locate(…)?.owner`, else the owner", "master", "Already right: whose side of the board a card is on."],
+        ["view.ts:275/285 static effect `by`", "`cards[e.source]?.owner`", "master", "0-3-4-3: whose [Permanent] it is. Corrected."],
+        ["ai/view.ts:148 `decklistText`", "`inst.owner`", "owner", "The decklist Claude is shown is the deck it built, wherever the cards have got to."],
+      ],
+    },
+  },
   {
     title: "One skill per line",
     body: "A “<br>” separates a card's skills, and so does a bare carriage return — 307 faces of the original game use one and carry no “<br>” at all, and until the engine read it as a break every skill on those cards was fused into the first. The options of a “Choose one—” belong to the line above them rather than being skills of their own. A card printed without any separator is split again where a sentence ends and a new skill tag opens; that tag may be a type ([Auto], [Activate], [Permanent], [Counter]) or a keyword, since a keyword skill carries its own type instead of a type tag. Left joined, the second skill would be read as part of the first and never happen.",
