@@ -474,7 +474,9 @@ The test of the configuration claim: a second game is files, a drafter and words
    and the referee's prompt (`effectLanguage`) read the areas, durations, sides and keyword names
    from it through `rulesets/words.ts` instead of each carrying a copy — so a game that renames a
    zone renames it everywhere, and `scripts/verify/rulesets.ts` proves that by deleting one.
-   The trigger list `lang/validate.ts` reads is still the engine's, waiting on #136.
+   `validateRule` reads `whenMoments()` from the same place — the game's triggers less the
+   five counter windows, which are the only names in `triggers.rules` a record's WHEN never
+   says. `SPECIAL_TARGETS` is the one list with no `Vocabulary` field to come from.
 4. **`GAME_INFO`** — the row in `src/lib/catalog/games.ts` already exists for both games; the
    arena's own gate is `deckInputFor` and the deck lists asking for `game: "dbs"`.
 

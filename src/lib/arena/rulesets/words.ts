@@ -18,20 +18,8 @@
  * Client-safe, like the rest of `rulesets/`: the `.rules` text arrives as a
  * generated constant, so the browser takes the same path as the server.
  *
- * ── what still comes from the engine, and why ────────────────────────────────
- *
- * One of the five lists the issue names is not the definition's yet, and it
- * would be a silent regression rather than a swap:
- *
- * - **`triggers`** is a *superset*: `triggers.rules` declares 58 moments, five
- *   of them the counter windows (`counter:play` …), which are a `CounterWindow`
- *   and not a `Trigger` the engine ever fires. Pointing `validateRule` at it
- *   would let a rule carry a WHEN the engine ignores — exactly the failure
- *   that check exists to prevent. #136 is the suite that has to make the two
- *   agree first.
- *
- * `SPECIAL_TARGETS` has no `Vocabulary` field at all, and no `DEFINE` kind
- * that could declare one; it stays the engine's.
+ * `SPECIAL_TARGETS` is the one list with no `Vocabulary` field at all, and no
+ * `DEFINE` kind that could declare one; it stays the engine's.
  */
 import { loadDbs } from "./dbs";
 import type { Vocabulary } from "./types";
@@ -66,4 +54,21 @@ export function optionsFor(type: "side" | "area" | "duration" | "keyword", v: Wo
   if (type === "area") return v.areas;
   if (type === "duration") return v.durations;
   return v.keywordNames;
+}
+
+/**
+ * The moments a record's WHEN may name — what `validateRule` checks a rule's
+ * triggers against.
+ *
+ * Not simply the game's triggers: `triggers.rules` declares the five counter
+ * windows beside the fifty-three moments, because a [Counter] answers to a
+ * *window* rather than to a card's own moment (4-3, 9-7), and they are the
+ * only names in that file a WHEN never says (#136's suite is where that claim
+ * is asserted, both directions, against the engine's `Trigger` union). The
+ * `counter:` prefix is how the file spells the difference, and no `Trigger`
+ * carries a colon — so this is a reading of the declarations, not a second
+ * list, and `scripts/verify/rulesets.ts` fails the moment the two diverge.
+ */
+export function whenMoments(v: Pick<Vocabulary, "triggers"> = words()): string[] {
+  return v.triggers.filter((t) => !t.startsWith("counter:"));
 }

@@ -58,20 +58,21 @@ stage: 3
 ## Where half 2 got to, 12 Sep 2026
 
 `src/lib/arena/rulesets/words.ts` is the one source, and the parser, the chip editor
-(`optionsFor`) and the referee's prompt (`effectLanguage`) read **areas, durations, sides and
-keyword names** from it — proved in `scripts/verify/rulesets.ts` by deleting one word and asking
+(`optionsFor`), the referee's prompt (`effectLanguage`) and `validateRule` read **areas,
+durations, sides, keyword names and the moments a WHEN may name** from it — proved in `scripts/verify/rulesets.ts` by deleting one word and asking
 the three readers. It also removed a fourth hand-written copy of the areas, inside the prompt's own
 `SELECTOR:` line.
 
-One of the five lists the issue names is still the engine's, with a tripwire in that suite:
+`validateRule` reads `whenMoments()` from the same source: the game's triggers less the five
+counter windows. `triggers.rules` declares 58 moments and five of them are the windows a [Counter]
+answers in (4-3, 9-7) — a `CounterWindow`, not a `Trigger` the engine fires, and the only names in
+that file a record's WHEN never says (#136's suite is what holds the other 53 to the engine's union,
+both directions). The `counter:` prefix is how the file spells the difference and no `Trigger`
+carries a colon, so that is a reading of the declarations rather than a second list, and the suite
+fails the moment the two diverge.
 
-- **the trigger list `lang/validate.ts` reads** is not the vocabulary's, because `triggers.rules`
-  declares 58 moments and five of them are the counter windows — a `CounterWindow`, not a `Trigger`
-  the engine ever fires. Pointing `validateRule` at it would let a rule carry a WHEN that never
-  happens, which is the one thing that check exists to stop. #136 has to make the two one list.
-
-`SPECIAL_TARGETS` has no `Vocabulary` field and no `DEFINE` kind that could declare one; it stays
-the engine's.
+`SPECIAL_TARGETS` is the one list left with no `Vocabulary` field and no `DEFINE` kind that could
+declare one; it stays the engine's.
 
 One structural note for whoever finishes it: `lang/` now reads `rulesets/`, and `rulesets/` is
 built on `lang/`. The cycle is broken at the barrel — `lang/index.ts` binds `parseRule`'s default

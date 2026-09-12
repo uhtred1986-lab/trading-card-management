@@ -265,10 +265,11 @@ learned the expensive way. Read it before changing the compiler or the engine.
   rather than
   each keeping a copy, so a zone deleted from `zones.rules` is gone from all three at once —
   which is what `scripts/verify/rulesets.ts` asserts, by deleting one. `script-schema.ts`
-  keeps its arrays as the **legacy engine's** side of the same list. The keyword names came
-  with `keywords.rules` (#135); one exception is left, with a tripwire in that suite — the
-  trigger list `lang/validate.ts` reads, because `triggers.rules` also declares the five
-  counter windows, which are a `CounterWindow` and not a `Trigger` (#136). `lang/index.ts`
+  keeps its arrays as the **legacy engine's** side of the same list, which #136's completeness
+  suite holds it to. `validateRule` reads `whenMoments()` — the game's triggers less the five
+  counter windows, which are a `CounterWindow` a [Counter] answers in and the only names in
+  `triggers.rules` a record's WHEN never says. `SPECIAL_TARGETS` is the one list with no
+  `Vocabulary` field and no `DEFINE` kind that could declare it. `lang/index.ts`
   is where `parseRule`'s default vocabulary is bound, and the loader imports `lang/parse`
   directly — the one module that must not ask for the words it produces.
 - **The record's WHEN is the engine's WHEN** (`skillAnswersTo` in `engine/triggers.ts`): an
