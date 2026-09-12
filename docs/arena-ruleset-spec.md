@@ -480,7 +480,13 @@ The test of the configuration claim: a second game is files, a drafter and words
 2. **Drafter** — how this game's card text becomes rule records: its own wording rules over the
    shared language, not its own language.
 3. **Vocabulary** — the words the loader exposes for this game: zone names, phase names, prompt
-   wording, keyword names.
+   wording, keyword names. Since #137 the language's parser, the chip editor (`optionsFor`)
+   and the referee's prompt (`effectLanguage`) read the areas, durations, sides and keyword names
+   from it through `rulesets/words.ts` instead of each carrying a copy — so a game that renames a
+   zone renames it everywhere, and `scripts/verify/rulesets.ts` proves that by deleting one.
+   `validateRule` reads `whenMoments()` from the same place — the game's triggers less the
+   five counter windows, which are the only names in `triggers.rules` a record's WHEN never
+   says. `SPECIAL_TARGETS` is the one list with no `Vocabulary` field to come from.
 4. **`GAME_INFO`** — the row in `src/lib/catalog/games.ts` already exists for both games; the
    arena's own gate is `deckInputFor` and the deck lists asking for `game: "dbs"`.
 

@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { EXPR_ATTRS } from "@/lib/arena/lang";
 import { parseFilter, type CardFilter } from "@/lib/arena/engine/filters";
-import { AREAS, COND_SCHEMA, DURATIONS, KEYWORD_NAMES, OP_SCHEMA, SIDES, describeCond, describeFilter, describeScript, type Cond, type FieldType, type Op, type OpField } from "@/lib/arena/engine/script";
+import { COND_SCHEMA, OP_SCHEMA, describeCond, describeFilter, describeScript, type Cond, type FieldType, type Op, type OpField } from "@/lib/arena/engine/script";
+import { optionsFor } from "@/lib/arena/rulesets/words";
 
 /**
  * One step of a program as a chip, read-only or with a control per field.
@@ -225,7 +226,9 @@ function FieldControl({ field, value, onChange }: { field: OpField; value: unkno
     case "side":
     case "area":
     case "duration": {
-      const options = t === "side" ? SIDES : t === "area" ? AREAS : DURATIONS;
+      // The game's own words, not a list kept here: a zone deleted from
+      // `zones.rules` is gone from this dropdown in the same breath (#137).
+      const options = optionsFor(t);
       return (
         <select className={select} value={(value as string) ?? ""} onChange={(e) => onChange(e.target.value || undefined)}>
           {optional && unset}
@@ -250,7 +253,7 @@ function FieldControl({ field, value, onChange }: { field: OpField; value: unkno
     case "keyword":
       return (
         <select className={select} value={(value as { name?: string })?.name ?? "Blocker"} onChange={(e) => onChange({ name: e.target.value })}>
-          {KEYWORD_NAMES.map((k) => (
+          {optionsFor("keyword").map((k) => (
             <option key={k}>{k}</option>
           ))}
         </select>
@@ -425,7 +428,7 @@ function AmountControl({ value, onChange }: { value: unknown; onChange: (v: unkn
         <>
           <TimesControl v={v} onChange={onChange} /> ×
           <select className={select} value={(v.life as string) ?? "you"} onChange={(e) => onChange({ ...v, life: e.target.value })}>
-            {SIDES.map((side) => (
+            {optionsFor("side").map((side) => (
               <option key={side}>{side}</option>
             ))}
           </select>
@@ -507,13 +510,13 @@ function SelectorControl({ value, onChange }: { value: Loose; onChange: (v: unkn
     <span className="inline-flex flex-wrap items-center gap-1 rounded border border-dashed border-space-600 px-1 py-0.5">
       <select className={select} value={(value.side as string) ?? ""} onChange={(e) => set("side", e.target.value)} title="whose">
         <option value="">—</option>
-        {SIDES.map((s) => (
+        {optionsFor("side").map((s) => (
           <option key={s}>{s}</option>
         ))}
       </select>
       <select className={select} value={(value.area as string) ?? ""} onChange={(e) => set("area", e.target.value)} title="where">
         <option value="">—</option>
-        {AREAS.map((a) => (
+        {optionsFor("area").map((a) => (
           <option key={a}>{a}</option>
         ))}
       </select>

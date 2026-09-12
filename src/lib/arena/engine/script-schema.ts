@@ -65,6 +65,18 @@ export interface RenderOptions {
   permanent?: boolean;
 }
 
+/**
+ * The closed word lists, as the **legacy engine** knows them.
+ *
+ * Since #137 these are no longer what the language, the chip editor and the
+ * referee's prompt read: those read the game's own declarations
+ * (`rulesets/words.ts`, ultimately `zones.rules`), so a zone deleted there
+ * disappears from all three at once. What is left here is the engine's side of
+ * the same claim — the unions `Selector`, `Op` and the interpreter are typed
+ * against — and `scripts/verify/rulesets.ts` is where the two are asserted to
+ * be one list. `KEYWORD_NAMES` is still read directly, by the parser and the
+ * editor, until `keywords.rules` declares the 39 (#135).
+ */
 const COLORS = ["Red", "Blue", "Green", "Yellow", "Black", "White", "Colorless"] as const satisfies readonly Color[];
 export const SIDES = ["you", "opponent", "both"] as const satisfies readonly Side[];
 export const SPECIAL_TARGETS = ["self", "attacker", "guard", "subject", "leader", "opponentLeader", "resolving", "onTop"] as const satisfies readonly SpecialTarget[];
