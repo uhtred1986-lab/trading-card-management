@@ -12,12 +12,15 @@
  * configuration-driven engine has to make loud.
  *
  * The DBS files have begun to arrive (#133: `game.rules`, `attributes.rules`,
- * `zones.rules`), so the set the app actually loads is checked for what those
- * three carry: that it loads, that it is the game it says it is, and that the
- * areas of the manual's §3 are all declared. #136 grows this file into the
- * ruleset suite proper (whole-file round trips, and every legacy union covered
- * by a declaration — triggers and keywords among them, which are #134 and
- * #135).
+ * `zones.rules`; #134: `triggers.rules`; #135: `keywords.rules`), so the set
+ * the app actually loads is checked for what those five carry: that it loads,
+ * that it is the game it says it is, that the areas of the manual's §3 are
+ * all declared, that every moment a record's WHEN may name is a moment the
+ * definition declares and no other, and that every keyword the parser reads
+ * is declared with the same arity. `words.rules` and `prompts.rules` still
+ * wait on the owner's word on DEFINE WORDS/PROMPT (#131). #136 grows this
+ * file into the ruleset suite proper (whole-file round trips beyond the DBS
+ * set, and every remaining legacy union covered by a declaration).
  *
  * Part of `npm test`; run from `scripts/verify-arena.ts`, which fixes the order.
  */
@@ -25,6 +28,8 @@ import assert from "node:assert/strict";
 import { loadRuleset, loadDbs, rulesetFor, HOOK_POINTS, type KeywordDef, type RulesetError } from "../../src/lib/arena/rulesets";
 import { deepEqual, parseDefinitions, printDefinitions } from "../../src/lib/arena/lang";
 import { KEYWORD_NAMES } from "../../src/lib/arena/engine/script-schema";
+import { TRIGGERS, describeTrigger } from "../../src/lib/arena/gaps";
+import type { CounterWindow } from "../../src/lib/arena/engine/types";
 
 const lines = (...rows: string[]): string => rows.join("\n");
 
@@ -194,11 +199,21 @@ assert.equal(unknownHook.clause, "KEYWORD");
 
 // ── what the app loads ──────────────────────────────────────────────────────
 
+/**
+ * The counter windows (4-3, 9-7). A [Counter] answers to a *window* rather
+ * than to a card's own moment, so `triggers.rules` declares these five beside
+ * the fifty-three and they are the only names in it a record's WHEN never
+ * says. The list is held to the engine's union by the `satisfies`, so a sixth
+ * window fails the typecheck here before it can go missing from the file.
+ */
+const COUNTER_WINDOWS = ["play", "attack", "battleCardAttack", "counter", "skill"] as const satisfies readonly CounterWindow[];
+
 // The real DBS declarations, as far as they go. The completeness assertions —
-// every `Area`, `Trigger`, keyword and `Phase` of the legacy engine declared
-// and nothing it does not know — are #136's; these are the claims #133's three
-// files and #135's `keywords.rules` make on their own. words.rules and
-// prompts.rules still wait on the owner's word on DEFINE WORDS/PROMPT (#131).
+// every `Area`, keyword and `Phase` of the legacy engine declared and nothing
+// it does not know — are #136's; these are the claims #133's three files,
+// #134's `triggers.rules` and #135's `keywords.rules` make on their own.
+// words.rules and prompts.rules still wait on the owner's word on DEFINE
+// WORDS/PROMPT (#131).
 const dbs = loadDbs();
 assert.ok(dbs.ok, `the DBS ruleset did not load: ${dbs.ok ? "" : JSON.stringify(dbs.errors, null, 2)}`);
 if (dbs.ok) {
@@ -246,9 +261,41 @@ if (dbs.ok) {
   const reread = parseDefinitions(printed);
   assert.ok(reread.ok, `the DBS ruleset does not re-parse after printing: ${reread.ok ? "" : JSON.stringify(reread.error)}`);
   if (reread.ok) assert.ok(deepEqual(reread.value, def.definitions), "printing the DBS ruleset and reading it back does not give the same declarations");
+
+  // ── #134's triggers ──────────────────────────────────────────────────────
+  // The assertion that issue exists for: the moments the record's WHEN is
+  // validated against (`TRIGGERS`, which `lang/validate.ts` reads) and the
+  // moments the definition declares are one list. Reported both ways by name,
+  // because "53 !== 58" says nothing about which one went missing.
+  const declaredTriggers = Object.keys(def.triggers);
+  const wantedTriggers = [...TRIGGERS, ...COUNTER_WINDOWS.map((w) => `counter:${w}`)];
+  const undeclared = wantedTriggers.filter((t) => !declaredTriggers.includes(t));
+  const unanswerable = declaredTriggers.filter((t) => !wantedTriggers.includes(t));
+  assert.deepEqual(undeclared, [], `the record's WHEN can name moments triggers.rules does not declare: ${undeclared.join(", ")}`);
+  assert.deepEqual(unanswerable, [], `triggers.rules declares moments no record's WHEN can name: ${unanswerable.join(", ")}`);
+  assert.equal(declaredTriggers.length, wantedTriggers.length, "a moment is declared twice");
+  assert.deepEqual(vocab.triggers, declaredTriggers, "the vocabulary's triggers are not the moments the game declared");
+
+  // And the same list in *words*: a declaration's `text:` is the WHEN line the
+  // board would print, so #137 can make `TRIGGER_IN_WORDS` a re-export of the
+  // vocabulary rather than a second copy that drifts.
+  for (const t of TRIGGERS) {
+    assert.equal(vocab.words[`trigger:${t}`], describeTrigger([t]), `the declaration of ${t} does not say in words what the record's WHEN says`);
+  }
+  for (const w of COUNTER_WINDOWS) assert.ok(vocab.words[`trigger:counter:${w}`], `the ${w} counter window is declared with no words for it`);
+
+  // The nine zones a trigger's pattern names resolve against `zones.rules` —
+  // the one thing about this file that needed #133, and the reason the DBS set
+  // loads rather than merely parses.
+  assert.equal(def.sources["trigger:played"], "triggers.rules");
+  for (const zone of ["battle", "combo", "drop", "energy", "hand", "leader", "life", "unison", "zEnergy"]) {
+    assert.ok(zone in def.zones, `the triggers name ${JSON.stringify(zone)}, which no DEFINE ZONE declares`);
+  }
+
 }
+
 assert.equal(loadDbs(), dbs, "the ruleset is parsed again on every read");
-assert.equal(rulesetFor("dbs").ok, true);
+assert.equal(rulesetFor("dbs"), dbs, "a game's ruleset is not the one the loader cached");
 assert.equal(rulesetFor("fusion").ok, false, "Fusion World has no ruleset yet and must say so rather than load an empty one");
 
 // ── keywords.rules against KEYWORD_NAMES, both directions ──────────────────
