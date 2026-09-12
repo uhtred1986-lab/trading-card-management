@@ -156,18 +156,32 @@ export type Area = "deck" | "hand" | "drop" | "leader" | "battle" | "combo" | "e
 export type Mode = "active" | "rest";
 export type MoveReason = "ko" | "effect" | "rule" | "cost" | "play" | "combo" | "damage" | "draw" | "charge";
 
-/** A replacement effect that may change where a card about to leave play goes. */
+/**
+ * A replacement effect that may change what happens when a card is about to
+ * leave play (9-10). `to` is where it goes instead; a replacement whose
+ * substitute is a whole program carries `ops` and no `to` — the card stays
+ * where it is and the program happens in the departure's place.
+ */
 export interface ReplacementChoice {
   source: string;
-  to: Area;
+  to?: Area;
   mode?: Mode;
   optional?: boolean;
+  /** The program that happens instead, for a substitute rather than a redirect. */
+  ops?: Op[];
+  /** Whose skill it is, so the substitute's program runs for the right player. */
+  master?: PlayerId;
 }
 
 /** A move route chosen before `move()` begins; null means keep the original route. */
 export interface ReplacementResult {
-  to: Area;
+  to?: Area;
   mode?: Mode;
+  /** The program that happens instead of the move. */
+  ops?: Op[];
+  /** The card whose skill said so, and whose master runs the program. */
+  source?: string;
+  master?: PlayerId;
 }
 
 /** A physical card in the game. `id` is unique per game ("p1#17"); `cardId` is the catalog id. */

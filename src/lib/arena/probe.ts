@@ -7,7 +7,7 @@
  * follows with a fixed policy — so the same rule always gives the same run and
  * two runs can be compared (`digest`).
  *
- * Pure: `createGame` and `apply` and nothing else. No database, no network,
+ * Pure: the engine's `createGame` and `apply` and nothing else. No database, no network,
  * and **no compiler** — the programs of the cards it stages around the rule
  * are written out below, because `draft.ts` is the only module that compiles
  * card text in production.
@@ -17,7 +17,6 @@
  */
 import {
   apply,
-  createGame,
   legalActions,
   rejectedActions,
   skillsOf,
@@ -32,6 +31,7 @@ import {
 } from "./engine";
 import type { Cond, SkillPrice, XCost } from "./engine/script";
 import { parseFilter } from "./engine/filters";
+import { DEFAULT_ENGINE, engineFor, legacyState, type EngineId } from "./engines";
 import { addEffect, move, placeUnder } from "./engine/state";
 import { sentence } from "./wording";
 import { assumptionsOf, askedQuestion, boardChanges, candidatesOf, digestOf, emptyProbe, IDLE_PROMPTS, logLines, staticReading, type ProbeStep } from "./probe-report";
@@ -284,8 +284,8 @@ function drive(ctx: EngineContext, s: GameState, actions: Action[]): GameState {
  * hands emptied to the bottom of the deck so only what the probe stages is in
  * them.
  */
-function opening(ctx: EngineContext, actor: PlayerId): GameState {
-  let s = createGame(ctx, { seed: 7, p1: { name: "You", leader: LEADER, main: deck(FILLER) }, p2: { name: "Opponent", leader: THEIR_LEADER, main: deck(FILLER) } }).state;
+function opening(ctx: EngineContext, engine: EngineId, actor: PlayerId): GameState {
+  let s = legacyState(engineFor(engine).createGame(ctx, { seed: 7, p1: { name: "You", leader: LEADER, main: deck(FILLER) }, p2: { name: "Opponent", leader: THEIR_LEADER, main: deck(FILLER) } }).state);
   const chooser = (s.prompt as { player: PlayerId }).player;
   s = drive(ctx, s, [{ type: "chooseFirst", player: chooser, first: YOU }]);
   while (s.prompt.kind === "mulligan") s = drive(ctx, s, [{ type: "mulligan", player: s.prompt.player, redraw: false }]);
@@ -371,7 +371,15 @@ function usesMarkers(ops: Op[]): boolean {
 function copiesFrom(ops: Op[]): { side?: string; area?: string } | null {
   const inner = (list: Op[]): Op[] =>
     list.flatMap((op) =>
-      op.op === "if" ? [op, ...inner(op.then), ...inner(op.else ?? [])] : op.op === "may" || op.op === "delay" ? [op, ...inner(op.ops)] : op.op === "chooseMode" ? [op, ...op.modes.flatMap((m) => inner(m.ops))] : [op],
+      op.op === "if"
+        ? [op, ...inner(op.then), ...inner(op.else ?? [])]
+        : op.op === "may" || op.op === "delay"
+          ? [op, ...inner(op.ops)]
+          : op.op === "replace"
+            ? [op, ...inner(op.with)]
+            : op.op === "chooseMode"
+              ? [op, ...op.modes.flatMap((m) => inner(m.ops))]
+              : [op],
     );
   const all = inner(ops);
   const copy = all.find((op) => op.op === "copySkills");
@@ -383,7 +391,7 @@ function copiesFrom(ops: Op[]): { side?: string; area?: string } | null {
   return {};
 }
 
-function stage(rule: ProbeRule, scenario: ProbeScenario): Staged {
+function stage(rule: ProbeRule, scenario: ProbeScenario, engine: EngineId): Staged {
   const { defs, scripts } = propsFor(rule);
   const ctx: EngineContext = { defs, scripts };
   const family = scenario.family;
@@ -395,7 +403,7 @@ function stage(rule: ProbeRule, scenario: ProbeScenario): Staged {
   const theirs = scenario.variant === "opponentTurn" || family === "permanent" || family === "combo" || family === "counter" || theyAttack || (family === "keyword" && !fromHand);
   const actor: PlayerId = theirs ? THEM : YOU;
 
-  const s = opening(ctx, actor);
+  const s = opening(ctx, engine, actor);
   const input: string[] = [`${actor === YOU ? "your" : "the opponent's"} Main Phase, turn ${s.turn}`];
 
   // The card under test, where its skill is valid — or in hand, when that is
@@ -611,9 +619,14 @@ const empty = (scenario: ProbeScenario, outcome: ProbeOutcome, said: string[]): 
  * Run one rule on one board and say what happened.
  *
  * Deterministic: one seed, two fixed decks, one fixed answering policy. The
- * only thing that varies is the rule.
+ * only thing that varies is the rule — and, from here on, which engine plays
+ * it. The board is opened through `engineFor`, so when the rules engine can
+ * deal one (#139) a probe on it is this argument and nothing else; the
+ * staging below is still the legacy state's, which is why an engine that
+ * cannot hand one over is reported as the probe's own error rather than
+ * crashing the page. #161 is where the fixtures come off the definition.
  */
-export function probe(rule: ProbeRule, scenario: ProbeScenario): ProbeRun {
+export function probe(rule: ProbeRule, scenario: ProbeScenario, engine: EngineId = DEFAULT_ENGINE): ProbeRun {
   if (scenario.family === "none") {
     return empty(scenario, "noScenario", [
       rule.kind === "auto"
@@ -622,14 +635,14 @@ export function probe(rule: ProbeRule, scenario: ProbeScenario): ProbeRun {
     ]);
   }
   try {
-    return runProbe(rule, scenario);
+    return runProbe(rule, scenario, engine);
   } catch (err) {
     return empty(scenario, "error", [`the probe could not be run: ${err instanceof Error ? err.message : String(err)}`]);
   }
 }
 
-function runProbe(rule: ProbeRule, scenario: ProbeScenario): ProbeRun {
-  const staged = stage(rule, scenario);
+function runProbe(rule: ProbeRule, scenario: ProbeScenario, engine: EngineId): ProbeRun {
+  const staged = stage(rule, scenario, engine);
   const ctx = staged.ctx;
   let s = staged.state;
   const steps: ProbeStep[] = [];

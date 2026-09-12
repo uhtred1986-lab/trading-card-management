@@ -5,7 +5,7 @@
 import { db } from "../src/db";
 import { decks } from "../src/db/schema";
 import { nextRandom, type GameState, type PlayerId } from "../src/lib/arena/engine";
-import { engineFor, isEngineId } from "../src/lib/arena/engines";
+import { engineFor, isEngineId, legacyState } from "../src/lib/arena/engines";
 import { deckInputFor, defsForCards } from "../src/lib/arena/load";
 import { rulesFor } from "../src/lib/arena/rules-store";
 
@@ -67,7 +67,10 @@ for (let g = 0; g < games; g++) {
   let steps = 0;
   let last = "";
   try {
-    s = createGame(ctx, { seed, p1: da.input, p2: dbk.input }).state;
+    // Legacy-shaped: the fuzzer reads the board itself (`check`), so a state
+    // it cannot read is a crash it should report rather than misread. #143 is
+    // where the scripts learn the second engine's shape.
+    s = legacyState(createGame(ctx, { seed, p1: da.input, p2: dbk.input }).state);
     check(s);
     while (s.phase !== "over" && steps < 600) {
       const legal = legalActions(ctx, s);
@@ -77,7 +80,7 @@ for (let g = 0; g < games; g++) {
       const pick = pool.length && rand() < 0.85 ? pool[Math.floor(rand() * pool.length)] : legal[Math.floor(rand() * legal.length)];
       last = pick.label;
       const r = apply(ctx, s, pick.action);
-      s = r.state;
+      s = legacyState(r.state);
       for (const e of r.events) if (e.type === "note") notes.set(e.text.replace(/^[^:]+: /, "").slice(0, 60), (notes.get(e.text.replace(/^[^:]+: /, "").slice(0, 60)) ?? 0) + 1);
       check(s);
       steps++;

@@ -227,6 +227,10 @@
     "outcome": "fired",
     "digest": "cd0b2a6a"
   },
+  "EXILEKO#0": {
+    "outcome": "inForce",
+    "digest": "8f4484de"
+  },
   "FETCH#0": {
     "outcome": "fired",
     "digest": "30465fd6"
@@ -438,6 +442,10 @@
   "PILE#0": {
     "outcome": "inForce",
     "digest": "f6b9158e"
+  },
+  "PILEDROP#0": {
+    "outcome": "inForce",
+    "digest": "dac9c320"
   },
   "PRICED#0": {
     "outcome": "notOffered",

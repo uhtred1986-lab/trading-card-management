@@ -3,13 +3,16 @@
  *
  * `src/lib/arena/lang/` says how a declaration is *spelled*; this says what a
  * whole game's worth of them *is* — `loadRuleset` resolves the names between
- * them and `vocabularyOf` hands back the closed word lists the language is
- * checked against (#137 makes those constants a re-export of this).
+ * them, `vocabularyOf` hands back the closed word lists the language is
+ * checked against (#137 makes those constants a re-export of this), and
+ * `expandMacros` lowers a program written in the ops the cards use to one
+ * written in the primitives the interpreter knows.
  *
  * Client-safe, like `lang/`: no `fs`, no database, nothing read at request
  * time. `docs/arena-ruleset-spec.md` §3 says what each file declares.
  */
 export { loadRuleset, vocabularyOf } from "./load";
+export { expandMacros, opsIn, MacroError } from "./expand";
 export { HOOK_POINTS, isHookPoint, type HookPoint } from "./hooks";
 export { DBS_FILES, loadDbs } from "./dbs";
 export type { ActionDef, AttributeDef, CostDef, Def, GameDef, GameDefinition, KeywordDef, Loaded, OpDef, PhaseDef, RulesetError, StepDef, TriggerDef, Vocabulary, WinDef, ZoneDef } from "./types";

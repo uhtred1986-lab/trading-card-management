@@ -1,8 +1,10 @@
 ---
 title: Arena: replace(event) primitive for 'instead' clauses that redirect more than the card (9-10)
 milestone: Arena M1 — Rules correctness and parser coverage
-labels: backlog, ready-for-agent, enhancement, area:arena-compiler, area:arena-engine, phase:rules-stage2, model:opus-5
+labels: done, enhancement, area:arena-compiler, area:arena-engine, phase:rules-stage2, model:opus-5
 stage: 2
+status: closed
+closed_at: 2026-09-12
 ---
 **Source:** plan Stage 2 gap table, rows "remove it from the game instead" (18 clauses) and BT3-051 ("all cards under it to the Drop instead"); rule manual 9-10; `docs/arena-next-stage-spec.md` §6.4; `docs/arena-move-replacement-scope.md` §1.5.
 

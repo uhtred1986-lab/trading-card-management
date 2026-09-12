@@ -14,7 +14,7 @@
 import { and, desc, eq } from "drizzle-orm";
 import type { Db } from "@/db";
 import { arenaMatches, decks as decksTable } from "@/db/schema";
-import { engineFor, engineOr, type EngineId } from "./engines";
+import { engineOr, playableEngine, type EngineId } from "./engines";
 import { startGame } from "./games";
 
 export interface OpenMatch {
@@ -37,7 +37,7 @@ export interface OpenMatch {
 export async function openMatch(db: Db, hostUser: string | null, hostDeckId: number, debug: boolean, engine: EngineId = "legacy"): Promise<number> {
   if (!hostUser) throw new Error("a 1 v 1 needs two logins — add one at Settings → Users, or play hot-seat");
   // Refused now rather than when the other player joins, which is the wrong moment to learn it.
-  engineFor(engine);
+  playableEngine(engine);
   const [row] = await db.insert(arenaMatches).values({ hostUser, hostDeckId, debug, engine }).returning({ id: arenaMatches.id });
   return row.id;
 }

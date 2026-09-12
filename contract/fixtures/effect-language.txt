@@ -58,6 +58,8 @@ Operations (each is an object with "op"; a field marked ? may be left out):
     the card counts as having these too, wherever it is ("gains ≪Saiyan≫ in all areas", "is also treated as red", 20-1); "names" is a whole card name it is also treated as ("also treated as {Planet M-2}"), never a replacement for its own
   {"op":"replaceLeave","to":AREA,"by"?:"skill"|"ko"|"skillOrKo","mode"?:"active"|"rest","optional"?:true|false,"target"?:TARGET}
     [Permanent] only (9-10): "if this card would be KO'd, send it to the Warp instead". "by" is which departure it replaces: omitted = any, "skill" = removed by an effect, "ko" = the KO, "skillOrKo" = either. "optional" is 9-10-3's "you may". Omit "target" for this card
+  {"op":"replace","event":"leave"|"ko"|"play","with":[…],"by"?:"skill"|"skillOrKo","optional"?:true|false,"target"?:TARGET}
+    an event happens differently, or not at all (9-10) — the primitive "replaceLeave" and the "instead" half of "resolvingPlay" are macros over. "event" is the moment: "leave" (the card would leave the Battle Area, narrowed by "by"), "ko" (it would be KO'd), "play" (the play being resolved, 9-6, [Counter: Play] only). "with" is what happens in its place: one move of the card itself is a redirect, anything else is a substitute — the departure does not happen at all, the card stays, and the program runs with it bound as "subject". It may not ask a question (see #107), and a "leave"/"ko" replacement is [Permanent] only
   {"op":"altCost","pay":"none"|"life"|"program"|"energy","n"?:N,"for"?:"counter"|"play","ops"?:[…],"orbs"?:["any"|"Red"|"Blue"|"Green"|"Yellow"|"Black"|"White"|"Colorless"],"target"?:TARGET,"until"?:DURATION}
     another way to pay for a [Counter] (or a play, "for":"play") (5-3) — "none", "life" (n cards), a reduced "energy" price ("orbs"), or a "program" the card asks for instead. Printed on the card itself this is [Permanent]-only and omits "target"/"until"; a card that grants it to *other* cards for a span carries both — "Until the start of your next turn, you can activate mono-blue cards with [Counter] skills from your hand by …" (BT11-033)
   {"op":"resolvingPlay","instead"?:AREA,"position"?:"top"|"bottom","mode"?:"rest","negated"?:true|false}
@@ -90,7 +92,7 @@ AMOUNT is a number or an expression: {"var":"t"} (how many cards that name holds
   "times" multiplies; ATTR is "power" | "comboPower" | "energyCost" | "comboCost".
 TARGET is {"var":"t"} for something chosen earlier, or {"sel":SELECTOR}.
   {"var":"looked","minus":"t"} is "the rest": the cards of one name that another name did not take.
-SELECTOR: {"side":"you"|"opponent"|"both","area":"battle"|"hand"|"deck"|"drop"|"life"|"energy"|"unison"|"leader"|"warp"|"combo"|"zDeck"|"zEnergy"|"play","count":1,"upTo":true,"mode":"rest"|"active","filter":{...}}
+SELECTOR: {"side":"you"|"opponent"|"both","area":"deck"|"hand"|"drop"|"leader"|"battle"|"combo"|"energy"|"life"|"warp"|"unison"|"zDeck"|"zEnergy"|"removed"|"under"|"play","count":1,"upTo":true,"mode":"rest"|"active","filter":{...}}
   or {"special":"self"|"attacker"|"guard"|"leader"|"opponentLeader"|"resolving"} for a single known card
   ("resolving" is the card whose play a [Counter: Play] is answering).
   "count":99 means all of them, and a count is always a choice; "take":2 is "the top 2 cards" instead ("fromEnd":true for the bottom).
@@ -127,7 +129,7 @@ COND is one of these (a field marked ? may be left out):
   duration says how long an effect this skill applies lasts; a condition says when the skill does anything at all.
 TIMING: "turnStart" | "mainStart" | "turnEnd" | "turnCleanup" | "battleEnd"
 SCOPE: "thisTurn" (default) | "nextTurn" | "yourNextTurn" | "opponentNextTurn"
-AREA: "hand" | "deck" | "drop" | "life" | "battle" | "combo" | "energy" | "unison" | "leader" | "warp" | "zDeck" | "zEnergy" | "under" | "play" | "removed"
+AREA: "deck" | "hand" | "drop" | "leader" | "battle" | "combo" | "energy" | "life" | "warp" | "unison" | "zDeck" | "zEnergy" | "removed" | "under" | "play"
 DURATION: "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "game" — "nextTurn" lasts through the opponent's turn and ends as yours begins.
 FILTER: {"colors":[…],"characters":[…],"traits":[…],"names":[…],"costMin":N,"costMax":N,"powerMin":N,"powerMax":N}, any subset.
   The brackets a card prints say which list a word belongs in: <Son Goku> is a character, ≪Saiyan≫ a trait, and

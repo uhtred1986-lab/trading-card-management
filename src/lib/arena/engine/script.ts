@@ -71,6 +71,14 @@ export type Duration = "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterN
  */
 export type SpecialTarget = "self" | "attacker" | "guard" | "subject" | "leader" | "opponentLeader" | "resolving" | "onTop";
 
+/**
+ * The events a `replace` op may stand in front of (9-10). Closed on purpose:
+ * every name here is a point the engine really does look for a replacement
+ * before the event happens, so a rule naming one of them plays, and a wording
+ * that needs any other moment stays unread rather than compiling into silence.
+ */
+export type ReplaceEvent = "leave" | "ko" | "play";
+
 export interface Selector {
   side?: Side;
   area?: ScriptArea;
@@ -422,6 +430,33 @@ export type Op =
    */
   | { op: "replaceLeave"; to: ScriptArea; by?: "skill" | "ko" | "skillOrKo"; mode?: "active" | "rest"; optional?: boolean; target?: Ref }
   /**
+   * 9-10: an event that is about to happen happens differently, or not at all.
+   * The primitive `replaceLeave` and `resolvingPlay` are macros over
+   * (`docs/arena-ruleset-spec.md` §2.2) — where those two can only say *where
+   * the card itself goes*, this one puts a whole program in the event's place,
+   * which is what "place all the cards under this card in the Drop Area
+   * instead" (BT3-051) says and what no redirect can.
+   *
+   * `event` is the moment being replaced, and the list is closed to the three
+   * the engine can actually intercept — the glossary's "What a replacement
+   * effect can replace" is the readable half of it:
+   *   - `"leave"`  the card would leave the Battle Area (9-10-1). `by` narrows
+   *                it to a departure a skill caused, or a skill or a KO.
+   *   - `"ko"`     the card would be KO'd, and nothing else about it changes.
+   *   - `"play"`   the play being resolved (9-6), for a [Counter: Play].
+   *
+   * `with` is what happens instead. Two shapes are read: a single `moveTo` of
+   * the card itself is a **redirect** (it goes there instead, the form
+   * `replaceLeave` prints), and anything else is a **substitute** — the move
+   * does not happen at all, the card stays, and the program runs in its place.
+   * A substitute reads the card whose event it is as `subject`.
+   *
+   * It cannot ask a question: `move()` is synchronous with no suspension path
+   * at 46 of its 48 call sites, so a prompt inside `with` would be silently
+   * lost. `validateProgram` refuses one rather than storing it — see #107.
+   */
+  | { op: "replace"; event: ReplaceEvent; by?: "skill" | "skillOrKo"; optional?: boolean; with: Op[]; target?: Ref }
+  /**
    * Another way to pay for a card's own [Counter] skill (5-3): for nothing, by
    * adding cards from your life to your hand, by a reduced energy price
    * (`orbs`), or by an action price (`ops`). Read from the hand, like a cost
@@ -717,16 +752,53 @@ function replacementPrompt(card: string, to: Area, choices: ReplacementChoice[],
       combo: "the Combo Area",
     })[x] ?? x;
   return {
-    reason: `${card}: choose where it goes instead of ${area(to)}`,
-    options: [...choices.map((c) => `To ${area(c.to)}${c.mode === "rest" ? " in Rest Mode" : ""}`), ...(allowNone ? [`Keep going to ${area(to)}`] : [])],
+    reason: `${card}: choose what happens instead of going to ${area(to)}`,
+    // A substitute has no destination of its own — the card stays where it is
+    // and its program happens in the departure's place — so the option is the
+    // program in words rather than an area.
+    options: [
+      ...choices.map((c) => (c.to ? `To ${area(c.to)}${c.mode === "rest" ? " in Rest Mode" : ""}` : `Instead: ${describeScript(c.ops ?? [])}`)),
+      ...(allowNone ? [`Keep going to ${area(to)}`] : []),
+    ],
   };
+}
+
+/**
+ * 9-6: the play being resolved happens differently — the one moment a
+ * `replace` op resolves rather than standing. The program that takes its place
+ * is a single move of the card being played: the play is negated, the step
+ * that would have put the card into play is dropped from the flow, and the
+ * card goes where the program says from wherever it was being played from. The
+ * energy stays paid — negating a play does not undo the cost.
+ *
+ * Anything else in the `with` block is a shape this engine cannot put in a
+ * play's place, and doing half of it is worse than none, so it does nothing.
+ */
+function replacePlay(ctx: GameContext, s: GameState, ev: GameEvent[], ops: Op[]): void {
+  const card = s.resolving?.card;
+  if (!card) return;
+  const only = ops.length === 1 ? ops[0] : null;
+  if (!only || only.op !== "moveTo") return;
+  s.flow = s.flow.filter((f) => !(f.op === "play.resolve" && f.card === card));
+  const owner = s.cards[card].owner;
+  note(ev, `${face(ctx, s, card).name} is not played`);
+  // "Under" is not an area a card can simply be put in (23-2), and no card
+  // says so here; the Drop is the printed default.
+  const dest: Area = only.to === "play" ? "battle" : only.to === "under" ? "drop" : only.to;
+  move(ctx, s, ev, card, dest, owner, { reason: "effect", position: only.position, reveal: true });
+  s.resolving = null;
 }
 
 function pickedReplacement(loop: NonNullable<ScriptFrame["moveLoop"]>, index: number | null): ReplacementResult | null | undefined {
   if (!loop.choices?.length) return undefined;
   if (index == null || index < 0 || index >= loop.choices.length) return null;
   const picked = loop.choices[index];
-  return picked ? { to: picked.to, mode: picked.mode } : null;
+  return picked ? routeOf(picked) : null;
+}
+
+/** One applicable replacement as `move()` takes it: a destination, or a program to run in the departure's place. */
+function routeOf(c: ReplacementChoice): ReplacementResult {
+  return { ...(c.to ? { to: c.to } : {}), mode: c.mode, ...(c.ops ? { ops: c.ops, source: c.source, master: c.master } : {}) };
 }
 
 /**
@@ -1016,7 +1088,7 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
                 s.prompt = { kind: "replaceMove", player: masterOf(s, id), card: id, reason: prompt.reason, options: prompt.options };
                 return "wait";
               }
-              if (choices.length === 1) replaced = { to: choices[0].to, mode: choices[0].mode };
+              if (choices.length === 1) replaced = routeOf(choices[0]);
             }
             const before = frame.moveLoop.beforeDrop ?? s.players[s.cards[id].owner].drop.length;
             frame.moveLoop.beforeDrop = undefined;
@@ -1087,7 +1159,7 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
               s.prompt = { kind: "replaceMove", player: masterOf(s, id), card: id, reason: prompt.reason, options: prompt.options };
               return "wait";
             }
-            if (choices.length === 1) replaced = { to: choices[0].to, mode: choices[0].mode };
+            if (choices.length === 1) replaced = routeOf(choices[0]);
           }
           move(ctx, s, ev, id, dest, owner, { position: op.position, reveal: op.reveal, reason: "effect", ...(replaced === undefined ? {} : { replaced }) });
           // 3-1: "when this card is removed from a Battle Area by a skill",
@@ -1471,6 +1543,15 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         // not applied here.
         break;
 
+      // 9-10. A replacement of a departure is a standing offer that `move()`
+      // reads when the moment comes, so like `replaceLeave` above it is
+      // collected by `collectStatics` and does nothing here. A replacement of
+      // the play being resolved has a moment of its own — now — and is the one
+      // implementation `resolvingPlay` below is the macro over.
+      case "replace":
+        if (op.event === "play") replacePlay(ctx, s, ev, op.with);
+        break;
+
       // The card's own offer about itself (no `until`) is [Permanent]-only
       // and never reaches `exec` at all — `collectStatics` reads it instead,
       // because a [Permanent] never resolves. Reaching this case means the
@@ -1486,26 +1567,18 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
       }
 
       case "resolvingPlay": {
-        const card = s.resolving?.card;
-        if (!card) break;
         if (!op.instead) {
-          // The play still happens; `resolvePlay` reads these as the card enters.
+          // The play still happens and only its manner changes, which is not a
+          // replacement at all (9-6): `resolvePlay` reads these as the card
+          // enters. Only the `instead` branch below is the macro over `replace`
+          // that `OP_CLASS` calls it.
+          const card = s.resolving?.card;
+          if (!card) break;
           if (op.mode === "rest") s.continuations.playRest = card;
           if (op.negated) s.continuations.playNegated = card;
           break;
         }
-        // 9-6: the play is negated. The card never reaches the Battle Area, so
-        // the step that would have put it there is dropped and the card goes
-        // where the skill says from wherever it was being played from. The
-        // energy stays paid — negating a play does not undo the cost.
-        s.flow = s.flow.filter((f) => !(f.op === "play.resolve" && f.card === card));
-        const owner = s.cards[card].owner;
-        note(ev, `${face(ctx, s, card).name} is not played`);
-        // "Under" is not an area a card can simply be put in (23-2), and no
-        // card says so here; the Drop is the printed default.
-        const dest = op.instead === "play" ? "battle" : op.instead === "under" ? "drop" : op.instead;
-        move(ctx, s, ev, card, dest, owner, { reason: "effect", position: op.position, reveal: true });
-        s.resolving = null;
+        replacePlay(ctx, s, ev, [{ op: "moveTo", target: { sel: { special: "resolving" } }, to: op.instead, ...(op.position ? { position: op.position } : {}) }]);
         break;
       }
 

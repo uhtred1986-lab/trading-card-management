@@ -445,6 +445,20 @@ THEN
   forbid(what: attack, until: turn, side: opponent, filter: "battle card", uses: 1, unless: count(99 IN opponent.energy) >= 3)
 ```
 
+A replacement whose substitute is a whole program (9-10, BT3-051): the card is not KO'd at all, it
+stays where it is, and the cards under it go to the Drop in the KO's place. `with` is the program
+that happens instead of the event `event` names, and it may not stop to ask a question — a
+replacement has nowhere to wait for the answer, so the parser reads one and `validateProgram`
+refuses it (#107):
+
+```
+WHEN [permanent]
+THEN
+  replace(event: ko, with: {
+    moveTo(target: 99 IN you.under, to: drop)
+  })
+```
+
 A price paid by an action rather than energy, and a marker cost:
 
 ```

@@ -13,11 +13,19 @@
  * The first error wins. A rule is five lines long, and a list of five
  * complaints about one missing bracket tells a person less than the first one
  * does.
+ *
+ * The closed word lists a value is checked against are the **game's own**
+ * (`rulesets/words.ts`, #137): an area is a zone `zones.rules` declares, not a
+ * constant kept here. A `.rules` file is the exception and is read against the
+ * engine's lists instead — a definition cannot be checked against itself, and
+ * the areas its declarations name are resolved by the loader against the zones
+ * it declares, which is the same check one step later.
  */
 import { emptyFilter, parseFilter, type CardFilter } from "../engine/filters";
-import { AREAS, DURATIONS, KEYWORD_NAMES, SIDES, SPECIAL_TARGETS, COND_SCHEMA, OP_SCHEMA, type Amount, type Cond, type CostRecord, type FieldType, type Op, type OpField, type Ref, type Selector, type XCost } from "../engine/script";
+import { AREAS, DURATIONS, KEYWORD_NAMES, SIDES, SPECIAL_TARGETS, COND_SCHEMA, OP_SCHEMA, type Amount, type Cond, type CostRecord, type FieldType, type Duration, type Op, type OpField, type Ref, type ScriptArea, type Selector, type Side, type XCost } from "../engine/script";
 import type { Color, KeywordSkill, Trigger } from "../engine/types";
 import { DEFINE_KINDS, EXPR_ATTRS, EXPR_SCHEMA, FILTER_FIELDS, PARAM_TYPES, fieldsOf, type Definition, type DefineField, type DefineFieldType, type DefineHook, type DefineKind, type DefineParam, type EventPattern, type ExprArg, type FilterFieldType, type LangError, type Parsed, type PatternValue, type Rule } from "./ast";
+import type { Words } from "../rulesets/words";
 import { LangSyntaxError, lex, positionOf, type Token } from "./tokens";
 
 const SELECTOR_FLAGS: Record<string, (s: Selector) => void> = {
@@ -32,6 +40,13 @@ const SELECTOR_FLAGS: Record<string, (s: Selector) => void> = {
   otherThanCopies: (s) => (s.notSelf = "copies"),
 };
 
+/**
+ * The engine's own lists, for reading a *game's* declarations: a `.rules` file
+ * says what the areas are, so it cannot be checked against them. Every area a
+ * declaration names is resolved against the declared zones by `loadRuleset`.
+ */
+export const ENGINE_WORDS: Words = { areas: [...AREAS], durations: [...DURATIONS], sides: [...SIDES], keywordNames: [...KEYWORD_NAMES] };
+
 /** Where a selector, a condition or a value stops. */
 const CLOSERS = new Set([")", "]", "}", ",", ";"]);
 
@@ -43,6 +58,8 @@ class Parser {
   constructor(
     private readonly src: string,
     private readonly toks: Token[],
+    /** The closed lists this text is read against: the game's words for a card's rule, the engine's for a game's own declarations. */
+    private readonly vocab: Words = ENGINE_WORDS,
   ) {}
 
   private get tok(): Token {
@@ -76,6 +93,22 @@ class Parser {
   }
   private want(text: string): void {
     if (!this.eatPunct(text)) this.fail(`expected ${JSON.stringify(text)}`, [text]);
+  }
+  /**
+   * The three closed lists that are the *game's* rather than the engine's.
+   * A `Vocabulary` is `string[]` — a game's zones are whatever it declares —
+   * so the narrowing is a cast checked at run time by `enumValue` against that
+   * list; that the two lists are the same list is #136's assertion, not this
+   * parser's to prove.
+   */
+  private area(): ScriptArea {
+    return this.enumValue(this.vocab.areas) as ScriptArea;
+  }
+  private sideWord(): Side {
+    return this.enumValue(this.vocab.sides) as Side;
+  }
+  private durationWord(): Duration {
+    return this.enumValue(this.vocab.durations) as Duration;
   }
   private word(what: string): string {
     if (this.tok.kind !== "word") this.fail(`expected ${what}`, [what]);
@@ -328,11 +361,11 @@ class Parser {
       case "selector":
         return this.selector();
       case "side":
-        return this.enumValue(SIDES);
+        return this.sideWord();
       case "area":
-        return this.enumValue(AREAS);
+        return this.area();
       case "duration":
-        return this.enumValue(DURATIONS);
+        return this.durationWord();
       case "cond":
         return this.cond();
       case "conds":
@@ -451,7 +484,7 @@ class Parser {
       case "number":
         return this.number();
       case "side":
-        return this.enumValue(SIDES);
+        return this.sideWord();
       case "attr":
         return this.enumValue(EXPR_ATTRS);
     }
@@ -519,7 +552,7 @@ class Parser {
       return;
     }
     if (this.eatKw("OF")) {
-      sel.side = this.enumValue(SIDES);
+      sel.side = this.sideWord();
       return;
     }
     if (this.eatKw("IN")) {
@@ -540,24 +573,24 @@ class Parser {
    */
   private places(sel: Selector): void {
     if (this.tok.kind === "word" && this.isPunct(".", this.ahead(1))) {
-      sel.side = this.enumValue(SIDES);
+      sel.side = this.sideWord();
       this.want(".");
     }
     if (this.isKw("ANY") && this.isPunct("(", this.ahead(1))) {
       this.i += 2;
-      const areas = [this.enumValue(AREAS)];
-      while (this.eatPunct("|")) areas.push(this.enumValue(AREAS));
+      const areas = [this.area()];
+      while (this.eatPunct("|")) areas.push(this.area());
       this.want(")");
       sel.areas = areas;
       return;
     }
-    const first = this.enumValue(AREAS);
+    const first = this.area();
     if (!this.isPunct("|")) {
       sel.area = first;
       return;
     }
     const areas = [first];
-    while (this.eatPunct("|")) areas.push(this.enumValue(AREAS));
+    while (this.eatPunct("|")) areas.push(this.area());
     sel.areas = areas;
   }
 
@@ -629,7 +662,7 @@ class Parser {
       this.i++;
     }
     const name = this.src.slice(from, to).trim();
-    if (!(KEYWORD_NAMES as readonly string[]).includes(name)) throw new LangSyntaxError(`${JSON.stringify(name)} is not a keyword skill`, from, [...KEYWORD_NAMES]);
+    if (!this.vocab.keywordNames.includes(name)) throw new LangSyntaxError(`${JSON.stringify(name)} is not a keyword skill`, from, [...this.vocab.keywordNames]);
     const out: Record<string, unknown> = { name };
     while (this.atField()) {
       const param = this.word("a keyword parameter");
@@ -850,7 +883,7 @@ class Parser {
     // `count(SEL) >= 2`, `life(you) <= 4` — the sugar, and the only form in
     // which one of these prints when it carries exactly one bound.
     this.want("(");
-    const inner = name === "life" ? { side: this.enumValue(SIDES) } : { sel: this.selector() };
+    const inner = name === "life" ? { side: this.sideWord() } : { sel: this.selector() };
     this.want(")");
     const cmp = this.tok.kind === "punct" && (this.tok.text === ">=" || this.tok.text === "<=") ? this.toks[this.i++].text : this.fail("a comparison needs >= or <=", [">=", "<="]);
     const n = this.number();
@@ -867,14 +900,22 @@ function errorFrom(src: string, e: unknown, clause: string): LangError {
   return { line: where.line, col: where.col, lineText: where.lineText, clause, message: at ? at.message : e instanceof Error ? e.message : "could not read this", expected: at?.expected ?? [] };
 }
 
-/** WHEN / COST / IF / THEN → a record. Never throws: the failure is the value. */
-export function parseRule(src: string): Parsed<Rule> {
+/**
+ * WHEN / COST / IF / THEN → a record. Never throws: the failure is the value.
+ *
+ * `vocab` is the word list the values are read against, and the public barrel
+ * (`lang/index.ts`) binds it to the **game's** — `rulesets/words.ts`. The
+ * default here is the engine's own, and is what the loader reads a `.rules`
+ * file with: a definition cannot be checked against itself, and it is the one
+ * caller that must not reach for the vocabulary it is producing.
+ */
+export function parseRule(src: string, vocab: Words = ENGINE_WORDS): Parsed<Rule> {
   // The parser is built outside the `try` so that a failure can still say
   // which clause it was in — the parser carries that, and a lexer error before
   // it exists is a WHEN error by definition, since WHEN is the first line.
   let parser: Parser | null = null;
   try {
-    parser = new Parser(src, lex(src));
+    parser = new Parser(src, lex(src), vocab);
     return { ok: true, value: parser.rule() };
   } catch (e) {
     return { ok: false, error: errorFrom(src, e, parser?.clause ?? "WHEN") };
@@ -882,9 +923,9 @@ export function parseRule(src: string): Parsed<Rule> {
 }
 
 /** The same, for the pieces a caller wants on their own (the tests, and later the definition files). */
-export function parseCond(src: string): Parsed<Cond> {
+export function parseCond(src: string, vocab: Words = ENGINE_WORDS): Parsed<Cond> {
   try {
-    return { ok: true, value: new Parser(src, lex(src)).cond() };
+    return { ok: true, value: new Parser(src, lex(src), vocab).cond() };
   } catch (e) {
     return { ok: false, error: errorFrom(src, e, "IF") };
   }

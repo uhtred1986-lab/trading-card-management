@@ -37,11 +37,13 @@
  * Part of `npm test`; run from `scripts/verify-arena.ts`, which fixes the order.
  */
 import assert from "node:assert/strict";
-import { AREA_NAMES, CARD_ATTRIBUTES, KEYWORD_NAMES, PHASES, PROMPT_KINDS } from "../../src/lib/arena/engine/script";
+import { effectLanguage } from "../../src/lib/arena/ai/opponent";
+import { AREA_NAMES, CARD_ATTRIBUTES, KEYWORD_NAMES, PHASES, PROMPT_KINDS, validateProgram, type Op } from "../../src/lib/arena/engine/script";
 import type { CounterWindow } from "../../src/lib/arena/engine/types";
 import { TRIGGERS, describeTrigger } from "../../src/lib/arena/gaps";
-import { deepEqual, parseDefinitions, printDefinitions } from "../../src/lib/arena/lang";
-import { loadRuleset, loadDbs, rulesetFor, DBS_FILES, HOOK_POINTS, type KeywordDef, type RulesetError } from "../../src/lib/arena/rulesets";
+import { deepEqual, parseDefinitions, parseRule, printDefinitions, validateRule } from "../../src/lib/arena/lang";
+import { loadRuleset, loadDbs, rulesetFor, DBS_FILES, MacroError, expandMacros, opsIn, HOOK_POINTS, type KeywordDef, type RulesetError } from "../../src/lib/arena/rulesets";
+import { optionsFor, whenMoments, words } from "../../src/lib/arena/rulesets/words";
 
 const lines = (...rows: string[]): string => rows.join("\n");
 
@@ -209,6 +211,115 @@ assert.match(unknownHook.message, /hook point/, "the error does not say what a h
 assert.ok(unknownHook.expected.length === HOOK_POINTS.length, "the error does not offer the hook points there are");
 assert.equal(unknownHook.clause, "KEYWORD");
 
+// ── the macro expander ──────────────────────────────────────────────────────
+
+/**
+ * `expandMacros` lowers a program to the ops the interpreter knows. The DBS
+ * `ops.rules` declares none yet — its header is the record of what each of the
+ * thirty-one rows waits on — so the machinery is proved here against fixtures
+ * instead, and the day a row becomes writable it is a declaration and nothing
+ * else.
+ *
+ * Every fixture is named after a real `OP_SCHEMA` row, because that is the
+ * only kind of macro there can be: the parser reads a body's steps against the
+ * schema, so a `DEFINE OP` whose name is not an op could never be called. Two
+ * of the bodies are what the row will mean once its primitive grows the field
+ * it is missing (`ko` has no cause, `power` no way to write `$until`); they
+ * are fixtures, and `ops.rules` is where the real ones will go.
+ */
+{
+  /** The zones a macro body names: the loader resolves every area a program mentions, whichever declaration it sits in. */
+  const ZONES = ["battle", "drop", "hand"].map((z) => lines(`DEFINE ZONE ${z}`, "  owner: player", "  visibility: all")).join("\n\n");
+
+  /** A definition holding just these macros, which is all the expander reads. */
+  const withMacros = (...decls: string[]) => {
+    const loaded = loadRuleset({ "ops.rules": decls.join("\n\n"), "zones.rules": ZONES });
+    assert.ok(loaded.ok, `the macro fixture did not load: ${loaded.ok ? "" : JSON.stringify(loaded.errors)}`);
+    if (!loaded.ok) throw new Error("unreachable");
+    return loaded.definition;
+  };
+
+  const KO = lines("DEFINE OP ko", "  TAKES (target: ref)", "  DO {", "    moveTo(target: $target, to: drop)", "  }", '  text: "to the owner\'s Drop"');
+  const koCall = { op: "ko", target: { var: "t" } } as unknown as Op;
+
+  // A call becomes its body, with the argument in the parameter's place.
+  {
+    const out = expandMacros([koCall], withMacros(KO));
+    assert.deepEqual(out, [{ op: "moveTo", target: { var: "t" }, to: "drop" }], "a macro call did not expand to its body");
+    assert.ok(validateProgram(out), "an expanded program is not a program");
+    assert.deepEqual(opsIn(out), ["moveTo"], "a macro name survived the expansion");
+  }
+
+  // An op the game does not declare is passed through exactly as it is — which
+  // is what lets the expander run before the whole table is declared.
+  {
+    const def = withMacros(KO);
+    const program = [{ op: "power", target: { sel: { special: "self" } }, amount: 5000, until: "turn" }] as unknown as Op[];
+    assert.deepEqual(expandMacros(program, def), program, "an op with no DEFINE OP was not left alone");
+    assert.deepEqual(expandMacros([], def), [], "an empty program did not stay empty");
+  }
+
+  // Nested programs: a macro inside an `if`, inside a `may`, inside a mode.
+  {
+    const out = expandMacros(
+      [
+        { op: "if", cond: { kind: "count", sel: { side: "you", area: "battle" }, atLeast: 1 }, then: [koCall], else: [koCall] },
+        { op: "may", ops: [koCall] },
+        { op: "chooseMode", modes: [{ label: "KO it", ops: [koCall] }] },
+      ] as unknown as Op[],
+      withMacros(KO),
+    );
+    assert.deepEqual(opsIn(out), ["if", "moveTo", "moveTo", "may", "moveTo", "chooseMode", "moveTo"], "a macro nested in a program was not expanded");
+    assert.ok(validateProgram(out), "an expanded nested program is not a program");
+  }
+
+  // An amount is an expression tree since 12 Sep 2026 (#122), so an argument
+  // reaches the parameter wherever the tree names it, and a tree given as the
+  // argument arrives whole.
+  {
+    const def = withMacros(lines("DEFINE OP power", "  TAKES (target: ref, amount: amount)", "  DO {", "    modifyAttr(target: $target, attr: power, amount: $amount, until: turn)", "  }"));
+    const amount = { plus: [{ count: { side: "you", area: "battle" } }, 1] };
+    const out = expandMacros([{ op: "power", target: { sel: { special: "self" } }, amount, until: "turn" } as unknown as Op], def);
+    assert.deepEqual(out, [{ op: "modifyAttr", target: { sel: { special: "self" } }, attr: "power", amount, until: "turn" }], "an amount argument did not reach the parameter's place");
+  }
+
+  // A parameter the call leaves out falls back to its `OP_SCHEMA` default,
+  // which is the value the interpreter would have assumed anyway — the reason
+  // a macro's parameters are named exactly as the row's fields. What this
+  // proves is that `negateKeyword`'s unwritten `target` (this card) arrived.
+  {
+    const def = withMacros(lines("DEFINE OP negateKeyword", "  TAKES (target: ref)", "  DO {", "    modifyAttr(target: $target, attr: power, amount: 0, until: turn)", "  }"));
+    const out = expandMacros([{ op: "negateKeyword", keyword: "Blocker" } as unknown as Op], def);
+    assert.deepEqual(out, [{ op: "modifyAttr", target: { sel: { special: "self" } }, attr: "power", amount: 0, until: "turn" }], "a left-out argument did not fall back to the row's default");
+  }
+
+  // A `$name` the macro does not take is the program's own binding — a
+  // `choose`'s `as`, read by the step after it — and must survive untouched.
+  {
+    const def = withMacros(lines("DEFINE OP mill", "  TAKES (n: amount)", "  DO {", '    choose(sel: 1 IN you.battle, as: "picked")', "    moveTo(target: $picked, to: hand)", "  }"));
+    const out = expandMacros([{ op: "mill", n: 1 } as unknown as Op], def);
+    assert.deepEqual((out[1] as unknown as { target: unknown }).target, { var: "picked" }, "the macro's own binding was substituted as if it were a parameter");
+  }
+
+  // A macro over a macro, as many times over as it takes.
+  {
+    const def = withMacros(KO, lines("DEFINE OP comboFrom", "  TAKES (target: ref)", "  DO {", "    ko(target: $target)", "    ko(target: $target)", "  }"));
+    assert.deepEqual(opsIn(expandMacros([{ op: "comboFrom", target: { var: "t" } } as unknown as Op], def)), ["moveTo", "moveTo"], "a macro calling a macro was not lowered all the way");
+  }
+
+  // The three programs that cannot be lowered, each named rather than hung on.
+  {
+    const cyclic = withMacros(lines("DEFINE OP flip", "  TAKES (target: ref)", "  DO {", "    flip(target: $target)", "  }"));
+    assert.throws(() => expandMacros([{ op: "flip", target: { var: "t" } } as unknown as Op], cyclic), MacroError, "a macro that expands into itself did not say so");
+    const mutual = withMacros(
+      lines("DEFINE OP flip", "  TAKES (target: ref)", "  DO {", "    redirectAttack(target: $target)", "  }"),
+      lines("DEFINE OP redirectAttack", "  TAKES (target: ref)", "  DO {", "    flip(target: $target)", "  }"),
+    );
+    assert.throws(() => expandMacros([{ op: "flip", target: { var: "t" } } as unknown as Op], mutual), MacroError, "two macros expanding into each other did not say so");
+    assert.throws(() => expandMacros([{ op: "ko" } as unknown as Op], withMacros(KO)), MacroError, "a macro reading a parameter the call never gave did not say so");
+  }
+}
+
 // ── what the app loads ──────────────────────────────────────────────────────
 
 /**
@@ -269,6 +380,11 @@ if (dbs.ok) {
   assert.equal(def.sources["zone:battle"], "zones.rules");
   assert.equal(def.sources["game:dbs"], "game.rules");
   assert.equal(def.sources["attribute:power"], "attributes.rules");
+  // `ops.rules` is in the set the app loads and declares nothing yet: its
+  // header is the record of what each of the thirty-one macro rows waits on,
+  // and a row that becomes writable is a declaration in it and nothing else.
+  assert.ok("ops.rules" in DBS_FILES, "ops.rules is not in the set the app loads");
+  assert.deepEqual(Object.keys(def.ops), [], "ops.rules declares a macro — the sweep in verify/language.ts is what proves it lowers");
   // Whole files, printed and read back: the round-trip promise over the
   // declarations the app actually loads.
   const printed = printDefinitions(def.definitions);
@@ -452,6 +568,63 @@ if (dbs.ok) {
     assert.ok(keyword, `keywords.rules has no DEFINE KEYWORD ${JSON.stringify(name)}`);
     assert.deepEqual(keyword.takes ?? [], KEYWORD_ARITY[name], `DEFINE KEYWORD ${name} TAKES the wrong parameters for what keywordOf reads`);
   }
+}
+
+// ── one word list, four readers ─────────────────────────────────────────────
+//
+// The other half of #137. The language, the workbench's chip editor and the
+// referee's prompt each used to carry their own copy of the closed lists —
+// four copies of the areas, since the prompt wrote them out twice — and
+// `validateRule` a fourth of the moments. The claim now is that they carry
+// none, and that a word deleted from the game's declarations is gone from all
+// of them at once. So the test is one deletion and a set of questions, not a
+// test per reader.
+{
+  const vocab = words();
+
+  // An area, which the parser, the chip editor and the referee's prompt read.
+  const gone = "warp";
+  assert.ok(vocab.areas.includes(gone), `the DBS ruleset no longer declares ${JSON.stringify(gone)}, so this test asks nothing`);
+  const mutated = { ...vocab, areas: vocab.areas.filter((a) => a !== gone) };
+  const rule = `WHEN [auto] played\nTHEN\n  moveTo(target: $t, to: ${gone})`;
+
+  assert.equal(parseRule(rule).ok, true, "the parser does not read an area the game declares");
+  assert.ok(optionsFor("area").includes(gone), "the chip editor does not offer an area the game declares");
+  // The prompt's own AREA line, not the whole prompt: `discard`'s `to` field
+  // is an `OP_SCHEMA` enum of one value ("warp"), which is a field's closed
+  // list and not the game's word list.
+  const areaLine = (text: string) => text.split("\n").find((l) => l.startsWith("AREA: ")) ?? "";
+  assert.ok(areaLine(effectLanguage()).includes(`"${gone}"`), "the referee is not told about an area the game declares");
+
+  const refused = parseRule(rule, mutated);
+  assert.equal(refused.ok, false, "the parser still read an area the game no longer declares");
+  if (!refused.ok) assert.ok(refused.error.expected.includes("hand"), "the parser's list of what could have stood there is not the game's areas");
+  assert.ok(!optionsFor("area", mutated).includes(gone), "the chip editor still offers an area the game no longer declares");
+  assert.ok(!areaLine(effectLanguage(mutated)).includes(`"${gone}"`), "the referee is still told about an area the game no longer declares");
+
+  // A keyword, which the parser and the chip editor read. The referee hears
+  // about keywords through `OP_SCHEMA`'s own `negateKeyword` enum, a field's
+  // closed list rather than the game's word list.
+  const noKeyword = "Blocker";
+  assert.ok(vocab.keywordNames.includes(noKeyword), `the DBS ruleset no longer declares [${noKeyword}], so this test asks nothing`);
+  const withoutKeyword = { ...vocab, keywordNames: vocab.keywordNames.filter((k) => k !== noKeyword) };
+  const grant = `WHEN [auto] played\nTHEN\n  grant(target: $t, keyword: [${noKeyword}], until: turn)`;
+  assert.equal(parseRule(grant).ok, true, "the parser does not read a keyword the game declares");
+  assert.ok(optionsFor("keyword").includes(noKeyword), "the chip editor does not offer a keyword the game declares");
+  assert.equal(parseRule(grant, withoutKeyword).ok, false, "the parser still read a keyword the game no longer declares");
+  assert.ok(!optionsFor("keyword", withoutKeyword).includes(noKeyword), "the chip editor still offers a keyword the game no longer declares");
+
+  // And a moment, which `validateRule` reads. `whenMoments` is the game's
+  // triggers less the counter windows — a [Counter] answers to a window and
+  // not to a card's own moment, and those five are the only names in
+  // `triggers.rules` a record's WHEN never says (the set equality above is
+  // what holds that to the engine's `Trigger` union, in both directions).
+  assert.deepEqual([...whenMoments()].sort(), [...TRIGGERS].sort(), "the moments a WHEN may name are no longer the engine's triggers");
+  for (const w of COUNTER_WINDOWS) assert.ok(!whenMoments().includes(`counter:${w}`), `a record's WHEN may name the ${w} counter window, which the engine never fires`);
+  const ruleOf = (trigger: string) => ({ kind: "auto", trigger: [trigger], cost: null, cond: null, ops: [] });
+  assert.equal(validateRule(ruleOf("played"), "auto"), null, "validateRule refuses a moment the game declares");
+  assert.equal(validateRule(ruleOf("counter:play"), "auto")?.field, "trigger", "validateRule accepts a counter window as a WHEN, which the engine never fires");
+  assert.equal(validateRule(ruleOf("nosuchmoment"), "auto")?.field, "trigger", "validateRule accepts a moment nothing declares");
 }
 
 console.log("verify/rulesets: ok");

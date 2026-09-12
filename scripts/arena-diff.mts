@@ -18,7 +18,7 @@ import { desc, eq } from "drizzle-orm";
 import { db } from "../src/db";
 import { arenaGames } from "../src/db/schema";
 import { IllegalAction, type Action, type EngineContext, type GameState } from "../src/lib/arena/engine";
-import { engineFor, engineOr, isEngineId, type EngineId } from "../src/lib/arena/engines";
+import { engineFor, engineOr, isEngineId, legacyState, type EngineId } from "../src/lib/arena/engines";
 import { deckInputFor, defsForCards } from "../src/lib/arena/load";
 import { rulesFor } from "../src/lib/arena/rules-store";
 
@@ -86,7 +86,9 @@ async function replay(id: number, on: EngineId | undefined): Promise<Report | nu
   // The referee is off: a replay must not ask Claude anything, and every
   // ruling a game needed is already in its action log as `refereeRuling`.
   const ctx: EngineContext = { defs, scripts: await rulesFor(db, defs), referee: false };
-  let { state } = engine.createGame(ctx, { seed: row.seed, p1: a.input, p2: b.input });
+  // The oracle compares the legacy shape on both engines; #164 is where a
+  // `rules` replay is read as its own.
+  let state = legacyState(engine.createGame(ctx, { seed: row.seed, p1: a.input, p2: b.input }).state);
   const deckChanged =
     [...state.players.p1.deck, ...state.players.p1.hand, ...state.players.p1.life].length !== a.cardIds.length - 1 ||
     [...state.players.p2.deck, ...state.players.p2.hand, ...state.players.p2.life].length !== b.cardIds.length - 1;
@@ -94,7 +96,7 @@ async function replay(id: number, on: EngineId | undefined): Promise<Report | nu
   for (let i = 0; i < actions.length; i++) {
     const action = actions[i];
     try {
-      state = engine.apply(ctx, state, action).state;
+      state = legacyState(engine.apply(ctx, state, action).state);
     } catch (err) {
       divergence = { at: i, why: err instanceof IllegalAction ? `refused: ${err.message}` : `threw: ${err instanceof Error ? err.message : String(err)}` };
       break;
