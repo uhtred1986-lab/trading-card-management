@@ -22,6 +22,7 @@ import {
   missingEnergyChip,
   missingEnergyChips,
   narrate,
+  parseFilter,
   parseSkills,
   pill,
   play,
@@ -506,6 +507,67 @@ import type { Beat, GameState, PlayerId, RejectedAction, Requirement } from "./h
     assert.equal(boardView(ctx, s, "p1", {}).you.rules, undefined, "and not on yours");
   }
 
+  // Counted and conditional prohibitions (20-14): a budgeted prohibition allows
+  // one use, then refuses the second; an "unless" escape turns legality on.
+  // Both halves are asserted from *both* sides of the workflow — the menu
+  // (`legalActions`) and the refusal (`rejectedActions`), which `assertDisjoint`
+  // holds to one rejection per card per action type (§3.2).
+  {
+    let s = arena({ battle: ["V1", "V-BLUE"], oppBattle: ["V1"] });
+    addEffect(s, [], { target: "", kind: "forbid", value: 0, until: "turn", forbid: { what: "attack", player: "p1", filter: parseFilter("battle card"), uses: 1 } });
+    const attacker = s.players.p1.battle[0];
+    const second = s.players.p1.battle[1];
+    const attacks = (st: GameState, card: string) => legalActions(ctx, st).some((a) => a.action.type === "attack" && a.action.attacker === card);
+    const attack = legalActions(ctx, s).find((a) => a.action.type === "attack" && a.action.attacker === attacker);
+    assert.ok(attack, "with uses:1 the first attack is legal");
+    assert.ok(attacks(s, second), "…and so is the other card's, while the budget is unspent");
+    assert.equal(ofCard(assertDisjoint(s, "counted forbid, unspent"), "attack", second), undefined, "nothing is refused yet");
+    s = play(s, attack!.action);
+    while (s.prompt.kind !== "main") {
+      if (s.prompt.kind === "counter") s = play(s, { type: "counter", player: s.prompt.player, card: null });
+      else if (s.prompt.kind === "blocker") s = play(s, { type: "block", player: s.prompt.player, card: null });
+      else if (s.prompt.kind === "combo") s = play(s, { type: "pass", player: s.prompt.player });
+      else if (s.prompt.kind === "zEnergyFromCombo") s = play(s, { type: "zEnergyFromCombo", player: s.prompt.player, card: null });
+      else throw new Error(`unexpected prompt ${s.prompt.kind}`);
+    }
+    assert.ok(!attacks(s, second), "the spent budget takes the second attack off the menu");
+    const r = ofCard(assertDisjoint(s, "counted forbid, spent"), "attack", second);
+    assert.deepEqual(first(r), { kind: "forbidden", by: null, until: "turn" }, "the second attack is rejected after the budget is spent");
+    // …and the refusal is a sentence, not only a shape (§3.3).
+    assert.deepEqual(refusal(first(r)!, { name: "V-BLUE", reaching: "attack" }), { fact: "A rule in force forbids it.", remedy: "Until the end of the turn." });
+  }
+  {
+    // "Your opponent can't play Battle Cards unless your opponent has 3 or
+    // more energy", printed on one of p1's cards. The escape clause is p1's
+    // sentence, so it is asked in p1's chair (`master`) — p1 is given the 3
+    // energy the clause names precisely so reading it from the acting
+    // player's chair instead would let the play through.
+    let s = arena({ energy: ["V1", "V1", "V1"], oppHand: ["V1"], oppEnergy: ["V1", "V1"] });
+    s = play(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+    const card = s.players.p2.hand[0];
+    const offered = (st: GameState) => legalActions(ctx, st).some((a) => a.action.type === "play" && a.action.card === card);
+    assert.ok(offered(s), "the play is on the menu before the prohibition");
+    addEffect(s, [], {
+      target: "",
+      kind: "forbid",
+      value: 0,
+      until: "turn",
+      forbid: { what: "play", player: "p2", master: "p1", filter: parseFilter("battle card"), unless: { kind: "count", sel: { side: "opponent", area: "energy", count: 99 }, atLeast: 3 } },
+    });
+    assert.ok(!offered(s), "and off it while the escape condition is false");
+    const blocked = ofCard(assertDisjoint(s, "unless missing"), "play", card);
+    assert.equal(first(blocked)?.kind, "forbidden");
+    // …and said in the words of the player being refused, not the card's.
+    assert.equal((first(blocked) as { unless?: string }).unless, "there are 3 or more cards in your energy");
+    // The escape is the remedy the player is shown, so it is the sentence too.
+    assert.equal(refusal(first(blocked)!, { name: "V1", reaching: "play" }).remedy, "Allowed only if there are 3 or more cards in your energy.");
+    const extra = s.players.p2.deck[0];
+    s.players.p2.deck = s.players.p2.deck.slice(1);
+    s.players.p2.energy.push(extra);
+    assert.ok(offered(s), "the play turns legal once the unless condition holds");
+    assert.equal(ofCard(assertDisjoint(s, "unless met"), "play", card), undefined, "and carries no rejection");
+  }
+
   // "Negate that card's [Auto] skills in all areas" keeps the duration it
   // printed instead of being cut to a turn (review §3.9).
   {
@@ -584,6 +646,7 @@ import type { Beat, GameState, PlayerId, RejectedAction, Requirement } from "./h
   assert.equal(refusal({ kind: "mode", card: "x", mode: "rest" }, { name: "Sage", reaching: "attack" }).fact, "Sage is in Rest Mode — it cannot attack.");
   assert.equal(refusal({ kind: "oncePerTurn", what: "charge" }, o).fact, "You have already charged this turn.");
   assert.equal(refusal({ kind: "forbidden", by: "PERMLOCK" }, o).fact, "PERMLOCK forbids it.");
+  assert.equal(refusal({ kind: "forbidden", by: "PERMLOCK", unless: "there are 3 or more cards in your energy" }, o).remedy, "Allowed only if there are 3 or more cards in your energy.");
   // How long a rule holds is the remedy, read from the player's chair (review §3.4).
   assert.equal(refusal({ kind: "forbidden", by: "PERMLOCK", until: "permanent" }, o).remedy, "While PERMLOCK is in play.");
   assert.equal(refusal({ kind: "forbidden", by: "LOCKER", until: "turn" }, o).remedy, "Until the end of the turn.");

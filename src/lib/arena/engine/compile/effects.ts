@@ -1429,7 +1429,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // Some sets print the same rule as "will not" rather than "can't"
   // ("the chosen card will not switch to Active Mode during your next Charge
   // Phase"); it forbids the action just the same.
-  if (/\bcan'?t\b|\bcannot\b|\bwill not\b|\bwon'?t\b/.test(t)) {
+  if (/\bcan only\b|\bcan'?t\b|\bcannot\b|\bwill not\b|\bwon'?t\b/.test(t)) {
     const forbid = compileProhibition(t, c);
     if (forbid) return forbid;
   }
@@ -1864,13 +1864,29 @@ function compileImmunity(t: string, c: Ctx): Op[] | null {
  */
 function compileProhibition(t: string, c: Ctx): Op[] | null {
   const until = durationOf(t);
+  const q = stripQualifiers(t);
+  const counted = /^(you|your opponent'?s?)\s+can only attack one more time(?: with (.*?))?(?:\s+(?:for|during|until)\b.*)?$/.exec(q);
+  if (counted) {
+    const side: Side = counted[1] === "you" ? "you" : "opponent";
+    const withWhat = counted[2];
+    const filter = withWhat ? filterFor(withWhat, null) : undefined;
+    if (filter === null) return null;
+    const type = withWhat && /\bleader cards?\b/.test(withWhat) ? "LEADER" : withWhat && /\bbattle cards?\b/.test(withWhat) ? "BATTLE" : null;
+    return [{ op: "forbid", what: "attack", side, until, uses: 1, filter: filter || type ? { ...(filter ?? parseFilter("")), ...(type ? { type } : {}) } : undefined }];
+  }
   // The subject may be missing: "it gets +10000 power **and** can't attack for
   // the turn" splits at the "and", and the second half arrives with the card
   // it is about in the clause before it. Fifteen clauses.
   const m = /^(.*?)\s*(?:can'?t|cannot|will not|won'?t)\s+(.*)$/.exec(t);
   if (!m) return null;
   const subject = m[1].trim();
-  const rest = m[2].trim();
+  const rest0 = m[2].trim();
+  const unlessTail = /\s+unless\s+(.+)$/.exec(rest0);
+  const unlessPlayBySkill = !!unlessTail && /^(?:it is |it's )?played by (?:card )?skills?$/.test(unlessTail[1].trim());
+  const unless = !unlessTail || unlessPlayBySkill ? null : parseConditionClause(`if ${unlessTail[1].trim()}`, true);
+  if (unlessTail && !unlessPlayBySkill && !unless) return null;
+  const rest = unlessTail && !unlessPlayBySkill ? rest0.slice(0, unlessTail.index).trim() : rest0;
+  const withUnless = unless ? { unless: unless.cond } : {};
 
   // Deck-building restrictions are not rules of play (6-1); the engine takes
   // the deck it is given, so the clause is read and does nothing.
@@ -1883,8 +1899,8 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
     let mm: RegExpExecArray | null;
     if ((mm = /^play\s+(.*)$/.exec(rest))) {
       const what = mm[1];
-      if (/\bcopies of this card\b|\banother copy of this card\b/.test(what)) return [{ op: "forbid", what: "play", side, until, sameNameAsSelf: true }];
-      if (/^this card\b/.test(what)) return [{ op: "forbid", what: "play", side, until, target: { sel: { special: "self" } } }];
+      if (/\bcopies of this card\b|\banother copy of this card\b/.test(what)) return [{ op: "forbid", what: "play", side, until, sameNameAsSelf: true, ...withUnless }];
+      if (/^this card\b/.test(what)) return [{ op: "forbid", what: "play", side, until, target: { sel: { special: "self" } }, ...withUnless }];
       const filter = filterFor(what, null);
       const type = /\bunison cards?\b/.test(what) ? "UNISON" : /\bextra cards?\b/.test(what) ? "EXTRA" : /\bbattle cards?\b/.test(what) ? "BATTLE" : null;
       // A description that could not be read must not fall back to the type
@@ -1892,24 +1908,24 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
       // Card, which is a wider rule than the card states.
       if (filter === null) return null;
       if (!filter && !type) return null;
-      return [{ op: "forbid", what: "play", side, until, filter: { ...(filter ?? parseFilter("")), ...(type ? { type } : {}) } }];
+      return [{ op: "forbid", what: "play", side, until, filter: { ...(filter ?? parseFilter("")), ...(type ? { type } : {}) }, ...withUnless }];
     }
     if (/^attack\b/.test(rest)) {
       // "attack this card" is about the defender, not the attacker.
-      if (/^attack (?:this card|it)\b/.test(rest)) return [{ op: "forbid", what: "beAttacked", until, target: { sel: { special: "self" } } }];
+      if (/^attack (?:this card|it)\b/.test(rest)) return [{ op: "forbid", what: "beAttacked", until, target: { sel: { special: "self" } }, ...withUnless }];
       const withWhat = /\bwith (.*)$/.exec(rest)?.[1];
       const filter = withWhat ? filterFor(withWhat, null) : undefined;
       // Same again: an unread description would forbid every attack rather
       // than the ones the card names.
       if (filter === null) return null;
       const type = withWhat && /\bleader cards?\b/.test(withWhat) ? "LEADER" : withWhat && /\bbattle cards?\b/.test(withWhat) ? "BATTLE" : null;
-      return [{ op: "forbid", what: "attack", side, until, filter: filter || type ? { ...(filter ?? parseFilter("")), ...(type ? { type } : {}) } : undefined }];
+      return [{ op: "forbid", what: "attack", side, until, filter: filter || type ? { ...(filter ?? parseFilter("")), ...(type ? { type } : {}) } : undefined, ...withUnless }];
     }
-    if (/^activate\b/.test(rest) && /\[counter/.test(rest)) return [{ op: "forbid", what: "activateCounter", side, until }];
-    if (/^activate\b/.test(rest) && /\[blocker/.test(rest)) return [{ op: "forbid", what: "block", side, until }];
+    if (/^activate\b/.test(rest) && /\[counter/.test(rest)) return [{ op: "forbid", what: "activateCounter", side, until, ...withUnless }];
+    if (/^activate\b/.test(rest) && /\[blocker/.test(rest)) return [{ op: "forbid", what: "block", side, until, ...withUnless }];
     // "You can't place cards in your energy for the turn" (EX22-02): the
     // Charge Phase, which the engine offers as an action of its own (3-8).
-    if (/^place cards? (?:in|into) (?:your|their) energy\b/.test(rest)) return [{ op: "forbid", what: "placeEnergy", side, until }];
+    if (/^place cards? (?:in|into) (?:your|their) energy\b/.test(rest)) return [{ op: "forbid", what: "placeEnergy", side, until, ...withUnless }];
     return null;
   }
 
@@ -1933,35 +1949,35 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
     // one: the rule holds for the whole game, which is what makes it a
     // property of the card rather than something a turn wears off.
     if (/\bexcept by (?:card )?skills?\b|\bunless (?:it is |it's )?played by (?:card )?skills?\b/.test(rest)) {
-      return [{ op: "forbid", what: "play", until: "game", target, bySkill: false }];
+      return [{ op: "forbid", what: "play", until: "game", target, bySkill: false, ...withUnless }];
     }
     if (/\b(?:by|with) (?:your |their )?(?:card )?skills?\b/.test(rest)) {
-      return [{ op: "forbid", what: "play", until: "game", target, bySkill: true }];
+      return [{ op: "forbid", what: "play", until: "game", target, bySkill: true, ...withUnless }];
     }
     return null;
   }
-  if (/^attack\b/.test(rest)) return [{ op: "forbid", what: "attack", until, target }];
-  if (/^be attacked\b/.test(rest)) return [{ op: "forbid", what: "beAttacked", until, target }];
-  if (/^block\b/.test(rest)) return [{ op: "forbid", what: "block", until, target }];
-  if (/^(?:switch|be switched)\b.*\bactive mode\b/.test(rest)) return [{ op: "forbid", what: "switchToActive", until, target }];
+  if (/^attack\b/.test(rest)) return [{ op: "forbid", what: "attack", until, target, ...withUnless }];
+  if (/^be attacked\b/.test(rest)) return [{ op: "forbid", what: "beAttacked", until, target, ...withUnless }];
+  if (/^block\b/.test(rest)) return [{ op: "forbid", what: "block", until, target, ...withUnless }];
+  if (/^(?:switch|be switched)\b.*\bactive mode\b/.test(rest)) return [{ op: "forbid", what: "switchToActive", until, target, ...withUnless }];
   if (/^be ko'?d\b/.test(rest)) {
     // "by skills" is the narrow rule; a bare "can't be KO'd" covers the battle too.
     const bySkill = /\bby (?:your opponent's |your )?skills?\b/.test(rest);
-    return [{ op: "forbid", what: bySkill ? "beKOdBySkill" : "beKOd", until, target, side: bySide }];
+    return [{ op: "forbid", what: bySkill ? "beKOdBySkill" : "beKOd", until, target, side: bySide, ...withUnless }];
   }
-  if (/^be chosen\b/.test(rest)) return [{ op: "forbid", what: "beChosen", until, target, side: bySide }];
+  if (/^be chosen\b/.test(rest)) return [{ op: "forbid", what: "beChosen", until, target, side: bySide, ...withUnless }];
   // "Can't be removed from a Battle Area by your opponent's skills" (20-14) —
   // a move by a skill, which is not the same as a KO and not the same as a
   // battle. Only the form that names skills as the cause is read: a bare
   // "can't be removed from a Battle Area" would also cover the KO.
   if (/^be removed from (?:a|the|your|their) battle area\b/.test(rest) && /\bby (?:your opponent's |your )?skills?\b/.test(rest)) {
-    return [{ op: "forbid", what: "beMovedBySkill", until, target, side: bySide }];
+    return [{ op: "forbid", what: "beMovedBySkill", until, target, side: bySide, ...withUnless }];
   }
   // "This card's skills can't be negated in any area" (9-1-5). `durationOf`
   // already reads "in any area" as the game.
   if (/^be negated\b/.test(rest) && /\bskills?\b/.test(subject)) {
     const owner = refFor(subject.replace(/'?s skills?\b.*$/, ""), c);
-    return owner ? [{ op: "forbid", what: "beNegated", until, target: owner }] : null;
+    return owner ? [{ op: "forbid", what: "beNegated", until, target: owner, ...withUnless }] : null;
   }
   return null;
 }

@@ -289,6 +289,26 @@ import {
   assert.deepEqual(noCharge.unsupported, []);
   assert.deepEqual(noCharge.ops, [{ op: "forbid", what: "placeEnergy", side: "you", until: "turn" }]);
 
+  const counted = one("[Auto] When you play this card, your opponent can only attack one more time with Battle Cards for the duration of the turn.");
+  assert.deepEqual(counted.unsupported, []);
+  assert.equal((counted.ops[0] as { op: string }).op, "forbid");
+  assert.equal((counted.ops[0] as { uses: number }).uses, 1);
+
+  const escaped = one("[Permanent] Your opponent can't play Battle Cards unless your opponent has 3 or more energy.");
+  assert.deepEqual(escaped.unsupported, []);
+  assert.equal((escaped.ops[0] as { op: string }).op, "forbid");
+  assert.equal((escaped.ops[0] as { unless?: { kind: string } }).unless?.kind, "count");
+
+  // An escape the compiler cannot read is the whole prohibition refused, not a
+  // prohibition without it. "Unless they pay X **each time**" is a cost the
+  // opponent may choose to pay — replacement territory (#107, out of scope) —
+  // and reading only the half before "unless" forbids the attack outright,
+  // which is a stricter rule than the card prints. 20 clauses of the catalog
+  // read that way before `unless` existed (BT11-053, BT13-082, BT13-140 …).
+  const unreadable = one("[Auto] When this card is played, your opponent can't attack for the turn unless they place 1 of their energy in its owner's Drop Area.");
+  assert.deepEqual(unreadable.ops, [], "an unreadable escape refuses the prohibition rather than over-forbidding");
+  assert.equal(unreadable.unsupported.length, 1, "…and says so as an unread clause");
+
   // The same rule printed as "will not" rather than "can't", and a duration
   // that has to outlive "your next turn" by one step (7-2-7).
   const lock = one("[Activate: Main] Choose 1 of your opponent's Battle Cards and switch it to Rest Mode. The chosen card will not switch to Active Mode during your next Charge Phase.");

@@ -289,6 +289,8 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       { name: "filter", type: "filter" },
       { name: "sameNameAsSelf", type: "boolean" },
       { name: "bySkill", type: "boolean" },
+      { name: "uses", type: "amount" },
+      { name: "unless", type: "cond" },
     ],
     sentence: (raw, r) => {
       const op = raw as OpOf<"forbid">;
@@ -302,9 +304,11 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       // "…can't play **cards**" already names the object, so a description
       // of *which* cards replaces that word rather than following it.
       const verb = which ? what.replace(/\s+cards?$/, "") : what;
-      return `${who} can't ${verb}${which ? ` ${which}` : ""}${forThe(op.until, r)}`;
+      const budget = op.uses != null ? ` ${op.uses === 1 ? "once more" : `${describeAmount(op.uses)} more times`}` : "";
+      const escape = op.unless ? ` unless ${describeCond(op.unless)}` : "";
+      return `${who} can't ${verb}${which ? ` ${which}` : ""}${budget}${escape}${forThe(op.until, r)}`;
     },
-    doc: `forbid an action (20-14): a "target" for a rule about particular cards, or a "side" for one about a player, narrowed by a "filter"; "sameNameAsSelf":true narrows a play rule to copies of this card. "what" is one of ${FORBIDDEN_ACTIONS.map((w) => `"${w}"`).join(" | ")}`,
+    doc: `forbid an action (20-14): a "target" for a rule about particular cards, or a "side" for one about a player, narrowed by a "filter"; "sameNameAsSelf":true narrows a play rule to copies of this card; "uses" is how many times that action may still happen before the prohibition starts applying, and "unless" is the escape condition. "what" is one of ${FORBIDDEN_ACTIONS.map((w) => `"${w}"`).join(" | ")}`,
   },
   immune: {
     fields: [UNTIL, SELF, { name: "from", type: "side" }, { name: "fromFilter", type: "filter" }],

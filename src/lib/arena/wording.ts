@@ -110,6 +110,7 @@ export function refusal(r: Requirement, o: { name: string; reaching: Reaching; s
       // player nothing they could plan around.
       const when = r.until ? untilWords(r.until, { master: null, viewer, them, sourceName: r.by }) : null;
       const fact = r.by ? `${r.by} forbids it.` : "A rule in force forbids it.";
+      if (r.unless) return { fact, remedy: `Allowed only if ${r.unless}.` };
       if (!when) return { fact, remedy: "Until that rule ends." };
       return { fact, remedy: `${when.charAt(0).toUpperCase()}${when.slice(1)}.` };
     }

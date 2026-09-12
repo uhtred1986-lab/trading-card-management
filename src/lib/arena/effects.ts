@@ -13,7 +13,7 @@
  * Pure: no database, no React. Covered by `npm test`, and the table the
  * Android app carries in Kotlin.
  */
-import { FORBIDDEN_IN_WORDS, describeFilter } from "./engine/script";
+import { FORBIDDEN_IN_WORDS, describeFilter, describeCond } from "./engine/script";
 import type { StaticEffect } from "./engine/state";
 import type { Color, ContinuousEffect, EffectUntil, Immunity, KeywordSkill, Permission, PlayerId, Prohibition, SkillKindPrefix } from "./engine/types";
 
@@ -86,9 +86,11 @@ function specifiedCostLabel(v: { colors: (Color | "any")[]; sign: 1 | -1 }): str
 function forbidLabel(f: Prohibition): string {
   const what = FORBIDDEN_IN_WORDS[f.what];
   const which = f.name ? `copies of ${f.name}` : f.filter ? describeFilter(f.filter) : "";
+  const budget = f.uses != null ? ` ${f.uses === 1 ? "once more" : `${f.uses} more times`}` : "";
+  const escape = f.unless ? ` unless ${describeCond(f.unless)}` : "";
   // "…can't play **cards**" already names the object; a description of which
   // cards replaces that word rather than following it.
-  return `can't ${which ? what.replace(/\s+cards?$/, "") : what}${which ? ` ${which}` : ""}`;
+  return `can't ${which ? what.replace(/\s+cards?$/, "") : what}${which ? ` ${which}` : ""}${budget}${escape}`;
 }
 
 function permitLabel(p: Permission): string {

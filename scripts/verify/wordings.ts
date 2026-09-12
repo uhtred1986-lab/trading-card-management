@@ -1415,6 +1415,21 @@ import type { GameState, Trigger } from "./harness";
   assert.deepEqual(cant.unsupported, []);
   assert.ok(JSON.stringify(cant.ops).includes('"forbid"'));
 
+  const counted = one("[Auto] When this card is played, your opponent can only attack one more time with Battle Cards for the duration of the turn.");
+  assert.deepEqual(counted.unsupported, []);
+  const countedForbid = counted.ops[counted.ops.length - 1] as { op: string; what: string; side: string; until: string; uses: number; filter?: { type?: string } };
+  assert.equal(countedForbid.op, "forbid");
+  assert.equal(countedForbid.what, "attack");
+  assert.equal(countedForbid.side, "opponent");
+  assert.equal(countedForbid.until, "turn");
+  assert.equal(countedForbid.uses, 1);
+  assert.equal(countedForbid.filter?.type, "BATTLE");
+
+  const conditional = one("[Permanent] Your opponent can't play Battle Cards unless your opponent has 3 or more energy.");
+  assert.deepEqual(conditional.unsupported, []);
+  assert.equal((conditional.ops[0] as { op: string }).op, "forbid");
+  assert.ok("unless" in (conditional.ops[0] as Record<string, unknown>), "the escape clause is kept on the prohibition");
+
   // The plural of a card type is the same type. Anchored with a trailing \b,
   // "Battle Card" did not match "Battle **Cards**", so a phrase whose only
   // measure was the type set none at all and selected the whole area.
@@ -1576,5 +1591,3 @@ import type { GameState, Trigger } from "./harness";
   assert.ok(canActivate(sYellowY, cardY), "a yellow Y alone satisfies");
   assert.ok(!canActivate(sGreenY, cardCross), "a green Y does not satisfy the disjunction");
 }
-
-

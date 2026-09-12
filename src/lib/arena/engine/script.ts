@@ -384,9 +384,10 @@ export type Op =
   /**
    * Forbid an action (20-14). Name a `target` for a rule about particular
    * cards, or a `side` for one about a player ("your opponent can't attack
-   * with Battle Cards"), optionally narrowed by a filter.
+   * with Battle Cards"), optionally narrowed by a filter. `uses` allows that
+   * many uses before the prohibition applies; `unless` is the escape condition.
    */
-  | { op: "forbid"; what: ForbiddenAction; until: Duration; target?: Ref; side?: Side; filter?: CardFilter; sameNameAsSelf?: boolean; bySkill?: boolean }
+  | { op: "forbid"; what: ForbiddenAction; until: Duration; target?: Ref; side?: Side; filter?: CardFilter; sameNameAsSelf?: boolean; bySkill?: boolean; uses?: Amount; unless?: Cond }
   /**
    * 9-1-4: a card no skill may touch — stronger than `forbid: "beChosen"`,
    * which only stops a skill from *choosing* it. `from`/`fromFilter` say
@@ -1111,7 +1112,15 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
           // On a card, the side says *whose* action is forbidden — "can't be
           // KO'd by your opponent's skills" is a rule about the opponent.
           for (const id of resolveRef(ctx, s, frame, op.target))
-            addEffect(s, ev, { master: frame.master, source: frame.card, target: id, kind: "forbid", value: 0, until: op.until, forbid: { what: op.what, player: players[0] } });
+            addEffect(s, ev, {
+              master: frame.master,
+              source: frame.card,
+              target: id,
+              kind: "forbid",
+              value: 0,
+              until: op.until,
+              forbid: { what: op.what, ...(op.uses != null ? { uses: amount(ctx, s, frame, op.uses) } : {}), ...(op.unless ? { unless: op.unless, master: frame.master } : {}), player: players[0] },
+            });
           break;
         }
         addEffect(s, ev, {
@@ -1121,7 +1130,14 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
           kind: "forbid",
           value: 0,
           until: op.until,
-          forbid: { what: op.what, player: players[0], filter: op.filter, name: op.sameNameAsSelf ? face(ctx, s, frame.card).name : undefined },
+          forbid: {
+            what: op.what,
+            ...(op.uses != null ? { uses: amount(ctx, s, frame, op.uses) } : {}),
+            ...(op.unless ? { unless: op.unless, master: frame.master } : {}),
+            player: players[0],
+            filter: op.filter,
+            name: op.sameNameAsSelf ? face(ctx, s, frame.card).name : undefined,
+          },
         });
         break;
       }
@@ -1434,3 +1450,8 @@ function shuffleDeck(s: GameState, players: PlayerId[]): void {
 
 
 export * from "./script-schema";
+// Named as well as starred, for the same reason `engine/compile.ts` names its
+// entry points: through an import cycle an `export *` name is not instantiated,
+// and `arena:readings` died on `does not provide an export named
+// "describeScript"`.
+export { describeScript, describeCond, describeFilter } from "./script-schema";

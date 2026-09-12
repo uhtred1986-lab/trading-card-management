@@ -59,6 +59,7 @@ import {
   powerOf,
   schedule,
   staticEffects,
+  spendProhibitionUse,
   setMode,
   skillsOfInstance,
   type GameContext,
@@ -1924,7 +1925,7 @@ function whyNotCounter(ctx: EngineContext, s: GameState, p: PlayerId, card: stri
   if (sk.kind === "counter:battle card attack" && s.battle && baseType(def(ctx, s, s.battle.attacker)) !== "BATTLE") why.push({ kind: "target", reason: "only an attacking Battle Card" });
   if (!canResolve(ctx, s, card, sk)) why.push({ kind: "unread", card });
   const f = forbiddenBy(ctx, s, "activateCounter", { player: p, card });
-  if (f) why.push({ kind: "forbidden", by: f.by, until: f.until });
+  if (f) why.push({ kind: "forbidden", by: f.by, until: f.until, ...(f.unless ? { unless: f.unless } : {}) });
   const orbs = orbTotals(ctx, s, card, sk);
   why.push(...whyNotPay(ctx, s, p, cost.total + orbs.total, mergeSpecified(cost.specified, orbs.specified), orbs.either));
   return why;
@@ -1957,7 +1958,7 @@ function modeWhy(ctx: EngineContext, s: GameState, card: string): Requirement {
 function whyNotCharge(ctx: EngineContext, s: GameState, p: PlayerId): Requirement[] {
   if (s.prompt.kind !== "charge") return [{ kind: "oncePerTurn", what: "charge" }];
   const f = forbiddenBy(ctx, s, "placeEnergy", { player: p });
-  return f ? [{ kind: "forbidden", by: f.by, until: f.until }] : [];
+  return f ? [{ kind: "forbidden", by: f.by, until: f.until, ...(f.unless ? { unless: f.unless } : {}) }] : [];
 }
 
 /**
@@ -1995,7 +1996,7 @@ function whyNotAttack(ctx: EngineContext, s: GameState, p: PlayerId, a: string):
   if (s.cards[a].mode !== "active") why.push(modeWhy(ctx, s, a));
   if (s.cards[a].hidden) why.push({ kind: "other", detail: "a face-down card cannot attack" });
   const f = forbiddenBy(ctx, s, "attack", { player: p, card: a });
-  if (f) why.push({ kind: "forbidden", by: f.by, until: f.until });
+  if (f) why.push({ kind: "forbidden", by: f.by, until: f.until, ...(f.unless ? { unless: f.unless } : {}) });
   const opp = other(p);
   const targets = [s.players[opp].leader, ...(s.players[opp].unison ? [s.players[opp].unison] : []), ...s.players[opp].battle.filter((id) => s.cards[id].mode === "rest")];
   const extra = permits(ctx, s, a, "attackActive").flatMap((rule) =>
@@ -2023,7 +2024,7 @@ function whyNotCombo(ctx: EngineContext, s: GameState, p: PlayerId, card: string
   const d = def(ctx, s, card);
   if (!canCombo(d)) why.push({ kind: "cardType", card, needs: "a Battle Card with a combo cost" });
   const f = forbiddenBy(ctx, s, "combo", { player: p, card });
-  if (f) why.push({ kind: "forbidden", by: f.by, until: f.until });
+  if (f) why.push({ kind: "forbidden", by: f.by, until: f.until, ...(f.unless ? { unless: f.unless } : {}) });
   if (canCombo(d)) why.push(...whyNotPay(ctx, s, p, comboCostOf(ctx, s, card), {}));
   return why;
 }
@@ -2050,7 +2051,7 @@ function whyNotPlay(ctx: EngineContext, s: GameState, p: PlayerId, card: string)
   const twin = s.players[p].battle.find((id) => has(ctx, s, id, "Unique") && face(ctx, s, id).name === d.name);
   if (twin) why.push({ kind: "forbidden", by: face(ctx, s, twin).name });
   const f = forbiddenBy(ctx, s, "play", { player: p, card, bySkill: false });
-  if (f) why.push({ kind: "forbidden", by: f.by, until: f.until });
+  if (f) why.push({ kind: "forbidden", by: f.by, until: f.until, ...(f.unless ? { unless: f.unless } : {}) });
   return why;
 }
 
@@ -2287,7 +2288,7 @@ function whyNotActivate(ctx: EngineContext, s: GameState, p: PlayerId, card: str
   // predicate ten callers share (§3.2); the twin asks both questions instead.
   if (skillsNegated(s, card) || skillNegated(s, card, sk.index, sk.kind)) why.push({ kind: "other", detail: "the skill is negated" });
   const f = forbiddenBy(ctx, s, "activateSkill", { player: p, card });
-  if (f) why.push({ kind: "forbidden", by: f.by, until: f.until });
+  if (f) why.push({ kind: "forbidden", by: f.by, until: f.until, ...(f.unless ? { unless: f.unless } : {}) });
   if (usesLeft(sk, inst) === 0) why.push({ kind: "oncePerTurn", what: "skill", ...(sk.limit != null && !sk.oncePerTurn ? { limit: sk.limit } : {}) });
   if (sk.bond != null && s.players[p].battle.length < sk.bond) why.push({ kind: "condition", text: `[Bond ${sk.bond}]: ${sk.bond} or more Battle Cards in play` });
   if (sk.sparking != null && s.players[p].drop.length < sk.sparking) why.push({ kind: "condition", text: `[Sparking ${sk.sparking}]: ${sk.sparking} or more cards in your Drop Area` });
@@ -2555,6 +2556,7 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
         // 20-14: "you can't place cards in your energy for the turn".
         if (forbids(ctx, s, "placeEnergy", { player: p })) throw new IllegalAction("you can't place cards in your energy");
         move(ctx, s, ev, action.card, "energy", p, { reason: "charge", reveal: true });
+        spendProhibitionUse(ctx, s, "placeEnergy", { player: p });
       }
       s.flow.unshift({ op: "checkpoint" }, { op: "turn.mainStart" });
       break;
@@ -2565,6 +2567,7 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
       const d = def(ctx, s, action.card);
       if (baseType(d) !== "BATTLE") throw new IllegalAction("not a playable Battle Card");
       if (!canPlay(ctx, s, p, action.card)) throw new IllegalAction("that card can't be played now");
+      spendProhibitionUse(ctx, s, "play", { player: p, card: action.card, bySkill: false });
       // 5-3: the card may print another price for playing it.
       if (action.alt) {
         const alt = altCostFor(ctx, s, action.card, p, "play");
@@ -2588,6 +2591,7 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
       const d = def(ctx, s, action.card);
       if (baseType(d) !== "UNISON") throw new IllegalAction("not a Unison card");
       if (!canPlay(ctx, s, p, action.card)) throw new IllegalAction("that card can't be played now");
+      spendProhibitionUse(ctx, s, "play", { player: p, card: action.card, bySkill: false });
       const x = d.energyCost === "X" ? action.x : (d.energyCost ?? 0);
       if (d.energyCost === "X" && x < 1) throw new IllegalAction("X must be at least 1");
       const askedUnison = askForPayment(ctx, s, p, action, x, {}, `play ${face(ctx, s, action.card).name}`);
@@ -2606,6 +2610,7 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
       if (!isZ(d)) throw new IllegalAction("only Z-cards can be played from the Z-Deck");
       if (d.type === "Z-LEADER") throw new IllegalAction("Z-Leaders enter through [Z-Awaken]");
       if (!canPlay(ctx, s, p, action.card)) throw new IllegalAction("that card can't be played now");
+      spendProhibitionUse(ctx, s, "play", { player: p, card: action.card, bySkill: false });
       const x = d.energyCost === "X" ? (action.x ?? 0) : (d.energyCost ?? 0);
       const c = d.energyCost === "X" ? { total: x, specified: {} } : playCost(ctx, s, action.card);
       const askedZ = askForPayment(ctx, s, p, action, c.total, c.specified, `play ${face(ctx, s, action.card).name}`);
@@ -2643,6 +2648,7 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
       if (!sk) throw new IllegalAction("no such skill");
       const label = activatable(ctx, s, p, action.card, sk, timing, !!action.alt);
       if (!label) throw new IllegalAction("that skill can't be activated now");
+      spendProhibitionUse(ctx, s, "activateSkill", { player: p, card: action.card });
       activate(ctx, s, ev, p, action.card, sk, action.pay, !!action.alt);
       s.flow.push(timing === "main" ? { op: "turn.promptMain" } : { op: "battle.promptCombo", side: pr.kind === "combo" ? pr.side : "offense" });
       break;
@@ -2651,6 +2657,8 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
       requireMain(s, p);
       const legal = mainActions(ctx, s, p).some((a) => a.action.type === "attack" && a.action.attacker === action.attacker && a.action.target === action.target);
       if (!legal) throw new IllegalAction("illegal attack");
+      spendProhibitionUse(ctx, s, "attack", { player: p, card: action.attacker });
+      spendProhibitionUse(ctx, s, "beAttacked", { player: other(p), card: action.target });
       setMode(s, ev, action.attacker, "rest");
       s.battle = { attacker: action.attacker, guard: action.target, target: action.target, step: "declared", negated: false, blockerOffered: false, revenge: false, reactivate: false, counters: [] };
       joinsBattle(s, action.attacker, action.target);
@@ -2669,6 +2677,7 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
       const d = def(ctx, s, action.card);
       if (!canCombo(d)) throw new IllegalAction("that card can't be used in a combo");
       if (forbids(ctx, s, "combo", { player: p, card: action.card })) throw new IllegalAction("that card can't be used in a combo now");
+      spendProhibitionUse(ctx, s, "combo", { player: p, card: action.card });
       const fromHand = ps.hand.includes(action.card);
       const fromBattle = ps.battle.includes(action.card) && s.cards[action.card].mode === "active" && action.card !== b.attacker && action.card !== b.guard;
       if (!fromHand && !fromBattle) throw new IllegalAction("card not available for a combo");
@@ -2697,6 +2706,7 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
       if (pr.kind !== "blocker") throw new IllegalAction("no blocker decision pending");
       if (action.card) {
         if (!pr.candidates.includes(action.card)) throw new IllegalAction("that card can't block");
+        spendProhibitionUse(ctx, s, "block", { player: p, card: action.card });
         setMode(s, ev, action.card, "rest");
         s.battle!.guard = action.card;
         joinsBattle(s, action.card);
@@ -2717,6 +2727,7 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
         const d = def(ctx, s, action.card);
         const sk = skillsOf(d).find((k) => k.index === (action.skill ?? -1)) ?? skillsOf(d).find((k) => k.kind.startsWith("counter:"));
         if (!sk) throw new IllegalAction("no counter skill");
+        spendProhibitionUse(ctx, s, "activateCounter", { player: p, card: action.card });
         let altProgram: Op[] | undefined;
         // 22-10-4: a [Counter] costs its energy cost and its skill cost —
         // unless the card prints another way to pay for it (5-3).
