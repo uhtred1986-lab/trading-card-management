@@ -6,22 +6,24 @@
  * rules-language.md` §3 deliberately leaves unanswered ("statements and conditions
  * are not listed here and never will be: they are generated from `OP_SCHEMA` and
  * `COND_SCHEMA`"). Every row below comes off a table the interpreter, the printer
- * and the parser already read (`engine/script-schema.ts`, `lang/ast.ts`,
- * `lang/parse.ts`, `gaps.ts`) — nothing here is a second, hand-kept copy of the
- * language, so a schema change shows up here without an edit of its own.
+ * and the parser already read: `OP_SCHEMA`/`COND_SCHEMA` (`engine/script-schema.ts`,
+ * the legacy engine's own vocabulary — still the truth for what an op or a
+ * condition *is*), the selector/filter/expression/cost tables in `lang/ast.ts`
+ * and `lang/parse.ts`, and the areas, durations, sides, keyword names and WHEN
+ * moments off `rulesets/words.ts` — **the game's own words**, not a copy kept
+ * here or in the engine's arrays (see CLAUDE.md's "The game's words are the
+ * only words", 12 Sep 2026). Nothing here is a second, hand-kept copy of the
+ * language, so a schema or a ruleset change shows up here without an edit of
+ * its own.
  *
  * Pure and client-safe, like the rest of `lang/` (see `lang/index.ts`).
  */
 import { emptyFilter, parseFilter, type CardFilter } from "../engine/filters";
 import {
-  AREAS,
   COND_CLASS,
   COND_SCHEMA,
-  DURATIONS,
-  KEYWORD_NAMES,
   OP_CLASS,
   OP_SCHEMA,
-  SIDES,
   SPECIAL_TARGETS,
   condSignature,
   describeCond,
@@ -34,7 +36,7 @@ import {
   type OpClass,
   type OpField,
 } from "../engine/script";
-import { describeTrigger, TRIGGERS } from "../gaps";
+import { whenMoments, words } from "../rulesets/words";
 import { COST_ITEMS, EXPR_ATTRS, EXPR_LITERALS, EXPR_SCHEMA, FILTER_FIELDS, SELECTOR_FIELDS, type FilterFieldType } from "./ast";
 import { SELECTOR_FLAGS } from "./parse";
 
@@ -246,9 +248,16 @@ export interface RefTrigger {
   words: string;
 }
 
-/** `TRIGGERS` is the same list `validateRule` (`lang/validate.ts`) checks a rule's WHEN against. */
+/**
+ * `whenMoments()` is the same list `validateRule` (`lang/validate.ts`) checks
+ * a rule's WHEN against — the game's own triggers, less the five `counter:`
+ * windows a [Counter] answers in rather than a WHEN. Each moment's words are
+ * its declaration's own `text:` (`words()["trigger:" + name]`), the same
+ * source the record's WHEN line reads.
+ */
 function refTriggers(): RefTrigger[] {
-  return TRIGGERS.map((t) => ({ name: t, words: describeTrigger([t]) }));
+  const v = words();
+  return whenMoments(v).map((name) => ({ name, words: v.words[`trigger:${name}`] ?? name }));
 }
 
 export interface RefLiteral {
@@ -258,20 +267,24 @@ export interface RefLiteral {
 
 /**
  * `docs/arena-rules-language.md` §3's "Literals" table. Where a row names an
- * actual closed vocabulary (a special target, a side, a zone, a duration) the
- * words come off the same runtime arrays the schema and the parser read;
- * where the row is pure syntax with no table behind it (a keyword's
- * parameters, a bound variable, a text/null/true/list literal) the syntax is
- * written out, the same way `EXPR_LITERALS` writes out the two expression
- * literals no call name covers.
+ * actual closed vocabulary the words come off the game's own `words()`
+ * (`rulesets/words.ts`) — the side, zone and duration words the parser reads
+ * a selector against, and the keyword names it reads `[…]` against — except
+ * `SPECIAL_TARGETS`, the one list with no `Vocabulary` field and no `DEFINE`
+ * kind that could declare it, which stays the engine's own
+ * (`engine/script-schema.ts`). Where the row is pure syntax with no table
+ * behind it (a keyword's parameters, a bound variable, a text/null/true/list
+ * literal) the syntax is written out, the same way `EXPR_LITERALS` writes out
+ * the two expression literals no call name covers.
  */
 function refLiterals(): RefLiteral[] {
+  const v = words();
   return [
     { written: SPECIAL_TARGETS.map((s) => `[${s}]`).join("  "), is: "a special target" },
-    { written: "[Blocker]   [Strike x: 3]   [Empower color: Red, x: 2]", is: `a keyword skill, with its parameters — one of the ${KEYWORD_NAMES.length} keywords the parser knows (/arena/rules/keywords)` },
+    { written: "[Blocker]   [Strike x: 3]   [Empower color: Red, x: 2]", is: `a keyword skill, with its parameters — one of the ${v.keywordNames.length} keywords the parser knows (/arena/rules/keywords)` },
     { written: "[auto]   [activate:main]   [counter:attack]   [permanent]", is: "the printed skill tag, in WHEN — read-only" },
     { written: "$t,  $looked MINUS $kept", is: "cards bound by an earlier step" },
-    { written: `${SIDES.join(" · ")}   |   ${AREAS.join(" · ")}   |   ${DURATIONS.join(" · ")}`, is: "a side, a zone, a duration" },
+    { written: `${v.sides.join(" · ")}   |   ${v.areas.join(" · ")}   |   ${v.durations.join(" · ")}`, is: "a side, a zone, a duration" },
     { written: `"…"   null   true   [Red, Blue]`, is: "a text, an absent value, a flag, a list" },
   ];
 }

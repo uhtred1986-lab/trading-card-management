@@ -2311,12 +2311,48 @@
       "words": "when this card is played"
     },
     {
+      "name": "youPlayed",
+      "words": "when you play a card"
+    },
+    {
+      "name": "opponentPlayed",
+      "words": "when your opponent plays a card"
+    },
+    {
+      "name": "placed",
+      "words": "when this card is placed in a Battle Area"
+    },
+    {
       "name": "attacks",
       "words": "when this card attacks"
     },
     {
       "name": "attacked",
       "words": "when this card is attacked"
+    },
+    {
+      "name": "opponentAttacks",
+      "words": "when your opponent attacks"
+    },
+    {
+      "name": "yourLeaderAttacked",
+      "words": "when your Leader is attacked"
+    },
+    {
+      "name": "offenseStart",
+      "words": "at the start of the offense step"
+    },
+    {
+      "name": "defenseStart",
+      "words": "at the start of the defense step"
+    },
+    {
+      "name": "damageStart",
+      "words": "at the start of the damage step"
+    },
+    {
+      "name": "battleEnd",
+      "words": "at the end of the battle"
     },
     {
       "name": "koed",
@@ -2335,66 +2371,6 @@
       "words": "when an opponent's card is KO'd"
     },
     {
-      "name": "dealtDamage",
-      "words": "when this card deals damage"
-    },
-    {
-      "name": "chargeStart",
-      "words": "at the start of your Charge Phase"
-    },
-    {
-      "name": "mainStart",
-      "words": "at the start of your Main Phase"
-    },
-    {
-      "name": "mainEnd",
-      "words": "at the end of your Main Phase"
-    },
-    {
-      "name": "turnEnd",
-      "words": "at the end of your turn"
-    },
-    {
-      "name": "opponentTurnEnd",
-      "words": "at the end of your opponent's turn"
-    },
-    {
-      "name": "opponentTurnStart",
-      "words": "at the start of your opponent's turn"
-    },
-    {
-      "name": "battleEnd",
-      "words": "at the end of the battle"
-    },
-    {
-      "name": "comboed",
-      "words": "when this card is used in a combo"
-    },
-    {
-      "name": "opponentPlayed",
-      "words": "when your opponent plays a card"
-    },
-    {
-      "name": "youPlayed",
-      "words": "when you play a card"
-    },
-    {
-      "name": "opponentAttacks",
-      "words": "when your opponent attacks"
-    },
-    {
-      "name": "opponentCombos",
-      "words": "when your opponent combos"
-    },
-    {
-      "name": "youCombo",
-      "words": "when you combo"
-    },
-    {
-      "name": "placed",
-      "words": "when this card is placed in a Battle Area"
-    },
-    {
       "name": "removedFromBattle",
       "words": "when this card is removed from a Battle Area by a skill"
     },
@@ -2411,8 +2387,8 @@
       "words": "when this card goes from a Battle Area to the Drop"
     },
     {
-      "name": "yourLeaderAttacked",
-      "words": "when your Leader is attacked"
+      "name": "dealtDamage",
+      "words": "when this card deals damage"
     },
     {
       "name": "youTookDamage",
@@ -2427,56 +2403,60 @@
       "words": "when a card leaves your life"
     },
     {
-      "name": "evolvedInto",
-      "words": "when a card evolves into this card"
+      "name": "flippedFaceUp",
+      "words": "when a card in your life is flipped face up"
     },
     {
-      "name": "evolveFromHandActivated",
-      "words": "when you use this card's [Evolve] from your hand"
+      "name": "chargeStart",
+      "words": "at the start of your Charge Phase"
     },
     {
-      "name": "opponentCounter",
-      "words": "when your opponent activates a [Counter] skill"
+      "name": "opponentTurnStart",
+      "words": "at the start of your opponent's turn"
     },
     {
-      "name": "counterFreeFromHand",
-      "words": "when you activate this card's [Counter] from your hand without paying its energy cost"
+      "name": "mainStart",
+      "words": "at the start of your Main Phase"
     },
     {
       "name": "opponentMainStart",
       "words": "at the start of your opponent's Main Phase"
     },
     {
+      "name": "mainEnd",
+      "words": "at the end of your Main Phase"
+    },
+    {
+      "name": "turnEnd",
+      "words": "at the end of your turn"
+    },
+    {
+      "name": "opponentTurnEnd",
+      "words": "at the end of your opponent's turn"
+    },
+    {
+      "name": "comboed",
+      "words": "when this card is used in a combo"
+    },
+    {
+      "name": "youCombo",
+      "words": "when you combo"
+    },
+    {
+      "name": "opponentCombos",
+      "words": "when your opponent combos"
+    },
+    {
       "name": "blockerUsed",
       "words": "when this card activates [Blocker]"
     },
     {
-      "name": "restedByAlliance",
-      "words": "when this card is rested by an [Alliance] skill"
+      "name": "evolvedInto",
+      "words": "when a card evolves into this card"
     },
     {
-      "name": "addedToZEnergy",
-      "words": "when this card is added to your Z-Energy"
-    },
-    {
-      "name": "energyToDrop",
-      "words": "when a card goes from your energy to the Drop"
-    },
-    {
-      "name": "unisonToDrop",
-      "words": "when your Unison goes to the Drop"
-    },
-    {
-      "name": "markerRemoved",
-      "words": "when a marker is removed from this card"
-    },
-    {
-      "name": "restedBySkill",
-      "words": "when this card is rested by one of your skills"
-    },
-    {
-      "name": "restedTheirsBySkill",
-      "words": "when your skill rests an opponent's card"
+      "name": "evolveFromHandActivated",
+      "words": "when you use this card's [Evolve] from your hand"
     },
     {
       "name": "unionActivated",
@@ -2495,24 +2475,44 @@
       "words": "when you play a card using [Over Realm]"
     },
     {
+      "name": "opponentCounter",
+      "words": "when your opponent activates a [Counter] skill"
+    },
+    {
+      "name": "counterFreeFromHand",
+      "words": "when you activate this card's [Counter] from your hand without paying its energy cost"
+    },
+    {
+      "name": "restedBySkill",
+      "words": "when this card is rested by one of your skills"
+    },
+    {
+      "name": "restedTheirsBySkill",
+      "words": "when your skill rests an opponent's card"
+    },
+    {
+      "name": "restedByAlliance",
+      "words": "when this card is rested by an [Alliance] skill"
+    },
+    {
+      "name": "markerRemoved",
+      "words": "when a marker is removed from this card"
+    },
+    {
       "name": "spiritBoostPaid",
       "words": "when you pay a [Spirit Boost] cost from this card"
     },
     {
-      "name": "flippedFaceUp",
-      "words": "when a card in your life is flipped face up"
+      "name": "energyToDrop",
+      "words": "when a card goes from your energy to the Drop"
     },
     {
-      "name": "offenseStart",
-      "words": "at the start of the offense step"
+      "name": "unisonToDrop",
+      "words": "when your Unison goes to the Drop"
     },
     {
-      "name": "defenseStart",
-      "words": "at the start of the defense step"
-    },
-    {
-      "name": "damageStart",
-      "words": "at the start of the damage step"
+      "name": "addedToZEnergy",
+      "words": "when this card is added to your Z-Energy"
     }
   ],
   "literals": [
@@ -2533,7 +2533,7 @@
       "is": "cards bound by an earlier step"
     },
     {
-      "written": "you · opponent · both   |   hand · deck · drop · life · battle · combo · energy · unison · leader · warp · zDeck · zEnergy · under · play · removed   |   battle · turn · opponentTurn · nextTurn · afterNextCharge · game",
+      "written": "you · opponent · both   |   deck · hand · drop · leader · battle · combo · energy · life · warp · unison · zDeck · zEnergy · removed · under · play   |   battle · turn · opponentTurn · nextTurn · afterNextCharge · game",
       "is": "a side, a zone, a duration"
     },
     {

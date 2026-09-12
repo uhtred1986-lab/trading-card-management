@@ -8,11 +8,11 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { stateText } from "../../src/lib/arena/ai/view";
-import { TRIGGERS } from "../../src/lib/arena/gaps";
 import { COST_ITEMS, FILTER_FIELDS, SELECTOR_FIELDS } from "../../src/lib/arena/lang/ast";
 import { languageReference } from "../../src/lib/arena/lang/reference";
 import { SELECTOR_FLAGS } from "../../src/lib/arena/lang/parse";
 import { expandMacros, opsIn, rulesetFor } from "../../src/lib/arena/rulesets";
+import { whenMoments } from "../../src/lib/arena/rulesets/words";
 import {
   COND_CLASS,
   COND_SCHEMA,
@@ -355,9 +355,10 @@ import type { CardFilter, SchemaOp } from "./harness";
   assert.deepEqual(ref.filterFields.map((f) => f.field).sort(), Object.keys(FILTER_FIELDS).sort());
   assert.deepEqual(
     ref.triggers.map((t) => t.name),
-    TRIGGERS,
-    "the trigger vocabulary is validateRule's own list, in its own order",
+    whenMoments(),
+    "the trigger vocabulary is validateRule's own list, in its own order — the game's, not the engine's",
   );
+  for (const t of ref.triggers) assert.ok(t.words.length > 0, `${t.name} has words`);
   assert.equal(ref.costItems.length, COST_ITEMS.length);
   // Every op's and condition's referee shape still opens with its own name —
   // the same promise `opSignature`/`condSignature` already assert on their own.
