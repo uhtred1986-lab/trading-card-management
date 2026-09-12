@@ -1,7 +1,7 @@
 {
   "ABSORBER#0": {
     "outcome": "notOffered",
-    "digest": "f69a1a70"
+    "digest": "bbb023a5"
   },
   "ACTIVE-HUNTER#0": {
     "outcome": "inForce",
@@ -201,7 +201,7 @@
   },
   "EVO#0": {
     "outcome": "fired",
-    "digest": "dbd9d091"
+    "digest": "c84aadcf"
   },
   "EXILE#0": {
     "outcome": "fired",
@@ -225,7 +225,7 @@
   },
   "FUSER#0": {
     "outcome": "notOffered",
-    "digest": "4548188c"
+    "digest": "aa35f8c1"
   },
   "GLOATER#0": {
     "outcome": "noScenario",

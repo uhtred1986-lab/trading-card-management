@@ -12,3 +12,9 @@ The documentation that must exist for the rebuilt compiler to be usable by someo
 Child issues:
 
 {{children}}
+
+---
+
+## Review of 12 Sep 2026
+
+**State on 12 Sep 2026.** `docs/arena-rules-language.md` has §1–§8 (220 lines) and its §3 grammar was updated for #129's trigger names. `docs/arena-ruleset-spec.md` does not exist although `CLAUDE.md`, `engines.ts` and four open issues (#130, #132, #134, #141) point at it — **#114 should be the first docs issue picked up**, as a skeleton, so the code issues have a place to write. #111 has nothing to document yet (no Stage 2 primitive has landed since Stage 1 except #129's triggers, which are in §3). #113 ships with #131. #115, #116, #117 can start any time. Each child issue now carries a "Review of 12 Sep 2026" section.

@@ -1,8 +1,10 @@
 ---
 title: Arena: refuse, then read, the pile under another card (23-2)
 milestone: Arena M1 — Rules correctness and parser coverage
-labels: backlog, ready-for-agent, bug, area:arena-compiler, phase:rules-stage2, model:opus-5
+labels: done, bug, area:arena-compiler, phase:rules-stage2, model:opus-5
 stage: 2
+status: closed
+closed_at: 2026-09-10
 ---
 **Source:** `docs/arena-history-lessons.md`, "The card on top of this card — Stage 2, third increment" (section *Measured, ready, and deliberately not shipped*) and the fourth increment; rule manual 23-2; `docs/arena-next-stage-spec.md` §6.8.
 

@@ -539,8 +539,12 @@ export type Trigger =
   | "lifeLeft"
   /** "When a card evolves into this card" (22-5): this card entered play by [Evolve], not by an ordinary play. */
   | "evolvedInto"
+  /** "When using this card's [Evolve] from your hand" (22-5): the [Evolve] activation itself. */
+  | "evolveFromHandActivated"
   /** "When your opponent activates a [Counter] skill" (4-3): watched by your cards in play. */
   | "opponentCounter"
+  /** "When you activate this card's [Counter] from your hand without paying its energy cost" (22-10). */
+  | "counterFreeFromHand"
   /** "At the start of your opponent's Main Phase" (7-3): the *other* player's cards watch it. */
   | "opponentMainStart"
   /** "When this card activates [Blocker]" (22-4): the block itself, not the attack. */
@@ -558,6 +562,8 @@ export type Trigger =
    * The card that did it is the `subject`.
    */
   | "unionActivated"
+  /** "When this card's [Union-Absorb] is activated" (22-13): the keyword activation itself. */
+  | "unionAbsorbActivated"
   | "overlordActivated"
   | "overRealmPlayed"
   /** "When this card is added to your Z-Energy" (17-3). */
