@@ -1,6 +1,6 @@
 # Arena current state (short)
 
-Last updated: 10 Sep 2026
+Last updated: 12 Sep 2026
 
 This file is the short, always-current arena state-of-the-world summary.
 Keep it under 200 lines. Update it whenever arena scope, priorities, or the
@@ -16,6 +16,11 @@ Keep it under 200 lines. Update it whenever arena scope, priorities, or the
   `rules` is scaffolded and intentionally throws `EngineNotBuilt` when selected.
 - The immediate day-to-day work remains improving wording coverage and avoiding
   wrongly-read clauses (prefer unread over wrong reads).
+- `docs/arena-ruleset-spec.md` is the interpreter contract for the `rules`
+  engine: what is configuration and what is code, how a primitive or a game is
+  added, and the oracle protocol that gates each stage. Sections 2–4 (the
+  primitives table, the definition files, the hook contract) are headings the
+  stage issues fill.
 
 ## Current priority order (session start)
 

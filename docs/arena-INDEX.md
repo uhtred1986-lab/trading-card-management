@@ -19,6 +19,7 @@ to read first.
 | `docs/arena-backlog.md` | **Current** | The live roadmap: milestones, phases and how arena backlog issues are tracked in GitHub. |
 | `docs/arena-next-stage-spec.md` | **Current** | The detailed hand-off spec for the current rules-engine stage; read after the next-session prompt when working on compiler/engine internals. |
 | `docs/arena-rules-language.md` | **Current** | The authoritative grammar and invariants for the rules language under `src/lib/arena/lang/`. |
+| `docs/arena-ruleset-spec.md` | **Current** | What is configuration and what is interpreter in the rules engine, the definition files, the oracle protocol and how a primitive or a game is added; §2–§4 are filled by their stage issues. |
 | `docs/arena-workflow-spec.md` | **Current** | The rules-as-workflow UI spec; phases 1–3 are built and phase 4 (Android) is still open. |
 | `docs/arena-rules-workbench-spec.md` | **Current** | The Rules Workbench spec and phase record for rules stored as records rather than compiled at runtime. |
 | `docs/arena-client-contract.md` | **Current** | The shared `Snapshot`/API contract for arena clients; read before changing client-visible arena data. |
