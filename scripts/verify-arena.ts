@@ -21,5 +21,6 @@ import "./verify/language";
 import "./verify/lang";
 import "./verify/rulesets";
 import "./verify/probe";
+import "./verify/vm";
 
 console.log("verify-arena: all checks passed");

@@ -13,7 +13,7 @@
  */
 import type { EngineContext, GameState, LegalAction, PlayerId, RejectedAction } from "./engine";
 import { DEFAULT_ENGINE, engineFor, type EngineId } from "./engines";
-import { boardView, tappable, viewerOf, type BoardView, type CardArt, type Tappable } from "./view";
+import { tappable, viewerOf, type BoardView, type CardArt, type Tappable } from "./view";
 import { maskBeats, type Beats } from "./beats";
 import type { ArenaMode, Spotlight } from "./games";
 import { DEFAULT_GAME, type Game } from "@/lib/catalog/games";
@@ -161,7 +161,7 @@ export function buildSnapshot(input: SnapshotInput): Snapshot {
       ...(input.p1User !== undefined ? { p1User: input.p1User } : {}),
       ...(input.p2User !== undefined ? { p2User: input.p2User } : {}),
     },
-    view: boardView(input.ctx, input.state, viewer, input.images),
+    view: engineFor(input.engine ?? DEFAULT_ENGINE).boardView(input.ctx, input.state, viewer, input.images),
     legal: input.legal,
     taps: tappable(input.legal, rejected),
     ...(rejected.length ? { rejected } : {}),
