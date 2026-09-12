@@ -20,7 +20,7 @@ export interface ProbeRule {
   price: SkillPrice;
 }
 
-export type ProbeFamily = "play" | "attack" | "combo" | "activateMain" | "activateBattle" | "counter" | "permanent" | "keyword" | "moment" | "none";
+export type ProbeFamily = "play" | "attack" | "combo" | "activateMain" | "activateBattle" | "copy" | "counter" | "permanent" | "keyword" | "moment" | "none";
 export type ProbeVariant = "default" | "noTarget" | "negated" | "opponentTurn" | "inHand";
 
 export interface ProbeScenario {

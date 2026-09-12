@@ -414,6 +414,29 @@ THEN
   power(target: [self], amount: markers([self]) * 1000, until: turn)
 ```
 
+One card taking on another's printed skills (20-18). The commoner of the two wordings is printed as
+two clauses — "Choose up to 1 keyword skill on a card placed under this card, and this card gains
+that skill until the end of your opponent's next turn" (BT20-028) — and neither half means anything
+alone, so the compiler joins them into the one step. `only: keyword` is what "**keyword** skill"
+says; with neither `which` nor `skill` given, the engine asks the master which one as the skill
+resolves, offering every skill of every card the selector finds and a decline:
+
+```
+WHEN [activate:main]
+THEN
+  copySkills(target: [self], from: 1 IN you.under, only: keyword, until: nextTurn)
+```
+
+The other wording names the source outright — "Gain all of the chosen card's skills for the
+duration of the turn" (BT3-049) — and copies every skill of it:
+
+```
+WHEN [activate:main]
+THEN
+  choose(sel: 1 IN you.under, as: "c0")
+  copySkills(target: [self], from: $c0, which: all, until: turn)
+```
+
 A counted prohibition with an escape clause:
 
 ```

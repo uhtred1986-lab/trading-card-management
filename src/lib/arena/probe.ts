@@ -32,7 +32,7 @@ import {
 import type { Cond, SkillPrice, XCost } from "./engine/script";
 import { parseFilter } from "./engine/filters";
 import { DEFAULT_ENGINE, engineFor, legacyState, type EngineId } from "./engines";
-import { addEffect, move } from "./engine/state";
+import { addEffect, move, placeUnder } from "./engine/state";
 import { sentence } from "./wording";
 import { assumptionsOf, askedQuestion, boardChanges, candidatesOf, digestOf, emptyProbe, IDLE_PROMPTS, logLines, staticReading, type ProbeStep } from "./probe-report";
 import type { ProbeFamily, ProbeOutcome, ProbeRule, ProbeRun, ProbeScenario, ProbeVariant } from "./probe-types";
@@ -73,6 +73,7 @@ const BODY = "PROBE-BODY";
 const BARRIER = "PROBE-BARRIER";
 const KILLER = "PROBE-KO";
 const MATCH = "PROBE-MATCH";
+const SOURCE = "PROBE-SOURCE";
 const LEADER = "PROBE-LEADER";
 const THEIR_LEADER = "PROBE-RIVAL";
 
@@ -84,11 +85,28 @@ const NAMES: Record<string, string> = {
   [BARRIER]: "Barrier Fighter",
   [KILLER]: "Rival Executioner",
   [MATCH]: "Kindred Fighter",
+  [SOURCE]: "Skilled Fighter",
   [LEADER]: "Your Leader",
   [THEIR_LEADER]: "Rival Leader",
 };
 
 const NO_PRICE: SkillPrice = { condition: null, ops: null };
+
+/**
+ * The card a `copySkills` rule is measured against (20-18): one of each thing
+ * that can be copied — a keyword, a [Permanent] that changes a number, and an
+ * [Auto] with a moment of its own — so a probe can show all three landing on
+ * the target, or show that none of them did.
+ */
+const SOURCE_SKILLS = "[Blocker]\n[Permanent] This card gets +3000 power.\n[Auto] When this card attacks, draw 1 card.";
+const SOURCE_PROGRAMS: CardScripts = {
+  bySkill: {
+    10: { ops: [{ op: "power", target: { sel: { special: "self" } }, amount: 3000, until: "game" }], unsupported: [], price: NO_PRICE },
+    20: { ops: [{ op: "draw", n: 1 }], unsupported: [], trigger: ["attacks"], price: NO_PRICE },
+  },
+  complete: true,
+  unsupported: [],
+};
 
 const KO_PROGRAM: Op[] = [
   { op: "choose", sel: { side: "opponent", area: "battle", count: 1, upTo: true }, as: "t", reason: "choose a Battle Card to KO" },
@@ -134,11 +152,13 @@ function propsFor(rule: ProbeRule): { defs: Record<string, CardDef>; scripts: Re
     body(MATCH, { colors }),
     body(BARRIER, { colors, skill: "[Barrier]" }),
     body(KILLER, { colors, energyCost: 1, skill: "[Activate: Main] Choose up to 1 of your opponent's Battle Cards and KO it." }),
+    body(SOURCE, { colors, power: 5000, skill: SOURCE_SKILLS }),
     rule.def,
   ])
     defs[d.id] = d;
   const scripts: Record<string, CardScripts> = {
     [KILLER]: { bySkill: { 0: { ops: KO_PROGRAM, unsupported: [], price: NO_PRICE } }, complete: true, unsupported: [] },
+    [SOURCE]: SOURCE_PROGRAMS,
   };
   const key = rule.side === "back" ? `${rule.def.id}#back` : rule.def.id;
   scripts[key] = {
@@ -162,6 +182,11 @@ export function familyOf(rule: ProbeRule): ProbeFamily {
   if (kind === "permanent") return "permanent";
   if (kind === "keyword") return "keyword";
   if (kind.startsWith("counter")) return "counter";
+  // 20-18: a rule that copies skills needs a card to copy *from*, which no
+  // other board stages. Only an [Activate] gets a family of its own — an
+  // [Auto] copy still has to be staged at the moment it answers to, and the
+  // source is put on that board too (see `copiesFrom` in `stage`).
+  if (kind.startsWith("activate") && copiesFrom(rule.ops)) return "copy";
   if (kind === "activate:battle") return "activateBattle";
   if (kind.startsWith("activate")) return "activateMain";
   const t = rule.trigger;
@@ -178,6 +203,7 @@ const TITLES: Record<ProbeFamily, string> = {
   combo: "The opponent attacks your Leader and you combo with it",
   activateMain: "Main Phase · 6 energy · the opponent has two Battle Cards, one with [Barrier]",
   activateBattle: "Mid-battle, with it attacking",
+  copy: "Main Phase · 6 energy · a card to copy from, carrying a keyword, a [Permanent] and an [Auto]",
   counter: "The opponent attacks and you answer from hand",
   permanent: "In play, with the opponent activating a KO skill at it",
   keyword: "In play, with the keyword's own rule to answer for it",
@@ -198,6 +224,7 @@ const VARIANTS: Record<ProbeFamily, ProbeVariant[]> = {
   combo: ["default"],
   activateMain: ["default", "noTarget", "negated", "opponentTurn"],
   activateBattle: ["default"],
+  copy: ["default", "noTarget", "negated"],
   counter: ["default"],
   permanent: ["default", "inHand"],
   keyword: ["default"],
@@ -278,7 +305,7 @@ function opening(ctx: EngineContext, engine: EngineId, actor: PlayerId): GameSta
 const deck = (id: string) => Array.from({ length: 50 }, () => id);
 
 /** A card of the probe's own from the bottom of the deck, put where the scenario wants it. */
-function put(ctx: EngineContext, s: GameState, p: PlayerId, cardId: string, area: "hand" | "battle" | "energy" | "unison" | "drop"): string {
+function put(ctx: EngineContext, s: GameState, p: PlayerId, cardId: string, area: "hand" | "battle" | "energy" | "unison" | "drop" | "combo"): string {
   const inst = s.players[p].deck[s.players[p].deck.length - 1];
   s.cards[inst].cardId = cardId;
   move(ctx, s, [], inst, area, p);
@@ -335,6 +362,35 @@ function usesMarkers(ops: Op[]): boolean {
   });
 }
 
+/**
+ * Where a rule copies skills *from* (20-18): the selector of its first
+ * `copySkills`, or — when it copies off a name an earlier step bound — the
+ * selector of the `choose` that bound it, since that is where the card the
+ * probe has to stage will be found. Null when the rule copies nothing.
+ */
+function copiesFrom(ops: Op[]): { side?: string; area?: string } | null {
+  const inner = (list: Op[]): Op[] =>
+    list.flatMap((op) =>
+      op.op === "if"
+        ? [op, ...inner(op.then), ...inner(op.else ?? [])]
+        : op.op === "may" || op.op === "delay"
+          ? [op, ...inner(op.ops)]
+          : op.op === "replace"
+            ? [op, ...inner(op.with)]
+            : op.op === "chooseMode"
+              ? [op, ...op.modes.flatMap((m) => inner(m.ops))]
+              : [op],
+    );
+  const all = inner(ops);
+  const copy = all.find((op) => op.op === "copySkills");
+  if (!copy || copy.op !== "copySkills") return null;
+  const src = copy.from;
+  if ("sel" in src) return { side: src.sel.side, area: src.sel.area };
+  const bound = all.find((op) => op.op === "choose" && op.as === src.var);
+  if (bound?.op === "choose") return { side: bound.sel.side, area: bound.sel.area };
+  return {};
+}
+
 function stage(rule: ProbeRule, scenario: ProbeScenario, engine: EngineId): Staged {
   const { defs, scripts } = propsFor(rule);
   const ctx: EngineContext = { defs, scripts };
@@ -370,6 +426,24 @@ function stage(rule: ProbeRule, scenario: ProbeScenario, engine: EngineId): Stag
   if (usesMarkers(rule.ops)) {
     s.cards[card].markers = 2;
     input.push(`${rule.def.name} has 2 markers on it`);
+  }
+
+  // 20-18: something to copy *from*, put where the rule says to look. A board
+  // built in the card's favour, and declared as one — without it every copy
+  // rule reads as "nothing to take", which is a fact about the board and not
+  // about the rule.
+  const from = scenario.variant === "noTarget" ? null : copiesFrom(rule.ops);
+  if (from) {
+    const theirSide = from.side === "opponent";
+    const area = from.area === "combo" ? "combo" : from.area === "drop" ? "drop" : from.area === "hand" ? "hand" : "battle";
+    if (from.area === "under") {
+      const beneath = put(ctx, s, YOU, SOURCE, "battle");
+      placeUnder(ctx, s, [], beneath, card);
+      input.push(`a card under ${rule.def.name} carrying [Blocker], a [Permanent] and an [Auto]`);
+    } else {
+      put(ctx, s, theirSide ? THEM : YOU, SOURCE, area);
+      input.push(`a card in ${theirSide ? "the opponent's" : "your"} ${area === "battle" ? "Battle Area" : area === "combo" ? "Combo Area" : area === "drop" ? "Drop" : "hand"} carrying [Blocker], a [Permanent] and an [Auto]`);
+    }
   }
 
   // Energy for both sides: the price is never what a probe is meant to fail on.
@@ -429,7 +503,7 @@ function stage(rule: ProbeRule, scenario: ProbeScenario, engine: EngineId): Stag
         : { what: "the opponent attacks", by: THEM, at: ["main"], match: (a) => a.type === "attack" && a.attacker === theirCard },
     );
     goals.push({ what: `counter with ${rule.def.name}`, by: YOU, at: ["counter"], match: (a) => a.type === "counter" && a.card === card });
-  } else if (family === "activateMain" || family === "activateBattle") {
+  } else if (family === "activateMain" || family === "activateBattle" || family === "copy") {
     if (family === "activateBattle") {
       const attacker = home === "battle" ? card : put(ctx, s, YOU, FILLER, "battle");
       goals.push({ what: "attack the opponent's Leader", by: YOU, at: ["main"], match: (a) => a.type === "attack" && a.attacker === attacker });
