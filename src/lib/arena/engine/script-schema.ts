@@ -341,6 +341,74 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
 };
 
 /**
+ * Primitive or macro, one decision per op — `docs/arena-ruleset-spec.md` §2.3,
+ * which carries the reason beside each row and is checked against this table
+ * by `scripts/verify/language.ts`.
+ *
+ * A primitive says something no combination of the others can; everything else
+ * is a macro, re-declared over its primitive in Stage 3's `DEFINE OP` grammar
+ * (#137) without any op losing its name, its row or its printed form. The
+ * `Record` type is the point: a new op fails `npm run typecheck` until it has
+ * been decided, rather than arriving as one more spelling of something the
+ * language already says.
+ *
+ * The value is the doc's own words, so the two cannot drift apart in the half
+ * that matters — which primitive a row lowers to. Some of those primitives are
+ * the general form of a row that exists (`move` is `moveTo`, `negate` is
+ * `negateSkills`) and some are Stage 2 issues not yet built (`replace` #125,
+ * `control`/`skip` #126, `copySkills` #123); §2.2 lists them all.
+ */
+export type OpClass = "primitive" | `macro over ${string}`;
+
+export const OP_CLASS: Record<Op["op"], OpClass> = {
+  draw:               "macro over `move`",
+  discard:            "macro over `choose` + `move`",
+  damage:             "macro over `move`",
+  mill:               "macro over `move`",
+  addLife:            "macro over `move`",
+  lifeDownTo:         "macro over `move`",
+  shuffle:            "primitive",
+  energyMarker:       "macro over `modifyAttr`",
+  choose:             "primitive",
+  look:               "macro over `reveal`",
+  reveal:             "primitive",
+  ko:                 "macro over `move`",
+  moveTo:             "primitive",
+  play:               "primitive",
+  switchMode:         "macro over `modifyAttr`",
+  power:              "macro over `modifyAttr`",
+  comboPower:         "macro over `modifyAttr`",
+  grant:              "macro over `modifyAttr`",
+  negateSkills:       "macro over `negate`",
+  negateSkillsOfKind: "macro over `negate`",
+  hidden:             "macro over `modifyAttr`",
+  redirectAttack:     "macro over `modifyAttr`",
+  comboFrom:          "macro over `move` + `negate`",
+  flip:               "macro over `modifyAttr`",
+  faceUp:             "macro over `modifyAttr`",
+  addMarker:          "macro over `modifyAttr`",
+  removeMarker:       "macro over `modifyAttr`",
+  token:              "primitive",
+  costReduction:      "macro over `costModifier`",
+  negateKeyword:      "macro over `negate`",
+  gains:              "macro over `modifyAttr`",
+  replaceLeave:       "macro over `replace`",
+  altCost:            "macro over `costModifier`",
+  resolvingPlay:      "macro over `replace`",
+  negateAttack:       "macro over `replace`",
+  negateCounter:      "macro over `replace`",
+  negateOwnSkill:     "macro over `negate`",
+  forbid:             "primitive",
+  immune:             "primitive",
+  permit:             "primitive",
+  if:                 "primitive",
+  chooseMode:         "primitive",
+  may:                "macro over `chooseMode`",
+  delay:              "primitive",
+  note:               "primitive",
+};
+
+/**
  * A condition in the same form as an op: its fields, and the sentence it makes.
  *
  * The same reason `OP_SCHEMA` exists. A condition kind used to be written in
@@ -507,6 +575,28 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
     sentence: (raw) => ((raw as CondOf<"isTurnPlayer">).who === "opponent" ? "it is your opponent's turn" : "it is your turn"),
     doc: 'whose turn it is (7-1) — "during your opponent\'s turn" is this, not a duration',
   },
+};
+
+/** Primitive or macro for a condition — `docs/arena-ruleset-spec.md` §2.4, and see `OP_CLASS` above. */
+export const COND_CLASS: Record<Cond["kind"], OpClass> = {
+  count:          "primitive",
+  life:           "macro over `count`",
+  lifeVsOpponent: "macro over `count`",
+  leaderColor:    "macro over `count`",
+  leaderMatches:  "macro over `count`",
+  markers:        "macro over `count`",
+  inBattle:       "macro over `count`",
+  battled:        "macro over `count`",
+  every:          "macro over `count` + `not`",
+  any:            "primitive",
+  all:            "macro over `any` + `not`",
+  leaderFlipped:  "macro over `count`",
+  power:          "macro over `count`",
+  did:            "primitive",
+  not:            "primitive",
+  chose:          "macro over `count`",
+  varMatches:     "macro over `count`",
+  isTurnPlayer:   "primitive",
 };
 
 // ── validation, for programs that did not come from the compiler ───────────
