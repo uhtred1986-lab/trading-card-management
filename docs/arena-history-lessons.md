@@ -2753,3 +2753,74 @@ describe, and says so in its `text:`.
 - **The `--` comment is where a gap belongs, not only the history file.** A gap written only here
   is a gap nobody editing the file will see. Each one above is also one comment at the place the
   field would have been.
+
+---
+
+## What 53 trigger names turned out to be — Stage 3, `triggers.rules` (12 Sep 2026)
+
+Writing the `Trigger` union out as event patterns (#134) is the first time the engine's moments
+have been read against the manual rather than against `pendTriggers`. The file is data — the legacy
+engine is not touched, and Stage 4's matcher is what will fire any of it — but the exercise found
+three shapes worth writing down before anyone builds that matcher.
+
+### One name, several moments
+
+- **`dealtDamage`** is pended at the Damage Step (8-4) *and* by the `damage` operation of a skill
+  (5-10). "When this card deals damage" cannot tell the two apart, and nothing in the record says
+  which one a card meant.
+- **`played`** is pended when a play resolves (9-6-9-4) *and* when the `token` operation puts a
+  token into a Battle Area. A token is **placed**, not played (5-5-4, 19-1) — `placed` is the
+  moment it should carry, and a token with "when this card is played" fires today because of this
+  call site and not because of its text.
+- **`markerRemoved`** is pended by a marker skill's cost (13-4), by an attack knocking markers off
+  a Unison (13-5-2) and by the `removeMarker` operation (5-13). That the first is not the second is
+  exactly why [Spirit Boost] needed `spiritBoostPaid` as a trigger of its own (22-43-3).
+- **`attacked`** is pended at the attack declaration on the guard, again when a card activates
+  [Blocker] and becomes the target, and again when a skill redirects the attack (22-4-2). All three
+  are the same sentence — *this card is now the attack target* — so the declaration is one
+  `attackDeclared(role: target)`, and the two redirections are that event happening a second time
+  rather than two more moments.
+- **`addedToZEnergy`** is pended both by the Z-Energy choice after a combo and by any move into the
+  Z-Energy Area (3-13); **`lifeLeft`** by battle damage and by a skill's damage alike.
+- **`spiritBoostPaid`** and **`flippedFaceUp`** are each pended on the card the event is about *and*
+  on every card that side has in play — one name, two audiences. The declaration says it once, as
+  `watcher: controller` with `BIND "subject"`, because the card itself is in that list (a Life card
+  is not in play, and answers under 9-6-9-1-2's own exception, which `pendTriggers` spells as its
+  `elsewhere` list).
+
+### Several names, one moment
+
+- **`removedFromBattle` / `removedByOpponent`** and **`droppedFromBattle` / `leftBattleToDrop`** are
+  each a move and a narrowing of it, pended from the same two lines. `leftBattleToDrop` is the odd
+  one: it is also pended on a KO, because the wording that names no cause means every cause.
+- **`chargeStart` / `opponentTurnStart`**, **`mainStart` / `opponentMainStart`**, **`turnEnd` /
+  `opponentTurnEnd`**, **`offenseStart` / `defenseStart`** are one moment read from two chairs. In
+  the file they are one event with `WHERE isTurnPlayer(who: you)` or `(who: opponent)`, which is
+  also the manual's framing: "your turn" on a card is its controller's turn (7-1), never a duration.
+- **`evolvedInto` / `evolveFromHandActivated`** are the same [Evolve] activation (22-5). They differ
+  in what they bind — the card that arrived, or the card that used it — and the second only when it
+  came from the hand.
+- **`blockerUsed` / `attacked`** both pend off one [Blocker] activation, and **`played` / `youPlayed`
+  / `opponentPlayed`** off one play. One KO pends up to five: `koed`, `yourCardKoed`,
+  `opponentCardKoed`, `kos` and `leftBattleToDrop`.
+
+### Names with no moment at all
+
+**`energyToDrop`** and **`damageStart`** have no `pendTriggers` call site anywhere in the legacy
+engine. Both are in `TRIGGER_IN_WORDS` and both are matched by the compiler, so a card can be
+*recorded* as answering to them and then never fire — and nothing says so. They are declared in the
+file all the same, because the record's WHEN may name them and the set-equality test in
+`scripts/verify/rulesets.ts` is what keeps those two lists one list; the gap is Stage 4's to close,
+by firing the events or by removing the names from both ends at once.
+
+Two more of the same shape on the counter side: `openCounterWindow`'s `skill` window never asks
+`counterCandidates` at all, so it opens and closes with nothing offered, and `battleCardAttack`
+collapses to `attack` on the way in and is a filter on the attacker rather than a window of its own.
+Both are declared, as `"counter:skill"` and `"counter:battleCardAttack"`.
+
+### A citation to trust the manual for, not the comment
+
+`types.ts` cites 22-40 for [Overlord]. 22-40 is [Servant]; [Overlord] is **22-41**. The file cites
+22-41. Nothing about the engine changes — the doc comment is the thing that is wrong — but it is a
+reminder that the sections in the unions were written from memory and the ones in `rulesets/` were
+written from `docs/rules/rulemanual.txt`.
