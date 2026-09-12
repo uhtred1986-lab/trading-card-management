@@ -1,8 +1,10 @@
 ---
 title: Arena backlog: make the issue sync work without PowerShell — body updates, tracking refresh and an issue number in the front matter
 milestone: Arena M15 — Backlog tooling and CI
-labels: backlog, ready-for-agent, enhancement, area:arena-docs, model:sonnet-5
+labels: done, enhancement, area:arena-docs, model:sonnet-5
 stage: tooling
+status: closed
+closed_at: 2026-09-12
 ---
 **Source:** `scripts/sync-arena-backlog.mts`, `scripts/import-arena-backlog.ps1`, `scripts/close-arena-backlog.ps1`, `docs/arena-backlog/_README.md`, `docs/arena-backlog.md` §6; review of 12 Sep 2026.
 

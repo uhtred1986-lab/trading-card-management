@@ -66,6 +66,8 @@ npm run sync:catalog   # Import both games' catalogs from deckplanet + Fusion Wo
                        # then draft arena rules for every new or changed card and ask Claude about the
                        # skills the compiler could not read (--no-review, --budget N)
 npm run arena:draft    # Compile the catalog offline into card_rules drafts (--card, --set, --only-open, --review)
+npm run arena:rulesets # Rewrite src/lib/arena/rulesets/<game>/files.ts from the .rules files beside it
+                       # (--check fails instead of writing); the loader itself reads no filesystem
 npm run arena:probe    # Try stored rules on a board built for each (--card, --set, --all, --limit, --fill)
 npm run arena:reprobe  # Re-run every probe a rule carries and list the ones whose answer moved (--write)
 npm run arena:tally    # Compiler coverage over the live deckplanet catalog, with op/cond usage and unread
@@ -246,9 +248,18 @@ learned the expensive way. Read it before changing the compiler or the engine.
   condition, selector, filter, keyword, every compiled program and every drafter record, and
   the doc's own examples (`scripts/verify/lang.ts`, in `npm test`) — so the printer never has
   a choice of forms and the parser is the generous one. A filter is printed in its own words
-  only when `parseFilter` reads them back *equal*; otherwise field by field. Later stages add
-  the `DEFINE …` grammar for `rulesets/*.rules` and the referee's answers; the language is
-  shared, not dialected.
+  only when `parseFilter` reads them back *equal*; otherwise field by field. The `DEFINE …`
+  grammar for `rulesets/*.rules` is in (eleven kinds, §3b of the doc); the referee's answers are
+  a later stage, and the language is shared, not dialected.
+- **A game is files, not code** (`src/lib/arena/rulesets/`, since 12 Sep 2026): `loadRuleset(files)`
+  reads a game's `.rules` declarations into one `GameDefinition` — every name resolved against
+  another declaration (a phase's steps, an action's price, a trigger's or a program's zone, a
+  keyword's hook point), the schema's defaults applied (the printer drops none), and a `Vocabulary`
+  of the closed word lists the language is checked against. Pure and **client-safe**: the text
+  arrives as a generated constant (`dbs/files.ts`, written by `npm run arena:rulesets` from the
+  `.rules` files beside it), so nothing reads a file at request time.
+  `docs/arena-ruleset-spec.md` §3 says what each file declares and what the loader refuses;
+  `src/lib/arena/rulesets/dbs/` is empty until the DBS files land.
 - **The record's WHEN is the engine's WHEN** (`skillAnswersTo` in `engine/triggers.ts`): an
   [Auto] skill's moment comes off `card_rules.trigger` (carried on `Script.trigger` by
   `rulesFor`), and only a skill with *no* record falls back to reading the printed text. The
