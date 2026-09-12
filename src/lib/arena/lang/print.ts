@@ -29,7 +29,7 @@ import {
   type Selector,
 } from "../engine/script";
 import type { KeywordSkill } from "../engine/types";
-import { FILTER_FIELDS, FILTER_FIELD_NAMES, type FilterFieldType, type Rule } from "./ast";
+import { FILTER_FIELDS, FILTER_FIELD_NAMES, fieldsOf, type Definition, type DefineFieldType, type DefineHook, type DefineParam, type EventPattern, type FilterFieldType, type Rule } from "./ast";
 
 /**
  * Key-sorted JSON with `undefined` dropped, so "the same object" means the
@@ -325,4 +325,56 @@ export function printRule(rule: Rule): string {
   if (rule.cond) lines.push(`IF ${printCond(rule.cond)}`);
   lines.push(rule.ops.length ? `THEN\n${printOps(rule.ops, 1)}` : "THEN");
   return lines.join("\n");
+}
+
+// ── definitions ─────────────────────────────────────────────────────────────
+
+/**
+ * A game's declarations, printed. One header line — `DEFINE ZONE battle` — and
+ * then one line per field, in the order `DEFINE_SCHEMA` lists them: a field
+ * with a `word` is written as its clause (`ON …`, `DO { … }`), a field without
+ * one as `name: value`.
+ *
+ * The same two rules as a rule's printer. There is no sugar and no second form,
+ * so one declaration prints one way; and a field that is `undefined` is left
+ * out, which is what the loader reads as "its default" — a value that *equals*
+ * the default is still printed, because leaving it out would not bring it back.
+ */
+function printPattern(p: EventPattern): string {
+  const args = Object.keys(p.args).sort();
+  return args.length ? `${p.event}(${args.map((k) => `${k}: ${printPlain(p.args[k])}`).join(", ")})` : p.event;
+}
+
+function printParams(params: DefineParam[]): string {
+  return `(${params.map((p) => `${p.name}: ${p.type}`).join(", ")})`;
+}
+
+function printDefineValue(type: DefineFieldType, v: unknown, indent: number): string {
+  if (type === "pattern") return printPattern(v as EventPattern);
+  if (type === "params") return printParams(v as DefineParam[]);
+  // A `hooks` field is the one that is not a value at all: it prints as a line
+  // of its own per hook, in `printDefinition` below.
+  if (type === "hooks") return "";
+  return printValue(type, v, indent);
+}
+
+export function printDefinition(def: Definition): string {
+  const o = def as unknown as Record<string, unknown>;
+  const lines = [`DEFINE ${def.define} ${atom(def.name)}`];
+  for (const f of fieldsOf(def.define)) {
+    const v = o[f.name];
+    if (v === undefined) continue;
+    if (f.type === "hooks") {
+      for (const hook of v as DefineHook[]) lines.push(`${INDENT}${f.word ?? "HOOK"} ${atom(hook.at)} ${printBlock(hook.ops, 1)}`);
+      continue;
+    }
+    const text = v === null ? "null" : printDefineValue(f.type, v, 1);
+    lines.push(`${INDENT}${f.word ? `${f.word} ${text}` : `${f.name}: ${text}`}`);
+  }
+  return lines.join("\n");
+}
+
+/** A whole file: the declarations in the order they were written, one blank line apart. */
+export function printDefinitions(defs: Definition[]): string {
+  return defs.map(printDefinition).join("\n\n");
 }

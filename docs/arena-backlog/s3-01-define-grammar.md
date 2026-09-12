@@ -52,3 +52,35 @@ stage: 3
 **Done when** `npm test` passes with the new round trips, `docs/arena-rules-language.md` §3b exists and the doc test reads it, and nothing under `src/lib/arena/engine/` changed.
 
 **Traps.** `tokens.ts` lexes `-` and `>` separately; an event pattern like `moved from:hand to:battle` should use `field: value` pairs, not arrows. Do not import anything from `engine/` beyond types and the schema tables — `lang/` ships to the browser (the text view).
+
+---
+
+## Built 12 Sep 2026 — what the grammar actually says (read this before #132)
+
+The grammar, the printer, the parser, the round trips and §3b of
+`docs/arena-rules-language.md` all landed together. Three decisions the steps above
+left open, settled here so the loader is written against the real shapes:
+
+1. **Three new field types, not two.** `pattern` and `params` as the steps name, and a third,
+   `hooks`: a keyword needs one body *per hook point*, and the alternative — reusing the `modes`
+   type, whose shape (`{label, ops}`) is identical — would print hook points as quoted labels
+   inside a list. `hooks` prints one `HOOK <point> { … }` line per body instead, so a ruleset diff
+   shows the hook that changed.
+2. **Every field is a line; a row says which of the two forms it is written in.** `DefineField` is
+   `OpField` plus an optional `word`: with one the field is written as a clause (`ON …`, `DO { … }`,
+   `REFUSE "…"`), without one as `name: value`. The colon tells them apart, so neither can be read
+   as the other, and there is still only one table. A parameter list therefore reads `TAKES (target:
+   ref)` on its own line rather than `DEFINE OP name(params)` as the Stage 3 sketch in
+   `s3-07-op-macros-and-vocabulary.md` drew it — the shape there is illustrative, and the loader
+   does not care.
+3. **Eleven kinds, exactly the list #131 fixed.** `s3-05-dbs-keywords-words-prompts.md` also asks
+   for `DEFINE WORDS` and `DEFINE PROMPT`, which are **not** in the eleven and so do not parse yet.
+   Adding either is one `DEFINE_SCHEMA` row and one AST node now; it needs the owner's word on
+   whether the words table and the prompt questions are declarations of their own or fields of
+   `DEFINE GAME`.
+
+Two smaller facts for #132: a `string` field prints quoted everywhere (`BIND "subject"`,
+`phase: "main"`) because that is what the effect language does with a `string`; and the schema
+carries no `default` values that the printer drops — a field left out of the text is `undefined`
+and the loader is the one that applies a default, because a printer that dropped a value equal to
+its default could not bring it back.

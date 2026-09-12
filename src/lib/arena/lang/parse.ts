@@ -17,7 +17,7 @@
 import { emptyFilter, parseFilter, type CardFilter } from "../engine/filters";
 import { AREAS, DURATIONS, KEYWORD_NAMES, SIDES, SPECIAL_TARGETS, COND_SCHEMA, OP_SCHEMA, type Amount, type Cond, type CostRecord, type FieldType, type Op, type OpField, type Ref, type Selector } from "../engine/script";
 import type { Color, KeywordSkill, Trigger } from "../engine/types";
-import { FILTER_FIELDS, type FilterFieldType, type LangError, type Parsed, type Rule } from "./ast";
+import { DEFINE_KINDS, FILTER_FIELDS, PARAM_TYPES, fieldsOf, type Definition, type DefineField, type DefineFieldType, type DefineHook, type DefineKind, type DefineParam, type EventPattern, type FilterFieldType, type LangError, type Parsed, type PatternValue, type Rule } from "./ast";
 import { LangSyntaxError, lex, positionOf, type Token } from "./tokens";
 
 const SELECTOR_FLAGS: Record<string, (s: Selector) => void> = {
@@ -606,6 +606,145 @@ class Parser {
     return this.text();
   }
 
+  // ── definitions ───────────────────────────────────────────────────────────
+
+  /**
+   * A whole `.rules` file: `DEFINE <KIND> <name>` and then one line per field
+   * until the next `DEFINE` or the end of the text.
+   *
+   * A declaration's body needs no brackets because a field is one line and the
+   * next declaration announces itself; that is the whole of the layout, and it
+   * is why a file diff shows one changed line per changed field.
+   */
+  definitions(): Definition[] {
+    const out: Definition[] = [];
+    this.clause = "DEFINE";
+    this.skipNl();
+    while (this.tok.kind !== "eof") {
+      out.push(this.definition());
+      this.skipNl();
+    }
+    return out;
+  }
+
+  private definition(): Definition {
+    this.clause = "DEFINE";
+    const at = this.tok;
+    if (!this.eatKw("DEFINE")) this.fail("a declaration starts with DEFINE", ["DEFINE"]);
+    const kindAt = this.tok;
+    const kindWord = this.word("a kind of declaration").toUpperCase();
+    const kind = (DEFINE_KINDS as readonly string[]).includes(kindWord) ? (kindWord as DefineKind) : null;
+    if (!kind) throw new LangSyntaxError(`there is nothing called DEFINE ${kindWord} in the language`, kindAt.start, [...DEFINE_KINDS]);
+    // From here an error is reported against the kind, so `LangError.clause`
+    // names the declaration a person is looking at — as it names WHEN or THEN
+    // in a rule.
+    this.clause = kind;
+    const name = this.tok.kind === "string" ? this.string("a name") : this.word("a name");
+    this.endOfLine();
+    const fields = fieldsOf(kind);
+    const out: Record<string, unknown> = { define: kind, name };
+    while (this.tok.kind === "word" && !this.isKw("DEFINE")) {
+      const f = this.defineField(fields);
+      if (f.type === "hooks") {
+        const hooks = (out[f.name] as DefineHook[] | undefined) ?? [];
+        hooks.push(this.hook());
+        out[f.name] = hooks;
+      } else {
+        if (out[f.name] !== undefined) this.fail(`${JSON.stringify(f.name)} is said twice`, []);
+        out[f.name] = this.defineValue(f);
+      }
+      this.endOfLine();
+    }
+    const missing = fields.filter((f) => f.required && out[f.name] === undefined).map((f) => f.name);
+    if (missing.length) throw new LangSyntaxError(`DEFINE ${kind} needs ${missing.map((m) => JSON.stringify(m)).join(", ")}, which is required`, at.start, missing);
+    return out as unknown as Definition;
+  }
+
+  /**
+   * Which field this line is. A field with a `word` is introduced by it
+   * (`ON`, `DO`, `REFUSE`), a field without one is written `name:` — so the
+   * colon after the name is what tells the two apart, and neither can be
+   * mistaken for the other.
+   */
+  private defineField(fields: readonly DefineField[]): DefineField {
+    const at = this.tok;
+    const written = fields.map((f) => f.word ?? `${f.name}:`);
+    if (this.atField()) {
+      const name = this.word("a field name");
+      const f = fields.find((x) => x.name === name && !x.word);
+      if (!f) throw new LangSyntaxError(`there is no field called ${JSON.stringify(name)} here`, at.start, written);
+      this.want(":");
+      this.skipNl();
+      return f;
+    }
+    const word = this.word("a field").toUpperCase();
+    const f = fields.find((x) => x.word === word);
+    if (!f) throw new LangSyntaxError(`${JSON.stringify(word)} says nothing about this declaration`, at.start, written);
+    return f;
+  }
+
+  private defineValue(f: DefineField): unknown {
+    if (this.isKw("null")) {
+      if (!f.nullable) this.fail(`${JSON.stringify(f.name)} cannot be null`, []);
+      this.i++;
+      return null;
+    }
+    return this.typedDefine(f.type);
+  }
+
+  private typedDefine(type: DefineFieldType): unknown {
+    if (type === "pattern") return this.pattern();
+    if (type === "params") return this.params();
+    // `hooks` never reaches here: a hook is a line of its own, read by `hook`.
+    if (type === "hooks") return this.fail("a hook is written HOOK <point> { … }", ["HOOK"]);
+    return this.typed(type);
+  }
+
+  /** `moved(from: hand, to: battle)`, or a bare event name when nothing has to match. */
+  private pattern(): EventPattern {
+    const event = this.word("an event");
+    const args: Record<string, PatternValue> = {};
+    if (!this.eatPunct("(")) return { event, args };
+    this.skipNl();
+    while (!this.isPunct(")")) {
+      if (this.tok.kind === "eof") this.fail("an event pattern is never closed", [")"]);
+      const at = this.tok;
+      const name = this.word("a field of the event");
+      if (args[name] !== undefined) throw new LangSyntaxError(`${JSON.stringify(name)} is said twice`, at.start, []);
+      this.want(":");
+      args[name] = this.plain() as PatternValue;
+      this.skipNl();
+      if (!this.eatPunct(",")) break;
+      this.skipNl();
+    }
+    this.want(")");
+    return { event, args };
+  }
+
+  /** `(target: ref, amount: amount)` — what a macro, a price or a keyword takes. */
+  private params(): DefineParam[] {
+    this.want("(");
+    const out: DefineParam[] = [];
+    this.skipNl();
+    while (!this.isPunct(")")) {
+      if (this.tok.kind === "eof") this.fail("a parameter list is never closed", [")"]);
+      const name = this.word("a parameter name");
+      this.want(":");
+      out.push({ name, type: this.enumValue(PARAM_TYPES) });
+      this.skipNl();
+      if (!this.eatPunct(",")) break;
+      this.skipNl();
+    }
+    this.want(")");
+    return out;
+  }
+
+  /** `HOOK blockDeclared { … }` — the `HOOK` itself is already eaten. */
+  private hook(): DefineHook {
+    const at = this.tok.kind === "string" ? this.string("a hook point") : this.word("a hook point");
+    return { at, ops: this.block() };
+  }
+
   // ── conditions ────────────────────────────────────────────────────────────
 
   private condAndEnd(): Cond {
@@ -704,5 +843,20 @@ export function parseCond(src: string): Parsed<Cond> {
     return { ok: true, value: new Parser(src, lex(src)).cond() };
   } catch (e) {
     return { ok: false, error: errorFrom(src, e, "IF") };
+  }
+}
+
+/**
+ * A `.rules` file → the declarations it holds. Never throws, like `parseRule`:
+ * the failure is the value, and `clause` names the `DEFINE` kind the parser was
+ * inside (or `"DEFINE"` when it had not got that far).
+ */
+export function parseDefinitions(src: string): Parsed<Definition[]> {
+  let parser: Parser | null = null;
+  try {
+    parser = new Parser(src, lex(src));
+    return { ok: true, value: parser.definitions() };
+  } catch (e) {
+    return { ok: false, error: errorFrom(src, e, parser?.clause ?? "DEFINE") };
   }
 }

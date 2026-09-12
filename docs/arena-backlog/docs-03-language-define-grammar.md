@@ -36,3 +36,20 @@ stage: docs
 3. Extend §2 (the round-trip promise) with one paragraph: whole files round-trip through `printDefinitions(parseDefinitions(text))`, and `--` comments are dropped on the way, as for a rule.
 4. A "what the loader refuses" list: dangling reference, duplicate name, unknown hook, missing required field — the four `LangError`s #132 produces.
 5. Test: in `scripts/verify/lang.ts`, assert every `DefineKind` and every schema field name occurs in the doc text (same pattern as the op-list check in `scripts/verify/language.ts`, grep `readFileSync` there).
+
+---
+
+## Built 12 Sep 2026 — §3b exists
+
+Shipped with #131. `docs/arena-rules-language.md` §3b holds the productions, what each of the
+eleven kinds is for, and one example per kind, printed by `printDefinitions` so it cannot drift;
+§2 says the promise covers a whole file and that `--` comments are dropped; the intro says two of
+the three uses now exist. Two tests in `scripts/verify/lang.ts` read the doc: every `DEFINE`
+example parses and prints back byte-identically, and every `DEFINE_SCHEMA` kind, field label and
+row description is named in §3b.
+
+Steps 2 and 4 of the plan above are only partly done, on purpose. The examples come from the
+grammar rather than from `rulesets/dbs/*.rules`, which do not exist yet — #133–#135 should replace
+them with real ones. And "what the loader refuses" lists the four refusals but names the parser as
+the source of the last one only; the dangling reference, the duplicate name and the unknown hook
+are the loader's (#132) and the section says so.
