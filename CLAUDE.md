@@ -225,7 +225,7 @@ learned the expensive way. Read it before changing the compiler or the engine.
 - **Two engines, chosen per game** (`src/lib/arena/engines.ts`, since 9 Sep 2026): `legacy` is
   `src/lib/arena/engine/` — frozen, bug fixes only — and `rules` is the configuration-driven
   engine being built beside it under `src/lib/arena/vm/` (the programme: the plan the owner
-  approved on 9 Sep 2026; specs to come in `docs/arena-rules-language.md` and
+  approved on 9 Sep 2026; specified in `docs/arena-rules-language.md` and
   `docs/arena-ruleset-spec.md`). A game keeps the engine it was made on (`arena_games.engine`,
   and `arena_matches.engine` for a 1 v 1), because `state` is that engine's shape and `actions`
   replay only on it. `engineFor(row.engine)` is the one switch; `games.ts`, `snapshot.ts` and
