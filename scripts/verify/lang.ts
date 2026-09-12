@@ -22,7 +22,7 @@ import { emptyFilter, type CardFilter } from "../../src/lib/arena/engine/filters
 import { AREAS, COND_SCHEMA, KEYWORD_NAMES, OP_SCHEMA, SPECIAL_TARGETS, type Amount, type Cond, type CostRecord, type FieldType, type Op, type OpField, type Selector } from "../../src/lib/arena/engine/script";
 import { pendTriggers } from "../../src/lib/arena/engine/triggers";
 import type { CardScripts, GameState, KeywordSkill, Trigger } from "../../src/lib/arena/engine";
-import { parseRule, printRule, printCond, printOps, printSelector, validateRule, deepEqual, type Rule } from "../../src/lib/arena/lang";
+import { DEFINE_KINDS, DEFINE_SCHEMA, fieldsOf, parseDefinitions, parseRule, printDefinition, printDefinitions, printRule, printCond, printOps, printSelector, validateRule, deepEqual, type Definition, type DefineFieldType, type DefineKind, type Rule } from "../../src/lib/arena/lang";
 import { parseCond } from "../../src/lib/arena/lang/parse";
 import { CTX, DEFS, arena, find, parseFilter, rulesFromCompiler, skillRecords } from "./harness";
 
@@ -48,67 +48,67 @@ const tripCond = (cond: Cond, what: string) => trip(ruleOf([], { cond }), what);
 const tripSelector = (sel: Selector, what: string) => tripOps([{ op: "choose", sel, as: "t" }], what);
 const tripFilter = (filter: CardFilter, what: string) => tripSelector({ side: "you", area: "battle", count: 1, filter }, what);
 
+/**
+ * A value for each field type. `wide` picks a different one wherever the
+ * type has more than one shape, so the maximal instance is not the minimal
+ * one with extra keys — a nested program, a bound-variable amount, an
+ * `areas` list instead of an `area`.
+ */
+const sample = (t: FieldType, wide: boolean): unknown => {
+  if (typeof t === "object") {
+    if ("enum" in t) return t.enum[wide ? t.enum.length - 1 : 0];
+    return t.list === "string" ? ["Saiyan", "Son Goku: GT"] : [t.list.enum[0]];
+  }
+  switch (t) {
+    case "amount":
+      return wide ? { count: { side: "you", areas: ["battle", "unison"] as const, count: 99 }, times: 5000 } : 1;
+    case "ref":
+      return wide ? { var: "looked", minus: "kept" } : { sel: { special: "self" as const } };
+    case "selector":
+      return wide ? { side: "opponent" as const, area: "battle" as const, count: 2, upTo: true, mode: "rest" as const, notSelf: "copies" as const, ignoreBarrier: true } : { side: "you" as const, area: "battle" as const, count: 1 };
+    case "side":
+      return wide ? "both" : "you";
+    case "area":
+      return wide ? "zEnergy" : "drop";
+    case "duration":
+      return wide ? "afterNextCharge" : "turn";
+    case "cond":
+      return wide ? { kind: "not", cond: { kind: "isTurnPlayer", who: "opponent" } } : { kind: "isTurnPlayer" };
+    case "conds":
+      return [{ kind: "isTurnPlayer" }, { kind: "life", side: "you", atMost: 4 }];
+    case "ops":
+      return [{ op: "draw", n: 1 }, { op: "shuffle" }];
+    case "string":
+      return wide ? 'a name with "quotes" and a comma, too' : "t";
+    case "number":
+      return wide ? 3 : 1;
+    case "boolean":
+      return wide;
+    case "keyword":
+      return wide ? { name: "Empower", color: "Red", x: 1 } : { name: "Blocker" };
+    case "filter":
+      return parseFilter(wide ? "blue non-token Battle Card with an energy cost of 3 or less" : "red card");
+    case "modes":
+      return [
+        { label: "Draw 1 card.", ops: [{ op: "draw", n: 1 }] },
+        { label: "Your opponent discards 1 card.", ops: [{ op: "discard", n: 1, side: "opponent" }] },
+      ];
+  }
+};
+
+const instance = (fields: OpField[], wide: boolean): Record<string, unknown> => {
+  const out: Record<string, unknown> = {};
+  for (const f of fields) {
+    if (!wide && !f.required) continue;
+    // A nullable field is where the language has to say "null" out loud, so
+    // the wide instance is the one that does.
+    out[f.name] = wide && f.nullable ? null : sample(f.type, wide);
+  }
+  return out;
+};
+
 // ── every op and every condition, at its narrowest and at its widest ─────────
 {
-  /**
-   * A value for each field type. `wide` picks a different one wherever the
-   * type has more than one shape, so the maximal instance is not the minimal
-   * one with extra keys — a nested program, a bound-variable amount, an
-   * `areas` list instead of an `area`.
-   */
-  const sample = (t: FieldType, wide: boolean): unknown => {
-    if (typeof t === "object") {
-      if ("enum" in t) return t.enum[wide ? t.enum.length - 1 : 0];
-      return t.list === "string" ? ["Saiyan", "Son Goku: GT"] : [t.list.enum[0]];
-    }
-    switch (t) {
-      case "amount":
-        return wide ? { count: { side: "you", areas: ["battle", "unison"] as const, count: 99 }, times: 5000 } : 1;
-      case "ref":
-        return wide ? { var: "looked", minus: "kept" } : { sel: { special: "self" as const } };
-      case "selector":
-        return wide ? { side: "opponent" as const, area: "battle" as const, count: 2, upTo: true, mode: "rest" as const, notSelf: "copies" as const, ignoreBarrier: true } : { side: "you" as const, area: "battle" as const, count: 1 };
-      case "side":
-        return wide ? "both" : "you";
-      case "area":
-        return wide ? "zEnergy" : "drop";
-      case "duration":
-        return wide ? "afterNextCharge" : "turn";
-      case "cond":
-        return wide ? { kind: "not", cond: { kind: "isTurnPlayer", who: "opponent" } } : { kind: "isTurnPlayer" };
-      case "conds":
-        return [{ kind: "isTurnPlayer" }, { kind: "life", side: "you", atMost: 4 }];
-      case "ops":
-        return [{ op: "draw", n: 1 }, { op: "shuffle" }];
-      case "string":
-        return wide ? 'a name with "quotes" and a comma, too' : "t";
-      case "number":
-        return wide ? 3 : 1;
-      case "boolean":
-        return wide;
-      case "keyword":
-        return wide ? { name: "Empower", color: "Red", x: 1 } : { name: "Blocker" };
-      case "filter":
-        return parseFilter(wide ? "blue non-token Battle Card with an energy cost of 3 or less" : "red card");
-      case "modes":
-        return [
-          { label: "Draw 1 card.", ops: [{ op: "draw", n: 1 }] },
-          { label: "Your opponent discards 1 card.", ops: [{ op: "discard", n: 1, side: "opponent" }] },
-        ];
-    }
-  };
-
-  const instance = (fields: OpField[], wide: boolean): Record<string, unknown> => {
-    const out: Record<string, unknown> = {};
-    for (const f of fields) {
-      if (!wide && !f.required) continue;
-      // A nullable field is where the language has to say "null" out loud, so
-      // the wide instance is the one that does.
-      out[f.name] = wide && f.nullable ? null : sample(f.type, wide);
-    }
-    return out;
-  };
-
   for (const [name, spec] of Object.entries(OP_SCHEMA)) {
     for (const wide of [false, true]) {
       const op = { op: name, ...instance(spec.fields, wide) } as unknown as Op;
@@ -139,6 +139,137 @@ const tripFilter = (filter: CardFilter, what: string) => tripSelector({ side: "y
     { markers: { side: "opponent", area: "unison", count: 99 }, times: 5000 },
   ];
   for (const n of AMOUNTS) tripOps([{ op: "draw", n }], `draw amount ${JSON.stringify(n)}`);
+}
+
+/**
+ * The three shapes a card's rule never carries, and so the three the op
+ * schema has no field type for: a trigger's event pattern, a macro's
+ * parameter list, and a keyword's hook bodies. Everything else a declaration
+ * holds is an `OP_SCHEMA` field type and comes from `sample` above, so the
+ * definition grammar is checked with the same values the effect language is.
+ */
+const defineSample = (t: DefineFieldType, wide: boolean): unknown => {
+  if (t === "pattern") return wide ? { event: "moved", args: { by: "you", from: "hand", to: "battle", faceUp: true, n: 1, of: ["Red", "Blue"], host: null } } : { event: "attacked", args: {} };
+  if (t === "params") return wide ? [{ name: "target", type: "ref" as const }, { name: "amount", type: "amount" as const }, { name: "color", type: "color" as const }] : [];
+  if (t === "hooks")
+    return wide
+      ? [
+          { at: "blockDeclared", ops: [{ op: "draw", n: 1 }] },
+          { at: "attackDeclared", ops: [] },
+        ]
+      : [{ at: "played", ops: [] }];
+  return sample(t, wide);
+};
+
+const declaration = (kind: DefineKind, wide: boolean): Definition => {
+  const out: Record<string, unknown> = { define: kind, name: wide ? "Energy-Exhaust" : "thing" };
+  for (const f of fieldsOf(kind)) {
+    if (!wide && !f.required) continue;
+    out[f.name] = wide && f.nullable ? null : defineSample(f.type, wide);
+  }
+  return out as unknown as Definition;
+};
+
+// ── every DEFINE kind, at its narrowest and at its widest ───────────────────
+{
+  /** print → parse → the same declarations, and the same text a second time. */
+  const tripDefs = (defs: Definition[], what: string): void => {
+    const text = printDefinitions(defs);
+    const back = parseDefinitions(text);
+    assert.ok(back.ok, `${what}: ${back.ok ? "" : `${back.error.clause} ${back.error.line}:${back.error.col} ${back.error.message}`}\n${text}`);
+    assert.ok(deepEqual(back.value, defs), `${what} came back different:\n${text}\n  was: ${JSON.stringify(defs)}\n  now: ${JSON.stringify(back.ok ? back.value : null)}`);
+    assert.equal(printDefinitions(back.value), text, `${what} does not print the same way twice`);
+  };
+
+  const all: Definition[] = [];
+  for (const kind of DEFINE_KINDS) {
+    for (const wide of [false, true]) {
+      const def = declaration(kind, wide);
+      tripDefs([def], `DEFINE ${kind} (${wide ? "every field" : "required fields only"})`);
+      all.push(def);
+    }
+  }
+  // …and a whole file at once, which is how a ruleset is actually read: the
+  // declarations have to end at each other without a bracket to say so.
+  tripDefs(all, "a whole file of declarations");
+
+  // The layout, written out once. A declaration is a header line and one line
+  // per field — a word for the clause fields, `name: value` for the rest — and
+  // a nested program is a block at one more indent, exactly as a rule's is.
+  assert.equal(
+    printDefinition({ define: "ZONE", name: "battle", owner: "player", visibility: "all", ordered: false, inPlay: true, modes: ["active", "rest"] }),
+    ["DEFINE ZONE battle", "  owner: player", "  visibility: all", "  ordered: false", "  inPlay: true", "  modes: [active, rest]"].join("\n"),
+  );
+  assert.equal(
+    printDefinition({ define: "TRIGGER", name: "played", on: { event: "moved", args: { to: "battle" } }, where: { kind: "isTurnPlayer" }, bind: "subject" }),
+    ["DEFINE TRIGGER played", "  ON moved(to: battle)", "  WHERE isTurnPlayer()", '  BIND "subject"'].join("\n"),
+  );
+  assert.equal(
+    printDefinition({ define: "OP", name: "koAll", takes: [{ name: "target", type: "ref" }], do: [{ op: "ko", target: { var: "t" } }], text: "KO them" }),
+    ["DEFINE OP koAll", "  TAKES (target: ref)", "  DO {", "    ko(target: $t)", "  }", '  text: "KO them"'].join("\n"),
+  );
+  // A keyword's bodies are one `HOOK` line each rather than a list, so a diff
+  // of a ruleset shows the hook that changed and not the whole keyword.
+  assert.equal(
+    printDefinition({ define: "KEYWORD", name: "Blocker", takes: [], text: "may block", hooks: [{ at: "blockDeclared", ops: [] }, { at: "attackDeclared", ops: [{ op: "draw", n: 1 }] }] }),
+    ["DEFINE KEYWORD Blocker", "  TAKES ()", '  text: "may block"', "  HOOK blockDeclared {}", "  HOOK attackDeclared {", "    draw(n: 1)", "  }"].join("\n"),
+  );
+  // A name with a hyphen is quoted, as every other value with one is.
+  assert.match(printDefinition(declaration("KEYWORD", true)), /^DEFINE KEYWORD "Energy-Exhaust"$/m);
+
+  // The parser is the generous one here too: the kind and the clause words in
+  // any case, the fields in any order, and `--` comments dropped on the way.
+  const loose = parseDefinitions(['-- the battle area (3-6)', 'define zone battle', '  visibility: all   -- both players see it', '  owner: player', '', 'DEFINE WIN deckOut', '  result: lose', '  if life(you) <= 0'].join("\n"));
+  assert.ok(loose.ok, `a loosely typed file is still read: ${loose.ok ? "" : loose.error.message}`);
+  assert.ok(
+    deepEqual(loose.ok ? loose.value : null, [
+      { define: "ZONE", name: "battle", owner: "player", visibility: "all" },
+      { define: "WIN", name: "deckOut", if: { kind: "life", side: "you", atMost: 0 }, result: "lose" },
+    ]),
+    `a loosely typed file reads as ${JSON.stringify(loose.ok ? loose.value : null)}`,
+  );
+  const empty = parseDefinitions("");
+  assert.ok(empty.ok && empty.value.length === 0, "an empty file holds no declarations");
+  assert.equal(parseDefinitions("-- nothing but a note\n").ok, true, "a file of comments is an empty file");
+}
+
+// ── a declaration that is missing something says which, and where ───────────
+{
+  const bad = (src: string) => {
+    const r = parseDefinitions(src);
+    assert.ok(!r.ok, `${src} should not parse`);
+    return r.ok ? null! : r.error;
+  };
+
+  // One case per kind, as the acceptance asks: drop a required field and the
+  // error names the kind it was in, so the editor can point at the declaration
+  // rather than at the file.
+  for (const kind of DEFINE_KINDS) {
+    for (const missing of fieldsOf(kind).filter((f) => f.required)) {
+      const def = { ...declaration(kind, false) } as Record<string, unknown>;
+      delete def[missing.name];
+      const text = printDefinitions([def as unknown as Definition]);
+      const e = bad(text);
+      assert.equal(e.clause, kind, `a ${kind} missing ${missing.name} is reported against ${e.clause}\n${text}`);
+      assert.match(e.message, new RegExp(`needs .*${missing.name}`), `the error names the missing field:\n${text}\n${e.message}`);
+      assert.ok(e.expected.includes(missing.name), "…and offers it as what could have stood there");
+    }
+  }
+
+  assert.equal(bad("DEFINE NONSENSE x").clause, "DEFINE", "a kind the language has no row for is not inside any declaration");
+  assert.match(bad("DEFINE NONSENSE x").message, /nothing called DEFINE NONSENSE/);
+  assert.deepEqual(bad("ZONE battle").expected, ["DEFINE"], "a file starts with DEFINE");
+  const unknown = bad("DEFINE ZONE battle\n  owner: player\n  visibility: all\n  colour: red");
+  assert.equal(unknown.clause, "ZONE");
+  assert.equal(unknown.line, 4);
+  assert.match(unknown.message, /no field called "colour"/);
+  assert.ok(unknown.expected.includes("owner:"), "the message names the fields as they are written");
+  assert.match(bad("DEFINE TRIGGER played\n  ON moved(to: battle)\n  NOPE 1").message, /"NOPE" says nothing/);
+  assert.match(bad("DEFINE ZONE battle\n  owner: player\n  owner: shared\n  visibility: all").message, /"owner" is said twice/);
+  assert.match(bad("DEFINE ZONE battle\n  owner: player ordered: false\n  visibility: all").message, /runs on past the end of its line/);
+  assert.match(bad("DEFINE ZONE battle\n  owner: nobody\n  visibility: all").message, /not one of these/);
+  assert.match(bad("DEFINE OP koAll\n  TAKES (target: nonsense)\n  DO {}").message, /not one of these/);
+  assert.match(bad("DEFINE TRIGGER played\n  ON moved(to: battle, to: hand)").message, /"to" is said twice/);
 }
 
 // ── the sugars, both ways ───────────────────────────────────────────────────
@@ -465,6 +596,31 @@ const tripFilter = (filter: CardFilter, what: string) => tripSelector({ side: "y
   // work happens.
   const doc = fs.readFileSync(path.join(__dirname, "../../docs/arena-rules-language.md"), "utf8").replace(/\r\n/g, "\n");
   const examples = [...doc.matchAll(/```\n(WHEN[\s\S]*?)```/g)].map((m) => m[1].replace(/\s+$/, ""));
+  // The definition grammar's own examples (§3b), the same way: they are what a
+  // person copies when they are writing a ruleset, so a wrong one costs more
+  // than none. Printed back exactly as written, which also proves the doc was
+  // not hand-edited away from the printer's form.
+  const defExamples = [...doc.matchAll(/```\n(DEFINE[\s\S]*?)```/g)].map((m) => m[1].replace(/\s+$/, ""));
+  assert.equal(defExamples.length, DEFINE_KINDS.length, `§3b should show one example per DEFINE kind, not ${defExamples.length}`);
+  for (const src of defExamples) {
+    const parsed = parseDefinitions(src);
+    assert.ok(parsed.ok, `the doc's declaration does not parse: ${parsed.ok ? "" : `${parsed.error.clause} ${parsed.error.line}:${parsed.error.col} ${parsed.error.message}`}\n${src}`);
+    assert.equal(printDefinitions(parsed.value), src, `the doc's declaration is not how the printer writes it:\n${src}`);
+  }
+
+  // …and §3b names every row of `DEFINE_SCHEMA`, field by field, as the op list
+  // is checked against the effect-language legend. A kind or a field the
+  // grammar has and the doc does not is a reference that has started lying.
+  const section = doc.slice(doc.indexOf("## 3b."), doc.indexOf("## 4."));
+  assert.ok(section.length > 1000, "§3b is missing from the language doc");
+  for (const kind of DEFINE_KINDS) {
+    assert.ok(section.includes(`DEFINE ${kind}`), `§3b does not mention DEFINE ${kind}`);
+    assert.ok(section.includes(DEFINE_SCHEMA[kind].doc.slice(0, 24)), `§3b does not say what a ${kind} is for`);
+    for (const f of fieldsOf(kind)) {
+      const written = f.word ?? `${f.name}:`;
+      assert.ok(section.includes(written), `§3b does not name the ${kind} field written ${JSON.stringify(written)}`);
+    }
+  }
   assert.ok(examples.length >= 5, `only ${examples.length} worked examples in the language doc`);
   for (const src of examples) {
     const parsed = parseRule(src);

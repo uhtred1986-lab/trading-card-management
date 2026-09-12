@@ -1,13 +1,14 @@
 # The rules language
 
-Written 9 Sep 2026, Stage 1 of the programme in `docs/arena-history-lessons.md`. Code:
-`src/lib/arena/lang/`. Tests: `scripts/verify/lang.ts`, part of `npm test`.
+Written 9 Sep 2026, Stage 1 of the programme in `docs/arena-history-lessons.md`; the definition
+grammar (§3b) added 12 Sep 2026, Stage 3. Code: `src/lib/arena/lang/`. Tests:
+`scripts/verify/lang.ts`, part of `npm test`.
 
-One grammar for three things, of which only the first exists today:
+One grammar for three things, of which the first two exist today:
 
 1. **a card's rule** — the `card_rules` row, printed and read back by the workbench's text view;
-2. **a game's definition** — `rulesets/*.rules` (Stage 3), which is why the parser is written
-   table-driven rather than around the shape of a card;
+2. **a game's definition** — the `DEFINE` declarations of §3b, which `rulesets/*.rules` will hold,
+   and which is why the parser is written table-driven rather than around the shape of a card;
 3. **the referee's answers** — JSON until the language settles.
 
 ## 1. What it is for
@@ -41,6 +42,12 @@ Two rules keep it true.
 - **The parser is the generous one.** It takes the first required argument positionally
   (`ko($t)` for `ko(target: $t)`), keywords in any case, and the parts of a selector in any order.
   The asymmetry is what makes the promise an equality rather than a fixed point.
+
+A **whole file** of declarations round-trips the same way: `printDefinitions(parseDefinitions(text))`
+is `text` for every declaration the grammar can hold, over a minimal and a maximal instance of every
+`DEFINE` kind and over all of them in one file (§3b). `--` comments are dropped on the way, as they
+are for a rule — the printer never writes one, so a note it would eat on the next save is worse than
+no note.
 
 **Equality is the language's own** (`deepEqual` in `print.ts`): keys sorted, `undefined` dropped,
 and two shapes the engine cannot tell apart treated as one —
@@ -110,6 +117,212 @@ field form is used instead: `(colors = [Blue] AND traits = [Saiyan] AND costMax 
 exact. `parseFilter` ignores wording it does not know, so a filter printed in words it cannot
 re-read would come back *wider* than it went in, which is the silent widening ground rule 5
 forbids.
+
+## 3b. The definition grammar
+
+The second of the language's three uses: a **game's own definition**, written as declarations in
+`rulesets/*.rules` instead of as TypeScript unions and a phase switch. Stage 3 (12 Sep 2026) added
+the grammar and nothing else — no declaration is *interpreted* yet (Stage 4), no name is resolved
+against another (the loader), and the DBS files are their own issues. `parseDefinitions(text)` and
+`printDefinitions(defs)` are the two calls, beside `parseRule` / `printRule`.
+
+```
+file    := ( definition )*                          blank lines and "--" comments between
+definition := "DEFINE" kind name ( field )*         one field per line, until the next DEFINE
+kind    := "GAME" | "ATTRIBUTE" | "ZONE" | "PHASE" | "STEP" | "ACTION" | "TRIGGER"
+         | "KEYWORD" | "COST" | "WIN" | "OP"
+name    := word | "\"" text "\""                     quoted when it carries a space or a hyphen
+field   := name ":" value                           the fields written as a pair
+         | WORD value                               the fields written as a clause word
+         | "HOOK" point "{" stmt* "}"               a keyword's body, one line per hook point
+value   := every value form of §3 — an amount, a selector, a cond, a program "{ … }",
+           a list, a quoted text, a number, a flag
+pattern := event ( "(" field ":" plain ( "," field ":" plain )* ")" )?
+params  := "(" ( name ":" type ( "," name ":" type )* )? ")"
+type    := amount | ref | selector | side | area | duration | cond | conds | ops
+         | string | number | boolean | keyword | filter | modes | color | colors
+```
+
+A declaration's body needs no brackets: a field is one line, and the next `DEFINE` announces
+itself. That is deliberate — a ruleset diff then shows one changed line per changed field.
+
+**The fields come from one table.** `DEFINE_SCHEMA` (`lang/ast.ts`) has one row per kind, the way
+`OP_SCHEMA` has one per step, and the printer, the parser and the error messages all read it: a
+field added to a declaration without a row fails `npm run typecheck`, and so does a row with no
+field to put it in. A field whose row carries a `word` is written as that clause word (`ON`, `DO`,
+`REFUSE`); every other field is written `name: value`. The colon is what tells the two apart, so
+neither can be read as the other.
+
+Three shapes a card's rule never carries, and so three field types the op schema has no word for:
+`pattern` (a trigger's event — `moved(to: battle)`, written as `field: value` pairs and never as an
+arrow, because the lexer reads `-` and `>` as two tokens), `params` (what a macro, a price or a
+keyword takes), and `hooks` (a keyword's bodies, which print one `HOOK` line each rather than as a
+list, so a diff shows the hook that changed).
+
+### The eleven kinds
+
+**GAME** — the game itself: how a player starts and what a turn is made of (manual §5). `title:`,
+`players:`, `deck:`, `zDeck:`, `hand:`, `life:`, `startMarkers:`, `markersPerTurn:`, `mulligan:`,
+`firstPlayerDraws:`, `phases:`. Only `deck:`, `hand:` and `life:` are required; a field left out is
+the loader's default.
+
+```
+DEFINE GAME dbs
+  title: "Dragon Ball Super Card Game"
+  players: 2
+  deck: 50
+  zDeck: 7
+  hand: 6
+  life: 8
+  markersPerTurn: 1
+  mulligan: true
+  phases: [charge, main, end]
+```
+
+**ATTRIBUTE** — something a card, a player or a zone has — printed on the card, or derived from the
+board (manual §4). `of:` (card | player | zone) and `value:` (number | string | strings | colors |
+boolean) are required; `printed:` says it comes off the card, `derived:` is the expression that
+computes it instead, `layers:` the order the layers apply in, `text:` what it means.
+
+```
+DEFINE ATTRIBUTE power
+  of: card
+  value: number
+  printed: true
+  layers: [printed, markers, skills]
+  text: "the number a battle is decided by (4-6)"
+```
+
+**ZONE** — an area cards sit in: who owns it, who may see it, and whether what is in it is in play
+(manual §3, §9-1-3). `owner:` (player | shared) and `visibility:` (none | owner | opponent | all)
+are required; then `ordered:`, `single:`, `markers:`, `inPlay:`, `host:` (cards may sit under a card
+here), `modes:` and `text:`.
+
+```
+DEFINE ZONE battle
+  owner: player
+  visibility: all
+  ordered: false
+  inPlay: true
+  modes: [active, rest]
+  text: "where Battle Cards are played (3-6)"
+```
+
+**PHASE** — a phase of the turn, in the order the game declares (`DEFINE GAME`'s `phases:`).
+`steps:` is required; `actions:` lists what a player may do in it, `auto:` says it passes with no
+prompt, `text:` what it is.
+
+```
+DEFINE PHASE main
+  steps: [mainStart, mainActions]
+  actions: [playCard, attack, activateSkill]
+  text: "the phase a player takes their moves in (6-4)"
+```
+
+**STEP** — one step of a phase, and the program it runs. `phase:` is required; `DO` is the program
+the step runs, `optional:` whether it may be skipped, `prompt:` what is asked, `text:` what it is.
+
+```
+DEFINE STEP mainStart
+  phase: "main"
+  DO {
+    note(text: "the moment [Auto] skills of the Main Phase answer to")
+  }
+  text: "the start of the Main Phase (6-4-1)"
+```
+
+**ACTION** — a move a player may make, and the sentence that says why they may not: `WHEN` the
+phases it is available in (required), `FOR` the cards it applies to, `COST` the names of the `DEFINE
+COST` prices it charges, `DO` what it does (required), `REFUSE` the sentence said when it may not be
+taken. The refusal is part of the declaration because every rule is a visible workflow
+(`docs/arena-workflow-spec.md`): an action with no `REFUSE` can only be missing from the menu, never
+explained.
+
+```
+DEFINE ACTION playCard
+  WHEN [main]
+  FOR 1 IN you.hand
+  COST [energy]
+  DO {
+    moveTo(target: $chosen, to: battle)
+  }
+  REFUSE "you cannot pay for that card"
+```
+
+**TRIGGER** — a moment an [Auto] or a [Counter] answers to, as the event that is it (manual §9-6).
+`ON` is the event pattern (required), `WHERE` a condition on it, `BIND` the name the event's subject
+is bound to, `text:` the moment in words. This is the same vocabulary a record's WHEN names (§7), so
+a rule cannot answer to a moment the definition does not declare.
+
+```
+DEFINE TRIGGER played
+  ON moved(to: battle)
+  WHERE isTurnPlayer()
+  BIND "subject"
+  text: "a card arrives in a Battle Area from outside play (9-6-9-4)"
+```
+
+**KEYWORD** — a keyword skill: what it means, what it takes, and the hook points it hangs on (manual
+§22). `TAKES` its parameters, `text:` what it means (required), `section:` the manual section, and
+one `HOOK` line per hook point it hangs on. A keyword with no `HOOK` is a declaration of the name
+and its meaning and nothing more, which is what Stage 3 writes: the bodies are Stage 7.
+
+```
+DEFINE KEYWORD Blocker
+  TAKES ()
+  text: "switch this card to Active Mode and make it the attack target (22-4)"
+  section: "22-4"
+  HOOK attackDeclared {}
+```
+
+**COST** — a price the game knows how to charge, named so an action can ask for it. `TAKES` its
+parameters, `IF` when it can be paid, `DO` what paying it does (required), `text:` how it reads.
+
+```
+DEFINE COST energy
+  TAKES (amount: amount)
+  IF isTurnPlayer()
+  DO {
+    switchMode(target: [self], mode: rest)
+  }
+  text: "cards from the Energy Area, switched to Rest Mode (7-2)"
+```
+
+**WIN** — a condition that ends the game, and for whom. `IF` the condition (required), `result:` win
+| lose | draw (required), `who:` the side it is about, `text:` the manual's wording.
+
+```
+DEFINE WIN lifeOut
+  IF life(you) <= 0
+  result: lose
+  who: you
+  text: "a player with no life left loses (2-2)"
+```
+
+**OP** — a macro over the primitives, so a step the cards use is a row rather than an interpreter
+case. `TAKES` its parameters, `DO` the program it expands to (required), `text:` the sentence it
+renders as, `doc:` the line the referee is told. The round-trip promise is over the macro's
+**name**: a program keeps printing `power(…)` and never its expansion.
+
+```
+DEFINE OP koAll
+  TAKES (target: ref)
+  DO {
+    ko(target: $t)
+  }
+  text: "KO every chosen card"
+  doc: "the macro every KO wording lowers to"
+```
+
+### What the loader refuses
+
+The parser refuses what it cannot read: an unknown kind, an unknown field, a field said twice, a
+value outside a closed list, and a **required field left out** — which fails at the declaration's
+own line, with `clause` naming the kind, exactly as a rule's missing argument fails at the call
+(§5). Everything that needs a second declaration to check is the loader's, not the grammar's: a
+**dangling reference** (an `ACTION` naming a `COST` nothing declares, a `TRIGGER` naming an unknown
+zone), a **duplicate name**, and an **unknown hook point**. Those arrive with the ruleset loader
+(`rulesets/load.ts`), in the same `LangError` shape.
 
 ## 4. Worked examples
 
@@ -214,7 +427,7 @@ not read off the row: the keyword *is* the rule, and the glossary says which.
 
 ## 8. What Stage 1 deliberately left out
 
-A definition grammar (`DEFINE GAME | ZONE | ACTION | …`, Stage 3). New primitives from the gap
+A definition grammar (`DEFINE GAME | ZONE | ACTION | …`), which Stage 3 has since added — §3b. New primitives from the gap
 table (Stage 2). The referee answering in this language rather than JSON. Chip editors for WHEN and
 COST — the text view is the editor. `compilerDiff` for a changed trigger or price. Multi-error
 reporting. Editing the skill kind.
