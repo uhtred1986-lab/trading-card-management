@@ -53,3 +53,45 @@ stage: 2
 7. Glossary entry (`src/lib/arena/glossary.ts`, `READING_RULES` at line 644); `docs/arena-rules-language.md` §3 `expr` production and a §4 example; `npm run contract:emit` (expect `effect-language.txt` to move).
 
 **Done when** the harness card "pay X energy: draw X cards" prompts for X, charges it and draws that many (assert in `verify/compiler.ts`), and the readings diff is signed off by card in a history entry.
+
+---
+
+## Built (12 Sep 2026)
+
+`Amount` is an expression tree. Every shape that was there before is spelled exactly as it was —
+stored `card_rules.ops` rows carry those keys — and four are new: `X` (`{x:true}`), `life(side)`,
+`attr(REF, name)` and `sumOf(SEL, attr)`, plus the `+ n` operator and `* n` on every shape that
+reads a number off the board. `EXPR_SCHEMA` (`lang/ast.ts`) is now a real table of call name,
+arguments and multiplier, and `printAmount` and the parser's `amount()` both walk it; `§3` of
+`docs/arena-rules-language.md` shows the production and a check asserts the doc names every row.
+An amount is read in one place in the engine (`amount()` in `engine/state.ts`).
+
+**X.** `CostRecord.x` / `SkillPrice.x` say a price charges one; the compiler reads `{X}` and
+"Pay X energy" (`priceX`); the engine offers the skill **once per payable value of X** — the shape
+it already used for playing an X-cost card — charges it beside the skill's orbs, and carries it onto
+the frame, where `{x:true}` reads it. A `choose` may carry `bindX` instead. `validateProgram` /
+`validateRule` refuse a program that says `X` with nothing to bind it, checked in step order.
+
+`bindX` on a price that is a *choice* crosses into the effect on a key of its own beside the names
+the price bound (`savedXKey`), and `validateRule` counts a top-level `bindX` in the price program as
+a binder. BugBot caught that half missing on the PR: it bound X on the price's frame and threw when
+the effect read it.
+
+**Wordings unlocked** (one `verify/compiler.ts` assertion each): "for each marker on **it**"
+(P-377, P-378, DB3-144), "for each **1 energy you have**" (TB1-038, BT1-030 ×2, BT4-030),
+and the X price/effect pair. Tally: fully compiled 4,690 → 4,693; unread clauses 3,418 → 3,415, over 2,391 → 2,389 shapes.
+
+**Two wrong readings refused rather than kept.** DB3-138 prints its price as `{u}(X)`, a notation
+this compiler does not read, so the `X` reading is gated on the price actually charging one — a
+program with an unbound `X` throws where it resolves, which is worse than the gap. And
+"up to **X** of your opponent's Battle Cards" was reading as *all* of them, chosen outright: a
+`Selector.count` is a number and not an expression, so that phrase is refused until a selector can
+carry an amount. That refusal costs one reading and is the point of it — BT11-154's "you may place
+X cards from your energy in their owners' Drop Areas" read as *every* card in the energy area.
+
+**Deliberately not done.** `life`, `attr` and `sumOf` are the language's — usable from the text
+view, the chip editor and the referee — but no printed wording compiles into them yet. The nearest
+one, "power equal to the total combo power of the cards discarded by this skill" (BT20-090/107/108/109),
+needs the price's bindings to survive the effect's own `c0`, which is a separate change to how a
+price and its effect share variable names. A `Selector.count` that is an expression is likewise its
+own piece of work, and #96's specified-cost baseline stays out of scope.

@@ -29,7 +29,7 @@ import {
   type Selector,
 } from "../engine/script";
 import type { KeywordSkill } from "../engine/types";
-import { FILTER_FIELDS, FILTER_FIELD_NAMES, fieldsOf, type Definition, type DefineFieldType, type DefineHook, type DefineParam, type EventPattern, type FilterFieldType, type Rule } from "./ast";
+import { EXPR_SCHEMA, FILTER_FIELDS, FILTER_FIELD_NAMES, fieldsOf, type Definition, type DefineFieldType, type DefineHook, type DefineParam, type EventPattern, type ExprArg, type FilterFieldType, type Rule } from "./ast";
 
 /**
  * Key-sorted JSON with `undefined` dropped, so "the same object" means the
@@ -79,13 +79,50 @@ export const atom = (s: string) => (WORD.test(s) ? s : JSON.stringify(s));
 
 // ── expressions ─────────────────────────────────────────────────────────────
 
+/**
+ * An expression, from `EXPR_SCHEMA`.
+ *
+ * The table is walked in order and the first row whose key the object carries
+ * wins, so a shape added to `Amount` is a row there and nothing here. Only the
+ * two literals and the one operator are written out: they have no call name,
+ * and inventing one for them would be a table that lies about the grammar.
+ */
 export function printAmount(a: Amount): string {
   if (typeof a === "number") return String(a);
+  if ("plus" in a) return `${printAmount(a.plus[0])} + ${a.plus[1]}`;
   if ("var" in a) return `$${a.var}`;
-  if ("sumPower" in a) return `sumPower($${a.sumPower.var})`;
-  if ("handUpTo" in a) return `handUpTo(${a.handUpTo})`;
-  if ("markers" in a) return `markers(${printSelector(a.markers)})${a.times === undefined ? "" : ` * ${a.times}`}`;
-  return `count(${printSelector(a.count)})${a.times === undefined ? "" : ` * ${a.times}`}`;
+  const bag = a as Record<string, unknown>;
+  for (const spec of EXPR_SCHEMA) {
+    const fields = spec.fields ?? [spec.key];
+    // Every field, not just the key: `sumOf` and `attr` share the `attr` key
+    // (the measure on one, the card on the other), so a row that matched on
+    // its key alone would read a `sumOf` as an `attr` and print its measure
+    // where the card belongs.
+    if (!fields.every((f) => f in bag)) continue;
+    const args = spec.args.map((kind, i) => printExprArg(kind, bag[fields[i]]));
+    const call = args.length ? `${spec.call}(${args.join(", ")})` : spec.call;
+    const times = spec.times ? bag.times : undefined;
+    return times === undefined ? call : `${call} * ${times as number}`;
+  }
+  // Unreachable while `Amount` and `EXPR_SCHEMA` agree; `scripts/verify/lang.ts`
+  // is what holds them to it. Printing the object beats printing nothing.
+  return JSON.stringify(a);
+}
+
+function printExprArg(kind: ExprArg, v: unknown): string {
+  switch (kind) {
+    case "selector":
+      return printSelector(v as Selector);
+    case "var":
+      return `$${(v as { var: string }).var}`;
+    case "ref":
+      return printRef(v as Ref);
+    case "number":
+      return String(v as number);
+    case "side":
+    case "attr":
+      return String(v as string);
+  }
 }
 
 export function printRef(r: Ref): string {
@@ -305,6 +342,9 @@ export function printCost(cost: CostRecord): string {
   if (cost.marker !== null) items.push(`${cost.marker >= 0 ? "+" : ""}${cost.marker} marker`);
   if (cost.burst !== null) items.push(`burst ${cost.burst}`);
   if (cost.spiritBoost !== null) items.push(`spiritBoost ${cost.spiritBoost}`);
+  // "{X}" (20-5). Printed bare when it is payable at anything, with its bounds
+  // when the card sets one; `min` always before `max`, so there is one form.
+  if (cost.x) items.push(["X", cost.x.min === undefined ? "" : `min ${cost.x.min}`, cost.x.max === undefined ? "" : `max ${cost.x.max}`].filter(Boolean).join(" "));
   if (cost.text) items.push(`TEXT ${JSON.stringify(cost.text)}`);
   if (cost.condition !== null) items.push(`IF ${printCond(cost.condition)}`);
   if (cost.program !== null) items.push(`DO ${printBlock(cost.program, 0)}`);

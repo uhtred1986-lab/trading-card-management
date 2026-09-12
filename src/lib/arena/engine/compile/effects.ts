@@ -470,7 +470,13 @@ function compileForEach(clause: string, c: Ctx): Op[] | null {
   // reading it as `count` asked how many cards are named "this card" (always
   // 1) and printed a flat bonus with no markers in it at all.
   const markersOn = /^markers?\s+on\s+(.+)$/.exec(counted);
-  const sel = parseTarget(markersOn ? markersOn[1] : counted);
+  const what = markersOn ? markersOn[1] : counted;
+  // "For each marker on **it**" (P-377, P-378, DB3-144): the pronoun the
+  // sentence has been using for the card all along. `parseTarget` reads "this
+  // card" and not the bare pronoun, and teaching it the pronoun would change
+  // every clause that ends in "it"; here the phrase is already known to be
+  // what is *counted*, so the reading is safe and stays local.
+  const sel = /^(?:it|this card)$/.test(what) ? ({ special: "self" } as Selector) : (parseTarget(what) ?? energyYouHave(what));
   if (!sel) return null;
   // A count (or a marker total) reads the whole area, not one card out of it.
   const broad: Selector = { ...sel, count: 99, upTo: false };
@@ -487,6 +493,21 @@ function compileForEach(clause: string, c: Ctx): Op[] | null {
   const [op, ...rest] = head;
   const swapped = swapForEachAmount(op, amountFor);
   return swapped && [swapped, ...rest];
+}
+
+/**
+ * "For each 1 energy you have" (TB1-038, BT1-030 twice): the energy area,
+ * counted one card at a time. `parseTarget` reads "cards in your energy" but
+ * not this shape, where the noun is the area itself and the "1" is the size of
+ * each step rather than a multiplier.
+ *
+ * Any other number would mean *dividing* the count, which no amount can do, so
+ * "for each 2 energy" is left unread rather than read as this.
+ */
+function energyYouHave(counted: string): Selector | null {
+  const m = /^(?:(\d+) )?energy (you have|your opponent has)$/.exec(counted);
+  if (!m || (m[1] !== undefined && m[1] !== "1")) return null;
+  return { side: m[2] === "you have" ? "you" : "opponent", area: "energy" };
 }
 
 /**
@@ -703,6 +724,12 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
 
   // Draw (5-1). "You may draw" is treated as taken: declining never helps.
   if ((m = /^draw (\d+) cards?$/.exec(t))) return [{ op: "draw", n: Number(m[1]) }];
+  // 20-5: "Draw X cards" — the X the price was paid at, read off the frame the
+  // activation bound it on. Only when the price charges one: a program that
+  // says `X` with nothing to bind it throws where it resolves, and the honest
+  // gap it would replace is the better answer (DB3-138's "{u}(X)" is a price
+  // notation this compiler does not read).
+  if (c.xBound && /^draw x cards?$/.test(t)) return [{ op: "draw", n: { x: true } }];
   // "Have your opponent draw 1 card" leaves the verb uninflected once the
   // leading words are split off, and a few sets print it that way outright.
   if ((m = /^(?:your opponent|they) draws? (\d+) cards?$/.exec(t))) return [{ op: "draw", n: Number(m[1]), side: "opponent" }];

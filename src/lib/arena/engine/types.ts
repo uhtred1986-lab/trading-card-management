@@ -683,7 +683,8 @@ export type Action =
   | { type: "playZ"; player: PlayerId; card: string; x?: number; pay?: string[] }
   | { type: "growUnison"; player: PlayerId; card: string }
   /** `alt`: pay the printed alternative instead of the energy cost ([Invoker], 22-37). */
-  | { type: "activate"; player: PlayerId; card: string; skill: number; pay?: string[]; alt?: boolean }
+  /** `x` is the value an X price is paid at (20-5) — the same field, and the same meaning, as `play`'s. */
+  | { type: "activate"; player: PlayerId; card: string; skill: number; pay?: string[]; alt?: boolean; x?: number }
   | { type: "attack"; player: PlayerId; attacker: string; target: string }
   | { type: "endMain"; player: PlayerId }
   | { type: "combo"; player: PlayerId; card: string; pay?: string[] }
@@ -821,7 +822,7 @@ export type FlowStep =
   | { op: "play.resolve"; card: string; player: PlayerId; markers?: number; mode?: "active" | "rest"; onto?: string; negated?: "turn" | "game"; empowerCarry?: number }
   | { op: "script.step"; frame: ScriptFrame }
   | { op: "flipLeader"; card: string }
-  | { op: "skill.resolve"; card: string; skill: number; player: PlayerId; trigger?: Trigger }
+  | { op: "skill.resolve"; card: string; skill: number; player: PlayerId; trigger?: Trigger; x?: number }
   | { op: "extra.finish"; card: string }
   | { op: "battle.afterDeclare" }
   | { op: "battle.blocker" }

@@ -165,6 +165,13 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
   // Refusing is ground rule 5: the clause goes to the referee, which is what
   // the card needs anyway.
   if (/\bby this skill\b|\bsent to\b/.test(t)) return null;
+  // 20-5: "up to **X** of your opponent's Battle Cards" — a count that is the
+  // X the skill's price was paid at. A `Selector.count` is a plain number and
+  // not an expression, so there is nothing here that can say it; read as it
+  // stood, the letter fell through every count pattern and the phrase became
+  // *all* of them, chosen outright rather than up to. Refused (ground rule 5)
+  // until a selector can carry an amount, which is its own piece of work.
+  if (/^(?:up to )?x\s/.test(t.trim())) return null;
   // "Then choose **the rest of** your and your opponent's cards in the Battle
   // Area" (TB3-066), "place **the rest of** the cards in the Drop Area"
   // (BT3-062), "you choose **the rest of** their Battle Cards" (BT15-128): the

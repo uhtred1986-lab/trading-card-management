@@ -22,12 +22,15 @@ import { emptyFilter, type CardFilter } from "../../src/lib/arena/engine/filters
 import { AREAS, COND_SCHEMA, KEYWORD_NAMES, OP_SCHEMA, SPECIAL_TARGETS, type Amount, type Cond, type CostRecord, type FieldType, type Op, type OpField, type Selector } from "../../src/lib/arena/engine/script";
 import { pendTriggers } from "../../src/lib/arena/engine/triggers";
 import type { CardScripts, GameState, KeywordSkill, Trigger } from "../../src/lib/arena/engine";
-import { DEFINE_KINDS, DEFINE_SCHEMA, fieldsOf, parseDefinitions, parseRule, printDefinition, printDefinitions, printRule, printCond, printOps, printSelector, validateRule, deepEqual, type Definition, type DefineFieldType, type DefineKind, type Rule } from "../../src/lib/arena/lang";
+import { DEFINE_KINDS, DEFINE_SCHEMA, EXPR_ATTRS, EXPR_LITERALS, EXPR_SCHEMA, fieldsOf, parseDefinitions, parseRule, printDefinition, printDefinitions, printRule, printCond, printOps, printSelector, validateRule, deepEqual, type Definition, type DefineFieldType, type DefineKind, type Rule } from "../../src/lib/arena/lang";
 import { parseCond } from "../../src/lib/arena/lang/parse";
 import { CTX, DEFS, arena, find, parseFilter, rulesFromCompiler, skillRecords } from "./harness";
 
 /** A rule with nothing but its steps, for the round trips that are about the program. */
 const ruleOf = (ops: Op[], rest: Partial<Rule> = {}): Rule => ({ kind: "auto", trigger: [], cost: null, cond: null, ops, ...rest });
+
+/** A price with nothing in it, for the round trips that are about one field of one. */
+const BARE_COST: CostRecord = { text: "", orbs: {}, either: [], marker: null, burst: null, spiritBoost: null, condition: null, program: null };
 
 /** print → parse → the same object. The failure message carries the text, which is what a person would be looking at. */
 function trip(rule: Rule, what: string): void {
@@ -128,6 +131,11 @@ const instance = (fields: OpField[], wide: boolean): Record<string, unknown> => 
   // ever returns a flat number or a `count`, so `sumPower` and `handUpTo` had
   // no round-trip coverage at all until this loop, and a bare `markers` union
   // member could be added, typecheck, and never once be printed or parsed.
+  //
+  // Minimal *and* maximal for every shape that has an optional part: an `x`
+  // with and without its multiplier, an `attr` and a `sumOf` likewise. The
+  // whole expression tree of 20-5 is written out here, because the sampler
+  // never reaches any of it.
   const AMOUNTS: Amount[] = [
     1,
     { var: "n" },
@@ -137,8 +145,55 @@ const instance = (fields: OpField[], wide: boolean): Record<string, unknown> => 
     { handUpTo: 4 },
     { markers: { special: "self" } },
     { markers: { side: "opponent", area: "unison", count: 99 }, times: 5000 },
+    { x: true },
+    { x: true, times: 1000 },
+    { life: "you" },
+    { life: "both", times: 2 },
+    { attr: { var: "t" }, name: "energyCost" },
+    { attr: { sel: { special: "self" } }, name: "power", times: 1000 },
+    { sumOf: { fromVar: "discarded" }, attr: "comboPower" },
+    { sumOf: { side: "you", area: "drop", count: 99 }, attr: "energyCost", times: 2 },
+    { plus: [{ count: { side: "you", area: "drop", count: 99 } }, 1] },
+    { plus: [{ x: true }, 2] },
+    // Nested: the operator is left-associative, so "X + 1 + 2" is one sum
+    // inside another and has to come back the same way round.
+    { plus: [{ plus: [{ x: true }, 1] }, 2] },
   ];
   for (const n of AMOUNTS) tripOps([{ op: "draw", n }], `draw amount ${JSON.stringify(n)}`);
+
+  // Every row of `EXPR_SCHEMA` is reached by the list above. The table is what
+  // the printer and the parser both walk, so a row nothing exercises is a
+  // shape that could print one way and read back another and no test would
+  // know — the same hole this block was written to close for `sumPower`.
+  {
+    const written = new Set<string>();
+    const mark = (a: Amount) => {
+      if (typeof a !== "object") return;
+      if ("plus" in a) return mark(a.plus[0]);
+      for (const spec of EXPR_SCHEMA) {
+        const fields = spec.fields ?? [spec.key];
+        if (fields.every((f) => f in (a as Record<string, unknown>))) {
+          written.add(spec.key);
+          if (spec.times && "times" in (a as Record<string, unknown>)) written.add(`${spec.key}*`);
+          return;
+        }
+      }
+    };
+    AMOUNTS.forEach(mark);
+    const wanted = EXPR_SCHEMA.flatMap((spec) => [spec.key, ...(spec.times ? [`${spec.key}*`] : [])]);
+    assert.deepEqual(
+      wanted.filter((k) => !written.has(k)),
+      [],
+      "every EXPR_SCHEMA row, with and without its multiplier, is round-tripped above",
+    );
+  }
+
+  // 20-5: the price that binds X, minimal and with both its bounds.
+  for (const x of [{}, { min: 1 }, { max: 5 }, { min: 1, max: 5 }]) {
+    trip(ruleOf([{ op: "draw", n: { x: true } }], { kind: "activate:main", cost: { ...BARE_COST, x } }), `an X price ${JSON.stringify(x)}`);
+  }
+  // `bindX` on a choose, which is the other way X gets a value.
+  tripOps([{ op: "choose", sel: { side: "you", area: "hand", count: 99, upTo: true }, as: "c", bindX: true }], "choose with bindX");
 
   // A counted, conditional prohibition (20-14): the schema loop above already
   // builds a maximal `forbid`, but it builds one generic value per field type.
@@ -631,6 +686,23 @@ const declaration = (kind: DefineKind, wide: boolean): Definition => {
       assert.ok(section.includes(written), `§3b does not name the ${kind} field written ${JSON.stringify(written)}`);
     }
   }
+  // §3's `expr` production names every expression the language can write, the
+  // same way §3b names every `DEFINE` kind. A shape in `EXPR_SCHEMA` that the
+  // grammar does not show is a reference that has started lying — and this is
+  // the production a person reads before writing an amount by hand.
+  {
+    const grammar = doc.slice(doc.indexOf("## 3. The grammar"), doc.indexOf("## 3b."));
+    assert.ok(grammar.length > 500, "§3 is missing from the language doc");
+    for (const spec of EXPR_SCHEMA) assert.ok(grammar.includes(`"${spec.call}"`), `§3's expr production does not name ${spec.call}`);
+    for (const attr of EXPR_ATTRS) assert.ok(grammar.includes(`"${attr}"`), `§3's attr production does not name ${attr}`);
+    // The two literals and the one operator have no call name to look for, so
+    // the production is checked against the forms `EXPR_LITERALS` names.
+    assert.ok(grammar.includes('"$" name'), "§3's expr production does not show a $variable");
+    assert.ok(grammar.includes('( "+" number )'), "§3's expr production does not show the + operator");
+    assert.ok(grammar.includes("term   := number"), "§3's expr production does not show a bare number");
+    assert.equal(Object.keys(EXPR_LITERALS).join(","), "number,var,plus", "EXPR_LITERALS names the three forms this check covers");
+  }
+
   assert.ok(examples.length >= 5, `only ${examples.length} worked examples in the language doc`);
   for (const src of examples) {
     const parsed = parseRule(src);

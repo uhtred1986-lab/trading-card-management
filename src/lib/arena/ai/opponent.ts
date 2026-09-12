@@ -277,7 +277,11 @@ export const EFFECT_LANGUAGE = `You are ruling on one skill of one card in a Dra
 Operations (each is an object with "op"; a field marked ? may be left out):
 ${OPERATIONS}
 
-AMOUNT is a number, {"var":"t"} (how many cards that name holds), {"count":SELECTOR,"times":N} (so much for each matching card), {"sumPower":{"var":"t"}} or {"handUpTo":N}.
+AMOUNT is a number or an expression: {"var":"t"} (how many cards that name holds), {"count":SELECTOR,"times":N} (so much for each matching card),
+  {"markers":SELECTOR,"times":N} (so much for each marker on them), {"life":"you"|"opponent"|"both","times":N}, {"sumPower":{"var":"t"}}, {"handUpTo":N},
+  {"x":true,"times":N} (the X this skill's price was paid at — only where the price charges an X), {"attr":TARGET,"name":ATTR,"times":N} (one card's own measure),
+  {"sumOf":SELECTOR,"attr":ATTR,"times":N} (that measure over every matching card, added up), or {"plus":[AMOUNT,N]} (that many and N more).
+  "times" multiplies; ATTR is "power" | "comboPower" | "energyCost" | "comboCost".
 TARGET is {"var":"t"} for something chosen earlier, or {"sel":SELECTOR}.
   {"var":"looked","minus":"t"} is "the rest": the cards of one name that another name did not take.
 SELECTOR: {"side":"you"|"opponent"|"both","area":"battle"|"hand"|"deck"|"drop"|"life"|"energy"|"unison"|"leader"|"warp"|"combo"|"zDeck"|"zEnergy"|"play","count":1,"upTo":true,"mode":"rest"|"active","filter":{...}}
