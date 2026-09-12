@@ -16,8 +16,8 @@ import { arenaGames, cards as cardsTable } from "@/db/schema";
 import { inArray } from "drizzle-orm";
 import { seedFrom, type Action, type CardDef, type EngineContext, type GameEvent, type GameState, type LegalAction, type PlayerId } from "./engine";
 import { face } from "./engine";
-import { appendBeats, describeSkillEvent, toBeats, type Beats, type NumberedBeat } from "./beats";
-import { engineFor, engineOr, type EngineId } from "./engines";
+import { appendBeats, describeSkillEvent, type Beats, type NumberedBeat } from "./beats";
+import { engineFor, engineOr, legacyState, playableEngine, type EngineId } from "./engines";
 import { cardDefFrom, deckInputFor } from "./load";
 import { rulesFor } from "./rules-store";
 import { gameOr, type Game } from "@/lib/catalog/games";
@@ -149,7 +149,7 @@ export async function startGame(
   engineId: EngineId = "legacy",
 ): Promise<number> {
   // Resolved first: an engine that cannot play refuses before any deck is read.
-  const engine = engineFor(engineId);
+  const engine = playableEngine(engineId);
   const a = await deckInputFor(db, p1DeckId);
   const b = await deckInputFor(db, p2DeckId);
   // `deckInputFor` also returns null for a Fusion World deck, which the engine
@@ -165,7 +165,9 @@ export async function startGame(
   for (const r of rows) defs[r.id] = cardDefFrom(r);
   const ctx: EngineContext = { defs, scripts: await rulesFor(db, defs), referee: hasAnthropic() && mode !== "hotseat" };
   const seed = seedFrom(`${p1DeckId}:${p2DeckId}:${Date.now()}`);
-  const { state, events } = engine.createGame(ctx, { seed, p1: a.input, p2: b.input });
+  const { state: made, events } = engine.createGame(ctx, { seed, p1: a.input, p2: b.input });
+  // Legacy-shaped for as long as the row and the board below are (`legacyState`).
+  const state = legacyState(made);
   const [row] = await db
     .insert(arenaGames)
     .values({
@@ -182,7 +184,7 @@ export async function startGame(
       state,
       actions: [],
       log: describeEvents(ctx, state, events),
-      beats: toBeats(ctx, state, events, 0),
+      beats: engine.toBeats(ctx, state, events, 0),
       turn: state.turn,
       debug,
     })
@@ -193,7 +195,7 @@ export async function startGame(
 export async function loadGame(db: Db, id: number): Promise<LoadedGame | null> {
   const row = await db.query.arenaGames.findFirst({ where: eq(arenaGames.id, id) });
   if (!row) return null;
-  const state = row.state as GameState;
+  const state = legacyState(row.state);
   const defs = await defsForState(db, state);
   // The rules the engine plays by come from `card_rules`, not from a compile.
   const ctx: EngineContext = { defs, scripts: await rulesFor(db, defs), referee: hasAnthropic() && row.mode !== "hotseat" };
@@ -248,7 +250,8 @@ export async function applyToGame(db: Db, id: number, action: Action, told?: { s
   if (!game) throw new Error(`no game ${id}`);
   if (game.status !== "playing") throw new Error("this game is over");
   const engine = engineFor(game.engine);
-  const { state, events } = engine.apply(game.ctx, game.state, action);
+  const { state: next, events } = engine.apply(game.ctx, game.state, action);
+  const state = legacyState(next);
   // What Claude said about *this* move goes in ahead of it, because it is the
   // reason for the move that follows. Collecting the whole batch and appending
   // it at the end put a line said on turn 1 under the turn 2 header, which
@@ -265,7 +268,7 @@ export async function applyToGame(db: Db, id: number, action: Action, told?: { s
   // already is; `act()` is what empties it, once, when you take your turn.
   const from = game.beats?.seq ?? 0;
   const said: NumberedBeat[] = say ? [{ t: "say", text: say, n: from + 1 }] : [];
-  const moved = toBeats(game.ctx, state, events, from + said.length);
+  const moved = engine.toBeats(game.ctx, state, events, from + said.length);
   const beats = appendBeats(game.beats, { seq: moved.seq, list: [...said, ...moved.list], art: moved.art });
   const actions = [...game.actions, action];
   // `WHERE version = <what loadGame read>` is the whole concurrency story: two

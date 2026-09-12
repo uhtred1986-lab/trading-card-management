@@ -79,7 +79,7 @@ else is a macro. Four things follow, and they are the reason the tables below ar
   (#137). `power`, `comboPower` and `gains` are this issue's worked example: `modifyAttr` is added beside
   them, they keep parsing, printing and playing exactly as before, and no card's reading moves.
 - **A macro's target may not exist yet.** The table names the primitive as it will be, with today's
-  spelling beside it in §2.2. `move` is `moveTo` today; `costModifier`, `negate` and `replace` are
+  spelling beside it in §2.2. `move` is `moveTo` today; `costModifier` and `negate` are
   the general forms of rows the engine already has; `control`, `skip` and `copySkills` are Stage 2
   issues (#126, #123) that will arrive as primitives.
 - **Layering and duration are not ops.** The plan's `effect(layer)` row is the interpreter's
@@ -99,7 +99,7 @@ Nineteen primitives carry every row below — fourteen operations and five condi
 | `modifyAttr` | `modifyAttr` | One attribute of one subject, by a delta or by a value, for a duration or for as long as the rule holds. |
 | `costModifier` | `costReduction` | What something costs to play, activate or evolve — a whole price, not a number (§2.5). |
 | `negate` | `negateSkills` | A rule stops applying: a card's skills, one kind of them, one named keyword, or the skill resolving now. |
-| `replace` | `replaceLeave` | An event that is about to happen happens differently, or not at all (9-10, #125). |
+| `replace` | `replace` | An event that is about to happen happens differently, or not at all (9-10). The event is named (`leave`, `ko`, `play`) and what happens in its place is a program, not only a destination. |
 | `choose` | `choose` | A player picks cards from a selector; the cards are bound to a name the rest of the program reads. |
 | `reveal` | `reveal` | Who has seen a card changes, without the card moving. |
 | `shuffle` | `shuffle` | A pile is randomised with the game's seeded RNG. |
@@ -166,6 +166,7 @@ disagree or if a row is missing from either.
 | `token` | primitive | Nothing that moves cards can make one (19). |
 | `costReduction` | macro over `costModifier` | Which cost (energy, skill, evolve, combo, Z-Energy, specified) is an argument, not six mechanisms — that was #96 and #97's finding before it was this table's. |
 | `gains` | macro over `modifyAttr` | Attributes `colors`, `characters`, `traits` and `names`, in every area (20-1). |
+| `replace` | primitive | An event is named (`leave`, `ko`, `play`) and a program stands in its place (9-10). Built by #125. `replaceLeave` and the `instead` half of `resolvingPlay` run through it today; `negateAttack` and `negateCounter` name events the engine still resolves in their own cases. |
 | `replaceLeave` | macro over `replace` | Event: a card leaving the Battle Area (9-10). |
 | `altCost` | macro over `costModifier` | A price is replaced, not reduced — which is why the primitive takes a price rather than a number (§2.5). |
 | `resolvingPlay` | macro over `replace` | Event: the play being resolved, negated or altered (9-6). |
@@ -230,6 +231,13 @@ for the macros above to be writable; none of them is built by #130, which delive
 5. **Amounts must become expressions** (#122): subtraction for `lifeDownTo`, a comparison of two
    expressions for `lifeVsOpponent` and `every`, and X for the cards that bind one.
 
+Half 1 of #137 (12 Sep 2026) found a sixth, and it is the one that binds first: **a macro's body
+can only name a parameter where the grammar lets a `$name` stand**, which is an `amount` or a `ref`
+and nothing else (`lang/parse.ts`). `power`'s `until` is a `duration`, every `side` is a `side`, and
+`may`'s body is an `ops` — so no row above is writable yet, whatever its primitive does.
+`src/lib/arena/rulesets/dbs/ops.rules` carries that table row by row, and the expander
+(`rulesets/expand.ts`) is built and tested against fixtures in the meantime.
+
 ### 2.6 The expression language
 
 An operation's fields are not all constants: four shapes carry a computation, and they are the
@@ -260,8 +268,9 @@ says what the files are, what the loader does with them, and what it refuses.
 
 The loader landed 12 Sep 2026 (#132), and four of the files the same day: `game.rules`,
 `attributes.rules` and `zones.rules` (#133), then `triggers.rules` (#134). The rest are #135 and
-the stage issues below, so `src/lib/arena/rulesets/dbs/` holds four of the ten rows — every refusal
-is still checked against fixtures, and what the real files claim is checked against them directly
+the stage issues below, so `src/lib/arena/rulesets/dbs/` holds five of the eleven rows — `ops.rules`
+is there with its header and no declaration yet (#137) — every refusal is still checked against
+fixtures, and what the real files claim is checked against them directly
 (`scripts/verify/rulesets.ts`). The trigger declarations name nine of the zones — `battle`,
 `combo`, `drop`, `energy`, `hand`, `leader`, `life`, `unison`, `zEnergy` — and the loader resolves
 every one of them against `zones.rules`, which is what makes the DBS set load rather than merely
@@ -278,6 +287,7 @@ itself.
 | `game.rules` | `GAME` (deck sizes, opening hand, life, mulligan, turn order), six `PHASE`s and the 26 `STEP`s of the turn, `WIN` for life-out and deck-out | §0-1-3, §6, §7 | #133 ✔ |
 | `attributes.rules` | `ATTRIBUTE` — every `CardDef` field (id, name, type, colours, energy cost, specified-cost orbs, Z-Energy cost, power, combo cost and power, characters, traits, skill, back, also-names), the three derived costs with their layer order, and the player's energy markers | §1-2, §1-9, §1-14, §2, §9-9-1, §20-21 | #133 ✔ |
 | `zones.rules` | `ZONE` — the manual's twelve areas plus `removed`, `under` and `play`: owner, visibility, order, single, markers, modes, host, and what "in play" means | §3, §9-1-3-1, §20-10, §23-2 | #133 ✔ |
+| `ops.rules` | `OP` — one macro per row §2.3 marks *macro*, over the primitives beside it; `rulesets/expand.ts` lowers a program through them | §2 above | #137 |
 | `triggers.rules` | `TRIGGER` — every moment an [Auto] or a [Counter] answers to, as the event pattern that *is* it, with the counter windows (58 declarations: the 53 of the `Trigger` union and the five `counter:*` windows) | §9-6, §4-3, §9-7 | #134 ✔ |
 | `keywords.rules` | `KEYWORD` — all 39, their parameters and their meanings; the `HOOK` bodies stay empty until Stage 7 | §22 | #135 |
 | `words.rules` | the words the board says for a zone, a colour, a mode, a requirement — **not written yet**: `DEFINE WORDS` is not one of the eleven kinds, and its shape is an open question on #131 | — | #135, after that answer |

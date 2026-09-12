@@ -238,7 +238,14 @@ learned the expensive way. Read it before changing the compiler or the engine.
   setting (Settings → Arena engine, `engine-setting.ts`) is the default until the owner flips
   it. The old engine stays the **oracle**: `arena:diff` replays a game's actions on either
   engine and must land on the row's state. `Snapshot.game.engine`/`.game` are the one
-  contract change. Until the rules engine plays, `engineFor("rules")` throws `EngineNotBuilt`.
+  contract change. `engineFor` resolves **both** ids — the `Engine` interface is the six calls
+  `createGame`, `apply`, `legalActions`, `rejectedActions`, `boardView` and `toBeats`, and the
+  rules engine answers a call it cannot make yet with `NotYet`, naming the issue that builds it.
+  Whether a *new* game may be made on an engine is the separate question `playableEngine(id)`
+  asks of `ENGINE_INFO[id].available`, and the answer for `rules` is still no. Outside those six
+  calls the app is still legacy-shaped (`games.ts` reads `state.turn`), so `legacyState(value)`
+  is the seam: a `rules` state reaching it throws `EngineMismatch` rather than being read field
+  by field as `undefined`.
 - **The rules language** (`src/lib/arena/lang/`, `docs/arena-rules-language.md`, since 9 Sep
   2026): one closed grammar for a card's rule — WHEN / COST / IF / THEN — printed and parsed
   from `OP_SCHEMA`/`COND_SCHEMA` plus the `SELECTOR_FIELDS`/`FILTER_FIELDS` tables in
@@ -258,8 +265,13 @@ learned the expensive way. Read it before changing the compiler or the engine.
   of the closed word lists the language is checked against. Pure and **client-safe**: the text
   arrives as a generated constant (`dbs/files.ts`, written by `npm run arena:rulesets` from the
   `.rules` files beside it), so nothing reads a file at request time.
-  `docs/arena-ruleset-spec.md` §3 says what each file declares and what the loader refuses;
-  `src/lib/arena/rulesets/dbs/` is empty until the DBS files land.
+  `docs/arena-ruleset-spec.md` §3 says what each file declares and what the loader refuses.
+  `expandMacros` (`rulesets/expand.ts`) is the other half of the plan's second decision: a
+  program written in the ops the cards use, lowered through the game's own `DEFINE OP`
+  declarations to the primitives an interpreter runs — an op with no declaration passes
+  through untouched, and the round-trip promise stays over the macro's *name*, never its
+  expansion. `dbs/ops.rules` declares none of the thirty-one yet and its header says what
+  each waits on (#137).
 - **The record's WHEN is the engine's WHEN** (`skillAnswersTo` in `engine/triggers.ts`): an
   [Auto] skill's moment comes off `card_rules.trigger` (carried on `Script.trigger` by
   `rulesFor`), and only a skill with *no* record falls back to reading the printed text. The

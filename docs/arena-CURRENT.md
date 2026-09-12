@@ -12,8 +12,12 @@ Keep it under 200 lines. Update it whenever arena scope, priorities, or the
 - The production flow is still: catalog sync drafts/updates `card_rules`,
   the engine plays from those rows, and unresolved wording is escalated via
   the referee workflow.
-- Two engines exist (`legacy`, `rules`), but only `legacy` is playable today;
-  `rules` is scaffolded and intentionally throws `EngineNotBuilt` when selected.
+- Two engines exist (`legacy`, `rules`), but only `legacy` is playable today.
+  `rules` is a skeleton in `src/lib/arena/vm/`: `engineFor("rules")` resolves it
+  and it can create a game (a `VmState` carrying the engine and the game its
+  definition was loaded from), but every other call throws `NotYet` naming the
+  issue that builds it, and `playableEngine("rules")` still throws
+  `EngineNotBuilt` so no new game can be started on it.
 - The immediate day-to-day work remains improving wording coverage and avoiding
   wrongly-read clauses (prefer unread over wrong reads).
 - `docs/arena-ruleset-spec.md` is the interpreter contract for the `rules`
