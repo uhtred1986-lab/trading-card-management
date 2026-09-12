@@ -99,10 +99,10 @@ Three scripts, in order. All three must pass; none needs the network.
 | script | needs | proves |
 |---|---|---|
 | `scripts/verify-rules.ts` | nothing | the pure rules helpers (deck legality, reservations, scan matching) |
-| `scripts/verify-arena.ts` | nothing | the arena — twelve suites, below |
+| `scripts/verify-arena.ts` | nothing | the arena — thirteen suites, below |
 | `scripts/verify-db.mts` | nothing (PGlite in memory) | the migrations apply, and the reservation rules hold against real SQL |
 
-`verify-arena.ts` is a barrel importing twelve suites from `scripts/verify/`.
+`verify-arena.ts` is a barrel importing thirteen suites from `scripts/verify/`.
 Knowing which one failed tells you what you broke:
 
 - **`harness.ts`** — the foundation the others build on: synthetic cards, a
@@ -128,6 +128,15 @@ Knowing which one failed tells you what you broke:
 - **`language.ts`** — the effect language as one table, the drafter's records.
 - **`lang.ts`** — the round-trip promise: `parse(print(x)) === x` over every op,
   condition, selector, filter and the language document's own examples.
+- **`rulesets.ts`** — the loader's own guarantees (a dangling reference, a
+  duplicate declaration, an unknown hook point, each a pointed `LangError`)
+  and, once the DBS `.rules` files exist, that the ruleset declares exactly
+  what the legacy engine's unions declare — a zone, a phase, a trigger, a
+  keyword or a card attribute the definition forgot (or invented) fails here,
+  by name, before Stage 4 ever fails to play the card that needed it. Every
+  completeness check prints `skipped: … not yet written` and passes trivially
+  while its file is still empty, so this suite stays green through #133–#135
+  landing one at a time.
 - **`probe.ts`** — a rule tried on a board built for it, compared against stored
   digests.
 
