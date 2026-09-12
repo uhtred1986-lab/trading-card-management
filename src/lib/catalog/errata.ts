@@ -62,6 +62,12 @@ export const CORRECTIONS: Record<string, [RegExp, string][]> = {
     [/up\s+to\s+5\s+crds\s+from\s+the\s+top\s+o\s+your\s+deck/g, "up to 5 cards from the top of your deck"],
   ],
   "BT25-138": [[/copies\s+of\s+thi\s+card/g, "copies of this card"]],
+  // "…—both mono-blue and with an energy cost of 7 or less—**form** your deck
+  // to your hand": two letters transposed, and the one word in the sentence
+  // that says where the search happens. `AREA_WORDS` reads "from your deck";
+  // with the typo the only area word left in the clause is the destination, so
+  // the card searched the **hand** it was meant to be adding to.
+  "BT25-139": [[/form\s+your\s+deck\s+to\s+your\s+hand/g, "from your deck to your hand"]],
   "BT26-071": [[/both\s+gree\s+and\s+with/g, "both green and with"]],
   "BT26-085": [[/negated\s+fro\s+the\s+turn/g, "negated for the turn"]],
   "BT26-093": [
