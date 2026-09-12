@@ -11,15 +11,18 @@
  * of its own rules were not there, which is precisely the failure a
  * configuration-driven engine has to make loud.
  *
- * The DBS files are #133–#135 and the directory is empty today, so the set the
- * app actually loads is checked for the one thing an empty set can prove: that
- * it loads. #136 grows this file into the ruleset suite proper (whole-file
- * round trips, and every legacy union covered by a declaration).
+ * The DBS files are #133–#135. `triggers.rules` is in (#134), so the set the
+ * app actually loads is held to the claim that file makes: every moment a
+ * record's WHEN may name is a moment the definition declares, and no other.
+ * #136 grows this file into the ruleset suite proper (whole-file round trips,
+ * and every legacy union covered by a declaration).
  *
  * Part of `npm test`; run from `scripts/verify-arena.ts`, which fixes the order.
  */
 import assert from "node:assert/strict";
-import { loadRuleset, loadDbs, rulesetFor, HOOK_POINTS, type RulesetError } from "../../src/lib/arena/rulesets";
+import { loadRuleset, loadDbs, rulesetFor, DBS_FILES, HOOK_POINTS, type RulesetError } from "../../src/lib/arena/rulesets";
+import { TRIGGERS, describeTrigger } from "../../src/lib/arena/gaps";
+import type { CounterWindow } from "../../src/lib/arena/engine/types";
 
 const lines = (...rows: string[]): string => rows.join("\n");
 
@@ -189,17 +192,65 @@ assert.equal(unknownHook.clause, "KEYWORD");
 
 // ── what the app loads ──────────────────────────────────────────────────────
 
-// Empty until #133–#135 write the files; the claim an empty set can carry is
-// that the path the app takes works at all.
+/**
+ * The counter windows (4-3, 9-7). A [Counter] answers to a *window* rather
+ * than to a card's own moment, so `triggers.rules` declares these five beside
+ * the fifty-three and they are the only names in it a record's WHEN never
+ * says. The list is held to the engine's union by the `satisfies`, so a sixth
+ * window fails the typecheck here before it can go missing from the file.
+ */
+const COUNTER_WINDOWS = ["play", "attack", "battleCardAttack", "counter", "skill"] as const satisfies readonly CounterWindow[];
+
 const dbs = loadDbs();
-assert.ok(dbs.ok, `the DBS ruleset did not load: ${dbs.ok ? "" : JSON.stringify(dbs.errors, null, 2)}`);
-if (dbs.ok) {
-  assert.equal(dbs.definition.id, "dbs");
-  assert.deepEqual(dbs.definition.definitions, [], "the DBS ruleset has files now — grow this check with them (#136)");
-  assert.deepEqual(dbs.vocabulary.areas, []);
+
+/**
+ * #133's `zones.rules` is not merged yet, and a trigger's `to: battle` names a
+ * zone nothing declares until it is — so what this branch can load is the same
+ * files with those zones supplied. The failure is held to exactly that: an
+ * error that is not a zone the declarations name is a real one, and the list
+ * below is the zones #133 has to declare for this to resolve on its own.
+ * Delete the stub, and this comment, with that merge.
+ */
+const MISSING_ZONE = /names a zone called "([^"]+)"/;
+const missingZones = dbs.ok ? [] : [...new Set(dbs.errors.map((e) => MISSING_ZONE.exec(e.message)?.[1] ?? null))];
+assert.ok(
+  dbs.ok || (missingZones.length > 0 && missingZones.every((z) => z !== null)),
+  `the DBS ruleset fails for something other than #133's missing zones: ${dbs.ok ? "" : JSON.stringify(dbs.errors.map((e) => e.message), null, 2)}`,
+);
+const zonesStub = missingZones.map((z) => lines(`DEFINE ZONE ${z}`, "  owner: player", "  visibility: all")).join("\n\n");
+const loaded = dbs.ok ? dbs : loadRuleset({ ...DBS_FILES, "0-zones-until-133.rules": zonesStub });
+assert.ok(loaded.ok, `the DBS ruleset did not load: ${loaded.ok ? "" : JSON.stringify(loaded.errors, null, 2)}`);
+
+if (loaded.ok) {
+  assert.equal(loaded.definition.id, "dbs");
+
+  // The assertion this issue exists for: the moments the record's WHEN is
+  // validated against (`TRIGGERS`, which `lang/validate.ts` reads) and the
+  // moments the definition declares are one list. Reported both ways by name,
+  // because "53 !== 58" says nothing about which one went missing.
+  const declared = Object.keys(loaded.definition.triggers);
+  const wanted = [...TRIGGERS, ...COUNTER_WINDOWS.map((w) => `counter:${w}`)];
+  const undeclared = wanted.filter((t) => !declared.includes(t));
+  const unanswerable = declared.filter((t) => !wanted.includes(t));
+  assert.deepEqual(undeclared, [], `the record's WHEN can name moments triggers.rules does not declare: ${undeclared.join(", ")}`);
+  assert.deepEqual(unanswerable, [], `triggers.rules declares moments no record's WHEN can name: ${unanswerable.join(", ")}`);
+  assert.equal(declared.length, wanted.length, "a moment is declared twice");
+
+  // And the same list in *words*: a declaration's `text:` is the WHEN line the
+  // board would print, so #137 can make `TRIGGER_IN_WORDS` a re-export of the
+  // vocabulary rather than a second copy that drifts.
+  for (const t of TRIGGERS) {
+    assert.equal(loaded.vocabulary.words[`trigger:${t}`], describeTrigger([t]), `the declaration of ${t} does not say in words what the record's WHEN says`);
+  }
+  for (const w of COUNTER_WINDOWS) assert.ok(loaded.vocabulary.words[`trigger:counter:${w}`], `the ${w} counter window is declared with no words for it`);
+
+  // Every zone a trigger's pattern names is resolved — the whole reason the
+  // file cannot load before #133. These are the zones it asks that game for.
+  assert.ok(loaded.vocabulary.areas.includes("battle"), "the triggers name no Battle Area, so nothing was resolved");
 }
+
 assert.equal(loadDbs(), dbs, "the ruleset is parsed again on every read");
-assert.equal(rulesetFor("dbs").ok, true);
+assert.equal(rulesetFor("dbs"), dbs, "a game's ruleset is not the one the loader cached");
 assert.equal(rulesetFor("fusion").ok, false, "Fusion World has no ruleset yet and must say so rather than load an empty one");
 
 console.log("verify/rulesets: ok");

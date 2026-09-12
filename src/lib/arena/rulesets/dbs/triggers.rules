@@ -1,0 +1,429 @@
+-- ───────────────────────────────────────────────────────────────────────────
+-- The moments an [Auto] or a [Counter] answers to (manual 9-6), as the events
+-- that *are* them.
+--
+-- A trigger is a name in the legacy engine, matched against the event log by
+-- TypeScript. Here it is an event pattern, so a game can declare its own
+-- moments without code — and so the engine's moments can be read against the
+-- manual rather than against `pendTriggers`.
+--
+-- Four conventions hold across the file.
+--
+--   ON <event>(field: value, …)
+--     The event and the fields that have to match. Event names are the
+--     definition's own; which of them a game fires is Stage 4's business.
+--     Only `from`, `to`, `in`, `area` and `zone` name a DEFINE ZONE and are
+--     checked by the loader — every other argument is a word about the event
+--     itself, so `attackDeclared(target: leader)` is a part in the attack and
+--     not a place.
+--
+--   watcher: controller | opponent | both
+--     Whose cards in play are asked, when the moment is not the answering
+--     card's own. `controller` is the side the event is about (the moved
+--     card's master, the damaged player); `opponent` is the other one.
+--     Left out, only the card the event is about answers.
+--
+--   WHERE
+--     A condition on the answering side rather than on the event.
+--     `isTurnPlayer(who: you)` is what "your Charge Phase" means on a card,
+--     and "your opponent's turn" is the same condition from the other chair
+--     (7-1) — never a duration.
+--
+--   BIND
+--     What the event's card is called inside the program: "self" when the
+--     moment happened to the answering card, "subject" when it happened to
+--     another card that the answering card is watching. A watcher list that
+--     includes the card itself (a Unison paying its own [Spirit Boost], a
+--     Life card turned face up) binds "subject" all the same — there it is
+--     the same card.
+--
+-- The names are the `Trigger` union's, and `text:` is the record's WHEN in
+-- words, so `scripts/verify/rulesets.ts` can hold the two to one list.
+-- The five `counter:*` declarations at the foot are the counter windows
+-- (4-3, 9-7): the moments a [Counter] answers to rather than an [Auto], and
+-- the only names here a card's WHEN never says.
+-- ───────────────────────────────────────────────────────────────────────────
+
+-- ── playing and placing ────────────────────────────────────────────────────
+
+-- §6-2-4 — when your Leader is placed
+DEFINE TRIGGER leaderPlaced
+  ON moved(to: leader)
+  BIND "self"
+  text: "when your Leader is placed"
+
+-- §9-6-9-4 — when this card is played
+DEFINE TRIGGER played
+  ON moved(asPlay: true, to: [battle, unison])
+  BIND "self"
+  text: "when this card is played"
+
+-- §5-5 — when you play a card
+DEFINE TRIGGER youPlayed
+  ON moved(asPlay: true, to: [battle, unison], watcher: controller)
+  BIND "subject"
+  text: "when you play a card"
+
+-- §5-5 — when your opponent plays a card
+DEFINE TRIGGER opponentPlayed
+  ON moved(asPlay: true, to: [battle, unison], watcher: opponent)
+  BIND "subject"
+  text: "when your opponent plays a card"
+
+-- §5-5-4 — when this card is placed in a Battle Area
+DEFINE TRIGGER placed
+  ON moved(asPlay: false, to: battle)
+  BIND "self"
+  text: "when this card is placed in a Battle Area"
+
+-- ── battles (8-1 … 8-5) ────────────────────────────────────────────────────
+
+-- §8-1-3 — when this card attacks
+DEFINE TRIGGER attacks
+  ON attackDeclared(role: attacker)
+  BIND "self"
+  text: "when this card attacks"
+
+-- §8-1-3 — when this card is attacked
+DEFINE TRIGGER attacked
+  ON attackDeclared(role: target)
+  BIND "self"
+  text: "when this card is attacked"
+
+-- §8-1-3 — when your opponent attacks
+DEFINE TRIGGER opponentAttacks
+  ON attackDeclared(watcher: opponent)
+  BIND "subject"
+  text: "when your opponent attacks"
+
+-- §8-1-3 — when your Leader is attacked
+DEFINE TRIGGER yourLeaderAttacked
+  ON attackDeclared(target: leader, watcher: controller)
+  BIND "subject"
+  text: "when your Leader is attacked"
+
+-- §8-2 — at the start of the offense step
+DEFINE TRIGGER offenseStart
+  ON stepStart(step: offense)
+  WHERE isTurnPlayer(who: you)
+  BIND "self"
+  text: "at the start of the offense step"
+
+-- §8-3 — at the start of the defense step
+DEFINE TRIGGER defenseStart
+  ON stepStart(step: defense)
+  WHERE isTurnPlayer(who: opponent)
+  BIND "self"
+  text: "at the start of the defense step"
+
+-- §8-4 — at the start of the damage step
+DEFINE TRIGGER damageStart
+  ON stepStart(step: damage, watcher: both)
+  BIND "self"
+  text: "at the start of the damage step"
+
+-- §8-5 — at the end of the battle
+DEFINE TRIGGER battleEnd
+  ON stepStart(step: battleEnd, watcher: both)
+  BIND "self"
+  text: "at the end of the battle"
+
+-- ── KOs (5-12, 21-14) ──────────────────────────────────────────────────────
+
+-- §5-12 — when this card is KO'd
+DEFINE TRIGGER koed
+  ON ko
+  BIND "self"
+  text: "when this card is KO'd"
+
+-- §21-14 — when this card KOs a card
+DEFINE TRIGGER kos
+  ON ko(role: cause)
+  BIND "self"
+  text: "when this card KOs a card"
+
+-- §21-14 — when one of your cards is KO'd
+DEFINE TRIGGER yourCardKoed
+  ON ko(watcher: controller)
+  BIND "subject"
+  text: "when one of your cards is KO'd"
+
+-- §21-14 — when an opponent's card is KO'd
+DEFINE TRIGGER opponentCardKoed
+  ON ko(watcher: opponent)
+  BIND "subject"
+  text: "when an opponent's card is KO'd"
+
+-- ── leaving a Battle Area (3-1, 9-6-9) ─────────────────────────────────────
+
+-- §3-1-5 — when this card is removed from a Battle Area by a skill
+DEFINE TRIGGER removedFromBattle
+  ON moved(by: skill, from: battle)
+  BIND "self"
+  text: "when this card is removed from a Battle Area by a skill"
+
+-- §3-1-5 — when this card is removed from a Battle Area by an opponent's skill
+DEFINE TRIGGER removedByOpponent
+  ON moved(by: skill, byOpponent: true, from: battle)
+  BIND "self"
+  text: "when this card is removed from a Battle Area by an opponent's skill"
+
+-- §3-1-5 — when a skill sends this card from a Battle Area to the Drop
+DEFINE TRIGGER droppedFromBattle
+  ON moved(by: skill, from: battle, to: drop)
+  BIND "self"
+  text: "when a skill sends this card from a Battle Area to the Drop"
+
+-- §3-1-5 — when this card goes from a Battle Area to the Drop
+DEFINE TRIGGER leftBattleToDrop
+  ON moved(from: battle, to: drop)
+  BIND "self"
+  text: "when this card goes from a Battle Area to the Drop"
+
+-- ── damage and life (5-10, 3-9, 21-3) ──────────────────────────────────────
+
+-- §5-10 — when this card deals damage
+DEFINE TRIGGER dealtDamage
+  ON damage(role: source)
+  BIND "self"
+  text: "when this card deals damage"
+
+-- §21-3 — when you take damage from a skill
+DEFINE TRIGGER youTookDamage
+  ON damage(by: skill, watcher: controller)
+  BIND "subject"
+  text: "when you take damage from a skill"
+
+-- §21-3 — when your opponent takes damage from a skill
+DEFINE TRIGGER opponentTookDamage
+  ON damage(by: skill, watcher: opponent)
+  BIND "subject"
+  text: "when your opponent takes damage from a skill"
+
+-- §3-9 — when a card leaves your life
+DEFINE TRIGGER lifeLeft
+  ON moved(from: life, watcher: controller)
+  BIND "subject"
+  text: "when a card leaves your life"
+
+-- §3-9-2-1 — when a card in your life is flipped face up
+DEFINE TRIGGER flippedFaceUp
+  ON faceUpTurned(in: life, watcher: controller)
+  BIND "subject"
+  text: "when a card in your life is flipped face up"
+
+-- ── the turn (7-1 … 7-4) ───────────────────────────────────────────────────
+
+-- §7-2 — at the start of your Charge Phase
+DEFINE TRIGGER chargeStart
+  ON phaseStart(phase: charge)
+  WHERE isTurnPlayer(who: you)
+  BIND "self"
+  text: "at the start of your Charge Phase"
+
+-- §7-1 — at the start of your opponent's turn
+DEFINE TRIGGER opponentTurnStart
+  ON phaseStart(phase: charge)
+  WHERE isTurnPlayer(who: opponent)
+  BIND "self"
+  text: "at the start of your opponent's turn"
+
+-- §7-3 — at the start of your Main Phase
+DEFINE TRIGGER mainStart
+  ON phaseStart(phase: main)
+  WHERE isTurnPlayer(who: you)
+  BIND "self"
+  text: "at the start of your Main Phase"
+
+-- §7-3 — at the start of your opponent's Main Phase
+DEFINE TRIGGER opponentMainStart
+  ON phaseStart(phase: main)
+  WHERE isTurnPlayer(who: opponent)
+  BIND "self"
+  text: "at the start of your opponent's Main Phase"
+
+-- §7-3 — at the end of your Main Phase
+DEFINE TRIGGER mainEnd
+  ON phaseEnd(phase: main)
+  WHERE isTurnPlayer(who: you)
+  BIND "self"
+  text: "at the end of your Main Phase"
+
+-- §7-4 — at the end of your turn
+DEFINE TRIGGER turnEnd
+  ON phaseStart(phase: end)
+  WHERE isTurnPlayer(who: you)
+  BIND "self"
+  text: "at the end of your turn"
+
+-- §7-1 — at the end of your opponent's turn
+DEFINE TRIGGER opponentTurnEnd
+  ON phaseStart(phase: end)
+  WHERE isTurnPlayer(who: opponent)
+  BIND "self"
+  text: "at the end of your opponent's turn"
+
+-- ── combos (5-7, 8-5-8) ────────────────────────────────────────────────────
+
+-- §8-5-8 — when this card is used in a combo
+DEFINE TRIGGER comboed
+  ON moved(from: combo)
+  BIND "self"
+  text: "when this card is used in a combo"
+
+-- §5-7 — when you combo
+DEFINE TRIGGER youCombo
+  ON comboUsed(watcher: controller)
+  BIND "subject"
+  text: "when you combo"
+
+-- §5-7 — when your opponent combos
+DEFINE TRIGGER opponentCombos
+  ON comboUsed(watcher: opponent)
+  BIND "subject"
+  text: "when your opponent combos"
+
+-- ── keyword activations (22) ───────────────────────────────────────────────
+
+-- §22-4 — when this card activates [Blocker]
+DEFINE TRIGGER blockerUsed
+  ON keywordActivated(keyword: Blocker)
+  BIND "self"
+  text: "when this card activates [Blocker]"
+
+-- §22-5 — when a card evolves into this card
+DEFINE TRIGGER evolvedInto
+  ON keywordActivated(keyword: Evolve)
+  BIND "subject"
+  text: "when a card evolves into this card"
+
+-- §22-5 — when you use this card's [Evolve] from your hand
+DEFINE TRIGGER evolveFromHandActivated
+  ON keywordActivated(from: hand, keyword: Evolve)
+  BIND "self"
+  text: "when you use this card's [Evolve] from your hand"
+
+-- §22-13 — when you activate a [Union] skill
+DEFINE TRIGGER unionActivated
+  ON keywordActivated(keyword: Union, watcher: controller)
+  BIND "subject"
+  text: "when you activate a [Union] skill"
+
+-- §22-13-5 — when this card's [Union-Absorb] is activated
+DEFINE TRIGGER unionAbsorbActivated
+  ON keywordActivated(keyword: "Union-Absorb")
+  BIND "self"
+  text: "when this card's [Union-Absorb] is activated"
+
+-- §22-41 — when you activate an [Overlord] skill
+DEFINE TRIGGER overlordActivated
+  ON keywordActivated(keyword: Overlord, watcher: controller)
+  BIND "subject"
+  text: "when you activate an [Overlord] skill"
+
+-- §22-15 — when you play a card using [Over Realm]
+DEFINE TRIGGER overRealmPlayed
+  ON keywordActivated(keyword: "Over Realm", watcher: controller)
+  BIND "subject"
+  text: "when you play a card using [Over Realm]"
+
+-- ── skills and counters (9-6, 9-7, 22-10) ──────────────────────────────────
+
+-- §9-7 — when your opponent activates a [Counter] skill
+DEFINE TRIGGER opponentCounter
+  ON skillActivated(kind: counter, watcher: opponent)
+  BIND "subject"
+  text: "when your opponent activates a [Counter] skill"
+
+-- §22-10 — when you activate this card's [Counter] from your hand without paying its energy cost
+DEFINE TRIGGER counterFreeFromHand
+  ON skillActivated(from: hand, kind: counter, paid: false)
+  BIND "self"
+  text: "when you activate this card's [Counter] from your hand without paying its energy cost"
+
+-- ── modes and markers (1-10, 5-13, 22-32, 22-43) ───────────────────────────
+
+-- §1-10-1 — when this card is rested by one of your skills
+DEFINE TRIGGER restedBySkill
+  ON modeSwitched(by: skill, byOpponent: false, mode: rest)
+  BIND "self"
+  text: "when this card is rested by one of your skills"
+
+-- §1-10-1 — when your skill rests an opponent's card
+DEFINE TRIGGER restedTheirsBySkill
+  ON modeSwitched(by: skill, mode: rest, watcher: opponent)
+  BIND "subject"
+  text: "when your skill rests an opponent's card"
+
+-- §22-32-3 — when this card is rested by an [Alliance] skill
+DEFINE TRIGGER restedByAlliance
+  ON modeSwitched(by: Alliance, mode: rest)
+  BIND "self"
+  text: "when this card is rested by an [Alliance] skill"
+
+-- §5-13 — when a marker is removed from this card
+DEFINE TRIGGER markerRemoved
+  ON markerRemoved
+  BIND "self"
+  text: "when a marker is removed from this card"
+
+-- §22-43-3 — when you pay a [Spirit Boost] cost from this card
+DEFINE TRIGGER spiritBoostPaid
+  ON markerRemoved(by: "Spirit Boost", watcher: controller)
+  BIND "subject"
+  text: "when you pay a [Spirit Boost] cost from this card"
+
+-- ── areas outside play (3-8, 3-11, 3-13) ───────────────────────────────────
+
+-- §3-8 — when a card goes from your energy to the Drop
+DEFINE TRIGGER energyToDrop
+  ON moved(from: energy, to: drop, watcher: controller)
+  BIND "subject"
+  text: "when a card goes from your energy to the Drop"
+
+-- §3-11-5 — when your Unison goes to the Drop
+DEFINE TRIGGER unisonToDrop
+  ON moved(from: unison, to: drop)
+  BIND "self"
+  text: "when your Unison goes to the Drop"
+
+-- §3-13-1 — when this card is added to your Z-Energy
+DEFINE TRIGGER addedToZEnergy
+  ON moved(to: zEnergy)
+  BIND "self"
+  text: "when this card is added to your Z-Energy"
+
+-- ── the counter windows (4-3, 9-7) ─────────────────────────────────────────
+-- A [Counter] answers to a window rather than to a card's moment, so these
+-- five carry a name a card's WHEN never says. The shape is the same: the
+-- moment as the event that is it.
+
+-- §9-6-6 — the window after a card is played and before it resolves
+DEFINE TRIGGER "counter:play"
+  ON counterTiming(watcher: opponent, window: play)
+  BIND "subject"
+  text: "when your opponent plays a card, before it resolves"
+
+-- §8-1-4 — the window after an attack is declared
+DEFINE TRIGGER "counter:attack"
+  ON counterTiming(watcher: opponent, window: attack)
+  BIND "subject"
+  text: "when your opponent declares an attack"
+
+-- §8-1-4 — the same window, narrowed to an attack a Battle Card made
+DEFINE TRIGGER "counter:battleCardAttack"
+  ON counterTiming(attacker: battleCard, watcher: opponent, window: attack)
+  BIND "subject"
+  text: "when your opponent's Battle Card declares an attack"
+
+-- §9-7-4 — the window after a [Counter] skill is activated
+DEFINE TRIGGER "counter:counter"
+  ON counterTiming(watcher: opponent, window: counter)
+  BIND "subject"
+  text: "when your opponent activates a [Counter] skill, before it resolves"
+
+-- §9-6-6 — the window after a skill is activated
+DEFINE TRIGGER "counter:skill"
+  ON counterTiming(watcher: opponent, window: skill)
+  BIND "subject"
+  text: "when your opponent activates a skill, before it resolves"

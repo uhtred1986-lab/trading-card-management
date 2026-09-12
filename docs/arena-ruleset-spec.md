@@ -259,9 +259,11 @@ A game is a **directory of `.rules` files**, one per concern, read by
 says what the files are, what the loader does with them, and what it refuses.
 
 The loader landed 12 Sep 2026 (#132). The files themselves are #133–#135 and the stage issues
-below, so `src/lib/arena/rulesets/dbs/` is **empty today** — an empty set loads, which is the one
-claim it can carry, and the checks that matter are written against fixtures until the content
-arrives.
+below. `triggers.rules` is the first of them in (#134); the rest of
+`src/lib/arena/rulesets/dbs/` is still empty, so the checks that matter are written against
+fixtures until the content arrives. **The trigger declarations name nine zones — `battle`,
+`combo`, `drop`, `energy`, `hand`, `leader`, `life`, `unison`, `zEnergy` — so the DBS set does not
+resolve on its own until `zones.rules` declares them (#133).**
 
 ### The files
 
@@ -274,7 +276,7 @@ itself.
 | `game.rules` | `GAME` (deck sizes, opening hand, life, markers, mulligan, turn order), `PHASE` and `STEP` for the turn, `WIN` for life-out, deck-out and concede | §2, §5, §6 | #133 |
 | `attributes.rules` | `ATTRIBUTE` — colours, energy cost and X, specified-cost orbs, power, combo cost and power, characters, traits, type, Z-Energy cost, and the derived ones with their layer order | §4 | #133 |
 | `zones.rules` | `ZONE` — hand, deck, life, leader, battle, combo, energy, unison, warp, zDeck, zEnergy, removed, under: owner, visibility, order, modes, and what "in play" means | §3, §9-1-3 | #133 |
-| `triggers.rules` | `TRIGGER` — every moment an [Auto] or a [Counter] answers to, as the event pattern that *is* it, with the counter windows | §9-6, §9-8 | #134 |
+| `triggers.rules` | `TRIGGER` — every moment an [Auto] or a [Counter] answers to, as the event pattern that *is* it, with the counter windows (58 declarations: the 53 of the `Trigger` union and the five `counter:*` windows) | §9-6, §4-3, §9-7 | #134, **in** |
 | `keywords.rules` | `KEYWORD` — all 39, their parameters and their meanings; the `HOOK` bodies stay empty until Stage 7 | §22 | #135 |
 | `words.rules` | the words the board says for a zone, a colour, a mode, a requirement — **not written yet**: `DEFINE WORDS` is not one of the eleven kinds, and its shape is an open question on #131 | — | #135, after that answer |
 | `prompts.rules` | one declaration per `Prompt` kind with the question it asks — **not written yet**, the same open question (it may be a field of `DEFINE ACTION` rather than a kind) | — | #135, after that answer |
@@ -284,6 +286,39 @@ itself.
 
 Nothing in the list is a program *about* this game: a file is data, and the moment a game would
 need code the primitive is missing (§1).
+
+### What a trigger declaration says
+
+`triggers.rules` is the first file written, and four conventions hold across it. They are the
+file's own, not the grammar's — the grammar leaves an event pattern open on purpose — so they are
+written down here as well as in the file's header.
+
+| Written | Means |
+|---|---|
+| `ON <event>(field: value, …)` | the event, and the fields that have to match. Only `from`, `to`, `in`, `area` and `zone` name a `DEFINE ZONE` and are checked; every other argument is a word about the event, so `attackDeclared(target: leader)` is a part in the attack and not a place |
+| `watcher: controller \| opponent \| both` | whose cards in play are asked, when the moment is not the answering card's own. `controller` is the side the event is about; left out, only the card the event is about answers |
+| `WHERE isTurnPlayer(who: you)` | a condition on the answering **side**, not on the event. "Your Charge Phase" and "your opponent's Charge Phase" are one event and this condition, which is also 7-1's framing — never a duration |
+| `BIND "self" \| "subject"` | what the event's card is called inside the program: `self` when the moment happened to the answering card, `subject` when it happened to another card that card is watching |
+
+`text:` is the record's WHEN **in words** — the same sentence `describeTrigger` prints — so #137
+can make `TRIGGER_IN_WORDS` a re-export of `vocabulary.words` rather than a second copy that
+drifts. `scripts/verify/rulesets.ts` asserts both halves: set-equality between `TRIGGERS` and the
+declared names (reported by name in both directions, so a miss says *which*), and that every
+declaration's `text:` is the words the record already uses.
+
+The counter windows are declared as `TRIGGER`s with quoted names — `"counter:play"`,
+`"counter:attack"`, `"counter:battleCardAttack"`, `"counter:counter"`, `"counter:skill"` — because
+a [Counter] answers to a *window* (4-3, 9-7) rather than to a card's own moment. They are the only
+names in the file a record's WHEN never says, which is why the test's expected set is the union of
+`TRIGGERS` and those five and not `TRIGGERS` alone.
+
+Writing the 53 out found three things the legacy names hide: one name pended from several moments
+(`dealtDamage`, `played`, `markerRemoved`, `attacked`), several names pended from one
+(`removedFromBattle`/`removedByOpponent`, the four turn-phase pairs, `evolvedInto`/
+`evolveFromHandActivated`), and two names with no call site at all (`energyToDrop`, `damageStart`).
+Each is listed with its manual section in `docs/arena-history-lessons.md`, "What 53 trigger names
+turned out to be". **None of it changed the legacy engine**: the file is data, and Stage 4's
+event-pattern matcher is where a difference would become behaviour.
 
 ### What the loader does
 
