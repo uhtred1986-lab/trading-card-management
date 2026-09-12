@@ -6,7 +6,7 @@ stage: 3
 ---
 **Source:** plan Stage 3 and decision 2 ("new game = `.rules` files + drafter; new mechanism = one primitive, then every game has it"); Stage 2's primitive-or-macro table; `src/lib/arena/lang/validate.ts`, `src/components/arena/rules/*` (the chip editor), `src/lib/arena/ai/opponent.ts` (the referee prompt reads `OP_SCHEMA`).
 
-**Problem.** Two halves. (1) The ops the Stage 2 table marked *macro* — `power`, `comboPower`, `gains`, `costReduction`, `ko`, `mill`, `discard`, `replaceLeave` … — are still interpreter cases; for the rules engine to be one interpreter over primitives they must become `DEFINE OP name(params) { primitive… }` in `rulesets/dbs/ops.rules`, expanded by the loader. (2) The language, the chip editor and the referee prompt each carry their own closed word lists (`AREAS`, `KEYWORD_NAMES`, durations, the trigger list in `validateRule`); once the definition exists there must be one.
+**Problem.** Two halves. (1) The ops the Stage 2 table marked *macro* — `power`, `comboPower`, `gains`, `costReduction`, `ko`, `mill`, `discard`, `replaceLeave` … — are still interpreter cases; for the rules engine to be one interpreter over primitives they must become `DEFINE OP name` / `TAKES (param: type, …)` / `DO { primitive… }` in `rulesets/dbs/ops.rules`, expanded by the loader. (2) The language, the chip editor and the referee prompt each carry their own closed word lists (`AREAS`, `KEYWORD_NAMES`, durations, the trigger list in `validateRule`); once the definition exists there must be one.
 
 **Build.**
 1. `ops.rules` with one macro per non-primitive op, parameters matching the `OP_SCHEMA` row so **every stored `card_rules.ops` keeps parsing unchanged** and the printer keeps emitting the short form (the round-trip promise is over the macro *name*, not its expansion).
@@ -54,3 +54,26 @@ stage: 3
 7. `npm run contract:emit` and review `contract/fixtures/effect-language.txt`: order may change, no op may vanish.
 
 **Done when** `grep -rn "from \"@/lib/arena/engine/script\"" src/components/arena/rules/OpEditor.tsx` no longer imports a word list, and both tests above are in `npm test`.
+
+## Where half 2 got to, 12 Sep 2026
+
+`src/lib/arena/rulesets/words.ts` is the one source, and the parser, the chip editor
+(`optionsFor`) and the referee's prompt (`effectLanguage`) read **areas, durations, sides and
+keyword names** from it — proved in `scripts/verify/rulesets.ts` by deleting one word and asking
+the three readers. It also removed a fourth hand-written copy of the areas, inside the prompt's own
+`SELECTOR:` line.
+
+One of the five lists the issue names is still the engine's, with a tripwire in that suite:
+
+- **the trigger list `lang/validate.ts` reads** is not the vocabulary's, because `triggers.rules`
+  declares 58 moments and five of them are the counter windows — a `CounterWindow`, not a `Trigger`
+  the engine ever fires. Pointing `validateRule` at it would let a rule carry a WHEN that never
+  happens, which is the one thing that check exists to stop. #136 has to make the two one list.
+
+`SPECIAL_TARGETS` has no `Vocabulary` field and no `DEFINE` kind that could declare one; it stays
+the engine's.
+
+One structural note for whoever finishes it: `lang/` now reads `rulesets/`, and `rulesets/` is
+built on `lang/`. The cycle is broken at the barrel — `lang/index.ts` binds `parseRule`'s default
+vocabulary, and `rulesets/load.ts` imports `lang/parse` and `lang/ast` directly, because the loader
+is the one caller that must not ask for the words it is producing.

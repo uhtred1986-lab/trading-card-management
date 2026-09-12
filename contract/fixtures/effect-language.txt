@@ -88,7 +88,7 @@ AMOUNT is a number or an expression: {"var":"t"} (how many cards that name holds
   "times" multiplies; ATTR is "power" | "comboPower" | "energyCost" | "comboCost".
 TARGET is {"var":"t"} for something chosen earlier, or {"sel":SELECTOR}.
   {"var":"looked","minus":"t"} is "the rest": the cards of one name that another name did not take.
-SELECTOR: {"side":"you"|"opponent"|"both","area":"battle"|"hand"|"deck"|"drop"|"life"|"energy"|"unison"|"leader"|"warp"|"combo"|"zDeck"|"zEnergy"|"play","count":1,"upTo":true,"mode":"rest"|"active","filter":{...}}
+SELECTOR: {"side":"you"|"opponent"|"both","area":"deck"|"hand"|"drop"|"leader"|"battle"|"combo"|"energy"|"life"|"warp"|"unison"|"zDeck"|"zEnergy"|"removed"|"under"|"play","count":1,"upTo":true,"mode":"rest"|"active","filter":{...}}
   or {"special":"self"|"attacker"|"guard"|"leader"|"opponentLeader"|"resolving"} for a single known card
   ("resolving" is the card whose play a [Counter: Play] is answering).
   "count":99 means all of them, and a count is always a choice; "take":2 is "the top 2 cards" instead ("fromEnd":true for the bottom).
@@ -125,7 +125,7 @@ COND is one of these (a field marked ? may be left out):
   duration says how long an effect this skill applies lasts; a condition says when the skill does anything at all.
 TIMING: "turnStart" | "mainStart" | "turnEnd" | "turnCleanup" | "battleEnd"
 SCOPE: "thisTurn" (default) | "nextTurn" | "yourNextTurn" | "opponentNextTurn"
-AREA: "hand" | "deck" | "drop" | "life" | "battle" | "combo" | "energy" | "unison" | "leader" | "warp" | "zDeck" | "zEnergy" | "under" | "play" | "removed"
+AREA: "deck" | "hand" | "drop" | "leader" | "battle" | "combo" | "energy" | "life" | "warp" | "unison" | "zDeck" | "zEnergy" | "removed" | "under" | "play"
 DURATION: "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "game" — "nextTurn" lasts through the opponent's turn and ends as yours begins.
 FILTER: {"colors":[…],"characters":[…],"traits":[…],"names":[…],"costMin":N,"costMax":N,"powerMin":N,"powerMax":N}, any subset.
   The brackets a card prints say which list a word belongs in: <Son Goku> is a character, ≪Saiyan≫ a trait, and

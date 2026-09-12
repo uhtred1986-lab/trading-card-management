@@ -258,8 +258,19 @@ learned the expensive way. Read it before changing the compiler or the engine.
   of the closed word lists the language is checked against. Pure and **client-safe**: the text
   arrives as a generated constant (`dbs/files.ts`, written by `npm run arena:rulesets` from the
   `.rules` files beside it), so nothing reads a file at request time.
-  `docs/arena-ruleset-spec.md` §3 says what each file declares and what the loader refuses;
-  `src/lib/arena/rulesets/dbs/` is empty until the DBS files land.
+  `docs/arena-ruleset-spec.md` §3 says what each file declares and what the loader refuses.
+  **The game's words are the only words** (`rulesets/words.ts`, since 12 Sep 2026): the
+  language's parser, the workbench's chip editor (`optionsFor`) and the referee's prompt
+  (`effectLanguage`) read the areas, durations, sides and keyword names off that `Vocabulary`
+  rather than
+  each keeping a copy, so a zone deleted from `zones.rules` is gone from all three at once —
+  which is what `scripts/verify/rulesets.ts` asserts, by deleting one. `script-schema.ts`
+  keeps its arrays as the **legacy engine's** side of the same list. The keyword names came
+  with `keywords.rules` (#135); one exception is left, with a tripwire in that suite — the
+  trigger list `lang/validate.ts` reads, because `triggers.rules` also declares the five
+  counter windows, which are a `CounterWindow` and not a `Trigger` (#136). `lang/index.ts`
+  is where `parseRule`'s default vocabulary is bound, and the loader imports `lang/parse`
+  directly — the one module that must not ask for the words it produces.
 - **The record's WHEN is the engine's WHEN** (`skillAnswersTo` in `engine/triggers.ts`): an
   [Auto] skill's moment comes off `card_rules.trigger` (carried on `Script.trigger` by
   `rulesFor`), and only a skill with *no* record falls back to reading the printed text. The

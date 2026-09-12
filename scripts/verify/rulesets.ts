@@ -26,7 +26,9 @@
  */
 import assert from "node:assert/strict";
 import { loadRuleset, loadDbs, rulesetFor, HOOK_POINTS, type KeywordDef, type RulesetError } from "../../src/lib/arena/rulesets";
-import { deepEqual, parseDefinitions, printDefinitions } from "../../src/lib/arena/lang";
+import { optionsFor, words } from "../../src/lib/arena/rulesets/words";
+import { effectLanguage } from "../../src/lib/arena/ai/opponent";
+import { deepEqual, parseDefinitions, parseRule, printDefinitions } from "../../src/lib/arena/lang";
 import { KEYWORD_NAMES } from "../../src/lib/arena/engine/script-schema";
 import { TRIGGERS, describeTrigger } from "../../src/lib/arena/gaps";
 import type { CounterWindow } from "../../src/lib/arena/engine/types";
@@ -297,6 +299,63 @@ if (dbs.ok) {
 assert.equal(loadDbs(), dbs, "the ruleset is parsed again on every read");
 assert.equal(rulesetFor("dbs"), dbs, "a game's ruleset is not the one the loader cached");
 assert.equal(rulesetFor("fusion").ok, false, "Fusion World has no ruleset yet and must say so rather than load an empty one");
+
+// ── one word list, three readers ────────────────────────────────────────────
+//
+// The other half of #137. The language, the workbench's chip editor and the
+// referee's prompt each used to carry their own copy of the closed lists; the
+// claim now is that they carry none, and that a word deleted from the game's
+// declarations is gone from all three at once. So the test is one deletion and
+// three questions, not three tests.
+{
+  const vocab = words();
+  const gone = "warp";
+  assert.ok(vocab.areas.includes(gone), `the DBS ruleset no longer declares ${JSON.stringify(gone)}, so this test asks nothing`);
+  const mutated = { ...vocab, areas: vocab.areas.filter((a: string) => a !== gone) };
+  const rule = `WHEN [auto] played\nTHEN\n  moveTo(target: $t, to: ${gone})`;
+
+  // As it stands, all three know the word.
+  assert.equal(parseRule(rule).ok, true, "the parser does not read an area the game declares");
+  assert.ok(optionsFor("area").includes(gone), "the chip editor does not offer an area the game declares");
+  // The prompt's own AREA line, not the whole prompt: `discard`'s `to` field
+  // is an `OP_SCHEMA` enum of one value ("warp"), which is a field's closed
+  // list and not the game's word list.
+  const areaLine = (text: string) => text.split("\n").find((l) => l.startsWith("AREA: ")) ?? "";
+  assert.ok(areaLine(effectLanguage()).includes(`"${gone}"`), "the referee is not told about an area the game declares");
+
+  // With it deleted, none of them does — and nothing but the vocabulary was
+  // touched to make that true.
+  const refused = parseRule(rule, mutated);
+  assert.equal(refused.ok, false, "the parser still read an area the game no longer declares");
+  if (!refused.ok) assert.ok(refused.error.expected.includes("hand"), "the parser's list of what could have stood there is not the game's areas");
+  assert.ok(!optionsFor("area", mutated).includes(gone), "the chip editor still offers an area the game no longer declares");
+  assert.ok(!areaLine(effectLanguage(mutated)).includes(`"${gone}"`), "the referee is still told about an area the game no longer declares");
+
+  // And again for the keyword names, which are `keywords.rules`' since #135 —
+  // two readers this time, the parser and the chip editor. The referee is told
+  // about keywords through `OP_SCHEMA`'s own `negateKeyword` enum, which is a
+  // field's closed list rather than the game's word list.
+  const noKeyword = "Blocker";
+  assert.ok(vocab.keywordNames.includes(noKeyword), `the DBS ruleset no longer declares [${noKeyword}], so this test asks nothing`);
+  const withoutKeyword = { ...vocab, keywordNames: vocab.keywordNames.filter((k: string) => k !== noKeyword) };
+  const grant = `WHEN [auto] played\nTHEN\n  grant(target: $t, keyword: [${noKeyword}], until: turn)`;
+  assert.equal(parseRule(grant).ok, true, "the parser does not read a keyword the game declares");
+  assert.ok(optionsFor("keyword").includes(noKeyword), "the chip editor does not offer a keyword the game declares");
+  assert.equal(parseRule(grant, withoutKeyword).ok, false, "the parser still read a keyword the game no longer declares");
+  assert.ok(!optionsFor("keyword", withoutKeyword).includes(noKeyword), "the chip editor still offers a keyword the game no longer declares");
+
+  // The one list of the five that is still the engine's, named here rather
+  // than left to be discovered: `triggers` is a superset, by exactly the five
+  // counter windows above. They are a `CounterWindow` and not a `Trigger` the
+  // engine fires, so `validateRule` reading them would let a rule carry a WHEN
+  // that never happens — the one thing that check exists to stop. #136 has to
+  // make the two one list first.
+  assert.deepEqual(
+    vocab.triggers.filter((t: string) => !(TRIGGERS as readonly string[]).includes(t)),
+    COUNTER_WINDOWS.map((w) => `counter:${w}`),
+    "the moments the game declares and the engine's `Trigger` union does not have changed — until they are one list, `lang/validate.ts` reads the engine's",
+  );
+}
 
 // ── keywords.rules against KEYWORD_NAMES, both directions ──────────────────
 

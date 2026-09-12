@@ -1,3 +1,8 @@
+import { parseCond as cond, parseRule as parse } from "./parse";
+import { words, type Words } from "../rulesets/words";
+import type { Cond } from "../engine/script";
+import type { Parsed, Rule } from "./ast";
+
 /**
  * The rules language: one grammar, one parser, one printer, one validator.
  *
@@ -8,7 +13,17 @@
  * They share this module rather than each growing a dialect.
  */
 export { printRule, printOps, printOp, printCond, printCost, printSelector, printFilter, printAmount, printRef, printDefinition, printDefinitions, canonical, deepEqual } from "./print";
-export { parseRule, parseCond, parseDefinitions } from "./parse";
+export { parseDefinitions, ENGINE_WORDS } from "./parse";
+
+/**
+ * A card's rule, read against the **game's** words: an area is a zone
+ * `zones.rules` declares, never a constant kept in the parser (#137). The
+ * binding lives here rather than in `parse.ts` because `rulesets/` is built on
+ * the grammar — the loader imports `./parse` directly, so the one module that
+ * must not ask for the vocabulary it produces does not get it.
+ */
+export const parseRule = (src: string, vocab: Words = words()): Parsed<Rule> => parse(src, vocab);
+export const parseCond = (src: string, vocab: Words = words()): Parsed<Cond> => cond(src, vocab);
 export { validateRule, readRule, type Invalid } from "./validate";
 export { lex, positionOf, LangSyntaxError, type Token } from "./tokens";
 export {
