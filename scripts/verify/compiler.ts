@@ -1413,6 +1413,38 @@ import type { PlayerId } from "./harness";
   assertConsistent(s);
 }
 
+// ── 20-5: X, from the move list to the cards drawn ─────────────────────────
+
+{
+  // The scenario the issue names: a card whose price is "Pay X energy" and
+  // whose effect draws that many. What is asserted is the whole path — the
+  // menu offering one activation per payable X, the energy actually resting,
+  // and the hand growing by the number chosen — because each of the three has
+  // its own way of being silently wrong.
+  let s = arena({ hand: ["XDRAW"], energy: ["V1", "V1", "V1", "V1"] });
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "XDRAW") });
+  while (s.prompt.kind !== "main") s = play(s, legalActions(CTX, s)[0].action);
+
+  const offers = labels(s).filter((l) => l.startsWith("Activate XDRAW"));
+  // One orb went on playing the card, so three energy are left active and the
+  // menu runs X = 0 to 3 — an X the energy cannot settle is never offered.
+  assert.deepEqual(
+    offers.map((l) => l.slice(l.indexOf("with X = "))),
+    ["with X = 0", "with X = 1", "with X = 2", "with X = 3"],
+    "one offer per payable value of X",
+  );
+
+  const before = s.players.p1.hand.length;
+  const activeBefore = s.players.p1.energy.filter((id) => s.cards[id].mode === "active").length;
+  const chosen = legalActions(CTX, s).find((a) => a.label.endsWith("with X = 2"))!;
+  s = play(s, chosen.action);
+  while (s.prompt.kind !== "main") s = play(s, legalActions(CTX, s)[0].action);
+
+  assert.equal(s.players.p1.hand.length, before + 2, "it drew X cards");
+  assert.equal(s.players.p1.energy.filter((id) => s.cards[id].mode === "active").length, activeBefore - 2, "…and paid X energy for them");
+  assertConsistent(s);
+}
+
 // ── the second half of a sentence, left in the third person ────────────────
 
 {
