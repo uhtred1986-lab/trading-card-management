@@ -258,10 +258,11 @@ A game is a **directory of `.rules` files**, one per concern, read by
 `src/lib/arena/rulesets/load.ts`. The grammar is `docs/arena-rules-language.md` §3b; this section
 says what the files are, what the loader does with them, and what it refuses.
 
-The loader landed 12 Sep 2026 (#132). The files themselves are #133–#135 and the stage issues
-below, so `src/lib/arena/rulesets/dbs/` is **empty today** — an empty set loads, which is the one
-claim it can carry, and the checks that matter are written against fixtures until the content
-arrives.
+The loader landed 12 Sep 2026 (#132), and the first three files the same day (#133):
+`game.rules`, `attributes.rules` and `zones.rules`. The rest are #134–#135 and the stage issues
+below, so `src/lib/arena/rulesets/dbs/` holds three of the ten rows — every refusal is still
+checked against fixtures, and what the real files claim is checked against them directly
+(`scripts/verify/rulesets.ts`).
 
 ### The files
 
@@ -271,9 +272,9 @@ itself.
 
 | File | Declares | Manual | Written by |
 |---|---|---|---|
-| `game.rules` | `GAME` (deck sizes, opening hand, life, markers, mulligan, turn order), `PHASE` and `STEP` for the turn, `WIN` for life-out, deck-out and concede | §2, §5, §6 | #133 |
-| `attributes.rules` | `ATTRIBUTE` — colours, energy cost and X, specified-cost orbs, power, combo cost and power, characters, traits, type, Z-Energy cost, and the derived ones with their layer order | §4 | #133 |
-| `zones.rules` | `ZONE` — hand, deck, life, leader, battle, combo, energy, unison, warp, zDeck, zEnergy, removed, under: owner, visibility, order, modes, and what "in play" means | §3, §9-1-3 | #133 |
+| `game.rules` | `GAME` (deck sizes, opening hand, life, mulligan, turn order), six `PHASE`s and the 26 `STEP`s of the turn, `WIN` for life-out and deck-out | §0-1-3, §6, §7 | #133 ✔ |
+| `attributes.rules` | `ATTRIBUTE` — every `CardDef` field (id, name, type, colours, energy cost, specified-cost orbs, Z-Energy cost, power, combo cost and power, characters, traits, skill, back, also-names), the three derived costs with their layer order, and the player's energy markers | §1-2, §1-9, §1-14, §2, §9-9-1, §20-21 | #133 ✔ |
+| `zones.rules` | `ZONE` — the manual's twelve areas plus `removed`, `under` and `play`: owner, visibility, order, single, markers, modes, host, and what "in play" means | §3, §9-1-3-1, §20-10, §23-2 | #133 ✔ |
 | `triggers.rules` | `TRIGGER` — every moment an [Auto] or a [Counter] answers to, as the event pattern that *is* it, with the counter windows | §9-6, §9-8 | #134 |
 | `keywords.rules` | `KEYWORD` — all 39, their parameters and their meanings; the `HOOK` bodies stay empty until Stage 7 | §22 | #135 |
 | `words.rules` | the words the board says for a zone, a colour, a mode, a requirement — **not written yet**: `DEFINE WORDS` is not one of the eleven kinds, and its shape is an open question on #131 | — | #135, after that answer |
@@ -284,6 +285,52 @@ itself.
 
 Nothing in the list is a program *about* this game: a file is data, and the moment a game would
 need code the primitive is missing (§1).
+
+The manual sections in that table are the ones of `docs/rules/rulemanual.txt` as it actually
+numbers them — §2 is the parts of a card, §3 the areas, §6 the setup and §7 the turn. The older
+plan text said "setup §5, areas §3, card information §4"; only the middle one was right, and the
+files cite the real numbering.
+
+### What #133's three files settled
+
+Three conventions a reader would otherwise have to infer, written on every declaration rather than
+left to a missing line:
+
+- **`ordered: true` means the rules fix the order and no player may rearrange it** — the Deck Area
+  (3-2-2) and the Life Area (3-9-2), and the cards under a card (23-2-3). Every other area lets its
+  owner reorder freely (3-3-2, 3-4-3, 3-8-2, 3-10-2, 3-12-2, 3-13-2), and is written
+  `ordered: false` rather than left out.
+- **`visibility` is who may read the faces**: `none` for a secret area neither player may check,
+  `owner` for one its own player may read (the hand, 3-3-2; the Z-Deck, 3-12-2), `all` for an open
+  area (3-1-3).
+- **`inPlay` is 9-1-3-1**: the Leader, Battle and Unison Areas, the three a card's own skills are
+  valid in. The Combo Area is *not* one, though 3-1-4-1 carries effects into it.
+
+Three zones are declared that the manual's §3 does not count among its twelve areas, because a
+program has to be able to name them: `removed` (20-10 — cards removed from the game, which the
+manual pointedly says are in no area at all), `under` (23-2, whose *area* is the area of the card
+on top, 23-2-2-2) and `play`, which is not a place a card is put but the word for the three in-play
+areas together (`cardsInPlay` in `engine/state.ts`). Each says so in its own `text:`.
+
+An attribute's `layers:` is the order of 9-9-1 — `printed` (9-9-1-1), `rewrite` (every continuous
+effect that does not rewrite a number, 9-9-1-2), `numeric` (the ones that do, 9-9-1-3) — and a
+cost's layers are its own, `printed` then `reduction` then `specified`, because 20-21's reduction
+is a discount on the price rather than a rewrite of the printed cost, and the coloured half moves
+on its own (the owner's BT19-039 ruling of 9 Sep 2026).
+
+The completeness check over `attributes.rules` is **one-directional**: every `CardDef` field has a
+card attribute, and the derived ones beside them (`costOf`, `comboCostOf`, `zEnergyCostOf`) and the
+player's `energyMarkers` have no printed counterpart to match. #136's set equality is over the
+zones, the phases, the triggers and the keywords, not over the attributes.
+
+Five things the manual says that the grammar could not, left out rather than written wrongly and
+recorded in `docs/arena-history-lessons.md` (12 Sep 2026): the deck's 50-**to**-60 range and the
+4-copy limit (6-1-3, 6-1-5-1), the energy marker only the second player starts with (6-2-1-11),
+conceding and a card that ends the game (0-1-3-4, 0-1-3-5), an attribute's real domain — the card
+types, an X cost, the specified cost's orbs per colour (2-1, 1-2-2-2, 1-2-3) — and a card's back
+side as a *face* of its own (1-9). The engine also runs the Main Phase End Step as a phase of its
+own, where the manual makes it a step of the Main Phase (7-3-5); the declaration follows the
+engine and says so.
 
 ### What the loader does
 
