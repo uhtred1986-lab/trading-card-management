@@ -1,8 +1,10 @@
 ---
 title: Arena: run clause near-miss audit and fix wrong readings
 milestone: Arena M1 — Rules correctness and parser coverage
-labels: backlog, ready-for-agent, enhancement, area:arena-compiler, phase:rules-stage2, model:opus-5
+labels: done, enhancement, area:arena-compiler, phase:rules-stage2, model:opus-5
 stage: 2
+status: closed
+closed_at: 2026-09-12
 ---
 **Source:** `docs/arena-next-session-prompt.md` §3 and §4(a); `docs/arena-tooling.md` §1; memory of the two passes already run (`docs/arena-history-lessons.md`, entries of 9 Sep 2026).
 
