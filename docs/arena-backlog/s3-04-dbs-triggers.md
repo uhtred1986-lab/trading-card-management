@@ -1,8 +1,10 @@
 ---
 title: Arena: DBS declarations — triggers.rules as event patterns
 milestone: Arena M6 — Definitions in the language (Stage 3)
-labels: backlog, ready-for-agent, enhancement, area:arena-rulesets, phase:rules-stage3, model:opus-5
+labels: done, enhancement, area:arena-rulesets, phase:rules-stage3, model:opus-5
 stage: 3
+status: closed
+closed_at: 2026-09-12
 ---
 **Source:** plan Stage 3; the `Trigger` union in `src/lib/arena/engine/types.ts` (~41 names) and `pendTriggers`/`skillAnswersTo` in `engine/triggers.ts`; rule manual 9-6 ([Auto] timing) and 9-6-9 (area-movement triggers); `docs/arena-rules-language.md` §7.
 
