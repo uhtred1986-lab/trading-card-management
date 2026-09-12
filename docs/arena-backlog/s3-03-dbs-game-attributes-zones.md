@@ -1,8 +1,10 @@
 ---
 title: Arena: DBS declarations — game.rules, attributes.rules and zones.rules
 milestone: Arena M6 — Definitions in the language (Stage 3)
-labels: backlog, ready-for-agent, enhancement, area:arena-rulesets, phase:rules-stage3, model:opus-5
+labels: done, enhancement, area:arena-rulesets, phase:rules-stage3, model:opus-5
 stage: 3
+status: closed
+closed_at: 2026-09-12
 ---
 **Source:** plan Stage 3; rule manual `docs/rules/rulemanual.txt` (setup §5, areas §3, card information §4); `src/lib/arena/engine/types.ts` (`PlayerState`, `Area`, `CardDef`), `state.ts` (`playCost`, `specifiedCostOf`).
 
@@ -50,3 +52,28 @@ Write the three files so that `loadRuleset` accepts them and `verify/rulesets.ts
 5. History entry in `docs/arena-history-lessons.md`: what the manual says that the files could not, if anything.
 
 **Done when** the three files load, `zones.rules` has 15 zones (13 from `Area` + `under` + `play`, or a note explaining why `play` is a pseudo-zone rather than a declaration), and the legacy engine diff is empty (`git diff --stat src/lib/arena/engine` shows nothing).
+
+---
+
+## Built — 12 Sep 2026
+
+The three files are in `src/lib/arena/rulesets/dbs/` and the set loads: **69 declarations**, every
+one carrying its `docs/rules/rulemanual.txt` section as a `--` comment.
+
+- `zones.rules` — 15 `ZONE`s: the manual's twelve areas (§3) plus `removed` (20-10), `under`
+  (23-2) and `play` (9-1-3-1, the word for the Leader, Battle and Unison Areas together). `play` is
+  declared rather than left as a pseudo-zone, because the loader refuses any program naming a zone
+  nothing declares and `AREAS` carries it.
+- `attributes.rules` — 19 `ATTRIBUTE`s: every `CardDef` field, the three derived costs (`costOf`,
+  `comboCostOf`, `zEnergyCostOf`) with their layer order, and the player's `energyMarkers`.
+- `game.rules` — one `GAME`, six `PHASE`s (the four of a turn, plus `setup` and `over`), the 26
+  `STEP`s of §6-2-1 and §7, and two `WIN`s.
+
+`scripts/verify/rulesets.ts` loads the real set instead of asserting the directory is empty, and
+round-trips the whole ruleset through `printDefinitions`. `docs/arena-ruleset-spec.md` §3 has the
+file table and the conventions; `docs/arena-history-lessons.md` has the entry and the six gaps.
+
+**Two notes for #136.** The completeness check over attributes must be **one-directional** — every
+`CardDef` field has a card attribute, and the four beside them (three derived costs and
+`energyMarkers`) have no printed counterpart — and `mainEnd` is a `PHASE` here where the manual
+makes it a step of the Main Phase (7-3-5), which is the engine's shape and not an error.

@@ -386,6 +386,29 @@ import {
   const view = boardView(CTX, s, "p1", {}).you.hand!.find((c) => c.name === "GOTEN")!;
   assert.equal(priceOf(offers[2].action, view, offers[2].label, offers[2].cost), "3 markers (1 blue)", "the price sentence shows the relaxed requirement");
 
+  // 20-5: the same promise for an X *skill* price. The number on the row and
+  // the sentence beside it are one figure: patched on after the fact, the
+  // energy moved and the words stayed, and "Activate XDRAW with X = 3" read
+  // "free" on the action sheet while three energy was charged. Driven through
+  // `legalActions` rather than `priceOf` alone, because the defect was in what
+  // the engine handed over, not in how the sentence was assembled.
+  {
+    let xs = arena({ hand: ["XDRAW"], energy: ["V1", "V1", "V1", "V1"] });
+    xs = play(xs, { type: "play", player: "p1", card: find(xs, "p1", "hand", "XDRAW") });
+    while (xs.prompt.kind !== "main") xs = play(xs, legalActions(CTX, xs)[0].action);
+    const body = find(xs, "p1", "battle", "XDRAW");
+    const paid = legalActions(CTX, xs).filter((a) => a.action.type === "activate" && a.action.card === body);
+    const three = paid.find((a) => (a.action as { x?: number }).x === 3)!;
+    assert.ok(three, "X = 3 is on the menu");
+    assert.equal(three.cost?.energy, 3, "the row carries the X that will be charged");
+    const xView = boardView(CTX, xs, "p1", {}).you.battle!.find((c) => c.name === "XDRAW")!;
+    assert.equal(priceOf(three.action, xView, three.label, three.cost), "3 energy", "…and the sentence names the same number");
+    // X = 0 is a real offer and really is free, so the wording is not simply
+    // "always name a number".
+    const none = paid.find((a) => (a.action as { x?: number }).x === 0)!;
+    assert.equal(priceOf(none.action, xView, none.label, none.cost), "free");
+  }
+
   // 13-2-1-3: the markers are the **total** paid, not the coloured part — pay
   // three and it arrives with three, of which only one had to be blue.
   s = play(s, offers[2].action);

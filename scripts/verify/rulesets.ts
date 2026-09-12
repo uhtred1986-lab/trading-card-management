@@ -11,15 +11,19 @@
  * of its own rules were not there, which is precisely the failure a
  * configuration-driven engine has to make loud.
  *
- * The DBS files are #133–#135 and the directory is empty today, so the set the
- * app actually loads is checked for the one thing an empty set can prove: that
- * it loads. #136 grows this file into the ruleset suite proper (whole-file
- * round trips, and every legacy union covered by a declaration).
+ * The DBS files have begun to arrive (#133: `game.rules`, `attributes.rules`,
+ * `zones.rules`), so the set the app actually loads is checked for what those
+ * three carry: that it loads, that it is the game it says it is, and that the
+ * areas of the manual's §3 are all declared. #136 grows this file into the
+ * ruleset suite proper (whole-file round trips, and every legacy union covered
+ * by a declaration — triggers and keywords among them, which are #134 and
+ * #135).
  *
  * Part of `npm test`; run from `scripts/verify-arena.ts`, which fixes the order.
  */
 import assert from "node:assert/strict";
 import { loadRuleset, loadDbs, rulesetFor, HOOK_POINTS, type KeywordDef, type RulesetError } from "../../src/lib/arena/rulesets";
+import { deepEqual, parseDefinitions, printDefinitions } from "../../src/lib/arena/lang";
 import { KEYWORD_NAMES } from "../../src/lib/arena/engine/script-schema";
 
 const lines = (...rows: string[]): string => rows.join("\n");
@@ -190,16 +194,58 @@ assert.equal(unknownHook.clause, "KEYWORD");
 
 // ── what the app loads ──────────────────────────────────────────────────────
 
-// zones.rules, words.rules and prompts.rules are still to come (#136 and the
-// owner's word on DEFINE WORDS/PROMPT, #131); the claim an empty set of those
-// can carry is that the path the app takes works at all. keywords.rules is
-// #135's, and is checked against KEYWORD_NAMES below.
+// The real DBS declarations, as far as they go. The completeness assertions —
+// every `Area`, `Trigger`, keyword and `Phase` of the legacy engine declared
+// and nothing it does not know — are #136's; these are the claims #133's three
+// files and #135's `keywords.rules` make on their own. words.rules and
+// prompts.rules still wait on the owner's word on DEFINE WORDS/PROMPT (#131).
 const dbs = loadDbs();
 assert.ok(dbs.ok, `the DBS ruleset did not load: ${dbs.ok ? "" : JSON.stringify(dbs.errors, null, 2)}`);
 if (dbs.ok) {
-  assert.equal(dbs.definition.id, "dbs");
-  assert.equal(dbs.definition.definitions.length, KEYWORD_NAMES.length, "the DBS ruleset does not hold one declaration per keyword — grow this check with the other files as they land (#136)");
-  assert.deepEqual(dbs.vocabulary.areas, []);
+  const { definition: def, vocabulary: vocab } = dbs;
+  assert.equal(def.id, "dbs");
+  assert.equal(def.game?.title, "Dragon Ball Super Card Game", "the DBS ruleset does not say which game it is");
+  // The setup numbers of the manual's 6-1 and 6-2-1, which are the whole
+  // reason `DEFINE GAME` has fields rather than a title.
+  assert.equal(def.game?.players, 2);
+  assert.equal(def.game?.deck, 50, "the deck size of 6-1-3");
+  assert.equal(def.game?.hand, 6, "the opening hand of 6-2-1-9");
+  assert.equal(def.game?.life, 8, "the life of 6-2-1-10");
+  assert.equal(def.game?.mulligan, true, "the redraw of 6-2-1-9-1");
+  // Twelve areas in the manual's §3, plus the three a program has to be able
+  // to name: `removed` (20-10), `under` (23-2) and `play` (9-1-3-1).
+  assert.equal(Object.keys(def.zones).length, 15, `the DBS ruleset declares ${Object.keys(def.zones).length} zones, not 15`);
+  assert.deepEqual(vocab.areas, Object.keys(def.zones), "the vocabulary's areas are not the zones the game declared");
+  for (const zone of ["deck", "hand", "drop", "leader", "battle", "combo", "energy", "life", "warp", "unison", "zDeck", "zEnergy", "removed", "under", "play"]) {
+    assert.ok(zone in def.zones, `no DEFINE ZONE for ${JSON.stringify(zone)}`);
+  }
+  assert.equal(def.zones.battle.inPlay, true, "the Battle Area is where a card is in play (9-1-3-1)");
+  assert.equal(def.zones.unison.single, true, "only one card is in a Unison Area at a time (3-11-4)");
+  assert.equal(def.zones.deck.visibility, "none", "the Deck Area is a secret area (3-2-2)");
+  // Every phase of the turn the GAME names is declared, and the two that are
+  // not a turn's (`setup`, `over`) are declared beside them.
+  for (const phase of def.game?.phases ?? []) assert.ok(phase in def.phases, `DEFINE GAME names a phase ${JSON.stringify(phase)} with no declaration`);
+  assert.equal(Object.keys(def.phases).length, 6, "the six phases the engine knows are not all declared");
+  // The two defeat conditions of 0-1-3-2. Conceding and a card that ends the
+  // game are gaps, recorded in the history entry of 12 Sep 2026.
+  assert.deepEqual(Object.keys(def.wins).sort(), ["deckOut", "lifeOut"]);
+  assert.equal(def.wins.lifeOut.result, "lose");
+  // Every field of `CardDef` has a card attribute, so #136 has nothing to
+  // report about this file; the derived ones beside them have no printed
+  // counterpart, which is why the check is one-directional.
+  for (const attr of ["id", "name", "type", "colors", "energyCost", "specifiedCost", "zEnergyCost", "power", "comboCost", "comboPower", "characters", "traits", "skill", "back", "alsoNames"]) {
+    assert.ok(attr in def.attributes, `no DEFINE ATTRIBUTE for CardDef's ${JSON.stringify(attr)}`);
+  }
+  assert.equal(def.attributes.power.layers?.[0], "printed", "power does not say the printed value is its base (9-9-1-1)");
+  assert.equal(def.sources["zone:battle"], "zones.rules");
+  assert.equal(def.sources["game:dbs"], "game.rules");
+  assert.equal(def.sources["attribute:power"], "attributes.rules");
+  // Whole files, printed and read back: the round-trip promise over the
+  // declarations the app actually loads.
+  const printed = printDefinitions(def.definitions);
+  const reread = parseDefinitions(printed);
+  assert.ok(reread.ok, `the DBS ruleset does not re-parse after printing: ${reread.ok ? "" : JSON.stringify(reread.error)}`);
+  if (reread.ok) assert.ok(deepEqual(reread.value, def.definitions), "printing the DBS ruleset and reading it back does not give the same declarations");
 }
 assert.equal(loadDbs(), dbs, "the ruleset is parsed again on every read");
 assert.equal(rulesetFor("dbs").ok, true);

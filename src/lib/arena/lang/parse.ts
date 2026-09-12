@@ -15,9 +15,9 @@
  * does.
  */
 import { emptyFilter, parseFilter, type CardFilter } from "../engine/filters";
-import { AREAS, DURATIONS, KEYWORD_NAMES, SIDES, SPECIAL_TARGETS, COND_SCHEMA, OP_SCHEMA, type Amount, type Cond, type CostRecord, type FieldType, type Op, type OpField, type Ref, type Selector } from "../engine/script";
+import { AREAS, DURATIONS, KEYWORD_NAMES, SIDES, SPECIAL_TARGETS, COND_SCHEMA, OP_SCHEMA, type Amount, type Cond, type CostRecord, type FieldType, type Op, type OpField, type Ref, type Selector, type XCost } from "../engine/script";
 import type { Color, KeywordSkill, Trigger } from "../engine/types";
-import { DEFINE_KINDS, FILTER_FIELDS, PARAM_TYPES, fieldsOf, type Definition, type DefineField, type DefineFieldType, type DefineHook, type DefineKind, type DefineParam, type EventPattern, type FilterFieldType, type LangError, type Parsed, type PatternValue, type Rule } from "./ast";
+import { DEFINE_KINDS, EXPR_ATTRS, EXPR_SCHEMA, FILTER_FIELDS, PARAM_TYPES, fieldsOf, type Definition, type DefineField, type DefineFieldType, type DefineHook, type DefineKind, type DefineParam, type EventPattern, type ExprArg, type FilterFieldType, type LangError, type Parsed, type PatternValue, type Rule } from "./ast";
 import { LangSyntaxError, lex, positionOf, type Token } from "./tokens";
 
 const SELECTOR_FLAGS: Record<string, (s: Selector) => void> = {
@@ -199,6 +199,18 @@ class Parser {
       cost.spiritBoost = this.number();
       return;
     }
+    if (this.eatKw("X")) {
+      // "{X}", with the bounds a card states. Read in either order, printed in
+      // one; an `X` with no bounds is payable at anything the energy allows.
+      const x: XCost = {};
+      for (;;) {
+        if (this.eatKw("min")) x.min = this.number();
+        else if (this.eatKw("max")) x.max = this.number();
+        else break;
+      }
+      cost.x = x;
+      return;
+    }
     if (this.eatKw("TEXT")) {
       cost.text = this.string();
       return;
@@ -211,7 +223,7 @@ class Parser {
       cost.program = this.block();
       return;
     }
-    this.fail("that is not part of a price", ["{Red}", "+1 marker", "burst N", "spiritBoost N", "TEXT", "IF", "DO"]);
+    this.fail("that is not part of a price", ["{Red}", "+1 marker", "burst N", "spiritBoost N", "X", "TEXT", "IF", "DO"]);
   }
 
   // ── steps ─────────────────────────────────────────────────────────────────
@@ -382,35 +394,67 @@ class Parser {
     return this.word("a variable name");
   }
 
+  /**
+   * An expression (20-5). The calls come from `EXPR_SCHEMA`, so a shape the
+   * language gains is a row there and nothing here; `+ n` is the one operator,
+   * read left-associatively after the term, and `* n` belongs to the term.
+   */
   private amount(): Amount {
+    let left = this.amountTerm();
+    for (;;) {
+      if (this.eatPunct("+")) {
+        left = { plus: [left, this.number()] };
+        continue;
+      }
+      // Typed without the space, "count(SEL)+1" lexes the "+1" as one signed
+      // number (the lexer reads a sign that touches a digit as part of it, for
+      // "-1 marker"). The printer always writes the space; the parser is the
+      // generous one, so it reads that form too.
+      if (this.tok.kind === "number" && this.tok.text.startsWith("+")) {
+        left = { plus: [left, this.number()] };
+        continue;
+      }
+      return left;
+    }
+  }
+
+  private amountTerm(): Amount {
     if (this.isPunct("$")) return { var: this.variable() };
-    if (this.isKw("count") && this.isPunct("(", this.ahead(1))) {
-      this.i += 2;
-      const sel = this.selector();
-      this.want(")");
-      if (!this.eatPunct("*")) return { count: sel };
-      return { count: sel, times: this.number() };
+    for (const spec of EXPR_SCHEMA) {
+      if (!this.isKw(spec.call)) continue;
+      // A no-argument call ("X") is a bare word; every other one wants its
+      // bracket, and a word that only looks like a call ("count" as a field
+      // name) falls through to the number below rather than being eaten.
+      if (spec.args.length && !this.isPunct("(", this.ahead(1))) continue;
+      this.i += spec.args.length ? 2 : 1;
+      const fields = spec.fields ?? [spec.key];
+      const out: Record<string, unknown> = spec.args.length ? {} : { [spec.key]: true };
+      spec.args.forEach((kind, i) => {
+        if (i > 0) this.want(",");
+        out[fields[i]] = this.amountArg(kind);
+      });
+      if (spec.args.length) this.want(")");
+      if (spec.times && this.eatPunct("*")) out.times = this.number();
+      return out as Amount;
     }
-    if (this.isKw("sumPower") && this.isPunct("(", this.ahead(1))) {
-      this.i += 2;
-      const v = this.variable();
-      this.want(")");
-      return { sumPower: { var: v } };
+    return this.number(`a number, $var, ${EXPR_SCHEMA.map((e) => e.example).join(", ")}`);
+  }
+
+  private amountArg(kind: ExprArg): unknown {
+    switch (kind) {
+      case "selector":
+        return this.selector();
+      case "var":
+        return { var: this.variable() };
+      case "ref":
+        return this.ref();
+      case "number":
+        return this.number();
+      case "side":
+        return this.enumValue(SIDES);
+      case "attr":
+        return this.enumValue(EXPR_ATTRS);
     }
-    if (this.isKw("handUpTo") && this.isPunct("(", this.ahead(1))) {
-      this.i += 2;
-      const n = this.number();
-      this.want(")");
-      return { handUpTo: n };
-    }
-    if (this.isKw("markers") && this.isPunct("(", this.ahead(1))) {
-      this.i += 2;
-      const sel = this.selector();
-      this.want(")");
-      if (!this.eatPunct("*")) return { markers: sel };
-      return { markers: sel, times: this.number() };
-    }
-    return this.number("a number, $var, count(…), sumPower($v), handUpTo(N) or markers(…)");
   }
 
   private ref(): Ref {
