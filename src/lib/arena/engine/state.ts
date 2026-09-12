@@ -6,8 +6,8 @@
  */
 import { hasKeyword, keywordOf, skillsOf, specifiedCostOf, isZ, baseType } from "./cards";
 import { matches, powerRelOk } from "./filters";
-import { describeCond } from "./script-schema";
-import { NO_RULES, type Amount, type AmountAttr, type CardScripts, type Cond, type Op, type Ref, type ScriptArea, type ScriptFrame, type Selector, type Side } from "./script";
+import { describeCond, describeScript } from "./script-schema";
+import { NO_RULES, stepScript, type Amount, type AmountAttr, type CardScripts, type Cond, type Op, type Ref, type ScriptArea, type ScriptFrame, type Selector, type Side } from "./script";
 import type {
   Area,
   CardDef,
@@ -98,7 +98,12 @@ export function def(ctx: GameContext, s: GameState, id: string): CardDef {
  * instead. `by` narrows it to departures caused by a skill.
  */
 export interface Replacement {
-  to: Area;
+  /**
+   * Where the card goes instead — a **redirect**. Absent on a *substitute*,
+   * whose `ops` happen in the departure's place while the card stays put
+   * ("place all the cards under this card in the Drop Area instead").
+   */
+  to?: Area;
   /**
    * Which departures it replaces. Absent is any of them ("would leave the
    * Battle Area"); `"skill"` is only an effect putting the card out; `"ko"`
@@ -111,6 +116,16 @@ export interface Replacement {
   mode?: "active" | "rest";
   /** 9-10-3: the affected player may choose not to apply it. */
   optional?: boolean;
+  /**
+   * The program that happens instead of the departure (`replace`'s substitute
+   * form). The card stays where it is; this runs in place of its move, with
+   * the card bound as `subject`.
+   */
+  ops?: Op[];
+  /** The card whose skill said so, so the substitute's program has a source. */
+  source?: string;
+  /** Whose skill it is, so the substitute's program runs for the right player. */
+  master?: PlayerId;
 }
 
 /**
@@ -129,6 +144,10 @@ function replacementFor(ctx: GameContext, s: GameState, id: string, reason: Move
     if (e.kind !== "replaceLeave" || e.target !== id) continue;
     const r = e.value as Replacement;
     if (r.optional) continue;
+    // A substitute program is already running: whatever it moves is moving
+    // for real, or "place the cards under this card in the Drop instead"
+    // would replace its own substitute for ever.
+    if (r.ops && applyingReplacement) continue;
     // "By a skill" means an effect put it out, not a battle or a rule; the
     // longer form adds the KO, which is the one other cause cards name.
     if (r.by === "skill" && reason !== "effect") continue;
@@ -144,12 +163,52 @@ export function replacementChoicesFor(ctx: GameContext, s: GameState, id: string
   for (const e of staticEffects(ctx, s)) {
     if (e.kind !== "replaceLeave" || e.target !== id) continue;
     const r = e.value as Replacement;
+    if (r.ops && applyingReplacement) continue;
     if (r.by === "skill" && reason !== "effect") continue;
     if (r.by === "ko" && reason !== "ko") continue;
     if (r.by === "skillOrKo" && reason !== "effect" && reason !== "ko") continue;
-    out.push({ source: e.source, to: r.to, mode: r.mode, optional: r.optional });
+    out.push({ source: e.source, ...(r.to ? { to: r.to } : {}), mode: r.mode, optional: r.optional, ...(r.ops ? { ops: r.ops } : {}), ...(r.master ? { master: r.master } : {}) });
   }
   return out;
+}
+
+/**
+ * 9-10 with a program in the event's place: the move does not happen at all
+ * and this runs instead, with the card whose departure was replaced bound as
+ * `subject`. Synchronous, and safely so — `validateProgram` refuses a `with`
+ * block that could ask a question (#107), so the frame always runs to the end
+ * rather than suspending somewhere `move()` has no way to wait.
+ *
+ * The flag is the same device `computingStatics` is: whatever the substitute
+ * itself moves is moving for real, so a replacement cannot replace its own
+ * replacement.
+ */
+/**
+ * Is this `with` block a plain **redirect** — the card itself going somewhere
+ * else — rather than a program standing in for the departure? One move of the
+ * card whose event it is, to an area a card can be in, is the shape
+ * `replaceLeave` prints and the only one `move()` can honour by changing a
+ * destination. Everything else is a substitute, and runs.
+ */
+function redirectOf(ops: Op[]): { to: Area; mode?: "active" | "rest" } | null {
+  if (ops.length !== 1) return null;
+  const only = ops[0];
+  if (only.op !== "moveTo" || only.under || only.owner || only.to === "under" || only.to === "play") return null;
+  const sel = "sel" in only.target ? only.target.sel : null;
+  if (!sel || (sel.special !== "self" && sel.special !== "subject")) return null;
+  return { to: only.to as Area, ...(only.mode ? { mode: only.mode } : {}) };
+}
+
+let applyingReplacement = false;
+
+function runReplacement(ctx: GameContext, s: GameState, ev: GameEvent[], id: string, r: Replacement): void {
+  if (applyingReplacement || !r.ops?.length) return;
+  applyingReplacement = true;
+  try {
+    stepScript(ctx, s, ev, { ops: r.ops, ip: 0, vars: {}, card: r.source ?? id, master: r.master ?? s.cards[id].owner, subject: id });
+  } finally {
+    applyingReplacement = false;
+  }
 }
 
 /** What a card counts as, once its skills have had their say (20-1). */
@@ -776,7 +835,7 @@ let computingStatics = false;
  * `arena:coverage` uses so its "applied by the static layer" line means what
  * it says — keep this list beside the switch it describes.
  */
-const STATIC_OPS = new Set<Op["op"]>(["power", "comboPower", "modifyAttr", "grant", "costReduction", "replaceLeave", "gains", "negateKeyword", "forbid", "permit", "immune", "altCost"]);
+const STATIC_OPS = new Set<Op["op"]>(["power", "comboPower", "modifyAttr", "grant", "costReduction", "replaceLeave", "replace", "gains", "negateKeyword", "forbid", "permit", "immune", "altCost"]);
 
 export function emitsStatic(ops: Op[]): boolean {
   return ops.some((o) => (o.op === "if" ? emitsStatic(o.then) || emitsStatic(o.else ?? []) : STATIC_OPS.has(o.op)));
@@ -831,6 +890,22 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
       const dest = op.to === "play" ? "battle" : op.to === "under" ? "drop" : (op.to as Area);
       const targets = op.target ? staticTargets(ctx, s, frame, op.target) : [source];
       for (const id of targets) out.push({ source, kind: "replaceLeave", target: id, value: { to: dest, by: op.by, mode: op.mode, optional: op.optional } });
+      continue;
+    }
+    // The primitive the row above is a macro over (`docs/arena-ruleset-spec.md`
+    // §2.2). A departure is replaced by a standing offer read when the moment
+    // comes, so it is collected here exactly as `replaceLeave` is — and stored
+    // under the same kind, because `move()` has one table, not two. A `replace`
+    // of the *play* is not standing at all: it resolves in `exec`.
+    if (op.op === "replace") {
+      if (op.event === "play" || !inPlayNow) continue;
+      const redirect = redirectOf(op.with);
+      const by = op.event === "ko" ? ("ko" as const) : op.by;
+      const targets = op.target ? staticTargets(ctx, s, frame, op.target) : [source];
+      const value: Replacement = redirect
+        ? { to: redirect.to, by, mode: redirect.mode, optional: op.optional }
+        : { by, optional: op.optional, ops: op.with, source, master };
+      for (const id of targets) out.push({ source, kind: "replaceLeave", target: id, value: { ...value } });
       continue;
     }
     // The same sentence said by the primitive (`docs/arena-ruleset-spec.md`
@@ -1026,22 +1101,24 @@ export function move(ctx: GameContext, s: GameState, ev: GameEvent[], id: string
   // what a card *is* — a token, a Z-card — outranks an effect (0-2-5).
   let insteadMode: "active" | "rest" | undefined;
   if (wasInPlay && !goesToPlay && !goesToCombo) {
-    if ("replaced" in opts) {
-      const instead = opts.replaced;
-      if (instead && instead.to !== to) {
-        note(ev, `${face(ctx, s, id).name} goes to the ${instead.to} instead`);
-        to = instead.to;
-        insteadMode = instead.mode;
-      } else if (instead) {
-        insteadMode = instead.mode;
-      }
-    } else {
-      const instead = replacementFor(ctx, s, id, opts.reason);
-      if (instead && instead.to !== to) {
-        note(ev, `${face(ctx, s, id).name} goes to the ${instead.to} instead`);
-        to = instead.to;
-        insteadMode = instead.mode;
-      }
+    const instead: Replacement | ReplacementResult | null | undefined = "replaced" in opts ? opts.replaced : replacementFor(ctx, s, id, opts.reason);
+    // A substitute replaces the whole departure, not its destination: the card
+    // stays where it is (9-10-1-1 — the move is treated as never having
+    // happened) and the program runs in its place. Taken before the redirect
+    // below because there is nothing left to redirect once it has.
+    if (instead?.ops?.length) {
+      note(ev, `${face(ctx, s, id).name} stays where it is; ${describeScript(instead.ops)} instead`);
+      runReplacement(ctx, s, ev, id, instead as Replacement);
+      return areaOf(s, id) ?? from?.area ?? to;
+    }
+    if (instead?.to && instead.to !== to) {
+      note(ev, `${face(ctx, s, id).name} goes to the ${instead.to} instead`);
+      to = instead.to;
+      insteadMode = instead.mode;
+    } else if (instead && "replaced" in opts) {
+      // A route the affected player picked says how the card arrives as well
+      // as where, even when where is where it was going anyway.
+      insteadMode = instead.mode;
     }
   }
 

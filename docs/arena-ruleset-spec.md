@@ -79,7 +79,7 @@ else is a macro. Four things follow, and they are the reason the tables below ar
   (#137). `power`, `comboPower` and `gains` are this issue's worked example: `modifyAttr` is added beside
   them, they keep parsing, printing and playing exactly as before, and no card's reading moves.
 - **A macro's target may not exist yet.** The table names the primitive as it will be, with today's
-  spelling beside it in §2.2. `move` is `moveTo` today; `costModifier`, `negate` and `replace` are
+  spelling beside it in §2.2. `move` is `moveTo` today; `costModifier` and `negate` are
   the general forms of rows the engine already has; `control`, `skip` and `copySkills` are Stage 2
   issues (#126, #123) that will arrive as primitives.
 - **Layering and duration are not ops.** The plan's `effect(layer)` row is the interpreter's
@@ -99,7 +99,7 @@ Nineteen primitives carry every row below — fourteen operations and five condi
 | `modifyAttr` | `modifyAttr` | One attribute of one subject, by a delta or by a value, for a duration or for as long as the rule holds. |
 | `costModifier` | `costReduction` | What something costs to play, activate or evolve — a whole price, not a number (§2.5). |
 | `negate` | `negateSkills` | A rule stops applying: a card's skills, one kind of them, one named keyword, or the skill resolving now. |
-| `replace` | `replaceLeave` | An event that is about to happen happens differently, or not at all (9-10, #125). |
+| `replace` | `replace` | An event that is about to happen happens differently, or not at all (9-10). The event is named (`leave`, `ko`, `play`) and what happens in its place is a program, not only a destination. |
 | `choose` | `choose` | A player picks cards from a selector; the cards are bound to a name the rest of the program reads. |
 | `reveal` | `reveal` | Who has seen a card changes, without the card moving. |
 | `shuffle` | `shuffle` | A pile is randomised with the game's seeded RNG. |
@@ -166,6 +166,7 @@ disagree or if a row is missing from either.
 | `token` | primitive | Nothing that moves cards can make one (19). |
 | `costReduction` | macro over `costModifier` | Which cost (energy, skill, evolve, combo, Z-Energy, specified) is an argument, not six mechanisms — that was #96 and #97's finding before it was this table's. |
 | `gains` | macro over `modifyAttr` | Attributes `colors`, `characters`, `traits` and `names`, in every area (20-1). |
+| `replace` | primitive | An event is named (`leave`, `ko`, `play`) and a program stands in its place (9-10). Built by #125. `replaceLeave` and the `instead` half of `resolvingPlay` run through it today; `negateAttack` and `negateCounter` name events the engine still resolves in their own cases. |
 | `replaceLeave` | macro over `replace` | Event: a card leaving the Battle Area (9-10). |
 | `altCost` | macro over `costModifier` | A price is replaced, not reduced — which is why the primitive takes a price rather than a number (§2.5). |
 | `resolvingPlay` | macro over `replace` | Event: the play being resolved, negated or altered (9-6). |

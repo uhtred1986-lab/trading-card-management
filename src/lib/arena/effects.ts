@@ -13,7 +13,7 @@
  * Pure: no database, no React. Covered by `npm test`, and the table the
  * Android app carries in Kotlin.
  */
-import { FORBIDDEN_IN_WORDS, describeFilter, describeCond } from "./engine/script";
+import { FORBIDDEN_IN_WORDS, describeFilter, describeCond, describeScript, type Op } from "./engine/script";
 import type { StaticEffect } from "./engine/state";
 import type { Color, ContinuousEffect, EffectUntil, Immunity, KeywordSkill, Permission, PlayerId, Prohibition, SkillKindPrefix } from "./engine/types";
 
@@ -206,8 +206,10 @@ export function describeStatic(e: StaticEffect): Pick<EffectView, "kind" | "labe
       return { kind: "other", label: `counts as ${bits.join(" ") || "more"}` };
     }
     case "replaceLeave": {
-      const r = e.value as { to: string };
-      return { kind: "other", label: `goes to the ${r.to} instead of leaving` };
+      const r = e.value as { to?: string; ops?: Op[] };
+      // A substitute has no destination: the departure itself is replaced by a
+      // program, and the card stays where it is.
+      return { kind: "other", label: r.to ? `goes to the ${r.to} instead of leaving` : `instead of leaving: ${describeScript(r.ops ?? [])}` };
     }
     case "altCost":
       return { kind: "cost", label: "another way to pay" };
