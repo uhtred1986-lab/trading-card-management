@@ -165,6 +165,20 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
   // Refusing is ground rule 5: the clause goes to the referee, which is what
   // the card needs anyway.
   if (/\bby this skill\b|\bsent to\b/.test(t)) return null;
+  // "Then choose **the rest of** your and your opponent's cards in the Battle
+  // Area" (TB3-066), "place **the rest of** the cards in the Drop Area"
+  // (BT3-062), "you choose **the rest of** their Battle Cards" (BT15-128): the
+  // cards of that description *except the ones this skill has already picked
+  // out*. A `Selector` states a description and an area; it has no way to say
+  // "except what the last choice took", and read without those words the
+  // phrase is simply every card — which on TB3-066 sweeps away the very card
+  // the option before it chose to spare, and on BT3-062 sends the card just
+  // added to hand to the Drop instead of the cards left behind.
+  //
+  // Refused rather than approximated (ground rule 5): the whole point of the
+  // sentence is the exception. Not the duration that shares the words — "for
+  // the rest of the turn" is a phrase about time and never names a card.
+  if (/\bthe rest of\b(?!\s+(?:the|this)\s+(?:turn|game|battle)\b)/.test(t)) return null;
   // "The card on top of this card" (23-2), and the descriptions that name it:
   // "the <Majin Buu> on top of this card", "the Leader on top of this card",
   // "Battle Cards on top of this card". A pile is one card with everything

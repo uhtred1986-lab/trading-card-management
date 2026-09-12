@@ -1641,3 +1641,28 @@ import type { GameState, Trigger } from "./harness";
   assert.deepEqual(splitClauses("you and your opponent draw 1 card"), ["you and your opponent draw 1 card"]);
   assert.ok(splitClauses("draw 1 card and your opponent draws 1 card").length === 2, "an ordinary 'and' still breaks the sentence");
 }
+
+{
+  // s2-93 family 3: "the rest of" is an exception a Selector cannot state.
+  //
+  // "Choose 1 of your and your opponent's Battle Cards ignoring [Barrier].
+  // Then choose **the rest of** your and your opponent's cards in the Battle
+  // Area … and shuffle them into their owners' decks" (TB3-066): the whole
+  // point of the option is the card the first choice spared, and a selector
+  // states a description and an area with no way to subtract the last choice
+  // from it. Read without those words the phrase is every card, so the sweep
+  // took the survivor with it.
+  assert.equal(parseTarget("the rest of your and your opponent's cards in the battle area"), null);
+  assert.equal(parseTarget("the rest of their battle cards"), null);
+  // The duration that shares the words is a phrase about time and never names
+  // a card, so it must not be caught by this.
+  assert.ok(parseTarget("1 of your battle cards for the rest of the turn"), "'for the rest of the turn' is not this phrase");
+  // The one shape that does read it: "the rest" of a pool a look held out is
+  // what was looked at minus what was chosen, which `moveTo` can say (BT3-062).
+  const sk = parseSkills(
+    "[Auto] When you play this card, look at up to 2 cards from the top of your deck. Choose up to 1 ≪Saiyan≫ among them and add it to your hand. Then, place the rest of the cards in the Drop Area.",
+  )[0];
+  const last = compileSkill(sk).ops.at(-1) as { op: string; target: { var: string; minus?: string } };
+  assert.equal(last.op, "moveTo");
+  assert.equal(last.target.minus, "c0", "BT3-062: the looked-at cards *minus* the one added to hand");
+}
