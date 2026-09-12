@@ -91,6 +91,17 @@ export interface Ctx {
   costs: number;
   /** The skill text with its explanatory notes still in place. A token's stats are printed there. */
   raw: string;
+  /**
+   * Does this skill's price charge an X (20-5)? Only then may a clause read
+   * `X` as an amount.
+   *
+   * Without the gate, "Draw X cards" compiles on any card that prints the
+   * letter, and DB3-138 — whose price is "{u}(X)", a notation this compiler
+   * does not read — turned from honestly unread into a program with an `X`
+   * nothing binds. That program throws when it resolves, which is a worse
+   * answer than the gap it replaced.
+   */
+  xBound: boolean;
 }
 
 export const countWord = (w: string) => (/^\d+$/.test(w) ? Number(w) : 1);

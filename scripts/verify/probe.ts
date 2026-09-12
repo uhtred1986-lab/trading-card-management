@@ -29,7 +29,7 @@ function ruleFor(def: CardDef, index = 0): ProbeRule {
     unread: rec.unread,
     // The price rides on the row, as it does in the database: the engine reads
     // it rather than compiling it, so a rule built without one has no price.
-    price: { condition: rec.cost?.condition ?? null, ops: rec.cost?.program ?? null },
+    price: { condition: rec.cost?.condition ?? null, ops: rec.cost?.program ?? null, ...(rec.cost?.x ? { x: rec.cost.x } : {}) },
   };
 }
 

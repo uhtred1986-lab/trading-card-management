@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { EXPR_ATTRS } from "@/lib/arena/lang";
 import { parseFilter, type CardFilter } from "@/lib/arena/engine/filters";
 import { AREAS, COND_SCHEMA, DURATIONS, KEYWORD_NAMES, OP_SCHEMA, SIDES, describeCond, describeFilter, describeScript, type Cond, type FieldType, type Op, type OpField } from "@/lib/arena/engine/script";
 
@@ -308,66 +309,162 @@ function ModesControl({ value, onChange }: { value: { label: string; ops: Op[] }
   );
 }
 
+/**
+ * An expression, as chips (20-5). The mode list is the `Amount` union: the two
+ * literals, the one operator, and one entry per `EXPR_SCHEMA` row.
+ *
+ * Every shape needs a control of its own, not because each is often edited but
+ * because a shape this control cannot *show* is one it silently replaces the
+ * moment anything else on the chip is touched — and the record would be
+ * quietly narrowed with no way to see it happen.
+ */
+type AmountMode = "n" | "var" | "plus" | "each" | "markers" | "sum" | "hand" | "x" | "life" | "attr" | "sumOf";
+
+const AMOUNT_LABELS: Record<AmountMode, string> = {
+  n: "a number",
+  var: "that many",
+  plus: "… and N more",
+  each: "for each…",
+  markers: "for each marker on…",
+  sum: "total power of…",
+  hand: "hand up to",
+  x: "X (the price paid)",
+  life: "for each life…",
+  attr: "one card's…",
+  sumOf: "the total … of…",
+};
+
+const AMOUNT_BLANKS: Record<AmountMode, unknown> = {
+  n: 1,
+  var: { var: "t" },
+  plus: { plus: [1, 1] },
+  each: { count: { side: "you", area: "battle", count: 99 }, times: 1 },
+  markers: { markers: { special: "self" }, times: 1 },
+  sum: { sumPower: { var: "t" } },
+  hand: { handUpTo: 4 },
+  x: { x: true },
+  life: { life: "you" },
+  attr: { attr: { var: "t" }, name: "power" },
+  sumOf: { sumOf: { side: "you", area: "drop", count: 99 }, attr: "comboPower" },
+};
+
+function amountMode(value: unknown): AmountMode {
+  if (typeof value === "number" || !value || typeof value !== "object") return "n";
+  const bag = value as Record<string, unknown>;
+  if ("plus" in bag) return "plus";
+  if ("var" in bag) return "var";
+  if ("count" in bag) return "each";
+  if ("markers" in bag) return "markers";
+  if ("sumPower" in bag) return "sum";
+  if ("handUpTo" in bag) return "hand";
+  if ("x" in bag) return "x";
+  if ("life" in bag) return "life";
+  // `sumOf` before `attr`: the two share an `attr` key.
+  if ("sumOf" in bag) return "sumOf";
+  if ("attr" in bag) return "attr";
+  return "n";
+}
+
+/** The `* n` every board-reading shape may carry. Absent is once, not none. */
+function TimesControl({ v, onChange }: { v: Loose; onChange: (x: unknown) => void }) {
+  return (
+    <input
+      type="number"
+      className={`${input} w-20 text-right`}
+      value={(v.times as number) ?? 1}
+      onChange={(e) => {
+        const n = Number(e.target.value);
+        const next = { ...v };
+        if (n === 1) delete next.times;
+        else next.times = n;
+        onChange(next);
+      }}
+      title="times"
+    />
+  );
+}
+
 function AmountControl({ value, onChange }: { value: unknown; onChange: (v: unknown) => void }) {
-  const mode =
-    typeof value === "number"
-      ? "n"
-      : value && typeof value === "object" && "count" in (value as object)
-        ? "each"
-        : value && typeof value === "object" && "markers" in (value as object)
-          ? "markers"
-          : value && typeof value === "object" && "var" in (value as object)
-            ? "var"
-            : value && typeof value === "object" && "sumPower" in (value as object)
-              ? "sum"
-              : value && typeof value === "object" && "handUpTo" in (value as object)
-                ? "hand"
-                : "n";
-  const v = value as Loose;
+  const mode = amountMode(value);
+  const v = (typeof value === "object" && value ? value : {}) as Loose;
   return (
     <span className="inline-flex flex-wrap items-center gap-1">
-      <select
-        className={select}
-        value={mode}
-        onChange={(e) => {
-          const m = e.target.value;
-          onChange(
-            m === "n"
-              ? 1
-              : m === "each"
-                ? { count: { side: "you", area: "battle", count: 99 }, times: 1 }
-                : m === "markers"
-                  ? { markers: { special: "self" }, times: 1 }
-                  : m === "var"
-                    ? { var: "t" }
-                    : m === "sum"
-                      ? { sumPower: { var: "t" } }
-                      : { handUpTo: 4 },
-          );
-        }}
-      >
-        <option value="n">a number</option>
-        <option value="each">for each…</option>
-        <option value="markers">for each marker on…</option>
-        <option value="var">that many</option>
-        <option value="sum">total power of…</option>
-        <option value="hand">hand up to</option>
+      <select className={select} value={mode} onChange={(e) => onChange(AMOUNT_BLANKS[e.target.value as AmountMode])}>
+        {(Object.keys(AMOUNT_LABELS) as AmountMode[]).map((m) => (
+          <option key={m} value={m}>
+            {AMOUNT_LABELS[m]}
+          </option>
+        ))}
       </select>
       {mode === "n" && <input type="number" className={`${input} w-20 text-right`} value={value as number} onChange={(e) => onChange(Number(e.target.value))} />}
       {mode === "each" && (
         <>
-          <input type="number" className={`${input} w-20 text-right`} value={(v.times as number) ?? 1} onChange={(e) => onChange({ ...v, times: Number(e.target.value) })} title="times" />
-          × <SelectorControl value={(v.count as Loose) ?? {}} onChange={(sel) => onChange({ ...v, count: sel })} />
+          <TimesControl v={v} onChange={onChange} /> × <SelectorControl value={(v.count as Loose) ?? {}} onChange={(sel) => onChange({ ...v, count: sel })} />
         </>
       )}
       {mode === "markers" && (
         <>
-          <input type="number" className={`${input} w-20 text-right`} value={(v.times as number) ?? 1} onChange={(e) => onChange({ ...v, times: Number(e.target.value) })} title="times" />
-          × marker on <SelectorControl value={(v.markers as Loose) ?? {}} onChange={(sel) => onChange({ ...v, markers: sel })} />
+          <TimesControl v={v} onChange={onChange} /> × marker on <SelectorControl value={(v.markers as Loose) ?? {}} onChange={(sel) => onChange({ ...v, markers: sel })} />
         </>
       )}
-      {(mode === "var" || mode === "sum") && <input className={`${input} w-16`} value={mode === "var" ? (v.var as string) : ((v.sumPower as Loose).var as string)} onChange={(e) => onChange(mode === "var" ? { var: e.target.value } : { sumPower: { var: e.target.value } })} title="the bound name" />}
+      {(mode === "var" || mode === "sum") && (
+        <input
+          className={`${input} w-16`}
+          value={mode === "var" ? (v.var as string) : (((v.sumPower as Loose)?.var as string) ?? "t")}
+          onChange={(e) => onChange(mode === "var" ? { var: e.target.value } : { sumPower: { var: e.target.value } })}
+          title="the bound name"
+        />
+      )}
       {mode === "hand" && <input type="number" className={`${input} w-16 text-right`} value={v.handUpTo as number} onChange={(e) => onChange({ handUpTo: Number(e.target.value) })} />}
+      {mode === "x" && (
+        <>
+          <TimesControl v={v} onChange={onChange} /> × X
+        </>
+      )}
+      {mode === "life" && (
+        <>
+          <TimesControl v={v} onChange={onChange} /> ×
+          <select className={select} value={(v.life as string) ?? "you"} onChange={(e) => onChange({ ...v, life: e.target.value })}>
+            {SIDES.map((side) => (
+              <option key={side}>{side}</option>
+            ))}
+          </select>
+        </>
+      )}
+      {mode === "attr" && (
+        <>
+          <TimesControl v={v} onChange={onChange} /> ×
+          <select className={select} value={(v.name as string) ?? "power"} onChange={(e) => onChange({ ...v, name: e.target.value })}>
+            {EXPR_ATTRS.map((a) => (
+              <option key={a}>{a}</option>
+            ))}
+          </select>
+          of <RefControl value={v.attr as Loose | undefined} optional={false} onChange={(ref) => onChange({ ...v, attr: ref })} />
+        </>
+      )}
+      {mode === "sumOf" && (
+        <>
+          <TimesControl v={v} onChange={onChange} /> ×
+          <select className={select} value={(v.attr as string) ?? "power"} onChange={(e) => onChange({ ...v, attr: e.target.value })}>
+            {EXPR_ATTRS.map((a) => (
+              <option key={a}>{a}</option>
+            ))}
+          </select>
+          of every <SelectorControl value={(v.sumOf as Loose) ?? {}} onChange={(sel) => onChange({ ...v, sumOf: sel })} />
+        </>
+      )}
+      {mode === "plus" && (
+        <>
+          <AmountControl value={(v.plus as unknown[])?.[0] ?? 1} onChange={(inner) => onChange({ plus: [inner, (v.plus as unknown[])?.[1] ?? 1] })} />
+          +
+          <input
+            type="number"
+            className={`${input} w-20 text-right`}
+            value={((v.plus as unknown[])?.[1] as number) ?? 1}
+            onChange={(e) => onChange({ plus: [(v.plus as unknown[])?.[0] ?? 1, Number(e.target.value)] })}
+          />
+        </>
+      )}
     </span>
   );
 }

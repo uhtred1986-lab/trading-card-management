@@ -31,7 +31,7 @@ import { trailingTrigger, parseSkills, keywordOf, orbsIn, eitherOrbsIn, skillLin
 import { KEYWORDS, keywordTagSpellings, keywordsByGroup, tagBody, tagParsesTo } from "../../src/lib/arena/glossary";
 import { parseFilter, matches, parseCondition, type CardFilter } from "../../src/lib/arena/engine/filters";
 import { addEffect, schedule, move, locate, placeUnder, planPayment, playCost, powerOf, forbids, has, cardNow, comboCostOf, zEnergyCostOf, skillNegated, skillsNegated } from "../../src/lib/arena/engine/state";
-import { compileCostProgram, compileSkill, costIsOnlyOrbs, costText, parseConditionClause, parseTarget, priceCondition, splitClauses } from "../../src/lib/arena/engine/compile";
+import { compileCostProgram, compileSkill, costIsOnlyOrbs, costText, parseConditionClause, parseTarget, priceCondition, priceX, splitClauses } from "../../src/lib/arena/engine/compile";
 import { COND_CLASS, COND_SCHEMA, OP_CLASS, OP_SCHEMA, condSignature, describeCond, describeScript, opSignature, validateProgram as validate, type Op as SchemaOp } from "../../src/lib/arena/engine/script";
 import { autoTriggerMatches, koCard } from "../../src/lib/arena/engine/triggers";
 import type { Trigger } from "../../src/lib/arena/engine/types";
@@ -186,6 +186,10 @@ const DEFS: Record<string, CardDef> = defsFrom([
   card("E-CC", { type: "EXTRA", energyCost: 1, power: null, comboCost: null, comboPower: null, skill: "[Counter: Counter] Negate the [Counter]." }),
   card("MUTEAUTO", { energyCost: 1, skill: "[Auto] When you play this card, choose 1 of your opponent's Battle Cards and negate that card's [Auto] skills in all areas." }),
   card("E-MYSTERY", { type: "EXTRA", energyCost: 1, power: null, comboCost: null, comboPower: null, skill: "[Activate: Main] Bend the fabric of reality to your will." }),
+  // 20-5: a price paid at a value the player picks, read again by the effect.
+  card("XDRAW", { energyCost: 1, skill: "[Activate: Main] Pay X energy: Draw X cards." }),
+  card("XMARKERS", { energyCost: 1, skill: "[Permanent] This card gets +3000 power for each marker on it." }),
+  card("XENERGY", { energyCost: 1, skill: "[Auto] When this card attacks, this card gains +1000 power for each 1 energy you have for the duration of the turn." }),
 ]);
 // What a real game gets from `card_rules` once every card is drafted: the
 // tests need no database, so the drafter's own compile stands in for the rows
@@ -389,6 +393,7 @@ export {
   powerOf,
   priceCondition,
   priceOf,
+  priceX,
   programShape,
   refusal,
   rejectedActions,

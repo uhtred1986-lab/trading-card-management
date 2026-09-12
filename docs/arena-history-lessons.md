@@ -2597,3 +2597,230 @@ or more power" (BT3-026) asks about either Leader, which `power` states of one s
 Gate: `npm run typecheck`, `lint`, `test`, `build` clean; `arena:fuzz 40` — 40 games, 0 crashes;
 `contract:emit` adds exactly one probe digest, for the one harness card family 4 added, and moves
 none of the other 152.
+
+## X, and an amount that is an expression — Stage 2, sixth increment (12 Sep 2026)
+
+`Amount` had been a closed union of six shapes since the engine's first week, and the comment on
+`EXPR_SCHEMA` had named this work for three days. It is now a small expression tree (20-5).
+
+**Nothing that was there was renamed.** Stored `card_rules.ops` rows carry `count`, `markers`,
+`sumPower`, `handUpTo` and `var` by those keys, and a rename would quietly change what a saved rule
+means — so every one of them is spelled exactly as it was, and the four new shapes are additions:
+`X` (`{x:true}`), `life(side)`, `attr(REF, name)` and `sumOf(SEL, attr)`. `* n` is now on every
+shape that reads a number off the board rather than only on the two that had it, and `+ n` is the
+one operator. **The right-hand side of both is a printed number**: no card multiplies one reading of
+the board by another, and allowing it would leave the printed form ambiguous about which was read
+first — the round-trip promise is an equality, so the printer may never have a choice of forms.
+
+`EXPR_SCHEMA` is a real table now — call name, arguments, whether a `* n` may follow — and
+`printAmount` and the parser's `amount()` both walk it, so a shape added to `Amount` is one row
+there and no new parsing. Only the two literals and the operator are written by hand, because they
+have no call name to put in a table; `EXPR_LITERALS` names them so nothing about an expression is
+written down in only one place. §3 of `docs/arena-rules-language.md` shows the production, and
+`verify/lang.ts` asserts §3 names every row — the same guard §3b already had for `DEFINE`.
+
+**X is paid on the move list, not in a prompt.** A price says it charges one (`CostRecord.x`,
+`SkillPrice.x`, read from `{X}` or "Pay X energy"), and the engine then offers the skill **once per
+value of X it can actually pay** — exactly the shape `mainActions` already used for playing an
+X-cost card, so nothing new had to learn to ask a question. The value is charged beside the skill's
+own orbs and carried onto the running program, where `{x:true}` reads it; a `choose` carrying
+`bindX` binds it to how many cards were taken instead. Until this, "{X}" stripped to nothing and
+counted as **no price at all**, so those skills were offered *free*.
+
+Three guards, and the third is the one that matters. An `{x:true}` read with nothing bound
+**throws** rather than resolving as zero. `validateProgram` refuses such a program before it can be
+stored, in step order, so a step before the `choose` that binds X is refused and one after it is
+allowed. And the compiler only reads `X` **when the skill's own price charges one**: DB3-138 prints
+its price as `{u}(X)`, a notation this compiler does not read, and without the gate its "Draw X
+cards" compiled into a program that would throw at the table. An honest gap beats that.
+
+**Readings, signed off by card** (seven moved, six gained and one deliberately lost):
+
+- **DB3-144** `[Permanent] This card gets +3000 power for each marker on it.` — was blank, now
+  reads as the marker total. **P-377** and **P-378** the same line under "During your turn". All
+  three failed on the pronoun: the target grammar reads "this card" and not a bare "it", and
+  teaching it the pronoun everywhere would change every clause that merely ends in one, so the
+  pronoun is read only where the phrase is already known to be what is *counted*.
+- **TB1-038** `…this card gains +1000 power for each 1 energy you have and [Dual Attack]` — was
+  blank, now reads the energy count and the keyword. **BT1-030b** and **BT4-030** gained the same
+  clause beside what they already read. "For each **1** energy" names the area as its noun and the
+  "1" as the size of each step; "for each 2 energy" would mean dividing a count, which no amount can
+  do, and stays unread rather than read as the same thing.
+- **BT11-154** `You may place X cards from your energy in their owners' Drop Areas. If you do,
+  place X cards from your Drop Area in your energy in Rest Mode.` — **lost**, and that is the point.
+  It read as "move **all** in your energy to drop": a `Selector.count` is a number and not an
+  expression, so the letter fell through every count pattern and the phrase became every card in
+  the area, chosen outright rather than up to. A skill that empties your own energy area is a worse
+  answer than a gap. The same refusal covers DB3-138's "choose up to X of your opponent's Battle
+  Cards", which the X gate had already taken out from the other side.
+
+The chip editor was extended in the same commit, not because these shapes are often edited by hand
+but because a shape the editor cannot *show* is one it silently replaces the moment anything else on
+the chip is touched — the record would be narrowed with no way to see it happen.
+
+**One bug BugBot found on the PR, and it was real.** `bindX` on a `choose` set `frame.x`, and the
+price's frame hands its **names** to the effect through `saveVarsAs` — but only the names. So the
+half of `bindX` that the glossary and the grammar doc both described, a price that is a *choice*
+rather than an energy payment ("discard any number of cards: … X cards"), bound X on the price's
+frame and threw the moment the effect read it; and `validateRule` computed `xBound` from
+`cost.x` alone, so such a rule could not have been saved in the first place. X now crosses on a key
+of its own beside the names — `savedXKey`, not folded into them, because the counter window between
+a price and its effect is exactly where a game is stored and the shape that continuation reads back
+must not change — and the validator counts a top-level `bindX` in the price program as a binder, the
+same order rule `validateProgram` applies inside one. The regression test supplies the program
+rather than a wording, because no card prints this shape in words the compiler reads and the
+binding is the engine's to get right either way; without the handoff it fails with the thrown
+"this program reads X, but nothing bound it", which is what was checked before taking the fix.
+
+Tally: fully compiled 4,690 → 4,693 (72.2 → 72.3 %), unread clauses 3,418 → 3,415 over 2,391 → 2,389
+distinct shapes. `npm run typecheck`, `lint`, `test`, `build` clean; `arena:fuzz 40` 40 games, 0
+crashes; `contract:emit` moved `effect-language.txt` (the AMOUNT legend and `choose`'s `bindX`) and
+added three probe digests for the new harness cards, with no existing digest moved.
+
+**Left deliberately.** `life`, `attr` and `sumOf` are the language's — usable from the text view,
+the chips and the referee — but no printed wording compiles into them yet. The nearest one, "power
+equal to the total combo power of the cards discarded by this skill" (BT20-090/107/108/109), needs
+the price's bindings to survive the effect's own `c0`, and that shared counter is load-bearing: it
+is how "the chosen card" in an effect means the card the price chose (4-3-3). Changing it is its
+own piece of work, and smuggling it into a wording commit is how that rule would break unnoticed.
+
+---
+
+## The game as declarations — DBS `game.rules`, `attributes.rules`, `zones.rules` (12 Sep 2026)
+
+Stage 3's third issue (#133), on top of the `DEFINE` grammar (#131) and the loader (#132): the
+Dragon Ball Super Card Game written as data — 69 declarations over three files in
+`src/lib/arena/rulesets/dbs/`, every one carrying the `docs/rules/rulemanual.txt` section it comes
+from as a `--` comment. Declarations only: no `DO` program, no interpreter, and
+`git diff --stat src/lib/arena/engine` empty.
+
+- `zones.rules` — 15 `ZONE`s: the manual's twelve areas (§3) plus `removed` (20-10), `under`
+  (23-2) and `play` (9-1-3-1).
+- `attributes.rules` — 19 `ATTRIBUTE`s: every field of `CardDef`, the three derived costs with
+  their layer order, and the player's energy markers.
+- `game.rules` — one `GAME`, six `PHASE`s, 26 `STEP`s and two `WIN`s.
+
+`scripts/verify/rulesets.ts` now loads the real set instead of asserting the directory is empty,
+and prints the whole ruleset and reads it back equal. `docs/arena-ruleset-spec.md` §3 has the file
+table and the conventions.
+
+### What the manual says that the files could not
+
+The issue asked for this list, and it is the point of writing a game out: a grammar is only proved
+by a game it has to carry. Six gaps, none of them stretched into the file — each is a `--` comment
+where it would have gone, so the absence is legible in the file rather than only here.
+
+1. **A deck is 50 *to* 60 cards (6-1-3) and a Z-Deck is *up to* 10 (6-1-4).** `DEFINE GAME` has
+   `deck:` and `zDeck:`, one number each, so the file reads them as the deck's minimum and the
+   Z-Deck's maximum and says so. There is no way to write a range.
+2. **A deck may hold up to 4 copies of one card number (6-1-5-1).** No field for a copy limit, and
+   no kind that is about deck construction. It matters for #139, which will check a ruleset against
+   the catalog.
+3. **Only the player who goes *second* places an energy marker (6-2-1-11).** `startMarkers:` is one
+   number for both players. It is left out and the `setupEnergyMarker` step carries the rule in its
+   `text:` instead — which is honest but unreadable by anything.
+4. **Conceding (0-1-3-4), a card that makes a player win or lose (0-1-3-5), and the draw when both
+   players are defeated at once (0-1-3-3).** A `DEFINE WIN`'s `IF` is a condition over the board.
+   None of these three is on the board: conceding is a player's act that no card may cause or
+   replace (0-2-2-1), a card's effect is the card's, and "both players fulfil a defeat condition
+   simultaneously" is a statement about the *other* `WIN` declarations. Only life-out and deck-out
+   are declared.
+5. **An attribute's real domain.** `value:` knows five shapes — number, string, strings, colors,
+   boolean — and no enum, no union and no map. So the card types cannot be listed (2-1), an X cost
+   cannot be said to be either a number or X (1-2-2-2), and the specified cost's orbs per colour
+   are written as a list of colours with repeats rather than as a count per colour (1-2-3). Each
+   one's `text:` carries the domain in words, which is what a person reads and no loader can check.
+6. **A card's back side is a face of its own (1-9).** `CardDef.back` carries a name, a power and a
+   skill; there is no `DEFINE FACE`, and an attribute is one value. `back` is declared as the
+   boolean "does this card have one", with its `text:` saying exactly what it does not carry.
+
+A seventh is not a gap in the grammar but a difference between the engine and the manual, recorded
+so that #136 does not read it as an error: **the Main Phase End Step is a step of the Main Phase in
+the manual (7-3-5) and a phase of its own in this engine** (`Phase` in `engine/types.ts` has
+`mainEnd`). The declaration follows the engine, because the engine is what the definition has to
+describe, and says so in its `text:`.
+
+### Lessons
+
+- **Writing the game out is what finds the grammar's edges.** Five of the six gaps above are
+  invisible from the schema alone: `startMarkers` reads perfectly well until a game needs it to be
+  asymmetric, and `value:` looks complete until an enum is the honest answer. The plan's claim that
+  "the only honest way to find out whether the language can say a whole game is to write one" held.
+- **A field left out is not the same as a field that says "no".** Every zone in `zones.rules`
+  writes `ordered:`, `single:`, `markers:`, `inPlay:` and `host:` explicitly, including the falses.
+  A reader of a printed ruleset cannot tell a default from a decision, and a zone is read by five
+  different parts of a future engine.
+- **The `--` comment is where a gap belongs, not only the history file.** A gap written only here
+  is a gap nobody editing the file will see. Each one above is also one comment at the place the
+  field would have been.
+
+---
+
+## What 53 trigger names turned out to be — Stage 3, `triggers.rules` (12 Sep 2026)
+
+Writing the `Trigger` union out as event patterns (#134) is the first time the engine's moments
+have been read against the manual rather than against `pendTriggers`. The file is data — the legacy
+engine is not touched, and Stage 4's matcher is what will fire any of it — but the exercise found
+three shapes worth writing down before anyone builds that matcher.
+
+### One name, several moments
+
+- **`dealtDamage`** is pended at the Damage Step (8-4) *and* by the `damage` operation of a skill
+  (5-10). "When this card deals damage" cannot tell the two apart, and nothing in the record says
+  which one a card meant.
+- **`played`** is pended when a play resolves (9-6-9-4) *and* when the `token` operation puts a
+  token into a Battle Area. A token is **placed**, not played (5-5-4, 19-1) — `placed` is the
+  moment it should carry, and a token with "when this card is played" fires today because of this
+  call site and not because of its text.
+- **`markerRemoved`** is pended by a marker skill's cost (13-4), by an attack knocking markers off
+  a Unison (13-5-2) and by the `removeMarker` operation (5-13). That the first is not the second is
+  exactly why [Spirit Boost] needed `spiritBoostPaid` as a trigger of its own (22-43-3).
+- **`attacked`** is pended at the attack declaration on the guard, again when a card activates
+  [Blocker] and becomes the target, and again when a skill redirects the attack (22-4-2). All three
+  are the same sentence — *this card is now the attack target* — so the declaration is one
+  `attackDeclared(role: target)`, and the two redirections are that event happening a second time
+  rather than two more moments.
+- **`addedToZEnergy`** is pended both by the Z-Energy choice after a combo and by any move into the
+  Z-Energy Area (3-13); **`lifeLeft`** by battle damage and by a skill's damage alike.
+- **`spiritBoostPaid`** and **`flippedFaceUp`** are each pended on the card the event is about *and*
+  on every card that side has in play — one name, two audiences. The declaration says it once, as
+  `watcher: controller` with `BIND "subject"`, because the card itself is in that list (a Life card
+  is not in play, and answers under 9-6-9-1-2's own exception, which `pendTriggers` spells as its
+  `elsewhere` list).
+
+### Several names, one moment
+
+- **`removedFromBattle` / `removedByOpponent`** and **`droppedFromBattle` / `leftBattleToDrop`** are
+  each a move and a narrowing of it, pended from the same two lines. `leftBattleToDrop` is the odd
+  one: it is also pended on a KO, because the wording that names no cause means every cause.
+- **`chargeStart` / `opponentTurnStart`**, **`mainStart` / `opponentMainStart`**, **`turnEnd` /
+  `opponentTurnEnd`**, **`offenseStart` / `defenseStart`** are one moment read from two chairs. In
+  the file they are one event with `WHERE isTurnPlayer(who: you)` or `(who: opponent)`, which is
+  also the manual's framing: "your turn" on a card is its controller's turn (7-1), never a duration.
+- **`evolvedInto` / `evolveFromHandActivated`** are the same [Evolve] activation (22-5). They differ
+  in what they bind — the card that arrived, or the card that used it — and the second only when it
+  came from the hand.
+- **`blockerUsed` / `attacked`** both pend off one [Blocker] activation, and **`played` / `youPlayed`
+  / `opponentPlayed`** off one play. One KO pends up to five: `koed`, `yourCardKoed`,
+  `opponentCardKoed`, `kos` and `leftBattleToDrop`.
+
+### Names with no moment at all
+
+**`energyToDrop`** and **`damageStart`** have no `pendTriggers` call site anywhere in the legacy
+engine. Both are in `TRIGGER_IN_WORDS` and both are matched by the compiler, so a card can be
+*recorded* as answering to them and then never fire — and nothing says so. They are declared in the
+file all the same, because the record's WHEN may name them and the set-equality test in
+`scripts/verify/rulesets.ts` is what keeps those two lists one list; the gap is Stage 4's to close,
+by firing the events or by removing the names from both ends at once.
+
+Two more of the same shape on the counter side: `openCounterWindow`'s `skill` window never asks
+`counterCandidates` at all, so it opens and closes with nothing offered, and `battleCardAttack`
+collapses to `attack` on the way in and is a filter on the attacker rather than a window of its own.
+Both are declared, as `"counter:skill"` and `"counter:battleCardAttack"`.
+
+### A citation to trust the manual for, not the comment
+
+`types.ts` cites 22-40 for [Overlord]. 22-40 is [Servant]; [Overlord] is **22-41**. The file cites
+22-41. Nothing about the engine changes — the doc comment is the thing that is wrong — but it is a
+reminder that the sections in the unions were written from memory and the ones in `rulesets/` were
+written from `docs/rules/rulemanual.txt`.
