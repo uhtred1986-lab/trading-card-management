@@ -127,9 +127,15 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
   shuffle: { fields: [SIDE], sentence: "shuffle" },
   energyMarker: { fields: [n(), SIDE], sentence: "{n} energy marker" },
   choose: {
-    fields: [{ name: "sel", type: "selector", required: true }, { name: "as", type: "string", required: true }, { name: "reason", type: "string" }, { name: "chooser", type: "side" }],
+    fields: [
+      { name: "sel", type: "selector", required: true },
+      { name: "as", type: "string", required: true },
+      { name: "reason", type: "string" },
+      { name: "chooser", type: "side" },
+      { name: "bindX", type: "boolean" },
+    ],
     sentence: "choose {sel}",
-    doc: 'binds the chosen cards to the name in "as"; "chooser":"opponent" when the card says *they* choose ("your opponent sends 1 Battle Card…")',
+    doc: 'binds the chosen cards to the name in "as"; "chooser":"opponent" when the card says *they* choose ("your opponent sends 1 Battle Card…"); "bindX":true also binds X to how many were chosen (20-5)',
   },
   look: {
     fields: [n(), { name: "as", type: "string", required: true }, SIDE, { name: "from", type: POSITION, default: "top" }, { name: "area", type: "area", default: "deck" }],
@@ -161,7 +167,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
   power: {
     fields: [TARGET, { name: "amount", type: "amount", required: true }, UNTIL],
     sentence: "{target} {amount:power}{until}",
-    doc: 'an amount may also be {"count":SELECTOR,"times":5000} (so much for each card) or {"sumPower":{"var":"rested"}} (the total power of named cards)',
+    doc: 'an amount may also be {"count":SELECTOR,"times":5000} (so much for each card), {"sumPower":{"var":"rested"}} (the total power of named cards) or {"sumOf":SELECTOR,"attr":"comboPower"} (any measure of them, added up)',
   },
   comboPower: { fields: [TARGET, { name: "amount", type: "amount", required: true }, UNTIL], sentence: "{target} {amount:combo power}{until}" },
   grant: { fields: [TARGET, { name: "keyword", type: "keyword", required: true }, UNTIL], sentence: "{target} gains [{keyword}]{until}" },

@@ -2472,3 +2472,75 @@ BT10-004, P-147 (looks); BT13-024's dangling variable is bound at last.
 
 `npm run typecheck`, `lint`, `test`, `build` clean; `arena:fuzz 40` 40 games, 0 crashes;
 `contract:emit` produced no change. The gap-set diff is empty, by design.
+
+## X, and an amount that is an expression — Stage 2, sixth increment (12 Sep 2026)
+
+`Amount` had been a closed union of six shapes since the engine's first week, and the comment on
+`EXPR_SCHEMA` had named this work for three days. It is now a small expression tree (20-5).
+
+**Nothing that was there was renamed.** Stored `card_rules.ops` rows carry `count`, `markers`,
+`sumPower`, `handUpTo` and `var` by those keys, and a rename would quietly change what a saved rule
+means — so every one of them is spelled exactly as it was, and the four new shapes are additions:
+`X` (`{x:true}`), `life(side)`, `attr(REF, name)` and `sumOf(SEL, attr)`. `* n` is now on every
+shape that reads a number off the board rather than only on the two that had it, and `+ n` is the
+one operator. **The right-hand side of both is a printed number**: no card multiplies one reading of
+the board by another, and allowing it would leave the printed form ambiguous about which was read
+first — the round-trip promise is an equality, so the printer may never have a choice of forms.
+
+`EXPR_SCHEMA` is a real table now — call name, arguments, whether a `* n` may follow — and
+`printAmount` and the parser's `amount()` both walk it, so a shape added to `Amount` is one row
+there and no new parsing. Only the two literals and the operator are written by hand, because they
+have no call name to put in a table; `EXPR_LITERALS` names them so nothing about an expression is
+written down in only one place. §3 of `docs/arena-rules-language.md` shows the production, and
+`verify/lang.ts` asserts §3 names every row — the same guard §3b already had for `DEFINE`.
+
+**X is paid on the move list, not in a prompt.** A price says it charges one (`CostRecord.x`,
+`SkillPrice.x`, read from `{X}` or "Pay X energy"), and the engine then offers the skill **once per
+value of X it can actually pay** — exactly the shape `mainActions` already used for playing an
+X-cost card, so nothing new had to learn to ask a question. The value is charged beside the skill's
+own orbs and carried onto the running program, where `{x:true}` reads it; a `choose` carrying
+`bindX` binds it to how many cards were taken instead. Until this, "{X}" stripped to nothing and
+counted as **no price at all**, so those skills were offered *free*.
+
+Three guards, and the third is the one that matters. An `{x:true}` read with nothing bound
+**throws** rather than resolving as zero. `validateProgram` refuses such a program before it can be
+stored, in step order, so a step before the `choose` that binds X is refused and one after it is
+allowed. And the compiler only reads `X` **when the skill's own price charges one**: DB3-138 prints
+its price as `{u}(X)`, a notation this compiler does not read, and without the gate its "Draw X
+cards" compiled into a program that would throw at the table. An honest gap beats that.
+
+**Readings, signed off by card** (seven moved, six gained and one deliberately lost):
+
+- **DB3-144** `[Permanent] This card gets +3000 power for each marker on it.` — was blank, now
+  reads as the marker total. **P-377** and **P-378** the same line under "During your turn". All
+  three failed on the pronoun: the target grammar reads "this card" and not a bare "it", and
+  teaching it the pronoun everywhere would change every clause that merely ends in one, so the
+  pronoun is read only where the phrase is already known to be what is *counted*.
+- **TB1-038** `…this card gains +1000 power for each 1 energy you have and [Dual Attack]` — was
+  blank, now reads the energy count and the keyword. **BT1-030b** and **BT4-030** gained the same
+  clause beside what they already read. "For each **1** energy" names the area as its noun and the
+  "1" as the size of each step; "for each 2 energy" would mean dividing a count, which no amount can
+  do, and stays unread rather than read as the same thing.
+- **BT11-154** `You may place X cards from your energy in their owners' Drop Areas. If you do,
+  place X cards from your Drop Area in your energy in Rest Mode.` — **lost**, and that is the point.
+  It read as "move **all** in your energy to drop": a `Selector.count` is a number and not an
+  expression, so the letter fell through every count pattern and the phrase became every card in
+  the area, chosen outright rather than up to. A skill that empties your own energy area is a worse
+  answer than a gap. The same refusal covers DB3-138's "choose up to X of your opponent's Battle
+  Cards", which the X gate had already taken out from the other side.
+
+The chip editor was extended in the same commit, not because these shapes are often edited by hand
+but because a shape the editor cannot *show* is one it silently replaces the moment anything else on
+the chip is touched — the record would be narrowed with no way to see it happen.
+
+Tally: fully compiled 4,690 → 4,693 (72.2 → 72.3 %), unread clauses 3,418 → 3,415 over 2,391 → 2,389
+distinct shapes. `npm run typecheck`, `lint`, `test`, `build` clean; `arena:fuzz 40` 40 games, 0
+crashes; `contract:emit` moved `effect-language.txt` (the AMOUNT legend and `choose`'s `bindX`) and
+added three probe digests for the new harness cards, with no existing digest moved.
+
+**Left deliberately.** `life`, `attr` and `sumOf` are the language's — usable from the text view,
+the chips and the referee — but no printed wording compiles into them yet. The nearest one, "power
+equal to the total combo power of the cards discarded by this skill" (BT20-090/107/108/109), needs
+the price's bindings to survive the effect's own `c0`, and that shared counter is load-bearing: it
+is how "the chosen card" in an effect means the card the price chose (4-3-3). Changing it is its
+own piece of work, and smuggling it into a wording commit is how that rule would break unnoticed.

@@ -70,9 +70,12 @@ IF     := "IF" cond
 THEN   := "THEN" ( stmt )*                         one per line
 stmt   := name "(" ( value | field ":" value ) ( "," field ":" value )* ")"
 cond   := comparison | name "(" … ")" | "NOT" cond | cond "AND" cond | cond "OR" cond | "(" cond ")"
-expr   := number | "$" name | "count" "(" SEL ")" ( "*" number )?
-        | "sumPower" "(" "$" name ")" | "handUpTo" "(" number ")"
-        | "markers" "(" SEL ")" ( "*" number )?
+expr   := term ( "+" number )*                     left-associative; the right side is always printed
+term   := number | "$" name | call ( "*" number )?
+call   := "count" "(" SEL ")" | "markers" "(" SEL ")" | "sumPower" "(" "$" name ")"
+        | "handUpTo" "(" number ")" | "X" | "life" "(" side ")"
+        | "attr" "(" REF "," attr ")" | "sumOf" "(" SEL "," attr ")"
+attr   := "power" | "comboPower" | "energyCost" | "comboCost"
 REF    := "$" name ( "MINUS" "$" name )? | SEL
 SEL    := part+                                    parts in any order; "any" when there are none
 part   := "[" special "]" | "FROM" "$" name | number | "UP TO" number? | "TOP" number
@@ -81,8 +84,24 @@ places := ( side "." )? ( zone | zone ( "|" zone )+ | "ANY" "(" zone ( "|" zone 
 flag   := "active" | "rest" | "fromEnd" | "ignoringBarrier" | "otherThanSelf" | "otherThanCopies"
 filter := "\"" printed filter text "\"" | "(" field "=" value ( "AND" … )* ")"
 item   := "{" colour "}"+ | "{" colour "/" colour "}" | ±n "marker" | "burst" n
-        | "spiritBoost" n | "TEXT" "…" | "IF" cond | "DO" "{" stmt* "}"
+        | "spiritBoost" n | "X" ( "min" number )? ( "max" number )? | "TEXT" "…"
+        | "IF" cond | "DO" "{" stmt* "}"
 ```
+
+**The expression calls are a table, not a list of cases.** `EXPR_SCHEMA` (`lang/ast.ts`) says each
+one's call name, its arguments and whether it takes a `* n`; `printAmount` and the parser's
+`amount()` both walk it, so a shape added to `Amount` is one row there and no new parsing. Only the
+two literals (a number, `$name`) and the one operator (`+ n`) are written out by hand, because they
+have no call name to put in a table.
+
+`X` is the value this skill's price was paid at (20-5). A price says it charges one with the `X`
+item above; the effect then reads it back. **A program that says `X` without a price that binds it
+is refused by `validateRule`** — read as nothing, "draw X cards" would be a free skill that quietly
+does nothing. A `choose` step carrying `bindX: true` binds it instead, to how many cards were taken,
+and only the steps *after* that step may use it.
+
+The right-hand side of `*` and `+` is always a printed number. No card multiplies one reading of the
+board by another, and allowing it would leave the printed form ambiguous about which was read first.
 
 `trigger` names the engine's fired moments (validated by `validateRule`), including keyword-timing moments that are not plain phase names: `evolveFromHandActivated`, `unionAbsorbActivated`, and `counterFreeFromHand`. The free-counter wording is modelled as a WHEN moment (not as a COST item), so one printed form round-trips to one record shape.
 
@@ -368,6 +387,30 @@ A [Permanent] that changes a rule while the card is in play:
 WHEN [permanent]
 THEN
   power(target: 99 IN you.battle, amount: count(99 "≪Saiyan≫" IN you.battle) * 5000, until: game)
+```
+
+An X price, paid at a value the player picks and read again by the effect (20-5). The engine offers
+this skill once per value of X it can pay, so the choice is made on the move list:
+
+```
+WHEN [activate:main]
+COST X
+THEN
+  draw(n: X)
+```
+
+An expression that reads the board: the total combo power of the cards a price discarded, and a
+power bonus of a thousand for each marker on this card:
+
+```
+WHEN [activate:main]
+COST DO {
+  choose(sel: UP TO 99 IN you.hand, as: "discarded")
+  moveTo(target: $discarded, to: drop)
+}
+THEN
+  power(target: [self], amount: sumOf(FROM $discarded, comboPower), until: turn)
+  power(target: [self], amount: markers([self]) * 1000, until: turn)
 ```
 
 A counted prohibition with an escape clause:

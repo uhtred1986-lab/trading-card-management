@@ -26,11 +26,13 @@ import {
   parseFilter,
   parseSkills,
   play,
+  priceX,
   playCost,
   powerOf,
   splitClauses,
   zEnergyCostOf,
 } from "./harness";
+import { validateProgram } from "../../src/lib/arena/engine/script";
 import type { PlayerId } from "./harness";
 
 // ── the effect compiler ────────────────────────────────────────────────────
@@ -1242,6 +1244,61 @@ import type { PlayerId } from "./harness";
 
   // "Draw cards equal to the number of …" prints no number at all.
   assert.deepEqual((one("[Activate: Main] Draw cards equal to the number of your Battle Cards.").ops[0] as { op: string }).op, "draw");
+
+  // ── 20-5: the wordings the expression tree unlocked ──────────────────────
+  //
+  // One assertion per wording, in the words the cards print them.
+
+  // "For each marker on **it**" (P-377, P-378, DB3-144): the pronoun the
+  // sentence has been using for this card all along. `parseTarget` reads "this
+  // card" and not the bare pronoun, so all three read as nothing.
+  const onIt = one("[Permanent] This card gets +3000 power for each marker on it.");
+  assert.deepEqual(onIt.unsupported, [], "for each marker on it");
+  const onItAmount = (onIt.ops[0] as { op: string; amount: { markers?: { special?: string }; times?: number } }).amount;
+  assert.equal(onItAmount.times, 3000);
+  assert.equal(onItAmount.markers?.special, "self", "the markers counted are this card's own");
+
+  // "For each 1 energy you have" (TB1-038, BT1-030 twice): the area is the
+  // noun, and the "1" is the size of each step rather than a multiplier.
+  const perEnergy = one("[Auto] When this card attacks, this card gains +1000 power for each 1 energy you have for the duration of the turn.");
+  assert.deepEqual(perEnergy.unsupported, [], "for each 1 energy you have");
+  const perEnergyAmount = (perEnergy.ops[0] as { amount: { count?: { side?: string; area?: string }; times?: number } }).amount;
+  assert.equal(perEnergyAmount.times, 1000);
+  assert.equal(perEnergyAmount.count?.area, "energy");
+  assert.equal(perEnergyAmount.count?.side, "you");
+  // "For each 2 energy" would mean dividing, which no amount can do, so it is
+  // left unread rather than read as the same thing.
+  assert.ok(one("[Auto] When this card attacks, this card gains +1000 power for each 2 energy you have for the turn.").unsupported.length, "for each 2 energy stays unread");
+
+  // "{X}" and "Pay X energy" are the same price, and the effect reads it back.
+  for (const priced of ["[Activate: Main] {X}: Draw X cards.", "[Activate: Main] Pay X energy: Draw X cards."]) {
+    const x = one(priced);
+    assert.deepEqual(x.unsupported, [], priced);
+    assert.deepEqual(x.ops, [{ op: "draw", n: { x: true } }], priced);
+    assert.deepEqual(priceX(parseSkills(priced)[0]), {}, `${priced} charges an X`);
+  }
+  assert.equal(priceX(parseSkills("[Activate: Main] {1}: Draw 1 card.")[0]), null, "an ordinary orb price charges no X");
+
+  // 20-5: a program that says X with nothing to bind it is refused outright —
+  // read as nothing, "draw X cards" would be a free skill that does nothing.
+  assert.equal(validateProgram([{ op: "draw", n: { x: true } }]), false, "unbound X is not a valid program");
+  assert.equal(validateProgram([{ op: "draw", n: { x: true } }], 0, true), true, "…and is valid once the price binds it");
+  assert.equal(
+    validateProgram([
+      { op: "choose", sel: { side: "you", area: "hand", count: 99, upTo: true }, as: "c", bindX: true },
+      { op: "draw", n: { x: true } },
+    ]),
+    true,
+    "a choose carrying bindX binds it too",
+  );
+  assert.equal(
+    validateProgram([
+      { op: "draw", n: { x: true } },
+      { op: "choose", sel: { side: "you", area: "hand", count: 99, upTo: true }, as: "c", bindX: true },
+    ]),
+    false,
+    "…but only for the steps after it",
+  );
 
   // Looking at a deck, in the half-dozen ways the text words it.
   const look = (text: string) => one(`[Activate: Main] ${text}`).ops[0] as { op: string; n: number; side?: string; from?: string };

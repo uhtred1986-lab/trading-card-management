@@ -16,7 +16,7 @@ import { baseType, canCombo, isZ, keywordOf, skillsOf, specifiedCostOf } from ".
 // a game compiled card text.
 import { costIsOnlyOrbs, costText, parseConditionClause } from "./compile";
 import { matches, parseCondition, parseFilter } from "./filters";
-import { stepScript, validateProgram, type CardScripts, type Cond, type Op, type ScriptFrame } from "./script";
+import { stepScript, validateProgram, type CardScripts, type Cond, type Op, type ScriptFrame, type XCost } from "./script";
 import { koCard, pendTriggers } from "./triggers";
 import { nextRandom, shuffle } from "./rng";
 import { rejectedActions as gatherRejectedActions, type RejectionDeps } from "./rejections";
@@ -398,7 +398,7 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
       const sk = skillsOfInstance(ctx, s, step.card).find((k) => k.index === step.skill);
       if (!sk) return "done";
       ev.push({ type: "skill", card: step.card, skill: sk.index, master: step.player, text: sk.raw, inBattle: !!s.battle });
-      const r = resolveKeywordOrText(ctx, s, ev, step.card, sk, step.player, step.trigger);
+      const r = resolveKeywordOrText(ctx, s, ev, step.card, sk, step.player, step.trigger, undefined, step.x);
       return r;
     }
     case "extra.finish": {
@@ -743,7 +743,7 @@ function resolveHeroicVillainous(ctx: EngineContext, s: GameState, ev: GameEvent
 
 // ── keyword skills and text effects ────────────────────────────────────────
 
-function resolveKeywordOrText(ctx: EngineContext, s: GameState, ev: GameEvent[], card: string, sk: Skill, master: PlayerId, trigger?: Trigger, subject?: string): "done" | "wait" {
+function resolveKeywordOrText(ctx: EngineContext, s: GameState, ev: GameEvent[], card: string, sk: Skill, master: PlayerId, trigger?: Trigger, subject?: string, x?: number): "done" | "wait" {
   const k = sk.keyword;
   const inst = s.cards[card];
   if (k) {
@@ -848,7 +848,7 @@ function resolveKeywordOrText(ctx: EngineContext, s: GameState, ev: GameEvent[],
         break;
     }
   }
-  return runSkill(ctx, s, ev, card, sk, master, trigger, subject);
+  return runSkill(ctx, s, ev, card, sk, master, trigger, subject, {}, x);
 }
 
 /**
@@ -869,6 +869,8 @@ function runSkill(
   trigger?: Trigger,
   subject?: string,
   vars: Record<string, string[]> = {},
+  /** 20-5: what the activation paid for X, if the price charged one. */
+  x?: number,
 ): "done" | "wait" {
   const script = scriptFor(ctx, s, card, sk.index);
   if (script) {
@@ -878,7 +880,7 @@ function runSkill(
     const key = costVarsKey(card, sk.index);
     const paid = s.continuations[key] as Record<string, string[]> | undefined;
     delete s.continuations[key];
-    const frame: ScriptFrame = { ops: script.ops, ip: 0, vars: { ...paid, ...vars }, card, master, trigger, subject, skillIndex: sk.index };
+    const frame: ScriptFrame = { ops: script.ops, ip: 0, vars: { ...paid, ...vars }, card, master, trigger, subject, skillIndex: sk.index, ...(x === undefined ? {} : { x }) };
     return stepScript(ctx, s, ev, frame);
   }
   const d = def(ctx, s, card);
@@ -1019,7 +1021,9 @@ function costIsReadable(ctx: EngineContext, s: GameState, card: string, sk: Skil
   // action. Both halves come off the record now; the reading itself is
   // unchanged, only where it happens.
   const p = priceFor(ctx, s, card, sk);
-  return p.condition !== null || p.ops !== null;
+  // 20-5: an X price is the third readable shape. "{X}" strips to nothing and
+  // never reaches here; "Pay X energy" does, and the engine can charge it.
+  return p.condition !== null || p.ops !== null || p.x !== null;
 }
 
 /**
@@ -1036,9 +1040,36 @@ function costIsReadable(ctx: EngineContext, s: GameState, card: string, sk: Skil
  * which `npm test` and the probe use) carries the price with the program, so
  * it is only ever an undrafted card in a real game.
  */
-function priceFor(ctx: EngineContext, s: GameState, card: string, sk: Skill): { condition: Cond | null; ops: Op[] | null; known: boolean } {
+function priceFor(ctx: EngineContext, s: GameState, card: string, sk: Skill): { condition: Cond | null; ops: Op[] | null; x: XCost | null; known: boolean } {
   const price = scriptsOf(ctx, s, card).bySkill[sk.index]?.price;
-  return { condition: price?.condition ?? null, ops: price?.ops ?? null, known: price !== undefined };
+  return { condition: price?.condition ?? null, ops: price?.ops ?? null, x: price?.x ?? null, known: price !== undefined };
+}
+
+/**
+ * 20-5: a price that charges X is not one offer but one per value of X the
+ * player can settle — the same shape `mainActions` already uses for playing an
+ * X-cost card. Null when the skill has no X price; an empty list means it has
+ * one and nothing is payable, which `activatable` has already refused.
+ */
+function xValuesFor(ctx: EngineContext, s: GameState, p: PlayerId, card: string, sk: Skill): number[] | null {
+  const x = priceFor(ctx, s, card, sk).x;
+  if (!x) return null;
+  const { total, specified, either } = orbTotals(ctx, s, card, sk, sk.keyword?.name === "Evolve" ? "evolve" : "skill");
+  const ceiling = Math.min(x.max ?? Infinity, activeEnergy(s, p).length + s.players[p].energyMarkers);
+  const out: number[] = [];
+  for (let n = x.min ?? 0; n <= ceiling; n++) if (planPayment(ctx, s, p, total + n, specified, undefined, either)) out.push(n);
+  return out;
+}
+
+/** One activation offer, or one per X when the price charges an X (20-5). */
+function pushActivations(out: LegalAction[], ctx: EngineContext, s: GameState, p: PlayerId, card: string, sk: Skill, label: string, alt: boolean): void {
+  const xs = alt ? null : xValuesFor(ctx, s, p, card, sk);
+  const cost = activationCost(ctx, s, card, sk, alt);
+  if (!xs) {
+    out.push({ action: { type: "activate", player: p, card, skill: sk.index, ...(alt ? { alt: true } : {}) }, label, cost });
+    return;
+  }
+  for (const x of xs) out.push({ action: { type: "activate", player: p, card, skill: sk.index, x }, label: `${label} with X = ${x}`, cost: { ...cost, energy: (cost.energy ?? 0) + x } });
 }
 
 /** "2 Green energy and 1 marker" — what an optional cost asks for. */
@@ -1669,15 +1700,15 @@ export function legalActions(ctx: EngineContext, s: GameState): LegalAction[] {
       for (const id of s.players[p].hand) {
         for (const sk of skillsOf(def(ctx, s, id))) {
           const act = activatable(ctx, s, p, id, sk, "battle");
-          if (act) out.push({ action: { type: "activate", player: p, card: id, skill: sk.index }, label: act, cost: activationCost(ctx, s, id, sk, false) });
+          if (act) pushActivations(out, ctx, s, p, id, sk, act, false);
           const viaAlt = activatable(ctx, s, p, id, sk, "battle", true);
-          if (viaAlt) out.push({ action: { type: "activate", player: p, card: id, skill: sk.index, alt: true }, label: viaAlt, cost: activationCost(ctx, s, id, sk, true) });
+          if (viaAlt) pushActivations(out, ctx, s, p, id, sk, viaAlt, true);
         }
       }
       for (const id of cardsInPlay(s, p)) {
         for (const sk of skillsOfInstance(ctx, s, id)) {
           const act = activatable(ctx, s, p, id, sk, "battle");
-          if (act) out.push({ action: { type: "activate", player: p, card: id, skill: sk.index }, label: act, cost: activationCost(ctx, s, id, sk, false) });
+          if (act) pushActivations(out, ctx, s, p, id, sk, act, false);
         }
       }
       out.push({ action: { type: "pass", player: p }, label: pr.side === "offense" ? "End Offense Step" : "End Defense Step" });
@@ -1802,16 +1833,16 @@ function mainActions(ctx: EngineContext, s: GameState, p: PlayerId): LegalAction
     // Keyword [Activate : Main] skills from hand and Extras with a native effect.
     for (const sk of skillsOf(d)) {
       const act = activatable(ctx, s, p, id, sk, "main");
-      if (act) out.push({ action: { type: "activate", player: p, card: id, skill: sk.index }, label: act, cost: activationCost(ctx, s, id, sk, false) });
+      if (act) pushActivations(out, ctx, s, p, id, sk, act, false);
       const viaAlt = activatable(ctx, s, p, id, sk, "main", true);
-      if (viaAlt) out.push({ action: { type: "activate", player: p, card: id, skill: sk.index, alt: true }, label: viaAlt, cost: activationCost(ctx, s, id, sk, true) });
+      if (viaAlt) pushActivations(out, ctx, s, p, id, sk, viaAlt, true);
     }
   }
   // Skills on cards in play.
   for (const id of cardsInPlay(s, p)) {
     for (const sk of skillsOfInstance(ctx, s, id)) {
       const act = activatable(ctx, s, p, id, sk, "main");
-      if (act) out.push({ action: { type: "activate", player: p, card: id, skill: sk.index }, label: act, cost: activationCost(ctx, s, id, sk, false) });
+      if (act) pushActivations(out, ctx, s, p, id, sk, act, false);
     }
   }
   // 13-3: Unison growth.
@@ -2233,10 +2264,17 @@ function activatable(ctx: EngineContext, s: GameState, p: PlayerId, card: string
   // you remove this card in your Drop from the game …" is both, and reading
   // only the condition was a skill used for nothing.
   const actionCost = !costIsOrbsOnly ? priceFor(ctx, s, card, sk).ops : null;
-  if (!costIsOrbsOnly && !condCost && !actionCost) return null;
+  // 20-5: "{X}" strips to nothing and reads as orbs-only, but "Pay X energy"
+  // does not — and an X price is a price the engine can charge, so it is the
+  // third thing a readable non-orb price may be.
+  const xCost = !costIsOrbsOnly ? priceFor(ctx, s, card, sk).x : null;
+  if (!costIsOrbsOnly && !condCost && !actionCost && !xCost) return null;
   if (condCost && !condHolds(ctx, s, { ops: [], ip: 0, vars: {}, card, master: p }, condCost)) return null;
   if (actionCost && !canPayCostProgram(ctx, s, p, card, actionCost)) return null;
   if (!canPayOrbs()) return null;
+  // An X price at its floor: offered only when that much can actually be paid.
+  const xs = xValuesFor(ctx, s, p, card, sk);
+  if (xs && !xs.length) return null;
   if (!canResolve(ctx, s, card, sk)) return null;
   if (baseType(d) === "EXTRA" && inHand) {
     if (alt) {
@@ -2649,7 +2687,7 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
       const label = activatable(ctx, s, p, action.card, sk, timing, !!action.alt);
       if (!label) throw new IllegalAction("that skill can't be activated now");
       spendProhibitionUse(ctx, s, "activateSkill", { player: p, card: action.card });
-      activate(ctx, s, ev, p, action.card, sk, action.pay, !!action.alt);
+      activate(ctx, s, ev, p, action.card, sk, action.pay, !!action.alt, action.x);
       s.flow.push(timing === "main" ? { op: "turn.promptMain" } : { op: "battle.promptCombo", side: pr.kind === "combo" ? pr.side : "offense" });
       break;
     }
@@ -2895,14 +2933,21 @@ function requireMain(s: GameState, p: PlayerId): void {
 }
 
 /** Pay a skill's cost and queue its resolution. Keyword skills with choices push a prompt. */
-function activate(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId, card: string, sk: Skill, explicitPay?: string[], alt = false): void {
+function activate(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId, card: string, sk: Skill, explicitPay?: string[], alt = false, x?: number): void {
   const d = def(ctx, s, card);
   const inst = s.cards[card];
   const k = sk.keyword;
   const ps = s.players[p];
+  // 20-5: an X price is paid alongside the skill's own orbs, at the value the
+  // player chose. `xPaid` is what the effect will read as `X`; it is undefined
+  // for every skill whose price charges no X, and an `{x:true}` amount read
+  // with nothing bound throws rather than resolving as nothing.
+  const xPrice = priceFor(ctx, s, card, sk).x;
+  const xPaid = xPrice ? Math.max(xPrice.min ?? 0, x ?? xPrice.min ?? 0) : undefined;
+  if (xPrice && xPrice.max !== undefined && (xPaid ?? 0) > xPrice.max) throw new IllegalAction("X is more than this skill allows");
   const payOrbs = () => {
     const { total, specified, either } = orbTotals(ctx, s, card, sk, k?.name === "Evolve" ? "evolve" : "skill");
-    const pm = planPayment(ctx, s, p, total, specified, explicitPay, either);
+    const pm = planPayment(ctx, s, p, total + (xPaid ?? 0), specified, explicitPay, either);
     if (!pm) throw new IllegalAction("can't pay the skill cost");
     pay(s, ev, p, pm);
   };
@@ -3106,7 +3151,12 @@ function activate(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId
   }
   payOrbs();
   s.resolving = { card, skill: sk.index, player: p };
-  s.flow.unshift({ op: "counter", window: "skill", responder: other(p) }, { op: "skill.resolve", card, skill: sk.index, player: p }, { op: "extra.finish", card }, { op: "checkpoint" });
+  s.flow.unshift(
+    { op: "counter", window: "skill", responder: other(p) },
+    { op: "skill.resolve", card, skill: sk.index, player: p, ...(xPaid === undefined ? {} : { x: xPaid }) },
+    { op: "extra.finish", card },
+    { op: "checkpoint" },
+  );
   // 4-3-3: an action price is paid on activation, before the counter window
   // opens — so it goes on the front of the flow, after everything else.
   const actionCost = priceFor(ctx, s, card, sk).ops;
