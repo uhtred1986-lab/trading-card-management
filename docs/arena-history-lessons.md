@@ -2472,3 +2472,128 @@ BT10-004, P-147 (looks); BT13-024's dangling variable is bound at last.
 
 `npm run typecheck`, `lint`, `test`, `build` clean; `arena:fuzz 40` 40 games, 0 crashes;
 `contract:emit` produced no change. The gap-set diff is empty, by design.
+
+## The near-miss audit, third pass — five families (12 Sep 2026)
+
+Issue #93, run against `main` at 64858f4. Baselines taken first and re-taken between every family:
+
+```
+cards 6493, fully compiled 4690 (72.2 %)     →  4702 (72.4 %)
+unread clauses 3418 over 2391 distinct shapes →  3359 over 2356
+```
+
+The method is §4(a) of `docs/arena-next-session-prompt.md`: take a regex in the compiler that
+anchors on a literal phrase, grep the catalog for what the sets print *beside* it, and fix or
+refuse each family. Two of the five were found that way. The other three were found by the
+discipline rather than the search — signing off the readings the first two moved.
+
+### 1. "You or your opponent's Battle Cards" read as the opponent's alone
+
+`parseTarget` reads a phrase's side off the possessive nearest the area word, and in this phrase
+that possessive is the opponent's. Nine choices printed over two boards were offered over one, and
+the card on your own side was never on the menu: **BT13-018, BT13-022, BT13-025, BT26-016,
+BT31-032, BT4-045, EB1-29, P-295, P-296**. BT4-045 prints the proof on its own face — its next
+clause asks whether the card chosen "was your own Battle Card", which could never be true.
+
+Every one of the nine moved lines differs from its predecessor by exactly `in opponent's …` →
+`in each player's …` and by nothing else. The gap set is byte-identical and coverage is unchanged:
+this was never a clause that failed to compile.
+
+### 2. The "and" of that phrase is not a sentence break
+
+`splitClauses` cut at it, and both halves were ruined — "choose all of you" is a choice with no
+cards in it, "your opponent's Battle Cards" a description with no verb. Fifteen skills were cut
+this way, and the damage was not always an honest gap: **EX13-07** kept the tail, so a sweep
+printed for every card on the table read as your own Leader taking -10000 power and nothing else,
+and **BT28-002b** read "draw 1, move the chosen cards to deck, deal 1 damage" — a move with no
+choice in front of it.
+
+Eleven readings moved (BT13-106, BT25-139, BT28-002b, BT31-130, BT31-136, BT5-108, BT5-111,
+EX13-07, P-565, TB2-039, TB3-066) and ten more skills lost an orphan fragment while keeping their
+reading — the same phrase read whole where it names a timing rather than cards. **4690 → 4699
+cards, 3418 → 3374 unread clauses.**
+
+*Entered the gap set*: `if the total number of cards in you and your opponent's warps is N or more`
+(BT21-149), `remove this card from the game at the end of you and your opponent's turns` (EX24-20,
+fixed by family 4), `return all battle cards in you and your opponent's drops to their owners'
+decks` (P-616), `your and your opponent's hands` (TB3-068). *Left it*: the fragment halves —
+`choose all of you` ×3, `choose all of your` ×4, `your opponent's battle cards` ×5, `ko them` ×3,
+`your opponent's main phases` ×3, `your opponent's turns` ×2, and a dozen singletons.
+
+### 3. Two readings that family exposed, each its own commit
+
+**BT25-139** prints "**form** your deck to your hand" — two letters transposed, in the one word of
+the sentence that says where the search happens. With the typo the only area word left in the
+clause was the destination, so the card searched the hand it was meant to be adding to. Corrected
+in `errata.ts`, where `unmatchedCorrections` re-checks the claim on every sync; the clause is then
+refused whole as the two-named-card search it is.
+
+**"The rest of"** is an exception a `Selector` cannot state: the cards of a description *except
+those this skill already picked out*. Read whole, TB3-066's second option sweeps away the very card
+its first choice chose to spare. Refused (ground rule 5), which costs one card — 4699 → 4698 — and
+that card counted as complete only because the wrong reading hid the gap. Two things share the
+words and are not this phrase, both asserted: "for the rest of the turn" is a duration, and "the
+rest" of a pool a look held out is `{var: "looked", minus: "c0"}`, which BT3-062 already compiles
+correctly.
+
+### 4. Both players' turns, named as one moment
+
+"At the start of you and your opponent's Main Phases", "at the end of you and your opponent's
+turns", "at the end of each player's turn", and the "or" forms of each. Twelve [Auto] skills —
+**BT15-032b, BT21-100, BT21-109, BT21-110, BT21-114, BT31-115b, EX07-01, EX24-20, EX24-29, P-688,
+P-700** — matched none of the one-sided phrases `turnEnd`, `opponentTurnEnd`, `mainStart` and
+`opponentMainStart` are anchored on. They answered to no trigger at all and had never fired once:
+BT21-109 stands itself up every Main Phase, and simply stayed rested.
+
+**Neither instrument could see this family.** A timing clause is consumed wherever it is printed,
+whether or not a trigger was found for it, so these carried no unread clause and counted as no gap.
+What found them was reading eleven cards' text beside their readings after family 2 stopped leaving
+an orphan fragment behind — the lesson being that a gap set with nothing in it is not the same as
+a skill that works.
+
+No new primitive: `skillAnswersTo` is a predicate *per trigger kind*, so a skill answers to both,
+and 7-1 makes the two moments exclusive, so it fires once. EX24-20 prints its timing at the end of
+the sentence, so `TIMING_PHRASE` — read only by `trailingTrigger` — admits the same possessive.
+Its clause is the only reading that moves; the check that matters is on the board, and is a rested
+card with the Main Phase wording standing up on the opponent's Main Phase.
+
+### 5. A card's power as a condition, in three unread word orders
+
+The compiler read "if this card's **power is** 30000 or more" and none of the three wordings
+printed beside it: "if this card **has** 20000 **power or more**" (**BT20-090, BT20-107, BT20-108,
+BT28-003, EX25-31**), "if your Leader Card has 15000 power or less" (**BT15-028**), "if your
+opponent's Leader Card has 10000 **or less power**" (**BT1-015**).
+
+An unread condition takes its clause with it, which is what made seven clauses worth more than
+seven. BT28-003 and EX25-31 are [Permanent]s whose whole text is the condition and the grant, and
+both read as nothing at all; `draw N card`, the largest single shape in the whole gap set at 41,
+was three counts of *this* — a draw orphaned by the condition in front of it, and it falls to 38.
+
+**P-166 was reading wrongly rather than not at all**: "If your opponent's Leader Card has 0 power
+or less **and** {Super Baby 2, Vengeful Finisher} isn't in play in your Battle Area" read as one
+condition with both halves merged and the side flipped — "no {Super Baby 2, Vengeful Finisher} with
+0 power or less in your **opponent's** Battle Area". With the first half read as a condition of its
+own the sentence comes apart correctly.
+
+Three subjects stay unread on purpose: "**its** power is 20000 or more" (BT3-001) and "**that
+card** has 25000 power or less" (EX09-01) measure a card an earlier clause named, and a condition
+is parsed with no antecedent to resolve against; "**you or your opponent's** Leader Card has 15000
+or more power" (BT3-026) asks about either Leader, which `power` states of one selector at a time.
+**4699 → 4702 cards, 3374 → 3359 unread clauses.**
+
+### What this pass is worth repeating for
+
+- **Two of the five families came out of signing off the other two.** Families 3, 4 and 5's P-166
+  were all found reading a moved line against its printed text, not by grepping for a phrase. The
+  sign-off is not paperwork; it is half the search.
+- **A family with no gap and no moved reading is still a family.** Family 4 was invisible to both
+  instruments — twelve skills that never fired, and nothing anywhere said so. The only tell was a
+  card's printed text saying a thing its reading did not.
+- **The instrument under-describes two correct programs**, which looks exactly like a bug and is
+  not: `[Dual Attack]` compiles as `{name: "Attack", x: 2}` and prints as "[Attack]" (BT20-090),
+  and `{var: "looked", minus: "c0"}` prints as "the chosen cards" (BT3-062). Check the program
+  before believing the sentence.
+
+Gate: `npm run typecheck`, `lint`, `test`, `build` clean; `arena:fuzz 40` — 40 games, 0 crashes;
+`contract:emit` adds exactly one probe digest, for the one harness card family 4 added, and moves
+none of the other 152.
