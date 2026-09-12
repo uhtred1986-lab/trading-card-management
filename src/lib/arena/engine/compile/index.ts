@@ -4,7 +4,7 @@ import type { CardDef, KeywordSkill, Skill } from "../types";
 import { splitClauses, stripNotes } from "./clauses";
 import { allConditions, parseConditionClause } from "./conditions";
 import { compileClauseList, holdForGame, splitModal } from "./effects";
-import { compileCostProgram, costText, counterAltCost, priceCondition } from "./prices";
+import { compileCostProgram, costText, counterAltCost, priceCondition, priceX } from "./prices";
 import type { Ctx } from "./shared";
 import { countWord } from "./shared";
 import { subjectFilterOf } from "./targets";
@@ -75,6 +75,7 @@ function compileSkillText(skill: Skill): Script {
     replacing: null,
     n: 0,
     raw: skill.effect,
+    xBound: priceX(skill) !== null,
   };
   // A standing permission is one sentence, not a list of actions: "you can
   // activate this card's [Counter] skill from your hand without paying its
@@ -293,5 +294,6 @@ export function compileCard(card: CardDef, side: "front" | "back" = "front"): Ca
  * outside the compiler a price comes off the record, never off the text.
  */
 function priceFromText(skill: Skill): SkillPrice {
-  return { condition: priceCondition(skill)?.cond ?? null, ops: compileCostProgram(skill)?.ops ?? null };
+  const x = priceX(skill);
+  return { condition: priceCondition(skill)?.cond ?? null, ops: compileCostProgram(skill)?.ops ?? null, ...(x ? { x } : {}) };
 }

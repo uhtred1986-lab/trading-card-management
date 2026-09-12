@@ -287,10 +287,14 @@ function selectorAreas(sel: Selector | undefined): string[] {
 
 const refAreas = (ref: Ref | undefined): string[] => (ref && typeof ref === "object" && "sel" in ref ? selectorAreas(ref.sel) : []);
 
+/** Every area an expression names. `sumOf` before `attr`: the two share an `attr` key, so the narrower test has to come first (20-5). */
 function amountAreas(amount: Amount | undefined): string[] {
   if (!amount || typeof amount !== "object") return [];
+  if ("plus" in amount) return amountAreas(amount.plus[0]);
   if ("count" in amount) return selectorAreas(amount.count);
   if ("markers" in amount) return selectorAreas(amount.markers);
+  if ("sumOf" in amount) return selectorAreas(amount.sumOf);
+  if ("attr" in amount) return refAreas(amount.attr);
   return [];
 }
 

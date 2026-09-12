@@ -7,7 +7,7 @@
 import { hasKeyword, keywordOf, skillsOf, specifiedCostOf, isZ, baseType } from "./cards";
 import { matches, powerRelOk } from "./filters";
 import { describeCond } from "./script-schema";
-import { NO_RULES, type Amount, type CardScripts, type Cond, type Op, type Ref, type ScriptArea, type ScriptFrame, type Selector, type Side } from "./script";
+import { NO_RULES, type Amount, type AmountAttr, type CardScripts, type Cond, type Op, type Ref, type ScriptArea, type ScriptFrame, type Selector, type Side } from "./script";
 import type {
   Area,
   CardDef,
@@ -514,11 +514,55 @@ function markersOn(ctx: GameContext, s: GameState, frame: ScriptFrame, sel: Sele
   return resolveSelector(ctx, s, frame, sel).reduce((t, id) => t + s.cards[id].markers, 0);
 }
 
+/** One measure of one card, for the `attr` and `sumOf` amounts. A cost is the cost as it stands (20-21-2), not the one printed on the face. */
+function attrOf(ctx: GameContext, s: GameState, id: string, name: AmountAttr): number {
+  switch (name) {
+    case "power":
+      return powerOf(ctx, s, id);
+    case "comboPower":
+      return comboPowerOf(ctx, s, id);
+    case "comboCost":
+      return comboCostOf(ctx, s, id);
+    case "energyCost":
+      return playCost(ctx, s, id).total;
+  }
+}
+
+/**
+ * An amount, as a number. The **one** place an `Amount` is read — every op
+ * that needs a number comes through here, so a new shape is a case here and
+ * nowhere else.
+ *
+ * The order of the `in` tests is the order the union is written, and each key
+ * is unique to its shape, so none of them can be mistaken for another. The
+ * `count` fall-through stays last, as the shape with no distinguishing test.
+ */
 export function amount(ctx: GameContext, s: GameState, frame: ScriptFrame, a: Amount): number {
   if (typeof a === "number") return a;
+  if ("plus" in a) return amount(ctx, s, frame, a.plus[0]) + a.plus[1];
   if ("var" in a) return (frame.vars[a.var] ?? []).length;
   if ("sumPower" in a) return (frame.vars[a.sumPower.var] ?? []).reduce((t, id) => t + powerOf(ctx, s, id), 0);
   if ("handUpTo" in a) return Math.max(0, a.handUpTo - s.players[frame.master].hand.length);
+  if ("x" in a) {
+    // 20-5: X is the number the player paid, and a program that reads it
+    // without one is a program that should never have been stored. Throwing
+    // is the honest answer — read as zero, "draw X cards" would silently be
+    // "draw nothing" and "KO X cards" a skill that does nothing at all.
+    if (frame.x === undefined) throw new Error("this program reads X, but nothing bound it");
+    return frame.x * (a.times ?? 1);
+  }
+  if ("life" in a) return sideOf(frame.master, a.life).reduce((t, p) => t + s.players[p].life.length, 0) * (a.times ?? 1);
+  // `sumOf` before `attr`: both carry an `attr` key (the measure on the one,
+  // the card on the other), so the narrower test has to come first.
+  if ("sumOf" in a) return resolveSelector(ctx, s, frame, a.sumOf).reduce((t, id) => t + attrOf(ctx, s, id, a.attr), 0) * (a.times ?? 1);
+  if ("attr" in a) {
+    // "That card's energy cost": one card's measure. A ref that found none is
+    // nothing rather than an error — the same answer `count` gives an empty
+    // board — and a ref that found several is read off the first, because no
+    // printed wording says "each of their energy costs" (that is `sumOf`).
+    const ids = resolveRef(ctx, s, frame, a.attr);
+    return ids.length ? attrOf(ctx, s, ids[0], a.name) * (a.times ?? 1) : 0;
+  }
   if ("markers" in a) return markersOn(ctx, s, frame, a.markers) * (a.times ?? 1);
   return resolveSelector(ctx, s, frame, a.count).length * (a.times ?? 1);
 }

@@ -30,7 +30,7 @@ import {
   type PlayerId,
   type Skill,
 } from "./engine";
-import type { Cond, SkillPrice } from "./engine/script";
+import type { Cond, SkillPrice, XCost } from "./engine/script";
 import { parseFilter } from "./engine/filters";
 import { addEffect, move } from "./engine/state";
 import { sentence } from "./wording";
@@ -44,9 +44,9 @@ export type { ProbeFamily, ProbeOutcome, ProbeRule, ProbeRun, ProbeScenario, Pro
  * is `programOf` in the store; the probe never reads the table itself.
  */
 export function ruleFrom(row: { side: string; skillIndex: number; kind: string; trigger: unknown; status: string; unread: string[]; cost?: unknown }, def: CardDef, program: Op[]): ProbeRule {
-  const cost = row.cost as { condition?: Cond | null; program?: Op[] | null } | null | undefined;
+  const cost = row.cost as { condition?: Cond | null; program?: Op[] | null; x?: XCost } | null | undefined;
   return {
-    price: { condition: cost?.condition ?? null, ops: cost?.program ?? null },
+    price: { condition: cost?.condition ?? null, ops: cost?.program ?? null, ...(cost?.x ? { x: cost.x } : {}) },
     def,
     side: row.side === "back" ? "back" : "front",
     skillIndex: row.skillIndex,
