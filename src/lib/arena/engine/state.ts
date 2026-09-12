@@ -821,7 +821,7 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
       const player = op.side && op.side !== "both" ? sideOf(master, op.side)[0] : undefined;
       const name = op.sameNameAsSelf ? face(ctx, s, source).name : undefined;
       const uses = op.uses != null ? amount(ctx, s, frame, op.uses) : undefined;
-      const forbid: Prohibition = { what: op.what, ...(uses != null ? { uses } : {}), ...(op.unless ? { unless: op.unless } : {}), player, bySkill: op.bySkill };
+      const forbid: Prohibition = { what: op.what, ...(uses != null ? { uses } : {}), ...(op.unless ? { unless: op.unless, master } : {}), player, bySkill: op.bySkill };
       if (op.target) {
         for (const id of staticTargets(ctx, s, frame, op.target)) out.push({ source, kind: "forbid", target: id, value: forbid });
       } else {
@@ -1201,7 +1201,7 @@ function ownProhibitions(ctx: GameContext, s: GameState, card: string): Prohibit
       // hold everywhere: anything aimed at other cards is the static layer's.
       if (op.op !== "forbid" || op.until !== "game" || op.bySkill === undefined) continue;
       if (!op.target || !("sel" in op.target) || op.target.sel.special !== "self") continue;
-      out.push({ what: op.what, ...(op.uses != null ? { uses: amount(ctx, s, { ops: [], ip: 0, vars: {}, card, master: inst.owner }, op.uses) } : {}), ...(op.unless ? { unless: op.unless } : {}), bySkill: op.bySkill });
+      out.push({ what: op.what, ...(op.uses != null ? { uses: amount(ctx, s, { ops: [], ip: 0, vars: {}, card, master: inst.owner }, op.uses) } : {}), ...(op.unless ? { unless: op.unless, master: inst.owner } : {}), bySkill: op.bySkill });
     }
   }
   return out;
@@ -1221,14 +1221,45 @@ function isImmuneTo(ctx: GameContext, s: GameState, id: string, source: string |
   return rules.some((im) => !im.fromFilter || (!!source && !!s.cards[source] && matches(cardNow(ctx, s, source), im.fromFilter)));
 }
 
-function unlessHolds(ctx: GameContext, s: GameState, f: Prohibition, opts: { player?: PlayerId; card?: string }): boolean {
+/**
+ * The same condition said from another chair. `describeCond` has no viewer —
+ * "you" and "your opponent" in the language are always the script's own master
+ * — but a refusal is read by whoever was refused, who is usually the *other*
+ * player when a card forbids something. Every `side` in the language means the
+ * one thing, so mirroring is flipping that word wherever it appears.
+ */
+function mirrorSides<T>(x: T): T {
+  if (Array.isArray(x)) return x.map(mirrorSides) as unknown as T;
+  if (!x || typeof x !== "object") return x;
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(x as Record<string, unknown>)) {
+    out[k] = k === "side" && (v === "you" || v === "opponent") ? (v === "you" ? "opponent" : "you") : mirrorSides(v);
+  }
+  return out as T;
+}
+
+/** A prohibition's escape clause in the words of the player it is refusing. */
+function unlessInWords(f: Prohibition, viewer: PlayerId | undefined): string {
+  const cond = f.unless!;
+  return describeCond(f.master && viewer && f.master !== viewer ? mirrorSides(cond) : cond);
+}
+
+/**
+ * Is the prohibition's escape clause satisfied right now? The clause is part
+ * of the *source card's* text, so it is asked in that card's frame — its
+ * controller and the card itself — and not in the frame of whoever is trying
+ * to act. Reading "your opponent" from the acting player's chair would invert
+ * every such card ("your opponent can't play Battle Cards unless your
+ * opponent has 3 or more energy" would read the wrong player's energy).
+ */
+function unlessHolds(ctx: GameContext, s: GameState, f: Prohibition, opts: { player?: PlayerId; card?: string }, source?: string | null): boolean {
   if (!f.unless) return false;
-  const card = opts.card && s.cards[opts.card] ? opts.card : "";
-  const master = opts.player ?? (card ? s.cards[card].owner : "p1");
+  const card = source && s.cards[source] ? source : opts.card && s.cards[opts.card] ? opts.card : "";
+  const master = f.master ?? (card ? s.cards[card].owner : undefined) ?? opts.player ?? "p1";
   return condHolds(ctx, s, { ops: [], ip: 0, vars: {}, master, card }, f.unless);
 }
 
-function matchesProhibition(ctx: GameContext, s: GameState, what: ForbiddenAction, target: string, f: Prohibition, opts: { player?: PlayerId; card?: string; bySkill?: boolean }): boolean {
+function matchesProhibition(ctx: GameContext, s: GameState, what: ForbiddenAction, target: string, f: Prohibition, opts: { player?: PlayerId; card?: string; bySkill?: boolean }, source?: string | null): boolean {
   if (f.what !== what) return false;
   // "By skills" and "except by skills" are opposite halves of one wording,
   // and a rule that names one of them says nothing about the other.
@@ -1242,21 +1273,21 @@ function matchesProhibition(ctx: GameContext, s: GameState, what: ForbiddenActio
     if (f.filter && !matches(cardNow(ctx, s, opts.card), f.filter)) return false;
     if (f.name && d.name !== f.name) return false;
   }
-  if (unlessHolds(ctx, s, f, opts)) return false;
+  if (unlessHolds(ctx, s, f, opts, source)) return false;
   return true;
 }
 
 export function forbids(ctx: GameContext, s: GameState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean } = {}): boolean {
-  const rules: { target: string; forbid: Prohibition }[] = [];
-  for (const e of s.effects) if (e.kind === "forbid" && e.forbid) rules.push({ target: e.target, forbid: e.forbid });
+  const rules: { target: string; source: string | null; forbid: Prohibition }[] = [];
+  for (const e of s.effects) if (e.kind === "forbid" && e.forbid) rules.push({ target: e.target, source: e.source ?? null, forbid: e.forbid });
   // A prohibition printed as a [Permanent] skill holds while the card is in
   // play, with no duration to expire (9-5-1).
-  for (const e of staticEffects(ctx, s)) if (e.kind === "forbid") rules.push({ target: e.target, forbid: e.value as Prohibition });
+  for (const e of staticEffects(ctx, s)) if (e.kind === "forbid") rules.push({ target: e.target, source: e.source, forbid: e.value as Prohibition });
   // 9-1-3-3: and the card's own, wherever it is — see `ownProhibitions`.
-  if (opts.card) for (const f of ownProhibitions(ctx, s, opts.card)) rules.push({ target: opts.card, forbid: f });
+  if (opts.card) for (const f of ownProhibitions(ctx, s, opts.card)) rules.push({ target: opts.card, source: opts.card, forbid: f });
 
-  for (const { target, forbid: f } of rules) {
-    if (!matchesProhibition(ctx, s, what, target, f, opts)) continue;
+  for (const { target, source, forbid: f } of rules) {
+    if (!matchesProhibition(ctx, s, what, target, f, opts, source)) continue;
     if ((f.uses ?? 0) > 0) continue;
     return true;
   }
@@ -1283,9 +1314,9 @@ export function forbiddenBy(
   if (opts.card) for (const f of ownProhibitions(ctx, s, opts.card)) rules.push({ target: opts.card, source: opts.card, until: "permanent", forbid: f });
 
   for (const { target, source, until, forbid: f } of rules) {
-    if (!matchesProhibition(ctx, s, what, target, f, opts)) continue;
+    if (!matchesProhibition(ctx, s, what, target, f, opts, source)) continue;
     if ((f.uses ?? 0) > 0) continue;
-    return { by: source && s.cards[source] ? face(ctx, s, source).name : null, until, ...(f.unless ? { unless: describeCond(f.unless) } : {}) };
+    return { by: source && s.cards[source] ? face(ctx, s, source).name : null, until, ...(f.unless ? { unless: unlessInWords(f, opts.player ?? (opts.card && s.cards[opts.card] ? s.cards[opts.card].owner : undefined)) } : {}) };
   }
   return null;
 }
@@ -1293,7 +1324,7 @@ export function forbiddenBy(
 export function spendProhibitionUse(ctx: GameContext, s: GameState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean } = {}): void {
   for (const e of s.effects) {
     if (e.kind !== "forbid" || !e.forbid || (e.forbid.uses ?? 0) <= 0) continue;
-    if (!matchesProhibition(ctx, s, what, e.target, e.forbid, opts)) continue;
+    if (!matchesProhibition(ctx, s, what, e.target, e.forbid, opts, e.source ?? null)) continue;
     e.forbid.uses = Math.max(0, (e.forbid.uses ?? 0) - 1);
   }
 }
@@ -1325,14 +1356,14 @@ export function forbiddenForCard(s: GameState, what: ForbiddenAction, card: stri
     s.effects.some((e) => {
       if (e.kind !== "forbid" || e.target !== card || e.forbid?.what !== what) return false;
       if ((e.forbid.uses ?? 0) > 0) return false;
-      if (ctx && unlessHolds(ctx, s, e.forbid, { card })) return false;
+      if (ctx && unlessHolds(ctx, s, e.forbid, { card }, e.source ?? null)) return false;
       return true;
     })
   )
     return true;
   // The [Permanent] half needs the card definitions, so it is only asked when
   // the caller has them.
-  return !!ctx && staticEffects(ctx, s).some((e) => e.kind === "forbid" && e.target === card && (e.value as Prohibition).what === what && ((e.value as Prohibition).uses ?? 0) <= 0 && !unlessHolds(ctx, s, e.value as Prohibition, { card }));
+  return !!ctx && staticEffects(ctx, s).some((e) => e.kind === "forbid" && e.target === card && (e.value as Prohibition).what === what && ((e.value as Prohibition).uses ?? 0) <= 0 && !unlessHolds(ctx, s, e.value as Prohibition, { card }, e.source));
 }
 
 /**

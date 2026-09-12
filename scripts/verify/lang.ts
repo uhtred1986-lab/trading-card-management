@@ -139,6 +139,16 @@ const tripFilter = (filter: CardFilter, what: string) => tripSelector({ side: "y
     { markers: { side: "opponent", area: "unison", count: 99 }, times: 5000 },
   ];
   for (const n of AMOUNTS) tripOps([{ op: "draw", n }], `draw amount ${JSON.stringify(n)}`);
+
+  // A counted, conditional prohibition (20-14): the schema loop above already
+  // builds a maximal `forbid`, but it builds one generic value per field type.
+  // This is the shape the cards actually print and the one
+  // `docs/arena-rules-language.md` shows — a budget of one use and a count
+  // escape — written out so the doc's example is a test rather than prose.
+  tripOps(
+    [{ op: "forbid", what: "attack", until: "turn", side: "opponent", filter: parseFilter("battle card"), uses: 1, unless: { kind: "count", sel: { side: "opponent", area: "energy", count: 99 }, atLeast: 3 } }],
+    "forbid with uses and unless",
+  );
 }
 
 // ── the sugars, both ways ───────────────────────────────────────────────────

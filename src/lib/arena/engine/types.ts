@@ -311,6 +311,12 @@ export interface Prohibition {
   uses?: number;
   /** Escape condition: while this holds, the prohibition does not apply. */
   unless?: Cond;
+  /**
+   * The controller of the card that made the rule. An `unless` is a clause of
+   * that card's text, so "you" and "your opponent" in it are read from that
+   * chair — not from the chair of whoever is trying to act.
+   */
+  master?: PlayerId;
   /** Whose action is forbidden. Absent means either player's. */
   player?: PlayerId;
   /** Which cards it is about. Absent means any card. */

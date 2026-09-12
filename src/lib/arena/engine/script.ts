@@ -1119,7 +1119,7 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
               kind: "forbid",
               value: 0,
               until: op.until,
-              forbid: { what: op.what, ...(op.uses != null ? { uses: amount(ctx, s, frame, op.uses) } : {}), ...(op.unless ? { unless: op.unless } : {}), player: players[0] },
+              forbid: { what: op.what, ...(op.uses != null ? { uses: amount(ctx, s, frame, op.uses) } : {}), ...(op.unless ? { unless: op.unless, master: frame.master } : {}), player: players[0] },
             });
           break;
         }
@@ -1133,7 +1133,7 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
           forbid: {
             what: op.what,
             ...(op.uses != null ? { uses: amount(ctx, s, frame, op.uses) } : {}),
-            ...(op.unless ? { unless: op.unless } : {}),
+            ...(op.unless ? { unless: op.unless, master: frame.master } : {}),
             player: players[0],
             filter: op.filter,
             name: op.sameNameAsSelf ? face(ctx, s, frame.card).name : undefined,
@@ -1450,3 +1450,8 @@ function shuffleDeck(s: GameState, players: PlayerId[]): void {
 
 
 export * from "./script-schema";
+// Named as well as starred, for the same reason `engine/compile.ts` names its
+// entry points: through an import cycle an `export *` name is not instantiated,
+// and `arena:readings` died on `does not provide an export named
+// "describeScript"`.
+export { describeScript, describeCond, describeFilter } from "./script-schema";
