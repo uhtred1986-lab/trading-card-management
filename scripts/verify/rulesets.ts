@@ -1,32 +1,47 @@
 /**
- * The ruleset loader: what it resolves, and what it refuses.
+ * The ruleset loader: what it resolves, what it refuses, and — the two halves
+ * #136 adds — whether the DBS ruleset says everything the legacy engine's
+ * unions say and nothing else, and whether a `.rules` file round-trips
+ * through the printer.
  *
  * A `.rules` file parses on its own — the grammar is `lang/`'s, and
- * `scripts/verify/lang.ts` is where print-and-read-back is proved. What cannot
- * be checked without a *second* declaration is the loader's: a duplicate name,
- * a phase naming a step nothing declares, an action asking for a price that
- * does not exist, a trigger or a program naming a zone the game never
- * declared, a keyword hanging a body on a hook point the engine does not
- * offer. Each of those is a game that would load and then behave as if a line
- * of its own rules were not there, which is precisely the failure a
- * configuration-driven engine has to make loud.
+ * `scripts/verify/lang.ts` is where print-and-read-back is proved for one
+ * rule. What cannot be checked without a *second* declaration is the
+ * loader's: a duplicate name, a phase naming a step nothing declares, an
+ * action asking for a price that does not exist, a trigger or a program
+ * naming a zone the game never declared, a keyword hanging a body on a hook
+ * point the engine does not offer. Each of those is a game that would load
+ * and then behave as if a line of its own rules were not there, which is
+ * precisely the failure a configuration-driven engine has to make loud.
  *
  * The DBS files have begun to arrive (#133: `game.rules`, `attributes.rules`,
- * `zones.rules`; #134: `triggers.rules`), so the set the app actually loads is
- * checked for what those four carry: that it loads, that it is the game it
- * says it is, that the areas of the manual's §3 are all declared, and that
- * every moment a record's WHEN may name is a moment the definition declares
- * and no other. #136 grows this file into the ruleset suite proper (whole-file
- * round trips beyond the DBS set, and every remaining legacy union covered by
- * a declaration — the keywords among them, which are #135).
+ * `zones.rules`; #134: `triggers.rules`; #135: `keywords.rules`), so the set
+ * the app actually loads is checked for what those five carry: that it loads,
+ * that it is the game it says it is, that the areas of the manual's §3 are
+ * all declared, that every moment a record's WHEN may name is a moment the
+ * definition declares and no other, and that every keyword the parser reads
+ * is declared with the same arity. Beyond that, the DBS ruleset is checked
+ * for *completeness* against three more of the legacy engine's own
+ * hard-coded unions — `PHASES`, `CARD_ATTRIBUTES` and, once one exists,
+ * `PROMPT_KINDS` — by name, in both directions: nothing would otherwise
+ * notice a case the definition forgot until Stage 4 fails to play a card
+ * that uses it. `words.rules` and `prompts.rules` still wait on the owner's
+ * word on DEFINE WORDS/PROMPT (#131), so that one check below **skips, with
+ * a printed line**, until it does; every other completeness check here is
+ * live — deleting one `ZONE` line from `zones.rules` makes `npm test` fail
+ * naming that zone (the presence loop below, which covers all 15 of `AREAS`;
+ * `AREA_NAMES` is the 13-name `Area` a card's own state actually has a field
+ * for, checked separately against those 15 with the two effect-language-only
+ * routes, `under` and `play`, set aside).
  *
  * Part of `npm test`; run from `scripts/verify-arena.ts`, which fixes the order.
  */
 import assert from "node:assert/strict";
-import { loadRuleset, loadDbs, rulesetFor, HOOK_POINTS, type RulesetError } from "../../src/lib/arena/rulesets";
-import { deepEqual, parseDefinitions, printDefinitions } from "../../src/lib/arena/lang";
-import { TRIGGERS, describeTrigger } from "../../src/lib/arena/gaps";
+import { AREA_NAMES, CARD_ATTRIBUTES, KEYWORD_NAMES, PHASES, PROMPT_KINDS } from "../../src/lib/arena/engine/script";
 import type { CounterWindow } from "../../src/lib/arena/engine/types";
+import { TRIGGERS, describeTrigger } from "../../src/lib/arena/gaps";
+import { deepEqual, parseDefinitions, printDefinitions } from "../../src/lib/arena/lang";
+import { loadRuleset, loadDbs, rulesetFor, DBS_FILES, HOOK_POINTS, type KeywordDef, type RulesetError } from "../../src/lib/arena/rulesets";
 
 const lines = (...rows: string[]): string => rows.join("\n");
 
@@ -206,9 +221,11 @@ assert.equal(unknownHook.clause, "KEYWORD");
 const COUNTER_WINDOWS = ["play", "attack", "battleCardAttack", "counter", "skill"] as const satisfies readonly CounterWindow[];
 
 // The real DBS declarations, as far as they go. The completeness assertions —
-// every `Area`, `Trigger`, keyword and `Phase` of the legacy engine declared
-// and nothing it does not know — are #136's; these are the claims #133's three
-// files make on their own.
+// every `Area`, keyword and `Phase` of the legacy engine declared and nothing
+// it does not know — are #136's; these are the claims #133's three files,
+// #134's `triggers.rules` and #135's `keywords.rules` make on their own.
+// words.rules and prompts.rules still wait on the owner's word on DEFINE
+// WORDS/PROMPT (#131).
 const dbs = loadDbs();
 assert.ok(dbs.ok, `the DBS ruleset did not load: ${dbs.ok ? "" : JSON.stringify(dbs.errors, null, 2)}`);
 if (dbs.ok) {
@@ -223,12 +240,14 @@ if (dbs.ok) {
   assert.equal(def.game?.life, 8, "the life of 6-2-1-10");
   assert.equal(def.game?.mulligan, true, "the redraw of 6-2-1-9-1");
   // Twelve areas in the manual's §3, plus the three a program has to be able
-  // to name: `removed` (20-10), `under` (23-2) and `play` (9-1-3-1).
-  assert.equal(Object.keys(def.zones).length, 15, `the DBS ruleset declares ${Object.keys(def.zones).length} zones, not 15`);
-  assert.deepEqual(vocab.areas, Object.keys(def.zones), "the vocabulary's areas are not the zones the game declared");
+  // to name: `removed` (20-10), `under` (23-2) and `play` (9-1-3-1). The
+  // presence loop runs before the length check so a single deleted `ZONE`
+  // fails naming that zone, rather than only reporting a changed count.
   for (const zone of ["deck", "hand", "drop", "leader", "battle", "combo", "energy", "life", "warp", "unison", "zDeck", "zEnergy", "removed", "under", "play"]) {
     assert.ok(zone in def.zones, `no DEFINE ZONE for ${JSON.stringify(zone)}`);
   }
+  assert.equal(Object.keys(def.zones).length, 15, `the DBS ruleset declares ${Object.keys(def.zones).length} zones, not 15`);
+  assert.deepEqual(vocab.areas, Object.keys(def.zones), "the vocabulary's areas are not the zones the game declared");
   assert.equal(def.zones.battle.inPlay, true, "the Battle Area is where a card is in play (9-1-3-1)");
   assert.equal(def.zones.unison.single, true, "only one card is in a Unison Area at a time (3-11-4)");
   assert.equal(def.zones.deck.visibility, "none", "the Deck Area is a secret area (3-2-2)");
@@ -288,9 +307,151 @@ if (dbs.ok) {
   }
 
 }
-
 assert.equal(loadDbs(), dbs, "the ruleset is parsed again on every read");
 assert.equal(rulesetFor("dbs"), dbs, "a game's ruleset is not the one the loader cached");
 assert.equal(rulesetFor("fusion").ok, false, "Fusion World has no ruleset yet and must say so rather than load an empty one");
+
+// ── completeness against the legacy engine's remaining unions ───────────────
+//
+// The zone presence-loop, trigger set-equality and keyword set-equality
+// above (and the arity table below) already give `AREAS`, `TRIGGERS` and
+// `KEYWORD_NAMES` their own full, both-directions coverage against real
+// files — `zones.rules` in particular declares all 15 of `AREAS` (including
+// `under`/`play`), which is why it is a presence loop rather than a
+// `PHASES`-style comparison against the narrower 13-name `Area`. What is
+// left: `Area` itself (checked against the zones that are not those two
+// effect-language-only routes), `PHASES` by name rather than only by count,
+// and `CARD_ATTRIBUTES` in both directions rather than the one-directional
+// presence check above (a derived attribute like `costOf` has no `CardDef`
+// field and is deliberately not "extra" here).
+
+/** Both directions, by name: what the engine has that the ruleset does not declare, and what the ruleset declares that the engine does not have. */
+function completeness(actual: readonly string[], expected: readonly string[], what: string): void {
+  const missing = expected.filter((e) => !actual.includes(e));
+  const extra = actual.filter((a) => !expected.includes(a));
+  assert.deepEqual(missing, [], `${what}: the ruleset does not declare ${JSON.stringify(missing)}`);
+  assert.deepEqual(extra, [], `${what}: the ruleset declares ${JSON.stringify(extra)}, which the legacy engine does not have`);
+}
+
+// attributes.rules also declares three derived `of: card` attributes with no
+// `CardDef` field at all (20-21: the cost as it stands after reductions) —
+// real values the board computes, set aside by name rather than counted as
+// unions the legacy engine's `CardDef` does not have.
+const DERIVED_CARD_ATTRIBUTES = ["costOf", "comboCostOf", "zEnergyCostOf"];
+
+if (dbs.ok) {
+  const { vocabulary: vocab, definition: def } = dbs;
+  completeness(
+    vocab.areas.filter((a) => a !== "under" && a !== "play"),
+    AREA_NAMES,
+    "zones (excluding the effect language's own under/play routes)",
+  );
+  completeness(Object.keys(def.phases), PHASES, "phases");
+  completeness(
+    Object.entries(def.attributes)
+      .filter(([name, a]) => a.of === "card" && !DERIVED_CARD_ATTRIBUTES.includes(name))
+      .map(([name]) => name),
+    CARD_ATTRIBUTES,
+    "card attributes",
+  );
+  // `game.rules` already names five (`chooseFirst`, `mulligan`, `charge`,
+  // `main`, `gameOver`, on the steps it declares), but no file declares
+  // `DEFINE PROMPT` and #131 is still open on whether one ever will, or
+  // whether a prompt is a field of `DEFINE ACTION` instead — and the rest of
+  // `PROMPT_KINDS` belongs to steps Stage 5/6's `actions.rules` and
+  // `battle.rules` have not written yet. So this stays an unconditional skip
+  // (not "empty, so skip": `vocab.promptKinds` already has five entries)
+  // until that question is answered and every step exists to ask it of.
+  console.log(`  skipped: prompt kinds — prompts.rules not yet written (${vocab.promptKinds.length} of ${PROMPT_KINDS.length} named by steps so far)`);
+}
+
+// ── whole-file round trip ────────────────────────────────────────────────────
+//
+// `scripts/verify/lang.ts` proves `parse(print(x)) === x` for one rule; the
+// round trip over `def.definitions` above is the same promise for the
+// merged, deduplicated set the app actually loads. This is the same promise
+// again, per `.rules` file rather than merged — the shape a future workbench
+// ruleset editor would actually save one back as.
+const dbsFiles = Object.keys(DBS_FILES);
+for (const name of dbsFiles) {
+  const text = DBS_FILES[name];
+  const parsed = parseDefinitions(text);
+  assert.ok(parsed.ok, `${name} does not parse: ${parsed.ok ? "" : `${parsed.error.clause} ${parsed.error.line}:${parsed.error.col} ${parsed.error.message}`}`);
+  if (!parsed.ok) continue;
+  const printed = printDefinitions(parsed.value);
+  const reparsed = parseDefinitions(printed);
+  assert.ok(reparsed.ok, `${name}, printed back, does not re-parse: ${reparsed.ok ? "" : reparsed.error.message}`);
+  assert.ok(reparsed.ok && deepEqual(reparsed.value, parsed.value), `${name} does not round-trip through the printer:\n${printed}`);
+}
+
+// ── keywords.rules against KEYWORD_NAMES, both directions ──────────────────
+
+/**
+ * The parameters `keywordOf` (`engine/cards.ts`) builds for each keyword, as
+ * `keywords.rules`' own `TAKES` should read them. Hand-written against the
+ * `KeywordSkill` union (`engine/types.ts`) rather than derived from it — a
+ * union has no runtime shape to walk — but `Record` over `KEYWORD_NAMES`'
+ * own element type means a keyword added to one list and not the other
+ * fails `npm run typecheck` before this file ever runs, the same guard
+ * `npm test` already has for the glossary.
+ */
+const KEYWORD_ARITY: Record<(typeof KEYWORD_NAMES)[number], { name: string; type: string }[]> = {
+  Awaken: [{ name: "surge", type: "boolean" }],
+  Wish: [],
+  Field: [],
+  Blocker: [],
+  Critical: [],
+  Strike: [{ name: "x", type: "number" }],
+  Attack: [{ name: "x", type: "number" }],
+  Revenge: [],
+  Indestructible: [],
+  Barrier: [],
+  Deflect: [],
+  Unique: [],
+  Servant: [],
+  "Energy-Exhaust": [],
+  "Victory Strike": [],
+  "Warrior of Universe 7": [],
+  Ultimate: [],
+  "Super Combo": [],
+  "Dragon Ball": [],
+  Wormhole: [],
+  Invoker: [],
+  Heroic: [],
+  Villainous: [],
+  Offering: [],
+  Evolve: [{ name: "variant", type: "string" }],
+  Union: [{ name: "variant", type: "string" }],
+  "Over Realm": [
+    { name: "x", type: "number" },
+    { name: "dark", type: "boolean" },
+  ],
+  Swap: [{ name: "x", type: "number" }],
+  Arrival: [{ name: "colors", type: "colors" }],
+  Aegis: [{ name: "colors", type: "colors" }],
+  Alliance: [{ name: "colors", type: "colors" }],
+  Revive: [{ name: "colors", type: "colors" }],
+  Successor: [],
+  Overlord: [],
+  Rejuvenate: [],
+  "Spirit Boost": [{ name: "x", type: "number" }],
+  Empower: [
+    { name: "color", type: "color" },
+    { name: "x", type: "number" },
+  ],
+  "Z-Awaken": [],
+  "Z-Stack": [{ name: "x", type: "number" }],
+};
+
+if (dbs.ok) {
+  const declared = Object.keys(dbs.definition.keywords).sort();
+  const expected = [...KEYWORD_NAMES].sort();
+  assert.deepEqual(declared, expected, "keywords.rules and KEYWORD_NAMES do not name the same keywords");
+  for (const name of KEYWORD_NAMES) {
+    const keyword: KeywordDef | undefined = dbs.definition.keywords[name];
+    assert.ok(keyword, `keywords.rules has no DEFINE KEYWORD ${JSON.stringify(name)}`);
+    assert.deepEqual(keyword.takes ?? [], KEYWORD_ARITY[name], `DEFINE KEYWORD ${name} TAKES the wrong parameters for what keywordOf reads`);
+  }
+}
 
 console.log("verify/rulesets: ok");
