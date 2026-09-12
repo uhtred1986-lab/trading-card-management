@@ -1,14 +1,34 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { blankRuleAction, confirmRuleAction, explainRuleAction, keepMineAction, saveRuleAction, takeCompilerAction } from "@/app/arena/actions";
 import { keywordPlays } from "@/lib/arena/glossary";
-import { costSentence, describeScript, validateProgram, type Cond, type CostRecord, type Op } from "@/lib/arena/engine/script";
+import { COND_SCHEMA, OP_SCHEMA, costSentence, describeScript, validateProgram, type Cond, type CostRecord, type Op } from "@/lib/arena/engine/script";
 import type { Trigger } from "@/lib/arena/engine";
 import { describeTrigger } from "@/lib/arena/gaps";
-import { parseRule, printRule, validateRule, type Rule } from "@/lib/arena/lang";
+import { parseRule, printRule, validateRule, type LangError, type Rule } from "@/lib/arena/lang";
 import { CondChip, OpList, blankCond } from "./OpEditor";
+
+/**
+ * An `expected[]` entry, linked to its row on `/arena/rules/language` when it
+ * names a step or a condition. `LangError.clause` disambiguates the one name
+ * ("power") that is both — `OP_SCHEMA` and `COND_SCHEMA` are only ever both
+ * checked against `expected[]` from the clause that owns them, THEN for a
+ * step and IF for a condition (`lang/parse.ts`'s two `Object.keys(...)` fail
+ * cases), so a plain-text entry that fails both checks is a token of the
+ * grammar itself (`"THEN"`, `"{Red}"`, …), not a missing row.
+ */
+function ExpectedItem({ item, clause }: { item: string; clause: string }) {
+  const href = clause === "THEN" && item in OP_SCHEMA ? `/arena/rules/language#op-${item}` : clause === "IF" && item in COND_SCHEMA ? `/arena/rules/language#cond-${item}` : null;
+  if (!href) return <span className="font-mono">{item}</span>;
+  return (
+    <Link href={href} target="_blank" className="font-mono text-ki-300 hover:underline">
+      {item}
+    </Link>
+  );
+}
 
 /**
  * The record: one skill of one card, as the engine plays it — WHEN, COST, IF
@@ -99,7 +119,7 @@ export function RuleRecord(r: RecordProps) {
   const [jsonError, setJsonError] = useState<string | null>(null);
   const [textOpen, setTextOpen] = useState(false);
   const [text, setText] = useState("");
-  const [textError, setTextError] = useState<string | null>(null);
+  const [textError, setTextError] = useState<{ kind: "parse"; error: LangError } | { kind: "invalid"; field: string; message: string } | null>(null);
   const [explainOpen, setExplainOpen] = useState(false);
   const [explanation, setExplanation] = useState("");
   const [patternWrong, setPatternWrong] = useState(false);
@@ -170,13 +190,12 @@ export function RuleRecord(r: RecordProps) {
   const readText = () => {
     const parsed = parseRule(text);
     if (!parsed.ok) {
-      const e = parsed.error;
-      setTextError(`${e.clause}, line ${e.line} column ${e.col}: ${e.message}${e.expected.length ? ` — expected ${e.expected.slice(0, 6).join(", ")}` : ""}`);
+      setTextError({ kind: "parse", error: parsed.error });
       return;
     }
     const bad = validateRule(parsed.value, r.tag);
     if (bad) {
-      setTextError(`${bad.field.toUpperCase()}: ${bad.message}`);
+      setTextError({ kind: "invalid", field: bad.field.toUpperCase(), message: bad.message });
       return;
     }
     setTextError(null);
@@ -385,7 +404,28 @@ export function RuleRecord(r: RecordProps) {
           />
           <p className="text-[11px] text-space-500">
             {textError ? (
-              <span className="text-loss">{textError} — the last valid rule is kept.</span>
+              <span className="text-loss">
+                {textError.kind === "invalid" ? (
+                  `${textError.field}: ${textError.message}`
+                ) : (
+                  <>
+                    {textError.error.clause}, line {textError.error.line} column {textError.error.col}: {textError.error.message}
+                    {textError.error.expected.length > 0 && (
+                      <>
+                        {" "}
+                        — expected{" "}
+                        {textError.error.expected.slice(0, 6).map((item, i) => (
+                          <span key={item}>
+                            {i > 0 && ", "}
+                            <ExpectedItem item={item} clause={textError.error.clause} />
+                          </span>
+                        ))}
+                      </>
+                    )}
+                  </>
+                )}
+                {" — the last valid rule is kept."}
+              </span>
             ) : (
               <>
                 The whole record in the rules language, and the only place WHEN and COST can be changed. It is read when you leave the box; the chips above follow. The skill tag in brackets comes off the card

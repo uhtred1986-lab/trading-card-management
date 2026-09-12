@@ -24,11 +24,12 @@
 import { emptyFilter, parseFilter, type CardFilter } from "../engine/filters";
 import { AREAS, DURATIONS, KEYWORD_NAMES, SIDES, SPECIAL_TARGETS, COND_SCHEMA, OP_SCHEMA, type Amount, type Cond, type CostRecord, type FieldType, type Duration, type Op, type OpField, type Ref, type ScriptArea, type Selector, type Side, type XCost } from "../engine/script";
 import type { Color, KeywordSkill, Trigger } from "../engine/types";
-import { DEFINE_KINDS, EXPR_ATTRS, EXPR_SCHEMA, FILTER_FIELDS, PARAM_TYPES, fieldsOf, type Definition, type DefineField, type DefineFieldType, type DefineHook, type DefineKind, type DefineParam, type EventPattern, type ExprArg, type FilterFieldType, type LangError, type Parsed, type PatternValue, type Rule } from "./ast";
+import { COST_ITEMS, DEFINE_KINDS, EXPR_ATTRS, EXPR_SCHEMA, FILTER_FIELDS, PARAM_TYPES, fieldsOf, type Definition, type DefineField, type DefineFieldType, type DefineHook, type DefineKind, type DefineParam, type EventPattern, type ExprArg, type FilterFieldType, type LangError, type Parsed, type PatternValue, type Rule } from "./ast";
 import type { Words } from "../rulesets/words";
 import { LangSyntaxError, lex, positionOf, type Token } from "./tokens";
 
-const SELECTOR_FLAGS: Record<string, (s: Selector) => void> = {
+/** The literal words a selector may end with, and what each sets. Exported so the generated language reference (`lang/reference.ts`) can list them without a second copy. */
+export const SELECTOR_FLAGS: Record<string, (s: Selector) => void> = {
   any: () => {},
   active: (s) => (s.mode = "active"),
   rest: (s) => (s.mode = "rest"),
@@ -256,7 +257,10 @@ class Parser {
       cost.program = this.block();
       return;
     }
-    this.fail("that is not part of a price", ["{Red}", "+1 marker", "burst N", "spiritBoost N", "X", "TEXT", "IF", "DO"]);
+    this.fail(
+      "that is not part of a price",
+      COST_ITEMS.map((c) => c.syntax),
+    );
   }
 
   // ── steps ─────────────────────────────────────────────────────────────────
