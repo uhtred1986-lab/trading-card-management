@@ -1,8 +1,10 @@
 ---
 title: Arena: execute and document manual HUD verification matrix
 milestone: Arena M2 — Gameplay UX/HUD completion
-labels: backlog, ready-for-agent, documentation, area:arena-ui, phase:hud-workflow, model:sonnet-5
+labels: done, documentation, area:arena-ui, phase:hud-workflow, model:sonnet-5
 stage: ui
+status: closed
+closed_at: 2026-09-10
 ---
 **Source:** `docs/arena-hud-spec.md` §4 (the by-hand list) and §6.4 (what is still owed); `CLAUDE.md` on testing on a phone (a Cloudflare tunnel to `npm run build && npm start`, since Preview needs a Vercel login as well as Basic Auth).
 
