@@ -1,0 +1,82 @@
+-- The macros: every op the cards use that is not a primitive, written over
+-- the ones that are.
+--
+-- `docs/arena-ruleset-spec.md` §2 is the decision — nineteen primitives, and
+-- one `DEFINE OP` here for each of the thirty-one rows `OP_CLASS` marks
+-- *macro*. A macro is not a deletion: `power(…)` keeps its `OP_SCHEMA` row,
+-- keeps printing as itself and keeps round-tripping by that name; this file
+-- says only what it *means*, and `rulesets/expand.ts` is what lowers a program
+-- written in these ops to a program written in the primitives.
+--
+-- **No macro is declared yet, and the table below is why.** Writing one that
+-- silently dropped an argument would be worse than none: it would validate, it
+-- would expand, the sweep in `scripts/verify/language.ts` would pass, and the
+-- rule it claimed to explain would be wrong. Each row names the one thing it
+-- waits on. The expander is built and tested against fixtures, so the first
+-- row that becomes writable is a declaration here and nothing else.
+--
+-- ── what each row waits on ────────────────────────────────────────────────
+--
+--   param     the grammar can write `$name` only where an `amount` or a `ref`
+--             is expected (`lang/parse.ts`), so a body cannot say `$until`,
+--             `$side`, `$mode`, `$values` or `$ops` at all. This is the gap
+--             that blocks *every* row below, `power`'s `until` included, and
+--             it is the open question on #137.
+--   cause     `move` must carry a cause — `damage`, `ko`, `combo`, `effect`
+--             and a plain draw are one move told apart by it, and the triggers
+--             read it (spec §2.5-2). `moveTo` has no such field today.
+--   subject   `modifyAttr` reaches one card and six attributes; the rows below
+--             need a *player* and the *battle in progress* as subjects, and
+--             `mode`, `markers`, `keywords`, `hidden`, `faceUp` and `flipped`
+--             as attributes (spec §2.5-1, §2.5-3).
+--   negate    the `negate` primitive — the general form of `negateSkills` —
+--             is not an op yet (spec §2.2).
+--   replace   the `replace` primitive is not an op yet (spec §2.2, #125).
+--   cost      the `costModifier` primitive is not an op yet: a price is not a
+--             number, which is the whole of spec §2.5-4.
+--   audience  `reveal` shows a card to both players; `look` is the same act
+--             with a narrower audience (20-11), and the field that says which
+--             does not exist.
+--   maths     an amount cannot subtract, so "until you have n life" cannot be
+--             written (spec §2.5-5).
+--
+-- ── the thirty-one macros ─────────────────────────────────────────────────
+--
+--   op                   lowers to                waits on
+--   draw                 move                     param, cause
+--   discard              choose + move            param, cause
+--   damage               move                     param, cause
+--   mill                 move                     param, cause
+--   addLife              move                     param, cause
+--   lifeDownTo           move                     param, cause, maths
+--   energyMarker         modifyAttr               param, subject
+--   look                 reveal                   param, audience
+--   ko                   move                     cause
+--   switchMode           modifyAttr               param, subject
+--   power                modifyAttr               param
+--   comboPower           modifyAttr               param
+--   grant                modifyAttr               param, subject
+--   negateSkills         negate                   param, negate
+--   negateSkillsOfKind   negate                   param, negate
+--   hidden               modifyAttr               param, subject
+--   redirectAttack       modifyAttr               subject
+--   comboFrom            move + negate            param, cause, negate
+--   flip                 modifyAttr               subject
+--   faceUp               modifyAttr               param, subject
+--   addMarker            modifyAttr               param, subject
+--   removeMarker         modifyAttr               param, subject
+--   costReduction        costModifier             param, cost
+--   negateKeyword        negate                   param, negate
+--   gains                modifyAttr               param, subject
+--   replaceLeave         replace                  param, replace
+--   altCost              costModifier             param, cost
+--   resolvingPlay        replace                  param, replace
+--   negateAttack         replace                  replace
+--   negateCounter        replace                  replace
+--   negateOwnSkill       negate                   param, negate
+--   may                  chooseMode               param
+--
+-- Three rows wait on nothing but a primitive that is only a field away
+-- (`ko`, `redirectAttack`, `flip`) and three on `replace` alone
+-- (`negateAttack`, `negateCounter`, and `resolvingPlay` once `param` is
+-- answered). Those are the first this file should gain.

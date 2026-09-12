@@ -230,6 +230,13 @@ for the macros above to be writable; none of them is built by #130, which delive
 5. **Amounts must become expressions** (#122): subtraction for `lifeDownTo`, a comparison of two
    expressions for `lifeVsOpponent` and `every`, and X for the cards that bind one.
 
+Half 1 of #137 (12 Sep 2026) found a sixth, and it is the one that binds first: **a macro's body
+can only name a parameter where the grammar lets a `$name` stand**, which is an `amount` or a `ref`
+and nothing else (`lang/parse.ts`). `power`'s `until` is a `duration`, every `side` is a `side`, and
+`may`'s body is an `ops` — so no row above is writable yet, whatever its primitive does.
+`src/lib/arena/rulesets/dbs/ops.rules` carries that table row by row, and the expander
+(`rulesets/expand.ts`) is built and tested against fixtures in the meantime.
+
 ### 2.6 The expression language
 
 An operation's fields are not all constants: four shapes carry a computation, and they are the
@@ -260,9 +267,9 @@ says what the files are, what the loader does with them, and what it refuses.
 
 The loader landed 12 Sep 2026 (#132), and the first three files the same day (#133):
 `game.rules`, `attributes.rules` and `zones.rules`. The rest are #134–#135 and the stage issues
-below, so `src/lib/arena/rulesets/dbs/` holds three of the ten rows — every refusal is still
-checked against fixtures, and what the real files claim is checked against them directly
-(`scripts/verify/rulesets.ts`).
+below, so `src/lib/arena/rulesets/dbs/` holds four of the eleven rows — `ops.rules` is there with
+its header and no declaration yet (#137) — every refusal is still checked against fixtures, and
+what the real files claim is checked against them directly (`scripts/verify/rulesets.ts`).
 
 ### The files
 
@@ -275,6 +282,7 @@ itself.
 | `game.rules` | `GAME` (deck sizes, opening hand, life, mulligan, turn order), six `PHASE`s and the 26 `STEP`s of the turn, `WIN` for life-out and deck-out | §0-1-3, §6, §7 | #133 ✔ |
 | `attributes.rules` | `ATTRIBUTE` — every `CardDef` field (id, name, type, colours, energy cost, specified-cost orbs, Z-Energy cost, power, combo cost and power, characters, traits, skill, back, also-names), the three derived costs with their layer order, and the player's energy markers | §1-2, §1-9, §1-14, §2, §9-9-1, §20-21 | #133 ✔ |
 | `zones.rules` | `ZONE` — the manual's twelve areas plus `removed`, `under` and `play`: owner, visibility, order, single, markers, modes, host, and what "in play" means | §3, §9-1-3-1, §20-10, §23-2 | #133 ✔ |
+| `ops.rules` | `OP` — one macro per row §2.3 marks *macro*, over the primitives beside it; `rulesets/expand.ts` lowers a program through them | §2 above | #137 |
 | `triggers.rules` | `TRIGGER` — every moment an [Auto] or a [Counter] answers to, as the event pattern that *is* it, with the counter windows | §9-6, §9-8 | #134 |
 | `keywords.rules` | `KEYWORD` — all 39, their parameters and their meanings; the `HOOK` bodies stay empty until Stage 7 | §22 | #135 |
 | `words.rules` | the words the board says for a zone, a colour, a mode, a requirement — **not written yet**: `DEFINE WORDS` is not one of the eleven kinds, and its shape is an open question on #131 | — | #135, after that answer |

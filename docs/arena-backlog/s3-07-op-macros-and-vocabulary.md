@@ -6,7 +6,7 @@ stage: 3
 ---
 **Source:** plan Stage 3 and decision 2 ("new game = `.rules` files + drafter; new mechanism = one primitive, then every game has it"); Stage 2's primitive-or-macro table; `src/lib/arena/lang/validate.ts`, `src/components/arena/rules/*` (the chip editor), `src/lib/arena/ai/opponent.ts` (the referee prompt reads `OP_SCHEMA`).
 
-**Problem.** Two halves. (1) The ops the Stage 2 table marked *macro* — `power`, `comboPower`, `gains`, `costReduction`, `ko`, `mill`, `discard`, `replaceLeave` … — are still interpreter cases; for the rules engine to be one interpreter over primitives they must become `DEFINE OP name(params) { primitive… }` in `rulesets/dbs/ops.rules`, expanded by the loader. (2) The language, the chip editor and the referee prompt each carry their own closed word lists (`AREAS`, `KEYWORD_NAMES`, durations, the trigger list in `validateRule`); once the definition exists there must be one.
+**Problem.** Two halves. (1) The ops the Stage 2 table marked *macro* — `power`, `comboPower`, `gains`, `costReduction`, `ko`, `mill`, `discard`, `replaceLeave` … — are still interpreter cases; for the rules engine to be one interpreter over primitives they must become `DEFINE OP name` / `TAKES (param: type, …)` / `DO { primitive… }` in `rulesets/dbs/ops.rules`, expanded by the loader. (2) The language, the chip editor and the referee prompt each carry their own closed word lists (`AREAS`, `KEYWORD_NAMES`, durations, the trigger list in `validateRule`); once the definition exists there must be one.
 
 **Build.**
 1. `ops.rules` with one macro per non-primitive op, parameters matching the `OP_SCHEMA` row so **every stored `card_rules.ops` keeps parsing unchanged** and the printer keeps emitting the short form (the round-trip promise is over the macro *name*, not its expansion).
@@ -43,7 +43,7 @@ stage: 3
 **Steps in order (this issue).** Depends on #130 (the primitive-or-macro table) and #132. Do the two halves as two PRs.
 
 *Half 1 — `ops.rules` and the expander.*
-1. Take the table from #130 (`docs/arena-ruleset-spec.md`, section "The primitives"). For every op it marks *macro*, write `DEFINE OP <name>(<params>) { <primitive steps> }` in `src/lib/arena/rulesets/dbs/ops.rules`, parameters named exactly as the `OP_SCHEMA` row's fields so a stored `card_rules.ops` step is a call to the macro unchanged.
+1. Take the table from #130 (`docs/arena-ruleset-spec.md`, section "The primitives"). For every op it marks *macro*, write `DEFINE OP <name>` / `TAKES (<param>: <type>, …)` / `DO { <primitive steps> }` in `src/lib/arena/rulesets/dbs/ops.rules` — the form #132 built, not the bracketed one this file sketched — parameters named exactly as the `OP_SCHEMA` row's fields so a stored `card_rules.ops` step is a call to the macro unchanged.
 2. `expandMacros(program: Op[], def: GameDefinition): Op[]` in `rulesets/expand.ts`: substitute parameters, recurse into `ops`/`then`/`else`/`modes` fields (the nested-program field types in `OP_SCHEMA`: `ops`, `modes`), leave primitives alone. Pure.
 3. Test: in `scripts/verify/language.ts`, expand every harness program (`skillRecords`/`rulesFromCompiler` from `harness.ts`) and assert `validateProgram` accepts the result and that no op in it is a macro name. The printer is untouched: `scripts/verify/lang.ts` must still round-trip every macro **by name**.
 
@@ -54,3 +54,22 @@ stage: 3
 7. `npm run contract:emit` and review `contract/fixtures/effect-language.txt`: order may change, no op may vanish.
 
 **Done when** `grep -rn "from \"@/lib/arena/engine/script\"" src/components/arena/rules/OpEditor.tsx` no longer imports a word list, and both tests above are in `npm test`.
+
+---
+
+## Where half 1 got to, 12 Sep 2026
+
+The expander is built (`src/lib/arena/rulesets/expand.ts`, `expandMacros(program, def)`) and
+`ops.rules` exists, and **not one of the thirty-one macros is declared in it**. The file's header
+is the record of why, row by row; the two things that block them all:
+
+1. **The grammar can write `$name` only where an `amount` or a `ref` is expected** (`lang/parse.ts`
+   `typed()`). A body cannot say `$until`, `$side`, `$mode`, `$values` or `$ops`, so even `power` —
+   the table's worked example — cannot be written, because its `until` is a `duration` parameter.
+2. **The primitives the table names do not exist yet.** `move` carries no cause, `modifyAttr`
+   reaches one card and six attributes, and `negate`, `replace` and `costModifier` are not ops at
+   all. Those are §2.5's five requirements, none of which #130 built.
+
+A macro written anyway — dropping the argument it cannot spell — would validate, expand and pass
+the sweep while saying something the card does not. So half 1 ships the machinery and the record,
+and the question is on the issue.

@@ -258,8 +258,13 @@ learned the expensive way. Read it before changing the compiler or the engine.
   of the closed word lists the language is checked against. Pure and **client-safe**: the text
   arrives as a generated constant (`dbs/files.ts`, written by `npm run arena:rulesets` from the
   `.rules` files beside it), so nothing reads a file at request time.
-  `docs/arena-ruleset-spec.md` §3 says what each file declares and what the loader refuses;
-  `src/lib/arena/rulesets/dbs/` is empty until the DBS files land.
+  `docs/arena-ruleset-spec.md` §3 says what each file declares and what the loader refuses.
+  `expandMacros` (`rulesets/expand.ts`) is the other half of the plan's second decision: a
+  program written in the ops the cards use, lowered through the game's own `DEFINE OP`
+  declarations to the primitives an interpreter runs — an op with no declaration passes
+  through untouched, and the round-trip promise stays over the macro's *name*, never its
+  expansion. `dbs/ops.rules` declares none of the thirty-one yet and its header says what
+  each waits on (#137).
 - **The record's WHEN is the engine's WHEN** (`skillAnswersTo` in `engine/triggers.ts`): an
   [Auto] skill's moment comes off `card_rules.trigger` (carried on `Script.trigger` by
   `rulesFor`), and only a skill with *no* record falls back to reading the printed text. The

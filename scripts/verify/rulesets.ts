@@ -22,7 +22,8 @@
  * Part of `npm test`; run from `scripts/verify-arena.ts`, which fixes the order.
  */
 import assert from "node:assert/strict";
-import { loadRuleset, loadDbs, rulesetFor, HOOK_POINTS, type RulesetError } from "../../src/lib/arena/rulesets";
+import { DBS_FILES, loadRuleset, loadDbs, rulesetFor, expandMacros, opsIn, MacroError, HOOK_POINTS, type RulesetError } from "../../src/lib/arena/rulesets";
+import { validateProgram, type Op } from "../../src/lib/arena/engine/script";
 import { deepEqual, parseDefinitions, printDefinitions } from "../../src/lib/arena/lang";
 
 const lines = (...rows: string[]): string => rows.join("\n");
@@ -191,6 +192,115 @@ assert.match(unknownHook.message, /hook point/, "the error does not say what a h
 assert.ok(unknownHook.expected.length === HOOK_POINTS.length, "the error does not offer the hook points there are");
 assert.equal(unknownHook.clause, "KEYWORD");
 
+// ── the macro expander ──────────────────────────────────────────────────────
+
+/**
+ * `expandMacros` lowers a program to the ops the interpreter knows. The DBS
+ * `ops.rules` declares none yet — its header is the record of what each of the
+ * thirty-one rows waits on — so the machinery is proved here against fixtures
+ * instead, and the day a row becomes writable it is a declaration and nothing
+ * else.
+ *
+ * Every fixture is named after a real `OP_SCHEMA` row, because that is the
+ * only kind of macro there can be: the parser reads a body's steps against the
+ * schema, so a `DEFINE OP` whose name is not an op could never be called. Two
+ * of the bodies are what the row will mean once its primitive grows the field
+ * it is missing (`ko` has no cause, `power` no way to write `$until`); they
+ * are fixtures, and `ops.rules` is where the real ones will go.
+ */
+{
+  /** The zones a macro body names: the loader resolves every area a program mentions, whichever declaration it sits in. */
+  const ZONES = ["battle", "drop", "hand"].map((z) => lines(`DEFINE ZONE ${z}`, "  owner: player", "  visibility: all")).join("\n\n");
+
+  /** A definition holding just these macros, which is all the expander reads. */
+  const withMacros = (...decls: string[]) => {
+    const loaded = loadRuleset({ "ops.rules": decls.join("\n\n"), "zones.rules": ZONES });
+    assert.ok(loaded.ok, `the macro fixture did not load: ${loaded.ok ? "" : JSON.stringify(loaded.errors)}`);
+    if (!loaded.ok) throw new Error("unreachable");
+    return loaded.definition;
+  };
+
+  const KO = lines("DEFINE OP ko", "  TAKES (target: ref)", "  DO {", "    moveTo(target: $target, to: drop)", "  }", '  text: "to the owner\'s Drop"');
+  const koCall = { op: "ko", target: { var: "t" } } as unknown as Op;
+
+  // A call becomes its body, with the argument in the parameter's place.
+  {
+    const out = expandMacros([koCall], withMacros(KO));
+    assert.deepEqual(out, [{ op: "moveTo", target: { var: "t" }, to: "drop" }], "a macro call did not expand to its body");
+    assert.ok(validateProgram(out), "an expanded program is not a program");
+    assert.deepEqual(opsIn(out), ["moveTo"], "a macro name survived the expansion");
+  }
+
+  // An op the game does not declare is passed through exactly as it is — which
+  // is what lets the expander run before the whole table is declared.
+  {
+    const def = withMacros(KO);
+    const program = [{ op: "power", target: { sel: { special: "self" } }, amount: 5000, until: "turn" }] as unknown as Op[];
+    assert.deepEqual(expandMacros(program, def), program, "an op with no DEFINE OP was not left alone");
+    assert.deepEqual(expandMacros([], def), [], "an empty program did not stay empty");
+  }
+
+  // Nested programs: a macro inside an `if`, inside a `may`, inside a mode.
+  {
+    const out = expandMacros(
+      [
+        { op: "if", cond: { kind: "count", sel: { side: "you", area: "battle" }, atLeast: 1 }, then: [koCall], else: [koCall] },
+        { op: "may", ops: [koCall] },
+        { op: "chooseMode", modes: [{ label: "KO it", ops: [koCall] }] },
+      ] as unknown as Op[],
+      withMacros(KO),
+    );
+    assert.deepEqual(opsIn(out), ["if", "moveTo", "moveTo", "may", "moveTo", "chooseMode", "moveTo"], "a macro nested in a program was not expanded");
+    assert.ok(validateProgram(out), "an expanded nested program is not a program");
+  }
+
+  // An amount is an expression tree since 12 Sep 2026 (#122), so an argument
+  // reaches the parameter wherever the tree names it, and a tree given as the
+  // argument arrives whole.
+  {
+    const def = withMacros(lines("DEFINE OP power", "  TAKES (target: ref, amount: amount)", "  DO {", "    modifyAttr(target: $target, attr: power, amount: $amount, until: turn)", "  }"));
+    const amount = { plus: [{ count: { side: "you", area: "battle" } }, 1] };
+    const out = expandMacros([{ op: "power", target: { sel: { special: "self" } }, amount, until: "turn" } as unknown as Op], def);
+    assert.deepEqual(out, [{ op: "modifyAttr", target: { sel: { special: "self" } }, attr: "power", amount, until: "turn" }], "an amount argument did not reach the parameter's place");
+  }
+
+  // A parameter the call leaves out falls back to its `OP_SCHEMA` default,
+  // which is the value the interpreter would have assumed anyway — the reason
+  // a macro's parameters are named exactly as the row's fields. What this
+  // proves is that `negateKeyword`'s unwritten `target` (this card) arrived.
+  {
+    const def = withMacros(lines("DEFINE OP negateKeyword", "  TAKES (target: ref)", "  DO {", "    modifyAttr(target: $target, attr: power, amount: 0, until: turn)", "  }"));
+    const out = expandMacros([{ op: "negateKeyword", keyword: "Blocker" } as unknown as Op], def);
+    assert.deepEqual(out, [{ op: "modifyAttr", target: { sel: { special: "self" } }, attr: "power", amount: 0, until: "turn" }], "a left-out argument did not fall back to the row's default");
+  }
+
+  // A `$name` the macro does not take is the program's own binding — a
+  // `choose`'s `as`, read by the step after it — and must survive untouched.
+  {
+    const def = withMacros(lines("DEFINE OP mill", "  TAKES (n: amount)", "  DO {", '    choose(sel: 1 IN you.battle, as: "picked")', "    moveTo(target: $picked, to: hand)", "  }"));
+    const out = expandMacros([{ op: "mill", n: 1 } as unknown as Op], def);
+    assert.deepEqual((out[1] as unknown as { target: unknown }).target, { var: "picked" }, "the macro's own binding was substituted as if it were a parameter");
+  }
+
+  // A macro over a macro, as many times over as it takes.
+  {
+    const def = withMacros(KO, lines("DEFINE OP comboFrom", "  TAKES (target: ref)", "  DO {", "    ko(target: $target)", "    ko(target: $target)", "  }"));
+    assert.deepEqual(opsIn(expandMacros([{ op: "comboFrom", target: { var: "t" } } as unknown as Op], def)), ["moveTo", "moveTo"], "a macro calling a macro was not lowered all the way");
+  }
+
+  // The three programs that cannot be lowered, each named rather than hung on.
+  {
+    const cyclic = withMacros(lines("DEFINE OP flip", "  TAKES (target: ref)", "  DO {", "    flip(target: $target)", "  }"));
+    assert.throws(() => expandMacros([{ op: "flip", target: { var: "t" } } as unknown as Op], cyclic), MacroError, "a macro that expands into itself did not say so");
+    const mutual = withMacros(
+      lines("DEFINE OP flip", "  TAKES (target: ref)", "  DO {", "    redirectAttack(target: $target)", "  }"),
+      lines("DEFINE OP redirectAttack", "  TAKES (target: ref)", "  DO {", "    flip(target: $target)", "  }"),
+    );
+    assert.throws(() => expandMacros([{ op: "flip", target: { var: "t" } } as unknown as Op], mutual), MacroError, "two macros expanding into each other did not say so");
+    assert.throws(() => expandMacros([{ op: "ko" } as unknown as Op], withMacros(KO)), MacroError, "a macro reading a parameter the call never gave did not say so");
+  }
+}
+
 // ── what the app loads ──────────────────────────────────────────────────────
 
 // The real DBS declarations, as far as they go. The completeness assertions —
@@ -238,6 +348,11 @@ if (dbs.ok) {
   assert.equal(def.sources["zone:battle"], "zones.rules");
   assert.equal(def.sources["game:dbs"], "game.rules");
   assert.equal(def.sources["attribute:power"], "attributes.rules");
+  // `ops.rules` is in the set the app loads and declares nothing yet: its
+  // header is the record of what each of the thirty-one macro rows waits on,
+  // and a row that becomes writable is a declaration in it and nothing else.
+  assert.ok("ops.rules" in DBS_FILES, "ops.rules is not in the set the app loads");
+  assert.deepEqual(Object.keys(def.ops), [], "ops.rules declares a macro — the sweep in verify/language.ts is what proves it lowers");
   // Whole files, printed and read back: the round-trip promise over the
   // declarations the app actually loads.
   const printed = printDefinitions(def.definitions);
