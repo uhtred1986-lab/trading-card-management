@@ -1,8 +1,10 @@
 ---
 title: Arena docs: the DEFINE grammar section of arena-rules-language.md
 milestone: Arena M14 — Rules language and ruleset documentation
-labels: backlog, ready-for-agent, documentation, area:arena-docs, area:arena-lang, phase:rules-docs, model:opus-5
+labels: done, documentation, area:arena-docs, area:arena-lang, phase:rules-docs, model:opus-5
 stage: docs
+status: closed
+closed_at: 2026-09-12
 ---
 **Source:** the Stage 3 `DEFINE` grammar issue; `docs/arena-rules-language.md` (which says in §1 that a game's definition is the second of the language's three uses).
 

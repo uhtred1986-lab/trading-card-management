@@ -1,8 +1,10 @@
 ---
 title: Arena backlog: PR template with a Closes line, and an ac-check that reads the issue's acceptance section only
 milestone: Arena M15 — Backlog tooling and CI
-labels: backlog, ready-for-agent, enhancement, area:arena-docs, model:sonnet-5
+labels: done, enhancement, area:arena-docs, model:sonnet-5
 stage: tooling
+status: closed
+closed_at: 2026-09-12
 ---
 **Source:** `.github/workflows/ac-check.yml`, `scripts/ci/check-acceptance-criteria.mjs`, `.github/ISSUE_TEMPLATE/arena_backlog_item.yml`; review of 12 Sep 2026; PR #182 (the case that motivated the check).
 
