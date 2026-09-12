@@ -23,6 +23,7 @@ import {
   orbsIn,
   parseConditionClause,
   parseSkills,
+  planPayment,
   play,
   priceOf,
   rejectedActions,
@@ -402,6 +403,43 @@ import {
   assert.equal(s.cards[small].markers, 1, "paying less arrives with fewer markers");
   assert.equal(s.players.p1.energy.filter((id) => s.cards[id].mode === "rest" && s.cards[id].cardId === "V-BLUE").length, 1, "and the one orb paid was the blue one");
   assertConsistent(s);
+}
+
+{
+  // The floor under X, found by the review bot on the PR that added the rest
+  // of this. `planPayment` fills the specified colours first and then tops up
+  // to `total`, so a requirement *larger* than the total skipped the top-up
+  // and handed back a payment bigger than the price asked for: GOTEN's two
+  // blue orbs against a chosen X of 1 rested two energy and put two markers on
+  // a card whose own offer said "1 marker". 1-2-2-2-1 lets the master pick X,
+  // not pick it below what the card demands, so the menu now starts at the orb
+  // count — and `planPayment` refuses such a pair outright, so no other caller
+  // can overpay through it either.
+  let s = arena({ hand: ["GOTEN"], battle: ["TRUNKS"], energy: ["V-BLUE", "V-BLUE", "V1"] });
+  const floored = legalActions(CTX, s).filter((a) => a.action.type === "playUnison");
+  assert.deepEqual(
+    floored.map((a) => (a.action as { x: number }).x),
+    [1, 2, 3],
+    "with <Trunks> the requirement is one blue, so X = 1 is genuinely payable",
+  );
+
+  s = arena({ hand: ["GOTEN"], energy: ["V-BLUE", "V-BLUE", "V1"] });
+  const unreduced = legalActions(CTX, s).filter((a) => a.action.type === "playUnison");
+  assert.deepEqual(
+    unreduced.map((a) => (a.action as { x: number }).x),
+    [2, 3],
+    "without it the two blue orbs are the floor: X = 1 would rest two energy for a one-marker offer",
+  );
+  // The offer and what it costs are the same number, which is the whole point.
+  s = play(s, unreduced[0].action);
+  const paid = s.players.p1.unison!;
+  assert.equal(s.cards[paid].markers, 2, "the 2-marker offer arrives with 2 markers");
+  assert.equal(s.players.p1.energy.filter((id) => s.cards[id].mode === "rest").length, 2, "and rested exactly the two it named");
+  assertConsistent(s);
+
+  // The planner's own guard, asked directly: no caller can be handed a payment
+  // larger than the price it asked for.
+  assert.equal(planPayment(CTX, s, "p1", 1, { Blue: 2 }), null, "a price demanding more orbs than it charges is unpayable, not cheap");
 }
 
 {

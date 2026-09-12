@@ -54,6 +54,7 @@ import {
   paymentOptions,
   payZEnergy,
   permits,
+  orbCount,
   planPayment,
   playCost,
   powerOf,
@@ -1828,15 +1829,23 @@ function mainActions(ctx: EngineContext, s: GameState, p: PlayerId): LegalAction
     if (bt === "BATTLE" && d.energyCost === "X" && canPlay(ctx, s, p, id)) {
       // The colours are the card's own whatever the player picks for X — the
       // reducer relaxes them, it never moves the total (owner's ruling on
-      // BT19-039) — so each candidate X is offered only if its orbs can be met.
-      for (let x = 0; x <= energyCount; x++) {
+      // BT19-039) — so each candidate X is offered only if its orbs can be met,
+      // and X starts at the number of orbs **as they now stand**, rather than
+      // at 0. Below that the price asks for more energy than it charges, which
+      // is not a cheaper way to play the card but an incoherent one. The count
+      // is read off `playCost` and not off the print precisely because a
+      // reducer in force is what moves it: relaxing "2 blue" to "1 blue" lowers
+      // this floor by one, which is the whole of what the sentence buys.
+      // `whyNotPlayFromHand` floors it the same way, and the two must not
+      // disagree.
+      for (let x = orbCount(playCost(ctx, s, id).specified); x <= energyCount; x++) {
         const c = playCost(ctx, s, id, x);
         if (planPayment(ctx, s, p, c.total, c.specified)) out.push({ action: { type: "play", player: p, card: id, x }, label: `Play ${name(id)} with X = ${x}`, ...playPrice(c, d) });
       }
     }
     if (bt === "UNISON" && !isZ(d) && canPlay(ctx, s, p, id)) {
       const max = d.energyCost === "X" ? energyCount : (d.energyCost ?? 0);
-      const min = d.energyCost === "X" ? 1 : (d.energyCost ?? 0);
+      const min = Math.max(d.energyCost === "X" ? 1 : (d.energyCost ?? 0), orbCount(playCost(ctx, s, id).specified));
       for (let x = min; x <= max; x++) {
         const c = playCost(ctx, s, id, x);
         if (planPayment(ctx, s, p, c.total, c.specified))
@@ -1873,7 +1882,7 @@ function mainActions(ctx: EngineContext, s: GameState, p: PlayerId): LegalAction
     if (ps.zEnergy.length < zc) continue;
     if (d.type === "Z-UNISON") {
       const max = d.energyCost === "X" ? energyCount : (d.energyCost ?? 0);
-      for (let x = d.energyCost === "X" ? 1 : max; x <= max; x++) {
+      for (let x = Math.max(d.energyCost === "X" ? 1 : max, orbCount(playCost(ctx, s, id).specified)); x <= max; x++) {
         const zu = playCost(ctx, s, id, x);
         if (planPayment(ctx, s, p, zu.total, zu.specified)) out.push({ action: { type: "playZ", player: p, card: id, x }, label: `Play Z-Unison ${name(id)} with ${x} markers`, ...playPrice(zu, d) });
       }
@@ -2005,11 +2014,6 @@ function whyNotCharge(ctx: EngineContext, s: GameState, p: PlayerId): Requiremen
   if (s.prompt.kind !== "charge") return [{ kind: "oncePerTurn", what: "charge" }];
   const f = forbiddenBy(ctx, s, "placeEnergy", { player: p });
   return f ? [{ kind: "forbidden", by: f.by, until: f.until, ...(f.unless ? { unless: f.unless } : {}) }] : [];
-}
-
-/** How much energy a coloured requirement alone accounts for. */
-function orbCount(specified: Partial<Record<Color, number>>): number {
-  return Object.values(specified).reduce((a: number, b) => a + (b ?? 0), 0);
 }
 
 /**

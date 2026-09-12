@@ -1593,6 +1593,11 @@ export interface Payment {
  * mono-colour matches first, then the rest from whatever is most plentiful,
  * then energy markers. Returns null when the cost can't be paid (5-3-3).
  */
+/** How much energy a coloured requirement alone accounts for. */
+export function orbCount(specified: Partial<Record<Color, number>>): number {
+  return Object.values(specified).reduce((a: number, b) => a + (b ?? 0), 0);
+}
+
 export function planPayment(
   ctx: GameContext,
   s: GameState,
@@ -1625,6 +1630,17 @@ export function planPayment(
     }
     return null;
   }
+  // A price cannot demand more orbs than it charges energy. The planner fills
+  // the specified colours first and then tops up to `total`, so a requirement
+  // larger than the total skipped the top-up entirely and handed back a
+  // payment *bigger* than the price asked for — the caller then rested every
+  // card in it and a Unison arrived with markers to match, contradicting the
+  // number on the offer it came from. An X cost is the only way the pair can
+  // arrive incoherent (the player names the total and the card names the
+  // orbs), and 1-2-2-2-1 does not let the choice go below what the card
+  // demands, so the honest answer is that this price is unpayable as stated
+  // rather than payable at a silently higher figure.
+  if (orbCount(specified) > total) return null;
   const active = exclude?.length ? activeEnergy(s, p).filter((id) => !exclude.includes(id)) : activeEnergy(s, p);
   const ps = s.players[p];
   const leader = leaderColors(ctx, s, p);
