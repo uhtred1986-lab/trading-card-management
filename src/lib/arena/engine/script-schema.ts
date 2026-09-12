@@ -3,7 +3,7 @@ import type { CardFilter } from "./filters";
 // is what `modifyAttr` may *write* (colours, characters, traits and names among
 // them, which are lists), `AmountAttr` what an amount may *read as a number*.
 // Collapsing them would let `attr($t, colors)` stand where a number belongs.
-import type { Amount, AmountAttr, CardAttr, Cond, Duration, Op, Ref, ScriptArea, Selector, Side, SpecialTarget } from "./script";
+import type { Amount, AmountAttr, CardAttr, Cond, Duration, Op, Ref, ReplaceEvent, ScriptArea, Selector, Side, SpecialTarget } from "./script";
 import type { Area, CardDef, Color, DelayScope, DelayTiming, ForbiddenAction, KeywordSkill, Phase, Prompt, SkillKindPrefix } from "./types";
 
 // ── the schema: one row per op, read by everything that is not the interpreter ──
@@ -80,6 +80,7 @@ export interface RenderOptions {
 const COLORS = ["Red", "Blue", "Green", "Yellow", "Black", "White", "Colorless"] as const satisfies readonly Color[];
 export const SIDES = ["you", "opponent", "both"] as const satisfies readonly Side[];
 export const SPECIAL_TARGETS = ["self", "attacker", "guard", "subject", "leader", "opponentLeader", "resolving", "onTop"] as const satisfies readonly SpecialTarget[];
+export const REPLACE_EVENTS = ["leave", "ko", "play"] as const satisfies readonly ReplaceEvent[];
 export const AREAS = ["hand", "deck", "drop", "life", "battle", "combo", "energy", "unison", "leader", "warp", "zDeck", "zEnergy", "under", "play", "removed"] as const satisfies readonly ScriptArea[];
 export const CARD_ATTRS = ["power", "comboPower", "colors", "characters", "traits", "names"] as const satisfies readonly CardAttr[];
 export const DURATIONS = ["battle", "turn", "opponentTurn", "nextTurn", "afterNextCharge", "game"] as const satisfies readonly Duration[];
@@ -340,6 +341,31 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     },
     doc: '[Permanent] only (9-10): "if this card would be KO\'d, send it to the Warp instead". "by" is which departure it replaces: omitted = any, "skill" = removed by an effect, "ko" = the KO, "skillOrKo" = either. "optional" is 9-10-3\'s "you may". Omit "target" for this card',
   },
+  replace: {
+    fields: [
+      { name: "event", type: { enum: REPLACE_EVENTS }, required: true },
+      { name: "with", type: "ops", required: true },
+      { name: "by", type: { enum: ["skill", "skillOrKo"] } },
+      { name: "optional", type: "boolean" },
+      SELF,
+    ],
+    sentence: (raw, r) => {
+      const op = raw as OpOf<"replace">;
+      const who = describeRef(op.target ?? { sel: { special: "self" } });
+      const moment =
+        op.event === "play"
+          ? "the card being played would be played"
+          : op.event === "ko"
+            ? `${who} would be KO'd`
+            : op.by === "skill"
+              ? `${who} would be removed from the Battle Area by a skill`
+              : op.by === "skillOrKo"
+                ? `${who} would be removed from the Battle Area by a skill or KO'd`
+                : `${who} would leave the Battle Area`;
+      return `if ${moment}, ${op.optional ? "you may have this happen" : "this happens"} instead: ${describeScript(op.with, r)}`;
+    },
+    doc: 'an event happens differently, or not at all (9-10) — the primitive "replaceLeave" and the "instead" half of "resolvingPlay" are macros over. "event" is the moment: "leave" (the card would leave the Battle Area, narrowed by "by"), "ko" (it would be KO\'d), "play" (the play being resolved, 9-6, [Counter: Play] only). "with" is what happens in its place: one move of the card itself is a redirect, anything else is a substitute — the departure does not happen at all, the card stays, and the program runs with it bound as "subject". It may not ask a question (see #107), and a "leave"/"ko" replacement is [Permanent] only',
+  },
   altCost: {
     fields: [
       { name: "pay", type: { enum: ["none", "life", "program", "energy"] }, required: true },
@@ -494,6 +520,7 @@ export const OP_CLASS: Record<Op["op"], OpClass> = {
   costReduction:      "macro over `costModifier`",
   negateKeyword:      "macro over `negate`",
   gains:              "macro over `modifyAttr`",
+  replace:            "primitive",
   replaceLeave:       "macro over `replace`",
   altCost:            "macro over `costModifier`",
   resolvingPlay:      "macro over `replace`",
@@ -731,9 +758,37 @@ export function validateProgram(ops: unknown, depth = 0, xBound = false): ops is
       return fieldHolds(f.type, v, depth, bound);
     });
     if (!ok) return false;
+    // #107: `move()` is synchronous with no suspension path at 46 of its 48
+    // call sites, so a question asked inside a replacement is silently lost —
+    // the program is refused rather than stored and half-played. The message
+    // a person sees is `validateRule`'s, which names the issue.
+    if (o.op === "replace" && asksAQuestion(o.with)) return false;
     if (o.op === "choose" && o.bindX === true) bound = true;
   }
   return true;
+}
+
+/**
+ * The steps that stop and ask somebody something. `discard` is one of them: it
+ * is rewritten by `stepScript` into a `choose` the owner answers and a move.
+ */
+const PROMPTING_OPS = new Set<Op["op"]>(["choose", "chooseMode", "may", "look", "discard"]);
+
+/**
+ * Does this program stop to ask a question, anywhere inside it? Read by
+ * `validateProgram` for a replacement's `with` block (#107) and by the
+ * compiler, which refuses to write one rather than emitting a rule the
+ * validator would then refuse.
+ */
+export function asksAQuestion(ops: unknown): boolean {
+  if (!Array.isArray(ops)) return false;
+  return ops.some((raw) => {
+    if (!raw || typeof raw !== "object") return false;
+    const o = raw as Record<string, unknown>;
+    if (typeof o.op === "string" && PROMPTING_OPS.has(o.op as Op["op"])) return true;
+    if (asksAQuestion(o.ops) || asksAQuestion(o.then) || asksAQuestion(o.else) || asksAQuestion(o.with)) return true;
+    return Array.isArray(o.modes) && o.modes.some((m) => asksAQuestion((m as { ops?: unknown }).ops));
+  });
 }
 
 /**

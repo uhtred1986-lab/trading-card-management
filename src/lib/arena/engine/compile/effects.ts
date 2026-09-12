@@ -1,4 +1,5 @@
 import { keywordOf, orbsIn } from "../cards";
+import { asksAQuestion } from "../script-schema";
 import { parseFilter } from "../filters";
 import type { Amount, Cond, Duration, Op, Ref, Selector, Side, ScriptArea } from "../script";
 import type { DelayScope, DelayTiming, SkillKindPrefix } from "../types";
@@ -274,6 +275,24 @@ function durationOf(clause: string): Duration {
  * put the card out but not whose, and guessing would let the wrong cards
  * escape.
  */
+/**
+ * Ops that are *standing* rather than done: `collectStatics` reads them off a
+ * [Permanent] and `exec` does nothing with them. A replacement's substitute is
+ * run, not collected, so a program made of these would compile and then be
+ * silent — which is the one outcome worse than leaving the clause unread.
+ */
+const NOT_RUNNABLE = new Set(["replaceLeave", "replace", "gains", "negateKeyword"]);
+
+/**
+ * May this program stand in a departure's place (#125)? Only if it really
+ * happens when it is run — nothing standing, and nothing that stops to ask,
+ * since `move()` has no way to wait for an answer (#107) and `validateProgram`
+ * refuses such a rule anyway.
+ */
+function substitutable(ops: Op[]): boolean {
+  return ops.length > 0 && !asksAQuestion(ops) && !ops.some((o) => NOT_RUNNABLE.has(o.op));
+}
+
 function parseWouldLeave(clause: string): { by?: "skill" | "ko" | "skillOrKo"; subject?: string } | null {
   const t = clean(clause);
   if (/your opponent'?s? skills?/.test(t)) return null;
@@ -2448,7 +2467,15 @@ export function compileClauseList(clauses: string[], c: Ctx, unsupported: string
       const only = got.length === 1 ? got[0] : null;
       const { by, subject } = c.replacing;
       c.replacing = null;
-      if (only && only.op === "moveTo" && only.to !== "under" && only.to !== "play" && !only.under) {
+      // A redirect says where **the card itself** goes. The card is what the
+      // opener bound, so the move's target must still be it: "place all the
+      // cards under this card in its owner's Drop Area instead" (BT3-051) is a
+      // move of a different pile of cards altogether, and read as a redirect it
+      // hung a replacement on each buried card — a rule about cards that are
+      // not in a Battle Area at all, so the printed skill did nothing. It is a
+      // substitute, and falls through to the branch below.
+      const selfMove = only?.op === "moveTo" && "sel" in only.target && only.target.sel.special === "self";
+      if (only && only.op === "moveTo" && selfMove && only.to !== "under" && only.to !== "play" && !only.under) {
         // When the rule names other cards, they are the ones it is about —
         // not whatever "it" happened to point at in the second half.
         const filter = subject ? filterFor(subject, "battle") : undefined;
@@ -2460,6 +2487,18 @@ export function compileClauseList(clauses: string[], c: Ctx, unsupported: string
         // "…to your energy in Rest Mode instead" — the move said how it
         // arrives as well as where, and the replacement has to carry both.
         push([{ op: "replaceLeave", to: only.to, target, ...(by ? { by } : {}), ...(only.mode ? { mode: only.mode } : {}), ...(offered ? { optional: true } : {}) }]);
+        continue;
+      }
+      // The departure is replaced by something other than a destination for
+      // the card itself — "place all the cards under this card in the Drop
+      // Area instead" (BT3-051), where the card stays and its pile goes. That
+      // is `replace`'s substitute form (#125), and only the deterministic half
+      // of it: a `with` block that would stop and ask has nowhere to wait
+      // (#107), so those clauses stay unread exactly as they were.
+      const filter = subject ? filterFor(subject, "battle") : undefined;
+      if (filter !== null && !offered && substitutable(got)) {
+        const target: Ref | undefined = subject ? { sel: { side: "you", area: "battle", filter, count: 99 } } : undefined;
+        push([{ op: "replace", event: by === "ko" ? "ko" : "leave", ...(by && by !== "ko" ? { by } : {}), with: got, ...(target ? { target } : {}) }]);
         continue;
       }
       // Anything else is a replacement this language cannot say yet, and
