@@ -100,7 +100,8 @@ The pain is entirely in the layer around them.
    is a draft.
 
    **Amended 9 Sep 2026 (Stage 1 of the rules-language programme).** There is now a third view of
-   the same record: the **rules language** (`src/lib/arena/lang/`, `docs/arena-rules-language.md`),
+   the same record, shown in the workbench as the **text view** (§3.6): the **rules language**
+   (`src/lib/arena/lang/`, `docs/arena-rules-language.md` §2 — the round-trip promise),
    a closed grammar isomorphic to the program — `parse(print(x))` is `x`, checked over every op,
    condition, selector, filter and keyword in `scripts/verify/lang.ts`. It is *not* the free-text
    path this decision rules out: nothing is guessed, and a word the grammar does not know is an
@@ -246,6 +247,12 @@ come from a single grouped count query.
 
 - WHEN — `kind` and the trigger sentence (`describeTrigger`, new, from `types.ts` Trigger).
 - COST — the parsed cost as a sentence (`describePayment` exists).
+- **Text view** *(added Stage 1 of the rules-language programme, 9 Sep 2026)* — the whole record
+  printed and read back in the rules language (`docs/arena-rules-language.md` §2), and the only
+  place WHEN and COST can be changed; the chips above have no editor for either and are not
+  getting one. It is a closed grammar isomorphic to the program, not a free-text page: nothing is
+  guessed, and a word the grammar does not know is a `LangError` with a line and column. Read on
+  leaving the box, at which point the chips above follow; the bracketed skill tag stays read-only.
 - IF — chips from `cond` (top-level only; nested `if` stays a DO chip).
 - DO — one chip per op from `OP_SCHEMA`: the `sentence` template with each field rendered as a
   read-only value, or in edit mode as the control for its `FieldType` (`side`/`area`/`duration`/
@@ -260,6 +267,7 @@ Actions: **Confirm** (draft → confirmed, `confirmedAt`), **Correct by hand** (
 `clarifyCard` path, answer lands as `source: claude`, `status: draft`, shown immediately in the
 block for confirmation), **Show program (JSON)** (textarea bound to the same ops; validated with
 `validateProgram` on blur; invalid JSON keeps the last valid program and shows the error),
+**Show as text** (the text view above; same last-valid-on-error contract as the JSON view),
 **Mark as does nothing** (empty ops, `corrected`). When a row has `compilerDiff`, a strip above
 the block shows "the compiler now reads this differently" with the two `reads` lines and
 **Take the compiler's** / **Keep mine**.

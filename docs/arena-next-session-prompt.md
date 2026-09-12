@@ -9,6 +9,10 @@ compiler and engine.
 For the short state-of-the-world snapshot and doc-status convention, read
 `docs/arena-CURRENT.md` first.
 
+Progress against the plan is now tracked as GitHub milestones and issues, not
+in this file: `docs/arena-backlog.md` §2 lists the milestones, and §5 is the
+mandatory rule for filing new work.
+
 ---
 
 ## 1. What the arena is, in one paragraph

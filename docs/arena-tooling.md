@@ -176,7 +176,8 @@ Plays N random complete games and reports crashes. **40 is the standing gate**;
 use 200 for anything touching the movement, payment or flow machinery. It proves
 only that nothing threw — it says nothing about correctness — but it is the
 cheapest possible check that the engine still runs to completion, and it has
-caught real breakage.
+caught real breakage. Takes `--engine legacy|rules` (default `legacy`); `rules`
+throws `EngineNotBuilt` until the configuration-driven engine plays.
 
 ### `arena:diff` — the oracle
 
@@ -184,7 +185,9 @@ Replays a saved game's action log from its seed and compares with the stored
 row. This is the strongest correctness check available, because a game is
 reproducible from seed plus actions: if a replay diverges, behaviour changed.
 Use it for **any engine change**. It is not part of `npm test` because it needs
-a database and real saved games.
+a database and real saved games. Takes `--engine legacy|rules` to replay on an
+engine other than the one the game row was played on — the oracle check between
+the two engines (`npm run arena:diff -- <gameId> [--engine legacy|rules] | --all`).
 
 ### `arena:probe` / `arena:reprobe`
 
@@ -201,7 +204,9 @@ knows how to set it up.
 
 ### `arena:playthrough`, `arena:coverage`, `arena:draft`
 
-`playthrough` plays a whole game through the database (integration, needs a DB).
+`playthrough` plays a whole game through the database (integration, needs a DB)
+and, like `arena-fuzz.mts` and `arena-diff.mts`, takes `--engine legacy|rules`
+(default `legacy`) to choose which engine plays the game.
 `coverage` reports how much card text the compiler reads. `draft` compiles the
 catalog offline into `card_rules` drafts — **the only module that calls the
 compiler in production is `draft.ts`**; the engine reads rows.
