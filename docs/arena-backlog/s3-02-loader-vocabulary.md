@@ -49,3 +49,38 @@ stage: 3
 5. Doc: create `docs/arena-ruleset-spec.md` if #114 has not, with only the section **"The definition files"** (one row per file: name, what it declares, manual sections). Leave the other sections as headings that name the issue that fills them.
 
 **Done when** `loadRuleset` on the DBS files (from #133–#135, or an empty stub set until they land) returns `ok: true`, the three fixtures fail with pointed errors, and no request-time filesystem read exists (`grep -rn "readFileSync" src/lib/arena/rulesets` is empty).
+
+---
+
+## Built 12 Sep 2026 — what landed, and the four things the steps did not foresee
+
+`src/lib/arena/rulesets/{load,types,hooks,index}.ts`, `dbs/{index,files}.ts`,
+`scripts/arena-rulesets-emit.mts`, `scripts/verify/rulesets.ts` (imported after `./verify/lang`),
+and §3 of `docs/arena-ruleset-spec.md`. Gate clean, `contract:emit` no change, fuzz 40 clean, no
+consumer of the word lists touched (#137's).
+
+1. **The text is a generated constant.** The step offered two ways; the generated `dbs/files.ts`
+   is the one built, written by `npm run arena:rulesets` from the `.rules` files beside it
+   (`--check` fails if one is stale). A `?raw` import rule would have to be agreed by all three
+   places that load a ruleset — app server, browser, scripts — and the loader stays pure either way.
+2. **The zone check is generic, not three places.** A trigger's pattern names zones (the arguments
+   `from`, `to`, `in`, `area`, `zone`; the rest of an event pattern is open, as the grammar leaves
+   it), and so does *any* selector or op field of type `area`, however deep — the walk reads
+   `OP_SCHEMA`/`COND_SCHEMA` rows, so an op that grows an area field is checked the day its row says
+   so. #133–#135 should expect this: a zone a program moves a card into has to be declared.
+3. **`HOOK_POINTS` is provisional and lives in `rulesets/hooks.ts`.** The loader cannot refuse an
+   unknown hook without a list of the known ones, and the inventory is #153's (§4 of the ruleset
+   spec). Seventeen points are written from the categories that section names plus the two the
+   language doc's examples use. It is a promise #153 has to keep or correct, not a decision about
+   the engine.
+4. **Four of the vocabulary's eight lists have nothing to come from yet** — `durations` and `sides`
+   (the effect language's own words), `skillKinds` (a card's printed tag, held to
+   `SkillKindPrefix` by the typecheck) and `promptKinds` (whatever the steps ask for, until the
+   owner answers #131's `DEFINE PROMPT` question). They are filled from the engine's lists rather
+   than left empty, so #137's swap is a re-export; the other four are the definition's and are
+   empty until #133–#135 land.
+
+Also: `game` on a `GameDefinition` is `GameDef | null`, because an empty set has to load — that is
+the only claim an empty `dbs/` can carry, and the loader had to exist before its content. `Loaded`
+errors carry `file` beside the parser's `LangError` fields, and point at the line **and column** of
+the offending word; a duplicate points at the second declaration and names the file the first is in.

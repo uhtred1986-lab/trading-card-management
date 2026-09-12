@@ -75,11 +75,92 @@ themselves: `OP_SCHEMA` (45 ops) and `COND_SCHEMA` (18 conditions) in
 
 ## 3. The definition files
 
-*Filled by #132 and #133–#135* (the loader and `Vocabulary`, then one section per
-`src/lib/arena/rulesets/dbs/*.rules` file — `game`, `attributes`, `zones`, `triggers`, `keywords`,
-`words`, `prompts`, `costs`, `battle` — saying what each declares and which sections of
-`docs/rules/rulemanual.txt` it encodes). Nothing under `src/lib/arena/rulesets/` exists yet, and
-the `DEFINE` grammar those files are written in is Stage 3's first issue.
+A game is a **directory of `.rules` files**, one per concern, read by
+`src/lib/arena/rulesets/load.ts`. The grammar is `docs/arena-rules-language.md` §3b; this section
+says what the files are, what the loader does with them, and what it refuses.
+
+The loader landed 12 Sep 2026 (#132). The files themselves are #133–#135 and the stage issues
+below, so `src/lib/arena/rulesets/dbs/` is **empty today** — an empty set loads, which is the one
+claim it can carry, and the checks that matter are written against fixtures until the content
+arrives.
+
+### The files
+
+Every row is one file of `src/lib/arena/rulesets/dbs/`. "Declares" is the `DEFINE` kinds it holds;
+the manual sections are the ones the file encodes, cited line by line as `--` comments in the file
+itself.
+
+| File | Declares | Manual | Written by |
+|---|---|---|---|
+| `game.rules` | `GAME` (deck sizes, opening hand, life, markers, mulligan, turn order), `PHASE` and `STEP` for the turn, `WIN` for life-out, deck-out and concede | §2, §5, §6 | #133 |
+| `attributes.rules` | `ATTRIBUTE` — colours, energy cost and X, specified-cost orbs, power, combo cost and power, characters, traits, type, Z-Energy cost, and the derived ones with their layer order | §4 | #133 |
+| `zones.rules` | `ZONE` — hand, deck, life, leader, battle, combo, energy, unison, warp, zDeck, zEnergy, removed, under: owner, visibility, order, modes, and what "in play" means | §3, §9-1-3 | #133 |
+| `triggers.rules` | `TRIGGER` — every moment an [Auto] or a [Counter] answers to, as the event pattern that *is* it, with the counter windows | §9-6, §9-8 | #134 |
+| `keywords.rules` | `KEYWORD` — all 39, their parameters and their meanings; the `HOOK` bodies stay empty until Stage 7 | §22 | #135 |
+| `words.rules` | the words the board says for a zone, a colour, a mode, a requirement — **not written yet**: `DEFINE WORDS` is not one of the eleven kinds, and its shape is an open question on #131 | — | #135, after that answer |
+| `prompts.rules` | one declaration per `Prompt` kind with the question it asks — **not written yet**, the same open question (it may be a field of `DEFINE ACTION` rather than a kind) | — | #135, after that answer |
+| `actions.rules` | `ACTION` — charge, play, activate, endMain, pass, concede: `WHEN / FOR / COST / DO / REFUSE`, the refusal in the order the legacy engine checks it | §6, §7 | Stage 5 |
+| `costs.rules` | `COST` — energy with colours and X, markers, life, rest, pay-with, and the unreadable price that refuses | §8-3-2-3, §22-45 | Stage 5 |
+| `battle.rules` | the battle sub-flow as `STEP`s and `ACTION`s — declaration, the blocker window, counter windows, combo, comparison, damage | §7, §8 | Stage 6 |
+
+Nothing in the list is a program *about* this game: a file is data, and the moment a game would
+need code the primitive is missing (§1).
+
+### What the loader does
+
+`loadRuleset(files, id)` takes a map of **file name → text** and returns
+`{ ok: true, definition, vocabulary }` or `{ ok: false, errors }`. It is pure, synchronous and
+client-safe — the workbench's rules page imports it into the browser — so it never reads a file
+itself. The text reaches it as a generated constant: `scripts/arena-rulesets-emit.mts` writes
+`rulesets/<game>/files.ts` from the `.rules` files beside it (`npm run arena:rulesets`, and
+`--check` to prove it is not stale). That was chosen over a webpack/turbopack `?raw` import rule,
+which every one of the three places that load a ruleset — app server, browser, scripts — would have
+had to agree about.
+
+Three things happen between the parse and the definition:
+
+1. **Filing.** Each declaration goes under its kind, keyed by its declared name — a `GameDefinition`
+   is `{ id, game, attributes, zones, phases, steps, actions, triggers, keywords, costs, wins, ops }`
+   plus `definitions` (everything in read order, so a whole ruleset round-trips through
+   `printDefinitions`) and `sources` (which file each came from).
+2. **Defaults.** The schema's `default` is applied here, because the printer drops none: a field
+   left out of the text is `undefined`, and a printer that dropped a value equal to its default
+   could not bring it back.
+3. **Resolution.** Every name that points at another declaration is checked (below).
+
+### What the loader refuses
+
+The parser refuses what it cannot *read* (§5 of the language doc). The loader refuses what needs a
+second declaration to check, in the same `LangError` shape plus the file it is in, and pointed at
+the line and column of the offending word:
+
+| Refusal | Example |
+|---|---|
+| A name declared twice for one kind | two `DEFINE ZONE battle`, in one file or in two — the error names the file the first is in |
+| A `GAME` naming a phase nothing declares | `phases: [charge, main, end]` with no `DEFINE PHASE end` |
+| A `PHASE` naming an unknown step or action | `steps: [mainStart]`, `actions: [playCard]` |
+| A `STEP` naming an unknown phase | `phase: "main"` |
+| An `ACTION` naming an unknown phase or price | `WHEN [main]`, `COST [energy]` |
+| A `TRIGGER` naming an unknown zone | `ON moved(from: hand, to: battle)` — the pattern arguments `from`, `to`, `in`, `area`, `zone` are places; the rest of an event pattern is open, as the grammar leaves it |
+| **Any** program or selector naming an unknown zone | `moveTo(target: $chosen, to: warp)`, nested however deep. The check reads `OP_SCHEMA`/`COND_SCHEMA` rows rather than a list of places, so an op that grows an area field is checked the day its row says so |
+| A `KEYWORD` hanging a body on an unknown hook point | `HOOK whenTheMoodTakesIt {}` — the points are the interpreter's (§4), not the game's |
+
+Every error says **both ends**: the declaration it is in and the name that does not resolve.
+`scripts/verify/rulesets.ts` holds one fixture per refusal; #136 grows it into the completeness
+suite that proves the definition covers every legacy union.
+
+### The vocabulary
+
+`vocabularyOf(definition)` is the second half of the loader's job: the closed word lists the
+language is checked against, taken from the declarations instead of from hand-written constants —
+`areas` from the zones, `keywordNames` from the keywords, `triggers` from the triggers, `words` from
+every declaration's `text:`. The names are the ones `engine/script-schema.ts` and `gaps.ts` use
+today (`AREAS`, `KEYWORD_NAMES`, `TRIGGERS`, …) so that #137's swap is a re-export and not a rename.
+
+Four of the eight lists have no declaration to come from yet, and say so rather than pretending:
+`durations` and `sides` are the effect language's own words (a game needing different ones needs a
+`DEFINE` kind, not a longer list), `skillKinds` comes off a card's printed tag, and `promptKinds` is
+whatever the steps ask for until `DEFINE PROMPT` is decided.
 
 ---
 
