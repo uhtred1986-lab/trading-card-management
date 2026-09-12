@@ -1,8 +1,10 @@
 ---
 title: Arena: bind X across cost and effect, and grow amounts into expressions (20-5)
 milestone: Arena M1 — Rules correctness and parser coverage
-labels: backlog, ready-for-agent, enhancement, area:arena-compiler, area:arena-engine, area:arena-lang, phase:rules-stage2, model:opus-5
+labels: done, enhancement, area:arena-compiler, area:arena-engine, area:arena-lang, phase:rules-stage2, model:opus-5
 stage: 2
+status: closed
+closed_at: 2026-09-12
 ---
 **Source:** plan Stage 2 (`docs/arena-backlog.md` §1): `bindX` + `X`, `Amount → expr`; the comment on `EXPR_SCHEMA` in `src/lib/arena/lang/ast.ts` names this work; rule manual 20-5 and the X-cost rules; `docs/arena-next-stage-spec.md` §6.7.
 

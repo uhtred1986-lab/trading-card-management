@@ -1,8 +1,10 @@
 ---
 title: Arena: decide primitive or macro for every op — modifyAttr under power, comboPower and gains
 milestone: Arena M1 — Rules correctness and parser coverage
-labels: backlog, ready-for-agent, enhancement, area:arena-lang, area:arena-engine, phase:rules-stage2, model:opus-5
+labels: done, enhancement, area:arena-lang, area:arena-engine, phase:rules-stage2, model:opus-5
 stage: 2
+status: closed
+closed_at: 2026-09-12
 ---
 **Source:** plan Stage 2 rule: *a primitive "says something no combination of others can"; otherwise it is re-declared as a macro in Stage 3*; the plan's `modifyAttr(target, attr, delta|value, until, scope?)` and `costModifier` rows; `OP_SCHEMA` in `src/lib/arena/engine/script.ts` (44 op kinds today).
 
