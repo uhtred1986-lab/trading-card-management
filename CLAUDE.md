@@ -42,9 +42,9 @@ Before opening arena docs or engine source for a specific question, start with
 as the entry point. There are 20+ other `docs/arena-*.md` files (several 400–900+ lines); grep
 them for the term you need rather than reading multiple specs end to end. `src/lib/arena/engine/`
 is large: the compiler implementation now lives under `src/lib/arena/engine/compile/`,
-`compile.ts` is its stable public barrel, and `engine.ts`, `script.ts`, `state.ts` are each
-1,800–4,600 lines — grep for the symbol first and read a line range, don't open these files
-whole. For iterating on pure rule
+`compile.ts` is its stable public barrel, and `engine.ts`, `script.ts` + `script-schema.ts`,
+`state.ts` are each 1,800–4,600 lines — grep for the symbol first and read a line range, don't
+open these files whole. For iterating on pure rule
 logic, `npx tsx scripts/verify-rules.ts` and `npx tsx scripts/verify-arena.ts` are much faster than
 full `npm test` (which also runs `verify-db.mts`, spinning up PGlite + migrations every time); run
 the full suite before finalizing. Never run `sync:catalog`/`sync:prices` just to inspect state —
@@ -191,7 +191,7 @@ learned the expensive way. Read it before changing the compiler or the engine.
   the model. ~130 s and ~$0.40 per draft.
 - **Binding arrays in raw SQL:** use `textArray()` from `src/db/sqlx.ts` — `${arr}::text[]` fails
   under postgres.js with a `transformTypeCast` error.
-- **Arena rules engine** (`src/lib/arena/engine/`, branch `feature/arena`): **Dragon Ball Super
+- **Arena rules engine** (`src/lib/arena/engine/`): **Dragon Ball Super
   only — it does not play Fusion World**, so `deckInputFor` returns null for such a deck and the
   arena's deck lists ask for `game: "dbs"`. Pure TypeScript, no React,
   no database. A game is a `GameState` plus an append-only event log; `apply(ctx, state, action)` is the
@@ -364,7 +364,7 @@ learned the expensive way. Read it before changing the compiler or the engine.
   (`draftCards`, and `reviewOpenRules`, which asks Claude about what the compiler left open,
   within the `arena.reviewBudget` setting). A row a person confirmed or corrected is never
   rewritten by a script: the compiler's newer reading lands beside it as `compiler_diff`. The
-  effect language is defined once, in `OP_SCHEMA` and `COND_SCHEMA` (`engine/script.ts`): the
+  effect language is defined once, in `OP_SCHEMA` and `COND_SCHEMA` (`engine/script-schema.ts`): the
   validator, the plain reading, the referee's prompt and the workbench's chip editor read them, so
   a new operation or condition kind is one interpreter case and one row. The workbench has three
   worklists over the same records: `/arena/rules` the cards in the decks the arena can play,
@@ -447,7 +447,8 @@ default — which would put the Atlantic in the middle of every database round-t
   stale first — if a keyword's entry says the engine does something it no longer does, the page is
   worse than nothing. The typecheck only catches a *missing* keyword; nothing catches a
   description that has quietly become untrue, which is why this is a rule rather than a test.
-  Files in scope: `src/lib/arena/engine/{cards,compile,filters,engine,state,triggers,script}.ts`.
+  Files in scope: `src/lib/arena/engine/{cards,compile,filters,engine,state,triggers,script}.ts`,
+  `src/lib/arena/lang/*.ts`.
 - After a PR merges, delete the merged remote branch (`gh pr merge --delete-branch`, or the
   "Delete branch" button on GitHub) — do this unasked, but never delete a branch that hasn't
   merged (`--no-merged` in `git branch -r --merged main`). There is one Neon database for dev,
