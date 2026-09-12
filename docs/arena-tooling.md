@@ -177,7 +177,9 @@ use 200 for anything touching the movement, payment or flow machinery. It proves
 only that nothing threw — it says nothing about correctness — but it is the
 cheapest possible check that the engine still runs to completion, and it has
 caught real breakage. Takes `--engine legacy|rules` (default `legacy`); `rules`
-throws `EngineNotBuilt` until the configuration-driven engine plays.
+creates a game and then stops — the fuzzer reads the board itself, so it refuses
+a state it cannot read (`EngineMismatch`) until #143 teaches the scripts the
+second engine's shape.
 
 ### `arena:diff` — the oracle
 
