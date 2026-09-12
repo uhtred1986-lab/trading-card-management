@@ -1,8 +1,10 @@
 ---
 title: Arena: vm/ skeleton behind the Engine interface, and what snapshot needs from an engine
 milestone: Arena M7 — Rules engine core (Stage 4)
-labels: backlog, ready-for-agent, enhancement, area:arena-vm, area:arena-contract, phase:rules-stage4, model:opus-5
+labels: done, enhancement, area:arena-vm, area:arena-contract, phase:rules-stage4, model:opus-5
 stage: 4
+status: closed
+closed_at: 2026-09-12
 ---
 **Source:** `src/lib/arena/engines.ts` (`Engine` has four calls: `createGame`, `apply`, `legalActions`, `rejectedActions`; `engineFor("rules")` throws `EngineNotBuilt`); plan Stage 0 (the interface was to carry `boardView` and `toBeats` too); `src/lib/arena/{games,session,snapshot,view,beats,probe}.ts` and `scripts/verify/harness.ts` — the four places an `EngineContext` is built.
 
