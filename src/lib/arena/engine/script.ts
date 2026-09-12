@@ -332,6 +332,12 @@ export type Op =
    * What is copied is the printed face as it stands now, snapshotted onto the
    * effect: 9-9 fixes what a continuous effect grants when it is created, so
    * the copy survives the source being flipped, silenced, or leaving play.
+   * A card that prints the skill it gives in full and in quotes (16 of them,
+   * BT18-008 the clearest) is the same mechanism with the program written on
+   * the granting card instead of snapshotted off another one, and belongs here
+   * as an inline program rather than on `grant` as a text field — `grant`
+   * makes a keyword effect, and a quoted [Auto] is not a keyword. Not built.
+   *
    * A copied *pure* keyword skill is granted as a keyword — 20-18-1 writes a
    * keyword given by a skill exactly as it writes any other, and the engine
    * already plays a granted keyword — so only typed lines become a copy the
