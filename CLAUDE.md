@@ -272,6 +272,19 @@ learned the expensive way. Read it before changing the compiler or the engine.
   through untouched, and the round-trip promise stays over the macro's *name*, never its
   expansion. `dbs/ops.rules` declares none of the thirty-one yet and its header says what
   each waits on (#137).
+  **The game's words are the only words** (`rulesets/words.ts`, since 12 Sep 2026): the
+  language's parser, the workbench's chip editor (`optionsFor`), the referee's prompt
+  (`effectLanguage`) and `validateRule` read the areas, durations, sides, keyword names and
+  the moments a WHEN may name off that `Vocabulary` rather than each keeping a copy, so a zone
+  deleted from `zones.rules` is gone from all of them at once — which is what
+  `scripts/verify/rulesets.ts` asserts, by deleting one. `script-schema.ts` keeps its arrays as
+  the **legacy engine's** side of the same list, which #136's completeness suite holds it to.
+  `whenMoments()` is the game's triggers less the five counter windows: a `CounterWindow` is
+  what a [Counter] answers in, and those five are the only names in `triggers.rules` a record's
+  WHEN never says. `SPECIAL_TARGETS` is the one list with no `Vocabulary` field and no `DEFINE`
+  kind that could declare it. `lang/index.ts` is where `parseRule`'s default vocabulary is
+  bound, and the loader imports `lang/parse` directly — the one module that must not ask for
+  the words it produces.
 - **The record's WHEN is the engine's WHEN** (`skillAnswersTo` in `engine/triggers.ts`): an
   [Auto] skill's moment comes off `card_rules.trigger` (carried on `Script.trigger` by
   `rulesFor`), and only a skill with *no* record falls back to reading the printed text. The
