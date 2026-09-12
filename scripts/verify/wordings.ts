@@ -1615,3 +1615,29 @@ import type { GameState, Trigger } from "./harness";
   assert.notEqual(parseTarget("your opponent's battle cards")?.side, "both", "one side stays one side");
   assert.equal(parseTarget("your battle cards")?.side, "you");
 }
+
+{
+  // s2-93 family 2: the "and" of "you and your opponent's cards" joins two
+  // players, not two clauses.
+  //
+  // `splitClauses` cut there, and the two halves were both ruined: "choose all
+  // of you" is a choice with no cards in it, and "your opponent's Battle
+  // Cards" is a description with no verb. Fifteen skills were cut this way,
+  // and the damage was not always an honest gap — EX13-07 kept the tail, so a
+  // sweep printed for every card on the table read as your own Leader taking
+  // -10000 power and nothing else.
+  assert.deepEqual(
+    splitClauses("Choose all of you and your opponent's Rest Mode Battle Cards, ignoring [barrier], and KO them"),
+    ["Choose all of you and your opponent's Rest Mode Battle Cards", "ignoring [barrier]", "KO them"],
+    "P-565: the phrase survives, the sentence still breaks where it should",
+  );
+  assert.deepEqual(
+    splitClauses("choose all of your and your opponent's Battle Cards with energy costs of 4 or less and place them into their owner's Drop"),
+    ["choose all of your and your opponent's Battle Cards with energy costs of 4 or less", "place them into their owner's Drop"],
+    "BT31-130",
+  );
+  // Two players *acting* is two clauses, and must still be cut: the possessive
+  // after the joiner is what makes the phrase one description of cards.
+  assert.deepEqual(splitClauses("you and your opponent draw 1 card"), ["you and your opponent draw 1 card"]);
+  assert.ok(splitClauses("draw 1 card and your opponent draws 1 card").length === 2, "an ordinary 'and' still breaks the sentence");
+}

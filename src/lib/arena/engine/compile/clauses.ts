@@ -56,6 +56,26 @@ const CHOICE_CONTINUES = /^battle cards?\b/i;
 function andJoinsChoiceList(text: string, start: number, i: number): boolean {
   return CHOICE_OPENING.test(text.slice(start, i).trim()) && CHOICE_CONTINUES.test(text.slice(i + 5));
 }
+
+/**
+ * The "and" of `BOTH_SIDES` below: it joins the two *players* who own one set
+ * of cards, not two clauses. "Choose all of you **and** your opponent's Battle
+ * Cards, ignoring [Barrier], and KO them" (P-565) split into "choose all of
+ * you" — a choice with no cards in it — and "your opponent's Battle Cards",
+ * a fragment naming cards and no verb; the KO that followed then had nothing
+ * bound to it. Fifteen skills were cut this way, and the damage was not always
+ * an honest gap: EX13-07's "choose all of you and your opponent's Leader Cards
+ * and Battle Cards and they get -10000 power for the turn" kept the tail, so a
+ * sweep printed for both boards read as your own Leader taking -10000 and
+ * nothing else.
+ *
+ * The half in front of the "and" is the whole of the clause so far only when
+ * the phrase opens the sentence; more often a verb and a count come first
+ * ("choose all of", "at the end of"), so only the last word is tested.
+ */
+function andJoinsBothSides(text: string, start: number, i: number): boolean {
+  return /\b(?:your|you)\s*$/i.test(text.slice(start, i)) && /^your opponent'?s\b/i.test(text.slice(i + 5));
+}
 /**
  * Two *different* named cards, each counted on its own: "1 <Android 17> card
  * and 1 <Hell Fighter 17> card", "1 <Android 14> and 1 <Android 15> card".
@@ -161,6 +181,7 @@ export function splitClauses(text: string): string[] {
         !andEndsAList(text, start, i) &&
         !andJoinsTwoAreas(text, start, i) &&
         !andJoinsChoiceList(text, start, i) &&
+        !andJoinsBothSides(text, start, i) &&
         !andJoinsTwoCountedAreas(text, start, i) &&
         !andJoinsTwoNamedCards(text, start, i) &&
         !andJoinsARange(text, start, i) &&
