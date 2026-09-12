@@ -13,7 +13,7 @@
  * fail `npm run typecheck` until it is described.
  */
 import type { CardFilter } from "../engine/filters";
-import type { Amount, Cond, CostRecord, FieldType, Op, OpField, Selector, Side } from "../engine/script";
+import type { Amount, AmountAttr, Cond, CostRecord, FieldType, Op, OpField, Selector, Side } from "../engine/script";
 import type { Trigger } from "../engine/types";
 
 /**
@@ -135,22 +135,64 @@ export const FILTER_FIELD_NAMES = Object.keys(FILTER_FIELDS) as (keyof CardFilte
 
 // ── expressions ─────────────────────────────────────────────────────────────
 
+/** What one argument of an expression call is. */
+export type ExprArg = "selector" | "var" | "number" | "side" | "ref" | "attr";
+
 /**
- * The `Amount` union as words. Named here so the grammar has one place that
- * lists what a number in this language may be; Stage 2 turns it into a proper
- * expression (`X` bound across cost and effect, `attr(REF, name)`), and the
- * parser will grow cases rather than change shape.
+ * One shape an `Amount` may take, as the language writes it.
+ *
+ * `key` is the object key that identifies the shape — the same key the
+ * interpreter narrows on — and `args` names the fields in the order they are
+ * written between the brackets, so `attr($c0, energyCost)` is `{attr: REF,
+ * name: "energyCost"}` with `args: ["ref", "attr"]` and `fields: ["attr",
+ * "name"]`. `times` says the call may be followed by `* n`.
+ *
+ * The three shapes with no call of their own — a bare number, `$var` and the
+ * `+ n` sum — are not in the table: they are the grammar's literals and its
+ * one operator, and giving them a fake call name would be a table that lies.
+ * `EXPR_LITERALS` below lists them for the grammar doc and the round-trip
+ * suite, so nothing about an expression is written down in only one place.
  */
-export const EXPR_SCHEMA = {
+export interface ExprSpec {
+  key: string;
+  call: string;
+  args: ExprArg[];
+  /** The object keys the arguments land in, positionally. Defaults to `[key]` for a one-argument call. */
+  fields?: string[];
+  times?: true;
+  /** How it reads with nothing optional, and with everything. The round-trip suite asserts both. */
+  example: string;
+  maxExample?: string;
+}
+
+/**
+ * Every expression the language can write, as the printer prints them and the
+ * parser reads them. `printAmount` and `Parser.amount` both walk this table,
+ * so a shape added to `Amount` is one row here and no new parsing.
+ */
+export const EXPR_SCHEMA: ExprSpec[] = [
+  { key: "count", call: "count", args: ["selector"], times: true, example: "count(SELECTOR)", maxExample: "count(SELECTOR) * 5000" },
+  { key: "markers", call: "markers", args: ["selector"], times: true, example: "markers(SELECTOR)", maxExample: "markers(SELECTOR) * 5000" },
+  { key: "sumPower", call: "sumPower", args: ["var"], example: "sumPower($rested)" },
+  { key: "handUpTo", call: "handUpTo", args: ["number"], example: "handUpTo(4)" },
+  { key: "x", call: "X", args: [], times: true, example: "X", maxExample: "X * 1000" },
+  { key: "life", call: "life", args: ["side"], times: true, example: "life(you)", maxExample: "life(both) * 2" },
+  { key: "attr", call: "attr", args: ["ref", "attr"], fields: ["attr", "name"], times: true, example: "attr($t, energyCost)", maxExample: "attr($t, energyCost) * 1000" },
+  { key: "sumOf", call: "sumOf", args: ["selector", "attr"], fields: ["sumOf", "attr"], times: true, example: "sumOf(SELECTOR, comboPower)", maxExample: "sumOf(SELECTOR, comboPower) * 2" },
+];
+
+/** The expression forms that are not calls: the two literals and the one operator. */
+export const EXPR_LITERALS = {
   number: "5000",
   var: "$n",
-  count: "count(SELECTOR)",
-  countTimes: "count(SELECTOR) * 5000",
-  sumPower: "sumPower($rested)",
-  handUpTo: "handUpTo(4)",
-  markers: "markers(SELECTOR)",
-  markersTimes: "markers(SELECTOR) * 5000",
+  plus: "count(SELECTOR) + 1",
 } as const;
+
+/** The measures `attr` and `sumOf` may read off a card. Printed as bare words; a measure added to `AmountAttr` fails the typecheck until it is listed. */
+export const EXPR_ATTRS = ["power", "comboPower", "energyCost", "comboCost"] as const satisfies readonly AmountAttr[];
+type AttrMissing = Exclude<AmountAttr, (typeof EXPR_ATTRS)[number]>;
+const _everyAttrWritten: AttrMissing extends never ? true : never = true;
+void _everyAttrWritten;
 
 /**
  * The words the language reserves. A field or a variable may not be one of

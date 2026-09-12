@@ -607,6 +607,18 @@
     "outcome": "fired",
     "digest": "2d99c1d9"
   },
+  "XDRAW#0": {
+    "outcome": "fired",
+    "digest": "84cae7d2"
+  },
+  "XENERGY#0": {
+    "outcome": "fired",
+    "digest": "9d6be8b1"
+  },
+  "XMARKERS#0": {
+    "outcome": "inForce",
+    "digest": "eb1581bf"
+  },
   "ZB#0": {
     "outcome": "notOffered",
     "digest": "908e4eec"

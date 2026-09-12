@@ -14,6 +14,8 @@ export { lex, positionOf, LangSyntaxError, type Token } from "./tokens";
 export {
   DEFINE_KINDS,
   DEFINE_SCHEMA,
+  EXPR_ATTRS,
+  EXPR_LITERALS,
   EXPR_SCHEMA,
   FILTER_FIELDS,
   PARAM_TYPES,
@@ -28,6 +30,8 @@ export {
   type DefineParam,
   type DefineSpec,
   type EventPattern,
+  type ExprArg,
+  type ExprSpec,
   type LangError,
   type Parsed,
   type ParamType,

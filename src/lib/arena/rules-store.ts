@@ -10,7 +10,7 @@ import { and, asc, eq, ilike, inArray, isNotNull, ne, or, sql, type SQL } from "
 import type { Db } from "@/db";
 import { cardRules, cards } from "@/db/schema";
 import { describeScript, type CardDef, type CardScripts, type Op } from "./engine";
-import type { Cond, SkillPrice } from "./engine/script";
+import type { Cond, SkillPrice, XCost } from "./engine/script";
 import type { Trigger } from "./engine/types";
 import { rows as rowsOf } from "@/db/rows";
 import { textArray } from "@/db/sqlx";
@@ -44,8 +44,8 @@ export function programOf(row: Pick<RuleRow, "ops" | "cond">): Op[] {
  * effect it did not charge for.
  */
 function priceOfRow(row: Pick<RuleRow, "cost">): SkillPrice {
-  const cost = row.cost as { condition?: Cond | null; program?: Op[] | null } | null;
-  return { condition: cost?.condition ?? null, ops: cost?.program ?? null };
+  const cost = row.cost as { condition?: Cond | null; program?: Op[] | null; x?: XCost } | null;
+  return { condition: cost?.condition ?? null, ops: cost?.program ?? null, ...(cost?.x ? { x: cost.x } : {}) };
 }
 
 /** The key `ctx.scripts` is read by: the catalog id for a front, `<id>#back` for a leader's awakened side. */

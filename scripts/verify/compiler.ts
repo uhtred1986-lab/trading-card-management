@@ -26,11 +26,14 @@ import {
   parseFilter,
   parseSkills,
   play,
+  priceX,
   playCost,
   powerOf,
   splitClauses,
   zEnergyCostOf,
 } from "./harness";
+import { validateProgram, type Script } from "../../src/lib/arena/engine/script";
+import type { CardScripts } from "../../src/lib/arena/engine";
 import type { PlayerId } from "./harness";
 
 // ── the effect compiler ────────────────────────────────────────────────────
@@ -1243,6 +1246,61 @@ import type { PlayerId } from "./harness";
   // "Draw cards equal to the number of …" prints no number at all.
   assert.deepEqual((one("[Activate: Main] Draw cards equal to the number of your Battle Cards.").ops[0] as { op: string }).op, "draw");
 
+  // ── 20-5: the wordings the expression tree unlocked ──────────────────────
+  //
+  // One assertion per wording, in the words the cards print them.
+
+  // "For each marker on **it**" (P-377, P-378, DB3-144): the pronoun the
+  // sentence has been using for this card all along. `parseTarget` reads "this
+  // card" and not the bare pronoun, so all three read as nothing.
+  const onIt = one("[Permanent] This card gets +3000 power for each marker on it.");
+  assert.deepEqual(onIt.unsupported, [], "for each marker on it");
+  const onItAmount = (onIt.ops[0] as { op: string; amount: { markers?: { special?: string }; times?: number } }).amount;
+  assert.equal(onItAmount.times, 3000);
+  assert.equal(onItAmount.markers?.special, "self", "the markers counted are this card's own");
+
+  // "For each 1 energy you have" (TB1-038, BT1-030 twice): the area is the
+  // noun, and the "1" is the size of each step rather than a multiplier.
+  const perEnergy = one("[Auto] When this card attacks, this card gains +1000 power for each 1 energy you have for the duration of the turn.");
+  assert.deepEqual(perEnergy.unsupported, [], "for each 1 energy you have");
+  const perEnergyAmount = (perEnergy.ops[0] as { amount: { count?: { side?: string; area?: string }; times?: number } }).amount;
+  assert.equal(perEnergyAmount.times, 1000);
+  assert.equal(perEnergyAmount.count?.area, "energy");
+  assert.equal(perEnergyAmount.count?.side, "you");
+  // "For each 2 energy" would mean dividing, which no amount can do, so it is
+  // left unread rather than read as the same thing.
+  assert.ok(one("[Auto] When this card attacks, this card gains +1000 power for each 2 energy you have for the turn.").unsupported.length, "for each 2 energy stays unread");
+
+  // "{X}" and "Pay X energy" are the same price, and the effect reads it back.
+  for (const priced of ["[Activate: Main] {X}: Draw X cards.", "[Activate: Main] Pay X energy: Draw X cards."]) {
+    const x = one(priced);
+    assert.deepEqual(x.unsupported, [], priced);
+    assert.deepEqual(x.ops, [{ op: "draw", n: { x: true } }], priced);
+    assert.deepEqual(priceX(parseSkills(priced)[0]), {}, `${priced} charges an X`);
+  }
+  assert.equal(priceX(parseSkills("[Activate: Main] {1}: Draw 1 card.")[0]), null, "an ordinary orb price charges no X");
+
+  // 20-5: a program that says X with nothing to bind it is refused outright —
+  // read as nothing, "draw X cards" would be a free skill that does nothing.
+  assert.equal(validateProgram([{ op: "draw", n: { x: true } }]), false, "unbound X is not a valid program");
+  assert.equal(validateProgram([{ op: "draw", n: { x: true } }], 0, true), true, "…and is valid once the price binds it");
+  assert.equal(
+    validateProgram([
+      { op: "choose", sel: { side: "you", area: "hand", count: 99, upTo: true }, as: "c", bindX: true },
+      { op: "draw", n: { x: true } },
+    ]),
+    true,
+    "a choose carrying bindX binds it too",
+  );
+  assert.equal(
+    validateProgram([
+      { op: "draw", n: { x: true } },
+      { op: "choose", sel: { side: "you", area: "hand", count: 99, upTo: true }, as: "c", bindX: true },
+    ]),
+    false,
+    "…but only for the steps after it",
+  );
+
   // Looking at a deck, in the half-dozen ways the text words it.
   const look = (text: string) => one(`[Activate: Main] ${text}`).ops[0] as { op: string; n: number; side?: string; from?: string };
   assert.deepEqual(look("Look at up to 3 cards from the top of your deck."), { op: "look", n: 3, as: "looked" });
@@ -1353,6 +1411,88 @@ import type { PlayerId } from "./harness";
   assert.ok(!s.players.p2.battle.includes(prize));
   assert.equal(s.cards[prize].mode, "rest", "23-3: the card itself did not change");
   assert.equal(s.cards[prize].owner, "p2", "its owner is still its owner (3-1-6)");
+  assertConsistent(s);
+}
+
+// ── 20-5: X, from the move list to the cards drawn ─────────────────────────
+
+{
+  // The scenario the issue names: a card whose price is "Pay X energy" and
+  // whose effect draws that many. What is asserted is the whole path — the
+  // menu offering one activation per payable X, the energy actually resting,
+  // and the hand growing by the number chosen — because each of the three has
+  // its own way of being silently wrong.
+  let s = arena({ hand: ["XDRAW"], energy: ["V1", "V1", "V1", "V1"] });
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "XDRAW") });
+  while (s.prompt.kind !== "main") s = play(s, legalActions(CTX, s)[0].action);
+
+  const offers = labels(s).filter((l) => l.startsWith("Activate XDRAW"));
+  // One orb went on playing the card, so three energy are left active and the
+  // menu runs X = 0 to 3 — an X the energy cannot settle is never offered.
+  assert.deepEqual(
+    offers.map((l) => l.slice(l.indexOf("with X = "))),
+    ["with X = 0", "with X = 1", "with X = 2", "with X = 3"],
+    "one offer per payable value of X",
+  );
+
+  const before = s.players.p1.hand.length;
+  const activeBefore = s.players.p1.energy.filter((id) => s.cards[id].mode === "active").length;
+  const chosen = legalActions(CTX, s).find((a) => a.label.endsWith("with X = 2"))!;
+  s = play(s, chosen.action);
+  while (s.prompt.kind !== "main") s = play(s, legalActions(CTX, s)[0].action);
+
+  assert.equal(s.players.p1.hand.length, before + 2, "it drew X cards");
+  assert.equal(s.players.p1.energy.filter((id) => s.cards[id].mode === "active").length, activeBefore - 2, "…and paid X energy for them");
+  assertConsistent(s);
+}
+
+{
+  // 20-5, the other half: a price that is a *choice* rather than an energy
+  // payment binds X to how many cards it took, and that number has to cross
+  // into the effect. It crosses on a key of its own beside the names the price
+  // bound, because the continuation those names travel on is read back by
+  // games saved in the counter window between a price and its effect.
+  //
+  // Written against a supplied program rather than a printed wording: no card
+  // in the catalog prints this shape in words the compiler reads, and the
+  // binding is the engine's to get right either way. Without the handoff the
+  // effect throws "this program reads X, but nothing bound it".
+  const xFromChoice: Script = {
+    ops: [{ op: "draw", n: { x: true } }],
+    unsupported: [],
+    price: { condition: null, ops: [{ op: "choose", sel: { side: "you", area: "hand", count: 99, upTo: true }, as: "discarded", bindX: true }] },
+  };
+  const ctx = {
+    defs: DEFS,
+    scripts: new Proxy({} as Record<string, CardScripts>, {
+      get: (_, key) => (key === "ONCE" ? { bySkill: { 0: xFromChoice }, complete: true, unsupported: [] } : CTX.scripts[key as string]),
+    }),
+  };
+
+  let s = arena({ hand: ["ONCE", "V1", "V1"], energy: ["V1"] });
+  s = apply(ctx, s, { type: "play", player: "p1", card: find(s, "p1", "hand", "ONCE") }).state;
+  while (s.prompt.kind !== "main") s = apply(ctx, s, legalActions(ctx, s)[0].action).state;
+
+  const before = s.players.p1.hand.length;
+  s = apply(ctx, s, legalActions(ctx, s).find((a) => a.label.startsWith("Activate ONCE"))!.action).state;
+  // The price takes two of the cards in hand and then declines, which is how
+  // an "up to" choice ends early (5-2-4). The price only *chooses* them — it
+  // moves nothing — so the hand grows by exactly X and the assertion cannot be
+  // satisfied by a skill that did nothing.
+  let picked = 0;
+  while (s.prompt.kind === "chooseCards" && picked < 2) {
+    const pick = legalActions(ctx, s).find((a) => a.action.type === "choose" && a.action.cards.length > 0);
+    if (!pick) break;
+    s = apply(ctx, s, pick.action).state;
+    picked++;
+  }
+  const decline = legalActions(ctx, s).find((a) => a.action.type === "choose" && a.action.cards.length === 0);
+  assert.ok(decline, "an \"up to\" choice can be ended early");
+  s = apply(ctx, s, decline.action).state;
+  while (s.prompt.kind !== "main") s = apply(ctx, s, legalActions(ctx, s)[0].action).state;
+
+  assert.equal(picked, 2, "the price took two cards");
+  assert.equal(s.players.p1.hand.length, before + 2, "X was what the price chose: two chosen, two drawn");
   assertConsistent(s);
 }
 

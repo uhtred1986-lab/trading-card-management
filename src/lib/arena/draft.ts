@@ -15,7 +15,7 @@ import { arenaFeedback, cardRules, cards as cardsTable, settings } from "@/db/sc
 import { hasAnthropic } from "@/lib/ai/client";
 import { DEFAULT_GAME } from "@/lib/catalog/games";
 import { compileCardCached, compileSkill, parseSkills, skillLines, type CardDef, type CardScripts, type KeywordSkill, type Op } from "./engine";
-import { compileCostProgram, costText, priceCondition } from "./engine/compile";
+import { compileCostProgram, costText, priceCondition, priceX } from "./engine/compile";
 import type { Cond, CostRecord } from "./engine/script";
 import { describeScript } from "./engine/script";
 
@@ -85,7 +85,8 @@ export function skillRecords(def: CardDef): SkillRecord[] {
 function costRecord(sk: ReturnType<typeof parseSkills>[number]): CostRecord | null {
   const text = costText(sk.cost);
   const orbs = Object.fromEntries(Object.entries(sk.energyCost).filter(([, v]) => v)) as Record<string, number>;
-  if (!text && !Object.keys(orbs).length && !sk.energyEither.length && sk.markerCost == null && sk.burst == null && sk.spiritBoost == null) return null;
+  const x = priceX(sk);
+  if (!text && !Object.keys(orbs).length && !sk.energyEither.length && sk.markerCost == null && sk.burst == null && sk.spiritBoost == null && !x) return null;
   return {
     text,
     orbs,
@@ -95,6 +96,7 @@ function costRecord(sk: ReturnType<typeof parseSkills>[number]): CostRecord | nu
     spiritBoost: sk.spiritBoost,
     condition: priceCondition(sk)?.cond ?? null,
     program: compileCostProgram(sk)?.ops ?? null,
+    ...(x ? { x } : {}),
   };
 }
 
