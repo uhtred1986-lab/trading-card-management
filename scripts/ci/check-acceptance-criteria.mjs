@@ -202,7 +202,9 @@ Output ONLY a markdown table with columns: Issue | Verdict | Why (one sentence).
   // `gh pr view --json comments` returns each comment's GraphQL node id (e.g. "IC_kwD..."),
   // which the REST comment-update endpoint below 404s on — it needs the plain numeric id. List
   // via the REST API directly instead, so `prior.id` is already in the shape the PATCH needs.
-  const existing = JSON.parse(gh(["api", `repos/${repo}/issues/${prNumber}/comments`, "-f", "per_page=100"]));
+  // A bare `-f` flag would switch `gh api` to POST (the create-comment endpoint) by default, so
+  // the page-size query goes directly on the URL instead.
+  const existing = JSON.parse(gh(["api", `repos/${repo}/issues/${prNumber}/comments?per_page=100`]));
   const prior = existing.find((c) => typeof c.body === "string" && c.body.includes(MARKER));
 
   if (prior) {
