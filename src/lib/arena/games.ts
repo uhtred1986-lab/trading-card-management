@@ -4,7 +4,10 @@
  * The engine stays pure — it knows nothing about the database. This is the
  * only place the two meet. A row keeps the seed, the action log (which is what
  * makes a game reproducible) and a snapshot of the state so a page load does
- * not have to replay from the beginning.
+ * not have to replay from the beginning. A game keeps the engine it was made
+ * on (`arenaGames.engine`); `engineFor` is the one switch that resolves that
+ * id to the engine this module calls, so this file never imports `./engine`
+ * directly to play a saved game.
  */
 import { and, desc, eq } from "drizzle-orm";
 import type { Db } from "@/db";
