@@ -9,7 +9,8 @@ import {
   areaOf,
   comboPowerOf,
   describeScript,
-  programsOf,
+  scriptsOfInstance,
+  copiedSkillsOn,
   face,
   keywordsInForce,
   powerOf,
@@ -292,11 +293,13 @@ function cardView(ctx: EngineContext, s: GameState, id: string, images: Record<s
   const f = face(ctx, s, id);
   const hidden = inst.hidden || !reveal;
   const side = inst.flipped && d.back ? "back" : "front";
-  const scripts = programsOf(ctx, d, side);
+  const scripts = scriptsOfInstance(ctx, s, id);
   let reading = "";
   let referee = false;
   const permanents: PermanentView[] = [];
-  for (const sk of skillsOf(d, side)) {
+  // 20-18: a skill this card has taken on is shown as one of its own, so the
+  // board says what it can actually do right now.
+  for (const sk of [...skillsOf(d, side), ...copiedSkillsOn(ctx, s, id).map((c) => c.skill)]) {
     const sc = scripts.bySkill[sk.index];
     if (!sc) continue;
     if (sk.kind === "permanent") {

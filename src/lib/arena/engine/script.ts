@@ -9,6 +9,7 @@
  *
  * Nothing here reads card text. Section numbers refer to the Rule Manual.
  */
+import { skillsOf } from "./cards";
 import type { CardFilter } from "./filters";
 import { describeCond, describeScript } from "./script-schema";
 import {
@@ -23,6 +24,7 @@ import {
   cardsInPlay,
   replacementChoicesFor,
   skillsOfInstance,
+  def,
   draw as drawCards,
   face,
   forbids,
@@ -37,7 +39,7 @@ import {
   type GameContext,
 } from "./state";
 import { koCard, masterOf, pendTriggers } from "./triggers";
-import type { Area, Color, DelayScope, DelayTiming, FlowStep, ForbiddenAction, GameEvent, GameState, KeywordSkill, MoveReason, PlayerId, ReplacementChoice, ReplacementResult, SkillKindPrefix, Trigger } from "./types";
+import type { Area, Color, DelayScope, DelayTiming, FlowStep, ForbiddenAction, GameEvent, GameState, KeywordSkill, MoveReason, PlayerId, ReplacementChoice, ReplacementResult, Skill, SkillKindPrefix, Trigger } from "./types";
 
 // ── the language ───────────────────────────────────────────────────────────
 
@@ -314,6 +316,28 @@ export type Op =
   | { op: "power"; target: Ref; amount: Amount; until: Duration }
   | { op: "comboPower"; target: Ref; amount: Amount; until: Duration }
   | { op: "grant"; target: Ref; keyword: KeywordSkill; until: Duration }
+  /**
+   * 20-18: one card takes on another's printed skills — "choose up to 1
+   * keyword skill on a card placed under this card, and this card gains that
+   * skill until the end of your opponent's next turn" (BT20-028), "gain all of
+   * the chosen card's skills for the duration of the turn" (BT3-049).
+   *
+   * `from` is the card copied. Which of its skills is said in one of three
+   * ways: `which: "all"` for every one of them, `skill` for a single source
+   * index, or neither — the wording nearly every card prints — to let the
+   * master pick one as the skill resolves. `only: "keyword"` narrows both the
+   * pick and the copy to keyword skills, which is what "choose up to 1
+   * **keyword** skill" says.
+   *
+   * What is copied is the printed face as it stands now, snapshotted onto the
+   * effect: 9-9 fixes what a continuous effect grants when it is created, so
+   * the copy survives the source being flipped, silenced, or leaving play.
+   * A copied *pure* keyword skill is granted as a keyword — 20-18-1 writes a
+   * keyword given by a skill exactly as it writes any other, and the engine
+   * already plays a granted keyword — so only typed lines become a copy the
+   * target has to enumerate.
+   */
+  | { op: "copySkills"; target?: Ref; from: Ref; which?: "all"; skill?: number; only?: "keyword"; until: Duration }
   | { op: "negateSkills"; target: Ref; until: Duration }
   /**
    * "Negate that card's [Auto] skill for the turn" (9-1-5): one kind of skill
@@ -657,6 +681,17 @@ export const DELAY_LABELS: Record<DelayTiming, string> = {
 // ── the interpreter ────────────────────────────────────────────────────────
 
 export { resolveSelector };
+
+/**
+ * One skill as a line of a menu, for `copySkills`' "which one?" (20-18). A
+ * keyword skill is named by its keyword; anything else is its printed line,
+ * which is the only thing that tells two [Auto]s of one card apart.
+ */
+function skillOption(sk: Skill): string {
+  if (sk.kind === "keyword" && sk.keyword) return `[${sk.tags[0] ?? sk.keyword.name}]`;
+  const text = sk.raw.replace(/\s+/g, " ").trim();
+  return text.length > 90 ? `${text.slice(0, 88)}\u2026` : text;
+}
 
 function replacementPrompt(card: string, to: Area, choices: ReplacementChoice[], allowNone: boolean): { reason: string; options: string[] } {
   const area = (x: Area) =>
@@ -1194,6 +1229,71 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
       case "grant":
         for (const id of resolveRef(ctx, s, frame, op.target)) addEffect(s, ev, { master: frame.master, source: frame.card, target: id, kind: "keyword", value: op.keyword, until: op.until });
         break;
+
+      case "copySkills": {
+        // "Choose up to 1 keyword skill on a card under this card" is a choice
+        // among the *skills* of every card the phrase finds, not among the
+        // cards — so every source is opened and its skills laid out together.
+        const offered: { card: string; side: "front" | "back"; skill: Skill }[] = [];
+        for (const src of resolveRef(ctx, s, frame, op.from)) {
+          if (!s.cards[src]) continue;
+          const sd = def(ctx, s, src);
+          const side = s.cards[src].flipped && sd.back ? "back" : "front";
+          // The printed face, as 20-18 reads it: what the source says, not
+          // what anything has since done to it.
+          for (const sk of skillsOf(sd, side)) {
+            if (op.only === "keyword" && !sk.keyword) continue;
+            if (op.skill != null && sk.index !== op.skill) continue;
+            offered.push({ card: src, side, skill: sk });
+          }
+        }
+        if (!offered.length) break;
+        let picked: typeof offered;
+        if (op.which === "all" || op.skill != null) picked = offered;
+        else if (s.lastMode != null && frame.awaiting === "copySkills") {
+          const at = s.lastMode;
+          s.lastMode = null;
+          frame.awaiting = undefined;
+          // Every card printing this says "choose **up to** 1", so the last
+          // option declines; a single skill is still asked about, because the
+          // choice is the player's and not the count's.
+          picked = offered[at] ? [offered[at]] : [];
+        } else {
+          const several = new Set(offered.map((o) => o.card)).size > 1;
+          frame.awaiting = "copySkills";
+          s.flow.unshift({ op: "script.step", frame });
+          s.prompt = {
+            kind: "chooseMode",
+            player: master,
+            reason: `${face(ctx, s, frame.card).name}: choose a skill to gain`,
+            options: [...offered.map((o) => (several ? `${face(ctx, s, o.card).name}: ${skillOption(o.skill)}` : skillOption(o.skill))), "None"],
+          };
+          return "wait";
+        }
+        if (!picked.length) break;
+        const targets = resolveRef(ctx, s, frame, op.target ?? { sel: { special: "self" } });
+        for (const id of targets)
+          for (const src of new Set(picked.map((x) => x.card))) {
+            const mine = picked.filter((x) => x.card === src);
+            // A pure keyword line is a granted keyword and nothing more
+            // (20-18-1); everything else is carried as a copy the target
+            // enumerates alongside its own skills.
+            const typed = mine.filter((x) => !(x.skill.kind === "keyword" && x.skill.keyword));
+            for (const x of mine)
+              if (!typed.includes(x)) addEffect(s, ev, { master: frame.master, source: frame.card, target: id, kind: "keyword", value: x.skill.keyword!, until: op.until });
+            if (typed.length)
+              addEffect(s, ev, {
+                master: frame.master,
+                source: frame.card,
+                target: id,
+                kind: "copiedSkills",
+                value: 0,
+                copied: { cardId: s.cards[src].cardId, side: typed[0].side, skills: typed.map((x) => x.skill.index), from: src, name: def(ctx, s, src).name },
+                until: op.until,
+              });
+          }
+        break;
+      }
 
       case "negateSkills":
         // 9-1-5: for a duration it is a continuous effect that ends with the

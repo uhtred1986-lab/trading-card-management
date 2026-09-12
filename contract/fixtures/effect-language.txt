@@ -31,6 +31,8 @@ Operations (each is an object with "op"; a field marked ? may be left out):
     an amount may also be {"count":SELECTOR,"times":5000} (so much for each card), {"sumPower":{"var":"rested"}} (the total power of named cards) or {"sumOf":SELECTOR,"attr":"comboPower"} (any measure of them, added up)
   {"op":"comboPower","target":TARGET,"amount":AMOUNT,"until":DURATION}
   {"op":"grant","target":TARGET,"keyword":{"name":"Blocker"},"until":DURATION}
+  {"op":"copySkills","target"?:TARGET,"from":TARGET,"which"?:"all","skill"?:N,"only"?:"keyword","until":DURATION}
+    20-18: one card takes on another's printed skills. "which":"all" copies every one of them, "skill" copies one by its index on the source, and neither lets the master pick one as the skill resolves — which is what "choose up to 1 keyword skill … and this card gains that skill" says. "only":"keyword" narrows the pick and the copy to keyword skills. The printed face is snapshotted when the effect is made (9-9), so the copy outlives the source leaving play
   {"op":"negateSkills","target":TARGET,"until":DURATION}
   {"op":"negateSkillsOfKind","target":TARGET,"kind":"auto"|"activate"|"counter"|"permanent","until":DURATION}
     "negate that card's [Auto] skill for the turn" — one kind, not the whole card (9-1-5)

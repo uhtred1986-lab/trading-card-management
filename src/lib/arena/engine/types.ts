@@ -372,6 +372,29 @@ export interface Immunity {
  */
 export type EffectUntil = ContinuousEffect["until"] | "permanent";
 
+/**
+ * Skills one card has taken on from another (20-18), as the effect that grants
+ * them carries them.
+ *
+ * A *snapshot* of the printed face, taken when the effect was made. 9-9 fixes
+ * what a continuous effect grants at the moment it is created, and 20-18-1's
+ * quoting convention is what the target then reads as its own text — so the
+ * copy neither changes when the source is flipped or silenced afterwards nor
+ * goes away when the source leaves play. The source instance is kept only to
+ * say where the skills came from.
+ */
+export interface CopiedSkills {
+  /** The catalog id of the face copied. */
+  cardId: string;
+  side: "front" | "back";
+  /** Which of that face's skills, by their own indices. */
+  skills: number[];
+  /** The instance copied from, which may since have left play. */
+  from?: string;
+  /** That card's name, captured now, for the label. */
+  name?: string;
+}
+
 /** A continuous effect (9-9) with a duration. */
 export interface ContinuousEffect {
   id: number;
@@ -383,7 +406,7 @@ export interface ContinuousEffect {
    * named by a `SkillKindPrefix` in `value` ("negate that card's [Auto] skill
    * for the turn").
    */
-  kind: "power" | "comboPower" | "keyword" | "negateSkills" | "negateSkill" | "negateSkillKind" | "forbid" | "permit" | "immune" | "cost" | "skillCost" | "evolveCost" | "comboCost" | "altCost" | "zEnergy" | "specifiedCost";
+  kind: "power" | "comboPower" | "keyword" | "copiedSkills" | "negateSkills" | "negateSkill" | "negateSkillKind" | "forbid" | "permit" | "immune" | "cost" | "skillCost" | "evolveCost" | "comboCost" | "altCost" | "zEnergy" | "specifiedCost";
   /**
    * `specifiedCost`'s value is the orbs it relaxes or demands (`sign: 1` reduces,
    * `-1` increases) rather than a flat number — see `costReduction` (script.ts)
@@ -397,6 +420,8 @@ export interface ContinuousEffect {
   permit?: Permission;
   /** Set when `kind` is "immune". */
   immune?: Immunity;
+  /** Set when `kind` is "copiedSkills": the face copied and which of its skills (20-18). */
+  copied?: CopiedSkills;
   /**
    * Set when `kind` is "altCost": another way to pay for the target card's own
    * [Counter] (or its play), granted for a duration rather than printed on the

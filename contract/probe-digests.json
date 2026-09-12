@@ -99,6 +99,22 @@
     "outcome": "fired",
     "digest": "c10445be"
   },
+  "COPYCAT#0": {
+    "outcome": "fired",
+    "digest": "e80217db"
+  },
+  "COPYKW#0": {
+    "outcome": "fired",
+    "digest": "a82974f8"
+  },
+  "COPYSRC#10": {
+    "outcome": "inForce",
+    "digest": "39c6db32"
+  },
+  "COPYSRC#20": {
+    "outcome": "fired",
+    "digest": "71fcd691"
+  },
   "COUNTER_RR#0": {
     "outcome": "fired",
     "digest": "434bb13f"

@@ -127,6 +127,15 @@ const UNTIL: OpField = { name: "until", type: "duration", required: true };
 const MODE = { enum: ["active", "rest"] } as const;
 const POSITION = { enum: ["top", "bottom"] } as const;
 const n = (required = true): OpField => ({ name: "n", type: "amount", required });
+/** `copySkills`' fields, named so its `sentence` function can hand them to `renderTemplate` for each of the five ways the wording comes out. */
+const COPY_SKILLS_FIELDS: OpField[] = [
+  SELF,
+  { name: "from", type: "ref", required: true },
+  { name: "which", type: { enum: ["all"] } },
+  { name: "skill", type: "number" },
+  { name: "only", type: { enum: ["keyword"] } },
+  UNTIL,
+];
 
 type OpOf<K extends Op["op"]> = Extract<Op, { op: K }>;
 
@@ -201,6 +210,21 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
   },
   comboPower: { fields: [TARGET, { name: "amount", type: "amount", required: true }, UNTIL], sentence: "{target} {amount:combo power}{until}" },
   grant: { fields: [TARGET, { name: "keyword", type: "keyword", required: true }, UNTIL], sentence: "{target} gains [{keyword}]{until}" },
+  copySkills: {
+    fields: COPY_SKILLS_FIELDS,
+    sentence: (raw, r) => {
+      const op = raw as OpOf<"copySkills">;
+      const kind = op.only === "keyword" ? "keyword skills" : "skills";
+      const template =
+        op.which === "all"
+          ? `{target} gains all of the ${kind} of {from}{until}`
+          : op.skill != null
+            ? "{target} gains skill {skill} of {from}{until}"
+            : `choose 1 of the ${kind} of {from}, and {target} gains that skill{until}`;
+      return renderTemplate(template, raw as unknown as Record<string, unknown>, COPY_SKILLS_FIELDS, r);
+    },
+    doc: '20-18: one card takes on another\'s printed skills. "which":"all" copies every one of them, "skill" copies one by its index on the source, and neither lets the master pick one as the skill resolves — which is what "choose up to 1 keyword skill … and this card gains that skill" says. "only":"keyword" narrows the pick and the copy to keyword skills. The printed face is snapshotted when the effect is made (9-9), so the copy outlives the source leaving play',
+  },
   negateSkills: { fields: [TARGET, UNTIL], sentence: "negate the skills of {target}{until}" },
   negateSkillsOfKind: {
     fields: [TARGET, { name: "kind", type: { enum: SKILL_KIND_PREFIXES }, required: true }, UNTIL],
@@ -416,6 +440,7 @@ export const OP_CLASS: Record<Op["op"], OpClass> = {
   power:              "macro over `modifyAttr`",
   comboPower:         "macro over `modifyAttr`",
   grant:              "macro over `modifyAttr`",
+  copySkills:         "primitive",
   negateSkills:       "macro over `negate`",
   negateSkillsOfKind: "macro over `negate`",
   hidden:             "macro over `modifyAttr`",

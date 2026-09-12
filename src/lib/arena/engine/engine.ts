@@ -70,7 +70,7 @@ import {
   skillNegated,
   skillsNegated,
   whyNotPay,
-  programsOf,
+  scriptsOfInstance,
   zEnergyCostOf,
 } from "./state";
 import type {
@@ -997,11 +997,9 @@ function orbTotals(
   return { total, specified, either };
 }
 
-/** The rules for the face-up side of a card, as the game was given them. */
+/** The rules for the face-up side of a card, as the game was given them — the skills it has taken on included (20-18). */
 function scriptsOf(ctx: EngineContext, s: GameState, card: string): CardScripts {
-  const d = def(ctx, s, card);
-  const inst = s.cards[card];
-  return programsOf(ctx, d, inst.flipped && d.back ? "back" : "front");
+  return scriptsOfInstance(ctx, s, card);
 }
 
 /** The program for one skill, or null when a clause of it could not be read. */

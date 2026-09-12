@@ -80,8 +80,8 @@ else is a macro. Four things follow, and they are the reason the tables below ar
   them, they keep parsing, printing and playing exactly as before, and no card's reading moves.
 - **A macro's target may not exist yet.** The table names the primitive as it will be, with today's
   spelling beside it in §2.2. `move` is `moveTo` today; `costModifier`, `negate` and `replace` are
-  the general forms of rows the engine already has; `control`, `skip` and `copySkills` are Stage 2
-  issues (#126, #123) that will arrive as primitives.
+  the general forms of rows the engine already has; `control` and `skip` are Stage 2
+  issues (#126) that will arrive as primitives; `copySkills` arrived as one (#123).
 - **Layering and duration are not ops.** The plan's `effect(layer)` row is the interpreter's
   bookkeeping — what `until` means, which effect wins, when it expires (§1, §7). Every op that
   carries a duration uses it; none of them *is* it.
@@ -91,7 +91,7 @@ else is a macro. Four things follow, and they are the reason the tables below ar
 
 ### 2.2 The primitive vocabulary
 
-Nineteen primitives carry every row below — fourteen operations and five conditions.
+Twenty-three primitives carry every row below — eighteen operations and five conditions.
 
 | Primitive | Today | What it says |
 |---|---|---|
@@ -104,6 +104,7 @@ Nineteen primitives carry every row below — fourteen operations and five condi
 | `reveal` | `reveal` | Who has seen a card changes, without the card moving. |
 | `shuffle` | `shuffle` | A pile is randomised with the game's seeded RNG. |
 | `token` | `token` | A card that was in no deck comes into being. |
+| `copySkills` | `copySkills` | One card takes on another's printed skills, as they stood when the copy was made (20-18). |
 | `play` | `play` | The game's own play action is invoked for a card (5-5). |
 | `forbid` | `forbid` | A standing rule that an action may not happen, with a budget and an escape (20-14). |
 | `permit` | `permit` | A rule of the game is lifted for one card (8-1-1). |
@@ -152,6 +153,7 @@ disagree or if a row is missing from either.
 | `power` | macro over `modifyAttr` | Attribute `power`, by a delta, for a duration. |
 | `comboPower` | macro over `modifyAttr` | Attribute `comboPower`. The only difference from the row above is which attribute — which is the argument this table exists to make. |
 | `grant` | macro over `modifyAttr` | Attribute `keywords`: the card gains a keyword skill for a duration. What the keyword then does is the hook contract (§4). |
+| `copySkills` | primitive | One card reads another's printed skills as its own (20-18). No attribute holds a skill: what is copied is *text with a program behind it*, and the copy is a snapshot — what the source printed when the effect was made, kept after the source is flipped, silenced or gone (9-9). A copied pure keyword is granted as a keyword instead, which is `grant` and not this row. |
 | `negateSkills` | macro over `negate` | Scope: every skill of a card (9-1-5). |
 | `negateSkillsOfKind` | macro over `negate` | Scope: one printed skill kind of a card. |
 | `negateKeyword` | macro over `negate` | Scope: one named keyword, in every area. |

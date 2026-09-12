@@ -217,6 +217,24 @@ function refFor(clause: string, c: Ctx): Ref | null {
  */
 const BARE_TARGET = /^(?:this card|it|they|them|that card|those cards|your leader(?: card)?|the chosen cards?)$/i;
 
+/**
+ * The card a skill is copied *from* (20-18).
+ *
+ * `refFor` answers "the chosen card" with the last thing any clause acted on
+ * when no choice was made — which is right for an instruction ("…and KO it")
+ * and wrong here. BT14-062 prints "Place up to 1 Battle Card … in your
+ * opponent's Drop Area under this card. Choose up to 1 of **the chosen
+ * card's** keyword skills": the fallback hands back the *move's* selector,
+ * still pointing at the opponent's Drop, and the card whose skill is meant has
+ * just left it. A copy off the wrong card is worse than a clause left to the
+ * referee, so a "chosen" phrase with nothing bound is refused.
+ */
+function copiedFrom(phrase: string, c: Ctx): Ref | null {
+  const ref = refFor(phrase, c);
+  if (ref && /\bchosen\b/i.test(phrase) && !("var" in ref)) return null;
+  return ref;
+}
+
 function refsFor(phrase: string, c: Ctx): Ref[] | null {
   const parts = phrase
     .split(/\s+and\s+/i)
@@ -702,6 +720,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // The same clause with "for the turn", "in all areas" and the like taken
   // off, so the patterns for the action itself can end in `$`.
   const q = stripQualifiers(t);
+  if (process.env.DBG_COPY) console.error("QQQ", JSON.stringify(q));
 
   // A number read off the board has to be seen *first*: the patterns below
   // match on a word boundary rather than the end of the clause, so "gets
@@ -1345,6 +1364,32 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     if (filter.notTraits.length || filter.notCharacters.length || filter.notNames.length) return null;
     const ref = refFor(m[1] || "this card", c);
     return ref ? [{ op: "gains", target: ref, traits: filter.traits, characters: filter.characters, colors, ...(filter.names.length ? { names: filter.names } : {}) }] : null;
+  }
+
+  // Taking on another card's printed skills (20-18). Two wordings, and the
+  // whole of both: "This card gains all of the chosen card's keyword skills
+  // for the turn" (BT26-139), "Gain all of the chosen card's skills for the
+  // duration of the turn" (BT3-049).
+  if ((m = /^(.*?)\s*gains? all of (?:the )?(.+?)'s (keyword )?skills$/.exec(q))) {
+    const target = refFor(m[1] || "this card", c);
+    // "…all of **the chosen card's** skills": the possessive is stripped by
+    // the pattern, so the article goes back on before `refFor` reads it.
+    const from = copiedFrom(/^(?:the|that|those|its|their)\b/.test(m[2]) ? m[2] : `the ${m[2]}`, c);
+    if (target && from) return [{ op: "copySkills", target, from, which: "all", ...(m[3] ? { only: "keyword" as const } : {}), until: durationOf(t) }];
+    return null;
+  }
+  // The other wording, merged into one clause by `compileClauseList` because
+  // neither half means anything alone: "Choose up to 1 keyword skill on a card
+  // placed under this card, and this card gains that skill until the end of
+  // your opponent's next turn" (BT20-028). The choice is among the *skills* of
+  // whatever the phrase finds, which is what `copySkills` asks when it is told
+  // neither "all" nor an index.
+  if ((m = /^choose (?:up to )?\d+ (?:of (?:the )?(.+?)'s (keyword )?skills?|(keyword )?skills? (?:on|of|from|in) (.+?)), (?:and )?(.*?) gains? that skill$/.exec(q))) {
+    const src = m[1] ?? m[4];
+    const from = copiedFrom(/^(?:the|that|those|its|their|a|an|\d)\b/.test(src) ? src : `the ${src}`, c);
+    const target = refFor(m[5] || "this card", c);
+    if (from && target) return [{ op: "copySkills", target, from, ...(m[2] ?? m[3] ? { only: "keyword" as const } : {}), until: durationOf(t) }];
+    return null;
   }
 
   // Granting keyword skills (20-18); one clause can grant several.
@@ -2117,6 +2162,9 @@ const PURE_DURATION =
  * shows up unread, not whether it reads — left split, as before.
  */
 const PURE_FOREACH_MARKERS_ON_SELF = /^for (?:each|every) markers? on this card[.,]?$/i;
+/** The two halves of the copied-skill wording (20-18); see the merge in `compileClauseList`. */
+const COPY_SKILL_CHOICE = /^choose (?:up to )?\d+ (?:of (?:the )?.+?'s (?:keyword )?skills?|(?:keyword )?skills? (?:on|of|from|in) .+?)[.,]?$/i;
+const GAINS_THAT_SKILL = /^.*?\bgains? that skill\b/i;
 
 /** The clause loop, shared by a skill's body and by each modal option. */
 export function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op[] {
@@ -2161,6 +2209,15 @@ export function compileClauseList(clauses: string[], c: Ctx, unsupported: string
     // belongs to the clause after it, where `durationOf` will find it.
     if (PURE_DURATION.test(clause.trim()) && i + 1 < clauses.length) {
       clauses[i + 1] = `${clauses[i + 1].replace(/[.]$/, "")} ${clause.trim()}`;
+      continue;
+    }
+    // 20-18: "Choose up to 1 keyword skill on a card under this card" names
+    // no cards to *do* anything to — it is the first half of "…, and this
+    // card gains that skill for the turn", and only the pair says anything.
+    // Merged so `compileClause` reads the two as one `copySkills`; apart, the
+    // first half compiled as a choice of cards and the second went unread.
+    if (COPY_SKILL_CHOICE.test(clause.trim()) && i + 1 < clauses.length && GAINS_THAT_SKILL.test(clauses[i + 1].trim())) {
+      clauses[i + 1] = `${clause.trim().replace(/[.,]$/, "")}, ${clauses[i + 1]}`;
       continue;
     }
     // "For each marker on this card, this card gets +5000 power during your
