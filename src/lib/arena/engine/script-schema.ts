@@ -4,7 +4,7 @@ import type { CardFilter } from "./filters";
 // them, which are lists), `AmountAttr` what an amount may *read as a number*.
 // Collapsing them would let `attr($t, colors)` stand where a number belongs.
 import type { Amount, AmountAttr, CardAttr, Cond, Duration, Op, Ref, ScriptArea, Selector, Side, SpecialTarget } from "./script";
-import type { Color, DelayScope, DelayTiming, ForbiddenAction, KeywordSkill, SkillKindPrefix } from "./types";
+import type { Area, CardDef, Color, DelayScope, DelayTiming, ForbiddenAction, KeywordSkill, Phase, Prompt, SkillKindPrefix } from "./types";
 
 // ── the schema: one row per op, read by everything that is not the interpreter ──
 
@@ -83,6 +83,59 @@ export const KEYWORD_NAMES = [
 type MissingKeyword = Exclude<KeywordSkill["name"], (typeof KEYWORD_NAMES)[number]>;
 const _everyKeywordListed: MissingKeyword extends never ? true : never = true;
 void _everyKeywordListed;
+
+// ── the legacy engine's other unions, as runtime arrays (#136) ──────────────
+//
+// `Area` and `Phase` have no runtime array of their own — they are read off
+// the board, never printed by a schema — so `scripts/verify/rulesets.ts`
+// needs one to check a `.rules` ruleset's declarations against, by name, in
+// both directions. Each gets the same never-check as `KEYWORD_NAMES` above:
+// a member added to the union and not listed here fails the typecheck
+// rather than going unnoticed by the suite.
+
+/** `Area` (13), the places a card can actually be. `AREAS` above is `ScriptArea` (15): the two extra values, `under` and `play`, are effect-language routes ("place it under this card", "the card resolving a skill"), not board zones a `.rules` file declares. */
+export const AREA_NAMES = ["hand", "deck", "drop", "life", "battle", "combo", "energy", "unison", "leader", "warp", "zDeck", "zEnergy", "removed"] as const satisfies readonly Area[];
+type MissingArea = Exclude<Area, (typeof AREA_NAMES)[number]>;
+const _everyAreaListed: MissingArea extends never ? true : never = true;
+void _everyAreaListed;
+
+export const PHASES = ["setup", "charge", "main", "mainEnd", "end", "over"] as const satisfies readonly Phase[];
+type MissingPhase = Exclude<Phase, (typeof PHASES)[number]>;
+const _everyPhaseListed: MissingPhase extends never ? true : never = true;
+void _everyPhaseListed;
+
+/**
+ * Every `Prompt["kind"]` (`engine/types.ts`), so `scripts/verify/rulesets.ts`
+ * can check `prompts.rules` against a runtime list rather than a type — the
+ * union itself has none. `prompts.rules` is #135's open question (`DEFINE
+ * PROMPT` awaits the owner's word on #131); this array exists so the two
+ * cannot drift apart once it lands.
+ */
+export const PROMPT_KINDS = [
+  "chooseFirst", "mulligan", "charge", "main", "combo", "blocker", "counter", "orderPending", "chooseCards", "chooseMode",
+  "replaceMove", "zEnergyFromCombo", "optionalCost", "payCost", "offering", "empowerCarry", "referee", "gameOver",
+] as const satisfies readonly Prompt["kind"][];
+// A prompt kind types.ts adds but this list does not would go unchecked; make it fail the typecheck instead.
+type MissingPromptKind = Exclude<Prompt["kind"], (typeof PROMPT_KINDS)[number]>;
+const _everyPromptKindListed: MissingPromptKind extends never ? true : never = true;
+void _everyPromptKindListed;
+
+/**
+ * Every `CardDef` field, as `attributes.rules` (#133) declares one `DEFINE
+ * ATTRIBUTE` for each — `id`/`name` included (2-14, 2-3: a card's identity is
+ * still something it *has*), `skill` (2-4, the whole text box before any is
+ * gained or negated), `back` (1-9: whether a second face exists, not what is
+ * on it — that face has no kind of its own yet) and `alsoNames` (20-1,
+ * `printed: false` since a skill grants it rather than the card printing it).
+ * `attributes.rules` also declares three derived `of: card` attributes with
+ * no `CardDef` field at all (`costOf`, `comboCostOf`, `zEnergyCostOf`,
+ * 20-21) — real values the board computes, so `scripts/verify/rulesets.ts`
+ * sets those three aside by name rather than by shape.
+ */
+export const CARD_ATTRIBUTES = ["id", "name", "type", "colors", "energyCost", "zEnergyCost", "power", "comboCost", "comboPower", "skill", "characters", "traits", "back", "specifiedCost", "alsoNames"] as const satisfies readonly (keyof CardDef)[];
+type MissingCardAttribute = Exclude<keyof CardDef, (typeof CARD_ATTRIBUTES)[number]>;
+const _everyCardAttributeListed: MissingCardAttribute extends never ? true : never = true;
+void _everyCardAttributeListed;
 
 /** Each prohibition as the verb phrase a sentence needs after "can't". Shared with `effects.ts`, so the inspector and the board say the same thing. */
 export const FORBIDDEN_IN_WORDS: Record<ForbiddenAction, string> = {

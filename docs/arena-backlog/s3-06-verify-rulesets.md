@@ -3,6 +3,7 @@ title: Arena: verify/rulesets.ts — the DBS definition is complete against the 
 milestone: Arena M6 — Definitions in the language (Stage 3)
 labels: backlog, ready-for-agent, enhancement, area:arena-rulesets, phase:rules-stage3, model:sonnet-5
 stage: 3
+status: closed
 ---
 **Source:** plan Stage 3 ("completeness against the old engine's unions"); `scripts/verify-arena.ts` and `scripts/verify/*.ts` (the twelve suites `docs/arena-tooling.md` §2 explains); `src/lib/arena/engine/types.ts` (`Area`, `Phase`, `Trigger`, `Prompt`), `script.ts` (`AREAS`, `KEYWORD_NAMES`).
 
