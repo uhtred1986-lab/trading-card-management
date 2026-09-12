@@ -19,6 +19,7 @@ import "./verify/workflow";
 import "./verify/contract";
 import "./verify/language";
 import "./verify/lang";
+import "./verify/rulesets";
 import "./verify/probe";
 
 console.log("verify-arena: all checks passed");

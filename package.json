@@ -29,6 +29,7 @@
     "arena:feedback": "tsx --env-file-if-exists=.env.local scripts/arena-feedback.mts",
     "arena:rule": "tsx --env-file-if-exists=.env.local scripts/arena-rule.mts",
     "arena:draft": "tsx scripts/arena-draft.mts",
+    "arena:rulesets": "tsx scripts/arena-rulesets-emit.mts",
     "arena:probe": "tsx --env-file-if-exists=.env.local scripts/arena-probe.mts",
     "arena:reprobe": "tsx --env-file-if-exists=.env.local scripts/arena-probe.mts --reprobe",
     "arena:tally": "tsx scripts/arena-catalog-tally.mts",

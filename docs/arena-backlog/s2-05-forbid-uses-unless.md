@@ -1,8 +1,10 @@
 ---
 title: Arena: counted and conditional prohibitions — forbid with uses and unless (20-14)
 milestone: Arena M1 — Rules correctness and parser coverage
-labels: backlog, ready-for-agent, enhancement, area:arena-compiler, area:arena-engine, phase:rules-stage2, model:opus-5
+labels: done, enhancement, area:arena-compiler, area:arena-engine, phase:rules-stage2, model:opus-5
 stage: 2
+status: closed
+closed_at: 2026-09-12
 ---
 **Source:** plan Stage 2 gap table, rows BT3-104 ("can only attack **one more** time") and BT13-030 ("can't do A **unless** B"); rule manual 20-14; `docs/arena-next-stage-spec.md` §6.5.
 
