@@ -1,5 +1,5 @@
 import type { CardFilter } from "./filters";
-import type { Amount, Cond, Duration, Op, Ref, ScriptArea, Selector, Side, SpecialTarget } from "./script";
+import type { Amount, AmountAttr, Cond, Duration, Op, Ref, ScriptArea, Selector, Side, SpecialTarget } from "./script";
 import type { Color, DelayScope, DelayTiming, ForbiddenAction, KeywordSkill, SkillKindPrefix } from "./types";
 
 // ── the schema: one row per op, read by everything that is not the interpreter ──
@@ -519,20 +519,41 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
  * bad ruling can be wrong but never illegal. Nested programs are checked to
  * the depth a real card ever needs.
  */
-export function validateProgram(ops: unknown, depth = 0): ops is Op[] {
+export function validateProgram(ops: unknown, depth = 0, xBound = false): ops is Op[] {
   if (!Array.isArray(ops) || depth > 4) return false;
-  return ops.every((raw) => {
+  // 20-5: X is legal only once something has bound it — the price, said by
+  // `CostRecord.x` and passed in as `xBound`, or a `choose` earlier in this
+  // same program carrying `bindX`. A step is checked against what is bound
+  // *before* it, so "draw X, then choose X cards" is refused and "choose any
+  // number of cards, then draw X" is not.
+  let bound = xBound;
+  for (const raw of ops) {
     if (!raw || typeof raw !== "object") return false;
     const o = raw as Record<string, unknown>;
     const spec = typeof o.op === "string" ? OP_SCHEMA[o.op as Op["op"]] : undefined;
     if (!spec) return false;
-    return spec.fields.every((f) => {
+    const ok = spec.fields.every((f) => {
       const v = o[f.name];
       if (v === undefined) return !f.required;
       if (v === null) return !!f.nullable;
-      return fieldHolds(f.type, v, depth);
+      return fieldHolds(f.type, v, depth, bound);
     });
-  });
+    if (!ok) return false;
+    if (o.op === "choose" && o.bindX === true) bound = true;
+  }
+  return true;
+}
+
+/**
+ * Does this amount read an `X` that nothing has bound? The expression tree is
+ * walked because `plus` nests one amount inside another; every other shape
+ * holds selectors and refs, which cannot carry an amount.
+ */
+function readsUnboundX(v: unknown, xBound: boolean): boolean {
+  if (xBound || typeof v !== "object" || v === null) return false;
+  const a = v as Record<string, unknown>;
+  if (a.x === true) return true;
+  return Array.isArray(a.plus) && readsUnboundX(a.plus[0], xBound);
 }
 
 function selectorHolds(v: unknown): boolean {
@@ -546,7 +567,7 @@ function selectorHolds(v: unknown): boolean {
  * asked only for a `kind`, so a condition missing the selector it counts was
  * stored happily and threw when a game read it.
  */
-function condShapeHolds(v: unknown, depth: number): boolean {
+function condShapeHolds(v: unknown, depth: number, xBound: boolean): boolean {
   if (typeof v !== "object" || v === null || depth > 4) return false;
   const c = v as Record<string, unknown>;
   const spec = typeof c.kind === "string" ? COND_SCHEMA[c.kind as Cond["kind"]] : undefined;
@@ -555,17 +576,18 @@ function condShapeHolds(v: unknown, depth: number): boolean {
     const x = c[f.name];
     if (x === undefined) return !f.required;
     if (x === null) return !!f.nullable;
-    return fieldHolds(f.type, x, depth);
+    return fieldHolds(f.type, x, depth, xBound);
   });
 }
 
-function fieldHolds(type: FieldType, v: unknown, depth: number): boolean {
+function fieldHolds(type: FieldType, v: unknown, depth: number, xBound: boolean): boolean {
   if (typeof type === "object") {
     if ("enum" in type) return typeof v === "string" && type.enum.includes(v);
     return Array.isArray(v) && v.every((x) => (type.list === "string" ? typeof x === "string" : typeof x === "string" && type.list.enum.includes(x)));
   }
   switch (type) {
     case "amount":
+      if (readsUnboundX(v, xBound)) return false;
       return typeof v === "number" || (typeof v === "object" && v !== null);
     // A ref is a bound name or a selector — a bare selector written where a
     // ref belongs ({"special":"self"} for {"sel":{"special":"self"}}) is the
@@ -576,9 +598,9 @@ function fieldHolds(type: FieldType, v: unknown, depth: number): boolean {
     case "selector":
       return selectorHolds(v);
     case "cond":
-      return condShapeHolds(v, depth);
+      return condShapeHolds(v, depth, xBound);
     case "conds":
-      return Array.isArray(v) && v.length > 0 && v.every((c) => condShapeHolds(c, depth + 1));
+      return Array.isArray(v) && v.length > 0 && v.every((c) => condShapeHolds(c, depth + 1, xBound));
     case "filter":
       return typeof v === "object" && v !== null;
     case "keyword":
@@ -590,9 +612,9 @@ function fieldHolds(type: FieldType, v: unknown, depth: number): boolean {
     case "duration":
       return typeof v === "string" && (DURATIONS as readonly string[]).includes(v);
     case "ops":
-      return validateProgram(v, depth + 1);
+      return validateProgram(v, depth + 1, xBound);
     case "modes":
-      return Array.isArray(v) && v.length > 0 && v.every((m) => !!m && typeof m === "object" && validateProgram((m as { ops?: unknown }).ops, depth + 1));
+      return Array.isArray(v) && v.length > 0 && v.every((m) => !!m && typeof m === "object" && validateProgram((m as { ops?: unknown }).ops, depth + 1, xBound));
     case "string":
       return typeof v === "string";
     case "number":
@@ -802,17 +824,30 @@ function describeRef(ref: Ref): string {
  * print — "+5000 power", "+5000 power for each of your Battle Cards" — so the
  * noun sits next to the number rather than at the end of the sentence.
  */
+/** The measures `attr` and `sumOf` read, as a person names them. */
+const ATTR_NOUNS: Record<AmountAttr, string> = { power: "power", comboPower: "combo power", energyCost: "energy cost", comboCost: "combo cost" };
+
 function describeAmount(a: Amount, noun?: string): string {
   if (noun) {
     if (typeof a === "number") return `${a >= 0 ? "+" : ""}${a} ${noun}`;
+    if ("plus" in a) return `${describeAmount(a.plus[0], noun)} and ${a.plus[1]} more`;
     if ("count" in a) return `+${a.times ?? 1} ${noun} for each of ${describeEach(a.count)}`;
     if ("markers" in a) return `+${a.times ?? 1} ${noun} for each marker on ${describeEach(a.markers)}`;
+    if ("x" in a) return a.times === undefined ? `+X ${noun}` : `+${a.times} ${noun} for each X`;
+    if ("life" in a) return `+${a.times ?? 1} ${noun} for each life ${a.life === "opponent" ? "your opponent has" : a.life === "both" ? "either player has" : "you have"}`;
+    if ("sumOf" in a) return `${noun} equal to the total ${ATTR_NOUNS[a.attr]} of ${describeEach(a.sumOf)}${a.times === undefined ? "" : ` × ${a.times}`}`;
+    if ("attr" in a) return `${noun} equal to ${describeRef(a.attr)}'s ${ATTR_NOUNS[a.name]}${a.times === undefined ? "" : ` × ${a.times}`}`;
     return `+that many ${noun}`;
   }
   if (typeof a === "number") return `${a}`;
+  if ("plus" in a) return `${describeAmount(a.plus[0])} and ${a.plus[1]} more`;
   if ("var" in a) return "that many";
   if ("sumPower" in a) return "the total power of the cards rested";
   if ("handUpTo" in a) return `up to ${a.handUpTo} in hand`;
+  if ("x" in a) return a.times === undefined ? "X" : `${a.times} for each X`;
+  if ("life" in a) return `${a.times ?? 1} for each life ${a.life === "opponent" ? "your opponent has" : a.life === "both" ? "either player has" : "you have"}`;
+  if ("sumOf" in a) return `the total ${ATTR_NOUNS[a.attr]} of ${describeEach(a.sumOf)}${a.times === undefined ? "" : ` × ${a.times}`}`;
+  if ("attr" in a) return `${describeRef(a.attr)}'s ${ATTR_NOUNS[a.name]}${a.times === undefined ? "" : ` × ${a.times}`}`;
   if ("markers" in a) return `${a.times ?? 1} for each marker on ${describeEach(a.markers)}`;
   return `${a.times ?? 1} for each of ${describeEach(a.count)}`;
 }

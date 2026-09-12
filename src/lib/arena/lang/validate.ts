@@ -40,7 +40,18 @@ export function validateRule(rule: unknown, kind: string): Invalid | null {
     const bad = costProblem(rule.cost);
     if (bad) return { field: "cost", message: bad };
   }
-  if (!validateProgram(rule.ops)) return { field: "ops", message: "that is not a valid program — every step needs its required fields and known values" };
+  // 20-5: the price is what binds X, so it is read before the steps are
+  // checked. A rule that says `X` with no X in its price is refused here
+  // rather than resolving as nothing at the table.
+  const xBound = isObject(rule.cost) && isObject((rule.cost as Record<string, unknown>).x);
+  if (!validateProgram(rule.ops, 0, xBound)) {
+    return {
+      field: "ops",
+      message: xBound
+        ? "that is not a valid program — every step needs its required fields and known values"
+        : "that is not a valid program — every step needs its required fields and known values, and X may only be used when the price charges an X",
+    };
+  }
   return null;
 }
 
@@ -57,6 +68,12 @@ function costProblem(cost: unknown): string | null {
   for (const [orb, n] of Object.entries(c.orbs)) if (!Number.isInteger(n) || n < 1) return `${orb} is charged ${JSON.stringify(n)} times`;
   if (c.either.some((group) => !Array.isArray(group) || group.length < 2)) return "an either-orb needs two colours or more";
   for (const n of [c.marker, c.burst, c.spiritBoost]) if (n !== null && !Number.isInteger(n)) return "a marker, Burst or Spirit Boost count is a whole number or nothing";
+  if (c.x !== undefined) {
+    if (!isObject(c.x)) return "an X price is a record of its bounds, or none at all";
+    const { min, max } = c.x as { min?: unknown; max?: unknown };
+    for (const n of [min, max]) if (n !== undefined && (typeof n !== "number" || !Number.isInteger(n) || n < 0)) return "an X bound is a whole number, never below zero";
+    if (typeof min === "number" && typeof max === "number" && min > max) return "an X price cannot ask for more than it allows";
+  }
   if (c.condition != null && !condOk(c.condition)) return "the price states a condition the engine cannot ask";
   if (c.program != null && !validateProgram(c.program as Op[])) return "the price charges a program the engine cannot run";
   return null;

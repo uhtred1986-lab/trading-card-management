@@ -122,20 +122,52 @@ export interface Selector {
 }
 
 /**
- * A number an effect needs. `count` is read off the board — "for each of your
- * ≪Saiyan≫ cards" — and `times` multiplies it, because cards say "+5000 power
- * for each" far more often than they say "1 for each".
+ * One number a card can say about another: the measures an amount may read off
+ * a card rather than off the board. The printed energy cost is the one the card
+ * costs *now* (20-21-2), not the one on the face, because every other reading
+ * of a cost in this engine is the reduced one and two answers to "its energy
+ * cost" would be a bug waiting for a [Permanent] to find.
+ */
+export type AmountAttr = "power" | "comboPower" | "energyCost" | "comboCost";
+
+/**
+ * A number an effect needs — an *expression*, since 12 Sep 2026 (20-5).
+ *
+ * `count` is read off the board — "for each of your ≪Saiyan≫ cards" — and
+ * `times` multiplies it, because cards say "+5000 power for each" far more
+ * often than they say "1 for each". `times` is now on every shape that reads a
+ * number out of the game, so "X × 1000" and "its energy cost × 1000" need no
+ * second spelling.
+ *
+ * Every shape that was here before 20-5 is still spelled exactly as it was:
+ * stored `card_rules.ops` rows carry these keys, so nothing here may be
+ * renamed and nothing may change meaning. The new shapes are additions.
  */
 export type Amount =
   | number
   | { var: string }
   | { count: Selector; times?: number }
-  /** The total power of the cards bound to a name — "the cards switched to Rest Mode by this skill" ([Alliance], 22-32). */
+  /** The total power of the cards bound to a name — "the cards switched to Rest Mode by this skill" ([Alliance], 22-32). The special case of `sumOf` that predates it, kept because rows spell it this way. */
   | { sumPower: { var: string } }
   /** "Draw cards until you have 4 cards in your hand": however many that takes, never fewer than none. */
   | { handUpTo: number }
   /** "For each marker on this card, +5000 power" — the markers on the selected cards, added up, the same board fact the `markers` condition asks about. */
-  | { markers: Selector; times?: number };
+  | { markers: Selector; times?: number }
+  /**
+   * X: the number chosen when the skill was paid for (20-5). Read off the
+   * script frame, which the activation puts it on; a program that says `X`
+   * with nothing to bind it fails `validateProgram` rather than resolving as
+   * zero, because "draw X cards" for free is the one wrong answer.
+   */
+  | { x: true; times?: number }
+  /** "For each card in your life area" — the life cards of one side, or both. */
+  | { life: Side; times?: number }
+  /** "Power equal to that card's energy cost × 1000" — one card's own measure, times a printed number. */
+  | { attr: Ref; name: AmountAttr; times?: number }
+  /** "Power equal to the total combo power of the cards discarded by this skill" — the same measure over every selected card, added up. */
+  | { sumOf: Selector; attr: AmountAttr; times?: number }
+  /** "That many plus 1". The right-hand side is a printed number: no card adds two board readings together, and allowing it would make the printed form ambiguous. */
+  | { plus: [Amount, number] };
 
 /**
  * `minus` is "the rest": the cards bound to `var` that a later choice did not
@@ -227,7 +259,8 @@ export type Op =
    * "your opponent sends 1 Battle Card from their Drop Area to their Warp"
    * (20-7) is their choice to make, not yours.
    */
-  | { op: "choose"; sel: Selector; as: string; reason?: string; chooser?: Side }
+  /** `bindX` binds X to *how many* were chosen, for the cards whose price is a choice and whose effect then counts it ("discard any number of cards: … X cards", 20-5). */
+  | { op: "choose"; sel: Selector; as: string; reason?: string; chooser?: Side; bindX?: true }
   /** `from` is the top of the deck unless the card says the bottom. */
   /** `area` is the deck unless it says otherwise — "look at your opponent's hand" (20-11). */
   | { op: "look"; n: Amount; as: string; side?: Side; from?: "top" | "bottom"; area?: ScriptArea }
@@ -440,6 +473,22 @@ export type Op =
 export interface SkillPrice {
   condition: Cond | null;
   ops: Op[] | null;
+  /**
+   * The price charges X energy, chosen on activation (20-5). Present means the
+   * skill is offered once per payable value of X and the effect may say `X`;
+   * absent means it may not.
+   */
+  x?: XCost;
+}
+
+/**
+ * What "X" a price may be paid at. `min` defaults to 0 — "{X}" with nothing
+ * said is payable at nothing, and the cards that need at least one say so —
+ * and `max` is unbounded, so the engine offers every value the energy allows.
+ */
+export interface XCost {
+  min?: number;
+  max?: number;
 }
 
 /**
@@ -461,6 +510,8 @@ export interface CostRecord {
   condition: Cond | null;
   /** "Switch this card to Rest Mode" — an action the price charges. */
   program: Op[] | null;
+  /** "{X}" — the price charges X energy, chosen when the skill is activated, and the effect may then say `X` (20-5). */
+  x?: XCost;
 }
 
 /**
@@ -533,6 +584,13 @@ export interface ScriptFrame {
   skillIndex?: number;
   /** Set while a `choose` is waiting for an answer. */
   awaiting?: string;
+  /**
+   * X, as this activation paid it (20-5). Put here by the activation that
+   * charged an X price, or by a `choose` carrying `bindX`. Absent is *not*
+   * zero: an `{x:true}` amount read with nothing bound throws, and
+   * `validateProgram` refuses such a program before it is ever stored.
+   */
+  x?: number;
   /**
    * Where to leave this program's variables when it finishes, so a later one
    * can start from them. Used by a skill's price, whose effect may refer to
@@ -789,6 +847,10 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         /** Cards taken out of a pool ("choose 1 among them") leave the pool. */
         const take = (picked: string[]) => {
           frame.vars[op.as] = picked;
+          // 20-5: "discard any number of cards: … X cards". X is how many were
+          // taken, bound the moment the choice settles, so every later step of
+          // this program reads the same number.
+          if (op.bindX) frame.x = picked.length;
           if (op.sel.fromVar) frame.vars[op.sel.fromVar] = (frame.vars[op.sel.fromVar] ?? []).filter((id) => !picked.includes(id));
         };
         // Cards picked so far, while a multi-card choice is part-answered.
