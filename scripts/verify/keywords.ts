@@ -5,6 +5,7 @@
  */
 import assert from "node:assert/strict";
 import { legalActions } from "../../src/lib/arena/engine";
+import { validateProgram } from "../../src/lib/arena/engine/script";
 import {
   CTX,
   DEFS,
@@ -18,8 +19,10 @@ import {
   eitherOrbsIn,
   find,
   has,
+  koCard,
   labels,
   move,
+  placeUnder,
   orbsIn,
   parseConditionClause,
   parseSkills,
@@ -1252,4 +1255,66 @@ import {
   for (const id of s.players.p1.hand.slice()) if (s.cards[id].cardId !== "REFILL") move(CTX, s, [], id, "deck", "p1", { position: "bottom" });
   s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "REFILL") });
   assert.equal(s.players.p1.hand.length, 4);
+}
+
+// ── 9-10: a replacement whose substitute is a program (#125) ───────────────
+
+{
+  // BT3-051's shape. The card itself **stays**, and its whole under-stack goes
+  // to the Drop in the KO's place — a replacement no redirect can say, because
+  // what moves is not the card whose departure was replaced.
+  DEFS.PILEDROP = {
+    ...DEFS.V1,
+    id: "PILEDROP",
+    name: "PILEDROP",
+    skill: "[Permanent] If this card would be KO'd, place all the cards under this card in its owner's Drop Area instead.",
+  };
+  const s = arena({ battle: ["PILEDROP"], hand: ["V1"] });
+  const host = find(s, "p1", "battle", "PILEDROP");
+  const buried = s.players.p1.hand[0];
+  assert.equal(placeUnder(CTX, s, [], buried, host), true);
+  assert.deepEqual(s.cards[host].under, [buried]);
+
+  koCard(CTX, s, [], host);
+  assert.ok(s.players.p1.battle.includes(host), "the KO was replaced, not redirected: the card is still there");
+  assert.ok(!s.players.p1.drop.includes(host));
+  assert.ok(s.players.p1.drop.includes(buried), "and the pile under it went to the Drop instead");
+  assert.deepEqual(s.cards[host].under, []);
+  assertConsistent(s);
+}
+
+{
+  // The primitive's other half, written as a `replace` rather than as the
+  // `replaceLeave` macro the compiler still emits for it: a redirect of the KO
+  // leaves the card in `removed`. The rule comes off the record rather than
+  // the text, which is what `card_rules` does in a real game.
+  DEFS.EXILEKO = {
+    ...DEFS.V1,
+    id: "EXILEKO",
+    name: "EXILEKO",
+    skill: "[Permanent] If this card would be KO'd, remove it from the game instead.",
+  };
+  const record = { ops: [{ op: "replace", event: "ko", with: [{ op: "moveTo", target: { sel: { special: "self" } }, to: "removed" }] }], unsupported: [] };
+  assert.equal(validateProgram(record.ops), true);
+  const ctx = {
+    defs: DEFS,
+    scripts: new Proxy({} as Record<string, unknown>, {
+      get: (_, key) => (key === "EXILEKO" ? { bySkill: { 0: record }, complete: true, unsupported: [] } : CTX.scripts[key as string]),
+    }),
+  } as typeof CTX;
+
+  const s = arena({ battle: ["EXILEKO"] });
+  const exile = find(s, "p1", "battle", "EXILEKO");
+  koCard(ctx, s, [], exile);
+  assert.ok(s.players.p1.removed.includes(exile), "a KO-to-removed replacement leaves the card out of the game");
+  assert.ok(!s.players.p1.drop.includes(exile));
+  assertConsistent(s);
+
+  // The event is the one named: the same card returned to hand by a skill is
+  // still returned to hand, because only its KO was replaced.
+  const t = arena({ battle: ["EXILEKO"] });
+  const other = find(t, "p1", "battle", "EXILEKO");
+  move(ctx, t, [], other, "hand", "p1", { reason: "effect" });
+  assert.ok(t.players.p1.hand.includes(other), "a `ko` replacement replaces the KO and nothing else");
+  assertConsistent(t);
 }
