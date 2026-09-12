@@ -11,16 +11,20 @@
  * of its own rules were not there, which is precisely the failure a
  * configuration-driven engine has to make loud.
  *
- * The DBS files are #133–#135. `triggers.rules` is in (#134), so the set the
- * app actually loads is held to the claim that file makes: every moment a
- * record's WHEN may name is a moment the definition declares, and no other.
- * #136 grows this file into the ruleset suite proper (whole-file round trips,
- * and every legacy union covered by a declaration).
+ * The DBS files have begun to arrive (#133: `game.rules`, `attributes.rules`,
+ * `zones.rules`; #134: `triggers.rules`), so the set the app actually loads is
+ * checked for what those four carry: that it loads, that it is the game it
+ * says it is, that the areas of the manual's §3 are all declared, and that
+ * every moment a record's WHEN may name is a moment the definition declares
+ * and no other. #136 grows this file into the ruleset suite proper (whole-file
+ * round trips beyond the DBS set, and every remaining legacy union covered by
+ * a declaration — the keywords among them, which are #135).
  *
  * Part of `npm test`; run from `scripts/verify-arena.ts`, which fixes the order.
  */
 import assert from "node:assert/strict";
-import { loadRuleset, loadDbs, rulesetFor, DBS_FILES, HOOK_POINTS, type RulesetError } from "../../src/lib/arena/rulesets";
+import { loadRuleset, loadDbs, rulesetFor, HOOK_POINTS, type RulesetError } from "../../src/lib/arena/rulesets";
+import { deepEqual, parseDefinitions, printDefinitions } from "../../src/lib/arena/lang";
 import { TRIGGERS, describeTrigger } from "../../src/lib/arena/gaps";
 import type { CounterWindow } from "../../src/lib/arena/engine/types";
 
@@ -201,52 +205,88 @@ assert.equal(unknownHook.clause, "KEYWORD");
  */
 const COUNTER_WINDOWS = ["play", "attack", "battleCardAttack", "counter", "skill"] as const satisfies readonly CounterWindow[];
 
+// The real DBS declarations, as far as they go. The completeness assertions —
+// every `Area`, `Trigger`, keyword and `Phase` of the legacy engine declared
+// and nothing it does not know — are #136's; these are the claims #133's three
+// files make on their own.
 const dbs = loadDbs();
+assert.ok(dbs.ok, `the DBS ruleset did not load: ${dbs.ok ? "" : JSON.stringify(dbs.errors, null, 2)}`);
+if (dbs.ok) {
+  const { definition: def, vocabulary: vocab } = dbs;
+  assert.equal(def.id, "dbs");
+  assert.equal(def.game?.title, "Dragon Ball Super Card Game", "the DBS ruleset does not say which game it is");
+  // The setup numbers of the manual's 6-1 and 6-2-1, which are the whole
+  // reason `DEFINE GAME` has fields rather than a title.
+  assert.equal(def.game?.players, 2);
+  assert.equal(def.game?.deck, 50, "the deck size of 6-1-3");
+  assert.equal(def.game?.hand, 6, "the opening hand of 6-2-1-9");
+  assert.equal(def.game?.life, 8, "the life of 6-2-1-10");
+  assert.equal(def.game?.mulligan, true, "the redraw of 6-2-1-9-1");
+  // Twelve areas in the manual's §3, plus the three a program has to be able
+  // to name: `removed` (20-10), `under` (23-2) and `play` (9-1-3-1).
+  assert.equal(Object.keys(def.zones).length, 15, `the DBS ruleset declares ${Object.keys(def.zones).length} zones, not 15`);
+  assert.deepEqual(vocab.areas, Object.keys(def.zones), "the vocabulary's areas are not the zones the game declared");
+  for (const zone of ["deck", "hand", "drop", "leader", "battle", "combo", "energy", "life", "warp", "unison", "zDeck", "zEnergy", "removed", "under", "play"]) {
+    assert.ok(zone in def.zones, `no DEFINE ZONE for ${JSON.stringify(zone)}`);
+  }
+  assert.equal(def.zones.battle.inPlay, true, "the Battle Area is where a card is in play (9-1-3-1)");
+  assert.equal(def.zones.unison.single, true, "only one card is in a Unison Area at a time (3-11-4)");
+  assert.equal(def.zones.deck.visibility, "none", "the Deck Area is a secret area (3-2-2)");
+  // Every phase of the turn the GAME names is declared, and the two that are
+  // not a turn's (`setup`, `over`) are declared beside them.
+  for (const phase of def.game?.phases ?? []) assert.ok(phase in def.phases, `DEFINE GAME names a phase ${JSON.stringify(phase)} with no declaration`);
+  assert.equal(Object.keys(def.phases).length, 6, "the six phases the engine knows are not all declared");
+  // The two defeat conditions of 0-1-3-2. Conceding and a card that ends the
+  // game are gaps, recorded in the history entry of 12 Sep 2026.
+  assert.deepEqual(Object.keys(def.wins).sort(), ["deckOut", "lifeOut"]);
+  assert.equal(def.wins.lifeOut.result, "lose");
+  // Every field of `CardDef` has a card attribute, so #136 has nothing to
+  // report about this file; the derived ones beside them have no printed
+  // counterpart, which is why the check is one-directional.
+  for (const attr of ["id", "name", "type", "colors", "energyCost", "specifiedCost", "zEnergyCost", "power", "comboCost", "comboPower", "characters", "traits", "skill", "back", "alsoNames"]) {
+    assert.ok(attr in def.attributes, `no DEFINE ATTRIBUTE for CardDef's ${JSON.stringify(attr)}`);
+  }
+  assert.equal(def.attributes.power.layers?.[0], "printed", "power does not say the printed value is its base (9-9-1-1)");
+  assert.equal(def.sources["zone:battle"], "zones.rules");
+  assert.equal(def.sources["game:dbs"], "game.rules");
+  assert.equal(def.sources["attribute:power"], "attributes.rules");
+  // Whole files, printed and read back: the round-trip promise over the
+  // declarations the app actually loads.
+  const printed = printDefinitions(def.definitions);
+  const reread = parseDefinitions(printed);
+  assert.ok(reread.ok, `the DBS ruleset does not re-parse after printing: ${reread.ok ? "" : JSON.stringify(reread.error)}`);
+  if (reread.ok) assert.ok(deepEqual(reread.value, def.definitions), "printing the DBS ruleset and reading it back does not give the same declarations");
 
-/**
- * #133's `zones.rules` is not merged yet, and a trigger's `to: battle` names a
- * zone nothing declares until it is — so what this branch can load is the same
- * files with those zones supplied. The failure is held to exactly that: an
- * error that is not a zone the declarations name is a real one, and the list
- * below is the zones #133 has to declare for this to resolve on its own.
- * Delete the stub, and this comment, with that merge.
- */
-const MISSING_ZONE = /names a zone called "([^"]+)"/;
-const missingZones = dbs.ok ? [] : [...new Set(dbs.errors.map((e) => MISSING_ZONE.exec(e.message)?.[1] ?? null))];
-assert.ok(
-  dbs.ok || (missingZones.length > 0 && missingZones.every((z) => z !== null)),
-  `the DBS ruleset fails for something other than #133's missing zones: ${dbs.ok ? "" : JSON.stringify(dbs.errors.map((e) => e.message), null, 2)}`,
-);
-const zonesStub = missingZones.map((z) => lines(`DEFINE ZONE ${z}`, "  owner: player", "  visibility: all")).join("\n\n");
-const loaded = dbs.ok ? dbs : loadRuleset({ ...DBS_FILES, "0-zones-until-133.rules": zonesStub });
-assert.ok(loaded.ok, `the DBS ruleset did not load: ${loaded.ok ? "" : JSON.stringify(loaded.errors, null, 2)}`);
-
-if (loaded.ok) {
-  assert.equal(loaded.definition.id, "dbs");
-
-  // The assertion this issue exists for: the moments the record's WHEN is
+  // ── #134's triggers ──────────────────────────────────────────────────────
+  // The assertion that issue exists for: the moments the record's WHEN is
   // validated against (`TRIGGERS`, which `lang/validate.ts` reads) and the
   // moments the definition declares are one list. Reported both ways by name,
   // because "53 !== 58" says nothing about which one went missing.
-  const declared = Object.keys(loaded.definition.triggers);
-  const wanted = [...TRIGGERS, ...COUNTER_WINDOWS.map((w) => `counter:${w}`)];
-  const undeclared = wanted.filter((t) => !declared.includes(t));
-  const unanswerable = declared.filter((t) => !wanted.includes(t));
+  const declaredTriggers = Object.keys(def.triggers);
+  const wantedTriggers = [...TRIGGERS, ...COUNTER_WINDOWS.map((w) => `counter:${w}`)];
+  const undeclared = wantedTriggers.filter((t) => !declaredTriggers.includes(t));
+  const unanswerable = declaredTriggers.filter((t) => !wantedTriggers.includes(t));
   assert.deepEqual(undeclared, [], `the record's WHEN can name moments triggers.rules does not declare: ${undeclared.join(", ")}`);
   assert.deepEqual(unanswerable, [], `triggers.rules declares moments no record's WHEN can name: ${unanswerable.join(", ")}`);
-  assert.equal(declared.length, wanted.length, "a moment is declared twice");
+  assert.equal(declaredTriggers.length, wantedTriggers.length, "a moment is declared twice");
+  assert.deepEqual(vocab.triggers, declaredTriggers, "the vocabulary's triggers are not the moments the game declared");
 
   // And the same list in *words*: a declaration's `text:` is the WHEN line the
   // board would print, so #137 can make `TRIGGER_IN_WORDS` a re-export of the
   // vocabulary rather than a second copy that drifts.
   for (const t of TRIGGERS) {
-    assert.equal(loaded.vocabulary.words[`trigger:${t}`], describeTrigger([t]), `the declaration of ${t} does not say in words what the record's WHEN says`);
+    assert.equal(vocab.words[`trigger:${t}`], describeTrigger([t]), `the declaration of ${t} does not say in words what the record's WHEN says`);
   }
-  for (const w of COUNTER_WINDOWS) assert.ok(loaded.vocabulary.words[`trigger:counter:${w}`], `the ${w} counter window is declared with no words for it`);
+  for (const w of COUNTER_WINDOWS) assert.ok(vocab.words[`trigger:counter:${w}`], `the ${w} counter window is declared with no words for it`);
 
-  // Every zone a trigger's pattern names is resolved — the whole reason the
-  // file cannot load before #133. These are the zones it asks that game for.
-  assert.ok(loaded.vocabulary.areas.includes("battle"), "the triggers name no Battle Area, so nothing was resolved");
+  // The nine zones a trigger's pattern names resolve against `zones.rules` —
+  // the one thing about this file that needed #133, and the reason the DBS set
+  // loads rather than merely parses.
+  assert.equal(def.sources["trigger:played"], "triggers.rules");
+  for (const zone of ["battle", "combo", "drop", "energy", "hand", "leader", "life", "unison", "zEnergy"]) {
+    assert.ok(zone in def.zones, `the triggers name ${JSON.stringify(zone)}, which no DEFINE ZONE declares`);
+  }
+
 }
 
 assert.equal(loadDbs(), dbs, "the ruleset is parsed again on every read");

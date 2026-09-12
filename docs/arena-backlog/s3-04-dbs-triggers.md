@@ -69,12 +69,12 @@ which `lang/validate.ts` validates a record's WHEN against) against the loaded `
 reported by name in both directions — and the matching check that each declaration's `text:` is the
 sentence the record already prints, so #137 can make `TRIGGER_IN_WORDS` a re-export.
 
-**Depends on #133.** The declarations name nine zones (`battle`, `combo`, `drop`, `energy`, `hand`,
-`leader`, `life`, `unison`, `zEnergy`), and the loader checks a trigger pattern's `from`/`to`/`in`/
-`area`/`zone` arguments against declared `ZONE`s — so the DBS set does not resolve until
-`zones.rules` declares them. Until then the suite loads the same files with those zones stubbed and
-holds the real failure to exactly that one cause; the stub is a marked block to delete with #133's
-merge.
+**#133 landed first, as planned.** The declarations name nine zones (`battle`, `combo`, `drop`,
+`energy`, `hand`, `leader`, `life`, `unison`, `zEnergy`), and the loader checks a trigger pattern's
+`from`/`to`/`in`/`area`/`zone` arguments against declared `ZONE`s — so the DBS set only resolves
+once `zones.rules` declares them, which it now does. `main` was merged in, the transitional zone
+stub deleted, and the suite asserts the nine directly: `loadDbs()` is `ok` and each of those zones
+is in `def.zones`.
 
 What writing the 53 out found — one name pended from several moments, several names from one, and
 two names (`energyToDrop`, `damageStart`) with no call site at all — is in

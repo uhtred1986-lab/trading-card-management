@@ -1,0 +1,151 @@
+-- What a card and a player have, as declarations.
+--
+-- Sections are `docs/rules/rulemanual.txt`: §2 is the parts of a card, §1-2
+-- energy costs (total and specified), §1-9 the front and back sides, §1-14
+-- energy markers, §9-9-1 the order continuous effects are applied in, §20-1
+-- names a skill gives a card in all areas and §20-21 increasing or reducing
+-- an energy cost.
+--
+-- `printed: true` means the value is read off the card itself — "the
+-- information specified on a card itself", which §9-9-1-1 makes the base
+-- reference for everything below it. `layers:` is the order the game then
+-- applies to reach the value the rules actually use, §9-9-1 throughout:
+--   printed   the face value (9-9-1-1)
+--   rewrite   every continuous effect except those that rewrite a number
+--             (9-9-1-2)
+--   numeric   the continuous effects that rewrite a number (9-9-1-3)
+-- A cost has its own two layers because a reduction is not a rewrite of the
+-- printed cost but a discount on the price being paid (20-21): `reduction`
+-- is the flat one, `specified` the coloured one, and they move apart —
+-- `docs/arena-history-lessons.md`, 8 Sep 2026 and the owner's BT19-039
+-- ruling of 9 Sep 2026.
+--
+-- Where an attribute's real domain cannot be said in this grammar — `value:`
+-- knows five shapes and no enum, no union and no map — the text says what the
+-- domain is instead, and the history entry of 12 Sep 2026 records the gap
+-- rather than the file stretching to cover it.
+
+-- ── printed on the card (§2) ───────────────────────────────────────────────
+
+DEFINE ATTRIBUTE id                                                       -- §2-14
+  of: card
+  value: string
+  printed: true
+  text: "the card number, which is what a copy limit and every reference to a card counts by (2-14, 6-1-5-1)"
+
+DEFINE ATTRIBUTE name                                                     -- §2-3
+  of: card
+  value: string
+  printed: true
+  text: "the card name (2-3)"
+
+DEFINE ATTRIBUTE type                                                     -- §2-1
+  of: card
+  value: string
+  printed: true
+  text: "the card type, one of LEADER, BATTLE, EXTRA, UNISON, Z-LEADER, Z-BATTLE, Z-EXTRA, Z-UNISON and TOKEN (2-1, 10 to 19)"
+
+DEFINE ATTRIBUTE colors                                                   -- §2-2
+  of: card
+  value: colors
+  printed: true
+  text: "the card's colors: red, blue, green, yellow, black, white, or none of them (1-8, 2-2)"
+
+DEFINE ATTRIBUTE energyCost                                               -- §2-5
+  of: card
+  value: number
+  printed: true
+  text: "the total cost of playing the card from hand; an X cost is a number its master chooses when it is paid and zero at every other time (1-2-2, 1-2-2-2)"
+
+DEFINE ATTRIBUTE specifiedCost                                            -- §1-2-3
+  of: card
+  value: colors
+  printed: true
+  text: "the coloured orbs of the energy cost, one entry per orb, that must be matched in colour when the cost is paid (1-2-3, 5-3)"
+
+DEFINE ATTRIBUTE zEnergyCost                                             -- §2-6
+  of: card
+  value: number
+  printed: true
+  text: "the Z-Energy cost of playing the card from the Z-Deck (1-4, 2-6)"
+
+DEFINE ATTRIBUTE power                                                    -- §2-7
+  of: card
+  value: number
+  printed: true
+  layers: [printed, rewrite, numeric]
+  text: "the number a battle is decided by (2-7, 8-4); combo power is added to it only in the Damage Step (5-7)"
+
+DEFINE ATTRIBUTE comboCost                                                -- §2-9
+  of: card
+  value: number
+  printed: true
+  text: "the energy paid to use the card in a combo (2-9, 5-6)"
+
+DEFINE ATTRIBUTE comboPower                                               -- §2-8
+  of: card
+  value: number
+  printed: true
+  layers: [printed, rewrite, numeric]
+  text: "the power the card adds when it is used in a combo (2-8, 5-7)"
+
+DEFINE ATTRIBUTE characters                                               -- §2-10
+  of: card
+  value: strings
+  printed: true
+  text: "the character names the card carries, written in angle brackets (2-10)"
+
+DEFINE ATTRIBUTE traits                                                   -- §2-11
+  of: card
+  value: strings
+  printed: true
+  text: "the special traits the card carries, written in double angle brackets (2-11)"
+
+DEFINE ATTRIBUTE skill                                                    -- §2-4
+  of: card
+  value: string
+  printed: true
+  text: "the card's text box, which is every skill it has before any is gained or negated (2-4, 1-5)"
+
+DEFINE ATTRIBUTE back                                                     -- §1-9
+  of: card
+  value: boolean
+  printed: true
+  text: "whether the card has a back side to turn to — a Leader's awakened face, or a Z-Leader's single face (1-9). What is printed on that face is a face of its own, which this grammar has no kind for; see the history entry of 12 Sep 2026"
+
+DEFINE ATTRIBUTE alsoNames                                                -- §20-1
+  of: card
+  value: strings
+  printed: false
+  text: "the card names a skill gave this card in all areas; it answers to these as well as to its printed name, never instead of it (20-1)"
+
+-- ── what the board makes of them (§9-9-1, §20-21) ──────────────────────────
+
+DEFINE ATTRIBUTE costOf                                                   -- §20-21
+  of: card
+  value: number
+  printed: false
+  layers: [printed, reduction, specified]
+  text: "the price of playing this card as it stands: the printed total cost, less every cost reduction in force, with the coloured half relaxed or tightened on its own (20-21-1, 20-21-2)"
+
+DEFINE ATTRIBUTE comboCostOf                                              -- §20-21
+  of: card
+  value: number
+  printed: false
+  layers: [printed, reduction]
+  text: "the combo cost as it stands, after every reducer in force, and never less than zero (5-7-3, 20-21-2)"
+
+DEFINE ATTRIBUTE zEnergyCostOf                                            -- §20-21
+  of: card
+  value: number
+  printed: false
+  layers: [printed, reduction]
+  text: "the Z-Energy cost as it stands, after every reducer in force, and never less than zero (5-4, 20-21-2)"
+
+-- ── what a player has (§1-14) ──────────────────────────────────────────────
+
+DEFINE ATTRIBUTE energyMarkers                                            -- §1-14
+  of: player
+  value: number
+  printed: false
+  text: "the energy markers in a player's Energy Area: each pays one energy of the Leader's colour, and neither is a card nor is energy (1-14-1, 1-14-2, 1-14-3)"
