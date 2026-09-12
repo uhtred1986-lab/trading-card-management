@@ -89,7 +89,9 @@ assert.equal(
 
 const childA = parseIssueFile(
   "s9-01-child-a.md",
-  ["---", "title: Child A", "milestone: Arena M9 — Example", "labels: backlog", "stage: 9", "---", "Body A"].join("\n")
+  ["---", "title: Child A (renamed)", "milestone: Arena M9 — Example", "labels: backlog", "stage: 9", "issue: 501", "---", "Body A"].join(
+    "\n"
+  )
 );
 const childB = parseIssueFile(
   "s9-02-child-b.md",
@@ -119,15 +121,17 @@ const tracking = parseIssueFile(
 
 const allIssues = [childA, childB, otherStageChild, tracking];
 
-// Child A has a known GitHub number and is closed remotely; Child B has no
-// number yet ("not created"); the other-stage child must not appear at all.
-const numbers = new Map<string, number>([["Child A", 501]]);
-const remoteB: GhIssue[] = [{ number: 501, title: "Child A", state: "CLOSED" }];
-const expanded = expandChildren(tracking, allIssues, numbers, remoteB);
+// Child A is matched by its `issue:` number even though the remote issue's
+// title is still the *old* title — the rename `expandChildren` must survive
+// (a title-only lookup, as GitHub sees the rename, would miss it and print
+// "not created yet" for an issue that plainly exists). Child B has no number
+// yet ("not created"); the other-stage child must not appear at all.
+const remoteB: GhIssue[] = [{ number: 501, title: "Child A (old title on GitHub)", state: "CLOSED" }];
+const expanded = expandChildren(tracking, allIssues, remoteB);
 
 assert.ok(expanded.includes("Intro paragraph."));
 assert.ok(expanded.includes("Trailer paragraph."));
-assert.ok(expanded.includes("- [x] #501 Child A"), expanded);
+assert.ok(expanded.includes("- [x] #501 Child A (renamed)"), expanded);
 assert.ok(expanded.includes("- [ ] Child B (not created yet)"), expanded);
 assert.ok(!expanded.includes("Other stage child"), expanded);
 assert.ok(!expanded.includes("{{children}}"));

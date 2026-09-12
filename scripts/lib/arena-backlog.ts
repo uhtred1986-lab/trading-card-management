@@ -169,27 +169,24 @@ export function findRemoteMatch(meta: IssueMeta, remote: GhIssue[]): GhIssue | u
 }
 
 /**
- * Rebuilds a tracking issue's `{{children}}` list from the current issue
- * numbers and remote state — the Node port of `import-arena-backlog.ps1`'s
- * `Expand-Children`. `numbers` maps a child's title to its GitHub issue
- * number; children with no known number print as "not created yet".
+ * Rebuilds a tracking issue's `{{children}}` list from current remote state —
+ * the Node port of `import-arena-backlog.ps1`'s `Expand-Children`. Each child
+ * is resolved against `remote` the same way `pushOne`/`runCheck` do, via
+ * `findRemoteMatch` (the `issue:` number first, exact title second) — a
+ * title-only lookup would silently detach a child whose local title was
+ * renamed after its `issue:` number was written, the exact drift `issue:` is
+ * meant to survive. Children with no match print as "not created yet".
  */
-export function expandChildren(
-  tracking: IssueMeta,
-  allIssues: IssueMeta[],
-  numbers: Map<string, number>,
-  remote: GhIssue[]
-): string {
+export function expandChildren(tracking: IssueMeta, allIssues: IssueMeta[], remote: GhIssue[]): string {
   const children = allIssues
     .filter((i) => !i.tracking && i.stage === tracking.stage)
     .sort((a, b) => a.file.localeCompare(b.file));
 
   const rows = children.map((child) => {
-    const n = numbers.get(child.title);
-    if (!n) return `- [ ] ${child.title} (not created yet)`;
-    const state = remote.find((r) => r.number === n)?.state;
-    const box = state === "CLOSED" ? "[x]" : "[ ]";
-    return `- ${box} #${n} ${child.title}`;
+    const match = findRemoteMatch(child, remote);
+    if (!match) return `- [ ] ${child.title} (not created yet)`;
+    const box = match.state === "CLOSED" ? "[x]" : "[ ]";
+    return `- ${box} #${match.number} ${child.title}`;
   });
 
   return tracking.body.replace("{{children}}", rows.join("\n"));

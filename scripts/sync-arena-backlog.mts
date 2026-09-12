@@ -273,8 +273,7 @@ async function runPush(
   }
   // Tracking issues push last and with `{{children}}` expanded, same order as --sync.
   for (const meta of targets.filter((i) => i.tracking)) {
-    const numbers = new Map(remote.map((r) => [r.title, r.number] as const));
-    const body = expandChildren(meta, issues, numbers, remote);
+    const body = expandChildren(meta, issues, remote);
     await pushOne({ ...meta, body }, client, remote, milestoneCache, dryRun);
   }
 }
@@ -284,11 +283,10 @@ async function runPush(
 async function runSync(issues: IssueMeta[], client: BacklogGhClient, dryRun: boolean): Promise<void> {
   console.log(`\nRe-evaluating tracking issues...`);
   const remote = await client.listIssues();
-  const numbers = new Map(remote.map((r) => [r.title, r.number] as const));
 
   for (const tracking of issues.filter((i) => i.tracking)) {
     const match = findRemoteMatch(tracking, remote);
-    const body = expandChildren(tracking, issues, numbers, remote);
+    const body = expandChildren(tracking, issues, remote);
     if (!match) {
       console.warn(`[warn] tracking issue not found on GitHub: "${tracking.title}"`);
       continue;
