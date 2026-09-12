@@ -22,6 +22,7 @@ import {
   labels,
   matches,
   move,
+  parseConditionClause,
   parseFilter,
   parseSkills,
   parseTarget,
@@ -1715,4 +1716,34 @@ import type { GameState, Trigger } from "./harness";
   assert.equal(s.turnPlayer, "p2", "…it is now the opponent's Main Phase");
   assert.equal(s.cards[card].mode, "active", "and the card stood up on it");
   assertConsistent(s);
+}
+
+{
+  // s2-93 family 5: a card's power as a condition, in the sets' other word
+  // orders.
+  //
+  // The compiler read only "if this card's power is 30000 or more". The same
+  // question is printed with the verb "has", and with the measure on either
+  // side of the noun — "if this card has 20000 **power or more**", "if your
+  // opponent's Leader Card has 10000 **or less power**" — and seven skills
+  // went unread for those three small differences. An unread condition takes
+  // its clause with it, so BT28-003 and EX25-31, whose whole text is the
+  // condition and the grant, read as nothing at all.
+  const cond = (s: string) => parseConditionClause(s)?.cond ?? null;
+  assert.deepEqual(cond("if this card has 20000 power or more"), { kind: "power", sel: { special: "self" }, atLeast: 20000 }, "BT20-090");
+  assert.deepEqual(cond("if this card's power is 20000 or more"), { kind: "power", sel: { special: "self" }, atLeast: 20000 }, "…the same condition as the wording already read");
+  assert.deepEqual(cond("if your Leader Card has 15000 power or less"), { kind: "power", sel: { special: "leader" }, atMost: 15000 }, "BT15-028");
+  assert.deepEqual(cond("if your opponent's Leader Card has 10000 or less power"), { kind: "power", sel: { special: "opponentLeader" }, atMost: 10000 }, "BT1-015");
+  // A subject the grammar cannot name stays unread rather than being guessed
+  // at: these are a measure of a card an earlier clause named, and a condition
+  // is parsed with no antecedent to resolve them against (ground rule 5).
+  assert.equal(cond("if its power is 20000 or more"), null, "BT3-001");
+  assert.equal(cond("if you or your opponent's Leader Card has 15000 or more power"), null, "BT3-026: either Leader, which `power` states of one selector");
+
+  // The whole [Permanent], which read as nothing before: EX25-31.
+  const perm = compileSkill(parseSkills("[Permanent] If this card has 15000 power or more, it gains [Barrier] and [Blocker].")[0]);
+  assert.equal(perm.unsupported.length, 0);
+  const reading = describeScript(perm.ops, { permanent: true });
+  assert.ok(reading.includes("if this card has 15000 or more power"), reading);
+  assert.ok(reading.includes("[Barrier]") && reading.includes("[Blocker]"), reading);
 }

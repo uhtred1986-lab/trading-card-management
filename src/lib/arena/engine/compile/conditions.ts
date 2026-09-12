@@ -259,6 +259,29 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   if ((m = /^this card'?s power is (\d+) or (more|less)$/.exec(t))) {
     return { cond: { kind: "power", sel: { special: "self" }, ...(m[2] === "more" ? { atLeast: Number(m[1]) } : { atMost: Number(m[1]) }) }, subject: { sel: { special: "self" } } };
   }
+  // The same question in the two word orders the sets print beside it: "if
+  // **this card has 20000 power or more**" (BT20-090, BT20-107, BT20-108,
+  // BT28-003, EX25-31) and "if **your opponent's Leader Card has 10000 or less
+  // power**" (BT1-015). The measure moves in front of the noun or behind it,
+  // and the verb is "has" rather than "is" — three small differences from the
+  // phrase above, and none of them changes what is being asked. Seven skills
+  // went unread for them, and an unread condition takes its clause with it:
+  // BT28-003 and EX25-31 are [Permanent]s whose whole text is the condition
+  // and the grant, so neither read at all.
+  //
+  // Only the three subjects the grammar can already name. "**Its** power is
+  // 20000 or more" (BT3-001) and "**that card** has 25000 power or less"
+  // (EX09-01) are the same measure of a card an earlier clause named, and a
+  // condition is parsed with no antecedent to resolve them against; "**you or
+  // your opponent's** Leader Card has 15000 or more power" (BT3-026) asks
+  // about either Leader, which `power` states of one selector at a time. Those
+  // five stay unread (ground rule 5).
+  if ((m = /^(this card|your leader(?: card)?|your opponent's leader(?: card)?) has (?:(\d+) or (more|less) power|(\d+) power or (more|less))$/.exec(t))) {
+    const n = Number(m[2] ?? m[4]);
+    const bound = (m[3] ?? m[5]) === "more" ? { atLeast: n } : { atMost: n };
+    const sel: Selector = m[1] === "this card" ? { special: "self" } : m[1].startsWith("your opponent") ? { special: "opponentLeader" } : { special: "leader" };
+    return { cond: { kind: "power", sel, ...bound }, subject: { sel } };
+  }
   // "If your Leader Card has ≪Saiyan≫ in its special trait", "… has {Son Goku}
   // in its card name", "… has <Vegeta> in its character name".
   if ((m = /^your leader(?: card)? has (.+) in its (?:special traits?|card name|character names?)$/.exec(t))) {
