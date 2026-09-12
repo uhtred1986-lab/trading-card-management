@@ -25,6 +25,8 @@ Operations (each is an object with "op"; a field marked ? may be left out):
   {"op":"play","target":TARGET,"mode"?:"active"|"rest","onto"?:TARGET,"negated"?:"turn"|"game"}
     "onto" plays it on top of another card ([Union-Absorb], 22-13-6-3); "negated" is "played with its skills negated" (9-1-5)
   {"op":"switchMode","target":TARGET,"mode":"active"|"rest"}
+  {"op":"modifyAttr","target"?:TARGET,"attr":"power"|"comboPower"|"colors"|"characters"|"traits"|"names","amount"?:AMOUNT,"values"?:["…"],"until"?:DURATION}
+    the primitive under "power", "comboPower" and "gains" (docs/arena-ruleset-spec.md §2.3): one attribute of one card, "amount" for the two numbers and "values" for the lists it also counts as. Those three spellings are still what the compiler writes and what a stored rule holds — prefer them; this row is what they mean
   {"op":"power","target":TARGET,"amount":AMOUNT,"until":DURATION}
     an amount may also be {"count":SELECTOR,"times":5000} (so much for each card) or {"sumPower":{"var":"rested"}} (the total power of named cards)
   {"op":"comboPower","target":TARGET,"amount":AMOUNT,"until":DURATION}

@@ -96,7 +96,7 @@ Nineteen primitives carry every row below — fourteen operations and five condi
 | Primitive | Today | What it says |
 |---|---|---|
 | `move` | `moveTo` | A card changes area, with a cause. Prohibitions, replacements, and the moments of leaving and arriving hang off this one op. |
-| `modifyAttr` | — (#130) | One attribute of one subject, by a delta or by a value, for a duration or for as long as the rule holds. |
+| `modifyAttr` | `modifyAttr` | One attribute of one subject, by a delta or by a value, for a duration or for as long as the rule holds. |
 | `costModifier` | `costReduction` | What something costs to play, activate or evolve — a whole price, not a number (§2.5). |
 | `negate` | `negateSkills` | A rule stops applying: a card's skills, one kind of them, one named keyword, or the skill resolving now. |
 | `replace` | `replaceLeave` | An event that is about to happen happens differently, or not at all (9-10, #125). |
@@ -148,6 +148,7 @@ disagree or if a row is missing from either.
 | `moveTo` | primitive | This **is** `move`. |
 | `play` | primitive | The play action, not a destination (5-5); see §2.2 for why this row is provisional. |
 | `switchMode` | macro over `modifyAttr` | Active or Rest is an attribute of the card; "switched to Rest Mode by one of your skills" (1-10) is a trigger on the change and its cause. |
+| `modifyAttr` | primitive | One attribute of one card, by a delta (`amount`) or by the values it also counts as (`values`), for a duration or — printed as a [Permanent] — for as long as the rule holds. The row the three below lower to, and the reason they are one mechanism rather than three. |
 | `power` | macro over `modifyAttr` | Attribute `power`, by a delta, for a duration. |
 | `comboPower` | macro over `modifyAttr` | Attribute `comboPower`. The only difference from the row above is which attribute — which is the argument this table exists to make. |
 | `grant` | macro over `modifyAttr` | Attribute `keywords`: the card gains a keyword skill for a duration. What the keyword then does is the hook contract (§4). |

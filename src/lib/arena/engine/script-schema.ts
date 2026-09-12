@@ -1,5 +1,5 @@
 import type { CardFilter } from "./filters";
-import type { Amount, Cond, Duration, Op, Ref, ScriptArea, Selector, Side, SpecialTarget } from "./script";
+import type { Amount, CardAttr, Cond, Duration, Op, Ref, ScriptArea, Selector, Side, SpecialTarget } from "./script";
 import type { Color, DelayScope, DelayTiming, ForbiddenAction, KeywordSkill, SkillKindPrefix } from "./types";
 
 // ── the schema: one row per op, read by everything that is not the interpreter ──
@@ -65,6 +65,7 @@ const COLORS = ["Red", "Blue", "Green", "Yellow", "Black", "White", "Colorless"]
 export const SIDES = ["you", "opponent", "both"] as const satisfies readonly Side[];
 export const SPECIAL_TARGETS = ["self", "attacker", "guard", "subject", "leader", "opponentLeader", "resolving", "onTop"] as const satisfies readonly SpecialTarget[];
 export const AREAS = ["hand", "deck", "drop", "life", "battle", "combo", "energy", "unison", "leader", "warp", "zDeck", "zEnergy", "under", "play", "removed"] as const satisfies readonly ScriptArea[];
+export const CARD_ATTRS = ["power", "comboPower", "colors", "characters", "traits", "names"] as const satisfies readonly CardAttr[];
 export const DURATIONS = ["battle", "turn", "opponentTurn", "nextTurn", "afterNextCharge", "game"] as const satisfies readonly Duration[];
 const DELAY_TIMINGS = ["turnStart", "mainStart", "turnEnd", "turnCleanup", "battleEnd"] as const satisfies readonly DelayTiming[];
 const DELAY_SCOPES = ["thisTurn", "nextTurn", "yourNextTurn", "opponentNextTurn"] as const satisfies readonly DelayScope[];
@@ -107,6 +108,14 @@ const COST_REDUCTION_FIELDS: OpField[] = [
   { name: "what", type: { enum: ["energy", "skill", "evolve", "combo", "zEnergy", "specified"] }, default: "energy" },
   { name: "skillKind", type: { enum: SKILL_KIND_PREFIXES } },
   { name: "colors", type: { list: { enum: ["any", ...COLORS] } } },
+  { name: "until", type: "duration" },
+];
+/** `modifyAttr`'s fields, named for the same reason `costReduction`'s are: its `sentence` hands them to `renderTemplate` for the two numeric attributes. */
+const MODIFY_ATTR_FIELDS: OpField[] = [
+  { name: "target", type: "ref", default: { sel: { special: "self" } } },
+  { name: "attr", type: { enum: CARD_ATTRS }, required: true },
+  { name: "amount", type: "amount", default: 0 },
+  { name: "values", type: { list: "string" } },
   { name: "until", type: "duration" },
 ];
 const SELF: OpField = { name: "target", type: "ref", default: { sel: { special: "self" } } };
@@ -158,6 +167,23 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     doc: '"onto" plays it on top of another card ([Union-Absorb], 22-13-6-3); "negated" is "played with its skills negated" (9-1-5)',
   },
   switchMode: { fields: [TARGET, { name: "mode", type: MODE, required: true }], sentence: "switch {target} to {mode} mode" },
+  modifyAttr: {
+    fields: MODIFY_ATTR_FIELDS,
+    // Two sentences, because the two numbers and the four lists are different
+    // sentences in English: "+5000 power for the turn" against "also counts
+    // as ≪Saiyan≫". They are the same mechanism, which is the point of the
+    // row, but a reading that said "power: +≪Saiyan≫" would be worse than no
+    // row at all.
+    sentence: (raw, r) => {
+      const op = raw as OpOf<"modifyAttr">;
+      if (op.attr === "power" || op.attr === "comboPower")
+        return renderTemplate(`{target} {amount:${op.attr === "power" ? "power" : "combo power"}}{until}`, raw as unknown as Record<string, unknown>, MODIFY_ATTR_FIELDS, r);
+      const words = (op.values ?? []).join(", ");
+      const said = op.attr === "traits" ? `\u226a${words}\u226b` : op.attr === "characters" ? `<${words}>` : op.attr === "names" ? `the card named ${words}` : words;
+      return `${describeRef(op.target ?? { sel: { special: "self" } })} also counts as ${said}${forThe(op.until, r)}`;
+    },
+    doc: 'the primitive under "power", "comboPower" and "gains" (docs/arena-ruleset-spec.md §2.3): one attribute of one card, "amount" for the two numbers and "values" for the lists it also counts as. Those three spellings are still what the compiler writes and what a stored rule holds — prefer them; this row is what they mean',
+  },
   power: {
     fields: [TARGET, { name: "amount", type: "amount", required: true }, UNTIL],
     sentence: "{target} {amount:power}{until}",
@@ -376,6 +402,7 @@ export const OP_CLASS: Record<Op["op"], OpClass> = {
   moveTo:             "primitive",
   play:               "primitive",
   switchMode:         "macro over `modifyAttr`",
+  modifyAttr:         "primitive",
   power:              "macro over `modifyAttr`",
   comboPower:         "macro over `modifyAttr`",
   grant:              "macro over `modifyAttr`",

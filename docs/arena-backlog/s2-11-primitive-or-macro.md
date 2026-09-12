@@ -45,3 +45,34 @@ stage: 2
 3. Make the table checkable: add `export const OP_CLASS: Record<Op["op"], "primitive" | "macro">` and `COND_CLASS` beside the schemas in `script-schema.ts` (the `Record` type forces a row per op, so a new op without a decision fails `npm run typecheck`), and a test in `scripts/verify/language.ts` that every name in the table in the doc appears in `OP_CLASS` and vice versa.
 4. Introduce `modifyAttr(target, attr: "power" | "comboPower" | "colors" | "characters" | "traits", delta | value, until)` as a primitive: `Op` union (`script.ts` line 207), `OP_SCHEMA` row, one `case` in `stepScript` (line 629) that lowers to the same `ContinuousEffect` kinds `power`/`comboPower`/`gains` produce today (`types.ts` line 376). Keep `power`, `comboPower`, `gains` as rows and printed forms; the language changes nothing (`scripts/verify/lang.ts` stays green).
 5. Prove nothing moved: `npm run arena:readings` diff empty; `npm run arena:reprobe` 0 moved; `contract:emit` reviewed (a new row moves `effect-language.txt`, expected).
+
+---
+
+## What the table decided — 12 Sep 2026, while doing the work
+
+Written into `docs/arena-ruleset-spec.md` §2; kept here so the issue records what the classification
+found rather than only that it happened.
+
+- **Nineteen primitives carry all sixty-four rows** — fourteen operations (`move`, `modifyAttr`,
+  `choose`, `reveal`, `shuffle`, `token`, `play`, `forbid`, `permit`, `immune`, `if`, `chooseMode`,
+  `delay`, `note`) and five conditions (`count`, `did`, `not`, `any`, `isTurnPlayer`). Four of the
+  primitives the macros lower to are the *general form* of a row that exists — `move` is `moveTo`,
+  `negate` is `negateSkills`, `costModifier` is `costReduction`, `replace` is `replaceLeave` (#125).
+- **Three departures from the plan's sketch**, each argued in §2.2–§2.3 rather than assumed:
+  `marker` is not a primitive (a marker count is a number on a card, so `addMarker`/`removeMarker`
+  are `modifyAttr`); `permit` is kept as one (its vocabulary is disjoint from `forbid`'s, though
+  merging the two into a `permission` primitive would be a rename, not a mechanism); and
+  `costModifier` is *not* folded into `modifyAttr` even though a cost is an attribute, because a
+  price is orbs, a life payment or a whole program (`altCost`) and the specified cost never touches
+  a total at all (BT19-039, 9 Sep 2026).
+- **`play` is provisional.** It is a primitive only until Stage 3 declares the play action (#133,
+  §3): which zone the card ends in, whether its text resolves and which moments fire are that
+  action's steps, and no destination says them.
+- **Five requirements fall out** (§2.5), none of them built here: `modifyAttr` must reach a player
+  (`energyMarker`) and the battle in progress (`redirectAttack`) as well as a card; `move` must
+  carry a cause, or `damage` and `lifeDownTo` become the same op; filters must name `flipped`,
+  `markers`, "battled this turn" and the battle's roles, which is what five condition rows lower to;
+  a price is structured, not scalar; and amounts must grow into expressions (#122) before
+  `lifeDownTo`, `lifeVsOpponent` and `every` can be written as macros.
+- **The row list in the steps above is one short**: `COND_SCHEMA` has a `not` row, which the
+  issue's prose ran together with `did` and `chose`. Eighteen conditions, all classified.

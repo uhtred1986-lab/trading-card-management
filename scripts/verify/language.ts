@@ -20,6 +20,7 @@ import {
   arena,
   canonical,
   card,
+  cardNow,
   clauseShape,
   compileSkill,
   condSignature,
@@ -271,6 +272,47 @@ import type { CardFilter, SchemaOp } from "./harness";
   const r = apply(ctx as never, s, { type: "play", player: "p1", card: find(s, "p1", "hand", "KILLER") });
   assert.notEqual(r.state.prompt.kind, "gameOver");
   void r;
+}
+
+// ── modifyAttr: the primitive plays as the spellings it stands under ────────
+//
+// `docs/arena-ruleset-spec.md` §2.3 says `power`, `comboPower` and `gains`
+// are one mechanism. That is only true if a rule written either way lands in
+// the same place, so it is asserted here rather than argued in the document:
+// the same board, the same skill, two programs, one answer. Three paths,
+// because the mechanism has three — a skill that resolves, and the static
+// layer's two halves (a number while the card is in play, a list in every
+// area).
+{
+  const rule = (name: string, ops: unknown) => ({ defs: DEFS, scripts: { [name]: { bySkill: { 0: { ops, unsupported: [] } }, complete: true, unsupported: [] } } }) as never;
+  const yourBattle = { sel: { side: "you", area: "battle", count: 99 } };
+
+  // Resolving: an [Auto] that pumps your Battle Cards when it is played.
+  const played = (ops: unknown) => {
+    const ctx = rule("DRAWER", ops);
+    const s = arena({ hand: ["DRAWER"], energy: ["V1"], battle: ["V1"] });
+    const target = find(s, "p1", "battle", "V1");
+    const r = apply(ctx, s, { type: "play", player: "p1", card: find(s, "p1", "hand", "DRAWER") });
+    return powerOf(ctx, r.state, target);
+  };
+  const spelled = played([{ op: "power", target: yourBattle, amount: 5000, until: "turn" }]);
+  assert.equal(spelled, 15000, "the `power` op still pumps");
+  assert.equal(played([{ op: "modifyAttr", target: yourBattle, attr: "power", amount: 5000, until: "turn" }]), spelled, "modifyAttr(power) is the same continuous effect");
+
+  // The static layer, for a [Permanent] that never resolves.
+  const aura = (ops: unknown) => {
+    const ctx = rule("AURA", ops);
+    const s = arena({ battle: ["AURA", "V1"] });
+    return { ctx, s, v1: find(s, "p1", "battle", "V1") };
+  };
+  const power = aura([{ op: "modifyAttr", target: yourBattle, attr: "power", amount: 5000, until: "game" }]);
+  assert.equal(powerOf(power.ctx, power.s, power.v1), 15000, "…and the same aura from the static layer");
+
+  // A list attribute is read wherever the card is, which is what `gains` says.
+  const gained = aura([{ op: "gains", target: yourBattle, traits: ["Saiyan"] }]);
+  const counts = aura([{ op: "modifyAttr", target: yourBattle, attr: "traits", values: ["Saiyan"] }]);
+  assert.deepEqual(cardNow(counts.ctx, counts.s, counts.v1).traits, cardNow(gained.ctx, gained.s, gained.v1).traits, "modifyAttr(traits) is `gains`");
+  assert.ok(cardNow(counts.ctx, counts.s, counts.v1).traits.includes("Saiyan"), "…and both of them gained it");
 }
 
 // ── the engine reads rows and nothing else ───────────────────────────────────

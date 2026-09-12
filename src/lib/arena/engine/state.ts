@@ -732,7 +732,7 @@ let computingStatics = false;
  * `arena:coverage` uses so its "applied by the static layer" line means what
  * it says — keep this list beside the switch it describes.
  */
-const STATIC_OPS = new Set<Op["op"]>(["power", "comboPower", "grant", "costReduction", "replaceLeave", "gains", "negateKeyword", "forbid", "permit", "immune", "altCost"]);
+const STATIC_OPS = new Set<Op["op"]>(["power", "comboPower", "modifyAttr", "grant", "costReduction", "replaceLeave", "gains", "negateKeyword", "forbid", "permit", "immune", "altCost"]);
 
 export function emitsStatic(ops: Op[]): boolean {
   return ops.some((o) => (o.op === "if" ? emitsStatic(o.then) || emitsStatic(o.else ?? []) : STATIC_OPS.has(o.op)));
@@ -787,6 +787,23 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
       const dest = op.to === "play" ? "battle" : op.to === "under" ? "drop" : (op.to as Area);
       const targets = op.target ? staticTargets(ctx, s, frame, op.target) : [source];
       for (const id of targets) out.push({ source, kind: "replaceLeave", target: id, value: { to: dest, by: op.by, mode: op.mode, optional: op.optional } });
+      continue;
+    }
+    // The same sentence said by the primitive (`docs/arena-ruleset-spec.md`
+    // §2.3): one list at a time, so the value is built with the other three
+    // empty. It is collected here rather than below for the same reason
+    // `gains` is — what a card counts as does not depend on where it sits —
+    // and the two numbers are collected beside `power` instead.
+    if (op.op === "modifyAttr" && op.attr !== "power" && op.attr !== "comboPower") {
+      const vals = op.values ?? [];
+      const value = {
+        traits: op.attr === "traits" ? vals : [],
+        characters: op.attr === "characters" ? vals : [],
+        // The schema takes the values as plain words; the colours among them are the game's own.
+        colors: op.attr === "colors" ? (vals as Color[]) : [],
+        names: op.attr === "names" ? vals : [],
+      };
+      for (const id of op.target ? staticTargets(ctx, s, frame, op.target) : [source]) out.push({ source, kind: "gains", target: id, value });
       continue;
     }
     // "In all areas" again: what a card counts as does not depend on where it is.
@@ -857,6 +874,14 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
       const value = typeof op.amount === "number" ? op.amount : "count" in op.amount || "markers" in op.amount ? amount(ctx, s, frame, op.amount) : null;
       if (value == null) continue;
       for (const id of staticTargets(ctx, s, frame, op.target)) out.push({ source, kind: op.op, target: id, value });
+    } else if (op.op === "modifyAttr" && (op.attr === "power" || op.attr === "comboPower")) {
+      // The same read as the two ops above, including which amounts a
+      // [Permanent] can evaluate at all: it has no frame that ever bound a
+      // variable, so `count` and `markers` are the only shapes with an answer.
+      const a = op.amount ?? 0;
+      const value = typeof a === "number" ? a : "count" in a || "markers" in a ? amount(ctx, s, frame, a) : null;
+      if (value == null) continue;
+      for (const id of staticTargets(ctx, s, frame, op.target ?? { sel: { special: "self" } })) out.push({ source, kind: op.attr, target: id, value });
     } else if (op.op === "grant") {
       for (const id of staticTargets(ctx, s, frame, op.target)) out.push({ source, kind: "keyword", target: id, value: op.keyword });
     }
