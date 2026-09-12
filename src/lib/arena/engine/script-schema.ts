@@ -4,7 +4,7 @@ import type { CardFilter } from "./filters";
 // them, which are lists), `AmountAttr` what an amount may *read as a number*.
 // Collapsing them would let `attr($t, colors)` stand where a number belongs.
 import type { Amount, AmountAttr, CardAttr, Cond, Duration, Op, Ref, ScriptArea, Selector, Side, SpecialTarget } from "./script";
-import type { Color, DelayScope, DelayTiming, ForbiddenAction, KeywordSkill, SkillKindPrefix } from "./types";
+import type { Color, DelayScope, DelayTiming, ForbiddenAction, KeywordSkill, Prompt, SkillKindPrefix } from "./types";
 
 // ── the schema: one row per op, read by everything that is not the interpreter ──
 
@@ -83,6 +83,22 @@ export const KEYWORD_NAMES = [
 type MissingKeyword = Exclude<KeywordSkill["name"], (typeof KEYWORD_NAMES)[number]>;
 const _everyKeywordListed: MissingKeyword extends never ? true : never = true;
 void _everyKeywordListed;
+
+/**
+ * Every `Prompt["kind"]` (`engine/types.ts`), so `scripts/verify/rulesets.ts`
+ * can check `prompts.rules` against a runtime list rather than a type — the
+ * union itself has none. `prompts.rules` is #135's open question (`DEFINE
+ * PROMPT` awaits the owner's word on #131); this array exists so the two
+ * cannot drift apart once it lands.
+ */
+export const PROMPT_KINDS = [
+  "chooseFirst", "mulligan", "charge", "main", "combo", "blocker", "counter", "orderPending", "chooseCards", "chooseMode",
+  "replaceMove", "zEnergyFromCombo", "optionalCost", "payCost", "offering", "empowerCarry", "referee", "gameOver",
+] as const satisfies readonly Prompt["kind"][];
+// A prompt kind types.ts adds but this list does not would go unchecked; make it fail the typecheck instead.
+type MissingPromptKind = Exclude<Prompt["kind"], (typeof PROMPT_KINDS)[number]>;
+const _everyPromptKindListed: MissingPromptKind extends never ? true : never = true;
+void _everyPromptKindListed;
 
 /** Each prohibition as the verb phrase a sentence needs after "can't". Shared with `effects.ts`, so the inspector and the board say the same thing. */
 export const FORBIDDEN_IN_WORDS: Record<ForbiddenAction, string> = {

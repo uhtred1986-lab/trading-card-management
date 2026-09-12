@@ -12,19 +12,22 @@
  * configuration-driven engine has to make loud.
  *
  * The DBS files have begun to arrive (#133: `game.rules`, `attributes.rules`,
- * `zones.rules`; #134: `triggers.rules`), so the set the app actually loads is
- * checked for what those four carry: that it loads, that it is the game it
- * says it is, that the areas of the manual's §3 are all declared, and that
- * every moment a record's WHEN may name is a moment the definition declares
- * and no other. #136 grows this file into the ruleset suite proper (whole-file
- * round trips beyond the DBS set, and every remaining legacy union covered by
- * a declaration — the keywords among them, which are #135).
+ * `zones.rules`; #134: `triggers.rules`; #135: `keywords.rules`), so the set
+ * the app actually loads is checked for what those five carry: that it loads,
+ * that it is the game it says it is, that the areas of the manual's §3 are
+ * all declared, that every moment a record's WHEN may name is a moment the
+ * definition declares and no other, and that every keyword the parser reads
+ * is declared with the same arity. `words.rules` and `prompts.rules` still
+ * wait on the owner's word on DEFINE WORDS/PROMPT (#131). #136 grows this
+ * file into the ruleset suite proper (whole-file round trips beyond the DBS
+ * set, and every remaining legacy union covered by a declaration).
  *
  * Part of `npm test`; run from `scripts/verify-arena.ts`, which fixes the order.
  */
 import assert from "node:assert/strict";
-import { loadRuleset, loadDbs, rulesetFor, HOOK_POINTS, type RulesetError } from "../../src/lib/arena/rulesets";
+import { loadRuleset, loadDbs, rulesetFor, HOOK_POINTS, type KeywordDef, type RulesetError } from "../../src/lib/arena/rulesets";
 import { deepEqual, parseDefinitions, printDefinitions } from "../../src/lib/arena/lang";
+import { KEYWORD_NAMES } from "../../src/lib/arena/engine/script-schema";
 import { TRIGGERS, describeTrigger } from "../../src/lib/arena/gaps";
 import type { CounterWindow } from "../../src/lib/arena/engine/types";
 
@@ -206,9 +209,11 @@ assert.equal(unknownHook.clause, "KEYWORD");
 const COUNTER_WINDOWS = ["play", "attack", "battleCardAttack", "counter", "skill"] as const satisfies readonly CounterWindow[];
 
 // The real DBS declarations, as far as they go. The completeness assertions —
-// every `Area`, `Trigger`, keyword and `Phase` of the legacy engine declared
-// and nothing it does not know — are #136's; these are the claims #133's three
-// files make on their own.
+// every `Area`, keyword and `Phase` of the legacy engine declared and nothing
+// it does not know — are #136's; these are the claims #133's three files,
+// #134's `triggers.rules` and #135's `keywords.rules` make on their own.
+// words.rules and prompts.rules still wait on the owner's word on DEFINE
+// WORDS/PROMPT (#131).
 const dbs = loadDbs();
 assert.ok(dbs.ok, `the DBS ruleset did not load: ${dbs.ok ? "" : JSON.stringify(dbs.errors, null, 2)}`);
 if (dbs.ok) {
@@ -292,5 +297,75 @@ if (dbs.ok) {
 assert.equal(loadDbs(), dbs, "the ruleset is parsed again on every read");
 assert.equal(rulesetFor("dbs"), dbs, "a game's ruleset is not the one the loader cached");
 assert.equal(rulesetFor("fusion").ok, false, "Fusion World has no ruleset yet and must say so rather than load an empty one");
+
+// ── keywords.rules against KEYWORD_NAMES, both directions ──────────────────
+
+/**
+ * The parameters `keywordOf` (`engine/cards.ts`) builds for each keyword, as
+ * `keywords.rules`' own `TAKES` should read them. Hand-written against the
+ * `KeywordSkill` union (`engine/types.ts`) rather than derived from it — a
+ * union has no runtime shape to walk — but `Record` over `KEYWORD_NAMES`'
+ * own element type means a keyword added to one list and not the other
+ * fails `npm run typecheck` before this file ever runs, the same guard
+ * `npm test` already has for the glossary.
+ */
+const KEYWORD_ARITY: Record<(typeof KEYWORD_NAMES)[number], { name: string; type: string }[]> = {
+  Awaken: [{ name: "surge", type: "boolean" }],
+  Wish: [],
+  Field: [],
+  Blocker: [],
+  Critical: [],
+  Strike: [{ name: "x", type: "number" }],
+  Attack: [{ name: "x", type: "number" }],
+  Revenge: [],
+  Indestructible: [],
+  Barrier: [],
+  Deflect: [],
+  Unique: [],
+  Servant: [],
+  "Energy-Exhaust": [],
+  "Victory Strike": [],
+  "Warrior of Universe 7": [],
+  Ultimate: [],
+  "Super Combo": [],
+  "Dragon Ball": [],
+  Wormhole: [],
+  Invoker: [],
+  Heroic: [],
+  Villainous: [],
+  Offering: [],
+  Evolve: [{ name: "variant", type: "string" }],
+  Union: [{ name: "variant", type: "string" }],
+  "Over Realm": [
+    { name: "x", type: "number" },
+    { name: "dark", type: "boolean" },
+  ],
+  Swap: [{ name: "x", type: "number" }],
+  Arrival: [{ name: "colors", type: "colors" }],
+  Aegis: [{ name: "colors", type: "colors" }],
+  Alliance: [{ name: "colors", type: "colors" }],
+  Revive: [{ name: "colors", type: "colors" }],
+  Successor: [],
+  Overlord: [],
+  Rejuvenate: [],
+  "Spirit Boost": [{ name: "x", type: "number" }],
+  Empower: [
+    { name: "color", type: "color" },
+    { name: "x", type: "number" },
+  ],
+  "Z-Awaken": [],
+  "Z-Stack": [{ name: "x", type: "number" }],
+};
+
+if (dbs.ok) {
+  const declared = Object.keys(dbs.definition.keywords).sort();
+  const expected = [...KEYWORD_NAMES].sort();
+  assert.deepEqual(declared, expected, "keywords.rules and KEYWORD_NAMES do not name the same keywords");
+  for (const name of KEYWORD_NAMES) {
+    const keyword: KeywordDef | undefined = dbs.definition.keywords[name];
+    assert.ok(keyword, `keywords.rules has no DEFINE KEYWORD ${JSON.stringify(name)}`);
+    assert.deepEqual(keyword.takes ?? [], KEYWORD_ARITY[name], `DEFINE KEYWORD ${name} TAKES the wrong parameters for what keywordOf reads`);
+  }
+}
 
 console.log("verify/rulesets: ok");
