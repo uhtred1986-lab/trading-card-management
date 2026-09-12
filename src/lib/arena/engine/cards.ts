@@ -491,7 +491,13 @@ export function hasTrait(def: CardDef, name: string): boolean {
  * for this card **or at the end of the turn**” (BT25-040) then reads as one
  * moment made of both.
  */
-const TIMING_PHRASE = /at the (?:beginning|start|end) of (?:your opponent'?s|your|the|this|a) (?:next )?(?:turn|battle|charge phase|main phase|offense step|defense step|damage step)/;
+// The possessive admits both players named at once — "at the end of you and
+// your opponent's turns" (EX24-20), "at the end of each player's turn" — for
+// the same reason `EVERY_TURN_END` reads them in `triggers.ts`: a phrase this
+// does not admit is not a trailing trigger, so EX24-20's [Auto] had no moment
+// to fire at and the card never left the game. Plurals with it: the wording
+// that names both players names their turns in the plural.
+const TIMING_PHRASE = /at the (?:beginning|start|end) of (?:(?:you|your) (?:and|or) your opponent'?s|each player'?s|your opponent'?s|your|the|this|a) (?:next )?(?:turns?|battle|charge phase|main phases?|offense step|defense step|damage step)/;
 
 /**
  * The head of a skill's effect: where a trigger has to be printed.

@@ -1666,3 +1666,53 @@ import type { GameState, Trigger } from "./harness";
   assert.equal(last.op, "moveTo");
   assert.equal(last.target.minus, "c0", "BT3-062: the looked-at cards *minus* the one added to hand");
 }
+
+{
+  // s2-93 family 4: both players' turns named as one moment.
+  //
+  // "At the start of you and your opponent's Main Phases", "at the end of you
+  // and your opponent's turns", "at the end of each player's turn". Neither
+  // wording matched the one-sided phrase each trigger was anchored on, so
+  // twelve [Auto] skills answered to no trigger at all and never fired once —
+  // and nothing said so, because a timing clause is consumed whether or not a
+  // trigger was found for it, so these carried no unread clause and no gap to
+  // count. One moment in the text, two in the engine: the skill answers to
+  // both, and 7-1 means only one of them can happen at a time.
+  const every = parseSkills("[auto] At the start of you and your opponent's Main Phases, switch this card to Active Mode.")[0];
+  assert.ok(autoTriggerMatches(every, "mainStart"), "BT21-109: your own Main Phase");
+  assert.ok(autoTriggerMatches(every, "opponentMainStart"), "…and your opponent's");
+  const ends = parseSkills("[Auto] At the end of you and your opponent's turns, draw 1 card.")[0];
+  assert.ok(autoTriggerMatches(ends, "turnEnd") && autoTriggerMatches(ends, "opponentTurnEnd"), "BT21-100");
+  const each = parseSkills("[Auto] At the end of each player's turn, draw 1 card.")[0];
+  assert.ok(autoTriggerMatches(each, "turnEnd") && autoTriggerMatches(each, "opponentTurnEnd"), "BT15-032b");
+  const or = parseSkills("[Auto] At the end of your or your opponent's turn, return this card to its owner's hand.")[0];
+  assert.ok(autoTriggerMatches(or, "turnEnd") && autoTriggerMatches(or, "opponentTurnEnd"), "EX07-01");
+  // The one-sided wordings keep answering to one trigger and not the other —
+  // 7-1 is the rule this widening must not cross.
+  const mine = parseSkills("[Auto] At the end of your turn, draw 1 card.")[0];
+  assert.ok(autoTriggerMatches(mine, "turnEnd") && !autoTriggerMatches(mine, "opponentTurnEnd"), "one side stays one side");
+  const theirs = parseSkills("[auto] At the start of your opponent's Main Phase, switch this card to Active Mode.")[0];
+  assert.ok(autoTriggerMatches(theirs, "opponentMainStart") && !autoTriggerMatches(theirs, "mainStart"));
+  // EX24-20 prints the phrase at the *end* of its sentence, so `TIMING_PHRASE`
+  // has to admit it too or there is no trailing trigger to read and the card
+  // never leaves the game.
+  const trailing = parseSkills("[auto] Remove this card from the game at the end of you and your opponent's turns.")[0];
+  assert.equal(trailingTrigger(trailing), "at the end of you and your opponent's turns", "EX24-20");
+  assert.equal(compileSkill(trailing).unsupported.length, 0, "…and the phrase is then no longer part of the effect");
+
+  // The moment itself, on the board: a card that stands up every Main Phase
+  // was staying rested through the opponent's.
+  DEFS["EVERY-MAIN"] = {
+    ...DEFS.V1,
+    id: "EVERY-MAIN",
+    name: "EVERY-MAIN",
+    skill: "[auto] At the start of you and your opponent's Main Phases, switch this card to Active Mode.",
+  };
+  let s = arena({ battle: ["EVERY-MAIN"] });
+  const card = find(s, "p1", "battle", "EVERY-MAIN");
+  s.cards[card].mode = "rest";
+  s = play(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+  assert.equal(s.turnPlayer, "p2", "…it is now the opponent's Main Phase");
+  assert.equal(s.cards[card].mode, "active", "and the card stood up on it");
+  assertConsistent(s);
+}
