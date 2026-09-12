@@ -8,6 +8,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { stateText } from "../../src/lib/arena/ai/view";
+import { expandMacros, opsIn, rulesetFor } from "../../src/lib/arena/rulesets";
 import {
   COND_CLASS,
   COND_SCHEMA,
@@ -334,6 +335,43 @@ import type { CardFilter, SchemaOp } from "./harness";
 }
 
 // ── what Claude is told, kept ───────────────────────────────────────────────
+// ── every program the harness has, lowered to the primitives ────────────────
+//
+// The other half of `OP_CLASS`'s decision. A macro is not a deletion — a card's
+// rule keeps saying `power(…)` and `scripts/verify/lang.ts` keeps round-tripping
+// it by that name — so the claim that has to be checked somewhere else is that
+// the expansion *is* a program: every rule the compiler writes, lowered by the
+// game's own `DEFINE OP` declarations, is still something `validateProgram`
+// accepts and holds no declared macro.
+//
+// `ops.rules` declares none of the thirty-one yet (its header says what each
+// waits on), so today this sweep proves the weaker half: the expander is an
+// identity on a program with nothing to lower, which is the failure a
+// half-written walk would show first. Each row declared from here on is checked
+// over the whole harness by this one assertion.
+{
+  const loaded = rulesetFor("dbs");
+  assert.ok(loaded.ok, "the DBS ruleset did not load, so no program could be lowered");
+  if (loaded.ok) {
+    const macros = new Set(Object.keys(loaded.definition.ops));
+    let programs = 0;
+    for (const def of Object.values(DEFS)) {
+      for (const rec of skillRecords(def)) {
+        const where = `${rec.cardId}#${rec.side}#${rec.skillIndex}`;
+        const lowered = expandMacros(rec.ops as SchemaOp[], loaded.definition);
+        programs++;
+        // X is legal only once the price has bound it (20-5), so the sweep
+        // asks the validator the same question the store does.
+        assert.ok(validate(lowered, 0, !!rec.cost?.x), `${where}: lowering the program left something validateProgram refuses — ${JSON.stringify(lowered)}`);
+        const left = opsIn(lowered).filter((op) => macros.has(op));
+        assert.deepEqual(left, [], `${where}: the expansion still holds ${JSON.stringify(left)}, which ops.rules declares as a macro`);
+        if (!macros.size) assert.deepEqual(lowered, rec.ops, `${where}: a program with no macro in it did not come back unchanged`);
+      }
+    }
+    assert.ok(programs > 0, "no harness program was lowered, so the sweep proves nothing");
+  }
+}
+
 //
 // The referee's language and the board as the opponent reads it are prose
 // built in code. While that prose moves out of code and into the game's

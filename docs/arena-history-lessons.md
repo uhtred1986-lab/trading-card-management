@@ -2824,3 +2824,65 @@ Both are declared, as `"counter:skill"` and `"counter:battleCardAttack"`.
 22-41. Nothing about the engine changes — the doc comment is the thing that is wrong — but it is a
 reminder that the sections in the unions were written from memory and the ones in `rulesets/` were
 written from `docs/rules/rulemanual.txt`.
+
+---
+
+## What an engine is to the app — Stage 4, the `vm/` skeleton (12 Sep 2026)
+
+#138 builds nothing that plays. It answers two questions the next six issues would each have had to
+answer badly on their own: *what does the app ask of an engine*, and *what is a rules game's state*.
+Three decisions came out of doing it that the issue's sketch did not have, and each is a place a
+later stage would have tripped.
+
+### `engineFor` resolving and `playableEngine` refusing are two questions, not one
+
+`engineFor("rules")` threw `EngineNotBuilt`, which read as one rule and was doing two jobs: it was
+the switch that resolves a saved row's interpreter, *and* it was the guard that stopped a game being
+started on an engine that could not finish one. The moment the rules engine has to answer for
+anything at all, those come apart — a row on it must resolve, or it cannot even be refused by name.
+So the switch now resolves every id and `playableEngine(id)` is the guard, asking
+`ENGINE_INFO[id].available`, which is the same question `engine-setting.ts` already asked of the
+default-engine setting and the `/arena` form already asked to grey the option. `startGame` and
+`openMatch` call the guard; nothing else did, which is why this is two call sites and not twenty.
+
+The refusal has to stay at the top of `startGame`, before a deck is read: a game half-created on an
+engine that cannot play it is worse than one refused.
+
+### The seam is a check, not a cast
+
+The interface says a state is opaque, and it is — inside the six calls. Outside them the app is
+still entirely legacy-shaped: `games.ts` reads `state.turn` for the row's column and `state.phase`
+to decide the game is over, `snapshot.ts` reads `state.prompt`. A `Engine` that pretended otherwise
+would need a cast at the switch, and a cast is a promise nothing checks.
+
+`legacyState(value)` is that seam instead, and it is a runtime check: a `VmState` reaching
+legacy-shaped code throws `EngineMismatch` by name rather than being read field by field as
+`undefined`. It is cheap — one property read — and it makes the issue's third requirement real:
+*a row can never be replayed on the wrong interpreter*. That is also why `VmState` carries
+`engine: "rules"` at all. The legacy state has no `engine` field, so `isVmState` is a positive
+answer about one shape rather than a guess about the other, and it stays correct when the rules
+state grows the twenty fields it is missing.
+
+There are five of these seams (`games.ts` ×3, `arena-fuzz.mts`, `arena-diff.mts`) and each is one
+line naming the issue that removes it. Counting them is how the next stages will know how much of
+the app is still legacy-shaped.
+
+### `stateText` stayed out
+
+The issue offered it "if the debug page needs it". It does not: the two callers are
+`ai/run.ts` and `ai/opponent.ts`, and `chooseMove` has no engine id to route through — it is handed
+a `GameState` and reads it directly, as does everything else under `ai/`. An interface member that
+nothing calls through the switch is a claim the switch does not keep, so the interface is six calls
+and #162 is where the AI learns the second engine.
+
+### Lessons
+
+- **An adapter is a claim a test can check.** `verify/vm.ts` asserts each of the legacy engine's six
+  calls *is* the function the old imports named, by identity. A wrapper would have passed every
+  other suite and then drifted; this fails the moment someone "just adds a line" to one.
+- **A skeleton that answers `[]` is worse than one that throws.** `NotYet` names the call and the
+  issue that builds it, so a fuzz run or a script says what to read. A `legalActions` returning `[]`
+  would have looked like a game with nothing to do, which is a real state.
+- **Do not invent the state's fields early.** `VmState` has four, and three of them exist to say
+  what wrote it. #139 deals the board into it, #140 adds the flow, #141 the log — each knowing what
+  it needs. A skeleton that guessed at `turn` and `phase` now would have had them replaced twice.

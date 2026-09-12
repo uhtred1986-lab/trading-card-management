@@ -238,7 +238,14 @@ learned the expensive way. Read it before changing the compiler or the engine.
   setting (Settings → Arena engine, `engine-setting.ts`) is the default until the owner flips
   it. The old engine stays the **oracle**: `arena:diff` replays a game's actions on either
   engine and must land on the row's state. `Snapshot.game.engine`/`.game` are the one
-  contract change. Until the rules engine plays, `engineFor("rules")` throws `EngineNotBuilt`.
+  contract change. `engineFor` resolves **both** ids — the `Engine` interface is the six calls
+  `createGame`, `apply`, `legalActions`, `rejectedActions`, `boardView` and `toBeats`, and the
+  rules engine answers a call it cannot make yet with `NotYet`, naming the issue that builds it.
+  Whether a *new* game may be made on an engine is the separate question `playableEngine(id)`
+  asks of `ENGINE_INFO[id].available`, and the answer for `rules` is still no. Outside those six
+  calls the app is still legacy-shaped (`games.ts` reads `state.turn`), so `legacyState(value)`
+  is the seam: a `rules` state reaching it throws `EngineMismatch` rather than being read field
+  by field as `undefined`.
 - **The rules language** (`src/lib/arena/lang/`, `docs/arena-rules-language.md`, since 9 Sep
   2026): one closed grammar for a card's rule — WHEN / COST / IF / THEN — printed and parsed
   from `OP_SCHEMA`/`COND_SCHEMA` plus the `SELECTOR_FIELDS`/`FILTER_FIELDS` tables in
@@ -259,19 +266,25 @@ learned the expensive way. Read it before changing the compiler or the engine.
   arrives as a generated constant (`dbs/files.ts`, written by `npm run arena:rulesets` from the
   `.rules` files beside it), so nothing reads a file at request time.
   `docs/arena-ruleset-spec.md` §3 says what each file declares and what the loader refuses.
+  `expandMacros` (`rulesets/expand.ts`) is the other half of the plan's second decision: a
+  program written in the ops the cards use, lowered through the game's own `DEFINE OP`
+  declarations to the primitives an interpreter runs — an op with no declaration passes
+  through untouched, and the round-trip promise stays over the macro's *name*, never its
+  expansion. `dbs/ops.rules` declares none of the thirty-one yet and its header says what
+  each waits on (#137).
   **The game's words are the only words** (`rulesets/words.ts`, since 12 Sep 2026): the
-  language's parser, the workbench's chip editor (`optionsFor`) and the referee's prompt
-  (`effectLanguage`) read the areas, durations, sides and keyword names off that `Vocabulary`
-  rather than
-  each keeping a copy, so a zone deleted from `zones.rules` is gone from all three at once —
-  which is what `scripts/verify/rulesets.ts` asserts, by deleting one. `script-schema.ts`
-  keeps its arrays as the **legacy engine's** side of the same list, which #136's completeness
-  suite holds it to. `validateRule` reads `whenMoments()` — the game's triggers less the five
-  counter windows, which are a `CounterWindow` a [Counter] answers in and the only names in
-  `triggers.rules` a record's WHEN never says. `SPECIAL_TARGETS` is the one list with no
-  `Vocabulary` field and no `DEFINE` kind that could declare it. `lang/index.ts`
-  is where `parseRule`'s default vocabulary is bound, and the loader imports `lang/parse`
-  directly — the one module that must not ask for the words it produces.
+  language's parser, the workbench's chip editor (`optionsFor`), the referee's prompt
+  (`effectLanguage`) and `validateRule` read the areas, durations, sides, keyword names and
+  the moments a WHEN may name off that `Vocabulary` rather than each keeping a copy, so a zone
+  deleted from `zones.rules` is gone from all of them at once — which is what
+  `scripts/verify/rulesets.ts` asserts, by deleting one. `script-schema.ts` keeps its arrays as
+  the **legacy engine's** side of the same list, which #136's completeness suite holds it to.
+  `whenMoments()` is the game's triggers less the five counter windows: a `CounterWindow` is
+  what a [Counter] answers in, and those five are the only names in `triggers.rules` a record's
+  WHEN never says. `SPECIAL_TARGETS` is the one list with no `Vocabulary` field and no `DEFINE`
+  kind that could declare it. `lang/index.ts` is where `parseRule`'s default vocabulary is
+  bound, and the loader imports `lang/parse` directly — the one module that must not ask for
+  the words it produces.
 - **The record's WHEN is the engine's WHEN** (`skillAnswersTo` in `engine/triggers.ts`): an
   [Auto] skill's moment comes off `card_rules.trigger` (carried on `Script.trigger` by
   `rulesFor`), and only a skill with *no* record falls back to reading the printed text. The
