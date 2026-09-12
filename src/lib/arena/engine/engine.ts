@@ -16,7 +16,7 @@ import { baseType, canCombo, isZ, keywordOf, skillsOf, specifiedCostOf } from ".
 // a game compiled card text.
 import { costIsOnlyOrbs, costText, parseConditionClause } from "./compile";
 import { matches, parseCondition, parseFilter } from "./filters";
-import { stepScript, validateProgram, type CardScripts, type Cond, type Op, type ScriptFrame, type XCost } from "./script";
+import { savedXKey, stepScript, validateProgram, type CardScripts, type Cond, type Op, type ScriptFrame, type XCost } from "./script";
 import { koCard, pendTriggers } from "./triggers";
 import { nextRandom, shuffle } from "./rng";
 import { rejectedActions as gatherRejectedActions, type RejectionDeps } from "./rejections";
@@ -880,7 +880,13 @@ function runSkill(
     const key = costVarsKey(card, sk.index);
     const paid = s.continuations[key] as Record<string, string[]> | undefined;
     delete s.continuations[key];
-    const frame: ScriptFrame = { ops: script.ops, ip: 0, vars: { ...paid, ...vars }, card, master, trigger, subject, skillIndex: sk.index, ...(x === undefined ? {} : { x }) };
+    // 20-5: and the X the price bound, when the price was a choice rather than
+    // an energy payment. An energy X (the `x` argument) is the price the
+    // engine charged and wins; no skill prints both.
+    const paidX = s.continuations[savedXKey(key)] as number | undefined;
+    delete s.continuations[savedXKey(key)];
+    const boundX = x ?? paidX;
+    const frame: ScriptFrame = { ops: script.ops, ip: 0, vars: { ...paid, ...vars }, card, master, trigger, subject, skillIndex: sk.index, ...(boundX === undefined ? {} : { x: boundX }) };
     return stepScript(ctx, s, ev, frame);
   }
   const d = def(ctx, s, card);

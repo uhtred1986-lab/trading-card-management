@@ -43,13 +43,20 @@ export function validateRule(rule: unknown, kind: string): Invalid | null {
   // 20-5: the price is what binds X, so it is read before the steps are
   // checked. A rule that says `X` with no X in its price is refused here
   // rather than resolving as nothing at the table.
-  const xBound = isObject(rule.cost) && isObject((rule.cost as Record<string, unknown>).x);
+  //
+  // Two prices bind one: an energy `{X}` (`cost.x`), and a price that is a
+  // *choice* carrying `bindX` ("discard any number of cards: … X cards"),
+  // whose value crosses into the effect on the same continuation its names
+  // do. Only the price program's own top-level steps count, the same rule
+  // `validateProgram` applies inside a program: a `bindX` in a branch has not
+  // bound anything unless the branch ran.
+  const xBound = isObject(rule.cost) && (isObject((rule.cost as Record<string, unknown>).x) || bindsX((rule.cost as Record<string, unknown>).program));
   if (!validateProgram(rule.ops, 0, xBound)) {
     return {
       field: "ops",
       message: xBound
         ? "that is not a valid program — every step needs its required fields and known values"
-        : "that is not a valid program — every step needs its required fields and known values, and X may only be used when the price charges an X",
+        : "that is not a valid program — every step needs its required fields and known values, and X may only be used when the price charges an X or its own choice binds one",
     };
   }
   return null;
@@ -59,6 +66,11 @@ export function validateRule(rule: unknown, kind: string): Invalid | null {
 export function readRule(rule: unknown, kind: string): { rule: Rule } | { error: Invalid } {
   const bad = validateRule(rule, kind);
   return bad ? { error: bad } : { rule: rule as Rule };
+}
+
+/** Does this price's program bind X, at its own top level? */
+function bindsX(program: unknown): boolean {
+  return Array.isArray(program) && program.some((op) => isObject(op) && op.op === "choose" && op.bindX === true);
 }
 
 function costProblem(cost: unknown): string | null {

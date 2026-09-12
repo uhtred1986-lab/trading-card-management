@@ -98,7 +98,8 @@ have no call name to put in a table.
 item above; the effect then reads it back. **A program that says `X` without a price that binds it
 is refused by `validateRule`** — read as nothing, "draw X cards" would be a free skill that quietly
 does nothing. A `choose` step carrying `bindX: true` binds it instead, to how many cards were taken,
-and only the steps *after* that step may use it.
+and only the steps *after* that step may use it. A `bindX` in the price's own program binds X for
+the effect that follows it, which is how "discard any number of cards: … X cards" is written.
 
 The right-hand side of `*` and `+` is always a printed number. No card multiplies one reading of the
 board by another, and allowing it would leave the printed form ambiguous about which was read first.

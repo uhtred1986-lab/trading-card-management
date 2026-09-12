@@ -72,6 +72,11 @@ it already used for playing an X-cost card — charges it beside the skill's orb
 the frame, where `{x:true}` reads it. A `choose` may carry `bindX` instead. `validateProgram` /
 `validateRule` refuse a program that says `X` with nothing to bind it, checked in step order.
 
+`bindX` on a price that is a *choice* crosses into the effect on a key of its own beside the names
+the price bound (`savedXKey`), and `validateRule` counts a top-level `bindX` in the price program as
+a binder. BugBot caught that half missing on the PR: it bound X on the price's frame and threw when
+the effect read it.
+
 **Wordings unlocked** (one `verify/compiler.ts` assertion each): "for each marker on **it**"
 (P-377, P-378, DB3-144), "for each **1 energy you have**" (TB1-038, BT1-030 ×2, BT4-030),
 and the X price/effect pair. Tally: fully compiled 4,690 → 4,693; unread clauses 3,418 → 3,415, over 2,391 → 2,389 shapes.

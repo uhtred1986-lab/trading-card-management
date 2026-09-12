@@ -571,6 +571,9 @@ export interface CardScripts {
 /** What the engine has for a card nobody drafted: nothing, and it says so. */
 export const NO_RULES: CardScripts = Object.freeze({ bySkill: {}, complete: false, unsupported: [] }) as CardScripts;
 
+/** Where a price leaves the X it bound, beside where it leaves its names. */
+export const savedXKey = (saveVarsAs: string) => `${saveVarsAs}:x`;
+
 /** One running program. Stored in the flow, so a game can be saved mid-effect. */
 export interface ScriptFrame {
   ops: Op[];
@@ -695,7 +698,16 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
       // Might} … and place this card under the chosen card: **Add a marker to
       // the chosen card**." Handing the names on is what makes that one skill
       // rather than two.
-      if (frame.saveVarsAs) s.continuations[frame.saveVarsAs] = { ...frame.vars };
+      if (frame.saveVarsAs) {
+        s.continuations[frame.saveVarsAs] = { ...frame.vars };
+        // 20-5: and the X a `bindX` choose bound, for the prices that are a
+        // choice rather than an energy payment ("discard any number of cards:
+        // … X cards"). Under a key of its own rather than folded into the
+        // names, so the shape a game saved mid-price reads back is unchanged
+        // — the counter window between a price and its effect is exactly
+        // where such a game is stored.
+        if (frame.x !== undefined) s.continuations[savedXKey(frame.saveVarsAs)] = frame.x;
+      }
       return "done";
     }
     const op = frame.ops[frame.ip];

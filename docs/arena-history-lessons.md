@@ -2533,6 +2533,20 @@ The chip editor was extended in the same commit, not because these shapes are of
 but because a shape the editor cannot *show* is one it silently replaces the moment anything else on
 the chip is touched — the record would be narrowed with no way to see it happen.
 
+**One bug BugBot found on the PR, and it was real.** `bindX` on a `choose` set `frame.x`, and the
+price's frame hands its **names** to the effect through `saveVarsAs` — but only the names. So the
+half of `bindX` that the glossary and the grammar doc both described, a price that is a *choice*
+rather than an energy payment ("discard any number of cards: … X cards"), bound X on the price's
+frame and threw the moment the effect read it; and `validateRule` computed `xBound` from
+`cost.x` alone, so such a rule could not have been saved in the first place. X now crosses on a key
+of its own beside the names — `savedXKey`, not folded into them, because the counter window between
+a price and its effect is exactly where a game is stored and the shape that continuation reads back
+must not change — and the validator counts a top-level `bindX` in the price program as a binder, the
+same order rule `validateProgram` applies inside one. The regression test supplies the program
+rather than a wording, because no card prints this shape in words the compiler reads and the
+binding is the engine's to get right either way; without the handoff it fails with the thrown
+"this program reads X, but nothing bound it", which is what was checked before taking the fix.
+
 Tally: fully compiled 4,690 → 4,693 (72.2 → 72.3 %), unread clauses 3,418 → 3,415 over 2,391 → 2,389
 distinct shapes. `npm run typecheck`, `lint`, `test`, `build` clean; `arena:fuzz 40` 40 games, 0
 crashes; `contract:emit` moved `effect-language.txt` (the AMOUNT legend and `choose`'s `bindX`) and

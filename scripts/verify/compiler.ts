@@ -32,7 +32,8 @@ import {
   splitClauses,
   zEnergyCostOf,
 } from "./harness";
-import { validateProgram } from "../../src/lib/arena/engine/script";
+import { validateProgram, type Script } from "../../src/lib/arena/engine/script";
+import type { CardScripts } from "../../src/lib/arena/engine";
 import type { PlayerId } from "./harness";
 
 // ── the effect compiler ────────────────────────────────────────────────────
@@ -1442,6 +1443,56 @@ import type { PlayerId } from "./harness";
 
   assert.equal(s.players.p1.hand.length, before + 2, "it drew X cards");
   assert.equal(s.players.p1.energy.filter((id) => s.cards[id].mode === "active").length, activeBefore - 2, "…and paid X energy for them");
+  assertConsistent(s);
+}
+
+{
+  // 20-5, the other half: a price that is a *choice* rather than an energy
+  // payment binds X to how many cards it took, and that number has to cross
+  // into the effect. It crosses on a key of its own beside the names the price
+  // bound, because the continuation those names travel on is read back by
+  // games saved in the counter window between a price and its effect.
+  //
+  // Written against a supplied program rather than a printed wording: no card
+  // in the catalog prints this shape in words the compiler reads, and the
+  // binding is the engine's to get right either way. Without the handoff the
+  // effect throws "this program reads X, but nothing bound it".
+  const xFromChoice: Script = {
+    ops: [{ op: "draw", n: { x: true } }],
+    unsupported: [],
+    price: { condition: null, ops: [{ op: "choose", sel: { side: "you", area: "hand", count: 99, upTo: true }, as: "discarded", bindX: true }] },
+  };
+  const ctx = {
+    defs: DEFS,
+    scripts: new Proxy({} as Record<string, CardScripts>, {
+      get: (_, key) => (key === "ONCE" ? { bySkill: { 0: xFromChoice }, complete: true, unsupported: [] } : CTX.scripts[key as string]),
+    }),
+  };
+
+  let s = arena({ hand: ["ONCE", "V1", "V1"], energy: ["V1"] });
+  s = apply(ctx, s, { type: "play", player: "p1", card: find(s, "p1", "hand", "ONCE") }).state;
+  while (s.prompt.kind !== "main") s = apply(ctx, s, legalActions(ctx, s)[0].action).state;
+
+  const before = s.players.p1.hand.length;
+  s = apply(ctx, s, legalActions(ctx, s).find((a) => a.label.startsWith("Activate ONCE"))!.action).state;
+  // The price takes two of the cards in hand and then declines, which is how
+  // an "up to" choice ends early (5-2-4). The price only *chooses* them — it
+  // moves nothing — so the hand grows by exactly X and the assertion cannot be
+  // satisfied by a skill that did nothing.
+  let picked = 0;
+  while (s.prompt.kind === "chooseCards" && picked < 2) {
+    const pick = legalActions(ctx, s).find((a) => a.action.type === "choose" && a.action.cards.length > 0);
+    if (!pick) break;
+    s = apply(ctx, s, pick.action).state;
+    picked++;
+  }
+  const decline = legalActions(ctx, s).find((a) => a.action.type === "choose" && a.action.cards.length === 0);
+  assert.ok(decline, "an \"up to\" choice can be ended early");
+  s = apply(ctx, s, decline.action).state;
+  while (s.prompt.kind !== "main") s = apply(ctx, s, legalActions(ctx, s)[0].action).state;
+
+  assert.equal(picked, 2, "the price took two cards");
+  assert.equal(s.players.p1.hand.length, before + 2, "X was what the price chose: two chosen, two drawn");
   assertConsistent(s);
 }
 
