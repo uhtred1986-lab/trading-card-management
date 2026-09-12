@@ -1076,7 +1076,7 @@ function pushActivations(out: LegalAction[], ctx: EngineContext, s: GameState, p
     out.push({ action: { type: "activate", player: p, card, skill: sk.index, ...(alt ? { alt: true } : {}) }, label, cost });
     return;
   }
-  for (const x of xs) out.push({ action: { type: "activate", player: p, card, skill: sk.index, x }, label: `${label} with X = ${x}`, cost: { ...cost, energy: (cost.energy ?? 0) + x } });
+  for (const x of xs) out.push({ action: { type: "activate", player: p, card, skill: sk.index, x }, label: `${label} with X = ${x}`, cost: activationCost(ctx, s, card, sk, alt, x) });
 }
 
 /** "2 Green energy and 1 marker" — what an optional cost asks for. */
@@ -1675,13 +1675,20 @@ function playPrice(c: { total: number; specified: Partial<Record<Color, number>>
 }
 
 /** The price of declaring a skill: its orbs, plus the card's own cost for an Extra played from hand (12-2-2). */
-function activationCost(ctx: EngineContext, s: GameState, card: string, sk: Skill, alt: boolean): ActionCost {
+/**
+ * `x` is what an X price is being paid at (20-5), and it goes in here rather
+ * than being added to the returned `energy` afterwards: the figure and the
+ * sentence that names it are built from one number in one place. Patched on
+ * the way out, the number moved and the words stayed — "Activate XDRAW with
+ * X = 3" read "free" on the action sheet while three energy was charged.
+ */
+function activationCost(ctx: EngineContext, s: GameState, card: string, sk: Skill, alt: boolean, x = 0): ActionCost {
   const { total, specified } = orbTotals(ctx, s, card, sk);
   const fromHand = baseType(def(ctx, s, card)) === "EXTRA" && areaOf(s, card) === "hand" && !alt;
   const c = fromHand ? playCost(ctx, s, card) : { total: 0, specified: {} as Partial<Record<Color, number>> };
   const orbs: Partial<Record<Color, number>> = { ...c.specified };
   for (const [colour, n] of Object.entries(specified) as [Color, number][]) orbs[colour] = (orbs[colour] ?? 0) + n;
-  const energy = total + c.total;
+  const energy = total + c.total + x;
   const bits: string[] = [];
   if (alt) bits.push("alternative cost");
   else if (energy)
