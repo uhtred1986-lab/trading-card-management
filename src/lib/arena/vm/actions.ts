@@ -40,6 +40,7 @@ import type { Action, PlayerId, Prompt, Requirement } from "../engine/types";
 import type { Cond, Ref, Selector } from "../engine/script";
 import type { ActionDef, GameDefinition } from "../rulesets";
 import { attrsOf } from "./cards";
+import { actionCostOf, chargeCost, freePrice, planCost, priceFor, type Price } from "./costs";
 import { NotYet, RulesetBroken } from "./errors";
 import { answered, moved } from "./flow";
 import { log } from "./events";
@@ -58,6 +59,13 @@ import type { VmState } from "./state";
 export interface Candidate {
   card: string | null;
   why: Requirement[];
+  /**
+   * What the move costs this candidate, read once (#148). The menu wears it and
+   * the charge is taken from it, which is the promise `vm/costs.ts` exists to
+   * keep: a row whose figure came from a second reading of the price is the
+   * drift the legacy engine has lost twice.
+   */
+  price: Price;
 }
 
 /**
@@ -101,13 +109,15 @@ export function candidatesOf(ctx: EngineContext, game: GameDefinition, state: Vm
   return cards.map((card) => {
     const why = refusedBy(ctx, game, state, def, player, card);
     // 8-3-2-3: an action asks for a price by name and `costs.rules` says how it
-    // is charged. Neither the file nor the payment search exists yet, so a
-    // priced action is refused with the reason rather than silently offered for
-    // free — the same decision the price of 8 Sep 2026 made about a skill with
-    // no record. Last, so a card refused for a reason of its own says that one.
-    // Declining pays nothing, so it is not held up by a price either.
-    if (!why.length && def.cost?.length && !declining(def, card)) why.push(unpriced(def));
-    return { card, why };
+    // is charged (#148). Declining pays nothing, so the answer that takes no
+    // card is never held up by a price. The price is read **last**, so a card
+    // refused for a reason of its own says that reason rather than "1 short".
+    const price = def.cost?.length && !declining(def, card) ? priceFor(ctx, game, state, def, card) : freePrice();
+    if (!why.length && def.cost?.length && !declining(def, card)) {
+      const plan = planCost(ctx, game, state, player, price, card);
+      if (!plan.ok) why.push(...plan.why);
+    }
+    return { card, why, price };
   });
 }
 
@@ -121,12 +131,6 @@ export function candidatesOf(ctx: EngineContext, game: GameDefinition, state: Vm
  * about no card at all, and its one candidate is the move itself.
  */
 const declining = (def: ActionDef, card: string | null): boolean => card === null && def.for !== undefined;
-
-/** The requirement a price the interpreter cannot charge yet produces, in the one place both lists and `apply` read it from. */
-const unpriced = (def: ActionDef): Requirement => ({
-  kind: "other",
-  detail: `${def.label ?? def.name} asks for the price ${def.cost!.join(" and ")}, which the rules engine cannot charge yet (#148)`,
-});
 
 /**
  * Why this candidate is not offered, or nothing.
@@ -183,7 +187,8 @@ export function declaredLegalActions(ctx: EngineContext, game: GameDefinition, s
     if (def.listed === false) continue;
     for (const c of candidatesOf(ctx, game, state, def, player)) {
       if (c.why.length) continue;
-      out.push({ action: actionFor(game, def, player, c.card), label: labelFor(ctx, state, def, c.card) });
+      const cost = actionCostOf(c.price);
+      out.push({ action: actionFor(game, def, player, c.card), label: labelFor(ctx, state, def, c.card), ...(cost ? { cost } : {}) });
     }
   }
   return out;
@@ -290,19 +295,28 @@ function askedPlayer(state: VmState): PlayerId | null {
 // ── taking one ──────────────────────────────────────────────────────────────
 
 /**
- * Take a declared move, or say there is no declaration for it.
+ * What taking a declared move came to.
  *
- * Returns false for an action no `DEFINE ACTION` claims, so the caller can go
- * on to the moves that are still the interpreter's own (answering who goes
- * first, a mulligan, conceding) and refuse the rest by name.
+ * `"none"` is an action no `DEFINE ACTION` claims, so the caller can go on to
+ * the moves that are still the interpreter's own (answering who goes first, a
+ * mulligan, conceding) and refuse the rest by name. `"asked"` is a move that
+ * stopped **inside itself** to put a question — 3-8-2's "which energy" — and it
+ * is a third answer rather than a flag because the caller must not run the flow
+ * on: a game whose next step ran would have replaced the question with the one
+ * the step asks, which is exactly how a half-paid move loses its prompt.
+ */
+export type Applied = "none" | "done" | "asked";
+
+/**
+ * Take a declared move, or say there is no declaration for it.
  *
  * Everything a client may send is checked against the declarations and nothing
  * else: the contract's "a client picks a move by index" rests on a move that
  * was not offered being refused rather than quietly taken.
  */
-export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], action: Action): boolean {
+export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], action: Action): Applied {
   const def = game.actions[action.type];
-  if (!def) return false;
+  if (!def) return "none";
   const player = action.player;
 
   if (state.prompt.kind === "gameOver") throw new IllegalAction("the game is over");
@@ -319,17 +333,34 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
   const refused = refusedBy(ctx, game, state, def, player, card);
   if (refused.length) throw new IllegalAction(`${def.label ?? def.name} is refused: ${refused[0].kind}`);
 
-  // The price, then the program. Charging is #148's, and each says so rather
-  // than being skipped: an action that ran half of itself would be a board in a
-  // state no replay could reach.
-  if (def.cost?.length) throw new NotYet(`charge the price ${def.cost.join(" and ")} that ${def.name} asks for`, "#148");
+  // The price, then the program — in that order, and never half of one: an
+  // action whose program ran before its price was settled would be a board in a
+  // state no replay could reach (#148).
+  if (def.cost?.length && !declining(def, card)) {
+    const explicit = (action as { pay?: string[] }).pay;
+    const plan = planCost(ctx, game, state, player, chosen.price, card, explicit);
+    if (!plan.ok) throw new IllegalAction(`${def.label ?? def.name} cannot be paid for: ${plan.why[0].kind}`);
+    // 3-8-2: the player pays with whatever energy they like, so a price with
+    // more than one genuinely different answer is *asked* before it is taken —
+    // the existing `payCost` prompt, whose options are legacy `Payment` values,
+    // so one client answers either engine. `explicit` is that answer coming
+    // back, and a price with one way to pay is settled without a question.
+    if (explicit === undefined && plan.asks && plan.options.length > 1) {
+      // "play Son Goku" — the legacy engine's own wording for this prompt, which
+      // is the move's label with its first letter lowered.
+      const label = labelFor(ctx, state, def, card);
+      state.prompt = { kind: "payCost", player, action, options: plan.options, describe: label.charAt(0).toLowerCase() + label.slice(1) };
+      return "asked";
+    }
+    chargeCost(ctx, game, state, ev, player, plan.payment, card, def.cost);
+  }
   runProgram(ctx, game, state, ev, def, card);
 
   // The question has been answered. A step that means to ask again — the Main
   // Phase's free timing, 7-3-4 — is the flow's business and not the action's
   // (#146), so nothing here decides to re-ask.
   answered(state);
-  return true;
+  return "done";
 }
 
 /**

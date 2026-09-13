@@ -53,9 +53,19 @@ import {
   type Engine,
 } from "../../src/lib/arena/engines";
 import { boardView } from "../../src/lib/arena/view";
-import { refusal } from "../../src/lib/arena/wording";
+import { priceOf, refusal } from "../../src/lib/arena/wording";
 import {
   FilterNeedsAttribute,
+  actionCostOf,
+  activeEnergy,
+  cardPrice,
+  chargeCost,
+  chargesOf,
+  freePrice,
+  planCost,
+  priceFor,
+  type Price,
+  type VmPayment,
   MEASURES,
   NotYet,
   RulesetBroken,
@@ -95,7 +105,9 @@ import {
 import { loadRuleset, rulesetFor, type ActionDef, type GameDefinition } from "../../src/lib/arena/rulesets";
 import { FILTER_FIELD_NAMES, parseDefinitions } from "../../src/lib/arena/lang";
 import { emptyFilter, type CardFilter } from "../../src/lib/arena/engine/filters";
-import type { CardDef, PlayerId } from "../../src/lib/arena/engine/types";
+import { describePayment as legacyDescribe, paymentOptions as legacyOptions, planPayment, playCost, whyNotPay } from "../../src/lib/arena/engine/state";
+import { paymentOptions as vmOptions } from "../../src/lib/arena/vm/costs";
+import type { CardDef, Color, PlayerId } from "../../src/lib/arena/engine/types";
 import { CTX, DEFS, assertMenuInvariants, card, fifty, matches } from "./harness";
 
 const DECKS = { seed: 11, p1: { name: "You", leader: "L-RED", main: fifty("V1") }, p2: { name: "Claude", leader: "L-BLUE", main: fifty("V-BLUE") } };
@@ -1035,7 +1047,7 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
   {
     const ev: GameEvent[] = [];
     const played = structuredClone(s);
-    assert.equal(applyDeclared(CTX, game, played, ev, { type: "play", player: "p1", card: good }), true, "a declared move was not recognised by apply");
+    assert.equal(applyDeclared(CTX, game, played, ev, { type: "play", player: "p1", card: good }), "done", "a declared move was not recognised by apply");
     assert.deepEqual(ev, [{ type: "note", text: "played" }], "a declared move's DO program did not run");
     for (const card of [wrongColour, neither]) {
       assert.throws(() => applyDeclared(CTX, game, structuredClone(s), [], { type: "play", player: "p1", card }), IllegalAction, "a refused candidate was played anyway");
@@ -1043,20 +1055,46 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     assert.throws(() => applyDeclared(CTX, game, structuredClone(s), [], { type: "play", player: "p2", card: good }), IllegalAction, "the player who was not asked took the move");
   }
 
-  // A priced action is refused with the reason rather than offered for free:
-  // `costs.rules` and the payment search are #148, and a menu that hid that
-  // would be a move a player could take without paying for it.
+  // A priced action is **charged** (#148): the price comes off `costs.rules`,
+  // the refusal is the shortfall in the engine's own `Requirement` shapes, and
+  // a move that cannot be paid for is off the menu with that reason on it.
   {
-    const priced = withAction(PLAY.replace('  prompts: [main]', "  prompts: [main]\n  COST [energy]"));
-    // The price is named in a definition that declares no `DEFINE COST`, which
-    // is the loader's refusal and not this interpreter's — so the fixture is
-    // built past it on purpose, to reach the question this block is about.
+    const priced = withAction(PLAY.replace("  prompts: [main]", "  prompts: [main]\n  COST [energy]"));
+    // V1 costs 1 energy and demands one red orb, and nothing has been charged
+    // into the Energy Area yet — so the answer is the shortfall, not "#148".
     const menu = declaredLegalActions(CTX, priced, s);
-    assert.deepEqual(menu.filter((l) => l.action.type === "play"), [], "a move whose price the engine cannot charge is on the menu");
+    assert.deepEqual(
+      menu.filter((l) => l.action.type === "play"),
+      [],
+      "a move whose price cannot be paid is on the menu",
+    );
     const why = declaredRejectedActions(CTX, priced, s, menu);
     assert.equal(why.length, 3, "a priced move is not explained for every card it is about");
-    assert.match(JSON.stringify(why[0].why[0]), /#148/, "a price the engine cannot charge does not name the issue that charges it");
-    assert.throws(() => applyDeclared(CTX, priced, structuredClone(s), [], { type: "play", player: "p1", card: good }), NotYet, "a priced move was taken without being paid for");
+    const shortfall = why.find((r) => (r.action as { card?: string }).card === good)!;
+    assert.deepEqual(shortfall.why[0], { kind: "energy", need: 1, have: 0 }, "an unpayable price is not the shortfall the legacy engine reports");
+    assert.throws(() => applyDeclared(CTX, priced, structuredClone(s), [], { type: "play", player: "p1", card: good }), IllegalAction, "a move nobody can pay for was taken anyway");
+
+    // One red energy in the Energy Area, and the same paragraph offers it, says
+    // what it costs, and charges exactly that.
+    const paid = structuredClone(s);
+    const coin = paid.sides.p1.zones.deck.shift()!;
+    paid.cards[coin].cardId = "V1";
+    paid.cards[coin].mode = "active";
+    paid.sides.p1.zones.energy.push(coin);
+    const offered = declaredLegalActions(CTX, priced, paid).find((l) => l.action.type === "play" && (l.action as { card?: string }).card === good);
+    assert.ok(offered, "a price the board can meet is still not offered");
+    assert.deepEqual(offered!.cost, { energy: 1, orbs: { Red: 1 }, describe: "1 energy (1 red)" }, "the row does not wear the price the charge is taken from");
+    assert.deepEqual(declaredRejectedActions(CTX, priced, paid, declaredLegalActions(CTX, priced, paid)).filter((r) => (r.action as { card?: string }).card === good), [], "a move on the menu is also on the list of refusals");
+
+    const ev: GameEvent[] = [];
+    const took = structuredClone(paid);
+    assert.equal(applyDeclared(CTX, priced, took, ev, { type: "play", player: "p1", card: good }), "done", "a priced move was not taken");
+    assert.equal(took.cards[coin].mode, "rest", "the energy the price was planned against was not rested");
+    assert.deepEqual(
+      ev,
+      [{ type: "mode", card: coin, mode: "rest" }, { type: "note", text: "played" }],
+      "a priced move does not log the payment before its own program",
+    );
   }
 
   // And the declaration the DBS files really carry: `pass` re-declared (#144).
@@ -1249,6 +1287,355 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     assert.equal(conceded.winner, "p1", "conceding did not give the game to the other player");
     assert.equal(conceded.phase, DBS.game?.overPhase, "a conceded game did not come to rest in the phase the game names");
     assert.throws(() => rulesEngine.apply(CTX, conceded, { type: "concede", player: "p1" }), IllegalAction, "a finished game was conceded again");
+  }
+}
+
+
+
+// ── 17. the price, off the declarations (#148) ──────────────────────────────
+//
+// Four claims, and the first is the one the rest rest on.
+//
+//  1. **The planner answers what `planPayment` answers.** Board for board and
+//     price for price: payable or not, the *same* `Requirement`s when not, the
+//     same cards rested, the same options offered and the same words for them.
+//     The legacy search is the oracle (`docs/arena-tooling.md`), and a planner
+//     driven by `costs.rules` that quietly rested a different card would be a
+//     divergence no coverage number catches.
+//  2. **Every declared kind is charged**, not only energy: markers off the card
+//     paying (13-4), life to the Drop (21-3), the card's own mode (1-10-1), the
+//     20-19 payers, and the price declared `consumes: unreadable`, which is
+//     *refused* rather than charged — the reason `text` is a declaration at all.
+//  3. **The price shown is the price charged.** One `Price` becomes the
+//     `ActionCost` the row wears and the payment that is taken, and the figure
+//     it carries is the legacy engine's own, card for card over the harness.
+//  4. **The question is the existing one.** 3-8-2's "which energy" is the
+//     `payCost` prompt, its options are legacy `Payment` values, and answering
+//     it charges exactly what was picked — no new `Prompt` kind, so nothing in
+//     `contract/fixtures/` moves.
+{
+  const rulesEngine = engineFor("rules");
+
+  // Energy in colours the DBS fixtures do not otherwise stage. Added here, as
+  // §16's CHARGER is: this suite runs last, so nothing before it sees them.
+  DEFS["E-RED"] = card("E-RED", { colors: ["Red"] });
+  DEFS["E-BLUE"] = card("E-BLUE", { colors: ["Blue"] });
+  DEFS["E-GREEN"] = card("E-GREEN", { colors: ["Green"] });
+  DEFS["E-DUAL"] = card("E-DUAL", { colors: ["Red", "Blue"] });
+  // A cost-2 card that demands no colour, so both colours of energy are a
+  // genuinely different way to pay it — which is what 3-8-2 asks about.
+  DEFS["COST2"] = card("COST2", { energyCost: 2, colors: ["Colorless"] });
+
+  /** One staged board, described once and built on both engines so the two are the same game. */
+  interface Staged {
+    energy: string[];
+    markers: number;
+    leader: string;
+  }
+
+  /** The instance ids the energy takes. `p1#0` is the Leader on both engines (#139's dealing order). */
+  const energyIds = (n: number): string[] => Array.from({ length: n }, (_, i) => `p1#${i + 1}`);
+
+  function rulesBoard(b: Staged): VmState {
+    const s = rulesEngine.createGame(CTX, DECKS).state as VmState;
+    const ids = energyIds(b.energy.length);
+    ids.forEach((id, i) => {
+      s.cards[id].cardId = b.energy[i];
+      s.cards[id].mode = "active";
+    });
+    s.sides.p1.zones.deck = s.sides.p1.zones.deck.filter((id) => !ids.includes(id));
+    s.sides.p1.zones.energy = ids;
+    s.sides.p1.attrs.energyMarkers = b.markers;
+    s.cards[s.sides.p1.zones.leader[0]].cardId = b.leader;
+    return s;
+  }
+
+  function legacyBoard(b: Staged): GameState {
+    const s = createGame(CTX, DECKS).state;
+    const ids = energyIds(b.energy.length);
+    ids.forEach((id, i) => {
+      s.cards[id].cardId = b.energy[i];
+      s.cards[id].mode = "active";
+    });
+    s.players.p1.deck = s.players.p1.deck.filter((id) => !ids.includes(id));
+    s.players.p1.energy = ids;
+    s.players.p1.energyMarkers = b.markers;
+    s.cards[s.players.p1.leader!].cardId = b.leader;
+    return s;
+  }
+
+  const BOARDS: Staged[] = [
+    { energy: ["E-RED", "E-RED", "E-BLUE"], markers: 0, leader: "L-RED" },
+    { energy: ["E-RED", "E-BLUE", "E-GREEN"], markers: 1, leader: "L-RED" },
+    { energy: [], markers: 2, leader: "L-RED" },
+    { energy: ["E-DUAL", "E-DUAL"], markers: 0, leader: "L-BLUE" },
+    { energy: ["E-RED", "E-RED", "E-RED", "E-BLUE", "E-GREEN"], markers: 1, leader: "L-RED" },
+  ];
+
+  /** A price in the two engines' own terms: the legacy triple, and the `Price` the declarations are charged from. */
+  const PRICES: { total: number; specified: Partial<Record<Color, number>>; either: Color[][] }[] = [
+    { total: 0, specified: {}, either: [] },
+    { total: 1, specified: {}, either: [] },
+    { total: 2, specified: { Red: 1 }, either: [] },
+    { total: 3, specified: { Red: 1, Blue: 1 }, either: [] },
+    { total: 2, specified: { Blue: 2 }, either: [] },
+    // 22-13: "{r}/{u}", one orb payable with either colour.
+    { total: 2, specified: {}, either: [["Red", "Blue"]] },
+    { total: 3, specified: { Red: 1 }, either: [["Blue", "Green"]] },
+    { total: 5, specified: {}, either: [] },
+    // A price demanding more orbs than it charges energy: unpayable as stated
+    // rather than payable at a silently higher figure.
+    { total: 2, specified: { Red: 3 }, either: [] },
+  ];
+
+  for (const b of BOARDS) {
+    const vm = rulesBoard(b);
+    const legacy = legacyBoard(b);
+    const where = `${b.energy.join("+") || "no energy"} and ${b.markers} marker(s) under ${b.leader}`;
+    for (const p of PRICES) {
+      const price: Price = { ...freePrice(), energy: p.total, orbs: { ...p.specified }, either: p.either.map((o) => o.slice()) };
+      const what = `${p.total} energy ${JSON.stringify(p.specified)}${p.either.length ? ` either ${JSON.stringify(p.either)}` : ""} on ${where}`;
+
+      const oracle = planPayment(CTX, legacy, "p1", p.total, p.specified, undefined, p.either);
+      const plan = planCost(CTX, DBS, vm, "p1", price, null);
+      assert.equal(plan.ok, oracle !== null, `the two engines disagree about whether a price can be paid: ${what}`);
+
+      if (!oracle) {
+        // …and the refusal is the legacy `whyNotPay`'s, requirement for
+        // requirement, so `wording.ts` says one sentence and not two.
+        assert.deepEqual(plan.ok ? [] : plan.why, whyNotPay(CTX, legacy, "p1", p.total, p.specified, p.either), `the shortfall is not the one the legacy engine reports: ${what}`);
+        continue;
+      }
+      assert.ok(plan.ok);
+      assert.deepEqual({ rest: plan.payment.rest, markers: plan.payment.energyMarkers }, oracle, `a different payment was planned: ${what}`);
+      // 3-8-2: the genuinely different ways to pay, and the words for each.
+      assert.deepEqual(vmOptions(CTX, DBS, vm, "p1", price), legacyOptions(CTX, legacy, "p1", p.total, p.specified), `the payment options differ: ${what}`);
+      assert.equal(plan.describe, legacyDescribe(CTX, legacy, oracle), `the payment is described differently: ${what}`);
+    }
+  }
+
+  // The energy the planner may reach for comes off `costs.rules` — the zone and
+  // the mode are the `energy` price's own `DO`, not a name in the interpreter.
+  {
+    const vm = rulesBoard(BOARDS[0]);
+    assert.deepEqual(activeEnergy(DBS, vm, "p1"), energyIds(3), "the active energy is not what the declaration's pool finds");
+    vm.cards[energyIds(3)[0]].mode = "rest";
+    assert.deepEqual(activeEnergy(DBS, vm, "p1"), energyIds(3).slice(1), "a rested card still counts as energy the price can be paid with");
+    const charge = chargesOf(DBS).energy;
+    assert.deepEqual(charge.from, { side: "you", area: "energy", mode: "active" }, "the energy price's pool is not read off its declaration");
+    assert.equal(charge.asks, "choice", "the energy price does not say the payer is asked which energy to rest (3-8-2)");
+  }
+
+  // ── every declared kind ───────────────────────────────────────────────────
+  {
+    const vm = rulesBoard({ energy: ["E-RED"], markers: 0, leader: "L-RED" });
+    const subject = vm.sides.p1.zones.deck[0];
+    vm.cards[subject].markers = 2;
+
+    // 13-4: markers off the card whose skill is being used, and a card cannot
+    // be taken below none. The words of the refusal are the legacy engine's.
+    const twoMarkers: Price = { ...freePrice(), markers: -2 };
+    const paidMarkers = planCost(CTX, DBS, vm, "p1", twoMarkers, subject);
+    assert.ok(paidMarkers.ok, "a marker price the card can pay was refused");
+    const threeMarkers = planCost(CTX, DBS, vm, "p1", { ...freePrice(), markers: -3 }, subject);
+    assert.deepEqual(threeMarkers.ok ? [] : threeMarkers.why, [{ kind: "other", detail: "needs 3 markers (2 on it)" }], "a marker shortfall is not worded as the legacy engine words it");
+
+    // 21-3: life to the Drop, and a life the player does not have.
+    const life = planCost(CTX, DBS, vm, "p1", { ...freePrice(), life: 1 }, subject);
+    assert.equal(life.ok, false, "a life price was planned against a board with no life dealt yet");
+
+    // 1-10-1: a card already in Rest Mode has nothing left to rest.
+    vm.cards[subject].mode = "rest";
+    const resting = planCost(CTX, DBS, vm, "p1", { ...freePrice(), rest: true }, subject);
+    assert.deepEqual(resting.ok ? [] : resting.why, [{ kind: "mode", card: subject, mode: "rest" }], "a rest price is not refused by the mode requirement a client already draws");
+    vm.cards[subject].mode = "active";
+    const rests = planCost(CTX, DBS, vm, "p1", { ...freePrice(), rest: true }, subject);
+    assert.ok(rests.ok && rests.payment.restsSelf, "a rest price the card can pay was refused");
+
+    // 20-19: a card outside the Energy Area, rested where it stands. The energy
+    // is tried first — resting a Battle Card to pay for what the Energy Area
+    // could have covered is a cost the player never agreed to.
+    const payer = vm.sides.p1.zones.deck[1];
+    vm.cards[payer].cardId = "E-BLUE";
+    vm.cards[payer].mode = "active";
+    vm.sides.p1.zones.deck = vm.sides.p1.zones.deck.filter((id) => id !== payer);
+    vm.sides.p1.zones.battle.push(payer);
+    const oneRed: Price = { ...freePrice(), energy: 1, orbs: { Red: 1 } };
+    const fromEnergy = planCost(CTX, DBS, vm, "p1", { ...oneRed, payers: [{ id: payer, colors: ["Blue"] }] }, subject);
+    assert.ok(fromEnergy.ok && fromEnergy.payment.rest[0] === energyIds(1)[0], "a payer was rested for a price the Energy Area could pay");
+    const oneBlue: Price = { ...freePrice(), energy: 1, orbs: { Blue: 1 }, payers: [{ id: payer, colors: ["Blue"] }] };
+    const fromPayer = planCost(CTX, DBS, vm, "p1", oneBlue, subject);
+    assert.ok(fromPayer.ok && fromPayer.payment.rest[0] === payer, "20-19's payer was not reached for by a price only it can pay");
+    assert.deepEqual(
+      planCost(CTX, DBS, vm, "p1", { ...oneBlue, payers: [] }, subject).ok,
+      false,
+      "the same price is payable with no payer in force, so 20-19 is doing nothing",
+    );
+
+    // The price no engine charges itself: refused, with the card named.
+    const unreadable = planCost(CTX, DBS, vm, "p1", { ...freePrice(), unreadable: "text" }, subject);
+    assert.deepEqual(unreadable.ok ? [] : unreadable.why, [{ kind: "unread", card: subject }], "a price declared unreadable is not refused as unread");
+
+    // …and charging really does what the declarations say it does.
+    const ev: GameEvent[] = [];
+    const payment: VmPayment = { rest: [energyIds(1)[0]], energyMarkers: 0, markers: -2, life: [], restsSelf: true };
+    chargeCost(CTX, DBS, vm, ev, "p1", payment, subject, ["energy", "marker", "rest"]);
+    assert.equal(vm.cards[energyIds(1)[0]].mode, "rest", "the energy was not rested");
+    assert.equal(vm.cards[subject].markers, 0, "the markers were not taken off the card");
+    assert.equal(vm.cards[subject].mode, "rest", "the card the price rests was not rested");
+    assert.deepEqual(
+      ev,
+      [
+        { type: "mode", card: energyIds(1)[0], mode: "rest" },
+        { type: "markers", card: subject, delta: -2, total: 0 },
+        { type: "mode", card: subject, mode: "rest" },
+      ],
+      "charging a price does not log what the legacy engine logs for the same payment",
+    );
+  }
+
+  // ── the price shown is the price charged ──────────────────────────────────
+  //
+  // Card for card over every harness card with a printed cost: the figure this
+  // engine reads, the figure the legacy engine charges, and the sentence a row
+  // wears are one. The row's words go through `priceOf`, which is the only
+  // place a price becomes a sentence on either engine.
+  {
+    const vm = rulesBoard(BOARDS[0]);
+    const legacy = legacyBoard(BOARDS[0]);
+    const held = vm.sides.p1.zones.deck[0];
+    let checked = 0;
+    for (const [cardId, def] of Object.entries(DEFS)) {
+      if (def.type === "LEADER" || def.type === "TOKEN") continue;
+      vm.cards[held].cardId = cardId;
+      legacy.cards[held].cardId = cardId;
+      const mine = cardPrice(CTX, DBS, vm, held);
+      const theirs = playCost(CTX, legacy, held);
+      assert.equal(mine.total, theirs.total, `${cardId}: the two engines read a different total cost`);
+      assert.deepEqual(mine.orbs, theirs.specified, `${cardId}: the two engines read a different coloured requirement`);
+      // The sentence, assembled from this engine's one `Price`. A play's total
+      // comes off the card and its orbs off the row, which is why `priceOf`
+      // takes both (issue #96).
+      const view = { cost: def.energyCost === null ? undefined : String(def.energyCost), comboCost: def.comboCost ?? undefined, comboPower: def.comboPower ?? undefined } as never;
+      const price: Price = { ...freePrice(), energy: mine.total, orbs: mine.orbs };
+      const said = priceOf({ type: "play", player: "p1", card: held }, view, "Play", actionCostOf(price));
+      assert.ok(said && said.length > 0, `${cardId}: a play has no price sentence`);
+      checked++;
+    }
+    assert.ok(checked > 50, `only ${checked} harness cards were priced on both engines`);
+  }
+
+  // ── 3-8-2: the question, and answering it ─────────────────────────────────
+  //
+  // The existing `payCost` prompt, whose options are legacy `Payment` values —
+  // so one client answers either engine and no fixture in `contract/` moves.
+  {
+    const PRICED = [
+      "DEFINE ACTION play",
+      "  WHEN [main]",
+      "  prompts: [main]",
+      "  FOR 1 IN you.hand",
+      '  BIND "card"',
+      "  COST [energy]",
+      "  DO {",
+      '    note(text: "played")',
+      "  }",
+      '  label: "Play"',
+    ].join("\n");
+    const parsed = parseDefinitions(PRICED);
+    assert.ok(parsed.ok, "the priced fixture action does not parse");
+    const priced: GameDefinition = { ...DBS, actions: { ...DBS.actions, play: { listed: true, ...((parsed.ok ? parsed.value[0] : null) as ActionDef) } } };
+
+    // A cost-2 card and two colours of energy to pay it with: two genuinely
+    // different answers, so the payment is asked about rather than assumed.
+    let s = rulesEngine.createGame(CTX, DECKS).state as VmState;
+    s = rulesEngine.apply(CTX, s, { type: "chooseFirst", player: s.chooser, first: "p1" }).state as VmState;
+    for (let i = 0; i < 20 && s.prompt.kind !== "main"; i++) s = rulesEngine.apply(CTX, s, { type: "pass", player: (s.prompt as { player: PlayerId }).player }).state as VmState;
+    assert.equal(s.prompt.kind, "main", "a rules game did not reach a Main Phase to price a move in");
+    const hand = s.sides.p1.zones.hand.slice(0, 1);
+    s.cards[hand[0]].cardId = "COST2";
+    s.sides.p1.zones.hand = hand;
+    const colours = ["E-RED", "E-BLUE", "E-GREEN"];
+    const energy = s.sides.p1.zones.deck.splice(0, colours.length);
+    energy.forEach((id, i) => {
+      s.cards[id].cardId = colours[i];
+      s.cards[id].mode = "active";
+    });
+    s.sides.p1.zones.energy = energy;
+
+    const offered = declaredLegalActions(CTX, priced, s).find((l) => l.action.type === "play");
+    assert.ok(offered, "a cost-2 card with three energy active is not offered");
+    assert.deepEqual(offered!.cost, { energy: 2, describe: "2 energy" }, "a colourless cost-2 card's row does not carry its price");
+
+    // The one reading: what the action asks of this candidate is the card's own
+    // cost, and it is the very value the row above wears and the charge below
+    // is taken from.
+    assert.deepEqual(priceFor(CTX, priced, s, priced.actions.play, hand[0]), { ...freePrice(), energy: 2 }, "an action's price is not the cost of the card it is about");
+    assert.deepEqual(priceFor(CTX, priced, s, DBS.actions.charge, hand[0]), freePrice(), "a move that names no price costs something");
+
+    // …and the three prices whose amount has nowhere to come from are refused
+    // **by name** rather than charged as nothing, which is the whole reason
+    // this issue exists: a declared price with no amount would be free.
+    for (const name of ["marker", "life", "payWith"]) {
+      const asks = { ...priced.actions.play, cost: [name] };
+      assert.throws(() => priceFor(CTX, priced, s, asks, hand[0]), NotYet, `the price ${name} was read as nothing rather than refused by name`);
+    }
+
+    const ev: GameEvent[] = [];
+    const asking = structuredClone(s);
+    assert.equal(applyDeclared(CTX, priced, asking, ev, { type: "play", player: "p1", card: hand[0] }), "asked", "a price with two answers was taken without asking which");
+    assert.equal(asking.prompt.kind, "payCost", "the payment does not put the prompt the legacy engine puts");
+    assert.deepEqual(ev, [], "a move that stopped to ask which energy had already charged something");
+    const prompt = asking.prompt as { options: { rest: string[]; markers: number }[]; describe: string };
+    assert.equal(prompt.describe, "play COST2", "the payment prompt is not described the way the legacy engine describes it");
+    assert.ok(prompt.options.length > 1, "a payment worth asking about has only one answer");
+
+    // One answer per option, worded as the legacy engine words them…
+    const answers = rulesEngine.legalActions(CTX, asking);
+    assert.deepEqual(
+      answers.map((a) => a.action),
+      prompt.options.map((_, i) => ({ type: "payCost", player: "p1", option: i })),
+      "the payment prompt does not offer one answer per option",
+    );
+    assert.ok(
+      answers.every((a) => a.label.startsWith("Rest ")),
+      "a payment answer is not worded as a rest",
+    );
+
+    // …and the answer coming back charges exactly what it named, then runs the
+    // move. The one picked keeps the red energy active, which is the whole
+    // point of being asked: a player saves the colour they need next.
+    const keepRed = prompt.options.findIndex((o) => !o.rest.includes(energy[0]) && o.rest.length === 2);
+    assert.ok(keepRed >= 0, "keeping the red energy is not one of the answers");
+    const after = structuredClone(s);
+    const paidEv: GameEvent[] = [];
+    assert.equal(
+      applyDeclared(CTX, priced, after, paidEv, { type: "play", player: "p1", card: hand[0], pay: prompt.options[keepRed].rest }),
+      "done",
+      "the payment the player chose did not take the move",
+    );
+    assert.equal(after.cards[energy[1]].mode, "rest", "the energy the player picked was not the energy rested");
+    assert.equal(after.cards[energy[2]].mode, "rest", "the energy the player picked was not the energy rested");
+    assert.equal(after.cards[energy[0]].mode, "active", "an energy the player did not pick was rested as well");
+    assert.ok(
+      paidEv.some((e) => e.type === "note" && e.text === "played"),
+      "the move did not run once its price was paid",
+    );
+    assert.notEqual(after.prompt.kind, "payCost", "the game is still asking about a payment it has taken");
+
+    // The whole round trip through `apply` — the prompt answered by re-sending
+    // the move the flow was suspended in the middle of — is reached here and
+    // stops at the one thing missing: DBS declares no move that carries a
+    // price until the play family does (#146), so the *fixture's* action is not
+    // one `apply` can find. What this proves is that the answer is carried into
+    // the move rather than discarded, which is the half that is built.
+    const roundTrip = () => rulesEngine.apply(CTX, asking, { type: "payCost", player: "p1", option: keepRed });
+    assert.throws(roundTrip, NotYet, "answering the payment did not re-send the move it was suspended in");
+    try {
+      roundTrip();
+    } catch (err) {
+      assert.ok(err instanceof NotYet && err.issue === "#146", `answering a payment named ${err instanceof NotYet ? err.issue : "no issue"} rather than the one that declares the move`);
+    }
   }
 }
 

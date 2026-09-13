@@ -1,0 +1,107 @@
+-- What a move costs, as declarations rather than as branches of one search.
+--
+-- Sections are `docs/rules/rulemanual.txt`: §5-3 paying an energy cost and
+-- §8-3-2-3 doing it in the Main Phase, §1-2-3 the specified (coloured) half of
+-- a cost, §1-14-2 energy markers standing in for energy of the Leader's
+-- colour, §3-8-2 the player's free choice of which energy to rest, §13-4 a
+-- Unison's marker cost, §20-5 an X price, §20-19 a card rested in the Energy
+-- Area's place, §21-3 life as a price, and §22-30 [Warrior of Universe 7].
+--
+-- In the legacy engine payment is one function, `planPayment` in
+-- `engine/state.ts`, with a branch inside it for each of those: the coloured
+-- orbs, the either-orbs, X, the cards that may stand in for energy, and
+-- [Warrior of Universe 7] clearing the colours outright. It plays this game
+-- correctly and it can only ever play this game — a second game with a
+-- different resource has nowhere to say so. Here each is a `DEFINE COST`, and
+-- `vm/costs.ts` is one planner over the **declared** kinds (#148).
+--
+-- Two lines carry the whole of what an interpreter needs to charge a price it
+-- has never seen:
+--
+--   `consumes:`  the resource it takes — `energy`, `markers`, `life`, `mode`,
+--                `cards`, or `unreadable` for the half of a printed price no
+--                engine can charge itself. The planner switches on this word
+--                and never on the declaration's *name*, so a second game's
+--                `DEFINE COST mana / consumes: energy` is charged by the same
+--                search this file's `energy` is.
+--   `asks:`      how the payment puts its question (§3-8-2). `choice` is a
+--                price the payer is asked about whenever more than one
+--                genuinely different way to pay it exists — which is the
+--                `payCost` prompt the board already answers; `nothing` is a
+--                price with only ever one way to pay, which is settled without
+--                a question.
+--
+-- The `DO` program says two things at once, and both are read: its **target**
+-- is the pool the price is paid out of (the active cards in your Energy Area,
+-- the cards in your life), and the **op** is what paying does to what was
+-- taken from it. How *many* is the price's own amount and is never in the
+-- program — an action asks for a price by name and the amount comes off the
+-- card being paid for.
+--
+-- Two gaps are written here rather than papered over. `TAKES` names what each
+-- price is given, but `ACTION ... COST [energy]` passes no arguments: binding a
+-- price's parameters is #147's, where a skill's own record supplies them, and
+-- until then `vm/costs.ts` reads the amounts off the card and refuses by name
+-- the three prices whose amount has nowhere to come from. And an **either-orb**
+-- ("{Red/Blue}", one orb payable with any one of the listed colours, §22-13)
+-- has no parameter type that can name it: `colors` is a flat list and the
+-- language knows no list of alternatives. The planner reads them off the price
+-- and charges them exactly; the parameter list below cannot say so, the way
+-- `attributes.rules` cannot say what is printed on a card's back side.
+
+DEFINE COST energy                                                        -- §5-3
+  TAKES (total: amount, orbs: colors, x: amount)
+  consumes: energy
+  asks: choice
+  DO {
+    switchMode(target: IN you.energy active, mode: rest)
+  }
+  text: "the price is paid by switching that many active cards in your Energy Area to Rest Mode, the coloured orbs matched in colour; an energy marker pays one energy of your Leader's colour in a card's place (5-3-3, 1-2-3, 1-14-2)"
+
+DEFINE COST marker                                                        -- §13-4
+  TAKES (n: amount)
+  consumes: markers
+  asks: nothing
+  DO {
+    addMarker(target: [self], n: $n)
+  }
+  text: "the price is paid with the markers on the card whose skill is being used: a negative number removes that many, and the card may use no further marker skill this turn (13-4, 1-11)"
+
+DEFINE COST life                                                          -- §21-3
+  TAKES (n: amount)
+  consumes: life
+  asks: nothing
+  DO {
+    moveTo(target: IN you.life, to: drop)
+  }
+  text: "the price is paid by placing that many cards from your life in your Drop Area (21-3)"
+
+DEFINE COST rest                                                          -- §8-4-1
+  TAKES ()
+  consumes: mode
+  asks: nothing
+  DO {
+    switchMode(target: [self], mode: rest)
+  }
+  text: "the price is paid by switching the card itself to Rest Mode, which a card already in Rest Mode cannot do (1-10-1)"
+
+DEFINE COST payWith                                                       -- §20-19
+  TAKES (cards: selector)
+  consumes: cards
+  asks: choice
+  DO {
+    switchMode(target: FROM $cards, mode: rest)
+  }
+  text: "cards outside the Energy Area that this price may be paid with instead, each rested where it stands and counting as energy of the colours the price says (20-19)"
+
+-- The price the engine does not charge, and the reason it is a declaration at
+-- all: a move whose price has no `DEFINE COST` would be offered for free, and
+-- a move whose price is *declared unreadable* is refused with an `unread`
+-- requirement naming the card — the same answer the legacy engine gives for a
+-- skill whose cost the compiler could not read.
+DEFINE COST text                                                          -- §4-3-3
+  TAKES (printed: string)
+  consumes: unreadable
+  asks: nothing
+  DO {}
+  text: "the price as printed, kept for the part no engine can charge itself; a move that asks for it is refused rather than offered free (4-3-3)"

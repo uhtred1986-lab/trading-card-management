@@ -361,17 +361,39 @@ DEFINE KEYWORD Blocker
 ```
 
 **COST** — a price the game knows how to charge, named so an action can ask for it. `TAKES` its
-parameters, `IF` when it can be paid, `DO` what paying it does (required), `text:` how it reads.
+parameters, `consumes:` the resource it takes (required), `asks:` how paying puts its question,
+`IF` when it can be paid, `DO` what paying it does (required), `text:` how it reads.
 
 ```
 DEFINE COST energy
-  TAKES (amount: amount)
-  IF isTurnPlayer()
+  TAKES (total: amount, orbs: colors)
+  consumes: energy
+  asks: choice
   DO {
-    switchMode(target: [self], mode: rest)
+    switchMode(target: IN you.energy active, mode: rest)
   }
   text: "cards from the Energy Area, switched to Rest Mode (7-2)"
 ```
+
+`consumes:` is the word an interpreter reads instead of the declaration's *name* — one of `energy`,
+`markers`, `life`, `mode`, `cards`, `unreadable` — so a second game's `DEFINE COST mana / consumes:
+energy` is charged by the search DBS's `energy` is, and `src/lib/arena/vm/costs.ts` is one planner
+over the declared kinds rather than a branch per price (#148). `unreadable` is the half of a printed
+price no engine charges itself: a move that asks for it is **refused**, with the `unread`
+requirement naming the card, which is the same answer the legacy engine gives for a skill whose cost
+the compiler could not read. A price with no declaration at all would be a move taken for free,
+which is why the loader refuses one.
+
+`asks:` is §3-8-2, the player's free choice of which energy to rest: `choice` is a price the payer
+is asked about whenever more than one genuinely different way to pay it exists — the existing
+`payCost` prompt, whose options are `Payment` values, so one client answers either engine — and
+`nothing` (the default) is a price with only ever one way to pay, settled without a question.
+
+The `DO` says two things at once and both are read. Its op's **target** is the pool the price is
+paid out of — `IN you.energy active` says both that the price is paid with cards in the Energy Area
+and that a card has to be active to pay it — and the **op** is what paying does to what was taken
+from it. How *many* is never in the program: an action asks for a price by name and the amount comes
+off the card being paid for.
 
 **WIN** — a condition that ends the game, and for whom. `IF` the condition (required), `result:` win
 | lose | draw (required), `who:` the side it is about, `text:` the manual's wording.

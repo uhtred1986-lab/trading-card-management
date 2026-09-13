@@ -270,8 +270,23 @@ learned the expensive way. Read it before changing the compiler or the engine.
   passed to. `listed: false` is the concede rule written down: accepted, never enumerated, on
   neither list. What the interpreter reads so far is a `FOR` by side/area/filter/mode, a `REFUSE` of
   `count()`/`isTurnPlayer()` and their combinations, and a `DO` of `note()`; everything else is
-  refused *by name* rather than read as false. `actions.rules` declares one action, `pass`; the DBS
-  moves are #145–#147, the prices #148 and the program evaluator #142.
+  refused *by name* rather than read as false. `actions.rules` declares charge, endMain, pass and
+  concede (#145); play and activate are #146–#147 and the program evaluator #142.
+  **A price is a declaration too** (`vm/costs.ts` + `dbs/costs.rules`, #148): six `DEFINE COST`s —
+  energy (total, coloured orbs, either-orbs, X), marker, life, rest, payWith and the `text` price no
+  engine charges itself — each saying what it `consumes:` and how the payment `asks:` its question,
+  and **one planner over those words rather than a branch per price**. It switches on `consumes:`
+  and never on a declaration's name, and reads the declaration's `DO` for two things at once: the
+  op's `target` is the pool the price is paid out of (`IN you.energy active` names both the area and
+  the mode) and the op is what paying does to what was taken. The promises are the legacy engine's,
+  asserted board for board against `planPayment` in `scripts/verify/vm.ts` §17: the same
+  `Requirement` when a price cannot be met (so `wording.ts` needs no second table), the same
+  `payCost` prompt with legacy `Payment` options (so no `Prompt` kind and no `Snapshot` field moved),
+  and the same cards rested. `priceFor` is the one evaluation the row's `ActionCost` and the charge
+  both come from. Two gaps are named rather than charged as nothing: the amounts of marker, life and
+  payWith have nothing to bind them until #147, so an action naming one is refused by name; and
+  `cardPrice` reads the *printed* cost, because 20-21's reductions and 22-19's [Warrior of Universe
+  7] are the `costOf` attribute's declared layers and #142 brings them.
   **A moment is an event pattern, not a name** (`vm/events.ts` + `vm/triggers.ts`, #141): the
   runner says what happened — a card moved, a phase began, a mode switched — as a `Moment` in the
   words `dbs/triggers.rules` is written in, and the declarations decide which [Auto]s that is a

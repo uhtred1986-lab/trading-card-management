@@ -12,10 +12,13 @@
  * declaration** (`./actions.ts`).
  *
  * What it will accept is **pass, endMain and concede** (#140), and every
- * `DEFINE ACTION` `actions.rules` declares (#144) — which so far is `pass`
- * itself, re-declared. Charging, playing, activating and attacking are the
- * issues after this one: each is a paragraph in that file and a price in
- * `costs.rules`, and neither the prices nor the program evaluator exists yet.
+ * `DEFINE ACTION` `actions.rules` declares (#144/#145) — the charge included.
+ * A declared **price** is charged rather than refused by name (#148,
+ * `./costs.ts`): `costs.rules` declares six and one planner over their
+ * `consumes:` words answers what `planPayment` answers, puts the same
+ * `payCost` question and takes the same payment. Playing, activating and
+ * attacking are the issues after this one: each is a paragraph in
+ * `actions.rules`, and the program evaluator they need is #142.
  * `ENGINE_INFO.rules.available` stays false, so the `/arena` form still greys
  * the engine out and no row can be created on it.
  *
@@ -34,6 +37,7 @@ import type { BoardView, CardArt } from "../view";
 import { PLAYERS, type PlayerId } from "../engine/types";
 import { rulesetFor, type GameDefinition } from "../rulesets";
 import { applyDeclared, declaredLegalActions, declaredRejectedActions } from "./actions";
+import { chargesOf, describePayment } from "./costs";
 import { attributeGaps, attrsForDefs, playerAttributes, type AttrProblem, type AttrValue } from "./cards";
 import { NotYet, RulesetBroken } from "./errors";
 import { fire } from "./events";
@@ -45,7 +49,25 @@ import { vmToBeats } from "./beats";
 import type { Game } from "../../catalog/games";
 
 export { VM_STATE_VERSION, isVmState, type VmFrame, type VmSide, type VmState } from "./state";
-export { actionsAt, applyDeclared, candidatesOf, declaredLegalActions, declaredRejectedActions, type Candidate } from "./actions";
+export { actionsAt, applyDeclared, candidatesOf, declaredLegalActions, declaredRejectedActions, type Applied, type Candidate } from "./actions";
+export {
+  PRICE_LAYERS,
+  actionCostOf,
+  activeEnergy,
+  cardPrice,
+  chargeCost,
+  chargesOf,
+  describePayment,
+  freePrice,
+  orbCount,
+  paymentOptions,
+  planCost,
+  priceFor,
+  type Charge,
+  type CostPlan,
+  type Price,
+  type VmPayment,
+} from "./costs";
 export { NotYet, RulesetBroken } from "./errors";
 export { SETUP_ZONES, WORKED_STEPS, draw, moved, repeatAllowed, run, stepWorkNote, turnPhases, type MoveCause } from "./flow";
 export { emit, fire, log, type Moment } from "./events";
@@ -134,6 +156,11 @@ function createGame(ctx: EngineContext, options: GameOptions): { state: VmState;
   // `turnPhases` is read here so a game with no turn declared is refused at
   // creation rather than when the first turn is due to begin.
   turnPhases(game);
+  // And every declared price is read once, at creation: a `DEFINE COST` whose
+  // `consumes:` this planner does not charge, or whose `DO` it cannot read, is
+  // a move that would be offered for free the first time a card asked for it
+  // (#148). Said here, where a game is made, rather than in the middle of one.
+  chargesOf(game);
 
   const events: GameEvent[] = [];
   const state: VmState = {
@@ -289,14 +316,39 @@ function apply(ctx: EngineContext, prev: VmState, action: Action): { state: VmSt
       answered(state);
       break;
     }
-    default:
+    // 3-8-2: the answer to "which energy" — the one question a move puts in the
+    // middle of itself. The move was suspended before anything was charged, and
+    // the flow's frame is that suspension: nothing answered the step the payment
+    // interrupted, so running it again puts the very same question back and the
+    // move is then taken with the energy the player picked. That is why there is
+    // no `continuations` field here and the legacy engine needs one — a frame
+    // that was never answered is a continuation already.
+    case "payCost": {
+      const pr = prev.prompt;
+      if (pr.kind !== "payCost") throw new IllegalAction("no payment is being asked for");
+      const option = pr.options[action.option];
+      if (!option) throw new IllegalAction("no such payment");
+      const restored = structuredClone(prev);
+      run(ctx, game, restored, events);
+      const inner = { ...pr.action, pay: option.rest } as Action;
+      const again = apply(ctx, restored, inner);
+      return { state: again.state, events: [...events, ...again.events] };
+    }
+    default: {
       // Everything else is a `DEFINE ACTION`: `actions.rules` says when it is
       // offered, for which cards, what it costs and what it does, and
-      // `vm/actions.ts` reads all of it (#144). The charge, the end of the Main
-      // Phase and the generic decline are the four declared so far (#145), and
-      // a move no declaration claims is refused by name rather than silently
-      // ignored, naming the issue that declares it.
-      if (!applyDeclared(ctx, game, state, events, action)) throw new NotYet(`take a ${action.type} action — no DEFINE ACTION declares it`, DECLARED_BY[action.type] ?? "#146");
+      // `vm/actions.ts` reads all of it (#144), the price included (#148). The
+      // charge, the end of the Main Phase and the generic decline are the four
+      // declared so far (#145), and a move no declaration claims is refused by
+      // name rather than silently ignored, naming the issue that declares it.
+      const took = applyDeclared(ctx, game, state, events, action);
+      if (took === "none") throw new NotYet(`take a ${action.type} action — no DEFINE ACTION declares it`, DECLARED_BY[action.type] ?? "#146");
+      // A move that stopped inside itself to ask which energy to rest is a game
+      // waiting on that question and on nothing else. Running the flow on would
+      // replace it with the question the step asks, which is how a half-paid
+      // move loses its prompt.
+      if (took === "asked") return { state, events };
+    }
   }
 
   run(ctx, game, state, events);
@@ -341,7 +393,7 @@ function mulligan(ctx: EngineContext, game: GameDefinition, state: VmState, even
  * legacy engine does with it.
  */
 function legalActions(ctx: EngineContext, state: VmState): LegalAction[] {
-  return [...declaredLegalActions(ctx, definitionFor(state.game), state), ...promptAnswers(state)];
+  return [...declaredLegalActions(ctx, definitionFor(state.game), state), ...promptAnswers(ctx, state)];
 }
 
 /**
@@ -355,7 +407,7 @@ function legalActions(ctx: EngineContext, state: VmState): LegalAction[] {
  * that showed "Go first" on one board and "Choose to go first" on the other
  * would be a client reading the engine rather than the contract.
  */
-function promptAnswers(state: VmState): LegalAction[] {
+function promptAnswers(ctx: EngineContext, state: VmState): LegalAction[] {
   const pr = state.prompt;
   switch (pr.kind) {
     case "chooseFirst":
@@ -365,6 +417,14 @@ function promptAnswers(state: VmState): LegalAction[] {
         { action: { type: "mulligan", player: pr.player, redraw: false }, label: "Keep hand" },
         { action: { type: "mulligan", player: pr.player, redraw: true }, label: "Mulligan" },
       ];
+    // 3-8-2: one answer per genuinely different way to pay, worded as the
+    // legacy engine words them, because a client reads the label and not the
+    // engine.
+    case "payCost":
+      return pr.options.map((option, i) => ({
+        action: { type: "payCost", player: pr.player, option: i },
+        label: `Rest ${describePayment(ctx, definitionFor(state.game), state, { rest: option.rest, energyMarkers: option.markers, markers: 0, life: [], restsSelf: false })}`,
+      }));
     default:
       return [];
   }

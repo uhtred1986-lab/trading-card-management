@@ -27,6 +27,8 @@ export const parseCond = (src: string, vocab: Words = words()): Parsed<Cond> => 
 export { validateRule, readRule, type Invalid } from "./validate";
 export { lex, positionOf, LangSyntaxError, type Token } from "./tokens";
 export {
+  COST_ASKS,
+  COST_CONSUMES,
   COST_ITEMS,
   DEFINE_KINDS,
   DEFINE_SCHEMA,
@@ -40,6 +42,8 @@ export {
   RESERVED,
   SELECTOR_FIELDS,
   fieldsOf,
+  type CostAsks,
+  type CostConsumes,
   type Definition,
   type DefineField,
   type DefineFieldType,
