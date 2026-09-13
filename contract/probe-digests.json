@@ -147,6 +147,10 @@
     "outcome": "inForce",
     "digest": "a44f9ad0"
   },
+  "DOWNALL#0": {
+    "outcome": "inForce",
+    "digest": "7efb95b0"
+  },
   "DRAWER#0": {
     "outcome": "fired",
     "digest": "349243ca"
@@ -255,6 +259,10 @@
     "outcome": "noScenario",
     "digest": "b80d3483"
   },
+  "GOGETA#0": {
+    "outcome": "inForce",
+    "digest": "1e6e6c20"
+  },
   "GOTEN#0": {
     "outcome": "inForce",
     "digest": "ed3cd9c3"
@@ -283,6 +291,14 @@
     "outcome": "fired",
     "digest": "f1bc44c0"
   },
+  "IMMANY#0": {
+    "outcome": "inForce",
+    "digest": "9afdafb5"
+  },
+  "IMMUNE#0": {
+    "outcome": "inForce",
+    "digest": "9afdafb5"
+  },
   "INERTPERM#0": {
     "outcome": "inForce",
     "digest": "7da44342"
@@ -290,6 +306,10 @@
   "KILLER#0": {
     "outcome": "fired",
     "digest": "ca56ac9b"
+  },
+  "KOSKILL#0": {
+    "outcome": "fired",
+    "digest": "b36d6ec3"
   },
   "L-RED#0": {
     "outcome": "notOffered",
@@ -622,6 +642,14 @@
   "UNI2#0": {
     "outcome": "notOffered",
     "digest": "e2ce4101"
+  },
+  "UPALL#0": {
+    "outcome": "inForce",
+    "digest": "74c0d256"
+  },
+  "UPALL2#0": {
+    "outcome": "inForce",
+    "digest": "956f195a"
   },
   "UWATCH#0": {
     "outcome": "noScenario",

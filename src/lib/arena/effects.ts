@@ -13,7 +13,7 @@
  * Pure: no database, no React. Covered by `npm test`, and the table the
  * Android app carries in Kotlin.
  */
-import { FORBIDDEN_IN_WORDS, describeFilter, describeCond, describeScript, type Op } from "./engine/script";
+import { FORBIDDEN_IN_WORDS, describeFilter, describeCond, describeScript, whoseSkills, type Op } from "./engine/script";
 import type { StaticEffect } from "./engine/state";
 import type { Color, ContinuousEffect, EffectUntil, Immunity, KeywordSkill, Permission, PlayerId, Prohibition, SkillKindPrefix } from "./engine/types";
 
@@ -97,9 +97,16 @@ function permitLabel(p: Permission): string {
   return `can attack ${p.filter ? describeFilter(p.filter) : "cards"} in Active Mode`;
 }
 
-/** Shared by `describeEffect` and `describeStatic` — see `case "immune"` on each. */
-function immuneLabel(im: Immunity): string {
-  return `isn't affected by ${im.fromFilter ? `${describeFilter(im.fromFilter)} ` : ""}skills`;
+/**
+ * Shared by `describeEffect` and `describeStatic` — see `case "immune"` on
+ * each. `Immunity.from` is a player, so it becomes "your" or "your opponent's"
+ * against the chair the rule was written in (`master`), the same convention
+ * every other side word on a label follows; absent, the rule blocks every
+ * skill and the label says so rather than naming a side it does not have.
+ */
+function immuneLabel(im: Immunity, master: PlayerId | null): string {
+  const side = im.from === undefined ? undefined : master === null ? undefined : im.from === master ? "you" : "opponent";
+  return `isn't affected by ${whoseSkills(side, im.fromFilter)}`;
 }
 
 /** The kind, label and keyword of a continuous effect (9-9). */
@@ -132,7 +139,7 @@ export function describeEffect(e: ContinuousEffect): Pick<EffectView, "kind" | "
     case "permit":
       return { kind: "permit", label: e.permit ? permitLabel(e.permit) : "permitted" };
     case "immune":
-      return { kind: "other", label: e.immune ? immuneLabel(e.immune) : "isn't affected by skills" };
+      return { kind: "other", label: e.immune ? immuneLabel(e.immune, e.master ?? null) : "isn't affected by skills" };
     // 20-21 said with a duration on it, so it is in force rather than standing.
     // The wording is `describeStatic`'s, because the player is being told the
     // same thing either way.
@@ -171,7 +178,7 @@ export function describeEffect(e: ContinuousEffect): Pick<EffectView, "kind" | "
 }
 
 /** The same for a standing effect a [Permanent] skill emits. */
-export function describeStatic(e: StaticEffect): Pick<EffectView, "kind" | "label" | "keyword"> {
+export function describeStatic(e: StaticEffect, master?: PlayerId | null): Pick<EffectView, "kind" | "label" | "keyword"> {
   switch (e.kind) {
     case "power":
       return { kind: "power", label: `${signed(e.value as number)} power` };
@@ -211,7 +218,10 @@ export function describeStatic(e: StaticEffect): Pick<EffectView, "kind" | "labe
     case "permit":
       return { kind: "permit", label: permitLabel(e.value as Permission) };
     case "immune":
-      return { kind: "other", label: immuneLabel(e.value as Immunity) };
+      // A static carries no master of its own; its source card's controller is
+      // the chair it was written in, and `describeStatic` is given it because
+      // "isn't affected by skills" with no side is a different claim.
+      return { kind: "other", label: immuneLabel(e.value as Immunity, master ?? null) };
     case "gains": {
       const g = e.value as { traits: string[]; characters: string[]; colors: string[] };
       const bits = [...g.colors.map((c) => c.toLowerCase()), ...g.traits.map((t) => `≪${t}≫`), ...g.characters.map((c) => `<${c}>`)];

@@ -1,5 +1,6 @@
 import { skillsOf } from "./cards";
-import { cardsInPlay, def, face, forbiddenBy, has, skillsNegated, skillsOfInstance } from "./state";
+import { cardsInPlay, def, face, forbiddenBy, has, immunityRefusing, skillsNegated, skillsOfInstance } from "./state";
+import { whoseSkills } from "./script";
 import type { EngineContext, LegalAction } from "./engine";
 import type { Action, CounterWindow, GameState, PlayerId, RejectedAction, Requirement, Skill } from "./types";
 import { other, PLAYERS } from "./types";
@@ -161,18 +162,41 @@ export function rejectedActions(ctx: EngineContext, s: GameState, legal: LegalAc
     }
     case "chooseCards": {
       // A card on the table the prompt does not offer: [Barrier] or another
-      // rule keeps it from being chosen (22-16, 20-14), or it is simply not
-      // what the skill asks for — the prompt's own reason says what is.
+      // rule keeps it from being chosen (22-16, 20-14), the card is unaffected
+      // by this skill altogether (9-1-4), or it is simply not what the skill
+      // asks for — the prompt's own reason says what is.
+      //
+      // The suspended frame is the front of the flow while the prompt stands,
+      // and it is the only record of *whose* skill is asking. Immunity is a
+      // rule about that pair — this card, that skill — so without it the
+      // refusal could only guess, which is why the frame is read here rather
+      // than a side being assumed from who is choosing.
+      const step = s.flow[0];
+      const frame = step?.op === "script.step" ? step.frame : null;
       const offered = new Set(pr.choice.candidates);
       for (const side of PLAYERS) {
         for (const id of [...cardsInPlay(s, side), ...(side === p ? s.players[p].hand : [])]) {
           if (offered.has(id) || s.cards[id].hidden) continue;
           const f = forbiddenBy(ctx, s, "beChosen", { card: id });
+          const im = frame ? immunityRefusing(ctx, s, id, frame.card, frame.master) : null;
           const why: Requirement[] = f
             ? [{ kind: "forbidden", by: f.by, until: f.until, ...(f.unless ? { unless: f.unless } : {}) }]
             : has(ctx, s, id, "Barrier")
               ? [{ kind: "forbidden", by: name(id), until: "permanent" }]
-              : [{ kind: "target", reason: pr.choice.reason }];
+              : im
+                ? [
+                    {
+                      kind: "immune",
+                      card: id,
+                      // Said to the player who was refused, so the rule that
+                      // names their own side reads "your skills" and not the
+                      // "your opponent's skills" the card's controller sees.
+                      whose: whoseSkills(im.rule.from === undefined ? undefined : im.rule.from === frame!.master ? "you" : "opponent", im.rule.fromFilter),
+                      by: im.source && im.source !== id && s.cards[im.source] ? name(im.source) : null,
+                      until: im.until,
+                    },
+                  ]
+                : [{ kind: "target", reason: pr.choice.reason }];
           push({ type: "choose", player: p, cards: [id] }, `Choose ${name(id)}`, why);
         }
       }

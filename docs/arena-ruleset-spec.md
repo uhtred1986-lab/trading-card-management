@@ -177,7 +177,7 @@ disagree or if a row is missing from either.
 | `negateAttack` | macro over `replace` | Event: the attack in progress resolves to nothing. |
 | `negateCounter` | macro over `replace` | Event: the [Counter] this one is answering resolves to nothing (9-7). |
 | `forbid` | primitive | A prohibition is not an attribute of a card: it is a rule in force, read by whatever would act (20-14). |
-| `immune` | primitive | 9-1-4, and the only rule read by the skill trying to act rather than by the actor — stronger than `forbid: beChosen` for exactly that reason. |
+| `immune` | primitive | 9-1-4, and the only rule read by the skill trying to act rather than by the actor — stronger than `forbid: beChosen` for exactly that reason. **Where an interpreter must check it: at target resolution**, the one point every operation reaches a card through, so a new operation inherits the check rather than repeating it (the legacy engine's is `resolveSelector` → `immunityRefusing`, `engine/state.ts`). Which skills it refuses comes off the stored rule — the player named by `from`, the cards matched by `fromFilter` — and never off who owns the card; a `[self]` selector is the one exemption, since a card's own skill naming itself is the skill working. |
 | `permit` | primitive | The one rule of the game a card may lift (8-1-1); provisional, per §2.2. |
 | `if` | primitive | A branch on a condition. |
 | `chooseMode` | primitive | A branch a player picks (20-2). |
