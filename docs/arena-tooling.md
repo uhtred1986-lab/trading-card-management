@@ -99,11 +99,13 @@ Three scripts, in order. All three must pass; none needs the network.
 | script | needs | proves |
 |---|---|---|
 | `scripts/verify-rules.ts` | nothing | the pure rules helpers (deck legality, reservations, scan matching) |
-| `scripts/verify-arena.ts` | nothing | the arena — thirteen suites, below |
+| `scripts/verify-arena.ts` | nothing | the arena — fourteen suites, below |
 | `scripts/verify-db.mts` | nothing (PGlite in memory) | the migrations apply, and the reservation rules hold against real SQL |
 
-`verify-arena.ts` is a barrel importing thirteen suites from `scripts/verify/`.
-Knowing which one failed tells you what you broke:
+`verify-arena.ts` imports fourteen suites from `scripts/verify/`, each on its
+own, and reports **pass / skipped / failed per suite** rather than stopping at
+the first — only a real failure exits non-zero. Knowing which one failed (or
+skipped) tells you what you broke:
 
 - **`harness.ts`** — the foundation the others build on: synthetic cards, a
   staged game, and the assertion helpers. Not a suite of its own so much as the
@@ -138,7 +140,51 @@ Knowing which one failed tells you what you broke:
   while its file is still empty, so this suite stays green through #133–#135
   landing one at a time.
 - **`probe.ts`** — a rule tried on a board built for it, compared against stored
-  digests.
+  digests. That comparison needs every earlier suite to have added its own
+  cards to `DEFS`, so it only runs when `ENGINE` is `legacy` — see below.
+- **`vm.ts`** — the engine switch itself: `engineFor` resolves both ids, the
+  rules engine deals the same opening board as the legacy one from the same
+  seed, and every other call it cannot make yet throws `NotYet` naming the
+  issue that builds it. Runs the same regardless of `--engine`, on purpose
+  (below).
+
+### `--engine legacy|rules` and `npm run test:rules`
+
+`scripts/verify/harness.ts` reads `--engine` off the command line (default
+`legacy`) and exports the resolved `ENGINE`; `game()`, `arena()` and `play()`
+create and play their games through it, so every suite built on them moves
+with the flag with no changes of its own. `npm test` never passes it, so
+`legacy` is what it has always run. `npm run test:rules` is
+`tsx scripts/verify-arena.ts --engine rules` — the same fourteen suites, on
+the rules engine.
+
+`vm.ts` and `rulesets.ts` are the two exceptions: `vm.ts` names `legacy` and
+`rules` explicitly (it is the suite proving the switch, so it cannot depend on
+which side of the switch happens to be selected) and `rulesets.ts` touches no
+game at all. Both run the same, and are expected to pass, whichever engine
+`--engine` names.
+
+Every other suite stages a board through `game()`/`arena()`, so on `--engine
+rules` it hits one of two named errors immediately rather than crashing
+partway through an assertion: `NotYet` (a call the rules engine does not
+implement yet, e.g. `apply`, per `src/lib/arena/vm/index.ts`) or
+`EngineMismatch` (the harness's fixtures read `GameState` fields directly —
+`s.prompt`, `s.players`, `move()` — so a state the rules engine dealt is
+named rather than read as `undefined`). `verify-arena.ts` prints either as
+`skipped`, with the reason, and keeps going. What "green on rules" means
+therefore changes stage by stage — there is nothing to fix by making a suite
+"pass" before its dependency lands:
+
+| stage | what's built | `test:rules` today |
+|---|---|---|
+| now (#139) | the rules engine deals the opening board | `vm`, `rulesets`, `text` pass; `probe`'s fixture digest is skipped (needs every suite's cards); everything else is `skipped` with `EngineMismatch` |
+| #140 (a turn plays) | `apply`/`legalActions`/`rejectedActions` | suites built on `game()`+`play()` start reporting real pass/fail instead of a blanket skip; `NotYet` narrows to whatever #140 leaves out |
+| #141–#142 (beats, effects in force) | `toBeats`, static effects | `contract`, `workflow`, `compiler`-adjacent suites become meaningful rather than skipped |
+| Stage 9 (#165) | the rules engine is the default | `test:rules` folds into `npm test`, or vice versa |
+
+Making a suite actually pass on `rules` before its stage lands is out of
+scope for the tooling itself — `test:rules` exists to say honestly which
+suites do and which do not, not to make them.
 
 ### Two things that will bite you
 
@@ -208,6 +254,11 @@ A probe builds a game around one card's rule, stages the board its moment needs,
 plays the move, and reports Input / Applied rule / Result / Assumptions with a
 digest over the conclusion. `arena:reprobe` re-runs every stored probe and lists
 the rules whose answer *moved* — the regression suite the rules never had.
+Both take `--engine legacy|rules` (default `legacy`), threaded into
+`src/lib/arena/probe.ts`'s own `engineFor` switch; `probe()` never throws, so a
+rule tried on an engine that cannot yet stage or play it comes back with
+outcome `error` rather than crashing the sweep — which is what running either
+of these on `rules` mostly reports today, and is itself the honest reading.
 
 **Its blind spot is worth knowing**: the staged board is built in the card's
 favour, and it only stages what it has been taught to stage. It staged no
@@ -215,14 +266,21 @@ markers at all until someone added that, so it could not distinguish a working
 marker rule from a broken one. If you add a mechanism, ask whether `stage()`
 knows how to set it up.
 
-### `arena:playthrough`, `arena:coverage`, `arena:draft`
+### `arena:playthrough`, `arena:coverage`, `arena:draft`, `arena:vs`
 
 `playthrough` plays a whole game through the database (integration, needs a DB)
 and, like `arena-fuzz.mts` and `arena-diff.mts`, takes `--engine legacy|rules`
-(default `legacy`) to choose which engine plays the game.
-`coverage` reports how much card text the compiler reads. `draft` compiles the
-catalog offline into `card_rules` drafts — **the only module that calls the
-compiler in production is `draft.ts`**; the engine reads rows.
+(default `legacy`) to choose which engine plays the game — through
+`startGame`, so `--engine rules` refuses with `EngineNotBuilt` before a deck
+is even read, same as the `/arena` form. `arena:vs` (Claude as the opponent)
+takes the same flag for the same reason.
+`coverage` reports how much card text the compiler reads; it accepts and
+validates `--engine` for consistency with the rest of the tooling, but it
+never creates a game, so the flag changes nothing about its output — the
+compiler it measures is the one either engine's rows come from (`draft.ts`).
+`draft` compiles the catalog offline into `card_rules` drafts — **the only
+module that calls the compiler in production is `draft.ts`**; the engine
+reads rows.
 
 ### `arena:specified` — what the feed does not say
 

@@ -86,7 +86,7 @@ import { loadRuleset, rulesetFor, type GameDefinition } from "../../src/lib/aren
 import { FILTER_FIELD_NAMES } from "../../src/lib/arena/lang";
 import { emptyFilter, type CardFilter } from "../../src/lib/arena/engine/filters";
 import type { CardDef, PlayerId } from "../../src/lib/arena/engine/types";
-import { CTX, DEFS, card, fifty, game, matches } from "./harness";
+import { CTX, DEFS, card, fifty, matches } from "./harness";
 
 const DECKS = { seed: 11, p1: { name: "You", leader: "L-RED", main: fifty("V1") }, p2: { name: "Claude", leader: "L-BLUE", main: fifty("V-BLUE") } };
 
@@ -150,8 +150,11 @@ assert.equal(state.turn, 0, "a rules game has a turn number before the pre-game 
 assert.deepEqual(JSON.parse(JSON.stringify(state)), state, "a rules game's state does not round-trip through JSON");
 
 // A legacy state carries no `engine` field, so the guard answers about one
-// shape rather than guessing about the other.
-assert.equal(isVmState(game()), false, "a legacy state was read as the rules engine's");
+// shape rather than guessing about the other. Built from the legacy
+// `createGame` imported above rather than harness's `game()`, which this
+// suite must not depend on: `game()` runs on whichever engine `--engine`
+// named, and proving the switch cannot depend on which side of it is chosen.
+assert.equal(isVmState(createGame(CTX, DECKS).state), false, "a legacy state was read as the rules engine's");
 assert.equal(isVmState(null), false, "null was read as a rules state");
 assert.equal(isVmState("rules"), false, "a string was read as a rules state");
 
@@ -188,7 +191,7 @@ for (const { what, run } of notYet) {
 // `state.turn`), so the seam is a check and not a cast: a rules state reaching
 // it is named, not read field by field as `undefined`.
 assert.throws(() => legacyState(state), EngineMismatch, "a rules state was read as the legacy engine's");
-const legacy = game();
+const legacy = createGame(CTX, DECKS).state;
 assert.equal(legacyState(legacy), legacy, "a legacy state did not pass the seam untouched");
 
 

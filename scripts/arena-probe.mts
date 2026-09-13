@@ -1,8 +1,8 @@
 /**
  * Run the probe over stored rules.
  *
- *   npm run arena:probe -- [--card BT16-042] [--set BT16] [--all] [--limit 500] [--fill]
- *   npm run arena:reprobe -- [--write]
+ *   npm run arena:probe -- [--card BT16-042] [--set BT16] [--all] [--limit 500] [--fill] [--engine legacy|rules]
+ *   npm run arena:reprobe -- [--write] [--engine legacy|rules]
  *
  * The sweep tries every matching rule on its default board and reports what
  * came back — how many fired, how many played as blank, how many the engine
@@ -14,10 +14,17 @@
  * list the ones whose answer moved. That is the point of storing it — after an
  * engine change, the rules that now play differently are a list rather than a
  * hope. `--write` accepts the new answers.
+ *
+ * `--engine` (default `legacy`) is the engine the staged board is opened on
+ * (`probe()`'s own `engineFor` switch); `probe()` never throws, so a rule
+ * tried on an engine that cannot yet stage or play it comes back with outcome
+ * `error` rather than crashing the sweep — which is what running this on
+ * `rules` today mostly reports, and is itself the honest measurement.
  */
 import { sql } from "drizzle-orm";
 import { db } from "../src/db";
 import { rows as rowsOf } from "../src/db/rows";
+import { isEngineId, type EngineId } from "../src/lib/arena/engines";
 import { probe, ruleFrom, scenariosFor, type ProbeRun } from "../src/lib/arena/probe";
 import { defsForCards } from "../src/lib/arena/load";
 import { probedRules, programOf, setProbe, worklist, type StoredProbe, type WorklistRow } from "../src/lib/arena/rules-store";
@@ -30,6 +37,12 @@ const value = (name: string) => {
 };
 
 const limit = Number(value("limit") ?? 0) || 0;
+const engineArg = value("engine") ?? "legacy";
+if (!isEngineId(engineArg)) throw new Error(`--engine must be one of legacy, rules; got ${engineArg}`);
+// Given its own annotation, rather than left for control-flow narrowing to
+// infer: `sweep`/`reprobe` close over this from separate function bodies,
+// which the type checker does not track back to the guard above.
+const engineId: EngineId = engineArg;
 
 /** The rules to sweep: one card, one set, the arena's own decks, or the catalog. */
 async function pick(): Promise<WorklistRow[]> {
@@ -85,7 +98,7 @@ async function sweep(): Promise<number> {
   const started = Date.now();
   for (const { row, rule } of rules) {
     const scenario = scenariosFor(rule)[0];
-    const run = probe(rule, scenario);
+    const run = probe(rule, scenario, engineId);
     counts.set(run.outcome, (counts.get(run.outcome) ?? 0) + 1);
     families.set(scenario.family, (families.get(scenario.family) ?? 0) + 1);
     cross.set(`${scenario.family}\t${run.outcome}`, (cross.get(`${scenario.family}\t${run.outcome}`) ?? 0) + 1);
@@ -128,7 +141,7 @@ async function reprobe(): Promise<number> {
       moved.push(`${row.cardId} [${row.skillIndex}]: the board "${was.scenario}" is not one this rule has any more`);
       continue;
     }
-    const run = probe(rule, scenario);
+    const run = probe(rule, scenario, engineId);
     if (run.digest === was.digest) continue;
     moved.push(`${row.cardId} [${row.skillIndex}] ${scenario.key}: ${was.outcome} → ${run.outcome}\n    was: ${was.result.join(" | ") || "—"}\n    now: ${run.result.join(" | ") || "—"}`);
     if (flag("write")) await setProbe(db, row.id, stored(run));

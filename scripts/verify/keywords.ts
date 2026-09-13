@@ -4,13 +4,14 @@
  * Part of `npm test`; run from `scripts/verify-arena.ts`, which fixes the order.
  */
 import assert from "node:assert/strict";
-import { apply, legalActions, masterOf } from "../../src/lib/arena/engine";
+import { masterOf } from "../../src/lib/arena/engine";
 import type { PlayerId } from "../../src/lib/arena/engine/types";
 import { validateProgram } from "../../src/lib/arena/engine/script";
 import {
   CTX,
   DEFS,
   acts,
+  apply,
   arena,
   assertConsistent,
   autoTriggerMatches,
@@ -22,6 +23,7 @@ import {
   has,
   koCard,
   labels,
+  legalActions,
   move,
   placeUnder,
   orbsIn,

@@ -9,7 +9,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { DEFS, card } from "./harness";
+import { DEFS, ENGINE, card } from "./harness";
 import type { CardDef } from "./harness";
 import { skillRecords } from "../../src/lib/arena/draft";
 import { familyOf, probe, scenariosFor, type ProbeRule, type ProbeRun } from "../../src/lib/arena/probe";
@@ -256,8 +256,18 @@ const said = (r: ProbeRun) => [...r.result, ...r.applied, ...r.log].join(" | ");
 //
 // It lives beside `contract/fixtures/`, not in it: the Kotlin round-trip
 // decodes every JSON file in that folder as a `Snapshot`, and this is not one.
+//
+// Meaningful only once every suite before this one has actually run: `DEFS`
+// is built up by each suite's own top-level cards, and on `--engine rules`
+// today several of them are skipped before they add theirs (`EngineMismatch`),
+// which would compare a partial catalog against a fixture built from the
+// whole one and fail for a reason that has nothing to do with a probe. This
+// fixture is legacy's alone until #143's later stages give the rules engine
+// something to probe.
 
-{
+if (ENGINE !== "legacy") {
+  console.log(`verify/probe: skipped the fixture digest — only meaningful once every suite before it has run (engine: ${ENGINE})`);
+} else {
   const digests: Record<string, { outcome: string; digest: string }> = {};
   for (const def of Object.values(DEFS).sort((a, b) => a.id.localeCompare(b.id))) {
     for (const rec of skillRecords(def)) {
