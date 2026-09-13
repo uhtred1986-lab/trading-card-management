@@ -1,8 +1,10 @@
 ---
 title: Arena docs: the expression grammar and every Stage 2 primitive in arena-rules-language.md
 milestone: Arena M14 — Rules language and ruleset documentation
-labels: backlog, ready-for-agent, documentation, area:arena-docs, area:arena-lang, phase:rules-docs, model:sonnet-5
+labels: done, documentation, area:arena-docs, area:arena-lang, phase:rules-docs, model:sonnet-5
 stage: docs
+status: closed
+closed_at: 2026-09-13
 ---
 **Source:** `docs/arena-rules-language.md` §3 (grammar), §4 (worked examples), §8 (what Stage 1 left out); the Stage 2 issues (X and expressions, copySkills, forbid uses/unless, replace, control/skip, payWith, immunity, keyword-timing triggers, primitive-or-macro).
 
