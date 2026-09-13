@@ -664,11 +664,17 @@ THEN
 ### 20-9. Gaining Control of Cards
 
 20-9-1: gaining control moves another player's card to your area and makes you its master, while
-20-9-2 keeps its owner, positioning and markers unchanged. `BT10-096` prints it: "[-4][Activate:
-Main] Choose up to 1 of your opponent's Battle Cards, gain control of it, and switch it to Active
-Mode." — there is no `control` op, and "gain control of it" is not merely unread: the compiler
-folds it into `moveTo(target, to: battle)`, a card that is already there, which silently drops the
-master change rather than flagging it. **unreadable — see issue #126.**
+20-9-2 keeps its owner, positioning and markers unchanged — the `control` op (§4's "Taking control
+of a card for the turn"). `BT15-118` reads: "gain control of it" after a choice that bound one.
+Nine cards in the catalog print the wording; five read correctly (`BT15-118`, `P-413`, and "your
+opponent gains control of this card" on `BT19-055`/`P-277`/`P-564`). The other four stay unread on
+purpose rather than guessed at: `BT21-063`'s "you gain control of it" and `BT19-154`'s "gain control
+of the played card" both turn on a pronoun this reading now refuses to resolve the wrong way — a
+card can't be taken from the player already mastering it, and the last choice is as often the price
+as the prize — and `P-348`/`BT16-115` name a clause — a replacement moment, what the opponent chose
+to send away — that is itself unread. A Leader or a Unison Card can't change hands, and a KO still
+sends the taken card to its **owner's** Drop Area (5-12-1). `src/lib/arena/glossary.ts`'s `control`
+entry carries the owner/master audit that made this reading possible.
 
 ### 20-10. Remove from the Game
 
@@ -729,10 +735,16 @@ THEN
 ### 20-13. Skipping Turns/Phases/Steps
 
 20-13-1…20-13-4: a skipped turn, phase or step does not happen at all — no actions, no checkpoints,
-and no [Auto] trigger fires for it. `BT31-097`: "[activate: main] If your Leader is an <Aeos> card:
-Skip your turn and begin your opponent's Charge Phase" — there is no `skip` op; both "Skip your
-turn" and "begin your opponent's Charge Phase" are left as unread clauses rather than guessed at.
-**unreadable — see issue #126.**
+and no [Auto] trigger fires for it. The `skip` op (§4's "A phase that does not happen") now says
+this for one of five things — the Charge, Main or End Phase, or the Offense or Defense Step — as a
+flag the operation writes when a skill resolves and `exec()` spends where the step would begin. It
+deliberately says nothing yet for what the catalog's own printed cards need: `BT31-097`: "[activate:
+main] If your Leader is an <Aeos> card: Skip your turn and begin your opponent's Charge Phase" —
+`skip` has no *turn* among its five, and there is no single point in the flow to refuse a whole turn
+at; `BT21-104` skips a **span** of phases; and `BT18-001`/`BT18-019` print their Offense/Defense
+Step skip as a [Permanent] conditioned on a battle in progress — a standing rule read at the step,
+not the one-shot flag a resolving skill writes. Compiling any of the four as it stands would read as
+the wrong card. **unreadable — see issue #126.**
 
 ### 20-14. You Can't Do Action A Unless You Do Action B
 
@@ -811,10 +823,15 @@ names the source outright" in §4 above.
 
 ### 20-19. (Can) Use \<Specified Cards\> as Energy
 
-20-19-1: paying with a named card as if it were energy. `BT17-065`'s [Permanent] itself: "When
-playing this card, you can pay its energy cost using {Infinite Multiplication Meta-Cooler} in your
-Battle Area as energy." — `planPayment` reads the Energy Area only, and there is no cost item for an
-eligible payer from another area. **unreadable — see issue #127.**
+20-19-1: paying with a named card as if it were energy — the `payWith` op and cost item (§4's two
+"A price the board may settle with something other than energy" examples), for the **unscoped**
+permission: a card that may always stand in for one energy, wherever it is. `BT3-039` is what it
+compiles: "[Permanent] You can use this card to pay energy costs even when it's in your Battle
+Area." Four other cards in the catalog *qualify* the permission instead of giving it outright — to
+the cards whose cost is being paid (`BT28-031`/`BT28-032`), to one play (`BT17-065`, this heading's
+own manual example: "you can pay its energy cost using {Infinite Multiplication Meta-Cooler} in
+your Battle Area as energy"), or to a count per turn (`BT28-106`) — and the op carries no scope, so
+reading them would grant a wider permission than the card prints (ground rule 5). They stay unread.
 
 ### 20-20. Non
 
@@ -893,7 +910,11 @@ not read off the row: the keyword *is* the rule, and the glossary says which.
 
 ## 8. What Stage 1 deliberately left out
 
-A definition grammar (`DEFINE GAME | ZONE | ACTION | …`), which Stage 3 has since added — §3b. New primitives from the gap
-table (Stage 2). The referee answering in this language rather than JSON. Chip editors for WHEN and
-COST — the text view is the editor. `compilerDiff` for a changed trigger or price. Multi-error
-reporting. Editing the skill kind.
+A definition grammar (`DEFINE GAME | ZONE | ACTION | …`), which Stage 3 has since added — §3b. New
+primitives from the gap table (Stage 2), also since added — X and expressions, `forbid`'s `uses` and
+`unless`, `replace(event)`, `copySkills`, `control`, `skip` and `payWith` (§4, §4b) — leaving open
+only immunity's full enforcement: `immune` already reads the ordinary case (§4b 20-4), and #128, in
+progress, is whether the engine checks it at every site an effect lands on a card rather than only
+the sites that consult it today. The referee answering in this language rather than JSON. Chip
+editors for WHEN and COST — the text view is the editor. `compilerDiff` for a changed trigger or
+price. Multi-error reporting. Editing the skill kind.
