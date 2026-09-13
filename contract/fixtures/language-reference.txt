@@ -1512,7 +1512,7 @@
         }
       ],
       "sentence": "this card isn't affected by skills for the turn",
-      "doc": "9-1-4: a card no skill may touch (stronger than \"forbid\":\"beChosen\", which only stops a skill choosing it); \"from\" and \"fromFilter\" narrow whose skills, and both absent means every skill"
+      "doc": "9-1-4: a card no skill may touch (stronger than \"forbid\":\"beChosen\", which only stops a skill choosing it); \"from\" and \"fromFilter\" narrow whose skills — \"from\":\"you\" its own controller's, \"from\":\"opponent\" the other player's, and \"both\" or no \"from\" at all every skill, the card's own side's included"
     },
     {
       "name": "permit",

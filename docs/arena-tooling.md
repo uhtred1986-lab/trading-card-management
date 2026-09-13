@@ -231,10 +231,12 @@ Plays N random complete games and reports crashes. **40 is the standing gate**;
 use 200 for anything touching the movement, payment or flow machinery. It proves
 only that nothing threw — it says nothing about correctness — but it is the
 cheapest possible check that the engine still runs to completion, and it has
-caught real breakage. Takes `--engine legacy|rules` (default `legacy`); on
-`rules` it is a **dealing** fuzz — it creates each game from real decks, checks
-the board the rules engine dealt (every card in exactly one place, 3-1) and
-stops, because nothing plays on that engine yet (#140).
+caught real breakage. Takes `--engine legacy|rules` (default `legacy`). On
+`rules` it plays whole games through that engine's own menu and checks the same
+invariant after every move (every card in exactly one place, 3-1); the moves it
+has are `pass`, `endMain` and `concede` (#140), so every game ends the way a
+game of nothing but passing ends — on a deck-out, around turn 72. A run that
+reports games *dealt* rather than won is a run on a build from before #140.
 
 ### `arena:diff` — the oracle
 

@@ -627,11 +627,19 @@ export function resolveSelector(ctx: GameContext, s: GameState, frame: ScriptFra
     if (!sel.special && !sel.ignoreBarrier && sel.side !== "you" && has(ctx, s, id, "Barrier") && masterOf(s, id) !== frame.master && areaOf(s, id) !== "hand") return false;
     // 20-4: the same shape as [Barrier], but printed as a prohibition.
     if (!sel.special && masterOf(s, id) !== frame.master && forbids(ctx, s, "beChosen", { card: id })) return false;
-    // 9-1-4: a card no skill may touch. Narrower than the rule — this only
-    // catches an effect that *chooses* the card, not one that never does —
-    // and the glossary says so; `!sel.special` keeps the card usable as an
-    // attacker or a guard, which is right.
-    if (!sel.special && masterOf(s, id) !== frame.master && isImmuneTo(ctx, s, id, frame.card)) return false;
+    // 9-1-4: a card no skill may touch. **The one place immunity is enforced**
+    // — every op that reaches a card reaches it through a selector, so a new
+    // op inherits the check rather than repeating it. Still narrower than the
+    // rule, and the glossary says so: an effect that never names the card at
+    // all slips through. Which skills it refuses is the stored rule's business
+    // (`immunityRefusing`), not the selector's — "isn't affected by your
+    // opponent's skills" and "isn't affected by non-<Gogeta: GT> skills" are
+    // different claims, and a test on who holds the card could only ever read
+    // the first; it is also the one line here that needs no `masterOf`, since
+    // the rule names its player outright. `self` is the one selector kept out:
+    // a card's own skill naming itself is the skill working, not a skill
+    // touching it from outside.
+    if (sel.special !== "self" && immunityRefusing(ctx, s, id, frame.card, frame.master)) return false;
     return true;
   });
 }
@@ -862,6 +870,58 @@ export function staticEffects(ctx: GameContext, s: GameState): StaticEffect[] {
   } finally {
     computingStatics = false;
   }
+}
+
+/**
+ * The [Permanent] immunities alone (9-1-4), collected by the same walk and
+ * readable **while** `staticEffects` is running.
+ *
+ * `staticEffects` guards itself against reentrancy by answering nothing one
+ * level down, which is right for every other kind: resolving a static
+ * selector must not ask for the statics again. Immunity is the one kind that
+ * has to be an exception to it, because it decides whether a static effect
+ * lands at all — without this, a card whose [Permanent] says it is unaffected
+ * by the opponent's skills was still powered down by the opponent's
+ * [Permanent], while the same power change said with a duration was correctly
+ * refused. Two flags rather than one: this pass may run inside the other, and
+ * a selector inside *this* pass asks for immunities again — one level is
+ * enough there, because granting a card immunity is not an effect any
+ * immunity is meant to stop.
+ */
+let computingImmunities = false;
+
+function immunityStatics(ctx: GameContext, s: GameState): StaticEffect[] {
+  if (computingImmunities) return [];
+  computingImmunities = true;
+  try {
+    const out: StaticEffect[] = [];
+    for (const p of ["p1", "p2"] as PlayerId[]) {
+      for (const src of [...cardsInPlay(s, p), ...s.players[p].hand, ...s.players[p].zDeck]) {
+        const inst = s.cards[src];
+        if (!inst || inst.hidden || skillsNegated(s, src)) continue;
+        const scripts = scriptsOfInstance(ctx, s, src);
+        for (const sk of skillsOfInstance(ctx, s, src)) {
+          if (sk.kind !== "permanent" || skillNegated(s, src, sk.index, sk.kind)) continue;
+          const sc = scripts.bySkill[sk.index];
+          // Only a program that grants one at all: the walk is otherwise the
+          // whole static layer run a second time, on a path taken once per
+          // candidate card of every selector.
+          if (!sc || sc.unsupported.length || !grantsImmunity(sc.ops)) continue;
+          const found: StaticEffect[] = [];
+          collectStatics(ctx, s, found, src, p, sc.ops, inPlay(s, src));
+          for (const e of found) if (e.kind === "immune") out.push(e);
+        }
+      }
+    }
+    return out;
+  } finally {
+    computingImmunities = false;
+  }
+}
+
+/** Does this [Permanent] program grant an immunity anywhere in it, `if` branches included? */
+function grantsImmunity(ops: Op[]): boolean {
+  return ops.some((o) => (o.op === "if" ? grantsImmunity(o.then) || grantsImmunity(o.else ?? []) : o.op === "immune"));
 }
 
 /**
@@ -1462,18 +1522,43 @@ function ownProhibitions(ctx: GameContext, s: GameState, card: string): Prohibit
   return out;
 }
 
+/** One immunity standing on a card right now, with where it came from — a refusal has to name both. */
+export interface ImmunityInForce {
+  rule: Immunity;
+  /** The card whose skill put it there; null when the effect records none. */
+  source: string | null;
+  /** How long it holds; "permanent" while that card's [Permanent] is valid. */
+  until: EffectUntil;
+}
+
 /**
- * 9-1-4: whether `id` is immune to a skill whose source card is `source`.
- * The one place this is checked (`resolveSelector`, beside [Barrier] and
- * `forbid: "beChosen"`), so unlike `forbids` it takes no `player` — the
- * caller already only asks when someone other than the card's own owner is
- * choosing, which is exactly what a stored `from` names.
+ * 9-1-4: the immunity that refuses a skill whose source card is `source` and
+ * whose master is `chooser`, or null when none does. Unlike `forbids` it is
+ * asked of every chooser, including the card's own controller: **whose** skills
+ * are blocked is written on the rule, and the three answers are different
+ * claims. "Isn't affected by your opponent's skills" stores that player
+ * (`from`); "isn't affected by non-<Gogeta: GT> skills" (BT18-019) names no
+ * side at all and so blocks every skill, the card's own side's included;
+ * `fromFilter` narrows it to the skills of cards the filter matches, which
+ * needs a source card to look at and therefore lets a skill with no card
+ * through.
+ *
+ * Read through `immunityStatics` rather than `staticEffects` so that a
+ * [Permanent] immunity — which is how nearly every card in the family prints
+ * it — is in force while the statics are being computed, and can therefore
+ * refuse another [Permanent]'s power change.
  */
-function isImmuneTo(ctx: GameContext, s: GameState, id: string, source: string | undefined): boolean {
-  const rules: Immunity[] = [];
-  for (const e of s.effects) if (e.kind === "immune" && e.target === id && e.immune) rules.push(e.immune);
-  for (const e of staticEffects(ctx, s)) if (e.kind === "immune" && e.target === id) rules.push(e.value as Immunity);
-  return rules.some((im) => !im.fromFilter || (!!source && !!s.cards[source] && matches(cardNow(ctx, s, source), im.fromFilter)));
+export function immunityRefusing(ctx: GameContext, s: GameState, id: string, source: string | undefined, chooser: PlayerId): ImmunityInForce | null {
+  const rules: ImmunityInForce[] = [];
+  for (const e of s.effects) if (e.kind === "immune" && e.target === id && e.immune) rules.push({ rule: e.immune, source: e.source ?? null, until: e.until });
+  for (const e of immunityStatics(ctx, s)) if (e.target === id) rules.push({ rule: e.value as Immunity, source: e.source, until: "permanent" });
+  return (
+    rules.find(
+      (im) =>
+        (im.rule.from === undefined || im.rule.from === chooser) &&
+        (!im.rule.fromFilter || (!!source && !!s.cards[source] && matches(cardNow(ctx, s, source), im.rule.fromFilter))),
+    ) ?? null
+  );
 }
 
 /**

@@ -1717,3 +1717,103 @@ function withRecord(cardId: string, record: { ops: unknown[]; unsupported: strin
     "and the twin never reports a shortfall the payer has already covered",
   );
 }
+
+// ── 9-1-4: a card no skill may touch ───────────────────────────────────────
+
+{
+  // The acceptance board for #128. Everything the family claims is one
+  // question asked of one pair — this card, that skill — so every case below
+  // is the same two cards with the asking side changed.
+  DEFS.IMMUNE = { ...DEFS.V1, id: "IMMUNE", name: "IMMUNE", power: 10000, energyCost: 1, skill: "[Permanent] This card isn't affected by your opponent's skills." };
+  DEFS.PLAIN = { ...DEFS.V1, id: "PLAIN", name: "PLAIN", power: 10000, energyCost: 1 };
+  DEFS.KOSKILL = { ...DEFS.V1, id: "KOSKILL", name: "KOSKILL", energyCost: 1, skill: "[Activate: Main] Choose up to 1 of your opponent's Battle Cards and KO it." };
+  DEFS.DOWNALL = { ...DEFS.V1, id: "DOWNALL", name: "DOWNALL", energyCost: 1, skill: "[Permanent] Your opponent's Battle Cards get -5000 power." };
+  DEFS.UPALL = { ...DEFS.V1, id: "UPALL", name: "UPALL", energyCost: 1, skill: "[Permanent] Your Battle Cards get +5000 power." };
+
+  // Not chosen by the opponent's skill, while the same skill still reaches the
+  // card beside it.
+  let s = arena({ battle: ["KOSKILL"], oppBattle: ["IMMUNE", "PLAIN"] });
+  const immune = find(s, "p2", "battle", "IMMUNE");
+  const plain = find(s, "p2", "battle", "PLAIN");
+  s = play(s, { type: "activate", player: "p1", card: find(s, "p1", "battle", "KOSKILL"), skill: 0 });
+  assert.equal(s.prompt.kind, "chooseCards", "the KO skill asks which card");
+  const offered = (s.prompt as { choice: { candidates: string[] } }).choice.candidates;
+  assert.deepEqual(offered, [plain], "only the card that is affected by the skill is offered");
+
+  // …and the refusal names the rule rather than pretending the card is the
+  // wrong kind of target. Said to the player who was refused, so the side word
+  // flips: the rule its controller reads as "your opponent's skills" is "your
+  // skills" from the chair it is refusing.
+  const why = rejectedActions(CTX, s).find((r) => r.action.type === "choose" && r.action.cards?.[0] === immune);
+  const said = why?.why.find((r) => r.kind === "immune");
+  assert.ok(said, "the card the skill cannot touch is refused for immunity, not for being the wrong target");
+  assert.equal(said.kind === "immune" && said.whose, "your skills");
+  assert.equal(sentence(said, { name: "IMMUNE", reaching: "choose" }), "IMMUNE isn't affected by your skills.");
+
+  // Not KO'd: the skill resolves for the card it does reach.
+  s = play(s, { type: "choose", player: "p1", cards: [plain] });
+  assert.ok(!s.players.p2.battle.includes(plain), "the card without immunity is KO'd");
+  assert.ok(s.players.p2.battle.includes(immune), "the immune card is not");
+  assertConsistent(s);
+
+  // Not powered down, by a continuous effect the opponent's [Permanent] emits
+  // — the case the single-level static guard used to let through, because the
+  // immunity is itself a [Permanent].
+  const board = arena({ battle: ["DOWNALL"], oppBattle: ["IMMUNE", "PLAIN"] });
+  assert.equal(powerOf(CTX, board, find(board, "p2", "battle", "PLAIN")), 5000, "the opponent's board-wide power change lands");
+  assert.equal(powerOf(CTX, board, find(board, "p2", "battle", "IMMUNE")), 10000, "and does not land on the card unaffected by it");
+
+  // 20-7: the skill is p1's, the *choice* is p2's ("your opponent chooses").
+  // The prompt then stands in front of a player who is not the skill's master,
+  // and the refusal is read by them — so the side word is settled by who is
+  // being told, not by whose skill it is. Read from the master's chair this
+  // said "your skills" to the one person whose skills they are not.
+  DEFS.THEYPICK = { ...DEFS.V1, id: "THEYPICK", name: "THEYPICK", energyCost: 1, skill: "[Activate: Main] Your opponent chooses 1 of their Battle Cards and KO it." };
+  // Two cards it can reach, so the pick is a real question rather than a
+  // forced one taken silently.
+  let theirs = arena({ battle: ["THEYPICK"], oppBattle: ["IMMUNE", "PLAIN", "V1"] });
+  theirs = play(theirs, { type: "activate", player: "p1", card: find(theirs, "p1", "battle", "THEYPICK"), skill: 0 });
+  assert.equal(theirs.prompt.kind, "chooseCards");
+  assert.equal((theirs.prompt as { player: string }).player, "p2", "the card says the opponent chooses, so the prompt is theirs");
+  const theirImmune = find(theirs, "p2", "battle", "IMMUNE");
+  const theirWhy = rejectedActions(CTX, theirs).find((r) => r.action.type === "choose" && r.action.cards?.[0] === theirImmune);
+  const theirSaid = theirWhy?.why.find((r) => r.kind === "immune");
+  assert.ok(theirSaid, "the immune card is refused to whoever is doing the choosing");
+  assert.equal(theirSaid.kind === "immune" && theirSaid.whose, "your opponent's skills", "the blocked skills are the chooser's opponent's, and the words are the chooser's");
+
+  // The other two shapes of the same refusal, which the printed family does
+  // not reach but the language can write: a rule with a duration, and one
+  // another card is holding up. Both have something left to say after the
+  // fact, unlike the card's own [Permanent], whose duration is itself.
+  assert.equal(
+    sentence({ kind: "immune", card: "IMMUNE", whose: "your skills", by: null, until: "turn" }, { name: "IMMUNE", reaching: "choose" }),
+    "IMMUNE isn't affected by your skills. Until the end of the turn.",
+  );
+  assert.equal(
+    sentence({ kind: "immune", card: "IMMUNE", whose: "your skills", by: "GRANTER", until: "permanent" }, { name: "IMMUNE", reaching: "choose" }),
+    "IMMUNE isn't affected by your skills. GRANTER's skill says so, while GRANTER is in play.",
+  );
+
+  // The card's own side's skills still apply: "your opponent's" names one
+  // player, and the other one is not it.
+  const own = arena({ oppBattle: ["IMMUNE", "PLAIN", "UPALL"] });
+  assert.equal(powerOf(CTX, own, find(own, "p2", "battle", "PLAIN")), 15000);
+  assert.equal(powerOf(CTX, own, find(own, "p2", "battle", "IMMUNE")), 15000, "immunity to your opponent's skills is not immunity to your own");
+}
+
+{
+  // The other half of the family, and the reason the rule is asked of the
+  // stored `from` rather than of who owns the card: "isn't affected by
+  // non-<Gogeta: GT> skills" (BT18-019) names no side at all, so it blocks
+  // every skill — the card's own side's included.
+  DEFS.IMMANY = { ...DEFS.V1, id: "IMMANY", name: "IMMANY", power: 10000, energyCost: 1, skill: "[Permanent] This card isn't affected by non-<Gogeta: GT> skills." };
+  DEFS.UPALL2 = { ...DEFS.V1, id: "UPALL2", name: "UPALL2", energyCost: 1, skill: "[Permanent] Your Battle Cards get +5000 power." };
+  DEFS.GOGETA = { ...DEFS.V1, id: "GOGETA", name: "GOGETA", energyCost: 1, characters: ["Gogeta: GT"], skill: "[Permanent] Your Battle Cards get +5000 power." };
+
+  const s = arena({ oppBattle: ["IMMANY", "UPALL2"] });
+  assert.equal(powerOf(CTX, s, find(s, "p2", "battle", "IMMANY")), 10000, "a filter with no side blocks the card's own controller's skills too");
+
+  // And the filter is a filter: the skills it does not describe still land.
+  const g = arena({ oppBattle: ["IMMANY", "GOGETA"] });
+  assert.equal(powerOf(CTX, g, find(g, "p2", "battle", "IMMANY")), 15000, "a <Gogeta: GT> card's skill is not a non-<Gogeta: GT> skill");
+}

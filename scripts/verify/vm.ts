@@ -40,7 +40,7 @@
  */
 import assert from "node:assert/strict";
 import { toBeats } from "../../src/lib/arena/beats";
-import { apply, createGame, legalActions, rejectedActions } from "../../src/lib/arena/engine";
+import { IllegalAction, apply, createGame, legalActions, rejectedActions, type Action, type GameEvent, type GameState } from "../../src/lib/arena/engine";
 import {
   AVAILABLE_ENGINES,
   ENGINE_IDS,
@@ -74,6 +74,11 @@ import {
   placeZones,
   playerAttributes,
   predicateOf,
+  repeatAllowed,
+  stepWorkNote,
+  turnPhases,
+  SETUP_ZONES,
+  WORKED_STEPS,
   type Attrs,
   type VmState,
 } from "../../src/lib/arena/vm";
@@ -133,7 +138,12 @@ assert.equal(state.engine, "rules", "a rules game's state names the wrong engine
 assert.equal(state.game, "dbs", "a rules game was not dealt from the DBS definition");
 assert.equal(state.seed, DECKS.seed, "a rules game did not keep the seed it was made from");
 assert.equal(state.version, VM_STATE_VERSION, "a rules game's state does not say which shape it is written in");
-assert.deepEqual(made.events, [], "a rules game logged an event, and nothing has happened in it yet");
+// 6-2-1-4 is the first thing that happens and the only thing that has: the
+// random method has picked who chooses, which the legacy engine logs the same
+// way and at the same moment.
+assert.deepEqual(made.events, [{ type: "gameStart", first: state.chooser, seed: DECKS.seed }], "a new rules game's log is not the one moment that has happened in it");
+assert.equal(state.prompt.kind, "chooseFirst", "a new rules game is not waiting to be told who goes first (6-2-1-5)");
+assert.equal(state.turn, 0, "a rules game has a turn number before the pre-game procedure has finished");
 
 // `arena_games.state` is JSON, so a state that does not survive the round trip
 // is a game that cannot be stored — the one property the skeleton must have.
@@ -148,28 +158,30 @@ assert.equal(isVmState(createGame(CTX, DECKS).state), false, "a legacy state was
 assert.equal(isVmState(null), false, "null was read as a rules state");
 assert.equal(isVmState("rules"), false, "a string was read as a rules state");
 
-// ── 4. every other call says which issue builds it ─────────────────────────
+// ── 4. what it cannot do yet says which issue builds it ───────────────────
 
-// Called through the interface, with the arguments the app would really pass,
-// so this is the refusal a caller gets and not a shortcut past it.
+// All six calls are answered now (#140); what is still missing is the *moves*
+// with a price and a program, and each of those names the issue that builds
+// it rather than failing as an unrecognised action. `NotYet` is an
+// `IllegalAction`, so the API answers `illegal_action` and the client shows
+// the sentence — the refusal a caller really gets, not a shortcut past it.
 const rules = engineFor("rules");
-const asks: { call: string; run: () => unknown }[] = [
-  { call: "apply", run: () => rules.apply(CTX, state, { type: "endMain", player: "p1" }) },
-  { call: "legalActions", run: () => rules.legalActions(CTX, state) },
-  { call: "rejectedActions", run: () => rules.rejectedActions(CTX, state, []) },
-  { call: "boardView", run: () => rules.boardView(CTX, state, "p1", {}) },
-  { call: "toBeats", run: () => rules.toBeats(CTX, state, [], 0) },
+const notYet: { what: string; run: () => unknown }[] = [
+  { what: "playing a card", run: () => rules.apply(CTX, state, { type: "play", player: "p1", card: "p1#1" }) },
+  { what: "attacking", run: () => rules.apply(CTX, state, { type: "attack", player: "p1", attacker: "p1#0", target: "p2#0" }) },
+  { what: "activating a skill", run: () => rules.apply(CTX, state, { type: "activate", player: "p1", card: "p1#1", skill: 0 }) },
 ];
-for (const { call, run } of asks) {
+for (const { what, run } of notYet) {
   assert.throws(
     run,
     (err: unknown) => {
-      assert.ok(err instanceof NotYet, `${call} on the rules engine threw ${err instanceof Error ? err.name : typeof err}, not NotYet`);
-      assert.match(err.issue, /^#\d+$/, `${call} does not name the issue that builds it`);
-      assert.ok(err.message.includes(err.issue), `${call}'s NotYet does not say which issue builds it in its own message`);
+      assert.ok(err instanceof NotYet, `${what} on the rules engine threw ${err instanceof Error ? err.name : typeof err}, not NotYet`);
+      assert.match(err.issue, /^#\d+$/, `${what} does not name the issue that builds it`);
+      assert.ok(err.message.includes(err.issue), `${what}'s NotYet does not say which issue builds it in its own message`);
+      assert.ok(err instanceof IllegalAction, "a NotYet is not an IllegalAction, so the API would answer it as a crash");
       return true;
     },
-    `${call} on the rules engine answered instead of refusing`,
+    `${what} on the rules engine was accepted`,
   );
 }
 
@@ -406,24 +418,38 @@ for (const field of ["faceUp", "powerRel", "unreadable"] as const) {
 
 // ── 9. the opening board is the legacy engine's ────────────────────────────
 
-// Seed 7 and the harness decks, the pairing the issue names. The legacy engine
-// deals its hands *after* the first-player choice and its life after the
-// mulligans, so the comparison is made at the first board both engines can
-// have: the choice taken and both mulligans declined, neither of which moves a
-// shuffle or a draw.
+// Seed 7 and the harness decks, the pairing the issue names. Both engines deal
+// the same procedure at the same moments now (#140 moved the rules engine's
+// life and mulligan into the flow, where 6-2-1 puts them), so the same three
+// answers are given to each and the boards are compared after them.
 const SEED = 7;
 const SAME = { seed: SEED, p1: { name: "You", leader: "L-RED", main: fifty("V1") }, p2: { name: "Claude", leader: "L-BLUE", main: fifty("V-BLUE") } };
 
-const dealt = engineFor("rules").createGame(CTX, SAME).state as VmState;
-assert.deepEqual(dealt.sides.p1.attrs, { energyMarkers: 0 }, "a side does not start with the player attributes the game declares (1-14)");
+const fresh = engineFor("rules").createGame(CTX, SAME).state as VmState;
+assert.deepEqual(fresh.sides.p1.attrs, { energyMarkers: 0 }, "a side does not start with the player attributes the game declares (1-14)");
 
 let oracle = createGame(CTX, SAME).state;
 const chooser = (oracle.prompt as { player: PlayerId }).player;
-assert.equal(dealt.chooser, chooser, "the two engines chose a different player to decide who goes first (6-2-1-4)");
-assert.equal(dealt.firstPlayer, null, "the rules engine decided who goes first, which is a choice and needs a prompt (6-2-1-5)");
-oracle = apply(CTX, oracle, { type: "chooseFirst", player: chooser, first: "p1" }).state;
-oracle = apply(CTX, oracle, { type: "mulligan", player: "p1", redraw: false }).state;
-oracle = apply(CTX, oracle, { type: "mulligan", player: "p2", redraw: false }).state;
+assert.equal(fresh.chooser, chooser, "the two engines chose a different player to decide who goes first (6-2-1-4)");
+assert.equal(fresh.firstPlayer, null, "the rules engine decided who goes first, which is a choice and needs a prompt (6-2-1-5)");
+
+/** The three answers the pre-game procedure asks for, given to either engine. */
+const OPENING: Action[] = [
+  { type: "chooseFirst", player: chooser, first: "p1" },
+  { type: "mulligan", player: "p1", redraw: false },
+  { type: "mulligan", player: "p2", redraw: false },
+];
+for (const action of OPENING) oracle = apply(CTX, oracle, action).state;
+let dealt = fresh;
+for (const action of OPENING) dealt = engineFor("rules").apply(CTX, dealt, action).state as VmState;
+
+// 6-2-1-11: the player who goes second starts with one energy marker, and the
+// one who goes first with none — the rule `startMarkers:` cannot state, so the
+// step says it and this is where that is checked.
+assert.equal(dealt.sides.p2.attrs.energyMarkers, 1, "the player going second did not place an energy marker (6-2-1-11)");
+assert.equal(dealt.sides.p1.attrs.energyMarkers, 0, "the player going first placed an energy marker (6-2-1-11)");
+assert.equal(dealt.turn, 1, "the first turn did not begin once the pre-game procedure finished (6-2-1-12)");
+assert.equal(dealt.turnPlayer, "p1", "the player who was chosen to go first is not the turn player");
 
 for (const p of ["p1", "p2"] as PlayerId[]) {
   const side = dealt.sides[p];
@@ -450,7 +476,8 @@ for (const p of ["p1", "p2"] as PlayerId[]) {
 // ── 10. the one mover, on the board it just dealt ──────────────────────────
 
 {
-  const board = engineFor("rules").createGame(CTX, SAME).state as VmState;
+  let board = engineFor("rules").createGame(CTX, SAME).state as VmState;
+  for (const action of OPENING) board = engineFor("rules").apply(CTX, board, action).state as VmState;
   const hand = board.sides.p1.zones.hand;
   const first = hand[0];
 
@@ -533,4 +560,171 @@ for (const p of ["p1", "p2"] as PlayerId[]) {
     assert.deepEqual(asked.move.replacement, { source: "p1#1", to: "warp" }, "the replacement the caller asked for was not recorded");
   }
 }
+// ── 11. the turn, run as a program ─────────────────────────────────────────
+//
+// The claim #140 makes: a game on the rules engine plays turn to turn from the
+// `DEFINE PHASE` and `DEFINE STEP` declarations, and what it logs doing so is
+// what the engine that has been playing logs. Asserted here rather than left
+// to `arena:diff`, which needs a database and real saved games: the same
+// comparison, over the harness decks, in `npm test`.
+
+/** Everything the turn asks for, answered with the move that takes none of what is offered. */
+function passOnly(engine: ReturnType<typeof engineFor>, start: unknown, first: PlayerId): { events: GameEvent[]; actions: Action[]; state: unknown } {
+  let state = start;
+  const events: GameEvent[] = [];
+  const actions: Action[] = [];
+  for (let i = 0; i < 4000; i++) {
+    const legal = engine.legalActions(CTX, state as never);
+    if (!legal.length) break;
+    const pick =
+      legal.find((l) => l.action.type === "chooseFirst" && l.action.first === first) ??
+      legal.find((l) => l.action.type === "mulligan" && !l.action.redraw) ??
+      legal.find((l) => l.action.type === "charge" && l.action.card === null) ??
+      legal.find((l) => l.action.type === "endMain") ??
+      legal[0];
+    actions.push(pick.action);
+    const r = engine.apply(CTX, state as never, pick.action);
+    state = r.state;
+    events.push(...r.events);
+  }
+  return { events, actions, state };
+}
+
+{
+  const rulesEngine = engineFor("rules");
+  const legacyEngine = engineFor("legacy");
+  const born = rulesEngine.createGame(CTX, SAME);
+  const legacyBorn = legacyEngine.createGame(CTX, SAME);
+
+  const played = passOnly(rulesEngine, born.state, "p1");
+  const oracled = passOnly(legacyEngine, legacyBorn.state, "p1");
+  const end = played.state as VmState;
+  const legacyEnd = oracled.state as GameState;
+
+  // The same questions in the same order, which is what makes one action log
+  // replayable on either engine — the property `arena:diff` is built on.
+  assert.deepEqual(played.actions, oracled.actions, "a pass-only game asks the two engines for different answers");
+
+  // The whole log, event for event, creation included. `reason` is the one
+  // field left out of the comparison: the rules engine says why a player lost
+  // in the words of the `DEFINE WIN` that ended it, and the legacy engine in
+  // its own — which is the difference the programme exists to make, and Stage
+  // 8 is where every word comes from the definition.
+  const shown = (list: GameEvent[]) => JSON.parse(JSON.stringify(list.map((e) => (e.type === "gameOver" ? { ...e, reason: "…" } : e))));
+  assert.deepEqual(shown([...born.events, ...played.events]), shown([...legacyBorn.events, ...oracled.events]), "a pass-only game does not log the same thing on the two engines");
+
+  // …and it really did play a game: to a deck-out, on the turn the legacy
+  // engine gets there, with the same winner.
+  assert.equal(end.phase, "over", "a pass-only game on the rules engine never ended");
+  assert.equal(end.turn, legacyEnd.turn, "the two engines' pass-only games ran for a different number of turns");
+  assert.equal(end.winner, legacyEnd.winner, "the two engines' pass-only games ended with a different winner");
+  assert.ok(end.turn > 60, `a pass-only game ended on turn ${end.turn}, which is far too soon for a 50-card deck to run out`);
+  assert.match(end.overReason ?? "", /Deck Area/, "a pass-only game did not end on a deck-out");
+  assert.deepEqual(rulesEngine.legalActions(CTX, end), [], "a finished game still offers moves");
+  assert.equal(end.prompt.kind, "gameOver", "a finished game is not asking the question nobody answers");
+
+  // The frame is the suspension: a game stored mid-decision and read back is
+  // the same game, and the flow says which step it stopped at.
+  let mid = born.state as VmState;
+  mid = rulesEngine.apply(CTX, mid, { type: "chooseFirst", player: mid.chooser, first: "p1" }).state as VmState;
+  assert.deepEqual(JSON.parse(JSON.stringify(mid)), mid, "a game waiting on a prompt does not round-trip through JSON");
+  assert.equal(mid.prompt.kind, "mulligan", "the answer to who goes first did not lead to the mulligan (6-2-1-9-1)");
+  assert.deepEqual(
+    mid.flow.map((f) => f.phase),
+    ["setup"],
+    "a game in the pre-game procedure is in some other phase",
+  );
+  // Both players are asked, beginning with the one who goes first (6-2-1-9-1).
+  assert.deepEqual(mid.flow[0].asking, ["p1", "p2"], "the mulligan is not put to both players beginning with the first");
+  assert.equal((mid.prompt as { player: PlayerId }).player, "p1", "the first player is not the first to be asked about a mulligan");
+
+  // A mulligan really redraws, and redraws the hand the legacy engine redraws:
+  // the hand goes back to a deck the life has not been taken off yet, which is
+  // why the deal had to move into the flow at all (6-2-1-9-1 before 6-2-1-10).
+  const redrawn = rulesEngine.apply(CTX, mid, { type: "mulligan", player: "p1", redraw: true }).state as VmState;
+  let legacyRedrawn = legacyEngine.createGame(CTX, SAME).state;
+  legacyRedrawn = legacyEngine.apply(CTX, legacyRedrawn, { type: "chooseFirst", player: mid.chooser, first: "p1" }).state;
+  legacyRedrawn = legacyEngine.apply(CTX, legacyRedrawn, { type: "mulligan", player: "p1", redraw: true }).state;
+  assert.deepEqual(
+    (redrawn as VmState).sides.p1.zones.hand,
+    (legacyRedrawn as GameState).players.p1.hand,
+    "a mulligan on the rules engine draws a different hand from the one the legacy engine draws",
+  );
+
+  // Conceding is answered wherever the game has got to (0-1-3-4), and leaves
+  // the game in its over phase rather than in the middle of the question it
+  // was asking.
+  const conceded = rulesEngine.apply(CTX, mid, { type: "concede", player: "p2" }).state as VmState;
+  assert.equal(conceded.winner, "p1", "conceding did not give the game to the other player");
+  assert.equal(conceded.prompt.kind, "gameOver", "a conceded game is still asking the question it was in the middle of");
+  assert.equal(conceded.phase, DBS.game?.overPhase, "a conceded game did not come to rest in the phase the game names");
+
+  // `pass` is the generic decline: the same answer as the three named moves,
+  // played through every question a turn asks.
+  let byPass = born.state as VmState;
+  byPass = rulesEngine.apply(CTX, byPass, { type: "chooseFirst", player: byPass.chooser, first: "p1" }).state as VmState;
+  for (let i = 0; i < 40 && byPass.phase !== "over"; i++) {
+    byPass = rulesEngine.apply(CTX, byPass, { type: "pass", player: (byPass.prompt as { player: PlayerId }).player }).state as VmState;
+  }
+  assert.ok(byPass.turn >= 3, `passing forty times reached turn ${byPass.turn}, and a turn of nothing but passing is four questions long`);
+
+  // The board a client is handed, from a state it cannot read.
+  const view = rulesEngine.boardView(CTX, byPass, "p1", {});
+  assert.equal(view.turnPlayer, byPass.turnPlayer, "the board names a different turn player from the state");
+  assert.equal(view.you.player, "p1", "the board was not drawn for the side it was asked for");
+  assert.equal(view.them.hand, null, "the board shows the opponent's hand (3-3-3)");
+  assert.equal(view.them.handCount, byPass.sides.p2.zones.hand.length, "the board does not say how big the opponent's hand is");
+  assert.equal(view.you.life, byPass.sides.p1.zones.life.length, "the board does not count the life the state holds");
+  assert.equal(view.you.leader?.id, byPass.sides.p1.zones.leader[0], "the board does not show the Leader the state placed");
+  assert.equal(view.battle, null, "the board shows a battle, and this engine has never started one");
+
+  // …and the beats a client animates from, which cover the moments a turn of
+  // passing has: a phase beginning, a card drawn, a card moving.
+  const turn = rulesEngine.apply(CTX, byPass, { type: "pass", player: (byPass.prompt as { player: PlayerId }).player });
+  const beats = rulesEngine.toBeats(CTX, turn.state, turn.events, 7);
+  assert.ok(beats.list.length > 0, "a turn of the rules engine produced no beats at all");
+  assert.equal(beats.list[0].n, 8, "beats are not numbered on from the sequence they were asked to continue");
+  assert.equal(beats.seq, 7 + beats.list.length, "the beat sequence does not end where the list does");
+  for (const beat of beats.list) assert.ok(["phase", "draw", "move", "mode", "over"].includes(beat.t), `a turn of passing produced a ${beat.t} beat, which nothing in it can cause`);
+}
+
+// ── 12. the bounded repeat (7-4-4) ─────────────────────────────────────────
+//
+// The End Phase is carried out again when a skill newly answers to the end of
+// the turn, and `LIMIT` is the ceiling on that. Nothing can pend yet — a
+// trigger becomes pending when an event matches its pattern, which is #141 —
+// so the loop turns zero times today and the thing worth asserting is the
+// bound itself: a mis-declared trigger must not be able to hang a game.
+{
+  const repeat = Object.values(DBS.steps).filter((step) => step.limit !== undefined);
+  assert.equal(repeat.length, 1, `${repeat.length} steps declare a LIMIT, and 7-4-4 is the one repeat the game has`);
+  const step = repeat[0];
+  assert.equal(step.phase, "end", "the bounded repeat is not a step of the End Phase (7-4-4)");
+  assert.ok((step.limit ?? 0) > 0, "the End Phase repeat is declared with no repeats at all");
+  for (let i = 0; i < (step.limit ?? 0); i++) {
+    assert.equal(repeatAllowed(step, { phase: "end", index: 0, repeats: i }), true, `the End Phase refused to repeat after ${i} passes, and it declares ${step.limit}`);
+  }
+  assert.equal(repeatAllowed(step, { phase: "end", index: 0, repeats: step.limit ?? 0 }), false, "the End Phase repeats past the ceiling its own declaration states");
+  // A step with no `LIMIT` declares no repeat, which is what stops a game
+  // needing the field everywhere.
+  const plain = Object.values(DBS.steps).find((s) => s.limit === undefined)!;
+  assert.equal(repeatAllowed(plain, { phase: plain.phase, index: 0, repeats: 0 }), false, "a step that declares no LIMIT repeated anyway");
+}
+
+// ── 13. what the interpreter still does itself ─────────────────────────────
+//
+// Two constants in `vm/` name pieces of the DBS definition, and both are
+// checked against it rather than trusted: `SETUP_ZONES` (#139's) and the steps
+// the runner carries out because they have no `DO` program yet. A row naming a
+// step nothing declares is work that would silently never happen, and each row
+// says what it is waiting on so the gap can be read without opening the file.
+{
+  for (const zone of Object.values(SETUP_ZONES)) assert.ok(zone in DBS.zones, `the interpreter puts cards in the ${zone}, which the game declares no zone for`);
+  for (const name of WORKED_STEPS) {
+    assert.ok(name in DBS.steps, `the interpreter carries out a step called ${name}, which nothing declares`);
+    assert.match(stepWorkNote(name) ?? "", /\d-\d/, `${name} does not say which manual section it is`);
+  }
+  assert.deepEqual(turnPhases(DBS), ["charge", "main", "mainEnd", "end"], "the turn is not the phases the game declares (7-1)");
+}
+
 console.log("verify/vm: ok");

@@ -157,6 +157,15 @@ sealed class Requirement {
     @SerialName("forbidden")
     data class Forbidden(val by: String? = null, val until: String? = null) : Requirement()
 
+    /**
+     * 9-1-4: the skill does not reach the card at all. `whose` names the
+     * skills it ignores in the words of the player being refused, `by` the
+     * card holding the rule up when another card does.
+     */
+    @Serializable
+    @SerialName("immune")
+    data class Immune(val card: String, val whose: String, val by: String? = null, val until: String? = null) : Requirement()
+
     @Serializable
     @SerialName("unread")
     data class Unread(val card: String) : Requirement()

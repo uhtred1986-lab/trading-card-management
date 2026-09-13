@@ -511,11 +511,9 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     fields: [UNTIL, SELF, { name: "from", type: "side" }, { name: "fromFilter", type: "filter" }],
     sentence: (raw, r) => {
       const op = raw as OpOf<"immune">;
-      const who = op.from === "opponent" ? "your opponent's" : op.from === "you" ? "your" : "";
-      const whose = [who, op.fromFilter ? describeFilter(op.fromFilter) : ""].filter(Boolean).join(" ");
-      return `${describeRef(op.target ?? { sel: { special: "self" } })} isn't affected by ${whose ? `${whose} ` : ""}skills${forThe(op.until, r)}`;
+      return `${describeRef(op.target ?? { sel: { special: "self" } })} isn't affected by ${whoseSkills(op.from, op.fromFilter)}${forThe(op.until, r)}`;
     },
-    doc: '9-1-4: a card no skill may touch (stronger than "forbid":"beChosen", which only stops a skill choosing it); "from" and "fromFilter" narrow whose skills, and both absent means every skill',
+    doc: '9-1-4: a card no skill may touch (stronger than "forbid":"beChosen", which only stops a skill choosing it); "from" and "fromFilter" narrow whose skills — "from":"you" its own controller\'s, "from":"opponent" the other player\'s, and "both" or no "from" at all every skill, the card\'s own side\'s included',
   },
   permit: {
     fields: [{ name: "what", type: { enum: ["attackActive"] }, required: true }, UNTIL, TARGET, { name: "filter", type: "filter" }],
@@ -959,6 +957,22 @@ const POWER_REL_WORDS: Record<NonNullable<CardFilter["powerRel"]>["cmp"], string
   ">=": "greater than or equal to",
   ">": "greater than",
 };
+
+/**
+ * Whose skills an immunity blocks (9-1-4), in words — the one phrase shared
+ * by the `immune` op's sentence, the effect label on the board and the
+ * refusal a chosen card is turned down with, so the three cannot come to
+ * disagree about what the rule claims. `side` is said from the chair the
+ * caller is speaking in: the script's master for the op, the effect's master
+ * for the label, and the player being refused for the refusal, which is why
+ * the refusal reads "your skills" for the same rule the card's own side reads
+ * as "your opponent's skills".
+ */
+export function whoseSkills(side: Side | undefined, filter?: CardFilter): string {
+  const who = side === "opponent" ? "your opponent's" : side === "you" ? "your" : "";
+  const whose = [who, filter ? describeFilter(filter) : ""].filter(Boolean).join(" ");
+  return `${whose ? `${whose} ` : ""}skills`;
+}
 
 export function describeFilter(f: CardFilter): string {
   const bits: string[] = [];

@@ -225,7 +225,7 @@ export const COST_ITEMS = [
  */
 export const RESERVED = new Set([
   "WHEN", "COST", "IF", "THEN", "DO", "TEXT", "PAYWITH", "AS", "AND", "OR", "NOT", "IN", "FROM", "UNDER", "ANY", "TOP", "BOTTOM", "UP", "TO", "MINUS", "NULL", "TRUE", "FALSE", "ALL",
-  "DEFINE", "GAME", "ATTRIBUTE", "ZONE", "PHASE", "STEP", "ACTION", "TRIGGER", "KEYWORD", "WIN", "OP", "HOOK", "ON", "WHERE", "BIND", "FOR", "REFUSE", "TAKES",
+  "DEFINE", "GAME", "ATTRIBUTE", "ZONE", "PHASE", "STEP", "ACTION", "TRIGGER", "KEYWORD", "WIN", "OP", "HOOK", "ON", "WHERE", "BIND", "FOR", "REFUSE", "TAKES", "LIMIT",
 ]);
 
 // ── definitions ─────────────────────────────────────────────────────────────
@@ -321,6 +321,15 @@ export interface DefGame extends Declaration<"GAME"> {
   mulligan?: boolean;
   firstPlayerDraws?: boolean;
   phases?: string[];
+  /**
+   * The phase a turn is *not* made of: the pre-game procedure (§6-2), which
+   * runs once before the first turn, and the phase a finished game sits in
+   * (§0-1-3). `phases:` is the turn, so neither can be in it — and without
+   * them named here an interpreter would have to know the two by name, which
+   * is the one thing a configuration-driven engine may not do (#140).
+   */
+  setupPhase?: string;
+  overPhase?: string;
 }
 
 /** `DEFINE ATTRIBUTE` — something a card or a player has, printed or derived (manual §4). */
@@ -362,6 +371,13 @@ export interface DefPhase extends Declaration<"PHASE"> {
   steps: string[];
   actions?: string[];
   auto?: boolean;
+  /**
+   * Whether entering this phase is a moment of its own in the log — the beat a
+   * board narrates as "Charge Phase" (7-1-1). Default true; a phase declared
+   * `announce: false` still happens and still runs its steps, it is simply not
+   * announced.
+   */
+  announce?: boolean;
   text?: string;
 }
 
@@ -371,6 +387,14 @@ export interface DefStep extends Declaration<"STEP"> {
   do?: Op[];
   optional?: boolean;
   prompt?: string;
+  /**
+   * The ceiling on a step that sends its phase round again — the End Phase's
+   * 7-4-4, where a skill that triggers while the phase runs makes it repeat.
+   * The bound is part of the declaration rather than a number in the runner
+   * because a mis-declared trigger must not be able to hang a game, and the
+   * game that declares the repeat is the one that knows how far it may go.
+   */
+  limit?: number;
   text?: string;
 }
 
@@ -448,6 +472,8 @@ export const DEFINE_SCHEMA = {
       { name: "mulligan", type: "boolean" },
       { name: "firstPlayerDraws", type: "boolean" },
       { name: "phases", type: { list: "string" } },
+      { name: "setupPhase", type: "string" },
+      { name: "overPhase", type: "string" },
     ],
   },
   ATTRIBUTE: {
@@ -482,6 +508,7 @@ export const DEFINE_SCHEMA = {
       { name: "steps", type: { list: "string" }, required: true },
       { name: "actions", type: { list: "string" } },
       { name: "auto", type: "boolean" },
+      { name: "announce", type: "boolean", default: true },
       TEXT,
     ],
   },
@@ -492,6 +519,7 @@ export const DEFINE_SCHEMA = {
       { name: "do", type: "ops", word: "DO" },
       { name: "optional", type: "boolean" },
       { name: "prompt", type: "string" },
+      { name: "limit", type: "number", word: "LIMIT" },
       TEXT,
     ],
   },

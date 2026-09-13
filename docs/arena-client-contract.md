@@ -432,11 +432,81 @@ prevent. `basedOn` is the `beats.seq` the client drew its board from; when it no
 game has moved on and the same index now means a different move, so the tap is refused (`stale`)
 rather than guessed at.
 
-The deck endpoints are **not built yet** — nothing consumes them until the Android app exists, and
-an endpoint without a consumer rots. Everything else in the table is live.
+The deck endpoints are now live (13 Sep 2026) — read-only, shaped by `src/lib/decks/legality.ts`
+exactly as the web deck page renders it, and pinned by their own golden fixtures (§5.1) so a shape
+change shows up as a diff before the Android app exists to notice it break. Everything in the table
+is live.
 
 There are deliberately **no** endpoints for editing decks, the collection, prices, scanning or the
 cart. The Android app is arena plus read-only decks; anything else is a deep link into the web app.
+
+### 5.1 Deck shapes (added 13 Sep 2026)
+
+Pure shaping, no engine — `src/lib/arena/deck-api.ts`. A deck carries no seat or owner column (that
+is `arena_games`, for the 1 v 1 seats), so unlike the game routes there is nothing here to filter by
+viewer: the list is the same one the web deck page shows, for whoever is logged in.
+
+```ts
+export interface DeckLeader {
+  id: string;
+  name: string;
+  imageUrl: string | null;
+  colors: string[];
+}
+
+// GET /api/v1/decks
+export interface DeckListPayload {
+  decks: DeckSummary[];
+}
+
+export interface DeckSummary {
+  id: number;
+  name: string;
+  game: "dbs" | "fusion";
+  isBuilt: boolean;
+  leader: DeckLeader | null;
+  /** From `legality()` — never recomputed on the client, for the same reason no rule is. */
+  status: "legal" | "incomplete" | "illegal";
+  /** Whether the arena will load this deck into a game (`deckInputFor` decides it). */
+  playable: boolean;
+  /** Set whenever `playable` is false. A deck is never hidden for being unplayable — only marked why. */
+  playableReason: string | null;
+}
+
+// GET /api/v1/decks/{id}
+export interface DeckDetail {
+  id: number;
+  name: string;
+  game: "dbs" | "fusion";
+  isBuilt: boolean;
+  leader: DeckLeader | null;
+  status: "legal" | "incomplete" | "illegal";
+  counts: { leader: number; main: number; z: number; side: number };
+  cards: DeckDetailCard[];
+  playable: boolean;
+  playableReason: string | null;
+}
+
+export interface DeckDetailCard {
+  cardId: string;
+  name: string;
+  zone: "leader" | "main" | "z" | "side";
+  quantity: number;
+  cardType: string;
+  colors: string[];
+  imageUrl: string | null;
+  energyCost: string | null;
+  /** The same `"<zone>:<cardId>"` flag the web deck page highlights, when this row has one. */
+  flag: { severity: "illegal" | "incomplete" | "warning"; label: string } | null;
+}
+```
+
+A Fusion World deck (the arena only plays `dbs`, §1) or a deck with no leader yet is listed like any
+other — `playable: false` and a `playableReason` saying which — rather than dropped from the list,
+so the Android app can grey it out with an explanation instead of a deck that is silently not there.
+Golden fixtures: `contract/fixtures/deck-list.json` and `deck-detail.json`, built and checked by
+`scripts/verify/contract.ts` the same way as the `Snapshot` fixtures above, and round-tripped by the
+Kotlin side in `android/contract/src/main/kotlin/arena/Decks.kt`.
 
 Card art is **not** proxied. Both clients fetch it straight from the three CDN hosts already listed
 in `next.config.ts`, which are public and need no credentials.

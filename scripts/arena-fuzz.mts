@@ -22,11 +22,11 @@ const games = Number(positional[0] ?? 20);
 const fixed = positional.length >= 3 ? [Number(positional[1]), Number(positional[2])] : null;
 
 /**
- * The same invariant as `check` below, on the board the rules engine deals
- * (#139): every card in exactly one place (3-1). It has no moves to make yet
- * (#140), so a run on `--engine rules` is a *dealing* fuzz — forty real decks
- * through `createGame`, which is the only thing that can crash on it today and
- * the thing every later stage is built on.
+ * The same invariant as `check` below, on the board the rules engine plays:
+ * every card in exactly one place (3-1), checked after every move as it is on
+ * the legacy engine. A run on `--engine rules` plays whole games — the moves
+ * the engine has are `pass`, `endMain` and `concede` (#140), so a game ends
+ * the way a game of nothing but passing ends: on a deck-out, around turn 70.
  */
 function checkRules(state: unknown): VmState {
   if (!isVmState(state)) throw new Error(`the rules engine returned a state it does not recognise: ${JSON.stringify(state).slice(0, 120)}`);
@@ -94,11 +94,23 @@ for (let g = 0; g < games; g++) {
   let last = "";
   try {
     if (engineId === "rules") {
-      // Nothing plays on it yet (#140), so the run ends where the deal does:
-      // the board is checked and the game counted. #143 is where the scripts
-      // learn to play the second engine.
-      const dealt = checkRules(createGame(ctx, { seed, p1: da.input, p2: dbk.input }).state);
-      results.push(`${a.name} vs ${b.name}: dealt ${Object.keys(dealt.cards).length} cards (the rules engine plays no moves yet)`);
+      // The rules engine's own shape, played through its own menu. The bias is
+      // the legacy loop's: end the turn less often than anything else, so a
+      // game has content — which on this engine means taking the mulligan and
+      // the charge skip rather than jumping straight to the next turn.
+      let v = checkRules(createGame(ctx, { seed, p1: da.input, p2: dbk.input }).state);
+      while (v.phase !== "over" && steps < 4000) {
+        const legal = legalActions(ctx, v);
+        if (!legal.length) throw new Error(`no legal actions at prompt ${JSON.stringify(v.prompt)}`);
+        const pool = legal.filter((l) => l.action.type !== "endMain" && l.action.type !== "concede");
+        const pick = pool.length && rand() < 0.85 ? pool[Math.floor(rand() * pool.length)] : legal[Math.floor(rand() * legal.length)];
+        last = pick.label;
+        const r = apply(ctx, v, pick.action);
+        for (const e of r.events) if (e.type === "note") notes.set(e.text.slice(0, 60), (notes.get(e.text.slice(0, 60)) ?? 0) + 1);
+        v = checkRules(r.state);
+        steps++;
+      }
+      results.push(`${a.name} vs ${b.name}: ${v.phase === "over" ? `${v.winner ? v.sides[v.winner].name + " won" : "draw"} (${v.overReason}) after turn ${v.turn}` : `still running after ${steps} actions, turn ${v.turn}`}`);
       continue;
     }
     // Legacy-shaped: the fuzzer reads the board itself (`check`), so a state

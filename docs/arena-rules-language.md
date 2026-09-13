@@ -191,8 +191,13 @@ list, so a diff shows the hook that changed).
 
 **GAME** — the game itself: how a player starts and what a turn is made of (manual §5). `title:`,
 `players:`, `deck:`, `zDeck:`, `hand:`, `life:`, `startMarkers:`, `markersPerTurn:`, `mulligan:`,
-`firstPlayerDraws:`, `phases:`. Only `deck:`, `hand:` and `life:` are required; a field left out is
-the loader's default.
+`firstPlayerDraws:`, `phases:`, `setupPhase:`, `overPhase:`. Only `deck:`, `hand:` and `life:` are
+required; a field left out is the loader's default.
+
+`phases:` is the **turn**, in order. The two phases a turn is not made of are named separately:
+`setupPhase:` is the pre-game procedure that runs once before the first turn (§6-2), and
+`overPhase:` is where a finished game sits (§0-1-3). Without those two lines an interpreter would
+have to know both by name, which is the one thing a configuration-driven engine may not do (#140).
 
 ```
 DEFINE GAME dbs
@@ -205,6 +210,8 @@ DEFINE GAME dbs
   markersPerTurn: 1
   mulligan: true
   phases: [charge, main, end]
+  setupPhase: "setup"
+  overPhase: "over"
 ```
 
 **ATTRIBUTE** — something a card, a player or a zone has — printed on the card, or derived from the
@@ -244,17 +251,25 @@ DEFINE ZONE battle
 
 **PHASE** — a phase of the turn, in the order the game declares (`DEFINE GAME`'s `phases:`).
 `steps:` is required; `actions:` lists what a player may do in it, `auto:` says it passes with no
-prompt, `text:` what it is.
+prompt, `announce:` whether entering it is a moment of its own in the log (default true, so a phase
+nobody narrates says `announce: false`), `text:` what it is.
 
 ```
 DEFINE PHASE main
   steps: [mainStart, mainActions]
   actions: [playCard, attack, activateSkill]
+  announce: true
   text: "the phase a player takes their moves in (6-4)"
 ```
 
 **STEP** — one step of a phase, and the program it runs. `phase:` is required; `DO` is the program
-the step runs, `optional:` whether it may be skipped, `prompt:` what is asked, `text:` what it is.
+the step runs, `optional:` whether it may be skipped, `prompt:` what is asked, `LIMIT` how many
+times it may send its phase round again, `text:` what it is.
+
+`LIMIT` is the bounded loop of §7-4-4: a step that carries one may restart its own phase when the
+moment it names comes round again, and the number is the ceiling. The bound lives in the
+declaration rather than in the runner because a mis-declared trigger must not be able to hang a
+game, and the game that declares the repeat is the one that knows how far it may go.
 
 ```
 DEFINE STEP mainStart
@@ -262,6 +277,7 @@ DEFINE STEP mainStart
   DO {
     note(text: "the moment [Auto] skills of the Main Phase answer to")
   }
+  LIMIT 5
   text: "the start of the Main Phase (6-4-1)"
 ```
 
@@ -631,9 +647,26 @@ THEN
   immune(until: game, target: [self], from: opponent)
 ```
 
-What is still open (issue #128) is whether the *engine* checks `immune` at every place an effect
-lands on a card — power changes, KO, mode switches, keyword grants — rather than only the sites
-that consult it today; the language can already say the phrase, the enforcement is not yet total.
+The op's `from` names **whose** skills, and it is what the engine asks — never who owns the card.
+`from: opponent` is the printed phrase above; `from: you` its own controller's skills; `both`, or
+no `from` at all, every skill, the card's own side's included. `BT18-019` prints that last one,
+and narrows it by a filter on the card whose skill is asking rather than on the card being
+affected:
+
+```
+WHEN [permanent]
+THEN
+  immune(until: game, target: [self], fromFilter: "non-<gogeta: gt>")
+```
+
+The engine checks it in one place — `resolveSelector`, where every op reaches a card — so a new
+operation inherits the check rather than repeating it, and the sweeps and board-wide power changes
+are covered along with the choices, because they name their cards through a selector too. A
+`[permanent]` immunity holds against another `[permanent]` as well as against an effect with a
+duration. Two things are still outside it, and deliberately: a `[self]` selector, because a card's
+own skill naming itself is the skill working rather than a skill touching it from outside; and an
+effect that names no card at all — a skill aimed at a player, damage, a rule of the game (issue
+#128's own "out of scope", and the glossary's "What a card no skill may touch" entry says the same).
 
 ### 20-5. Skills that Mention X (Undetermined Numbers)
 
@@ -805,7 +838,15 @@ reach yet, which is why this row cites a simpler real card instead of the manual
 status) — the window every `counter:*` WHEN already answers within, but not, today, a condition a
 *different* skill can read ("if declared" naming an action other than the one the skill itself is
 answering). `npm run arena:tally -- --show "if declared"` finds no card printing the fixed phrase
-verbatim in the catalog fetched while writing this table. **unreadable — see issue #239.**
+verbatim, re-checked on 13 Sep 2026 against the live catalog with the same empty result as when
+this row was written for issue #112; the nearby wordings issue #239 asked after ("in response to",
+"while", "declared") turn up nothing in the 20-15 sense either — "declared" only ever means the
+unrelated "Declare 1 number" mechanic (`BT22-104` and family), and "while" is ordinary standing
+conditions on a card's own state (`BT12-082`, `BT19-141`), never a read of another action's
+pending-declared window. **No known card needs this reading** — 20-15-1's text is a real manual
+rule with no observable gap in the catalog today, so no `Cond` was added; issue #239 recommends
+closing not-planned rather than building a condition with no card to round-trip against. Re-run
+the tally after a catalog sync before reopening.
 
 ### 20-16. If You Do
 
@@ -948,9 +989,9 @@ not read off the row: the keyword *is* the rule, and the glossary says which.
 
 A definition grammar (`DEFINE GAME | ZONE | ACTION | …`), which Stage 3 has since added — §3b. New
 primitives from the gap table (Stage 2), also since added — X and expressions, `forbid`'s `uses` and
-`unless`, `replace(event)`, `copySkills`, `control`, `skip` and `payWith` (§4, §4b) — leaving open
-only immunity's full enforcement: `immune` already reads the ordinary case (§4b 20-4), and #128, in
-progress, is whether the engine checks it at every site an effect lands on a card rather than only
-the sites that consult it today. The referee answering in this language rather than JSON. Chip
-editors for WHEN and COST — the text view is the editor. `compilerDiff` for a changed trigger or
-price. Multi-error reporting. Editing the skill kind.
+`unless`, `replace(event)`, `copySkills`, `control`, `skip`, `payWith` and immunity's full
+enforcement (§4, §4b) — `immune` reads whose skills a rule blocks (`from`, `fromFilter`), checked at
+the one selector site every op reaches a card through rather than only the sites that consulted it
+before #128 (§4b 20-4). What is still left: the referee answering in this language rather than
+JSON. Chip editors for WHEN and COST — the text view is the editor. `compilerDiff` for a changed
+trigger or price. Multi-error reporting. Editing the skill kind.

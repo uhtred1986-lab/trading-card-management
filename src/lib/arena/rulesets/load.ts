@@ -114,7 +114,10 @@ export function loadRuleset(files: Record<string, string>, id: Game = "dbs"): Lo
         errors.push(errorAt(entry, name, `${label(def)} names ${what} called ${JSON.stringify(name)}, which nothing declares`, Object.keys(bucket)));
       }
     };
-    if (def.define === "GAME") need(def.phases, definition.phases, "a phase");
+    // The turn's phases, and the two a turn is not made of: a game that names
+    // a setup or an over phase nothing declares would leave the flow runner
+    // with nowhere to begin or to come to rest (#140).
+    if (def.define === "GAME") need([...(def.phases ?? []), def.setupPhase, def.overPhase].filter((n): n is string => !!n), definition.phases, "a phase");
     if (def.define === "PHASE") {
       need(def.steps, definition.steps, "a step");
       need(def.actions, definition.actions, "an action");
