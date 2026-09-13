@@ -16,7 +16,7 @@
  * up — and `session.ts` fills in the image URLs, which is what keeps this
  * testable in `npm test`.
  */
-import { face, programsOf, skillsOf, type EngineContext, type GameEvent, type GameState, type PlayerId } from "./engine";
+import { copiedSkillsOn, face, scriptsOfInstance, skillsOf, type EngineContext, type GameEvent, type GameState, type PlayerId } from "./engine";
 import type { Area, EffectUntil } from "./engine";
 import { def } from "./engine/state";
 import { describeEffect, type EffectKind } from "./effects";
@@ -114,8 +114,9 @@ export function describeSkillEvent(
   try {
     const d = def(ctx, state, e.card);
     const side = inst.flipped && d.back ? "back" : "front";
-    const sk = skillsOf(d, side).find((x) => x.index === e.skill);
-    const compiled = programsOf(ctx, d, side).bySkill[e.skill];
+    // Copies included (20-18): a skill the card took on is narrated as its own.
+    const sk = [...skillsOf(d, side), ...copiedSkillsOn(ctx, state, e.card).map((c) => c.skill)].find((x) => x.index === e.skill);
+    const compiled = scriptsOfInstance(ctx, state, e.card).bySkill[e.skill];
     return {
       cardId: inst.cardId,
       name: face(ctx, state, e.card).name,

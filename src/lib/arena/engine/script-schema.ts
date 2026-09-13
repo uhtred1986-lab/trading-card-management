@@ -65,6 +65,18 @@ export interface RenderOptions {
   permanent?: boolean;
 }
 
+/**
+ * The closed word lists, as the **legacy engine** knows them.
+ *
+ * Since #137 these are no longer what the language, the chip editor and the
+ * referee's prompt read: those read the game's own declarations
+ * (`rulesets/words.ts`, ultimately `zones.rules`), so a zone deleted there
+ * disappears from all three at once. What is left here is the engine's side of
+ * the same claim — the unions `Selector`, `Op` and the interpreter are typed
+ * against — and `scripts/verify/rulesets.ts` is where the two are asserted to
+ * be one list. `KEYWORD_NAMES` is still read directly, by the parser and the
+ * editor, until `keywords.rules` declares the 39 (#135).
+ */
 const COLORS = ["Red", "Blue", "Green", "Yellow", "Black", "White", "Colorless"] as const satisfies readonly Color[];
 export const SIDES = ["you", "opponent", "both"] as const satisfies readonly Side[];
 export const SPECIAL_TARGETS = ["self", "attacker", "guard", "subject", "leader", "opponentLeader", "resolving", "onTop"] as const satisfies readonly SpecialTarget[];
@@ -181,6 +193,15 @@ const UNTIL: OpField = { name: "until", type: "duration", required: true };
 const MODE = { enum: ["active", "rest"] } as const;
 const POSITION = { enum: ["top", "bottom"] } as const;
 const n = (required = true): OpField => ({ name: "n", type: "amount", required });
+/** `copySkills`' fields, named so its `sentence` function can hand them to `renderTemplate` for each of the five ways the wording comes out. */
+const COPY_SKILLS_FIELDS: OpField[] = [
+  SELF,
+  { name: "from", type: "ref", required: true },
+  { name: "which", type: { enum: ["all"] } },
+  { name: "skill", type: "number" },
+  { name: "only", type: { enum: ["keyword"] } },
+  UNTIL,
+];
 
 type OpOf<K extends Op["op"]> = Extract<Op, { op: K }>;
 
@@ -263,6 +284,21 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
   },
   comboPower: { fields: [TARGET, { name: "amount", type: "amount", required: true }, UNTIL], sentence: "{target} {amount:combo power}{until}" },
   grant: { fields: [TARGET, { name: "keyword", type: "keyword", required: true }, UNTIL], sentence: "{target} gains [{keyword}]{until}" },
+  copySkills: {
+    fields: COPY_SKILLS_FIELDS,
+    sentence: (raw, r) => {
+      const op = raw as OpOf<"copySkills">;
+      const kind = op.only === "keyword" ? "keyword skills" : "skills";
+      const template =
+        op.which === "all"
+          ? `{target} gains all of the ${kind} of {from}{until}`
+          : op.skill != null
+            ? "{target} gains skill {skill} of {from}{until}"
+            : `choose 1 of the ${kind} of {from}, and {target} gains that skill{until}`;
+      return renderTemplate(template, raw as unknown as Record<string, unknown>, COPY_SKILLS_FIELDS, r);
+    },
+    doc: '20-18: one card takes on another\'s printed skills. "which":"all" copies every one of them, "skill" copies one by its index on the source, and neither lets the master pick one as the skill resolves — which is what "choose up to 1 keyword skill … and this card gains that skill" says. "only":"keyword" narrows the pick and the copy to keyword skills. The printed face is snapshotted when the effect is made (9-9), so the copy outlives the source leaving play',
+  },
   negateSkills: { fields: [TARGET, UNTIL], sentence: "negate the skills of {target}{until}" },
   negateSkillsOfKind: {
     fields: [TARGET, { name: "kind", type: { enum: SKILL_KIND_PREFIXES }, required: true }, UNTIL],
@@ -478,8 +514,8 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
  * The value is the doc's own words, so the two cannot drift apart in the half
  * that matters — which primitive a row lowers to. Some of those primitives are
  * the general form of a row that exists (`move` is `moveTo`, `negate` is
- * `negateSkills`) and some are Stage 2 issues not yet built (`replace` #125,
- * `control`/`skip` #126, `copySkills` #123); §2.2 lists them all.
+ * `negateSkills`) and some are Stage 2 issues not yet built (`control`/`skip`
+ * #126); §2.2 lists them all.
  */
 export type OpClass = "primitive" | `macro over ${string}`;
 
@@ -503,6 +539,7 @@ export const OP_CLASS: Record<Op["op"], OpClass> = {
   power:              "macro over `modifyAttr`",
   comboPower:         "macro over `modifyAttr`",
   grant:              "macro over `modifyAttr`",
+  copySkills:         "primitive",
   negateSkills:       "macro over `negate`",
   negateSkillsOfKind: "macro over `negate`",
   hidden:             "macro over `modifyAttr`",

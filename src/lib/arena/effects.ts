@@ -113,6 +113,14 @@ export function describeEffect(e: ContinuousEffect): Pick<EffectView, "kind" | "
       const k = e.value as KeywordSkill;
       return { kind: "keyword", label: `[${keywordName(k)}]`, keyword: k.name };
     }
+    // 20-18: skills taken from another card. A copied *keyword* arrives as a
+    // "keyword" effect above and reads as the glyph it is; this is the rest —
+    // the typed lines the target now has to enumerate.
+    case "copiedSkills": {
+      const c = e.copied;
+      const n = c?.skills.length ?? 0;
+      return { kind: "other", label: `has ${n === 1 ? "a skill" : "the skills"}${c?.name ? ` of ${c.name}` : ""}` };
+    }
     case "negateSkills":
       return { kind: "negate", label: "skills negated" };
     case "negateSkill":

@@ -4,7 +4,7 @@
  * (which imports the interpreter).
  */
 import { effectHead, trailingTrigger } from "./cards";
-import { areaOf, cardsInPlay, def, forbids, masterOf, move, programsOf, skillNegated, skillsNegated, skillsOfInstance, type GameContext, type MoveOptions } from "./state";
+import { areaOf, cardsInPlay, forbids, masterOf, move, scriptsOfInstance, skillNegated, skillsNegated, skillsOfInstance, type GameContext, type MoveOptions } from "./state";
 // `masterOf` lives in `state.ts` — it is a question about where a card *is*,
 // and the ownership audit in `glossary.ts` made every one of its callers a
 // reader of that file. Re-exported here because the engine has imported it
@@ -298,9 +298,10 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
  * to nothing, and is honoured as that.
  */
 function skillAnswersTo(ctx: GameContext, s: GameState, card: string, sk: Skill, trigger: Trigger): boolean {
-  const d = def(ctx, s, card);
-  const inst = s.cards[card];
-  const recorded = programsOf(ctx, d, inst.flipped && d.back ? "back" : "front").bySkill[sk.index]?.trigger;
+  // 20-18: a copied [Auto] answers to *this* card's moments, so it is asked
+  // the same question as a printed one — and off the source's record, which is
+  // what `scriptsOfInstance` carries it under.
+  const recorded = scriptsOfInstance(ctx, s, card).bySkill[sk.index]?.trigger;
   return recorded ? recorded.includes(trigger) : autoTriggerMatches(sk, trigger);
 }
 

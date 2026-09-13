@@ -1,8 +1,10 @@
 ---
 title: Arena docs: a generated language reference at /arena/rules/language
 milestone: Arena M14 — Rules language and ruleset documentation
-labels: backlog, ready-for-agent, documentation, enhancement, area:arena-docs, area:arena-workbench, phase:rules-docs, model:sonnet-5
+labels: done, documentation, enhancement, area:arena-docs, area:arena-workbench, phase:rules-docs, model:sonnet-5
 stage: docs
+status: closed
+closed_at: 2026-09-13
 ---
 **Source:** `docs/arena-rules-language.md` §3 ("statements and conditions are not listed here and never will be: they are generated from `OP_SCHEMA` and `COND_SCHEMA`"); `/arena/rules/keywords` as the pattern of a page generated from the compiler's own tables; `EXPR_SCHEMA`, `SELECTOR_FIELDS`, `FILTER_FIELDS` in `lang/ast.ts`.
 

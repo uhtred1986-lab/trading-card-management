@@ -81,7 +81,7 @@ else is a macro. Four things follow, and they are the reason the tables below ar
 - **A macro's target may not exist yet.** The table names the primitive as it will be, with today's
   spelling beside it in §2.2. `move` is `moveTo` today; `costModifier` and `negate` are
   the general forms of rows the engine already has; `control` arrived as a primitive with #126,
-  which also brings `skip`; `copySkills` is the Stage 2 issue (#123) still to come.
+  which also brings `skip`; `replace` (#125) and `copySkills` (#123) arrived as ones too.
 - **Layering and duration are not ops.** The plan's `effect(layer)` row is the interpreter's
   bookkeeping — what `until` means, which effect wins, when it expires (§1, §7). Every op that
   carries a duration uses it; none of them *is* it.
@@ -91,7 +91,7 @@ else is a macro. Four things follow, and they are the reason the tables below ar
 
 ### 2.2 The primitive vocabulary
 
-Twenty primitives carry every row below — fifteen operations and five conditions.
+Twenty-four primitives carry every row below — nineteen operations and five conditions.
 
 | Primitive | Today | What it says |
 |---|---|---|
@@ -105,6 +105,7 @@ Twenty primitives carry every row below — fifteen operations and five conditio
 | `shuffle` | `shuffle` | A pile is randomised with the game's seeded RNG. |
 | `token` | `token` | A card that was in no deck comes into being. |
 | `control` | `control` | Who masters a card changes (20-9): it moves into that player's Battle Area and they become its master, keeping everything about it (20-9-2). |
+| `copySkills` | `copySkills` | One card takes on another's printed skills, as they stood when the copy was made (20-18). |
 | `play` | `play` | The game's own play action is invoked for a card (5-5). |
 | `forbid` | `forbid` | A standing rule that an action may not happen, with a budget and an escape (20-14). |
 | `permit` | `permit` | A rule of the game is lifted for one card (8-1-1). |
@@ -153,6 +154,7 @@ disagree or if a row is missing from either.
 | `power` | macro over `modifyAttr` | Attribute `power`, by a delta, for a duration. |
 | `comboPower` | macro over `modifyAttr` | Attribute `comboPower`. The only difference from the row above is which attribute — which is the argument this table exists to make. |
 | `grant` | macro over `modifyAttr` | Attribute `keywords`: the card gains a keyword skill for a duration. What the keyword then does is the hook contract (§4). |
+| `copySkills` | primitive | One card reads another's printed skills as its own (20-18). No attribute holds a skill: what is copied is *text with a program behind it*, and the copy is a snapshot — what the source printed when the effect was made, kept after the source is flipped, silenced or gone (9-9). A copied pure keyword is granted as a keyword instead, which is `grant` and not this row. |
 | `negateSkills` | macro over `negate` | Scope: every skill of a card (9-1-5). |
 | `negateSkillsOfKind` | macro over `negate` | Scope: one printed skill kind of a card. |
 | `negateKeyword` | macro over `negate` | Scope: one named keyword, in every area. |
@@ -482,7 +484,13 @@ The test of the configuration claim: a second game is files, a drafter and words
 2. **Drafter** — how this game's card text becomes rule records: its own wording rules over the
    shared language, not its own language.
 3. **Vocabulary** — the words the loader exposes for this game: zone names, phase names, prompt
-   wording, keyword names.
+   wording, keyword names. Since #137 the language's parser, the chip editor (`optionsFor`)
+   and the referee's prompt (`effectLanguage`) read the areas, durations, sides and keyword names
+   from it through `rulesets/words.ts` instead of each carrying a copy — so a game that renames a
+   zone renames it everywhere, and `scripts/verify/rulesets.ts` proves that by deleting one.
+   `validateRule` reads `whenMoments()` from the same place — the game's triggers less the
+   five counter windows, which are the only names in `triggers.rules` a record's WHEN never
+   says. `SPECIAL_TARGETS` is the one list with no `Vocabulary` field to come from.
 4. **`GAME_INFO`** — the row in `src/lib/catalog/games.ts` already exists for both games; the
    arena's own gate is `deckInputFor` and the deck lists asking for `game: "dbs"`.
 
