@@ -13,7 +13,7 @@ import type { Parsed, Rule } from "./ast";
  * They share this module rather than each growing a dialect.
  */
 export { printRule, printOps, printOp, printCond, printCost, printSelector, printFilter, printAmount, printRef, printDefinition, printDefinitions, canonical, deepEqual } from "./print";
-export { parseDefinitions, ENGINE_WORDS } from "./parse";
+export { parseDefinitions, ENGINE_WORDS, SELECTOR_FLAGS } from "./parse";
 
 /**
  * A card's rule, read against the **game's** words: an area is a zone
@@ -27,6 +27,7 @@ export const parseCond = (src: string, vocab: Words = words()): Parsed<Cond> => 
 export { validateRule, readRule, type Invalid } from "./validate";
 export { lex, positionOf, LangSyntaxError, type Token } from "./tokens";
 export {
+  COST_ITEMS,
   DEFINE_KINDS,
   DEFINE_SCHEMA,
   EXPR_ATTRS,
