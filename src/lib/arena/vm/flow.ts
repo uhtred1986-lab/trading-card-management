@@ -30,15 +30,17 @@
 import { IllegalAction, type Action, type EngineContext, type GameEvent } from "../engine";
 import { AREAS, PHASES } from "../engine/script";
 import { nextRandom, shuffle } from "../engine/rng";
-import { PLAYERS, type Area, type Phase, type PlayerId, type Prompt } from "../engine/types";
+import { PLAYERS, other, type Area, type Phase, type PlayerId, type Prompt } from "../engine/types";
 import type { Cond, Selector, Side } from "../engine/script";
 import type { GameDefinition, StepDef, WinDef } from "../rulesets";
 import { RulesetBroken } from "./errors";
 import { arrivalMode, moveCard } from "./zones";
 import type { VmFrame, VmState } from "./state";
 
-/** The other player. A game of two is what `DEFINE GAME players: 2` declares and `createGame` refuses anything else. */
-export const other = (p: PlayerId): PlayerId => (p === "p1" ? "p2" : "p1");
+// `other` is the engine's own: a game of two is what `DEFINE GAME players: 2`
+// declares and `createGame` refuses anything else, and the two engines had
+// better agree which player is the other one.
+export { other };
 
 /**
  * The zones the pre-game procedure and the turn put cards in, by the names
