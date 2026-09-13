@@ -63,6 +63,7 @@ import { RulesetBroken } from "./errors";
 import type { Moment } from "./events";
 import type { VmState } from "./state";
 import { findCard, inPlayZones } from "./zones";
+import { skillNegated, skillsNegated } from "./effects";
 
 /**
  * One [Auto] waiting to resolve (9-6-2).
@@ -219,15 +220,19 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
   for (const match of matchTriggers(game, state, moment)) {
     const inst = state.cards[match.card];
     // 1-10-2 / 23-5: a card in Hidden Mode is no information at all, its own
-    // skills included. Negation (20-4) is an effect in force, and this engine
-    // has none until #142 — where the check belongs beside the others.
-    if (!inst || inst.hidden) continue;
+    // skills included — and 9-1-5, a card whose skills are negated has none to
+    // answer with. The second half is #142's: it is an effect in force, read
+    // where every other reader of that rule reads it.
+    if (!inst || inst.hidden || skillsNegated(state, match.card)) continue;
     const master = masterOf(game, state, match.card);
     // Read once per card: a text box is parsed by a regex, and a moment that
     // every card in play hears would otherwise parse each of them twice.
     const showing = skillsShowing(ctx, state, match.card);
     for (const sk of showing.skills) {
       if (sk.kind !== "auto") continue;
+      // 9-1-5: one skill of a card switched off — by index, or a whole kind at
+      // once — is off for the moment it would have answered to as well.
+      if (skillNegated(state, match.card, sk.index, sk.kind)) continue;
       if (!answersTo(showing.scripts, sk, match.trigger)) continue;
       const subject = match.subject !== undefined ? { subject: match.subject } : {};
       const pending: VmPending = { card: match.card, skillIndex: sk.index, master, trigger: match.trigger, ...subject };

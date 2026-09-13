@@ -37,14 +37,14 @@
  */
 import { IllegalAction, type EngineContext, type GameEvent, type LegalAction, type RejectedAction } from "../engine";
 import type { Action, PlayerId, Prompt, Requirement } from "../engine/types";
-import type { Cond, Ref, Selector } from "../engine/script";
+import type { Cond, Selector } from "../engine/script";
 import type { ActionDef, GameDefinition } from "../rulesets";
 import { attrsOf } from "./cards";
 import { actionCostOf, chargeCost, freePrice, planCost, priceFor, type Price } from "./costs";
-import { NotYet, RulesetBroken } from "./errors";
-import { answered, moved } from "./flow";
-import { log } from "./events";
+import { RulesetBroken } from "./errors";
+import { answered } from "./flow";
 import { predicateOf } from "./filters";
+import { SETUP_ZONES } from "./zones";
 import type { VmState } from "./state";
 
 /**
@@ -334,8 +334,10 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
   if (refused.length) throw new IllegalAction(`${def.label ?? def.name} is refused: ${refused[0].kind}`);
 
   // The price, then the program — in that order, and never half of one: an
-  // action whose program ran before its price was settled would be a board in a
-  // state no replay could reach (#148).
+  // action whose program was queued before its price was settled would be a
+  // board in a state no replay could reach (#148). The price is charged here
+  // and the program goes on the queue below, so the two cannot be interleaved
+  // even though only one of them runs on the spot.
   if (def.cost?.length && !declining(def, card)) {
     const explicit = (action as { pay?: string[] }).pay;
     const plan = planCost(ctx, game, state, player, chosen.price, card, explicit);
@@ -345,6 +347,11 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
     // the existing `payCost` prompt, whose options are legacy `Payment` values,
     // so one client answers either engine. `explicit` is that answer coming
     // back, and a price with one way to pay is settled without a question.
+    //
+    // This question is put **before** the `DO` is queued, which is what keeps it
+    // apart from a question the program itself asks (#142's `state.programs`):
+    // a move suspended here has paid nothing and done nothing, and the frame the
+    // step is still in is the whole of its continuation.
     if (explicit === undefined && plan.asks && plan.options.length > 1) {
       // "play Son Goku" — the legacy engine's own wording for this prompt, which
       // is the move's label with its first letter lowered.
@@ -354,7 +361,7 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
     }
     chargeCost(ctx, game, state, ev, player, plan.payment, card, def.cost);
   }
-  runProgram(ctx, game, state, ev, def, card);
+  runProgram(state, def, player, card);
 
   // The question has been answered. A step that means to ask again — the Main
   // Phase's free timing, 7-3-4 — is the flow's business and not the action's
@@ -364,61 +371,32 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
 }
 
 /**
- * The `DO` program, as far as the interpreter reads one.
+ * The `DO` program: the same interpreter a card's rule runs on (#142).
  *
- * Two steps so far. `note` writes a line in the log and touches nothing, which
- * is what a program step that cannot run yet should do; `moveTo` is the one a
- * move of the turn is actually made of — the charge places a card in the Energy
- * Area (7-2-11), and that is the whole of what taking it does.
+ * An action's program and a skill's program are one language, so they are one
+ * interpreter — `stepScript` over the rules engine's `ScriptHost`. Before #142
+ * this function had a case per op and a `NotYet` for the rest; now it has
+ * neither, because the interpreter has every case and the host is where a gap
+ * is named.
  *
- * **The moment comes from the move, never from a name** (#141): `moved` fires a
- * `moved` moment in the words `triggers.rules` is written in and the
- * declarations decide which [Auto]s that is a moment for, so nothing here pends
- * a trigger called "charged".
+ * The frame is the action's. `BIND` is what makes that work: the name the
+ * declaration gave the candidate is bound to the card the move was taken for,
+ * so `$card` in the `DO` means the very card the menu entry was about — and is
+ * bound to **nothing** when the answer took no card, which is how one paragraph
+ * says both halves of a *may* (7-2-11: the charge that places a card and the
+ * charge that declines are one `DO` over one or zero cards). `self` is that
+ * card, or the actor's Leader when there is none, so a program that names
+ * itself still names something.
  *
- * Every other op is #142's — the condition and program evaluator both engines'
- * card rules need — and is refused by name rather than ignored, for the same
- * reason `flow.ts` refuses a win condition it cannot read: a step silently
- * skipped is a board that quietly disagrees with its own log.
+ * It goes on the queue rather than running here. A `DO` that stops to ask is a
+ * question inside a move, and the runner is the one thing that can hold one —
+ * exactly as a skill's is. `run` picks it up as soon as `apply` returns here.
  */
-function runProgram(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], def: ActionDef, card: string | null): void {
-  for (const op of def.do) {
-    switch (op.op) {
-      case "note":
-        log(ev, { type: "note", text: op.text });
-        break;
-      case "moveTo": {
-        const rich = (["position", "mode", "under", "owner", "faceUp"] as const).find((f) => op[f] !== undefined);
-        if (rich) throw new NotYet(`move a card with ${rich} said of it, which ${def.name} does`, "#142");
-        const to = op.to;
-        const zone = game.zones[to];
-        if (!zone) throw new RulesetBroken(state.game, `${def.name} moves a card to ${JSON.stringify(to)}, which nothing declares`);
-        if (zone.place === false) throw new RulesetBroken(state.game, `${def.name} moves a card to ${JSON.stringify(to)}, which is a word for several places and not one of them`);
-        // A program written about the candidate moves the candidate — and
-        // moves nothing at all when the answer took no card, which is how one
-        // paragraph says both halves of a *may* (7-2-11).
-        for (const id of moving(def, op.target, card)) moved(ctx, game, state, ev, id, to, { asPlay: false, reveal: op.reveal });
-        break;
-      }
-      default:
-        throw new NotYet(`run ${JSON.stringify(op.op)}, which ${def.name} does`, "#142");
-    }
-  }
-}
-
-/**
- * The cards a step of an action's program is about: the candidate the move was
- * taken for, by the name `BIND` gave it.
- *
- * A selector of its own — "every card in your drop" — is #142's, which is where
- * a program's targets stop being the one card a menu entry is about.
- */
-function moving(def: ActionDef, target: Ref, card: string | null): string[] {
-  const named = "var" in target ? target.var : null;
-  if (named === null || named !== def.bind) {
-    throw new NotYet(`read ${named === null ? "a selector" : `$${named}`} as what ${def.name} moves — this interpreter moves the card the move was taken for, which is $${def.bind ?? "<nothing BIND names>"}`, "#142");
-  }
-  return card === null ? [] : [card];
+function runProgram(state: VmState, def: ActionDef, player: PlayerId, card: string | null): void {
+  if (!def.do.length) return;
+  const self = card ?? state.sides[player].zones[SETUP_ZONES.leader]?.[0] ?? "";
+  const vars = def.bind ? { [def.bind]: card === null ? [] : [card] } : {};
+  state.programs.unshift({ ops: def.do, ip: 0, vars, card: self, master: player });
 }
 
 /** The questions an action answers: its own `prompts:`, or every question its phases ask. */

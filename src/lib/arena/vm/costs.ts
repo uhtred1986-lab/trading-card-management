@@ -37,14 +37,31 @@
  *     prevent — the legacy engine has lost that bet twice (`activationCost`'s
  *     header, "X = 3" reading "free").
  *
- * **The seam #142 fills.** `cardPrice` below is the one place the price of a
- * card is read, and today it reads the *printed* cost: the `energyCost` and
- * `specifiedCost` attributes off the catalog. The reductions of 20-21 — the
- * flat one, the coloured one, and [Warrior of Universe 7] clearing the colours
- * of a Universe 7 card — are the `costOf` attribute's declared `layers:`, and
- * this engine has no effects in force to apply them from until #142 lands the
- * attribute layers. One function, so pointing it at the layers is one change
- * and not a hunt; until then a rules-engine price is the printed one and
+ * **The seam, and what is still on the far side of it.** `cardPrice` below is
+ * the one place the price of a card is read, and today it reads the *printed*
+ * cost: the `energyCost` and `specifiedCost` attributes off the catalog. The
+ * reductions of 20-21 — the flat one, the coloured one, and [Warrior of
+ * Universe 7] clearing the colours of a Universe 7 card — are the `costOf`
+ * attribute's declared `layers:`, and #142 landed the machinery that reads an
+ * attribute through its layers (`./effects.ts`'s `valueOf`, `./program.ts`'s
+ * `attrsNow`). It did **not** land these two, and named them as this issue's:
+ * `LAYERS` has no row for `reduction` or `specified`, and `DEFERRED_STATICS`
+ * hands `costReduction`, `altCost` and `payWith` here.
+ *
+ * They are not wired, on purpose, and it is worth saying why rather than
+ * leaving a reader to wonder. Four of the pieces are missing and each is a
+ * decision about the layer machinery rather than about a price: `valueOf`
+ * accumulates *numbers*, and 20-21-2's floor at zero is not additive; a derived
+ * attribute has no printed base, and nothing maps `costOf` back onto the
+ * `energyCost` it discounts; the coloured half is a `colors` value and
+ * `specifiedCost` declares no `layers:` at all; and `VmStatic.kind` is the
+ * three kinds a value is read through, which `cost` and `specifiedCost` are
+ * not. The fifth is the one that settles it: **nothing can put a cost reducer
+ * in force on this engine yet** — `permanents` refuses `costReduction` by name
+ * — so wiring the layers today would change no board and produce exactly the
+ * "wired but inert" reducer `docs/arena-next-session-prompt.md` §4(c) records
+ * as a trap. One function, so pointing it at the layers when they exist is one
+ * change and not a hunt; until then a rules-engine price is the printed one and
  * `PRICE_LAYERS` says so in the log of any game that asks.
  *
  * Pure and client-safe, like the rest of `vm/`: no database, no network,
@@ -202,11 +219,12 @@ export function priceFor(ctx: EngineContext, game: GameDefinition, state: VmStat
  * The price of playing this card, as this engine reads one.
  *
  * **The seam.** Today: the printed total and the printed orbs, straight off the
- * declared `energyCost` and `specifiedCost` attributes. Tomorrow (#142): the
- * `costOf` attribute, whose declared `layers:` are `printed`, `reduction`,
- * `specified` — 20-21-1's flat discount, 20-21-2's coloured one, and 22-19's
- * [Warrior of Universe 7] clearing a Universe 7 card's colours outright. One
- * function, so the change is one line and not a hunt.
+ * declared `energyCost` and `specifiedCost` attributes. Later: the `costOf`
+ * attribute through `attrsNow`, whose declared `layers:` are `printed`,
+ * `reduction`, `specified` — 20-21-1's flat discount, 20-21-2's coloured one,
+ * and 22-19's [Warrior of Universe 7] clearing a Universe 7 card's colours
+ * outright. The module header says which pieces of that are still missing and
+ * why they are not wired ahead of a board that could put one in force.
  *
  * An X cost has no total until someone names one (1-2-2-2), and the attribute
  * is absent rather than zero for exactly that reason — so it reads as nothing

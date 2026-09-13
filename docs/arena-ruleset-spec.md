@@ -580,9 +580,17 @@ same cards rested, the same options and the same words for them. Two gaps are wr
 they are rather than papered over. The amounts of `marker`, `life` and `payWith` have nothing to
 bind them until #147, so an action naming one of those is refused **by name**; and the reductions of
 20-21 — the flat one, the coloured one, and 22-19's [Warrior of Universe 7] — are the `costOf`
-attribute's declared `layers:`, which this engine has no effects in force to apply until #142, so a
-price it reads is the printed one. `cardPrice` is the one function that reads a card's price, so
-pointing it at the layers is one change and not a hunt.
+attribute's declared `layers:`, which are still empty. #142 landed the machinery that reads an
+attribute through its layers and deliberately left these two out (`LAYERS` in `vm/effects.ts` has no
+`reduction` or `specified` row, and `DEFERRED_STATICS` hands `costReduction`, `altCost` and
+`payWith` to this issue). Filling them needs four decisions about the layer machinery rather than
+about a price — a clamped layer, since 20-21-2's floor at zero is not additive; a printed base for a
+*derived* attribute, since nothing maps `costOf` onto the `energyCost` it discounts; a
+`colors`-valued layer, since `specifiedCost` declares none; and a wider `VmStatic.kind` — and
+nothing can put a cost reducer in force on this engine until `permanents` stops refusing
+`costReduction` by name, so wiring them now would be a reducer that reads correctly and changes no
+board. `cardPrice` is the one function that reads a card's price, so pointing it at the layers when
+they exist is one change and not a hunt.
 
 ### What the loader does
 

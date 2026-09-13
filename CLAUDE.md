@@ -286,7 +286,9 @@ learned the expensive way. Read it before changing the compiler or the engine.
   both come from. Two gaps are named rather than charged as nothing: the amounts of marker, life and
   payWith have nothing to bind them until #147, so an action naming one is refused by name; and
   `cardPrice` reads the *printed* cost, because 20-21's reductions and 22-19's [Warrior of Universe
-  7] are the `costOf` attribute's declared layers and #142 brings them.
+  7] are the `costOf` attribute's declared layers, which `vm/effects.ts` still has no row for —
+  `vm/costs.ts`'s header says which four pieces of the layer machinery they need and why wiring them
+  ahead of a board that can put a reducer in force would be a reducer that changes no board.
   **A moment is an event pattern, not a name** (`vm/events.ts` + `vm/triggers.ts`, #141): the
   runner says what happened — a card moved, a phase began, a mode switched — as a `Moment` in the
   words `dbs/triggers.rules` is written in, and the declarations decide which [Auto]s that is a
@@ -298,8 +300,23 @@ learned the expensive way. Read it before changing the compiler or the engine.
   elsewhere" exceptions are **derived**: a pattern that names a place (`moved(from: combo)`) has
   already said where the card is. `state.pending` is the queue, `nextPending` is 9-6-6 (turn player
   first) copied from the legacy `checkpoint`, and the runner drains one between steps and before any
-  question — resolving the program is #142's, so a drained skill is a `note` today. §22 keyword
+  question. §22 keyword
   moments are pended by neither the record nor `triggers.rules`: they are Stage 7's hooks (#153).
+  **The interpreter is shared** (#142): `stepScript` runs on a `ScriptHost`
+  (`engine/script-host.ts`) rather than on a `GameState`, `legacyHost` is that interface over the
+  old state and `vm/host.ts` over the new one, so one `card_rules` row means one thing on both
+  engines. What the rules engine reads a program *against* is `vm/program.ts` — the four readings
+  `resolveSelector`, `resolveRef`, `amount`, `condHolds`, over declared attributes and the one
+  filter adapter — and what outlives a step is `vm/effects.ts`: continuous effects with their
+  `effect`/`effectEnded` beats, delayed effects at the five `DELAY_TIMINGS`, and a [Permanent]'s
+  statics *read* rather than stored. A value is read through the layers its `DEFINE ATTRIBUTE`
+  declares (`layers: [printed, rewrite, numeric]`, 9-9-1) and nowhere else. A running program is
+  `state.programs`, a stack of frames the runner steps before any checkpoint (9-6-3), so a skill
+  that stops to ask is storable mid-decision like everything else; the question is the contract's
+  own `Prompt` and the answer arrives as the same `choose`/`chooseMode` action both engines take.
+  What this engine has no half of — a KO, a play, a price, a battle — is a `NotYet` naming the
+  issue that builds it, caught at the one program boundary in `flow.ts` so a card it cannot finish
+  stops that skill rather than the game.
   Whether a *new* game may be made on an engine is the separate question `playableEngine(id)`
   asks of `ENGINE_INFO[id].available`, and the answer for `rules` is still no. Outside those six
   calls the app is still legacy-shaped (`games.ts` reads `state.turn`), so `legacyState(value)`

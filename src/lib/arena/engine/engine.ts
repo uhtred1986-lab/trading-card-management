@@ -16,6 +16,7 @@ import { baseType, canCombo, isZ, keywordOf, skillsOf, specifiedCostOf } from ".
 // a game compiled card text.
 import { costIsOnlyOrbs, costText, parseConditionClause } from "./compile";
 import { matches, parseCondition, parseFilter } from "./filters";
+import { legacyHost } from "./script-host";
 import { savedXKey, stepScript, validateProgram, type CardScripts, type Cond, type Op, type PayWith, type ScriptFrame, type XCost } from "./script";
 import { koCard, pendTriggers } from "./triggers";
 import { nextRandom, shuffle } from "./rng";
@@ -465,7 +466,7 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
       return battleCleanup(ctx, s, ev);
 
     case "script.step":
-      return stepScript(ctx, s, ev, step.frame);
+      return stepScript(legacyHost(ctx, s, ev), step.frame);
     case "flipLeader": {
       // 22-2-4 / 22-25-4: [Awaken] and [Wish] flip the leader after their effects resolve.
       const inst = s.cards[step.card];
@@ -925,7 +926,7 @@ function runSkill(
     delete s.continuations[savedXKey(key)];
     const boundX = x ?? paidX;
     const frame: ScriptFrame = { ops: script.ops, ip: 0, vars: { ...paid, ...vars }, card, master, trigger, subject, skillIndex: sk.index, ...(boundX === undefined ? {} : { x: boundX }) };
-    return stepScript(ctx, s, ev, frame);
+    return stepScript(legacyHost(ctx, s, ev), frame);
   }
   const d = def(ctx, s, card);
   if (ctx.referee) {
