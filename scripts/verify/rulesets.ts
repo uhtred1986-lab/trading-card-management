@@ -103,11 +103,19 @@ const WHOLE: Record<string, string> = {
     "  inPlay: true",
     "  modes: [active, rest]",
     '  text: "where Battle Cards are played (3-6)"',
+    "",
+    "DEFINE ZONE energy",
+    "  owner: player",
+    "  visibility: all",
+    "  modes: [active, rest]",
+    '  text: "the energy a player pays costs with (3-8)"',
   ),
   "play.rules": lines(
     "DEFINE COST energy",
+    "  consumes: energy",
+    "  asks: choice",
     "  DO {",
-    "    switchMode(target: [self], mode: rest)",
+    "    switchMode(target: IN you.energy active, mode: rest)",
     "  }",
     '  text: "cards from the Energy Area, switched to Rest Mode (7-2)"',
     "",
@@ -144,12 +152,12 @@ if (whole.ok) {
   // The schema's defaults are the loader's to apply — the printer drops none,
   // so a field left out of the text is `undefined` until it gets here.
   assert.equal(def.game?.players, 2, "GAME's default player count was not applied");
-  assert.deepEqual(Object.keys(def.zones), ["hand", "battle"]);
+  assert.deepEqual(Object.keys(def.zones), ["hand", "battle", "energy"]);
   assert.equal(def.sources["zone:battle"], "zones.rules", "a declaration does not know which file it came from");
-  assert.equal(def.definitions.length, 9, "the ruleset does not hold every declaration it read");
+  assert.equal(def.definitions.length, 10, "the ruleset does not hold every declaration it read");
   // The vocabulary is the definition's word lists, in the names the language's
   // hand-written constants use today (#137 makes those a re-export).
-  assert.deepEqual(vocab.areas, ["hand", "battle"]);
+  assert.deepEqual(vocab.areas, ["hand", "battle", "energy"]);
   assert.deepEqual(vocab.keywordNames, ["Blocker"]);
   assert.deepEqual(vocab.triggers, ["played"]);
   assert.ok(vocab.durations.includes("turn") && vocab.sides.includes("opponent"), "the effect language's own words are missing");

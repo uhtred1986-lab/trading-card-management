@@ -15,8 +15,11 @@
 --
 -- **Four so far.** The moves that need no payment and no battle (#145), which
 -- is what makes them the ones that prove the machinery on a real turn. The play
--- family is #146, activations #147 and the prices #148, and each arrives here
--- as a paragraph.
+-- family is #146 and activations #147, and each arrives here as a paragraph.
+-- The prices are in (#148): `costs.rules` declares six and `vm/costs.ts` charges
+-- them, so a `COST [energy]` on one of the paragraphs below would now be paid
+-- rather than refused by name. None of the four carries one — the charge places
+-- a card in the Energy Area, it does not spend from it.
 --
 -- `listed: false` is the rule the legacy engine has always had and never
 -- wrote down: a move a client shows as a button of its own is accepted

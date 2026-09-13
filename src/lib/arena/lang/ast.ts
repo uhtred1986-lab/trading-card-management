@@ -509,9 +509,35 @@ export interface DefKeyword extends Declaration<"KEYWORD"> {
   hooks?: DefineHook[];
 }
 
+/**
+ * What a price takes off the player who pays it — the *resource*, never the
+ * amount. An interpreter reads this word rather than the declaration's name, so
+ * a second game declaring `DEFINE COST mana / consumes: energy` is charged by
+ * the same search DBS's `energy` is, and nothing has to know either name.
+ *
+ * `unreadable` is the price as printed and nothing more: the half of a card's
+ * cost the engine cannot charge itself (`COST_ITEMS`' `TEXT`). It is a kind of
+ * its own rather than an absent declaration because "this price is not
+ * chargeable" is an answer a player is owed — an `unread` requirement — and a
+ * price with no declaration at all is a move that quietly happens for free.
+ */
+export const COST_CONSUMES = ["energy", "markers", "life", "mode", "cards", "unreadable"] as const;
+export type CostConsumes = (typeof COST_CONSUMES)[number];
+
+/**
+ * How paying puts its question (§3-8-2: a player may pay with any energy they
+ * like). `choice` is a price whose payment is asked about when more than one
+ * genuinely different way to pay exists; `nothing` is a price that is settled
+ * without a question, because there is only ever one way to pay it.
+ */
+export const COST_ASKS = ["choice", "nothing"] as const;
+export type CostAsks = (typeof COST_ASKS)[number];
+
 /** `DEFINE COST` — a price the game knows how to charge, by name. */
 export interface DefCost extends Declaration<"COST"> {
   takes?: DefineParam[];
+  consumes: CostConsumes;
+  asks?: CostAsks;
   if?: Cond;
   do: Op[];
   text?: string;
@@ -640,7 +666,14 @@ export const DEFINE_SCHEMA = {
   },
   COST: {
     doc: "a price the game knows how to charge, named so an action can ask for it",
-    fields: [PARAMS, { name: "if", type: "cond", word: "IF" }, { name: "do", type: "ops", word: "DO", required: true }, TEXT],
+    fields: [
+      PARAMS,
+      { name: "consumes", type: { enum: COST_CONSUMES }, required: true },
+      { name: "asks", type: { enum: COST_ASKS }, default: "nothing" },
+      { name: "if", type: "cond", word: "IF" },
+      { name: "do", type: "ops", word: "DO", required: true },
+      TEXT,
+    ],
   },
   WIN: {
     doc: "a condition that ends the game, and for whom",

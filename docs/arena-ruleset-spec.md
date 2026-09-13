@@ -299,8 +299,8 @@ itself.
 | `keywords.rules` | `KEYWORD` — all 39, their parameters and their meanings; the `HOOK` bodies stay empty until Stage 7 | §22 | #135 |
 | `words.rules` | the words the board says for a zone, a colour, a mode, a requirement — **not written yet**: `DEFINE WORDS` is not one of the eleven kinds, and its shape is an open question on #131 | — | #135, after that answer |
 | `prompts.rules` | one declaration per `Prompt` kind with the question it asks — **not written yet**, the same open question (it may be a field of `DEFINE ACTION` rather than a kind) | — | #135, after that answer |
-| `actions.rules` | `ACTION` — charge, play, activate, endMain, pass, concede: `WHEN / FOR / COST / DO / REFUSE`, the refusal in the order the legacy engine checks it. The grammar and the generic legality are in (#144) and `pass` is declared; the moves themselves are #145–#147 | §6, §7 | #144 ✔, #145–#147 |
-| `costs.rules` | `COST` — energy with colours and X, markers, life, rest, pay-with, and the unreadable price that refuses | §8-3-2-3, §22-45 | Stage 5 |
+| `actions.rules` | `ACTION` — charge, play, activate, endMain, pass, concede: `WHEN / FOR / COST / DO / REFUSE`, the refusal in the order the legacy engine checks it. The grammar and the generic legality are in (#144), and charge, endMain, pass and concede are declared (#145); play and activate are #146–#147 | §6, §7 | #144 ✔, #145 ✔, #146–#147 |
+| `costs.rules` | `COST` — energy with colours, either-orbs and X, markers, life, rest, pay-with, and the unreadable price that refuses. Each says what it `consumes:` and how the payment `asks:` its question, and `vm/costs.ts` is one planner over those words | §5-3, §8-3-2-3, §13-4, §20-19, §21-3 | #148 ✔ |
 | `battle.rules` | the battle sub-flow as `STEP`s and `ACTION`s — declaration, the blocker window, counter windows, combo, comparison, damage | §7, §8 | Stage 6 |
 
 Nothing in the list is a program *about* this game: a file is data, and the moment a game would
@@ -534,6 +534,63 @@ language has no word for yet; until #142 the once-per-turn fact is the step, sin
 asked once a turn. And `concede`'s `DO` is empty because no op of the effect language ends a game:
 the ending stays the interpreter's, as `vm/flow.ts`'s worked steps are, and the declaration is what
 says the move may be taken at all — a `DO` that grew one is refused by name rather than ignored.
+
+### How a price is declared
+
+`costs.rules` is Stage 5's second file and it landed with #148. Its promise is the one the file
+table's line about it turns on: **payment is a planner over declared kinds, not a branch per
+price**. In the legacy engine payment is `planPayment` (`engine/state.ts`), one search over the
+Energy Area with a branch inside it for the coloured orbs, for an either-orb, for X, for the cards
+20-19 lets stand in for energy, and for [Warrior of Universe 7] clearing the colours outright. It
+plays this game correctly and it can only ever play this game: a second game with a different
+resource has nowhere to say so, and DBS's own alternative payments are branches rather than prices.
+
+```
+DEFINE COST energy
+  TAKES (total: amount, orbs: colors, x: amount)
+  consumes: energy
+  asks: choice
+  DO {
+    switchMode(target: IN you.energy active, mode: rest)
+  }
+  text: "the price is paid by switching that many active cards in your Energy Area to Rest Mode …"
+```
+
+| Written | Means |
+|---|---|
+| `TAKES (…)` | what the price is given. An action asks for a price **by name** and passes no arguments, so this is the shape `vm/costs.ts` reads off the card today; binding it is #147, where a skill's own `card_rules.cost` record supplies the values |
+| `consumes:` | the resource the price takes — `energy`, `markers`, `life`, `mode`, `cards`, `unreadable`. Required, and it is the word an interpreter switches on: never the declaration's *name*, so a second game's `DEFINE COST mana / consumes: energy` is charged by the same search |
+| `asks:` | how paying puts its question (§3-8-2). `choice` is a price the payer is asked about whenever more than one genuinely different way to pay exists — the existing `payCost` prompt, whose options are `Payment` values; `nothing` (the default) is a price with only one way to pay |
+| `IF` | a condition the price also requires. Refused by name today — a price with a condition of its own waits on #142's evaluator |
+| `DO { … }` | two things at once. The op's **target** is the pool the price is paid out of (`IN you.energy active` says both which area and which mode), and the **op** is what paying does to what was taken from it. How *many* is never in the program |
+| `text:` | what the price is, in the manual's words |
+
+Six are declared, one per kind the manual charges: `energy` (5-3, with the coloured orbs of 1-2-3,
+the either-orbs of 22-13, the energy markers of 1-14-2 and X), `marker` (13-4), `life` (21-3),
+`rest` (1-10-1), `payWith` (20-19) and `text`. The last is the reason a price is a declaration at
+all: it is the half of a printed price no engine charges itself, and a move that asks for it is
+**refused** — with the `unread` requirement naming the card, the same answer the legacy engine gives
+for a skill whose cost the compiler could not read. A move whose price had no declaration would be a
+move taken for free, which is what the loader's refusal of an unknown `COST` name prevents.
+
+`src/lib/arena/vm/costs.ts` is the whole interpreter of this, and it is held to the older engine
+rather than trusted: `scripts/verify/vm.ts` §17 stages the same board on both engines and asserts,
+price for price, the same answer to "can this be paid", the same `Requirement`s when it cannot, the
+same cards rested, the same options and the same words for them. Two gaps are written down where
+they are rather than papered over. The amounts of `marker`, `life` and `payWith` have nothing to
+bind them until #147, so an action naming one of those is refused **by name**; and the reductions of
+20-21 — the flat one, the coloured one, and 22-19's [Warrior of Universe 7] — are the `costOf`
+attribute's declared `layers:`, which are still empty. #142 landed the machinery that reads an
+attribute through its layers and deliberately left these two out (`LAYERS` in `vm/effects.ts` has no
+`reduction` or `specified` row, and `DEFERRED_STATICS` hands `costReduction`, `altCost` and
+`payWith` to this issue). Filling them needs four decisions about the layer machinery rather than
+about a price — a clamped layer, since 20-21-2's floor at zero is not additive; a printed base for a
+*derived* attribute, since nothing maps `costOf` onto the `energyCost` it discounts; a
+`colors`-valued layer, since `specifiedCost` declares none; and a wider `VmStatic.kind` — and
+nothing can put a cost reducer in force on this engine until `permanents` stops refusing
+`costReduction` by name, so wiring them now would be a reducer that reads correctly and changes no
+board. `cardPrice` is the one function that reads a card's price, so pointing it at the layers when
+they exist is one change and not a hunt.
 
 ### What the loader does
 
