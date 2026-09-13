@@ -2961,3 +2961,72 @@ the moves — every one of them is a sentence from the manual that says where th
   a card whose value is of the wrong type loses that one attribute and gains a line in the report.
   All 8,520 catalog cards pass today — which is the point: the mechanism exists so that the first one
   that does not costs one measure on one card, not a game that will not start.
+
+## The turn as a program — Stage 4's flow runner (13 Sep 2026)
+
+Issue #140. The legacy engine's turn is a `switch` over `Phase` inside `exec()`; the rules engine's
+is the `DEFINE PHASE` and `DEFINE STEP` declarations of `game.rules`, run by `vm/flow.ts`, which
+knows steps, prompts and the bound on a repeat and nothing about Dragon Ball. The exit for the issue
+was a game played turn to turn with nothing but passing, and the measurement was the older engine:
+from one seed, over the harness decks, a pass-only game logs **the same 543 events** on both engines
+— every phase, every draw, every move, the turn changes and the deck-out — with one field excluded,
+and that exclusion is the point of the next paragraph.
+
+### What the grammar grew, and what it refused to
+
+Three fields, each because the runner would otherwise have needed a name it cannot have.
+`setupPhase:` and `overPhase:` on `DEFINE GAME`, because `phases:` is the *turn* and a game also has
+a procedure that runs once before it and a phase it comes to rest in. `announce:` on `DEFINE PHASE`,
+because whether entering a phase is a moment in the log is a fact about the game (DBS announces
+three of six — the Main Phase End Step passes inside the Main Phase as far as a player is concerned)
+and not about the interpreter. `LIMIT n` on `DEFINE STEP`, the ceiling on the End Phase's repeat
+(7-4-4).
+
+What it did **not** grow is a way for the runner to ask a game which sentence to say when a player
+loses. The two `DEFINE WIN` declarations carry their own `text:` — "there are no cards in your Deck
+Area (0-1-3-2)" — and the legacy engine says "Claude has no cards left in the deck". Matching the
+older engine word for word would have meant two English sentences hard-coded in an interpreter whose
+whole claim is that the words come from the definition, so the difference was kept and the
+comparison names it: the event streams are asserted equal with `gameOver.reason` excluded, and the
+winner and the turn count asserted exactly. Stage 8 is where every word comes from the definition
+and the exclusion goes.
+
+### The bound is written before the loop that needs it
+
+Nothing can pend until #141 gives the engine events, so the End Phase repeat turns zero times today.
+`LIMIT 5` is declared anyway and `repeatAllowed` is asserted at the ceiling in `npm test`, because a
+repeat is the one construct in a flow runner that can hang a game, and a bound added after the loop
+is a bound added after the first hang. The declaration carries it rather than the runner for the
+same reason the rest of this programme exists: the game that declares a repeat is the one that knows
+how far it may go.
+
+### The deal had to move for the mulligan to be true
+
+#139 dealt the whole opening board inside `createGame`, correctly, because there were no prompts to
+interrupt it. #140 has prompts, and 6-2-1 puts the mulligan (6-2-1-9-1) **before** the life
+(6-2-1-10): a hand returned to a deck the eight life cards had already been taken off redraws from
+the wrong pile. The board would have been right in every game where both players kept, which is
+every game the suite happened to play. So `createGame` now makes the cards and spends the seed on
+the flip, and the shuffles, hands, mulligans, life and starting energy marker are the steps they are
+declared as — and the suite asserts a *redrawn* hand equals the legacy engine's, which is the case
+the old shape got wrong.
+
+### Lessons
+
+- **A prompt-shaped gap is a decision deferred, not a decision made.** "The mulligan waits on #140"
+  was true and hid an ordering bug that only a mulligan could expose. When a stage defers a
+  *question*, the thing to re-check when the question arrives is not the answer but everything that
+  was done in its absence.
+- **One union of actions, two engines.** The rules engine raises the legacy `Prompt` shape and is
+  answered by the legacy `Action` union. That is not laziness: the `Engine` interface takes one
+  union, and a second spelling of "keep this hand?" would make one client unable to answer both
+  boards — and would have made the 543-event comparison impossible to write at all.
+- **`pass` as the generic decline earns its place.** The three named moves (`mulligan` keep,
+  `charge` skip, `endMain`) are each "take none of what this step offers", and letting one verb mean
+  that at every step is what lets a script or the fuzzer play a whole game without a case per
+  prompt. It is a verb of the *flow*, which is exactly the layer #140 is.
+- **Name the gap in one table, never in an `if`.** Six steps have no `DO` program yet and the runner
+  performs them itself. They live in one `STEP_WORK` record, each row carrying its manual section
+  and the sentence its program would have to be able to say, and every row is checked against the
+  declarations when a game is made. The alternative — `if (step === "chargeDraw")` scattered through
+  a runner — is the same knowledge with nowhere to delete it from.

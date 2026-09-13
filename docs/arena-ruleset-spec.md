@@ -291,7 +291,7 @@ itself.
 
 | File | Declares | Manual | Written by |
 |---|---|---|---|
-| `game.rules` | `GAME` (deck sizes, opening hand, life, mulligan, turn order), six `PHASE`s and the 26 `STEP`s of the turn, `WIN` for life-out and deck-out | §0-1-3, §6, §7 | #133 ✔ |
+| `game.rules` | `GAME` (deck sizes, opening hand, life, mulligan, turn order, which phase is the setup and which the over), six `PHASE`s and the 26 `STEP`s of the turn — including the End Phase's bounded repeat — and `WIN` for life-out and deck-out | §0-1-3, §6, §7 | #133 ✔, #140 ✔ |
 | `attributes.rules` | `ATTRIBUTE` — every `CardDef` field (id, name, type, colours, energy cost, specified-cost orbs, Z-Energy cost, power, combo cost and power, characters, traits, skill, back, also-names), the three derived costs with their layer order, and the player's energy markers | §1-2, §1-9, §1-14, §2, §9-9-1, §20-21 | #133 ✔ |
 | `zones.rules` | `ZONE` — the manual's twelve areas plus `removed`, `under` and `play`: owner, visibility, order, single, markers, modes, host, and what "in play" means | §3, §9-1-3-1, §20-10, §23-2 | #133 ✔ |
 | `ops.rules` | `OP` — one macro per row §2.3 marks *macro*, over the primitives beside it; `rulesets/expand.ts` lowers a program through them | §2 above | #137 |
@@ -355,6 +355,37 @@ decisions recorded in code rather than declarations:
   `DO` programs yet — they are declared with their manual sections and their text only. That
   constant is the interpreter's one remaining piece of zone-name knowledge, it is checked against
   the declarations at load, and Stage 5's `actions.rules` is what deletes it.
+
+**What #140 needed from `game.rules`, and what came of it.** The flow runner (`vm/flow.ts`) is an
+interpreter of `DEFINE PHASE` and `DEFINE STEP` and knows nothing else about the game; making that
+true asked the grammar for three fields and left two gaps written down rather than closed.
+
+- **`setupPhase:` and `overPhase:`** on `DEFINE GAME`. `phases:` is the *turn*; a game also has a
+  pre-game procedure that runs once (§6-2) and a phase a finished game sits in (§0-1-3), and
+  without those two lines the runner would have to know both by name.
+- **`announce:`** on `DEFINE PHASE` (default true): whether entering the phase is a moment of its
+  own in the log. DBS announces three of six, which is exactly what the legacy engine announces —
+  the Main Phase End Step passes inside the Main Phase as far as a player is concerned (§7-3-5),
+  and neither the pre-game procedure nor the finished game is a phase of a turn.
+- **`LIMIT n`** on `DEFINE STEP`: the ceiling on a step that sends its phase round again (§7-4-4).
+  The bound is in the declaration and not in the runner precisely because a mis-declared trigger
+  must not be able to hang a game. Nothing can pend until #141, so the loop turns zero times today;
+  the bound was written first on purpose, because a repeat added later without one is the bug.
+- **The deal moved into the flow.** #139 dealt the whole opening board in `createGame`, since there
+  were no prompts to interrupt it. There are now, and 6-2-1 puts the mulligan (6-2-1-9-1) *before*
+  the life (6-2-1-10): a hand returned to a deck the life had already been taken off would redraw
+  from the wrong pile. `createGame` now makes the cards and spends the seed on the flip, and the
+  shuffles, hands, mulligans, life and starting energy marker are the steps they are declared as.
+- **Six steps are still the interpreter's own**, listed in `STEP_WORK` with the section each is and
+  what its `DO` program would have to be able to say — a shuffle of a whole zone, a draw with a
+  computed count, "each player", a condition about the turn number, the energy marker only the
+  second player places, and the turn itself ending. Each row is checked against the declarations
+  when a game is made, so a row naming a step nothing declares is refused rather than silently
+  doing nothing. Stage 5 replaces rows with programs; it does not add a seventh.
+- **One list the client contract still fixes.** `VIEW_ZONES` (`vm/view.ts`) crosses between a
+  side's declared zones and the fields of `BoardView`, which has a field per area because a board
+  draws a hand and a Drop and always will. That one is not a missing `DO` program — it is Stage 8's
+  question (words, prompts and the contract from the definition) with one place to be answered.
 
 An attribute's `layers:` is the order of 9-9-1 — `printed` (9-9-1-1), `rewrite` (every continuous
 effect that does not rewrite a number, 9-9-1-2), `numeric` (the ones that do, 9-9-1-3) — and a
@@ -584,10 +615,14 @@ Everything in this section is deliberately *not* configurable. Each is an algori
 correctness is a property of the algorithm, not of any game's rules — declaring it would move a
 decision nobody can make from a place that is tested to a place that is not.
 
-- **The flow runner** (`exec`, `src/lib/arena/engine/engine.ts` line 222, over `state.flow`). The
-  turn is a data step list, but *running* it — resuming after a prompt, unwinding nested scripts,
-  deciding when a game is storable mid-decision — is one algorithm. A game declares its phases;
-  it does not declare how a phase is executed.
+- **The flow runner** (`exec`, `src/lib/arena/engine/engine.ts` line 222, over `state.flow`; and
+  `run` in `src/lib/arena/vm/flow.ts` since #140). The turn is a data step list, but *running* it —
+  resuming after a prompt, unwinding nested scripts, deciding when a game is storable mid-decision
+  — is one algorithm. A game declares its phases; it does not declare how a phase is executed. The
+  rules engine's frame is the whole of its memory: `state.flow` is a stack of `{ phase, index }`,
+  a game waiting on a prompt is a game whose top frame points at the step that asked, and nothing
+  is held in a closure. **Who a prompt is put to is part of this**, not part of the game: the words
+  a question is asked in come from the definition (Stage 8), the machinery does not.
 - **The event log.** Append-only, and the source of both the board's beats and the replay. Its
   ordering guarantees are what make the oracle possible; a game cannot be allowed to reorder it.
 - **Prompt mechanics.** How a question is asked, how a partial answer is held, how `min`/`max`/

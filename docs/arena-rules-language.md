@@ -191,8 +191,13 @@ list, so a diff shows the hook that changed).
 
 **GAME** — the game itself: how a player starts and what a turn is made of (manual §5). `title:`,
 `players:`, `deck:`, `zDeck:`, `hand:`, `life:`, `startMarkers:`, `markersPerTurn:`, `mulligan:`,
-`firstPlayerDraws:`, `phases:`. Only `deck:`, `hand:` and `life:` are required; a field left out is
-the loader's default.
+`firstPlayerDraws:`, `phases:`, `setupPhase:`, `overPhase:`. Only `deck:`, `hand:` and `life:` are
+required; a field left out is the loader's default.
+
+`phases:` is the **turn**, in order. The two phases a turn is not made of are named separately:
+`setupPhase:` is the pre-game procedure that runs once before the first turn (§6-2), and
+`overPhase:` is where a finished game sits (§0-1-3). Without those two lines an interpreter would
+have to know both by name, which is the one thing a configuration-driven engine may not do (#140).
 
 ```
 DEFINE GAME dbs
@@ -205,6 +210,8 @@ DEFINE GAME dbs
   markersPerTurn: 1
   mulligan: true
   phases: [charge, main, end]
+  setupPhase: "setup"
+  overPhase: "over"
 ```
 
 **ATTRIBUTE** — something a card, a player or a zone has — printed on the card, or derived from the
@@ -244,17 +251,25 @@ DEFINE ZONE battle
 
 **PHASE** — a phase of the turn, in the order the game declares (`DEFINE GAME`'s `phases:`).
 `steps:` is required; `actions:` lists what a player may do in it, `auto:` says it passes with no
-prompt, `text:` what it is.
+prompt, `announce:` whether entering it is a moment of its own in the log (default true, so a phase
+nobody narrates says `announce: false`), `text:` what it is.
 
 ```
 DEFINE PHASE main
   steps: [mainStart, mainActions]
   actions: [playCard, attack, activateSkill]
+  announce: true
   text: "the phase a player takes their moves in (6-4)"
 ```
 
 **STEP** — one step of a phase, and the program it runs. `phase:` is required; `DO` is the program
-the step runs, `optional:` whether it may be skipped, `prompt:` what is asked, `text:` what it is.
+the step runs, `optional:` whether it may be skipped, `prompt:` what is asked, `LIMIT` how many
+times it may send its phase round again, `text:` what it is.
+
+`LIMIT` is the bounded loop of §7-4-4: a step that carries one may restart its own phase when the
+moment it names comes round again, and the number is the ceiling. The bound lives in the
+declaration rather than in the runner because a mis-declared trigger must not be able to hang a
+game, and the game that declares the repeat is the one that knows how far it may go.
 
 ```
 DEFINE STEP mainStart
@@ -262,6 +277,7 @@ DEFINE STEP mainStart
   DO {
     note(text: "the moment [Auto] skills of the Main Phase answer to")
   }
+  LIMIT 5
   text: "the start of the Main Phase (6-4-1)"
 ```
 
