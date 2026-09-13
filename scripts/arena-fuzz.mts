@@ -6,6 +6,7 @@ import { db } from "../src/db";
 import { decks } from "../src/db/schema";
 import { nextRandom, type GameState, type PlayerId } from "../src/lib/arena/engine";
 import { engineFor, isEngineId, legacyState } from "../src/lib/arena/engines";
+import { isVmState, type VmState } from "../src/lib/arena/vm";
 import { deckInputFor, defsForCards } from "../src/lib/arena/load";
 import { rulesFor } from "../src/lib/arena/rules-store";
 
@@ -19,6 +20,31 @@ const { createGame, apply, legalActions } = engineFor(engineId);
 const positional = argv.filter((a, i) => engineArg < 0 || (i !== engineArg && i !== engineArg + 1));
 const games = Number(positional[0] ?? 20);
 const fixed = positional.length >= 3 ? [Number(positional[1]), Number(positional[2])] : null;
+
+/**
+ * The same invariant as `check` below, on the board the rules engine deals
+ * (#139): every card in exactly one place (3-1). It has no moves to make yet
+ * (#140), so a run on `--engine rules` is a *dealing* fuzz — forty real decks
+ * through `createGame`, which is the only thing that can crash on it today and
+ * the thing every later stage is built on.
+ */
+function checkRules(state: unknown): VmState {
+  if (!isVmState(state)) throw new Error(`the rules engine returned a state it does not recognise: ${JSON.stringify(state).slice(0, 120)}`);
+  const seen = new Map<string, number>();
+  for (const side of Object.values(state.sides)) {
+    for (const [zone, ids] of Object.entries(side.zones)) {
+      for (const id of ids) {
+        if (!state.cards[id]) throw new Error(`${side.id}'s ${zone} holds ${id}, which is not a card in the game`);
+        seen.set(id, (seen.get(id) ?? 0) + 1);
+      }
+    }
+  }
+  for (const card of Object.values(state.cards)) for (const u of card.under) seen.set(u, (seen.get(u) ?? 0) + 1);
+  for (const id of Object.keys(state.cards)) {
+    if (seen.get(id) !== 1) throw new Error(`${id} (${state.cards[id].cardId}) is in ${seen.get(id) ?? 0} places, not 1`);
+  }
+  return state;
+}
 
 function check(s: GameState): void {
   const seen = new Map<string, number>();
@@ -67,6 +93,14 @@ for (let g = 0; g < games; g++) {
   let steps = 0;
   let last = "";
   try {
+    if (engineId === "rules") {
+      // Nothing plays on it yet (#140), so the run ends where the deal does:
+      // the board is checked and the game counted. #143 is where the scripts
+      // learn to play the second engine.
+      const dealt = checkRules(createGame(ctx, { seed, p1: da.input, p2: dbk.input }).state);
+      results.push(`${a.name} vs ${b.name}: dealt ${Object.keys(dealt.cards).length} cards (the rules engine plays no moves yet)`);
+      continue;
+    }
     // Legacy-shaped: the fuzzer reads the board itself (`check`), so a state
     // it cannot read is a crash it should report rather than misread. #143 is
     // where the scripts learn the second engine's shape.

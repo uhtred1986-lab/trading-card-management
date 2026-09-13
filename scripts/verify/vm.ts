@@ -16,10 +16,25 @@
  *     throws `NotYet` naming the issue that builds it, because a skeleton that
  *     answered 0 or `[]` would be indistinguishable from a game with nothing
  *     to do.
+ *  3. **A card is a bag of declared attributes** (#139): the catalog adapter
+ *     and `attributes.rules` account for each other in both directions, and a
+ *     value the declarations do not describe costs that card one attribute and
+ *     a line in the report — it does not stop a game.
+ *  4. **A filter is a predicate over those attributes**, and it answers what
+ *     the engine that has been playing answers. Asserted field by field over
+ *     `FILTER_FIELDS`, because this is the one place the rules engine could
+ *     start selecting *different* cards — which would show up as a card quietly
+ *     doing the wrong thing rather than as a crash.
+ *  5. **A side is a map of declared zones**, and `moveCard` is the only mover:
+ *     what a zone's declaration says about single cards, modes, markers, order
+ *     and hosting is honoured generically, and the replacement hook 9-10 needs
+ *     is recorded rather than applied.
+ *  6. **The opening board is the legacy engine's**, card for card, from the
+ *     same seed. That is the measurement every later stage of the programme is
+ *     taken against, which is why dealing came before the flow.
  *
  * What is deliberately *not* here: anything about how a rules game plays.
- * #139 deals the board, #140 runs the turn, #141 logs the events — and each
- * brings its own suite.
+ * #140 runs the turn, #141 logs the events — and each brings its own suite.
  *
  * Part of `npm test`; run from `scripts/verify-arena.ts`, which fixes the order.
  */
@@ -38,8 +53,35 @@ import {
   type Engine,
 } from "../../src/lib/arena/engines";
 import { boardView } from "../../src/lib/arena/view";
-import { NotYet, VM_STATE_VERSION, isVmState, type VmState } from "../../src/lib/arena/vm";
-import { CTX, fifty, game } from "./harness";
+import {
+  FilterNeedsAttribute,
+  MEASURES,
+  NotYet,
+  VM_STATE_VERSION,
+  attrsOf,
+  attributeGaps,
+  attributesRead,
+  cardAttributes,
+  deferredMeasures,
+  emptyZones,
+  findCard,
+  hostOf,
+  inPlayZones,
+  isVmState,
+  attributesRequired,
+  measuresUsed,
+  moveCard,
+  placeZones,
+  playerAttributes,
+  predicateOf,
+  type Attrs,
+  type VmState,
+} from "../../src/lib/arena/vm";
+import { loadRuleset, rulesetFor, type GameDefinition } from "../../src/lib/arena/rulesets";
+import { FILTER_FIELD_NAMES } from "../../src/lib/arena/lang";
+import { emptyFilter, type CardFilter } from "../../src/lib/arena/engine/filters";
+import type { CardDef, PlayerId } from "../../src/lib/arena/engine/types";
+import { CTX, DEFS, card, fifty, game, matches } from "./harness";
 
 const DECKS = { seed: 11, p1: { name: "You", leader: "L-RED", main: fifty("V1") }, p2: { name: "Claude", leader: "L-BLUE", main: fifty("V-BLUE") } };
 
@@ -137,4 +179,351 @@ assert.throws(() => legacyState(state), EngineMismatch, "a rules state was read 
 const legacy = game();
 assert.equal(legacyState(legacy), legacy, "a legacy state did not pass the seam untouched");
 
+
+
+// ── 6. a card is a bag of declared attributes ──────────────────────────────
+
+const dbs = rulesetFor("dbs");
+assert.ok(dbs.ok, `the DBS ruleset did not load: ${dbs.ok ? "" : JSON.stringify(dbs.errors, null, 2)}`);
+const DBS: GameDefinition = dbs.ok ? dbs.definition : (undefined as never);
+
+// The claim that makes every attribute reading below trustworthy: the catalog
+// adapter and `attributes.rules` account for each other. Reported by name in
+// both directions — a count would say something changed and nothing about what.
+assert.deepEqual(attributeGaps(DBS), { unfilled: [], undeclared: [] }, "the catalog adapter and attributes.rules do not describe the same card");
+assert.deepEqual(playerAttributes(DBS), ["energyMarkers"], "the player attributes of 1-14 are not what the game declares");
+assert.ok(cardAttributes(DBS).includes("costOf"), "the derived cost of 20-21 is not a declared card attribute");
+
+{
+  const attrsFor = (id: string): Attrs => attrsOf(DEFS[id], DBS).attrs;
+
+  const v1 = attrsFor("V1");
+  assert.equal(v1.id, "V1", "a card's attributes do not carry its number (2-14)");
+  assert.equal(v1.type, "BATTLE");
+  assert.deepEqual(v1.colors, ["Red"]);
+  assert.equal(v1.energyCost, 1);
+  assert.equal(v1.back, false, "a card with no back side says it has one (1-9)");
+  assert.deepEqual(v1.alsoNames, [], "a catalog row arrives with names a skill has not given it yet (20-1)");
+  // One entry per orb, which is what the declaration asks for: a cost-1 red
+  // card demands one red orb by the convention `playCost` charges.
+  assert.deepEqual(v1.specifiedCost, ["Red"], "the specified cost is not one entry per orb (1-2-3)");
+
+  // A Leader has no energy cost at all, and an absent attribute is not zero:
+  // "this card costs 0" is a claim about a card that has a cost.
+  const leader = attrsFor("L-RED");
+  assert.equal("energyCost" in leader, false, "a Leader Card was given an energy cost");
+  assert.equal(leader.back, true, "a Leader with an awakened face says it has none (1-9)");
+
+  // An X cost is absent for the same reason, and for one more: read as 0 here,
+  // every "energy cost of 1 or less" selector in the catalog would start
+  // matching X-cost cards, which the engine playing today does not do. The
+  // value is named when the cost is paid (1-2-2-2), which is #140's.
+  const x = attrsFor("U1");
+  assert.equal("energyCost" in x, false, "an X cost was read as a number before anyone chose one (1-2-2-2)");
+  assert.equal("specifiedCost" in x, false, "an X cost with no recorded orbs was given a coloured requirement anyway");
+
+  // A player attribute is the side's, never a card's.
+  assert.equal("energyMarkers" in v1, false, "a card was given the player's energy markers (1-14)");
+  // And a derived cost is the board's: it has layers and no face of its own.
+  assert.equal("costOf" in v1, false, "a card carries a price the effect layers have not been applied to (20-21)");
+}
+
+// A value the declarations do not describe costs that one attribute and a line
+// in the report. Never a throw: one odd row out of 6,500 must not be what stops
+// a game (the issue's "list them once at load, do not crash a game").
+{
+  const odd = { ...card("ODD", {}), power: "lots" as unknown as number };
+  const read = attrsOf(odd, DBS);
+  assert.equal("power" in read.attrs, false, "a power of the wrong type was kept anyway");
+  assert.equal(read.problems.length, 1, "a value of the wrong type was not reported");
+  assert.deepEqual({ ...read.problems[0], got: "" }, { card: "ODD", attr: "power", declared: "number", got: "" }, "the report does not name the card and the attribute");
+  assert.match(read.problems[0].got, /lots/, "the report does not say what arrived");
+  assert.equal(read.attrs.name, "ODD", "one bad value cost the card its other attributes");
+
+  // A colour word the game does not use is as wrong as a number: a filter
+  // asking for blue would silently miss it.
+  const wrongColour = { ...card("PUCE", {}), colors: ["Puce"] as unknown as CardDef["colors"] };
+  const colours = attrsOf(wrongColour, DBS);
+  assert.equal("colors" in colours.attrs, false, "a colour the game does not declare was kept");
+  assert.equal(colours.problems[0]?.attr, "colors");
+}
+
+// ── 7. a filter is a predicate over those attributes ───────────────────────
+
+// The two tables that describe a filter — the language's (for printing) and
+// this engine's (for playing) — are one list. A field described for one and
+// forgotten by the other is a measure that prints and does not select.
+assert.deepEqual(Object.keys(MEASURES).sort(), [...FILTER_FIELD_NAMES].sort(), "MEASURES and FILTER_FIELDS do not describe the same filter");
+
+/**
+ * One filter per field of `CardFilter`, each using that field and nothing else
+ * (`multiColor` needs colours to be multi-coloured *of*). Keyed by the field so
+ * a new measure fails the typecheck here until it is exercised, which is the
+ * same discipline the tables keep.
+ */
+const FILTER_SAMPLES: Record<keyof CardFilter, Partial<CardFilter>> = {
+  colors: { colors: ["Blue"] },
+  notColors: { notColors: ["Red"] },
+  monoColor: { monoColor: true },
+  multiColor: { multiColor: true, colors: ["Red", "Blue"] },
+  characters: { characters: ["V1"] },
+  notCharacters: { notCharacters: ["V1"] },
+  charactersIncluding: { charactersIncluding: ["BLOCK"] },
+  notCharactersIncluding: { notCharactersIncluding: ["BLOCK"] },
+  traits: { traits: ["Saiyan"] },
+  notTraits: { notTraits: ["Saiyan"] },
+  names: { names: ["BIG"] },
+  notNames: { notNames: ["BIG"] },
+  namesIncluding: { namesIncluding: ["CRIT"] },
+  notNamesIncluding: { notNamesIncluding: ["CRIT"] },
+  keywords: { keywords: ["Blocker"] },
+  notKeywords: { notKeywords: ["Blocker"] },
+  noKeywords: { noKeywords: true },
+  skillKind: { skillKind: "activate" },
+  type: { type: "BATTLE" },
+  notType: { notType: "LEADER" },
+  token: { token: true },
+  notToken: { notToken: true },
+  z: { z: true },
+  costMin: { costMin: 2 },
+  costMax: { costMax: 2 },
+  powerMin: { powerMin: 15000 },
+  powerMax: { powerMax: 10000 },
+  faceUp: { faceUp: true },
+  powerRel: { powerRel: { of: "self", cmp: "<=" } },
+  unreadable: { unreadable: true },
+};
+
+/**
+ * The cards the corpus is measured over: every synthetic card the arena suites
+ * use, plus the shapes they do not have — a trait, a second character, a name a
+ * skill gave in all areas (20-1), a token, a Z-card, a multicolour card and a
+ * card with no text box at all.
+ *
+ * Built here rather than added to `DEFS`, which other suites count.
+ */
+const CORPUS: CardDef[] = [
+  ...Object.values(DEFS),
+  card("TRAITED", { traits: ["Saiyan", "God"], characters: ["Son Goku", "Son Goku : GT"] }),
+  card("RENAMED", { alsoNames: ["Planet M-2"] }),
+  card("TOK", { type: "TOKEN", skill: null }),
+  card("ZED", { type: "Z-BATTLE", zEnergyCost: 2 }),
+  card("RAINBOW", { colors: ["Red", "Blue"], energyCost: 4, power: 20000 }),
+  card("MUTE", { skill: null, characters: [] }),
+];
+
+for (const field of FILTER_FIELD_NAMES) {
+  const filter = FILTER_SAMPLES[field];
+  assert.ok(measuresUsed(filter).includes(field), `the sample filter for ${field} does not actually measure it`);
+
+  // Every attribute the measure reads is one the game declares — which is what
+  // makes the refusal below a load-time error rather than a card that never
+  // matches anything.
+  for (const attr of attributesRead(filter)) assert.ok(attr in DBS.attributes, `a filter measuring ${field} reads ${attr}, which the DBS ruleset does not declare`);
+
+  const predicate = predicateOf(filter, DBS);
+  for (const def of CORPUS) {
+    const over = attrsOf(def, DBS).attrs;
+    assert.equal(
+      predicate(over),
+      matches(def, { ...emptyFilter(), ...filter }),
+      `the rules engine and the legacy engine disagree about whether ${def.id} satisfies ${JSON.stringify(filter)}`,
+    );
+  }
+}
+
+// The three measures a card's attributes cannot answer say so by name, with the
+// reason each is left to the selector — they are not silently ignored.
+for (const field of ["faceUp", "powerRel", "unreadable"] as const) {
+  const deferred = deferredMeasures(FILTER_SAMPLES[field]);
+  assert.deepEqual(
+    deferred.map((d) => d.field),
+    [field],
+    `${field} is not reported as a measure the selector answers`,
+  );
+  assert.ok(deferred[0].reason.length > 20, `${field} is deferred without saying why`);
+  assert.deepEqual(attributesRead(FILTER_SAMPLES[field]), [], `${field} claims to read a card attribute`);
+}
+
+// A filter naming an attribute the game lacks fails when the predicate is
+// built, with the field *and* the attribute in the message. A predicate that
+// answered `false` instead would turn one missing declaration into a whole set
+// of rules that quietly selects nothing.
+{
+  const thin = loadRuleset({ "attributes.rules": 'DEFINE ATTRIBUTE name\n  of: card\n  value: string\n  printed: true\n  text: "the card name"\n' }, "dbs");
+  assert.ok(thin.ok, `the one-attribute ruleset did not load: ${thin.ok ? "" : JSON.stringify(thin.errors)}`);
+  if (thin.ok) {
+    // A name measure needs the printed name and *widens* with the names a skill
+    // gave in all areas (20-1): a game with no such mechanic still measures
+    // printed names, so `alsoNames` is read where it exists and not required.
+    assert.deepEqual(attributesRequired({ names: ["BIG"] }), ["name"], "a name measure cannot be answered without the also-names of 20-1");
+    assert.deepEqual(attributesRead({ names: ["BIG"] }), ["name", "alsoNames"], "a name measure does not say it reads the also-names of 20-1");
+    assert.doesNotThrow(() => predicateOf({ names: ["BIG"] }, thin.definition), "a filter measuring only a declared attribute was refused");
+    assert.equal(predicateOf({ names: ["BIG"] }, thin.definition)({ name: "BIG" }), true, "a printed name could not be measured by a game with no also-names");
+    assert.throws(
+      () => predicateOf({ traits: ["Saiyan"] }, thin.definition),
+      (err: unknown) => {
+        assert.ok(err instanceof FilterNeedsAttribute, `a filter naming a missing attribute threw ${err instanceof Error ? err.name : typeof err}`);
+        assert.equal(err.field, "traits");
+        assert.equal(err.attribute, "traits");
+        assert.match(err.message, /traits/, "the refusal does not name the attribute");
+        return true;
+      },
+      "a filter measuring an attribute the game lacks was built anyway",
+    );
+    // A measure the filter does not use costs nothing: only what it asks about
+    // has to be declared.
+    assert.doesNotThrow(() => predicateOf(emptyFilter(), thin.definition), "a filter that measures nothing needed an attribute");
+  }
+}
+
+// ── 8. a side is a map of declared zones ───────────────────────────────────
+
+// The twelve areas of §3 plus `removed` (20-10). `play` and `under` are
+// declared and are *not* places: the first is the word for three zones at once
+// (9-1-3-1), the second the pile hanging off one card (23-2-2-2). Without the
+// `place:` line this engine would have to know those two names.
+{
+  const places = placeZones(DBS);
+  assert.equal(places.length, 13, `a side has ${places.length} zones, not 13`);
+  for (const zone of ["deck", "hand", "drop", "leader", "battle", "combo", "energy", "life", "warp", "unison", "zDeck", "zEnergy", "removed"]) {
+    assert.ok(places.includes(zone), `a side has no ${zone}`);
+  }
+  for (const zone of ["play", "under"]) {
+    assert.ok(zone in DBS.zones, `the ruleset stopped declaring ${zone}, which programs name`);
+    assert.equal(places.includes(zone), false, `${zone} is a pile cards are put in, and it is not one`);
+  }
+  assert.deepEqual(Object.keys(emptyZones(DBS)), places, "an empty side's zones are not the zones the game declares");
+  // What the word `play` stands for, derived rather than listed (9-1-3-1).
+  assert.deepEqual(inPlayZones(DBS), ["leader", "battle", "unison"], "the areas a card's own skills are valid in are not the three of 9-1-3-1");
+}
+
+// ── 9. the opening board is the legacy engine's ────────────────────────────
+
+// Seed 7 and the harness decks, the pairing the issue names. The legacy engine
+// deals its hands *after* the first-player choice and its life after the
+// mulligans, so the comparison is made at the first board both engines can
+// have: the choice taken and both mulligans declined, neither of which moves a
+// shuffle or a draw.
+const SEED = 7;
+const SAME = { seed: SEED, p1: { name: "You", leader: "L-RED", main: fifty("V1") }, p2: { name: "Claude", leader: "L-BLUE", main: fifty("V-BLUE") } };
+
+const dealt = engineFor("rules").createGame(CTX, SAME).state as VmState;
+assert.deepEqual(dealt.sides.p1.attrs, { energyMarkers: 0 }, "a side does not start with the player attributes the game declares (1-14)");
+
+let oracle = createGame(CTX, SAME).state;
+const chooser = (oracle.prompt as { player: PlayerId }).player;
+assert.equal(dealt.chooser, chooser, "the two engines chose a different player to decide who goes first (6-2-1-4)");
+assert.equal(dealt.firstPlayer, null, "the rules engine decided who goes first, which is a choice and needs a prompt (6-2-1-5)");
+oracle = apply(CTX, oracle, { type: "chooseFirst", player: chooser, first: "p1" }).state;
+oracle = apply(CTX, oracle, { type: "mulligan", player: "p1", redraw: false }).state;
+oracle = apply(CTX, oracle, { type: "mulligan", player: "p2", redraw: false }).state;
+
+for (const p of ["p1", "p2"] as PlayerId[]) {
+  const side = dealt.sides[p];
+  const them = oracle.players[p];
+  assert.deepEqual(side.zones.hand, them.hand, `${p}'s opening hand is not the hand the legacy engine dealt from seed ${SEED}`);
+  assert.deepEqual(side.zones.life, them.life, `${p}'s life pile is not the pile the legacy engine dealt from seed ${SEED}`);
+  assert.deepEqual(side.zones.deck, them.deck, `${p}'s deck is not in the order the legacy engine shuffled it into from seed ${SEED}`);
+  assert.deepEqual(side.zones.leader, [them.leader], `${p}'s Leader Card is not the one the legacy engine placed (6-2-1-2)`);
+  assert.equal(side.zones.hand.length, DBS.game?.hand, "the opening hand is not the size the game declares (6-2-1-9)");
+  assert.equal(side.zones.life.length, DBS.game?.life, "the life is not the size the game declares (6-2-1-10)");
+}
+
+// Every card in the game is in exactly one place, the invariant the fuzzer
+// checks on the legacy engine after every move (3-1).
+{
+  const seen = new Map<string, number>();
+  for (const p of ["p1", "p2"] as PlayerId[]) {
+    for (const zone of Object.values(dealt.sides[p].zones)) for (const id of zone) seen.set(id, (seen.get(id) ?? 0) + 1);
+  }
+  for (const c of Object.values(dealt.cards)) for (const u of c.under) seen.set(u, (seen.get(u) ?? 0) + 1);
+  for (const id of Object.keys(dealt.cards)) assert.equal(seen.get(id), 1, `${id} is in ${seen.get(id) ?? 0} places, not 1 (3-1)`);
+}
+
+// ── 10. the one mover, on the board it just dealt ──────────────────────────
+
+{
+  const board = engineFor("rules").createGame(CTX, SAME).state as VmState;
+  const hand = board.sides.p1.zones.hand;
+  const first = hand[0];
+
+  // A zone's declared modes say what a card arriving is: the first of them, or
+  // nothing at all where the zone declares none (1-10).
+  assert.equal(board.cards[first].mode, null, "a card in the hand has a position, and the hand declares none");
+  assert.ok(moveCard(board, DBS, first, "battle").ok);
+  assert.equal(board.cards[first].mode, "active", "a card arriving in the Battle Area is not in the first mode it declares (3-6-1)");
+  assert.deepEqual(findCard(board, first), { owner: "p1", zone: "battle", index: 0 });
+
+  // A mode the zone does not declare is refused rather than written down.
+  const nonsense = moveCard(board, DBS, first, "hand", { mode: "rest" });
+  assert.equal(nonsense.ok, false, "a card was put in the hand in Rest Mode");
+  if (!nonsense.ok) assert.match(nonsense.refused, /never rest/, "the refusal does not say what is wrong");
+
+  // `single` is the leader and the Unison Area, and it is the declaration that
+  // says so — not a `string | null` field (3-5-1, 3-11-4).
+  const second = board.sides.p1.zones.hand[0];
+  const squeezed = moveCard(board, DBS, second, "leader");
+  assert.equal(squeezed.ok, false, "a second card was placed in the Leader Area");
+  if (!squeezed.ok) assert.match(squeezed.refused, /holds one/, "the refusal does not say the zone holds one card");
+
+  // Markers survive only where a zone declares them (1-11, 3-11-4).
+  assert.ok(moveCard(board, DBS, second, "unison").ok);
+  board.cards[second].markers = 3;
+  assert.ok(moveCard(board, DBS, second, "drop").ok);
+  assert.equal(board.cards[second].markers, 0, "markers followed a card into a zone that declares none (3-1-4)");
+
+  // `ordered` piles are built from either end, and the rule being played says
+  // which: the life is taken from the top of the deck and placed on top of the
+  // pile (6-2-1-10), the way the legacy engine does it.
+  const top = board.sides.p1.zones.drop[0];
+  const other = board.sides.p1.zones.hand[0];
+  assert.ok(moveCard(board, DBS, other, "drop", { position: "bottom" }).ok);
+  assert.equal(board.sides.p1.zones.drop[0], top, "a card arriving at the bottom of a pile went on top of it");
+
+  // 23-2: under a card that is in a zone declared `host: true`, and in no zone
+  // of its own once it is there.
+  const host = board.sides.p1.zones.battle[0];
+  const buried = board.sides.p1.zones.hand[0];
+  const under = moveCard(board, DBS, buried, "battle", { under: host });
+  assert.ok(under.ok, `a card could not be placed under another: ${under.ok ? "" : under.refused}`);
+  if (under.ok) assert.equal(under.move.under, host, "the move does not record which card it went under");
+  assert.deepEqual(board.cards[host].under, [buried], "the host does not carry the card under it");
+  assert.equal(findCard(board, buried), null, "a card under another card is in a zone of its own (3-1-4)");
+  assert.equal(hostOf(board, buried), host, "the card under another cannot be found from the board at all");
+  // And from one pile to another: a card is in a zone or in a pile, never both,
+  // so the old host must let go of it.
+  const secondHost = board.sides.p1.zones.hand[0];
+  assert.ok(moveCard(board, DBS, secondHost, "battle").ok);
+  assert.ok(moveCard(board, DBS, buried, "battle", { under: secondHost }).ok);
+  assert.deepEqual(board.cards[host].under, [], "a card moved from one pile to another is still in the first one");
+  assert.deepEqual(board.cards[secondHost].under, [buried], "the new host does not carry the card");
+  // And out again: it arrives as a card in its own right.
+  assert.ok(moveCard(board, DBS, buried, "hand").ok);
+  assert.deepEqual(board.cards[secondHost].under, [], "the host still carries a card that left its pile");
+
+  // A zone the game does not declare, and one it declares as no place at all.
+  const nowhere = moveCard(board, DBS, buried, "sideboard");
+  assert.equal(nowhere.ok, false, "a card was moved to a zone the game never declared");
+  const toPlay = moveCard(board, DBS, buried, "play");
+  assert.equal(toPlay.ok, false, "a card was put in `play`, which is a word for three zones and not one of them");
+  if (!toPlay.ok) assert.match(toPlay.refused, /not a place/, "the refusal does not say why `play` holds nothing");
+
+  // 3-1-6-1: only an in-play or combo area holds a card that is not its
+  // master's. Anywhere else the card goes to its owner's copy of the zone.
+  assert.ok(moveCard(board, DBS, buried, "battle", { owner: "p2" }).ok);
+  assert.equal(findCard(board, buried)?.owner, "p2", "a card played into the opponent's Battle Area stayed in its owner's (3-1-6-1)");
+  assert.ok(moveCard(board, DBS, buried, "drop", { owner: "p2" }).ok);
+  assert.equal(findCard(board, buried)?.owner, "p1", "a card went to the opponent's Drop Area, which belongs to its master (3-1-6-1)");
+
+  // The replacement hook 9-10 needs: recorded on the move, and *not* applied —
+  // #125 declares `replace(event)` and #142 runs it. A mover that honoured a
+  // replacement it had not been taught would be the harder bug to find.
+  const asked = moveCard(board, DBS, buried, "drop", { replacement: { source: "p1#1", to: "warp" } });
+  assert.ok(asked.ok);
+  if (asked.ok) {
+    assert.equal(asked.move.to, "drop", "the mover applied a replacement nothing has taught it to apply yet");
+    assert.deepEqual(asked.move.replacement, { source: "p1#1", to: "warp" }, "the replacement the caller asked for was not recorded");
+  }
+}
 console.log("verify/vm: ok");

@@ -315,6 +315,12 @@ left to a missing line:
 - **`visibility` is who may read the faces**: `none` for a secret area neither player may check,
   `owner` for one its own player may read (the hand, 3-3-2; the Z-Deck, 3-12-2), `all` for an open
   area (3-1-3).
+- **`place:` is whether the zone is a list of cards a side holds** (default true, added by #139).
+  Thirteen of the fifteen are, `removed` included — a card removed from the game is kept somewhere
+  even though 20-10-3 counts it in no area. The two that are not are `play` and `under`, and the
+  field exists for them: a program has to be able to *name* both, and an interpreter building a
+  side's zones from the declarations has to be able to leave them out without knowing either name,
+  which is the one thing a configuration-driven engine may not do.
 - **`inPlay` is 9-1-3-1**: the Leader, Battle and Unison Areas, the three a card's own skills are
   valid in. The Combo Area is *not* one, though 3-1-4-1 carries effects into it.
 
@@ -323,6 +329,24 @@ program has to be able to name them: `removed` (20-10 — cards removed from the
 manual pointedly says are in no area at all), `under` (23-2, whose *area* is the area of the card
 on top, 23-2-2-2) and `play`, which is not a place a card is put but the word for the three in-play
 areas together (`cardsInPlay` in `engine/state.ts`). Each says so in its own `text:`.
+
+**What #139 needed from these two files, and what it could not get.** Stage 4's interpreter reads a
+card through `attributes.rules` and a side through `zones.rules`, and three things came out of
+actually doing it. The `place:` line above is the one the grammar grew. Two it did not, and both are
+decisions recorded in code rather than declarations:
+
+- **Which end of a pile a card arrives at is the rule's, not the zone's.** The legacy engine puts a
+  card on *top* of the deck, the Drop, the Warp, the life and the removed pile and at the *end* of
+  the hand, the Battle Area and the energy — a split no field of a zone predicts (the hand and the
+  Drop are identical in every other respect). So `moveCard` takes `position: "top" | "bottom"`,
+  defaulting to the end, and the rule being played says which: the life is "the top 8 cards of your
+  deck" placed as they are taken (6-2-1-10), which is what makes both engines' life piles the same
+  pile.
+- **The setup is still code.** `createGame` deals from `DEFINE GAME`'s numbers (`deck`, `hand`,
+  `life`) but names five zones in one constant, because the `setup*` steps in `game.rules` carry no
+  `DO` programs yet — they are declared with their manual sections and their text only. That
+  constant is the interpreter's one remaining piece of zone-name knowledge, it is checked against
+  the declarations at load, and Stage 5's `actions.rules` is what deletes it.
 
 An attribute's `layers:` is the order of 9-9-1 — `printed` (9-9-1-1), `rewrite` (every continuous
 effect that does not rewrite a number, 9-9-1-2), `numeric` (the ones that do, 9-9-1-3) — and a

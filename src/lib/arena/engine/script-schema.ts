@@ -65,7 +65,8 @@ export interface RenderOptions {
   permanent?: boolean;
 }
 
-const COLORS = ["Red", "Blue", "Green", "Yellow", "Black", "White", "Colorless"] as const satisfies readonly Color[];
+/** The colour words, exported beside the other closed lists because an attribute declared `value: colors` is checked against them (`vm/cards.ts`). */
+export const COLORS = ["Red", "Blue", "Green", "Yellow", "Black", "White", "Colorless"] as const satisfies readonly Color[];
 export const SIDES = ["you", "opponent", "both"] as const satisfies readonly Side[];
 export const SPECIAL_TARGETS = ["self", "attacker", "guard", "subject", "leader", "opponentLeader", "resolving", "onTop"] as const satisfies readonly SpecialTarget[];
 export const AREAS = ["hand", "deck", "drop", "life", "battle", "combo", "energy", "unison", "leader", "warp", "zDeck", "zEnergy", "under", "play", "removed"] as const satisfies readonly ScriptArea[];

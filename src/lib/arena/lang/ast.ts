@@ -318,6 +318,17 @@ export interface DefZone extends Declaration<"ZONE"> {
   markers?: boolean;
   inPlay?: boolean;
   host?: boolean;
+  /**
+   * Is this zone a list of cards a side holds? Every area of a game is, and
+   * the default is `true`; a zone declared `place: false` is one a program has
+   * to be able to *name* that is not a pile anything is put in — DBS declares
+   * two, and each says which it is in its own `text:` (#139).
+   *
+   * Without it an interpreter building a side's zones from the declarations
+   * has to know those two names, which is the one thing a configuration-driven
+   * engine may not do.
+   */
+  place?: boolean;
   modes?: string[];
   text?: string;
 }
@@ -436,6 +447,7 @@ export const DEFINE_SCHEMA = {
       { name: "markers", type: "boolean" },
       { name: "inPlay", type: "boolean" },
       { name: "host", type: "boolean" },
+      { name: "place", type: "boolean", default: true },
       { name: "modes", type: { list: "string" } },
       TEXT,
     ],

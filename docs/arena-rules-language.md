@@ -216,7 +216,13 @@ DEFINE ATTRIBUTE power
 **ZONE** — an area cards sit in: who owns it, who may see it, and whether what is in it is in play
 (manual §3, §9-1-3). `owner:` (player | shared) and `visibility:` (none | owner | opponent | all)
 are required; then `ordered:`, `single:`, `markers:`, `inPlay:`, `host:` (cards may sit under a card
-here), `modes:` and `text:`.
+here), `place:`, `modes:` and `text:`.
+
+`place:` defaults to true and marks the zone as a list of cards a side holds. The two that are not
+are the reason the field exists: DBS declares `play`, which is the word for the Leader, Battle and
+Unison Areas together (§9-1-3-1), and `under`, the pile hanging off one card (§23-2-2-2). A program
+has to be able to *name* both, and an interpreter building a side's zones from the declarations must
+be able to leave them out without knowing either name (#139).
 
 ```
 DEFINE ZONE battle
