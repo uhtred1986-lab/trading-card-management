@@ -1,8 +1,10 @@
 ---
 title: Arena docs: one worked example per §20 fixed phrase in the language doc
 milestone: Arena M14 — Rules language and ruleset documentation
-labels: backlog, ready-for-agent, documentation, area:arena-docs, phase:rules-docs, model:sonnet-5
+labels: done, documentation, area:arena-docs, phase:rules-docs, model:sonnet-5
 stage: docs
+status: closed
+closed_at: 2026-09-13
 ---
 **Source:** the plan's Docs section ("one example per §20 phrase"); rule manual `docs/rules/rulemanual.txt` §20 Fixed Phrases; `npm run arena:tally -- --show "<wording>"` to find a real card per phrase.
 
