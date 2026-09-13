@@ -615,6 +615,14 @@ export interface MoveCause {
    * `true` yet; the argument is here because the pattern asks for it.
    */
   asPlay?: boolean;
+  /**
+   * Was the card shown to both players as it moved? The charge places a card in
+   * the Energy Area **face up** (7-2-11), and a board that did not say so would
+   * fly a face-down card into a public pile. It is a fact about the *picture*
+   * and not about the moment: no `DEFINE TRIGGER` asks for it, and the shared
+   * `move` event has carried the flag since the engine that has been playing.
+   */
+  reveal?: boolean;
   /** What caused it — `"skill"` for 3-1-5's "removed by a skill". A move the game's own procedure makes has no cause, and a pattern naming one does not match it. */
   by?: string;
   /** 3-1-5: was the cause the other player's? Only meaningful beside `by`. */
@@ -634,7 +642,9 @@ export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, 
   const result = moveCard(state, game, id, to, opts);
   if (!result.ok) throw new RulesetBroken(state.game, `a step of the game cannot move a card to the ${to}: ${result.refused}`);
   const shown: GameEvent | null =
-    isAreaWord(to) && (from === null || isAreaWord(from)) ? { type: "move", card: id, from: from ?? "removed", to, owner: result.move.owner } : null;
+    isAreaWord(to) && (from === null || isAreaWord(from))
+      ? { type: "move", card: id, from: from ?? "removed", to, owner: result.move.owner, ...(opts.reveal === undefined ? {} : { reveal: opts.reveal }) }
+      : null;
   emit(ctx, game, state, ev, movement(result.move.card, from, to, result.move.owner, opts), shown);
 }
 

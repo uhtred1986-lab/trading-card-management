@@ -90,7 +90,14 @@ export function actionsAt(game: GameDefinition, state: VmState): ActionDef[] {
  * about.
  */
 export function candidatesOf(ctx: EngineContext, game: GameDefinition, state: VmState, def: ActionDef, player: PlayerId): Candidate[] {
-  const cards = def.for === undefined ? [null] : select(ctx, game, state, def.for, player);
+  if (def.decline !== undefined && def.for === undefined) {
+    throw new RulesetBroken(state.game, `DEFINE ACTION ${JSON.stringify(def.name)} declines with no FOR, and a move about no card is already the answer that takes nothing`);
+  }
+  // 7-2-11: the charge is a *may*, and the half of it that takes no card is a
+  // candidate of its own — one more answer to the same question, last on the
+  // menu, so a client that draws a button per candidate keeps the ghost button
+  // the board already has (`docs/arena-hud-spec.md` §2.3).
+  const cards = def.for === undefined ? [null] : [...select(ctx, game, state, def.for, player), ...(def.decline === undefined ? [] : [null])];
   return cards.map((card) => {
     const why = refusedBy(ctx, game, state, def, player, card);
     // 8-3-2-3: an action asks for a price by name and `costs.rules` says how it
@@ -98,10 +105,22 @@ export function candidatesOf(ctx: EngineContext, game: GameDefinition, state: Vm
     // priced action is refused with the reason rather than silently offered for
     // free — the same decision the price of 8 Sep 2026 made about a skill with
     // no record. Last, so a card refused for a reason of its own says that one.
-    if (!why.length && def.cost?.length) why.push(unpriced(def));
+    // Declining pays nothing, so it is not held up by a price either.
+    if (!why.length && def.cost?.length && !declining(def, card)) why.push(unpriced(def));
     return { card, why };
   });
 }
+
+/**
+ * Is this candidate the answer that takes none of what the move offers?
+ *
+ * An action with a `FOR` is about cards, and the one candidate that is about no
+ * card is its `decline:` — which is never the thing that is refused: the
+ * `REFUSE` lines are written about a card, and a question that is on the table
+ * can always be answered by taking nothing from it. An action with no `FOR` is
+ * about no card at all, and its one candidate is the move itself.
+ */
+const declining = (def: ActionDef, card: string | null): boolean => card === null && def.for !== undefined;
 
 /** The requirement a price the interpreter cannot charge yet produces, in the one place both lists and `apply` read it from. */
 const unpriced = (def: ActionDef): Requirement => ({
@@ -120,6 +139,7 @@ const unpriced = (def: ActionDef): Requirement => ({
  * that reason.
  */
 function refusedBy(ctx: EngineContext, game: GameDefinition, state: VmState, def: ActionDef, player: PlayerId, card: string | null): Requirement[] {
+  if (declining(def, card)) return [];
   for (const refusal of def.refusals ?? []) {
     if (holds(ctx, game, state, refusal.unless, player, card)) continue;
     return [requirementOf(state, refusal.kind, refusal.args, card)];
@@ -253,7 +273,9 @@ const DECLARABLE_ACTIONS: Partial<Record<Action["type"], "card" | "cardOrNone" |
 /** The words the menu shows: the declaration's `label:`, and the card's own name when the move is about one. */
 function labelFor(ctx: EngineContext, state: VmState, def: ActionDef, card: string | null): string {
   const label = def.label ?? def.name;
-  if (card === null) return label;
+  // The answer that takes no card has words of its own, because "Charge" said
+  // of nothing is not what a board shows for skipping the charge.
+  if (card === null) return declining(def, card) ? (def.decline ?? label) : label;
   const cardId = state.cards[card]?.cardId;
   const name = (cardId && ctx.defs[cardId]?.name) || cardId || card;
   return `${label} ${name}`;
@@ -314,9 +336,19 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
  * The `DO` program: the same interpreter a card's rule runs on (#142).
  *
  * An action's program and a skill's program are one language, so they are one
- * interpreter — `stepScript` over the rules engine's `ScriptHost`. The frame is
- * the action's: the card it is about (or the actor's Leader, for a move about
- * no card, so `self` still names something), and the actor as its master.
+ * interpreter — `stepScript` over the rules engine's `ScriptHost`. Before #142
+ * this function had a case per op and a `NotYet` for the rest; now it has
+ * neither, because the interpreter has every case and the host is where a gap
+ * is named.
+ *
+ * The frame is the action's. `BIND` is what makes that work: the name the
+ * declaration gave the candidate is bound to the card the move was taken for,
+ * so `$card` in the `DO` means the very card the menu entry was about — and is
+ * bound to **nothing** when the answer took no card, which is how one paragraph
+ * says both halves of a *may* (7-2-11: the charge that places a card and the
+ * charge that declines are one `DO` over one or zero cards). `self` is that
+ * card, or the actor's Leader when there is none, so a program that names
+ * itself still names something.
  *
  * It goes on the queue rather than running here. A `DO` that stops to ask is a
  * question inside a move, and the runner is the one thing that can hold one —
@@ -325,7 +357,8 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
 function runProgram(state: VmState, def: ActionDef, player: PlayerId, card: string | null): void {
   if (!def.do.length) return;
   const self = card ?? state.sides[player].zones[SETUP_ZONES.leader]?.[0] ?? "";
-  state.programs.unshift({ ops: def.do, ip: 0, vars: {}, card: self, master: player });
+  const vars = def.bind ? { [def.bind]: card === null ? [] : [card] } : {};
+  state.programs.unshift({ ops: def.do, ip: 0, vars, card: self, master: player });
 }
 
 /** The questions an action answers: its own `prompts:`, or every question its phases ask. */

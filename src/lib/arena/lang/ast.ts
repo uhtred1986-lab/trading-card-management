@@ -473,6 +473,17 @@ export interface DefAction extends Declaration<"ACTION"> {
   for?: Selector;
   /** The name a `REFUSE` condition calls the candidate by, as a trigger's `BIND` names its subject. */
   bind?: string;
+  /**
+   * The words for taking this move about **no card at all**, when it has a
+   * `FOR` and declining is an answer of its own: "Skip charge" is a legal move
+   * beside every card that could have been charged, not the absence of one.
+   *
+   * Written only by an action whose shape in the shared `Action` union carries
+   * a nullable card, and left out by every move that is always about a card. It
+   * is words rather than a flag because the menu says them: an action with a
+   * `label:` of "Charge" would otherwise have to decline as "Charge".
+   */
+  decline?: string;
   cost?: string[];
   do: Op[];
   refusals?: DefineRefusal[];
@@ -605,6 +616,7 @@ export const DEFINE_SCHEMA = {
       { name: "prompts", type: { list: "string" } },
       { name: "for", type: "selector", word: "FOR" },
       { name: "bind", type: "string", word: "BIND" },
+      { name: "decline", type: "string" },
       { name: "cost", type: { list: "string" }, word: "COST" },
       { name: "do", type: "ops", word: "DO", required: true },
       { name: "refusals", type: "refusals", word: "REFUSE" },

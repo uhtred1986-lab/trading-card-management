@@ -1,7 +1,8 @@
 -- The moves a player may make, as declarations rather than as predicates.
 --
 -- Sections are `docs/rules/rulemanual.txt`: §7-3-4 the free timing of the Main
--- Phase, §7-2-11 the charge, §0-1-3-4 conceding.
+-- Phase, §7-2-11 the charge, §7-3-5 the end of the Main Phase, §0-1-3-4
+-- conceding.
 --
 -- An action is `WHEN / FOR / COST / DO / REFUSE` (§3b of
 -- `docs/arena-rules-language.md`, "how an action is declared" in
@@ -12,19 +13,57 @@
 -- menu and the refusals therefore come from one paragraph, which is the whole
 -- point of the file: nothing below has a hand-written `whyNot` twin.
 --
--- **One action so far.** The DBS moves are their own issues — charge, endMain
--- and concede are #145, the play family #146, activations #147 and the prices
--- #148 — and each arrives here as a paragraph. `pass` is the one that is
--- already played, re-declared (#144): the generic decline, the answer that
--- takes none of what the question offers, and the one verb a script or the
--- fuzzer needs to play a whole game.
+-- **Four so far.** The moves that need no payment and no battle (#145), which
+-- is what makes them the ones that prove the machinery on a real turn. The play
+-- family is #146, activations #147 and the prices #148, and each arrives here
+-- as a paragraph.
 --
 -- `listed: false` is the rule the legacy engine has always had and never
 -- wrote down: a move a client shows as a button of its own is accepted
 -- without ever being enumerated. It says nothing about legality — an unlisted
 -- action is checked exactly as a listed one is — only that it is on neither
 -- the menu nor the list of refusals, because a refusal explains a move a
--- player can see. Conceding will be declared the same way (#145).
+-- player can see. `pass` and `concede` are the two.
+
+DEFINE ACTION charge                                                      -- §7-2-11
+  WHEN [charge]
+  prompts: [charge]
+  FOR 1 IN you.hand
+  BIND "card"
+  -- 7-2-11 is a *may*, and the half of it that takes no card is an answer of
+  -- its own rather than the absence of one: a candidate, last on the menu, so
+  -- the board keeps the ghost button beside the cards it could have charged
+  -- (`docs/arena-hud-spec.md` §2.3). The `DO` below is written about the
+  -- candidate, so declining runs it over no cards and moves nothing.
+  decline: "Skip charge"
+  DO {
+    moveTo(target: $card, to: energy, reveal: true)
+  }
+  -- 3-1-2: a Leader Card does not leave the Leader Area, so it is not a card
+  -- this move can be made about. Nothing puts one in a hand — 6-2-1-2 places it
+  -- before the first card is drawn — which is exactly why the refusal is
+  -- declared rather than assumed away: a rule that is never reached is still
+  -- the answer a player reaching for that card is owed.
+  REFUSE cardType(needs: "a card that is not a Leader Card") UNLESS count(FROM $card "non-leader card") >= 1
+  label: "Charge"
+  text: "the turn player may place 1 card from their hand in their Energy Area, face up (7-2-11)"
+
+-- The refusal this one does *not* carry is the legacy engine's "you have
+-- already had your charge this turn" (`oncePerTurn`), which it gives for every
+-- card in hand once the Main Phase has begun. Saying that here means declaring
+-- the charge in the Main Phase too and refusing it there, and the condition
+-- that tells the two apart is "which question is on the table" — which the
+-- language has no word for and which is not worth a `Cond` kind of its own
+-- before #142 brings the evaluator both engines' card rules share. Until then
+-- the once-per-turn fact is the *step*: `chargeEnergy` (7-2-11) is asked once a
+-- turn, and a phase this move is not declared in never offers it.
+
+DEFINE ACTION endMain                                                     -- §7-3-5
+  WHEN [main]
+  prompts: [main]
+  DO {}
+  label: "End turn"
+  text: "the turn player ends their Main Phase, and with it the last phase they act in (7-3-5)"
 
 DEFINE ACTION pass                                                        -- §7-3-4
   WHEN [setup, charge, main]
@@ -33,3 +72,21 @@ DEFINE ACTION pass                                                        -- §7
   listed: false
   label: "Pass"
   text: "take none of what the question offers, whatever it is (6-2-1-9-1, 7-2-11, 7-3-4)"
+
+-- The one move that is not an answer to the question on the table: it is taken
+-- at any point in a game, including at a prompt that belongs to the other
+-- player, and no card may cause or replace it (0-1-3-4). So `WHEN` is every
+-- phase a game is still being played in, and `prompts:` is left out.
+--
+-- Its `DO` is empty because a game *ending* is not something the effect
+-- language can say — no op of `OP_SCHEMA` ends one — so the ending stays the
+-- interpreter's, the way the steps in `vm/flow.ts`'s `STEP_WORK` are, and this
+-- declaration is what decides the move may be taken at all. A `DO` written here
+-- would be a program `vm/index.ts` refuses by name rather than ignores.
+
+DEFINE ACTION concede                                                     -- §0-1-3-4
+  WHEN [setup, charge, main, mainEnd, end]
+  DO {}
+  listed: false
+  label: "Concede"
+  text: "a player gives up the game, and their opponent wins immediately (0-1-3-4)"

@@ -494,6 +494,7 @@ DEFINE ACTION play
 | `prompts: [main]` | the questions within those phases it answers. Resolved against the prompts the steps ask for — a phase can ask more than one, and only some are questions a move answers. Left out, it answers every question its phases ask |
 | `FOR 1 "battle card" IN you.hand` | the candidates: one entry on the menu per card the selector finds, *including* the cards it will refuse. A move with no `FOR` is about no card |
 | `BIND "card"` | the name a refusal's condition calls the candidate by, as a trigger's `BIND` names its subject: `count(FROM $card …)` is a test about the one card being asked about |
+| `decline: "Skip charge"` | the words for answering with **no card**, when declining is an answer of its own (7-2-11's *may*): one more candidate, last on the menu, never refused, and the `DO` written about the candidate runs over no cards when it is taken |
 | `COST [energy]` | the `DEFINE COST` prices it charges, by name |
 | `DO { … }` | what taking it does. A moment is fired by what the program does — a `moveTo` is a `moved` — and is never declared separately (#141) |
 | `REFUSE <requirement> UNLESS <cond>` | one line per requirement, **in the order the legality check runs them**: read no further than the first that fails, because a later line may well ask something that only makes sense once the earlier one holds |
@@ -517,11 +518,22 @@ Three things the shape guarantees rather than asks for:
 
 `src/lib/arena/vm/actions.ts` is the whole interpreter of this. What it reads so far: a `FOR` by
 side, area, filter and mode; a `REFUSE` condition written as `count()`, `isTurnPlayer()` and their
-combinations; a `DO` of `note()`. Everything else is refused *by name* rather than read as false or
-silently skipped — a condition read as false is a move that can never be made and nothing saying
-why. The full evaluator is #142, the prices #148, and the DBS moves themselves #145–#147; today
-`actions.rules` declares one action, `pass`, re-declared from the case that used to be written in
-the interpreter.
+combinations; a `DO` of `note()` and of `moveTo()` said of the candidate. Everything else is refused
+*by name* rather than read as false or silently skipped — a condition read as false is a move that
+can never be made and nothing saying why. The full evaluator is #142, the prices #148, and the rest
+of the DBS moves #146–#147.
+
+Four are declared (#145), the moves that need no payment and no battle: `charge` (7-2-11, with the
+`decline:` above and a `REFUSE` for a card the Energy Area cannot take), `endMain` (7-3-5), `pass`
+and `concede`, the last two `listed: false`. Two gaps are worth knowing, and both are written into
+`actions.rules` beside the paragraph they belong to. The legacy engine also explains the charge
+during the *Main* Phase — "you have already had your charge this turn", an `oncePerTurn` refusal for
+every card still in hand — and saying that here means declaring the move in a phase it is not
+offered in and refusing it with a condition about *which question is on the table*, which the
+language has no word for yet; until #142 the once-per-turn fact is the step, since `chargeEnergy` is
+asked once a turn. And `concede`'s `DO` is empty because no op of the effect language ends a game:
+the ending stays the interpreter's, as `vm/flow.ts`'s worked steps are, and the declaration is what
+says the move may be taken at all — a `DO` that grew one is refused by name rather than ignored.
 
 ### What the loader does
 
