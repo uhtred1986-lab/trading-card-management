@@ -36,6 +36,8 @@ import {
   endEffects,
   endTurnRelativeEffects,
   expireDelayed,
+  expireSkips,
+  takeSkip,
   face,
   forbids,
   fireDelayed,
@@ -274,17 +276,33 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
       ps.grewUnisonThisTurn = false;
       // Anything still waiting for "the end of the turn" missed its moment.
       expireDelayed(s);
+      // 20-13, the same idea: a skip that named *this* turn's phase is over
+      // when that turn is, whether or not the phase came round.
+      expireSkips(s);
       s.flow.unshift({ op: "turn.start" });
       return "done";
     }
     case "turn.start": {
       // 7-2: Charge Phase.
       s.phase = "charge";
-      ev.push({ type: "phase", phase: "charge", player: s.turnPlayer, turn: s.turn });
+      // 20-13: a skipped phase is announced and then not performed — the
+      // client is told it came round so the board can say what did not happen.
+      const skipCharge = takeSkip(s, s.turnPlayer, "charge");
+      ev.push({ type: "phase", phase: "charge", player: s.turnPlayer, turn: s.turn, ...(skipCharge ? { skipped: true as const } : {}) });
       // "Until the end of your opponent's turn" and "until the start of your
       // opponent's next turn" are both said from the controller's chair, so
       // they are read against the effect's own master — see the note there.
+      //
+      // 20-13-5 keeps this outside the skip: a continuous effect that ends in a
+      // phase ends as soon as that phase is skipped. Everything below it is
+      // inside — 20-13-2 (no trigger conditions are met), 20-13-3 (no actions)
+      // and 20-13-4 (no checkpoints) between them leave nothing of the Active
+      // Step, the Draw Step or the Charge Step to run.
       endTurnRelativeEffects(ctx, s, ev);
+      if (skipCharge) {
+        s.flow.unshift({ op: "turn.mainStart" });
+        return "done";
+      }
       for (const id of cardsInPlay(s, s.turnPlayer)) pendTriggers(ctx, s, "chargeStart", id);
       // 7-1: the same moment from the other side of the table — "at the start
       // of your opponent's turn", which is the turn now opening.
@@ -320,6 +338,14 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
       return wait(s, { kind: "charge", player: s.turnPlayer });
     case "turn.mainStart": {
       s.phase = "main";
+      // 20-13: skipped, the Main Phase pends nothing and offers nothing, and
+      // the turn goes straight to its End Phase — the Main End is the end of a
+      // phase that did not happen, so its moment is not one either (20-13-2).
+      if (takeSkip(s, s.turnPlayer, "main")) {
+        ev.push({ type: "phase", phase: "main", player: s.turnPlayer, turn: s.turn, skipped: true });
+        s.flow.unshift({ op: "turn.endPhase" });
+        return "done";
+      }
       ev.push({ type: "phase", phase: "main", player: s.turnPlayer, turn: s.turn });
       for (const id of cardsInPlay(s, s.turnPlayer)) pendTriggers(ctx, s, "mainStart", id);
       // "At the start of your opponent's Main Phase" is the same moment seen
@@ -344,6 +370,15 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
     case "turn.endPhase": {
       // 7-4.
       s.phase = "end";
+      // 20-13 again, and the one place the cleanup still has to happen: 7-4-5/6
+      // is where "for the turn" effects end, and 20-13-5 says those end when
+      // the phase is skipped rather than outliving it.
+      if (takeSkip(s, s.turnPlayer, "end")) {
+        ev.push({ type: "phase", phase: "end", player: s.turnPlayer, turn: s.turn, skipped: true });
+        delete s.continuations.endPhaseRuns;
+        s.flow.unshift({ op: "turn.cleanup" }, { op: "turn.next" });
+        return "done";
+      }
       ev.push({ type: "phase", phase: "end", player: s.turnPlayer, turn: s.turn });
       const before = s.pending.length;
       const runs = (s.continuations.endPhaseRuns as number | undefined) ?? 0;
@@ -1295,6 +1330,15 @@ function battleOffense(ctx: EngineContext, s: GameState, ev: GameEvent[]): "done
     return "done";
   }
   b.step = "offense";
+  // 20-13: "you skip your Offense Step" — the step is announced and then not
+  // performed, so no [Auto] answers to its start and no combo is offered. The
+  // precedent for a battle step simply not happening is `battleDefense`'s
+  // Unison guard (8-2-4-3-1-1) just below.
+  if (takeSkip(s, s.turnPlayer, "offense")) {
+    ev.push({ type: "battleStep", step: "offense", skipped: true });
+    s.flow.unshift({ op: "battle.defense" });
+    return "done";
+  }
   ev.push({ type: "battleStep", step: "offense" });
   for (const id of cardsInPlay(s, s.turnPlayer)) pendTriggers(ctx, s, "offenseStart", id);
   s.flow.unshift({ op: "checkpoint" }, { op: "battle.promptCombo", side: "offense" });
@@ -1323,6 +1367,13 @@ function battleDefense(ctx: EngineContext, s: GameState, ev: GameEvent[]): "done
     return "done";
   }
   b.step = "defense";
+  // 20-13: "your opponent skips their Defense Step" — the guard's side gets no
+  // moment and no combo, and the battle goes straight to damage.
+  if (takeSkip(s, other(s.turnPlayer), "defense")) {
+    ev.push({ type: "battleStep", step: "defense", skipped: true });
+    s.flow.unshift({ op: "battle.damage" });
+    return "done";
+  }
   ev.push({ type: "battleStep", step: "defense" });
   for (const id of cardsInPlay(s, other(s.turnPlayer))) pendTriggers(ctx, s, "defenseStart", id);
   s.flow.unshift({ op: "checkpoint" }, { op: "battle.promptCombo", side: "defense" });

@@ -472,6 +472,16 @@ THEN
   control(target: $taken, until: turn)
 ```
 
+A phase that does not happen (20-13). `what` is one of the five the turn and a battle are made of,
+`side` is whose, and `when` says which occurrence — `next` (the default) is the first in a later
+turn, which is what a card resolving in your own Main Phase means by “your next Charge Phase”:
+
+```
+WHEN [activate:main]
+THEN
+  skip(what: charge, side: opponent)
+```
+
 A price paid by an action rather than energy, and a marker cost:
 
 ```

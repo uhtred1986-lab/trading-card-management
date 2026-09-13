@@ -14,6 +14,7 @@ import type { CardFilter } from "./filters";
 import { describeCond, describeScript } from "./script-schema";
 import {
   addEffect,
+  addSkip,
   amount,
   condHolds,
   resolveRef,
@@ -39,7 +40,7 @@ import {
   type GameContext,
 } from "./state";
 import { koCard, masterOf, pendTriggers } from "./triggers";
-import type { Area, Color, DelayScope, DelayTiming, FlowStep, ForbiddenAction, GameEvent, GameState, KeywordSkill, MoveReason, PlayerId, ReplacementChoice, ReplacementResult, Skill, SkillKindPrefix, Trigger } from "./types";
+import type { Area, Color, DelayScope, DelayTiming, FlowStep, ForbiddenAction, GameEvent, GameState, KeywordSkill, MoveReason, PlayerId, ReplacementChoice, ReplacementResult, Skill, SkillKindPrefix, SkipWhat, Trigger } from "./types";
 
 // ── the language ───────────────────────────────────────────────────────────
 
@@ -321,6 +322,18 @@ export type Op =
    * sends it to its **owner's** Drop Area (5-12-1).
    */
   | { op: "control"; target: Ref; to?: Side; until?: Duration }
+  /**
+   * 20-13: a phase or a step is not performed. `side` is whose, read from the
+   * skill's master, and `when` says which occurrence — "this" the one in the
+   * turn the skill resolved on, "next" the first in a later turn, which is
+   * what a card printed on your own turn means by "your next Charge Phase".
+   *
+   * A flag rather than a move through the flow: the phase has to be refused
+   * where it would *begin*, because 20-13-2..4 turn off its trigger moments,
+   * its actions and its checkpoints together, and a program running now cannot
+   * reach forward to a step that has not been queued yet.
+   */
+  | { op: "skip"; what: SkipWhat; side?: Side; when?: "this" | "next" }
   /**
    * The primitive under `power`, `comboPower` and `gains`
    * (`docs/arena-ruleset-spec.md` §2.3): one attribute of one card, by a
@@ -1255,6 +1268,13 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         }
         break;
       }
+
+      // 20-13. Nothing happens now: the entry is spent where the step would
+      // begin, which is the only place the whole of 20-13 can be applied at
+      // once.
+      case "skip":
+        for (const p of sideOf(master, op.side ?? "you")) addSkip(s, p, op.what, op.when ?? "next");
+        break;
 
       case "hidden":
         // 23-5-1: only a Battle Card in a Battle Area can be face down.

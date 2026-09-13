@@ -80,8 +80,8 @@ else is a macro. Four things follow, and they are the reason the tables below ar
   them, they keep parsing, printing and playing exactly as before, and no card's reading moves.
 - **A macro's target may not exist yet.** The table names the primitive as it will be, with today's
   spelling beside it in §2.2. `move` is `moveTo` today; `costModifier` and `negate` are
-  the general forms of rows the engine already has; `control` arrived as a primitive with #126,
-  which also brings `skip`; `replace` (#125) and `copySkills` (#123) arrived as ones too.
+  the general forms of rows the engine already has; `control` and `skip` arrived as primitives
+  with #126, and `replace` (#125) and `copySkills` (#123) as ones before them.
 - **Layering and duration are not ops.** The plan's `effect(layer)` row is the interpreter's
   bookkeeping — what `until` means, which effect wins, when it expires (§1, §7). Every op that
   carries a duration uses it; none of them *is* it.
@@ -91,7 +91,7 @@ else is a macro. Four things follow, and they are the reason the tables below ar
 
 ### 2.2 The primitive vocabulary
 
-Twenty-four primitives carry every row below — nineteen operations and five conditions.
+Twenty-five primitives carry every row below — twenty operations and five conditions.
 
 | Primitive | Today | What it says |
 |---|---|---|
@@ -105,6 +105,7 @@ Twenty-four primitives carry every row below — nineteen operations and five co
 | `shuffle` | `shuffle` | A pile is randomised with the game's seeded RNG. |
 | `token` | `token` | A card that was in no deck comes into being. |
 | `control` | `control` | Who masters a card changes (20-9): it moves into that player's Battle Area and they become its master, keeping everything about it (20-9-2). |
+| `skip` | `skip` | A phase or a step of the turn is not performed (20-13): no moments inside it, no actions, no checkpoints. |
 | `copySkills` | `copySkills` | One card takes on another's printed skills, as they stood when the copy was made (20-18). |
 | `play` | `play` | The game's own play action is invoked for a card (5-5). |
 | `forbid` | `forbid` | A standing rule that an action may not happen, with a budget and an escape (20-14). |
@@ -172,6 +173,7 @@ disagree or if a row is missing from either.
 | `replace` | primitive | An event is named (`leave`, `ko`, `play`) and a program stands in its place (9-10). Built by #125. `replaceLeave` and the `instead` half of `resolvingPlay` run through it today; `negateAttack` and `negateCounter` name events the engine still resolves in their own cases. |
 | `replaceLeave` | macro over `replace` | Event: a card leaving the Battle Area (9-10). |
 | `control` | primitive | Whose card it is now (20-9). Not a `move`: the move is how control is *taken* in an engine where the area is the master (0-3-4-1), but the loan that gives it back, the refusal of a Leader or a Unison, and the KO that still finds the **owner's** Drop (5-12-1) are none of `move`'s business. Built by #126. |
+| `skip` | primitive | A phase or a step does not happen (20-13). Nothing else can say it: an `if` skips a *program*, not the turn's own steps, and no prohibition (20-14) can stop a phase from beginning — `forbid` refuses an action a player would declare, and 20-13-3 is the stronger claim that there is no free timing to declare one in. Built by #126. |
 | `altCost` | macro over `costModifier` | A price is replaced, not reduced — which is why the primitive takes a price rather than a number (§2.5). |
 | `resolvingPlay` | macro over `replace` | Event: the play being resolved, negated or altered (9-6). |
 | `negateAttack` | macro over `replace` | Event: the attack in progress resolves to nothing. |

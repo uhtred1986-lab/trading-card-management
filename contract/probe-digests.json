@@ -379,6 +379,10 @@
     "outcome": "fired",
     "digest": "1d4c03c1"
   },
+  "NODEFENSE#0": {
+    "outcome": "notOffered",
+    "digest": "44428a6e"
+  },
   "NOSKILLPLAY#0": {
     "outcome": "inForce",
     "digest": "36dffc2a"
@@ -534,6 +538,14 @@
   "SKILLCHEAP#0": {
     "outcome": "fired",
     "digest": "46c155f6"
+  },
+  "SKIPNOW#0": {
+    "outcome": "notOffered",
+    "digest": "08a513d2"
+  },
+  "SKIPPER#0": {
+    "outcome": "notOffered",
+    "digest": "15f56f0b"
   },
   "SPAWN#0": {
     "outcome": "fired",

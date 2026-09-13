@@ -5,6 +5,7 @@
  */
 import assert from "node:assert/strict";
 import { apply, legalActions, masterOf } from "../../src/lib/arena/engine";
+import type { PlayerId } from "../../src/lib/arena/engine/types";
 import { validateProgram } from "../../src/lib/arena/engine/script";
 import {
   CTX,
@@ -32,8 +33,10 @@ import {
   priceOf,
   rejectedActions,
   sentence,
+  narrate,
   skillNegated,
   splitClauses,
+  toBeats,
 } from "./harness";
 
 // ── §22 keywords as engine rules ───────────────────────────────────────────
@@ -1529,4 +1532,104 @@ import {
     "and the log says so",
   );
   assertConsistent(r.state);
+}
+
+// ── 20-13: skipping a phase or a step ──────────────────────────────────────
+
+/** A context whose rules for one card come off a hand-written record, as `card_rules` would. */
+function withRecord(cardId: string, record: { ops: unknown[]; unsupported: string[] }): typeof CTX {
+  assert.equal(validateProgram(record.ops), true, `${cardId}: the record is a valid program`);
+  return {
+    defs: DEFS,
+    scripts: new Proxy({} as Record<string, unknown>, {
+      get: (_, key) => (key === cardId ? { bySkill: { 0: record }, complete: true, unsupported: [] } : CTX.scripts[key as string]),
+    }),
+  } as typeof CTX;
+}
+
+{
+  // 7-2 refused whole: no Active Step, no Draw Step, no charge prompt, and no
+  // [Auto] answering "at the start of the Charge Phase" (20-13-2..4). The
+  // phase is still announced, so the board can say what did not happen.
+  DEFS.SKIPPER = { ...DEFS.V1, id: "SKIPPER", name: "SKIPPER", skill: "[Activate: Main] Your opponent skips their next Charge Phase." };
+  const ctx = withRecord("SKIPPER", { ops: [{ op: "skip", what: "charge", side: "opponent" }], unsupported: [] });
+
+  let s = arena({ battle: ["SKIPPER"], oppBattle: ["V-BLUE"] });
+  const skipper = find(s, "p1", "battle", "SKIPPER");
+  const theirs = s.players.p2.battle[0];
+  s.cards[theirs].mode = "rest";
+
+  s = apply(ctx, s, { type: "activate", player: "p1", card: skipper, skill: 0 }).state;
+  assert.deepEqual(
+    (s.players.p2.skips ?? []).map((e) => `${e.what}:${e.when}`),
+    ["charge:next"],
+    "the operation writes a flag; the flow runner is what spends it",
+  );
+
+  const handBefore = s.players.p2.hand.length;
+  const r = apply(ctx, s, { type: "endMain", player: "p1" });
+  s = r.state;
+
+  assert.equal(s.phase, "main", "20-13-1: play proceeds from the phase after the skipped one");
+  assert.equal(s.prompt.kind, "main");
+  assert.equal((s.prompt as { player: string }).player, "p2");
+  assert.equal(s.players.p2.hand.length, handBefore, "7-2-9 did not happen");
+  assert.equal(s.cards[theirs].mode, "rest", "7-2-7 did not happen either");
+  assert.deepEqual(s.players.p2.skips, [], "and the entry is spent, not standing");
+
+  const phases = r.events.filter((e) => e.type === "phase");
+  const charge = phases.find((e) => e.type === "phase" && e.phase === "charge");
+  assert.ok(charge && charge.type === "phase" && charge.skipped === true, "the phase event says it was skipped");
+  const beat = toBeats(ctx, s, r.events, 0).list.find((b) => b.t === "phase" && b.phase === "charge");
+  assert.ok(beat && beat.t === "phase" && beat.skipped === true, "and so does the beat a client draws");
+  assert.equal(narrate(beat, { viewer: "p1" as PlayerId, them: "Claude", art: {} }), "Claude skips the Charge Phase.");
+  assertConsistent(s);
+}
+
+{
+  // "Your opponent skips their Defense Step" (BT18-001's shape): the guard's
+  // side gets no moment and no combo, and the battle goes straight to damage.
+  DEFS.NODEFENSE = { ...DEFS.V1, id: "NODEFENSE", name: "NODEFENSE", power: 30000, skill: "[Activate: Main] Your opponent skips their Defense Step this turn." };
+  const ctx = withRecord("NODEFENSE", { ops: [{ op: "skip", what: "defense", side: "opponent", when: "this" }], unsupported: [] });
+
+  let s = arena({ battle: ["NODEFENSE"] });
+  const attacker = find(s, "p1", "battle", "NODEFENSE");
+  s = apply(ctx, s, { type: "activate", player: "p1", card: attacker, skill: 0 }).state;
+
+  const life = s.players.p2.life.length;
+  let r = apply(ctx, s, { type: "attack", player: "p1", attacker, target: s.players.p2.leader });
+  const events = [...r.events];
+  // The Offense Step still happens, so its combo window is still offered; the
+  // Defense Step's is not, which is the whole of what was skipped.
+  assert.equal(r.state.prompt.kind, "combo");
+  assert.equal((r.state.prompt as { side: string }).side, "offense");
+  r = apply(ctx, r.state, { type: "pass", player: "p1" });
+  events.push(...r.events);
+
+  const steps = events.filter((e) => e.type === "battleStep");
+  const defense = steps.find((e) => e.type === "battleStep" && e.step === "defense");
+  assert.ok(defense && defense.type === "battleStep" && defense.skipped === true, "the Defense Step was announced and refused");
+  assert.ok(
+    steps.some((e) => e.type === "battleStep" && e.step === "damage"),
+    "20-13-1: play proceeds from the step after it",
+  );
+  assert.equal(r.state.players.p2.life.length, life - 1, "and the attack landed");
+  assert.deepEqual(r.state.players.p2.skips, [], "one entry, one step");
+  assertConsistent(r.state);
+}
+
+{
+  // "This turn's" and "the next" are different phases, and an unspent "this"
+  // entry does not become a "next" one when the turn passes.
+  DEFS.SKIPNOW = { ...DEFS.V1, id: "SKIPNOW", name: "SKIPNOW", skill: "[Activate: Main] You skip this turn's End Phase." };
+  const ctx = withRecord("SKIPNOW", { ops: [{ op: "skip", what: "charge", side: "you", when: "this" }], unsupported: [] });
+
+  let s = arena({ battle: ["SKIPNOW"] });
+  const card = find(s, "p1", "battle", "SKIPNOW");
+  s = apply(ctx, s, { type: "activate", player: "p1", card, skill: 0 }).state;
+  assert.equal((s.players.p1.skips ?? []).length, 1);
+  // This turn's Charge Phase is long past, so the entry never comes round…
+  s = apply(ctx, s, { type: "endMain", player: "p1" }).state;
+  assert.deepEqual(s.players.p1.skips, [], "…and is dropped with the turn rather than eating the next one");
+  assertConsistent(s);
 }

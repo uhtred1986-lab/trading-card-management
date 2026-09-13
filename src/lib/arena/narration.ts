@@ -68,7 +68,16 @@ export function narrate(b: Beat, n: Narrator): string | null {
   switch (b.t) {
     case "phase": {
       const label = PHASE[b.phase] ?? b.phase;
-      if (b.phase === "charge" || b.phase === "main" || b.phase === "end") return `${you(b.player) ? "Your" : `${n.them}'s`} ${label}.`;
+      const whose = b.phase === "charge" || b.phase === "main" || b.phase === "end";
+      // 20-13: the moment is announced and then does not happen. Said as the
+      // thing that was refused rather than as the thing that occurred, because
+      // a board that printed "Your Charge Phase." and then drew nothing, stood
+      // nothing up and asked nothing would read as a bug.
+      if (b.skipped) {
+        if (whose) return `${who(b.player, "skip", "skips")} the ${label}.`;
+        return `The ${label} is skipped.`;
+      }
+      if (whose) return `${you(b.player) ? "Your" : `${n.them}'s`} ${label}.`;
       return `${label}.`;
     }
     case "draw":

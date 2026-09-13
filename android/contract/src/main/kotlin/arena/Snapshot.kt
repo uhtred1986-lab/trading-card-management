@@ -401,7 +401,8 @@ sealed class Beat {
 
     @Serializable
     @SerialName("phase")
-    data class Phase(override val n: Int, val phase: String, val player: String, val turn: Int) : Beat()
+    /** `skipped` is 20-13: the phase or step was announced and then not performed. */
+    data class Phase(override val n: Int, val phase: String, val player: String, val turn: Int, val skipped: Boolean = false) : Beat()
 
     @Serializable
     @SerialName("draw")

@@ -31,6 +31,7 @@ import type {
   ReplacementChoice,
   ReplacementResult,
   Skill,
+  SkipWhat,
   SkillKind,
   SkillKindPrefix,
   MoveReason,
@@ -2169,6 +2170,42 @@ export function cardsInPlay(s: GameState, p: PlayerId): string[] {
 export function masterOf(s: GameState, card: string): PlayerId {
   for (const p of PLAYERS) if (cardsInPlay(s, p).includes(card)) return p;
   return s.cards[card].owner;
+}
+
+/**
+ * 20-13: is this phase or step of `p`'s not to be performed — and if so, spend
+ * the entry that says so. One entry, one occurrence: a card that says to skip a
+ * phase says it once, and two of them stop two.
+ *
+ * "This" is the occurrence in the turn the skip was made on; "next" is the
+ * first one in a later turn, which is what a card printed on your own turn
+ * means by "your next Charge Phase" — that phase has already gone by the time
+ * the skill resolves.
+ */
+export function takeSkip(s: GameState, p: PlayerId, what: SkipWhat): boolean {
+  const list = s.players[p].skips;
+  if (!list?.length) return false;
+  const i = list.findIndex((e) => e.what === what && (e.when === "this" ? e.turn === s.turn : s.turn > e.turn));
+  if (i < 0) return false;
+  list.splice(i, 1);
+  return true;
+}
+
+/** Add one (20-13). The list is made on demand, so a game saved without it still works. */
+export function addSkip(s: GameState, p: PlayerId, what: SkipWhat, when: "this" | "next"): void {
+  (s.players[p].skips ??= []).push({ what, when, turn: s.turn });
+}
+
+/**
+ * An unspent "this" entry is over when its turn is: the phase it named either
+ * happened or did not, and either way it is not waiting for the next one.
+ * Called from `turn.next`, beside `expireDelayed`, which is the same idea.
+ */
+export function expireSkips(s: GameState): void {
+  for (const p of PLAYERS) {
+    const list = s.players[p].skips;
+    if (list?.length) s.players[p].skips = list.filter((e) => !(e.when === "this" && e.turn < s.turn));
+  }
 }
 
 export function note(ev: GameEvent[], text: string): void {

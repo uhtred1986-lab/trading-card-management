@@ -432,6 +432,46 @@
       "sentence": "switch this card to active mode"
     },
     {
+      "name": "skip",
+      "class": "primitive",
+      "signature": "{\"op\":\"skip\",\"what\":\"charge\"|\"main\"|\"end\"|\"offense\"|\"defense\",\"side\"?:\"you\"|\"opponent\",\"when\"?:\"this\"|\"next\"}",
+      "fields": [
+        {
+          "name": "what",
+          "required": true,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "charge",
+            "main",
+            "end",
+            "offense",
+            "defense"
+          ]
+        },
+        {
+          "name": "side",
+          "required": false,
+          "nullable": false,
+          "defaultText": "\"you\"",
+          "type": "side"
+        },
+        {
+          "name": "when",
+          "required": false,
+          "nullable": false,
+          "defaultText": "\"next\"",
+          "type": "enum",
+          "enumValues": [
+            "this",
+            "next"
+          ]
+        }
+      ],
+      "sentence": "you skip the next Charge Phase",
+      "doc": "the phase or step is not performed (20-13): no [Auto] answers to its start or end, no action can be declared in it, and no checkpoint happens inside it. \"when\":\"this\" is the occurrence in the turn the skill resolved on, \"next\" the first one in a later turn. Effects that were to end in it end as it is skipped (20-13-5)"
+    },
+    {
       "name": "control",
       "class": "primitive",
       "signature": "{\"op\":\"control\",\"target\":TARGET,\"to\"?:\"you\"|\"opponent\",\"until\"?:DURATION}",
