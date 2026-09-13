@@ -802,7 +802,15 @@ reach yet, which is why this row cites a simpler real card instead of the manual
 status) — the window every `counter:*` WHEN already answers within, but not, today, a condition a
 *different* skill can read ("if declared" naming an action other than the one the skill itself is
 answering). `npm run arena:tally -- --show "if declared"` finds no card printing the fixed phrase
-verbatim in the catalog fetched while writing this table. **unreadable — see issue #239.**
+verbatim, re-checked on 13 Sep 2026 against the live catalog with the same empty result as when
+this row was written for issue #112; the nearby wordings issue #239 asked after ("in response to",
+"while", "declared") turn up nothing in the 20-15 sense either — "declared" only ever means the
+unrelated "Declare 1 number" mechanic (`BT22-104` and family), and "while" is ordinary standing
+conditions on a card's own state (`BT12-082`, `BT19-141`), never a read of another action's
+pending-declared window. **No known card needs this reading** — 20-15-1's text is a real manual
+rule with no observable gap in the catalog today, so no `Cond` was added; issue #239 recommends
+closing not-planned rather than building a condition with no card to round-trip against. Re-run
+the tally after a catalog sync before reopening.
 
 ### 20-16. If You Do
 
@@ -945,9 +953,9 @@ not read off the row: the keyword *is* the rule, and the glossary says which.
 
 A definition grammar (`DEFINE GAME | ZONE | ACTION | …`), which Stage 3 has since added — §3b. New
 primitives from the gap table (Stage 2), also since added — X and expressions, `forbid`'s `uses` and
-`unless`, `replace(event)`, `copySkills`, `control`, `skip` and `payWith` (§4, §4b) — leaving open
-only immunity's full enforcement: `immune` already reads the ordinary case (§4b 20-4), and #128, in
-progress, is whether the engine checks it at every site an effect lands on a card rather than only
-the sites that consult it today. The referee answering in this language rather than JSON. Chip
-editors for WHEN and COST — the text view is the editor. `compilerDiff` for a changed trigger or
-price. Multi-error reporting. Editing the skill kind.
+`unless`, `replace(event)`, `copySkills`, `control`, `skip`, `payWith` and immunity's full
+enforcement (§4, §4b) — `immune` reads whose skills a rule blocks (`from`, `fromFilter`), checked at
+the one selector site every op reaches a card through rather than only the sites that consulted it
+before #128 (§4b 20-4). What is still left: the referee answering in this language rather than
+JSON. Chip editors for WHEN and COST — the text view is the editor. `compilerDiff` for a changed
+trigger or price. Multi-error reporting. Editing the skill kind.
