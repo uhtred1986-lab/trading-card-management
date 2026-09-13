@@ -4,18 +4,21 @@
  * `legacy` (`../engine/`) plays the manual as TypeScript; this one plays a
  * `GameDefinition` — the `.rules` files in `../rulesets/` — and is being built
  * behind the same `Engine` interface so the two can be compared move for move
- * (`arena:diff`). Four things it can do now: make a game and deal the
+ * (`arena:diff`). Five things it can do now: make a game and deal the
  * pre-game procedure into zones and attributes it reads off the definition
  * (`./zones.ts`, `./cards.ts`), **run the turn** as the phase and step
  * declarations say (`./flow.ts`), draw the board and the beats for a
- * client (`./view.ts`, `./beats.ts`), and read **a move and its refusal off one
- * declaration** (`./actions.ts`).
+ * client (`./view.ts`, `./beats.ts`), read **a move and its refusal off one
+ * declaration** (`./actions.ts`), and **resolve a program** — a skill's or an
+ * action's — on the interpreter the legacy engine runs (`./host.ts`,
+ * `./program.ts`, `./effects.ts`, #142).
  *
- * What it will accept is **pass, endMain and concede** (#140), and every
+ * What it will accept is **pass, endMain and concede** (#140), every
  * `DEFINE ACTION` `actions.rules` declares (#144) — which so far is `pass`
- * itself, re-declared. Charging, playing, activating and attacking are the
- * issues after this one: each is a paragraph in that file and a price in
- * `costs.rules`, and neither the prices nor the program evaluator exists yet.
+ * itself, re-declared — and the two answers a running program asks for, a
+ * choice of cards and a choice of options (#142). Charging, playing,
+ * activating and attacking are the issues after this one: each is a paragraph
+ * in that file and a price in `costs.rules`, and the prices do not exist yet.
  * `ENGINE_INFO.rules.available` stays false, so the `/arena` form still greys
  * the engine out and no row can be created on it.
  *
@@ -28,7 +31,7 @@
  * definition arrives as a generated constant (`rulesets/dbs/files.ts`), so
  * nothing here reads a file at request time.
  */
-import { type Action, type EngineContext, type GameEvent, type GameOptions, type LegalAction, type RejectedAction } from "../engine";
+import { IllegalAction, type Action, type EngineContext, type GameEvent, type GameOptions, type LegalAction, type RejectedAction } from "../engine";
 import type { Beats } from "../beats";
 import type { BoardView, CardArt } from "../view";
 import { PLAYERS, type PlayerId } from "../engine/types";
@@ -49,6 +52,25 @@ export { actionsAt, applyDeclared, candidatesOf, declaredLegalActions, declaredR
 export { NotYet, RulesetBroken } from "./errors";
 export { SETUP_ZONES, WORKED_STEPS, draw, moved, repeatAllowed, run, stepWorkNote, turnPhases, type MoveCause } from "./flow";
 export { emit, fire, log, type Moment } from "./events";
+export {
+  DEFERRED_STATICS,
+  STATIC_OPS,
+  addEffect,
+  dropEffectsOn,
+  dueDelays,
+  effectsOn,
+  endEffects,
+  endTurnRelativeEffects,
+  expireDelayed,
+  permanents,
+  schedule,
+  valueOf,
+  type DelaySpec,
+  type EffectSpec,
+  type VmStatic,
+} from "./effects";
+export { NAMED_ZONES, NARROWER, amount, attrsNow, condHolds, hasKeyword, resolveRef, resolveSelector, sideOf, zoneOf } from "./program";
+export { vmHost } from "./host";
 export { masterOf, matchTriggers, nextPending, pendAutos, skillsShowing, type TriggerMatch, type VmPending } from "./triggers";
 export { attributeGaps, attrsForDefs, attrsOf, cardAttributes, playerAttributes, type AttrProblem, type AttrValue, type Attrs, type AttributeGaps } from "./cards";
 export { FilterNeedsAttribute, MEASURES, attributesRead, attributesRequired, deferredMeasures, measuresUsed, predicateOf, skillsIn, usesMeasure, type Measure } from "./filters";
@@ -151,6 +173,12 @@ function createGame(ctx: EngineContext, options: GameOptions): { state: VmState;
     turnPlayer: "p1",
     flow: [],
     pending: [],
+    effects: [],
+    delayed: [],
+    nextEffect: 1,
+    programs: [],
+    lastChoice: null,
+    lastMode: null,
     prompt: { kind: "gameOver" },
     winner: null,
     overReason: null,
@@ -290,6 +318,31 @@ function apply(ctx: EngineContext, prev: VmState, action: Action): { state: VmSt
       answered(state);
       break;
     }
+    // The two answers a *program* asks for (5-2, 20-2). They are not the
+    // flow's questions and they do not answer the step's: `answered` is not
+    // called, because the step that was interrupted still has its own question
+    // to put once the skill has finished. The answer is left on the state for
+    // `stepScript` to read through the host, which is the shape both engines
+    // share (`s.lastChoice` / `s.lastMode`).
+    case "choose": {
+      requirePrompt(state, action, ["chooseCards"]);
+      const pr = state.prompt;
+      if (pr.kind !== "chooseCards") throw new IllegalAction("no choice pending");
+      const choice = pr.choice;
+      if (action.cards.some((id) => !choice.candidates.includes(id)) || new Set(action.cards).size !== action.cards.length) throw new IllegalAction("invalid choice");
+      if (action.cards.length > choice.max) throw new IllegalAction(`choose at most ${choice.max}`);
+      if (action.cards.length < choice.min) throw new IllegalAction(`choose at least ${choice.min}`);
+      state.lastChoice = action.cards;
+      break;
+    }
+    case "chooseMode": {
+      requirePrompt(state, action, ["chooseMode"]);
+      const pr = state.prompt;
+      if (pr.kind !== "chooseMode") throw new IllegalAction("no option is being offered");
+      if (!Number.isInteger(action.index) || action.index < 0 || action.index >= pr.options.length) throw new IllegalAction("no such option");
+      state.lastMode = action.index;
+      break;
+    }
     default:
       // Everything else is a `DEFINE ACTION`: `actions.rules` says when it is
       // offered, for which cards, what it costs and what it does, and
@@ -352,6 +405,18 @@ function promptAnswers(state: VmState): LegalAction[] {
       return [{ action: { type: "charge", player: pr.player, card: null }, label: "Skip charge" }];
     case "main":
       return [{ action: { type: "endMain", player: pr.player }, label: "End turn" }];
+    // 5-2: one card per answer, so the menu is one move per candidate — the
+    // legacy engine's labels word for word, because a client that read
+    // "Choose X" on one board and something else on the other would be reading
+    // the engine rather than the contract.
+    case "chooseCards":
+      return [
+        ...pr.choice.candidates.map((card) => ({ action: { type: "choose" as const, player: pr.player, cards: [card] }, label: `Choose ${card}` })),
+        ...(pr.choice.min === 0 ? [{ action: { type: "choose" as const, player: pr.player, cards: [] }, label: "Choose none" }] : []),
+      ];
+    // 20-2: the printed options, in the order they are printed.
+    case "chooseMode":
+      return pr.options.map((label, index) => ({ action: { type: "chooseMode" as const, player: pr.player, index }, label: label.length > 90 ? `${label.slice(0, 88)}\u2026` : label }));
     default:
       return [];
   }

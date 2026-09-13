@@ -42,8 +42,8 @@ import type { ActionDef, GameDefinition } from "../rulesets";
 import { attrsOf } from "./cards";
 import { NotYet, RulesetBroken } from "./errors";
 import { answered } from "./flow";
-import { log } from "./events";
 import { predicateOf } from "./filters";
+import { SETUP_ZONES } from "./zones";
 import type { VmState } from "./state";
 
 /**
@@ -297,11 +297,11 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
   const refused = refusedBy(ctx, game, state, def, player, card);
   if (refused.length) throw new IllegalAction(`${def.label ?? def.name} is refused: ${refused[0].kind}`);
 
-  // The price, then the program. Charging is #148's and running a program is
-  // #142's, and each says so rather than being skipped: an action that ran half
-  // of itself would be a board in a state no replay could reach.
+  // The price, then the program. Charging is #148's and says so rather than
+  // being skipped: an action that ran half of itself would be a board in a
+  // state no replay could reach.
   if (def.cost?.length) throw new NotYet(`charge the price ${def.cost.join(" and ")} that ${def.name} asks for`, "#148");
-  runProgram(state, ev, def);
+  runProgram(state, def, player, card);
 
   // The question has been answered. A step that means to ask again — the Main
   // Phase's free timing, 7-3-4 — is the flow's business and not the action's
@@ -311,20 +311,21 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
 }
 
 /**
- * The `DO` program, as far as the interpreter reads one.
+ * The `DO` program: the same interpreter a card's rule runs on (#142).
  *
- * `note` is the whole of it today: it writes a line in the log and touches
- * nothing, which is exactly what a program step that cannot run yet should do.
- * Every other op is #142's — the condition and program evaluator both engines'
- * card rules need — and is refused by name rather than ignored, for the same
- * reason `flow.ts` refuses a win condition it cannot read: a step silently
- * skipped is a board that quietly disagrees with its own log.
+ * An action's program and a skill's program are one language, so they are one
+ * interpreter — `stepScript` over the rules engine's `ScriptHost`. The frame is
+ * the action's: the card it is about (or the actor's Leader, for a move about
+ * no card, so `self` still names something), and the actor as its master.
+ *
+ * It goes on the queue rather than running here. A `DO` that stops to ask is a
+ * question inside a move, and the runner is the one thing that can hold one —
+ * exactly as a skill's is. `run` picks it up as soon as `apply` returns here.
  */
-function runProgram(state: VmState, ev: GameEvent[], def: ActionDef): void {
-  for (const op of def.do) {
-    if (op.op !== "note") throw new NotYet(`run ${JSON.stringify(op.op)}, which ${def.name} does`, "#142");
-    log(ev, { type: "note", text: op.text });
-  }
+function runProgram(state: VmState, def: ActionDef, player: PlayerId, card: string | null): void {
+  if (!def.do.length) return;
+  const self = card ?? state.sides[player].zones[SETUP_ZONES.leader]?.[0] ?? "";
+  state.programs.unshift({ ops: def.do, ip: 0, vars: {}, card: self, master: player });
 }
 
 /** The questions an action answers: its own `prompts:`, or every question its phases ask. */

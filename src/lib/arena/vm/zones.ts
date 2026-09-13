@@ -44,6 +44,19 @@ import type { GameDefinition, ZoneDef } from "../rulesets";
 /** One side's areas: every zone the game declares as a place, in declaration order. */
 export type Zones = Record<string, string[]>;
 
+/**
+ * The five zones the pre-game procedure puts cards in (6-2-1), by the name
+ * `DEFINE ZONE` gives them.
+ *
+ * One of the two constants that still name pieces of the DBS definition, and it
+ * is checked against the declarations at load (`createGame`) so a renamed zone
+ * fails loudly rather than dealing into nothing. It lives here rather than in
+ * the runner because the readings in `vm/program.ts` need two of the names — the
+ * `leader` special target and the hand a `handUpTo` amount counts — and a
+ * reading that had to import the runner would be a cycle.
+ */
+export const SETUP_ZONES = { leader: "leader", deck: "deck", zDeck: "zDeck", hand: "hand", life: "life" } as const;
+
 /** A card in a game, as the rules engine keeps it. Everything else about a card is an *attribute* (`vm/cards.ts`). */
 export interface VmCard {
   /** Unique in this game (`p1#17`), the same convention the legacy engine uses. */

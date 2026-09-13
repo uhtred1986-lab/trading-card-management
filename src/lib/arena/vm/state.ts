@@ -34,14 +34,20 @@
  * and the row keeps the action log, which is the reproducible source — a second
  * copy in the state would be a second thing to keep true.
  *
- * Still missing, and on purpose: the effect layers (#142). A state that guessed
- * at them now would have them replaced twice.
+ * What #142 added is everything that **outlives the step that made it**:
+ * `effects` (9-1-4), `delayed` (20-15) and the `programs` a question suspended
+ * mid-resolution, plus the two fields a question's answer comes back on. The
+ * programs are on the state and not in a closure for the same reason the flow
+ * is: a game waiting on a choice inside a skill is written to
+ * `arena_games.state` like any other, and has to resume exactly where it
+ * stopped.
  *
  * Pure and client-safe: types and one guard, no database, no `fs`.
  */
 import type { VmPending } from "./triggers";
 import type { Game } from "../../catalog/games";
-import type { PlayerId, Prompt } from "../engine/types";
+import type { ScriptFrame } from "../engine/script";
+import type { ContinuousEffect, DelayedEffect, PlayerId, Prompt } from "../engine/types";
 import type { AttrValue } from "./cards";
 import type { VmCard, Zones } from "./zones";
 
@@ -57,8 +63,10 @@ import type { VmCard, Zones } from "./zones";
  * `overReason`). A version-2 state was a board nothing played on.
  * 4: #141's pend list (`pending`). A version-3 state is a game in which no
  * moment could reach a card.
+ * 5: #142's effects, delayed effects, suspended programs and the two answer
+ * fields. A version-4 state is a game no skill had resolved in.
  */
-export const VM_STATE_VERSION = 4;
+export const VM_STATE_VERSION = 5;
 
 /** One player, as the definition describes one: a name, a map of zones, and the attributes a *player* has (1-14). */
 export interface VmSide {
@@ -141,6 +149,33 @@ export interface VmState {
    * queue — which is why a skill is taken off it by master and not by position.
    */
   pending: VmPending[];
+  /**
+   * 9-1-4: every continuous effect in force, oldest first (9-9-2). The legacy
+   * engine's own `ContinuousEffect`, because `src/lib/arena/effects.ts` turns
+   * one into the label the board shows and there is only one of those.
+   */
+  effects: ContinuousEffect[];
+  /** 20-15: the programs written down for a later moment, with the moment each waits on. */
+  delayed: DelayedEffect[];
+  /**
+   * The id the next effect or delayed effect gets. One counter for both, so an
+   * id is unique across everything in force and an `effectEnded` beat can never
+   * be matched to the wrong `effect`.
+   */
+  nextEffect: number;
+  /**
+   * The skill programs in progress, innermost first (9-6-3).
+   *
+   * The runner takes the first off and steps it; a program that stops to ask
+   * puts itself back, which is exactly what the legacy engine's
+   * `flow.unshift({ op: "script.step", frame })` does. Empty is the common
+   * case: a program that runs to the end never appears here at all.
+   */
+  programs: ScriptFrame[];
+  /** The cards a `chooseCards` answer brought back, until the program that asked reads them. Null the rest of the time. */
+  lastChoice: string[] | null;
+  /** The option index a `chooseMode` answer brought back, read the same way. */
+  lastMode: number | null;
   /**
    * The question the game is waiting on — the legacy engine's own `Prompt`
    * shape, on purpose: a prompt is answered by an `Action`, and the `Engine`
