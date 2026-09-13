@@ -953,9 +953,9 @@ not read off the row: the keyword *is* the rule, and the glossary says which.
 
 A definition grammar (`DEFINE GAME | ZONE | ACTION | …`), which Stage 3 has since added — §3b. New
 primitives from the gap table (Stage 2), also since added — X and expressions, `forbid`'s `uses` and
-`unless`, `replace(event)`, `copySkills`, `control`, `skip` and `payWith` (§4, §4b) — leaving open
-only immunity's full enforcement: `immune` already reads the ordinary case (§4b 20-4), and #128, in
-progress, is whether the engine checks it at every site an effect lands on a card rather than only
-the sites that consult it today. The referee answering in this language rather than JSON. Chip
-editors for WHEN and COST — the text view is the editor. `compilerDiff` for a changed trigger or
-price. Multi-error reporting. Editing the skill kind.
+`unless`, `replace(event)`, `copySkills`, `control`, `skip`, `payWith` and immunity's full
+enforcement (§4, §4b) — `immune` reads whose skills a rule blocks (`from`, `fromFilter`), checked at
+the one selector site every op reaches a card through rather than only the sites that consulted it
+before #128 (§4b 20-4). What is still left: the referee answering in this language rather than
+JSON. Chip editors for WHEN and COST — the text view is the editor. `compilerDiff` for a changed
+trigger or price. Multi-error reporting. Editing the skill kind.
