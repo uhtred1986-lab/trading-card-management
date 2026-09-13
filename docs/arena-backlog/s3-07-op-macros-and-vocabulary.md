@@ -73,3 +73,29 @@ is the record of why, row by row; the two things that block them all:
 A macro written anyway — dropping the argument it cannot spell — would validate, expand and pass
 the sweep while saying something the card does not. So half 1 ships the machinery and the record,
 and the question is on the issue.
+
+---
+
+## Where half 2 got to, 12 Sep 2026
+
+`src/lib/arena/rulesets/words.ts` is the one source, and the parser, the chip editor
+(`optionsFor`), the referee's prompt (`effectLanguage`) and `validateRule` read **areas, durations,
+sides, keyword names and the moments a WHEN may name** from it — proved in
+`scripts/verify/rulesets.ts` by deleting one word and asking every reader of it. It also removed a
+fourth hand-written copy of the areas, inside the prompt's own `SELECTOR:` line.
+
+`validateRule` reads `whenMoments()` from the same source: the game's triggers less the five
+counter windows. `triggers.rules` declares 58 moments and five of them are the windows a [Counter]
+answers in (4-3, 9-7) — a `CounterWindow`, not a `Trigger` the engine fires, and the only names in
+that file a record's WHEN never says (#136's suite is what holds the other 53 to the engine's union,
+both directions). The `counter:` prefix is how the file spells the difference and no `Trigger`
+carries a colon, so that is a reading of the declarations rather than a second list, and the suite
+fails the moment the two diverge.
+
+`SPECIAL_TARGETS` is the one list left with no `Vocabulary` field and no `DEFINE` kind that could
+declare one; it stays the engine's.
+
+One structural note for whoever finishes it: `lang/` now reads `rulesets/`, and `rulesets/` is
+built on `lang/`. The cycle is broken at the barrel — `lang/index.ts` binds `parseRule`'s default
+vocabulary, and `rulesets/load.ts` imports `lang/parse` and `lang/ast` directly, because the loader
+is the one caller that must not ask for the words it is producing.

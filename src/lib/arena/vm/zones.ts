@@ -29,10 +29,12 @@
  * `moveCard` is the only mover, the way `move` is in the legacy engine: one
  * place for 3-1-4 (a card that changes area is a new card), for the single-card
  * refusal, and for the **replacement hook** 9-10 needs — an effect that changes
- * where a card about to move goes (#125/#142). The hook is a parameter and a
- * record here, not a behaviour: nothing in this engine can yet say "instead",
- * and a mover that quietly applied a replacement it had not been given would be
- * the harder bug to find later.
+ * where a card about to move goes, or puts a program in the departure's place.
+ * The language says that much already (the `replace` op, #125); what is here is
+ * the point the rules engine will ask at, as a parameter and a record, and not a
+ * behaviour: this engine has no effects in force to ask about yet, and a mover
+ * that quietly applied a replacement it had not been given would be the harder
+ * bug to find later. #142 makes it act.
  *
  * Pure and client-safe: no database, no network, no `fs`.
  */
@@ -105,8 +107,9 @@ export function arrivalMode(zone: ZoneDef): string | null {
 
 /**
  * What a replacement effect would have the move be instead (9-10). Carried so
- * the hook point exists and is recorded; **nothing applies it yet** — #125
- * declares `replace(event)` and #142 runs it.
+ * the hook point exists and is recorded; **nothing applies it yet** — the
+ * language has the `replace` op (#125), and #142 is where this engine has the
+ * effects in force to read one from.
  */
 export interface Replacement {
   /** The rule asking for the change, so the log can say who. */

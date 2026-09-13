@@ -13,9 +13,12 @@
  * The kind is checked rather than read: nothing on the workbench may change
  * the printed skill tag, so a rule whose WHEN names a different one is a
  * mistake to say out loud, not a change to store.
+ *
+ * The moments a WHEN may name are the **game's** (`rulesets/words.ts`, #137),
+ * off `triggers.rules`, rather than a constant of the engine's.
  */
-import { validateProgram, type Cond, type CostRecord, type Op } from "../engine/script";
-import { TRIGGERS } from "../gaps";
+import { asksAQuestion, validateProgram, type Cond, type CostRecord, type Op } from "../engine/script";
+import { whenMoments } from "../rulesets/words";
 import type { Rule } from "./ast";
 
 export type Invalid = { field: "rule" | "kind" | "trigger" | "cost" | "cond" | "ops"; message: string };
@@ -32,7 +35,11 @@ export function validateRule(rule: unknown, kind: string): Invalid | null {
   if (!isObject(rule)) return { field: "rule", message: "that is not a rule" };
   if (rule.kind !== kind) return { field: "kind", message: `the skill is [${kind}] — the tag comes off the card and cannot be edited here` };
   if (!Array.isArray(rule.trigger) || rule.trigger.some((t) => typeof t !== "string")) return { field: "trigger", message: "WHEN is a list of moments" };
-  const unknown = (rule.trigger as string[]).filter((t) => !(TRIGGERS as readonly string[]).includes(t));
+  // The game's own moments, less the counter windows a [Counter] answers in
+  // — `rulesets/words.ts` says why that is a reading of the declarations and
+  // not a second list (#137).
+  const moments = whenMoments();
+  const unknown = (rule.trigger as string[]).filter((t) => !moments.includes(t));
   if (unknown.length) return { field: "trigger", message: `the engine knows no moment called ${unknown.map((t) => JSON.stringify(t)).join(", ")} — a trigger it never fires is a skill that never happens` };
   if (new Set(rule.trigger as string[]).size !== rule.trigger.length) return { field: "trigger", message: "the same moment is named twice" };
   if (rule.cond != null && !condOk(rule.cond)) return { field: "cond", message: "that condition is not one the engine can ask" };
@@ -51,6 +58,13 @@ export function validateRule(rule: unknown, kind: string): Invalid | null {
   // `validateProgram` applies inside a program: a `bindX` in a branch has not
   // bound anything unless the branch ran.
   const xBound = isObject(rule.cost) && (isObject((rule.cost as Record<string, unknown>).x) || bindsX((rule.cost as Record<string, unknown>).program));
+  // 9-10 with #107 still open: `move()` has no suspension path at 46 of its 48
+  // call sites, so a question asked inside a replacement is lost rather than
+  // asked. Checked before the general answer below, which would otherwise say
+  // only that the program is invalid and leave the reason to be guessed.
+  if (replacementAsks(rule.ops)) {
+    return { field: "ops", message: "a replacement cannot ask a question yet — see #107" };
+  }
   if (!validateProgram(rule.ops, 0, xBound)) {
     return {
       field: "ops",
@@ -66,6 +80,22 @@ export function validateRule(rule: unknown, kind: string): Invalid | null {
 export function readRule(rule: unknown, kind: string): { rule: Rule } | { error: Invalid } {
   const bad = validateRule(rule, kind);
   return bad ? { error: bad } : { rule: rule as Rule };
+}
+
+/** Does any `replace` step in this program — at any depth — carry a `with` block that stops to ask? */
+function replacementAsks(ops: unknown): boolean {
+  if (!Array.isArray(ops)) return false;
+  return ops.some((raw) => {
+    if (!isObject(raw)) return false;
+    if (raw.op === "replace" && asksAQuestion(raw.with)) return true;
+    return (
+      replacementAsks(raw.ops) ||
+      replacementAsks(raw.then) ||
+      replacementAsks(raw.else) ||
+      replacementAsks(raw.with) ||
+      (Array.isArray(raw.modes) && raw.modes.some((m) => replacementAsks(isObject(m) ? m.ops : null)))
+    );
+  });
 }
 
 /** Does this price's program bind X, at its own top level? */

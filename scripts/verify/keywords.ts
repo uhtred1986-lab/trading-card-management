@@ -5,6 +5,7 @@
  */
 import assert from "node:assert/strict";
 import { legalActions } from "../../src/lib/arena/engine";
+import { validateProgram } from "../../src/lib/arena/engine/script";
 import {
   CTX,
   DEFS,
@@ -18,13 +19,16 @@ import {
   eitherOrbsIn,
   find,
   has,
+  koCard,
   labels,
   move,
+  placeUnder,
   orbsIn,
   parseConditionClause,
   parseSkills,
   planPayment,
   play,
+  powerOf,
   priceOf,
   rejectedActions,
   sentence,
@@ -1252,4 +1256,180 @@ import {
   for (const id of s.players.p1.hand.slice()) if (s.cards[id].cardId !== "REFILL") move(CTX, s, [], id, "deck", "p1", { position: "bottom" });
   s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "REFILL") });
   assert.equal(s.players.p1.hand.length, 4);
+}
+
+// ── 20-18: a card takes on another card's skills ───────────────────────────
+//
+// The whole claim in one board: what is copied is the source's *printed* face,
+// the target plays it as its own — a [Permanent] stands on the target, a
+// keyword is in force on the target, an [Auto] answers to the target's own
+// moment — and all of it ends when the duration does.
+{
+  DEFS.COPYSRC = {
+    ...DEFS.V1,
+    id: "COPYSRC",
+    name: "COPYSRC",
+    colors: ["Blue"],
+    energyCost: 1,
+    power: 5000,
+    skill: "[Blocker]\n[Permanent] This card gets +3000 power for the turn.\n[Auto] When this card attacks, draw 1 card.",
+  };
+  DEFS.COPYCAT = {
+    ...DEFS.V1,
+    id: "COPYCAT",
+    name: "COPYCAT",
+    energyCost: 1,
+    skill: "[Activate: Main] Choose 1 of your opponent's Battle Cards, and this card gains all of the chosen card's skills for the turn.",
+  };
+
+  const program = compileSkill(parseSkills(DEFS.COPYCAT.skill)[0]);
+  assert.deepEqual(program.unsupported, [], "the copy wording reads whole");
+  assert.deepEqual(
+    program.ops.map((o) => o.op),
+    ["choose", "copySkills"],
+    "…as a choice of the card and a copy off it",
+  );
+
+  let s = arena({ battle: ["COPYCAT"], oppBattle: ["COPYSRC"] });
+  const cat = find(s, "p1", "battle", "COPYCAT");
+  const src = find(s, "p2", "battle", "COPYSRC");
+  assert.equal(powerOf(CTX, s, cat), 10000, "before the copy the target is its printed power");
+  assert.equal(has(CTX, s, cat, "Blocker"), false, "…and has none of the source's keywords");
+  assert.equal(powerOf(CTX, s, src), 8000, "the source's own [Permanent] is standing on the source");
+
+  const copy = acts(s).find((a) => a.type === "activate" && a.card === cat);
+  assert.ok(copy, "the copy skill is offered");
+  s = play(s, copy);
+  // One candidate, so the engine takes the only answer rather than asking.
+  if (s.prompt.kind === "chooseCards") s = play(s, { type: "choose", player: "p1", cards: [src] });
+
+  // A copied [Permanent] stands on the card that took it on: "this card" in
+  // the copied text is the *target*, which is why the number moves here and
+  // not on the source.
+  assert.equal(powerOf(CTX, s, cat), 13000, "the copied [Permanent] applies to the target");
+  assert.equal(powerOf(CTX, s, src), 8000, "…and the source is unchanged");
+  // A copied pure keyword skill is granted as a keyword (20-18-1), so every
+  // rule that reads keywords sees it without knowing anything about copies.
+  assert.equal(has(CTX, s, cat, "Blocker"), true, "the copied keyword is in force on the target");
+  // One rule in force, said in words, for a client that draws it.
+  const shown = boardView(CTX, s, "p1", {}).you.battle.find((c) => c.id === cat);
+  const labelsOn = shown?.effects?.map((e) => e.label) ?? [];
+  assert.ok(labelsOn.includes("has the skills of COPYSRC"), `the board says what the target took on (got ${JSON.stringify(labelsOn)})`);
+
+  // A copied [Auto] answers to the *target's* moment, not the source's: this
+  // is COPYCAT attacking, and the source is not in the battle at all.
+  const handBefore = s.players.p1.hand.length;
+  s = play(s, { type: "attack", player: "p1", attacker: cat, target: s.players.p2.leader });
+  assert.deepEqual(
+    s.pending.map((p) => [p.card, p.trigger]),
+    [[cat, "attacks"]],
+    "the copied [Auto] pended on the target's own attack, under the target's own id",
+  );
+  // The defence answers first (8-3); the pended [Auto] resolves after it.
+  s = play(s, { type: "block", player: "p2", card: null });
+  assert.equal(s.players.p1.hand.length, handBefore + 1, "…and drew the card the copied [Auto] says to draw");
+  assertConsistent(s);
+
+  // …and all of it ends with the duration. The turn passes to the opponent,
+  // which is where a "for the turn" effect is dropped (9-9).
+  while (s.prompt.kind !== "main" || (s.prompt as { player: string }).player !== "p2") {
+    const next = acts(s).find((a) => a.type === "pass" || a.type === "endMain" || a.type === "charge" || a.type === "block" || a.type === "counter");
+    assert.ok(next, `the turn can be passed on (${s.prompt.kind})`);
+    s = play(s, next);
+  }
+  assert.equal(powerOf(CTX, s, cat), 10000, "the copied [Permanent] is gone with the turn");
+  assert.equal(has(CTX, s, cat, "Blocker"), false, "…and so is the copied keyword");
+  assert.equal(
+    s.effects.some((e) => e.kind === "copiedSkills"),
+    false,
+    "…and the copy itself is no longer in force",
+  );
+
+  // The other wording, and the one nine cards print: the choice is of a
+  // *skill*, the two printed clauses are one step, and "keyword skill" narrows
+  // what may be taken.
+  DEFS.COPYKW = {
+    ...DEFS.V1,
+    id: "COPYKW",
+    name: "COPYKW",
+    energyCost: 1,
+    skill: "[Activate: Main] Choose up to 1 keyword skill on a card in your opponent's Battle Area, and this card gains that skill for the turn.",
+  };
+  const kw = compileSkill(parseSkills(DEFS.COPYKW.skill)[0]);
+  assert.deepEqual(kw.unsupported, [], "the two-clause wording reads whole");
+  assert.deepEqual(kw.ops.map((o) => o.op), ["copySkills"], "…as one step, not a choice of cards and an unread tail");
+  assert.equal((kw.ops[0] as { only?: string }).only, "keyword", "…narrowed to keyword skills");
+
+  s = arena({ battle: ["COPYKW"], oppBattle: ["COPYSRC"] });
+  const thief = find(s, "p1", "battle", "COPYKW");
+  const take = acts(s).find((a) => a.type === "activate" && a.card === thief);
+  assert.ok(take, "the keyword-copy skill is offered");
+  s = play(s, take);
+  assert.equal(s.prompt.kind, "chooseMode", "the player is asked which skill, not which card");
+  assert.deepEqual((s.prompt as { options: string[] }).options, ["[Blocker]", "None"], "…and only the keyword skills are on offer, with the decline the card's “up to 1” allows");
+  s = play(s, { type: "chooseMode", player: "p1", index: 0 });
+  assert.equal(has(CTX, s, thief, "Blocker"), true, "the chosen keyword is in force on the target");
+  assert.equal(powerOf(CTX, s, thief), 10000, "…and nothing else of the source came with it");
+  assertConsistent(s);
+}
+// ── 9-10: a replacement whose substitute is a program (#125) ───────────────
+
+{
+  // BT3-051's shape. The card itself **stays**, and its whole under-stack goes
+  // to the Drop in the KO's place — a replacement no redirect can say, because
+  // what moves is not the card whose departure was replaced.
+  DEFS.PILEDROP = {
+    ...DEFS.V1,
+    id: "PILEDROP",
+    name: "PILEDROP",
+    skill: "[Permanent] If this card would be KO'd, place all the cards under this card in its owner's Drop Area instead.",
+  };
+  const s = arena({ battle: ["PILEDROP"], hand: ["V1"] });
+  const host = find(s, "p1", "battle", "PILEDROP");
+  const buried = s.players.p1.hand[0];
+  assert.equal(placeUnder(CTX, s, [], buried, host), true);
+  assert.deepEqual(s.cards[host].under, [buried]);
+
+  koCard(CTX, s, [], host);
+  assert.ok(s.players.p1.battle.includes(host), "the KO was replaced, not redirected: the card is still there");
+  assert.ok(!s.players.p1.drop.includes(host));
+  assert.ok(s.players.p1.drop.includes(buried), "and the pile under it went to the Drop instead");
+  assert.deepEqual(s.cards[host].under, []);
+  assertConsistent(s);
+}
+
+{
+  // The primitive's other half, written as a `replace` rather than as the
+  // `replaceLeave` macro the compiler still emits for it: a redirect of the KO
+  // leaves the card in `removed`. The rule comes off the record rather than
+  // the text, which is what `card_rules` does in a real game.
+  DEFS.EXILEKO = {
+    ...DEFS.V1,
+    id: "EXILEKO",
+    name: "EXILEKO",
+    skill: "[Permanent] If this card would be KO'd, remove it from the game instead.",
+  };
+  const record = { ops: [{ op: "replace", event: "ko", with: [{ op: "moveTo", target: { sel: { special: "self" } }, to: "removed" }] }], unsupported: [] };
+  assert.equal(validateProgram(record.ops), true);
+  const ctx = {
+    defs: DEFS,
+    scripts: new Proxy({} as Record<string, unknown>, {
+      get: (_, key) => (key === "EXILEKO" ? { bySkill: { 0: record }, complete: true, unsupported: [] } : CTX.scripts[key as string]),
+    }),
+  } as typeof CTX;
+
+  const s = arena({ battle: ["EXILEKO"] });
+  const exile = find(s, "p1", "battle", "EXILEKO");
+  koCard(ctx, s, [], exile);
+  assert.ok(s.players.p1.removed.includes(exile), "a KO-to-removed replacement leaves the card out of the game");
+  assert.ok(!s.players.p1.drop.includes(exile));
+  assertConsistent(s);
+
+  // The event is the one named: the same card returned to hand by a skill is
+  // still returned to hand, because only its KO was replaced.
+  const t = arena({ battle: ["EXILEKO"] });
+  const other = find(t, "p1", "battle", "EXILEKO");
+  move(ctx, t, [], other, "hand", "p1", { reason: "effect" });
+  assert.ok(t.players.p1.hand.includes(other), "a `ko` replacement replaces the KO and nothing else");
+  assertConsistent(t);
 }

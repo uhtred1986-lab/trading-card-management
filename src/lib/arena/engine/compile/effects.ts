@@ -1,4 +1,5 @@
 import { keywordOf, orbsIn } from "../cards";
+import { asksAQuestion } from "../script-schema";
 import { parseFilter } from "../filters";
 import type { Amount, Cond, Duration, Op, Ref, Selector, Side, ScriptArea } from "../script";
 import type { DelayScope, DelayTiming, SkillKindPrefix } from "../types";
@@ -217,6 +218,24 @@ function refFor(clause: string, c: Ctx): Ref | null {
  */
 const BARE_TARGET = /^(?:this card|it|they|them|that card|those cards|your leader(?: card)?|the chosen cards?)$/i;
 
+/**
+ * The card a skill is copied *from* (20-18).
+ *
+ * `refFor` answers "the chosen card" with the last thing any clause acted on
+ * when no choice was made — which is right for an instruction ("…and KO it")
+ * and wrong here. BT14-062 prints "Place up to 1 Battle Card … in your
+ * opponent's Drop Area under this card. Choose up to 1 of **the chosen
+ * card's** keyword skills": the fallback hands back the *move's* selector,
+ * still pointing at the opponent's Drop, and the card whose skill is meant has
+ * just left it. A copy off the wrong card is worse than a clause left to the
+ * referee, so a "chosen" phrase with nothing bound is refused.
+ */
+function copiedFrom(phrase: string, c: Ctx): Ref | null {
+  const ref = refFor(phrase, c);
+  if (ref && /\bchosen\b/i.test(phrase) && !("var" in ref)) return null;
+  return ref;
+}
+
 function refsFor(phrase: string, c: Ctx): Ref[] | null {
   const parts = phrase
     .split(/\s+and\s+/i)
@@ -274,6 +293,24 @@ function durationOf(clause: string): Duration {
  * put the card out but not whose, and guessing would let the wrong cards
  * escape.
  */
+/**
+ * Ops that are *standing* rather than done: `collectStatics` reads them off a
+ * [Permanent] and `exec` does nothing with them. A replacement's substitute is
+ * run, not collected, so a program made of these would compile and then be
+ * silent — which is the one outcome worse than leaving the clause unread.
+ */
+const NOT_RUNNABLE = new Set(["replaceLeave", "replace", "gains", "negateKeyword"]);
+
+/**
+ * May this program stand in a departure's place (#125)? Only if it really
+ * happens when it is run — nothing standing, and nothing that stops to ask,
+ * since `move()` has no way to wait for an answer (#107) and `validateProgram`
+ * refuses such a rule anyway.
+ */
+function substitutable(ops: Op[]): boolean {
+  return ops.length > 0 && !asksAQuestion(ops) && !ops.some((o) => NOT_RUNNABLE.has(o.op));
+}
+
 function parseWouldLeave(clause: string): { by?: "skill" | "ko" | "skillOrKo"; subject?: string } | null {
   const t = clean(clause);
   if (/your opponent'?s? skills?/.test(t)) return null;
@@ -1347,6 +1384,32 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     return ref ? [{ op: "gains", target: ref, traits: filter.traits, characters: filter.characters, colors, ...(filter.names.length ? { names: filter.names } : {}) }] : null;
   }
 
+  // Taking on another card's printed skills (20-18). Two wordings, and the
+  // whole of both: "This card gains all of the chosen card's keyword skills
+  // for the turn" (BT26-139), "Gain all of the chosen card's skills for the
+  // duration of the turn" (BT3-049).
+  if ((m = /^(.*?)\s*gains? all of (?:the )?(.+?)'s (keyword )?skills$/.exec(q))) {
+    const target = refFor(m[1] || "this card", c);
+    // "…all of **the chosen card's** skills": the possessive is stripped by
+    // the pattern, so the article goes back on before `refFor` reads it.
+    const from = copiedFrom(/^(?:the|that|those|its|their)\b/.test(m[2]) ? m[2] : `the ${m[2]}`, c);
+    if (target && from) return [{ op: "copySkills", target, from, which: "all", ...(m[3] ? { only: "keyword" as const } : {}), until: durationOf(t) }];
+    return null;
+  }
+  // The other wording, merged into one clause by `compileClauseList` because
+  // neither half means anything alone: "Choose up to 1 keyword skill on a card
+  // placed under this card, and this card gains that skill until the end of
+  // your opponent's next turn" (BT20-028). The choice is among the *skills* of
+  // whatever the phrase finds, which is what `copySkills` asks when it is told
+  // neither "all" nor an index.
+  if ((m = /^choose (?:up to )?\d+ (?:of (?:the )?(.+?)'s (keyword )?skills?|(keyword )?skills? (?:on|of|from|in) (.+?)), (?:and )?(.*?) gains? that skill$/.exec(q))) {
+    const src = m[1] ?? m[4];
+    const from = copiedFrom(/^(?:the|that|those|its|their|a|an|\d)\b/.test(src) ? src : `the ${src}`, c);
+    const target = refFor(m[5] || "this card", c);
+    if (from && target) return [{ op: "copySkills", target, from, ...(m[2] ?? m[3] ? { only: "keyword" as const } : {}), until: durationOf(t) }];
+    return null;
+  }
+
   // Granting keyword skills (20-18); one clause can grant several.
   if ((m = /^(.*?) gains? ((?:\[[^\]]+\][\s,]*(?:and\s+)?)+)$/.exec(q))) {
     const ref = refFor(m[1], c);
@@ -2117,6 +2180,9 @@ const PURE_DURATION =
  * shows up unread, not whether it reads — left split, as before.
  */
 const PURE_FOREACH_MARKERS_ON_SELF = /^for (?:each|every) markers? on this card[.,]?$/i;
+/** The two halves of the copied-skill wording (20-18); see the merge in `compileClauseList`. */
+const COPY_SKILL_CHOICE = /^choose (?:up to )?\d+ (?:of (?:the )?.+?'s (?:keyword )?skills?|(?:keyword )?skills? (?:on|of|from|in) .+?)[.,]?$/i;
+const GAINS_THAT_SKILL = /^.*?\bgains? that skill\b/i;
 
 /** The clause loop, shared by a skill's body and by each modal option. */
 export function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op[] {
@@ -2161,6 +2227,15 @@ export function compileClauseList(clauses: string[], c: Ctx, unsupported: string
     // belongs to the clause after it, where `durationOf` will find it.
     if (PURE_DURATION.test(clause.trim()) && i + 1 < clauses.length) {
       clauses[i + 1] = `${clauses[i + 1].replace(/[.]$/, "")} ${clause.trim()}`;
+      continue;
+    }
+    // 20-18: "Choose up to 1 keyword skill on a card under this card" names
+    // no cards to *do* anything to — it is the first half of "…, and this
+    // card gains that skill for the turn", and only the pair says anything.
+    // Merged so `compileClause` reads the two as one `copySkills`; apart, the
+    // first half compiled as a choice of cards and the second went unread.
+    if (COPY_SKILL_CHOICE.test(clause.trim()) && i + 1 < clauses.length && GAINS_THAT_SKILL.test(clauses[i + 1].trim())) {
+      clauses[i + 1] = `${clause.trim().replace(/[.,]$/, "")}, ${clauses[i + 1]}`;
       continue;
     }
     // "For each marker on this card, this card gets +5000 power during your
@@ -2448,7 +2523,15 @@ export function compileClauseList(clauses: string[], c: Ctx, unsupported: string
       const only = got.length === 1 ? got[0] : null;
       const { by, subject } = c.replacing;
       c.replacing = null;
-      if (only && only.op === "moveTo" && only.to !== "under" && only.to !== "play" && !only.under) {
+      // A redirect says where **the card itself** goes. The card is what the
+      // opener bound, so the move's target must still be it: "place all the
+      // cards under this card in its owner's Drop Area instead" (BT3-051) is a
+      // move of a different pile of cards altogether, and read as a redirect it
+      // hung a replacement on each buried card — a rule about cards that are
+      // not in a Battle Area at all, so the printed skill did nothing. It is a
+      // substitute, and falls through to the branch below.
+      const selfMove = only?.op === "moveTo" && "sel" in only.target && only.target.sel.special === "self";
+      if (only && only.op === "moveTo" && selfMove && only.to !== "under" && only.to !== "play" && !only.under) {
         // When the rule names other cards, they are the ones it is about —
         // not whatever "it" happened to point at in the second half.
         const filter = subject ? filterFor(subject, "battle") : undefined;
@@ -2460,6 +2543,18 @@ export function compileClauseList(clauses: string[], c: Ctx, unsupported: string
         // "…to your energy in Rest Mode instead" — the move said how it
         // arrives as well as where, and the replacement has to carry both.
         push([{ op: "replaceLeave", to: only.to, target, ...(by ? { by } : {}), ...(only.mode ? { mode: only.mode } : {}), ...(offered ? { optional: true } : {}) }]);
+        continue;
+      }
+      // The departure is replaced by something other than a destination for
+      // the card itself — "place all the cards under this card in the Drop
+      // Area instead" (BT3-051), where the card stays and its pile goes. That
+      // is `replace`'s substitute form (#125), and only the deterministic half
+      // of it: a `with` block that would stop and ask has nowhere to wait
+      // (#107), so those clauses stay unread exactly as they were.
+      const filter = subject ? filterFor(subject, "battle") : undefined;
+      if (filter !== null && !offered && substitutable(got)) {
+        const target: Ref | undefined = subject ? { sel: { side: "you", area: "battle", filter, count: 99 } } : undefined;
+        push([{ op: "replace", event: by === "ko" ? "ko" : "leave", ...(by && by !== "ko" ? { by } : {}), with: got, ...(target ? { target } : {}) }]);
         continue;
       }
       // Anything else is a replacement this language cannot say yet, and

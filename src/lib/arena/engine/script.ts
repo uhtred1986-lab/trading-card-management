@@ -9,6 +9,7 @@
  *
  * Nothing here reads card text. Section numbers refer to the Rule Manual.
  */
+import { skillsOf } from "./cards";
 import type { CardFilter } from "./filters";
 import { describeCond, describeScript } from "./script-schema";
 import {
@@ -23,6 +24,7 @@ import {
   cardsInPlay,
   replacementChoicesFor,
   skillsOfInstance,
+  def,
   draw as drawCards,
   face,
   forbids,
@@ -37,7 +39,7 @@ import {
   type GameContext,
 } from "./state";
 import { koCard, masterOf, pendTriggers } from "./triggers";
-import type { Area, Color, DelayScope, DelayTiming, FlowStep, ForbiddenAction, GameEvent, GameState, KeywordSkill, MoveReason, PlayerId, ReplacementChoice, ReplacementResult, SkillKindPrefix, Trigger } from "./types";
+import type { Area, Color, DelayScope, DelayTiming, FlowStep, ForbiddenAction, GameEvent, GameState, KeywordSkill, MoveReason, PlayerId, ReplacementChoice, ReplacementResult, Skill, SkillKindPrefix, Trigger } from "./types";
 
 // ── the language ───────────────────────────────────────────────────────────
 
@@ -68,6 +70,14 @@ export type Duration = "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterN
  * of them read as *this card* and granted it to itself.
  */
 export type SpecialTarget = "self" | "attacker" | "guard" | "subject" | "leader" | "opponentLeader" | "resolving" | "onTop";
+
+/**
+ * The events a `replace` op may stand in front of (9-10). Closed on purpose:
+ * every name here is a point the engine really does look for a replacement
+ * before the event happens, so a rule naming one of them plays, and a wording
+ * that needs any other moment stays unread rather than compiling into silence.
+ */
+export type ReplaceEvent = "leave" | "ko" | "play";
 
 export interface Selector {
   side?: Side;
@@ -314,6 +324,34 @@ export type Op =
   | { op: "power"; target: Ref; amount: Amount; until: Duration }
   | { op: "comboPower"; target: Ref; amount: Amount; until: Duration }
   | { op: "grant"; target: Ref; keyword: KeywordSkill; until: Duration }
+  /**
+   * 20-18: one card takes on another's printed skills — "choose up to 1
+   * keyword skill on a card placed under this card, and this card gains that
+   * skill until the end of your opponent's next turn" (BT20-028), "gain all of
+   * the chosen card's skills for the duration of the turn" (BT3-049).
+   *
+   * `from` is the card copied. Which of its skills is said in one of three
+   * ways: `which: "all"` for every one of them, `skill` for a single source
+   * index, or neither — the wording nearly every card prints — to let the
+   * master pick one as the skill resolves. `only: "keyword"` narrows both the
+   * pick and the copy to keyword skills, which is what "choose up to 1
+   * **keyword** skill" says.
+   *
+   * What is copied is the printed face as it stands now, snapshotted onto the
+   * effect: 9-9 fixes what a continuous effect grants when it is created, so
+   * the copy survives the source being flipped, silenced, or leaving play.
+   * A card that prints the skill it gives in full and in quotes (16 of them,
+   * BT18-008 the clearest) is the same mechanism with the program written on
+   * the granting card instead of snapshotted off another one, and belongs here
+   * as an inline program rather than on `grant` as a text field — `grant`
+   * makes a keyword effect, and a quoted [Auto] is not a keyword. Not built.
+   *
+   * A copied *pure* keyword skill is granted as a keyword — 20-18-1 writes a
+   * keyword given by a skill exactly as it writes any other, and the engine
+   * already plays a granted keyword — so only typed lines become a copy the
+   * target has to enumerate.
+   */
+  | { op: "copySkills"; target?: Ref; from: Ref; which?: "all"; skill?: number; only?: "keyword"; until: Duration }
   | { op: "negateSkills"; target: Ref; until: Duration }
   /**
    * "Negate that card's [Auto] skill for the turn" (9-1-5): one kind of skill
@@ -391,6 +429,33 @@ export type Op =
    * `by: "skill"` narrows it to departures a skill caused.
    */
   | { op: "replaceLeave"; to: ScriptArea; by?: "skill" | "ko" | "skillOrKo"; mode?: "active" | "rest"; optional?: boolean; target?: Ref }
+  /**
+   * 9-10: an event that is about to happen happens differently, or not at all.
+   * The primitive `replaceLeave` and `resolvingPlay` are macros over
+   * (`docs/arena-ruleset-spec.md` §2.2) — where those two can only say *where
+   * the card itself goes*, this one puts a whole program in the event's place,
+   * which is what "place all the cards under this card in the Drop Area
+   * instead" (BT3-051) says and what no redirect can.
+   *
+   * `event` is the moment being replaced, and the list is closed to the three
+   * the engine can actually intercept — the glossary's "What a replacement
+   * effect can replace" is the readable half of it:
+   *   - `"leave"`  the card would leave the Battle Area (9-10-1). `by` narrows
+   *                it to a departure a skill caused, or a skill or a KO.
+   *   - `"ko"`     the card would be KO'd, and nothing else about it changes.
+   *   - `"play"`   the play being resolved (9-6), for a [Counter: Play].
+   *
+   * `with` is what happens instead. Two shapes are read: a single `moveTo` of
+   * the card itself is a **redirect** (it goes there instead, the form
+   * `replaceLeave` prints), and anything else is a **substitute** — the move
+   * does not happen at all, the card stays, and the program runs in its place.
+   * A substitute reads the card whose event it is as `subject`.
+   *
+   * It cannot ask a question: `move()` is synchronous with no suspension path
+   * at 46 of its 48 call sites, so a prompt inside `with` would be silently
+   * lost. `validateProgram` refuses one rather than storing it — see #107.
+   */
+  | { op: "replace"; event: ReplaceEvent; by?: "skill" | "skillOrKo"; optional?: boolean; with: Op[]; target?: Ref }
   /**
    * Another way to pay for a card's own [Counter] skill (5-3): for nothing, by
    * adding cards from your life to your hand, by a reduced energy price
@@ -658,6 +723,17 @@ export const DELAY_LABELS: Record<DelayTiming, string> = {
 
 export { resolveSelector };
 
+/**
+ * One skill as a line of a menu, for `copySkills`' "which one?" (20-18). A
+ * keyword skill is named by its keyword; anything else is its printed line,
+ * which is the only thing that tells two [Auto]s of one card apart.
+ */
+function skillOption(sk: Skill): string {
+  if (sk.kind === "keyword" && sk.keyword) return `[${sk.tags[0] ?? sk.keyword.name}]`;
+  const text = sk.raw.replace(/\s+/g, " ").trim();
+  return text.length > 90 ? `${text.slice(0, 88)}\u2026` : text;
+}
+
 function replacementPrompt(card: string, to: Area, choices: ReplacementChoice[], allowNone: boolean): { reason: string; options: string[] } {
   const area = (x: Area) =>
     ({
@@ -676,16 +752,53 @@ function replacementPrompt(card: string, to: Area, choices: ReplacementChoice[],
       combo: "the Combo Area",
     })[x] ?? x;
   return {
-    reason: `${card}: choose where it goes instead of ${area(to)}`,
-    options: [...choices.map((c) => `To ${area(c.to)}${c.mode === "rest" ? " in Rest Mode" : ""}`), ...(allowNone ? [`Keep going to ${area(to)}`] : [])],
+    reason: `${card}: choose what happens instead of going to ${area(to)}`,
+    // A substitute has no destination of its own — the card stays where it is
+    // and its program happens in the departure's place — so the option is the
+    // program in words rather than an area.
+    options: [
+      ...choices.map((c) => (c.to ? `To ${area(c.to)}${c.mode === "rest" ? " in Rest Mode" : ""}` : `Instead: ${describeScript(c.ops ?? [])}`)),
+      ...(allowNone ? [`Keep going to ${area(to)}`] : []),
+    ],
   };
+}
+
+/**
+ * 9-6: the play being resolved happens differently — the one moment a
+ * `replace` op resolves rather than standing. The program that takes its place
+ * is a single move of the card being played: the play is negated, the step
+ * that would have put the card into play is dropped from the flow, and the
+ * card goes where the program says from wherever it was being played from. The
+ * energy stays paid — negating a play does not undo the cost.
+ *
+ * Anything else in the `with` block is a shape this engine cannot put in a
+ * play's place, and doing half of it is worse than none, so it does nothing.
+ */
+function replacePlay(ctx: GameContext, s: GameState, ev: GameEvent[], ops: Op[]): void {
+  const card = s.resolving?.card;
+  if (!card) return;
+  const only = ops.length === 1 ? ops[0] : null;
+  if (!only || only.op !== "moveTo") return;
+  s.flow = s.flow.filter((f) => !(f.op === "play.resolve" && f.card === card));
+  const owner = s.cards[card].owner;
+  note(ev, `${face(ctx, s, card).name} is not played`);
+  // "Under" is not an area a card can simply be put in (23-2), and no card
+  // says so here; the Drop is the printed default.
+  const dest: Area = only.to === "play" ? "battle" : only.to === "under" ? "drop" : only.to;
+  move(ctx, s, ev, card, dest, owner, { reason: "effect", position: only.position, reveal: true });
+  s.resolving = null;
 }
 
 function pickedReplacement(loop: NonNullable<ScriptFrame["moveLoop"]>, index: number | null): ReplacementResult | null | undefined {
   if (!loop.choices?.length) return undefined;
   if (index == null || index < 0 || index >= loop.choices.length) return null;
   const picked = loop.choices[index];
-  return picked ? { to: picked.to, mode: picked.mode } : null;
+  return picked ? routeOf(picked) : null;
+}
+
+/** One applicable replacement as `move()` takes it: a destination, or a program to run in the departure's place. */
+function routeOf(c: ReplacementChoice): ReplacementResult {
+  return { ...(c.to ? { to: c.to } : {}), mode: c.mode, ...(c.ops ? { ops: c.ops, source: c.source, master: c.master } : {}) };
 }
 
 /**
@@ -975,7 +1088,7 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
                 s.prompt = { kind: "replaceMove", player: masterOf(s, id), card: id, reason: prompt.reason, options: prompt.options };
                 return "wait";
               }
-              if (choices.length === 1) replaced = { to: choices[0].to, mode: choices[0].mode };
+              if (choices.length === 1) replaced = routeOf(choices[0]);
             }
             const before = frame.moveLoop.beforeDrop ?? s.players[s.cards[id].owner].drop.length;
             frame.moveLoop.beforeDrop = undefined;
@@ -1046,7 +1159,7 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
               s.prompt = { kind: "replaceMove", player: masterOf(s, id), card: id, reason: prompt.reason, options: prompt.options };
               return "wait";
             }
-            if (choices.length === 1) replaced = { to: choices[0].to, mode: choices[0].mode };
+            if (choices.length === 1) replaced = routeOf(choices[0]);
           }
           move(ctx, s, ev, id, dest, owner, { position: op.position, reveal: op.reveal, reason: "effect", ...(replaced === undefined ? {} : { replaced }) });
           // 3-1: "when this card is removed from a Battle Area by a skill",
@@ -1194,6 +1307,71 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
       case "grant":
         for (const id of resolveRef(ctx, s, frame, op.target)) addEffect(s, ev, { master: frame.master, source: frame.card, target: id, kind: "keyword", value: op.keyword, until: op.until });
         break;
+
+      case "copySkills": {
+        // "Choose up to 1 keyword skill on a card under this card" is a choice
+        // among the *skills* of every card the phrase finds, not among the
+        // cards — so every source is opened and its skills laid out together.
+        const offered: { card: string; side: "front" | "back"; skill: Skill }[] = [];
+        for (const src of resolveRef(ctx, s, frame, op.from)) {
+          if (!s.cards[src]) continue;
+          const sd = def(ctx, s, src);
+          const side = s.cards[src].flipped && sd.back ? "back" : "front";
+          // The printed face, as 20-18 reads it: what the source says, not
+          // what anything has since done to it.
+          for (const sk of skillsOf(sd, side)) {
+            if (op.only === "keyword" && !sk.keyword) continue;
+            if (op.skill != null && sk.index !== op.skill) continue;
+            offered.push({ card: src, side, skill: sk });
+          }
+        }
+        if (!offered.length) break;
+        let picked: typeof offered;
+        if (op.which === "all" || op.skill != null) picked = offered;
+        else if (s.lastMode != null && frame.awaiting === "copySkills") {
+          const at = s.lastMode;
+          s.lastMode = null;
+          frame.awaiting = undefined;
+          // Every card printing this says "choose **up to** 1", so the last
+          // option declines; a single skill is still asked about, because the
+          // choice is the player's and not the count's.
+          picked = offered[at] ? [offered[at]] : [];
+        } else {
+          const several = new Set(offered.map((o) => o.card)).size > 1;
+          frame.awaiting = "copySkills";
+          s.flow.unshift({ op: "script.step", frame });
+          s.prompt = {
+            kind: "chooseMode",
+            player: master,
+            reason: `${face(ctx, s, frame.card).name}: choose a skill to gain`,
+            options: [...offered.map((o) => (several ? `${face(ctx, s, o.card).name}: ${skillOption(o.skill)}` : skillOption(o.skill))), "None"],
+          };
+          return "wait";
+        }
+        if (!picked.length) break;
+        const targets = resolveRef(ctx, s, frame, op.target ?? { sel: { special: "self" } });
+        for (const id of targets)
+          for (const src of new Set(picked.map((x) => x.card))) {
+            const mine = picked.filter((x) => x.card === src);
+            // A pure keyword line is a granted keyword and nothing more
+            // (20-18-1); everything else is carried as a copy the target
+            // enumerates alongside its own skills.
+            const typed = mine.filter((x) => !(x.skill.kind === "keyword" && x.skill.keyword));
+            for (const x of mine)
+              if (!typed.includes(x)) addEffect(s, ev, { master: frame.master, source: frame.card, target: id, kind: "keyword", value: x.skill.keyword!, until: op.until });
+            if (typed.length)
+              addEffect(s, ev, {
+                master: frame.master,
+                source: frame.card,
+                target: id,
+                kind: "copiedSkills",
+                value: 0,
+                copied: { cardId: s.cards[src].cardId, side: typed[0].side, skills: typed.map((x) => x.skill.index), from: src, name: def(ctx, s, src).name },
+                until: op.until,
+              });
+          }
+        break;
+      }
 
       case "negateSkills":
         // 9-1-5: for a duration it is a continuous effect that ends with the
@@ -1365,6 +1543,15 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         // not applied here.
         break;
 
+      // 9-10. A replacement of a departure is a standing offer that `move()`
+      // reads when the moment comes, so like `replaceLeave` above it is
+      // collected by `collectStatics` and does nothing here. A replacement of
+      // the play being resolved has a moment of its own — now — and is the one
+      // implementation `resolvingPlay` below is the macro over.
+      case "replace":
+        if (op.event === "play") replacePlay(ctx, s, ev, op.with);
+        break;
+
       // The card's own offer about itself (no `until`) is [Permanent]-only
       // and never reaches `exec` at all — `collectStatics` reads it instead,
       // because a [Permanent] never resolves. Reaching this case means the
@@ -1380,26 +1567,18 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
       }
 
       case "resolvingPlay": {
-        const card = s.resolving?.card;
-        if (!card) break;
         if (!op.instead) {
-          // The play still happens; `resolvePlay` reads these as the card enters.
+          // The play still happens and only its manner changes, which is not a
+          // replacement at all (9-6): `resolvePlay` reads these as the card
+          // enters. Only the `instead` branch below is the macro over `replace`
+          // that `OP_CLASS` calls it.
+          const card = s.resolving?.card;
+          if (!card) break;
           if (op.mode === "rest") s.continuations.playRest = card;
           if (op.negated) s.continuations.playNegated = card;
           break;
         }
-        // 9-6: the play is negated. The card never reaches the Battle Area, so
-        // the step that would have put it there is dropped and the card goes
-        // where the skill says from wherever it was being played from. The
-        // energy stays paid — negating a play does not undo the cost.
-        s.flow = s.flow.filter((f) => !(f.op === "play.resolve" && f.card === card));
-        const owner = s.cards[card].owner;
-        note(ev, `${face(ctx, s, card).name} is not played`);
-        // "Under" is not an area a card can simply be put in (23-2), and no
-        // card says so here; the Drop is the printed default.
-        const dest = op.instead === "play" ? "battle" : op.instead === "under" ? "drop" : op.instead;
-        move(ctx, s, ev, card, dest, owner, { reason: "effect", position: op.position, reveal: true });
-        s.resolving = null;
+        replacePlay(ctx, s, ev, [{ op: "moveTo", target: { sel: { special: "resolving" } }, to: op.instead, ...(op.position ? { position: op.position } : {}) }]);
         break;
       }
 

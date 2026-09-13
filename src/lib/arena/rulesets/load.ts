@@ -23,7 +23,14 @@
 import type { Game } from "../../catalog/games";
 import { COND_SCHEMA, DURATIONS, OP_SCHEMA, SIDES, type Amount, type Cond, type FieldType, type Op, type Ref, type Selector } from "../engine/script";
 import type { SkillKindPrefix } from "../engine/types";
-import { fieldsOf, parseDefinitions, type Definition, type DefineField, type DefineHook, type DefineKind, type PatternValue } from "../lang";
+// Deep imports, not the `lang` barrel: the barrel binds `parseRule` to *this*
+// module's own output (the game's words, #137), and the loader is what
+// produces them. Reading the grammar directly is the one way round that
+// circle, and it is the honest one — a `.rules` file is read against the
+// engine's lists, and the areas it names are resolved against its own zones
+// a few lines below.
+import { fieldsOf, type Definition, type DefineField, type DefineHook, type DefineKind, type PatternValue } from "../lang/ast";
+import { parseDefinitions } from "../lang/parse";
 import { isHookPoint, HOOK_POINTS } from "./hooks";
 import type { GameDefinition, Loaded, RulesetError, Vocabulary } from "./types";
 

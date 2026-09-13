@@ -1,8 +1,10 @@
 ---
 title: Arena: copySkills primitive — 'gains that skill' and 'gains all of the chosen card's skills' (20-18)
 milestone: Arena M1 — Rules correctness and parser coverage
-labels: backlog, ready-for-agent, enhancement, area:arena-compiler, area:arena-engine, phase:rules-stage2, model:opus-5
+labels: done, enhancement, area:arena-compiler, area:arena-engine, phase:rules-stage2, model:opus-5
 stage: 2
+status: closed
+closed_at: 2026-09-13
 ---
 **Source:** plan Stage 2 gap table, row "gains that skill" / BT3-049; rule manual 20-18; `docs/arena-next-stage-spec.md` §6.11.
 

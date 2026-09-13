@@ -79,9 +79,10 @@ else is a macro. Four things follow, and they are the reason the tables below ar
   (#137). `power`, `comboPower` and `gains` are this issue's worked example: `modifyAttr` is added beside
   them, they keep parsing, printing and playing exactly as before, and no card's reading moves.
 - **A macro's target may not exist yet.** The table names the primitive as it will be, with today's
-  spelling beside it in §2.2. `move` is `moveTo` today; `costModifier`, `negate` and `replace` are
-  the general forms of rows the engine already has; `control`, `skip` and `copySkills` are Stage 2
-  issues (#126, #123) that will arrive as primitives.
+  spelling beside it in §2.2. `move` is `moveTo` today; `costModifier` and `negate` are
+  the general forms of rows the engine already has; `control` and `skip` are Stage 2
+  issues (#126) that will arrive as primitives; `replace` (#125) and `copySkills` (#123)
+  arrived as ones.
 - **Layering and duration are not ops.** The plan's `effect(layer)` row is the interpreter's
   bookkeeping — what `until` means, which effect wins, when it expires (§1, §7). Every op that
   carries a duration uses it; none of them *is* it.
@@ -91,7 +92,7 @@ else is a macro. Four things follow, and they are the reason the tables below ar
 
 ### 2.2 The primitive vocabulary
 
-Nineteen primitives carry every row below — fourteen operations and five conditions.
+Twenty-three primitives carry every row below — eighteen operations and five conditions.
 
 | Primitive | Today | What it says |
 |---|---|---|
@@ -99,11 +100,12 @@ Nineteen primitives carry every row below — fourteen operations and five condi
 | `modifyAttr` | `modifyAttr` | One attribute of one subject, by a delta or by a value, for a duration or for as long as the rule holds. |
 | `costModifier` | `costReduction` | What something costs to play, activate or evolve — a whole price, not a number (§2.5). |
 | `negate` | `negateSkills` | A rule stops applying: a card's skills, one kind of them, one named keyword, or the skill resolving now. |
-| `replace` | `replaceLeave` | An event that is about to happen happens differently, or not at all (9-10, #125). |
+| `replace` | `replace` | An event that is about to happen happens differently, or not at all (9-10). The event is named (`leave`, `ko`, `play`) and what happens in its place is a program, not only a destination. |
 | `choose` | `choose` | A player picks cards from a selector; the cards are bound to a name the rest of the program reads. |
 | `reveal` | `reveal` | Who has seen a card changes, without the card moving. |
 | `shuffle` | `shuffle` | A pile is randomised with the game's seeded RNG. |
 | `token` | `token` | A card that was in no deck comes into being. |
+| `copySkills` | `copySkills` | One card takes on another's printed skills, as they stood when the copy was made (20-18). |
 | `play` | `play` | The game's own play action is invoked for a card (5-5). |
 | `forbid` | `forbid` | A standing rule that an action may not happen, with a budget and an escape (20-14). |
 | `permit` | `permit` | A rule of the game is lifted for one card (8-1-1). |
@@ -152,6 +154,7 @@ disagree or if a row is missing from either.
 | `power` | macro over `modifyAttr` | Attribute `power`, by a delta, for a duration. |
 | `comboPower` | macro over `modifyAttr` | Attribute `comboPower`. The only difference from the row above is which attribute — which is the argument this table exists to make. |
 | `grant` | macro over `modifyAttr` | Attribute `keywords`: the card gains a keyword skill for a duration. What the keyword then does is the hook contract (§4). |
+| `copySkills` | primitive | One card reads another's printed skills as its own (20-18). No attribute holds a skill: what is copied is *text with a program behind it*, and the copy is a snapshot — what the source printed when the effect was made, kept after the source is flipped, silenced or gone (9-9). A copied pure keyword is granted as a keyword instead, which is `grant` and not this row. |
 | `negateSkills` | macro over `negate` | Scope: every skill of a card (9-1-5). |
 | `negateSkillsOfKind` | macro over `negate` | Scope: one printed skill kind of a card. |
 | `negateKeyword` | macro over `negate` | Scope: one named keyword, in every area. |
@@ -166,6 +169,7 @@ disagree or if a row is missing from either.
 | `token` | primitive | Nothing that moves cards can make one (19). |
 | `costReduction` | macro over `costModifier` | Which cost (energy, skill, evolve, combo, Z-Energy, specified) is an argument, not six mechanisms — that was #96 and #97's finding before it was this table's. |
 | `gains` | macro over `modifyAttr` | Attributes `colors`, `characters`, `traits` and `names`, in every area (20-1). |
+| `replace` | primitive | An event is named (`leave`, `ko`, `play`) and a program stands in its place (9-10). Built by #125. `replaceLeave` and the `instead` half of `resolvingPlay` run through it today; `negateAttack` and `negateCounter` name events the engine still resolves in their own cases. |
 | `replaceLeave` | macro over `replace` | Event: a card leaving the Battle Area (9-10). |
 | `altCost` | macro over `costModifier` | A price is replaced, not reduced — which is why the primitive takes a price rather than a number (§2.5). |
 | `resolvingPlay` | macro over `replace` | Event: the play being resolved, negated or altered (9-6). |
@@ -503,7 +507,13 @@ The test of the configuration claim: a second game is files, a drafter and words
 2. **Drafter** — how this game's card text becomes rule records: its own wording rules over the
    shared language, not its own language.
 3. **Vocabulary** — the words the loader exposes for this game: zone names, phase names, prompt
-   wording, keyword names.
+   wording, keyword names. Since #137 the language's parser, the chip editor (`optionsFor`)
+   and the referee's prompt (`effectLanguage`) read the areas, durations, sides and keyword names
+   from it through `rulesets/words.ts` instead of each carrying a copy — so a game that renames a
+   zone renames it everywhere, and `scripts/verify/rulesets.ts` proves that by deleting one.
+   `validateRule` reads `whenMoments()` from the same place — the game's triggers less the
+   five counter windows, which are the only names in `triggers.rules` a record's WHEN never
+   says. `SPECIAL_TARGETS` is the one list with no `Vocabulary` field to come from.
 4. **`GAME_INFO`** — the row in `src/lib/catalog/games.ts` already exists for both games; the
    arena's own gate is `deckInputFor` and the deck lists asking for `game: "dbs"`.
 

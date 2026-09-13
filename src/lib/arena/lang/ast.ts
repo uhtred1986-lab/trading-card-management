@@ -195,6 +195,26 @@ const _everyAttrWritten: AttrMissing extends never ? true : never = true;
 void _everyAttrWritten;
 
 /**
+ * `COST`'s items, as `parse.ts`'s `costItem` reads them (§3's `item` rule).
+ * The price is a fixed grammar rather than a schema table like `OP_SCHEMA` —
+ * there is no per-card price *kind* to add, only these eight shapes — so it
+ * is written once, here, and read both by the parser's error message and by
+ * the generated language reference, rather than kept as two copies of the
+ * same list.
+ */
+export const COST_ITEMS = [
+  { syntax: "{Red}", doc: "an energy orb of a colour; repeat or mix freely ({Red}{Red}{any})" },
+  { syntax: "{Red/Blue}", doc: "an either-orb: pay with any one of the listed colours" },
+  { syntax: "+1 marker", doc: "add that many markers to the card paying this price" },
+  { syntax: "burst N", doc: "a [Burst] cost of that many" },
+  { syntax: "spiritBoost N", doc: "a [Spirit Boost] cost of that many" },
+  { syntax: "X", doc: "an X price, optionally bounded (X min 1 max 3); the effect reads it back as X (20-5)" },
+  { syntax: "TEXT", doc: "the price as printed, kept for the part the engine cannot charge itself" },
+  { syntax: "IF", doc: "a condition the price also requires, in addition to the orbs" },
+  { syntax: "DO", doc: "a program the price runs as part of paying it" },
+] as const;
+
+/**
  * The words the language reserves. A field or a variable may not be one of
  * them. The second line is the definition grammar's own: `DEFINE`, the eleven
  * kind names, and the words that introduce a declaration's clauses.

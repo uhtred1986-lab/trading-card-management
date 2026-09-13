@@ -32,7 +32,8 @@ import {
   splitClauses,
   zEnergyCostOf,
 } from "./harness";
-import { validateProgram, type Script } from "../../src/lib/arena/engine/script";
+import { validateProgram, type Op, type Script } from "../../src/lib/arena/engine/script";
+import { validateRule } from "../../src/lib/arena/lang/validate";
 import type { CardScripts } from "../../src/lib/arena/engine";
 import type { PlayerId } from "./harness";
 
@@ -1129,6 +1130,55 @@ import type { PlayerId } from "./harness";
   // "By your opponent's skills" is left unread on purpose: `move` knows a
   // skill did it but not whose, and guessing lets the wrong cards escape.
   assert.ok(one("[Permanent] If this card would be removed from your Battle Area by an opponent's skill, send it to your Warp instead.").unsupported.length > 0);
+
+  // #125: what happens instead need not be a destination for the card itself.
+  // BT3-051 keeps the card and sends its whole under-stack to the Drop — a
+  // *substitute*, where every wording above is a *redirect*. Until this it
+  // compiled as a redirect whose target was the buried pile, which hung a
+  // replacement on each buried card (cards that are in no Battle Area at all),
+  // so the printed skill did nothing whatever.
+  const pile = one("[Permanent] If this card would be KO'd, place all the cards under this card in its owner's Drop Area instead.");
+  assert.deepEqual(pile.unsupported, []);
+  assert.equal(pile.ops.length, 1);
+  const sub = pile.ops[0] as { op: string; event: string; target?: unknown; with: { op: string; to: string; target: { sel: { area?: string } } }[] };
+  assert.equal(sub.op, "replace");
+  assert.equal(sub.event, "ko");
+  assert.equal(sub.target, undefined, "the replacement is about this card; what moves is said by the program");
+  assert.equal(sub.with.length, 1);
+  assert.equal(sub.with[0].op, "moveTo");
+  assert.equal(sub.with[0].to, "drop");
+  assert.equal(sub.with[0].target.sel.area, "under", "what moves is the pile under the card, not the card");
+
+  // The cause is carried the same way the redirect carries it: "would leave"
+  // names no cause at all, so nothing narrows the event.
+  const anyCause = one("[Permanent] If this card would leave the Battle Area, place all the cards under this card in its owner's Drop Area instead.");
+  const ev = anyCause.ops[0] as { op: string; event: string; by?: string };
+  assert.equal(ev.op, "replace");
+  assert.equal(ev.event, "leave");
+  assert.equal(ev.by, undefined);
+
+  // 9-10-3's "you may" needs somebody to ask, and a substitute has nowhere to
+  // wait for the answer (#107) — so it stays unread rather than happening
+  // without being offered.
+  assert.ok(one("[Permanent] If this card would be KO'd, you may place all the cards under this card in its owner's Drop Area instead.").unsupported.length > 0);
+}
+
+{
+  // The refusal that keeps #107 from being lost inside `move()`: a
+  // replacement whose substitute would stop and ask is not a program the
+  // engine may store, and the message says which issue it is waiting on.
+  const asking: Op[] = [
+    { op: "replace", event: "ko", with: [{ op: "choose", sel: { side: "you", area: "battle", count: 1 }, as: "t" }] },
+  ];
+  assert.equal(validateProgram(asking), false, "a question inside a replacement is refused structurally");
+  assert.deepEqual(validateRule({ kind: "permanent", trigger: [], ops: asking }, "permanent"), {
+    field: "ops",
+    message: "a replacement cannot ask a question yet — see #107",
+  });
+  // Nested just as firmly: an option of a `chooseMode` is still inside the rule.
+  assert.equal(validateProgram([{ op: "chooseMode", modes: [{ label: "a", ops: asking }] }]), false);
+  // And the deterministic shape is accepted.
+  assert.equal(validateProgram([{ op: "replace", event: "leave", with: [{ op: "draw", n: 1 }] }]), true);
 }
 
 // ── playing a card for another price (5-3) ─────────────────────────────────

@@ -99,6 +99,22 @@
     "outcome": "fired",
     "digest": "c10445be"
   },
+  "COPYCAT#0": {
+    "outcome": "fired",
+    "digest": "e80217db"
+  },
+  "COPYKW#0": {
+    "outcome": "fired",
+    "digest": "a82974f8"
+  },
+  "COPYSRC#10": {
+    "outcome": "inForce",
+    "digest": "39c6db32"
+  },
+  "COPYSRC#20": {
+    "outcome": "fired",
+    "digest": "71fcd691"
+  },
   "COUNTER_RR#0": {
     "outcome": "fired",
     "digest": "434bb13f"
@@ -210,6 +226,10 @@
   "EXILE#0": {
     "outcome": "fired",
     "digest": "cd0b2a6a"
+  },
+  "EXILEKO#0": {
+    "outcome": "inForce",
+    "digest": "8f4484de"
   },
   "FETCH#0": {
     "outcome": "fired",
@@ -422,6 +442,10 @@
   "PILE#0": {
     "outcome": "inForce",
     "digest": "f6b9158e"
+  },
+  "PILEDROP#0": {
+    "outcome": "inForce",
+    "digest": "dac9c320"
   },
   "PRICED#0": {
     "outcome": "notOffered",

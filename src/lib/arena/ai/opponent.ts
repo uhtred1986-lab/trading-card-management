@@ -22,7 +22,8 @@ import { z } from "zod";
 import type { Db } from "@/db";
 import { FAST_MODEL, MODEL, anthropic, hasAnthropic, recordRun } from "@/lib/ai/client";
 import { comboPowerOf, face, other, powerOf, validateProgram, type EngineContext, type GameState, type LegalAction, type Op, type PlayerId } from "../engine";
-import { AREAS, COND_SCHEMA, DURATIONS, OP_SCHEMA, condSignature, opSignature, type Cond } from "../engine/script";
+import { COND_SCHEMA, OP_SCHEMA, condSignature, opSignature, type Cond } from "../engine/script";
+import { words, type Words } from "../rulesets/words";
 import { def, has } from "../engine/state";
 import { decklistText, money, movesText, stateText } from "./view";
 
@@ -272,19 +273,31 @@ const CONDITIONS = (Object.keys(COND_SCHEMA) as Cond["kind"][])
   .map((k) => `  ${condSignature(k)}${COND_SCHEMA[k].doc ? `\n    ${COND_SCHEMA[k].doc}` : ""}`)
   .join("\n");
 
-export const EFFECT_LANGUAGE = `You are ruling on one skill of one card in a Dragon Ball Super Card Game engine. Answer with a JSON array of operations that carries out exactly what the skill's text says — no more, no less. The engine runs it and still enforces every rule, so an operation that would break a rule is simply refused.
+/**
+ * What the referee is told the effect language *is*. A function of the game's
+ * words rather than a constant over the engine's: an area is a zone
+ * `zones.rules` declares, so a zone deleted there is gone from this prompt in
+ * the same breath as from the parser and the chip editor (#137). The argument
+ * is what lets a test ask the question by deleting one.
+ */
+export function effectLanguage(vocab: Words = words()): string {
+  // The three closed lists, said once each and read four times in the prompt
+  // below — the fourth copy of the areas used to be written out by hand here.
+  const areas = vocab.areas.map((a) => `"${a}"`).join("|");
+  const sides = vocab.sides.map((x) => `"${x}"`).join("|");
+  return `You are ruling on one skill of one card in a Dragon Ball Super Card Game engine. Answer with a JSON array of operations that carries out exactly what the skill's text says — no more, no less. The engine runs it and still enforces every rule, so an operation that would break a rule is simply refused.
 
 Operations (each is an object with "op"; a field marked ? may be left out):
 ${OPERATIONS}
 
 AMOUNT is a number or an expression: {"var":"t"} (how many cards that name holds), {"count":SELECTOR,"times":N} (so much for each matching card),
-  {"markers":SELECTOR,"times":N} (so much for each marker on them), {"life":"you"|"opponent"|"both","times":N}, {"sumPower":{"var":"t"}}, {"handUpTo":N},
+  {"markers":SELECTOR,"times":N} (so much for each marker on them), {"life":${sides},"times":N}, {"sumPower":{"var":"t"}}, {"handUpTo":N},
   {"x":true,"times":N} (the X this skill's price was paid at — only where the price charges an X), {"attr":TARGET,"name":ATTR,"times":N} (one card's own measure),
   {"sumOf":SELECTOR,"attr":ATTR,"times":N} (that measure over every matching card, added up), or {"plus":[AMOUNT,N]} (that many and N more).
   "times" multiplies; ATTR is "power" | "comboPower" | "energyCost" | "comboCost".
 TARGET is {"var":"t"} for something chosen earlier, or {"sel":SELECTOR}.
   {"var":"looked","minus":"t"} is "the rest": the cards of one name that another name did not take.
-SELECTOR: {"side":"you"|"opponent"|"both","area":"battle"|"hand"|"deck"|"drop"|"life"|"energy"|"unison"|"leader"|"warp"|"combo"|"zDeck"|"zEnergy"|"play","count":1,"upTo":true,"mode":"rest"|"active","filter":{...}}
+SELECTOR: {"side":${sides},"area":${areas},"count":1,"upTo":true,"mode":"rest"|"active","filter":{...}}
   or {"special":"self"|"attacker"|"guard"|"leader"|"opponentLeader"|"resolving"} for a single known card
   ("resolving" is the card whose play a [Counter: Play] is answering).
   "count":99 means all of them, and a count is always a choice; "take":2 is "the top 2 cards" instead ("fromEnd":true for the bottom).
@@ -295,8 +308,8 @@ ${CONDITIONS}
   duration says how long an effect this skill applies lasts; a condition says when the skill does anything at all.
 TIMING: "turnStart" | "mainStart" | "turnEnd" | "turnCleanup" | "battleEnd"
 SCOPE: "thisTurn" (default) | "nextTurn" | "yourNextTurn" | "opponentNextTurn"
-AREA: ${AREAS.map((a) => `"${a}"`).join(" | ")}
-DURATION: ${DURATIONS.map((d) => `"${d}"`).join(" | ")} — "nextTurn" lasts through the opponent's turn and ends as yours begins.
+AREA: ${vocab.areas.map((a) => `"${a}"`).join(" | ")}
+DURATION: ${vocab.durations.map((d) => `"${d}"`).join(" | ")} — "nextTurn" lasts through the opponent's turn and ends as yours begins.
 FILTER: {"colors":[…],"characters":[…],"traits":[…],"names":[…],"costMin":N,"costMax":N,"powerMin":N,"powerMax":N}, any subset.
   The brackets a card prints say which list a word belongs in: <Son Goku> is a character, ≪Saiyan≫ a trait, and
   {Angel Halo} a card *name* — "names", never "characters". A card names itself in braces and its character
@@ -305,6 +318,10 @@ FILTER: {"colors":[…],"characters":[…],"traits":[…],"names":[…],"costMin
   A delayed program keeps the variables bound before it, so "it" still means the card chosen now.
 
 Rules of thumb: "up to N" means "upTo":true; "choose 1 ... and KO it" is a choose followed by a ko on that variable; a skill that only restricts or renames something you cannot express should be an empty array rather than a guess.`;
+}
+
+/** The prompt as it is sent, built from the game the arena plays. */
+export const EFFECT_LANGUAGE = effectLanguage();
 
 export async function ruleOnCard(
   db: Db,

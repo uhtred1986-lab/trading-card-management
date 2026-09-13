@@ -516,9 +516,10 @@ for (const p of ["p1", "p2"] as PlayerId[]) {
   assert.ok(moveCard(board, DBS, buried, "drop", { owner: "p2" }).ok);
   assert.equal(findCard(board, buried)?.owner, "p1", "a card went to the opponent's Drop Area, which belongs to its master (3-1-6-1)");
 
-  // The replacement hook 9-10 needs: recorded on the move, and *not* applied —
-  // #125 declares `replace(event)` and #142 runs it. A mover that honoured a
-  // replacement it had not been taught would be the harder bug to find.
+  // The replacement hook 9-10 needs: recorded on the move, and *not* applied.
+  // The language has the `replace` op (#125); this engine has no effects in
+  // force to read one from until #142, and a mover that honoured a replacement
+  // it had not been taught would be the harder bug to find.
   const asked = moveCard(board, DBS, buried, "drop", { replacement: { source: "p1#1", to: "warp" } });
   assert.ok(asked.ok);
   if (asked.ok) {
