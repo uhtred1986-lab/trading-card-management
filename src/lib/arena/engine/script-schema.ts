@@ -392,38 +392,41 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     doc: 'the card counts as having these too, wherever it is ("gains ≪Saiyan≫ in all areas", "is also treated as red", 20-1); "names" is a whole card name it is also treated as ("also treated as {Planet M-2}"), never a replacement for its own',
   },
   replaceLeave: {
-    fields: [{ name: "to", type: "area", required: true }, { name: "by", type: { enum: ["skill", "ko", "skillOrKo"] } }, { name: "mode", type: MODE }, { name: "optional", type: "boolean" }, SELF],
+    fields: [{ name: "to", type: "area", required: true }, { name: "by", type: { enum: ["skill", "ko", "skillOrKo"] } }, { name: "bySide", type: { enum: ["opponent"] } }, { name: "mode", type: MODE }, { name: "optional", type: "boolean" }, SELF],
     sentence: (raw) => {
       const op = raw as OpOf<"replaceLeave">;
-      const cause = op.by === "ko" ? "be KO'd" : op.by === "skill" ? "be removed from the Battle Area by a skill" : op.by === "skillOrKo" ? "be removed from the Battle Area by a skill or KO'd" : "leave the Battle Area";
+      const whose = op.bySide === "opponent" ? "an opponent's skill" : "a skill";
+      const cause = op.by === "ko" ? "be KO'd" : op.by === "skill" ? `be removed from the Battle Area by ${whose}` : op.by === "skillOrKo" ? `be removed from the Battle Area by ${whose} or KO'd` : "leave the Battle Area";
       return `if ${describeRef(op.target ?? { sel: { special: "self" } })} would ${cause}, it ${op.optional ? "may go" : "goes"} to the ${op.to}${op.mode === "rest" ? " in Rest Mode" : ""} instead`;
     },
-    doc: '[Permanent] only (9-10): "if this card would be KO\'d, send it to the Warp instead". "by" is which departure it replaces: omitted = any, "skill" = removed by an effect, "ko" = the KO, "skillOrKo" = either. "optional" is 9-10-3\'s "you may". Omit "target" for this card',
+    doc: '[Permanent] only (9-10): "if this card would be KO\'d, send it to the Warp instead". "by" is which departure it replaces: omitted = any, "skill" = removed by an effect, "ko" = the KO, "skillOrKo" = either. "bySide" narrows that to the opponent\'s skill. "optional" is 9-10-3\'s "you may". Omit "target" for this card',
   },
   replace: {
     fields: [
       { name: "event", type: { enum: REPLACE_EVENTS }, required: true },
       { name: "with", type: "ops", required: true },
       { name: "by", type: { enum: ["skill", "skillOrKo"] } },
+      { name: "bySide", type: { enum: ["opponent"] } },
       { name: "optional", type: "boolean" },
       SELF,
     ],
     sentence: (raw, r) => {
       const op = raw as OpOf<"replace">;
       const who = describeRef(op.target ?? { sel: { special: "self" } });
+      const whose = op.bySide === "opponent" ? "an opponent's skill" : "a skill";
       const moment =
         op.event === "play"
           ? "the card being played would be played"
           : op.event === "ko"
-            ? `${who} would be KO'd`
+            ? `${who} would be KO'd${op.bySide === "opponent" ? " by an opponent's skill" : ""}`
             : op.by === "skill"
-              ? `${who} would be removed from the Battle Area by a skill`
+              ? `${who} would be removed from the Battle Area by ${whose}`
               : op.by === "skillOrKo"
-                ? `${who} would be removed from the Battle Area by a skill or KO'd`
+                ? `${who} would be removed from the Battle Area by ${whose} or KO'd`
                 : `${who} would leave the Battle Area`;
       return `if ${moment}, ${op.optional ? "you may have this happen" : "this happens"} instead: ${describeScript(op.with, r)}`;
     },
-    doc: 'an event happens differently, or not at all (9-10) — the primitive "replaceLeave" and the "instead" half of "resolvingPlay" are macros over. "event" is the moment: "leave" (the card would leave the Battle Area, narrowed by "by"), "ko" (it would be KO\'d), "play" (the play being resolved, 9-6, [Counter: Play] only). "with" is what happens in its place: one move of the card itself is a redirect, anything else is a substitute — the departure does not happen at all, the card stays, and the program runs with it bound as "subject". It may not ask a question (see #107), and a "leave"/"ko" replacement is [Permanent] only',
+    doc: 'an event happens differently, or not at all (9-10) — the primitive "replaceLeave" and the "instead" half of "resolvingPlay" are macros over. "event" is the moment: "leave" (the card would leave the Battle Area, narrowed by "by", and by "bySide" to the opponent\'s skill), "ko" (it would be KO\'d), "play" (the play being resolved, 9-6, [Counter: Play] only). "with" is what happens in its place: one move of the card itself is a redirect, anything else is a substitute — the departure does not happen at all, the card stays, and the program runs with it bound as "subject". It may ask a question, and then it only applies where somebody can hear it (#107); "optional" is 9-10-3\'s "you may". A "leave"/"ko" replacement is [Permanent] only',
   },
   altCost: {
     fields: [
@@ -830,11 +833,6 @@ export function validateProgram(ops: unknown, depth = 0, xBound = false): ops is
       return fieldHolds(f.type, v, depth, bound);
     });
     if (!ok) return false;
-    // #107: `move()` is synchronous with no suspension path at 46 of its 48
-    // call sites, so a question asked inside a replacement is silently lost —
-    // the program is refused rather than stored and half-played. The message
-    // a person sees is `validateRule`'s, which names the issue.
-    if (o.op === "replace" && asksAQuestion(o.with)) return false;
     if (o.op === "choose" && o.bindX === true) bound = true;
   }
   return true;
@@ -848,9 +846,9 @@ const PROMPTING_OPS = new Set<Op["op"]>(["choose", "chooseMode", "may", "look", 
 
 /**
  * Does this program stop to ask a question, anywhere inside it? Read by
- * `validateProgram` for a replacement's `with` block (#107) and by the
- * compiler, which refuses to write one rather than emitting a rule the
- * validator would then refuse.
+ * `replacementFor` (#107), which leaves an asking substitute unapplied at the
+ * 46 call sites that cannot wait for the answer, and by the two that can, to
+ * know whether to run it inline or as a frame on the flow.
  */
 export function asksAQuestion(ops: unknown): boolean {
   if (!Array.isArray(ops)) return false;

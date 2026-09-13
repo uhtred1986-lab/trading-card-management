@@ -1,5 +1,4 @@
 import { keywordOf, orbsIn } from "../cards";
-import { asksAQuestion } from "../script-schema";
 import { parseFilter } from "../filters";
 import type { Amount, Cond, Duration, Op, Ref, Selector, Side, ScriptArea } from "../script";
 import type { DelayScope, DelayTiming, SkillKindPrefix } from "../types";
@@ -303,34 +302,46 @@ const NOT_RUNNABLE = new Set(["replaceLeave", "replace", "gains", "negateKeyword
 
 /**
  * May this program stand in a departure's place (#125)? Only if it really
- * happens when it is run — nothing standing, and nothing that stops to ask,
- * since `move()` has no way to wait for an answer (#107) and `validateProgram`
- * refuses such a rule anyway.
+ * happens when it is run: nothing that merely *stands* — a second replacement,
+ * a grant, a negation — because those say what is true rather than what
+ * happens, and a departure cannot be replaced by a state of affairs.
+ *
+ * A question is no longer disqualifying (#107): the two suspendable call sites
+ * run the program as a frame on the flow, so it can stop and ask, and
+ * `replacementFor` leaves it unapplied at the 46 that cannot wait.
  */
 function substitutable(ops: Op[]): boolean {
-  return ops.length > 0 && !asksAQuestion(ops) && !ops.some((o) => NOT_RUNNABLE.has(o.op));
+  return ops.length > 0 && !ops.some((o) => NOT_RUNNABLE.has(o.op));
 }
 
-function parseWouldLeave(clause: string): { by?: "skill" | "ko" | "skillOrKo"; subject?: string } | null {
+function parseWouldLeave(clause: string): { by?: "skill" | "ko" | "skillOrKo"; bySide?: "opponent"; subject?: string } | null {
   const t = clean(clause);
-  if (/your opponent'?s? skills?/.test(t)) return null;
   // "Would … the Battle Area" is the hypothetical phrasing; six cards
   // (BT14-153, BT14-154, BT15-153, BT15-154, BT16-107, BT17-148) print the
   // same rule as an accomplished fact — "if/when this card **is** removed
   // from your Battle Area" — one word short of the modal this opener used to
   // require. Read the same way: "is removed from" carries no cause of its
   // own, so it defaults to "skill" exactly as "would be removed from" does.
-  const opener = /^(?:if|when)?\s*(.*?) (?:would (leave|be removed from|be sent from)|is (removed from)) (?:your |the |a )?battle area(?: by (?:a|your) skills?)?( or (?:be )?ko'?d)?$/.exec(t);
+  // "By an opponent's skill" is the commonest narrowing of all — 19 cards
+  // print it, and until #107 gave `move()` a way to know *whose* skill was
+  // moving the card the whole family had to be refused, because a rule read
+  // as "by a skill" would have fired on its own controller's too. `bySide`
+  // is the difference, and `causeMatches` (`state.ts`) is where it is read.
+  const opener =
+    /^(?:if|when)?\s*(.*?) (?:would (leave|be removed from|be sent from)|is (removed from)) (?:your |the |a )?battle area( by (?:(a|your|one of your) skills?|(?:an|your|one of your) opponent'?s? skills?))?( or (?:be )?ko'?d)?$/.exec(t);
   if (opener) {
     const verb = opener[2] ?? opener[3];
     // "Removed from a Battle Area by a skill or KO'd" covers both causes;
     // "would leave" covers every cause, so it has no restriction at all.
-    const by = verb === "leave" ? undefined : opener[4] ? ("skillOrKo" as const) : ("skill" as const);
+    const by = verb === "leave" ? undefined : opener[6] ? ("skillOrKo" as const) : ("skill" as const);
+    // The cause was named and it was not one of the player's own skills, so
+    // it is the opponent's — the one distinction `by` alone cannot draw.
+    const bySide = opener[4] && !opener[5] ? ({ bySide: "opponent" } as const) : null;
     const who = opener[1].trim();
     // "A ≪Slug's Army≫ card with a combo cost of 1 would leave your Battle
     // Area" — the rule is about other cards, so the subject is kept.
-    if (/^(?:this card|it)$/.test(who)) return { by };
-    return who ? { by, subject: who } : { by };
+    if (/^(?:this card|it)$/.test(who)) return { by, ...bySide };
+    return who ? { by, ...bySide, subject: who } : { by, ...bySide };
   }
   // "A ≪Turles Crusher Corps≫ card in your Battle Area would be placed in its
   // owner's Drop Area by one of your skills" (BT12-056(+b), BT15-092(+b),
@@ -355,8 +366,10 @@ function parseWouldLeave(clause: string): { by?: "skill" | "ko" | "skillOrKo"; s
   // text does gate on "or Combo Area" for, but that path itself still can't
   // be read. Left unread rather than read wide (ground rule 5).
   // "If this card would be KO'd" replaces the KO and nothing else: a card its
-  // owner returns to hand is still returned to hand.
-  if (/^(?:if|when)?\s*(?:this card|it) would be ko'?d$/.test(t)) return { by: "ko" };
+  // owner returns to hand is still returned to hand. The narrower form names
+  // whose skill did it, and a KO in battle is then not this moment at all.
+  const koed = /^(?:if|when)?\s*(?:this card|it) would be ko'?d( by (?:(a|your|one of your) skills?|(?:an|your|one of your) opponent'?s? skills?))?$/.exec(t);
+  if (koed) return { by: "ko", ...(koed[1] && !koed[2] ? ({ bySide: "opponent" } as const) : null) };
   return null;
 }
 
@@ -2545,7 +2558,15 @@ export function compileClauseList(clauses: string[], c: Ctx, unsupported: string
       got = null;
     }
     if (!got) {
-      if (c.replacing) c.replacing = null;
+      if (c.replacing) {
+        c.replacing = null;
+        // Half of the sentence had already been read as the first half of the
+        // replacement; with the clause that closes it unread, none of it is.
+        for (const heldClause of c.replacingClauses ?? []) refuse(heldClause);
+        c.replacingClauses = [];
+        c.replacingOps = [];
+        c.replacingOffered = false;
+      }
       refuse(clause);
       // A clause that opens with "if" is a condition whether or not this
       // compiler can read it, and everything after it hangs on it. Refused
@@ -2566,11 +2587,35 @@ export function compileClauseList(clauses: string[], c: Ctx, unsupported: string
       }
       continue;
     }
+    // 9-10: a replacement's body runs to the word "instead", and that is not
+    // always one clause. "You may choose 1 of your Majin Tokens and remove it
+    // from the game instead" (BT30-057, P-185, BT21-004) is two or three of
+    // them, and read a clause at a time the first became the whole
+    // replacement while the rest fell out of it and happened *always* — half
+    // a replacement, which is worse than none. Each clause is compiled as
+    // itself and held until the one carrying "instead" closes the sentence.
+    if (c.replacing && !/\binstead\b/i.test(clause) && clauses.slice(i + 1).some((x) => /\binstead\b/i.test(x))) {
+      c.replacingOps = [...(c.replacingOps ?? []), ...got];
+      c.replacingClauses = [...(c.replacingClauses ?? []), clause];
+      // "**You may** choose 1 of your Majin Tokens and remove it from the game
+      // instead": the offer is on the clause that opens the body, and 9-10-3
+      // is about the whole replacement, so it is remembered rather than lost
+      // with the clause it was printed on.
+      if (offered) c.replacingOffered = true;
+      for (const o of got) track(o, c);
+      continue;
+    }
     // 9-10: the clause after "if this card would leave the Battle Area" is
     // where it goes instead, so it is a replacement rather than a move.
     if (c.replacing) {
+      const held = c.replacingOps ?? [];
+      const heldOffer = !!c.replacingOffered;
+      c.replacingOps = [];
+      c.replacingClauses = [];
+      c.replacingOffered = false;
+      if (held.length) got = [...held, ...got];
       const only = got.length === 1 ? got[0] : null;
-      const { by, subject } = c.replacing;
+      const { by, bySide, subject } = c.replacing;
       c.replacing = null;
       // A redirect says where **the card itself** goes. The card is what the
       // opener bound, so the move's target must still be it: "place all the
@@ -2591,19 +2636,30 @@ export function compileClauseList(clauses: string[], c: Ctx, unsupported: string
         const target: Ref = subject ? { sel: { side: "you", area: "battle", filter, count: 99 } } : only.target;
         // "…to your energy in Rest Mode instead" — the move said how it
         // arrives as well as where, and the replacement has to carry both.
-        push([{ op: "replaceLeave", to: only.to, target, ...(by ? { by } : {}), ...(only.mode ? { mode: only.mode } : {}), ...(offered ? { optional: true } : {}) }]);
+        push([{ op: "replaceLeave", to: only.to, target, ...(by ? { by } : {}), ...(bySide ? { bySide } : {}), ...(only.mode ? { mode: only.mode } : {}), ...(offered ? { optional: true } : {}) }]);
         continue;
       }
       // The departure is replaced by something other than a destination for
       // the card itself — "place all the cards under this card in the Drop
       // Area instead" (BT3-051), where the card stays and its pile goes. That
-      // is `replace`'s substitute form (#125), and only the deterministic half
-      // of it: a `with` block that would stop and ask has nowhere to wait
-      // (#107), so those clauses stay unread exactly as they were.
+      // is `replace`'s substitute form (#125). Since #107 it may also stop and
+      // ask, and be an offer rather than a rule ("you may … instead", 9-10-3):
+      // the two suspendable call sites run it as a frame that can wait, and
+      // the other 46 leave it unapplied rather than half-running it.
       const filter = subject ? filterFor(subject, "battle") : undefined;
-      if (filter !== null && !offered && substitutable(got)) {
+      if (filter !== null && substitutable(got)) {
         const target: Ref | undefined = subject ? { sel: { side: "you", area: "battle", filter, count: 99 } } : undefined;
-        push([{ op: "replace", event: by === "ko" ? "ko" : "leave", ...(by && by !== "ko" ? { by } : {}), with: got, ...(target ? { target } : {}) }]);
+        push([
+          {
+            op: "replace",
+            event: by === "ko" ? "ko" : "leave",
+            ...(by && by !== "ko" ? { by } : {}),
+            ...(bySide ? { bySide } : {}),
+            with: got,
+            ...(offered || heldOffer ? { optional: true } : {}),
+            ...(target ? { target } : {}),
+          },
+        ]);
         continue;
       }
       // Anything else is a replacement this language cannot say yet, and

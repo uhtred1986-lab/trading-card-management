@@ -50,8 +50,9 @@ is a GitHub milestone with a tracking issue whose task list is the stage's progr
 | docs | Arena M14 — Rules language and ruleset documentation | the language doc complete; `docs/arena-ruleset-spec.md` written; in-app reference; the owner's guide | Sonnet 5 / Opus 5 | partly (language doc §1–§8 exist) |
 
 The UI, Android and capability-gap work that predates the programme keeps its milestones
-(M2–M5). It is not on the compiler's critical path, but two of its items are precondition
-for compiler work (`move()` replacement prompting, #107) or are engine bugs (#108).
+(M2–M5). It is not on the compiler's critical path, but two of its items were precondition
+for compiler work (`move()` replacement prompting, #107 — built 10 and 13 Sep 2026, see
+`docs/arena-move-replacement-scope.md` §5) or are engine bugs (#108).
 
 ## 2. Milestones
 

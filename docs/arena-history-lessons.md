@@ -3030,3 +3030,74 @@ the old shape got wrong.
   and the sentence its program would have to be able to say, and every row is checked against the
   declarations when a game is made. The alternative — `if (step === "chargeDraw")` scattered through
   a runner — is the same knowledge with nowhere to delete it from.
+
+## A replacement that asks — #107, increment 2 (13 Sep 2026)
+
+`docs/arena-move-replacement-scope.md` §5 is the measured account; this is what
+it cost and what it taught.
+
+### What the numbers moved
+
+Taken on the live deckplanet catalog before and after, per the lane's own first
+rule ("re-measure; take nothing here on faith, including this document"):
+
+| | before | after |
+|---|---|---|
+| 9-10 replacement skills with an unread clause | 46 of 89 | 26 of 89 |
+| cards fully compiled | 4715 (72.6 %) | 4734 (72.9 %) |
+| resolvable skills compiled | 87.2 % | 87.2 % |
+| [Permanent] skills read | 68.1 % | 69.3 % |
+| unread clauses / distinct shapes | 3341 / 2346 | 3288 / 2311 |
+| `arena:readings` lines moved | — | 29, all in this family (17 from "(nothing)") |
+
+### The three changes, and why none of them ships alone
+
+- **`bySide: "opponent"`** — 19 cards say "by an opponent's skill", and
+  `parseWouldLeave` refused the whole family rather than read it as "by a
+  skill", which would have fired on the controller's own skills too. The field
+  says whose; `causeMatches` reads it against an `actor` the caller passes, and
+  an unknown actor is *no match*.
+- **A substitute may stop and ask** — `validateProgram` no longer refuses a
+  `with` block containing a question. `replacementFor`, the deterministic path
+  the other 46 `move()` call sites take, skips such a replacement instead, and
+  the two suspendable sites take it as `ReplacementResult.deferred`: `move()`
+  still performs the whole substitute *event* (the departure does not happen,
+  the card stays) and returns, and the caller pushes the program as its own
+  `script.step` frame ahead of the resumed `moveLoop`.
+- **A replacement's body is a sentence** — "you may choose 1 of your Majin
+  Tokens **and remove it from the game instead**" is two clauses, and read one
+  at a time the first became the whole replacement while the second fell out of
+  it.
+
+Measured in isolation on the way in: the opponent narrowing with substitutes
+still forbidden to ask reads 5 more skills; asking substitutes with no
+narrowing read 4; all three together read 20. The multi-clause fix moves
+nothing on its own — it only stops the other two from compiling half a rule.
+
+### Lessons
+
+- **Re-measure the document, not just the catalog.** The issue was reopened on
+  12 Sep with "nothing from this issue is in the tree". Increment 1 had in fact
+  landed on 10 Sep; what was missing was the *shape* §2 sketched — a
+  `move.replace` `FlowStep` and a new `Prompt` kind — which the implementation
+  had (rightly) not needed, because reusing `script.step` and the existing
+  `replaceMove` kind kept the `Snapshot` and the Kotlin twin out of it
+  entirely. A capability audit that greps for the proposed names finds
+  absence where there is only a different design.
+- **A flag that guards a synchronous window cannot guard a suspendable one.**
+  `applyingReplacement` is a module-level boolean, and it stops a substitute
+  replacing its own replacement — for exactly as long as the substitute runs
+  inside one call. Once it runs as a frame that can be saved and reloaded, the
+  same claim has to live on the frame (`ScriptFrame.replacing`), because the
+  boolean is gone by the time the answer comes back.
+- **The half that escapes is worse than the half that is missing.** Eleven of
+  the 29 moved readings were rules whose body had fallen out of the
+  replacement and become unconditional steps. In a [Permanent] most of those
+  are inert — nothing resolves a [Permanent]'s non-static ops — but P-188's
+  was `power`, which *is* static, so that card gave itself -10000 power
+  permanently and unconditionally. One live bug, found by reading the diff of
+  `arena:readings` rather than by any test.
+- **"Prefer unread to wrongly read" is an engine rule here, not a compiler
+  one.** The compiler cannot tell which call site will move a card, so the
+  refusal has to be where the site is known. `replacementFor` skipping what it
+  cannot ask about is what let the compiler stop refusing the wording.

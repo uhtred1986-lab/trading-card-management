@@ -171,16 +171,20 @@ true` with no consumer either crashes `move()` (unknown field) or is ignored
 silently, which is exactly the "half a replacement is worse than none" trap
 `compile.ts` already names. They have to land together.
 
-## 3. Where this lane stops
+## 3. Where this lane stopped
 
 Nothing shipped beyond the comment fix at `state.ts:109-116` (§0). The
 14 clauses this would unlock (13 "you may … instead" cards, 9-10-3, plus
-9-10-2's mandated-choice case) remain refused exactly as they are on `main`
-today — correctly refused, per §1.5, not wrongly read. No `GameState`,
+9-10-2's mandated-choice case) remained refused exactly as they were on `main`
+that day — correctly refused, per §1.5, not wrongly read. No `GameState`,
 `ScriptFrame`, `Prompt`, `FlowStep`, or compiler grammar changed, so
-`arena:diff`'s oracle and `arena:fuzz` have nothing new to disprove; the gate
+`arena:diff`'s oracle and `arena:fuzz` had nothing new to disprove; the gate
 was not re-run for that reason, beyond confirming the single comment edit
 doesn't affect `typecheck`/`lint`/`test`/`build`.
+
+**Superseded by §5 and §6.** Increment 1 landed on 10 Sep 2026 and increment 2
+on 13 Sep 2026; §5 records what the second one measured before starting, as
+this lane's own first rule demands, and §6 what is still not built.
 
 ## 4. A smaller next step, if someone wants a first increment
 
@@ -215,3 +219,86 @@ suspendable sites' reasons (§1.3): `reason: "effect"` at `engine.ts:1313,
 today, but nothing in `move()` or `replacementFor` enforces that — a future
 non-suspendable call site passing `reason: "ko"` would silently regain the
 same problem.
+
+## 5. Increment 2, as built (13 Sep 2026) — re-measured first
+
+Per §4's closing instruction, nothing below was taken on faith from this
+document. Two things had changed under it since 10 Sep, and both change what
+the remaining work *is*:
+
+1. **Increment 1 is in the tree already.** `MoveOptions.replaced`,
+   `ScriptFrame.moveLoop` (the resumable per-id cursor for both loops, with
+   `leftBattle` and the drop-length snapshot carried across the boundary),
+   `replacementChoicesFor`, and the prompt — which reuses the existing
+   `replaceMove` `Prompt` kind and the flow's own `script.step` rather than
+   adding the `move.replace` `FlowStep` §2.3 sketched, so the `Snapshot` shape
+   and `PROMPT_KINDS` did not change and no Kotlin twin was needed. §4's
+   "steps 1-4 and 8" are therefore done, and the issue's own reopen note
+   ("nothing from this issue is in the tree", 12 Sep) was measuring against
+   the shape §2 proposed rather than against the behaviour.
+2. **§1.4's refusal rule is already the engine's rule**, not a compiler one:
+   `replacementFor` — the deterministic path all 46 non-suspendable sites take
+   — skips an `optional` replacement outright, so an offer is never taken on
+   the affected player's behalf at a site that cannot ask.
+
+What increment 2 had left, measured on the live deckplanet catalog with the
+89 skills whose text is a 9-10 replacement:
+
+| | before | after |
+|---|---|---|
+| 9-10 replacement skills with an unread clause | 46 of 89 | **26** |
+| catalog cards fully compiled | 4715 (72.6 %) | **4734 (72.9 %)** |
+| [Permanent] skills read | 68.1 % | **69.3 %** |
+| unread clauses / distinct shapes | 3341 / 2346 | **3288 / 2311** |
+| `arena:readings` lines moved | — | 29, every one in this family (17 from "(nothing)") |
+
+Three things had to be true together for that, and none of them alone moves a
+card:
+
+- **`bySide: "opponent"`.** 19 cards narrow the departure to "by an opponent's
+  skill", and `parseWouldLeave` refused the whole family rather than read it as
+  a plain "by a skill" that would also fire on its controller's own skills.
+  `Replacement.bySide` says whose, `causeMatches` (`state.ts`) reads it against
+  an `actor` the caller passes, and the answer for a departure with no known
+  actor is *no match* — which is §1.4's rule again, and is why the five
+  `reason: "effect"` sites in `engine.ts` (1313, 1333, 2761, 2792, 3024) need
+  no change: each is the controller acting on their own card, so none of them
+  is an opponent's skill in the first place.
+- **A substitute may stop and ask.** `validateProgram` no longer refuses a
+  `with` block that asks. Instead `replacementFor` skips one — unaskable at
+  those 46 sites, so it does not apply there — and the two suspendable sites
+  take it as `ReplacementResult.deferred`: `move()` still does everything a
+  substitute means (the departure does not happen, the card stays) and then
+  returns, and the caller pushes the program as its own `script.step` frame
+  ahead of the resumed loop, where a question suspends and resumes like any
+  other. `ScriptFrame.replacing` is `applyingReplacement` said on the frame,
+  because a module-level flag does not survive a suspension.
+- **A replacement's body is a sentence, not a clause.** "You may choose 1 of
+  your Majin Tokens **and remove it from the game instead**" (BT30-057, P-185,
+  BT21-004) splits into two or three clauses, and read one at a time the first
+  became the whole replacement while the rest fell out of it. In a [Permanent]
+  those loose steps are inert — except P-188's, whose "this card gets -10000
+  power" is a *static*, so that card gave itself -10000 power permanently and
+  unconditionally. That is the one live bug this increment fixes; the other 11
+  moved readings were rules that did nothing.
+
+## 6. What is still not built
+
+- **The two public-reveal cards (BT10-031, SD18-01)**, and with them §2.7's
+  `opts.reveal` work. Re-reading their text settles why: "During your
+  opponent's turn, if you would add a card from your life to your hand or place
+  it in your Drop Area, you may reveal it and add it to your hand instead" is
+  not a Battle Area departure at all — it replaces a **life** card's move. The
+  `replace` op's `event` is a closed list of the three moments the engine can
+  stop in front of (`leave`, `ko`, `play`), and a life card leaving the life
+  area is not one of them. These need a fourth moment before they need a
+  reveal, which is a scope of its own and not this one.
+- **The 26 replacement skills still unread**, whose reasons are ordinary
+  compiler gaps rather than this mechanism: "once per turn" inside a
+  replacement, "if a marker would be removed from this card by an opponent's
+  attack" (a moment that is not a departure), a KO "in battle" (the battle
+  damage path is one of the 46, and cannot ask), and bodies naming shapes
+  `filterFor` cannot pick out.
+- **Rebuilding `move()` around a frame for all 48 sites** — out of scope in the
+  issue, and still unnecessary: everything above is additive at the two sites
+  that can suspend.

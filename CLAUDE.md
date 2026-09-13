@@ -212,12 +212,14 @@ learned the expensive way. Read it before changing the compiler or the engine.
   `scripts/verify-arena.ts` (part of `npm test`), synthetic cards, sections cited in messages.
   **Picking the work up cold: `docs/arena-next-session-prompt.md`** says where the programme stands,
   what to do next in priority order, and how to run streams in parallel; `docs/arena-tooling.md`
-  says how to tell whether you broke something. Three pieces of work are scoped but not built, each
+  says how to tell whether you broke something. Two pieces of work are scoped but not built, each
   with its own document and each deliberately *not* smuggled into a wording commit:
-  `docs/arena-side-scope.md` (the side test, three bugs from one mechanism),
-  `docs/arena-move-replacement-scope.md` (letting a replacement prompt — the largest unlock, and a
-  capability gap rather than a live bug) and `docs/arena-markers-stage-scope.md` (markers and
-  [Empower], where most of it already works).
+  `docs/arena-side-scope.md` (the side test, three bugs from one mechanism) and
+  `docs/arena-markers-stage-scope.md` (markers and [Empower], where most of it already works).
+  The third, `docs/arena-move-replacement-scope.md` (letting a replacement prompt), is **built**
+  — §5 says what both increments measured, §6 the remainder: `move()` is still synchronous at 46 of
+  its 48 call sites and the two that are not decide the replacement before calling it, so 9-10-2's
+  choice, 9-10-3's "you may" and the "by an opponent's skill" narrowing all read.
 - **The compiler's glossary** (`src/lib/arena/glossary.ts`, shown at `/arena/rules/keywords`): every
   keyword skill the parser recognises, the keywords that are not skills, the skill types, and the
   rules a line is read by — each with what the manual *means* and, separately, what this engine

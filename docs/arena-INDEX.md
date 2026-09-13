@@ -31,7 +31,7 @@ to read first.
 | `docs/arena-battle-staging-spec.md` | **Current (planned)** | The not-yet-built brief for richer battle staging, takeover visuals and in-fight card inspection. |
 | `docs/arena-refusals-spec.md` | **Current** | A focused brief for the two remaining refusal-wording gaps found by the workflow/probe work. |
 | `docs/arena-side-scope.md` | **Current** | A focused scope note for the recurring "which side's cards?" parsing bug. |
-| `docs/arena-move-replacement-scope.md` | **Current** | A scope/design note explaining the still-open move-replacement prompt refactor. |
+| `docs/arena-move-replacement-scope.md` | **Current** | The move-replacement prompt work: what was measured, what shipped (§5, both increments) and what is left (§6). |
 | `docs/arena-markers-stage-scope.md` | **Current** | The current state and remaining work for markers, tokens and `[Empower]`. |
 
 ## Historical / background docs

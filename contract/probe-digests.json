@@ -27,6 +27,10 @@
     "outcome": "didNotFire",
     "digest": "d55f4c52"
   },
+  "ASKER#0": {
+    "outcome": "inForce",
+    "digest": "4fb94674"
+  },
   "AURA#0": {
     "outcome": "inForce",
     "digest": "943102c8"
@@ -483,6 +487,10 @@
     "outcome": "inForce",
     "digest": "dac9c320"
   },
+  "PILEOFF#0": {
+    "outcome": "inForce",
+    "digest": "2c5fd534"
+  },
   "PRICED#0": {
     "outcome": "notOffered",
     "digest": "95489e0a"
@@ -546,6 +554,10 @@
   "SEARCH#0": {
     "outcome": "fired",
     "digest": "6039b1e2"
+  },
+  "SELFKILL#0": {
+    "outcome": "fired",
+    "digest": "49785633"
   },
   "SELFMUTE#10": {
     "outcome": "inForce",
@@ -631,6 +643,10 @@
     "outcome": "fired",
     "digest": "7e83b449"
   },
+  "THEIRS#0": {
+    "outcome": "inForce",
+    "digest": "995cc7e2"
+  },
   "THEYPICK#0": {
     "outcome": "fired",
     "digest": "5aca21b8"
@@ -667,6 +683,10 @@
     "outcome": "fired",
     "digest": "a783cacc"
   },
+  "TWOWAY#0": {
+    "outcome": "inForce",
+    "digest": "e362de12"
+  },
   "UNI2#0": {
     "outcome": "notOffered",
     "digest": "e2ce4101"
@@ -686,6 +706,10 @@
   "WARDEN#0": {
     "outcome": "inForce",
     "digest": "bdffc264"
+  },
+  "WARDEN2#0": {
+    "outcome": "inForce",
+    "digest": "cbcaac0c"
   },
   "WARPER#0": {
     "outcome": "inForce",

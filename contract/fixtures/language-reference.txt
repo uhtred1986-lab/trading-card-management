@@ -1119,7 +1119,7 @@
     {
       "name": "replaceLeave",
       "class": "macro over `replace`",
-      "signature": "{\"op\":\"replaceLeave\",\"to\":AREA,\"by\"?:\"skill\"|\"ko\"|\"skillOrKo\",\"mode\"?:\"active\"|\"rest\",\"optional\"?:true|false,\"target\"?:TARGET}",
+      "signature": "{\"op\":\"replaceLeave\",\"to\":AREA,\"by\"?:\"skill\"|\"ko\"|\"skillOrKo\",\"bySide\"?:\"opponent\",\"mode\"?:\"active\"|\"rest\",\"optional\"?:true|false,\"target\"?:TARGET}",
       "fields": [
         {
           "name": "to",
@@ -1136,6 +1136,15 @@
             "skill",
             "ko",
             "skillOrKo"
+          ]
+        },
+        {
+          "name": "bySide",
+          "required": false,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "opponent"
           ]
         },
         {
@@ -1163,12 +1172,12 @@
         }
       ],
       "sentence": "if this card would leave the Battle Area, it goes to the drop instead",
-      "doc": "[Permanent] only (9-10): \"if this card would be KO'd, send it to the Warp instead\". \"by\" is which departure it replaces: omitted = any, \"skill\" = removed by an effect, \"ko\" = the KO, \"skillOrKo\" = either. \"optional\" is 9-10-3's \"you may\". Omit \"target\" for this card"
+      "doc": "[Permanent] only (9-10): \"if this card would be KO'd, send it to the Warp instead\". \"by\" is which departure it replaces: omitted = any, \"skill\" = removed by an effect, \"ko\" = the KO, \"skillOrKo\" = either. \"bySide\" narrows that to the opponent's skill. \"optional\" is 9-10-3's \"you may\". Omit \"target\" for this card"
     },
     {
       "name": "replace",
       "class": "primitive",
-      "signature": "{\"op\":\"replace\",\"event\":\"leave\"|\"ko\"|\"play\",\"with\":[…],\"by\"?:\"skill\"|\"skillOrKo\",\"optional\"?:true|false,\"target\"?:TARGET}",
+      "signature": "{\"op\":\"replace\",\"event\":\"leave\"|\"ko\"|\"play\",\"with\":[…],\"by\"?:\"skill\"|\"skillOrKo\",\"bySide\"?:\"opponent\",\"optional\"?:true|false,\"target\"?:TARGET}",
       "fields": [
         {
           "name": "event",
@@ -1198,6 +1207,15 @@
           ]
         },
         {
+          "name": "bySide",
+          "required": false,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "opponent"
+          ]
+        },
+        {
           "name": "optional",
           "required": false,
           "nullable": false,
@@ -1212,7 +1230,7 @@
         }
       ],
       "sentence": "if this card would leave the Battle Area, this happens instead: draw 1",
-      "doc": "an event happens differently, or not at all (9-10) — the primitive \"replaceLeave\" and the \"instead\" half of \"resolvingPlay\" are macros over. \"event\" is the moment: \"leave\" (the card would leave the Battle Area, narrowed by \"by\"), \"ko\" (it would be KO'd), \"play\" (the play being resolved, 9-6, [Counter: Play] only). \"with\" is what happens in its place: one move of the card itself is a redirect, anything else is a substitute — the departure does not happen at all, the card stays, and the program runs with it bound as \"subject\". It may not ask a question (see #107), and a \"leave\"/\"ko\" replacement is [Permanent] only"
+      "doc": "an event happens differently, or not at all (9-10) — the primitive \"replaceLeave\" and the \"instead\" half of \"resolvingPlay\" are macros over. \"event\" is the moment: \"leave\" (the card would leave the Battle Area, narrowed by \"by\", and by \"bySide\" to the opponent's skill), \"ko\" (it would be KO'd), \"play\" (the play being resolved, 9-6, [Counter: Play] only). \"with\" is what happens in its place: one move of the card itself is a redirect, anything else is a substitute — the departure does not happen at all, the card stays, and the program runs with it bound as \"subject\". It may ask a question, and then it only applies where somebody can hear it (#107); \"optional\" is 9-10-3's \"you may\". A \"leave\"/\"ko\" replacement is [Permanent] only"
     },
     {
       "name": "altCost",

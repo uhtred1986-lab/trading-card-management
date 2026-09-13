@@ -1175,9 +1175,38 @@ import type { PlayerId } from "./harness";
   assert.equal(op.optional, true);
   assert.deepEqual(op.target.sel.filter?.traits, ["saiyan"]);
 
-  // "By your opponent's skills" is left unread on purpose: `move` knows a
-  // skill did it but not whose, and guessing lets the wrong cards escape.
-  assert.ok(one("[Permanent] If this card would be removed from your Battle Area by an opponent's skill, send it to your Warp instead.").unsupported.length > 0);
+  // #107: "by an opponent's skill" is the narrowing 19 cards print, and the
+  // one `by` alone cannot draw — read as a plain "by a skill" the rule would
+  // fire on its own controller's skills too. `bySide` says whose, and
+  // `causeMatches` refuses a departure whose actor is unknown.
+  const theirs = one("[Permanent] If this card would be removed from your Battle Area by an opponent's skill, send it to your Warp instead.");
+  assert.deepEqual(theirs.unsupported, []);
+  assert.deepEqual(theirs.ops, [{ op: "replaceLeave", to: "warp", by: "skill", bySide: "opponent", target: { sel: { special: "self" } } }]);
+  // The same sentence about the player's own skills is not narrowed at all.
+  const mine = one("[Permanent] If this card would be removed from your Battle Area by a skill, send it to your Warp instead.");
+  assert.deepEqual(mine.ops, [{ op: "replaceLeave", to: "warp", by: "skill", target: { sel: { special: "self" } } }]);
+
+  // 9-10-3, #107: "you may … instead" where what happens instead is a program
+  // rather than a destination — an *optional substitute*. It compiles now
+  // because the two suspendable call sites can stop and ask; the other 46
+  // leave it unapplied rather than taking the offer on the player's behalf.
+  const offer = one("[Permanent] If this card would be removed from your Battle Area by an opponent's skill, you may choose 1 card in your hand and discard it instead.");
+  assert.deepEqual(offer.unsupported, []);
+  const theirOffer = offer.ops[0] as { op: string; event: string; by?: string; bySide?: string; optional?: boolean };
+  assert.equal(theirOffer.op, "replace");
+  assert.equal(theirOffer.event, "leave");
+  assert.equal(theirOffer.by, "skill");
+  assert.equal(theirOffer.bySide, "opponent");
+  assert.equal(theirOffer.optional, true);
+
+  // The body of a replacement runs to the word "instead", however many clauses
+  // that takes. Read one clause at a time, "you may choose 1 of your Majin
+  // Tokens" became the whole replacement and "remove it from the game" fell
+  // out of it and happened always (BT30-057).
+  const twoClause = one("[Permanent] When this card would be removed from a Battle Area by an opponent's skill, you may choose 1 of your Majin Tokens and remove it from the game instead.");
+  assert.deepEqual(twoClause.unsupported, []);
+  assert.equal(twoClause.ops.length, 1, "the whole sentence is the replacement, with nothing left outside it");
+  assert.equal(twoClause.ops[0].op, "replace");
 
   // #125: what happens instead need not be a destination for the card itself.
   // BT3-051 keeps the card and sends its whole under-stack to the Drop — a
@@ -1205,27 +1234,29 @@ import type { PlayerId } from "./harness";
   assert.equal(ev.event, "leave");
   assert.equal(ev.by, undefined);
 
-  // 9-10-3's "you may" needs somebody to ask, and a substitute has nowhere to
-  // wait for the answer (#107) — so it stays unread rather than happening
-  // without being offered.
-  assert.ok(one("[Permanent] If this card would be KO'd, you may place all the cards under this card in its owner's Drop Area instead.").unsupported.length > 0);
+  // 9-10-3's "you may" is the offer itself, not a step inside the program:
+  // the affected player is asked whether to take the replacement at all
+  // (#107), which is what `optional` says and what `allowNone` asks.
+  const mayPile = one("[Permanent] If this card would be KO'd, you may place all the cards under this card in its owner's Drop Area instead.");
+  assert.deepEqual(mayPile.unsupported, []);
+  const offered = mayPile.ops[0] as { op: string; event: string; optional?: boolean };
+  assert.equal(offered.op, "replace");
+  assert.equal(offered.event, "ko");
+  assert.equal(offered.optional, true);
 }
 
 {
-  // The refusal that keeps #107 from being lost inside `move()`: a
-  // replacement whose substitute would stop and ask is not a program the
-  // engine may store, and the message says which issue it is waiting on.
+  // #107: a replacement whose substitute stops to ask is a program the engine
+  // may now store — the two suspendable call sites run it as a frame that can
+  // wait, and `replacementFor` leaves it unapplied at the 46 that cannot.
   const asking: Op[] = [
     { op: "replace", event: "ko", with: [{ op: "choose", sel: { side: "you", area: "battle", count: 1 }, as: "t" }] },
   ];
-  assert.equal(validateProgram(asking), false, "a question inside a replacement is refused structurally");
-  assert.deepEqual(validateRule({ kind: "permanent", trigger: [], ops: asking }, "permanent"), {
-    field: "ops",
-    message: "a replacement cannot ask a question yet — see #107",
-  });
-  // Nested just as firmly: an option of a `chooseMode` is still inside the rule.
-  assert.equal(validateProgram([{ op: "chooseMode", modes: [{ label: "a", ops: asking }] }]), false);
-  // And the deterministic shape is accepted.
+  assert.equal(validateProgram(asking), true, "a question inside a replacement is a shape the language can say");
+  assert.equal(validateRule({ kind: "permanent", trigger: [], ops: asking }, "permanent"), null);
+  // Nested just as freely: an option of a `chooseMode` is still a valid rule.
+  assert.equal(validateProgram([{ op: "chooseMode", modes: [{ label: "a", ops: asking }] }]), true);
+  // And the deterministic shape is accepted, as it always was.
   assert.equal(validateProgram([{ op: "replace", event: "leave", with: [{ op: "draw", n: 1 }] }]), true);
 }
 

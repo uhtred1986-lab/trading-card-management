@@ -11,7 +11,7 @@
  */
 import { skillsOf } from "./cards";
 import type { CardFilter } from "./filters";
-import { describeCond, describeScript, describeSelector } from "./script-schema";
+import { asksAQuestion, describeCond, describeScript, describeSelector } from "./script-schema";
 import {
   addEffect,
   addSkip,
@@ -460,9 +460,10 @@ export type Op =
   | { op: "gains"; traits?: string[]; characters?: string[]; colors?: Color[]; names?: string[]; target?: Ref }
   /**
    * 9-10: where this card goes instead, when it would leave the Battle Area.
-   * `by: "skill"` narrows it to departures a skill caused.
+   * `by: "skill"` narrows it to departures a skill caused, and
+   * `bySide: "opponent"` to the ones the opponent's skill caused.
    */
-  | { op: "replaceLeave"; to: ScriptArea; by?: "skill" | "ko" | "skillOrKo"; mode?: "active" | "rest"; optional?: boolean; target?: Ref }
+  | { op: "replaceLeave"; to: ScriptArea; by?: "skill" | "ko" | "skillOrKo"; bySide?: "opponent"; mode?: "active" | "rest"; optional?: boolean; target?: Ref }
   /**
    * 9-10: an event that is about to happen happens differently, or not at all.
    * The primitive `replaceLeave` and `resolvingPlay` are macros over
@@ -485,11 +486,18 @@ export type Op =
    * does not happen at all, the card stays, and the program runs in its place.
    * A substitute reads the card whose event it is as `subject`.
    *
-   * It cannot ask a question: `move()` is synchronous with no suspension path
-   * at 46 of its 48 call sites, so a prompt inside `with` would be silently
-   * lost. `validateProgram` refuses one rather than storing it — see #107.
+   * It may ask a question, but only where somebody can hear it: the two
+   * suspendable call sites (`stepScript`'s `moveTo` and `ko` loops) run the
+   * program as a frame on the flow, so it can stop and wait. `move()` is
+   * synchronous at the other 46, and `replacementFor` leaves an asking
+   * substitute unapplied there rather than half-running it — see #107 and
+   * `docs/arena-move-replacement-scope.md` §1.4.
+   *
+   * `bySide: "opponent"` narrows a `"leave"`/`"ko"` moment to a departure the
+   * *opponent's* skill caused, which is what 19 cards print and what only a
+   * caller that knows whose skill it is can answer.
    */
-  | { op: "replace"; event: ReplaceEvent; by?: "skill" | "skillOrKo"; optional?: boolean; with: Op[]; target?: Ref }
+  | { op: "replace"; event: ReplaceEvent; by?: "skill" | "skillOrKo"; bySide?: "opponent"; optional?: boolean; with: Op[]; target?: Ref }
   /**
    * Another way to pay for a card's own [Counter] skill (5-3): for nothing, by
    * adding cards from your life to your hand, by a reduced energy price
@@ -783,6 +791,14 @@ export interface ScriptFrame {
   saveVarsAs?: string;
   /** What this program has done so far, for "if you added a card to your hand" (20-16). */
   did?: { addToHand?: boolean; play?: boolean; negateAttack?: boolean; negateLeaderAttack?: boolean; ko?: boolean; draw?: boolean; may?: boolean };
+  /**
+   * This frame *is* a replacement's substitute, running in the place of the
+   * departure of the card named here (#107). What it moves is moving for real
+   * — a substitute cannot replace its own replacement — which is the same
+   * thing `state.ts`'s `applyingReplacement` says for the synchronous half,
+   * said on the frame instead because this one survives a suspension.
+   */
+  replacing?: string;
   /** A `moveTo`/`ko` loop suspended for a replacement choice. */
   moveLoop?: {
     kind: "moveTo" | "ko";
@@ -891,6 +907,22 @@ function pickedReplacement(loop: NonNullable<ScriptFrame["moveLoop"]>, index: nu
 /** One applicable replacement as `move()` takes it: a destination, or a program to run in the departure's place. */
 function routeOf(c: ReplacementChoice): ReplacementResult {
   return { ...(c.to ? { to: c.to } : {}), mode: c.mode, ...(c.ops ? { ops: c.ops, source: c.source, master: c.master } : {}) };
+}
+
+/**
+ * Does this route's program have to be run by the caller rather than by
+ * `move()` (#107)? Only when it stops to ask: `move()` is synchronous and a
+ * question inside it would be lost, but a frame on the flow can wait. A
+ * question-free substitute keeps running inline, exactly where it always did,
+ * so nothing a rule already played changes.
+ */
+function defers(r: ReplacementResult | null | undefined): boolean {
+  return !!r?.ops?.length && asksAQuestion(r.ops);
+}
+
+/** The substitute as a program of its own: the card whose departure it replaced is its `subject` (9-10-1-1). */
+function substituteFrame(s: GameState, id: string, r: ReplacementResult): ScriptFrame {
+  return { ops: r.ops ?? [], ip: 0, vars: {}, card: r.source ?? id, master: r.master ?? masterOf(s, id), subject: id, replacing: id };
 }
 
 /**
@@ -1168,7 +1200,7 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
               s.lastMode = null;
               frame.awaiting = undefined;
             } else {
-              const choices = replacementChoicesFor(ctx, s, id, "ko");
+              const choices = replacementChoicesFor(ctx, s, id, "ko", { actor: master, inSubstitute: !!frame.replacing });
               const allowNone = choices.length > 0 && choices.every((c) => c.optional);
               if (choices.length > 1 || allowNone) {
                 frame.awaiting = "replaceMove";
@@ -1180,13 +1212,23 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
                 s.prompt = { kind: "replaceMove", player: masterOf(s, id), card: id, reason: prompt.reason, options: prompt.options };
                 return "wait";
               }
-              if (choices.length === 1) replaced = routeOf(choices[0]);
+              // §1.3 of the scoping document: the two suspendable sites decide
+              // the replacement themselves and `move()` never looks one up on
+              // their behalf, so `null` where there is none.
+              replaced = choices.length ? routeOf(choices[0]) : null;
             }
             const before = frame.moveLoop.beforeDrop ?? s.players[s.cards[id].owner].drop.length;
             frame.moveLoop.beforeDrop = undefined;
-            koCard(ctx, s, ev, id, frame.card, replaced === undefined ? {} : { replaced });
+            const deferred = defers(replaced);
+            koCard(ctx, s, ev, id, frame.card, replaced === undefined ? {} : { replaced: deferred ? { ...replaced!, deferred: true } : replaced });
             // "If you KO'd a card" (20-16): only a KO that happened counts.
             if (s.players[s.cards[id].owner].drop.length > before) (frame.did ??= {}).ko = true;
+            if (deferred) {
+              frame.moveLoop.index++;
+              s.flow.unshift({ op: "script.step", frame });
+              s.flow.unshift({ op: "script.step", frame: substituteFrame(s, id, replaced!) });
+              return "done";
+            }
           }
           frame.moveLoop.index++;
         }
@@ -1237,7 +1279,7 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
             s.lastMode = null;
             frame.awaiting = undefined;
           } else {
-            const choices = replacementChoicesFor(ctx, s, id, "effect");
+            const choices = replacementChoicesFor(ctx, s, id, "effect", { actor: master, inSubstitute: !!frame.replacing });
             const allowNone = choices.length > 0 && choices.every((c) => c.optional);
             if (choices.length > 1 || allowNone) {
               frame.awaiting = "replaceMove";
@@ -1251,9 +1293,21 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
               s.prompt = { kind: "replaceMove", player: masterOf(s, id), card: id, reason: prompt.reason, options: prompt.options };
               return "wait";
             }
-            if (choices.length === 1) replaced = routeOf(choices[0]);
+            replaced = choices.length ? routeOf(choices[0]) : null;
           }
-          move(ctx, s, ev, id, dest, owner, { position: op.position, reveal: op.reveal, reason: "effect", ...(replaced === undefined ? {} : { replaced }) });
+          const deferred = defers(replaced);
+          move(ctx, s, ev, id, dest, owner, { position: op.position, reveal: op.reveal, reason: "effect", ...(replaced === undefined ? {} : { replaced: deferred ? { ...replaced!, deferred: true } : replaced }) });
+          // #107: the departure is already replaced — the card stayed — and
+          // the program that stood in for it runs as a frame of its own, so a
+          // question inside it is asked rather than lost. Nothing below is
+          // about a card that did not move.
+          if (deferred) {
+            frame.moveLoop.leftBattle = undefined;
+            frame.moveLoop.index++;
+            s.flow.unshift({ op: "script.step", frame });
+            s.flow.unshift({ op: "script.step", frame: substituteFrame(s, id, replaced!) });
+            return "done";
+          }
           // 3-1: "when this card is removed from a Battle Area by a skill",
           // and the commoner narrowing to the *opponent's* skills. A card that
           // went nowhere — a replacement sent it back — was not removed.

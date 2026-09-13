@@ -6,7 +6,7 @@
  */
 import { hasKeyword, keywordOf, skillsOf, specifiedCostOf, isZ, baseType } from "./cards";
 import { matches, powerRelOk } from "./filters";
-import { describeCond, describeScript } from "./script-schema";
+import { asksAQuestion, describeCond, describeScript } from "./script-schema";
 import { NO_RULES, stepScript, type Amount, type AmountAttr, type CardScripts, type Cond, type Op, type PayWith, type Ref, type Script, type ScriptArea, type ScriptFrame, type Selector, type Side } from "./script";
 import type {
   Area,
@@ -34,6 +34,7 @@ import type {
   SkipWhat,
   SkillKind,
   SkillKindPrefix,
+  MoveActor,
   MoveReason,
 } from "./types";
 import { PLAYERS, other } from "./types";
@@ -172,6 +173,15 @@ export interface Replacement {
    * not a card leaving for a rule.
    */
   by?: "skill" | "ko" | "skillOrKo";
+  /**
+   * 9-10 with the cause narrowed to *whose* skill it was: "if this card would
+   * be removed from your Battle Area **by an opponent's skill**" (19 cards).
+   * `by` says a skill did it; this says whose, and the two are read together.
+   * Only the two suspendable call sites know the answer, so a departure with
+   * no known actor never matches — see `docs/arena-move-replacement-scope.md`
+   * §1.4.
+   */
+  bySide?: "opponent";
   /** "Add that card to your energy in Rest Mode instead" — the mode it arrives in. */
   mode?: "active" | "rest";
   /** 9-10-3: the affected player may choose not to apply it. */
@@ -189,17 +199,18 @@ export interface Replacement {
 }
 
 /**
- * Where this card goes instead of where it was about to go, if a skill says so.
+ * Where this card goes instead of where it was about to go, if a skill says so
+ * — the **deterministic** answer, for the 46 call sites that cannot stop and
+ * ask (`docs/arena-move-replacement-scope.md`, appendix).
  *
  * 9-10-2 gives the choice to the affected player when several replacements
- * apply at once. Two on the same card is rare enough that the first one wins
- * here and the log says which. Turning that into a real prompt is not one
- * prompt away: `move()` is synchronous with no suspension path, and by the
- * time this function's caller could know a choice is needed the card may
- * already be mid-move — see `docs/arena-move-replacement-scope.md` for what
- * a fix costs and where it stops.
+ * apply at once, and 9-10-3 lets an optional one be declined; neither is a
+ * question this path can put. So the first mandatory, question-free match
+ * wins here and the log says which, exactly as it always has. The two
+ * suspendable sites go through `replacementChoicesFor` instead, which returns
+ * every candidate and lets the affected player answer (#107).
  */
-function replacementFor(ctx: GameContext, s: GameState, id: string, reason: MoveOptions["reason"]): Replacement | null {
+function replacementFor(ctx: GameContext, s: GameState, id: string, reason: MoveOptions["reason"], actor?: MoveActor): Replacement | null {
   for (const e of staticEffects(ctx, s)) {
     if (e.kind !== "replaceLeave" || e.target !== id) continue;
     const r = e.value as Replacement;
@@ -208,41 +219,60 @@ function replacementFor(ctx: GameContext, s: GameState, id: string, reason: Move
     // for real, or "place the cards under this card in the Drop instead"
     // would replace its own substitute for ever.
     if (r.ops && applyingReplacement) continue;
-    // "By a skill" means an effect put it out, not a battle or a rule; the
-    // longer form adds the KO, which is the one other cause cards name.
-    if (r.by === "skill" && reason !== "effect") continue;
-    if (r.by === "ko" && reason !== "ko") continue;
-    if (r.by === "skillOrKo" && reason !== "effect" && reason !== "ko") continue;
+    // #107: this is the deterministic path the other 46 call sites take, and
+    // none of them can stop and ask. A substitute that would ask is left
+    // unapplied here rather than half-run — the two suspendable sites reach
+    // the same rule through `replacementChoicesFor`, which can.
+    if (r.ops && asksAQuestion(r.ops)) continue;
+    if (!causeMatches(s, id, r, reason, actor)) continue;
     return r;
   }
   return null;
 }
 
-export function replacementChoicesFor(ctx: GameContext, s: GameState, id: string, reason: MoveReason | undefined): ReplacementChoice[] {
+/**
+ * Does this replacement answer to *this* departure — the cause it names, and
+ * whose skill caused it? "By a skill" means an effect put the card out, not a
+ * battle or a rule; the longer form adds the KO, which is the one other cause
+ * cards name; and `bySide` narrows either of those to the opponent's skill,
+ * which only a caller that knows the actor can satisfy.
+ */
+function causeMatches(s: GameState, id: string, r: Replacement, reason: MoveReason | undefined, actor: MoveActor): boolean {
+  if (r.by === "skill" && reason !== "effect") return false;
+  if (r.by === "ko" && reason !== "ko") return false;
+  if (r.by === "skillOrKo" && reason !== "effect" && reason !== "ko") return false;
+  if (r.bySide === "opponent" && (actor === undefined || actor === masterOf(s, id))) return false;
+  return true;
+}
+
+/**
+ * Every replacement that answers to this departure, for the two call sites
+ * that can put the question 9-10-2 and 9-10-3 ask (#107). `actor` is whose
+ * skill is doing it, for a `bySide` narrowing; `inSubstitute` says the caller
+ * is itself standing in a departure's place, which is `applyingReplacement`
+ * again — a substitute cannot replace its own replacement, though a redirect
+ * of some other card it moves still applies, exactly as in the synchronous
+ * half.
+ */
+export function replacementChoicesFor(
+  ctx: GameContext,
+  s: GameState,
+  id: string,
+  reason: MoveReason | undefined,
+  opts: { actor?: MoveActor; inSubstitute?: boolean } = {},
+): ReplacementChoice[] {
+  const { actor, inSubstitute } = opts;
   const out: ReplacementChoice[] = [];
   for (const e of staticEffects(ctx, s)) {
     if (e.kind !== "replaceLeave" || e.target !== id) continue;
     const r = e.value as Replacement;
-    if (r.ops && applyingReplacement) continue;
-    if (r.by === "skill" && reason !== "effect") continue;
-    if (r.by === "ko" && reason !== "ko") continue;
-    if (r.by === "skillOrKo" && reason !== "effect" && reason !== "ko") continue;
+    if (r.ops && (applyingReplacement || inSubstitute)) continue;
+    if (!causeMatches(s, id, r, reason, actor)) continue;
     out.push({ source: e.source, ...(r.to ? { to: r.to } : {}), mode: r.mode, optional: r.optional, ...(r.ops ? { ops: r.ops } : {}), ...(r.master ? { master: r.master } : {}) });
   }
   return out;
 }
 
-/**
- * 9-10 with a program in the event's place: the move does not happen at all
- * and this runs instead, with the card whose departure was replaced bound as
- * `subject`. Synchronous, and safely so — `validateProgram` refuses a `with`
- * block that could ask a question (#107), so the frame always runs to the end
- * rather than suspending somewhere `move()` has no way to wait.
- *
- * The flag is the same device `computingStatics` is: whatever the substitute
- * itself moves is moving for real, so a replacement cannot replace its own
- * replacement.
- */
 /**
  * Is this `with` block a plain **redirect** — the card itself going somewhere
  * else — rather than a program standing in for the departure? One move of the
@@ -261,11 +291,25 @@ function redirectOf(ops: Op[]): { to: Area; mode?: "active" | "rest" } | null {
 
 let applyingReplacement = false;
 
+/**
+ * 9-10 with a program in the event's place: the move does not happen at all
+ * and this runs instead, with the card whose departure was replaced bound as
+ * `subject`. Synchronous, and safely so — the only substitutes that reach it
+ * are question-free ones, because `replacementFor` skips an asking one and the
+ * two callers that *can* wait take it as `deferred` and run it themselves
+ * (#107). The frame therefore always runs to the end rather than suspending
+ * somewhere `move()` has no way to wait.
+ *
+ * The flag is the same device `computingStatics` is: whatever the substitute
+ * itself moves is moving for real, so a replacement cannot replace its own
+ * replacement. `ScriptFrame.replacing` says the same thing for the deferred
+ * half, where a module-level flag would not survive the suspension.
+ */
 function runReplacement(ctx: GameContext, s: GameState, ev: GameEvent[], id: string, r: Replacement): void {
   if (applyingReplacement || !r.ops?.length) return;
   applyingReplacement = true;
   try {
-    stepScript(ctx, s, ev, { ops: r.ops, ip: 0, vars: {}, card: r.source ?? id, master: r.master ?? masterOf(s, id), subject: id });
+    stepScript(ctx, s, ev, { ops: r.ops, ip: 0, vars: {}, card: r.source ?? id, master: r.master ?? masterOf(s, id), subject: id, replacing: id });
   } finally {
     applyingReplacement = false;
   }
@@ -1028,7 +1072,7 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
       if (!inPlayNow) continue;
       const dest = op.to === "play" ? "battle" : op.to === "under" ? "drop" : (op.to as Area);
       const targets = op.target ? staticTargets(ctx, s, frame, op.target) : [source];
-      for (const id of targets) out.push({ source, kind: "replaceLeave", target: id, value: { to: dest, by: op.by, mode: op.mode, optional: op.optional } });
+      for (const id of targets) out.push({ source, kind: "replaceLeave", target: id, value: { to: dest, by: op.by, bySide: op.bySide, mode: op.mode, optional: op.optional } });
       continue;
     }
     // The primitive the row above is a macro over (`docs/arena-ruleset-spec.md`
@@ -1042,8 +1086,8 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
       const by = op.event === "ko" ? ("ko" as const) : op.by;
       const targets = op.target ? staticTargets(ctx, s, frame, op.target) : [source];
       const value: Replacement = redirect
-        ? { to: redirect.to, by, mode: redirect.mode, optional: op.optional }
-        : { by, optional: op.optional, ops: op.with, source, master };
+        ? { to: redirect.to, by, bySide: op.bySide, mode: redirect.mode, optional: op.optional }
+        : { by, bySide: op.bySide, optional: op.optional, ops: op.with, source, master };
       for (const id of targets) out.push({ source, kind: "replaceLeave", target: id, value: { ...value } });
       continue;
     }
@@ -1261,7 +1305,11 @@ export function move(ctx: GameContext, s: GameState, ev: GameEvent[], id: string
     // below because there is nothing left to redirect once it has.
     if (instead?.ops?.length) {
       note(ev, `${face(ctx, s, id).name} stays where it is; ${describeScript(instead.ops)} instead`);
-      runReplacement(ctx, s, ev, id, instead as Replacement);
+      // #107: a caller that can suspend runs the program itself, as a frame on
+      // the flow, so a substitute that stops to ask has somewhere to wait. The
+      // departure is over either way by the time this returns — the card stays
+      // where it is, and only who runs the program differs.
+      if (!("deferred" in instead && instead.deferred)) runReplacement(ctx, s, ev, id, instead as Replacement);
       return areaOf(s, id) ?? from?.area ?? to;
     }
     if (instead?.to && instead.to !== to) {
