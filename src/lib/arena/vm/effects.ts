@@ -208,6 +208,43 @@ export function expireDelayed(state: VmState): void {
   state.delayed = state.delayed.filter((d) => d.scope !== "thisTurn" || d.createdTurn === state.turn);
 }
 
+// ── negation (9-1-5) ────────────────────────────────────────────────────────
+
+/**
+ * Are *all* of this card's skills switched off?
+ *
+ * The legacy engine keeps the for-the-game half as a mark on the instance and
+ * the timed half as an effect; here both are effects, because a `VmCard` is the
+ * copy on the table and nothing more. One function, and **every reader goes
+ * through it** — the [Permanent] walk, the checkpoint, the moment that pends an
+ * [Auto] and the host. The bug that made it one function was three readers and
+ * two of them checking: a negated card's [Permanent] went on standing while its
+ * [Auto]s correctly did not.
+ */
+export function skillsNegated(state: VmState, id: string): boolean {
+  return state.effects.some((e) => e.kind === "negateSkills" && e.target === id);
+}
+
+/**
+ * Is this one skill of this card switched off (9-1-5)?
+ *
+ * Three ways, the legacy `skillNegated`'s three: the whole card, this skill by
+ * its printed index, and a whole *kind* at once — "negate that card's [Auto]
+ * skill for the turn". A printed "[Counter]" covers every counter kind, so the
+ * stored value is a prefix of the skill kind rather than the whole of it.
+ */
+export function skillNegated(state: VmState, id: string, index: number, kind?: string): boolean {
+  if (skillsNegated(state, id)) return true;
+  if (state.effects.some((e) => e.kind === "negateSkill" && e.target === id && e.value === index)) return true;
+  return !!kind && state.effects.some((e) => e.kind === "negateSkillKind" && e.target === id && kind.startsWith(e.value as string));
+}
+
+/** The skills of this card that are off, as `stepScript` reads them: `"all"`, or the indexes. */
+export function negatedSkillsOf(state: VmState, id: string): "all" | number[] {
+  if (skillsNegated(state, id)) return "all";
+  return state.effects.filter((e) => e.kind === "negateSkill" && e.target === id).map((e) => e.value as number);
+}
+
 // ── [Permanent] statics (9-5, 9-9) ──────────────────────────────────────────
 
 /**
@@ -230,10 +267,11 @@ export function permanents(ctx: EngineContext, game: GameDefinition, state: VmSt
     for (const zone of zones) {
       for (const src of state.sides[p].zones[zone] ?? []) {
         const card = state.cards[src];
-        if (!card || card.hidden) continue;
+        if (!card || card.hidden || skillsNegated(state, src)) continue;
         const showing = skillsShowing(ctx, state, src);
         for (const sk of showing.skills) {
           if (sk.kind !== "permanent") continue;
+          if (skillNegated(state, src, sk.index, sk.kind)) continue;
           const program = showing.scripts.bySkill[sk.index];
           if (!program || program.unsupported.length) continue;
           collect(out, { ops: [], ip: 0, vars: {}, card: src, master: p }, program.ops, targets, holds);

@@ -46,7 +46,7 @@ import type { GameDefinition, StepDef, WinDef } from "../rulesets";
 import { RulesetBroken } from "./errors";
 import { emit, log, type Moment } from "./events";
 import { nextPending, skillsShowing } from "./triggers";
-import { dueDelays, endEffects as endEffectsOfDuration, endTurnRelativeEffects, expireDelayed } from "./effects";
+import { dueDelays, endEffects as endEffectsOfDuration, endTurnRelativeEffects, expireDelayed, skillNegated } from "./effects";
 import { vmHost } from "./host";
 import { NotYet } from "./errors";
 import { stepScript, type ScriptFrame } from "../engine/script";
@@ -456,9 +456,9 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   };
 
   // 9-1-5: a card whose skills are negated has none, and one skill switched
-  // off is off for the moment it answered to as well as for every other.
-  const off = state.effects.some((e) => (e.kind === "negateSkills" && e.target === next.card) || (e.kind === "negateSkill" && e.target === next.card && e.value === next.skillIndex));
-  if (off) {
+  // off is off for the moment it answered to as well as for every other. The
+  // one reading of that rule lives in `./effects.ts` and every reader uses it.
+  if (skillNegated(state, next.card, next.skillIndex, skill?.kind)) {
     log(ev, { type: "note", text: `${named}'s skill is negated, so it does not resolve` });
     return true;
   }

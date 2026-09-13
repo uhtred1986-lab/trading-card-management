@@ -965,6 +965,37 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     assert.equal(attrsNow(CTX, DBS, s, plain).power, 10000, "a [Permanent] went on standing after its card left play (9-1-3-1)");
   }
 
+  // ── 9-1-5: negation is one reading, and every reader of it uses it ────────
+  //
+  // A [Permanent] read by a walk of its own is the place this rule is easiest
+  // to forget: the [Auto]s of a negated card correctly stopped answering while
+  // its standing power boost went on standing. So the rule is one function in
+  // `vm/effects.ts` and the three readers — the walk, the checkpoint and the
+  // moment that pends — all go through it.
+  {
+    const s = mainPhase();
+    const plain = staged(s, "p1", "V1");
+    const aura = staged(s, "p1", "AURA");
+    assert.equal(attrsNow(CTX, DBS, s, plain).power, 15000, "the fixture's [Permanent] is not standing, so this block proves nothing");
+
+    addEffect(s, [], { target: aura, kind: "negateSkills", value: 0, until: "game", source: aura });
+    assert.equal(attrsNow(CTX, DBS, s, plain).power, 10000, "a [Permanent] on a card whose skills are negated went on standing (9-1-5)");
+
+    // The narrower half: one skill by its printed index, not the whole card.
+    const one = mainPhase();
+    const bystander = staged(one, "p1", "V1");
+    const boost = staged(one, "p1", "AURA");
+    addEffect(one, [], { target: boost, kind: "negateSkill", value: 0, until: "turn", source: boost });
+    assert.equal(attrsNow(CTX, DBS, one, bystander).power, 10000, "a [Permanent] negated by its own index went on standing (9-1-5)");
+
+    // …and an [Auto] on a negated card does not answer to its moment either,
+    // which is the half that was already right and is now the same reading.
+    const watcher = staged(s, "p1", "WATCHER");
+    addEffect(s, [], { target: watcher, kind: "negateSkills", value: 0, until: "game", source: watcher });
+    moved(CTX, DBS, s, [], handed(s, "p1", "V1"), "battle", { owner: "p1", asPlay: true });
+    assert.deepEqual(s.pending, [], "an [Auto] on a card whose skills are negated was pended anyway (9-1-5)");
+  }
+
   // ── 9-1-4 and 7-4-5: a continuous effect, and the turn it ends with ───────
   {
     const s = mainPhase();

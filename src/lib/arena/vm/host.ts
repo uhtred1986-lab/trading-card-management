@@ -42,7 +42,7 @@ import type { EngineContext, GameEvent } from "../engine";
 import type { ScriptHost } from "../engine/script-host";
 import type { Area, CardDef, KeywordSkill, Mode, PlayerId, Prompt } from "../engine/types";
 import type { GameDefinition } from "../rulesets";
-import { addEffect, dropEffectsOn, schedule } from "./effects";
+import { addEffect, dropEffectsOn, negatedSkillsOf, schedule } from "./effects";
 import { NotYet } from "./errors";
 import { emit, log } from "./events";
 import { SETUP_ZONES, arrivalMode, moveCard } from "./zones";
@@ -87,8 +87,9 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     defOf: (id) => faceOf(ctx, state, id),
     hasKeyword: (id, name) => hasKeyword(ctx, game, state, id, name as KeywordSkill["name"]),
     // 9-1-5: negation is a continuous effect here rather than a mark on the
-    // instance, so a card with one in force has every skill off.
-    negatedSkills: (id) => (state.effects.some((e) => e.kind === "negateSkills" && e.target === id) ? "all" : []),
+    // instance, and `./effects.ts` is where that is read — once, for every
+    // reader of it.
+    negatedSkills: (id) => negatedSkillsOf(state, id),
     cardsInPlay: (p) =>
       Object.entries(state.sides[p].zones)
         .filter(([zone]) => game.zones[zone]?.inPlay === true)
