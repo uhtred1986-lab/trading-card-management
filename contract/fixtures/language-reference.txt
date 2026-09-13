@@ -561,6 +561,58 @@
       "sentence": "this card gains [Blocker] for the turn"
     },
     {
+      "name": "copySkills",
+      "class": "primitive",
+      "signature": "{\"op\":\"copySkills\",\"target\"?:TARGET,\"from\":TARGET,\"which\"?:\"all\",\"skill\"?:N,\"only\"?:\"keyword\",\"until\":DURATION}",
+      "fields": [
+        {
+          "name": "target",
+          "required": false,
+          "nullable": false,
+          "defaultText": "{\"sel\":{\"special\":\"self\"}}",
+          "type": "ref"
+        },
+        {
+          "name": "from",
+          "required": true,
+          "nullable": false,
+          "type": "ref"
+        },
+        {
+          "name": "which",
+          "required": false,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "all"
+          ]
+        },
+        {
+          "name": "skill",
+          "required": false,
+          "nullable": false,
+          "type": "number"
+        },
+        {
+          "name": "only",
+          "required": false,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "keyword"
+          ]
+        },
+        {
+          "name": "until",
+          "required": true,
+          "nullable": false,
+          "type": "duration"
+        }
+      ],
+      "sentence": "choose 1 of the skills of this card, and this card gains that skill for the turn",
+      "doc": "20-18: one card takes on another's printed skills. \"which\":\"all\" copies every one of them, \"skill\" copies one by its index on the source, and neither lets the master pick one as the skill resolves — which is what \"choose up to 1 keyword skill … and this card gains that skill\" says. \"only\":\"keyword\" narrows the pick and the copy to keyword skills. The printed face is snapshotted when the effect is made (9-9), so the copy outlives the source leaving play"
+    },
+    {
       "name": "negateSkills",
       "class": "macro over `negate`",
       "signature": "{\"op\":\"negateSkills\",\"target\":TARGET,\"until\":DURATION}",
