@@ -994,13 +994,17 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
 
   const legal = declaredLegalActions(CTX, game, s);
   const rejected = declaredRejectedActions(CTX, game, s, legal);
+  // The fixture's own action, against a definition that declares the game's
+  // real moves as well: what the Main Phase offers besides it is `endMain`
+  // (#145), and this block is about the three candidates of one paragraph.
+  const plays = legal.filter((l) => l.action.type === "play");
 
   assert.deepEqual(
-    legal.map((l) => l.action),
+    plays.map((l) => l.action),
     [{ type: "play", player: "p1", card: good }],
     "the only candidate both refusals let through is not the only move offered",
   );
-  assert.equal(legal[0].label, "Play V1", "a declared move's label is not its `label:` and the card's name");
+  assert.equal(plays[0].label, "Play V1", "a declared move's label is not its `label:` and the card's name");
 
   assert.deepEqual(
     rejected.map((r) => ({ card: (r.action as { card?: string }).card, why: r.why })),
@@ -1015,7 +1019,7 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
 
   // §3.2, asserted by the very function the legacy fixtures assert it with.
   assertMenuInvariants(legal, rejected, "a declared action over three candidates");
-  assert.equal(legal.length + rejected.length, 3, "the three candidates did not each get exactly one answer");
+  assert.equal(plays.length + rejected.length, 3, "the three candidates did not each get exactly one answer");
 
   // The `Requirement` shapes are the engine's own, so the board words a
   // rules-engine refusal with the table it words a legacy one with — never a
@@ -1048,7 +1052,7 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     // is the loader's refusal and not this interpreter's — so the fixture is
     // built past it on purpose, to reach the question this block is about.
     const menu = declaredLegalActions(CTX, priced, s);
-    assert.deepEqual(menu, [], "a move whose price the engine cannot charge is on the menu");
+    assert.deepEqual(menu.filter((l) => l.action.type === "play"), [], "a move whose price the engine cannot charge is on the menu");
     const why = declaredRejectedActions(CTX, priced, s, menu);
     assert.equal(why.length, 3, "a priced move is not explained for every card it is about");
     assert.match(JSON.stringify(why[0].why[0]), /#148/, "a price the engine cannot charge does not name the issue that charges it");
@@ -1061,14 +1065,190 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
   {
     assert.ok(DBS.actions.pass, "actions.rules does not declare pass");
     assert.equal(DBS.actions.pass.listed, false, "pass is on the menu, and the engine that has been playing never lists it");
-    assert.deepEqual(actionsAt(DBS, s).map((a) => a.name), ["pass"], "the Main Phase offers a declared action other than the one the files declare");
-    assert.deepEqual(declaredLegalActions(CTX, DBS, s), [], "an unlisted action reached the menu");
-    assert.deepEqual(declaredRejectedActions(CTX, DBS, s, []), [], "an unlisted action reached the list of refusals");
+    assert.deepEqual(
+      actionsAt(DBS, s)
+        .map((a) => a.name)
+        .sort(),
+      ["concede", "endMain", "pass"],
+      "the Main Phase offers a declared action other than the ones the files declare",
+    );
+    const menu = declaredLegalActions(CTX, DBS, s);
+    assert.deepEqual(
+      menu.map((l) => l.action),
+      [{ type: "endMain", player: "p1" }],
+      "an unlisted action reached the menu, or the one listed move of the Main Phase is not on it",
+    );
+    assert.deepEqual(declaredRejectedActions(CTX, DBS, s, menu), [], "an unlisted action reached the list of refusals");
     // …and it is still the move that answers the question.
     const after = rulesEngine.apply(CTX, s, { type: "pass", player: "p1" });
     assert.notEqual((after.state as VmState).phase, "main", "pass did not answer the Main Phase's question");
     // A move no declaration claims names the issue that declares it.
     assert.throws(() => rulesEngine.apply(CTX, s, { type: "attack", player: "p1", attacker: good, target: "p2#0" }), NotYet, "a move nothing declares was accepted");
+  }
+}
+
+// ── 16. the moves that need no payment: charge, endMain, concede (#145) ─────
+//
+// The first four `DEFINE ACTION`s on the real turn, and the claim is the one
+// Stage 5 rests on: what the interpreter used to do in a `case` of its own it
+// now does because `actions.rules` says so — the same menu, the same log, the
+// same board. Measured against the engine that has been playing, move for move,
+// the way §11 measures a game of nothing but passing.
+{
+  const rulesEngine = engineFor("rules");
+  const legacyEngine = engineFor("legacy");
+
+  /** Everything the turn asks for, answered by charging the first card offered and declining the rest. */
+  function chargeAndPass(engine: ReturnType<typeof engineFor>, start: unknown, first: PlayerId): { events: GameEvent[]; actions: Action[]; state: unknown } {
+    let state = start;
+    const events: GameEvent[] = [];
+    const actions: Action[] = [];
+    for (let i = 0; i < 4000; i++) {
+      const legal = engine.legalActions(CTX, state as never);
+      if (!legal.length) break;
+      const pick =
+        legal.find((l) => l.action.type === "chooseFirst" && l.action.first === first) ??
+        legal.find((l) => l.action.type === "mulligan" && !l.action.redraw) ??
+        legal.find((l) => l.action.type === "charge" && l.action.card !== null) ??
+        legal.find((l) => l.action.type === "endMain") ??
+        legal[0];
+      actions.push(pick.action);
+      const r = engine.apply(CTX, state as never, pick.action);
+      state = r.state;
+      events.push(...r.events);
+    }
+    return { events, actions, state };
+  }
+
+  const born = rulesEngine.createGame(CTX, SAME);
+  const legacyBorn = legacyEngine.createGame(CTX, SAME);
+  const played = chargeAndPass(rulesEngine, born.state, "p1");
+  const oracled = chargeAndPass(legacyEngine, legacyBorn.state, "p1");
+  const end = played.state as VmState;
+  const legacyEnd = oracled.state as GameState;
+
+  // The same questions answered by the same cards: a scripted game of charges
+  // and passes is one action log, replayable on either engine.
+  assert.deepEqual(played.actions, oracled.actions, "a game of charging and passing asks the two engines for different answers");
+  assert.ok(
+    played.actions.filter((a) => a.type === "charge" && a.card !== null).length > 50,
+    `only ${played.actions.filter((a) => a.type === "charge" && a.card !== null).length} cards were charged in a whole game, and every turn offers one`,
+  );
+  const shownEvents = (list: GameEvent[]) => JSON.parse(JSON.stringify(list.map((e) => (e.type === "gameOver" ? { ...e, reason: "…" } : e))));
+  assert.deepEqual(
+    shownEvents([...born.events, ...played.events]),
+    shownEvents([...legacyBorn.events, ...oracled.events]),
+    "a game of charging and passing does not log the same thing on the two engines",
+  );
+  assert.equal(end.phase, "over", "a game of charging and passing on the rules engine never ended");
+  assert.equal(end.turn, legacyEnd.turn, "the two engines' charging games ran for a different number of turns");
+  assert.deepEqual(end.sides.p1.zones.energy, legacyEnd.players.p1.energy, "the two engines' Energy Areas hold different cards, or hold them in a different order");
+
+  /** A rules game at its first Charge Phase question, with `cardIds` at the front of p1's hand. */
+  function atCharge(...cardIds: string[]): VmState {
+    let s = rulesEngine.createGame(CTX, SAME).state as VmState;
+    s = rulesEngine.apply(CTX, s, { type: "chooseFirst", player: s.chooser, first: "p1" }).state as VmState;
+    for (let i = 0; i < 20 && s.prompt.kind !== "charge"; i++) s = rulesEngine.apply(CTX, s, { type: "pass", player: (s.prompt as { player: PlayerId }).player }).state as VmState;
+    assert.equal(s.prompt.kind, "charge", "a rules game did not reach a Charge Phase to offer the charge in");
+    const hand = s.sides.p1.zones.hand;
+    assert.ok(hand.length > cardIds.length, "the opening hand is too small to stage the fixture in");
+    cardIds.forEach((cardId, i) => (s.cards[hand[i]].cardId = cardId));
+    return s;
+  }
+
+  {
+    const s = atCharge();
+    const legal = rulesEngine.legalActions(CTX, s);
+    const hand = s.sides.p1.zones.hand;
+    // One entry per card in hand, in the hand's own order, and the answer that
+    // takes no card last — the ghost button, which is a candidate of its own
+    // rather than the absence of one (`docs/arena-hud-spec.md` §2.3).
+    assert.deepEqual(
+      legal.map((l) => l.action),
+      [...hand.map((card) => ({ type: "charge", player: "p1", card })), { type: "charge", player: "p1", card: null }],
+      "the Charge Phase does not offer every card in hand and the skip",
+    );
+    assert.deepEqual(legal.map((l) => l.label), [...hand.map(() => "Charge V1"), "Skip charge"], "the charge's menu words are not the declaration's `label:` and its `decline:`");
+    assert.deepEqual(rulesEngine.rejectedActions(CTX, s, legal), [], "a card in hand was refused the charge for a reason of its own");
+    assertMenuInvariants(legal, rulesEngine.rejectedActions(CTX, s, legal), "the charge over a whole hand");
+
+    // Taking it: the card is in the Energy Area, face up to both players, and
+    // the move is the one event the board animates.
+    const chosen = hand[2];
+    const done = rulesEngine.apply(CTX, s, { type: "charge", player: "p1", card: chosen });
+    const after = done.state as VmState;
+    assert.deepEqual(after.sides.p1.zones.energy, [chosen], "the charged card is not in the Energy Area");
+    assert.equal(after.sides.p1.zones.hand.includes(chosen), false, "the charged card is still in hand as well");
+    assert.deepEqual(
+      done.events.filter((e) => e.type === "move"),
+      [{ type: "move", card: chosen, from: "hand", to: "energy", owner: "p1", reveal: true }],
+      "a charge is not logged as one face-up move from the hand to the Energy Area (7-2-11)",
+    );
+    assert.equal(after.prompt.kind, "main", "the charge did not answer the Charge Phase's question");
+
+    // …and declining moves nothing, though it answers the same question: one
+    // paragraph, two halves, and the `DO` runs over no cards.
+    const skipped = rulesEngine.apply(CTX, s, { type: "charge", player: "p1", card: null });
+    assert.deepEqual((skipped.state as VmState).sides.p1.zones.energy, [], "declining the charge placed a card anyway");
+    assert.deepEqual(skipped.events.filter((e) => e.type === "move"), [], "declining the charge logged a move");
+    assert.equal((skipped.state as VmState).prompt.kind, "main", "declining the charge did not answer the question");
+    assert.equal(
+      (skipped.state as VmState).sides.p1.zones.hand.length,
+      s.sides.p1.zones.hand.length,
+      "declining the charge changed the hand",
+    );
+  }
+
+  // 3-1-2: a Leader Card does not leave the Leader Area, so it is not a card
+  // the charge can be made about — and the player reaching for it is owed the
+  // requirement that says so, in the shape `wording.ts` already words.
+  {
+    const s = atCharge("L-BLUE");
+    const leader = s.sides.p1.zones.hand[0];
+    const legal = rulesEngine.legalActions(CTX, s);
+    assert.equal(legal.some((l) => (l.action as { card?: string | null }).card === leader), false, "a Leader Card in hand was offered as a charge");
+    const rejected = rulesEngine.rejectedActions(CTX, s, legal);
+    assert.deepEqual(
+      rejected.map((r) => ({ card: (r.action as { card?: string }).card, why: r.why })),
+      [{ card: leader, why: [{ kind: "cardType", needs: "a card that is not a Leader Card", card: leader }] }],
+      "the Leader in hand is not refused the charge, or is refused something else",
+    );
+    assert.ok(refusal(rejected[0].why[0], { name: "L-BLUE", reaching: "charge" }).fact.length > 0, "the charge's refusal has no words");
+    assertMenuInvariants(legal, rejected, "the charge with a Leader in hand");
+  }
+
+  // The once-per-turn fact is the *step*: `chargeEnergy` is asked once a turn,
+  // and the Main Phase is a phase the move is not declared in — so it is
+  // offered there for no card and refused for none.
+  {
+    let s = atCharge();
+    s = rulesEngine.apply(CTX, s, { type: "charge", player: "p1", card: null }).state as VmState;
+    assert.equal(s.prompt.kind, "main", "the game is not at the Main Phase question");
+    assert.deepEqual(actionsAt(DBS, s).map((a) => a.name).sort(), ["concede", "endMain", "pass"], "the charge is offered at a question it does not answer");
+    assert.throws(() => rulesEngine.apply(CTX, s, { type: "charge", player: "p1", card: s.sides.p1.zones.hand[0] }), IllegalAction, "a card was charged in the Main Phase");
+
+    // …and the Main Phase's own move, which is the whole of what this engine
+    // can do there until the play family is declared (#146).
+    const menu = rulesEngine.legalActions(CTX, s);
+    assert.deepEqual(menu.map((l) => ({ action: l.action, label: l.label })), [{ action: { type: "endMain", player: "p1" }, label: "End turn" }], "the Main Phase offers something other than ending the turn");
+    const ended = rulesEngine.apply(CTX, s, { type: "endMain", player: "p1" }).state as VmState;
+    assert.notEqual(ended.phase, "main", "ending the Main Phase did not leave it");
+  }
+
+  // Conceding is a declaration too — accepted at any prompt, on neither list,
+  // and its phases are the phases a game is still being played in (0-1-3-4).
+  {
+    const declared = DBS.actions.concede;
+    assert.ok(declared, "actions.rules does not declare conceding");
+    assert.equal(declared.listed, false, "conceding is enumerated, and a client shows it as a button of its own");
+    assert.deepEqual(declared.do, [], "conceding declares a program, and ending a game is not something a program can say yet");
+    assert.equal(declared.when.includes(DBS.game?.overPhase ?? "over"), false, "conceding is declared in the phase a finished game rests in");
+    const s = atCharge();
+    // The opponent's, at a prompt that is not theirs.
+    const conceded = rulesEngine.apply(CTX, s, { type: "concede", player: "p2" }).state as VmState;
+    assert.equal(conceded.winner, "p1", "conceding did not give the game to the other player");
+    assert.equal(conceded.phase, DBS.game?.overPhase, "a conceded game did not come to rest in the phase the game names");
+    assert.throws(() => rulesEngine.apply(CTX, conceded, { type: "concede", player: "p1" }), IllegalAction, "a finished game was conceded again");
   }
 }
 

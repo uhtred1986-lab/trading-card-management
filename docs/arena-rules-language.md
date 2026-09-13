@@ -285,9 +285,19 @@ DEFINE STEP mainStart
 
 **ACTION** — a move a player may make, and the requirements that say why they may not: `WHEN` the
 phases it is available in (required), `prompts:` the questions within them it answers, `FOR` the
-cards it applies to, `BIND` the name a refusal calls the candidate by, `COST` the names of the
-`DEFINE COST` prices it charges, `DO` what it does (required), one `REFUSE` line per requirement,
-`listed:` whether the menu carries it, `label:` the words it shows there, and `text:` what it is.
+cards it applies to, `BIND` the name a refusal calls the candidate by, `decline:` the words for
+answering it with no card at all, `COST` the names of the `DEFINE COST` prices it charges, `DO` what
+it does (required), one `REFUSE` line per requirement, `listed:` whether the menu carries it,
+`label:` the words it shows there, and `text:` what it is.
+
+`decline:` is the other half of a *may*. The charge (§7-2-11) offers a card in hand **and** the
+answer that places none, and that answer is a candidate of its own rather than the absence of one —
+last on the menu, so a client that draws a button per candidate keeps its ghost button. It is words
+because the menu says them ("Skip charge", not "Charge"), it is only written by a move whose shape
+in the shared `Action` union carries a nullable card, and it is never refused: the `REFUSE` lines
+are written about a card, and a question on the table can always be answered by taking nothing from
+it. A `DO` written about the candidate therefore runs over no cards when it is declined, which is
+how one paragraph says both halves.
 
 A `REFUSE` line is `REFUSE <requirement> UNLESS <condition>`. The requirement is written as an event
 pattern is — a name and the fields that go with it — and the name is a **`Requirement` kind** and

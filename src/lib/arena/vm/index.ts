@@ -28,7 +28,7 @@
  * definition arrives as a generated constant (`rulesets/dbs/files.ts`), so
  * nothing here reads a file at request time.
  */
-import { type Action, type EngineContext, type GameEvent, type GameOptions, type LegalAction, type RejectedAction } from "../engine";
+import { IllegalAction, type Action, type EngineContext, type GameEvent, type GameOptions, type LegalAction, type RejectedAction } from "../engine";
 import type { Beats } from "../beats";
 import type { BoardView, CardArt } from "../view";
 import { PLAYERS, type PlayerId } from "../engine/types";
@@ -253,7 +253,20 @@ function apply(ctx: EngineContext, prev: VmState, action: Action): { state: VmSt
   // 0-1-3-4: conceding is a player's act and no card may cause or replace it,
   // so it is answered before any prompt is looked at — including at a prompt
   // that belongs to the other player.
+  //
+  // It is a `DEFINE ACTION` like every other move (#145), declared
+  // `listed: false` — accepted and never enumerated, because a client shows it
+  // as a button of its own — and the phases it names are the phases a game is
+  // still being played in. What the declaration cannot yet say is what taking
+  // it *does*: no op of the effect language ends a game, so its `DO` is empty,
+  // `actions.rules` says why, and the ending stays the interpreter's the way
+  // `flow.ts`'s worked steps are. A `DO` that grew one would be a program this
+  // silently ignored, which is why it is named rather than skipped.
   if (action.type === "concede") {
+    const def = game.actions.concede;
+    if (!def) throw new RulesetBroken(state.game, "nothing declares conceding, and a player may give up a game at any point in it (0-1-3-4)");
+    if (!def.when.includes(state.phase)) throw new IllegalAction(`${def.label ?? def.name} is not a move of the ${state.phase} phase`);
+    if (def.do.length) throw new NotYet(`run what ${def.name} does — a game ending is not something a program can say yet`, "#142");
     endGame(ctx, game, state, events, other(action.player), `${state.sides[action.player].name} conceded`);
     // Straight to the runner: a game that has ended still has to walk into its
     // over phase, whose one step asks the question nobody answers. Returning
@@ -276,33 +289,37 @@ function apply(ctx: EngineContext, prev: VmState, action: Action): { state: VmSt
       answered(state);
       break;
     }
-    case "charge": {
-      requirePrompt(state, action, ["charge"]);
-      // 7-2-11 is a *may*, and the half of it that places a card is a
-      // `DEFINE ACTION` with a price (#145). Declining is the flow's own
-      // business and is the half that exists.
-      if (action.card !== null) throw new NotYet("place a card in the Energy Area (7-2-11)", "#145");
-      answered(state);
-      break;
-    }
-    case "endMain": {
-      requirePrompt(state, action, ["main"]);
-      answered(state);
-      break;
-    }
     default:
       // Everything else is a `DEFINE ACTION`: `actions.rules` says when it is
       // offered, for which cards, what it costs and what it does, and
-      // `vm/actions.ts` reads all of it (#144). `pass` is the one declared so
-      // far — the generic decline, the answer that takes none of what the
-      // question offers — and a move no declaration claims is refused by name
-      // rather than silently ignored, naming the issue that declares it.
-      if (!applyDeclared(ctx, game, state, events, action)) throw new NotYet(`take a ${action.type} action — no DEFINE ACTION declares it`, "#145");
+      // `vm/actions.ts` reads all of it (#144). The charge, the end of the Main
+      // Phase and the generic decline are the four declared so far (#145), and
+      // a move no declaration claims is refused by name rather than silently
+      // ignored, naming the issue that declares it.
+      if (!applyDeclared(ctx, game, state, events, action)) throw new NotYet(`take a ${action.type} action — no DEFINE ACTION declares it`, DECLARED_BY[action.type] ?? "#146");
   }
 
   run(ctx, game, state, events);
   return { state, events };
 }
+
+/**
+ * Which issue declares a move this engine has no paragraph for yet, so a
+ * refusal names the work rather than the gap. The play family and the battle it
+ * leads to are #146's; an activation needs a skill index as well as a card, and
+ * is #147's.
+ */
+const DECLARED_BY: Partial<Record<Action["type"], string>> = {
+  play: "#146",
+  playZ: "#146",
+  growUnison: "#146",
+  attack: "#146",
+  block: "#146",
+  combo: "#146",
+  counter: "#146",
+  zEnergyFromCombo: "#146",
+  activate: "#147",
+};
 
 /** 6-2-1-9-1: the hand goes to the bottom of the deck, the deck is shuffled, and six new cards are drawn — once. */
 function mulligan(ctx: EngineContext, game: GameDefinition, state: VmState, events: GameEvent[], p: PlayerId): void {
@@ -328,13 +345,15 @@ function legalActions(ctx: EngineContext, state: VmState): LegalAction[] {
 }
 
 /**
- * The answers the interpreter still gives itself: who goes first, whether to
- * redraw, and the two declines that have no declaration yet.
+ * The answers the interpreter still gives itself: who goes first, and whether
+ * to redraw.
  *
- * The labels are the legacy engine's word for word, and each of these is a
- * `DEFINE ACTION` waiting to be written (#145): a client that showed "Go first"
- * on one board and "Choose to go first" on the other would be a client reading
- * the engine rather than the contract.
+ * Both are answers to the pre-game procedure rather than moves of a turn —
+ * neither is about a card, and each carries a field no candidate could supply
+ * (which player, whether to redraw), which is why `DECLARABLE_ACTIONS` has no
+ * word for them. The labels are the legacy engine's word for word: a client
+ * that showed "Go first" on one board and "Choose to go first" on the other
+ * would be a client reading the engine rather than the contract.
  */
 function promptAnswers(state: VmState): LegalAction[] {
   const pr = state.prompt;
@@ -346,12 +365,6 @@ function promptAnswers(state: VmState): LegalAction[] {
         { action: { type: "mulligan", player: pr.player, redraw: false }, label: "Keep hand" },
         { action: { type: "mulligan", player: pr.player, redraw: true }, label: "Mulligan" },
       ];
-    case "charge":
-      // Placing a card is #145's, so the whole of 7-2-11 that this engine
-      // offers is the skip. The step still happens (7-1-1).
-      return [{ action: { type: "charge", player: pr.player, card: null }, label: "Skip charge" }];
-    case "main":
-      return [{ action: { type: "endMain", player: pr.player }, label: "End turn" }];
     default:
       return [];
   }
