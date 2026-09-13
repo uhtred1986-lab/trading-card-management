@@ -299,7 +299,7 @@ itself.
 | `keywords.rules` | `KEYWORD` — all 39, their parameters and their meanings; the `HOOK` bodies stay empty until Stage 7 | §22 | #135 |
 | `words.rules` | the words the board says for a zone, a colour, a mode, a requirement — **not written yet**: `DEFINE WORDS` is not one of the eleven kinds, and its shape is an open question on #131 | — | #135, after that answer |
 | `prompts.rules` | one declaration per `Prompt` kind with the question it asks — **not written yet**, the same open question (it may be a field of `DEFINE ACTION` rather than a kind) | — | #135, after that answer |
-| `actions.rules` | `ACTION` — charge, play, activate, endMain, pass, concede: `WHEN / FOR / COST / DO / REFUSE`, the refusal in the order the legacy engine checks it | §6, §7 | Stage 5 |
+| `actions.rules` | `ACTION` — charge, play, activate, endMain, pass, concede: `WHEN / FOR / COST / DO / REFUSE`, the refusal in the order the legacy engine checks it. The grammar and the generic legality are in (#144) and `pass` is declared; the moves themselves are #145–#147 | §6, §7 | #144 ✔, #145–#147 |
 | `costs.rules` | `COST` — energy with colours and X, markers, life, rest, pay-with, and the unreadable price that refuses | §8-3-2-3, §22-45 | Stage 5 |
 | `battle.rules` | the battle sub-flow as `STEP`s and `ACTION`s — declaration, the blocker window, counter windows, combo, comparison, damage | §7, §8 | Stage 6 |
 
@@ -461,6 +461,68 @@ whose pattern **names a place** (`moved(from: combo)`, `moved(to: zEnergy)`,
 for where its skills are valid. So the rules engine asks a card about its own moment wherever it is
 when the pattern names a place, and only in play when it names none — and the list is not copied.
 
+### How an action is declared
+
+`actions.rules` is Stage 5's file and the grammar landed with #144. Its promise is the one the
+whole programme turns on for legality: **`legalActions` and `rejectedActions` are two readings of
+one paragraph**, so adding a move to a game is a paragraph and the refusal comes for free. In the
+legacy engine each is a predicate (`canPlay`, `planPayment`, `activatable`) with a hand-written
+`whyNot*` twin beside it, running the same tests in the same order and collecting instead of
+short-circuiting — two functions per rule, adjacent in the file and held together by a test because
+nothing else holds them together (`engine/rejections.ts`). Here there is one.
+
+```
+DEFINE ACTION play
+  WHEN [main]
+  prompts: [main]
+  FOR 1 "battle card" IN you.hand
+  BIND "card"
+  COST [energy]
+  DO {
+    moveTo(target: $card, to: battle)
+  }
+  REFUSE timing(window: main) UNLESS isTurnPlayer()
+  REFUSE cardType(needs: "a Battle Card") UNLESS count(FROM $card "battle card") >= 1
+  listed: true
+  label: "Play"
+  text: "the turn player plays a card from their hand (7-3-4)"
+```
+
+| Written | Means |
+|---|---|
+| `WHEN [main]` | the phases the move is offered in. Required, and resolved against `DEFINE PHASE` |
+| `prompts: [main]` | the questions within those phases it answers. Resolved against the prompts the steps ask for — a phase can ask more than one, and only some are questions a move answers. Left out, it answers every question its phases ask |
+| `FOR 1 "battle card" IN you.hand` | the candidates: one entry on the menu per card the selector finds, *including* the cards it will refuse. A move with no `FOR` is about no card |
+| `BIND "card"` | the name a refusal's condition calls the candidate by, as a trigger's `BIND` names its subject: `count(FROM $card …)` is a test about the one card being asked about |
+| `COST [energy]` | the `DEFINE COST` prices it charges, by name |
+| `DO { … }` | what taking it does. A moment is fired by what the program does — a `moveTo` is a `moved` — and is never declared separately (#141) |
+| `REFUSE <requirement> UNLESS <cond>` | one line per requirement, **in the order the legality check runs them**: read no further than the first that fails, because a later line may well ask something that only makes sense once the earlier one holds |
+| `listed: false` | accepted without being enumerated — the concede rule written down. It says nothing about legality, only that the move is on neither the menu nor the list of refusals, because a refusal explains a move a player can see |
+| `label:` / `text:` | the words the menu shows (the card's own name is added to them), and what the move is |
+
+Three things the shape guarantees rather than asks for:
+
+- **The requirement vocabulary is the engine's.** A `REFUSE` names a `Requirement` kind and nothing
+  else (`REQUIREMENT_KINDS`, closed), so `src/lib/arena/wording.ts` words a rules-engine refusal with
+  the very table it words a legacy one with — never a second wording table, which is the rule Stage
+  5's tracking issue holds throughout. The one field an interpreter fills in is the `card` a
+  requirement is about, because a declaration cannot know which card it is being asked about.
+- **One rejection per card per action type**, one per skill line for an activation
+  (`docs/arena-workflow-spec.md` §3.2). It is not a dedupe pass here; it is the shape: an action is
+  asked about each of its candidates once, and a candidate with nothing against it is on the menu
+  instead. `scripts/verify/harness.ts` asserts it with one function that both engines' menus are
+  passed to.
+- **Who the move is offered to is not a field.** A prompt is put to a player and an action answers a
+  prompt, so the asked player is the actor — prompt machinery, which §7 keeps out of a game's files.
+
+`src/lib/arena/vm/actions.ts` is the whole interpreter of this. What it reads so far: a `FOR` by
+side, area, filter and mode; a `REFUSE` condition written as `count()`, `isTurnPlayer()` and their
+combinations; a `DO` of `note()`. Everything else is refused *by name* rather than read as false or
+silently skipped — a condition read as false is a move that can never be made and nothing saying
+why. The full evaluator is #142, the prices #148, and the DBS moves themselves #145–#147; today
+`actions.rules` declares one action, `pass`, re-declared from the case that used to be written in
+the interpreter.
+
 ### What the loader does
 
 `loadRuleset(files, id)` takes a map of **file name → text** and returns
@@ -495,7 +557,7 @@ the line and column of the offending word:
 | A `GAME` naming a phase nothing declares | `phases: [charge, main, end]` with no `DEFINE PHASE end` |
 | A `PHASE` naming an unknown step or action | `steps: [mainStart]`, `actions: [playCard]` |
 | A `STEP` naming an unknown phase | `phase: "main"` |
-| An `ACTION` naming an unknown phase or price | `WHEN [main]`, `COST [energy]` |
+| An `ACTION` naming an unknown phase, prompt or price | `WHEN [main]`, `prompts: [battleStep]`, `COST [energy]` — the prompts are the ones the steps ask for, since `DEFINE PROMPT` is #131's open question |
 | A `TRIGGER` naming an unknown zone | `ON moved(from: hand, to: battle)` — the pattern arguments `from`, `to`, `in`, `area`, `zone` are places; the rest of an event pattern is open, as the grammar leaves it |
 | **Any** program or selector naming an unknown zone | `moveTo(target: $chosen, to: warp)`, nested however deep. The check reads `OP_SCHEMA`/`COND_SCHEMA` rows rather than a list of places, so an op that grows an area field is checked the day its row says so |
 | A `KEYWORD` hanging a body on an unknown hook point | `HOOK whenTheMoodTakesIt {}` — the points are the interpreter's (§4), not the game's |

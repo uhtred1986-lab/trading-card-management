@@ -14,7 +14,7 @@
  */
 import type { CardFilter } from "../engine/filters";
 import type { Amount, AmountAttr, Cond, CostRecord, FieldType, Op, OpField, Selector, Side } from "../engine/script";
-import type { Trigger } from "../engine/types";
+import type { Requirement, Trigger } from "../engine/types";
 
 /**
  * One `card_rules` row as the language says it: WHEN / COST / IF / THEN.
@@ -225,7 +225,7 @@ export const COST_ITEMS = [
  */
 export const RESERVED = new Set([
   "WHEN", "COST", "IF", "THEN", "DO", "TEXT", "PAYWITH", "AS", "AND", "OR", "NOT", "IN", "FROM", "UNDER", "ANY", "TOP", "BOTTOM", "UP", "TO", "MINUS", "NULL", "TRUE", "FALSE", "ALL",
-  "DEFINE", "GAME", "ATTRIBUTE", "ZONE", "PHASE", "STEP", "ACTION", "TRIGGER", "KEYWORD", "WIN", "OP", "HOOK", "ON", "WHERE", "BIND", "FOR", "REFUSE", "TAKES", "LIMIT",
+  "DEFINE", "GAME", "ATTRIBUTE", "ZONE", "PHASE", "STEP", "ACTION", "TRIGGER", "KEYWORD", "WIN", "OP", "HOOK", "ON", "WHERE", "BIND", "FOR", "REFUSE", "UNLESS", "TAKES", "LIMIT",
 ]);
 
 // ── definitions ─────────────────────────────────────────────────────────────
@@ -286,15 +286,16 @@ export interface DefineHook {
  * row, so `printValue` and the parser's `typed` need no new cases for the
  * fourteen types they already read.
  *
- * Two additions. `type` may also be one of three shapes a card's rule never
- * carries — `pattern` (a trigger's event), `params` (a macro's parameter list)
- * and `hooks` (a keyword's bodies, one line each). And `word` is the word that
+ * Two additions. `type` may also be one of four shapes a card's rule never
+ * carries — `pattern` (a trigger's event), `params` (a macro's parameter list),
+ * `hooks` (a keyword's bodies, one line each) and `refusals` (an action's
+ * requirements, likewise one line each). And `word` is the word that
  * introduces the field on its own line: a field with one is written `ON …`,
  * `DO { … }`, `REFUSE "…"`, and a field without one is written `name: value`.
  * The word is part of the row rather than a second table, so the printer still
  * has no choice to make about how a field is written.
  */
-export type DefineFieldType = FieldType | "pattern" | "params" | "hooks";
+export type DefineFieldType = FieldType | "pattern" | "params" | "hooks" | "refusals";
 export type DefineField = Omit<OpField, "type"> & { type: DefineFieldType; word?: string };
 export interface DefineSpec {
   fields: readonly DefineField[];
@@ -398,13 +399,87 @@ export interface DefStep extends Declaration<"STEP"> {
   text?: string;
 }
 
-/** `DEFINE ACTION` — a move a player may make: WHEN / FOR / COST / DO / REFUSE. */
+/**
+ * One line of an action's `REFUSE` list: the requirement the player is owed
+ * when the action is not offered, and the condition that would have satisfied
+ * it.
+ *
+ * `kind` is a `Requirement` kind and nothing else (`REQUIREMENT_KINDS` below),
+ * so a refusal a game declares is a refusal `src/lib/arena/wording.ts` already
+ * knows how to say — the workflow spec's promise that a rules-engine refusal
+ * is worded by the same table as a legacy one, never by a second one.
+ *
+ * `args` are the literal fields of that requirement, written the way a
+ * trigger's event pattern is written: `timing(window: main)`. The fields an
+ * interpreter can only work out for itself — the `card` the refusal is about,
+ * an energy shortfall — are filled in by it and left out here.
+ *
+ * `unless` is the condition that has to hold for the action to be offered.
+ * Written as the *positive* test rather than as "the reason it failed", because
+ * that is the same expression a legality check runs: one condition, read once,
+ * answering both lists.
+ */
+export interface DefineRefusal {
+  kind: Requirement["kind"];
+  args: Record<string, PatternValue>;
+  unless: Cond;
+}
+
+/**
+ * Every `Requirement` kind, as a refusal may name one. A kind added to the
+ * union fails `npm run typecheck` here until the grammar can write it, which is
+ * the same promise `SELECTOR_FIELDS` and `FILTER_FIELDS` make.
+ */
+export const REQUIREMENT_KINDS = [
+  "energy",
+  "energyColour",
+  "mode",
+  "timing",
+  "oncePerTurn",
+  "zone",
+  "cardType",
+  "target",
+  "forbidden",
+  "immune",
+  "unread",
+  "condition",
+  "other",
+] as const satisfies readonly Requirement["kind"][];
+type RequirementKindMissing = Exclude<Requirement["kind"], (typeof REQUIREMENT_KINDS)[number]>;
+const _everyRequirementKindWritable: RequirementKindMissing extends never ? true : never = true;
+void _everyRequirementKindWritable;
+
+/**
+ * `DEFINE ACTION` — a move a player may make: WHEN / FOR / COST / DO / REFUSE,
+ * and the refusal that comes with it (#144).
+ *
+ * `when` is the phases it is offered in and `prompts` the questions within
+ * them, because a phase can ask more than one (the pre-game procedure asks who
+ * goes first and then whether to mulligan, and only the second is a question a
+ * decline answers). Who it is *put to* is deliberately not here: that is prompt
+ * machinery (`docs/arena-ruleset-spec.md` §7), and an action offered to anyone
+ * but the player being asked would be a second answer to the same question.
+ *
+ * `listed` is the concede rule, written down: an action a client always shows
+ * as a button of its own is accepted without ever being enumerated, which is
+ * what the legacy engine does with conceding and what this engine has been
+ * doing with `pass`. It says nothing about legality — an unlisted action is
+ * checked exactly as a listed one is, it is simply not on the menu, and so
+ * appears in neither `legalActions` nor `rejectedActions`.
+ */
 export interface DefAction extends Declaration<"ACTION"> {
   when: string[];
+  prompts?: string[];
   for?: Selector;
+  /** The name a `REFUSE` condition calls the candidate by, as a trigger's `BIND` names its subject. */
+  bind?: string;
   cost?: string[];
   do: Op[];
-  refuse?: string;
+  refusals?: DefineRefusal[];
+  listed?: boolean;
+  /** The words the menu shows for it; the card's own name is added by the interpreter. */
+  label?: string;
+  text?: string;
 }
 
 /** `DEFINE TRIGGER` — a moment, as an event pattern with a subject binding (manual §9-6). */
@@ -524,13 +599,18 @@ export const DEFINE_SCHEMA = {
     ],
   },
   ACTION: {
-    doc: "a move a player may make, and the sentence that says why they may not",
+    doc: "a move a player may make, and the requirements that say why they may not",
     fields: [
       { name: "when", type: { list: "string" }, word: "WHEN", required: true },
+      { name: "prompts", type: { list: "string" } },
       { name: "for", type: "selector", word: "FOR" },
+      { name: "bind", type: "string", word: "BIND" },
       { name: "cost", type: { list: "string" }, word: "COST" },
       { name: "do", type: "ops", word: "DO", required: true },
-      { name: "refuse", type: "string", word: "REFUSE" },
+      { name: "refusals", type: "refusals", word: "REFUSE" },
+      { name: "listed", type: "boolean", default: true },
+      { name: "label", type: "string" },
+      TEXT,
     ],
   },
   TRIGGER: {

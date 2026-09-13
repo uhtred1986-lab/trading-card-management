@@ -29,7 +29,7 @@ import type { SkillKindPrefix } from "../engine/types";
 // circle, and it is the honest one — a `.rules` file is read against the
 // engine's lists, and the areas it names are resolved against its own zones
 // a few lines below.
-import { fieldsOf, type Definition, type DefineField, type DefineHook, type DefineKind, type PatternValue } from "../lang/ast";
+import { fieldsOf, type Definition, type DefineField, type DefineHook, type DefineKind, type DefineRefusal, type PatternValue } from "../lang/ast";
 import { parseDefinitions } from "../lang/parse";
 import { isHookPoint, HOOK_POINTS } from "./hooks";
 import type { GameDefinition, Loaded, RulesetError, Vocabulary } from "./types";
@@ -111,6 +111,8 @@ export function loadRuleset(files: Record<string, string>, id: Game = "dbs"): Lo
   }
 
   // ── every name resolved against a declaration ────────────────────────────
+  const promptKinds: Record<string, true> = {};
+  for (const step of Object.values(definition.steps)) if (step.prompt) promptKinds[step.prompt] = true;
   for (const entry of kept) {
     const def = entry.def;
     const need = (names: readonly string[] | undefined, bucket: Record<string, unknown>, what: string) => {
@@ -131,6 +133,11 @@ export function loadRuleset(files: Record<string, string>, id: Game = "dbs"): Lo
     if (def.define === "ACTION") {
       need(def.when, definition.phases, "a phase");
       need(def.cost, definition.costs, "a price");
+      // A question nothing asks is a move that can never be offered. The
+      // prompts are whatever the steps ask for — `DEFINE PROMPT` is #131's open
+      // question, so this reads the same list `vocabularyOf` does rather than
+      // inventing a kind ahead of the answer.
+      need(def.prompts, promptKinds, "a prompt");
     }
     if (def.define === "TRIGGER") need(patternZones(def.on.args), definition.zones, "a zone");
     if (def.define === "KEYWORD") {
@@ -261,6 +268,13 @@ function areasOf(def: Definition): string[] {
     if (value === undefined || value === null) continue;
     if (f.type === "hooks") {
       for (const hook of value as DefineHook[]) out.push(...opsAreas(hook.ops));
+      continue;
+    }
+    // An action's refusals: the condition that would have satisfied each one
+    // selects cards, and a refusal pointing at a zone the game never declared
+    // is a move that can never be explained.
+    if (f.type === "refusals") {
+      for (const refusal of value as DefineRefusal[]) out.push(...condAreas(refusal.unless));
       continue;
     }
     // A pattern's zones are read by `patternZones` (only some of its arguments

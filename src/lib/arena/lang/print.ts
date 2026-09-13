@@ -29,7 +29,7 @@ import {
   type Selector,
 } from "../engine/script";
 import type { KeywordSkill } from "../engine/types";
-import { EXPR_SCHEMA, FILTER_FIELDS, FILTER_FIELD_NAMES, fieldsOf, type Definition, type DefineFieldType, type DefineHook, type DefineParam, type EventPattern, type ExprArg, type FilterFieldType, type Rule } from "./ast";
+import { EXPR_SCHEMA, FILTER_FIELDS, FILTER_FIELD_NAMES, fieldsOf, type Definition, type DefineFieldType, type DefineHook, type DefineParam, type DefineRefusal, type EventPattern, type ExprArg, type FilterFieldType, type Rule } from "./ast";
 
 /**
  * Key-sorted JSON with `undefined` dropped, so "the same object" means the
@@ -388,6 +388,11 @@ function printPattern(p: EventPattern): string {
   return args.length ? `${p.event}(${args.map((k) => `${k}: ${printPlain(p.args[k])}`).join(", ")})` : p.event;
 }
 
+/** `timing(window: main) UNLESS isTurnPlayer()` — the head is written as an event pattern is, because it is the same shape. */
+function printRefusal(r: DefineRefusal): string {
+  return `${printPattern({ event: r.kind, args: r.args })} UNLESS ${printCond(r.unless)}`;
+}
+
 function printParams(params: DefineParam[]): string {
   return `(${params.map((p) => `${p.name}: ${p.type}`).join(", ")})`;
 }
@@ -398,6 +403,8 @@ function printDefineValue(type: DefineFieldType, v: unknown, indent: number): st
   // A `hooks` field is the one that is not a value at all: it prints as a line
   // of its own per hook, in `printDefinition` below.
   if (type === "hooks") return "";
+  // Nor is a `refusals` field: it prints a line per refusal, in `printDefinition`.
+  if (type === "refusals") return "";
   return printValue(type, v, indent);
 }
 
@@ -409,6 +416,10 @@ export function printDefinition(def: Definition): string {
     if (v === undefined) continue;
     if (f.type === "hooks") {
       for (const hook of v as DefineHook[]) lines.push(`${INDENT}${f.word ?? "HOOK"} ${atom(hook.at)} ${printBlock(hook.ops, 1)}`);
+      continue;
+    }
+    if (f.type === "refusals") {
+      for (const r of v as DefineRefusal[]) lines.push(`${INDENT}${f.word ?? "REFUSE"} ${printRefusal(r)}`);
       continue;
     }
     const text = v === null ? "null" : printDefineValue(f.type, v, 1);

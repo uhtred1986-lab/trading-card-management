@@ -330,11 +330,17 @@ function cardKeyOf(a: Action): string {
   return "";
 }
 
-/** No action in both lists, and no rejection without a reason. Run over every state a fixture holds. */
-function assertDisjoint(s: GameState, where: string): RejectedAction[] {
-  const ctx = CTX;
-  const legal = legalActions(ctx, s);
-  const rejected = rejectedActions(ctx, s, legal);
+/**
+ * §3.2, over two lists and nothing else.
+ *
+ * Taken as the two lists rather than as a state so the *same* assertion runs on
+ * either engine: the legacy engine's fixtures below hand it a `GameState`'s
+ * menu, and `verify/vm.ts` hands it a rules game's, which is built from
+ * `DEFINE ACTION` declarations instead of from a predicate and its `whyNot`
+ * twin (#144). One promise, one function, two interpreters — a second copy
+ * would be the workflow spec asserted twice and agreed with once.
+ */
+function assertMenuInvariants(legal: LegalAction[], rejected: RejectedAction[], where: string): void {
   const offered = new Set(legal.map((l) => JSON.stringify(l.action)));
   const keys = new Set<string>();
   for (const r of rejected) {
@@ -347,6 +353,14 @@ function assertDisjoint(s: GameState, where: string): RejectedAction[] {
     // stronger promise a client relies on when it indexes by card.
     assert.ok(!legal.some((l) => `${l.action.type}:${cardKeyOf(l.action)}` === key), `${where}: ${key} is rejected while the same move is offered`);
   }
+}
+
+/** No action in both lists, and no rejection without a reason. Run over every state a fixture holds. */
+function assertDisjoint(s: GameState, where: string): RejectedAction[] {
+  const ctx = CTX;
+  const legal = legalActions(ctx, s);
+  const rejected = rejectedActions(ctx, s, legal);
+  assertMenuInvariants(legal, rejected, where);
   return rejected;
 }
 
@@ -372,6 +386,7 @@ export {
   assertConsistent,
   assertConsistentAfterDrop,
   assertDisjoint,
+  assertMenuInvariants,
   autoTriggerMatches,
   boardView,
   buildSnapshot,
