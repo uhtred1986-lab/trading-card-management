@@ -76,8 +76,14 @@ export interface RenderOptions {
  * against — and `scripts/verify/rulesets.ts` is where the two are asserted to
  * be one list. `KEYWORD_NAMES` is still read directly, by the parser and the
  * editor, until `keywords.rules` declares the 39 (#135).
+ *
+ * `COLORS` is exported for one more reader: no declaration carries the colour
+ * words — `Vocabulary` has no list for them — so an attribute declared
+ * `value: colors` is checked against this one (`vm/cards.ts`). The day a game
+ * declares its own colours, that check reads the declaration and this export
+ * goes back to being private.
  */
-const COLORS = ["Red", "Blue", "Green", "Yellow", "Black", "White", "Colorless"] as const satisfies readonly Color[];
+export const COLORS = ["Red", "Blue", "Green", "Yellow", "Black", "White", "Colorless"] as const satisfies readonly Color[];
 export const SIDES = ["you", "opponent", "both"] as const satisfies readonly Side[];
 export const SPECIAL_TARGETS = ["self", "attacker", "guard", "subject", "leader", "opponentLeader", "resolving", "onTop"] as const satisfies readonly SpecialTarget[];
 export const REPLACE_EVENTS = ["leave", "ko", "play"] as const satisfies readonly ReplaceEvent[];

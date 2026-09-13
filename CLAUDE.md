@@ -241,6 +241,14 @@ learned the expensive way. Read it before changing the compiler or the engine.
   contract change. `engineFor` resolves **both** ids — the `Engine` interface is the six calls
   `createGame`, `apply`, `legalActions`, `rejectedActions`, `boardView` and `toBeats`, and the
   rules engine answers a call it cannot make yet with `NotYet`, naming the issue that builds it.
+  Its `createGame` **deals the opening board** (#139): a side is `Record<zoneName, cardId[]>` built
+  from the `ZONE` declarations (`vm/zones.ts`, where `moveCard` is the only mover and honours
+  `single`, `modes`, `markers`, `place`, order and `under{host}` generically), a card is a bag of
+  declared attributes read off the catalog by `vm/cards.ts`, and a `CardFilter` becomes a predicate
+  over those attributes through the one adapter in `vm/filters.ts` — so the compiler, `card_rules`
+  and the drafter are untouched. From one seed the hands, life piles and decks are card for card
+  the legacy engine's, which is the measurement every later stage is taken against; the mulligan,
+  the first-player choice and the second player's energy marker wait on prompts (#140).
   Whether a *new* game may be made on an engine is the separate question `playableEngine(id)`
   asks of `ENGINE_INFO[id].available`, and the answer for `rules` is still no. Outside those six
   calls the app is still legacy-shaped (`games.ts` reads `state.turn`), so `legacyState(value)`
@@ -266,6 +274,9 @@ learned the expensive way. Read it before changing the compiler or the engine.
   arrives as a generated constant (`dbs/files.ts`, written by `npm run arena:rulesets` from the
   `.rules` files beside it), so nothing reads a file at request time.
   `docs/arena-ruleset-spec.md` §3 says what each file declares and what the loader refuses.
+  A zone's `place:` (default true) is what lets an interpreter build a side from the declarations
+  without knowing a name: DBS declares `play` (the word for the three in-play areas, 9-1-3-1) and
+  `under` (the pile hanging off one card, 23-2-2-2) as `place: false`, and programs still name both.
   `expandMacros` (`rulesets/expand.ts`) is the other half of the plan's second decision: a
   program written in the ops the cards use, lowered through the game's own `DEFINE OP`
   declarations to the primitives an interpreter runs — an op with no declaration passes
