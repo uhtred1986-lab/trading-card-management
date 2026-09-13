@@ -786,7 +786,15 @@ reach yet, which is why this row cites a simpler real card instead of the manual
 status) — the window every `counter:*` WHEN already answers within, but not, today, a condition a
 *different* skill can read ("if declared" naming an action other than the one the skill itself is
 answering). `npm run arena:tally -- --show "if declared"` finds no card printing the fixed phrase
-verbatim in the catalog fetched while writing this table. **unreadable — see issue #239.**
+verbatim, re-checked on 13 Sep 2026 against the live catalog with the same empty result as when
+this row was written for issue #112; the nearby wordings issue #239 asked after ("in response to",
+"while", "declared") turn up nothing in the 20-15 sense either — "declared" only ever means the
+unrelated "Declare 1 number" mechanic (`BT22-104` and family), and "while" is ordinary standing
+conditions on a card's own state (`BT12-082`, `BT19-141`), never a read of another action's
+pending-declared window. **No known card needs this reading** — 20-15-1's text is a real manual
+rule with no observable gap in the catalog today, so no `Cond` was added; issue #239 recommends
+closing not-planned rather than building a condition with no card to round-trip against. Re-run
+the tally after a catalog sync before reopening.
 
 ### 20-16. If You Do
 
