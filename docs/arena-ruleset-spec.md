@@ -391,9 +391,22 @@ true asked the grammar for three fields and left two gaps written down rather th
 
 An attribute's `layers:` is the order of 9-9-1 — `printed` (9-9-1-1), `rewrite` (every continuous
 effect that does not rewrite a number, 9-9-1-2), `numeric` (the ones that do, 9-9-1-3) — and a
-cost's layers are its own, `printed` then `reduction` then `specified`, because 20-21's reduction
-is a discount on the price rather than a rewrite of the printed cost, and the coloured half moves
-on its own (the owner's BT19-039 ruling of 9 Sep 2026).
+cost's layers are its own, because 20-21's reduction is a discount on the price rather than a
+rewrite of the printed cost. The two halves of a price carry them differently, and the difference
+*is* the owner's BT19-039 ruling of 9 Sep 2026 written down: the total (`costOf`) declares
+`[printed, reduction]`, and the coloured requirement (`specifiedCost`) declares
+`[printed, reduction, specified]`. A flat reducer therefore reaches both — one orb off with each
+energy off the total (20-21-2) — and the `specified` layer reaches the colours alone, which is what
+"it never touches a total" means when an interpreter has to obey it. A layer is a **function** of
+the value so far rather than a list of numbers to add, because the floor at zero does not commute
+with an addition and a colour list is not a number.
+
+Which effect `kind` feeds which layer is `LAYER_KINDS` in `vm/effects.ts`: an attribute reads the
+effects named after it, which is the whole of the rule for `power` and `comboPower`, and a price is
+the one exception — the attribute is `costOf` and the effect a skill puts in force says `cost`,
+both names the legacy engine's. It is checked against the definition when a game is made
+(`costLayerGaps`), so a layer renamed in `attributes.rules` fails the game rather than quietly
+reading nothing.
 
 The completeness check over `attributes.rules` is **one-directional**: every `CardDef` field has a
 card attribute, and the derived ones beside them (`costOf`, `comboCostOf`, `zEnergyCostOf`) and the
@@ -623,17 +636,18 @@ same cards rested, the same options and the same words for them. Two gaps are wr
 they are rather than papered over. The amounts of `marker` and `life` are bound from a skill's own
 line by an activation (#147) and have nothing to bind them anywhere else, and 20-19's `payWith` has
 nothing to bind it at all, so an action naming one of those with nothing to bind it is refused **by
-name**; and the reductions of
-20-21 — the flat one, the coloured one, and 22-19's [Warrior of Universe 7] — are the `costOf`
-attribute's declared `layers:`, which are still only partly wired. #148 named four decisions the
-layer machinery needed before `costOf` could mean anything, and #146 made one of them: `PRINTED_BASE`
-in `vm/cards.ts` pairs each derived price with the printed number it discounts, so `costOf` now
-reads as the printed total rather than as nothing, and `amount: "costOf"` is a real reading rather
-than a promise. Three remain — a clamped layer, since 20-21-2's floor at zero is not additive; a
-`colors`-valued layer, since `specifiedCost` declares none; and a wider `VmStatic.kind` — and
-nothing can put a cost reducer in force on this engine until `permanents` stops refusing
-`costReduction` by name, so wiring them now would be a reducer that reads correctly and changes no
-board.
+name**.
+
+20-21's reductions are read, and read as **layers**: all four decisions the layer machinery needed
+are made (`PRINTED_BASE` pairing a derived price with the printed number it discounts, `LAYER_KINDS`
+pairing an attribute with the effect kind a layer of it reads, a `reduction` layer that subtracts
+and floors at zero, and `specifiedCost` carrying a `colors` value through its own two layers), and
+`permanents` now reads the `costReduction` op out of a [Permanent]. `verify/vm.ts` §20 stages a
+reducer on both engines and compares the price charged, the refusal, the energy rested and the
+whole log. The half still out is 22-19's [Warrior of Universe 7], which clears a ≪Universe 7≫
+card's specified cost outright: it is a **keyword** rather than a `costReduction`, so it is a
+`DEFINE KEYWORD` hook body and waits with the other twelve (#153–#157) — reading one keyword by
+name in `vm/costs.ts` would be the branch that module exists to remove.
 
 ### What the loader does
 

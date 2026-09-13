@@ -33,7 +33,7 @@
  */
 import type { EngineContext } from "../engine";
 import type { Amount, AmountAttr, Cond, Ref, ScriptArea, ScriptFrame, Selector, Side } from "../engine/script";
-import type { ContinuousEffect, KeywordSkill, PlayerId } from "../engine/types";
+import type { KeywordSkill, PlayerId } from "../engine/types";
 import { other } from "../engine/types";
 import { powerRelOk } from "../engine/filters";
 import type { GameDefinition } from "../rulesets";
@@ -57,7 +57,6 @@ export const NARROWER: Record<string, string> = {
   barrier: "#153 — a granted [Barrier] is read, a printed one is read, but a prohibition in force ('can't be chosen', 20-4) is #145's",
   immune: "#154 — 9-1-4 immunity narrows what a skill may choose, and the hook group that reads choosing is Stage 7's",
   battle: "Stage 6 — there is no battle on this engine yet, so `inBattle` and `battled` are false",
-  energyCost: "#148 — an amount reading a card's energy cost reads the printed total, before any reduction in force (20-21)",
 };
 
 /**
@@ -89,6 +88,10 @@ function statics(ctx: EngineContext, game: GameDefinition, state: VmState): VmSt
       state,
       (frame, op) => resolveRef(ctx, game, state, frame, ("target" in op && op.target ? op.target : { sel: { special: "self" } }) as Ref),
       (frame, op) => (op.op === "if" ? condHolds(ctx, game, state, frame, op.cond) : false),
+      // "…by 1 for each of your blue Battle Cards": the one amount a standing
+      // change can carry, counted over the board. `readingStatics` is already
+      // true here, so the count reads printed values and cannot recur.
+      (frame, a) => amount(ctx, game, state, frame, a),
     );
   } finally {
     readingStatics = false;
@@ -120,22 +123,20 @@ export function attrsNow(ctx: EngineContext, game: GameDefinition, state: VmStat
     if (!game.attributes[derived] || printed[face] === undefined) continue;
     base[derived] = printed[face];
   }
+  // Every change in force **about this card**, of every kind: which of them a
+  // layer reads is `LAYER_KINDS`, and keeping that pairing in one place is the
+  // whole reason this no longer filters by the attribute's name (#148).
+  const mine = standing.filter((e) => e.target === id);
+  const timed = state.effects.filter((e) => e.target === id);
   for (const name of Object.keys(game.attributes)) {
     if (!game.attributes[name].layers?.length) continue;
-    const kind = name as ContinuousEffect["kind"];
-    const value = valueOf(
-      game,
-      base,
-      name,
-      standing.filter((e) => e.kind === name && e.target === id),
-      state.effects.filter((e) => e.kind === kind && e.target === id),
-    );
+    const value = valueOf(game, base, name, mine, timed);
     if (value !== undefined) out[name] = value;
   }
   return out;
 }
 
-/** One number off one card, for the `attr` and `sumOf` amounts (20-21-2 for a cost — see `NARROWER.energyCost`). */
+/** One number off one card, for the `attr` and `sumOf` amounts — a cost read through its reduction layer (20-21-2), as the legacy `measure` reads it. */
 function measureOf(ctx: EngineContext, game: GameDefinition, state: VmState, id: string, name: AmountAttr): number {
   const now = attrsNow(ctx, game, state, id);
   switch (name) {
@@ -152,10 +153,15 @@ function measureOf(ctx: EngineContext, game: GameDefinition, state: VmState, id:
     }
     case "comboPower":
       return num(now.comboPower);
+    // 20-21-2: "a card with an energy cost of 2 or less" asks what it costs
+    // *now*, which is the derived attribute rather than the printed number —
+    // the legacy `measure` reads `comboCostOf`/`playCost().total` for exactly
+    // these two. A card with no total of its own (an X cost, 1-2-2-2) has none
+    // to read and counts as zero, which is that same reading.
     case "comboCost":
-      return num(now.comboCost);
+      return num(now.comboCostOf);
     case "energyCost":
-      return num(now.energyCost);
+      return num(now.costOf);
   }
 }
 

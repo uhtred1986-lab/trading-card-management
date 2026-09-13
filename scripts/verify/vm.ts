@@ -989,6 +989,7 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
         s,
         (frame) => [frame.card],
         () => true,
+        () => 0,
       ).length > 0,
       "the [Permanent] walk found no standing change on a board holding one",
     );
@@ -2482,3 +2483,217 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
 }
 
 console.log("verify/vm: ok");
+
+// ── 20. a cost reducer in force (#148 Build 2, #146's seam) ─────────────────
+//
+// 20-21: "reduce the energy cost of your red cards in your hand by 1" is a
+// [Permanent], and a [Permanent] could not be in play on this engine until a
+// card could be played (#146). Now one can, so the four pieces of layer
+// machinery `vm/costs.ts`'s header named are built and this is what they claim:
+//
+//  1. **A price is read through its declared layers and nowhere else.** A
+//     reducer in force lowers `costOf` and the price a play is charged follows,
+//     because `DEFINE COST energy` names that attribute and `amountOn` reads it
+//     through `attrsNow`. Nothing in `vm/costs.ts` knows the word "reduction".
+//  2. **20-21-2 floors at zero, and takes the colours down with it.** A flat
+//     reduction removes one orb of the coloured requirement for each energy it
+//     removes from the total — which is what makes an unpayable play payable
+//     rather than merely cheaper.
+//  3. **The coloured half moves on its own.** The owner's BT19-039 ruling
+//     (9 Sep 2026): "reduce the specified cost by {r}" relaxes which colours
+//     are demanded and moves the total *nothing*. That is why `specified` is a
+//     layer of `specifiedCost` and of no numeric attribute.
+//  4. **Both engines charge the same price and ask the same question.** The row
+//     the menu wears, the `Requirement` a shortfall answers with, the payment
+//     prompt and the cards actually rested — compared against the legacy
+//     `playCost`/`planPayment` on the same staged board.
+//
+// What is deliberately *not* here: 22-19's [Warrior of Universe 7], which
+// clears a ≪Universe 7≫ card's specified cost outright. It is a **keyword**
+// rather than a `costReduction` op, so it is a `DEFINE KEYWORD` hook body and
+// Stage 7's (#153–#157) — `keywords.rules` declares no hook bodies at all yet,
+// and reading one keyword by name in `vm/costs.ts` would be the branch this
+// whole module exists to remove.
+{
+  const rulesEngine = engineFor("rules");
+
+  // The cards this block stages with, added here as §16–§19's are.
+  DEFS["R-CUT"] = card("R-CUT", { energyCost: 3, skill: "[Permanent] Reduce the energy cost of your red cards in your hand by 1." });
+  DEFS["R-CUT-COLOUR"] = card("R-CUT-COLOUR", { energyCost: 3, skill: "[Permanent] Reduce the specified cost of your red cards in your hand by {r}." });
+  DEFS["R-BYSTANDER"] = card("R-BYSTANDER", { energyCost: 3 });
+  DEFS["R-TWO"] = card("R-TWO", { energyCost: 2 });
+  DEFS["R-E-BLUE"] = card("R-E-BLUE", { colors: ["Blue"] });
+
+  const CUT_DECKS = {
+    seed: 13,
+    p1: { name: "You", leader: "L-RED", main: fifty("V1") },
+    p2: { name: "Claude", leader: "L-BLUE", main: fifty("V-BLUE") },
+  };
+
+  /** One staged Main Phase on both engines: a card in hand, a [Permanent] in the Battle Area, and some energy. */
+  function withReducer(inHand: string, inPlay: string, energy: string[]): { r: VmState; l: GameState; card: string; source: string } {
+    let r = rulesEngine.createGame(CTX, CUT_DECKS).state as VmState;
+    let l = createGame(CTX, CUT_DECKS).state;
+    for (let i = 0; i < 30; i++) {
+      const pr = r.prompt as { kind: string; player: PlayerId };
+      const a: Action | null =
+        pr.kind === "chooseFirst"
+          ? { type: "chooseFirst", player: pr.player, first: "p1" }
+          : pr.kind === "mulligan"
+            ? { type: "mulligan", player: pr.player, redraw: false }
+            : pr.kind === "charge"
+              ? { type: "charge", player: pr.player, card: null }
+              : null;
+      if (!a) break;
+      r = rulesEngine.apply(CTX, r, a).state as VmState;
+      l = apply(CTX, l, a).state;
+    }
+    assert.equal(r.prompt.kind, "main", "the rules game did not reach a Main Phase to price a play in");
+    assert.equal(l.prompt.kind, "main", "the legacy game did not reach a Main Phase to price a play in");
+    // The whole hand is one known card, so the only price under test is the one
+    // the assertions name — an opening hand of five different costs would make
+    // "the menu" a different claim on every seed.
+    for (const id of r.sides.p1.zones.hand) {
+      r.cards[id].cardId = inHand;
+      l.cards[id].cardId = inHand;
+    }
+    const target = r.sides.p1.zones.hand[0];
+    const source = r.sides.p1.zones.deck[0];
+    const energyIds = r.sides.p1.zones.deck.slice(1, 1 + energy.length);
+    for (const st of [r.cards[source], l.cards[source]]) {
+      st.cardId = inPlay;
+      st.mode = "active";
+    }
+    energyIds.forEach((id, i) => {
+      for (const st of [r.cards[id], l.cards[id]]) {
+        st.cardId = energy[i];
+        st.mode = "active";
+      }
+    });
+    const taken = new Set([source, ...energyIds]);
+    r.sides.p1.zones.deck = r.sides.p1.zones.deck.filter((id) => !taken.has(id));
+    l.players.p1.deck = l.players.p1.deck.filter((id) => !taken.has(id));
+    r.sides.p1.zones.battle = [source];
+    l.players.p1.battle = [source];
+    r.sides.p1.zones.energy = energyIds;
+    l.players.p1.energy = energyIds;
+    return { r, l, card: target, source };
+  }
+
+  /**
+   * What the two engines say a play of this card costs, and what each refuses it
+   * with.
+   *
+   * The legacy menu carries no `cost` on a play — only an activation wears one
+   * — so the figure it is compared against is `playCost` itself, which is the
+   * function every legacy site that charges a play goes through. That is the
+   * comparison that matters: a row whose figure came from a second reading is
+   * the drift `vm/costs.ts` exists to prevent, and here the two readings are on
+   * two different engines.
+   */
+  function priced(board: { r: VmState; l: GameState; card: string }): {
+    cost: { energy: number; orbs?: Partial<Record<string, number>>; describe: string } | undefined;
+    legacyCost: { total: number; specified: Partial<Record<string, number>> };
+    why: Requirement | undefined;
+    legacyWhy: Requirement | undefined;
+    offered: boolean;
+    legacyOffered: boolean;
+  } {
+    const rLegal = rulesEngine.legalActions(CTX, board.r);
+    const lLegal = legalActions(CTX, board.l);
+    const isThis = (x: { action: Action }) => x.action.type === "play" && (x.action as { card: string }).card === board.card;
+    const mine = rLegal.find(isThis);
+    const myWhy = rulesEngine.rejectedActions(CTX, board.r, rLegal).find(isThis);
+    const theirWhy = rejectedActions(CTX, board.l, lLegal).find(isThis);
+    return {
+      cost: mine?.cost as { energy: number; orbs?: Partial<Record<string, number>>; describe: string } | undefined,
+      legacyCost: playCost(CTX, board.l, board.card),
+      why: myWhy?.why[0],
+      legacyWhy: theirWhy?.why[0],
+      offered: !!mine,
+      legacyOffered: lLegal.some(isThis),
+    };
+  }
+
+  /** The rules engine's row, said in the legacy engine's own terms, so the two are one comparison. */
+  const asLegacy = (cost: { energy: number; orbs?: Partial<Record<string, number>> } | undefined) => ({ total: cost?.energy ?? 0, specified: cost?.orbs ?? {} });
+
+  // The baseline, so the rest is a *change* and not a coincidence: a red card
+  // costing 2 with one red orb, one blue energy, and nothing in force.
+  {
+    const board = withReducer("R-TWO", "R-BYSTANDER", ["R-E-BLUE"]);
+    const both = priced(board);
+    assert.equal(both.offered, false, "a card nobody can pay for is on the menu");
+    assert.deepEqual(both.legacyCost, { total: 2, specified: { Red: 1 } }, "the fixture is not the printed price this block is measuring a change against");
+    assert.deepEqual(both.why, { kind: "energy", need: 2, have: 1 }, "the unreduced price is not the shortfall the legacy engine reports");
+    assert.deepEqual(both.why, both.legacyWhy, "the two engines refuse an unreduced price differently");
+    assert.equal(
+      attrsNow(CTX, DBS, board.r, board.card).costOf,
+      2,
+      "a card with no reducer in force does not read its printed cost as the price",
+    );
+  }
+
+  // 20-21-1 and 20-21-2 together, which is claim 1 and claim 2: the reducer
+  // takes the total to 1 **and** the one red orb with it, so a board that could
+  // not pay the printed price can pay this one.
+  {
+    const board = withReducer("R-TWO", "R-CUT", ["R-E-BLUE"]);
+    assert.equal(attrsNow(CTX, DBS, board.r, board.card).costOf, 1, "a [Permanent] cost reducer in play did not reach the card it is about (20-21)");
+    assert.deepEqual(attrsNow(CTX, DBS, board.r, board.card).specifiedCost, [], "a flat reduction did not take the coloured requirement down with the total (20-21-2)");
+    const both = priced(board);
+    assert.deepEqual(both.cost, { energy: 1, describe: "1 energy" }, "the row does not wear the reduced price");
+    assert.deepEqual(asLegacy(both.cost), both.legacyCost, "the two engines put a different price on the same reduced play");
+    assert.equal(both.why, undefined, "a play the reducer made affordable is still refused");
+    assert.equal(both.legacyWhy, undefined, "the legacy engine refuses a play the reducer made affordable");
+
+    // …and the charge is the reduced one: one card rested, and the same card on
+    // both engines, which is the promise `arena:diff` exists to keep.
+    const r = rulesEngine.apply(CTX, board.r, { type: "play", player: "p1", card: board.card });
+    const l = apply(CTX, board.l, { type: "play", player: "p1", card: board.card });
+    assert.deepEqual(JSON.parse(JSON.stringify(r.events)), JSON.parse(JSON.stringify(l.events)), "a play at a reduced price does not log the same thing on the two engines");
+    assert.deepEqual((r.state as VmState).sides.p1.zones.energy, (l.state as GameState).players.p1.energy, "the two engines rested different energy for the same reduced price");
+  }
+
+  // 20-21-2's floor: a reduction bigger than the price is 0 and never less, and
+  // a free play is a play — so the card is offered with no price at all.
+  {
+    const board = withReducer("V1", "R-CUT", []);
+    assert.equal(attrsNow(CTX, DBS, board.r, board.card).costOf, 0, "a reduction bigger than the printed cost did not floor at zero (20-21-2)");
+    const both = priced(board);
+    assert.equal(both.cost, undefined, "a play reduced to nothing wears a price");
+    assert.deepEqual(both.legacyCost, { total: 0, specified: {} }, "the legacy engine does not read the same floor at zero");
+    assert.equal(both.offered, true, "a play reduced to nothing is not offered");
+    assert.equal(both.why, undefined, "a play reduced to nothing is refused");
+    assert.equal(both.legacyWhy, undefined, "the legacy engine refuses a play reduced to nothing");
+  }
+
+  // Claim 3, and the owner's BT19-039 ruling written as a test: the coloured
+  // half alone. Two blue energy, a card demanding one red orb — refused for the
+  // colour, and offered once the colour is relaxed, with the **total** exactly
+  // where it was.
+  {
+    const plain = withReducer("R-TWO", "R-BYSTANDER", ["R-E-BLUE", "R-E-BLUE"]);
+    const colourWhy = priced(plain);
+    assert.deepEqual(colourWhy.why, { kind: "energyColour", colour: "Red", need: 1, have: 0 }, "a card short of a colour is not refused for it");
+    assert.deepEqual(colourWhy.why, colourWhy.legacyWhy, "the two engines refuse a colour differently");
+
+    const relaxed = withReducer("R-TWO", "R-CUT-COLOUR", ["R-E-BLUE", "R-E-BLUE"]);
+    assert.equal(attrsNow(CTX, DBS, relaxed.r, relaxed.card).costOf, 2, "relaxing the specified cost moved the total, and the owner's BT19-039 ruling says it moves nothing");
+    assert.deepEqual(attrsNow(CTX, DBS, relaxed.r, relaxed.card).specifiedCost, [], "relaxing the specified cost did not take the orb it named");
+    const both = priced(relaxed);
+    assert.deepEqual(both.cost, { energy: 2, describe: "2 energy" }, "the row does not wear the relaxed requirement at the printed total");
+    assert.deepEqual(asLegacy(both.cost), both.legacyCost, "the two engines put a different price on the same relaxed play");
+    assert.equal(both.why, undefined, "a play the relaxed colour made payable is still refused");
+    assert.equal(both.legacyWhy, undefined, "the legacy engine refuses a play the relaxed colour made payable");
+  }
+
+  // A reducer whose filter does not match asks nothing of the price: the
+  // `costReduction` reaches the cards its selector finds and no others, which is
+  // the one thing a static collected into a list nothing filters would get
+  // wrong.
+  {
+    const board = withReducer("V-BLUE", "R-CUT", ["R-E-BLUE"]);
+    assert.equal(attrsNow(CTX, DBS, board.r, board.card).costOf, 1, "a reducer scoped to red cards reduced a blue one");
+  }
+}

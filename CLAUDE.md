@@ -324,15 +324,20 @@ learned the expensive way. Read it before changing the compiler or the engine.
   `Requirement` when a price cannot be met (so `wording.ts` needs no second table), the same
   `payCost` prompt with legacy `Payment` options (so no `Prompt` kind and no `Snapshot` field moved),
   and the same cards rested. `priceFor` is the one evaluation the row's `ActionCost` and the charge
-  both come from. Two gaps are named rather than charged as nothing: the amounts of marker and life
+  both come from. One gap is named rather than charged as nothing: the amounts of marker and life
   are bound from a skill's own line by an activation (#147) and 20-19's payWith is bound by nothing,
-  so an action naming a price with nothing to bind it is refused by name; and the
-  price still comes out as the *printed* cost, because 20-21's reductions and 22-19's [Warrior of
-  Universe 7] are the `costOf` attribute's declared layers and only one of the four pieces those
-  needed is built (#146's `PRINTED_BASE` in `vm/cards.ts`, which pairs `costOf` with the
-  `energyCost` it discounts, so `amount: "costOf"` reads a number at all) — `vm/costs.ts`'s header
-  says which three are left and why wiring them ahead of a board that can put a reducer in force
-  would be a reducer that changes no board.
+  so an action naming a price with nothing to bind it is refused by name.
+  **20-21's reductions are read, and read as layers** (#148 Build 2): `permanents` reads the
+  `costReduction` op out of a [Permanent] — which could only matter once a card could be put in
+  play (#146) — and `attributes.rules` declares `costOf` as `[printed, reduction]` and
+  `specifiedCost` as `[printed, reduction, specified]`, so the total falls, one coloured orb goes
+  with each energy (20-21-2), the floor is zero and "reduce the specified cost by {u}" relaxes a
+  colour without moving the total (the owner's BT19-039 ruling). A layer is a function rather than
+  a sum, `LAYER_KINDS` is the one place an attribute's name is paired with the effect kind a layer
+  of it reads, and `costLayerGaps` checks that pairing against the declarations when a game is made.
+  `verify/vm.ts` §20 stages a reducer on both engines and compares the price, the refusal and the
+  energy rested. What is still out is 22-19's [Warrior of Universe 7]: a **keyword** rather than a
+  cost reduction, so a `DEFINE KEYWORD` hook body and Stage 7's.
   **A moment is an event pattern, not a name** (`vm/events.ts` + `vm/triggers.ts`, #141): the
   runner says what happened — a card moved, a phase began, a mode switched — as a `Moment` in the
   words `dbs/triggers.rules` is written in, and the declarations decide which [Auto]s that is a
