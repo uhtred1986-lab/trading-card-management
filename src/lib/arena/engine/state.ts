@@ -7,7 +7,7 @@
 import { hasKeyword, keywordOf, skillsOf, specifiedCostOf, isZ, baseType } from "./cards";
 import { matches, powerRelOk } from "./filters";
 import { describeCond, describeScript } from "./script-schema";
-import { NO_RULES, stepScript, type Amount, type AmountAttr, type CardScripts, type Cond, type Op, type Ref, type ScriptArea, type ScriptFrame, type Selector, type Side } from "./script";
+import { NO_RULES, stepScript, type Amount, type AmountAttr, type CardScripts, type Cond, type Op, type Ref, type Script, type ScriptArea, type ScriptFrame, type Selector, type Side } from "./script";
 import type {
   Area,
   CardDef,
@@ -51,6 +51,65 @@ export interface GameContext {
 /** The programs of one card face, as the game was given them. */
 export function programsOf(ctx: GameContext, d: CardDef, side: "front" | "back"): CardScripts {
   return ctx.scripts?.[side === "back" ? `${d.id}#back` : d.id] ?? NO_RULES;
+}
+
+/**
+ * Where a copied skill's index starts (20-18). A skill's own index is its line
+ * number times ten (`parseSkills`), so a copy needs an index of its own or it
+ * would answer to — and be silenced with — a skill the target really prints.
+ * The effect's id makes it unique and stable: the same copy keeps the same
+ * index for as long as it is in force, so an activation recorded in the action
+ * log replays onto the same skill.
+ */
+export const COPIED_SKILL_BASE = 100000;
+
+export const copiedSkillIndex = (effectId: number, sourceIndex: number): number => COPIED_SKILL_BASE + effectId * 1000 + sourceIndex;
+
+/** Whether a skill index names a copy rather than something the card prints. */
+export const isCopiedSkill = (index: number): boolean => index >= COPIED_SKILL_BASE;
+
+/** The face a copy was taken from, by catalog id — the source instance may be long gone. */
+function faceOfCardId(ctx: GameContext, cardId: string): CardDef | null {
+  if (cardId.startsWith("TOKEN:")) return tokenDefOf(cardId);
+  return ctx.defs[cardId] ?? null;
+}
+
+/**
+ * The skills copied onto a card right now (20-18), each with the program the
+ * *source* card was given — never recompiled here, and never read off the
+ * target's own record.
+ */
+export function copiedSkillsOn(ctx: GameContext, s: GameState, id: string): { skill: Skill; script?: Script }[] {
+  const out: { skill: Skill; script?: Script }[] = [];
+  for (const e of s.effects) {
+    if (e.kind !== "copiedSkills" || e.target !== id || !e.copied) continue;
+    const d = faceOfCardId(ctx, e.copied.cardId);
+    if (!d) continue;
+    const scripts = programsOf(ctx, d, e.copied.side);
+    for (const sk of skillsOf(d, e.copied.side)) {
+      if (!e.copied.skills.includes(sk.index)) continue;
+      out.push({ skill: { ...sk, index: copiedSkillIndex(e.id, sk.index) }, script: scripts.bySkill[sk.index] });
+    }
+  }
+  return out;
+}
+
+/**
+ * The programs of the face-up side of one card *instance*, copies included.
+ *
+ * `programsOf` answers about a printed face and knows nothing about the board;
+ * this is what every reader in a game should ask, so a skill a card has taken
+ * on (20-18) is played from the source's record like any other.
+ */
+export function scriptsOfInstance(ctx: GameContext, s: GameState, id: string): CardScripts {
+  const inst = s.cards[id];
+  const d = def(ctx, s, id);
+  const own = programsOf(ctx, d, inst.flipped && d.back ? "back" : "front");
+  const copied = copiedSkillsOn(ctx, s, id);
+  if (!copied.length) return own;
+  const bySkill = { ...own.bySkill };
+  for (const c of copied) if (c.script) bySkill[c.skill.index] = c.script;
+  return { bySkill, complete: own.complete, unsupported: own.unsupported };
 }
 
 export const LIFE_AT_START = 8;
@@ -350,7 +409,12 @@ export function skillsOfInstance(ctx: GameContext, s: GameState, id: string): Sk
   const inst = s.cards[id];
   if (inst.hidden || skillsNegated(s, id)) return [];
   const d = def(ctx, s, id);
-  return skillsOf(d, inst.flipped && d.back ? "back" : "front");
+  const own = skillsOf(d, inst.flipped && d.back ? "back" : "front");
+  // 20-18: a skill the card has taken on is the card's own from here on — it
+  // is offered, it answers to *this* card's moments, and "negate that card's
+  // skills" silences it with the rest.
+  const copied = copiedSkillsOn(ctx, s, id);
+  return copied.length ? [...own, ...copied.map((c) => c.skill)] : own;
 }
 
 /** Keywords in force: printed (unless negated) plus granted by continuous effects. */
@@ -361,7 +425,11 @@ export function keywordsInForce(ctx: GameContext, s: GameState, id: string): Key
   if (!inst.hidden && !skillsNegated(s, id)) {
     const d = def(ctx, s, id);
     const side = inst.flipped && d.back ? "back" : "front";
-    for (const sk of skillsOf(d, side)) {
+    // A copied line carries its keywords with it (20-18): a copied
+    // "[Auto][Blocker]" gives the target [Blocker] exactly as the printed one
+    // would. A copied *pure* keyword skill is granted as a keyword effect
+    // instead (see `copySkills` in script.ts), so it is already in `out`.
+    for (const sk of [...skillsOf(d, side), ...copiedSkillsOn(ctx, s, id).map((c) => c.skill)]) {
       if (skillNegated(s, id, sk.index, sk.kind)) continue;
       if (sk.keyword) out.push(sk.keyword);
       // Keywords sharing the line with a typed skill ("[Auto][Blocker]") belong to that line.
@@ -764,11 +832,11 @@ export function staticEffects(ctx: GameContext, s: GameState): StaticEffect[] {
       for (const src of [...cardsInPlay(s, p), ...ps.hand, ...ps.zDeck]) {
         const inst = s.cards[src];
         if (!inst || inst.hidden || skillsNegated(s, src)) continue;
-        const d = def(ctx, s, src);
-        const side = inst.flipped && d.back ? "back" : "front";
-        const scripts = programsOf(ctx, d, side);
+        const scripts = scriptsOfInstance(ctx, s, src);
         const inPlayNow = inPlay(s, src);
-        for (const sk of skillsOf(d, side)) {
+        // Copies included (20-18): a copied [Permanent] stands on the card
+        // that took it on, for as long as the copy is in force.
+        for (const sk of skillsOfInstance(ctx, s, src)) {
           if (sk.kind !== "permanent") continue;
           if (skillNegated(s, src, sk.index, sk.kind)) continue;
           const sc = scripts.bySkill[sk.index];
@@ -796,12 +864,10 @@ export function permanentStatics(ctx: GameContext, s: GameState, card: string, s
   if (computingStatics) return null;
   const inst = s.cards[card];
   if (!inst || inst.hidden || skillsNegated(s, card)) return [];
-  const d = def(ctx, s, card);
-  const side = inst.flipped && d.back ? "back" : "front";
-  const sk = skillsOf(d, side).find((k) => k.index === skillIndex);
+  const sk = skillsOfInstance(ctx, s, card).find((k) => k.index === skillIndex);
   if (!sk || sk.kind !== "permanent") return null;
   if (skillNegated(s, card, sk.index, sk.kind)) return [];
-  const sc = programsOf(ctx, d, side).bySkill[sk.index];
+  const sc = scriptsOfInstance(ctx, s, card).bySkill[sk.index];
   if (!sc || sc.unsupported.length) return [];
   // The same areas `staticEffects` reads from (9-1-3-1): anywhere else the
   // skill is not valid, so it applies nothing.
