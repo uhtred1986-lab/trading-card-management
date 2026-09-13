@@ -411,9 +411,17 @@
     "outcome": "notOffered",
     "digest": "03e2c26c"
   },
+  "ORBSKILL#0": {
+    "outcome": "fired",
+    "digest": "ff506940"
+  },
   "OVERWATCH#0": {
     "outcome": "noScenario",
     "digest": "b80d3483"
+  },
+  "PAYER#0": {
+    "outcome": "inForce",
+    "digest": "03a523f8"
   },
   "PEEK#0": {
     "outcome": "fired",

@@ -197,7 +197,7 @@ void _everyAttrWritten;
 /**
  * `COST`'s items, as `parse.ts`'s `costItem` reads them (§3's `item` rule).
  * The price is a fixed grammar rather than a schema table like `OP_SCHEMA` —
- * there is no per-card price *kind* to add, only these eight shapes — so it
+ * there is no per-card price *kind* to add, only these nine shapes — so it
  * is written once, here, and read both by the parser's error message and by
  * the generated language reference, rather than kept as two copies of the
  * same list.
@@ -209,6 +209,7 @@ export const COST_ITEMS = [
   { syntax: "burst N", doc: "a [Burst] cost of that many" },
   { syntax: "spiritBoost N", doc: "a [Spirit Boost] cost of that many" },
   { syntax: "X", doc: "an X price, optionally bounded (X min 1 max 3); the effect reads it back as X (20-5)" },
+  { syntax: "PAYWITH", doc: 'cards that may be rested to pay this price instead of energy (20-19): PAYWITH <selector> AS energy for one energy of their own colours, AS {Red} for one orb of a colour' },
   { syntax: "TEXT", doc: "the price as printed, kept for the part the engine cannot charge itself" },
   { syntax: "IF", doc: "a condition the price also requires, in addition to the orbs" },
   { syntax: "DO", doc: "a program the price runs as part of paying it" },
@@ -220,7 +221,7 @@ export const COST_ITEMS = [
  * kind names, and the words that introduce a declaration's clauses.
  */
 export const RESERVED = new Set([
-  "WHEN", "COST", "IF", "THEN", "DO", "TEXT", "AND", "OR", "NOT", "IN", "FROM", "UNDER", "ANY", "TOP", "BOTTOM", "UP", "TO", "MINUS", "NULL", "TRUE", "FALSE", "ALL",
+  "WHEN", "COST", "IF", "THEN", "DO", "TEXT", "PAYWITH", "AS", "AND", "OR", "NOT", "IN", "FROM", "UNDER", "ANY", "TOP", "BOTTOM", "UP", "TO", "MINUS", "NULL", "TRUE", "FALSE", "ALL",
   "DEFINE", "GAME", "ATTRIBUTE", "ZONE", "PHASE", "STEP", "ACTION", "TRIGGER", "KEYWORD", "WIN", "OP", "HOOK", "ON", "WHERE", "BIND", "FOR", "REFUSE", "TAKES",
 ]);
 
