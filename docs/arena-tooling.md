@@ -151,8 +151,12 @@ skipped) tells you what you broke:
   prices against `planPayment`, §18 the play family — the same board built on
   both engines, then the same play, Unison play and Z-card play asserted event
   for event, and every play refusal compared by `Requirement` *and* by the
-  sentence `wording.ts` makes of it. Runs the same regardless of `--engine`, on
-  purpose (below).
+  sentence `wording.ts` makes of it — and §19 the activation, which is the same
+  comparison one level down: a card's skill *lines*, each offered or refused on
+  its own, the same first `Requirement` per line on both engines, three lines
+  answered three times, and `contract/fixtures/activate.json`'s own board played
+  to the same events and the same rules in force. Runs the same regardless of
+  `--engine`, on purpose (below).
 
 ### `--engine legacy|rules` and `npm run test:rules`
 

@@ -265,12 +265,13 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // 4-3-3: a price's names, left where the effect can start from them. The
     // continuation is kept on the frame that will read it rather than in a map
     // of its own — `saveVarsAs` is set by the activation that runs the two, and
-    // activations are #147's, so nothing reaches these yet.
+    // an action price and an X price are the two halves of a skill's cost #147
+    // did not reach, so nothing binds either of these yet (#149).
     saveVars: (key) => {
-      throw new NotYet(`carry the names a price chose into its effect (${key}, 4-3-3) — a skill's price is charged by #147`, "#147");
+      throw new NotYet(`carry the names a price chose into its effect (${key}, 4-3-3) — an action price is charged by nothing yet`, "#149");
     },
     saveX: (key) => {
-      throw new NotYet(`carry the X a price paid into its effect (${key}, 20-5)`, "#147");
+      throw new NotYet(`carry the X a price paid into its effect (${key}, 20-5)`, "#149");
     },
 
     resume: (frame) => {

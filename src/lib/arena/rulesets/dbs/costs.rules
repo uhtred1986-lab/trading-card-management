@@ -47,13 +47,16 @@
 -- card being paid for.
 --
 -- Two gaps are written here rather than papered over. `TAKES` names what each
--- price is given, but `ACTION ... COST [energy]` passes no arguments: binding a
--- price's parameters is #147's, where a skill's own record supplies them, and
--- until then `vm/costs.ts` reads the amounts off the card and refuses by name
--- the three prices whose amount has nowhere to come from. And an **either-orb**
--- ("{Red/Blue}", one orb payable with any one of the listed colours, §22-13)
--- has no parameter type that can name it: `colors` is a flat list and the
--- language knows no list of alternatives. The planner reads them off the price
+-- price is given, but `ACTION ... COST [energy]` passes no arguments, so where
+-- the values come from is the *thing being paid for*: a price paid for a card
+-- reads its amount off the card through `amount:` above, and a price paid for a
+-- **skill line** has it bound in by the interpreter that knows which line it is
+-- (#147, `vm/costs.ts`'s `BoundAmounts`) — which is where `marker` and `life`
+-- get their numbers and `text` gets bound away on a skill whose whole cost is
+-- orbs. `payWith` still has nothing to bind it anywhere and is refused by name.
+-- And an **either-orb** ("{Red/Blue}", one orb payable with any one of the
+-- listed colours, §22-13) has no parameter type that can name it: `colors` is a
+-- flat list and the language knows no list of alternatives. The planner reads them off the price
 -- and charges them exactly; the parameter list below cannot say so, the way
 -- `attributes.rules` cannot say what is printed on a card's back side.
 

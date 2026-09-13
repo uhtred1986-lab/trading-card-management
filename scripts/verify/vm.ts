@@ -117,7 +117,7 @@ import { describePayment as legacyDescribe, paymentOptions as legacyOptions, pla
 import { paymentOptions as vmOptions } from "../../src/lib/arena/vm/costs";
 import type { CardDef, Color, PlayerId, Requirement } from "../../src/lib/arena/engine/types";
 import type { Op } from "../../src/lib/arena/engine/script";
-import { CTX, DEFS, assertMenuInvariants, card, fifty, matches } from "./harness";
+import { CTX, DEFS, assertMenuInvariants, card, fifty, matches, parseSkills } from "./harness";
 
 const DECKS = { seed: 11, p1: { name: "You", leader: "L-RED", main: fifty("V1") }, p2: { name: "Claude", leader: "L-BLUE", main: fifty("V-BLUE") } };
 
@@ -200,7 +200,6 @@ const rules = engineFor("rules");
 const notYet: { what: string; run: () => unknown }[] = [
   { what: "growing a Unison", run: () => rules.apply(CTX, state, { type: "growUnison", player: "p1", card: "p1#1" }) },
   { what: "attacking", run: () => rules.apply(CTX, state, { type: "attack", player: "p1", attacker: "p1#0", target: "p2#0" }) },
-  { what: "activating a skill", run: () => rules.apply(CTX, state, { type: "activate", player: "p1", card: "p1#1", skill: 0 }) },
 ];
 for (const { what, run } of notYet) {
   assert.throws(
@@ -217,19 +216,24 @@ for (const { what, run } of notYet) {
 }
 
 // A move that *is* declared is refused with a sentence rather than named as
-// missing work: playing is #146's paragraph in `actions.rules`, so a play sent
-// during the pre-game procedure is an ordinary `IllegalAction` and not a
-// `NotYet`. The difference matters to a client: one says "not yet", the other
-// says why this move cannot be made now.
-assert.throws(
-  () => rules.apply(CTX, state, { type: "play", player: "p1", card: "p1#1" }),
-  (err: unknown) => {
-    assert.ok(err instanceof IllegalAction, `playing a card threw ${err instanceof Error ? err.name : typeof err}, not an IllegalAction`);
-    assert.equal(err instanceof NotYet, false, "playing a card is declared and was still named as work not done");
-    return true;
-  },
-  "a card was played during the pre-game procedure",
-);
+// missing work: playing is #146's paragraph in `actions.rules` and using a
+// skill is #147's, so either sent during the pre-game procedure is an ordinary
+// `IllegalAction` and not a `NotYet`. The difference matters to a client: one
+// says "not yet", the other says why this move cannot be made now.
+for (const [what, action] of [
+  ["playing a card", { type: "play", player: "p1", card: "p1#1" }],
+  ["using a skill", { type: "activate", player: "p1", card: "p1#1", skill: 0 }],
+] as [string, Action][]) {
+  assert.throws(
+    () => rules.apply(CTX, state, action),
+    (err: unknown) => {
+      assert.ok(err instanceof IllegalAction, `${what} threw ${err instanceof Error ? err.name : typeof err}, not an IllegalAction`);
+      assert.equal(err instanceof NotYet, false, `${what} is declared and was still named as work not done`);
+      return true;
+    },
+    `${what} was accepted during the pre-game procedure`,
+  );
+}
 
 // ── 5. a row is never replayed on the wrong interpreter ────────────────────
 
@@ -1306,7 +1310,7 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
       actionsAt(DBS, s)
         .map((a) => a.name)
         .sort(),
-      ["concede", "endMain", "pass", "play", "playUnison", "playZ"],
+      ["activate", "concede", "endMain", "pass", "play", "playUnison", "playZ"],
       "the Main Phase offers a declared action other than the ones the files declare",
     );
     const menu = declaredLegalActions(CTX, DBS, s);
@@ -2087,6 +2091,329 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
       legalActions(CTX, board.l).some((a) => a.action.type === "play" && (a.action as { card: string }).card === xCard),
       "the legacy engine stopped offering an X cost, and this divergence is recorded on the assumption that it does",
     );
+  }
+}
+
+// ── 19. using a skill, off the declarations (#147) ──────────────────────────
+//
+// The move whose candidate is a **line** rather than a card, and therefore the
+// one §3.2 of `docs/arena-workflow-spec.md` counts per line. Five claims:
+//
+//  1. **The same events.** A skill used on a staged board logs what the legacy
+//     engine logs, event for event: the energy rested, the `skill` beat with
+//     the line as printed, and the effects the record's program makes — which
+//     is the point of running that program on the one shared interpreter
+//     (#142) rather than on a second reading of it.
+//  2. **One rejection per skill line, on both engines.** A card with three
+//     [Activate: Main] lines is asked about three times and answered three
+//     times, and the two engines file them under the same three keys.
+//  3. **The same first refusal per line.** Negated, used up, the wrong window,
+//     a condition that does not hold, a price too dear, an effect the compiler
+//     could not read, the wrong area: whatever stopped the line first, both
+//     engines say the same `Requirement` about it and `wording.ts` says the
+//     same sentence.
+//  4. **A price that is not read is refused, never played free.** The 8 Sep
+//     2026 precedent: a skill with no record has an unknown price, and one
+//     whose price is an X or an action price is `unread` rather than free.
+//  5. **`contract/fixtures/activate.json`'s own board.** The fixture the client
+//     contract is emitted from — PUMPCRIT's pump-and-grant in the Battle Area
+//     with one energy — plays to the same events and the same board on both.
+//
+// `arena:diff` cannot be the instrument for any of this yet: it replays a saved
+// row, and a legacy row handed to the rules engine is an `EngineMismatch` until
+// #164 replays them. So the oracle here is the two engines run side by side on
+// one staged board, which is what §16, §17 and §18 do.
+{
+  const rulesEngine = engineFor("rules");
+
+  // The cards this block stages with, added here as §16–§18's are.
+  DEFS["A-FREE"] = card("A-FREE", { energyCost: 1, skill: "[Activate: Main] Draw 1 card." });
+  DEFS["A-ORBS"] = card("A-ORBS", { energyCost: 1, skill: "[Activate: Main] {r}: Draw 1 card." });
+  DEFS["A-BLUE-ORB"] = card("A-BLUE-ORB", { energyCost: 1, skill: "[Activate: Main] {u}: Draw 1 card." });
+  DEFS["A-ONCE"] = card("A-ONCE", { energyCost: 1, skill: "[Activate: Main][Once per turn] Draw 1 card." });
+  DEFS["A-BATTLE"] = card("A-BATTLE", { energyCost: 1, skill: "[Activate: Battle] Draw 1 card." });
+  DEFS["A-UNREAD"] = card("A-UNREAD", { energyCost: 1, skill: "[Activate: Main] Bend the fabric of reality to your will." });
+  // Three lines on one card: the whole of claim 2, and the reason §3.2 has an
+  // exception at all.
+  DEFS["A-THREE"] = card("A-THREE", {
+    energyCost: 1,
+    skill: "[Activate: Main] Draw 1 card.<br>[Activate: Main] {u}: Draw 1 card.<br>[Activate: Battle] Draw 1 card.",
+  });
+  DEFS["A-EXTRA"] = card("A-EXTRA", { type: "EXTRA", energyCost: 1, power: null, comboCost: null, comboPower: null, skill: "[Activate: Main] Draw 1 card." });
+  DEFS["A-EXTRA-ORB"] = card("A-EXTRA-ORB", { type: "EXTRA", energyCost: 1, power: null, comboCost: null, comboPower: null, skill: "[Activate: Main] {r}: Draw 1 card." });
+  DEFS["A-E-RED"] = card("A-E-RED", { colors: ["Red"] });
+  DEFS["A-E-BLUE"] = card("A-E-BLUE", { colors: ["Blue"] });
+
+  const ACT_DECKS = {
+    seed: 12,
+    p1: { name: "You", leader: "L-RED", main: fifty("V1") },
+    p2: { name: "Claude", leader: "L-BLUE", main: fifty("V-BLUE") },
+  };
+
+  const toMainPhase = (prompt: { kind: string; player?: PlayerId }): Action | null => {
+    const pr = prompt as { kind: string; player: PlayerId };
+    if (pr.kind === "chooseFirst") return { type: "chooseFirst", player: pr.player, first: "p1" };
+    if (pr.kind === "mulligan") return { type: "mulligan", player: pr.player, redraw: false };
+    if (pr.kind === "charge") return { type: "charge", player: pr.player, card: null };
+    return null;
+  };
+
+  /**
+   * One Main Phase on **both** engines with the same cards in the same places.
+   *
+   * The instance ids are a function of the decklist alone (#139), so "the same
+   * board" is literal: the cards are renamed in place on either state and the
+   * two engines are then asked the same questions about the same ids.
+   */
+  function stagedFor(battle: string[], energy: string[], hand: string[] = []): { r: VmState; l: GameState } {
+    let r = rulesEngine.createGame(CTX, ACT_DECKS).state as VmState;
+    let l = createGame(CTX, ACT_DECKS).state;
+    for (let i = 0; i < 30; i++) {
+      const a = toMainPhase(r.prompt);
+      if (!a) break;
+      r = rulesEngine.apply(CTX, r, a).state as VmState;
+      l = apply(CTX, l, a).state;
+    }
+    assert.equal(r.prompt.kind, "main", "the rules game did not reach a Main Phase to use a skill in");
+    assert.equal(l.prompt.kind, "main", "the legacy game did not reach a Main Phase to use a skill in");
+
+    hand.forEach((cardId, i) => {
+      const id = r.sides.p1.zones.hand[i];
+      r.cards[id].cardId = cardId;
+      l.cards[id].cardId = cardId;
+    });
+    const take = (n: number, from: number): string[] => r.sides.p1.zones.deck.slice(from, from + n);
+    const battleIds = take(battle.length, 0);
+    const energyIds = take(energy.length, battle.length);
+    battleIds.forEach((id, i) => {
+      for (const st of [r.cards[id], l.cards[id]]) {
+        st.cardId = battle[i];
+        st.mode = "active";
+      }
+    });
+    energyIds.forEach((id, i) => {
+      for (const st of [r.cards[id], l.cards[id]]) {
+        st.cardId = energy[i];
+        st.mode = "active";
+      }
+    });
+    const taken = new Set([...battleIds, ...energyIds]);
+    r.sides.p1.zones.deck = r.sides.p1.zones.deck.filter((id) => !taken.has(id));
+    l.players.p1.deck = l.players.p1.deck.filter((id) => !taken.has(id));
+    r.sides.p1.zones.battle = battleIds;
+    l.players.p1.battle = battleIds;
+    r.sides.p1.zones.energy = energyIds;
+    l.players.p1.energy = energyIds;
+    return { r, l };
+  }
+
+  const asJson = (list: GameEvent[]): unknown => JSON.parse(JSON.stringify(list));
+  function bothUse(board: { r: VmState; l: GameState }, action: Action): { r: { state: VmState; events: unknown }; l: { state: GameState; events: unknown } } {
+    const r = rulesEngine.apply(CTX, board.r, action);
+    const l = apply(CTX, board.l, action);
+    return { r: { state: r.state as VmState, events: asJson(r.events) }, l: { state: l.state, events: asJson(l.events) } };
+  }
+
+  /** Every activation either engine names, keyed the way §3.2 keys one: the card and the line. */
+  const byLine = (list: { action: Action }[]): Map<string, Action> =>
+    new Map(list.filter((x) => x.action.type === "activate").map((x) => [`${(x.action as { card: string }).card}#${(x.action as { skill: number }).skill}`, x.action]));
+
+  // 1. A free skill: the same events, the same board, and the same free timing
+  //    afterwards (7-3-4 — using a skill leaves the Main Phase's question up).
+  {
+    const board = stagedFor(["A-FREE"], []);
+    const user = board.r.sides.p1.zones.battle[0];
+    const offered = rulesEngine.legalActions(CTX, board.r).find((a) => a.action.type === "activate" && (a.action as { card: string }).card === user);
+    assert.ok(offered, "a skill with no price is not offered on the rules engine");
+    assert.deepEqual(offered!.action, { type: "activate", player: "p1", card: user, skill: 0 }, "the activation offered is not the shape a client sends");
+    assert.ok(offered!.label.includes("Draw 1 card"), `an activation's row does not say which line it is: ${offered!.label}`);
+
+    const done = bothUse(board, { type: "activate", player: "p1", card: user, skill: 0 });
+    assert.deepEqual(done.r.events, done.l.events, "using a skill does not log the same thing on the two engines");
+    assert.equal(done.r.state.sides.p1.zones.hand.length, done.l.state.players.p1.hand.length, "the skill's draw left the two hands a different size");
+    assert.equal(done.r.state.prompt.kind, "main", "using a skill ended the Main Phase, and 7-3-4 grants the timing again");
+  }
+
+  // 2. A price in orbs: charged out of the Energy Area exactly as the legacy
+  //    engine charges it, and the row wears the figure that was charged.
+  {
+    const board = stagedFor(["A-ORBS"], ["A-E-RED"]);
+    const user = board.r.sides.p1.zones.battle[0];
+    const coin = board.r.sides.p1.zones.energy[0];
+    const offered = rulesEngine.legalActions(CTX, board.r).find((a) => a.action.type === "activate" && (a.action as { card: string }).card === user);
+    assert.ok(offered, "a skill whose orbs the board can pay is not offered");
+    assert.deepEqual(offered!.cost, { energy: 1, orbs: { Red: 1 }, describe: "1 energy (1 red)" }, "an activation's row does not wear the line's own price");
+    const done = bothUse(board, { type: "activate", player: "p1", card: user, skill: 0 });
+    assert.deepEqual(done.r.events, done.l.events, "a priced activation does not log the same thing on the two engines");
+    assert.equal(done.r.state.cards[coin].mode, "rest", "the energy the price was planned against was not rested");
+  }
+
+  // 3. Three lines, three answers — on both engines, for one board. The whole
+  //    of §3.2's exception: the first line is playable, the second is short of
+  //    a blue orb, the third belongs to another window.
+  {
+    const board = stagedFor(["A-THREE"], ["A-E-RED"]);
+    const user = board.r.sides.p1.zones.battle[0];
+    const mine = rulesEngine.legalActions(CTX, board.r);
+    const theirs = legalActions(CTX, board.l);
+    const refusedMine = rulesEngine.rejectedActions(CTX, board.r, mine);
+    const refusedTheirs = rejectedActions(CTX, board.l, theirs);
+    // The index is the line's own — its offset in the printed text, stable
+    // across games (`Skill.index`) — so the three keys are compared as a set of
+    // three rather than as 0, 1, 2.
+    const seen = (legal: { action: Action }[], refused: { action: Action }[]) => [...byLine(legal).keys(), ...byLine(refused).keys()].filter((k) => k.startsWith(`${user}#`)).sort();
+    assert.equal(seen(mine, refusedMine).length, 3, "a card with three [Activate] lines is not answered about three times on the rules engine");
+    assert.equal(new Set(seen(mine, refusedMine)).size, 3, "two of a card's three skill lines were answered under one key");
+    assert.deepEqual(seen(mine, refusedMine), seen(theirs, refusedTheirs), "the two engines answer about a different set of skill lines");
+    assert.equal(byLine(refusedMine).size, 2, "a card with one playable line and two refused ones does not show two rejections");
+    assertMenuInvariants(mine, refusedMine, "the activation menu of a card with three skill lines");
+    assertMenuInvariants(theirs, refusedTheirs, "the legacy activation menu of a card with three skill lines");
+  }
+
+  // 4. The first refusal, line for line against the legacy engine — the shape
+  //    and the sentence. A board built to stop every gate this stage reads.
+  {
+    const board = stagedFor(["A-BATTLE", "A-BLUE-ORB", "A-UNREAD"], ["A-E-RED"], ["A-FREE"]);
+    const mine = rulesEngine.rejectedActions(CTX, board.r, rulesEngine.legalActions(CTX, board.r));
+    const theirs = rejectedActions(CTX, board.l, legalActions(CTX, board.l));
+    const firstOf = (list: { action: Action; why: Requirement[] }[]) =>
+      new Map(
+        list
+          .filter((x) => x.action.type === "activate")
+          .map((x) => [`${(x.action as { card: string }).card}#${(x.action as { skill: number }).skill}`, x.why[0]] as const),
+      );
+    const ours = firstOf(mine);
+    const legacyFirst = firstOf(theirs);
+    let compared = 0;
+    for (const [key, why] of legacyFirst) {
+      const got = ours.get(key);
+      // The one difference this stage records rather than hides: a keyword's
+      // own activation ([Awaken] and the eleven like it) is a `DEFINE KEYWORD`
+      // hook body, which is Stage 7's (#153–#157) — the legacy engine answers
+      // about such a line and this one does not name it at all.
+      if (!got) {
+        const [cardOf, indexOf] = key.split("#").slice(-2);
+        void cardOf;
+        const inst = board.r.cards[key.slice(0, key.lastIndexOf("#"))];
+        const line = parseSkills(CTX.defs[inst.cardId].skill ?? null).find((sk) => sk.index === Number(indexOf));
+        assert.ok(line?.keyword, `${key} is refused an activation by the legacy engine and neither offered nor refused by this one`);
+        continue;
+      }
+      assert.deepEqual(got, why, `${key}: the two engines give a different first reason for refusing an activation`);
+      const about = { name: "A-THREE", reaching: "activate" as const };
+      assert.deepEqual(refusal(got!, about), refusal(why, about), `${key}: the same requirement reads differently on the two engines`);
+      compared++;
+    }
+    assert.ok(compared >= 3, `only ${compared} activation refusals were compared against the legacy engine`);
+    assertMenuInvariants(rulesEngine.legalActions(CTX, board.r), mine, "the activation menu of a board that stops every gate");
+  }
+
+  // 5. 22-44-3: a line used once is used up, and the card's *other* lines are
+  //    untouched — which is the whole reason the count is per line.
+  {
+    const board = stagedFor(["A-ONCE"], []);
+    const user = board.r.sides.p1.zones.battle[0];
+    const done = bothUse(board, { type: "activate", player: "p1", card: user, skill: 0 });
+    assert.deepEqual(done.r.events, done.l.events, "a [Once per turn] skill does not log the same thing on the two engines");
+    const usedUp = (x: { action: Action }) => x.action.type === "activate" && (x.action as { card: string }).card === user;
+    const again = rulesEngine.rejectedActions(CTX, done.r.state, rulesEngine.legalActions(CTX, done.r.state)).find(usedUp);
+    const legacyAgain = rejectedActions(CTX, done.l.state, legalActions(CTX, done.l.state)).find(usedUp);
+    assert.deepEqual(again?.why[0], { kind: "oncePerTurn", what: "skill" }, "a [Once per turn] skill used once is not refused as used up");
+    assert.deepEqual(again?.why[0], legacyAgain?.why[0], "the two engines refuse a used-up skill differently");
+    // …and the turn ending gives it back, which is what `endTurn` empties.
+    let next = rulesEngine.apply(CTX, done.r.state, { type: "endMain", player: "p1" }).state as VmState;
+    for (let i = 0; i < 40 && next.turnPlayer !== "p1"; i++) {
+      const pr = next.prompt as { kind: string; player?: PlayerId };
+      if (!pr.player) break;
+      next = rulesEngine.apply(CTX, next, pr.kind === "charge" ? { type: "charge", player: pr.player, card: null } : { type: "endMain", player: pr.player }).state as VmState;
+    }
+    assert.deepEqual(next.cards[user].usedThisTurn, [], "the turn passing did not give a [Once per turn] skill back");
+  }
+
+  // 6. A skill nobody drafted, and one whose effect the compiler could not
+  //    read: refused rather than resolved for nothing (the 8 Sep 2026
+  //    precedent, applied to a move).
+  {
+    const board = stagedFor(["A-UNREAD"], []);
+    const user = board.r.sides.p1.zones.battle[0];
+    assert.equal(
+      rulesEngine.legalActions(CTX, board.r).some((a) => a.action.type === "activate" && (a.action as { card: string }).card === user),
+      false,
+      "a skill whose effect the compiler could not read was offered",
+    );
+    const why = rulesEngine.rejectedActions(CTX, board.r, rulesEngine.legalActions(CTX, board.r)).find((x) => x.action.type === "activate" && (x.action as { card: string }).card === user);
+    assert.deepEqual(why?.why[0], { kind: "unread", card: user }, "a skill this engine cannot resolve is refused for something other than being unread");
+  }
+
+  // 7. 4-2 / 12-2-2: an Extra Card used from the hand. Its price is the skill's
+  //    orbs **and** the card's own energy cost, because using one is how an
+  //    Extra is played at all — and the card goes to the Drop Area as it
+  //    resolves. The one branch where a line's price is not the line's alone.
+  {
+    const board = stagedFor([], ["A-E-RED"], ["E-MYSTERY", "A-FREE"]);
+    const mystery = board.r.sides.p1.zones.hand[0];
+    const inHand = board.r.sides.p1.zones.hand[1];
+    // The Extra's effect is one the compiler cannot read, so it is refused —
+    // and refused for *that*, not for the price it could in fact pay.
+    const why = rulesEngine.rejectedActions(CTX, board.r, rulesEngine.legalActions(CTX, board.r)).find((x) => x.action.type === "activate" && (x.action as { card: string }).card === mystery);
+    assert.deepEqual(why?.why[0], { kind: "unread", card: mystery }, "an Extra in hand whose effect cannot be read is refused for something else");
+    // 9-1-3-1: an ordinary Battle Card's line in the hand is refused with the
+    // area it is valid in, and that is the difference between the two.
+    const battleCard = rulesEngine.rejectedActions(CTX, board.r, rulesEngine.legalActions(CTX, board.r)).find((x) => x.action.type === "activate" && (x.action as { card: string }).card === inHand);
+    assert.deepEqual(battleCard?.why[0], { kind: "zone", card: inHand, area: "battle" }, "a Battle Card's skill in the hand is not refused with the area it is valid in");
+    const legacyBattleCard = rejectedActions(CTX, board.l, legalActions(CTX, board.l)).find((x) => x.action.type === "activate" && (x.action as { card: string }).card === inHand);
+    assert.deepEqual(battleCard?.why[0], legacyBattleCard?.why[0], "the two engines refuse a hand-bound Battle Card skill differently");
+
+    // …and one whose effect *can* be read: offered at the card's own cost, and
+    // the card is in the Drop when it has resolved, on both engines.
+    const usable = stagedFor([], ["A-E-RED"], ["A-EXTRA"]);
+    const extra = usable.r.sides.p1.zones.hand[0];
+    const offered = rulesEngine.legalActions(CTX, usable.r).find((a) => a.action.type === "activate" && (a.action as { card: string }).card === extra);
+    assert.ok(offered, "an Extra Card in hand whose skill the engine can resolve is not offered");
+    assert.equal(offered!.cost?.energy, 1, "an Extra's activation is not charged the card's own energy cost as well as the skill's orbs (12-2-2)");
+    const used = bothUse(usable, { type: "activate", player: "p1", card: extra, skill: 0 });
+    assert.deepEqual(used.r.events, used.l.events, "using an Extra Card from hand does not log the same thing on the two engines");
+    assert.ok(used.r.state.sides.p1.zones.drop.includes(extra), "the Extra did not go to the Drop Area as it was used (12-2-2)");
+    assert.equal(used.r.state.sides.p1.zones.drop.includes(extra), used.l.state.players.p1.drop.includes(extra), "the two engines left the used Extra in different places");
+
+    // 12-2-2 with orbs as well: the card's energy cost and the skill's orbs are
+    // **one** price here, colours included. The legacy engine adds the two
+    // totals and then plans against the *play cost's* colours alone
+    // (`activatable`'s `planPayment(c.total + orbTotal, c.specified)`), so on a
+    // board short of the skill's colour it offers a skill it could not pay the
+    // orbs of. This engine asks for both, which is 1-2-3 read straight; the
+    // divergence is recorded here rather than copied, and the legacy engine is
+    // bug fixes only.
+    const both2 = stagedFor([], ["A-E-RED", "A-E-RED"], ["A-EXTRA-ORB"]);
+    const orbExtra = both2.r.sides.p1.zones.hand[0];
+    const orbOffer = rulesEngine.legalActions(CTX, both2.r).find((a) => a.action.type === "activate" && (a.action as { card: string }).card === orbExtra);
+    assert.deepEqual(orbOffer?.cost, { energy: 2, orbs: { Red: 2 }, describe: "2 energy (2 red)" }, "an Extra's activation does not add its energy cost to the skill's orbs, colours and all");
+    const orbUsed = bothUse(both2, { type: "activate", player: "p1", card: orbExtra, skill: 0 });
+    const kinds = (list: unknown) => (list as { type: string }[]).map((e) => e.type);
+    assert.deepEqual(kinds(orbUsed.r.events).slice().sort(), kinds(orbUsed.l.events).slice().sort(), "using an Extra with orbs as well does not do the same things on the two engines");
+    assert.deepEqual(
+      (orbUsed.r.state.sides.p1.zones.energy ?? []).map((id) => orbUsed.r.state.cards[id].mode),
+      ["rest", "rest"],
+      "an Extra's combined price did not rest both energy",
+    );
+    assert.ok(orbUsed.r.state.sides.p1.zones.drop.includes(orbExtra), "an Extra with orbs did not reach the Drop Area");
+  }
+
+  // 8. `contract/fixtures/activate.json`'s own board: the pump-and-grant the
+  //    client contract is emitted from, played on both engines.
+  {
+    const board = stagedFor(["PUMPCRIT"], ["A-E-RED"]);
+    const pump = board.r.sides.p1.zones.battle[0];
+    const done = bothUse(board, { type: "activate", player: "p1", card: pump, skill: 0 });
+    assert.deepEqual(done.r.events, done.l.events, "the contract fixture's activation does not log the same thing on the two engines");
+    // …and the rules the skill put in force are the same rules, read off the
+    // state rather than off the board: `vm/view.ts` still draws a card's
+    // *printed* attributes, so what a client would see of them is #149's parity
+    // work and not this issue's. The contract itself is untouched either way —
+    // no `Snapshot` field moved, so `npm run contract:emit` writes no change.
+    const inForce = (list: { kind: string; value: unknown; until: string; target: string; source?: string }[]) => list.map((e) => [e.kind, JSON.stringify(e.value), e.until, e.target, e.source ?? null]);
+    assert.deepEqual(inForce(done.r.state.effects), inForce(done.l.state.effects), "the two engines put different rules in force from one skill");
+    assert.equal(done.r.state.effects.length, 2, "the pump and the keyword it grants are not both in force on the rules engine");
   }
 }
 

@@ -285,8 +285,9 @@ DEFINE STEP mainStart
 
 **ACTION** — a move a player may make, and the requirements that say why they may not: `WHEN` the
 phases it is available in (required), `prompts:` the questions within them it answers, `FOR` the
-cards it applies to, `BIND` the name a refusal calls the candidate by, `decline:` the words for
-answering it with no card at all, `COST` the names of the `DEFINE COST` prices it charges, `DO` what
+cards it applies to, `BIND` the name a refusal calls the candidate by, `skills:` the printed skill
+kinds it offers when its candidate is a *line* of a card rather than the card, `decline:` the words
+for answering it with no card at all, `COST` the names of the `DEFINE COST` prices it charges, `DO` what
 it does (required), one `REFUSE` line per requirement, `again:` whether taking it leaves the question
 on the table, `listed:` whether the menu carries it, `label:` the words it shows there, and `text:`
 what it is.
@@ -309,6 +310,17 @@ expression the legality check runs. The lines are read in order and no further t
 fails, so they are written in the order the check runs them. The refusal is part of the declaration
 because every rule is a visible workflow (`docs/arena-workflow-spec.md`): an action with no `REFUSE`
 can only be missing from the menu, never explained.
+
+`skills:` is what makes a move about a **skill line**. A card prints up to nine of them, each with
+its own price, its own condition and its own once-per-turn ceiling, so one being on the menu says
+nothing about the other eight — which is why `docs/arena-workflow-spec.md` §3.2 counts one rejection
+per card per action type *except* an activation, one per line. `FOR` still says which cards are
+looked at and this says which of their lines are the candidates. The kinds listed are the ones the
+move **offers**; a line of the same family in another window — an `activate:battle` line at the Main
+Phase question — is still a candidate and is refused with the `timing` requirement naming the window
+it belongs to, so a player reaching for it is answered rather than ignored. The window a move offers
+is the one its kinds share, which is why the list is the kinds and not a window of its own. An action
+written this way runs the **record's** program rather than a `DO` of its own, so its `DO` is empty.
 
 `again: true` is §7-3-4's free timing, written down. A move without it answers the question its step
 asked and the step moves on, which is what ending a phase, charging and declining all do; a move

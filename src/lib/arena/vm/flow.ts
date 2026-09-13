@@ -245,6 +245,14 @@ const STEP_WORK: Record<string, Work> = {
     run: (ctx, game, state, ev) => {
       // 20-15: anything still waiting for a moment of this turn missed it.
       expireDelayed(state);
+      // 22-44-3 / 13-4: what a copy has used this turn is over with the turn.
+      // The legacy `turn.next` empties the same two fields on every card in the
+      // game rather than on the cards in play, because a card that left play
+      // and came back is a new copy and has to start from nothing either way.
+      for (const inst of Object.values(state.cards)) {
+        inst.usedThisTurn = [];
+        inst.usedMarkerSkill = false;
+      }
       state.turn++;
       state.turnPlayer = other(state.turnPlayer);
       // The turn passing ends every frame of it: nothing declared after this
@@ -434,7 +442,7 @@ export function repeatAllowed(step: StepDef, frame: VmFrame): boolean {
  *
  * Three reasons a pended skill resolves to nothing, each said out loud:
  * negated (9-1-5), a condition on its price that does not hold (9-4), and a
- * price this engine cannot charge yet (#147). The fourth — the compiler could
+ * price this engine cannot charge yet (#149). The fourth — the compiler could
  * not read the text — is the referee's, and on this engine it is a note.
  */
 function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[]): boolean {
@@ -472,8 +480,15 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     log(ev, { type: "note", text: `${named} answers to ${next.trigger}, and its condition does not hold` });
     return true;
   }
+  // 4-3-3 and 20-5: an action price ("place 1 card from your hand in the Drop
+  // Area:") and an X price are the two halves of a skill's price #147 did not
+  // reach — the first needs the payability of a whole program, which is
+  // `canPayCostProgram` in the legacy engine and has no reading here, and the
+  // second an answer no candidate can carry (`vm/activate.ts`'s header). The
+  // orbs and a marker cost *are* charged where a player activates the skill,
+  // which is why this note is narrower than it was.
   if (program.price?.ops?.length || program.price?.x) {
-    log(ev, { type: "note", text: `${named} answers to ${next.trigger}, and charging a skill's price is #147's — so it does not resolve` });
+    log(ev, { type: "note", text: `${named} answers to ${next.trigger}, and charging an action price or an X price is #149's — so it does not resolve` });
     return true;
   }
 
@@ -502,7 +517,7 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
  * the instruments this stage is measured by. What the skill did before it
  * stopped stands, which is the honest cost of that choice and is bounded by
  * `ENGINE_INFO.rules.available` still being false: no game a person plays can
- * reach it. #146 and #147 remove most of these, and the boundary becomes a
+ * reach it. #146 and #147 removed most of these, and the boundary becomes a
  * refusal when a game can be made on this engine.
  */
 function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[]): "done" | "wait" {

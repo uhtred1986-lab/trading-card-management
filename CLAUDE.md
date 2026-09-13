@@ -272,7 +272,7 @@ learned the expensive way. Read it before changing the compiler or the engine.
   neither list. What the interpreter reads so far is a `FOR` by side/area/filter/mode, a `REFUSE` of
   `count()`/`isTurnPlayer()` and their combinations, and a `DO` of `note()`; everything else is
   refused *by name* rather than read as false. `actions.rules` declares charge, endMain, pass and
-  concede (#145) and the play family (#146); activate is #147.
+  concede (#145), the play family (#146) and `activate` (#147).
   **Playing a card is a paragraph too** (`vm/play.ts` + the three `play` declarations, #146):
   `play` (8-3-2), `playUnison` (13-2) and `playZ` (16-2) each name a `COST` and a `DO` of the one
   `play` op, so a play a player declares and a play a skill makes (5-5-3) resolve in the same place.
@@ -290,6 +290,27 @@ learned the expensive way. Read it before changing the compiler or the engine.
   `growUnison` is **not** declared — its once-a-turn gate needs a player attribute a condition can
   read and an op that sets one, and the language has neither — and 22-33's `offering` is a boolean
   answer no candidate can carry (#157).
+  **Using a skill is a paragraph about a *line*** (`vm/activate.ts` + the `activate` declaration,
+  #147): the one move whose candidate is not a card. A card prints up to nine skills, each with its
+  own price, its own condition and its own once-per-turn ceiling, so `DEFINE ACTION`'s new `skills:`
+  line says which printed kinds the move offers and `FOR` says only which cards are looked at —
+  which is §3.2's one exception (one rejection per card per action type, **one per skill line for an
+  activation**) as the *shape* rather than as a special case. A line of the same family in another
+  window is still a candidate and is refused with the `timing` requirement naming the window it
+  belongs to; the window a move offers is the one its declared kinds share, so Stage 6's battle
+  paragraph needs no second table. The `DO` is empty and checked to be: the program an activation
+  runs is the **record's** (`Script.ops`), queued on the interpreter a pended [Auto] runs on, and the
+  moment is a `skillActivated` the declarations answer. The **price** is the record's too — the orbs
+  printed in front of the line and 13-4's marker cost, bound from the line rather than read off the
+  card (`BoundAmounts` in `vm/costs.ts`), with the declared `text` price refusing a cost this engine
+  cannot read instead of playing the skill free. The gates are the legacy `whyNotActivate`'s in its
+  order, so the *first* requirement is the same on both engines (`verify/vm.ts` §19, and
+  `assertMenuInvariants` now asserts every activation names its line — the same words in
+  `arena-playthrough.mts`). What it does not read is written into `actions.rules` beside it: a
+  keyword's own activation is a `DEFINE KEYWORD` hook body (Stage 7), an X price and an action price
+  are refused `unread` for the same reason a play's X cost is, 20-14's prohibitions need
+  `DEFERRED_STATICS.forbid`, and [Counter] windows are Stage 6's. `VmCard` gained `usedThisTurn` and
+  `usedMarkerSkill` for 22-44-3 and 13-4, emptied by `endTurn` (state version 6).
   **A price is a declaration too** (`vm/costs.ts` + `dbs/costs.rules`, #148): seven `DEFINE COST`s —
   energy (total, coloured orbs, either-orbs, X), zEnergy (5-4, brought forward from #151 so `playZ`
   is not offered free), marker, life, rest, payWith and the `text` price no engine charges itself —
@@ -303,8 +324,9 @@ learned the expensive way. Read it before changing the compiler or the engine.
   `Requirement` when a price cannot be met (so `wording.ts` needs no second table), the same
   `payCost` prompt with legacy `Payment` options (so no `Prompt` kind and no `Snapshot` field moved),
   and the same cards rested. `priceFor` is the one evaluation the row's `ActionCost` and the charge
-  both come from. Two gaps are named rather than charged as nothing: the amounts of marker, life and
-  payWith have nothing to bind them until #147, so an action naming one is refused by name; and the
+  both come from. Two gaps are named rather than charged as nothing: the amounts of marker and life
+  are bound from a skill's own line by an activation (#147) and 20-19's payWith is bound by nothing,
+  so an action naming a price with nothing to bind it is refused by name; and the
   price still comes out as the *printed* cost, because 20-21's reductions and 22-19's [Warrior of
   Universe 7] are the `costOf` attribute's declared layers and only one of the four pieces those
   needed is built (#146's `PRINTED_BASE` in `vm/cards.ts`, which pairs `costOf` with the
