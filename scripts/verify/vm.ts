@@ -57,6 +57,7 @@ import {
   FilterNeedsAttribute,
   MEASURES,
   NotYet,
+  RulesetBroken,
   VM_STATE_VERSION,
   attrsOf,
   attributeGaps,
@@ -69,8 +70,12 @@ import {
   inPlayZones,
   isVmState,
   attributesRequired,
+  fire,
+  matchTriggers,
   measuresUsed,
   moveCard,
+  moved,
+  nextPending,
   placeZones,
   playerAttributes,
   predicateOf,
@@ -725,6 +730,199 @@ function passOnly(engine: ReturnType<typeof engineFor>, start: unknown, first: P
     assert.match(stepWorkNote(name) ?? "", /\d-\d/, `${name} does not say which manual section it is`);
   }
   assert.deepEqual(turnPhases(DBS), ["charge", "main", "mainEnd", "end"], "the turn is not the phases the game declares (7-1)");
+}
+
+// ── 14. the moment, and what answers to it (#141) ──────────────────────────
+//
+// The claim: an [Auto]'s moment is an **event pattern** the game declares, not
+// a name the engine fires. The runner says what happened in the words
+// `triggers.rules` is written in; the declarations decide which cards that is a
+// moment for, which name it carries, and what the moment's card is called
+// inside the program. Nothing below names a trigger to the engine — every
+// trigger name in this section is an *expectation*, read back out of the queue.
+
+// Two watchers, added here rather than to the harness: this is the only suite
+// that needs a card whose moment is another card's. `vm` runs last, so `DEFS`
+// is no longer being counted by anything.
+DEFS.WATCHER = card("WATCHER", { energyCost: 1, skill: "[Auto] When you play a Battle Card, draw 1 card." });
+DEFS.THEIRS = card("THEIRS", { energyCost: 1, colors: ["Blue"], skill: "[Auto] When your opponent plays a Battle Card, draw 1 card." });
+DEFS.CHARGER = card("CHARGER", { energyCost: 1, skill: "[Auto] At the start of your charge phase, draw 1 card." });
+DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is used in a combo, draw 1 card." });
+
+{
+  const rulesEngine = engineFor("rules");
+
+  /** A game gone as far as p1's Main Phase, which is where a card is played (7-3). */
+  function mainPhase(): VmState {
+    let s = rulesEngine.createGame(CTX, SAME).state as VmState;
+    s = rulesEngine.apply(CTX, s, { type: "chooseFirst", player: s.chooser, first: "p1" }).state as VmState;
+    for (let i = 0; i < 20 && s.prompt.kind !== "main"; i++) {
+      s = rulesEngine.apply(CTX, s, { type: "pass", player: (s.prompt as { player: PlayerId }).player }).state as VmState;
+    }
+    assert.equal(s.prompt.kind, "main", "a rules game did not reach a Main Phase to stage a play in");
+    assert.deepEqual(s.pending, [], "a game of cards with no [Auto] reached its Main Phase with something pending");
+    return s;
+  }
+
+  /** The copy in a player's hand, made into the card the test is about. Cheaper than a second decklist, and the instance ids stay the ones the deal gave. */
+  function handed(s: VmState, p: PlayerId, cardId: string): string {
+    const id = s.sides[p].zones.hand[0];
+    assert.ok(id, `${p} has no card in hand to stage`);
+    s.cards[id].cardId = cardId;
+    return id;
+  }
+
+  /** Stage a card of this id in a player's Battle Area, and forget whatever pended on the way. */
+  function staged(s: VmState, p: PlayerId, cardId: string): string {
+    const id = handed(s, p, cardId);
+    assert.ok(moveCard(s, DBS, id, "battle", { owner: p }).ok, `${cardId} could not be staged in ${p}'s Battle Area`);
+    s.pending = [];
+    return id;
+  }
+
+  // ── 9-6-9-4: played into a Battle Area, and not merely moved somewhere ────
+  {
+    const s = mainPhase();
+    const drawer = handed(s, "p1", "DRAWER");
+    moved(CTX, DBS, s, [], drawer, "battle", { owner: "p1", asPlay: true });
+    assert.deepEqual(
+      s.pending,
+      [{ card: drawer, skillIndex: 0, master: "p1", trigger: "played" }],
+      "a card played into a Battle Area did not pend its own [Auto] under the moment triggers.rules declares for it (9-6-9-4)",
+    );
+
+    // The same card, the same `asPlay`, a different place: the declaration says
+    // `to: [battle, unison]`, so the Energy Area is not that moment. This is the
+    // whole of what "matched against the pattern" buys — the engine did not
+    // decide it, and a game that declared otherwise would get otherwise.
+    const energy = mainPhase();
+    const elsewhere = handed(energy, "p1", "DRAWER");
+    moved(CTX, DBS, energy, [], elsewhere, "energy", { owner: "p1", asPlay: true });
+    assert.deepEqual(energy.pending, [], "a card put in the Energy Area pended a skill that answers to being played (9-6-9-4)");
+
+    // And a card *placed* in a Battle Area rather than played: `played` asks for
+    // `asPlay: true` and gets `false`, which never matches — the reason every
+    // move states the field rather than leaving it out.
+    const placed = mainPhase();
+    const put = handed(placed, "p1", "DRAWER");
+    moved(CTX, DBS, placed, [], put, "battle", { owner: "p1" });
+    assert.deepEqual(placed.pending, [], "a card placed in a Battle Area pended a skill that answers to being played (5-5-4)");
+  }
+
+  // ── 9-6-6: the turn player's first, then the other player's ──────────────
+  {
+    const s = mainPhase();
+    const mine = staged(s, "p1", "WATCHER");
+    const theirs = staged(s, "p2", "THEIRS");
+    const played = handed(s, "p1", "V1");
+    moved(CTX, DBS, s, [], played, "battle", { owner: "p1", asPlay: true });
+
+    // One moment, two declarations, one watcher each side of the table — and
+    // the card that moved is the `subject` of both, because both `BIND
+    // "subject"`.
+    assert.deepEqual(
+      [...s.pending].sort((a, b) => a.card.localeCompare(b.card)).map((p) => ({ card: p.card, master: p.master, trigger: p.trigger, subject: p.subject })),
+      [
+        { card: mine, master: "p1", trigger: "youPlayed", subject: played },
+        { card: theirs, master: "p2", trigger: "opponentPlayed", subject: played },
+      ].sort((a, b) => a.card.localeCompare(b.card)),
+      "one card being played did not put the moment to the watcher on each side of the table (5-5)",
+    );
+
+    // The order is by *master* and by nothing else, which is what makes it the
+    // legacy engine's: the same queue read on the other player's turn comes out
+    // the other way round.
+    const ours = { ...s, pending: [...s.pending], turnPlayer: "p1" as PlayerId };
+    assert.deepEqual([nextPending(ours)?.card, nextPending(ours)?.card], [mine, theirs], "the turn player's pending [Auto] did not resolve first (9-6-6)");
+    assert.equal(nextPending(ours), null, "the queue handed out a third skill from two");
+    const yours = { ...s, pending: [...s.pending], turnPlayer: "p2" as PlayerId };
+    assert.deepEqual([nextPending(yours)?.card, nextPending(yours)?.card], [theirs, mine], "the queue is ordered by when a skill pended rather than by whose turn it is (9-6-6)");
+
+    // …and the checkpoint really drains it, through the engine rather than by
+    // hand: a pass at the Main Phase runs the flow, and the flow reaches 4-2-2.
+    const after = rulesEngine.apply(CTX, s, { type: "pass", player: "p1" });
+    assert.deepEqual((after.state as VmState).pending, [], "a pended [Auto] survived the checkpoint that is supposed to resolve it (4-2-2)");
+    const drained = after.events.filter((e) => e.type === "note" && /answers to/.test(e.text)).map((e) => (e.type === "note" ? e.text : ""));
+    assert.equal(drained.length, 2, `the checkpoint drained ${drained.length} skills, and two were pending`);
+    assert.match(drained[0], /WATCHER/, "the turn player's skill was not the first the checkpoint took (9-6-6)");
+    assert.match(drained[1], /THEIRS/, "the other player's skill was not the second the checkpoint took (9-6-6)");
+    // Resolving the program is #142's, and the log says so rather than
+    // pretending the draw happened.
+    for (const note of drained) assert.match(note, /#142/, "a skill the checkpoint could not resolve does not say which issue resolves it");
+  }
+
+  // ── WHERE: a condition on the answering side, never on the event (7-1) ────
+  {
+    const s = mainPhase();
+    const mine = staged(s, "p1", "CHARGER");
+    const theirs = staged(s, "p2", "CHARGER");
+    assert.equal(s.turnPlayer, "p1", "the staged game is not on the turn the rest of this block assumes");
+    fire(CTX, DBS, s, { event: "phaseStart", controller: s.turnPlayer, args: { phase: "charge" } });
+    assert.deepEqual(
+      s.pending.map((p) => ({ card: p.card, trigger: p.trigger })),
+      [{ card: mine, trigger: "chargeStart" }],
+      "'at the start of your Charge Phase' was put to both players, and `your` is the card's controller (7-1)",
+    );
+    // The same moment on the other player's turn is the other card's.
+    const s2: VmState = { ...s, pending: [], turnPlayer: "p2" };
+    fire(CTX, DBS, s2, { event: "phaseStart", controller: s2.turnPlayer, args: { phase: "charge" } });
+    assert.deepEqual(
+      s2.pending.map((p) => p.card),
+      [theirs],
+      "the same phase moment did not follow the turn to the other player's card (7-1)",
+    );
+  }
+
+  // ── 9-1-3-1, and the exception derived from the declaration ──────────────
+  {
+    const s = mainPhase();
+
+    // A moment whose pattern names no place asks a card only where its skills
+    // are valid: a card in hand is not in play, so it never answers.
+    const inHand = handed(s, "p1", "DRAWER");
+    fire(CTX, DBS, s, { event: "ko", card: inHand, controller: "p1", args: {} });
+    assert.deepEqual(s.pending, [], "a card in hand answered to a moment whose declaration names no place (9-1-3-1)");
+
+    // A moment whose pattern *does* name a place has already said where the
+    // card is, so it answers from there — which is the legacy engine's list of
+    // eleven `elsewhere` triggers, derived instead of copied. `comboed` is
+    // declared `ON moved(from: combo)`, and the card is in the Drop by the time
+    // it is asked.
+    const comboer = handed(s, "p1", "COMBOER");
+    assert.ok(moveCard(s, DBS, comboer, "combo", { owner: "p1" }).ok);
+    s.pending = [];
+    moved(CTX, DBS, s, [], comboer, "drop", { owner: "p1" });
+    assert.deepEqual(
+      s.pending.map((p) => ({ card: p.card, trigger: p.trigger })),
+      [{ card: comboer, trigger: "comboed" }],
+      "a card whose moment names the place it came from did not answer from outside play (9-1-3-1)",
+    );
+  }
+
+  // ── the matcher answers about declarations, and says nothing else ────────
+  {
+    const s = mainPhase();
+    const id = staged(s, "p1", "DRAWER");
+    // An event word nothing declares is nobody's moment — and not an error: a
+    // game fires what it fires, and which of those are moments is the
+    // definition's business (`triggers.rules`' own header).
+    assert.deepEqual(matchTriggers(DBS, s, { event: "somethingElse", card: id, controller: "p1", args: {} }), [], "a moment nothing declares matched a trigger");
+    // A pattern argument the moment does not carry never matches.
+    assert.deepEqual(matchTriggers(DBS, s, { event: "moved", card: id, controller: "p1", args: { to: "battle" } }).map((m) => m.trigger), [], "a `moved` moment that does not say whether it was a play matched a declaration that asks");
+    // A declaration that watches a side cannot be answered by a moment that
+    // says whose it is nowhere — said loudly, because a silent empty list here
+    // is a skill that never fires with nothing to explain it.
+    assert.throws(
+      () => matchTriggers(DBS, s, { event: "moved", card: id, args: { to: "battle", asPlay: true } }),
+      RulesetBroken,
+      "a moment with no side was matched against a declaration that asks for the controller's cards",
+    );
+    // The pend list is state, so a game stopped between a moment and its
+    // checkpoint is a game that can be stored.
+    moved(CTX, DBS, s, [], handed(s, "p1", "DRAWER"), "battle", { owner: "p1", asPlay: true });
+    assert.ok(s.pending.length > 0);
+    assert.deepEqual(JSON.parse(JSON.stringify(s)), s, "a game with something pending does not round-trip through JSON");
+  }
 }
 
 console.log("verify/vm: ok");

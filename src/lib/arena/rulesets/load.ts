@@ -39,8 +39,13 @@ import type { GameDefinition, Loaded, RulesetError, Vocabulary } from "./types";
  * is open — which events a game fires is its own business — so the loader
  * cannot check every argument; these five are the ones that are a place, and
  * `moved(from: hand, to: battle)` is the wording the grammar was built for.
+ *
+ * Exported because the interpreter reads the same list for a second purpose
+ * (`vm/triggers.ts`): a pattern that names a place is a pattern that says where
+ * the answering card is or was, which is how 9-1-3-1's exceptions are derived
+ * from the declarations instead of listed in code. One list, two readers.
  */
-const ZONE_ARGS = new Set(["from", "to", "in", "area", "zone"]);
+export const ZONE_ARGS = new Set(["from", "to", "in", "area", "zone"]);
 
 /** The skill tags a card prints, as `SkillKindPrefix` spells them. No `DEFINE` kind declares these; the typecheck holds the list to the engine's. */
 const SKILL_KINDS = ["auto", "activate", "counter", "permanent"] as const satisfies readonly SkillKindPrefix[];
