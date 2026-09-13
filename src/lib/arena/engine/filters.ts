@@ -116,6 +116,28 @@ export interface CardFilter {
   powerMin: number | null;
   powerMax: number | null;
   /**
+   * "An original power of 500" (20-3-1): the printed value, before any skill
+   * effect is applied — distinct from `powerMin`/`powerMax` in what the words
+   * mean, though not (yet) in what `matches` checks: `d.power` is always the
+   * face's printed number, because `cardNow` never rewrites it (only `gains`
+   * does, and only to colours/characters/traits/names). A live "current
+   * power" filter would have to read `powerOf` off the game state instead,
+   * which `matches` — being a pure function of `CardDef` — cannot do; that
+   * gap is `powerMin`/`powerMax`'s, not this one's, and out of scope here
+   * (issue #238).
+   */
+  originalPowerMin: number | null;
+  originalPowerMax: number | null;
+  /**
+   * "An originally skill-less Battle Card" (20-3-1, 1-5-9): the card printed
+   * with no text at all, whether or not a later effect granted it a skill —
+   * narrower than "skill-less" on its own, which would also ask about a skill
+   * negated for the turn (9-1-4) or one this filter has no way to see was
+   * granted. Bare "skill-less" stays unread (issue #238 is scoped to the
+   * "originally" wording the catalog actually prints).
+   */
+  originallySkillLess: boolean;
+  /**
    * "with power less than or equal to this card's power" — a bound read off
    * the card whose skill this is, so it is applied where the skill runs
    * (`resolveSelector`), not here.
@@ -192,6 +214,9 @@ export function emptyFilter(): CardFilter {
     costMax: null,
     powerMin: null,
     powerMax: null,
+    originalPowerMin: null,
+    originalPowerMax: null,
+    originallySkillLess: false,
     powerRel: null,
     z: null,
   };;
@@ -299,6 +324,11 @@ export function parseFilter(text: string): CardFilter {
   // one is only about the keywords, so a card with an [Auto] and no keyword
   // still qualifies.
   if (/\bno keyword skills?\b|\bno keywords\b/.test(lower)) f.noKeywords = true;
+  // "An originally skill-less Battle Card" (20-3-1): printed with no text at
+  // all, which the catalog only ever writes with the adverb — see
+  // `originallySkillLess` above for why bare "skill-less" is a separate,
+  // still-unread gap.
+  if (/\boriginally skill-less\b/.test(lower)) f.originallySkillLess = true;
   // "…**with [Blocker]**", "…with an [Evolve] skill", "…with [Counter]
   // skills". A requirement, and dropping it chose any card in the area (83
   // selectors). "Without" and "non-" are read below as the opposite; anything
@@ -395,6 +425,18 @@ export function parseFilter(text: string): CardFilter {
   // single bounds, because "between 30000 and 35000" contains neither "or
   // less" nor "or more" but does contain a bare number the last pattern would
   // take for an exact power.
+  // "An original power of 500" (20-3-1): the printed value, read the same
+  // shape the cost line above reads but with the "original" the catalog
+  // marks it by — never matched by the plain `power` patterns below, which
+  // require the number *before* the word and never see "of". Read before
+  // them so it cannot be confused with a bound they express in the other
+  // word order.
+  if ((m = /original powers? between ([\d,]+) and ([\d,]+)/.exec(lower))) {
+    f.originalPowerMin = Number(m[1].replace(/,/g, ""));
+    f.originalPowerMax = Number(m[2].replace(/,/g, ""));
+  } else if ((m = /original powers? (?:of )?([\d,]+) or less/.exec(lower))) f.originalPowerMax = Number(m[1].replace(/,/g, ""));
+  else if ((m = /original powers? (?:of )?([\d,]+) or more/.exec(lower))) f.originalPowerMin = Number(m[1].replace(/,/g, ""));
+  else if ((m = /original powers? (?:of )?([\d,]+)\b/.exec(lower))) f.originalPowerMin = f.originalPowerMax = Number(m[1].replace(/,/g, ""));
   if ((m = /powers? between ([\d,]+) and ([\d,]+)/.exec(lower))) {
     f.powerMin = Number(m[1].replace(/,/g, ""));
     f.powerMax = Number(m[2].replace(/,/g, ""));
@@ -498,6 +540,14 @@ export function matches(d: CardDef, given: CardFilter): boolean {
   if (f.costMax != null && (cost == null || cost > f.costMax)) return false;
   if (f.powerMin != null && (d.power == null || d.power < f.powerMin)) return false;
   if (f.powerMax != null && (d.power == null || d.power > f.powerMax)) return false;
+  // `d` is always a `CardDef` — the catalog row, or `cardNow`'s copy of it
+  // with only `gains`' colours/characters/traits/names applied — so `d.power`
+  // is already the printed number a marker or a [Permanent] never touches.
+  // Checking it here *is* the original-power reading; see the field's own
+  // comment for the "current power" reading this filter cannot give.
+  if (f.originalPowerMin != null && (d.power == null || d.power < f.originalPowerMin)) return false;
+  if (f.originalPowerMax != null && (d.power == null || d.power > f.originalPowerMax)) return false;
+  if (f.originallySkillLess && d.skill) return false;
   return true;
 }
 

@@ -654,6 +654,11 @@ function attrOf(ctx: GameContext, s: GameState, id: string, name: AmountAttr): n
   switch (name) {
     case "power":
       return powerOf(ctx, s, id);
+    case "originalPower":
+      // 20-3-1: the printed face value, before the `Servant` keyword and the
+      // power effects `powerOf` adds on top of it — the current face's own
+      // number, never the front's once a card has flipped to its back.
+      return face(ctx, s, id).power ?? 0;
     case "comboPower":
       return comboPowerOf(ctx, s, id);
     case "comboCost":

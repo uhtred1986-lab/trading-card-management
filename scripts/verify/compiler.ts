@@ -330,6 +330,54 @@ import type { PlayerId } from "./harness";
 }
 
 {
+  // 20-3-1: "original power" reads the printed face, not the current one —
+  // even while a [Permanent] has raised it (issue #238). Same scenario as the
+  // power-buff test above: V1 prints 10000, AURA raises it to 15000 while in
+  // play.
+  let s = arena({ hand: ["AURA"], energy: ["V1"], battle: ["V1"] });
+  const ally = s.players.p1.battle[0];
+  const ctx = CTX;
+  const aura = find(s, "p1", "hand", "AURA");
+  s = play(s, { type: "play", player: "p1", card: aura });
+  assert.equal(powerOf(ctx, s, ally), 15000, "current power is raised by the [Permanent]");
+  const now = cardNow(ctx, s, ally);
+  assert.ok(matches(now, parseFilter("card with an original power of 10000")), "original power still reads the printed 10000");
+  assert.ok(!matches(now, parseFilter("card with an original power of 15000")), "never the raised current power");
+  // The bare measure has the same architecture (`matches` is pure over
+  // `CardDef` and never sees a marker or a [Permanent]'s raise), so it reads
+  // printed power too — not because it means "original", but because a "live"
+  // power filter does not exist yet. Demonstrated, not asserted as intended
+  // behaviour: see the field's own comment in `engine/filters.ts`.
+  assert.ok(matches(now, parseFilter("card with 10000 power")), "the bare measure reads the same printed value");
+  assert.ok(!matches(now, parseFilter("card with 15000 power")), "…and not the raised one either");
+}
+
+{
+  // 1-5-9, 9-1-4: "originally skill-less" is the printed text box, empty or
+  // not — every synthetic card is skill-less by default (`harness.ts`'s
+  // `card()`), so V1 qualifies and AURA, which prints a [Permanent], does not.
+  assert.ok(matches(DEFS.V1, parseFilter("originally skill-less card")), "V1 prints no skill, so it is originally skill-less");
+  assert.ok(!matches(DEFS.AURA, parseFilter("originally skill-less card")), "AURA prints a [Permanent] skill, so it is not");
+
+  // `filterFor`'s `narrows` check used to have no entry for either new field,
+  // so a filter naming only one of them (P-529: "you have an originally
+  // skill-less Battle Card in play", with no colour or cost of its own) was
+  // built and then thrown away as saying nothing — the same silent widening
+  // BT19-130's character-name phrase suffered before it was added to that
+  // list (issue #238).
+  const cond = compileSkill(parseSkills("[Activate: Main] If you have an originally skill-less Battle Card in play: Draw 1 card.")[0]);
+  assert.deepEqual(cond.unsupported, []);
+  assert.equal(cond.ops.length, 1);
+  const wrapped = cond.ops[0] as Extract<Op, { op: "if" }>;
+  assert.equal(wrapped.op, "if");
+  assert.equal(wrapped.cond.kind, "count");
+  const sel = (wrapped.cond as Extract<typeof wrapped.cond, { kind: "count" }>).sel;
+  assert.ok(sel.filter, "the filter was thrown away as narrowing nothing, the same bug BT19-130 had (issue #238)");
+  assert.equal(sel.filter?.originallySkillLess, true);
+  assert.deepEqual(wrapped.then, [{ op: "draw", n: 1 }]);
+}
+
+{
   // 9-1-3-3: a cost reducer names the hand, so it applies there and nowhere else.
   const s = arena({ hand: ["CHEAP"], energy: ["V1", "V1"] });
   const cheap = find(s, "p1", "hand", "CHEAP");

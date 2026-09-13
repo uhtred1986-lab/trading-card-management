@@ -138,8 +138,14 @@ export interface Selector {
  * costs *now* (20-21-2), not the one on the face, because every other reading
  * of a cost in this engine is the reduced one and two answers to "its energy
  * cost" would be a bug waiting for a [Permanent] to find.
+ *
+ * `originalPower` (20-3-1) is the one deliberate exception: "the attacking
+ * card's original power" means the printed number, ignoring every layer a
+ * marker or a [Permanent] has since added — the opposite convention from
+ * `energyCost`, and the reason it is a separate measure rather than a flag on
+ * `power`.
  */
-export type AmountAttr = "power" | "comboPower" | "energyCost" | "comboCost";
+export type AmountAttr = "power" | "comboPower" | "energyCost" | "comboCost" | "originalPower";
 
 /**
  * A number an effect needs — an *expression*, since 12 Sep 2026 (20-5).

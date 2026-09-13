@@ -107,6 +107,16 @@ export const MEASURES: Record<keyof CardFilter, Measure> = {
   costMax: { reads: ["energyCost"] },
   powerMin: { reads: ["power"] },
   powerMax: { reads: ["power"] },
+  // "An original power of 500" (20-3-1) reads the same `power` attribute as
+  // the bare measure above, because nothing in this module applies `power`'s
+  // `layers:` yet (#140/#142 — see the module doc) and the value read here is
+  // always the printed one. Once layering lands, `powerMin`/`powerMax` are the
+  // ones that must move to the layered value; this measure has to keep
+  // reading the printed layer specifically, or "original power" starts
+  // reading the same wrong thing the legacy engine's fix (issue #238) undid.
+  originalPowerMin: { reads: ["power"] },
+  originalPowerMax: { reads: ["power"] },
+  originallySkillLess: { reads: ["skill"] },
   faceUp: { instance: "which copy of the card is face up is about the instance in its area (3-9-2-1), not about the card" },
   powerRel: { instance: "a bound read off another card the skill has chosen, so it is applied where that card is known" },
   unreadable: { instance: "the compiler refused the phrase: the selector offers nothing rather than a card failing to match" },
@@ -237,6 +247,13 @@ function matchesAttrs(f: CardFilter, attrs: Attrs): boolean {
   const power = number(attrs.power);
   if (f.powerMin != null && (power == null || power < f.powerMin)) return false;
   if (f.powerMax != null && (power == null || power > f.powerMax)) return false;
+  // `attrs.power` is the printed face value until #140/#142 apply `power`'s
+  // layers (see the module doc and the `MEASURES` row above), so this reads
+  // the same number as `powerMin`/`powerMax` today — deliberately, and only
+  // for now.
+  if (f.originalPowerMin != null && (power == null || power < f.originalPowerMin)) return false;
+  if (f.originalPowerMax != null && (power == null || power > f.originalPowerMax)) return false;
+  if (f.originallySkillLess && text(attrs.skill)) return false;
   return true;
 }
 
