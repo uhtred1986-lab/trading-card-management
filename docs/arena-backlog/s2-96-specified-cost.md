@@ -33,7 +33,7 @@ all read the coloured requirement instead of `{}`, markers still follow the tota
 and the row's price shows the relaxed requirement. What is missing on the seven cards above is the
 data, not the reading.
 
-**Out of scope.** Skill-cost reduction (#97); X as a bound expression (see the X/expressions issue — this issue may land first with a fixed baseline). Entering a baseline for the seven cards above — a `specified_cost` column, a workbench field, or reading Bandai's card art — is its own issue and is not guessed at here.
+**Out of scope.** Skill-cost reduction (#97); X as a bound expression (see the X/expressions issue — this issue may land first with a fixed baseline). Entering a baseline for the seven cards above — a `specified_cost` column, a workbench field, or reading Bandai's card art — is its own issue (`s2-12-specified-cost-baseline.md`) and is not guessed at here.
 
 **Acceptance.**
 - Gate + `contract:emit` reviewed.
