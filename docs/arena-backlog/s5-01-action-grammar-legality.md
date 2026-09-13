@@ -1,8 +1,10 @@
 ---
 title: Arena: ACTION declarations and generic legalActions/rejectedActions from WHEN, FOR, COST and REFUSE
 milestone: Arena M8 — Rules engine actions and costs (Stage 5)
-labels: backlog, ready-for-agent, enhancement, area:arena-vm, area:arena-lang, phase:rules-stage5, model:opus-5
+labels: done, enhancement, area:arena-vm, area:arena-lang, phase:rules-stage5, model:opus-5
 stage: 5
+status: closed
+closed_at: 2026-09-13
 ---
 **Source:** plan Stage 5 (`ACTION play { WHEN prompt main AND turn(you); FOR card IN you.[hand] WHERE type = BATTLE; COST pay(energy(card)); DO move(card, [battle]); fire played; REFUSE … }`); `docs/arena-workflow-spec.md` §3.2 (one rejection per card per action type; per skill line for an activation) and the two places that assert it — `scripts/verify/harness.ts` and `scripts/arena-playthrough.mts`; `legalActions`/`rejectedActions` in `src/lib/arena/engine/engine.ts`.
 
