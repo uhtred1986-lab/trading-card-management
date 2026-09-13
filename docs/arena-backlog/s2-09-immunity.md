@@ -1,8 +1,10 @@
 ---
 title: Arena: the immunity family — 'isn't affected by your opponent's skills' (20-4)
 milestone: Arena M1 — Rules correctness and parser coverage
-labels: backlog, ready-for-agent, enhancement, area:arena-compiler, area:arena-engine, phase:rules-stage2, model:opus-5
+labels: done, enhancement, area:arena-compiler, area:arena-engine, phase:rules-stage2, model:opus-5
 stage: 2
+status: closed
+closed_at: 2026-09-13
 ---
 **Source:** plan Stage 2 gap table, rows "isn't affected by your opponent's skills" (7) and "unaffected by skills"; rule manual 20-4; the `immune` op already in `OP_SCHEMA` and the `forbid beChosen / beMovedBySkill` prohibitions.
 

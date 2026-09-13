@@ -273,7 +273,13 @@ function effectView(
 function effectsOn(ctx: EngineContext, s: GameState, id: string, statics: StaticEffect[]): EffectView[] {
   const out: EffectView[] = [];
   for (const e of s.effects) if (e.target === id) out.push(effectView(ctx, s, describeEffect(e), e.until, e.source, e.master));
-  for (const e of statics) if (e.target === id) out.push(effectView(ctx, s, describeStatic(e), "permanent", e.source, s.cards[e.source] ? masterOf(s, e.source) : null));
+  for (const e of statics)
+    if (e.target === id) {
+      // 20-9: whose rule it is follows the card, so the chair a label's side
+      // words are said from is its source's *master*, not its owner.
+      const by = s.cards[e.source] ? masterOf(s, e.source) : null;
+      out.push(effectView(ctx, s, describeStatic(e, by), "permanent", e.source, by));
+    }
   return out;
 }
 
@@ -283,7 +289,8 @@ function rulesOn(ctx: EngineContext, s: GameState, p: PlayerId, statics: StaticE
   const about = (player: PlayerId | undefined) => !player || player === p;
   for (const e of s.effects) if (!e.target && e.kind === "forbid" && e.forbid && about(e.forbid.player)) out.push(effectView(ctx, s, describeEffect(e), e.until, e.source, e.master));
   for (const e of statics)
-    if (!e.target && e.kind === "forbid" && about((e.value as { player?: PlayerId }).player)) out.push(effectView(ctx, s, describeStatic(e), "permanent", e.source, s.cards[e.source] ? masterOf(s, e.source) : null));
+    if (!e.target && e.kind === "forbid" && about((e.value as { player?: PlayerId }).player))
+      out.push(effectView(ctx, s, describeStatic(e, s.cards[e.source] ? masterOf(s, e.source) : null), "permanent", e.source, s.cards[e.source] ? masterOf(s, e.source) : null));
   return out;
 }
 
