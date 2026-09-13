@@ -7,6 +7,7 @@
 import { hasKeyword, keywordOf, skillsOf, specifiedCostOf, isZ, baseType } from "./cards";
 import { matches, powerRelOk } from "./filters";
 import { asksAQuestion, describeCond, describeScript } from "./script-schema";
+import { legacyHost } from "./script-host";
 import { NO_RULES, stepScript, type Amount, type AmountAttr, type CardScripts, type Cond, type Op, type PayWith, type Ref, type Script, type ScriptArea, type ScriptFrame, type Selector, type Side } from "./script";
 import type {
   Area,
@@ -309,7 +310,7 @@ function runReplacement(ctx: GameContext, s: GameState, ev: GameEvent[], id: str
   if (applyingReplacement || !r.ops?.length) return;
   applyingReplacement = true;
   try {
-    stepScript(ctx, s, ev, { ops: r.ops, ip: 0, vars: {}, card: r.source ?? id, master: r.master ?? masterOf(s, id), subject: id, replacing: id });
+    stepScript(legacyHost(ctx, s, ev), { ops: r.ops, ip: 0, vars: {}, card: r.source ?? id, master: r.master ?? masterOf(s, id), subject: id, replacing: id });
   } finally {
     applyingReplacement = false;
   }

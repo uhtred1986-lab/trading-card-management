@@ -16,11 +16,13 @@
  * actions. That is the legacy engine's guarantee, kept, and it is the property
  * `arena:diff` rests on.
  *
- * **What it still knows by name, and why.** Two constants below name pieces of
- * the DBS definition: `SETUP_ZONES` (#139's, kept) and `STEP_WORK`. A step
- * carries a `DO` program from Stage 5; until then six of them are things the
- * interpreter does itself, and naming those six in one table that is checked
- * against the declarations at load is the honest version of that gap. The
+ * **What it still knows by name, and why.** Two constants name pieces of the
+ * DBS definition: `SETUP_ZONES` (#139's, kept — it now lives in `./zones.ts`,
+ * where the readings in `./program.ts` can reach it without importing the
+ * runner that imports them) and `STEP_WORK` below. A step carries a `DO`
+ * program from Stage 5; until then eleven of them are things the interpreter
+ * does itself, and naming those eleven in one table that is checked against
+ * the declarations at load is the honest version of that gap. The
  * dishonest version is a runner with `if (phase === "charge")` in it. Each row
  * says which manual section it is and what it waits on; when the steps carry
  * programs the table goes and this module loses its last DBS word.
@@ -43,8 +45,13 @@ import type { PatternValue } from "../lang";
 import type { GameDefinition, StepDef, WinDef } from "../rulesets";
 import { RulesetBroken } from "./errors";
 import { emit, log, type Moment } from "./events";
-import { nextPending } from "./triggers";
-import { arrivalMode, moveCard } from "./zones";
+import { nextPending, skillsShowing } from "./triggers";
+import { dueDelays, endEffects as endEffectsOfDuration, endTurnRelativeEffects, expireDelayed, skillNegated } from "./effects";
+import { vmHost } from "./host";
+import { NotYet } from "./errors";
+import { stepScript, type ScriptFrame } from "../engine/script";
+import type { Trigger } from "../engine/types";
+import { SETUP_ZONES, arrivalMode, moveCard } from "./zones";
 import type { VmFrame, VmState } from "./state";
 
 // `other` is the engine's own: a game of two is what `DEFINE GAME players: 2`
@@ -66,7 +73,7 @@ export { other };
  * `state.sides.p1.hand` in fifty places. When the steps carry programs, this
  * constant goes and the deal becomes six declarations.
  */
-export const SETUP_ZONES = { leader: "leader", deck: "deck", zDeck: "zDeck", hand: "hand", life: "life" } as const;
+export { SETUP_ZONES };
 
 /**
  * Who a declared prompt kind asks.
@@ -156,6 +163,47 @@ const STEP_WORK: Record<string, Work> = {
       state.turnPlayer = state.firstPlayer ?? "p1";
     },
   },
+  chargeTurnEffects: {
+    section: "7-2-2",
+    waits: "the delayed effects themselves as declarations — `DEFINE DELAY turnStart` and its three siblings, which no grammar kind covers yet",
+    run: (_ctx, _game, state) => {
+      // 20-15: "at the start of the turn, …", written down on an earlier turn
+      // and waiting for this one. The programs go on the queue rather than
+      // running here, because one of them can stop and ask.
+      state.programs.push(...dueDelays(state, "turnStart"));
+    },
+  },
+  chargeContinuousEnd: {
+    section: "7-2-4",
+    waits: "an `until:` a duration expiry can be declared against, rather than the closed `DURATIONS` list the language carries",
+    run: (_ctx, _game, state, ev) => {
+      endTurnRelativeEffects(state, ev);
+    },
+  },
+  mainPending: {
+    section: "7-3-2",
+    waits: "the same DELAY declaration `chargeTurnEffects` waits on",
+    run: (_ctx, _game, state) => {
+      state.programs.push(...dueDelays(state, "mainStart"));
+    },
+  },
+  endPending: {
+    section: "7-4-2",
+    waits: "the same DELAY declaration `chargeTurnEffects` waits on",
+    run: (_ctx, _game, state) => {
+      state.programs.push(...dueDelays(state, "turnEnd"));
+    },
+  },
+  endEffects: {
+    section: "7-4-5",
+    waits: "the same `until:` declaration `chargeContinuousEnd` waits on",
+    run: (_ctx, _game, state, ev) => {
+      // 7-4-5/6: "for the turn" effects end, and 20-15's last timing is the
+      // one that happens as the turn closes over them.
+      endEffectsOfDuration(state, ev, "turn");
+      state.programs.push(...dueDelays(state, "turnCleanup"));
+    },
+  },
   chargeActivate: {
     section: "7-2-7",
     waits: "switchMode() over a selector naming every in-play area at once",
@@ -195,6 +243,8 @@ const STEP_WORK: Record<string, Work> = {
     section: "7-4-7",
     waits: "the turn as something a program can end — the one step that is about the flow rather than about the board",
     run: (ctx, game, state, ev) => {
+      // 20-15: anything still waiting for a moment of this turn missed it.
+      expireDelayed(state);
       state.turn++;
       state.turnPlayer = other(state.turnPlayer);
       // The turn passing ends every frame of it: nothing declared after this
@@ -272,6 +322,17 @@ export function run(ctx: EngineContext, game: GameDefinition, state: VmState, ev
         announce(game, state, ev, top.phase);
         continue;
       }
+    }
+
+    // A program in progress runs before anything else looks at the board:
+    // 9-6-3 resolves one skill completely before the next begins, and a
+    // checkpoint reached in the middle of one would put a second skill in
+    // front of the first. This is also what a suspended program resumes
+    // through — the answer came back, the frame is at the front, and the next
+    // pass through the loop steps it.
+    if (state.programs.length) {
+      if (stepProgram(ctx, game, state, ev) === "wait") return;
+      continue;
     }
 
     // 4-2-2: a checkpoint, here and nowhere else. Between one step and the
@@ -365,21 +426,91 @@ export function repeatAllowed(step: StepDef, frame: VmFrame): boolean {
  * legacy engine's `{ op: "auto.resolve" }, { op: "checkpoint" }` pair said as a
  * loop instead of as two steps.
  *
- * **Resolving the skill's program is #142's**, and this is where it will go. A
- * skill drained here today is recorded as a note and its program is not run:
- * the alternative is leaving it on the queue, which would turn the 7-4-4 repeat
- * into a phase that goes round until its ceiling stops it and would be a worse
- * lie than the note. `vmToBeats` drops a note, so nothing is animated from it.
+ * The skill is not run here: its program goes to the front of `state.programs`
+ * and the runner steps it on the next pass. That is what makes a skill that
+ * stops to ask storable — the frame is the suspension, as it is on the legacy
+ * engine — and what keeps 9-6-3 honest, since nothing else may happen between
+ * a skill starting and finishing.
+ *
+ * Three reasons a pended skill resolves to nothing, each said out loud:
+ * negated (9-1-5), a condition on its price that does not hold (9-4), and a
+ * price this engine cannot charge yet (#147). The fourth — the compiler could
+ * not read the text — is the referee's, and on this engine it is a note.
  */
 function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[]): boolean {
   const next = nextPending(state);
   if (!next) return false;
-  const card = state.cards[next.card];
-  log(ev, {
-    type: "note",
-    text: `${card ? card.cardId : next.card} answers to ${next.trigger} with skill ${next.skillIndex}, and resolving a skill's program is #142's`,
-  });
+  const named = state.cards[next.card]?.cardId ?? next.card;
+  const showing = skillsShowing(ctx, state, next.card);
+  const skill = showing.skills.find((sk) => sk.index === next.skillIndex);
+  const program = showing.scripts.bySkill[next.skillIndex];
+  const frame: ScriptFrame = {
+    ops: program?.ops ?? [],
+    ip: 0,
+    vars: {},
+    card: next.card,
+    master: next.master,
+    trigger: next.trigger as Trigger,
+    subject: next.subject,
+    skillIndex: next.skillIndex,
+  };
+
+  // 9-1-5: a card whose skills are negated has none, and one skill switched
+  // off is off for the moment it answered to as well as for every other. The
+  // one reading of that rule lives in `./effects.ts` and every reader uses it.
+  if (skillNegated(state, next.card, next.skillIndex, skill?.kind)) {
+    log(ev, { type: "note", text: `${named}'s skill is negated, so it does not resolve` });
+    return true;
+  }
+  if (!program || program.unsupported.length) {
+    log(ev, { type: "note", text: `${named} answers to ${next.trigger}, and no rule this engine can read says what happens` });
+    return true;
+  }
+  // 9-4: a condition the record hoisted out of the price. It is asked now,
+  // when the skill resolves, which is where the legacy engine asks it.
+  if (program.price?.condition && !vmHost(ctx, game, state, ev).condHolds(frame, program.price.condition)) {
+    log(ev, { type: "note", text: `${named} answers to ${next.trigger}, and its condition does not hold` });
+    return true;
+  }
+  if (program.price?.ops?.length || program.price?.x) {
+    log(ev, { type: "note", text: `${named} answers to ${next.trigger}, and charging a skill's price is #147's — so it does not resolve` });
+    return true;
+  }
+
+  log(ev, { type: "skill", card: next.card, skill: next.skillIndex, master: next.master, text: skill?.effect ?? "", inBattle: false });
+  state.programs.unshift(frame);
   return true;
+}
+
+/**
+ * One step of the program at the front of the queue.
+ *
+ * `stepScript` is the legacy engine's interpreter, shared (#142 step 1): it
+ * takes the frame off the queue, runs it until it finishes or asks, and puts
+ * itself back through `host.resume` when it asks. So the frame is shifted off
+ * here and never put back by this function.
+ *
+ * **A `NotYet` stops that one skill and no more.** An op this engine has no
+ * half of — a KO, a play, a price — throws, and the throw is caught here, named
+ * in the log, and the frame dropped. The alternative is letting it out of
+ * `apply`, which would make every deck holding such a card unplayable and take
+ * `arena-fuzz --engine rules` and the oracle with it, exactly while they are
+ * the instruments this stage is measured by. What the skill did before it
+ * stopped stands, which is the honest cost of that choice and is bounded by
+ * `ENGINE_INFO.rules.available` still being false: no game a person plays can
+ * reach it. #146 and #147 remove most of these, and the boundary becomes a
+ * refusal when a game can be made on this engine.
+ */
+function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[]): "done" | "wait" {
+  const frame = state.programs.shift();
+  if (!frame) return "done";
+  try {
+    return stepScript(vmHost(ctx, game, state, ev), frame);
+  } catch (err) {
+    if (!(err instanceof NotYet)) throw err;
+    log(ev, { type: "note", text: `${state.cards[frame.card]?.cardId ?? frame.card}: ${err.message}` });
+    return "done";
+  }
 }
 
 // ── prompts ─────────────────────────────────────────────────────────────────

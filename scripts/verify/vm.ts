@@ -80,13 +80,21 @@ import {
   measuresUsed,
   moveCard,
   moved,
+  addEffect,
+  attrsNow,
+  dueDelays,
+  endEffects,
   nextPending,
+  permanents,
   placeZones,
   playerAttributes,
   predicateOf,
   repeatAllowed,
+  run,
   stepWorkNote,
   turnPhases,
+  schedule,
+  vmHost,
   SETUP_ZONES,
   WORKED_STEPS,
   type Attrs,
@@ -96,6 +104,7 @@ import { loadRuleset, rulesetFor, type ActionDef, type GameDefinition } from "..
 import { FILTER_FIELD_NAMES, parseDefinitions } from "../../src/lib/arena/lang";
 import { emptyFilter, type CardFilter } from "../../src/lib/arena/engine/filters";
 import type { CardDef, PlayerId } from "../../src/lib/arena/engine/types";
+import type { Op } from "../../src/lib/arena/engine/script";
 import { CTX, DEFS, assertMenuInvariants, card, fifty, matches } from "./harness";
 
 const DECKS = { seed: 11, p1: { name: "You", leader: "L-RED", main: fifty("V1") }, p2: { name: "Claude", leader: "L-BLUE", main: fifty("V-BLUE") } };
@@ -843,17 +852,18 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     const yours = { ...s, pending: [...s.pending], turnPlayer: "p2" as PlayerId };
     assert.deepEqual([nextPending(yours)?.card, nextPending(yours)?.card], [theirs, mine], "the queue is ordered by when a skill pended rather than by whose turn it is (9-6-6)");
 
-    // …and the checkpoint really drains it, through the engine rather than by
-    // hand: a pass at the Main Phase runs the flow, and the flow reaches 4-2-2.
+    // …and the checkpoint really resolves it, through the engine rather than by
+    // hand: a pass at the Main Phase runs the flow, the flow reaches 4-2-2, and
+    // the program on the record is run on the interpreter both engines share
+    // (#142). Until then this drained into a note.
     const after = rulesEngine.apply(CTX, s, { type: "pass", player: "p1" });
     assert.deepEqual((after.state as VmState).pending, [], "a pended [Auto] survived the checkpoint that is supposed to resolve it (4-2-2)");
-    const drained = after.events.filter((e) => e.type === "note" && /answers to/.test(e.text)).map((e) => (e.type === "note" ? e.text : ""));
-    assert.equal(drained.length, 2, `the checkpoint drained ${drained.length} skills, and two were pending`);
-    assert.match(drained[0], /WATCHER/, "the turn player's skill was not the first the checkpoint took (9-6-6)");
-    assert.match(drained[1], /THEIRS/, "the other player's skill was not the second the checkpoint took (9-6-6)");
-    // Resolving the program is #142's, and the log says so rather than
-    // pretending the draw happened.
-    for (const note of drained) assert.match(note, /#142/, "a skill the checkpoint could not resolve does not say which issue resolves it");
+    const resolved = after.events.flatMap((e) => (e.type === "skill" ? [e.card] : []));
+    assert.deepEqual(resolved, [mine, theirs], "the checkpoint did not resolve the turn player's skill first and the other player's second (9-6-6)");
+    // …and "draw 1 card" really drew. The first two draws of the batch are the
+    // two skills'; everything after them belongs to the turn that follows.
+    const drew = after.events.flatMap((e) => (e.type === "draw" ? [e.player] : []));
+    assert.deepEqual(drew.slice(0, 2), ["p1", "p2"], "a resolved [Auto] that says 'draw 1 card' did not draw one");
   }
 
   // ── WHERE: a condition on the answering side, never on the event (7-1) ────
@@ -927,6 +937,167 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     moved(CTX, DBS, s, [], handed(s, "p1", "DRAWER"), "battle", { owner: "p1", asPlay: true });
     assert.ok(s.pending.length > 0);
     assert.deepEqual(JSON.parse(JSON.stringify(s)), s, "a game with something pending does not round-trip through JSON");
+  }
+
+  // ── 9-5-1 and 9-9-1: a [Permanent] read through the declared layers ───────
+  //
+  // A [Permanent] is never resolved and never stored: it is *read* whenever a
+  // value is asked for, and it stops being read the moment its card is no
+  // longer where its skills are valid (9-1-3-1). Nothing expires, because
+  // nothing was ever put in force.
+  {
+    const s = mainPhase();
+    const plain = staged(s, "p1", "V1");
+    assert.equal(attrsNow(CTX, DBS, s, plain).power, 10000, "a card with nothing in force does not read its printed power");
+    const aura = staged(s, "p1", "AURA");
+    assert.equal(attrsNow(CTX, DBS, s, plain).power, 15000, "a [Permanent] in play did not reach the card it is about (9-9-1-2)");
+    assert.ok(
+      permanents(
+        CTX,
+        DBS,
+        s,
+        (frame) => [frame.card],
+        () => true,
+      ).length > 0,
+      "the [Permanent] walk found no standing change on a board holding one",
+    );
+    assert.ok(moveCard(s, DBS, aura, "drop", { owner: "p1" }).ok, "the [Permanent] could not be moved out of play");
+    assert.equal(attrsNow(CTX, DBS, s, plain).power, 10000, "a [Permanent] went on standing after its card left play (9-1-3-1)");
+  }
+
+  // ── 9-1-5: negation is one reading, and every reader of it uses it ────────
+  //
+  // A [Permanent] read by a walk of its own is the place this rule is easiest
+  // to forget: the [Auto]s of a negated card correctly stopped answering while
+  // its standing power boost went on standing. So the rule is one function in
+  // `vm/effects.ts` and the three readers — the walk, the checkpoint and the
+  // moment that pends — all go through it.
+  {
+    const s = mainPhase();
+    const plain = staged(s, "p1", "V1");
+    const aura = staged(s, "p1", "AURA");
+    assert.equal(attrsNow(CTX, DBS, s, plain).power, 15000, "the fixture's [Permanent] is not standing, so this block proves nothing");
+
+    addEffect(s, [], { target: aura, kind: "negateSkills", value: 0, until: "game", source: aura });
+    assert.equal(attrsNow(CTX, DBS, s, plain).power, 10000, "a [Permanent] on a card whose skills are negated went on standing (9-1-5)");
+
+    // The narrower half: one skill by its printed index, not the whole card.
+    const one = mainPhase();
+    const bystander = staged(one, "p1", "V1");
+    const boost = staged(one, "p1", "AURA");
+    addEffect(one, [], { target: boost, kind: "negateSkill", value: 0, until: "turn", source: boost });
+    assert.equal(attrsNow(CTX, DBS, one, bystander).power, 10000, "a [Permanent] negated by its own index went on standing (9-1-5)");
+
+    // …and an [Auto] on a negated card does not answer to its moment either,
+    // which is the half that was already right and is now the same reading.
+    const watcher = staged(s, "p1", "WATCHER");
+    addEffect(s, [], { target: watcher, kind: "negateSkills", value: 0, until: "game", source: watcher });
+    moved(CTX, DBS, s, [], handed(s, "p1", "V1"), "battle", { owner: "p1", asPlay: true });
+    assert.deepEqual(s.pending, [], "an [Auto] on a card whose skills are negated was pended anyway (9-1-5)");
+  }
+
+  // ── 9-1-4 and 7-4-5: a continuous effect, and the turn it ends with ───────
+  {
+    const s = mainPhase();
+    const target = staged(s, "p1", "V1");
+    const ev: GameEvent[] = [];
+    addEffect(s, ev, { target, kind: "power", value: 3000, until: "turn", source: target });
+    assert.deepEqual(
+      ev.map((e) => e.type),
+      ["effect"],
+      "putting an effect in force did not log the beat a board draws the surge from",
+    );
+    assert.equal(attrsNow(CTX, DBS, s, target).power, 13000, "a continuous effect did not reach the layer above the printed power (9-9-1-3)");
+
+    // …and it ends at the step the End Phase declares for it, through the
+    // engine rather than by hand.
+    const after = rulesEngine.apply(CTX, s, { type: "pass", player: "p1" });
+    assert.deepEqual((after.state as VmState).effects, [], "an effect that lasts 'for the turn' survived the turn (7-4-5)");
+    assert.ok(
+      after.events.some((e) => e.type === "effectEnded"),
+      "an effect ended with no beat, so a board has nothing to draw the settle from",
+    );
+
+    // The two turn-relative durations are read against the effect's own
+    // master and never against whose turn it happened to be made on (7-2-4) —
+    // so on p1's turn they point opposite ways, and one pass separates them.
+    const mine = mainPhase();
+    const card = staged(mine, "p1", "V1");
+    addEffect(mine, [], { target: card, kind: "power", value: 1000, until: "opponentTurn", master: "p1", source: card });
+    addEffect(mine, [], { target: card, kind: "comboPower", value: 1000, until: "nextTurn", master: "p1", source: card });
+    const next = rulesEngine.apply(CTX, mine, { type: "pass", player: "p1" }).state as VmState;
+    assert.equal(next.turnPlayer, "p2", "one pass did not hand the turn over, so this block proves nothing");
+    assert.deepEqual(
+      next.effects.map((e) => e.until),
+      ["nextTurn"],
+      "the two turn-relative durations were not read against the effect's own master as p1's turn ended (7-2-4)",
+    );
+  }
+
+  // ── 20-15: a program written down now for a moment later ─────────────────
+  {
+    const s = mainPhase();
+    const card = staged(s, "p1", "V1");
+    schedule(s, [], { at: "turnEnd", scope: "thisTurn", ops: [{ op: "note", text: "the delayed half happened" }], card, master: "p1", vars: {}, label: "at the end of the turn" });
+    assert.equal(dueDelays({ ...s, delayed: [...s.delayed] }, "mainStart").length, 0, "a delayed effect came due at a timing it does not name");
+    const after = rulesEngine.apply(CTX, s, { type: "pass", player: "p1" });
+    assert.ok(
+      after.events.some((e) => e.type === "note" && e.text === "the delayed half happened"),
+      "a delayed effect did not run at the step its timing names (7-4-2)",
+    );
+    assert.deepEqual((after.state as VmState).delayed, [], "a delayed effect that ran stayed on the list");
+  }
+
+  // ── 5-2 and 20-2: a skill that stops to ask ──────────────────────────────
+  //
+  // The whole of step 4: the question is the contract's own `Prompt`, the menu
+  // is one move per candidate, the frame is the suspension — so the game is
+  // storable mid-decision — and answering resumes the very program that asked.
+  {
+    const s = mainPhase();
+    const mine = staged(s, "p1", "V1");
+    const spared = staged(s, "p2", "V1");
+    const chosen = staged(s, "p2", "BLOCKER");
+    const ops: Op[] = [
+      { op: "choose", sel: { side: "opponent", area: "battle", count: 1 }, as: "picked", reason: "choose one" },
+      { op: "power", target: { var: "picked" }, amount: -5000, until: "turn" },
+    ];
+    s.programs.push({ ops, ip: 0, vars: {}, card: mine, master: "p1" });
+    run(CTX, DBS, s, []);
+
+    assert.equal(s.prompt.kind, "chooseCards", "a program with a choice in it did not put the question");
+    const asking = s.prompt.kind === "chooseCards" ? s.prompt.choice : null;
+    assert.deepEqual(asking?.candidates.slice().sort(), [spared, chosen].sort(), "the question offered cards the selector does not name");
+    assert.deepEqual({ min: asking?.min, max: asking?.max }, { min: 1, max: 1 }, "a 'choose 1' was not asked one card at a time");
+    assert.deepEqual(JSON.parse(JSON.stringify(s)), s, "a game waiting inside a skill does not round-trip through JSON");
+    assert.equal(s.programs.length, 1, "the program that asked did not put itself back to be resumed");
+
+    const menu = rulesEngine.legalActions(CTX, s);
+    assert.deepEqual(
+      menu.map((m) => m.action.type),
+      ["choose", "choose"],
+      "the menu at a program's question is not one move per candidate",
+    );
+
+    const after = rulesEngine.apply(CTX, s, { type: "choose", player: "p1", cards: [chosen] }).state as VmState;
+    assert.equal(attrsNow(CTX, DBS, after, chosen).power, 5000, "the card the player chose was not the card the rest of the program acted on");
+    assert.equal(attrsNow(CTX, DBS, after, spared).power, 10000, "a card nobody chose was changed as well");
+    assert.deepEqual(after.programs, [], "the program did not finish once its question was answered");
+    assert.equal(after.prompt.kind, "main", "the step's own question did not come back after the skill it was interrupted by finished");
+
+    // And the host is the one the interpreter ran on: the same interface the
+    // legacy engine implements, over this state.
+    assert.equal(vmHost(CTX, DBS, after, []).masterOf(chosen), "p2", "the rules engine's host reads control off the zone a card stands in (20-9)");
+  }
+
+  // 7-4-5 is a *step*, so the work the interpreter still does itself is named
+  // beside the rest of it rather than hidden in the runner.
+  {
+    for (const name of ["chargeTurnEffects", "chargeContinuousEnd", "mainPending", "endPending", "endEffects"]) {
+      assert.ok(WORKED_STEPS.includes(name), `${name} carries out work the interpreter does and is not in the table that says so`);
+      assert.ok(stepWorkNote(name), `${name} does not say what it is waiting on`);
+    }
+    assert.equal(endEffects({ ...mainPhase(), effects: [] }, [], "turn").length, 0, "ending a duration nothing is in force for reported something ending");
   }
 }
 
@@ -1029,14 +1200,22 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     assert.ok(said.fact.length > 0, `a declared refusal has no words: ${JSON.stringify(r.why[0])}`);
   }
 
-  // `apply` takes the one that was offered, runs its `DO`, and refuses the two
-  // that were not — the contract's "a client picks a move by index" rests on a
-  // move that was not offered being refused rather than quietly taken.
+  // `apply` takes the one that was offered, queues its `DO`, and refuses the
+  // two that were not — the contract's "a client picks a move by index" rests
+  // on a move that was not offered being refused rather than quietly taken.
   {
     const ev: GameEvent[] = [];
     const played = structuredClone(s);
     assert.equal(applyDeclared(CTX, game, played, ev, { type: "play", player: "p1", card: good }), true, "a declared move was not recognised by apply");
-    assert.deepEqual(ev, [{ type: "note", text: "played" }], "a declared move's DO program did not run");
+    // The program goes on the queue rather than running here (#142): an action's
+    // `DO` and a skill's are one language on one interpreter, and a question
+    // inside either has to be held by the runner or it is lost.
+    assert.deepEqual(ev, [], "a declared move's DO ran inline, where a question inside it could not be asked");
+    assert.deepEqual(
+      played.programs.map((f) => f.ops),
+      [game.actions.play.do],
+      "a declared move's DO program did not reach the queue the runner steps",
+    );
     for (const card of [wrongColour, neither]) {
       assert.throws(() => applyDeclared(CTX, game, structuredClone(s), [], { type: "play", player: "p1", card }), IllegalAction, "a refused candidate was played anyway");
     }

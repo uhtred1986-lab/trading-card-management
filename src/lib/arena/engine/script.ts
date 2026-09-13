@@ -12,35 +12,9 @@
 import { skillsOf } from "./cards";
 import type { CardFilter } from "./filters";
 import { asksAQuestion, describeCond, describeScript, describeSelector } from "./script-schema";
-import {
-  addEffect,
-  addSkip,
-  amount,
-  condHolds,
-  resolveRef,
-  resolveSelector,
-  sideOf,
-  areaOf,
-  cardNow,
-  cardsInPlay,
-  replacementChoicesFor,
-  skillsOfInstance,
-  def,
-  draw as drawCards,
-  face,
-  forbids,
-  has,
-  move,
-  note,
-  placeUnder,
-  schedule,
-  setMode,
-  tokenCardId,
-  type AltCost,
-  type GameContext,
-} from "./state";
-import { koCard, masterOf, pendTriggers } from "./triggers";
-import type { Area, Color, DelayScope, DelayTiming, FlowStep, ForbiddenAction, GameEvent, GameState, KeywordSkill, MoveReason, PlayerId, ReplacementChoice, ReplacementResult, Skill, SkillKindPrefix, SkipWhat, Trigger } from "./types";
+import { resolveSelector, sideOf, type AltCost } from "./state";
+import type { ScriptHost } from "./script-host";
+import type { Area, Color, DelayScope, DelayTiming, ForbiddenAction, KeywordSkill, MoveReason, PlayerId, ReplacementChoice, ReplacementResult, Skill, SkillKindPrefix, SkipWhat, Trigger } from "./types";
 
 // ── the language ───────────────────────────────────────────────────────────
 
@@ -871,32 +845,6 @@ function replacementPrompt(card: string, to: Area, choices: ReplacementChoice[],
   };
 }
 
-/**
- * 9-6: the play being resolved happens differently — the one moment a
- * `replace` op resolves rather than standing. The program that takes its place
- * is a single move of the card being played: the play is negated, the step
- * that would have put the card into play is dropped from the flow, and the
- * card goes where the program says from wherever it was being played from. The
- * energy stays paid — negating a play does not undo the cost.
- *
- * Anything else in the `with` block is a shape this engine cannot put in a
- * play's place, and doing half of it is worse than none, so it does nothing.
- */
-function replacePlay(ctx: GameContext, s: GameState, ev: GameEvent[], ops: Op[]): void {
-  const card = s.resolving?.card;
-  if (!card) return;
-  const only = ops.length === 1 ? ops[0] : null;
-  if (!only || only.op !== "moveTo") return;
-  s.flow = s.flow.filter((f) => !(f.op === "play.resolve" && f.card === card));
-  const owner = s.cards[card].owner;
-  note(ev, `${face(ctx, s, card).name} is not played`);
-  // "Under" is not an area a card can simply be put in (23-2), and no card
-  // says so here; the Drop is the printed default.
-  const dest: Area = only.to === "play" ? "battle" : only.to === "under" ? "drop" : only.to;
-  move(ctx, s, ev, card, dest, owner, { reason: "effect", position: only.position, reveal: true });
-  s.resolving = null;
-}
-
 function pickedReplacement(loop: NonNullable<ScriptFrame["moveLoop"]>, index: number | null): ReplacementResult | null | undefined {
   if (!loop.choices?.length) return undefined;
   if (index == null || index < 0 || index >= loop.choices.length) return null;
@@ -921,27 +869,8 @@ function defers(r: ReplacementResult | null | undefined): boolean {
 }
 
 /** The substitute as a program of its own: the card whose departure it replaced is its `subject` (9-10-1-1). */
-function substituteFrame(s: GameState, id: string, r: ReplacementResult): ScriptFrame {
-  return { ops: r.ops ?? [], ip: 0, vars: {}, card: r.source ?? id, master: r.master ?? masterOf(s, id), subject: id, replacing: id };
-}
-
-/**
- * Every card that flips a life card face up says *which* skills count: "when
- * a card in your life is flipped face up **by one of your red card skills**".
- * The trigger text is read without state (`triggers.ts`), so the colour is
- * checked here, where the card that did it is known, and the entries pended
- * since `before` that name a colour the source has not got are dropped again.
- */
-function dropWrongColour(ctx: GameContext, s: GameState, before: number, source: string | undefined): void {
-  const colors = source && s.cards[source] ? cardNow(ctx, s, source).colors : [];
-  s.pending = s.pending.filter((e, i) => {
-    if (i < before) return true;
-    const sk = skillsOfInstance(ctx, s, e.card).find((x) => x.index === e.skillIndex);
-    const m = /flipped face up by (?:one of )?your (red|blue|green|yellow|black|white) card skills?/i.exec(sk ? sk.cost + " " + sk.effect : "");
-    if (!m) return true;
-    const want = (m[1][0].toUpperCase() + m[1].slice(1)) as Color;
-    return colors.includes(want);
-  });
+function substituteFrame(h: ScriptHost, id: string, r: ReplacementResult): ScriptFrame {
+  return { ops: r.ops ?? [], ip: 0, vars: {}, card: r.source ?? id, master: r.master ?? h.masterOf(id), subject: id, replacing: id };
 }
 
 /**
@@ -949,7 +878,7 @@ function dropWrongColour(ctx: GameContext, s: GameState, before: number, source:
  * prompt set and the frame pushed back onto the flow; "done" when the program
  * ended or a sub-flow (playing a card) took over.
  */
-export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], frame: ScriptFrame): "done" | "wait" {
+export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
   const master = frame.master;
 
   for (let guard = 0; guard < 200; guard++) {
@@ -960,14 +889,14 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
       // the chosen card**." Handing the names on is what makes that one skill
       // rather than two.
       if (frame.saveVarsAs) {
-        s.continuations[frame.saveVarsAs] = { ...frame.vars };
+        h.saveVars(frame.saveVarsAs, { ...frame.vars });
         // 20-5: and the X a `bindX` choose bound, for the prices that are a
         // choice rather than an energy payment ("discard any number of cards:
         // … X cards"). Under a key of its own rather than folded into the
         // names, so the shape a game saved mid-price reads back is unchanged
         // — the counter window between a price and its effect is exactly
         // where such a game is stored.
-        if (frame.x !== undefined) s.continuations[savedXKey(frame.saveVarsAs)] = frame.x;
+        if (frame.x !== undefined) h.saveX(savedXKey(frame.saveVarsAs), frame.x);
       }
       return "done";
     }
@@ -975,15 +904,15 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
 
     switch (op.op) {
       case "note":
-        note(ev, op.text);
+        h.note(op.text);
         break;
 
       case "draw":
         for (const p of sideOf(master, op.side)) {
-          const before = s.players[p].hand.length;
-          drawCards(ctx, s, ev, p, amount(ctx, s, frame, op.n));
+          const before = h.zone(p, "hand").length;
+          h.draw(p, h.amount(frame, op.n));
           // "If you did not draw a card with this skill" (20-16).
-          if (p === master && s.players[p].hand.length > before) (frame.did ??= {}).draw = true;
+          if (p === master && h.zone(p, "hand").length > before) (frame.did ??= {}).draw = true;
         }
         break;
 
@@ -996,7 +925,7 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         // Rather than teach this op to prompt, it is rewritten into the ops
         // that already know how: a `choose` the owner answers, then the move.
         // `chooseMode` splices its option in the same way.
-        const n = amount(ctx, s, frame, op.n);
+        const n = h.amount(frame, op.n);
         const spliced: Op[] = [];
         for (const p of sideOf(master, op.side)) {
           const who: Side = p === master ? "you" : "opponent";
@@ -1013,32 +942,32 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
       case "damage": {
         // 5-10 / 21-3: life cards go to the hand; damage from an effect is never Critical.
         for (const p of sideOf(master, op.side ?? "opponent")) {
-          const n = amount(ctx, s, frame, op.n);
+          const n = h.amount(frame, op.n);
           const taken: string[] = [];
           for (let i = 0; i < n; i++) {
-            const life = s.players[p].life[0];
+            const life = h.zone(p, "life")[0];
             if (!life) break;
-            move(ctx, s, ev, life, "hand", p, { reason: "damage" });
+            h.move(life, "hand", p, { reason: "damage" });
             taken.push(life);
           }
           if (taken.length) {
-            s.players[p].damageTaken += taken.length;
-            ev.push({ type: "damage", player: p, amount: taken.length, critical: false, cards: taken });
-            pendTriggers(ctx, s, "dealtDamage", frame.card);
+            h.addDamageTaken(p, taken.length);
+            h.log({ type: "damage", player: p, amount: taken.length, critical: false, cards: taken });
+            h.pend("dealtDamage", frame.card);
             // 21-3: "when you take damage from an opponent's non-keyword
             // skill" and its mirror. Only the `damage` op reaches here —
             // battle damage takes a different path — so the "from a skill"
             // half of those wordings is the moment itself. The cards that add
             // "from a skill on one of your Battle Cards" are answered by the
             // area the source sits in.
-            const src = frame.card && areaOf(s, frame.card);
+            const src = frame.card && h.areaOf(frame.card);
             const fromBoard = src === "battle" || src === "unison" || src === "leader";
             if (fromBoard) {
-              for (const w of cardsInPlay(s, p)) pendTriggers(ctx, s, "youTookDamage", w, frame.card);
-              for (const w of cardsInPlay(s, p === "p1" ? "p2" : "p1")) pendTriggers(ctx, s, "opponentTookDamage", w, frame.card);
+              for (const w of h.cardsInPlay(p)) h.pend("youTookDamage", w, frame.card);
+              for (const w of h.cardsInPlay(p === "p1" ? "p2" : "p1")) h.pend("opponentTookDamage", w, frame.card);
             }
             // 3-9: the life cards themselves left the Life Area.
-            for (const w of cardsInPlay(s, p)) pendTriggers(ctx, s, "lifeLeft", w, taken[0]);
+            for (const w of h.cardsInPlay(p)) h.pend("lifeLeft", w, taken[0]);
           }
         }
         break;
@@ -1051,10 +980,10 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         // before it.
         const milled: string[] = [];
         for (const p of sideOf(master, op.side)) {
-          const n = amount(ctx, s, frame, op.n);
-          for (let i = 0; i < n && s.players[p].deck.length; i++) {
-            const id = s.players[p].deck[0];
-            move(ctx, s, ev, id, "drop", p, { reason: "effect", reveal: true });
+          const n = h.amount(frame, op.n);
+          for (let i = 0; i < n && h.zone(p, "deck").length; i++) {
+            const id = h.zone(p, "deck")[0];
+            h.move(id, "drop", p, { reason: "effect", reveal: true });
             milled.push(id);
           }
         }
@@ -1064,29 +993,28 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
 
       case "addLife":
         for (const p of sideOf(master, op.side)) {
-          const n = amount(ctx, s, frame, op.n);
-          for (let i = 0; i < n && s.players[p].deck.length; i++) move(ctx, s, ev, s.players[p].deck[0], "life", p, { reason: "effect" });
+          const n = h.amount(frame, op.n);
+          for (let i = 0; i < n && h.zone(p, "deck").length; i++) h.move(h.zone(p, "deck")[0], "life", p, { reason: "effect" });
         }
         break;
 
       case "lifeDownTo":
         // Losing life this way is not damage (1-13-2), so nothing triggers on it.
         for (const p of sideOf(master, op.side)) {
-          while (s.players[p].life.length > op.n) move(ctx, s, ev, s.players[p].life[0], "hand", p, { reason: "effect" });
+          while (h.zone(p, "life").length > op.n) h.move(h.zone(p, "life")[0], "hand", p, { reason: "effect" });
         }
         break;
 
       case "shuffle":
         // 5-11: the engine reshuffles at the next draw; record it so the log reads right.
-        for (const p of sideOf(master, op.side)) ev.push({ type: "note", text: `${s.players[p].name} shuffles their deck` });
-        shuffleDeck(s, sideOf(master, op.side));
+        for (const p of sideOf(master, op.side)) h.log({ type: "note", text: `${h.playerName(p)} shuffles their deck` });
+        h.shuffleDecks(sideOf(master, op.side));
         break;
 
       case "energyMarker":
         for (const p of sideOf(master, op.side)) {
-          const n = amount(ctx, s, frame, op.n);
-          s.players[p].energyMarkers = Math.max(0, s.players[p].energyMarkers + n);
-          ev.push({ type: "energyMarker", player: p, delta: n });
+          const n = h.amount(frame, op.n);
+          h.changeEnergyMarkers(p, n);
         }
         break;
 
@@ -1097,11 +1025,11 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         // "Look at your opponent's hand": a whole area rather than an end of
         // the deck, so the count says nothing.
         if (op.area && op.area !== "deck") {
-          frame.vars[op.as] = resolveSelector(ctx, s, frame, { side: op.side, area: op.area });
+          frame.vars[op.as] = h.resolveSelector(frame, { side: op.side, area: op.area });
           break;
         }
-        const n = amount(ctx, s, frame, op.n);
-        const deck = s.players[p].deck;
+        const n = h.amount(frame, op.n);
+        const deck = h.zone(p, "deck");
         frame.vars[op.as] = op.from === "bottom" ? deck.slice(Math.max(0, deck.length - n)) : deck.slice(0, n);
         break;
       }
@@ -1109,9 +1037,9 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
       case "reveal": {
         // 20-11-2: revealing shows the cards to both players and leaves them
         // where they are. The log is how the other player gets to see them.
-        const shown = resolveSelector(ctx, s, frame, op.sel);
+        const shown = h.resolveSelector(frame, op.sel);
         frame.vars[op.as] = shown;
-        if (shown.length) note(ev, `revealed ${shown.map((id) => face(ctx, s, id).name).join(", ")}`);
+        if (shown.length) h.note(`revealed ${shown.map((id) => h.nameOf(id)).join(", ")}`);
         break;
       }
 
@@ -1128,11 +1056,12 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         };
         // Cards picked so far, while a multi-card choice is part-answered.
         const sofar = frame.awaiting === op.as ? (frame.vars[op.as] ?? []) : [];
-        const cands = resolveSelector(ctx, s, frame, op.sel).filter((id) => !sofar.includes(id));
+        const cands = h.resolveSelector(frame, op.sel).filter((id) => !sofar.includes(id));
 
-        if (s.lastChoice && frame.awaiting === op.as) {
-          const picked = [...sofar, ...s.lastChoice.filter((id) => cands.includes(id))];
-          s.lastChoice = null;
+        const answer = h.lastChoice();
+        if (answer && frame.awaiting === op.as) {
+          const picked = [...sofar, ...answer.filter((id) => cands.includes(id))];
+          h.clearLastChoice();
           // A choice is made one card at a time (the board asks by tapping),
           // so a "choose 2" comes back here for the second card. Declining a
           // card ends an "up to" choice early, as 5-2-4 allows.
@@ -1161,55 +1090,55 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         }
         frame.awaiting = op.as;
         frame.vars[op.as] = sofar;
-        s.flow.unshift({ op: "script.step", frame });
+        h.resume(frame);
         const asked = left === 1 ? "" : ` (${left} more)`;
-        s.prompt = {
+        h.ask({
           kind: "chooseCards",
           // 20-7: whoever the card says chooses, chooses.
           player: op.chooser ? sideOf(master, op.chooser)[0] : master,
           choice: {
-            reason: (op.reason ?? `${face(ctx, s, frame.card).name}: choose ${op.sel.upTo ? `up to ${want}` : want}`) + asked,
+            reason: (op.reason ?? `${h.nameOf(frame.card)}: choose ${op.sel.upTo ? `up to ${want}` : want}`) + asked,
             candidates: cands,
             // One card per answer, so the menu is one action per card.
             min: op.sel.upTo ? 0 : 1,
             max: 1,
             continuation: op.as,
           },
-        };
+        });
         return "wait";
       }
 
       case "ko":
-        frame.moveLoop ??= { kind: "ko", ids: resolveRef(ctx, s, frame, op.target), index: 0, reason: "ko" };
+        frame.moveLoop ??= { kind: "ko", ids: h.resolveRef(frame, op.target), index: 0, reason: "ko" };
         while (frame.moveLoop && frame.moveLoop.kind === "ko" && frame.moveLoop.index < frame.moveLoop.ids.length) {
           const id = frame.moveLoop.ids[frame.moveLoop.index];
           // 22-12: [Indestructible] cannot be KO'd by an opponent's skill.
-          if (has(ctx, s, id, "Indestructible") && masterOf(s, id) !== master) {
+          if (h.hasKeyword(id, "Indestructible") && h.masterOf(id) !== master) {
             frame.moveLoop.index++;
             continue;
           }
           // 20-14: the same thing spelled out on the card rather than keyworded.
-          if (forbids(ctx, s, "beKOdBySkill", { player: master, card: id })) {
+          if (h.forbids("beKOdBySkill", { player: master, card: id })) {
             frame.moveLoop.index++;
             continue;
           }
-          if (areaOf(s, id) === "battle") {
+          if (h.areaOf(id) === "battle") {
             let replaced: ReplacementResult | null | undefined;
             if (frame.awaiting === "replaceMove") {
-              replaced = pickedReplacement(frame.moveLoop, s.lastMode);
-              s.lastMode = null;
+              replaced = pickedReplacement(frame.moveLoop, h.lastMode());
+              h.clearLastMode();
               frame.awaiting = undefined;
             } else {
-              const choices = replacementChoicesFor(ctx, s, id, "ko", { actor: master, inSubstitute: !!frame.replacing });
+              const choices = h.replacementsFor(id, "ko", { actor: master, inSubstitute: !!frame.replacing });
               const allowNone = choices.length > 0 && choices.every((c) => c.optional);
               if (choices.length > 1 || allowNone) {
                 frame.awaiting = "replaceMove";
-                frame.moveLoop.beforeDrop = s.players[s.cards[id].owner].drop.length;
+                frame.moveLoop.beforeDrop = h.zone(h.ownerOf(id), "drop").length;
                 frame.moveLoop.choices = choices;
                 frame.moveLoop.allowNone = allowNone;
-                s.flow.unshift({ op: "script.step", frame });
-                const prompt = replacementPrompt(face(ctx, s, id).name, "drop", choices, allowNone);
-                s.prompt = { kind: "replaceMove", player: masterOf(s, id), card: id, reason: prompt.reason, options: prompt.options };
+                h.resume(frame);
+                const prompt = replacementPrompt(h.nameOf(id), "drop", choices, allowNone);
+                h.ask({ kind: "replaceMove", player: h.masterOf(id), card: id, reason: prompt.reason, options: prompt.options });
                 return "wait";
               }
               // §1.3 of the scoping document: the two suspendable sites decide
@@ -1217,16 +1146,15 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
               // their behalf, so `null` where there is none.
               replaced = choices.length ? routeOf(choices[0]) : null;
             }
-            const before = frame.moveLoop.beforeDrop ?? s.players[s.cards[id].owner].drop.length;
+            const before = frame.moveLoop.beforeDrop ?? h.zone(h.ownerOf(id), "drop").length;
             frame.moveLoop.beforeDrop = undefined;
             const deferred = defers(replaced);
-            koCard(ctx, s, ev, id, frame.card, replaced === undefined ? {} : { replaced: deferred ? { ...replaced!, deferred: true } : replaced });
+            h.ko(id, frame.card, replaced === undefined ? {} : { replaced: deferred ? { ...replaced!, deferred: true } : replaced });
             // "If you KO'd a card" (20-16): only a KO that happened counts.
-            if (s.players[s.cards[id].owner].drop.length > before) (frame.did ??= {}).ko = true;
+            if (h.zone(h.ownerOf(id), "drop").length > before) (frame.did ??= {}).ko = true;
             if (deferred) {
               frame.moveLoop.index++;
-              s.flow.unshift({ op: "script.step", frame });
-              s.flow.unshift({ op: "script.step", frame: substituteFrame(s, id, replaced!) });
+              h.interrupt(substituteFrame(h, id, replaced!), frame);
               return "done";
             }
           }
@@ -1237,10 +1165,10 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
 
       case "moveTo": {
         // 23-2: under a card is not an area of its own, so it is its own move.
-        const host = op.to === "under" ? (op.under ? resolveRef(ctx, s, frame, op.under)[0] : frame.card) : null;
+        const host = op.to === "under" ? (op.under ? h.resolveRef(frame, op.under)[0] : frame.card) : null;
         frame.moveLoop ??= {
           kind: "moveTo",
-          ids: resolveRef(ctx, s, frame, op.target),
+          ids: h.resolveRef(frame, op.target),
           index: 0,
           to: op.to === "play" ? "battle" : (op.to as Area),
           position: op.position,
@@ -1254,32 +1182,32 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
           // 3-1-2: a Leader Card stays in the Leader Area. Skills may change
           // its power or negate it, but nothing puts it anywhere else — and
           // an empty Leader Area is a state the rest of the engine cannot read.
-          if (areaOf(s, id) === "leader") {
+          if (h.areaOf(id) === "leader") {
             frame.moveLoop.index++;
             continue;
           }
           // 20-14: "can't be removed from a Battle Area by your opponent's
           // skills". The rule is about the opponent's skills, so a card its
           // own master moves is unaffected.
-          if (masterOf(s, id) !== master && areaOf(s, id) === "battle" && forbids(ctx, s, "beMovedBySkill", { card: id })) {
+          if (h.masterOf(id) !== master && h.areaOf(id) === "battle" && h.forbids("beMovedBySkill", { card: id })) {
             frame.moveLoop.index++;
             continue;
           }
           if (op.to === "under") {
-            if (host) placeUnder(ctx, s, ev, id, host);
+            if (host) h.placeUnder(id, host);
             frame.moveLoop.index++;
             continue;
           }
-          const owner = op.owner ? sideOf(master, op.owner)[0] : op.to === "battle" || op.to === "unison" ? master : s.cards[id].owner;
+          const owner = op.owner ? sideOf(master, op.owner)[0] : op.to === "battle" || op.to === "unison" ? master : h.ownerOf(id);
           const dest = op.to === "play" ? "battle" : op.to;
           let replaced: ReplacementResult | null | undefined;
-          const leftBattle = frame.moveLoop.leftBattle ?? (areaOf(s, id) === "battle");
+          const leftBattle = frame.moveLoop.leftBattle ?? (h.areaOf(id) === "battle");
           if (frame.awaiting === "replaceMove") {
-            replaced = pickedReplacement(frame.moveLoop, s.lastMode);
-            s.lastMode = null;
+            replaced = pickedReplacement(frame.moveLoop, h.lastMode());
+            h.clearLastMode();
             frame.awaiting = undefined;
           } else {
-            const choices = replacementChoicesFor(ctx, s, id, "effect", { actor: master, inSubstitute: !!frame.replacing });
+            const choices = h.replacementsFor(id, "effect", { actor: master, inSubstitute: !!frame.replacing });
             const allowNone = choices.length > 0 && choices.every((c) => c.optional);
             if (choices.length > 1 || allowNone) {
               frame.awaiting = "replaceMove";
@@ -1288,15 +1216,15 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
               frame.moveLoop.leftBattle = leftBattle;
               frame.moveLoop.choices = choices;
               frame.moveLoop.allowNone = allowNone;
-              s.flow.unshift({ op: "script.step", frame });
-              const prompt = replacementPrompt(face(ctx, s, id).name, dest, choices, allowNone);
-              s.prompt = { kind: "replaceMove", player: masterOf(s, id), card: id, reason: prompt.reason, options: prompt.options };
+              h.resume(frame);
+              const prompt = replacementPrompt(h.nameOf(id), dest, choices, allowNone);
+              h.ask({ kind: "replaceMove", player: h.masterOf(id), card: id, reason: prompt.reason, options: prompt.options });
               return "wait";
             }
             replaced = choices.length ? routeOf(choices[0]) : null;
           }
           const deferred = defers(replaced);
-          move(ctx, s, ev, id, dest, owner, { position: op.position, reveal: op.reveal, reason: "effect", ...(replaced === undefined ? {} : { replaced: deferred ? { ...replaced!, deferred: true } : replaced }) });
+          h.move(id, dest, owner, { position: op.position, reveal: op.reveal, reason: "effect", ...(replaced === undefined ? {} : { replaced: deferred ? { ...replaced!, deferred: true } : replaced }) });
           // #107: the departure is already replaced — the card stayed — and
           // the program that stood in for it runs as a frame of its own, so a
           // question inside it is asked rather than lost. Nothing below is
@@ -1304,33 +1232,32 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
           if (deferred) {
             frame.moveLoop.leftBattle = undefined;
             frame.moveLoop.index++;
-            s.flow.unshift({ op: "script.step", frame });
-            s.flow.unshift({ op: "script.step", frame: substituteFrame(s, id, replaced!) });
+            h.interrupt(substituteFrame(h, id, replaced!), frame);
             return "done";
           }
           // 3-1: "when this card is removed from a Battle Area by a skill",
           // and the commoner narrowing to the *opponent's* skills. A card that
           // went nowhere — a replacement sent it back — was not removed.
-          if (leftBattle && areaOf(s, id) !== "battle") {
-            pendTriggers(ctx, s, "removedFromBattle", id);
-            if (masterOf(s, id) !== master) pendTriggers(ctx, s, "removedByOpponent", id);
+          if (leftBattle && h.areaOf(id) !== "battle") {
+            h.pend("removedFromBattle", id);
+            if (h.masterOf(id) !== master) h.pend("removedByOpponent", id);
             // The narrower wording, which names where it ended up as well —
             // and the one that names no cause, which covers this too.
-            if (areaOf(s, id) === "drop") {
-              pendTriggers(ctx, s, "droppedFromBattle", id);
-              pendTriggers(ctx, s, "leftBattleToDrop", id);
+            if (h.areaOf(id) === "drop") {
+              h.pend("droppedFromBattle", id);
+              h.pend("leftBattleToDrop", id);
             }
           }
-          if (op.mode) setMode(s, ev, id, op.mode, ctx);
+          if (op.mode) h.setMode(id, op.mode);
           // 5-5: a card a skill *places* in a Battle Area was not played, so
           // "when this card is played" does not fire — 30 cards say only
           // "when this card is placed in a Battle Area".
-          if (dest === "battle") pendTriggers(ctx, s, "placed", id);
+          if (dest === "battle") h.pend("placed", id);
           // 17-3: "when this card is added to your Z-Energy".
-          if (dest === "zEnergy") pendTriggers(ctx, s, "addedToZEnergy", id);
+          if (dest === "zEnergy") h.pend("addedToZEnergy", id);
           // "Add it to your life face up" (3-9-2-1): how the card arrives, set
           // after the move because 3-1-4 clears the flag on the way.
-          if (op.faceUp) s.cards[id].faceUp = true;
+          if (op.faceUp) h.setFaceUp(id, true);
           if (dest === "hand" && owner === master) (frame.did ??= {}).addToHand = true;
           frame.moveLoop.leftBattle = undefined;
           frame.moveLoop.index++;
@@ -1340,20 +1267,20 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
       }
 
       case "switchMode":
-        for (const id of resolveRef(ctx, s, frame, op.target)) {
-          const was = s.cards[id].mode;
-          setMode(s, ev, id, op.mode, ctx);
+        for (const id of h.resolveRef(frame, op.target)) {
+          const was = h.modeOf(id);
+          h.setMode(id, op.mode);
           // "When this card is switched to Rest Mode by one of your skills"
           // (1-10): the card and the skill both have to be yours, which is what
           // "your" says — an opponent resting it is not this moment.
-          if (op.mode === "rest" && was === "active" && s.cards[id].mode === "rest") {
-            const area = areaOf(s, id);
-            if (masterOf(s, id) === master) pendTriggers(ctx, s, "restedBySkill", id, frame.card);
+          if (op.mode === "rest" && was === "active" && h.modeOf(id) === "rest") {
+            const area = h.areaOf(id);
+            if (h.masterOf(id) === master) h.pend("restedBySkill", id, frame.card);
             // The other end of it: your skill resting one of *theirs*, watched
             // by your cards in play. The printed wording names their Battle
             // Cards and energy, so that is where it is pended and nowhere else.
             else if (area === "battle" || area === "energy") {
-              for (const w of cardsInPlay(s, master)) pendTriggers(ctx, s, "restedTheirsBySkill", w, id);
+              for (const w of h.cardsInPlay(master)) h.pend("restedTheirsBySkill", w, id);
             }
           }
         }
@@ -1365,13 +1292,13 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
       // silently staying put.
       case "control": {
         const to = sideOf(master, op.to ?? "you")[0];
-        for (const id of resolveRef(ctx, s, frame, op.target)) {
-          const at = areaOf(s, id);
+        for (const id of h.resolveRef(frame, op.target)) {
+          const at = h.areaOf(id);
           if (at !== "battle") {
-            note(ev, `${face(ctx, s, id).name} can't be taken control of — ${at === "leader" || at === "unison" ? "control of a Leader or a Unison Card is not a thing this engine does" : "only a card in a Battle Area can change hands"}`);
+            h.note(`${h.nameOf(id)} can't be taken control of — ${at === "leader" || at === "unison" ? "control of a Leader or a Unison Card is not a thing this engine does" : "only a card in a Battle Area can change hands"}`);
             continue;
           }
-          const from = masterOf(s, id);
+          const from = h.masterOf(id);
           if (from === to) continue;
           // 20-9-2: the card keeps its mode, its markers and the continuous
           // effects on it, so the move carries rather than resets (3-1-4-1
@@ -1379,10 +1306,10 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
           // it entered play is kept over the top of that, because `move` sets
           // it for any arrival in play and a card changing hands is not a card
           // newly played.
-          const entered = s.cards[id].enteredTurn;
-          move(ctx, s, ev, id, "battle", to, { carry: true, reason: "effect" });
-          s.cards[id].enteredTurn = entered;
-          if (op.until) addEffect(s, ev, { master, source: frame.card, target: id, kind: "control", value: 0, until: op.until, control: { from } });
+          const entered = h.enteredTurnOf(id);
+          h.move(id, "battle", to, { carry: true, reason: "effect" });
+          h.setEnteredTurn(id, entered);
+          if (op.until) h.addEffect({ master, source: frame.card, target: id, kind: "control", value: 0, until: op.until, control: { from } });
         }
         break;
       }
@@ -1391,42 +1318,40 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
       // begin, which is the only place the whole of 20-13 can be applied at
       // once.
       case "skip":
-        for (const p of sideOf(master, op.side ?? "you")) addSkip(s, p, op.what, op.when ?? "next");
+        for (const p of sideOf(master, op.side ?? "you")) h.addSkip(p, op.what, op.when ?? "next");
         break;
 
       case "hidden":
         // 23-5-1: only a Battle Card in a Battle Area can be face down.
-        for (const id of resolveRef(ctx, s, frame, op.target)) {
-          if (areaOf(s, id) !== "battle" || s.cards[id].hidden === op.hidden) continue;
-          s.cards[id].hidden = op.hidden;
-          note(ev, `${op.hidden ? "a Battle Card" : face(ctx, s, id).name} is switched to ${op.hidden ? "Hidden" : "Revealed"} Mode`);
+        for (const id of h.resolveRef(frame, op.target)) {
+          if (h.areaOf(id) !== "battle" || h.isHidden(id) === op.hidden) continue;
+          h.setHidden(id, op.hidden);
+          h.note(`${op.hidden ? "a Battle Card" : h.nameOf(id)} is switched to ${op.hidden ? "Hidden" : "Revealed"} Mode`);
         }
         break;
 
       case "flip":
-        for (const id of resolveRef(ctx, s, frame, op.target)) {
-          const inst = s.cards[id];
-          if (inst.flipped || !ctx.defs[inst.cardId]?.back || areaOf(s, id) !== "leader") continue;
-          inst.flipped = true;
-          ev.push({ type: "flip", card: id, flipped: true });
+        for (const id of h.resolveRef(frame, op.target)) {
+          if (h.isFlipped(id) || !h.hasBack(id) || h.areaOf(id) !== "leader") continue;
+          h.flip(id);
         }
         break;
 
       case "faceUp": {
         const up = op.faceUp ?? true;
-        for (const id of resolveRef(ctx, s, frame, op.target)) {
-          if (!!s.cards[id].faceUp === up) continue;
-          s.cards[id].faceUp = up;
+        for (const id of h.resolveRef(frame, op.target)) {
+          if (h.isFaceUp(id) === up) continue;
+          h.setFaceUp(id, up);
           // 3-9-2-1: a face-up card is open to both players, so naming it leaks nothing.
-          note(ev, `${face(ctx, s, id).name} is turned face ${up ? "up" : "down"}`);
+          h.note(`${h.nameOf(id)} is turned face ${up ? "up" : "down"}`);
           if (!up) continue;
           // "When **this card** in your life is flipped face up" is the card
           // itself; "when **a** card in your life is flipped face up" is watched
           // by everything that player has in play. One moment, two wordings.
-          const before = s.pending.length;
-          pendTriggers(ctx, s, "flippedFaceUp", id, frame.card);
-          for (const w of cardsInPlay(s, masterOf(s, id))) if (w !== id) pendTriggers(ctx, s, "flippedFaceUp", w, id);
-          dropWrongColour(ctx, s, before, frame.card);
+          const before = h.pendingCount();
+          h.pend("flippedFaceUp", id, frame.card);
+          for (const w of h.cardsInPlay(h.masterOf(id))) if (w !== id) h.pend("flippedFaceUp", w, id);
+          h.dropPendsOfOtherColours(before, frame.card);
         }
         break;
       }
@@ -1434,16 +1359,16 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
       case "comboFrom": {
         // 5-7-2: a combo card needs a battle to join, on the side of the
         // player whose skill this is.
-        const b = s.battle;
-        if (!b || (masterOf(s, b.attacker) !== master && masterOf(s, b.guard) !== master)) break;
-        for (const id of resolveRef(ctx, s, frame, op.target)) {
-          if (areaOf(s, id) === "combo") continue;
-          move(ctx, s, ev, id, "combo", master, { reason: "combo", reveal: true });
-          if (op.negated) s.cards[id].negated = "all";
+        const b = h.battle();
+        if (!b || (h.masterOf(b.attacker) !== master && h.masterOf(b.guard) !== master)) break;
+        for (const id of h.resolveRef(frame, op.target)) {
+          if (h.areaOf(id) === "combo") continue;
+          h.move(id, "combo", master, { reason: "combo", reveal: true });
+          if (op.negated) h.negateAll(id);
           // 5-7-2: a combo a skill makes is a combo. Both sides watch it, the
           // same as one the player declared.
-          for (const w of cardsInPlay(s, master)) pendTriggers(ctx, s, "youCombo", w, id);
-          for (const w of cardsInPlay(s, master === "p1" ? "p2" : "p1")) pendTriggers(ctx, s, "opponentCombos", w, id);
+          for (const w of h.cardsInPlay(master)) h.pend("youCombo", w, id);
+          for (const w of h.cardsInPlay(master === "p1" ? "p2" : "p1")) h.pend("opponentCombos", w, id);
         }
         break;
       }
@@ -1451,14 +1376,13 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
       case "redirectAttack": {
         // 8-1: a battle in progress; the new target has to be a Leader or a
         // Battle Card of the defending player that is not already the attacker.
-        const b = s.battle;
+        const b = h.battle();
         if (!b) break;
-        const defender = masterOf(s, b.guard);
-        const id = resolveRef(ctx, s, frame, op.target).find((x) => x !== b.attacker && x !== b.guard && masterOf(s, x) === defender && (areaOf(s, x) === "battle" || areaOf(s, x) === "leader"));
+        const defender = h.masterOf(b.guard);
+        const id = h.resolveRef(frame, op.target).find((x) => x !== b.attacker && x !== b.guard && h.masterOf(x) === defender && (h.areaOf(x) === "battle" || h.areaOf(x) === "leader"));
         if (!id) break;
-        b.guard = id;
-        ev.push({ type: "guardChanged", guard: id, by: frame.card });
-        pendTriggers(ctx, s, "attacked", id);
+        h.setGuard(id, frame.card);
+        h.pend("attacked", id);
         break;
       }
 
@@ -1471,22 +1395,22 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
       case "modifyAttr": {
         if (op.attr !== "power" && op.attr !== "comboPower") break;
         if (!op.until) break;
-        const n = amount(ctx, s, frame, op.amount ?? 0);
-        for (const id of resolveRef(ctx, s, frame, op.target ?? { sel: { special: "self" } }))
-          addEffect(s, ev, { master: frame.master, source: frame.card, target: id, kind: op.attr, value: n, until: op.until });
+        const n = h.amount(frame, op.amount ?? 0);
+        for (const id of h.resolveRef(frame, op.target ?? { sel: { special: "self" } }))
+          h.addEffect({ master: frame.master, source: frame.card, target: id, kind: op.attr, value: n, until: op.until });
         break;
       }
 
       case "power":
       case "comboPower": {
-        const n = amount(ctx, s, frame, op.amount);
-        for (const id of resolveRef(ctx, s, frame, op.target))
-          addEffect(s, ev, { master: frame.master, source: frame.card, target: id, kind: op.op === "power" ? "power" : "comboPower", value: n, until: op.until });
+        const n = h.amount(frame, op.amount);
+        for (const id of h.resolveRef(frame, op.target))
+          h.addEffect({ master: frame.master, source: frame.card, target: id, kind: op.op === "power" ? "power" : "comboPower", value: n, until: op.until });
         break;
       }
 
       case "grant":
-        for (const id of resolveRef(ctx, s, frame, op.target)) addEffect(s, ev, { master: frame.master, source: frame.card, target: id, kind: "keyword", value: op.keyword, until: op.until });
+        for (const id of h.resolveRef(frame, op.target)) h.addEffect({ master: frame.master, source: frame.card, target: id, kind: "keyword", value: op.keyword, until: op.until });
         break;
 
       case "copySkills": {
@@ -1494,10 +1418,10 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         // among the *skills* of every card the phrase finds, not among the
         // cards — so every source is opened and its skills laid out together.
         const offered: { card: string; side: "front" | "back"; skill: Skill }[] = [];
-        for (const src of resolveRef(ctx, s, frame, op.from)) {
-          if (!s.cards[src]) continue;
-          const sd = def(ctx, s, src);
-          const side = s.cards[src].flipped && sd.back ? "back" : "front";
+        for (const src of h.resolveRef(frame, op.from)) {
+          if (!h.exists(src)) continue;
+          const sd = h.defOf(src);
+          const side = h.isFlipped(src) && sd.back ? "back" : "front";
           // The printed face, as 20-18 reads it: what the source says, not
           // what anything has since done to it.
           for (const sk of skillsOf(sd, side)) {
@@ -1509,9 +1433,9 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         if (!offered.length) break;
         let picked: typeof offered;
         if (op.which === "all" || op.skill != null) picked = offered;
-        else if (s.lastMode != null && frame.awaiting === "copySkills") {
-          const at = s.lastMode;
-          s.lastMode = null;
+        else if (h.lastMode() != null && frame.awaiting === "copySkills") {
+          const at = h.lastMode()!;
+          h.clearLastMode();
           frame.awaiting = undefined;
           // Every card printing this says "choose **up to** 1", so the last
           // option declines; a single skill is still asked about, because the
@@ -1520,17 +1444,17 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         } else {
           const several = new Set(offered.map((o) => o.card)).size > 1;
           frame.awaiting = "copySkills";
-          s.flow.unshift({ op: "script.step", frame });
-          s.prompt = {
+          h.resume(frame);
+          h.ask({
             kind: "chooseMode",
             player: master,
-            reason: `${face(ctx, s, frame.card).name}: choose a skill to gain`,
-            options: [...offered.map((o) => (several ? `${face(ctx, s, o.card).name}: ${skillOption(o.skill)}` : skillOption(o.skill))), "None"],
-          };
+            reason: `${h.nameOf(frame.card)}: choose a skill to gain`,
+            options: [...offered.map((o) => (several ? `${h.nameOf(o.card)}: ${skillOption(o.skill)}` : skillOption(o.skill))), "None"],
+          });
           return "wait";
         }
         if (!picked.length) break;
-        const targets = resolveRef(ctx, s, frame, op.target ?? { sel: { special: "self" } });
+        const targets = h.resolveRef(frame, op.target ?? { sel: { special: "self" } });
         for (const id of targets)
           for (const src of new Set(picked.map((x) => x.card))) {
             const mine = picked.filter((x) => x.card === src);
@@ -1539,15 +1463,15 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
             // enumerates alongside its own skills.
             const typed = mine.filter((x) => !(x.skill.kind === "keyword" && x.skill.keyword));
             for (const x of mine)
-              if (!typed.includes(x)) addEffect(s, ev, { master: frame.master, source: frame.card, target: id, kind: "keyword", value: x.skill.keyword!, until: op.until });
+              if (!typed.includes(x)) h.addEffect({ master: frame.master, source: frame.card, target: id, kind: "keyword", value: x.skill.keyword!, until: op.until });
             if (typed.length)
-              addEffect(s, ev, {
+              h.addEffect({
                 master: frame.master,
                 source: frame.card,
                 target: id,
                 kind: "copiedSkills",
                 value: 0,
-                copied: { cardId: s.cards[src].cardId, side: typed[0].side, skills: typed.map((x) => x.skill.index), from: src, name: def(ctx, s, src).name },
+                copied: { cardId: h.catalogIdOf(src), side: typed[0].side, skills: typed.map((x) => x.skill.index), from: src, name: h.defOf(src).name },
                 until: op.until,
               });
           }
@@ -1557,12 +1481,12 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
       case "negateSkills":
         // 9-1-5: for a duration it is a continuous effect that ends with the
         // turn or the battle; "for the game" marks the card until it leaves play.
-        for (const id of resolveRef(ctx, s, frame, op.target)) {
+        for (const id of h.resolveRef(frame, op.target)) {
           // 9-1-5: "This card's skills can't be negated in any area" beats the
           // instruction, like every other prohibition (0-2-5).
-          if (forbids(ctx, s, "beNegated", { card: id })) continue;
-          if (op.until === "game") s.cards[id].negated = "all";
-          else addEffect(s, ev, { master: frame.master, source: frame.card, target: id, kind: "negateSkills", value: 0, until: op.until });
+          if (h.forbids("beNegated", { card: id })) continue;
+          if (op.until === "game") h.negateAll(id);
+          else h.addEffect({ master: frame.master, source: frame.card, target: id, kind: "negateSkills", value: 0, until: op.until });
         }
         break;
 
@@ -1570,9 +1494,9 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         // 9-1-5: one kind of skill, not the card. Kept as an effect for the
         // duration the card printed — "in all areas" compiles to the game,
         // and shortening that to a turn here was a silent change of rule.
-        for (const id of resolveRef(ctx, s, frame, op.target)) {
-          if (forbids(ctx, s, "beNegated", { card: id })) continue;
-          addEffect(s, ev, { master: frame.master, source: frame.card, target: id, kind: "negateSkillKind", value: op.kind, until: op.until });
+        for (const id of h.resolveRef(frame, op.target)) {
+          if (h.forbids("beNegated", { card: id })) continue;
+          h.addEffect({ master: frame.master, source: frame.card, target: id, kind: "negateSkillKind", value: op.kind, until: op.until });
         }
         break;
 
@@ -1583,19 +1507,19 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         if (op.target) {
           // On a card, the side says *whose* action is forbidden — "can't be
           // KO'd by your opponent's skills" is a rule about the opponent.
-          for (const id of resolveRef(ctx, s, frame, op.target))
-            addEffect(s, ev, {
+          for (const id of h.resolveRef(frame, op.target))
+            h.addEffect({
               master: frame.master,
               source: frame.card,
               target: id,
               kind: "forbid",
               value: 0,
               until: op.until,
-              forbid: { what: op.what, ...(op.uses != null ? { uses: amount(ctx, s, frame, op.uses) } : {}), ...(op.unless ? { unless: op.unless, master: frame.master } : {}), player: players[0] },
+              forbid: { what: op.what, ...(op.uses != null ? { uses: h.amount(frame, op.uses) } : {}), ...(op.unless ? { unless: op.unless, master: frame.master } : {}), player: players[0] },
             });
           break;
         }
-        addEffect(s, ev, {
+        h.addEffect({
           master: frame.master,
           source: frame.card,
           target: "",
@@ -1604,11 +1528,11 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
           until: op.until,
           forbid: {
             what: op.what,
-            ...(op.uses != null ? { uses: amount(ctx, s, frame, op.uses) } : {}),
+            ...(op.uses != null ? { uses: h.amount(frame, op.uses) } : {}),
             ...(op.unless ? { unless: op.unless, master: frame.master } : {}),
             player: players[0],
             filter: op.filter,
-            name: op.sameNameAsSelf ? face(ctx, s, frame.card).name : undefined,
+            name: op.sameNameAsSelf ? h.nameOf(frame.card) : undefined,
           },
         });
         break;
@@ -1619,56 +1543,36 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
       // and `forbid: "beChosen"`.
       case "immune": {
         const players = op.from && op.from !== "both" ? sideOf(master, op.from) : [];
-        const targets = op.target ? resolveRef(ctx, s, frame, op.target) : [frame.card];
+        const targets = op.target ? h.resolveRef(frame, op.target) : [frame.card];
         for (const id of targets)
-          addEffect(s, ev, { master: frame.master, source: frame.card, target: id, kind: "immune", value: 0, until: op.until, immune: { from: players[0], fromFilter: op.fromFilter } });
+          h.addEffect({ master: frame.master, source: frame.card, target: id, kind: "immune", value: 0, until: op.until, immune: { from: players[0], fromFilter: op.fromFilter } });
         break;
       }
 
       // 8-1-1 lifted for one card — the opposite of `forbid`, and stored the
       // same way so that a duration expires it the same way.
       case "permit":
-        for (const id of resolveRef(ctx, s, frame, op.target)) {
-          addEffect(s, ev, { master: frame.master, source: frame.card, target: id, kind: "permit", value: 0, until: op.until, permit: { what: op.what, filter: op.filter } });
+        for (const id of h.resolveRef(frame, op.target)) {
+          h.addEffect({ master: frame.master, source: frame.card, target: id, kind: "permit", value: 0, until: op.until, permit: { what: op.what, filter: op.filter } });
         }
         break;
 
       case "addMarker":
       case "removeMarker": {
-        const n = amount(ctx, s, frame, op.n) * (op.op === "addMarker" ? 1 : -1);
-        for (const id of resolveRef(ctx, s, frame, op.target)) {
-          s.cards[id].markers = Math.max(0, s.cards[id].markers + n);
-          ev.push({ type: "markers", card: id, delta: n, total: s.cards[id].markers });
-          if (n < 0) pendTriggers(ctx, s, "markerRemoved", id);
+        const n = h.amount(frame, op.n) * (op.op === "addMarker" ? 1 : -1);
+        for (const id of h.resolveRef(frame, op.target)) {
+          h.changeMarkers(id, n);
+          if (n < 0) h.pend("markerRemoved", id);
         }
         break;
       }
 
       case "token": {
-        const n = amount(ctx, s, frame, op.n);
+        const n = h.amount(frame, op.n);
         const p = sideOf(master, op.side)[0];
         for (let i = 0; i < n; i++) {
-          const id = `${p}#token${Object.keys(s.cards).length}`;
-          s.cards[id] = {
-            id,
-            cardId: tokenCardId(op.name, op.power, op.comboCost, op.comboPower, op.colors),
-            owner: p,
-            mode: "active",
-            hidden: false,
-            flipped: false,
-            markers: 0,
-            under: [],
-            isToken: true,
-            enteredTurn: s.turn,
-            extraAttacks: 0,
-            usedThisTurn: [],
-            usedMarkerSkill: false,
-            battledThisTurn: false,
-            negated: [],
-          };
-          s.players[p].battle.push(id);
-          ev.push({ type: "token", card: id, owner: p });
-          pendTriggers(ctx, s, "played", id);
+          const id = h.createToken(p, op.name, op.power, op.comboCost, op.comboPower, op.colors);
+          h.pend("played", id);
         }
         break;
       }
@@ -1679,7 +1583,7 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         // [Activate] said the same thing with a duration on it — XD1-05's
         // "…by 1 for the duration of the turn" — and a skill that resolves has
         // to put it in force itself, or it resolves to nothing at all.
-        const by = amount(ctx, s, frame, op.amount);
+        const by = h.amount(frame, op.amount);
         if (!by) break;
         // "specified" carries its own value shape — see `collectStatics` and
         // `playCost` (state.ts) — because the colours it relaxes, not a flat
@@ -1687,8 +1591,8 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         if (op.what === "specified") {
           if (!op.colors?.length) break;
           const sign: 1 | -1 = by < 0 ? -1 : 1;
-          for (const id of resolveRef(ctx, s, frame, op.target)) {
-            addEffect(s, ev, { master: frame.master, source: frame.card, target: id, kind: "specifiedCost", value: { colors: op.colors, sign }, until: op.until ?? "turn" });
+          for (const id of h.resolveRef(frame, op.target)) {
+            h.addEffect({ master: frame.master, source: frame.card, target: id, kind: "specifiedCost", value: { colors: op.colors, sign }, until: op.until ?? "turn" });
           }
           break;
         }
@@ -1702,8 +1606,8 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
                 : op.what === "evolve"
                   ? "evolveCost"
                   : "cost";
-        for (const id of resolveRef(ctx, s, frame, op.target)) {
-          addEffect(s, ev, {
+        for (const id of h.resolveRef(frame, op.target)) {
+          h.addEffect({
             master: frame.master,
             source: frame.card,
             target: id,
@@ -1730,7 +1634,7 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
       // the play being resolved has a moment of its own — now — and is the one
       // implementation `resolvingPlay` below is the macro over.
       case "replace":
-        if (op.event === "play") replacePlay(ctx, s, ev, op.with);
+        if (op.event === "play") h.replaceResolvingPlay(op.with);
         break;
 
       // The card's own offer about itself (no `until`) is [Permanent]-only
@@ -1742,8 +1646,8 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
       case "altCost": {
         if (!op.until) break;
         const value: AltCost = { pay: op.pay, n: op.n ?? 1, for: op.for ?? "counter", ...(op.ops ? { ops: op.ops } : {}), ...(op.orbs ? { orbs: op.orbs } : {}) };
-        for (const id of resolveRef(ctx, s, frame, op.target ?? { sel: { special: "self" } }))
-          addEffect(s, ev, { master: frame.master, source: frame.card, target: id, kind: "altCost", value: 0, until: op.until, altCost: value });
+        for (const id of h.resolveRef(frame, op.target ?? { sel: { special: "self" } }))
+          h.addEffect({ master: frame.master, source: frame.card, target: id, kind: "altCost", value: 0, until: op.until, altCost: value });
         break;
       }
 
@@ -1753,8 +1657,8 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
       // for a span, so it is applied to whatever the selector names now.
       case "payWith": {
         if (!op.until) break;
-        for (const id of resolveRef(ctx, s, frame, op.target ?? { sel: { special: "self" } }))
-          addEffect(s, ev, { master: frame.master, source: frame.card, target: id, kind: "payer", value: 0, until: op.until, payAs: op.as ?? "energy" });
+        for (const id of h.resolveRef(frame, op.target ?? { sel: { special: "self" } }))
+          h.addEffect({ master: frame.master, source: frame.card, target: id, kind: "payer", value: 0, until: op.until, payAs: op.as ?? "energy" });
         break;
       }
 
@@ -1764,24 +1668,26 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
           // replacement at all (9-6): `resolvePlay` reads these as the card
           // enters. Only the `instead` branch below is the macro over `replace`
           // that `OP_CLASS` calls it.
-          const card = s.resolving?.card;
+          const card = h.resolvingCard();
           if (!card) break;
-          if (op.mode === "rest") s.continuations.playRest = card;
-          if (op.negated) s.continuations.playNegated = card;
+          if (op.mode === "rest") h.setPlayRest(card);
+          if (op.negated) h.setPlayNegated(card);
           break;
         }
-        replacePlay(ctx, s, ev, [{ op: "moveTo", target: { sel: { special: "resolving" } }, to: op.instead, ...(op.position ? { position: op.position } : {}) }]);
+        h.replaceResolvingPlay([{ op: "moveTo", target: { sel: { special: "resolving" } }, to: op.instead, ...(op.position ? { position: op.position } : {}) }]);
         break;
       }
 
       case "negateAttack":
-        if (s.battle) {
-          s.battle.negated = true;
-          ev.push({ type: "attackNegated" });
-          // "If you negated a Leader Card's attack with this skill" (20-16).
-          const did = (frame.did ??= {});
-          did.negateAttack = true;
-          if (areaOf(s, s.battle.attacker) === "leader") did.negateLeaderAttack = true;
+        {
+          const b = h.battle();
+          if (b) {
+            h.negateAttack();
+            // "If you negated a Leader Card's attack with this skill" (20-16).
+            const did = (frame.did ??= {});
+            did.negateAttack = true;
+            if (h.areaOf(b.attacker) === "leader") did.negateLeaderAttack = true;
+          }
         }
         break;
 
@@ -1790,28 +1696,26 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         // `negated` is a list of skill indexes on the instance, so this is the
         // same mechanism another card's negation uses — and it is cleared when
         // the card leaves play, because that is a different card (3-1-4).
-        const inst = s.cards[frame.card];
-        if (!inst || frame.skillIndex == null || inst.negated === "all" || inst.negated.includes(frame.skillIndex)) break;
+        if (!h.exists(frame.card) || frame.skillIndex == null) break;
+        const off = h.negatedSkills(frame.card);
+        if (off === "all" || off.includes(frame.skillIndex)) break;
         if (op.until === "turn" || op.until === "battle") {
           // "Negate this skill for the turn / for the battle": it comes back,
           // so an effect with a duration rather than a mark on the instance.
-          addEffect(s, ev, { master: frame.master, source: frame.card, target: frame.card, kind: "negateSkill", value: frame.skillIndex, until: op.until });
-          note(ev, `${face(ctx, s, frame.card).name}: that skill will not happen again this ${op.until}`);
+          h.addEffect({ master: frame.master, source: frame.card, target: frame.card, kind: "negateSkill", value: frame.skillIndex, until: op.until });
+          h.note(`${h.nameOf(frame.card)}: that skill will not happen again this ${op.until}`);
           break;
         }
-        inst.negated.push(frame.skillIndex);
-        note(ev, `${face(ctx, s, frame.card).name}: that skill will not happen again`);
+        h.negateSkillIndex(frame.card, frame.skillIndex);
+        h.note(`${h.nameOf(frame.card)}: that skill will not happen again`);
         break;
       }
 
       case "negateCounter": {
         // The counter being answered is the first one still waiting in the
         // flow: this effect is running inside the window opened over it.
-        const target = s.flow.find((f) => f.op === "counter.resolve");
-        if (target && target.op === "counter.resolve") {
-          target.negated = true;
-          note(ev, `${face(ctx, s, target.card).name} is countered`);
-        }
+        const countered = h.negateCounterInFlight();
+        if (countered) h.note(`${h.nameOf(countered)} is countered`);
         break;
       }
 
@@ -1819,22 +1723,19 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         // 5-5-3: played by a skill, so no energy cost is paid — but a card
         // that may not be played may not be played by a skill either (20-14).
         // 20-14: a skill doing the playing, which is the half fifteen cards ban.
-        const targets = resolveRef(ctx, s, frame, op.target).filter((id) => !forbids(ctx, s, "play", { player: master, card: id, bySkill: true }));
+        const targets = h.resolveRef(frame, op.target).filter((id) => !h.forbids("play", { player: master, card: id, bySkill: true }));
         if (!targets.length) break;
-        const onto = op.onto ? resolveRef(ctx, s, frame, op.onto)[0] : undefined;
-        const steps: FlowStep[] = [];
-        for (const id of targets) steps.push({ op: "play.resolve", card: id, player: master, mode: op.mode, onto, negated: op.negated });
+        const onto = op.onto ? h.resolveRef(frame, op.onto)[0] : undefined;
         (frame.did ??= {}).play = true;
         frame.ip++;
-        steps.push({ op: "script.step", frame });
-        s.flow.unshift(...steps);
+        h.playThen(targets, { player: master, mode: op.mode, onto, negated: op.negated }, frame);
         return "done";
       }
 
       case "delay":
         // The variables are copied, not shared: a later `choose` in this same
         // program must not change what the delayed part points at.
-        schedule(s, ev, {
+        h.schedule({
           at: op.at,
           scope: op.scope ?? "thisTurn",
           ops: op.ops,
@@ -1847,7 +1748,7 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         break;
 
       case "if": {
-        const branch = condHolds(ctx, s, frame, op.cond) ? op.then : (op.else ?? []);
+        const branch = h.condHolds(frame, op.cond) ? op.then : (op.else ?? []);
         // Splice the branch in place of the `if`, keeping one frame.
         frame.ops = [...frame.ops.slice(0, frame.ip), ...branch, ...frame.ops.slice(frame.ip + 1)];
         continue;
@@ -1857,9 +1758,9 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         // Asked and answered: splice the ops in, or step over them. Either way
         // the answer is remembered, so "if you do" and "if you don't" can read
         // it (20-16).
-        if (s.lastMode != null && frame.awaiting === "may") {
-          const yes = s.lastMode === 0;
-          s.lastMode = null;
+        if (h.lastMode() != null && frame.awaiting === "may") {
+          const yes = h.lastMode() === 0;
+          h.clearLastMode();
           frame.awaiting = undefined;
           (frame.did ??= {}).may = yes;
           if (!yes) {
@@ -1875,24 +1776,24 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
           continue;
         }
         frame.awaiting = "may";
-        s.flow.unshift({ op: "script.step", frame });
-        s.prompt = {
+        h.resume(frame);
+        h.ask({
           kind: "chooseMode",
           // 20-16: whoever the card says may do it, decides. The skill is
           // still yours — only the answer is theirs.
           player: op.chooser ? sideOf(master, op.chooser)[0] : master,
-          reason: op.reason ?? `${face(ctx, s, frame.card).name}: optional`,
+          reason: op.reason ?? `${h.nameOf(frame.card)}: optional`,
           options: [op.reason ?? "Do it", "Don't"],
-        };
+        });
         return "wait";
       }
 
       case "chooseMode": {
         // 20-2: the option is chosen as the skill resolves, and only then does
         // the rest of the program exist — so it is spliced in like an `if`.
-        if (s.lastMode != null && frame.awaiting === "mode") {
-          const picked = op.modes[s.lastMode] ?? op.modes[0];
-          s.lastMode = null;
+        if (h.lastMode() != null && frame.awaiting === "mode") {
+          const picked = op.modes[h.lastMode()!] ?? op.modes[0];
+          h.clearLastMode();
           frame.awaiting = undefined;
           frame.ops = [...frame.ops.slice(0, frame.ip), ...(picked?.ops ?? []), ...frame.ops.slice(frame.ip + 1)];
           continue;
@@ -1904,34 +1805,16 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
           continue;
         }
         frame.awaiting = "mode";
-        s.flow.unshift({ op: "script.step", frame });
-        s.prompt = { kind: "chooseMode", player: master, reason: op.reason ?? `${face(ctx, s, frame.card).name}: choose one`, options: op.modes.map((mode) => mode.label) };
+        h.resume(frame);
+        h.ask({ kind: "chooseMode", player: master, reason: op.reason ?? `${h.nameOf(frame.card)}: choose one`, options: op.modes.map((mode) => mode.label) });
         return "wait";
       }
     }
     frame.ip++;
   }
-  note(ev, "effect did not finish: too many steps");
+  h.note("effect did not finish: too many steps");
   return "done";
 }
-
-function shuffleDeck(s: GameState, players: PlayerId[]): void {
-  // Uses the game's RNG so a replay reproduces the order exactly.
-  for (const p of players) {
-    const deck = s.players[p].deck;
-    let state = s.rngState;
-    for (let i = deck.length - 1; i > 0; i--) {
-      const t = (state + 0x6d2b79f5) | 0;
-      let r = Math.imul(t ^ (t >>> 15), 1 | t);
-      r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
-      state = t;
-      const j = Math.floor((((r ^ (r >>> 14)) >>> 0) / 4294967296) * (i + 1));
-      [deck[i], deck[j]] = [deck[j], deck[i]];
-    }
-    s.rngState = state;
-  }
-}
-
 
 export * from "./script-schema";
 // Named as well as starred, for the same reason `engine/compile.ts` names its
