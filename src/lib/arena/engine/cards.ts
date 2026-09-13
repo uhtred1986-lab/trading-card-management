@@ -395,10 +395,18 @@ export function skillsOf(def: CardDef, side: "front" | "back" = "front"): Skill[
   return side === "back" ? entry.back : entry.front;
 }
 
-/** Every keyword skill a face carries, including those on typed lines ("[Auto][Blocker]" is rare but exists). */
-export function keywordsOf(def: CardDef, side: "front" | "back" = "front"): KeywordSkill[] {
+/**
+ * Every keyword skill a list of parsed skills carries, including those on typed
+ * lines ("[Auto][Blocker]" is rare but exists).
+ *
+ * Split out of `keywordsOf` so the same reading can be had from skill *text*
+ * alone: the rules engine holds a card's text as a declared attribute and has
+ * no `CardDef` to pass (`vm/filters.ts`). Same loop, same order, no second
+ * reading of a keyword anywhere.
+ */
+export function keywordsInSkills(skills: Skill[]): KeywordSkill[] {
   const out: KeywordSkill[] = [];
-  for (const s of skillsOf(def, side)) {
+  for (const s of skills) {
     if (s.keyword) out.push(s.keyword);
     for (const t of s.tags) {
       const k = keywordOf(t);
@@ -406,6 +414,11 @@ export function keywordsOf(def: CardDef, side: "front" | "back" = "front"): Keyw
     }
   }
   return out;
+}
+
+/** Every keyword skill a face carries. */
+export function keywordsOf(def: CardDef, side: "front" | "back" = "front"): KeywordSkill[] {
+  return keywordsInSkills(skillsOf(def, side));
 }
 
 export function hasKeyword(def: CardDef, name: KeywordSkill["name"], side: "front" | "back" = "front"): boolean {

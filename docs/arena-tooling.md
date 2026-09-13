@@ -185,10 +185,11 @@ Plays N random complete games and reports crashes. **40 is the standing gate**;
 use 200 for anything touching the movement, payment or flow machinery. It proves
 only that nothing threw — it says nothing about correctness — but it is the
 cheapest possible check that the engine still runs to completion, and it has
-caught real breakage. Takes `--engine legacy|rules` (default `legacy`); `rules`
-creates a game and then stops — the fuzzer reads the board itself, so it refuses
-a state it cannot read (`EngineMismatch`) until #143 teaches the scripts the
-second engine's shape.
+caught real breakage. Takes `--engine legacy|rules` (default `legacy`); on
+`rules` it is a **dealing** fuzz — it creates each game from real decks, checks
+the board the rules engine dealt (every card in exactly one place, 3-1) and
+stops, because nothing plays on that engine yet (#140). #143 is where the
+scripts learn to play it.
 
 ### `arena:diff` — the oracle
 

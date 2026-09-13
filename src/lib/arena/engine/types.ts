@@ -438,7 +438,7 @@ export interface ContinuousEffect {
    * named by a `SkillKindPrefix` in `value` ("negate that card's [Auto] skill
    * for the turn").
    */
-  kind: "power" | "comboPower" | "keyword" | "copiedSkills" | "negateSkills" | "negateSkill" | "negateSkillKind" | "forbid" | "permit" | "immune" | "cost" | "skillCost" | "evolveCost" | "comboCost" | "altCost" | "zEnergy" | "specifiedCost" | "control";
+  kind: "power" | "comboPower" | "keyword" | "copiedSkills" | "negateSkills" | "negateSkill" | "negateSkillKind" | "forbid" | "permit" | "immune" | "cost" | "skillCost" | "evolveCost" | "comboCost" | "altCost" | "payer" | "zEnergy" | "specifiedCost" | "control";
   /**
    * `specifiedCost`'s value is the orbs it relaxes or demands (`sign: 1` reduces,
    * `-1` increases) rather than a flat number — see `costReduction` (script.ts)
@@ -468,6 +468,12 @@ export interface ContinuousEffect {
    * mono-blue cards with [Counter] skills from your hand by …" (BT11-033).
    */
   altCost?: AltCost;
+  /**
+   * Set when `kind` is "payer" (20-19): what the target counts as when it is
+   * rested to pay an energy cost from outside the Energy Area — one energy of
+   * its own colours, or one orb of the colour named.
+   */
+  payAs?: "energy" | Color;
   /** Set when `kind` is "skillCost" or "evolveCost". */
   skillKind?: SkillKindPrefix;
   /** Printed orb kinds for `skillCost`/`evolveCost` modifiers, when colour-scoped. */

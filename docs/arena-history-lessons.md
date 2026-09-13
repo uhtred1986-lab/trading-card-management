@@ -2886,3 +2886,78 @@ and #162 is where the AI learns the second engine.
 - **Do not invent the state's fields early.** `VmState` has four, and three of them exist to say
   what wrote it. #139 deals the board into it, #140 adds the flow, #141 the log — each knowing what
   it needs. A skeleton that guessed at `turn` and `phase` now would have had them replaced twice.
+
+---
+
+## A card is a bag of attributes, a side is a map of zones — Stage 4's board (13 Sep 2026)
+
+#139 deals the opening board on the rules engine, and it is the first issue of the programme whose
+answer is *checkable against the engine that has been playing*: from one seed the hands, the life
+piles and the decks are card for card the legacy engine's. Getting there needed four decisions the
+issue's sketch did not have, and three of them are about what the declarations **could not say**.
+
+### The grammar grew one field, and it is the one an interpreter cannot do without
+
+`zones.rules` declares fifteen zones. Twelve are the manual's areas, and three more are there
+because a program has to be able to name them (§3's own note): `removed` (20-10), `under` (23-2) and
+`play` (9-1-3-1). Building a side from those declarations, two of the fifteen are not lists of cards
+at all — `play` is the word for three zones at once and `under` is the pile hanging off one card —
+and **nothing in the declaration distinguishes them**. Every derivation that looked like it worked
+was a coincidence of the other fields (`play` is the only `inPlay` zone with `host: false`; `under`
+is `ordered` like the deck and the life), and a coincidence is not a rule.
+
+The alternative was a two-name list in `vm/zones.ts`, which is exactly the thing this stage exists to
+remove: *a configuration-driven engine may not know a game's zone names*. So `DEFINE ZONE` grew
+`place:` (default true), the two say `place: false` and say why in their own `text:`, and
+`placeZones(game)` is a filter over declarations. One row in `DEFINE_SCHEMA`, fifteen lines in a
+`.rules` file, no interpreter knowledge — and the round-trip promise held without a printer change,
+because the schema is the printer.
+
+### An X cost is absent, not zero — and that is a disagreement with the manual, deliberately
+
+1-2-2-2 says an X cost counts as 0 except while it is being paid, and `attributes.rules` says so
+too. Read that way, `energyCost: 0` would be true of every X-cost card at every moment a selector
+looks at one — and "1 red Extra Card with an energy cost of 1 or less" would start matching a card
+whose cost nobody has chosen. The engine playing today does not do that: `matches` measures a cost
+only when it is a number.
+
+So the attribute is **absent** for an X cost, and the reason is worth the paragraph: an absent
+attribute and a zero are different claims, the oracle is the older engine, and the value an X cost
+*has* is named at the moment it is paid, which is #140's. The same cut runs through the specified
+cost, where `specifiedCostUnknown` already distinguishes "demands no colour" from "nobody knows what
+it demands" (the BT19-039 ruling of 9 Sep 2026): unknown means absent, and the convention stands in
+everywhere else.
+
+### Which end of a pile a card arrives at belongs to the rule, not to the zone
+
+The legacy engine puts a card on *top* of the deck, the Drop, the Warp, the life and the removed pile
+and at the *end* of the hand, the Battle Area and the energy. No field of a zone predicts that split:
+the hand and the Drop are identical in every respect the grammar records. Deriving it from
+`ordered:` would have been wrong in both directions (the Drop is unordered and receives on top).
+
+`moveCard` therefore takes `position`, defaulting to the end, and the *rule* says which: the life is
+"the top 8 cards of your deck" placed as they are taken (6-2-1-10). That is what makes the two
+engines' life piles the same pile, and it is the reading that will keep being true as Stage 5 writes
+the moves — every one of them is a sentence from the manual that says where the card goes.
+
+### Lessons
+
+- **A predicate worth having is one measured against the old answer.** `vm/filters.ts` answers a
+  `CardFilter` over declared attributes, and the suite asserts it agrees with the legacy `matches`
+  for every field of `FILTER_FIELDS` over a corpus of cards. This is the one place the new engine
+  could start selecting *different* cards, and a difference there shows up as a card quietly doing
+  the wrong thing rather than as a crash — the hardest class of bug this programme can produce.
+- **A refusal must not have moved anything.** `moveCard` validated the mode *after* detaching the
+  card, so a refused move left the card in no zone at all — a board no rule can describe. The test
+  that caught it was not the one looking for it: a later assertion about a card's host failed because
+  the Battle Area had quietly emptied three moves earlier. Every check in the mover now runs before
+  the first mutation.
+- **A measure can need one attribute and merely *widen* with another.** `names` reads the printed
+  name and the names a skill gave "in all areas" (20-1). Requiring both would have made name
+  selection unavailable to a game with no such mechanic, which is exactly the kind of
+  accidental-DBS-ism this stage is for; so `Measure` has `reads` (needed) and `also` (read where it
+  exists). The thin-ruleset test is what found it.
+- **The report is a value, not a throw.** Every catalog value is checked against its declaration, and
+  a card whose value is of the wrong type loses that one attribute and gains a line in the report.
+  All 8,520 catalog cards pass today — which is the point: the mechanism exists so that the first one
+  that does not costs one measure on one card, not a game that will not start.

@@ -7,7 +7,7 @@
 import { hasKeyword, keywordOf, skillsOf, specifiedCostOf, isZ, baseType } from "./cards";
 import { matches, powerRelOk } from "./filters";
 import { describeCond, describeScript } from "./script-schema";
-import { NO_RULES, stepScript, type Amount, type AmountAttr, type CardScripts, type Cond, type Op, type Ref, type Script, type ScriptArea, type ScriptFrame, type Selector, type Side } from "./script";
+import { NO_RULES, stepScript, type Amount, type AmountAttr, type CardScripts, type Cond, type Op, type PayWith, type Ref, type Script, type ScriptArea, type ScriptFrame, type Selector, type Side } from "./script";
 import type {
   Area,
   CardDef,
@@ -804,14 +804,14 @@ export interface AltCost {
 
 export interface StaticEffect {
   source: string;
-  kind: "power" | "comboPower" | "keyword" | "cost" | "skillCost" | "evolveCost" | "comboCost" | "zEnergy" | "specifiedCost" | "negateKeyword" | "gains" | "replaceLeave" | "forbid" | "permit" | "immune" | "altCost";
+  kind: "power" | "comboPower" | "keyword" | "cost" | "skillCost" | "evolveCost" | "comboCost" | "zEnergy" | "specifiedCost" | "negateKeyword" | "gains" | "replaceLeave" | "forbid" | "permit" | "immune" | "altCost" | "payer";
   /** The card it is about; empty for a rule about a player rather than a card. */
   target: string;
   /**
    * `specifiedCost` carries the orbs it relaxes or demands, not a flat number
    * — see `playCost`, which is the only reader.
    */
-  value: number | KeywordSkill | KeywordSkill["name"] | Prohibition | Permission | Immunity | AltCost | Gains | Replacement | { colors: (Color | "any")[]; sign: 1 | -1 };
+  value: number | KeywordSkill | KeywordSkill["name"] | Prohibition | Permission | Immunity | AltCost | Gains | Replacement | { colors: (Color | "any")[]; sign: 1 | -1 } | { payAs: "energy" | Color };
   /** Set when `kind` is "skillCost" or "evolveCost". */
   skillKind?: SkillKindPrefix;
   /** Printed orb kinds for `skillCost`/`evolveCost` modifiers, when colour-scoped. */
@@ -1021,6 +1021,20 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
       const targets = op.target ? staticTargets(ctx, s, frame, op.target) : [source];
       const value: AltCost = { pay: op.pay, n: op.n ?? 1, for: op.for ?? "counter", ...(op.ops ? { ops: op.ops } : {}), ...(op.orbs ? { orbs: op.orbs } : {}) };
       for (const id of targets) out.push({ source, kind: "altCost", target: id, value });
+      continue;
+    }
+    // 20-19, read for the same reasons `altCost` just above it is: the printed
+    // form is a [Permanent], and it is about a card that may sit anywhere —
+    // BT3-039's whole point is the Battle Area — so it is collected before the
+    // "only while in play" line below rather than after it.
+    if (op.op === "payWith") {
+      if (op.until) continue;
+      // 9-1-3-1, and the one line that separates this from `altCost` above: a
+      // cost reducer is read from the hand because that is where it applies,
+      // but a card can only be *rested* to pay where it stands on the table.
+      if (!inPlayNow) continue;
+      const targets = op.target ? staticTargets(ctx, s, frame, op.target) : [source];
+      for (const id of targets) out.push({ source, kind: "payer", target: id, value: { payAs: op.as ?? "energy" } });
       continue;
     }
     // 20-14: a prohibition printed as a [Permanent] skill holds for as long as
@@ -1817,10 +1831,84 @@ export function leaderColors(ctx: GameContext, s: GameState, p: PlayerId): Color
 }
 
 export interface Payment {
-  /** Energy cards to switch to Rest Mode. */
+  /**
+   * Cards to switch to Rest Mode. Energy, and since 20-19 the cards outside
+   * the Energy Area a rule lets stand in for one (`payersFor`) — they are
+   * rested where they are and never move, so one list covers both and
+   * `pay` needs no second case.
+   */
   rest: string[];
   /** Energy markers to remove (1-14-2). */
   markers: number;
+}
+
+/**
+ * A card that may be rested to pay an energy cost although it is not in the
+ * Energy Area (20-19), and what it counts as while it does.
+ *
+ * `colors` is already settled: the card's own for "use this card as energy",
+ * or the single colour a rule names. The planner then treats it as one more
+ * active energy card of those colours, which is exactly what the rule says it
+ * is — no new kind of requirement, the same answer `planPayment` already knows
+ * how to give.
+ */
+export interface Payer {
+  id: string;
+  colors: Color[];
+}
+
+/**
+ * The cards this player may pay an energy cost with from outside the Energy
+ * Area right now (20-19).
+ *
+ * Two sources, the pair `altCostFor` reads and for the same reason: a card can
+ * say it about itself as a [Permanent] (`staticEffects`, never expiring) or be
+ * granted it for a span (`s.effects`). `extra` is a *price's* own payers — a
+ * `PAYWITH` item on the record, resolved by the caller against the skill's
+ * frame — which are in force for that one payment and nothing else.
+ *
+ * A payer must be the player's own, in Active Mode (it is rested to pay,
+ * 5-3-3), and not already in the Energy Area, where `activeEnergy` counts it.
+ */
+export function payersFor(ctx: GameContext, s: GameState, p: PlayerId, extra?: Payer[]): Payer[] {
+  const out: Payer[] = [];
+  const seen = new Set<string>();
+  const add = (id: string, as: "energy" | Color) => {
+    const inst = s.cards[id];
+    if (!inst || seen.has(id)) return;
+    if (inst.owner !== p || inst.mode !== "active") return;
+    if (areaOf(s, id) === "energy") return;
+    const colors = as === "energy" ? def(ctx, s, id).colors : [as];
+    seen.add(id);
+    out.push({ id, colors });
+  };
+  for (const e of s.effects) if (e.kind === "payer" && e.target) add(e.target, e.payAs ?? "energy");
+  for (const e of staticEffects(ctx, s)) if (e.kind === "payer" && e.target) add(e.target, (e.value as { payAs: "energy" | Color }).payAs);
+  for (const x of extra ?? []) add(x.id, x.colors[0] ?? "energy");
+  // A price names its payers by selector, so its colours are already settled;
+  // `add` above would re-read them off the card. Keep the caller's answer.
+  for (const x of extra ?? []) {
+    const at = out.find((o) => o.id === x.id);
+    if (at) at.colors = x.colors;
+  }
+  return out;
+}
+
+/**
+ * The `PAYWITH` items of a price, resolved against the board (20-19).
+ *
+ * Kept here rather than in `engine.ts` so the "can I" and the "do it" sides of
+ * an activation ask one function, the way they already share `orbTotals`.
+ */
+export function pricePayers(ctx: GameContext, s: GameState, frame: ScriptFrame, payWith: PayWith[] | undefined): Payer[] {
+  if (!payWith?.length) return [];
+  const out: Payer[] = [];
+  for (const pw of payWith) {
+    for (const id of resolveSelector(ctx, s, frame, pw.sel)) {
+      out.push({ id, colors: pw.as === "energy" ? def(ctx, s, id).colors : [pw.as] });
+    }
+  }
+  return out;
 }
 
 /**
@@ -1844,6 +1932,12 @@ export function planPayment(
   either?: Color[][],
   /** Energy already spoken for by another part of the price — [Invoker]'s (22-37). */
   exclude?: string[],
+  /**
+   * 20-19: cards a *price* named as payers (`CostRecord.payWith`), already
+   * resolved by the caller. The payers a rule puts in force for the whole
+   * board are read here, from `payersFor`, and need no argument.
+   */
+  payers?: Payer[],
 ): Payment | null {
   // "{r}/{u}" is one orb payable with either colour (22-13 and friends). Each
   // way of settling those is an ordinary specified cost, so rather than teach
@@ -1861,7 +1955,7 @@ export function planPayment(
     for (const pick of assignments) {
       const merged = { ...specified };
       for (const c of pick) merged[c] = (merged[c] ?? 0) + 1;
-      const got = planPayment(ctx, s, p, total, merged, explicit, undefined, exclude);
+      const got = planPayment(ctx, s, p, total, merged, explicit, undefined, exclude, payers);
       if (got) return got;
     }
     return null;
@@ -1877,10 +1971,17 @@ export function planPayment(
   // demands, so the honest answer is that this price is unpayable as stated
   // rather than payable at a silently higher figure.
   if (orbCount(specified) > total) return null;
-  const active = exclude?.length ? activeEnergy(s, p).filter((id) => !exclude.includes(id)) : activeEnergy(s, p);
+  const energy = exclude?.length ? activeEnergy(s, p).filter((id) => !exclude.includes(id)) : activeEnergy(s, p);
+  // 20-19: the cards outside the Energy Area that may be rested in its place,
+  // each already carrying what it counts as. They are one more active card of
+  // those colours and nothing else, so the planner needs no new requirement —
+  // only a wider pool and a colour it reads off this list rather than the card.
+  const extra = (exclude?.length ? payersFor(ctx, s, p, payers).filter((x) => !exclude.includes(x.id)) : payersFor(ctx, s, p, payers)).filter((x) => !energy.includes(x.id));
+  const extraColors = new Map(extra.map((x) => [x.id, x.colors]));
+  const active = extra.length ? [...energy, ...extra.map((x) => x.id)] : energy;
   const ps = s.players[p];
   const leader = leaderColors(ctx, s, p);
-  const colorsOf = (id: string) => def(ctx, s, id).colors;
+  const colorsOf = (id: string) => extraColors.get(id) ?? def(ctx, s, id).colors;
 
   if (explicit) {
     if (explicit.some((id) => !active.includes(id))) return null;
@@ -1907,37 +2008,45 @@ export function planPayment(
     return { rest: explicit, markers };
   }
 
-  const chosen: string[] = [];
-  const pool = active.slice();
-  const need = { ...specified };
-  // Specified orbs: prefer a mono-colour card of that colour, then any card with it.
-  for (const c of Object.keys(need) as Color[]) {
-    for (let n = need[c] ?? 0; n > 0; n--) {
-      let pick = pool.find((id) => colorsOf(id).length === 1 && colorsOf(id)[0] === c) ?? pool.find((id) => colorsOf(id).includes(c));
-      if (!pick && leader.includes(c) && ps.energyMarkers > chosen.filter((x) => x === "#marker").length) pick = "#marker";
-      if (!pick) return null;
-      chosen.push(pick);
-      if (pick !== "#marker") pool.splice(pool.indexOf(pick), 1);
-    }
-  }
-  // Remaining generic cost: spend the colour we have most of, keep scarce colours.
-  while (chosen.length < total) {
-    if (pool.length === 0) {
-      const markersUsed = chosen.filter((x) => x === "#marker").length;
-      if (ps.energyMarkers > markersUsed) {
-        chosen.push("#marker");
-        continue;
+  const attempt = (from: string[]): Payment | null => {
+    const chosen: string[] = [];
+    const pool = from.slice();
+    const need = { ...specified };
+    // Specified orbs: prefer a mono-colour card of that colour, then any card with it.
+    for (const c of Object.keys(need) as Color[]) {
+      for (let n = need[c] ?? 0; n > 0; n--) {
+        let pick = pool.find((id) => colorsOf(id).length === 1 && colorsOf(id)[0] === c) ?? pool.find((id) => colorsOf(id).includes(c));
+        if (!pick && leader.includes(c) && ps.energyMarkers > chosen.filter((x) => x === "#marker").length) pick = "#marker";
+        if (!pick) return null;
+        chosen.push(pick);
+        if (pick !== "#marker") pool.splice(pool.indexOf(pick), 1);
       }
-      return null;
     }
-    const counts = new Map<string, number>();
-    for (const id of pool) counts.set(colorsOf(id).join("/"), (counts.get(colorsOf(id).join("/")) ?? 0) + 1);
-    let best = pool[0];
-    for (const id of pool) if ((counts.get(colorsOf(id).join("/")) ?? 0) > (counts.get(colorsOf(best).join("/")) ?? 0)) best = id;
-    chosen.push(best);
-    pool.splice(pool.indexOf(best), 1);
-  }
-  return { rest: chosen.filter((x) => x !== "#marker"), markers: chosen.filter((x) => x === "#marker").length };
+    // Remaining generic cost: spend the colour we have most of, keep scarce colours.
+    while (chosen.length < total) {
+      if (pool.length === 0) {
+        const markersUsed = chosen.filter((x) => x === "#marker").length;
+        if (ps.energyMarkers > markersUsed) {
+          chosen.push("#marker");
+          continue;
+        }
+        return null;
+      }
+      const counts = new Map<string, number>();
+      for (const id of pool) counts.set(colorsOf(id).join("/"), (counts.get(colorsOf(id).join("/")) ?? 0) + 1);
+      let best = pool[0];
+      for (const id of pool) if ((counts.get(colorsOf(id).join("/")) ?? 0) > (counts.get(colorsOf(best).join("/")) ?? 0)) best = id;
+      chosen.push(best);
+      pool.splice(pool.indexOf(best), 1);
+    }
+    return { rest: chosen.filter((x) => x !== "#marker"), markers: chosen.filter((x) => x === "#marker").length };
+  };
+  // 20-19 is a permission, not an obligation, and the card it is printed on is
+  // a Battle Card doing a Battle Card's job: resting one to pay for something
+  // the Energy Area could have covered is a cost the player never agreed to.
+  // So the energy is tried first, exactly as it was before payers existed, and
+  // the wider pool only answers what the energy alone cannot.
+  return attempt(energy) ?? (extra.length ? attempt(active) : null);
 }
 
 /**
@@ -1952,12 +2061,18 @@ export function planPayment(
  * colours fight over) is reported as `other`, so a drifted pair shows up as
  * a counted `other` in the playthrough audit rather than as silence.
  */
-export function whyNotPay(ctx: GameContext, s: GameState, p: PlayerId, total: number, specified: Partial<Record<Color, number>>, either?: Color[][], exclude?: string[]): Requirement[] {
+export function whyNotPay(ctx: GameContext, s: GameState, p: PlayerId, total: number, specified: Partial<Record<Color, number>>, either?: Color[][], exclude?: string[], payers?: Payer[]): Requirement[] {
   const why: Requirement[] = [];
-  const active = exclude?.length ? activeEnergy(s, p).filter((id) => !exclude.includes(id)) : activeEnergy(s, p);
+  const energy = exclude?.length ? activeEnergy(s, p).filter((id) => !exclude.includes(id)) : activeEnergy(s, p);
+  // 20-19: a card that may stand in for energy is energy for the purpose of
+  // this count. Left out, the refusal said "1 short" for a price the player
+  // could in fact pay — which is the one thing a `why` twin must never do.
+  const extra = (exclude?.length ? payersFor(ctx, s, p, payers).filter((x) => !exclude.includes(x.id)) : payersFor(ctx, s, p, payers)).filter((x) => !energy.includes(x.id));
+  const extraColors = new Map(extra.map((x) => [x.id, x.colors]));
+  const active = extra.length ? [...energy, ...extra.map((x) => x.id)] : energy;
   const ps = s.players[p];
   const leader = leaderColors(ctx, s, p);
-  const colorsOf = (id: string) => def(ctx, s, id).colors;
+  const colorsOf = (id: string) => extraColors.get(id) ?? def(ctx, s, id).colors;
   const have = active.length + ps.energyMarkers;
   if (have < total) why.push({ kind: "energy", need: total, have });
   const haveColour = (c: Color) => active.filter((id) => colorsOf(id).includes(c)).length + (leader.includes(c) ? ps.energyMarkers : 0);
@@ -1968,7 +2083,7 @@ export function whyNotPay(ctx: GameContext, s: GameState, p: PlayerId, total: nu
   for (const orb of either ?? []) {
     if (!orb.some((c) => haveColour(c) > 0)) why.push({ kind: "energyColour", colour: orb.join("/"), need: 1, have: 0 });
   }
-  if (!why.length && !planPayment(ctx, s, p, total, specified, undefined, either, exclude)) {
+  if (!why.length && !planPayment(ctx, s, p, total, specified, undefined, either, exclude, payers)) {
     why.push({ kind: "other", detail: "the active energy cannot cover the colours of the cost" });
   }
   return why;
@@ -1980,15 +2095,23 @@ export function whyNotPay(ctx: GameContext, s: GameState, p: PlayerId, total: nu
  * are the same choice, so they are folded together; when only one survives,
  * the choice cannot matter and the caller pays it without asking.
  */
-export function paymentOptions(ctx: GameContext, s: GameState, p: PlayerId, total: number, specified: Partial<Record<Color, number>>, limit = 8): Payment[] {
+export function paymentOptions(ctx: GameContext, s: GameState, p: PlayerId, total: number, specified: Partial<Record<Color, number>>, limit = 8, payers?: Payer[]): Payment[] {
   const ps = s.players[p];
   const leader = leaderColors(ctx, s, p);
-  const colorsOf = (id: string) => def(ctx, s, id).colors;
+  const energy = activeEnergy(s, p);
+  // 20-19: each card that may stand in for energy is its own group, never
+  // folded into the energy of the same colour — resting a Battle Card is a
+  // different choice from resting an energy card that happens to match, and
+  // the prompt exists to let the player make exactly that kind of choice.
+  const extra = payersFor(ctx, s, p, payers).filter((x) => !energy.includes(x.id));
+  const extraColors = new Map(extra.map((x) => [x.id, x.colors]));
+  const colorsOf = (id: string) => extraColors.get(id) ?? def(ctx, s, id).colors;
   const byColors = new Map<string, string[]>();
-  for (const id of activeEnergy(s, p)) {
+  for (const id of energy) {
     const k = colorsOf(id).join("/");
     byColors.set(k, [...(byColors.get(k) ?? []), id]);
   }
+  for (const x of extra) byColors.set(`payer:${x.id}`, [x.id]);
   const keys = [...byColors.keys()].sort();
   const out: Payment[] = [];
   const seen = new Set<string>();
@@ -2044,11 +2167,20 @@ export function paymentOptions(ctx: GameContext, s: GameState, p: PlayerId, tota
 /** A short label for one payment, for the prompt: "2 Red, 1 Blue". */
 export function describePayment(ctx: GameContext, s: GameState, payment: Payment): string {
   const counts = new Map<string, number>();
+  const named: string[] = [];
   for (const id of payment.rest) {
+    // 20-19: a card rested from outside the Energy Area is named rather than
+    // counted. "1 Red" would be true and useless — the player is being asked
+    // whether to rest a Battle Card, and the card's name is the whole question.
+    if (areaOf(s, id) !== "energy") {
+      named.push(def(ctx, s, id).name);
+      continue;
+    }
     const k = def(ctx, s, id).colors.join("/") || "Colourless";
     counts.set(k, (counts.get(k) ?? 0) + 1);
   }
   const parts = [...counts.entries()].map(([k, n]) => `${n} ${k}`);
+  parts.push(...named);
   if (payment.markers) parts.push(`${payment.markers} energy marker${payment.markers === 1 ? "" : "s"}`);
   return parts.join(", ") || "nothing";
 }

@@ -157,6 +157,10 @@ export function describeEffect(e: ContinuousEffect): Pick<EffectView, "kind" | "
     // own `case "altCost"` for the card's [Permanent] offer about itself.
     case "altCost":
       return { kind: "cost", label: "another way to pay" };
+    // 20-19, and the same pair as `altCost`: this is the granted-for-a-span
+    // form; `describeStatic` has the card's own [Permanent] version.
+    case "payer":
+      return { kind: "cost", label: e.payAs && e.payAs !== "energy" ? `can be used as {${e.payAs}} energy` : "can be used as energy" };
     case "zEnergy": {
       const n = e.value as number;
       return { kind: "cost", label: n < 0 ? `Z-Energy cost ${-n} more` : `Z-Energy cost ${n} less` };
@@ -228,6 +232,12 @@ export function describeStatic(e: StaticEffect): Pick<EffectView, "kind" | "labe
     }
     case "altCost":
       return { kind: "cost", label: "another way to pay" };
+    // 20-19: the card's own [Permanent] offer — "You can use this card to pay
+    // energy costs even when it's in your Battle Area" (BT3-039).
+    case "payer": {
+      const as = (e.value as { payAs?: "energy" | Color }).payAs;
+      return { kind: "cost", label: as && as !== "energy" ? `can be used as {${as}} energy` : "can be used as energy" };
+    }
   }
 }
 

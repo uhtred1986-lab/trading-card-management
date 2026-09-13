@@ -17,13 +17,17 @@
  * The moments a WHEN may name are the **game's** (`rulesets/words.ts`, #137),
  * off `triggers.rules`, rather than a constant of the engine's.
  */
-import { asksAQuestion, validateProgram, type Cond, type CostRecord, type Op } from "../engine/script";
+import { OP_SCHEMA, asksAQuestion, validateProgram, type Cond, type CostRecord, type Op } from "../engine/script";
 import { whenMoments } from "../rulesets/words";
 import type { Rule } from "./ast";
 
 export type Invalid = { field: "rule" | "kind" | "trigger" | "cost" | "cond" | "ops"; message: string };
 
 const condOk = (c: unknown): boolean => validateProgram([{ op: "if", cond: c as Cond, then: [] }]);
+/** The same check a step's own selector gets, borrowed through the simplest condition that takes one. */
+const selOk = (sel: unknown): boolean => condOk({ kind: "count", sel });
+/** What a payer may stand in for, read off the `payWith` op rather than kept as a second colour list (20-19). */
+const PAY_AS = (OP_SCHEMA.payWith.fields.find((f) => f.name === "as")!.type as { enum: readonly string[] }).enum;
 const isObject = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
 
 /**
@@ -115,6 +119,17 @@ function costProblem(cost: unknown): string | null {
     const { min, max } = c.x as { min?: unknown; max?: unknown };
     for (const n of [min, max]) if (n !== undefined && (typeof n !== "number" || !Number.isInteger(n) || n < 0)) return "an X bound is a whole number, never below zero";
     if (typeof min === "number" && typeof max === "number" && min > max) return "an X price cannot ask for more than it allows";
+  }
+  // 20-19: each payer is a selector and what it counts as. `selOk` is the same
+  // check an op's own selector gets, so a price cannot smuggle in a shape a
+  // step could not name.
+  if (c.payWith !== undefined) {
+    if (!Array.isArray(c.payWith) || !c.payWith.length) return "a price that names payers names at least one";
+    for (const pw of c.payWith as unknown[]) {
+      if (!isObject(pw)) return "a payer is a selector and what it counts as";
+      if (!isObject(pw.sel) || !selOk(pw.sel)) return "the price names a payer the engine cannot pick out";
+      if (typeof pw.as !== "string" || !PAY_AS.includes(pw.as)) return "a payer stands in for energy or for one coloured orb";
+    }
   }
   if (c.condition != null && !condOk(c.condition)) return "the price states a condition the engine cannot ask";
   if (c.program != null && !validateProgram(c.program as Op[])) return "the price charges a program the engine cannot run";

@@ -11,7 +11,7 @@
  */
 import { skillsOf } from "./cards";
 import type { CardFilter } from "./filters";
-import { describeCond, describeScript } from "./script-schema";
+import { describeCond, describeScript, describeSelector } from "./script-schema";
 import {
   addEffect,
   addSkip,
@@ -513,6 +513,30 @@ export type Op =
       until?: Duration;
     }
   /**
+   * 20-19: a card that may be rested to pay an energy cost although it is not
+   * in the Energy Area — "[Permanent] You can use this card to pay energy
+   * costs even when it's in your Battle Area" (BT3-039).
+   *
+   * Nothing moves: the card stays where it stands and is switched to Rest Mode
+   * exactly as an energy card is, which is what separates this from an action
+   * price that places a card in the Drop (4-3-3). Stored and read the way
+   * `altCost` is — the printed form is [Permanent] and `collectStatics` reads
+   * it, `until` is only for a card granting it to others for a span — and it
+   * is the *unscoped* permission only: a card that may be used as energy for
+   * some payments and not others says so in words this does not carry, so the
+   * compiler refuses those rather than offering a wider permission than the
+   * card prints.
+   */
+  | {
+      op: "payWith";
+      /** What each eligible card counts as: one energy of its own colours, or one orb of the colour named. */
+      as?: "energy" | Color;
+      /** Omit for "this card". */
+      target?: Ref;
+      /** Omit only for the permanent, self-only form printed as [Permanent]. */
+      until?: Duration;
+    }
+  /**
    * What a [Counter: Play] does to the card it is answering (9-6). `instead`
    * stops the play outright and sends the card there rather than into play;
    * `mode` and `negated` let the play happen but change how the card arrives.
@@ -587,6 +611,29 @@ export type Op =
  * `card_rules` row. It lives here so the store can hand a price to the engine
  * without either of them importing the compiler.
  */
+/**
+ * A card the price may be paid with instead of energy (20-19).
+ *
+ * "You can use this card to pay energy costs even when it's in your Battle
+ * Area" (BT3-039): the card is rested exactly as an energy card is, and while
+ * it is eligible it stands in the payment for one energy — of its own colours
+ * (`"energy"`), or of the one colour the card names (`{ orb }`). Nothing here
+ * moves the card: it stays where it is, which is what separates this from an
+ * action price that places a card in the Drop (4-3-3, `CostRecord.program`).
+ */
+export interface PayWith {
+  /** Which cards may stand in. Resolved against the board when the price is planned. */
+  sel: Selector;
+  /**
+   * What each one counts as: one energy of its own colours (`"energy"`), or
+   * one orb of the colour named. A colour is written flat rather than as
+   * `{ orb }` so the `payWith` **op** can carry the same value in an ordinary
+   * `enum` field — the two halves of this feature say one thing, and the
+   * printed grammar is `AS energy` / `AS {Red}` either way.
+   */
+  as: "energy" | Color;
+}
+
 export interface SkillPrice {
   condition: Cond | null;
   ops: Op[] | null;
@@ -596,6 +643,11 @@ export interface SkillPrice {
    * absent means it may not.
    */
   x?: XCost;
+  /**
+   * Cards this price may be paid with instead of energy (20-19), off the
+   * record's `payWith`. Absent means the price is energy and nothing else.
+   */
+  payWith?: PayWith[];
 }
 
 /**
@@ -629,6 +681,8 @@ export interface CostRecord {
   program: Op[] | null;
   /** "{X}" — the price charges X energy, chosen when the skill is activated, and the effect may then say `X` (20-5). */
   x?: XCost;
+  /** "You can use this card as energy" — cards this price may be paid with instead of energy (20-19). */
+  payWith?: PayWith[];
 }
 
 /**
@@ -646,6 +700,10 @@ export function costSentence(cost: CostRecord | null): string | null {
   if (cost.marker != null) parts.push(cost.marker >= 0 ? `add ${cost.marker} marker${cost.marker === 1 ? "" : "s"}` : `remove ${-cost.marker} marker${cost.marker === -1 ? "" : "s"}`);
   if (cost.burst != null) parts.push(`Burst ${cost.burst}`);
   if (cost.spiritBoost != null) parts.push(`Spirit Boost ${cost.spiritBoost}`);
+  // 20-19: the alternative payers are named before the conditions, because
+  // they are part of what the price *is* — "pay 2 energy or use this card as
+  // energy" — rather than something it also requires.
+  for (const pw of cost.payWith ?? []) parts.push(`or use ${describeSelector(pw.sel)}${pw.as === "energy" ? "" : ` as {${pw.as}}`} as energy`);
   if (cost.condition) parts.push(`if ${describeCond(cost.condition)}`);
   if (cost.program) parts.push(describeScript(cost.program));
   else if (cost.text && !cost.condition) parts.push(cost.text);
@@ -1626,6 +1684,17 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         const value: AltCost = { pay: op.pay, n: op.n ?? 1, for: op.for ?? "counter", ...(op.ops ? { ops: op.ops } : {}), ...(op.orbs ? { orbs: op.orbs } : {}) };
         for (const id of resolveRef(ctx, s, frame, op.target ?? { sel: { special: "self" } }))
           addEffect(s, ev, { master: frame.master, source: frame.card, target: id, kind: "altCost", value: 0, until: op.until, altCost: value });
+        break;
+      }
+
+      // 20-19, and the same shape as `altCost` above for the same reason: the
+      // printed form is a [Permanent] that never resolves and `collectStatics`
+      // reads it there. Reaching this case means a card granted the permission
+      // for a span, so it is applied to whatever the selector names now.
+      case "payWith": {
+        if (!op.until) break;
+        for (const id of resolveRef(ctx, s, frame, op.target ?? { sel: { special: "self" } }))
+          addEffect(s, ev, { master: frame.master, source: frame.card, target: id, kind: "payer", value: 0, until: op.until, payAs: op.as ?? "energy" });
         break;
       }
 

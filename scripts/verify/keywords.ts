@@ -1643,3 +1643,75 @@ function withRecord(cardId: string, record: { ops: unknown[]; unsupported: strin
   assert.deepEqual(s.players.p1.skips, [], "…and is dropped with the turn rather than eating the next one");
   assertConsistent(s);
 }
+
+// ── 20-19: paying with something that is not energy ─────────────────────────
+//
+// "[Permanent] You can use this card to pay energy costs even when it's in
+// your Battle Area" (BT3-039). The card is rested where it stands, counts as
+// one energy of its own colours, and never moves. Three things are checked
+// here, and the third is the one that would not show in a coverage number: the
+// permission is an *offer*, so energy is spent first and the Battle Card is
+// only reached for when the energy alone cannot cover the price.
+{
+  DEFS.PAYER = {
+    ...DEFS.V1,
+    id: "PAYER",
+    name: "PAYER",
+    energyCost: 1,
+    skill: "[Permanent] You can use this card to pay energy costs even when it's in your Battle Area.",
+  };
+  DEFS.ORBSKILL = {
+    ...DEFS.V1,
+    id: "ORBSKILL",
+    name: "ORBSKILL",
+    energyCost: 1,
+    skill: "[Activate: Main]{1}: This card gets +5000 power for the turn.",
+  };
+  assert.deepEqual(compileSkill(parseSkills(DEFS.PAYER.skill!)[0]).ops, [{ op: "payWith" }], "the [Permanent] reads to a payWith step");
+
+  // Without the payer the skill is unaffordable: there is no energy at all.
+  const none = arena({ battle: ["ORBSKILL"] });
+  assert.equal(none.players.p1.energy.length, 0, "the board is staged with no energy");
+  assert.ok(!canActivate(none, find(none, "p1", "battle", "ORBSKILL")), "a {1} skill is not offered with nothing to pay it with");
+
+  // With it, the skill is offered and the payer is what gets rested.
+  let s = arena({ battle: ["ORBSKILL", "PAYER"] });
+  const skillCard = find(s, "p1", "battle", "ORBSKILL");
+  const payer = find(s, "p1", "battle", "PAYER");
+  assert.ok(canActivate(s, skillCard), "the Battle Card standing in for energy makes the skill payable");
+  assert.deepEqual(planPayment(CTX, s, "p1", 1, {}), { rest: [payer], markers: 0 }, "the plan rests the payer and nothing else");
+  const before = powerOf(CTX, s, skillCard);
+  s = play(s, { type: "activate", player: "p1", card: skillCard, skill: 0 });
+  assert.equal(s.cards[payer].mode, "rest", "the payer is switched to Rest Mode, exactly as energy is");
+  assert.ok(s.players.p1.battle.includes(payer), "and it stays in the Battle Area — nothing moved");
+  assert.equal(s.players.p1.energy.length, 0, "nothing was charged from the Energy Area, which had nothing in it");
+  assert.equal(powerOf(CTX, s, skillCard), before + 5000, "and the skill resolved");
+  assert.ok(!canActivate(s, skillCard), "a rested payer cannot pay again");
+  assertConsistent(s);
+
+  // The offer is not an obligation: with energy on the table the energy goes
+  // first and the Battle Card stays active.
+  let withEnergy = arena({ battle: ["ORBSKILL", "PAYER"], energy: ["V1"] });
+  const payer2 = find(withEnergy, "p1", "battle", "PAYER");
+  const energyCard = find(withEnergy, "p1", "energy", "V1");
+  assert.deepEqual(planPayment(CTX, withEnergy, "p1", 1, {}), { rest: [energyCard], markers: 0 }, "energy is tried before a card that may stand in for it");
+  withEnergy = play(withEnergy, { type: "activate", player: "p1", card: find(withEnergy, "p1", "battle", "ORBSKILL"), skill: 0 });
+  assert.equal(withEnergy.cards[energyCard].mode, "rest");
+  assert.equal(withEnergy.cards[payer2].mode, "active", "the Battle Card is left alone when the energy could cover the price");
+
+  // The permission holds where the card is (9-1-3-1): in hand it is not a payer.
+  const inHand = arena({ battle: ["ORBSKILL"], hand: ["PAYER"] });
+  assert.ok(!canActivate(inHand, find(inHand, "p1", "battle", "ORBSKILL")), "a [Permanent] in hand pays for nothing");
+
+  // And the refusal twin says the same thing the menu does, rather than
+  // claiming a shortfall the payer covers.
+  const why = rejectedActions(CTX, none).find((r) => r.action.type === "activate" && r.action.card === find(none, "p1", "battle", "ORBSKILL"));
+  assert.ok(
+    why?.why.some((r) => r.kind === "energy"),
+    "with no payer, the refusal is still an energy shortfall",
+  );
+  assert.ok(
+    !rejectedActions(CTX, s).some((r) => r.action.type === "activate" && r.action.card === skillCard && r.why.some((x) => x.kind === "energy" && x.have > x.need)),
+    "and the twin never reports a shortfall the payer has already covered",
+  );
+}

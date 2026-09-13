@@ -1,6 +1,6 @@
 # Arena current state (short)
 
-Last updated: 12 Sep 2026
+Last updated: 13 Sep 2026
 
 This file is the short, always-current arena state-of-the-world summary.
 Keep it under 200 lines. Update it whenever arena scope, priorities, or the
@@ -13,11 +13,16 @@ Keep it under 200 lines. Update it whenever arena scope, priorities, or the
   the engine plays from those rows, and unresolved wording is escalated via
   the referee workflow.
 - Two engines exist (`legacy`, `rules`), but only `legacy` is playable today.
-  `rules` is a skeleton in `src/lib/arena/vm/`: `engineFor("rules")` resolves it
-  and it can create a game (a `VmState` carrying the engine and the game its
-  definition was loaded from), but every other call throws `NotYet` naming the
-  issue that builds it, and `playableEngine("rules")` still throws
-  `EngineNotBuilt` so no new game can be started on it.
+  `rules` is `src/lib/arena/vm/`: `engineFor("rules")` resolves it and it can
+  **make a game and deal the opening board** — a side is a map of the zones
+  `zones.rules` declares, a card is a bag of the attributes `attributes.rules`
+  declares, and from the same seed the hands, life piles and decks are card for
+  card the ones the legacy engine deals. Every other call throws `NotYet` naming
+  the issue that builds it (#140 the flow, #141 the log, #142 effects and
+  prompts), and `playableEngine("rules")` still throws `EngineNotBuilt` so no new
+  game can be started on it.
+- `npx tsx scripts/arena-fuzz.mts 40 --engine rules` is the dealing fuzz for that
+  engine: forty real deck pairings created and the board checked, no moves.
 - The immediate day-to-day work remains improving wording coverage and avoiding
   wrongly-read clauses (prefer unread over wrong reads).
 - `docs/arena-ruleset-spec.md` is the interpreter contract for the `rules`

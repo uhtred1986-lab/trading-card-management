@@ -245,6 +245,22 @@ class Parser {
       cost.x = x;
       return;
     }
+    // 20-19: "PAYWITH <selector> AS energy" / "AS {Red}". The colour is
+    // written in braces because that is how every other orb in a price is
+    // written; it is one orb of that colour, not a whole cost.
+    if (this.eatKw("PAYWITH")) {
+      const sel = this.selector("AS");
+      if (!this.eatKw("AS")) this.fail("a PAYWITH says what the card counts as", ["AS"]);
+      let as: "energy" | Color = "energy";
+      if (this.eatPunct("{")) {
+        as = this.word("an energy colour") as Color;
+        this.want("}");
+      } else if (!this.eatKw("energy")) {
+        this.fail("a card stands in for energy or for one coloured orb", ["energy", "{Red}"]);
+      }
+      cost.payWith = [...(cost.payWith ?? []), { sel, as }];
+      return;
+    }
     if (this.eatKw("TEXT")) {
       cost.text = this.string();
       return;
@@ -503,11 +519,18 @@ class Parser {
 
   // ── the selector ──────────────────────────────────────────────────────────
 
-  private selector(): Selector {
+  /**
+   * `stop` ends the selector at a keyword instead of at a closer — `PAYWITH
+   * <selector> AS energy` is the one place a selector is followed by more of
+   * the same item rather than by `)`, `,` or the end of the line, and without
+   * it `AS` is read as one more thing said about the cards.
+   */
+  private selector(stop?: string): Selector {
     const sel: Selector = {};
     let parts = 0;
     for (;;) {
       if (this.atEnd() || this.isPunct("*")) break;
+      if (stop && this.isKw(stop)) break;
       this.selectorPart(sel);
       parts++;
     }
