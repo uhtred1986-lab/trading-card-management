@@ -352,7 +352,10 @@ import type { Beat, Beats, GameState, NumberedBeat, PlayerId, Snapshot } from ".
     let n = 0;
     const at = (b: Beat): NumberedBeat => ({ ...b, n: ++n }) as NumberedBeat;
     const list: NumberedBeat[] = [
-      at({ t: "phase", phase: "main", player: "p1", turn: s.turn }),
+      // 20-13's `skipped` rides on the phase beat rather than having a kind of
+      // its own, so this is the one fixture that can carry it — and carrying it
+      // is what makes a client that has never seen the field fail loudly.
+      at({ t: "phase", phase: "main", player: "p1", turn: s.turn, skipped: true }),
       at({ t: "draw", player: "p1", card: mine }),
       at({ t: "move", card: mine, from: "hand", to: "battle", owner: "p1" }),
       at({ t: "mode", card: mine, mode: "rest" }),

@@ -14,6 +14,7 @@ import type { CardFilter } from "./filters";
 import { describeCond, describeScript, describeSelector } from "./script-schema";
 import {
   addEffect,
+  addSkip,
   amount,
   condHolds,
   resolveRef,
@@ -39,7 +40,7 @@ import {
   type GameContext,
 } from "./state";
 import { koCard, masterOf, pendTriggers } from "./triggers";
-import type { Area, Color, DelayScope, DelayTiming, FlowStep, ForbiddenAction, GameEvent, GameState, KeywordSkill, MoveReason, PlayerId, ReplacementChoice, ReplacementResult, Skill, SkillKindPrefix, Trigger } from "./types";
+import type { Area, Color, DelayScope, DelayTiming, FlowStep, ForbiddenAction, GameEvent, GameState, KeywordSkill, MoveReason, PlayerId, ReplacementChoice, ReplacementResult, Skill, SkillKindPrefix, SkipWhat, Trigger } from "./types";
 
 // ── the language ───────────────────────────────────────────────────────────
 
@@ -306,6 +307,33 @@ export type Op =
   /** `negated` is "played … with its skills negated" (9-1-5), for the turn or for as long as it is in play. */
   | { op: "play"; target: Ref; mode?: "active" | "rest"; onto?: Ref; negated?: "turn" | "game" }
   | { op: "switchMode"; target: Ref; mode: "active" | "rest" }
+  /**
+   * 20-9: gaining control of a card is moving it into your own area and
+   * becoming its master (20-9-1), which is why this is one move and not a flag
+   * — in this engine the area a card is in *is* who masters it (0-3-4-1).
+   * `to` is whose Battle Area it goes to, read from the skill's master, and
+   * defaults to "you". The card keeps its mode, its markers and every
+   * continuous effect on it (20-9-2), and keeps the turn it entered play, so
+   * changing hands never makes it newly played.
+   *
+   * `until` is a loan: the effect it registers carries the way home, and
+   * expiring it walks the card back. Left out, control does not end — the
+   * card is the new master's until it leaves the Battle Area, and a KO still
+   * sends it to its **owner's** Drop Area (5-12-1).
+   */
+  | { op: "control"; target: Ref; to?: Side; until?: Duration }
+  /**
+   * 20-13: a phase or a step is not performed. `side` is whose, read from the
+   * skill's master, and `when` says which occurrence — "this" the one in the
+   * turn the skill resolved on, "next" the first in a later turn, which is
+   * what a card printed on your own turn means by "your next Charge Phase".
+   *
+   * A flag rather than a move through the flow: the phase has to be refused
+   * where it would *begin*, because 20-13-2..4 turn off its trigger moments,
+   * its actions and its checkpoints together, and a program running now cannot
+   * reach forward to a step that has not been queued yet.
+   */
+  | { op: "skip"; what: SkipWhat; side?: Side; when?: "this" | "next" }
   /**
    * The primitive under `power`, `comboPower` and `gains`
    * (`docs/arena-ruleset-spec.md` §2.3): one attribute of one card, by a
@@ -1118,7 +1146,7 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         while (frame.moveLoop && frame.moveLoop.kind === "ko" && frame.moveLoop.index < frame.moveLoop.ids.length) {
           const id = frame.moveLoop.ids[frame.moveLoop.index];
           // 22-12: [Indestructible] cannot be KO'd by an opponent's skill.
-          if (has(ctx, s, id, "Indestructible") && s.cards[id].owner !== master) {
+          if (has(ctx, s, id, "Indestructible") && masterOf(s, id) !== master) {
             frame.moveLoop.index++;
             continue;
           }
@@ -1185,7 +1213,7 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
           // 20-14: "can't be removed from a Battle Area by your opponent's
           // skills". The rule is about the opponent's skills, so a card its
           // own master moves is unaffected.
-          if (s.cards[id].owner !== master && areaOf(s, id) === "battle" && forbids(ctx, s, "beMovedBySkill", { card: id })) {
+          if (masterOf(s, id) !== master && areaOf(s, id) === "battle" && forbids(ctx, s, "beMovedBySkill", { card: id })) {
             frame.moveLoop.index++;
             continue;
           }
@@ -1271,6 +1299,41 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
         }
         break;
 
+      // 20-9: control, as one move. Out of scope on purpose (#126): a Leader
+      // or a Unison Card, which the manual gives no route to take and whose
+      // areas hold one card each — the note says so rather than the card
+      // silently staying put.
+      case "control": {
+        const to = sideOf(master, op.to ?? "you")[0];
+        for (const id of resolveRef(ctx, s, frame, op.target)) {
+          const at = areaOf(s, id);
+          if (at !== "battle") {
+            note(ev, `${face(ctx, s, id).name} can't be taken control of — ${at === "leader" || at === "unison" ? "control of a Leader or a Unison Card is not a thing this engine does" : "only a card in a Battle Area can change hands"}`);
+            continue;
+          }
+          const from = masterOf(s, id);
+          if (from === to) continue;
+          // 20-9-2: the card keeps its mode, its markers and the continuous
+          // effects on it, so the move carries rather than resets (3-1-4-1
+          // names gaining control as one of the two carrying moves). The turn
+          // it entered play is kept over the top of that, because `move` sets
+          // it for any arrival in play and a card changing hands is not a card
+          // newly played.
+          const entered = s.cards[id].enteredTurn;
+          move(ctx, s, ev, id, "battle", to, { carry: true, reason: "effect" });
+          s.cards[id].enteredTurn = entered;
+          if (op.until) addEffect(s, ev, { master, source: frame.card, target: id, kind: "control", value: 0, until: op.until, control: { from } });
+        }
+        break;
+      }
+
+      // 20-13. Nothing happens now: the entry is spent where the step would
+      // begin, which is the only place the whole of 20-13 can be applied at
+      // once.
+      case "skip":
+        for (const p of sideOf(master, op.side ?? "you")) addSkip(s, p, op.what, op.when ?? "next");
+        break;
+
       case "hidden":
         // 23-5-1: only a Battle Card in a Battle Area can be face down.
         for (const id of resolveRef(ctx, s, frame, op.target)) {
@@ -1302,7 +1365,7 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
           // by everything that player has in play. One moment, two wordings.
           const before = s.pending.length;
           pendTriggers(ctx, s, "flippedFaceUp", id, frame.card);
-          for (const w of cardsInPlay(s, s.cards[id].owner)) if (w !== id) pendTriggers(ctx, s, "flippedFaceUp", w, id);
+          for (const w of cardsInPlay(s, masterOf(s, id))) if (w !== id) pendTriggers(ctx, s, "flippedFaceUp", w, id);
           dropWrongColour(ctx, s, before, frame.card);
         }
         break;

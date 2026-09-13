@@ -243,6 +243,7 @@
         "phase": "main",
         "player": "p1",
         "turn": 3,
+        "skipped": true,
         "n": 1
       },
       {

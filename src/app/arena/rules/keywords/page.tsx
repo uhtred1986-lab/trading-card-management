@@ -134,6 +134,32 @@ export default function KeywordsPage() {
                 {r.title}
               </p>
               <p className="mt-1 text-[12px] leading-relaxed text-space-300">{r.body}</p>
+              {r.table && (
+                <div className="mt-2 overflow-x-auto">
+                  <table className="w-full min-w-[34rem] border-collapse text-left text-[11px]">
+                    <thead>
+                      <tr>
+                        {r.table.head.map((h) => (
+                          <th key={h} className="border-b border-space-700 py-1 pr-3 font-medium uppercase tracking-wider text-space-500">
+                            {h}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {r.table.rows.map((row, j) => (
+                        <tr key={j} className="align-top">
+                          {row.map((cell, k) => (
+                            <td key={k} className={`border-b border-space-800 py-1 pr-3 ${k === 0 ? "font-mono text-space-200" : "text-space-400"}`}>
+                              {cell}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </li>
           ))}
         </ol>

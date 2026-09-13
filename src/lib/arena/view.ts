@@ -23,7 +23,7 @@ import {
   type RejectedAction,
   type Requirement,
 } from "./engine";
-import { def, emitsStatic, locate, permanentStatics, type StaticEffect } from "./engine/state";
+import { def, emitsStatic, locate, masterOf, permanentStatics, type StaticEffect } from "./engine/state";
 import { describeEffect, describeStatic, type EffectView } from "./effects";
 
 export interface CardView {
@@ -273,7 +273,7 @@ function effectView(
 function effectsOn(ctx: EngineContext, s: GameState, id: string, statics: StaticEffect[]): EffectView[] {
   const out: EffectView[] = [];
   for (const e of s.effects) if (e.target === id) out.push(effectView(ctx, s, describeEffect(e), e.until, e.source, e.master));
-  for (const e of statics) if (e.target === id) out.push(effectView(ctx, s, describeStatic(e), "permanent", e.source, s.cards[e.source]?.owner ?? null));
+  for (const e of statics) if (e.target === id) out.push(effectView(ctx, s, describeStatic(e), "permanent", e.source, s.cards[e.source] ? masterOf(s, e.source) : null));
   return out;
 }
 
@@ -283,7 +283,7 @@ function rulesOn(ctx: EngineContext, s: GameState, p: PlayerId, statics: StaticE
   const about = (player: PlayerId | undefined) => !player || player === p;
   for (const e of s.effects) if (!e.target && e.kind === "forbid" && e.forbid && about(e.forbid.player)) out.push(effectView(ctx, s, describeEffect(e), e.until, e.source, e.master));
   for (const e of statics)
-    if (!e.target && e.kind === "forbid" && about((e.value as { player?: PlayerId }).player)) out.push(effectView(ctx, s, describeStatic(e), "permanent", e.source, s.cards[e.source]?.owner ?? null));
+    if (!e.target && e.kind === "forbid" && about((e.value as { player?: PlayerId }).player)) out.push(effectView(ctx, s, describeStatic(e), "permanent", e.source, s.cards[e.source] ? masterOf(s, e.source) : null));
   return out;
 }
 
