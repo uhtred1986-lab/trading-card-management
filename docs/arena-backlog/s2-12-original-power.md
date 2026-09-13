@@ -1,8 +1,10 @@
 ---
 title: Arena: read a card's original (pre-skill) power and skill-less state — "original power", "originally skill-less" (20-3)
 milestone: Arena M1 — Rules correctness and parser coverage
-labels: backlog, ready-for-agent, enhancement, area:arena-compiler, area:arena-lang, phase:rules-stage2, model:sonnet-5
+labels: done, enhancement, area:arena-compiler, area:arena-lang, phase:rules-stage2, model:sonnet-5
 stage: 2
+status: closed
+closed_at: 2026-09-13
 issue: 238
 ---
 **Item type:** Feature
