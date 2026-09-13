@@ -345,6 +345,9 @@ export function printCost(cost: CostRecord): string {
   // "{X}" (20-5). Printed bare when it is payable at anything, with its bounds
   // when the card sets one; `min` always before `max`, so there is one form.
   if (cost.x) items.push(["X", cost.x.min === undefined ? "" : `min ${cost.x.min}`, cost.x.max === undefined ? "" : `max ${cost.x.max}`].filter(Boolean).join(" "));
+  // 20-19, before TEXT for the same reason `costSentence` puts it first: the
+  // payers are part of what the price *is*, and TEXT is what is left over.
+  for (const pw of cost.payWith ?? []) items.push(`PAYWITH ${printSelector(pw.sel)} AS ${pw.as === "energy" ? "energy" : `{${pw.as}}`}`);
   if (cost.text) items.push(`TEXT ${JSON.stringify(cost.text)}`);
   if (cost.condition !== null) items.push(`IF ${printCond(cost.condition)}`);
   if (cost.program !== null) items.push(`DO ${printBlock(cost.program, 0)}`);

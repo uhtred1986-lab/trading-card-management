@@ -16,7 +16,7 @@ import { baseType, canCombo, isZ, keywordOf, skillsOf, specifiedCostOf } from ".
 // a game compiled card text.
 import { costIsOnlyOrbs, costText, parseConditionClause } from "./compile";
 import { matches, parseCondition, parseFilter } from "./filters";
-import { savedXKey, stepScript, validateProgram, type CardScripts, type Cond, type Op, type ScriptFrame, type XCost } from "./script";
+import { savedXKey, stepScript, validateProgram, type CardScripts, type Cond, type Op, type PayWith, type ScriptFrame, type XCost } from "./script";
 import { koCard, pendTriggers } from "./triggers";
 import { nextRandom, shuffle } from "./rng";
 import { rejectedActions as gatherRejectedActions, type RejectionDeps } from "./rejections";
@@ -56,6 +56,7 @@ import {
   permits,
   orbCount,
   planPayment,
+  pricePayers,
   playCost,
   powerOf,
   schedule,
@@ -64,6 +65,7 @@ import {
   setMode,
   skillsOfInstance,
   type GameContext,
+  type Payer,
   condHolds,
   invokerEnergy,
   liftFromPile,
@@ -1045,9 +1047,27 @@ function costIsReadable(ctx: EngineContext, s: GameState, card: string, sk: Skil
  * which `npm test` and the probe use) carries the price with the program, so
  * it is only ever an undrafted card in a real game.
  */
-function priceFor(ctx: EngineContext, s: GameState, card: string, sk: Skill): { condition: Cond | null; ops: Op[] | null; x: XCost | null; known: boolean } {
+function priceFor(ctx: EngineContext, s: GameState, card: string, sk: Skill): { condition: Cond | null; ops: Op[] | null; x: XCost | null; payWith: PayWith[] | null; known: boolean } {
   const price = scriptsOf(ctx, s, card).bySkill[sk.index]?.price;
-  return { condition: price?.condition ?? null, ops: price?.ops ?? null, x: price?.x ?? null, known: price !== undefined };
+  return { condition: price?.condition ?? null, ops: price?.ops ?? null, x: price?.x ?? null, payWith: price?.payWith ?? null, known: price !== undefined };
+}
+
+/**
+ * 20-19: the cards a *skill's own price* says may be rested in its place,
+ * resolved against the board now. The rule-wide permission ("you can use this
+ * card to pay energy costs", BT3-039) is read inside `planPayment` and needs
+ * none of this; a `PAYWITH` item on the record is scoped to one price, so it
+ * is resolved here and handed over with it.
+ *
+ * One function for both sides of an activation — the "can I" in `activatable`
+ * and the "do it" in `activate` — the way `orbTotals` already is, because a
+ * price the menu could pay and the payment could not is the exact drift these
+ * shared readings exist to prevent.
+ */
+function pricePayersFor(ctx: EngineContext, s: GameState, p: PlayerId, card: string, sk: Skill): Payer[] {
+  const payWith = priceFor(ctx, s, card, sk).payWith;
+  if (!payWith?.length) return [];
+  return pricePayers(ctx, s, { ops: [], ip: 0, vars: {}, card, master: p }, payWith);
 }
 
 /**
@@ -2186,7 +2206,8 @@ function activatable(ctx: EngineContext, s: GameState, p: PlayerId, card: string
   // One reading of the skill's orbs, shared with `activate` — the two used to
   // count them separately, and neither knew about "{r}/{u}".
   const { total: orbTotal, specified: orbSpecified, either: orbEither } = orbTotals(ctx, s, card, sk, k?.name === "Evolve" ? "evolve" : "skill");
-  const canPayOrbs = () => planPayment(ctx, s, p, orbTotal, orbSpecified, undefined, orbEither) !== null;
+  const pricePayerCards = pricePayersFor(ctx, s, p, card, sk);
+  const canPayOrbs = () => planPayment(ctx, s, p, orbTotal, orbSpecified, undefined, orbEither, undefined, pricePayerCards) !== null;
   // The one reading of "the price is nothing but orbs", shared with
   // `costIsReadable` and with `arena:gaps`. There used to be a second one
   // here that differed on reminder text, so "{r} (Play this card from your
@@ -2360,7 +2381,7 @@ function activatable(ctx: EngineContext, s: GameState, p: PlayerId, card: string
       // orbs needed the very energy [Invoker] was about to rest.
       if (!altCostFor(ctx, s, card, p, "play")) return null;
       const spoken = invokerEnergy(ctx, s, p);
-      if (!planPayment(ctx, s, p, orbTotal, orbSpecified, undefined, orbEither, spoken ? [spoken] : undefined)) return null;
+      if (!planPayment(ctx, s, p, orbTotal, orbSpecified, undefined, orbEither, spoken ? [spoken] : undefined, pricePayerCards)) return null;
       return `Activate ${name} by resting a Red/Blue energy ([Invoker])`;
     }
     const c = playCost(ctx, s, card);
@@ -2406,7 +2427,9 @@ function whyNotActivate(ctx: EngineContext, s: GameState, p: PlayerId, card: str
   if (sk.sparking != null && s.players[p].drop.length < sk.sparking) why.push({ kind: "condition", text: `[Sparking ${sk.sparking}]: ${sk.sparking} or more cards in your Drop Area` });
   if (!canPayKeywordCosts(s, p, sk)) why.push({ kind: "other", detail: sk.burst != null ? `[Burst ${sk.burst}] needs that many cards in the deck` : "[Spirit Boost] needs the markers" });
   const { total: orbTotal, specified: orbSpecified, either: orbEither } = orbTotals(ctx, s, card, sk, k?.name === "Evolve" ? "evolve" : "skill");
-  const orbs = () => whyNotPay(ctx, s, p, orbTotal, orbSpecified, orbEither);
+  // 20-19: the twin sees the same payers `activatable` does, or it would say
+  // "1 short" about a price the menu is offering.
+  const orbs = () => whyNotPay(ctx, s, p, orbTotal, orbSpecified, orbEither, undefined, pricePayersFor(ctx, s, p, card, sk));
   const costIsOrbsOnly = costIsOnlyOrbs(sk.cost);
   const wantTiming = (want: "main" | "battle") => {
     if (timing !== want) why.push({ kind: "timing", window: want });
@@ -3022,7 +3045,7 @@ function activate(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId
   if (xPrice && xPrice.max !== undefined && (xPaid ?? 0) > xPrice.max) throw new IllegalAction("X is more than this skill allows");
   const payOrbs = () => {
     const { total, specified, either } = orbTotals(ctx, s, card, sk, k?.name === "Evolve" ? "evolve" : "skill");
-    const pm = planPayment(ctx, s, p, total + (xPaid ?? 0), specified, explicitPay, either);
+    const pm = planPayment(ctx, s, p, total + (xPaid ?? 0), specified, explicitPay, either, undefined, pricePayersFor(ctx, s, p, card, sk));
     if (!pm) throw new IllegalAction("can't pay the skill cost");
     pay(s, ev, p, pm);
   };

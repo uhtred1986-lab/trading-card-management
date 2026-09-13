@@ -85,7 +85,7 @@ flag   := "active" | "rest" | "fromEnd" | "ignoringBarrier" | "otherThanSelf" | 
 filter := "\"" printed filter text "\"" | "(" field "=" value ( "AND" … )* ")"
 item   := "{" colour "}"+ | "{" colour "/" colour "}" | ±n "marker" | "burst" n
         | "spiritBoost" n | "X" ( "min" number )? ( "max" number )? | "TEXT" "…"
-        | "IF" cond | "DO" "{" stmt* "}"
+        | "PAYWITH" SEL "AS" ( "energy" | "{" colour "}" ) | "IF" cond | "DO" "{" stmt* "}"
 ```
 
 **The expression calls are a table, not a list of cases.** `EXPR_SCHEMA` (`lang/ast.ts`) says each
@@ -103,6 +103,14 @@ the effect that follows it, which is how "discard any number of cards: … X car
 
 The right-hand side of `*` and `+` is always a printed number. No card multiplies one reading of the
 board by another, and allowing it would leave the printed form ambiguous about which was read first.
+
+`PAYWITH` names cards this price may be settled with instead of energy (20-19). Each one is rested
+exactly as an energy card is and never moves, standing in for one energy — of its own colours
+(`AS energy`) or of the colour named (`AS {Red}`). The item scopes the permission to **one price**;
+a card that says it about itself for every payment ("You can use this card to pay energy costs even
+when it's in your Battle Area", BT3-039) says so as a `payWith` step in a [Permanent] instead, and
+the planner reads both. Energy is always tried first: the permission is an offer, and resting a
+Battle Card to pay for something the Energy Area could have covered is a cost nobody agreed to.
 
 `trigger` names the engine's fired moments (validated by `validateRule`), including keyword-timing moments that are not plain phase names: `evolveFromHandActivated`, `unionAbsorbActivated`, and `counterFreeFromHand`. The free-counter wording is modelled as a WHEN moment (not as a COST item), so one printed form round-trips to one record shape.
 
@@ -398,6 +406,25 @@ WHEN [activate:main]
 COST X
 THEN
   draw(n: X)
+```
+
+A price the board may settle with something other than energy (20-19). The skill costs two energy,
+and either of your rested-able ≪Godly Power≫ Battle Cards may stand in for one of them:
+
+```
+WHEN [activate:main]
+COST {any}{any}, PAYWITH 1 "≪Godly Power≫" IN you.battle AS energy
+THEN
+  draw(n: 1)
+```
+
+The same permission said about the card itself, for every payment rather than one price — the
+[Permanent] half of 20-19, and what BT3-039 compiles to:
+
+```
+WHEN [permanent]
+THEN
+  payWith(as: energy)
 ```
 
 An expression that reads the board: the total combo power of the cards a price discarded, and a

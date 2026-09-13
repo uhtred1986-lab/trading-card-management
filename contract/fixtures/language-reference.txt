@@ -561,6 +561,58 @@
       "sentence": "this card gains [Blocker] for the turn"
     },
     {
+      "name": "copySkills",
+      "class": "primitive",
+      "signature": "{\"op\":\"copySkills\",\"target\"?:TARGET,\"from\":TARGET,\"which\"?:\"all\",\"skill\"?:N,\"only\"?:\"keyword\",\"until\":DURATION}",
+      "fields": [
+        {
+          "name": "target",
+          "required": false,
+          "nullable": false,
+          "defaultText": "{\"sel\":{\"special\":\"self\"}}",
+          "type": "ref"
+        },
+        {
+          "name": "from",
+          "required": true,
+          "nullable": false,
+          "type": "ref"
+        },
+        {
+          "name": "which",
+          "required": false,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "all"
+          ]
+        },
+        {
+          "name": "skill",
+          "required": false,
+          "nullable": false,
+          "type": "number"
+        },
+        {
+          "name": "only",
+          "required": false,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "keyword"
+          ]
+        },
+        {
+          "name": "until",
+          "required": true,
+          "nullable": false,
+          "type": "duration"
+        }
+      ],
+      "sentence": "choose 1 of the skills of this card, and this card gains that skill for the turn",
+      "doc": "20-18: one card takes on another's printed skills. \"which\":\"all\" copies every one of them, \"skill\" copies one by its index on the source, and neither lets the master pick one as the skill resolves — which is what \"choose up to 1 keyword skill … and this card gains that skill\" says. \"only\":\"keyword\" narrows the pick and the copy to keyword skills. The printed face is snapshotted when the effect is made (9-9), so the copy outlives the source leaving play"
+    },
+    {
       "name": "negateSkills",
       "class": "macro over `negate`",
       "signature": "{\"op\":\"negateSkills\",\"target\":TARGET,\"until\":DURATION}",
@@ -1167,6 +1219,45 @@
       ],
       "sentence": "this card's [Counter] may be activated for no energy",
       "doc": "another way to pay for a [Counter] (or a play, \"for\":\"play\") (5-3) — \"none\", \"life\" (n cards), a reduced \"energy\" price (\"orbs\"), or a \"program\" the card asks for instead. Printed on the card itself this is [Permanent]-only and omits \"target\"/\"until\"; a card that grants it to *other* cards for a span carries both — \"Until the start of your next turn, you can activate mono-blue cards with [Counter] skills from your hand by …\" (BT11-033)"
+    },
+    {
+      "name": "payWith",
+      "class": "primitive",
+      "signature": "{\"op\":\"payWith\",\"as\"?:\"energy\"|\"Red\"|\"Blue\"|…,\"target\"?:TARGET,\"until\"?:DURATION}",
+      "fields": [
+        {
+          "name": "as",
+          "required": false,
+          "nullable": false,
+          "defaultText": "\"energy\"",
+          "type": "enum",
+          "enumValues": [
+            "energy",
+            "Red",
+            "Blue",
+            "Green",
+            "Yellow",
+            "Black",
+            "White",
+            "Colorless"
+          ]
+        },
+        {
+          "name": "target",
+          "required": false,
+          "nullable": false,
+          "defaultText": "{\"sel\":{\"special\":\"self\"}}",
+          "type": "ref"
+        },
+        {
+          "name": "until",
+          "required": false,
+          "nullable": false,
+          "type": "duration"
+        }
+      ],
+      "sentence": "this card may be rested to pay an energy cost as energy, wherever it is",
+      "doc": "a card that may be rested to pay an energy cost although it is not in the Energy Area (20-19) — \"[Permanent] You can use this card to pay energy costs even when it's in your Battle Area\" (BT3-039). The card does not move; it is rested exactly as an energy card is and stands in for one energy, of its own colours (\"as\":\"energy\") or of the colour named. Printed on the card itself this is [Permanent]-only and omits \"target\"/\"until\", the way \"altCost\" does; both are for a card granting the permission to others for a span. It is the *unscoped* permission only — a card usable as energy for some payments and not others is left unread rather than offered wider than it prints"
     },
     {
       "name": "resolvingPlay",
@@ -2287,6 +2378,10 @@
     {
       "syntax": "X",
       "doc": "an X price, optionally bounded (X min 1 max 3); the effect reads it back as X (20-5)"
+    },
+    {
+      "syntax": "PAYWITH",
+      "doc": "cards that may be rested to pay this price instead of energy (20-19): PAYWITH <selector> AS energy for one energy of their own colours, AS {Red} for one orb of a colour"
     },
     {
       "syntax": "TEXT",

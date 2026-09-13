@@ -416,6 +416,17 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     },
     doc: 'another way to pay for a [Counter] (or a play, "for":"play") (5-3) — "none", "life" (n cards), a reduced "energy" price ("orbs"), or a "program" the card asks for instead. Printed on the card itself this is [Permanent]-only and omits "target"/"until"; a card that grants it to *other* cards for a span carries both — "Until the start of your next turn, you can activate mono-blue cards with [Counter] skills from your hand by …" (BT11-033)',
   },
+  payWith: {
+    fields: [{ name: "as", type: { enum: ["energy", ...COLORS] }, default: "energy" }, SELF, { name: "until", type: "duration" }],
+    sentence: (raw) => {
+      const op = raw as OpOf<"payWith">;
+      const who = op.target ? describeRef(op.target) : "this card";
+      const as = !op.as || op.as === "energy" ? "energy" : `{${op.as}}`;
+      const until = op.until ? ` until ${op.until === "game" ? "the game ends" : op.until}` : "";
+      return `${who} may be rested to pay an energy cost as ${as}, wherever it is${until}`;
+    },
+    doc: 'a card that may be rested to pay an energy cost although it is not in the Energy Area (20-19) — "[Permanent] You can use this card to pay energy costs even when it\'s in your Battle Area" (BT3-039). The card does not move; it is rested exactly as an energy card is and stands in for one energy, of its own colours ("as":"energy") or of the colour named. Printed on the card itself this is [Permanent]-only and omits "target"/"until", the way "altCost" does; both are for a card granting the permission to others for a span. It is the *unscoped* permission only — a card usable as energy for some payments and not others is left unread rather than offered wider than it prints',
+  },
   resolvingPlay: {
     fields: [{ name: "instead", type: "area" }, { name: "position", type: POSITION }, { name: "mode", type: { enum: ["rest"] } }, { name: "negated", type: "boolean" }],
     sentence: (raw) => {
@@ -548,6 +559,7 @@ export const OP_CLASS: Record<Op["op"], OpClass> = {
   replace:            "primitive",
   replaceLeave:       "macro over `replace`",
   altCost:            "macro over `costModifier`",
+  payWith:            "primitive",
   resolvingPlay:      "macro over `replace`",
   negateAttack:       "macro over `replace`",
   negateCounter:      "macro over `replace`",
@@ -998,7 +1010,7 @@ function selectorWords(sel: Selector): string {
  * is, `every` asks about each — so they pass their own word rather than let
  * the sentence claim a quantifier the engine does not use.
  */
-function describeSelector(sel: Selector, all = "all"): string {
+export function describeSelector(sel: Selector, all = "all"): string {
   // The one special a filter can narrow and the reading has to keep: "the
   // <Majin Buu> on top of this card" and "the Leader on top of this card" are
   // different cards, and dropping the words would print them the same.

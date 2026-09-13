@@ -172,6 +172,7 @@ disagree or if a row is missing from either.
 | `replace` | primitive | An event is named (`leave`, `ko`, `play`) and a program stands in its place (9-10). Built by #125. `replaceLeave` and the `instead` half of `resolvingPlay` run through it today; `negateAttack` and `negateCounter` name events the engine still resolves in their own cases. |
 | `replaceLeave` | macro over `replace` | Event: a card leaving the Battle Area (9-10). |
 | `altCost` | macro over `costModifier` | A price is replaced, not reduced — which is why the primitive takes a price rather than a number (§2.5). |
+| `payWith` | primitive | 20-19: a card outside the Energy Area that may be rested to pay an energy cost. Not a `costModifier` — the price is unchanged, and what moves is where the payment may come *from*; and not a `move`, because the card stays exactly where it stands. There is nothing to lower it to until a ruleset can declare what a payment is made of. |
 | `resolvingPlay` | macro over `replace` | Event: the play being resolved, negated or altered (9-6). |
 | `negateAttack` | macro over `replace` | Event: the attack in progress resolves to nothing. |
 | `negateCounter` | macro over `replace` | Event: the [Counter] this one is answering resolves to nothing (9-7). |
