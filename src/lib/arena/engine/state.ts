@@ -1274,25 +1274,41 @@ export function addEffect(s: GameState, ev: GameEvent[], e: Omit<ContinuousEffec
  * `effectEnded` event, which is the beat a client draws the number changing
  * back on. `keep` says which stay.
  */
-function dropEffects(s: GameState, ev: GameEvent[], keep: (e: ContinuousEffect) => boolean): void {
+function dropEffects(ctx: GameContext, s: GameState, ev: GameEvent[], keep: (e: ContinuousEffect) => boolean): void {
   const kept: ContinuousEffect[] = [];
+  const ended: ContinuousEffect[] = [];
   for (const e of s.effects) {
     if (keep(e)) kept.push(e);
-    else ev.push({ type: "effectEnded", effect: e });
+    else {
+      ended.push(e);
+      ev.push({ type: "effectEnded", effect: e });
+    }
   }
   s.effects = kept;
+  // 20-9 with a duration on it: the loan is over, so the card walks back. Done
+  // after the list is rebuilt, because the move itself reads `s.effects` — and
+  // only for a card still in the Battle Area it was taken into: one that has
+  // been KO'd or bounced lost the effect with the rest of them (`move`), and
+  // one sitting in a Combo Area is not somewhere control can return it from.
+  for (const e of ended) {
+    if (e.kind !== "control" || !e.control) continue;
+    if (areaOf(s, e.target) !== "battle" || locate(s, e.target)?.owner === e.control.from) continue;
+    const entered = s.cards[e.target].enteredTurn;
+    move(ctx, s, ev, e.target, "battle", e.control.from, { carry: true, reason: "effect" });
+    s.cards[e.target].enteredTurn = entered;
+  }
 }
 
-export function endEffects(s: GameState, ev: GameEvent[], until: ContinuousEffect["until"], forPlayer?: PlayerId): void {
-  dropEffects(s, ev, (e) => !(e.until === until && (forPlayer == null || e.ownerTurn === forPlayer)));
+export function endEffects(ctx: GameContext, s: GameState, ev: GameEvent[], until: ContinuousEffect["until"], forPlayer?: PlayerId): void {
+  dropEffects(ctx, s, ev, (e) => !(e.until === until && (forPlayer == null || e.ownerTurn === forPlayer)));
 }
 
 /**
  * "…will not switch to Active Mode during your next Charge Phase": spent by
  * the Active Step it was written for (7-2-7), on the cards that step covered.
  */
-export function endAfterChargeEffects(s: GameState, ev: GameEvent[], cards: string[]): void {
-  dropEffects(s, ev, (e) => !(e.until === "afterNextCharge" && cards.includes(e.target)));
+export function endAfterChargeEffects(ctx: GameContext, s: GameState, ev: GameEvent[], cards: string[]): void {
+  dropEffects(ctx, s, ev, (e) => !(e.until === "afterNextCharge" && cards.includes(e.target)));
 }
 
 /**
@@ -1309,8 +1325,8 @@ export function endAfterChargeEffects(s: GameState, ev: GameEvent[], cards: stri
  * [Counter] resolves on the opponent's turn by definition, so every effect one
  * of those created outlasted its wording by a whole turn.
  */
-export function endTurnRelativeEffects(s: GameState, ev: GameEvent[]): void {
-  dropEffects(s, ev, (e) => {
+export function endTurnRelativeEffects(ctx: GameContext, s: GameState, ev: GameEvent[]): void {
+  dropEffects(ctx, s, ev, (e) => {
     if (e.createdTurn >= s.turn) return true;
     if (e.until === "nextTurn") return s.turnPlayer !== e.master;
     if (e.until === "opponentTurn") return s.turnPlayer === e.master;

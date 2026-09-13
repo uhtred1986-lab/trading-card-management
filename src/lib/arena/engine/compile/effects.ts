@@ -1511,6 +1511,22 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     return [{ op: "permit", what: "attackActive", target: ref, until: durationOf(t), filter }];
   }
 
+  // 20-9: "gain control of it until the end of the turn", "you gain control of
+  // it", "gain control of the played card". Six cards, every one of them
+  // pointing back at a card an earlier clause chose or a trigger named, which
+  // is why no selector is read here — `refFor` answers the pronoun and the
+  // choice has already happened.
+  //
+  // A duration is only carried when one is *printed*: `durationOf` answers
+  // "turn" for a clause that names none, and control that quietly ended at the
+  // End Phase would be a different card from one that says nothing about
+  // giving the card back (20-9 sets no term of its own).
+  if ((m = /^(?:(you|your opponent) )?gains? control of (.+)$/.exec(q))) {
+    const ref = refFor(m[2], c);
+    if (!ref) return null;
+    return [{ op: "control", target: ref, ...(m[1] === "your opponent" ? { to: "opponent" as const } : {}), ...(DURATION_TAIL.test(t) ? { until: durationOf(t) } : {}) }];
+  }
+
   // Mode switches (1-10).
   // A few cards drop the word: "switch 1 of your Chilled Army tokens to rest".
   if ((m = /^switch (.*?) to (active|rest)(?: mode)?$/.exec(t))) {

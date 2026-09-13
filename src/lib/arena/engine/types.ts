@@ -397,7 +397,7 @@ export interface ContinuousEffect {
    * named by a `SkillKindPrefix` in `value` ("negate that card's [Auto] skill
    * for the turn").
    */
-  kind: "power" | "comboPower" | "keyword" | "negateSkills" | "negateSkill" | "negateSkillKind" | "forbid" | "permit" | "immune" | "cost" | "skillCost" | "evolveCost" | "comboCost" | "altCost" | "zEnergy" | "specifiedCost";
+  kind: "power" | "comboPower" | "keyword" | "negateSkills" | "negateSkill" | "negateSkillKind" | "forbid" | "permit" | "immune" | "cost" | "skillCost" | "evolveCost" | "comboCost" | "altCost" | "zEnergy" | "specifiedCost" | "control";
   /**
    * `specifiedCost`'s value is the orbs it relaxes or demands (`sign: 1` reduces,
    * `-1` increases) rather than a flat number — see `costReduction` (script.ts)
@@ -411,6 +411,13 @@ export interface ContinuousEffect {
   permit?: Permission;
   /** Set when `kind` is "immune". */
   immune?: Immunity;
+  /**
+   * Set when `kind` is "control" (20-9): who the card goes back to when the
+   * effect ends. The card is already in its new master's Battle Area — that
+   * move *is* the control (20-9-1) — so the effect carries no state of its
+   * own beyond the way home, and expiring it is what walks the card back.
+   */
+  control?: { from: PlayerId };
   /**
    * Set when `kind` is "altCost": another way to pay for the target card's own
    * [Counter] (or its play), granted for a duration rather than printed on the

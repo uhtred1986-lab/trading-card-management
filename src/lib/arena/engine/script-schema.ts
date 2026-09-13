@@ -231,6 +231,14 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     doc: '"onto" plays it on top of another card ([Union-Absorb], 22-13-6-3); "negated" is "played with its skills negated" (9-1-5)',
   },
   switchMode: { fields: [TARGET, { name: "mode", type: MODE, required: true }], sentence: "switch {target} to {mode} mode" },
+  control: {
+    fields: [TARGET, { name: "to", type: "side", default: "you" }, { name: "until", type: "duration" }],
+    sentence: (raw, r) => {
+      const op = raw as OpOf<"control">;
+      return `${op.to === "opponent" ? "your opponent gains" : "gain"} control of ${describeRef(op.target)}${forThe(op.until, r)}`;
+    },
+    doc: 'the card moves to that player\'s Battle Area and they become its master (20-9-1); it keeps its mode, its markers and the effects on it (20-9-2). Leave "until" out for control that does not end \u2014 with it, the card goes back when the duration does. A Leader or a Unison Card can\'t change hands, and a KO still sends the card to its **owner\'s** Drop Area (5-12-1)',
+  },
   modifyAttr: {
     fields: MODIFY_ATTR_FIELDS,
     // Two sentences, because the two numbers and the four lists are different
@@ -509,6 +517,7 @@ export const OP_CLASS: Record<Op["op"], OpClass> = {
   negateKeyword:      "macro over `negate`",
   gains:              "macro over `modifyAttr`",
   replace:            "primitive",
+  control:            "primitive",
   replaceLeave:       "macro over `replace`",
   altCost:            "macro over `costModifier`",
   resolvingPlay:      "macro over `replace`",

@@ -305,6 +305,21 @@ export type Op =
   | { op: "play"; target: Ref; mode?: "active" | "rest"; onto?: Ref; negated?: "turn" | "game" }
   | { op: "switchMode"; target: Ref; mode: "active" | "rest" }
   /**
+   * 20-9: gaining control of a card is moving it into your own area and
+   * becoming its master (20-9-1), which is why this is one move and not a flag
+   * — in this engine the area a card is in *is* who masters it (0-3-4-1).
+   * `to` is whose Battle Area it goes to, read from the skill's master, and
+   * defaults to "you". The card keeps its mode, its markers and every
+   * continuous effect on it (20-9-2), and keeps the turn it entered play, so
+   * changing hands never makes it newly played.
+   *
+   * `until` is a loan: the effect it registers carries the way home, and
+   * expiring it walks the card back. Left out, control does not end — the
+   * card is the new master's until it leaves the Battle Area, and a KO still
+   * sends it to its **owner's** Drop Area (5-12-1).
+   */
+  | { op: "control"; target: Ref; to?: Side; until?: Duration }
+  /**
    * The primitive under `power`, `comboPower` and `gains`
    * (`docs/arena-ruleset-spec.md` §2.3): one attribute of one card, by a
    * delta (`amount`, for the two numbers) or by the values it also counts as
@@ -1171,6 +1186,34 @@ export function stepScript(ctx: GameContext, s: GameState, ev: GameEvent[], fram
           }
         }
         break;
+
+      // 20-9: control, as one move. Out of scope on purpose (#126): a Leader
+      // or a Unison Card, which the manual gives no route to take and whose
+      // areas hold one card each — the note says so rather than the card
+      // silently staying put.
+      case "control": {
+        const to = sideOf(master, op.to ?? "you")[0];
+        for (const id of resolveRef(ctx, s, frame, op.target)) {
+          const at = areaOf(s, id);
+          if (at !== "battle") {
+            note(ev, `${face(ctx, s, id).name} can't be taken control of — ${at === "leader" || at === "unison" ? "control of a Leader or a Unison Card is not a thing this engine does" : "only a card in a Battle Area can change hands"}`);
+            continue;
+          }
+          const from = masterOf(s, id);
+          if (from === to) continue;
+          // 20-9-2: the card keeps its mode, its markers and the continuous
+          // effects on it, so the move carries rather than resets (3-1-4-1
+          // names gaining control as one of the two carrying moves). The turn
+          // it entered play is kept over the top of that, because `move` sets
+          // it for any arrival in play and a card changing hands is not a card
+          // newly played.
+          const entered = s.cards[id].enteredTurn;
+          move(ctx, s, ev, id, "battle", to, { carry: true, reason: "effect" });
+          s.cards[id].enteredTurn = entered;
+          if (op.until) addEffect(s, ev, { master, source: frame.card, target: id, kind: "control", value: 0, until: op.until, control: { from } });
+        }
+        break;
+      }
 
       case "hidden":
         // 23-5-1: only a Battle Card in a Battle Area can be face down.

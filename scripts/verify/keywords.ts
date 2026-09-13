@@ -4,7 +4,7 @@
  * Part of `npm test`; run from `scripts/verify-arena.ts`, which fixes the order.
  */
 import assert from "node:assert/strict";
-import { legalActions } from "../../src/lib/arena/engine";
+import { apply, legalActions, masterOf } from "../../src/lib/arena/engine";
 import { validateProgram } from "../../src/lib/arena/engine/script";
 import {
   CTX,
@@ -1317,4 +1317,101 @@ import {
   move(ctx, t, [], other, "hand", "p1", { reason: "effect" });
   assert.ok(t.players.p1.hand.includes(other), "a `ko` replacement replaces the KO and nothing else");
   assertConsistent(t);
+}
+
+// ── 20-9: gaining control of a card ────────────────────────────────────────
+
+{
+  // A loan: the card crosses the table, fights for its new master, and goes
+  // home when the duration does. Nothing about the card changes (20-9-2) and
+  // its owner never does (0-3-3-1).
+  DEFS.TAKER = {
+    ...DEFS.V1,
+    id: "TAKER",
+    name: "TAKER",
+    skill: "[Activate: Main] Choose 1 of your opponent's Battle Cards and gain control of it until the end of the turn.",
+  };
+  DEFS.LOANED = { ...DEFS["V-BLUE"], id: "LOANED", name: "LOANED" };
+  let s = arena({ battle: ["TAKER"], oppBattle: ["LOANED", "V-BLUE"] });
+  const taker = find(s, "p1", "battle", "TAKER");
+  const theirs = find(s, "p2", "battle", "LOANED");
+  s.cards[theirs].markers = 2;
+  const entered = s.cards[theirs].enteredTurn;
+
+  s = play(s, { type: "activate", player: "p1", card: taker, skill: 0 });
+  assert.equal(s.prompt.kind, "chooseCards");
+  s = play(s, { type: "choose", player: "p1", cards: [theirs] });
+
+  assert.ok(s.players.p1.battle.includes(theirs), "20-9-1: the card is in your Battle Area now");
+  assert.ok(!s.players.p2.battle.includes(theirs));
+  assert.equal(masterOf(s, theirs), "p1", "0-3-4-1: and you are its master");
+  assert.equal(s.cards[theirs].owner, "p2", "0-3-3-1: its owner is not something a skill can change");
+  assert.equal(s.cards[theirs].markers, 2, "20-9-2: it keeps its markers");
+  assert.equal(s.cards[theirs].enteredTurn, entered, "changing hands is not being played again");
+  assert.equal(
+    s.effects.filter((e) => e.kind === "control").length,
+    1,
+    "the loan is a continuous effect, and it carries the way home",
+  );
+
+  // 8-1: it attacks for whoever masters it, with no rule of its own to change
+  // — the attack list is built from the cards in *your* Battle Area.
+  assert.ok(
+    labels(s).some((l) => l.startsWith("Attack") && l.includes("with LOANED")),
+    "a controlled card attacks for its new master",
+  );
+  assertConsistent(s);
+
+  // 7-4-5: "until the end of the turn" ends in the cleanup, and the card walks
+  // back to the player it came from rather than simply losing an effect.
+  s = play(s, { type: "endMain", player: "p1" });
+  assert.ok(s.players.p2.battle.includes(theirs), "the loan is over: the card went back");
+  assert.ok(!s.players.p1.battle.includes(theirs));
+  assert.equal(s.cards[theirs].markers, 2, "and came back as it left");
+  assert.equal(s.effects.filter((e) => e.kind === "control").length, 0);
+  assertConsistent(s);
+}
+
+{
+  // 5-12-1: a KO is to the card's **owner's** Drop Area, whoever was using it.
+  // This is the whole reason the audit had to happen before the operation.
+  DEFS.TAKER2 = { ...DEFS.TAKER, id: "TAKER2", name: "TAKER2" };
+  let s = arena({ battle: ["TAKER2"], oppBattle: ["LOANED", "V-BLUE"] });
+  const taker = find(s, "p1", "battle", "TAKER2");
+  const theirs = find(s, "p2", "battle", "LOANED");
+  s = play(s, { type: "activate", player: "p1", card: taker, skill: 0 });
+  s = play(s, { type: "choose", player: "p1", cards: [theirs] });
+  assert.ok(s.players.p1.battle.includes(theirs));
+
+  koCard(CTX, s, [], theirs);
+  assert.ok(s.players.p2.drop.includes(theirs), "5-12-1: KO'd out of your Battle Area, into its owner's Drop");
+  assert.ok(!s.players.p1.drop.includes(theirs));
+  assert.equal(s.effects.filter((e) => e.kind === "control").length, 0, "and the loan went with it");
+  assertConsistent(s);
+}
+
+{
+  // Out of scope on purpose (#126): the manual gives no route to taking a
+  // Leader or a Unison Card, and their areas hold one card each. The refusal
+  // is a note rather than a silent no-op, so the log says what did not happen.
+  DEFS.LEADERGRAB = { ...DEFS.V1, id: "LEADERGRAB", name: "LEADERGRAB", skill: "[Activate: Main] Gain control of your opponent's Leader Card." };
+  const record = { ops: [{ op: "control", target: { sel: { special: "opponentLeader" } } }], unsupported: [] };
+  assert.equal(validateProgram(record.ops), true);
+  const ctx = {
+    defs: DEFS,
+    scripts: new Proxy({} as Record<string, unknown>, {
+      get: (_, key) => (key === "LEADERGRAB" ? { bySkill: { 0: record }, complete: true, unsupported: [] } : CTX.scripts[key as string]),
+    }),
+  } as typeof CTX;
+
+  const s = arena({ battle: ["LEADERGRAB"] });
+  const grab = find(s, "p1", "battle", "LEADERGRAB");
+  const leader = s.players.p2.leader;
+  const r = apply(ctx, s, { type: "activate", player: "p1", card: grab, skill: 0 });
+  assert.equal(r.state.players.p2.leader, leader, "a Leader does not change hands");
+  assert.ok(
+    r.events.some((e) => e.type === "note" && /can't be taken control of/.test(e.text)),
+    "and the log says so",
+  );
+  assertConsistent(r.state);
 }

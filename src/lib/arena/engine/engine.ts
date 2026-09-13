@@ -284,7 +284,7 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
       // "Until the end of your opponent's turn" and "until the start of your
       // opponent's next turn" are both said from the controller's chair, so
       // they are read against the effect's own master — see the note there.
-      endTurnRelativeEffects(s, ev);
+      endTurnRelativeEffects(ctx, s, ev);
       for (const id of cardsInPlay(s, s.turnPlayer)) pendTriggers(ctx, s, "chargeStart", id);
       // 7-1: the same moment from the other side of the table — "at the start
       // of your opponent's turn", which is the turn now opening.
@@ -304,7 +304,7 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
       // Active Step it was written for has now happened, so it is spent. Only
       // this player's cards had one, which is what makes "next" the right one
       // whichever turn the effect was created on.
-      endAfterChargeEffects(s, ev, mine);
+      endAfterChargeEffects(ctx, s, ev, mine);
       return "done";
     }
     case "turn.draw": {
@@ -376,7 +376,7 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
     case "turn.cleanup":
       // 7-4-5/6: "for the turn" effects end. 22-15-6 (Over Realm cards back to
       // the Warp) is now one of the delayed effects drained here.
-      endEffects(s, ev, "turn");
+      endEffects(ctx, s, ev, "turn");
       s.flow.unshift(...fireDelayed(s, "turnCleanup"));
       return "done";
 
@@ -1425,7 +1425,7 @@ function battleCleanup(ctx: EngineContext, s: GameState, ev: GameEvent[]): "done
   if (b.reactivate && areaOf(s, b.attacker)) setMode(s, ev, b.attacker, "active", ctx);
   for (const p of PLAYERS) for (const id of cardsInPlay(s, p)) pendTriggers(ctx, s, "battleEnd", id);
   const due = fireDelayed(s, "battleEnd");
-  endEffects(s, ev, "battle");
+  endEffects(ctx, s, ev, "battle");
   s.battle = null;
   s.flow.unshift(...due, { op: "checkpoint" }, { op: "turn.promptMain" });
   return "done";

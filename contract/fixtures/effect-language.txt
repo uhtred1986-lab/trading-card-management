@@ -25,6 +25,8 @@ Operations (each is an object with "op"; a field marked ? may be left out):
   {"op":"play","target":TARGET,"mode"?:"active"|"rest","onto"?:TARGET,"negated"?:"turn"|"game"}
     "onto" plays it on top of another card ([Union-Absorb], 22-13-6-3); "negated" is "played with its skills negated" (9-1-5)
   {"op":"switchMode","target":TARGET,"mode":"active"|"rest"}
+  {"op":"control","target":TARGET,"to"?:"you"|"opponent","until"?:DURATION}
+    the card moves to that player's Battle Area and they become its master (20-9-1); it keeps its mode, its markers and the effects on it (20-9-2). Leave "until" out for control that does not end — with it, the card goes back when the duration does. A Leader or a Unison Card can't change hands, and a KO still sends the card to its **owner's** Drop Area (5-12-1)
   {"op":"modifyAttr","target"?:TARGET,"attr":"power"|"comboPower"|"colors"|"characters"|"traits"|"names","amount"?:AMOUNT,"values"?:["…"],"until"?:DURATION}
     the primitive under "power", "comboPower" and "gains" (docs/arena-ruleset-spec.md §2.3): one attribute of one card, "amount" for the two numbers and "values" for the lists it also counts as. Those three spellings are still what the compiler writes and what a stored rule holds — prefer them; this row is what they mean
   {"op":"power","target":TARGET,"amount":AMOUNT,"until":DURATION}

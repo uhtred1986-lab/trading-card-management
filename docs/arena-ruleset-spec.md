@@ -80,8 +80,8 @@ else is a macro. Four things follow, and they are the reason the tables below ar
   them, they keep parsing, printing and playing exactly as before, and no card's reading moves.
 - **A macro's target may not exist yet.** The table names the primitive as it will be, with today's
   spelling beside it in §2.2. `move` is `moveTo` today; `costModifier` and `negate` are
-  the general forms of rows the engine already has; `control`, `skip` and `copySkills` are Stage 2
-  issues (#126, #123) that will arrive as primitives.
+  the general forms of rows the engine already has; `control` arrived as a primitive with #126,
+  which also brings `skip`; `copySkills` is the Stage 2 issue (#123) still to come.
 - **Layering and duration are not ops.** The plan's `effect(layer)` row is the interpreter's
   bookkeeping — what `until` means, which effect wins, when it expires (§1, §7). Every op that
   carries a duration uses it; none of them *is* it.
@@ -91,7 +91,7 @@ else is a macro. Four things follow, and they are the reason the tables below ar
 
 ### 2.2 The primitive vocabulary
 
-Nineteen primitives carry every row below — fourteen operations and five conditions.
+Twenty primitives carry every row below — fifteen operations and five conditions.
 
 | Primitive | Today | What it says |
 |---|---|---|
@@ -104,6 +104,7 @@ Nineteen primitives carry every row below — fourteen operations and five condi
 | `reveal` | `reveal` | Who has seen a card changes, without the card moving. |
 | `shuffle` | `shuffle` | A pile is randomised with the game's seeded RNG. |
 | `token` | `token` | A card that was in no deck comes into being. |
+| `control` | `control` | Who masters a card changes (20-9): it moves into that player's Battle Area and they become its master, keeping everything about it (20-9-2). |
 | `play` | `play` | The game's own play action is invoked for a card (5-5). |
 | `forbid` | `forbid` | A standing rule that an action may not happen, with a budget and an escape (20-14). |
 | `permit` | `permit` | A rule of the game is lifted for one card (8-1-1). |
@@ -168,6 +169,7 @@ disagree or if a row is missing from either.
 | `gains` | macro over `modifyAttr` | Attributes `colors`, `characters`, `traits` and `names`, in every area (20-1). |
 | `replace` | primitive | An event is named (`leave`, `ko`, `play`) and a program stands in its place (9-10). Built by #125. `replaceLeave` and the `instead` half of `resolvingPlay` run through it today; `negateAttack` and `negateCounter` name events the engine still resolves in their own cases. |
 | `replaceLeave` | macro over `replace` | Event: a card leaving the Battle Area (9-10). |
+| `control` | primitive | Whose card it is now (20-9). Not a `move`: the move is how control is *taken* in an engine where the area is the master (0-3-4-1), but the loan that gives it back, the refusal of a Leader or a Unison, and the KO that still finds the **owner's** Drop (5-12-1) are none of `move`'s business. Built by #126. |
 | `altCost` | macro over `costModifier` | A price is replaced, not reduced — which is why the primitive takes a price rather than a number (§2.5). |
 | `resolvingPlay` | macro over `replace` | Event: the play being resolved, negated or altered (9-6). |
 | `negateAttack` | macro over `replace` | Event: the attack in progress resolves to nothing. |

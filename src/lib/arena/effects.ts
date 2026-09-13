@@ -155,6 +155,13 @@ export function describeEffect(e: ContinuousEffect): Pick<EffectView, "kind" | "
     }
     case "specifiedCost":
       return { kind: "cost", label: specifiedCostLabel(e.value as { colors: (Color | "any")[]; sign: 1 | -1 }) };
+    // 20-9, said from the card's own chair rather than the viewer's: with two
+    // players, a card whose master is not its owner is always being used by
+    // the owner's opponent, so this label is true whichever side is reading
+    // it. `effectLine` adds how long for, which is the half that matters —
+    // where the card *is* already says who has it.
+    case "control":
+      return { kind: "other", label: "controlled by its owner's opponent" };
   }
 }
 

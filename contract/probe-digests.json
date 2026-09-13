@@ -279,6 +279,10 @@
     "outcome": "notOffered",
     "digest": "45a2bd90"
   },
+  "LEADERGRAB#0": {
+    "outcome": "fired",
+    "digest": "cc3e8b84"
+  },
   "LEADERWATCH#0": {
     "outcome": "fired",
     "digest": "09a4fa50"
@@ -546,6 +550,14 @@
   "SWAPPER#0": {
     "outcome": "fired",
     "digest": "ca3d56c8"
+  },
+  "TAKER#0": {
+    "outcome": "fired",
+    "digest": "e1b4c71f"
+  },
+  "TAKER2#0": {
+    "outcome": "fired",
+    "digest": "ad1e90fd"
   },
   "TAX#0": {
     "outcome": "didNotFire",
