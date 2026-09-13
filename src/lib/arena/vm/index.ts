@@ -48,6 +48,7 @@ import { ACTIVATION_ZONE_NAMES, windowOf } from "./activate";
 import { applyDeclared, declaredLegalActions, declaredRejectedActions } from "./actions";
 import { chargesOf, describePayment } from "./costs";
 import { attributeGaps, attrsForDefs, playerAttributes, type AttrProblem, type AttrValue } from "./cards";
+import { costLayerGaps } from "./effects";
 import { NotYet, RulesetBroken } from "./errors";
 import { fire } from "./events";
 import { SETUP_ZONES, WORKED_STEPS, answered, draw, endGame, enterPhase, flipForChooser, moved, other, requirePrompt, run, shuffleDeck, turnPhases } from "./flow";
@@ -84,8 +85,10 @@ export { SETUP_ZONES, WORKED_STEPS, draw, moved, repeatAllowed, run, stepWorkNot
 export { emit, fire, log, type Moment } from "./events";
 export {
   DEFERRED_STATICS,
+  LAYER_KINDS,
   STATIC_OPS,
   addEffect,
+  costLayerGaps,
   dropEffectsOn,
   dueDelays,
   effectsOn,
@@ -97,9 +100,10 @@ export {
   valueOf,
   type DelaySpec,
   type EffectSpec,
+  type SpecifiedChange,
   type VmStatic,
 } from "./effects";
-export { NAMED_ZONES, NARROWER, amount, attrsNow, condHolds, hasKeyword, resolveRef, resolveSelector, sideOf, zoneOf } from "./program";
+export { NAMED_ZONES, NARROWER, amount, attrsNow, condHolds, forbiddenBy, forbids, hasKeyword, resolveRef, resolveSelector, sideOf, zoneOf } from "./program";
 export { PLAY_ZONES, PLAY_ZONE_NAMES, resolvePlay, type PlayOptions } from "./play";
 export {
   ACTIVATION_ZONES,
@@ -224,6 +228,12 @@ function createGame(ctx: EngineContext, options: GameOptions): { state: VmState;
   // a move that would be offered for free the first time a card asked for it
   // (#148). Said here, where a game is made, rather than in the middle of one.
   chargesOf(game);
+  // …and the one pairing `vm/effects.ts` keeps between an attribute's name and
+  // the effect kind a layer of it reads (20-21). A layer renamed in
+  // `attributes.rules` would otherwise leave a cost reducer read by nothing,
+  // which is a card played for the wrong price and nothing saying so.
+  const layerGaps = costLayerGaps(game);
+  if (layerGaps.length) throw new RulesetBroken(ARENA_GAME, `the cost layers this interpreter reads do not match the declarations: ${layerGaps.join("; ")}`);
 
   const events: GameEvent[] = [];
   const state: VmState = {

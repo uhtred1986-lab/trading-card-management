@@ -17,28 +17,33 @@
  * zone that is — the same word `SETUP_ZONES` already names), and `play`,
  * `under` and `hand`, each of which the language itself names.
  *
- * **Where it is narrower than the rule, it says so rather than guessing.**
- * Three readings have no board to read yet and each returns the answer that
- * refuses rather than the answer that fires:
+ * **Where it is narrower than the rule, it says so rather than guessing.** Two
+ * readings have no board to read yet and each returns the answer that refuses
+ * rather than the answer that fires:
  *
- *   [Barrier] and "can't be chosen" (22-16, 20-4)   Stage 7 / Stage 5 — a
- *       keyword the card prints is read; a prohibition in force is not, so a
- *       selector is currently *wider* than the manual. Named in `NARROWER`.
  *   immunity (9-1-4)                                 #154.
  *   a battle (8-1)                                   Stage 6: `inBattle` is
  *       false and `battled` is false, which is what a game with no battle in it
  *       truthfully answers.
  *
+ * 20-14's prohibitions were a third until #145: `forbids` and `forbiddenBy`
+ * below read them off the board — a [Permanent] in play, a skill's turn-long
+ * effect, and a card's own rule about itself wherever it sits (9-1-3-3) — so a
+ * selector honours "can't be chosen" (20-4) as well as [Barrier], and a
+ * `REFUSE` can gate a move on one.
+ *
  * Pure and client-safe: no database, no network, no `fs`.
  */
 import type { EngineContext } from "../engine";
 import type { Amount, AmountAttr, Cond, Ref, ScriptArea, ScriptFrame, Selector, Side } from "../engine/script";
-import type { ContinuousEffect, KeywordSkill, PlayerId } from "../engine/types";
+import type { EffectUntil, ForbiddenAction, KeywordSkill, PlayerId, Prohibition } from "../engine/types";
 import { other } from "../engine/types";
 import { powerRelOk } from "../engine/filters";
 import type { GameDefinition } from "../rulesets";
 import { PRINTED_BASE, attrsOf, type AttrValue, type Attrs } from "./cards";
-import { permanents, valueOf, type VmStatic } from "./effects";
+import { describeCond as sayCond } from "../engine/script-schema";
+import { mirrorSides } from "../engine/state";
+import { ownProhibitions, permanents, valueOf, type VmStatic } from "./effects";
 import { predicateOf } from "./filters";
 import { masterOf, skillsShowing } from "./triggers";
 import { SETUP_ZONES, hostOf, inPlayZones } from "./zones";
@@ -54,10 +59,8 @@ export const NAMED_ZONES = {
 
 /** Where a reading is narrower or wider than the manual, and the issue that closes it. */
 export const NARROWER: Record<string, string> = {
-  barrier: "#153 — a granted [Barrier] is read, a printed one is read, but a prohibition in force ('can't be chosen', 20-4) is #145's",
   immune: "#154 — 9-1-4 immunity narrows what a skill may choose, and the hook group that reads choosing is Stage 7's",
   battle: "Stage 6 — there is no battle on this engine yet, so `inBattle` and `battled` are false",
-  energyCost: "#148 — an amount reading a card's energy cost reads the printed total, before any reduction in force (20-21)",
 };
 
 /**
@@ -89,6 +92,10 @@ function statics(ctx: EngineContext, game: GameDefinition, state: VmState): VmSt
       state,
       (frame, op) => resolveRef(ctx, game, state, frame, ("target" in op && op.target ? op.target : { sel: { special: "self" } }) as Ref),
       (frame, op) => (op.op === "if" ? condHolds(ctx, game, state, frame, op.cond) : false),
+      // "…by 1 for each of your blue Battle Cards": the one amount a standing
+      // change can carry, counted over the board. `readingStatics` is already
+      // true here, so the count reads printed values and cannot recur.
+      (frame, a) => amount(ctx, game, state, frame, a),
     );
   } finally {
     readingStatics = false;
@@ -120,22 +127,20 @@ export function attrsNow(ctx: EngineContext, game: GameDefinition, state: VmStat
     if (!game.attributes[derived] || printed[face] === undefined) continue;
     base[derived] = printed[face];
   }
+  // Every change in force **about this card**, of every kind: which of them a
+  // layer reads is `LAYER_KINDS`, and keeping that pairing in one place is the
+  // whole reason this no longer filters by the attribute's name (#148).
+  const mine = standing.filter((e) => e.target === id);
+  const timed = state.effects.filter((e) => e.target === id);
   for (const name of Object.keys(game.attributes)) {
     if (!game.attributes[name].layers?.length) continue;
-    const kind = name as ContinuousEffect["kind"];
-    const value = valueOf(
-      game,
-      base,
-      name,
-      standing.filter((e) => e.kind === name && e.target === id),
-      state.effects.filter((e) => e.kind === kind && e.target === id),
-    );
+    const value = valueOf(game, base, name, mine, timed);
     if (value !== undefined) out[name] = value;
   }
   return out;
 }
 
-/** One number off one card, for the `attr` and `sumOf` amounts (20-21-2 for a cost — see `NARROWER.energyCost`). */
+/** One number off one card, for the `attr` and `sumOf` amounts — a cost read through its reduction layer (20-21-2), as the legacy `measure` reads it. */
 function measureOf(ctx: EngineContext, game: GameDefinition, state: VmState, id: string, name: AmountAttr): number {
   const now = attrsNow(ctx, game, state, id);
   switch (name) {
@@ -152,10 +157,15 @@ function measureOf(ctx: EngineContext, game: GameDefinition, state: VmState, id:
     }
     case "comboPower":
       return num(now.comboPower);
+    // 20-21-2: "a card with an energy cost of 2 or less" asks what it costs
+    // *now*, which is the derived attribute rather than the printed number —
+    // the legacy `measure` reads `comboCostOf`/`playCost().total` for exactly
+    // these two. A card with no total of its own (an X cost, 1-2-2-2) has none
+    // to read and counts as zero, which is that same reading.
     case "comboCost":
-      return num(now.comboCost);
+      return num(now.comboCostOf);
     case "energyCost":
-      return num(now.energyCost);
+      return num(now.costOf);
   }
 }
 
@@ -173,6 +183,119 @@ export function hasKeyword(ctx: EngineContext, game: GameDefinition, state: VmSt
   for (const e of state.effects) if (e.kind === "keyword" && e.target === id && (e.value as KeywordSkill)?.name === name) return true;
   for (const e of statics(ctx, game, state)) if (e.kind === "keyword" && e.target === id && (e.value as KeywordSkill)?.name === name) return true;
   return false;
+}
+
+// ── prohibitions (20-14) ────────────────────────────────────────────────────
+
+/** One rule in force that forbids something, with where it came from — a refusal has to name both. */
+interface RuleInForce {
+  /** The card it is about; empty for a rule about a player rather than a card. */
+  target: string;
+  /** The card whose skill made the rule; null for a turn-long effect that names none. */
+  source: string | null;
+  until: EffectUntil;
+  forbid: Prohibition;
+}
+
+/** Every prohibition on the board, in the order the legacy `forbids` reads them: the timed ones, the standing ones, then the card's own (9-1-3-3). */
+function prohibitions(ctx: EngineContext, game: GameDefinition, state: VmState, card?: string): RuleInForce[] {
+  const out: RuleInForce[] = [];
+  for (const e of state.effects) if (e.kind === "forbid" && e.forbid) out.push({ target: e.target, source: e.source ?? null, until: e.until, forbid: e.forbid });
+  for (const e of statics(ctx, game, state)) if (e.kind === "forbid") out.push({ target: e.target, source: e.source, until: "permanent", forbid: e.value as Prohibition });
+  if (card) {
+    const master = masterOf(game, state, card);
+    for (const f of ownProhibitions(ctx, state, card, (frame, a) => amount(ctx, game, state, frame, a), master)) out.push({ target: card, source: card, until: "permanent", forbid: f });
+  }
+  return out;
+}
+
+/**
+ * Is the prohibition's escape clause satisfied right now?
+ *
+ * The clause is part of the **source card's** text, so it is asked in that
+ * card's frame — its controller and the card itself — and not in the frame of
+ * whoever is trying to act. Reading "your opponent" from the acting player's
+ * chair would invert every such card, which is the legacy `unlessHolds`' own
+ * note and the reason a `Prohibition` records its `master` at all.
+ */
+function escapeHolds(ctx: EngineContext, game: GameDefinition, state: VmState, f: Prohibition, opts: { player?: PlayerId; card?: string }, source: string | null): boolean {
+  if (!f.unless) return false;
+  const card = source && state.cards[source] ? source : opts.card && state.cards[opts.card] ? opts.card : "";
+  const master = f.master ?? (card ? masterOf(game, state, card) : undefined) ?? opts.player ?? "p1";
+  return condHolds(ctx, game, state, { ops: [], ip: 0, vars: {}, card, master }, f.unless);
+}
+
+/** Does this rule apply to what is being asked about? The legacy `matchesProhibition`, test for test. */
+function ruleApplies(
+  ctx: EngineContext,
+  game: GameDefinition,
+  state: VmState,
+  what: ForbiddenAction,
+  rule: RuleInForce,
+  opts: { player?: PlayerId; card?: string; bySkill?: boolean },
+): boolean {
+  const f = rule.forbid;
+  if (f.what !== what) return false;
+  // "By skills" and "except by skills" are opposite halves of one wording, and
+  // a rule that names one of them says nothing about the other.
+  if (f.bySkill !== undefined && opts.bySkill !== undefined && f.bySkill !== opts.bySkill) return false;
+  if (rule.target && rule.target !== opts.card) return false;
+  if (f.player && opts.player && f.player !== opts.player) return false;
+  if (f.filter || f.name) {
+    if (!opts.card || !state.cards[opts.card]) return false;
+    if (f.filter && !predicateOf(f.filter, game)(attrsNow(ctx, game, state, opts.card))) return false;
+    if (f.name && nameShowing(ctx, state, opts.card) !== f.name) return false;
+  }
+  return !escapeHolds(ctx, game, state, f, opts, rule.source);
+}
+
+/** The name on the face a card is showing (1-9). */
+function nameShowing(ctx: EngineContext, state: VmState, id: string): string | undefined {
+  const inst = state.cards[id];
+  const def = inst ? ctx.defs[inst.cardId] : undefined;
+  if (!def) return undefined;
+  return inst.flipped && def.back ? def.back.name : def.name;
+}
+
+/**
+ * 20-14: does a rule in force forbid this right now?
+ *
+ * The legacy `forbids`, over this engine's board — the one predicate, so the
+ * menu and the refusal below cannot disagree, and the two engines cannot
+ * either. A budget still to spend (`uses`) means the rule forbids nothing yet.
+ */
+export function forbids(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean } = {}): boolean {
+  return forbiddenBy(ctx, game, state, what, opts) !== null;
+}
+
+/**
+ * The `why` twin of `forbids`: **which** card's rule forbids it, how long it
+ * holds, and the escape clause in the words of the player being refused.
+ *
+ * Said in that player's words is the one place the engine mirrors "you" and
+ * "your opponent" rather than printing them as the script wrote them, and it is
+ * `mirrorSides` — imported from the legacy engine rather than copied, because a
+ * refusal worded two ways is a refusal worded wrongly once.
+ */
+export function forbiddenBy(
+  ctx: EngineContext,
+  game: GameDefinition,
+  state: VmState,
+  what: ForbiddenAction,
+  opts: { player?: PlayerId; card?: string; bySkill?: boolean } = {},
+): { by: string | null; until: EffectUntil; unless?: string } | null {
+  for (const rule of prohibitions(ctx, game, state, opts.card)) {
+    if (!ruleApplies(ctx, game, state, what, rule, opts)) continue;
+    if ((rule.forbid.uses ?? 0) > 0) continue;
+    const viewer = opts.player ?? (opts.card && state.cards[opts.card] ? masterOf(game, state, opts.card) : undefined);
+    const master = rule.forbid.master;
+    return {
+      by: rule.source && state.cards[rule.source] ? (nameShowing(ctx, state, rule.source) ?? null) : null,
+      until: rule.until,
+      ...(rule.forbid.unless ? { unless: sayCond(master && viewer && master !== viewer ? mirrorSides(rule.forbid.unless) : rule.forbid.unless) } : {}),
+    };
+  }
+  return null;
 }
 
 // ── selectors (5-2) ─────────────────────────────────────────────────────────
@@ -285,9 +408,12 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
       if (!against || !powerRelOk(sel.filter, measureOf(ctx, game, state, id, "power"), measureOf(ctx, game, state, against, "power"))) return false;
     }
     // 22-16: [Barrier] takes a card out of the choices of a skill its opponent
-    // masters. The prohibition that says the same thing in words (20-4) is
-    // `NARROWER.barrier`.
+    // masters.
     if (!sel.special && !sel.ignoreBarrier && sel.side !== "you" && hasKeyword(ctx, game, state, id, "Barrier") && masterOf(game, state, id) !== frame.master && zoneOf(state, id) !== "hand") return false;
+    // 20-4: the same shape as [Barrier], but printed as a prohibition — and a
+    // prohibition is a thing this engine can now read (#145), so a selector is
+    // no longer wider than the manual here.
+    if (!sel.special && masterOf(game, state, id) !== frame.master && forbids(ctx, game, state, "beChosen", { card: id })) return false;
     return true;
   });
 }
@@ -408,6 +534,16 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
       return (frame.vars[c.var] ?? []).some((id) => state.cards[id] && predicateOf(c.filter, game)(attrsNow(ctx, game, state, id)));
     case "isTurnPlayer":
       return c.who === "opponent" ? state.turnPlayer !== frame.master : state.turnPlayer === frame.master;
+    // The question on the table, read off the one place this engine keeps it.
+    // A program is never written in this word — it is a `REFUSE`'s (#145) — but
+    // the evaluator is shared, so reading it here is what keeps "shared" true.
+    case "asking":
+      return state.prompt.kind === c.prompt;
+    // 20-14, asked of the frame's own card and master — the same reading
+    // `vm/actions.ts` asks of a candidate, so a `REFUSE` and a program mean one
+    // thing by the word.
+    case "forbidden":
+      return forbids(ctx, game, state, c.what, { player: frame.master, ...(frame.card ? { card: frame.card } : {}), ...(c.bySkill === undefined ? {} : { bySkill: c.bySkill }) });
   }
 }
 

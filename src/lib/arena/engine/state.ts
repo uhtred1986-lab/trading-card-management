@@ -833,6 +833,18 @@ export function condHolds(ctx: GameContext, s: GameState, frame: ScriptFrame, c:
       return (frame.vars[c.var] ?? []).some((id) => s.cards[id] && matches(cardNow(ctx, s, id), c.filter));
     case "isTurnPlayer":
       return c.who === "opponent" ? s.turnPlayer !== frame.master : s.turnPlayer === frame.master;
+    // Which question is on the table. No card's text says it and no compiled
+    // program produces it — the reading is here so that the one word the rules
+    // engine's `REFUSE` lines need means the same thing on both engines, which
+    // is the whole point of `script-schema.ts` being the single definition.
+    case "asking":
+      return s.prompt.kind === c.prompt;
+    // 20-14, asked of the frame's own card and master. Like `asking`, nothing
+    // compiles to this and no card says it: the reading is here so that the
+    // word a rules-engine `REFUSE` gates a move on means, on this engine, the
+    // very predicate this engine's own `legalActions` gates it on.
+    case "forbidden":
+      return forbids(ctx, s, c.what, { player: frame.master, ...(frame.card ? { card: frame.card } : {}), ...(c.bySkill === undefined ? {} : { bySkill: c.bySkill }) });
   }
 }
 
@@ -1617,7 +1629,7 @@ export function immunityRefusing(ctx: GameContext, s: GameState, id: string, sou
  * player when a card forbids something. Every `side` in the language means the
  * one thing, so mirroring is flipping that word wherever it appears.
  */
-function mirrorSides<T>(x: T): T {
+export function mirrorSides<T>(x: T): T {
   if (Array.isArray(x)) return x.map(mirrorSides) as unknown as T;
   if (!x || typeof x !== "object") return x;
   const out: Record<string, unknown> = {};

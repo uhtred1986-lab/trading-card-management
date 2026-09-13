@@ -120,6 +120,8 @@ Twenty-five primitives carry every row below — twenty operations and five cond
 | `not` (condition) | `not` | Negation. |
 | `any` (condition) | `any` | Disjunction: the other half of the propositional core. |
 | `isTurnPlayer` (condition) | `isTurnPlayer` | Whose turn it is (7-1). |
+| `asking` (condition) | `asking` | Which question is on the table. No card says it; a `DEFINE ACTION`'s `REFUSE` needs it to tell two windows of one move apart (7-2-11). |
+| `forbidden` (condition) | `forbidden` | Whether a rule in force stops this (20-14). No card says it either; it is the predicate a `REFUSE` gates a move on, and the same one `forbids()` is. |
 
 Two rows in that list are honest about being provisional. `play` is a primitive only until Stage 3
 declares the play action itself (§3): which zone the card ends in, whether its text resolves and
@@ -214,6 +216,8 @@ can name the attributes the engine keeps in code (§2.5).
 | `chose` | macro over `count` | How many cards were bound to the named variable: a count over `FROM $var`. |
 | `varMatches` | macro over `count` | `count(FROM $var matching the filter) >= 1`. |
 | `isTurnPlayer` | primitive | A fact about the game rather than about any card or pile (7-1). Stage 3 declares the turn player as a game attribute, which will make this a comparison like the rest. |
+| `asking` | primitive | A fact about the game rather than about any card or pile: which question is being asked. Nothing counted on the board says it, and the prompt is the interpreter's own (§7). |
+| `forbidden` | primitive | A search over the rules in force rather than over the board — a prohibition carries a budget, an escape clause and a chair to read it from (20-14), none of which is a count of cards. |
 
 ### 2.5 What the tables ask for
 
@@ -389,9 +393,22 @@ true asked the grammar for three fields and left two gaps written down rather th
 
 An attribute's `layers:` is the order of 9-9-1 — `printed` (9-9-1-1), `rewrite` (every continuous
 effect that does not rewrite a number, 9-9-1-2), `numeric` (the ones that do, 9-9-1-3) — and a
-cost's layers are its own, `printed` then `reduction` then `specified`, because 20-21's reduction
-is a discount on the price rather than a rewrite of the printed cost, and the coloured half moves
-on its own (the owner's BT19-039 ruling of 9 Sep 2026).
+cost's layers are its own, because 20-21's reduction is a discount on the price rather than a
+rewrite of the printed cost. The two halves of a price carry them differently, and the difference
+*is* the owner's BT19-039 ruling of 9 Sep 2026 written down: the total (`costOf`) declares
+`[printed, reduction]`, and the coloured requirement (`specifiedCost`) declares
+`[printed, reduction, specified]`. A flat reducer therefore reaches both — one orb off with each
+energy off the total (20-21-2) — and the `specified` layer reaches the colours alone, which is what
+"it never touches a total" means when an interpreter has to obey it. A layer is a **function** of
+the value so far rather than a list of numbers to add, because the floor at zero does not commute
+with an addition and a colour list is not a number.
+
+Which effect `kind` feeds which layer is `LAYER_KINDS` in `vm/effects.ts`: an attribute reads the
+effects named after it, which is the whole of the rule for `power` and `comboPower`, and a price is
+the one exception — the attribute is `costOf` and the effect a skill puts in force says `cost`,
+both names the legacy engine's. It is checked against the definition when a game is made
+(`costLayerGaps`), so a layer renamed in `attributes.rules` fails the game rather than quietly
+reading nothing.
 
 The completeness check over `attributes.rules` is **one-directional**: every `CardDef` field has a
 card attribute, and the derived ones beside them (`costOf`, `comboCostOf`, `zEnergyCostOf`) and the
@@ -521,9 +538,9 @@ Three things the shape guarantees rather than asks for:
 
 `src/lib/arena/vm/actions.ts` is the whole interpreter of this, with `vm/activate.ts` beside it for
 the one move whose candidate is a skill line. What it reads so far: a `FOR` by
-side, area, filter and mode; a `REFUSE` condition written as `count()`, `isTurnPlayer()` and their
-combinations; and a `DO` that is an ordinary program, run on the interpreter the legacy engine runs
-(#142). Everything else is refused *by name* rather than read as false or silently skipped — a
+side, area, filter and mode; a `REFUSE` condition written as `count()`, `isTurnPlayer()`,
+`asking()`, `forbidden()` and their combinations; and a `DO` that is an ordinary program, run on the
+interpreter the legacy engine runs (#142). Everything else is refused *by name* rather than read as false or silently skipped — a
 condition read as false is a move that can never be made and nothing saying why. The rest of the DBS
 moves are Stage 6's.
 
@@ -621,17 +638,18 @@ same cards rested, the same options and the same words for them. Two gaps are wr
 they are rather than papered over. The amounts of `marker` and `life` are bound from a skill's own
 line by an activation (#147) and have nothing to bind them anywhere else, and 20-19's `payWith` has
 nothing to bind it at all, so an action naming one of those with nothing to bind it is refused **by
-name**; and the reductions of
-20-21 — the flat one, the coloured one, and 22-19's [Warrior of Universe 7] — are the `costOf`
-attribute's declared `layers:`, which are still only partly wired. #148 named four decisions the
-layer machinery needed before `costOf` could mean anything, and #146 made one of them: `PRINTED_BASE`
-in `vm/cards.ts` pairs each derived price with the printed number it discounts, so `costOf` now
-reads as the printed total rather than as nothing, and `amount: "costOf"` is a real reading rather
-than a promise. Three remain — a clamped layer, since 20-21-2's floor at zero is not additive; a
-`colors`-valued layer, since `specifiedCost` declares none; and a wider `VmStatic.kind` — and
-nothing can put a cost reducer in force on this engine until `permanents` stops refusing
-`costReduction` by name, so wiring them now would be a reducer that reads correctly and changes no
-board.
+name**.
+
+20-21's reductions are read, and read as **layers**: all four decisions the layer machinery needed
+are made (`PRINTED_BASE` pairing a derived price with the printed number it discounts, `LAYER_KINDS`
+pairing an attribute with the effect kind a layer of it reads, a `reduction` layer that subtracts
+and floors at zero, and `specifiedCost` carrying a `colors` value through its own two layers), and
+`permanents` now reads the `costReduction` op out of a [Permanent]. `verify/vm.ts` §20 stages a
+reducer on both engines and compares the price charged, the refusal, the energy rested and the
+whole log. The half still out is 22-19's [Warrior of Universe 7], which clears a ≪Universe 7≫
+card's specified cost outright: it is a **keyword** rather than a `costReduction`, so it is a
+`DEFINE KEYWORD` hook body and waits with the other twelve (#153–#157) — reading one keyword by
+name in `vm/costs.ts` would be the branch that module exists to remove.
 
 ### What the loader does
 

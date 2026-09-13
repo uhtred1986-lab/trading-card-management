@@ -77,6 +77,7 @@ import { skillNegated, skillsNegated } from "./effects";
 import { RulesetBroken } from "./errors";
 import { log } from "./events";
 import { moved } from "./flow";
+import { forbiddenBy } from "./program";
 import { vmHost } from "./host";
 import type { VmState } from "./state";
 import { skillsShowing } from "./triggers";
@@ -263,10 +264,14 @@ export function activationRefusals(
   // card at once. The one reading of that rule is `vm/effects.ts` and every
   // reader of it asks there, the twin included.
   if (skillsNegated(state, card) || skillNegated(state, card, sk.index, sk.kind)) before.push({ kind: "other", detail: "the skill is negated" });
-  // 20-14 would be here — a prohibition in force on using this card's skills.
-  // Nothing can put one in force on this engine yet (`DEFERRED_STATICS.forbid`),
-  // so a gate that could only ever answer "no prohibition" is left unwritten
-  // rather than written as a line that is always true.
+  // 20-14: a prohibition in force on using this card's skills. It sits here
+  // rather than in the declaration's own `REFUSE` list because the order is the
+  // point — `whyNotActivate` asks it second, after the negation and before
+  // everything else, and a declared `REFUSE` runs before all of these. The
+  // gates of an activation are the legacy twin's in the legacy twin's order,
+  // which is what makes the *first* requirement the same requirement.
+  const banned = forbiddenBy(ctx, game, state, "activateSkill", { player, card });
+  if (banned) before.push({ kind: "forbidden", ...banned });
   const left = usesLeft(sk, inst?.usedThisTurn ?? []);
   if (left === 0) before.push({ kind: "oncePerTurn", what: "skill", ...(sk.limit != null && !sk.oncePerTurn ? { limit: sk.limit } : {}) });
   // 22-6 / 22-31: [Bond X] and [Sparking X] are conditions on using the skill,

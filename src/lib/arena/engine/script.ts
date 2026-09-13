@@ -14,7 +14,7 @@ import type { CardFilter } from "./filters";
 import { asksAQuestion, describeCond, describeScript, describeSelector } from "./script-schema";
 import { resolveSelector, sideOf, type AltCost } from "./state";
 import type { ScriptHost } from "./script-host";
-import type { Area, Color, DelayScope, DelayTiming, ForbiddenAction, KeywordSkill, MoveReason, PlayerId, ReplacementChoice, ReplacementResult, Skill, SkillKindPrefix, SkipWhat, Trigger } from "./types";
+import type { Area, Color, DelayScope, DelayTiming, ForbiddenAction, KeywordSkill, MoveReason, PlayerId, Prompt, ReplacementChoice, ReplacementResult, Skill, SkillKindPrefix, SkipWhat, Trigger } from "./types";
 
 // ── the language ───────────────────────────────────────────────────────────
 
@@ -225,7 +225,23 @@ export type Cond =
   /** "If that card is a Battle Card": what a reveal or a look turned up (20-11). */
   | { kind: "varMatches"; var: string; filter: CardFilter }
   /** Whose turn it is (7-1). "opponent" is "during your opponent's turn". */
-  | { kind: "isTurnPlayer"; who?: "you" | "opponent" };
+  | { kind: "isTurnPlayer"; who?: "you" | "opponent" }
+  /**
+   * Which question is on the table. Not a card's word — no printed text says
+   * it — but the one a `DEFINE ACTION`'s `REFUSE` needs to tell two windows of
+   * the same move apart: 7-2-11 gives the turn player one charge, and "you
+   * have already had your charge this turn" is, on both engines, the fact that
+   * the question being asked is no longer the charge's (`whyNotCharge`).
+   */
+  | { kind: "asking"; prompt: Prompt["kind"] }
+  /**
+   * 20-14: is a rule in force stopping this? Not a card's word either — no
+   * printed skill asks it — but the one a `DEFINE ACTION`'s `REFUSE` needs to
+   * gate a move on a prohibition, and it is the very predicate `forbids()` is
+   * on both engines. `what` is the action; the card and the player it is asked
+   * about are the candidate and the actor, which the declaration cannot name.
+   */
+  | { kind: "forbidden"; what: ForbiddenAction; bySkill?: boolean };
 
 /**
  * The attributes `modifyAttr` may change: the two numbers a continuous effect

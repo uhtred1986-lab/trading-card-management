@@ -26,10 +26,14 @@
  *
  * **The layers are the declaration's, not this file's.** `attributes.rules`
  * says `layers: [printed, rewrite, numeric]` on `power` and `comboPower`
- * (9-9-1), and `valueOf` walks exactly that list: the printed face first, then
- * the layer each effect belongs to. A game that declared a fourth layer would
- * need a row in `LAYERS` and nothing else; a game that declared none gets the
- * printed value and nothing else, which is what `id` and `name` want.
+ * (9-9-1) and `[printed, reduction]`/`[printed, reduction, specified]` on the
+ * prices (20-21), and `valueOf` walks exactly that list: the printed face
+ * first, then the layer each effect belongs to. A game that declared a fifth
+ * layer would need a row in `LAYERS` and nothing else; a game that declared
+ * none gets the printed value and nothing else, which is what `id` and `name`
+ * want. A layer is a **function** rather than a list of numbers to add,
+ * because 20-21-2's floor at zero does not commute with an addition and the
+ * coloured half of a price is not a number at all.
  *
  * One approximation, written down because nothing would catch it later:
  * 9-9-1-2 and 9-9-1-3 divide continuous effects by whether they **rewrite a
@@ -44,14 +48,58 @@
  * Pure and client-safe: no database, no network, no `fs`.
  */
 import type { EngineContext, GameEvent } from "../engine";
-import type { Op, ScriptFrame } from "../engine/script";
-import type { ContinuousEffect, DelayedEffect, DelayTiming, KeywordSkill, PlayerId } from "../engine/types";
+import type { Amount, Op, ScriptFrame } from "../engine/script";
+import type { Color, ContinuousEffect, DelayedEffect, DelayTiming, KeywordSkill, PlayerId, Prohibition } from "../engine/types";
+import { other as otherPlayer } from "../engine/types";
 import type { GameDefinition } from "../rulesets";
 import type { AttrValue, Attrs } from "./cards";
 import { log } from "./events";
 import { skillsShowing } from "./triggers";
 import { inPlayZones } from "./zones";
 import type { VmState } from "./state";
+
+/** The name on the face a card is showing (1-9): a flipped Leader answers to its awakened name, which is what a "copies of this card" prohibition is matched on. */
+function faceName(ctx: EngineContext, state: VmState, id: string): string | undefined {
+  const inst = state.cards[id];
+  const def = inst ? ctx.defs[inst.cardId] : undefined;
+  if (!def) return undefined;
+  return inst.flipped && def.back ? def.back.name : def.name;
+}
+
+/**
+ * 9-1-3-3: the prohibitions a card states **about itself**, read wherever it
+ * sits.
+ *
+ * "This card can't be played from any area except by skills" has to hold in the
+ * Drop Area, where no [Permanent] of that card is otherwise valid (9-1-3-1), so
+ * these are read apart from `permanents` and by exactly the legacy
+ * `ownProhibitions`' three tests: the rule is about `self`, it holds for the
+ * game rather than for a duration, and it says which side of "by skills" it is
+ * on — the shape only a card's own such sentence has.
+ */
+export function ownProhibitions(ctx: EngineContext, state: VmState, id: string, measure: (frame: ScriptFrame, amount: Amount) => number, master: PlayerId): Prohibition[] {
+  const inst = state.cards[id];
+  if (!inst || inst.hidden || skillsNegated(state, id)) return [];
+  const showing = skillsShowing(ctx, state, id);
+  const out: Prohibition[] = [];
+  for (const sk of showing.skills) {
+    if (sk.kind !== "permanent" || skillNegated(state, id, sk.index, sk.kind)) continue;
+    const program = showing.scripts.bySkill[sk.index];
+    if (!program || program.unsupported.length) continue;
+    for (const op of program.ops) {
+      if (op.op !== "forbid" || op.until !== "game" || op.bySkill === undefined) continue;
+      if (!op.target || !("sel" in op.target) || op.target.sel.special !== "self") continue;
+      const frame: ScriptFrame = { ops: [], ip: 0, vars: {}, card: id, master };
+      out.push({
+        what: op.what,
+        ...(op.uses != null ? { uses: measure(frame, op.uses) } : {}),
+        ...(op.unless ? { unless: op.unless, master } : {}),
+        bySkill: op.bySkill,
+      });
+    }
+  }
+  return out;
+}
 
 /** A continuous effect as a program asks for one: the bookkeeping is this module's (9-1-4). */
 export type EffectSpec = Omit<ContinuousEffect, "id" | "createdTurn" | "ownerTurn" | "master"> & { master?: PlayerId };
@@ -60,41 +108,108 @@ export type EffectSpec = Omit<ContinuousEffect, "id" | "createdTurn" | "ownerTur
 export type DelaySpec = Omit<DelayedEffect, "id" | "createdTurn">;
 
 /**
+ * The coloured half of a price, changed on its own (20-21-2, and the owner's
+ * BT19-039 ruling of 9 Sep 2026): the orbs a `costReduction(what: "specified")`
+ * relaxes (`sign: 1`) or demands (`sign: -1`). Carried as the printed orbs and
+ * never as a bare count, because relaxing blue and relaxing yellow are
+ * different changes — the legacy `StaticEffect`'s value shape, word for word,
+ * because a continuous effect is one shape on both engines.
+ */
+export interface SpecifiedChange {
+  colors: (Color | "any")[];
+  sign: 1 | -1;
+}
+
+/**
  * One [Permanent]'s standing change, read rather than stored (9-5-1).
  *
- * Narrower than the legacy engine's `StaticEffect` on purpose: those are the
- * three kinds a value can be read through today. Everything else a [Permanent]
- * can say — a cost reduction, a prohibition, an immunity, an alternative
- * payment — is about a *price* or a *legality*, and both are Stage 5's; naming
- * them in `DEFERRED_STATICS` is the honest version of that gap, and a static
- * quietly collected into a list nothing reads is the dishonest one.
+ * Still narrower than the legacy engine's `StaticEffect`, but no longer the
+ * three kinds a *number* is read through: a price is read through its declared
+ * layers like any other attribute, so a cost reduction is one of these too
+ * (#148). `kind` is the **attribute or effect kind** the change belongs to and
+ * `LAYER_KINDS` is what pairs the two where they differ — a reducer says
+ * `cost` and the attribute it discounts is called `costOf`, and the names are
+ * the legacy engine's on both sides of that pairing.
+ *
+ * What a [Permanent] can still say and this cannot carry is a *legality* or an
+ * alternative payment; `DEFERRED_STATICS` names each with the issue that reads
+ * it, because a static quietly collected into a list nothing reads is the
+ * dishonest version of a gap.
  */
 export interface VmStatic {
   /** The card whose [Permanent] says it. */
   source: string;
   /** Whose skill it is (9-1-2). */
   master: PlayerId;
-  kind: "power" | "comboPower" | "keyword";
+  kind: ContinuousEffect["kind"];
   /** The card it is about. */
   target: string;
-  value: number | KeywordSkill;
+  value: number | KeywordSkill | SpecifiedChange | Prohibition;
 }
 
 /** The ops `permanents` reads out of a [Permanent]'s program. */
-export const STATIC_OPS = ["power", "comboPower", "modifyAttr", "grant", "if"] as const;
+export const STATIC_OPS = ["power", "comboPower", "modifyAttr", "grant", "costReduction", "forbid", "if"] as const;
 
 /** Every other op a [Permanent] may carry, and the issue that reads it. A gap named is a gap that can be looked up. */
 export const DEFERRED_STATICS: Record<string, string> = {
-  costReduction: "#148 — prices are Stage 5's, and a reduction is a change to one",
-  altCost: "#148 — another way to pay is still a way to pay",
-  payWith: "#148",
-  forbid: "#145 — a prohibition refuses an action, and actions are Stage 5's",
-  permit: "#145",
+  altCost: "#149 — another way to pay is a price bound to nothing until an action can name one",
+  payWith: "#149",
+  permit: "#150 — 8-1-1 the other way round: a permission widens what may be *attacked*, and the battle is Stage 6's",
   immune: "#154 — immunity narrows what a skill may choose, and the hook group that reads choosing is Stage 7's",
   negateKeyword: "#153 — keywords are Stage 7's",
   gains: "#153",
   replaceLeave: "#146 — a replacement stands in front of a move, and moves by skill are Stage 5's",
 };
+
+/**
+ * Which effect `kind` feeds which **layer** of which attribute (20-21).
+ *
+ * A layer reads the effects whose `kind` is the attribute's own name — which
+ * is the whole of the rule for `power` and `comboPower`, and is why neither is
+ * listed. A price is the exception, and it is an exception of *naming* rather
+ * than of mechanism: the attribute a game declares is `costOf`, the effect a
+ * skill puts in force says `cost`, and both names are the legacy engine's,
+ * which is what lets one `card_rules` row mean one thing on both. This table is
+ * that pairing and nothing else — no layer applies except the one the
+ * declaration lists, and an attribute absent from here reads its own name.
+ *
+ * Checked against the definition at load (`assertCostLayers`), so a layer
+ * renamed in `attributes.rules` fails a game rather than quietly reading
+ * nothing.
+ */
+export const LAYER_KINDS: Record<string, Record<string, ContinuousEffect["kind"]>> = {
+  costOf: { reduction: "cost" },
+  comboCostOf: { reduction: "comboCost" },
+  zEnergyCostOf: { reduction: "zEnergy" },
+  // 20-21-2: a flat reduction lowers the coloured half as well as the total, so
+  // the coloured attribute reads the *same* `cost` effects through its own
+  // `reduction` layer; `specified` is the half that moves the colours alone.
+  specifiedCost: { reduction: "cost", specified: "specifiedCost" },
+};
+
+/**
+ * The attributes and layers `LAYER_KINDS` names, checked against the game that
+ * is being loaded.
+ *
+ * `SETUP_ZONES`, `STEP_WORK` and `PLAY_ZONES` are the same discipline: a
+ * constant in `vm/` that names a piece of the DBS definition says so out loud
+ * and is held to it, rather than reading nothing on the day the declaration is
+ * renamed.
+ */
+export function costLayerGaps(game: GameDefinition): string[] {
+  const out: string[] = [];
+  for (const [attr, layers] of Object.entries(LAYER_KINDS)) {
+    const declared = game.attributes[attr];
+    if (!declared) {
+      out.push(`${attr} is an attribute nothing declares, and a price is read off one`);
+      continue;
+    }
+    for (const layer of Object.keys(layers)) {
+      if (!declared.layers?.includes(layer)) out.push(`${attr} does not declare the ${JSON.stringify(layer)} layer, so a cost change of that layer would be read by nothing`);
+    }
+  }
+  return out;
+}
 
 // ── continuous effects (9-1-4) ──────────────────────────────────────────────
 
@@ -260,9 +375,17 @@ export function negatedSkillsOf(state: VmState, id: string): "all" | number[] {
  * which asks for the statics again. The caller owns that recursion guard
  * (`vm/program.ts`), the way `computingStatics` owns it on the legacy engine.
  */
-export function permanents(ctx: EngineContext, game: GameDefinition, state: VmState, targets: (frame: ScriptFrame, op: Op) => string[], holds: (frame: ScriptFrame, op: Op) => boolean): VmStatic[] {
+export function permanents(
+  ctx: EngineContext,
+  game: GameDefinition,
+  state: VmState,
+  targets: (frame: ScriptFrame, op: Op) => string[],
+  holds: (frame: ScriptFrame, op: Op) => boolean,
+  measure: (frame: ScriptFrame, amount: Amount) => number,
+): VmStatic[] {
   const out: VmStatic[] = [];
-  const zones = [...inPlayZones(game), "hand", "zDeck"].filter((zone) => game.zones[zone]?.place !== false);
+  const inPlay = new Set(inPlayZones(game));
+  const zones = [...inPlay, "hand", "zDeck"].filter((zone) => game.zones[zone]?.place !== false);
   for (const p of Object.keys(state.sides) as PlayerId[]) {
     for (const zone of zones) {
       for (const src of state.sides[p].zones[zone] ?? []) {
@@ -274,7 +397,7 @@ export function permanents(ctx: EngineContext, game: GameDefinition, state: VmSt
           if (skillNegated(state, src, sk.index, sk.kind)) continue;
           const program = showing.scripts.bySkill[sk.index];
           if (!program || program.unsupported.length) continue;
-          collect(out, { ops: [], ip: 0, vars: {}, card: src, master: p }, program.ops, targets, holds);
+          collect(ctx, state, out, { ops: [], ip: 0, vars: {}, card: src, master: p }, program.ops, inPlay.has(zone), targets, holds, measure);
         }
       }
     }
@@ -282,14 +405,45 @@ export function permanents(ctx: EngineContext, game: GameDefinition, state: VmSt
   return out;
 }
 
-/** One [Permanent]'s program, walked for the three kinds a value can be read through. */
-function collect(out: VmStatic[], frame: ScriptFrame, ops: Op[], targets: (frame: ScriptFrame, op: Op) => string[], holds: (frame: ScriptFrame, op: Op) => boolean): void {
+/** One [Permanent]'s program, walked for the standing changes a value is read through. */
+function collect(
+  ctx: EngineContext,
+  state: VmState,
+  out: VmStatic[],
+  frame: ScriptFrame,
+  ops: Op[],
+  inPlayNow: boolean,
+  targets: (frame: ScriptFrame, op: Op) => string[],
+  holds: (frame: ScriptFrame, op: Op) => boolean,
+  measure: (frame: ScriptFrame, amount: Amount) => number,
+): void {
   for (const op of ops) {
     if (op.op === "if") {
       // A [Permanent] under a condition holds only while the condition does
       // (9-5-1-1), so the branch is taken afresh on every reading.
-      if (holds(frame, op)) collect(out, frame, op.then, targets, holds);
-      else if (op.else) collect(out, frame, op.else, targets, holds);
+      if (holds(frame, op)) collect(ctx, state, out, frame, op.then, inPlayNow, targets, holds, measure);
+      else if (op.else) collect(ctx, state, out, frame, op.else, inPlayNow, targets, holds, measure);
+      continue;
+    }
+    // 20-14: a prohibition printed as a [Permanent] holds for as long as the
+    // card is where its skills are valid (9-1-3-1), which for this one is the
+    // table — so it is read here and never stored, with no duration to expire.
+    // A rule about *cards* carries its own target; one about a *player* carries
+    // no target and the filter says which cards it is about.
+    if (op.op === "forbid") {
+      if (!inPlayNow) continue;
+      const player = op.side && op.side !== "both" ? (op.side === "opponent" ? otherPlayer(frame.master) : frame.master) : undefined;
+      const uses = op.uses != null ? measure(frame, op.uses) : undefined;
+      // The escape clause is a sentence of *this* card, so it records whose
+      // card it is: "you" and "your opponent" in it are read from that chair
+      // and not from the chair of whoever is trying to act.
+      const forbid: Prohibition = { what: op.what, ...(uses != null ? { uses } : {}), ...(op.unless ? { unless: op.unless, master: frame.master } : {}), player, bySkill: op.bySkill };
+      if (op.target) {
+        for (const id of targets(frame, op)) out.push({ source: frame.card, master: frame.master, kind: "forbid", target: id, value: forbid });
+      } else {
+        const name = op.sameNameAsSelf ? faceName(ctx, state, frame.card) : undefined;
+        out.push({ source: frame.card, master: frame.master, kind: "forbid", target: "", value: { ...forbid, filter: op.filter, name } });
+      }
       continue;
     }
     if (op.op === "power" || op.op === "comboPower") {
@@ -307,18 +461,121 @@ function collect(out: VmStatic[], frame: ScriptFrame, ops: Op[], targets: (frame
     }
     if (op.op === "grant") {
       for (const id of targets(frame, op)) out.push({ source: frame.card, master: frame.master, kind: "keyword", target: id, value: op.keyword });
+      continue;
+    }
+    // 20-21: the price a card is bought at, standing rather than resolved —
+    // "reduce the energy cost of your <Son Goku> cards in your hand by 1". It
+    // reaches the price through the attribute layers `LAYER_KINDS` pairs it
+    // with, which is why nothing below names a cost field.
+    if (op.op === "costReduction") {
+      // The coloured half alone, kept as its own kind so the total cannot be
+      // moved by it (the owner's BT19-039 ruling). Always a printed list of
+      // orbs and never a "for each" count, so the sign is read off the number
+      // rather than measured.
+      if (op.what === "specified") {
+        if (!op.colors?.length || typeof op.amount !== "number") continue;
+        const sign: 1 | -1 = op.amount < 0 ? -1 : 1;
+        for (const id of targets(frame, op)) out.push({ source: frame.card, master: frame.master, kind: "specifiedCost", target: id, value: { colors: op.colors, sign } });
+        continue;
+      }
+      // 4-3-3 and 22-2: an orb price belongs to *one skill line* rather than to
+      // the card, and a line's price is bound by the move that names it
+      // (`BoundAmounts`, #147), so there is nothing here to change yet.
+      if (op.what === "skill" || op.what === "evolve") continue;
+      const kind = op.what === "combo" ? "comboCost" : op.what === "zEnergy" ? "zEnergy" : "cost";
+      // "…by 1 for each of your blue Battle Cards" — the same two amounts the
+      // power statics take, and for the same reason: a [Permanent] has no frame
+      // that ever bound a variable, so only a count over the board can be read.
+      const value = typeof op.amount === "number" ? op.amount : "count" in op.amount || "markers" in op.amount ? measure(frame, op.amount) : null;
+      if (value == null) continue;
+      for (const id of targets(frame, op)) out.push({ source: frame.card, master: frame.master, kind, target: id, value });
     }
   }
 }
 
-// ── the layers a value is read through (9-9-1) ──────────────────────────────
 
-/** Which effects belong to which declared layer. A layer no row names contributes nothing, which is what a printed-only attribute wants. */
-const LAYERS: Record<string, (statics: VmStatic[], timed: ContinuousEffect[]) => (number | KeywordSkill)[]> = {
+// ── the layers a value is read through (9-9-1, 20-21) ───────────────────────
+
+/** What a layer is handed: the value so far, the standing changes of its kind, the timed ones, and the card's printed bag for the one fallback that needs it. */
+type Layer = (value: AttrValue | undefined, statics: EffectValue[], timed: EffectValue[], attrs: Attrs) => AttrValue | undefined;
+
+type EffectValue = number | KeywordSkill | SpecifiedChange | Prohibition;
+
+/** Numbers added to a number, which is every change 9-9-1 makes to `power` and `comboPower`. */
+function added(value: AttrValue | undefined, changes: EffectValue[]): AttrValue | undefined {
+  let out = value;
+  for (const add of changes) {
+    if (typeof add !== "number") continue;
+    out = (typeof out === "number" ? out : 0) + add;
+  }
+  return out;
+}
+
+/**
+ * Which effects belong to which declared layer.
+ *
+ * A layer no row names contributes nothing, which is what a printed-only
+ * attribute wants; a layer this interpreter has no entry for is skipped, which
+ * is what an attribute declaring a layer nobody has built yet wants.
+ */
+const LAYERS: Record<string, Layer> = {
   // 9-9-1-2: the standing changes. Every one this engine makes is additive.
-  rewrite: (statics) => statics.map((e) => e.value),
+  rewrite: (value, statics) => added(value, statics),
   // 9-9-1-3: the changes a resolved skill put in force for a duration.
-  numeric: (_statics, timed) => timed.map((e) => e.value as number),
+  numeric: (value, _statics, timed) => added(value, timed),
+  /**
+   * 20-21: a **discount on the price being paid**, which is not a rewrite of
+   * the printed cost and is not additive — 20-21-2 floors it at zero, and a
+   * floor does not commute with an addition. Reducers of both origins are read
+   * together, because "reduce by 1" means the same whether a [Permanent] stands
+   * it or a skill put it in force for the turn (`playCost`, which adds the two
+   * lists before it subtracts either).
+   *
+   * It reaches a **number** and a **colour list** with one arithmetic: taking 1
+   * off a total takes one orb off the coloured requirement with it, which is
+   * the loop `playCost` runs and the reason both attributes name this layer.
+   * Which orb goes is the first still demanded — the legacy engine's greedy
+   * choice, and the same choice, because `specifiedCost` is one entry per orb
+   * in the order `specifiedCostOf` filled them.
+   */
+  reduction: (value, statics, timed) => {
+    let by = 0;
+    for (const n of [...statics, ...timed]) if (typeof n === "number") by += n;
+    if (!by) return value;
+    if (Array.isArray(value)) return by > 0 ? (value as readonly string[]).slice(by) : value;
+    if (typeof value !== "number") return value;
+    return Math.max(0, value - by);
+  },
+  /**
+   * The coloured half said on its own (owner's ruling on BT19-039, 9 Sep 2026,
+   * read off 13-2-1-3 and 20-21-2): "reduce the specified cost of this card by
+   * {u}" relaxes which colours are demanded and moves the total **nothing**.
+   * That is why it is a layer of `specifiedCost` and of no numeric attribute —
+   * a number has nothing for it to do, and declaring it on one would be a
+   * reading that quietly did nothing.
+   */
+  specified: (value, statics, timed, attrs) => {
+    if (!Array.isArray(value)) return value;
+    const orbs = [...(value as readonly string[])];
+    for (const change of [...statics, ...timed]) {
+      if (!change || typeof change !== "object" || !("colors" in change)) continue;
+      const { colors, sign } = change as SpecifiedChange;
+      for (const orb of colors) {
+        if (sign === 1) {
+          const at = orb === "any" ? (orbs.length ? 0 : -1) : orbs.indexOf(orb);
+          if (at >= 0) orbs.splice(at, 1);
+        } else {
+          // Tightening with no colour named demands one more of whatever is
+          // already demanded, or of the card's own first colour — the legacy
+          // fallback, and the one place a layer reads another attribute.
+          const own = (attrs.colors as readonly string[] | undefined)?.find((c) => c !== "Colorless");
+          const add = orb === "any" ? (orbs[0] ?? own) : orb;
+          if (add) orbs.push(add);
+        }
+      }
+    }
+    return orbs;
+  },
 };
 
 /**
@@ -327,26 +584,30 @@ const LAYERS: Record<string, (statics: VmStatic[], timed: ContinuousEffect[]) =>
  * `printed` is the value the catalog gave (`attrsOf`); every layer after it is
  * this module's. An attribute the game declares no `layers:` for is its printed
  * value and nothing else — which is most of them, and is why `valueOf` can be
- * asked for any attribute rather than only the two with layers.
+ * asked for any attribute rather than only the ones with layers.
  *
- * `statics` and `timed` are already the ones about **this card and this
- * attribute**: the filtering is the caller's because it is the caller that
- * knows how an attribute name maps onto an effect's `kind`, and a second
- * mapping table here would be a second place for the two to disagree.
+ * `statics` and `timed` are every change in force **about this card**; which of
+ * them a layer sees is `LAYER_KINDS`, read here so that the pairing of an
+ * attribute's name with an effect's `kind` lives in exactly one place. The
+ * default is the attribute's own name, which is the whole of the rule for
+ * everything but a price.
  */
 export function valueOf(game: GameDefinition, attrs: Attrs, name: string, statics: VmStatic[], timed: ContinuousEffect[]): AttrValue | undefined {
   const declared = game.attributes[name];
   const printed = attrs[name];
   if (!declared?.layers?.length) return printed;
-  let value = printed;
+  let value: AttrValue | undefined = printed;
   for (const layer of declared.layers) {
     if (layer === "printed") continue;
     const read = LAYERS[layer];
-    if (!read) continue; // a layer this interpreter has nothing for — `reduction`/`specified` are #148's.
-    for (const add of read(statics, timed)) {
-      if (typeof add !== "number") continue;
-      value = (typeof value === "number" ? value : 0) + add;
-    }
+    if (!read) continue; // a layer this interpreter has nothing for.
+    const kind = LAYER_KINDS[name]?.[layer] ?? name;
+    value = read(
+      value,
+      statics.filter((e) => e.kind === kind).map((e) => e.value),
+      timed.filter((e) => e.kind === kind).map((e) => e.value as EffectValue),
+      attrs,
+    );
   }
   return value;
 }

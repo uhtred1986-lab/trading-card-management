@@ -18,7 +18,10 @@
 -- printed cost but a discount on the price being paid (20-21): `reduction`
 -- is the flat one, `specified` the coloured one, and they move apart —
 -- `docs/arena-history-lessons.md`, 8 Sep 2026 and the owner's BT19-039
--- ruling of 9 Sep 2026.
+-- ruling of 9 Sep 2026. The two therefore sit on *different* attributes:
+-- `reduction` on both halves of a price, since taking 1 off a total takes one
+-- orb with it (20-21-2), and `specified` on the coloured half alone, which is
+-- what "moves the total nothing" means when it is written down.
 --
 -- Where an attribute's real domain cannot be said in this grammar — `value:`
 -- knows five shapes and no enum, no union and no map — the text says what the
@@ -61,7 +64,8 @@ DEFINE ATTRIBUTE specifiedCost                                            -- §1
   of: card
   value: colors
   printed: true
-  text: "the coloured orbs of the energy cost, one entry per orb, that must be matched in colour when the cost is paid (1-2-3, 5-3)"
+  layers: [printed, reduction, specified]
+  text: "the coloured orbs of the energy cost, one entry per orb, that must be matched in colour when the cost is paid (1-2-3, 5-3); a flat reduction takes an orb off with each energy it takes off the total (20-21-2), and the `specified` layer is the half that relaxes or tightens the colours alone without moving the total at all"
 
 DEFINE ATTRIBUTE zEnergyCost                                             -- §2-6
   of: card
@@ -125,8 +129,8 @@ DEFINE ATTRIBUTE costOf                                                   -- §2
   of: card
   value: number
   printed: false
-  layers: [printed, reduction, specified]
-  text: "the price of playing this card as it stands: the printed total cost, less every cost reduction in force, with the coloured half relaxed or tightened on its own (20-21-1, 20-21-2)"
+  layers: [printed, reduction]
+  text: "the total price of playing this card as it stands: the printed total cost, less every cost reduction in force, and never less than zero (20-21-1, 20-21-2). The coloured half of the same price is `specifiedCost`, which carries the `specified` layer, because a sentence that relaxes which colours are demanded moves the total nothing at all — the owner's BT19-039 ruling of 9 Sep 2026"
 
 DEFINE ATTRIBUTE comboCostOf                                              -- §20-21
   of: card

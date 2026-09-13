@@ -40,27 +40,36 @@
  * **Which number, and how far through the layers.** Which attribute a price is
  * read off is the *declaration's* to say — `amount: "costOf"` on `DEFINE COST
  * energy`, `amount: "zEnergyCostOf"` on `zEnergy` (#146) — so this module names
- * no cost field, and the day 20-21's reductions are in force they reach a
- * play's price through the declared `layers:` rather than through a second
- * reading here. `amountOn` reads that attribute through `attrsNow`, which is
- * the one place a layered value is computed on this engine.
+ * no cost field, and 20-21's reductions reach a play's price through the
+ * declared `layers:` rather than through a second reading here. `amountOn`
+ * reads that attribute through `attrsNow`, which is the one place a layered
+ * value is computed on this engine.
  *
- * How far the layers actually go is the seam, and it has moved by one piece.
- * #148 named four things missing before `costOf` could mean anything, and the
- * second of them — "a derived attribute has no printed base, and nothing maps
- * `costOf` back onto the `energyCost` it discounts" — is now `PRINTED_BASE` in
- * `./cards.ts`, so `costOf` reads as the printed total instead of as nothing.
- * Three remain, and none of them is a line in this file: `valueOf` accumulates
- * *numbers*, and 20-21-2's floor at zero is not additive; the coloured half is
- * a `colors` value and `specifiedCost` declares no `layers:` at all, so
- * `amountOn` still reads it by name; and `VmStatic.kind` is the three kinds a
- * value is read through, which `cost` and `specifiedCost` are not. Behind all
- * three sits the fact that settles them: **nothing can put a cost reducer in
- * force on this engine yet** — `permanents` refuses `costReduction` by name —
- * so wiring the remaining layers today would change no board and produce
- * exactly the "wired but inert" reducer `docs/arena-next-session-prompt.md`
- * §4(c) records as a trap. `PRICE_LAYERS` says in the log of any game that asks
- * how far the reading goes.
+ * That seam is now closed, and it closed because a [Permanent] could finally be
+ * in play (#146): a card could not be put on the table before there was a move
+ * that played one, so wiring the layers earlier would have produced exactly the
+ * "wired but inert" reducer `docs/arena-next-session-prompt.md` §4(c) records as
+ * a trap. The four pieces #148 named are all built, and none of them is a line
+ * in this file:
+ *
+ *  - `PRINTED_BASE` in `./cards.ts` pairs a derived price with the printed
+ *    number it discounts, so `costOf` reads as a total rather than as nothing;
+ *  - `LAYER_KINDS` in `./effects.ts` pairs an attribute's name with the effect
+ *    `kind` a layer of it reads, because the attribute is `costOf` and the
+ *    effect a skill puts in force says `cost`;
+ *  - the `reduction` layer subtracts and **floors at zero** (20-21-2) rather
+ *    than accumulating, which is why a layer is a function and not a sum;
+ *  - `specifiedCost` declares `[printed, reduction, specified]` and carries a
+ *    `colors` value through both, so the coloured half moves — one orb with
+ *    each energy a flat reducer takes off, and on its own for a sentence that
+ *    only relaxes a colour (the owner's BT19-039 ruling of 9 Sep 2026).
+ *
+ * One half of 20-21 is still out, and it is a **keyword** rather than a
+ * reduction: 22-19's [Warrior of Universe 7] clears a ≪Universe 7≫ card's
+ * specified cost outright, and a keyword's own body is a `DEFINE KEYWORD` hook
+ * and Stage 7's (#153–#157). Reading that one keyword by name here would be the
+ * branch this module exists to remove. `PRICE_LAYERS` says so in the log of any
+ * game that asks how far the reading goes.
  *
  * Pure and client-safe, like the rest of `vm/`: no database, no network,
  * nothing read at request time.
@@ -83,7 +92,7 @@ import type { VmState } from "./state";
  * declared layers — which come to the printed total, because no cost reducer
  * can be in force on this engine yet (see the header).
  */
-export const PRICE_LAYERS = "the cost attribute the price declares, through the layers it declares — the printed total today, since no cost reducer can be in force yet (20-21)";
+export const PRICE_LAYERS = "the cost attribute the price declares, through the layers it declares — every cost reduction in force, flat and coloured, floored at zero (20-21); 22-19's [Warrior of Universe 7] is a keyword body and waits on Stage 7";
 
 // ── a declaration, read ─────────────────────────────────────────────────────
 
@@ -333,18 +342,20 @@ function amountOn(ctx: EngineContext, game: GameDefinition, state: VmState, char
   if (!def) return { total: 0, orbs: {} };
   // The layers the declaration names (9-9-1, 20-21). `costOf` has no printed
   // face of its own and `PRINTED_BASE` pairs it with the `energyCost` it
-  // discounts, so the reading below is the printed total today and the reduced
-  // one the moment a reducer can be in force.
+  // discounts, so the reading below is the printed total less every reduction
+  // in force — standing from a [Permanent] or put there for the turn by a skill
+  // that resolved, which are one list to `valueOf` as they are to `playCost`.
   const now = charge.amount ? attrsNow(ctx, game, state, card) : {};
   const named = charge.amount ? now[charge.amount] : undefined;
   const total = charge.amount === null ? 0 : typeof named === "number" ? named : null;
   const orbs: Partial<Record<Color, number>> = {};
-  // The other half, and the one piece of the price still read by name: the
-  // coloured requirement is a `colors` value and `specifiedCost` declares no
-  // `layers:`, which is the third of the four pieces `PRICE_LAYERS` names.
+  // The other half, read through its own layers like the first: `specifiedCost`
+  // declares `[printed, reduction, specified]`, so a flat reducer takes an orb
+  // off with each energy it takes off the total (20-21-2) and a "reduce the
+  // specified cost by {u}" relaxes the colour without moving the total at all.
   // Only an energy price has one — cards taken out of a pool have no colour.
   if (charge.consumes === "energy") {
-    const specified = attrsOf(def, game).attrs.specifiedCost;
+    const specified = (charge.amount ? now : attrsNow(ctx, game, state, card)).specifiedCost;
     if (Array.isArray(specified)) for (const colour of specified as Color[]) orbs[colour] = (orbs[colour] ?? 0) + 1;
   }
   return { total, orbs };

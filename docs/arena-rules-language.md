@@ -334,6 +334,27 @@ turn kept in twenty places instead of one.
 accepted without ever being enumerated. It says nothing about legality; the move is checked exactly
 as a listed one is, and is simply on neither the menu nor the list of refusals.
 
+A `REFUSE` line written **without ever mentioning the candidate** — no `FROM $<bind>` anywhere in
+its condition — is a fact about the board rather than about a card, and it therefore also refuses
+the `decline:`, which is otherwise never refused. It does not grey that answer out: it takes it off
+the menu entirely, because a refusal explains a move a player can see and there is no ghost button
+at a question the move does not answer. The charge is the case: 7-2-11 gives the turn player one
+charge, so the paragraph is declared in the Charge Phase *and* the Main Phase and its first line is
+`REFUSE oncePerTurn(what: "charge") UNLESS asking(prompt: charge)` — every card in hand is refused
+at the Main Phase question, and no "Skip charge" is drawn there.
+
+Two conditions of the language are never said by a printed card, and both exist for a `REFUSE`:
+`asking(prompt: …)`, which tells two windows of one move apart, and `forbidden(what: …)`, which is
+20-14's prohibitions — the same predicate `forbids()` is on both engines, asked of the candidate
+and the actor. Both are in `COND_SCHEMA` like every other condition and a `.rules` file may write
+either, but the referee's prompt and the workbench's chip editor, which are both about one *card's*
+rule, leave them out (`CONDITIONS_OFF_A_CARD` in `engine/script-schema.ts`).
+
+`forbidden` is also the one condition whose failure carries **fields** back: a `forbidden`
+requirement has to name which card's rule stopped the move, how long it holds and what would let it
+through, and only the board knows those — so the interpreter fills them into the declared
+requirement the way it fills in the candidate's own `card`.
+
 Who the move is offered *to* is deliberately not a field: a prompt is put to a player and an action
 answers a prompt, so the asked player is the actor. That is prompt machinery, which
 `docs/arena-ruleset-spec.md` §7 keeps out of the game's own files.
