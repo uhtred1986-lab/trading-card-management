@@ -1472,6 +1472,16 @@ import {
     "the loan is a continuous effect, and it carries the way home",
   );
 
+  // And the board says the card is on loan rather than simply appearing on
+  // the wrong side: the label is written from the card's own chair, because
+  // with two players a card whose master is not its owner is always being
+  // used by the owner's opponent, whichever side is reading it.
+  const onLoan = boardView(CTX, s, "p1", {}).you.battle.find((c) => c.id === theirs);
+  assert.deepEqual(
+    (onLoan?.effects ?? []).map((e) => e.label),
+    ["controlled by its owner's opponent"],
+  );
+
   // 8-1: it attacks for whoever masters it, with no rule of its own to change
   // — the attack list is built from the cards in *your* Battle Area.
   assert.ok(
