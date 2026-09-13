@@ -115,7 +115,7 @@ import { FILTER_FIELD_NAMES, parseDefinitions } from "../../src/lib/arena/lang";
 import { emptyFilter, type CardFilter } from "../../src/lib/arena/engine/filters";
 import { describePayment as legacyDescribe, paymentOptions as legacyOptions, planPayment, playCost, whyNotPay } from "../../src/lib/arena/engine/state";
 import { paymentOptions as vmOptions } from "../../src/lib/arena/vm/costs";
-import type { CardDef, Color, PlayerId } from "../../src/lib/arena/engine/types";
+import type { CardDef, Color, PlayerId, Requirement } from "../../src/lib/arena/engine/types";
 import type { Op } from "../../src/lib/arena/engine/script";
 import { CTX, DEFS, assertMenuInvariants, card, fifty, matches } from "./harness";
 
@@ -198,7 +198,7 @@ assert.equal(isVmState("rules"), false, "a string was read as a rules state");
 // the sentence — the refusal a caller really gets, not a shortcut past it.
 const rules = engineFor("rules");
 const notYet: { what: string; run: () => unknown }[] = [
-  { what: "playing a card", run: () => rules.apply(CTX, state, { type: "play", player: "p1", card: "p1#1" }) },
+  { what: "growing a Unison", run: () => rules.apply(CTX, state, { type: "growUnison", player: "p1", card: "p1#1" }) },
   { what: "attacking", run: () => rules.apply(CTX, state, { type: "attack", player: "p1", attacker: "p1#0", target: "p2#0" }) },
   { what: "activating a skill", run: () => rules.apply(CTX, state, { type: "activate", player: "p1", card: "p1#1", skill: 0 }) },
 ];
@@ -215,6 +215,21 @@ for (const { what, run } of notYet) {
     `${what} on the rules engine was accepted`,
   );
 }
+
+// A move that *is* declared is refused with a sentence rather than named as
+// missing work: playing is #146's paragraph in `actions.rules`, so a play sent
+// during the pre-game procedure is an ordinary `IllegalAction` and not a
+// `NotYet`. The difference matters to a client: one says "not yet", the other
+// says why this move cannot be made now.
+assert.throws(
+  () => rules.apply(CTX, state, { type: "play", player: "p1", card: "p1#1" }),
+  (err: unknown) => {
+    assert.ok(err instanceof IllegalAction, `playing a card threw ${err instanceof Error ? err.name : typeof err}, not an IllegalAction`);
+    assert.equal(err instanceof NotYet, false, "playing a card is declared and was still named as work not done");
+    return true;
+  },
+  "a card was played during the pre-game procedure",
+);
 
 // ── 5. a row is never replayed on the wrong interpreter ────────────────────
 
@@ -1291,7 +1306,7 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
       actionsAt(DBS, s)
         .map((a) => a.name)
         .sort(),
-      ["concede", "endMain", "pass"],
+      ["concede", "endMain", "pass", "play", "playUnison", "playZ"],
       "the Main Phase offers a declared action other than the ones the files declare",
     );
     const menu = declaredLegalActions(CTX, DBS, s);
@@ -1300,7 +1315,20 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
       [{ type: "endMain", player: "p1" }],
       "an unlisted action reached the menu, or the one listed move of the Main Phase is not on it",
     );
-    assert.deepEqual(declaredRejectedActions(CTX, DBS, s, menu), [], "an unlisted action reached the list of refusals");
+    // The play family is declared (#146), and this board has no energy — so
+    // every Battle Card in hand is on the *refused* list with the price that
+    // stopped it, and `pass` and `concede` are on neither list because a
+    // refusal explains a move a player can see.
+    const refused = declaredRejectedActions(CTX, DBS, s, menu);
+    assert.deepEqual(
+      [...new Set(refused.map((r) => r.action.type))],
+      ["play"],
+      "an unlisted action reached the list of refusals, or a Main Phase move other than a play was refused",
+    );
+    assert.ok(
+      refused.every((r) => r.why[0]?.kind === "energy"),
+      "a card was refused a play on an empty board for something other than the price",
+    );
     // …and it is still the move that answers the question.
     const after = rulesEngine.apply(CTX, s, { type: "pass", player: "p1" });
     assert.notEqual((after.state as VmState).phase, "main", "pass did not answer the Main Phase's question");
@@ -1446,11 +1474,12 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     let s = atCharge();
     s = rulesEngine.apply(CTX, s, { type: "charge", player: "p1", card: null }).state as VmState;
     assert.equal(s.prompt.kind, "main", "the game is not at the Main Phase question");
-    assert.deepEqual(actionsAt(DBS, s).map((a) => a.name).sort(), ["concede", "endMain", "pass"], "the charge is offered at a question it does not answer");
+    assert.equal(actionsAt(DBS, s).some((a) => a.name === "charge"), false, "the charge is offered at a question it does not answer");
     assert.throws(() => rulesEngine.apply(CTX, s, { type: "charge", player: "p1", card: s.sides.p1.zones.hand[0] }), IllegalAction, "a card was charged in the Main Phase");
 
-    // …and the Main Phase's own move, which is the whole of what this engine
-    // can do there until the play family is declared (#146).
+    // …and the Main Phase's own moves: ending the turn, and every card in hand
+    // this player can afford to play (#146). The opening board has no energy,
+    // so on this one there is nothing to afford.
     const menu = rulesEngine.legalActions(CTX, s);
     assert.deepEqual(menu.map((l) => ({ action: l.action, label: l.label })), [{ action: { type: "endMain", player: "p1" }, label: "End turn" }], "the Main Phase offers something other than ending the turn");
     const ended = rulesEngine.apply(CTX, s, { type: "endMain", player: "p1" }).state as VmState;
@@ -1662,7 +1691,7 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
 
     // …and charging really does what the declarations say it does.
     const ev: GameEvent[] = [];
-    const payment: VmPayment = { rest: [energyIds(1)[0]], energyMarkers: 0, markers: -2, life: [], restsSelf: true };
+    const payment: VmPayment = { rest: [energyIds(1)[0]], energyMarkers: 0, markers: -2, life: [], pooled: [], restsSelf: true };
     chargeCost(CTX, DBS, vm, ev, "p1", payment, subject, ["energy", "marker", "rest"]);
     assert.equal(vm.cards[energyIds(1)[0]].mode, "rest", "the energy was not rested");
     assert.equal(vm.cards[subject].markers, 0, "the markers were not taken off the card");
@@ -1809,18 +1838,255 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     assert.notEqual(after.prompt.kind, "payCost", "the game is still asking about a payment it has taken");
 
     // The whole round trip through `apply` — the prompt answered by re-sending
-    // the move the flow was suspended in the middle of — is reached here and
-    // stops at the one thing missing: DBS declares no move that carries a
-    // price until the play family does (#146), so the *fixture's* action is not
-    // one `apply` can find. What this proves is that the answer is carried into
-    // the move rather than discarded, which is the half that is built.
-    const roundTrip = () => rulesEngine.apply(CTX, asking, { type: "payCost", player: "p1", option: keepRed });
-    assert.throws(roundTrip, NotYet, "answering the payment did not re-send the move it was suspended in");
-    try {
-      roundTrip();
-    } catch (err) {
-      assert.ok(err instanceof NotYet && err.issue === "#146", `answering a payment named ${err instanceof NotYet ? err.issue : "no issue"} rather than the one that declares the move`);
+    // the move the flow was suspended in the middle of. `apply` reads the
+    // *real* DBS definition, so this is the declared `play` of #146 rather than
+    // the fixture above: the answer is carried into the move, the move is
+    // taken, and the card is where a play puts it.
+    const roundTrip = rulesEngine.apply(CTX, asking, { type: "payCost", player: "p1", option: keepRed });
+    const round = roundTrip.state as VmState;
+    assert.deepEqual(round.sides.p1.zones.battle, [hand[0]], "answering the payment did not re-send the move it was suspended in");
+    assert.equal(round.cards[energy[0]].mode, "active", "the energy the player kept was rested by the re-sent move");
+    assert.notEqual(round.prompt.kind, "payCost", "the game is still asking about a payment it has taken");
+  }
+}
+
+
+
+// ── 18. playing a card, off the declarations (#146) ─────────────────────────
+//
+// Four claims, and the first is the one the acceptance is written against.
+//
+//  1. **The same events.** A play, a Unison play and a Z-card play are logged
+//     event for event as the legacy engine logs them, from the same staged
+//     board: the energy rested, the card's move, the markers it arrives with,
+//     the Z-Energy spent — and the [Auto] that answers to the arrival, which is
+//     the point of firing `moved(asPlay: true)` rather than pending a trigger
+//     by name.
+//  2. **The same first refusal per card.** Every play the legacy engine refuses
+//     on a board, this one refuses with the very same `Requirement` — and
+//     `wording.ts` says the same sentence about it, because there is one
+//     table and one refusal shape.
+//  3. **The free timing is a declaration.** 7-3-4: a play leaves the Main
+//     Phase's question on the table (`again: true`) and ending the turn does
+//     not, so a player may play twice and the phase ends when they say so.
+//  4. **What the declarations cannot say is refused, not offered free.** An X
+//     cost has no total until its master names one (1-2-2-2), and a candidate
+//     is a card and nothing else — so such a card is `unread` rather than a
+//     move taken for nothing.
+{
+  const rulesEngine = engineFor("rules");
+
+  // The cards this block stages with. Added here, as §16's and §17's are: this
+  // suite runs last, so nothing before it sees them.
+  DEFS["P-RED"] = card("P-RED", { energyCost: 1 });
+  DEFS["P-BIG"] = card("P-BIG", { energyCost: 4 });
+  DEFS["P-ARRIVES"] = card("P-ARRIVES", { energyCost: 1, skill: "[Auto] When this card is played, draw 1 card." });
+  DEFS["P-UNISON"] = card("P-UNISON", { type: "UNISON", energyCost: 2, power: 5000, comboCost: null, comboPower: null });
+  DEFS["P-UNISON-1"] = card("P-UNISON-1", { type: "UNISON", energyCost: 1, power: 5000, comboCost: null, comboPower: null });
+  DEFS["P-Z"] = card("P-Z", { type: "Z-BATTLE", energyCost: 1, zEnergyCost: 2 });
+  DEFS["P-ZLEADER"] = card("P-ZLEADER", { type: "Z-LEADER", energyCost: null, zEnergyCost: 3, comboCost: null, comboPower: null });
+  DEFS["P-X"] = card("P-X", { energyCost: "X" as unknown as number });
+  DEFS["P-E-RED"] = card("P-E-RED", { colors: ["Red"] });
+  DEFS["P-E-BLUE"] = card("P-E-BLUE", { colors: ["Blue"] });
+
+  const PLAY_DECKS = {
+    seed: 11,
+    p1: { name: "You", leader: "L-RED", main: fifty("V1"), z: ["P-Z", "P-ZLEADER"] },
+    p2: { name: "Claude", leader: "L-BLUE", main: fifty("V-BLUE") },
+  };
+
+  /** The pre-game answers, the same on either engine, up to p1's first Main Phase. */
+  const toMain = (prompt: { kind: string; player?: PlayerId }): Action | null => {
+    const pr = prompt as { kind: string; player: PlayerId };
+    if (pr.kind === "chooseFirst") return { type: "chooseFirst", player: pr.player, first: "p1" };
+    if (pr.kind === "mulligan") return { type: "mulligan", player: pr.player, redraw: false };
+    if (pr.kind === "charge") return { type: "charge", player: pr.player, card: null };
+    return null;
+  };
+
+  /**
+   * One staged Main Phase, built on **both** engines from the same seed and
+   * then given the same hand, energy and Z-Energy — the instance ids are a
+   * function of the decklist alone (#139), so "the same cards" is literal.
+   */
+  function staged(hand: string[], energy: string[], zEnergy = 0): { r: VmState; l: GameState } {
+    let r = rulesEngine.createGame(CTX, PLAY_DECKS).state as VmState;
+    let l = createGame(CTX, PLAY_DECKS).state;
+    for (let i = 0; i < 30; i++) {
+      const a = toMain(r.prompt);
+      if (!a) break;
+      r = rulesEngine.apply(CTX, r, a).state as VmState;
+      l = apply(CTX, l, a).state;
     }
+    assert.equal(r.prompt.kind, "main", "the rules game did not reach a Main Phase to play in");
+    assert.equal(l.prompt.kind, "main", "the legacy game did not reach a Main Phase to play in");
+    assert.deepEqual(r.sides.p1.zones.hand, l.players.p1.hand, "the two engines dealt different hands from the same seed");
+
+    hand.forEach((cardId, i) => {
+      const id = r.sides.p1.zones.hand[i];
+      r.cards[id].cardId = cardId;
+      l.cards[id].cardId = cardId;
+    });
+    const energyIds = r.sides.p1.zones.deck.slice(0, energy.length);
+    energyIds.forEach((id, i) => {
+      r.cards[id].cardId = energy[i];
+      r.cards[id].mode = "active";
+      l.cards[id].cardId = energy[i];
+      l.cards[id].mode = "active";
+    });
+    const zIds = r.sides.p1.zones.deck.slice(energy.length, energy.length + zEnergy);
+    const taken = new Set([...energyIds, ...zIds]);
+    r.sides.p1.zones.deck = r.sides.p1.zones.deck.filter((id) => !taken.has(id));
+    l.players.p1.deck = l.players.p1.deck.filter((id) => !taken.has(id));
+    r.sides.p1.zones.energy = energyIds;
+    l.players.p1.energy = energyIds;
+    r.sides.p1.zones.zEnergy = zIds;
+    l.players.p1.zEnergy = zIds;
+    return { r, l };
+  }
+
+  /**
+   * The same move on both engines, with the events each logged.
+   *
+   * The logs are compared through JSON, as §16's `shownEvents` compares them:
+   * the legacy engine spreads an absent `reveal` as an explicit `undefined`
+   * key, and a strict comparison would call that a divergence when what
+   * reaches a client — and what `arena:diff` stores — has no such key at all.
+   */
+  const logged = (list: GameEvent[]): unknown => JSON.parse(JSON.stringify(list));
+  function both(board: { r: VmState; l: GameState }, action: Action): { r: { state: VmState; events: unknown }; l: { state: GameState; events: unknown } } {
+    const r = rulesEngine.apply(CTX, board.r, action);
+    const l = apply(CTX, board.l, action);
+    return { r: { state: r.state as VmState, events: logged(r.events) }, l: { state: l.state, events: logged(l.events) } };
+  }
+
+  // 8-3-2: a Battle Card paid for out of the Energy Area. The whole log, not a
+  // filtered one — an event either engine logged and the other did not is
+  // exactly the divergence the oracle exists to catch.
+  {
+    const board = staged(["P-RED"], ["P-E-RED"]);
+    const target = board.r.sides.p1.zones.hand[0];
+    const offered = rulesEngine.legalActions(CTX, board.r).find((a) => a.action.type === "play");
+    assert.ok(offered, "a Battle Card the player can pay for is not offered as a play");
+    assert.deepEqual(offered!.action, { type: "play", player: "p1", card: target }, "the play offered is not the shape a client sends");
+    assert.deepEqual(offered!.cost, { energy: 1, orbs: { Red: 1 }, describe: "1 energy (1 red)" }, "the play's row does not wear the card's own price");
+
+    const done = both(board, { type: "play", player: "p1", card: target });
+    assert.deepEqual(done.r.events, done.l.events, "a play does not log the same thing on the two engines");
+    assert.deepEqual(done.r.state.sides.p1.zones.battle, done.l.state.players.p1.battle, "a play does not leave the card in the same place on the two engines");
+    // 7-3-4: the free timing is granted again, which is what `again: true` says.
+    assert.equal(done.r.state.prompt.kind, "main", "a play ended the Main Phase, and 7-3-4 grants the timing again");
+    assert.equal(done.l.state.prompt.kind, "main", "the legacy engine ended the Main Phase on a play");
+    // …and ending the turn is the move that does not, so the phase can be left.
+    const ended = rulesEngine.apply(CTX, done.r.state, { type: "endMain", player: "p1" }).state as VmState;
+    assert.notEqual(ended.phase, "main", "ending the Main Phase did not leave it");
+  }
+
+  // 9-6-9-4: the arrival is a moment, and the [Auto] that answers to it
+  // resolves through the shared interpreter — nothing pends a trigger by name.
+  {
+    const board = staged(["P-ARRIVES"], ["P-E-RED"]);
+    const target = board.r.sides.p1.zones.hand[0];
+    const done = both(board, { type: "play", player: "p1", card: target });
+    assert.deepEqual(done.r.events, done.l.events, "a played card's [Auto] does not log the same thing on the two engines");
+    assert.ok(
+      (done.r.events as { type: string; card?: string }[]).some((e) => e.type === "skill" && e.card === target),
+      "nothing answered to the card being played",
+    );
+    assert.equal(done.r.state.sides.p1.zones.hand.length, done.l.state.players.p1.hand.length, "the [Auto]'s draw left the two hands a different size");
+  }
+
+  // 13-2: a Unison arrives carrying the energy paid for it as markers, and
+  // 3-11-5 sends the Unison already there to the Drop — read off the zone's
+  // own `single:`, not off the card's type.
+  {
+    const board = staged(["P-UNISON", "P-UNISON-1"], ["P-E-RED", "P-E-RED", "P-E-RED"]);
+    const first = board.r.sides.p1.zones.hand[0];
+    const second = board.r.sides.p1.zones.hand[1];
+    const one = both(board, { type: "playUnison", player: "p1", card: first, x: 2 });
+    assert.deepEqual(one.r.events, one.l.events, "a Unison play does not log the same thing on the two engines");
+    assert.deepEqual(one.r.state.sides.p1.zones.unison, [first], "the Unison is not in the Unison Area");
+    assert.equal(one.r.state.cards[first].markers, 2, "the Unison did not arrive with the energy paid for it as markers (13-2-3)");
+    assert.equal(one.r.state.cards[first].markers, one.l.state.cards[first].markers, "the two engines gave the Unison a different number of markers");
+
+    const two = both({ r: one.r.state, l: one.l.state }, { type: "playUnison", player: "p1", card: second, x: 1 });
+    assert.deepEqual(two.r.events, two.l.events, "replacing a Unison does not log the same thing on the two engines");
+    assert.deepEqual(two.r.state.sides.p1.zones.unison, [second], "the second Unison did not take the area");
+    assert.ok(two.r.state.sides.p1.zones.drop.includes(first), "the Unison already in play did not go to the Drop Area (3-11-5)");
+  }
+
+  // 16-2: a Z-card pays two prices, and in the order the engine that has been
+  // playing charges them — the Z-Energy first, then the energy.
+  {
+    const board = staged([], ["P-E-RED"], 2);
+    const zCard = board.r.sides.p1.zones.zDeck.find((id) => board.r.cards[id].cardId === "P-Z")!;
+    const offered = rulesEngine.legalActions(CTX, board.r).find((a) => a.action.type === "playZ");
+    assert.ok(offered, "a Z-card with the Z-Energy for it is not offered");
+    assert.equal(offered!.cost?.describe, "1 energy (1 red) · 2 zEnergy", "a Z-card's row does not say what it costs in Z-Energy");
+    const done = both(board, { type: "playZ", player: "p1", card: zCard });
+    assert.deepEqual(done.r.events, done.l.events, "a Z-card play does not log the same thing on the two engines");
+    assert.equal(done.r.state.sides.p1.zones.zEnergy.length, 0, "the Z-Energy was not spent");
+
+    // 5-4-2: and it is refused when the Z-Energy is not there, in the words of
+    // the zone the game declares.
+    const poor = staged([], ["P-E-RED"], 1);
+    const refusedZ = rulesEngine.rejectedActions(CTX, poor.r, rulesEngine.legalActions(CTX, poor.r)).find((x) => x.action.type === "playZ" && (x.action as { card: string }).card === zCard);
+    assert.ok(refusedZ, "a Z-card with too little Z-Energy is neither offered nor refused");
+    assert.deepEqual(refusedZ!.why[0], { kind: "other", detail: "needs 2 in your zEnergy (1 there)" }, "a Z-card short of Z-Energy is refused for something else");
+
+    // 6-1-4: a Z-Leader is not played at all, and the player reaching for it is
+    // owed the requirement that says so.
+    const zLeader = board.r.sides.p1.zones.zDeck.find((id) => board.r.cards[id].cardId === "P-ZLEADER")!;
+    const refusedLeader = rulesEngine.rejectedActions(CTX, board.r, rulesEngine.legalActions(CTX, board.r)).find((x) => (x.action as { card?: string }).card === zLeader);
+    assert.ok(refusedLeader, "a Z-Leader in the Z-Deck is neither offered nor refused");
+    assert.deepEqual(refusedLeader!.why[0], { kind: "cardType", needs: "a Z-Battle Card or a Z-Extra Card", card: zLeader }, "a Z-Leader is refused for something other than being one");
+  }
+
+  // The refusals, card for card against the legacy engine — the shape and the
+  // sentence. One blue energy on a red board: the cheap cards are short of the
+  // colour, the expensive one short of the total.
+  {
+    const board = staged(["P-RED", "P-BIG", "P-RED"], ["P-E-BLUE"]);
+    const mine = rulesEngine.rejectedActions(CTX, board.r, rulesEngine.legalActions(CTX, board.r));
+    const theirs = rejectedActions(CTX, board.l, legalActions(CTX, board.l));
+    const firstOf = (list: { action: Action; why: Requirement[] }[]) =>
+      new Map(list.filter((x) => x.action.type === "play").map((x) => [(x.action as { card: string }).card, x.why[0]]));
+    const ours = firstOf(mine);
+    const legacyFirst = firstOf(theirs);
+    let compared = 0;
+    for (const [cardId, why] of legacyFirst) {
+      const got = ours.get(cardId);
+      assert.ok(got, `${cardId} is refused a play by the legacy engine and neither offered nor refused by this one`);
+      assert.deepEqual(got, why, `${cardId}: the two engines give a different first reason for refusing a play`);
+      // One wording table, so the sentence is the same sentence.
+      const about = { name: "P-RED", reaching: "play" as const };
+      assert.deepEqual(refusal(got!, about), refusal(why, about), `${cardId}: the same requirement reads differently on the two engines`);
+      compared++;
+    }
+    assert.ok(compared >= 3, `only ${compared} play refusals were compared against the legacy engine`);
+    assertMenuInvariants(rulesEngine.legalActions(CTX, board.r), mine, "the play menu with the wrong colour of energy");
+  }
+
+  // 1-2-2-2: an X cost. The value is an answer to a question and a candidate is
+  // a card, so the card is refused as `unread` rather than offered for nothing
+  // — the 8 Sep 2026 precedent, applied to a price instead of to a skill.
+  {
+    const board = staged(["P-X"], ["P-E-RED", "P-E-RED"]);
+    const xCard = board.r.sides.p1.zones.hand[0];
+    assert.equal(
+      rulesEngine.legalActions(CTX, board.r).some((a) => (a.action as { card?: string }).card === xCard),
+      false,
+      "a card whose cost is X was offered at a price nobody named",
+    );
+    const why = rulesEngine.rejectedActions(CTX, board.r, rulesEngine.legalActions(CTX, board.r)).find((x) => (x.action as { card?: string }).card === xCard);
+    assert.deepEqual(why?.why[0], { kind: "unread", card: xCard }, "a card whose cost is X is not refused as a price this engine cannot read");
+    // The legacy engine offers it once per value of X, which is the divergence
+    // this names rather than hides: `DECLARABLE_ACTIONS` has no shape that
+    // carries an answer, and #147 is where a move's price takes arguments.
+    assert.ok(
+      legalActions(CTX, board.l).some((a) => a.action.type === "play" && (a.action as { card: string }).card === xCard),
+      "the legacy engine stopped offering an X cost, and this divergence is recorded on the assumption that it does",
+    );
   }
 }
 

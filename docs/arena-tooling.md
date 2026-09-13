@@ -144,9 +144,15 @@ skipped) tells you what you broke:
   cards to `DEFS`, so it only runs when `ENGINE` is `legacy` — see below.
 - **`vm.ts`** — the engine switch itself: `engineFor` resolves both ids, the
   rules engine deals the same opening board as the legacy one from the same
-  seed, and every other call it cannot make yet throws `NotYet` naming the
-  issue that builds it. Runs the same regardless of `--engine`, on purpose
-  (below).
+  seed, and every call it cannot make yet throws `NotYet` naming the issue that
+  builds it. It is also where the rules engine is held to the older one move for
+  move, because the harness's own fixtures cannot stage a rules game yet
+  (`EngineMismatch`, below): §16 the turn and the declared moves, §17 the
+  prices against `planPayment`, §18 the play family — the same board built on
+  both engines, then the same play, Unison play and Z-card play asserted event
+  for event, and every play refusal compared by `Requirement` *and* by the
+  sentence `wording.ts` makes of it. Runs the same regardless of `--engine`, on
+  purpose (below).
 
 ### `--engine legacy|rules` and `npm run test:rules`
 

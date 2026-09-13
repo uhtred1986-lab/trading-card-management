@@ -123,6 +123,23 @@ const CATALOG: Record<keyof CardDef, Reader> = {
  */
 const FROM_BOARD = new Set(["costOf", "comboCostOf", "zEnergyCostOf"]);
 
+/**
+ * The printed face each board-filled price is a reading *of* (20-21).
+ *
+ * `costOf` declares `layers: [printed, reduction, specified]`, and its
+ * `printed` layer is not a value of its own — it is the printed total beside
+ * it. Without this pairing the attribute reads as absent however many layers
+ * are wired, which is the "nothing maps `costOf` back onto the `energyCost` it
+ * discounts" `vm/costs.ts` named as one of the four pieces 20-21 was waiting
+ * on (#146 fills this one; the other three are still open, and that module's
+ * header says which).
+ *
+ * A pairing rather than a rule about names: the three are the ones
+ * `attributeGaps` already calls board-filled, and each says in its own `text:`
+ * which printed number it discounts.
+ */
+export const PRINTED_BASE: Record<string, string> = { costOf: "energyCost", comboCostOf: "comboCost", zEnergyCostOf: "zEnergyCost" };
+
 /** One orb per entry, the way the declaration asks ("one entry per orb"). */
 function orbs(cost: Partial<Record<Color, number>>): string[] {
   const out: string[] = [];

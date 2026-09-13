@@ -188,7 +188,7 @@ export function declaredLegalActions(ctx: EngineContext, game: GameDefinition, s
     for (const c of candidatesOf(ctx, game, state, def, player)) {
       if (c.why.length) continue;
       const cost = actionCostOf(c.price);
-      out.push({ action: actionFor(game, def, player, c.card), label: labelFor(ctx, state, def, c.card), ...(cost ? { cost } : {}) });
+      out.push({ action: actionFor(game, def, player, c), label: labelFor(ctx, state, def, c.card), ...(cost ? { cost } : {}) });
     }
   }
   return out;
@@ -214,7 +214,7 @@ export function declaredRejectedActions(ctx: EngineContext, game: GameDefinition
     if (def.listed === false) continue;
     for (const c of candidatesOf(ctx, game, state, def, player)) {
       if (!c.why.length) continue;
-      const action = actionFor(game, def, player, c.card);
+      const action = actionFor(game, def, player, c);
       // Never both lists, whatever the declaration says: a move already
       // offered is not refused, which is the invariant every client indexes by
       // card on.
@@ -239,12 +239,20 @@ const keyOf = (a: Action): string => {
  * the union has no word for — or one whose shape a candidate cannot fill — is a
  * declaration no client could send, so it is said rather than cast.
  */
-function actionFor(game: GameDefinition, def: ActionDef, player: PlayerId, card: string | null): Action {
+function actionFor(game: GameDefinition, def: ActionDef, player: PlayerId, c: Candidate): Action {
+  const card = c.card;
   const shape = DECLARABLE_ACTIONS[def.name as Action["type"]];
   if (!shape) throw new RulesetBroken(game.id, `DEFINE ACTION ${JSON.stringify(def.name)} is not a move a client can send: no action of that name is a player, a card and nothing else`);
   if (shape === "none" && def.for !== undefined) throw new RulesetBroken(game.id, `DEFINE ACTION ${JSON.stringify(def.name)} has a FOR, and a ${def.name} names no card`);
-  if (shape === "card" && card === null) throw new RulesetBroken(game.id, `DEFINE ACTION ${JSON.stringify(def.name)} names no card, and a ${def.name} is always about one`);
-  return (shape === "none" ? { type: def.name, player } : { type: def.name, player, card }) as unknown as Action;
+  if (shape !== "none" && shape !== "cardOrNone" && card === null) throw new RulesetBroken(game.id, `DEFINE ACTION ${JSON.stringify(def.name)} names no card, and a ${def.name} is always about one`);
+  if (shape === "none") return { type: def.name, player } as unknown as Action;
+  // 13-2 and 20-5: the `x` a move carries is **the amount its price was
+  // settled at**, which is what the price already is — the markers a Unison
+  // arrives with are the energy paid for it. A price the candidate could not
+  // settle (an X cost) never reaches here: `candidatesOf` has already refused
+  // it as `unread`, so the number below is never one nobody chose.
+  if (shape === "cardWithX") return { type: def.name, player, card, x: c.price.energy } as unknown as Action;
+  return { type: def.name, player, card } as unknown as Action;
 }
 
 /**
@@ -256,14 +264,20 @@ function actionFor(game: GameDefinition, def: ActionDef, player: PlayerId, card:
  * player goes first, how many markers to carry, an X, a skill line. Those are
  * answers to questions rather than moves a menu enumerates, and the two that
  * are moves and are missing say which issue brings them: an activation needs a
- * skill index (#147) and an attack needs a target (#146).
+ * skill index (#147) and an attack needs a target (#150). `cardWithX` is the
+ * one exception, and it is not a second answer: a move whose `x` is settled by
+ * its own price carries that number rather than asking for it (13-2-3).
  *
  * Keyed by the union's own words, so a name here that stops being an action
  * fails `npm run typecheck`.
  */
-const DECLARABLE_ACTIONS: Partial<Record<Action["type"], "card" | "cardOrNone" | "none">> = {
+const DECLARABLE_ACTIONS: Partial<Record<Action["type"], "card" | "cardWithX" | "cardOrNone" | "none">> = {
   charge: "cardOrNone",
   play: "card",
+  // 13-2-3: a Unison's `x` is not a second decision — it is the energy the move
+  // was paid with, which the candidate's own price already is, so the shape
+  // carries it rather than asking for it (`actionFor`).
+  playUnison: "cardWithX",
   playZ: "card",
   growUnison: "card",
   combo: "card",
@@ -361,12 +375,16 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
     }
     chargeCost(ctx, game, state, ev, player, plan.payment, card, def.cost);
   }
-  runProgram(state, def, player, card);
+  runProgram(state, def, player, chosen);
 
-  // The question has been answered. A step that means to ask again — the Main
-  // Phase's free timing, 7-3-4 — is the flow's business and not the action's
-  // (#146), so nothing here decides to re-ask.
-  answered(state);
+  // 7-3-4: a move declared `again:` leaves the question on the table — the
+  // Main Phase grants its free timing over and over, and a play is one of the
+  // moves it grants. The step is simply not *answered*, so the runner drains
+  // the checkpoint the move's [Auto]s went into (9-6-6) and then puts the very
+  // same question back. Every other move answers the question its step asked
+  // and the step moves on, which is what ends a Main Phase: `endMain` carries
+  // no `again:`.
+  if (def.again !== true) answered(state);
   return "done";
 }
 
@@ -392,11 +410,19 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
  * question inside a move, and the runner is the one thing that can hold one —
  * exactly as a skill's is. `run` picks it up as soon as `apply` returns here.
  */
-function runProgram(state: VmState, def: ActionDef, player: PlayerId, card: string | null): void {
+function runProgram(state: VmState, def: ActionDef, player: PlayerId, chosen: Candidate): void {
   if (!def.do.length) return;
+  const card = chosen.card;
   const self = card ?? state.sides[player].zones[SETUP_ZONES.leader]?.[0] ?? "";
   const vars = def.bind ? { [def.bind]: card === null ? [] : [card] } : {};
-  state.programs.unshift({ ops: def.do, ip: 0, vars, card: self, master: player });
+  // 20-5: `X` in a move's program is **the amount its price was settled at** —
+  // which is what X means everywhere else in the language, and is 13-2-3's
+  // "with that many markers" without a second word for it. A move that names a
+  // price binds it even when the price came to nothing; a move that names none
+  // binds nothing, so a program of such a move that reads `X` says so rather
+  // than reading zero (`amount` throws on an unbound X).
+  const x = def.cost?.length ? chosen.price.energy : undefined;
+  state.programs.unshift({ ops: def.do, ip: 0, vars, card: self, master: player, ...(x === undefined ? {} : { x }) });
 }
 
 /** The questions an action answers: its own `prompts:`, or every question its phases ask. */
