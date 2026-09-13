@@ -188,10 +188,16 @@ export function rejectedActions(ctx: EngineContext, s: GameState, legal: LegalAc
                     {
                       kind: "immune",
                       card: id,
-                      // Said to the player who was refused, so the rule that
-                      // names their own side reads "your skills" and not the
-                      // "your opponent's skills" the card's controller sees.
-                      whose: whoseSkills(im.rule.from === undefined ? undefined : im.rule.from === frame!.master ? "you" : "opponent", im.rule.fromFilter),
+                      // Said to the player who was refused — `p`, the one the
+                      // prompt is in front of — so the rule that names their
+                      // own side reads "your skills" and not the "your
+                      // opponent's skills" the card's controller sees. Not
+                      // `frame.master`: the two are the same player only until
+                      // a card says "your opponent chooses" (20-7, `chooser`),
+                      // and then the master owns the skill while `p` answers
+                      // for it, which would invert the pronoun for the one
+                      // person reading it.
+                      whose: whoseSkills(im.rule.from === undefined ? undefined : im.rule.from === p ? "you" : "opponent", im.rule.fromFilter),
                       by: im.source && im.source !== id && s.cards[im.source] ? name(im.source) : null,
                       until: im.until,
                     },

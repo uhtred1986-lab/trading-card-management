@@ -631,6 +631,10 @@
     "outcome": "fired",
     "digest": "7e83b449"
   },
+  "THEYPICK#0": {
+    "outcome": "fired",
+    "digest": "5aca21b8"
+  },
   "TIRED#0": {
     "outcome": "fired",
     "digest": "4616d25d"

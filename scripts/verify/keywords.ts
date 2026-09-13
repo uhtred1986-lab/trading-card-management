@@ -1761,6 +1761,24 @@ function withRecord(cardId: string, record: { ops: unknown[]; unsupported: strin
   assert.equal(powerOf(CTX, board, find(board, "p2", "battle", "PLAIN")), 5000, "the opponent's board-wide power change lands");
   assert.equal(powerOf(CTX, board, find(board, "p2", "battle", "IMMUNE")), 10000, "and does not land on the card unaffected by it");
 
+  // 20-7: the skill is p1's, the *choice* is p2's ("your opponent chooses").
+  // The prompt then stands in front of a player who is not the skill's master,
+  // and the refusal is read by them — so the side word is settled by who is
+  // being told, not by whose skill it is. Read from the master's chair this
+  // said "your skills" to the one person whose skills they are not.
+  DEFS.THEYPICK = { ...DEFS.V1, id: "THEYPICK", name: "THEYPICK", energyCost: 1, skill: "[Activate: Main] Your opponent chooses 1 of their Battle Cards and KO it." };
+  // Two cards it can reach, so the pick is a real question rather than a
+  // forced one taken silently.
+  let theirs = arena({ battle: ["THEYPICK"], oppBattle: ["IMMUNE", "PLAIN", "V1"] });
+  theirs = play(theirs, { type: "activate", player: "p1", card: find(theirs, "p1", "battle", "THEYPICK"), skill: 0 });
+  assert.equal(theirs.prompt.kind, "chooseCards");
+  assert.equal((theirs.prompt as { player: string }).player, "p2", "the card says the opponent chooses, so the prompt is theirs");
+  const theirImmune = find(theirs, "p2", "battle", "IMMUNE");
+  const theirWhy = rejectedActions(CTX, theirs).find((r) => r.action.type === "choose" && r.action.cards?.[0] === theirImmune);
+  const theirSaid = theirWhy?.why.find((r) => r.kind === "immune");
+  assert.ok(theirSaid, "the immune card is refused to whoever is doing the choosing");
+  assert.equal(theirSaid.kind === "immune" && theirSaid.whose, "your opponent's skills", "the blocked skills are the chooser's opponent's, and the words are the chooser's");
+
   // The other two shapes of the same refusal, which the printed family does
   // not reach but the language can write: a rule with a duration, and one
   // another card is holding up. Both have something left to say after the
