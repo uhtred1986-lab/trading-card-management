@@ -1200,6 +1200,9 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
   // real moves as well: what the Main Phase offers besides it is `endMain`
   // (#145), and this block is about the three candidates of one paragraph.
   const plays = legal.filter((l) => l.action.type === "play");
+  // …and what it *refuses* besides it is the charge, which 7-2-11 offers for
+  // every card in hand at this question and refuses for each of them (#145).
+  const refusedPlays = rejected.filter((r) => r.action.type === "play");
 
   assert.deepEqual(
     plays.map((l) => l.action),
@@ -1209,7 +1212,7 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
   assert.equal(plays[0].label, "Play V1", "a declared move's label is not its `label:` and the card's name");
 
   assert.deepEqual(
-    rejected.map((r) => ({ card: (r.action as { card?: string }).card, why: r.why })),
+    refusedPlays.map((r) => ({ card: (r.action as { card?: string }).card, why: r.why })),
     [
       { card: wrongColour, why: [{ kind: "condition", text: "a red card" }] },
       // The first line that fails and no further: this card is not a Battle
@@ -1221,12 +1224,12 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
 
   // §3.2, asserted by the very function the legacy fixtures assert it with.
   assertMenuInvariants(legal, rejected, "a declared action over three candidates");
-  assert.equal(plays.length + rejected.length, 3, "the three candidates did not each get exactly one answer");
+  assert.equal(plays.length + refusedPlays.length, 3, "the three candidates did not each get exactly one answer");
 
   // The `Requirement` shapes are the engine's own, so the board words a
   // rules-engine refusal with the table it words a legacy one with — never a
   // second wording table, which is the rule Stage 5's tracking issue fixes.
-  for (const r of rejected) {
+  for (const r of refusedPlays) {
     const said = refusal(r.why[0], { name: r.label.replace(/^Play /, ""), reaching: "play" });
     assert.ok(said.fact.length > 0, `a declared refusal has no words: ${JSON.stringify(r.why[0])}`);
   }
@@ -1266,7 +1269,7 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
       [],
       "a move whose price cannot be paid is on the menu",
     );
-    const why = declaredRejectedActions(CTX, priced, s, menu);
+    const why = declaredRejectedActions(CTX, priced, s, menu).filter((r) => r.action.type === "play");
     assert.equal(why.length, 3, "a priced move is not explained for every card it is about");
     const shortfall = why.find((r) => (r.action as { card?: string }).card === good)!;
     assert.deepEqual(shortfall.why[0], { kind: "energy", need: 1, have: 0 }, "an unpayable price is not the shortfall the legacy engine reports");
@@ -1282,7 +1285,11 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     const offered = declaredLegalActions(CTX, priced, paid).find((l) => l.action.type === "play" && (l.action as { card?: string }).card === good);
     assert.ok(offered, "a price the board can meet is still not offered");
     assert.deepEqual(offered!.cost, { energy: 1, orbs: { Red: 1 }, describe: "1 energy (1 red)" }, "the row does not wear the price the charge is taken from");
-    assert.deepEqual(declaredRejectedActions(CTX, priced, paid, declaredLegalActions(CTX, priced, paid)).filter((r) => (r.action as { card?: string }).card === good), [], "a move on the menu is also on the list of refusals");
+    assert.deepEqual(
+      declaredRejectedActions(CTX, priced, paid, declaredLegalActions(CTX, priced, paid)).filter((r) => r.action.type === "play" && (r.action as { card?: string }).card === good),
+      [],
+      "a move on the menu is also on the list of refusals",
+    );
 
     const ev: GameEvent[] = [];
     const took = structuredClone(paid);
@@ -1310,7 +1317,10 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
       actionsAt(DBS, s)
         .map((a) => a.name)
         .sort(),
-      ["activate", "concede", "endMain", "pass", "play", "playUnison", "playZ"],
+      // `charge` is here because 7-2-11's "one charge a turn" is a *refusal* at
+      // this question rather than a silence (#145): the move is declared in
+      // both phases and refused in this one.
+      ["activate", "charge", "concede", "endMain", "pass", "play", "playUnison", "playZ"],
       "the Main Phase offers a declared action other than the ones the files declare",
     );
     const menu = declaredLegalActions(CTX, DBS, s);
@@ -1321,17 +1331,27 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     );
     // The play family is declared (#146), and this board has no energy — so
     // every Battle Card in hand is on the *refused* list with the price that
-    // stopped it, and `pass` and `concede` are on neither list because a
-    // refusal explains a move a player can see.
+    // stopped it; the charge is refused for every card in hand because its one
+    // turn has gone (#145); and `pass` and `concede` are on neither list
+    // because a refusal explains a move a player can see.
     const refused = declaredRejectedActions(CTX, DBS, s, menu);
     assert.deepEqual(
-      [...new Set(refused.map((r) => r.action.type))],
-      ["play"],
-      "an unlisted action reached the list of refusals, or a Main Phase move other than a play was refused",
+      [...new Set(refused.map((r) => r.action.type))].sort(),
+      ["charge", "play"],
+      "an unlisted action reached the list of refusals, or a Main Phase move other than a play or a charge was refused",
     );
     assert.ok(
-      refused.every((r) => r.why[0]?.kind === "energy"),
+      refused.filter((r) => r.action.type === "play").every((r) => r.why[0]?.kind === "energy"),
       "a card was refused a play on an empty board for something other than the price",
+    );
+    assert.ok(
+      refused.filter((r) => r.action.type === "charge").every((r) => r.why[0]?.kind === "oncePerTurn"),
+      "a card was refused the charge in the Main Phase for something other than the one charge a turn",
+    );
+    assert.equal(
+      refused.some((r) => r.action.type === "charge" && (r.action as { card?: string | null }).card === null),
+      false,
+      "the Skip charge ghost is drawn at a question the charge does not answer",
     );
     // …and it is still the move that answers the question.
     const after = rulesEngine.apply(CTX, s, { type: "pass", player: "p1" });
@@ -1471,20 +1491,64 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     assertMenuInvariants(legal, rejected, "the charge with a Leader in hand");
   }
 
-  // The once-per-turn fact is the *step*: `chargeEnergy` is asked once a turn,
-  // and the Main Phase is a phase the move is not declared in — so it is
-  // offered there for no card and refused for none.
+  // 7-2-11's "one charge a turn", which is a **refusal** at the Main Phase
+  // question and not a silence: the paragraph is declared in both phases and
+  // its first `REFUSE` line asks which question is on the table. Measured
+  // against the legacy engine card for card, because "the same requirement, in
+  // the same shape, for the same board" is the whole claim.
   {
-    let s = atCharge();
-    s = rulesEngine.apply(CTX, s, { type: "charge", player: "p1", card: null }).state as VmState;
+    const charged = atCharge();
+    const s = rulesEngine.apply(CTX, charged, { type: "charge", player: "p1", card: null }).state as VmState;
     assert.equal(s.prompt.kind, "main", "the game is not at the Main Phase question");
-    assert.equal(actionsAt(DBS, s).some((a) => a.name === "charge"), false, "the charge is offered at a question it does not answer");
+    assert.ok(actionsAt(DBS, s).some((a) => a.name === "charge"), "the charge is not offered at the question 7-2-11 refuses it at");
     assert.throws(() => rulesEngine.apply(CTX, s, { type: "charge", player: "p1", card: s.sides.p1.zones.hand[0] }), IllegalAction, "a card was charged in the Main Phase");
+
+    // Every card in hand, refused with the requirement the legacy engine gives
+    // — including a Leader, because `whyNotCharge` reads the question before it
+    // reads the card and the declaration's lines are in that order.
+    s.cards[s.sides.p1.zones.hand[0]].cardId = "L-BLUE";
+    const legal = rulesEngine.legalActions(CTX, s);
+    const charges = rulesEngine.rejectedActions(CTX, s, legal).filter((r) => r.action.type === "charge");
+    assert.deepEqual(
+      charges.map((r) => ({ card: (r.action as { card?: string | null }).card, why: r.why })),
+      s.sides.p1.zones.hand.map((card) => ({ card, why: [{ kind: "oncePerTurn", what: "charge" }] })),
+      "the Main Phase does not refuse the charge for every card in hand with the one charge a turn",
+    );
+    // The words the player is given are `wording.ts`'s, which is the table the
+    // legacy engine's own refusal is worded by — never a second one.
+    assert.ok(refusal(charges[0].why[0], { name: "L-BLUE", reaching: "charge" }).fact.length > 0, "the once-per-turn refusal has no words");
+    // …and the ghost button is not drawn at all: a refusal explains a move a
+    // player can see, and there is no skip button at this question.
+    assert.equal(
+      charges.some((r) => (r.action as { card?: string | null }).card === null),
+      false,
+      "the Skip charge ghost is refused at a question the charge does not answer, rather than left undrawn",
+    );
+    assertMenuInvariants(legal, rulesEngine.rejectedActions(CTX, s, legal), "the charge at the Main Phase question");
+
+    // The legacy engine, on the same board, gives the same answer for the same
+    // cards — requirement for requirement.
+    {
+      let l = createGame(CTX, SAME).state;
+      for (let i = 0; i < 20 && l.prompt.kind !== "charge"; i++) {
+        const pr = l.prompt as { kind: string; player: PlayerId };
+        const a: Action = pr.kind === "chooseFirst" ? { type: "chooseFirst", player: pr.player, first: "p1" } : { type: "mulligan", player: pr.player, redraw: false };
+        l = apply(CTX, l, a).state;
+      }
+      l = apply(CTX, l, { type: "charge", player: "p1", card: null }).state;
+      assert.equal(l.prompt.kind, "main", "the legacy game is not at the Main Phase question");
+      const legacyCharges = rejectedActions(CTX, l, legalActions(CTX, l)).filter((r) => r.action.type === "charge");
+      assert.deepEqual(
+        legacyCharges.map((r) => r.why),
+        charges.map((r) => r.why),
+        "the two engines refuse the Main Phase charge with different requirements",
+      );
+    }
 
     // …and the Main Phase's own moves: ending the turn, and every card in hand
     // this player can afford to play (#146). The opening board has no energy,
     // so on this one there is nothing to afford.
-    const menu = rulesEngine.legalActions(CTX, s);
+    const menu = rulesEngine.legalActions(CTX, rulesEngine.apply(CTX, charged, { type: "charge", player: "p1", card: null }).state as VmState);
     assert.deepEqual(menu.map((l) => ({ action: l.action, label: l.label })), [{ action: { type: "endMain", player: "p1" }, label: "End turn" }], "the Main Phase offers something other than ending the turn");
     const ended = rulesEngine.apply(CTX, s, { type: "endMain", player: "p1" }).state as VmState;
     assert.notEqual(ended.phase, "main", "ending the Main Phase did not leave it");
@@ -2041,7 +2105,7 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     // 6-1-4: a Z-Leader is not played at all, and the player reaching for it is
     // owed the requirement that says so.
     const zLeader = board.r.sides.p1.zones.zDeck.find((id) => board.r.cards[id].cardId === "P-ZLEADER")!;
-    const refusedLeader = rulesEngine.rejectedActions(CTX, board.r, rulesEngine.legalActions(CTX, board.r)).find((x) => (x.action as { card?: string }).card === zLeader);
+    const refusedLeader = rulesEngine.rejectedActions(CTX, board.r, rulesEngine.legalActions(CTX, board.r)).find((x) => x.action.type === "playZ" && (x.action as { card?: string }).card === zLeader);
     assert.ok(refusedLeader, "a Z-Leader in the Z-Deck is neither offered nor refused");
     assert.deepEqual(refusedLeader!.why[0], { kind: "cardType", needs: "a Z-Battle Card or a Z-Extra Card", card: zLeader }, "a Z-Leader is refused for something other than being one");
   }
@@ -2078,11 +2142,11 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     const board = staged(["P-X"], ["P-E-RED", "P-E-RED"]);
     const xCard = board.r.sides.p1.zones.hand[0];
     assert.equal(
-      rulesEngine.legalActions(CTX, board.r).some((a) => (a.action as { card?: string }).card === xCard),
+      rulesEngine.legalActions(CTX, board.r).some((a) => a.action.type === "play" && (a.action as { card?: string }).card === xCard),
       false,
       "a card whose cost is X was offered at a price nobody named",
     );
-    const why = rulesEngine.rejectedActions(CTX, board.r, rulesEngine.legalActions(CTX, board.r)).find((x) => (x.action as { card?: string }).card === xCard);
+    const why = rulesEngine.rejectedActions(CTX, board.r, rulesEngine.legalActions(CTX, board.r)).find((x) => x.action.type === "play" && (x.action as { card?: string }).card === xCard);
     assert.deepEqual(why?.why[0], { kind: "unread", card: xCard }, "a card whose cost is X is not refused as a price this engine cannot read");
     // The legacy engine offers it once per value of X, which is the divergence
     // this names rather than hides: `DECLARABLE_ACTIONS` has no shape that

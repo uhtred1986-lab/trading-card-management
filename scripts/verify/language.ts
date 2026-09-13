@@ -16,6 +16,7 @@ import { whenMoments } from "../../src/lib/arena/rulesets/words";
 import {
   COND_CLASS,
   COND_SCHEMA,
+  CONDITIONS_OFF_A_CARD,
   CTX,
   DEFS,
   EFFECT_LANGUAGE,
@@ -181,10 +182,13 @@ import type { CardFilter, SchemaOp } from "./harness";
   assert.equal(describeCond({ kind: "all", conds: [{ kind: "isTurnPlayer" }, { kind: "life", side: "you", atMost: 4 }] }), "it is your turn and your life is 4 or less");
 
   // The referee is told the language off the same rows, so a kind the
-  // interpreter learns reaches Claude the moment it has one.
+  // interpreter learns reaches Claude the moment it has one — except the
+  // conditions no printed card says, which are a `DEFINE ACTION`'s words and
+  // would only ever reach a card's rule as a mistake (`CONDITIONS_OFF_A_CARD`).
   for (const kind of Object.keys(COND_SCHEMA)) {
     assert.match(condSignature(kind as Parameters<typeof condSignature>[0]), new RegExp(`^\\{"kind":"${kind}"`), `${kind} has a signature for the referee`);
-    assert.ok(EFFECT_LANGUAGE.includes(`"kind":"${kind}"`), `${kind} is in the language Claude is given`);
+    const offCard = (CONDITIONS_OFF_A_CARD as readonly string[]).includes(kind);
+    assert.equal(EFFECT_LANGUAGE.includes(`"kind":"${kind}"`), !offCard, offCard ? `${kind} is in the language Claude is given, and no card says it` : `${kind} is in the language Claude is given`);
   }
   assert.equal(condSignature("isTurnPlayer"), '{"kind":"isTurnPlayer","who"?:"you"|"opponent"}');
   assert.equal(condSignature("battled"), '{"kind":"battled","sel":SELECTOR}');

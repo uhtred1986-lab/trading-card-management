@@ -833,6 +833,12 @@ export function condHolds(ctx: GameContext, s: GameState, frame: ScriptFrame, c:
       return (frame.vars[c.var] ?? []).some((id) => s.cards[id] && matches(cardNow(ctx, s, id), c.filter));
     case "isTurnPlayer":
       return c.who === "opponent" ? s.turnPlayer !== frame.master : s.turnPlayer === frame.master;
+    // Which question is on the table. No card's text says it and no compiled
+    // program produces it — the reading is here so that the one word the rules
+    // engine's `REFUSE` lines need means the same thing on both engines, which
+    // is the whole point of `script-schema.ts` being the single definition.
+    case "asking":
+      return s.prompt.kind === c.prompt;
   }
 }
 

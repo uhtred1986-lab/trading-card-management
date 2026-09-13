@@ -120,6 +120,7 @@ Twenty-five primitives carry every row below — twenty operations and five cond
 | `not` (condition) | `not` | Negation. |
 | `any` (condition) | `any` | Disjunction: the other half of the propositional core. |
 | `isTurnPlayer` (condition) | `isTurnPlayer` | Whose turn it is (7-1). |
+| `asking` (condition) | `asking` | Which question is on the table. No card says it; a `DEFINE ACTION`'s `REFUSE` needs it to tell two windows of one move apart (7-2-11). |
 
 Two rows in that list are honest about being provisional. `play` is a primitive only until Stage 3
 declares the play action itself (§3): which zone the card ends in, whether its text resolves and
@@ -214,6 +215,7 @@ can name the attributes the engine keeps in code (§2.5).
 | `chose` | macro over `count` | How many cards were bound to the named variable: a count over `FROM $var`. |
 | `varMatches` | macro over `count` | `count(FROM $var matching the filter) >= 1`. |
 | `isTurnPlayer` | primitive | A fact about the game rather than about any card or pile (7-1). Stage 3 declares the turn player as a game attribute, which will make this a comparison like the rest. |
+| `asking` | primitive | A fact about the game rather than about any card or pile: which question is being asked. Nothing counted on the board says it, and the prompt is the interpreter's own (§7). |
 
 ### 2.5 What the tables ask for
 
@@ -521,9 +523,9 @@ Three things the shape guarantees rather than asks for:
 
 `src/lib/arena/vm/actions.ts` is the whole interpreter of this, with `vm/activate.ts` beside it for
 the one move whose candidate is a skill line. What it reads so far: a `FOR` by
-side, area, filter and mode; a `REFUSE` condition written as `count()`, `isTurnPlayer()` and their
-combinations; and a `DO` that is an ordinary program, run on the interpreter the legacy engine runs
-(#142). Everything else is refused *by name* rather than read as false or silently skipped — a
+side, area, filter and mode; a `REFUSE` condition written as `count()`, `isTurnPlayer()`,
+`asking()` and their combinations; and a `DO` that is an ordinary program, run on the interpreter
+the legacy engine runs (#142). Everything else is refused *by name* rather than read as false or silently skipped — a
 condition read as false is a move that can never be made and nothing saying why. The rest of the DBS
 moves are Stage 6's.
 

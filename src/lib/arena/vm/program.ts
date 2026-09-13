@@ -408,6 +408,11 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
       return (frame.vars[c.var] ?? []).some((id) => state.cards[id] && predicateOf(c.filter, game)(attrsNow(ctx, game, state, id)));
     case "isTurnPlayer":
       return c.who === "opponent" ? state.turnPlayer !== frame.master : state.turnPlayer === frame.master;
+    // The question on the table, read off the one place this engine keeps it.
+    // A program is never written in this word — it is a `REFUSE`'s (#145) — but
+    // the evaluator is shared, so reading it here is what keeps "shared" true.
+    case "asking":
+      return state.prompt.kind === c.prompt;
   }
 }
 

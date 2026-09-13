@@ -2094,6 +2094,41 @@
       ],
       "sentence": "it is your turn",
       "doc": "whose turn it is (7-1) — \"during your opponent's turn\" is this, not a duration"
+    },
+    {
+      "kind": "asking",
+      "class": "primitive",
+      "signature": "{\"kind\":\"asking\",\"prompt\":\"chooseFirst\"|\"mulligan\"|\"charge\"|…}",
+      "fields": [
+        {
+          "name": "prompt",
+          "required": true,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "chooseFirst",
+            "mulligan",
+            "charge",
+            "main",
+            "combo",
+            "blocker",
+            "counter",
+            "orderPending",
+            "chooseCards",
+            "chooseMode",
+            "replaceMove",
+            "zEnergyFromCombo",
+            "optionalCost",
+            "payCost",
+            "offering",
+            "empowerCarry",
+            "referee",
+            "gameOver"
+          ]
+        }
+      ],
+      "sentence": "the question on the table is the chooseFirst question",
+      "doc": "which question is on the table. No card says this — it is the word a `DEFINE ACTION`'s `REFUSE` needs to tell two windows of one move apart, and \"you have already had your charge this turn\" (7-2-11) is exactly `NOT asking(prompt: charge)` on both engines"
     }
   ],
   "selectorFields": [

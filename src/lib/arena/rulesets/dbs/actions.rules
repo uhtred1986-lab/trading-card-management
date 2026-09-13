@@ -27,20 +27,40 @@
 -- the menu nor the list of refusals, because a refusal explains a move a
 -- player can see. `pass` and `concede` are the two.
 
+-- 7-2-11 gives the turn player **one** charge, and the other half of that
+-- sentence is a refusal rather than a silence: the legacy engine offers every
+-- card in hand at the Main Phase question and refuses each with "you have
+-- already had your charge this turn". So the move is declared in both phases
+-- and refused in one, and the condition that tells them apart is `asking()` —
+-- which question is on the table. That is the very field `whyNotCharge` reads
+-- (`s.prompt.kind !== "charge"`), so the two engines cannot disagree about what
+-- the sentence means.
+--
+-- The honest long-run shape is a *player* attribute — "this player has had
+-- their charge this turn" — which is also what 13-3's `growUnison` needs; the
+-- language has no word for one, and inventing three grammar rows for a fact
+-- this reads exactly as well would be the larger change, not the smaller one.
 DEFINE ACTION charge                                                      -- §7-2-11
-  WHEN [charge]
-  prompts: [charge]
+  WHEN [charge, main]
+  prompts: [charge, main]
   FOR 1 IN you.hand
   BIND "card"
   -- 7-2-11 is a *may*, and the half of it that takes no card is an answer of
   -- its own rather than the absence of one: a candidate, last on the menu, so
   -- the board keeps the ghost button beside the cards it could have charged
   -- (`docs/arena-hud-spec.md` §2.3). The `DO` below is written about the
-  -- candidate, so declining runs it over no cards and moves nothing.
+  -- candidate, so declining runs it over no cards and moves nothing. It is an
+  -- answer to *this* question, so the board-level refusal below takes it off
+  -- the menu entirely at the Main Phase rather than greying it out: there is no
+  -- skip button there to explain.
   decline: "Skip charge"
   DO {
     moveTo(target: $card, to: energy, reveal: true)
   }
+  -- First, and about the board rather than about any card — which is the order
+  -- `whyNotCharge` asks in, so the *first* requirement a player is owed is the
+  -- same requirement on both engines, a Leader in hand included.
+  REFUSE oncePerTurn(what: "charge") UNLESS asking(prompt: charge)
   -- 3-1-2: a Leader Card does not leave the Leader Area, so it is not a card
   -- this move can be made about. Nothing puts one in a hand — 6-2-1-2 places it
   -- before the first card is drawn — which is exactly why the refusal is
@@ -50,15 +70,9 @@ DEFINE ACTION charge                                                      -- §7
   label: "Charge"
   text: "the turn player may place 1 card from their hand in their Energy Area, face up (7-2-11)"
 
--- The refusal this one does *not* carry is the legacy engine's "you have
--- already had your charge this turn" (`oncePerTurn`), which it gives for every
--- card in hand once the Main Phase has begun. Saying that here means declaring
--- the charge in the Main Phase too and refusing it there, and the condition
--- that tells the two apart is "which question is on the table" — which the
--- language has no word for and which is not worth a `Cond` kind of its own
--- before #142 brings the evaluator both engines' card rules share. Until then
--- the once-per-turn fact is the *step*: `chargeEnergy` (7-2-11) is asked once a
--- turn, and a phase this move is not declared in never offers it.
+-- 20-14's "can't place cards in the Energy Area" is the one gate this move is
+-- still missing, and it is the gate the play family and the activation are
+-- missing too: nothing can put a prohibition in force on this engine yet.
 
 DEFINE ACTION endMain                                                     -- §7-3-5
   WHEN [main]

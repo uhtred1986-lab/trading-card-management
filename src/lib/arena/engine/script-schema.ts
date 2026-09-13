@@ -779,6 +779,11 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
     sentence: (raw) => ((raw as CondOf<"isTurnPlayer">).who === "opponent" ? "it is your opponent's turn" : "it is your turn"),
     doc: 'whose turn it is (7-1) — "during your opponent\'s turn" is this, not a duration',
   },
+  asking: {
+    fields: [{ name: "prompt", type: { enum: PROMPT_KINDS }, required: true }],
+    sentence: (raw) => `the question on the table is the ${(raw as CondOf<"asking">).prompt} question`,
+    doc: 'which question is on the table. No card says this — it is the word a `DEFINE ACTION`\'s `REFUSE` needs to tell two windows of one move apart, and "you have already had your charge this turn" (7-2-11) is exactly `NOT asking(prompt: charge)` on both engines',
+  },
 };
 
 /** Primitive or macro for a condition — `docs/arena-ruleset-spec.md` §2.4, and see `OP_CLASS` above. */
@@ -801,7 +806,27 @@ export const COND_CLASS: Record<Cond["kind"], OpClass> = {
   chose:          "macro over `count`",
   varMatches:     "macro over `count`",
   isTurnPlayer:   "primitive",
+  asking:         "primitive",
 };
+
+/**
+ * The conditions no printed card says, and that nothing writing a *card's*
+ * rule may therefore be offered.
+ *
+ * `COND_SCHEMA` is the one definition of the effect language and everything in
+ * it is part of that language — the reference page at `/arena/rules/language`
+ * lists the lot, because a `.rules` file may write any of it. But two readers
+ * are narrower than the language: the referee is ruling on **one skill of one
+ * card** and the workbench's chip editor is writing **one card's record**, and
+ * a word no card's text contains is one neither should be shown. `asking` is
+ * the first: it says which question is on the table, which is what a `DEFINE
+ * ACTION`'s `REFUSE` needs to tell two windows of one move apart (7-2-11,
+ * #145) and what no skill has ever been printed asking.
+ *
+ * Not a validation rule — `validateProgram` accepts every schema row, because a
+ * stored program is checked against the language and not against this list.
+ */
+export const CONDITIONS_OFF_A_CARD: readonly Cond["kind"][] = ["asking"];
 
 // ── validation, for programs that did not come from the compiler ───────────
 

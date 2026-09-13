@@ -120,19 +120,30 @@ export function candidatesOf(ctx: EngineContext, game: GameDefinition, state: Vm
   // than about the card, so a card with three of them is asked about three
   // times and answered three times (#147).
   if (def.skills) return cards.flatMap((card) => (card === null ? [] : activationsOf(ctx, state, def, card).map((line) => activation(ctx, game, state, def, player, line))));
-  return cards.map((card) => {
-    const why = refusedBy(ctx, game, state, def, player, card);
-    // 8-3-2-3: an action asks for a price by name and `costs.rules` says how it
-    // is charged (#148). Declining pays nothing, so the answer that takes no
-    // card is never held up by a price. The price is read **last**, so a card
-    // refused for a reason of its own says that reason rather than "1 short".
-    const price = def.cost?.length && !declining(def, card) ? priceFor(ctx, game, state, def, card) : freePrice();
-    if (!why.length && def.cost?.length && !declining(def, card)) {
-      const plan = planCost(ctx, game, state, player, price, card);
-      if (!plan.ok) why.push(...plan.why);
-    }
-    return { card, why, price };
-  });
+  return (
+    cards
+      .map((card) => {
+        const why = refusedBy(ctx, game, state, def, player, card);
+        // 8-3-2-3: an action asks for a price by name and `costs.rules` says how it
+        // is charged (#148). Declining pays nothing, so the answer that takes no
+        // card is never held up by a price. The price is read **last**, so a card
+        // refused for a reason of its own says that reason rather than "1 short".
+        const price = def.cost?.length && !declining(def, card) ? priceFor(ctx, game, state, def, card) : freePrice();
+        if (!why.length && def.cost?.length && !declining(def, card)) {
+          const plan = planCost(ctx, game, state, player, price, card);
+          if (!plan.ok) why.push(...plan.why);
+        }
+        return { card, why, price };
+      })
+      // The answer that takes no card is an answer to *this question*, so a
+      // refusal about the board — one written without ever mentioning the
+      // candidate — takes it off the board rather than greying it out: there is
+      // no "Skip charge" ghost to explain at a question the charge does not
+      // answer (#145). A card so refused still gets its rejection, because a
+      // player can see the card and reach for it; nobody can reach for a button
+      // that is not drawn.
+      .filter((c) => !(declining(def, c.card) && c.why.length))
+  );
 }
 
 /**
@@ -189,12 +200,45 @@ const declining = (def: ActionDef, card: string | null): boolean => card === nul
  * that reason.
  */
 function refusedBy(ctx: EngineContext, game: GameDefinition, state: VmState, def: ActionDef, player: PlayerId, card: string | null): Requirement[] {
-  if (declining(def, card)) return [];
+  // The answer that takes no card is asked only the refusals that are not
+  // about a card. A `REFUSE` whose condition never names the candidate is a
+  // fact about the board — "the question on the table is no longer the
+  // charge's" — and that stops the decline exactly as it stops every card;
+  // one written `FROM $card` has nothing to be asked about here.
+  const boardOnly = declining(def, card);
   for (const refusal of def.refusals ?? []) {
+    if (boardOnly && mentionsCandidate(refusal.unless)) continue;
     if (holds(ctx, game, state, refusal.unless, player, card)) continue;
     return [requirementOf(state, refusal.kind, refusal.args, card)];
   }
   return [];
+}
+
+/**
+ * Does this refusal's condition ask about the candidate, or about the board?
+ *
+ * `FROM $card` is the one way a condition reaches the card being asked about
+ * (`counted` below), so a condition with no such selector anywhere in it is a
+ * fact about the game — true or false before any card is named. An unknown
+ * condition kind counts as *about the candidate*, which is the cautious way
+ * round: it leaves the decline on the menu rather than silently removing it,
+ * and `holds` refuses such a condition by name the moment a card asks it.
+ */
+function mentionsCandidate(cond: Cond): boolean {
+  switch (cond.kind) {
+    case "not":
+      return mentionsCandidate(cond.cond);
+    case "all":
+    case "any":
+      return cond.conds.some(mentionsCandidate);
+    case "count":
+      return cond.sel.fromVar !== undefined;
+    case "isTurnPlayer":
+    case "asking":
+      return false;
+    default:
+      return true;
+  }
 }
 
 /**
@@ -591,6 +635,12 @@ function holds(ctx: EngineContext, game: GameDefinition, state: VmState, cond: C
       // 7-1: `who: opponent` is "during your opponent's turn", which is this
       // condition and never a duration — so the field is read, not assumed.
       return cond.who === "opponent" ? state.turnPlayer !== me : state.turnPlayer === me;
+    // 7-2-11: which question is on the table, which is how one paragraph is
+    // offered at two of them and refused at one. The legacy `whyNotCharge`
+    // reads the very same field, so the two engines cannot disagree about what
+    // "you have already had your charge this turn" means.
+    case "asking":
+      return state.prompt.kind === cond.prompt;
     case "count": {
       const n = counted(ctx, game, state, cond.sel, me, card);
       if (cond.atLeast !== undefined && n < cond.atLeast) return false;
@@ -598,7 +648,7 @@ function holds(ctx: EngineContext, game: GameDefinition, state: VmState, cond: C
       return cond.atLeast !== undefined || cond.atMost !== undefined;
     }
     default:
-      throw new RulesetBroken(state.game, `a refusal is written as ${cond.kind}, and this interpreter reads count(), isTurnPlayer() and their combinations so far (#142)`);
+      throw new RulesetBroken(state.game, `a refusal is written as ${cond.kind}, and this interpreter reads count(), isTurnPlayer(), asking() and their combinations so far (#142)`);
   }
 }
 

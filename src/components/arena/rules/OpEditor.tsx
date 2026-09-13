@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { EXPR_ATTRS } from "@/lib/arena/lang";
 import { parseFilter, type CardFilter } from "@/lib/arena/engine/filters";
-import { COND_SCHEMA, OP_SCHEMA, describeCond, describeFilter, describeScript, type Cond, type FieldType, type Op, type OpField } from "@/lib/arena/engine/script";
+import { COND_SCHEMA, CONDITIONS_OFF_A_CARD, OP_SCHEMA, describeCond, describeFilter, describeScript, type Cond, type FieldType, type Op, type OpField } from "@/lib/arena/engine/script";
 import { optionsFor } from "@/lib/arena/rulesets/words";
 
 /**
@@ -136,9 +136,12 @@ export function CondChip({ cond, editing, onChange, onRemove }: { cond: Cond; ed
   return (
     <span className="inline-flex flex-wrap items-center gap-1 rounded border border-dashed border-space-600 px-1 py-0.5">
       <select className={select} value={cond.kind} onChange={(e) => onChange(blankCond(e.target.value as Cond["kind"]))} title="which condition">
-        {(Object.keys(COND_SCHEMA) as Cond["kind"][]).map((k) => (
-          <option key={k}>{k}</option>
-        ))}
+        {/* Every condition of the language except the ones no printed card says: this editor writes a *card's* record, and `asking` is a `DEFINE ACTION`'s word (#145). */}
+        {(Object.keys(COND_SCHEMA) as Cond["kind"][])
+          .filter((k) => k === cond.kind || !CONDITIONS_OFF_A_CARD.includes(k))
+          .map((k) => (
+            <option key={k}>{k}</option>
+          ))}
       </select>
       {spec.fields.map((f) => (
         <label key={f.name} className="inline-flex items-center gap-1 text-[10px] text-space-400">

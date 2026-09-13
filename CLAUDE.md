@@ -270,8 +270,8 @@ learned the expensive way. Read it before changing the compiler or the engine.
   `assertMenuInvariants` in `scripts/verify/harness.ts` is the one function both engines' menus are
   passed to. `listed: false` is the concede rule written down: accepted, never enumerated, on
   neither list. What the interpreter reads so far is a `FOR` by side/area/filter/mode, a `REFUSE` of
-  `count()`/`isTurnPlayer()` and their combinations, and a `DO` of `note()`; everything else is
-  refused *by name* rather than read as false. `actions.rules` declares charge, endMain, pass and
+  `count()`/`isTurnPlayer()`/`asking()` and their combinations, and a `DO` of `note()`; everything
+  else is refused *by name* rather than read as false. `actions.rules` declares charge, endMain, pass and
   concede (#145), the play family (#146) and `activate` (#147).
   **Playing a card is a paragraph too** (`vm/play.ts` + the three `play` declarations, #146):
   `play` (8-3-2), `playUnison` (13-2) and `playZ` (16-2) each name a `COST` and a `DO` of the one

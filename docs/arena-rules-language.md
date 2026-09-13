@@ -334,6 +334,21 @@ turn kept in twenty places instead of one.
 accepted without ever being enumerated. It says nothing about legality; the move is checked exactly
 as a listed one is, and is simply on neither the menu nor the list of refusals.
 
+A `REFUSE` line written **without ever mentioning the candidate** — no `FROM $<bind>` anywhere in
+its condition — is a fact about the board rather than about a card, and it therefore also refuses
+the `decline:`, which is otherwise never refused. It does not grey that answer out: it takes it off
+the menu entirely, because a refusal explains a move a player can see and there is no ghost button
+at a question the move does not answer. The charge is the case: 7-2-11 gives the turn player one
+charge, so the paragraph is declared in the Charge Phase *and* the Main Phase and its first line is
+`REFUSE oncePerTurn(what: "charge") UNLESS asking(prompt: charge)` — every card in hand is refused
+at the Main Phase question, and no "Skip charge" is drawn there.
+
+`asking(prompt: …)` is the one condition of the language that no printed card ever says: it is the
+word a `REFUSE` needs to tell two windows of one move apart. It is in `COND_SCHEMA` like every
+other condition and a `.rules` file may write it — but the referee's prompt and the workbench's
+chip editor, which are both about one *card's* rule, leave it out (`CONDITIONS_OFF_A_CARD` in
+`engine/script-schema.ts`).
+
 Who the move is offered *to* is deliberately not a field: a prompt is put to a player and an action
 answers a prompt, so the asked player is the actor. That is prompt machinery, which
 `docs/arena-ruleset-spec.md` §7 keeps out of the game's own files.

@@ -22,7 +22,7 @@ import { z } from "zod";
 import type { Db } from "@/db";
 import { FAST_MODEL, MODEL, anthropic, hasAnthropic, recordRun } from "@/lib/ai/client";
 import { comboPowerOf, face, other, powerOf, validateProgram, type EngineContext, type GameState, type LegalAction, type Op, type PlayerId } from "../engine";
-import { COND_SCHEMA, OP_SCHEMA, condSignature, opSignature, type Cond } from "../engine/script";
+import { COND_SCHEMA, CONDITIONS_OFF_A_CARD, OP_SCHEMA, condSignature, opSignature, type Cond } from "../engine/script";
 import { words, type Words } from "../rulesets/words";
 import { def, has } from "../engine/state";
 import { decklistText, money, movesText, stateText } from "./view";
@@ -268,8 +268,14 @@ const OPERATIONS = (Object.keys(OP_SCHEMA) as Op["op"][])
   .map((k) => `  ${opSignature(k)}${OP_SCHEMA[k].doc ? `\n    ${OP_SCHEMA[k].doc}` : ""}`)
   .join("\n");
 
-/** …and the conditions off `COND_SCHEMA`, for the same reason. */
+/**
+ * …and the conditions off `COND_SCHEMA`, for the same reason — less the ones no
+ * printed card says (`CONDITIONS_OFF_A_CARD`). The referee is ruling on one
+ * skill of one card, and a word that only a `DEFINE ACTION` writes is a word it
+ * could only ever put in a ruling wrongly.
+ */
 const CONDITIONS = (Object.keys(COND_SCHEMA) as Cond["kind"][])
+  .filter((k) => !CONDITIONS_OFF_A_CARD.includes(k))
   .map((k) => `  ${condSignature(k)}${COND_SCHEMA[k].doc ? `\n    ${COND_SCHEMA[k].doc}` : ""}`)
   .join("\n");
 
