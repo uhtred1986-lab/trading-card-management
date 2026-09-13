@@ -739,7 +739,6 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // The same clause with "for the turn", "in all areas" and the like taken
   // off, so the patterns for the action itself can end in `$`.
   const q = stripQualifiers(t);
-  if (process.env.DBG_COPY) console.error("QQQ", JSON.stringify(q));
 
   // A number read off the board has to be seen *first*: the patterns below
   // match on a word boundary rather than the end of the clause, so "gets
