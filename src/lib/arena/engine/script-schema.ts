@@ -4,7 +4,7 @@ import type { CardFilter } from "./filters";
 // them, which are lists), `AmountAttr` what an amount may *read as a number*.
 // Collapsing them would let `attr($t, colors)` stand where a number belongs.
 import type { Amount, AmountAttr, CardAttr, Cond, Duration, Op, Ref, ReplaceEvent, ScriptArea, Selector, Side, SpecialTarget } from "./script";
-import type { Area, CardDef, Color, DelayScope, DelayTiming, ForbiddenAction, KeywordSkill, Phase, Prompt, SkillKindPrefix } from "./types";
+import type { Area, CardDef, Color, DelayScope, DelayTiming, ForbiddenAction, KeywordSkill, Phase, Prompt, SkillKindPrefix, SkipWhat } from "./types";
 
 // ── the schema: one row per op, read by everything that is not the interpreter ──
 
@@ -113,6 +113,12 @@ void _everyKeywordListed;
 // rather than going unnoticed by the suite.
 
 /** `Area` (13), the places a card can actually be. `AREAS` above is `ScriptArea` (15): the two extra values, `under` and `play`, are effect-language routes ("place it under this card", "the card resolving a skill"), not board zones a `.rules` file declares. */
+/** `SkipWhat` (20-13), as a runtime list the schema row and `verify/rulesets.ts` read. */
+export const SKIP_WHATS = ["charge", "main", "end", "offense", "defense"] as const satisfies readonly SkipWhat[];
+type MissingSkipWhat = Exclude<SkipWhat, (typeof SKIP_WHATS)[number]>;
+const _everySkipWhatListed: MissingSkipWhat extends never ? true : never = true;
+void _everySkipWhatListed;
+
 export const AREA_NAMES = ["hand", "deck", "drop", "life", "battle", "combo", "energy", "unison", "leader", "warp", "zDeck", "zEnergy", "removed"] as const satisfies readonly Area[];
 type MissingArea = Exclude<Area, (typeof AREA_NAMES)[number]>;
 const _everyAreaListed: MissingArea extends never ? true : never = true;
@@ -258,6 +264,29 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     doc: '"onto" plays it on top of another card ([Union-Absorb], 22-13-6-3); "negated" is "played with its skills negated" (9-1-5)',
   },
   switchMode: { fields: [TARGET, { name: "mode", type: MODE, required: true }], sentence: "switch {target} to {mode} mode" },
+  skip: {
+    fields: [
+      { name: "what", type: { enum: SKIP_WHATS }, required: true },
+      { name: "side", type: "side", default: "you" },
+      { name: "when", type: { enum: ["this", "next"] }, default: "next" },
+    ],
+    sentence: (raw) => {
+      const op = raw as OpOf<"skip">;
+      const whose = op.side === "opponent" ? "your opponent" : op.side === "both" ? "each player" : "you";
+      const which = op.when === "this" ? "this turn's" : "the next";
+      const what = op.what === "offense" || op.what === "defense" ? `${op.what === "offense" ? "Offense" : "Defense"} Step` : `${{ charge: "Charge", main: "Main", end: "End" }[op.what]} Phase`;
+      return `${whose} skip${op.side === "you" || op.side == null ? "" : "s"} ${which} ${what}`;
+    },
+    doc: 'the phase or step is not performed (20-13): no [Auto] answers to its start or end, no action can be declared in it, and no checkpoint happens inside it. "when":"this" is the occurrence in the turn the skill resolved on, "next" the first one in a later turn. Effects that were to end in it end as it is skipped (20-13-5)',
+  },
+  control: {
+    fields: [TARGET, { name: "to", type: "side", default: "you" }, { name: "until", type: "duration" }],
+    sentence: (raw, r) => {
+      const op = raw as OpOf<"control">;
+      return `${op.to === "opponent" ? "your opponent gains" : "gain"} control of ${describeRef(op.target)}${forThe(op.until, r)}`;
+    },
+    doc: 'the card moves to that player\'s Battle Area and they become its master (20-9-1); it keeps its mode, its markers and the effects on it (20-9-2). Leave "until" out for control that does not end \u2014 with it, the card goes back when the duration does. A Leader or a Unison Card can\'t change hands, and a KO still sends the card to its **owner\'s** Drop Area (5-12-1)',
+  },
   modifyAttr: {
     fields: MODIFY_ATTR_FIELDS,
     // Two sentences, because the two numbers and the four lists are different
@@ -561,6 +590,8 @@ export const OP_CLASS: Record<Op["op"], OpClass> = {
   negateKeyword:      "macro over `negate`",
   gains:              "macro over `modifyAttr`",
   replace:            "primitive",
+  control:            "primitive",
+  skip:               "primitive",
   replaceLeave:       "macro over `replace`",
   altCost:            "macro over `costModifier`",
   payWith:            "primitive",

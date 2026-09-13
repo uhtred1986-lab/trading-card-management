@@ -31,11 +31,12 @@ import type {
   ReplacementChoice,
   ReplacementResult,
   Skill,
+  SkipWhat,
   SkillKind,
   SkillKindPrefix,
   MoveReason,
 } from "./types";
-import { other } from "./types";
+import { PLAYERS, other } from "./types";
 
 export interface GameContext {
   defs: Record<string, CardDef>;
@@ -264,7 +265,7 @@ function runReplacement(ctx: GameContext, s: GameState, ev: GameEvent[], id: str
   if (applyingReplacement || !r.ops?.length) return;
   applyingReplacement = true;
   try {
-    stepScript(ctx, s, ev, { ops: r.ops, ip: 0, vars: {}, card: r.source ?? id, master: r.master ?? s.cards[id].owner, subject: id });
+    stepScript(ctx, s, ev, { ops: r.ops, ip: 0, vars: {}, card: r.source ?? id, master: r.master ?? masterOf(s, id), subject: id });
   } finally {
     applyingReplacement = false;
   }
@@ -310,6 +311,13 @@ export function player(s: GameState, p: PlayerId): PlayerState {
 }
 
 export interface Location {
+  /**
+   * The player whose *area* holds the card — its **master** (0-3-4-1), not its
+   * owner (0-3-3-1). The two coincide for every card in a deck built by its
+   * owner, and the field is named for that coincidence; a card taken by the
+   * other player is where they come apart, which is why every reader of this
+   * field is listed in the owner/master audit in `glossary.ts`.
+   */
   owner: PlayerId;
   area: Area;
   index: number;
@@ -616,9 +624,9 @@ export function resolveSelector(ctx: GameContext, s: GameState, frame: ScriptFra
       const against = sel.filter.powerRel.of === "chosen" ? (sel.filter.powerRel.var ? (frame.vars[sel.filter.powerRel.var]?.[0] ?? null) : null) : frame.card;
       if (!against || !powerRelOk(sel.filter, powerOf(ctx, s, id), powerOf(ctx, s, against))) return false;
     }
-    if (!sel.special && !sel.ignoreBarrier && sel.side !== "you" && has(ctx, s, id, "Barrier") && s.cards[id].owner !== frame.master && areaOf(s, id) !== "hand") return false;
+    if (!sel.special && !sel.ignoreBarrier && sel.side !== "you" && has(ctx, s, id, "Barrier") && masterOf(s, id) !== frame.master && areaOf(s, id) !== "hand") return false;
     // 20-4: the same shape as [Barrier], but printed as a prohibition.
-    if (!sel.special && s.cards[id].owner !== frame.master && forbids(ctx, s, "beChosen", { card: id })) return false;
+    if (!sel.special && masterOf(s, id) !== frame.master && forbids(ctx, s, "beChosen", { card: id })) return false;
     // 9-1-4: a card no skill may touch. **The one place immunity is enforced**
     // — every op that reaches a card reaches it through a selector, so a new
     // op inherits the check rather than repeating it. Still narrower than the
@@ -626,9 +634,11 @@ export function resolveSelector(ctx: GameContext, s: GameState, frame: ScriptFra
     // all slips through. Which skills it refuses is the stored rule's business
     // (`immunityRefusing`), not the selector's — "isn't affected by your
     // opponent's skills" and "isn't affected by non-<Gogeta: GT> skills" are
-    // different claims and an owner test could only ever read the first.
-    // `self` is the one selector kept out: a card's own skill naming itself is
-    // the skill working, not a skill touching it from outside.
+    // different claims, and a test on who holds the card could only ever read
+    // the first; it is also the one line here that needs no `masterOf`, since
+    // the rule names its player outright. `self` is the one selector kept out:
+    // a card's own skill naming itself is the skill working, not a skill
+    // touching it from outside.
     if (sel.special !== "self" && immunityRefusing(ctx, s, id, frame.card, frame.master)) return false;
     return true;
   });
@@ -1405,25 +1415,41 @@ export function addEffect(s: GameState, ev: GameEvent[], e: Omit<ContinuousEffec
  * `effectEnded` event, which is the beat a client draws the number changing
  * back on. `keep` says which stay.
  */
-function dropEffects(s: GameState, ev: GameEvent[], keep: (e: ContinuousEffect) => boolean): void {
+function dropEffects(ctx: GameContext, s: GameState, ev: GameEvent[], keep: (e: ContinuousEffect) => boolean): void {
   const kept: ContinuousEffect[] = [];
+  const ended: ContinuousEffect[] = [];
   for (const e of s.effects) {
     if (keep(e)) kept.push(e);
-    else ev.push({ type: "effectEnded", effect: e });
+    else {
+      ended.push(e);
+      ev.push({ type: "effectEnded", effect: e });
+    }
   }
   s.effects = kept;
+  // 20-9 with a duration on it: the loan is over, so the card walks back. Done
+  // after the list is rebuilt, because the move itself reads `s.effects` — and
+  // only for a card still in the Battle Area it was taken into: one that has
+  // been KO'd or bounced lost the effect with the rest of them (`move`), and
+  // one sitting in a Combo Area is not somewhere control can return it from.
+  for (const e of ended) {
+    if (e.kind !== "control" || !e.control) continue;
+    if (areaOf(s, e.target) !== "battle" || locate(s, e.target)?.owner === e.control.from) continue;
+    const entered = s.cards[e.target].enteredTurn;
+    move(ctx, s, ev, e.target, "battle", e.control.from, { carry: true, reason: "effect" });
+    s.cards[e.target].enteredTurn = entered;
+  }
 }
 
-export function endEffects(s: GameState, ev: GameEvent[], until: ContinuousEffect["until"], forPlayer?: PlayerId): void {
-  dropEffects(s, ev, (e) => !(e.until === until && (forPlayer == null || e.ownerTurn === forPlayer)));
+export function endEffects(ctx: GameContext, s: GameState, ev: GameEvent[], until: ContinuousEffect["until"], forPlayer?: PlayerId): void {
+  dropEffects(ctx, s, ev, (e) => !(e.until === until && (forPlayer == null || e.ownerTurn === forPlayer)));
 }
 
 /**
  * "…will not switch to Active Mode during your next Charge Phase": spent by
  * the Active Step it was written for (7-2-7), on the cards that step covered.
  */
-export function endAfterChargeEffects(s: GameState, ev: GameEvent[], cards: string[]): void {
-  dropEffects(s, ev, (e) => !(e.until === "afterNextCharge" && cards.includes(e.target)));
+export function endAfterChargeEffects(ctx: GameContext, s: GameState, ev: GameEvent[], cards: string[]): void {
+  dropEffects(ctx, s, ev, (e) => !(e.until === "afterNextCharge" && cards.includes(e.target)));
 }
 
 /**
@@ -1440,8 +1466,8 @@ export function endAfterChargeEffects(s: GameState, ev: GameEvent[], cards: stri
  * [Counter] resolves on the opponent's turn by definition, so every effect one
  * of those created outlasted its wording by a whole turn.
  */
-export function endTurnRelativeEffects(s: GameState, ev: GameEvent[]): void {
-  dropEffects(s, ev, (e) => {
+export function endTurnRelativeEffects(ctx: GameContext, s: GameState, ev: GameEvent[]): void {
+  dropEffects(ctx, s, ev, (e) => {
     if (e.createdTurn >= s.turn) return true;
     if (e.until === "nextTurn") return s.turnPlayer !== e.master;
     if (e.until === "opponentTurn") return s.turnPlayer === e.master;
@@ -1485,7 +1511,7 @@ function ownProhibitions(ctx: GameContext, s: GameState, card: string): Prohibit
       // hold everywhere: anything aimed at other cards is the static layer's.
       if (op.op !== "forbid" || op.until !== "game" || op.bySkill === undefined) continue;
       if (!op.target || !("sel" in op.target) || op.target.sel.special !== "self") continue;
-      out.push({ what: op.what, ...(op.uses != null ? { uses: amount(ctx, s, { ops: [], ip: 0, vars: {}, card, master: inst.owner }, op.uses) } : {}), ...(op.unless ? { unless: op.unless, master: inst.owner } : {}), bySkill: op.bySkill });
+      out.push({ what: op.what, ...(op.uses != null ? { uses: amount(ctx, s, { ops: [], ip: 0, vars: {}, card, master: masterOf(s, card) }, op.uses) } : {}), ...(op.unless ? { unless: op.unless, master: masterOf(s, card) } : {}), bySkill: op.bySkill });
     }
   }
   return out;
@@ -1564,7 +1590,7 @@ function unlessInWords(f: Prohibition, viewer: PlayerId | undefined): string {
 function unlessHolds(ctx: GameContext, s: GameState, f: Prohibition, opts: { player?: PlayerId; card?: string }, source?: string | null): boolean {
   if (!f.unless) return false;
   const card = source && s.cards[source] ? source : opts.card && s.cards[opts.card] ? opts.card : "";
-  const master = f.master ?? (card ? s.cards[card].owner : undefined) ?? opts.player ?? "p1";
+  const master = f.master ?? (card ? masterOf(s, card) : undefined) ?? opts.player ?? "p1";
   return condHolds(ctx, s, { ops: [], ip: 0, vars: {}, master, card }, f.unless);
 }
 
@@ -1625,7 +1651,7 @@ export function forbiddenBy(
   for (const { target, source, until, forbid: f } of rules) {
     if (!matchesProhibition(ctx, s, what, target, f, opts, source)) continue;
     if ((f.uses ?? 0) > 0) continue;
-    return { by: source && s.cards[source] ? face(ctx, s, source).name : null, until, ...(f.unless ? { unless: unlessInWords(f, opts.player ?? (opts.card && s.cards[opts.card] ? s.cards[opts.card].owner : undefined)) } : {}) };
+    return { by: source && s.cards[source] ? face(ctx, s, source).name : null, until, ...(f.unless ? { unless: unlessInWords(f, opts.player ?? (opts.card && s.cards[opts.card] ? masterOf(s, opts.card) : undefined)) } : {}) };
   }
   return null;
 }
@@ -2272,7 +2298,12 @@ export function playCost(ctx: GameContext, s: GameState, id: string, x = 0): { t
   const d = def(ctx, s, id);
   const total = d.energyCost === "X" ? x : (d.energyCost ?? 0);
   const specified = specifiedCostOf(d);
-  const owner = s.cards[id].owner;
+  // 0-3-4-1: whoever is holding the card is the player its ‹Warrior of
+  // Universe 7› board read below is about. A card being priced is in a hand or
+  // a Z-Deck, where the master is the owner, so this is the same answer today
+  // — said the way the audit in `glossary.ts` ruled it, so it stays right if
+  // a price is ever asked of a card in play.
+  const owner = masterOf(s, id);
   // A cost reducer lowers both the total and the specified cost (20-21-2) —
   // whether it stands from a [Permanent] or was put in force for the turn by a
   // skill that resolved.
@@ -2344,6 +2375,54 @@ export function isLeader(ctx: GameContext, s: GameState, id: string): boolean {
 export function cardsInPlay(s: GameState, p: PlayerId): string[] {
   const ps = s.players[p];
   return [ps.leader, ...(ps.unison ? [ps.unison] : []), ...ps.battle].filter(Boolean);
+}
+
+/**
+ * The player currently using a card (0-3-4-1): whose area it sits in, falling
+ * back to its owner when it is not in play. **Not** `CardInstance.owner`,
+ * which is who built the deck (0-3-3-1) and never changes — the two coincide
+ * until a card is controlled by the other player (20-9), and the audit in
+ * `glossary.ts` lists every site that reads one or the other and why.
+ */
+export function masterOf(s: GameState, card: string): PlayerId {
+  for (const p of PLAYERS) if (cardsInPlay(s, p).includes(card)) return p;
+  return s.cards[card].owner;
+}
+
+/**
+ * 20-13: is this phase or step of `p`'s not to be performed — and if so, spend
+ * the entry that says so. One entry, one occurrence: a card that says to skip a
+ * phase says it once, and two of them stop two.
+ *
+ * "This" is the occurrence in the turn the skip was made on; "next" is the
+ * first one in a later turn, which is what a card printed on your own turn
+ * means by "your next Charge Phase" — that phase has already gone by the time
+ * the skill resolves.
+ */
+export function takeSkip(s: GameState, p: PlayerId, what: SkipWhat): boolean {
+  const list = s.players[p].skips;
+  if (!list?.length) return false;
+  const i = list.findIndex((e) => e.what === what && (e.when === "this" ? e.turn === s.turn : s.turn > e.turn));
+  if (i < 0) return false;
+  list.splice(i, 1);
+  return true;
+}
+
+/** Add one (20-13). The list is made on demand, so a game saved without it still works. */
+export function addSkip(s: GameState, p: PlayerId, what: SkipWhat, when: "this" | "next"): void {
+  (s.players[p].skips ??= []).push({ what, when, turn: s.turn });
+}
+
+/**
+ * An unspent "this" entry is over when its turn is: the phase it named either
+ * happened or did not, and either way it is not waiting for the next one.
+ * Called from `turn.next`, beside `expireDelayed`, which is the same idea.
+ */
+export function expireSkips(s: GameState): void {
+  for (const p of PLAYERS) {
+    const list = s.players[p].skips;
+    if (list?.length) s.players[p].skips = list.filter((e) => !(e.when === "this" && e.turn < s.turn));
+  }
 }
 
 export function note(ev: GameEvent[], text: string): void {

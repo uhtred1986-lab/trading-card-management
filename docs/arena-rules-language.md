@@ -492,6 +492,29 @@ THEN
   })
 ```
 
+Taking control of a card for the turn (20-9, BT15-118). In this engine the area a card is in *is*
+who masters it (0-3-4-1), so `control` moves the card into that player's Battle Area — keeping its
+mode, its markers and every effect on it (20-9-2) — and the `until` is the loan: the card walks
+back when the duration ends. Left out, the control does not end, and a KO still sends the card to
+its **owner's** Drop Area (5-12-1):
+
+```
+WHEN [activate:main]
+THEN
+  choose(sel: 1 IN opponent.battle, as: "taken", reason: "Choose 1 of your opponent's Battle Cards")
+  control(target: $taken, until: turn)
+```
+
+A phase that does not happen (20-13). `what` is one of the five the turn and a battle are made of,
+`side` is whose, and `when` says which occurrence — `next` (the default) is the first in a later
+turn, which is what a card resolving in your own Main Phase means by “your next Charge Phase”:
+
+```
+WHEN [activate:main]
+THEN
+  skip(what: charge, side: opponent)
+```
+
 A price paid by an action rather than energy, and a marker cost:
 
 ```

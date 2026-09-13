@@ -258,7 +258,25 @@ export interface PlayerState {
   grewUnisonThisTurn: boolean;
   /** Damage dealt to this player over the game, for the end screen. */
   damageTaken: number;
+  /**
+   * 20-13: phases and steps of this player's that are not to be performed.
+   * One entry is spent by one occurrence — the flow runner takes it where the
+   * step would begin — and `turn` is the turn the skip was made on, which is
+   * what tells "this" from "next" apart. An unspent "this" entry is dropped
+   * when the turn passes, the way a delayed effect that missed its moment is.
+   * Absent on games saved before the field existed.
+   */
+  skips?: { what: SkipWhat; when: "this" | "next"; turn: number }[];
 }
+
+/**
+ * What 20-13 can be told to skip here. The three phases the turn is made of
+ * and the two steps of a battle that have a step of their own to refuse — not
+ * a whole turn, which is 20-13's other half and has no single point in the
+ * flow to be refused at once, and not the Damage Step, which is where the
+ * battle's result is worked out rather than a moment anything acts in.
+ */
+export type SkipWhat = "charge" | "main" | "end" | "offense" | "defense";
 
 export type Phase = "setup" | "charge" | "main" | "mainEnd" | "end" | "over";
 export type BattleStep = "declared" | "offense" | "defense" | "damage" | "battleEnd";
@@ -426,7 +444,7 @@ export interface ContinuousEffect {
    * named by a `SkillKindPrefix` in `value` ("negate that card's [Auto] skill
    * for the turn").
    */
-  kind: "power" | "comboPower" | "keyword" | "copiedSkills" | "negateSkills" | "negateSkill" | "negateSkillKind" | "forbid" | "permit" | "immune" | "cost" | "skillCost" | "evolveCost" | "comboCost" | "altCost" | "payer" | "zEnergy" | "specifiedCost";
+  kind: "power" | "comboPower" | "keyword" | "copiedSkills" | "negateSkills" | "negateSkill" | "negateSkillKind" | "forbid" | "permit" | "immune" | "cost" | "skillCost" | "evolveCost" | "comboCost" | "altCost" | "payer" | "zEnergy" | "specifiedCost" | "control";
   /**
    * `specifiedCost`'s value is the orbs it relaxes or demands (`sign: 1` reduces,
    * `-1` increases) rather than a flat number — see `costReduction` (script.ts)
@@ -442,6 +460,13 @@ export interface ContinuousEffect {
   immune?: Immunity;
   /** Set when `kind` is "copiedSkills": the face copied and which of its skills (20-18). */
   copied?: CopiedSkills;
+  /**
+   * Set when `kind` is "control" (20-9): who the card goes back to when the
+   * effect ends. The card is already in its new master's Battle Area — that
+   * move *is* the control (20-9-1) — so the effect carries no state of its
+   * own beyond the way home, and expiring it is what walks the card back.
+   */
+  control?: { from: PlayerId };
   /**
    * Set when `kind` is "altCost": another way to pay for the target card's own
    * [Counter] (or its play), granted for a duration rather than printed on the
@@ -760,7 +785,8 @@ export type Action =
 export type GameEvent =
   | { type: "gameStart"; first: PlayerId; seed: number }
   | { type: "action"; action: Action }
-  | { type: "phase"; phase: Phase; player: PlayerId; turn: number }
+  /** `skipped` is 20-13: the phase is announced and then not performed. */
+  | { type: "phase"; phase: Phase; player: PlayerId; turn: number; skipped?: true }
   | { type: "move"; card: string; from: Area; to: Area; owner: PlayerId; index?: number; reveal?: boolean }
   | { type: "draw"; player: PlayerId; card: string }
   | { type: "mode"; card: string; mode: Mode }
@@ -770,7 +796,8 @@ export type GameEvent =
   | { type: "energyMarker"; player: PlayerId; delta: number }
   | { type: "attack"; attacker: string; target: string }
   | { type: "guardChanged"; guard: string; by: string }
-  | { type: "battleStep"; step: BattleStep }
+  /** `skipped` is 20-13: the step is named so a client can show it, and did not happen. */
+  | { type: "battleStep"; step: BattleStep; skipped?: true }
   | { type: "powerCompare"; attacker: string; guard: string; attackPower: number; guardPower: number; hit: boolean }
   | { type: "damage"; player: PlayerId; amount: number; critical: boolean; cards: string[] }
   | { type: "ko"; card: string; by?: string }

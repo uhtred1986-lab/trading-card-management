@@ -24,7 +24,7 @@ import { revealedTo } from "./view";
 
 export type Beat =
   /** A named step of the game: a phase, or a step within a battle. */
-  | { t: "phase"; phase: string; player: PlayerId; turn: number }
+  | { t: "phase"; phase: string; player: PlayerId; turn: number; skipped?: true }
   | { t: "draw"; player: PlayerId; card: string | null }
   | { t: "move"; card: string; from: Area; to: Area; owner: PlayerId }
   | { t: "mode"; card: string; mode: "active" | "rest" }
@@ -160,11 +160,15 @@ export function toBeats(ctx: EngineContext, state: GameState, events: GameEvent[
   for (const e of events) {
     switch (e.type) {
       case "phase":
-        push({ t: "phase", phase: e.phase, player: e.player, turn: e.turn });
+        push({ t: "phase", phase: e.phase, player: e.player, turn: e.turn, ...(e.skipped ? { skipped: true as const } : {}) });
         break;
       case "battleStep":
         // A battle step is a named step like a phase is; the client labels it.
-        push({ t: "phase", phase: e.step, player: state.turnPlayer, turn: state.turn });
+        // 20-13: a step that is skipped is still announced — the board should
+        // show the moment going by rather than the battle jumping over it.
+        // The beat's `player` stays the turn player for every step, as it
+        // always has; a battle step is narrated without naming a side.
+        push({ t: "phase", phase: e.step, player: state.turnPlayer, turn: state.turn, ...(e.skipped ? { skipped: true as const } : {}) });
         break;
       case "draw":
         remember(e.card);
