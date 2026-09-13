@@ -4,7 +4,6 @@
  * Part of `npm test`; run from `scripts/verify-arena.ts`, which fixes the order.
  */
 import assert from "node:assert/strict";
-import { legalActions } from "../../src/lib/arena/engine";
 import { validateProgram } from "../../src/lib/arena/engine/script";
 import {
   CTX,
@@ -21,6 +20,7 @@ import {
   has,
   koCard,
   labels,
+  legalActions,
   move,
   placeUnder,
   orbsIn,

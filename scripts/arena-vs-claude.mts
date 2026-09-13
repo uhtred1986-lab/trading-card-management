@@ -2,22 +2,36 @@
  * Play a game against Claude through the real server path, with a hard cap on
  * how many paid decisions it may make, and report what it actually cost.
  *
- * `npm run arena:vs -- [maxCalls] [tier] [deckA] [deckB]`
+ * `npm run arena:vs -- [maxCalls] [tier] [deckA] [deckB] [--engine legacy|rules]`
  * Default: 6 calls on the Sparring tier, which is a fraction of a cent.
  * Pass 0 for maxCalls to run without spending anything (no API key needed):
  * the opponent then takes the first legal move and the referee rules nothing.
+ *
+ * `--engine` (default `legacy`) is passed straight to `startGame`, which
+ * resolves it through `playableEngine` — so `--engine rules` refuses with
+ * `EngineNotBuilt` before a deck is even read, the same refusal the `/arena`
+ * form gives while the rules engine stays unplayable.
  */
 import { eq } from "drizzle-orm";
 import { db } from "../src/db";
 import { arenaGames, decks } from "../src/db/schema";
 import { advance } from "../src/lib/arena/ai/run";
+import { isEngineId } from "../src/lib/arena/engines";
 import { loadGame, startGame, type ArenaMode } from "../src/lib/arena/games";
 import { deckInputFor } from "../src/lib/arena/load";
 import { boardView, tappable, viewerOf } from "../src/lib/arena/view";
 
-const maxCalls = process.argv[2] != null ? Number(process.argv[2]) : 6;
-const tier = (process.argv[3] as ArenaMode) ?? "sparring";
-const wanted = process.argv.slice(4).map(Number).filter(Number.isInteger);
+const argv = process.argv.slice(2);
+const engineArg = argv.indexOf("--engine");
+const engineId = engineArg >= 0 ? argv[engineArg + 1] : "legacy";
+if (!isEngineId(engineId)) throw new Error(`--engine must be one of legacy, rules; got ${engineId}`);
+// Same guard as the fuzzer and the playthrough: with no `--engine`, dropping
+// nothing at all keeps the positional arguments below in their usual order.
+const positional = argv.filter((a, i) => engineArg < 0 || (i !== engineArg && i !== engineArg + 1));
+
+const maxCalls = positional[0] != null ? Number(positional[0]) : 6;
+const tier = (positional[1] as ArenaMode) ?? "sparring";
+const wanted = positional.slice(2).map(Number).filter(Number.isInteger);
 
 if (maxCalls === 0) {
   delete process.env.ANTHROPIC_API_KEY;
@@ -32,8 +46,8 @@ for (const d of all) {
 }
 const [a, b] = wanted.length === 2 ? wanted : [usable[0], usable[1] ?? usable[0]];
 
-const id = await startGame(db, a, b, tier);
-console.log(`game ${id}: deck ${a} vs deck ${b}, tier ${tier}, at most ${maxCalls} paid decisions\n`);
+const id = await startGame(db, a, b, tier, true, undefined, engineId);
+console.log(`game ${id}: deck ${a} vs deck ${b}, tier ${tier}, engine ${engineId}, at most ${maxCalls} paid decisions\n`);
 
 let humanMoves = 0;
 for (let i = 0; i < 400; i++) {

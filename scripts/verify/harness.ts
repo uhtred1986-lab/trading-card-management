@@ -5,22 +5,39 @@
  * The checks themselves live in the files beside this one and run in the order
  * `scripts/verify-arena.ts` imports them — which matters, because the blocks
  * add cards to `DEFS` as they go and `CTX` compiles them lazily.
+ *
+ * `--engine legacy|rules` on the command line picks the engine every suite
+ * below creates and plays its games on, defaulting to `legacy` — the only
+ * engine any of them has ever run on, and still what plain `npm test` runs
+ * (`npm run test:rules` is `--engine rules`, `scripts/verify-arena.ts`).
+ * Routing `createGame`/`apply`/`legalActions`/`rejectedActions` through
+ * `engineFor(ENGINE)` here, once, is what lets `game()`, `arena()` and
+ * `play()` stay engine-agnostic rather than every suite importing the switch
+ * itself. `createGame` and `apply` still hand back a `GameState` — every
+ * fixture below reads one directly (`s.prompt`, `s.players`, `move()`, …) —
+ * so a state the rules engine dealt is named by `legacyState` as an
+ * `EngineMismatch` rather than read field by field as `undefined`; that is
+ * the whole of what "runs on rules" means for these suites today; `vm.ts` and
+ * `rulesets.ts` name an engine explicitly instead of reading `ENGINE`,
+ * because proving the switch itself must not depend on which side of it
+ * happens to be selected.
  */
 import assert from "node:assert/strict";
 import {
-  apply,
-  createGame,
   defsFrom,
-  legalActions,
-  rejectedActions,
   seedFrom,
   type Action,
   type CardDef,
+  type EngineContext,
+  type GameEvent,
+  type GameOptions,
   type GameState,
+  type LegalAction,
   type PlayerId,
   type RejectedAction,
   type Requirement,
 } from "../../src/lib/arena/engine";
+import { DEFAULT_ENGINE, engineFor, isEngineId, legacyState, type EngineId } from "../../src/lib/arena/engines";
 import { appendBeats, maskBeats, toBeats, type Beat, type Beats, type NumberedBeat } from "../../src/lib/arena/beats";
 import { buildSnapshot, rejectedFor, waitingFor, type Snapshot } from "../../src/lib/arena/snapshot";
 import { boardView } from "../../src/lib/arena/view";
@@ -39,6 +56,30 @@ import { canonical, hoist, patternKey, programShape, rulesFromCompiler, skillRec
 import { keywordPlays } from "../../src/lib/arena/glossary";
 import { EFFECT_LANGUAGE } from "../../src/lib/arena/ai/opponent";
 import { clauseShape, describeTrigger, mechanismOf, triggersOf } from "../../src/lib/arena/gaps";
+
+// ── the engine every suite below plays on ───────────────────────────────────
+
+const engineArg = process.argv.indexOf("--engine");
+const engineValue = engineArg >= 0 ? process.argv[engineArg + 1] : undefined;
+if (engineValue !== undefined && !isEngineId(engineValue)) throw new Error(`--engine must be one of legacy, rules; got ${engineValue}`);
+export const ENGINE: EngineId = engineValue ?? DEFAULT_ENGINE;
+const IMPL = engineFor(ENGINE);
+
+function createGame(ctx: EngineContext, options: GameOptions): { state: GameState; events: GameEvent[] } {
+  const made = IMPL.createGame(ctx, options);
+  return { state: legacyState(made.state), events: made.events };
+}
+function apply(ctx: EngineContext, state: GameState, action: Action): { state: GameState; events: GameEvent[] } {
+  const made = IMPL.apply(ctx, state, action);
+  return { state: legacyState(made.state), events: made.events };
+}
+function legalActions(ctx: EngineContext, state: GameState): LegalAction[] {
+  return IMPL.legalActions(ctx, state);
+}
+function rejectedActions(ctx: EngineContext, state: GameState, legal: LegalAction[] = legalActions(ctx, state)): RejectedAction[] {
+  return IMPL.rejectedActions(ctx, state, legal);
+}
+
 // ── synthetic cards ────────────────────────────────────────────────────────
 
 const card = (id: string, o: Partial<CardDef>): CardDef => ({
