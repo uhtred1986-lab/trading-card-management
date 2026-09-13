@@ -93,6 +93,7 @@ import {
   addEffect,
   attrsNow,
   dueDelays,
+  forbids,
   endEffects,
   nextPending,
   permanents,
@@ -2695,5 +2696,217 @@ console.log("verify/vm: ok");
   {
     const board = withReducer("V-BLUE", "R-CUT", ["R-E-BLUE"]);
     assert.equal(attrsNow(CTX, DBS, board.r, board.card).costOf, 1, "a reducer scoped to red cards reduced a blue one");
+  }
+}
+
+// ── 21. a prohibition in force (#146 and #147's 20-14 gap) ──────────────────
+//
+// 20-14 is a *legality*, not a value, and until a card could be put in play
+// (#146) there was nothing on this engine to put one in force: `permanents`
+// refused `forbid` by name and the host answered "nothing forbids it" to every
+// question. Both are now the board's answer, and this is what that claims:
+//
+//  1. **The same first refusal.** A [Permanent] saying "you can't play Battle
+//     Cards", a card's own "this card can't be played from any area except by
+//     skills" (9-1-3-3, which holds wherever the card sits), a ban on the
+//     charge and a turn-long ban on using skills: each refuses the move on both
+//     engines with the same `Requirement`, naming the same card and the same
+//     duration, so `wording.ts` says the same sentence about it.
+//  2. **One predicate, two lists.** The move is off the menu *because* it is
+//     refused — the very reading `legalActions` and `rejectedActions` are two
+//     views of — and the host's `forbids` is that same reading, so a program
+//     that asks 0-2-5's question gets the board's answer rather than `false`.
+//  3. **Both origins.** A prohibition standing from a [Permanent] and one put
+//     in force for the turn by a skill are the same rule to every reader, which
+//     is why the timed half is staged as the `ContinuousEffect` both engines
+//     keep rather than as a second mechanism.
+//
+// One ordering is deliberately *not* matched and is asserted as it stands: for
+// a plain Battle Card the legacy `whyNotPlayFromHand` puts the price before the
+// prohibition, and for a Unison or an X cost it puts the prohibition first.
+// This engine reads a `REFUSE` before the price throughout. The two only differ
+// on a board that is both short of energy and forbidden; see `actions.rules`.
+{
+  const rulesEngine = engineFor("rules");
+
+  DEFS["F-NO-PLAY"] = card("F-NO-PLAY", { energyCost: 3, skill: "[Permanent] You can't play Battle Cards." });
+  DEFS["F-NO-CHARGE"] = card("F-NO-CHARGE", { energyCost: 3, skill: "[Permanent] You can't place cards in your Energy Area." });
+  DEFS["F-QUIET"] = card("F-QUIET", { energyCost: 3 });
+  DEFS["F-UNPLAYABLE"] = card("F-UNPLAYABLE", { skill: "[Permanent] This card can't be played from any area except by skills." });
+  DEFS["F-SKILL"] = card("F-SKILL", { energyCost: 1, skill: "[Activate: Main] Draw 1 card." });
+  DEFS["F-E-RED"] = card("F-E-RED", { colors: ["Red"] });
+
+  const BAN_DECKS = {
+    seed: 14,
+    p1: { name: "You", leader: "L-RED", main: fifty("V1") },
+    p2: { name: "Claude", leader: "L-BLUE", main: fifty("V-BLUE") },
+  };
+
+  /** A Main Phase on both engines: one card in hand, one in the Battle Area, and enough energy that only a rule can stop the move. */
+  function banned(inHand: string, inPlay: string, energy = 2): { r: VmState; l: GameState; card: string; source: string } {
+    let r = rulesEngine.createGame(CTX, BAN_DECKS).state as VmState;
+    let l = createGame(CTX, BAN_DECKS).state;
+    for (let i = 0; i < 30; i++) {
+      const pr = r.prompt as { kind: string; player: PlayerId };
+      const a: Action | null =
+        pr.kind === "chooseFirst"
+          ? { type: "chooseFirst", player: pr.player, first: "p1" }
+          : pr.kind === "mulligan"
+            ? { type: "mulligan", player: pr.player, redraw: false }
+            : pr.kind === "charge"
+              ? { type: "charge", player: pr.player, card: null }
+              : null;
+      if (!a) break;
+      r = rulesEngine.apply(CTX, r, a).state as VmState;
+      l = apply(CTX, l, a).state;
+    }
+    assert.equal(r.prompt.kind, "main", "the rules game did not reach a Main Phase to forbid a move in");
+    for (const id of r.sides.p1.zones.hand) {
+      r.cards[id].cardId = inHand;
+      l.cards[id].cardId = inHand;
+    }
+    const target = r.sides.p1.zones.hand[0];
+    const source = r.sides.p1.zones.deck[0];
+    const energyIds = r.sides.p1.zones.deck.slice(1, 1 + energy);
+    for (const id of [source, ...energyIds]) {
+      for (const st of [r.cards[id], l.cards[id]]) {
+        st.cardId = id === source ? inPlay : "F-E-RED";
+        st.mode = "active";
+      }
+    }
+    const taken = new Set([source, ...energyIds]);
+    r.sides.p1.zones.deck = r.sides.p1.zones.deck.filter((id) => !taken.has(id));
+    l.players.p1.deck = l.players.p1.deck.filter((id) => !taken.has(id));
+    r.sides.p1.zones.battle = [source];
+    l.players.p1.battle = [source];
+    r.sides.p1.zones.energy = energyIds;
+    l.players.p1.energy = energyIds;
+    return { r, l, card: target, source };
+  }
+
+  /** The first requirement each engine gives for a move about this card, or undefined when it is offered. */
+  function firstRefusal(board: { r: VmState; l: GameState }, type: Action["type"], card: string): { mine: Requirement | undefined; theirs: Requirement | undefined; offered: boolean; legacyOffered: boolean } {
+    const rLegal = rulesEngine.legalActions(CTX, board.r);
+    const lLegal = legalActions(CTX, board.l);
+    const isThis = (x: { action: Action }) => x.action.type === type && (x.action as { card?: string | null }).card === card;
+    return {
+      mine: rulesEngine.rejectedActions(CTX, board.r, rLegal).find(isThis)?.why[0],
+      theirs: rejectedActions(CTX, board.l, lLegal).find(isThis)?.why[0],
+      offered: rLegal.some(isThis),
+      legacyOffered: lLegal.some(isThis),
+    };
+  }
+
+  // The control: the same board with a [Permanent] that forbids nothing, so
+  // every assertion below is a *change* and not the board being unplayable.
+  {
+    const board = banned("V1", "F-QUIET");
+    const play = firstRefusal(board, "play", board.card);
+    assert.equal(play.offered, true, "the control board cannot play the card at all, so nothing below measures a prohibition");
+    assert.equal(play.legacyOffered, true, "the legacy control board cannot play the card either");
+  }
+
+  // 20-14 about the player: "you can't play Battle Cards", standing from a
+  // [Permanent] in the Battle Area. Off the menu on both engines, and refused
+  // with the same requirement naming the same card.
+  {
+    const board = banned("V1", "F-NO-PLAY");
+    const play = firstRefusal(board, "play", board.card);
+    assert.equal(play.offered, false, "a play a [Permanent] forbids is on the menu");
+    assert.equal(play.legacyOffered, false, "the legacy engine offers a play its own [Permanent] forbids");
+    assert.deepEqual(play.mine, { kind: "forbidden", by: "F-NO-PLAY", until: "permanent" }, "a forbidden play is not refused with the rule that forbids it");
+    assert.deepEqual(play.mine, play.theirs, "the two engines refuse a forbidden play differently");
+    assert.ok(refusal(play.mine!, { name: "V1", reaching: "play" }).fact.length > 0, "a prohibition's refusal has no words");
+    assert.throws(() => rulesEngine.apply(CTX, board.r, { type: "play", player: "p1", card: board.card }), IllegalAction, "a forbidden play was taken anyway");
+  }
+
+  // 9-1-3-3: the card's own rule about itself, read wherever it sits — here in
+  // the hand, where no [Permanent] of it is otherwise valid (9-1-3-1). It is
+  // `bySkill: false`, so it bans the play a player declares and nothing else.
+  {
+    const board = banned("F-UNPLAYABLE", "F-QUIET");
+    const play = firstRefusal(board, "play", board.card);
+    assert.equal(play.offered, false, "a card whose own rule forbids playing it is on the menu");
+    assert.deepEqual(play.mine, { kind: "forbidden", by: "F-UNPLAYABLE", until: "permanent" }, "a card's own prohibition is not read from the hand (9-1-3-3)");
+    assert.deepEqual(play.mine, play.theirs, "the two engines read a card's own prohibition differently");
+  }
+
+  // The charge, at its own question: 7-2-11's move refused by 20-14 rather than
+  // by the one-a-turn rule, which is `whyNotCharge`'s second test.
+  {
+    const board = banned("V1", "F-NO-CHARGE");
+    // Back to a Charge Phase question: the staged board is at the Main Phase,
+    // where the charge is refused for a different reason entirely (#145).
+    const toCharge = (s: VmState) => {
+      const next = structuredClone(s);
+      next.phase = "charge";
+      next.prompt = { kind: "charge", player: "p1" };
+      return next;
+    };
+    const r = toCharge(board.r);
+    const l = structuredClone(board.l);
+    l.phase = "charge";
+    l.prompt = { kind: "charge", player: "p1" };
+    const rLegal = rulesEngine.legalActions(CTX, r);
+    const lLegal = legalActions(CTX, l);
+    const carded = (list: { action: Action }[]) => list.filter((x) => x.action.type === "charge" && (x.action as { card: string | null }).card !== null);
+    assert.deepEqual(carded(rLegal), [], "a charge a [Permanent] forbids is on the menu");
+    assert.deepEqual(carded(lLegal), [], "the legacy engine offers a charge its own [Permanent] forbids");
+    const mine = rulesEngine.rejectedActions(CTX, r, rLegal).find((x) => x.action.type === "charge")?.why[0];
+    const theirs = rejectedActions(CTX, l, lLegal).find((x) => x.action.type === "charge")?.why[0];
+    assert.deepEqual(mine, { kind: "forbidden", by: "F-NO-CHARGE", until: "permanent" }, "a forbidden charge is not refused with the rule that forbids it");
+    assert.deepEqual(mine, theirs, "the two engines refuse a forbidden charge differently");
+    // …and the skip stays. 7-2-11 is a *may*, and taking nothing places no card,
+    // so nothing about 20-14 touches it: the legacy engine offers it under the
+    // same ban, which is why `mentionsCandidate` reads a prohibition as a
+    // question about the candidate rather than about the board.
+    const skip = (list: { action: Action }[]) => list.some((x) => x.action.type === "charge" && (x.action as { card: string | null }).card === null);
+    assert.equal(skip(rLegal), true, "the skip went with the cards when the charge was forbidden");
+    assert.equal(skip(lLegal), true, "the legacy engine stopped offering the skip under a placeEnergy ban");
+  }
+
+  // Claim 3: the same rule put in force for the turn by a skill instead of
+  // standing from a [Permanent]. Staged as the `ContinuousEffect` **both**
+  // engines keep, which is the point — one shape, one reading, two engines.
+  {
+    const board = banned("V1", "F-SKILL", 2);
+    const ban = {
+      id: 900,
+      target: "",
+      kind: "forbid" as const,
+      value: 0,
+      forbid: { what: "activateSkill" as const, player: "p1" as const },
+      until: "turn" as const,
+      source: board.source,
+      createdTurn: board.r.turn,
+      ownerTurn: "p1" as const,
+      master: "p1" as const,
+    };
+    board.r.effects.push(ban);
+    board.l.effects.push(ban);
+    const skillCard = board.source;
+    const mine = firstRefusal(board, "activate", skillCard);
+    assert.equal(mine.offered, false, "a skill a turn-long rule forbids is on the menu");
+    assert.equal(mine.legacyOffered, false, "the legacy engine offers a skill its own effect forbids");
+    assert.deepEqual(mine.mine, { kind: "forbidden", by: "F-SKILL", until: "turn" }, "a forbidden activation is not refused with the rule that forbids it");
+    assert.deepEqual(mine.mine, mine.theirs, "the two engines refuse a forbidden activation differently");
+  }
+
+  // The ordering this engine does not match, asserted so it cannot drift
+  // unnoticed: short of energy **and** forbidden, the legacy engine answers
+  // about the price and this one about the ban.
+  {
+    const board = banned("V1", "F-NO-PLAY", 0);
+    const play = firstRefusal(board, "play", board.card);
+    assert.deepEqual(play.mine, { kind: "forbidden", by: "F-NO-PLAY", until: "permanent" }, "a forbidden play short of energy does not answer about the ban");
+    assert.deepEqual(play.theirs, { kind: "energy", need: 1, have: 0 }, "the legacy engine stopped answering about the price first, and this divergence is recorded on the assumption that it does");
+  }
+
+  // Claim 2, from the other side: the host's own 0-2-5 question reads the
+  // board, so an instruction and a menu cannot disagree about what is banned.
+  {
+    const board = banned("V1", "F-NO-PLAY");
+    assert.equal(forbids(CTX, DBS, board.r, "play", { player: "p1", card: board.card }), true, "the rules engine's own `forbids` does not see a [Permanent] in play");
+    assert.equal(forbids(CTX, DBS, board.r, "attack", { player: "p1", card: board.card }), false, "a rule about playing forbids attacking as well");
   }
 }

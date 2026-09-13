@@ -35,7 +35,6 @@
  *   `negateCounterInFlight`           9-8, a counter window: Stage 6.
  *   `addSkip`                         20-13 is a change to the flow, and the
  *                                     flow's skip list is #145's.
- *   `forbids`                         0-2-5 prohibitions are legality, #145.
  *   `createToken`                     19-1: a token is a card the catalog has
  *                                     no row for, and `attrsOf` reads a row.
  *
@@ -50,7 +49,7 @@ import { NotYet } from "./errors";
 import { emit, log } from "./events";
 import { resolvePlay } from "./play";
 import { SETUP_ZONES, arrivalMode, moveCard } from "./zones";
-import { attrsNow, amount, condHolds, hasKeyword, resolveRef, resolveSelector, sideOf, zoneOf } from "./program";
+import { attrsNow, amount, condHolds, forbids, hasKeyword, resolveRef, resolveSelector, sideOf, zoneOf } from "./program";
 import { masterOf, skillsShowing } from "./triggers";
 import type { VmState } from "./state";
 
@@ -101,10 +100,12 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     zone: zoneList,
     playerName: (p) => state.sides[p].name,
     turn: () => state.turn,
-    // 0-2-5: a prohibition beats an instruction, and this engine has none in
-    // force to read. False is "nothing forbids it", which is true of a board
-    // with no prohibitions on it; #145 is where they start being read.
-    forbids: () => false,
+    // 0-2-5: a prohibition beats an instruction, and 20-14's prohibitions are
+    // now read off the board — a [Permanent] in play, a skill's turn-long
+    // effect, and a card's own rule about itself wherever it sits (9-1-3-3).
+    // The same predicate a `REFUSE` gates a move on, so an instruction and a
+    // menu cannot disagree about what is forbidden.
+    forbids: (what, opts) => forbids(ctx, game, state, what, opts ?? {}),
 
     // ── the language's own readings ──────────────────────────────────────
     resolveSelector: (frame, sel) => resolveSelector(ctx, game, state, frame, sel),

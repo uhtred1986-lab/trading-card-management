@@ -46,6 +46,7 @@ import { RulesetBroken } from "./errors";
 import { fire } from "./events";
 import { answered } from "./flow";
 import { predicateOf } from "./filters";
+import { forbiddenBy } from "./program";
 import { SETUP_ZONES } from "./zones";
 import type { VmState } from "./state";
 
@@ -208,8 +209,13 @@ function refusedBy(ctx: EngineContext, game: GameDefinition, state: VmState, def
   const boardOnly = declining(def, card);
   for (const refusal of def.refusals ?? []) {
     if (boardOnly && mentionsCandidate(refusal.unless)) continue;
-    if (holds(ctx, game, state, refusal.unless, player, card)) continue;
-    return [requirementOf(state, refusal.kind, refusal.args, card)];
+    // What a condition *found* when it failed, for the one or two fields an
+    // interpreter has to fill in rather than a declaration: which card's rule
+    // forbade the move, how long it holds and what would let it through. A
+    // declaration cannot name them — the rule is on the board, not in the file.
+    const found: Record<string, unknown> = {};
+    if (holds(ctx, game, state, refusal.unless, player, card, found)) continue;
+    return [requirementOf(state, refusal.kind, { ...refusal.args, ...found }, card)];
   }
   return [];
 }
@@ -236,6 +242,13 @@ function mentionsCandidate(cond: Cond): boolean {
     case "isTurnPlayer":
     case "asking":
       return false;
+    // 20-14 is about the candidate *and* the actor: a rule that names no card
+    // still refuses the decline ("you can't place cards in your Energy Area"),
+    // but one that names a filter is about which card is being reached for. The
+    // cautious reading is the one that keeps the decline on the menu, and the
+    // board-level half of the rule reaches it through the move's other lines.
+    case "forbidden":
+      return true;
     default:
       return true;
   }
@@ -623,14 +636,14 @@ function select(ctx: EngineContext, game: GameDefinition, state: VmState, sel: S
  * never be made and nothing saying why. #142 brings the whole evaluator, shared
  * with the card programs.
  */
-function holds(ctx: EngineContext, game: GameDefinition, state: VmState, cond: Cond, me: PlayerId, card: string | null): boolean {
+function holds(ctx: EngineContext, game: GameDefinition, state: VmState, cond: Cond, me: PlayerId, card: string | null, found?: Record<string, unknown>): boolean {
   switch (cond.kind) {
     case "not":
-      return !holds(ctx, game, state, cond.cond, me, card);
+      return !holds(ctx, game, state, cond.cond, me, card, found);
     case "all":
-      return cond.conds.every((c) => holds(ctx, game, state, c, me, card));
+      return cond.conds.every((c) => holds(ctx, game, state, c, me, card, found));
     case "any":
-      return cond.conds.some((c) => holds(ctx, game, state, c, me, card));
+      return cond.conds.some((c) => holds(ctx, game, state, c, me, card, found));
     case "isTurnPlayer":
       // 7-1: `who: opponent` is "during your opponent's turn", which is this
       // condition and never a duration — so the field is read, not assumed.
@@ -641,6 +654,20 @@ function holds(ctx: EngineContext, game: GameDefinition, state: VmState, cond: C
     // "you have already had your charge this turn" means.
     case "asking":
       return state.prompt.kind === cond.prompt;
+    // 20-14: a rule in force stopping this move, asked of this candidate and
+    // this actor. It is the only condition that answers with more than a
+    // boolean — the `forbidden` requirement has to name *which* card's rule and
+    // for how long, and only the board knows — so what it found is written into
+    // `found` and `refusedBy` merges it into the declared requirement.
+    case "forbidden": {
+      const rule = forbiddenBy(ctx, game, state, cond.what, {
+        player: me,
+        ...(card === null ? {} : { card }),
+        ...(cond.bySkill === undefined ? {} : { bySkill: cond.bySkill }),
+      });
+      if (rule && found) Object.assign(found, rule);
+      return rule !== null;
+    }
     case "count": {
       const n = counted(ctx, game, state, cond.sel, me, card);
       if (cond.atLeast !== undefined && n < cond.atLeast) return false;
@@ -648,7 +675,7 @@ function holds(ctx: EngineContext, game: GameDefinition, state: VmState, cond: C
       return cond.atLeast !== undefined || cond.atMost !== undefined;
     }
     default:
-      throw new RulesetBroken(state.game, `a refusal is written as ${cond.kind}, and this interpreter reads count(), isTurnPlayer(), asking() and their combinations so far (#142)`);
+      throw new RulesetBroken(state.game, `a refusal is written as ${cond.kind}, and this interpreter reads count(), isTurnPlayer(), asking(), forbidden() and their combinations so far (#142)`);
   }
 }
 

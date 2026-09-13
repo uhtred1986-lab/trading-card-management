@@ -779,6 +779,14 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
     sentence: (raw) => ((raw as CondOf<"isTurnPlayer">).who === "opponent" ? "it is your opponent's turn" : "it is your turn"),
     doc: 'whose turn it is (7-1) — "during your opponent\'s turn" is this, not a duration',
   },
+  forbidden: {
+    fields: [
+      { name: "what", type: { enum: FORBIDDEN_ACTIONS }, required: true },
+      { name: "bySkill", type: "boolean" },
+    ],
+    sentence: (raw) => `a rule in force stops you ${FORBIDDEN_IN_WORDS[(raw as CondOf<"forbidden">).what]}`,
+    doc: 'whether a prohibition in force (20-14) stops this, asked of the card and the player the move is about. No card says this — it is the word a `DEFINE ACTION`\'s `REFUSE` gates a move on, and it is the same predicate `forbids()` is. "bySkill" tells the two halves of one wording apart: false is a move the player declares ("…except by skills"), true a move a skill makes',
+  },
   asking: {
     fields: [{ name: "prompt", type: { enum: PROMPT_KINDS }, required: true }],
     sentence: (raw) => `the question on the table is the ${(raw as CondOf<"asking">).prompt} question`,
@@ -807,6 +815,7 @@ export const COND_CLASS: Record<Cond["kind"], OpClass> = {
   varMatches:     "macro over `count`",
   isTurnPlayer:   "primitive",
   asking:         "primitive",
+  forbidden:      "primitive",
 };
 
 /**
@@ -821,12 +830,15 @@ export const COND_CLASS: Record<Cond["kind"], OpClass> = {
  * a word no card's text contains is one neither should be shown. `asking` is
  * the first: it says which question is on the table, which is what a `DEFINE
  * ACTION`'s `REFUSE` needs to tell two windows of one move apart (7-2-11,
- * #145) and what no skill has ever been printed asking.
+ * #145) and what no skill has ever been printed asking. `forbidden` is the
+ * second, and for the same reason: 20-14's prohibitions are a *gate* on a move,
+ * and a card that is under one says so by printing the ban, never by asking
+ * whether one is in force.
  *
  * Not a validation rule — `validateProgram` accepts every schema row, because a
  * stored program is checked against the language and not against this list.
  */
-export const CONDITIONS_OFF_A_CARD: readonly Cond["kind"][] = ["asking"];
+export const CONDITIONS_OFF_A_CARD: readonly Cond["kind"][] = ["asking", "forbidden"];
 
 // ── validation, for programs that did not come from the compiler ───────────
 

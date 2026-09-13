@@ -67,12 +67,15 @@ DEFINE ACTION charge                                                      -- §7
   -- declared rather than assumed away: a rule that is never reached is still
   -- the answer a player reaching for that card is owed.
   REFUSE cardType(needs: "a card that is not a Leader Card") UNLESS count(FROM $card "non-leader card") >= 1
+  -- 20-14: "your opponent can't place cards in their Energy Area." Last, which
+  -- is `whyNotCharge`'s order again — it asks the question first and the
+  -- prohibition second. The `forbidden` requirement's own fields (which card's
+  -- rule, how long it holds, what would let it through) are the board's and are
+  -- filled in by the interpreter, because a declaration cannot name a rule that
+  -- is not in the file.
+  REFUSE forbidden() UNLESS NOT forbidden(what: placeEnergy)
   label: "Charge"
   text: "the turn player may place 1 card from their hand in their Energy Area, face up (7-2-11)"
-
--- 20-14's "can't place cards in the Energy Area" is the one gate this move is
--- still missing, and it is the gate the play family and the activation are
--- missing too: nothing can put a prohibition in force on this engine yet.
 
 DEFINE ACTION endMain                                                     -- §7-3-5
   WHEN [main]
@@ -119,16 +122,25 @@ DEFINE ACTION concede                                                     -- §0
 -- `triggers.rules` decides that this is `played`, `youPlayed` and
 -- `opponentPlayed`; its [Permanent]s stand because it is in an in-play area.
 --
--- **What the `REFUSE` lists do not say yet, and why.** The legacy engine's
--- `whyNotPlay` has two gates beyond the price, and the language can say
--- neither: 22-39's [Unique] needs a filter for "a card with the same name as
--- *this* candidate", which `FILTER_FIELDS` has no field for (the keyword's own
--- body is #154's), and 20-14's prohibitions need an effect in force to read,
--- which `vm/effects.ts` still hands to #145 (`DEFERRED_STATICS.forbid`). So
--- the price is the first refusal and today the only one — which is the same
--- first refusal the legacy engine gives on every board that has neither of
--- those in force, and is a board the rules engine is *wider* than the manual
--- on until they land.
+-- **20-14's prohibitions are read** (`forbidden()`), and each play below
+-- carries the gate: "your opponent can't play Battle Cards", "this card can't
+-- be played from any area except by skills". `bySkill: false` is the half of
+-- that wording a player's own declared play is — a play a *skill* makes is
+-- 5-5-3's, resolved by the `play` op and not by this paragraph.
+--
+-- One gate is still missing, and the language is what is missing: 22-39's
+-- [Unique] needs a filter for "a card with the same name as *this* candidate",
+-- which `FILTER_FIELDS` has no field for (the keyword's own body is #154's).
+--
+-- One ordering is deliberately not the legacy engine's, and is recorded rather
+-- than matched. A `REFUSE` is read **before** the price, which is where
+-- `whyNotPlay` sits for a Unison and for an X-cost card — but for a plain
+-- Battle Card `whyNotPlayFromHand` concatenates the price first, so on a board
+-- where the player is both short of energy *and* forbidden, that engine says
+-- "1 short" where this one says "forbidden". Saying a price about a move that
+-- is banned outright is the worse of the two answers, and the legacy engine
+-- already disagrees with itself about it across its own three branches
+-- (`verify/vm.ts` §21 asserts both, so neither drifts unnoticed).
 --
 -- The other half the price cannot settle is an **X cost**: 1-2-2-2 makes its
 -- value an answer to a question, and a candidate is a card and nothing else,
@@ -145,6 +157,7 @@ DEFINE ACTION play                                                        -- §8
   DO {
     play(target: $card)
   }
+  REFUSE forbidden() UNLESS NOT forbidden(what: play, bySkill: false)
   again: true
   label: "Play"
   text: "the turn player pays a Battle Card's energy cost and places it in their Battle Area, active and revealed (8-3-2, 5-5)"
@@ -165,6 +178,7 @@ DEFINE ACTION playUnison                                                  -- §1
     play(target: $card)
     addMarker(target: $card, n: X)
   }
+  REFUSE forbidden() UNLESS NOT forbidden(what: play, bySkill: false)
   again: true
   label: "Play Unison"
   text: "the turn player pays a Unison Card's cost and places it in their Unison Area with that many markers, sending the Unison already there to the Drop Area (13-2, 3-11-5)"
@@ -188,6 +202,7 @@ DEFINE ACTION playZ                                                       -- §1
     play(target: $card)
   }
   REFUSE cardType(needs: "a Z-Battle Card or a Z-Extra Card") UNLESS any([count(FROM $card "Z-battle card") >= 1, count(FROM $card "Z-extra card") >= 1])
+  REFUSE forbidden() UNLESS NOT forbidden(what: play, bySkill: false)
   again: true
   label: "Play"
   text: "the turn player pays a Z-card's Z-Energy price and its energy cost and places it in their Battle Area; a Z-Extra replaces the Z-Extras already there (16-2, 17-2-1-3)"
@@ -237,9 +252,11 @@ DEFINE ACTION playZ                                                       -- §1
 -- and its one marker skill a turn, the condition 9-4 hoisted out of the price,
 -- the energy, an effect the compiler could not read, and 9-1-3-1's wrong area —
 -- in the order the legacy `whyNotActivate` asks them, so the first requirement
--- is the same requirement on both engines. 20-14's prohibitions are the one
--- gate missing, and for the same reason the play family's are: nothing can put
--- one in force on this engine yet (`DEFERRED_STATICS.forbid`).
+-- is the same requirement on both engines. 20-14's prohibition is read too, and
+-- it is the one gate of this move that is **not** a `REFUSE` line here: the
+-- order is what matters and `whyNotActivate` asks it second, after the
+-- negation, where a declared `REFUSE` would run before everything. It is in
+-- `vm/activate.ts`'s gate list with the rest of them, at that position.
 --
 -- A keyword's own activation — [Awaken], [Evolve], [Union], [Over Realm],
 -- [Swap], [Arrival], [Successor], [Aegis], [Rejuvenate], [Overlord], [Field],

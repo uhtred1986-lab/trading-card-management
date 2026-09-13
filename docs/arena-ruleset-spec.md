@@ -121,6 +121,7 @@ Twenty-five primitives carry every row below — twenty operations and five cond
 | `any` (condition) | `any` | Disjunction: the other half of the propositional core. |
 | `isTurnPlayer` (condition) | `isTurnPlayer` | Whose turn it is (7-1). |
 | `asking` (condition) | `asking` | Which question is on the table. No card says it; a `DEFINE ACTION`'s `REFUSE` needs it to tell two windows of one move apart (7-2-11). |
+| `forbidden` (condition) | `forbidden` | Whether a rule in force stops this (20-14). No card says it either; it is the predicate a `REFUSE` gates a move on, and the same one `forbids()` is. |
 
 Two rows in that list are honest about being provisional. `play` is a primitive only until Stage 3
 declares the play action itself (§3): which zone the card ends in, whether its text resolves and
@@ -216,6 +217,7 @@ can name the attributes the engine keeps in code (§2.5).
 | `varMatches` | macro over `count` | `count(FROM $var matching the filter) >= 1`. |
 | `isTurnPlayer` | primitive | A fact about the game rather than about any card or pile (7-1). Stage 3 declares the turn player as a game attribute, which will make this a comparison like the rest. |
 | `asking` | primitive | A fact about the game rather than about any card or pile: which question is being asked. Nothing counted on the board says it, and the prompt is the interpreter's own (§7). |
+| `forbidden` | primitive | A search over the rules in force rather than over the board — a prohibition carries a budget, an escape clause and a chair to read it from (20-14), none of which is a count of cards. |
 
 ### 2.5 What the tables ask for
 
@@ -537,8 +539,8 @@ Three things the shape guarantees rather than asks for:
 `src/lib/arena/vm/actions.ts` is the whole interpreter of this, with `vm/activate.ts` beside it for
 the one move whose candidate is a skill line. What it reads so far: a `FOR` by
 side, area, filter and mode; a `REFUSE` condition written as `count()`, `isTurnPlayer()`,
-`asking()` and their combinations; and a `DO` that is an ordinary program, run on the interpreter
-the legacy engine runs (#142). Everything else is refused *by name* rather than read as false or silently skipped — a
+`asking()`, `forbidden()` and their combinations; and a `DO` that is an ordinary program, run on the
+interpreter the legacy engine runs (#142). Everything else is refused *by name* rather than read as false or silently skipped — a
 condition read as false is a move that can never be made and nothing saying why. The rest of the DBS
 moves are Stage 6's.
 

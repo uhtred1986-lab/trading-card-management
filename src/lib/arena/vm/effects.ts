@@ -49,13 +49,57 @@
  */
 import type { EngineContext, GameEvent } from "../engine";
 import type { Amount, Op, ScriptFrame } from "../engine/script";
-import type { Color, ContinuousEffect, DelayedEffect, DelayTiming, KeywordSkill, PlayerId } from "../engine/types";
+import type { Color, ContinuousEffect, DelayedEffect, DelayTiming, KeywordSkill, PlayerId, Prohibition } from "../engine/types";
+import { other as otherPlayer } from "../engine/types";
 import type { GameDefinition } from "../rulesets";
 import type { AttrValue, Attrs } from "./cards";
 import { log } from "./events";
 import { skillsShowing } from "./triggers";
 import { inPlayZones } from "./zones";
 import type { VmState } from "./state";
+
+/** The name on the face a card is showing (1-9): a flipped Leader answers to its awakened name, which is what a "copies of this card" prohibition is matched on. */
+function faceName(ctx: EngineContext, state: VmState, id: string): string | undefined {
+  const inst = state.cards[id];
+  const def = inst ? ctx.defs[inst.cardId] : undefined;
+  if (!def) return undefined;
+  return inst.flipped && def.back ? def.back.name : def.name;
+}
+
+/**
+ * 9-1-3-3: the prohibitions a card states **about itself**, read wherever it
+ * sits.
+ *
+ * "This card can't be played from any area except by skills" has to hold in the
+ * Drop Area, where no [Permanent] of that card is otherwise valid (9-1-3-1), so
+ * these are read apart from `permanents` and by exactly the legacy
+ * `ownProhibitions`' three tests: the rule is about `self`, it holds for the
+ * game rather than for a duration, and it says which side of "by skills" it is
+ * on — the shape only a card's own such sentence has.
+ */
+export function ownProhibitions(ctx: EngineContext, state: VmState, id: string, measure: (frame: ScriptFrame, amount: Amount) => number, master: PlayerId): Prohibition[] {
+  const inst = state.cards[id];
+  if (!inst || inst.hidden || skillsNegated(state, id)) return [];
+  const showing = skillsShowing(ctx, state, id);
+  const out: Prohibition[] = [];
+  for (const sk of showing.skills) {
+    if (sk.kind !== "permanent" || skillNegated(state, id, sk.index, sk.kind)) continue;
+    const program = showing.scripts.bySkill[sk.index];
+    if (!program || program.unsupported.length) continue;
+    for (const op of program.ops) {
+      if (op.op !== "forbid" || op.until !== "game" || op.bySkill === undefined) continue;
+      if (!op.target || !("sel" in op.target) || op.target.sel.special !== "self") continue;
+      const frame: ScriptFrame = { ops: [], ip: 0, vars: {}, card: id, master };
+      out.push({
+        what: op.what,
+        ...(op.uses != null ? { uses: measure(frame, op.uses) } : {}),
+        ...(op.unless ? { unless: op.unless, master } : {}),
+        bySkill: op.bySkill,
+      });
+    }
+  }
+  return out;
+}
 
 /** A continuous effect as a program asks for one: the bookkeeping is this module's (9-1-4). */
 export type EffectSpec = Omit<ContinuousEffect, "id" | "createdTurn" | "ownerTurn" | "master"> & { master?: PlayerId };
@@ -100,18 +144,17 @@ export interface VmStatic {
   kind: ContinuousEffect["kind"];
   /** The card it is about. */
   target: string;
-  value: number | KeywordSkill | SpecifiedChange;
+  value: number | KeywordSkill | SpecifiedChange | Prohibition;
 }
 
 /** The ops `permanents` reads out of a [Permanent]'s program. */
-export const STATIC_OPS = ["power", "comboPower", "modifyAttr", "grant", "costReduction", "if"] as const;
+export const STATIC_OPS = ["power", "comboPower", "modifyAttr", "grant", "costReduction", "forbid", "if"] as const;
 
 /** Every other op a [Permanent] may carry, and the issue that reads it. A gap named is a gap that can be looked up. */
 export const DEFERRED_STATICS: Record<string, string> = {
   altCost: "#149 — another way to pay is a price bound to nothing until an action can name one",
   payWith: "#149",
-  forbid: "#145 — a prohibition refuses an action, and actions are Stage 5's",
-  permit: "#145",
+  permit: "#150 — 8-1-1 the other way round: a permission widens what may be *attacked*, and the battle is Stage 6's",
   immune: "#154 — immunity narrows what a skill may choose, and the hook group that reads choosing is Stage 7's",
   negateKeyword: "#153 — keywords are Stage 7's",
   gains: "#153",
@@ -341,7 +384,8 @@ export function permanents(
   measure: (frame: ScriptFrame, amount: Amount) => number,
 ): VmStatic[] {
   const out: VmStatic[] = [];
-  const zones = [...inPlayZones(game), "hand", "zDeck"].filter((zone) => game.zones[zone]?.place !== false);
+  const inPlay = new Set(inPlayZones(game));
+  const zones = [...inPlay, "hand", "zDeck"].filter((zone) => game.zones[zone]?.place !== false);
   for (const p of Object.keys(state.sides) as PlayerId[]) {
     for (const zone of zones) {
       for (const src of state.sides[p].zones[zone] ?? []) {
@@ -353,7 +397,7 @@ export function permanents(
           if (skillNegated(state, src, sk.index, sk.kind)) continue;
           const program = showing.scripts.bySkill[sk.index];
           if (!program || program.unsupported.length) continue;
-          collect(out, { ops: [], ip: 0, vars: {}, card: src, master: p }, program.ops, targets, holds, measure);
+          collect(ctx, state, out, { ops: [], ip: 0, vars: {}, card: src, master: p }, program.ops, inPlay.has(zone), targets, holds, measure);
         }
       }
     }
@@ -363,9 +407,12 @@ export function permanents(
 
 /** One [Permanent]'s program, walked for the standing changes a value is read through. */
 function collect(
+  ctx: EngineContext,
+  state: VmState,
   out: VmStatic[],
   frame: ScriptFrame,
   ops: Op[],
+  inPlayNow: boolean,
   targets: (frame: ScriptFrame, op: Op) => string[],
   holds: (frame: ScriptFrame, op: Op) => boolean,
   measure: (frame: ScriptFrame, amount: Amount) => number,
@@ -374,8 +421,29 @@ function collect(
     if (op.op === "if") {
       // A [Permanent] under a condition holds only while the condition does
       // (9-5-1-1), so the branch is taken afresh on every reading.
-      if (holds(frame, op)) collect(out, frame, op.then, targets, holds, measure);
-      else if (op.else) collect(out, frame, op.else, targets, holds, measure);
+      if (holds(frame, op)) collect(ctx, state, out, frame, op.then, inPlayNow, targets, holds, measure);
+      else if (op.else) collect(ctx, state, out, frame, op.else, inPlayNow, targets, holds, measure);
+      continue;
+    }
+    // 20-14: a prohibition printed as a [Permanent] holds for as long as the
+    // card is where its skills are valid (9-1-3-1), which for this one is the
+    // table — so it is read here and never stored, with no duration to expire.
+    // A rule about *cards* carries its own target; one about a *player* carries
+    // no target and the filter says which cards it is about.
+    if (op.op === "forbid") {
+      if (!inPlayNow) continue;
+      const player = op.side && op.side !== "both" ? (op.side === "opponent" ? otherPlayer(frame.master) : frame.master) : undefined;
+      const uses = op.uses != null ? measure(frame, op.uses) : undefined;
+      // The escape clause is a sentence of *this* card, so it records whose
+      // card it is: "you" and "your opponent" in it are read from that chair
+      // and not from the chair of whoever is trying to act.
+      const forbid: Prohibition = { what: op.what, ...(uses != null ? { uses } : {}), ...(op.unless ? { unless: op.unless, master: frame.master } : {}), player, bySkill: op.bySkill };
+      if (op.target) {
+        for (const id of targets(frame, op)) out.push({ source: frame.card, master: frame.master, kind: "forbid", target: id, value: forbid });
+      } else {
+        const name = op.sameNameAsSelf ? faceName(ctx, state, frame.card) : undefined;
+        out.push({ source: frame.card, master: frame.master, kind: "forbid", target: "", value: { ...forbid, filter: op.filter, name } });
+      }
       continue;
     }
     if (op.op === "power" || op.op === "comboPower") {
@@ -431,7 +499,7 @@ function collect(
 /** What a layer is handed: the value so far, the standing changes of its kind, the timed ones, and the card's printed bag for the one fallback that needs it. */
 type Layer = (value: AttrValue | undefined, statics: EffectValue[], timed: EffectValue[], attrs: Attrs) => AttrValue | undefined;
 
-type EffectValue = number | KeywordSkill | SpecifiedChange;
+type EffectValue = number | KeywordSkill | SpecifiedChange | Prohibition;
 
 /** Numbers added to a number, which is every change 9-9-1 makes to `power` and `comboPower`. */
 function added(value: AttrValue | undefined, changes: EffectValue[]): AttrValue | undefined {

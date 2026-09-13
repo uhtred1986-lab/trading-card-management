@@ -343,11 +343,17 @@ charge, so the paragraph is declared in the Charge Phase *and* the Main Phase an
 `REFUSE oncePerTurn(what: "charge") UNLESS asking(prompt: charge)` — every card in hand is refused
 at the Main Phase question, and no "Skip charge" is drawn there.
 
-`asking(prompt: …)` is the one condition of the language that no printed card ever says: it is the
-word a `REFUSE` needs to tell two windows of one move apart. It is in `COND_SCHEMA` like every
-other condition and a `.rules` file may write it — but the referee's prompt and the workbench's
-chip editor, which are both about one *card's* rule, leave it out (`CONDITIONS_OFF_A_CARD` in
-`engine/script-schema.ts`).
+Two conditions of the language are never said by a printed card, and both exist for a `REFUSE`:
+`asking(prompt: …)`, which tells two windows of one move apart, and `forbidden(what: …)`, which is
+20-14's prohibitions — the same predicate `forbids()` is on both engines, asked of the candidate
+and the actor. Both are in `COND_SCHEMA` like every other condition and a `.rules` file may write
+either, but the referee's prompt and the workbench's chip editor, which are both about one *card's*
+rule, leave them out (`CONDITIONS_OFF_A_CARD` in `engine/script-schema.ts`).
+
+`forbidden` is also the one condition whose failure carries **fields** back: a `forbidden`
+requirement has to name which card's rule stopped the move, how long it holds and what would let it
+through, and only the board knows those — so the interpreter fills them into the declared
+requirement the way it fills in the candidate's own `card`.
 
 Who the move is offered *to* is deliberately not a field: a prompt is put to a player and an action
 answers a prompt, so the asked player is the actor. That is prompt machinery, which

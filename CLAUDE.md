@@ -270,8 +270,8 @@ learned the expensive way. Read it before changing the compiler or the engine.
   `assertMenuInvariants` in `scripts/verify/harness.ts` is the one function both engines' menus are
   passed to. `listed: false` is the concede rule written down: accepted, never enumerated, on
   neither list. What the interpreter reads so far is a `FOR` by side/area/filter/mode, a `REFUSE` of
-  `count()`/`isTurnPlayer()`/`asking()` and their combinations, and a `DO` of `note()`; everything
-  else is refused *by name* rather than read as false. `actions.rules` declares charge, endMain, pass and
+  `count()`/`isTurnPlayer()`/`asking()`/`forbidden()` and their combinations, and a `DO` of `note()`;
+  everything else is refused *by name* rather than read as false. `actions.rules` declares charge, endMain, pass and
   concede (#145), the play family (#146) and `activate` (#147).
   **Playing a card is a paragraph too** (`vm/play.ts` + the three `play` declarations, #146):
   `play` (8-3-2), `playUnison` (13-2) and `playZ` (16-2) each name a `COST` and a `DO` of the one
@@ -283,10 +283,20 @@ learned the expensive way. Read it before changing the compiler or the engine.
   7-3-4's free timing is the declaration's `again:`: taking a play leaves the Main Phase's question
   on the table, and `endMain` — which carries none — is what ends the phase. `verify/vm.ts` §18
   asserts the log event for event against the legacy engine, and the first refusal per card with it.
-  Three gaps are written into `actions.rules` beside the paragraphs: an **X** cost has no total until
+  Two gaps are written into `actions.rules` beside the paragraphs: an **X** cost has no total until
   its master names one and a candidate is a card and nothing else, so such a card is refused `unread`
-  rather than offered free; 22-39's [Unique] needs a filter for "the same name as this candidate",
-  which `FILTER_FIELDS` has none; and 20-14's prohibitions need `DEFERRED_STATICS.forbid`. 13-3's
+  rather than offered free; and 22-39's [Unique] needs a filter for "the same name as this
+  candidate", which `FILTER_FIELDS` has none.
+  **20-14's prohibitions are in force and read** (#145's last piece): `permanents` collects the
+  `forbid` op out of a [Permanent], `vm/program.ts`'s `forbids`/`forbiddenBy` are the legacy
+  predicate and its twin over this engine's board — the timed effects, the standing ones, and a
+  card's own rule about itself wherever it sits (9-1-3-3) — and the `forbidden()` condition is what a
+  `REFUSE` gates a move on, with the fields only the board knows (which card's rule, how long, the
+  escape clause) filled in by the interpreter. The play family, the charge and the activation all
+  carry the gate, a selector honours "can't be chosen" (20-4), and the host's 0-2-5 question answers
+  off the board instead of `false`. The one ordering that is *not* legacy's is recorded rather than
+  matched: a `REFUSE` runs before the price, and legacy puts the price first for a plain Battle Card
+  and the prohibition first for a Unison or an X cost (`verify/vm.ts` §21 asserts both). 13-3's
   `growUnison` is **not** declared — its once-a-turn gate needs a player attribute a condition can
   read and an op that sets one, and the language has neither — and 22-33's `offering` is a boolean
   answer no candidate can carry (#157).
@@ -308,8 +318,9 @@ learned the expensive way. Read it before changing the compiler or the engine.
   `assertMenuInvariants` now asserts every activation names its line — the same words in
   `arena-playthrough.mts`). What it does not read is written into `actions.rules` beside it: a
   keyword's own activation is a `DEFINE KEYWORD` hook body (Stage 7), an X price and an action price
-  are refused `unread` for the same reason a play's X cost is, 20-14's prohibitions need
-  `DEFERRED_STATICS.forbid`, and [Counter] windows are Stage 6's. `VmCard` gained `usedThisTurn` and
+  are refused `unread` for the same reason a play's X cost is, and [Counter] windows are Stage 6's;
+  20-14's prohibition is the one gate of this move that is not a `REFUSE` line, because
+  `whyNotActivate` asks it second and a declared `REFUSE` runs before everything. `VmCard` gained `usedThisTurn` and
   `usedMarkerSkill` for 22-44-3 and 13-4, emptied by `endTurn` (state version 6).
   **A price is a declaration too** (`vm/costs.ts` + `dbs/costs.rules`, #148): seven `DEFINE COST`s —
   energy (total, coloured orbs, either-orbs, X), zEnergy (5-4, brought forward from #151 so `playZ`

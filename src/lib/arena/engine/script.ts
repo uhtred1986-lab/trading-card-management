@@ -233,7 +233,15 @@ export type Cond =
    * have already had your charge this turn" is, on both engines, the fact that
    * the question being asked is no longer the charge's (`whyNotCharge`).
    */
-  | { kind: "asking"; prompt: Prompt["kind"] };
+  | { kind: "asking"; prompt: Prompt["kind"] }
+  /**
+   * 20-14: is a rule in force stopping this? Not a card's word either — no
+   * printed skill asks it — but the one a `DEFINE ACTION`'s `REFUSE` needs to
+   * gate a move on a prohibition, and it is the very predicate `forbids()` is
+   * on both engines. `what` is the action; the card and the player it is asked
+   * about are the candidate and the actor, which the declaration cannot name.
+   */
+  | { kind: "forbidden"; what: ForbiddenAction; bySkill?: boolean };
 
 /**
  * The attributes `modifyAttr` may change: the two numbers a continuous effect

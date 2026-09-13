@@ -103,7 +103,7 @@ export {
   type SpecifiedChange,
   type VmStatic,
 } from "./effects";
-export { NAMED_ZONES, NARROWER, amount, attrsNow, condHolds, hasKeyword, resolveRef, resolveSelector, sideOf, zoneOf } from "./program";
+export { NAMED_ZONES, NARROWER, amount, attrsNow, condHolds, forbiddenBy, forbids, hasKeyword, resolveRef, resolveSelector, sideOf, zoneOf } from "./program";
 export { PLAY_ZONES, PLAY_ZONE_NAMES, resolvePlay, type PlayOptions } from "./play";
 export {
   ACTIVATION_ZONES,

@@ -2096,6 +2096,43 @@
       "doc": "whose turn it is (7-1) — \"during your opponent's turn\" is this, not a duration"
     },
     {
+      "kind": "forbidden",
+      "class": "primitive",
+      "signature": "{\"kind\":\"forbidden\",\"what\":\"attack\"|\"beAttacked\"|\"block\"|…,\"bySkill\"?:true|false}",
+      "fields": [
+        {
+          "name": "what",
+          "required": true,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "attack",
+            "beAttacked",
+            "block",
+            "play",
+            "activateSkill",
+            "activateCounter",
+            "combo",
+            "beKOd",
+            "beKOdBySkill",
+            "beChosen",
+            "switchToActive",
+            "placeEnergy",
+            "beMovedBySkill",
+            "beNegated"
+          ]
+        },
+        {
+          "name": "bySkill",
+          "required": false,
+          "nullable": false,
+          "type": "boolean"
+        }
+      ],
+      "sentence": "a rule in force stops you attack",
+      "doc": "whether a prohibition in force (20-14) stops this, asked of the card and the player the move is about. No card says this — it is the word a `DEFINE ACTION`'s `REFUSE` gates a move on, and it is the same predicate `forbids()` is. \"bySkill\" tells the two halves of one wording apart: false is a move the player declares (\"…except by skills\"), true a move a skill makes"
+    },
+    {
       "kind": "asking",
       "class": "primitive",
       "signature": "{\"kind\":\"asking\",\"prompt\":\"chooseFirst\"|\"mulligan\"|\"charge\"|…}",
