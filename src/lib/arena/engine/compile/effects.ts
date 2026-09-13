@@ -1569,6 +1569,41 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     return [{ op: "permit", what: "attackActive", target: ref, until: durationOf(t), filter }];
   }
 
+  // 20-9: "gain control of it until the end of the turn", "you gain control of
+  // it", "gain control of the played card". Six cards, every one of them
+  // pointing back at a card an earlier clause chose or a trigger named, which
+  // is why no selector is read here — `refFor` answers the pronoun and the
+  // choice has already happened.
+  //
+  // A duration is only carried when one is *printed*: `durationOf` answers
+  // "turn" for a clause that names none, and control that quietly ended at the
+  // End Phase would be a different card from one that says nothing about
+  // giving the card back (20-9 sets no term of its own).
+  if ((m = /^(?:(you|your opponent) )?gains? control of (.+)$/.exec(q))) {
+    const phrase = m[2].trim();
+    const ref = refFor(phrase, c);
+    if (!ref) return null;
+    // Two guard rails, both found by diffing the readings rather than the
+    // coverage figure — a clause that compiles and points at the wrong card
+    // moves no number and is worse than a gap.
+    //
+    // `refFor` falls back to *this card* for a pronoun with nothing else to
+    // resolve against, and a card cannot take control of itself from the
+    // player already mastering it: BT21-063's "you gain control of it" comes
+    // after "place this card under that card", so the pronoun's antecedent is
+    // the card underneath, which is the one thing it cannot mean. Self is
+    // accepted only where the print says so — "your opponent gains control of
+    // **this card**" (BT19-055, P-277, P-564) and P-413, which plays this card
+    // onto an opponent's and then takes the result.
+    if ("sel" in ref && ref.sel.special === "self" && !/^this card$/.test(phrase)) return null;
+    // The same fallback, the other way: "the played card" means the card the
+    // trigger was about, and with nothing playing it falls back to the last
+    // *choice* — which on BT19-154 is one of your own Battle Cards, sent to
+    // the Warp as the price.
+    if (/\bplayed card\b/.test(phrase) && !c.lastPlayed) return null;
+    return [{ op: "control", target: ref, ...(m[1] === "your opponent" ? { to: "opponent" as const } : {}), ...(DURATION_TAIL.test(t) ? { until: durationOf(t) } : {}) }];
+  }
+
   // Mode switches (1-10).
   // A few cards drop the word: "switch 1 of your Chilled Army tokens to rest".
   if ((m = /^switch (.*?) to (active|rest)(?: mode)?$/.exec(t))) {

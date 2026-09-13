@@ -4,11 +4,14 @@
  * Part of `npm test`; run from `scripts/verify-arena.ts`, which fixes the order.
  */
 import assert from "node:assert/strict";
+import { masterOf } from "../../src/lib/arena/engine";
+import type { PlayerId } from "../../src/lib/arena/engine/types";
 import { validateProgram } from "../../src/lib/arena/engine/script";
 import {
   CTX,
   DEFS,
   acts,
+  apply,
   arena,
   assertConsistent,
   autoTriggerMatches,
@@ -32,8 +35,10 @@ import {
   priceOf,
   rejectedActions,
   sentence,
+  narrate,
   skillNegated,
   splitClauses,
+  toBeats,
 } from "./harness";
 
 // ── §22 keywords as engine rules ───────────────────────────────────────────
@@ -1432,6 +1437,213 @@ import {
   move(ctx, t, [], other, "hand", "p1", { reason: "effect" });
   assert.ok(t.players.p1.hand.includes(other), "a `ko` replacement replaces the KO and nothing else");
   assertConsistent(t);
+}
+
+// ── 20-9: gaining control of a card ────────────────────────────────────────
+
+{
+  // A loan: the card crosses the table, fights for its new master, and goes
+  // home when the duration does. Nothing about the card changes (20-9-2) and
+  // its owner never does (0-3-3-1).
+  DEFS.TAKER = {
+    ...DEFS.V1,
+    id: "TAKER",
+    name: "TAKER",
+    skill: "[Activate: Main] Choose 1 of your opponent's Battle Cards and gain control of it until the end of the turn.",
+  };
+  DEFS.LOANED = { ...DEFS["V-BLUE"], id: "LOANED", name: "LOANED" };
+  let s = arena({ battle: ["TAKER"], oppBattle: ["LOANED", "V-BLUE"] });
+  const taker = find(s, "p1", "battle", "TAKER");
+  const theirs = find(s, "p2", "battle", "LOANED");
+  s.cards[theirs].markers = 2;
+  const entered = s.cards[theirs].enteredTurn;
+
+  s = play(s, { type: "activate", player: "p1", card: taker, skill: 0 });
+  assert.equal(s.prompt.kind, "chooseCards");
+  s = play(s, { type: "choose", player: "p1", cards: [theirs] });
+
+  assert.ok(s.players.p1.battle.includes(theirs), "20-9-1: the card is in your Battle Area now");
+  assert.ok(!s.players.p2.battle.includes(theirs));
+  assert.equal(masterOf(s, theirs), "p1", "0-3-4-1: and you are its master");
+  assert.equal(s.cards[theirs].owner, "p2", "0-3-3-1: its owner is not something a skill can change");
+  assert.equal(s.cards[theirs].markers, 2, "20-9-2: it keeps its markers");
+  assert.equal(s.cards[theirs].enteredTurn, entered, "changing hands is not being played again");
+  assert.equal(
+    s.effects.filter((e) => e.kind === "control").length,
+    1,
+    "the loan is a continuous effect, and it carries the way home",
+  );
+
+  // And the board says the card is on loan rather than simply appearing on
+  // the wrong side: the label is written from the card's own chair, because
+  // with two players a card whose master is not its owner is always being
+  // used by the owner's opponent, whichever side is reading it.
+  const onLoan = boardView(CTX, s, "p1", {}).you.battle.find((c) => c.id === theirs);
+  assert.deepEqual(
+    (onLoan?.effects ?? []).map((e) => e.label),
+    ["controlled by its owner's opponent"],
+  );
+
+  // 8-1: it attacks for whoever masters it, with no rule of its own to change
+  // — the attack list is built from the cards in *your* Battle Area.
+  assert.ok(
+    labels(s).some((l) => l.startsWith("Attack") && l.includes("with LOANED")),
+    "a controlled card attacks for its new master",
+  );
+  assertConsistent(s);
+
+  // 7-4-5: "until the end of the turn" ends in the cleanup, and the card walks
+  // back to the player it came from rather than simply losing an effect.
+  s = play(s, { type: "endMain", player: "p1" });
+  assert.ok(s.players.p2.battle.includes(theirs), "the loan is over: the card went back");
+  assert.ok(!s.players.p1.battle.includes(theirs));
+  assert.equal(s.cards[theirs].markers, 2, "and came back as it left");
+  assert.equal(s.effects.filter((e) => e.kind === "control").length, 0);
+  assertConsistent(s);
+}
+
+{
+  // 5-12-1: a KO is to the card's **owner's** Drop Area, whoever was using it.
+  // This is the whole reason the audit had to happen before the operation.
+  DEFS.TAKER2 = { ...DEFS.TAKER, id: "TAKER2", name: "TAKER2" };
+  let s = arena({ battle: ["TAKER2"], oppBattle: ["LOANED", "V-BLUE"] });
+  const taker = find(s, "p1", "battle", "TAKER2");
+  const theirs = find(s, "p2", "battle", "LOANED");
+  s = play(s, { type: "activate", player: "p1", card: taker, skill: 0 });
+  s = play(s, { type: "choose", player: "p1", cards: [theirs] });
+  assert.ok(s.players.p1.battle.includes(theirs));
+
+  koCard(CTX, s, [], theirs);
+  assert.ok(s.players.p2.drop.includes(theirs), "5-12-1: KO'd out of your Battle Area, into its owner's Drop");
+  assert.ok(!s.players.p1.drop.includes(theirs));
+  assert.equal(s.effects.filter((e) => e.kind === "control").length, 0, "and the loan went with it");
+  assertConsistent(s);
+}
+
+{
+  // Out of scope on purpose (#126): the manual gives no route to taking a
+  // Leader or a Unison Card, and their areas hold one card each. The refusal
+  // is a note rather than a silent no-op, so the log says what did not happen.
+  DEFS.LEADERGRAB = { ...DEFS.V1, id: "LEADERGRAB", name: "LEADERGRAB", skill: "[Activate: Main] Gain control of your opponent's Leader Card." };
+  const record = { ops: [{ op: "control", target: { sel: { special: "opponentLeader" } } }], unsupported: [] };
+  assert.equal(validateProgram(record.ops), true);
+  const ctx = {
+    defs: DEFS,
+    scripts: new Proxy({} as Record<string, unknown>, {
+      get: (_, key) => (key === "LEADERGRAB" ? { bySkill: { 0: record }, complete: true, unsupported: [] } : CTX.scripts[key as string]),
+    }),
+  } as typeof CTX;
+
+  const s = arena({ battle: ["LEADERGRAB"] });
+  const grab = find(s, "p1", "battle", "LEADERGRAB");
+  const leader = s.players.p2.leader;
+  const r = apply(ctx, s, { type: "activate", player: "p1", card: grab, skill: 0 });
+  assert.equal(r.state.players.p2.leader, leader, "a Leader does not change hands");
+  assert.ok(
+    r.events.some((e) => e.type === "note" && /can't be taken control of/.test(e.text)),
+    "and the log says so",
+  );
+  assertConsistent(r.state);
+}
+
+// ── 20-13: skipping a phase or a step ──────────────────────────────────────
+
+/** A context whose rules for one card come off a hand-written record, as `card_rules` would. */
+function withRecord(cardId: string, record: { ops: unknown[]; unsupported: string[] }): typeof CTX {
+  assert.equal(validateProgram(record.ops), true, `${cardId}: the record is a valid program`);
+  return {
+    defs: DEFS,
+    scripts: new Proxy({} as Record<string, unknown>, {
+      get: (_, key) => (key === cardId ? { bySkill: { 0: record }, complete: true, unsupported: [] } : CTX.scripts[key as string]),
+    }),
+  } as typeof CTX;
+}
+
+{
+  // 7-2 refused whole: no Active Step, no Draw Step, no charge prompt, and no
+  // [Auto] answering "at the start of the Charge Phase" (20-13-2..4). The
+  // phase is still announced, so the board can say what did not happen.
+  DEFS.SKIPPER = { ...DEFS.V1, id: "SKIPPER", name: "SKIPPER", skill: "[Activate: Main] Your opponent skips their next Charge Phase." };
+  const ctx = withRecord("SKIPPER", { ops: [{ op: "skip", what: "charge", side: "opponent" }], unsupported: [] });
+
+  let s = arena({ battle: ["SKIPPER"], oppBattle: ["V-BLUE"] });
+  const skipper = find(s, "p1", "battle", "SKIPPER");
+  const theirs = s.players.p2.battle[0];
+  s.cards[theirs].mode = "rest";
+
+  s = apply(ctx, s, { type: "activate", player: "p1", card: skipper, skill: 0 }).state;
+  assert.deepEqual(
+    (s.players.p2.skips ?? []).map((e) => `${e.what}:${e.when}`),
+    ["charge:next"],
+    "the operation writes a flag; the flow runner is what spends it",
+  );
+
+  const handBefore = s.players.p2.hand.length;
+  const r = apply(ctx, s, { type: "endMain", player: "p1" });
+  s = r.state;
+
+  assert.equal(s.phase, "main", "20-13-1: play proceeds from the phase after the skipped one");
+  assert.equal(s.prompt.kind, "main");
+  assert.equal((s.prompt as { player: string }).player, "p2");
+  assert.equal(s.players.p2.hand.length, handBefore, "7-2-9 did not happen");
+  assert.equal(s.cards[theirs].mode, "rest", "7-2-7 did not happen either");
+  assert.deepEqual(s.players.p2.skips, [], "and the entry is spent, not standing");
+
+  const phases = r.events.filter((e) => e.type === "phase");
+  const charge = phases.find((e) => e.type === "phase" && e.phase === "charge");
+  assert.ok(charge && charge.type === "phase" && charge.skipped === true, "the phase event says it was skipped");
+  const beat = toBeats(ctx, s, r.events, 0).list.find((b) => b.t === "phase" && b.phase === "charge");
+  assert.ok(beat && beat.t === "phase" && beat.skipped === true, "and so does the beat a client draws");
+  assert.equal(narrate(beat, { viewer: "p1" as PlayerId, them: "Claude", art: {} }), "Claude skips the Charge Phase.");
+  assertConsistent(s);
+}
+
+{
+  // "Your opponent skips their Defense Step" (BT18-001's shape): the guard's
+  // side gets no moment and no combo, and the battle goes straight to damage.
+  DEFS.NODEFENSE = { ...DEFS.V1, id: "NODEFENSE", name: "NODEFENSE", power: 30000, skill: "[Activate: Main] Your opponent skips their Defense Step this turn." };
+  const ctx = withRecord("NODEFENSE", { ops: [{ op: "skip", what: "defense", side: "opponent", when: "this" }], unsupported: [] });
+
+  let s = arena({ battle: ["NODEFENSE"] });
+  const attacker = find(s, "p1", "battle", "NODEFENSE");
+  s = apply(ctx, s, { type: "activate", player: "p1", card: attacker, skill: 0 }).state;
+
+  const life = s.players.p2.life.length;
+  let r = apply(ctx, s, { type: "attack", player: "p1", attacker, target: s.players.p2.leader });
+  const events = [...r.events];
+  // The Offense Step still happens, so its combo window is still offered; the
+  // Defense Step's is not, which is the whole of what was skipped.
+  assert.equal(r.state.prompt.kind, "combo");
+  assert.equal((r.state.prompt as { side: string }).side, "offense");
+  r = apply(ctx, r.state, { type: "pass", player: "p1" });
+  events.push(...r.events);
+
+  const steps = events.filter((e) => e.type === "battleStep");
+  const defense = steps.find((e) => e.type === "battleStep" && e.step === "defense");
+  assert.ok(defense && defense.type === "battleStep" && defense.skipped === true, "the Defense Step was announced and refused");
+  assert.ok(
+    steps.some((e) => e.type === "battleStep" && e.step === "damage"),
+    "20-13-1: play proceeds from the step after it",
+  );
+  assert.equal(r.state.players.p2.life.length, life - 1, "and the attack landed");
+  assert.deepEqual(r.state.players.p2.skips, [], "one entry, one step");
+  assertConsistent(r.state);
+}
+
+{
+  // "This turn's" and "the next" are different phases, and an unspent "this"
+  // entry does not become a "next" one when the turn passes.
+  DEFS.SKIPNOW = { ...DEFS.V1, id: "SKIPNOW", name: "SKIPNOW", skill: "[Activate: Main] You skip this turn's End Phase." };
+  const ctx = withRecord("SKIPNOW", { ops: [{ op: "skip", what: "charge", side: "you", when: "this" }], unsupported: [] });
+
+  let s = arena({ battle: ["SKIPNOW"] });
+  const card = find(s, "p1", "battle", "SKIPNOW");
+  s = apply(ctx, s, { type: "activate", player: "p1", card, skill: 0 }).state;
+  assert.equal((s.players.p1.skips ?? []).length, 1);
+  // This turn's Charge Phase is long past, so the entry never comes round…
+  s = apply(ctx, s, { type: "endMain", player: "p1" }).state;
+  assert.deepEqual(s.players.p1.skips, [], "…and is dropped with the turn rather than eating the next one");
+  assertConsistent(s);
 }
 
 // ── 20-19: paying with something that is not energy ─────────────────────────
