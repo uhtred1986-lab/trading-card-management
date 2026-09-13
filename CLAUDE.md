@@ -239,16 +239,26 @@ learned the expensive way. Read it before changing the compiler or the engine.
   it. The old engine stays the **oracle**: `arena:diff` replays a game's actions on either
   engine and must land on the row's state. `Snapshot.game.engine`/`.game` are the one
   contract change. `engineFor` resolves **both** ids — the `Engine` interface is the six calls
-  `createGame`, `apply`, `legalActions`, `rejectedActions`, `boardView` and `toBeats`, and the
-  rules engine answers a call it cannot make yet with `NotYet`, naming the issue that builds it.
-  Its `createGame` **deals the opening board** (#139): a side is `Record<zoneName, cardId[]>` built
+  `createGame`, `apply`, `legalActions`, `rejectedActions`, `boardView` and `toBeats`, and what the
+  rules engine cannot do yet it refuses with `NotYet`, naming the issue that builds it (an
+  `IllegalAction`, so the API answers one rather than failing).
+  A side is `Record<zoneName, cardId[]>` built
   from the `ZONE` declarations (`vm/zones.ts`, where `moveCard` is the only mover and honours
   `single`, `modes`, `markers`, `place`, order and `under{host}` generically), a card is a bag of
   declared attributes read off the catalog by `vm/cards.ts`, and a `CardFilter` becomes a predicate
   over those attributes through the one adapter in `vm/filters.ts` — so the compiler, `card_rules`
-  and the drafter are untouched. From one seed the hands, life piles and decks are card for card
-  the legacy engine's, which is the measurement every later stage is taken against; the mulligan,
-  the first-player choice and the second player's energy marker wait on prompts (#140).
+  and the drafter are untouched (#139).
+  **The turn is a program** (`vm/flow.ts`, #140): `state.flow` is a stack of `{phase, index}`
+  frames over the `DEFINE PHASE`/`DEFINE STEP` declarations, the frame *is* the suspension (so a
+  game is storable mid-decision and reproducible from seed plus actions), a step's `prompt:` is
+  what raises a question, and the End Phase's repeat is a `LIMIT n` on the step — the ceiling in
+  the declaration, so a mis-declared trigger cannot hang a game. `DEFINE GAME` names the setup and
+  over phases so the runner knows neither by name. It plays **pass, endMain and concede** — a
+  pass-only game runs turn to turn to a deck-out and logs event for event what the legacy engine
+  logs, which `verify/vm.ts` asserts and `arena-fuzz --engine rules` shakes out; every other move
+  is a `DEFINE ACTION` with a price (Stage 5, #144–#147). Two constants still name pieces of the
+  DBS definition and both are checked against it at load: `SETUP_ZONES` and `STEP_WORK`, the six
+  steps whose `DO` programs Stage 5 writes.
   Whether a *new* game may be made on an engine is the separate question `playableEngine(id)`
   asks of `ENGINE_INFO[id].available`, and the answer for `rules` is still no. Outside those six
   calls the app is still legacy-shaped (`games.ts` reads `state.turn`), so `legacyState(value)`
