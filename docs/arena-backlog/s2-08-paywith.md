@@ -1,8 +1,10 @@
 ---
 title: Arena: payWith — use a card as energy, and other alternative payments (20-19)
 milestone: Arena M1 — Rules correctness and parser coverage
-labels: backlog, ready-for-agent, enhancement, area:arena-compiler, area:arena-engine, phase:rules-stage2, model:opus-5
+labels: done, enhancement, area:arena-compiler, area:arena-engine, phase:rules-stage2, model:opus-5
 stage: 2
+status: closed
+closed_at: 2026-09-13
 ---
 **Source:** plan Stage 2 gap table, row "you can use this card as energy" (BT3-039, 20-19); `docs/arena-next-stage-spec.md` §6.13; `docs/arena-history-lessons.md`, entry "paying for a [Counter] with something other than energy (5 Sep 2026)", for the precedent.
 

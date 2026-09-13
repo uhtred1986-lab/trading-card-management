@@ -1,8 +1,10 @@
 ---
 title: Arena: vm attributes and zones from the definition — CardDef.attrs, predicate filters, zones as data
 milestone: Arena M7 — Rules engine core (Stage 4)
-labels: backlog, ready-for-agent, enhancement, area:arena-vm, phase:rules-stage4, model:opus-5
+labels: done, enhancement, area:arena-vm, phase:rules-stage4, model:opus-5
 stage: 4
+status: closed
+closed_at: 2026-09-13
 ---
 **Source:** plan Stage 4 ("`CardDef.attrs` + predicate filters (adapter from `CardFilter`); `zones: Record<string, string[]>`"); `attributes.rules` and `zones.rules` from Stage 3; `src/lib/arena/engine/filters.ts` and `types.ts` (`CardFilter`, `PlayerState`); `src/lib/arena/load.ts` (`defsForCards`).
 
