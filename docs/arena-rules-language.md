@@ -476,6 +476,325 @@ THEN
   draw(n: 1)
 ```
 
+## 4b. One example per §20 fixed phrase
+
+The manual's §20 is its own list of standard wordings ("Fixed Phrases") — the vocabulary a card's
+text draws on rather than a rule about one card. A person fixing a card in the text view has the
+printed text in one hand; this table is the other hand, one real card and its confirmed or drafted
+record per phrase, generated with `printRule` so it cannot drift from what the language actually
+parses (checked in `scripts/verify/lang.ts` the same way §3b and §4 are). Where the language cannot
+yet say a phrase, the row names the open issue rather than a program — inventing one here would be
+exactly the "compiles and reads wrongly" failure `docs/arena-tooling.md` warns costs more than an
+outright refusal.
+
+### 20-1. Omitting or Simplifying Text
+
+20-1-1: a skill with no stated target targets the source of the effect. The manual's own example
+for this heading (20-1-7) is a marker skill on `SD14-02` ("SS Gotenks, Fusion of Friendship"):
+"[-4][Activate: Main] This card gets +20000 power and [Dual Attack] for the turn." — the record
+never writes a target for the power gain or the [Dual Attack] grant; `[self]` is the default every
+op falls back to when the card names nothing else:
+
+```
+WHEN [activate:main]
+COST -4 marker
+THEN
+  power(target: [self], amount: 20000, until: turn)
+  grant(target: [self], keyword: [Attack x: 2], until: turn)
+```
+
+### 20-2. Choose X
+
+"Choose one" (or "choose X") separates its options with bullet points and resolves the one picked;
+`chooseMode`'s own schema entry cites this heading. `BT19-061`: "When this card is played, choose
+one― ・This card gains [barrier] until the end of your opponent's next turn. ・Play up to 1 {Pan,
+Glimpse of Talent} from your deck, then shuffle your deck.":
+
+```
+WHEN [auto] played
+THEN
+  chooseMode(modes: ["This card gains [barrier] until the end of your opponent's next turn." {
+    grant(target: [self], keyword: [Barrier], until: nextTurn)
+  }, "Play up to 1 {Pan, Glimpse of Talent} from your deck, then shuffle your deck." {
+    choose(sel: UP TO 1 "{pan, glimpse of talent}" IN you.deck, as: "p0", reason: "Play up to 1 {Pan, Glimpse of Talent} from your deck")
+    play(target: $p0)
+    shuffle()
+  }])
+```
+
+### 20-3. Original
+
+20-3-1: "Original" is what a card describes before any skill effect has applied — distinct from its
+current, possibly modified, state. `P-295` prints "an original power of 500", and other cards
+("originally skill-less", `BT23-106`/`BT22-085`/`BT22-088`) filter on a card's *printed* skill-less
+state rather than whether a skill currently touches it. Neither reading exists: today's filter
+fields read a card's current power, and nothing distinguishes "as printed" from "as it now stands"
+— so a filter written against "original power" silently reads current power instead, the wrong-read
+failure this table exists to avoid repeating. **unreadable — see issue #238.**
+
+### 20-4. Unaffected by Skills
+
+9-1-4/20-4-1: a card no skill may touch. The `immune` op already says this for the ordinary case —
+"can't be chosen or moved by an opponent's skill" — and a real card compiles cleanly against it.
+`BT10-120`: "This card can't attack and isn't affected by your opponent's skills.":
+
+```
+WHEN [permanent]
+THEN
+  forbid(what: attack, until: game, target: [self])
+  immune(until: game, target: [self], from: opponent)
+```
+
+What is still open (issue #128) is whether the *engine* checks `immune` at every place an effect
+lands on a card — power changes, KO, mode switches, keyword grants — rather than only the sites
+that consult it today; the language can already say the phrase, the enforcement is not yet total.
+
+### 20-5. Skills that Mention X (Undetermined Numbers)
+
+An X price, bound once when it is paid and read again by the effect (#122/PR #220). No card in the
+catalog fetched while writing this table prints one — `npm run arena:tally -- --show "{x}"` finds
+none, and the feature's own acceptance test (`scripts/verify/compiler.ts`) is built against a
+synthetic harness card ("pay X energy: draw X cards") for exactly that reason. The mechanism is
+real and round-trips — it is §4's own "An X price…" example, reproduced here rather than invented
+twice:
+
+```
+WHEN [activate:main]
+COST X
+THEN
+  draw(n: X)
+```
+
+### 20-6. Total of X Cards
+
+20-6-1: "a total of X cards from area A and area B" lets any combination across the named areas be
+picked — a selector with more than one `area` (`Selector.areas`). `P-497`: "When this card attacks,
+choose up to a total of 2 of your opponent's Battle Cards or Unisons in Rest Mode, ignoring
+[barrier], and those cards won't switch to Active Mode during your opponent's next Charge Phase.":
+
+```
+WHEN [auto] attacks
+THEN
+  choose(sel: 2 IN opponent.battle|unison rest ignoringBarrier, as: "c0", reason: "choose up to a total of 2 of your opponent's Battle Cards or Unisons in Rest Mode")
+  forbid(what: switchToActive, until: nextTurn, target: $c0)
+```
+
+### 20-7. Discard
+
+20-7-1: discard is a card leaving a hand for the Drop. `BT17-065`: "[+1][Activate: Main] Discard 1
+card from your hand: Your opponent discards 1 card from their hand." — the same op on both sides of
+the colon, once as a cost and once as the effect:
+
+```
+WHEN [activate:main]
+COST +1 marker, TEXT "Discard 1 card from your hand", DO {
+  discard(n: 1)
+}
+THEN
+  discard(n: 1, side: opponent)
+```
+
+### 20-8. Sending Cards to the Warp
+
+20-8-1: sending a card to the Warp places it face up in its owner's Warp — `moveTo(to: warp)`.
+`BT16-087`: "[activate: main]{1}, send this card to its owner's Warp: Draw 1 card, then choose up to
+1 of your opponent's Battle Cards in Rest Mode and KO it.":
+
+```
+WHEN [activate:main]
+COST {any}, TEXT "send this card to its owner's Warp", DO {
+  moveTo(target: [self], to: warp)
+}
+THEN
+  draw(n: 1)
+  choose(sel: UP TO 1 IN opponent.battle rest, as: "c0", reason: "choose up to 1 of your opponent's Battle Cards in Rest Mode")
+  ko(target: $c0)
+```
+
+### 20-9. Gaining Control of Cards
+
+20-9-1: gaining control moves another player's card to your area and makes you its master, while
+20-9-2 keeps its owner, positioning and markers unchanged. `BT10-096` prints it: "[-4][Activate:
+Main] Choose up to 1 of your opponent's Battle Cards, gain control of it, and switch it to Active
+Mode." — there is no `control` op, and "gain control of it" is not merely unread: the compiler
+folds it into `moveTo(target, to: battle)`, a card that is already there, which silently drops the
+master change rather than flagging it. **unreadable — see issue #126.**
+
+### 20-10. Remove from the Game
+
+20-10-1/20-10-2: removing a card takes it outside every area — `moveTo(to: removed)`. `BT30-110`:
+"[activate: main] Remove this card from the game: Choose up to 1 of your opponent's Battle Cards
+and remove it from the game." — the same op pays the cost and resolves the effect:
+
+```
+WHEN [activate:main]
+COST TEXT "Remove this card from the game", DO {
+  moveTo(target: [self], to: removed)
+}
+THEN
+  choose(sel: UP TO 1 IN opponent.battle, as: "c0", reason: "Choose up to 1 of your opponent's Battle Cards")
+  moveTo(target: $c0, to: removed)
+```
+
+### 20-11. Revealing Cards
+
+20-11-1/20-11-2: revealing makes a card's information visible to both players; the cards stay put
+and are hidden again once the skill resolves. `BT10-061`: "When this card attacks, reveal the top
+card of your deck; if it's a green ≪Ginyu Force≫ card with an energy cost of 2, you may play it.
+Then draw 1 card.":
+
+```
+WHEN [auto] attacks
+THEN
+  reveal(sel: 1 TOP 1 IN you.deck, as: "revealed")
+  if(cond: varMatches(var: "revealed", filter: "green ≪Ginyu Force≫ with an energy cost of 2"), then: {
+    may(ops: {
+      play(target: $revealed)
+    }, reason: "play it")
+    draw(n: 1)
+  })
+```
+
+### 20-12. Viewing Secret Areas
+
+20-12-1/20-12-2: viewing a secret area is private to the viewer (unless the card says otherwise) and
+the cards stay in place — `look`, as opposed to `reveal`'s public form. `BT15-134`: "[Activate:
+Main][Limit 1][Burst 1] Send this card from your hand to your Warp: Look at up to 5 cards from the
+top of your deck, add up to 1 black ≪Shadow Dragon≫ Battle Card with an energy cost of 5 or less
+among them to your hand, then shuffle your deck." — the same card also happens to pay its cost by
+sending itself to the Warp (20-8):
+
+```
+WHEN [activate:main]
+COST burst 1, TEXT "Send this card from your hand to your Warp", DO {
+  moveTo(target: [self], to: warp)
+}
+THEN
+  look(n: 5, as: "looked")
+  choose(sel: FROM $looked UP TO 1 "black ≪shadow dragon≫ with an energy cost of 5 or less" IN you.battle, as: "c0", reason: "add up to 1 black ≪Shadow Dragon≫ Battle Card with an energy cost of 5 or less among them to your hand")
+  moveTo(target: $c0, to: hand)
+  shuffle()
+```
+
+### 20-13. Skipping Turns/Phases/Steps
+
+20-13-1…20-13-4: a skipped turn, phase or step does not happen at all — no actions, no checkpoints,
+and no [Auto] trigger fires for it. `BT31-097`: "[activate: main] If your Leader is an <Aeos> card:
+Skip your turn and begin your opponent's Charge Phase" — there is no `skip` op; both "Skip your
+turn" and "begin your opponent's Charge Phase" are left as unread clauses rather than guessed at.
+**unreadable — see issue #126.**
+
+### 20-14. You Can't Do Action A Unless You Do Action B
+
+20-14-1: action A is blocked until action B is done — `forbid`'s `unless` field, cited on the op's
+own schema entry. `BT22-125`: "[permanent] This card can't attack unless you have a Z-Extra in your
+Battle Area.":
+
+```
+WHEN [permanent]
+THEN
+  forbid(what: attack, until: game, target: [self], unless: count("Z-card extra card" IN you.battle) >= 1)
+```
+
+The manual's own example for this heading, `BT13-030`'s "your opponent can't attack with cards for
+the turn unless they give the attacking card -5000 power for the turn each time", needs an escape
+that is itself a repeatable cost rather than a boolean `Cond` — a harder shape `unless` does not
+reach yet, which is why this row cites a simpler real card instead of the manual's own.
+
+### 20-15. If Declared
+
+20-15-1: from when an action is declared until it is taken (or something is known to have that
+status) — the window every `counter:*` WHEN already answers within, but not, today, a condition a
+*different* skill can read ("if declared" naming an action other than the one the skill itself is
+answering). `npm run arena:tally -- --show "if declared"` finds no card printing the fixed phrase
+verbatim in the catalog fetched while writing this table. **unreadable — see issue #239.**
+
+### 20-16. If You Do
+
+20-16-1: the clause after "if you do" only happens if the optional action before it was taken —
+`did(what: "may")`, or, for an "up to" choice with no explicit "you may", the `chose` condition
+(both cite this heading on their own schema entries). `BT7-027`: "When you play this card, you may
+choose 1 card in your life and add it to your hand. If you do, choose up to 1 of your opponent's
+Battle Cards with an energy cost of 4 or less and return it to its owner's hand.":
+
+```
+WHEN [auto] played
+THEN
+  choose(sel: UP TO 1 IN you.life, as: "c0", reason: "you may choose 1 card in your life")
+  moveTo(target: $c0, to: hand)
+  if(cond: chose(var: "c0"), then: {
+    choose(sel: UP TO 1 "card with an energy cost of 4 or less" IN opponent.battle, as: "c1", reason: "choose up to 1 of your opponent's Battle Cards with an energy cost of 4 or less")
+    moveTo(target: $c1, to: hand)
+  })
+```
+
+### 20-17. If You Don't
+
+20-17-1: the mirror of 20-16 — the following clause happens only if the optional action was
+*declined*, `NOT did(what: "may")`. `BT17-018`: "If your Leader Card is a <Dr. Myuu> card: When this
+card is played, you may draw 1 card. If you don't, activate up to 1 {Planet M-2} from your deck,
+then shuffle your deck.":
+
+```
+WHEN [auto] played
+COST TEXT "If your Leader Card is a <Dr. Myuu> card", IF leaderMatches(filter: "<dr. myuu>")
+IF leaderMatches(filter: "<dr. myuu>")
+THEN
+  may(ops: {
+    draw(n: 1)
+  }, reason: "draw 1 card")
+  if(cond: NOT did(what: may), then: {
+    choose(sel: UP TO 1 "{planet m-2}" IN you.deck, as: "p0", reason: "activate up to 1 {Planet M-2} from your deck")
+    play(target: $p0)
+    shuffle()
+  })
+```
+
+### 20-18. "" (Text Used to Indicate Another Skill Within a Skill)
+
+20-18-1: a skill quoting another skill by name — `copySkills`. Both real cards this table would
+otherwise repeat are already §4's own worked examples, generated the same way: `BT20-028` ("Choose
+up to 1 keyword skill on a card placed under this card, and this card gains that skill until the
+end of your opponent's next turn") and `BT3-049` ("Gain all of the chosen card's skills for the
+duration of the turn") — see "One card taking on another's printed skills" and "The other wording
+names the source outright" in §4 above.
+
+### 20-19. (Can) Use \<Specified Cards\> as Energy
+
+20-19-1: paying with a named card as if it were energy. `BT17-065`'s [Permanent] itself: "When
+playing this card, you can pay its energy cost using {Infinite Multiplication Meta-Cooler} in your
+Battle Area as energy." — `planPayment` reads the Energy Area only, and there is no cost item for an
+eligible payer from another area. **unreadable — see issue #127.**
+
+### 20-20. Non
+
+20-20-1…20-20-3: "non-(X)" is everything that is not X, including cards with no character or trait
+at all when X is one. The filter fields negate directly (`notCharacters`, `notTraits`, `notNames`,
+…). `BT27-027`: "[Activate: Main][Once per turn] Add up to 2 blue ≪Red Ribbon Army≫ cards from your
+hand to your energy, and you can't play non-≪Red Ribbon Army≫ Battle Cards for the turn.":
+
+```
+WHEN [activate:main]
+THEN
+  choose(sel: UP TO 2 "blue ≪red ribbon army≫" IN you.hand, as: "c0", reason: "Add up to 2 blue ≪Red Ribbon Army≫ cards from your hand to your energy")
+  moveTo(target: $c0, to: energy, reveal: true, owner: you)
+  forbid(what: play, until: turn, side: you, filter: "non-≪red ribbon army≫ battle card")
+```
+
+### 20-21. Increasing/Reducing Energy Costs by X
+
+20-21-1/20-21-2: raising or lowering a cost moves both the specified and total cost by the same
+amount — `costReduction`, cited on its own schema entry; a negative `amount` is an increase.
+`BT3-005`: "[Permanent] When your life is at 4 or less, increase the energy cost of this card in
+your Battle Area by 2.":
+
+```
+WHEN [permanent]
+IF life(you) <= 4
+THEN
+  costReduction(target: [self], amount: -2, until: game)
+```
+
 ## 5. Errors
 
 **The first error wins.** A rule is five lines long, and a list of five complaints about one

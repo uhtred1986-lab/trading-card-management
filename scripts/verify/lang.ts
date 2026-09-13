@@ -709,6 +709,19 @@ const declaration = (kind: DefineKind, wide: boolean): Definition => {
     assert.ok(parsed.ok, `the doc's example does not parse: ${parsed.ok ? "" : `${parsed.error.clause} ${parsed.error.line}:${parsed.error.col} ${parsed.error.message}`}\n${src}`);
     assert.equal(printRule(parsed.value), src, `the doc's example is not how the printer writes it:\n${src}`);
   }
+
+  // §4b: one row per §20 fixed phrase (issue #112). Every heading 20-1..20-21
+  // is present, and a row that cannot yet say its phrase names the open issue
+  // rather than a program — the check that keeps an "unreadable" row from
+  // quietly rotting into a stale issue number or a phrase nobody wrote up.
+  {
+    const section = doc.slice(doc.indexOf("## 4b."), doc.indexOf("## 5. Errors"));
+    assert.ok(section.length > 1000, "§4b is missing from the language doc");
+    for (let n = 1; n <= 21; n++) assert.ok(new RegExp(`\\b20-${n}\\b`).test(section), `§4b has no row for 20-${n}`);
+    const unreadable = [...section.matchAll(/unreadable — see issue #(\d+)/g)];
+    assert.ok(unreadable.length >= 1, "§4b has no unreadable row — 20-9/20-13, 20-19 and others are known gaps");
+    for (const [, issue] of unreadable) assert.ok(/^\d+$/.test(issue), `§4b's unreadable row does not name a numeric issue: ${issue}`);
+  }
 }
 
 console.log("verify/lang: the rules language round-trips");
