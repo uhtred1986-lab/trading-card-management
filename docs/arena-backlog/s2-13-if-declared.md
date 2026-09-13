@@ -1,8 +1,10 @@
 ---
 title: Arena: the "if declared" timing window as a [Counter] condition, distinct from the counter moment itself (20-15)
 milestone: Arena M1 — Rules correctness and parser coverage
-labels: backlog, ready-for-agent, enhancement, area:arena-compiler, area:arena-engine, phase:rules-stage2, model:sonnet-5
+labels: done, enhancement, area:arena-compiler, area:arena-engine, phase:rules-stage2, model:sonnet-5
 stage: 2
+status: closed
+closed_at: 2026-09-13
 ---
 **Item type:** Feature
 
