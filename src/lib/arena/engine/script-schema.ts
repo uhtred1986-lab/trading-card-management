@@ -990,6 +990,11 @@ export function describeFilter(f: CardFilter): string {
   if (f.token) bits.push("token");
   else if (f.notToken) bits.push("non-token");
   if (f.z) bits.push("Z-card");
+  // "Originally skill-less" (20-3-1) is a prenominal adjective, like the
+  // colours above it, and has to sit before the type noun is decided —
+  // printed after it, `parseFilter` would still read it (it looks for the
+  // phrase anywhere), but the catalog never writes it that way.
+  if (f.originallySkillLess) bits.push("originally skill-less");
   // The noun has to be settled before the trailing measures are hung off it,
   // and a name asked for **in part** is one of those — printed after the word
   // it qualifies, the way the card prints it.
@@ -1030,6 +1035,13 @@ export function describeFilter(f: CardFilter): string {
   else if (f.powerMin != null && f.powerMax != null) bits.push(`with power between ${f.powerMin} and ${f.powerMax}`);
   else if (f.powerMax != null) bits.push(`with ${f.powerMax} power or less`);
   else if (f.powerMin != null) bits.push(`with ${f.powerMin} power or more`);
+  // "An original power of 500" (20-3-1) — the catalog's own word order for
+  // this one, number after "of" rather than before it like the bare measure
+  // above, so the two never collide on the way back in.
+  if (f.originalPowerMin != null && f.originalPowerMin === f.originalPowerMax) bits.push(`with an original power of ${f.originalPowerMin}`);
+  else if (f.originalPowerMin != null && f.originalPowerMax != null) bits.push(`with an original power between ${f.originalPowerMin} and ${f.originalPowerMax}`);
+  else if (f.originalPowerMax != null) bits.push(`with an original power of ${f.originalPowerMax} or less`);
+  else if (f.originalPowerMin != null) bits.push(`with an original power of ${f.originalPowerMin} or more`);
   if (f.powerRel) bits.push(`with power ${POWER_REL_WORDS[f.powerRel.cmp]} ${f.powerRel.of === "chosen" ? "the chosen card's" : "this card's"} power`);
   if (f.noKeywords) bits.push("and no keyword skills");
   return bits.join(" ");
@@ -1158,7 +1170,7 @@ function describeRef(ref: Ref): string {
  * noun sits next to the number rather than at the end of the sentence.
  */
 /** The measures `attr` and `sumOf` read, as a person names them. */
-const ATTR_NOUNS: Record<AmountAttr, string> = { power: "power", comboPower: "combo power", energyCost: "energy cost", comboCost: "combo cost" };
+const ATTR_NOUNS: Record<AmountAttr, string> = { power: "power", originalPower: "original power", comboPower: "combo power", energyCost: "energy cost", comboCost: "combo cost" };
 
 function describeAmount(a: Amount, noun?: string): string {
   if (noun) {

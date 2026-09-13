@@ -1,0 +1,93 @@
+{
+  "id": 1,
+  "name": "Red aggro",
+  "game": "dbs",
+  "isBuilt": true,
+  "leader": {
+    "id": "BT18-001",
+    "name": "Omega Shenron, the Corrupted",
+    "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT18-001.png",
+    "colors": [
+      "Red"
+    ]
+  },
+  "status": "illegal",
+  "counts": {
+    "leader": 1,
+    "main": 8,
+    "z": 2,
+    "side": 1
+  },
+  "cards": [
+    {
+      "cardId": "BT18-001",
+      "name": "Omega Shenron, the Corrupted",
+      "zone": "leader",
+      "quantity": 1,
+      "cardType": "LEADER",
+      "colors": [
+        "Red"
+      ],
+      "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT18-001.png",
+      "energyCost": null,
+      "flag": null
+    },
+    {
+      "cardId": "BT18-021",
+      "name": "Banned Vegeta",
+      "zone": "main",
+      "quantity": 4,
+      "cardType": "BATTLE",
+      "colors": [
+        "Red"
+      ],
+      "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT18-021.png",
+      "energyCost": "4",
+      "flag": {
+        "severity": "illegal",
+        "label": "banned card"
+      }
+    },
+    {
+      "cardId": "BT18-022",
+      "name": "Piccolo",
+      "zone": "main",
+      "quantity": 4,
+      "cardType": "BATTLE",
+      "colors": [
+        "Red"
+      ],
+      "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT18-022.png",
+      "energyCost": "4",
+      "flag": null
+    },
+    {
+      "cardId": "BT18-099",
+      "name": "Z-Broly",
+      "zone": "z",
+      "quantity": 2,
+      "cardType": "Z-BATTLE",
+      "colors": [
+        "Red"
+      ],
+      "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT18-099.png",
+      "energyCost": "4",
+      "flag": null
+    },
+    {
+      "cardId": "BT18-050",
+      "name": "Someday",
+      "zone": "side",
+      "quantity": 1,
+      "cardType": "BATTLE",
+      "colors": [
+        "Blue"
+      ],
+      "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT18-050.png",
+      "energyCost": "4",
+      "flag": null
+    }
+  ],
+  "playable": true,
+  "playableReason": null
+}

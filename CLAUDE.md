@@ -261,6 +261,19 @@ learned the expensive way. Read it before changing the compiler or the engine.
   is a `DEFINE ACTION` with a price (Stage 5, #144–#147). Two constants still name pieces of the
   DBS definition and both are checked against it at load: `SETUP_ZONES` and `STEP_WORK`, the six
   steps whose `DO` programs Stage 5 writes.
+  **A moment is an event pattern, not a name** (`vm/events.ts` + `vm/triggers.ts`, #141): the
+  runner says what happened — a card moved, a phase began, a mode switched — as a `Moment` in the
+  words `dbs/triggers.rules` is written in, and the declarations decide which [Auto]s that is a
+  moment for (`watcher:` who is asked, `WHERE` which side, `BIND` what the moment's card is called).
+  The name that comes out is the name `card_rules.trigger` says, so the record's WHEN means the same
+  thing on both engines, and a card with no record falls back to the legacy `autoTriggerMatches`
+  — imported, never copied. The runner names no trigger anywhere, which is the difference from the
+  forty hand-placed `pendTriggers` calls in `engine/`. 9-1-3-1's eleven "fires while the card is
+  elsewhere" exceptions are **derived**: a pattern that names a place (`moved(from: combo)`) has
+  already said where the card is. `state.pending` is the queue, `nextPending` is 9-6-6 (turn player
+  first) copied from the legacy `checkpoint`, and the runner drains one between steps and before any
+  question — resolving the program is #142's, so a drained skill is a `note` today. §22 keyword
+  moments are pended by neither the record nor `triggers.rules`: they are Stage 7's hooks (#153).
   Whether a *new* game may be made on an engine is the separate question `playableEngine(id)`
   asks of `ENGINE_INFO[id].available`, and the answer for `rules` is still no. Outside those six
   calls the app is still legacy-shaped (`games.ts` reads `state.turn`), so `legacyState(value)`

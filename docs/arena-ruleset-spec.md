@@ -440,6 +440,27 @@ Each is listed with its manual section in `docs/arena-history-lessons.md`, "What
 turned out to be". **None of it changed the legacy engine**: the file is data, and Stage 4's
 event-pattern matcher is where a difference would become behaviour.
 
+**What reads it** (`src/lib/arena/vm/triggers.ts`, #141). The engine fires a *moment* — the
+happening, in the words of the four conventions above — and `matchTriggers` returns every
+(card, trigger name) pair it puts a question to. A declaration matches when its event word is the
+moment's and every argument it names is carried with that value; a list is any-of
+(`to: [battle, unison]`), and **an argument the moment does not carry never matches**, which is why
+every `moved` moment states `asPlay` rather than leaving it out to be read as either. `watcher:`
+picks the cards asked, `WHERE` narrows them by the answering card's master, and `BIND "subject"` is
+what puts the moment's card on the pending row. The name that comes out is the name a record's WHEN
+says, so `card_rules.trigger` means the same thing on both engines; a card with **no** record falls
+back to the printed text through the legacy `autoTriggerMatches`, imported rather than copied, so an
+undrafted card is placed at the same moment by either engine.
+
+One rule of the manual is *derived* from these declarations rather than listed in code, and it is
+worth knowing about. 9-1-3-1 — a card's skills are valid in its own area — is the `inPlay:` zones;
+the legacy engine carries beside it a hand-written list of eleven triggers that fire while the card
+is somewhere else (`elsewhere`, `engine/triggers.ts`). Every one of those eleven is a declaration
+whose pattern **names a place** (`moved(from: combo)`, `moved(to: zEnergy)`,
+`faceUpTurned(in: life)`), because a moment that says where the card is or was has already accounted
+for where its skills are valid. So the rules engine asks a card about its own moment wherever it is
+when the pattern names a place, and only in play when it names none — and the list is not copied.
+
 ### What the loader does
 
 `loadRuleset(files, id)` takes a map of **file name → text** and returns
@@ -505,6 +526,20 @@ choosing, immunity, enter and leave, battle, play/charge/pay — each with one e
 in the language). The inventory is taken from the inline keyword sites in the legacy engine; until
 it exists, `src/lib/arena/glossary.ts` is the only written account of what each keyword means and
 what the engine actually does with it.
+
+**A keyword's own moments (§22) are not read off the record, on either engine, and they are not
+read off `triggers.rules` either.** [Attack], [Alliance] and [Revenge] fire when a card attacks or
+is attacked, [Offering] and [Z-Stack] when it is played, [Revive] when it is KO'd — and none of
+that is written in the card's text box, so no WHEN can carry it and no `DEFINE TRIGGER` can be the
+whole of it. The legacy engine states them as a `switch` (`keywordTriggers`, `engine/triggers.ts`);
+the rules engine states none of them yet and pends `kind: "auto"` skills only (`vm/triggers.ts`,
+#141). They arrive here, as the `HOOK` bodies of a `DEFINE KEYWORD` hung on the moments this
+section inventories — which is why #141 deliberately did *not* copy the switch into `vm/`: a second
+copy of a list that is about to stop being a list.
+
+Until then a keyword skill on the rules engine is a skill that never pends. Nothing reaches it: a
+game on that engine plays pass, endMain and concede (#140), and playing, attacking and activating
+are Stage 5's `DEFINE ACTION`s.
 
 ---
 
@@ -625,6 +660,11 @@ decision nobody can make from a place that is tested to a place that is not.
   a question is asked in come from the definition (Stage 8), the machinery does not.
 - **The event log.** Append-only, and the source of both the board's beats and the replay. Its
   ordering guarantees are what make the oracle possible; a game cannot be allowed to reorder it.
+  `log` (`src/lib/arena/vm/events.ts`, #141) is the rules engine's one writer, and nothing inserts,
+  replaces or removes: a client continues its beat queue from a number and the oracle compares two
+  logs position by position, and both stop being true the moment something is written anywhere but
+  the end. What a *moment* is, by contrast, is entirely the game's (`triggers.rules`) — the log is
+  the machinery, the moment is the declaration, and `emit` is where one happening becomes both.
 - **Prompt mechanics.** How a question is asked, how a partial answer is held, how `min`/`max`/
   `step`/`cost` bound it, and how the same question re-asks after a replay. A game declares the
   prompt's *words* (Stage 8); the machinery is shared.

@@ -2338,6 +2338,21 @@
       "printed": "card with 3 power or less"
     },
     {
+      "field": "originalPowerMin",
+      "type": "number",
+      "printed": "card with an original power of 3 or more"
+    },
+    {
+      "field": "originalPowerMax",
+      "type": "number",
+      "printed": "card with an original power of 3 or less"
+    },
+    {
+      "field": "originallySkillLess",
+      "type": "boolean",
+      "printed": "originally skill-less"
+    },
+    {
       "field": "powerRel",
       "type": "powerRel",
       "printed": "card with power less than or equal to this card's power"
@@ -2436,6 +2451,7 @@
   ],
   "exprAttrs": [
     "power",
+    "originalPower",
     "comboPower",
     "energyCost",
     "comboCost"

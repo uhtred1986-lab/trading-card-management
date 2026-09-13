@@ -33,6 +33,7 @@ import { PLAYERS, type PlayerId } from "../engine/types";
 import { rulesetFor, type GameDefinition } from "../rulesets";
 import { attributeGaps, attrsForDefs, playerAttributes, type AttrProblem, type AttrValue } from "./cards";
 import { NotYet, RulesetBroken } from "./errors";
+import { fire } from "./events";
 import { SETUP_ZONES, WORKED_STEPS, answered, draw, endGame, enterPhase, flipForChooser, moved, other, requirePrompt, run, shuffleDeck, turnPhases } from "./flow";
 import { VM_STATE_VERSION, type VmSide, type VmState } from "./state";
 import { emptyZones, moveCard, newCard, placeZones } from "./zones";
@@ -42,7 +43,9 @@ import type { Game } from "../../catalog/games";
 
 export { VM_STATE_VERSION, isVmState, type VmFrame, type VmSide, type VmState } from "./state";
 export { NotYet, RulesetBroken } from "./errors";
-export { SETUP_ZONES, WORKED_STEPS, repeatAllowed, stepWorkNote, turnPhases } from "./flow";
+export { SETUP_ZONES, WORKED_STEPS, draw, moved, repeatAllowed, run, stepWorkNote, turnPhases, type MoveCause } from "./flow";
+export { emit, fire, log, type Moment } from "./events";
+export { masterOf, matchTriggers, nextPending, pendAutos, skillsShowing, type TriggerMatch, type VmPending } from "./triggers";
 export { attributeGaps, attrsForDefs, attrsOf, cardAttributes, playerAttributes, type AttrProblem, type AttrValue, type Attrs, type AttributeGaps } from "./cards";
 export { FilterNeedsAttribute, MEASURES, attributesRead, attributesRequired, deferredMeasures, measuresUsed, predicateOf, skillsIn, usesMeasure, type Measure } from "./filters";
 export {
@@ -143,6 +146,7 @@ function createGame(ctx: EngineContext, options: GameOptions): { state: VmState;
     turn: 0,
     turnPlayer: "p1",
     flow: [],
+    pending: [],
     prompt: { kind: "gameOver" },
     winner: null,
     overReason: null,
@@ -157,8 +161,15 @@ function createGame(ctx: EngineContext, options: GameOptions): { state: VmState;
       if (!ctx.defs[cardId]) throw new Error(`unknown card ${cardId}`);
       const id = `${p}#${n++}`;
       state.cards[id] = newCard(id, cardId, p);
-      const moved = moveCard(state, game, id, zone, { owner: p });
-      if (!moved.ok) throw new RulesetBroken(ARENA_GAME, `a card cannot be placed in the ${zone}: ${moved.refused}`);
+      const placed = moveCard(state, game, id, zone, { owner: p });
+      if (!placed.ok) throw new RulesetBroken(ARENA_GAME, `a card cannot be placed in the ${zone}: ${placed.refused}`);
+      // 6-2-4: a card arriving somewhere is a `moved` moment even here, which
+      // is how "when your Leader is placed" is answered without this function
+      // naming a trigger — `moved(to: leader)` is a declaration and the leader
+      // is the only card whose zone matches it. The moment fires and the *log*
+      // does not: dealing a game writes 102 cards into zones and neither
+      // engine logs a move for any of them (`fire`, not `emit`).
+      fire(ctx, game, state, { event: "moved", card: id, controller: p, args: { to: zone, asPlay: false } });
       return id;
     };
     add(input.leader, SETUP_ZONES.leader);
@@ -180,7 +191,7 @@ function createGame(ctx: EngineContext, options: GameOptions): { state: VmState;
   // question — which is 6-2-1-4's, so a freshly made game is a game waiting to
   // be told who goes first.
   state.flow = [];
-  enterPhase(game, state, events, rules.setupPhase);
+  enterPhase(ctx, game, state, events, rules.setupPhase);
   run(ctx, game, state, events);
   return { state, events };
 }
@@ -239,7 +250,7 @@ function apply(ctx: EngineContext, prev: VmState, action: Action): { state: VmSt
   // so it is answered before any prompt is looked at — including at a prompt
   // that belongs to the other player.
   if (action.type === "concede") {
-    endGame(game, state, events, other(action.player), `${state.sides[action.player].name} conceded`);
+    endGame(ctx, game, state, events, other(action.player), `${state.sides[action.player].name} conceded`);
     // Straight to the runner: a game that has ended still has to walk into its
     // over phase, whose one step asks the question nobody answers. Returning
     // here left a finished game showing the prompt it was in the middle of.
@@ -257,7 +268,7 @@ function apply(ctx: EngineContext, prev: VmState, action: Action): { state: VmSt
     }
     case "mulligan": {
       requirePrompt(state, action, ["mulligan"]);
-      if (action.redraw) mulligan(game, state, events, action.player);
+      if (action.redraw) mulligan(ctx, game, state, events, action.player);
       answered(state);
       break;
     }
@@ -296,12 +307,12 @@ function apply(ctx: EngineContext, prev: VmState, action: Action): { state: VmSt
 }
 
 /** 6-2-1-9-1: the hand goes to the bottom of the deck, the deck is shuffled, and six new cards are drawn — once. */
-function mulligan(game: GameDefinition, state: VmState, events: GameEvent[], p: PlayerId): void {
+function mulligan(ctx: EngineContext, game: GameDefinition, state: VmState, events: GameEvent[], p: PlayerId): void {
   // To the *bottom* of the deck, one at a time, which is the order the legacy
   // engine returns them in and therefore the deck the shuffle then reorders.
-  for (const id of state.sides[p].zones[SETUP_ZONES.hand].slice()) moved(game, state, events, id, SETUP_ZONES.deck, { owner: p, position: "bottom" });
+  for (const id of state.sides[p].zones[SETUP_ZONES.hand].slice()) moved(ctx, game, state, events, id, SETUP_ZONES.deck, { owner: p, position: "bottom" });
   shuffleDeck(state, p);
-  draw(game, state, events, p, game.game?.hand ?? 0);
+  draw(ctx, game, state, events, p, game.game?.hand ?? 0);
 }
 
 /**

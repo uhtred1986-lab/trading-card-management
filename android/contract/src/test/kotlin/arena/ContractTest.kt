@@ -34,6 +34,9 @@ class ContractTest {
             ?.sortedBy { it.name }
             ?: fail("no fixtures in $fixtureDir — run `npm run contract:emit` at the repository root")
 
+    /** Every fixture that is a `Snapshot` — the deck fixtures below are a different shape entirely. */
+    private val snapshotFixtures: List<File> = fixtures.filterNot { it.name == "deck-list.json" || it.name == "deck-detail.json" }
+
     /** What the app ships with: tolerant of a server that has grown a field. */
     private val lenient = Json {
         ignoreUnknownKeys = true
@@ -52,8 +55,8 @@ class ContractTest {
 
     @Test
     fun `every fixture decodes with nothing left over`() {
-        assertTrue(fixtures.isNotEmpty(), "expected fixtures in contract/fixtures")
-        for (file in fixtures) {
+        assertTrue(snapshotFixtures.isNotEmpty(), "expected fixtures in contract/fixtures")
+        for (file in snapshotFixtures) {
             val snapshot = strict.decodeFromString<Snapshot>(file.readText())
             assertEquals(1, snapshot.contract, "${file.name}: contract version")
         }
@@ -61,7 +64,7 @@ class ContractTest {
 
     @Test
     fun `decoding is lossless`() {
-        for (file in fixtures) {
+        for (file in snapshotFixtures) {
             val once = lenient.decodeFromString<Snapshot>(file.readText())
             val twice = lenient.decodeFromString<Snapshot>(lenient.encodeToString(Snapshot.serializer(), once))
             assertEquals(once, twice, "${file.name}: re-encoding changed the snapshot")
@@ -74,7 +77,7 @@ class ContractTest {
      */
     @Test
     fun `an older app survives a newer server`() {
-        val file = fixtures.first()
+        val file = snapshotFixtures.first()
         val grown = JsonObject(
             lenient.parseToJsonElement(file.readText()).let { it as JsonObject } +
                 ("somethingTheServerAddedLater" to JsonPrimitive(42)),
@@ -101,7 +104,7 @@ class ContractTest {
      */
     @Test
     fun `beats are numbered and ordered`() {
-        for (file in fixtures) {
+        for (file in snapshotFixtures) {
             val beats = lenient.decodeFromString<Snapshot>(file.readText()).beats ?: continue
             var last = 0
             for (beat in beats.list) {
@@ -148,7 +151,7 @@ class ContractTest {
      */
     @Test
     fun `legal moves keep their labels and stay opaque`() {
-        for (file in fixtures) {
+        for (file in snapshotFixtures) {
             val snapshot = lenient.decodeFromString<Snapshot>(file.readText())
             for ((i, move) in snapshot.legal.withIndex()) {
                 assertTrue(move.label.isNotBlank(), "${file.name}: move $i has no label")
@@ -171,7 +174,7 @@ class ContractTest {
     @Test
     fun `rejections are reasoned and disjoint from the legal moves`() {
         var any = false
-        for (file in fixtures) {
+        for (file in snapshotFixtures) {
             val snapshot = lenient.decodeFromString<Snapshot>(file.readText())
             val legal = snapshot.legal.map { it.action }.toSet()
             for (r in snapshot.rejected ?: emptyList()) {
@@ -199,6 +202,64 @@ class ContractTest {
         assertEquals(null, snapshot.view.them.choices, "the other side is shown nothing")
         assertEquals(0, snapshot.view.prompt.min, "an optional choice says so, which is what the 'Choose none' button reads")
         assertTrue(snapshot.view.prompt.step != null, "a choice inside a skill knows its step")
+    }
+
+    // ── the deck endpoints (docs/arena-client-contract.md §5.1) ────────────
+
+    private fun deckListFixture(): File = fixtures.firstOrNull { it.name == "deck-list.json" } ?: fail("deck-list.json is missing — run `npm run contract:emit`")
+
+    private fun deckDetailFixture(): File = fixtures.firstOrNull { it.name == "deck-detail.json" } ?: fail("deck-detail.json is missing — run `npm run contract:emit`")
+
+    @Test
+    fun `the deck list decodes with nothing left over`() {
+        val list = strict.decodeFromString<DeckList>(deckListFixture().readText())
+        assertTrue(list.decks.isNotEmpty())
+    }
+
+    @Test
+    fun `deck list decoding is lossless`() {
+        val once = lenient.decodeFromString<DeckList>(deckListFixture().readText())
+        val twice = lenient.decodeFromString<DeckList>(lenient.encodeToString(DeckList.serializer(), once))
+        assertEquals(once, twice, "re-encoding changed the deck list")
+    }
+
+    /**
+     * A deck is never hidden for being unplayable (e.g. Fusion World, or a
+     * missing leader) — it is listed and says why, so the app can grey it out
+     * with an explanation rather than a card that silently is not there.
+     */
+    @Test
+    fun `an unplayable deck always says why, and a playable one never does`() {
+        val list = lenient.decodeFromString<DeckList>(deckListFixture().readText())
+        for (d in list.decks) {
+            if (d.playable) assertEquals(null, d.playableReason, "${d.name}: playable but still carries a reason")
+            else assertTrue(!d.playableReason.isNullOrBlank(), "${d.name}: not playable but no reason given")
+        }
+        assertTrue(list.decks.any { !it.playable }, "the fixture should carry at least one unplayable deck")
+        assertTrue(list.decks.any { it.playable }, "and at least one playable one")
+    }
+
+    @Test
+    fun `the deck detail decodes with nothing left over`() {
+        val detail = strict.decodeFromString<DeckDetail>(deckDetailFixture().readText())
+        assertTrue(detail.cards.isNotEmpty())
+    }
+
+    @Test
+    fun `deck detail decoding is lossless`() {
+        val once = lenient.decodeFromString<DeckDetail>(deckDetailFixture().readText())
+        val twice = lenient.decodeFromString<DeckDetail>(lenient.encodeToString(DeckDetail.serializer(), once))
+        assertEquals(once, twice, "re-encoding changed the deck detail")
+    }
+
+    /** The same flag the web deck page highlights, keyed the same way. */
+    @Test
+    fun `a flagged card in the deck detail carries its flag, and the rest carry none`() {
+        val detail = lenient.decodeFromString<DeckDetail>(deckDetailFixture().readText())
+        val flagged = detail.cards.filter { it.flag != null }
+        assertTrue(flagged.isNotEmpty(), "the fixture should carry at least one flagged card")
+        for (c in flagged) assertTrue(c.flag!!.label.isNotBlank(), "${c.cardId} has a flag with no label")
+        assertTrue(detail.cards.any { it.flag == null }, "and at least one card with nothing wrong with it")
     }
 }
 

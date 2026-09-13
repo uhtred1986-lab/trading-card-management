@@ -26,11 +26,20 @@
  * is a game whose top frame points at the step that asked, which is what makes
  * it storable mid-decision and reproducible from seed plus actions.
  *
- * Still missing, and on purpose: the event log (#141) and the effect layers
- * (#142). A state that guessed at them now would have them replaced twice.
+ * What #141 added is the **pend list**: an [Auto] whose moment has happened and
+ * whose program has not run yet (9-6-2). It is state rather than a local because
+ * a checkpoint can be reached with a question still to put, so the queue has to
+ * survive being written to `arena_games.state` like everything else. The event
+ * *log* is not here and is not going to be: events are returned from each call
+ * and the row keeps the action log, which is the reproducible source — a second
+ * copy in the state would be a second thing to keep true.
+ *
+ * Still missing, and on purpose: the effect layers (#142). A state that guessed
+ * at them now would have them replaced twice.
  *
  * Pure and client-safe: types and one guard, no database, no `fs`.
  */
+import type { VmPending } from "./triggers";
 import type { Game } from "../../catalog/games";
 import type { PlayerId, Prompt } from "../engine/types";
 import type { AttrValue } from "./cards";
@@ -46,8 +55,10 @@ import type { VmCard, Zones } from "./zones";
  * fields). A version-1 state was a skeleton with no board at all.
  * 3: #140's flow (`flow`, `prompt`, `turn`, `turnPlayer`, `winner`,
  * `overReason`). A version-2 state was a board nothing played on.
+ * 4: #141's pend list (`pending`). A version-3 state is a game in which no
+ * moment could reach a card.
  */
-export const VM_STATE_VERSION = 3;
+export const VM_STATE_VERSION = 4;
 
 /** One player, as the definition describes one: a name, a map of zones, and the attributes a *player* has (1-14). */
 export interface VmSide {
@@ -123,6 +134,13 @@ export interface VmState {
   turnPlayer: PlayerId;
   /** The phases in progress, innermost last. Empty only between a game ending and its over phase being entered. */
   flow: VmFrame[];
+  /**
+   * The [Auto] skills whose moment has happened and whose program has not run
+   * (9-6-2), in the order they were pended. The *resolution* order is 9-6-6's
+   * and is `nextPending`'s, so this is a set with a tie-break rather than a
+   * queue — which is why a skill is taken off it by master and not by position.
+   */
+  pending: VmPending[];
   /**
    * The question the game is waiting on — the legacy engine's own `Prompt`
    * shape, on purpose: a prompt is answered by an `Action`, and the `Engine`

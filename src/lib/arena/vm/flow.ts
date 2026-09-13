@@ -25,6 +25,13 @@
  * says which manual section it is and what it waits on; when the steps carry
  * programs the table goes and this module loses its last DBS word.
  *
+ * **What happens is fired as a moment, never as a trigger name** (#141). A step
+ * that moves a card, enters a phase or switches a mode says so in the words the
+ * `DEFINE TRIGGER` patterns are written in (`./events.ts`), and
+ * `rulesets/dbs/triggers.rules` decides which [Auto]s that is a moment for. The
+ * runner names no trigger anywhere, which is the difference between this and the
+ * forty hand-placed `pendTriggers` calls in the engine it is replacing.
+ *
  * Pure and client-safe: no database, no network, no `fs`.
  */
 import { IllegalAction, type Action, type EngineContext, type GameEvent } from "../engine";
@@ -32,8 +39,11 @@ import { AREAS, PHASES } from "../engine/script";
 import { nextRandom, shuffle } from "../engine/rng";
 import { PLAYERS, other, type Area, type Phase, type PlayerId, type Prompt } from "../engine/types";
 import type { Cond, Selector, Side } from "../engine/script";
+import type { PatternValue } from "../lang";
 import type { GameDefinition, StepDef, WinDef } from "../rulesets";
 import { RulesetBroken } from "./errors";
+import { emit, log, type Moment } from "./events";
+import { nextPending } from "./triggers";
 import { arrivalMode, moveCard } from "./zones";
 import type { VmFrame, VmState } from "./state";
 
@@ -108,14 +118,14 @@ const STEP_WORK: Record<string, Work> = {
   setupHand: {
     section: "6-2-1-9",
     waits: "draw(n: attr(game, hand)), and a way to say 'each player'",
-    run: (_ctx, game, state, ev) => {
-      for (const p of PLAYERS) draw(game, state, ev, p, game.game?.hand ?? 0);
+    run: (ctx, game, state, ev) => {
+      for (const p of PLAYERS) draw(ctx, game, state, ev, p, game.game?.hand ?? 0);
     },
   },
   setupLife: {
     section: "6-2-1-10",
     waits: "moveTo() with TOP n and a computed count, and 'each player'",
-    run: (_ctx, game, state, ev) => {
+    run: (ctx, game, state, ev) => {
       // The cards are placed on the pile as they are taken, which is the order
       // damage later takes them back in — and the order the legacy engine
       // deals them, which is what makes both engines' life piles one pile.
@@ -124,7 +134,7 @@ const STEP_WORK: Record<string, Work> = {
         for (let i = 0; i < n; i++) {
           const id = state.sides[p].zones[SETUP_ZONES.deck][0];
           if (!id) break;
-          moved(game, state, ev, id, SETUP_ZONES.life, { owner: p, position: "top" });
+          moved(ctx, game, state, ev, id, SETUP_ZONES.life, { owner: p, position: "top" });
         }
       }
     },
@@ -135,7 +145,7 @@ const STEP_WORK: Record<string, Work> = {
     run: (_ctx, _game, state, ev) => {
       const second = other(state.firstPlayer ?? "p1");
       state.sides[second].attrs.energyMarkers = Number(state.sides[second].attrs.energyMarkers ?? 0) + 1;
-      ev.push({ type: "energyMarker", player: second, delta: 1 });
+      log(ev, { type: "energyMarker", player: second, delta: 1 });
     },
   },
   setupStart: {
@@ -149,7 +159,7 @@ const STEP_WORK: Record<string, Work> = {
   chargeActivate: {
     section: "7-2-7",
     waits: "switchMode() over a selector naming every in-play area at once",
-    run: (_ctx, game, state, ev) => {
+    run: (ctx, game, state, ev) => {
       for (const zone of Object.keys(state.sides[state.turnPlayer].zones)) {
         const declared = game.zones[zone];
         if (declared?.inPlay !== true) continue;
@@ -162,7 +172,11 @@ const STEP_WORK: Record<string, Work> = {
           // plays over nothing.
           if (card.mode === mode) continue;
           card.mode = mode;
-          if (mode === "active" || mode === "rest") ev.push({ type: "mode", card: id, mode });
+          // 1-10-1: the switch is a moment (`modeSwitched`), and this one has no
+          // `by:` — the Charge Phase stands cards up as a rule of the turn, not
+          // as a skill, which is what keeps "rested by one of your skills" off it.
+          const shown = mode === "active" || mode === "rest" ? ({ type: "mode", card: id, mode } as const) : null;
+          emit(ctx, game, state, ev, { event: "modeSwitched", card: id, controller: state.turnPlayer, args: { mode } }, shown);
         }
       }
     },
@@ -170,23 +184,23 @@ const STEP_WORK: Record<string, Work> = {
   chargeDraw: {
     section: "7-2-9",
     waits: "draw(n: 1) under a condition about the turn number, which no attribute names yet",
-    run: (_ctx, game, state, ev) => {
+    run: (ctx, game, state, ev) => {
       // 7-2-9-1: the player who goes first skips the draw on their first turn.
       // `firstPlayerDraws: false` is the declaration that says so.
       const skips = state.turn === 1 && state.turnPlayer === state.firstPlayer && game.game?.firstPlayerDraws !== true;
-      if (!skips) draw(game, state, ev, state.turnPlayer, 1);
+      if (!skips) draw(ctx, game, state, ev, state.turnPlayer, 1);
     },
   },
   endTurn: {
     section: "7-4-7",
     waits: "the turn as something a program can end — the one step that is about the flow rather than about the board",
-    run: (_ctx, game, state, ev) => {
+    run: (ctx, game, state, ev) => {
       state.turn++;
       state.turnPlayer = other(state.turnPlayer);
       // The turn passing ends every frame of it: nothing declared after this
       // step belongs to the turn that has just ended.
       state.flow = [];
-      enterPhase(game, state, ev, turnPhases(game)[0]);
+      enterPhase(ctx, game, state, ev, turnPhases(game)[0]);
     },
   },
 };
@@ -212,7 +226,7 @@ const GUARD = 10_000;
  */
 export function run(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[]): void {
   let guard = 0;
-  checkWins(game, state, ev);
+  checkWins(ctx, game, state, ev);
   while (state.flow.length) {
     if (++guard > GUARD) throw new RulesetBroken(state.game, `${GUARD} steps ran without the game asking anything or ending, which is a phase that never leaves its own steps`);
     const top = state.flow[state.flow.length - 1];
@@ -221,8 +235,13 @@ export function run(ctx: EngineContext, game: GameDefinition, state: VmState, ev
 
     if (top.index >= phase.steps.length) {
       state.flow.pop();
+      // 7-3: a phase running out of steps is the moment "at the end of your
+      // Main Phase" names. No client draws a phase *ending* and the legacy
+      // engine logs none, so it is a moment with no picture — which is exactly
+      // what `emit`'s null second half is for.
+      emit(ctx, game, state, ev, { event: "phaseEnd", controller: state.turnPlayer, args: { phase: top.phase } });
       const next = phaseAfter(game, top.phase);
-      if (next) enterPhase(game, state, ev, next);
+      if (next) enterPhase(ctx, game, state, ev, next);
       // A frame popping back to an outer one is the battle sub-flow's shape
       // (Stage 6); nothing nests today, and the phase is restored here rather
       // than left reading the one that just finished.
@@ -236,8 +255,9 @@ export function run(ctx: EngineContext, game: GameDefinition, state: VmState, ev
 
     if (top.asking === undefined) {
       top.asking = askers(state, step);
+      const pended = state.pending.length;
       STEP_WORK[name]?.run(ctx, game, state, ev);
-      checkWins(game, state, ev);
+      checkWins(ctx, game, state, ev);
       // The work may have ended the game or passed the turn, either of which
       // replaces the flow this frame was on.
       if (state.flow[state.flow.length - 1] !== top) continue;
@@ -245,7 +265,7 @@ export function run(ctx: EngineContext, game: GameDefinition, state: VmState, ev
       // and the declaration's number is the ceiling. Checked here, once, on the
       // step's own arrival — a repeat decided anywhere else would be a loop
       // whose bound is not the one the game declared.
-      if (stillPending(state) && repeatAllowed(step, top)) {
+      if (state.pending.length > pended && repeatAllowed(step, top)) {
         top.repeats++;
         top.index = 0;
         delete top.asking;
@@ -253,6 +273,12 @@ export function run(ctx: EngineContext, game: GameDefinition, state: VmState, ev
         continue;
       }
     }
+
+    // 4-2-2: a checkpoint, here and nowhere else. Between one step and the
+    // next, and before any question is put — which is where the legacy
+    // engine's own `{ op: "checkpoint" }` entries sit, because those are the
+    // two places a player is about to be asked to act (9-6-6).
+    if (checkpoint(ctx, game, state, ev)) continue;
 
     if (top.asking.length) {
       state.prompt = promptFor(state, step, top.asking[0]);
@@ -281,20 +307,42 @@ function phaseAfter(game: GameDefinition, phase: string): string | null {
   return at >= 0 && at + 1 < phases.length ? phases[at + 1] : null;
 }
 
-/** Enter a phase: a frame for it, and the moment in the log when the game declares there is one. */
-export function enterPhase(game: GameDefinition, state: VmState, ev: GameEvent[], name: string): void {
+/**
+ * Enter a phase: a frame for it, and the moment the game declares there is one.
+ *
+ * The *moment* fires whatever `announce:` says, because 7-1-1 is about the
+ * phase happening and `announce:` is only about whether a client draws it: "at
+ * the start of your Main Phase" is no less that phase's start for a board that
+ * does not put a card on the screen for it.
+ */
+export function enterPhase(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], name: string): void {
   const declared = game.phases[name];
   if (!declared) throw new RulesetBroken(state.game, `nothing declares a phase called ${JSON.stringify(name)}`);
   state.phase = name;
   state.flow.push({ phase: name, index: 0, repeats: 0 });
-  announce(game, state, ev, name);
+  emit(ctx, game, state, ev, { event: "phaseStart", controller: state.turnPlayer, args: { phase: name } }, shownPhase(game, state, name));
 }
 
-/** 7-1-1: a phase happens whether or not anything happens in it; `announce:` is whether it is a moment of its own in the log. */
+/**
+ * 7-1-1: a phase happens whether or not anything happens in it; `announce:` is
+ * whether it is a moment of its own in the log.
+ *
+ * Called on its own only by the 7-4-4 repeat, which re-runs a phase's steps
+ * without re-entering the phase: the legacy engine logs the End Phase again on
+ * every pass and pends its "at the end of your turn" skills only on the first,
+ * and a repeat that fired `phaseStart` again would be the second half of that
+ * undone.
+ */
 function announce(game: GameDefinition, state: VmState, ev: GameEvent[], name: string): void {
-  if (game.phases[name]?.announce === false) return;
-  if (!isPhaseWord(name)) return;
-  ev.push({ type: "phase", phase: name, player: state.turnPlayer, turn: state.turn });
+  const shown = shownPhase(game, state, name);
+  if (shown) log(ev, shown);
+}
+
+/** The picture a phase has in the log, or null for one the game asks not to announce or that the shared event union has no word for. */
+function shownPhase(game: GameDefinition, state: VmState, name: string): GameEvent | null {
+  if (game.phases[name]?.announce === false) return null;
+  if (!isPhaseWord(name)) return null;
+  return { type: "phase", phase: name, player: state.turnPlayer, turn: state.turn };
 }
 
 /**
@@ -310,18 +358,28 @@ export function repeatAllowed(step: StepDef, frame: VmFrame): boolean {
 }
 
 /**
- * Does anything still answer to the end of this turn (7-4-4)?
+ * 4-2-2: the checkpoint. One pended [Auto] resolved, the turn player's first.
  *
- * **Always false today.** A trigger becomes pending when an event matches its
- * declared pattern, and events are #141's; until then nothing can newly pend
- * while the End Phase runs and the loop above turns zero times. The bound and
- * the declaration are here first on purpose — the repeat is the thing that can
- * hang a game, so it is written with its ceiling from the start rather than
- * added later with one.
+ * Returns true when it took one off the queue, and the runner then looks again
+ * — so a skill that pends another is behind it rather than lost, which is the
+ * legacy engine's `{ op: "auto.resolve" }, { op: "checkpoint" }` pair said as a
+ * loop instead of as two steps.
+ *
+ * **Resolving the skill's program is #142's**, and this is where it will go. A
+ * skill drained here today is recorded as a note and its program is not run:
+ * the alternative is leaving it on the queue, which would turn the 7-4-4 repeat
+ * into a phase that goes round until its ceiling stops it and would be a worse
+ * lie than the note. `vmToBeats` drops a note, so nothing is animated from it.
  */
-function stillPending(state: VmState): boolean {
-  void state;
-  return false;
+function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[]): boolean {
+  const next = nextPending(state);
+  if (!next) return false;
+  const card = state.cards[next.card];
+  log(ev, {
+    type: "note",
+    text: `${card ? card.cardId : next.card} answers to ${next.trigger} with skill ${next.skillIndex}, and resolving a skill's program is #142's`,
+  });
+  return true;
 }
 
 // ── prompts ─────────────────────────────────────────────────────────────────
@@ -399,24 +457,69 @@ export function shuffleDeck(state: VmState, p: PlayerId): void {
 }
 
 /** One card from the top of a player's deck into their hand, `n` times, with the two events the legacy engine emits for each. */
-export function draw(game: GameDefinition, state: VmState, ev: GameEvent[], p: PlayerId, n: number): number {
+export function draw(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], p: PlayerId, n: number): number {
   let drawn = 0;
   for (let i = 0; i < n; i++) {
     const id = state.sides[p].zones[SETUP_ZONES.deck][0];
     if (!id) break;
-    moved(game, state, ev, id, SETUP_ZONES.hand, { owner: p });
-    ev.push({ type: "draw", player: p, card: id });
+    moved(ctx, game, state, ev, id, SETUP_ZONES.hand, { owner: p });
+    // A draw is not a moment of its own: no declaration names one, and the card
+    // arriving in the hand is the `moved` above. It is a *picture*, which is
+    // why it is logged and not emitted.
+    log(ev, { type: "draw", player: p, card: id });
     drawn++;
   }
   return drawn;
 }
 
-/** `moveCard`, with the move written into the log. A refusal is a bug in the definition, not a rule: every caller here is a step of the game's own procedure. */
-export function moved(game: GameDefinition, state: VmState, ev: GameEvent[], id: string, to: string, opts: { owner?: PlayerId; position?: "top" | "bottom" } = {}): void {
+/** How a card came to move, for the pattern arguments that ask (`moved(asPlay: true)`, `moved(by: skill)`). */
+export interface MoveCause {
+  owner?: PlayerId;
+  position?: "top" | "bottom";
+  /**
+   * 9-6-9-4: was this the card being **played**? The declarations turn on it —
+   * `played` and `youPlayed` ask for `asPlay: true`, `placed` for `false` — so
+   * every move states it rather than leaving it out to be read as either.
+   * Playing a card is a `DEFINE ACTION` with a price (#145), so nothing says
+   * `true` yet; the argument is here because the pattern asks for it.
+   */
+  asPlay?: boolean;
+  /** What caused it — `"skill"` for 3-1-5's "removed by a skill". A move the game's own procedure makes has no cause, and a pattern naming one does not match it. */
+  by?: string;
+  /** 3-1-5: was the cause the other player's? Only meaningful beside `by`. */
+  byOpponent?: boolean;
+}
+
+/**
+ * `moveCard`, with the move logged and fired as a `moved` moment.
+ *
+ * A refusal is a bug in the definition, not a rule: every caller here is a step
+ * of the game's own procedure. The moment fires even where the log has no
+ * picture — a zone the shared `GameEvent` union has no `Area` word for is a
+ * zone a board cannot animate, and still a place a card arrived in.
+ */
+export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], id: string, to: string, opts: MoveCause = {}): void {
   const from = fromZone(state, id);
   const result = moveCard(state, game, id, to, opts);
   if (!result.ok) throw new RulesetBroken(state.game, `a step of the game cannot move a card to the ${to}: ${result.refused}`);
-  if (isAreaWord(to) && (from === null || isAreaWord(from))) ev.push({ type: "move", card: id, from: from ?? "removed", to, owner: result.move.owner });
+  const shown: GameEvent | null =
+    isAreaWord(to) && (from === null || isAreaWord(from)) ? { type: "move", card: id, from: from ?? "removed", to, owner: result.move.owner } : null;
+  emit(ctx, game, state, ev, movement(result.move.card, from, to, result.move.owner, opts), shown);
+}
+
+/** The `moved` moment, in the words `triggers.rules` asks about it in. */
+function movement(id: string, from: string | null, to: string, owner: PlayerId, opts: MoveCause): Moment {
+  const cause: Record<string, PatternValue> = opts.by !== undefined ? { by: opts.by, byOpponent: opts.byOpponent ?? false } : {};
+  const where: Record<string, PatternValue> = from !== null ? { from } : {};
+  return {
+    event: "moved",
+    card: id,
+    // 3-1-6: the side whose copy of the zone it arrived in, which is what
+    // "when **you** play a card" means by you. For a card leaving play it is
+    // its owner, which `moveCard` has already clamped the destination to.
+    controller: owner,
+    args: { ...where, to, asPlay: opts.asPlay ?? false, ...cause },
+  };
 }
 
 function fromZone(state: VmState, id: string): string | null {
@@ -429,14 +532,17 @@ function fromZone(state: VmState, id: string): string | null {
 // ── the game ending ─────────────────────────────────────────────────────────
 
 /** A game comes to rest in its over phase, which is a phase like any other: it has a step, and that step asks the question nobody answers. */
-export function endGame(game: GameDefinition, state: VmState, ev: GameEvent[], winner: PlayerId | null, reason: string): void {
+export function endGame(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], winner: PlayerId | null, reason: string): void {
   const over = game.game?.overPhase;
   if (!over) throw new RulesetBroken(state.game, "DEFINE GAME names no overPhase, so a finished game has nowhere to come to rest");
   state.winner = winner;
   state.overReason = reason;
   state.flow = [];
-  enterPhase(game, state, ev, over);
-  ev.push({ type: "gameOver", winner, reason });
+  // 0-1-3: nothing answers to a game that has ended, so the queue goes with it
+  // rather than being drained into an over phase by the checkpoint.
+  state.pending = [];
+  enterPhase(ctx, game, state, ev, over);
+  log(ev, { type: "gameOver", winner, reason });
 }
 
 /**
@@ -449,7 +555,7 @@ export function endGame(game: GameDefinition, state: VmState, ev: GameEvent[], w
  * exempts it: the life piles are dealt at the end of it, so every player has
  * "no life" until they do.
  */
-function checkWins(game: GameDefinition, state: VmState, ev: GameEvent[]): void {
+function checkWins(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[]): void {
   if (state.phase === game.game?.setupPhase || state.phase === game.game?.overPhase) return;
   const lost: { player: PlayerId; win: WinDef }[] = [];
   for (const p of PLAYERS) {
@@ -460,9 +566,9 @@ function checkWins(game: GameDefinition, state: VmState, ev: GameEvent[]): void 
   }
   if (!lost.length) return;
   const losers = [...new Set(lost.map((l) => l.player))];
-  if (losers.length === 2) return endGame(game, state, ev, null, "both players lost at once");
+  if (losers.length === 2) return endGame(ctx, game, state, ev, null, "both players lost at once");
   const first = lost.find((l) => l.player === losers[0])!;
-  endGame(game, state, ev, other(losers[0]), `${state.sides[losers[0]].name} lost: ${first.win.text ?? first.win.name}`);
+  endGame(ctx, game, state, ev, other(losers[0]), `${state.sides[losers[0]].name} lost: ${first.win.text ?? first.win.name}`);
 }
 
 /**

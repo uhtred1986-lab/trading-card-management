@@ -11,7 +11,7 @@
  * Client-safe, like `lang/`: no `fs`, no database, nothing read at request
  * time. `docs/arena-ruleset-spec.md` §3 says what each file declares.
  */
-export { loadRuleset, vocabularyOf } from "./load";
+export { ZONE_ARGS, loadRuleset, vocabularyOf } from "./load";
 export { expandMacros, opsIn, MacroError } from "./expand";
 export { HOOK_POINTS, isHookPoint, type HookPoint } from "./hooks";
 export { DBS_FILES, loadDbs } from "./dbs";

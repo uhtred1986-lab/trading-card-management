@@ -151,6 +151,9 @@ const instance = (fields: OpField[], wide: boolean): Record<string, unknown> => 
     { life: "both", times: 2 },
     { attr: { var: "t" }, name: "energyCost" },
     { attr: { sel: { special: "self" } }, name: "power", times: 1000 },
+    // "The attacking card's original power" (20-3-1, BT19-129): the printed
+    // number as a value, not a filter — see the field's own comment.
+    { attr: { sel: { special: "attacker" } }, name: "originalPower" },
     { sumOf: { fromVar: "discarded" }, attr: "comboPower" },
     { sumOf: { side: "you", area: "drop", count: 99 }, attr: "energyCost", times: 2 },
     { plus: [{ count: { side: "you", area: "drop", count: 99 } }, 1] },
@@ -468,6 +471,13 @@ const declaration = (kind: DefineKind, wide: boolean): Definition => {
     { costMin: 2, costMax: 2 },
     { powerMin: 10000 },
     { powerMax: 15000 },
+    // "An original power of 500" (20-3-1): the printed value, a separate
+    // measure from the bare one above even though both are read off `d.power`
+    // today — see the field's own comment in `engine/filters.ts`.
+    { originalPowerMin: 500, originalPowerMax: 500 },
+    { originalPowerMin: 10000 },
+    { originalPowerMax: 15000 },
+    { originallySkillLess: true },
     { powerRel: { of: "self", cmp: "<=" } },
     // "…the chosen card's power" (BT19-096): measured against a bound
     // variable, not this card — the shape `compileClause` builds by filling
@@ -487,6 +497,8 @@ const declaration = (kind: DefineKind, wide: boolean): Definition => {
     "≪Saiyan≫ Battle Card",
     "{Four-Star Ball, Parasitic Darkness}",
     "Extra Card with 15000 power or less",
+    "red <Raditz: Br> card with an original power of 500",
+    "originally skill-less Battle Card with an energy cost of 3 or less",
   ])
     tripFilter(parseFilter(text), `filter from "${text}"`);
 }
