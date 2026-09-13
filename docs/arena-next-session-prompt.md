@@ -152,22 +152,27 @@ opponent's energy" as an *area to search*.
 - **`[Empower XY/ZY]`** (two colours, 22-45-3-1) cannot be parsed. No card
   prints it; theoretical until one does.
 
-### (d) The `move()` refactor — the largest single unlock, and not urgent
+### (d) The `move()` refactor — built, in the two places it could be
 
-`docs/arena-move-replacement-scope.md`. A replacement effect cannot ask a
-question: `move()` is synchronous with ~48 call sites, no frame and no `"wait"`
-path, so assigning `s.prompt` inside it is silently lost. The point of no return
-is `detach(s, id)` in `state.ts` — after it the card is in no area and no prompt
-could serialise. This blocks all 13 "you may … instead" clauses (9-10-3) and
-9-10-2's mandated choice.
+`docs/arena-move-replacement-scope.md` §5. **Done (#107), and not by rebuilding
+`move()`.** `move()` is still synchronous at 46 of its 48 call sites; what
+changed is that the two that are *not* — `stepScript`'s `moveTo` and `ko` loops
+— decide the replacement before calling it, and run a substitute's program as a
+frame on the flow, where a question can be asked and answered. 9-10-2's
+mandated choice, 9-10-3's "you may", and the "by an opponent's skill" narrowing
+19 cards print all read now: 46 of the family's 89 skills carried an unread
+clause, 26 do.
 
-**Two things make it less urgent than it looks.** Those 13 cards are *correctly
-refused* today — nothing reads wrongly, so this is a capability gap rather than
-bleeding. And the obvious safety argument does not hold: `replacementFor`
-discriminates only on `opts.reason`, and `reason: "effect"` is emitted both by
-sites that can suspend and by five in `engine.ts` that cannot, so there is no
-compile-time way to gate prompting on reachability. Read the document before
-committing anyone to this.
+The safety argument the earlier note said does not hold still does not hold,
+and is not relied on. Nothing gates on *reachability*: `replacementFor` — the
+deterministic path all 46 sites take — simply skips a replacement it cannot put
+a question about (an optional one, or a substitute whose program asks), so
+those sites behave exactly as they did. Additive at two call sites, unchanged
+at 46, which is what made the increment one lane's size.
+
+What is left is in §6 of that document: BT10-031 and SD18-01, which replace a
+**life** card's move rather than a Battle Area departure and so need a fourth
+`replace` event before they need `opts.reveal` at all.
 
 ### (e) Markers, [Empower] and the board
 

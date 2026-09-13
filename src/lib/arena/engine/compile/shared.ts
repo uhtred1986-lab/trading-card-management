@@ -1,4 +1,4 @@
-import type { Ref, Selector } from "../script";
+import type { Op, Ref, Selector } from "../script";
 
 export interface Ctx {
   /** The variable the last `choose` bound. */
@@ -68,7 +68,18 @@ export interface Ctx {
    * where it goes instead, so it becomes a replacement rather than a move
    * (9-10).
    */
-  replacing: { by?: "skill" | "ko" | "skillOrKo"; subject?: string } | null;
+  replacing: { by?: "skill" | "ko" | "skillOrKo"; bySide?: "opponent"; subject?: string } | null;
+  /**
+   * The steps of a replacement's body read so far, when the sentence runs past
+   * one clause and the word "instead" has not arrived yet (9-10, #107). Held
+   * rather than pushed, so the whole sentence becomes the replacement and no
+   * half of it escapes to happen always.
+   */
+  replacingOps?: Op[];
+  /** Those clauses' own text, so all of them are refused together if the last one cannot be read. */
+  replacingClauses?: string[];
+  /** 9-10-3's "you may", wherever in the body's clauses it was printed. */
+  replacingOffered?: boolean;
   n: number;
   /**
    * A counter of its own for the names a mill binds, so `n` keeps its count.

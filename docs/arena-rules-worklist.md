@@ -32,10 +32,12 @@ increments and lessons learned now live in `docs/arena-history-lessons.md`.
    reducers (#96) and the skill-cost reduction family (#97).
 4. **Continue the remaining Stage 2 primitives** from `docs/arena-backlog.md`
    once the items above are either merged or explicitly deferred.
-5. **Keep capability-gap work separate** from wording commits: replacement
-   prompting and marker/[Empower] follow-ups stay in
-   `docs/arena-move-replacement-scope.md` and
-   `docs/arena-markers-stage-scope.md`.
+5. **Keep capability-gap work separate** from wording commits: marker/[Empower]
+   follow-ups stay in `docs/arena-markers-stage-scope.md`. Replacement
+   prompting (#107) is **done** — increment 1 on 10 Sep 2026, increment 2 on
+   13 Sep 2026 — and `docs/arena-move-replacement-scope.md` §5 carries the
+   before/after numbers; §6 is the remainder (BT10-031/SD18-01, which need a
+   life-departure `replace` event that does not exist).
 
 ## Every increment
 

@@ -496,9 +496,11 @@ THEN
 
 A replacement whose substitute is a whole program (9-10, BT3-051): the card is not KO'd at all, it
 stays where it is, and the cards under it go to the Drop in the KO's place. `with` is the program
-that happens instead of the event `event` names, and it may not stop to ask a question — a
-replacement has nowhere to wait for the answer, so the parser reads one and `validateProgram`
-refuses it (#107):
+that happens instead of the event `event` names. It may stop to ask a question, and then it only
+applies where somebody can hear it: the two call sites inside `stepScript`'s `moveTo` and `ko`
+loops run it as a frame on the flow, and the other 46, where `move()` is synchronous, leave it
+unapplied rather than half-running it (#107). `optional: true` is 9-10-3's "you may", and
+`bySide: opponent` narrows a `leave`/`ko` moment to a departure the opponent's skill caused:
 
 ```
 WHEN [permanent]

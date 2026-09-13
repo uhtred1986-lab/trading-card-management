@@ -1817,3 +1817,141 @@ function withRecord(cardId: string, record: { ops: unknown[]; unsupported: strin
   const g = arena({ oppBattle: ["IMMANY", "GOGETA"] });
   assert.equal(powerOf(CTX, g, find(g, "p2", "battle", "IMMANY")), 15000, "a <Gogeta: GT> card's skill is not a non-<Gogeta: GT> skill");
 }
+
+// ── 9-10: a replacement that asks (#107) ───────────────────────────────────
+
+{
+  // 9-10-2: when more than one replacement answers to the same departure, the
+  // affected player picks. Two on one card is the prompt; one is not a choice
+  // at all and is simply applied, which is what it always did.
+  DEFS.TWOWAY = {
+    ...DEFS.V1,
+    id: "TWOWAY",
+    name: "TWOWAY",
+    energyCost: 2,
+    power: 5000,
+    traits: ["Earthling"],
+    skill: "[Permanent] If this card would leave the Battle Area, send it to your Warp instead.",
+  };
+  DEFS.WARDEN2 = {
+    ...DEFS.V1,
+    id: "WARDEN2",
+    name: "WARDEN2",
+    energyCost: 1,
+    skill: "[Permanent] If your ≪Earthling≫ card would be removed from a Battle Area by a skill or KO'd, add that card to your energy in Rest Mode instead.",
+  };
+
+  const both = arena({ battle: ["TWOWAY", "WARDEN2"], oppHand: ["KILLER"], oppEnergy: ["V1"] });
+  const two = find(both, "p1", "battle", "TWOWAY");
+  let s = play(both, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+  s = play(s, { type: "play", player: "p2", card: find(s, "p2", "hand", "KILLER") }, { type: "choose", player: "p2", cards: [two] });
+  assert.equal(s.prompt.kind, "replaceMove", "two mandatory replacements are a question for the affected player");
+  assert.equal((s.prompt as { player: PlayerId }).player, masterOf(s, two), "9-10-2-1: the master of the replaced card chooses");
+  assert.deepEqual(labels(s), ["To the Warp", "To the Energy Area in Rest Mode"]);
+
+  // The same card with only its own replacement in play is not asked anything.
+  const alone = arena({ battle: ["TWOWAY"], oppHand: ["KILLER"], oppEnergy: ["V1"] });
+  const solo = find(alone, "p1", "battle", "TWOWAY");
+  let one = play(alone, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+  one = play(one, { type: "play", player: "p2", card: find(one, "p2", "hand", "KILLER") }, { type: "choose", player: "p2", cards: [solo] });
+  assert.notEqual(one.prompt.kind, "replaceMove", "one applicable replacement is not a choice");
+  assert.ok(one.players.p1.warp.includes(solo), "and it simply happens");
+  assertConsistent(one);
+}
+
+{
+  // "By an opponent's skill" (19 cards): the same sentence read as "by a
+  // skill" would fire on the controller's own skills too, so `bySide` is what
+  // separates them and `causeMatches` reads it against who is acting.
+  DEFS.THEIRS = {
+    ...DEFS.V1,
+    id: "THEIRS",
+    name: "THEIRS",
+    energyCost: 2,
+    power: 5000,
+    skill: "[Permanent] If this card would be removed from your Battle Area by an opponent's skill or KO'd, send it to your Warp instead.",
+  };
+  const compiled = compileSkill(parseSkills(DEFS.THEIRS.skill!)[0]);
+  assert.deepEqual(compiled.unsupported, []);
+  assert.equal((compiled.ops[0] as { by?: string }).by, "skillOrKo");
+  assert.equal((compiled.ops[0] as { bySide?: string }).bySide, "opponent");
+
+  // The opponent's skill: the replacement answers.
+  let theirs = arena({ battle: ["THEIRS"], oppHand: ["KILLER"], oppEnergy: ["V1"] });
+  const card1 = find(theirs, "p1", "battle", "THEIRS");
+  theirs = play(theirs, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+  theirs = play(theirs, { type: "play", player: "p2", card: find(theirs, "p2", "hand", "KILLER") }, { type: "choose", player: "p2", cards: [card1] });
+  assert.ok(theirs.players.p1.warp.includes(card1), "the opponent's skill is the departure the card names");
+  assertConsistent(theirs);
+
+  // The controller's own skill moving the same card: not this moment.
+  DEFS.SELFKILL = { ...DEFS.V1, id: "SELFKILL", name: "SELFKILL", energyCost: 1, skill: "[Auto] When you play this card, choose up to 1 of your Battle Cards and KO it." };
+  let mine = arena({ battle: ["THEIRS"], hand: ["SELFKILL"], energy: ["V1"] });
+  const card2 = find(mine, "p1", "battle", "THEIRS");
+  mine = play(mine, { type: "play", player: "p1", card: find(mine, "p1", "hand", "SELFKILL") }, { type: "choose", player: "p1", cards: [card2] });
+  assert.ok(mine.players.p1.drop.includes(card2), "your own skill is not your opponent's, so the ordinary KO stands");
+  assert.ok(!mine.players.p1.warp.includes(card2));
+  assertConsistent(mine);
+}
+
+{
+  // 9-10-3 with a program in the departure's place, and a question inside it:
+  // the offer is asked first, and the substitute then runs as a frame of its
+  // own so what it asks is asked rather than lost (#107).
+  DEFS.PILEOFF = {
+    ...DEFS.V1,
+    id: "PILEOFF",
+    name: "PILEOFF",
+    energyCost: 2,
+    power: 5000,
+    skill: "[Permanent] If this card would be removed from your Battle Area by an opponent's skill or KO'd, you may choose 1 card in your hand and discard it instead.",
+  };
+  const rule = compileSkill(parseSkills(DEFS.PILEOFF.skill!)[0]);
+  assert.deepEqual(rule.unsupported, []);
+  assert.equal(validateProgram(rule.ops), true, "a replacement that asks is a program the language can say");
+
+  let s = arena({ battle: ["PILEOFF"], hand: ["V1", "V-BLUE"], oppHand: ["KILLER"], oppEnergy: ["V1"] });
+  const target = find(s, "p1", "battle", "PILEOFF");
+  const handWas = s.players.p1.hand.length;
+  s = play(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+  s = play(s, { type: "play", player: "p2", card: find(s, "p2", "hand", "KILLER") }, { type: "choose", player: "p2", cards: [target] });
+  assert.equal(s.prompt.kind, "replaceMove", "an optional replacement is offered, never taken on the player's behalf");
+  assert.equal(labels(s).length, 2, "take the offer, or let the card go");
+
+  // Declining keeps the departure exactly as it was.
+  const declined = play(s, { type: "chooseMode", player: "p1", index: 1 });
+  assert.ok(declined.players.p1.drop.includes(target), "the ordinary KO happens when the offer is refused");
+  assert.equal(declined.players.p1.hand.length, handWas, "and nothing was discarded");
+  assertConsistent(declined);
+
+  // Taking it keeps the card and asks the question the program carries.
+  const taken = play(s, { type: "chooseMode", player: "p1", index: 0 });
+  assert.ok(taken.players.p1.battle.includes(target), "the departure did not happen (9-10-1-1)");
+  assert.equal(taken.prompt.kind, "chooseCards", "the substitute stopped and asked, rather than being lost inside move()");
+  const answered = play(taken, { type: "choose", player: "p1", cards: [taken.players.p1.hand[0]] });
+  assert.equal(answered.players.p1.hand.length, handWas - 1, "and the answer was carried out");
+  assert.ok(answered.players.p1.battle.includes(target), "the card is still where it was");
+  assertConsistent(answered);
+}
+
+{
+  // The other 46 call sites cannot wait for an answer, so a replacement that
+  // would ask one is left unapplied there rather than half-run — the rule the
+  // scoping document's §1.4 demands. `payAltCost` is one of them.
+  DEFS.ASKER = {
+    ...DEFS.V1,
+    id: "ASKER",
+    name: "ASKER",
+    energyCost: 2,
+    power: 5000,
+    skill: "[Permanent] If this card would leave the Battle Area, choose 1 card in your hand and discard it instead.",
+  };
+  const asking = compileSkill(parseSkills(DEFS.ASKER.skill!)[0]);
+  assert.deepEqual(asking.unsupported, [], "the rule itself is readable — it is the call site that cannot hear it");
+  const s = arena({ battle: ["ASKER"], hand: ["V1"] });
+  const asker = find(s, "p1", "battle", "ASKER");
+  const ev: import("../../src/lib/arena/engine/types").GameEvent[] = [];
+  move(CTX, s, ev, asker, "drop", "p1", { reason: "rule" });
+  assert.ok(s.players.p1.drop.includes(asker), "a departure nobody can be asked about is not replaced");
+  assertConsistent(s);
+}

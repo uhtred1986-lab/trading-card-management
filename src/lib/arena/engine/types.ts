@@ -173,6 +173,16 @@ export interface ReplacementChoice {
   master?: PlayerId;
 }
 
+/**
+ * Whose skill is moving the card, when a replacement's `bySide` narrows the
+ * departures it answers to ("removed from your Battle Area **by an opponent's
+ * skill**"). Absent means nobody's skill is known to be doing it — a rule
+ * cleanup, a battle KO, a cost — and an opponent-narrowed replacement then
+ * does not apply (9-10, and `docs/arena-move-replacement-scope.md` §1.4:
+ * prefer unread to wrongly read).
+ */
+export type MoveActor = PlayerId | undefined;
+
 /** A move route chosen before `move()` begins; null means keep the original route. */
 export interface ReplacementResult {
   to?: Area;
@@ -182,6 +192,14 @@ export interface ReplacementResult {
   /** The card whose skill said so, and whose master runs the program. */
   source?: string;
   master?: PlayerId;
+  /**
+   * The caller runs `ops` itself, as a frame on the flow, rather than letting
+   * `move()` run them inline (#107). `move()` still does everything a
+   * substitute means — the departure does not happen and the card stays where
+   * it is — and then returns, leaving the program to a frame that *can* stop
+   * and ask. Only the two suspendable call sites set it.
+   */
+  deferred?: boolean;
 }
 
 /** A physical card in the game. `id` is unique per game ("p1#17"); `cardId` is the catalog id. */
