@@ -1,8 +1,10 @@
 ---
 title: Arena: every arena script takes --engine (probe, reprobe, coverage, playthrough, vs) and verify-arena runs on both
 milestone: Arena M7 — Rules engine core (Stage 4)
-labels: backlog, ready-for-agent, enhancement, area:arena-vm, phase:rules-stage4, model:sonnet-5
+labels: done, enhancement, area:arena-vm, phase:rules-stage4, model:sonnet-5
 stage: 4
+status: closed
+closed_at: 2026-09-13
 ---
 **Source:** plan Stage 0/4 ("`arena:playthrough`/`arena:fuzz`/`arena:probe` take `--engine legacy|rules`"); today only `scripts/arena-diff.mts`, `arena-fuzz.mts` and `arena-playthrough.mts` read `--engine`; `scripts/arena-probe.mts`, `arena-coverage.mts`, `arena-vs-claude.mts`, `scripts/verify-arena.ts`; `docs/arena-tooling.md` §4.
 
