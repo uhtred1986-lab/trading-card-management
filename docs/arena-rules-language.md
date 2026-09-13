@@ -75,7 +75,7 @@ term   := number | "$" name | call ( "*" number )?
 call   := "count" "(" SEL ")" | "markers" "(" SEL ")" | "sumPower" "(" "$" name ")"
         | "handUpTo" "(" number ")" | "X" | "life" "(" side ")"
         | "attr" "(" REF "," attr ")" | "sumOf" "(" SEL "," attr ")"
-attr   := "power" | "comboPower" | "energyCost" | "comboCost"
+attr   := "power" | "originalPower" | "comboPower" | "energyCost" | "comboCost"
 REF    := "$" name ( "MINUS" "$" name )? | SEL
 SEL    := part+                                    parts in any order; "any" when there are none
 part   := "[" special "]" | "FROM" "$" name | number | "UP TO" number? | "TOP" number
@@ -591,12 +591,48 @@ THEN
 ### 20-3. Original
 
 20-3-1: "Original" is what a card describes before any skill effect has applied — distinct from its
-current, possibly modified, state. `P-295` prints "an original power of 500", and other cards
-("originally skill-less", `BT23-106`/`BT22-085`/`BT22-088`) filter on a card's *printed* skill-less
-state rather than whether a skill currently touches it. Neither reading exists: today's filter
-fields read a card's current power, and nothing distinguishes "as printed" from "as it now stands"
-— so a filter written against "original power" silently reads current power instead, the wrong-read
-failure this table exists to avoid repeating. **unreadable — see issue #238.**
+current, possibly modified, state. `P-295` prints "an original power of 500", and three more cards
+(`BT23-106`, `BT22-085`, `BT22-088`) print "an originally skill-less Battle Card" — a card that
+printed no text at all, whether or not it has since gained a skill (1-5-9, 9-1-4). Neither phrase
+had a filter field to land on: `parseFilter` had no pattern for "power **of** N" at all (only "N
+power", the other word order the sets also print), so the whole measure vanished rather than
+narrowing anything — the correction is `originalPowerMin`/`originalPowerMax` on `CardFilter`
+(`FILTER_FIELDS`), read off `d.power`, which is already always the printed face value: nothing in
+`cardNow` rewrites power, so this filter could not read the *current* number even if a card asked
+for it — that reading is `powerMin`/`powerMax`'s gap, not this one's, and stays out of scope.
+"Originally skill-less" is `originallySkillLess`, true when the card's printed text box is empty.
+An `attr(REF, originalPower)` expression reads the same printed number as a value rather than a
+filter, for the rarer "its power becomes **the attacking card's original power**" (`BT19-129`) —
+that whole mechanism (power *becomes* a value, rather than changing by one) has no op yet and stays
+unread; the expression is here for the referee to use ruling on it by hand.
+
+`DB1-041`'s second skill: "[Activate: Main][Once per turn] If there are 2 or more Battle Cards in
+your Battle Area with an original power of 10000: Choose 1 card in your life and add it to your
+hand, and this card gets +5000 power and [Critical] for the duration of the turn." (`[Once per
+turn]` is a play limit the engine enforces outside this language, the way every other worked
+example's tags are silent about it too.)
+
+```
+WHEN [activate:main]
+IF count("battle card with an original power of 10000" IN you.battle) >= 2
+THEN
+  choose(sel: 1 IN you.life, as: "c0", reason: "Choose 1 card in your life")
+  moveTo(target: $c0, to: hand)
+  power(target: [self], amount: 5000, until: turn)
+  grant(target: [self], keyword: [Critical], until: turn)
+```
+
+`BT23-106`'s third skill reads the other phrase: "[activate: main][limit 1]{y}, if your Leader is a
+yellow <Korin> card and you have an originally skill-less Battle Card with an energy cost of 3 in
+play: Play this card from your hand.":
+
+```
+WHEN [activate:main]
+COST {Yellow}
+IF leaderMatches(filter: "yellow <Korin>") AND count("originally skill-less battle card with an energy cost of 3" IN you.play) >= 1
+THEN
+  play(target: [self])
+```
 
 ### 20-4. Unaffected by Skills
 

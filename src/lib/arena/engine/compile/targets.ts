@@ -626,6 +626,14 @@ export function filterFor(phrase: string, area: ScriptArea | null): CardFilter |
     f.costMax != null ||
     f.powerMin != null ||
     f.powerMax != null ||
+    // "An originally skill-less Battle Card", "an original power of 500"
+    // (20-3-1): two more measures added after this list, and left off it a
+    // filter naming only one of them would have gone the way BT19-130 did —
+    // thrown away as saying nothing, and the description offered every card
+    // in the area instead of the printed ones (issue #238).
+    f.originalPowerMin != null ||
+    f.originalPowerMax != null ||
+    f.originallySkillLess ||
     f.powerRel != null ||
     f.monoColor ||
     // A colour narrows an energy area as much as any other: "your blue energy"
