@@ -13,13 +13,11 @@
 -- menu and the refusals therefore come from one paragraph, which is the whole
 -- point of the file: nothing below has a hand-written `whyNot` twin.
 --
--- **Four so far.** The moves that need no payment and no battle (#145), which
--- is what makes them the ones that prove the machinery on a real turn. The play
--- family is #146 and activations #147, and each arrives here as a paragraph.
--- The prices are in (#148): `costs.rules` declares six and `vm/costs.ts` charges
--- them, so a `COST [energy]` on one of the paragraphs below would now be paid
--- rather than refused by name. None of the four carries one — the charge places
--- a card in the Energy Area, it does not spend from it.
+-- **Seven so far.** The four that need no payment and no battle came first
+-- (#145), which is what makes them the ones that proved the machinery on a real
+-- turn; the prices followed (#148), and the play family below is the first to
+-- carry one. Activations are #147 and the battle is Stage 6, and each arrives
+-- here as a paragraph rather than as a branch somewhere else.
 --
 -- `listed: false` is the rule the legacy engine has always had and never
 -- wrote down: a move a client shows as a button of its own is accepted
@@ -93,3 +91,88 @@ DEFINE ACTION concede                                                     -- §0
   listed: false
   label: "Concede"
   text: "a player gives up the game, and their opponent wins immediately (0-1-3-4)"
+
+-- ── playing a card (§5-5, §8-3-2, §13-2, §16-2) ────────────────────────────
+--
+-- Three paragraphs rather than one, because the shared `Action` union has
+-- three words: a client sends `play`, `playUnison` or `playZ`, and the
+-- declaration's **name is the action type** (`vm/actions.ts`). What they share
+-- is the `DO`: every one of them is the `play` op, which is 5-5-3's "play this
+-- card" — so a play a player declares and a play a skill makes are the same
+-- act, resolved in one place (`vm/play.ts`), and neither of them pends a
+-- trigger by name. The card arriving is `moved(asPlay: true)` and
+-- `triggers.rules` decides that this is `played`, `youPlayed` and
+-- `opponentPlayed`; its [Permanent]s stand because it is in an in-play area.
+--
+-- **What the `REFUSE` lists do not say yet, and why.** The legacy engine's
+-- `whyNotPlay` has two gates beyond the price, and the language can say
+-- neither: 22-39's [Unique] needs a filter for "a card with the same name as
+-- *this* candidate", which `FILTER_FIELDS` has no field for (the keyword's own
+-- body is #154's), and 20-14's prohibitions need an effect in force to read,
+-- which `vm/effects.ts` still hands to #145 (`DEFERRED_STATICS.forbid`). So
+-- the price is the first refusal and today the only one — which is the same
+-- first refusal the legacy engine gives on every board that has neither of
+-- those in force, and is a board the rules engine is *wider* than the manual
+-- on until they land.
+--
+-- The other half the price cannot settle is an **X cost**: 1-2-2-2 makes its
+-- value an answer to a question, and a candidate is a card and nothing else,
+-- so `costOf` is absent and `vm/costs.ts` refuses such a card as `unread`
+-- rather than offering it free. [Evolve], [Union], [Over Realm] and [Swap] are
+-- plays a keyword gates and are #157's.
+
+DEFINE ACTION play                                                        -- §8-3-2
+  WHEN [main]
+  prompts: [main]
+  FOR 1 IN you.hand "battle card"
+  BIND "card"
+  COST [energy]
+  DO {
+    play(target: $card)
+  }
+  again: true
+  label: "Play"
+  text: "the turn player pays a Battle Card's energy cost and places it in their Battle Area, active and revealed (8-3-2, 5-5)"
+
+-- 13-2-3: a Unison Card arrives carrying the energy that was paid for it as
+-- markers, which is what `X` is in this program — the amount the move's price
+-- was settled at (`runProgram`). One paragraph covers only the Unisons whose
+-- printed cost is a number: a Unison printed `X` lets its master choose how
+-- many markers to buy (13-2-2), and that choice is the `x` a candidate has
+-- nowhere to carry.
+DEFINE ACTION playUnison                                                  -- §13-2
+  WHEN [main]
+  prompts: [main]
+  FOR 1 IN you.hand "unison card"
+  BIND "card"
+  COST [energy]
+  DO {
+    play(target: $card)
+    addMarker(target: $card, n: X)
+  }
+  again: true
+  label: "Play Unison"
+  text: "the turn player pays a Unison Card's cost and places it in their Unison Area with that many markers, sending the Unison already there to the Drop Area (13-2, 3-11-5)"
+
+-- 16-2 and 17-2: a Z-card is played from the Z-Deck and pays a Z-Energy price
+-- as well as its energy cost, which is why this is the one move that names two
+-- prices — in that order, because that is the order the engine that has been
+-- playing charges them in and the order is what the oracle compares.
+--
+-- 6-1-4: a Z-Leader is not played at all, it arrives through [Z-Awaken]; and
+-- 18-2's Z-Unison is a Unison, so its markers are the `x` the paragraph above
+-- says a candidate cannot carry. Both are refused here as the cards this move
+-- is not about, which is the honest answer while it is about the other two.
+DEFINE ACTION playZ                                                       -- §16-2
+  WHEN [main]
+  prompts: [main]
+  FOR 1 IN you.zDeck "Z-card"
+  BIND "card"
+  COST [zEnergy, energy]
+  DO {
+    play(target: $card)
+  }
+  REFUSE cardType(needs: "a Z-Battle Card or a Z-Extra Card") UNLESS any([count(FROM $card "Z-battle card") >= 1, count(FROM $card "Z-extra card") >= 1])
+  again: true
+  label: "Play"
+  text: "the turn player pays a Z-card's Z-Energy price and its energy cost and places it in their Battle Area; a Z-Extra replaces the Z-Extras already there (16-2, 17-2-1-3)"

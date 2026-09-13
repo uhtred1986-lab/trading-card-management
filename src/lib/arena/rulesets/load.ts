@@ -139,6 +139,10 @@ export function loadRuleset(files: Record<string, string>, id: Game = "dbs"): Lo
       // inventing a kind ahead of the answer.
       need(def.prompts, promptKinds, "a prompt");
     }
+    // A price that reads its amount off a card reads it off a *declared*
+    // attribute: `amount: costOf` is the whole of how 20-21's reductions reach
+    // a play's price, and a name nothing declares would be a price of nothing.
+    if (def.define === "COST") need(def.amount ? [def.amount] : [], definition.attributes, "an attribute");
     if (def.define === "TRIGGER") need(patternZones(def.on.args), definition.zones, "a zone");
     if (def.define === "KEYWORD") {
       for (const hook of def.hooks ?? []) {

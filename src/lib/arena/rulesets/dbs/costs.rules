@@ -24,6 +24,14 @@
 --                and never on the declaration's *name*, so a second game's
 --                `DEFINE COST mana / consumes: energy` is charged by the same
 --                search this file's `energy` is.
+--   `amount:`    the **card attribute** the price's amount is read off, when
+--                the move asking for it names a card (§20-21). `ACTION play
+--                COST [energy]` passes no arguments, so the number comes from
+--                the card being paid for, and this line is where the game says
+--                which number that is. It names the *derived* attribute
+--                (`costOf`, never `energyCost`), so every reduction in force
+--                reaches a play's price through the declared `layers:` rather
+--                than through a second path.
 --   `asks:`      how the payment puts its question (§3-8-2). `choice` is a
 --                price the payer is asked about whenever more than one
 --                genuinely different way to pay it exists — which is the
@@ -52,11 +60,29 @@
 DEFINE COST energy                                                        -- §5-3
   TAKES (total: amount, orbs: colors, x: amount)
   consumes: energy
+  amount: "costOf"
   asks: choice
   DO {
     switchMode(target: IN you.energy active, mode: rest)
   }
   text: "the price is paid by switching that many active cards in your Energy Area to Rest Mode, the coloured orbs matched in colour; an energy marker pays one energy of your Leader's colour in a card's place (5-3-3, 1-2-3, 1-14-2)"
+
+-- The other half of a Z-card's price (§5-4). It is a `cards` price like
+-- `payWith` below and the planner tells the two apart the way it tells any two
+-- prices apart — by reading the `DO`, never the name: this one's target names
+-- a **place** (`IN you.zEnergy`), so the cards come out of that pool and go
+-- where the op says; `payWith`'s names cards the price was handed, so they are
+-- rested where they stand. 5-4-3: the Z-Energy is spent, not rested — the
+-- cards are placed in the Drop Area — which is why the op is a move.
+DEFINE COST zEnergy                                                       -- §5-4
+  TAKES (n: amount)
+  consumes: cards
+  amount: "zEnergyCostOf"
+  asks: nothing
+  DO {
+    moveTo(target: IN you.zEnergy, to: drop)
+  }
+  text: "a Z-card's Z-Energy price: that many cards are placed from the Z-Energy Area in the Drop Area, on top of the card's energy cost (5-4, 16-2-1)"
 
 DEFINE COST marker                                                        -- §13-4
   TAKES (n: amount)

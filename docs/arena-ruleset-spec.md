@@ -299,8 +299,8 @@ itself.
 | `keywords.rules` | `KEYWORD` — all 39, their parameters and their meanings; the `HOOK` bodies stay empty until Stage 7 | §22 | #135 |
 | `words.rules` | the words the board says for a zone, a colour, a mode, a requirement — **not written yet**: `DEFINE WORDS` is not one of the eleven kinds, and its shape is an open question on #131 | — | #135, after that answer |
 | `prompts.rules` | one declaration per `Prompt` kind with the question it asks — **not written yet**, the same open question (it may be a field of `DEFINE ACTION` rather than a kind) | — | #135, after that answer |
-| `actions.rules` | `ACTION` — charge, play, activate, endMain, pass, concede: `WHEN / FOR / COST / DO / REFUSE`, the refusal in the order the legacy engine checks it. The grammar and the generic legality are in (#144), and charge, endMain, pass and concede are declared (#145); play and activate are #146–#147 | §6, §7 | #144 ✔, #145 ✔, #146–#147 |
-| `costs.rules` | `COST` — energy with colours, either-orbs and X, markers, life, rest, pay-with, and the unreadable price that refuses. Each says what it `consumes:` and how the payment `asks:` its question, and `vm/costs.ts` is one planner over those words | §5-3, §8-3-2-3, §13-4, §20-19, §21-3 | #148 ✔ |
+| `actions.rules` | `ACTION` — charge, play, playUnison, playZ, activate, endMain, pass, concede: `WHEN / FOR / COST / DO / REFUSE`, the refusal in the order the legacy engine checks it. The grammar and the generic legality are in (#144), charge, endMain, pass and concede are declared (#145), and the play family (#146); activate is #147 | §6, §7 | #144 ✔, #145 ✔, #146 ✔, #147 |
+| `costs.rules` | `COST` — energy with colours, either-orbs and X, Z-Energy, markers, life, rest, pay-with, and the unreadable price that refuses. Each says what it `consumes:`, which card attribute its `amount:` is read off and how the payment `asks:` its question, and `vm/costs.ts` is one planner over those words | §5-3, §5-4, §8-3-2-3, §13-4, §20-19, §21-3 | #148 ✔, #146 ✔ |
 | `battle.rules` | the battle sub-flow as `STEP`s and `ACTION`s — declaration, the blocker window, counter windows, combo, comparison, damage | §7, §8 | Stage 6 |
 
 Nothing in the list is a program *about* this game: a file is data, and the moment a game would
@@ -483,6 +483,7 @@ DEFINE ACTION play
   }
   REFUSE timing(window: main) UNLESS isTurnPlayer()
   REFUSE cardType(needs: "a Battle Card") UNLESS count(FROM $card "battle card") >= 1
+  again: true
   listed: true
   label: "Play"
   text: "the turn player plays a card from their hand (7-3-4)"
@@ -498,6 +499,7 @@ DEFINE ACTION play
 | `COST [energy]` | the `DEFINE COST` prices it charges, by name |
 | `DO { … }` | what taking it does. A moment is fired by what the program does — a `moveTo` is a `moved` — and is never declared separately (#141) |
 | `REFUSE <requirement> UNLESS <cond>` | one line per requirement, **in the order the legality check runs them**: read no further than the first that fails, because a later line may well ask something that only makes sense once the earlier one holds |
+| `again: true` | 7-3-4's free timing: taking the move leaves the question **on the table**, so the step puts it again once the board has settled. A move without it answers the question its step asked and the step moves on, which is what ends a Main Phase — `endMain` carries none. The legacy engine says the same thing by pushing `turn.promptMain` back on its flow from inside every such handler |
 | `listed: false` | accepted without being enumerated — the concede rule written down. It says nothing about legality, only that the move is on neither the menu nor the list of refusals, because a refusal explains a move a player can see |
 | `label:` / `text:` | the words the menu shows (the card's own name is added to them), and what the move is |
 
@@ -518,15 +520,28 @@ Three things the shape guarantees rather than asks for:
 
 `src/lib/arena/vm/actions.ts` is the whole interpreter of this. What it reads so far: a `FOR` by
 side, area, filter and mode; a `REFUSE` condition written as `count()`, `isTurnPlayer()` and their
-combinations; a `DO` of `note()` and of `moveTo()` said of the candidate. Everything else is refused
-*by name* rather than read as false or silently skipped — a condition read as false is a move that
-can never be made and nothing saying why. The full evaluator is #142, the prices #148, and the rest
-of the DBS moves #146–#147.
+combinations; and a `DO` that is an ordinary program, run on the interpreter the legacy engine runs
+(#142). Everything else is refused *by name* rather than read as false or silently skipped — a
+condition read as false is a move that can never be made and nothing saying why. The rest of the DBS
+moves are #147 and Stage 6.
 
-Four are declared (#145), the moves that need no payment and no battle: `charge` (7-2-11, with the
-`decline:` above and a `REFUSE` for a card the Energy Area cannot take), `endMain` (7-3-5), `pass`
-and `concede`, the last two `listed: false`. Two gaps are worth knowing, and both are written into
-`actions.rules` beside the paragraph they belong to. The legacy engine also explains the charge
+Seven are declared. Four need no payment and no battle (#145): `charge` (7-2-11, with the `decline:`
+above and a `REFUSE` for a card the Energy Area cannot take), `endMain` (7-3-5), `pass` and
+`concede`, the last two `listed: false`. Three are the play family (#146): `play` (8-3-2), the
+`playUnison` of 13-2 and the `playZ` of 16-2, each a `COST` off `costs.rules` and a `DO` of the one
+`play` op — so a play a player declares and a play a skill makes (5-5-3) are resolved in the same
+place, `vm/play.ts`, and the card's arrival is a `moved(asPlay: true)` moment `triggers.rules` turns
+into `played` rather than a trigger anything pends by name. All three carry `again: true`, which is
+7-3-4's free timing written down: taking one leaves the Main Phase's question on the table, and
+`endMain` — which does not carry it — is what ends the phase.
+
+What the play family's `REFUSE` lists do **not** say is written into `actions.rules` beside them.
+22-39's [Unique] needs a filter for "a card with the same name as *this* candidate", which
+`FILTER_FIELDS` has no field for; 20-14's prohibitions need an effect in force to read, which
+`vm/effects.ts` still hands to #145 (`DEFERRED_STATICS.forbid`). So the price is the first refusal
+and today the only one, and on a board carrying either of those the rules engine is *wider* than the
+manual. Two more gaps are worth knowing, and both are written into `actions.rules` beside the
+paragraph they belong to. The legacy engine also explains the charge
 during the *Main* Phase — "you have already had your charge this turn", an `oncePerTurn` refusal for
 every card still in hand — and saying that here means declaring the move in a phase it is not
 offered in and refusing it with a condition about *which question is on the table*, which the
@@ -549,6 +564,7 @@ resource has nowhere to say so, and DBS's own alternative payments are branches 
 DEFINE COST energy
   TAKES (total: amount, orbs: colors, x: amount)
   consumes: energy
+  amount: "costOf"
   asks: choice
   DO {
     switchMode(target: IN you.energy active, mode: rest)
@@ -560,14 +576,19 @@ DEFINE COST energy
 |---|---|
 | `TAKES (…)` | what the price is given. An action asks for a price **by name** and passes no arguments, so this is the shape `vm/costs.ts` reads off the card today; binding it is #147, where a skill's own `card_rules.cost` record supplies the values |
 | `consumes:` | the resource the price takes — `energy`, `markers`, `life`, `mode`, `cards`, `unreadable`. Required, and it is the word an interpreter switches on: never the declaration's *name*, so a second game's `DEFINE COST mana / consumes: energy` is charged by the same search |
+| `amount:` | the **card attribute** the price's amount is read off when the move asking for it names a card (§20-21). An action asks for a price by name and passes no arguments, so the number comes from the card being paid for; naming the *derived* attribute (`costOf`, not `energyCost`) is what makes every reduction in force reach the price through that attribute's declared `layers:`. An attribute the card does not carry is not zero — an X cost has no total until its master names one (§1-2-2-2) — so such a move is refused with `unread` rather than charged as nothing |
 | `asks:` | how paying puts its question (§3-8-2). `choice` is a price the payer is asked about whenever more than one genuinely different way to pay exists — the existing `payCost` prompt, whose options are `Payment` values; `nothing` (the default) is a price with only one way to pay |
 | `IF` | a condition the price also requires. Refused by name today — a price with a condition of its own waits on #142's evaluator |
 | `DO { … }` | two things at once. The op's **target** is the pool the price is paid out of (`IN you.energy active` says both which area and which mode), and the **op** is what paying does to what was taken from it. How *many* is never in the program |
 | `text:` | what the price is, in the manual's words |
 
-Six are declared, one per kind the manual charges: `energy` (5-3, with the coloured orbs of 1-2-3,
-the either-orbs of 22-13, the energy markers of 1-14-2 and X), `marker` (13-4), `life` (21-3),
-`rest` (1-10-1), `payWith` (20-19) and `text`. The last is the reason a price is a declaration at
+Seven are declared, one per kind the manual charges: `energy` (5-3, with the coloured orbs of 1-2-3,
+the either-orbs of 22-13, the energy markers of 1-14-2 and X), `zEnergy` (5-4, brought forward from
+#151 because `playZ` cannot be offered without it), `marker` (13-4), `life` (21-3), `rest` (1-10-1),
+`payWith` (20-19) and `text`. `zEnergy` and `payWith` share a `consumes:` word and the planner still
+tells them apart without reading either name: one's `DO` targets a **place** (`IN you.zEnergy`), so
+the cards come out of that pool and go where the op says, and the other's targets cards the price
+was handed, so they are rested where they stand. The last is the reason a price is a declaration at
 all: it is the half of a printed price no engine charges itself, and a move that asks for it is
 **refused** — with the `unread` requirement naming the card, the same answer the legacy engine gives
 for a skill whose cost the compiler could not read. A move whose price had no declaration would be a
@@ -580,17 +601,15 @@ same cards rested, the same options and the same words for them. Two gaps are wr
 they are rather than papered over. The amounts of `marker`, `life` and `payWith` have nothing to
 bind them until #147, so an action naming one of those is refused **by name**; and the reductions of
 20-21 — the flat one, the coloured one, and 22-19's [Warrior of Universe 7] — are the `costOf`
-attribute's declared `layers:`, which are still empty. #142 landed the machinery that reads an
-attribute through its layers and deliberately left these two out (`LAYERS` in `vm/effects.ts` has no
-`reduction` or `specified` row, and `DEFERRED_STATICS` hands `costReduction`, `altCost` and
-`payWith` to this issue). Filling them needs four decisions about the layer machinery rather than
-about a price — a clamped layer, since 20-21-2's floor at zero is not additive; a printed base for a
-*derived* attribute, since nothing maps `costOf` onto the `energyCost` it discounts; a
+attribute's declared `layers:`, which are still only partly wired. #148 named four decisions the
+layer machinery needed before `costOf` could mean anything, and #146 made one of them: `PRINTED_BASE`
+in `vm/cards.ts` pairs each derived price with the printed number it discounts, so `costOf` now
+reads as the printed total rather than as nothing, and `amount: "costOf"` is a real reading rather
+than a promise. Three remain — a clamped layer, since 20-21-2's floor at zero is not additive; a
 `colors`-valued layer, since `specifiedCost` declares none; and a wider `VmStatic.kind` — and
 nothing can put a cost reducer in force on this engine until `permanents` stops refusing
 `costReduction` by name, so wiring them now would be a reducer that reads correctly and changes no
-board. `cardPrice` is the one function that reads a card's price, so pointing it at the layers when
-they exist is one change and not a hunt.
+board.
 
 ### What the loader does
 

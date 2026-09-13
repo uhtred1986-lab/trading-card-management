@@ -255,11 +255,12 @@ learned the expensive way. Read it before changing the compiler or the engine.
   game is storable mid-decision and reproducible from seed plus actions), a step's `prompt:` is
   what raises a question, and the End Phase's repeat is a `LIMIT n` on the step — the ceiling in
   the declaration, so a mis-declared trigger cannot hang a game. `DEFINE GAME` names the setup and
-  over phases so the runner knows neither by name. It plays **pass, endMain and concede** — a
-  pass-only game runs turn to turn to a deck-out and logs event for event what the legacy engine
-  logs, which `verify/vm.ts` asserts and `arena-fuzz --engine rules` shakes out. Two constants still
-  name pieces of the DBS definition and both are checked against it at load: `SETUP_ZONES` and
-  `STEP_WORK`, the six steps whose `DO` programs Stage 5 writes.
+  over phases so the runner knows neither by name. It plays **pass, endMain, concede, the charge and
+  the play family** — a game of charging, playing and passing runs turn to turn to a deck-out and
+  logs event for event what the legacy engine logs, which `verify/vm.ts` asserts and `arena-fuzz
+  --engine rules` shakes out. Four constants still name pieces of the DBS definition and each is
+  checked against it at load: `SETUP_ZONES`, `STEP_WORK` (the six steps whose `DO` programs Stage 5
+  writes) and `vm/play.ts`'s `PLAY_ZONES` and its two neighbours.
   **A move and its refusal are one paragraph** (`vm/actions.ts` + `dbs/actions.rules`, #144):
   `DEFINE ACTION` is WHEN / `prompts:` / FOR / BIND / COST / DO / REFUSE, and `legalActions` and
   `rejectedActions` are two readings of it — the candidates whose `REFUSE` lines all hold, and the
@@ -271,10 +272,29 @@ learned the expensive way. Read it before changing the compiler or the engine.
   neither list. What the interpreter reads so far is a `FOR` by side/area/filter/mode, a `REFUSE` of
   `count()`/`isTurnPlayer()` and their combinations, and a `DO` of `note()`; everything else is
   refused *by name* rather than read as false. `actions.rules` declares charge, endMain, pass and
-  concede (#145); play and activate are #146–#147 and the program evaluator #142.
-  **A price is a declaration too** (`vm/costs.ts` + `dbs/costs.rules`, #148): six `DEFINE COST`s —
-  energy (total, coloured orbs, either-orbs, X), marker, life, rest, payWith and the `text` price no
-  engine charges itself — each saying what it `consumes:` and how the payment `asks:` its question,
+  concede (#145) and the play family (#146); activate is #147.
+  **Playing a card is a paragraph too** (`vm/play.ts` + the three `play` declarations, #146):
+  `play` (8-3-2), `playUnison` (13-2) and `playZ` (16-2) each name a `COST` and a `DO` of the one
+  `play` op, so a play a player declares and a play a skill makes (5-5-3) resolve in the same place.
+  The card's arrival is a `moved(asPlay: true)` moment `triggers.rules` turns into `played` — nothing
+  pends a trigger by name — a Unison's markers are the energy paid (`addMarker(n: X)`, where a move's
+  `X` is the amount its price was settled at), 3-11-5 is read off the zone's `single:` rather than
+  off the card's type, and a [Permanent] comes into force by the card being in an in-play area.
+  7-3-4's free timing is the declaration's `again:`: taking a play leaves the Main Phase's question
+  on the table, and `endMain` — which carries none — is what ends the phase. `verify/vm.ts` §18
+  asserts the log event for event against the legacy engine, and the first refusal per card with it.
+  Three gaps are written into `actions.rules` beside the paragraphs: an **X** cost has no total until
+  its master names one and a candidate is a card and nothing else, so such a card is refused `unread`
+  rather than offered free; 22-39's [Unique] needs a filter for "the same name as this candidate",
+  which `FILTER_FIELDS` has none; and 20-14's prohibitions need `DEFERRED_STATICS.forbid`. 13-3's
+  `growUnison` is **not** declared — its once-a-turn gate needs a player attribute a condition can
+  read and an op that sets one, and the language has neither — and 22-33's `offering` is a boolean
+  answer no candidate can carry (#157).
+  **A price is a declaration too** (`vm/costs.ts` + `dbs/costs.rules`, #148): seven `DEFINE COST`s —
+  energy (total, coloured orbs, either-orbs, X), zEnergy (5-4, brought forward from #151 so `playZ`
+  is not offered free), marker, life, rest, payWith and the `text` price no engine charges itself —
+  each saying what it `consumes:`, which card attribute its `amount:` is read off, and how the
+  payment `asks:` its question,
   and **one planner over those words rather than a branch per price**. It switches on `consumes:`
   and never on a declaration's name, and reads the declaration's `DO` for two things at once: the
   op's `target` is the pool the price is paid out of (`IN you.energy active` names both the area and
@@ -284,11 +304,13 @@ learned the expensive way. Read it before changing the compiler or the engine.
   `payCost` prompt with legacy `Payment` options (so no `Prompt` kind and no `Snapshot` field moved),
   and the same cards rested. `priceFor` is the one evaluation the row's `ActionCost` and the charge
   both come from. Two gaps are named rather than charged as nothing: the amounts of marker, life and
-  payWith have nothing to bind them until #147, so an action naming one is refused by name; and
-  `cardPrice` reads the *printed* cost, because 20-21's reductions and 22-19's [Warrior of Universe
-  7] are the `costOf` attribute's declared layers, which `vm/effects.ts` still has no row for —
-  `vm/costs.ts`'s header says which four pieces of the layer machinery they need and why wiring them
-  ahead of a board that can put a reducer in force would be a reducer that changes no board.
+  payWith have nothing to bind them until #147, so an action naming one is refused by name; and the
+  price still comes out as the *printed* cost, because 20-21's reductions and 22-19's [Warrior of
+  Universe 7] are the `costOf` attribute's declared layers and only one of the four pieces those
+  needed is built (#146's `PRINTED_BASE` in `vm/cards.ts`, which pairs `costOf` with the
+  `energyCost` it discounts, so `amount: "costOf"` reads a number at all) — `vm/costs.ts`'s header
+  says which three are left and why wiring them ahead of a board that can put a reducer in force
+  would be a reducer that changes no board.
   **A moment is an event pattern, not a name** (`vm/events.ts` + `vm/triggers.ts`, #141): the
   runner says what happened — a card moved, a phase began, a mode switched — as a `Moment` in the
   words `dbs/triggers.rules` is written in, and the declarations decide which [Auto]s that is a

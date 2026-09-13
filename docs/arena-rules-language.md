@@ -287,8 +287,9 @@ DEFINE STEP mainStart
 phases it is available in (required), `prompts:` the questions within them it answers, `FOR` the
 cards it applies to, `BIND` the name a refusal calls the candidate by, `decline:` the words for
 answering it with no card at all, `COST` the names of the `DEFINE COST` prices it charges, `DO` what
-it does (required), one `REFUSE` line per requirement, `listed:` whether the menu carries it,
-`label:` the words it shows there, and `text:` what it is.
+it does (required), one `REFUSE` line per requirement, `again:` whether taking it leaves the question
+on the table, `listed:` whether the menu carries it, `label:` the words it shows there, and `text:`
+what it is.
 
 `decline:` is the other half of a *may*. The charge (§7-2-11) offers a card in hand **and** the
 answer that places none, and that answer is a candidate of its own rather than the absence of one —
@@ -308,6 +309,14 @@ expression the legality check runs. The lines are read in order and no further t
 fails, so they are written in the order the check runs them. The refusal is part of the declaration
 because every rule is a visible workflow (`docs/arena-workflow-spec.md`): an action with no `REFUSE`
 can only be missing from the menu, never explained.
+
+`again: true` is §7-3-4's free timing, written down. A move without it answers the question its step
+asked and the step moves on, which is what ending a phase, charging and declining all do; a move
+with it is one of many a player may take at the same timing — play a card, grow a Unison, activate a
+skill, attack — and the step puts the same question again once the board has settled, until a move
+that is *not* declared this way ends it. The legacy engine says the same thing by pushing its
+`turn.promptMain` step back on the flow from inside every such handler, which is a fact about the
+turn kept in twenty places instead of one.
 
 `listed: false` is the concede rule written down — a move a client shows as a button of its own is
 accepted without ever being enumerated. It says nothing about legality; the move is checked exactly
@@ -329,6 +338,7 @@ DEFINE ACTION play
   }
   REFUSE timing(window: main) UNLESS isTurnPlayer()
   REFUSE cardType(needs: "a Battle Card") UNLESS count(FROM $card "battle card") >= 1
+  again: true
   listed: true
   label: "Play"
   text: "the turn player plays a card from their hand (7-3-4)"
@@ -361,13 +371,15 @@ DEFINE KEYWORD Blocker
 ```
 
 **COST** — a price the game knows how to charge, named so an action can ask for it. `TAKES` its
-parameters, `consumes:` the resource it takes (required), `asks:` how paying puts its question,
-`IF` when it can be paid, `DO` what paying it does (required), `text:` how it reads.
+parameters, `consumes:` the resource it takes (required), `amount:` the card attribute its amount is
+read off, `asks:` how paying puts its question, `IF` when it can be paid, `DO` what paying it does
+(required), `text:` how it reads.
 
 ```
 DEFINE COST energy
   TAKES (total: amount, orbs: colors)
   consumes: energy
+  amount: "costOf"
   asks: choice
   DO {
     switchMode(target: IN you.energy active, mode: rest)
@@ -383,6 +395,17 @@ price no engine charges itself: a move that asks for it is **refused**, with the
 requirement naming the card, which is the same answer the legacy engine gives for a skill whose cost
 the compiler could not read. A price with no declaration at all would be a move taken for free,
 which is why the loader refuses one.
+
+`amount:` names the **card attribute** the price's amount is read off when the move asking for it is
+about a card (§20-21). `ACTION play COST [energy]` passes no arguments — binding a `TAKES` parameter
+is a skill's own record, #147 — so the number has to come from the card being paid for, and the
+declaration is where a game says which number that is. It is written as an attribute name rather
+than as a field of the action because it is a fact about the *price*: the energy price of a play is
+the card's cost however many moves ask for it. Name the **derived** attribute (`costOf`, not
+`energyCost`) and every reduction in force reaches the price through that attribute's declared
+`layers:` rather than through a reading of its own. An attribute the card does not carry is not
+zero: an X cost has no total until its master names one (§1-2-2-2), and a move asking for such a
+price is refused with the `unread` requirement rather than charged as nothing.
 
 `asks:` is §3-8-2, the player's free choice of which energy to rest: `choice` is a price the payer
 is asked about whenever more than one genuinely different way to pay it exists — the existing

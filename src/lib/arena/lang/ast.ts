@@ -487,6 +487,18 @@ export interface DefAction extends Declaration<"ACTION"> {
   cost?: string[];
   do: Op[];
   refusals?: DefineRefusal[];
+  /**
+   * 7-3-4's free timing: taking this move leaves the question **on the table**.
+   *
+   * A move without it answers the question its step asked and the step moves
+   * on, which is what ending a phase, charging and declining all do. A move
+   * with it is one of many a player may take at the same timing — play a card,
+   * grow a Unison, activate a skill, attack — and the step asks again once the
+   * board has settled, until a move that is *not* declared this way ends it.
+   * The legacy engine says the same thing by pushing `turn.promptMain` back on
+   * its flow from inside every such handler.
+   */
+  again?: boolean;
   listed?: boolean;
   /** The words the menu shows for it; the card's own name is added by the interpreter. */
   label?: string;
@@ -533,10 +545,24 @@ export type CostConsumes = (typeof COST_CONSUMES)[number];
 export const COST_ASKS = ["choice", "nothing"] as const;
 export type CostAsks = (typeof COST_ASKS)[number];
 
-/** `DEFINE COST` — a price the game knows how to charge, by name. */
+/**
+ * `DEFINE COST` — a price the game knows how to charge, by name.
+ *
+ * `amount` is the **card attribute the price's amount is read off** when the
+ * move asking for it names a card: `ACTION play COST [energy]` passes no
+ * arguments (binding a `TAKES` parameter is #147's, where a skill's own record
+ * supplies them), so the number has to come from the card being paid for, and
+ * the declaration is where a game says which number that is. Written as an
+ * attribute name rather than as a field of the action, because it is a fact
+ * about the *price* — the energy price of a play is the card's cost however
+ * many moves ask for it — and because naming the **derived** attribute
+ * (`costOf`, not `energyCost`) is what makes 20-21's reductions apply through
+ * the declared layers instead of through a second path.
+ */
 export interface DefCost extends Declaration<"COST"> {
   takes?: DefineParam[];
   consumes: CostConsumes;
+  amount?: string;
   asks?: CostAsks;
   if?: Cond;
   do: Op[];
@@ -646,6 +672,7 @@ export const DEFINE_SCHEMA = {
       { name: "cost", type: { list: "string" }, word: "COST" },
       { name: "do", type: "ops", word: "DO", required: true },
       { name: "refusals", type: "refusals", word: "REFUSE" },
+      { name: "again", type: "boolean" },
       { name: "listed", type: "boolean", default: true },
       { name: "label", type: "string" },
       TEXT,
@@ -669,6 +696,7 @@ export const DEFINE_SCHEMA = {
     fields: [
       PARAMS,
       { name: "consumes", type: { enum: COST_CONSUMES }, required: true },
+      { name: "amount", type: "string" },
       { name: "asks", type: { enum: COST_ASKS }, default: "nothing" },
       { name: "if", type: "cond", word: "IF" },
       { name: "do", type: "ops", word: "DO", required: true },

@@ -20,10 +20,13 @@
  *
  *   `ko`, `placeUnder`                a KO and a pile are moves a rule makes,
  *                                     and the move-by-skill half is #146.
- *   `playThen`                        5-5-3, playing a card from a skill: #146.
  *   `replacementsFor`, the two
- *   `setPlay*` and `replaceResolving` 9-10 and 9-6 both stand in front of a
- *                                     *play*, which #146 declares.
+ *   `setPlay*` and `replaceResolving` 9-10 and 9-6 both stand between a play
+ *                                     being *declared* and its landing, and on
+ *                                     this engine there is no such gap: a play
+ *                                     resolves inside the op that makes it,
+ *                                     because the counter window the legacy
+ *                                     engine opens there is Stage 6's (#150).
  *   `battle`, `setGuard`,
  *   `negateAttack`                    Stage 6 — there is no battle yet. These
  *                                     answer "no battle" rather than refusing,
@@ -45,6 +48,7 @@ import type { GameDefinition } from "../rulesets";
 import { addEffect, dropEffectsOn, negatedSkillsOf, schedule } from "./effects";
 import { NotYet } from "./errors";
 import { emit, log } from "./events";
+import { resolvePlay } from "./play";
 import { SETUP_ZONES, arrivalMode, moveCard } from "./zones";
 import { attrsNow, amount, condHolds, hasKeyword, resolveRef, resolveSelector, sideOf, zoneOf } from "./program";
 import { masterOf, skillsShowing } from "./triggers";
@@ -224,14 +228,20 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // answer is that nothing stands in front of the move.
     replacementsFor: () => [],
     resolvingCard: () => null,
+    // 9-6: a play *being resolved* is a play that has been declared and has not
+    // landed yet, which on this engine is a moment that does not exist — a play
+    // resolves inside the op that makes it (`playThen` above), because the
+    // counter window the legacy engine opens between the two is Stage 6's.
+    // `resolvingCard` answering null is what keeps the two `setPlay*` below
+    // unreachable rather than wrong, and `stepScript` already breaks on it.
     setPlayRest: () => {
-      throw new NotYet("play a card in Rest Mode (5-5) — the play being resolved is #146's", "#146");
+      throw new NotYet("play a card in Rest Mode (5-5) — the window between declaring a play and resolving it is Stage 6's", "#150");
     },
     setPlayNegated: () => {
-      throw new NotYet("play a card with its skills negated (5-5) — the play being resolved is #146's", "#146");
+      throw new NotYet("play a card with its skills negated (5-5) — the window between declaring a play and resolving it is Stage 6's", "#150");
     },
     replaceResolvingPlay: () => {
-      throw new NotYet("put a program in the place of the play being resolved (9-6)", "#146");
+      throw new NotYet("put a program in the place of the play being resolved (9-6) — the counter window it happens in is Stage 6's", "#150");
     },
 
     // ── the battle (8-1) ─────────────────────────────────────────────────
@@ -270,8 +280,21 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       state.programs.unshift(frame);
       state.programs.unshift(first);
     },
-    playThen: (cards) => {
-      throw new NotYet(`play ${cards.length} card${cards.length === 1 ? "" : "s"} with a skill (5-5-3)`, "#146");
+    // 5-5-3: the `play` op, and therefore **every** play on this engine — an
+    // `ACTION play` says `DO { play(target: $card) }` and arrives here too, so a
+    // play a player declares and a play a skill makes are one act (#146).
+    //
+    // The plays happen on the spot and the frame goes back on the queue behind
+    // them, which is the legacy engine's order (`play.resolve` steps first, the
+    // rest of the skill after). It is synchronous because nothing a play does
+    // on this engine asks a question: the counter window the legacy engine
+    // opens over a play is Stage 6's, and [Empower]'s "how many markers to
+    // carry" is a §22 keyword, #157's. A play that grows a question is a
+    // question this must learn to hold, and `resolvePlay` names the two that
+    // would.
+    playThen: (cards, opts, frame) => {
+      for (const id of cards) resolvePlay(ctx, game, state, ev, id, opts.player, { mode: opts.mode, onto: opts.onto, negated: opts.negated });
+      state.programs.unshift(frame);
     },
   };
 }

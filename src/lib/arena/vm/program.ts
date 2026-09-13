@@ -37,7 +37,7 @@ import type { ContinuousEffect, KeywordSkill, PlayerId } from "../engine/types";
 import { other } from "../engine/types";
 import { powerRelOk } from "../engine/filters";
 import type { GameDefinition } from "../rulesets";
-import { attrsOf, type AttrValue, type Attrs } from "./cards";
+import { PRINTED_BASE, attrsOf, type AttrValue, type Attrs } from "./cards";
 import { permanents, valueOf, type VmStatic } from "./effects";
 import { predicateOf } from "./filters";
 import { masterOf, skillsShowing } from "./triggers";
@@ -110,12 +110,22 @@ export function attrsNow(ctx: EngineContext, game: GameDefinition, state: VmStat
   const printed = attrsOf(def, game).attrs;
   const standing = statics(ctx, game, state);
   const out: Record<string, AttrValue> = { ...printed };
+  // 20-21: a board-filled price has no printed face of its own — its `printed`
+  // layer is the number beside it, and `PRINTED_BASE` is that pairing. Seeded
+  // before the layers are walked, so a reduction adds to the printed cost
+  // rather than to nothing. Absent stays absent: an X cost has no total until
+  // someone names one (1-2-2-2), and 0 would be a price nobody chose.
+  const base: Record<string, AttrValue> = { ...printed };
+  for (const [derived, face] of Object.entries(PRINTED_BASE)) {
+    if (!game.attributes[derived] || printed[face] === undefined) continue;
+    base[derived] = printed[face];
+  }
   for (const name of Object.keys(game.attributes)) {
     if (!game.attributes[name].layers?.length) continue;
     const kind = name as ContinuousEffect["kind"];
     const value = valueOf(
       game,
-      printed,
+      base,
       name,
       standing.filter((e) => e.kind === name && e.target === id),
       state.effects.filter((e) => e.kind === kind && e.target === id),

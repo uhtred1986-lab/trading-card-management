@@ -477,7 +477,11 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     return true;
   }
 
-  log(ev, { type: "skill", card: next.card, skill: next.skillIndex, master: next.master, text: skill?.effect ?? "", inBattle: false });
+  // `raw` and not `effect`: the beat shows the skill **as printed**, tag and
+  // all, which is what the legacy engine logs (`sk.raw`) and therefore what
+  // the two logs are compared on. The effect alone reads as a card that never
+  // said it was an [Auto].
+  log(ev, { type: "skill", card: next.card, skill: next.skillIndex, master: next.master, text: skill?.raw ?? "", inBattle: false });
   state.programs.unshift(frame);
   return true;
 }

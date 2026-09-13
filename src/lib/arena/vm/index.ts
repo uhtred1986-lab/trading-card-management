@@ -4,24 +4,29 @@
  * `legacy` (`../engine/`) plays the manual as TypeScript; this one plays a
  * `GameDefinition` — the `.rules` files in `../rulesets/` — and is being built
  * behind the same `Engine` interface so the two can be compared move for move
- * (`arena:diff`). Five things it can do now: make a game and deal the
+ * (`arena:diff`). Six things it can do now: make a game and deal the
  * pre-game procedure into zones and attributes it reads off the definition
  * (`./zones.ts`, `./cards.ts`), **run the turn** as the phase and step
  * declarations say (`./flow.ts`), draw the board and the beats for a
  * client (`./view.ts`, `./beats.ts`), read **a move and its refusal off one
- * declaration** (`./actions.ts`), and **resolve a program** — a skill's or an
+ * declaration** (`./actions.ts`), **resolve a program** — a skill's or an
  * action's — on the interpreter the legacy engine runs (`./host.ts`,
- * `./program.ts`, `./effects.ts`, #142).
+ * `./program.ts`, `./effects.ts`, #142), and **play a card** (`./play.ts`,
+ * #146).
  *
  * What it will accept is **pass, endMain and concede** (#140), every
- * `DEFINE ACTION` `actions.rules` declares (#144/#145) — the charge included —
- * the two answers a running program asks for, a choice of cards and a choice of
- * options (#142), and the one a *price* asks for: which energy to rest (#148).
- * A declared price is charged rather than refused by name (`./costs.ts`):
- * `costs.rules` declares six and one planner over their `consumes:` words
- * answers what `planPayment` answers, puts the same `payCost` question and
- * takes the same payment. Playing, activating and attacking are the issues
- * after this one, each a paragraph in `actions.rules`.
+ * `DEFINE ACTION` `actions.rules` declares (#144/#145) — the charge, and now
+ * the play family — the two answers a running program asks for, a choice of
+ * cards and a choice of options (#142), and the one a *price* asks for: which
+ * energy to rest (#148). A declared price is charged rather than refused by
+ * name (`./costs.ts`): `costs.rules` declares seven and one planner over their
+ * `consumes:` words answers what `planPayment` answers, puts the same
+ * `payCost` question and takes the same payment. A play lands in one place
+ * whether a player declared it or a skill made it (5-5-3), the card's arrival
+ * is a `moved(asPlay: true)` moment that the `played` declarations answer, and
+ * 7-3-4's free timing is the `again:` on the declaration rather than a step
+ * this file pushes. Activating and attacking are the issues after this one,
+ * each a paragraph in `actions.rules`.
  * `ENGINE_INFO.rules.available` stays false, so the `/arena` form still greys
  * the engine out and no row can be created on it.
  *
@@ -46,6 +51,7 @@ import { NotYet, RulesetBroken } from "./errors";
 import { fire } from "./events";
 import { SETUP_ZONES, WORKED_STEPS, answered, draw, endGame, enterPhase, flipForChooser, moved, other, requirePrompt, run, shuffleDeck, turnPhases } from "./flow";
 import { VM_STATE_VERSION, type VmSide, type VmState } from "./state";
+import { PLAY_ZONE_NAMES } from "./play";
 import { emptyZones, moveCard, newCard, placeZones } from "./zones";
 import { vmBoardView } from "./view";
 import { vmToBeats } from "./beats";
@@ -92,6 +98,7 @@ export {
   type VmStatic,
 } from "./effects";
 export { NAMED_ZONES, NARROWER, amount, attrsNow, condHolds, hasKeyword, resolveRef, resolveSelector, sideOf, zoneOf } from "./program";
+export { PLAY_ZONES, PLAY_ZONE_NAMES, resolvePlay, type PlayOptions } from "./play";
 export { vmHost } from "./host";
 export { masterOf, matchTriggers, nextPending, pendAutos, skillsShowing, type TriggerMatch, type VmPending } from "./triggers";
 export { attributeGaps, attrsForDefs, attrsOf, cardAttributes, playerAttributes, type AttrProblem, type AttrValue, type Attrs, type AttributeGaps } from "./cards";
@@ -168,6 +175,13 @@ function createGame(ctx: EngineContext, options: GameOptions): { state: VmState;
   const places = new Set(placeZones(game));
   for (const zone of Object.values(SETUP_ZONES)) {
     if (!places.has(zone)) throw new RulesetBroken(ARENA_GAME, `the pre-game procedure puts cards in the ${zone}, which it declares no zone for`);
+  }
+  // 5-5: and every zone a play puts a card in. `PLAY_ZONES` and its two
+  // neighbours in `vm/play.ts` are the pieces of the DBS definition that module
+  // still names, and a name nothing declares is a play that would throw in the
+  // middle of a game rather than at the making of one.
+  for (const zone of PLAY_ZONE_NAMES) {
+    if (!places.has(zone)) throw new RulesetBroken(ARENA_GAME, `a card is played into the ${zone}, which it declares no zone for`);
   }
   // The other half of the same promise: every step the interpreter still
   // carries out itself is a step this game really declares. A row in
@@ -290,10 +304,11 @@ function report(problems: AttrProblem[], gaps: { unfilled: string[]; undeclared:
 /**
  * One action, applied.
  *
- * Five of them, and every one is about the *flow*: who goes first, whether to
- * redraw, and the three ways of declining to do anything else. What a card
- * does is a `DEFINE ACTION` with a price and a program, which is Stage 5 — so
- * an action this engine has no case for is refused by name rather than
+ * Five cases here, and every one is about the *flow* or about a question a
+ * running program put: who goes first, whether to redraw, which energy to
+ * rest, and the two answers a skill asks for. What a card *does* is a
+ * `DEFINE ACTION` with a price and a program, read by `./actions.ts` — so an
+ * action this engine has no declaration for is refused by name rather than
  * silently ignored.
  *
  * The state is cloned before anything is touched, as the legacy engine's is:
@@ -411,19 +426,24 @@ function apply(ctx: EngineContext, prev: VmState, action: Action): { state: VmSt
 
 /**
  * Which issue declares a move this engine has no paragraph for yet, so a
- * refusal names the work rather than the gap. The play family and the battle it
- * leads to are #146's; an activation needs a skill index as well as a card, and
- * is #147's.
+ * refusal names the work rather than the gap.
+ *
+ * The play family is declared (#146) and so is gone from this list; what is
+ * left of it is 13-3's Unison growth, whose once-a-turn gate the language has
+ * no word for — a player attribute a condition can read and an op that sets one
+ * — and the two answers that are not moves a menu enumerates. An activation
+ * needs a skill index as well as a card (#147); the battle and everything that
+ * answers inside it is Stage 6 (#150), and the Z-Energy a combo can become is
+ * #151.
  */
 const DECLARED_BY: Partial<Record<Action["type"], string>> = {
-  play: "#146",
-  playZ: "#146",
   growUnison: "#146",
-  attack: "#146",
-  block: "#146",
-  combo: "#146",
-  counter: "#146",
-  zEnergyFromCombo: "#146",
+  offering: "#157",
+  attack: "#150",
+  block: "#150",
+  combo: "#150",
+  counter: "#150",
+  zEnergyFromCombo: "#151",
   activate: "#147",
 };
 
@@ -477,7 +497,7 @@ function promptAnswers(ctx: EngineContext, state: VmState): LegalAction[] {
     case "payCost":
       return pr.options.map((option, i) => ({
         action: { type: "payCost", player: pr.player, option: i },
-        label: `Rest ${describePayment(ctx, definitionFor(state.game), state, { rest: option.rest, energyMarkers: option.markers, markers: 0, life: [], restsSelf: false })}`,
+        label: `Rest ${describePayment(ctx, definitionFor(state.game), state, { rest: option.rest, energyMarkers: option.markers, markers: 0, life: [], pooled: [], restsSelf: false })}`,
       }));
     // 5-2: one card per answer, so the menu is one move per candidate — the
     // legacy engine's labels word for word, because a client that read
