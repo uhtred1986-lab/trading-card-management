@@ -1566,8 +1566,27 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // End Phase would be a different card from one that says nothing about
   // giving the card back (20-9 sets no term of its own).
   if ((m = /^(?:(you|your opponent) )?gains? control of (.+)$/.exec(q))) {
-    const ref = refFor(m[2], c);
+    const phrase = m[2].trim();
+    const ref = refFor(phrase, c);
     if (!ref) return null;
+    // Two guard rails, both found by diffing the readings rather than the
+    // coverage figure — a clause that compiles and points at the wrong card
+    // moves no number and is worse than a gap.
+    //
+    // `refFor` falls back to *this card* for a pronoun with nothing else to
+    // resolve against, and a card cannot take control of itself from the
+    // player already mastering it: BT21-063's "you gain control of it" comes
+    // after "place this card under that card", so the pronoun's antecedent is
+    // the card underneath, which is the one thing it cannot mean. Self is
+    // accepted only where the print says so — "your opponent gains control of
+    // **this card**" (BT19-055, P-277, P-564) and P-413, which plays this card
+    // onto an opponent's and then takes the result.
+    if ("sel" in ref && ref.sel.special === "self" && !/^this card$/.test(phrase)) return null;
+    // The same fallback, the other way: "the played card" means the card the
+    // trigger was about, and with nothing playing it falls back to the last
+    // *choice* — which on BT19-154 is one of your own Battle Cards, sent to
+    // the Warp as the price.
+    if (/\bplayed card\b/.test(phrase) && !c.lastPlayed) return null;
     return [{ op: "control", target: ref, ...(m[1] === "your opponent" ? { to: "opponent" as const } : {}), ...(DURATION_TAIL.test(t) ? { until: durationOf(t) } : {}) }];
   }
 
