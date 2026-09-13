@@ -89,6 +89,7 @@ const WHOLE: Record<string, string> = {
     "  DO {",
     '    note(text: "the moment [Auto] skills of the Main Phase answer to")',
     "  }",
+    '  prompt: "main"',
   ),
   "zones.rules": lines(
     "DEFINE ZONE hand",
@@ -112,12 +113,15 @@ const WHOLE: Record<string, string> = {
     "",
     "DEFINE ACTION playCard",
     "  WHEN [main]",
+    "  prompts: [main]",
     "  FOR 1 IN you.hand",
+    '  BIND "card"',
     "  COST [energy]",
     "  DO {",
-    "    moveTo(target: $chosen, to: battle)",
+    "    moveTo(target: $card, to: battle)",
     "  }",
-    '  REFUSE "you cannot pay for that card"',
+    '  REFUSE cardType(needs: "a Battle Card") UNLESS count(FROM $card "battle card") >= 1',
+    '  label: "Play"',
     "",
     "DEFINE TRIGGER played",
     "  ON moved(from: hand, to: battle)",
@@ -170,6 +174,27 @@ says(
   "an action asking for an undeclared price",
 );
 says(refused({ "turn.rules": lines("DEFINE PHASE main", "  steps: [mainStart]") }, "a phase naming an undeclared step"), '"mainStart"', "a phase naming an undeclared step");
+
+// An action offered at a question nothing asks can never be offered at all, so
+// it is a dangling reference like any other (#144). The prompts are whatever
+// the steps ask for, which is the same list `vocabularyOf` reports — there is
+// no `DEFINE PROMPT` to resolve against until #131's question is answered.
+says(
+  refused({ "play.rules": lines("DEFINE ACTION endMain", "  WHEN [main]", "  prompts: [battleStep]", "  DO {}") }, "an action offered at a question nothing asks"),
+  '"battleStep"',
+  "an action offered at a question nothing asks",
+);
+
+// A refusal's condition selects cards, so it names zones — and one the game
+// never declared is a move that could never be explained.
+says(
+  refused(
+    { "play.rules": lines("DEFINE ACTION endMain", "  WHEN [main]", "  DO {}", "  REFUSE zone(area: warp) UNLESS count(IN you.warp) >= 1") },
+    "a refusal looking in an undeclared zone",
+  ),
+  '"warp"',
+  "a refusal looking in an undeclared zone",
+);
 
 // An area named deep inside a program is a dangling zone too — the check reads
 // the schema rows, so it sees a `moveTo`'s `to` nested in an `if`.

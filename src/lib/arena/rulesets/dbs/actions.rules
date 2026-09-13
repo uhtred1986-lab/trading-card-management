@@ -1,0 +1,35 @@
+-- The moves a player may make, as declarations rather than as predicates.
+--
+-- Sections are `docs/rules/rulemanual.txt`: §7-3-4 the free timing of the Main
+-- Phase, §7-2-11 the charge, §0-1-3-4 conceding.
+--
+-- An action is `WHEN / FOR / COST / DO / REFUSE` (§3b of
+-- `docs/arena-rules-language.md`, "how an action is declared" in
+-- `docs/arena-ruleset-spec.md`). `vm/actions.ts` reads all five: `WHEN` and
+-- `prompts:` say which question it is offered at, `FOR` which cards it is
+-- offered for, `REFUSE` the requirement a player is owed for each card it is
+-- *not* offered for, and `COST` and `DO` what taking it costs and does. The
+-- menu and the refusals therefore come from one paragraph, which is the whole
+-- point of the file: nothing below has a hand-written `whyNot` twin.
+--
+-- **One action so far.** The DBS moves are their own issues — charge, endMain
+-- and concede are #145, the play family #146, activations #147 and the prices
+-- #148 — and each arrives here as a paragraph. `pass` is the one that is
+-- already played, re-declared (#144): the generic decline, the answer that
+-- takes none of what the question offers, and the one verb a script or the
+-- fuzzer needs to play a whole game.
+--
+-- `listed: false` is the rule the legacy engine has always had and never
+-- wrote down: a move a client shows as a button of its own is accepted
+-- without ever being enumerated. It says nothing about legality — an unlisted
+-- action is checked exactly as a listed one is — only that it is on neither
+-- the menu nor the list of refusals, because a refusal explains a move a
+-- player can see. Conceding will be declared the same way (#145).
+
+DEFINE ACTION pass                                                        -- §7-3-4
+  WHEN [setup, charge, main]
+  prompts: [mulligan, charge, main]
+  DO {}
+  listed: false
+  label: "Pass"
+  text: "take none of what the question offers, whatever it is (6-2-1-9-1, 7-2-11, 7-3-4)"

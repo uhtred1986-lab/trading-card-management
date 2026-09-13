@@ -255,10 +255,21 @@ learned the expensive way. Read it before changing the compiler or the engine.
   the declaration, so a mis-declared trigger cannot hang a game. `DEFINE GAME` names the setup and
   over phases so the runner knows neither by name. It plays **pass, endMain and concede** — a
   pass-only game runs turn to turn to a deck-out and logs event for event what the legacy engine
-  logs, which `verify/vm.ts` asserts and `arena-fuzz --engine rules` shakes out; every other move
-  is a `DEFINE ACTION` with a price (Stage 5, #144–#147). Two constants still name pieces of the
-  DBS definition and both are checked against it at load: `SETUP_ZONES` and `STEP_WORK`, the six
-  steps whose `DO` programs Stage 5 writes.
+  logs, which `verify/vm.ts` asserts and `arena-fuzz --engine rules` shakes out. Two constants still
+  name pieces of the DBS definition and both are checked against it at load: `SETUP_ZONES` and
+  `STEP_WORK`, the six steps whose `DO` programs Stage 5 writes.
+  **A move and its refusal are one paragraph** (`vm/actions.ts` + `dbs/actions.rules`, #144):
+  `DEFINE ACTION` is WHEN / `prompts:` / FOR / BIND / COST / DO / REFUSE, and `legalActions` and
+  `rejectedActions` are two readings of it — the candidates whose `REFUSE` lines all hold, and the
+  first requirement that stopped each of the rest. There is no `whyNot*` twin to drift; a `REFUSE`
+  names a `Requirement` kind and nothing else (`REQUIREMENT_KINDS`, closed) so `wording.ts` needs no
+  second table; and §3.2's one-rejection-per-card is the *shape* rather than a dedupe pass —
+  `assertMenuInvariants` in `scripts/verify/harness.ts` is the one function both engines' menus are
+  passed to. `listed: false` is the concede rule written down: accepted, never enumerated, on
+  neither list. What the interpreter reads so far is a `FOR` by side/area/filter/mode, a `REFUSE` of
+  `count()`/`isTurnPlayer()` and their combinations, and a `DO` of `note()`; everything else is
+  refused *by name* rather than read as false. `actions.rules` declares one action, `pass`; the DBS
+  moves are #145–#147, the prices #148 and the program evaluator #142.
   **A moment is an event pattern, not a name** (`vm/events.ts` + `vm/triggers.ts`, #141): the
   runner says what happened — a card moved, a phase began, a mode switched — as a `Moment` in the
   words `dbs/triggers.rules` is written in, and the declarations decide which [Auto]s that is a

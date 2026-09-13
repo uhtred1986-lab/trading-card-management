@@ -24,7 +24,7 @@
 import { emptyFilter, parseFilter, type CardFilter } from "../engine/filters";
 import { AREAS, DURATIONS, KEYWORD_NAMES, SIDES, SPECIAL_TARGETS, COND_SCHEMA, OP_SCHEMA, type Amount, type Cond, type CostRecord, type FieldType, type Duration, type Op, type OpField, type Ref, type ScriptArea, type Selector, type Side, type XCost } from "../engine/script";
 import type { Color, KeywordSkill, Trigger } from "../engine/types";
-import { COST_ITEMS, DEFINE_KINDS, EXPR_ATTRS, EXPR_SCHEMA, FILTER_FIELDS, PARAM_TYPES, fieldsOf, type Definition, type DefineField, type DefineFieldType, type DefineHook, type DefineKind, type DefineParam, type EventPattern, type ExprArg, type FilterFieldType, type LangError, type Parsed, type PatternValue, type Rule } from "./ast";
+import { COST_ITEMS, DEFINE_KINDS, EXPR_ATTRS, EXPR_SCHEMA, FILTER_FIELDS, PARAM_TYPES, REQUIREMENT_KINDS, fieldsOf, type Definition, type DefineField, type DefineFieldType, type DefineHook, type DefineKind, type DefineParam, type DefineRefusal, type EventPattern, type ExprArg, type FilterFieldType, type LangError, type Parsed, type PatternValue, type Rule } from "./ast";
 import type { Words } from "../rulesets/words";
 import { LangSyntaxError, lex, positionOf, type Token } from "./tokens";
 
@@ -753,6 +753,13 @@ class Parser {
         const hooks = (out[f.name] as DefineHook[] | undefined) ?? [];
         hooks.push(this.hook());
         out[f.name] = hooks;
+      } else if (f.type === "refusals") {
+        // Like a hook: one line each, so a ruleset diff shows the refusal that
+        // changed rather than a re-flowed list — and the order is the order the
+        // legality check runs them in.
+        const refusals = (out[f.name] as DefineRefusal[] | undefined) ?? [];
+        refusals.push(this.refusal());
+        out[f.name] = refusals;
       } else {
         if (out[f.name] !== undefined) this.fail(`${JSON.stringify(f.name)} is said twice`, []);
         out[f.name] = this.defineValue(f);
@@ -801,19 +808,47 @@ class Parser {
     if (type === "params") return this.params();
     // `hooks` never reaches here: a hook is a line of its own, read by `hook`.
     if (type === "hooks") return this.fail("a hook is written HOOK <point> { … }", ["HOOK"]);
+    // Nor does `refusals`, for the same reason — `refusal` below reads one.
+    if (type === "refusals") return this.fail("a refusal is written REFUSE <requirement> UNLESS <condition>", ["REFUSE"]);
     return this.typed(type);
   }
 
   /** `moved(from: hand, to: battle)`, or a bare event name when nothing has to match. */
   private pattern(): EventPattern {
     const event = this.word("an event");
+    return { event, args: this.callArgs("an event pattern", "a field of the event") };
+  }
+
+  /**
+   * `REFUSE timing(window: main) UNLESS isTurnPlayer()` — the `REFUSE` itself is
+   * already eaten.
+   *
+   * The head is written exactly as an event pattern is, because it is the same
+   * shape: a name and the fields that go with it. What it names is a
+   * `Requirement` kind, and that list is closed — a refusal a game could declare
+   * and no client could word would be a greyed-out move with nothing to say.
+   */
+  private refusal(): DefineRefusal {
+    const at = this.tok;
+    const kind = this.word("a requirement");
+    if (!(REQUIREMENT_KINDS as readonly string[]).includes(kind)) {
+      throw new LangSyntaxError(`there is no requirement called ${JSON.stringify(kind)} for a client to word`, at.start, [...REQUIREMENT_KINDS]);
+    }
+    const args = this.callArgs("a requirement", "a field of the requirement");
+    if (!this.eatKw("UNLESS")) this.fail("a refusal says UNLESS and then the condition that would satisfy it", ["UNLESS"]);
+    this.skipNl();
+    return { kind: kind as DefineRefusal["kind"], args, unless: this.cond() };
+  }
+
+  /** The `(field: value, …)` half of a pattern or a refusal head — absent brackets mean no fields, never an error. */
+  private callArgs(what: string, field: string): Record<string, PatternValue> {
     const args: Record<string, PatternValue> = {};
-    if (!this.eatPunct("(")) return { event, args };
+    if (!this.eatPunct("(")) return args;
     this.skipNl();
     while (!this.isPunct(")")) {
-      if (this.tok.kind === "eof") this.fail("an event pattern is never closed", [")"]);
+      if (this.tok.kind === "eof") this.fail(`${what} is never closed`, [")"]);
       const at = this.tok;
-      const name = this.word("a field of the event");
+      const name = this.word(field);
       if (args[name] !== undefined) throw new LangSyntaxError(`${JSON.stringify(name)} is said twice`, at.start, []);
       this.want(":");
       args[name] = this.plain() as PatternValue;
@@ -822,7 +857,7 @@ class Parser {
       this.skipNl();
     }
     this.want(")");
-    return { event, args };
+    return args;
   }
 
   /** `(target: ref, amount: amount)` — what a macro, a price or a keyword takes. */

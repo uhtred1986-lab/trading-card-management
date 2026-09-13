@@ -4,16 +4,18 @@
  * `legacy` (`../engine/`) plays the manual as TypeScript; this one plays a
  * `GameDefinition` — the `.rules` files in `../rulesets/` — and is being built
  * behind the same `Engine` interface so the two can be compared move for move
- * (`arena:diff`). Three things it can do now: make a game and deal the
+ * (`arena:diff`). Four things it can do now: make a game and deal the
  * pre-game procedure into zones and attributes it reads off the definition
  * (`./zones.ts`, `./cards.ts`), **run the turn** as the phase and step
- * declarations say (`./flow.ts`), and draw the board and the beats for a
- * client (`./view.ts`, `./beats.ts`).
+ * declarations say (`./flow.ts`), draw the board and the beats for a
+ * client (`./view.ts`, `./beats.ts`), and read **a move and its refusal off one
+ * declaration** (`./actions.ts`).
  *
- * What it will accept is **pass, endMain and concede** (#140): the moves that
- * are about the flow rather than about a card. Charging, playing, activating
- * and attacking are Stage 5 — every one of them is a `DEFINE ACTION` with a
- * price, and neither the actions file nor the payment search exists yet.
+ * What it will accept is **pass, endMain and concede** (#140), and every
+ * `DEFINE ACTION` `actions.rules` declares (#144) — which so far is `pass`
+ * itself, re-declared. Charging, playing, activating and attacking are the
+ * issues after this one: each is a paragraph in that file and a price in
+ * `costs.rules`, and neither the prices nor the program evaluator exists yet.
  * `ENGINE_INFO.rules.available` stays false, so the `/arena` form still greys
  * the engine out and no row can be created on it.
  *
@@ -31,6 +33,7 @@ import type { Beats } from "../beats";
 import type { BoardView, CardArt } from "../view";
 import { PLAYERS, type PlayerId } from "../engine/types";
 import { rulesetFor, type GameDefinition } from "../rulesets";
+import { applyDeclared, declaredLegalActions, declaredRejectedActions } from "./actions";
 import { attributeGaps, attrsForDefs, playerAttributes, type AttrProblem, type AttrValue } from "./cards";
 import { NotYet, RulesetBroken } from "./errors";
 import { fire } from "./events";
@@ -42,6 +45,7 @@ import { vmToBeats } from "./beats";
 import type { Game } from "../../catalog/games";
 
 export { VM_STATE_VERSION, isVmState, type VmFrame, type VmSide, type VmState } from "./state";
+export { actionsAt, applyDeclared, candidatesOf, declaredLegalActions, declaredRejectedActions, type Candidate } from "./actions";
 export { NotYet, RulesetBroken } from "./errors";
 export { SETUP_ZONES, WORKED_STEPS, draw, moved, repeatAllowed, run, stepWorkNote, turnPhases, type MoveCause } from "./flow";
 export { emit, fire, log, type Moment } from "./events";
@@ -275,7 +279,7 @@ function apply(ctx: EngineContext, prev: VmState, action: Action): { state: VmSt
     case "charge": {
       requirePrompt(state, action, ["charge"]);
       // 7-2-11 is a *may*, and the half of it that places a card is a
-      // `DEFINE ACTION` with a price (Stage 5). Declining is the flow's own
+      // `DEFINE ACTION` with a price (#145). Declining is the flow's own
       // business and is the half that exists.
       if (action.card !== null) throw new NotYet("place a card in the Energy Area (7-2-11)", "#145");
       answered(state);
@@ -286,20 +290,14 @@ function apply(ctx: EngineContext, prev: VmState, action: Action): { state: VmSt
       answered(state);
       break;
     }
-    // The generic decline: whatever the step at the top of the flow is asking,
-    // pass is the answer that takes none of what it offers. It is the one verb
-    // a script or the fuzzer needs to play a whole game, and it is exactly the
-    // answer the three cases above give.
-    case "pass": {
-      requirePrompt(state, action, ["mulligan", "charge", "main"]);
-      answered(state);
-      break;
-    }
     default:
-      // Everything else is a move with a price and a program — a
-      // `DEFINE ACTION` — and Stage 5 is where the actions file and the
-      // payment search arrive.
-      throw new NotYet(`take a ${action.type} action — it plays pass, endMain and concede`, "#144");
+      // Everything else is a `DEFINE ACTION`: `actions.rules` says when it is
+      // offered, for which cards, what it costs and what it does, and
+      // `vm/actions.ts` reads all of it (#144). `pass` is the one declared so
+      // far — the generic decline, the answer that takes none of what the
+      // question offers — and a move no declaration claims is refused by name
+      // rather than silently ignored, naming the issue that declares it.
+      if (!applyDeclared(ctx, game, state, events, action)) throw new NotYet(`take a ${action.type} action — no DEFINE ACTION declares it`, "#145");
   }
 
   run(ctx, game, state, events);
@@ -316,15 +314,29 @@ function mulligan(ctx: EngineContext, game: GameDefinition, state: VmState, even
 }
 
 /**
- * Every legal move, which for now is one per prompt.
+ * Every legal move: the `DEFINE ACTION`s the question on the table could be
+ * answered with (#144), and then the answers that are still the flow's own.
  *
- * The labels are the legacy engine's word for word: the same menu answers both
- * engines, and a client that showed "Go first" on one board and "Choose to go
- * first" on the other would be a client reading the engine rather than the
- * contract. Conceding is not on the menu here either — the legacy engine
- * accepts it and never lists it, because it is a button of its own.
+ * The declared moves come first because they are the moves; the flow's are the
+ * declines, which is where the legacy engine puts "End turn" too. Conceding is
+ * on neither — a move declared `listed: false` is accepted and never
+ * enumerated, because it is a button of its own, which is exactly what the
+ * legacy engine does with it.
  */
-function legalActions(_ctx: EngineContext, state: VmState): LegalAction[] {
+function legalActions(ctx: EngineContext, state: VmState): LegalAction[] {
+  return [...declaredLegalActions(ctx, definitionFor(state.game), state), ...promptAnswers(state)];
+}
+
+/**
+ * The answers the interpreter still gives itself: who goes first, whether to
+ * redraw, and the two declines that have no declaration yet.
+ *
+ * The labels are the legacy engine's word for word, and each of these is a
+ * `DEFINE ACTION` waiting to be written (#145): a client that showed "Go first"
+ * on one board and "Choose to go first" on the other would be a client reading
+ * the engine rather than the contract.
+ */
+function promptAnswers(state: VmState): LegalAction[] {
   const pr = state.prompt;
   switch (pr.kind) {
     case "chooseFirst":
@@ -335,7 +347,7 @@ function legalActions(_ctx: EngineContext, state: VmState): LegalAction[] {
         { action: { type: "mulligan", player: pr.player, redraw: true }, label: "Mulligan" },
       ];
     case "charge":
-      // Placing a card is Stage 5, so the whole of 7-2-11 that this engine
+      // Placing a card is #145's, so the whole of 7-2-11 that this engine
       // offers is the skip. The step still happens (7-1-1).
       return [{ action: { type: "charge", player: pr.player, card: null }, label: "Skip charge" }];
     case "main":
@@ -348,13 +360,18 @@ function legalActions(_ctx: EngineContext, state: VmState): LegalAction[] {
 /**
  * Why a move is refused.
  *
- * Empty, and honestly so: a rejection is the answer to "why can't I play
- * *that* card" (`docs/arena-workflow-spec.md`), and every move this engine
- * knows about is on the menu whenever it is the player's turn to answer. The
- * list fills up with the actions it refuses — which is Stage 5's.
+ * Read off the same `DEFINE ACTION` paragraphs the menu is (#144): a candidate
+ * the declaration's `REFUSE` list stops is here with the requirement that
+ * stopped it, and a candidate with nothing against it is on the menu instead.
+ * There is no `whyNot*` twin to keep in step, because there is no second
+ * reading of the rule to drift from the first.
+ *
+ * The answers `promptAnswers` still gives are not explained, and honestly so:
+ * each is the only answer to its question, so there is no move a player could
+ * reach for and miss.
  */
-function rejectedActions(): RejectedAction[] {
-  return [];
+function rejectedActions(ctx: EngineContext, state: VmState, legal: LegalAction[]): RejectedAction[] {
+  return declaredRejectedActions(ctx, definitionFor(state.game), state, legal);
 }
 
 /** The board, drawn from the declarations for one side of the table. */

@@ -210,9 +210,9 @@ const instance = (fields: OpField[], wide: boolean): Record<string, unknown> => 
 }
 
 /**
- * The three shapes a card's rule never carries, and so the three the op
+ * The four shapes a card's rule never carries, and so the four the op
  * schema has no field type for: a trigger's event pattern, a macro's
- * parameter list, and a keyword's hook bodies. Everything else a declaration
+ * parameter list, a keyword's hook bodies and an action's refusals. Everything else a declaration
  * holds is an `OP_SCHEMA` field type and comes from `sample` above, so the
  * definition grammar is checked with the same values the effect language is.
  */
@@ -226,6 +226,13 @@ const defineSample = (t: DefineFieldType, wide: boolean): unknown => {
           { at: "attackDeclared", ops: [] },
         ]
       : [{ at: "played", ops: [] }];
+  if (t === "refusals")
+    return wide
+      ? [
+          { kind: "timing", args: { window: "main", n: 1, of: ["a", "b"], strict: true, host: null }, unless: { kind: "isTurnPlayer" } },
+          { kind: "zone", args: {}, unless: { kind: "count", sel: { fromVar: "card", area: "hand", side: "you" }, atLeast: 1 } },
+        ]
+      : [{ kind: "other", args: {}, unless: { kind: "isTurnPlayer" } }];
   return sample(t, wide);
 };
 

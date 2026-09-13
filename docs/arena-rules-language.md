@@ -163,6 +163,7 @@ name    := word | "\"" text "\""                     quoted when it carries a sp
 field   := name ":" value                           the fields written as a pair
          | WORD value                               the fields written as a clause word
          | "HOOK" point "{" stmt* "}"               a keyword's body, one line per hook point
+         | "REFUSE" requirement "UNLESS" cond       an action's refusal, one line per requirement
 value   := every value form of §3 — an amount, a selector, a cond, a program "{ … }",
            a list, a quoted text, a number, a flag
 pattern := event ( "(" field ":" plain ( "," field ":" plain )* ")" )?
@@ -181,11 +182,12 @@ field to put it in. A field whose row carries a `word` is written as that clause
 `REFUSE`); every other field is written `name: value`. The colon is what tells the two apart, so
 neither can be read as the other.
 
-Three shapes a card's rule never carries, and so three field types the op schema has no word for:
+Four shapes a card's rule never carries, and so four field types the op schema has no word for:
 `pattern` (a trigger's event — `moved(to: battle)`, written as `field: value` pairs and never as an
 arrow, because the lexer reads `-` and `>` as two tokens), `params` (what a macro, a price or a
-keyword takes), and `hooks` (a keyword's bodies, which print one `HOOK` line each rather than as a
-list, so a diff shows the hook that changed).
+keyword takes), `hooks` (a keyword's bodies, which print one `HOOK` line each rather than as a
+list, so a diff shows the hook that changed), and `refusals` (an action's requirements, one `REFUSE`
+line each for the same reason, and in the order the legality check runs them).
 
 ### The eleven kinds
 
@@ -281,22 +283,45 @@ DEFINE STEP mainStart
   text: "the start of the Main Phase (6-4-1)"
 ```
 
-**ACTION** — a move a player may make, and the sentence that says why they may not: `WHEN` the
-phases it is available in (required), `FOR` the cards it applies to, `COST` the names of the `DEFINE
-COST` prices it charges, `DO` what it does (required), `REFUSE` the sentence said when it may not be
-taken. The refusal is part of the declaration because every rule is a visible workflow
-(`docs/arena-workflow-spec.md`): an action with no `REFUSE` can only be missing from the menu, never
-explained.
+**ACTION** — a move a player may make, and the requirements that say why they may not: `WHEN` the
+phases it is available in (required), `prompts:` the questions within them it answers, `FOR` the
+cards it applies to, `BIND` the name a refusal calls the candidate by, `COST` the names of the
+`DEFINE COST` prices it charges, `DO` what it does (required), one `REFUSE` line per requirement,
+`listed:` whether the menu carries it, `label:` the words it shows there, and `text:` what it is.
+
+A `REFUSE` line is `REFUSE <requirement> UNLESS <condition>`. The requirement is written as an event
+pattern is — a name and the fields that go with it — and the name is a **`Requirement` kind** and
+nothing else (`REQUIREMENT_KINDS`, the closed list `src/lib/arena/engine/types.ts` declares), so a
+refusal a game declares is one `src/lib/arena/wording.ts` already knows how to word. The condition
+is the *positive* test: what would have had to hold for the move to be offered, which is the same
+expression the legality check runs. The lines are read in order and no further than the first that
+fails, so they are written in the order the check runs them. The refusal is part of the declaration
+because every rule is a visible workflow (`docs/arena-workflow-spec.md`): an action with no `REFUSE`
+can only be missing from the menu, never explained.
+
+`listed: false` is the concede rule written down — a move a client shows as a button of its own is
+accepted without ever being enumerated. It says nothing about legality; the move is checked exactly
+as a listed one is, and is simply on neither the menu nor the list of refusals.
+
+Who the move is offered *to* is deliberately not a field: a prompt is put to a player and an action
+answers a prompt, so the asked player is the actor. That is prompt machinery, which
+`docs/arena-ruleset-spec.md` §7 keeps out of the game's own files.
 
 ```
-DEFINE ACTION playCard
+DEFINE ACTION play
   WHEN [main]
-  FOR 1 IN you.hand
+  prompts: [main]
+  FOR 1 "battle card" IN you.hand
+  BIND "card"
   COST [energy]
   DO {
-    moveTo(target: $chosen, to: battle)
+    moveTo(target: $card, to: battle)
   }
-  REFUSE "you cannot pay for that card"
+  REFUSE timing(window: main) UNLESS isTurnPlayer()
+  REFUSE cardType(needs: "a Battle Card") UNLESS count(FROM $card "battle card") >= 1
+  listed: true
+  label: "Play"
+  text: "the turn player plays a card from their hand (7-3-4)"
 ```
 
 **TRIGGER** — a moment an [Auto] or a [Counter] answers to, as the event that is it (manual §9-6).

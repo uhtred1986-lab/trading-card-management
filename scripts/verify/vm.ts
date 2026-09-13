@@ -53,16 +53,21 @@ import {
   type Engine,
 } from "../../src/lib/arena/engines";
 import { boardView } from "../../src/lib/arena/view";
+import { refusal } from "../../src/lib/arena/wording";
 import {
   FilterNeedsAttribute,
   MEASURES,
   NotYet,
   RulesetBroken,
   VM_STATE_VERSION,
+  actionsAt,
+  applyDeclared,
   attrsOf,
   attributeGaps,
   attributesRead,
   cardAttributes,
+  declaredLegalActions,
+  declaredRejectedActions,
   deferredMeasures,
   emptyZones,
   findCard,
@@ -87,11 +92,11 @@ import {
   type Attrs,
   type VmState,
 } from "../../src/lib/arena/vm";
-import { loadRuleset, rulesetFor, type GameDefinition } from "../../src/lib/arena/rulesets";
-import { FILTER_FIELD_NAMES } from "../../src/lib/arena/lang";
+import { loadRuleset, rulesetFor, type ActionDef, type GameDefinition } from "../../src/lib/arena/rulesets";
+import { FILTER_FIELD_NAMES, parseDefinitions } from "../../src/lib/arena/lang";
 import { emptyFilter, type CardFilter } from "../../src/lib/arena/engine/filters";
 import type { CardDef, PlayerId } from "../../src/lib/arena/engine/types";
-import { CTX, DEFS, card, fifty, matches } from "./harness";
+import { CTX, DEFS, assertMenuInvariants, card, fifty, matches } from "./harness";
 
 const DECKS = { seed: 11, p1: { name: "You", leader: "L-RED", main: fifty("V1") }, p2: { name: "Claude", leader: "L-BLUE", main: fifty("V-BLUE") } };
 
@@ -922,6 +927,148 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     moved(CTX, DBS, s, [], handed(s, "p1", "DRAWER"), "battle", { owner: "p1", asPlay: true });
     assert.ok(s.pending.length > 0);
     assert.deepEqual(JSON.parse(JSON.stringify(s)), s, "a game with something pending does not round-trip through JSON");
+  }
+}
+
+// ── 15. a move and its refusal, off one declaration (#144) ─────────────────
+//
+// The claim Stage 5 rests on: `legalActions` and `rejectedActions` are two
+// readings of one `DEFINE ACTION` paragraph — the candidates whose `REFUSE`
+// lines are all satisfied, and the first requirement that stopped each of the
+// rest — so a move added to a game is a paragraph in `actions.rules` and the
+// refusal comes for free. No `whyNot*` twin, and therefore nothing to drift.
+//
+// The fixture is the language's own worked example: three candidates in a hand
+// and two refusals, one of which the third candidate also fails, so the order
+// the lines are read in is a thing this proves rather than a thing it assumes.
+{
+  const rulesEngine = engineFor("rules");
+
+  /** The DBS definition with one more action in it. Parsed rather than hand-built, so the grammar is what the interpreter is fed. */
+  function withAction(text: string): GameDefinition {
+    const parsed = parseDefinitions(text);
+    assert.ok(parsed.ok, `the fixture action does not parse: ${parsed.ok ? "" : `${parsed.error.clause} ${parsed.error.line}:${parsed.error.col} ${parsed.error.message}`}`);
+    const defs = parsed.ok ? parsed.value : [];
+    const actions = { ...DBS.actions };
+    for (const def of defs) {
+      assert.equal(def.define, "ACTION", "the fixture declares something other than an action");
+      // The loader's defaults, applied the way `loadRuleset` applies them: the
+      // printer drops none, so a field left out of the text is `undefined`.
+      actions[def.name] = { listed: true, ...(def as ActionDef) };
+    }
+    return { ...DBS, actions };
+  }
+
+  const PLAY = [
+    "DEFINE ACTION play",
+    "  WHEN [main]",
+    "  prompts: [main]",
+    "  FOR 1 IN you.hand",
+    '  BIND "card"',
+    "  DO {",
+    '    note(text: "played")',
+    "  }",
+    '  REFUSE cardType(needs: "a Battle Card") UNLESS count(FROM $card "battle card") >= 1',
+    '  REFUSE condition(text: "a red card") UNLESS count(FROM $card "red card") >= 1',
+    '  label: "Play"',
+  ].join("\n");
+
+  /** p1's Main Phase with exactly three cards in hand, in this order. */
+  function threeInHand(...cardIds: string[]): VmState {
+    let s = rulesEngine.createGame(CTX, SAME).state as VmState;
+    s = rulesEngine.apply(CTX, s, { type: "chooseFirst", player: s.chooser, first: "p1" }).state as VmState;
+    for (let i = 0; i < 20 && s.prompt.kind !== "main"; i++) s = rulesEngine.apply(CTX, s, { type: "pass", player: (s.prompt as { player: PlayerId }).player }).state as VmState;
+    assert.equal(s.prompt.kind, "main", "a rules game did not reach a Main Phase to offer a move in");
+    const hand = s.sides.p1.zones.hand.slice(0, cardIds.length);
+    assert.equal(hand.length, cardIds.length, "the opening hand is too small to stage the fixture in");
+    hand.forEach((id, i) => (s.cards[id].cardId = cardIds[i]));
+    s.sides.p1.zones.hand = hand;
+    return s;
+  }
+
+  // V1 is a red Battle Card and satisfies both lines; V-BLUE is a Battle Card
+  // that is not red; L-BLUE is neither, and answers with the *first* line.
+  const game = withAction(PLAY);
+  const s = threeInHand("V1", "V-BLUE", "L-BLUE");
+  const [good, wrongColour, neither] = s.sides.p1.zones.hand;
+
+  const legal = declaredLegalActions(CTX, game, s);
+  const rejected = declaredRejectedActions(CTX, game, s, legal);
+
+  assert.deepEqual(
+    legal.map((l) => l.action),
+    [{ type: "play", player: "p1", card: good }],
+    "the only candidate both refusals let through is not the only move offered",
+  );
+  assert.equal(legal[0].label, "Play V1", "a declared move's label is not its `label:` and the card's name");
+
+  assert.deepEqual(
+    rejected.map((r) => ({ card: (r.action as { card?: string }).card, why: r.why })),
+    [
+      { card: wrongColour, why: [{ kind: "condition", text: "a red card" }] },
+      // The first line that fails and no further: this card is not a Battle
+      // Card *and* not red, and it is owed the answer the check stopped at.
+      { card: neither, why: [{ kind: "cardType", needs: "a Battle Card", card: neither }] },
+    ],
+    "the refusals are not the requirements the declaration names, in the order it names them",
+  );
+
+  // §3.2, asserted by the very function the legacy fixtures assert it with.
+  assertMenuInvariants(legal, rejected, "a declared action over three candidates");
+  assert.equal(legal.length + rejected.length, 3, "the three candidates did not each get exactly one answer");
+
+  // The `Requirement` shapes are the engine's own, so the board words a
+  // rules-engine refusal with the table it words a legacy one with — never a
+  // second wording table, which is the rule Stage 5's tracking issue fixes.
+  for (const r of rejected) {
+    const said = refusal(r.why[0], { name: r.label.replace(/^Play /, ""), reaching: "play" });
+    assert.ok(said.fact.length > 0, `a declared refusal has no words: ${JSON.stringify(r.why[0])}`);
+  }
+
+  // `apply` takes the one that was offered, runs its `DO`, and refuses the two
+  // that were not — the contract's "a client picks a move by index" rests on a
+  // move that was not offered being refused rather than quietly taken.
+  {
+    const ev: GameEvent[] = [];
+    const played = structuredClone(s);
+    assert.equal(applyDeclared(CTX, game, played, ev, { type: "play", player: "p1", card: good }), true, "a declared move was not recognised by apply");
+    assert.deepEqual(ev, [{ type: "note", text: "played" }], "a declared move's DO program did not run");
+    for (const card of [wrongColour, neither]) {
+      assert.throws(() => applyDeclared(CTX, game, structuredClone(s), [], { type: "play", player: "p1", card }), IllegalAction, "a refused candidate was played anyway");
+    }
+    assert.throws(() => applyDeclared(CTX, game, structuredClone(s), [], { type: "play", player: "p2", card: good }), IllegalAction, "the player who was not asked took the move");
+  }
+
+  // A priced action is refused with the reason rather than offered for free:
+  // `costs.rules` and the payment search are #148, and a menu that hid that
+  // would be a move a player could take without paying for it.
+  {
+    const priced = withAction(PLAY.replace('  prompts: [main]', "  prompts: [main]\n  COST [energy]"));
+    // The price is named in a definition that declares no `DEFINE COST`, which
+    // is the loader's refusal and not this interpreter's — so the fixture is
+    // built past it on purpose, to reach the question this block is about.
+    const menu = declaredLegalActions(CTX, priced, s);
+    assert.deepEqual(menu, [], "a move whose price the engine cannot charge is on the menu");
+    const why = declaredRejectedActions(CTX, priced, s, menu);
+    assert.equal(why.length, 3, "a priced move is not explained for every card it is about");
+    assert.match(JSON.stringify(why[0].why[0]), /#148/, "a price the engine cannot charge does not name the issue that charges it");
+    assert.throws(() => applyDeclared(CTX, priced, structuredClone(s), [], { type: "play", player: "p1", card: good }), NotYet, "a priced move was taken without being paid for");
+  }
+
+  // And the declaration the DBS files really carry: `pass` re-declared (#144).
+  // It is accepted and never enumerated — `listed: false`, the concede rule
+  // written down — so the menu is what it was before this issue.
+  {
+    assert.ok(DBS.actions.pass, "actions.rules does not declare pass");
+    assert.equal(DBS.actions.pass.listed, false, "pass is on the menu, and the engine that has been playing never lists it");
+    assert.deepEqual(actionsAt(DBS, s).map((a) => a.name), ["pass"], "the Main Phase offers a declared action other than the one the files declare");
+    assert.deepEqual(declaredLegalActions(CTX, DBS, s), [], "an unlisted action reached the menu");
+    assert.deepEqual(declaredRejectedActions(CTX, DBS, s, []), [], "an unlisted action reached the list of refusals");
+    // …and it is still the move that answers the question.
+    const after = rulesEngine.apply(CTX, s, { type: "pass", player: "p1" });
+    assert.notEqual((after.state as VmState).phase, "main", "pass did not answer the Main Phase's question");
+    // A move no declaration claims names the issue that declares it.
+    assert.throws(() => rulesEngine.apply(CTX, s, { type: "attack", player: "p1", attacker: good, target: "p2#0" }), NotYet, "a move nothing declares was accepted");
   }
 }
 
