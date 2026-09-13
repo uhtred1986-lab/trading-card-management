@@ -384,13 +384,19 @@ export interface Permission {
 
 /**
  * A card no skill may touch (9-1-4) — stronger than `Prohibition`'s
- * `beChosen`, which only stops a skill *choosing* it. Enforced where a
- * selector chooses a card, which is narrower than the rule (see the
- * glossary's "What a card no skill may touch" entry): an effect that never
- * chooses the card at all slips through.
+ * `beChosen`, which only stops a skill *choosing* it. Enforced in one place,
+ * `resolveSelector` (`immunityRefusing`), which is where every op reaches a
+ * card and so is narrower than the rule by exactly one thing (see the
+ * glossary's "What a card no skill may touch" entry): an effect that names no
+ * card at all slips through.
  */
 export interface Immunity {
-  /** Whose skills are blocked. Absent means either player's. */
+  /**
+   * Whose skills are blocked, as a player rather than a side — the op's
+   * `from` is resolved against the script's master when the rule is made.
+   * Absent means either player's, which is what the op's `from: "both"` and
+   * an op with no `from` at all both come to.
+   */
   from?: PlayerId;
   /** Which cards' skills are blocked. Absent means any card's. */
   fromFilter?: CardFilter;
@@ -950,6 +956,14 @@ export type Requirement =
    * or "permanent" while the source card's [Permanent] skill is valid.
    */
   | { kind: "forbidden"; by: string | null; until?: EffectUntil; unless?: string }
+  /**
+   * 9-1-4: the card ignores the skill altogether rather than merely refusing
+   * to be chosen by it, so it is its own requirement and not a `forbidden`.
+   * `whose` names the skills it ignores in the words of the player being
+   * refused ("your skills", "non-<Gogeta: GT> skills"), `by` the card whose
+   * rule it is when another card grants it, and `until` how long it holds.
+   */
+  | { kind: "immune"; card: string; whose: string; by: string | null; until?: EffectUntil }
   /** The compiler cannot read the card's text, so the engine cannot offer it. */
   | { kind: "unread"; card: string }
   /** A printed condition of the skill that does not hold yet — "When your life is at 4 or less". */

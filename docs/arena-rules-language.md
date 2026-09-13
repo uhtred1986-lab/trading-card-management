@@ -595,9 +595,26 @@ THEN
   immune(until: game, target: [self], from: opponent)
 ```
 
-What is still open (issue #128) is whether the *engine* checks `immune` at every place an effect
-lands on a card — power changes, KO, mode switches, keyword grants — rather than only the sites
-that consult it today; the language can already say the phrase, the enforcement is not yet total.
+The op's `from` names **whose** skills, and it is what the engine asks — never who owns the card.
+`from: opponent` is the printed phrase above; `from: you` its own controller's skills; `both`, or
+no `from` at all, every skill, the card's own side's included. `BT18-019` prints that last one,
+and narrows it by a filter on the card whose skill is asking rather than on the card being
+affected:
+
+```
+WHEN [permanent]
+THEN
+  immune(until: game, target: [self], fromFilter: "non-<gogeta: gt>")
+```
+
+The engine checks it in one place — `resolveSelector`, where every op reaches a card — so a new
+operation inherits the check rather than repeating it, and the sweeps and board-wide power changes
+are covered along with the choices, because they name their cards through a selector too. A
+`[permanent]` immunity holds against another `[permanent]` as well as against an effect with a
+duration. Two things are still outside it, and deliberately: a `[self]` selector, because a card's
+own skill naming itself is the skill working rather than a skill touching it from outside; and an
+effect that names no card at all — a skill aimed at a player, damage, a rule of the game (issue
+#128's own "out of scope", and the glossary's "What a card no skill may touch" entry says the same).
 
 ### 20-5. Skills that Mention X (Undetermined Numbers)
 

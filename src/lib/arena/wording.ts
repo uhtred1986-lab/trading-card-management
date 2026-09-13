@@ -114,6 +114,24 @@ export function refusal(r: Requirement, o: { name: string; reaching: Reaching; s
       if (!when) return { fact, remedy: "Until that rule ends." };
       return { fact, remedy: `${when.charAt(0).toUpperCase()}${when.slice(1)}.` };
     }
+    // 9-1-4 is not a prohibition and does not read like one: nothing forbids
+    // the player from choosing, the skill simply does not reach the card. So
+    // the fact is the card's own claim, said in the refused player's words —
+    // and there is no remedy but waiting the rule out, which for the printed
+    // family means as long as the card is in play.
+    case "immune": {
+      const fact = `${name} isn't affected by ${r.whose}.`;
+      // Its own [Permanent] is the printed shape of nearly the whole family,
+      // and "while its card is in play" adds nothing to a sentence already
+      // about that card — so the fact stands alone there, and a remedy is
+      // said only when there is something else to know: a duration that runs
+      // out, or another card holding the rule up.
+      const own = !r.by || r.by === name;
+      if (own && (!r.until || r.until === "permanent")) return { fact, remedy: null };
+      const when = r.until ? untilWords(r.until, { master: null, viewer, them, sourceName: r.by ?? name }) : null;
+      if (!when) return { fact, remedy: `${r.by}'s skill says so.` };
+      return { fact, remedy: own ? `${capital(when)}.` : `${r.by}'s skill says so, ${when}.` };
+    }
     case "unread":
       return { fact: `The engine cannot read ${name}'s text yet.`, remedy: "Explain the card on the rules workbench and it plays from the next game." };
     case "condition":
@@ -154,6 +172,8 @@ export function pill(r: Requirement): string {
       return "no target";
     case "forbidden":
       return "forbidden";
+    case "immune":
+      return "immune";
     case "unread":
       return "unread";
     case "condition":
