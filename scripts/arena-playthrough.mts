@@ -150,6 +150,15 @@ function auditRejections(game: { ctx: Parameters<typeof rejectedActions>[0]; sta
   rejections.prompts++;
   const legal = new Set(game.legal.map((l) => JSON.stringify(l.action)));
   const keys = new Set<string>();
+  // §3.2's exception, said here in the same words `scripts/verify/harness.ts`
+  // says it: **every activation names which line it is**. A card prints up to
+  // nine and the index is the only thing that tells them apart, so one without
+  // it would collapse nine answers into one and the duplicate check below would
+  // pass by saying less rather than by being right.
+  for (const a of [...game.legal.map((l) => l.action), ...rejected.map((r) => r.action)]) {
+    if (a.type !== "activate") continue;
+    assert.equal(typeof (a as { skill?: unknown }).skill, "number", `move ${move}: an activation names no skill line, and a card prints up to nine of them`);
+  }
   for (const r of rejected) {
     rejections.total++;
     assert.ok(r.why.length > 0, `move ${move}: "${r.label}" is rejected for no reason`);

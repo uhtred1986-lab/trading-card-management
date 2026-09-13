@@ -583,7 +583,8 @@ export const SKILL_TYPES: Record<Exclude<SkillKind, "keyword">, SkillTypeDoc> = 
     tag: "[Activate: Main]",
     section: "1-5-5",
     meaning: "You declare it during your Main Phase.",
-    engine: "Offered only when the engine can both pay for it and carry it out; otherwise it waits for a stored program or the referee.",
+    engine:
+      "Offered only when the engine can both pay for it and carry it out; otherwise it waits for a stored program or the referee. Both engines read the same record for that decision — the price before the colon, the hoisted condition and the program are `card_rules`' and not the text's.",
   },
   "activate:battle": {
     tag: "[Activate: Battle]",

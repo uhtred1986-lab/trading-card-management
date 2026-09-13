@@ -218,16 +218,47 @@ export interface PooledPrice {
 export const freePrice = (): Price => ({ energy: 0, orbs: {}, either: [], markers: 0, life: 0, rest: false, payers: [], pooled: [], unreadable: null, unpriced: null });
 
 /**
+ * The amounts a move's prices are **bound** to, when they come from the thing
+ * being paid for rather than from an attribute of the card (#147).
+ *
+ * `ACTION play COST [energy]` passes no arguments, so the number comes off the
+ * card through the declaration's `amount:` — that is a price paid *for a card*,
+ * and the card carries what it costs. An activation is a price paid for **a
+ * skill line**, and no attribute of the card says what one line charges: the
+ * orbs are printed in front of that line and everything else is on the line's
+ * own `card_rules` record. So the interpreter that knows which line is being
+ * paid for hands the amounts in, by the `consumes:` word of the price they
+ * answer — never by a declaration's name, which is the rule this whole module
+ * is written to.
+ *
+ * A kind left out is a price still read off the card, so one binding does not
+ * silently zero the others; `unreadable` is the one that reads `null` as an
+ * answer, because "this price is chargeable after all" is a thing an activation
+ * has to be able to say about the declared `text` price.
+ */
+export interface BoundAmounts {
+  /** `consumes: energy` — the total, its coloured half (1-2-3) and its either-orbs (22-13). `total: null` is a price nobody has named (1-2-2-2). */
+  energy?: { total: number | null; orbs: Partial<Record<Color, number>>; either: Color[][] };
+  /** `consumes: markers` — 13-4's marker cost, negative to remove that many. */
+  markers?: number;
+  /** `consumes: life` — 21-3. */
+  life?: number;
+  /** `consumes: unreadable` — the printed price, or `null` for a price this engine can charge after all. */
+  unreadable?: string | null;
+}
+
+/**
  * What an action asks of this candidate, read off the prices it names.
  *
- * The amounts come off the **card**, because `ACTION … COST [energy]` passes no
- * arguments: binding a price's `TAKES` parameters is #147's, where a skill's
- * own `card_rules.cost` record supplies them. So two kinds are readable today
- * and the other three are refused *by name* rather than charged as nothing —
- * a declared price with no amount to charge would be a move taken for free,
- * which is the one outcome this whole issue exists to prevent.
+ * Where each amount comes from is the declaration's business and then the
+ * caller's: `amount:` names the card attribute a price paid *for a card* is
+ * read off, and `bound` is what a caller paying for something smaller than a
+ * card — a skill line — hands in instead (#147). A price with neither is
+ * refused **by name** rather than charged as nothing, because a declared price
+ * with no amount would be a move taken for free, which is the one outcome this
+ * module exists to prevent.
  */
-export function priceFor(ctx: EngineContext, game: GameDefinition, state: VmState, def: ActionDef, card: string | null): Price {
+export function priceFor(ctx: EngineContext, game: GameDefinition, state: VmState, def: ActionDef, card: string | null, bound?: BoundAmounts): Price {
   const price = freePrice();
   if (!def.cost?.length) return price;
   const charges = chargesOf(game);
@@ -236,10 +267,11 @@ export function priceFor(ctx: EngineContext, game: GameDefinition, state: VmStat
     if (!charge) throw new RulesetBroken(state.game, `${def.name} asks for a price called ${JSON.stringify(name)}, which nothing declares`);
     switch (charge.consumes) {
       case "energy": {
-        const read = card === null ? null : amountOn(ctx, game, state, charge, card);
+        const read = bound?.energy ?? (card === null ? null : amountOn(ctx, game, state, charge, card));
         if (read && read.total === null) price.unpriced = charge.name;
         price.energy += read?.total ?? 0;
         for (const [colour, n] of Object.entries(read?.orbs ?? {}) as [Color, number][]) price.orbs[colour] = (price.orbs[colour] ?? 0) + n;
+        if (bound?.energy) price.either.push(...bound.energy.either);
         break;
       }
       // 5-4: cards out of a declared place. The pool is the op's own target, so
@@ -252,7 +284,7 @@ export function priceFor(ctx: EngineContext, game: GameDefinition, state: VmStat
           // a [Permanent] static `DEFERRED_STATICS` still names), so a move
           // asking for it outright is refused by name rather than charged as
           // nothing.
-          throw new NotYet(`charge the price ${name}, whose cards are named by the skill asking for it and have nothing to bind them to`, "#147");
+          throw new NotYet(`charge the price ${name}, whose cards are named by the skill asking for it and have nothing to bind them to`, "#149");
         }
         const read = card === null ? null : amountOn(ctx, game, state, charge, card);
         if (read && read.total === null) price.unpriced = charge.name;
@@ -263,10 +295,22 @@ export function priceFor(ctx: EngineContext, game: GameDefinition, state: VmStat
         price.rest = true;
         break;
       case "unreadable":
-        price.unreadable = charge.name;
+        // The one price whose *absence* is an answer: an action that names it
+        // and binds `null` is saying this candidate's printed price is one the
+        // engine can charge after all, which is what an activation says about
+        // a skill whose orbs are the whole of its cost.
+        price.unreadable = bound?.unreadable !== undefined ? bound.unreadable : charge.name;
+        break;
+      case "markers":
+        if (bound?.markers === undefined) throw new NotYet(`charge the price ${name}, whose amount is on the card's own record and has nothing to bind it to`, "#149");
+        price.markers += bound.markers;
+        break;
+      case "life":
+        if (bound?.life === undefined) throw new NotYet(`charge the price ${name}, whose amount is on the card's own record and has nothing to bind it to`, "#149");
+        price.life += bound.life;
         break;
       default:
-        throw new NotYet(`charge the price ${name}, whose amount is on the card's own record and has nothing to bind it to`, "#147");
+        throw new NotYet(`charge the price ${name}, whose amount is on the card's own record and has nothing to bind it to`, "#149");
     }
   }
   return price;
@@ -760,7 +804,13 @@ export function chargeCost(
         if (card !== null && payment.restsSelf) setMode(state, ev, card, modeOf(charge));
         break;
       case "unreadable":
-        throw new RulesetBroken(state.game, `the price ${name} is the one as printed and was charged anyway`);
+        // Nothing: the half of a printed price no engine charges itself is
+        // charged by nobody. A price that really *is* unreadable never reaches
+        // here — `planCost` refuses the move with `unread` before anything is
+        // taken — so an action naming this price and getting this far is one
+        // whose candidate bound the price away as chargeable after all (#147,
+        // an activation whose whole cost is orbs).
+        break;
     }
   }
 }

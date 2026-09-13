@@ -60,7 +60,11 @@ const tripFilter = (filter: CardFilter, what: string) => tripSelector({ side: "y
 const sample = (t: FieldType, wide: boolean): unknown => {
   if (typeof t === "object") {
     if ("enum" in t) return t.enum[wide ? t.enum.length - 1 : 0];
-    return t.list === "string" ? ["Saiyan", "Son Goku: GT"] : [t.list.enum[0]];
+    // A list of closed words is sampled with **two** of them when wide, so the
+    // separator and the quoting are both exercised: a skill kind is written
+    // `activate:main`, which is not a bare word, and a printer that put one out
+    // unquoted printed a form the parser could not read back.
+    return t.list === "string" ? ["Saiyan", "Son Goku: GT"] : wide ? [...new Set([t.list.enum[0], t.list.enum[t.list.enum.length - 1]])] : [t.list.enum[0]];
   }
   switch (t) {
     case "amount":

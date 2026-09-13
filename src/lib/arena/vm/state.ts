@@ -65,8 +65,11 @@ import type { VmCard, Zones } from "./zones";
  * moment could reach a card.
  * 5: #142's effects, delayed effects, suspended programs and the two answer
  * fields. A version-4 state is a game no skill had resolved in.
+ * 6: #147's per-copy record of the skill lines used this turn
+ * (`VmCard.usedThisTurn`, `usedMarkerSkill`). A version-5 state is a game in
+ * which a [Once per turn] skill had no way to have been used.
  */
-export const VM_STATE_VERSION = 5;
+export const VM_STATE_VERSION = 6;
 
 /** One player, as the definition describes one: a name, a map of zones, and the attributes a *player* has (1-14). */
 export interface VmSide {

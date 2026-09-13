@@ -24,7 +24,7 @@
  *   [Barrier] and "can't be chosen" (22-16, 20-4)   Stage 7 / Stage 5 — a
  *       keyword the card prints is read; a prohibition in force is not, so a
  *       selector is currently *wider* than the manual. Named in `NARROWER`.
- *   immunity (9-1-4)                                 #147.
+ *   immunity (9-1-4)                                 #154.
  *   a battle (8-1)                                   Stage 6: `inBattle` is
  *       false and `battled` is false, which is what a game with no battle in it
  *       truthfully answers.
@@ -55,7 +55,7 @@ export const NAMED_ZONES = {
 /** Where a reading is narrower or wider than the manual, and the issue that closes it. */
 export const NARROWER: Record<string, string> = {
   barrier: "#153 — a granted [Barrier] is read, a printed one is read, but a prohibition in force ('can't be chosen', 20-4) is #145's",
-  immune: "#147 — 9-1-4 immunity narrows what a skill may choose",
+  immune: "#154 — 9-1-4 immunity narrows what a skill may choose, and the hook group that reads choosing is Stage 7's",
   battle: "Stage 6 — there is no battle on this engine yet, so `inBattle` and `battled` are false",
   energyCost: "#148 — an amount reading a card's energy cost reads the printed total, before any reduction in force (20-21)",
 };

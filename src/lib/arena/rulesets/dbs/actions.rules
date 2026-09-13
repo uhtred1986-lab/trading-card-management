@@ -13,11 +13,12 @@
 -- menu and the refusals therefore come from one paragraph, which is the whole
 -- point of the file: nothing below has a hand-written `whyNot` twin.
 --
--- **Seven so far.** The four that need no payment and no battle came first
+-- **Eight so far.** The four that need no payment and no battle came first
 -- (#145), which is what makes them the ones that proved the machinery on a real
 -- turn; the prices followed (#148), and the play family below is the first to
--- carry one. Activations are #147 and the battle is Stage 6, and each arrives
--- here as a paragraph rather than as a branch somewhere else.
+-- carry one. Activating followed (#147), which is the one whose candidate is a
+-- skill *line*; the battle is Stage 6, and each arrives here as a paragraph
+-- rather than as a branch somewhere else.
 --
 -- `listed: false` is the rule the legacy engine has always had and never
 -- wrote down: a move a client shows as a button of its own is accepted
@@ -176,3 +177,74 @@ DEFINE ACTION playZ                                                       -- §1
   again: true
   label: "Play"
   text: "the turn player pays a Z-card's Z-Energy price and its energy cost and places it in their Battle Area; a Z-Extra replaces the Z-Extras already there (16-2, 17-2-1-3)"
+
+-- ── using a skill (§9-1-2, §4-3) ────────────────────────────────────────────
+--
+-- The one move whose candidate is **a line rather than a card**, which is what
+-- `skills:` says. A card prints up to nine of them, each with its own price,
+-- its own condition and its own once-per-turn ceiling, so one being on the menu
+-- says nothing at all about the other eight: §3.2 of
+-- `docs/arena-workflow-spec.md` counts one rejection per card per action type
+-- *except* an activation, which is one per line, and this declaration is where
+-- that exception is written down rather than special-cased.
+--
+-- Three things this paragraph does that no other does, and each is read off it:
+--
+--   `skills:`  the kinds it **offers**. A line of the same family and another
+--              window — an [Activate: Battle] skill at the Main Phase question
+--              — is still a candidate, and the answer it is owed is the
+--              `timing` requirement naming the window it belongs to. The
+--              window this move offers is the one its kinds share, so the
+--              battle paragraph Stage 6 writes needs no second table.
+--   `FOR`      where the lines are read from: the three in-play areas (9-1-3-1)
+--              and the hand, because 4-2 makes using an Extra Card from the
+--              hand how an Extra is played at all. A Battle Card's line in the
+--              hand is refused with the area it is valid in.
+--   `DO {}`    deliberately empty, and checked to be: the program an activation
+--              runs is the **record's** (`card_rules.ops`, carried on
+--              `Script.ops`), and a `DO` written once here could not be the
+--              program of nine different lines. `vm/activate.ts` queues that
+--              frame on the same interpreter a pended [Auto] runs on (#142),
+--              and the moment is a `skillActivated` the declarations in
+--              `triggers.rules` answer — nothing pends a trigger by name.
+--
+-- **The price is the record's too**, which is the 8 Sep 2026 precedent applied
+-- to a move: the orbs printed in front of the line and 13-4's marker cost are
+-- what `COST` below is charged, bound from the line rather than read off the
+-- card the way a play's price is (`vm/costs.ts`'s `BoundAmounts`). `text` is
+-- the half no engine charges itself, and it is named here so that a price this
+-- engine cannot read refuses the move with `unread` instead of offering it
+-- free. The order is `marker` before `energy` because that is the order the
+-- engine that has been playing charges them in, and the order is what the
+-- oracle compares.
+--
+-- **What it refuses and what it cannot.** Negation (9-1-5), the once-per-turn
+-- and [Limit X] count (22-44-3), [Bond X] and [Sparking X], 13-4's Unison Area
+-- and its one marker skill a turn, the condition 9-4 hoisted out of the price,
+-- the energy, an effect the compiler could not read, and 9-1-3-1's wrong area —
+-- in the order the legacy `whyNotActivate` asks them, so the first requirement
+-- is the same requirement on both engines. 20-14's prohibitions are the one
+-- gate missing, and for the same reason the play family's are: nothing can put
+-- one in force on this engine yet (`DEFERRED_STATICS.forbid`).
+--
+-- A keyword's own activation — [Awaken], [Evolve], [Union], [Over Realm],
+-- [Swap], [Arrival], [Successor], [Aegis], [Rejuvenate], [Overlord], [Field],
+-- [Z-Awaken] — is a `DEFINE KEYWORD` hook body and is Stage 7's (#153–#157);
+-- such a line is refused `unread` rather than left off both lists, because a
+-- player reaching for it is owed an answer. An X price (20-5) and an action
+-- price (4-3-3) are refused the same way and for the same reason the play
+-- family refuses an X cost: the value is an answer to a question and a
+-- candidate carries none (#149). [Counter] windows are Stage 6's (#150), and no
+-- phase here asks one.
+
+DEFINE ACTION activate                                                    -- §9-1-2
+  WHEN [main]
+  prompts: [main]
+  FOR 1 IN you.hand|leader|unison|battle
+  BIND "card"
+  skills: ["activate:main", "activate:main/battle"]
+  COST [marker, energy, text]
+  DO {}
+  again: true
+  label: "Activate"
+  text: "a player uses one of a card's [Activate] skills, paying the price printed in front of it; the skill then resolves (9-1-2, 4-3-3)"

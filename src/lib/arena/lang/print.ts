@@ -266,7 +266,11 @@ function printPlain(v: unknown): string {
 function printValue(type: FieldType, v: unknown, indent: number): string {
   if (typeof type === "object") {
     if ("enum" in type) return atom(String(v));
-    return `[${(v as string[]).map((x) => (type.list === "string" ? atom(x) : x)).join(", ")}]`;
+    // Both a free string and a closed word go through `atom`, which quotes
+    // whatever is not a bare word: a skill kind is written `activate:main` and
+    // a printer that put it out unquoted printed a form the parser could not
+    // read back, which is the one thing `parse(print(x))` may not do.
+    return `[${(v as string[]).map(atom).join(", ")}]`;
   }
   switch (type) {
     case "amount":

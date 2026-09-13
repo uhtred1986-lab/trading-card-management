@@ -28,9 +28,9 @@
  * that action is never also refused for it. §3.2's exception is the same
  * promise one level down: an activation is one rejection *per skill line*,
  * because a card prints up to nine and one being on the menu says nothing about
- * the rest. `keyOf` below already files an activation under its skill index, so
- * the exception costs nothing when #147 declares the action whose candidate is
- * a skill line rather than a card.
+ * the rest. `keyOf` below files an activation under its skill index, and #147's
+ * `skills:` is what makes such a candidate a line in the first place — so the
+ * exception is the same shape one level down rather than a pass of its own.
  *
  * Pure and client-safe, like the rest of `vm/`: no database, no network, and
  * nothing read at request time.
@@ -39,9 +39,11 @@ import { IllegalAction, type EngineContext, type GameEvent, type LegalAction, ty
 import type { Action, PlayerId, Prompt, Requirement } from "../engine/types";
 import type { Cond, Selector } from "../engine/script";
 import type { ActionDef, GameDefinition } from "../rulesets";
+import { activationMoment, activationRefusals, activationsOf, boundFor, resolveActivation, type ActivationLine } from "./activate";
 import { attrsOf } from "./cards";
-import { actionCostOf, chargeCost, freePrice, planCost, priceFor, type Price } from "./costs";
+import { actionCostOf, chargeCost, freePrice, planCost, priceFor, type BoundAmounts, type Price } from "./costs";
 import { RulesetBroken } from "./errors";
+import { fire } from "./events";
 import { answered } from "./flow";
 import { predicateOf } from "./filters";
 import { SETUP_ZONES } from "./zones";
@@ -58,6 +60,13 @@ import type { VmState } from "./state";
  */
 export interface Candidate {
   card: string | null;
+  /**
+   * Which of the card's printed skill lines this candidate is, for a move whose
+   * declaration says `skills:` (#147). Absent for every move that is about the
+   * card itself, which is every other move: a card is asked about once, a skill
+   * line once each.
+   */
+  skill?: number;
   why: Requirement[];
   /**
    * What the move costs this candidate, read once (#148). The menu wears it and
@@ -106,6 +115,11 @@ export function candidatesOf(ctx: EngineContext, game: GameDefinition, state: Vm
   // menu, so a client that draws a button per candidate keeps the ghost button
   // the board already has (`docs/arena-hud-spec.md` §2.3).
   const cards = def.for === undefined ? [null] : [...select(ctx, game, state, def.for, player), ...(def.decline === undefined ? [] : [null])];
+  // §3.2's one exception, and the only place the shape of a candidate changes:
+  // a move declared `skills:` is about a **line** of each of those cards rather
+  // than about the card, so a card with three of them is asked about three
+  // times and answered three times (#147).
+  if (def.skills) return cards.flatMap((card) => (card === null ? [] : activationsOf(ctx, state, def, card).map((line) => activation(ctx, game, state, def, player, line))));
   return cards.map((card) => {
     const why = refusedBy(ctx, game, state, def, player, card);
     // 8-3-2-3: an action asks for a price by name and `costs.rules` says how it
@@ -119,6 +133,38 @@ export function candidatesOf(ctx: EngineContext, game: GameDefinition, state: Vm
     }
     return { card, why, price };
   });
+}
+
+/**
+ * One skill line as a candidate: the declaration's own `REFUSE` lines, then the
+ * gates of an activation with the price in its place (#147).
+ *
+ * The order is the whole point. `vm/activate.ts` hands back the gates the legacy
+ * `whyNotActivate` asks *before* it counts the energy and the ones it asks
+ * afterwards, and the price goes between them — so the first requirement the two
+ * engines give for the same line on the same board is the same requirement.
+ *
+ * The price's **amounts** come off the line rather than off the card, which is
+ * what `BoundAmounts` is for: `ACTION play COST [energy]` reads the number off
+ * the card being paid for, and no attribute of a card says what one of its nine
+ * skill lines charges.
+ */
+function activation(ctx: EngineContext, game: GameDefinition, state: VmState, def: ActionDef, player: PlayerId, line: ActivationLine): Candidate {
+  const gates = activationRefusals(ctx, game, state, def, player, line);
+  const why = [...refusedBy(ctx, game, state, def, player, line.card), ...gates.before];
+  const bound: BoundAmounts = boundFor(ctx, game, state, line);
+  const price = def.cost?.length ? priceFor(ctx, game, state, def, line.card, bound) : freePrice();
+  if (!why.length && def.cost?.length) {
+    const plan = planCost(ctx, game, state, player, price, line.card);
+    if (!plan.ok) why.push(...plan.why);
+  }
+  why.push(...gates.after);
+  return { card: line.card, skill: line.skillIndex, why, price };
+}
+
+/** The line a candidate is, re-read from the board — the one place a `skill` index becomes the record it stands for. */
+function lineOf(ctx: EngineContext, state: VmState, def: ActionDef, card: string, skill: number): ActivationLine | undefined {
+  return activationsOf(ctx, state, def, card).find((line) => line.skillIndex === skill);
 }
 
 /**
@@ -188,7 +234,7 @@ export function declaredLegalActions(ctx: EngineContext, game: GameDefinition, s
     for (const c of candidatesOf(ctx, game, state, def, player)) {
       if (c.why.length) continue;
       const cost = actionCostOf(c.price);
-      out.push({ action: actionFor(game, def, player, c), label: labelFor(ctx, state, def, c.card), ...(cost ? { cost } : {}) });
+      out.push({ action: actionFor(game, def, player, c), label: labelFor(ctx, state, def, c), ...(cost ? { cost } : {}) });
     }
   }
   return out;
@@ -219,7 +265,7 @@ export function declaredRejectedActions(ctx: EngineContext, game: GameDefinition
       // offered is not refused, which is the invariant every client indexes by
       // card on.
       if (offered.has(keyOf(action))) continue;
-      out.push({ action, label: labelFor(ctx, state, def, c.card), why: c.why });
+      out.push({ action, label: labelFor(ctx, state, def, c), why: c.why });
     }
   }
   return out;
@@ -252,6 +298,12 @@ function actionFor(game: GameDefinition, def: ActionDef, player: PlayerId, c: Ca
   // settle (an X cost) never reaches here: `candidatesOf` has already refused
   // it as `unread`, so the number below is never one nobody chose.
   if (shape === "cardWithX") return { type: def.name, player, card, x: c.price.energy } as unknown as Action;
+  // 9-1-2: a move about a *line* carries which line, because the card alone
+  // does not say which of its nine the player reached for (#147).
+  if (shape === "cardSkill") {
+    if (c.skill === undefined) throw new RulesetBroken(game.id, `DEFINE ACTION ${JSON.stringify(def.name)} is about a skill line and this candidate names none`);
+    return { type: def.name, player, card, skill: c.skill } as unknown as Action;
+  }
   return { type: def.name, player, card } as unknown as Action;
 }
 
@@ -262,18 +314,22 @@ function actionFor(game: GameDefinition, def: ActionDef, player: PlayerId, c: Ca
  * action built from a declaration is **a player and at most one card**, and
  * every other answer shape carries something a candidate cannot supply — which
  * player goes first, how many markers to carry, an X, a skill line. Those are
- * answers to questions rather than moves a menu enumerates, and the two that
- * are moves and are missing say which issue brings them: an activation needs a
- * skill index (#147) and an attack needs a target (#150). `cardWithX` is the
- * one exception, and it is not a second answer: a move whose `x` is settled by
- * its own price carries that number rather than asking for it (13-2-3).
+ * answers to questions rather than moves a menu enumerates, and the one that is
+ * a move and is missing says which issue brings it: an attack needs a target
+ * (#150). Two shapes are not second answers: a move whose `x` is settled by its
+ * own price carries that number rather than asking for it (13-2-3), and a move
+ * about a skill line carries which line, which the declaration's own `skills:`
+ * already enumerated (#147).
  *
  * Keyed by the union's own words, so a name here that stops being an action
  * fails `npm run typecheck`.
  */
-const DECLARABLE_ACTIONS: Partial<Record<Action["type"], "card" | "cardWithX" | "cardOrNone" | "none">> = {
+const DECLARABLE_ACTIONS: Partial<Record<Action["type"], "card" | "cardWithX" | "cardSkill" | "cardOrNone" | "none">> = {
   charge: "cardOrNone",
   play: "card",
+  // 9-1-2: the one move whose candidate is a line of a card rather than the
+  // card, and therefore the one §3.2 counts per line.
+  activate: "cardSkill",
   // 13-2-3: a Unison's `x` is not a second decision — it is the energy the move
   // was paid with, which the candidate's own price already is, so the shape
   // carries it rather than asking for it (`actionFor`).
@@ -289,15 +345,28 @@ const DECLARABLE_ACTIONS: Partial<Record<Action["type"], "card" | "cardWithX" | 
   concede: "none",
 };
 
-/** The words the menu shows: the declaration's `label:`, and the card's own name when the move is about one. */
-function labelFor(ctx: EngineContext, state: VmState, def: ActionDef, card: string | null): string {
+/**
+ * The words the menu shows: the declaration's `label:`, the card's own name when
+ * the move is about one, and **which line** when it is about one of those.
+ *
+ * The last is not decoration. A card prints up to nine activations and §3.2
+ * gives each its own row, so three rows all reading "Activate Piccolo" is the
+ * move nobody can identify — the keyword names itself and a text skill is named
+ * by the start of its effect, which is the same 40 characters the legacy
+ * engine's own menu and rejection labels use.
+ */
+function labelFor(ctx: EngineContext, state: VmState, def: ActionDef, c: Candidate): string {
   const label = def.label ?? def.name;
+  const card = c.card;
   // The answer that takes no card has words of its own, because "Charge" said
   // of nothing is not what a board shows for skipping the charge.
   if (card === null) return declining(def, card) ? (def.decline ?? label) : label;
   const cardId = state.cards[card]?.cardId;
   const name = (cardId && ctx.defs[cardId]?.name) || cardId || card;
-  return `${label} ${name}`;
+  if (c.skill === undefined) return `${label} ${name}`;
+  const line = lineOf(ctx, state, def, card, c.skill);
+  const what = line?.skill.keyword ? `[${line.skill.keyword.name}]` : (line?.skill.effect.slice(0, 40) ?? "");
+  return what ? `${label} ${name}: ${what}` : `${label} ${name}`;
 }
 
 /** The player the question is put to, or null when the game is asking nobody. */
@@ -341,17 +410,25 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
   if (!def.when.includes(state.phase)) throw new IllegalAction(`${def.label ?? def.name} is not a move of the ${state.phase} phase`);
 
   const card = (action as { card?: string | null }).card ?? null;
+  // A move about a skill line is chosen by the pair, because the card alone
+  // names up to nine of them and eight of those may be refused (#147).
+  const skill = def.skills ? (action as { skill?: number }).skill : undefined;
+  if (def.skills && typeof skill !== "number") throw new IllegalAction(`${def.label ?? def.name} names no skill line, and a skill is used one line at a time`);
   const candidates = candidatesOf(ctx, game, state, def, player);
-  const chosen = candidates.find((c) => c.card === card);
+  const chosen = candidates.find((c) => c.card === card && c.skill === skill);
   if (!chosen) throw new IllegalAction(card === null ? `${def.label ?? def.name} is not offered now` : `${card} is not one of the cards ${def.label ?? def.name} is offered for`);
-  const refused = refusedBy(ctx, game, state, def, player, card);
-  if (refused.length) throw new IllegalAction(`${def.label ?? def.name} is refused: ${refused[0].kind}`);
+  // The candidate's own reasons rather than a second reading of them: an
+  // activation's gates are read off the line and the price sits inside them, so
+  // asking `refusedBy` again here would answer about the card and miss both.
+  if (chosen.why.length) throw new IllegalAction(`${def.label ?? def.name} is refused: ${chosen.why[0].kind}`);
 
   // The price, then the program — in that order, and never half of one: an
   // action whose program was queued before its price was settled would be a
   // board in a state no replay could reach (#148). The price is charged here
   // and the program goes on the queue below, so the two cannot be interleaved
   // even though only one of them runs on the spot.
+  const line = def.skills && card !== null && typeof skill === "number" ? lineOf(ctx, state, def, card, skill) : undefined;
+  if (def.skills && !line) throw new IllegalAction(`${card} has no skill line ${skill}`);
   if (def.cost?.length && !declining(def, card)) {
     const explicit = (action as { pay?: string[] }).pay;
     const plan = planCost(ctx, game, state, player, chosen.price, card, explicit);
@@ -369,13 +446,27 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
     if (explicit === undefined && plan.asks && plan.options.length > 1) {
       // "play Son Goku" — the legacy engine's own wording for this prompt, which
       // is the move's label with its first letter lowered.
-      const label = labelFor(ctx, state, def, card);
+      const label = labelFor(ctx, state, def, chosen);
       state.prompt = { kind: "payCost", player, action, options: plan.options, describe: label.charAt(0).toLowerCase() + label.slice(1) };
       return "asked";
     }
     chargeCost(ctx, game, state, ev, player, plan.payment, card, def.cost);
   }
-  runProgram(state, def, player, chosen);
+  // The one move whose program is not the declaration's: an activation runs the
+  // **record's**, because a `DO` written once in the file could not be the
+  // program of nine different lines. `vm/activate.ts` counts the use, sends an
+  // Extra to the Drop (12-2-2), announces the line and queues its frame — and
+  // the moment is fired here, as a moment and never as a trigger name.
+  if (line) {
+    // Read where the line was used **before** it is used: 12-2-2 sends an Extra
+    // to the Drop as part of using it, and "from: hand" is what 22-10 asks
+    // about.
+    const moment = activationMoment(state, player, line);
+    resolveActivation(ctx, game, state, ev, player, line);
+    fire(ctx, game, state, moment);
+  } else {
+    runProgram(state, def, player, chosen);
+  }
 
   // 7-3-4: a move declared `again:` leaves the question on the table — the
   // Main Phase grants its free timing over and over, and a play is one of the

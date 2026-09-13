@@ -44,6 +44,7 @@ import type { Beats } from "../beats";
 import type { BoardView, CardArt } from "../view";
 import { PLAYERS, type PlayerId } from "../engine/types";
 import { rulesetFor, type GameDefinition } from "../rulesets";
+import { ACTIVATION_ZONE_NAMES, windowOf } from "./activate";
 import { applyDeclared, declaredLegalActions, declaredRejectedActions } from "./actions";
 import { chargesOf, describePayment } from "./costs";
 import { attributeGaps, attrsForDefs, playerAttributes, type AttrProblem, type AttrValue } from "./cards";
@@ -72,6 +73,7 @@ export {
   paymentOptions,
   planCost,
   priceFor,
+  type BoundAmounts,
   type Charge,
   type CostPlan,
   type Price,
@@ -99,6 +101,17 @@ export {
 } from "./effects";
 export { NAMED_ZONES, NARROWER, amount, attrsNow, condHolds, hasKeyword, resolveRef, resolveSelector, sideOf, zoneOf } from "./program";
 export { PLAY_ZONES, PLAY_ZONE_NAMES, resolvePlay, type PlayOptions } from "./play";
+export {
+  ACTIVATION_ZONES,
+  ACTIVATION_ZONE_NAMES,
+  activationMoment,
+  activationRefusals,
+  activationsOf,
+  boundFor,
+  resolveActivation,
+  windowOf,
+  type ActivationLine,
+} from "./activate";
 export { vmHost } from "./host";
 export { masterOf, matchTriggers, nextPending, pendAutos, skillsShowing, type TriggerMatch, type VmPending } from "./triggers";
 export { attributeGaps, attrsForDefs, attrsOf, cardAttributes, playerAttributes, type AttrProblem, type AttrValue, type Attrs, type AttributeGaps } from "./cards";
@@ -188,6 +201,20 @@ function createGame(ctx: EngineContext, options: GameOptions): { state: VmState;
   // `STEP_WORK` with no declaration is work that would silently never happen.
   for (const step of WORKED_STEPS) {
     if (!game.steps[step]) throw new RulesetBroken(ARENA_GAME, `the interpreter carries out a step called ${step}, which nothing declares`);
+  }
+  // 9-1-2: and every zone an activation reads a keyword's pool out of, plus the
+  // one window each such action offers. A `skills:` list whose kinds share no
+  // window is a refusal with no window to name, and a paragraph about skill
+  // lines that also carries a `DO` is a program that could never be nine
+  // different lines' — both said at the making of a game rather than in the
+  // middle of one (#147).
+  for (const zone of ACTIVATION_ZONE_NAMES) {
+    if (!places.has(zone)) throw new RulesetBroken(ARENA_GAME, `a skill is used out of the ${zone}, which it declares no zone for`);
+  }
+  for (const def of Object.values(game.actions)) {
+    if (!def.skills) continue;
+    windowOf(game, def);
+    if (def.do.length) throw new RulesetBroken(ARENA_GAME, `DEFINE ACTION ${JSON.stringify(def.name)} is about skill lines and carries a DO, and the program a line runs is its own card_rules record's`);
   }
   // `turnPhases` is read here so a game with no turn declared is refused at
   // creation rather than when the first turn is due to begin.
@@ -432,7 +459,7 @@ function apply(ctx: EngineContext, prev: VmState, action: Action): { state: VmSt
  * left of it is 13-3's Unison growth, whose once-a-turn gate the language has
  * no word for — a player attribute a condition can read and an op that sets one
  * — and the two answers that are not moves a menu enumerates. An activation
- * needs a skill index as well as a card (#147); the battle and everything that
+ * is declared (#147) and gone from this list too; the battle and everything that
  * answers inside it is Stage 6 (#150), and the Z-Energy a combo can become is
  * #151.
  */
@@ -444,7 +471,6 @@ const DECLARED_BY: Partial<Record<Action["type"], string>> = {
   combo: "#150",
   counter: "#150",
   zEnergyFromCombo: "#151",
-  activate: "#147",
 };
 
 /** 6-2-1-9-1: the hand goes to the bottom of the deck, the deck is shuffled, and six new cards are drawn — once. */

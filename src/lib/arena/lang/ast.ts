@@ -14,7 +14,7 @@
  */
 import type { CardFilter } from "../engine/filters";
 import type { Amount, AmountAttr, Cond, CostRecord, FieldType, Op, OpField, Selector, Side } from "../engine/script";
-import type { Requirement, Trigger } from "../engine/types";
+import type { Requirement, SkillKind, Trigger } from "../engine/types";
 
 /**
  * One `card_rules` row as the language says it: WHEN / COST / IF / THEN.
@@ -450,6 +450,31 @@ const _everyRequirementKindWritable: RequirementKindMissing extends never ? true
 void _everyRequirementKindWritable;
 
 /**
+ * Every printed skill kind, as an action may name one on its `skills:` line.
+ *
+ * The tag a card prints in front of a skill (§9-1) rather than anything a game
+ * declares, which is why it sits here beside `REQUIREMENT_KINDS` and not in a
+ * `DEFINE` kind of its own: the same reason `Vocabulary.skillKinds` is filled
+ * from the engine's list and not from the files. A kind added to the union
+ * fails `npm run typecheck` here until the grammar can write it.
+ */
+export const SKILL_KINDS = [
+  "activate:main",
+  "activate:battle",
+  "activate:main/battle",
+  "auto",
+  "permanent",
+  "counter:play",
+  "counter:attack",
+  "counter:battle card attack",
+  "counter:counter",
+  "keyword",
+] as const satisfies readonly SkillKind[];
+type SkillKindMissing = Exclude<SkillKind, (typeof SKILL_KINDS)[number]>;
+const _everySkillKindWritable: SkillKindMissing extends never ? true : never = true;
+void _everySkillKindWritable;
+
+/**
  * `DEFINE ACTION` — a move a player may make: WHEN / FOR / COST / DO / REFUSE,
  * and the refusal that comes with it (#144).
  *
@@ -473,6 +498,24 @@ export interface DefAction extends Declaration<"ACTION"> {
   for?: Selector;
   /** The name a `REFUSE` condition calls the candidate by, as a trigger's `BIND` names its subject. */
   bind?: string;
+  /**
+   * The skill lines this move is about, by the tag a card prints in front of
+   * one (§9-1-2).
+   *
+   * Written by a move whose candidate is **a line rather than a card**: a card
+   * prints up to nine of them and an activation is one move per line, which is
+   * §3.2's one exception to one rejection per card per action type
+   * (`docs/arena-workflow-spec.md`). `FOR` still says which cards are looked
+   * at; this says which of their lines are the candidates, and an action with
+   * no `skills:` is about the cards themselves as every other move is.
+   *
+   * The kinds listed are the ones this move **offers**; a line whose kind is an
+   * activation of another window is still a candidate and is refused with the
+   * `timing` requirement naming the window it belongs to, because a player
+   * reaching for an [Activate: Battle] skill in the Main Phase is owed that
+   * answer rather than silence.
+   */
+  skills?: SkillKind[];
   /**
    * The words for taking this move about **no card at all**, when it has a
    * `FOR` and declining is an answer of its own: "Skip charge" is a legal move
@@ -550,8 +593,9 @@ export type CostAsks = (typeof COST_ASKS)[number];
  *
  * `amount` is the **card attribute the price's amount is read off** when the
  * move asking for it names a card: `ACTION play COST [energy]` passes no
- * arguments (binding a `TAKES` parameter is #147's, where a skill's own record
- * supplies them), so the number has to come from the card being paid for, and
+ * arguments, and binding a `TAKES` parameter is the interpreter's — off the card
+ * for a play, off the skill line's own record for an activation (#147's
+ * `BoundAmounts`). So the number has to come from the thing being paid for, and
  * the declaration is where a game says which number that is. Written as an
  * attribute name rather than as a field of the action, because it is a fact
  * about the *price* — the energy price of a play is the card's cost however
@@ -668,6 +712,7 @@ export const DEFINE_SCHEMA = {
       { name: "prompts", type: { list: "string" } },
       { name: "for", type: "selector", word: "FOR" },
       { name: "bind", type: "string", word: "BIND" },
+      { name: "skills", type: { list: { enum: SKILL_KINDS } } },
       { name: "decline", type: "string" },
       { name: "cost", type: { list: "string" }, word: "COST" },
       { name: "do", type: "ops", word: "DO", required: true },

@@ -9,14 +9,17 @@
  * those fields, and `VIEW_ZONES` below is where that crossing is written down
  * once.
  *
- * Everything on a card here is read through the **declared attributes**
+ * Everything on a card here is read through the **printed** declared attributes
  * (`./cards.ts`): a name, a power, a cost, the colours. What is not here is
- * everything that comes from a card's *skills* — the keywords in force, the
- * engine's reading of its text, whether the referee will be asked, the rules a
- * [Permanent] emits. Those are effects and triggers, which are #141's and
- * #142's; each is filled with what a card with no rules in force has, and the
- * board draws a card that simply does nothing yet rather than a wrong claim
- * about what it does.
+ * everything that comes from a card's *skills* — the power a continuous effect
+ * has changed, the keywords in force, the engine's reading of its text, whether
+ * the referee will be asked, the rules a [Permanent] emits. The effects
+ * themselves are in force and correct on the state (#142, and #147 puts them
+ * there from a skill a player used); what is missing is this module reading
+ * them through `attrsNow` the way `vm/costs.ts` reads a price, so a client
+ * would draw the printed number. That is parity work and is #149's — until it
+ * lands the board draws a card that simply does nothing yet rather than a wrong
+ * claim about what it does.
  *
  * Pure and client-safe: no database, no network.
  */

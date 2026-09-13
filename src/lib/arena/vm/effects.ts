@@ -90,7 +90,7 @@ export const DEFERRED_STATICS: Record<string, string> = {
   payWith: "#148",
   forbid: "#145 — a prohibition refuses an action, and actions are Stage 5's",
   permit: "#145",
-  immune: "#147 — immunity narrows what a skill may choose, which is the activation's own question",
+  immune: "#154 — immunity narrows what a skill may choose, and the hook group that reads choosing is Stage 7's",
   negateKeyword: "#153 — keywords are Stage 7's",
   gains: "#153",
   replaceLeave: "#146 — a replacement stands in front of a move, and moves by skill are Stage 5's",

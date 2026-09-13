@@ -343,6 +343,17 @@ function cardKeyOf(a: Action): string {
 function assertMenuInvariants(legal: LegalAction[], rejected: RejectedAction[], where: string): void {
   const offered = new Set(legal.map((l) => JSON.stringify(l.action)));
   const keys = new Set<string>();
+  // §3.2's exception, asserted as a property of the two lists rather than as an
+  // absence of duplicates: **every activation says which line it is**. A card
+  // prints up to nine and the index is the only thing that tells them apart, so
+  // one without it would collapse nine answers into one and the "two rejections
+  // for" check below would pass by saying less rather than by being right. Both
+  // engines are passed through here and `scripts/arena-playthrough.mts` says
+  // the same thing in the same words.
+  for (const a of [...legal.map((l) => l.action), ...rejected.map((r) => r.action)]) {
+    if (a.type !== "activate") continue;
+    assert.equal(typeof (a as { skill?: unknown }).skill, "number", `${where}: an activation names no skill line, and a card prints up to nine of them`);
+  }
   for (const r of rejected) {
     assert.ok(!offered.has(JSON.stringify(r.action)), `${where}: "${r.label}" is both legal and rejected`);
     assert.ok(r.why.length > 0, `${where}: "${r.label}" is rejected for no reason`);

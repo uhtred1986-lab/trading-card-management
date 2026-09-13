@@ -299,7 +299,7 @@ itself.
 | `keywords.rules` | `KEYWORD` — all 39, their parameters and their meanings; the `HOOK` bodies stay empty until Stage 7 | §22 | #135 |
 | `words.rules` | the words the board says for a zone, a colour, a mode, a requirement — **not written yet**: `DEFINE WORDS` is not one of the eleven kinds, and its shape is an open question on #131 | — | #135, after that answer |
 | `prompts.rules` | one declaration per `Prompt` kind with the question it asks — **not written yet**, the same open question (it may be a field of `DEFINE ACTION` rather than a kind) | — | #135, after that answer |
-| `actions.rules` | `ACTION` — charge, play, playUnison, playZ, activate, endMain, pass, concede: `WHEN / FOR / COST / DO / REFUSE`, the refusal in the order the legacy engine checks it. The grammar and the generic legality are in (#144), charge, endMain, pass and concede are declared (#145), and the play family (#146); activate is #147 | §6, §7 | #144 ✔, #145 ✔, #146 ✔, #147 |
+| `actions.rules` | `ACTION` — charge, play, playUnison, playZ, activate, endMain, pass, concede: `WHEN / FOR / COST / DO / REFUSE`, the refusal in the order the legacy engine checks it. The grammar and the generic legality are in (#144), charge, endMain, pass and concede are declared (#145), the play family (#146), and activate with `skills:` and one rejection per line (#147) | §6, §7 | #144 ✔, #145 ✔, #146 ✔, #147 ✔ |
 | `costs.rules` | `COST` — energy with colours, either-orbs and X, Z-Energy, markers, life, rest, pay-with, and the unreadable price that refuses. Each says what it `consumes:`, which card attribute its `amount:` is read off and how the payment `asks:` its question, and `vm/costs.ts` is one planner over those words | §5-3, §5-4, §8-3-2-3, §13-4, §20-19, §21-3 | #148 ✔, #146 ✔ |
 | `battle.rules` | the battle sub-flow as `STEP`s and `ACTION`s — declaration, the blocker window, counter windows, combo, comparison, damage | §7, §8 | Stage 6 |
 
@@ -495,6 +495,7 @@ DEFINE ACTION play
 | `prompts: [main]` | the questions within those phases it answers. Resolved against the prompts the steps ask for — a phase can ask more than one, and only some are questions a move answers. Left out, it answers every question its phases ask |
 | `FOR 1 "battle card" IN you.hand` | the candidates: one entry on the menu per card the selector finds, *including* the cards it will refuse. A move with no `FOR` is about no card |
 | `BIND "card"` | the name a refusal's condition calls the candidate by, as a trigger's `BIND` names its subject: `count(FROM $card …)` is a test about the one card being asked about |
+| `skills: ["activate:main", …]` | the printed skill kinds the move **offers**, when its candidate is a *line* of a card rather than the card (#147). `FOR` still says which cards are looked at; this says which of their lines are the candidates, so a card with three of them is asked about three times. A line of the same family in another window is still a candidate and is refused with the `timing` requirement naming the window it belongs to; the window a move offers is the one its kinds share. An action written this way runs the **record's** program, so its `DO` is empty and a `DO` that grew one is refused when the game is made |
 | `decline: "Skip charge"` | the words for answering with **no card**, when declining is an answer of its own (7-2-11's *may*): one more candidate, last on the menu, never refused, and the `DO` written about the candidate runs over no cards when it is taken |
 | `COST [energy]` | the `DEFINE COST` prices it charges, by name |
 | `DO { … }` | what taking it does. A moment is fired by what the program does — a `moveTo` is a `moved` — and is never declared separately (#141) |
@@ -518,14 +519,15 @@ Three things the shape guarantees rather than asks for:
 - **Who the move is offered to is not a field.** A prompt is put to a player and an action answers a
   prompt, so the asked player is the actor — prompt machinery, which §7 keeps out of a game's files.
 
-`src/lib/arena/vm/actions.ts` is the whole interpreter of this. What it reads so far: a `FOR` by
+`src/lib/arena/vm/actions.ts` is the whole interpreter of this, with `vm/activate.ts` beside it for
+the one move whose candidate is a skill line. What it reads so far: a `FOR` by
 side, area, filter and mode; a `REFUSE` condition written as `count()`, `isTurnPlayer()` and their
 combinations; and a `DO` that is an ordinary program, run on the interpreter the legacy engine runs
 (#142). Everything else is refused *by name* rather than read as false or silently skipped — a
 condition read as false is a move that can never be made and nothing saying why. The rest of the DBS
-moves are #147 and Stage 6.
+moves are Stage 6's.
 
-Seven are declared. Four need no payment and no battle (#145): `charge` (7-2-11, with the `decline:`
+Eight are declared. Four need no payment and no battle (#145): `charge` (7-2-11, with the `decline:`
 above and a `REFUSE` for a card the Energy Area cannot take), `endMain` (7-3-5), `pass` and
 `concede`, the last two `listed: false`. Three are the play family (#146): `play` (8-3-2), the
 `playUnison` of 13-2 and the `playZ` of 16-2, each a `COST` off `costs.rules` and a `DO` of the one
@@ -549,6 +551,24 @@ language has no word for yet; until #142 the once-per-turn fact is the step, sin
 asked once a turn. And `concede`'s `DO` is empty because no op of the effect language ends a game:
 the ending stays the interpreter's, as `vm/flow.ts`'s worked steps are, and the declaration is what
 says the move may be taken at all — a `DO` that grew one is refused by name rather than ignored.
+
+The eighth is `activate` (#147), and it is the one whose candidate is **a line rather than a card**.
+A card prints up to nine skills, each with its own price, its own condition and its own once-per-turn
+ceiling, so one being on the menu says nothing about the other eight — which is why §3.2 counts one
+rejection per card per action type *except* an activation, one per line. `skills:` is what says so,
+`FOR` reads the lines out of the three in-play areas and the hand (4-2 makes using an Extra Card from
+the hand how an Extra is played at all), and the `DO` is empty because the program a line runs is its
+own `card_rules` record's — the 8 Sep 2026 precedent, which the price follows too: the orbs printed
+in front of the line and 13-4's marker cost are **bound from the line** rather than read off the card
+the way a play's price is, and the declared `text` price is what refuses a cost this engine cannot
+read instead of offering the skill free. The gates it refuses are the legacy `whyNotActivate`'s, in
+its order, so the first requirement is the same requirement on both engines: negation (9-1-5), the
+[Once per turn] and [Limit X] count (22-44-3), [Bond X] and [Sparking X], the window, 13-4's Unison
+Area and its one marker skill a turn, the condition 9-4 hoisted out of the price, the energy, an
+effect the compiler could not read, and 9-1-3-1's wrong area. What it does *not* read is written into
+`actions.rules` beside it: a keyword's own activation is a `DEFINE KEYWORD` hook body and is Stage
+7's, an X price and an action price are refused as `unread` for the same reason a play's X cost is,
+and [Counter] windows are Stage 6's.
 
 ### How a price is declared
 
@@ -574,7 +594,7 @@ DEFINE COST energy
 
 | Written | Means |
 |---|---|
-| `TAKES (…)` | what the price is given. An action asks for a price **by name** and passes no arguments, so this is the shape `vm/costs.ts` reads off the card today; binding it is #147, where a skill's own `card_rules.cost` record supplies the values |
+| `TAKES (…)` | what the price is given. An action asks for a price **by name** and passes no arguments, so where the values come from is the *thing being paid for*: a price paid for a card reads its amount off the card through `amount:` below, and a price paid for a skill line has it bound in by the interpreter that knows which line it is (`BoundAmounts`, #147) |
 | `consumes:` | the resource the price takes — `energy`, `markers`, `life`, `mode`, `cards`, `unreadable`. Required, and it is the word an interpreter switches on: never the declaration's *name*, so a second game's `DEFINE COST mana / consumes: energy` is charged by the same search |
 | `amount:` | the **card attribute** the price's amount is read off when the move asking for it names a card (§20-21). An action asks for a price by name and passes no arguments, so the number comes from the card being paid for; naming the *derived* attribute (`costOf`, not `energyCost`) is what makes every reduction in force reach the price through that attribute's declared `layers:`. An attribute the card does not carry is not zero — an X cost has no total until its master names one (§1-2-2-2) — so such a move is refused with `unread` rather than charged as nothing |
 | `asks:` | how paying puts its question (§3-8-2). `choice` is a price the payer is asked about whenever more than one genuinely different way to pay exists — the existing `payCost` prompt, whose options are `Payment` values; `nothing` (the default) is a price with only one way to pay |
@@ -598,8 +618,10 @@ move taken for free, which is what the loader's refusal of an unknown `COST` nam
 rather than trusted: `scripts/verify/vm.ts` §17 stages the same board on both engines and asserts,
 price for price, the same answer to "can this be paid", the same `Requirement`s when it cannot, the
 same cards rested, the same options and the same words for them. Two gaps are written down where
-they are rather than papered over. The amounts of `marker`, `life` and `payWith` have nothing to
-bind them until #147, so an action naming one of those is refused **by name**; and the reductions of
+they are rather than papered over. The amounts of `marker` and `life` are bound from a skill's own
+line by an activation (#147) and have nothing to bind them anywhere else, and 20-19's `payWith` has
+nothing to bind it at all, so an action naming one of those with nothing to bind it is refused **by
+name**; and the reductions of
 20-21 — the flat one, the coloured one, and 22-19's [Warrior of Universe 7] — are the `costOf`
 attribute's declared `layers:`, which are still only partly wired. #148 named four decisions the
 layer machinery needed before `costOf` could mean anything, and #146 made one of them: `PRINTED_BASE`
