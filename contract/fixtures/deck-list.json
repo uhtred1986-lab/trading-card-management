@@ -1,0 +1,48 @@
+{
+  "decks": [
+    {
+      "id": 1,
+      "name": "Red aggro",
+      "game": "dbs",
+      "isBuilt": true,
+      "leader": {
+        "id": "BT18-001",
+        "name": "Omega Shenron, the Corrupted",
+        "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT18-001.png",
+        "colors": [
+          "Red"
+        ]
+      },
+      "status": "illegal",
+      "playable": true,
+      "playableReason": null
+    },
+    {
+      "id": 2,
+      "name": "Fusion starter",
+      "game": "fusion",
+      "isBuilt": false,
+      "leader": {
+        "id": "FB01-001",
+        "name": "Fusion Leader",
+        "imageUrl": null,
+        "colors": [
+          "Blue"
+        ]
+      },
+      "status": "incomplete",
+      "playable": false,
+      "playableReason": "Fusion World decks are not played in the arena — it only plays the original game"
+    },
+    {
+      "id": 3,
+      "name": "Idea dump",
+      "game": "dbs",
+      "isBuilt": false,
+      "leader": null,
+      "status": "incomplete",
+      "playable": false,
+      "playableReason": "needs a leader before it can be played"
+    }
+  ]
+}

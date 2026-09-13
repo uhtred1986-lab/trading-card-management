@@ -8,6 +8,9 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { isGhostAction } from "../../src/lib/arena/action-tone";
+import { deckDetail, deckSummary, type DeckDetail, type DeckListPayload } from "../../src/lib/arena/deck-api";
+import { legality, type LegalityCard } from "../../src/lib/decks/legality";
+import type { Zone } from "../../src/lib/decks/queries";
 import {
   CTX,
   DEFAULT_LIGHTING,
@@ -430,6 +433,73 @@ import type { Beat, Beats, GameState, NumberedBeat, PlayerId, Snapshot } from ".
   assert.equal(isGhostAction({ type: "counter", player: "p1", card: "p1#1" }), false, "a played counter stays filled");
   assert.equal(isGhostAction({ type: "optionalCost", player: "p1", pay: false }), true, "declining an optional cost is a ghost action");
   assert.equal(isGhostAction({ type: "optionalCost", player: "p1", pay: true }), false, "paying an optional cost stays filled");
+}
+
+// ── the deck endpoints: golden fixtures (docs/arena-client-contract.md §5.1) ─
+//
+// Not a game state, so none of the harness above applies — these are built
+// straight from `legality()` (the same function the web deck page renders
+// from) and the pure shaping in `src/lib/arena/deck-api.ts`. Written and
+// checked the same way as the snapshot fixtures above, in their own record so
+// the ghost-action and rejection checks (which read `.legal`) never see them.
+{
+  const dir = path.join(process.cwd(), "contract", "fixtures");
+  const emit = process.argv.includes("--emit");
+  const leader: LegalityCard = { cardId: "BT18-001", zone: "leader", quantity: 1, name: "Omega Shenron, the Corrupted", cardType: "LEADER", colors: ["Red"], limitedTo: null, isBanned: false };
+  const banned: LegalityCard = { cardId: "BT18-021", zone: "main", quantity: 4, name: "Banned Vegeta", cardType: "BATTLE", colors: ["Red"], limitedTo: null, isBanned: true };
+  const clean: LegalityCard = { cardId: "BT18-022", zone: "main", quantity: 4, name: "Piccolo", cardType: "BATTLE", colors: ["Red"], limitedTo: null, isBanned: false };
+  const zCard: LegalityCard = { cardId: "BT18-099", zone: "z", quantity: 2, name: "Z-Broly", cardType: "Z-BATTLE", colors: ["Red"], limitedTo: null, isBanned: false };
+  const idea: LegalityCard = { cardId: "BT18-050", zone: "side", quantity: 1, name: "Someday", cardType: "BATTLE", colors: ["Blue"], limitedTo: null, isBanned: false };
+  const fusionLeader: LegalityCard = { cardId: "FB01-001", zone: "leader", quantity: 1, name: "Fusion Leader", cardType: "LEADER", colors: ["Blue"], limitedTo: null, isBanned: false };
+
+  const dbsRows = [leader, banned, clean, zCard, idea];
+  const dbsLegality = legality(dbsRows, "dbs");
+  const fusionLegality = legality([fusionLeader], "fusion");
+  const emptyLegality = legality([], "dbs");
+
+  const deckFixtures: Record<string, unknown> = {
+    "deck-list": {
+      decks: [
+        deckSummary(
+          { id: 1, name: "Red aggro", game: "dbs", isBuilt: true, leader: { id: leader.cardId, name: leader.name, imageUrl: "https://storage.googleapis.com/deckplanet_card_images/BT18-001.png", colors: leader.colors }, legality: dbsLegality },
+          true,
+        ),
+        deckSummary({ id: 2, name: "Fusion starter", game: "fusion", isBuilt: false, leader: { id: fusionLeader.cardId, name: fusionLeader.name, imageUrl: null, colors: fusionLeader.colors }, legality: fusionLegality }, false),
+        deckSummary({ id: 3, name: "Idea dump", game: "dbs", isBuilt: false, leader: null, legality: emptyLegality }, false),
+      ],
+    } satisfies DeckListPayload,
+    "deck-detail": deckDetail(
+      {
+        id: 1,
+        name: "Red aggro",
+        game: "dbs",
+        isBuilt: true,
+        legality: dbsLegality,
+        cards: dbsRows.map((r) => ({ cardId: r.cardId, name: r.name, zone: r.zone as Zone, quantity: r.quantity, cardType: r.cardType, colors: r.colors, imageUrl: `https://storage.googleapis.com/deckplanet_card_images/${r.cardId}.png`, energyCost: r.zone === "leader" ? null : "4" })),
+      },
+      true,
+    ) satisfies DeckDetail,
+  };
+
+  assert.ok(dbsLegality.flags["main:BT18-021"], "the fixture actually exercises a flagged card");
+  const detail = deckFixtures["deck-detail"] as DeckDetail;
+  assert.deepEqual(detail.cards.find((c) => c.cardId === "BT18-021")?.flag, dbsLegality.flags["main:BT18-021"]);
+  const list = deckFixtures["deck-list"] as DeckListPayload;
+  assert.equal(list.decks[1].playable, false);
+  assert.match(list.decks[1].playableReason ?? "", /Fusion World/);
+  assert.equal(list.decks[2].playableReason, "needs a leader before it can be played");
+
+  for (const [name, value] of Object.entries(deckFixtures)) {
+    const file = path.join(dir, `${name}.json`);
+    const text = JSON.stringify(value, null, 2) + "\n";
+    if (emit) {
+      fs.writeFileSync(file, text);
+      continue;
+    }
+    assert.ok(fs.existsSync(file), `contract/fixtures/${name}.json is missing — run \`npm run contract:emit\``);
+    assert.equal(fs.readFileSync(file, "utf8").replace(/\r\n/g, "\n"), text, `the shape clients receive has changed (contract/fixtures/${name}.json). If that is deliberate, run \`npm run contract:emit\` and review the diff.`);
+  }
+  if (emit) console.log(`verify-arena: wrote ${Object.keys(deckFixtures).length} deck contract fixtures`);
 }
 
 // ── whose move it is (docs/arena-hud-spec.md §1.1) ─────────────────────────
