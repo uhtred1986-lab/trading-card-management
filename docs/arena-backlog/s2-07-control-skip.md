@@ -1,8 +1,10 @@
 ---
 title: Arena: control and skip primitives — gain control of a card, skip a phase or step (20-9, 20-13)
 milestone: Arena M1 — Rules correctness and parser coverage
-labels: backlog, ready-for-agent, enhancement, area:arena-compiler, area:arena-engine, phase:rules-stage2, model:opus-5
+labels: done, enhancement, area:arena-compiler, area:arena-engine, phase:rules-stage2, model:opus-5
 stage: 2
+status: closed
+closed_at: 2026-09-13
 ---
 **Source:** plan Stage 2 gap table, rows "gain control" (20-9) and "skip a phase" (20-13); rule manual §20.
 
