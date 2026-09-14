@@ -504,13 +504,17 @@ DEFINE OP power
 `$name` may stand where *any* value goes: a duration (`until: $until`), a side, an area, a closed
 list (`mode: $mode`, `attr: $what`), a list of strings (`values: $values`), a whole program
 (`DO $ops`, or `"Do it" $ops` as one of `chooseMode`'s modes), a condition, a selector, and a
-selector's own count, `TOP n`, side and area (`TOP $n IN $side.deck`). The parser produces a
-`Hole` node only while reading that body, so a card's program, a step's `DO` and a keyword's
-`HOOK` refuse the same `$until` as a syntax error, and `Op` stays a closed union for card programs;
-only the expansion is a real `Op`. In the two positions the grammar could already write `$name`
-— an `amount` and a `ref` — the node stays the `{ var }` a program's own binding is, and the
-macro's `TAKES` is what tells a parameter from a binding (`$picked` after a `choose … as
-"picked"` is left alone).
+selector's own count, `TOP n`, side and area (`TOP $n IN $side.deck`, or the plain count without
+`TOP` — `$n IN $side.hand`, #274). The parser produces a `Hole` node only while reading that body,
+so a card's program, a step's `DO` and a keyword's `HOOK` refuse the same `$until` as a syntax
+error, and `Op` stays a closed union for card programs; only the expansion is a real `Op`. A
+selector field is the one place the shortcut needs a look past the `$` before taking it: `$n IN
+…` is a count with more selector to read, `$sel` alone before the `,` or `)` that ends the field
+is the whole selector, and the token after the name is what tells them apart (`typed()`, the same
+distinction `places()`'s `$side.hand` already made for a side). In the two positions the grammar
+could already write `$name` — an `amount` and a `ref` — the node stays the `{ var }` a program's
+own binding is, and the macro's `TAKES` is what tells a parameter from a binding (`$picked` after
+a `choose … as "picked"` is left alone).
 
 Every hole names a parameter the macro `TAKES`, of a type the slot can hold, and the loader
 refuses the rest before the expander could fill it: `$until` where nothing is declared, `$until`
