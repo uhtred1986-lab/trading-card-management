@@ -25,6 +25,8 @@ import {
 } from "./engine";
 import { def, emitsStatic, locate, masterOf, permanentStatics, type StaticEffect } from "./engine/state";
 import { describeEffect, describeStatic, type EffectView } from "./effects";
+import type { EngineState } from "./engines";
+import { isVmState } from "./vm/state";
 
 export interface CardView {
   id: string;
@@ -407,8 +409,17 @@ function sideView(ctx: EngineContext, s: GameState, p: PlayerId, images: Record<
  * It exists so `beats.ts` can ask the same question about a card that has
  * since left the board, without a second set of reveal rules growing up beside
  * this one. See `maskBeats`.
+ *
+ * The rules engine has no reading of this rule yet, and — for now — needs
+ * none: `games.ts`'s `assertEngineForMode` refuses a 1 v 1 on it, so every
+ * mode it can actually be played in is the "on one device" case `maskBeats`'s
+ * own header already calls harmless. Revealing everything is that
+ * harmlessness taken literally, honestly, rather than a second reading of
+ * this rule built over `state.sides` before there is a second viewer for a
+ * leak to reach.
  */
-export function revealedTo(s: GameState, viewer: PlayerId): Set<string> {
+export function revealedTo(s: EngineState, viewer: PlayerId): Set<string> {
+  if (isVmState(s)) return new Set(Object.keys(s.cards));
   const out = new Set<string>();
   const add = (id: string | null | undefined) => {
     const inst = id ? s.cards[id] : null;
@@ -620,8 +631,14 @@ export function boardView(ctx: EngineContext, s: GameState, viewer: PlayerId, im
   };
 }
 
-/** Whose turn it is to answer — the board is drawn from this player's side. */
-export function viewerOf(s: GameState): PlayerId {
+/**
+ * Whose turn it is to answer — the board is drawn from this player's side.
+ *
+ * Reads only `prompt`/`turnPlayer`, which both engines' states carry under
+ * the same names, so it takes `EngineState` rather than the legacy shape —
+ * `snapshot.ts` calls it for either engine's game.
+ */
+export function viewerOf(s: EngineState): PlayerId {
   const pr = s.prompt;
   return "player" in pr && pr.player ? pr.player : s.turnPlayer;
 }

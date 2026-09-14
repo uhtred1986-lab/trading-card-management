@@ -6,7 +6,7 @@ import { ArenaStage } from "@/components/arena/stage/ArenaStage";
 import { hasAnthropic } from "@/lib/ai/client";
 import { GameOver } from "@/components/arena/GameOver";
 import type { GameReview } from "@/lib/arena/ai/review";
-import { ENGINE_INFO } from "@/lib/arena/engines";
+import { ENGINE_INFO, damageTaken, sideName } from "@/lib/arena/engines";
 import { isVersus, loadGame, modeLabel, seatOf } from "@/lib/arena/games";
 import { currentUser } from "@/lib/auth";
 import { snapshotOfGame } from "@/lib/arena/session";
@@ -91,11 +91,11 @@ export default async function ArenaGamePage({ params, searchParams }: { params: 
       {game.status === "over" && (
         <GameOver
           gameId={id}
-          winnerName={game.state.winner ? game.state.players[game.state.winner].name : null}
+          winnerName={game.state.winner ? sideName(game.state, game.state.winner) : null}
           draw={!game.state.winner}
           reason={game.state.overReason ?? ""}
           turns={game.state.turn}
-          damage={{ you: game.state.players[snap.game.you].damageTaken, them: game.state.players[snap.game.you === "p1" ? "p2" : "p1"].damageTaken }}
+          damage={{ you: damageTaken(game.state, snap.game.you), them: damageTaken(game.state, snap.game.you === "p1" ? "p2" : "p1") }}
           spend={game.spend}
           review={review}
           aiEnabled={hasAnthropic()}

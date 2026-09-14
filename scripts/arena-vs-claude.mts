@@ -8,15 +8,20 @@
  * the opponent then takes the first legal move and the referee rules nothing.
  *
  * `--engine` (default `legacy`) is passed straight to `startGame`, which
- * resolves it through `playableEngine` — so `--engine rules` refuses with
- * `EngineNotBuilt` before a deck is even read, the same refusal the `/arena`
- * form gives while the rules engine stays unplayable.
+ * resolves it through `playableEngine` and, since #149, `assertEngineForMode`
+ * too — the rules engine plays hot-seat only, so `--engine rules` with the
+ * default `sparring` tier refuses there before a deck is even read, the same
+ * refusal the `/arena` form gives for that combination. `--engine rules
+ * hotseat` runs, and the board-drawing calls below are narrowed to the
+ * legacy `GameState` accordingly (`legacyState`) since the stand-in that
+ * plays every seat here reads `boardView` directly rather than through
+ * `engineFor`.
  */
 import { eq } from "drizzle-orm";
 import { db } from "../src/db";
 import { arenaGames, decks } from "../src/db/schema";
 import { advance } from "../src/lib/arena/ai/run";
-import { isEngineId } from "../src/lib/arena/engines";
+import { isEngineId, legacyState } from "../src/lib/arena/engines";
 import { loadGame, startGame, type ArenaMode } from "../src/lib/arena/games";
 import { deckInputFor } from "../src/lib/arena/load";
 import { boardView, tappable, viewerOf } from "../src/lib/arena/view";
@@ -65,12 +70,13 @@ for (let i = 0; i < 400; i++) {
 
   const game = await loadGame(db, id);
   if (!game || game.status !== "playing") break;
+  const state = legacyState(game.state);
   // The board must build on every state, or the page would crash mid-game.
-  boardView(game.ctx, game.state, "p1", {});
+  boardView(game.ctx, state, "p1", {});
   tappable(game.legal);
   // The stand-in plays for whoever is being asked, except Claude itself.
   const ai = tier === "hotseat" ? null : "p2";
-  const pr = game.state.prompt;
+  const pr = state.prompt;
   if (!("player" in pr) || pr.player === ai) {
     if (ran.steps === 0) {
       console.error("nobody can move — prompt is", pr.kind);

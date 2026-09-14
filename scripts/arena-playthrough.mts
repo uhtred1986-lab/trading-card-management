@@ -13,7 +13,7 @@ import { arenaGames, decks } from "../src/db/schema";
 import { eq } from "drizzle-orm";
 import { legalActions, nextRandom, rejectedActions, type Action, type LegalAction } from "../src/lib/arena/engine";
 import { BEAT_CAP, type Beat, type Beats } from "../src/lib/arena/beats";
-import { isEngineId } from "../src/lib/arena/engines";
+import { isEngineId, legacyState } from "../src/lib/arena/engines";
 import { applyToGame, loadGame, startGame } from "../src/lib/arena/games";
 import { deckInputFor } from "../src/lib/arena/load";
 import { boardView, tappable, viewerOf, type BoardView } from "../src/lib/arena/view";
@@ -240,8 +240,14 @@ let steps = 0;
 for (;;) {
   const game = await loadGame(db, id);
   if (!game) throw new Error("the game vanished");
+  // This script's own audits (`auditBattle` and friends, below) read the
+  // legacy `BoardView`/`GameState` shape directly rather than through
+  // `engineFor`'s generic switch — narrowed here rather than left to a
+  // confusing crash inside `boardView` the first time `--engine rules` plays
+  // a game past what `startGame` refuses at (#149, hot-seat only).
+  const state = legacyState(game.state);
   // The board must build on every state, or a page would crash mid-game.
-  const view = boardView(game.ctx, game.state, viewerOf(game.state), {});
+  const view = boardView(game.ctx, state, viewerOf(state), {});
   const taps = tappable(game.legal);
   auditBattle(view, steps + 1);
   auditWhoseMove(game, steps + 1);
@@ -250,7 +256,7 @@ for (;;) {
     console.log(`taps: ${Object.keys(taps.byCard).length} cards, ${taps.bare.length} buttons`);
   }
   if (game.status !== "playing" || game.legal.length === 0) break;
-  auditRejections(game, steps + 1);
+  auditRejections({ ctx: game.ctx, state, legal: game.legal }, steps + 1);
   if (++steps > 800) {
     console.log("stopped after 800 moves");
     break;

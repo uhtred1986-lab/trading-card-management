@@ -14,10 +14,11 @@ import type { Db } from "@/db";
 import { hasAnthropic } from "@/lib/ai/client";
 import { arenaGames, cards as cardsTable } from "@/db/schema";
 import { inArray } from "drizzle-orm";
-import { seedFrom, type Action, type CardDef, type EngineContext, type GameEvent, type GameState, type LegalAction, type PlayerId } from "./engine";
-import { face } from "./engine";
+import { seedFrom, type Action, type CardDef, type EngineContext, type GameEvent, type LegalAction, type PlayerId } from "./engine";
 import { appendBeats, describeSkillEvent, type Beats, type NumberedBeat } from "./beats";
-import { engineFor, engineOr, legacyState, playableEngine, type EngineId } from "./engines";
+import { ENGINE_INFO, engineFor, engineOr, isVmState, playableEngine, sideName, type EngineId, type EngineState } from "./engines";
+import { NOT_YET_REASON_PREFIX } from "./vm";
+import { recordDecision } from "./ai/debug";
 import { cardDefFrom, deckInputFor } from "./load";
 import { rulesFor } from "./rules-store";
 import { gameOr, type Game } from "@/lib/catalog/games";
@@ -84,8 +85,14 @@ export interface Spotlight {
  * The last skill to resolve in this batch of events, or null if none did.
  * The reading itself is `describeSkillEvent` in `beats.ts`, so the banner and
  * the `skill` beat can never end up describing the same card differently.
+ *
+ * Legacy only: `describeSkillEvent` reads a card's printed skills and its
+ * copied ones off the legacy `GameState` (`engine/state.ts`'s `def`,
+ * `skillsOf`, `copiedSkillsOn`), which the rules engine has no equivalent of
+ * yet. No banner rather than a wrong one for a rules-engine game.
  */
-function spotlightFrom(ctx: EngineContext, state: GameState, events: GameEvent[], seq: number): Spotlight | null {
+function spotlightFrom(ctx: EngineContext, state: EngineState, events: GameEvent[], seq: number): Spotlight | null {
+  if (isVmState(state)) return null;
   for (let i = events.length - 1; i >= 0; i--) {
     const e = events[i];
     if (e.type !== "skill") continue;
@@ -119,7 +126,8 @@ export interface LoadedGame {
   /** What the row was on when this was read — the guard `applyToGame` writes against. */
   version: number;
   ctx: EngineContext;
-  state: GameState;
+  /** The shape `engine` wrote. `legacyState` narrows it for the code that still needs `GameState` field for field (`ai/run.ts`'s Claude side). */
+  state: EngineState;
   /** Every action applied so far, in order. */
   actions: Action[];
   log: string[];
@@ -131,12 +139,33 @@ export interface LoadedGame {
 }
 
 /** Definitions for every card the state mentions, tokens included. */
-async function defsForState(db: Db, state: GameState): Promise<Record<string, CardDef>> {
+async function defsForState(db: Db, state: EngineState): Promise<Record<string, CardDef>> {
   const ids = [...new Set(Object.values(state.cards).map((c) => c.cardId))].filter((id) => !id.startsWith("TOKEN:"));
   const rows = ids.length ? await db.select().from(cardsTable).where(inArray(cardsTable.id, ids)) : [];
   const out: Record<string, CardDef> = {};
   for (const r of rows) out[r.id] = cardDefFrom(r);
   return out;
+}
+
+/**
+ * Is this engine built for this mode? (#149.)
+ *
+ * The rules engine plays the actions of Stage 5 the same as the legacy one,
+ * but two things past those six calls still read the legacy `GameState`
+ * field for field rather than either engine's shape generically: Claude's
+ * side of Sparring and Tournament (`ai/run.ts`, a hand and a deck read off
+ * `state.players[p]`) and a 1 v 1's hidden-hand masking (`beats.ts`'s
+ * `maskBeats`/`view.ts`'s `revealedTo`, which reveal everything to every
+ * viewer of a rules-engine game rather than really keeping a hand hidden).
+ * Refused here, at creation, rather than left to produce a Sparring game
+ * nothing ever moves for or a 1 v 1 that leaks both hands — the same
+ * discipline `playableEngine` already applies to the engine itself, one level
+ * narrower.
+ */
+function assertEngineForMode(engine: EngineId, mode: ArenaMode): void {
+  if (engine === "rules" && mode !== "hotseat") {
+    throw new Error(`the ${ENGINE_INFO.rules.label} plays hot-seat only for now — Claude's side and a 1 v 1's hidden hands are not built yet`);
+  }
 }
 
 export async function startGame(
@@ -150,6 +179,7 @@ export async function startGame(
 ): Promise<number> {
   // Resolved first: an engine that cannot play refuses before any deck is read.
   const engine = playableEngine(engineId);
+  assertEngineForMode(engineId, mode);
   const a = await deckInputFor(db, p1DeckId);
   const b = await deckInputFor(db, p2DeckId);
   // `deckInputFor` also returns null for a Fusion World deck, which the engine
@@ -165,9 +195,7 @@ export async function startGame(
   for (const r of rows) defs[r.id] = cardDefFrom(r);
   const ctx: EngineContext = { defs, scripts: await rulesFor(db, defs), referee: hasAnthropic() && mode !== "hotseat" };
   const seed = seedFrom(`${p1DeckId}:${p2DeckId}:${Date.now()}`);
-  const { state: made, events } = engine.createGame(ctx, { seed, p1: a.input, p2: b.input });
-  // Legacy-shaped for as long as the row and the board below are (`legacyState`).
-  const state = legacyState(made);
+  const { state, events } = engine.createGame(ctx, { seed, p1: a.input, p2: b.input });
   const [row] = await db
     .insert(arenaGames)
     .values({
@@ -195,7 +223,7 @@ export async function startGame(
 export async function loadGame(db: Db, id: number): Promise<LoadedGame | null> {
   const row = await db.query.arenaGames.findFirst({ where: eq(arenaGames.id, id) });
   if (!row) return null;
-  const state = legacyState(row.state);
+  const state = row.state as EngineState;
   const defs = await defsForState(db, state);
   // The rules the engine plays by come from `card_rules`, not from a compile.
   const ctx: EngineContext = { defs, scripts: await rulesFor(db, defs), referee: hasAnthropic() && row.mode !== "hotseat" };
@@ -250,8 +278,7 @@ export async function applyToGame(db: Db, id: number, action: Action, told?: { s
   if (!game) throw new Error(`no game ${id}`);
   if (game.status !== "playing") throw new Error("this game is over");
   const engine = engineFor(game.engine);
-  const { state: next, events } = engine.apply(game.ctx, game.state, action);
-  const state = legacyState(next);
+  const { state, events } = engine.apply(game.ctx, game.state, action);
   // What Claude said about *this* move goes in ahead of it, because it is the
   // reason for the move that follows. Collecting the whole batch and appending
   // it at the end put a line said on turn 1 under the turn 2 header, which
@@ -292,6 +319,23 @@ export async function applyToGame(db: Db, id: number, action: Action, told?: { s
     .where(and(eq(arenaGames.id, id), eq(arenaGames.version, game.version)))
     .returning({ id: arenaGames.id });
   if (!written.length) throw new StaleGame();
+  // #149: a game the rules engine could not finish (`vm/flow.ts`'s
+  // `NOT_YET_REASON_PREFIX`) ends like any other — `overReason` on the board
+  // — but it is also a fact no AI decided, so the debug page would otherwise
+  // never say why a hot-seat game with no Claude in it stopped. One row,
+  // shaped like every other decision, is what puts it there.
+  if (state.overReason?.startsWith(NOT_YET_REASON_PREFIX)) {
+    await recordDecision(db, {
+      gameId: id,
+      turn: state.turn,
+      phase: state.phase,
+      promptKind: "gameOver",
+      player: action.player,
+      kind: "engineStuck",
+      decidedBy: "rule",
+      how: state.overReason,
+    });
+  }
   return {
     ...game,
     state,
@@ -377,16 +421,29 @@ export async function abandonGame(db: Db, id: number): Promise<void> {
 
 // ── the event log ──────────────────────────────────────────────────────────
 
+/**
+ * A card's name as it would show right now — Hidden Mode, a flipped Leader's
+ * back side, or its front — read off whichever state shape wrote it.
+ *
+ * The three fields it reads (`cardId`, `hidden`, `flipped`) are named the same
+ * on both engines' card instances (`VmCard`/`CardInstance`), so this is one
+ * reading rather than a legacy one and a second: only `face` in `engine/state.ts`
+ * (deeper card-copy and skill-lookup logic this log has no use for) is
+ * legacy-only, and this is everything `describeEvents` actually wants from it.
+ */
+function cardName(ctx: EngineContext, state: EngineState, id: string): string {
+  const inst = state.cards[id];
+  const def = inst && ctx.defs[inst.cardId];
+  if (!inst || !def) return id;
+  if (inst.hidden) return "Hidden card";
+  if (inst.flipped && def.back) return def.back.name;
+  return def.name;
+}
+
 /** One readable line per event, for the log the board shows. */
-export function describeEvents(ctx: EngineContext, state: GameState, events: GameEvent[]): string[] {
-  const name = (id: string) => {
-    try {
-      return face(ctx, state, id).name;
-    } catch {
-      return id;
-    }
-  };
-  const who = (p: "p1" | "p2") => state.players[p].name;
+export function describeEvents(ctx: EngineContext, state: EngineState, events: GameEvent[]): string[] {
+  const name = (id: string) => cardName(ctx, state, id);
+  const who = (p: "p1" | "p2") => sideName(state, p);
   const out: string[] = [];
   for (const e of events) {
     switch (e.type) {

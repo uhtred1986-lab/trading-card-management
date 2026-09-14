@@ -17,7 +17,8 @@ export interface DecisionRecord {
   phase: string;
   promptKind: string;
   player: string;
-  kind: "move" | "referee";
+  /** `engineStuck` is #149's: a game the rules engine could not finish, decided by nobody. */
+  kind: "move" | "referee" | "engineStuck";
   decidedBy: "rule" | "claude" | "fallback";
   how: string;
   model?: string | null;
