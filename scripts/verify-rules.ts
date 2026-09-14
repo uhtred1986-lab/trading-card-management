@@ -19,6 +19,8 @@ import { sanitiseDraft, type PoolCard } from "../src/lib/ai/deck-builder";
 import { assessMatch, cleanBox, nameSimilarity, normaliseNumber } from "../src/lib/ai/scan-match";
 import { parseViewMode, viewHref } from "../src/lib/view-mode";
 import { needsInstall } from "./session-start-check.mjs";
+import { shouldSkipBuild } from "./vercel-ignore-build.mjs";
+import { shouldMigrate } from "./vercel-build.mjs";
 import { parseSpecifiedCost, printSpecifiedCost, specifiedCostWords, staleSpecifiedCosts } from "../src/lib/arena/specified-cost";
 import { cardDefFrom } from "../src/lib/arena/load";
 import { specifiedCostOf, specifiedCostUnknown } from "../src/lib/arena/engine/cards";
@@ -596,6 +598,15 @@ assert.equal(viewHref("/cards", { q: undefined, set: "" }, "grid"), "/cards");
 assert.equal(needsInstall(null, 100), true, "missing node_modules always needs an install");
 assert.equal(needsInstall(50, 100), true, "a lockfile newer than node_modules needs a reinstall");
 assert.equal(needsInstall(100, 50), false, "node_modules newer than the lockfile is current");
+
+// ── Vercel: previews of agent branches are skipped, migrations are production's ──
+assert.equal(shouldSkipBuild({ VERCEL_ENV: "production", VERCEL_GIT_COMMIT_REF: "feat/1-x" }), false, "production always builds");
+assert.equal(shouldSkipBuild({ VERCEL_ENV: "preview", VERCEL_GIT_COMMIT_REF: "feat/1-x" }), true, "an agent branch's preview is skipped");
+assert.equal(shouldSkipBuild({ VERCEL_ENV: "preview", VERCEL_GIT_COMMIT_REF: "claude/issue-9" }), true);
+assert.equal(shouldSkipBuild({ VERCEL_ENV: "preview", VERCEL_GIT_COMMIT_REF: "patricks-experiment" }), false, "a hand-pushed branch still previews");
+assert.equal(shouldSkipBuild({ VERCEL_ENV: "preview" }), false, "no branch name: build rather than guess");
+assert.equal(shouldMigrate({ VERCEL_ENV: "production" }), true);
+assert.equal(shouldMigrate({ VERCEL_ENV: "preview" }), false, "a preview never migrates the shared database");
 
 console.log("verify-rules: all checks passed");
 
