@@ -297,10 +297,26 @@ learned the expensive way. Read it before changing the compiler or the engine.
   carry the gate, a selector honours "can't be chosen" (20-4), and the host's 0-2-5 question answers
   off the board instead of `false`. The one ordering that is *not* legacy's is recorded rather than
   matched: a `REFUSE` runs before the price, and legacy puts the price first for a plain Battle Card
-  and the prohibition first for a Unison or an X cost (`verify/vm.ts` §21 asserts both). 13-3's
-  `growUnison` is **not** declared — its once-a-turn gate needs a player attribute a condition can
-  read and an op that sets one, and the language has neither — and 22-33's `offering` is a boolean
-  answer no candidate can carry (#157).
+  and the prohibition first for a Unison or an X cost (`verify/vm.ts` §21 asserts both). 22-33's
+  `offering` is a boolean answer no candidate can carry (#157).
+  **A player has facts of their own, not only cards** (`DEFINE ATTRIBUTE of: player`, issue #269):
+  `reset: turnStart` is the declaration's own ceiling for one that returns to rest on its own —
+  `vm/flow.ts`'s `endTurn` clears every one so flagged, off `game.attributes` rather than by name —
+  and `playerAttr`/`setPlayerAttr` are the one `Cond`/`Op` row that reads and writes one. `charged`
+  (7-2-11) and `grewUnison` (13-3) are the first two. The charge's once-a-turn `REFUSE` now reads
+  `charged` — true from the moment the Charge Phase's own question is answered, win or skip, set in
+  `mainPending` rather than in the action's own `DO`, because leaving the Charge Phase closes the
+  window whether or not a card was placed — in place of the `asking(prompt: charge)` proxy #145 left
+  it on. 13-3's `growUnison` is declared beside it, gated the same board-then-card order as
+  `whyNotCharge`; "a copy of the Unison Card in play" is `sameCard`, a new `Cond` reading two
+  selectors for the same printed identity rather than stretching a filter to name another card's
+  identity dynamically (the same gap #145 named for 22-39's [Unique], `FILTER_FIELDS` still has no
+  word for it, and this does not add one — a selector pair only reaches a card the declaration itself
+  names, e.g. the one card a `ZONE single: true` area holds). **What it does not do**: finish the
+  move. `vm/host.ts`'s `placeUnder` throws `NotYet("#146")` unconditionally, so taking a legal,
+  correctly-refused `growUnison` still stops there — caught at `stepProgram`'s existing boundary
+  (`vm/flow.ts`) as a note naming the issue, the same safety net every other unbuilt primitive uses
+  while `ENGINE_INFO.rules.available` is false. Discovered delivering #269, not fixed by it.
   **Using a skill is a paragraph about a *line*** (`vm/activate.ts` + the `activate` declaration,
   #147): the one move whose candidate is not a card. A card prints up to nine skills, each with its
   own price, its own condition and its own once-per-turn ceiling, so `DEFINE ACTION`'s new `skills:`

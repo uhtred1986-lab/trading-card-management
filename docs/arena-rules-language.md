@@ -219,7 +219,9 @@ DEFINE GAME dbs
 **ATTRIBUTE** — something a card, a player or a zone has — printed on the card, or derived from the
 board (manual §4). `of:` (card | player | zone) and `value:` (number | string | strings | colors |
 boolean) are required; `printed:` says it comes off the card, `derived:` is the expression that
-computes it instead, `layers:` the order the layers apply in, `text:` what it means.
+computes it instead, `layers:` the order the layers apply in, `reset:` (`turnStart`) says when a
+`player` fact returns to its rest value on its own rather than only ever being read and set by name
+(issue #269), `text:` what it means.
 
 ```
 DEFINE ATTRIBUTE power
@@ -228,6 +230,12 @@ DEFINE ATTRIBUTE power
   printed: true
   layers: [printed, markers, skills]
   text: "the number a battle is decided by (4-6)"
+
+DEFINE ATTRIBUTE grewUnison
+  of: player
+  value: boolean
+  reset: turnStart
+  text: "whether this player has already grown their Unison Card this turn (13-3)"
 ```
 
 **ZONE** — an area cards sit in: who owns it, who may see it, and whether what is in it is in play

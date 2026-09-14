@@ -90,6 +90,8 @@ Operations (each is an object with "op"; a field marked ? may be left out):
     the inner operations happen later (1-7-2-1-1): "At the end of the turn, KO it" is a choose, then a delay at "turnEnd" whose ops KO {"var":"t"}. A delayed program keeps the variables bound before it
   {"op":"note","text":"…"}
     a remark in the log; does nothing
+  {"op":"setPlayerAttr","name":"…","value"?:true|false,"side"?:"you"|"opponent"}
+    set a `DEFINE ATTRIBUTE of: player` fact — 13-3's growUnison marks its own "grewUnison" true once it resolves, so a later REFUSE reads it rather than the move being asked twice in one turn (issue #269)
 
 AMOUNT is a number or an expression: {"var":"t"} (how many cards that name holds), {"count":SELECTOR,"times":N} (so much for each matching card),
   {"markers":SELECTOR,"times":N} (so much for each marker on them), {"life":"you"|"opponent"|"both","times":N}, {"sumPower":{"var":"t"}}, {"handUpTo":N},
@@ -131,6 +133,10 @@ COND is one of these (a field marked ? may be left out):
   {"kind":"varMatches","var":"…","filter":FILTER}
   {"kind":"isTurnPlayer","who"?:"you"|"opponent"}
     whose turn it is (7-1) — "during your opponent's turn" is this, not a duration
+  {"kind":"playerAttr","name":"…","side"?:"you"|"opponent"}
+    a `DEFINE ATTRIBUTE of: player` fact, read — "you have already had your charge this turn" (7-2-11) and "you have not already grown a Unison this turn" (13-3) are both `NOT playerAttr(name: …)`, over the declared name (issue #269)
+  {"kind":"sameCard","a":SELECTOR,"b":SELECTOR}
+    do these two selectors each resolve to one card of the same printed identity? "a copy of the Unison Card" (13-3) is this, over the candidate and the card in the Unison Area — the filter grammar has no word for another card's identity, so this reads two selectors instead (issue #269)
   "During your opponent's turn" is a CONDITION, {"kind":"isTurnPlayer","who":"opponent"} — not a duration. A
   duration says how long an effect this skill applies lasts; a condition says when the skill does anything at all.
 TIMING: "turnStart" | "mainStart" | "turnEnd" | "turnCleanup" | "battleEnd"

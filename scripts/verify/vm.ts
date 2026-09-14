@@ -199,7 +199,6 @@ assert.equal(isVmState("rules"), false, "a string was read as a rules state");
 // the sentence — the refusal a caller really gets, not a shortcut past it.
 const rules = engineFor("rules");
 const notYet: { what: string; run: () => unknown }[] = [
-  { what: "growing a Unison", run: () => rules.apply(CTX, state, { type: "growUnison", player: "p1", card: "p1#1" }) },
   { what: "attacking", run: () => rules.apply(CTX, state, { type: "attack", player: "p1", attacker: "p1#0", target: "p2#0" }) },
 ];
 for (const { what, run } of notYet) {
@@ -257,7 +256,7 @@ const DBS: GameDefinition = dbs.ok ? dbs.definition : (undefined as never);
 // adapter and `attributes.rules` account for each other. Reported by name in
 // both directions — a count would say something changed and nothing about what.
 assert.deepEqual(attributeGaps(DBS), { unfilled: [], undeclared: [] }, "the catalog adapter and attributes.rules do not describe the same card");
-assert.deepEqual(playerAttributes(DBS), ["energyMarkers"], "the player attributes of 1-14 are not what the game declares");
+assert.deepEqual(playerAttributes(DBS), ["energyMarkers", "charged", "grewUnison"], "the player attributes of 1-14, 7-2-11 and 13-3 are not what the game declares");
 assert.ok(cardAttributes(DBS).includes("costOf"), "the derived cost of 20-21 is not a declared card attribute");
 
 {
@@ -477,7 +476,7 @@ const SEED = 7;
 const SAME = { seed: SEED, p1: { name: "You", leader: "L-RED", main: fifty("V1") }, p2: { name: "Claude", leader: "L-BLUE", main: fifty("V-BLUE") } };
 
 const fresh = engineFor("rules").createGame(CTX, SAME).state as VmState;
-assert.deepEqual(fresh.sides.p1.attrs, { energyMarkers: 0 }, "a side does not start with the player attributes the game declares (1-14)");
+assert.deepEqual(fresh.sides.p1.attrs, { energyMarkers: 0, charged: false, grewUnison: false }, "a side does not start with the player attributes the game declares (1-14, 7-2-11, 13-3)");
 
 let oracle = createGame(CTX, SAME).state;
 const chooser = (oracle.prompt as { player: PlayerId }).player;
@@ -1321,8 +1320,8 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
         .sort(),
       // `charge` is here because 7-2-11's "one charge a turn" is a *refusal* at
       // this question rather than a silence (#145): the move is declared in
-      // both phases and refused in this one.
-      ["activate", "charge", "concede", "endMain", "pass", "play", "playUnison", "playZ"],
+      // both phases and refused in this one. `growUnison` is 13-3 (#269).
+      ["activate", "charge", "concede", "endMain", "growUnison", "pass", "play", "playUnison", "playZ"],
       "the Main Phase offers a declared action other than the ones the files declare",
     );
     const menu = declaredLegalActions(CTX, DBS, s);
@@ -1334,13 +1333,14 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     // The play family is declared (#146), and this board has no energy — so
     // every Battle Card in hand is on the *refused* list with the price that
     // stopped it; the charge is refused for every card in hand because its one
-    // turn has gone (#145); and `pass` and `concede` are on neither list
-    // because a refusal explains a move a player can see.
+    // turn has gone (#145); `growUnison` is refused with no Unison in play
+    // (#269); and `pass` and `concede` are on neither list because a refusal
+    // explains a move a player can see.
     const refused = declaredRejectedActions(CTX, DBS, s, menu);
     assert.deepEqual(
       [...new Set(refused.map((r) => r.action.type))].sort(),
-      ["charge", "play"],
-      "an unlisted action reached the list of refusals, or a Main Phase move other than a play or a charge was refused",
+      ["charge", "growUnison", "play"],
+      "an unlisted action reached the list of refusals, or a Main Phase move other than a play, a charge or growUnison was refused",
     );
     assert.ok(
       refused.filter((r) => r.action.type === "play").every((r) => r.why[0]?.kind === "energy"),
@@ -2873,6 +2873,11 @@ console.log("verify/vm: ok");
       const next = structuredClone(s);
       next.phase = "charge";
       next.prompt = { kind: "charge", player: "p1" };
+      // `banned` stages its board via the Main Phase, where `charged` is
+      // already true for p1 (#269) — rewinding the phase by hand has to
+      // rewind that too, or the once-per-turn refusal fires ahead of the one
+      // this block means to test.
+      next.sides.p1.attrs.charged = false;
       return next;
     };
     const r = toCharge(board.r);
@@ -2940,5 +2945,140 @@ console.log("verify/vm: ok");
     const board = banned("V1", "F-NO-PLAY");
     assert.equal(forbids(CTX, DBS, board.r, "play", { player: "p1", card: board.card }), true, "the rules engine's own `forbids` does not see a [Permanent] in play");
     assert.equal(forbids(CTX, DBS, board.r, "attack", { player: "p1", card: board.card }), false, "a rule about playing forbids attacking as well");
+  }
+
+  // 13-3's growUnison, declared over the player attribute #269 added
+  // (`grewUnison`) — staged like `banned`, except the "in play" card goes to
+  // the Unison Area rather than the Battle Area, since that is the one area
+  // this move reads. P-UNISON is the card the play-family tests above
+  // already declared.
+  {
+    function growBoard(): { r: VmState; l: GameState; unison: string; copy: string } {
+      let r = rulesEngine.createGame(CTX, BAN_DECKS).state as VmState;
+      let l = createGame(CTX, BAN_DECKS).state;
+      for (let i = 0; i < 30; i++) {
+        const pr = r.prompt as { kind: string; player: PlayerId };
+        const a: Action | null =
+          pr.kind === "chooseFirst"
+            ? { type: "chooseFirst", player: pr.player, first: "p1" }
+            : pr.kind === "mulligan"
+              ? { type: "mulligan", player: pr.player, redraw: false }
+              : pr.kind === "charge"
+                ? { type: "charge", player: pr.player, card: null }
+                : null;
+        if (!a) break;
+        r = rulesEngine.apply(CTX, r, a).state as VmState;
+        l = apply(CTX, l, a).state;
+      }
+      assert.equal(r.prompt.kind, "main", "the rules game did not reach a Main Phase to grow a Unison in");
+      const unison = r.sides.p1.zones.deck[0];
+      const copy = r.sides.p1.zones.hand[0];
+      for (const id of [unison, copy]) {
+        r.cards[id].cardId = "P-UNISON";
+        l.cards[id].cardId = "P-UNISON";
+      }
+      r.sides.p1.zones.deck = r.sides.p1.zones.deck.filter((id) => id !== unison);
+      l.players.p1.deck = l.players.p1.deck.filter((id) => id !== unison);
+      r.sides.p1.zones.unison = [unison];
+      l.players.p1.unison = unison;
+      return { r, l, unison, copy };
+    }
+
+    // No Unison in play at all: refused board-level, before any card is asked
+    // about — `whyNotCharge`'s own order, which `whyNotGrowUnison` (added
+    // beside it) now follows too.
+    {
+      const bare = rulesEngine.createGame(CTX, BAN_DECKS).state as VmState;
+      const bareLegacy = createGame(CTX, BAN_DECKS).state;
+      let r = bare;
+      let l = bareLegacy;
+      for (let i = 0; i < 30; i++) {
+        const pr = r.prompt as { kind: string; player: PlayerId };
+        const a: Action | null =
+          pr.kind === "chooseFirst"
+            ? { type: "chooseFirst", player: pr.player, first: "p1" }
+            : pr.kind === "mulligan"
+              ? { type: "mulligan", player: pr.player, redraw: false }
+              : pr.kind === "charge"
+                ? { type: "charge", player: pr.player, card: null }
+                : null;
+        if (!a) break;
+        r = rulesEngine.apply(CTX, r, a).state as VmState;
+        l = apply(CTX, l, a).state;
+      }
+      const rLegal = rulesEngine.legalActions(CTX, r);
+      const lLegal = legalActions(CTX, l);
+      assert.equal(rLegal.some((x) => x.action.type === "growUnison"), false, "growUnison is offered with no Unison in play");
+      assert.equal(lLegal.some((x) => x.action.type === "growUnison"), false, "the legacy engine offers growUnison with no Unison in play");
+      const mine = rulesEngine.rejectedActions(CTX, r, rLegal).find((x) => x.action.type === "growUnison")?.why[0];
+      assert.deepEqual(mine, { kind: "target", reason: "no Unison Card in play to grow" }, "growUnison with no Unison in play is not refused by name");
+    }
+
+    // Staged: legal on both engines, over the same board.
+    const board = growBoard();
+    const grow = { type: "growUnison" as const, player: "p1" as const, card: board.copy };
+    const rLegal = rulesEngine.legalActions(CTX, board.r);
+    const lLegal = legalActions(CTX, board.l);
+    assert.ok(
+      rLegal.some((x) => x.action.type === "growUnison" && (x.action as { card: string }).card === board.copy),
+      "growing the staged Unison from its own copy in hand is not offered",
+    );
+    assert.ok(
+      lLegal.some((x) => x.action.type === "growUnison" && (x.action as { card: string }).card === board.copy),
+      "the legacy engine does not offer growing the staged Unison",
+    );
+
+    // Taking it completes on the legacy engine — a marker, the copy under the
+    // Unison, the once-a-turn fact set (`ps.grewUnisonThisTurn`, read by
+    // `setPlayerAttr`'s legacy case).
+    const l2 = apply(CTX, board.l, grow);
+    assert.equal((l2.state as GameState).cards[board.unison].markers, 1, "the Unison did not gain a marker on the legacy engine");
+    assert.deepEqual((l2.state as GameState).cards[board.unison].under, [board.copy], "the copy did not go under the Unison on the legacy engine");
+
+    // The rules engine's own move-under primitive is not built yet
+    // (`vm/host.ts`'s `placeUnder`, throwing `NotYet("#146")` unconditionally)
+    // — declaring growUnison over the player attribute #269 adds is what
+    // finally offers the move at all, and the `NotYet` it hits partway through
+    // the `DO` is caught at the one program boundary `stepProgram` already has
+    // for exactly this (`vm/flow.ts`): logged as a note naming the issue that
+    // finishes it, the program dropped, the rest of the turn unaffected —
+    // "stops that one skill rather than the game". Nothing after the failed
+    // `moveTo` ran, so neither the marker nor the once-a-turn fact is set;
+    // that half is `arena-fuzz --engine rules` and #146's to close, not this
+    // issue's — `ENGINE_INFO.rules.available` is still false, so no real game
+    // can reach this today.
+    const r2 = rulesEngine.apply(CTX, board.r, grow);
+    assert.ok(
+      r2.events.some((e) => e.type === "note" && typeof (e as { text?: string }).text === "string" && (e as { text: string }).text.includes("#146")),
+      "growing a Unison on the rules engine did not note the move-under gap and name #146",
+    );
+    assert.equal((r2.state as VmState).cards[board.unison].markers, 0, "the Unison gained a marker despite the DO stopping before addMarker ran");
+    assert.equal((r2.state as VmState).sides.p1.attrs.grewUnison, false, "the once-a-turn fact was set despite the DO stopping before setPlayerAttr ran");
+
+    // Once a turn: a second copy, staged the same way, is refused before the
+    // move-under gap is ever reached — the once-a-turn requirement is a fact
+    // about the *player*, not about what the interpreter can finish, so it is
+    // checked (and can refuse) without needing the rest built. Set by hand,
+    // since taking the real move never reaches `setPlayerAttr` today.
+    {
+      const second = board.r.sides.p1.zones.hand[1];
+      board.r.cards[second].cardId = "P-UNISON";
+      board.r.sides.p1.attrs.grewUnison = true;
+      const legal = rulesEngine.legalActions(CTX, board.r);
+      assert.equal(legal.some((x) => x.action.type === "growUnison"), false, "a second Unison growth this turn is offered");
+      const why = rulesEngine.rejectedActions(CTX, board.r, legal).find((x) => x.action.type === "growUnison")?.why[0];
+      assert.deepEqual(why, { kind: "oncePerTurn", what: "grow a Unison" }, "a second growth this turn is not refused with the once-a-turn requirement");
+    }
+
+    // A hand card that is not a copy of the Unison: refused by name, the last
+    // gate `whyNotGrowUnison` asks.
+    {
+      const fresh = growBoard();
+      fresh.r.cards[fresh.copy].cardId = "V1";
+      const legal = rulesEngine.legalActions(CTX, fresh.r);
+      assert.equal(legal.some((x) => x.action.type === "growUnison" && (x.action as { card: string }).card === fresh.copy), false, "growing with a card that is not the Unison is offered");
+      const why = rulesEngine.rejectedActions(CTX, fresh.r, legal).find((x) => x.action.type === "growUnison" && (x.action as { card: string }).card === fresh.copy)?.why[0];
+      assert.deepEqual(why, { kind: "cardType", card: fresh.copy, needs: "a copy of the Unison Card in play" }, "the wrong card is not refused by name");
+    }
   }
 }

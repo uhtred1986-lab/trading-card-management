@@ -1703,6 +1703,35 @@
       ],
       "sentence": "",
       "doc": "a remark in the log; does nothing"
+    },
+    {
+      "name": "setPlayerAttr",
+      "class": "primitive",
+      "signature": "{\"op\":\"setPlayerAttr\",\"name\":\"…\",\"value\"?:true|false,\"side\"?:\"you\"|\"opponent\"}",
+      "fields": [
+        {
+          "name": "name",
+          "required": true,
+          "nullable": false,
+          "type": "string"
+        },
+        {
+          "name": "value",
+          "required": false,
+          "nullable": false,
+          "defaultText": "true",
+          "type": "boolean"
+        },
+        {
+          "name": "side",
+          "required": false,
+          "nullable": false,
+          "defaultText": "\"you\"",
+          "type": "side"
+        }
+      ],
+      "sentence": "your x is set",
+      "doc": "set a `DEFINE ATTRIBUTE of: player` fact — 13-3's growUnison marks its own \"grewUnison\" true once it resolves, so a later REFUSE reads it rather than the move being asked twice in one turn (issue #269)"
     }
   ],
   "conds": [
@@ -2165,7 +2194,53 @@
         }
       ],
       "sentence": "the question on the table is the chooseFirst question",
-      "doc": "which question is on the table. No card says this — it is the word a `DEFINE ACTION`'s `REFUSE` needs to tell two windows of one move apart, and \"you have already had your charge this turn\" (7-2-11) is exactly `NOT asking(prompt: charge)` on both engines"
+      "doc": "which question is on the table. No card says this — it is the word an earlier `DEFINE ACTION`'s `REFUSE` told two windows of one move apart with, before `playerAttr` gave a fact its own name (issue #269)"
+    },
+    {
+      "kind": "playerAttr",
+      "class": "primitive",
+      "signature": "{\"kind\":\"playerAttr\",\"name\":\"…\",\"side\"?:\"you\"|\"opponent\"}",
+      "fields": [
+        {
+          "name": "name",
+          "required": true,
+          "nullable": false,
+          "type": "string"
+        },
+        {
+          "name": "side",
+          "required": false,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "you",
+            "opponent"
+          ]
+        }
+      ],
+      "sentence": "you x",
+      "doc": "a `DEFINE ATTRIBUTE of: player` fact, read — \"you have already had your charge this turn\" (7-2-11) and \"you have not already grown a Unison this turn\" (13-3) are both `NOT playerAttr(name: …)`, over the declared name (issue #269)"
+    },
+    {
+      "kind": "sameCard",
+      "class": "primitive",
+      "signature": "{\"kind\":\"sameCard\",\"a\":SELECTOR,\"b\":SELECTOR}",
+      "fields": [
+        {
+          "name": "a",
+          "required": true,
+          "nullable": false,
+          "type": "selector"
+        },
+        {
+          "name": "b",
+          "required": true,
+          "nullable": false,
+          "type": "selector"
+        }
+      ],
+      "sentence": "1 in your battle is the same card as 1 in your battle",
+      "doc": "do these two selectors each resolve to one card of the same printed identity? \"a copy of the Unison Card\" (13-3) is this, over the candidate and the card in the Unison Area — the filter grammar has no word for another card's identity, so this reads two selectors instead (issue #269)"
     }
   ],
   "selectorFields": [

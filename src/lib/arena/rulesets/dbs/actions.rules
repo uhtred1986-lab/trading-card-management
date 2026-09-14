@@ -31,15 +31,14 @@
 -- sentence is a refusal rather than a silence: the legacy engine offers every
 -- card in hand at the Main Phase question and refuses each with "you have
 -- already had your charge this turn". So the move is declared in both phases
--- and refused in one, and the condition that tells them apart is `asking()` —
--- which question is on the table. That is the very field `whyNotCharge` reads
--- (`s.prompt.kind !== "charge"`), so the two engines cannot disagree about what
--- the sentence means.
---
--- The honest long-run shape is a *player* attribute — "this player has had
--- their charge this turn" — which is also what 13-3's `growUnison` needs; the
--- language has no word for one, and inventing three grammar rows for a fact
--- this reads exactly as well would be the larger change, not the smaller one.
+-- and refused in one, over the player attribute §269 added for exactly this:
+-- `charged` (`attributes.rules`), true from the moment the Charge Phase's own
+-- question is answered (`vm/flow.ts`'s `mainPending`) — which is also
+-- `whyNotCharge`'s own reading ("once the Main Phase has begun, the one
+-- charge of the turn has gone by"), so the two engines cannot disagree about
+-- what the sentence means. Earlier this REFUSE named `asking(prompt: charge)`
+-- instead, a proxy for the fact rather than the fact itself, which is what
+-- left 13-3's `growUnison` with no word to reuse (issue #269).
 DEFINE ACTION charge                                                      -- §7-2-11
   WHEN [charge, main]
   prompts: [charge, main]
@@ -60,7 +59,7 @@ DEFINE ACTION charge                                                      -- §7
   -- First, and about the board rather than about any card — which is the order
   -- `whyNotCharge` asks in, so the *first* requirement a player is owed is the
   -- same requirement on both engines, a Leader in hand included.
-  REFUSE oncePerTurn(what: "charge") UNLESS asking(prompt: charge)
+  REFUSE oncePerTurn(what: "charge") UNLESS NOT playerAttr(name: "charged")
   -- 3-1-2: a Leader Card does not leave the Leader Area, so it is not a card
   -- this move can be made about. Nothing puts one in a hand — 6-2-1-2 places it
   -- before the first card is drawn — which is exactly why the refusal is
@@ -76,6 +75,33 @@ DEFINE ACTION charge                                                      -- §7
   REFUSE forbidden() UNLESS NOT forbidden(what: placeEnergy)
   label: "Charge"
   text: "the turn player may place 1 card from their hand in their Energy Area, face up (7-2-11)"
+
+-- 13-3: putting another copy of the Unison Card from hand under it, once a
+-- turn, is a player attribute too (`grewUnison`, `attributes.rules`) — the
+-- same shape issue #269 gave the charge, set by this action's own `DO` rather
+-- than by a phase boundary, because unlike the charge this move either
+-- happens or it does not; there is no window that closes on its own. The
+-- per-card gate needs "a copy of the Unison Card in play", which the filter
+-- grammar cannot name (another card's identity is not a fixed wording) —
+-- `sameCard` reads it as two selectors instead (`engine/script-schema.ts`).
+DEFINE ACTION growUnison                                                  -- §13-3
+  WHEN [main]
+  prompts: [main]
+  FOR 1 IN you.hand
+  BIND "card"
+  DO {
+    moveTo(target: $card, to: under, under: IN you.unison, reveal: true)
+    addMarker(target: IN you.unison, n: 1)
+    setPlayerAttr(name: "grewUnison")
+  }
+  -- Board-level first, `whyNotCharge`'s own order: nothing to grow at all is
+  -- answered before whether this turn's one growth is already spent, and only
+  -- then is a particular candidate wrong.
+  REFUSE oncePerTurn(what: "grow a Unison") UNLESS NOT playerAttr(name: "grewUnison")
+  REFUSE target(reason: "no Unison Card in play to grow") UNLESS count(IN you.unison) >= 1
+  REFUSE cardType(needs: "a copy of the Unison Card in play") UNLESS sameCard(a: FROM $card, b: IN you.unison)
+  label: "Grow Unison"
+  text: "the turn player may, once per turn, place 1 copy of their Unison Card from their hand under it, adding 1 marker (13-3)"
 
 DEFINE ACTION endMain                                                     -- §7-3-5
   WHEN [main]

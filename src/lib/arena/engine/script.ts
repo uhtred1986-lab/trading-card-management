@@ -241,7 +241,24 @@ export type Cond =
    * on both engines. `what` is the action; the card and the player it is asked
    * about are the candidate and the actor, which the declaration cannot name.
    */
-  | { kind: "forbidden"; what: ForbiddenAction; bySkill?: boolean };
+  | { kind: "forbidden"; what: ForbiddenAction; bySkill?: boolean }
+  /**
+   * A `DEFINE ATTRIBUTE of: player` fact, read (13-3, 7-2-11, issue #269):
+   * "you have not already grown a Unison this turn" and "you have already had
+   * your charge this turn" are both this, over a different declared name.
+   * Boolean only, so far — nothing has needed a counter read back yet.
+   */
+  | { kind: "playerAttr"; name: string; side?: "you" | "opponent" }
+  /**
+   * Do these two selectors each resolve to a card of the same printed
+   * identity (`cardId`)? False with nothing, or more than one, on either
+   * side — this reads a *specific* pair, never "any of these matches any of
+   * those" (that is `every`). 13-3's growUnison needs "a copy of the Unison
+   * Card" — the filter grammar has no way to name another card's identity
+   * dynamically (`FILTER_FIELDS` is fixed wordings only), so this reads two
+   * selectors instead of stretching a filter to do it.
+   */
+  | { kind: "sameCard"; a: Selector; b: Selector };
 
 /**
  * The attributes `modifyAttr` may change: the two numbers a continuous effect
@@ -601,7 +618,15 @@ export type Op =
    * still knows which card "it" was.
    */
   | { op: "delay"; at: DelayTiming; scope?: DelayScope; ops: Op[]; label?: string }
-  | { op: "note"; text: string };
+  | { op: "note"; text: string }
+  /**
+   * Set a `DEFINE ATTRIBUTE of: player` fact (issue #269) — `grewUnison` after
+   * 13-3's growth resolves. `value` defaults to `true`, since every use so far
+   * is a program marking something done rather than undoing it; a `reset:` on
+   * the declaration is what clears it again, at the turn boundary the
+   * declaration names, not this op running in reverse.
+   */
+  | { op: "setPlayerAttr"; name: string; value?: boolean; side?: Side };
 
 /**
  * The price before the colon, as the record holds it (4-3-3). Both halves are
@@ -1032,6 +1057,10 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           const n = h.amount(frame, op.n);
           h.changeEnergyMarkers(p, n);
         }
+        break;
+
+      case "setPlayerAttr":
+        for (const p of sideOf(master, op.side)) h.setPlayerAttr(p, op.name, op.value ?? true);
         break;
 
       case "look": {

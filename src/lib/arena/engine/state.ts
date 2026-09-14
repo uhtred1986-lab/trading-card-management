@@ -845,6 +845,18 @@ export function condHolds(ctx: GameContext, s: GameState, frame: ScriptFrame, c:
     // very predicate this engine's own `legalActions` gates it on.
     case "forbidden":
       return forbids(ctx, s, c.what, { player: frame.master, ...(frame.card ? { card: frame.card } : {}), ...(c.bySkill === undefined ? {} : { bySkill: c.bySkill }) });
+    // Read off the `PlayerState` field the same name already has, the same
+    // precedent `setPlayerAttr` follows — "charged" has none yet, and reads
+    // as not-set rather than guessing at one (issue #269).
+    case "playerAttr": {
+      const ps = s.players[c.side === "opponent" ? other(frame.master) : frame.master];
+      return c.name === "grewUnison" ? ps.grewUnisonThisTurn : false;
+    }
+    case "sameCard": {
+      const a = resolveSelector(ctx, s, frame, c.a);
+      const b = resolveSelector(ctx, s, frame, c.b);
+      return a.length === 1 && b.length === 1 && s.cards[a[0]].cardId === s.cards[b[0]].cardId;
+    }
   }
 }
 

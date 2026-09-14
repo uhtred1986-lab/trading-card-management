@@ -536,6 +536,11 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     doc: 'the inner operations happen later (1-7-2-1-1): "At the end of the turn, KO it" is a choose, then a delay at "turnEnd" whose ops KO {"var":"t"}. A delayed program keeps the variables bound before it',
   },
   note: { fields: [{ name: "text", type: "string", required: true }], sentence: "", doc: "a remark in the log; does nothing" },
+  setPlayerAttr: {
+    fields: [{ name: "name", type: "string", required: true }, { name: "value", type: "boolean", default: true }, SIDE],
+    sentence: "{side:your opponent's|your} {name} is set",
+    doc: 'set a `DEFINE ATTRIBUTE of: player` fact — 13-3\'s growUnison marks its own "grewUnison" true once it resolves, so a later REFUSE reads it rather than the move being asked twice in one turn (issue #269)',
+  },
 };
 
 /**
@@ -610,6 +615,7 @@ export const OP_CLASS: Record<Op["op"], OpClass> = {
   may:                "macro over `chooseMode`",
   delay:              "primitive",
   note:               "primitive",
+  setPlayerAttr:      "primitive",
 };
 
 /**
@@ -790,7 +796,29 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
   asking: {
     fields: [{ name: "prompt", type: { enum: PROMPT_KINDS }, required: true }],
     sentence: (raw) => `the question on the table is the ${(raw as CondOf<"asking">).prompt} question`,
-    doc: 'which question is on the table. No card says this — it is the word a `DEFINE ACTION`\'s `REFUSE` needs to tell two windows of one move apart, and "you have already had your charge this turn" (7-2-11) is exactly `NOT asking(prompt: charge)` on both engines',
+    doc: "which question is on the table. No card says this — it is the word an earlier `DEFINE ACTION`'s `REFUSE` told two windows of one move apart with, before `playerAttr` gave a fact its own name (issue #269)",
+  },
+  playerAttr: {
+    fields: [
+      { name: "name", type: "string", required: true },
+      { name: "side", type: { enum: ["you", "opponent"] } },
+    ],
+    sentence: (raw) => {
+      const c = raw as CondOf<"playerAttr">;
+      return `${c.side === "opponent" ? "your opponent" : "you"} ${c.name}`;
+    },
+    doc: 'a `DEFINE ATTRIBUTE of: player` fact, read — "you have already had your charge this turn" (7-2-11) and "you have not already grown a Unison this turn" (13-3) are both `NOT playerAttr(name: …)`, over the declared name (issue #269)',
+  },
+  sameCard: {
+    fields: [
+      { name: "a", type: "selector", required: true },
+      { name: "b", type: "selector", required: true },
+    ],
+    sentence: (raw) => {
+      const c = raw as CondOf<"sameCard">;
+      return `${describeSelector(c.a, "")} is the same card as ${describeSelector(c.b, "")}`;
+    },
+    doc: 'do these two selectors each resolve to one card of the same printed identity? "a copy of the Unison Card" (13-3) is this, over the candidate and the card in the Unison Area — the filter grammar has no word for another card\'s identity, so this reads two selectors instead (issue #269)',
   },
 };
 
@@ -816,6 +844,8 @@ export const COND_CLASS: Record<Cond["kind"], OpClass> = {
   isTurnPlayer:   "primitive",
   asking:         "primitive",
   forbidden:      "primitive",
+  playerAttr:     "primitive",
+  sameCard:       "primitive",
 };
 
 /**
