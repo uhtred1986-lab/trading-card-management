@@ -8,6 +8,7 @@ import { quickSearch } from "@/lib/catalog/queries";
 import { gameOr, type Game } from "@/lib/catalog/games";
 import { describeAiError, hasAnthropic } from "@/lib/ai/client";
 import { suggestDeck } from "@/lib/ai/deck-builder";
+import { currentOwner } from "@/lib/auth";
 
 export type BuildDeckResponse = { ok: true; deckId: number; mainCount: number; toBuy: number } | { ok: false; error: string };
 
@@ -53,7 +54,7 @@ export async function searchLeadersAction(q: string): Promise<LeaderChoice[]> {
 export async function buildDeckAction(leaderId: string): Promise<BuildDeckResponse> {
   if (!hasAnthropic()) return { ok: false, error: "ANTHROPIC_API_KEY is not set." };
   try {
-    const { deckId, sanitised } = await suggestDeck(db, leaderId);
+    const { deckId, sanitised } = await suggestDeck(db, leaderId, await currentOwner());
     revalidatePath("/leaders");
     revalidatePath("/decks");
     return { ok: true, deckId, mainCount: sanitised.mainCount, toBuy: [...sanitised.main, ...sanitised.z].reduce((n, c) => n + c.needToBuy, 0) };

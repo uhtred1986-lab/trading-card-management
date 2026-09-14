@@ -8,10 +8,11 @@
  * what a client receives. Legality is never recomputed here — it is read off
  * `DeckLegality`, the same value the web deck page renders from.
  *
- * Decks carry no seat or owner column (unlike `arena_games`, which is why the
- * game endpoints check `seatOf`): the collection is single-user data, shared
- * by every login the same way the web deck list already is, so there is
- * nothing here to filter by viewer.
+ * Decks belong to a login (`decks.owner`, issue #279), the same as
+ * `owned_cards.owner` and unlike `arena_games`'s seats — but the filtering
+ * happens upstream, in `listDecks`/`getDeck` (`viewer` param), before a row
+ * ever reaches this module. A deck owned by someone else is simply not among
+ * the rows this file is asked to shape, so there is nothing to check here.
  */
 import { gameInfo, type Game } from "@/lib/catalog/games";
 import type { DeckFlag, DeckLegality, DeckStatus } from "@/lib/decks/legality";

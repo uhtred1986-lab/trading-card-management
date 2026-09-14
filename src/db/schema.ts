@@ -304,27 +304,40 @@ export const ownedCards = pgTable(
  * ──────────────────────────────────────────────────────────────────────────
  */
 
-export const decks = pgTable("decks", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  /**
-   * Which game's rules this deck is built to. Decks are never mixed: a card
-   * from the other game is flagged illegal rather than refused, in keeping
-   * with "legality is a flag, never a block". The arena only plays "dbs".
-   */
-  game: text("game").notNull().default("dbs"),
-  description: text("description"),
-  /** Free-form notes about the current meta, fed to the AI wizard. */
-  metaNotes: text("meta_notes"),
-  isBuilt: boolean("is_built").notNull().default(false),
-  builtAt: timestamp("built_at", { withTimezone: true }),
-  /** Where the built deck physically sits — the same list the copies use. */
-  locationId: integer("location_id").references(() => storageLocations.id, { onDelete: "set null" }),
-  aiSummary: text("ai_summary"),
-  aiSummaryAt: timestamp("ai_summary_at", { withTimezone: true }),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const decks = pgTable(
+  "decks",
+  {
+    id: serial("id").primaryKey(),
+    name: text("name").notNull(),
+    /**
+     * Which game's rules this deck is built to. Decks are never mixed: a card
+     * from the other game is flagged illegal rather than refused, in keeping
+     * with "legality is a flag, never a block". The arena only plays "dbs".
+     */
+    game: text("game").notNull().default("dbs"),
+    description: text("description"),
+    /** Free-form notes about the current meta, fed to the AI wizard. */
+    metaNotes: text("meta_notes"),
+    isBuilt: boolean("is_built").notNull().default(false),
+    builtAt: timestamp("built_at", { withTimezone: true }),
+    /** Where the built deck physically sits — the same list the copies use. */
+    locationId: integer("location_id").references(() => storageLocations.id, { onDelete: "set null" }),
+    aiSummary: text("ai_summary"),
+    aiSummaryAt: timestamp("ai_summary_at", { withTimezone: true }),
+    /**
+     * Basic Auth username that created this deck (issue #279), stamped the
+     * same way as `owned_cards.owner`; null when the app ran open (local dev)
+     * or for every deck that existed before this column. Null is visible to
+     * every login — the same hole the app running open already has, no
+     * wider — a non-null owner is visible only to that login. Existing rows
+     * are left null on migration rather than backfilled to anyone.
+     */
+    owner: text("owner"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("decks_owner_idx").on(t.owner)],
+);
 
 export const deckCards = pgTable(
   "deck_cards",
