@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
-import { blankRuleAction, confirmRuleAction, explainRuleAction, keepMineAction, saveRuleAction, takeCompilerAction } from "@/app/arena/actions";
+import { blankRuleAction, confirmRuleAction, explainRuleAction, keepMineAction, saveRuleAction, setSpecifiedCostAction, takeCompilerAction } from "@/app/arena/actions";
 import { keywordPlays } from "@/lib/arena/glossary";
 import { COND_SCHEMA, OP_SCHEMA, costSentence, describeScript, validateProgram, type Cond, type CostRecord, type Op } from "@/lib/arena/engine/script";
 import type { Trigger } from "@/lib/arena/engine";
@@ -76,6 +76,15 @@ export interface RecordProps {
   siblings: { count: number; ids: string[] };
   compilerDiff: { reads: string; unread: string[]; at: string } | null;
   mechanism: { key: string; needs: string } | null;
+  /**
+   * The card's specified-cost baseline (issue #255): null for a card with a
+   * fixed cost, whose orbs the engine fills by convention. For an X-cost
+   * card, `entered` is the `cards.specified_cost` column as written (`{u}{u}`),
+   * `words` its reading ("2 blue") when it parses, and `unknown` is
+   * `specifiedCostUnknown` off the def the engine plays — true means the
+   * card's configuration is incomplete and the record says so.
+   */
+  specifiedCost: { entered: string | null; words: string | null; unknown: boolean } | null;
 }
 
 const BADGE: Record<RecordProps["status"], { label: string; cls: string; dot: string }> = {
@@ -125,6 +134,8 @@ export function RuleRecord(r: RecordProps) {
   const [patternWrong, setPatternWrong] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
+  const [orbsOpen, setOrbsOpen] = useState(false);
+  const [orbs, setOrbs] = useState(r.specifiedCost?.entered ?? "");
 
   const rule: Rule = useMemo(() => ({ kind: r.tag, trigger, cost, cond, ops }), [r.tag, trigger, cost, cond, ops]);
   const program = useMemo(() => programOf(cond, ops), [cond, ops]);
@@ -244,6 +255,48 @@ export function RuleRecord(r: RecordProps) {
           <span className="text-[11px] text-space-400">{provenance}</span>
         </div>
       </div>
+
+      {r.specifiedCost && (
+        <div className={`rounded-xl border p-3 text-xs ${r.specifiedCost.unknown ? "border-loss/50 bg-loss/5" : "border-space-700 bg-space-900/60"}`} data-testid="specified-cost">
+          {r.specifiedCost.unknown ? (
+            <p className="font-semibold text-loss">
+              Incomplete — specified cost unknown.{" "}
+              <span className="font-normal text-space-300">
+                This card has an X cost and the catalog carries no cost orbs, so the engine demands no colour for it: the play is charged as if it needed none.
+                {r.specifiedCost.entered ? ` The entry “${r.specifiedCost.entered}” is not orb notation and is ignored.` : ""} Enter the coloured orbs printed beside the cost circle, from the card.
+              </span>
+            </p>
+          ) : (
+            <p className="text-space-300">
+              <span className="text-space-500">specified cost: </span>
+              <b className="font-semibold text-space-50">{r.specifiedCost.words}</b> <span className="text-space-500">({r.specifiedCost.entered})</span> · entered by hand; the engine demands these colours when this card is played
+            </p>
+          )}
+          {orbsOpen ? (
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <input
+                value={orbs}
+                onChange={(e) => setOrbs(e.target.value)}
+                placeholder="{u}{u}"
+                spellCheck={false}
+                className="w-32 rounded-md border border-space-600 bg-space-900 px-2 py-1 font-mono text-xs text-space-100"
+                aria-label="specified cost, as orbs"
+              />
+              <span className="text-[11px] text-space-500">{"{r} red · {u} blue · {g} green · {y} yellow · {k} black · {w} white — one per orb; empty clears it"}</span>
+              <button type="button" disabled={pending} className={primary} onClick={() => run(orbs.trim() ? "Specified cost entered." : "Specified cost cleared — back to unknown.", () => setSpecifiedCostAction(r.cardId, orbs))}>
+                Save
+              </button>
+              <button type="button" disabled={pending} className={btn} onClick={() => setOrbsOpen(false)}>
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button type="button" disabled={pending} className={`${btn} mt-2`} onClick={() => setOrbsOpen(true)}>
+              {r.specifiedCost.unknown ? "Enter the specified cost" : "Change"}
+            </button>
+          )}
+        </div>
+      )}
 
       {r.compilerDiff && (
         <div className="rounded-xl border border-ki-500/40 bg-ki-500/5 p-3 text-xs">

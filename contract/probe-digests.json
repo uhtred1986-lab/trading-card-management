@@ -31,6 +31,10 @@
     "outcome": "inForce",
     "digest": "4fb94674"
   },
+  "ATKSKIP#0": {
+    "outcome": "inForce",
+    "digest": "802339ea"
+  },
   "AURA#0": {
     "outcome": "inForce",
     "digest": "943102c8"
@@ -173,7 +177,7 @@
   },
   "E-COSTLY#0": {
     "outcome": "fired",
-    "digest": "086db9a6"
+    "digest": "63d560ec"
   },
   "E-DECOY#0": {
     "outcome": "fired",
@@ -302,6 +306,10 @@
   "IMMUNE#0": {
     "outcome": "inForce",
     "digest": "9afdafb5"
+  },
+  "INBATTLE#0": {
+    "outcome": "inForce",
+    "digest": "e5a6ea72"
   },
   "INERTPERM#0": {
     "outcome": "inForce",
@@ -543,6 +551,10 @@
     "outcome": "noScenario",
     "digest": "b80d3483"
   },
+  "REVEALER#0": {
+    "outcome": "inForce",
+    "digest": "7e315816"
+  },
   "SAIYANKILL#0": {
     "outcome": "fired",
     "digest": "8b0fa7d9"
@@ -586,6 +598,10 @@
   "SKIPPER#0": {
     "outcome": "notOffered",
     "digest": "15f56f0b"
+  },
+  "SPANSKIP#0": {
+    "outcome": "fired",
+    "digest": "2840f09c"
   },
   "SPAWN#0": {
     "outcome": "fired",
@@ -662,6 +678,10 @@
   "TOUGH#0": {
     "outcome": "fired",
     "digest": "015c59fa"
+  },
+  "TURNSKIP#0": {
+    "outcome": "fired",
+    "digest": "950f50a1"
   },
   "TWOKILL#0": {
     "outcome": "fired",

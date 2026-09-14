@@ -7,9 +7,17 @@ import type { Db } from "@/db";
 import { cards, deckCards, decks } from "@/db/schema";
 import { gameOr, type Game } from "@/lib/catalog/games";
 import type { CardDef, CardType, Color, DeckInput } from "./engine";
+import { parseSpecifiedCost } from "./specified-cost";
 
 /** The columns a card definition is read from — a catalog record straight off deckplanet has the same ones. */
-type CardRow = Pick<typeof cards.$inferSelect, "id" | "name" | "cardType" | "colors" | "energyCost" | "zEnergyCost" | "power" | "comboCost" | "comboPower" | "skill" | "characters" | "traits" | "backName" | "backPower" | "backSkill">;
+type CardRow = Pick<typeof cards.$inferSelect, "id" | "name" | "cardType" | "colors" | "energyCost" | "zEnergyCost" | "power" | "comboCost" | "comboPower" | "skill" | "characters" | "traits" | "backName" | "backPower" | "backSkill"> & {
+  /**
+   * The hand-entered coloured orbs (`{u}{u}`), which only a database row
+   * carries — a record shaped straight off the feed has none, and reads as
+   * unknown, which is what the feed knows (issue #255).
+   */
+  specifiedCost?: string | null;
+};
 
 const COLORS: Color[] = ["Red", "Blue", "Green", "Yellow", "Black", "White", "Colorless"];
 
@@ -23,6 +31,10 @@ export function energyCostOf(text: string | null | undefined): number | "X" | nu
 
 export function cardDefFrom(row: CardRow): CardDef {
   const colors = row.colors.filter((c): c is Color => (COLORS as string[]).includes(c));
+  // Set only when entered and readable: an absent `specifiedCost` is what
+  // `specifiedCostOf` fills by convention for a fixed cost and refuses to
+  // guess for an X cost, and `specifiedCostUnknown` reads its absence.
+  const specifiedCost = parseSpecifiedCost(row.specifiedCost);
   return {
     id: row.id,
     name: row.name,
@@ -37,6 +49,7 @@ export function cardDefFrom(row: CardRow): CardDef {
     characters: row.characters,
     traits: row.traits,
     back: row.backName ? { name: row.backName, power: row.backPower, skill: row.backSkill } : null,
+    ...(specifiedCost ? { specifiedCost } : {}),
   };
 }
 

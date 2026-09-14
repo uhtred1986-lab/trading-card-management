@@ -1,4 +1,4 @@
-import { asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, or, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { cards, deckCards, decks, storageLocations } from "@/db/schema";
 import { deckRules, gameOr, type Game } from "@/lib/catalog/games";
@@ -51,7 +51,19 @@ export async function decksForCard(db: Db, cardId: string): Promise<CardDeckMemb
   return rows.map((r) => ({ ...r, zone: r.zone as Zone }));
 }
 
-export async function listDecks(db: Db, opts: { game?: Game } = {}) {
+/**
+ * A deck is visible to its owner; a deck with a null owner is visible to
+ * everyone (issue #279, the `owned_cards.owner` precedent). `viewer` is the
+ * looker's `currentOwner()` — omit it (or pass null) for "no identity",
+ * which shows every deck: the app running open has none either, the same
+ * hole `proxy.ts`/`seatOf` already have and no wider. Exported so
+ * `leaders/queries.ts`'s own deck join applies the identical rule.
+ */
+export function visibleToViewer(viewer?: string | null) {
+  return viewer ? or(isNull(decks.owner), eq(decks.owner, viewer)) : undefined;
+}
+
+export async function listDecks(db: Db, opts: { game?: Game; viewer?: string | null } = {}) {
   const rows = await db
     .select({
       id: decks.id,
@@ -60,13 +72,14 @@ export async function listDecks(db: Db, opts: { game?: Game } = {}) {
       description: decks.description,
       isBuilt: decks.isBuilt,
       updatedAt: decks.updatedAt,
+      owner: decks.owner,
       leaderId: sql<string | null>`(select dc.card_id from ${deckCards} dc where dc.deck_id = ${decks.id} and dc.zone = 'leader' limit 1)`,
       locationId: decks.locationId,
       locationName: storageLocations.name,
     })
     .from(decks)
     .leftJoin(storageLocations, eq(storageLocations.id, decks.locationId))
-    .where(opts.game ? eq(decks.game, opts.game) : undefined)
+    .where(and(opts.game ? eq(decks.game, opts.game) : undefined, visibleToViewer(opts.viewer)))
     .orderBy(desc(decks.isBuilt), desc(decks.updatedAt));
   const leaderIds = rows.map((r) => r.leaderId).filter((x): x is string => !!x);
   const [leaders, legalities] = await Promise.all([
@@ -111,9 +124,11 @@ export interface DeckCardRow {
   alloc: Allocation;
 }
 
-export async function getDeck(db: Db, id: number) {
+/** `viewer` hides a deck owned by someone else — the caller treats null the same as not found. */
+export async function getDeck(db: Db, id: number, viewer?: string | null) {
   const deck = await db.query.decks.findFirst({ where: eq(decks.id, id) });
   if (!deck) return null;
+  if (viewer && deck.owner && deck.owner !== viewer) return null;
   const game = gameOr(deck.game);
   const rows = await db
     .select({

@@ -544,6 +544,13 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
     // thing by the word.
     case "forbidden":
       return forbids(ctx, game, state, c.what, { player: frame.master, ...(frame.card ? { card: frame.card } : {}), ...(c.bySkill === undefined ? {} : { bySkill: c.bySkill }) });
+    case "playerAttr":
+      return !!state.sides[c.side === "opponent" ? other(frame.master) : frame.master].attrs[c.name];
+    case "sameCard": {
+      const a = resolveSelector(ctx, game, state, frame, c.a);
+      const b = resolveSelector(ctx, game, state, frame, c.b);
+      return a.length === 1 && b.length === 1 && state.cards[a[0]].cardId === state.cards[b[0]].cardId;
+    }
   }
 }
 

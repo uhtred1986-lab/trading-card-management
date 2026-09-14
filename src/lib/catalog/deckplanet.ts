@@ -14,11 +14,12 @@
  * bucket** — those come from TCGplayer during the price sync, so the upserts
  * here `coalesce` the image columns instead of overwriting them.
  */
-import { inArray, sql } from "drizzle-orm";
+import { inArray, isNotNull, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { cardPrints, cardSets, cards } from "@/db/schema";
 import { applyOfficialImages, fetchOfficialImageNames } from "./bandai";
 import { correctSkillText, unmatchedCorrections } from "./errata";
+import { staleSpecifiedCosts } from "@/lib/arena/specified-cost";
 import { GAMES, GAME_INFO, type Game } from "./games";
 import { setCodeOfNumber, setLineFor, setNameFor, setSortKey } from "./sets";
 import { draftCards, reviewOpenRules } from "@/lib/arena/draft";
@@ -510,6 +511,11 @@ export async function importCatalog(db: Db, shaped: ShapedCatalog): Promise<Cata
             then excluded.image_url else coalesce(excluded.image_url, ${cards.imageUrl}) end`,
           // Keep a back image the CardTrader sync supplied when deckplanet has none.
           backImageUrl: sql`coalesce(excluded.back_image_url, ${cards.backImageUrl})`,
+          // The hand-entered cost orbs (issue #255): the feed never carries
+          // any, so `excluded.specified_cost` is always null and a plain
+          // overwrite would erase every entry on every sync. Coalesce keeps
+          // what was entered; only the workbench (or a migration) writes it.
+          specifiedCost: sql`coalesce(excluded.specified_cost, ${cards.specifiedCost})`,
           deckplanetId: sql`excluded.deckplanet_id`,
           searchText: sql`excluded.search_text`,
           updatedAt: sql`now()`,
@@ -535,6 +541,17 @@ export async function importCatalog(db: Db, shaped: ShapedCatalog): Promise<Cata
         },
       });
   }
+
+  // A hand-entered specified cost has nothing in the feed to be checked
+  // against (the feed carries no orbs), so it gets the check it can have, at
+  // the one moment the card's text is fresh: an entry on a card that no
+  // longer prints an X cost or a specified-cost clause is reported, the way
+  // a stale errata line is.
+  const entered = await db
+    .select({ id: cards.id, energyCost: cards.energyCost, skill: cards.skill, specifiedCost: cards.specifiedCost })
+    .from(cards)
+    .where(isNotNull(cards.specifiedCost));
+  for (const stale of staleSpecifiedCosts(entered)) console.warn(`specified_cost is stale — ${stale}`);
 
   const { inserted, changed } = changedCardIds(before, shaped.cards);
   return { sets: shaped.sets.length, cards: shaped.cards.length, prints: shaped.prints.length, cardsNew: inserted.length, cardsChanged: changed.length, touched: [...inserted, ...changed] };

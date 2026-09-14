@@ -81,7 +81,8 @@ npm run arena:reprobe  # Re-run every probe a rule carries and list the ones who
 npm run arena:tally    # Compiler coverage over the live deckplanet catalog, with op/cond usage and unread
                        # clause shapes — no database needed (--misses N, --show "<a wording>")
 npm run arena:specified # The specified (coloured) half of a play's price: proves the catalog feed carries
-                       # no cost orbs and lists the X-cost cards whose baseline is therefore refused (--all)
+                       # no cost orbs, lists the X-cost cards whose baseline is therefore refused (--all),
+                       # and — with DATABASE_URL — says per card whether one was entered, ruled on or is unknown
 npm run arena:readings # The other half: what the compiler reads every skill to *mean*, printed text
                        # beside the program in words. Diff it before and after a compiler change — a
                        # clause that compiles and reads wrongly moves no coverage number (--grep, --unread)
@@ -163,6 +164,21 @@ learned the expensive way. Read it before changing the compiler or the engine.
   (`currentUser()` in `src/lib/auth/index.ts`, read from the `Authorization` header); null when the app
   runs open locally. Every path that creates lots (card page, bulk entry, scan batches, quick
   capture) stamps it — keep that true for new paths.
+- **Decks belong to a login too** (`decks.owner`, issue #279, 14 Sep 2026): stamped from
+  `currentOwner()` on every path that creates a deck (`createDeckAction`/`createDeckForm`/
+  `duplicateDeck` in `src/app/decks/actions.ts`, the AI wizards in `src/lib/ai/deck-builder.ts` and
+  `deck-from-card.ts`) — keep that true for new ones. Unlike a lot, a deck's owner also gates
+  *visibility*: `src/lib/decks/queries.ts`'s `listDecks`/`getDeck` take a `viewer` (the looker's
+  `currentOwner()`) and hide a deck owned by someone else — null owner is visible to everyone, the
+  same hole the app running open already has and no wider. Applied at the web deck list, the deck
+  page, the leaders page, the arena's own deck picker and `/api/v1/decks`; a deck id that is not
+  yours answers `notFound()`/`not_found`. Reservations do **not** follow ownership
+  (`src/lib/decks/reservations.ts`) — every built deck still counts against the shared collection,
+  whoever owns it, because a physical card is either free or it isn't. What this does not do: share
+  or transfer a deck between logins, or scope the workbench's rule-coverage pages
+  (`/arena/rules*`) or the generic "also add to deck" picker (`DeckPicker`, collection/scan/card
+  add flows) — both keep listing every deck, deliberately, as neither is a player picking a deck to
+  play with.
 - **Deck legality is a flag, never a block** (`src/lib/decks/legality.ts`). A deck saves in any
   state; `legality(rows, game)` labels it **legal / incomplete / illegal** and returns per-card
   `flags` keyed `"<zone>:<cardId>"`. *Incomplete* = still building (no leader, under 50).
@@ -304,10 +320,26 @@ learned the expensive way. Read it before changing the compiler or the engine.
   carry the gate, a selector honours "can't be chosen" (20-4), and the host's 0-2-5 question answers
   off the board instead of `false`. The one ordering that is *not* legacy's is recorded rather than
   matched: a `REFUSE` runs before the price, and legacy puts the price first for a plain Battle Card
-  and the prohibition first for a Unison or an X cost (`verify/vm.ts` §21 asserts both). 13-3's
-  `growUnison` is **not** declared — its once-a-turn gate needs a player attribute a condition can
-  read and an op that sets one, and the language has neither — and 22-33's `offering` is a boolean
-  answer no candidate can carry (#157).
+  and the prohibition first for a Unison or an X cost (`verify/vm.ts` §21 asserts both). 22-33's
+  `offering` is a boolean answer no candidate can carry (#157).
+  **A player has facts of their own, not only cards** (`DEFINE ATTRIBUTE of: player`, issue #269):
+  `reset: turnStart` is the declaration's own ceiling for one that returns to rest on its own —
+  `vm/flow.ts`'s `endTurn` clears every one so flagged, off `game.attributes` rather than by name —
+  and `playerAttr`/`setPlayerAttr` are the one `Cond`/`Op` row that reads and writes one. `charged`
+  (7-2-11) and `grewUnison` (13-3) are the first two. The charge's once-a-turn `REFUSE` now reads
+  `charged` — true from the moment the Charge Phase's own question is answered, win or skip, set in
+  `mainPending` rather than in the action's own `DO`, because leaving the Charge Phase closes the
+  window whether or not a card was placed — in place of the `asking(prompt: charge)` proxy #145 left
+  it on. 13-3's `growUnison` is declared beside it, gated the same board-then-card order as
+  `whyNotCharge`; "a copy of the Unison Card in play" is `sameCard`, a new `Cond` reading two
+  selectors for the same printed identity rather than stretching a filter to name another card's
+  identity dynamically (the same gap #145 named for 22-39's [Unique], `FILTER_FIELDS` still has no
+  word for it, and this does not add one — a selector pair only reaches a card the declaration itself
+  names, e.g. the one card a `ZONE single: true` area holds). **What it does not do**: finish the
+  move. `vm/host.ts`'s `placeUnder` throws `NotYet("#146")` unconditionally, so taking a legal,
+  correctly-refused `growUnison` still stops there — caught at `stepProgram`'s existing boundary
+  (`vm/flow.ts`) as a note naming the issue, the same safety net every other unbuilt primitive uses
+  while `ENGINE_INFO.rules.available` is false. Discovered delivering #269, not fixed by it.
   **Using a skill is a paragraph about a *line*** (`vm/activate.ts` + the `activate` declaration,
   #147): the one move whose candidate is not a card. A card prints up to nine skills, each with its
   own price, its own condition and its own once-per-turn ceiling, so `DEFINE ACTION`'s new `skills:`
@@ -432,6 +464,19 @@ learned the expensive way. Read it before changing the compiler or the engine.
   kind that could declare it. `lang/index.ts` is where `parseRule`'s default vocabulary is
   bound, and the loader imports `lang/parse` directly — the one module that must not ask for
   the words it produces.
+- **The specified-cost baseline is a column a person writes** (`cards.specified_cost`, issue #255,
+  owner's decision of 13 Sep 2026): the deckplanet feed carries no cost orbs at all, so the coloured
+  half of an X-cost card's price is entered by hand in the language's orb notation (`{u}{u}` = two
+  blue) from the rules record on the workbench, or seeded by a migration on a ruling (0034 enters
+  BT19-039 as `{u}{u}`). `cardDefFrom` reads it onto `CardDef.specifiedCost` through
+  `parseSpecifiedCost` (`src/lib/arena/specified-cost.ts`), and nothing else in the engine changed.
+  **The hazard:** `sync:catalog` upserts every card column, so the upsert `coalesce`s this one like
+  `image_url` — remove that line and the next sync erases every entry. An entry has no feed to be
+  checked against, so `staleSpecifiedCosts` gives it the check it can have at sync time (the card
+  still prints an X cost and a specified-cost clause). Unknown stays unknown, said rather than
+  filled: `specifiedCostUnknown` drives the record's *Incomplete — specified cost unknown* box, the
+  probe's assumption, and `npm run arena:specified`'s per-card source (entered / ruling on file /
+  still unknown). Only an X-cost card takes an entry; a fixed cost's orbs are filled by convention.
 - **The record's WHEN is the engine's WHEN** (`skillAnswersTo` in `engine/triggers.ts`): an
   [Auto] skill's moment comes off `card_rules.trigger` (carried on `Script.trigger` by
   `rulesFor`), and only a skill with *no* record falls back to reading the printed text. The

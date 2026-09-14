@@ -321,6 +321,19 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
       return { cond: { kind: "inBattle", sel, role, ...(m[2] === "is" ? {} : { not: true }) }, subject: { sel } };
     }
   }
+  // "When your <Gogeta: GT> cards attack your opponent's Battle Cards"
+  // (BT18-001, active voice): the same end of the battle as "is attacking"
+  // just above, said as a verb rather than a participle. 8-1 gives an attack
+  // no object but the opponent's cards, so what follows the verb is never
+  // itself read — only that the subject is the one attacking is.
+  if ((m = /^(.+?) attacks? .+$/.exec(t))) {
+    const sel: Selector | null = m[1] === "this card" ? { special: "self" } : parseTarget(m[1]);
+    if (sel) {
+      delete sel.count;
+      delete sel.upTo;
+      return { cond: { kind: "inBattle", sel, role: "attacker" }, subject: { sel } };
+    }
+  }
   // "If this card is in a battle", "if this card isn't in a battle", "if your
   // <Son Goku> card is in a battle" (8-1).
   if ((m = /^(this card|.+?) (is|isn't|is not) in a battle$/.exec(t))) {
