@@ -434,7 +434,7 @@
     {
       "name": "skip",
       "class": "primitive",
-      "signature": "{\"op\":\"skip\",\"what\":\"charge\"|\"main\"|\"end\"|\"offense\"|\"defense\",\"side\"?:\"you\"|\"opponent\",\"when\"?:\"this\"|\"next\"}",
+      "signature": "{\"op\":\"skip\",\"what\":\"charge\"|\"main\"|\"end\"|…,\"side\"?:\"you\"|\"opponent\",\"when\"?:\"this\"|\"next\"}",
       "fields": [
         {
           "name": "what",
@@ -446,7 +446,9 @@
             "main",
             "end",
             "offense",
-            "defense"
+            "defense",
+            "turn",
+            "span"
           ]
         },
         {
@@ -469,7 +471,7 @@
         }
       ],
       "sentence": "you skip the next Charge Phase",
-      "doc": "the phase or step is not performed (20-13): no [Auto] answers to its start or end, no action can be declared in it, and no checkpoint happens inside it. \"when\":\"this\" is the occurrence in the turn the skill resolved on, \"next\" the first one in a later turn. Effects that were to end in it end as it is skipped (20-13-5)"
+      "doc": "the phase or step is not performed (20-13): no [Auto] answers to its start or end, no action can be declared in it, and no checkpoint happens inside it. \"when\":\"this\" is the occurrence in the turn the skill resolved on, \"next\" the first one in a later turn. Effects that were to end in it end as it is skipped (20-13-5). \"what\":\"turn\" refuses the player's whole next turn, checked once at that turn's own start rather than at any one phase (BT31-097). \"what\":\"span\" reaches further: the rest of the turn this resolves in, the opponent's whole next turn, and this player's own next Charge Phase, landing at that Main Phase (BT21-104) — three ordinary entries under one name rather than a mechanism of its own."
     },
     {
       "name": "control",
