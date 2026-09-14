@@ -379,6 +379,48 @@ export function cardPrice(ctx: EngineContext, game: GameDefinition, state: VmSta
   return { total: read.total ?? 0, orbs: read.orbs };
 }
 
+/**
+ * The legal values of an X-cost candidate's price, one per row the menu
+ * offers (issue #270) — the legacy engine's own X loop (`legalActions`' play
+ * and Unison branches), read generically off the declaration rather than a
+ * branch per card shape. Empty for a card whose cost is not X (`cardPrice`
+ * already has a total): the caller's ordinary single-candidate path is for
+ * that card, and empty too for an action that does not declare `x: true` —
+ * enumerating is opt-in per move, not a fact about the card alone.
+ *
+ * The floor is the coloured requirement alone (`specifiedCost`'s orb count):
+ * 1-2-3 demands at least that many energy whatever X is chosen, never the
+ * total itself, which is exactly the number nobody has named yet. The
+ * ceiling is what this player could pay in full — every energy this price
+ * reads from (`activeEnergy`) plus their markers. Every value in between is
+ * offered only when `planCost` actually agrees it can be paid, because a
+ * total between the two but short of one particular colour is still short.
+ */
+export function xValues(ctx: EngineContext, game: GameDefinition, state: VmState, def: ActionDef, player: PlayerId, card: string): { values: { x: number; price: Price }[]; unaffordable: Requirement[] } {
+  if (!def.x) return { values: [], unaffordable: [] };
+  const charge = Object.values(chargesOf(game)).find((c) => c.consumes === "energy");
+  if (!charge) return { values: [], unaffordable: [] };
+  const read = amountOn(ctx, game, state, charge, card);
+  if (read.total !== null) return { values: [], unaffordable: [] };
+  const floor = Math.max(def.xMin ?? 0, Object.values(read.orbs).reduce((n: number, c) => n + (c ?? 0), 0));
+  const ceiling = activeEnergy(game, state, player).length + Number(state.sides[player].attrs.energyMarkers ?? 0);
+  const priceAt = (x: number) => priceFor(ctx, game, state, def, card, { energy: { total: x, orbs: read.orbs, either: [] } });
+  const values: { x: number; price: Price }[] = [];
+  for (let x = floor; x <= ceiling; x++) {
+    const price = priceAt(x);
+    if (planCost(ctx, game, state, player, price, card).ok) values.push({ x, price });
+  }
+  // 1-2-2-2-1: nothing affordable at all — the smallest X that could satisfy
+  // the coloured requirement is the price the refusal is worded against, the
+  // same floor `whyNotPlayFromHand` refuses an X-cost card with.
+  let unaffordable: Requirement[] = [];
+  if (!values.length) {
+    const plan = planCost(ctx, game, state, player, priceAt(floor), card);
+    if (!plan.ok) unaffordable = plan.why;
+  }
+  return { values, unaffordable };
+}
+
 // ── what a row says it costs ────────────────────────────────────────────────
 
 /**

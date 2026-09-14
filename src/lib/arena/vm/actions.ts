@@ -41,7 +41,7 @@ import type { Cond, Selector } from "../engine/script";
 import type { ActionDef, GameDefinition } from "../rulesets";
 import { activationMoment, activationRefusals, activationsOf, boundFor, resolveActivation, type ActivationLine } from "./activate";
 import { attrsOf } from "./cards";
-import { actionCostOf, chargeCost, freePrice, planCost, priceFor, type BoundAmounts, type Price } from "./costs";
+import { actionCostOf, chargeCost, freePrice, planCost, priceFor, xValues, type BoundAmounts, type Price } from "./costs";
 import { RulesetBroken } from "./errors";
 import { fire } from "./events";
 import { answered } from "./flow";
@@ -68,6 +68,16 @@ export interface Candidate {
    * line once each.
    */
   skill?: number;
+  /**
+   * The X this candidate answers with, for a move declared `x: true` whose
+   * card's own price is one (issue #270) — a card with a fixed price is never
+   * given one, which is what keeps a fixed-cost `play` sending the same
+   * `Action` shape it always has. `playUnison`'s `x` still comes off
+   * `price.energy` unconditionally (13-2-3: a Unison's markers are the price
+   * regardless of whether the printed cost was a number or X); this field is
+   * for a move like `play`, where carrying it at all depends on the card.
+   */
+  x?: number;
   why: Requirement[];
   /**
    * What the move costs this candidate, read once (#148). The menu wears it and
@@ -123,8 +133,20 @@ export function candidatesOf(ctx: EngineContext, game: GameDefinition, state: Vm
   if (def.skills) return cards.flatMap((card) => (card === null ? [] : activationsOf(ctx, state, def, card).map((line) => activation(ctx, game, state, def, player, line))));
   return (
     cards
-      .map((card) => {
+      .flatMap((card): Candidate[] => {
         const why = refusedBy(ctx, game, state, def, player, card);
+        // 1-2-2-2: a move declared `x: true` whose candidate's own price is X
+        // (`costOf` absent) is not one card to refuse or offer — it is one
+        // candidate per legal value, the way the legacy engine's own X menu
+        // is (issue #270). Read *before* the ordinary price below, which is
+        // never reached for such a card: `xValues` returns nothing to try
+        // unless `def.x` is set and the card's price really is unpriced, so a
+        // fixed-cost card takes the ordinary path exactly as it always has.
+        if (!why.length && !declining(def, card) && card !== null) {
+          const x = xValues(ctx, game, state, def, player, card);
+          if (x.values.length) return x.values.map(({ x: n, price }) => ({ card, why: [], price, x: n }));
+          if (x.unaffordable.length) return [{ card, why: x.unaffordable, price: freePrice() }];
+        }
         // 8-3-2-3: an action asks for a price by name and `costs.rules` says how it
         // is charged (#148). Declining pays nothing, so the answer that takes no
         // card is never held up by a price. The price is read **last**, so a card
@@ -134,7 +156,7 @@ export function candidatesOf(ctx: EngineContext, game: GameDefinition, state: Vm
           const plan = planCost(ctx, game, state, player, price, card);
           if (!plan.ok) why.push(...plan.why);
         }
-        return { card, why, price };
+        return [{ card, why, price }];
       })
       // The answer that takes no card is an answer to *this question*, so a
       // refusal about the board — one written without ever mentioning the
@@ -369,6 +391,11 @@ function actionFor(game: GameDefinition, def: ActionDef, player: PlayerId, c: Ca
     if (c.skill === undefined) throw new RulesetBroken(game.id, `DEFINE ACTION ${JSON.stringify(def.name)} is about a skill line and this candidate names none`);
     return { type: def.name, player, card, skill: c.skill } as unknown as Action;
   }
+  // 1-2-2-2: an X-cost card carries the value it was offered at (issue #270);
+  // a fixed-cost card played by the same declaration carries none, exactly as
+  // it always has — `x` is the candidate's, not the shape's, for a move like
+  // `play` where it depends on the card rather than on the move.
+  if (c.x !== undefined) return { type: def.name, player, card, x: c.x } as unknown as Action;
   return { type: def.name, player, card } as unknown as Action;
 }
 
@@ -428,6 +455,10 @@ function labelFor(ctx: EngineContext, state: VmState, def: ActionDef, c: Candida
   if (card === null) return declining(def, card) ? (def.decline ?? label) : label;
   const cardId = state.cards[card]?.cardId;
   const name = (cardId && ctx.defs[cardId]?.name) || cardId || card;
+  // 1-2-2-2: several rows share a card when its price is X — one per legal
+  // value (issue #270) — so the row has to say which, the same "with X = n"
+  // the legacy engine's own label gives a Battle Card.
+  if (c.x !== undefined) return `${label} ${name} with X = ${c.x}`;
   if (c.skill === undefined) return `${label} ${name}`;
   const line = lineOf(ctx, state, def, card, c.skill);
   const what = line?.skill.keyword ? `[${line.skill.keyword.name}]` : (line?.skill.effect.slice(0, 40) ?? "");
@@ -479,8 +510,14 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
   // names up to nine of them and eight of those may be refused (#147).
   const skill = def.skills ? (action as { skill?: number }).skill : undefined;
   if (def.skills && typeof skill !== "number") throw new IllegalAction(`${def.label ?? def.name} names no skill line, and a skill is used one line at a time`);
+  // 1-2-2-2: a move declared `x: true` carries several candidates for the same
+  // card, one per legal value, so the value the action names is part of which
+  // one was meant — matched against `c.x` for the enumerated path and against
+  // `c.price.energy` for `playUnison`'s own `cardWithX` shape, which is where
+  // that value has always come from (issue #270).
+  const x = def.x ? (action as { x?: number }).x : undefined;
   const candidates = candidatesOf(ctx, game, state, def, player);
-  const chosen = candidates.find((c) => c.card === card && c.skill === skill);
+  const chosen = candidates.find((c) => c.card === card && c.skill === skill && (x === undefined || c.x === x || c.price.energy === x));
   if (!chosen) throw new IllegalAction(card === null ? `${def.label ?? def.name} is not offered now` : `${card} is not one of the cards ${def.label ?? def.name} is offered for`);
   // The candidate's own reasons rather than a second reading of them: an
   // activation's gates are read off the line and the price sits inside them, so

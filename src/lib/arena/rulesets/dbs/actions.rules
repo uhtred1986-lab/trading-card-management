@@ -169,10 +169,13 @@ DEFINE ACTION concede                                                     -- §0
 -- (`verify/vm.ts` §21 asserts both, so neither drifts unnoticed).
 --
 -- The other half the price cannot settle is an **X cost**: 1-2-2-2 makes its
--- value an answer to a question, and a candidate is a card and nothing else,
--- so `costOf` is absent and `vm/costs.ts` refuses such a card as `unread`
--- rather than offering it free. [Evolve], [Union], [Over Realm] and [Swap] are
--- plays a keyword gates and are #157's.
+-- value an answer to a question, and until issue #270 a candidate was a card
+-- and nothing else, so `costOf` was absent and `vm/costs.ts` refused such a
+-- card as `unread` rather than offering it free. `x: true` is the answer:
+-- one candidate per legal value of X, floored at the coloured requirement and
+-- ceilinged at what the player could pay, read generically off the price
+-- (`vm/costs.ts`'s `xValues`) rather than a branch per action. [Evolve],
+-- [Union], [Over Realm] and [Swap] are plays a keyword gates and are #157's.
 
 DEFINE ACTION play                                                        -- §8-3-2
   WHEN [main]
@@ -180,6 +183,7 @@ DEFINE ACTION play                                                        -- §8
   FOR 1 IN you.hand "battle card"
   BIND "card"
   COST [energy]
+  x: true
   DO {
     play(target: $card)
   }
@@ -190,16 +194,20 @@ DEFINE ACTION play                                                        -- §8
 
 -- 13-2-3: a Unison Card arrives carrying the energy that was paid for it as
 -- markers, which is what `X` is in this program — the amount the move's price
--- was settled at (`runProgram`). One paragraph covers only the Unisons whose
--- printed cost is a number: a Unison printed `X` lets its master choose how
--- many markers to buy (13-2-2), and that choice is the `x` a candidate has
--- nowhere to carry.
+-- was settled at (`runProgram`). A Unison printed `X` lets its master choose
+-- how many markers to buy (13-2-2), the same `x: true` enumeration `play`
+-- above declares — `x` on the Action still comes off `price.energy`
+-- (`DECLARABLE_ACTIONS`'s `cardWithX` shape, unconditional since 13-2-3), so
+-- nothing about carrying it changed, only that a Unison whose printed cost is
+-- X now reaches a price to carry at all.
 DEFINE ACTION playUnison                                                  -- §13-2
   WHEN [main]
   prompts: [main]
   FOR 1 IN you.hand "unison card"
   BIND "card"
   COST [energy]
+  x: true
+  xMin: 1                                                                 -- 13-2-2, 3-11-3: never zero markers
   DO {
     play(target: $card)
     addMarker(target: $card, n: X)
@@ -288,11 +296,15 @@ DEFINE ACTION playZ                                                       -- §1
 -- [Swap], [Arrival], [Successor], [Aegis], [Rejuvenate], [Overlord], [Field],
 -- [Z-Awaken] — is a `DEFINE KEYWORD` hook body and is Stage 7's (#153–#157);
 -- such a line is refused `unread` rather than left off both lists, because a
--- player reaching for it is owed an answer. An X price (20-5) and an action
--- price (4-3-3) are refused the same way and for the same reason the play
--- family refuses an X cost: the value is an answer to a question and a
--- candidate carries none (#149). [Counter] windows are Stage 6's (#150), and no
--- phase here asks one.
+-- player reaching for it is owed an answer. An action price (4-3-3) is
+-- refused the same way and for the same reason 22-39's [Unique] is unread:
+-- the value or the identity is not a fixed wording. An X price (20-5) is
+-- issue #270's `x: true` in principle — the price is a skill line's own
+-- (`BoundAmounts`), not a card attribute `xValues` reads, so wiring it up is
+-- separate plumbing in `activate`'s own candidate builder and is not done
+-- here; such a line stays refused `unread`, honestly rather than by
+-- omission. [Counter] windows are Stage 6's (#150), and no phase here asks
+-- one.
 
 DEFINE ACTION activate                                                    -- §9-1-2
   WHEN [main]

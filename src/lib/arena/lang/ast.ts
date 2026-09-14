@@ -538,6 +538,26 @@ export interface DefAction extends Declaration<"ACTION"> {
    */
   decline?: string;
   cost?: string[];
+  /**
+   * 1-2-2-2: this move's price may be an X the candidate's own attributes do
+   * not settle — the value is an answer the player gives at the moment of
+   * payment, never a number the card carries. `x: true` is what tells the
+   * interpreter to enumerate the legal values (floored at the coloured
+   * requirement `specifiedCost` already carries, ceilinged at what the player
+   * can pay) into one candidate per value, the way the legacy engine's own
+   * menu does, rather than refuse the whole card as a price nobody named
+   * (issue #270). Every `DO` that pays an X-cost price already reads the
+   * chosen value as the bare word `X` (`Amount`'s `{x: true}`) — this is the
+   * flag that says a value will actually be there to read.
+   */
+  x?: boolean;
+  /**
+   * The lowest X this move ever offers, when it is higher than the coloured
+   * requirement alone: 13-2-2's Unison never arrives with zero markers
+   * (3-11-3), which `specifiedCost`'s own floor does not say on a Unison with
+   * no coloured requirement at all. Meaningless without `x: true`.
+   */
+  xMin?: number;
   do: Op[];
   refusals?: DefineRefusal[];
   /**
@@ -726,6 +746,8 @@ export const DEFINE_SCHEMA = {
       { name: "skills", type: { list: { enum: SKILL_KINDS } } },
       { name: "decline", type: "string" },
       { name: "cost", type: { list: "string" }, word: "COST" },
+      { name: "x", type: "boolean" },
+      { name: "xMin", type: "number" },
       { name: "do", type: "ops", word: "DO", required: true },
       { name: "refusals", type: "refusals", word: "REFUSE" },
       { name: "again", type: "boolean" },

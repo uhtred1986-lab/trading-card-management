@@ -295,10 +295,24 @@ DEFINE STEP mainStart
 phases it is available in (required), `prompts:` the questions within them it answers, `FOR` the
 cards it applies to, `BIND` the name a refusal calls the candidate by, `skills:` the printed skill
 kinds it offers when its candidate is a *line* of a card rather than the card, `decline:` the words
-for answering it with no card at all, `COST` the names of the `DEFINE COST` prices it charges, `DO` what
+for answering it with no card at all, `COST` the names of the `DEFINE COST` prices it charges, `x:`
+whether a candidate's price may be an X the card itself does not settle (below), `xMin:` the lowest
+X ever offered when it is higher than the coloured requirement alone, `DO` what
 it does (required), one `REFUSE` line per requirement, `again:` whether taking it leaves the question
 on the table, `listed:` whether the menu carries it, `label:` the words it shows there, and `text:`
 what it is.
+
+`x: true` (issue #270) is 1-2-2-2: an X cost's value is an answer to a question, never a number the
+card carries, so a candidate whose price reads as X (`costOf` absent) is not one card to refuse or
+offer — it is one candidate per legal value, floored at the coloured requirement `specifiedCost`
+already carries and ceilinged at what the player could pay, each checked affordable before it is
+offered (`vm/costs.ts`'s `xValues`). A card with a fixed price is unaffected — `x:` only changes what
+happens when the price really is X. Every `DO` that spends the chosen value already reads it as the
+bare word `X` (`playUnison`'s `addMarker(target: $card, n: X)`); `x: true` is what guarantees a value
+is actually there to read when the program runs. `xMin:` raises the floor past the coloured
+requirement for a move where zero is not a real answer — `playUnison`'s `xMin: 1`, since 13-2-2 never
+lets a Unison arrive with no markers at all (3-11-3), which a Unison with no printed colours would
+otherwise floor at zero.
 
 `decline:` is the other half of a *may*. The charge (§7-2-11) offers a card in hand **and** the
 answer that places none, and that answer is a candidate of its own rather than the absence of one —

@@ -2137,26 +2137,51 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     assertMenuInvariants(rulesEngine.legalActions(CTX, board.r), mine, "the play menu with the wrong colour of energy");
   }
 
-  // 1-2-2-2: an X cost. The value is an answer to a question and a candidate is
-  // a card, so the card is refused as `unread` rather than offered for nothing
-  // — the 8 Sep 2026 precedent, applied to a price instead of to a skill.
+  // 1-2-2-2: an X cost, declared `x: true` (issue #270) rather than refused
+  // `unread` — one candidate per legal value, agreeing with the legacy
+  // engine's own X menu instead of recording a divergence from it.
   {
     const board = staged(["P-X"], ["P-E-RED", "P-E-RED"]);
     const xCard = board.r.sides.p1.zones.hand[0];
-    assert.equal(
-      rulesEngine.legalActions(CTX, board.r).some((a) => a.action.type === "play" && (a.action as { card?: string }).card === xCard),
-      false,
-      "a card whose cost is X was offered at a price nobody named",
-    );
-    const why = rulesEngine.rejectedActions(CTX, board.r, rulesEngine.legalActions(CTX, board.r)).find((x) => x.action.type === "play" && (x.action as { card?: string }).card === xCard);
-    assert.deepEqual(why?.why[0], { kind: "unread", card: xCard }, "a card whose cost is X is not refused as a price this engine cannot read");
-    // The legacy engine offers it once per value of X, which is the divergence
-    // this names rather than hides: `DECLARABLE_ACTIONS` has no shape that
-    // carries an answer, and #147 is where a move's price takes arguments.
-    assert.ok(
-      legalActions(CTX, board.l).some((a) => a.action.type === "play" && (a.action as { card: string }).card === xCard),
-      "the legacy engine stopped offering an X cost, and this divergence is recorded on the assumption that it does",
-    );
+    const rows = (legal: { action: Action }[]) => legal.filter((a) => a.action.type === "play" && (a.action as { card?: string }).card === xCard).map((a) => (a.action as { x?: number }).x);
+    const rLegal = rulesEngine.legalActions(CTX, board.r);
+    const lLegal = legalActions(CTX, board.l);
+    assert.deepEqual(rows(rLegal).sort(), [0, 1, 2], "an X-cost card with 2 energy and no coloured requirement did not offer X = 0, 1 and 2");
+    assert.deepEqual(rows(rLegal).sort(), rows(lLegal).sort(), "the two engines offer a different X menu for the same board");
+    assertMenuInvariants(rLegal, rulesEngine.rejectedActions(CTX, board.r, rLegal), "the X-cost play menu");
+
+    // Taking the middle value pays exactly that much, on both engines.
+    const play = { type: "play" as const, player: "p1" as const, card: xCard, x: 1 };
+    const r2 = rulesEngine.apply(CTX, board.r, play);
+    const l2 = apply(CTX, board.l, play);
+    const restedR = (r2.state as VmState).sides.p1.zones.energy.filter((id) => (r2.state as VmState).cards[id].mode === "rest").length;
+    const restedL = (l2.state as GameState).players.p1.energy.filter((id) => (l2.state as GameState).cards[id].mode === "rest").length;
+    assert.equal(restedR, 1, "playing an X-cost card for X = 1 did not rest exactly 1 energy");
+    assert.equal(restedL, restedR, "the two engines rested a different amount of energy for the same X");
+  }
+
+  // The same shape on a Unison — the card arrives with X markers, 13-2-3's
+  // whole point, over `playUnison`'s existing `cardWithX` shape rather than a
+  // new one: `x: true` only changes whether such a card reaches a price to
+  // carry, never how the price becomes the Action.
+  {
+    DEFS["P-UNISON-X"] = card("P-UNISON-X", { type: "UNISON", energyCost: "X" as unknown as number, comboCost: null, comboPower: null });
+    const board = staged(["P-UNISON-X"], ["P-E-RED", "P-E-RED", "P-E-RED"]);
+    const uCard = board.r.sides.p1.zones.hand[0];
+    const rows = (legal: { action: Action }[]) => legal.filter((a) => a.action.type === "playUnison" && (a.action as { card?: string }).card === uCard).map((a) => (a.action as { x?: number }).x);
+    const rLegal = rulesEngine.legalActions(CTX, board.r);
+    const lLegal = legalActions(CTX, board.l);
+    // 13-2-2: a Unison's X starts at 1, never 0 — a Unison with no markers at
+    // all is not on the board (3-11-3).
+    assert.deepEqual(rows(rLegal).sort(), [1, 2, 3], "an X-cost Unison with 3 energy did not offer 1, 2 and 3 markers");
+    assert.deepEqual(rows(rLegal).sort(), rows(lLegal).sort(), "the two engines offer a different marker menu for the same X-cost Unison");
+
+    const play = { type: "playUnison" as const, player: "p1" as const, card: uCard, x: 3 };
+    const r2 = rulesEngine.apply(CTX, board.r, play);
+    const l2 = apply(CTX, board.l, play);
+    assert.deepEqual(r2.events, l2.events, "playing an X-cost Unison does not log the same events on both engines");
+    assert.equal((r2.state as VmState).cards[uCard].markers, 3, "the Unison did not arrive with X markers");
+    assert.equal((l2.state as GameState).cards[uCard].markers, 3, "the legacy engine did not give the Unison X markers either");
   }
 }
 
