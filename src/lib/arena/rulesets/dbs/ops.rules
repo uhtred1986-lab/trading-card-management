@@ -42,8 +42,6 @@
 --             `mode`, `markers`, `keywords`, `hidden`, `faceUp` and `flipped`
 --             as attributes (spec §2.5-1, §2.5-3).
 --   replace   the `replace` primitive is not an op yet (spec §2.2, #125).
---   cost      the `costModifier` primitive is not an op yet: a price is not a
---             number, which is the whole of spec §2.5-4.
 --   audience  `reveal` shows a card to both players; `look` is the same act
 --             with a narrower audience (20-11), and the field that says which
 --             does not exist.
@@ -75,11 +73,11 @@
 --   faceUp               modifyAttr               param, subject
 --   addMarker            modifyAttr               param, subject
 --   removeMarker         modifyAttr               param, subject
---   costReduction        costModifier             param, cost
+--   costReduction        costModifier             declared (#277)
 --   negateKeyword        negate                   declared (#276)
 --   gains                modifyAttr               param, subject
 --   replaceLeave         replace                  param, replace
---   altCost              costModifier             param, cost
+--   altCost              costModifier             declared (#277)
 --   resolvingPlay        replace                  param, replace
 --   negateAttack         replace                  replace
 --   negateCounter        replace                  replace
@@ -214,3 +212,36 @@ DEFINE OP negateOwnSkill
   }
   text: "this skill does not happen again, for the duration"
   doc: "what `negateOwnSkill` means: the skill resolving now, negated for a span read off its own card — never a target, the way the other three take one"
+
+-- ── a price is not a number (§2.5-4, #277) ──────────────────────────────────
+--
+-- `costModifier(target, amount?, what?, colors?, skillKind?, pay?, n?, for?,
+-- alt?, orbs?, until?)` is the one primitive under both spellings —
+-- `costModifierAs` (`engine/script-schema.ts`) reads a call back as whichever
+-- it stands for, and each row here is built to invert it exactly: `pay`
+-- present means `altCost` (the price replaced), absent means `costReduction`
+-- (the price's number changed). The rules engine reads only the reduction
+-- half, through the `costOf`/`specifiedCost` layers `LAYER_KINDS` pairs it
+-- with (`vm/effects.ts`); `altCost` stays a documented gap there (#149).
+
+-- §20-21 — "reduce the energy cost of your <Son Goku> cards in your hand by
+-- 1", "…combo cost…", "…Z-Energy cost…", the specified (coloured) half
+-- (owner's BT19-039 ruling), and a skill's own orb price scoped by kind.
+DEFINE OP costReduction
+  TAKES (target: ref, amount: amount, what: word, skillKind: word, colors: colors, until: duration)
+  DO {
+    costModifier(target: $target, amount: $amount, what: $what, skillKind: $skillKind, colors: $colors, until: $until)
+  }
+  text: "the target's price changes by the amount"
+  doc: "what `costReduction` means: the general price change, with nothing about what replaces it"
+
+-- §5-3 — "you can activate this card's [Counter] skill for nothing / by
+-- adding cards from your life to your hand / by a reduced energy price /
+-- by a program instead"
+DEFINE OP altCost
+  TAKES (pay: word, n: number, for: word, ops: ops, orbs: colors, target: ref, until: duration)
+  DO {
+    costModifier(target: $target, pay: $pay, n: $n, for: $for, alt: $ops, orbs: $orbs, until: $until)
+  }
+  text: "the target's price is replaced"
+  doc: "what `altCost` means: the general price change, naming what replaces the price rather than a number it moves by"

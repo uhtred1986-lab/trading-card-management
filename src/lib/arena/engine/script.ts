@@ -11,7 +11,7 @@
  */
 import { skillsOf } from "./cards";
 import type { CardFilter } from "./filters";
-import { asksAQuestion, describeCond, describeScript, describeSelector, negateAs } from "./script-schema";
+import { asksAQuestion, costModifierAs, describeCond, describeScript, describeSelector, negateAs } from "./script-schema";
 import { resolveSelector, sideOf, type AltCost } from "./state";
 import type { ScriptHost } from "./script-host";
 import type { Area, Color, DelayScope, DelayTiming, ForbiddenAction, KeywordSkill, MoveReason, PlayerId, Prompt, ReplacementChoice, ReplacementResult, Skill, SkillKindPrefix, SkipWhat, Trigger } from "./types";
@@ -448,6 +448,38 @@ export type Op =
   | { op: "addMarker"; target: Ref; n: Amount }
   | { op: "removeMarker"; target: Ref; n: Amount }
   | { op: "token"; name: string; power: number; comboCost: number | null; comboPower: number | null; colors: Color[]; n: Amount; side?: Side }
+  /**
+   * A price is not a number (spec §2.5-4, #277): `costReduction` and `altCost`
+   * are the two shapes a price changes, and this is the one primitive both
+   * lower to — `costModifierAs` (`script-schema.ts`) reads a call back as
+   * whichever it stands for, applied at `stepScript`'s one dispatch point (the
+   * same place #276's `negate`/`negateAs` reads its own four spellings, once
+   * both land on the same branch) and wherever `costReduction`/`altCost` are
+   * read as a [Permanent]'s standing change (`collectStatics`,
+   * `vm/effects.ts`'s `permanents`), so a program written either way runs the
+   * same way on both engines. `pay` present means "this replaces the price"
+   * (`altCost`'s own shape: `n`/`for`/`alt`/`orbs`); absent means "this
+   * changes the number" (`costReduction`'s: `amount`/`what`/`colors`/
+   * `skillKind`). The rules engine reads only the reduction half, through the
+   * `costOf`/`specifiedCost` layers `LAYER_KINDS` pairs it with
+   * (`vm/effects.ts`); `costLayerGaps` checks the pairing against the game's
+   * own declarations at load.
+   */
+  | {
+      op: "costModifier";
+      target?: Ref;
+      amount?: Amount;
+      what?: "energy" | "skill" | "evolve" | "combo" | "zEnergy" | "specified";
+      colors?: (Color | "any")[];
+      skillKind?: SkillKindPrefix;
+      pay?: "none" | "life" | "program" | "energy";
+      n?: number;
+      for?: "counter" | "play";
+      /** The price to run, for `pay: "program"` — `altCost`'s `ops`, renamed so the field says what it is at this level (spec §2.5-4's own name). */
+      alt?: Op[];
+      orbs?: (Color | "any")[];
+      until?: Duration;
+    }
   /**
    * A [Permanent] cost reducer, applied while the card sits where the skill
    * says (9-1-3-3). `what` says which cost: the energy cost by default, the
@@ -973,10 +1005,12 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
       }
       return "done";
     }
-    // The `negate` primitive is run as the spelling it stands for (9-1-5,
-    // #276): one dispatch, so the four cases below are the only reading of
-    // negation on either engine.
-    const op = negateAs(frame.ops[frame.ip]);
+    // The `negate` (9-1-5, #276) and `costModifier` (spec §2.5-4, #277)
+    // primitives are run as the spelling each stands for: one dispatch, so
+    // the four negation cases and the two price cases below are the only
+    // reading of either on either engine. The two never read the same op,
+    // so the order of the composition is immaterial.
+    const op = costModifierAs(negateAs(frame.ops[frame.ip]));
 
     switch (op.op) {
       case "note":

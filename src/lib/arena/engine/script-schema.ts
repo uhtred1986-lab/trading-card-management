@@ -193,6 +193,26 @@ const COST_REDUCTION_FIELDS: OpField[] = [
   { name: "colors", type: { list: { enum: ["any", ...COLORS] } } },
   { name: "until", type: "duration" },
 ];
+/**
+ * `costModifier`'s fields — the union of `costReduction`'s and `altCost`'s,
+ * every one optional since which half of the union a call means is read off
+ * whether `pay` is there at all (`costModifierAs`), not off which fields were
+ * required to begin with. Named for the same reason the other two constants
+ * beside it are.
+ */
+const COST_MODIFIER_FIELDS: OpField[] = [
+  { name: "target", type: "ref", default: { sel: { special: "self" } } },
+  { name: "amount", type: "amount" },
+  { name: "what", type: { enum: ["energy", "skill", "evolve", "combo", "zEnergy", "specified"] }, default: "energy" },
+  { name: "skillKind", type: { enum: SKILL_KIND_PREFIXES } },
+  { name: "colors", type: { list: { enum: ["any", ...COLORS] } } },
+  { name: "pay", type: { enum: ["none", "life", "program", "energy"] } },
+  { name: "n", type: "number" },
+  { name: "for", type: { enum: ["counter", "play"] }, default: "counter" },
+  { name: "alt", type: "ops" },
+  { name: "orbs", type: { list: { enum: ["any", ...COLORS] } } },
+  { name: "until", type: "duration" },
+];
 /** `modifyAttr`'s fields, named for the same reason `costReduction`'s are: its `sentence` hands them to `renderTemplate` for the two numeric attributes. */
 const MODIFY_ATTR_FIELDS: OpField[] = [
   { name: "target", type: "ref", default: { sel: { special: "self" } } },
@@ -376,6 +396,14 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     ],
     sentence: "play {n} {name} ({power} power)",
     doc: 'a token (19): {"op":"token","name":"Saibaman Token","power":10000,"comboCost":0,"comboPower":5000,"colors":[],"n":2}',
+  },
+  costModifier: {
+    fields: COST_MODIFIER_FIELDS,
+    // The sentence is the spelling's own, so the workbench reads a lowered
+    // program in the same words as the record it came from — the same choice
+    // `negate`'s row makes.
+    sentence: (raw, r) => describeScript([costModifierAs(raw as OpOf<"costModifier">)], r),
+    doc: 'the primitive under "costReduction" and "altCost" (docs/arena-ruleset-spec.md §2.5-4): a price is not a number. "pay" present is the whole price replaced — "none"/"life"/"program"/"energy", with "alt" the program for "program" and "orbs" the reduced price for "energy" (altCost\'s own shape); "pay" absent is the number changed by "amount"/"what"/"colors"/"skillKind" (costReduction\'s). Those two spellings are still what the compiler writes and what a stored rule holds — prefer them; this row is what they mean',
   },
   costReduction: {
     fields: COST_REDUCTION_FIELDS,
@@ -596,6 +624,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
 export type OpClass = "primitive" | `macro over ${string}`;
 
 export const OP_CLASS: Record<Op["op"], OpClass> = {
+  costModifier:       "primitive",
   draw:               "macro over `move`",
   discard:            "macro over `choose` + `move`",
   damage:             "macro over `move`",
@@ -650,6 +679,45 @@ export const OP_CLASS: Record<Op["op"], OpClass> = {
   note:               "primitive",
   setPlayerAttr:      "primitive",
 };
+
+/**
+ * `costModifier` read as the spelling it stands for (spec §2.5-4, #277) — the
+ * one dispatch `stepScript`'s main loop, `collectStatics` and `vm/effects.ts`'s
+ * `permanents` all run through, so any other step comes back as it was and
+ * `costReduction`/`altCost`'s own cases are the only reading of a price
+ * change on either engine.
+ *
+ * `pay` present is `altCost`: the whole price replaced. Absent is
+ * `costReduction`: the number changed. A call with neither `pay` nor `amount`
+ * is a `note` rather than a guess — the same rule `negateAs` holds a missing
+ * field to.
+ */
+export function costModifierAs(op: Op): Op {
+  if (op.op !== "costModifier") return op;
+  const target = op.target ?? { sel: { special: "self" } };
+  if (op.pay !== undefined) {
+    return {
+      op: "altCost",
+      pay: op.pay,
+      target,
+      ...(op.n !== undefined ? { n: op.n } : {}),
+      ...(op.for !== undefined ? { for: op.for } : {}),
+      ...(op.alt ? { ops: op.alt } : {}),
+      ...(op.orbs?.length ? { orbs: op.orbs } : {}),
+      ...(op.until !== undefined ? { until: op.until } : {}),
+    };
+  }
+  if (op.amount === undefined) return { op: "note", text: "costModifier: no amount named" };
+  return {
+    op: "costReduction",
+    target,
+    amount: op.amount,
+    ...(op.what !== undefined ? { what: op.what } : {}),
+    ...(op.skillKind ? { skillKind: op.skillKind } : {}),
+    ...(op.colors?.length ? { colors: op.colors } : {}),
+    ...(op.until !== undefined ? { until: op.until } : {}),
+  };
+}
 
 /**
  * A condition in the same form as an op: its fields, and the sentence it makes.
