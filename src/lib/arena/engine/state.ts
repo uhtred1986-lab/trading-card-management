@@ -183,6 +183,16 @@ export interface Replacement {
    * §1.4.
    */
   bySide?: "opponent";
+  /**
+   * #272: this is a `"life"` moment — a life card's own move to the hand or
+   * the Drop Area (8-4-6-1's damage), not a Battle Area departure. Absent
+   * means "leave"/"ko"/"play", every existing effect; `by`/`bySide` are not
+   * asked when this is set, and `lifeReplacementsFor` is the reader instead
+   * of `causeMatches`.
+   */
+  kind?: "life";
+  /** For `kind: "life"`: narrows to the one destination named, or answers to either when absent — both cards print "to your hand or … your Drop Area". */
+  lifeTo?: "hand" | "drop";
   /** "Add that card to your energy in Rest Mode instead" — the mode it arrives in. */
   mode?: "active" | "rest";
   /** 9-10-3: the affected player may choose not to apply it. */
@@ -239,6 +249,9 @@ function replacementFor(ctx: GameContext, s: GameState, id: string, reason: Move
  * which only a caller that knows the actor can satisfy.
  */
 function causeMatches(s: GameState, id: string, r: Replacement, reason: MoveReason | undefined, actor: MoveActor): boolean {
+  // #272: a "life" replacement answers to no Battle Area departure at all —
+  // `lifeReplacementChoicesFor` is its own reader, asked only by `battleDamage`.
+  if (r.kind === "life") return false;
   if (r.by === "skill" && reason !== "effect") return false;
   if (r.by === "ko" && reason !== "ko") return false;
   if (r.by === "skillOrKo" && reason !== "effect" && reason !== "ko") return false;
@@ -269,6 +282,32 @@ export function replacementChoicesFor(
     const r = e.value as Replacement;
     if (r.ops && (applyingReplacement || inSubstitute)) continue;
     if (!causeMatches(s, id, r, reason, actor)) continue;
+    out.push({ source: e.source, ...(r.to ? { to: r.to } : {}), mode: r.mode, optional: r.optional, ...(r.ops ? { ops: r.ops } : {}), ...(r.master ? { master: r.master } : {}) });
+  }
+  return out;
+}
+
+/**
+ * Every `kind: "life"` replacement answering to this life card's own move to
+ * `dest` (#272) — the one reader `battleDamage` asks, the way
+ * `replacementChoicesFor` is the one the two Battle Area sites ask. Narrowed
+ * by `lifeTo` when a replacement names one destination; unset answers to
+ * either, which is what BT10-031/SD18-01 print ("to your hand or … your Drop
+ * Area"). No `reason`/`actor` to match — nobody's skill puts a card out of
+ * the life area, damage does, and that is the only site that asks.
+ */
+export function lifeReplacementChoicesFor(ctx: GameContext, s: GameState, id: string, dest: "hand" | "drop"): ReplacementChoice[] {
+  // Every printed card in this family says "if **you** would…" — its own life,
+  // never a named card or the opponent's — so this is scoped by whose rule it
+  // is (`master`) rather than by a target card the way the Battle Area family
+  // is; `id`'s own owner is who a rule has to belong to to answer to it.
+  const owner = masterOf(s, id);
+  const out: ReplacementChoice[] = [];
+  for (const e of staticEffects(ctx, s)) {
+    if (e.kind !== "replaceLeave") continue;
+    const r = e.value as Replacement;
+    if (r.kind !== "life" || r.master !== owner || (r.lifeTo && r.lifeTo !== dest)) continue;
+    if (r.ops && applyingReplacement) continue;
     out.push({ source: e.source, ...(r.to ? { to: r.to } : {}), mode: r.mode, optional: r.optional, ...(r.ops ? { ops: r.ops } : {}), ...(r.master ? { master: r.master } : {}) });
   }
   return out;
@@ -1095,12 +1134,14 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
     // of the *play* is not standing at all: it resolves in `exec`.
     if (op.op === "replace") {
       if (op.event === "play" || !inPlayNow) continue;
+      const isLife = op.event === "life";
       const redirect = redirectOf(op.with);
-      const by = op.event === "ko" ? ("ko" as const) : op.by;
+      const by = op.event === "ko" ? ("ko" as const) : isLife ? undefined : op.by;
       const targets = op.target ? staticTargets(ctx, s, frame, op.target) : [source];
+      const lifeFields = isLife ? { kind: "life" as const, ...(op.to ? { lifeTo: op.to } : {}) } : {};
       const value: Replacement = redirect
-        ? { to: redirect.to, by, bySide: op.bySide, mode: redirect.mode, optional: op.optional }
-        : { by, bySide: op.bySide, optional: op.optional, ops: op.with, source, master };
+        ? { to: redirect.to, by, bySide: op.bySide, mode: redirect.mode, optional: op.optional, ...lifeFields }
+        : { by, bySide: op.bySide, optional: op.optional, ops: op.with, source, master, ...lifeFields };
       for (const id of targets) out.push({ source, kind: "replaceLeave", target: id, value: { ...value } });
       continue;
     }
@@ -1301,6 +1342,16 @@ export function move(ctx: GameContext, s: GameState, ev: GameEvent[], id: string
   const d = def(ctx, s, id);
   const from = locate(s, id);
   const wasInPlay = from?.area === "leader" || from?.area === "battle" || from?.area === "unison";
+  // #272: a life card's own move (8-4-6-1's damage) is a 9-10 moment too, but
+  // never the Battle Area's — nothing below this block that reads `wasInPlay`
+  // (token/Z-card removal, markers dropping, the `carry` convention) applies
+  // to it, so it gets its own flag rather than joining `wasInPlay`. Only
+  // `battleDamage` — the one site that can suspend for it — ever supplies
+  // `opts.replaced` for a life departure; there is no automatic lookup here
+  // the way `replacementFor` is for the Battle Area family, because nobody's
+  // skill puts a card out of the life area for `causeMatches`'s `reason` to
+  // name (`docs/arena-life-card-replacement-scope.md` §1.3).
+  const wasLife = from?.area === "life";
   const wasCombo = from?.area === "combo";
   const goesToPlay = to === "leader" || to === "battle" || to === "unison";
   const goesToCombo = to === "combo";
@@ -1310,8 +1361,8 @@ export function move(ctx: GameContext, s: GameState, ev: GameEvent[], id: string
   // happened (9-10-1-1). Read before the rules below, because a rule about
   // what a card *is* — a token, a Z-card — outranks an effect (0-2-5).
   let insteadMode: "active" | "rest" | undefined;
-  if (wasInPlay && !goesToPlay && !goesToCombo) {
-    const instead: Replacement | ReplacementResult | null | undefined = "replaced" in opts ? opts.replaced : replacementFor(ctx, s, id, opts.reason);
+  if ((wasInPlay || wasLife) && !goesToPlay && !goesToCombo) {
+    const instead: Replacement | ReplacementResult | null | undefined = "replaced" in opts ? opts.replaced : wasLife ? null : replacementFor(ctx, s, id, opts.reason);
     // A substitute replaces the whole departure, not its destination: the card
     // stays where it is (9-10-1-1 — the move is treated as never having
     // happened) and the program runs in its place. Taken before the redirect
