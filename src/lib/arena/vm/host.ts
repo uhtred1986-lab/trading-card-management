@@ -42,7 +42,7 @@
  */
 import type { EngineContext, GameEvent } from "../engine";
 import type { ScriptHost } from "../engine/script-host";
-import type { Area, CardDef, KeywordSkill, Mode, PlayerId, Prompt } from "../engine/types";
+import type { Area, CardDef, KeywordSkill, Mode, MoveReason, PlayerId, Prompt } from "../engine/types";
 import type { GameDefinition } from "../rulesets";
 import { addEffect, dropEffectsOn, negatedSkillsOf, schedule } from "./effects";
 import { NotYet } from "./errors";
@@ -125,14 +125,14 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       for (let i = 0; i < n; i++) {
         const id = state.sides[p].zones[SETUP_ZONES.deck][0];
         if (!id) break;
-        moveTo(ctx, game, state, ev, id, SETUP_ZONES.hand, p, {});
+        moveTo(ctx, game, state, ev, id, SETUP_ZONES.hand, p, { reason: "draw" });
         log(ev, { type: "draw", player: p, card: id });
         drawn++;
       }
       return drawn;
     },
     move: (id, to, owner, opts) => {
-      moveTo(ctx, game, state, ev, id, to, owner, { position: opts?.position, reveal: opts?.reveal, carry: opts?.carry });
+      moveTo(ctx, game, state, ev, id, to, owner, { position: opts?.position, reveal: opts?.reveal, carry: opts?.carry, reason: opts?.reason });
       return (zoneOf(state, id) as Area | null) ?? to;
     },
     ko: (id) => {
@@ -336,7 +336,7 @@ function moveTo(
   id: string,
   to: string,
   owner: PlayerId,
-  opts: { position?: "top" | "bottom"; reveal?: boolean; carry?: boolean },
+  opts: { position?: "top" | "bottom"; reveal?: boolean; carry?: boolean; reason?: MoveReason },
 ): void {
   const from = zoneOf(state, id);
   const fromOwner = from ? ownerOfZone(state, id) : null;
@@ -351,7 +351,10 @@ function moveTo(
   if (from && fromOwner) {
     log(ev, { type: "move", card: id, from: from as Area, to: to as Area, owner, ...(opts.reveal ? { reveal: true } : {}) });
   }
-  emit(ctx, game, state, ev, { event: "moved", card: id, controller: owner, args: { from: from ?? "", to, asPlay: false } }, null);
+  // `cause` is the field the two interpreters share a name for (`MoveOptions.reason`
+  // on the legacy side): "damage", "ko", "combo", "effect" and a plain draw are one
+  // move told apart by it, and `triggers.rules` may match a `moved(cause: …)` (#274).
+  emit(ctx, game, state, ev, { event: "moved", card: id, controller: owner, args: { from: from ?? "", to, asPlay: false, cause: opts.reason ?? "effect" } }, null);
 }
 
 function ownerOfZone(state: VmState, id: string): PlayerId | null {

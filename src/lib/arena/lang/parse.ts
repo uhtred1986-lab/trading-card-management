@@ -137,8 +137,9 @@ class Parser {
   private atNumber(): boolean {
     return this.tok.kind === "number";
   }
-  private atEnd(): boolean {
-    return this.tok.kind === "eof" || this.tok.kind === "newline" || CLOSERS.has(this.tok.text);
+  private atEnd(offset = 0): boolean {
+    const t = this.ahead(offset);
+    return t.kind === "eof" || t.kind === "newline" || CLOSERS.has(t.text);
   }
 
   // ── the rule ──────────────────────────────────────────────────────────────
@@ -376,6 +377,12 @@ class Parser {
   }
 
   private typed(type: FieldType): unknown {
+    // A selector is the one compound type a hole can open without closing: `$n
+    // IN $side.hand` is a count followed by more clauses, not one hole standing
+    // for the whole field the way `$sel` (nothing after it but "," or ")") does
+    // — `selectorPart` reads the count hole itself (below), so this only tells
+    // the two apart by whether anything follows the name (#274).
+    if (this.holes && this.isPunct("$") && type === "selector" && !this.atEnd(2)) return this.selector();
     if (this.holes && this.isPunct("$") && type !== "amount" && type !== "ref") return this.hole();
     if (typeof type === "object") {
       if ("enum" in type) return this.enumValue(type.enum);

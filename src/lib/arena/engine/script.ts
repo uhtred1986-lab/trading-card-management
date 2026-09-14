@@ -317,8 +317,14 @@ export type Op =
    * opponent's energy in Rest Mode" (3-8) puts a card the opponent owns into
    * the *other* player's energy. Left out, a card goes to its own owner's
    * area, which is what nearly every move means.
+   *
+   * `cause` is `damage`, `ko`, `combo`, `effect` and a plain `draw` told apart
+   * (`MoveOptions.reason` on the legacy side) — read by a replacement's own
+   * scope and, on the rules engine, carried onto the `moved` moment so
+   * `triggers.rules` may match `moved(cause: …)` (spec §2.5-2). Left out, a
+   * move means `effect`, which is what nearly every one is.
    */
-  | { op: "moveTo"; target: Ref; to: ScriptArea; position?: "top" | "bottom"; mode?: "active" | "rest"; reveal?: boolean; under?: Ref; owner?: Side; faceUp?: boolean }
+  | { op: "moveTo"; target: Ref; to: ScriptArea; position?: "top" | "bottom"; mode?: "active" | "rest"; reveal?: boolean; under?: Ref; owner?: Side; faceUp?: boolean; cause?: MoveReason }
   /**
    * `onto` plays the card on top of another, which is how [Union-Absorb]
    * resolves (22-13-6-3) and how the "play … on top of this card" wordings
@@ -1232,7 +1238,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           reveal: op.reveal,
           mode: op.mode,
           faceUp: op.faceUp,
-          reason: "effect",
+          reason: op.cause ?? "effect",
         };
         while (frame.moveLoop && frame.moveLoop.kind === "moveTo" && frame.moveLoop.index < frame.moveLoop.ids.length) {
           const id = frame.moveLoop.ids[frame.moveLoop.index];
@@ -1264,7 +1270,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             h.clearLastMode();
             frame.awaiting = undefined;
           } else {
-            const choices = h.replacementsFor(id, "effect", { actor: master, inSubstitute: !!frame.replacing });
+            const choices = h.replacementsFor(id, op.cause ?? "effect", { actor: master, inSubstitute: !!frame.replacing });
             const allowNone = choices.length > 0 && choices.every((c) => c.optional);
             if (choices.length > 1 || allowNone) {
               frame.awaiting = "replaceMove";
@@ -1281,7 +1287,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             replaced = choices.length ? routeOf(choices[0]) : null;
           }
           const deferred = defers(replaced);
-          h.move(id, dest, owner, { position: op.position, reveal: op.reveal, reason: "effect", ...(replaced === undefined ? {} : { replaced: deferred ? { ...replaced!, deferred: true } : replaced }) });
+          h.move(id, dest, owner, { position: op.position, reveal: op.reveal, reason: op.cause ?? "effect", ...(replaced === undefined ? {} : { replaced: deferred ? { ...replaced!, deferred: true } : replaced }) });
           // #107: the departure is already replaced — the card stayed — and
           // the program that stood in for it runs as a frame of its own, so a
           // question inside it is asked rather than lost. Nothing below is

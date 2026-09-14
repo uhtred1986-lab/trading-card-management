@@ -67,7 +67,7 @@
           "name": "side",
           "required": false,
           "nullable": false,
-          "defaultText": "\"you\"",
+          "defaultText": "\"opponent\"",
           "type": "side"
         }
       ],
@@ -304,7 +304,7 @@
     {
       "name": "moveTo",
       "class": "primitive",
-      "signature": "{\"op\":\"moveTo\",\"target\":TARGET,\"to\":AREA,\"position\"?:\"top\"|\"bottom\",\"mode\"?:\"active\"|\"rest\",\"reveal\"?:true|false,\"under\"?:TARGET,\"owner\"?:\"you\"|\"opponent\",\"faceUp\"?:true|false}",
+      "signature": "{\"op\":\"moveTo\",\"target\":TARGET,\"to\":AREA,\"position\"?:\"top\"|\"bottom\",\"mode\"?:\"active\"|\"rest\",\"reveal\"?:true|false,\"under\"?:TARGET,\"owner\"?:\"you\"|\"opponent\",\"faceUp\"?:true|false,\"cause\"?:\"ko\"|\"effect\"|\"rule\"|…}",
       "fields": [
         {
           "name": "target",
@@ -361,10 +361,28 @@
           "required": false,
           "nullable": false,
           "type": "boolean"
+        },
+        {
+          "name": "cause",
+          "required": false,
+          "nullable": false,
+          "defaultText": "\"effect\"",
+          "type": "enum",
+          "enumValues": [
+            "ko",
+            "effect",
+            "rule",
+            "cost",
+            "play",
+            "combo",
+            "damage",
+            "draw",
+            "charge"
+          ]
         }
       ],
       "sentence": "move this card to drop",
-      "doc": "\"to\":\"under\" puts the card under \"under\" (or under this card, 23-2); \"owner\":\"opponent\" for \"place it in your opponent's energy\" — the area is theirs, not the card owner's (3-8)"
+      "doc": "\"to\":\"under\" puts the card under \"under\" (or under this card, 23-2); \"owner\":\"opponent\" for \"place it in your opponent's energy\" — the area is theirs, not the card owner's (3-8); \"cause\" is \"damage\"/\"ko\"/\"combo\"/\"effect\"/a plain \"draw\" told apart (spec §2.5-2), read by a replacement's own scope and, on the rules engine, by `triggers.rules`'s `moved(cause: …)`"
     },
     {
       "name": "play",
