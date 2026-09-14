@@ -1,8 +1,9 @@
 # Continuing the arena rules programme
 
 Written 9 Sep 2026, after Stage 1, fourteen increments of Stage 2 and three
-rounds of parallel work merged. It assumes no knowledge of the sessions that
-came before and no particular tooling — any coding client can pick this up.
+rounds of parallel work merged; §1a's module map refreshed 14 Sep 2026. It
+assumes no knowledge of the sessions that came before and no particular
+tooling — any coding client can pick this up.
 
 Read `CLAUDE.md` first for the app as a whole. This document is only the arena
 compiler and engine.
@@ -26,6 +27,48 @@ live as rows in `card_rules`, drafted offline. `src/lib/arena/glossary.ts` is
 the written record of what the compiler understands, and it is part of the
 compiler rather than documentation about it: change what the engine reads, and
 that file changes in the same commit.
+
+## 1a. Current module map (refreshed 14 Sep 2026)
+
+Written at file-and-module grain rather than line numbers on purpose — a line number is exactly
+what goes stale first (`docs/arena-backlog/_README.md` and issue #281 are the record of that
+lesson). For depth beyond this, read `CLAUDE.md`'s "Arena rules engine" section (kept current in
+the same commit as any change to what the engine understands or does) and, for what the engine
+reads today, `src/lib/arena/glossary.ts` (`/arena/rules/keywords`).
+
+- **Two engines** (`src/lib/arena/engines.ts`): `legacy` (`src/lib/arena/engine/`, frozen —
+  bug fixes only) and `rules` (`src/lib/arena/vm/`, the programme this file used to be the only
+  account of). `engineFor(id)` is the one switch both `games.ts`/`snapshot.ts` and the scripts go
+  through.
+- **The effect language's tables**: `src/lib/arena/engine/script-schema.ts` (`OP_SCHEMA`,
+  `COND_SCHEMA`, the closed word lists) — `engine/script.ts` re-exports them, so existing imports
+  still work.
+- **The rules language**: `src/lib/arena/lang/` (`parse.ts`/`print.ts`/`validate.ts`/`ast.ts`,
+  table-driven from the schema above), since 9 Sep. `DEFINE …` grammar for a game's own
+  declarations (`docs/arena-rules-language.md` §3b) since 12 Sep.
+- **A game is files, not code**: `src/lib/arena/rulesets/<game>/*.rules`, read by
+  `loadRuleset` into one `GameDefinition`; `npm run arena:rulesets` regenerates the generated
+  `files.ts` constant from the `.rules` files. `docs/arena-ruleset-spec.md` is the interpreter
+  contract.
+- **`vm/` built so far**: zones and attributes off the declarations, `flow.ts` (a turn as a
+  program over `DEFINE PHASE`/`STEP`), `events.ts`/`triggers.ts` (a moment is an event pattern),
+  `program.ts`/`effects.ts` (the shared interpreter, continuous/delayed effects), `actions.ts` +
+  `dbs/actions.rules` (charge/pass/concede, the play family, `activate`), `costs.ts` (energy,
+  marker, life, rest, payWith prices as declarations, with cost-reduction layers). What is not
+  yet built throws `NotYet` naming the stage/issue that builds it — `playableEngine("rules")`
+  still gates whether a *new* game may start on it.
+- **Tests**: `scripts/verify-arena.ts` runs (in order) `text, setup, battles, compiler, keywords,
+  readings, wordings, workflow, contract, deck-api, language, lang, rulesets, probe, vm` — a new
+  suite is one `import "./verify/<name>"` line there. `scripts/verify/vm.ts` is the rules-engine
+  suite; `scripts/verify/rulesets.ts` checks a ruleset's declarations against the legacy engine's
+  own unions.
+
+**The gate, every commit** (unchanged): `npm run typecheck && npm run lint && npm test && npm run
+build`, then `npx tsx --env-file-if-exists=.env.local scripts/arena-fuzz.mts 40` (0 crashes; add
+`--engine rules` once a change touches it). A schema row, a harness card or what the referee is
+told also needs `npm run contract:emit`, reviewed (the fixtures are LF, checked out CRLF — confirm
+with `git diff --stat`, then `git checkout -- contract/` on pure whitespace). Touching what the
+engine understands means `src/lib/arena/glossary.ts` in the same commit.
 
 ## 2. Where it stands
 
