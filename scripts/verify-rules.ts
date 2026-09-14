@@ -18,6 +18,7 @@ import { collectorNumbers } from "../src/lib/marketplace/cardtrader";
 import { sanitiseDraft, type PoolCard } from "../src/lib/ai/deck-builder";
 import { assessMatch, cleanBox, nameSimilarity, normaliseNumber } from "../src/lib/ai/scan-match";
 import { parseViewMode, viewHref } from "../src/lib/view-mode";
+import { needsInstall } from "./session-start-check.mjs";
 import { parseSpecifiedCost, printSpecifiedCost, specifiedCostWords, staleSpecifiedCosts } from "../src/lib/arena/specified-cost";
 import { cardDefFrom } from "../src/lib/arena/load";
 import { specifiedCostOf, specifiedCostUnknown } from "../src/lib/arena/engine/cards";
@@ -590,6 +591,11 @@ assert.equal(parseViewMode(undefined, "list"), "list");
 assert.equal(viewHref("/collection", { q: "goku", set: "BT18" }, "list"), "/collection?q=goku&set=BT18&view=list");
 assert.equal(viewHref("/collection", { q: "goku", view: "list" }, "grid"), "/collection?q=goku");
 assert.equal(viewHref("/cards", { q: undefined, set: "" }, "grid"), "/cards");
+
+// ── SessionStart hook: install decision ─────────────────────────────────────
+assert.equal(needsInstall(null, 100), true, "missing node_modules always needs an install");
+assert.equal(needsInstall(50, 100), true, "a lockfile newer than node_modules needs a reinstall");
+assert.equal(needsInstall(100, 50), false, "node_modules newer than the lockfile is current");
 
 console.log("verify-rules: all checks passed");
 
