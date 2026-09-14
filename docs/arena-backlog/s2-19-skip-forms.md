@@ -4,6 +4,8 @@ milestone: Arena M1 — Rules correctness and parser coverage
 labels: backlog, ready-for-agent, enhancement, area:arena-compiler, area:arena-engine, phase:rules-stage2, model:opus-5
 stage: 2
 issue: 278
+status: closed
+closed_at: 2026-09-14
 ---
 **Source:** #126 (owner's decision of 13 Sep 2026: "close as delivered, open follow-up"); the `skip(what, side, when)` op in `src/lib/arena/engine/script-schema.ts` and `PlayerState.skips` consumed by `exec()` in `src/lib/arena/engine/engine.ts`; the `skipped` flag on the `phase`/`battleStep` beats (`src/lib/arena/beats.ts`, Kotlin contract); `permanents` and the statics readers in `src/lib/arena/vm/effects.ts` and `src/lib/arena/effects.ts`; `npm run arena:tally -- --show "skip"`; the glossary's skip entry; rule manual 20-13.
 

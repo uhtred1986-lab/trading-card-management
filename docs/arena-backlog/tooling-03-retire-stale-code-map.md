@@ -4,6 +4,8 @@ milestone: Arena M15 — Backlog tooling and CI
 labels: backlog, ready-for-agent, enhancement, area:arena-docs, model:sonnet-5
 stage: tooling
 issue: 281
+status: closed
+closed_at: 2026-09-14
 ---
 **Source:** the orchestrator's token review of 13 Sep 2026; `docs/arena-backlog/*.md` (32 files carry a "## Review of 12 Sep 2026 — where the code stands, and the steps in order" section, ~730 words each; 28 of them still say `src/lib/arena/rulesets/`, `src/lib/arena/vm/`, `docs/arena-ruleset-spec.md` and `scripts/verify/rulesets.ts` are "absent from the tree"); `docs/arena-next-session-prompt.md` (the entry point the `arena-work` skill names first); `scripts/sync-arena-backlog.mts --push` (what re-syncs the issue bodies).
 

@@ -4,6 +4,8 @@ milestone: Arena M4 — Android client enablement
 labels: backlog, ready-for-agent, enhancement, area:arena-contract, area:arena-android, phase:android-client, model:opus-5
 stage: ui
 issue: 279
+status: closed
+closed_at: 2026-09-14
 ---
 **Source:** #104 (owner's decision of 13 Sep 2026: "owner-scope decks, separate issue"); `owned_cards.owner` and `currentUser()` in `src/lib/auth/index.ts` (the lot-owner precedent in `CLAUDE.md`); `decks` in `src/db/schema.ts`; every path that creates a deck — `src/app/decks/actions.ts`, the "New deck…" path in `src/lib/decks/add.ts`, the draft in `src/lib/ai/deck-builder.ts`, scan batches' `deck_id`; `src/lib/arena/deck-api.ts` and `src/app/api/v1/decks/`; `seatOf` in `src/lib/arena/matches.ts`; `docs/arena-client-contract.md` §5.
 

@@ -4,6 +4,8 @@ milestone: Arena M1 — Rules correctness and parser coverage
 labels: backlog, ready-for-agent, enhancement, area:arena-engine, area:arena-workbench, phase:rules-stage2, model:opus-5
 stage: 2
 issue: 255
+status: closed
+closed_at: 2026-09-14
 ---
 **Source:** `docs/arena-backlog/s2-96-specified-cost.md` (the findings of 12 Sep 2026, which this issue is split out of); `specifiedCostOf` and `specifiedCostUnknown` in `src/lib/arena/engine/cards.ts`; `scripts/arena-specified-cost.mts`; `src/lib/catalog/errata.ts` (the precedent for data the feed gets wrong); the owner's ruling of 9 Sep 2026 recorded with `npm run arena:rule -- --list`.
 
