@@ -380,17 +380,23 @@ import type { CardFilter, SchemaOp } from "./harness";
 // game's own `DEFINE OP` declarations, is still something `validateProgram`
 // accepts and holds no declared macro.
 //
-// `ops.rules` declares none of the thirty-one yet (its header says what each
-// waits on), so today this sweep proves the weaker half: the expander is an
-// identity on a program with nothing to lower, which is the failure a
-// half-written walk would show first. Each row declared from here on is checked
-// over the whole harness by this one assertion.
+// `ops.rules` declares `power` and `comboPower` (#273) and its header says
+// what each of the other rows waits on. Each row declared is checked over the
+// whole harness by this one assertion: the sweep asserts that the two are
+// declared and that a program using one is actually changed by the lowering,
+// so a fixture-only expander could not pass it.
 {
   const loaded = rulesetFor("dbs");
   assert.ok(loaded.ok, "the DBS ruleset did not load, so no program could be lowered");
   if (loaded.ok) {
     const macros = new Set(Object.keys(loaded.definition.ops));
+    for (const name of ["power", "comboPower", "may"]) assert.ok(macros.has(name), `ops.rules no longer declares ${name}`);
+    // What a declared macro must lower into — read off `OP_CLASS`, the same
+    // decision `ops.rules` declares, rather than a list kept here that could
+    // drift from it.
+    const primitivesOf = (op: string): string[] => [...OP_CLASS[op as SchemaOp["op"]].matchAll(/`(\w+)`/g)].map((m) => m[1]);
     let programs = 0;
+    let withMacro = 0;
     for (const def of Object.values(DEFS)) {
       for (const rec of skillRecords(def)) {
         const where = `${rec.cardId}#${rec.side}#${rec.skillIndex}`;
@@ -401,10 +407,21 @@ import type { CardFilter, SchemaOp } from "./harness";
         assert.ok(validate(lowered, 0, !!rec.cost?.x), `${where}: lowering the program left something validateProgram refuses — ${JSON.stringify(lowered)}`);
         const left = opsIn(lowered).filter((op) => macros.has(op));
         assert.deepEqual(left, [], `${where}: the expansion still holds ${JSON.stringify(left)}, which ops.rules declares as a macro`);
-        if (!macros.size) assert.deepEqual(lowered, rec.ops, `${where}: a program with no macro in it did not come back unchanged`);
+        const used = opsIn(rec.ops as SchemaOp[]).filter((op) => macros.has(op));
+        if (!used.length) assert.deepEqual(lowered, rec.ops, `${where}: a program with no macro in it did not come back unchanged`);
+        else {
+          withMacro++;
+          // `power(…)` becomes `modifyAttr(attr: power, …)`, `may(…)` becomes
+          // `chooseMode(…)`: the same count of steps, and the primitive
+          // `OP_CLASS` names for the macro used is somewhere in the result.
+          assert.equal(opsIn(lowered).length, opsIn(rec.ops as SchemaOp[]).length, `${where}: lowering changed the number of steps`);
+          const loweredOps = opsIn(lowered);
+          for (const op of used) assert.ok(primitivesOf(op).some((p) => loweredOps.includes(p)), `${where}: a program using ${op} lowered to none of ${primitivesOf(op).join("/")}`);
+        }
       }
     }
     assert.ok(programs > 0, "no harness program was lowered, so the sweep proves nothing");
+    assert.ok(withMacro > 0, "no harness program uses power, comboPower or may, so the sweep proves nothing about the macros declared");
   }
 }
 
