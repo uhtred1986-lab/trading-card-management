@@ -1,7 +1,9 @@
 {
   "framework": "nextjs",
-  "buildCommand": "npm run db:migrate && npm run build",
-  "regions": ["fra1"],
+  "buildCommand": "node scripts/vercel-build.mjs",
+  "regions": [
+    "fra1"
+  ],
   "crons": [
     {
       "path": "/api/sync/prices",
@@ -11,5 +13,6 @@
       "path": "/api/sync/meta",
       "schedule": "0 7 * * *"
     }
-  ]
+  ],
+  "ignoreCommand": "node scripts/vercel-ignore-build.mjs"
 }
