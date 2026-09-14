@@ -3,6 +3,7 @@ title: Arena: vm/hooks.ts — the hook contract, from an inventory of the legacy
 milestone: Arena M10 — Keywords as macros (Stage 7)
 labels: backlog, ready-for-agent, enhancement, area:arena-vm, phase:rules-stage7, model:opus-5
 stage: 7
+touches: docs/arena-ruleset-spec.md, src/lib/arena/vm/hooks.ts, src/lib/arena/rulesets/dbs/keywords.rules, scripts/verify/rulesets.ts
 ---
 **Source:** plan Stage 7 (the fifteen hook names); the `has(` / `keyword(ctx, s, card, "…")` sites in `src/lib/arena/engine/engine.ts` and `state.ts`; `src/lib/arena/glossary.ts` (what each keyword does, and where the engine approximates); rule manual §22.
 

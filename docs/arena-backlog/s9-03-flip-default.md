@@ -3,6 +3,7 @@ title: Arena: flip the arena.engine default to rules after an Opus review
 milestone: Arena M12 — Parity and the flip (Stage 9)
 labels: backlog, enhancement, area:arena-vm, area:arena-ui, phase:rules-stage9, model:opus-5
 stage: 9
+touches: src/lib/arena/engines.ts, src/lib/arena/engine-setting.ts, src/app/api/v1/games/route.ts, CLAUDE.md, docs/arena-client-contract.md
 ---
 **Source:** `src/lib/arena/engine-setting.ts` (Settings → Arena engine), `DEFAULT_ENGINE` in `engines.ts`, the badge on rules-engine games; the plan's Stage 9.
 

@@ -156,7 +156,8 @@ function ruleLines(rules: KeywordDeckRule[]): string[] {
   );
 }
 
-export async function suggestDeck(db: Db, leaderId: string): Promise<{ deckId: number; draft: DeckDraft; sanitised: SanitisedDraft }> {
+/** `owner` is stamped on the deck it creates, the same as every other deck-creating path (issue #279). */
+export async function suggestDeck(db: Db, leaderId: string, owner: string | null = null): Promise<{ deckId: number; draft: DeckDraft; sanitised: SanitisedDraft }> {
   const { leader, game, owned, buy } = await buildPools(db, leaderId);
   if (owned.length + buy.length < 30) throw new Error("Not enough on-colour cards in the catalog for this leader.");
   const pool = new Map<string, PoolCard>([...owned, ...buy].map((c) => [c.id, c]));
@@ -207,7 +208,7 @@ export async function suggestDeck(db: Db, leaderId: string): Promise<{ deckId: n
 
   const [deck] = await db
     .insert(decks)
-    .values({ name: `${draft.name} (Claude draft)`, game, description })
+    .values({ name: `${draft.name} (Claude draft)`, game, description, owner })
     .returning({ id: decks.id });
   const values = [
     { deckId: deck.id, cardId: leader.id, zone: "leader", quantity: 1 },

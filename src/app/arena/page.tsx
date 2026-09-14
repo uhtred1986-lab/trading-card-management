@@ -5,7 +5,7 @@ import { defaultEngine } from "@/lib/arena/engine-setting";
 import { ENGINE_IDS, ENGINE_INFO, engineOr } from "@/lib/arena/engines";
 import { listGames, modeLabel } from "@/lib/arena/games";
 import { listOpenMatches } from "@/lib/arena/matches";
-import { currentUser } from "@/lib/auth";
+import { currentOwner, currentUser } from "@/lib/auth";
 import { listUsers } from "@/lib/auth/users";
 import { deckInputFor } from "@/lib/arena/load";
 import { loadRules } from "@/lib/arena/rules-store";
@@ -28,7 +28,13 @@ export default async function ArenaPage() {
   // The engine reads the original game's rule manual and nothing else, so
   // Fusion World decks are simply not offered here (owner's decision).
   const me = await currentUser();
-  const [decks, games, matches, users, engine] = await Promise.all([listDecks(db, { game: "dbs" }), listGames(db, 20, me), listOpenMatches(db), listUsers(db).catch(() => []), defaultEngine(db)]);
+  const [decks, games, matches, users, engine] = await Promise.all([
+    listDecks(db, { game: "dbs", viewer: await currentOwner() }),
+    listGames(db, 20, me),
+    listOpenMatches(db),
+    listUsers(db).catch(() => []),
+    defaultEngine(db),
+  ]);
   // A 1 v 1 is two people, and a person here is an `app_users` row. Without a
   // second one the form would only throw, so it says so instead.
   const canVersus = users.filter((u) => u.isActive).length >= 2 && !!me;

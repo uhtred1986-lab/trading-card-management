@@ -90,7 +90,11 @@ export function narrate(b: Beat, n: Narrator): string | null {
       if (b.to === "battle") return `${c} enters the Battle Area from ${AREA[b.from]}.`;
       if (b.to === "unison") return `${who(o, "play", "plays")} Unison ${c}.`;
       if (b.to === "combo") return `${who(o, "combo", "combos")} with ${c}.`;
-      if (b.to === "hand" && b.from === "life") return `${who(o, "take", "takes")} a life card into hand.`;
+      // #272: revealed (BT10-031/SD18-01's "you may reveal it and add it to
+      // your hand instead") is the one way a life card's move to hand is not
+      // masked from the opponent — `n.art[b.card]` present on their own beats
+      // is exactly that signal, since an ordinary one arrives with no art.
+      if (b.to === "hand" && b.from === "life") return !you(o) && n.art[b.card] ? `${who(o, "reveal", "reveals")} ${c} and takes it into hand.` : `${who(o, "take", "takes")} a life card into hand.`;
       if (b.to === "hand" && b.from === "deck") return `${who(o, "add", "adds")} ${you(o) ? c : "a card"} from the deck to hand.`;
       if (b.to === "hand") return `${c} returns to ${poss(o)} hand.`;
       if (b.to === "drop" && b.from === "hand") return `${who(o, "discard", "discards")} ${c}.`;

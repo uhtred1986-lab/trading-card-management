@@ -3,6 +3,7 @@ title: Arena: replay every saved legacy game on the rules engine to identical ev
 milestone: Arena M12 — Parity and the flip (Stage 9)
 labels: backlog, ready-for-agent, enhancement, area:arena-vm, phase:rules-stage9, model:opus-5
 stage: 9
+touches: scripts/arena-diff.mts
 ---
 **Source:** `scripts/arena-diff.mts` (`--all`); `arena_games` (seed + action log is the reproducible source); `docs/arena-tooling.md` §4 "the oracle".
 

@@ -3,6 +3,7 @@ title: Arena: costs.rules — planPayment parameterised (colours, X, either-orbs
 milestone: Arena M8 — Rules engine actions and costs (Stage 5)
 labels: backlog, ready-for-agent, enhancement, area:arena-vm, area:arena-rulesets, phase:rules-stage5, model:opus-5
 stage: 5
+touches: src/lib/arena/rulesets/dbs/costs.rules, src/lib/arena/vm/costs.ts
 ---
 **Source:** plan Stage 5 ("`costs.rules` parameterises `planPayment`"); `planPayment`, `playCost`, `specifiedCostOf` in `src/lib/arena/engine/state.ts`; `orbTotals` in `engine.ts`; `CostRecord` in `script.ts`; the Stage 2 issues for X, `payWith` and cost modifiers; rule manual 8-3-2-3 (paying energy), 22-45 (Unison X), 22-30 ([Warrior of Universe 7]).
 

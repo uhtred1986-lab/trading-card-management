@@ -299,7 +299,7 @@ npm run arena:specified            # the report, loudest cards first
 npm run arena:specified -- --all   # every X-cost card with no baseline
 ```
 
-Needs the network, no database. A play's price has two halves — the total, and
+Needs the network; the database is optional and changes what it can say. A play's price has two halves — the total, and
 the **specified cost**, meaning how much of that total must be paid in a named
 colour. The engine fills a fixed cost's orbs by convention (`specifiedCostOf`:
 one per colour, capped by the total) and **refuses to invent them for an X
@@ -312,6 +312,35 @@ clause first, since those have a rule that reads correctly and changes nothing
 believing a specified-cost rule is inert for any other reason, and run it again
 if a future feed starts spelling orbs in the cost field, which is the one thing
 that would turn this refusal back into a parsing job.
+
+**Where a baseline is known, it was entered by hand** (issue #255, owner's
+decision of 13 Sep 2026): `cards.specified_cost`, one column on `cards`, in the
+language's orb notation (`{u}{u}` = two blue), written from the rules record on
+the workbench (`/arena/rules` → the record's *specified cost* box, which reads
+*Incomplete — specified cost unknown* on every X-cost card without one) or
+seeded by a migration on a ruling (0034 enters BT19-039 as `{u}{u}`). The
+column reaches the engine through `cardDefFrom` → `parseSpecifiedCost`
+(`src/lib/arena/specified-cost.ts`) onto `CardDef.specifiedCost`; nothing else
+was taught anything. **The hazard the column carries:** `sync:catalog` upserts
+every card column, so the upsert `coalesce`s this one like `image_url` — an
+entry survives a sync by that line and nothing else, and the sync warns about
+an entry whose card no longer prints an X cost or a specified-cost clause
+(`staleSpecifiedCosts`, the self-check errata's `unmatchedCorrections` cannot
+be here, since the feed has nothing to compare against). With `DATABASE_URL`
+set (`.env.local` is read), the report says per card where its baseline
+stands — *entered* with the orbs and their reading, *ruling on file* when a
+rule of the card carries an explanation mentioning the specified cost
+(`npm run arena:rule`), or *still unknown* — and lists the stale entries.
+Without it, it says so and reports the feed alone.
+
+The probe has the matching board: a [Permanent] that relaxes its *own*
+specified cost from hand (BT19-039 and the six phrased like it) gets a
+`permanent:reduced` scenario — the card in hand, the condition's card staged,
+and one energy of each colour the relaxed requirement still demands — whose
+reading says whether the play is legal with the rule *and* whether it would
+have been refused without it, naming the colour. On a card whose baseline is
+unknown every board of every rule carries the assumption that the engine
+demands no colour for it, so a lenient price is never mistaken for the card's.
 
 ---
 

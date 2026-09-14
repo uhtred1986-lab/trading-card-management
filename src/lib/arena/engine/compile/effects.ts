@@ -374,6 +374,22 @@ function parseWouldLeave(clause: string): { by?: "skill" | "ko" | "skillOrKo"; b
 }
 
 /**
+ * #272: the same 9-10 opener as `parseWouldLeave`, for a life card's own move
+ * rather than a Battle Area departure — "if you would add a card from your
+ * life to your hand or place it in your Drop Area" (BT10-031, SD18-01).
+ * `to` is absent when both destinations are named, which is every printed
+ * instance so far; a card naming only one is read narrowed to it, untested
+ * by the catalog today.
+ */
+function parseWouldMoveFromLife(clause: string): { to?: "hand" | "drop" } | null {
+  const t = clean(clause);
+  if (/^if you would add(?: a| 1)? cards? from your life to your hand or place it in your drop(?: area)?$/.test(t)) return {};
+  if (/^if you would add(?: a| 1)? cards? from your life to your hand$/.test(t)) return { to: "hand" };
+  if (/^if you would place(?: a| 1)? cards? from your life in your drop(?: area)?$/.test(t)) return { to: "drop" };
+  return null;
+}
+
+/**
  * Timings that push the rest of the sentence into the future (1-7-2-1-1):
  * "At the end of the turn, KO it", "During your opponent's next turn, …".
  * Everything after the phrase becomes a delayed program rather than something
@@ -457,6 +473,12 @@ function connective(clause: string): "skip" | "ifDone" | "ifNotDone" | "otherwis
   if (/^(?:put|place) (?:them|the rest|the remaining cards?|it) back(?: on top of (?:your|the|their) deck)?(?: in any order)?$/.test(t)) return "skip";
   if (/^shuffle any (?:secret )?areas? you looked (?:through|at)(?: with this skill)?$/.test(t)) return "skip";
   if (/^(?:additionally|then|so|and|also|after that|in addition)$/.test(t)) return "skip";
+  // 20-13-1 read straight: skipping a turn or a span of phases already says
+  // where play proceeds from, so a trailing clause that only names that
+  // destination (BT31-097, BT21-104) restates the `skip` clause before it
+  // rather than adding a second effect.
+  if (/^begin your opponent's (?:charge|main|end) phase$/.test(t)) return "skip";
+  if (/^start your main phase$/.test(t)) return "skip";
   // "Choose **and** activate 1 {Broly's Ring} from your deck" splits into a
   // bare "choose" and the action. The choosing is how that action picks its
   // card, so the fragment says nothing the clause after it does not.
@@ -772,6 +794,25 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     if (/^for (?:each|every) markers? on this card\s*,/.test(t)) return null;
   }
 
+  // 20-13 (#278). "You skip your Offense Step" / "your opponent skips their
+  // Defense Step" name a battle step directly — printed as a [Permanent]'s
+  // own standing rule (BT18-019, BT18-001) as often as a one-shot effect, and
+  // `collectStatics`/`exec` read the same op two different ways (state.ts,
+  // script.ts) depending on which kind of skill it is on.
+  if ((m = /^(you|your opponent) skips? (?:your|their) (offense|defense) step$/.exec(t)))
+    return [{ op: "skip", what: m[2] as "offense" | "defense", when: "this", ...(m[1] === "your opponent" ? { side: "opponent" as const } : {}) }];
+  // "Skip your turn" (BT31-097): every phase of the next turn, refused at
+  // once (20-13-1) — "and begin your opponent's Charge Phase" is that same
+  // rule said in words and is dropped by `connective`, just above.
+  if (t === "skip your turn") return [{ op: "skip", what: "turn" }];
+  // "Skip all phases until the Charge Phase in your next turn" (BT21-104):
+  // the rest of this turn, the opponent's whole next turn, and this card's
+  // controller's own next Charge Phase, landing at that Main Phase — three
+  // ordinary skip entries under one name (script.ts) rather than a mechanism
+  // of its own. "…, then start your Main Phase" is again the same rule said
+  // in words, dropped by `connective`.
+  if (t === "skip all phases until the charge phase in your next turn") return [{ op: "skip", what: "span" }];
+
   // Draw (5-1). "You may draw" is treated as taken: declining never helps.
   if ((m = /^draw (\d+) cards?$/.exec(t))) return [{ op: "draw", n: Number(m[1]) }];
   // 20-5: "Draw X cards" — the X the price was paid at, read off the frame the
@@ -915,6 +956,12 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   if ((m = /^reveal (.+)$/.exec(t))) {
     const sel = parseTarget(m[1]);
     if (sel) return [{ op: "reveal", sel, as: "revealed" }];
+    // "You may reveal **it**" (9-10, BT10-031/SD18-01): a bare pronoun is not
+    // a description `parseTarget` reads, but it is exactly what `refFor`
+    // resolves a replacement's subject to (`c.lastTarget`, seeded by the
+    // opener that bound this clause into a replacement in the first place).
+    const ref = refFor(m[1], c);
+    if (ref && "sel" in ref) return [{ op: "reveal", sel: ref.sel, as: "revealed" }];
   }
   // "Your opponent reveals the top card of their deck" (20-11-2): the same
   // turning-up, done by them, and the clauses after it act on what came up.
@@ -2403,6 +2450,15 @@ export function compileClauseList(clauses: string[], c: Ctx, unsupported: string
       c.lastTarget = { sel: { special: "self" } };
       continue;
     }
+    const wouldLife = parseWouldMoveFromLife(clause);
+    if (wouldLife) {
+      c.replacing = { event: "life", ...wouldLife };
+      // Unlike `parseWouldLeave`'s family, the departing card is never the
+      // permanent's own — a Leader printing this text is never itself sitting
+      // in the life area — so "it" means the substitute's `subject`, not `self`.
+      c.lastTarget = { sel: { special: "subject" } };
+      continue;
+    }
 
     // A timing phrase opens a group too, and everything after it happens then
     // rather than now. A condition already in front of it still applies, and
@@ -2615,7 +2671,7 @@ export function compileClauseList(clauses: string[], c: Ctx, unsupported: string
       c.replacingOffered = false;
       if (held.length) got = [...held, ...got];
       const only = got.length === 1 ? got[0] : null;
-      const { by, bySide, subject } = c.replacing;
+      const { by, bySide, subject, event: replaceEvent, to: lifeTo } = c.replacing;
       c.replacing = null;
       // A redirect says where **the card itself** goes. The card is what the
       // opener bound, so the move's target must still be it: "place all the
@@ -2625,7 +2681,7 @@ export function compileClauseList(clauses: string[], c: Ctx, unsupported: string
       // not in a Battle Area at all, so the printed skill did nothing. It is a
       // substitute, and falls through to the branch below.
       const selfMove = only?.op === "moveTo" && "sel" in only.target && only.target.sel.special === "self";
-      if (only && only.op === "moveTo" && selfMove && only.to !== "under" && only.to !== "play" && !only.under) {
+      if (replaceEvent !== "life" && only && only.op === "moveTo" && selfMove && only.to !== "under" && only.to !== "play" && !only.under) {
         // When the rule names other cards, they are the ones it is about —
         // not whatever "it" happened to point at in the second half.
         const filter = subject ? filterFor(subject, "battle") : undefined;
@@ -2649,13 +2705,23 @@ export function compileClauseList(clauses: string[], c: Ctx, unsupported: string
       const filter = subject ? filterFor(subject, "battle") : undefined;
       if (filter !== null && substitutable(got)) {
         const target: Ref | undefined = subject ? { sel: { side: "you", area: "battle", filter, count: 99 } } : undefined;
+        // #272: "reveal it and add it to your hand instead" — the reveal is
+        // what makes the arriving card's identity public (20-11-2), carried
+        // onto the move as `faceUp` so it stays public once sitting in a
+        // hand, the way a revealed life card already does (`revealedTo`).
+        // The card names no "face up" of its own; the reveal says it instead.
+        const revealedAs = new Set(got.filter((o): o is Extract<Op, { op: "reveal" }> => o.op === "reveal").map((o) => o.as));
+        const withOps =
+          replaceEvent === "life" && revealedAs.size
+            ? got.map((o) => (o.op === "moveTo" && o.to === "hand" && "var" in o.target && revealedAs.has(o.target.var) ? { ...o, faceUp: true } : o))
+            : got;
         push([
           {
             op: "replace",
-            event: by === "ko" ? "ko" : "leave",
-            ...(by && by !== "ko" ? { by } : {}),
-            ...(bySide ? { bySide } : {}),
-            with: got,
+            event: replaceEvent === "life" ? "life" : by === "ko" ? "ko" : "leave",
+            ...(replaceEvent === "life" ? (lifeTo ? { to: lifeTo } : {}) : by && by !== "ko" ? { by } : {}),
+            ...(replaceEvent !== "life" && bySide ? { bySide } : {}),
+            with: withOps,
             ...(offered || heldOffer ? { optional: true } : {}),
             ...(target ? { target } : {}),
           },

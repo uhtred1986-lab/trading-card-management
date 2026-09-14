@@ -3,6 +3,7 @@ import type { Db } from "@/db";
 import { cardSets, cards, deckCards, decks, ownedCards } from "@/db/schema";
 import { gameOr, type Game } from "@/lib/catalog/games";
 import { legalityForDecks, type DeckStatus } from "@/lib/decks/legality";
+import { visibleToViewer } from "@/lib/decks/queries";
 
 export interface OwnedLeader {
   id: string;
@@ -19,8 +20,8 @@ export interface OwnedLeader {
   decks: { id: number; name: string; isBuilt: boolean; game: Game; mainCount: number; status: DeckStatus }[];
 }
 
-/** Every LEADER card in the collection, with the decks it leads. */
-export async function ownedLeaders(db: Db, opts: { color?: string; game?: Game } = {}): Promise<OwnedLeader[]> {
+/** Every LEADER card in the collection, with the decks it leads (`viewer` hides another login's decks, issue #279). */
+export async function ownedLeaders(db: Db, opts: { color?: string; game?: Game; viewer?: string | null } = {}): Promise<OwnedLeader[]> {
   const where = and(eq(cards.cardType, "LEADER"), isNull(ownedCards.archivedAt), ...(opts.color ? [sql`${opts.color} = any(${cards.colors})`] : []), ...(opts.game ? [eq(cards.game, opts.game)] : []));
   const rows = await db
     .select({
@@ -49,7 +50,7 @@ export async function ownedLeaders(db: Db, opts: { color?: string; game?: Game }
     .select({ leaderId: deckCards.cardId, id: decks.id, name: decks.name, isBuilt: decks.isBuilt, game: decks.game })
     .from(deckCards)
     .innerJoin(decks, eq(decks.id, deckCards.deckId))
-    .where(and(eq(deckCards.zone, "leader"), sql`${deckCards.cardId} in ${rows.map((r) => r.id)}`))
+    .where(and(eq(deckCards.zone, "leader"), sql`${deckCards.cardId} in ${rows.map((r) => r.id)}`, visibleToViewer(opts.viewer)))
     .orderBy(desc(decks.isBuilt), decks.name);
 
   const legalities = await legalityForDecks(db, [...new Set(usage.map((u) => u.id))]);

@@ -15,7 +15,7 @@
  */
 import { FORBIDDEN_IN_WORDS, describeFilter, describeCond, describeScript, whoseSkills, type Op } from "./engine/script";
 import type { StaticEffect } from "./engine/state";
-import type { Color, ContinuousEffect, EffectUntil, Immunity, KeywordSkill, Permission, PlayerId, Prohibition, SkillKindPrefix } from "./engine/types";
+import type { Color, ContinuousEffect, EffectUntil, Immunity, KeywordSkill, Permission, PlayerId, Prohibition, SkillKindPrefix, SkipWhat } from "./engine/types";
 
 export type EffectKind = "power" | "comboPower" | "keyword" | "negate" | "forbid" | "permit" | "cost" | "other";
 
@@ -247,6 +247,13 @@ export function describeStatic(e: StaticEffect, master?: PlayerId | null): Pick<
     case "payer": {
       const as = (e.value as { payAs?: "energy" | Color }).payAs;
       return { kind: "cost", label: as && as !== "energy" ? `can be used as {${as}} energy` : "can be used as energy" };
+    }
+    // #278: a [Permanent]'s standing skip (BT18-019, BT18-001), read live
+    // rather than spent once — see `stepSkippedByPermanent`.
+    case "skip": {
+      const v = e.value as { what: SkipWhat; player: PlayerId };
+      const step = v.what === "offense" || v.what === "defense" ? `${v.what === "offense" ? "Offense" : "Defense"} Step` : `${v.what} Phase`;
+      return { kind: "other", label: `skips its ${step}` };
     }
   }
 }

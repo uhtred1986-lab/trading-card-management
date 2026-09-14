@@ -11,13 +11,22 @@
  * baseline, loudest first — the ones that print a "specified cost" reducer and
  * so have a rule waiting on one (issue #96).
  *
- * No database, no writes. Network only, like `arena:tally`.
+ * Where a baseline *is* known it is hand-entered, in `cards.specified_cost`
+ * (issue #255) — so with `DATABASE_URL` set the report also says, per card,
+ * where its baseline stands: **entered** (the column, as `{u}{u}` and in
+ * words), **ruling on file** (an explanation recorded on one of its rules
+ * with `npm run arena:rule`), or **still unknown** — and lists entries that
+ * have outlived what they were entered for (`staleSpecifiedCosts`). Without
+ * the database it says so and reports the feed alone. Nothing is written.
+ *
+ * Network, like `arena:tally`; the database is optional.
  *
  * `npm run arena:specified [-- --all] [-- --game fusion]`
  */
 import { fetchDeckplanet, shapeCatalog } from "../src/lib/catalog/deckplanet";
 import { cardDefFrom } from "../src/lib/arena/load";
 import { specifiedCostUnknown } from "../src/lib/arena/engine/cards";
+import { parseSpecifiedCost, SPECIFIED_CLAUSE, specifiedCostWords, staleSpecifiedCosts } from "../src/lib/arena/specified-cost";
 import type { Game } from "../src/lib/catalog/games";
 
 const args = process.argv.slice(2);
@@ -30,8 +39,6 @@ const game = (value("game") ?? "dbs") as Game;
 
 /** A cost field that carries orbs would have to say so somehow. These are the ways it could. */
 const ORB_MARKUP = /\{[a-z0-9]\}|colorCostBall|_ball\.png|[⚫🔴🔵🟢🟡⚪]/i;
-/** What the engine's own reducer looks for: "reduce the specified cost of … by {u}". */
-const SPECIFIED_CLAUSE = /specified\s+costs?/i;
 
 const raw = await fetchDeckplanet(game);
 
@@ -60,24 +67,83 @@ console.log(
 );
 console.log(orbBearing ? `\n  ${orbBearing} of them carry orb notation — the refusal below no longer holds, read them.` : "\n  None carries orb notation: the feed states a total and never its colours.\n");
 
-// ── 2. Who is left without a baseline ─────────────────────────────────────
-const defs = shapeCatalog(raw, game).cards.map((c) => cardDefFrom(c));
+// ── 2. What has been entered, when the database is in reach ───────────────
+//
+// The column is the only place a baseline lives, so the defs below are made
+// from the feed *plus* the column: a card entered on the workbench stops
+// being "unknown" here the moment it is, and nowhere else has to be told.
+const shaped = shapeCatalog(raw, game);
+const entered = new Map<string, string>();
+const rulings = new Map<string, string>();
+let stale: string[] = [];
+let dbNote: string;
+if (process.env.DATABASE_URL) {
+  const { db } = await import("../src/db");
+  const { inArray, isNotNull, and } = await import("drizzle-orm");
+  const { cardRules, cards } = await import("../src/db/schema");
+  const ids = shaped.cards.map((c) => c.id);
+  const rows: { id: string; energyCost: string | null; skill: string | null; specifiedCost: string | null }[] = [];
+  for (let i = 0; i < ids.length; i += 500) {
+    const batch = ids.slice(i, i + 500);
+    rows.push(...(await db.select({ id: cards.id, energyCost: cards.energyCost, skill: cards.skill, specifiedCost: cards.specifiedCost }).from(cards).where(and(inArray(cards.id, batch), isNotNull(cards.specifiedCost)))));
+  }
+  for (const r of rows) if (r.specifiedCost) entered.set(r.id, r.specifiedCost);
+  stale = staleSpecifiedCosts(rows);
+  const xIds = shaped.cards.filter((c) => /^x$/i.test((c.energyCost ?? "").trim())).map((c) => c.id);
+  for (let i = 0; i < xIds.length; i += 500) {
+    const batch = xIds.slice(i, i + 500);
+    for (const r of await db.select({ cardId: cardRules.cardId, explanation: cardRules.explanation }).from(cardRules).where(and(inArray(cardRules.cardId, batch), isNotNull(cardRules.explanation)))) {
+      if (r.explanation && SPECIFIED_CLAUSE.test(r.explanation)) rulings.set(r.cardId, r.explanation.replace(/\s+/g, " ").trim());
+    }
+  }
+  dbNote = `${entered.size} baseline${entered.size === 1 ? "" : "s"} entered in cards.specified_cost, ${rulings.size} ruling${rulings.size === 1 ? "" : "s"} on file mentioning a specified cost`;
+} else {
+  dbNote = "no DATABASE_URL — cards.specified_cost cannot be read here, so every card below is reported from the feed alone (set it, or run with .env.local, to see what has been entered)";
+}
+console.log(`Baselines: ${dbNote}.\n`);
+
+// ── 3. Who is left without a baseline ─────────────────────────────────────
+const defs = shaped.cards.map((c) => cardDefFrom({ ...c, specifiedCost: entered.get(c.id) ?? null }));
 const unknown = defs.filter((d) => specifiedCostUnknown(d));
 const waiting = unknown.filter((d) => SPECIFIED_CLAUSE.test(d.skill ?? ""));
 const unison = unknown.filter((d) => d.type.endsWith("UNISON"));
+const settled = defs.filter((d) => d.energyCost === "X" && !specifiedCostUnknown(d));
 
 console.log(`X-cost cards with no specified-cost baseline: ${unknown.length}`);
 console.log(`  …of which Unison or Z-Unison:               ${unison.length}`);
-console.log(`  …of which print a "specified cost" clause:  ${waiting.length}\n`);
+console.log(`  …of which print a "specified cost" clause:  ${waiting.length}`);
+console.log(`X-cost cards with a baseline entered:         ${settled.length}\n`);
 
 const line = (d: (typeof defs)[number]) => `  ${d.id.padEnd(10)} ${d.type.padEnd(9)} ${(d.colors.join("/") || "—").padEnd(14)} ${d.name}`;
+/** Where this card's baseline stands — the column first, the ruling beside it, and "unknown" said as such. */
+const source = (d: (typeof defs)[number]) => {
+  const raw = entered.get(d.id);
+  const parsed = raw ? parseSpecifiedCost(raw) : null;
+  const ruled = rulings.has(d.id) ? ` · ruling on file: “${rulings.get(d.id)}”` : "";
+  if (parsed) return `entered ${raw} (${specifiedCostWords(parsed)})${ruled}`;
+  if (raw) return `entered "${raw}" — not orb notation, ignored: still unknown${ruled}`;
+  return `still unknown${ruled ? `${ruled} — not entered` : ""}`;
+};
+
+if (settled.length) {
+  console.log("Baseline entered — the engine demands these colours:");
+  for (const d of settled) console.log(`${line(d)}\n             ${source(d)}`);
+  console.log("");
+}
 
 if (waiting.length) {
   console.log("Waiting on a baseline — a rule on these reads correctly and changes nothing:");
   for (const d of waiting) {
     console.log(line(d));
+    console.log(`             ${source(d)}`);
     for (const clause of (d.skill ?? "").split(/<br>|\n/)) if (SPECIFIED_CLAUSE.test(clause)) console.log(`             ${clause.trim()}`);
   }
+  console.log("");
+}
+
+if (stale.length) {
+  console.log("Entries that have outlived what they were entered for (the catalog sync warns about these too):");
+  for (const s of stale) console.log(`  ${s}`);
   console.log("");
 }
 

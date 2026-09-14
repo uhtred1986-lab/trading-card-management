@@ -3,6 +3,7 @@ title: Arena: actions.rules — play, playUnison, playZ, growUnison and offering
 milestone: Arena M8 — Rules engine actions and costs (Stage 5)
 labels: backlog, ready-for-agent, enhancement, area:arena-vm, area:arena-rulesets, phase:rules-stage5, model:opus-5
 stage: 5
+touches: src/lib/arena/rulesets/dbs/actions.rules
 ---
 **Source:** plan Stage 5; the play handlers and `resolvePlay` in `src/lib/arena/engine/engine.ts`, `playCost`/`planPayment` in `state.ts`; rule manual 8-3-2 (playing cards), 8-3-3 (Unison), 23 (Z cards), 22-45 ([Empower] markers on arrival); `docs/arena-workflow-spec.md` §4 for the refusal register.
 

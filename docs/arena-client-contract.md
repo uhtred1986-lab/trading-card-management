@@ -442,9 +442,15 @@ cart. The Android app is arena plus read-only decks; anything else is a deep lin
 
 ### 5.1 Deck shapes (added 13 Sep 2026)
 
-Pure shaping, no engine — `src/lib/arena/deck-api.ts`. A deck carries no seat or owner column (that
-is `arena_games`, for the 1 v 1 seats), so unlike the game routes there is nothing here to filter by
-viewer: the list is the same one the web deck page shows, for whoever is logged in.
+Pure shaping, no engine — `src/lib/arena/deck-api.ts`. **Decks belong to a login** (`decks.owner`,
+issue #279, 14 Sep 2026): a deck is visible to its owner, and a deck with a null owner is visible to
+everyone — the same rule the web deck list and deck page apply, read off the same Basic Auth login
+the proxy already authenticates. `GET /api/v1/decks` lists only the caller's own decks plus the
+unowned ones; `GET /api/v1/decks/{id}` answers `not_found` for a deck owned by a different login,
+indistinguishable from a deck that does not exist. The filtering happens in
+`src/lib/decks/queries.ts` (`listDecks`/`getDeck`'s `viewer` param) before a row ever reaches this
+shaping module — no payload field changed, so the golden fixtures (§5.1 below) are unaffected by
+this, only by who is asking.
 
 ```ts
 export interface DeckLeader {

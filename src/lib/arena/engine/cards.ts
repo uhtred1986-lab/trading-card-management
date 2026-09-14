@@ -452,10 +452,16 @@ export function baseType(def: CardDef): "LEADER" | "BATTLE" | "EXTRA" | "UNISON"
  * wrong only in being lenient.
  *
  * `def.specifiedCost` is the way out, and it is honoured for an X cost like any
- * other: a card whose orbs are actually known — a synthetic one in the tests, a
- * hand-entered baseline later — carries them and the whole mechanism runs. What
- * is missing is the data, not the reading. `npm run arena:specified` lists every
- * card still waiting on it.
+ * other: a card whose orbs are actually known carries them and the whole
+ * mechanism runs. Since issue #255 that is where a **hand-entered** baseline
+ * arrives: the `cards.specified_cost` column (orb notation, `{u}{u}`), entered
+ * from the rules record on the workbench or seeded by a migration on a ruling
+ * (BT19-039 = two blue, the owner's ruling of 9 Sep 2026), read onto the def
+ * by `cardDefFrom` through `parseSpecifiedCost` (`specified-cost.ts`), and
+ * `coalesce`d by the catalog upsert so `sync:catalog` never erases it. What is
+ * missing for the rest is the data, not the reading. `npm run arena:specified`
+ * lists every card still waiting on it, and `specifiedCostUnknown` below is
+ * how the record, the probe and the report say "incomplete" about one.
  */
 export function specifiedCostOf(def: CardDef): Partial<Record<Color, number>> {
   if (def.specifiedCost) return def.specifiedCost;

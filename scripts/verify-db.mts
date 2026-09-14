@@ -535,5 +535,98 @@ assert.equal(priceForFinish(prices.get("BT18-020_SPR"), "foil"), 199);
   assert.equal(probe(rule, scenariosFor(rule)[0]).digest, stored.digest, "re-running it agrees with what was kept");
 }
 
+// ── The hand-entered specified cost survives the catalog sync ──────────────
+// `cards.specified_cost` (migration 0034, issue #255) is the one column on
+// `cards` a person writes. The feed never carries it, so the upsert has to
+// coalesce it the way it does `image_url` — this is the test that a sync
+// keeps an entry, and that the bridge to the engine reads it.
+{
+  const { eq } = await import("drizzle-orm");
+  const { importCatalog } = await import("../src/lib/catalog/deckplanet.ts");
+  const { cardDefFrom } = await import("../src/lib/arena/load.ts");
+  const { specifiedCostOf, specifiedCostUnknown } = await import("../src/lib/arena/engine/cards.ts");
+
+  const feedCard = (id: string, name: string, skill: string | null = null) => ({
+    id,
+    setCode: "BT18",
+    game: "dbs" as const,
+    name,
+    cardType: "UNISON",
+    colors: ["Blue"],
+    energyCost: "X",
+    zEnergyCost: null,
+    power: null,
+    comboCost: null,
+    comboPower: null,
+    skill,
+    characters: [],
+    traits: [],
+    eras: [],
+    keywords: [],
+    rarity: "Super Rare[SR]",
+    rarityCode: "SR",
+    limitedTo: 4,
+    isBanned: false,
+    isLimited: false,
+    hasErrata: false,
+    isHorizontal: false,
+    backName: null,
+    backSkill: null,
+    backPower: null,
+    imageUrl: null,
+    backImageUrl: null,
+    deckplanetId: 1,
+    searchText: `${id} ${name}`.toLowerCase(),
+  });
+  const reducer = "[Permanent] If you have a card with <Trunks> in its character name in play, reduce the specified cost of this card in your hand by {u}.";
+  const shaped = { game: "dbs" as const, sets: ["BT18"], prints: [], cards: [feedCard("BT18-040", "Goten"), feedCard("BT18-041", "Gohan", reducer)] };
+
+  // First sync: both arrive with no baseline, as the feed knows them.
+  await importCatalog(db, shaped);
+  const fresh = await db.select().from(schema.cards).where(eq(schema.cards.id, "BT18-041"));
+  assert.equal(fresh[0].specifiedCost, null, "the feed enters no baseline");
+  assert.equal(specifiedCostUnknown(cardDefFrom(fresh[0])), true, "…so the engine's def says unknown");
+
+  // Entered by hand (what the workbench action writes), then synced again:
+  // the entry is still there, and everything the feed does say was refreshed.
+  await db.update(schema.cards).set({ specifiedCost: "{u}{u}" }).where(eq(schema.cards.id, "BT18-041"));
+  await importCatalog(db, { ...shaped, cards: shaped.cards.map((c) => (c.id === "BT18-041" ? { ...c, name: "Gohan (renamed upstream)" } : c)) });
+  const [kept] = await db.select().from(schema.cards).where(eq(schema.cards.id, "BT18-041"));
+  assert.equal(kept.specifiedCost, "{u}{u}", "sync:catalog coalesces the column rather than erasing it");
+  assert.equal(kept.name, "Gohan (renamed upstream)", "while the feed's own columns still land");
+  const def = cardDefFrom(kept);
+  assert.deepEqual(def.specifiedCost, { Blue: 2 }, "the bridge reads the entry onto the def");
+  assert.deepEqual(specifiedCostOf(def), { Blue: 2 });
+  assert.equal(specifiedCostUnknown(def), false);
+  const [other] = await db.select().from(schema.cards).where(eq(schema.cards.id, "BT18-040"));
+  assert.equal(other.specifiedCost, null, "a card nobody entered stays unknown");
+}
+
+// ── A deck belongs to a login (issue #279) ──────────────────────────────────
+// Two owners, each with their own deck, plus one nobody claimed: each login
+// sees their own decks and the unowned one, never the other login's.
+{
+  const { listDecks, getDeck } = await import("../src/lib/decks/queries.ts");
+  const { inArray } = await import("drizzle-orm");
+  const [mine] = await db.insert(schema.decks).values({ name: "Alice's deck", owner: "alice" }).returning({ id: schema.decks.id });
+  const [theirs] = await db.insert(schema.decks).values({ name: "Bob's deck", owner: "bob" }).returning({ id: schema.decks.id });
+  const [nobodys] = await db.insert(schema.decks).values({ name: "Unowned deck" }).returning({ id: schema.decks.id });
+
+  const asAlice = new Set((await listDecks(db, { viewer: "alice" })).map((d) => d.id));
+  assert.ok(asAlice.has(mine.id) && asAlice.has(nobodys.id) && !asAlice.has(theirs.id), "alice sees her own deck and the unowned one, not bob's");
+  const asBob = new Set((await listDecks(db, { viewer: "bob" })).map((d) => d.id));
+  assert.ok(asBob.has(theirs.id) && asBob.has(nobodys.id) && !asBob.has(mine.id), "bob sees his own deck and the unowned one, not alice's");
+  const noIdentity = new Set((await listDecks(db)).map((d) => d.id));
+  assert.ok(noIdentity.has(mine.id) && noIdentity.has(theirs.id) && noIdentity.has(nobodys.id), "no viewer (app running open) hides nothing — the same hole as elsewhere, no wider");
+
+  assert.ok(await getDeck(db, mine.id, "alice"), "alice can open her own deck");
+  assert.equal(await getDeck(db, theirs.id, "alice"), null, "alice cannot open bob's deck");
+  assert.ok(await getDeck(db, nobodys.id, "alice"), "an unowned deck opens for anyone");
+  assert.ok(await getDeck(db, theirs.id, "bob"), "bob can open his own deck");
+  assert.ok(await getDeck(db, theirs.id), "no viewer opens any deck, same as listDecks");
+
+  await db.delete(schema.decks).where(inArray(schema.decks.id, [mine.id, theirs.id, nobodys.id]));
+}
+
 await client.close();
 console.log("verify-db: all checks passed");

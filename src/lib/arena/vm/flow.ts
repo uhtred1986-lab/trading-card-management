@@ -52,6 +52,7 @@ import { NotYet } from "./errors";
 import { stepScript, type ScriptFrame } from "../engine/script";
 import type { Trigger } from "../engine/types";
 import { SETUP_ZONES, arrivalMode, moveCard } from "./zones";
+import { playerAttributes } from "./cards";
 import type { VmFrame, VmState } from "./state";
 
 // `other` is the engine's own: a game of two is what `DEFINE GAME players: 2`
@@ -185,6 +186,12 @@ const STEP_WORK: Record<string, Work> = {
     waits: "the same DELAY declaration `chargeTurnEffects` waits on",
     run: (_ctx, _game, state) => {
       state.programs.push(...dueDelays(state, "mainStart"));
+      // 7-2-11's one charge has gone by the moment the Main Phase begins,
+      // whether or not a card was actually charged at the Charge Phase's own
+      // question — legacy's own `whyNotCharge` reads exactly this ("once the
+      // Main Phase has begun, the one charge of the turn has gone by"), so
+      // this is a transcription of that fact rather than a new rule (#269).
+      state.sides[state.turnPlayer].attrs.charged = true;
     },
   },
   endPending: {
@@ -252,6 +259,15 @@ const STEP_WORK: Record<string, Work> = {
       for (const inst of Object.values(state.cards)) {
         inst.usedThisTurn = [];
         inst.usedMarkerSkill = false;
+      }
+      // Every `DEFINE ATTRIBUTE of: player, reset: turnStart` fact returns to
+      // its rest value here, off the declaration rather than by name (issue
+      // #269) — both sides, the same simplicity `usedThisTurn` above already
+      // takes: a value irrelevant to the player it is not asked of yet is
+      // harmless to have reset early.
+      for (const attr of playerAttributes(game)) {
+        if (game.attributes[attr].reset !== "turnStart") continue;
+        for (const side of Object.values(state.sides)) side.attrs[attr] = false;
       }
       state.turn++;
       state.turnPlayer = other(state.turnPlayer);

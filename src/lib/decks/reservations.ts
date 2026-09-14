@@ -5,6 +5,14 @@
  * *reserved* is the sum of that card across every deck flagged built.
  * Reservations count at the card level — a foil copy still satisfies a deck
  * slot for that card.
+ *
+ * **Ownership of a deck (`decks.owner`, issue #279) does not change what
+ * "reserved" means**: every query here counts every built deck regardless of
+ * who owns it, whoever is asking. The collection (`owned_cards`) is already
+ * shared across logins, so a card is either physically free or it isn't —
+ * scoping reservations to "your decks" would let two owners double-book the
+ * same physical copy. Deck *visibility* is filtered elsewhere
+ * (`src/lib/decks/queries.ts`'s `viewer` param); what a deck reserves is not.
  */
 import { and, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import type { Db } from "@/db";
