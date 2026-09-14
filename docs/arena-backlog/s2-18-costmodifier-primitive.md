@@ -1,9 +1,11 @@
 ---
 title: Arena: the costModifier primitive — costReduction and altCost as one structured price change (spec §2.5-4)
 milestone: Arena M1 — Rules correctness and parser coverage
-labels: backlog, ready-for-agent, enhancement, area:arena-lang, area:arena-engine, area:arena-vm, area:arena-rulesets, phase:rules-stage2, model:opus-5
+labels: done, enhancement, area:arena-lang, area:arena-engine, area:arena-vm, area:arena-rulesets, phase:rules-stage2, model:opus-5
 stage: 2
 issue: 277
+status: closed
+closed_at: 2026-09-14
 ---
 **Source:** #137 (owner's decision of 13 Sep 2026); `docs/arena-ruleset-spec.md` §2.5-4 ("a price is not a number"); `src/lib/arena/rulesets/dbs/ops.rules` (`costReduction`, `altCost` waiting on `cost`); the `costReduction` row in `src/lib/arena/engine/script-schema.ts` (its `doc` carries the owner's BT19-039 ruling) and `altCost`; `src/lib/arena/vm/costs.ts` (`LAYER_KINDS`, `costLayerGaps`) and `permanents` in `src/lib/arena/vm/effects.ts`; the legacy `playCost`/`orbTotals` in `src/lib/arena/engine/state.ts`; #96, #97, #255.
 
