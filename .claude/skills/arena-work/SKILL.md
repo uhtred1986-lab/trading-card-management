@@ -18,9 +18,11 @@ Read, in this order, only as far as you need:
 3. `src/lib/arena/glossary.ts` (rendered at `/arena/rules/keywords`) — what the engine understands
    about a keyword/skill type, before assuming it needs teaching.
 
-Do **not** open `arena-design-proposal.md`, `arena-rules-worklist.md`, `arena-workflow-spec.md`,
-`arena-client-contract.md`, etc. unless the task is specifically about that area. Grep them for
-the term you need first:
+`CLAUDE.md`'s Architecture section only carries a three-line pointer per arena module (module,
+one rule, doc) since issue #282 slimmed it — for the full narrative on how a module fits together,
+read `docs/arena-code-map.md`. Do **not** open that, `arena-design-proposal.md`,
+`arena-rules-worklist.md`, `arena-workflow-spec.md`, `arena-client-contract.md`, etc. unless the
+task is specifically about that area. Grep them for the term you need first:
 
 ```bash
 grep -rln "keyword you're chasing" docs/arena-*.md

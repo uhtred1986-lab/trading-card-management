@@ -32,9 +32,10 @@ that file changes in the same commit.
 
 Written at file-and-module grain rather than line numbers on purpose — a line number is exactly
 what goes stale first (`docs/arena-backlog/_README.md` and issue #281 are the record of that
-lesson). For depth beyond this, read `CLAUDE.md`'s "Arena rules engine" section (kept current in
-the same commit as any change to what the engine understands or does) and, for what the engine
-reads today, `src/lib/arena/glossary.ts` (`/arena/rules/keywords`).
+lesson). For depth beyond this, read `docs/arena-code-map.md` (the full arena narrative moved out
+of `CLAUDE.md` by issue #282, kept current in the same commit as any change to what the engine
+understands or does) and, for what the engine reads today, `src/lib/arena/glossary.ts`
+(`/arena/rules/keywords`).
 
 - **Two engines** (`src/lib/arena/engines.ts`): `legacy` (`src/lib/arena/engine/`, frozen —
   bug fixes only) and `rules` (`src/lib/arena/vm/`, the programme this file used to be the only
