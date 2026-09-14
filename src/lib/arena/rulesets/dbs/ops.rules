@@ -29,8 +29,6 @@
 --             need a *player* and the *battle in progress* as subjects, and
 --             `mode`, `markers`, `keywords`, `hidden`, `faceUp` and `flipped`
 --             as attributes (spec §2.5-1, §2.5-3).
---   negate    the `negate` primitive — the general form of `negateSkills` —
---             is not an op yet (spec §2.2).
 --   replace   the `replace` primitive is not an op yet (spec §2.2, #125).
 --   cost      the `costModifier` primitive is not an op yet: a price is not a
 --             number, which is the whole of spec §2.5-4.
@@ -56,27 +54,29 @@
 --   power                modifyAttr               param
 --   comboPower           modifyAttr               param
 --   grant                modifyAttr               param, subject
---   negateSkills         negate                   param, negate
---   negateSkillsOfKind   negate                   param, negate
+--   negateSkills         negate                   param
+--   negateSkillsOfKind   negate                   param
 --   hidden               modifyAttr               param, subject
 --   redirectAttack       modifyAttr               subject
---   comboFrom            move + negate            param, cause, negate
+--   comboFrom            move + negate            param, cause
 --   flip                 modifyAttr               subject
 --   faceUp               modifyAttr               param, subject
 --   addMarker            modifyAttr               param, subject
 --   removeMarker         modifyAttr               param, subject
 --   costReduction        costModifier             param, cost
---   negateKeyword        negate                   param, negate
+--   negateKeyword        negate                   param
 --   gains                modifyAttr               param, subject
 --   replaceLeave         replace                  param, replace
 --   altCost              costModifier             param, cost
 --   resolvingPlay        replace                  param, replace
 --   negateAttack         replace                  replace
 --   negateCounter        replace                  replace
---   negateOwnSkill       negate                   param, negate
+--   negateOwnSkill       negate                   param
 --   may                  chooseMode               param
 --
 -- Three rows wait on nothing but a primitive that is only a field away
 -- (`ko`, `redirectAttack`, `flip`) and three on `replace` alone
 -- (`negateAttack`, `negateCounter`, and `resolvingPlay` once `param` is
--- answered). Those are the first this file should gain.
+-- answered). Those are the first this file should gain. The `negate`
+-- primitive is built (#276), so its five rows now wait on `param` alone:
+-- each needs `$until` in a body, which #273 is what answers.
