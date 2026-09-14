@@ -311,9 +311,11 @@ function emptySide(id: PlayerId, name: string, game: GameDefinition): VmSide {
   const attrs: Record<string, AttrValue> = {};
   for (const attr of playerAttributes(game)) {
     const declared = game.attributes[attr];
-    // Only a number has an obvious value at rest; anything else is the
-    // interpreter's to fill when the rule that sets it runs.
+    // A number and a boolean both have an obvious value at rest (0, false);
+    // anything else is the interpreter's to fill when the rule that sets it
+    // runs.
     if (declared.value === "number") attrs[attr] = 0;
+    else if (declared.value === "boolean") attrs[attr] = false;
   }
   return { id, name, zones: emptyZones(game), attrs };
 }

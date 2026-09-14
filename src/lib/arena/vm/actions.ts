@@ -36,7 +36,7 @@
  * nothing read at request time.
  */
 import { IllegalAction, type EngineContext, type GameEvent, type LegalAction, type RejectedAction } from "../engine";
-import type { Action, PlayerId, Prompt, Requirement } from "../engine/types";
+import { other, type Action, type PlayerId, type Prompt, type Requirement } from "../engine/types";
 import type { Cond, Selector } from "../engine/script";
 import type { ActionDef, GameDefinition } from "../rulesets";
 import { activationMoment, activationRefusals, activationsOf, boundFor, resolveActivation, type ActivationLine } from "./activate";
@@ -249,6 +249,14 @@ function mentionsCandidate(cond: Cond): boolean {
     // board-level half of the rule reaches it through the move's other lines.
     case "forbidden":
       return true;
+    // A fact about the player, never about the candidate (#269) — the same
+    // reading `isTurnPlayer`/`asking` already get.
+    case "playerAttr":
+      return false;
+    // Candidate-shaped only through `FROM $<bind>` on either side, the same
+    // test `count` makes of its own selector.
+    case "sameCard":
+      return cond.a.fromVar !== undefined || cond.b.fromVar !== undefined;
     default:
       return true;
   }
@@ -674,8 +682,21 @@ function holds(ctx: EngineContext, game: GameDefinition, state: VmState, cond: C
       if (cond.atMost !== undefined && n > cond.atMost) return false;
       return cond.atLeast !== undefined || cond.atMost !== undefined;
     }
+    // 7-2-11, 13-3: a `DEFINE ATTRIBUTE of: player` fact, read by name (#269).
+    case "playerAttr":
+      return !!state.sides[cond.side === "opponent" ? other(me) : me].attrs[cond.name];
+    // 13-3: "a copy of the Unison Card in play" — two selectors, compared by
+    // identity rather than counted (#269).
+    case "sameCard": {
+      const a = resolvedCard(ctx, game, state, cond.a, me, card);
+      const b = resolvedCard(ctx, game, state, cond.b, me, card);
+      return a !== null && b !== null && state.cards[a].cardId === state.cards[b].cardId;
+    }
     default:
-      throw new RulesetBroken(state.game, `a refusal is written as ${cond.kind}, and this interpreter reads count(), isTurnPlayer(), asking(), forbidden() and their combinations so far (#142)`);
+      throw new RulesetBroken(
+        state.game,
+        `a refusal is written as ${cond.kind}, and this interpreter reads count(), isTurnPlayer(), asking(), forbidden(), playerAttr(), sameCard() and their combinations so far (#142)`,
+      );
   }
 }
 
@@ -696,6 +717,13 @@ function counted(ctx: EngineContext, game: GameDefinition, state: VmState, sel: 
     if (!def || !predicateOf(sel.filter, game)(attrsOf(def, game).attrs)) return 0;
   }
   return 1;
+}
+
+/** The one card a selector names, for a condition that compares identity rather than counting (`sameCard`, #269). Null for none or more than one. */
+function resolvedCard(ctx: EngineContext, game: GameDefinition, state: VmState, sel: Selector, me: PlayerId, card: string | null): string | null {
+  if (sel.fromVar !== undefined) return card;
+  const found = select(ctx, game, state, sel, me);
+  return found.length === 1 ? found[0] : null;
 }
 
 const sidesOf = (side: string, me: PlayerId): PlayerId[] => {
