@@ -874,14 +874,28 @@ export interface AltCost {
 
 export interface StaticEffect {
   source: string;
-  kind: "power" | "comboPower" | "keyword" | "cost" | "skillCost" | "evolveCost" | "comboCost" | "zEnergy" | "specifiedCost" | "negateKeyword" | "gains" | "replaceLeave" | "forbid" | "permit" | "immune" | "altCost" | "payer";
+  kind: "power" | "comboPower" | "keyword" | "cost" | "skillCost" | "evolveCost" | "comboCost" | "zEnergy" | "specifiedCost" | "negateKeyword" | "gains" | "replaceLeave" | "forbid" | "permit" | "immune" | "altCost" | "payer" | "skip";
   /** The card it is about; empty for a rule about a player rather than a card. */
   target: string;
   /**
    * `specifiedCost` carries the orbs it relaxes or demands, not a flat number
-   * — see `playCost`, which is the only reader.
+   * — see `playCost`, which is the only reader. `skip` carries the player and
+   * which of the two battle steps its condition currently gates (9-5,
+   * #278) — a standing rule read live at the step, never a one-shot entry.
    */
-  value: number | KeywordSkill | KeywordSkill["name"] | Prohibition | Permission | Immunity | AltCost | Gains | Replacement | { colors: (Color | "any")[]; sign: 1 | -1 } | { payAs: "energy" | Color };
+  value:
+    | number
+    | KeywordSkill
+    | KeywordSkill["name"]
+    | Prohibition
+    | Permission
+    | Immunity
+    | AltCost
+    | Gains
+    | Replacement
+    | { colors: (Color | "any")[]; sign: 1 | -1 }
+    | { payAs: "energy" | Color }
+    | { what: SkipWhat; player: PlayerId };
   /** Set when `kind` is "skillCost" or "evolveCost". */
   skillKind?: SkillKindPrefix;
   /** Printed orb kinds for `skillCost`/`evolveCost` modifiers, when colour-scoped. */
@@ -1183,6 +1197,21 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
       const player = op.from && op.from !== "both" ? sideOf(master, op.from)[0] : undefined;
       const targets = op.target ? staticTargets(ctx, s, frame, op.target) : [source];
       for (const id of targets) out.push({ source, kind: "immune", target: id, value: { from: player, fromFilter: op.fromFilter } });
+      continue;
+    }
+    // 20-13, the other half from the one-shot entry `exec` spends (`case
+    // "skip"` in script.ts): "when this card is in a battle, you skip your
+    // Offense Step" (BT18-019) and "when your <Gogeta: GT> cards attack your
+    // opponent's Battle Cards, your opponent skips their Defense Step"
+    // (BT18-001) print the skip as a [Permanent], conditioned on a battle in
+    // progress rather than made once when a skill resolves — so it is a
+    // standing rule the step itself asks, read here exactly like `forbid`,
+    // never queued (#278). `what` is always one of the two steps that a
+    // [Permanent]'s own condition can be re-asked at; `turn` and `span` are
+    // the one-shot entries' shapes and never reach a static.
+    if (op.op === "skip") {
+      if (!inPlayNow) continue;
+      for (const p of sideOf(master, op.side ?? "you")) out.push({ source, kind: "skip", target: "", value: { what: op.what, player: p } });
       continue;
     }
     // 8-1-1 the other way round. Printed as a [Permanent] on most of the cards
@@ -2453,6 +2482,16 @@ export function cardsInPlay(s: GameState, p: PlayerId): string[] {
 export function masterOf(s: GameState, card: string): PlayerId {
   for (const p of PLAYERS) if (cardsInPlay(s, p).includes(card)) return p;
   return s.cards[card].owner;
+}
+
+/**
+ * The [Permanent] half of 20-13 (#278): is this step of `p`'s standingly
+ * skipped by a rule in force right now — never spent, since it holds for as
+ * long as the card's own condition does, and asked alongside `takeSkip`
+ * rather than instead of it at the two call sites that check either.
+ */
+export function stepSkippedByPermanent(ctx: GameContext, s: GameState, p: PlayerId, what: SkipWhat): boolean {
+  return staticEffects(ctx, s).some((e) => e.kind === "skip" && (e.value as { what: SkipWhat; player: PlayerId }).what === what && (e.value as { what: SkipWhat; player: PlayerId }).player === p);
 }
 
 /**

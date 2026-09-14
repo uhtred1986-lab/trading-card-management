@@ -289,12 +289,17 @@ export interface PlayerState {
 
 /**
  * What 20-13 can be told to skip here. The three phases the turn is made of
- * and the two steps of a battle that have a step of their own to refuse — not
- * a whole turn, which is 20-13's other half and has no single point in the
- * flow to be refused at once, and not the Damage Step, which is where the
- * battle's result is worked out rather than a moment anything acts in.
+ * and the two steps of a battle that have a step of their own to refuse;
+ * `turn` (BT31-097), which is a whole later turn refused wholesale, checked
+ * once at that turn's own `turn.start` rather than at any one phase; and
+ * `span` (BT21-104), a standing entry that reaches further still — the rest
+ * of this turn, the whole of the opponent's next turn, and this player's own
+ * next Charge Phase, landing at that Main Phase — expanded to the three
+ * ordinary entries that already say each of those pieces (#278) rather than
+ * carried as one. Not the Damage Step, which is where a battle's result is
+ * worked out rather than a moment anything acts in.
  */
-export type SkipWhat = "charge" | "main" | "end" | "offense" | "defense";
+export type SkipWhat = "charge" | "main" | "end" | "offense" | "defense" | "turn" | "span";
 
 export type Phase = "setup" | "charge" | "main" | "mainEnd" | "end" | "over";
 export type BattleStep = "declared" | "offense" | "defense" | "damage" | "battleEnd";

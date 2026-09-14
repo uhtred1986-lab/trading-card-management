@@ -39,6 +39,7 @@ import {
   expireDelayed,
   expireSkips,
   takeSkip,
+  stepSkippedByPermanent,
   face,
   forbids,
   fireDelayed,
@@ -288,9 +289,17 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
     case "turn.start": {
       // 7-2: Charge Phase.
       s.phase = "charge";
+      // #278: BT31-097's "skip your turn" refuses this whole turn — every
+      // phase of it, checked once here rather than at each phase's own start,
+      // because a turn in progress has no other single point in the flow to
+      // be refused at. The turn still counts for turn-number bookkeeping: it
+      // is `turn.next` that advances `s.turn`, once per turn transition,
+      // whether or not the turn it is leaving did anything (owner's ruling,
+      // 14 Sep 2026, recorded with `arena:rule`).
+      const skipTurn = takeSkip(s, s.turnPlayer, "turn");
       // 20-13: a skipped phase is announced and then not performed — the
       // client is told it came round so the board can say what did not happen.
-      const skipCharge = takeSkip(s, s.turnPlayer, "charge");
+      const skipCharge = skipTurn || takeSkip(s, s.turnPlayer, "charge");
       ev.push({ type: "phase", phase: "charge", player: s.turnPlayer, turn: s.turn, ...(skipCharge ? { skipped: true as const } : {}) });
       // "Until the end of your opponent's turn" and "until the start of your
       // opponent's next turn" are both said from the controller's chair, so
@@ -302,6 +311,13 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
       // and 20-13-4 (no checkpoints) between them leave nothing of the Active
       // Step, the Draw Step or the Charge Step to run.
       endTurnRelativeEffects(ctx, s, ev);
+      if (skipTurn) {
+        // Main and End never begin either, so no moment answers to either one.
+        ev.push({ type: "phase", phase: "main", player: s.turnPlayer, turn: s.turn, skipped: true });
+        ev.push({ type: "phase", phase: "end", player: s.turnPlayer, turn: s.turn, skipped: true });
+        s.flow.unshift({ op: "turn.cleanup" }, { op: "turn.next" });
+        return "done";
+      }
       if (skipCharge) {
         s.flow.unshift({ op: "turn.mainStart" });
         return "done";
@@ -1355,7 +1371,10 @@ function battleOffense(ctx: EngineContext, s: GameState, ev: GameEvent[]): "done
   // performed, so no [Auto] answers to its start and no combo is offered. The
   // precedent for a battle step simply not happening is `battleDefense`'s
   // Unison guard (8-2-4-3-1-1) just below.
-  if (takeSkip(s, s.turnPlayer, "offense")) {
+  // #278: a one-shot entry (`takeSkip`) or a [Permanent] holding while its own
+  // condition does (`stepSkippedByPermanent`, e.g. BT18-019's "while this
+  // card is in a battle") are the same 20-13 rule read two ways.
+  if (takeSkip(s, s.turnPlayer, "offense") || stepSkippedByPermanent(ctx, s, s.turnPlayer, "offense")) {
     ev.push({ type: "battleStep", step: "offense", skipped: true });
     s.flow.unshift({ op: "battle.defense" });
     return "done";
@@ -1390,7 +1409,8 @@ function battleDefense(ctx: EngineContext, s: GameState, ev: GameEvent[]): "done
   b.step = "defense";
   // 20-13: "your opponent skips their Defense Step" — the guard's side gets no
   // moment and no combo, and the battle goes straight to damage.
-  if (takeSkip(s, other(s.turnPlayer), "defense")) {
+  // #278: see `battleOffense` just above.
+  if (takeSkip(s, other(s.turnPlayer), "defense") || stepSkippedByPermanent(ctx, s, other(s.turnPlayer), "defense")) {
     ev.push({ type: "battleStep", step: "defense", skipped: true });
     s.flow.unshift({ op: "battle.damage" });
     return "done";

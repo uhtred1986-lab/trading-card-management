@@ -1332,9 +1332,19 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
 
       // 20-13. Nothing happens now: the entry is spent where the step would
       // begin, which is the only place the whole of 20-13 can be applied at
-      // once.
+      // once. "span" (BT21-104, #278) is three of those entries under one
+      // name rather than a mechanism of its own — the rest of this turn,
+      // the opponent's whole next turn, and this player's own next Charge
+      // Phase, landing at that Main Phase exactly as an ordinary "next"
+      // Charge skip already does.
       case "skip":
-        for (const p of sideOf(master, op.side ?? "you")) h.addSkip(p, op.what, op.when ?? "next");
+        for (const p of sideOf(master, op.side ?? "you")) {
+          if (op.what === "span") {
+            h.addSkip(p, "end", "this");
+            h.addSkip(sideOf(p, "opponent")[0], "turn", "next");
+            h.addSkip(p, "charge", "next");
+          } else h.addSkip(p, op.what, op.when ?? "next");
+        }
         break;
 
       case "hidden":

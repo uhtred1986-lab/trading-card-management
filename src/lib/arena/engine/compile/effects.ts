@@ -457,6 +457,12 @@ function connective(clause: string): "skip" | "ifDone" | "ifNotDone" | "otherwis
   if (/^(?:put|place) (?:them|the rest|the remaining cards?|it) back(?: on top of (?:your|the|their) deck)?(?: in any order)?$/.test(t)) return "skip";
   if (/^shuffle any (?:secret )?areas? you looked (?:through|at)(?: with this skill)?$/.test(t)) return "skip";
   if (/^(?:additionally|then|so|and|also|after that|in addition)$/.test(t)) return "skip";
+  // 20-13-1 read straight: skipping a turn or a span of phases already says
+  // where play proceeds from, so a trailing clause that only names that
+  // destination (BT31-097, BT21-104) restates the `skip` clause before it
+  // rather than adding a second effect.
+  if (/^begin your opponent's (?:charge|main|end) phase$/.test(t)) return "skip";
+  if (/^start your main phase$/.test(t)) return "skip";
   // "Choose **and** activate 1 {Broly's Ring} from your deck" splits into a
   // bare "choose" and the action. The choosing is how that action picks its
   // card, so the fragment says nothing the clause after it does not.
@@ -771,6 +777,25 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     // clause rather than exposing that leftover phrase to anything else.
     if (/^for (?:each|every) markers? on this card\s*,/.test(t)) return null;
   }
+
+  // 20-13 (#278). "You skip your Offense Step" / "your opponent skips their
+  // Defense Step" name a battle step directly — printed as a [Permanent]'s
+  // own standing rule (BT18-019, BT18-001) as often as a one-shot effect, and
+  // `collectStatics`/`exec` read the same op two different ways (state.ts,
+  // script.ts) depending on which kind of skill it is on.
+  if ((m = /^(you|your opponent) skips? (?:your|their) (offense|defense) step$/.exec(t)))
+    return [{ op: "skip", what: m[2] as "offense" | "defense", when: "this", ...(m[1] === "your opponent" ? { side: "opponent" as const } : {}) }];
+  // "Skip your turn" (BT31-097): every phase of the next turn, refused at
+  // once (20-13-1) — "and begin your opponent's Charge Phase" is that same
+  // rule said in words and is dropped by `connective`, just above.
+  if (t === "skip your turn") return [{ op: "skip", what: "turn" }];
+  // "Skip all phases until the Charge Phase in your next turn" (BT21-104):
+  // the rest of this turn, the opponent's whole next turn, and this card's
+  // controller's own next Charge Phase, landing at that Main Phase — three
+  // ordinary skip entries under one name (script.ts) rather than a mechanism
+  // of its own. "…, then start your Main Phase" is again the same rule said
+  // in words, dropped by `connective`.
+  if (t === "skip all phases until the charge phase in your next turn") return [{ op: "skip", what: "span" }];
 
   // Draw (5-1). "You may draw" is treated as taken: declining never helps.
   if ((m = /^draw (\d+) cards?$/.exec(t))) return [{ op: "draw", n: Number(m[1]) }];

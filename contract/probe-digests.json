@@ -31,6 +31,10 @@
     "outcome": "inForce",
     "digest": "4fb94674"
   },
+  "ATKSKIP#0": {
+    "outcome": "inForce",
+    "digest": "802339ea"
+  },
   "AURA#0": {
     "outcome": "inForce",
     "digest": "943102c8"
@@ -302,6 +306,10 @@
   "IMMUNE#0": {
     "outcome": "inForce",
     "digest": "9afdafb5"
+  },
+  "INBATTLE#0": {
+    "outcome": "inForce",
+    "digest": "e5a6ea72"
   },
   "INERTPERM#0": {
     "outcome": "inForce",
@@ -587,6 +595,10 @@
     "outcome": "notOffered",
     "digest": "15f56f0b"
   },
+  "SPANSKIP#0": {
+    "outcome": "fired",
+    "digest": "2840f09c"
+  },
   "SPAWN#0": {
     "outcome": "fired",
     "digest": "781ef92f"
@@ -662,6 +674,10 @@
   "TOUGH#0": {
     "outcome": "fired",
     "digest": "015c59fa"
+  },
+  "TURNSKIP#0": {
+    "outcome": "fired",
+    "digest": "950f50a1"
   },
   "TWOKILL#0": {
     "outcome": "fired",

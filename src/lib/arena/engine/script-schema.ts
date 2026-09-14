@@ -114,7 +114,7 @@ void _everyKeywordListed;
 
 /** `Area` (13), the places a card can actually be. `AREAS` above is `ScriptArea` (15): the two extra values, `under` and `play`, are effect-language routes ("place it under this card", "the card resolving a skill"), not board zones a `.rules` file declares. */
 /** `SkipWhat` (20-13), as a runtime list the schema row and `verify/rulesets.ts` read. */
-export const SKIP_WHATS = ["charge", "main", "end", "offense", "defense"] as const satisfies readonly SkipWhat[];
+export const SKIP_WHATS = ["charge", "main", "end", "offense", "defense", "turn", "span"] as const satisfies readonly SkipWhat[];
 type MissingSkipWhat = Exclude<SkipWhat, (typeof SKIP_WHATS)[number]>;
 const _everySkipWhatListed: MissingSkipWhat extends never ? true : never = true;
 void _everySkipWhatListed;
@@ -273,11 +273,15 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     sentence: (raw) => {
       const op = raw as OpOf<"skip">;
       const whose = op.side === "opponent" ? "your opponent" : op.side === "both" ? "each player" : "you";
+      const verb = op.side === "you" || op.side == null ? "skip" : "skips";
+      const their = op.side === "you" || op.side == null ? "your" : "their";
+      if (op.what === "turn") return `${whose} ${verb} ${their} next turn`;
+      if (op.what === "span") return `${whose} ${verb} every phase until the Charge Phase of ${their} next turn, then start ${their} Main Phase`;
       const which = op.when === "this" ? "this turn's" : "the next";
       const what = op.what === "offense" || op.what === "defense" ? `${op.what === "offense" ? "Offense" : "Defense"} Step` : `${{ charge: "Charge", main: "Main", end: "End" }[op.what]} Phase`;
-      return `${whose} skip${op.side === "you" || op.side == null ? "" : "s"} ${which} ${what}`;
+      return `${whose} ${verb} ${which} ${what}`;
     },
-    doc: 'the phase or step is not performed (20-13): no [Auto] answers to its start or end, no action can be declared in it, and no checkpoint happens inside it. "when":"this" is the occurrence in the turn the skill resolved on, "next" the first one in a later turn. Effects that were to end in it end as it is skipped (20-13-5)',
+    doc: 'the phase or step is not performed (20-13): no [Auto] answers to its start or end, no action can be declared in it, and no checkpoint happens inside it. "when":"this" is the occurrence in the turn the skill resolved on, "next" the first one in a later turn. Effects that were to end in it end as it is skipped (20-13-5). "what":"turn" refuses the player\'s whole next turn, checked once at that turn\'s own start rather than at any one phase (BT31-097). "what":"span" reaches further: the rest of the turn this resolves in, the opponent\'s whole next turn, and this player\'s own next Charge Phase, landing at that Main Phase (BT21-104) — three ordinary entries under one name rather than a mechanism of its own.',
   },
   control: {
     fields: [TARGET, { name: "to", type: "side", default: "you" }, { name: "until", type: "duration" }],
