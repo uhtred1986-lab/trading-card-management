@@ -4,7 +4,7 @@ import type { CardFilter } from "./filters";
 // them, which are lists), `AmountAttr` what an amount may *read as a number*.
 // Collapsing them would let `attr($t, colors)` stand where a number belongs.
 import type { Amount, AmountAttr, CardAttr, Cond, Duration, Op, Ref, ReplaceEvent, ScriptArea, Selector, Side, SpecialTarget } from "./script";
-import type { Area, CardDef, Color, DelayScope, DelayTiming, ForbiddenAction, KeywordSkill, Phase, Prompt, SkillKindPrefix, SkipWhat } from "./types";
+import type { Area, CardDef, Color, DelayScope, DelayTiming, ForbiddenAction, KeywordSkill, MoveReason, Phase, Prompt, SkillKindPrefix, SkipWhat } from "./types";
 
 // ── the schema: one row per op, read by everything that is not the interpreter ──
 
@@ -91,6 +91,7 @@ export const AREAS = ["hand", "deck", "drop", "life", "battle", "combo", "energy
 export const CARD_ATTRS = ["power", "comboPower", "colors", "characters", "traits", "names"] as const satisfies readonly CardAttr[];
 export const DURATIONS = ["battle", "turn", "opponentTurn", "nextTurn", "afterNextCharge", "game"] as const satisfies readonly Duration[];
 const DELAY_TIMINGS = ["turnStart", "mainStart", "turnEnd", "turnCleanup", "battleEnd"] as const satisfies readonly DelayTiming[];
+export const MOVE_REASONS = ["ko", "effect", "rule", "cost", "play", "combo", "damage", "draw", "charge"] as const satisfies readonly MoveReason[];
 const DELAY_SCOPES = ["thisTurn", "nextTurn", "yourNextTurn", "opponentNextTurn"] as const satisfies readonly DelayScope[];
 const SKILL_KIND_PREFIXES = ["auto", "activate", "counter", "permanent"] as const satisfies readonly SkillKindPrefix[];
 export const KEYWORD_NAMES = [
@@ -220,7 +221,10 @@ type OpOf<K extends Op["op"]> = Extract<Op, { op: K }>;
 export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
   draw: { fields: [n(), SIDE], sentence: "{side:opponent draws|draw} {n}" },
   discard: { fields: [n(), SIDE, { name: "to", type: { enum: ["warp"] } }], sentence: "{side:opponent discards|discard} {n}{to? to the Warp}", doc: 'cards leave a hand for the Drop (20-7); "to":"warp" for the Warp' },
-  damage: { fields: [n(), SIDE], sentence: "deal {n} damage", doc: "life to hand" },
+  // The runtime default is "opponent" (`stepScript`'s `case "damage"`), not
+  // `SIDE`'s "you" — damage is dealt to *someone*, and nearly every card that
+  // omits `side` means the other player's life, never its own.
+  damage: { fields: [n(), { name: "side", type: "side", default: "opponent" }], sentence: "deal {n} damage", doc: "life to hand" },
   mill: { fields: [n(), SIDE, { name: "as", type: "string" }], sentence: "{n} from the top of the deck to the Drop", doc: 'deck to Drop; "as" names the cards for a later clause ("if that card is red")' },
   addLife: { fields: [n(), SIDE], sentence: "add {n} to life" },
   lifeDownTo: { fields: [{ name: "n", type: "number", required: true }, SIDE], sentence: "life down to {n}, the cards going to hand", doc: "add cards from life to hand until that many life remain (21-3-2)" },
@@ -254,9 +258,10 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       { name: "under", type: "ref" },
       { name: "owner", type: "side" },
       { name: "faceUp", type: "boolean" },
+      { name: "cause", type: { enum: MOVE_REASONS }, default: "effect" },
     ],
     sentence: "move {target} to {to}{faceUp? face up}",
-    doc: '"to":"under" puts the card under "under" (or under this card, 23-2); "owner":"opponent" for "place it in your opponent\'s energy" — the area is theirs, not the card owner\'s (3-8)',
+    doc: '"to":"under" puts the card under "under" (or under this card, 23-2); "owner":"opponent" for "place it in your opponent\'s energy" — the area is theirs, not the card owner\'s (3-8); "cause" is "damage"/"ko"/"combo"/"effect"/a plain "draw" told apart (spec §2.5-2), read by a replacement\'s own scope and, on the rules engine, by `triggers.rules`\'s `moved(cause: …)`',
   },
   play: {
     fields: [TARGET, { name: "mode", type: MODE }, { name: "onto", type: "ref" }, { name: "negated", type: { enum: ["turn", "game"] } }],

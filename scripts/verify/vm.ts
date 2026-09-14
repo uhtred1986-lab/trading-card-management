@@ -111,13 +111,14 @@ import {
   type Attrs,
   type VmState,
 } from "../../src/lib/arena/vm";
-import { loadRuleset, rulesetFor, type ActionDef, type GameDefinition } from "../../src/lib/arena/rulesets";
+import { expandMacros, loadRuleset, rulesetFor, type ActionDef, type GameDefinition } from "../../src/lib/arena/rulesets";
 import { FILTER_FIELD_NAMES, parseDefinitions } from "../../src/lib/arena/lang";
 import { emptyFilter, type CardFilter } from "../../src/lib/arena/engine/filters";
 import { describePayment as legacyDescribe, paymentOptions as legacyOptions, planPayment, playCost, whyNotPay } from "../../src/lib/arena/engine/state";
 import { paymentOptions as vmOptions } from "../../src/lib/arena/vm/costs";
 import type { CardDef, Color, PlayerId, Requirement } from "../../src/lib/arena/engine/types";
-import type { Op } from "../../src/lib/arena/engine/script";
+import { legacyHost } from "../../src/lib/arena/engine/script-host";
+import { stepScript, type Op, type ScriptFrame } from "../../src/lib/arena/engine/script";
 import { CTX, DEFS, assertMenuInvariants, card, fifty, matches, parseSkills } from "./harness";
 
 const DECKS = { seed: 11, p1: { name: "You", leader: "L-RED", main: fifty("V1") }, p2: { name: "Claude", leader: "L-BLUE", main: fifty("V-BLUE") } };
@@ -3106,4 +3107,54 @@ console.log("verify/vm: ok");
       assert.deepEqual(why, { kind: "cardType", card: fresh.copy, needs: "a copy of the Unison Card in play" }, "the wrong card is not refused by name");
     }
   }
+}
+
+// ── 22. a move told apart by its cause (#274) ────────────────────────────────
+//
+// `ko` is the one row #274 declares: its `target` is a `ref`, writable since
+// #273, and its `n`-taking siblings (`draw`, `discard`, `damage`, `addLife`)
+// stay out — a selector's count is a bare `number`, and theirs is an `amount`
+// (X included), which `ops.rules`'s `count` entry names. `ko(target: …)`
+// lowers to `moveTo(target: …, to: drop, cause: ko)` exactly, and that
+// primitive — the one both interpreters actually run a `moveTo` through,
+// `stepScript` shared between them (#142) — logs the same "move" event on
+// each when given the same board and the same program, `cause` included.
+{
+  const rulesEngine = engineFor("rules");
+  const macro: Op[] = [{ op: "ko", target: { var: "t" } }];
+  const lowered = expandMacros(macro, DBS);
+  assert.deepEqual(lowered, [{ op: "moveTo", target: { var: "t" }, to: "drop", cause: "ko" }], "ko does not lower to moveTo with the cause the declaration names");
+
+  // A card in its own battle, staged the same way on both engines (as
+  // `withReducer`/§20-21 does) — enough of a board for a plain move to run.
+  function koBoard(): { r: VmState; l: GameState; card: string } {
+    const r = rulesEngine.createGame(CTX, SAME).state as VmState;
+    const l = createGame(CTX, SAME).state;
+    const source = r.sides.p1.zones.deck[0];
+    for (const st of [r.cards[source], l.cards[source]]) {
+      st.cardId = "V1";
+      st.mode = "active";
+    }
+    r.sides.p1.zones.deck = r.sides.p1.zones.deck.filter((id) => id !== source);
+    l.players.p1.deck = l.players.p1.deck.filter((id) => id !== source);
+    r.sides.p1.zones.battle = [source];
+    l.players.p1.battle = [source];
+    return { r, l, card: source };
+  }
+  function frameFor(ops: Op[], master: PlayerId, id: string): ScriptFrame {
+    return { ops, ip: 0, vars: { t: [id] }, card: id, master };
+  }
+
+  const rBoard = koBoard();
+  const rEvents: GameEvent[] = [];
+  stepScript(vmHost(CTX, DBS, rBoard.r, rEvents), frameFor(lowered, "p1", rBoard.card));
+  assert.ok(rEvents.some((e) => e.type === "move" && (e as { card: string }).card === rBoard.card && (e as { to: string }).to === "drop"), "moveTo(cause: ko) did not move the card to the Drop Area on the rules engine");
+
+  const lBoard = koBoard();
+  const lEvents: GameEvent[] = [];
+  stepScript(legacyHost(CTX, lBoard.l, lEvents), frameFor(lowered, "p1", lBoard.card));
+  assert.ok(lEvents.some((e) => e.type === "move" && (e as { card: string }).card === lBoard.card && (e as { to: string }).to === "drop"), "moveTo(cause: ko) did not move the card to the Drop Area on the legacy engine");
+
+  const logged = (list: GameEvent[]): unknown => JSON.parse(JSON.stringify(list.filter((e) => e.type === "move")));
+  assert.deepEqual(logged(rEvents), logged(lEvents), "moveTo(cause: ko), the shape ko's declaration lowers to, does not log the same move event on both engines");
 }

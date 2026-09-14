@@ -234,7 +234,15 @@ for the macros above to be writable; none of them is built by #130, which delive
    `attributes.rules` (#133), which is where each subject's attributes get declared.
 2. **`move` must carry a cause.** `damage`, `ko`, `combo`, `effect` and a plain draw are the same
    move with different causes, and the triggers tell them apart by it — the legacy `move()` already
-   takes one, so this is a schema field, not a mechanism.
+   takes one, so this is a schema field, not a mechanism. **Answered by #274 (14 Sep 2026):** a
+   `cause` field on `moveTo` (`MoveOptions.reason`'s own values), carried through both interpreters
+   — `legacyHost` to `move()`, the rules engine's host to its own `moveTo` wrapper, which puts it on
+   the `moved` moment's `args` so `triggers.rules` may match `moved(cause: …)`. Only `ko` is
+   declared over it: `draw`, `discard`, `damage`, `mill` and `addLife` all take `n` as an `amount` —
+   X included — while a selector's `TOP n` (and its plain count) is typed a bare `number`
+   (`rulesets/holes.ts`), so declaring them over a `moveTo(target: TOP $n IN …)` would throw on the
+   first X-priced call it met. A selector that counts by an expression is #122's fifth requirement,
+   not this one's; `ops.rules`'s own `count` entry carries the note.
 3. **Filters must name the attributes the engine keeps in code.** `flipped`, `markers`, the
    battle's roles and "battled this turn" are what five condition rows lower to. Selectors already
    carry `mode` and `hidden`; filters already carry power, cost, `faceUp`, keywords and type.
