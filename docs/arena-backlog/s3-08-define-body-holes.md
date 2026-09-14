@@ -1,9 +1,11 @@
 ---
 title: Arena: $name in every field of a DEFINE body — template ops with holes, and the first macros (power, comboPower, may)
 milestone: Arena M6 — Definitions in the language (Stage 3)
-labels: backlog, ready-for-agent, enhancement, area:arena-lang, area:arena-rulesets, phase:rules-stage3, model:opus-5
+labels: done, enhancement, area:arena-lang, area:arena-rulesets, phase:rules-stage3, model:opus-5
 stage: 3
 issue: 273
+status: closed
+closed_at: 2026-09-14
 ---
 **Source:** #137 (owner's decision of 13 Sep 2026: "yes, holes everywhere"); `typed()` in `src/lib/arena/lang/parse.ts` (reads `$name` only where an `amount` or a `ref` is expected); `src/lib/arena/lang/print.ts`; `src/lib/arena/rulesets/expand.ts` (`expandMacros`, built and fixture-tested); `src/lib/arena/rulesets/dbs/ops.rules` (the header's row-by-row table — `param` is the gap that blocks every row); `docs/arena-ruleset-spec.md` §2.5 (the sixth requirement); `docs/arena-rules-language.md` §3b; #131 (the `DEFINE` grammar).
 

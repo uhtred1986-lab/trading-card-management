@@ -1,9 +1,11 @@
 ---
 title: Arena: the negate primitive — the general form of negateSkills, negateSkillsOfKind, negateKeyword and negateOwnSkill (spec §2.2)
 milestone: Arena M1 — Rules correctness and parser coverage
-labels: backlog, ready-for-agent, enhancement, area:arena-lang, area:arena-engine, area:arena-vm, area:arena-rulesets, phase:rules-stage2, model:opus-5
+labels: done, enhancement, area:arena-lang, area:arena-engine, area:arena-vm, area:arena-rulesets, phase:rules-stage2, model:opus-5
 stage: 2
 issue: 276
+status: closed
+closed_at: 2026-09-14
 ---
 **Source:** #137 (owner's decision of 13 Sep 2026); `docs/arena-ruleset-spec.md` §2.2; `src/lib/arena/rulesets/dbs/ops.rules` (the rows waiting on `negate`: `negateSkills`, `negateSkillsOfKind`, `negateKeyword`, `negateOwnSkill`, and `comboFrom`'s negate half); the four rows in `src/lib/arena/engine/script-schema.ts`; the legacy `stepScript` cases in `src/lib/arena/engine/script.ts`; `src/lib/arena/vm/effects.ts` (continuous effects); `src/lib/arena/effects.ts` (the label a rule in force gets).
 

@@ -1,9 +1,11 @@
 ---
 title: Arena: move carries a cause — draw, damage, KO, combo and effect as one primitive (spec §2.5-2)
 milestone: Arena M1 — Rules correctness and parser coverage
-labels: backlog, ready-for-agent, enhancement, area:arena-lang, area:arena-engine, area:arena-vm, area:arena-rulesets, phase:rules-stage2, model:opus-5
+labels: done, enhancement, area:arena-lang, area:arena-engine, area:arena-vm, area:arena-rulesets, phase:rules-stage2, model:opus-5
 stage: 2
 issue: 274
+status: closed
+closed_at: 2026-09-14
 ---
 **Source:** #137 (owner's decision of 13 Sep 2026: each §2.5 primitive is its own issue); `docs/arena-ruleset-spec.md` §2.5-2; `src/lib/arena/rulesets/dbs/ops.rules` (the rows waiting on `cause`: `draw`, `discard`, `damage`, `mill`, `addLife`, `lifeDownTo`, `ko`, `comboFrom`); the `moveTo` row in `src/lib/arena/engine/script-schema.ts`; the legacy `move()` and `MoveOptions.reason` in `src/lib/arena/engine/state.ts`; `moveCard` in `src/lib/arena/vm/zones.ts`; `src/lib/arena/rulesets/dbs/triggers.rules` (`moved(from:, asPlay:)`).
 
