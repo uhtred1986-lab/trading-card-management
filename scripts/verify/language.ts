@@ -417,7 +417,26 @@ import type { CardFilter, SchemaOp } from "./harness";
   assert.ok(loaded.ok, "the DBS ruleset did not load, so no program could be lowered");
   if (loaded.ok) {
     const macros = new Set(Object.keys(loaded.definition.ops));
-    for (const name of ["power", "comboPower", "may", "negateSkills", "negateSkillsOfKind", "negateKeyword", "negateOwnSkill"]) assert.ok(macros.has(name), `ops.rules no longer declares ${name}`);
+    for (const name of [
+      "power",
+      "comboPower",
+      "may",
+      "negateSkills",
+      "negateSkillsOfKind",
+      "negateKeyword",
+      "negateOwnSkill",
+      "energyMarker",
+      "redirectAttack",
+      "switchMode",
+      "hidden",
+      "faceUp",
+      "flip",
+      "addMarker",
+      "removeMarker",
+      "grant",
+      "gains",
+    ])
+      assert.ok(macros.has(name), `ops.rules no longer declares ${name}`);
     // What a declared macro must lower into — read off `OP_CLASS`, the same
     // decision `ops.rules` declares, rather than a list kept here that could
     // drift from it.

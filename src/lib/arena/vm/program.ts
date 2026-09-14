@@ -35,6 +35,7 @@
  * Pure and client-safe: no database, no network, no `fs`.
  */
 import type { EngineContext } from "../engine";
+import { keywordsInSkills, parseSkills } from "../engine/cards";
 import type { Amount, AmountAttr, Cond, Ref, ScriptArea, ScriptFrame, Selector, Side } from "../engine/script";
 import type { EffectUntil, ForbiddenAction, KeywordSkill, PlayerId, Prohibition } from "../engine/types";
 import { other } from "../engine/types";
@@ -127,6 +128,20 @@ export function attrsNow(ctx: EngineContext, game: GameDefinition, state: VmStat
     if (!game.attributes[derived] || printed[face] === undefined) continue;
     base[derived] = printed[face];
   }
+  // The six card-state attributes have no catalog face at all (spec
+  // §2.5-1/§2.5-3, #275): five read live off the card sitting on the table,
+  // seeded fresh on every call rather than cached, so a mutation by
+  // `setMode`/`changeMarkers`/`setHidden`/`setFaceUp`/`flip` reaches here at
+  // once. `keywords`' printed half is read the one way this codebase reads a
+  // keyword at all — `keywordsInSkills(parseSkills(…))`, the same call
+  // `matchesAttrs` (`vm/filters.ts`) makes off the same `skill` attribute —
+  // so a card's own tags are never parsed twice.
+  if (game.attributes.mode && card.mode != null) base.mode = card.mode;
+  if (game.attributes.markers) base.markers = card.markers;
+  if (game.attributes.hidden) base.hidden = card.hidden;
+  if (game.attributes.faceUp) base.faceUp = card.faceUp;
+  if (game.attributes.flipped) base.flipped = card.flipped;
+  if (game.attributes.keywords) base.keywords = keywordsInSkills(parseSkills(typeof printed.skill === "string" ? printed.skill : null)).map((k) => k.name);
   // Every change in force **about this card**, of every kind: which of them a
   // layer reads is `LAYER_KINDS`, and keeping that pairing in one place is the
   // whole reason this no longer filters by the attribute's name (#148).

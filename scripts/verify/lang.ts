@@ -211,6 +211,21 @@ const instance = (fields: OpField[], wide: boolean): Record<string, unknown> => 
     [{ op: "forbid", what: "attack", until: "turn", side: "opponent", filter: parseFilter("battle card"), uses: 1, unless: { kind: "count", sel: { side: "opponent", area: "energy", count: 99 }, atLeast: 3 } }],
     "forbid with uses and unless",
   );
+
+  // `modifyAttr`'s two widened subjects and six new card attributes (spec
+  // §2.5-1/§2.5-3, #275): the schema loop above already builds a maximal
+  // `modifyAttr` with `attr: "guard"`, but one generic value per field type,
+  // same as `forbid` above — this is every subject and every attribute on
+  // its own, the shape the macros in `ops.rules` actually lower to.
+  tripOps([{ op: "modifyAttr", subject: "player", side: "opponent", attr: "energyMarkers", amount: 3 }], "modifyAttr: a player's energyMarkers");
+  tripOps([{ op: "modifyAttr", subject: "battle", attr: "guard", target: { sel: { special: "guard" } } }], "modifyAttr: the battle's guard");
+  tripOps([{ op: "modifyAttr", attr: "mode", mode: "rest" }], "modifyAttr: a card's mode");
+  tripOps([{ op: "modifyAttr", attr: "markers", amount: 2, sign: "add" }], "modifyAttr: markers added");
+  tripOps([{ op: "modifyAttr", attr: "markers", amount: 1, sign: "remove" }], "modifyAttr: markers removed");
+  tripOps([{ op: "modifyAttr", attr: "keywords", keyword: { name: "Blocker" }, until: "turn" }], "modifyAttr: a granted keyword");
+  tripOps([{ op: "modifyAttr", attr: "hidden", flag: true }], "modifyAttr: hidden");
+  tripOps([{ op: "modifyAttr", attr: "faceUp", flag: false }], "modifyAttr: faceUp");
+  tripOps([{ op: "modifyAttr", attr: "flipped" }], "modifyAttr: flipped");
 }
 
 /**
