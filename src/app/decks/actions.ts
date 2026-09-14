@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { cards, deckCards, decks } from "@/db/schema";
+import { currentOwner } from "@/lib/auth";
 import { quickSearch } from "@/lib/catalog/queries";
 import { DEFAULT_GAME, gameOr, type Game } from "@/lib/catalog/games";
 import { decksForCard, parseDeckList, ZONES, type CardDeckMembership, type Zone } from "@/lib/decks/queries";
@@ -26,7 +27,7 @@ export async function createDeckAction(name: string, game: Game = DEFAULT_GAME):
   const clean = name.trim().slice(0, 120) || "Untitled deck";
   const [row] = await db
     .insert(decks)
-    .values({ name: clean, game: gameOr(game) })
+    .values({ name: clean, game: gameOr(game), owner: await currentOwner() })
     .returning({ id: decks.id, name: decks.name, isBuilt: decks.isBuilt, game: decks.game });
   revalidate();
   return { ...row, game: gameOr(row.game) };
@@ -35,7 +36,10 @@ export async function createDeckAction(name: string, game: Game = DEFAULT_GAME):
 export async function createDeckForm(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim() || "Untitled deck";
   const game = gameOr(formData.get("game"));
-  const [row] = await db.insert(decks).values({ name, game }).returning({ id: decks.id });
+  const [row] = await db
+    .insert(decks)
+    .values({ name, game, owner: await currentOwner() })
+    .returning({ id: decks.id });
   revalidate();
   redirect(`/decks/${row.id}`);
 }
@@ -90,7 +94,7 @@ export async function duplicateDeck(id: number): Promise<number> {
   if (!src) throw new Error("Deck not found");
   const [row] = await db
     .insert(decks)
-    .values({ name: `${src.name} (copy)`, game: src.game, description: src.description, metaNotes: src.metaNotes })
+    .values({ name: `${src.name} (copy)`, game: src.game, description: src.description, metaNotes: src.metaNotes, owner: await currentOwner() })
     .returning({ id: decks.id });
   await db.execute(sql`insert into deck_cards (deck_id, card_id, zone, quantity) select ${row.id}, card_id, zone, quantity from deck_cards where deck_id = ${id}`);
   revalidate();
@@ -253,7 +257,7 @@ export type BuildDeckFromCardResponse = { ok: true; deckId: number; leaderName: 
 export async function buildDeckFromCardAction(cardId: string): Promise<BuildDeckFromCardResponse> {
   if (!hasAnthropic()) return { ok: false, error: "ANTHROPIC_API_KEY is not set." };
   try {
-    const { deckId, leaderName, mainCount, toBuy } = await suggestDeckFromCard(db, cardId);
+    const { deckId, leaderName, mainCount, toBuy } = await suggestDeckFromCard(db, cardId, await currentOwner());
     revalidate();
     return { ok: true, deckId, leaderName, mainCount, toBuy };
   } catch (err) {

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/db";
 import { getDeck, ZONE_LABEL, ZONES, zonesFor, deckToText } from "@/lib/decks/queries";
+import { currentOwner } from "@/lib/auth";
 import { copyLimit, mainCountLabel, mainCountOk, type DeckLegality } from "@/lib/decks/legality";
 import { deckRules, GAME_INFO, type Game } from "@/lib/catalog/games";
 import { GameSelect } from "@/components/GameFilter";
@@ -28,7 +29,7 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
   const { id: raw } = await params;
   const id = Number(raw);
   if (!Number.isInteger(id)) notFound();
-  const deck = await getDeck(db, id);
+  const deck = await getDeck(db, id, await currentOwner());
   if (!deck) notFound();
   const conflicts = deck.isBuilt ? [] : await buildConflicts(db, id);
   const tiedUpIds = conflicts.filter((c) => c.reservedElsewhere > 0).map((c) => c.cardId);

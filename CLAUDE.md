@@ -156,6 +156,21 @@ learned the expensive way. Read it before changing the compiler or the engine.
   (`currentUser()` in `src/lib/auth/index.ts`, read from the `Authorization` header); null when the app
   runs open locally. Every path that creates lots (card page, bulk entry, scan batches, quick
   capture) stamps it — keep that true for new paths.
+- **Decks belong to a login too** (`decks.owner`, issue #279, 14 Sep 2026): stamped from
+  `currentOwner()` on every path that creates a deck (`createDeckAction`/`createDeckForm`/
+  `duplicateDeck` in `src/app/decks/actions.ts`, the AI wizards in `src/lib/ai/deck-builder.ts` and
+  `deck-from-card.ts`) — keep that true for new ones. Unlike a lot, a deck's owner also gates
+  *visibility*: `src/lib/decks/queries.ts`'s `listDecks`/`getDeck` take a `viewer` (the looker's
+  `currentOwner()`) and hide a deck owned by someone else — null owner is visible to everyone, the
+  same hole the app running open already has and no wider. Applied at the web deck list, the deck
+  page, the leaders page, the arena's own deck picker and `/api/v1/decks`; a deck id that is not
+  yours answers `notFound()`/`not_found`. Reservations do **not** follow ownership
+  (`src/lib/decks/reservations.ts`) — every built deck still counts against the shared collection,
+  whoever owns it, because a physical card is either free or it isn't. What this does not do: share
+  or transfer a deck between logins, or scope the workbench's rule-coverage pages
+  (`/arena/rules*`) or the generic "also add to deck" picker (`DeckPicker`, collection/scan/card
+  add flows) — both keep listing every deck, deliberately, as neither is a player picking a deck to
+  play with.
 - **Deck legality is a flag, never a block** (`src/lib/decks/legality.ts`). A deck saves in any
   state; `legality(rows, game)` labels it **legal / incomplete / illegal** and returns per-card
   `flags` keyed `"<zone>:<cardId>"`. *Incomplete* = still building (no leader, under 50).

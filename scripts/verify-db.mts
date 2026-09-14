@@ -602,5 +602,31 @@ assert.equal(priceForFinish(prices.get("BT18-020_SPR"), "foil"), 199);
   assert.equal(other.specifiedCost, null, "a card nobody entered stays unknown");
 }
 
+// ── A deck belongs to a login (issue #279) ──────────────────────────────────
+// Two owners, each with their own deck, plus one nobody claimed: each login
+// sees their own decks and the unowned one, never the other login's.
+{
+  const { listDecks, getDeck } = await import("../src/lib/decks/queries.ts");
+  const { inArray } = await import("drizzle-orm");
+  const [mine] = await db.insert(schema.decks).values({ name: "Alice's deck", owner: "alice" }).returning({ id: schema.decks.id });
+  const [theirs] = await db.insert(schema.decks).values({ name: "Bob's deck", owner: "bob" }).returning({ id: schema.decks.id });
+  const [nobodys] = await db.insert(schema.decks).values({ name: "Unowned deck" }).returning({ id: schema.decks.id });
+
+  const asAlice = new Set((await listDecks(db, { viewer: "alice" })).map((d) => d.id));
+  assert.ok(asAlice.has(mine.id) && asAlice.has(nobodys.id) && !asAlice.has(theirs.id), "alice sees her own deck and the unowned one, not bob's");
+  const asBob = new Set((await listDecks(db, { viewer: "bob" })).map((d) => d.id));
+  assert.ok(asBob.has(theirs.id) && asBob.has(nobodys.id) && !asBob.has(mine.id), "bob sees his own deck and the unowned one, not alice's");
+  const noIdentity = new Set((await listDecks(db)).map((d) => d.id));
+  assert.ok(noIdentity.has(mine.id) && noIdentity.has(theirs.id) && noIdentity.has(nobodys.id), "no viewer (app running open) hides nothing — the same hole as elsewhere, no wider");
+
+  assert.ok(await getDeck(db, mine.id, "alice"), "alice can open her own deck");
+  assert.equal(await getDeck(db, theirs.id, "alice"), null, "alice cannot open bob's deck");
+  assert.ok(await getDeck(db, nobodys.id, "alice"), "an unowned deck opens for anyone");
+  assert.ok(await getDeck(db, theirs.id, "bob"), "bob can open his own deck");
+  assert.ok(await getDeck(db, theirs.id), "no viewer opens any deck, same as listDecks");
+
+  await db.delete(schema.decks).where(inArray(schema.decks.id, [mine.id, theirs.id, nobodys.id]));
+}
+
 await client.close();
 console.log("verify-db: all checks passed");
