@@ -251,13 +251,15 @@ could only name a parameter where the grammar let a `$name` stand**, which was a
 a hole in every field position — a duration, a side, an area, any closed list, a list of strings, a
 program, a condition, a selector and a selector's count, `TOP n`, side and area — typed by the
 slot it sits in, checked by the loader against the parameter it names, and filled by the expander
-(`docs/arena-rules-language.md` §3b, "the body is a template"). `power` and `comboPower` are the
-first two rows declared; `src/lib/arena/rulesets/dbs/ops.rules` carries the rest of the table row
-by row, each naming what it still waits on. One of those is `may`'s: it lowers to `chooseMode`, and
-that primitive drops an empty option without asking, asks the master rather than the `chooser` the
-call names, and binds no answer for `did(what: may)` — the requirement §2.3 already puts on it — so
-"you may" lowered today would never be asked, and the row waits on the primitive rather than on
-the grammar.
+(`docs/arena-rules-language.md` §3b, "the body is a template"). `power`, `comboPower` and `may` are
+the first three rows declared; `src/lib/arena/rulesets/dbs/ops.rules` carries the rest of the table
+row by row, each naming what it still waits on. `may` lowers to `chooseMode`, which used to drop an
+empty option without asking, ask the master rather than the `chooser` the call names, and bind no
+answer for `did(what: may)` — the requirement §2.3 already puts on it. All three are now the
+primitive's own behaviour: it asks on two declared options even when one is empty, reads a
+`chooser` field of its own the way `may` always has, and binds `did(what: may)` from which one was
+picked whenever the shape is exactly that — two options, the second empty — so "you may" reads
+the same whether a card's rule writes it directly or a macro lowers to it.
 
 ### 2.6 The expression language
 

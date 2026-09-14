@@ -23,12 +23,6 @@
 --             (`strings`), a whole program (`ops`) — and in a selector's
 --             count, `TOP n`, side and area. A row still listing it below is
 --             waiting on the rest of its line, not on the grammar.
---   decline   `may` offers a program and the answer to take none of it: two
---             options, the second empty (spec §2.3). `chooseMode` drops an
---             empty option without asking, asks the master rather than the
---             `chooser` the call names, and binds no answer for
---             `did(what: may)` to read — the requirement §2.3 puts on the
---             primitive. Lowered today, "you may" would never be asked.
 --   cause     `move` must carry a cause — `damage`, `ko`, `combo`, `effect`
 --             and a plain draw are one move told apart by it, and the triggers
 --             read it (spec §2.5-2). `moveTo` has no such field today.
@@ -81,7 +75,7 @@
 --   negateAttack         replace                  replace
 --   negateCounter        replace                  replace
 --   negateOwnSkill       negate                   param, negate
---   may                  chooseMode               decline
+--   may                  chooseMode               declared (#273)
 --
 -- Three rows wait on nothing but a primitive that is only a field away
 -- (`ko`, `redirectAttack`, `flip`) and three on `replace` alone
@@ -112,3 +106,20 @@ DEFINE OP comboPower
   }
   text: "the card's combo power changes by the amount, for the duration"
   doc: "the same act as `power`, on the other printed number"
+
+-- ── the offer to decline (§2.3, 20-16) ──────────────────────────────────────
+--
+-- "You may draw 1 card" is a `chooseMode` with two options, the second empty —
+-- the shape `chooseMode`'s own primitive case now reads (#273): it still asks
+-- when one branch is empty rather than dropping it, asks `chooser` in place of
+-- the master when the call names one, and binds `did(what: may)` from which
+-- branch was picked either way, so "if you do" / "if you don't" reads it.
+
+-- §20-16 — "You may draw 1 card", "your opponent may KO 1 of their cards"
+DEFINE OP may
+  TAKES (ops: ops, reason: string, chooser: side)
+  DO {
+    chooseMode(modes: ["Do it" $ops, "Don't" {}], reason: $reason, chooser: $chooser)
+  }
+  text: "the chooser may do the program, or not"
+  doc: "what `may` means: `chooseMode` with the declined branch empty — the primitive is the general form, this is the printed shape"

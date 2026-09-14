@@ -1610,7 +1610,7 @@
     {
       "name": "chooseMode",
       "class": "primitive",
-      "signature": "{\"op\":\"chooseMode\",\"modes\":[{\"label\":\"…\",\"ops\":[…]}],\"reason\"?:\"…\"}",
+      "signature": "{\"op\":\"chooseMode\",\"modes\":[{\"label\":\"…\",\"ops\":[…]}],\"reason\"?:\"…\",\"chooser\"?:\"you\"|\"opponent\"}",
       "fields": [
         {
           "name": "modes",
@@ -1623,10 +1623,16 @@
           "required": false,
           "nullable": false,
           "type": "string"
+        },
+        {
+          "name": "chooser",
+          "required": false,
+          "nullable": false,
+          "type": "side"
         }
       ],
       "sentence": "choose one — draw 1",
-      "doc": "\"Choose one— ・A ・B\" (20-2): the master picks one printed option"
+      "doc": "\"Choose one— ・A ・B\" (20-2): the master picks one printed option, or \"chooser\" does when the choice is not theirs — the field `may` reads too, since `may` is this op with the second option empty"
     },
     {
       "name": "may",

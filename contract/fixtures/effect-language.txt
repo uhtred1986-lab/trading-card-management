@@ -82,8 +82,8 @@ Operations (each is an object with "op"; a field marked ? may be left out):
   {"op":"permit","what":"attackActive","until":DURATION,"target":TARGET,"filter"?:FILTER}
     the one rule of the game a card may lift: "this card can attack Battle Cards in Active Mode" (8-1-1). The filter says *which* active cards — leave it out only when the card does
   {"op":"if","cond":COND,"then":[…],"else"?:[…]}
-  {"op":"chooseMode","modes":[{"label":"…","ops":[…]}],"reason"?:"…"}
-    "Choose one— ・A ・B" (20-2): the master picks one printed option
+  {"op":"chooseMode","modes":[{"label":"…","ops":[…]}],"reason"?:"…","chooser"?:"you"|"opponent"}
+    "Choose one— ・A ・B" (20-2): the master picks one printed option, or "chooser" does when the choice is not theirs — the field `may` reads too, since `may` is this op with the second option empty
   {"op":"may","ops":[…],"reason"?:"…","chooser"?:"you"|"opponent"}
     "You may …" (20-16): wrap only the optional part; {"kind":"did","what":"may"} then reads the answer for "if you do" / "if you don't". "chooser":"opponent" when it is theirs to decline. A clause that is already an "up to" choice declines by choosing nothing — do not wrap those
   {"op":"delay","at":"turnStart"|"mainStart"|"turnEnd"|"turnCleanup"|"battleEnd","scope"?:"thisTurn"|"nextTurn"|"yourNextTurn"|"opponentNextTurn","ops":[…],"label"?:"…"}

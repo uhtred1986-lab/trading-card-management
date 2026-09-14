@@ -531,7 +531,11 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     doc: 'the one rule of the game a card may lift: "this card can attack Battle Cards in Active Mode" (8-1-1). The filter says *which* active cards — leave it out only when the card does',
   },
   if: { fields: [{ name: "cond", type: "cond", required: true }, { name: "then", type: "ops", required: true }, { name: "else", type: "ops" }], sentence: "if {cond}: {then:nothing}{else?, otherwise {else}}" },
-  chooseMode: { fields: [{ name: "modes", type: "modes", required: true }, { name: "reason", type: "string" }], sentence: "choose one — {modes}", doc: '"Choose one— ・A ・B" (20-2): the master picks one printed option' },
+  chooseMode: {
+    fields: [{ name: "modes", type: "modes", required: true }, { name: "reason", type: "string" }, { name: "chooser", type: "side" }],
+    sentence: "choose one — {modes}",
+    doc: '"Choose one— ・A ・B" (20-2): the master picks one printed option, or "chooser" does when the choice is not theirs — the field `may` reads too, since `may` is this op with the second option empty',
+  },
   may: {
     fields: [{ name: "ops", type: "ops", required: true }, { name: "reason", type: "string" }, { name: "chooser", type: "side" }],
     sentence: "{chooser:your opponent|you} may: {ops}",

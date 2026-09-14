@@ -390,7 +390,11 @@ import type { CardFilter, SchemaOp } from "./harness";
   assert.ok(loaded.ok, "the DBS ruleset did not load, so no program could be lowered");
   if (loaded.ok) {
     const macros = new Set(Object.keys(loaded.definition.ops));
-    for (const name of ["power", "comboPower"]) assert.ok(macros.has(name), `ops.rules no longer declares ${name}`);
+    for (const name of ["power", "comboPower", "may"]) assert.ok(macros.has(name), `ops.rules no longer declares ${name}`);
+    // What a declared macro must lower into — read off `OP_CLASS`, the same
+    // decision `ops.rules` declares, rather than a list kept here that could
+    // drift from it.
+    const primitivesOf = (op: string): string[] => [...OP_CLASS[op as SchemaOp["op"]].matchAll(/`(\w+)`/g)].map((m) => m[1]);
     let programs = 0;
     let withMacro = 0;
     for (const def of Object.values(DEFS)) {
@@ -407,15 +411,17 @@ import type { CardFilter, SchemaOp } from "./harness";
         if (!used.length) assert.deepEqual(lowered, rec.ops, `${where}: a program with no macro in it did not come back unchanged`);
         else {
           withMacro++;
-          // `power(…)` becomes `modifyAttr(attr: power, …)`: the same count of
-          // steps, and the attribute named where the op's name was.
+          // `power(…)` becomes `modifyAttr(attr: power, …)`, `may(…)` becomes
+          // `chooseMode(…)`: the same count of steps, and the primitive
+          // `OP_CLASS` names for the macro used is somewhere in the result.
           assert.equal(opsIn(lowered).length, opsIn(rec.ops as SchemaOp[]).length, `${where}: lowering changed the number of steps`);
-          assert.ok(opsIn(lowered).includes("modifyAttr"), `${where}: a program using ${used.join("/")} lowered to no modifyAttr`);
+          const loweredOps = opsIn(lowered);
+          for (const op of used) assert.ok(primitivesOf(op).some((p) => loweredOps.includes(p)), `${where}: a program using ${op} lowered to none of ${primitivesOf(op).join("/")}`);
         }
       }
     }
     assert.ok(programs > 0, "no harness program was lowered, so the sweep proves nothing");
-    assert.ok(withMacro > 0, "no harness program uses power or comboPower, so the sweep proves nothing about the two macros declared");
+    assert.ok(withMacro > 0, "no harness program uses power, comboPower or may, so the sweep proves nothing about the macros declared");
   }
 }
 
