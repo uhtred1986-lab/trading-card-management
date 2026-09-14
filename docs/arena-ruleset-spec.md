@@ -232,8 +232,14 @@ for the macros above to be writable; none of them is built by #130, which delive
 
 1. **`modifyAttr` must reach three kinds of subject** — a card (`power`, `gains`, `markers`, `mode`,
    `hidden`, `faceUp`, `flipped`, `keywords`), a **player** (`energyMarker`) and the **battle in
-   progress** (`redirectAttack`). Today's row takes a card `Ref`. The widening belongs with
-   `attributes.rules` (#133), which is where each subject's attributes get declared.
+   progress** (`redirectAttack`). **Answered by #275 (14 Sep 2026):** a `subject` field
+   (`"card"` default, `"player"`, `"battle"`) and a `side` field for the player subject;
+   `attributes.rules` declares the six new card attributes with their layers (9-9-1), read by
+   `vm/effects.ts`'s `valueOf` and nowhere else; `attrsNow` (`vm/program.ts`) seeds the live
+   instance value each has no catalog face for. `modifyAttrAs` (`engine/script-schema.ts`) reads
+   the nine short spellings this unblocked back as the primitive — `flip`, `switchMode`, `hidden`,
+   `faceUp`, `addMarker`/`removeMarker` (a `sign` field, since an amount cannot yet subtract,
+   requirement 5 below), `grant`, `energyMarker` and `redirectAttack`, all declared in `ops.rules`.
 2. **`move` must carry a cause.** `damage`, `ko`, `combo`, `effect` and a plain draw are the same
    move with different causes, and the triggers tell them apart by it — the legacy `move()` already
    takes one, so this is a schema field, not a mechanism. **Answered by #274 (14 Sep 2026):** a

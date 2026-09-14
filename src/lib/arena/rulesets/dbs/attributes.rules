@@ -123,6 +123,67 @@ DEFINE ATTRIBUTE alsoNames                                                -- §2
   printed: false
   text: "the card names a skill gave this card in all areas; it answers to these as well as to its printed name, never instead of it (20-1)"
 
+-- ── a card's state on the table (spec §2.5-1/§2.5-3, #275) ─────────────────
+--
+-- `modifyAttr` reached one card and six attributes before this issue
+-- (docs/arena-ruleset-spec.md §2.5-1); these are the six the compiler's own
+-- `switchMode`, `addMarker`/`removeMarker`, `grant`, `hidden`, `faceUp` and
+-- `flip` already write, declared so the primitive can reach them too and
+-- `vm/effects.ts` has a layer order to read them through. None has a printed
+-- face on the catalog row — each starts at a rules-given default and is
+-- changed directly, on the card sitting on the table, never by a continuous
+-- effect with a duration — so `layers: [printed]` alone is the honest
+-- declaration for five of them: the "printed" layer is not the catalog, it
+-- is whatever the table currently says. `keywords` is the one exception,
+-- because a keyword actually is granted for a duration (13-4's marker
+-- skills, most [Auto]/[Activate] "gains [X]" text) as well as standing from
+-- a [Permanent] — the `rewrite`/`numeric` split 9-9-1 already draws for
+-- `power`. What a granted keyword then *does* is Stage 7's hook contract
+-- (#153-#157), out of scope here; this attribute only says which names are
+-- in force.
+
+DEFINE ATTRIBUTE mode                                                     -- §1-10
+  of: card
+  value: string
+  printed: false
+  layers: [printed]
+  text: "Active Mode or Rest Mode (1-10). Switched directly (`switchMode`), never by a continuous effect, so the printed layer is the only one — read fresh off the card on the table and nowhere else"
+
+DEFINE ATTRIBUTE markers                                                  -- §1-11
+  of: card
+  value: number
+  printed: false
+  layers: [printed]
+  text: "the markers on this card (1-11), changed directly (`addMarker`/`removeMarker`) and never by a continuous effect with a duration, so the printed layer is the only one. Energy markers are a player's, not a card's — `energyMarkers` below (1-14)"
+
+DEFINE ATTRIBUTE keywords                                                 -- §9-1-3, §22-1
+  of: card
+  value: strings
+  printed: false
+  layers: [printed, rewrite, numeric]
+  text: "the keyword names in force: the printed ones, a [Permanent]'s standing grant (rewrite, 9-9-1-2) and a resolved skill's own grant for a duration (numeric, 9-9-1-3) unioned in. A negated keyword is read where a skill is negated at all (9-1-5), not through this attribute"
+
+DEFINE ATTRIBUTE hidden                                                   -- §23-5
+  of: card
+  value: boolean
+  printed: false
+  layers: [printed]
+  text: "Hidden Mode (face down in play, no information) or Revealed Mode (23-5). Switched directly, never by a continuous effect, so the printed layer is the only one — read fresh off the card on the table"
+
+DEFINE ATTRIBUTE faceUp                                                   -- §3-9-2-1
+  of: card
+  value: boolean
+  printed: false
+  layers: [printed]
+  text: "whether a card in a closed area — a Life Area — has been turned face up (3-9-2-1). Switched directly, never by a continuous effect, so the printed layer is the only one — read fresh off the card on the table"
+
+DEFINE ATTRIBUTE flipped                                                  -- §1-9, §22-2-4
+  of: card
+  value: boolean
+  printed: false
+  layers: [printed]
+  text: "whether the card has turned to its back side — a Leader's awakened face (1-9, 22-2-4). Switched directly, never by a continuous effect, so the printed layer is the only one — read fresh off the card on the table"
+
 -- ── what the board makes of them (§9-9-1, §20-21) ──────────────────────────
 
 DEFINE ATTRIBUTE costOf                                                   -- §20-21

@@ -49,7 +49,10 @@ reads today, `src/lib/arena/glossary.ts` (`/arena/rules/keywords`).
 - **A game is files, not code**: `src/lib/arena/rulesets/<game>/*.rules`, read by
   `loadRuleset` into one `GameDefinition`; `npm run arena:rulesets` regenerates the generated
   `files.ts` constant from the `.rules` files. `docs/arena-ruleset-spec.md` is the interpreter
-  contract.
+  contract. `ops.rules` declares 20 of the 31 macro rows; `modifyAttr` reaches a card, a
+  player (`energyMarkers`, its `side` field) and the battle in progress (`guard`, its
+  `target` field read as a value) — `modifyAttrAs` (`engine/script-schema.ts`) reads each of
+  the nine short spellings this unblocked back as the primitive (spec §2.5-1/§2.5-3, #275).
 - **`vm/` built so far**: zones and attributes off the declarations, `flow.ts` (a turn as a
   program over `DEFINE PHASE`/`STEP`), `events.ts`/`triggers.ts` (a moment is an event pattern),
   `program.ts`/`effects.ts` (the shared interpreter, continuous/delayed effects), `actions.ts` +

@@ -11,7 +11,7 @@
  */
 import { skillsOf } from "./cards";
 import type { CardFilter } from "./filters";
-import { asksAQuestion, costModifierAs, describeCond, describeScript, describeSelector, negateAs } from "./script-schema";
+import { asksAQuestion, costModifierAs, describeCond, describeScript, describeSelector, modifyAttrAs, negateAs } from "./script-schema";
 import { resolveSelector, sideOf, type AltCost } from "./state";
 import type { ScriptHost } from "./script-host";
 import type { Area, Color, DelayScope, DelayTiming, ForbiddenAction, KeywordSkill, MoveReason, PlayerId, Prompt, ReplacementChoice, ReplacementResult, Skill, SkillKindPrefix, SkipWhat, Trigger } from "./types";
@@ -271,13 +271,24 @@ export type Cond =
   | { kind: "sameCard"; a: Selector; b: Selector };
 
 /**
- * The attributes `modifyAttr` may change: the two numbers a continuous effect
- * carries, and the four lists a card *also counts as* (20-1). Mode, markers,
- * face-up and the rest are attributes too, but they are the spellings' own
- * ops until Stage 3 declares the attribute list (`docs/arena-ruleset-spec.md`
- * §2.5); adding one here without a case below would be a field that lies.
+ * The card attributes `modifyAttr` may change: the two numbers a continuous
+ * effect carries, the four lists a card *also counts as* (20-1), and — since
+ * spec §2.5-1/§2.5-3 (#275) — the six the compiler's own spellings already
+ * write: mode, markers, keywords, hidden, face-up and flipped. `modifyAttrAs`
+ * (script-schema.ts) is the one reading of the six: it runs each as the
+ * spelling it stands for, so adding one here without a case there would be a
+ * field that lies.
  */
-export type CardAttr = "power" | "comboPower" | "colors" | "characters" | "traits" | "names";
+export type CardAttr = "power" | "comboPower" | "colors" | "characters" | "traits" | "names" | "mode" | "markers" | "keywords" | "hidden" | "faceUp" | "flipped";
+
+/**
+ * The two subjects beyond a card `modifyAttr` reaches (spec §2.5-1): a
+ * **player** (a side, `energyMarkers`, 1-14) and the **battle in progress**
+ * (`guard`, 8-1, 22-4-2 — the card a redirected attack now targets). Each
+ * subject has exactly one attribute today; a second one is a second literal
+ * here and a second case in `modifyAttrAs`, not a new union member.
+ */
+export type ModifyAttrSubject = "card" | "player" | "battle";
 
 export type Op =
   | { op: "draw"; n: Amount; side?: Side }
@@ -364,20 +375,50 @@ export type Op =
    */
   | { op: "skip"; what: SkipWhat; side?: Side; when?: "this" | "next" }
   /**
-   * The primitive under `power`, `comboPower` and `gains`
-   * (`docs/arena-ruleset-spec.md` §2.3): one attribute of one card, by a
-   * delta (`amount`, for the two numbers) or by the values it also counts as
-   * (`values`, for the four lists), for a duration or — printed as a
-   * [Permanent] — for as long as the rule holds.
+   * The primitive under `power`, `comboPower`, `gains` and — since spec
+   * §2.5-1/§2.5-3 (#275) — `switchMode`, `addMarker`, `removeMarker`,
+   * `grant`, `hidden`, `faceUp`, `flip`, `energyMarker` and `redirectAttack`:
+   * one attribute of one **subject**, by a delta (`amount`), by the values it
+   * also counts as (`values`), or by one of the shapes below, for a duration
+   * or — printed as a [Permanent] — for as long as the rule holds.
    *
-   * The three short spellings below are kept and are still what the compiler
-   * writes, so no stored record changes and no card's reading moves; Stage 3
-   * re-declares them over this row as macros (#137). A list attribute is read
-   * wherever the card is, like the `gains` it stands for, so it is collected
-   * by the static layer (`collectStatics`, state.ts) rather than applied when
-   * a skill resolves.
+   * `subject` names what `attr` is an attribute *of*, left out for a card
+   * (`target`, defaulting to self, as it always has). A **player**'s reads
+   * `side` instead, defaulting to "you"; the **battle in progress** has none
+   * to name — there is only one — and reads `target` as the value being set
+   * rather than the thing being changed (`redirectAttack`'s own field, word
+   * for word). `mode`, `sign` (`"add"` lengthens `markers`, `"remove"`
+   * shortens it) and `keyword` are the shapes `amount`/`values` have no room
+   * for; `flag` is the boolean `hidden` and `faceUp` take, defaulting to
+   * `true` the way `flip` always means true. Every field beyond `target`
+   * and `attr` is read only for the attribute that needs it — `modifyAttrAs`
+   * (script-schema.ts) is the one place that pairing is made.
+   *
+   * The many short spellings are kept and are still what the compiler
+   * writes, so no stored record changes and no card's reading moves;
+   * `modifyAttrAs` runs each of the nine as the spelling it stands for —
+   * the interpreter, the [Permanent] statics and the sentence all go through
+   * it, the same precedent `negateAs` and `costModifierAs` set. The four
+   * list attributes are read wherever the card is, like the `gains` they
+   * stand for, so they are collected by the static layer (`collectStatics`,
+   * state.ts) rather than applied when a skill resolves; the rules engine
+   * reads its six new attributes through the layers `attributes.rules`
+   * declares (`vm/effects.ts`) and nowhere else.
    */
-  | { op: "modifyAttr"; target?: Ref; attr: CardAttr; amount?: Amount; values?: string[]; until?: Duration }
+  | {
+      op: "modifyAttr";
+      subject?: ModifyAttrSubject;
+      target?: Ref;
+      side?: Side;
+      attr: CardAttr | "energyMarkers" | "guard";
+      amount?: Amount;
+      values?: string[];
+      mode?: "active" | "rest";
+      sign?: "add" | "remove";
+      keyword?: KeywordSkill;
+      flag?: boolean;
+      until?: Duration;
+    }
   | { op: "power"; target: Ref; amount: Amount; until: Duration }
   | { op: "comboPower"; target: Ref; amount: Amount; until: Duration }
   | { op: "grant"; target: Ref; keyword: KeywordSkill; until: Duration }
@@ -1005,12 +1046,13 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
       }
       return "done";
     }
-    // The `negate` (9-1-5, #276) and `costModifier` (spec §2.5-4, #277)
-    // primitives are run as the spelling each stands for: one dispatch, so
-    // the four negation cases and the two price cases below are the only
-    // reading of either on either engine. The two never read the same op,
-    // so the order of the composition is immaterial.
-    const op = costModifierAs(negateAs(frame.ops[frame.ip]));
+    // The `negate` (9-1-5, #276), `costModifier` (spec §2.5-4, #277) and the
+    // nine `modifyAttr` widenings (spec §2.5-1/§2.5-3, #275) are run as the
+    // spelling each stands for: one dispatch, so the cases below are the
+    // only reading of any of them on either engine. None of the three ever
+    // reads an op another produces, so the order of the composition is
+    // immaterial.
+    const op = costModifierAs(negateAs(modifyAttrAs(frame.ops[frame.ip])));
 
     switch (op.op) {
       case "note":

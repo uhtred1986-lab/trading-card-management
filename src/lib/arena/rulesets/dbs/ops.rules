@@ -37,10 +37,16 @@
 --             red"), which is exactly the name a macro cannot receive and
 --             still bind, so the row waits on nothing this file's grammar
 --             could ever answer — it stays a native op.
---   subject   `modifyAttr` reaches one card and six attributes; the rows below
---             need a *player* and the *battle in progress* as subjects, and
---             `mode`, `markers`, `keywords`, `hidden`, `faceUp` and `flipped`
---             as attributes (spec §2.5-1, §2.5-3).
+--   subject   answered (#275): `modifyAttr` now reaches a *player*
+--             (`energyMarkers`, its `side` field) and the *battle in
+--             progress* (`guard`, its `target` field read as a value rather
+--             than a locator — there is only one), as well as a card, and
+--             the card's own six new attributes — `mode`, `markers`,
+--             `keywords`, `hidden`, `faceUp` and `flipped` — are declared in
+--             `attributes.rules` with their layers (spec §2.5-1, §2.5-3).
+--             `modifyAttrAs` (`engine/script-schema.ts`) is the one reading
+--             of the nine short spellings this unblocks, the same precedent
+--             `negateAs`/`costModifierAs` set.
 --   replace   the `replace` primitive is not an op yet (spec §2.2, #125).
 --   audience  `reveal` shows a card to both players; `look` is the same act
 --             with a narrower audience (20-11), and the field that says which
@@ -57,25 +63,25 @@
 --   mill                 move                     bind
 --   addLife              move                     count
 --   lifeDownTo           move                     count, maths
---   energyMarker         modifyAttr               param, subject
+--   energyMarker         modifyAttr               declared (#275)
 --   look                 reveal                   param, audience
 --   ko                   move                     declared (#274)
---   switchMode           modifyAttr               param, subject
+--   switchMode           modifyAttr               declared (#275)
 --   power                modifyAttr               declared (#273)
 --   comboPower           modifyAttr               declared (#273)
---   grant                modifyAttr               param, subject
+--   grant                modifyAttr               declared (#275)
 --   negateSkills         negate                   declared (#276)
 --   negateSkillsOfKind   negate                   declared (#276)
---   hidden               modifyAttr               param, subject
---   redirectAttack       modifyAttr               subject
+--   hidden               modifyAttr               declared (#275)
+--   redirectAttack       modifyAttr               declared (#275)
 --   comboFrom            move + negate            cause
---   flip                 modifyAttr               subject
---   faceUp               modifyAttr               param, subject
---   addMarker            modifyAttr               param, subject
---   removeMarker         modifyAttr               param, subject
+--   flip                 modifyAttr               declared (#275)
+--   faceUp               modifyAttr               declared (#275)
+--   addMarker            modifyAttr               declared (#275)
+--   removeMarker         modifyAttr               declared (#275)
 --   costReduction        costModifier             declared (#277)
 --   negateKeyword        negate                   declared (#276)
---   gains                modifyAttr               param, subject
+--   gains                modifyAttr               declared (#275)
 --   replaceLeave         replace                  param, replace
 --   altCost              costModifier             declared (#277)
 --   resolvingPlay        replace                  param, replace
@@ -84,10 +90,9 @@
 --   negateOwnSkill       negate                   declared (#276)
 --   may                  chooseMode               declared (#273)
 --
--- Two rows wait on nothing but a primitive that is only a field away
--- (`redirectAttack`, `flip`) and three on `replace` alone (`negateAttack`,
--- `negateCounter`, and `resolvingPlay`, all needing only the primitive
--- itself). Those are the first this file should gain.
+-- Three rows wait on `replace` alone (`negateAttack`, `negateCounter` and
+-- `resolvingPlay`, all needing only the primitive itself, spec §2.2/#125) —
+-- the next this file should gain.
 
 -- ── the two numbers a card changes (§2.3, 20-5) ────────────────────────────
 --
@@ -245,3 +250,110 @@ DEFINE OP altCost
   }
   text: "the target's price is replaced"
   doc: "what `altCost` means: the general price change, naming what replaces the price rather than a number it moves by"
+
+-- ── a player and the battle in progress, as subjects (§2.5-1, §2.5-3, #275) ─
+--
+-- `modifyAttr` reached one card and six attributes before this issue; the
+-- nine rows below are what unblocked once it also reached a *player*
+-- (`side`, for `energyMarkers`) and the *battle in progress* (`target` read
+-- as the value being set rather than a locator — there is only one), and
+-- once `mode`, `markers`, `keywords`, `hidden`, `faceUp` and `flipped` were
+-- declared card attributes (`attributes.rules`). `modifyAttrAs`
+-- (`engine/script-schema.ts`) is the one reading of each spelling, so a
+-- program written either way runs the same case, puts the same effect in
+-- force (or none) and reads in the same words — the precedent `negateAs`
+-- and `costModifierAs` set for their own primitives.
+
+-- §1-14 — "gain 1 energy marker", "your opponent gains 2 energy markers"
+DEFINE OP energyMarker
+  TAKES (n: amount, side: side)
+  DO {
+    modifyAttr(subject: player, side: $side, attr: energyMarkers, amount: $n)
+  }
+  text: "the named player's energy markers change by the amount"
+  doc: "what `energyMarker` means: `modifyAttr`'s first widened subject — a player rather than a card (spec §2.5-1)"
+
+-- §8-1, §22-4-2 — "switch the target of the attack to it"
+DEFINE OP redirectAttack
+  TAKES (target: ref)
+  DO {
+    modifyAttr(subject: battle, attr: guard, target: $target)
+  }
+  text: "the target of the attack switches to the named card"
+  doc: "what `redirectAttack` means: `modifyAttr`'s other widened subject — the battle in progress, which has one attribute and needs no locator of its own (spec §2.5-1)"
+
+-- §1-10 — "switch it to Rest Mode", "switch it to Active Mode"
+DEFINE OP switchMode
+  TAKES (target: ref, mode: word)
+  DO {
+    modifyAttr(target: $target, attr: mode, mode: $mode)
+  }
+  text: "the card switches to the named mode"
+  doc: "what `switchMode` means: one of the six card attributes spec §2.5-3 adds — set to the named mode, no duration of its own (1-10)"
+
+-- §23-5 — "switch it to Hidden Mode", "switch it to Revealed Mode"
+DEFINE OP hidden
+  TAKES (target: ref, hidden: boolean)
+  DO {
+    modifyAttr(target: $target, attr: hidden, flag: $hidden)
+  }
+  text: "the card switches to Hidden Mode or Revealed Mode, as named"
+  doc: "what `hidden` means: set to the named boolean, no duration of its own (23-5)"
+
+-- §3-9-2-1 — "flip up to 1 card in your life face up", "…face down"
+DEFINE OP faceUp
+  TAKES (target: ref, faceUp: boolean)
+  DO {
+    modifyAttr(target: $target, attr: faceUp, flag: $faceUp)
+  }
+  text: "the card in life turns face up or face down, as named"
+  doc: "what `faceUp` means: set to the named boolean, no duration of its own (3-9-2-1)"
+
+-- §22-2-4 — "you may flip this card over"
+DEFINE OP flip
+  TAKES (target: ref)
+  DO {
+    modifyAttr(target: $target, attr: flipped)
+  }
+  text: "the card turns to its back side"
+  doc: "what `flip` means: the one card attribute with no value field of its own to name — the primitive's own case reads what a flip means (22-2-4)"
+
+-- §1-11 — "add 1 marker to this card"
+DEFINE OP addMarker
+  TAKES (target: ref, n: amount)
+  DO {
+    modifyAttr(target: $target, attr: markers, amount: $n, sign: add)
+  }
+  text: "the card's markers increase by the amount"
+  doc: "what `addMarker` means: a delta on the one attribute a marker count is (1-11); `sign` is which way `removeMarker` beside it moves the same delta"
+
+-- §1-11 — "remove 1 marker from this card"
+DEFINE OP removeMarker
+  TAKES (target: ref, n: amount)
+  DO {
+    modifyAttr(target: $target, attr: markers, amount: $n, sign: remove)
+  }
+  text: "the card's markers decrease by the amount"
+  doc: "the same act as `addMarker`, the other way (1-11)"
+
+-- §9-1-3, §22-1 — "this card gains [Blocker] for the turn"
+DEFINE OP grant
+  TAKES (target: ref, keyword: keyword, until: duration)
+  DO {
+    modifyAttr(target: $target, attr: keywords, keyword: $keyword, until: $until)
+  }
+  text: "the target gains the named keyword skill, for the duration"
+  doc: "what `grant` means: one card attribute, by the keyword it counts as having — `until` left out means the keyword is printed rather than granted, which nothing calls this row for (9-1-3, 22-1)"
+
+-- §20-1 — "this card also counts as ≪Saiyan≫", "…is also treated as
+-- red", "…is also treated as {Planet Namek}"
+DEFINE OP gains
+  TAKES (target: ref, traits: strings, characters: strings, colors: strings, names: strings)
+  DO {
+    modifyAttr(target: $target, attr: traits, values: $traits)
+    modifyAttr(target: $target, attr: characters, values: $characters)
+    modifyAttr(target: $target, attr: colors, values: $colors)
+    modifyAttr(target: $target, attr: names, values: $names)
+  }
+  text: "the card also counts as the named traits, characters, colours and names, wherever it is"
+  doc: "what `gains` means: `modifyAttr`'s general row, one call per list attribute — a call that leaves one out leaves that call's own \"values\" out too, which the static reader (`collectStatics`/`permanents`) already treats as none of that list (docs/arena-ruleset-spec.md §2.3)"

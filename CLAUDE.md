@@ -459,8 +459,9 @@ learned the expensive way. Read it before changing the compiler or the engine.
   program written in the ops the cards use, lowered through the game's own `DEFINE OP`
   declarations to the primitives an interpreter runs — an op with no declaration passes
   through untouched, and the round-trip promise stays over the macro's *name*, never its
-  expansion. `dbs/ops.rules` declares none of the thirty-one yet and its header says what
-  each waits on (#137).
+  expansion. `dbs/ops.rules` declares 20 of the thirty-one so far — its header says what
+  each of the rest waits on (#137); `modifyAttr` reaches a card, a player and the battle
+  in progress (#275).
   **The game's words are the only words** (`rulesets/words.ts`, since 12 Sep 2026): the
   language's parser, the workbench's chip editor (`optionsFor`), the referee's prompt
   (`effectLanguage`) and `validateRule` read the areas, durations, sides, keyword names and
