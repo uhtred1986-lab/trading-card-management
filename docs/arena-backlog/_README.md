@@ -28,6 +28,9 @@ file paths), what is out of scope, and the acceptance checks as commands plus on
 Keep the title stable when there is no `issue:` yet — it is the fallback key; change the body
 freely and re-run the push with `--push` (or `-UpdateExisting` for the PowerShell script).
 
+An issue body carries no code map (line numbers, "absent from the tree" — the thing 32 files
+gained on 12 Sep and issue #281 removed): the map is `docs/arena-next-session-prompt.md`.
+
 ## The Node script
 
 `scripts/sync-arena-backlog.mts` needs no GitHub CLI — `GITHUB_TOKEN` or `GH_TOKEN` in the
