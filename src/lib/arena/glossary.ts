@@ -584,7 +584,7 @@ export const SKILL_TYPES: Record<Exclude<SkillKind, "keyword">, SkillTypeDoc> = 
     section: "1-5-5",
     meaning: "You declare it during your Main Phase.",
     engine:
-      "Offered only when the engine can both pay for it and carry it out; otherwise it waits for a stored program or the referee. Both engines read the same record for that decision — the price before the colon, the hoisted condition and the program are `card_rules`' and not the text's.",
+      "Offered only when the engine can both pay for it and carry it out; otherwise it waits for a stored program or the referee. Both engines read the same record for that decision — the price before the colon, the hoisted condition and the program are `card_rules`' and not the text's. An Extra Card used from the hand pays its own energy cost and the skill's orbs as one price, colours included (4-2, 12-2-2): planned once over both halves, so a colour the board cannot cover refuses the offer — BT17-080's {g}{y}{2} is not offered to an all-green board — and the same first requirement is given on both engines (#271).",
   },
   "activate:battle": {
     tag: "[Activate: Battle]",
