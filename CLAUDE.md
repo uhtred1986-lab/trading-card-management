@@ -34,6 +34,16 @@ redirects to `vercel.com/sso-api`). A preview therefore needs a Vercel login *as
 Auth, which makes preview URLs awkward to open on a phone — a Cloudflare tunnel to a local
 `npm run build && npm start` is the quicker way to test on a device.
 
+**Neon is one database with a spend limit, so development keeps off it** (owner's instruction,
+14 Sep 2026). Three things follow. `vercel.json` builds through `scripts/vercel-build.mjs`, which
+runs the migrations on *production* deploys only, and skips preview deploys altogether for the
+branches agents push (`feat/*`, `arena-*`, `backlog/*`, `claude/*`, `copilot/*`, `ops/*` —
+`scripts/vercel-ignore-build.mjs`; a hand-pushed branch under another name still previews).
+`npm test` never touches Neon (PGlite). And an agent session does not run the scripts that need
+`DATABASE_URL` — `arena:diff`, `arena:playthrough`, `arena:reprobe`, `arena:specified`,
+`db:check`, `db:migrate`, `sync:*` — unless the issue's acceptance cannot be met any other way;
+it says which acceptance bullet it could not verify instead, and the owner runs that one.
+
 ## Working efficiently in this repo
 
 A `SessionStart` hook (`.claude/settings.json` → `scripts/session-start-check.mjs`) runs `npm ci`
@@ -69,7 +79,7 @@ npm test               # scripts/verify-rules.ts (pure) + scripts/verify-db.mts 
 npm run contract:emit  # rewrite contract/fixtures/*.json after a deliberate Snapshot shape change
 npm run android:test   # Kotlin round-trip of those fixtures, in Docker — no JDK on the machine
 npm run db:generate    # Generate a migration after editing src/db/schema.ts
-npm run db:migrate     # Apply migrations (also run on every Vercel deploy via vercel.json)
+npm run db:migrate     # Apply migrations (also run on every *production* Vercel deploy via scripts/vercel-build.mjs)
 npm run sync:catalog   # Import both games' catalogs from deckplanet + Fusion World art from Bandai (~50 s),
                        # then draft arena rules for every new or changed card and ask Claude about the
                        # skills the compiler could not read (--no-review, --budget N)
