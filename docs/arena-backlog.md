@@ -209,7 +209,52 @@ own work will create, so those are not checked). It runs in CI as the `backlog` 
 | tooling-01 | Arena backlog: make the issue sync work without PowerShell — body updates, tracking refresh and an issue number in the front matter (#208) | tooling |
 | tooling-02 | Arena backlog: PR template with a Closes line, and an ac-check that reads the issue's acceptance section only (#209) | CI |
 
-## 7. Review of 12 Sep 2026
+## 7. Running a wave
+
+The wave of five sessions over #255, #269–#279 on 13–14 Sep 2026 was grouped by hot file —
+`src/lib/arena/engine/script-schema.ts`, `src/lib/arena/rulesets/dbs/ops.rules`,
+`src/lib/arena/rulesets/dbs/actions.rules`, `CLAUDE.md`, `src/db/schema.ts` and the `drizzle/`
+migrations — with the issues that share one run sequentially in one session. Two sessions editing
+`script-schema.ts` or `ops.rules` at once produce merge conflicts that each cost a re-read of the
+file and a re-run of the gate; two migrations generated in parallel collide on their number. The
+rule that avoided it on 13–14 Sep was applied by hand; it is written down here so the next wave
+does not have to rediscover it.
+
+**Grouping.** Take the ready (`ready-for-agent`, not `blocked`/`needs-owner-ruling`) issues for the
+wave. Group them by the hot files they will edit — the `touches:` front-matter line (§4, below)
+when it is filled in, otherwise each issue's own `**Build**` section. Two issues sharing a hot file
+go in the same group; issues with no file in common may run in parallel groups.
+
+**Running a group.** One session per group. Inside a group, run the issues **sequentially, in one
+session**: fewer sessions do the same work with fewer re-reads of the shared file, and a
+sequential order inside the group is what avoids the mid-file merge conflict a second concurrent
+session would hit. Each issue still gets its own branch and its own PR; branch the next issue in
+the group from the previous one's branch when it depends on it, otherwise from `main`. Merge
+`main` into the working branch before every push, so a push never rejects on a stale base.
+Migrations are never generated in parallel across sessions — two sessions racing `db:generate`
+collide on the migration number, and the fix costs more than serialising the generation would have.
+Tag every session in the wave with one shared tag, so `list_sessions` finds the whole wave at a
+glance.
+
+**Lessons from the 13–14 Sep waves.**
+- **Push work in progress to the feature branch after every green fast gate** (`npx tsx
+  scripts/verify-rules.ts` / `verify-arena.ts`, not necessarily the full `npm test`). A session
+  stopped by a usage limit loses everything that was not pushed — there is no way to recover
+  uncommitted or unpushed work from a session that has stopped.
+- **A session stopped by a usage limit cannot be resumed.** It can only be replaced by a fresh
+  session that continues from the branch the stopped session last pushed — which is exactly why
+  the previous rule matters: a branch with nothing pushed leaves the fresh session starting over.
+- **Group by hot file, chain in one session per group.** The 13–14 Sep waves did the same total
+  work with fewer sessions and fewer re-reads of `script-schema.ts`/`ops.rules`/`actions.rules`
+  by chaining same-file issues sequentially in one session rather than spreading them across
+  several that would have serialised on the file anyway, each paying a fresh read of it.
+- **A session must never stop to ask a question nobody will answer.** A wave session runs
+  unattended; a session that pauses mid-wave for clarification just sits there until the usage
+  limit ends it, having pushed nothing since its last checkpoint. Make the reasonable call, record
+  it (in the PR body, or `npm run arena:rule` for a ruling), and keep going — the same standard
+  §5 already holds a `ready-for-agent` issue to.
+
+## 8. Review of 12 Sep 2026
 
 The Stage 2 language issues, all of Stage 3 and Stage 4, and the documentation issues were checked
 against the tree at `77cf236` and each file gained a **"Review of 12 Sep 2026"** section: a code map

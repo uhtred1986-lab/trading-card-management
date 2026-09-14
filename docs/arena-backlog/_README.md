@@ -12,6 +12,10 @@ title: Arena: …                      exact issue title — the key the scripts
 milestone: Arena M6 — …              must be one of the milestones in docs/arena-backlog.md
 labels: backlog, ready-for-agent, …  comma-separated; the scripts create the ones they know
 stage: 3                             programme stage (2–10, "docs", "tooling"), or "ui" for the M2–M5 items
+touches: src/a.ts, src/b.ts          optional, comma-separated repo paths this issue's own work will
+                                      create or edit — how `docs/arena-backlog.md` §7 groups a wave
+                                      into sessions by hot file instead of from memory; never pushed
+                                      to the GitHub issue body (front matter only)
 tracking: true                       this file is the stage's tracking issue; its body may hold
                                      {{children}}, replaced by a task list of the stage's issues
 issue: 208                           optional — the GitHub issue number, written back by `--push`

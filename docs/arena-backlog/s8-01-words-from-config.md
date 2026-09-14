@@ -3,6 +3,7 @@ title: Arena: wording, narration, glossary and lighting tables read from words.r
 milestone: Arena M11 — Everything else from config (Stage 8)
 labels: backlog, ready-for-agent, enhancement, area:arena-ui, area:arena-rulesets, phase:rules-stage8, model:sonnet-5
 stage: 8
+touches: src/lib/arena/wording.ts, src/lib/arena/narration.ts, src/lib/arena/effects.ts, src/lib/arena/lighting.ts
 ---
 **Source:** plan Stage 8; `src/lib/arena/wording.ts`, `narration.ts`, `effects.ts`, `lighting.ts` (`turnVars`, the printed colour → room), `glossary.ts`; `words.rules` from Stage 3; `docs/arena-turn-presence-spec.md` (the light is never the only signal).
 

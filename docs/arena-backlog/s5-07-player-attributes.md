@@ -4,6 +4,7 @@ milestone: Arena M8 — Rules engine actions and costs (Stage 5)
 labels: backlog, ready-for-agent, enhancement, area:arena-lang, area:arena-vm, area:arena-rulesets, phase:rules-stage5, model:opus-5
 stage: 5
 issue: 269
+touches: src/lib/arena/rulesets/dbs/attributes.rules, src/lib/arena/engine/script-schema.ts, src/lib/arena/vm/program.ts, src/lib/arena/rulesets/dbs/actions.rules, scripts/verify/vm.ts, scripts/verify/lang.ts, docs/arena-rules-language.md, docs/arena-ruleset-spec.md
 ---
 **Source:** #146 (owner's decision of 13 Sep 2026: "add player attributes now"); `src/lib/arena/rulesets/dbs/actions.rules` (the charge's header note on the "honest long-run shape", and the `growUnison` gap written beside the play family); `src/lib/arena/rulesets/dbs/attributes.rules` (the player's energy markers — the one player attribute declared today); `src/lib/arena/vm/program.ts` (`condHolds`, `amount`); `src/lib/arena/engine/script-schema.ts` (`COND_SCHEMA`, `OP_SCHEMA`); the legacy `growUnison` handler and `whyNotGrowUnison` in `src/lib/arena/engine/engine.ts`; `scripts/verify/vm.ts` §16 and §18; rule manual 13-3, 7-2-11.
 

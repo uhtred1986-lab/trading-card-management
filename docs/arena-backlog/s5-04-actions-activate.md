@@ -3,6 +3,7 @@ title: Arena: actions.rules — activate, with one rejection per skill line
 milestone: Arena M8 — Rules engine actions and costs (Stage 5)
 labels: backlog, ready-for-agent, enhancement, area:arena-vm, area:arena-rulesets, phase:rules-stage5, model:opus-5
 stage: 5
+touches: src/lib/arena/rulesets/dbs/actions.rules, scripts/verify/harness.ts, scripts/arena-playthrough.mts
 ---
 **Source:** plan Stage 5; the `activate` handler and `whyNotActivate` in `src/lib/arena/engine/engine.ts`; `docs/arena-workflow-spec.md` §3.2 as amended 8 Sep 2026 (an activation is one rejection **per skill line**, because a card prints up to nine and one being on the menu says nothing about the others); `Script.price` from `card_rules.cost`; `docs/arena-refusals-spec.md`.
 

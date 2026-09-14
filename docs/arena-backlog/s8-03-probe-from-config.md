@@ -3,6 +3,7 @@ title: Arena: probe fixtures from the definition; arena:probe and arena:reprobe 
 milestone: Arena M11 — Everything else from config (Stage 8)
 labels: backlog, ready-for-agent, enhancement, area:arena-vm, area:arena-workbench, phase:rules-stage8, model:sonnet-5
 stage: 8
+touches: src/lib/arena/probe.ts, scripts/verify/probe.ts
 ---
 **Source:** plan Stage 8; `src/lib/arena/probe.ts` (`familyOf`, the ten families, the staged boards built "in the card's favour"); `card_rules.probe`; `contract/probe-digests.json`.
 
