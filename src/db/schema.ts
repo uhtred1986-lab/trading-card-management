@@ -53,6 +53,20 @@ export const cards = pgTable(
       .default(sql`'{}'::text[]`),
     /** As printed: "4", "X", or null for leaders / no cost. */
     energyCost: text("energy_cost"),
+    /**
+     * The coloured orbs of the energy cost, in the language's own orb
+     * notation (`{u}{u}` = 2 blue) — **hand-entered**, because the deckplanet
+     * feed carries no cost orbs at all (checked card by card, 12 Sep 2026).
+     * Null means unknown: `cardDefFrom` leaves `CardDef.specifiedCost` unset,
+     * `specifiedCostOf` fills a fixed cost by convention and refuses to guess
+     * an X cost, and `specifiedCostUnknown` is what the workbench and
+     * `arena:specified` read to say "incomplete". Entered from the rules
+     * record on the workbench, or seeded by a migration on an owner's ruling
+     * (BT19-039 = `{u}{u}`, migration 0034). The catalog upsert `coalesce`s
+     * this column like `image_url`, so `sync:catalog` never erases an entry
+     * (issue #255, owner's decision of 13 Sep 2026).
+     */
+    specifiedCost: text("specified_cost"),
     zEnergyCost: text("z_energy_cost"),
     power: integer("power"),
     comboCost: integer("combo_cost"),

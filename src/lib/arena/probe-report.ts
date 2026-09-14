@@ -1,4 +1,4 @@
-import { keywordsInForce, powerOf, type EngineContext, type GameEvent, type GameState, type Op, type PlayerId } from "./engine";
+import { keywordsInForce, powerOf, specifiedCostUnknown, type EngineContext, type GameEvent, type GameState, type Op, type PlayerId } from "./engine";
 import { toBeats } from "./beats";
 import { describeEffect, untilWords } from "./effects";
 import { keywordPlays } from "./glossary";
@@ -106,6 +106,10 @@ export function assumptionsOf(ctx: EngineContext, s: GameState, card: string, ru
   for (const t of notesIn(rule.ops)) out.add(t);
   for (const step of steps) for (const e of step.events) if (e.type === "note") out.add(e.text);
   for (const clause of rule.unread) out.add(`the compiler could not read "${clause}", so that much of the line does nothing`);
+  // An X cost whose orbs nobody has entered (issue #255): every price on this
+  // card's boards is charged as if it demanded no colour, which is lenient
+  // rather than the card's, and the record is where that is fixed.
+  if (specifiedCostUnknown(rule.def)) out.add(`${rule.def.name}'s specified cost is unknown — the catalog carries no cost orbs and none were entered on the record — so the engine demands no colour for it and any price here is lenient rather than the card's`);
   if (s.cards[card]) {
     for (const k of keywordsInForce(ctx, s, card)) {
       const plays = keywordPlays(k.name);

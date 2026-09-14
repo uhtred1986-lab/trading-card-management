@@ -40,7 +40,7 @@
  */
 import assert from "node:assert/strict";
 import { toBeats } from "../../src/lib/arena/beats";
-import { IllegalAction, apply, createGame, legalActions, rejectedActions, type Action, type GameEvent, type GameState } from "../../src/lib/arena/engine";
+import { IllegalAction, apply, createGame, legalActions, rejectedActions, type Action, type GameEvent, type GameState, type LegalAction } from "../../src/lib/arena/engine";
 import {
   AVAILABLE_ENGINES,
   ENGINE_IDS,
@@ -2468,20 +2468,52 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     assert.equal(used.r.state.sides.p1.zones.drop.includes(extra), used.l.state.players.p1.drop.includes(extra), "the two engines left the used Extra in different places");
 
     // 12-2-2 with orbs as well: the card's energy cost and the skill's orbs are
-    // **one** price here, colours included. The legacy engine adds the two
-    // totals and then plans against the *play cost's* colours alone
-    // (`activatable`'s `planPayment(c.total + orbTotal, c.specified)`), so on a
-    // board short of the skill's colour it offers a skill it could not pay the
-    // orbs of. This engine asks for both, which is 1-2-3 read straight; the
-    // divergence is recorded here rather than copied, and the legacy engine is
-    // bug fixes only.
+    // **one** price, colours included, on both engines. The legacy
+    // `activatable` used to add the two totals and then plan against the *play
+    // cost's* colours alone, so on a board short of the skill's colour it
+    // offered a skill it could not pay the orbs of — a divergence this block
+    // recorded rather than copied. The owner ruled this engine right (13 Sep
+    // 2026) and the legacy engine was fixed as the bug it was (#271), so what is
+    // asserted now is the agreement: the same offer where the colour is there,
+    // and the same first requirement where the total is there and the colour
+    // is not.
     const both2 = stagedFor([], ["A-E-RED", "A-E-RED"], ["A-EXTRA-ORB"]);
     const orbExtra = both2.r.sides.p1.zones.hand[0];
-    const orbOffer = rulesEngine.legalActions(CTX, both2.r).find((a) => a.action.type === "activate" && (a.action as { card: string }).card === orbExtra);
+    const findOrb = (list: LegalAction[]) => list.find((a) => a.action.type === "activate" && (a.action as { card: string }).card === orbExtra);
+    const orbOffer = findOrb(rulesEngine.legalActions(CTX, both2.r));
     assert.deepEqual(orbOffer?.cost, { energy: 2, orbs: { Red: 2 }, describe: "2 energy (2 red)" }, "an Extra's activation does not add its energy cost to the skill's orbs, colours and all");
+    const legacyOrbOffer = findOrb(legalActions(CTX, both2.l));
+    assert.ok(legacyOrbOffer, "the legacy engine does not offer an Extra with orbs on a board that can pay both halves");
+    assert.deepEqual(legacyOrbOffer!.cost, orbOffer!.cost, "the two engines price an Extra's orbs and energy cost differently");
+    // The total but not the colour: two blue energy for a red card's {r}. Both
+    // engines refuse, and refuse for the colour — not "1 short", and not the
+    // orbs alone (#271's `A-EXTRA-ORB`, "both halves").
+    const blue = stagedFor([], ["A-E-BLUE", "A-E-BLUE"], ["A-EXTRA-ORB"]);
+    const blueExtra = blue.r.sides.p1.zones.hand[0];
+    assert.equal(findOrb(rulesEngine.legalActions(CTX, blue.r)), undefined, "the rules engine offered an Extra whose orb colour the board cannot pay");
+    assert.equal(findOrb(legalActions(CTX, blue.l)), undefined, "the legacy engine offered an Extra whose orb colour the board cannot pay (4-2, 12-2-2)");
+    const blueWhy = rulesEngine.rejectedActions(CTX, blue.r, rulesEngine.legalActions(CTX, blue.r)).find((x) => x.action.type === "activate" && (x.action as { card: string }).card === blueExtra);
+    const legacyBlueWhy = rejectedActions(CTX, blue.l, legalActions(CTX, blue.l)).find((x) => x.action.type === "activate" && (x.action as { card: string }).card === blueExtra);
+    assert.deepEqual(blueWhy?.why[0], { kind: "energyColour", colour: "Red", need: 2, have: 0 }, "an Extra short of its colour is not refused for the colour of the whole price");
+    assert.deepEqual(legacyBlueWhy?.why[0], blueWhy?.why[0], "the two engines refuse an Extra short of its orb colour with a different first requirement");
+    // …and one red among the two: the colour is still short, by the one orb
+    // the play cost's convention does not cover, and both say so alike.
+    const mixed = stagedFor([], ["A-E-RED", "A-E-BLUE"], ["A-EXTRA-ORB"]);
+    const mixedExtra = mixed.r.sides.p1.zones.hand[0];
+    const mixedWhy = rulesEngine.rejectedActions(CTX, mixed.r, rulesEngine.legalActions(CTX, mixed.r)).find((x) => x.action.type === "activate" && (x.action as { card: string }).card === mixedExtra);
+    const legacyMixedWhy = rejectedActions(CTX, mixed.l, legalActions(CTX, mixed.l)).find((x) => x.action.type === "activate" && (x.action as { card: string }).card === mixedExtra);
+    assert.deepEqual(mixedWhy?.why[0], { kind: "energyColour", colour: "Red", need: 2, have: 1 }, "an Extra one red short is not refused for that one red");
+    assert.deepEqual(legacyMixedWhy?.why[0], mixedWhy?.why[0], "the two engines refuse an Extra one orb short with a different first requirement");
+    // No energy at all: the whole price is what is short, on both — not the
+    // orbs alone, which is what the legacy twin used to say first.
+    const bare = stagedFor([], [], ["A-EXTRA-ORB"]);
+    const bareExtra = bare.r.sides.p1.zones.hand[0];
+    const bareWhy = rulesEngine.rejectedActions(CTX, bare.r, rulesEngine.legalActions(CTX, bare.r)).find((x) => x.action.type === "activate" && (x.action as { card: string }).card === bareExtra);
+    const legacyBareWhy = rejectedActions(CTX, bare.l, legalActions(CTX, bare.l)).find((x) => x.action.type === "activate" && (x.action as { card: string }).card === bareExtra);
+    assert.deepEqual(bareWhy?.why[0], { kind: "energy", need: 2, have: 0 }, "an Extra on an empty board is not refused for the whole of its price");
+    assert.deepEqual(legacyBareWhy?.why[0], bareWhy?.why[0], "the two engines count an Extra's whole price differently on an empty board");
     const orbUsed = bothUse(both2, { type: "activate", player: "p1", card: orbExtra, skill: 0 });
-    const kinds = (list: unknown) => (list as { type: string }[]).map((e) => e.type);
-    assert.deepEqual(kinds(orbUsed.r.events).slice().sort(), kinds(orbUsed.l.events).slice().sort(), "using an Extra with orbs as well does not do the same things on the two engines");
+    assert.deepEqual(orbUsed.r.events, orbUsed.l.events, "using an Extra with orbs as well does not log the same thing on the two engines");
     assert.deepEqual(
       (orbUsed.r.state.sides.p1.zones.energy ?? []).map((id) => orbUsed.r.state.cards[id].mode),
       ["rest", "rest"],

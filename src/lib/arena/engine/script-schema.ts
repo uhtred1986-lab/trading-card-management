@@ -86,7 +86,7 @@ export interface RenderOptions {
 export const COLORS = ["Red", "Blue", "Green", "Yellow", "Black", "White", "Colorless"] as const satisfies readonly Color[];
 export const SIDES = ["you", "opponent", "both"] as const satisfies readonly Side[];
 export const SPECIAL_TARGETS = ["self", "attacker", "guard", "subject", "leader", "opponentLeader", "resolving", "onTop"] as const satisfies readonly SpecialTarget[];
-export const REPLACE_EVENTS = ["leave", "ko", "play"] as const satisfies readonly ReplaceEvent[];
+export const REPLACE_EVENTS = ["leave", "ko", "play", "life"] as const satisfies readonly ReplaceEvent[];
 export const AREAS = ["hand", "deck", "drop", "life", "battle", "combo", "energy", "unison", "leader", "warp", "zDeck", "zEnergy", "under", "play", "removed"] as const satisfies readonly ScriptArea[];
 export const CARD_ATTRS = ["power", "comboPower", "colors", "characters", "traits", "names"] as const satisfies readonly CardAttr[];
 export const DURATIONS = ["battle", "turn", "opponentTurn", "nextTurn", "afterNextCharge", "game"] as const satisfies readonly Duration[];
@@ -114,7 +114,7 @@ void _everyKeywordListed;
 
 /** `Area` (13), the places a card can actually be. `AREAS` above is `ScriptArea` (15): the two extra values, `under` and `play`, are effect-language routes ("place it under this card", "the card resolving a skill"), not board zones a `.rules` file declares. */
 /** `SkipWhat` (20-13), as a runtime list the schema row and `verify/rulesets.ts` read. */
-export const SKIP_WHATS = ["charge", "main", "end", "offense", "defense"] as const satisfies readonly SkipWhat[];
+export const SKIP_WHATS = ["charge", "main", "end", "offense", "defense", "turn", "span"] as const satisfies readonly SkipWhat[];
 type MissingSkipWhat = Exclude<SkipWhat, (typeof SKIP_WHATS)[number]>;
 const _everySkipWhatListed: MissingSkipWhat extends never ? true : never = true;
 void _everySkipWhatListed;
@@ -273,11 +273,15 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     sentence: (raw) => {
       const op = raw as OpOf<"skip">;
       const whose = op.side === "opponent" ? "your opponent" : op.side === "both" ? "each player" : "you";
+      const verb = op.side === "you" || op.side == null ? "skip" : "skips";
+      const their = op.side === "you" || op.side == null ? "your" : "their";
+      if (op.what === "turn") return `${whose} ${verb} ${their} next turn`;
+      if (op.what === "span") return `${whose} ${verb} every phase until the Charge Phase of ${their} next turn, then start ${their} Main Phase`;
       const which = op.when === "this" ? "this turn's" : "the next";
       const what = op.what === "offense" || op.what === "defense" ? `${op.what === "offense" ? "Offense" : "Defense"} Step` : `${{ charge: "Charge", main: "Main", end: "End" }[op.what]} Phase`;
-      return `${whose} skip${op.side === "you" || op.side == null ? "" : "s"} ${which} ${what}`;
+      return `${whose} ${verb} ${which} ${what}`;
     },
-    doc: 'the phase or step is not performed (20-13): no [Auto] answers to its start or end, no action can be declared in it, and no checkpoint happens inside it. "when":"this" is the occurrence in the turn the skill resolved on, "next" the first one in a later turn. Effects that were to end in it end as it is skipped (20-13-5)',
+    doc: 'the phase or step is not performed (20-13): no [Auto] answers to its start or end, no action can be declared in it, and no checkpoint happens inside it. "when":"this" is the occurrence in the turn the skill resolved on, "next" the first one in a later turn. Effects that were to end in it end as it is skipped (20-13-5). "what":"turn" refuses the player\'s whole next turn, checked once at that turn\'s own start rather than at any one phase (BT31-097). "what":"span" reaches further: the rest of the turn this resolves in, the opponent\'s whole next turn, and this player\'s own next Charge Phase, landing at that Main Phase (BT21-104) — three ordinary entries under one name rather than a mechanism of its own.',
   },
   control: {
     fields: [TARGET, { name: "to", type: "side", default: "you" }, { name: "until", type: "duration" }],
@@ -407,6 +411,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       { name: "with", type: "ops", required: true },
       { name: "by", type: { enum: ["skill", "skillOrKo"] } },
       { name: "bySide", type: { enum: ["opponent"] } },
+      { name: "to", type: { enum: ["hand", "drop"] } },
       { name: "optional", type: "boolean" },
       SELF,
     ],
@@ -417,16 +422,18 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       const moment =
         op.event === "play"
           ? "the card being played would be played"
-          : op.event === "ko"
-            ? `${who} would be KO'd${op.bySide === "opponent" ? " by an opponent's skill" : ""}`
-            : op.by === "skill"
-              ? `${who} would be removed from the Battle Area by ${whose}`
-              : op.by === "skillOrKo"
-                ? `${who} would be removed from the Battle Area by ${whose} or KO'd`
-                : `${who} would leave the Battle Area`;
+          : op.event === "life"
+            ? `${who} would move from your life to your ${op.to === "drop" ? "Drop Area" : op.to === "hand" ? "hand" : "hand or your Drop Area"}`
+            : op.event === "ko"
+              ? `${who} would be KO'd${op.bySide === "opponent" ? " by an opponent's skill" : ""}`
+              : op.by === "skill"
+                ? `${who} would be removed from the Battle Area by ${whose}`
+                : op.by === "skillOrKo"
+                  ? `${who} would be removed from the Battle Area by ${whose} or KO'd`
+                  : `${who} would leave the Battle Area`;
       return `if ${moment}, ${op.optional ? "you may have this happen" : "this happens"} instead: ${describeScript(op.with, r)}`;
     },
-    doc: 'an event happens differently, or not at all (9-10) — the primitive "replaceLeave" and the "instead" half of "resolvingPlay" are macros over. "event" is the moment: "leave" (the card would leave the Battle Area, narrowed by "by", and by "bySide" to the opponent\'s skill), "ko" (it would be KO\'d), "play" (the play being resolved, 9-6, [Counter: Play] only). "with" is what happens in its place: one move of the card itself is a redirect, anything else is a substitute — the departure does not happen at all, the card stays, and the program runs with it bound as "subject". It may ask a question, and then it only applies where somebody can hear it (#107); "optional" is 9-10-3\'s "you may". A "leave"/"ko" replacement is [Permanent] only',
+    doc: 'an event happens differently, or not at all (9-10) — the primitive "replaceLeave" and the "instead" half of "resolvingPlay" are macros over. "event" is the moment: "leave" (the card would leave the Battle Area, narrowed by "by", and by "bySide" to the opponent\'s skill), "ko" (it would be KO\'d), "play" (the play being resolved, 9-6, [Counter: Play] only), "life" (a life card\'s own move to the hand or the Drop Area, 8-4-6-1\'s damage — narrowed by "to", absent for either destination; "by"/"bySide" mean nothing here, since nobody\'s skill puts a card out of the life area). "with" is what happens in its place: one move of the card itself is a redirect, anything else is a substitute — the departure does not happen at all, the card stays, and the program runs with it bound as "subject". It may ask a question, and then it only applies where somebody can hear it (#107, #272); "optional" is 9-10-3\'s "you may". A "leave"/"ko"/"life" replacement is [Permanent] only',
   },
   altCost: {
     fields: [

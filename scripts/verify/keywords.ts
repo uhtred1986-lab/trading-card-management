@@ -24,6 +24,7 @@ import {
   koCard,
   labels,
   legalActions,
+  lifeReplacementChoicesFor,
   move,
   placeUnder,
   orbsIn,
@@ -1646,6 +1647,144 @@ function withRecord(cardId: string, record: { ops: unknown[]; unsupported: strin
   assertConsistent(s);
 }
 
+{
+  // "When this card is in a battle, you skip your Offense Step" (BT18-019's
+  // shape, #278): a standing [Permanent] rule, read live at the step rather
+  // than spent once (`stepSkippedByPermanent`), and true only while this card
+  // is one of the battle's own two cards.
+  DEFS.INBATTLE = { ...DEFS.V1, id: "INBATTLE", name: "INBATTLE", power: 30000, skill: "[Permanent] When this card is in a battle, you skip your Offense Step." };
+  const rule = compileSkill(parseSkills(DEFS.INBATTLE.skill!)[0]);
+  assert.deepEqual(rule.unsupported, [], "the condition and the skip both read");
+
+  // Attacking with it: its own Offense Step is refused.
+  const s = arena({ battle: ["INBATTLE"] });
+  const attacker = find(s, "p1", "battle", "INBATTLE");
+  const r = apply(CTX, s, { type: "attack", player: "p1", attacker, target: s.players.p2.leader });
+  const offense = r.events.find((e) => e.type === "battleStep" && e.step === "offense");
+  assert.ok(offense && offense.type === "battleStep" && offense.skipped === true, "the Offense Step was announced and refused");
+  assert.equal(r.state.prompt.kind, "combo");
+  assert.equal((r.state.prompt as { side: string }).side, "defense", "20-13-1: play proceeds from the step after it");
+  assertConsistent(r.state);
+
+  // A battle it is not part of: the rule reads nothing about it (9-1-3-1).
+  const other = arena({ battle: ["INBATTLE", "V-BLUE"] });
+  const bystander = find(other, "p1", "battle", "INBATTLE");
+  const attacker2 = other.players.p1.battle.find((id) => id !== bystander)!;
+  const r2 = apply(CTX, other, { type: "attack", player: "p1", attacker: attacker2, target: other.players.p2.leader });
+  assert.equal(r2.state.prompt.kind, "combo");
+  assert.equal((r2.state.prompt as { side: string }).side, "offense", "INBATTLE sitting out of the battle skips nothing");
+  assertConsistent(r2.state);
+}
+
+{
+  // "When your <X> cards attack your opponent's Battle Cards, your opponent
+  // skips their Defense Step" (BT18-001's shape, #278): the attacker's own
+  // role rather than either end of the battle — the active-voice twin of
+  // "is attacking".
+  DEFS.ATKSKIP = { ...DEFS.V1, id: "ATKSKIP", name: "ATKSKIP", power: 30000, skill: "[Permanent] When this card attacks an opponent's Battle Card, your opponent skips their Defense Step." };
+  const rule = compileSkill(parseSkills(DEFS.ATKSKIP.skill!)[0]);
+  assert.deepEqual(rule.unsupported, []);
+
+  const s = arena({ battle: ["ATKSKIP"], oppBattle: ["V-BLUE"] });
+  const attacker = find(s, "p1", "battle", "ATKSKIP");
+  const guard = s.players.p2.battle[0];
+  s.cards[guard].mode = "rest"; // 8-1: only a Rest Mode Battle Card is a legal attack target
+  let r = apply(CTX, s, { type: "attack", player: "p1", attacker, target: guard });
+  const events = [...r.events];
+  assert.equal(r.state.prompt.kind, "combo");
+  assert.equal((r.state.prompt as { side: string }).side, "offense", "ATKSKIP grants nothing about its own Offense Step");
+  r = apply(CTX, r.state, { type: "pass", player: "p1" });
+  events.push(...r.events);
+  const defense = events.find((e) => e.type === "battleStep" && e.step === "defense");
+  assert.ok(defense && defense.type === "battleStep" && defense.skipped === true, "the guard's Defense Step is refused");
+  assert.ok(events.some((e) => e.type === "battleStep" && e.step === "damage"), "20-13-1: play proceeds from the step after it");
+  assertConsistent(r.state);
+}
+
+{
+  // "Skip your turn and begin your opponent's Charge Phase" (BT31-097's
+  // shape, #278): every phase of the *next* turn refused at once, checked
+  // once at that turn's own start rather than at any one phase — and the
+  // turn still counts for turn-number bookkeeping (owner's ruling, 14 Sep
+  // 2026: `turn.next` advances `s.turn` once per turn transition whether or
+  // not the turn it is leaving did anything).
+  DEFS.TURNSKIP = { ...DEFS.V1, id: "TURNSKIP", name: "TURNSKIP", skill: "[Activate: Main] Skip your turn and begin your opponent's Charge Phase." };
+  const rule = compileSkill(parseSkills(DEFS.TURNSKIP.skill!)[0]);
+  assert.deepEqual(rule.ops, [{ op: "skip", what: "turn" }], "the trailing clause names the same rule's own destination and adds nothing");
+  assert.deepEqual(rule.unsupported, []);
+
+  let s = arena({ battle: ["TURNSKIP"] });
+  const card = find(s, "p1", "battle", "TURNSKIP");
+  s = play(s, { type: "activate", player: "p1", card, skill: 0 });
+  assert.deepEqual((s.players.p1.skips ?? []).map((e) => `${e.what}:${e.when}`), ["turn:next"]);
+
+  const turnBefore = s.turn;
+  s = play(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+  assert.equal(s.turnPlayer, "p2");
+  assert.equal(s.prompt.kind, "main");
+
+  const r = apply(CTX, s, { type: "endMain", player: "p2" });
+  s = r.state;
+  assert.equal(s.turnPlayer, "p2", "p1's whole next turn produced no turn of p1's own to land on (20-13-1)");
+  assert.equal(s.turn, turnBefore + 3, "p2's own turn and p1's empty one both counted");
+  assert.deepEqual(s.players.p1.skips, [], "the entry is spent, not standing");
+
+  const skipped = r.events.filter((e) => e.type === "phase" && e.player === "p1");
+  assert.equal(skipped.length, 3, "all three of the refused turn's phases are announced");
+  assert.ok(
+    skipped.every((e) => e.type === "phase" && e.skipped === true),
+    "and every one says it was skipped",
+  );
+  assertConsistent(s);
+}
+
+{
+  // "Skip all phases until the Charge Phase in your next turn, then start
+  // your Main Phase" (BT21-104's shape, #278): the rest of this turn, the
+  // opponent's whole next turn, and this player's own next Charge Phase —
+  // three ordinary skip entries under one name (script.ts) rather than a
+  // mechanism of its own, so no new check point answers for it besides the
+  // one `what: "turn"` already added.
+  DEFS.SPANSKIP = { ...DEFS.V1, id: "SPANSKIP", name: "SPANSKIP", energyCost: 1, skill: "[Auto] When this card is played, skip all phases until the Charge Phase in your next turn, then start your Main Phase." };
+  const rule = compileSkill(parseSkills(DEFS.SPANSKIP.skill!)[0]);
+  assert.deepEqual(rule.unsupported, []);
+
+  let s = arena({ hand: ["SPANSKIP"], energy: ["V1"] });
+  const turnBefore = s.turn;
+  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "SPANSKIP") });
+  assert.deepEqual(
+    (s.players.p1.skips ?? []).map((e) => `${e.what}:${e.when}`).sort(),
+    ["charge:next", "end:this"],
+    "this turn's End Phase and this player's own next Charge Phase",
+  );
+  assert.deepEqual((s.players.p2.skips ?? []).map((e) => `${e.what}:${e.when}`), ["turn:next"], "the opponent's whole next turn");
+
+  const r = apply(CTX, s, { type: "endMain", player: "p1" });
+  s = r.state;
+  assert.equal(s.turnPlayer, "p1", "the opponent's whole turn was skipped too, landing back on this player (20-13-1)");
+  assert.equal(s.turn, turnBefore + 2, "both turns passed and both counted");
+  assert.equal(s.prompt.kind, "main", "charge, the active step and the draw never happened for this player either — straight to Main");
+  assert.deepEqual(s.players.p1.skips, []);
+  assert.deepEqual(s.players.p2.skips, []);
+
+  const mine = r.events.filter((e) => e.type === "phase" && e.player === "p1");
+  const theirs = r.events.filter((e) => e.type === "phase" && e.player === "p2");
+  assert.ok(
+    mine.some((e) => e.type === "phase" && e.phase === "end" && e.skipped === true),
+    "this turn's End Phase was skipped",
+  );
+  assert.equal(theirs.length, 3, "all three of the opponent's phases are announced");
+  assert.ok(
+    theirs.every((e) => e.type === "phase" && e.skipped === true),
+    "and every one says it was skipped",
+  );
+  assert.ok(
+    mine.some((e) => e.type === "phase" && e.phase === "charge" && e.skipped === true),
+    "and so was this player's own next Charge Phase",
+  );
+  assertConsistent(s);
+}
+
 // ── 20-19: paying with something that is not energy ─────────────────────────
 //
 // "[Permanent] You can use this card to pay energy costs even when it's in
@@ -1954,4 +2093,53 @@ function withRecord(cardId: string, record: { ops: unknown[]; unsupported: strin
   move(CTX, s, ev, asker, "drop", "p1", { reason: "rule" });
   assert.ok(s.players.p1.drop.includes(asker), "a departure nobody can be asked about is not replaced");
   assertConsistent(s);
+}
+
+// ── event: "life" (#272) — a life card's own move, not a Battle Area one ────
+{
+  // "During your opponent's turn, if you would add a card from your life to
+  // your hand or place it in your Drop Area, you may reveal it and add it to
+  // your hand instead." (BT10-031, SD18-01's shape).
+  DEFS.REVEALER = {
+    ...DEFS.V1,
+    id: "REVEALER",
+    name: "REVEALER",
+    skill: "[Permanent] During your opponent's turn, if you would add a card from your life to your hand or place it in your Drop Area, you may reveal it and add it to your hand instead.",
+  };
+  const rule = compileSkill(parseSkills(DEFS.REVEALER.skill!)[0]);
+  assert.deepEqual(rule.unsupported, [], "the condition, the moment and the substitute all read");
+
+  // During the controller's own turn, "during your opponent's turn" does not
+  // hold, so nothing answers to a departure of their own life at all.
+  const own = arena({ battle: ["REVEALER"] });
+  const ownLife = own.players.p1.life[0];
+  assert.deepEqual(lifeReplacementChoicesFor(CTX, own, ownLife, "drop"), [], "the permanent's own condition is during the opponent's turn, not this one");
+
+  // During the opponent's turn — REVEALER defending against a [Critical] hit,
+  // so the life card is headed for the Drop (22-6) — the choice is offered.
+  const s = arena({ battle: ["CRIT"], oppBattle: ["REVEALER"] });
+  const attacker = find(s, "p1", "battle", "CRIT");
+  const life = s.players.p2.life[0];
+  const handBefore = s.players.p2.hand.length;
+  let r = apply(CTX, s, { type: "attack", player: "p1", attacker, target: s.players.p2.leader });
+  r = apply(CTX, r.state, { type: "pass", player: "p1" });
+  r = apply(CTX, r.state, { type: "pass", player: "p2" });
+  assert.equal(r.state.prompt.kind, "replaceMove", "9-10-3: whether to take the offer is asked");
+  assert.equal((r.state.prompt as { player: string }).player, "p2", "the affected player answers, not the attacker");
+  assert.equal((r.state.prompt as { options: string[] }).options.length, 2, "the offer, and keeping the ordinary move (9-10-3)");
+
+  // Declining: the ordinary [Critical] move to the Drop stands.
+  const declined = apply(CTX, r.state, { type: "chooseMode", player: "p2", index: 1 });
+  assert.ok(declined.state.players.p2.drop.includes(life), "declined: the card still goes to the Drop");
+  assert.equal(declined.state.players.p2.hand.length, handBefore, "and not to the hand");
+  assertConsistent(declined.state);
+
+  // Accepting: revealed, and to the hand instead of the Drop (9-10-1-1 — the
+  // move to the Drop never happened), kept public the way a face-up life
+  // card already is (`revealedTo`).
+  const taken = apply(CTX, r.state, { type: "chooseMode", player: "p2", index: 0 });
+  assert.ok(taken.state.players.p2.hand.includes(life), "accepted: to the hand instead");
+  assert.ok(!taken.state.players.p2.drop.includes(life));
+  assert.equal(taken.state.cards[life].faceUp, true, "revealed and kept public (20-11-2)");
+  assertConsistent(taken.state);
 }

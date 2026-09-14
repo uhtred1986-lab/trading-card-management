@@ -22,13 +22,13 @@ All 167 X-cost cards are Unisons or Z-Unisons. On the other 160 the refusal only
 - **Bandai's art is not a self-serve source for these cards.** The public path `https://www.dbs-cardgame.com/fw/images/cards/card/en/<number>.webp` is Fusion World only and all seven are original-game cards; the deckplanet bucket `https://storage.googleapis.com/deckplanet_card_images/<number>.png` answers **404 for six of the seven** (only BT15-063 is there, checked 13 Sep 2026). Whatever art the app shows for the rest comes from a matched TCGplayer product photo via `fillMissingImages`, and whether those are legible enough to count orbs is unverified. Plan for the orbs arriving from the owner, not from a crawl.
 
 **Build.**
-1. **Decide where a hand-entered baseline lives, and record why.** Two shapes, and the choice is the first deliverable:
+1. **Where a hand-entered baseline lives — decided by the owner on 13 Sep 2026: the column.** The two shapes considered, for the record:
    - a `specified_cost` column on `cards` (`src/db/schema.ts`) plus a workbench field — reachable from the UI, but `sync:catalog` upserts card columns, so it must `coalesce` like `image_url`/`back_image_url` already do or the next sync erases it;
    - a table in code beside `src/lib/catalog/errata.ts` — version-controlled, reviewable, survives a sync by construction, and the established precedent for "the source is missing or wrong about this card".
 
    Errata's self-check (`unmatchedCorrections`) does not port directly: an errata entry can be re-verified against the payload it corrects, while a baseline has nothing in the feed to compare against. Give it the check it *can* have — that each card still carries an X cost and still prints a specified-cost clause — so an entry that has become obsolete is noticed.
 2. Feed it through `cardDefFrom` (`src/lib/arena/load.ts`) onto `CardDef.specifiedCost`, which every caller already reads. No engine change is expected; if one is needed, that is a finding worth reporting.
-3. Enter BT19-039 as **2 blue** on the owner's existing ruling. Leave the other six unentered until their orbs are supplied — `specifiedCostUnknown` must keep saying "unknown" for them rather than defaulting to anything.
+3. Enter BT19-039 as **2 blue** on the owner's existing ruling. Leave the other six unentered until their orbs are supplied — `specifiedCostUnknown` must keep saying "unknown" for them rather than defaulting to anything — **and the workbench record (and wherever the card's rule is shown) must say visibly that this card's configuration is incomplete**: a specified-cost baseline it needs and does not have, driven by `specifiedCostUnknown`, never a second list (owner's instruction, 13 Sep 2026).
 4. Teach `npm run arena:specified` to report the baseline's source per card (ruling / entered / still unknown), so the report stays the instrument rather than becoming a second place the answer is claimed.
 
 **Out of scope.** The reducer mechanics themselves (#96, merged). Skill-cost reduction (#97). X as a bound expression (`s2-03-x-and-expressions.md`). Reading orbs off card art by vision — if that is ever wanted it is its own issue, with the owner confirming each reading, because a wrong baseline is a silently illegal play rather than a visible error.
@@ -39,3 +39,19 @@ All 167 X-cost cards are Unisons or Z-Unisons. On the other 160 the refusal only
 - `npm run arena:probe -- --card BT19-039` reports the play as legal on a board with one blue energy — the acceptance item #96 could not meet.
 - The other six still report an unknown baseline, and `npm run arena:specified` says so per card.
 - `npm run arena:readings` diff empty — this is data, not a change to what the compiler reads.
+
+**Decision and delivery, 13–14 Sep 2026.** The owner chose the column: `cards.specified_cost`
+(migration 0034), in the language's orb notation (`{u}{u}` = two blue), entered from the rules
+record on the workbench — whose *specified cost* box reads **Incomplete — specified cost unknown**
+on every X-cost card without one, driven by `specifiedCostUnknown` and not by a second list — and
+`coalesce`d by the catalog upsert like `image_url`, which is the one line that keeps
+`sync:catalog` from erasing an entry. `cardDefFrom` reads it onto `CardDef.specifiedCost` through
+`parseSpecifiedCost` (`src/lib/arena/specified-cost.ts`); no engine change was needed. The check an
+entry can have is `staleSpecifiedCosts`, run at sync and by `arena:specified`: the card still prints
+an X cost and a specified-cost clause. BT19-039 is seeded as `{u}{u}` by the migration on the ruling
+of 9 Sep 2026; the other six stay unknown until their orbs are entered from the cards. `npm run
+arena:specified` reports the source per card (entered / ruling on file / still unknown) when
+`DATABASE_URL` is set, and the probe's `permanent:reduced` board plays such a card from hand on one
+energy per orb its relaxed requirement leaves — one blue for BT19-039 — saying whether the play is
+legal with the rule and whether it would be refused without it. Home documented in `CLAUDE.md`
+(Architecture) and `docs/arena-tooling.md` (`arena:specified`).

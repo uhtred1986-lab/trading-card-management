@@ -5,7 +5,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { and, desc, eq, isNotNull } from "drizzle-orm";
 import { db } from "@/db";
-import { arenaFeedback, arenaGames } from "@/db/schema";
+import { arenaFeedback, arenaGames, cards } from "@/db/schema";
 import { describeAiError } from "@/lib/ai/client";
 import { IllegalAction, type Action, type GameState } from "@/lib/arena/engine";
 import { printRule, readRule } from "@/lib/arena/lang";
@@ -19,6 +19,7 @@ import { reviewGame } from "@/lib/arena/ai/review";
 import { clarifyRule } from "@/lib/arena/ai/clarify";
 import { blankRule, confirmMatching, confirmRule, programOf, ruleById, setProbe, saveRule, setBrief, setCompilerDiff, takeCompilerDiff, undoConfirmed, type ConfirmBatch, type RuleFilter, type RuleSource, type RuleStatus } from "@/lib/arena/rules-store";
 import { defsForCards } from "@/lib/arena/load";
+import { parseSpecifiedCost, printSpecifiedCost } from "@/lib/arena/specified-cost";
 import { probe, ruleFrom, scenariosFor, type ProbeRule, type ProbeRun, type ProbeScenario } from "@/lib/arena/probe";
 import { SKIN_COOKIE, type ArenaSkin } from "@/lib/arena/skin";
 import { STAGING_COOKIE, type ArenaStaging } from "@/lib/arena/staging";
@@ -192,6 +193,30 @@ export async function saveRuleAction(id: number, rule: unknown, explanation: str
     revalidatePath("/arena/rules/patterns");
   }
   await noteRule(id, `corrected by hand${patternWrong ? " (the pattern is wrong)" : ""}: ${row.printed}`, saved.reads);
+  return { error: null };
+}
+
+/**
+ * The card's specified-cost baseline, entered from the record (issue #255):
+ * the orbs printed beside an X cost, as `{u}{u}`, into `cards.specified_cost`
+ * — the one column on `cards` a person writes, and the one the catalog upsert
+ * coalesces so a sync keeps it. Only an X-cost card takes one: a fixed cost's
+ * orbs are filled by convention, and an entry there would override the
+ * convention unseen. An empty box clears the entry, back to unknown.
+ */
+export async function setSpecifiedCostAction(cardId: string, text: string): Promise<{ error: string | null }> {
+  const [row] = await db.select({ energyCost: cards.energyCost }).from(cards).where(eq(cards.id, cardId));
+  if (!row) return { error: "no such card" };
+  if (!/^x$/i.test((row.energyCost ?? "").trim())) return { error: "only an X-cost card takes a specified-cost entry — a fixed cost's orbs are filled by convention" };
+  const trimmed = text.trim();
+  const parsed = trimmed ? parseSpecifiedCost(trimmed) : null;
+  if (trimmed && !parsed) return { error: "not orb notation — one {r}/{u}/{g}/{y}/{k}/{w} per orb, e.g. {u}{u} for two blue" };
+  await db
+    .update(cards)
+    .set({ specifiedCost: parsed ? printSpecifiedCost(parsed) : null, updatedAt: new Date() })
+    .where(eq(cards.id, cardId));
+  revalidatePath("/arena/rules");
+  revalidatePath("/arena/rules/all");
   return { error: null };
 }
 

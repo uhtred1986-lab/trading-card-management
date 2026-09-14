@@ -52,7 +52,14 @@ export type SpecialTarget = "self" | "attacker" | "guard" | "subject" | "leader"
  * before the event happens, so a rule naming one of them plays, and a wording
  * that needs any other moment stays unread rather than compiling into silence.
  */
-export type ReplaceEvent = "leave" | "ko" | "play";
+/**
+ * `"life"` (#272): a life card's own move to the hand or the Drop Area —
+ * 8-4-6-1's damage, not a Battle Area departure at all. Narrowed by `to` on
+ * the op (`hand`/`drop`), never by `by`/`bySide`, which name a Battle Area
+ * departure's *cause* and mean nothing here: nobody's skill puts a card out
+ * of the life area, damage does.
+ */
+export type ReplaceEvent = "leave" | "ko" | "play" | "life";
 
 export interface Selector {
   side?: Side;
@@ -504,7 +511,7 @@ export type Op =
    * *opponent's* skill caused, which is what 19 cards print and what only a
    * caller that knows whose skill it is can answer.
    */
-  | { op: "replace"; event: ReplaceEvent; by?: "skill" | "skillOrKo"; bySide?: "opponent"; optional?: boolean; with: Op[]; target?: Ref }
+  | { op: "replace"; event: ReplaceEvent; by?: "skill" | "skillOrKo"; bySide?: "opponent"; to?: "hand" | "drop"; optional?: boolean; with: Op[]; target?: Ref }
   /**
    * Another way to pay for a card's own [Counter] skill (5-3): for nothing, by
    * adding cards from your life to your hand, by a reduced energy price
@@ -857,7 +864,7 @@ function skillOption(sk: Skill): string {
   return text.length > 90 ? `${text.slice(0, 88)}\u2026` : text;
 }
 
-function replacementPrompt(card: string, to: Area, choices: ReplacementChoice[], allowNone: boolean): { reason: string; options: string[] } {
+export function replacementPrompt(card: string, to: Area, choices: ReplacementChoice[], allowNone: boolean): { reason: string; options: string[] } {
   const area = (x: Area) =>
     ({
       drop: "the Drop",
@@ -894,7 +901,7 @@ function pickedReplacement(loop: NonNullable<ScriptFrame["moveLoop"]>, index: nu
 }
 
 /** One applicable replacement as `move()` takes it: a destination, or a program to run in the departure's place. */
-function routeOf(c: ReplacementChoice): ReplacementResult {
+export function routeOf(c: ReplacementChoice): ReplacementResult {
   return { ...(c.to ? { to: c.to } : {}), mode: c.mode, ...(c.ops ? { ops: c.ops, source: c.source, master: c.master } : {}) };
 }
 
@@ -1361,9 +1368,19 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
 
       // 20-13. Nothing happens now: the entry is spent where the step would
       // begin, which is the only place the whole of 20-13 can be applied at
-      // once.
+      // once. "span" (BT21-104, #278) is three of those entries under one
+      // name rather than a mechanism of its own — the rest of this turn,
+      // the opponent's whole next turn, and this player's own next Charge
+      // Phase, landing at that Main Phase exactly as an ordinary "next"
+      // Charge skip already does.
       case "skip":
-        for (const p of sideOf(master, op.side ?? "you")) h.addSkip(p, op.what, op.when ?? "next");
+        for (const p of sideOf(master, op.side ?? "you")) {
+          if (op.what === "span") {
+            h.addSkip(p, "end", "this");
+            h.addSkip(sideOf(p, "opponent")[0], "turn", "next");
+            h.addSkip(p, "charge", "next");
+          } else h.addSkip(p, op.what, op.when ?? "next");
+        }
         break;
 
       case "hidden":
