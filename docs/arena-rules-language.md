@@ -166,10 +166,12 @@ field   := name ":" value                           the fields written as a pair
          | "REFUSE" requirement "UNLESS" cond       an action's refusal, one line per requirement
 value   := every value form of §3 — an amount, a selector, a cond, a program "{ … }",
            a list, a quoted text, a number, a flag
+         | "$" name                                 a hole — inside a DEFINE OP body only
 pattern := event ( "(" field ":" plain ( "," field ":" plain )* ")" )?
 params  := "(" ( name ":" type ( "," name ":" type )* )? ")"
 type    := amount | ref | selector | side | area | duration | cond | conds | ops
-         | string | number | boolean | keyword | filter | modes | color | colors
+         | string | strings | word | number | boolean | keyword | filter | modes
+         | color | colors
 ```
 
 A declaration's body needs no brackets: a field is one line, and the next `DEFINE` announces
@@ -490,14 +492,38 @@ renders as, `doc:` the line the referee is told. The round-trip promise is over 
 **name**: a program keeps printing `power(…)` and never its expansion.
 
 ```
-DEFINE OP koAll
-  TAKES (target: ref)
+DEFINE OP power
+  TAKES (target: ref, amount: amount, until: duration)
   DO {
-    ko(target: $t)
+    modifyAttr(target: $target, attr: power, amount: $amount, until: $until)
   }
-  text: "KO every chosen card"
-  doc: "the macro every KO wording lowers to"
+  text: "the card's power changes by the amount, for the duration"
 ```
+
+**The body is a template** (#273, 14 Sep 2026). Inside a `DEFINE OP`'s `DO` — and only there —
+`$name` may stand where *any* value goes: a duration (`until: $until`), a side, an area, a closed
+list (`mode: $mode`, `attr: $what`), a list of strings (`values: $values`), a whole program
+(`DO $ops`, or `"Do it" $ops` as one of `chooseMode`'s modes), a condition, a selector, and a
+selector's own count, `TOP n`, side and area (`TOP $n IN $side.deck`). The parser produces a
+`Hole` node only while reading that body, so a card's program, a step's `DO` and a keyword's
+`HOOK` refuse the same `$until` as a syntax error, and `Op` stays a closed union for card programs;
+only the expansion is a real `Op`. In the two positions the grammar could already write `$name`
+— an `amount` and a `ref` — the node stays the `{ var }` a program's own binding is, and the
+macro's `TAKES` is what tells a parameter from a binding (`$picked` after a `choose … as
+"picked"` is left alone).
+
+Every hole names a parameter the macro `TAKES`, of a type the slot can hold, and the loader
+refuses the rest before the expander could fill it: `$until` where nothing is declared, `$until`
+declared `side` in a duration slot, `$n` declared `amount` in a selector's `TOP` (a selector counts
+by a number). The parameter types are the field types, plus `strings` for a list of strings and
+`word` for any closed list — the list itself is known from the field the hole sits in, so
+`mode: $mode` is checked against `[active, rest]` when the call is expanded, not declared twice.
+`rulesets/expand.ts` fills a hole of any type, refuses an argument that is not what the parameter
+was declared as (a duration where a side was, an expression where a number was), lowers the
+*arguments* before substituting them so a macro inside a `may`'s program is two calls rather than
+a cycle, and leaves an **optional** field out of the expansion when its hole is a parameter the
+call did not give — the interpreter then assumes for the expansion what it would have assumed for
+the call — while a required one is refused by name.
 
 ### What the loader refuses
 

@@ -620,8 +620,13 @@ export type Op =
    */
   | { op: "permit"; what: "attackActive"; until: Duration; target: Ref; filter?: CardFilter }
   | { op: "if"; cond: Cond; then: Op[]; else?: Op[] }
-  /** "Choose one— ・A ・B" (20-2): the master picks one printed option. */
-  | { op: "chooseMode"; modes: { label: string; ops: Op[] }[]; reason?: string }
+  /**
+   * "Choose one— ・A ・B" (20-2): the master picks one printed option, or
+   * `chooser` does when the choice is not theirs to make — the same field
+   * `may` reads, since `may` is this op with the second option empty
+   * (`docs/arena-ruleset-spec.md` §2.3).
+   */
+  | { op: "chooseMode"; modes: { label: string; ops: Op[] }[]; reason?: string; chooser?: Side }
   /**
    * "You may draw 1 card" (20-16): the master decides whether the rest of this
    * clause happens. Taking it silently is not the rule — and "if you don't"
@@ -1871,21 +1876,33 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // 20-2: the option is chosen as the skill resolves, and only then does
         // the rest of the program exist — so it is spliced in like an `if`.
         if (h.lastMode() != null && frame.awaiting === "mode") {
-          const picked = op.modes[h.lastMode()!] ?? op.modes[0];
+          const index = h.lastMode()!;
+          const picked = op.modes[index] ?? op.modes[0];
           h.clearLastMode();
           frame.awaiting = undefined;
+          // "You may …" (20-16) is this op with a second, empty option — that
+          // shape is what `may` lowers to (#273) — and the answer is bound
+          // either way, so "if you do" / "if you don't" reads it downstream
+          // the same as the native `may` op does.
+          if (op.modes.length === 2 && !op.modes[1].ops.length) (frame.did ??= {}).may = index === 0;
           frame.ops = [...frame.ops.slice(0, frame.ip), ...(picked?.ops ?? []), ...frame.ops.slice(frame.ip + 1)];
           continue;
         }
-        // A single option is not a choice, and an empty one is not asked about.
-        const usable = op.modes.filter((mode) => mode.ops.length);
-        if (usable.length <= 1) {
-          frame.ops = [...frame.ops.slice(0, frame.ip), ...(usable[0]?.ops ?? []), ...frame.ops.slice(frame.ip + 1)];
+        // A single declared option is not a choice. Two are, even when one of
+        // them is empty — "you may" is exactly that shape, and dropping the
+        // empty one here would mean it was never actually offered (#273).
+        if (op.modes.length <= 1) {
+          frame.ops = [...frame.ops.slice(0, frame.ip), ...(op.modes[0]?.ops ?? []), ...frame.ops.slice(frame.ip + 1)];
           continue;
         }
         frame.awaiting = "mode";
         h.resume(frame);
-        h.ask({ kind: "chooseMode", player: master, reason: op.reason ?? `${h.nameOf(frame.card)}: choose one`, options: op.modes.map((mode) => mode.label) });
+        h.ask({
+          kind: "chooseMode",
+          player: op.chooser ? sideOf(master, op.chooser)[0] : master,
+          reason: op.reason ?? `${h.nameOf(frame.card)}: choose one`,
+          options: op.modes.map((mode) => mode.label),
+        });
         return "wait";
       }
     }

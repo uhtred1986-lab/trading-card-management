@@ -246,12 +246,21 @@ for the macros above to be writable; none of them is built by #130, which delive
 5. **Amounts must become expressions** (#122): subtraction for `lifeDownTo`, a comparison of two
    expressions for `lifeVsOpponent` and `every`, and X for the cards that bind one.
 
-Half 1 of #137 (12 Sep 2026) found a sixth, and it is the one that binds first: **a macro's body
-can only name a parameter where the grammar lets a `$name` stand**, which is an `amount` or a `ref`
-and nothing else (`lang/parse.ts`). `power`'s `until` is a `duration`, every `side` is a `side`, and
-`may`'s body is an `ops` — so no row above is writable yet, whatever its primitive does.
-`src/lib/arena/rulesets/dbs/ops.rules` carries that table row by row, and the expander
-(`rulesets/expand.ts`) is built and tested against fixtures in the meantime.
+Half 1 of #137 (12 Sep 2026) found a sixth, and it was the one that bound first: **a macro's body
+could only name a parameter where the grammar let a `$name` stand**, which was an `amount` or a
+`ref` and nothing else. **Answered by #273 (14 Sep 2026):** inside a `DEFINE OP` body `$name` is
+a hole in every field position — a duration, a side, an area, any closed list, a list of strings, a
+program, a condition, a selector and a selector's count, `TOP n`, side and area — typed by the
+slot it sits in, checked by the loader against the parameter it names, and filled by the expander
+(`docs/arena-rules-language.md` §3b, "the body is a template"). `power`, `comboPower` and `may` are
+the first three rows declared; `src/lib/arena/rulesets/dbs/ops.rules` carries the rest of the table
+row by row, each naming what it still waits on. `may` lowers to `chooseMode`, which used to drop an
+empty option without asking, ask the master rather than the `chooser` the call names, and bind no
+answer for `did(what: may)` — the requirement §2.3 already puts on it. All three are now the
+primitive's own behaviour: it asks on two declared options even when one is empty, reads a
+`chooser` field of its own the way `may` always has, and binds `did(what: may)` from which one was
+picked whenever the shape is exactly that — two options, the second empty — so "you may" reads
+the same whether a card's rule writes it directly or a macro lowers to it.
 
 ### 2.6 The expression language
 
@@ -284,7 +293,7 @@ says what the files are, what the loader does with them, and what it refuses.
 The loader landed 12 Sep 2026 (#132), and four of the files the same day: `game.rules`,
 `attributes.rules` and `zones.rules` (#133), then `triggers.rules` (#134). The rest are #135 and
 the stage issues below, so `src/lib/arena/rulesets/dbs/` holds five of the eleven rows — `ops.rules`
-is there with its header and no declaration yet (#137) — every refusal is still checked against
+is there with its header and its first two declarations (#137, #273) — every refusal is still checked against
 fixtures, and what the real files claim is checked against them directly
 (`scripts/verify/rulesets.ts`). The trigger declarations name nine of the zones — `battle`,
 `combo`, `drop`, `energy`, `hand`, `leader`, `life`, `unison`, `zEnergy` — and the loader resolves

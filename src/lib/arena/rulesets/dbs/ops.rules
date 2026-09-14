@@ -8,20 +8,21 @@
 -- says only what it *means*, and `rulesets/expand.ts` is what lowers a program
 -- written in these ops to a program written in the primitives.
 --
--- **No macro is declared yet, and the table below is why.** Writing one that
--- silently dropped an argument would be worse than none: it would validate, it
--- would expand, the sweep in `scripts/verify/language.ts` would pass, and the
--- rule it claimed to explain would be wrong. Each row names the one thing it
--- waits on. The expander is built and tested against fixtures, so the first
--- row that becomes writable is a declaration here and nothing else.
+-- **Most rows are not declared yet, and the table below is why.** Writing one
+-- that silently dropped an argument would be worse than none: it would
+-- validate, it would expand, the sweep in `scripts/verify/language.ts` would
+-- pass, and the rule it claimed to explain would be wrong. Each row names the
+-- one thing it waits on. The expander is built and tested against fixtures, so
+-- the first row that becomes writable is a declaration here and nothing else.
 --
 -- ── what each row waits on ────────────────────────────────────────────────
 --
---   param     the grammar can write `$name` only where an `amount` or a `ref`
---             is expected (`lang/parse.ts`), so a body cannot say `$until`,
---             `$side`, `$mode`, `$values` or `$ops` at all. This is the gap
---             that blocks *every* row below, `power`'s `until` included, and
---             it is the open question on #137.
+--   param     answered (#273): inside a DEFINE OP body `$name` may stand in
+--             every field position — a duration, a side, an area, a mode or
+--             any closed list (declared `word`), a list of strings
+--             (`strings`), a whole program (`ops`) — and in a selector's
+--             count, `TOP n`, side and area. A row still listing it below is
+--             waiting on the rest of its line, not on the grammar.
 --   cause     `move` must carry a cause — `damage`, `ko`, `combo`, `effect`
 --             and a plain draw are one move told apart by it, and the triggers
 --             read it (spec §2.5-2). `moveTo` has no such field today.
@@ -51,32 +52,121 @@
 --   look                 reveal                   param, audience
 --   ko                   move                     cause
 --   switchMode           modifyAttr               param, subject
---   power                modifyAttr               param
---   comboPower           modifyAttr               param
+--   power                modifyAttr               declared (#273)
+--   comboPower           modifyAttr               declared (#273)
 --   grant                modifyAttr               param, subject
---   negateSkills         negate                   param
---   negateSkillsOfKind   negate                   param
+--   negateSkills         negate                   declared (#276)
+--   negateSkillsOfKind   negate                   declared (#276)
 --   hidden               modifyAttr               param, subject
 --   redirectAttack       modifyAttr               subject
---   comboFrom            move + negate            param, cause
+--   comboFrom            move + negate            cause
 --   flip                 modifyAttr               subject
 --   faceUp               modifyAttr               param, subject
 --   addMarker            modifyAttr               param, subject
 --   removeMarker         modifyAttr               param, subject
 --   costReduction        costModifier             param, cost
---   negateKeyword        negate                   param
+--   negateKeyword        negate                   declared (#276)
 --   gains                modifyAttr               param, subject
 --   replaceLeave         replace                  param, replace
 --   altCost              costModifier             param, cost
 --   resolvingPlay        replace                  param, replace
 --   negateAttack         replace                  replace
 --   negateCounter        replace                  replace
---   negateOwnSkill       negate                   param
---   may                  chooseMode               param
+--   negateOwnSkill       negate                   declared (#276)
+--   may                  chooseMode               declared (#273)
 --
 -- Three rows wait on nothing but a primitive that is only a field away
 -- (`ko`, `redirectAttack`, `flip`) and three on `replace` alone
 -- (`negateAttack`, `negateCounter`, and `resolvingPlay` once `param` is
--- answered). Those are the first this file should gain. The `negate`
--- primitive is built (#276), so its five rows now wait on `param` alone:
--- each needs `$until` in a body, which #273 is what answers.
+-- answered). Those are the first this file should gain.
+
+-- ── the two numbers a card changes (§2.3, 20-5) ────────────────────────────
+--
+-- A change to power or combo power is one act — one attribute of one card,
+-- by an expression, for a duration — and `modifyAttr` is that act. The two
+-- rows differ in nothing but which attribute they name, which is the whole of
+-- the argument the spec's table makes.
+
+-- §20-5 — "+5000 power for the turn", "+X power", "power +5000 for each …"
+DEFINE OP power
+  TAKES (target: ref, amount: amount, until: duration)
+  DO {
+    modifyAttr(target: $target, attr: power, amount: $amount, until: $until)
+  }
+  text: "the card's power changes by the amount, for the duration"
+  doc: "what `power` means: one attribute of one card, changed by an expression until a moment"
+
+-- §20-5 — "+10000 combo power for the turn"
+DEFINE OP comboPower
+  TAKES (target: ref, amount: amount, until: duration)
+  DO {
+    modifyAttr(target: $target, attr: comboPower, amount: $amount, until: $until)
+  }
+  text: "the card's combo power changes by the amount, for the duration"
+  doc: "the same act as `power`, on the other printed number"
+
+-- ── the offer to decline (§2.3, 20-16) ──────────────────────────────────────
+--
+-- "You may draw 1 card" is a `chooseMode` with two options, the second empty —
+-- the shape `chooseMode`'s own primitive case now reads (#273): it still asks
+-- when one branch is empty rather than dropping it, asks `chooser` in place of
+-- the master when the call names one, and binds `did(what: may)` from which
+-- branch was picked either way, so "if you do" / "if you don't" reads it.
+
+-- §20-16 — "You may draw 1 card", "your opponent may KO 1 of their cards"
+DEFINE OP may
+  TAKES (ops: ops, reason: string, chooser: side)
+  DO {
+    chooseMode(modes: ["Do it" $ops, "Don't" {}], reason: $reason, chooser: $chooser)
+  }
+  text: "the chooser may do the program, or not"
+  doc: "what `may` means: `chooseMode` with the declined branch empty — the primitive is the general form, this is the printed shape"
+
+-- ── a rule that stops applying (§2.2, 9-1-5, #276) ──────────────────────────
+--
+-- Four spellings, one primitive: `negate(target, what: skills | kind | keyword
+-- | own, kind?, keyword?, until?)` reads a card's skills, a printed kind of
+-- them, a named keyword everywhere, or the skill resolving now, and stops it
+-- for a duration. `negateAs` (`engine/script-schema.ts`) is the interpreter's
+-- own reading in the other direction — a `negate(…)` call read back as one of
+-- the four — and each row here is built to invert it exactly, so a program
+-- written the declared way and one written the primitive's own way say the
+-- same thing (`verify/vm.ts`'s existing macro/primitive parity block).
+-- `comboFrom`'s negate half stays out: it needs `cause` too (#274), not
+-- declared on this branch.
+
+-- §9-1-5 — "negate that card's skills for the turn"
+DEFINE OP negateSkills
+  TAKES (target: ref, until: duration)
+  DO {
+    negate(target: $target, what: skills, until: $until)
+  }
+  text: "the target's skills stop applying, for the duration"
+  doc: "what `negateSkills` means: every skill of one card, negated (9-1-5)"
+
+-- §9-1-5 — "negate that card's [Auto] skill for the turn"
+DEFINE OP negateSkillsOfKind
+  TAKES (target: ref, kind: word, until: duration)
+  DO {
+    negate(target: $target, what: kind, kind: $kind, until: $until)
+  }
+  text: "the target's skills of the printed kind stop applying, for the duration"
+  doc: "what `negateSkillsOfKind` means: one printed kind of skill of one card, negated — not the whole card (9-1-5)"
+
+-- §9-1-5 — "negate this card's [Energy-Exhaust] skill in all areas"
+DEFINE OP negateKeyword
+  TAKES (keyword: word, target: ref)
+  DO {
+    negate(target: $target, what: keyword, keyword: $keyword)
+  }
+  text: "the target loses the named keyword skill"
+  doc: "what `negateKeyword` means: one named keyword taken away, wherever the card sits — no duration of its own, unlike the other three"
+
+-- §9-1-5 — "negate this skill for the turn / battle / game"
+DEFINE OP negateOwnSkill
+  TAKES (until: duration)
+  DO {
+    negate(what: own, until: $until)
+  }
+  text: "this skill does not happen again, for the duration"
+  doc: "what `negateOwnSkill` means: the skill resolving now, negated for a span read off its own card — never a target, the way the other three take one"
