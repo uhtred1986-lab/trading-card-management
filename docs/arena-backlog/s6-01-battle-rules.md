@@ -3,6 +3,7 @@ title: Arena: battle.rules — the battle sub-flow with blocker and counter wind
 milestone: Arena M9 — Rules engine battle (Stage 6)
 labels: backlog, ready-for-agent, enhancement, area:arena-vm, area:arena-rulesets, phase:rules-stage6, model:opus-5
 stage: 6
+touches: src/lib/arena/rulesets/dbs/battle.rules, src/lib/arena/vm/view.ts
 ---
 **Source:** plan Stage 6; the battle sub-flow in `src/lib/arena/engine/engine.ts` (attack, block, counter, combo, resolve) and `state.flow`'s battle steps; rule manual §9-7 (battle), 9-8 (counter timing), 22 ([Blocker], [Barrier]); `docs/arena-battle-staging-spec.md` §3.1 for what a battle must expose.
 

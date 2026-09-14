@@ -3,6 +3,7 @@ title: Arena: keywords.rules bodies — hook group C — battle: blocking, count
 milestone: Arena M10 — Keywords as macros (Stage 7)
 labels: backlog, ready-for-agent, enhancement, area:arena-vm, area:arena-rulesets, phase:rules-stage7, model:opus-5
 stage: 7
+touches: src/lib/arena/rulesets/dbs/keywords.rules, src/lib/arena/glossary.ts
 ---
 **Source:** plan Stage 7; the hook contract issue (this depends on it); hooks in this group: **block, counterWindow, onAttackDeclared, beforeDamage, battleEnd**; `src/lib/arena/glossary.ts` for each keyword's meaning and the engine's current approximation; rule manual §22; `scripts/verify/keywords.ts`.
 

@@ -66,6 +66,26 @@ assert.equal(
   undefined
 );
 
+// ── optional `touches:` front matter (docs/arena-backlog.md §7) ────────────
+
+// A file without `touches:` still parses, and the field is undefined rather than an empty array.
+assert.equal(withoutIssue.touches, undefined);
+
+const withTouches = parseIssueFile(
+  "s5-99-example.md",
+  [
+    "---",
+    "title: Arena: touches example",
+    "milestone: Arena M8 — Example",
+    "labels: backlog",
+    "stage: 5",
+    "touches: src/lib/arena/rulesets/dbs/actions.rules, src/lib/arena/vm/costs.ts",
+    "---",
+    "Body.",
+  ].join("\n")
+);
+assert.deepEqual(withTouches.touches, ["src/lib/arena/rulesets/dbs/actions.rules", "src/lib/arena/vm/costs.ts"]);
+
 // ── writing `issue: N` back into a file's front matter ──────────────────────
 
 {

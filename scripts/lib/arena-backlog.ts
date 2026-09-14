@@ -18,6 +18,10 @@ export interface IssueMeta {
   labels: string[];
   stage: string;
   tracking: boolean;
+  /** Optional, comma-separated repo paths the issue's own work will create or edit — how a
+   *  wave is grouped by hot file instead of from memory (`docs/arena-backlog.md` §7). Ignored
+   *  by the sync: it is front matter, so it never reaches the pushed issue body. */
+  touches?: string[];
   /** `status: closed` is the only value the front matter ever carries; absent means open. */
   status?: string;
   closedAt?: string;
@@ -106,6 +110,15 @@ export function parseIssueFile(filePath: string, text: string): IssueMeta {
       .filter(Boolean),
     stage: frontMatterValue(frontMatter, "stage")!,
     tracking: frontMatterValue(frontMatter, "tracking") === "true",
+    touches: (() => {
+      const raw = frontMatterValue(frontMatter, "touches");
+      if (!raw) return undefined;
+      const paths = raw
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      return paths.length ? paths : undefined;
+    })(),
     status: frontMatterValue(frontMatter, "status"),
     closedAt: frontMatterValue(frontMatter, "closed_at"),
     issue,

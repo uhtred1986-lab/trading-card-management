@@ -3,6 +3,7 @@ title: Arena: RULES_PRIMER, the EFFECT_LANGUAGE legend, comboQuestion and view.t
 milestone: Arena M11 — Everything else from config (Stage 8)
 labels: backlog, ready-for-agent, enhancement, area:arena-vm, area:arena-workbench, phase:rules-stage8, model:sonnet-5
 stage: 8
+touches: src/lib/arena/ai/opponent.ts, src/lib/arena/view.ts, CLAUDE.md
 ---
 **Source:** plan Stage 8; `src/lib/arena/ai/view.ts` (`RULES_PRIMER` — what Claude is told about the game), `ai/opponent.ts` (`EFFECT_LANGUAGE` — the referee's legend, read off `OP_SCHEMA`), `view.ts` (`questionFor`, `comboQuestion`, the zone lines of `boardView`); `prompts.rules` and `game.rules`.
 

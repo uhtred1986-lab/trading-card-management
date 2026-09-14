@@ -3,6 +3,7 @@ title: Arena: reprobe 0 moved, fuzz 200 clean and verify-arena on both engines i
 milestone: Arena M12 — Parity and the flip (Stage 9)
 labels: backlog, ready-for-agent, enhancement, area:arena-vm, phase:rules-stage9, model:sonnet-5
 stage: 9
+touches: scripts/arena-fuzz.mts, scripts/verify-arena.ts, docs/arena-tooling.md, CLAUDE.md
 ---
 **Source:** `npm run arena:reprobe`, `scripts/arena-fuzz.mts`, `scripts/verify-arena.ts`; `docs/arena-tooling.md` §2, §4.
 
