@@ -139,10 +139,14 @@ opponent's energy" as an *area to search*.
 - **`parseConditionClause` merges "green X *or* yellow Y" as an AND across
   fields** rather than a disjunction — wider than printed. Found while fixing
   something else and deliberately not fixed there.
-- **The specified-cost reducer is wired but inert.** `playCost` gives every
-  X-cost card an empty specified-cost *baseline*, because nothing in the catalog
-  feed says a Unison's "2 blue" is 2 rather than 1 or 3. Six cards read
-  correctly and change nothing on the board; see the comment in `state.ts`.
+- **The specified-cost baseline is hand-entered, and six cards are still
+  waiting for theirs.** The feed carries no cost orbs, so an X-cost card's
+  coloured requirement comes from `cards.specified_cost` (issue #255: the
+  workbench record's *specified cost* box, `coalesce`d by the catalog upsert).
+  BT19-039 is entered as `{u}{u}` on the ruling of 9 Sep 2026; BT19-040,
+  BT15-063, BT20-118, P-673, P-600 and BT25-004 read their reducer correctly
+  and change nothing until the owner enters their orbs from the cards — the
+  record says *Incomplete* on each, and `npm run arena:specified` lists them.
 - **Cost-reduction sub-family A** (71 clauses, "reduce the skill cost by {o}")
   stays unread for two reasons: `orbTotals` is a pure function of the parsed
   skill with eleven call sites, and — worse — the *scoping* half of those

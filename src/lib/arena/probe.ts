@@ -20,8 +20,11 @@ import {
   legalActions,
   rejectedActions,
   skillsOf,
+  specifiedCostOf,
+  specifiedCostUnknown,
   type Action,
   type CardDef,
+  type Color,
   type CardScripts,
   type EngineContext,
   type GameState,
@@ -34,6 +37,7 @@ import { parseFilter } from "./engine/filters";
 import { DEFAULT_ENGINE, engineFor, legacyState, type EngineId } from "./engines";
 import { addEffect, move, placeUnder } from "./engine/state";
 import { sentence } from "./wording";
+import { specifiedCostWords } from "./specified-cost";
 import { assumptionsOf, askedQuestion, boardChanges, candidatesOf, digestOf, emptyProbe, IDLE_PROMPTS, logLines, staticReading, type ProbeStep } from "./probe-report";
 import type { ProbeFamily, ProbeOutcome, ProbeRule, ProbeRun, ProbeScenario, ProbeVariant } from "./probe-types";
 export type { ProbeFamily, ProbeOutcome, ProbeRule, ProbeRun, ProbeScenario, ProbeVariant } from "./probe-types";
@@ -216,6 +220,7 @@ const VARIANT_TITLES: Partial<Record<ProbeVariant, string>> = {
   negated: "the same board with this card's skills negated",
   opponentTurn: "the same board on the opponent's turn",
   inHand: "the card in hand, where the skill is not valid",
+  reduced: "the card in hand, its condition met, one energy of each colour it still demands — and you play it",
 };
 
 const VARIANTS: Record<ProbeFamily, ProbeVariant[]> = {
@@ -244,7 +249,8 @@ const VARIANTS: Record<ProbeFamily, ProbeVariant[]> = {
 export function scenariosFor(rule: ProbeRule): ProbeScenario[] {
   const family = familyOf(rule);
   const inHand = stagedInHand(rule, family);
-  return VARIANTS[family]
+  const variants: ProbeVariant[] = [...VARIANTS[family], ...(family === "permanent" && selfSpecifiedReducer(rule.ops) ? (["reduced"] as const) : [])];
+  return variants
     .filter((variant) => !(variant === "negated" && inHand))
     .map((variant) => ({
       key: variant === "default" ? family : `${family}:${variant}`,
@@ -259,6 +265,57 @@ function stagedInHand(rule: ProbeRule, family: ProbeFamily): boolean {
   const keyword = skillsOf(rule.def, rule.side).find((sk) => sk.index === rule.skillIndex)?.keyword?.name ?? null;
   const home = homeOf(rule.def);
   return family === "counter" || family === "combo" || (family === "keyword" && keyword != null && FROM_HAND.includes(keyword)) || (family === "play" && (home === "battle" || home === "hand"));
+}
+
+/**
+ * The `costReduction` that relaxes this card's own specified cost — "reduce
+ * the specified cost of this card in your hand by {u}" (BT19-039 and the six
+ * cards phrased like it) — read through the hoisted `if`, or null. A rule with
+ * one is a [Permanent] about the card *in hand* (9-1-3-3), which the KO board
+ * every other [Permanent] is measured on cannot show.
+ */
+function selfSpecifiedReducer(ops: Op[]): { colors: Color[]; cond: Cond | null } | null {
+  for (const op of ops) {
+    if (op.op === "if") {
+      const inner = selfSpecifiedReducer(op.then);
+      if (inner) return { colors: inner.colors, cond: inner.cond ?? op.cond };
+      continue;
+    }
+    if (op.op === "costReduction" && op.what === "specified" && op.colors?.length && typeof op.amount === "number" && op.amount > 0 && op.target && "sel" in op.target && op.target.sel.special === "self") {
+      return { colors: op.colors as Color[], cond: null };
+    }
+  }
+  return null;
+}
+
+/**
+ * The card a condition's first `count` asks for, so the board can carry one:
+ * "if you have a card with <Trunks> in its character name in play" stages a
+ * Battle Card whose character name is Trunks. Null when the condition counts
+ * nothing (a Leader test, a life total) — the Leader is already made to match
+ * the card, and the probe says what was and was not staged.
+ */
+function countedBody(cond: Cond | null): { colors: Color[]; characters: string[]; traits: string[]; name: string | null; type: CardDef["type"] | null } | null {
+  if (!cond) return null;
+  if (cond.kind === "all" || cond.kind === "any") return cond.conds.map(countedBody).find((b) => b) ?? null;
+  if (cond.kind !== "count" || (cond.atLeast ?? 0) < 1) return null;
+  const f = cond.sel.filter;
+  if (!f) return null;
+  return {
+    colors: f.colors,
+    characters: f.characters.length ? f.characters : f.charactersIncluding,
+    traits: f.traits,
+    name: f.names[0] ?? f.namesIncluding[0] ?? null,
+    type: (f.type as CardDef["type"] | null) ?? null,
+  };
+}
+
+/** The colours left to demand once the reducer has relaxed the baseline (20-21-2, floored at zero per colour). */
+function relaxed(baseline: Partial<Record<Color, number>>, by: Color[]): Partial<Record<Color, number>> {
+  const out: Partial<Record<Color, number>> = { ...baseline };
+  for (const c of by) if ((out[c] ?? 0) > 0) out[c] = (out[c] ?? 0) - 1;
+  for (const c of Object.keys(out) as Color[]) if (!out[c]) delete out[c];
+  return out;
 }
 
 // ── staging ────────────────────────────────────────────────────────────────
@@ -400,7 +457,8 @@ function stage(rule: ProbeRule, scenario: ProbeScenario, engine: EngineId): Stag
   const home = homeOf(rule.def);
   const theyAttack = family === "attack" && !rule.trigger.some((t) => ["attacks", "kos", "dealtDamage", "offenseStart", "battleEnd"].includes(t));
   const fromHand = stagedInHand(rule, family);
-  const theirs = scenario.variant === "opponentTurn" || family === "permanent" || family === "combo" || family === "counter" || theyAttack || (family === "keyword" && !fromHand);
+  const reducer = scenario.variant === "reduced" ? selfSpecifiedReducer(rule.ops) : null;
+  const theirs = scenario.variant === "opponentTurn" || (family === "permanent" && !reducer) || family === "combo" || family === "counter" || theyAttack || (family === "keyword" && !fromHand);
   const actor: PlayerId = theirs ? THEM : YOU;
 
   const s = opening(ctx, engine, actor);
@@ -408,7 +466,7 @@ function stage(rule: ProbeRule, scenario: ProbeScenario, engine: EngineId): Stag
 
   // The card under test, where its skill is valid — or in hand, when that is
   // where it is used from, and when the scenario is asking what happens there.
-  const where = scenario.variant === "inHand" ? "hand" : fromHand ? "hand" : home;
+  const where = scenario.variant === "inHand" || reducer ? "hand" : fromHand ? "hand" : home;
   let card: string;
   if (where === "leader") {
     card = s.players[YOU].leader;
@@ -446,10 +504,50 @@ function stage(rule: ProbeRule, scenario: ProbeScenario, engine: EngineId): Stag
     }
   }
 
-  // Energy for both sides: the price is never what a probe is meant to fail on.
-  for (let i = 0; i < 6; i++) put(ctx, s, YOU, ENERGY, "energy");
-  for (let i = 0; i < 6; i++) put(ctx, s, THEM, ENERGY, "energy");
-  input.push("6 energy each");
+  // Energy for both sides: the price is never what a probe is meant to fail
+  // on — except on the one board that is *about* the price. There you get
+  // exactly the colours the card still demands once its own rule has relaxed
+  // them (one blue for BT19-039's two-blue-less-one), so the play being
+  // offered says the reducer worked and a refusal names the colour short.
+  if (reducer) {
+    const unknown = specifiedCostUnknown(rule.def);
+    const baseline = specifiedCostOf(rule.def);
+    const demanded = relaxed(baseline, reducer.colors);
+    const orbs = (Object.entries(demanded) as [Color, number][]).flatMap(([c, n]) => Array.from({ length: n }, () => c));
+    // Nothing demanded still needs one energy to name X = 1 with; the rule's
+    // own colour, so the board is built in the card's favour and says so.
+    const energies: Color[] = orbs.length ? orbs : [reducer.colors[0]];
+    for (const c of energies) {
+      const id = `${ENERGY}-${c.toUpperCase()}`;
+      ctx.defs[id] = body(id, { colors: [c], name: `${c} Energy` });
+      put(ctx, s, YOU, id, "energy");
+    }
+    for (let i = 0; i < 6; i++) put(ctx, s, THEM, ENERGY, "energy");
+    input.push(
+      `you have ${energies.length === 1 ? `one ${energies[0].toLowerCase()} energy` : `${energies.length} energy: ${energies.map((c) => c.toLowerCase()).join(", ")}`} — ${
+        unknown
+          ? "this card's specified cost is unknown, so the engine demands no colour and one energy of the rule's own colour is staged"
+          : `its specified cost is ${specifiedCostWords(baseline)}, and this rule relaxes it by ${specifiedCostWords(Object.fromEntries(reducer.colors.map((c) => [c, reducer.colors.filter((x) => x === c).length])))} to ${specifiedCostWords(demanded)}`
+      }`,
+    );
+    const wanted = countedBody(reducer.cond);
+    if (wanted) {
+      const named = wanted.name ?? wanted.characters[0] ?? NAMES[MATCH];
+      ctx.defs[MATCH] = body(MATCH, {
+        colors: wanted.colors.length ? wanted.colors : rule.def.colors,
+        characters: wanted.characters.length ? wanted.characters : [named],
+        traits: wanted.traits,
+        name: named,
+        ...(wanted.type ? { type: wanted.type } : {}),
+      });
+      put(ctx, s, YOU, MATCH, "battle");
+      input.push(`a card in your Battle Area that the rule's condition asks for (${named})`);
+    } else if (reducer.cond) input.push("the rule's condition names no card to stage — the Leader made to match this card is what answers it");
+  } else {
+    for (let i = 0; i < 6; i++) put(ctx, s, YOU, ENERGY, "energy");
+    for (let i = 0; i < 6; i++) put(ctx, s, THEM, ENERGY, "energy");
+    input.push("6 energy each");
+  }
   if (rule.def.characters.length || rule.def.traits.length) input.push(`your Leader shares this card's colours${rule.def.characters.length ? `, ${rule.def.characters.join("/")}` : ""}${rule.def.traits.length ? ` and ${rule.def.traits.join("/")}` : ""}`);
 
   let theirBody: string | null = null;
@@ -515,6 +613,8 @@ function stage(rule: ProbeRule, scenario: ProbeScenario, engine: EngineId): Stag
       strict: scenario.variant === "opponentTurn",
       match: (a) => a.type === "activate" && a.card === card && a.skill === rule.skillIndex,
     });
+  } else if (family === "permanent" && reducer) {
+    goals.push({ what: `play ${rule.def.name}`, by: YOU, at: ["main"], match: (a) => onCard(a, card) && ["play", "playZ", "playUnison"].includes(a.type) });
   } else if (family === "permanent") {
     const killer = put(ctx, s, THEM, KILLER, "battle");
     input.push("the opponent has a card whose skill KOs one of yours");
@@ -688,9 +788,11 @@ function runProbe(rule: ProbeRule, scenario: ProbeScenario, engine: EngineId): P
   // Read on the board as it was staged: a [Permanent] whose card is KO'd a
   // moment later is not a [Permanent] that does nothing.
   const statics =
-    scenario.family === "permanent" || scenario.family === "keyword"
-      ? staticReading(ctx, staged.state, staged.card, rule, scenario.family === "keyword" ? (staged.skill?.keyword?.name ?? null) : null)
-      : [];
+    scenario.variant === "reduced"
+      ? reducedReading(ctx, staged, rule)
+      : scenario.family === "permanent" || scenario.family === "keyword"
+        ? staticReading(ctx, staged.state, staged.card, rule, scenario.family === "keyword" ? (staged.skill?.keyword?.name ?? null) : null)
+        : [];
   const koed = steps.some((st) => st.events.some((e) => e.type === "ko" && e.card === staged.card));
   const held = scenario.family === "permanent" && !koed && steps.length && !staged.inHand ? ["the opponent's KO skill could not take this card — it was never among the targets it was offered"] : [];
 
@@ -720,6 +822,36 @@ function runProbe(rule: ProbeRule, scenario: ProbeScenario, engine: EngineId): P
 }
 
 /** Why the move was not on the menu, in the words a client shows. */
+/**
+ * The `reduced` board, read before the play is made: what the menu offered
+ * with this rule in force, and what it would have offered without it — the
+ * same board, the rule's program taken out — so the line says whether the
+ * relaxation is what made the play legal, not merely that a play was legal.
+ */
+function reducedReading(ctx: EngineContext, staged: Staged, rule: ProbeRule): string[] {
+  const s = staged.state;
+  const name = rule.def.name;
+  const isPlay = (a: Action) => onCard(a, staged.card) && ["play", "playZ", "playUnison"].includes(a.type);
+  const bare: EngineContext = { defs: ctx.defs, scripts: Object.fromEntries(Object.entries(ctx.scripts ?? {}).filter(([k]) => k !== rule.def.id && k !== `${rule.def.id}#back`)) };
+  const offered = (c: EngineContext) => legalActions(c, s).filter((l) => isPlay(l.action));
+  const refused = (c: EngineContext) =>
+    rejectedActions(c, s, legalActions(c, s))
+      .filter((r) => isPlay(r.action))
+      .flatMap((r) => r.why.map((w) => sentence(w, { name, reaching: r.action.type })));
+  const price = (o: ReturnType<typeof offered>[number]) => {
+    const orbs = o.cost?.orbs && Object.keys(o.cost.orbs).length ? ` (${specifiedCostWords(o.cost.orbs)})` : " (no colour demanded)";
+    const x = "x" in o.action && typeof o.action.x === "number" ? ` with X = ${o.action.x}` : "";
+    return `${x}${orbs}`;
+  };
+  const out: string[] = [];
+  if (specifiedCostUnknown(rule.def)) out.push(`${name}'s specified cost is unknown, so the engine demands no colour with or without this rule — this board cannot show the reducer working until the orbs are entered on the record`);
+  const withRule = offered(ctx);
+  out.push(withRule.length ? `with this rule: the play is legal${price(withRule[0])}` : `with this rule: the play is refused — ${refused(ctx).join("; ") || "not offered"}`);
+  const without = offered(bare);
+  out.push(without.length ? `without it: the play would be legal too${price(without[0])}` : `without it: the play would be refused — ${refused(bare).join("; ") || "not offered"}`);
+  return out;
+}
+
 function refusals(ctx: EngineContext, state: GameState, staged: Staged, goal: Goal): string[] {
   const legal = legalActions(ctx, state);
   const rejected = rejectedActions(ctx, state, legal).filter((r) => goal.match(r.action));

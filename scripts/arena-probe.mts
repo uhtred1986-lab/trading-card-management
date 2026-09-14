@@ -97,8 +97,19 @@ async function sweep(): Promise<number> {
   let filled = 0;
   const started = Date.now();
   for (const { row, rule } of rules) {
-    const scenario = scenariosFor(rule)[0];
+    const scenarios = scenariosFor(rule);
+    const scenario = scenarios[0];
     const run = probe(rule, scenario, engineId);
+    // Asked about one card, say everything: the other boards a rule has
+    // (the KO board's inHand twin, the reduced board a self specified-cost
+    // reducer gets — issue #255) are printed beside the first, and only the
+    // first is counted or kept, since that is what a stored probe re-runs.
+    if (flag("card")) {
+      for (const other of scenarios.slice(1)) {
+        const more = probe(rule, other, engineId);
+        console.log(`  ${row.cardId} [${row.kind}] ${other.key} → ${more.outcome}: ${more.result.join(" | ") || "—"}`);
+      }
+    }
     counts.set(run.outcome, (counts.get(run.outcome) ?? 0) + 1);
     families.set(scenario.family, (families.get(scenario.family) ?? 0) + 1);
     cross.set(`${scenario.family}\t${run.outcome}`, (cross.get(`${scenario.family}\t${run.outcome}`) ?? 0) + 1);

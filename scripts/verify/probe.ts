@@ -190,6 +190,52 @@ const said = (r: ProbeRun) => [...r.result, ...r.applied, ...r.log].join(" | ");
     `the hand is not where a [Permanent] holds: ${inHand.result.join(" | ")}`,
   );
 
+  // A [Permanent] that relaxes its *own* specified cost from hand (issue
+  // #255, BT19-039's shape) gets the one board the KO board cannot give it:
+  // the card in hand, its condition met, and one energy of each colour it
+  // still demands. With the baseline entered the play is legal on one blue
+  // energy *because of* the rule — the same board without it is refused, and
+  // the refusal names the colour. The seven cards phrased like this are the
+  // reason the variant exists; a [Permanent] about power does not get it.
+  {
+    const goten = (specifiedCost?: CardDef["specifiedCost"]) =>
+      card("P-GOTEN", {
+        type: "UNISON",
+        colors: ["Blue"],
+        energyCost: "X",
+        ...(specifiedCost ? { specifiedCost } : {}),
+        skill: "[Permanent] If you have a card with <Trunks> in its character name in play, reduce the specified cost of this card in your hand by {u}.",
+      });
+    const entered = ruleFor(goten({ Blue: 2 }));
+    assert.deepEqual(
+      scenariosFor(entered).map((s) => s.key),
+      ["permanent", "permanent:inHand", "permanent:reduced"],
+      "the reduced board is offered beside the KO board, not instead of it",
+    );
+    assert.ok(!scenariosFor(ruleFor(card("P-PERM2", { skill: "[Permanent] This card gets +5000 power." }))).some((s) => s.key === "permanent:reduced"), "and only to a rule that relaxes its own specified cost");
+
+    const legal = variant(goten({ Blue: 2 }), "permanent:reduced");
+    assert.ok(legal.input.some((l) => /one blue energy/.test(l) && /2 blue/.test(l) && /to 1 blue/.test(l)), `the board says what it staged and why: ${legal.input.join(" | ")}`);
+    assert.ok(legal.input.some((l) => /condition asks for \(trunks\)/i.test(l)), `the condition's card is on the board: ${legal.input.join(" | ")}`);
+    assert.ok(legal.result.some((r) => /^with this rule: the play is legal with X = 1 \(1 blue\)/.test(r)), `legal on one blue energy: ${legal.result.join(" | ")}`);
+    assert.ok(legal.result.some((r) => /^without it: the play would be refused — .*needs 2 Blue energy — 1 active/.test(r)), `and refused without the rule, naming the colour: ${legal.result.join(" | ")}`);
+    assert.ok(legal.log.some((l) => /You play Unison/.test(l)), `the probe then makes the play: ${legal.log.join(" | ")}`);
+    assert.ok(!legal.assumptions.some((a) => /specified cost is unknown/.test(a)), "nothing is assumed about a baseline that is entered");
+
+    // Unknown baseline: the same board proves nothing, and says so twice —
+    // in the reading and in the assumptions — rather than reporting a legal
+    // play as if the reducer had earned it.
+    const unknown = variant(goten(), "permanent:reduced");
+    assert.ok(unknown.input.some((l) => /specified cost is unknown/.test(l)), `the input says the orbs are not known: ${unknown.input.join(" | ")}`);
+    assert.ok(unknown.result.some((r) => /cannot show the reducer working/.test(r)), `the reading says the board proves nothing: ${unknown.result.join(" | ")}`);
+    assert.ok(unknown.result.some((r) => /^without it: the play would be legal too/.test(r)), `…because the engine demands no colour either way: ${unknown.result.join(" | ")}`);
+    assert.ok(unknown.assumptions.some((a) => /specified cost is unknown/.test(a)), `and the assumption is on the run: ${unknown.assumptions.join(" | ")}`);
+    // The assumption is driven by `specifiedCostUnknown`, so every board of
+    // such a card carries it — the KO board included.
+    assert.ok(run(goten()).assumptions.some((a) => /specified cost is unknown/.test(a)), "the default board says it too");
+    assert.ok(!run(goten({ Blue: 2 })).assumptions.some((a) => /specified cost is unknown/.test(a)));
+  }
+
   // 1,089 keyword rules have an empty program and are played all the same. The
   // probe must say what the engine does with the keyword, not "nothing".
   const kw: ProbeRule = {

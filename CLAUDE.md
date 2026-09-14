@@ -73,7 +73,8 @@ npm run arena:reprobe  # Re-run every probe a rule carries and list the ones who
 npm run arena:tally    # Compiler coverage over the live deckplanet catalog, with op/cond usage and unread
                        # clause shapes — no database needed (--misses N, --show "<a wording>")
 npm run arena:specified # The specified (coloured) half of a play's price: proves the catalog feed carries
-                       # no cost orbs and lists the X-cost cards whose baseline is therefore refused (--all)
+                       # no cost orbs, lists the X-cost cards whose baseline is therefore refused (--all),
+                       # and — with DATABASE_URL — says per card whether one was entered, ruled on or is unknown
 npm run arena:readings # The other half: what the compiler reads every skill to *mean*, printed text
                        # beside the program in words. Diff it before and after a compiler change — a
                        # clause that compiles and reads wrongly moves no coverage number (--grep, --unread)
@@ -424,6 +425,19 @@ learned the expensive way. Read it before changing the compiler or the engine.
   kind that could declare it. `lang/index.ts` is where `parseRule`'s default vocabulary is
   bound, and the loader imports `lang/parse` directly — the one module that must not ask for
   the words it produces.
+- **The specified-cost baseline is a column a person writes** (`cards.specified_cost`, issue #255,
+  owner's decision of 13 Sep 2026): the deckplanet feed carries no cost orbs at all, so the coloured
+  half of an X-cost card's price is entered by hand in the language's orb notation (`{u}{u}` = two
+  blue) from the rules record on the workbench, or seeded by a migration on a ruling (0034 enters
+  BT19-039 as `{u}{u}`). `cardDefFrom` reads it onto `CardDef.specifiedCost` through
+  `parseSpecifiedCost` (`src/lib/arena/specified-cost.ts`), and nothing else in the engine changed.
+  **The hazard:** `sync:catalog` upserts every card column, so the upsert `coalesce`s this one like
+  `image_url` — remove that line and the next sync erases every entry. An entry has no feed to be
+  checked against, so `staleSpecifiedCosts` gives it the check it can have at sync time (the card
+  still prints an X cost and a specified-cost clause). Unknown stays unknown, said rather than
+  filled: `specifiedCostUnknown` drives the record's *Incomplete — specified cost unknown* box, the
+  probe's assumption, and `npm run arena:specified`'s per-card source (entered / ruling on file /
+  still unknown). Only an X-cost card takes an entry; a fixed cost's orbs are filled by convention.
 - **The record's WHEN is the engine's WHEN** (`skillAnswersTo` in `engine/triggers.ts`): an
   [Auto] skill's moment comes off `card_rules.trigger` (carried on `Script.trigger` by
   `rulesFor`), and only a skill with *no* record falls back to reading the printed text. The
