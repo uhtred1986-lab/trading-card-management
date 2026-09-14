@@ -153,3 +153,28 @@ DEFINE ATTRIBUTE energyMarkers                                            -- §1
   value: number
   printed: false
   text: "the energy markers in a player's Energy Area: each pays one energy of the Leader's colour, and neither is a card nor is energy (1-14-1, 1-14-2, 1-14-3)"
+
+-- These two are facts about a player rather than about the board, which is
+-- the gap #145's charge and #157's growUnison were left standing on: 7-2-11's
+-- one charge and 13-3's one Unison growth are each a player having "already
+-- had" one this turn, and until now the language had no word for that,
+-- letting the charge's `REFUSE` only borrow a proxy word instead
+-- (`asking(prompt: charge)`, which said which question was on the table
+-- rather than the fact itself). `reset: turnStart` is the ceiling, read by
+-- `vm/flow.ts`'s `endTurn` off the declaration rather than picked out of it
+-- by name — the same promise `LIMIT n` on a step makes for a repeat (issue
+-- #269).
+
+DEFINE ATTRIBUTE charged                                                  -- §7-2-11
+  of: player
+  value: boolean
+  printed: false
+  reset: turnStart
+  text: "whether this player has had their one charge this turn (7-2-11); true from the moment the Charge Phase's own question is answered, charging or not, since that is the only opportunity this engine offers one at"
+
+DEFINE ATTRIBUTE grewUnison                                               -- §13-3
+  of: player
+  value: boolean
+  printed: false
+  reset: turnStart
+  text: "whether this player has already grown their Unison Card this turn (13-3); set the moment growUnison resolves"

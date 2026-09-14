@@ -1,8 +1,10 @@
 ---
 title: Arena: implement Android /api/v1 deck endpoints
 milestone: Arena M4 — Android client enablement
-labels: backlog, ready-for-agent, enhancement, area:arena-contract, area:arena-android, phase:android-client, model:sonnet-5
+labels: done, enhancement, area:arena-contract, area:arena-android, phase:android-client, model:sonnet-5
 stage: ui
+status: closed
+closed_at: 2026-09-13
 ---
 **Source:** `docs/arena-client-contract.md` §5 (the endpoint table; "the deck endpoints are not built yet"); `docs/arena-android-spec.md` §7 (read-only decks); `src/app/api/v1/games/route.ts` as the pattern; `src/lib/arena/api.ts`.
 

@@ -191,6 +191,14 @@ export interface ScriptHost {
   changeMarkers(id: string, delta: number): number;
   /** 6-2-1-11: change a player's energy markers, never below zero, and log the change asked for. */
   changeEnergyMarkers(p: PlayerId, delta: number): void;
+  /**
+   * Set a `DEFINE ATTRIBUTE of: player` fact (issue #269). The legacy engine
+   * has no generic store for one — a `PlayerState` field is the fact where one
+   * already exists (`grewUnisonThisTurn`); a name with none is inert, since no
+   * card program uses this op today and the rules-engine action that declares
+   * it is the only caller.
+   */
+  setPlayerAttr(p: PlayerId, name: string, value: boolean): void;
   /** 21-3: record damage taken, for the cards that count it. */
   addDamageTaken(p: PlayerId, n: number): void;
   /** 5-11: shuffle these players' decks with the game's own RNG, so a replay reproduces the order. */
@@ -351,6 +359,13 @@ export function legacyHost(ctx: GameContext, s: GameState, ev: GameEvent[]): Scr
     changeEnergyMarkers: (p, delta) => {
       s.players[p].energyMarkers = Math.max(0, s.players[p].energyMarkers + delta);
       ev.push({ type: "energyMarker", player: p, delta });
+    },
+    setPlayerAttr: (p, name, value) => {
+      if (name === "grewUnison") s.players[p].grewUnisonThisTurn = value;
+      // "charged" and any other declared player attribute have no legacy
+      // field: this engine's own charge logic never calls this op (7-2-11 is
+      // read off `s.prompt.kind`, not a stored fact), so there is nothing to
+      // set here yet.
     },
     addDamageTaken: (p, n) => {
       s.players[p].damageTaken += n;

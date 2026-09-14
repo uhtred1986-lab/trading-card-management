@@ -68,7 +68,7 @@ export interface Ctx {
    * where it goes instead, so it becomes a replacement rather than a move
    * (9-10).
    */
-  replacing: { by?: "skill" | "ko" | "skillOrKo"; bySide?: "opponent"; subject?: string } | null;
+  replacing: { by?: "skill" | "ko" | "skillOrKo"; bySide?: "opponent"; subject?: string; event?: "life"; to?: "hand" | "drop" } | null;
   /**
    * The steps of a replacement's body read so far, when the sentence runs past
    * one clause and the word "instead" has not arrived yet (9-10, #107). Held

@@ -1,8 +1,10 @@
 ---
 title: Arena: actions.rules — charge, endMain, pass and concede on the rules engine
 milestone: Arena M8 — Rules engine actions and costs (Stage 5)
-labels: backlog, ready-for-agent, enhancement, area:arena-vm, area:arena-rulesets, phase:rules-stage5, model:opus-5
+labels: done, enhancement, area:arena-vm, area:arena-rulesets, phase:rules-stage5, model:opus-5
 stage: 5
+status: closed
+closed_at: 2026-09-13
 ---
 **Source:** plan Stage 5; the `charge`, `endMain`, `pass`, `concede` handlers in `src/lib/arena/engine/engine.ts` (`apply()`) and their `whyNot*` twins; rule manual 8-2 (Charge Phase), 8-3 (Main Phase end).
 

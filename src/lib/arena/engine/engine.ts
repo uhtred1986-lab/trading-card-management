@@ -17,7 +17,7 @@ import { baseType, canCombo, isZ, keywordOf, skillsOf, specifiedCostOf } from ".
 import { costIsOnlyOrbs, costText, parseConditionClause } from "./compile";
 import { matches, parseCondition, parseFilter } from "./filters";
 import { legacyHost } from "./script-host";
-import { savedXKey, stepScript, validateProgram, type CardScripts, type Cond, type Op, type PayWith, type ScriptFrame, type XCost } from "./script";
+import { replacementPrompt, routeOf, savedXKey, stepScript, validateProgram, type CardScripts, type Cond, type Op, type PayWith, type ScriptFrame, type XCost } from "./script";
 import { koCard, pendTriggers } from "./triggers";
 import { nextRandom, shuffle } from "./rng";
 import { rejectedActions as gatherRejectedActions, type RejectionDeps } from "./rejections";
@@ -39,6 +39,7 @@ import {
   expireDelayed,
   expireSkips,
   takeSkip,
+  stepSkippedByPermanent,
   face,
   forbids,
   fireDelayed,
@@ -49,6 +50,7 @@ import {
   inPlay,
   keyword,
   LIFE_AT_START,
+  lifeReplacementChoicesFor,
   move,
   note,
   OPENING_HAND,
@@ -94,6 +96,7 @@ import type {
   PlayerState,
   Prompt,
   RejectedAction,
+  ReplacementResult,
   Requirement,
   Skill,
   Trigger,
@@ -288,9 +291,17 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
     case "turn.start": {
       // 7-2: Charge Phase.
       s.phase = "charge";
+      // #278: BT31-097's "skip your turn" refuses this whole turn — every
+      // phase of it, checked once here rather than at each phase's own start,
+      // because a turn in progress has no other single point in the flow to
+      // be refused at. The turn still counts for turn-number bookkeeping: it
+      // is `turn.next` that advances `s.turn`, once per turn transition,
+      // whether or not the turn it is leaving did anything (owner's ruling,
+      // 14 Sep 2026, recorded with `arena:rule`).
+      const skipTurn = takeSkip(s, s.turnPlayer, "turn");
       // 20-13: a skipped phase is announced and then not performed — the
       // client is told it came round so the board can say what did not happen.
-      const skipCharge = takeSkip(s, s.turnPlayer, "charge");
+      const skipCharge = skipTurn || takeSkip(s, s.turnPlayer, "charge");
       ev.push({ type: "phase", phase: "charge", player: s.turnPlayer, turn: s.turn, ...(skipCharge ? { skipped: true as const } : {}) });
       // "Until the end of your opponent's turn" and "until the start of your
       // opponent's next turn" are both said from the controller's chair, so
@@ -302,6 +313,13 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
       // and 20-13-4 (no checkpoints) between them leave nothing of the Active
       // Step, the Draw Step or the Charge Step to run.
       endTurnRelativeEffects(ctx, s, ev);
+      if (skipTurn) {
+        // Main and End never begin either, so no moment answers to either one.
+        ev.push({ type: "phase", phase: "main", player: s.turnPlayer, turn: s.turn, skipped: true });
+        ev.push({ type: "phase", phase: "end", player: s.turnPlayer, turn: s.turn, skipped: true });
+        s.flow.unshift({ op: "turn.cleanup" }, { op: "turn.next" });
+        return "done";
+      }
       if (skipCharge) {
         s.flow.unshift({ op: "turn.mainStart" });
         return "done";
@@ -457,7 +475,7 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
     case "battle.defense":
       return battleDefense(ctx, s, ev);
     case "battle.damage":
-      return battleDamage(ctx, s, ev);
+      return battleDamage(ctx, s, ev, step.resume);
     case "battle.end":
       return battleEnd(ctx, s, ev);
     case "battle.zEnergy":
@@ -1355,7 +1373,10 @@ function battleOffense(ctx: EngineContext, s: GameState, ev: GameEvent[]): "done
   // performed, so no [Auto] answers to its start and no combo is offered. The
   // precedent for a battle step simply not happening is `battleDefense`'s
   // Unison guard (8-2-4-3-1-1) just below.
-  if (takeSkip(s, s.turnPlayer, "offense")) {
+  // #278: a one-shot entry (`takeSkip`) or a [Permanent] holding while its own
+  // condition does (`stepSkippedByPermanent`, e.g. BT18-019's "while this
+  // card is in a battle") are the same 20-13 rule read two ways.
+  if (takeSkip(s, s.turnPlayer, "offense") || stepSkippedByPermanent(ctx, s, s.turnPlayer, "offense")) {
     ev.push({ type: "battleStep", step: "offense", skipped: true });
     s.flow.unshift({ op: "battle.defense" });
     return "done";
@@ -1390,7 +1411,8 @@ function battleDefense(ctx: EngineContext, s: GameState, ev: GameEvent[]): "done
   b.step = "defense";
   // 20-13: "your opponent skips their Defense Step" — the guard's side gets no
   // moment and no combo, and the battle goes straight to damage.
-  if (takeSkip(s, other(s.turnPlayer), "defense")) {
+  // #278: see `battleOffense` just above.
+  if (takeSkip(s, other(s.turnPlayer), "defense") || stepSkippedByPermanent(ctx, s, other(s.turnPlayer), "defense")) {
     ev.push({ type: "battleStep", step: "defense", skipped: true });
     s.flow.unshift({ op: "battle.damage" });
     return "done";
@@ -1401,8 +1423,9 @@ function battleDefense(ctx: EngineContext, s: GameState, ev: GameEvent[]): "done
   return "done";
 }
 
-function battleDamage(ctx: EngineContext, s: GameState, ev: GameEvent[]): "done" | "wait" {
+function battleDamage(ctx: EngineContext, s: GameState, ev: GameEvent[], resume?: { taken: string[]; remaining: number; critical: boolean; awaiting?: true }): "done" | "wait" {
   const b = s.battle!;
+  if (resume) return damageLife(ctx, s, ev, other(s.turnPlayer), resume);
   if (b.negated || !battleIntact(ctx, s)) {
     abortBattle(s);
     return "done";
@@ -1425,25 +1448,7 @@ function battleDamage(ctx: EngineContext, s: GameState, ev: GameEvent[]): "done"
       const strike = keyword(ctx, s, b.attacker, "Strike");
       if (strike) amount = Math.max(amount, strike.x);
       const critical = has(ctx, s, b.attacker, "Critical");
-      const taken: string[] = [];
-      for (let i = 0; i < amount; i++) {
-        const life = s.players[defP].life[0];
-        if (!life) break;
-        move(ctx, s, ev, life, critical ? "drop" : "hand", defP, { reason: "damage", reveal: critical });
-        taken.push(life);
-      }
-      s.players[defP].damageTaken += taken.length;
-      ev.push({ type: "damage", player: defP, amount: taken.length, critical, cards: taken });
-      if (taken.length) {
-        pendTriggers(ctx, s, "dealtDamage", b.attacker);
-        // 3-9: "when your life is placed in your Drop" — the [Critical] case —
-        // and "when your life moves to another area", which is both.
-        for (const id of cardsInPlay(s, defP)) pendTriggers(ctx, s, "lifeLeft", id, taken[0]);
-        if (has(ctx, s, b.attacker, "Victory Strike")) {
-          gameOver(s, ev, atkP, `[Victory Strike] — ${face(ctx, s, b.attacker).name} dealt damage`);
-          return "done";
-        }
-      }
+      return damageLife(ctx, s, ev, defP, { taken: [], remaining: amount, critical });
     } else if (gt === "UNISON") {
       // 13-5-2: markers come off instead of KO.
       const strike = keyword(ctx, s, b.attacker, "Strike");
@@ -1454,6 +1459,60 @@ function battleDamage(ctx: EngineContext, s: GameState, ev: GameEvent[]): "done"
     } else {
       // 8-4-6-2: the guard is KO'd unless [Indestructible] (22-12).
       if (!has(ctx, s, b.guard, "Indestructible")) koCard(ctx, s, ev, b.guard, b.attacker);
+    }
+  }
+  s.flow.unshift({ op: "checkpoint" }, { op: "battle.end" });
+  return "done";
+}
+
+/**
+ * 8-4-6-1's life cards, one at a time: each can carry its own `event: "life"`
+ * replacement (#272, BT10-031/SD18-01's "you may reveal it and add it to
+ * your hand instead"), which is 9-10-3's own optional question and the one
+ * reason this loop can suspend. `resume.awaiting` is the one re-entry that
+ * reads the just-given answer off `s.lastMode` rather than asking about the
+ * next card — the same convention `script.ts`'s `moveLoop` reads its own
+ * answer with, over a plain array of candidates instead of a `ScriptFrame`.
+ */
+function damageLife(ctx: EngineContext, s: GameState, ev: GameEvent[], defP: PlayerId, resume: { taken: string[]; remaining: number; critical: boolean; awaiting?: true }): "done" | "wait" {
+  const { taken } = resume;
+  let { remaining, awaiting } = resume;
+  const dest: Area = resume.critical ? "drop" : "hand";
+  while (remaining > 0) {
+    const life = s.players[defP].life[0];
+    if (!life) break;
+    const choices = lifeReplacementChoicesFor(ctx, s, life, dest);
+    const allowNone = choices.length > 0 && choices.every((c) => c.optional);
+    let replaced: ReplacementResult | null | undefined;
+    if (awaiting) {
+      const index = s.lastMode;
+      s.lastMode = null;
+      awaiting = undefined;
+      replaced = index == null || index < 0 || index >= choices.length ? null : routeOf(choices[index]);
+    } else if (choices.length > 1 || allowNone) {
+      s.flow.unshift({ op: "battle.damage", resume: { taken, remaining, critical: resume.critical, awaiting: true } });
+      const prompt = replacementPrompt(face(ctx, s, life).name, dest, choices, allowNone);
+      return wait(s, { kind: "replaceMove", player: defP, card: life, reason: prompt.reason, options: prompt.options });
+    } else {
+      replaced = choices.length ? routeOf(choices[0]) : null;
+    }
+    // #272: never deferred — neither card's substitute (reveal, then move to
+    // hand) asks anything of its own, so `move()` runs it inline the moment
+    // it is decided, the same as any other question-free substitute.
+    move(ctx, s, ev, life, dest, defP, { reason: "damage", reveal: resume.critical, ...(replaced === undefined ? {} : { replaced }) });
+    taken.push(life);
+    remaining--;
+  }
+  s.players[defP].damageTaken += taken.length;
+  ev.push({ type: "damage", player: defP, amount: taken.length, critical: resume.critical, cards: taken });
+  if (taken.length) {
+    pendTriggers(ctx, s, "dealtDamage", s.battle!.attacker);
+    // 3-9: "when your life is placed in your Drop" — the [Critical] case —
+    // and "when your life moves to another area", which is both.
+    for (const id of cardsInPlay(s, defP)) pendTriggers(ctx, s, "lifeLeft", id, taken[0]);
+    if (has(ctx, s, s.battle!.attacker, "Victory Strike")) {
+      gameOver(s, ev, other(defP), `[Victory Strike] — ${face(ctx, s, s.battle!.attacker).name} dealt damage`);
+      return "done";
     }
   }
   s.flow.unshift({ op: "checkpoint" }, { op: "battle.end" });
@@ -2436,8 +2495,15 @@ function activatable(ctx: EngineContext, s: GameState, p: PlayerId, card: string
       if (!planPayment(ctx, s, p, orbTotal, orbSpecified, undefined, orbEither, spoken ? [spoken] : undefined, pricePayerCards)) return null;
       return `Activate ${name} by resting a Red/Blue energy ([Invoker])`;
     }
+    // 4-2 / 12-2-2: the card's own energy cost and the skill's orbs are **one**
+    // price, colours included (1-2-3). This used to add the two totals and
+    // then plan against the play cost's colours alone, which offered
+    // BT17-080's {g}{y}{2} to an all-green board and BT16-017's {r}{u}{g}{y}{1}
+    // to a mono-red one — skills whose orbs could not be paid (#271). The
+    // either-orbs and 20-19's payers are the skill's, exactly as `canPayOrbs`
+    // reads them, so the merged price is the price `activate` charges.
     const c = playCost(ctx, s, card);
-    if (!planPayment(ctx, s, p, c.total + orbTotal, c.specified)) return null;
+    if (!planPayment(ctx, s, p, c.total + orbTotal, mergeSpecified(c.specified, orbSpecified), undefined, orbEither, undefined, pricePayerCards)) return null;
     return `Activate ${name} (${c.total})`;
   }
   if (alt) return null;
@@ -2656,14 +2722,19 @@ function whyNotActivate(ctx: EngineContext, s: GameState, p: PlayerId, card: str
   if (!costIsOrbsOnly && !condCost && !actionCost) unread();
   if (condCost && !condHolds(ctx, s, { ops: [], ip: 0, vars: {}, card, master: p }, condCost)) why.push({ kind: "condition", text: sk.cost });
   if (actionCost && !canPayCostProgram(ctx, s, p, card, actionCost)) why.push({ kind: "other", detail: `cannot pay: ${sk.cost}` });
-  why.push(...orbs());
-  if (!canResolve(ctx, s, card, sk)) unread();
-  if (baseType(d) === "EXTRA" && inHand) {
+  // 4-2 / 12-2-2: an Extra used from the hand pays its own energy cost and the
+  // skill's orbs as one price, colours included — the same merged price
+  // `activatable` plans, asked once, in the place the price is asked for every
+  // other line. It used to ask about the orbs alone here and then about the
+  // total against the play cost's colours further down, so a board with no
+  // energy at all was told "1 short" of a price that was 2 (#271).
+  const extraInHand = baseType(d) === "EXTRA" && inHand;
+  if (extraInHand) {
     const c = playCost(ctx, s, card);
-    why.push(...whyNotPay(ctx, s, p, c.total + orbTotal, c.specified));
-    return why;
-  }
-  if (inHand) why.push({ kind: "zone", card, area: "battle" }); // 9-1-3-1
+    why.push(...whyNotPay(ctx, s, p, c.total + orbTotal, mergeSpecified(c.specified, orbSpecified), orbEither, undefined, pricePayersFor(ctx, s, p, card, sk)));
+  } else why.push(...orbs());
+  if (!canResolve(ctx, s, card, sk)) unread();
+  if (inHand && !extraInHand) why.push({ kind: "zone", card, area: "battle" }); // 9-1-3-1
   return why;
 }
 
@@ -3291,15 +3362,20 @@ function activate(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId
     if (alt) {
       const a = altCostFor(ctx, s, card, p, "play");
       if (!a || !payAltCost(ctx, s, ev, p, a)) throw new IllegalAction("can't pay that price");
+      payOrbs();
     } else {
+      // 1-2-3: the card's energy cost and the skill's orbs are one price, paid
+      // once — the price `activatable` planned. Paid as two payments the first
+      // could rest the very energy the second's colour needed, and refuse a
+      // price the menu had just offered (#271).
       const c = playCost(ctx, s, card);
-      const pm = planPayment(ctx, s, p, c.total, c.specified, explicitPay);
+      const { total, specified, either } = orbTotals(ctx, s, card, sk);
+      const pm = planPayment(ctx, s, p, c.total + total + (xPaid ?? 0), mergeSpecified(c.specified, specified), explicitPay, either, undefined, pricePayersFor(ctx, s, p, card, sk));
       if (!pm) throw new IllegalAction("can't pay");
       pay(s, ev, p, pm);
     }
     move(ctx, s, ev, card, "drop", p, { reason: "cost", reveal: true });
-  }
-  payOrbs();
+  } else payOrbs();
   s.resolving = { card, skill: sk.index, player: p };
   s.flow.unshift(
     { op: "counter", window: "skill", responder: other(p) },

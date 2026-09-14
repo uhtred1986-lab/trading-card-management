@@ -175,6 +175,9 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       state.sides[p].attrs.energyMarkers = Math.max(0, now + delta);
       log(ev, { type: "energyMarker", player: p, delta });
     },
+    setPlayerAttr: (p, name, value) => {
+      state.sides[p].attrs[name] = value;
+    },
     // 21-3: the count is for the end screen, and a player attribute is the
     // only place this engine keeps a number about a player. Nothing declares
     // one, so the figure is carried in the event and nowhere else.

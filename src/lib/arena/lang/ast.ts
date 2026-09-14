@@ -340,6 +340,16 @@ export interface DefAttribute extends Declaration<"ATTRIBUTE"> {
   printed?: boolean;
   derived?: Amount;
   layers?: string[];
+  /**
+   * When a `of: player` fact returns to its rest value on its own, rather
+   * than only ever being read and set by name (issue #269): `"turnStart"` is
+   * every declared player attribute with this the interpreter clears for
+   * both sides at the turn boundary (`vm/flow.ts`'s `endTurn`), so the
+   * ceiling is in the declaration and not a name picked out of `endTurn` by
+   * hand. Absent for a fact with no natural reset — `energyMarkers` carries
+   * across turns by the rules themselves (1-14).
+   */
+  reset?: "turnStart";
   text?: string;
 }
 
@@ -666,6 +676,7 @@ export const DEFINE_SCHEMA = {
       { name: "printed", type: "boolean" },
       { name: "derived", type: "amount" },
       { name: "layers", type: { list: "string" } },
+      { name: "reset", type: { enum: ["turnStart"] } },
       TEXT,
     ],
   },
