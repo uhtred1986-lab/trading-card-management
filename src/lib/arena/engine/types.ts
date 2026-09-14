@@ -23,8 +23,10 @@ export type CardType = "LEADER" | "BATTLE" | "EXTRA" | "UNISON" | "Z-LEADER" | "
 /**
  * A card as the engine needs it — the catalog row, shaped. `energyCost` is a
  * number, `"X"` or null (leaders); `specifiedCost` is the coloured orbs, which
- * the catalog does not carry, so `defaultSpecifiedCost()` fills it by
- * convention (proposal §9.1) unless a compiled script overrides it.
+ * the catalog feed does not carry: set from the hand-entered
+ * `cards.specified_cost` column when there is one (issue #255), otherwise
+ * absent, and `specifiedCostOf` fills a fixed cost by convention (proposal
+ * §9.1) and refuses to guess an X cost.
  */
 export interface CardDef {
   id: string;
@@ -41,7 +43,12 @@ export interface CardDef {
   traits: string[];
   /** Leader back side (awakened), or a Z-Leader's single face. */
   back?: { name: string; power: number | null; skill: string | null } | null;
-  /** Coloured orbs of the energy cost; one orb per colour by default. */
+  /**
+   * Coloured orbs of the energy cost, when known: the hand-entered
+   * `cards.specified_cost` (`{u}{u}` → `{ Blue: 2 }`) or a test's own claim.
+   * Absent means `specifiedCostOf` fills a fixed cost by convention and an
+   * X cost is `specifiedCostUnknown`.
+   */
   specifiedCost?: Partial<Record<Color, number>>;
   /**
    * Card names a skill gave this card "in all areas" (20-1) — "this card is

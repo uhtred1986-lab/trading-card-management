@@ -39,3 +39,19 @@ All 167 X-cost cards are Unisons or Z-Unisons. On the other 160 the refusal only
 - `npm run arena:probe -- --card BT19-039` reports the play as legal on a board with one blue energy — the acceptance item #96 could not meet.
 - The other six still report an unknown baseline, and `npm run arena:specified` says so per card.
 - `npm run arena:readings` diff empty — this is data, not a change to what the compiler reads.
+
+**Decision and delivery, 13–14 Sep 2026.** The owner chose the column: `cards.specified_cost`
+(migration 0034), in the language's orb notation (`{u}{u}` = two blue), entered from the rules
+record on the workbench — whose *specified cost* box reads **Incomplete — specified cost unknown**
+on every X-cost card without one, driven by `specifiedCostUnknown` and not by a second list — and
+`coalesce`d by the catalog upsert like `image_url`, which is the one line that keeps
+`sync:catalog` from erasing an entry. `cardDefFrom` reads it onto `CardDef.specifiedCost` through
+`parseSpecifiedCost` (`src/lib/arena/specified-cost.ts`); no engine change was needed. The check an
+entry can have is `staleSpecifiedCosts`, run at sync and by `arena:specified`: the card still prints
+an X cost and a specified-cost clause. BT19-039 is seeded as `{u}{u}` by the migration on the ruling
+of 9 Sep 2026; the other six stay unknown until their orbs are entered from the cards. `npm run
+arena:specified` reports the source per card (entered / ruling on file / still unknown) when
+`DATABASE_URL` is set, and the probe's `permanent:reduced` board plays such a card from hand on one
+energy per orb its relaxed requirement leaves — one blue for BT19-039 — saying whether the play is
+legal with the rule and whether it would be refused without it. Home documented in `CLAUDE.md`
+(Architecture) and `docs/arena-tooling.md` (`arena:specified`).

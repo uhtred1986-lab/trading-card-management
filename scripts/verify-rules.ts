@@ -18,6 +18,9 @@ import { collectorNumbers } from "../src/lib/marketplace/cardtrader";
 import { sanitiseDraft, type PoolCard } from "../src/lib/ai/deck-builder";
 import { assessMatch, cleanBox, nameSimilarity, normaliseNumber } from "../src/lib/ai/scan-match";
 import { parseViewMode, viewHref } from "../src/lib/view-mode";
+import { parseSpecifiedCost, printSpecifiedCost, specifiedCostWords, staleSpecifiedCosts } from "../src/lib/arena/specified-cost";
+import { cardDefFrom } from "../src/lib/arena/load";
+import { specifiedCostOf, specifiedCostUnknown } from "../src/lib/arena/engine/cards";
 
 // ── catalog shaping ────────────────────────────────────────────────────────
 assert.equal(baseNumber("BT18-020_SPR"), "BT18-020");
@@ -589,3 +592,52 @@ assert.equal(viewHref("/collection", { q: "goku", view: "list" }, "grid"), "/col
 assert.equal(viewHref("/cards", { q: undefined, set: "" }, "grid"), "/cards");
 
 console.log("verify-rules: all checks passed");
+
+// ── the hand-entered specified cost (issue #255) ──────────────────────────
+// The column speaks the language's orb notation and nothing else: a typo is
+// "not entered" rather than a wrong price, and unknown stays unknown.
+assert.deepEqual(parseSpecifiedCost("{u}{u}"), { Blue: 2 });
+assert.deepEqual(parseSpecifiedCost(" {r} {u} "), { Red: 1, Blue: 1 }, "whitespace between orbs is tolerated");
+assert.deepEqual(parseSpecifiedCost("{U}{K}"), { Blue: 1, Black: 1 }, "case is not a difference");
+assert.equal(parseSpecifiedCost(""), null);
+assert.equal(parseSpecifiedCost(null), null);
+assert.equal(parseSpecifiedCost("2 blue"), null, "words are not orbs");
+assert.equal(parseSpecifiedCost("{2}"), null, "a bare number is a total, which the cost circle already states");
+assert.equal(parseSpecifiedCost("{u}{u} x"), null, "anything beside the orbs refuses the whole entry");
+assert.equal(printSpecifiedCost({ Blue: 2 }), "{u}{u}");
+assert.equal(printSpecifiedCost({ Blue: 1, Red: 1 }), "{r}{u}", "printed in a fixed colour order, so two entries compare as strings");
+assert.equal(printSpecifiedCost(parseSpecifiedCost("{u} {r}")!), "{r}{u}");
+assert.equal(specifiedCostWords({ Blue: 2 }), "2 blue");
+assert.equal(specifiedCostWords({ Red: 1, Blue: 1 }), "1 red, 1 blue");
+assert.equal(specifiedCostWords({}), "no colour");
+
+// The bridge: a database row carries the column and the def carries the orbs;
+// a row shaped off the feed carries nothing and stays unknown — which is what
+// `specifiedCostOf` refuses to guess for an X cost and `specifiedCostUnknown`
+// reports.
+{
+  const row = (specifiedCost: string | null | undefined) => ({ id: "BT19-039", name: "Goten", cardType: "UNISON", colors: ["Blue"], energyCost: "X", zEnergyCost: null, power: null, comboCost: null, comboPower: null, skill: "[Permanent] reduce the specified cost of this card in your hand by {u}.", characters: [], traits: [], backName: null, backPower: null, backSkill: null, specifiedCost });
+  const entered = cardDefFrom(row("{u}{u}"));
+  assert.deepEqual(entered.specifiedCost, { Blue: 2 });
+  assert.deepEqual(specifiedCostOf(entered), { Blue: 2 }, "the engine reads the entry as the card's requirement");
+  assert.equal(specifiedCostUnknown(entered), false);
+  for (const d of [cardDefFrom(row(null)), cardDefFrom(row(undefined)), cardDefFrom(row("two blue"))]) {
+    assert.equal(d.specifiedCost, undefined, "nothing entered, or nothing readable, is not a baseline");
+    assert.equal(specifiedCostUnknown(d), true);
+    assert.deepEqual(specifiedCostOf(d), {}, "…and the engine demands no colour rather than guessing one");
+  }
+}
+
+// The self-check an entry can have: not against the feed, which says nothing,
+// but against the card it was entered for.
+{
+  const ok = { id: "BT19-039", energyCost: "X", skill: "[Permanent] … reduce the specified cost of this card in your hand by {u}.", specifiedCost: "{u}{u}" };
+  assert.deepEqual(staleSpecifiedCosts([ok, { ...ok, id: "BT19-040", specifiedCost: null }]), [], "a good entry and an unknown are both quiet");
+  const fixed = staleSpecifiedCosts([{ ...ok, id: "BT1-001", energyCost: "3" }]);
+  assert.equal(fixed.length, 1);
+  assert.match(fixed[0], /BT1-001: .*rather than X/);
+  const silent = staleSpecifiedCosts([{ ...ok, id: "BT2-002", skill: "[Auto] Draw 1 card." }]);
+  assert.match(silent[0], /BT2-002: .*no longer prints a specified-cost clause/);
+  const typo = staleSpecifiedCosts([{ ...ok, id: "BT3-003", specifiedCost: "2 blue" }]);
+  assert.match(typo[0], /BT3-003: .*not orb notation/);
+}
