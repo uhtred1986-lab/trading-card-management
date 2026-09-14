@@ -111,7 +111,7 @@ import {
   type Attrs,
   type VmState,
 } from "../../src/lib/arena/vm";
-import { DBS_FILES, expandMacros, loadRuleset, rulesetFor, type ActionDef, type GameDefinition } from "../../src/lib/arena/rulesets";
+import { expandMacros, loadRuleset, rulesetFor, type ActionDef, type GameDefinition } from "../../src/lib/arena/rulesets";
 import { FILTER_FIELD_NAMES, parseDefinitions } from "../../src/lib/arena/lang";
 import { emptyFilter, type CardFilter } from "../../src/lib/arena/engine/filters";
 import { describePayment as legacyDescribe, paymentOptions as legacyOptions, planPayment, playCost, whyNotPay } from "../../src/lib/arena/engine/state";
@@ -1035,19 +1035,17 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
   //
   // `negateSkills` written as itself and written as `negate(what: skills)` run
   // through one interpreter case on either host, so the events, the effect in
-  // force and the beats a board draws are the same four ways over. The macro
-  // half is a `DEFINE OP` declared here rather than in `ops.rules`, because a
-  // body cannot write `$until` until #273 lands — so the declaration fixes
-  // the span, and what it proves is that a lowered program is the same program.
+  // force and the beats a board draws are the same four ways over. `ops.rules`
+  // declares `negateSkills` over `negate` for real (#273's holes make `$until`
+  // writable), so `DBS` — the ruleset every other block in this file loads —
+  // is what proves a lowered program is the same program, not a second copy
+  // of the declaration built just for this block.
   {
     const target: Ref = { sel: { side: "opponent", area: "battle", count: 99 } };
     const spelled: Op[] = [{ op: "negateSkills", target, until: "turn" }];
     const primitive: Op[] = [{ op: "negate", target, what: "skills", until: "turn" }];
 
-    const declared = loadRuleset({ ...DBS_FILES, "ops.rules": `${DBS_FILES["ops.rules"]}\n\nDEFINE OP negateSkills\n  TAKES (target: ref)\n  DO {\n    negate(target: $target, what: skills, until: turn)\n  }\n` });
-    assert.ok(declared.ok, `the DBS ruleset with negateSkills declared did not load: ${declared.ok ? "" : JSON.stringify(declared.errors)}`);
-    if (!declared.ok) throw new Error("unreachable");
-    assert.deepEqual(expandMacros(spelled, declared.definition), primitive, "negateSkills declared over negate did not lower to the primitive");
+    assert.deepEqual(expandMacros(spelled, DBS), primitive, "negateSkills declared over negate did not lower to the primitive");
 
     /** The same program on the rules engine, through the shared interpreter over this engine's host. */
     const onRules = (ops: Op[]) => {
