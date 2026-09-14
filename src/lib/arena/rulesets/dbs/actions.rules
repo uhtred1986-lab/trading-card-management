@@ -312,7 +312,7 @@ DEFINE ACTION activate                                                    -- §9
   FOR 1 IN you.hand|leader|unison|battle
   BIND "card"
   skills: ["activate:main", "activate:main/battle"]
-  COST [marker, energy, text]
+  COST [marker, energy, payWith, text]
   DO {}
   again: true
   label: "Activate"

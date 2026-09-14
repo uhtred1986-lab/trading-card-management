@@ -252,6 +252,21 @@ export interface BoundAmounts {
   markers?: number;
   /** `consumes: life` — 21-3. */
   life?: number;
+  /**
+   * `consumes: cards` with no declared pool — 20-19's `payWith`: the cards this
+   * *line's own price* names as payers, already resolved against the board and
+   * carrying what each counts as (colours of its own, or the one orb named).
+   * This is the same shape `Price.payers` carries and `planCost`/`chargeCost`
+   * already read (§17's own test builds one by hand); what was missing is
+   * something to fill it in from a record rather than from nothing. An
+   * activation reads it off the record's own `payWith` (`vm/activate.ts`'s
+   * `boundFor`), scoped to the skill whose price carries it — never off a
+   * [Permanent]'s standing grant, which is `DEFERRED_STATICS`' `payWith` and a
+   * wider reading `permanents` does not make yet. Absent (not an empty array)
+   * is "nothing bound this price", which is what leaves the `unread` `NotYet`
+   * for a caller that names `payWith` and binds nothing.
+   */
+  payers?: Payer[];
   /** `consumes: unreadable` — the printed price, or `null` for a price this engine can charge after all. */
   unreadable?: string | null;
 }
@@ -289,11 +304,16 @@ export function priceFor(ctx: EngineContext, game: GameDefinition, state: VmStat
       case "cards": {
         if (!charge.from) {
           // 20-19's payers: cards the price was *handed*, rested where they
-          // stand. Nothing puts one in force on this engine yet (`payWith` is
-          // a [Permanent] static `DEFERRED_STATICS` still names), so a move
-          // asking for it outright is refused by name rather than charged as
-          // nothing.
-          throw new NotYet(`charge the price ${name}, whose cards are named by the skill asking for it and have nothing to bind them to`, "#149");
+          // stand. An activation binds them from the record's own `payWith`
+          // (`vm/activate.ts`'s `boundFor`, the #147 precedent); a caller that
+          // names this price and binds nothing is refused by name rather than
+          // charged as nothing — the [Permanent] standing-grant reading
+          // (`DEFERRED_STATICS`' wider `payWith`) is still such a caller.
+          if (!bound?.payers) {
+            throw new NotYet(`charge the price ${name}, whose cards are named by the skill asking for it and have nothing to bind them to`, "#149");
+          }
+          price.payers.push(...bound.payers);
+          break;
         }
         const read = card === null ? null : amountOn(ctx, game, state, charge, card);
         if (read && read.total === null) price.unpriced = charge.name;
@@ -921,8 +941,15 @@ function leaderColors(ctx: EngineContext, game: GameDefinition, state: VmState, 
   return leader ? cardColors(ctx, game, state, leader) : [];
 }
 
-/** A card's colours, by declared attribute (2-2). */
-function cardColors(ctx: EngineContext, game: GameDefinition, state: VmState, id: string): Color[] {
+/**
+ * A card's colours, by declared attribute (2-2).
+ *
+ * Exported so `vm/activate.ts`'s own `payWith` reading can settle a payer's
+ * colours the same way this module does everywhere else it names one — the
+ * "one energy of its own colours" half of 20-19 (`AS energy`) is this reading
+ * and no other.
+ */
+export function cardColors(ctx: EngineContext, game: GameDefinition, state: VmState, id: string): Color[] {
   const inst = state.cards[id];
   const def = inst && ctx.defs[inst.cardId];
   if (!def) return [];

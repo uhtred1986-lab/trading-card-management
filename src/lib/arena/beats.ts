@@ -21,6 +21,7 @@ import type { Area, EffectUntil } from "./engine";
 import { def } from "./engine/state";
 import { describeEffect, type EffectKind } from "./effects";
 import { revealedTo } from "./view";
+import type { EngineState } from "./engines";
 
 export type Beat =
   /** A named step of the game: a phase, or a step within a battle. */
@@ -315,7 +316,7 @@ export function appendBeats(prev: Beats | null, next: Beats): Beats {
  * so its beat is not masked. The queue is returned unchanged when nothing is
  * hidden, so a snapshot with nothing to hide is the same object it was.
  */
-export function maskBeats(state: GameState, beats: Beats | null, viewer: PlayerId): Beats | null {
+export function maskBeats(state: EngineState, beats: Beats | null, viewer: PlayerId): Beats | null {
   if (!beats) return null;
   const seen = revealedTo(state, viewer);
   const art: Beats["art"] = {};

@@ -54,9 +54,14 @@ reads today, `src/lib/arena/glossary.ts` (`/arena/rules/keywords`).
   program over `DEFINE PHASE`/`STEP`), `events.ts`/`triggers.ts` (a moment is an event pattern),
   `program.ts`/`effects.ts` (the shared interpreter, continuous/delayed effects), `actions.ts` +
   `dbs/actions.rules` (charge/pass/concede, the play family, `activate`), `costs.ts` (energy,
-  marker, life, rest, payWith prices as declarations, with cost-reduction layers). What is not
-  yet built throws `NotYet` naming the stage/issue that builds it — `playableEngine("rules")`
-  still gates whether a *new* game may start on it.
+  marker, life, rest, payWith prices as declarations, with cost-reduction layers — including
+  20-19's own `payWith` cost item since #149, bound the same way an activation's marker and life
+  already were). What is not yet built throws `NotYet` naming the stage/issue that builds it,
+  which since #149 (14 Sep 2026) ends the game rather than noting the gap and playing on —
+  `ENGINE_INFO.rules.available` is true and `playableEngine("rules")` allows a new **hot-seat**
+  game; Sparring, Tournament and a 1 v 1 are still refused (`games.ts`'s `assertEngineForMode`),
+  since Claude's side and a 1 v 1's hidden-hand masking both still read the legacy `GameState`
+  directly.
 - **Tests**: `scripts/verify-arena.ts` runs (in order) `text, setup, battles, compiler, keywords,
   readings, wordings, workflow, contract, deck-api, language, lang, rulesets, probe, vm` — a new
   suite is one `import "./verify/<name>"` line there. `scripts/verify/vm.ts` is the rules-engine

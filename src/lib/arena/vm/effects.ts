@@ -152,8 +152,8 @@ export const STATIC_OPS = ["power", "comboPower", "modifyAttr", "grant", "costRe
 
 /** Every other op a [Permanent] may carry, and the issue that reads it. A gap named is a gap that can be looked up. */
 export const DEFERRED_STATICS: Record<string, string> = {
-  altCost: "#149 — another way to pay is a price bound to nothing until an action can name one",
-  payWith: "#149",
+  altCost: "another way to pay, granted for a span rather than named on one price — #149 bound the narrower, per-price form (`activate`'s own `payWith` items); this wider [Permanent] grant is still unread",
+  payWith: "the [Permanent] form — \"you can use this card to pay energy costs\" — grants a payer to the whole board; #149 bound the narrower form a price names for itself",
   permit: "#150 — 8-1-1 the other way round: a permission widens what may be *attacked*, and the battle is Stage 6's",
   immune: "#154 — immunity narrows what a skill may choose, and the hook group that reads choosing is Stage 7's",
   negateKeyword: "#153 — keywords are Stage 7's",

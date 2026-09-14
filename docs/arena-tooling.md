@@ -281,9 +281,14 @@ knows how to set it up.
 `playthrough` plays a whole game through the database (integration, needs a DB)
 and, like `arena-fuzz.mts` and `arena-diff.mts`, takes `--engine legacy|rules`
 (default `legacy`) to choose which engine plays the game — through
-`startGame`, so `--engine rules` refuses with `EngineNotBuilt` before a deck
-is even read, same as the `/arena` form. `arena:vs` (Claude as the opponent)
-takes the same flag for the same reason.
+`startGame`, so since #149 `--engine rules` plays a **hot-seat** game rather
+than refusing outright; `arena:vs`'s default `sparring` tier still refuses
+(`assertEngineForMode`, `games.ts`) because Claude's side is not built for the
+rules engine yet — pass `hotseat` as its tier to run it there. Both scripts'
+own board-inspection helpers (`boardView`, the audits) still read the legacy
+`GameState` directly rather than through `engineFor`, narrowed with
+`legacyState` for exactly that reason — a rules-engine game past what
+`startGame` allows is a clear `EngineMismatch`, not a crash inside `boardView`.
 `coverage` reports how much card text the compiler reads; it accepts and
 validates `--engine` for consistency with the rest of the tooling, but it
 never creates a game, so the flag changes nothing about its output — the
