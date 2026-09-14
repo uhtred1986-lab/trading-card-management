@@ -1,9 +1,11 @@
 ---
 title: Arena backlog: the parallel-wave rule — group issues by the files they edit, one session per group, sequential inside it
 milestone: Arena M15 — Backlog tooling and CI
-labels: backlog, ready-for-agent, enhancement, area:arena-docs, model:sonnet-5
+labels: done, enhancement, area:arena-docs, model:sonnet-5
 stage: tooling
 issue: 284
+status: closed
+closed_at: 2026-09-14
 ---
 **Source:** the orchestrator's token review of 13 Sep 2026 (the wave of five sessions over #255, #269–#279 was grouped by hot file — `src/lib/arena/engine/script-schema.ts`, `src/lib/arena/rulesets/dbs/ops.rules`, `src/lib/arena/rulesets/dbs/actions.rules`, `CLAUDE.md`, `src/db/schema.ts` and the `drizzle/` migrations — with the issues that share one run sequentially in one session); `docs/arena-backlog.md`; `docs/arena-backlog/_README.md`; `scripts/lib/arena-backlog.ts` (the front-matter parser).
 

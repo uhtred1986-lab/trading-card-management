@@ -1,10 +1,12 @@
 ---
 title: Arena: an X answer on DEFINE ACTION — X-cost cards offered on the rules engine (1-2-2-2)
 milestone: Arena M8 — Rules engine actions and costs (Stage 5)
-labels: backlog, ready-for-agent, enhancement, area:arena-lang, area:arena-vm, area:arena-rulesets, phase:rules-stage5, model:opus-5
+labels: done, enhancement, area:arena-lang, area:arena-vm, area:arena-rulesets, phase:rules-stage5, model:opus-5
 stage: 5
 issue: 270
 touches: src/lib/arena/rulesets/dbs/actions.rules, src/lib/arena/vm/costs.ts, src/lib/arena/vm/actions.ts, scripts/verify/vm.ts
+status: closed
+closed_at: 2026-09-14
 ---
 **Source:** #146 (owner's decision of 13 Sep 2026: "add an X-answer shape"); `src/lib/arena/rulesets/dbs/actions.rules` (the X-cost note above the play family, and the same note on `activate`); `src/lib/arena/vm/costs.ts` (`planCost`, `priceFor`, the `unread` refusal for an absent `costOf`); `src/lib/arena/vm/actions.ts`; the legacy `playCost`/`planPayment` in `src/lib/arena/engine/state.ts` and the X menu rows in `legalActions` (one row per value of X, floored at the specified orbs); `scripts/verify/vm.ts` §18 (the X divergence assertion, "1-2-2-2: an X cost"); `docs/arena-workflow-spec.md` (`prompt.min/max/step`); `docs/arena-client-contract.md`.
 
