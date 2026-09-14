@@ -36,6 +36,14 @@ Auth, which makes preview URLs awkward to open on a phone — a Cloudflare tunne
 
 ## Working efficiently in this repo
 
+A `SessionStart` hook (`.claude/settings.json` → `scripts/session-start-check.mjs`) runs `npm ci`
+before a fresh Claude Code on the web session's first turn whenever `node_modules` is missing or
+older than `package-lock.json`, then warms the `tsx` cache — plain Node, so it works the same
+under the owner's Windows/PowerShell machine and in the sandbox. It is a no-op in under a second
+when `node_modules` is already current. A `Cannot find module` error from any `verify-*` or
+`arena:*` script means the hook did not run (or ran and failed) — run `npm ci` by hand rather than
+assuming the suite is broken.
+
 Before opening arena docs or engine source for a specific question, start with
 `docs/arena-tooling.md` (what each verify/probe/tally script proves) and
 `docs/arena-next-session-prompt.md` (current state, priority order) — both are short and meant
