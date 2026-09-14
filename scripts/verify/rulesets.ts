@@ -38,7 +38,7 @@
  */
 import assert from "node:assert/strict";
 import { effectLanguage } from "../../src/lib/arena/ai/opponent";
-import { AREA_NAMES, CARD_ATTRIBUTES, KEYWORD_NAMES, PHASES, PROMPT_KINDS, validateProgram, type Op } from "../../src/lib/arena/engine/script";
+import { AREA_NAMES, CARD_ATTRIBUTES, KEYWORD_NAMES, OP_CLASS, OP_SCHEMA, PHASES, PROMPT_KINDS, validateProgram, type Op } from "../../src/lib/arena/engine/script";
 import type { CounterWindow } from "../../src/lib/arena/engine/types";
 import { TRIGGERS, describeTrigger } from "../../src/lib/arena/gaps";
 import { deepEqual, parseDefinitions, parseRule, printDefinitions, validateRule } from "../../src/lib/arena/lang";
@@ -262,7 +262,7 @@ assert.equal(unknownHook.clause, "KEYWORD");
  */
 {
   /** The zones a macro body names: the loader resolves every area a program mentions, whichever declaration it sits in. */
-  const ZONES = ["battle", "drop", "hand"].map((z) => lines(`DEFINE ZONE ${z}`, "  owner: player", "  visibility: all")).join("\n\n");
+  const ZONES = ["battle", "drop", "hand", "deck", "life"].map((z) => lines(`DEFINE ZONE ${z}`, "  owner: player", "  visibility: all")).join("\n\n");
 
   /** A definition holding just these macros, which is all the expander reads. */
   const withMacros = (...decls: string[]) => {
@@ -340,6 +340,89 @@ assert.equal(unknownHook.clause, "KEYWORD");
     assert.deepEqual(opsIn(expandMacros([{ op: "comboFrom", target: { var: "t" } } as unknown as Op], def)), ["moveTo", "moveTo"], "a macro calling a macro was not lowered all the way");
   }
 
+  // ── holes: `$name` in every field position (#273) ──────────────────────
+  //
+  // A body writes the parameter where a duration, a side, an area, a closed
+  // list, a list of strings, a whole program, a selector or a condition goes,
+  // and in a selector's own count, `TOP n`, side and area, and the call fills
+  // each. Every type `PARAM_TYPES` names is exercised here at least once.
+  {
+    const def = withMacros(
+      lines("DEFINE OP power", "  TAKES (target: ref, amount: amount, until: duration)", "  DO {", "    modifyAttr(target: $target, attr: power, amount: $amount, until: $until)", "  }"),
+      lines("DEFINE OP draw", "  TAKES (n: number, side: side)", "  DO {", "    moveTo(target: TOP $n IN $side.deck, to: hand)", "  }"),
+      lines("DEFINE OP may", "  TAKES (ops: ops, reason: string)", "  DO {", '    chooseMode(modes: ["Do it" $ops, "Don\'t" {}], reason: $reason)', "  }"),
+      lines("DEFINE OP gains", "  TAKES (target: ref, what: word, values: strings, until: duration)", "  DO {", "    modifyAttr(target: $target, attr: $what, values: $values, until: $until)", "  }"),
+      lines("DEFINE OP lifeDownTo", "  TAKES (side: side)", "  DO {", "    moveTo(target: 1 IN $side.life, to: hand)", "  }"),
+      lines("DEFINE OP reveal", "  TAKES (sel: selector, as: string)", "  DO {", "    choose(sel: $sel, as: $as)", "  }"),
+      lines("DEFINE OP if", "  TAKES (cond: cond, then: ops, else: ops)", "  DO {", '    chooseMode(modes: ["Do it" $then, "Don\'t" $else], reason: "x")', "    forbid(what: attack, until: turn, unless: $cond)", "  }"),
+      lines("DEFINE OP mill", "  TAKES (n: number, side: side, as: string)", "  DO {", '    choose(sel: TOP $n IN $side.deck, as: "milled", reason: $as)', "  }"),
+      lines("DEFINE OP switchMode", "  TAKES (target: ref, mode: word)", "  DO {", "    moveTo(target: $target, to: battle, mode: $mode)", "  }"),
+    );
+    // A duration, in the field the header said could not be written.
+    assert.deepEqual(expandMacros([{ op: "power", target: { var: "t" }, amount: 5000, until: "battle" } as unknown as Op], def), [{ op: "modifyAttr", target: { var: "t" }, attr: "power", amount: 5000, until: "battle" }]);
+    // A selector's `TOP n` and side.
+    assert.deepEqual(expandMacros([{ op: "draw", n: 2, side: "opponent" } as unknown as Op], def), [{ op: "moveTo", target: { sel: { take: 2, side: "opponent", area: "deck" } }, to: "hand" }]);
+    // A whole program and a string, with a macro *inside* the argument lowered too.
+    assert.deepEqual(expandMacros([{ op: "may", ops: [{ op: "power", target: { var: "t" }, amount: 1, until: "turn" }], reason: "r" } as unknown as Op], def), [
+      { op: "chooseMode", modes: [{ label: "Do it", ops: [{ op: "modifyAttr", target: { var: "t" }, attr: "power", amount: 1, until: "turn" }] }, { label: "Don't", ops: [] }], reason: "r" },
+    ]);
+    // A macro handed its own name as an argument is two calls, not a cycle.
+    assert.deepEqual(opsIn(expandMacros([{ op: "may", ops: [{ op: "may", ops: [{ op: "draw", n: 1 }], reason: "b" }], reason: "a" } as unknown as Op], def)), ["chooseMode", "chooseMode", "moveTo"]);
+    // A closed list (`word`) and a list of strings.
+    assert.deepEqual(expandMacros([{ op: "gains", target: { var: "t" }, what: "traits", values: ["Saiyan"], until: "game" } as unknown as Op], def), [{ op: "modifyAttr", target: { var: "t" }, attr: "traits", values: ["Saiyan"], until: "game" }]);
+    // A selector's count from a number, and a whole selector.
+    assert.deepEqual(expandMacros([{ op: "lifeDownTo", side: "you", n: 3 } as unknown as Op], def), [{ op: "moveTo", target: { sel: { count: 1, side: "you", area: "life" } }, to: "hand" }]);
+    assert.deepEqual(expandMacros([{ op: "reveal", sel: { side: "you", area: "hand", count: 1 }, as: "r" } as unknown as Op], def), [{ op: "choose", sel: { side: "you", area: "hand", count: 1 }, as: "r" }]);
+    // A condition and two programs, one of them a mode's whole body.
+    assert.deepEqual(expandMacros([{ op: "if", cond: { kind: "isTurnPlayer" }, then: [{ op: "draw", n: 1 }], else: [] } as unknown as Op], def), [
+      { op: "chooseMode", modes: [{ label: "Do it", ops: [{ op: "moveTo", target: { sel: { take: 1, side: "you", area: "deck" } }, to: "hand" }] }, { label: "Don't", ops: [] }], reason: "x" },
+      { op: "forbid", what: "attack", until: "turn", unless: { kind: "isTurnPlayer" } },
+    ]);
+    // A hole for an optional field the call left out leaves the field out
+    // (`as` on `mill`, `mode` on `switchMode`); the interpreter then assumes
+    // for the expansion what it would have assumed for the call.
+    assert.deepEqual(expandMacros([{ op: "mill", n: 1 } as unknown as Op], def), [{ op: "choose", sel: { take: 1, side: "you", area: "deck" }, as: "milled" }]);
+    assert.deepEqual(expandMacros([{ op: "switchMode", target: { var: "t" }, mode: "rest" } as unknown as Op], def), [{ op: "moveTo", target: { var: "t" }, to: "battle", mode: "rest" }]);
+    // …but a hole for a *required* field is a program with a hole in it.
+    const noSide = withMacros(lines("DEFINE OP addLife", "  TAKES (n: amount, as: string)", "  DO {", "    look(n: $n, as: $as)", "  }"));
+    assert.throws(() => expandMacros([{ op: "addLife", n: 1 } as unknown as Op], noSide), /reads \$as for as, which the call did not give/);
+    // An argument that is not what the parameter says it takes is refused by
+    // name — a duration where a side was declared, an expression where a number was.
+    assert.throws(() => expandMacros([{ op: "draw", n: 1, side: "turn" } as unknown as Op], def), /draw's side is "turn", and this macro takes side as side/);
+    assert.throws(() => expandMacros([{ op: "draw", n: { count: { side: "you", area: "hand" } } } as unknown as Op], def), /draw's n is .*and this macro takes n as number/);
+    // A `word` is checked against the list of the field it lands in.
+    assert.throws(() => expandMacros([{ op: "switchMode", target: { var: "t" }, mode: "sideways" } as unknown as Op], def), /\$mode is "sideways", and mode takes one of \[active, rest\]/);
+    assert.throws(() => expandMacros([{ op: "gains", target: { var: "t" }, what: "sideways", values: ["x"], until: "turn" } as unknown as Op], def), /\$what is "sideways", and attr takes one of/);
+    assert.throws(() => expandMacros([{ op: "gains", target: { var: "t" }, what: "traits", values: "Saiyan", until: "turn" } as unknown as Op], def), /gains's values is "Saiyan", and this macro takes values as strings/);
+    // The lowering is a program.
+    assert.ok(validateProgram(expandMacros([{ op: "power", target: { var: "t" }, amount: { count: { side: "you", area: "battle" }, times: 1000 }, until: "turn" } as unknown as Op], def)));
+  }
+
+  // The loader refuses a hole the macro does not take, and one whose declared
+  // type is not what the slot holds — before the expander could ever fill it.
+  {
+    const refused = (decl: string): string => {
+      const loaded = loadRuleset({ "ops.rules": decl, "zones.rules": ZONES });
+      assert.ok(!loaded.ok, `the loader accepted:\n${decl}`);
+      if (loaded.ok) throw new Error("unreachable");
+      assert.equal(loaded.errors[0].file, "ops.rules");
+      return loaded.errors[0].message;
+    };
+    assert.match(refused(lines("DEFINE OP power", "  TAKES (target: ref)", "  DO {", "    modifyAttr(target: $target, attr: power, amount: 1, until: $until)", "  }")), /writes \$until in modifyAttr.until, which is not a parameter it TAKES/);
+    assert.match(refused(lines("DEFINE OP power", "  TAKES (target: ref, until: side)", "  DO {", "    modifyAttr(target: $target, attr: power, amount: 1, until: $until)", "  }")), /\$until in modifyAttr.until, which holds a duration, but TAKES it as side/);
+    assert.match(refused(lines("DEFINE OP draw", "  TAKES (n: amount)", "  DO {", "    moveTo(target: TOP $n IN you.deck, to: hand)", "  }")), /\$n in moveTo.target.sel.take, which holds a number, but TAKES it as amount/);
+    assert.match(refused(lines("DEFINE OP may", "  TAKES (ops: cond)", "  DO {", "    if(cond: isTurnPlayer(), then: $ops)", "  }")), /\$ops in if.then, which holds an ops, but TAKES it as cond/);
+    assert.match(refused(lines("DEFINE OP switchMode", "  TAKES (mode: string)", "  DO {", "    moveTo(target: [self], to: battle, mode: $mode)", "  }")), /holds one of \[active, rest\], but TAKES it as string/);
+    // A `{ var }` in an amount or ref position is checked only when the macro
+    // takes the name: `$picked` below is the body's own binding.
+    assert.match(refused(lines("DEFINE OP power", "  TAKES (amount: ref)", "  DO {", "    modifyAttr(target: [self], attr: power, amount: $amount, until: turn)", "  }")), /\$amount in modifyAttr.amount, which holds an amount, but TAKES it as ref/);
+    const binding = loadRuleset({ "ops.rules": lines("DEFINE OP mill", "  TAKES (n: amount)", "  DO {", '    choose(sel: 1 IN you.battle, as: "picked")', "    moveTo(target: $picked, to: hand)", "  }"), "zones.rules": ZONES });
+    assert.ok(binding.ok, "a body's own binding was refused as an undeclared parameter");
+    // A hole is a `DEFINE OP` body's alone: anywhere else, `$name` is not a value.
+    const elsewhere = parseDefinitions(lines("DEFINE STEP s", '  phase: "main"', "  DO {", "    power(target: [self], amount: 1, until: $until)", "  }"));
+    assert.ok(!elsewhere.ok, "a hole was read outside a DEFINE OP body");
+  }
+
   // The three programs that cannot be lowered, each named rather than hung on.
   {
     const cyclic = withMacros(lines("DEFINE OP flip", "  TAKES (target: ref)", "  DO {", "    flip(target: $target)", "  }"));
@@ -413,11 +496,25 @@ if (dbs.ok) {
   assert.equal(def.sources["zone:battle"], "zones.rules");
   assert.equal(def.sources["game:dbs"], "game.rules");
   assert.equal(def.sources["attribute:power"], "attributes.rules");
-  // `ops.rules` is in the set the app loads and declares nothing yet: its
-  // header is the record of what each of the thirty-one macro rows waits on,
-  // and a row that becomes writable is a declaration in it and nothing else.
+  // `ops.rules` is in the set the app loads. Its header is the record of what
+  // each of the thirty-one macro rows waits on, and a row that becomes
+  // writable is a declaration in it and nothing else: every one declared is a
+  // row `OP_CLASS` marks *macro*, and the sweep in verify/language.ts is what
+  // proves each lowers over the whole harness. The first two are #273's.
   assert.ok("ops.rules" in DBS_FILES, "ops.rules is not in the set the app loads");
-  assert.deepEqual(Object.keys(def.ops), [], "ops.rules declares a macro — the sweep in verify/language.ts is what proves it lowers");
+  assert.deepEqual(Object.keys(def.ops).sort(), ["comboPower", "power"], "ops.rules declares a different set of macros than the tests expect");
+  for (const name of Object.keys(def.ops)) {
+    assert.ok(name in OP_SCHEMA, `ops.rules declares ${name}, which is no op`);
+    assert.notEqual(OP_CLASS[name as keyof typeof OP_CLASS], "primitive", `ops.rules declares ${name}, which the spec's table marks primitive`);
+  }
+  // `power`'s `until` is the duration the grammar could not write before
+  // #273: declared as a hole, read as one, and filled by the call.
+  assert.deepEqual(def.ops.power.takes, [
+    { name: "target", type: "ref" },
+    { name: "amount", type: "amount" },
+    { name: "until", type: "duration" },
+  ]);
+  assert.deepEqual((def.ops.power.do[0] as unknown as { until: unknown }).until, { hole: "until" }, "power's until is not a hole");
   // Whole files, printed and read back: the round-trip promise over the
   // declarations the app actually loads.
   const printed = printDefinitions(def.definitions);

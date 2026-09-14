@@ -8,20 +8,27 @@
 -- says only what it *means*, and `rulesets/expand.ts` is what lowers a program
 -- written in these ops to a program written in the primitives.
 --
--- **No macro is declared yet, and the table below is why.** Writing one that
--- silently dropped an argument would be worse than none: it would validate, it
--- would expand, the sweep in `scripts/verify/language.ts` would pass, and the
--- rule it claimed to explain would be wrong. Each row names the one thing it
--- waits on. The expander is built and tested against fixtures, so the first
--- row that becomes writable is a declaration here and nothing else.
+-- **Most rows are not declared yet, and the table below is why.** Writing one
+-- that silently dropped an argument would be worse than none: it would
+-- validate, it would expand, the sweep in `scripts/verify/language.ts` would
+-- pass, and the rule it claimed to explain would be wrong. Each row names the
+-- one thing it waits on. The expander is built and tested against fixtures, so
+-- the first row that becomes writable is a declaration here and nothing else.
 --
 -- ── what each row waits on ────────────────────────────────────────────────
 --
---   param     the grammar can write `$name` only where an `amount` or a `ref`
---             is expected (`lang/parse.ts`), so a body cannot say `$until`,
---             `$side`, `$mode`, `$values` or `$ops` at all. This is the gap
---             that blocks *every* row below, `power`'s `until` included, and
---             it is the open question on #137.
+--   param     answered (#273): inside a DEFINE OP body `$name` may stand in
+--             every field position — a duration, a side, an area, a mode or
+--             any closed list (declared `word`), a list of strings
+--             (`strings`), a whole program (`ops`) — and in a selector's
+--             count, `TOP n`, side and area. A row still listing it below is
+--             waiting on the rest of its line, not on the grammar.
+--   decline   `may` offers a program and the answer to take none of it: two
+--             options, the second empty (spec §2.3). `chooseMode` drops an
+--             empty option without asking, asks the master rather than the
+--             `chooser` the call names, and binds no answer for
+--             `did(what: may)` to read — the requirement §2.3 puts on the
+--             primitive. Lowered today, "you may" would never be asked.
 --   cause     `move` must carry a cause — `damage`, `ko`, `combo`, `effect`
 --             and a plain draw are one move told apart by it, and the triggers
 --             read it (spec §2.5-2). `moveTo` has no such field today.
@@ -53,8 +60,8 @@
 --   look                 reveal                   param, audience
 --   ko                   move                     cause
 --   switchMode           modifyAttr               param, subject
---   power                modifyAttr               param
---   comboPower           modifyAttr               param
+--   power                modifyAttr               declared (#273)
+--   comboPower           modifyAttr               declared (#273)
 --   grant                modifyAttr               param, subject
 --   negateSkills         negate                   param, negate
 --   negateSkillsOfKind   negate                   param, negate
@@ -74,9 +81,34 @@
 --   negateAttack         replace                  replace
 --   negateCounter        replace                  replace
 --   negateOwnSkill       negate                   param, negate
---   may                  chooseMode               param
+--   may                  chooseMode               decline
 --
 -- Three rows wait on nothing but a primitive that is only a field away
 -- (`ko`, `redirectAttack`, `flip`) and three on `replace` alone
 -- (`negateAttack`, `negateCounter`, and `resolvingPlay` once `param` is
 -- answered). Those are the first this file should gain.
+
+-- ── the two numbers a card changes (§2.3, 20-5) ────────────────────────────
+--
+-- A change to power or combo power is one act — one attribute of one card,
+-- by an expression, for a duration — and `modifyAttr` is that act. The two
+-- rows differ in nothing but which attribute they name, which is the whole of
+-- the argument the spec's table makes.
+
+-- §20-5 — "+5000 power for the turn", "+X power", "power +5000 for each …"
+DEFINE OP power
+  TAKES (target: ref, amount: amount, until: duration)
+  DO {
+    modifyAttr(target: $target, attr: power, amount: $amount, until: $until)
+  }
+  text: "the card's power changes by the amount, for the duration"
+  doc: "what `power` means: one attribute of one card, changed by an expression until a moment"
+
+-- §20-5 — "+10000 combo power for the turn"
+DEFINE OP comboPower
+  TAKES (target: ref, amount: amount, until: duration)
+  DO {
+    modifyAttr(target: $target, attr: comboPower, amount: $amount, until: $until)
+  }
+  text: "the card's combo power changes by the amount, for the duration"
+  doc: "the same act as `power`, on the other printed number"

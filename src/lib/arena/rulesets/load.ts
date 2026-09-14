@@ -29,8 +29,9 @@ import type { SkillKindPrefix } from "../engine/types";
 // circle, and it is the honest one — a `.rules` file is read against the
 // engine's lists, and the areas it names are resolved against its own zones
 // a few lines below.
-import { fieldsOf, type Definition, type DefineField, type DefineHook, type DefineKind, type DefineRefusal, type PatternValue } from "../lang/ast";
+import { fieldsOf, paramTypesFor, PARAM_TYPES, type Definition, type DefineField, type DefineHook, type DefineKind, type DefineRefusal, type PatternValue } from "../lang/ast";
 import { parseDefinitions } from "../lang/parse";
+import { holesIn } from "./holes";
 import { isHookPoint, HOOK_POINTS } from "./hooks";
 import type { GameDefinition, Loaded, RulesetError, Vocabulary } from "./types";
 
@@ -150,6 +151,25 @@ export function loadRuleset(files: Record<string, string>, id: Game = "dbs"): Lo
         errors.push(errorAt(entry, hook.at, `${label(def)} hangs a body on ${JSON.stringify(hook.at)}, which is not a hook point the engine offers`, [...HOOK_POINTS]));
       }
     }
+    // A macro's body may leave a value to the call — `$until`, `$ops`, `TOP $n`
+    // — and every such hole names a parameter the macro takes, of a type the
+    // slot can hold (#273). A `$n` in an amount or ref position is the same
+    // node as a program's own binding, so there only a name the macro *takes*
+    // is checked; anywhere else a `$name` is a hole and nothing else.
+    if (def.define === "OP") {
+      const takes = new Map((def.takes ?? []).map((p) => [p.name, p.type]));
+      for (const hole of holesIn(def.do)) {
+        const declared = takes.get(hole.name);
+        if (declared === undefined) {
+          if (hole.form === "var") continue;
+          errors.push(errorAt(entry, `$${hole.name}`, `${label(def)} writes $${hole.name} in ${hole.where}, which is not a parameter it TAKES`, [...takes.keys()]));
+          continue;
+        }
+        const allowed = paramTypesFor(hole.slot);
+        if (allowed.includes(declared)) continue;
+        errors.push(errorAt(entry, `$${hole.name}`, `${label(def)} writes $${hole.name} in ${hole.where}, which holds ${slotWord(hole.slot)}, but TAKES it as ${declared}`, allowed.filter((t) => (PARAM_TYPES as readonly string[]).includes(t))));
+      }
+    }
     // Every program and every selector names its areas, wherever it sits.
     need(areasOf(def), definition.zones, "a zone");
   }
@@ -193,6 +213,11 @@ export function vocabularyOf(def: GameDefinition): Vocabulary {
 // ── filing and defaults ─────────────────────────────────────────────────────
 
 const keyOf = (def: Definition): string => `${def.define.toLowerCase()}:${def.name}`;
+/** A slot's type in words, for the mismatch message: `a duration`, `one of [active, rest]`, `a list of strings`. */
+const slotWord = (slot: FieldType | "number" | "side" | "area"): string => {
+  if (typeof slot === "object") return "enum" in slot ? `one of [${slot.enum.join(", ")}]` : typeof slot.list === "object" ? `a list of [${slot.list.enum.join(", ")}]` : "a list of strings";
+  return `${/^[aeiou]/.test(slot) ? "an" : "a"} ${slot}`;
+};
 const label = (def: Definition): string => `${def.define} ${JSON.stringify(def.name)}`;
 
 /** Which record a declaration goes in. One case per kind, so a twelfth kind fails the typecheck rather than going missing. */

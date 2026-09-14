@@ -29,7 +29,7 @@ import {
   type Selector,
 } from "../engine/script";
 import type { KeywordSkill } from "../engine/types";
-import { EXPR_SCHEMA, FILTER_FIELDS, FILTER_FIELD_NAMES, fieldsOf, type Definition, type DefineFieldType, type DefineHook, type DefineParam, type DefineRefusal, type EventPattern, type ExprArg, type FilterFieldType, type Rule } from "./ast";
+import { EXPR_SCHEMA, FILTER_FIELDS, FILTER_FIELD_NAMES, fieldsOf, isHole, type Definition, type DefineFieldType, type DefineHook, type DefineParam, type DefineRefusal, type EventPattern, type ExprArg, type FilterFieldType, type Rule } from "./ast";
 
 /**
  * Key-sorted JSON with `undefined` dropped, so "the same object" means the
@@ -147,14 +147,14 @@ export function printSelector(sel: Selector): string {
   if (sel.special !== undefined) parts.push(`[${sel.special}]`);
   if (sel.fromVar !== undefined) parts.push(`FROM $${sel.fromVar}`);
   if (sel.underHost !== undefined) parts.push(`UNDER (${printSelector(sel.underHost)})`);
-  if (sel.upTo) parts.push(sel.count === undefined ? "UP TO" : `UP TO ${sel.count}`);
-  else if (sel.count !== undefined) parts.push(String(sel.count));
-  if (sel.take !== undefined) parts.push(`${sel.fromEnd ? "BOTTOM" : "TOP"} ${sel.take}`);
+  if (sel.upTo) parts.push(sel.count === undefined ? "UP TO" : `UP TO ${slot(sel.count)}`);
+  else if (sel.count !== undefined) parts.push(slot(sel.count));
+  if (sel.take !== undefined) parts.push(`${sel.fromEnd ? "BOTTOM" : "TOP"} ${slot(sel.take)}`);
   else if (sel.fromEnd) parts.push("fromEnd");
   if (sel.filter !== undefined) parts.push(printFilter(sel.filter));
-  const zones = sel.areas !== undefined ? (sel.areas.length === 1 ? `ANY(${sel.areas[0]})` : sel.areas.join("|")) : sel.area;
-  if (zones !== undefined) parts.push(`IN ${sel.side === undefined ? "" : `${sel.side}.`}${zones}`);
-  else if (sel.side !== undefined) parts.push(`OF ${sel.side}`);
+  const zones = sel.areas !== undefined ? (sel.areas.length === 1 ? `ANY(${sel.areas[0]})` : sel.areas.join("|")) : sel.area === undefined ? undefined : slot(sel.area);
+  if (zones !== undefined) parts.push(`IN ${sel.side === undefined ? "" : `${slot(sel.side)}.`}${zones}`);
+  else if (sel.side !== undefined) parts.push(`OF ${slot(sel.side)}`);
   if (sel.mode !== undefined) parts.push(sel.mode);
   if (sel.hidden !== undefined) parts.push(sel.hidden ? "hidden" : "revealed");
   if (sel.ignoreBarrier) parts.push("ignoringBarrier");
@@ -263,7 +263,14 @@ function printPlain(v: unknown): string {
   return String(v);
 }
 
+/** A selector slot or a value that may be a macro's parameter (#273): `$name` for a hole, the value's own words otherwise. */
+const slot = (v: unknown): string => (isHole(v) ? `$${v.hole}` : String(v));
+
 function printValue(type: FieldType, v: unknown, indent: number): string {
+  // A `DEFINE OP` body writes `$name` where any value goes, and it prints
+  // back the same way whatever the field's type — the one printed form the
+  // round-trip promise allows.
+  if (isHole(v)) return slot(v);
   if (typeof type === "object") {
     if ("enum" in type) return atom(String(v));
     // Both a free string and a closed word go through `atom`, which quotes
@@ -290,7 +297,7 @@ function printValue(type: FieldType, v: unknown, indent: number): string {
     case "ops":
       return printBlock(v as Op[], indent);
     case "modes":
-      return `[${(v as { label: string; ops: Op[] }[]).map((m) => `${JSON.stringify(m.label)} ${printBlock(m.ops, indent)}`).join(", ")}]`;
+      return `[${(v as { label: string; ops: Op[] }[]).map((m) => `${JSON.stringify(m.label)} ${isHole(m.ops) ? slot(m.ops) : printBlock(m.ops, indent)}`).join(", ")}]`;
     case "string":
       return JSON.stringify(v);
     case "number":

@@ -24,7 +24,7 @@
 import { emptyFilter, parseFilter, type CardFilter } from "../engine/filters";
 import { AREAS, DURATIONS, KEYWORD_NAMES, SIDES, SPECIAL_TARGETS, COND_SCHEMA, OP_SCHEMA, type Amount, type Cond, type CostRecord, type FieldType, type Duration, type Op, type OpField, type Ref, type ScriptArea, type Selector, type Side, type XCost } from "../engine/script";
 import type { Color, KeywordSkill, Trigger } from "../engine/types";
-import { COST_ITEMS, DEFINE_KINDS, EXPR_ATTRS, EXPR_SCHEMA, FILTER_FIELDS, PARAM_TYPES, REQUIREMENT_KINDS, fieldsOf, type Definition, type DefineField, type DefineFieldType, type DefineHook, type DefineKind, type DefineParam, type DefineRefusal, type EventPattern, type ExprArg, type FilterFieldType, type LangError, type Parsed, type PatternValue, type Rule } from "./ast";
+import { COST_ITEMS, DEFINE_KINDS, EXPR_ATTRS, EXPR_SCHEMA, FILTER_FIELDS, PARAM_TYPES, REQUIREMENT_KINDS, fieldsOf, type Definition, type Hole, type DefineField, type DefineFieldType, type DefineHook, type DefineKind, type DefineParam, type DefineRefusal, type EventPattern, type ExprArg, type FilterFieldType, type LangError, type Parsed, type PatternValue, type Rule } from "./ast";
 import type { Words } from "../rulesets/words";
 import { LangSyntaxError, lex, positionOf, type Token } from "./tokens";
 
@@ -55,6 +55,13 @@ class Parser {
   private i = 0;
   /** The clause an error is reported against, for the editor's message. */
   clause = "WHEN";
+  /**
+   * Whether `$name` may stand where a value goes (#273). Raised only while a
+   * `DEFINE OP` body is being read, so a hole never reaches a card's program
+   * or any other declaration; the `amount` and `ref` positions keep reading
+   * `$name` as `{ var }` whatever this says.
+   */
+  private holes = false;
 
   constructor(
     private readonly src: string,
@@ -369,6 +376,7 @@ class Parser {
   }
 
   private typed(type: FieldType): unknown {
+    if (this.holes && this.isPunct("$") && type !== "amount" && type !== "ref") return this.hole();
     if (typeof type === "object") {
       if ("enum" in type) return this.enumValue(type.enum);
       return this.list(() => (type.list === "string" ? this.text() : this.enumValue(type.list.enum)));
@@ -393,7 +401,7 @@ class Parser {
       case "ops":
         return this.block();
       case "modes":
-        return this.list(() => ({ label: this.string("a label"), ops: this.block() }));
+        return this.list(() => ({ label: this.string("a label"), ops: this.slot(() => this.block()) }));
       case "string":
         return this.string();
       case "number":
@@ -445,6 +453,16 @@ class Parser {
   private variable(): string {
     this.want("$");
     return this.word("a variable name");
+  }
+
+  /** `$name` as a value of any type — a macro's parameter, in the one place the grammar allows it. */
+  private hole(): Hole {
+    return { hole: this.variable() };
+  }
+
+  /** A slot of a selector that a macro body may leave to the call: a count, a `TOP n`, a side or an area. */
+  private slot<T>(read: () => T): T | Hole {
+    return this.holes && this.isPunct("$") ? this.hole() : read();
   }
 
   /**
@@ -549,8 +567,8 @@ class Parser {
       sel.filter = this.filter();
       return;
     }
-    if (this.atNumber()) {
-      sel.count = this.number();
+    if (this.atNumber() || (this.holes && this.isPunct("$"))) {
+      sel.count = this.slot(() => this.number()) as number;
       return;
     }
     if (this.eatKw("FROM")) {
@@ -566,20 +584,20 @@ class Parser {
     if (this.eatKw("UP")) {
       if (!this.eatKw("TO")) this.fail('expected "UP TO"', ["TO"]);
       sel.upTo = true;
-      if (this.atNumber()) sel.count = this.number();
+      if (this.atNumber() || (this.holes && this.isPunct("$"))) sel.count = this.slot(() => this.number()) as number;
       return;
     }
     if (this.eatKw("TOP")) {
-      sel.take = this.number();
+      sel.take = this.slot(() => this.number()) as number;
       return;
     }
     if (this.eatKw("BOTTOM")) {
-      sel.take = this.number();
+      sel.take = this.slot(() => this.number()) as number;
       sel.fromEnd = true;
       return;
     }
     if (this.eatKw("OF")) {
-      sel.side = this.sideWord();
+      sel.side = this.slot(() => this.sideWord()) as Side;
       return;
     }
     if (this.eatKw("IN")) {
@@ -602,6 +620,9 @@ class Parser {
     if (this.tok.kind === "word" && this.isPunct(".", this.ahead(1))) {
       sel.side = this.sideWord();
       this.want(".");
+    } else if (this.holes && this.isPunct("$") && this.isPunct(".", this.ahead(2))) {
+      sel.side = this.hole() as unknown as Side;
+      this.want(".");
     }
     if (this.isKw("ANY") && this.isPunct("(", this.ahead(1))) {
       this.i += 2;
@@ -611,7 +632,7 @@ class Parser {
       sel.areas = areas;
       return;
     }
-    const first = this.area();
+    const first = this.slot(() => this.area()) as ScriptArea;
     if (!this.isPunct("|")) {
       sel.area = first;
       return;
@@ -762,7 +783,13 @@ class Parser {
         out[f.name] = refusals;
       } else {
         if (out[f.name] !== undefined) this.fail(`${JSON.stringify(f.name)} is said twice`, []);
-        out[f.name] = this.defineValue(f);
+        // A macro's body is the one text a parameter may stand in (#273).
+        this.holes = kind === "OP" && f.name === "do";
+        try {
+          out[f.name] = this.defineValue(f);
+        } finally {
+          this.holes = false;
+        }
       }
       this.endOfLine();
     }

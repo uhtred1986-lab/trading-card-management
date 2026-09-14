@@ -296,6 +296,56 @@ const declaration = (kind: DefineKind, wide: boolean): Definition => {
   // A name with a hyphen is quoted, as every other value with one is.
   assert.match(printDefinition(declaration("KEYWORD", true)), /^DEFINE KEYWORD "Energy-Exhaust"$/m);
 
+  // ── holes: `$name` in every field type of a DEFINE OP body (#273) ─────────
+  //
+  // One op per field type the schema has, its field a hole, plus a selector
+  // with every one of its four slots open and a mode whose whole program is
+  // one. Printed as `$name`, read back as `{ hole }`, equal both ways — and
+  // the `amount` and `ref` positions still read as `{ var }`, the node they
+  // always were.
+  {
+    const hole = (name: string) => ({ hole: name });
+    const seen = new Set<string>();
+    const body: Op[] = [];
+    for (const [name, spec] of Object.entries(OP_SCHEMA)) {
+      for (const f of spec.fields) {
+        const key = typeof f.type === "object" ? ("enum" in f.type ? "enum" : "list") : f.type;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        // Every other required field filled, so the op is otherwise complete.
+        const op: Record<string, unknown> = { op: name };
+        for (const g of spec.fields) if (g.required && g.name !== f.name) op[g.name] = sample(g.type, false);
+        // In the two positions the grammar could already write `$name`, the
+        // node is the program's own `{ var }`, and stays so.
+        op[f.name] = key === "amount" || key === "ref" ? { var: `p_${key}` } : hole(`p_${key}`);
+        body.push(op as unknown as Op);
+      }
+    }
+    assert.ok(seen.has("duration") && seen.has("side") && seen.has("area") && seen.has("enum") && seen.has("list") && seen.has("ops") && seen.has("modes") && seen.has("cond") && seen.has("selector"), `the schema loop missed a type: ${[...seen].join(", ")}`);
+    body.push({ op: "moveTo", target: { sel: { count: hole("n"), take: hole("k"), side: hole("side"), area: hole("area"), underHost: { take: hole("h"), area: "battle" } } }, to: "hand" } as unknown as Op);
+    body.push({ op: "chooseMode", modes: [{ label: "yes", ops: hole("yes") }, { label: "no", ops: [] }] } as unknown as Op);
+    body.push({ op: "power", target: { var: "t" }, amount: { var: "n" }, until: "turn" } as unknown as Op);
+    const takes = [...seen].map((key) => ({ name: `p_${key}`, type: key === "enum" ? "word" : key === "list" ? "strings" : key })) as Definition extends { takes?: infer T } ? T : never;
+    const def: Definition = { define: "OP", name: "holes", takes: takes as never, do: body };
+    tripDefs([def], "a DEFINE OP with a hole in every field type");
+    const text = printDefinition(def);
+    assert.match(text, /until: \$p_duration/, "a duration hole does not print as $name");
+    assert.match(text, /UNDER \(TOP \$h IN battle\) \$n TOP \$k IN \$side\.\$area/, `a selector's slots do not print as holes:\n${text}`);
+    assert.match(text, /"yes" \$yes/, "a mode's whole program does not print as a hole");
+    assert.match(text, /power\(target: \$t, amount: \$n, until: turn\)/, "an amount or ref var prints differently from before");
+    // `DO $ops` — the whole body one hole.
+    tripDefs([{ define: "OP", name: "whole", takes: [{ name: "ops", type: "ops" }], do: hole("ops") as unknown as Op[] }], "a DEFINE OP whose whole body is a hole");
+    // A hole is read nowhere else: the same `$until` in a card's program, a
+    // step's program or a keyword's hook is a syntax error, not a value.
+    assert.equal(parseRule("WHEN [auto] played\nTHEN\n  power(target: [self], amount: 1, until: $until)").ok, false, "a card's program read a hole");
+    assert.equal(parseDefinitions("DEFINE STEP s\n  phase: \"main\"\n  DO {\n    power(target: [self], amount: 1, until: $until)\n  }").ok, false, "a step's program read a hole");
+    assert.equal(parseDefinitions("DEFINE KEYWORD k\n  text: \"t\"\n  HOOK played {\n    power(target: [self], amount: 1, until: $until)\n  }").ok, false, "a keyword's hook read a hole");
+    // The parameter types the rows need, all readable.
+    const params = parseDefinitions("DEFINE OP p\n  TAKES (a: strings, b: word, c: mode)\n  DO {}");
+    assert.equal(params.ok, false, "`mode` is not a parameter type — a closed list is `word`");
+    assert.ok(parseDefinitions("DEFINE OP p\n  TAKES (a: strings, b: word, c: ops, d: duration, e: side, f: area)\n  DO {}").ok, "the parameter types #273 adds are not read");
+  }
+
   // The parser is the generous one here too: the kind and the clause words in
   // any case, the fields in any order, and `--` comments dropped on the way.
   const loose = parseDefinitions(['-- the battle area (3-6)', 'define zone battle', '  visibility: all   -- both players see it', '  owner: player', '', 'DEFINE WIN deckOut', '  result: lose', '  if life(you) <= 0'].join("\n"));

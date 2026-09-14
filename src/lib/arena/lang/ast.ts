@@ -268,12 +268,46 @@ export interface EventPattern {
  * text needs and no op field has (`color`, `colors`), so a parameter list can
  * say exactly what `OP_SCHEMA` says about a step's field.
  */
-export const PARAM_TYPES = ["amount", "ref", "selector", "side", "area", "duration", "cond", "conds", "ops", "string", "number", "boolean", "keyword", "filter", "modes", "color", "colors"] as const;
+export const PARAM_TYPES = ["amount", "ref", "selector", "side", "area", "duration", "cond", "conds", "ops", "string", "strings", "word", "number", "boolean", "keyword", "filter", "modes", "color", "colors"] as const;
 export type ParamType = (typeof PARAM_TYPES)[number];
 export interface DefineParam {
   name: string;
   type: ParamType;
 }
+
+/**
+ * `$name` where a value goes, inside a `DEFINE OP` body and nowhere else
+ * (#273). A macro's body is a *template*: `power`'s `until: $until` is a
+ * duration the call fills in, `may`'s `DO $ops` a whole program, `draw`'s
+ * `TOP $n IN $side.deck` two slots of one selector. The parser produces a
+ * hole only while it is reading that body, so `Op` stays a closed union for a
+ * card's program and only the *expansion* (`rulesets/expand.ts`) is a real
+ * `Op`; the printer writes one back as `$name`, so the round-trip promise
+ * holds over the declarations too.
+ *
+ * An `amount` and a `ref` are the two positions the grammar could already
+ * write `$name` in, and there it stays `{ var }` — the same node a program's
+ * own binding is — because the expander already reads both.
+ */
+export interface Hole {
+  hole: string;
+}
+export const isHole = (v: unknown): v is Hole => typeof v === "object" && v !== null && typeof (v as Hole).hole === "string" && Object.keys(v as object).length === 1;
+
+/**
+ * The parameter types a hole in a slot of this field type may declare. One
+ * word per scalar type; a closed list is `word` (or `color` when the list is
+ * the colours), a list of strings is `strings` (or `colors`). The selector's
+ * own slots are the same question asked by `load.ts` with a scalar type.
+ */
+export function paramTypesFor(type: FieldType | "number" | "side" | "area"): ParamType[] {
+  if (typeof type === "object") {
+    if ("enum" in type) return isColorList(type.enum) ? ["word", "color"] : ["word"];
+    return typeof type.list === "object" && isColorList(type.list.enum) ? ["strings", "colors"] : ["strings"];
+  }
+  return [type];
+}
+const isColorList = (values: readonly string[]): boolean => values.includes("Red") && values.includes("Blue") && values.includes("Green");
 
 /** One hook body of a keyword: the point it hangs on, and the program that runs there. */
 export interface DefineHook {
