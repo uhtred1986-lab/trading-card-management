@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { execSync } from "node:child_process";
+import { execFileSync, execSync } from "node:child_process";
 import {
   expandChildren,
   findRemoteMatch,
@@ -108,8 +108,12 @@ async function ghFetch(
   }
 
   if (hasGhCli()) {
+    // `execFileSync`, not a shell string: `endpoint` carries a query string
+    // ("?state=all&per_page=100&…"), and an unescaped "&" run through a shell
+    // backgrounds everything after it rather than reaching `gh` as one argument.
     const jsonStr = options.body ? JSON.stringify(options.body) : "";
-    const out = execSync(`gh api ${endpoint} --method ${method} ${jsonStr ? "--input -" : ""}`, {
+    const args = ["api", endpoint, "--method", method, ...(jsonStr ? ["--input", "-"] : [])];
+    const out = execFileSync("gh", args, {
       input: jsonStr || undefined,
       encoding: "utf-8",
       maxBuffer: 10 * 1024 * 1024,

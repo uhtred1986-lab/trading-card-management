@@ -67,7 +67,7 @@
           "name": "side",
           "required": false,
           "nullable": false,
-          "defaultText": "\"you\"",
+          "defaultText": "\"opponent\"",
           "type": "side"
         }
       ],
@@ -304,7 +304,7 @@
     {
       "name": "moveTo",
       "class": "primitive",
-      "signature": "{\"op\":\"moveTo\",\"target\":TARGET,\"to\":AREA,\"position\"?:\"top\"|\"bottom\",\"mode\"?:\"active\"|\"rest\",\"reveal\"?:true|false,\"under\"?:TARGET,\"owner\"?:\"you\"|\"opponent\",\"faceUp\"?:true|false}",
+      "signature": "{\"op\":\"moveTo\",\"target\":TARGET,\"to\":AREA,\"position\"?:\"top\"|\"bottom\",\"mode\"?:\"active\"|\"rest\",\"reveal\"?:true|false,\"under\"?:TARGET,\"owner\"?:\"you\"|\"opponent\",\"faceUp\"?:true|false,\"cause\"?:\"ko\"|\"effect\"|\"rule\"|…}",
       "fields": [
         {
           "name": "target",
@@ -361,10 +361,28 @@
           "required": false,
           "nullable": false,
           "type": "boolean"
+        },
+        {
+          "name": "cause",
+          "required": false,
+          "nullable": false,
+          "defaultText": "\"effect\"",
+          "type": "enum",
+          "enumValues": [
+            "ko",
+            "effect",
+            "rule",
+            "cost",
+            "play",
+            "combo",
+            "damage",
+            "draw",
+            "charge"
+          ]
         }
       ],
       "sentence": "move this card to drop",
-      "doc": "\"to\":\"under\" puts the card under \"under\" (or under this card, 23-2); \"owner\":\"opponent\" for \"place it in your opponent's energy\" — the area is theirs, not the card owner's (3-8)"
+      "doc": "\"to\":\"under\" puts the card under \"under\" (or under this card, 23-2); \"owner\":\"opponent\" for \"place it in your opponent's energy\" — the area is theirs, not the card owner's (3-8); \"cause\" is \"damage\"/\"ko\"/\"combo\"/\"effect\"/a plain \"draw\" told apart (spec §2.5-2), read by a replacement's own scope and, on the rules engine, by `triggers.rules`'s `moved(cause: …)`"
     },
     {
       "name": "play",
@@ -681,6 +699,99 @@
       ],
       "sentence": "choose 1 of the skills of this card, and this card gains that skill for the turn",
       "doc": "20-18: one card takes on another's printed skills. \"which\":\"all\" copies every one of them, \"skill\" copies one by its index on the source, and neither lets the master pick one as the skill resolves — which is what \"choose up to 1 keyword skill … and this card gains that skill\" says. \"only\":\"keyword\" narrows the pick and the copy to keyword skills. The printed face is snapshotted when the effect is made (9-9), so the copy outlives the source leaving play"
+    },
+    {
+      "name": "negate",
+      "class": "primitive",
+      "signature": "{\"op\":\"negate\",\"target\"?:TARGET,\"what\":\"skills\"|\"kind\"|\"keyword\"|\"own\",\"kind\"?:\"auto\"|\"activate\"|\"counter\"|\"permanent\",\"keyword\"?:\"Awaken\"|\"Wish\"|\"Field\"|…,\"until\"?:DURATION}",
+      "fields": [
+        {
+          "name": "target",
+          "required": false,
+          "nullable": false,
+          "defaultText": "{\"sel\":{\"special\":\"self\"}}",
+          "type": "ref"
+        },
+        {
+          "name": "what",
+          "required": true,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "skills",
+            "kind",
+            "keyword",
+            "own"
+          ]
+        },
+        {
+          "name": "kind",
+          "required": false,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "auto",
+            "activate",
+            "counter",
+            "permanent"
+          ]
+        },
+        {
+          "name": "keyword",
+          "required": false,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "Awaken",
+            "Wish",
+            "Field",
+            "Blocker",
+            "Critical",
+            "Strike",
+            "Attack",
+            "Revenge",
+            "Indestructible",
+            "Barrier",
+            "Deflect",
+            "Unique",
+            "Servant",
+            "Energy-Exhaust",
+            "Victory Strike",
+            "Warrior of Universe 7",
+            "Ultimate",
+            "Super Combo",
+            "Dragon Ball",
+            "Wormhole",
+            "Invoker",
+            "Heroic",
+            "Villainous",
+            "Offering",
+            "Evolve",
+            "Union",
+            "Over Realm",
+            "Swap",
+            "Arrival",
+            "Aegis",
+            "Alliance",
+            "Revive",
+            "Successor",
+            "Overlord",
+            "Rejuvenate",
+            "Spirit Boost",
+            "Empower",
+            "Z-Awaken",
+            "Z-Stack"
+          ]
+        },
+        {
+          "name": "until",
+          "required": false,
+          "nullable": false,
+          "type": "duration"
+        }
+      ],
+      "sentence": "negate the skills of this card for the rest of the game",
+      "doc": "the primitive under \"negateSkills\", \"negateSkillsOfKind\", \"negateKeyword\" and \"negateOwnSkill\" (docs/arena-ruleset-spec.md §2.2): a rule stops applying (9-1-5). \"what\" says which — \"skills\" is every skill of the target, \"kind\" one printed kind of them (say which in \"kind\"), \"keyword\" one named keyword in every area (say which in \"keyword\"), \"own\" the skill resolving now. \"until\" left out is for the game. Those four spellings are still what the compiler writes and what a stored rule holds — prefer them; this row is what they mean"
     },
     {
       "name": "negateSkills",

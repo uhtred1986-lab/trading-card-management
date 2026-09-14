@@ -23,15 +23,24 @@
 --             (`strings`), a whole program (`ops`) — and in a selector's
 --             count, `TOP n`, side and area. A row still listing it below is
 --             waiting on the rest of its line, not on the grammar.
---   cause     `move` must carry a cause — `damage`, `ko`, `combo`, `effect`
---             and a plain draw are one move told apart by it, and the triggers
---             read it (spec §2.5-2). `moveTo` has no such field today.
+--   count     a selector's `TOP n` and its plain `n IN …` count are typed a
+--             bare `number` (`rulesets/holes.ts`), because that is genuinely
+--             all a selector counts by — while `draw`, `discard`, `damage`,
+--             `mill` and `addLife` take `n` as an `amount`, X included
+--             (§20-5's "draw X cards"). A selector that counts by an
+--             expression is #122's job, not this file's.
+--   bind      a macro's body can only bind a *fixed* name (`choose(as:
+--             "discarded")` would be) — never the name a call gives it as an
+--             argument, because a binding's name is part of the AST, not a
+--             runtime value a hole can carry. `mill`'s `as` names the milled
+--             cards for a *later* clause outside the call ("if that card is
+--             red"), which is exactly the name a macro cannot receive and
+--             still bind, so the row waits on nothing this file's grammar
+--             could ever answer — it stays a native op.
 --   subject   `modifyAttr` reaches one card and six attributes; the rows below
 --             need a *player* and the *battle in progress* as subjects, and
 --             `mode`, `markers`, `keywords`, `hidden`, `faceUp` and `flipped`
 --             as attributes (spec §2.5-1, §2.5-3).
---   negate    the `negate` primitive — the general form of `negateSkills` —
---             is not an op yet (spec §2.2).
 --   replace   the `replace` primitive is not an op yet (spec §2.2, #125).
 --   audience  `reveal` shows a card to both players; `look` is the same act
 --             with a narrower audience (20-11), and the field that says which
@@ -42,43 +51,43 @@
 -- ── the thirty-one macros ─────────────────────────────────────────────────
 --
 --   op                   lowers to                waits on
---   draw                 move                     param, cause
---   discard              choose + move            param, cause
---   damage               move                     param, cause
---   mill                 move                     param, cause
---   addLife              move                     param, cause
---   lifeDownTo           move                     param, cause, maths
+--   draw                 move                     count
+--   discard              choose + move            count
+--   damage               move                     count
+--   mill                 move                     bind
+--   addLife              move                     count
+--   lifeDownTo           move                     count, maths
 --   energyMarker         modifyAttr               param, subject
 --   look                 reveal                   param, audience
---   ko                   move                     cause
+--   ko                   move                     declared (#274)
 --   switchMode           modifyAttr               param, subject
 --   power                modifyAttr               declared (#273)
 --   comboPower           modifyAttr               declared (#273)
 --   grant                modifyAttr               param, subject
---   negateSkills         negate                   param, negate
---   negateSkillsOfKind   negate                   param, negate
+--   negateSkills         negate                   declared (#276)
+--   negateSkillsOfKind   negate                   declared (#276)
 --   hidden               modifyAttr               param, subject
 --   redirectAttack       modifyAttr               subject
---   comboFrom            move + negate            param, cause, negate
+--   comboFrom            move + negate            cause
 --   flip                 modifyAttr               subject
 --   faceUp               modifyAttr               param, subject
 --   addMarker            modifyAttr               param, subject
 --   removeMarker         modifyAttr               param, subject
 --   costReduction        costModifier             declared (#277)
---   negateKeyword        negate                   param, negate
+--   negateKeyword        negate                   declared (#276)
 --   gains                modifyAttr               param, subject
 --   replaceLeave         replace                  param, replace
 --   altCost              costModifier             declared (#277)
 --   resolvingPlay        replace                  param, replace
 --   negateAttack         replace                  replace
 --   negateCounter        replace                  replace
---   negateOwnSkill       negate                   param, negate
+--   negateOwnSkill       negate                   declared (#276)
 --   may                  chooseMode               declared (#273)
 --
--- Three rows wait on nothing but a primitive that is only a field away
--- (`ko`, `redirectAttack`, `flip`) and three on `replace` alone
--- (`negateAttack`, `negateCounter`, and `resolvingPlay` once `param` is
--- answered). Those are the first this file should gain.
+-- Two rows wait on nothing but a primitive that is only a field away
+-- (`redirectAttack`, `flip`) and three on `replace` alone (`negateAttack`,
+-- `negateCounter`, and `resolvingPlay`, all needing only the primitive
+-- itself). Those are the first this file should gain.
 
 -- ── the two numbers a card changes (§2.3, 20-5) ────────────────────────────
 --
@@ -121,6 +130,88 @@ DEFINE OP may
   }
   text: "the chooser may do the program, or not"
   doc: "what `may` means: `chooseMode` with the declined branch empty — the primitive is the general form, this is the printed shape"
+
+-- ── a move told apart by its cause (§2.5-2, #274) ───────────────────────────
+--
+-- `damage`, `ko`, a plain `draw` and every other move that isn't just "an
+-- effect moved a card" are one primitive — `moveTo` — with `cause` naming
+-- which. `ko` is the one row this unblocks outright: its `target` is a `ref`,
+-- and a `ref` hole has been writable since #273. `draw`, `damage` and
+-- `addLife` are still out, and not on `param` or `cause` — both are answered
+-- — but on `count`: a selector's `TOP n` (and its plain `n IN …` count) is
+-- typed a bare `number` (`rulesets/holes.ts`'s `walkSelector`), because that
+-- is genuinely all a selector counts by, while these rows' own `n` is an
+-- `amount` — X included (§20-5's "draw X cards" is `n: {x: true}`, exercised
+-- throughout the harness). Writing `TAKES (n: number, …)` anyway would
+-- validate, expand every plain-number call and throw a `MacroError` on the
+-- first X-priced one it met — exactly the silently-wrong row this file's own
+-- opening paragraph warns against, just late instead of quiet. Declaring
+-- these three needs a selector that can count by an expression, which is
+-- #122's job, not this one's. `discard` inherits the same `n`; `mill` also
+-- has `bind` (above); `lifeDownTo` still waits on the subtraction #122 has
+-- not built either.
+
+-- §1-13, §21-3-3 — "KO 1 of your opponent's Battle Cards." To the owner's
+-- Drop with the cause "when you KO'd a card" (20-16's `did`) and "when this
+-- card is KO'd" (9-6) both read. [Indestructible], "can't be KO'd by
+-- skills" and a KO's own replacement offers are the general move's business
+-- (9-10) — the macro says only the destination and the cause.
+DEFINE OP ko
+  TAKES (target: ref)
+  DO {
+    moveTo(target: $target, to: drop, cause: ko)
+  }
+  text: "the card moves to its owner's Drop Area"
+  doc: "what `ko` means: the general move, to the Drop, with the cause every KO carries"
+
+-- ── a rule that stops applying (§2.2, 9-1-5, #276) ──────────────────────────
+--
+-- Four spellings, one primitive: `negate(target, what: skills | kind | keyword
+-- | own, kind?, keyword?, until?)` reads a card's skills, a printed kind of
+-- them, a named keyword everywhere, or the skill resolving now, and stops it
+-- for a duration. `negateAs` (`engine/script-schema.ts`) is the interpreter's
+-- own reading in the other direction — a `negate(…)` call read back as one of
+-- the four — and each row here is built to invert it exactly, so a program
+-- written the declared way and one written the primitive's own way say the
+-- same thing (`verify/vm.ts`'s existing macro/primitive parity block).
+-- `comboFrom`'s negate half stays out: it needs `cause` too (#274), not
+-- declared on this branch.
+
+-- §9-1-5 — "negate that card's skills for the turn"
+DEFINE OP negateSkills
+  TAKES (target: ref, until: duration)
+  DO {
+    negate(target: $target, what: skills, until: $until)
+  }
+  text: "the target's skills stop applying, for the duration"
+  doc: "what `negateSkills` means: every skill of one card, negated (9-1-5)"
+
+-- §9-1-5 — "negate that card's [Auto] skill for the turn"
+DEFINE OP negateSkillsOfKind
+  TAKES (target: ref, kind: word, until: duration)
+  DO {
+    negate(target: $target, what: kind, kind: $kind, until: $until)
+  }
+  text: "the target's skills of the printed kind stop applying, for the duration"
+  doc: "what `negateSkillsOfKind` means: one printed kind of skill of one card, negated — not the whole card (9-1-5)"
+
+-- §9-1-5 — "negate this card's [Energy-Exhaust] skill in all areas"
+DEFINE OP negateKeyword
+  TAKES (keyword: word, target: ref)
+  DO {
+    negate(target: $target, what: keyword, keyword: $keyword)
+  }
+  text: "the target loses the named keyword skill"
+  doc: "what `negateKeyword` means: one named keyword taken away, wherever the card sits — no duration of its own, unlike the other three"
+
+-- §9-1-5 — "negate this skill for the turn / battle / game"
+DEFINE OP negateOwnSkill
+  TAKES (until: duration)
+  DO {
+    negate(what: own, until: $until)
+  }
+  text: "this skill does not happen again, for the duration"
+  doc: "what `negateOwnSkill` means: the skill resolving now, negated for a span read off its own card — never a target, the way the other three take one"
 
 -- ── a price is not a number (§2.5-4, #277) ──────────────────────────────────
 --

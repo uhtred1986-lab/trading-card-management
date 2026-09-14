@@ -20,8 +20,8 @@ Operations (each is an object with "op"; a field marked ? may be left out):
   {"op":"reveal","sel":SELECTOR,"as":"…"}
     shown to both players; the cards stay where they are (20-11-2)
   {"op":"ko","target":TARGET}
-  {"op":"moveTo","target":TARGET,"to":AREA,"position"?:"top"|"bottom","mode"?:"active"|"rest","reveal"?:true|false,"under"?:TARGET,"owner"?:"you"|"opponent","faceUp"?:true|false}
-    "to":"under" puts the card under "under" (or under this card, 23-2); "owner":"opponent" for "place it in your opponent's energy" — the area is theirs, not the card owner's (3-8)
+  {"op":"moveTo","target":TARGET,"to":AREA,"position"?:"top"|"bottom","mode"?:"active"|"rest","reveal"?:true|false,"under"?:TARGET,"owner"?:"you"|"opponent","faceUp"?:true|false,"cause"?:"ko"|"effect"|"rule"|…}
+    "to":"under" puts the card under "under" (or under this card, 23-2); "owner":"opponent" for "place it in your opponent's energy" — the area is theirs, not the card owner's (3-8); "cause" is "damage"/"ko"/"combo"/"effect"/a plain "draw" told apart (spec §2.5-2), read by a replacement's own scope and, on the rules engine, by `triggers.rules`'s `moved(cause: …)`
   {"op":"play","target":TARGET,"mode"?:"active"|"rest","onto"?:TARGET,"negated"?:"turn"|"game"}
     "onto" plays it on top of another card ([Union-Absorb], 22-13-6-3); "negated" is "played with its skills negated" (9-1-5)
   {"op":"switchMode","target":TARGET,"mode":"active"|"rest"}
@@ -37,6 +37,8 @@ Operations (each is an object with "op"; a field marked ? may be left out):
   {"op":"grant","target":TARGET,"keyword":{"name":"Blocker"},"until":DURATION}
   {"op":"copySkills","target"?:TARGET,"from":TARGET,"which"?:"all","skill"?:N,"only"?:"keyword","until":DURATION}
     20-18: one card takes on another's printed skills. "which":"all" copies every one of them, "skill" copies one by its index on the source, and neither lets the master pick one as the skill resolves — which is what "choose up to 1 keyword skill … and this card gains that skill" says. "only":"keyword" narrows the pick and the copy to keyword skills. The printed face is snapshotted when the effect is made (9-9), so the copy outlives the source leaving play
+  {"op":"negate","target"?:TARGET,"what":"skills"|"kind"|"keyword"|"own","kind"?:"auto"|"activate"|"counter"|"permanent","keyword"?:"Awaken"|"Wish"|"Field"|…,"until"?:DURATION}
+    the primitive under "negateSkills", "negateSkillsOfKind", "negateKeyword" and "negateOwnSkill" (docs/arena-ruleset-spec.md §2.2): a rule stops applying (9-1-5). "what" says which — "skills" is every skill of the target, "kind" one printed kind of them (say which in "kind"), "keyword" one named keyword in every area (say which in "keyword"), "own" the skill resolving now. "until" left out is for the game. Those four spellings are still what the compiler writes and what a stored rule holds — prefer them; this row is what they mean
   {"op":"negateSkills","target":TARGET,"until":DURATION}
   {"op":"negateSkillsOfKind","target":TARGET,"kind":"auto"|"activate"|"counter"|"permanent","until":DURATION}
     "negate that card's [Auto] skill for the turn" — one kind, not the whole card (9-1-5)

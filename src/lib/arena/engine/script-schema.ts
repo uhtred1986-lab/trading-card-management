@@ -3,8 +3,8 @@ import type { CardFilter } from "./filters";
 // is what `modifyAttr` may *write* (colours, characters, traits and names among
 // them, which are lists), `AmountAttr` what an amount may *read as a number*.
 // Collapsing them would let `attr($t, colors)` stand where a number belongs.
-import type { Amount, AmountAttr, CardAttr, Cond, Duration, Op, Ref, ReplaceEvent, ScriptArea, Selector, Side, SpecialTarget } from "./script";
-import type { Area, CardDef, Color, DelayScope, DelayTiming, ForbiddenAction, KeywordSkill, Phase, Prompt, SkillKindPrefix, SkipWhat } from "./types";
+import type { Amount, AmountAttr, CardAttr, Cond, Duration, NegateScope, Op, Ref, ReplaceEvent, ScriptArea, Selector, Side, SpecialTarget } from "./script";
+import type { Area, CardDef, Color, DelayScope, DelayTiming, ForbiddenAction, KeywordSkill, MoveReason, Phase, Prompt, SkillKindPrefix, SkipWhat } from "./types";
 
 // ── the schema: one row per op, read by everything that is not the interpreter ──
 
@@ -91,6 +91,7 @@ export const AREAS = ["hand", "deck", "drop", "life", "battle", "combo", "energy
 export const CARD_ATTRS = ["power", "comboPower", "colors", "characters", "traits", "names"] as const satisfies readonly CardAttr[];
 export const DURATIONS = ["battle", "turn", "opponentTurn", "nextTurn", "afterNextCharge", "game"] as const satisfies readonly Duration[];
 const DELAY_TIMINGS = ["turnStart", "mainStart", "turnEnd", "turnCleanup", "battleEnd"] as const satisfies readonly DelayTiming[];
+export const MOVE_REASONS = ["ko", "effect", "rule", "cost", "play", "combo", "damage", "draw", "charge"] as const satisfies readonly MoveReason[];
 const DELAY_SCOPES = ["thisTurn", "nextTurn", "yourNextTurn", "opponentNextTurn"] as const satisfies readonly DelayScope[];
 const SKILL_KIND_PREFIXES = ["auto", "activate", "counter", "permanent"] as const satisfies readonly SkillKindPrefix[];
 export const KEYWORD_NAMES = [
@@ -222,6 +223,15 @@ const MODIFY_ATTR_FIELDS: OpField[] = [
 ];
 const SELF: OpField = { name: "target", type: "ref", default: { sel: { special: "self" } } };
 const UNTIL: OpField = { name: "until", type: "duration", required: true };
+const NEGATE_SCOPES = ["skills", "kind", "keyword", "own"] as const satisfies readonly NegateScope[];
+/** `negate`'s fields, named so its `sentence` can hand the spelling it stands for to `describeScript`. */
+const NEGATE_FIELDS: OpField[] = [
+  SELF,
+  { name: "what", type: { enum: NEGATE_SCOPES }, required: true },
+  { name: "kind", type: { enum: SKILL_KIND_PREFIXES } },
+  { name: "keyword", type: { enum: KEYWORD_NAMES } },
+  { name: "until", type: "duration" },
+];
 const MODE = { enum: ["active", "rest"] } as const;
 const POSITION = { enum: ["top", "bottom"] } as const;
 const n = (required = true): OpField => ({ name: "n", type: "amount", required });
@@ -240,7 +250,10 @@ type OpOf<K extends Op["op"]> = Extract<Op, { op: K }>;
 export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
   draw: { fields: [n(), SIDE], sentence: "{side:opponent draws|draw} {n}" },
   discard: { fields: [n(), SIDE, { name: "to", type: { enum: ["warp"] } }], sentence: "{side:opponent discards|discard} {n}{to? to the Warp}", doc: 'cards leave a hand for the Drop (20-7); "to":"warp" for the Warp' },
-  damage: { fields: [n(), SIDE], sentence: "deal {n} damage", doc: "life to hand" },
+  // The runtime default is "opponent" (`stepScript`'s `case "damage"`), not
+  // `SIDE`'s "you" — damage is dealt to *someone*, and nearly every card that
+  // omits `side` means the other player's life, never its own.
+  damage: { fields: [n(), { name: "side", type: "side", default: "opponent" }], sentence: "deal {n} damage", doc: "life to hand" },
   mill: { fields: [n(), SIDE, { name: "as", type: "string" }], sentence: "{n} from the top of the deck to the Drop", doc: 'deck to Drop; "as" names the cards for a later clause ("if that card is red")' },
   addLife: { fields: [n(), SIDE], sentence: "add {n} to life" },
   lifeDownTo: { fields: [{ name: "n", type: "number", required: true }, SIDE], sentence: "life down to {n}, the cards going to hand", doc: "add cards from life to hand until that many life remain (21-3-2)" },
@@ -274,9 +287,10 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       { name: "under", type: "ref" },
       { name: "owner", type: "side" },
       { name: "faceUp", type: "boolean" },
+      { name: "cause", type: { enum: MOVE_REASONS }, default: "effect" },
     ],
     sentence: "move {target} to {to}{faceUp? face up}",
-    doc: '"to":"under" puts the card under "under" (or under this card, 23-2); "owner":"opponent" for "place it in your opponent\'s energy" — the area is theirs, not the card owner\'s (3-8)',
+    doc: '"to":"under" puts the card under "under" (or under this card, 23-2); "owner":"opponent" for "place it in your opponent\'s energy" — the area is theirs, not the card owner\'s (3-8); "cause" is "damage"/"ko"/"combo"/"effect"/a plain "draw" told apart (spec §2.5-2), read by a replacement\'s own scope and, on the rules engine, by `triggers.rules`\'s `moved(cause: …)`',
   },
   play: {
     fields: [TARGET, { name: "mode", type: MODE }, { name: "onto", type: "ref" }, { name: "negated", type: { enum: ["turn", "game"] } }],
@@ -349,6 +363,13 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       return renderTemplate(template, raw as unknown as Record<string, unknown>, COPY_SKILLS_FIELDS, r);
     },
     doc: '20-18: one card takes on another\'s printed skills. "which":"all" copies every one of them, "skill" copies one by its index on the source, and neither lets the master pick one as the skill resolves — which is what "choose up to 1 keyword skill … and this card gains that skill" says. "only":"keyword" narrows the pick and the copy to keyword skills. The printed face is snapshotted when the effect is made (9-9), so the copy outlives the source leaving play',
+  },
+  negate: {
+    fields: NEGATE_FIELDS,
+    // The sentence is the spelling's own, so the workbench reads a lowered
+    // program in the same words as the record it came from.
+    sentence: (raw, r) => describeScript([negateAs(raw as OpOf<"negate">)], r),
+    doc: 'the primitive under "negateSkills", "negateSkillsOfKind", "negateKeyword" and "negateOwnSkill" (docs/arena-ruleset-spec.md §2.2): a rule stops applying (9-1-5). "what" says which — "skills" is every skill of the target, "kind" one printed kind of them (say which in "kind"), "keyword" one named keyword in every area (say which in "keyword"), "own" the skill resolving now. "until" left out is for the game. Those four spellings are still what the compiler writes and what a stored rule holds — prefer them; this row is what they mean',
   },
   negateSkills: { fields: [TARGET, UNTIL], sentence: "negate the skills of {target}{until}" },
   negateSkillsOfKind: {
@@ -624,6 +645,7 @@ export const OP_CLASS: Record<Op["op"], OpClass> = {
   comboPower:         "macro over `modifyAttr`",
   grant:              "macro over `modifyAttr`",
   copySkills:         "primitive",
+  negate:             "primitive",
   negateSkills:       "macro over `negate`",
   negateSkillsOfKind: "macro over `negate`",
   hidden:             "macro over `modifyAttr`",
@@ -959,6 +981,40 @@ export const CONDITIONS_OFF_A_CARD: readonly Cond["kind"][] = ["asking", "forbid
  * bad ruling can be wrong but never illegal. Nested programs are checked to
  * the depth a real card ever needs.
  */
+/**
+ * The `negate` primitive, read as the spelling it stands for (9-1-5, #276).
+ *
+ * `negateSkills`, `negateSkillsOfKind`, `negateKeyword` and `negateOwnSkill`
+ * are what the compiler writes and what a record holds; `negate` is what they
+ * mean (docs/arena-ruleset-spec.md §2.2), and this is the one place the two
+ * meet. The interpreter (`stepScript`), the legacy statics collector, the
+ * rules engine's [Permanent] walk and the row's own sentence each pass a step
+ * through here first, so a program written either way runs through the same
+ * case, puts the same effect in force and reads in the same words — one
+ * dispatch, never a second reading of negation. Any other step comes back as
+ * it was.
+ *
+ * A scope missing the field it needs — `kind` with no skill kind, `keyword`
+ * with no keyword, `own` for a span that is neither the turn, the battle nor
+ * the game — is a `note` rather than a guess: unread beats wrongly read.
+ */
+export function negateAs(op: Op): Op {
+  if (op.op !== "negate") return op;
+  const target: Ref = op.target ?? { sel: { special: "self" } };
+  const until: Duration = op.until ?? "game";
+  switch (op.what) {
+    case "skills":
+      return { op: "negateSkills", target, until };
+    case "kind":
+      return op.kind ? { op: "negateSkillsOfKind", target, kind: op.kind, until } : { op: "note", text: "negate: no skill kind named" };
+    case "keyword":
+      return op.keyword ? { op: "negateKeyword", keyword: op.keyword, ...(op.target ? { target: op.target } : {}) } : { op: "note", text: "negate: no keyword named" };
+    case "own":
+      if (until === "turn" || until === "battle") return { op: "negateOwnSkill", until };
+      return until === "game" ? { op: "negateOwnSkill" } : { op: "note", text: `negate: this skill cannot be negated ${DURATION_IN_WORDS[until].trim()}` };
+  }
+}
+
 export function validateProgram(ops: unknown, depth = 0, xBound = false): ops is Op[] {
   if (!Array.isArray(ops) || depth > 4) return false;
   // 20-5: X is legal only once something has bound it — the price, said by

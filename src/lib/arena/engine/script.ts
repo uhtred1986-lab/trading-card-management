@@ -11,7 +11,7 @@
  */
 import { skillsOf } from "./cards";
 import type { CardFilter } from "./filters";
-import { asksAQuestion, costModifierAs, describeCond, describeScript, describeSelector } from "./script-schema";
+import { asksAQuestion, costModifierAs, describeCond, describeScript, describeSelector, negateAs } from "./script-schema";
 import { resolveSelector, sideOf, type AltCost } from "./state";
 import type { ScriptHost } from "./script-host";
 import type { Area, Color, DelayScope, DelayTiming, ForbiddenAction, KeywordSkill, MoveReason, PlayerId, Prompt, ReplacementChoice, ReplacementResult, Skill, SkillKindPrefix, SkipWhat, Trigger } from "./types";
@@ -29,6 +29,9 @@ export type Side = "you" | "opponent" | "both";
  * there when the Active Step runs, and `nextTurn` ends just before it.
  */
 export type Duration = "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "game";
+
+/** What a `negate` step switches off (9-1-5): a card's skills, one kind of them, one named keyword, or the skill resolving now. */
+export type NegateScope = "skills" | "kind" | "keyword" | "own";
 
 /**
  * Cards the source skill can point at without choosing: itself, the battle
@@ -317,8 +320,14 @@ export type Op =
    * opponent's energy in Rest Mode" (3-8) puts a card the opponent owns into
    * the *other* player's energy. Left out, a card goes to its own owner's
    * area, which is what nearly every move means.
+   *
+   * `cause` is `damage`, `ko`, `combo`, `effect` and a plain `draw` told apart
+   * (`MoveOptions.reason` on the legacy side) — read by a replacement's own
+   * scope and, on the rules engine, carried onto the `moved` moment so
+   * `triggers.rules` may match `moved(cause: …)` (spec §2.5-2). Left out, a
+   * move means `effect`, which is what nearly every one is.
    */
-  | { op: "moveTo"; target: Ref; to: ScriptArea; position?: "top" | "bottom"; mode?: "active" | "rest"; reveal?: boolean; under?: Ref; owner?: Side; faceUp?: boolean }
+  | { op: "moveTo"; target: Ref; to: ScriptArea; position?: "top" | "bottom"; mode?: "active" | "rest"; reveal?: boolean; under?: Ref; owner?: Side; faceUp?: boolean; cause?: MoveReason }
   /**
    * `onto` plays the card on top of another, which is how [Union-Absorb]
    * resolves (22-13-6-3) and how the "play … on top of this card" wordings
@@ -407,6 +416,17 @@ export type Op =
    * bare "[Counter]" covers every counter kind.
    */
   | { op: "negateSkillsOfKind"; target: Ref; kind: SkillKindPrefix; until: Duration }
+  /**
+   * 9-1-5, as the one primitive the four spellings are (docs/arena-ruleset-spec.md
+   * §2.2, #276): a rule stops applying. `what` says which rule — every skill
+   * of `target` ("skills"), one printed kind of them ("kind", named by `kind`),
+   * one named keyword in every area ("keyword", named by `keyword`) or the
+   * skill resolving now ("own", where `target` is not read). `until` left out
+   * is for the game. `negateAs` (script-schema.ts) is the one reading of it:
+   * the interpreter, the statics and the sentence all go through the spelling
+   * it stands for, so a program written either way does the same thing.
+   */
+  | { op: "negate"; target?: Ref; what: NegateScope; kind?: SkillKindPrefix; keyword?: KeywordSkill["name"]; until?: Duration }
   /** 23-5: "switch it to Hidden Mode" / "switch it to Revealed Mode" — Battle Cards in the Battle Area only. */
   | { op: "hidden"; target: Ref; hidden: boolean }
   /** "Switch the target of the attack to it" — the card becomes the guard, as a [Blocker] would (22-4-2). */
@@ -985,10 +1005,12 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
       }
       return "done";
     }
-    // The `costModifier` primitive is run as the spelling it stands for
-    // (spec §2.5-4, #277): one dispatch, so `costReduction`'s and `altCost`'s
-    // own cases below are the only reading of a price change on either engine.
-    const op = costModifierAs(frame.ops[frame.ip]);
+    // The `negate` (9-1-5, #276) and `costModifier` (spec §2.5-4, #277)
+    // primitives are run as the spelling each stands for: one dispatch, so
+    // the four negation cases and the two price cases below are the only
+    // reading of either on either engine. The two never read the same op,
+    // so the order of the composition is immaterial.
+    const op = costModifierAs(negateAs(frame.ops[frame.ip]));
 
     switch (op.op) {
       case "note":
@@ -1267,7 +1289,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           reveal: op.reveal,
           mode: op.mode,
           faceUp: op.faceUp,
-          reason: "effect",
+          reason: op.cause ?? "effect",
         };
         while (frame.moveLoop && frame.moveLoop.kind === "moveTo" && frame.moveLoop.index < frame.moveLoop.ids.length) {
           const id = frame.moveLoop.ids[frame.moveLoop.index];
@@ -1299,7 +1321,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             h.clearLastMode();
             frame.awaiting = undefined;
           } else {
-            const choices = h.replacementsFor(id, "effect", { actor: master, inSubstitute: !!frame.replacing });
+            const choices = h.replacementsFor(id, op.cause ?? "effect", { actor: master, inSubstitute: !!frame.replacing });
             const allowNone = choices.length > 0 && choices.every((c) => c.optional);
             if (choices.length > 1 || allowNone) {
               frame.awaiting = "replaceMove";
@@ -1316,7 +1338,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             replaced = choices.length ? routeOf(choices[0]) : null;
           }
           const deferred = defers(replaced);
-          h.move(id, dest, owner, { position: op.position, reveal: op.reveal, reason: "effect", ...(replaced === undefined ? {} : { replaced: deferred ? { ...replaced!, deferred: true } : replaced }) });
+          h.move(id, dest, owner, { position: op.position, reveal: op.reveal, reason: op.cause ?? "effect", ...(replaced === undefined ? {} : { replaced: deferred ? { ...replaced!, deferred: true } : replaced }) });
           // #107: the departure is already replaced — the card stayed — and
           // the program that stood in for it runs as a frame of its own, so a
           // question inside it is asked rather than lost. Nothing below is

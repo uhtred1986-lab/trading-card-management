@@ -5,9 +5,10 @@
  * translation rather than a passthrough: several events have no picture and
  * collapse to nothing. This is that translation for the events *this* engine
  * emits — a phase beginning, a card moving, a draw, a mode change, an energy
- * marker, the game ending — and it deliberately covers no more than the engine
- * can produce. A beat for a battle or a skill would be a shape nothing here
- * can reach, and an empty case is how a reader tells the two apart.
+ * marker, an effect coming into force or ending, the game ending — and it
+ * deliberately covers no more than the engine can produce. A beat for a battle
+ * or a skill would be a shape nothing here can reach, and an empty case is how
+ * a reader tells the two apart.
  *
  * The one thing it must do exactly as `beats.ts` does is `art`: a beat carries
  * the face of the card it names **as it was at event time**, because a card
@@ -20,6 +21,7 @@
  */
 import type { EngineContext, GameEvent } from "../engine";
 import type { Beat, BeatArt, Beats, NumberedBeat } from "../beats";
+import { describeEffect } from "../effects";
 import { rulesetFor } from "../rulesets";
 import { attrsOf } from "./cards";
 import type { VmState } from "./state";
@@ -65,6 +67,22 @@ export function vmToBeats(ctx: EngineContext, state: VmState, events: GameEvent[
       case "mode":
         push({ t: "mode", card: e.card, mode: e.mode });
         break;
+      // A rule coming into force or ending (9-1-4), drawn exactly as
+      // `beats.ts` draws it: the same `describeEffect` label, and a card the
+      // beat names only while it can still bring a face (contract §4).
+      case "effect":
+      case "effectEnded": {
+        const fx = e.effect;
+        const card = fx.target && state.cards[fx.target] ? fx.target : null;
+        const source = fx.source && state.cards[fx.source] ? fx.source : null;
+        if (card) remember(card);
+        if (source) remember(source);
+        const d = describeEffect(fx);
+        const player = card ? null : (fx.forbid?.player ?? null);
+        if (e.type === "effect") push({ t: "effect", card, player, kind: d.kind, label: d.label, until: fx.until, source, owner: fx.master });
+        else push({ t: "effectEnded", card, player, kind: d.kind, label: d.label, source });
+        break;
+      }
       case "gameOver":
         push({ t: "over", winner: e.winner, reason: e.reason });
         break;
@@ -78,7 +96,7 @@ export function vmToBeats(ctx: EngineContext, state: VmState, events: GameEvent[
       case "note":
         break;
       // Everything else is a shape this engine cannot produce yet — a battle,
-      // a skill, an effect coming into force. Left to the issue that builds
+      // a skill. Left to the issue that builds
       // the mechanism rather than answered with a beat drawn from nothing.
       default:
         break;

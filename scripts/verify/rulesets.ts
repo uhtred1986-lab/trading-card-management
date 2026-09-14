@@ -501,11 +501,15 @@ if (dbs.ok) {
   // writable is a declaration in it and nothing else: every one declared is a
   // row `OP_CLASS` marks *macro*, and the sweep in verify/language.ts is what
   // proves each lowers over the whole harness. The first three are #273's;
-  // #277 (a price is not a number) adds the next two.
+  // #274 (a move told apart by its cause) adds only `ko` — `draw`, `discard`,
+  // `damage` and `addLife` all take `n` as an `amount`, X included, and a
+  // selector's count is typed a bare `number` (see `ops.rules`'s `count`).
+  // #276 (one primitive under the four negation spellings) adds the next four,
+  // and #277 (a price is not a number) the last two.
   assert.ok("ops.rules" in DBS_FILES, "ops.rules is not in the set the app loads");
   assert.deepEqual(
     Object.keys(def.ops).sort(),
-    ["altCost", "comboPower", "costReduction", "may", "power"],
+    ["altCost", "comboPower", "costReduction", "ko", "may", "negateKeyword", "negateOwnSkill", "negateSkills", "negateSkillsOfKind", "power"],
     "ops.rules declares a different set of macros than the tests expect",
   );
   for (const name of Object.keys(def.ops)) {
