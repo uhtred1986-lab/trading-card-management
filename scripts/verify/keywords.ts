@@ -24,6 +24,7 @@ import {
   koCard,
   labels,
   legalActions,
+  lifeReplacementChoicesFor,
   move,
   placeUnder,
   orbsIn,
@@ -2092,4 +2093,53 @@ function withRecord(cardId: string, record: { ops: unknown[]; unsupported: strin
   move(CTX, s, ev, asker, "drop", "p1", { reason: "rule" });
   assert.ok(s.players.p1.drop.includes(asker), "a departure nobody can be asked about is not replaced");
   assertConsistent(s);
+}
+
+// ── event: "life" (#272) — a life card's own move, not a Battle Area one ────
+{
+  // "During your opponent's turn, if you would add a card from your life to
+  // your hand or place it in your Drop Area, you may reveal it and add it to
+  // your hand instead." (BT10-031, SD18-01's shape).
+  DEFS.REVEALER = {
+    ...DEFS.V1,
+    id: "REVEALER",
+    name: "REVEALER",
+    skill: "[Permanent] During your opponent's turn, if you would add a card from your life to your hand or place it in your Drop Area, you may reveal it and add it to your hand instead.",
+  };
+  const rule = compileSkill(parseSkills(DEFS.REVEALER.skill!)[0]);
+  assert.deepEqual(rule.unsupported, [], "the condition, the moment and the substitute all read");
+
+  // During the controller's own turn, "during your opponent's turn" does not
+  // hold, so nothing answers to a departure of their own life at all.
+  const own = arena({ battle: ["REVEALER"] });
+  const ownLife = own.players.p1.life[0];
+  assert.deepEqual(lifeReplacementChoicesFor(CTX, own, ownLife, "drop"), [], "the permanent's own condition is during the opponent's turn, not this one");
+
+  // During the opponent's turn — REVEALER defending against a [Critical] hit,
+  // so the life card is headed for the Drop (22-6) — the choice is offered.
+  const s = arena({ battle: ["CRIT"], oppBattle: ["REVEALER"] });
+  const attacker = find(s, "p1", "battle", "CRIT");
+  const life = s.players.p2.life[0];
+  const handBefore = s.players.p2.hand.length;
+  let r = apply(CTX, s, { type: "attack", player: "p1", attacker, target: s.players.p2.leader });
+  r = apply(CTX, r.state, { type: "pass", player: "p1" });
+  r = apply(CTX, r.state, { type: "pass", player: "p2" });
+  assert.equal(r.state.prompt.kind, "replaceMove", "9-10-3: whether to take the offer is asked");
+  assert.equal((r.state.prompt as { player: string }).player, "p2", "the affected player answers, not the attacker");
+  assert.equal((r.state.prompt as { options: string[] }).options.length, 2, "the offer, and keeping the ordinary move (9-10-3)");
+
+  // Declining: the ordinary [Critical] move to the Drop stands.
+  const declined = apply(CTX, r.state, { type: "chooseMode", player: "p2", index: 1 });
+  assert.ok(declined.state.players.p2.drop.includes(life), "declined: the card still goes to the Drop");
+  assert.equal(declined.state.players.p2.hand.length, handBefore, "and not to the hand");
+  assertConsistent(declined.state);
+
+  // Accepting: revealed, and to the hand instead of the Drop (9-10-1-1 — the
+  // move to the Drop never happened), kept public the way a face-up life
+  // card already is (`revealedTo`).
+  const taken = apply(CTX, r.state, { type: "chooseMode", player: "p2", index: 0 });
+  assert.ok(taken.state.players.p2.hand.includes(life), "accepted: to the hand instead");
+  assert.ok(!taken.state.players.p2.drop.includes(life));
+  assert.equal(taken.state.cards[life].faceUp, true, "revealed and kept public (20-11-2)");
+  assertConsistent(taken.state);
 }

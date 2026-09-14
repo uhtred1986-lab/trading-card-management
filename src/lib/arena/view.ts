@@ -419,7 +419,11 @@ export function revealedTo(s: GameState, viewer: PlayerId): Set<string> {
     add(ps.leader);
     add(ps.unison);
     for (const id of [...ps.battle, ...ps.combo, ...ps.energy]) add(id);
-    if (p === viewer) for (const id of ps.hand) add(id);
+    // #272: a life card revealed on its way into a hand (BT10-031/SD18-01,
+    // "you may reveal it and add it to your hand instead") is `faceUp` the
+    // same way a life or Z-Deck card left face up is — public knowledge
+    // wherever it sits, not only to its own owner.
+    for (const id of ps.hand) if (p === viewer || s.cards[id]?.faceUp) add(id);
     for (const id of [...ps.life, ...ps.zDeck]) if (s.cards[id]?.faceUp) add(id);
     add(ps.drop[0]);
   }

@@ -17,7 +17,7 @@ import { baseType, canCombo, isZ, keywordOf, skillsOf, specifiedCostOf } from ".
 import { costIsOnlyOrbs, costText, parseConditionClause } from "./compile";
 import { matches, parseCondition, parseFilter } from "./filters";
 import { legacyHost } from "./script-host";
-import { savedXKey, stepScript, validateProgram, type CardScripts, type Cond, type Op, type PayWith, type ScriptFrame, type XCost } from "./script";
+import { replacementPrompt, routeOf, savedXKey, stepScript, validateProgram, type CardScripts, type Cond, type Op, type PayWith, type ScriptFrame, type XCost } from "./script";
 import { koCard, pendTriggers } from "./triggers";
 import { nextRandom, shuffle } from "./rng";
 import { rejectedActions as gatherRejectedActions, type RejectionDeps } from "./rejections";
@@ -50,6 +50,7 @@ import {
   inPlay,
   keyword,
   LIFE_AT_START,
+  lifeReplacementChoicesFor,
   move,
   note,
   OPENING_HAND,
@@ -95,6 +96,7 @@ import type {
   PlayerState,
   Prompt,
   RejectedAction,
+  ReplacementResult,
   Requirement,
   Skill,
   Trigger,
@@ -473,7 +475,7 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
     case "battle.defense":
       return battleDefense(ctx, s, ev);
     case "battle.damage":
-      return battleDamage(ctx, s, ev);
+      return battleDamage(ctx, s, ev, step.resume);
     case "battle.end":
       return battleEnd(ctx, s, ev);
     case "battle.zEnergy":
@@ -1421,8 +1423,9 @@ function battleDefense(ctx: EngineContext, s: GameState, ev: GameEvent[]): "done
   return "done";
 }
 
-function battleDamage(ctx: EngineContext, s: GameState, ev: GameEvent[]): "done" | "wait" {
+function battleDamage(ctx: EngineContext, s: GameState, ev: GameEvent[], resume?: { taken: string[]; remaining: number; critical: boolean; awaiting?: true }): "done" | "wait" {
   const b = s.battle!;
+  if (resume) return damageLife(ctx, s, ev, other(s.turnPlayer), resume);
   if (b.negated || !battleIntact(ctx, s)) {
     abortBattle(s);
     return "done";
@@ -1445,25 +1448,7 @@ function battleDamage(ctx: EngineContext, s: GameState, ev: GameEvent[]): "done"
       const strike = keyword(ctx, s, b.attacker, "Strike");
       if (strike) amount = Math.max(amount, strike.x);
       const critical = has(ctx, s, b.attacker, "Critical");
-      const taken: string[] = [];
-      for (let i = 0; i < amount; i++) {
-        const life = s.players[defP].life[0];
-        if (!life) break;
-        move(ctx, s, ev, life, critical ? "drop" : "hand", defP, { reason: "damage", reveal: critical });
-        taken.push(life);
-      }
-      s.players[defP].damageTaken += taken.length;
-      ev.push({ type: "damage", player: defP, amount: taken.length, critical, cards: taken });
-      if (taken.length) {
-        pendTriggers(ctx, s, "dealtDamage", b.attacker);
-        // 3-9: "when your life is placed in your Drop" — the [Critical] case —
-        // and "when your life moves to another area", which is both.
-        for (const id of cardsInPlay(s, defP)) pendTriggers(ctx, s, "lifeLeft", id, taken[0]);
-        if (has(ctx, s, b.attacker, "Victory Strike")) {
-          gameOver(s, ev, atkP, `[Victory Strike] — ${face(ctx, s, b.attacker).name} dealt damage`);
-          return "done";
-        }
-      }
+      return damageLife(ctx, s, ev, defP, { taken: [], remaining: amount, critical });
     } else if (gt === "UNISON") {
       // 13-5-2: markers come off instead of KO.
       const strike = keyword(ctx, s, b.attacker, "Strike");
@@ -1474,6 +1459,60 @@ function battleDamage(ctx: EngineContext, s: GameState, ev: GameEvent[]): "done"
     } else {
       // 8-4-6-2: the guard is KO'd unless [Indestructible] (22-12).
       if (!has(ctx, s, b.guard, "Indestructible")) koCard(ctx, s, ev, b.guard, b.attacker);
+    }
+  }
+  s.flow.unshift({ op: "checkpoint" }, { op: "battle.end" });
+  return "done";
+}
+
+/**
+ * 8-4-6-1's life cards, one at a time: each can carry its own `event: "life"`
+ * replacement (#272, BT10-031/SD18-01's "you may reveal it and add it to
+ * your hand instead"), which is 9-10-3's own optional question and the one
+ * reason this loop can suspend. `resume.awaiting` is the one re-entry that
+ * reads the just-given answer off `s.lastMode` rather than asking about the
+ * next card — the same convention `script.ts`'s `moveLoop` reads its own
+ * answer with, over a plain array of candidates instead of a `ScriptFrame`.
+ */
+function damageLife(ctx: EngineContext, s: GameState, ev: GameEvent[], defP: PlayerId, resume: { taken: string[]; remaining: number; critical: boolean; awaiting?: true }): "done" | "wait" {
+  const { taken } = resume;
+  let { remaining, awaiting } = resume;
+  const dest: Area = resume.critical ? "drop" : "hand";
+  while (remaining > 0) {
+    const life = s.players[defP].life[0];
+    if (!life) break;
+    const choices = lifeReplacementChoicesFor(ctx, s, life, dest);
+    const allowNone = choices.length > 0 && choices.every((c) => c.optional);
+    let replaced: ReplacementResult | null | undefined;
+    if (awaiting) {
+      const index = s.lastMode;
+      s.lastMode = null;
+      awaiting = undefined;
+      replaced = index == null || index < 0 || index >= choices.length ? null : routeOf(choices[index]);
+    } else if (choices.length > 1 || allowNone) {
+      s.flow.unshift({ op: "battle.damage", resume: { taken, remaining, critical: resume.critical, awaiting: true } });
+      const prompt = replacementPrompt(face(ctx, s, life).name, dest, choices, allowNone);
+      return wait(s, { kind: "replaceMove", player: defP, card: life, reason: prompt.reason, options: prompt.options });
+    } else {
+      replaced = choices.length ? routeOf(choices[0]) : null;
+    }
+    // #272: never deferred — neither card's substitute (reveal, then move to
+    // hand) asks anything of its own, so `move()` runs it inline the moment
+    // it is decided, the same as any other question-free substitute.
+    move(ctx, s, ev, life, dest, defP, { reason: "damage", reveal: resume.critical, ...(replaced === undefined ? {} : { replaced }) });
+    taken.push(life);
+    remaining--;
+  }
+  s.players[defP].damageTaken += taken.length;
+  ev.push({ type: "damage", player: defP, amount: taken.length, critical: resume.critical, cards: taken });
+  if (taken.length) {
+    pendTriggers(ctx, s, "dealtDamage", s.battle!.attacker);
+    // 3-9: "when your life is placed in your Drop" — the [Critical] case —
+    // and "when your life moves to another area", which is both.
+    for (const id of cardsInPlay(s, defP)) pendTriggers(ctx, s, "lifeLeft", id, taken[0]);
+    if (has(ctx, s, s.battle!.attacker, "Victory Strike")) {
+      gameOver(s, ev, other(defP), `[Victory Strike] — ${face(ctx, s, s.battle!.attacker).name} dealt damage`);
+      return "done";
     }
   }
   s.flow.unshift({ op: "checkpoint" }, { op: "battle.end" });

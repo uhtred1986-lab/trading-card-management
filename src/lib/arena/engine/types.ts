@@ -937,7 +937,15 @@ export type FlowStep =
   | { op: "battle.offense" }
   | { op: "battle.promptCombo"; side: "offense" | "defense" }
   | { op: "battle.defense" }
-  | { op: "battle.damage" }
+  /**
+   * #272: `resume` carries a paused damage-application loop across a
+   * `replaceMove` wait — one card's [Strike]-raised `amount` is handled one
+   * life card at a time, since each can carry its own optional "reveal it and
+   * add it to your hand instead" (BT10-031, SD18-01). `awaiting` marks the
+   * one re-entry that reads the player's just-given answer off `s.lastMode`
+   * rather than asking about the next card.
+   */
+  | { op: "battle.damage"; resume?: { taken: string[]; remaining: number; critical: boolean; awaiting?: true } }
   | { op: "battle.end" }
   | { op: "battle.zEnergy"; player: PlayerId }
   | { op: "battle.cleanup" }

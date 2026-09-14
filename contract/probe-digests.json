@@ -551,6 +551,10 @@
     "outcome": "noScenario",
     "digest": "b80d3483"
   },
+  "REVEALER#0": {
+    "outcome": "inForce",
+    "digest": "7e315816"
+  },
   "SAIYANKILL#0": {
     "outcome": "fired",
     "digest": "8b0fa7d9"
