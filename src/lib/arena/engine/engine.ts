@@ -2436,8 +2436,15 @@ function activatable(ctx: EngineContext, s: GameState, p: PlayerId, card: string
       if (!planPayment(ctx, s, p, orbTotal, orbSpecified, undefined, orbEither, spoken ? [spoken] : undefined, pricePayerCards)) return null;
       return `Activate ${name} by resting a Red/Blue energy ([Invoker])`;
     }
+    // 4-2 / 12-2-2: the card's own energy cost and the skill's orbs are **one**
+    // price, colours included (1-2-3). This used to add the two totals and
+    // then plan against the play cost's colours alone, which offered
+    // BT17-080's {g}{y}{2} to an all-green board and BT16-017's {r}{u}{g}{y}{1}
+    // to a mono-red one — skills whose orbs could not be paid (#271). The
+    // either-orbs and 20-19's payers are the skill's, exactly as `canPayOrbs`
+    // reads them, so the merged price is the price `activate` charges.
     const c = playCost(ctx, s, card);
-    if (!planPayment(ctx, s, p, c.total + orbTotal, c.specified)) return null;
+    if (!planPayment(ctx, s, p, c.total + orbTotal, mergeSpecified(c.specified, orbSpecified), undefined, orbEither, undefined, pricePayerCards)) return null;
     return `Activate ${name} (${c.total})`;
   }
   if (alt) return null;
@@ -2656,14 +2663,19 @@ function whyNotActivate(ctx: EngineContext, s: GameState, p: PlayerId, card: str
   if (!costIsOrbsOnly && !condCost && !actionCost) unread();
   if (condCost && !condHolds(ctx, s, { ops: [], ip: 0, vars: {}, card, master: p }, condCost)) why.push({ kind: "condition", text: sk.cost });
   if (actionCost && !canPayCostProgram(ctx, s, p, card, actionCost)) why.push({ kind: "other", detail: `cannot pay: ${sk.cost}` });
-  why.push(...orbs());
-  if (!canResolve(ctx, s, card, sk)) unread();
-  if (baseType(d) === "EXTRA" && inHand) {
+  // 4-2 / 12-2-2: an Extra used from the hand pays its own energy cost and the
+  // skill's orbs as one price, colours included — the same merged price
+  // `activatable` plans, asked once, in the place the price is asked for every
+  // other line. It used to ask about the orbs alone here and then about the
+  // total against the play cost's colours further down, so a board with no
+  // energy at all was told "1 short" of a price that was 2 (#271).
+  const extraInHand = baseType(d) === "EXTRA" && inHand;
+  if (extraInHand) {
     const c = playCost(ctx, s, card);
-    why.push(...whyNotPay(ctx, s, p, c.total + orbTotal, c.specified));
-    return why;
-  }
-  if (inHand) why.push({ kind: "zone", card, area: "battle" }); // 9-1-3-1
+    why.push(...whyNotPay(ctx, s, p, c.total + orbTotal, mergeSpecified(c.specified, orbSpecified), orbEither, undefined, pricePayersFor(ctx, s, p, card, sk)));
+  } else why.push(...orbs());
+  if (!canResolve(ctx, s, card, sk)) unread();
+  if (inHand && !extraInHand) why.push({ kind: "zone", card, area: "battle" }); // 9-1-3-1
   return why;
 }
 
@@ -3291,15 +3303,20 @@ function activate(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId
     if (alt) {
       const a = altCostFor(ctx, s, card, p, "play");
       if (!a || !payAltCost(ctx, s, ev, p, a)) throw new IllegalAction("can't pay that price");
+      payOrbs();
     } else {
+      // 1-2-3: the card's energy cost and the skill's orbs are one price, paid
+      // once — the price `activatable` planned. Paid as two payments the first
+      // could rest the very energy the second's colour needed, and refuse a
+      // price the menu had just offered (#271).
       const c = playCost(ctx, s, card);
-      const pm = planPayment(ctx, s, p, c.total, c.specified, explicitPay);
+      const { total, specified, either } = orbTotals(ctx, s, card, sk);
+      const pm = planPayment(ctx, s, p, c.total + total + (xPaid ?? 0), mergeSpecified(c.specified, specified), explicitPay, either, undefined, pricePayersFor(ctx, s, p, card, sk));
       if (!pm) throw new IllegalAction("can't pay");
       pay(s, ev, p, pm);
     }
     move(ctx, s, ev, card, "drop", p, { reason: "cost", reveal: true });
-  }
-  payOrbs();
+  } else payOrbs();
   s.resolving = { card, skill: sk.index, player: p };
   s.flow.unshift(
     { op: "counter", window: "skill", responder: other(p) },

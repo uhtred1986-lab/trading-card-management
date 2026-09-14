@@ -54,15 +54,18 @@
  *   off the deck and markers off a Unison, each with moments of its own to fire;
  *   they are refused by name for the same reason (#149).
  *
- * **One reading that is deliberately not the legacy engine's**, recorded rather
- * than copied. An Extra Card used from the hand pays its own energy cost as well
- * as the skill's orbs (4-2, 12-2-2); the legacy `activatable` adds the two
- * *totals* and then plans against the play cost's colours alone
- * (`planPayment(c.total + orbTotal, c.specified)`), so on a board short of the
- * skill's own colour it offers a skill whose orbs it could not pay. Here the two
- * halves are one price, colours included, which is 1-2-3 read straight. The
- * divergence is asserted in `scripts/verify/vm.ts` §19 so it is a decision and
- * not a drift, and the legacy engine is bug fixes only.
+ * **One reading that was once not the legacy engine's, and is now.** An Extra
+ * Card used from the hand pays its own energy cost as well as the skill's orbs
+ * (4-2, 12-2-2), and here the two halves have always been one price, colours
+ * included, which is 1-2-3 read straight. The legacy `activatable` used to add
+ * the two *totals* and then plan against the play cost's colours alone, so on
+ * a board short of the skill's own colour it offered a skill whose orbs it
+ * could not pay — BT17-080's {g}{y}{2} to an all-green board. The owner ruled
+ * this engine right (13 Sep 2026: a card that cannot pay an energy colour
+ * cannot be played), and the legacy engine was fixed as the bug it was (#271):
+ * `scripts/verify/vm.ts` §19 now asserts the *agreement* — the same first
+ * `Requirement` on a board with the total but not the colour, and the same
+ * offer when the colour is there — where it used to record the divergence.
  *
  * Pure and client-safe, like the rest of `vm/`: no database, no network.
  */
