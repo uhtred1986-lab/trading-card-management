@@ -1,9 +1,11 @@
 ---
 title: Arena: replace(event: life) — a life card's move as the fourth replacement moment, and the reveal (BT10-031, SD18-01)
 milestone: Arena M1 — Rules correctness and parser coverage
-labels: backlog, ready-for-agent, enhancement, area:arena-compiler, area:arena-engine, phase:rules-stage2, model:opus-5
+labels: done, enhancement, area:arena-compiler, area:arena-engine, phase:rules-stage2, model:opus-5
 stage: 2
 issue: 272
+status: closed
+closed_at: 2026-09-14
 ---
 **Source:** #107 (owner's decision of 13 Sep 2026: "own scope"); `docs/arena-move-replacement-scope.md` §2.7 (`opts.reveal`) and §6 (why these two cards are not a Battle Area departure); the `replace` op in `src/lib/arena/engine/script-schema.ts` (`event` is the closed list `leave`, `ko`, `play`); `replacementFor` and the two suspendable `move()` sites in `src/lib/arena/engine/state.ts`; `docs/arena-backlog/s2-06-replace-event.md`; rule manual 9-10, 20-11.
 

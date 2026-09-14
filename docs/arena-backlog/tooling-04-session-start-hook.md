@@ -1,9 +1,11 @@
 ---
 title: Arena tooling: a SessionStart hook that installs dependencies so a fresh web session can run the tests
 milestone: Arena M15 — Backlog tooling and CI
-labels: backlog, ready-for-agent, enhancement, area:arena-docs, model:sonnet-5
+labels: done, enhancement, area:arena-docs, model:sonnet-5
 stage: tooling
 issue: 283
+status: closed
+closed_at: 2026-09-14
 ---
 **Source:** the orchestrator's token review of 13 Sep 2026 (a fresh Claude Code on the web container had no `node_modules`; `npx tsx scripts/verify-arena.ts` failed with "Cannot find module 'drizzle-orm'" in 1.4 s, which reads like a fast green run until the exit code is checked); `.claude/` (skills only, no `settings.json` today); the `session-start-hook` skill available in Claude Code on the web; `package.json` scripts; `CLAUDE.md` "Working efficiently in this repo".
 
