@@ -78,7 +78,11 @@ import type { CardFilter, SchemaOp } from "./harness";
     const op: Record<string, unknown> = { op: name };
     for (const f of spec.fields) if (f.required) op[f.name] = sample(f.type);
     assert.equal(validate([op]), true, `a minimal ${name} validates`);
-    if (name !== "note") assert.ok(describeScript([op as unknown as SchemaOp]).length > 0, `${name} has a sentence`);
+    // `note` says nothing by design; `costModifier` has no required field at
+    // all (which of its two shapes a call means is read off whether `pay` is
+    // there, not off requiredness), so its minimal instance is the same
+    // degenerate case `costModifierAs` reads as a `note` too (#277).
+    if (name !== "note" && name !== "costModifier") assert.ok(describeScript([op as unknown as SchemaOp]).length > 0, `${name} has a sentence`);
     assert.match(opSignature(name as SchemaOp["op"]), new RegExp(`^\\{"op":"${name}"`), `${name} has a signature for the referee`);
   }
   // The validator reads the rows: a missing required field, a value outside an
@@ -352,7 +356,10 @@ import type { CardFilter, SchemaOp } from "./harness";
   const ref = languageReference();
   assert.deepEqual(ref.ops.map((o) => o.name).sort(), Object.keys(OP_SCHEMA).sort(), "every op in OP_SCHEMA has a row, and no other");
   assert.deepEqual(ref.conds.map((c) => c.kind).sort(), Object.keys(COND_SCHEMA).sort(), "every condition in COND_SCHEMA has a row, and no other");
-  for (const op of ref.ops) if (op.name !== "note") assert.ok(op.sentence.length > 0, `${op.name}'s reference row has a worked sentence`);
+  // `note` says nothing by design; `costModifier`'s minimal instance (no
+  // required field at all) is the same degenerate case `costModifierAs`
+  // reads as a `note` too (#277).
+  for (const op of ref.ops) if (op.name !== "note" && op.name !== "costModifier") assert.ok(op.sentence.length > 0, `${op.name}'s reference row has a worked sentence`);
   for (const cond of ref.conds) assert.ok(cond.sentence.length > 0, `${cond.kind}'s reference row has a worked sentence`);
   assert.deepEqual(ref.selectorFields.map((f) => f.field).sort(), Object.keys(SELECTOR_FIELDS).sort());
   assert.deepEqual(ref.selectorFlags.map((f) => f.word).sort(), Object.keys(SELECTOR_FLAGS).sort());

@@ -170,6 +170,7 @@ disagree or if a row is missing from either.
 | `addMarker` | macro over `modifyAttr` | Attribute `markers`, by +*n*. The plan's sketch kept `marker` as a primitive of its own; a marker count is a number on a card and behaves like one, so it is not. |
 | `removeMarker` | macro over `modifyAttr` | Attribute `markers`, by −*n*; "when a marker is removed" is a trigger on the change. |
 | `token` | primitive | Nothing that moves cards can make one (19). |
+| `costModifier` | primitive | A price is not a number (#277): `pay` present replaces it entirely (`altCost`'s shape — none, life, a program, a reduced energy price); absent, `amount`/`what`/`colors`/`skillKind` change its number (`costReduction`'s shape). `costModifierAs` reads a call back as whichever it stands for, at the one dispatch point `stepScript` reads `negate` at. |
 | `costReduction` | macro over `costModifier` | Which cost (energy, skill, evolve, combo, Z-Energy, specified) is an argument, not six mechanisms — that was #96 and #97's finding before it was this table's. |
 | `gains` | macro over `modifyAttr` | Attributes `colors`, `characters`, `traits` and `names`, in every area (20-1). |
 | `replace` | primitive | An event is named (`leave`, `ko`, `play`) and a program stands in its place (9-10). Built by #125. `replaceLeave` and the `instead` half of `resolvingPlay` run through it today; `negateAttack` and `negateCounter` name events the engine still resolves in their own cases. |

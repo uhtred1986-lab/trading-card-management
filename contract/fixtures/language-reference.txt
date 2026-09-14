@@ -932,6 +932,130 @@
       "doc": "a token (19): {\"op\":\"token\",\"name\":\"Saibaman Token\",\"power\":10000,\"comboCost\":0,\"comboPower\":5000,\"colors\":[],\"n\":2}"
     },
     {
+      "name": "costModifier",
+      "class": "primitive",
+      "signature": "{\"op\":\"costModifier\",\"target\"?:TARGET,\"amount\"?:AMOUNT,\"what\"?:\"energy\"|\"skill\"|\"evolve\"|\"combo\"|\"zEnergy\"|\"specified\",\"skillKind\"?:\"auto\"|\"activate\"|\"counter\"|\"permanent\",\"colors\"?:[\"any\"|\"Red\"|\"Blue\"|\"Green\"|\"Yellow\"|\"Black\"|\"White\"|\"Colorless\"],\"pay\"?:\"none\"|\"life\"|\"program\"|\"energy\",\"n\"?:N,\"for\"?:\"counter\"|\"play\",\"alt\"?:[…],\"orbs\"?:[\"any\"|\"Red\"|\"Blue\"|\"Green\"|\"Yellow\"|\"Black\"|\"White\"|\"Colorless\"],\"until\"?:DURATION}",
+      "fields": [
+        {
+          "name": "target",
+          "required": false,
+          "nullable": false,
+          "defaultText": "{\"sel\":{\"special\":\"self\"}}",
+          "type": "ref"
+        },
+        {
+          "name": "amount",
+          "required": false,
+          "nullable": false,
+          "type": "amount"
+        },
+        {
+          "name": "what",
+          "required": false,
+          "nullable": false,
+          "defaultText": "\"energy\"",
+          "type": "enum",
+          "enumValues": [
+            "energy",
+            "skill",
+            "evolve",
+            "combo",
+            "zEnergy",
+            "specified"
+          ]
+        },
+        {
+          "name": "skillKind",
+          "required": false,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "auto",
+            "activate",
+            "counter",
+            "permanent"
+          ]
+        },
+        {
+          "name": "colors",
+          "required": false,
+          "nullable": false,
+          "type": "list",
+          "listOf": "enum",
+          "enumValues": [
+            "any",
+            "Red",
+            "Blue",
+            "Green",
+            "Yellow",
+            "Black",
+            "White",
+            "Colorless"
+          ]
+        },
+        {
+          "name": "pay",
+          "required": false,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "none",
+            "life",
+            "program",
+            "energy"
+          ]
+        },
+        {
+          "name": "n",
+          "required": false,
+          "nullable": false,
+          "type": "number"
+        },
+        {
+          "name": "for",
+          "required": false,
+          "nullable": false,
+          "defaultText": "\"counter\"",
+          "type": "enum",
+          "enumValues": [
+            "counter",
+            "play"
+          ]
+        },
+        {
+          "name": "alt",
+          "required": false,
+          "nullable": false,
+          "type": "ops"
+        },
+        {
+          "name": "orbs",
+          "required": false,
+          "nullable": false,
+          "type": "list",
+          "listOf": "enum",
+          "enumValues": [
+            "any",
+            "Red",
+            "Blue",
+            "Green",
+            "Yellow",
+            "Black",
+            "White",
+            "Colorless"
+          ]
+        },
+        {
+          "name": "until",
+          "required": false,
+          "nullable": false,
+          "type": "duration"
+        }
+      ],
+      "sentence": "",
+      "doc": "the primitive under \"costReduction\" and \"altCost\" (docs/arena-ruleset-spec.md §2.5-4): a price is not a number. \"pay\" present is the whole price replaced — \"none\"/\"life\"/\"program\"/\"energy\", with \"alt\" the program for \"program\" and \"orbs\" the reduced price for \"energy\" (altCost's own shape); \"pay\" absent is the number changed by \"amount\"/\"what\"/\"colors\"/\"skillKind\" (costReduction's). Those two spellings are still what the compiler writes and what a stored rule holds — prefer them; this row is what they mean"
+    },
+    {
       "name": "costReduction",
       "class": "macro over `costModifier`",
       "signature": "{\"op\":\"costReduction\",\"target\":TARGET,\"amount\":AMOUNT,\"what\"?:\"energy\"|\"skill\"|\"evolve\"|\"combo\"|\"zEnergy\"|\"specified\",\"skillKind\"?:\"auto\"|\"activate\"|\"counter\"|\"permanent\",\"colors\"?:[\"any\"|\"Red\"|\"Blue\"|\"Green\"|\"Yellow\"|\"Black\"|\"White\"|\"Colorless\"],\"until\"?:DURATION}",

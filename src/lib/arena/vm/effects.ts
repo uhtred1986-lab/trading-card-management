@@ -48,7 +48,7 @@
  * Pure and client-safe: no database, no network, no `fs`.
  */
 import type { EngineContext, GameEvent } from "../engine";
-import type { Amount, Op, ScriptFrame } from "../engine/script";
+import { costModifierAs, type Amount, type Op, type ScriptFrame } from "../engine/script";
 import type { Color, ContinuousEffect, DelayedEffect, DelayTiming, KeywordSkill, PlayerId, Prohibition } from "../engine/types";
 import { other as otherPlayer } from "../engine/types";
 import type { GameDefinition } from "../rulesets";
@@ -417,7 +417,9 @@ function collect(
   holds: (frame: ScriptFrame, op: Op) => boolean,
   measure: (frame: ScriptFrame, amount: Amount) => number,
 ): void {
-  for (const op of ops) {
+  // A `costModifier` printed as a [Permanent] is read as the spelling it
+  // stands for (#277), the same as `collectStatics` on the legacy engine.
+  for (const op of ops.map(costModifierAs)) {
     if (op.op === "if") {
       // A [Permanent] under a condition holds only while the condition does
       // (9-5-1-1), so the branch is taken afresh on every reading.
