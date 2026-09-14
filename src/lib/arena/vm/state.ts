@@ -68,8 +68,12 @@ import type { VmCard, Zones } from "./zones";
  * 6: #147's per-copy record of the skill lines used this turn
  * (`VmCard.usedThisTurn`, `usedMarkerSkill`). A version-5 state is a game in
  * which a [Once per turn] skill had no way to have been used.
+ * 7: #269's declared player attributes with a turn-start reset
+ * (`charged`, `grewUnison`) start carrying a real value in `VmSide.attrs`
+ * rather than reading as `undefined` everywhere. A version-6 state is a game
+ * in which nobody had yet had a charge or grown a Unison this turn either way.
  */
-export const VM_STATE_VERSION = 6;
+export const VM_STATE_VERSION = 7;
 
 /** One player, as the definition describes one: a name, a map of zones, and the attributes a *player* has (1-14). */
 export interface VmSide {

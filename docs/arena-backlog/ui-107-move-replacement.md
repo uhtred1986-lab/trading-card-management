@@ -1,8 +1,10 @@
 ---
 title: Arena: implement move replacement choice architecture (9-10-2/9-10-3)
 milestone: Arena M5 — Engine capability gaps and advanced mechanics
-labels: backlog, ready-for-agent, enhancement, area:arena-engine, area:arena-compiler, phase:capability-gap, model:opus-5
+labels: done, enhancement, area:arena-engine, area:arena-compiler, phase:capability-gap, model:opus-5
 stage: ui
+status: closed
+closed_at: 2026-09-13
 ---
 **Status (13 Sep 2026).** Increment 1 landed on 10 Sep 2026 (the resumable `moveLoop` cursor, `MoveOptions.replaced`, `replacementChoicesFor`, and the prompt — reusing the existing `replaceMove` `Prompt` kind and the flow's own `script.step` rather than adding a `move.replace` `FlowStep`, so neither the `Snapshot` nor the Kotlin twin changed). Increment 2 landed on 13 Sep 2026: `bySide: "opponent"`, a substitute that may stop and ask (deferred to a frame at the two suspendable sites, skipped at the other 46), `optional` substitutes for 9-10-3's "you may", and a replacement body that runs to the word "instead" however many clauses that takes. 46 of the family's 89 skills carried an unread clause; 26 do. **Still open:** the two public-reveal cards (BT10-031, SD18-01) and `opts.reveal` — re-reading their text, they replace a **life** card's move, not a Battle Area departure, so they need a fourth `replace` event before they need a reveal. `docs/arena-move-replacement-scope.md` §5 and §6.
 

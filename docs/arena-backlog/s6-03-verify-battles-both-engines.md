@@ -3,6 +3,7 @@ title: Arena: verify/battles.ts and the battle fixtures run on both engines
 milestone: Arena M9 — Rules engine battle (Stage 6)
 labels: backlog, ready-for-agent, enhancement, area:arena-vm, phase:rules-stage6, model:sonnet-5
 stage: 6
+touches: scripts/verify/battles.ts, scripts/verify/harness.ts, scripts/verify/workflow.ts, docs/arena-tooling.md
 ---
 **Source:** `scripts/verify/battles.ts` (466 lines), `harness.ts`, `workflow.ts`; the `--engine` flag on `verify-arena.ts` from Stage 4; `docs/arena-tooling.md` §2.
 

@@ -190,6 +190,7 @@ disagree or if a row is missing from either.
 | `may` | macro over `chooseMode` | Two options, the second empty (20-16). The answer has to be bound either way, because "if you do" reads it — which is a requirement on the primitive, not a reason for a second one. |
 | `delay` | primitive | The one op that moves work to a later moment with the variables bound now (1-7-2-1-1). |
 | `note` | primitive | A remark in the log; nothing to lower it to. |
+| `setPlayerAttr` | primitive | Sets a `DEFINE ATTRIBUTE of: player` fact by name (issue #269). Not a `modifyAttr` macro: that op reads and writes a *card's* attribute by a delta or a value list, and a player fact declared boolean has neither — 13-3's `grewUnison` is set once, true, and cleared only by its declaration's own `reset: turnStart`, never added to or subtracted from. |
 
 ### 2.4 The conditions
 
@@ -219,6 +220,8 @@ can name the attributes the engine keeps in code (§2.5).
 | `isTurnPlayer` | primitive | A fact about the game rather than about any card or pile (7-1). Stage 3 declares the turn player as a game attribute, which will make this a comparison like the rest. |
 | `asking` | primitive | A fact about the game rather than about any card or pile: which question is being asked. Nothing counted on the board says it, and the prompt is the interpreter's own (§7). |
 | `forbidden` | primitive | A search over the rules in force rather than over the board — a prohibition carries a budget, an escape clause and a chair to read it from (20-14), none of which is a count of cards. |
+| `playerAttr` | primitive | A `DEFINE ATTRIBUTE of: player` fact, read by name (issue #269) — "you have already had your charge this turn" and "you have not already grown a Unison this turn" are both `NOT playerAttr(name: …)`. Not a count: a boolean fact about a player is not a bound on any selector. |
+| `sameCard` | primitive | Do two selectors each resolve to a card of the same printed identity? Not a filter, because the identity being matched is another *selected* card's, not a fixed wording (`FILTER_FIELDS` names no "same as" field) — 13-3's "a copy of the Unison Card" is this, over the candidate and the Unison Area. |
 
 ### 2.5 What the tables ask for
 

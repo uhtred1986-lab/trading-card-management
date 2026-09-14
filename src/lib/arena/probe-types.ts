@@ -21,7 +21,14 @@ export interface ProbeRule {
 }
 
 export type ProbeFamily = "play" | "attack" | "combo" | "activateMain" | "activateBattle" | "copy" | "counter" | "permanent" | "keyword" | "moment" | "none";
-export type ProbeVariant = "default" | "noTarget" | "negated" | "opponentTurn" | "inHand";
+/**
+ * `reduced` is the board a [Permanent] that relaxes its *own* specified cost
+ * from hand is measured on (issue #255): the card in hand, its condition met,
+ * and one energy of each colour it still demands once the rule has relaxed
+ * it — so "the play is legal on a board with one blue energy" is what the
+ * probe reports for BT19-039, and a refusal names the colour it is short of.
+ */
+export type ProbeVariant = "default" | "noTarget" | "negated" | "opponentTurn" | "inHand" | "reduced";
 
 export interface ProbeScenario {
   /** "play" or "play:noTarget" — stable, so a stored probe can be re-run. */

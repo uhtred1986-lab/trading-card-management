@@ -149,7 +149,8 @@ export async function buildPoolsForCard(db: Db, cardId: string): Promise<CardPoo
   };
 }
 
-export async function suggestDeckFromCard(db: Db, cardId: string): Promise<{ deckId: number; leaderId: string; leaderName: string; draft: DeckFromCardDraft; mainCount: number; toBuy: number }> {
+/** `owner` is stamped on the deck it creates, the same as every other deck-creating path (issue #279). */
+export async function suggestDeckFromCard(db: Db, cardId: string, owner: string | null = null): Promise<{ deckId: number; leaderId: string; leaderName: string; draft: DeckFromCardDraft; mainCount: number; toBuy: number }> {
   const { seed, game, owned, buy, leaders } = await buildPoolsForCard(db, cardId);
   if (owned.length + buy.length < 30) throw new Error("Not enough on-colour cards in the catalog for this card.");
   if (leaders.length === 0) throw new Error("No Leader in the catalog can legally play this card's colours.");
@@ -227,7 +228,7 @@ export async function suggestDeckFromCard(db: Db, cardId: string): Promise<{ dec
 
   const [deck] = await db
     .insert(decks)
-    .values({ name: `${draft.name} (Claude draft)`, game, description })
+    .values({ name: `${draft.name} (Claude draft)`, game, description, owner })
     .returning({ id: decks.id });
   const values = [
     { deckId: deck.id, cardId: chosenLeader.id, zone: "leader", quantity: 1 },

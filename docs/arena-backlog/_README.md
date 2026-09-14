@@ -12,6 +12,10 @@ title: Arena: …                      exact issue title — the key the scripts
 milestone: Arena M6 — …              must be one of the milestones in docs/arena-backlog.md
 labels: backlog, ready-for-agent, …  comma-separated; the scripts create the ones they know
 stage: 3                             programme stage (2–10, "docs", "tooling"), or "ui" for the M2–M5 items
+touches: src/a.ts, src/b.ts          optional, comma-separated repo paths this issue's own work will
+                                      create or edit — how `docs/arena-backlog.md` §7 groups a wave
+                                      into sessions by hot file instead of from memory; never pushed
+                                      to the GitHub issue body (front matter only)
 tracking: true                       this file is the stage's tracking issue; its body may hold
                                      {{children}}, replaced by a task list of the stage's issues
 issue: 208                           optional — the GitHub issue number, written back by `--push`
@@ -27,6 +31,9 @@ Write the body for an agent that has read `CLAUDE.md` and nothing else: why, wha
 file paths), what is out of scope, and the acceptance checks as commands plus one scenario proof.
 Keep the title stable when there is no `issue:` yet — it is the fallback key; change the body
 freely and re-run the push with `--push` (or `-UpdateExisting` for the PowerShell script).
+
+An issue body carries no code map (line numbers, "absent from the tree" — the thing 32 files
+gained on 12 Sep and issue #281 removed): the map is `docs/arena-next-session-prompt.md`.
 
 ## The Node script
 

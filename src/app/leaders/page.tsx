@@ -7,6 +7,7 @@ import { GameFilter } from "@/components/GameFilter";
 import { mainCountLabel, mainCountOk } from "@/lib/decks/legality";
 import { DeckStatusBadge } from "@/components/DeckStatusBadge";
 import { ownedLeaders } from "@/lib/leaders/queries";
+import { currentOwner } from "@/lib/auth";
 import { BuildDeckButton } from "@/components/BuildDeckButton";
 import { CardFaces } from "@/components/CardFaces";
 import { ColorPill, RarityBadge } from "@/components/ColorPill";
@@ -24,7 +25,7 @@ export default async function LeadersPage({ searchParams }: { searchParams: Prom
   const game = parseGame(one(sp.game));
   // Fetched once for both filters: the game is cheap to apply here, and
   // `ownedLeaders` does a legality pass that is not worth running twice.
-  const ofColour = await ownedLeaders(db, { color });
+  const ofColour = await ownedLeaders(db, { color, viewer: await currentOwner() });
   const leaders = game ? ofColour.filter((l) => l.game === game) : ofColour;
   // The chosen game stays offered even when the colour filter empties it.
   const gamesPresent = GAMES.filter((g) => g === game || ofColour.some((l) => l.game === g));

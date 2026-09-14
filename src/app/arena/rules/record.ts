@@ -4,14 +4,18 @@
  * Shared by the worklist over your decks and the one over the whole catalog:
  * the two pages differ in what they *select*, never in what a record is.
  */
+import { eq } from "drizzle-orm";
 import type { Db } from "@/db";
+import { cards } from "@/db/schema";
 import type { RecordProps } from "@/components/arena/rules/RuleRecord";
 import { SKILL_LABELS } from "@/lib/arena/beats";
 import { describeScript, type Op } from "@/lib/arena/engine";
 import type { Cond, CostRecord } from "@/lib/arena/engine/script";
 import type { Trigger } from "@/lib/arena/engine";
 import { mechanismNeeds, mechanismOf } from "@/lib/arena/gaps";
+import { specifiedCostUnknown } from "@/lib/arena/engine";
 import { defsForCards } from "@/lib/arena/load";
+import { parseSpecifiedCost, specifiedCostWords } from "@/lib/arena/specified-cost";
 import { ruleFrom, scenariosFor } from "@/lib/arena/probe";
 import { programOf, siblingsOf, type CompilerDiff, type RuleStatus, type StoredProbe, type WorklistRow } from "@/lib/arena/rules-store";
 
@@ -43,8 +47,25 @@ export async function probeScenarios(db: Db, row: WorklistRow): Promise<{ ruleId
   return { ruleId: row.id, scenarios: scenarios.map((s) => ({ key: s.key, title: s.title })) };
 }
 
+/**
+ * The card's specified-cost baseline as the record shows it (issue #255):
+ * only an X-cost card has one to enter — a fixed cost's orbs are filled by
+ * convention — and `unknown` is `specifiedCostUnknown` read off the same def
+ * the engine plays, not a second list of cards. `entered` is the column as
+ * written, so a value that did not parse is shown rather than hidden.
+ */
+export async function specifiedCostOf(db: Db, cardId: string): Promise<RecordProps["specifiedCost"]> {
+  const [row] = await db.select({ energyCost: cards.energyCost, specifiedCost: cards.specifiedCost }).from(cards).where(eq(cards.id, cardId));
+  const defs = await defsForCards(db, [cardId]);
+  const def = defs[cardId];
+  if (!row || !def || def.energyCost !== "X") return null;
+  const parsed = parseSpecifiedCost(row.specifiedCost);
+  return { entered: row.specifiedCost, words: parsed ? specifiedCostWords(parsed) : null, unknown: specifiedCostUnknown(def) };
+}
+
 export async function buildRecord(db: Db, selected: WorklistRow, decks: string[]): Promise<RecordProps> {
   const siblings = await siblingsOf(db, selected);
+  const specifiedCost = await specifiedCostOf(db, selected.cardId);
   const key = selected.status === "open" ? mechanismOf(selected.unread[0] ?? "") : null;
   const mechanism = key ? { key, needs: mechanismNeeds(key) } : null;
   const diff = selected.compilerDiff as CompilerDiff | null;
@@ -81,5 +102,6 @@ export async function buildRecord(db: Db, selected: WorklistRow, decks: string[]
     siblings,
     compilerDiff: diff ? { reads: describeScript(diff.ops, { permanent: selected.kind === "permanent" }) || "nothing", unread: diff.unread, at: diff.at.slice(0, 10) } : null,
     mechanism,
+    specifiedCost,
   };
 }

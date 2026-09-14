@@ -3,6 +3,7 @@ title: Arena: combo, damage, life and Z-Energy on the rules engine
 milestone: Arena M9 — Rules engine battle (Stage 6)
 labels: backlog, ready-for-agent, enhancement, area:arena-vm, area:arena-rulesets, phase:rules-stage6, model:opus-5
 stage: 6
+touches: src/lib/arena/rulesets/dbs/game.rules, src/lib/arena/rulesets/dbs/costs.rules
 ---
 **Source:** plan Stage 6; `damage`, life handling (face-up life cards, `docs/arena-history-lessons.md` (5 Sep 2026)), Z-Energy in `src/lib/arena/engine/engine.ts`/`state.ts`; rule manual 9-7-7 (damage), 3-4 (Life Area), 23 (Z-Energy).
 

@@ -434,7 +434,7 @@
     {
       "name": "skip",
       "class": "primitive",
-      "signature": "{\"op\":\"skip\",\"what\":\"charge\"|\"main\"|\"end\"|\"offense\"|\"defense\",\"side\"?:\"you\"|\"opponent\",\"when\"?:\"this\"|\"next\"}",
+      "signature": "{\"op\":\"skip\",\"what\":\"charge\"|\"main\"|\"end\"|…,\"side\"?:\"you\"|\"opponent\",\"when\"?:\"this\"|\"next\"}",
       "fields": [
         {
           "name": "what",
@@ -446,7 +446,9 @@
             "main",
             "end",
             "offense",
-            "defense"
+            "defense",
+            "turn",
+            "span"
           ]
         },
         {
@@ -469,7 +471,7 @@
         }
       ],
       "sentence": "you skip the next Charge Phase",
-      "doc": "the phase or step is not performed (20-13): no [Auto] answers to its start or end, no action can be declared in it, and no checkpoint happens inside it. \"when\":\"this\" is the occurrence in the turn the skill resolved on, \"next\" the first one in a later turn. Effects that were to end in it end as it is skipped (20-13-5)"
+      "doc": "the phase or step is not performed (20-13): no [Auto] answers to its start or end, no action can be declared in it, and no checkpoint happens inside it. \"when\":\"this\" is the occurrence in the turn the skill resolved on, \"next\" the first one in a later turn. Effects that were to end in it end as it is skipped (20-13-5). \"what\":\"turn\" refuses the player's whole next turn, checked once at that turn's own start rather than at any one phase (BT31-097). \"what\":\"span\" reaches further: the rest of the turn this resolves in, the opponent's whole next turn, and this player's own next Charge Phase, landing at that Main Phase (BT21-104) — three ordinary entries under one name rather than a mechanism of its own."
     },
     {
       "name": "control",
@@ -1270,7 +1272,7 @@
     {
       "name": "replace",
       "class": "primitive",
-      "signature": "{\"op\":\"replace\",\"event\":\"leave\"|\"ko\"|\"play\",\"with\":[…],\"by\"?:\"skill\"|\"skillOrKo\",\"bySide\"?:\"opponent\",\"optional\"?:true|false,\"target\"?:TARGET}",
+      "signature": "{\"op\":\"replace\",\"event\":\"leave\"|\"ko\"|\"play\"|\"life\",\"with\":[…],\"by\"?:\"skill\"|\"skillOrKo\",\"bySide\"?:\"opponent\",\"to\"?:\"hand\"|\"drop\",\"optional\"?:true|false,\"target\"?:TARGET}",
       "fields": [
         {
           "name": "event",
@@ -1280,7 +1282,8 @@
           "enumValues": [
             "leave",
             "ko",
-            "play"
+            "play",
+            "life"
           ]
         },
         {
@@ -1309,6 +1312,16 @@
           ]
         },
         {
+          "name": "to",
+          "required": false,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "hand",
+            "drop"
+          ]
+        },
+        {
           "name": "optional",
           "required": false,
           "nullable": false,
@@ -1323,7 +1336,7 @@
         }
       ],
       "sentence": "if this card would leave the Battle Area, this happens instead: draw 1",
-      "doc": "an event happens differently, or not at all (9-10) — the primitive \"replaceLeave\" and the \"instead\" half of \"resolvingPlay\" are macros over. \"event\" is the moment: \"leave\" (the card would leave the Battle Area, narrowed by \"by\", and by \"bySide\" to the opponent's skill), \"ko\" (it would be KO'd), \"play\" (the play being resolved, 9-6, [Counter: Play] only). \"with\" is what happens in its place: one move of the card itself is a redirect, anything else is a substitute — the departure does not happen at all, the card stays, and the program runs with it bound as \"subject\". It may ask a question, and then it only applies where somebody can hear it (#107); \"optional\" is 9-10-3's \"you may\". A \"leave\"/\"ko\" replacement is [Permanent] only"
+      "doc": "an event happens differently, or not at all (9-10) — the primitive \"replaceLeave\" and the \"instead\" half of \"resolvingPlay\" are macros over. \"event\" is the moment: \"leave\" (the card would leave the Battle Area, narrowed by \"by\", and by \"bySide\" to the opponent's skill), \"ko\" (it would be KO'd), \"play\" (the play being resolved, 9-6, [Counter: Play] only), \"life\" (a life card's own move to the hand or the Drop Area, 8-4-6-1's damage — narrowed by \"to\", absent for either destination; \"by\"/\"bySide\" mean nothing here, since nobody's skill puts a card out of the life area). \"with\" is what happens in its place: one move of the card itself is a redirect, anything else is a substitute — the departure does not happen at all, the card stays, and the program runs with it bound as \"subject\". It may ask a question, and then it only applies where somebody can hear it (#107, #272); \"optional\" is 9-10-3's \"you may\". A \"leave\"/\"ko\"/\"life\" replacement is [Permanent] only"
     },
     {
       "name": "altCost",
@@ -1796,6 +1809,35 @@
       ],
       "sentence": "",
       "doc": "a remark in the log; does nothing"
+    },
+    {
+      "name": "setPlayerAttr",
+      "class": "primitive",
+      "signature": "{\"op\":\"setPlayerAttr\",\"name\":\"…\",\"value\"?:true|false,\"side\"?:\"you\"|\"opponent\"}",
+      "fields": [
+        {
+          "name": "name",
+          "required": true,
+          "nullable": false,
+          "type": "string"
+        },
+        {
+          "name": "value",
+          "required": false,
+          "nullable": false,
+          "defaultText": "true",
+          "type": "boolean"
+        },
+        {
+          "name": "side",
+          "required": false,
+          "nullable": false,
+          "defaultText": "\"you\"",
+          "type": "side"
+        }
+      ],
+      "sentence": "your x is set",
+      "doc": "set a `DEFINE ATTRIBUTE of: player` fact — 13-3's growUnison marks its own \"grewUnison\" true once it resolves, so a later REFUSE reads it rather than the move being asked twice in one turn (issue #269)"
     }
   ],
   "conds": [
@@ -2258,7 +2300,53 @@
         }
       ],
       "sentence": "the question on the table is the chooseFirst question",
-      "doc": "which question is on the table. No card says this — it is the word a `DEFINE ACTION`'s `REFUSE` needs to tell two windows of one move apart, and \"you have already had your charge this turn\" (7-2-11) is exactly `NOT asking(prompt: charge)` on both engines"
+      "doc": "which question is on the table. No card says this — it is the word an earlier `DEFINE ACTION`'s `REFUSE` told two windows of one move apart with, before `playerAttr` gave a fact its own name (issue #269)"
+    },
+    {
+      "kind": "playerAttr",
+      "class": "primitive",
+      "signature": "{\"kind\":\"playerAttr\",\"name\":\"…\",\"side\"?:\"you\"|\"opponent\"}",
+      "fields": [
+        {
+          "name": "name",
+          "required": true,
+          "nullable": false,
+          "type": "string"
+        },
+        {
+          "name": "side",
+          "required": false,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "you",
+            "opponent"
+          ]
+        }
+      ],
+      "sentence": "you x",
+      "doc": "a `DEFINE ATTRIBUTE of: player` fact, read — \"you have already had your charge this turn\" (7-2-11) and \"you have not already grown a Unison this turn\" (13-3) are both `NOT playerAttr(name: …)`, over the declared name (issue #269)"
+    },
+    {
+      "kind": "sameCard",
+      "class": "primitive",
+      "signature": "{\"kind\":\"sameCard\",\"a\":SELECTOR,\"b\":SELECTOR}",
+      "fields": [
+        {
+          "name": "a",
+          "required": true,
+          "nullable": false,
+          "type": "selector"
+        },
+        {
+          "name": "b",
+          "required": true,
+          "nullable": false,
+          "type": "selector"
+        }
+      ],
+      "sentence": "1 in your battle is the same card as 1 in your battle",
+      "doc": "do these two selectors each resolve to one card of the same printed identity? \"a copy of the Unison Card\" (13-3) is this, over the candidate and the card in the Unison Area — the filter grammar has no word for another card's identity, so this reads two selectors instead (issue #269)"
     }
   ],
   "selectorFields": [
