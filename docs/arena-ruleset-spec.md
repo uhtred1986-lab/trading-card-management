@@ -79,8 +79,8 @@ else is a macro. Four things follow, and they are the reason the tables below ar
   (#137). `power`, `comboPower` and `gains` are this issue's worked example: `modifyAttr` is added beside
   them, they keep parsing, printing and playing exactly as before, and no card's reading moves.
 - **A macro's target may not exist yet.** The table names the primitive as it will be, with today's
-  spelling beside it in §2.2. `move` is `moveTo` today; `costModifier` and `negate` are
-  the general forms of rows the engine already has; `control` and `skip` arrived as primitives
+  spelling beside it in §2.2. `move` is `moveTo` today; `costModifier` is the general form
+  of rows the engine already has, and `negate` arrived as one with #276; `control` and `skip` arrived as primitives
   with #126, and `replace` (#125) and `copySkills` (#123) as ones before them.
 - **Layering and duration are not ops.** The plan's `effect(layer)` row is the interpreter's
   bookkeeping — what `until` means, which effect wins, when it expires (§1, §7). Every op that
@@ -98,7 +98,7 @@ Twenty-five primitives carry every row below — twenty operations and five cond
 | `move` | `moveTo` | A card changes area, with a cause. Prohibitions, replacements, and the moments of leaving and arriving hang off this one op. |
 | `modifyAttr` | `modifyAttr` | One attribute of one subject, by a delta or by a value, for a duration or for as long as the rule holds. |
 | `costModifier` | `costReduction` | What something costs to play, activate or evolve — a whole price, not a number (§2.5). |
-| `negate` | `negateSkills` | A rule stops applying: a card's skills, one kind of them, one named keyword, or the skill resolving now. |
+| `negate` | `negate` | A rule stops applying: a card's skills, one kind of them, one named keyword, or the skill resolving now. Built by #276: `what` names the scope, and the interpreter runs it as the spelling it stands for. |
 | `replace` | `replace` | An event that is about to happen happens differently, or not at all (9-10). The event is named (`leave`, `ko`, `play`) and what happens in its place is a program, not only a destination. |
 | `choose` | `choose` | A player picks cards from a selector; the cards are bound to a name the rest of the program reads. |
 | `reveal` | `reveal` | Who has seen a card changes, without the card moving. |
@@ -158,6 +158,7 @@ disagree or if a row is missing from either.
 | `comboPower` | macro over `modifyAttr` | Attribute `comboPower`. The only difference from the row above is which attribute — which is the argument this table exists to make. |
 | `grant` | macro over `modifyAttr` | Attribute `keywords`: the card gains a keyword skill for a duration. What the keyword then does is the hook contract (§4). |
 | `copySkills` | primitive | One card reads another's printed skills as its own (20-18). No attribute holds a skill: what is copied is *text with a program behind it*, and the copy is a snapshot — what the source printed when the effect was made, kept after the source is flipped, silenced or gone (9-9). A copied pure keyword is granted as a keyword instead, which is `grant` and not this row. |
+| `negate` | primitive | A rule stops applying (9-1-5): `what` is the scope — `skills`, `kind`, `keyword` or `own` — and `until` the span. Built by #276 as one row whose interpreter path is the four spellings' own cases (`negateAs`), so the rows below are declarable and nothing about negation is read twice. |
 | `negateSkills` | macro over `negate` | Scope: every skill of a card (9-1-5). |
 | `negateSkillsOfKind` | macro over `negate` | Scope: one printed skill kind of a card. |
 | `negateKeyword` | macro over `negate` | Scope: one named keyword, in every area. |

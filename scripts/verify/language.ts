@@ -11,6 +11,7 @@ import { stateText } from "../../src/lib/arena/ai/view";
 import { COST_ITEMS, FILTER_FIELDS, SELECTOR_FIELDS } from "../../src/lib/arena/lang/ast";
 import { languageReference } from "../../src/lib/arena/lang/reference";
 import { SELECTOR_FLAGS } from "../../src/lib/arena/lang/parse";
+import { negateAs } from "../../src/lib/arena/engine/script";
 import { expandMacros, opsIn, rulesetFor } from "../../src/lib/arena/rulesets";
 import { whenMoments } from "../../src/lib/arena/rulesets/words";
 import {
@@ -107,6 +108,25 @@ import type { CardFilter, SchemaOp } from "./harness";
   assert.equal(describeScript([{ op: "hidden", target: { var: "t" }, hidden: false }]), "switch the chosen cards to Revealed Mode");
   assert.equal(describeScript([{ op: "faceUp", target: { var: "t" } }]), "turn the chosen cards face up", "a default fills an absent field");
   assert.equal(describeScript([{ op: "negateSkillsOfKind", target: { var: "t" }, kind: "auto", until: "turn" }]), "negate the [Auto] skills of the chosen cards for the turn");
+  // #276: the `negate` primitive reads in the words of the spelling it stands
+  // for, so a program lowered to it says what its record said…
+  assert.equal(describeScript([{ op: "negate", target: { var: "t" }, what: "skills", until: "turn" }]), "negate the skills of the chosen cards for the turn");
+  assert.equal(describeScript([{ op: "negate", target: { var: "t" }, what: "kind", kind: "auto", until: "turn" }]), "negate the [Auto] skills of the chosen cards for the turn");
+  assert.equal(describeScript([{ op: "negate", what: "keyword", keyword: "Blocker" }]), describeScript([{ op: "negateKeyword", keyword: "Blocker" }]));
+  assert.equal(describeScript([{ op: "negate", what: "own", until: "battle" }]), "this skill does not happen again");
+  // …and `negateAs` is the one lowering: a left-out span is the game, a
+  // left-out target is this card, and a scope missing its field is a note.
+  assert.deepEqual(negateAs({ op: "negate", what: "skills" }), { op: "negateSkills", target: { sel: { special: "self" } }, until: "game" });
+  assert.deepEqual(negateAs({ op: "negate", what: "kind", kind: "counter", target: { var: "t" }, until: "turn" }), { op: "negateSkillsOfKind", target: { var: "t" }, kind: "counter", until: "turn" });
+  assert.deepEqual(negateAs({ op: "negate", what: "keyword", keyword: "Blocker", target: { var: "t" } }), { op: "negateKeyword", keyword: "Blocker", target: { var: "t" } });
+  assert.deepEqual(negateAs({ op: "negate", what: "keyword", keyword: "Blocker" }), { op: "negateKeyword", keyword: "Blocker" });
+  assert.deepEqual(negateAs({ op: "negate", what: "own" }), { op: "negateOwnSkill" });
+  assert.deepEqual(negateAs({ op: "negate", what: "own", until: "turn" }), { op: "negateOwnSkill", until: "turn" });
+  assert.equal(negateAs({ op: "negate", what: "kind", until: "turn" }).op, "note", "a `kind` scope with no skill kind was guessed rather than noted");
+  assert.equal(negateAs({ op: "negate", what: "own", until: "nextTurn" }).op, "note", "an `own` scope for a span 9-1-5 has no word for was guessed rather than noted");
+  assert.deepEqual(negateAs({ op: "draw", n: 1 }), { op: "draw", n: 1 }, "a step that is not a negate came back changed");
+  assert.equal(validate([{ op: "negate", target: { var: "t" }, until: "turn" }]), false, "a negate with no scope validated");
+  assert.equal(validate([{ op: "negate", what: "skills", target: { var: "t" }, until: "turn" }]), true);
   assert.equal(describeScript([{ op: "power", target: { var: "t" }, amount: { count: { side: "you", area: "battle", count: 99 }, times: 5000 }, until: "battle" }]), "the chosen cards +5000 power for each of your Battle Cards for the battle");
   assert.equal(describeScript([{ op: "if", cond: { kind: "isTurnPlayer" }, then: [], else: [{ op: "draw", n: 1 }] }]), "if it is your turn: nothing, otherwise draw 1");
   assert.equal(describeScript([{ op: "may", ops: [{ op: "draw", n: 1 }], chooser: "opponent" }]), "your opponent may: draw 1");
@@ -390,7 +410,7 @@ import type { CardFilter, SchemaOp } from "./harness";
   assert.ok(loaded.ok, "the DBS ruleset did not load, so no program could be lowered");
   if (loaded.ok) {
     const macros = new Set(Object.keys(loaded.definition.ops));
-    for (const name of ["power", "comboPower", "may"]) assert.ok(macros.has(name), `ops.rules no longer declares ${name}`);
+    for (const name of ["power", "comboPower", "may", "negateSkills", "negateSkillsOfKind", "negateKeyword", "negateOwnSkill"]) assert.ok(macros.has(name), `ops.rules no longer declares ${name}`);
     // What a declared macro must lower into — read off `OP_CLASS`, the same
     // decision `ops.rules` declares, rather than a list kept here that could
     // drift from it.

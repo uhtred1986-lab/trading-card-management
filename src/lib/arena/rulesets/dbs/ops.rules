@@ -41,8 +41,6 @@
 --             need a *player* and the *battle in progress* as subjects, and
 --             `mode`, `markers`, `keywords`, `hidden`, `faceUp` and `flipped`
 --             as attributes (spec §2.5-1, §2.5-3).
---   negate    the `negate` primitive — the general form of `negateSkills` —
---             is not an op yet (spec §2.2).
 --   replace   the `replace` primitive is not an op yet (spec §2.2, #125).
 --   cost      the `costModifier` primitive is not an op yet: a price is not a
 --             number, which is the whole of spec §2.5-4.
@@ -68,24 +66,24 @@
 --   power                modifyAttr               declared (#273)
 --   comboPower           modifyAttr               declared (#273)
 --   grant                modifyAttr               param, subject
---   negateSkills         negate                   param, negate
---   negateSkillsOfKind   negate                   param, negate
+--   negateSkills         negate                   declared (#276)
+--   negateSkillsOfKind   negate                   declared (#276)
 --   hidden               modifyAttr               param, subject
 --   redirectAttack       modifyAttr               subject
---   comboFrom            move + negate            param, cause, negate
+--   comboFrom            move + negate            cause
 --   flip                 modifyAttr               subject
 --   faceUp               modifyAttr               param, subject
 --   addMarker            modifyAttr               param, subject
 --   removeMarker         modifyAttr               param, subject
 --   costReduction        costModifier             param, cost
---   negateKeyword        negate                   param, negate
+--   negateKeyword        negate                   declared (#276)
 --   gains                modifyAttr               param, subject
 --   replaceLeave         replace                  param, replace
 --   altCost              costModifier             param, cost
 --   resolvingPlay        replace                  param, replace
 --   negateAttack         replace                  replace
 --   negateCounter        replace                  replace
---   negateOwnSkill       negate                   param, negate
+--   negateOwnSkill       negate                   declared (#276)
 --   may                  chooseMode               declared (#273)
 --
 -- Two rows wait on nothing but a primitive that is only a field away
@@ -167,3 +165,52 @@ DEFINE OP ko
   }
   text: "the card moves to its owner's Drop Area"
   doc: "what `ko` means: the general move, to the Drop, with the cause every KO carries"
+
+-- ── a rule that stops applying (§2.2, 9-1-5, #276) ──────────────────────────
+--
+-- Four spellings, one primitive: `negate(target, what: skills | kind | keyword
+-- | own, kind?, keyword?, until?)` reads a card's skills, a printed kind of
+-- them, a named keyword everywhere, or the skill resolving now, and stops it
+-- for a duration. `negateAs` (`engine/script-schema.ts`) is the interpreter's
+-- own reading in the other direction — a `negate(…)` call read back as one of
+-- the four — and each row here is built to invert it exactly, so a program
+-- written the declared way and one written the primitive's own way say the
+-- same thing (`verify/vm.ts`'s existing macro/primitive parity block).
+-- `comboFrom`'s negate half stays out: it needs `cause` too (#274), not
+-- declared on this branch.
+
+-- §9-1-5 — "negate that card's skills for the turn"
+DEFINE OP negateSkills
+  TAKES (target: ref, until: duration)
+  DO {
+    negate(target: $target, what: skills, until: $until)
+  }
+  text: "the target's skills stop applying, for the duration"
+  doc: "what `negateSkills` means: every skill of one card, negated (9-1-5)"
+
+-- §9-1-5 — "negate that card's [Auto] skill for the turn"
+DEFINE OP negateSkillsOfKind
+  TAKES (target: ref, kind: word, until: duration)
+  DO {
+    negate(target: $target, what: kind, kind: $kind, until: $until)
+  }
+  text: "the target's skills of the printed kind stop applying, for the duration"
+  doc: "what `negateSkillsOfKind` means: one printed kind of skill of one card, negated — not the whole card (9-1-5)"
+
+-- §9-1-5 — "negate this card's [Energy-Exhaust] skill in all areas"
+DEFINE OP negateKeyword
+  TAKES (keyword: word, target: ref)
+  DO {
+    negate(target: $target, what: keyword, keyword: $keyword)
+  }
+  text: "the target loses the named keyword skill"
+  doc: "what `negateKeyword` means: one named keyword taken away, wherever the card sits — no duration of its own, unlike the other three"
+
+-- §9-1-5 — "negate this skill for the turn / battle / game"
+DEFINE OP negateOwnSkill
+  TAKES (until: duration)
+  DO {
+    negate(what: own, until: $until)
+  }
+  text: "this skill does not happen again, for the duration"
+  doc: "what `negateOwnSkill` means: the skill resolving now, negated for a span read off its own card — never a target, the way the other three take one"

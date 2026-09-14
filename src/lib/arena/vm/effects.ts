@@ -48,7 +48,7 @@
  * Pure and client-safe: no database, no network, no `fs`.
  */
 import type { EngineContext, GameEvent } from "../engine";
-import type { Amount, Op, ScriptFrame } from "../engine/script";
+import { negateAs, type Amount, type Op, type ScriptFrame } from "../engine/script";
 import type { Color, ContinuousEffect, DelayedEffect, DelayTiming, KeywordSkill, PlayerId, Prohibition } from "../engine/types";
 import { other as otherPlayer } from "../engine/types";
 import type { GameDefinition } from "../rulesets";
@@ -417,7 +417,10 @@ function collect(
   holds: (frame: ScriptFrame, op: Op) => boolean,
   measure: (frame: ScriptFrame, amount: Amount) => number,
 ): void {
-  for (const op of ops) {
+  // A `negate` is walked as the spelling it stands for (#276), so a
+  // `negateKeyword` written as the primitive is deferred by the same name
+  // `DEFERRED_STATICS` gives it, and nothing else.
+  for (const op of ops.map(negateAs)) {
     if (op.op === "if") {
       // A [Permanent] under a condition holds only while the condition does
       // (9-5-1-1), so the branch is taken afresh on every reading.

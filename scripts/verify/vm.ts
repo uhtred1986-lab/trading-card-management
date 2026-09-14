@@ -118,7 +118,9 @@ import { describePayment as legacyDescribe, paymentOptions as legacyOptions, pla
 import { paymentOptions as vmOptions } from "../../src/lib/arena/vm/costs";
 import type { CardDef, Color, PlayerId, Requirement } from "../../src/lib/arena/engine/types";
 import { legacyHost } from "../../src/lib/arena/engine/script-host";
-import { stepScript, type Op, type ScriptFrame } from "../../src/lib/arena/engine/script";
+import { stepScript, type Op, type Ref, type ScriptFrame } from "../../src/lib/arena/engine/script";
+import { skillsNegated as legacySkillsNegated } from "../../src/lib/arena/engine/state";
+import { skillsNegated as vmSkillsNegated } from "../../src/lib/arena/vm/effects";
 import { CTX, DEFS, assertMenuInvariants, card, fifty, matches, parseSkills } from "./harness";
 
 const DECKS = { seed: 11, p1: { name: "You", leader: "L-RED", main: fifty("V1") }, p2: { name: "Claude", leader: "L-BLUE", main: fifty("V-BLUE") } };
@@ -1027,6 +1029,67 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     addEffect(s, [], { target: watcher, kind: "negateSkills", value: 0, until: "game", source: watcher });
     moved(CTX, DBS, s, [], handed(s, "p1", "V1"), "battle", { owner: "p1", asPlay: true });
     assert.deepEqual(s.pending, [], "an [Auto] on a card whose skills are negated was pended anyway (9-1-5)");
+  }
+
+  // ── #276: `negate` is the primitive, and the spelling is a macro over it ──
+  //
+  // `negateSkills` written as itself and written as `negate(what: skills)` run
+  // through one interpreter case on either host, so the events, the effect in
+  // force and the beats a board draws are the same four ways over. `ops.rules`
+  // declares `negateSkills` over `negate` for real (#273's holes make `$until`
+  // writable), so `DBS` — the ruleset every other block in this file loads —
+  // is what proves a lowered program is the same program, not a second copy
+  // of the declaration built just for this block.
+  {
+    const target: Ref = { sel: { side: "opponent", area: "battle", count: 99 } };
+    const spelled: Op[] = [{ op: "negateSkills", target, until: "turn" }];
+    const primitive: Op[] = [{ op: "negate", target, what: "skills", until: "turn" }];
+
+    assert.deepEqual(expandMacros(spelled, DBS), primitive, "negateSkills declared over negate did not lower to the primitive");
+
+    /** The same program on the rules engine, through the shared interpreter over this engine's host. */
+    const onRules = (ops: Op[]) => {
+      const s = mainPhase();
+      const mine = staged(s, "p1", "V1");
+      const theirs = staged(s, "p2", "V1");
+      const aura = staged(s, "p2", "AURA");
+      assert.equal(attrsNow(CTX, DBS, s, theirs).power, 15000, "the opponent's [Permanent] is not standing, so this block proves nothing");
+      const ev: GameEvent[] = [];
+      assert.equal(stepScript(vmHost(CTX, DBS, s, ev), { ops, ip: 0, vars: {}, card: mine, master: "p1" }), "done");
+      assert.ok(vmSkillsNegated(s, aura), "the rules engine did not record the negation");
+      assert.equal(attrsNow(CTX, DBS, s, theirs).power, 10000, "a negated [Permanent] went on standing on the rules engine");
+      return { events: JSON.parse(JSON.stringify(ev)) as unknown, beats: rulesEngine.toBeats(CTX, s, ev).list.map((b) => JSON.parse(JSON.stringify(b)) as unknown) };
+    };
+    /** …and on the legacy engine, over its own host. */
+    const onLegacy = (ops: Op[]) => {
+      const l = createGame(CTX, SAME).state;
+      const [mine] = l.players.p1.deck.splice(0, 1);
+      const [theirs, aura] = l.players.p2.deck.splice(0, 2);
+      for (const [id, cardId] of [[mine, "V1"], [theirs, "V1"], [aura, "AURA"]] as const) {
+        l.cards[id].cardId = cardId;
+        l.cards[id].mode = "active";
+      }
+      l.players.p1.battle = [mine];
+      l.players.p2.battle = [theirs, aura];
+      const ev: GameEvent[] = [];
+      assert.equal(stepScript(legacyHost(CTX, l, ev), { ops, ip: 0, vars: {}, card: mine, master: "p1" }), "done");
+      assert.ok(legacySkillsNegated(l, aura), "the legacy engine did not record the negation");
+      return { events: JSON.parse(JSON.stringify(ev)) as unknown, beats: toBeats(CTX, l, ev).list.map((b) => JSON.parse(JSON.stringify(b)) as unknown) };
+    };
+
+    const r = { spelled: onRules(spelled), primitive: onRules(primitive) };
+    const l = { spelled: onLegacy(spelled), primitive: onLegacy(primitive) };
+    assert.deepEqual(r.primitive.events, r.spelled.events, "negateSkills as op and as negate do not log the same events on the rules engine");
+    assert.deepEqual(l.primitive.events, l.spelled.events, "negateSkills as op and as negate do not log the same events on the legacy engine");
+    assert.deepEqual(r.primitive.beats, r.spelled.beats, "negateSkills as op and as negate do not make the same beats on the rules engine");
+    assert.deepEqual(l.primitive.beats, l.spelled.beats, "negateSkills as op and as negate do not make the same beats on the legacy engine");
+    // The beat is the same beat on both engines: an `effect` per card the
+    // selector found (both of the opponent's Battle Cards), the negation
+    // label, for the turn.
+    const shape = (beats: unknown[]) => (beats as { t: string; kind?: string; label?: string; until?: unknown }[]).map((b) => [b.t, b.kind, b.label, b.until]);
+    const negation = ["effect", "negate", "skills negated", "turn"];
+    assert.deepEqual(shape(r.primitive.beats), [negation, negation], "the rules engine's beat for a negation is not the one the board draws");
+    assert.deepEqual(shape(l.primitive.beats), shape(r.primitive.beats), "the two engines draw a negation differently");
   }
 
   // ── 9-1-4 and 7-4-5: a continuous effect, and the turn it ends with ───────

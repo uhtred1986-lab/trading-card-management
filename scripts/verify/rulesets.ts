@@ -504,8 +504,13 @@ if (dbs.ok) {
   // #274 (a move told apart by its cause) adds only `ko` — `draw`, `discard`,
   // `damage` and `addLife` all take `n` as an `amount`, X included, and a
   // selector's count is typed a bare `number` (see `ops.rules`'s `count`).
+  // #276 (one primitive under the four negation spellings) adds the next four.
   assert.ok("ops.rules" in DBS_FILES, "ops.rules is not in the set the app loads");
-  assert.deepEqual(Object.keys(def.ops).sort(), ["comboPower", "ko", "may", "power"], "ops.rules declares a different set of macros than the tests expect");
+  assert.deepEqual(
+    Object.keys(def.ops).sort(),
+    ["comboPower", "ko", "may", "negateKeyword", "negateOwnSkill", "negateSkills", "negateSkillsOfKind", "power"],
+    "ops.rules declares a different set of macros than the tests expect",
+  );
   for (const name of Object.keys(def.ops)) {
     assert.ok(name in OP_SCHEMA, `ops.rules declares ${name}, which is no op`);
     assert.notEqual(OP_CLASS[name as keyof typeof OP_CLASS], "primitive", `ops.rules declares ${name}, which the spec's table marks primitive`);
