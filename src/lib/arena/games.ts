@@ -148,23 +148,28 @@ async function defsForState(db: Db, state: EngineState): Promise<Record<string, 
 }
 
 /**
- * Is this engine built for this mode? (#149.)
+ * Is this engine built for this mode? (#149, narrowed by #162.)
  *
- * The rules engine plays the actions of Stage 5 the same as the legacy one,
- * but two things past those six calls still read the legacy `GameState`
+ * The rules engine plays the actions of Stage 5 the same as the legacy one.
+ * Two things past those six calls used to still read the legacy `GameState`
  * field for field rather than either engine's shape generically: Claude's
- * side of Sparring and Tournament (`ai/run.ts`, a hand and a deck read off
- * `state.players[p]`) and a 1 v 1's hidden-hand masking (`beats.ts`'s
- * `maskBeats`/`view.ts`'s `revealedTo`, which reveal everything to every
- * viewer of a rules-engine game rather than really keeping a hand hidden).
- * Refused here, at creation, rather than left to produce a Sparring game
- * nothing ever moves for or a 1 v 1 that leaks both hands — the same
- * discipline `playableEngine` already applies to the engine itself, one level
- * narrower.
+ * side of Sparring and Tournament, and a 1 v 1's hidden-hand masking
+ * (`beats.ts`'s `maskBeats`/`view.ts`'s `revealedTo`, which reveal everything
+ * to every viewer of a rules-engine game rather than really keeping a hand
+ * hidden). #162 closed the first one as far as it goes without a live API
+ * call: `ai/run.ts`'s `advance`/`ai/opponent.ts`'s `chooseMove` read the board
+ * through the `Engine` interface and the `zoneOf`/`catalogDefOf` seam for the
+ * "cannot go wrong" shortcuts (one legal move, the coin flip, mulligan,
+ * charge), and refuse a real API call by name — `stateText`'s own rendering
+ * is not ported — rather than reading `undefined` off `.players`. So Sparring
+ * and Tournament are let through here now; only `versus` still needs the
+ * hidden-hand fix, refused here at creation rather than left to leak both
+ * hands — the same discipline `playableEngine` already applies to the engine
+ * itself, one level narrower.
  */
 function assertEngineForMode(engine: EngineId, mode: ArenaMode): void {
-  if (engine === "rules" && mode !== "hotseat") {
-    throw new Error(`the ${ENGINE_INFO.rules.label} plays hot-seat only for now — Claude's side and a 1 v 1's hidden hands are not built yet`);
+  if (engine === "rules" && mode === "versus") {
+    throw new Error(`the ${ENGINE_INFO.rules.label} does not keep a 1 v 1's hands hidden yet`);
   }
 }
 

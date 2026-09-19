@@ -24,8 +24,11 @@ import { FAST_MODEL, MODEL, anthropic, hasAnthropic, recordRun } from "@/lib/ai/
 import { comboPowerOf, face, other, powerOf, validateProgram, type EngineContext, type GameState, type LegalAction, type Op, type PlayerId } from "../engine";
 import { COND_SCHEMA, CONDITIONS_OFF_A_CARD, OP_SCHEMA, condSignature, opSignature, type Cond } from "../engine/script";
 import { words, type Words } from "../rulesets/words";
-import { def, has } from "../engine/state";
+import { has } from "../engine/state";
 import { decklistText, money, movesText, stateText } from "./view";
+import type { EngineState } from "../engines";
+import { isVmState } from "../vm/state";
+import { catalogDefOf, leaderOf, zoneOf } from "../engine-state";
 
 export type Tier = "sparring" | "tournament";
 
@@ -89,13 +92,14 @@ function systemBlocks(ctx: EngineContext, s: GameState, p: PlayerId) {
  * rarely sharp, so a rule does it: give up the card you are least likely to
  * play — the most expensive one, preferring a colour the leader cannot pay for.
  */
-function chargeChoice(ctx: EngineContext, s: GameState, legal: LegalAction[], p: PlayerId): number | null {
-  const leaderColors = s.players[p].leader ? def(ctx, s, s.players[p].leader).colors : [];
+function chargeChoice(ctx: EngineContext, s: EngineState, legal: LegalAction[], p: PlayerId): number | null {
+  const leader = leaderOf(s, p);
+  const leaderColors = leader ? catalogDefOf(ctx, s, leader).colors : [];
   const scored = legal
     .map((l, i) => ({ i, card: l.action.type === "charge" ? l.action.card : null }))
     .filter((x) => x.card)
     .map((x) => {
-      const d = def(ctx, s, x.card!);
+      const d = catalogDefOf(ctx, s, x.card!);
       const cost = typeof d.energyCost === "number" ? d.energyCost : 9;
       const offColour = d.colors.some((c) => !leaderColors.includes(c)) ? 10 : 0;
       return { i: x.i, score: cost + offColour };
@@ -105,19 +109,28 @@ function chargeChoice(ctx: EngineContext, s: GameState, legal: LegalAction[], p:
   return scored[0].i;
 }
 
-/** Keep an opening hand that can act early; otherwise take the one redraw (6-2-1-9). */
-function mulliganChoice(ctx: EngineContext, s: GameState, legal: LegalAction[], p: PlayerId): number | null {
-  const cheap = s.players[p].hand.filter((id) => {
-    const c = def(ctx, s, id).energyCost;
+/**
+ * Keep an opening hand that can act early; otherwise take the one redraw
+ * (6-2-1-9). `mulliganed` is legacy-only bookkeeping the rules engine's own
+ * `charged`/`grewUnison`-style player attributes have no analogue for yet
+ * (`vm/`'s mulligan is a plain `DEFINE ACTION`, once per player by the flow
+ * itself rather than a tracked fact) — this reads `false` there, which is
+ * always the honest answer since a rules-engine game never reaches this
+ * function twice for the same player's opening hand.
+ */
+function mulliganChoice(ctx: EngineContext, s: EngineState, legal: LegalAction[], p: PlayerId): number | null {
+  const cheap = zoneOf(s, p, "hand").filter((id) => {
+    const c = catalogDefOf(ctx, s, id).energyCost;
     return typeof c === "number" && c <= 2;
   }).length;
-  const wantRedraw = cheap < 2 && !s.players[p].mulliganed;
+  const alreadyMulliganed = isVmState(s) ? false : s.players[p].mulliganed;
+  const wantRedraw = cheap < 2 && !alreadyMulliganed;
   const i = legal.findIndex((l) => l.action.type === "mulligan" && l.action.redraw === wantRedraw);
   return i >= 0 ? i : null;
 }
 
 /** Decisions taken without spending anything. Returns the chosen index, or null to ask. */
-function freeChoice(ctx: EngineContext, s: GameState, legal: LegalAction[], p: PlayerId): { index: number; how: string } | null {
+function freeChoice(ctx: EngineContext, s: EngineState, legal: LegalAction[], p: PlayerId): { index: number; how: string } | null {
   if (legal.length === 1) return { index: 0, how: "only one legal move" };
   const kind = s.prompt.kind;
   if (kind === "chooseFirst") {
@@ -159,11 +172,17 @@ function modelFor(tier: Tier, s: GameState): { model: string; effort?: "low" | "
 
 // ── the decision ───────────────────────────────────────────────────────────
 
-export async function chooseMove(db: Db, ctx: EngineContext, s: GameState, legal: LegalAction[], p: PlayerId, tier: Tier): Promise<Choice> {
+export async function chooseMove(db: Db, ctx: EngineContext, s: EngineState, legal: LegalAction[], p: PlayerId, tier: Tier): Promise<Choice> {
   if (!legal.length) throw new Error("no legal move to choose from");
   const free = freeChoice(ctx, s, legal, p);
   if (free) return { index: free.index, say: null, spend: null, how: free.how };
   if (!hasAnthropic()) return { index: 0, say: null, spend: null, how: "no API key — took the first legal move" };
+  // #162's own remaining scope: `stateText`/`decklistText`/`systemBlocks`
+  // below read `GameState` (players, hand, deck) directly rather than through
+  // the `zoneOf`/`catalogDefOf` seam the shortcuts above just used, so a real
+  // API call on a rules-engine game is refused here, clearly and by name,
+  // rather than failing a few calls deeper reading `undefined` off `.players`.
+  if (isVmState(s)) throw new Error(`Claude's own move is not built on the rules engine yet (#162) — only the free-choice shortcuts (one legal move, the coin flip, mulligan, charge) run there today`);
 
   const { model, effort } = modelFor(tier, s);
   const question = `${stateText(ctx, s, p)}\n\nYou are being asked: ${promptQuestion(ctx, s, p)}\n\nLEGAL MOVES:\n${movesText(legal)}\n\nAnswer with the number of your move and at most one short sentence.`;

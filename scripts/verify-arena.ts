@@ -29,7 +29,7 @@ import { EngineMismatch } from "../src/lib/arena/engines";
 import { NotYet } from "../src/lib/arena/vm";
 import { ENGINE } from "./verify/harness";
 
-const SUITES = ["text", "setup", "battles", "compiler", "keywords", "readings", "wordings", "workflow", "contract", "deck-api", "language", "lang", "rulesets", "probe", "vm"];
+const SUITES = ["text", "setup", "battles", "compiler", "keywords", "readings", "wordings", "workflow", "contract", "deck-api", "language", "lang", "rulesets", "probe", "ai-vm", "vm"];
 
 // A plain `.ts` file runs as CJS under `tsx`, which does not allow top-level
 // `await` — so the loop is a function `npm test`/`npm run test:rules` waits on
@@ -42,7 +42,12 @@ async function main(): Promise<void> {
 
   for (const suite of SUITES) {
     try {
-      await import(`./verify/${suite}`);
+      const mod = await import(`./verify/${suite}`);
+      // A suite whose checks are async (`chooseMove` is, `ai-vm`'s own) has
+      // nothing else to await it: exporting the promise as `default` is what
+      // lets its assertions actually run — and fail this suite properly —
+      // before the loop moves on, rather than racing `process.exit` below.
+      if (mod.default instanceof Promise) await mod.default;
       console.log(`  ok       ${suite}`);
       passed++;
     } catch (err) {
