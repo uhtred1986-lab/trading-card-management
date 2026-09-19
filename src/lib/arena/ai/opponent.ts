@@ -25,7 +25,7 @@ import { comboPowerOf, face, other, powerOf, validateProgram, type EngineContext
 import { COND_SCHEMA, CONDITIONS_OFF_A_CARD, OP_SCHEMA, condSignature, opSignature, type Cond } from "../engine/script";
 import { words, type Words } from "../rulesets/words";
 import { loadDbs } from "../rulesets";
-import { def, has } from "../engine/state";
+import { has } from "../engine/state";
 import { decklistText, money, movesText, stateText } from "./view";
 import { generatedPrimer } from "./primer";
 import type { EngineState } from "../engines";
