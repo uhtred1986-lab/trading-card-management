@@ -69,18 +69,18 @@
  *
  * Pure and client-safe, like the rest of `vm/`: no database, no network.
  */
-import type { EngineContext, GameEvent } from "../engine";
+import type { EngineContext, GameEvent, Payer } from "../engine";
 import type { Area, Color, PlayerId, Requirement, Skill } from "../engine/types";
-import type { Script } from "../engine/script";
+import type { Script, ScriptFrame } from "../engine/script";
 import { costIsOnlyOrbs } from "../engine/compile";
 import type { ActionDef, GameDefinition } from "../rulesets";
 import { attrsOf } from "./cards";
-import { cardPrice, type BoundAmounts } from "./costs";
+import { cardColors, cardPrice, type BoundAmounts } from "./costs";
 import { skillNegated, skillsNegated } from "./effects";
 import { RulesetBroken } from "./errors";
 import { log } from "./events";
 import { moved } from "./flow";
-import { forbiddenBy } from "./program";
+import { forbiddenBy, resolveSelector } from "./program";
 import { vmHost } from "./host";
 import type { VmState } from "./state";
 import { skillsShowing } from "./triggers";
@@ -193,7 +193,7 @@ export function activationsOf(ctx: EngineContext, state: VmState, def: ActionDef
  * because using one is how an Extra is played (4-2). The two halves are added
  * here rather than charged separately, since a player pays once.
  */
-export function boundFor(ctx: EngineContext, game: GameDefinition, state: VmState, line: ActivationLine): BoundAmounts {
+export function boundFor(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, line: ActivationLine): BoundAmounts {
   const sk = line.skill;
   const orbs: Partial<Record<Color, number>> = {};
   let total = 0;
@@ -215,8 +215,33 @@ export function boundFor(ctx: EngineContext, game: GameDefinition, state: VmStat
   return {
     energy: { total, orbs, either: sk.energyEither.map((one) => [...one]) },
     markers: sk.markerCost ?? 0,
+    payers: payWithPayers(ctx, game, state, player, line),
     unreadable: chargeablePrice(line) ? null : sk.cost,
   };
+}
+
+/**
+ * 20-19: the cards this line's own price names as payers, resolved against the
+ * board — the legacy `pricePayers`'s reading, port for port, since the
+ * record's `payWith` is the one `PayWith[]` shape both engines read off
+ * `Script.price`. Empty for the ordinary line, which names none: `priceFor`
+ * reads an empty array as "nothing to add" rather than "nothing bound", so a
+ * line with no `payWith` costs `priceFor` nothing extra to carry.
+ *
+ * The frame is bare — no running program, no variables — because a price is
+ * planned before the skill's own effect ever starts one; `pw.sel` is read
+ * against the board and the card whose line this is, the same two things
+ * every other reading in this module already has.
+ */
+function payWithPayers(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, line: ActivationLine): Payer[] {
+  const payWith = line.script?.price?.payWith;
+  if (!payWith?.length) return [];
+  const frame: ScriptFrame = { ops: [], ip: 0, vars: {}, card: line.card, master: player };
+  const out: Payer[] = [];
+  for (const pw of payWith) {
+    for (const id of resolveSelector(ctx, game, state, frame, pw.sel)) out.push({ id, colors: pw.as === "energy" ? cardColors(ctx, game, state, id) : [pw.as] });
+  }
+  return out;
 }
 
 /**
@@ -225,16 +250,19 @@ export function boundFor(ctx: EngineContext, game: GameDefinition, state: VmStat
  * Orbs, yes — they are a number and a colour. Orbs plus a condition 9-1-3
  * hoisted out of the price, yes: the condition is asked and the orbs are paid,
  * which is what the legacy engine does with "[Activate: Main] If your Leader
- * Card is red: Draw 1 card". Everything else, no: an action price (4-3-3) needs
- * the payability of a program, an X price (20-5) a value nobody has named, a
- * 20-19 payer an effect in force to read, and a skill with **no record at all**
- * has no price to read in the first place (the 8 Sep 2026 precedent).
+ * Card is red: Draw 1 card". 20-19's own `payWith` items, yes too (#149) —
+ * `payWithPayers` above is what reads them, and a line naming one is no more
+ * unread than a line naming orbs. Everything else, no: an action price
+ * (4-3-3) needs the payability of a program, an X price (20-5) a value nobody
+ * has named, and a skill with **no record at all** has no price to read in the
+ * first place (the 8 Sep 2026 precedent).
  */
 function chargeablePrice(line: ActivationLine): boolean {
   if (costIsOnlyOrbs(line.skill.cost)) return true;
   const price = line.script?.price;
   if (!price) return false;
-  if (price.ops?.length || price.x || price.payWith?.length) return false;
+  if (price.ops?.length || price.x) return false;
+  if (price.payWith?.length) return true;
   return price.condition !== null;
 }
 
