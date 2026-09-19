@@ -281,6 +281,37 @@ the same as if it were still in `CLAUDE.md`.
   forever, because the runner's own fallthrough does `top.index++` immediately after a step's
   `run` returns without waiting — the jump lands one short of the target index now, so that
   increment lands exactly on it.
+  **#151, on damage, life and Z-Energy: three of the four build items were already done, one gap
+  was real and is now closed.** Combo's power reaching the fight is #150's own, already, and §23
+  above already asserts the card's own contribution lands in `view.battle.contributions` on both
+  engines — nothing to add. Z-Energy from a spent combo card is #146/#149's `playZ`, paying
+  `dbs/costs.rules`'s `DEFINE COST zEnergy` (5-4), per the one comment on issue #151 itself ("PR
+  #266 … brought this issue's third build item forward … the rest of this issue is untouched") —
+  confirmed, not rebuilt. `damage`/`addLife`/`lifeDownTo` are not new primitives either:
+  `stepScript` (`engine/script.ts`) has carried a full `case` for each since #142, and `vmHost`
+  implements every `ScriptHost` method those cases call — none of them `NotYet` — so a card's own
+  skill program reaching one of these ops was already possible before this issue, through the same
+  shared interpreter the battle sub-flow's `dealDamage`/`koCard` do not even call (they move cards
+  directly). **What was real**: `vm/flow.ts`'s `checkWins` only ran beside a *step's* own native
+  work (`STEP_WORK[name].run`, which is what made the battle-native `dealDamage` path work
+  correctly, checked directly rather than trusted) and once at `run`'s own opening — never beside a
+  *program* draining through `stepProgram`, the path every [Auto]/[Activate]/[Counter] skill's `DO`
+  block takes. A hand-staged board at 1 life with a queued `damage` op, `run` called once, showed
+  it empirically: `state.winner` stayed `null` and the Main Phase's own question came back — the
+  "compiles and reads plausibly, changes nothing" shape this programme has paid for before, this
+  time at a checkpoint rather than in the compiler. One line beside `stepProgram`'s own call fixes
+  it. **What stays out, on purpose**: `ops.rules`'s own header table already names why
+  `damage`/`addLife`/`lifeDownTo` carry no `DEFINE OP` row — a macro's body can only give a
+  selector's `TOP $n`/`count` a bare `number` (`rulesets/holes.ts`), while these ops' own `n` is an
+  `amount`, X included; declaring the row today would expand every fixed-number card correctly and
+  throw a `MacroError` on the first X-priced one, exactly the silently-wrong shape the file's own
+  opening paragraph warns against. No row in that file is declared "for the fixed case, refused for
+  X" — every row is either fully declared or not there at all — so there is no local precedent for
+  a partial declaration, and #122 ("a selector that can count by an expression") is squarely where
+  the fix belongs. `verify/vm.ts` §24 is the section for all of this: the WIN checkpoint checked by
+  hand for both the battle-native and the program-driven path, `addLife`/`lifeDownTo` exercised the
+  same way, and one assertion that the macro row really is still absent today so a future partial
+  declaration fails loud rather than passing quietly wrong.
 - **The rules language** (`src/lib/arena/lang/`, `docs/arena-rules-language.md`, since 9 Sep
   2026): one closed grammar for a card's rule — WHEN / COST / IF / THEN — printed and parsed
   from `OP_SCHEMA`/`COND_SCHEMA` plus the `SELECTOR_FIELDS`/`FILTER_FIELDS` tables in

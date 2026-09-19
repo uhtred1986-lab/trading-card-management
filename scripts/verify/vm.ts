@@ -3532,3 +3532,206 @@ console.log("verify/vm: ok");
     assert.ok(l.players.p1.drop.includes(lCombo), "the two engines do not agree that a spent combo card goes to the Drop");
   }
 }
+
+// ── 24. damage, life and the WIN checkpoint (#151) ───────────────────────────
+//
+// Three of the four things #151's own issue asked for turned out to be already
+// built, and this section is where each claim is checked directly rather than
+// taken on the issue text's word (`docs/arena-next-session-prompt.md` §3):
+//
+// - **Combo's power reaching the fight is #150's, already**: `battle.ts`'s
+//   `damageWork` folds `comboPower` into `attackPower`/`guardPower` natively
+//   (no `DEFINE ACTION combo` — the module header explains why an attack and
+//   its native siblings cannot be one), and §23 above already asserts the
+//   card's own contribution shows up in `view.battle.contributions` on both
+//   engines. Nothing here repeats that; §23 is the test for it.
+// - **Z-Energy from a spent combo card is #146/#149's `playZ`, already**: the
+//   one comment on issue #151 says so outright ("PR #266 (#146, squash
+//   `2a63d86`) brought this issue's third build item forward … The rest of
+//   this issue is untouched") and `dbs/costs.rules`' `DEFINE COST zEnergy`
+//   (5-4) is right there, `playZ` in `vm/costs.ts` paying it, `battles.ts`'s
+//   own Z-card test (legacy) exercising the same declaration. Nothing to add.
+// - **The WIN checkpoint firing off battle damage is #140's `checkWins`,
+//   already** — genuinely generic, not battle-specific, exactly as
+//   `docs/arena-next-session-prompt.md`'s own §3 warns not to take on faith.
+//   Checked by hand below (Test A) rather than trusted from the fuzzer's own
+//   "every game now ends via real battle damage" claim.
+// - **What was not already built, and is fixed here**: `damage`/`addLife`/
+//   `lifeDownTo` are not new primitives this issue adds — `stepScript`
+//   (`engine/script.ts`) has carried a full `case` for each since #142 ("the
+//   interpreter has every case … now"), and `vmHost` (`vm/host.ts`) implements
+//   every `ScriptHost` method those cases call (`zone`, `move`, `amount`,
+//   `addDamageTaken`, `pend`, `areaOf`, `cardsInPlay`) — none of them `NotYet`.
+//   A card's own skill program reaching one of these ops was **already
+//   reachable** before this issue, through the very same `stepScript` the
+//   battle sub-flow's `dealDamage`/`koCard` do not even call (they move cards
+//   directly, `vm/battle.ts`'s own header says why). What Test B below found
+//   by staging it, rather than assuming the claim two paragraphs up meant the
+//   whole of Build item 2 was already done: a card's own skill bringing a life
+//   pile to 0 through `damage` did **not** end the game inside the `apply()`
+//   call that ran it — `state.winner` came back `null` and the Main Phase's
+//   own question was back on the table, the "compiles and reads plausibly,
+//   changes nothing" shape this programme has paid for before, just for a
+//   checkpoint instead of a compiler reading. `vm/flow.ts`'s `run` calls
+//   `checkWins` at its own opening and beside a *step's* native work
+//   (`STEP_WORK[name].run`, which is what `battleDamage` is and why Test A
+//   below already passed before this section existed) — never after a
+//   *program* drains through `stepProgram`, which is the path every
+//   [Auto]/[Activate]/[Counter] skill's `DO` block takes, battle or not. One
+//   line fixed it (`vm/flow.ts`, beside `stepProgram`'s own call) rather than
+//   widening `stepProgram` itself, since the checkpoint belongs to the runner
+//   that owns every other one, not to the one caller that happened to surface
+//   the gap.
+//
+// **What stays out, and why (#122).** `ops.rules`'s own header table already
+// names the reason `damage`/`addLife`/`lifeDownTo` (and `draw`/`discard`/
+// `mill`) carry no `DEFINE OP` row: the spec's nineteen primitives (§2) make
+// them macros over `moveTo`, but a macro's body can only give a selector's
+// `TOP $n`/`count` a bare `number` (`rulesets/holes.ts`'s `walkSelector`)
+// while these ops' own `n` is an `amount` — X included, and exercised
+// throughout this harness. Declaring the row today would validate, expand
+// every fixed-number card correctly and throw a `MacroError` on the first
+// X-priced one — the file's own opening paragraph names that exact shape as
+// worse than leaving the row out. No other row in `ops.rules` is declared
+// "for the fixed case, refused for X" — every row is either fully declared or
+// not there at all — so there is no local precedent for a partial declaration
+// either, which is itself evidence the file's own authors would not want one.
+// The honest scope is what `vm/host.ts`'s own header already says about the
+// rest of the primitive: reachable in full through `stepScript`, running the
+// same case the legacy engine runs, on the ops the compiler already emits for
+// real cards (`scripts/verify/keywords.ts`'s own compiler assertions include
+// a `lifeDownTo` reading) — the macro *declaration* is what stays #122's, not
+// the primitive. Test D below is the one assertion for that: the row is still
+// absent today, on purpose, and a future declaration attempt should fail loud
+// (`MacroError`) rather than pass quietly wrong.
+{
+  const rulesEngine = engineFor("rules");
+
+  function stage(r: VmState, p: PlayerId, cardId: string, area: "hand" | "energy" | "battle"): string {
+    const filler = p === "p1" ? "V1" : "V-BLUE";
+    const inst = r.sides[p].zones.deck.find((id) => r.cards[id].cardId === filler);
+    assert.ok(inst, `${p}'s deck has run out of fixture cards to relabel as ${cardId}`);
+    r.sides[p].zones.deck = r.sides[p].zones.deck.filter((id) => id !== inst);
+    r.cards[inst!].cardId = cardId;
+    r.sides[p].zones[area] = [...r.sides[p].zones[area], inst!];
+    if (area !== "hand") r.cards[inst!].mode = "active";
+    return inst!;
+  }
+
+  function atMain(): VmState {
+    let r = rulesEngine.createGame(CTX, SAME).state as VmState;
+    const chooser = (r.prompt as { player: PlayerId }).player;
+    r = rulesEngine.apply(CTX, r, { type: "chooseFirst", player: chooser, first: "p1" }).state as VmState;
+    r = rulesEngine.apply(CTX, r, { type: "mulligan", player: "p1", redraw: false }).state as VmState;
+    r = rulesEngine.apply(CTX, r, { type: "mulligan", player: "p2", redraw: false }).state as VmState;
+    r = rulesEngine.apply(CTX, r, { type: "charge", player: "p1", card: null }).state as VmState;
+    r = rulesEngine.apply(CTX, r, { type: "endMain", player: "p1" }).state as VmState;
+    r = rulesEngine.apply(CTX, r, { type: "charge", player: "p2", card: null }).state as VmState;
+    r = rulesEngine.apply(CTX, r, { type: "endMain", player: "p2" }).state as VmState;
+    r = rulesEngine.apply(CTX, r, { type: "charge", player: "p1", card: null }).state as VmState;
+    assert.equal(r.prompt.kind, "main", "the rules-engine fixture did not reach p1's second Main Phase");
+    return r;
+  }
+
+  // Test A: battle damage to 0 life ends the game, "over" beat included,
+  // inside the very sequence of `apply()` calls that dealt it — the fact
+  // `battles.ts`'s own "Loss: no life" case asserts on the legacy engine
+  // (line ~432), repeated here as the oracle this suite is held to.
+  {
+    let r = atMain();
+    const attacker = stage(r, "p1", "V1", "battle");
+    r.sides.p2.zones.life = r.sides.p2.zones.life.slice(0, 1); // p2 down to 1 life
+    const target = r.sides.p2.zones.leader[0];
+    let result = rulesEngine.apply(CTX, r, { type: "attack", player: "p1", attacker, target });
+    r = result.state as VmState;
+    let events = [...result.events];
+    // No [Blocker]/[Counter] in play, so both combo offers are the only
+    // questions left before the Damage Step runs.
+    while (r.prompt.kind === "combo") {
+      const player = (r.prompt as { player: PlayerId }).player;
+      result = rulesEngine.apply(CTX, r, { type: "pass", player });
+      r = result.state as VmState;
+      events = [...events, ...result.events];
+    }
+    assert.equal(r.winner, "p1", "battle damage that empties p2's life did not end the game with the right winner");
+    assert.equal(r.prompt.kind, "gameOver", "the game did not come to rest in its own over phase");
+    assert.ok(r.overReason?.includes("no cards in your Life Area"), "the reason does not name the lifeOut win (game.rules §0-1-3-2)");
+    assert.ok(events.some((e) => e.type === "gameOver"), "no gameOver beat was logged for the battle that ended the game — 'the over beat', the acceptance bullet's own phrase");
+    // checkWins does not need a second action to notice — the very apply()
+    // that dealt the last point of damage already carries the over beat.
+    assert.equal(events.filter((e) => e.type === "gameOver").length, 1, "the over beat fired more than once for one ending");
+  }
+
+  // Test B: a card's own skill program — not the battle sub-flow — bringing a
+  // life pile to 0 through `damage`, queued and run exactly as `checkpoint`
+  // queues a triggered skill's frame (`vm/flow.ts`). This is the case that
+  // found the gap `vm/flow.ts` now closes.
+  {
+    // `atMain()`, not a bare `createGame` — `checkWins` deliberately exempts
+    // the setup phase (0-1-3's "the life piles are dealt at the end of it"),
+    // so a program run before the game leaves it proves nothing.
+    const r = atMain();
+    r.sides.p2.zones.life = r.sides.p2.zones.life.slice(0, 1);
+    const rEvents: GameEvent[] = [];
+    const frame: ScriptFrame = { ops: [{ op: "damage", n: 1, side: "opponent" }], ip: 0, vars: {}, card: r.sides.p1.zones.leader[0], master: "p1" };
+    r.programs.unshift(frame);
+    run(CTX, DBS, r, rEvents);
+    assert.equal(r.sides.p2.zones.life.length, 0, "the damage op did not move the life card at all");
+    assert.equal(r.winner, "p1", "a card's own skill program dealing the last point of damage did not end the game inside the same `run()` pass — the WIN checkpoint that only fires beside a step's native work, not beside a program, is exactly the gap `vm/flow.ts` was missing");
+    assert.equal(r.prompt.kind, "gameOver");
+    assert.ok(rEvents.some((e) => e.type === "gameOver"), "no gameOver beat for a program-driven ending");
+
+    // The same `damage` op, the same shared `stepScript`, through the legacy
+    // engine's own `ScriptHost` instead — the oracle fact this suite is held
+    // to is only that the primitive itself moves the same card the same way
+    // on both hosts; the legacy engine's own win-checkpoint timing is not
+    // this issue's to prove or to change, so its life pile is staged the same
+    // way (past setup, life dealt) purely so the move has a card to find.
+    let l = createGame(CTX, DECKS).state;
+    l = apply(CTX, l, { type: "chooseFirst", player: (l.prompt as { player: PlayerId }).player, first: "p1" }).state;
+    l = apply(CTX, l, { type: "mulligan", player: "p1", redraw: false }).state;
+    l = apply(CTX, l, { type: "mulligan", player: "p2", redraw: false }).state;
+    l = apply(CTX, l, { type: "charge", player: "p1", card: null }).state;
+    assert.ok(l.players.p2.life.length > 0, "the legacy fixture reached its own Main Phase with no life dealt yet");
+    l.players.p2.life = l.players.p2.life.slice(0, 1);
+    const lEvents: GameEvent[] = [];
+    const lFrame: ScriptFrame = { ops: [{ op: "damage", n: 1, side: "opponent" }], ip: 0, vars: {}, card: l.players.p1.leader, master: "p1" };
+    stepScript(legacyHost(CTX, l, lEvents), lFrame);
+    assert.equal(l.players.p2.life.length, 0, "the same op did not move the life card on the legacy engine either");
+  }
+
+  // Test C: `addLife` and `lifeDownTo`, the op's other two `n`-taking
+  // siblings, run correctly through the same shared interpreter — no game
+  // ending needed, just the move each is named for (`ops.rules`'s own "op →
+  // lowers to" table: both are "move", the same shape `damage` is).
+  {
+    const r = rulesEngine.createGame(CTX, SAME).state as VmState;
+    const deckBefore = r.sides.p1.zones.deck.length;
+    const lifeBefore = r.sides.p1.zones.life.length;
+    const addFrame: ScriptFrame = { ops: [{ op: "addLife", n: 2, side: "you" }], ip: 0, vars: {}, card: r.sides.p1.zones.leader[0], master: "p1" };
+    stepScript(vmHost(CTX, DBS, r, []), addFrame);
+    assert.equal(r.sides.p1.zones.life.length, lifeBefore + 2, "addLife did not add 2 cards from the deck to life");
+    assert.equal(r.sides.p1.zones.deck.length, deckBefore - 2, "addLife did not take those 2 cards from the deck");
+
+    const target = lifeBefore; // life down to its own count before addLife, from lifeBefore + 2
+    const downFrame: ScriptFrame = { ops: [{ op: "lifeDownTo", n: target, side: "you" } as unknown as Op], ip: 0, vars: {}, card: r.sides.p1.zones.leader[0], master: "p1" };
+    stepScript(vmHost(CTX, DBS, r, []), downFrame);
+    assert.equal(r.sides.p1.zones.life.length, target, "lifeDownTo did not bring life down to the named count");
+    assert.equal(r.sides.p1.zones.hand.length, 2, "lifeDownTo did not add the 2 departing life cards to the hand (21-3-2)");
+  }
+
+  // Test D: the macro row stays undeclared today — #122's, not this issue's —
+  // and a program that calls it unexpanded is what every card actually runs
+  // (`expandMacros`'s own "an op with no `DEFINE OP` is passed through
+  // untouched"), which is what Tests B/C exercise. If this ever starts
+  // failing because a `DEFINE OP damage` row was added to `ops.rules`, it is
+  // this comment's cue to be deleted, not patched around: check first that
+  // the row's `n` is written as `TAKES (n: amount, …)` reaching through a
+  // selector's count without a `MacroError`, i.e. that #122 actually landed.
+  {
+    assert.equal(DBS.ops["damage"], undefined, "damage has a DEFINE OP row — #122 landed, or the row silently misreads an X-priced card (ops.rules's own warning)");
+    assert.equal(DBS.ops["addLife"], undefined, "addLife has a DEFINE OP row — the same check");
+    assert.equal(DBS.ops["lifeDownTo"], undefined, "lifeDownTo has a DEFINE OP row — the same check, plus the subtraction #122 also owns");
+    assert.deepEqual(expandMacros([{ op: "damage", n: 1, side: "opponent" }], DBS), [{ op: "damage", n: 1, side: "opponent" }], "an undeclared damage op should pass through expandMacros untouched, not be silently altered");
+  }
+}
