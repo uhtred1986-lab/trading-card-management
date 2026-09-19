@@ -208,10 +208,66 @@ the same as if it were still in `CLAUDE.md`.
   onto `state.programs` exactly like a triggered [Auto]'s `DO` block — `fireHook`). Both go through
   one lookup, `hookBodiesFor`, so a hook body is never a special case a call site invents — `rulesets/
   hooks.ts` carries the closed name list the loader checks a `HOOK` against (it cannot import `vm/`,
-  which imports it back), `vm/hooks.ts`'s `HOOK_CONTRACT` is the typed, documented half beside it. No
-  keyword names a body yet (`rulesets/dbs/keywords.rules` still declares all 39 with none) — the
-  plumbing is proved instead by a small worked ruleset in `scripts/verify/rulesets.ts`, one body per
-  hook, run through both runners for real. Writing the 39 real bodies is `s7-02` through `s7-05`.
+  which imports it back), `vm/hooks.ts`'s `HOOK_CONTRACT` is the typed, documented half beside it
+  (moved to the leaf `vm/hook-contract.ts` by #154 so `vm/program.ts` — where `queryHookStatics`
+  actually lives — and `vm/hooks.ts` can both read the table without importing each other). Writing
+  the 39 real bodies is `s7-02` through `s7-05`.
+  **#154 built hook group A for real** — [Barrier] (`chooseable`), [Indestructible]'s battle-KO half
+  (`koByEffect`, read directly in `vm/battle.ts` for the "as a result of battle" clause, since that
+  is not an effect) and [Servant]'s power (`attrBonus`) — and found the contract's own `chooseable`/
+  `koByEffect` example wrong while wiring the first real caller: a query hook's refusal already has a
+  `ForbiddenAction` word (`beChosen`, `beKOdBySkill`, `beMovedBySkill`), so a body ends in `forbid`,
+  folded straight into `prohibitions()`'s existing 20-14 reading (`vm/program.ts`) rather than the
+  `immune` op #153 illustrated — `queryHookStatics` moved there in the same commit, since it needs
+  the same recursion-guarded `condHolds`/`amount` every other interpreter reading does. Three
+  candidates in `s7-02`'s own list moved to the hook they actually need once checked against the
+  inventory: [Unique] to `playRefused` (group D), [Deflect] to `counterWindow` (group C), [Critical]/
+  [Strike]/[Victory Strike] to `beforeDamage` (group C) — `docs/arena-backlog/s7-02-*.md`'s "confirm
+  against the inventory... move it to the later one" working as intended. What #154 did **not**
+  build, named rather than hidden: a `chooseCards` prompt has no `rejectedActions` reasoning on the
+  rules engine at all (`chooseRejectionGap`, `scripts/verify/workflow.ts` — [Barrier]'s own legality
+  is proven, its rejection *reason* is not), and [Indestructible]'s skill-KO half has no caller since
+  the rules engine does not resolve a skill's `ko` yet (#146).
+  **`s7-03` (#155) wrote group B's four tractable bodies**: [Field]'s onEnter (22-3, dropping the
+  Field Extra already out), [Heroic]/[Villainous]'s afterSkill (22-35/22-36, fired from `moved()`
+  itself for every other in-play card the entering card's owner controls, not folded into onEnter
+  because the broadcast is about the *entering* card's play rather than something the receiving
+  card's own hooks say about itself) and [Servant]'s activeStep (22-40, a query `chargeActivate`
+  reads before switching a card to Active Mode — see #154 for the same keyword's attrBonus half).
+  [Heroic]/[Villainous]'s printed self-negation is a known, named gap: a hook body's frame carries
+  no `skillIndex` for `negate(what: own)` to read, so each fires once per other card played rather
+  than once a turn. The rest of B's candidates — [Arrival], [Wish], [Successor], [Overlord],
+  [Rejuvenate], [Z-Awaken] — are whole-keyword activations with no `do:` a `DEFINE KEYWORD` can
+  carry yet (`s7-05`/#157's gap, not B's), and [Z-Stack]/[Revive] each need a per-card filter or a
+  covering-set choice the language cannot ask for yet (`moved()`'s own comment names both).
+  **`s7-04` (#156) found every one of group C's candidates blocked**, and fixed a real bug in the
+  contract on the way. [Revenge]'s `battleEnd` body (22-9) is exactly the contract's own worked
+  example (`ko(target: [attacker])`), and `vm/battle.ts`'s `battleEnd` step now fires it — on the
+  guard alone, since the manual conditions it on "becomes the guard card" — but the body is not
+  declared in `keywords.rules`, because the `ko` op it would run throws `NotYet` unconditionally
+  (`vm/host.ts`: "a KO is a move a rule makes, and moves by skill are declared in #146 yet"), which
+  would turn a Revenge card winning its own battle into a crashed game rather than a silent gap. A
+  *query* hook like [Indestructible]'s `koByEffect` (#154) is safe to declare ahead of its own
+  caller — inert until read — but an *effect* hook is not: it runs, and #146 is what it would need
+  to run into. Firing `battleEnd` still uncovered a real ordering bug, fixed regardless of Revenge's
+  own gate: the contract's own claim that `{special:"attacker"}`/`{special:"guard"}` "still resolve
+  here, one step before `state.battle` clears" did not hold, because `battleEnd`'s own step used to
+  null `state.battle` itself, synchronously, before the queued hook program the runner drains one
+  loop pass later ever ran. The fix moved that clearing to `vm/flow.ts`'s own phase-pop, the point
+  the battle phase actually runs out of steps, so the specials stay live for exactly as long as the
+  contract says they do — ready the day #146 lets `battleEnd` actually fire something. The rest of
+  C's candidates are deferred for their own reasons: [Blocker]'s effect is already correct and
+  native (`vm/battle.ts`'s `applyBlock`) — routing it through `modifyAttr(attr:mode)`'s `switchMode`
+  lowering would wrongly fire "rested by one of your skills" (1-10), which blocking is not; [Deflect]
+  needs the Counter:Play window (`vm/host.ts`'s own `NotYet`, #150 opened only the battle-triggered
+  one) and its own hook's `self` (a counter candidate) does not obviously name the card seeking
+  immunity rather than the cards it would suppress — read again before writing; [Attack]/
+  [Dual Attack] needs a per-card numeric "attacked this turn" count no primitive carries yet
+  (`battledThisTurn` is a bare boolean); [Alliance]'s rested cards are a cost bound into the rest of
+  its own printed skill, not a fixed body every [Alliance] card shares; [Critical]/[Strike]/
+  [Victory Strike] read a life-damage amount or destination before `dealDamage` moves the card — a
+  synchronous decision an `effect` hook's deferred queue cannot make in time; and [Ultimate]'s own
+  moment is `onLeave` (group B), whose firing site is #155's, not this issue's.
   **`s7-05` (#157) wrote group D's one tractable body**: [Energy-Exhaust]'s `chargeLimit` (22-31),
   fired from `vm/host.ts`'s `moveTo` — the one *script-level* mover every `DO` program's own
   `moveTo` op runs through, the charge action's own included — rather than `vm/flow.ts`'s `moved()`
@@ -223,7 +279,20 @@ the same as if it were still in `CLAUDE.md`.
   it; [Spirit Boost] already resolves through the price grammar directly
   (`engine/compile/effects.ts`), needing no hook at all; and [Empower]'s "asked, not assumed" carry
   choice (owner's ruling, 9 Sep 2026) is a suspended prompt mid-play that no candidate hook's shape
-  covers.
+  covers. **[Unique]'s own reassignment to `playRefused` (#154) turned out mistaken**, found while
+  writing its body: the contract's own worked example (`count("a card with the same name" IN
+  you.battle) >= 1`) does not actually read "the same name" as a self-referential comparison at
+  all — `parseFilter` has no such phrase, so it silently parses to an empty, match-anything filter
+  (checked directly: `names: []`), which would make the compiled rule forbid *every* play the
+  moment any card is in the Battle Area. The real primitive for "no one may play a card sharing my
+  name" is `forbid`'s own `sameNameAsSelf` (`engine/script.ts`), but it is a *targetless, board-wide
+  [Permanent]-style static* — read through `statics()`'s own zone-gated `forbid` case (`!inPlayNow`
+  continues), naturally matching "while a card with [Unique] is in play" — not a per-candidate
+  query asked of the *hand card being checked*, which is what `playRefused` actually binds `self`
+  to. Forcing it through `playRefused` reads the wrong card's own keyword entirely (a duplicate
+  candidate would need to carry [Unique] itself, and the fact would test the candidate's name
+  against its own, which is always true). [Unique] fits none of the fifteen hook points as
+  contracted; left undeclared, named here rather than forced.
   **The interpreter is shared** (#142): `stepScript` runs on a `ScriptHost`
   (`engine/script-host.ts`) rather than on a `GameState`, `legacyHost` is that interface over the
   old state and `vm/host.ts` over the new one, so one `card_rules` row means one thing on both
