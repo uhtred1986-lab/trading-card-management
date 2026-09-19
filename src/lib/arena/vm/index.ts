@@ -46,6 +46,7 @@ import { PLAYERS, type PlayerId } from "../engine/types";
 import { rulesetFor, type GameDefinition } from "../rulesets";
 import { ACTIVATION_ZONE_NAMES, windowOf } from "./activate";
 import { applyDeclared, declaredLegalActions, declaredRejectedActions } from "./actions";
+import { applyBlock, applyCombo, applyCounter, attackLegalActions, attackRejectedActions, comboLegalActions, declareAttack } from "./battle";
 import { chargesOf, describePayment } from "./costs";
 import { attributeGaps, attrsForDefs, playerAttributes, type AttrProblem, type AttrValue } from "./cards";
 import { costLayerGaps } from "./effects";
@@ -385,6 +386,27 @@ function apply(ctx: EngineContext, prev: VmState, action: Action): { state: VmSt
   }
 
   switch (action.type) {
+    // #150: the one battle window whose decline is the plain "take nothing
+    // from this question" `pass` already is, rather than a `card: null`
+    // answer of the move's own the way `block`/`counter` decline
+    // (`vm/battle.ts`'s own header) — a `combo` action always names a real
+    // card (`Action`'s union has no `card: null` for it, unlike `block`'s and
+    // `counter`'s `cardOrNone`). Handled before the declared `pass` below
+    // because the combo prompt is not one of its declared `prompts:`
+    // (`actions.rules`'s own grammar offers one candidate card per move, and
+    // "which side, offense or defense" is not a fact a declaration reads —
+    // it is the frozen `Prompt.side` `vm/battle.ts` put there); every other
+    // prompt `pass` answers still falls to `applyDeclared` unchanged.
+    case "pass": {
+      if (state.prompt.kind === "combo") {
+        requirePrompt(state, action, ["combo"]);
+        break;
+      }
+      const took = applyDeclared(ctx, game, state, events, action);
+      if (took === "none") throw new NotYet(`take a ${action.type} action — no DEFINE ACTION declares it`, DECLARED_BY[action.type] ?? "#146");
+      if (took === "asked") return { state, events };
+      break;
+    }
     case "chooseFirst": {
       requirePrompt(state, action, ["chooseFirst"]);
       state.firstPlayer = action.first;
@@ -442,6 +464,34 @@ function apply(ctx: EngineContext, prev: VmState, action: Action): { state: VmSt
       state.lastMode = action.index;
       break;
     }
+    // #150: `attack`, `block`, `counter` and `combo` are native rather than
+    // `DEFINE ACTION`s — `vm/battle.ts`'s own header says why (an attack is a
+    // player and two cards where every declared move is a player and at most
+    // one, and `block`/`counter` freeze their candidates onto the `Prompt`
+    // itself rather than reading a `FOR` live). `attack` leaves the Main
+    // Phase's own question on the table exactly as `play`/`activate`'s
+    // `again: true` do — no `answered()` call — and the battle phase
+    // `declareAttack` pushes is what `run` below steps into.
+    case "attack": {
+      declareAttack(ctx, game, state, events, action);
+      break;
+    }
+    case "block": {
+      applyBlock(ctx, game, state, events, action);
+      break;
+    }
+    // `counter` and `combo` can each stop mid-move to ask which energy to
+    // rest (3-8-2), the same suspension `payCost` above answers — so, like
+    // the declared moves at the bottom of this switch, an `"asked"` result
+    // returns immediately rather than running the flow on.
+    case "counter": {
+      if (applyCounter(ctx, game, state, events, action) === "asked") return { state, events };
+      break;
+    }
+    case "combo": {
+      if (applyCombo(ctx, game, state, events, action) === "asked") return { state, events };
+      break;
+    }
     default: {
       // Everything else is a `DEFINE ACTION`: `actions.rules` says when it is
       // offered, for which cards, what it costs and what it does, and
@@ -471,17 +521,15 @@ function apply(ctx: EngineContext, prev: VmState, action: Action): { state: VmSt
  * left of it is 13-3's Unison growth, whose once-a-turn gate the language has
  * no word for — a player attribute a condition can read and an op that sets one
  * — and the two answers that are not moves a menu enumerates. An activation
- * is declared (#147) and gone from this list too; the battle and everything that
- * answers inside it is Stage 6 (#150), and the Z-Energy a combo can become is
- * #151.
+ * is declared (#147) and gone from this list too. `attack`, `block`, `combo`
+ * and `counter` are #150's own paragraph — native rather than declared, and
+ * handled in the `switch` above before this table is ever consulted for
+ * them — so they are gone from here as well; the Z-Energy a spent combo card
+ * can become at the end of the battle is still #151's (`zEnergyFromCombo`).
  */
 const DECLARED_BY: Partial<Record<Action["type"], string>> = {
   growUnison: "#146",
   offering: "#157",
-  attack: "#150",
-  block: "#150",
-  combo: "#150",
-  counter: "#150",
   zEnergyFromCombo: "#151",
 };
 
@@ -520,8 +568,34 @@ function legalActions(ctx: EngineContext, state: VmState): LegalAction[] {
  * would be a client reading the engine rather than the contract.
  */
 function promptAnswers(ctx: EngineContext, state: VmState): LegalAction[] {
+  const game = definitionFor(state.game);
   const pr = state.prompt;
   switch (pr.kind) {
+    // 8-1: the fifth thing 7-3-4's free timing grants, beside the declared
+    // moves the Main Phase's own question already offers — native for the
+    // reason `vm/battle.ts`'s header gives (a player and two cards, where
+    // every `DEFINE ACTION` is a player and at most one).
+    case "main":
+      return attackLegalActions(ctx, game, state, pr.player);
+    // `blocker` and `counter` carry their own frozen candidates (the legacy
+    // engine's own `Prompt` shapes), computed once when the window opened —
+    // read straight off the prompt rather than recomputed here, the same way
+    // `chooseCards`/`chooseMode` below read theirs.
+    case "blocker":
+      return [
+        ...pr.candidates.map((card) => ({ action: { type: "block" as const, player: pr.player, card }, label: `Block with ${ctx.defs[state.cards[card]?.cardId ?? ""]?.name ?? card}` })),
+        { action: { type: "block" as const, player: pr.player, card: null }, label: "Don't block" },
+      ];
+    case "counter":
+      return [
+        ...pr.candidates.map((card) => ({ action: { type: "counter" as const, player: pr.player, card }, label: `Counter with ${ctx.defs[state.cards[card]?.cardId ?? ""]?.name ?? card}` })),
+        { action: { type: "counter" as const, player: pr.player, card: null }, label: "Don't counter" },
+      ];
+    // `combo` carries no candidates of its own — read fresh every time,
+    // exactly as a declared move's menu is. `pass` is the decline, handled
+    // natively above since the combo prompt is not among its declared ones.
+    case "combo":
+      return [...comboLegalActions(ctx, game, state), { action: { type: "pass", player: pr.player }, label: "Pass" }];
     case "chooseFirst":
       return PLAYERS.map((first) => ({ action: { type: "chooseFirst", player: pr.player, first }, label: first === pr.player ? "Go first" : "Go second" }));
     case "mulligan":
@@ -568,7 +642,18 @@ function promptAnswers(ctx: EngineContext, state: VmState): LegalAction[] {
  * reach for and miss.
  */
 function rejectedActions(ctx: EngineContext, state: VmState, legal: LegalAction[]): RejectedAction[] {
-  return declaredRejectedActions(ctx, definitionFor(state.game), state, legal);
+  const game = definitionFor(state.game);
+  const declared = declaredRejectedActions(ctx, game, state, legal);
+  // `attack` is native (`vm/battle.ts`), so its own `whyNotAttack` reading is
+  // merged in beside the declared ones — offered only at the "main" prompt,
+  // the one question it answers. `block` and `counter` carry no rejection
+  // reading of their own, matching the legacy engine: a card not among a
+  // blocker or counter window's frozen candidates was never a card reaching
+  // for the move could see a button for, so there is no "why not" to give it.
+  if (state.prompt.kind === "main" && "player" in state.prompt && state.prompt.player) {
+    declared.push(...attackRejectedActions(ctx, game, state, state.prompt.player));
+  }
+  return declared;
 }
 
 /** The board, drawn from the declarations for one side of the table. */

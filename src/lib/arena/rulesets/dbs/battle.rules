@@ -1,0 +1,87 @@
+-- The battle (8-1 … 8-5): attacker and guard, the blocker and counter windows,
+-- the offense and defense combo offers, the damage, and the end of the fight.
+--
+-- Sections are `docs/rules/rulemanual.txt` §8. `attack` itself is not
+-- declared here as a `DEFINE ACTION` — every other action `actions.rules`
+-- declares is a player and at most one card (`vm/actions.ts`'s own limit,
+-- recorded on its `Candidate` type), and an attack is a player and *two*
+-- cards, an attacker and a target. `block` and `counter` have a second reason
+-- to stay native: their `Prompt` shapes freeze a candidate list onto the
+-- question the moment it is raised (the legacy engine's own shapes,
+-- `{kind:"blocker",candidates}` and `{kind:"counter",window,candidates}`),
+-- which is not what a live `FOR` selector does. `vm/battle.ts` is the whole
+-- of that — read its own header before this file, since the two are one
+-- piece of work read in two places.
+--
+-- What *is* declared here, and is the real reason this is a `.rules` file and
+-- not only TypeScript: the battle's own phase and the nine steps that make it
+-- up, in 8-1 … 8-5's order, read by the exact same `vm/flow.ts` runner a
+-- turn's phases are — a stack of frames, a step's `LIMIT`, a checkpoint
+-- between each. `battle` is deliberately **not** one of `DEFINE GAME`'s
+-- `phases:` (`game.rules`): a turn's phases are a sequence `phaseAfter` walks,
+-- and a battle is not the Main Phase's successor, it is a frame **nested**
+-- inside it — pushed by `vm/battle.ts`'s `declareAttack` with the same
+-- `enterPhase` a turn phase uses, and popped by the runner's own fallback
+-- (`vm/flow.ts`: a phase with no successor and a frame still beneath it
+-- simply resumes reading that frame) the moment its steps run out. No change
+-- to the runner was needed for the nesting itself — only for the two windows
+-- whose question is not one of the four `PROMPT_ASKS` already knows how to
+-- put (`Work.run` returning `"wait"`, #150's one addition, documented where
+-- it is made).
+--
+-- None of these nine steps carries a `DO`: every one is worked natively in
+-- `vm/battle.ts`'s `BATTLE_STEP_WORK`, the same honest gap `flow.ts`'s own
+-- `STEP_WORK` documents for the turn's machinery — a step here is complete
+-- except for the program, and the day one is added is the day the row in
+-- that table is deleted rather than grown a tenth entry.
+
+DEFINE PHASE battle                                                       -- §8-1
+  steps: [battleDeclare, battleCounterAttack, battleBlocker, battleOffense, battleOffenseCombo, battleDefense, battleDefenseCombo, battleDamage, battleEnd]
+  auto: true
+  announce: false
+  text: "an attacker and a guard fight it out: declared, blocked or countered, a combo offered on each side, and the higher power wins (8-1 … 8-5)"
+
+DEFINE STEP battleDeclare                                                 -- §8-1-2, 8-1-3
+  phase: "battle"
+  optional: false
+  text: "the attack is declared: the attacker and the target are named, and 'when this card attacks'/'when this card is attacked' pend (8-1-2, 8-1-3)"
+
+DEFINE STEP battleCounterAttack                                           -- §8-1-4, 9-7
+  phase: "battle"
+  optional: false
+  text: "the window after an attack is declared: the defending player may activate a [Counter: Attack] or [Counter: Battle Card Attack] skill from hand (8-1-4, 9-7)"
+
+DEFINE STEP battleBlocker                                                 -- §8-1-2-1, 22-4
+  phase: "battle"
+  optional: false
+  text: "the defending player may activate one [Blocker] card's keyword, making it the guard in the original target's place (8-1-2-1, 22-4)"
+
+DEFINE STEP battleOffense                                                 -- §8-2
+  phase: "battle"
+  optional: false
+  text: "the Offense Step begins: 'at the start of the offense step' pends for the attacking player's cards (8-2, 8-2-2)"
+
+DEFINE STEP battleOffenseCombo                                            -- §5-7, 8-2-4
+  phase: "battle"
+  optional: false
+  text: "the attacking player may add cards to their Combo Area, one at a time, paying each one's combo cost (5-7, 8-2-4)"
+
+DEFINE STEP battleDefense                                                 -- §8-3
+  phase: "battle"
+  optional: false
+  text: "the Defense Step begins, skipped outright when the guard is a Unison (8-2-4-3-1-1): 'at the start of the defense step' pends for the guarding player's cards (8-3, 8-3-2)"
+
+DEFINE STEP battleDefenseCombo                                            -- §5-7, 8-3-4
+  phase: "battle"
+  optional: false
+  text: "the guarding player may add cards to their Combo Area the same way (5-7, 8-3-4)"
+
+DEFINE STEP battleDamage                                                  -- §8-4
+  phase: "battle"
+  optional: false
+  text: "power is compared, combo power included, and the loser's Battle Card is KO'd, a Unison loses a marker, or a Leader takes damage (8-4-4 … 8-4-6)"
+
+DEFINE STEP battleEnd                                                     -- §8-5
+  phase: "battle"
+  optional: false
+  text: "the Battle End Step: 'at the end of the battle' pends, every combo card goes to the Drop Area, and the battle closes (8-5)"

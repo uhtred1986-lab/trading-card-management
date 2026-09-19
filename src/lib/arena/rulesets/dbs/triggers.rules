@@ -91,8 +91,16 @@ DEFINE TRIGGER attacked
   text: "when this card is attacked"
 
 -- §8-1-3 — when your opponent attacks
+--
+-- `role: attacker` is #150's addition, the first stage to actually fire an
+-- `attackDeclared` moment: a battle names two cards, the attacker and the
+-- guard, and `vm/battle.ts` fires one moment for each so `attacks`/`attacked`
+-- can each `BIND "self"` to the right one. Without a role narrowing this
+-- pattern, the *guard's* own moment would match it too (its `watcher:
+-- opponent` asks nothing about which card the moment is about, only who is
+-- asked), which would pend this trigger a second time off the wrong subject.
 DEFINE TRIGGER opponentAttacks
-  ON attackDeclared(watcher: opponent)
+  ON attackDeclared(role: attacker, watcher: opponent)
   BIND "subject"
   text: "when your opponent attacks"
 
@@ -131,8 +139,22 @@ DEFINE TRIGGER battleEnd
 -- ── KOs (5-12, 21-14) ──────────────────────────────────────────────────────
 
 -- §5-12 — when this card is KO'd
+--
+-- `role: koed` is #150's addition, for the same reason `opponentAttacks`
+-- above needed one: a KO names two cards, the one that left and the one that
+-- caused it (`kos`, `role: cause`, already declared), and `vm/battle.ts`
+-- fires one `ko` moment for each. Left bare, this pattern's empty `ON ko`
+-- would match *either* moment — the koed card's own and the attacker's —
+-- since a pattern with no arguments is true of any event carrying that name;
+-- naming the koed card's own role is what keeps it from also asking the
+-- attacker "were you KO'd". `to: drop` is 9-1-3-1's derived exception,
+-- exactly as `droppedFromBattle` below reads it for a skill's own move: a
+-- card asking whether it was just KO'd is asked about its own departure
+-- *after* it has already landed in the Drop, so the pattern has to name the
+-- place its skills are still valid in reacting to, the same as any other
+-- "fires while the card is elsewhere" moment.
 DEFINE TRIGGER koed
-  ON ko
+  ON ko(role: koed, to: drop)
   BIND "self"
   text: "when this card is KO'd"
 
@@ -144,13 +166,13 @@ DEFINE TRIGGER kos
 
 -- §21-14 — when one of your cards is KO'd
 DEFINE TRIGGER yourCardKoed
-  ON ko(watcher: controller)
+  ON ko(role: koed, watcher: controller)
   BIND "subject"
   text: "when one of your cards is KO'd"
 
 -- §21-14 — when an opponent's card is KO'd
 DEFINE TRIGGER opponentCardKoed
-  ON ko(watcher: opponent)
+  ON ko(role: koed, watcher: opponent)
   BIND "subject"
   text: "when an opponent's card is KO'd"
 

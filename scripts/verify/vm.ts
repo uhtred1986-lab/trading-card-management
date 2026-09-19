@@ -201,8 +201,13 @@ assert.equal(isVmState("rules"), false, "a string was read as a rules state");
 // `IllegalAction`, so the API answers `illegal_action` and the client shows
 // the sentence — the refusal a caller really gets, not a shortcut past it.
 const rules = engineFor("rules");
+// `attacking` moved out of this list in #150 — `vm/battle.ts` declares it
+// natively now, so it is exercised as a real move (§17b below) rather than as
+// a gap. What is left of the battle that is still named work is the Z-Energy
+// a spent combo card may become at the end of it (#151's own
+// `zEnergyFromCombo`, `vm/index.ts`'s `DECLARED_BY`).
 const notYet: { what: string; run: () => unknown }[] = [
-  { what: "attacking", run: () => rules.apply(CTX, state, { type: "attack", player: "p1", attacker: "p1#0", target: "p2#0" }) },
+  { what: "sending a combo card to Z-Energy", run: () => rules.apply(CTX, state, { type: "zEnergyFromCombo", player: "p1", card: null }) },
 ];
 for (const { what, run } of notYet) {
   assert.throws(
@@ -1422,8 +1427,13 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     // …and it is still the move that answers the question.
     const after = rulesEngine.apply(CTX, s, { type: "pass", player: "p1" });
     assert.notEqual((after.state as VmState).phase, "main", "pass did not answer the Main Phase's question");
-    // A move no declaration claims names the issue that declares it.
-    assert.throws(() => rulesEngine.apply(CTX, s, { type: "attack", player: "p1", attacker: good, target: "p2#0" }), NotYet, "a move nothing declares was accepted");
+    // `attack` is #150's now — native rather than a `DEFINE ACTION`
+    // (`vm/battle.ts`'s own header says why), and a real move rather than a
+    // gap: `good` is a card in p1's *hand* here, never one of `attackLegalActions`'
+    // candidates (an attacker has to be in play), so this is an ordinary
+    // refusal and not the `NotYet` a move nothing declares used to throw
+    // before this stage built it.
+    assert.throws(() => rulesEngine.apply(CTX, s, { type: "attack", player: "p1", attacker: good, target: "p2#0" }), IllegalAction, "attacking with a card in hand was accepted");
   }
 }
 

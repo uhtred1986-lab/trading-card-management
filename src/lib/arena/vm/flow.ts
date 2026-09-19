@@ -53,6 +53,7 @@ import { stepScript, type ScriptFrame } from "../engine/script";
 import type { Trigger } from "../engine/types";
 import { SETUP_ZONES, arrivalMode, moveCard } from "./zones";
 import { playerAttributes } from "./cards";
+import { BATTLE_STEP_WORK } from "./battle";
 import type { VmFrame, VmState } from "./state";
 
 // `other` is the engine's own: a game of two is what `DEFINE GAME players: 2`
@@ -107,12 +108,24 @@ const PROMPT_ASKS: Record<string, "chooser" | "turnPlayer" | "eachInOrder" | "no
  * for its program, and Stage 5 replaces the row with that program rather than
  * adding a seventh.
  */
-interface Work {
+export interface Work {
   /** The manual section, so the table reads like the file it shadows. */
   section: string;
   /** What the step's `DO` program would have to be able to say. */
   waits: string;
-  run: (ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[]) => void;
+  /**
+   * `"wait"` is #150's addition: a battle step whose native work put a real
+   * question on the board (`state.prompt`) rather than one of the four the
+   * declarative `step.prompt`/`PROMPT_ASKS` table already knows how to ask —
+   * the blocker and counter windows carry their own frozen candidate list on
+   * the `Prompt` itself (the legacy engine's own shape), which is not
+   * something a `FOR` selector re-reads live, so the step sets it and says so
+   * rather than the runner guessing at it from a declared prompt kind. A step
+   * that returns nothing ran to completion and the runner moves on exactly as
+   * it always has, and every one of the eleven turn-machinery rows above
+   * still returns nothing (implicit `void`), so this is additive.
+   */
+  run: (ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[]) => void | "wait";
 }
 
 const STEP_WORK: Record<string, Work> = {
@@ -279,6 +292,15 @@ const STEP_WORK: Record<string, Work> = {
   },
 };
 
+// #150: the battle sub-flow's own steps, merged in beside the turn's. Kept in
+// a separate module (`vm/battle.ts`) rather than grown here, the way `play.ts`
+// and `activate.ts` are separate from the actions they are declared beside —
+// this file stays about the turn, `battle.ts` about the fight nested inside
+// it. The two modules already import each other's helpers at the function
+// level (`host.ts` → `play.ts` → `flow.ts` is the existing precedent), which
+// is safe because neither reaches for the other at module-evaluation time.
+Object.assign(STEP_WORK, BATTLE_STEP_WORK);
+
 /** The steps the interpreter carries out itself, for the check `createGame` makes against the declarations. */
 export const WORKED_STEPS = Object.keys(STEP_WORK);
 
@@ -330,11 +352,24 @@ export function run(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     if (top.asking === undefined) {
       top.asking = askers(state, step);
       const pended = state.pending.length;
-      STEP_WORK[name]?.run(ctx, game, state, ev);
+      const worked = STEP_WORK[name]?.run(ctx, game, state, ev);
       checkWins(ctx, game, state, ev);
       // The work may have ended the game or passed the turn, either of which
       // replaces the flow this frame was on.
       if (state.flow[state.flow.length - 1] !== top) continue;
+      // #150: the work put a question on the board itself — a blocker or a
+      // counter window, whose candidates are frozen onto the `Prompt` at the
+      // moment it is raised (the legacy shape those two carry) rather than
+      // read live off a `FOR`. `top.asking` is left exactly as `askers`
+      // returned it (empty, since these steps declare no `prompt:`), so the
+      // very next pass through this step — after the answer comes back and
+      // `state.flow`'s top frame is this one again — reads that unchanged
+      // `[]` and, finding no question of its own to ask, simply moves the
+      // step index on. A step that wants to be asked *again* (a repeated
+      // combo offer) does that by clearing `top.asking` itself before calling
+      // `run` a second time, which is `vm/battle.ts`'s own business and not
+      // this runner's.
+      if (worked === "wait") return;
       // 7-4-4: a step that carries a `LIMIT` may send its phase round again,
       // and the declaration's number is the ceiling. Checked here, once, on the
       // step's own arrival — a repeat decided anywhere else would be a loop

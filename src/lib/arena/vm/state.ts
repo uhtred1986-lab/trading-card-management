@@ -47,9 +47,37 @@
 import type { VmPending } from "./triggers";
 import type { Game } from "../../catalog/games";
 import type { ScriptFrame } from "../engine/script";
-import type { ContinuousEffect, DelayedEffect, PlayerId, Prompt } from "../engine/types";
+import type { BattleStep, ContinuousEffect, DelayedEffect, PlayerId, Prompt } from "../engine/types";
 import type { AttrValue } from "./cards";
 import type { VmCard, Zones } from "./zones";
+
+/**
+ * The battle in progress (8-1), or its absence.
+ *
+ * The legacy engine's own `Battle` shape, pared to what #150's flow actually
+ * reads and writes: no `revenge`/`reactivate` (22-9/22-8, keyword bodies
+ * Stage 7 has not built) and no Z-Energy bookkeeping (`zEnergyFromCombo` is
+ * #151's). What is here is what `ScriptHost.battle()` hands a running program
+ * (`redirectAttack`, `negateAttack`, §22-13's [Union-Absorb] guard swap) and
+ * what the board's `BattleView` reads back (`vm/view.ts`).
+ */
+export interface VmBattle {
+  attacker: string;
+  guard: string;
+  /** The card the attack was declared against, before any [Blocker] changed the guard (8-1-2-1). */
+  target: string;
+  step: BattleStep;
+  /** 8-1-6-1: a `negateAttack` op was run against this battle — a program a declared op can already fire (`engine/script.ts`'s `case "negateAttack"`), wired here so the day a card reaches it, the battle honours it. */
+  negated: boolean;
+  /** 8-1-2-3: [Blocker] is offered once a battle. */
+  blockerOffered: boolean;
+  /**
+   * The counter cards played into this battle, in play order — `docs/arena-battle-staging-spec.md`
+   * §3.1's own field, the legacy `Battle.counters`' shape exactly, so the two
+   * engines' `BattleView.counters` come off the same record.
+   */
+  counters: { card: string; by: PlayerId; after: number }[];
+}
 
 /**
  * Bumped when the shape changes in a way a stored state cannot be read
@@ -72,8 +100,12 @@ import type { VmCard, Zones } from "./zones";
  * (`charged`, `grewUnison`) start carrying a real value in `VmSide.attrs`
  * rather than reading as `undefined` everywhere. A version-6 state is a game
  * in which nobody had yet had a charge or grown a Unison this turn either way.
+ * 8: #150's battle (`battle`, `VmBattle`). A version-7 state is a game in
+ * which no attack had ever been declared, so the field is simply absent —
+ * `battle` is optional on load and defaults to null, the same convention
+ * `firstPlayer` uses for "not decided yet".
  */
-export const VM_STATE_VERSION = 7;
+export const VM_STATE_VERSION = 8;
 
 /** One player, as the definition describes one: a name, a map of zones, and the attributes a *player* has (1-14). */
 export interface VmSide {
@@ -194,6 +226,8 @@ export interface VmState {
   winner: PlayerId | null;
   /** Why it ended, in words, or null while it has not. */
   overReason: string | null;
+  /** 8-1: the battle in progress, or null between battles — #150's field, absent on a state saved before it existed. */
+  battle?: VmBattle | null;
 }
 
 /**
