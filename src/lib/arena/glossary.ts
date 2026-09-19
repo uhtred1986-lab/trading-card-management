@@ -391,7 +391,8 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     type: "[Permanent]",
     group: "cost",
     meaning: "When this card is placed in an Energy Area, it arrives in Rest Mode. Valid in every area.",
-    engine: "Applied wherever a card lands in energy, from any area and by any means.",
+    engine:
+      "Applied wherever a card lands in energy, from any area and by any means. The rules engine's own chargeLimit hook does the same (#157), fired from the one script-level mover every DO program's moveTo op runs through — a card that reaches an Energy Area through vm/flow.ts's separate native mover (moved(), used for a KO, a combo card leaving, a battle) does not yet answer here, the same edge the legacy engine's own site (printed-only, not granted) already carries.",
     support: "engine",
   },
   "Warrior of Universe 7": {

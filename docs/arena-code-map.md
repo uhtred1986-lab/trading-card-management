@@ -212,6 +212,18 @@ the same as if it were still in `CLAUDE.md`.
   keyword names a body yet (`rulesets/dbs/keywords.rules` still declares all 39 with none) — the
   plumbing is proved instead by a small worked ruleset in `scripts/verify/rulesets.ts`, one body per
   hook, run through both runners for real. Writing the 39 real bodies is `s7-02` through `s7-05`.
+  **`s7-05` (#157) wrote group D's one tractable body**: [Energy-Exhaust]'s `chargeLimit` (22-31),
+  fired from `vm/host.ts`'s `moveTo` — the one *script-level* mover every `DO` program's own
+  `moveTo` op runs through, the charge action's own included — rather than `vm/flow.ts`'s `moved()`
+  (a *different*, native mover for a KO, a combo card leaving, a battle; #155's own hooks live
+  there). The rest of D's candidates are deferred: [Offering]'s own moment is `onEnter` (group B,
+  #155's firing site, not this issue's); [Evolve]/[Union]/[Over Realm]/[Swap] are whole-keyword
+  activations with no `do:` a `DEFINE KEYWORD` can carry yet, and their Group D half (cost math,
+  once-a-turn limits, legality checks) is part of the same unbuilt activation, not separable from
+  it; [Spirit Boost] already resolves through the price grammar directly
+  (`engine/compile/effects.ts`), needing no hook at all; and [Empower]'s "asked, not assumed" carry
+  choice (owner's ruling, 9 Sep 2026) is a suspended prompt mid-play that no candidate hook's shape
+  covers.
   **The interpreter is shared** (#142): `stepScript` runs on a `ScriptHost`
   (`engine/script-host.ts`) rather than on a `GameState`, `legacyHost` is that interface over the
   old state and `vm/host.ts` over the new one, so one `card_rules` row means one thing on both

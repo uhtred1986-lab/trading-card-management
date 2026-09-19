@@ -3304,6 +3304,57 @@ console.log("verify/vm: ok");
   }
 }
 
+// ── hook group D: playing, charging, alternative payment (#157) ─────────────
+//
+// [Energy-Exhaust]'s own `chargeLimit` hook (22-31) is the contract's own
+// worked example, fired from `vm/host.ts`'s `moveTo` — the one script-level
+// mover every `DO` program's own `moveTo` op runs through, the charge
+// action's own `DO { moveTo(..., to: energy) }` included — rather than
+// `vm/flow.ts`'s `moved()` (a *different* mover, for native moves: KO,
+// combo-to-drop, battle; #155's `onEnter`/`onLeave`/`afterSkill` are wired
+// there, not here). Group D's other candidates are deferred, each for its
+// own reason (`docs/arena-code-map.md` has the full account): [Offering]'s
+// own moment is `onEnter` (group B), whose firing site is #155's, not this
+// issue's; [Evolve]/[Union]/[Over Realm]/[Swap] are whole-keyword
+// activations with no `do:` a `DEFINE KEYWORD` can carry yet — their Group D
+// half (cost math, once-a-turn limits, legality checks) is part of the same
+// unbuilt activation, not separable from it; [Spirit Boost] already resolves
+// through the price grammar directly (`compile/effects.ts`), needing no hook
+// at all; and [Empower]'s "asked, not assumed" carry choice is a suspended
+// prompt mid-play that no candidate hook's shape covers.
+{
+  const rulesEngine = engineFor("rules");
+  DEFS.EXHAUSTX = card("EXHAUSTX", { energyCost: 1, skill: "[Energy-Exhaust]" });
+
+  /** A rules game at its first Charge Phase question, with `EXHAUSTX` and a plain `V1` at the front of p1's hand. */
+  function atCharge(): VmState {
+    let s = rulesEngine.createGame(CTX, SAME).state as VmState;
+    s = rulesEngine.apply(CTX, s, { type: "chooseFirst", player: s.chooser, first: "p1" }).state as VmState;
+    for (let i = 0; i < 20 && s.prompt.kind !== "charge"; i++) s = rulesEngine.apply(CTX, s, { type: "pass", player: (s.prompt as { player: PlayerId }).player }).state as VmState;
+    assert.equal(s.prompt.kind, "charge", "a rules game did not reach a Charge Phase to offer the charge in");
+    s.cards[s.sides.p1.zones.hand[0]].cardId = "EXHAUSTX";
+    return s;
+  }
+
+  // [Energy-Exhaust]: arrives in the Energy Area already in Rest Mode (22-31).
+  {
+    const s = atCharge();
+    const exhausted = s.sides.p1.zones.hand[0];
+    const after = rulesEngine.apply(CTX, s, { type: "charge", player: "p1", card: exhausted }).state as VmState;
+    assert.deepEqual(after.sides.p1.zones.energy, [exhausted], "the charged card is not in the Energy Area");
+    assert.equal(after.cards[exhausted].mode, "rest", "[Energy-Exhaust] did not arrive in Rest Mode (22-31)");
+  }
+  // Control: an ordinary card charged the same way arrives Active, so the
+  // fixture above is actually exercising `chargeLimit` rather than a
+  // coincidental default.
+  {
+    const s = atCharge();
+    const plain = s.sides.p1.zones.hand[1];
+    const after = rulesEngine.apply(CTX, s, { type: "charge", player: "p1", card: plain }).state as VmState;
+    assert.equal(after.cards[plain].mode, "active", "an ordinary charged card did not arrive in Active Mode — the control case does not exercise chargeLimit");
+  }
+}
+
 // ── 22. a move told apart by its cause (#274) ────────────────────────────────
 //
 // `ko` is the one row #274 declares: its `target` is a `ref`, writable since

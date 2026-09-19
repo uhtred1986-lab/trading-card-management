@@ -88,7 +88,9 @@ DEFINE KEYWORD Servant
 DEFINE KEYWORD "Energy-Exhaust"
   TAKES ()
   text: "When this card is placed in an Energy Area, it arrives in Rest Mode. Valid in every area."
-  -- Stage 7 (#153–#157)
+  HOOK chargeLimit {
+    modifyAttr(target: [self], attr: mode, mode: rest)
+  }
 
 -- 22-18
 DEFINE KEYWORD "Victory Strike"

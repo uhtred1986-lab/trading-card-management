@@ -55,6 +55,7 @@ import type { GameDefinition } from "../rulesets";
 import { addEffect, dropEffectsOn, negatedSkillsOf, schedule } from "./effects";
 import { NotYet } from "./errors";
 import { emit, log } from "./events";
+import { fireHook } from "./hooks";
 import { resolvePlay } from "./play";
 import { SETUP_ZONES, arrivalMode, moveCard } from "./zones";
 import { attrsNow, amount, condHolds, forbids, hasKeyword, resolveRef, resolveSelector, sideOf, zoneOf } from "./program";
@@ -394,6 +395,17 @@ function moveTo(
   // on the legacy side): "damage", "ko", "combo", "effect" and a plain draw are one
   // move told apart by it, and `triggers.rules` may match a `moved(cause: …)` (#274).
   emit(ctx, game, state, ev, { event: "moved", card: id, controller: owner, args: { from: from ?? "", to, asPlay: false, cause: opts.reason ?? "effect" } }, null);
+  // #157: a keyword's own `chargeLimit` hook (22-31, "valid in every area") —
+  // this is the one script-level mover every DO program's own `moveTo` op
+  // runs through (the charge action's own `DO { moveTo(..., to: energy) }`
+  // included), so wiring it here reaches "any source" the way the contract's
+  // own doc asks for, without a special case per action. `flow.ts`'s `moved()`
+  // is a *different* mover (native moves — KO, combo-to-drop, battle) and
+  // fires its own `onEnter`/`onLeave`/`afterSkill` (#155); neither wraps the
+  // other, so a card reaching an Energy Area through *that* path still would
+  // not answer here, which is the same edge the legacy site's own comment
+  // about a granted (not printed) [Energy-Exhaust] already names.
+  if (to === "energy") fireHook(ctx, game, state, id, "chargeLimit");
 }
 
 function ownerOfZone(state: VmState, id: string): PlayerId | null {
