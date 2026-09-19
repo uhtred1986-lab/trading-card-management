@@ -123,7 +123,7 @@ import { legacyHost } from "../../src/lib/arena/engine/script-host";
 import { stepScript, type Op, type PayWith, type Ref, type ScriptFrame } from "../../src/lib/arena/engine/script";
 import { skillsNegated as legacySkillsNegated } from "../../src/lib/arena/engine/state";
 import { skillsNegated as vmSkillsNegated } from "../../src/lib/arena/vm/effects";
-import { CTX, DEFS, arena, assertMenuInvariants, card, fifty, find, matches, parseSkills, play, powerOf } from "./harness";
+import { CTX, DEFS, assertMenuInvariants, card, fifty, matches, parseSkills } from "./harness";
 
 const DECKS = { seed: 11, p1: { name: "You", leader: "L-RED", main: fifty("V1") }, p2: { name: "Claude", leader: "L-BLUE", main: fifty("V-BLUE") } };
 
@@ -3379,6 +3379,52 @@ console.log("verify/vm: ok");
 {
   const rulesEngine = engineFor("rules");
 
+  // The legacy half is built on the same always-legacy `apply`/`createGame`
+  // §1-22 use (imported at the top of this file, never the harness's own
+  // `arena`/`play`/`find` — those read `ENGINE`, this file's own `--engine`
+  // flag, and building a legacy board through them while a run is asking for
+  // `rules` throws `EngineMismatch`, since `game()` deals on `ENGINE` and
+  // `arena()`/`play()` then read a `VmState`'s fields as a `GameState`'s.
+  // §23 is meant to run the same under either flag — the rules half already
+  // does, being explicit about `rulesEngine` throughout — so the legacy half
+  // has to be equally explicit rather than reach for the convenience `arena`
+  // is everywhere else in this codebase.
+  function legacyBoard(opts: { hand?: string[]; energy?: string[]; battle?: string[]; oppHand?: string[]; oppEnergy?: string[]; oppBattle?: string[] } = {}): GameState {
+    let l = createGame(CTX, DECKS).state;
+    l = apply(CTX, l, { type: "chooseFirst", player: (l.prompt as { player: PlayerId }).player, first: "p1" }).state;
+    l = apply(CTX, l, { type: "mulligan", player: "p1", redraw: false }).state;
+    l = apply(CTX, l, { type: "mulligan", player: "p2", redraw: false }).state;
+    l = apply(CTX, l, { type: "charge", player: "p1", card: null }).state;
+    l = apply(CTX, l, { type: "endMain", player: "p1" }).state;
+    l = apply(CTX, l, { type: "charge", player: "p2", card: null }).state;
+    l = apply(CTX, l, { type: "endMain", player: "p2" }).state;
+    l = apply(CTX, l, { type: "charge", player: "p1", card: null }).state;
+    assert.equal(l.prompt.kind, "main", "the legacy fixture did not reach p1's second Main Phase");
+    const give = (p: PlayerId, ids: string[], area: "hand" | "energy" | "battle") => {
+      for (const cardId of ids) {
+        const filler = p === "p1" ? "V1" : "V-BLUE";
+        const inst = l.players[p].deck.find((id) => l.cards[id].cardId === filler)!;
+        assert.ok(inst, `${p}'s deck has run out of fixture cards to relabel as ${cardId}`);
+        l.cards[inst].cardId = cardId;
+        l.players[p].deck = l.players[p].deck.filter((id) => id !== inst);
+        l.players[p][area] = [...l.players[p][area], inst];
+        if (area !== "hand") l.cards[inst].mode = "active";
+      }
+    };
+    give("p1", opts.hand ?? [], "hand");
+    give("p1", opts.energy ?? [], "energy");
+    give("p1", opts.battle ?? [], "battle");
+    give("p2", opts.oppHand ?? [], "hand");
+    give("p2", opts.oppEnergy ?? [], "energy");
+    give("p2", opts.oppBattle ?? [], "battle");
+    return l;
+  }
+  const legacyFind = (l: GameState, p: PlayerId, area: "hand" | "battle" | "energy", cardId: string): string => {
+    const id = l.players[p][area].find((x) => l.cards[x].cardId === cardId);
+    assert.ok(id, `${p}'s ${area} has no ${cardId}`);
+    return id!;
+  };
+
   /** One card moved from the deck into a named area, cardId swapped — the rules-engine `arena()`, kept local since only this suite needs it. */
   function stage(r: VmState, p: PlayerId, cardId: string, area: "hand" | "energy" | "battle"): string {
     const inst = r.sides[p].zones.deck.find((id) => r.cards[id].cardId === (p === "p1" ? "V1" : "V-BLUE"));
@@ -3426,9 +3472,9 @@ console.log("verify/vm: ok");
     assert.equal(r.sides.p2.zones.life.length, 8, "a negated attack deals no damage");
 
     // The same fact, on the engine the oracle checks against.
-    let l = arena({ oppHand: ["E-NEGATE"], oppEnergy: ["V1"] });
-    l = play(l, { type: "attack", player: "p1", attacker: l.players.p1.leader, target: l.players.p2.leader });
-    l = play(l, { type: "counter", player: "p2", card: find(l, "p2", "hand", "E-NEGATE") });
+    let l = legacyBoard({ oppHand: ["E-NEGATE"], oppEnergy: ["V1"] });
+    l = apply(CTX, l, { type: "attack", player: "p1", attacker: l.players.p1.leader, target: l.players.p2.leader }).state;
+    l = apply(CTX, l, { type: "counter", player: "p2", card: legacyFind(l, "p2", "hand", "E-NEGATE") }).state;
     assert.equal(l.battle, null);
     assert.equal(l.prompt.kind, "main");
     assert.equal(l.players.p2.life.length, r.sides.p2.zones.life.length, "the two engines do not agree on how much life a negated attack costs");
@@ -3459,7 +3505,7 @@ console.log("verify/vm: ok");
     // What the battle now says about itself — the view #150 built.
     const view = rulesEngine.boardView(CTX, r, "p1", {});
     assert.ok(view.battle, "an open battle draws no `view.battle`");
-    assert.equal(view.battle!.attackPower, powerOf(CTX, arena(), attacker) + 5000, "the combo's power is not added to the attack figure `view.battle` reports");
+    assert.equal(view.battle!.attackPower, (DEFS["L-RED"].power ?? 0) + 5000, "the combo's power is not added to the attack figure `view.battle` reports");
     assert.equal(view.battle!.contributions![combo], 5000, "the combo card's own contribution is not its printed combo power");
     r = rulesEngine.apply(CTX, r, { type: "pass", player: "p1" }).state as VmState; // offense: no more combos
     assert.equal(r.prompt.kind, "combo", "the defense side's combo offer did not open");
@@ -3473,13 +3519,14 @@ console.log("verify/vm: ok");
 
     // The same shape, asserted on the legacy engine `battles.ts` already
     // covers — repeated here as the oracle fact this suite is held to.
-    let l = arena({ hand: ["V1"], oppBattle: ["V-BLUE"] });
+    let l = legacyBoard({ hand: ["V1"], oppBattle: ["V-BLUE"] });
     const lGuard = l.players.p2.battle[0];
     l.cards[lGuard].mode = "rest";
-    l = play(l, { type: "attack", player: "p1", attacker: l.players.p1.leader, target: lGuard });
-    const lCombo = find(l, "p1", "hand", "V1");
-    l = play(l, { type: "combo", player: "p1", card: lCombo });
-    l = play(l, { type: "pass", player: "p1" }, { type: "pass", player: "p2" });
+    l = apply(CTX, l, { type: "attack", player: "p1", attacker: l.players.p1.leader, target: lGuard }).state;
+    const lCombo = legacyFind(l, "p1", "hand", "V1");
+    l = apply(CTX, l, { type: "combo", player: "p1", card: lCombo }).state;
+    l = apply(CTX, l, { type: "pass", player: "p1" }).state;
+    l = apply(CTX, l, { type: "pass", player: "p2" }).state;
     assert.equal(l.battle, null);
     assert.ok(l.players.p2.drop.includes(lGuard), "the two engines do not agree that a tied Battle Card is KO'd");
     assert.ok(l.players.p1.drop.includes(lCombo), "the two engines do not agree that a spent combo card goes to the Drop");
