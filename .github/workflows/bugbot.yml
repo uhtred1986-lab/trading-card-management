@@ -2,6 +2,15 @@
 # comments. Third-party action (not Anthropic/GitHub) — pinned to a commit SHA,
 # not a movable tag, so a future push to the v1.0.14 tag can't change what runs
 # here unreviewed.
+#
+# The job is red when no BugBot review was posted on the PR's head commit
+# (issue #311). The action reports success even when its own Claude CLI never
+# ran — an expired setup token, or the account's usage limit ("You've hit your
+# session limit · resets …") — and a green job with no review would satisfy a
+# merge rule that reads "BugBot says no bugs" without anything having been
+# reviewed. A missing review is therefore a failure whatever the step's exit
+# code said; the guard step names the likely cause and the fix is to re-run
+# the job once the limit has reset.
 name: Claude BugBot
 
 on:
@@ -57,3 +66,21 @@ jobs:
         with:
           claude-setup-token: ${{ secrets.CLAUDE_SETUP_TOKEN }}
           model: sonnet
+
+      # The action's own exit code is not a verdict (see the header). A review
+      # whose body carries the BugBot heading, on this exact head commit, is.
+      - name: Require a BugBot review on the head commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event_name == 'workflow_dispatch' && inputs.pr_number || github.event.pull_request.number }}
+          HEAD: ${{ github.event_name == 'workflow_dispatch' && env.HEAD_SHA || github.event.pull_request.head.sha }}
+        run: |
+          # One page of 100 is every review a PR here has ever had; --paginate
+          # would print one count per page.
+          count=$(gh api "repos/${{ github.repository }}/pulls/$PR_NUMBER/reviews?per_page=100" \
+            --jq "[.[] | select(.commit_id == \"$HEAD\" and (.body | contains(\"Claude BugBot Analysis\")))] | length")
+          if [ "${count:-0}" -eq 0 ]; then
+            echo "::error::No BugBot review was posted on $HEAD. The action reports success even when its Claude CLI never ran (usage limit, expired setup token) — read the 'Run Claude BugBot' step above for the cause, and re-run this job once the limit has reset."
+            exit 1
+          fi
+          echo "BugBot posted $count review(s) on $HEAD."
