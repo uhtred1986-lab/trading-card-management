@@ -10,9 +10,10 @@
  * Pure and React-free so `npm test` can read every kind, and so the Android
  * app can carry its own copy of exactly this table in Kotlin.
  */
-import type { Action, ActionCost, Area, PlayerId, Requirement } from "./engine";
+import type { Action, ActionCost, PlayerId, Requirement } from "./engine";
 import type { CardView, SideView } from "./view";
 import { untilWords } from "./effects";
+import { DBS_WORDS, type BoardWords } from "./board-words";
 
 /** What the player was trying to do, for the verb in the sentence. */
 export type Reaching = Action["type"];
@@ -28,22 +29,6 @@ const VERB: Partial<Record<Reaching, string>> = {
   counter: "counter",
   block: "block",
   choose: "be chosen",
-};
-
-const AREA: Record<Area, string> = {
-  deck: "your deck",
-  hand: "your hand",
-  drop: "your Drop Area",
-  leader: "the Leader Area",
-  battle: "your Battle Area",
-  combo: "your Combo Area",
-  energy: "your Energy Area",
-  life: "your Life Area",
-  warp: "your Warp",
-  unison: "the Unison Area",
-  zDeck: "your Z-Deck",
-  zEnergy: "your Z-Energy Area",
-  removed: "out of the game",
 };
 
 const WINDOW: Record<string, string> = {
@@ -65,7 +50,7 @@ export interface Refusal {
  * own side of the table, so an energy shortfall can say whether next turn
  * fixes it or more charging does.
  */
-export function refusal(r: Requirement, o: { name: string; reaching: Reaching; side?: SideView | null; inHand?: boolean; them?: string }): Refusal {
+export function refusal(r: Requirement, o: { name: string; reaching: Reaching; side?: SideView | null; inHand?: boolean; them?: string }, words: BoardWords = DBS_WORDS): Refusal {
   const name = o.name;
   const verb = VERB[o.reaching] ?? "do that";
   const viewer: PlayerId = o.side?.player ?? "p1";
@@ -99,7 +84,7 @@ export function refusal(r: Requirement, o: { name: string; reaching: Reaching; s
         };
       return { fact: `${r.what} has already been used this turn.`, remedy: "Again next turn." };
     case "zone":
-      return { fact: `${name} has to be in ${AREA[r.area]} for that.`, remedy: r.area === "battle" && o.inHand ? "Play it first." : null };
+      return { fact: `${name} has to be in ${words.area[r.area]} for that.`, remedy: r.area === "battle" && o.inHand ? "Play it first." : null };
     case "cardType":
       return { fact: `${name} is not ${r.needs}.`, remedy: null };
     case "target":
@@ -142,8 +127,8 @@ export function refusal(r: Requirement, o: { name: string; reaching: Reaching; s
 }
 
 /** The refusal as one line for the prompt bar. */
-export function sentence(r: Requirement, o: Parameters<typeof refusal>[1]): string {
-  const w = refusal(r, o);
+export function sentence(r: Requirement, o: Parameters<typeof refusal>[1], words: BoardWords = DBS_WORDS): string {
+  const w = refusal(r, o, words);
   return w.remedy ? `${w.fact} ${w.remedy}` : w.fact;
 }
 
