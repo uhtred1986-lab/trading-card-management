@@ -55,7 +55,19 @@ DEFINE KEYWORD Attack
 DEFINE KEYWORD Revenge
   TAKES ()
   text: "When this card becomes the guard card, KO the attacking card at the end of the battle."
-  -- Stage 7 (#153–#157)
+  -- #156: the body is exactly the contract's own worked example
+  -- (`HOOK battleEnd { ko(target: [attacker]) }`, docs/arena-ruleset-spec.md
+  -- §4.2) and `vm/battle.ts`'s own `battleEnd` step now fires it (on the
+  -- guard, before `state.battle` clears — see `vm/flow.ts`'s phase-pop
+  -- comment for why the clearing moved there). Left undeclared here because
+  -- the `ko` op it would run throws `NotYet` unconditionally
+  -- (`vm/host.ts`: "a KO is a move a rule makes, and moves by skill are
+  -- declared in #146 yet") — adding the body would turn a Revenge card
+  -- winning its own battle into a crashed game, not a silent gap. #154's
+  -- [Indestructible] can safely declare `koByEffect` ahead of its own
+  -- caller because a *query* hook is inert until read; this hook is an
+  -- *effect*, so the same move is not available here. Add this body the
+  -- day #146 gives skill-driven `ko` a real implementation.
 
 -- 22-12
 DEFINE KEYWORD Indestructible

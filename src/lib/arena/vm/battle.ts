@@ -74,6 +74,7 @@ import { cardPrice, chargeCost, planCost, priceFor, type BoundAmounts } from "./
 import { RulesetBroken } from "./errors";
 import { emit, fire, log } from "./events";
 import { enterPhase, moved, other, requirePrompt, type Work } from "./flow";
+import { fireHook } from "./hooks";
 import { attrsNow, forbiddenBy, forbids, hasKeyword } from "./program";
 import { masterOf, skillsShowing } from "./triggers";
 import type { VmBattle, VmState } from "./state";
@@ -253,7 +254,14 @@ export const BATTLE_STEP_WORK: Record<string, Work> = {
         }
       }
       fire(ctx, game, state, { event: "stepStart", controller: state.turnPlayer, args: { step: "battleEnd" } });
-      state.battle = null;
+      // #156: [Revenge]'s own hook (22-9) — the guard's `[attacker]` is read
+      // off `state.battle`, which is why this step does not clear it itself
+      // (`vm/flow.ts`'s own phase-pop does, once this step's queued program
+      // has actually run — see the comment there for why the ordering
+      // matters). Fired on the guard alone: the manual conditions this on
+      // "becomes the guard card", and nothing yet needs `battleEnd` on the
+      // attacker's own side.
+      fireHook(ctx, game, state, b.guard, "battleEnd");
     },
   },
 };

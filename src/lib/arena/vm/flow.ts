@@ -342,6 +342,17 @@ export function run(ctx: EngineContext, game: GameDefinition, state: VmState, ev
 
     if (top.index >= phase.steps.length) {
       state.flow.pop();
+      // #156: `battleEnd`'s own step (`vm/battle.ts`) no longer clears
+      // `state.battle` itself — it fires the `battleEnd` hook first
+      // ([Revenge]'s own), and that queued program is what the *next* pass
+      // through this loop drains (`if (state.programs.length)`, below the
+      // step-index check this block guards), still reading `[attacker]`/
+      // `[guard]` off a live `state.battle` while it runs. Only once the
+      // battle phase has genuinely run out of steps — this branch, one or
+      // more loop passes later — is the battle really over, which is the
+      // contract's own claim ("`{special:\"attacker\"}`/`{special:\"guard\"}`
+      // still resolve here, one step before `state.battle` clears").
+      if (top.phase === "battle") state.battle = null;
       // 7-3: a phase running out of steps is the moment "at the end of your
       // Main Phase" names. No client draws a phase *ending* and the legacy
       // engine logs none, so it is a moment with no picture — which is exactly

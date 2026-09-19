@@ -317,7 +317,8 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     type: "[Auto]",
     group: "battle",
     meaning: "When this card becomes the guard card, KO the attacking card at the end of the battle.",
-    engine: "Marked on the battle when it becomes the guard and carried out when the battle ends, whatever happened in between.",
+    engine:
+      "Marked on the battle when it becomes the guard and carried out when the battle ends, whatever happened in between. The rules engine fires the guard's `battleEnd` hook the same way (#156), but the body is not declared yet — the `ko` op it would run has no skill-driven implementation (#146), so declaring it would crash a game rather than leave it silently incomplete.",
     support: "engine",
   },
   Alliance: {
