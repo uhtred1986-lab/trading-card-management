@@ -10,7 +10,9 @@
 # merge rule that reads "BugBot says no bugs" without anything having been
 # reviewed. A missing review is therefore a failure whatever the step's exit
 # code said; the guard step names the likely cause and the fix is to re-run
-# the job once the limit has reset.
+# the job once the limit has reset. A PR whose every changed file is under
+# .github/ is the one exception: the action strips those paths and reviews
+# nothing, so no review is expected and the job stays green.
 name: Claude BugBot
 
 on:
@@ -75,6 +77,17 @@ jobs:
           PR_NUMBER: ${{ github.event_name == 'workflow_dispatch' && inputs.pr_number || github.event.pull_request.number }}
           HEAD: ${{ github.event_name == 'workflow_dispatch' && env.HEAD_SHA || github.event.pull_request.head.sha }}
         run: |
+          # The action strips every path under .github/ before it looks at the
+          # diff (its EXCLUDED_PATH_PREFIXES) and, left with nothing, logs
+          # "Empty diff, nothing to analyze" and posts no review. That is not a
+          # failure — a workflow-only PR has nothing for BugBot to read — so the
+          # review is required only when the PR touches a file outside .github/.
+          analyzable=$(gh api --paginate "repos/${{ github.repository }}/pulls/$PR_NUMBER/files?per_page=100" \
+            --jq '[.[] | select(.filename | startswith(".github/") | not)] | length' | paste -sd+ - | bc)
+          if [ "${analyzable:-0}" -eq 0 ]; then
+            echo "Every changed file is under .github/, which the action excludes — nothing for BugBot to analyze, so no review is expected."
+            exit 0
+          fi
           # One page of 100 is every review a PR here has ever had; --paginate
           # would print one count per page.
           count=$(gh api "repos/${{ github.repository }}/pulls/$PR_NUMBER/reviews?per_page=100" \
