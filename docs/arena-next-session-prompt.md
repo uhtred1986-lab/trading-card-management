@@ -60,12 +60,38 @@ understands or does) and, for what the engine reads today, `src/lib/arena/glossa
   `dbs/actions.rules` (charge/pass/concede, the play family, `activate`), `costs.ts` (energy,
   marker, life, rest, payWith prices as declarations, with cost-reduction layers — including
   20-19's own `payWith` cost item since #149, bound the same way an activation's marker and life
-  already were). What is not yet built throws `NotYet` naming the stage/issue that builds it,
+  already were), `battle.ts` + `dbs/battle.rules` (the battle sub-flow, #150 — see its own bullet
+  below). What is not yet built throws `NotYet` naming the stage/issue that builds it,
   which since #149 (14 Sep 2026) ends the game rather than noting the gap and playing on —
   `ENGINE_INFO.rules.available` is true and `playableEngine("rules")` allows a new **hot-seat**
   game; Sparring, Tournament and a 1 v 1 are still refused (`games.ts`'s `assertEngineForMode`),
   since Claude's side and a 1 v 1's hidden-hand masking both still read the legacy `GameState`
   directly.
+- **The battle is a nested sub-flow, not a phase of the turn** (`vm/battle.ts` +
+  `dbs/battle.rules`, #150): `attack` opens `state.battle` and pushes a `battle` phase frame with
+  the same `enterPhase` a turn phase uses, *without* answering the Main Phase's own question — the
+  frame beneath keeps waiting exactly as `play`/`activate`'s `again: true` leaves it, and when the
+  battle's nine steps run out the runner's existing fallback (a phase with no declared successor,
+  a frame still underneath) resumes reading "main" with nothing changed in `flow.ts` for that half.
+  `battle` is declared but deliberately **not** one of `DEFINE GAME`'s turn `phases:`
+  (`verify/rulesets.ts`'s phase completeness excludes it from the legacy `PHASES` comparison the
+  same way zones exclude `under`/`play`). `attack`, `block`, `counter` and `combo` are **native**
+  rather than `DEFINE ACTION`s — an attack is a player and two cards where every declaration is a
+  player and at most one, and `block`/`counter`'s `Prompt` shapes freeze their candidates onto the
+  question the moment it opens rather than reading a live `FOR`; `vm/flow.ts`'s `Work.run` gained
+  one addition for this (`"wait"`, letting a native step set `state.prompt` itself) and
+  `vm/index.ts`'s `apply()`/`legalActions()`/`rejectedActions()` merge the four in beside the
+  declared moves, the `promptAnswers` precedent chooseFirst/mulligan/payCost already set. Damage,
+  KO and combo are built only as far as a battle needs — `dealDamage`/`koCard` are the generic
+  primitives, named and shaped for **#151** to extend (its own `zEnergyFromCombo` at battle end is
+  still `NotYet`) rather than a throwaway. `vm/program.ts`'s `attacker`/`guard` specials and
+  `inBattle` condition read `state.battle` now too (`battled`, 8-1-2-2's memory that outlives the
+  battle, is the one piece still `NARROWER` — `VmCard` has no field for it). Two bugs the fuzzer
+  and a new `verify/vm.ts` §23 caught and fixed: a [Counter] played from an Extra card
+  double-charged its price (`boundFor`'s own Extra-in-hand addition, reused where it should not
+  have been), and a negated attack's jump to `battleEnd` landed one step past it, leaving the
+  battle open forever (`vm/flow.ts`'s runner does `top.index++` right after a step's `run` returns
+  without waiting, so the jump has to land one short).
 - **Tests**: `scripts/verify-arena.ts` runs (in order) `text, setup, battles, compiler, keywords,
   readings, wordings, workflow, contract, deck-api, language, lang, rulesets, probe, vm` — a new
   suite is one `import "./verify/<name>"` line there. `scripts/verify/vm.ts` is the rules-engine

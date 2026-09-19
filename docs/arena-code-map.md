@@ -235,6 +235,52 @@ the same as if it were still in `CLAUDE.md`.
   `players[p].name`/`sides[p].name`), and `legacyState(value)` is the narrower seam left for the two
   reads above: a `rules` state reaching it throws `EngineMismatch` rather than being read field by
   field as `undefined`.
+  **The battle is a sub-flow nested inside the Main Phase, not a phase of the turn**
+  (`vm/battle.ts` + `dbs/battle.rules`, #150): `attack` sets `state.battle` and pushes a `battle`
+  phase frame with the same `enterPhase` a turn phase uses, *without* answering the Main Phase's
+  own question — the frame beneath keeps waiting exactly as `play`/`activate`'s `again: true`
+  leaves it — and the moment the battle's nine steps (declare, the counter:attack window, the
+  blocker window, offense, the offense combo offer, defense, the defense combo offer, damage, end)
+  run out, `flow.ts`'s existing fallback for a phase with no declared successor and a frame still
+  beneath it resumes reading "main", unchanged for that half. `battle` is declared but is
+  deliberately **not** one of `DEFINE GAME`'s turn `phases:` — a battle is not the Main Phase's
+  successor, it nests inside it — so `verify/rulesets.ts`'s phase completeness excludes it from
+  the legacy `PHASES` comparison the same way the zone one excludes `under`/`play`.
+  **`attack`, `block`, `counter` and `combo` are native rather than `DEFINE ACTION`s**: every other
+  declared move is a player and at most one card (`vm/actions.ts`'s own limit), and an attack is a
+  player and *two*; `block` and `counter`'s `Prompt` shapes (the legacy engine's own,
+  `{kind:"blocker",candidates}` and `{kind:"counter",window,candidates}`) freeze a candidate list
+  onto the question the moment it opens, which a live `FOR` selector does not do. `vm/flow.ts`'s
+  `Work.run` gained its one addition for this (`"wait"`, a native step setting `state.prompt`
+  itself instead of the declarative `step.prompt`/`PROMPT_ASKS` table), and `vm/index.ts`'s
+  `apply()`/`legalActions()`/`rejectedActions()` merge the four in beside the declared moves —
+  `promptAnswers`'s own precedent for chooseFirst/mulligan/payCost, extended rather than
+  duplicated. A repeated combo offer clears the battle frame's own `asking` before asking again,
+  standing in for `again:` at a prompt no declaration owns; a counter or combo that stops to ask
+  which energy to rest is put back by `restoreNativePrompt` rather than the shared `payCost`
+  re-entry's own `run()`-replays-`top.asking` trick, which only works for a declared move's.
+  **What #150 built of damage, KO and combo, and what #151 still owns**: `dealDamage`/`koCard`
+  are the generic primitives a battle needs — the declared `life` zone's top card to the hand, a
+  card to its owner's Drop with the `ko` moment fired for both roles — named and shaped, not a
+  stub, for #151's own `damage(side, n)` to extend; a spent combo card goes straight to the Drop at
+  the end of the battle, since the Z-Energy it may become instead is #151's own
+  `zEnergyFromCombo` (`NotYet` in `vm/index.ts`'s `DECLARED_BY`). Neither reads a keyword —
+  [Critical], [Strike], [Indestructible], [Victory Strike], [Blocker] as a macro rather than a bare
+  `hasKeyword` check, are Stage 7's. `vm/program.ts`'s `attacker`/`guard` `SpecialTarget`s and the
+  `inBattle` condition read `state.battle` now (`case "redirectAttack"`/`case "negateAttack"` in
+  the shared interpreter, and `vmHost`'s `battle()`/`setGuard()`/`negateAttack()`, were already
+  primitive cases waiting only for a battle to read); `battled` (8-1-2-2's per-copy memory that
+  outlives the battle, BT3-103's own trigger) is the one piece left in `NARROWER`, since `VmCard`
+  carries no field for it yet. Two real bugs `arena-fuzz --engine rules` and a new `verify/vm.ts`
+  §23 (staged against the same `E-NEGATE`/`V1`/`V-BLUE`/`BLOCKER` fixtures `battles.ts` uses, board
+  fact matched against the legacy engine) found and fixed: a [Counter] played from an Extra card
+  double-charged its price (`vm/activate.ts`'s `boundFor` already folds an Extra-in-hand's own play
+  cost into a skill line's, 12-2-2's "using is playing" — a counter is never "played" that way, so
+  it reads a skill's own orbs directly instead, `playCost(id) + orbTotals(id, sk)`'s shape); and a
+  negated attack's jump to `battleEnd` (8-1-6-1) landed one step past it, leaving the battle open
+  forever, because the runner's own fallthrough does `top.index++` immediately after a step's
+  `run` returns without waiting — the jump lands one short of the target index now, so that
+  increment lands exactly on it.
 - **The rules language** (`src/lib/arena/lang/`, `docs/arena-rules-language.md`, since 9 Sep
   2026): one closed grammar for a card's rule — WHEN / COST / IF / THEN — printed and parsed
   from `OP_SCHEMA`/`COND_SCHEMA` plus the `SELECTOR_FIELDS`/`FILTER_FIELDS` tables in

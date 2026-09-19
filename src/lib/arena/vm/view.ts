@@ -25,8 +25,9 @@
  */
 import type { EngineContext } from "../engine";
 import type { CardDef, PlayerId } from "../engine/types";
-import type { BoardView, CardArt, CardView, PromptView, SideView } from "../view";
+import type { BattleView, BoardView, CardArt, CardView, PromptView, SideView } from "../view";
 import { attrsOf, type Attrs } from "./cards";
+import { attrsNow } from "./program";
 import type { GameDefinition } from "../rulesets";
 import type { VmState } from "./state";
 
@@ -72,11 +73,59 @@ export function vmBoardView(ctx: EngineContext, game: GameDefinition, state: VmS
     turn: state.turn,
     phase: state.phase,
     turnPlayer: state.turnPlayer,
-    // A battle is Stage 6; until then there is never one in progress, which is
-    // a true statement about this engine rather than a placeholder.
-    battle: null,
+    battle: battleView(ctx, game, state, images),
     prompt: promptView(state),
     over: state.overReason !== null ? { winner: state.winner, reason: state.overReason } : null,
+  };
+}
+
+/**
+ * The open battle (#150), read from `state.battle` — the one record
+ * `vm/battle.ts` writes and this reads, computed here and nowhere else so a
+ * client never works out `attackPower`/`guardPower` for itself
+ * (`docs/arena-battle-staging-spec.md` §3.1, the same promise the legacy
+ * `battleView` keeps).
+ *
+ * Power is read **live** (`attrsNow`, with combo added), unlike the plain
+ * `cardView` below, which still draws a card's *printed* face — a fight has
+ * to be decided by the number it is actually being fought over, and the
+ * `contributions` map is that same arithmetic kept rather than thrown away.
+ */
+function battleView(ctx: EngineContext, game: GameDefinition, state: VmState, images: Record<string, CardArt>): BattleView | null {
+  const b = state.battle;
+  if (!b) return null;
+  const defender: PlayerId = state.turnPlayer === "p1" ? "p2" : "p1";
+  const contributions: Record<string, number> = {};
+  const power = (id: string): number => (contributions[id] = Number(attrsNow(ctx, game, state, id).power ?? 0));
+  const combo = (p: PlayerId): number =>
+    (state.sides[p].zones.combo ?? []).reduce((n, id) => {
+      const c = Number(attrsNow(ctx, game, state, id).comboPower ?? 0);
+      contributions[id] = c;
+      return n + c;
+    }, 0);
+  const attackPower = power(b.attacker) + combo(state.turnPlayer);
+  const guardPower = power(b.guard) + combo(defender);
+  // A counter's own contribution is the power it put on the fight through a
+  // continuous effect it is the source of — #150 wires the primitive
+  // (`vmHost`'s `addEffect`) but no card's program targets the attacker or
+  // guard with one yet (`ops.rules` declares neither `power` op call that
+  // way from a counter skill), so every entry here reads 0 rather than
+  // guessed at; the field is present so a card that does is drawn correctly
+  // without a second change here.
+  const counters = (b.counters ?? []).filter((c) => state.cards[c.card]);
+  for (const c of counters) {
+    let n = 0;
+    for (const e of state.effects) if (e.kind === "power" && e.source === c.card && (e.target === b.attacker || e.target === b.guard)) n += e.value as number;
+    contributions[c.card] = n;
+  }
+  return {
+    attacker: b.attacker,
+    guard: b.guard,
+    step: b.step,
+    attackPower,
+    guardPower,
+    ...(counters.length ? { counters: counters.map((c) => ({ card: cardView(ctx, game, state, c.card, images), by: c.by, after: c.after })) } : {}),
+    contributions,
   };
 }
 

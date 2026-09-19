@@ -27,12 +27,18 @@
  *                                     resolves inside the op that makes it,
  *                                     because the counter window the legacy
  *                                     engine opens there is Stage 6's (#150).
- *   `battle`, `setGuard`,
- *   `negateAttack`                    Stage 6 — there is no battle yet. These
- *                                     answer "no battle" rather than refusing,
- *                                     because that is the truth about this
- *                                     board and every caller already handles it.
- *   `negateCounterInFlight`           9-8, a counter window: Stage 6.
+ *   `negateCounterInFlight`           9-8: a [Counter] negating the [Counter]
+ *                                     it is answering, inside the *same*
+ *                                     window (9-7-4) — #150 opens the
+ *                                     attack window (`vm/battle.ts`) but does
+ *                                     not recurse it over its own resolution,
+ *                                     so there is truthfully never one in
+ *                                     flight to negate. `battle`, `setGuard`
+ *                                     and `negateAttack` are real now
+ *                                     (#150) — a card whose program reads or
+ *                                     changes the battle in progress does,
+ *                                     through `state.battle` the same
+ *                                     `vm/battle.ts` writes.
  *   `addSkip`                         20-13 is a change to the flow, and the
  *                                     flow's skip list is #145's.
  *   `createToken`                     19-1: a token is a card the catalog has
@@ -239,19 +245,39 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // `resolvingCard` answering null is what keeps the two `setPlay*` below
     // unreachable rather than wrong, and `stepScript` already breaks on it.
     setPlayRest: () => {
-      throw new NotYet("play a card in Rest Mode (5-5) — the window between declaring a play and resolving it is Stage 6's", "#150");
+      throw new NotYet("play a card in Rest Mode (5-5) — the window between declaring a play and resolving it is a counter:play window this stage did not open (#150 opened only the battle's own, over an attack)", "#150");
     },
     setPlayNegated: () => {
-      throw new NotYet("play a card with its skills negated (5-5) — the window between declaring a play and resolving it is Stage 6's", "#150");
+      throw new NotYet("play a card with its skills negated (5-5) — the same counter:play window", "#150");
     },
     replaceResolvingPlay: () => {
-      throw new NotYet("put a program in the place of the play being resolved (9-6) — the counter window it happens in is Stage 6's", "#150");
+      throw new NotYet("put a program in the place of the play being resolved (9-6) — the same counter:play window", "#150");
     },
 
     // ── the battle (8-1) ─────────────────────────────────────────────────
-    battle: () => null,
-    setGuard: () => {},
-    negateAttack: () => {},
+    //
+    // Read and written off `state.battle`, the same record `vm/battle.ts`'s
+    // native flow keeps — a program's `case "redirectAttack"`/`case
+    // "negateAttack"` in the shared `engine/script.ts` interpreter call these
+    // three, so a card whose skill runs either op now really does change the
+    // battle in progress, the moment its `card_rules` program calls for it
+    // (no card does yet — `ops.rules` declares neither as a macro, since both
+    // are already primitive cases the interpreter reads directly).
+    battle: () => (state.battle ? { attacker: state.battle.attacker, guard: state.battle.guard, negated: state.battle.negated } : null),
+    setGuard: (guard, by) => {
+      if (!state.battle) return;
+      state.battle.guard = guard;
+      log(ev, { type: "guardChanged", guard, by });
+    },
+    negateAttack: () => {
+      if (!state.battle) return;
+      state.battle.negated = true;
+      log(ev, { type: "attackNegated" });
+    },
+    // 9-7-4: a [Counter] negating the [Counter] it answers, inside the same
+    // recursive window — this engine opens the attack window once and does
+    // not recurse it over its own resolution (`vm/battle.ts`'s header), so
+    // there is truthfully never one in flight for a program to negate.
     negateCounterInFlight: () => null,
 
     // ── the questions, and the flow that carries them ────────────────────

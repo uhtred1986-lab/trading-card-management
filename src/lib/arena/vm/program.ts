@@ -22,9 +22,10 @@
  * rather than the answer that fires:
  *
  *   immunity (9-1-4)                                 #154.
- *   a battle (8-1)                                   Stage 6: `inBattle` is
- *       false and `battled` is false, which is what a game with no battle in it
- *       truthfully answers.
+ *   `battled` (8-1-2-2, BT3-103)                     #150 built the battle
+ *       itself and `inBattle`/the `attacker`/`guard` specials with it —
+ *       `battled` is the one piece left: a per-copy memory of having fought
+ *       that outlives the battle, and `VmCard` carries no field for it yet.
  *
  * 20-14's prohibitions were a third until #145: `forbids` and `forbiddenBy`
  * below read them off the board — a [Permanent] in play, a skill's turn-long
@@ -61,7 +62,7 @@ export const NAMED_ZONES = {
 /** Where a reading is narrower or wider than the manual, and the issue that closes it. */
 export const NARROWER: Record<string, string> = {
   immune: "#154 — 9-1-4 immunity narrows what a skill may choose, and the hook group that reads choosing is Stage 7's",
-  battle: "Stage 6 — there is no battle on this engine yet, so `inBattle` and `battled` are false",
+  battled: "#150 built the battle and `inBattle`; `battled` (8-1-2-2) still reads false, since `VmCard` has no memory of a fight that outlived it",
 };
 
 /**
@@ -353,11 +354,16 @@ function specialCard(state: VmState, frame: ScriptFrame, special: NonNullable<Se
       // 23-2-2-2: the card whose pile holds this one. Null while it is in none,
       // which is most of the time — these skills print on the buried card.
       return hostOf(state, frame.card);
-    // 8-1 and 9-6: a battle and a play being resolved are Stage 6's and Stage
-    // 5's. Nothing is being attacked and nothing is being played, so there is
-    // no card — the same answer the legacy engine gives outside a battle.
+    // 8-1: the two roles of the battle in progress (#150), read off the same
+    // `state.battle` `vm/battle.ts` writes — null outside one, exactly the
+    // legacy engine's own `s.battle?.attacker ?? null` reading.
     case "attacker":
+      return state.battle?.attacker ?? null;
     case "guard":
+      return state.battle?.guard ?? null;
+    // 9-6: a play being resolved is a moment this engine does not have — a
+    // play resolves inside the op that makes it (`vm/play.ts`'s own
+    // docstring), so there is no separate "resolving" card to name. Stage 5's.
     case "resolving":
       return null;
   }
@@ -511,10 +517,21 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
     }
     case "markers":
       return between(markersOn(ctx, game, state, frame, c.sel), c.atLeast, c.atMost);
-    // 8-1: there is no battle on this engine yet (`NARROWER.battle`), so
-    // nothing is in one — which is the answer a game with no battle gives.
-    case "inBattle":
-      return !!c.not;
+    // 8-1: the battle in progress (#150), read off `state.battle` the same
+    // way the legacy `inBattle` reads `s.battle` — `role` narrows to one end
+    // of it ("if this card is the attacker/guard"), left off for "if this
+    // card is in a battle" either way.
+    case "inBattle": {
+      const b = state.battle;
+      const inBattle =
+        !!b && resolveSelector(ctx, game, state, frame, c.sel).some((id) => (c.role === "attacker" ? b.attacker === id : c.role === "guard" ? b.guard === id : b.attacker === id || b.guard === id));
+      return c.not ? !inBattle : inBattle;
+    }
+    // BT3-103's "if this card participated in a battle during your opponent's
+    // turn": the legacy `battledThisTurn` is a per-copy memory that outlives
+    // the battle itself (8-1-2-2), which `VmCard` does not carry yet — #150's
+    // own battle steps do not join one (`joinsBattle`'s reading is `NARROWER`
+    // below), so this stays the honest "no" until a card needs it.
     case "battled":
       return false;
     case "every": {

@@ -208,8 +208,13 @@ assert.equal(isVmState("rules"), false, "a string was read as a rules state");
 // `IllegalAction`, so the API answers `illegal_action` and the client shows
 // the sentence — the refusal a caller really gets, not a shortcut past it.
 const rules = engineFor("rules");
+// `attacking` moved out of this list in #150 — `vm/battle.ts` declares it
+// natively now, so it is exercised as a real move (§17b below) rather than as
+// a gap. What is left of the battle that is still named work is the Z-Energy
+// a spent combo card may become at the end of it (#151's own
+// `zEnergyFromCombo`, `vm/index.ts`'s `DECLARED_BY`).
 const notYet: { what: string; run: () => unknown }[] = [
-  { what: "attacking", run: () => rules.apply(CTX, state, { type: "attack", player: "p1", attacker: "p1#0", target: "p2#0" }) },
+  { what: "sending a combo card to Z-Energy", run: () => rules.apply(CTX, state, { type: "zEnergyFromCombo", player: "p1", card: null }) },
 ];
 for (const { what, run } of notYet) {
   assert.throws(
@@ -1507,8 +1512,13 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     // …and it is still the move that answers the question.
     const after = rulesEngine.apply(CTX, s, { type: "pass", player: "p1" });
     assert.notEqual((after.state as VmState).phase, "main", "pass did not answer the Main Phase's question");
-    // A move no declaration claims names the issue that declares it.
-    assert.throws(() => rulesEngine.apply(CTX, s, { type: "attack", player: "p1", attacker: good, target: "p2#0" }), NotYet, "a move nothing declares was accepted");
+    // `attack` is #150's now — native rather than a `DEFINE ACTION`
+    // (`vm/battle.ts`'s own header says why), and a real move rather than a
+    // gap: `good` is a card in p1's *hand* here, never one of `attackLegalActions`'
+    // candidates (an attacker has to be in play), so this is an ordinary
+    // refusal and not the `NotYet` a move nothing declares used to throw
+    // before this stage built it.
+    assert.throws(() => rulesEngine.apply(CTX, s, { type: "attack", player: "p1", attacker: good, target: "p2#0" }), IllegalAction, "attacking with a card in hand was accepted");
   }
 }
 
@@ -3352,4 +3362,173 @@ console.log("verify/vm: ok");
 
   const logged = (list: GameEvent[]): unknown => JSON.parse(JSON.stringify(list.filter((e) => e.type === "move")));
   assert.deepEqual(logged(rEvents), logged(lEvents), "moveTo(cause: ko), the shape ko's declaration lowers to, does not log the same move event on both engines");
+}
+
+// ── 23. the battle sub-flow, off `battle.rules` (#150) ───────────────────────
+//
+// `attack`, `block`, `counter` and `combo` are native (`vm/battle.ts`'s own
+// header says why an attack and the two windows with frozen candidates
+// cannot be plain `DEFINE ACTION`s), so there is no declaration for this
+// suite to read legality off the way §16-19 read one. What is asserted
+// instead is the outcome §16-19 are themselves held to: the same board fact
+// for fact against `arena()`'s own legacy fixtures — battle.ts's synthetic
+// `E-NEGATE` (a [Counter: Attack] that negates), `V1` (a combo-capable
+// Battle Card with the default 0 combo cost) and `V-BLUE`/`BIG` (a guard) —
+// compiled by the real compiler (`CTX.scripts`) exactly as `battles.ts`'s own
+// legacy suite uses them.
+{
+  const rulesEngine = engineFor("rules");
+
+  // The legacy half is built on the same always-legacy `apply`/`createGame`
+  // §1-22 use (imported at the top of this file, never the harness's own
+  // `arena`/`play`/`find` — those read `ENGINE`, this file's own `--engine`
+  // flag, and building a legacy board through them while a run is asking for
+  // `rules` throws `EngineMismatch`, since `game()` deals on `ENGINE` and
+  // `arena()`/`play()` then read a `VmState`'s fields as a `GameState`'s.
+  // §23 is meant to run the same under either flag — the rules half already
+  // does, being explicit about `rulesEngine` throughout — so the legacy half
+  // has to be equally explicit rather than reach for the convenience `arena`
+  // is everywhere else in this codebase.
+  function legacyBoard(opts: { hand?: string[]; energy?: string[]; battle?: string[]; oppHand?: string[]; oppEnergy?: string[]; oppBattle?: string[] } = {}): GameState {
+    let l = createGame(CTX, DECKS).state;
+    l = apply(CTX, l, { type: "chooseFirst", player: (l.prompt as { player: PlayerId }).player, first: "p1" }).state;
+    l = apply(CTX, l, { type: "mulligan", player: "p1", redraw: false }).state;
+    l = apply(CTX, l, { type: "mulligan", player: "p2", redraw: false }).state;
+    l = apply(CTX, l, { type: "charge", player: "p1", card: null }).state;
+    l = apply(CTX, l, { type: "endMain", player: "p1" }).state;
+    l = apply(CTX, l, { type: "charge", player: "p2", card: null }).state;
+    l = apply(CTX, l, { type: "endMain", player: "p2" }).state;
+    l = apply(CTX, l, { type: "charge", player: "p1", card: null }).state;
+    assert.equal(l.prompt.kind, "main", "the legacy fixture did not reach p1's second Main Phase");
+    const give = (p: PlayerId, ids: string[], area: "hand" | "energy" | "battle") => {
+      for (const cardId of ids) {
+        const filler = p === "p1" ? "V1" : "V-BLUE";
+        const inst = l.players[p].deck.find((id) => l.cards[id].cardId === filler)!;
+        assert.ok(inst, `${p}'s deck has run out of fixture cards to relabel as ${cardId}`);
+        l.cards[inst].cardId = cardId;
+        l.players[p].deck = l.players[p].deck.filter((id) => id !== inst);
+        l.players[p][area] = [...l.players[p][area], inst];
+        if (area !== "hand") l.cards[inst].mode = "active";
+      }
+    };
+    give("p1", opts.hand ?? [], "hand");
+    give("p1", opts.energy ?? [], "energy");
+    give("p1", opts.battle ?? [], "battle");
+    give("p2", opts.oppHand ?? [], "hand");
+    give("p2", opts.oppEnergy ?? [], "energy");
+    give("p2", opts.oppBattle ?? [], "battle");
+    return l;
+  }
+  const legacyFind = (l: GameState, p: PlayerId, area: "hand" | "battle" | "energy", cardId: string): string => {
+    const id = l.players[p][area].find((x) => l.cards[x].cardId === cardId);
+    assert.ok(id, `${p}'s ${area} has no ${cardId}`);
+    return id!;
+  };
+
+  /** One card moved from the deck into a named area, cardId swapped — the rules-engine `arena()`, kept local since only this suite needs it. */
+  function stage(r: VmState, p: PlayerId, cardId: string, area: "hand" | "energy" | "battle"): string {
+    const inst = r.sides[p].zones.deck.find((id) => r.cards[id].cardId === (p === "p1" ? "V1" : "V-BLUE"));
+    assert.ok(inst, `${p}'s deck has run out of fixture cards to relabel as ${cardId}`);
+    r.sides[p].zones.deck = r.sides[p].zones.deck.filter((id) => id !== inst);
+    r.cards[inst!].cardId = cardId;
+    r.sides[p].zones[area] = [...r.sides[p].zones[area], inst!];
+    if (area !== "hand") r.cards[inst!].mode = "active";
+    return inst!;
+  }
+
+  /** p1's Main Phase, their second turn (7-3-4-4-1 refuses an attack on the very first) — `arena()`'s own sequence, over `apply` rather than `play`. */
+  function atMain(): VmState {
+    let r = rulesEngine.createGame(CTX, SAME).state as VmState;
+    const chooser = (r.prompt as { player: PlayerId }).player;
+    r = rulesEngine.apply(CTX, r, { type: "chooseFirst", player: chooser, first: "p1" }).state as VmState;
+    r = rulesEngine.apply(CTX, r, { type: "mulligan", player: "p1", redraw: false }).state as VmState;
+    r = rulesEngine.apply(CTX, r, { type: "mulligan", player: "p2", redraw: false }).state as VmState;
+    r = rulesEngine.apply(CTX, r, { type: "charge", player: "p1", card: null }).state as VmState;
+    r = rulesEngine.apply(CTX, r, { type: "endMain", player: "p1" }).state as VmState;
+    r = rulesEngine.apply(CTX, r, { type: "charge", player: "p2", card: null }).state as VmState;
+    r = rulesEngine.apply(CTX, r, { type: "endMain", player: "p2" }).state as VmState;
+    r = rulesEngine.apply(CTX, r, { type: "charge", player: "p1", card: null }).state as VmState;
+    assert.equal(r.prompt.kind, "main", "the rules-engine fixture did not reach p1's second Main Phase");
+    return r;
+  }
+
+  // 8-1-4, 9-7, 22-10-3-2/8-1-6-1: [Counter: Attack] "Negate the attack" ends
+  // the battle before the Offense Step — the legacy fixture `battles.ts`
+  // asserts board for board, repeated here against the same fact.
+  {
+    let r = atMain();
+    const neg = stage(r, "p2", "E-NEGATE", "hand");
+    stage(r, "p2", "V1", "energy");
+    const attacker = r.sides.p1.zones.leader[0];
+    const guard = r.sides.p2.zones.leader[0];
+    r = rulesEngine.apply(CTX, r, { type: "attack", player: "p1", attacker, target: guard }).state as VmState;
+    assert.equal(r.prompt.kind, "counter", "the counter:attack window did not open with a payable [Counter: Attack] in hand");
+    assert.deepEqual((r.prompt as { candidates: string[] }).candidates, [neg]);
+    r = rulesEngine.apply(CTX, r, { type: "counter", player: "p2", card: neg }).state as VmState;
+    assert.equal(r.battle, null, "8-1-6-1: a negated attack does not reach the Offense Step");
+    assert.equal(r.prompt.kind, "main", "the Main Phase's own question is not back once the battle it opened ends");
+    assert.ok(r.sides.p2.zones.drop.includes(neg), "22-10-7: the counter card goes to the Drop");
+    assert.equal(r.cards[attacker].mode, "rest", "the attacker stays rested despite the negation (8-1-6-1 is not 'as though it never happened')");
+    assert.equal(r.sides.p2.zones.life.length, 8, "a negated attack deals no damage");
+
+    // The same fact, on the engine the oracle checks against.
+    let l = legacyBoard({ oppHand: ["E-NEGATE"], oppEnergy: ["V1"] });
+    l = apply(CTX, l, { type: "attack", player: "p1", attacker: l.players.p1.leader, target: l.players.p2.leader }).state;
+    l = apply(CTX, l, { type: "counter", player: "p2", card: legacyFind(l, "p2", "hand", "E-NEGATE") }).state;
+    assert.equal(l.battle, null);
+    assert.equal(l.prompt.kind, "main");
+    assert.equal(l.players.p2.life.length, r.sides.p2.zones.life.length, "the two engines do not agree on how much life a negated attack costs");
+  }
+
+  // 5-7, 8-2-4, 8-4-4/5, 8-5-8: a combo card joins from hand for its combo
+  // cost, adds its combo power to the total, and goes to the Drop at the end
+  // of the battle — a tie the attacker's side wins outright (8-4-6, "≥").
+  {
+    let r = atMain();
+    const combo = stage(r, "p1", "V1", "hand");
+    const guard = stage(r, "p2", "V-BLUE", "battle");
+    r.cards[guard].mode = "rest"; // 8-1-1: only a rested Battle Card is a legal target
+    const attacker = r.sides.p1.zones.leader[0];
+    r = rulesEngine.apply(CTX, r, { type: "attack", player: "p1", attacker, target: guard }).state as VmState;
+    // No [Blocker] in play, so the window closes itself (`openBlockerWindow`'s
+    // own empty-candidate skip) straight to the offense combo offer.
+    assert.equal(r.prompt.kind, "combo", "8-1-2-1: a battle with no [Blocker] on the board opened a blocker prompt anyway");
+    assert.equal((r.prompt as { side: string }).side, "offense");
+    const legalCombo = rulesEngine.legalActions(CTX, r).map((l) => l.action);
+    assert.ok(
+      legalCombo.some((a) => a.type === "combo" && (a as { card: string }).card === combo),
+      "V1 (comboCost 0, comboPower 5000) was not offered to the attacking side",
+    );
+    r = rulesEngine.apply(CTX, r, { type: "combo", player: "p1", card: combo }).state as VmState;
+    assert.deepEqual(r.sides.p1.zones.combo, [combo], "the combo card did not join p1's Combo Area");
+    assert.equal(r.prompt.kind, "combo", "the offense combo offer does not stay open for a second card (or a pass)");
+    // What the battle now says about itself — the view #150 built.
+    const view = rulesEngine.boardView(CTX, r, "p1", {});
+    assert.ok(view.battle, "an open battle draws no `view.battle`");
+    assert.equal(view.battle!.attackPower, (DEFS["L-RED"].power ?? 0) + 5000, "the combo's power is not added to the attack figure `view.battle` reports");
+    assert.equal(view.battle!.contributions![combo], 5000, "the combo card's own contribution is not its printed combo power");
+    r = rulesEngine.apply(CTX, r, { type: "pass", player: "p1" }).state as VmState; // offense: no more combos
+    assert.equal(r.prompt.kind, "combo", "the defense side's combo offer did not open");
+    assert.equal((r.prompt as { side: string }).side, "defense");
+    r = rulesEngine.apply(CTX, r, { type: "pass", player: "p2" }).state as VmState; // defense: nothing to combo with
+    assert.equal(r.battle, null, "the battle did not close at the end of the Battle End Step");
+    assert.equal(r.prompt.kind, "main");
+    assert.ok(r.sides.p2.zones.drop.includes(guard), "8-4-6-2: a tie is the attacker's (10000 vs 10000, or better with the combo) and the guard is KO'd");
+    assert.ok(r.sides.p1.zones.drop.includes(combo), "8-5-8: the spent combo card goes to the Drop at the end of the battle");
+    assert.ok(!r.sides.p1.zones.battle.includes(attacker), "the attacking Leader never left the Leader Area");
+
+    // The same shape, asserted on the legacy engine `battles.ts` already
+    // covers — repeated here as the oracle fact this suite is held to.
+    let l = legacyBoard({ hand: ["V1"], oppBattle: ["V-BLUE"] });
+    const lGuard = l.players.p2.battle[0];
+    l.cards[lGuard].mode = "rest";
+    l = apply(CTX, l, { type: "attack", player: "p1", attacker: l.players.p1.leader, target: lGuard }).state;
+    const lCombo = legacyFind(l, "p1", "hand", "V1");
+    l = apply(CTX, l, { type: "combo", player: "p1", card: lCombo }).state;
+    l = apply(CTX, l, { type: "pass", player: "p1" }).state;
+    l = apply(CTX, l, { type: "pass", player: "p2" }).state;
+    assert.equal(l.battle, null);
+    assert.ok(l.players.p2.drop.includes(lGuard), "the two engines do not agree that a tied Battle Card is KO'd");
+    assert.ok(l.players.p1.drop.includes(lCombo), "the two engines do not agree that a spent combo card goes to the Drop");
+  }
 }

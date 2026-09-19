@@ -479,9 +479,20 @@ if (dbs.ok) {
   assert.equal(def.zones.unison.single, true, "only one card is in a Unison Area at a time (3-11-4)");
   assert.equal(def.zones.deck.visibility, "none", "the Deck Area is a secret area (3-2-2)");
   // Every phase of the turn the GAME names is declared, and the two that are
-  // not a turn's (`setup`, `over`) are declared beside them.
+  // not a turn's (`setup`, `over`) are declared beside them. `battle`
+  // (`battle.rules`, #150) is the seventh: not a turn phase at all — it is
+  // never in `DEFINE GAME`'s `phases:` and is not the `setupPhase` or the
+  // `overPhase` either — but a frame `declareAttack` nests inside the Main
+  // Phase with the same `enterPhase` a turn phase uses, which is exactly why
+  // it needs the same declaration shape (steps, a `LIMIT`, a checkpoint
+  // between each) without being one of the six the flow runner walks in
+  // sequence. `completeness()` below excludes it from the legacy `PHASES`
+  // comparison for the same reason it excludes `under`/`play` from the zone
+  // one — a real declaration this engine's own nesting needs that the legacy
+  // union has no word for, because the legacy engine keeps a battle as a
+  // field (`GameState.battle`) rather than as a phase at all.
   for (const phase of def.game?.phases ?? []) assert.ok(phase in def.phases, `DEFINE GAME names a phase ${JSON.stringify(phase)} with no declaration`);
-  assert.equal(Object.keys(def.phases).length, 6, "the six phases the engine knows are not all declared");
+  assert.equal(Object.keys(def.phases).length, 7, "the six turn phases plus the nested battle phase are not all declared");
   // The two defeat conditions of 0-1-3-2. Conceding and a card that ends the
   // game are gaps, recorded in the history entry of 12 Sep 2026.
   assert.deepEqual(Object.keys(def.wins).sort(), ["deckOut", "lifeOut"]);
@@ -625,7 +636,16 @@ if (dbs.ok) {
     AREA_NAMES,
     "zones (excluding the effect language's own under/play routes)",
   );
-  completeness(Object.keys(def.phases), PHASES, "phases");
+  // `battle` is excluded the same way `under`/`play` are excluded from the
+  // zone comparison just above: a real declaration this engine's nesting
+  // needs (`battle.rules`, #150) that the legacy `Phase` union has no word
+  // for, because the legacy engine carries a battle as `GameState.battle`
+  // rather than as one of its six phases.
+  completeness(
+    Object.keys(def.phases).filter((p) => p !== "battle"),
+    PHASES,
+    "phases",
+  );
   completeness(
     Object.entries(def.attributes)
       .filter(([name, a]) => a.of === "card" && !DERIVED_CARD_ATTRIBUTES.includes(name))
