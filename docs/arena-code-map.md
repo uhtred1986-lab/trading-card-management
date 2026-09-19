@@ -228,6 +228,46 @@ the same as if it were still in `CLAUDE.md`.
   rules engine at all (`chooseRejectionGap`, `scripts/verify/workflow.ts` — [Barrier]'s own legality
   is proven, its rejection *reason* is not), and [Indestructible]'s skill-KO half has no caller since
   the rules engine does not resolve a skill's `ko` yet (#146).
+  **`s7-03` (#155) wrote group B's four tractable bodies**: [Field]'s onEnter (22-3, dropping the
+  Field Extra already out), [Heroic]/[Villainous]'s afterSkill (22-35/22-36, fired from `moved()`
+  itself for every other in-play card the entering card's owner controls, not folded into onEnter
+  because the broadcast is about the *entering* card's play rather than something the receiving
+  card's own hooks say about itself) and [Servant]'s activeStep (22-40, a query `chargeActivate`
+  reads before switching a card to Active Mode — see #154 for the same keyword's attrBonus half).
+  [Heroic]/[Villainous]'s printed self-negation is a known, named gap: a hook body's frame carries
+  no `skillIndex` for `negate(what: own)` to read, so each fires once per other card played rather
+  than once a turn. The rest of B's candidates — [Arrival], [Wish], [Successor], [Overlord],
+  [Rejuvenate], [Z-Awaken] — are whole-keyword activations with no `do:` a `DEFINE KEYWORD` can
+  carry yet (`s7-05`/#157's gap, not B's), and [Z-Stack]/[Revive] each need a per-card filter or a
+  covering-set choice the language cannot ask for yet (`moved()`'s own comment names both).
+  **`s7-04` (#156) found every one of group C's candidates blocked**, and fixed a real bug in the
+  contract on the way. [Revenge]'s `battleEnd` body (22-9) is exactly the contract's own worked
+  example (`ko(target: [attacker])`), and `vm/battle.ts`'s `battleEnd` step now fires it — on the
+  guard alone, since the manual conditions it on "becomes the guard card" — but the body is not
+  declared in `keywords.rules`, because the `ko` op it would run throws `NotYet` unconditionally
+  (`vm/host.ts`: "a KO is a move a rule makes, and moves by skill are declared in #146 yet"), which
+  would turn a Revenge card winning its own battle into a crashed game rather than a silent gap. A
+  *query* hook like [Indestructible]'s `koByEffect` (#154) is safe to declare ahead of its own
+  caller — inert until read — but an *effect* hook is not: it runs, and #146 is what it would need
+  to run into. Firing `battleEnd` still uncovered a real ordering bug, fixed regardless of Revenge's
+  own gate: the contract's own claim that `{special:"attacker"}`/`{special:"guard"}` "still resolve
+  here, one step before `state.battle` clears" did not hold, because `battleEnd`'s own step used to
+  null `state.battle` itself, synchronously, before the queued hook program the runner drains one
+  loop pass later ever ran. The fix moved that clearing to `vm/flow.ts`'s own phase-pop, the point
+  the battle phase actually runs out of steps, so the specials stay live for exactly as long as the
+  contract says they do — ready the day #146 lets `battleEnd` actually fire something. The rest of
+  C's candidates are deferred for their own reasons: [Blocker]'s effect is already correct and
+  native (`vm/battle.ts`'s `applyBlock`) — routing it through `modifyAttr(attr:mode)`'s `switchMode`
+  lowering would wrongly fire "rested by one of your skills" (1-10), which blocking is not; [Deflect]
+  needs the Counter:Play window (`vm/host.ts`'s own `NotYet`, #150 opened only the battle-triggered
+  one) and its own hook's `self` (a counter candidate) does not obviously name the card seeking
+  immunity rather than the cards it would suppress — read again before writing; [Attack]/
+  [Dual Attack] needs a per-card numeric "attacked this turn" count no primitive carries yet
+  (`battledThisTurn` is a bare boolean); [Alliance]'s rested cards are a cost bound into the rest of
+  its own printed skill, not a fixed body every [Alliance] card shares; [Critical]/[Strike]/
+  [Victory Strike] read a life-damage amount or destination before `dealDamage` moves the card — a
+  synchronous decision an `effect` hook's deferred queue cannot make in time; and [Ultimate]'s own
+  moment is `onLeave` (group B), whose firing site is #155's, not this issue's.
   **The interpreter is shared** (#142): `stepScript` runs on a `ScriptHost`
   (`engine/script-host.ts`) rather than on a `GameState`, `legacyHost` is that interface over the
   old state and `vm/host.ts` over the new one, so one `card_rules` row means one thing on both

@@ -54,7 +54,7 @@ import type { EngineState, PlayerId } from "./harness";
 // ── keyword gaps: Stage 7, named rather than silently skipped ───────────────
 
 const S7 = {
-  battle: "docs/arena-backlog/s7-04-keywords-battle.md — hook group C: blocking, counters, attack, damage, battle end ([Revenge], [Double/Triple Strike], [Awaken])",
+  battle: "docs/arena-backlog/s7-04-keywords-battle.md — hook group C: blocking, counters, attack, damage, battle end ([Revenge], [Double/Triple Strike], [Dual Attack], [Awaken])",
   // [Indestructible]'s battle-KO half is #154's and done (see its own split
   // block below); [Unique] moved to hook group D (`playRefused`) once #153's
   // inventory confirmed it, so its own remaining skip cites `S7.unique`
@@ -304,15 +304,19 @@ if (!keywordGap("Dual Attack", S7.battle)) {
   assert.ok(zoneOf(s, "p2", "battle").includes(ind), "22-12: not KO'd by battle");
 }
 
-// [Revenge] KOs the attacker (22-9) — hook group C, #156's.
+// [Revenge] KOs the attacking card at the end of the battle (22-9), even
+// though the Revenge card itself lost the fight and is already in the Drop
+// by the time its own hook fires — an [Auto] that already triggered on
+// becoming the guard card does not un-trigger by leaving play.
 if (!keywordGap("Revenge", S7.battle)) {
   let s = arenaG({ battle: ["BIG"], oppBattle: ["REVENGE"] });
   const big = zoneOf(s, "p1", "battle")[0];
   const rev = findG(s, "p2", "battle", "REVENGE");
   s.cards[rev].mode = "rest";
   s = playG(s, { type: "attack", player: "p1", attacker: big, target: rev }, { type: "pass", player: "p1" }, { type: "pass", player: "p2" });
-  assert.ok(zoneOf(s, "p2", "drop").includes(rev), "the Revenge card is KO'd");
+  assert.ok(zoneOf(s, "p2", "drop").includes(rev), "the Revenge card is KO'd by the battle it lost");
   assert.ok(zoneOf(s, "p1", "drop").includes(big), "22-9-4: and it KOs the attacker at the end of the battle");
+  assert.equal(s.prompt.kind, "main", "the battle resolved fully — no prompt left hanging on the queued hook");
 }
 
 // [Unique] (22-39): a second copy can't be played while one is in play.

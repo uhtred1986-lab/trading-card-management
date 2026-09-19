@@ -22,7 +22,10 @@ DEFINE KEYWORD Wish
 DEFINE KEYWORD Field
   TAKES ()
   text: "An Extra Card that stays on the table in Active Mode instead of going to the Drop Area. Its other skills work from there, and playing another [Field] Extra drops the one already out."
-  -- Stage 7 (#153–#157)
+  HOOK onEnter {
+    choose(sel: UP TO 1 "Extra Card with [Field]" IN you.battle otherThanSelf, as: "t")
+    moveTo(target: $t, to: drop)
+  }
 
 -- 22-4
 DEFINE KEYWORD Blocker
@@ -52,7 +55,19 @@ DEFINE KEYWORD Attack
 DEFINE KEYWORD Revenge
   TAKES ()
   text: "When this card becomes the guard card, KO the attacking card at the end of the battle."
-  -- Stage 7 (#153–#157)
+  -- #156: the body is exactly the contract's own worked example
+  -- (`HOOK battleEnd { ko(target: [attacker]) }`, docs/arena-ruleset-spec.md
+  -- §4.2) and `vm/battle.ts`'s own `battleEnd` step now fires it (on the
+  -- guard, before `state.battle` clears — see `vm/flow.ts`'s phase-pop
+  -- comment for why the clearing moved there). Left undeclared here because
+  -- the `ko` op it would run throws `NotYet` unconditionally
+  -- (`vm/host.ts`: "a KO is a move a rule makes, and moves by skill are
+  -- declared in #146 yet") — adding the body would turn a Revenge card
+  -- winning its own battle into a crashed game, not a silent gap. #154's
+  -- [Indestructible] can safely declare `koByEffect` ahead of its own
+  -- caller because a *query* hook is inert until read; this hook is an
+  -- *effect*, so the same move is not available here. Add this body the
+  -- day #146 gives skill-driven `ko` a real implementation.
 
 -- 22-12
 DEFINE KEYWORD Indestructible
@@ -92,10 +107,13 @@ DEFINE KEYWORD Unique
 DEFINE KEYWORD Servant
   TAKES ()
   text: "+10000 power, and the card does not switch to Active Mode during its master's Charge Phase."
-  -- #154 (hook group A) builds the power half; the Charge Phase half is
-  -- `activeStep`, hook group B, #155's.
+  -- #154 (hook group A) builds the power half (attrBonus); #155 (hook
+  -- group B) the Charge Phase half (activeStep).
   HOOK attrBonus {
     modifyAttr(target: [self], attr: power, amount: 10000)
+  }
+  HOOK activeStep {
+    forbid(what: switchToActive, until: game)
   }
 
 -- 22-31
@@ -150,13 +168,27 @@ DEFINE KEYWORD Invoker
 DEFINE KEYWORD Heroic
   TAKES ()
   text: "When you play another card with [Heroic], draw 1 card; the skill is then negated on this card for the rest of the turn."
-  -- Stage 7 (#153–#157)
+  -- The "negated on this card for the rest of the turn" half is not built: a
+  -- hook body's frame carries no skillIndex for `negate(what: own)` to read
+  -- (`vm/program.ts`'s `hookFrame`), so this fires once per other [Heroic]
+  -- card played in the turn rather than once. Named, not guessed around.
+  HOOK afterSkill {
+    if(cond: count("card with [Heroic]" FROM $source) >= 1, then: {
+      draw(n: 1)
+    })
+  }
 
 -- 22-36
 DEFINE KEYWORD Villainous
   TAKES ()
   text: "When you play another card with [Villainous], your opponent chooses a card in their hand and drops it; the skill is then negated for the rest of the turn."
-  -- Stage 7 (#153–#157)
+  -- Same gap as [Heroic]'s own HOOK: fires every time, not once a turn.
+  HOOK afterSkill {
+    if(cond: count("card with [Villainous]" FROM $source) >= 1, then: {
+      choose(sel: 1 IN opponent.hand, chooser: opponent, as: "t")
+      moveTo(target: $t, to: drop)
+    })
+  }
 
 -- 22-33
 DEFINE KEYWORD Offering
