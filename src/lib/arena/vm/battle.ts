@@ -69,7 +69,7 @@ import { IllegalAction, type EngineContext, type GameEvent, type LegalAction, ty
 import { canCombo } from "../engine/cards";
 import type { Action, PlayerId, Prompt, Requirement, Skill } from "../engine/types";
 import type { GameDefinition } from "../rulesets";
-import { boundFor, type ActivationLine } from "./activate";
+import { costIsOnlyOrbs } from "../engine/compile";
 import { cardPrice, chargeCost, planCost, priceFor, type BoundAmounts } from "./costs";
 import { RulesetBroken } from "./errors";
 import { emit, fire, log } from "./events";
@@ -84,7 +84,7 @@ import type { VmBattle, VmState } from "./state";
 export function attackLegalActions(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId): LegalAction[] {
   const out: LegalAction[] = [];
   for (const attacker of eligibleAttackers(ctx, game, state, player)) {
-    for (const target of targetsFor(ctx, game, state, player, attacker)) {
+    for (const target of targetsFor(ctx, game, state, player)) {
       const label = `Attack ${nameOf(ctx, state, target)} with ${nameOf(ctx, state, attacker)} (${powerOf(ctx, game, state, attacker)} vs ${powerOf(ctx, game, state, target)})`;
       out.push({ action: { type: "attack", player, attacker, target }, label });
     }
@@ -123,13 +123,13 @@ const eligibleAttackers = (ctx: EngineContext, game: GameDefinition, state: VmSt
 
 /**
  * 8-1-1: a Leader, a Unison, or a rested Battle Card of the opponent's — the
- * one target list every attacker shares. `_attacker` is unread today and kept
- * in the signature for the day a [Permanent] permission like "can attack
- * Battle Cards in Active Mode" needs to widen the list *for that card*
- * (Stage 7's keyword bodies) — the same shape legacy's own `permits(ctx, s,
- * a, "attackActive")` extends this list with.
+ * one target list every attacker shares today. No `attacker` parameter: the
+ * day a [Permanent] permission like "can attack Battle Cards in Active Mode"
+ * needs to widen the list *for that card* (Stage 7's keyword bodies, the same
+ * shape legacy's own `permits(ctx, s, a, "attackActive")` extends this list
+ * with), this signature grows one rather than carrying it unread until then.
  */
-function targetsFor(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, _attacker: string): string[] {
+function targetsFor(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId): string[] {
   const opp = other(player);
   const out: string[] = [];
   const leader = state.sides[opp].zones.leader?.[0];
@@ -150,7 +150,7 @@ function attackWhy(ctx: EngineContext, game: GameDefinition, state: VmState, pla
   if (inst.mode !== "active") why.push({ kind: "mode", card: attacker, mode: (inst.mode as "active" | "rest" | null) ?? "active" });
   const banned = forbiddenBy(ctx, game, state, "attack", { player, card: attacker });
   if (banned) why.push({ kind: "forbidden", ...banned });
-  if (!why.length && !targetsFor(ctx, game, state, player, attacker).length) why.push({ kind: "target", reason: "nothing may be attacked" });
+  if (!why.length && !targetsFor(ctx, game, state, player).length) why.push({ kind: "target", reason: "nothing may be attacked" });
   return why;
 }
 
@@ -285,7 +285,12 @@ function abortToEnd(game: GameDefinition, state: VmState): void {
   if (!top) return;
   const steps = game.phases[top.phase]?.steps ?? [];
   const at = steps.indexOf("battleEnd");
-  if (at >= 0) top.index = at;
+  // The runner's own fallthrough (`vm/flow.ts`) does `top.index++` immediately
+  // after this step's `run` returns without waiting — this call is made
+  // *from inside* that same `run`, so one short of `battleEnd`'s real index
+  // is what lands exactly on it once that increment happens, rather than one
+  // past it.
+  if (at >= 0) top.index = at - 1;
 }
 
 // ── the counter window (8-1-4, 9-7) ─────────────────────────────────────────
@@ -296,7 +301,23 @@ interface CounterCandidate {
   bound: BoundAmounts;
 }
 
-/** Hand cards whose printed [Counter: Attack] (or [Counter: Battle Card Attack], narrowed to a Battle Card attacker) this engine can both pay for and resolve — the legacy `counterCandidates`' own reading, minus [Deflect] and an alt cost (5-3, Stage 7). */
+/**
+ * Hand cards whose printed [Counter: Attack] (or [Counter: Battle Card
+ * Attack], narrowed to a Battle Card attacker) this engine can both pay for
+ * and resolve — the legacy `counterCandidates`' own reading (`playCost(id) +
+ * orbTotals(id, sk)`), minus [Deflect] and an alt cost (5-3, Stage 7).
+ *
+ * Deliberately **not** `vm/activate.ts`'s `boundFor`: that function's "an
+ * Extra used from the hand pays its own energy cost too" (12-2-2) is
+ * `activate`'s own reading of 4-2 — using an Extra *is* playing it — and
+ * folds the card's price into the line's own. A [Counter] is never "played"
+ * by being activated (22-10-7 sends it to the Drop as the counter itself,
+ * not as 5-5's play), so its price is the ordinary sum every counter has:
+ * the card's own cost, exactly as `play` would charge it, plus whatever the
+ * skill line prints in front of its own colon — reusing `boundFor` here
+ * would double an Extra counter's price, since its own Extra-in-hand
+ * addition and this module's card price would both count the same cost.
+ */
 function counterCandidates(ctx: EngineContext, game: GameDefinition, state: VmState, responder: PlayerId): CounterCandidate[] {
   const b = state.battle;
   if (!b) return [];
@@ -309,11 +330,8 @@ function counterCandidates(ctx: EngineContext, game: GameDefinition, state: VmSt
       if (!wants) continue;
       if (!canResolveLine(sk, showing.scripts.bySkill[sk.index])) continue;
       if (forbids(ctx, game, state, "activateCounter", { player: responder, card })) continue;
-      const line: ActivationLine = { card, skillIndex: sk.index, skill: sk, script: showing.scripts.bySkill[sk.index] };
-      const bound = boundFor(ctx, game, state, line);
-      if (bound.unreadable !== null) continue;
-      const play = cardPrice(ctx, game, state, card);
-      const combined = counterPrice(play, bound);
+      if (!costIsOnlyOrbs(sk.cost)) continue;
+      const combined = counterPrice(cardPrice(ctx, game, state, card), sk);
       const price = priceFor(ctx, game, state, game.actions.play!, card, combined);
       if (!planCost(ctx, game, state, responder, price, card).ok) continue;
       out.push({ card, skill: sk, bound: combined });
@@ -340,16 +358,17 @@ function mergeOrbs(a: Partial<Record<string, number>>, b: Partial<Record<string,
   return out;
 }
 
-/**
- * A [Counter] costs the card's own play price plus whatever orbs are printed
- * in front of the skill line itself (5-3, legacy `playCost` + `orbTotals`) —
- * `boundFor` reads only the second half (it exists for a *skill line*, and
- * only adds a card's play price for an Extra used from the hand, which a
- * [Counter] card never is), so the two are added here.
- */
-function counterPrice(play: { total: number; orbs: Partial<Record<string, number>> }, bound: BoundAmounts): BoundAmounts {
-  const line = bound.energy ?? { total: 0, orbs: {}, either: [] };
-  return { energy: { total: play.total + (line.total ?? 0), orbs: mergeOrbs(play.orbs, line.orbs), either: line.either }, markers: 0, unreadable: null };
+/** A [Counter]'s price: the card's own play price plus whatever orbs are printed in front of the skill line itself (5-3, legacy `playCost(id) + orbTotals(id, sk)`). */
+function counterPrice(play: { total: number; orbs: Partial<Record<string, number>> }, sk: Skill): BoundAmounts {
+  const orbs: Partial<Record<string, number>> = {};
+  let total = 0;
+  for (const [key, n] of Object.entries(sk.energyCost)) {
+    if (!n) continue;
+    total += n;
+    if (key !== "any") orbs[key] = (orbs[key] ?? 0) + n;
+  }
+  total += sk.energyEither.length;
+  return { energy: { total: play.total + total, orbs: mergeOrbs(play.orbs, orbs), either: sk.energyEither.map((one) => [...one]) }, markers: 0, unreadable: null };
 }
 
 /** The base printed type, Z- stripped — the same reading `vm/play.ts`'s `PLAY_ZONES` and `vm/filters.ts` make of the `type` attribute. */
@@ -378,10 +397,7 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
   const attackerIsBattleCard = baseTypeOf(ctx, state, state.battle!.attacker) === "BATTLE";
   const sk = showing.skills.find((s) => s.kind === "counter:attack" || (s.kind === "counter:battle card attack" && attackerIsBattleCard));
   if (!sk) throw new IllegalAction("no counter skill on that card");
-  const line: ActivationLine = { card, skillIndex: sk.index, skill: sk, script: showing.scripts.bySkill[sk.index] };
-  const bound = boundFor(ctx, game, state, line);
-  const play = cardPrice(ctx, game, state, card);
-  const combined = counterPrice(play, bound);
+  const combined = counterPrice(cardPrice(ctx, game, state, card), sk);
   const price = priceFor(ctx, game, state, game.actions.play!, card, combined);
   const plan = planCost(ctx, game, state, action.player, price, card, action.pay);
   if (!plan.ok) throw new IllegalAction(`can't pay the counter's cost: ${plan.why[0]?.kind}`);
@@ -499,6 +515,38 @@ export function applyCombo(ctx: EngineContext, game: GameDefinition, state: VmSt
   const top = state.flow[state.flow.length - 1];
   if (top) delete top.asking;
   return "done";
+}
+
+/**
+ * Put back the native prompt a `combo` or `counter` action was answering,
+ * after `payCost` set its own prompt in its place (3-8-2).
+ *
+ * The shared `payCost` re-entry (`vm/index.ts`) rediscovers a *declared*
+ * move's question by running the flow again and reading the step's own
+ * `top.asking` — which works because such a move never touched it (`again:`
+ * leaves it exactly as `askers` set it). `combo`/`counter`/`block`'s prompts
+ * are never built that way at all (`vm/battle.ts`'s own header): their steps
+ * declare no `prompt:`, so `top.asking` is always empty and running the flow
+ * on it would simply fall through and advance the battle to its next step —
+ * silently discarding the question rather than restoring it. This is the
+ * other half of the same re-entry, for the two native moves the shared one
+ * cannot reconstruct: recomputed exactly as the window that opened it would,
+ * from the action alone (`counter`'s candidates are read fresh; `combo`'s
+ * `side` is derived from whether the answering player is the turn player).
+ * Null when the action is not one of these two, so the caller falls back to
+ * the shared mechanism unchanged.
+ */
+export function restoreNativePrompt(ctx: EngineContext, game: GameDefinition, state: VmState, action: Action): Prompt | null {
+  if (action.type === "counter") {
+    const responder = action.player;
+    const candidates = counterCandidates(ctx, game, state, responder).map((c) => c.card);
+    return { kind: "counter", player: responder, window: "attack", candidates };
+  }
+  if (action.type === "combo") {
+    const side: "offense" | "defense" = action.player === state.turnPlayer ? "offense" : "defense";
+    return { kind: "combo", player: action.player, side };
+  }
+  return null;
 }
 
 // ── damage and KO (8-4) ──────────────────────────────────────────────────────

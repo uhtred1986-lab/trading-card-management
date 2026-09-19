@@ -46,7 +46,7 @@ import { PLAYERS, type PlayerId } from "../engine/types";
 import { rulesetFor, type GameDefinition } from "../rulesets";
 import { ACTIVATION_ZONE_NAMES, windowOf } from "./activate";
 import { applyDeclared, declaredLegalActions, declaredRejectedActions } from "./actions";
-import { applyBlock, applyCombo, applyCounter, attackLegalActions, attackRejectedActions, comboLegalActions, declareAttack } from "./battle";
+import { applyBlock, applyCombo, applyCounter, attackLegalActions, attackRejectedActions, comboLegalActions, declareAttack, restoreNativePrompt } from "./battle";
 import { chargesOf, describePayment } from "./costs";
 import { attributeGaps, attrsForDefs, playerAttributes, type AttrProblem, type AttrValue } from "./cards";
 import { costLayerGaps } from "./effects";
@@ -434,7 +434,13 @@ function apply(ctx: EngineContext, prev: VmState, action: Action): { state: VmSt
       const option = pr.options[action.option];
       if (!option) throw new IllegalAction("no such payment");
       const restored = structuredClone(prev);
-      run(ctx, game, restored, events);
+      // #150: `combo` and `counter` put their own question back rather than
+      // having the flow rediscover it — `restoreNativePrompt`'s own header
+      // says why running the flow on a native prompt's frame cannot do this,
+      // the way it can for a declared move's `again:`-left `top.asking`.
+      const native = restoreNativePrompt(ctx, game, restored, pr.action);
+      if (native) restored.prompt = native;
+      else run(ctx, game, restored, events);
       const inner = { ...pr.action, pay: option.rest } as Action;
       const again = apply(ctx, restored, inner);
       return { state: again.state, events: [...events, ...again.events] };
