@@ -1,9 +1,11 @@
 ---
 title: Arena docs: slim CLAUDE.md to rules and pointers — the arena narrative moves to arena-next-session-prompt.md
 milestone: Arena M14 — Rules language and ruleset documentation
-labels: backlog, ready-for-agent, documentation, area:arena-docs, phase:rules-docs, model:opus-5
+labels: done, documentation, area:arena-docs, phase:rules-docs, model:opus-5
 stage: docs
 issue: 282
+status: closed
+closed_at: 2026-09-19
 ---
 **Source:** the orchestrator's token review of 13 Sep 2026; `CLAUDE.md` (8,700 words, of which ~6,700 are the arena paragraphs under **Architecture**, most of them a dated changelog of Stage 4–5 PRs: "since 12 Sep 2026", "#146", "state version 6"); `docs/arena-next-session-prompt.md` and `docs/arena-tooling.md` (the two entry points the `arena-work` skill reads first); `.claude/skills/arena-work/SKILL.md`.
 
