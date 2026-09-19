@@ -104,8 +104,12 @@ export interface VmBattle {
  * which no attack had ever been declared, so the field is simply absent —
  * `battle` is optional on load and defaults to null, the same convention
  * `firstPlayer` uses for "not decided yet".
+ * 9: #152's `VmCard.battledThisTurn` (8-1-2-1/8-1-2-2), the legacy engine's
+ * own per-copy memory of a battle already played this turn, ported rather
+ * than left `NARROWER`. A version-8 state read `battled` as always false —
+ * harmless, since no saved rules-engine game predates this field.
  */
-export const VM_STATE_VERSION = 8;
+export const VM_STATE_VERSION = 9;
 
 /** One player, as the definition describes one: a name, a map of zones, and the attributes a *player* has (1-14). */
 export interface VmSide {

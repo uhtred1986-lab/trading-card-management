@@ -18,8 +18,10 @@
  *
  * The refusals, and what each waits on:
  *
- *   `ko`, `placeUnder`                a KO and a pile are moves a rule makes,
- *                                     and the move-by-skill half is #146.
+ *   `ko`                              a KO is a move a rule makes, and the
+ *                                     move-by-skill half is #146. `placeUnder`
+ *                                     (23-2) is real now (#152), wired to
+ *                                     `moveCard`'s own `under` option.
  *   `replacementsFor`, the two
  *   `setPlay*` and `replaceResolving` 9-10 and 9-6 both stand between a play
  *                                     being *declared* and its landing, and on
@@ -144,8 +146,19 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     ko: (id) => {
       throw new NotYet(`KO ${nameOfCard(ctx, state, id)} — a KO is a move a rule makes, and moves by skill are declared in #146`, "#146");
     },
-    placeUnder: (id) => {
-      throw new NotYet(`put ${nameOfCard(ctx, state, id)} under another card (23-2)`, "#146");
+    // 23-2: `moveCard`'s own `under` option already carries 23-2-2 through
+    // 23-2-6 (#152 taught it 23-2-5's "different area → Drop" half, which it
+    // did not have before) — this is a card's own skill reaching for that
+    // primitive, the way `battle.ts`'s `koCard`/`dealDamage` reach for a move
+    // outside a program without going through `stepScript` at all. No `moved`
+    // moment fires (23-2 declares none, and the legacy engine's own
+    // `placeUnder` fires none either — only the client-visible picture),
+    // which is why this is `log`, not `emit`.
+    placeUnder: (id, host) => {
+      const result = moveCard(state, game, id, "drop", { under: host });
+      if (!result.ok) return false;
+      log(ev, { type: "stack", top: host, under: state.cards[host].under.slice() });
+      return true;
     },
     setMode: (id, mode) => {
       const at = zoneOf(state, id);

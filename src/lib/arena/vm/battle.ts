@@ -114,6 +114,7 @@ export function declareAttack(ctx: EngineContext, game: GameDefinition, state: V
   const attacker = action.attacker;
   setMode(ctx, game, state, ev, attacker, "rest");
   state.battle = { attacker, guard: action.target, target: action.target, step: "declared", negated: false, blockerOffered: false, counters: [] };
+  joinsBattle(state, attacker, action.target);
   log(ev, { type: "attack", attacker, target: action.target });
   enterPhase(ctx, game, state, ev, "battle");
 }
@@ -256,6 +257,18 @@ export const BATTLE_STEP_WORK: Record<string, Work> = {
     },
   },
 };
+
+/**
+ * 8-1-2-1: these cards are now the attack card and the guard card, which is
+ * what BT3-103 means by participating in a battle. The roles end with the
+ * battle (8-1-2-2) and the card is asked about it afterwards, so the memory
+ * lives on the card until `endTurn` clears it — the legacy engine's own
+ * `joinsBattle` (`engine/engine.ts`), ported for #152 rather than left
+ * `NARROWER` (`vm/program.ts`'s `"battled"` condition reads this field now).
+ */
+function joinsBattle(state: VmState, ...ids: string[]): void {
+  for (const id of ids) if (state.cards[id]) state.cards[id].battledThisTurn = true;
+}
 
 /** 8-1-7: if the attacker or the guard has already left play, the battle skips straight to its end step. */
 function battleIntact(state: VmState): boolean {
@@ -448,6 +461,7 @@ export function applyBlock(ctx: EngineContext, game: GameDefinition, state: VmSt
   const b = state.battle!;
   setMode(ctx, game, state, ev, action.card, "rest");
   b.guard = action.card;
+  joinsBattle(state, action.card);
   log(ev, { type: "guardChanged", guard: action.card, by: action.card });
   fire(ctx, game, state, { event: "keywordActivated", card: action.card, controller: masterOf(game, state, action.card), args: { keyword: "Blocker" } });
   // The new guard is attacked too (8-1-2-1), the same `attacked`/`yourLeaderAttacked` moment the original target answered to.
@@ -481,6 +495,12 @@ function comboSide(ctx: EngineContext, state: VmState, side: "offense" | "defens
 function comboWork(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], side: "offense" | "defense"): void | "wait" {
   const b = state.battle;
   if (!b || b.negated || !battleIntact(state)) return abortToEnd(game, state);
+  // 8-2-4-3-1-1: a Unison guard has no Defense Step at all, and the combo
+  // offer is part of it — `battleDefense`'s own mode-switch step already
+  // makes this check (#150); the combo step is a separate declared step
+  // (`BATTLE_STEP_WORK`) and needs the same one, or a Unison guard would get
+  // half a Defense Step instead of none (#152, found by staging it).
+  if (side === "defense" && state.sides[other(state.turnPlayer)].zones.unison?.includes(b.guard)) return;
   const player = comboSide(ctx, state, side);
   if (!comboEligible(ctx, game, state, player).length) return;
   state.prompt = { kind: "combo", player, side };

@@ -272,6 +272,10 @@ const STEP_WORK: Record<string, Work> = {
       for (const inst of Object.values(state.cards)) {
         inst.usedThisTurn = [];
         inst.usedMarkerSkill = false;
+        // 8-1-2-2: the battle roles end with the battle, but the memory of
+        // having been in one ends with the turn — the legacy `turn.next`'s
+        // own reset, ported alongside the two fields above (#152).
+        inst.battledThisTurn = false;
       }
       // Every `DEFINE ATTRIBUTE of: player, reset: turnStart` fact returns to
       // its rest value here, off the declaration rather than by name (issue

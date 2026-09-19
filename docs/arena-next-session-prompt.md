@@ -112,6 +112,23 @@ understands or does) and, for what the engine reads today, `src/lib/arena/glossa
   case only", so there is no precedent for a partial declaration either. `verify/vm.ts` §24 is the
   section for all four findings: the WIN checkpoint checked by hand for both paths, `addLife`/
   `lifeDownTo` exercised the same way, and one assertion that the macro row stays absent today.
+- **#152 ported `verify/battles.ts` and `verify/workflow.ts` onto both engines**, through a state-
+  interface half `harness.ts` grew beside its legacy-only one (`arenaG`/`playG`/`findG`/`labelsG`/
+  `zoneOf`/`leaderOf`, `docs/arena-tooling.md` §2's own entry for `harness.ts` says the split). Three
+  real, non-keyword gaps came out of it and are fixed rather than skipped: `VmCard.battledThisTurn`
+  (8-1-2-1/8-1-2-2, was `NARROWER`), `vm/host.ts`'s `placeUnder` (23-2, threw `NotYet("#146")`
+  unconditionally — now wired to `moveCard`'s own `under` option, which also gained 23-2-5's "a
+  different area sends the pile to Drop" half it did not have), and `growUnison`'s missing `again:
+  true` (7-3-4, found because completing the move at all needed `placeUnder` first). What is left
+  unfixed and named rather than hidden, all in `workflow.ts`: `combo`/`counter`/`block` have no
+  `rejectedActions` reasoning of their own (native moves, no `attackRejectedActions` twin), a
+  counted prohibition's `uses` budget is read but never spent, and `vmBoardView` does not build
+  `you.choices`/`them.rules` for a couple of prompts yet — each its own named function
+  (`nativeRejectionGap`/`forbidUsesGap`/`viewGap`) in that file, distinct from the `keywordGap` cases
+  Stage 7 still owns ([Awaken], [Critical], [Dual Attack], [Indestructible], [Revenge], [Unique],
+  [Evolve], [Z-Stack], [Swap], [Barrier]). Exact menu-label wording is checked legacy-only
+  (`assertLabelOnLegacy`) — matching the rules engine's generic labels to the legacy engine's bespoke
+  ones word for word is Stage 8's, not this issue's.
 - **Tests**: `scripts/verify-arena.ts` runs (in order) `text, setup, battles, compiler, keywords,
   readings, wordings, workflow, contract, deck-api, language, lang, rulesets, probe, vm` — a new
   suite is one `import "./verify/<name>"` line there. `scripts/verify/vm.ts` is the rules-engine

@@ -100,6 +100,13 @@ DEFINE ACTION growUnison                                                  -- §1
   REFUSE oncePerTurn(what: "grow a Unison") UNLESS NOT playerAttr(name: "grewUnison")
   REFUSE target(reason: "no Unison Card in play to grow") UNLESS count(IN you.unison) >= 1
   REFUSE cardType(needs: "a copy of the Unison Card in play") UNLESS sameCard(a: FROM $card, b: IN you.unison)
+  -- 7-3-4: growing a Unison is free timing, the same as `play`/`activate` —
+  -- missing here until #152 could actually complete the move to notice
+  -- (`vm/host.ts`'s `placeUnder` threw `NotYet` unconditionally before that
+  -- issue, so `setPlayerAttr` never ran and the missing `again:` had nothing
+  -- to expose: the Main Phase's own question was left on the table by the
+  -- `NotYet` itself, for the wrong reason, until now).
+  again: true
   label: "Grow Unison"
   text: "the turn player may, once per turn, place 1 copy of their Unison Card from their hand under it, adding 1 marker (13-3)"
 

@@ -109,13 +109,50 @@ skipped) tells you what you broke:
 
 - **`harness.ts`** — the foundation the others build on: synthetic cards, a
   staged game, and the assertion helpers. Not a suite of its own so much as the
-  vocabulary. **Read this first** if you are writing a new check.
+  vocabulary. **Read this first** if you are writing a new check. Since #152 it
+  is two vocabularies in one file: `game()`/`arena()`/`play()`/`find()`/
+  `labels()` still read `GameState` directly and still narrow every suite that
+  imports them (through `legacyState`) to legacy-only — that half is unchanged,
+  and every suite below except `battles`/`workflow` still uses it. Beside it is
+  the **state interface**: `arenaG`/`playG`/`findG`/`labelsG`/`gameG`/
+  `assertDisjointG`/`addEffectG`/`placeUnderG`/`powerOfG`/`rejectedActionsG`, and
+  the field-level seam `zoneOf`/`leaderOf`/`unisonOf`/`energyMarkersOf` for the
+  one thing the two engines keep under a different shape (`players[p][area]`
+  against `sides[p].zones[area]`; a scalar Leader/Unison against a single-entry
+  zone). Everything else — `prompt`, `battle`, `winner`, `overReason`, `phase`,
+  `turn`, `turnPlayer`, `effects`, and `cards[id].{mode,markers,under,flipped,
+  faceUp,hidden,battledThisTurn}` — is the same field on both `GameState` and
+  `VmState` and is read directly off `EngineState`, no seam needed. Only
+  `battles.ts` and `workflow.ts` use the `G` half today; a third suite reaching
+  for it finds the vocabulary already there rather than growing its own copy of
+  `verify/vm.ts`'s original local `stage`/`atMain` (§23/§24, still there,
+  unchanged — the two are allowed to diverge in staging *strategy*, see the
+  state-interface section's own header comment: the legacy branch of `arenaG`
+  is `arena()` unchanged, real `move()` and all; the rules branch is a raw
+  relabel-and-splice, no moment fired, the same simplification `vm.ts`'s own
+  `stage` always was).
 - **`text.ts`** — how card text is read before any game exists: the skill
   parser, keyword recognition, the errata corrections.
 - **`setup.ts`** — the seed and game setup (§6-2). A failure here usually means
   determinism broke, which invalidates every other suite.
 - **`battles.ts`** — combos, blockers, counters, the keywords that decide a
-  battle.
+  battle. **Runs on both engines since #152.** On `--engine rules` every case
+  is a real assertion except the ones a Stage 7 keyword body still owns
+  ([Awaken], [Critical], [Dual Attack], [Indestructible], [Revenge], [Unique],
+  [Evolve], [Z-Stack]) — each prints `skipped case` by name, citing the
+  `docs/arena-backlog/s7-*.md` hook-group doc that builds it, and the suite
+  still reports `ok`. Proves, on the rules engine as much as the legacy one:
+  combo power deciding a battle and combo cards reaching the Drop, [Blocker]
+  redirecting an attack and resting, [Counter: Attack] negating one before the
+  Offense Step, what `view.battle` says about counters and contributions,
+  8-1-2-1/8-1-2-2's memory of having battled (`VmCard.battledThisTurn`, #152),
+  Unison play/growth/the missing Defense Step against one, 23-2's placing a
+  card under another including the two piled-card cases (23-2-5/23-2-6, also
+  #152 — see `vm/zones.ts`'s `moveCard` and `vm/host.ts`'s `placeUnder`), and
+  the WIN checkpoint on battle damage, deck-out and concession. `verify/vm.ts`
+  §23/§24 remain the place a *new* rules-engine battle fact is proven first,
+  against the oracle, before a suite meant to run unchanged on both engines
+  takes it for granted.
 - **`compiler.ts`** — the largest: what a printed line becomes, and what the
   interpreter does with it. Most compiler changes that break something break
   here.
@@ -125,7 +162,24 @@ skipped) tells you what you broke:
   compiler.
 - **`workflow.ts`** — every rule as a visible workflow: what is refused and why,
   in the words a client shows. Asserts the "one rejection per card per action
-  type" promise.
+  type" promise. **Runs on both engines since #152**, mostly — three cases are
+  Stage 7 keyword gaps ([Unique], [Swap], [Barrier], `keywordGap`), and the
+  porting pass found four gaps that are not keyword-shaped at all, each named
+  at its own call rather than hidden beside the keyword ones: `combo`/
+  `counter`/`block` are native moves (`vm/battle.ts`) and `rejectedActions`
+  never grew their `attackRejectedActions` twin (`nativeRejectionGap`); a
+  counted prohibition's `uses` budget is read but never spent on this engine
+  (20-14, `forbidUsesGap`); `vmBoardView` does not build `you.choices` for a
+  deck-search prompt or `them.rules` for a turn-scoped prohibition yet
+  (`viewGap`, Stage 8's "primer/prompts/view"); and one case (`PRICED`)
+  regression-tests a legacy-only historical bug fix with no rules-engine
+  analogue at all (`legacyHistoryOnly`). Every exact **label** string
+  (`"Play BIG (5)"`, a `LegalAction.cost.describe`) is checked on the legacy
+  engine only (`assertLabelOnLegacy`) — the rules engine's own labels are a
+  generic builder over `actions.rules`' declared `label:`, and matching the
+  legacy engine's bespoke wording word for word is Stage 8's, not this suite's.
+  The suite still reports `ok` on both engines; what moved is *how much of it*
+  is a real assertion on `rules` today, printed at the top of the run.
 - **`contract.ts`** — the beats and the snapshot both clients render.
 - **`language.ts`** — the effect language as one table, the drafter's records.
 - **`lang.ts`** — the round-trip promise: `parse(print(x)) === x` over every op,
@@ -161,35 +215,42 @@ skipped) tells you what you broke:
 ### `--engine legacy|rules` and `npm run test:rules`
 
 `scripts/verify/harness.ts` reads `--engine` off the command line (default
-`legacy`) and exports the resolved `ENGINE`; `game()`, `arena()` and `play()`
-create and play their games through it, so every suite built on them moves
-with the flag with no changes of its own. `npm test` never passes it, so
+`legacy`) and exports the resolved `ENGINE`. `npm test` never passes it, so
 `legacy` is what it has always run. `npm run test:rules` is
 `tsx scripts/verify-arena.ts --engine rules` — the same fourteen suites, on
 the rules engine.
 
-`vm.ts` and `rulesets.ts` are the two exceptions: `vm.ts` names `legacy` and
-`rules` explicitly (it is the suite proving the switch, so it cannot depend on
-which side of the switch happens to be selected) and `rulesets.ts` touches no
-game at all. Both run the same, and are expected to pass, whichever engine
+`vm.ts` and `rulesets.ts` name `legacy` and `rules` explicitly rather than
+reading `ENGINE` (it is the suite proving the switch, so it cannot depend on
+which side of the switch happens to be selected; `rulesets.ts` touches no game
+at all) and both run the same, and are expected to pass, whichever engine
 `--engine` names.
 
-Every other suite stages a board through `game()`/`arena()`, so on `--engine
-rules` it hits one of two named errors immediately rather than crashing
-partway through an assertion: `NotYet` (a call the rules engine does not
-implement yet, e.g. `apply`, per `src/lib/arena/vm/index.ts`) or
-`EngineMismatch` (the harness's fixtures read `GameState` fields directly —
-`s.prompt`, `s.players`, `move()` — so a state the rules engine dealt is
+**Two suites, `battles.ts` and `workflow.ts`, run for real on `rules` since
+#152** — see their own entries above — through `harness.ts`'s state-interface
+half (`arenaG`/`playG`/… ). What a case in either of them cannot yet prove on
+`rules` is a `skipped case`, printed by name with why, rather than a whole
+suite reading `skipped`; the suite itself still reports `ok` as long as
+nothing it *can* prove fails.
+
+Every other suite still builds its board through the legacy-only
+`game()`/`arena()`, so on `--engine rules` it hits one of two named errors
+immediately rather than crashing partway through an assertion: `NotYet` (a
+call the rules engine does not implement yet, e.g. `apply`, per
+`src/lib/arena/vm/index.ts`) or `EngineMismatch` (`game()`/`arena()`/`play()`
+narrow every state through `legacyState`, so a state the rules engine dealt is
 named rather than read as `undefined`). `verify-arena.ts` prints either as
 `skipped`, with the reason, and keeps going. What "green on rules" means
 therefore changes stage by stage — there is nothing to fix by making a suite
-"pass" before its dependency lands:
+"pass" before its dependency lands, and porting a suite past `EngineMismatch`
+is each suite's own issue to take up, the way #152 took up these two:
 
 | stage | what's built | `test:rules` today |
 |---|---|---|
-| now (#139) | the rules engine deals the opening board | `vm`, `rulesets`, `text` pass; `probe`'s fixture digest is skipped (needs every suite's cards); everything else is `skipped` with `EngineMismatch` |
-| #140 (a turn plays) | `apply`/`legalActions`/`rejectedActions` | suites built on `game()`+`play()` start reporting real pass/fail instead of a blanket skip; `NotYet` narrows to whatever #140 leaves out |
-| #141–#142 (beats, effects in force) | `toBeats`, static effects | `contract`, `workflow`, `compiler`-adjacent suites become meaningful rather than skipped |
+| through #151 (Stage 6, the rules engine plays a battle) | zones/attributes, the turn, costs, the play family, the battle sub-flow, damage/life/Z-Energy/WIN | `vm`, `rulesets`, `text`, `deck-api` pass; `probe`'s fixture digest is skipped (needs every suite's cards); everything else is `skipped` with `EngineMismatch` |
+| #152 (this doc's own build item) | the state-interface half of `harness.ts` | `battles`, `workflow` pass too, real assertions with named `skipped case`s for what Stage 7's keywords still own (plus a handful of real, non-keyword gaps `workflow.ts`'s own entry above names) |
+| Stage 7 (`docs/arena-backlog/s7-*.md`) | keyword bodies over four hook groups | the `keywordGap` cases in `battles`/`workflow` close one by one; `keywords`/`readings`/`wordings` are the suites most of Stage 7's own value lands in, and are candidates to port next |
+| Stage 8 | words from config, `primer`/`prompts`/`view` | `workflow.ts`'s `assertLabelOnLegacy`/`viewGap` cases close; `contract` becomes portable |
 | Stage 9 (#165) | the rules engine is the default | `test:rules` folds into `npm test`, or vice versa |
 
 Making a suite actually pass on `rules` before its stage lands is out of
