@@ -739,12 +739,6 @@ whatever the steps ask for until `DEFINE PROMPT` is decided.
 
 ## 4. The hook contract
 
-*Filled by #153* (Stage 7's inventory of the fixed hook points a keyword macro may attach to —
-choosing, immunity, enter and leave, battle, play/charge/pay — each with one example body written
-in the language). The inventory is taken from the inline keyword sites in the legacy engine; until
-it exists, `src/lib/arena/glossary.ts` is the only written account of what each keyword means and
-what the engine actually does with it.
-
 **A keyword's own moments (§22) are not read off the record, on either engine, and they are not
 read off `triggers.rules` either.** [Attack], [Alliance] and [Revenge] fire when a card attacks or
 is attacked, [Offering] and [Z-Stack] when it is played, [Revive] when it is KO'd — and none of
@@ -755,9 +749,252 @@ the rules engine states none of them yet and pends `kind: "auto"` skills only (`
 section inventories — which is why #141 deliberately did *not* copy the switch into `vm/`: a second
 copy of a list that is about to stop being a list.
 
-Until then a keyword skill on the rules engine is a skill that never pends. Nothing reaches it: a
-game on that engine plays pass, endMain and concede (#140), and playing, attacking and activating
-are Stage 5's `DEFINE ACTION`s.
+Until a keyword's own body is written (Stage 7's `s7-0{2,3,4,5}` issues), a keyword skill on the
+rules engine is a skill that never pends: nothing reaches it, a game on that engine plays pass,
+endMain and concede (#140), and playing, attacking and activating are Stage 5's `DEFINE ACTION`s.
+
+### 4.1 The fifteen hook points
+
+Taken from the plan's own fifteen names, confirmed against a full inventory of every `has(`/
+`keyword(`/`hasKeyword(` call in `src/lib/arena/engine/` (38 sites across 7 files — reproduce with
+`grep -rn 'has(ctx, s\|keyword(ctx, s\|hasKeyword(' src/lib/arena/engine/*.ts
+src/lib/arena/engine/compile/*.ts | wc -l`) and against `src/lib/arena/glossary.ts`'s own account of
+what each keyword means and where the legacy engine approximates. `src/lib/arena/vm/hooks.ts` is the
+interpreter's half — `HOOK_CONTRACT`, a `Record<HookPoint, HookSpec>` so a name added to
+`rulesets/hooks.ts`'s `HOOK_POINTS` and not there fails `npm run typecheck`, the same guarantee
+§2.3/§2.4's tables give `OP_CLASS`/`COND_CLASS`. `rulesets/hooks.ts` carries the closed name list the
+loader checks a `HOOK` against (it cannot import `vm/`, which imports it); this table is the
+narrative both files are read against.
+
+A hook is either **read** or **run**, never both, and a keyword's body may not choose which:
+
+- **`query`** — asked mid-calculation, for an answer needed now (is this card choosable, how much
+  bonus does it carry, is this play refused). It can never suspend, so it is read declaratively —
+  `vm/hooks.ts`'s `queryHookStatics` walks the body's `if`s to their taken branch and reads the one
+  op the leaf ends in (`immune`, `forbid`, `modifyAttr`) as a fact in force right now, applying
+  nothing to `state` — the same way `vm/effects.ts`'s `permanents()` reads a [Permanent]'s static ops
+  without ever executing them, one level up: a keyword hook body of this kind *is* an always-on
+  [Permanent] its keyword grants for free.
+- **`effect`** — something happens at the moment (a card enters, a battle ends, a skill resolves
+  after another does). It is run exactly like a triggered [Auto]'s `DO` block: `vm/hooks.ts`'s
+  `fireHook` builds one `ScriptFrame` per matching body and pushes it onto `state.programs`, the same
+  queue `vm/battle.ts`, `vm/activate.ts` and `vm/actions.ts` already `unshift` onto for a triggered
+  skill — so `vm/flow.ts`'s existing runner drains it and a question it asks is a real prompt, not a
+  second prompt mechanism.
+
+A body reads its own card as `{special: "self"}`, like any program; a battle hook reads the fight
+through the specials `vm/program.ts` already resolves off `state.battle`
+(`{special: "attacker"}`, `{special: "guard"}`), so no group needs a `$` variable for either. The
+"$ variables" the plan's wording promised are exactly this: a name a hook binds into `frame.vars`
+beyond those, resolved by a body with the ordinary `{var: name}` reference every program already
+has — no new grammar, because none is needed.
+
+| hook | group | answer | binds | fires when |
+|---|---|---|---|---|
+| `chooseable` | A | query | — | a selector is testing whether `self` may be chosen at all (9-1-4) |
+| `koByEffect` | A | query | — | `self` is about to be KO'd or moved out of its Battle Area by an effect, not by battle (9-1-4, 22-12) |
+| `attrBonus` | A | query | — | an attribute of `self` is being read (power, a life-damage amount, a marker count taken) |
+| `onEnter` | B | effect | `from` | `self` has just arrived in a zone its keyword cares about (9-6-3) |
+| `onLeave` | B | effect | `to` | `self` is leaving a zone its keyword cares about |
+| `afterSkill` | B | effect | `source` | another skill has just resolved (20-16's `did`, one level up) |
+| `activeStep` | B | query | — | the Active Step is deciding whether `self` stands up with the rest of its side (7-1-3) |
+| `block` | C | effect | — | `self` has just been declared the guard card (8-1-2-1) |
+| `counterWindow` | C | query | — | a Counter window is open and asking whether `self` is still offerable |
+| `onAttackDeclared` | C | effect | — | `self` has just been declared the attacker (8-1-1) |
+| `beforeDamage` | C | effect | — | battle damage is about to be calculated for the fight in progress (8-4) |
+| `battleEnd` | C | effect | — | the battle's steps have run out, one step before `state.battle` clears (8-1-2-2) |
+| `playRefused` | D | query | — | a play of `self` is being checked for legality, before cost (5-5, 20-4) |
+| `chargeLimit` | D | effect | — | `self` is about to be placed in an Energy Area, from any source (22-31) |
+| `altPayment` | D | query | — | a price is being planned and is asking what else may pay it, or what it no longer demands |
+
+### 4.2 One worked example per hook
+
+Each body below is what the keyword named would write once its group issue builds it (Stage 7's own
+"out of scope: any keyword body" for #153 — `rulesets/dbs/keywords.rules` still declares all 39 with
+none today, so every example here is illustrative, proved by a small worked ruleset in
+`scripts/verify/rulesets.ts` rather than by the real DBS declarations).
+
+Every body below parses and validates against the real grammar today (`parseDefinitions`,
+`src/lib/arena/lang/parse.ts`) — checked by hand before writing this table down, the same
+discipline §3 of `docs/arena-tooling.md` asks of a card's own reading. Two gaps came out of checking
+rather than assuming: no condition exists yet for "does that card carry this same keyword" (so
+[Heroic]'s real body, #155's to write, needs a `COND_SCHEMA` row this table does not invent), and
+`specifiedCost` is not a `CardAttr` the language can name on `modifyAttr` (so [Warrior of Universe
+7]'s real body needs either a new attribute row or a different primitive — `altPayment`'s example
+below stands in with a syntactically valid placeholder rather than a wrong one).
+
+```
+-- A: chooseable — read declaratively, an `immune` leaf
+DEFINE KEYWORD Barrier
+  HOOK chooseable {
+    immune(from: opponent, until: game)
+  }
+
+-- A: koByEffect — same leaf, a different moment asks for it
+DEFINE KEYWORD Indestructible
+  HOOK koByEffect {
+    immune(from: opponent, until: game)
+  }
+
+-- A: attrBonus — a `modifyAttr` leaf, read fresh on every ask
+DEFINE KEYWORD Servant
+  HOOK attrBonus {
+    modifyAttr(target: [self], attr: power, amount: 10000)
+  }
+
+-- B: onEnter — a real program, run once as the card arrives
+DEFINE KEYWORD Field
+  HOOK onEnter {
+    choose(sel: 1 "other Field Extra" IN you.battle, as: "t")
+    moveTo(target: $t, to: drop)
+  }
+
+-- B: onLeave — a real program, run once as the card departs
+DEFINE KEYWORD Revive
+  HOOK onLeave {
+    play(target: [self])
+  }
+
+-- B: afterSkill — bound `source`, the card whose skill just resolved (the
+-- real body still needs a same-keyword condition this table does not invent — see above)
+DEFINE KEYWORD Heroic
+  HOOK afterSkill {
+    draw(n: 1)
+  }
+
+-- B: activeStep — read declaratively, a `modifyAttr` on `mode`
+DEFINE KEYWORD Servant
+  HOOK activeStep {
+    modifyAttr(target: [self], attr: mode, mode: rest)
+  }
+
+-- C: block — the follow-up after [Blocker] is chosen as guard, not the offer itself (#150's `battleBlocker`)
+DEFINE KEYWORD Blocker
+  HOOK block {
+    modifyAttr(target: [self], attr: mode, mode: rest)
+  }
+
+-- C: counterWindow — read declaratively, a `forbid` leaf
+DEFINE KEYWORD Deflect
+  HOOK counterWindow {
+    forbid(what: activateCounter, until: turn)
+  }
+
+-- C: onAttackDeclared — a real program, run as the attack is declared
+DEFINE KEYWORD Alliance
+  HOOK onAttackDeclared {
+    choose(sel: 1 "a card of the named colours" IN you.battle, as: "t")
+    modifyAttr(target: $t, attr: mode, mode: rest)
+  }
+
+-- C: beforeDamage — changes what `dealDamage` (#151) then does
+DEFINE KEYWORD Critical
+  HOOK beforeDamage {
+    modifyAttr(target: [self], attr: power, amount: 5000, until: battle)
+  }
+
+-- C: battleEnd — a real program, run as the battle's steps run out
+DEFINE KEYWORD Revenge
+  HOOK battleEnd {
+    ko(target: [attacker])
+  }
+
+-- D: playRefused — read declaratively, a `forbid` leaf under a condition
+DEFINE KEYWORD Unique
+  HOOK playRefused {
+    if(cond: count("a card with the same name" IN you.battle) >= 1, then: { forbid(what: play, until: turn) })
+  }
+
+-- D: chargeLimit — a real program, run once as the card is placed
+DEFINE KEYWORD "Energy-Exhaust"
+  HOOK chargeLimit {
+    modifyAttr(target: [self], attr: mode, mode: rest)
+  }
+
+-- D: altPayment — read declaratively; the real [Warrior of Universe 7] body
+-- needs `specifiedCost` as a nameable attribute or a different primitive (see above)
+DEFINE KEYWORD "Warrior of Universe 7"
+  HOOK altPayment {
+    modifyAttr(target: [self], attr: markers, amount: 0, until: game)
+  }
+```
+
+### 4.3 The inventory: every inline keyword site in the legacy engine, by group
+
+One row per `has(`/`keyword(`/`hasKeyword(` call site (or an equivalent literal keyword check) in
+`src/lib/arena/engine/`, the source the hook points above are read off. `cards.ts`'s parse sites
+(`keywordOf`, one branch per keyword) and the generic `keywords`/`notKeywords` target-filter
+machinery (`filters.ts`) are not repeated per keyword below — every keyword gets both for free, and
+neither is a hook.
+
+**Group A — choosing, immunity, KO by effect**
+
+| keyword | file:line | moment | reads / changes |
+|---|---|---|---|
+| [Barrier] | `state.ts:711` (selector resolution, the one enforcement point for every targeting op) | a card is offered as a candidate | excludes an opponent-mastered, non-hand card unless the clause says `ignoring Barrier` |
+| [Barrier] | `rejections.ts:184-185` | explaining an un-offered choice | names Barrier as the reason |
+| [Deflect] | `engine.ts:649` (`counterCandidates`) | opening the play-Counter window | empties the candidate list outright while the Deflect card is being played |
+| [Deflect] | `engine.ts:2152` / `rejections.ts` (`whyNotCounter`) | refusal twin | names the Deflect card |
+| [Indestructible] | `engine.ts:1461` (`battleDamage`) | a battle KO | blocks it regardless of who controls the attacker |
+| [Indestructible] | `script.ts:1267-1280` (interpreted `ko`) | a skill KO | blocks it only when the skill is an opponent's (`masterOf(id) !== master`) — two moments, not one |
+| [Unique] | `engine.ts:598-609` (state-based cleanup) | ongoing, after any change | a second same-named card in a Battle Area is moved to Drop; the engine keeps the newest (stated approximation of 21-11, a master's choice) |
+| [Unique] | `engine.ts:2273-2278`/`2284-2292` (`canPlay`/`whyNotPlay`) | before a play | blocks playing a second copy outright |
+| [Critical] | `engine.ts:1450-1451`, `1480` (`battleDamage`/`damageLife`) | leader-hit life damage | destination `drop` instead of `hand`, face up |
+| [Strike] | `engine.ts:1448-1449`, `1454-1456` | leader- and Unison-hit damage | raises the amount / marker count to `max(1, x)` |
+| [Victory Strike] | `engine.ts:1455`, `1513-1516` | Unison-hit damage, then any life damage | takes every marker (overrides [Strike]); ends the game on the first point landed |
+| [Servant] | `state.ts:565` (`powerOf`) | power calculation, everywhere read | `+10000` |
+| [Aegis] | `engine.ts:2408-2415`/`2656-2663`/`3182,3259-3283`/`1647-1670` | Defense Step activation | its own multi-step activation (Group D territory in practice — confirm before writing its body) |
+| [Alliance] | `engine.ts:845-876`/`1671-1683` | on attack, a rest-as-cost choice | filed here by the plan's candidate list; its own moment is `onAttackDeclared` (Group C) — confirm before writing |
+| [Warrior of Universe 7] | `state.ts:2524-2526` | specified-cost calculation | clears the specified cost of ≪Universe 7≫ cards outright — filed under `altPayment` (Group D) in this contract; the plan's own candidate list names it here too, so the group issue decides which one call site it actually needs |
+
+**Group B — entering, leaving, after a skill**
+
+| keyword | file:line | moment | reads / changes |
+|---|---|---|---|
+| [Field] | `engine.ts:899-903` | resolution, played as an Extra | drops every other [Field] card on the master's side first, then places this one |
+| [Z-Stack] | `engine.ts:827-838`, `1565-1567,1574-1584` | resolution, once triggered by `played`/`leaderPlaced` | prompts 0..X Z-Deck cards, re-parents each under the Z-card's `under[]` |
+| [Revive] | `engine.ts:877-897`, `1685-1700` | resolution, once triggered by `koed` | drops hand cards covering both named colours to play this card back from Drop |
+| [Wish]/[Awaken] | `cards.ts:170-172`, `engine.ts:2331-2338,2562-2570,3182,3185-3188,839-844` | activation | queues a Leader flip before the effect resolves |
+| [Z-Awaken] | `cards.ts:223`, `engine.ts:2436-2447,2690-2707,2529,3182,3334-3352` | activation, once a turn, from Z-Deck | stacks the new Leader on the old, reassigns power effects and any open battle role |
+| [Evolve]/[EX-Evolve]/[Xeno-Evolve] | `cards.ts:196-198`, `engine.ts:1585-1606` | a chosen target resolves | ordinary Evolve stacks on top (carries position/power effects); Xeno-Evolve sends the target to Warp first; no target → this card goes to Drop |
+| [Union] (Fusion/Potara/Absorb) | `cards.ts:199-205`, `engine.ts:1607-1629` | activation resolves | Fusion drops both named cards as cost; Potara stacks onto the first and pulls the second underneath |
+| [Over Realm]/[Dark Over Realm] | `cards.ts:206`, `engine.ts:3229-3250` | activation | moves the whole Drop to Warp as cost, schedules an end-of-turn Warp return (also scheduled for Dark, which 22-23 does not literally ask for — a stated approximation) |
+| [Swap] | `cards.ts:207`, `engine.ts:1701-1711` | activation resolves | returns this card to hand as cost regardless of the choice; plays the chosen card if any |
+| [Successor] | `cards.ts:213`, `engine.ts:1630-1645` | a repeating pick | accumulates a cost-matching set, then drops it and opens play |
+| [Overlord] | `cards.ts:214`, `engine.ts:3318-3324` | activation | picks one [Servant] card arbitrarily (stated approximation — a master's choice per the manual) rather than asking, bottoms it, draws 1 |
+| [Rejuvenate] | `cards.ts:215`, `engine.ts:3285-3299` | activation | drops the topmost card under the stack (stated approximation, not the master's pick), pays markers, top of deck → life |
+| [Heroic] | `engine.ts:769-775,786-799` | on any card played | draws 1 the first time another [Heroic] card is played that turn; negates itself for the turn |
+| [Villainous] | `engine.ts:769-775,786-799` | on any card played | same shape; the opponent discards their own choice, not the end of their hand |
+| [Wormhole] | `cards.ts:191`, `engine.ts:2376,2615` | reading Over Realm's own limit | raises the once-a-turn cap to 2 |
+| [Invoker] | `cards.ts:192`, `state.ts:1954-1987`, `engine.ts:2489-2496` | offering an alternative payment | a Red/Blue Extra may be paid by resting one active Red/Blue energy instead |
+
+**Group C — battle: blocking, counters, attack, damage, battle end**
+
+| keyword | file:line | moment | reads / changes |
+|---|---|---|---|
+| [Blocker] | `engine.ts:1334-1345`, `rejections.ts:149-161`, `triggers.ts:181-182` | declaring an attack, before Offense | offers a block choice among active, unforbidden [Blocker] cards; #150's `battleBlocker` already builds the *offer* — this hook is the follow-up once one is chosen |
+| [Attack] (Dual/Triple) | `cards.ts:177-178`, `engine.ts:808-813` | on attack | up to `x-1` extra stand-and-attack-again cycles a turn, per card instance |
+| [Revenge] | `cards.ts:179`, `engine.ts:814-816` | becoming the guard card, resolved at battle end | KOs the attacking card |
+| [Awaken] (the Leader flip on damage) | see Group B — its own activation is `Wish`/`Awaken`'s; a battle only *reaches* it through ordinary activation, so no separate battle-group site exists beyond the ones already listed | | |
+| [Ultimate] | `cards.ts:188`, `state.ts:1384,1440-1443` | leaving play (or Combo) for anywhere but another play/Combo area | redirected to "removed from the game" instead |
+| [Double/Triple/Quadruple Strike] | see [Strike] in Group A — printed as a parameter (`x: 2\|3\|4`), read at the same battle-damage sites | | |
+
+**Group D — playing, charging, alternative payment**
+
+| keyword | file:line | moment | reads / changes |
+|---|---|---|---|
+| [Energy-Exhaust] | `cards.ts:185`, `state.ts:1477` | any move landing a card in an Energy Area | arrives in Rest Mode — reads the printed-only `hasKeyword`, not the in-force `has`, so a *granted* Energy-Exhaust would not fire this site today (a gap worth deciding on rather than copying) |
+| [Offering] | `cards.ts:195`, `triggers.ts:26-27`, `engine.ts:817-825,3039-3047` | resolution, on `played` | opponent may drop a life card; if they don't (or have none), the owner draws 2 |
+| [Evolve] | see Group B — its cost math (`evolveCost`, a separate reduction channel from `skillCost`) is Group D's concern even though its resolution is Group B's | | |
+| [Union] | see Group B — Absorb's activation legality (battle area, orbs, `canResolve`) is Group D's | | |
+| [Over Realm] | see Group B — its once-a-turn limit and orb cost are Group D's | | |
+| [Swap] | see Group B — its cost-X-card-in-hand legality check is Group D's | | |
+| [Spirit Boost] | `cards.ts:216,342-344`, `engine.ts:1195,1199,1203,1208-1217`, `compile/effects.ts:1739-1745` | a skill's own cost | removes X markers from a Unison in play; two independent compiled paths (the tag-cost and a `[Permanent]`'s prose "pay the cost for [Spirit Boost N]") both end in the same marker removal |
+| [Empower] | `cards.ts:217-221`, `engine.ts:697-723,3049-3053` | playing a Unison over one whose colour matches | suspends for a 0..min(x, old.markers) carry choice, owner's ruling 9 Sep 2026 ("asked, not assumed") |
+
+Two keywords carry **no runtime site at all** beyond the parser and the generic keyword-filter
+machinery every keyword gets for free: [Super Combo] and [Dragon Ball] are deck-legality only
+(`support: "deck"` in the glossary) and need no hook.
 
 ---
 

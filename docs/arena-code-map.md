@@ -199,6 +199,19 @@ the same as if it were still in `CLAUDE.md`.
   first) copied from the legacy `checkpoint`, and the runner drains one between steps and before any
   question. §22 keyword
   moments are pended by neither the record nor `triggers.rules`: they are Stage 7's hooks (#153).
+  **#153 confirmed the fifteen hook points and built the contract**, `vm/hooks.ts`, from a full
+  inventory of the legacy engine's 38 inline keyword sites (`docs/arena-ruleset-spec.md` §4). Fifteen
+  names, four groups matching the `s7-0{2,3,4,5}` issues (A choosing/immunity/KO-by-effect, B
+  enter/leave/after-a-skill, C battle, D play/charge/pay), each answering as a **query** (asked
+  mid-calculation, read declaratively off the body the way `vm/effects.ts`'s `permanents()` reads a
+  [Permanent] without running it — `queryHookStatics`) or an **effect** (something happens; queued
+  onto `state.programs` exactly like a triggered [Auto]'s `DO` block — `fireHook`). Both go through
+  one lookup, `hookBodiesFor`, so a hook body is never a special case a call site invents — `rulesets/
+  hooks.ts` carries the closed name list the loader checks a `HOOK` against (it cannot import `vm/`,
+  which imports it back), `vm/hooks.ts`'s `HOOK_CONTRACT` is the typed, documented half beside it. No
+  keyword names a body yet (`rulesets/dbs/keywords.rules` still declares all 39 with none) — the
+  plumbing is proved instead by a small worked ruleset in `scripts/verify/rulesets.ts`, one body per
+  hook, run through both runners for real. Writing the 39 real bodies is `s7-02` through `s7-05`.
   **The interpreter is shared** (#142): `stepScript` runs on a `ScriptHost`
   (`engine/script-host.ts`) rather than on a `GameState`, `legacyHost` is that interface over the
   old state and `vm/host.ts` over the new one, so one `card_rules` row means one thing on both

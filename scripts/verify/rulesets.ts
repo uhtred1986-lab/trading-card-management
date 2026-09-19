@@ -37,13 +37,18 @@
  * Part of `npm test`; run from `scripts/verify-arena.ts`, which fixes the order.
  */
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import { effectLanguage } from "../../src/lib/arena/ai/opponent";
 import { AREA_NAMES, CARD_ATTRIBUTES, KEYWORD_NAMES, OP_CLASS, OP_SCHEMA, PHASES, PROMPT_KINDS, validateProgram, type Op } from "../../src/lib/arena/engine/script";
-import type { CounterWindow } from "../../src/lib/arena/engine/types";
+import type { CounterWindow, KeywordSkill, PlayerId } from "../../src/lib/arena/engine/types";
 import { TRIGGERS, describeTrigger } from "../../src/lib/arena/gaps";
 import { deepEqual, parseDefinitions, parseRule, printDefinitions, validateRule } from "../../src/lib/arena/lang";
 import { loadRuleset, loadDbs, rulesetFor, DBS_FILES, MacroError, expandMacros, opsIn, HOOK_POINTS, type KeywordDef, type RulesetError } from "../../src/lib/arena/rulesets";
 import { optionsFor, whenMoments, words } from "../../src/lib/arena/rulesets/words";
+import { RULES } from "../../src/lib/arena/vm";
+import { HOOK_CONTRACT, fireHook, hookBodiesFor, queryHookStatics } from "../../src/lib/arena/vm/hooks";
+import { CTX, fifty } from "./harness";
 
 const lines = (...rows: string[]): string => rows.join("\n");
 
@@ -139,7 +144,7 @@ const WHOLE: Record<string, string> = {
     "DEFINE KEYWORD Blocker",
     "  TAKES ()",
     '  text: "switch this card to Active Mode and make it the attack target (22-4)"',
-    "  HOOK attackDeclared {}",
+    "  HOOK onAttackDeclared {}",
   ),
 };
 
@@ -808,6 +813,192 @@ if (dbs.ok) {
   assert.equal(validateRule(ruleOf("played"), "auto"), null, "validateRule refuses a moment the game declares");
   assert.equal(validateRule(ruleOf("counter:play"), "auto")?.field, "trigger", "validateRule accepts a counter window as a WHEN, which the engine never fires");
   assert.equal(validateRule(ruleOf("nosuchmoment"), "auto")?.field, "trigger", "validateRule accepts a moment nothing declares");
+}
+
+// ── the hook contract (#153): the doc's table, and a worked ruleset run for real ──
+//
+// `docs/arena-ruleset-spec.md` §4.1's table is the contract's other written
+// copy, the way §2.3/§2.4's own tables are `OP_CLASS`/`COND_CLASS`'s — read
+// here and asserted against `HOOK_CONTRACT` (`src/lib/arena/vm/hooks.ts`) so
+// the two cannot drift apart unnoticed. §4.2's fifteen worked bodies are
+// loaded for real below and run through `hookBodiesFor`/`queryHookStatics`/
+// `fireHook` against a real dealt rules-engine game — proving the plumbing
+// (lookup, `$`-binding, the query/effect split) works end to end without any
+// of the 39 real keywords carrying a body yet, which stays #153's own line.
+{
+  const doc = fs.readFileSync(path.join(__dirname, "../../docs/arena-ruleset-spec.md"), "utf8").replace(/\r\n/g, "\n");
+  const start = doc.indexOf("### 4.1 The fifteen hook points");
+  const end = doc.indexOf("### 4.2 One worked example per hook", start);
+  assert.ok(start >= 0 && end > start, "§4.1 is missing from the ruleset spec");
+  const table = doc.slice(start, end);
+  const rows = [...table.matchAll(/^\| `([a-zA-Z]+)` \| ([ABCD]) \| (query|effect) \| [^|]+ \| [^|]+ \|$/gm)];
+  assert.deepEqual(
+    rows.map((r) => r[1]).sort(),
+    [...HOOK_POINTS].sort(),
+    "§4.1's table and HOOK_POINTS name different hooks",
+  );
+  for (const [, name, group, answer] of rows) {
+    const spec = HOOK_CONTRACT[name as keyof typeof HOOK_CONTRACT];
+    assert.equal(spec.group, group, `§4.1 says ${name} is group ${group}, HOOK_CONTRACT says ${spec.group}`);
+    assert.equal(spec.answer, answer, `§4.1 says ${name} answers as a ${answer}, HOOK_CONTRACT says ${spec.answer}`);
+  }
+
+  // `hookBodiesFor` is the one lookup `queryHookStatics`/`fireHook` both go
+  // through — asserted rather than assumed, because a second call site
+  // reading `game.keywords[...].hooks` directly would be exactly the special
+  // case the contract exists to rule out (CLAUDE.md, Conventions).
+  const vmDir = path.join(__dirname, "../../src/lib/arena/vm");
+  const lookupSites: string[] = [];
+  for (const file of fs.readdirSync(vmDir)) {
+    if (!file.endsWith(".ts") || file === "hooks.ts") continue;
+    const text = fs.readFileSync(path.join(vmDir, file), "utf8");
+    if (/\.hooks\b/.test(text)) lookupSites.push(file);
+  }
+  assert.deepEqual(lookupSites, [], `a hook body is looked up outside vm/hooks.ts, in: ${lookupSites.join(", ")}`);
+}
+
+{
+  // One keyword per hook, each body the same shape as §4.2's own worked
+  // example (two adapted to this fixture's own zones and names, noted where
+  // they are — kept in sync by hand; this block fails loudly if a body stops
+  // parsing, which is the whole reason to run it rather than only read it).
+  const KEYWORD_AT: Record<string, { keyword: string; def: string }> = {
+    chooseable: { keyword: "Barrier", def: 'DEFINE KEYWORD Barrier\n  TAKES ()\n  text: "x"\n  HOOK chooseable {\n    immune(from: opponent, until: game)\n  }' },
+    koByEffect: {
+      keyword: "Indestructible",
+      def: 'DEFINE KEYWORD Indestructible\n  TAKES ()\n  text: "x"\n  HOOK koByEffect {\n    immune(from: opponent, until: game)\n  }',
+    },
+    attrBonus: {
+      keyword: "Servant",
+      def: 'DEFINE KEYWORD Servant\n  TAKES ()\n  text: "x"\n  HOOK attrBonus {\n    modifyAttr(target: [self], attr: power, amount: 10000)\n  }\n  HOOK activeStep {\n    modifyAttr(target: [self], attr: mode, mode: rest)\n  }',
+    },
+    // `to: hand` rather than §4.2's `to: drop` — this fixture's zones (below)
+    // are `WHOLE`'s own three and do not include a Drop Area; the hook body
+    // proves the same thing either way (a real move, run as the card arrives).
+    onEnter: {
+      keyword: "Field",
+      def: 'DEFINE KEYWORD Field\n  TAKES ()\n  text: "x"\n  HOOK onEnter {\n    choose(sel: 1 "other Field Extra" IN you.battle, as: "t")\n    moveTo(target: $t, to: hand)\n  }',
+    },
+    onLeave: { keyword: "Revive", def: 'DEFINE KEYWORD Revive\n  TAKES ()\n  text: "x"\n  HOOK onLeave {\n    play(target: [self])\n  }' },
+    afterSkill: { keyword: "Heroic", def: 'DEFINE KEYWORD Heroic\n  TAKES ()\n  text: "x"\n  HOOK afterSkill {\n    draw(n: 1)\n  }' },
+    activeStep: { keyword: "Servant", def: "" }, // declared alongside attrBonus above — one keyword, two hooks
+    // Named "Guardian" rather than [Blocker] (§4.2's own name for this hook)
+    // only because `WHOLE["play.rules"]` above already declares a KEYWORD
+    // Blocker for an earlier test — a real ruleset never repeats a name, so
+    // the collision is this fixture file's, not the language's.
+    block: { keyword: "Guardian", def: 'DEFINE KEYWORD Guardian\n  TAKES ()\n  text: "x"\n  HOOK block {\n    modifyAttr(target: [self], attr: mode, mode: rest)\n  }' },
+    counterWindow: {
+      keyword: "Deflect",
+      def: 'DEFINE KEYWORD Deflect\n  TAKES ()\n  text: "x"\n  HOOK counterWindow {\n    forbid(what: activateCounter, until: turn)\n  }',
+    },
+    onAttackDeclared: {
+      keyword: "Alliance",
+      def: 'DEFINE KEYWORD Alliance\n  TAKES ()\n  text: "x"\n  HOOK onAttackDeclared {\n    choose(sel: 1 "a card of the named colours" IN you.battle, as: "t")\n    modifyAttr(target: $t, attr: mode, mode: rest)\n  }',
+    },
+    beforeDamage: {
+      keyword: "Critical",
+      def: 'DEFINE KEYWORD Critical\n  TAKES ()\n  text: "x"\n  HOOK beforeDamage {\n    modifyAttr(target: [self], attr: power, amount: 5000, until: battle)\n  }',
+    },
+    battleEnd: { keyword: "Revenge", def: 'DEFINE KEYWORD Revenge\n  TAKES ()\n  text: "x"\n  HOOK battleEnd {\n    ko(target: [attacker])\n  }' },
+    playRefused: {
+      keyword: "Unique",
+      def: 'DEFINE KEYWORD Unique\n  TAKES ()\n  text: "x"\n  HOOK playRefused {\n    if(cond: count("a card with the same name" IN you.battle) >= 1, then: { forbid(what: play, until: turn) })\n  }',
+    },
+    chargeLimit: {
+      keyword: "Energy-Exhaust",
+      def: 'DEFINE KEYWORD "Energy-Exhaust"\n  TAKES ()\n  text: "x"\n  HOOK chargeLimit {\n    modifyAttr(target: [self], attr: mode, mode: rest)\n  }',
+    },
+    altPayment: {
+      keyword: "Warrior of Universe 7",
+      def: 'DEFINE KEYWORD "Warrior of Universe 7"\n  TAKES ()\n  text: "x"\n  HOOK altPayment {\n    modifyAttr(target: [self], attr: markers, amount: 0, until: game)\n  }',
+    },
+  };
+  assert.deepEqual(Object.keys(KEYWORD_AT).sort(), [...HOOK_POINTS].sort(), "this test does not cover every hook point");
+
+  const keywordsRules = lines(...Object.values(KEYWORD_AT).map((k) => k.def).filter(Boolean));
+  const loaded = loadRuleset({ ...WHOLE, "keywords.rules": keywordsRules });
+  assert.ok(loaded.ok, `the fifteen worked hook bodies did not load: ${loaded.ok ? "" : JSON.stringify(loaded.errors, null, 2)}`);
+  if (!loaded.ok) throw new Error("unreachable");
+  const def = loaded.definition;
+
+  // A fresh deal leaves everything in the deck, waiting on `chooseFirst`; the
+  // same staging sequence `harness.ts`'s own `arenaOnRules` uses (there,
+  // engine-switched — here, the rules engine unconditionally, since this
+  // block tests the rules engine's own module, not whichever `--engine`
+  // named) reaches p1's second Main Phase with a real, dealt hand.
+  let state = RULES.createGame(CTX, { seed: 7, p1: { name: "You", leader: "L-RED", main: fifty("V1"), z: [] }, p2: { name: "Claude", leader: "L-BLUE", main: fifty("V-BLUE") } }).state;
+  const chooser = (state.prompt as { player: PlayerId }).player;
+  state = RULES.apply(CTX, state, { type: "chooseFirst", player: chooser, first: "p1" }).state;
+  state = RULES.apply(CTX, state, { type: "mulligan", player: "p1", redraw: false }).state;
+  state = RULES.apply(CTX, state, { type: "mulligan", player: "p2", redraw: false }).state;
+  state = RULES.apply(CTX, state, { type: "charge", player: "p1", card: null }).state;
+  state = RULES.apply(CTX, state, { type: "endMain", player: "p1" }).state;
+  state = RULES.apply(CTX, state, { type: "charge", player: "p2", card: null }).state;
+  state = RULES.apply(CTX, state, { type: "endMain", player: "p2" }).state;
+  state = RULES.apply(CTX, state, { type: "charge", player: "p1", card: null }).state;
+  assert.equal(state.prompt.kind, "main", "the rules-engine fixture did not reach p1's second Main Phase");
+  const cardId = state.sides.p1.zones.hand[0];
+  assert.ok(cardId, "a dealt hand was empty");
+
+  let nextEffectId = 1;
+  for (const { keyword } of Object.values(KEYWORD_AT)) {
+    if (state.effects.some((e) => e.kind === "keyword" && (e.value as KeywordSkill).name === keyword)) continue;
+    state.effects.push({
+      id: nextEffectId++,
+      target: cardId,
+      kind: "keyword",
+      value: { name: keyword } as KeywordSkill,
+      until: "game",
+      ownerTurn: "p1" as PlayerId,
+      master: "p1" as PlayerId,
+      createdTurn: 0,
+    });
+  }
+
+  for (const [point, { keyword }] of Object.entries(KEYWORD_AT)) {
+    const bodies = hookBodiesFor(CTX, def, state, cardId, point as keyof typeof HOOK_CONTRACT);
+    assert.equal(bodies.length, 1, `[${keyword}]'s ${point} body was not found on the card it was granted to`);
+    assert.equal(bodies[0].keyword.name, keyword, `hookBodiesFor found the wrong keyword's body for ${point}`);
+
+    const spec = HOOK_CONTRACT[point as keyof typeof HOOK_CONTRACT];
+    if (spec.answer === "query") {
+      const facts = queryHookStatics(CTX, def, state, cardId, point as keyof typeof HOOK_CONTRACT);
+      if (point === "playRefused") {
+        // [Unique]'s body is read fresh, condition and all — a proof
+        // `queryHookStatics` really does read declaratively rather than
+        // trusting a body unconditionally. On a fresh deal no second copy of
+        // `cardId`'s card is on the board, so the `if` does not take its
+        // branch and this is honestly zero facts, not a bug in the walker.
+        assert.equal(facts.length, 0, "[Unique]'s condition held on a board with no second copy of the card");
+        const sameCardDef = state.cards[cardId].cardId;
+        const duplicateId = state.sides.p1.zones.deck.find((id) => state.cards[id].cardId === sameCardDef)!;
+        assert.ok(duplicateId, "the deck holds no second copy of p1's hand card to stage");
+        state.sides.p1.zones.deck = state.sides.p1.zones.deck.filter((id) => id !== duplicateId);
+        state.sides.p1.zones.battle.push(duplicateId);
+        const withDuplicate = queryHookStatics(CTX, def, state, cardId, point);
+        assert.equal(withDuplicate.length, 1, "[Unique]'s condition did not hold once a second copy was staged");
+        assert.equal(withDuplicate[0].op, "forbid");
+        state.sides.p1.zones.battle.pop();
+        state.sides.p1.zones.deck.push(duplicateId);
+      } else {
+        assert.equal(facts.length, 1, `[${keyword}]'s ${point} body did not read as one fact`);
+        assert.equal(facts[0].keyword.name, keyword);
+      }
+      assert.throws(() => fireHook(CTX, def, state, cardId, point as keyof typeof HOOK_CONTRACT), /is a query hook/, `fireHook accepted the query hook ${point}`);
+    } else {
+      const before = state.programs.length;
+      fireHook(CTX, def, state, cardId, point as keyof typeof HOOK_CONTRACT);
+      assert.equal(state.programs.length, before + 1, `[${keyword}]'s ${point} body did not queue a program`);
+      const frame = state.programs.shift()!;
+      assert.equal(frame.card, cardId);
+      assert.deepEqual(frame.vars.self, [cardId]);
+      assert.throws(() => queryHookStatics(CTX, def, state, cardId, point as keyof typeof HOOK_CONTRACT), /is an effect hook/, `queryHookStatics accepted the effect hook ${point}`);
+    }
+  }
+
+  // A body among another keyword's hooks does not answer for this one — the
+  // lookup is per hook point, not "does this card have any body at all".
+  assert.equal(hookBodiesFor(CTX, def, state, cardId, "chooseable").length, 1, "granting fifteen keywords at once should not multiply a single hook's bodies");
 }
 
 console.log("verify/rulesets: ok");

@@ -8,38 +8,43 @@
  * place in an algorithm and declaring it would move a decision nobody can make
  * to a place nothing tests (`docs/arena-ruleset-spec.md` §7).
  *
- * **Provisional.** §4 of that spec, "the hook contract", is #153's: an
- * inventory taken from the inline keyword sites in the legacy engine, each
- * with an example body. This list is what the loader checks a `HOOK` against
- * until then — drawn from the categories §4 names (choosing, immunity, enter
- * and leave, battle, play/charge/pay) and from the two the language doc's own
- * examples use. Adding one here is not a decision about the engine; it is a
- * promise #153 has to keep or correct.
+ * **Confirmed by #153's inventory** of every inline keyword site in the
+ * legacy engine (`src/lib/arena/engine/`) against the plan's own fifteen
+ * names, grouped exactly as `docs/arena-backlog/s7-0{2,3,4,5}-*.md` split
+ * them (`docs/arena-ruleset-spec.md` §4 has the full site-by-site table):
+ *
+ *   A. choosing, immunity, KO by effect  — `chooseable`, `koByEffect`, `attrBonus`
+ *   B. entering, leaving, after a skill  — `onEnter`, `onLeave`, `afterSkill`, `activeStep`
+ *   C. battle                            — `block`, `counterWindow`, `onAttackDeclared`, `beforeDamage`, `battleEnd`
+ *   D. playing, charging, alt payment    — `playRefused`, `chargeLimit`, `altPayment`
+ *
+ * `src/lib/arena/vm/hooks.ts` is the other half: what each point binds, what
+ * a body found there is read to mean, and the two functions (one per answer
+ * kind) that run it. This file stays the loader's — the language's parser and
+ * `loadRuleset` both read it and must not import `vm/`, which itself imports
+ * this file, so the *names* live here and the *contract* lives beside the
+ * interpreter that reads them.
  */
 export const HOOK_POINTS = [
-  // play, charge and pay
-  "cardPlayed",
-  "cardCharged",
-  "costChecked",
-  "costPaid",
-  // entering and leaving a Battle Area
-  "enterPlay",
-  "leavePlay",
-  // the battle (7-x, 8-x)
-  "attackDeclared",
-  "blockDeclared",
+  // A — choosing, immunity, KO by effect
+  "chooseable",
+  "koByEffect",
+  "attrBonus",
+  // B — entering, leaving, after a skill
+  "onEnter",
+  "onLeave",
+  "afterSkill",
+  "activeStep",
+  // C — battle: blocking, counters, attack, damage, battle end
+  "block",
+  "counterWindow",
+  "onAttackDeclared",
+  "beforeDamage",
   "battleEnd",
-  "damageDealt",
-  // being chosen, and the immunities that refuse it
-  "beingChosen",
-  "beingKOd",
-  "beingNegated",
-  // what a card is, read rather than resolved
-  "powerCalculated",
-  "keywordsCalculated",
-  // the turn
-  "turnStart",
-  "turnEnd",
+  // D — playing, charging, alternative payment
+  "playRefused",
+  "chargeLimit",
+  "altPayment",
 ] as const;
 
 export type HookPoint = (typeof HOOK_POINTS)[number];
