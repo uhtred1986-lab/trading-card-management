@@ -389,8 +389,24 @@ export function run(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     // front of the first. This is also what a suspended program resumes
     // through — the answer came back, the frame is at the front, and the next
     // pass through the loop steps it.
+    //
+    // #151: a program is exactly where a card's own `damage`/`addLife`/
+    // `lifeDownTo` can bring a life pile to 0 (`stepScript`'s own cases,
+    // `engine/script.ts`) — a skill's effect, not a battle step's native
+    // `dealDamage`, so the two checkpoints above (`run`'s own opening call and
+    // the one beside a step's `STEP_WORK`) never see it: this frame's step
+    // stays the current one, `top.asking` is left exactly as it was, and
+    // nothing re-enters the `top.asking === undefined` branch that carries
+    // the other call. A hand-staged board at 1 life, a skill queued with a
+    // `damage` op and nothing else, `run` called once, confirmed the gap
+    // empirically before this line was added: `state.winner` stayed `null`
+    // and the Main Phase's own question came back, exactly the "compiles and
+    // reads plausibly, does nothing" failure mode the programme has paid for
+    // before. Checked again here, so a program that ends the game is caught
+    // in the same pass that ran it rather than the next action's own.
     if (state.programs.length) {
       if (stepProgram(ctx, game, state, ev) === "wait") return;
+      checkWins(ctx, game, state, ev);
       continue;
     }
 

@@ -92,6 +92,26 @@ understands or does) and, for what the engine reads today, `src/lib/arena/glossa
   have been), and a negated attack's jump to `battleEnd` landed one step past it, leaving the
   battle open forever (`vm/flow.ts`'s runner does `top.index++` right after a step's `run` returns
   without waiting, so the jump has to land one short).
+- **#151 (damage, life, Z-Energy) found three of its four build items already done and one real
+  gap, now closed.** Combo's power reaching the fight is #150's own (§23's `view.battle.contributions`
+  assertion already covers it); Z-Energy from a spent combo card is #146/#149's `playZ` paying
+  `dbs/costs.rules`'s `DEFINE COST zEnergy`, per the one comment on issue #151 itself. `damage`/
+  `addLife`/`lifeDownTo` are not new primitives — `stepScript` (`engine/script.ts`) has carried a
+  full `case` for each since #142, and `vmHost` implements every `ScriptHost` method those cases
+  call, so a card's own skill program reaching one was already possible before this issue. The real
+  gap, found by staging it rather than trusting the claim: `vm/flow.ts`'s `checkWins` ran beside a
+  *step's* own native work and once at `run`'s opening, but never beside a *program* draining
+  through `stepProgram` — the path every [Auto]/[Activate]/[Counter] skill's `DO` block takes. A
+  card's own skill dealing the last point of damage left `state.winner` `null` and the Main Phase's
+  question back on the table; one line beside `stepProgram`'s own call now checks again there too.
+  What stays out, and why: `damage`/`addLife`/`lifeDownTo` still carry no `DEFINE OP` row in
+  `ops.rules` — a macro's body can only give a selector's count a bare `number`
+  (`rulesets/holes.ts`), while these ops' own `n` is an `amount`, X included, so declaring the row
+  today would silently misread the first X-priced card it met. That is #122's ("a selector that can
+  count by an expression"), not this issue's — no row in `ops.rules` is declared "for the fixed
+  case only", so there is no precedent for a partial declaration either. `verify/vm.ts` §24 is the
+  section for all four findings: the WIN checkpoint checked by hand for both paths, `addLife`/
+  `lifeDownTo` exercised the same way, and one assertion that the macro row stays absent today.
 - **Tests**: `scripts/verify-arena.ts` runs (in order) `text, setup, battles, compiler, keywords,
   readings, wordings, workflow, contract, deck-api, language, lang, rulesets, probe, vm` — a new
   suite is one `import "./verify/<name>"` line there. `scripts/verify/vm.ts` is the rules-engine
