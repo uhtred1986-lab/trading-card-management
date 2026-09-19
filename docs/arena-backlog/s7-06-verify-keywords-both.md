@@ -3,6 +3,8 @@ title: Arena: verify/keywords.ts green on both engines and the keyword page true
 milestone: Arena M10 — Keywords as macros (Stage 7)
 labels: backlog, ready-for-agent, enhancement, area:arena-vm, area:arena-workbench, phase:rules-stage7, model:sonnet-5
 stage: 7
+status: closed
+closed_at: 2026-09-19
 touches: scripts/verify/keywords.ts, src/lib/arena/glossary.ts, src/app/arena/rules/keywords/page.tsx, docs/arena-tooling.md
 ---
 **Source:** `scripts/verify/keywords.ts`; `/arena/rules/keywords` (rendered from `src/lib/arena/glossary.ts`); `CLAUDE.md`'s glossary rule.
