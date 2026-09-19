@@ -268,6 +268,31 @@ the same as if it were still in `CLAUDE.md`.
   [Victory Strike] read a life-damage amount or destination before `dealDamage` moves the card — a
   synchronous decision an `effect` hook's deferred queue cannot make in time; and [Ultimate]'s own
   moment is `onLeave` (group B), whose firing site is #155's, not this issue's.
+  **`s7-05` (#157) wrote group D's one tractable body**: [Energy-Exhaust]'s `chargeLimit` (22-31),
+  fired from `vm/host.ts`'s `moveTo` — the one *script-level* mover every `DO` program's own
+  `moveTo` op runs through, the charge action's own included — rather than `vm/flow.ts`'s `moved()`
+  (a *different*, native mover for a KO, a combo card leaving, a battle; #155's own hooks live
+  there). The rest of D's candidates are deferred: [Offering]'s own moment is `onEnter` (group B,
+  #155's firing site, not this issue's); [Evolve]/[Union]/[Over Realm]/[Swap] are whole-keyword
+  activations with no `do:` a `DEFINE KEYWORD` can carry yet, and their Group D half (cost math,
+  once-a-turn limits, legality checks) is part of the same unbuilt activation, not separable from
+  it; [Spirit Boost] already resolves through the price grammar directly
+  (`engine/compile/effects.ts`), needing no hook at all; and [Empower]'s "asked, not assumed" carry
+  choice (owner's ruling, 9 Sep 2026) is a suspended prompt mid-play that no candidate hook's shape
+  covers. **[Unique]'s own reassignment to `playRefused` (#154) turned out mistaken**, found while
+  writing its body: the contract's own worked example (`count("a card with the same name" IN
+  you.battle) >= 1`) does not actually read "the same name" as a self-referential comparison at
+  all — `parseFilter` has no such phrase, so it silently parses to an empty, match-anything filter
+  (checked directly: `names: []`), which would make the compiled rule forbid *every* play the
+  moment any card is in the Battle Area. The real primitive for "no one may play a card sharing my
+  name" is `forbid`'s own `sameNameAsSelf` (`engine/script.ts`), but it is a *targetless, board-wide
+  [Permanent]-style static* — read through `statics()`'s own zone-gated `forbid` case (`!inPlayNow`
+  continues), naturally matching "while a card with [Unique] is in play" — not a per-candidate
+  query asked of the *hand card being checked*, which is what `playRefused` actually binds `self`
+  to. Forcing it through `playRefused` reads the wrong card's own keyword entirely (a duplicate
+  candidate would need to carry [Unique] itself, and the fact would test the candidate's name
+  against its own, which is always true). [Unique] fits none of the fifteen hook points as
+  contracted; left undeclared, named here rather than forced.
   **The interpreter is shared** (#142): `stepScript` runs on a `ScriptHost`
   (`engine/script-host.ts`) rather than on a `GameState`, `legacyHost` is that interface over the
   old state and `vm/host.ts` over the new one, so one `card_rules` row means one thing on both
