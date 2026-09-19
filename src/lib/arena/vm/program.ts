@@ -351,8 +351,18 @@ interface RuleInForce {
   forbid: Prohibition;
 }
 
-/** Every prohibition on the board, in the order the legacy `forbids` reads them: the timed ones, the standing ones, then the card's own (9-1-3-3). */
-function prohibitions(ctx: EngineContext, game: GameDefinition, state: VmState, card?: string): RuleInForce[] {
+/**
+ * Every prohibition on the board, in the order the legacy `forbids` reads
+ * them: the timed ones, the standing ones, then the card's own (9-1-3-3).
+ *
+ * `hooks: false` leaves the fourth source (below) out — `resolveSelector`'s
+ * own 20-4 check uses it, because [Barrier]'s `chooseable` hook fact carries
+ * exemptions ([Barrier]-flavoured wording, 22-16-2's "ignoring [Barrier]",
+ * and the hand carve-out) that are read separately, directly off the hook,
+ * and must not be re-applied to `ownProhibitions`/`state.effects`/a
+ * [Permanent] by this function folding every source into one boolean.
+ */
+function prohibitions(ctx: EngineContext, game: GameDefinition, state: VmState, card?: string, opts: { hooks?: boolean } = {}): RuleInForce[] {
   const out: RuleInForce[] = [];
   for (const e of state.effects) if (e.kind === "forbid" && e.forbid) out.push({ target: e.target, source: e.source ?? null, until: e.until, forbid: e.forbid });
   for (const e of statics(ctx, game, state)) if (e.kind === "forbid") out.push({ target: e.target, source: e.source, until: "permanent", forbid: e.value as Prohibition });
@@ -364,8 +374,10 @@ function prohibitions(ctx: EngineContext, game: GameDefinition, state: VmState, 
     // the worked example) — `until: "permanent"` for the same reason
     // `ownProhibitions` above is: a granted or printed keyword holds for as
     // long as the card shows it, not for a stored span.
-    for (const point of ["chooseable", "koByEffect"] as const)
-      for (const fact of queryHookStatics(ctx, game, state, card, point)) if (fact.op === "forbid") out.push({ target: card, source: card, until: "permanent", forbid: fact.forbid });
+    if (opts.hooks !== false) {
+      for (const point of ["chooseable", "koByEffect"] as const)
+        for (const fact of queryHookStatics(ctx, game, state, card, point)) if (fact.op === "forbid") out.push({ target: card, source: card, until: "permanent", forbid: fact.forbid });
+    }
   }
   return out;
 }
@@ -425,7 +437,7 @@ function nameShowing(ctx: EngineContext, state: VmState, id: string): string | u
  * menu and the refusal below cannot disagree, and the two engines cannot
  * either. A budget still to spend (`uses`) means the rule forbids nothing yet.
  */
-export function forbids(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean } = {}): boolean {
+export function forbids(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean; hooks?: boolean } = {}): boolean {
   return forbiddenBy(ctx, game, state, what, opts) !== null;
 }
 
@@ -443,9 +455,9 @@ export function forbiddenBy(
   game: GameDefinition,
   state: VmState,
   what: ForbiddenAction,
-  opts: { player?: PlayerId; card?: string; bySkill?: boolean } = {},
+  opts: { player?: PlayerId; card?: string; bySkill?: boolean; hooks?: boolean } = {},
 ): { by: string | null; until: EffectUntil; unless?: string } | null {
-  for (const rule of prohibitions(ctx, game, state, opts.card)) {
+  for (const rule of prohibitions(ctx, game, state, opts.card, { hooks: opts.hooks })) {
     if (!ruleApplies(ctx, game, state, what, rule, opts)) continue;
     if ((rule.forbid.uses ?? 0) > 0) continue;
     const viewer = opts.player ?? (opts.card && state.cards[opts.card] ? masterOf(game, state, opts.card) : undefined);
@@ -573,17 +585,23 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
       const against = sel.filter.powerRel.of === "chosen" ? (sel.filter.powerRel.var ? (frame.vars[sel.filter.powerRel.var]?.[0] ?? null) : null) : frame.card;
       if (!against || !powerRelOk(sel.filter, measureOf(ctx, game, state, id, "power"), measureOf(ctx, game, state, against, "power"))) return false;
     }
-    // 20-4 and 22-16 are the same shape — "can't be chosen", printed as a
-    // prohibition or as [Barrier]'s own `chooseable` hook (#154; `forbid(what:
-    // beChosen)`, folded into `prohibitions()`'s reading of `card`'s own
-    // rules) — and now read through the one mechanism. `ignoreBarrier` and the
-    // hand exemption stay [Barrier]-flavoured wording (22-16-2's "ignoring
-    // [Barrier]" is the only place either phrase is printed), but neither is
-    // keyed to Barrier specifically underneath: a clause marked `ignoreBarrier`
-    // is compiled that way only when the card text says so, and nothing else
-    // sets it, so widening the exemption to any `beChosen` prohibition changes
-    // no other card's reading.
-    if (!sel.special && !sel.ignoreBarrier && sel.side !== "you" && zoneOf(state, id) !== "hand" && masterOf(game, state, id) !== frame.master && forbids(ctx, game, state, "beChosen", { card: id }))
+    // 22-16: [Barrier]'s own `chooseable` hook fact (#154's `forbid(what:
+    // beChosen)`), checked on its own rather than through `forbids()`'s wider
+    // net — `ignoreBarrier` and the hand exemption are [Barrier]-flavoured
+    // wording (22-16-2's "ignoring [Barrier]" is the only place either phrase
+    // is printed: a clause marked `ignoreBarrier` is compiled that way only
+    // when the card text says so), and belong to this fact alone. Folding
+    // them into the generic 20-4 check below once wrongly lifted a card's own
+    // "can't be chosen" rule about itself the moment it sat in a hand — that
+    // rule is `ownProhibitions`' own doc claim, "wherever it sits" (9-1-3-3),
+    // and has nothing to do with [Barrier].
+    if (!sel.special && !sel.ignoreBarrier && sel.side !== "you" && zoneOf(state, id) !== "hand" && masterOf(game, state, id) !== frame.master && queryHookStatics(ctx, game, state, id, "chooseable").some((f) => f.op === "forbid"))
+      return false;
+    // 20-4: every other "can't be chosen" prohibition — `state.effects`, a
+    // [Permanent], or the card's own rule about itself — wherever the card
+    // sits. `hooks: false` leaves the fact just checked above out, so it is
+    // not re-applied here without its own exemptions.
+    if (!sel.special && masterOf(game, state, id) !== frame.master && forbids(ctx, game, state, "beChosen", { card: id, hooks: false }))
       return false;
     return true;
   });

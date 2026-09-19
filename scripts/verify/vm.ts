@@ -3304,6 +3304,55 @@ console.log("verify/vm: ok");
   }
 }
 
+// ── regression: 22-16's [Barrier] exemptions must not leak onto every other
+// "can't be chosen" prohibition (BugBot finding on PR #312) ─────────────────
+//
+// `resolveSelector`'s 20-4 check used to run [Barrier]'s own hand/side/
+// ignoreBarrier carve-outs (22-16-2) over every `beChosen` prohibition it
+// found through `forbids()`, not only the one [Barrier]'s own `chooseable`
+// hook produces. `state.effects` (`prohibitions()`'s first source — a
+// resolved skill's own forbid, not a standing [Permanent]) is not gated to
+// being in play the way `permanents()`'s `forbid` case is (`vm/effects.ts`'s
+// own `if (!inPlayNow) continue`), and the legacy engine's equivalent check
+// (`engine/state.ts:713`) carries no hand exemption at all — so an opponent
+// hand-staged forbid used to be silently lifted the moment its target sat in
+// a hand, though nothing in 20-14 says a resolved effect stops applying
+// there.
+{
+  const rulesEngine = engineFor("rules");
+  DEFS.CHOOSEHAND = card("CHOOSEHAND", { energyCost: 1, skill: "[Activate: Main] Choose 1 of your opponent's cards in their hand and negate that card's [Auto] skills in all areas." });
+
+  let s = rulesEngine.createGame(CTX, SAME).state as VmState;
+  s = rulesEngine.apply(CTX, s, { type: "chooseFirst", player: s.chooser, first: "p1" }).state as VmState;
+  s = rulesEngine.apply(CTX, s, { type: "mulligan", player: "p1", redraw: false }).state as VmState;
+  s = rulesEngine.apply(CTX, s, { type: "mulligan", player: "p2", redraw: false }).state as VmState;
+  s = rulesEngine.apply(CTX, s, { type: "charge", player: "p1", card: null }).state as VmState;
+  assert.equal(s.prompt.kind, "main", "a rules game did not reach p1's Main Phase to stage the activation");
+
+  const activator = s.sides.p1.zones.hand[0];
+  s.cards[activator].cardId = "CHOOSEHAND";
+  assert.ok(moveCard(s, DBS, activator, "battle", { owner: "p1" }).ok, "could not stage p1's activator — [Activate: Main] is offered from the Battle Area");
+  const energy = s.sides.p1.zones.hand[0];
+  s.cards[energy].cardId = "V1";
+  assert.ok(moveCard(s, DBS, energy, "energy", { owner: "p1" }).ok, "could not stage p1's energy");
+
+  const guarded = s.sides.p2.zones.hand[0];
+  const plain = s.sides.p2.zones.hand[1];
+  // A resolved skill's own "your opponent can't choose that card" (p2's
+  // card, p1 named as the forbidden chooser), staged directly —
+  // `state.effects`, not a [Permanent], and not [Barrier]'s hook.
+  addEffect(s, [], { target: guarded, kind: "forbid", value: 0, until: "game", forbid: { what: "beChosen", player: "p1" } });
+
+  const after = rulesEngine.apply(CTX, s, { type: "activate", player: "p1", card: activator, skill: 0 }).state as VmState;
+  assert.equal(after.prompt.kind, "chooseCards", "the activation did not reach its own choice");
+  const pr = after.prompt as { choice: { candidates: string[] } };
+  assert.ok(pr.choice.candidates.includes(plain), "an ordinary card in the opponent's hand is not offered as a candidate");
+  assert.ok(
+    !pr.choice.candidates.includes(guarded),
+    "22-16-2's [Barrier] exemptions lifted a `state.effects` prohibition against being chosen while its target sat in a hand — nothing in 20-14 scopes that source to being in play",
+  );
+}
+
 // ── 22. a move told apart by its cause (#274) ────────────────────────────────
 //
 // `ko` is the one row #274 declares: its `target` is a `ref`, writable since
