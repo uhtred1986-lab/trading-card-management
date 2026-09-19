@@ -17,34 +17,38 @@
  * zone that is — the same word `SETUP_ZONES` already names), and `play`,
  * `under` and `hand`, each of which the language itself names.
  *
- * **Where it is narrower than the rule, it says so rather than guessing.** Two
- * readings have no board to read yet and each returns the answer that refuses
- * rather than the answer that fires:
- *
- *   immunity (9-1-4)                                 #154.
- *   `battled` (8-1-2-2, BT3-103)                     #150 built the battle
- *       itself and `inBattle`/the `attacker`/`guard` specials with it —
- *       `battled` is the one piece left: a per-copy memory of having fought
- *       that outlives the battle, and `VmCard` carries no field for it yet.
+ * **Where it is narrower than the rule, it says so rather than guessing.**
+ * `battled` (8-1-2-2, BT3-103) has no board to read yet and returns the
+ * answer that refuses rather than the answer that fires: #150 built the
+ * battle itself and `inBattle`/the `attacker`/`guard` specials with it —
+ * `battled` is the one piece left, a per-copy memory of having fought that
+ * outlives the battle, and `VmCard` carries no field for it yet.
  *
  * 20-14's prohibitions were a third until #145: `forbids` and `forbiddenBy`
  * below read them off the board — a [Permanent] in play, a skill's turn-long
  * effect, and a card's own rule about itself wherever it sits (9-1-3-3) — so a
- * selector honours "can't be chosen" (20-4) as well as [Barrier], and a
- * `REFUSE` can gate a move on one.
+ * selector honours "can't be chosen" (20-4) as well as [Barrier] (22-16, #154:
+ * `forbid(what: beChosen)`, one of the hook contract's `chooseable`/
+ * `koByEffect` query hooks folded into `prohibitions()` alongside a card's own
+ * printed rules), and a `REFUSE` can gate a move on one. [Indestructible]
+ * (22-12)'s "or as a result of battle" half is `vm/battle.ts`'s own KO path,
+ * not a prohibition — 9-1-4 immunity from a *skill*, `koByEffect`'s own case,
+ * still has no real caller: the rules engine does not resolve a skill's `ko`
+ * yet (`vm/host.ts`, #146), so nothing reaches it to be immune from.
  *
  * Pure and client-safe: no database, no network, no `fs`.
  */
 import type { EngineContext } from "../engine";
 import { keywordsInSkills, parseSkills } from "../engine/cards";
-import type { Amount, AmountAttr, Cond, Ref, ScriptArea, ScriptFrame, Selector, Side } from "../engine/script";
+import { costModifierAs, negateAs, type Amount, type AmountAttr, type CardAttr, type Cond, type Op, type Ref, type ScriptArea, type ScriptFrame, type Selector, type Side } from "../engine/script";
 import type { EffectUntil, ForbiddenAction, KeywordSkill, PlayerId, Prohibition } from "../engine/types";
 import { other } from "../engine/types";
 import { powerRelOk } from "../engine/filters";
-import type { GameDefinition } from "../rulesets";
+import type { GameDefinition, HookPoint } from "../rulesets";
 import { PRINTED_BASE, attrsOf, type AttrValue, type Attrs } from "./cards";
 import { describeCond as sayCond } from "../engine/script-schema";
 import { mirrorSides } from "../engine/state";
+import { HOOK_CONTRACT } from "./hook-contract";
 import { ownProhibitions, permanents, valueOf, type VmStatic } from "./effects";
 import { predicateOf } from "./filters";
 import { masterOf, skillsShowing } from "./triggers";
@@ -153,6 +157,18 @@ export function attrsNow(ctx: EngineContext, game: GameDefinition, state: VmStat
     const value = valueOf(game, base, name, mine, timed);
     if (value !== undefined) out[name] = value;
   }
+  // #154: a keyword's `attrBonus` hook is a further layer, read after the
+  // declared ones and added to whatever they left — [Servant]'s flat +10000
+  // power (22-40) is the worked example. Read here rather than folded into
+  // `valueOf`'s own layers because it is not a `state.effects`/[Permanent]
+  // change at all: a keyword's own body, granted for as long as the card
+  // shows the keyword, the same standing `queryHookStatics` already is for
+  // `chooseable`/`koByEffect` above `prohibitions()`.
+  for (const fact of queryHookStatics(ctx, game, state, id, "attrBonus")) {
+    if (fact.op !== "modifyAttr") continue;
+    const current = out[fact.attr];
+    if (typeof current === "number") out[fact.attr] = current + fact.delta;
+  }
   return out;
 }
 
@@ -218,6 +234,111 @@ export function keywordsInForce(ctx: EngineContext, game: GameDefinition, state:
   return out;
 }
 
+// ── the hook contract's own reading (#153, `vm/hook-contract.ts`) ──────────
+//
+// A fifth reading beside `resolveSelector`/`resolveRef`/`amount`/`condHolds`:
+// what a keyword's `HOOK` body means. Lives here rather than in `vm/hooks.ts`
+// (which already imports this module for the query half) specifically so
+// `vm/hooks.ts` can import *this* file without a cycle — `queryHookStatics`
+// needs exactly the recursion-guarded `condHolds`/`amount` above, the same
+// reason `vm/effects.ts`'s `permanents()` takes them as callbacks instead of
+// importing this module. `vm/hooks.ts` re-exports everything here as the
+// contract's public surface; nothing outside this file and `vm/hooks.ts`
+// should read `game.keywords[...].hooks` directly (`scripts/verify/
+// rulesets.ts` asserts it).
+
+/** One keyword's body at one hook point, with the keyword instance that carries it (so a body can read its own `TAKES` parameters once a group needs to). */
+export interface HookBody {
+  keyword: KeywordSkill;
+  ops: Op[];
+}
+
+/**
+ * Every body among `subject`'s keywords in force that hangs on `point` —
+ * `keywordsInForce`'s own list above, narrowed to the ones whose
+ * `DEFINE KEYWORD` declares a `HOOK` there. The one place either runner
+ * (this file's `queryHookStatics`, `vm/hooks.ts`'s `fireHook`) looks a body
+ * up, so a second lookup written into a call site instead of here would be
+ * exactly the special case the contract exists to rule out.
+ */
+export function hookBodiesFor(ctx: EngineContext, game: GameDefinition, state: VmState, subject: string, point: HookPoint): HookBody[] {
+  const out: HookBody[] = [];
+  for (const kw of keywordsInForce(ctx, game, state, subject)) {
+    const def = game.keywords[kw.name];
+    for (const hook of def?.hooks ?? []) if (hook.at === point) out.push({ keyword: kw, ops: hook.ops });
+  }
+  return out;
+}
+
+/** A minimal frame for a hook body: the language's own shape, `self` bound the way every program already reads its own card, plus whatever this hook's `vars` name. Exported for `vm/hooks.ts`'s `fireHook`. */
+export function hookFrame(game: GameDefinition, state: VmState, subject: string, ops: Op[], vars: Record<string, string[]>): ScriptFrame {
+  return { ops, ip: 0, vars: { self: [subject], ...vars }, card: subject, master: masterOf(game, state, subject) };
+}
+
+export type QueryFact =
+  | { keyword: KeywordSkill; op: "forbid"; forbid: Prohibition }
+  | { keyword: KeywordSkill; op: "modifyAttr"; attr: CardAttr | "energyMarkers" | "guard"; delta: number };
+
+/**
+ * Every fact a query hook's bodies are in force to state right now — read
+ * fresh, applying nothing, the way `permanents()` reads a [Permanent]. Walks
+ * `if` to its taken branch and reads the leaf op every query hook is
+ * documented to end in (`forbid`, `modifyAttr`) — `forbid`'s own
+ * `ForbiddenAction` vocabulary already names every query hook's refusal
+ * (`beChosen` for `chooseable`, `beKOdBySkill`/`beMovedBySkill` for
+ * `koByEffect`, `play` for `playRefused`, `activateCounter` for
+ * `counterWindow`), so a query hook never needed a second "nothing may touch
+ * this card" primitive beside the 20-14 prohibitions `prohibitions()` already
+ * reads (#154 found this while wiring [Barrier] — #153's own `immune`-shaped
+ * example for `chooseable`/`koByEffect` was illustrative and wrong; `forbid`
+ * is what actually reaches the rejection machinery a candidate's "why not"
+ * reads, `vm/actions.ts`'s `forbiddenBy`). A body that ends in anything else
+ * is a ruleset the loader should have refused and this throws rather than
+ * silently reading nothing — `docs/arena-tooling.md` §6.2's "prefer unread to
+ * wrongly read" applies to a hook body exactly as it does to a card's.
+ */
+export function queryHookStatics(ctx: EngineContext, game: GameDefinition, state: VmState, subject: string, point: HookPoint): QueryFact[] {
+  const spec = HOOK_CONTRACT[point];
+  if (spec.answer !== "query") throw new Error(`vm/program.ts: "${point}" is an effect hook — use fireHook, not queryHookStatics`);
+  const out: QueryFact[] = [];
+  for (const body of hookBodiesFor(ctx, game, state, subject, point)) {
+    const frame = hookFrame(game, state, subject, body.ops, {});
+    readHookLeaf(ctx, game, state, frame, body.ops, body.keyword, out);
+  }
+  return out;
+}
+
+function readHookLeaf(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, ops: Op[], keyword: KeywordSkill, out: QueryFact[]): void {
+  for (const raw of ops) {
+    // Only `negate`/`costModifier`'s own short spellings are normalised here
+    // — deliberately *not* `modifyAttrAs`, which lowers `modifyAttr` to the
+    // primitive it stands for (`switchMode`, `addMarker`, `grant`, …) the way
+    // `vm/effects.ts`'s `collect()` wants it. A query hook's body is
+    // documented to end in `modifyAttr` itself (§4.1/§4.2), so lowering it
+    // here would make the very shape the contract promises unreadable.
+    const op = costModifierAs(negateAs(raw));
+    if (op.op === "if") {
+      if (condHolds(ctx, game, state, frame, op.cond)) readHookLeaf(ctx, game, state, frame, op.then, keyword, out);
+      else if (op.else) readHookLeaf(ctx, game, state, frame, op.else, keyword, out);
+      continue;
+    }
+    if (op.op === "forbid") {
+      const player = op.side === "opponent" ? other(frame.master) : op.side === "you" ? frame.master : undefined;
+      out.push({
+        keyword,
+        op: "forbid",
+        forbid: { what: op.what, filter: op.filter, player, unless: op.unless, uses: op.uses !== undefined ? amount(ctx, game, state, frame, op.uses) : undefined, master: frame.master },
+      });
+      continue;
+    }
+    if (op.op === "modifyAttr" && op.attr) {
+      out.push({ keyword, op: "modifyAttr", attr: op.attr, delta: op.amount !== undefined ? amount(ctx, game, state, frame, op.amount) : 0 });
+      continue;
+    }
+    throw new Error(`vm/program.ts: [${keyword.name}]'s body is a query hook and ends in "${op.op}", which none of the contract's query hooks document`);
+  }
+}
+
 // ── prohibitions (20-14) ────────────────────────────────────────────────────
 
 /** One rule in force that forbids something, with where it came from — a refusal has to name both. */
@@ -238,6 +359,13 @@ function prohibitions(ctx: EngineContext, game: GameDefinition, state: VmState, 
   if (card) {
     const master = masterOf(game, state, card);
     for (const f of ownProhibitions(ctx, state, card, (frame, a) => amount(ctx, game, state, frame, a), master)) out.push({ target: card, source: card, until: "permanent", forbid: f });
+    // #154: a keyword's own `chooseable`/`koByEffect` hook is a fourth source,
+    // read fresh alongside the card's other own rules ([Barrier], 22-16, is
+    // the worked example) — `until: "permanent"` for the same reason
+    // `ownProhibitions` above is: a granted or printed keyword holds for as
+    // long as the card shows it, not for a stored span.
+    for (const point of ["chooseable", "koByEffect"] as const)
+      for (const fact of queryHookStatics(ctx, game, state, card, point)) if (fact.op === "forbid") out.push({ target: card, source: card, until: "permanent", forbid: fact.forbid });
   }
   return out;
 }
@@ -445,13 +573,18 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
       const against = sel.filter.powerRel.of === "chosen" ? (sel.filter.powerRel.var ? (frame.vars[sel.filter.powerRel.var]?.[0] ?? null) : null) : frame.card;
       if (!against || !powerRelOk(sel.filter, measureOf(ctx, game, state, id, "power"), measureOf(ctx, game, state, against, "power"))) return false;
     }
-    // 22-16: [Barrier] takes a card out of the choices of a skill its opponent
-    // masters.
-    if (!sel.special && !sel.ignoreBarrier && sel.side !== "you" && hasKeyword(ctx, game, state, id, "Barrier") && masterOf(game, state, id) !== frame.master && zoneOf(state, id) !== "hand") return false;
-    // 20-4: the same shape as [Barrier], but printed as a prohibition — and a
-    // prohibition is a thing this engine can now read (#145), so a selector is
-    // no longer wider than the manual here.
-    if (!sel.special && masterOf(game, state, id) !== frame.master && forbids(ctx, game, state, "beChosen", { card: id })) return false;
+    // 20-4 and 22-16 are the same shape — "can't be chosen", printed as a
+    // prohibition or as [Barrier]'s own `chooseable` hook (#154; `forbid(what:
+    // beChosen)`, folded into `prohibitions()`'s reading of `card`'s own
+    // rules) — and now read through the one mechanism. `ignoreBarrier` and the
+    // hand exemption stay [Barrier]-flavoured wording (22-16-2's "ignoring
+    // [Barrier]" is the only place either phrase is printed), but neither is
+    // keyed to Barrier specifically underneath: a clause marked `ignoreBarrier`
+    // is compiled that way only when the card text says so, and nothing else
+    // sets it, so widening the exemption to any `beChosen` prohibition changes
+    // no other card's reading.
+    if (!sel.special && !sel.ignoreBarrier && sel.side !== "you" && zoneOf(state, id) !== "hand" && masterOf(game, state, id) !== frame.master && forbids(ctx, game, state, "beChosen", { card: id }))
+      return false;
     return true;
   });
 }

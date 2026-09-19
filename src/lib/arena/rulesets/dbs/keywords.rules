@@ -58,13 +58,23 @@ DEFINE KEYWORD Revenge
 DEFINE KEYWORD Indestructible
   TAKES ()
   text: "This card can't be KO'd or moved out of your Battle Area by the opponent's skills or as a result of battle."
-  -- Stage 7 (#153–#157)
+  -- #154: the "as a result of battle" half is read directly in
+  -- `vm/battle.ts`'s `damageWork`, not through this hook — a battle's own KO
+  -- is not an effect's. This hook's own forbid has no caller yet: the rules
+  -- engine does not resolve a skill's `ko` at all (`vm/host.ts`, #146), so
+  -- nothing reaches it to be immune from — see docs/arena-ruleset-spec.md §4.3.
+  HOOK koByEffect {
+    forbid(what: beKOdBySkill, side: opponent, until: game)
+    forbid(what: beMovedBySkill, side: opponent, until: game)
+  }
 
 -- 22-16
 DEFINE KEYWORD Barrier
   TAKES ()
   text: "This card can't be chosen by the skills of cards your opponent masters."
-  -- Stage 7 (#153–#157)
+  HOOK chooseable {
+    forbid(what: beChosen, side: opponent, until: game)
+  }
 
 -- 22-20
 DEFINE KEYWORD Deflect
@@ -82,7 +92,11 @@ DEFINE KEYWORD Unique
 DEFINE KEYWORD Servant
   TAKES ()
   text: "+10000 power, and the card does not switch to Active Mode during its master's Charge Phase."
-  -- Stage 7 (#153–#157)
+  -- #154 (hook group A) builds the power half; the Charge Phase half is
+  -- `activeStep`, hook group B, #155's.
+  HOOK attrBonus {
+    modifyAttr(target: [self], attr: power, amount: 10000)
+  }
 
 -- 22-31
 DEFINE KEYWORD "Energy-Exhaust"

@@ -770,11 +770,16 @@ A hook is either **read** or **run**, never both, and a keyword's body may not c
 
 - **`query`** — asked mid-calculation, for an answer needed now (is this card choosable, how much
   bonus does it carry, is this play refused). It can never suspend, so it is read declaratively —
-  `vm/hooks.ts`'s `queryHookStatics` walks the body's `if`s to their taken branch and reads the one
-  op the leaf ends in (`immune`, `forbid`, `modifyAttr`) as a fact in force right now, applying
-  nothing to `state` — the same way `vm/effects.ts`'s `permanents()` reads a [Permanent]'s static ops
-  without ever executing them, one level up: a keyword hook body of this kind *is* an always-on
-  [Permanent] its keyword grants for free.
+  `vm/program.ts`'s `queryHookStatics` (re-exported from `vm/hooks.ts`; it lives beside the
+  recursion-guarded `condHolds`/`amount` it needs, #154) walks the body's `if`s to their taken branch
+  and reads the one op the leaf ends in (`forbid`, `modifyAttr` — every query hook's refusal already
+  has a `ForbiddenAction` word: `beChosen`, `beKOdBySkill`, `beMovedBySkill`, `play`,
+  `activateCounter`) as a fact in force right now, applying nothing to `state` — the same way
+  `vm/effects.ts`'s `permanents()` reads a [Permanent]'s static ops without ever executing them, one
+  level up: a keyword hook body of this kind *is* an always-on [Permanent] its keyword grants for
+  free, and a `forbid` leaf folds straight into `prohibitions()`'s existing 20-14 reading rather than
+  needing a second "nothing may touch this card" primitive (`immune`, §2.2, stays what it always
+  was — a *stronger*, unconditional grant a [Permanent] can still make; no query hook needs it).
 - **`effect`** — something happens at the moment (a card enters, a battle ends, a skill resolves
   after another does). It is run exactly like a triggered [Auto]'s `DO` block: `vm/hooks.ts`'s
   `fireHook` builds one `ScriptFrame` per matching body and pushes it onto `state.programs`, the same
@@ -823,17 +828,30 @@ rather than assuming: no condition exists yet for "does that card carry this sam
 7]'s real body needs either a new attribute row or a different primitive — `altPayment`'s example
 below stands in with a syntactically valid placeholder rather than a wrong one).
 
+**chooseable, koByEffect and attrBonus are no longer illustrative — #154 built them for real**
+against [Barrier], [Indestructible] and [Servant]'s power (`rulesets/dbs/keywords.rules`); the
+bodies below are copied from what actually ships, not invented. The other twelve remain
+illustrative, proved only by the worked ruleset in `scripts/verify/rulesets.ts`.
+
 ```
--- A: chooseable — read declaratively, an `immune` leaf
+-- A: chooseable — read declaratively, a `forbid` leaf, folded into
+-- `prohibitions()` (20-14) alongside the card's other own rules — the same
+-- `{kind:"forbidden", by, until}` shape a printed 20-4 prohibition already
+-- produces. `until` is not consulted by the declarative reader (it re-reads
+-- fresh every ask); it is here because the grammar requires one.
 DEFINE KEYWORD Barrier
   HOOK chooseable {
-    immune(from: opponent, until: game)
+    forbid(what: beChosen, side: opponent, until: game)
   }
 
--- A: koByEffect — same leaf, a different moment asks for it
+-- A: koByEffect — same leaf, a different `ForbiddenAction` word per clause of
+-- 22-12's text; the "as a result of battle" half is not an effect at all, so
+-- it stays a direct `hasKeyword` read in `vm/battle.ts` rather than a body
+-- here (§4.3 Group A's own table row explains the split).
 DEFINE KEYWORD Indestructible
   HOOK koByEffect {
-    immune(from: opponent, until: game)
+    forbid(what: beKOdBySkill, side: opponent, until: game)
+    forbid(what: beMovedBySkill, side: opponent, until: game)
   }
 
 -- A: attrBonus — a `modifyAttr` leaf, read fresh on every ask

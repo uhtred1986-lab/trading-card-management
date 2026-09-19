@@ -846,15 +846,20 @@ if (dbs.ok) {
   // `hookBodiesFor` is the one lookup `queryHookStatics`/`fireHook` both go
   // through — asserted rather than assumed, because a second call site
   // reading `game.keywords[...].hooks` directly would be exactly the special
-  // case the contract exists to rule out (CLAUDE.md, Conventions).
+  // case the contract exists to rule out (CLAUDE.md, Conventions). It lives in
+  // `vm/program.ts` rather than `vm/hooks.ts` itself (#154: `queryHookStatics`
+  // needs the same recursion-guarded `condHolds`/`amount` every other
+  // interpreter reading there does, and `vm/hooks.ts` already imports that
+  // module for it — importing back would be the cycle `vm/hook-contract.ts`
+  // exists to avoid), so both files are the allowed home.
   const vmDir = path.join(__dirname, "../../src/lib/arena/vm");
   const lookupSites: string[] = [];
   for (const file of fs.readdirSync(vmDir)) {
-    if (!file.endsWith(".ts") || file === "hooks.ts") continue;
+    if (!file.endsWith(".ts") || file === "hooks.ts" || file === "program.ts") continue;
     const text = fs.readFileSync(path.join(vmDir, file), "utf8");
     if (/\.hooks\b/.test(text)) lookupSites.push(file);
   }
-  assert.deepEqual(lookupSites, [], `a hook body is looked up outside vm/hooks.ts, in: ${lookupSites.join(", ")}`);
+  assert.deepEqual(lookupSites, [], `a hook body is looked up outside vm/hooks.ts and vm/program.ts, in: ${lookupSites.join(", ")}`);
 }
 
 {
@@ -863,10 +868,13 @@ if (dbs.ok) {
   // they are — kept in sync by hand; this block fails loudly if a body stops
   // parsing, which is the whole reason to run it rather than only read it).
   const KEYWORD_AT: Record<string, { keyword: string; def: string }> = {
-    chooseable: { keyword: "Barrier", def: 'DEFINE KEYWORD Barrier\n  TAKES ()\n  text: "x"\n  HOOK chooseable {\n    immune(from: opponent, until: game)\n  }' },
+    chooseable: {
+      keyword: "Barrier",
+      def: 'DEFINE KEYWORD Barrier\n  TAKES ()\n  text: "x"\n  HOOK chooseable {\n    forbid(what: beChosen, side: opponent, until: game)\n  }',
+    },
     koByEffect: {
       keyword: "Indestructible",
-      def: 'DEFINE KEYWORD Indestructible\n  TAKES ()\n  text: "x"\n  HOOK koByEffect {\n    immune(from: opponent, until: game)\n  }',
+      def: 'DEFINE KEYWORD Indestructible\n  TAKES ()\n  text: "x"\n  HOOK koByEffect {\n    forbid(what: beKOdBySkill, side: opponent, until: game)\n  }',
     },
     attrBonus: {
       keyword: "Servant",
