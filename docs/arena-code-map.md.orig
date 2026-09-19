@@ -131,9 +131,8 @@ the same as if it were still in `CLAUDE.md`.
   names, e.g. the one card a `ZONE single: true` area holds). **What it does not do**: finish the
   move. `vm/host.ts`'s `placeUnder` throws `NotYet("#146")` unconditionally, so taking a legal,
   correctly-refused `growUnison` still stops there — caught at `stepProgram`'s existing boundary
-  (`vm/flow.ts`), the same safety net every other unbuilt primitive uses, which now ends the game
-  rather than noting the gap and playing on (#149, `ENGINE_INFO.rules.available` is true). Discovered
-  delivering #269, not fixed by it.
+  (`vm/flow.ts`) as a note naming the issue, the same safety net every other unbuilt primitive uses
+  while `ENGINE_INFO.rules.available` is false. Discovered delivering #269, not fixed by it.
   **Using a skill is a paragraph about a *line*** (`vm/activate.ts` + the `activate` declaration,
   #147): the one move whose candidate is not a card. A card prints up to nine skills, each with its
   own price, its own condition and its own once-per-turn ceiling, so `DEFINE ACTION`'s new `skills:`
@@ -169,12 +168,9 @@ the same as if it were still in `CLAUDE.md`.
   `Requirement` when a price cannot be met (so `wording.ts` needs no second table), the same
   `payCost` prompt with legacy `Payment` options (so no `Prompt` kind and no `Snapshot` field moved),
   and the same cards rested. `priceFor` is the one evaluation the row's `ActionCost` and the charge
-  both come from. One gap was named rather than charged as nothing: the amounts of marker, life and
-  20-19's payWith are all bound from a skill's own line by an activation (#147, and payWith #149),
-  so a price named by an action that binds nothing is refused by name rather than charged as free.
-  `payWith` here is the record's own per-price form — a [Permanent]'s whole-board grant of the same
-  permission (BT3-039, "you can use this card to pay energy costs…") is still unread on this engine
-  (`vm/effects.ts`'s `DEFERRED_STATICS`), and no card yet compiles to the per-price form itself.
+  both come from. One gap is named rather than charged as nothing: the amounts of marker and life
+  are bound from a skill's own line by an activation (#147) and 20-19's payWith is bound by nothing,
+  so an action naming a price with nothing to bind it is refused by name.
   **20-21's reductions are read, and read as layers** (#148 Build 2): `permanents` reads the
   `costReduction` op out of a [Permanent] — which could only matter once a card could be put in
   play (#146) — and `attributes.rules` declares `costOf` as `[printed, reduction]` and
@@ -212,29 +208,13 @@ the same as if it were still in `CLAUDE.md`.
   that stops to ask is storable mid-decision like everything else; the question is the contract's
   own `Prompt` and the answer arrives as the same `choose`/`chooseMode` action both engines take.
   What this engine has no half of — a KO, a play, a price, a battle — is a `NotYet` naming the
-  issue that builds it, caught at the one program boundary in `flow.ts`.
-  **The flag flips** (#149): `ENGINE_INFO.rules.available` is true and `playableEngine("rules")`
-  no longer refuses. The plan's own exit bar for this — `arena:diff` clean over every saved game
-  whose action log uses only Stage 5 actions, and over the harness and playthrough scripts — is
-  the owner's to run and confirm against Neon; an agent session cannot (`arena:diff` needs the
-  database this sandbox stays off), so it flipped the flag on the fuzzer and the engine-switch
-  suite (`verify/vm.ts`) instead and said so in the PR rather than claiming the database check.
-  What was a
-  note-and-continue at the `NotYet` boundary above is now `endGame` with no winner: a card this
-  engine cannot finish ends the *game*, not just that skill, because a note nobody reads is the
-  wrong answer once a real player can reach it — the same `overReason` a concede or a win already
-  puts on the board, so no `Snapshot` field moved for it. Not every mode: Claude's side of Sparring
-  and Tournament (`ai/run.ts`, a hand and a deck read off `state.players[p]`) and a 1 v 1's
-  hidden-hand masking (`beats.ts`'s `maskBeats`, `view.ts`'s `revealedTo`) both still read the
-  legacy `GameState` field for field rather than either engine's shape generically, so `games.ts`'s
-  `assertEngineForMode` and `matches.ts`'s `openMatch` refuse those combinations at creation — the
-  rules engine plays **hot-seat only** for now, one level narrower than `playableEngine` alone
-  answers. Outside the six engine calls the app was entirely legacy-shaped (`games.ts` read
-  `state.turn`); most of it now reads only the field names the two state shapes share
-  (`turn`/`phase`/`winner`/`overReason`/`prompt`/`cards`, plus `engines.ts`'s new `sideName` for
-  `players[p].name`/`sides[p].name`), and `legacyState(value)` is the narrower seam left for the two
-  reads above: a `rules` state reaching it throws `EngineMismatch` rather than being read field by
-  field as `undefined`.
+  issue that builds it, caught at the one program boundary in `flow.ts` so a card it cannot finish
+  stops that skill rather than the game.
+  Whether a *new* game may be made on an engine is the separate question `playableEngine(id)`
+  asks of `ENGINE_INFO[id].available`, and the answer for `rules` is still no. Outside those six
+  calls the app is still legacy-shaped (`games.ts` reads `state.turn`), so `legacyState(value)`
+  is the seam: a `rules` state reaching it throws `EngineMismatch` rather than being read field
+  by field as `undefined`.
 - **The rules language** (`src/lib/arena/lang/`, `docs/arena-rules-language.md`, since 9 Sep
   2026): one closed grammar for a card's rule — WHEN / COST / IF / THEN — printed and parsed
   from `OP_SCHEMA`/`COND_SCHEMA` plus the `SELECTOR_FIELDS`/`FILTER_FIELDS` tables in
@@ -262,9 +242,8 @@ the same as if it were still in `CLAUDE.md`.
   program written in the ops the cards use, lowered through the game's own `DEFINE OP`
   declarations to the primitives an interpreter runs — an op with no declaration passes
   through untouched, and the round-trip promise stays over the macro's *name*, never its
-  expansion. `dbs/ops.rules` declares 20 of the thirty-one so far — its header says what
-  each of the rest waits on (#137); `modifyAttr` reaches a card, a player and the battle
-  in progress (#275).
+  expansion. `dbs/ops.rules` declares none of the thirty-one yet and its header says what
+  each waits on (#137).
   **The game's words are the only words** (`rulesets/words.ts`, since 12 Sep 2026): the
   language's parser, the workbench's chip editor (`optionsFor`), the referee's prompt
   (`effectLanguage`) and `validateRule` read the areas, durations, sides, keyword names and

@@ -112,16 +112,22 @@ const CATALOG: Record<keyof CardDef, Reader> = {
 };
 
 /**
- * The card attributes the *board* fills rather than the card: a price as it
- * stands, after every reduction in force (20-21). Each declares `layers:`
+ * The card attributes the *board* fills rather than the card: three prices as
+ * they stand, after every reduction in force (20-21), and — since spec
+ * §2.5-1/§2.5-3 (#275) — the six that live on the card sitting on the table
+ * rather than on the catalog row at all. The three prices declare `layers:`
  * beginning with `printed`, and the printed half is the attribute beside it
- * (`energyCost`, `comboCost`, `zEnergyCost`), so nothing is read twice.
+ * (`energyCost`, `comboCost`, `zEnergyCost`, paired in `PRINTED_BASE`); the six
+ * have no such sibling — `mode`, `markers`, `hidden`, `faceUp` and `flipped`
+ * read the live instance state directly and `keywords` the card's currently
+ * showing skills, both seeded fresh by `attrsNow` (`vm/program.ts`), which is
+ * the one place either half of this set is filled.
  *
  * Listed rather than derived from `layers:` because `power` has layers too and
- * *is* printed: the difference is that these three have no face of their own to
- * read. #140 computes them.
+ * *is* printed: the difference is that none of these nine has a face of its
+ * own on `CardDef` to read. #140 computes the first three; #275 the rest.
  */
-const FROM_BOARD = new Set(["costOf", "comboCostOf", "zEnergyCostOf"]);
+const FROM_BOARD = new Set(["costOf", "comboCostOf", "zEnergyCostOf", "mode", "markers", "keywords", "hidden", "faceUp", "flipped"]);
 
 /**
  * The printed face each board-filled price is a reading *of* (20-21).

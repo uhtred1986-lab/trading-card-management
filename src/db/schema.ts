@@ -761,7 +761,7 @@ export const arenaDecisions = pgTable(
     /** The prompt the engine was waiting on: main, combo, blocker, counter, referee … */
     promptKind: text("prompt_kind").notNull(),
     player: text("player").notNull(),
-    /** move | referee */
+    /** move | referee | engineStuck (#149: a rules-engine game nobody decided the end of) */
     kind: text("kind").notNull().default("move"),
     /** rule | claude | fallback — a rule means no API call was made. */
     decidedBy: text("decided_by").notNull(),

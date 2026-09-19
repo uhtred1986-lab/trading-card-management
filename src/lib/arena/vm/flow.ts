@@ -525,17 +525,36 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
  * itself back through `host.resume` when it asks. So the frame is shifted off
  * here and never put back by this function.
  *
- * **A `NotYet` stops that one skill and no more.** An op this engine has no
- * half of — a KO, a play, a price — throws, and the throw is caught here, named
- * in the log, and the frame dropped. The alternative is letting it out of
- * `apply`, which would make every deck holding such a card unplayable and take
- * `arena-fuzz --engine rules` and the oracle with it, exactly while they are
- * the instruments this stage is measured by. What the skill did before it
- * stopped stands, which is the honest cost of that choice and is bounded by
- * `ENGINE_INFO.rules.available` still being false: no game a person plays can
- * reach it. #146 and #147 removed most of these, and the boundary becomes a
- * refusal when a game can be made on this engine.
+ * **A `NotYet` ends the game, cleanly, rather than the skill quietly stopping
+ * short (#149).** An op this engine has no half of — a KO, a play, a price —
+ * throws, and until `ENGINE_INFO.rules.available` this was caught here, noted
+ * in the log, and the frame dropped: no game a person could reach played
+ * through it, so a skill silently doing less than it says was the honest cost
+ * of a fixture staged one move past the gap, not a thing a player would ever
+ * see. #146 and #147 removed most of the ways there, but not all of them — an
+ * ordinary KO is still one (`vm/host.ts`), and once a real player can reach
+ * this engine at all, a skill that stops halfway with nothing said is a worse
+ * answer than the game refusing to go on. So the catch now ends the game
+ * instead: `endGame` with no winner and a reason naming the card, the gap and
+ * the issue that closes it — the same `overReason` a concede or a win already
+ * puts on the board, so **no `Snapshot` field moves** and the board shows it
+ * the way it shows any other ending. `NOT_YET_REASON_PREFIX` opens every such
+ * reason, which is how `games.ts`'s `applyToGame` tells this ending apart from
+ * an ordinary win, loss or concede — without a second field on `VmState` and
+ * without matching the rest of a sentence meant for a person to read — and
+ * writes a row to `arena_decisions` for it, so the debug page says *why* a
+ * game with no AI in it stopped, the same page that already explains every
+ * other decision the server took. What the skill did *before* the throw still
+ * stands, exactly as it did when this was a note — a program's ops that
+ * already ran already happened — but nothing after it does, and nothing else
+ * about this game is asked again.
  */
+/**
+ * The fixed opening words of the reason a `NotYet` ends a game with. See
+ * `stepProgram` above for what reads it.
+ */
+export const NOT_YET_REASON_PREFIX = "this engine cannot finish this game";
+
 function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[]): "done" | "wait" {
   const frame = state.programs.shift();
   if (!frame) return "done";
@@ -543,7 +562,8 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
     return stepScript(vmHost(ctx, game, state, ev), frame);
   } catch (err) {
     if (!(err instanceof NotYet)) throw err;
-    log(ev, { type: "note", text: `${state.cards[frame.card]?.cardId ?? frame.card}: ${err.message}` });
+    const named = state.cards[frame.card]?.cardId ?? frame.card;
+    endGame(ctx, game, state, ev, null, `${NOT_YET_REASON_PREFIX} — ${named}: ${err.message}. Abandon this game; continuing it on the legacy engine is not possible.`);
     return "done";
   }
 }
