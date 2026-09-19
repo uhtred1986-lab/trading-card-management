@@ -30,6 +30,7 @@ import { attrsOf, type Attrs } from "./cards";
 import { attrsNow } from "./program";
 import type { GameDefinition } from "../rulesets";
 import type { VmState } from "./state";
+import { PROMPT_QUESTIONS } from "../prompt-words";
 
 /**
  * Which declared zone each field of a `SideView` is drawn from.
@@ -56,14 +57,6 @@ const VIEW_ZONES = {
   zEnergy: "zEnergy",
 } as const;
 
-/** The words the prompt bar says. `view.ts`'s own, sentence for sentence, until Stage 8 reads them from the definition. */
-const QUESTIONS: Record<string, { question: string; hint: string | null }> = {
-  chooseFirst: { question: "You won the flip. Who goes first?", hint: "The second player starts with one energy marker." },
-  mulligan: { question: "Keep this hand?", hint: "You may redraw six cards once (6-2-1-9)." },
-  charge: { question: "Charge one card as energy?", hint: "Tap a card in hand, or skip." },
-  main: { question: "Your Main Phase.", hint: "Play cards, attack, or end the turn." },
-  gameOver: { question: "The game is over.", hint: null },
-};
 
 export function vmBoardView(ctx: EngineContext, game: GameDefinition, state: VmState, viewer: PlayerId, images: Record<string, CardArt>): BoardView {
   const them: PlayerId = viewer === "p1" ? "p2" : "p1";
@@ -129,9 +122,16 @@ function battleView(ctx: EngineContext, game: GameDefinition, state: VmState, im
   };
 }
 
-function promptView(state: VmState): PromptView {
+/**
+ * The one prompt kind reachable on this engine whose text is not fixed: a
+ * counter or a combo's own price names what it is paying for
+ * (`vm/battle.ts`), the same interpolation `view.ts`'s own `questionFor`
+ * does for the legacy engine.
+ */
+export function promptView(state: VmState): PromptView {
   const pr = state.prompt;
-  const words = QUESTIONS[pr.kind] ?? { question: "…", hint: null };
+  if (pr.kind === "payCost") return { kind: pr.kind, player: pr.player, question: `Which energy do you rest to ${pr.describe}?`, hint: "The colours you keep active decide what you can still do this turn.", cost: pr.describe };
+  const words = PROMPT_QUESTIONS[pr.kind] ?? { question: "…", hint: null };
   return { kind: pr.kind, player: "player" in pr ? pr.player : null, question: words.question, hint: words.hint };
 }
 

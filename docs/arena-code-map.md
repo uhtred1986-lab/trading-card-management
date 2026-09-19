@@ -557,8 +557,16 @@ the same as if it were still in `CLAUDE.md`.
   choice: Sparring on Haiku 4.5, Tournament sending the Main Phase and counter windows to Opus 5.
   The same module holds the **referee**, which answers with a program in the effect language when
   a card's text defeats the compiler. `run.ts` drives Claude's side and totals what it spent onto
-  the game row. Caching note: the cached prefix is ~3,200 tokens, over Opus 5's 512-token minimum
-  but under Haiku 4.5's 4,096, so Tournament games cache and Sparring games do not.
+  the game row. **The primer's mechanical half is generated** (`ai/primer.ts`, #160): the turn's
+  phases, the areas of the game and the win condition come from `game.rules`/`zones.rules` rather
+  than being hand-written prose that can say a turn goes a way the engine no longer plays it; the
+  doctrine after it — trading up in power, how to read a combo — is judgement, not a fact the
+  declarations could state, and stays hand-written beside it. Caching note: the cached prefix was
+  ~3,200 tokens for a 50-card deck (measured 4 Sep 2026); the generated half is a few hundred
+  characters longer than the prose it replaced (it now names every area), so the prefix grows by
+  perhaps 50–100 tokens — still comfortably over Opus 5's 512-token minimum and nowhere near Haiku
+  4.5's 4,096, so Tournament games cache and Sparring games do not, unchanged. Re-measure exactly
+  from a played game's `ai_runs` row rather than trusting this estimate.
 - **Arena debug** (`src/lib/arena/ai/debug.ts`): every decision the server takes is
   written to `arena_decisions` — the prompt kind, the whole menu offered, what was chosen, whether a
   rule or Claude decided it, the model, tokens, cost and latency, plus the exact prompt text when
