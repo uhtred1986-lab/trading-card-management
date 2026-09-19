@@ -15,6 +15,7 @@ import type { Trigger } from "./engine/types";
 import { rows as rowsOf } from "@/db/rows";
 import { textArray } from "@/db/sqlx";
 import { clauseShape, mechanismOf } from "./gaps";
+import type { EngineId } from "./engines";
 
 export type RuleRow = typeof cardRules.$inferSelect;
 export type RuleStatus = "open" | "draft" | "confirmed" | "corrected";
@@ -577,6 +578,14 @@ export interface StoredProbe {
   assumptions: string[];
   /** ISO day, so the record can say when the answer was taken. */
   at: string;
+  /**
+   * Which engine this probe was run on (#161: "one digest per engine, or the
+   * digest records the engine" — the latter, since a rule keeps one probe at
+   * a time). `npm run arena:reprobe` re-probes on this same engine unless
+   * told otherwise, so a legacy-probed rule is not silently compared against
+   * a rules-engine run of a different board.
+   */
+  engine: EngineId;
 }
 
 export async function setProbe(db: Db, id: number, probe: StoredProbe): Promise<void> {

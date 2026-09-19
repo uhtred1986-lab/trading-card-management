@@ -27,6 +27,7 @@ import { def, emitsStatic, locate, masterOf, permanentStatics, type StaticEffect
 import { describeEffect, describeStatic, type EffectView } from "./effects";
 import type { EngineState } from "./engines";
 import { isVmState } from "./vm/state";
+import { PROMPT_QUESTIONS } from "./prompt-words";
 
 export interface CardView {
   id: string;
@@ -508,19 +509,15 @@ export function questionFor(ctx: EngineContext, s: GameState): PromptView {
   const withStep = (v: PromptView): PromptView => (step ? { ...v, step } : v);
   switch (pr.kind) {
     case "chooseFirst":
-      return { kind: pr.kind, player: pr.player, question: "You won the flip. Who goes first?", hint: "The second player starts with one energy marker." };
     case "mulligan":
-      return { kind: pr.kind, player: pr.player, question: "Keep this hand?", hint: "You may redraw six cards once (6-2-1-9)." };
     case "charge":
-      return { kind: pr.kind, player: pr.player, question: "Charge one card as energy?", hint: "Tap a card in hand, or skip." };
     case "main":
-      return { kind: pr.kind, player: pr.player, question: "Your Main Phase.", hint: "Play cards, attack, or end the turn." };
     case "combo":
-      return { kind: pr.kind, player: pr.player, question: "Combo? Tap a glowing card.", hint: "Each adds its combo power and costs its combo cost." };
     case "blocker":
-      return { kind: pr.kind, player: pr.player, question: "Block with one of these?", hint: "[Blocker] rests the card and makes it the guard instead." };
-    case "counter":
-      return { kind: pr.kind, player: pr.player, question: "Play a counter?", hint: "Counter cards are activated from hand and go to the Drop." };
+    case "counter": {
+      const words = PROMPT_QUESTIONS[pr.kind]!;
+      return { kind: pr.kind, player: pr.player, question: words.question, hint: words.hint };
+    }
     case "chooseCards":
       return withStep({
         kind: pr.kind,
@@ -535,9 +532,10 @@ export function questionFor(ctx: EngineContext, s: GameState): PromptView {
     case "replaceMove":
       return withStep({ kind: pr.kind, player: pr.player, question: pr.reason, hint: "Choose one replacement, or let the original move happen." });
     case "zEnergyFromCombo":
-      return { kind: pr.kind, player: pr.player, question: "Send one combo card to Z-Energy?", hint: "At the end of a battle, one card may go there instead of the Drop." };
-    case "offering":
-      return { kind: pr.kind, player: pr.player, question: "[Offering]: drop one life, or let them draw two?", hint: null };
+    case "offering": {
+      const words = PROMPT_QUESTIONS[pr.kind]!;
+      return { kind: pr.kind, player: pr.player, question: words.question, hint: words.hint };
+    }
     case "empowerCarry":
       return {
         kind: pr.kind,
@@ -565,10 +563,14 @@ export function questionFor(ctx: EngineContext, s: GameState): PromptView {
       });
     case "referee":
       return { kind: pr.kind, player: pr.player, question: `Claude is ruling on ${pr.request.cardName}…`, hint: pr.request.unsupported.join(" · ") };
-    case "orderPending":
-      return { kind: pr.kind, player: pr.player, question: "Which skill resolves first?", hint: "Several of your skills triggered at once." };
-    case "gameOver":
-      return { kind: pr.kind, player: null, question: "The game is over.", hint: null };
+    case "orderPending": {
+      const words = PROMPT_QUESTIONS[pr.kind]!;
+      return { kind: pr.kind, player: pr.player, question: words.question, hint: words.hint };
+    }
+    case "gameOver": {
+      const words = PROMPT_QUESTIONS[pr.kind]!;
+      return { kind: pr.kind, player: null, question: words.question, hint: words.hint };
+    }
   }
 }
 

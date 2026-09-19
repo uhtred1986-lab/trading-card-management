@@ -81,6 +81,7 @@ const stored = (run: ProbeRun): StoredProbe => ({
   result: run.result,
   assumptions: run.assumptions,
   at: new Date().toISOString(),
+  engine: engineId,
 });
 
 async function sweep(): Promise<number> {

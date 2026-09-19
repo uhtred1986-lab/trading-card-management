@@ -557,8 +557,16 @@ the same as if it were still in `CLAUDE.md`.
   choice: Sparring on Haiku 4.5, Tournament sending the Main Phase and counter windows to Opus 5.
   The same module holds the **referee**, which answers with a program in the effect language when
   a card's text defeats the compiler. `run.ts` drives Claude's side and totals what it spent onto
-  the game row. Caching note: the cached prefix is ~3,200 tokens, over Opus 5's 512-token minimum
-  but under Haiku 4.5's 4,096, so Tournament games cache and Sparring games do not.
+  the game row. **The primer's mechanical half is generated** (`ai/primer.ts`, #160): the turn's
+  phases, the areas of the game and the win condition come from `game.rules`/`zones.rules` rather
+  than being hand-written prose that can say a turn goes a way the engine no longer plays it; the
+  doctrine after it — trading up in power, how to read a combo — is judgement, not a fact the
+  declarations could state, and stays hand-written beside it. Caching note: the cached prefix was
+  ~3,200 tokens for a 50-card deck (measured 4 Sep 2026); the generated half is a few hundred
+  characters longer than the prose it replaced (it now names every area), so the prefix grows by
+  perhaps 50–100 tokens — still comfortably over Opus 5's 512-token minimum and nowhere near Haiku
+  4.5's 4,096, so Tournament games cache and Sparring games do not, unchanged. Re-measure exactly
+  from a played game's `ai_runs` row rather than trusting this estimate.
   **#162 put the "cannot go wrong" shortcuts on both engines.** `chooseMove`'s `freeChoice`/
   `chargeChoice`/`mulliganChoice` now read the board through the `zoneOf`/`catalogDefOf`/`leaderOf`
   seam (`engine-state.ts`, the same one `#161`'s probe uses) instead of `GameState`'s own shape, so
@@ -628,9 +636,28 @@ the same as if it were still in `CLAUDE.md`.
   description matches, and each of those is a line in Input. A [Permanent] and a keyword are
   *read* rather than resolved — power with and without the rule, the keywords in force, and
   whether the opponent's KO skill was offered the card at all. Confirming a rule keeps its probe
-  on the row (`card_rules.probe`), so `npm run arena:reprobe` after an engine change lists the
-  rules whose answer moved: the regression suite the rules never had. `npm run arena:probe --all`
-  sweeps the catalog in ~70 s.
+  on the row (`card_rules.probe`, tagged with the `engine` it was taken on since #161), so `npm run
+  arena:reprobe` after an engine change lists the rules whose answer moved: the regression suite
+  the rules never had. `npm run arena:probe --all` sweeps the catalog in ~70 s.
+  **#161 started the rules-engine port and named the rest.** `src/lib/arena/engine-state.ts` is the
+  `zoneOf`/`leaderOf`/`unisonOf`/`energyMarkersOf` seam #152/#158 built inside
+  `scripts/verify/harness.ts` for `battles.ts`/`workflow.ts`/`keywords.ts`, pulled out to a
+  production module so the probe's own eventual port reads the same seam rather than growing a
+  third copy — `harness.ts` now imports it instead of keeping its own. The probe itself is not
+  ported yet: every one of `stage()`'s ten families still reads `GameState` (`s.players[p]`, real
+  `move()`/`placeUnder()`/`addEffect()`) directly rather than through that seam, and
+  `probe-report.ts`'s own readings (`powerOf`, `keywordsInForce`, `toBeats`) are legacy-typed too —
+  a real port needs both, and is bigger than this issue's own "M" sizing once `probe-report.ts` is
+  counted, so it stays future work rather than a half-finished attempt at story. What #161 did
+  build: `opening()` now refuses a rules-engine board with one clear, named message
+  (`probe staging is not ported to the rules engine yet (#161)`) instead of failing several calls
+  deeper with `legacyState`'s own generic `EngineMismatch`, so `probe(rule, scenario, "rules")`
+  reports a clean `error` outcome for every family — checked directly by a new section of
+  `scripts/verify/probe.ts` (`contract/probe-rules-status.json`), which will need updating the day
+  a family's staging is actually ported. `npm run arena:probe -- --all --engine rules` therefore
+  already sweeps the whole catalog today, faster than the legacy pass (nothing it stages ever plays
+  a turn) and with a fully explained, uniform "moved" list on `arena:reprobe` — the honest reading
+  `docs/arena-tooling.md` already described before this issue landed.
 - **Explaining a card** (`src/lib/arena/ai/clarify.ts`, from any record on the workbench): you say
   what a card does in plain words; Claude returns a program in the effect language, saved as the
   card's **draft** rule (`source: claude`, for you to confirm), and a markdown work item for

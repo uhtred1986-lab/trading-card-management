@@ -16,6 +16,7 @@
 import { FORBIDDEN_IN_WORDS, describeFilter, describeCond, describeScript, whoseSkills, type Op } from "./engine/script";
 import type { StaticEffect } from "./engine/state";
 import type { Color, ContinuousEffect, EffectUntil, Immunity, KeywordSkill, Permission, PlayerId, Prohibition, SkillKindPrefix, SkipWhat } from "./engine/types";
+import { DBS_WORDS, type BoardWords } from "./board-words";
 
 export type EffectKind = "power" | "comboPower" | "keyword" | "negate" | "forbid" | "permit" | "cost" | "other";
 
@@ -185,7 +186,7 @@ export function describeEffect(e: ContinuousEffect): Pick<EffectView, "kind" | "
 }
 
 /** The same for a standing effect a [Permanent] skill emits. */
-export function describeStatic(e: StaticEffect, master?: PlayerId | null): Pick<EffectView, "kind" | "label" | "keyword"> {
+export function describeStatic(e: StaticEffect, master?: PlayerId | null, words: BoardWords = DBS_WORDS): Pick<EffectView, "kind" | "label" | "keyword"> {
   switch (e.kind) {
     case "power":
       return { kind: "power", label: `${signed(e.value as number)} power` };
@@ -252,7 +253,7 @@ export function describeStatic(e: StaticEffect, master?: PlayerId | null): Pick<
     // rather than spent once — see `stepSkippedByPermanent`.
     case "skip": {
       const v = e.value as { what: SkipWhat; player: PlayerId };
-      const step = v.what === "offense" || v.what === "defense" ? `${v.what === "offense" ? "Offense" : "Defense"} Step` : `${v.what} Phase`;
+      const step = words.phase[v.what] ?? `${v.what} Phase`;
       return { kind: "other", label: `skips its ${step}` };
     }
   }

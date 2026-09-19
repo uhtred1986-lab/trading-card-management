@@ -1,0 +1,9 @@
+{
+  "total": 190,
+  "outcomes": [
+    "error",
+    "noScenario"
+  ],
+  "distinctDigests": 2,
+  "sampleMessage": "the probe could not be run: probe staging is not ported to the rules engine yet (#161) — every family still builds a legacy board"
+}

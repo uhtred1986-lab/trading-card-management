@@ -24,8 +24,10 @@ import { FAST_MODEL, MODEL, anthropic, hasAnthropic, recordRun } from "@/lib/ai/
 import { comboPowerOf, face, other, powerOf, validateProgram, type EngineContext, type GameState, type LegalAction, type Op, type PlayerId } from "../engine";
 import { COND_SCHEMA, CONDITIONS_OFF_A_CARD, OP_SCHEMA, condSignature, opSignature, type Cond } from "../engine/script";
 import { words, type Words } from "../rulesets/words";
-import { has } from "../engine/state";
+import { loadDbs } from "../rulesets";
+import { def, has } from "../engine/state";
 import { decklistText, money, movesText, stateText } from "./view";
+import { generatedPrimer } from "./primer";
 import type { EngineState } from "../engines";
 import { isVmState } from "../vm/state";
 import { catalogDefOf, leaderOf, zoneOf } from "../engine-state";
@@ -42,13 +44,12 @@ export interface Choice {
   how: string;
 }
 
-const RULES_PRIMER = `You are playing the Dragon Ball Super Card Game (Masters) against a human, through a rules engine.
-
-How a turn goes: Charge Phase (everything untaps, you draw, you may place one card from hand into your energy) → Main Phase (play cards, activate skills, attack, then end) → End Phase.
-
-Attacking: switch an active card to Rest Mode to attack the opposing Leader, their Unison, or one of their Battle Cards that is already rested. Both sides may then add Combo Power from hand or from active Battle Cards; the attacker wins ties. A beaten Battle Card is KO'd; a beaten Leader loses life, which goes to that player's hand unless the attacker has [Critical].
-
-Winning: your opponent loses when their life or their deck runs out.
+/**
+ * Attacking, and the doctrine for playing well — judgement about the game,
+ * not a fact `game.rules`/`zones.rules` could state, so it stays hand-written
+ * beside the generated half above it (#160).
+ */
+const DOCTRINE = `Attacking: switch an active card to Rest Mode to attack the opposing Leader, their Unison, or one of their Battle Cards that is already rested. Both sides may then add Combo Power from hand or from active Battle Cards; the attacker wins ties. A beaten Battle Card is KO'd; a beaten Leader loses life, which goes to that player's hand unless the attacker has [Critical].
 
 What matters, roughly in order: do not let your life run out; trade up in power; keep energy of the colours you still need; a card in hand that you cannot pay for is worth less than the energy it would have been; life in the Drop is gone, life in hand is a card.
 
@@ -56,6 +57,20 @@ Combos, which is where a hand is usually thrown away: both players may add Combo
 On defense you already know what the attack is worth, so the question is only whether this hit is worth paying for. Add the least that holds — enough to beat the attack outright, not one card more — and only when what you save is worth more than the cards you spend. Ties go to the attacker, so matching the number is not enough. Early in the game, with life to spare, taking the hit is usually the cheaper play: a lost life card comes back to your hand, and a hand emptied on turn 3 is not there on turn 8. Late, or when the hit would be lethal or [Critical], pay whatever it takes.
 
 The engine enforces every rule. You will be given a numbered list of the only moves that are currently legal. Answer with one of those numbers.`;
+
+/**
+ * The primer Claude is told the game by: the mechanical half generated from
+ * the definition (`primer.ts`, so it cannot say a turn goes a way the engine
+ * no longer plays it), then `DOCTRINE`. Both engines play `dbs` only, so one
+ * primer serves either (`docs/arena-code-map.md`, "Two engines").
+ */
+function primer(): string {
+  const loaded = loadDbs();
+  if (!loaded.ok) throw new Error(`the DBS ruleset does not load, so the rules primer has nothing to generate from: ${JSON.stringify(loaded.errors[0])}`);
+  return `${generatedPrimer(loaded.definition)}\n\n${DOCTRINE}`;
+}
+
+const RULES_PRIMER = primer();
 
 const MoveSchema = z.object({
   move: z.number().int().describe("The number of the move you choose, from the list"),

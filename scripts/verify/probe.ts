@@ -339,4 +339,29 @@ if (ENGINE !== "legacy") {
     );
     assert.deepEqual(Object.keys(stored).filter((k) => !(k in digests)), [], "a fixture rule no longer exists — run `npm run contract:emit`");
   }
+
+  // #161: the same sweep, on the rules engine. Every family still builds a
+  // legacy board (`probe.ts`'s own `opening`), so every rule reports the same
+  // clear, named "not ported yet" error rather than the confusing
+  // `EngineMismatch` message that call used to bubble up several frames
+  // deeper — this locks that uniformity in as a fixture, rather than a large
+  // file of identical digests: the day a family is actually ported, either
+  // this assertion breaks (some rules now answer for real) or the outcome
+  // for every rule of that family changes, both of which are exactly what a
+  // reviewer of that future change needs to see.
+  const rulesRuns = Object.values(DEFS)
+    .sort((a, b) => a.id.localeCompare(b.id))
+    .flatMap((def) => skillRecords(def).map((rec) => probe(ruleFor(def, rec.skillIndex), scenariosFor(ruleFor(def, rec.skillIndex))[0], "rules")));
+  const outcomes = new Set(rulesRuns.map((r) => r.outcome));
+  const digestsSeen = new Set(rulesRuns.map((r) => r.digest));
+  const summaryFile = path.join(process.cwd(), "contract", "probe-rules-status.json");
+  const summary = { total: rulesRuns.length, outcomes: [...outcomes].sort(), distinctDigests: digestsSeen.size, sampleMessage: rulesRuns[0]?.result[0] ?? null };
+  if (process.argv.includes("--emit")) {
+    fs.writeFileSync(summaryFile, JSON.stringify(summary, null, 2) + "\n");
+    console.log(`verify-arena: wrote probe-rules-status.json (${summary.total} rules, ${summary.outcomes.join(", ")})`);
+  } else {
+    assert.ok(fs.existsSync(summaryFile), "contract/probe-rules-status.json is missing — run `npm run contract:emit`");
+    const storedSummary = JSON.parse(fs.readFileSync(summaryFile, "utf8")) as typeof summary;
+    assert.deepEqual(summary, storedSummary, "the rules-engine probe sweep no longer matches contract/probe-rules-status.json — review and run `npm run contract:emit` if the change is deliberate (probe staging finally reaching a family, most likely)");
+  }
 }
