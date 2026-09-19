@@ -67,8 +67,16 @@ export interface KeywordDoc {
   group: KeywordGroup;
   /** What the rule says. */
   meaning: string;
-  /** What this engine does with it. */
+  /** What the legacy engine (`src/lib/arena/engine/`) does with it. */
   engine: string;
+  /**
+   * What the rules engine (`src/lib/arena/vm/`) does with it — #158: never
+   * empty, so a keyword with no `HOOK` body in `keywords.rules` says so and
+   * names the Stage 7 doc that builds it, rather than leaving the claim to
+   * the reader's guess. Where the two engines already agree, this says so in
+   * as many words rather than repeating the line above.
+   */
+  engineRules: string;
   support: Support;
 }
 
@@ -84,6 +92,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
       "A Leader's own skill. Meet the printed condition, pay the cost, carry out the effect, then flip the Leader onto its awakened side. [Awaken: Surge] is the same skill under another name, and card text saying “[Awaken] skills” means both.",
     engine:
       "Offered on a face-up Leader in the Main Phase and during a battle, but only while the engine can read the printed condition (“If your life is at 4 or less” and its neighbours). The flip is queued before the effect runs, so it still happens when the effect stops to ask you something.",
+    engineRules: "Not built yet — a whole-keyword activation with no DEFINE KEYWORD do: block (docs/arena-backlog/s7-04-keywords-battle.md, hook group C).",
     support: "engine",
   },
   Wish: {
@@ -93,6 +102,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     group: "leader",
     meaning: "The same shape as [Awaken]: a condition, an effect, and then the Leader is flipped over.",
     engine: "Treated as [Awaken] throughout — the same offer, the same queued flip.",
+    engineRules: "Not built yet — the same whole-keyword activation gap as [Awaken] (docs/arena-backlog/s7-03-keywords-enter-leave.md, hook group B).",
     support: "engine",
   },
   "Z-Awaken": {
@@ -104,6 +114,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
       "From the Z-Deck, once a turn: pay the Z-Energy cost and the skill cost and place this Z-Leader on top of your already-awakened Leader, which has to match the printed description. The stack is one card from then on.",
     engine:
       "Offered when the Leader matches the description (read by card description or by character), the Z-Energy is there and the turn's one Z-Awaken is unspent. Only in the Main Phase, though 22-46-1 also allows it during a battle.",
+    engineRules: "Not built yet — a whole-keyword activation with no DEFINE KEYWORD do: block (docs/arena-backlog/s7-03-keywords-enter-leave.md, hook group B).",
     support: "partial",
   },
   "Z-Stack": {
@@ -114,6 +125,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     meaning:
       "When this Z-Card is placed on your Leader or into a Battle or Unison Area, put up to X cards matching the printed description from your Z-Deck underneath it. They become part of the card on top.",
     engine: "Fires on both placements; the description picks the candidates and you choose up to X of them, or none at all.",
+    engineRules: "Not built yet — docs/arena-backlog/s7-03-keywords-enter-leave.md, hook group B (confirmed absent: `verify/battles.ts`'s own Z-Stack case is a named keyword gap).",
     support: "engine",
   },
 
@@ -125,7 +137,9 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     group: "play",
     meaning: "An Extra Card that stays on the table in Active Mode instead of going to the Drop Area. Its other skills work from there, and playing another [Field] Extra drops the one already out.",
     engine:
-      "Offered from hand for the card's own energy cost; the engine drops your other [Field] Extras first and then places this one face-up in the Battle Area. The rules engine's own onEnter hook does the same drop the moment a [Field] Extra reaches the Battle Area (#155) — its own activation, how the Extra gets there in the first place, is not built yet (#157), so nothing offers the skill there today.",
+      "Offered from hand for the card's own energy cost; the engine drops your other [Field] Extras first and then places this one face-up in the Battle Area.",
+    engineRules:
+      "Its own onEnter hook does the same drop the moment a [Field] Extra reaches the Battle Area (#155) — its own activation, how the Extra gets there in the first place, is not built yet (#157), so nothing offers the skill there today.",
     support: "engine",
   },
   Evolve: {
@@ -138,6 +152,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
       "From hand: pay the cost, choose one of your Battle Cards matching the printed description, and play this card on top of it. [Xeno-Evolve] sends the chosen card to the Warp instead of stacking onto it.",
     engine:
       "The description is read with the target grammar, so only cards that qualify are offered — and the skill is not offered at all when none do. The stack keeps the position and the power effects of the card underneath. Cards that say “when using this card's [Evolve] from your hand” fire at this activation.",
+    engineRules: "Not built yet — a whole-keyword activation with no DEFINE KEYWORD do: block (docs/arena-backlog/s7-05-keywords-play-charge-pay.md, hook group D). Confirmed absent: gated in `verify/battles.ts`, `verify/keywords.ts` and `verify/workflow.ts` alike.",
     support: "engine",
   },
   Union: {
@@ -150,6 +165,8 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
       "Three ways to play a Battle Card by naming characters. Fusion drops one of each named character from your hand, both of equal power. Potara plays this card on top of two named characters in your Battle Area. Absorb is activated from the Battle Area, and its text says which card is played onto this one.",
     engine:
       "All three, with Absorb resolving its printed text like an ordinary skill rather than by names. Cards watching “when you activate a [Union] skill” fire at the activation, not at the choice that follows it, and “when this card's [Union-Absorb] is activated” fires at Absorb's own activation.",
+    engineRules:
+      "Not built — docs/arena-backlog/s7-05-keywords-play-charge-pay.md, hook group D. [Union-Absorb] specifically throws `NotYet(\"#157\")` at the one place it would play a card on top of another (`vm/play.ts`); Fusion and Potara have no body either.",
     support: "engine",
   },
   "Over Realm": {
@@ -162,6 +179,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
       "With X or more cards in your Drop Area — X or more black cards, for the dark one — send your whole Drop Area to the Warp as the cost and play this card from hand. The two share one activation a turn. A card played with [Over Realm] goes to the Warp at the end of that turn.",
     engine:
       "The count, the whole-Drop cost and the shared limit, which [Wormhole] raises to two. Cards that watch “played with [Over Realm]” fire here rather than on the ordinary play. The end-of-turn return to the Warp is scheduled for the dark variant too, which 22-23 does not ask for.",
+    engineRules: "Not built yet — a whole-keyword activation with no DEFINE KEYWORD do: block (docs/arena-backlog/s7-05-keywords-play-charge-pay.md, hook group D).",
     support: "partial",
   },
   Swap: {
@@ -172,6 +190,8 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     meaning: "Return this Battle Card to your hand and play a named Battle Card with an energy cost of X from your hand in its place.",
     engine:
       "Offered from the Battle Area, and the swap happens. 22-22-3 is honoured: with no cost-X Battle Card in hand it is refused before it is offered, rather than taking its orbs and then finding nothing to choose. The choice is still filtered by energy cost only — a [Swap] that names a character offers every cost-X Battle Card in hand, not just that character's.",
+    engineRules:
+      "Not built yet — docs/arena-backlog/s7-05-keywords-play-charge-pay.md, hook group D. Confirmed absent: `verify/workflow.ts`'s own [Swap] case (22-22-3's own refusal) is a named keyword gap.",
     support: "partial",
   },
   Arrival: {
@@ -181,6 +201,8 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     group: "play",
     meaning: "During a battle, when the original colours of the Battle Cards in your Combo Area cover every colour named, pay the cost and play this card from hand.",
     engine: "The colours are read off the Combo Area as it stands; playing the card then runs through the ordinary play, counter window and all.",
+    engineRules:
+      "Not built yet — docs/arena-backlog/s7-03-keywords-enter-leave.md, hook group B. Checked directly (not merely trusted from the doc): a card printing [Arrival] never reaches the menu on the rules engine.",
     support: "engine",
   },
   Successor: {
@@ -190,6 +212,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     group: "play",
     meaning: "Drop any number of mono-green, mono-yellow or Green/Yellow Battle Cards from your Battle Area whose energy costs add up to exactly this card's printed cost, and play it from hand.",
     engine: "Only offered when some set of your Battle Cards really does add up; the cards are then chosen one at a time until the sum is met.",
+    engineRules: "Not built yet — docs/arena-backlog/s7-03-keywords-enter-leave.md, hook group B. Checked directly: not offered on the rules engine.",
     support: "engine",
   },
   Revive: {
@@ -199,6 +222,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     group: "play",
     meaning: "When this Battle Card is KO'd, drop cards from hand whose original colours cover both named colours to play it back from your Drop Area. [Revive] is then negated on it for the turn.",
     engine: "Offered on the KO, once a turn per card, and only when the hand can actually cover the colours.",
+    engineRules: "Not built yet — docs/arena-backlog/s7-03-keywords-enter-leave.md, hook group B. Checked directly: not offered on the rules engine.",
     support: "engine",
   },
   Offering: {
@@ -208,6 +232,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     group: "play",
     meaning: "When this Battle Card is played, your opponent may put one of their life cards in their Drop Area. If they don't, you draw 2 cards.",
     engine: "Put to the opponent as a prompt of their own. With no life left there is nothing to ask, so you simply draw.",
+    engineRules: "Not built yet — [Offering]'s own moment is onEnter, group B's firing site (docs/arena-backlog/s7-03-keywords-enter-leave.md), not yet wired for this keyword.",
     support: "engine",
   },
   Heroic: {
@@ -217,7 +242,9 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     group: "play",
     meaning: "When you play another card with [Heroic], draw 1 card; the skill is then negated on this card for the rest of the turn.",
     engine:
-      "Pends only on another card carrying the same keyword — [Heroic] and [Villainous] do not set each other off — and negates itself once it has resolved. The rules engine's own afterSkill hook draws the same way (#155), but does not yet negate itself for the rest of the turn — a hook body's frame carries no skillIndex for `negate(what: own)` to read — so it draws once per other [Heroic] card played in the turn rather than once there.",
+      "Pends only on another card carrying the same keyword — [Heroic] and [Villainous] do not set each other off — and negates itself once it has resolved.",
+    engineRules:
+      "Its own afterSkill hook draws the same way (#155), but does not yet negate itself for the rest of the turn — a hook body's frame carries no skillIndex for `negate(what: own)` to read — so it draws once per other [Heroic] card played in the turn rather than once.",
     support: "engine",
   },
   Villainous: {
@@ -226,8 +253,8 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     type: "[Auto]",
     group: "play",
     meaning: "When you play another card with [Villainous], your opponent chooses a card in their hand and drops it; the skill is then negated for the rest of the turn.",
-    engine:
-      "As [Heroic], and the discard is the ordinary one, so the card that goes is the opponent's choice rather than the end of their hand. The rules engine's own afterSkill hook asks the opponent the same way (#155), with the same missing self-negation [Heroic]'s entry names.",
+    engine: "As [Heroic], and the discard is the ordinary one, so the card that goes is the opponent's choice rather than the end of their hand.",
+    engineRules: "Its own afterSkill hook asks the opponent the same way (#155), with the same missing self-negation [Heroic]'s entry names.",
     support: "engine",
   },
   Unique: {
@@ -238,6 +265,8 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     meaning: "While a card with [Unique] is in play you can't play another card with the same name. If two are somehow in play at once, their master keeps one and drops the rest.",
     engine:
       "The play is blocked, with the card already out named as the reason. When two do end up in play the engine keeps the newest instead of asking which to keep — 21-11 gives that choice to the master.",
+    engineRules:
+      "Not built, and fits none of the fifteen contracted hook points (#157's own finding): the worked example a `playRefused` body would need — \"a card with the same name\" as a self-referential comparison — is not a phrase `parseFilter` reads, so forcing [Unique] through `playRefused` would read the wrong card's own keyword. Left undeclared until the contract gains the right shape rather than forced through the wrong one.",
     support: "partial",
   },
   Overlord: {
@@ -247,6 +276,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     group: "play",
     meaning: "Put one of your Battle Cards with [Servant] at the bottom of your deck as the cost, and draw 1 card.",
     engine: "Offered while you have a [Servant] out, and cards watching “when you activate an [Overlord] skill” fire. With several [Servant] cards the engine picks one rather than asking.",
+    engineRules: "Not built yet — a whole-keyword activation with no DEFINE KEYWORD do: block (docs/arena-backlog/s7-03-keywords-enter-leave.md, hook group B).",
     support: "partial",
   },
   Rejuvenate: {
@@ -256,6 +286,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     group: "play",
     meaning: "A Unison Card with cards beneath it: drop one of them and pay the skill cost, then add the top card of your deck to your life.",
     engine: "Offered on a Unison in play with the markers to pay and any printed life condition met. The card that goes is the top one beneath rather than your pick.",
+    engineRules: "Not built yet — docs/arena-backlog/s7-03-keywords-enter-leave.md, hook group B. Checked directly: not offered on the rules engine, even with a Unison in play.",
     support: "partial",
   },
   Empower: {
@@ -268,6 +299,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
       "When you play this Unison Card over one whose colour matches, you may move up to Y markers from the Unison being replaced onto this one. An [Empower] naming no colour takes them from a Unison of any colour.",
     engine:
       "Read before the old Unison leaves play, because leaving clears its markers (5-13-3). “Up to Y” is asked, not assumed — the master is prompted for how many to carry, from 0 to the cap `resolvePlay` works out (colour checked, capped by what the outgoing Unison actually has), and the play does not finish until it is answered (owner's ruling, 9 Sep 2026).",
+    engineRules: "Not built yet — docs/arena-backlog/s7-05-keywords-play-charge-pay.md, hook group D (\"markers on arrival and the carry prompt\"). Confirmed absent: gated in `verify/keywords.ts`.",
     support: "engine",
   },
 
@@ -280,6 +312,8 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     meaning: "When one of your other cards is attacked, switch this card to Rest Mode to become the guard card instead.",
     engine:
       "Every active, unforbidden [Blocker] is offered in the block prompt, and “when this card is attacked” triggers on it then fire. One that is resting or forbidden is listed as a refusal with its reason rather than quietly missing from the list.",
+    engineRules:
+      "Native rather than a hook body — `vm/battle.ts`'s own `applyBlock`, since a [Blocker] answers a `Prompt` shape a live `FOR` selector cannot build — and already correct: `verify/battles.ts`'s own [Blocker] case is a real assertion on both engines, not a keyword gap.",
     support: "engine",
   },
   Critical: {
@@ -289,6 +323,8 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     group: "battle",
     meaning: "Life damage this card deals by attacking goes to the opponent's Drop Area instead of their hand.",
     engine: "Applied during damage processing, and the “when your life is placed in your Drop Area” triggers still fire from it.",
+    engineRules:
+      "Not built — docs/arena-backlog/s7-04-keywords-battle.md, hook group C (`beforeDamage`). #156 found it blocked: reading a life-damage amount or destination before `dealDamage` moves the card is a synchronous decision the `beforeDamage` hook's deferred effect queue cannot make in time as contracted.",
     support: "engine",
   },
   Strike: {
@@ -299,6 +335,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     group: "battle",
     meaning: "When this card would deal less than X life damage by attacking, it deals X instead — 2, 3 or 4.",
     engine: "One keyword with an X. Against a Unison Card it takes X markers off instead of one.",
+    engineRules: "Not built — the same `beforeDamage` gap as [Critical] above (docs/arena-backlog/s7-04-keywords-battle.md, hook group C), and `verify/battles.ts`'s own [Double Strike] case is a named keyword gap.",
     support: "engine",
   },
   Attack: {
@@ -309,6 +346,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     group: "battle",
     meaning: "When this card attacks, it switches back to Active Mode at the end of the battle — X−1 times a turn.",
     engine: "Counted on the card itself, so the extra stands run out after X−1 attacks in the turn.",
+    engineRules: "Not built — docs/arena-backlog/s7-04-keywords-battle.md, hook group C. `verify/battles.ts`'s own [Dual Attack] case is a named keyword gap.",
     support: "engine",
   },
   Revenge: {
@@ -317,8 +355,9 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     type: "[Auto]",
     group: "battle",
     meaning: "When this card becomes the guard card, KO the attacking card at the end of the battle.",
-    engine:
-      "Marked on the battle when it becomes the guard and carried out when the battle ends, whatever happened in between. The rules engine fires the guard's `battleEnd` hook the same way (#156), but the body is not declared yet — the `ko` op it would run has no skill-driven implementation (#146), so declaring it would crash a game rather than leave it silently incomplete.",
+    engine: "Marked on the battle when it becomes the guard and carried out when the battle ends, whatever happened in between.",
+    engineRules:
+      "The `battleEnd` hook fires on the guard the same way (#156) — the contract's own worked example — but the body is not declared: the `ko` op it would run has no skill-driven implementation yet (#146), so declaring it would crash a game rather than leave it silently incomplete.",
     support: "engine",
   },
   Alliance: {
@@ -328,6 +367,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     group: "battle",
     meaning: "When this card attacks, you may switch one or more of your other Battle Cards of the named colours to Rest Mode as the cost of the printed effect.",
     engine: "The printed condition is checked before anyone is asked to rest anything, and the cards rested are bound so the effect can talk about them.",
+    engineRules: "Not built yet — docs/arena-backlog/s7-02-keywords-choosing-immunity.md, hook group A. Checked directly: not offered on the rules engine.",
     support: "engine",
   },
   Aegis: {
@@ -337,6 +377,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     group: "battle",
     meaning: "In the Defense Step of your opponent's turn, drop cards from your hand covering the named colours to switch up to two of your energy from Rest to Active Mode.",
     engine: "Only offered in the Defense Step, and only cards that can still be part of a set covering every named colour are offered — so a pick cannot dead-end after the orbs are already spent.",
+    engineRules: "Not built yet — docs/arena-backlog/s7-02-keywords-choosing-immunity.md, hook group A. Checked directly: not offered on the rules engine, even in the Defense Step.",
     support: "engine",
   },
   "Victory Strike": {
@@ -346,6 +387,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     group: "battle",
     meaning: "Deal life damage by attacking with this card and you win the game.",
     engine: "The game ends there, with the card named as the reason. Against a Unison Card it takes every marker instead.",
+    engineRules: "Not built — the same `beforeDamage` gap as [Critical] above (docs/arena-backlog/s7-04-keywords-battle.md, hook group C, #156's own reassignment from group A).",
     support: "engine",
   },
   Servant: {
@@ -354,8 +396,9 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     type: "[Permanent]",
     group: "battle",
     meaning: "+10000 power, and the card does not switch to Active Mode during its master's Charge Phase.",
-    engine:
-      "Both halves. The power is part of the card's power everywhere it is read, so combos and comparisons see it. The rules engine reads both halves too, through its own attrBonus hook (#154) and its own activeStep hook (#155), the latter checked only against `chargeActivate`'s own switch to Active Mode — nothing stops the card being rested some other way.",
+    engine: "Both halves. The power is part of the card's power everywhere it is read, so combos and comparisons see it.",
+    engineRules:
+      "Both halves too, through its own attrBonus hook (#154) and its own activeStep hook (#155), the latter checked only against `chargeActivate`'s own switch to Active Mode — nothing stops the card being rested some other way.",
     support: "engine",
   },
 
@@ -367,7 +410,9 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     group: "target",
     meaning: "This card can't be chosen by the skills of cards your opponent masters.",
     engine:
-      "Taken out of the candidates of every opponent selector, and named as the reason when you tap the card anyway. “Ignoring [Barrier]” lifts it for that one choice, and a card in a hand was never in scope to begin with. The rules engine (#154) excludes the same candidates through the same `forbid(what: beChosen)`/20-4 machinery, folded into the card's own rules (`prohibitions()`) rather than a special case; naming *why* a `chooseCards` candidate was refused is not built there yet (a real gap, not this keyword's), so only the legality half is proven so far.",
+      "Taken out of the candidates of every opponent selector, and named as the reason when you tap the card anyway. “Ignoring [Barrier]” lifts it for that one choice, and a card in a hand was never in scope to begin with.",
+    engineRules:
+      "Excludes the same candidates through its own `chooseable` hook, the same `forbid(what: beChosen)`/20-4 machinery folded into the card's own rules (`prohibitions()`) rather than a special case (#154); naming *why* a `chooseCards` candidate was refused is not built there yet (a real gap, not this keyword's — `chooseRejectionGap` in `verify/workflow.ts`), so only the legality half is proven so far.",
     support: "engine",
   },
   Deflect: {
@@ -377,6 +422,8 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     group: "target",
     meaning: "This card isn't affected by your opponent's [Counter: Play] skills. Valid in every area.",
     engine: "While a [Deflect] card is being played the opponent's [Counter: Play] window holds nothing, and the refusal says which card closed it.",
+    engineRules:
+      "Not built — reassigned to hook group C's `counterWindow` (docs/arena-backlog/s7-04-keywords-battle.md) once #153's inventory confirmed the real hook, and #156 found it still blocked: it needs the Counter:Play window, which only #150's battle-triggered one exists (`vm/host.ts`'s own `NotYet`).",
     support: "engine",
   },
   Indestructible: {
@@ -386,7 +433,9 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     group: "target",
     meaning: "This card can't be KO'd or moved out of your Battle Area by the opponent's skills or as a result of battle.",
     engine:
-      "Honoured both by battle and by an opponent's script on the engine playing every game today. A card at 0 power or less still goes to the Drop Area — that is 21-6, not a KO. The rules engine (#154) honours the battle half the same way; the script half has no caller yet, because the rules engine does not resolve a skill's KO at all (#146) — nothing reaches it to be immune from.",
+      "Honoured both by battle and by an opponent's script on the engine playing every game today. A card at 0 power or less still goes to the Drop Area — that is 21-6, not a KO.",
+    engineRules:
+      "Honours the battle half the same way, read directly in the battle-KO step rather than through the hook (#154); the skill half's own `koByEffect` hook has no caller yet, because the rules engine does not resolve a skill's KO at all (#146) — nothing reaches it to be immune from.",
     support: "engine",
   },
 
@@ -397,8 +446,9 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     type: "[Permanent]",
     group: "cost",
     meaning: "When this card is placed in an Energy Area, it arrives in Rest Mode. Valid in every area.",
-    engine:
-      "Applied wherever a card lands in energy, from any area and by any means. The rules engine's own chargeLimit hook does the same (#157), fired from the one script-level mover every DO program's moveTo op runs through — a card that reaches an Energy Area through vm/flow.ts's separate native mover (moved(), used for a KO, a combo card leaving, a battle) does not yet answer here, the same edge the legacy engine's own site (printed-only, not granted) already carries.",
+    engine: "Applied wherever a card lands in energy, from any area and by any means.",
+    engineRules:
+      "Applied through its own chargeLimit hook (#157), fired from the one script-level mover every DO program's `moveTo` op runs through — a card that reaches an Energy Area through `vm/flow.ts`'s separate native mover (`moved()`, used for a KO, a combo card leaving, a battle) does not yet answer here, the same edge the legacy engine's own site (printed-only, not granted) already carries.",
     support: "engine",
   },
   "Warrior of Universe 7": {
@@ -408,6 +458,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     group: "cost",
     meaning: "Treat your ≪Universe 7≫ cards in every area as having no specified cost — the coloured part of a play's price.",
     engine: "Applied when the price of a play is worked out, while any card you have in play or as your Leader carries the keyword.",
+    engineRules: "Not built yet — docs/arena-backlog/s7-02-keywords-choosing-immunity.md, hook group A.",
     support: "engine",
   },
   Invoker: {
@@ -418,6 +469,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     meaning: "A Red/Blue multicolour Extra Card in your hand may be activated by switching one active Red/Blue multicolour energy to Rest Mode instead of paying its energy cost.",
     engine:
       "Offered as a separate second entry in the menu, so the ordinary price is still there. The skill's own orbs are still paid, and paid out of what is left after the energy [Invoker] is about to rest.",
+    engineRules: "Not built yet — docs/arena-backlog/s7-03-keywords-enter-leave.md, hook group B. Checked directly: no alternate offer reaches the menu on the rules engine.",
     support: "engine",
   },
   Wormhole: {
@@ -427,6 +479,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     group: "cost",
     meaning: "[Over Realm] and [Dark Over Realm] may be activated twice a turn between them instead of once.",
     engine: "Raises the count while any card you have in play carries it, and a refused second [Over Realm] says which limit it hit.",
+    engineRules: "Not built yet — docs/arena-backlog/s7-03-keywords-enter-leave.md, hook group B, the same [Over Realm] this raises the limit of.",
     support: "engine",
   },
   "Spirit Boost": {
@@ -437,6 +490,8 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     meaning: "Part of a skill's cost: remove X markers from your Unison Card. A skill whose [Spirit Boost] can't be paid can't be activated.",
     engine:
       "Read off the tag and charged where the orbs are charged, so an unpayable one is neither offered nor resolved. It never names the skill it sits on, which is why the line keeps its own [Activate] or [Auto] type. Paying it is a moment cards watch, and those triggers fire.",
+    engineRules:
+      "Not built, though `dbs/costs.rules`'s own `DEFINE COST marker` is declared and shared code once suggested this keyword needed no hook body at all — checked directly rather than trusted: with a Unison carrying enough markers, the skill is still not offered on the rules engine. The bound amount for a keyword-shaped `[Spirit Boost N]` price is not reaching the planner (`vm/costs.ts`'s `BoundAmounts`) the way an activation's own line binds a marker cost for other kinds of skill.",
     support: "engine",
   },
 
@@ -449,6 +504,8 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     meaning: "A deck may hold at most one card with [Ultimate], and a card with it that leaves play is removed from the game rather than going anywhere else.",
     engine:
       "The removal is enforced, both in play and when the card fails to enter play. The one-per-deck limit is not: no card prints it in a wording the deck checker reads, so a second [Ultimate] card is not flagged.",
+    engineRules:
+      "The deck limit is the same deck checker either engine's games are built from — engine-agnostic, so nothing here differs. The in-game removal is not built yet — docs/arena-backlog/s7-04-keywords-battle.md, hook group C.",
     support: "partial",
   },
   "Super Combo": {
@@ -458,6 +515,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     group: "deck",
     meaning: "A deck may hold at most four cards with [Super Combo], counted across all of them.",
     engine: "Counted by the deck checker, which marks a deck over four illegal. Nothing happens in a game beyond target descriptions that name it — “a blue non-[Super Combo] Battle Card”.",
+    engineRules: "The same deck checker runs regardless of which engine plays the resulting game, and neither engine does anything else with it — a deck-building rule only, true of both.",
     support: "deck",
   },
   "Dragon Ball": {
@@ -467,6 +525,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     group: "deck",
     meaning: "As many copies of a [Dragon Ball] card as you like, as long as no more than seven [Dragon Ball] cards are in the deck all told.",
     engine: "The deck checker counts the pool and lifts the four-copy limit for those cards, so six of one Dragon Ball is legal. Nothing happens in a game.",
+    engineRules: "The same deck checker runs regardless of which engine plays the resulting game — a deck-building rule only, true of both.",
     support: "deck",
   },
 };

@@ -86,6 +86,9 @@ import type { CardDef } from "./harness";
     "every keyword belongs to exactly one group of the reference",
   );
   for (const g of grouped) assert.ok(g.entries.length > 0, `the reference has an empty group: ${g.label}`);
+  // #158: the rules-engine line is never blank — a keyword with no HOOK body
+  // yet still has to say so, rather than the page silently repeating nothing.
+  for (const [name, doc] of Object.entries(KEYWORDS)) assert.ok(doc.engineRules.trim().length > 0, `[${name}] has no rules-engine line`);
 }
 
 // ── filters and conditions ─────────────────────────────────────────────────

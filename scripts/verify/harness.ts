@@ -41,7 +41,8 @@ import { DEFAULT_ENGINE, engineFor, isEngineId, isVmState, legacyState, type Eng
 import type { VmState } from "../../src/lib/arena/vm/state";
 import { moveCard } from "../../src/lib/arena/vm/zones";
 import { attrsNow } from "../../src/lib/arena/vm/program";
-import { addEffect as vmAddEffect } from "../../src/lib/arena/vm/effects";
+import { addEffect as vmAddEffect, skillNegated as vmSkillNegated } from "../../src/lib/arena/vm/effects";
+import { hasKeyword as vmHasKeyword } from "../../src/lib/arena/vm/program";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { appendBeats, maskBeats, toBeats, type Beat, type Beats, type NumberedBeat } from "../../src/lib/arena/beats";
 import { buildSnapshot, rejectedFor, waitingFor, type Snapshot } from "../../src/lib/arena/snapshot";
@@ -55,8 +56,9 @@ import { parseFilter, matches, parseCondition, type CardFilter } from "../../src
 import { addEffect, schedule, move, locate, placeUnder, planPayment, playCost, powerOf, forbids, has, cardNow, comboCostOf, zEnergyCostOf, skillNegated, skillsNegated, lifeReplacementChoicesFor } from "../../src/lib/arena/engine/state";
 import { compileCostProgram, compileSkill, costIsOnlyOrbs, costText, parseConditionClause, parseTarget, priceCondition, priceX, splitClauses } from "../../src/lib/arena/engine/compile";
 import { COND_CLASS, COND_SCHEMA, CONDITIONS_OFF_A_CARD, OP_CLASS, OP_SCHEMA, condSignature, describeCond, describeScript, opSignature, validateProgram as validate, type Op as SchemaOp } from "../../src/lib/arena/engine/script";
-import { autoTriggerMatches, koCard } from "../../src/lib/arena/engine/triggers";
-import type { Trigger } from "../../src/lib/arena/engine/types";
+import { autoTriggerMatches, koCard, masterOf } from "../../src/lib/arena/engine/triggers";
+import { masterOf as vmMasterOf } from "../../src/lib/arena/vm/triggers";
+import type { KeywordSkill, Trigger } from "../../src/lib/arena/engine/types";
 import { canonical, hoist, patternKey, programShape, rulesFromCompiler, skillRecords } from "../../src/lib/arena/draft";
 import { keywordPlays } from "../../src/lib/arena/glossary";
 import { EFFECT_LANGUAGE } from "../../src/lib/arena/ai/opponent";
@@ -595,6 +597,41 @@ function powerOfG(s: EngineState, id: string): number {
   return isVmState(s) ? Number(attrsNow(CTX, DBS_DEFINITION, s, id).power ?? 0) : powerOf(CTX, s, id);
 }
 
+/** `has` above, on whichever engine `--engine` named — `hasKeyword` (`vm/program.ts`) reads the same three sources `has` does: a printed skill still showing, a `keyword`-kind effect, and a [Permanent] static, so a keyword copied on by `copySkills` reads the same way a printed one does. */
+function hasG(s: EngineState, id: string, name: KeywordSkill["name"]): boolean {
+  return isVmState(s) ? vmHasKeyword(CTX, DBS_DEFINITION, s, id, name) : has(CTX, s, id, name);
+}
+
+/** `skillNegated` above, on whichever engine `--engine` named. */
+function skillNegatedG(s: EngineState, id: string, index: number): boolean {
+  return isVmState(s) ? vmSkillNegated(s, id, index) : skillNegated(s, id, index);
+}
+
+/** `masterOf` above, on whichever engine `--engine` named — 3-1-6, the side whose in-play area currently holds the card, else its owner. The rules engine's own `masterOf` needs the `GameDefinition` triggers.ts already threads through everywhere else, so `DBS_DEFINITION` is bound here exactly as `powerOfG` binds it. */
+function masterOfG(s: EngineState, id: string): PlayerId {
+  return isVmState(s) ? vmMasterOf(DBS_DEFINITION, s, id) : masterOf(s, id);
+}
+
+/**
+ * Test-only staging: relocate a card instance into a named zone, on whichever
+ * engine `--engine` named — a raw splice like `stageOnRules`'s own above, not
+ * a move a rule would make (no event, no moment, no reason). Used where a
+ * fixture needs a card in the Drop or at the bottom of the deck before the
+ * move under test runs, and the *how it got there* is not itself part of what
+ * is being checked — `move(CTX, …)` remains the right call for a fixture that
+ * needs the real thing (a reason, a position, an event log).
+ */
+function stageMoveG(s: EngineState, id: string, area: ZoneArea, side: PlayerId): void {
+  for (const p of ["p1", "p2"] as PlayerId[]) {
+    for (const a of ZONE_AREAS) {
+      const z = zoneOf(s, p, a);
+      const i = z.indexOf(id);
+      if (i >= 0) z.splice(i, 1);
+    }
+  }
+  zoneOf(s, side, area).push(id);
+}
+
 export {
   COND_CLASS,
   COND_SCHEMA,
@@ -659,6 +696,7 @@ export {
   game,
   gameG,
   has,
+  hasG,
   hoist,
   keywordOf,
   keywordPlays,
@@ -672,6 +710,7 @@ export {
   lightingFrom,
   locate,
   maskBeats,
+  masterOfG,
   matches,
   mechanismOf,
   missingEnergyChip,
@@ -711,9 +750,11 @@ export {
   sentence,
   skillLines,
   skillNegated,
+  skillNegatedG,
   skillRecords,
   skillsNegated,
   splitClauses,
+  stageMoveG,
   stepText,
   tagBody,
   tagParsesTo,
