@@ -11,9 +11,10 @@
  * Pure and React-free — covered by `npm test`, and the table the Android app
  * carries in Kotlin.
  */
-import type { Area, PlayerId } from "./engine";
+import type { PlayerId } from "./engine";
 import type { Beat, BeatArt } from "./beats";
 import { untilWords } from "./effects";
+import { DBS_WORDS, type BoardWords } from "./board-words";
 
 export interface Narrator {
   /** Whose side of the table the sentence is read from. */
@@ -26,38 +27,10 @@ export interface Narrator {
   ownerOf?: (card: string) => PlayerId | null;
 }
 
-const PHASE: Record<string, string> = {
-  charge: "Charge Phase",
-  main: "Main Phase",
-  mainEnd: "Main Phase ends",
-  end: "End Phase",
-  declared: "Attack declared",
-  offense: "Offense Step",
-  defense: "Defense Step",
-  damage: "Damage Step",
-  battleEnd: "The battle ends",
-  setup: "Setting up",
-  over: "The game is over",
-};
-
-const AREA: Record<Area, string> = {
-  deck: "the deck",
-  hand: "hand",
-  drop: "the Drop",
-  leader: "the Leader Area",
-  battle: "the Battle Area",
-  combo: "the Combo Area",
-  energy: "the Energy Area",
-  life: "life",
-  warp: "the Warp",
-  unison: "the Unison Area",
-  zDeck: "the Z-Deck",
-  zEnergy: "Z-Energy",
-  removed: "out of the game",
-};
-
 /** One sentence for a beat, or null for a beat with nothing to say. */
-export function narrate(b: Beat, n: Narrator): string | null {
+export function narrate(b: Beat, n: Narrator, words: BoardWords = DBS_WORDS): string | null {
+  const PHASE = words.phase;
+  const AREA = words.narrationArea;
   const name = (id: string) => n.art[id]?.name ?? "a card";
   const you = (p: PlayerId | null | undefined) => p === n.viewer;
   /** "You play" / "Claude plays". */
@@ -107,7 +80,7 @@ export function narrate(b: Beat, n: Narrator): string | null {
       return `${c} moves from ${AREA[b.from]} to ${AREA[b.to]}.`;
     }
     case "mode":
-      return `${name(b.card)} switches to ${b.mode === "rest" ? "Rest" : "Active"} Mode.`;
+      return `${name(b.card)} switches to ${words.mode[b.mode === "rest" ? "rest" : "active"]}.`;
     case "flip":
       return `${name(b.card)} awakens!`;
     case "markers":
