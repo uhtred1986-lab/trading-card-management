@@ -515,12 +515,34 @@ if (dbs.ok) {
   // #274 (a move told apart by its cause) adds only `ko` — `draw`, `discard`,
   // `damage` and `addLife` all take `n` as an `amount`, X included, and a
   // selector's count is typed a bare `number` (see `ops.rules`'s `count`).
-  // #276 (one primitive under the four negation spellings) adds the next four,
-  // and #277 (a price is not a number) the last two.
+  // #276 (one primitive under the four negation spellings) adds the next
+  // four, #277 (a price is not a number) the next two, and #275 (a player
+  // and the battle in progress, as subjects) the last ten.
   assert.ok("ops.rules" in DBS_FILES, "ops.rules is not in the set the app loads");
   assert.deepEqual(
     Object.keys(def.ops).sort(),
-    ["altCost", "comboPower", "costReduction", "ko", "may", "negateKeyword", "negateOwnSkill", "negateSkills", "negateSkillsOfKind", "power"],
+    [
+      "addMarker",
+      "altCost",
+      "comboPower",
+      "costReduction",
+      "energyMarker",
+      "faceUp",
+      "flip",
+      "gains",
+      "grant",
+      "hidden",
+      "ko",
+      "may",
+      "negateKeyword",
+      "negateOwnSkill",
+      "negateSkills",
+      "negateSkillsOfKind",
+      "power",
+      "redirectAttack",
+      "removeMarker",
+      "switchMode",
+    ],
     "ops.rules declares a different set of macros than the tests expect",
   );
   for (const name of Object.keys(def.ops)) {
@@ -599,11 +621,13 @@ function completeness(actual: readonly string[], expected: readonly string[], wh
   assert.deepEqual(extra, [], `${what}: the ruleset declares ${JSON.stringify(extra)}, which the legacy engine does not have`);
 }
 
-// attributes.rules also declares three derived `of: card` attributes with no
-// `CardDef` field at all (20-21: the cost as it stands after reductions) —
-// real values the board computes, set aside by name rather than counted as
-// unions the legacy engine's `CardDef` does not have.
-const DERIVED_CARD_ATTRIBUTES = ["costOf", "comboCostOf", "zEnergyCostOf"];
+// attributes.rules also declares derived `of: card` attributes with no
+// `CardDef` field at all: three the board computes (20-21: the cost as it
+// stands after reductions), and six that live on the card sitting on the
+// table rather than on the catalog row (spec §2.5-1/§2.5-3, #275) — set
+// aside by name rather than counted as unions the legacy engine's `CardDef`
+// does not have.
+const DERIVED_CARD_ATTRIBUTES = ["costOf", "comboCostOf", "zEnergyCostOf", "mode", "markers", "keywords", "hidden", "faceUp", "flipped"];
 
 if (dbs.ok) {
   const { vocabulary: vocab, definition: def } = dbs;

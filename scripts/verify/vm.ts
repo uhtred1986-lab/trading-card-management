@@ -46,7 +46,6 @@ import {
   ENGINE_IDS,
   ENGINE_INFO,
   EngineMismatch,
-  EngineNotBuilt,
   engineFor,
   legacyState,
   playableEngine,
@@ -58,12 +57,15 @@ import {
   FilterNeedsAttribute,
   actionCostOf,
   activeEnergy,
+  activationsOf,
+  boundFor,
   cardPrice,
   chargeCost,
   chargesOf,
   freePrice,
   planCost,
   priceFor,
+  type ActivationLine,
   type Price,
   type VmPayment,
   MEASURES,
@@ -118,7 +120,7 @@ import { describePayment as legacyDescribe, paymentOptions as legacyOptions, pla
 import { paymentOptions as vmOptions } from "../../src/lib/arena/vm/costs";
 import type { CardDef, Color, PlayerId, Requirement } from "../../src/lib/arena/engine/types";
 import { legacyHost } from "../../src/lib/arena/engine/script-host";
-import { stepScript, type Op, type Ref, type ScriptFrame } from "../../src/lib/arena/engine/script";
+import { stepScript, type Op, type PayWith, type Ref, type ScriptFrame } from "../../src/lib/arena/engine/script";
 import { skillsNegated as legacySkillsNegated } from "../../src/lib/arena/engine/state";
 import { skillsNegated as vmSkillsNegated } from "../../src/lib/arena/vm/effects";
 import { CTX, DEFS, arena, assertMenuInvariants, card, fifty, find, matches, parseSkills, play, powerOf } from "./harness";
@@ -154,11 +156,16 @@ for (const id of ENGINE_IDS) {
 
 // Resolving the interpreter for a row and being allowed to start a game are
 // two questions: `engineFor` answers the first for every id, `playableEngine`
-// the second from the availability flag the `/arena` form greys the option by.
-assert.equal(ENGINE_INFO.rules.available, false, "the rules engine says it is playable, and nothing plays on it yet");
-assert.deepEqual(AVAILABLE_ENGINES, ["legacy"], "the engines a new game may be made on have changed");
+// the second from the availability flag the `/arena` form greys the option
+// by. Since #149 the rules engine plays the actions of Stage 5 the same as
+// the legacy one, so the flag is true and a new game may be made on it — the
+// mode/engine combinations still refused (Sparring, Tournament, a 1 v 1) are
+// `games.ts`'s `assertEngineForMode` and `matches.ts`'s `openMatch`, one
+// level above what `playableEngine` alone answers.
+assert.equal(ENGINE_INFO.rules.available, true, "the rules engine still says it cannot play, and #149 built it to");
+assert.deepEqual(AVAILABLE_ENGINES, ["legacy", "rules"], "the engines a new game may be made on have changed");
 assert.equal(playableEngine("legacy").id, "legacy", "the legacy engine is refused for a new game");
-assert.throws(() => playableEngine("rules"), EngineNotBuilt, "a new game may be started on the rules engine");
+assert.equal(playableEngine("rules").id, "rules", "the rules engine is refused for a new game despite #149");
 assert.doesNotThrow(() => engineFor("rules"), "engineFor refuses the rules engine, so no row on it could ever be read");
 
 // ── 3. a rules game can be made ────────────────────────────────────────────
@@ -1095,6 +1102,84 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     const negation = ["effect", "negate", "skills negated", "turn"];
     assert.deepEqual(shape(r.primitive.beats), [negation, negation], "the rules engine's beat for a negation is not the one the board draws");
     assert.deepEqual(shape(l.primitive.beats), shape(r.primitive.beats), "the two engines draw a negation differently");
+  }
+
+  // ── #275: `modifyAttr` reaches a Leader's back side and a card's mode ────
+  //
+  // `flip` and `switchMode` written as themselves and written as
+  // `modifyAttr(attr: flipped)`/`modifyAttr(attr: mode)` run through the
+  // same interpreter case on either host (`modifyAttrAs`, the precedent
+  // `negateAs` set above), so the events and the beats a board draws are
+  // the same both ways, on both engines. `ops.rules` declares both over the
+  // primitive for real, so `DBS` proves a lowered program is the same
+  // program rather than a fixture built just for this block.
+  {
+    const self: Ref = { sel: { special: "self" } };
+
+    /** `flip`: p1's own Leader, "L-RED", which prints a back side (22-2-4). */
+    {
+      const spelled: Op[] = [{ op: "flip", target: self }];
+      const primitive: Op[] = [{ op: "modifyAttr", target: self, attr: "flipped" }];
+      assert.deepEqual(expandMacros(spelled, DBS), primitive, "flip declared over modifyAttr did not lower to the primitive");
+
+      const onRules = (ops: Op[]) => {
+        const s = mainPhase();
+        const leader = s.sides.p1.zones.leader[0];
+        const ev: GameEvent[] = [];
+        assert.equal(stepScript(vmHost(CTX, DBS, s, ev), { ops, ip: 0, vars: {}, card: leader, master: "p1" }), "done");
+        assert.ok(s.cards[leader].flipped, "the rules engine did not flip the Leader");
+        return { events: JSON.parse(JSON.stringify(ev)) as unknown, beats: rulesEngine.toBeats(CTX, s, ev).list.map((b) => JSON.parse(JSON.stringify(b)) as unknown) };
+      };
+      const onLegacy = (ops: Op[]) => {
+        const l = createGame(CTX, SAME).state;
+        const leader = l.players.p1.leader;
+        const ev: GameEvent[] = [];
+        assert.equal(stepScript(legacyHost(CTX, l, ev), { ops, ip: 0, vars: {}, card: leader, master: "p1" }), "done");
+        assert.ok(l.cards[leader].flipped, "the legacy engine did not flip the Leader");
+        return { events: JSON.parse(JSON.stringify(ev)) as unknown, beats: toBeats(CTX, l, ev).list.map((b) => JSON.parse(JSON.stringify(b)) as unknown) };
+      };
+
+      const r = { spelled: onRules(spelled), primitive: onRules(primitive) };
+      const l = { spelled: onLegacy(spelled), primitive: onLegacy(primitive) };
+      assert.deepEqual(r.primitive.events, r.spelled.events, "flip as op and as modifyAttr do not log the same events on the rules engine");
+      assert.deepEqual(l.primitive.events, l.spelled.events, "flip as op and as modifyAttr do not log the same events on the legacy engine");
+      assert.deepEqual(r.primitive.beats, r.spelled.beats, "flip as op and as modifyAttr do not make the same beats on the rules engine");
+      assert.deepEqual(l.primitive.beats, l.spelled.beats, "flip as op and as modifyAttr do not make the same beats on the legacy engine");
+    }
+
+    /** `switchMode`: a Battle Card resting itself. */
+    {
+      const spelled: Op[] = [{ op: "switchMode", target: self, mode: "rest" }];
+      const primitive: Op[] = [{ op: "modifyAttr", target: self, attr: "mode", mode: "rest" }];
+      assert.deepEqual(expandMacros(spelled, DBS), primitive, "switchMode declared over modifyAttr did not lower to the primitive");
+
+      const onRules = (ops: Op[]) => {
+        const s = mainPhase();
+        const card = staged(s, "p1", "V1");
+        const ev: GameEvent[] = [];
+        assert.equal(stepScript(vmHost(CTX, DBS, s, ev), { ops, ip: 0, vars: {}, card, master: "p1" }), "done");
+        assert.equal(s.cards[card].mode, "rest", "the rules engine did not rest the card");
+        return { events: JSON.parse(JSON.stringify(ev)) as unknown, beats: rulesEngine.toBeats(CTX, s, ev).list.map((b) => JSON.parse(JSON.stringify(b)) as unknown) };
+      };
+      const onLegacy = (ops: Op[]) => {
+        const l = createGame(CTX, SAME).state;
+        const [card] = l.players.p1.deck.splice(0, 1);
+        l.cards[card].cardId = "V1";
+        l.cards[card].mode = "active";
+        l.players.p1.battle = [card];
+        const ev: GameEvent[] = [];
+        assert.equal(stepScript(legacyHost(CTX, l, ev), { ops, ip: 0, vars: {}, card, master: "p1" }), "done");
+        assert.equal(l.cards[card].mode, "rest", "the legacy engine did not rest the card");
+        return { events: JSON.parse(JSON.stringify(ev)) as unknown, beats: toBeats(CTX, l, ev).list.map((b) => JSON.parse(JSON.stringify(b)) as unknown) };
+      };
+
+      const r = { spelled: onRules(spelled), primitive: onRules(primitive) };
+      const l = { spelled: onLegacy(spelled), primitive: onLegacy(primitive) };
+      assert.deepEqual(r.primitive.events, r.spelled.events, "switchMode as op and as modifyAttr do not log the same events on the rules engine");
+      assert.deepEqual(l.primitive.events, l.spelled.events, "switchMode as op and as modifyAttr do not log the same events on the legacy engine");
+      assert.deepEqual(r.primitive.beats, r.spelled.beats, "switchMode as op and as modifyAttr do not make the same beats on the rules engine");
+      assert.deepEqual(l.primitive.beats, l.spelled.beats, "switchMode as op and as modifyAttr do not make the same beats on the legacy engine");
+    }
   }
 
   // ── 9-1-4 and 7-4-5: a continuous effect, and the turn it ends with ───────
@@ -2413,6 +2498,51 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     assert.equal(done.r.state.cards[coin].mode, "rest", "the energy the price was planned against was not rested");
   }
 
+  // 2b. 20-19's own payWith: a line whose price names a card outside the
+  //     Energy Area as a payer (#149) — never the [Permanent] whole-board
+  //     grant BT3-039 prints, which stays unread (`DEFERRED_STATICS`). The
+  //     record's `payWith` is bound the same way `marker` and `life` already
+  //     are (`boundFor`), and `priceFor`/`planCost`/`chargeCost` are the same
+  //     machinery §17 already proved against a hand-built `Price.payers` — what
+  //     was missing was something to fill it from a record instead of by hand.
+  //     No card compiles to this cost item yet (only the [Permanent] form
+  //     does), so the record is built the way a workbench correction would be:
+  //     by hand, on a real card's real line.
+  {
+    const board = stagedFor(["A-ORBS", "A-E-RED"], []);
+    const user = board.r.sides.p1.zones.battle[0];
+    const payer = board.r.sides.p1.zones.battle[1];
+    assert.equal(board.r.sides.p1.zones.energy.length, 0, "the board is staged with energy the price could be paid from instead");
+
+    const real = activationsOf(CTX, board.r, DBS.actions.activate, user).find((l) => l.skillIndex === 0);
+    assert.ok(real?.script, "A-ORBS's line has no record to build the payWith one from");
+    // Named by character rather than by colour: A-ORBS and A-E-RED are both
+    // red by the harness's own default, so a colour filter would catch the
+    // activating card too.
+    const payWith: PayWith[] = [{ sel: { side: "you", area: "battle", filter: { ...emptyFilter(), characters: ["A-E-RED"] } }, as: "energy" }];
+    // The printed cost is rewritten to what BT3-039's family actually prints
+    // ("pay {r} or use ≪…≫ as energy"), so `chargeablePrice`'s `costIsOnlyOrbs`
+    // shortcut is not what makes this line chargeable — the `payWith` branch is.
+    const line: ActivationLine = {
+      ...real!,
+      skill: { ...real!.skill, cost: "{r} or use ≪A-E-RED≫ as energy" },
+      script: { ops: real!.script!.ops, unsupported: [], price: { condition: null, ops: null, payWith } },
+    };
+
+    const bound = boundFor(CTX, DBS, board.r, "p1", line);
+    assert.deepEqual(bound.payers, [{ id: payer, colors: ["Red"] }], "the line's own payWith did not resolve to the card it names");
+    assert.equal(bound.unreadable, null, "a payWith price is still refused as the printed text rather than charged");
+
+    const price = priceFor(CTX, DBS, board.r, DBS.actions.activate, user, bound);
+    assert.deepEqual(price.payers, [{ id: payer, colors: ["Red"] }], "priceFor did not carry the bound payer onto the price");
+
+    // No energy to try first, so the plan reaches straight for 20-19's payer —
+    // the same board `planCost`/`chargeCost` already proved themselves against
+    // in §17, now driven from the binding rather than a hand-built `Price`.
+    const plan = planCost(CTX, DBS, board.r, "p1", price, user);
+    assert.ok(plan.ok && plan.payment.rest[0] === payer, "the line's own payer was not reached for, with no energy to try first");
+  }
+
   // 3. Three lines, three answers — on both engines, for one board. The whole
   //    of §3.2's exception: the first line is playable, the second is short of
   //    a blue orb, the third belongs to another window.
@@ -3139,18 +3269,20 @@ console.log("verify/vm: ok");
     // — declaring growUnison over the player attribute #269 adds is what
     // finally offers the move at all, and the `NotYet` it hits partway through
     // the `DO` is caught at the one program boundary `stepProgram` already has
-    // for exactly this (`vm/flow.ts`): logged as a note naming the issue that
-    // finishes it, the program dropped, the rest of the turn unaffected —
-    // "stops that one skill rather than the game". Nothing after the failed
-    // `moveTo` ran, so neither the marker nor the once-a-turn fact is set;
-    // that half is `arena-fuzz --engine rules` and #146's to close, not this
-    // issue's — `ENGINE_INFO.rules.available` is still false, so no real game
-    // can reach this today.
+    // for exactly this (`vm/flow.ts`). Since #149 that boundary ends the game
+    // rather than noting the gap and playing on — `ENGINE_INFO.rules.available`
+    // is true and a real player can reach this today, so a skill stopping
+    // halfway with nothing said would be a worse answer than the game refusing
+    // to go on. Nothing after the failed `moveTo` ran, so neither the marker
+    // nor the once-a-turn fact is set — that half is #146's to close, not
+    // #149's, and #149 only changes *what the game does* once it is reached.
     const r2 = rulesEngine.apply(CTX, board.r, grow);
     assert.ok(
-      r2.events.some((e) => e.type === "note" && typeof (e as { text?: string }).text === "string" && (e as { text: string }).text.includes("#146")),
-      "growing a Unison on the rules engine did not note the move-under gap and name #146",
+      r2.events.some((e) => e.type === "gameOver" && e.winner === null && e.reason.includes("#146")),
+      "growing a Unison on the rules engine did not end the game naming the move-under gap and #146",
     );
+    assert.equal((r2.state as VmState).prompt.kind, "gameOver", "the game did not come to rest in its over phase after the NotYet");
+    assert.equal((r2.state as VmState).winner, null, "an engine gap declared a winner rather than leaving the game undecided");
     assert.equal((r2.state as VmState).cards[board.unison].markers, 0, "the Unison gained a marker despite the DO stopping before addMarker ran");
     assert.equal((r2.state as VmState).sides.p1.attrs.grewUnison, false, "the once-a-turn fact was set despite the DO stopping before setPlayerAttr ran");
 

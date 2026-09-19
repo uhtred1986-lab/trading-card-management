@@ -186,7 +186,7 @@ export function candidatesOf(ctx: EngineContext, game: GameDefinition, state: Vm
 function activation(ctx: EngineContext, game: GameDefinition, state: VmState, def: ActionDef, player: PlayerId, line: ActivationLine): Candidate {
   const gates = activationRefusals(ctx, game, state, def, player, line);
   const why = [...refusedBy(ctx, game, state, def, player, line.card), ...gates.before];
-  const bound: BoundAmounts = boundFor(ctx, game, state, line);
+  const bound: BoundAmounts = boundFor(ctx, game, state, player, line);
   const price = def.cost?.length ? priceFor(ctx, game, state, def, line.card, bound) : freePrice();
   if (!why.length && def.cost?.length) {
     const plan = planCost(ctx, game, state, player, price, line.card);

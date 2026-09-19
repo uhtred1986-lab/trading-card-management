@@ -32,9 +32,10 @@ that file changes in the same commit.
 
 Written at file-and-module grain rather than line numbers on purpose — a line number is exactly
 what goes stale first (`docs/arena-backlog/_README.md` and issue #281 are the record of that
-lesson). For depth beyond this, read `CLAUDE.md`'s "Arena rules engine" section (kept current in
-the same commit as any change to what the engine understands or does) and, for what the engine
-reads today, `src/lib/arena/glossary.ts` (`/arena/rules/keywords`).
+lesson). For depth beyond this, read `docs/arena-code-map.md` (the full arena narrative moved out
+of `CLAUDE.md` by issue #282, kept current in the same commit as any change to what the engine
+understands or does) and, for what the engine reads today, `src/lib/arena/glossary.ts`
+(`/arena/rules/keywords`).
 
 - **Two engines** (`src/lib/arena/engines.ts`): `legacy` (`src/lib/arena/engine/`, frozen —
   bug fixes only) and `rules` (`src/lib/arena/vm/`, the programme this file used to be the only
@@ -49,14 +50,22 @@ reads today, `src/lib/arena/glossary.ts` (`/arena/rules/keywords`).
 - **A game is files, not code**: `src/lib/arena/rulesets/<game>/*.rules`, read by
   `loadRuleset` into one `GameDefinition`; `npm run arena:rulesets` regenerates the generated
   `files.ts` constant from the `.rules` files. `docs/arena-ruleset-spec.md` is the interpreter
-  contract.
+  contract. `ops.rules` declares 20 of the 31 macro rows; `modifyAttr` reaches a card, a
+  player (`energyMarkers`, its `side` field) and the battle in progress (`guard`, its
+  `target` field read as a value) — `modifyAttrAs` (`engine/script-schema.ts`) reads each of
+  the nine short spellings this unblocked back as the primitive (spec §2.5-1/§2.5-3, #275).
 - **`vm/` built so far**: zones and attributes off the declarations, `flow.ts` (a turn as a
   program over `DEFINE PHASE`/`STEP`), `events.ts`/`triggers.ts` (a moment is an event pattern),
   `program.ts`/`effects.ts` (the shared interpreter, continuous/delayed effects), `actions.ts` +
   `dbs/actions.rules` (charge/pass/concede, the play family, `activate`), `costs.ts` (energy,
-  marker, life, rest, payWith prices as declarations, with cost-reduction layers). What is not
-  yet built throws `NotYet` naming the stage/issue that builds it — `playableEngine("rules")`
-  still gates whether a *new* game may start on it.
+  marker, life, rest, payWith prices as declarations, with cost-reduction layers — including
+  20-19's own `payWith` cost item since #149, bound the same way an activation's marker and life
+  already were). What is not yet built throws `NotYet` naming the stage/issue that builds it,
+  which since #149 (14 Sep 2026) ends the game rather than noting the gap and playing on —
+  `ENGINE_INFO.rules.available` is true and `playableEngine("rules")` allows a new **hot-seat**
+  game; Sparring, Tournament and a 1 v 1 are still refused (`games.ts`'s `assertEngineForMode`),
+  since Claude's side and a 1 v 1's hidden-hand masking both still read the legacy `GameState`
+  directly.
 - **Tests**: `scripts/verify-arena.ts` runs (in order) `text, setup, battles, compiler, keywords,
   readings, wordings, workflow, contract, deck-api, language, lang, rulesets, probe, vm` — a new
   suite is one `import "./verify/<name>"` line there. `scripts/verify/vm.ts` is the rules-engine

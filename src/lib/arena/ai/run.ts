@@ -17,6 +17,7 @@ import { describeAiError } from "@/lib/ai/client";
 import { areaOf, face, skillsOf, type Action, type Area, type PlayerId } from "../engine";
 import { markRuleSeen, saveRule } from "../rules-store";
 import { applyToGame, loadGame, type LoadedGame } from "../games";
+import { legacyState } from "../engines";
 import { recordDecision } from "./debug";
 import { stateText } from "./view";
 import { chooseMove, ruleOnCard, type Tier } from "./opponent";
@@ -39,7 +40,12 @@ export function costMicros(spend: { model: string; input: number; output: number
  *
  * Named positively on purpose: written as `mode === "hotseat" ? null : "p2"`
  * it handed every future mode to Claude by default, and 1 v 1 was the first
- * one that would have been wrong.
+ * one that would have been wrong. Everything below this line reads its move
+ * off `state.players[p]` — the legacy `GameState`'s own shape for a hand, a
+ * deck, a life pile — so it is legacy-only until that is widened; `games.ts`'s
+ * `assertEngineForMode` is what keeps `sparring`/`tournament` off the rules
+ * engine for exactly this reason (#149), so `mode` alone is still the whole
+ * rule to read here.
  */
 export function aiPlayerOf(game: { mode: string }): PlayerId | null {
   return game.mode === "sparring" || game.mode === "tournament" ? "p2" : null;
@@ -78,14 +84,18 @@ const HIDDEN_PILES = new Set<Area>(["deck", "hand", "warp", "zDeck"]);
  * `arena_decisions`; this only puts it where it can be read during the game.
  */
 function searchAside(game: LoadedGame, chosen: { action: Action; label: string }): string | null {
-  const prompt = game.state.prompt;
+  // Only ever called from Claude's own branch below, which `aiPlayerOf`
+  // already keeps off the rules engine — `legacyState` is the check that
+  // makes that a fact rather than an assumption.
+  const state = legacyState(game.state);
+  const prompt = state.prompt;
   if (prompt.kind !== "chooseCards") return null;
   const cands = prompt.choice.candidates;
   if (cands.length < 2) return null;
-  if (!cands.some((id) => HIDDEN_PILES.has(areaOf(game.state, id) ?? "deck") || (areaOf(game.state, id) === "life" && !game.state.cards[id]?.faceUp))) return null;
-  const shown = cands.map((id) => face(game.ctx, game.state, id).name).join(", ");
-  const took = chosen.action.type === "choose" ? chosen.action.cards.map((id) => face(game.ctx, game.state, id).name).join(", ") || "nothing" : chosen.label;
-  return `[debug] ${game.state.players[prompt.player].name} looked at: ${shown} — took ${took}`;
+  if (!cands.some((id) => HIDDEN_PILES.has(areaOf(state, id) ?? "deck") || (areaOf(state, id) === "life" && !state.cards[id]?.faceUp))) return null;
+  const shown = cands.map((id) => face(game.ctx, state, id).name).join(", ");
+  const took = chosen.action.type === "choose" ? chosen.action.cards.map((id) => face(game.ctx, state, id).name).join(", ") || "nothing" : chosen.label;
+  return `[debug] ${state.players[prompt.player].name} looked at: ${shown} — took ${took}`;
 }
 
 export interface AdvanceResult {
@@ -117,14 +127,19 @@ export async function advance(db: Db, gameId: number, maxSteps = 80): Promise<Ad
       }
       if (!ai || !("player" in prompt) || prompt.player !== ai) break;
 
+      // Claude's own move: `ai` is non-null only for `sparring`/`tournament`,
+      // and `games.ts`'s `assertEngineForMode` keeps those off the rules
+      // engine, so this state is the legacy `GameState` in practice — checked
+      // here rather than assumed, the same as `searchAside`.
+      const state = legacyState(game.state);
       const started = Date.now();
-      const choice = await chooseMove(db, game.ctx, game.state, game.legal, ai, game.mode as Tier);
+      const choice = await chooseMove(db, game.ctx, state, game.legal, ai, game.mode as Tier);
       const micros = await addSpend(db, gameId, choice.spend);
       const chosen = game.legal[choice.index];
       await recordDecision(db, {
         gameId,
-        turn: game.state.turn,
-        phase: game.state.phase,
+        turn: state.turn,
+        phase: state.phase,
         promptKind: prompt.kind,
         player: ai,
         kind: "move",
@@ -135,13 +150,13 @@ export async function advance(db: Db, gameId: number, maxSteps = 80): Promise<Ad
         chosenIndex: choice.index,
         chosenLabel: chosen.label,
         say: choice.say,
-        promptText: game.debug && choice.spend ? stateText(game.ctx, game.state, ai) : null,
+        promptText: game.debug && choice.spend ? stateText(game.ctx, state, ai) : null,
         spend: choice.spend ? { ...choice.spend, micros } : null,
         latencyMs: choice.spend ? Date.now() - started : null,
       });
       // Written with the move it explains, not collected for the end of the
       // batch — see `applyToGame`.
-      const line = choice.say ? `${game.state.players[ai].name}: “${choice.say}”` : null;
+      const line = choice.say ? `${state.players[ai].name}: “${choice.say}”` : null;
       await applyToGame(db, gameId, chosen.action as Action, { say: line, aside: game.debug ? searchAside(game, chosen) : null });
       if (line) said.push(line);
     } catch (err) {
@@ -154,16 +169,22 @@ export async function advance(db: Db, gameId: number, maxSteps = 80): Promise<Ad
 async function runReferee(db: Db, game: LoadedGame, gameId: number): Promise<string | null> {
   const prompt = game.state.prompt;
   if (prompt.kind !== "referee") return null;
+  // The referee is Stage 6's on the rules engine (`docs/arena-rules-language.md`):
+  // nothing there ever puts this prompt, so a `"referee"` kind is the legacy
+  // engine's in practice — `legacyState` makes that the checked fact this
+  // function reads rather than an assumption a future rules-engine referee
+  // would silently violate.
+  const state = legacyState(game.state);
   const req = prompt.request;
   const started = Date.now();
-  const situation = stateText(game.ctx, game.state, req.master);
+  const situation = stateText(game.ctx, state, req.master);
   const ruling = await ruleOnCard(db, { cardId: req.cardId, cardName: req.cardName, text: req.text, unsupported: req.unsupported }, situation);
   const micros = await addSpend(db, gameId, ruling.spend);
 
   await recordDecision(db, {
     gameId,
-    turn: game.state.turn,
-    phase: game.state.phase,
+    turn: state.turn,
+    phase: state.phase,
     promptKind: "referee",
     player: req.master,
     kind: "referee",
@@ -181,7 +202,7 @@ async function runReferee(db: Db, game: LoadedGame, gameId: number): Promise<str
   // becomes the card's draft rule, with Claude's reason as its explanation.
   // It shows up in the worklist like any other draft — and the next game
   // loads it from the row, so the card is not put to the referee twice.
-  const inst = game.state.cards[req.card];
+  const inst = state.cards[req.card];
   const d = game.ctx.defs[req.cardId];
   const side = inst?.flipped && d?.back ? "back" : "front";
   if (ruling.valid) {

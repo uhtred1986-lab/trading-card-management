@@ -4,10 +4,15 @@
  * `legacy` is the hand-written engine in `./engine/`, which plays the
  * original game's rule manual as TypeScript. `rules` is the
  * configuration-driven engine being built beside it (`./vm/`,
- * `docs/arena-ruleset-spec.md`), which is not playable until its stages land.
- * It is listed, described and resolvable here — a call it cannot answer says
- * which issue builds it — but `ENGINE_INFO.rules.available` is false, so no
- * new game may be made on it.
+ * `docs/arena-ruleset-spec.md`). It is listed, described and resolvable here
+ * — a call it cannot answer says which issue builds it — and since #149
+ * `ENGINE_INFO.rules.available` is true: the actions of Stage 5 (charging,
+ * playing, activating) play the same on both engines, so a new **hot-seat**
+ * game may be made on it. Sparring, Tournament and a 1 v 1 still refuse it at
+ * `startGame`/`openMatch` — Claude's side and a 1 v 1's hidden-hand masking
+ * both still read the legacy `GameState` shape directly and have not been
+ * widened. A game that reaches what Stage 5 does not build (battle, most
+ * keywords) ends rather than continuing (`vm/flow.ts`'s `stepProgram`).
  *
  * A game picks its engine when it is made (`arena_games.engine`) and keeps it:
  * `state` is the shape that engine writes, and `actions` replay only on it.
@@ -23,6 +28,8 @@ import { toBeats, type Beats } from "./beats";
 import { boardView, type BoardView, type CardArt } from "./view";
 import { RULES } from "./vm";
 import { isVmState, type VmState } from "./vm/state";
+
+export { isVmState };
 
 export const ENGINE_IDS = ["legacy", "rules"] as const;
 export type EngineId = (typeof ENGINE_IDS)[number];
@@ -49,8 +56,14 @@ export const ENGINE_INFO: Record<EngineId, EngineInfo> = {
   rules: {
     id: "rules",
     label: "Rules engine (beta)",
-    note: "The configuration-driven engine: the game and every card written in one rules language. Not playable until it is built — pick it once it says so here.",
-    available: false,
+    // Battle (Stage 6) and everything past it is still `NotYet`, and a game
+    // that reaches one ends rather than continuing on the legacy engine
+    // (`vm/flow.ts`'s `stepProgram`, #149) — the note says so up front rather
+    // than a player learning it mid-game. Hot-seat only for the same reason
+    // `startGame` refuses the others: Claude's side of Sparring and Tournament
+    // and a 1 v 1's hidden-hand masking are both still legacy-only.
+    note: "The configuration-driven engine: the game and every card written in one rules language. Hot-seat only for now, and a game that reaches something not yet built (battle, most keywords) ends there — no continuing on the legacy engine.",
+    available: true,
   },
 };
 
@@ -159,13 +172,48 @@ export class EngineMismatch extends Error {
 /**
  * A state the app layer around the switch may read as the legacy `GameState`.
  *
- * `games.ts` reads `state.turn`, `snapshot.ts` reads `state.prompt`: the app
- * outside these six calls is still legacy-shaped, and will be until the rules
- * engine can answer them (#139–#142). Until then this is the seam, and it is
- * a *check* rather than a cast — a `rules` state reaching legacy-shaped code
- * throws by name instead of reading every field as `undefined`.
+ * Most of the app outside the six engine calls reads only the fields the two
+ * state shapes already share by name — `turn`, `phase`, `winner`,
+ * `overReason`, `prompt`, `cards` — and is engine-generic for that reason
+ * (`games.ts`, `snapshot.ts`). What still is not is the half of `ai/run.ts`
+ * that plays Claude's side: it reads a hand, a life pile and a deck off
+ * `state.players[p]`, which the rules engine keeps as zones under
+ * `state.sides[p]` instead (#149 leaves that unwidened — Sparring and
+ * Tournament against Claude are legacy-only until it is). This is the seam
+ * for exactly that code, and it is a *check* rather than a cast — a `rules`
+ * state reaching it throws by name instead of reading every field as
+ * `undefined`.
  */
 export function legacyState(value: unknown): GameState {
   if (isVmState(value)) throw new EngineMismatch("rules", "legacy");
   return value as GameState;
+}
+
+/**
+ * One side's name, off whichever shape wrote this state (`.players[p].name`
+ * on the legacy engine, `.sides[p].name` on the rules engine) — the one field
+ * the two keep under a different top-level key but the same name, and so the
+ * one reading generic enough to be worth a function rather than a
+ * `legacyState` narrowing at every call site that only ever wants this.
+ * `games.ts`'s log narration and the board's game-over screen are both this
+ * reading and nothing more.
+ */
+export function sideName(state: EngineState, p: PlayerId): string {
+  return isVmState(state) ? state.sides[p].name : state.players[p].name;
+}
+
+/**
+ * How much damage this side has taken (21-3), for the game-over screen.
+ *
+ * The legacy engine keeps a running count on the player (`damageTaken`,
+ * incremented as life cards are taken); the rules engine's own `damage`
+ * events carry the figure but nothing accumulates it onto a player attribute
+ * — `vm/host.ts`'s `addDamageTaken` is a no-op, by its own comment, because
+ * "a player attribute is the only place this engine keeps a number about a
+ * player [and] nothing declares one". `0` is the honest placeholder rather
+ * than a derived guess: summing the events would need the whole log, which a
+ * board reading one saved `state` does not carry.
+ */
+export function damageTaken(state: EngineState, p: PlayerId): number {
+  return isVmState(state) ? 0 : state.players[p].damageTaken;
 }

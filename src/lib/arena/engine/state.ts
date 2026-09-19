@@ -8,7 +8,7 @@ import { hasKeyword, keywordOf, skillsOf, specifiedCostOf, isZ, baseType } from 
 import { matches, powerRelOk } from "./filters";
 import { asksAQuestion, describeCond, describeScript } from "./script-schema";
 import { legacyHost } from "./script-host";
-import { NO_RULES, costModifierAs, negateAs, stepScript, type Amount, type AmountAttr, type CardScripts, type Cond, type Op, type PayWith, type Ref, type Script, type ScriptArea, type ScriptFrame, type Selector, type Side } from "./script";
+import { NO_RULES, costModifierAs, modifyAttrAs, negateAs, stepScript, type Amount, type AmountAttr, type CardScripts, type Cond, type Op, type PayWith, type Ref, type Script, type ScriptArea, type ScriptFrame, type Selector, type Side } from "./script";
 import type {
   Area,
   CardDef,
@@ -1099,17 +1099,19 @@ let computingStatics = false;
 const STATIC_OPS = new Set<Op["op"]>(["power", "comboPower", "modifyAttr", "grant", "costReduction", "replaceLeave", "replace", "gains", "negateKeyword", "forbid", "permit", "immune", "altCost"]);
 
 export function emitsStatic(ops: Op[]): boolean {
-  return ops.some((o) => (o.op === "if" ? emitsStatic(o.then) || emitsStatic(o.else ?? []) : STATIC_OPS.has(costModifierAs(negateAs(o)).op)));
+  return ops.some((o) => (o.op === "if" ? emitsStatic(o.then) || emitsStatic(o.else ?? []) : STATIC_OPS.has(costModifierAs(negateAs(modifyAttrAs(o))).op)));
 }
 
 function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], source: string, master: PlayerId, ops: Op[], inPlayNow: boolean): void {
   const frame: ScriptFrame = { ops: [], ip: 0, vars: {}, card: source, master };
-  // A `negate` (#276) or a `costModifier` (#277) printed as a [Permanent] is
-  // read as the spelling it stands for: "negate this card's [Blocker] skill
-  // in all areas" is the `negateKeyword` branch and "reduce the energy
-  // cost..." the `costReduction` branch below, whichever way the row was
-  // written.
-  for (const op of ops.map((o) => costModifierAs(negateAs(o)))) {
+  // A `negate` (#276), a `costModifier` (#277) or a `modifyAttr` widening
+  // (spec §2.5-1/§2.5-3, #275) printed as a [Permanent] is read as the
+  // spelling it stands for: "negate this card's [Blocker] skill in all
+  // areas" is the `negateKeyword` branch, "reduce the energy cost..." the
+  // `costReduction` branch, and "this card gains [Blocker]" written as
+  // `modifyAttr(attr: keywords, …)` the `grant` branch below, whichever way
+  // the row was written.
+  for (const op of ops.map((o) => costModifierAs(negateAs(modifyAttrAs(o))))) {
     if (op.op === "if") {
       if (condHolds(ctx, s, frame, op.cond)) collectStatics(ctx, s, out, source, master, op.then, inPlayNow);
       else if (op.else) collectStatics(ctx, s, out, source, master, op.else, inPlayNow);

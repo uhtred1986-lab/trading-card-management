@@ -82,7 +82,7 @@ export {
   type VmPayment,
 } from "./costs";
 export { NotYet, RulesetBroken } from "./errors";
-export { SETUP_ZONES, WORKED_STEPS, draw, moved, repeatAllowed, run, stepWorkNote, turnPhases, type MoveCause } from "./flow";
+export { NOT_YET_REASON_PREFIX, SETUP_ZONES, WORKED_STEPS, draw, moved, repeatAllowed, run, stepWorkNote, turnPhases, type MoveCause } from "./flow";
 export { emit, fire, log, type Moment } from "./events";
 export {
   DEFERRED_STATICS,

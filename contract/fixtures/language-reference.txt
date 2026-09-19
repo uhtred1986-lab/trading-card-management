@@ -522,14 +522,32 @@
     {
       "name": "modifyAttr",
       "class": "primitive",
-      "signature": "{\"op\":\"modifyAttr\",\"target\"?:TARGET,\"attr\":\"power\"|\"comboPower\"|\"colors\"|\"characters\"|\"traits\"|\"names\",\"amount\"?:AMOUNT,\"values\"?:[\"…\"],\"until\"?:DURATION}",
+      "signature": "{\"op\":\"modifyAttr\",\"subject\"?:\"card\"|\"player\"|\"battle\",\"target\"?:TARGET,\"side\"?:\"you\"|\"opponent\",\"attr\":\"power\"|\"comboPower\"|\"colors\"|…,\"amount\"?:AMOUNT,\"values\"?:[\"…\"],\"mode\"?:\"active\"|\"rest\",\"sign\"?:\"add\"|\"remove\",\"keyword\"?:{\"name\":\"Blocker\"},\"flag\"?:true|false,\"until\"?:DURATION}",
       "fields": [
+        {
+          "name": "subject",
+          "required": false,
+          "nullable": false,
+          "defaultText": "\"card\"",
+          "type": "enum",
+          "enumValues": [
+            "card",
+            "player",
+            "battle"
+          ]
+        },
         {
           "name": "target",
           "required": false,
           "nullable": false,
           "defaultText": "{\"sel\":{\"special\":\"self\"}}",
           "type": "ref"
+        },
+        {
+          "name": "side",
+          "required": false,
+          "nullable": false,
+          "type": "side"
         },
         {
           "name": "attr",
@@ -542,7 +560,15 @@
             "colors",
             "characters",
             "traits",
-            "names"
+            "names",
+            "mode",
+            "markers",
+            "keywords",
+            "hidden",
+            "faceUp",
+            "flipped",
+            "energyMarkers",
+            "guard"
           ]
         },
         {
@@ -560,6 +586,39 @@
           "listOf": "string"
         },
         {
+          "name": "mode",
+          "required": false,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "active",
+            "rest"
+          ]
+        },
+        {
+          "name": "sign",
+          "required": false,
+          "nullable": false,
+          "defaultText": "\"add\"",
+          "type": "enum",
+          "enumValues": [
+            "add",
+            "remove"
+          ]
+        },
+        {
+          "name": "keyword",
+          "required": false,
+          "nullable": false,
+          "type": "keyword"
+        },
+        {
+          "name": "flag",
+          "required": false,
+          "nullable": false,
+          "type": "boolean"
+        },
+        {
           "name": "until",
           "required": false,
           "nullable": false,
@@ -567,7 +626,7 @@
         }
       ],
       "sentence": "this card +0 power",
-      "doc": "the primitive under \"power\", \"comboPower\" and \"gains\" (docs/arena-ruleset-spec.md §2.3): one attribute of one card, \"amount\" for the two numbers and \"values\" for the lists it also counts as. Those three spellings are still what the compiler writes and what a stored rule holds — prefer them; this row is what they mean"
+      "doc": "the primitive under \"power\", \"comboPower\", \"gains\" and — since spec §2.5-1/§2.5-3 (#275) — \"switchMode\", \"addMarker\", \"removeMarker\", \"grant\", \"hidden\", \"faceUp\", \"flip\", \"energyMarker\" and \"redirectAttack\": one attribute of one subject, \"amount\" for a delta, \"values\" for the lists a card also counts as, and \"mode\"/\"sign\"/\"keyword\"/\"flag\" for the shapes those two have no room for. Those nine short spellings are still what the compiler writes and what a stored rule holds — prefer them; this row is what they mean"
     },
     {
       "name": "power",
