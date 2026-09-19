@@ -201,6 +201,23 @@ export function hasKeyword(ctx: EngineContext, game: GameDefinition, state: VmSt
   return false;
 }
 
+/**
+ * Every keyword skill this card has in force right now — `hasKeyword`'s own
+ * three sources (printed, granted by an effect, granted by a [Permanent] in
+ * force), collected rather than tested against one name. `vm/hooks.ts` reads
+ * this to find which `DEFINE KEYWORD` hook bodies a card's own keywords may
+ * hang at a given moment (#153); nothing else needs every keyword at once.
+ */
+export function keywordsInForce(ctx: EngineContext, game: GameDefinition, state: VmState, id: string): KeywordSkill[] {
+  const card = state.cards[id];
+  if (!card) return [];
+  const out: KeywordSkill[] = [];
+  for (const sk of skillsShowing(ctx, state, id).skills) if (sk.keyword) out.push(sk.keyword);
+  for (const e of state.effects) if (e.kind === "keyword" && e.target === id) out.push(e.value as KeywordSkill);
+  for (const e of statics(ctx, game, state)) if (e.kind === "keyword" && e.target === id) out.push(e.value as KeywordSkill);
+  return out;
+}
+
 // ── prohibitions (20-14) ────────────────────────────────────────────────────
 
 /** One rule in force that forbids something, with where it came from — a refusal has to name both. */
