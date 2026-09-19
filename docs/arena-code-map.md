@@ -44,7 +44,10 @@ the same as if it were still in `CLAUDE.md`.
   written down, so **it is part of the compiler, not documentation about it**: see the Conventions
   rule below. `KEYWORDS` is keyed by `KeywordSkill["name"]` so a new keyword fails `npm run
   typecheck` until it is described, and `npm test` checks every tag printed there is a spelling
-  `keywordOf` really reads.
+  `keywordOf` really reads. The *manual meaning* half is also `keywords.rules`'s own `text:`
+  (copied in equal at Stage 3, checked equal since #163) — `/arena/rules/keywords` shows that copy
+  rather than this file's, since a card's rule is checked against the declaration, not the page;
+  the *engine* line stays this file's alone, since a `.rules` declaration has no field for it.
 - **Two engines, chosen per game** (`src/lib/arena/engines.ts`, since 9 Sep 2026): `legacy` is
   `src/lib/arena/engine/` — frozen, bug fixes only — and `rules` is the configuration-driven
   engine being built beside it under `src/lib/arena/vm/` (the programme: the plan the owner
@@ -449,6 +452,22 @@ the same as if it were still in `CLAUDE.md`.
   kind that could declare it. `lang/index.ts` is where `parseRule`'s default vocabulary is
   bound, and the loader imports `lang/parse` directly — the one module that must not ask for
   the words it produces.
+- **The game is readable from the app** (`/arena/rules/game`, `src/lib/arena/rulesets/print-by-file.ts`,
+  issue #163): one section per `.rules` file, every declaration printed by `lang/print.ts`'s own
+  printer from what the loader actually parsed — never the raw file — so what the owner reads here
+  is provably what plays. Each file's own leading `--` comment (the manual sections and the
+  narrative this spec's own table cites line by line) is shown as a note beside the declarations,
+  read straight off `rulesets/dbs/files.ts`'s generated constant rather than folded into the
+  printed form, which has no comment node to carry it. `scripts/verify/game-page.ts` is the
+  Playwright-free stand-in for rendering the page: every declaration is accounted for exactly
+  once, printing by file matches `printDefinitions` over the whole set, and every anchor id
+  (`trigger-played`, `cost-energy`, `keyword-Awaken`, …) is unique — the same ids
+  `/arena/rules/keywords` and the workbench's own WHEN/COST chips (`RuleRecord.tsx`'s
+  `DeclarationLinks`) link to. `/arena/rules/keywords` itself now shows `keywords.rules`'s own
+  `text:` rather than `glossary.ts`'s `meaning` — the two were copied equal at Stage 3 and
+  `game-page.ts` asserts they still are, so the page and the record it explains can never quietly
+  drift apart. Editing the definition from the app is out of scope, the owner's decision until the
+  language settles.
 - **The specified-cost baseline is a column a person writes** (`cards.specified_cost`, issue #255,
   owner's decision of 13 Sep 2026): the deckplanet feed carries no cost orbs at all, so the coloured
   half of an X-cost card's price is entered by hand in the language's orb notation (`{u}{u}` = two

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { KEYWORDS, MODIFIERS, READING_RULES, SKILL_TYPES, SUPPORT_LABEL, keywordsByGroup, type Support } from "@/lib/arena/glossary";
+import { loadDbs } from "@/lib/arena/rulesets";
 
 export const metadata = { title: "Keywords the engine knows" };
 
@@ -22,6 +23,13 @@ export default function KeywordsPage() {
   const groups = keywordsByGroup();
   const total = Object.keys(KEYWORDS).length;
   const approximate = Object.values(KEYWORDS).filter((k) => k.support === "partial").length;
+  // #163: the meaning line comes from `keywords.rules`'s own `text:` — copied
+  // in from this file's `meaning` at Stage 3 (`s3-05`) and kept equal ever
+  // since (`scripts/verify/game-page.ts`'s own agreement check) — rather than
+  // this file's copy, so a card's rule and the page describing it can never
+  // quietly say two different things about the same keyword.
+  const loaded = loadDbs();
+  const ruleText = (name: string): string | null => (loaded.ok ? (loaded.definition.keywords[name]?.text ?? null) : null);
 
   return (
     <div className="space-y-6">
@@ -70,7 +78,12 @@ export default function KeywordsPage() {
                   <span className="font-mono text-[10px] text-space-500">{k.type}</span>
                   <span className={`ml-auto shrink-0 rounded px-1.5 py-0.5 text-[10px] ${SUPPORT_CLASS[k.support]}`}>{SUPPORT_LABEL[k.support]}</span>
                 </div>
-                <p className="mt-1.5 text-[13px] leading-relaxed text-space-200">{k.meaning}</p>
+                <p className="mt-1.5 text-[13px] leading-relaxed text-space-200">
+                  {ruleText(k.name) ?? k.meaning}{" "}
+                  <Link href={`/arena/rules/game#keyword-${k.name}`} className="text-[11px] text-space-500 hover:text-ki-300 hover:underline">
+                    keywords.rules →
+                  </Link>
+                </p>
                 <p className="mt-1 text-[12px] leading-relaxed text-space-400">
                   <span className="text-space-500">legacy engine: </span>
                   {k.engine}
