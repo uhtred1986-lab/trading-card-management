@@ -88,7 +88,15 @@ export const SIDES = ["you", "opponent", "both"] as const satisfies readonly Sid
 export const SPECIAL_TARGETS = ["self", "attacker", "guard", "subject", "leader", "opponentLeader", "resolving", "onTop"] as const satisfies readonly SpecialTarget[];
 export const REPLACE_EVENTS = ["leave", "ko", "play", "life"] as const satisfies readonly ReplaceEvent[];
 export const AREAS = ["hand", "deck", "drop", "life", "battle", "combo", "energy", "unison", "leader", "warp", "zDeck", "zEnergy", "under", "play", "removed"] as const satisfies readonly ScriptArea[];
-export const CARD_ATTRS = ["power", "comboPower", "colors", "characters", "traits", "names"] as const satisfies readonly CardAttr[];
+/**
+ * Every `modifyAttr` may name in `attr`: the six card attributes it always
+ * could, the six spec §2.5-1/§2.5-3 (#275) adds, and the one attribute each
+ * of the two widened subjects has — `energyMarkers` for a player (1-14),
+ * `guard` for the battle in progress (8-1, 22-4-2). One closed list rather
+ * than one per subject, because the field itself does not branch on
+ * `subject` — `modifyAttrAs` is what reads the two together.
+ */
+export const CARD_ATTRS = ["power", "comboPower", "colors", "characters", "traits", "names", "mode", "markers", "keywords", "hidden", "faceUp", "flipped", "energyMarkers", "guard"] as const satisfies readonly (CardAttr | "energyMarkers" | "guard")[];
 export const DURATIONS = ["battle", "turn", "opponentTurn", "nextTurn", "afterNextCharge", "game"] as const satisfies readonly Duration[];
 const DELAY_TIMINGS = ["turnStart", "mainStart", "turnEnd", "turnCleanup", "battleEnd"] as const satisfies readonly DelayTiming[];
 export const MOVE_REASONS = ["ko", "effect", "rule", "cost", "play", "combo", "damage", "draw", "charge"] as const satisfies readonly MoveReason[];
@@ -213,12 +221,34 @@ const COST_MODIFIER_FIELDS: OpField[] = [
   { name: "orbs", type: { list: { enum: ["any", ...COLORS] } } },
   { name: "until", type: "duration" },
 ];
-/** `modifyAttr`'s fields, named for the same reason `costReduction`'s are: its `sentence` hands them to `renderTemplate` for the two numeric attributes. */
+const MODE = { enum: ["active", "rest"] } as const;
+/**
+ * `modifyAttr`'s fields, named for the same reason `costReduction`'s are:
+ * its `sentence` hands the first three to `renderTemplate` for the two
+ * numeric attributes, and reads the rest itself through `modifyAttrAs`.
+ *
+ * `subject`/`side` name the two widened subjects (spec §2.5-1); `target`
+ * stays the card subject's own field and — for the battle subject's one
+ * attribute, `guard` — the value `redirectAttack` would have taken as its
+ * own `target`. `mode`, `sign`, `keyword` and `flag` are the shapes the six
+ * new card attributes need that `amount`/`values` have no room for: `sign`
+ * says which way `amount` moves `markers` (`addMarker`/`removeMarker` are
+ * the same field, opposite signs), `flag` is the boolean `hidden` and
+ * `faceUp` take. `flipped` and `guard` read no value field at all — a flip
+ * and a redirect are what they are once the subject and the attribute are
+ * named.
+ */
 const MODIFY_ATTR_FIELDS: OpField[] = [
+  { name: "subject", type: { enum: ["card", "player", "battle"] }, default: "card" },
   { name: "target", type: "ref", default: { sel: { special: "self" } } },
+  { name: "side", type: "side" },
   { name: "attr", type: { enum: CARD_ATTRS }, required: true },
   { name: "amount", type: "amount", default: 0 },
   { name: "values", type: { list: "string" } },
+  { name: "mode", type: MODE },
+  { name: "sign", type: { enum: ["add", "remove"] }, default: "add" },
+  { name: "keyword", type: "keyword" },
+  { name: "flag", type: "boolean" },
   { name: "until", type: "duration" },
 ];
 const SELF: OpField = { name: "target", type: "ref", default: { sel: { special: "self" } } };
@@ -232,7 +262,6 @@ const NEGATE_FIELDS: OpField[] = [
   { name: "keyword", type: { enum: KEYWORD_NAMES } },
   { name: "until", type: "duration" },
 ];
-const MODE = { enum: ["active", "rest"] } as const;
 const POSITION = { enum: ["top", "bottom"] } as const;
 const n = (required = true): OpField => ({ name: "n", type: "amount", required });
 /** `copySkills`' fields, named so its `sentence` function can hand them to `renderTemplate` for each of the five ways the wording comes out. */
@@ -327,20 +356,26 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
   },
   modifyAttr: {
     fields: MODIFY_ATTR_FIELDS,
-    // Two sentences, because the two numbers and the four lists are different
-    // sentences in English: "+5000 power for the turn" against "also counts
-    // as ≪Saiyan≫". They are the same mechanism, which is the point of the
-    // row, but a reading that said "power: +≪Saiyan≫" would be worse than no
-    // row at all.
+    // Three sentences: the two numbers and the four lists are different
+    // sentences in English ("+5000 power for the turn" against "also
+    // counts as ≪Saiyan≫"), and the six card attributes plus the two
+    // widened subjects (spec §2.5-1/§2.5-3, #275) read as the spelling
+    // `modifyAttrAs` says they stand for — the same precedent `negate`'s
+    // sentence set. They are all the same mechanism, which is the point of
+    // the row, but a reading that said "power: +≪Saiyan≫" or "mode: active"
+    // would be worse than no row at all.
     sentence: (raw, r) => {
       const op = raw as OpOf<"modifyAttr">;
       if (op.attr === "power" || op.attr === "comboPower")
         return renderTemplate(`{target} {amount:${op.attr === "power" ? "power" : "combo power"}}{until}`, raw as unknown as Record<string, unknown>, MODIFY_ATTR_FIELDS, r);
-      const words = (op.values ?? []).join(", ");
-      const said = op.attr === "traits" ? `\u226a${words}\u226b` : op.attr === "characters" ? `<${words}>` : op.attr === "names" ? `the card named ${words}` : words;
-      return `${describeRef(op.target ?? { sel: { special: "self" } })} also counts as ${said}${forThe(op.until, r)}`;
+      if (op.attr === "colors" || op.attr === "characters" || op.attr === "traits" || op.attr === "names") {
+        const words = (op.values ?? []).join(", ");
+        const said = op.attr === "traits" ? `\u226a${words}\u226b` : op.attr === "characters" ? `<${words}>` : op.attr === "names" ? `the card named ${words}` : words;
+        return `${describeRef(op.target ?? { sel: { special: "self" } })} also counts as ${said}${forThe(op.until, r)}`;
+      }
+      return describeScript([modifyAttrAs(raw as Op)], r);
     },
-    doc: 'the primitive under "power", "comboPower" and "gains" (docs/arena-ruleset-spec.md §2.3): one attribute of one card, "amount" for the two numbers and "values" for the lists it also counts as. Those three spellings are still what the compiler writes and what a stored rule holds — prefer them; this row is what they mean',
+    doc: 'the primitive under "power", "comboPower", "gains" and — since spec §2.5-1/§2.5-3 (#275) — "switchMode", "addMarker", "removeMarker", "grant", "hidden", "faceUp", "flip", "energyMarker" and "redirectAttack": one attribute of one subject, "amount" for a delta, "values" for the lists a card also counts as, and "mode"/"sign"/"keyword"/"flag" for the shapes those two have no room for. Those nine short spellings are still what the compiler writes and what a stored rule holds — prefer them; this row is what they mean',
   },
   power: {
     fields: [TARGET, { name: "amount", type: "amount", required: true }, UNTIL],
@@ -1012,6 +1047,48 @@ export function negateAs(op: Op): Op {
     case "own":
       if (until === "turn" || until === "battle") return { op: "negateOwnSkill", until };
       return until === "game" ? { op: "negateOwnSkill" } : { op: "note", text: `negate: this skill cannot be negated ${DURATION_IN_WORDS[until].trim()}` };
+  }
+}
+
+/**
+ * The `modifyAttr` primitive, read as the spelling it stands for
+ * (docs/arena-ruleset-spec.md §2.5-1/§2.5-3, #275) — the same precedent
+ * `negateAs` and `costModifierAs` set. `subject` says which of the three
+ * this call is about; the six card attributes and the two subjects' own
+ * attributes each read the exactly one field their existing op needs and
+ * refuse by name (a `note`) when the call leaves it out, the same
+ * discipline `negateAs`'s "kind"/"keyword" branches keep. `power`,
+ * `comboPower` and the four list attributes (`gains`) are untouched here —
+ * the interpreter's own `modifyAttr` case and `collectStatics`/`permanents`
+ * already read those, which is what this function must not duplicate.
+ */
+export function modifyAttrAs(op: Op): Op {
+  if (op.op !== "modifyAttr") return op;
+  const subject = op.subject ?? "card";
+  if (subject === "player") {
+    if (op.attr !== "energyMarkers") return { op: "note", text: `modifyAttr: no player attribute named ${JSON.stringify(op.attr)}` };
+    return { op: "energyMarker", side: op.side ?? "you", n: op.amount ?? 0 };
+  }
+  if (subject === "battle") {
+    if (op.attr !== "guard") return { op: "note", text: `modifyAttr: no battle attribute named ${JSON.stringify(op.attr)}` };
+    return op.target ? { op: "redirectAttack", target: op.target } : { op: "note", text: "modifyAttr: no target named for the battle's guard" };
+  }
+  const target: Ref = op.target ?? { sel: { special: "self" } };
+  switch (op.attr) {
+    case "mode":
+      return op.mode ? { op: "switchMode", target, mode: op.mode } : { op: "note", text: "modifyAttr: no mode named" };
+    case "markers":
+      return op.sign === "remove" ? { op: "removeMarker", target, n: op.amount ?? 0 } : { op: "addMarker", target, n: op.amount ?? 0 };
+    case "keywords":
+      return op.keyword && op.until ? { op: "grant", target, keyword: op.keyword, until: op.until } : { op: "note", text: "modifyAttr: no keyword or duration named" };
+    case "hidden":
+      return { op: "hidden", target, hidden: op.flag ?? true };
+    case "faceUp":
+      return { op: "faceUp", target, faceUp: op.flag ?? true };
+    case "flipped":
+      return { op: "flip", target };
+    default:
+      return op;
   }
 }
 
