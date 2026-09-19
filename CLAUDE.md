@@ -127,552 +127,112 @@ learned the expensive way. Read it before changing the compiler or the engine.
 
 ## Architecture
 
-- **Server actions over API routes.** Mutations live in `actions.ts` files next to their pages
-  (`src/app/collection/actions.ts`, `src/app/decks/actions.ts`, …). The only API routes are the
-  cron price sync (`/api/sync/prices`, Bearer `CRON_SECRET`) and the scan upload (`/api/scan`).
-- **Catalog is immutable app data**: `card_sets` → `cards` → `card_prints`. Ownership (`owned_cards`)
-  always references a *print* so foil/alt-art copies are distinct; deck slots (`deck_cards`)
-  reference a *card*, because any print satisfies a deck slot.
-- **The source's card-text typos are corrected on the way in**, in
-  `src/lib/catalog/errata.ts` — "Whe this card attacks", "the card is plyed", "gain[Blocker]"
-  with no space. Not cosmetic: the arena's compiler reads this text literally, so one missing
-  letter costs a whole skill, and "Whe" alone was three [Auto]s that parsed and then waited for a
-  trigger that never matched. **Never fix one of these with an UPDATE** — the catalog upsert sets
-  `skill = excluded.skill`, so a hand-edited row is overwritten by the next `sync:catalog` and the
-  bug returns with nothing recording why. Each entry is a claim that the source is wrong, so
-  `syncCatalogFor` re-checks every one against the payload it just fetched and warns on any that
-  stops matching; `npm test` cannot, having no catalog to read. Only unambiguous errors are
-  corrected — the catalog is full of names that look like typos (`{Stop You Fiend!}`,
-  `<Haze Shenron>`, `{Upa}`), and a scan that flags those is the scan being wrong. A correction
-  that changes a card *name* is checked against Bandai's art first, never guessed:
-  `https://www.dbs-cardgame.com/fw/images/cards/card/en/<number>.webp` is readable and settled
-  SB01-046. There is no equivalent public path for the original game, which is exactly why its
-  typos are the hard ones to catch.
-- **No card-number prefix belongs to both games** — the original uses BT/EX/SD/TB/EB/DB/XD/P/TOKEN
-  and Fusion World FB/FS/FP/SB/ST/E — so `gameOfSetCode` is a lookup, not a guess, and card ids
-  never collide. Watch the `E`/`E01` pair: it is matched whole before being read as a family plus
-  a number, in `sets.ts` and again in `normaliseNumber`'s `BARE_SET_CODES`.
+- **Server actions over API routes.** Mutations live in `actions.ts` files next to their pages.
+  The only API routes are the cron price sync (`/api/sync/prices`) and the scan upload
+  (`/api/scan`).
+- **Catalog is immutable app data**: `card_sets` → `cards` → `card_prints`. Ownership
+  (`owned_cards`) always references a *print* so foil/alt-art copies are distinct; deck slots
+  (`deck_cards`) reference a *card*, because any print satisfies a deck slot.
+- **The source's card-text typos are corrected on the way in** (`src/lib/catalog/errata.ts`) — the
+  arena's compiler reads text literally, so one missing letter can cost a whole skill. **Never fix
+  one with an UPDATE**: the catalog upsert sets `skill = excluded.skill`, so a hand-edited row is
+  silently overwritten by the next `sync:catalog`. `syncCatalogFor` re-checks every entry against
+  the fetched payload and warns if one stops matching. Only unambiguous errors are corrected, and a
+  name correction is checked against Bandai's art first, never guessed.
+- **No card-number prefix belongs to both games** — BT/EX/SD/TB/EB/DB/XD/P/TOKEN vs
+  FB/FS/FP/SB/ST/E — so `gameOfSetCode` is a lookup, not a guess. Watch the `E`/`E01` pair in
+  `sets.ts` and `normaliseNumber`'s `BARE_SET_CODES`.
 - **Reservations are computed, never stored** (`src/lib/decks/reservations.ts`): reserved = sum of
   `deck_cards` across decks with `is_built`; available = owned − reserved. Marking a deck built is
-  **blocked outright** when it would over-reserve (owner's decision), and `buildConflicts` lists the
-  exact shortfall — which is also the want-list for `/cart?deck=ID`.
+  **blocked outright** when it would over-reserve, and `buildConflicts` lists the exact shortfall.
 - **Prices are daily snapshots** (`tcg_prices` keyed by product/sub-type/day) so movers can be
   computed; `pricesForPrints` reduces several TCGplayer products per print to one Normal + one Foil
   figure.
 - **Raw SQL reads go through `rows()`** (`src/db/rows.ts`) because postgres.js returns arrays and
   PGlite (used by `npm test`) returns `{ rows }`.
-- **AI**: `src/lib/ai/deck.ts` (summary, improvement wizard, set review), `src/lib/ai/scan.ts`
-  (photo → cards with bounding boxes, matched to the catalog by number then name; `scan-match.ts`
-  holds the pure number normalisation + match-confidence rules covered by `npm test`; the client
-  downscales each photo in the browser and sends one `/api/scan` request per photo), `src/lib/ai/cart.ts` (explains the
-  deterministic optimiser's output — it never does the arithmetic). The wizard's candidate pool is
-  scoped to the leader's colours and capped at 450 cards; default scope is "any legal card" with an
-  owned-only toggle (owner's decision). Every deck prompt is built by `systemFor(game)` and every
-  pool is filtered to one game, so the model is never asked to reason across the two; only the
-  scanner reads both at once, because a photo can hold a mix.
+- **AI**: `src/lib/ai/deck.ts` (summary, wizard, set review), `src/lib/ai/scan.ts` (photo → cards,
+  matched by number then name), `src/lib/ai/cart.ts` (explains the optimiser's output, never does
+  the arithmetic). The wizard's pool is scoped to the leader's colours and capped at 450; every
+  deck prompt is scoped to one game — only the scanner reads both at once, since a photo can mix
+  them.
 - **Lot owner**: every `owned_cards` row records `owner` = the Basic Auth username
-  (`currentUser()` in `src/lib/auth/index.ts`, read from the `Authorization` header); null when the app
-  runs open locally. Every path that creates lots (card page, bulk entry, scan batches, quick
-  capture) stamps it — keep that true for new paths.
-- **Decks belong to a login too** (`decks.owner`, issue #279, 14 Sep 2026): stamped from
-  `currentOwner()` on every path that creates a deck (`createDeckAction`/`createDeckForm`/
-  `duplicateDeck` in `src/app/decks/actions.ts`, the AI wizards in `src/lib/ai/deck-builder.ts` and
-  `deck-from-card.ts`) — keep that true for new ones. Unlike a lot, a deck's owner also gates
-  *visibility*: `src/lib/decks/queries.ts`'s `listDecks`/`getDeck` take a `viewer` (the looker's
-  `currentOwner()`) and hide a deck owned by someone else — null owner is visible to everyone, the
-  same hole the app running open already has and no wider. Applied at the web deck list, the deck
-  page, the leaders page, the arena's own deck picker and `/api/v1/decks`; a deck id that is not
-  yours answers `notFound()`/`not_found`. Reservations do **not** follow ownership
-  (`src/lib/decks/reservations.ts`) — every built deck still counts against the shared collection,
-  whoever owns it, because a physical card is either free or it isn't. What this does not do: share
-  or transfer a deck between logins, or scope the workbench's rule-coverage pages
-  (`/arena/rules*`) or the generic "also add to deck" picker (`DeckPicker`, collection/scan/card
-  add flows) — both keep listing every deck, deliberately, as neither is a player picking a deck to
-  play with.
-- **Deck legality is a flag, never a block** (`src/lib/decks/legality.ts`). A deck saves in any
-  state; `legality(rows, game)` labels it **legal / incomplete / illegal** and returns per-card
-  `flags` keyed `"<zone>:<cardId>"`. *Incomplete* = still building (no leader, under 50).
-  *Illegal* = a rule is broken (banned card, over the copy limit, 2+ leaders, over the deck
-  maximum, Z-deck too big, a card in the wrong zone, a card from the **other game**, a non-deck
-  card like an Energy Marker). Shown on the deck page, the deck list and the leaders page. The one
-  thing that *is* refused is over-reserving a **built** deck — that's ownership, not legality.
-  Per-game numbers come from `deckRules(game)`; the only rule that differs in *kind* is colour:
-  off-colour is a **warning** in the original game and **illegal** in Fusion World, which also has
-  no Z-Deck (`zMax: 0`, so `zonesFor` drops the zone and `zoneForType` sends Z- cards to main).
-- **"Also add to deck"** (`DeckPicker`, `src/lib/decks/add.ts`): every add path can target a deck
-  (existing, or "New deck…" which creates it on the spot). `addCardsToDeck` puts leaders in the
-  leader slot, Z- cards in the Z-deck, everything else in main, and **never caps or replaces** —
-  a sixth copy or a second leader is added and the deck is flagged, because silently dropping a
-  card the user just scanned is worse. Scan batches store the target in `scan_batches.deck_id` so
-  it carries to the PC.
-- **Voice bulk entry** (`VoiceEntry`, `src/lib/scan/voice.ts`): speech recognition runs in the
-  browser via the Web Speech API (`src/lib/scan/speech.ts`) — no audio is uploaded and there is no
-  API cost; only the transcript reaches the server. `parseSpoken` never decides what was meant: it
-  returns *ordered* `{cardId, quantity}` interpretations ("eighteen oh twenty" is both BT18-020 ×1
-  and BT18-02 ×20) and `resolveSpokenAction` keeps the first whose card number exists, so the
-  catalog is the tie-breaker. Falls back to a name search. Hit/miss are signalled by synthesised
-  tones (`src/lib/scan/cue.ts`) so entry can be done without looking at the screen.
+  (`currentUser()`); null when the app runs open. Every path that creates lots stamps it — keep
+  that true for new paths.
+- **Decks belong to a login too** (`decks.owner`, issue #279): stamped from `currentOwner()` on
+  every path that creates a deck — keep that true for new ones. A deck's owner also gates
+  *visibility* (`listDecks`/`getDeck` hide a deck owned by someone else); a deck id that isn't
+  yours answers `not_found`. Reservations do **not** follow ownership — every built deck counts
+  against the shared collection regardless of owner. Deck transfer between logins and the
+  workbench's rule-coverage pages are deliberately out of scope.
+- **Deck legality is a flag, never a block** (`src/lib/decks/legality.ts`): a deck saves in any
+  state; `legality(rows, game)` labels it **legal / incomplete / illegal** with per-card flags. The
+  one thing actually *refused* is over-reserving a **built** deck — that's ownership, not legality.
+  Colour differs in *kind* per game: a warning in the original game, illegal in Fusion World (which
+  also has no Z-Deck).
+- **"Also add to deck"** (`DeckPicker`, `src/lib/decks/add.ts`): every add path can target a deck.
+  `addCardsToDeck` sorts by zone and **never caps or replaces** — an over-limit add is flagged
+  rather than dropped.
+- **Voice bulk entry** (`VoiceEntry`, `src/lib/scan/voice.ts`): browser speech recognition, no
+  audio uploaded. `parseSpoken` returns *ordered* interpretations rather than deciding;
+  `resolveSpokenAction` picks the first whose card number exists in the catalog, falling back to a
+  name search.
 - **Quick capture** (`/add/quick`, `POST /api/scan/quick`): phone loop — one photo → identified
-  immediately (nothing stored) → quantity with big ± buttons → `addLot` → the camera re-opens
-  (the `click()` happens inside the save handler so it counts as a user gesture).
-- **Scan batches** (`src/lib/scan/batches.ts`, tables `scan_batches`/`scan_photos`/`scan_items`): a
-  scan is persisted as it happens — the downscaled photo bytes (`bytea`, exactly what Claude saw so
-  crops line up), each detection, and every review edit — so a batch uploaded from the phone can be
-  finished on the PC (`/add/scan` lists open batches; `/add/scan?batch=ID` resumes one). `POST /api/scan`
-  stores the photo *before* identifying so a retry never needs the phone again; `GET /api/scan/photo/[id]`
-  serves it. Completing a batch writes the lots and nulls the photo bytes; discarding deletes everything.
-- **Leaders → "Build a deck with Claude"** (`/leaders`, `src/lib/ai/deck-builder.ts`): every owned
-  LEADER card with its decks (built/virtual). The draft prompt gets two pools — owned on-colour
-  cards with quantities (preferred) and a capped pool of legal cards to buy — and the answer is
-  run through `sanitiseDraft` (pool membership, copy limits, Z-zone) before it becomes a *virtual*
-  deck whose description carries the shopping list. Owned/buy flags come from the collection, not
-  the model. ~130 s and ~$0.40 per draft.
+  immediately (nothing stored) → quantity with big ± buttons → `addLot` → the camera re-opens.
+- **Scan batches** (`src/lib/scan/batches.ts`): a scan is persisted as it happens so a batch
+  started on the phone can be finished on the PC. `POST /api/scan` stores the photo *before*
+  identifying so a retry never needs the phone again.
+- **Leaders → "Build a deck with Claude"** (`/leaders`, `src/lib/ai/deck-builder.ts`): the draft
+  gets an owned pool and a capped buy pool, runs through `sanitiseDraft`, and becomes a *virtual*
+  deck with a shopping list. Owned/buy flags come from the collection, not the model.
 - **Binding arrays in raw SQL:** use `textArray()` from `src/db/sqlx.ts` — `${arr}::text[]` fails
   under postgres.js with a `transformTypeCast` error.
-- **Arena rules engine** (`src/lib/arena/engine/`): **Dragon Ball Super
-  only — it does not play Fusion World**, so `deckInputFor` returns null for such a deck and the
-  arena's deck lists ask for `game: "dbs"`. Pure TypeScript, no React,
-  no database. A game is a `GameState` plus an append-only event log; `apply(ctx, state, action)` is the
-  only mutator and runs the flow (a data step list in `state.flow`) until the next `prompt`, so a game
-  is storable mid-decision and reproducible from seed + actions. `legalActions()` drives both the UI
-  and, later, Claude's move menu. Card text is *read*, not interpreted: `cards.ts` parses skill
-  types, keyword skills (§22 of `docs/rules/rulemanual.txt`) and orb costs; `filters.ts` reads the
-  fixed target grammar ("Blue <Baby> with an energy cost of 4"); `effects.ts` handles a few fixed
-  phrasings natively and logs a note for everything else, which is where the phase-3 compiled
-  scripts and the runtime referee plug in. Only skills the engine can both pay for and resolve are
-  offered as actions. Design and decisions: `docs/arena-design-proposal.md`; history and
-  lessons: `docs/arena-history-lessons.md`; **the current worklist: `docs/arena-rules-worklist.md`; the current work brief with code map,
-  checklists and backlog: `docs/arena-next-stage-spec.md`** — read it before touching the compiler. Tests:
-  `scripts/verify-arena.ts` (part of `npm test`), synthetic cards, sections cited in messages.
-  **Picking the work up cold: `docs/arena-next-session-prompt.md`** says where the programme stands,
-  what to do next in priority order, and how to run streams in parallel; `docs/arena-tooling.md`
-  says how to tell whether you broke something. Two pieces of work are scoped but not built, each
-  with its own document and each deliberately *not* smuggled into a wording commit:
-  `docs/arena-side-scope.md` (the side test, three bugs from one mechanism) and
-  `docs/arena-markers-stage-scope.md` (markers and [Empower], where most of it already works).
-  The third, `docs/arena-move-replacement-scope.md` (letting a replacement prompt), is **built**
-  — §5 says what both increments measured, §6 the remainder: `move()` is still synchronous at 46 of
-  its 48 call sites and the two that are not decide the replacement before calling it, so 9-10-2's
-  choice, 9-10-3's "you may" and the "by an opponent's skill" narrowing all read.
-- **The compiler's glossary** (`src/lib/arena/glossary.ts`, shown at `/arena/rules/keywords`): every
-  keyword skill the parser recognises, the keywords that are not skills, the skill types, and the
-  rules a line is read by — each with what the manual *means* and, separately, what this engine
-  actually *does*, including where it approximates. It is the only place either of those is
-  written down, so **it is part of the compiler, not documentation about it**: see the Conventions
-  rule below. `KEYWORDS` is keyed by `KeywordSkill["name"]` so a new keyword fails `npm run
-  typecheck` until it is described, and `npm test` checks every tag printed there is a spelling
-  `keywordOf` really reads.
-- **Two engines, chosen per game** (`src/lib/arena/engines.ts`, since 9 Sep 2026): `legacy` is
-  `src/lib/arena/engine/` — frozen, bug fixes only — and `rules` is the configuration-driven
-  engine being built beside it under `src/lib/arena/vm/` (the programme: the plan the owner
-  approved on 9 Sep 2026; specified in `docs/arena-rules-language.md` and
-  `docs/arena-ruleset-spec.md`). A game keeps the engine it was made on (`arena_games.engine`,
-  and `arena_matches.engine` for a 1 v 1), because `state` is that engine's shape and `actions`
-  replay only on it. `engineFor(row.engine)` is the one switch; `games.ts`, `snapshot.ts` and
-  the scripts go through it and never import `./engine` to play a saved game. `ENGINE_INFO`
-  says which engines can play; the `/arena` form greys the rest, and the `arena.engine`
-  setting (Settings → Arena engine, `engine-setting.ts`) is the default until the owner flips
-  it. The old engine stays the **oracle**: `arena:diff` replays a game's actions on either
-  engine and must land on the row's state. `Snapshot.game.engine`/`.game` are the one
-  contract change. `engineFor` resolves **both** ids — the `Engine` interface is the six calls
-  `createGame`, `apply`, `legalActions`, `rejectedActions`, `boardView` and `toBeats`, and what the
-  rules engine cannot do yet it refuses with `NotYet`, naming the issue that builds it (an
-  `IllegalAction`, so the API answers one rather than failing).
-  A side is `Record<zoneName, cardId[]>` built
-  from the `ZONE` declarations (`vm/zones.ts`, where `moveCard` is the only mover and honours
-  `single`, `modes`, `markers`, `place`, order and `under{host}` generically), a card is a bag of
-  declared attributes read off the catalog by `vm/cards.ts`, and a `CardFilter` becomes a predicate
-  over those attributes through the one adapter in `vm/filters.ts` — so the compiler, `card_rules`
-  and the drafter are untouched (#139).
-  **The turn is a program** (`vm/flow.ts`, #140): `state.flow` is a stack of `{phase, index}`
-  frames over the `DEFINE PHASE`/`DEFINE STEP` declarations, the frame *is* the suspension (so a
-  game is storable mid-decision and reproducible from seed plus actions), a step's `prompt:` is
-  what raises a question, and the End Phase's repeat is a `LIMIT n` on the step — the ceiling in
-  the declaration, so a mis-declared trigger cannot hang a game. `DEFINE GAME` names the setup and
-  over phases so the runner knows neither by name. It plays **pass, endMain, concede, the charge and
-  the play family** — a game of charging, playing and passing runs turn to turn to a deck-out and
-  logs event for event what the legacy engine logs, which `verify/vm.ts` asserts and `arena-fuzz
-  --engine rules` shakes out. Four constants still name pieces of the DBS definition and each is
-  checked against it at load: `SETUP_ZONES`, `STEP_WORK` (the six steps whose `DO` programs Stage 5
-  writes) and `vm/play.ts`'s `PLAY_ZONES` and its two neighbours.
-  **A move and its refusal are one paragraph** (`vm/actions.ts` + `dbs/actions.rules`, #144):
-  `DEFINE ACTION` is WHEN / `prompts:` / FOR / BIND / COST / DO / REFUSE, and `legalActions` and
-  `rejectedActions` are two readings of it — the candidates whose `REFUSE` lines all hold, and the
-  first requirement that stopped each of the rest. There is no `whyNot*` twin to drift; a `REFUSE`
-  names a `Requirement` kind and nothing else (`REQUIREMENT_KINDS`, closed) so `wording.ts` needs no
-  second table; and §3.2's one-rejection-per-card is the *shape* rather than a dedupe pass —
-  `assertMenuInvariants` in `scripts/verify/harness.ts` is the one function both engines' menus are
-  passed to. `listed: false` is the concede rule written down: accepted, never enumerated, on
-  neither list. What the interpreter reads so far is a `FOR` by side/area/filter/mode, a `REFUSE` of
-  `count()`/`isTurnPlayer()`/`asking()`/`forbidden()` and their combinations, and a `DO` of `note()`;
-  everything else is refused *by name* rather than read as false. `actions.rules` declares charge, endMain, pass and
-  concede (#145), the play family (#146) and `activate` (#147).
-  **Playing a card is a paragraph too** (`vm/play.ts` + the three `play` declarations, #146):
-  `play` (8-3-2), `playUnison` (13-2) and `playZ` (16-2) each name a `COST` and a `DO` of the one
-  `play` op, so a play a player declares and a play a skill makes (5-5-3) resolve in the same place.
-  The card's arrival is a `moved(asPlay: true)` moment `triggers.rules` turns into `played` — nothing
-  pends a trigger by name — a Unison's markers are the energy paid (`addMarker(n: X)`, where a move's
-  `X` is the amount its price was settled at), 3-11-5 is read off the zone's `single:` rather than
-  off the card's type, and a [Permanent] comes into force by the card being in an in-play area.
-  7-3-4's free timing is the declaration's `again:`: taking a play leaves the Main Phase's question
-  on the table, and `endMain` — which carries none — is what ends the phase. `verify/vm.ts` §18
-  asserts the log event for event against the legacy engine, and the first refusal per card with it.
-  Two gaps are written into `actions.rules` beside the paragraphs: an **X** cost has no total until
-  its master names one and a candidate is a card and nothing else, so such a card is refused `unread`
-  rather than offered free; and 22-39's [Unique] needs a filter for "the same name as this
-  candidate", which `FILTER_FIELDS` has none.
-  **20-14's prohibitions are in force and read** (#145's last piece): `permanents` collects the
-  `forbid` op out of a [Permanent], `vm/program.ts`'s `forbids`/`forbiddenBy` are the legacy
-  predicate and its twin over this engine's board — the timed effects, the standing ones, and a
-  card's own rule about itself wherever it sits (9-1-3-3) — and the `forbidden()` condition is what a
-  `REFUSE` gates a move on, with the fields only the board knows (which card's rule, how long, the
-  escape clause) filled in by the interpreter. The play family, the charge and the activation all
-  carry the gate, a selector honours "can't be chosen" (20-4), and the host's 0-2-5 question answers
-  off the board instead of `false`. The one ordering that is *not* legacy's is recorded rather than
-  matched: a `REFUSE` runs before the price, and legacy puts the price first for a plain Battle Card
-  and the prohibition first for a Unison or an X cost (`verify/vm.ts` §21 asserts both). 22-33's
-  `offering` is a boolean answer no candidate can carry (#157).
-  **A player has facts of their own, not only cards** (`DEFINE ATTRIBUTE of: player`, issue #269):
-  `reset: turnStart` is the declaration's own ceiling for one that returns to rest on its own —
-  `vm/flow.ts`'s `endTurn` clears every one so flagged, off `game.attributes` rather than by name —
-  and `playerAttr`/`setPlayerAttr` are the one `Cond`/`Op` row that reads and writes one. `charged`
-  (7-2-11) and `grewUnison` (13-3) are the first two. The charge's once-a-turn `REFUSE` now reads
-  `charged` — true from the moment the Charge Phase's own question is answered, win or skip, set in
-  `mainPending` rather than in the action's own `DO`, because leaving the Charge Phase closes the
-  window whether or not a card was placed — in place of the `asking(prompt: charge)` proxy #145 left
-  it on. 13-3's `growUnison` is declared beside it, gated the same board-then-card order as
-  `whyNotCharge`; "a copy of the Unison Card in play" is `sameCard`, a new `Cond` reading two
-  selectors for the same printed identity rather than stretching a filter to name another card's
-  identity dynamically (the same gap #145 named for 22-39's [Unique], `FILTER_FIELDS` still has no
-  word for it, and this does not add one — a selector pair only reaches a card the declaration itself
-  names, e.g. the one card a `ZONE single: true` area holds). **What it does not do**: finish the
-  move. `vm/host.ts`'s `placeUnder` throws `NotYet("#146")` unconditionally, so taking a legal,
-  correctly-refused `growUnison` still stops there — caught at `stepProgram`'s existing boundary
-  (`vm/flow.ts`), the same safety net every other unbuilt primitive uses, which now ends the game
-  rather than noting the gap and playing on (#149, `ENGINE_INFO.rules.available` is true). Discovered
-  delivering #269, not fixed by it.
-  **Using a skill is a paragraph about a *line*** (`vm/activate.ts` + the `activate` declaration,
-  #147): the one move whose candidate is not a card. A card prints up to nine skills, each with its
-  own price, its own condition and its own once-per-turn ceiling, so `DEFINE ACTION`'s new `skills:`
-  line says which printed kinds the move offers and `FOR` says only which cards are looked at —
-  which is §3.2's one exception (one rejection per card per action type, **one per skill line for an
-  activation**) as the *shape* rather than as a special case. A line of the same family in another
-  window is still a candidate and is refused with the `timing` requirement naming the window it
-  belongs to; the window a move offers is the one its declared kinds share, so Stage 6's battle
-  paragraph needs no second table. The `DO` is empty and checked to be: the program an activation
-  runs is the **record's** (`Script.ops`), queued on the interpreter a pended [Auto] runs on, and the
-  moment is a `skillActivated` the declarations answer. The **price** is the record's too — the orbs
-  printed in front of the line and 13-4's marker cost, bound from the line rather than read off the
-  card (`BoundAmounts` in `vm/costs.ts`), with the declared `text` price refusing a cost this engine
-  cannot read instead of playing the skill free. The gates are the legacy `whyNotActivate`'s in its
-  order, so the *first* requirement is the same on both engines (`verify/vm.ts` §19, and
-  `assertMenuInvariants` now asserts every activation names its line — the same words in
-  `arena-playthrough.mts`). What it does not read is written into `actions.rules` beside it: a
-  keyword's own activation is a `DEFINE KEYWORD` hook body (Stage 7), an X price and an action price
-  are refused `unread` for the same reason a play's X cost is, and [Counter] windows are Stage 6's;
-  20-14's prohibition is the one gate of this move that is not a `REFUSE` line, because
-  `whyNotActivate` asks it second and a declared `REFUSE` runs before everything. `VmCard` gained `usedThisTurn` and
-  `usedMarkerSkill` for 22-44-3 and 13-4, emptied by `endTurn` (state version 6).
-  **A price is a declaration too** (`vm/costs.ts` + `dbs/costs.rules`, #148): seven `DEFINE COST`s —
-  energy (total, coloured orbs, either-orbs, X), zEnergy (5-4, brought forward from #151 so `playZ`
-  is not offered free), marker, life, rest, payWith and the `text` price no engine charges itself —
-  each saying what it `consumes:`, which card attribute its `amount:` is read off, and how the
-  payment `asks:` its question,
-  and **one planner over those words rather than a branch per price**. It switches on `consumes:`
-  and never on a declaration's name, and reads the declaration's `DO` for two things at once: the
-  op's `target` is the pool the price is paid out of (`IN you.energy active` names both the area and
-  the mode) and the op is what paying does to what was taken. The promises are the legacy engine's,
-  asserted board for board against `planPayment` in `scripts/verify/vm.ts` §17: the same
-  `Requirement` when a price cannot be met (so `wording.ts` needs no second table), the same
-  `payCost` prompt with legacy `Payment` options (so no `Prompt` kind and no `Snapshot` field moved),
-  and the same cards rested. `priceFor` is the one evaluation the row's `ActionCost` and the charge
-  both come from. One gap was named rather than charged as nothing: the amounts of marker, life and
-  20-19's payWith are all bound from a skill's own line by an activation (#147, and payWith #149),
-  so a price named by an action that binds nothing is refused by name rather than charged as free.
-  `payWith` here is the record's own per-price form — a [Permanent]'s whole-board grant of the same
-  permission (BT3-039, "you can use this card to pay energy costs…") is still unread on this engine
-  (`vm/effects.ts`'s `DEFERRED_STATICS`), and no card yet compiles to the per-price form itself.
-  **20-21's reductions are read, and read as layers** (#148 Build 2): `permanents` reads the
-  `costReduction` op out of a [Permanent] — which could only matter once a card could be put in
-  play (#146) — and `attributes.rules` declares `costOf` as `[printed, reduction]` and
-  `specifiedCost` as `[printed, reduction, specified]`, so the total falls, one coloured orb goes
-  with each energy (20-21-2), the floor is zero and "reduce the specified cost by {u}" relaxes a
-  colour without moving the total (the owner's BT19-039 ruling). A layer is a function rather than
-  a sum, `LAYER_KINDS` is the one place an attribute's name is paired with the effect kind a layer
-  of it reads, and `costLayerGaps` checks that pairing against the declarations when a game is made.
-  `verify/vm.ts` §20 stages a reducer on both engines and compares the price, the refusal and the
-  energy rested. What is still out is 22-19's [Warrior of Universe 7]: a **keyword** rather than a
-  cost reduction, so a `DEFINE KEYWORD` hook body and Stage 7's.
-  **A moment is an event pattern, not a name** (`vm/events.ts` + `vm/triggers.ts`, #141): the
-  runner says what happened — a card moved, a phase began, a mode switched — as a `Moment` in the
-  words `dbs/triggers.rules` is written in, and the declarations decide which [Auto]s that is a
-  moment for (`watcher:` who is asked, `WHERE` which side, `BIND` what the moment's card is called).
-  The name that comes out is the name `card_rules.trigger` says, so the record's WHEN means the same
-  thing on both engines, and a card with no record falls back to the legacy `autoTriggerMatches`
-  — imported, never copied. The runner names no trigger anywhere, which is the difference from the
-  forty hand-placed `pendTriggers` calls in `engine/`. 9-1-3-1's eleven "fires while the card is
-  elsewhere" exceptions are **derived**: a pattern that names a place (`moved(from: combo)`) has
-  already said where the card is. `state.pending` is the queue, `nextPending` is 9-6-6 (turn player
-  first) copied from the legacy `checkpoint`, and the runner drains one between steps and before any
-  question. §22 keyword
-  moments are pended by neither the record nor `triggers.rules`: they are Stage 7's hooks (#153).
-  **The interpreter is shared** (#142): `stepScript` runs on a `ScriptHost`
-  (`engine/script-host.ts`) rather than on a `GameState`, `legacyHost` is that interface over the
-  old state and `vm/host.ts` over the new one, so one `card_rules` row means one thing on both
-  engines. What the rules engine reads a program *against* is `vm/program.ts` — the four readings
-  `resolveSelector`, `resolveRef`, `amount`, `condHolds`, over declared attributes and the one
-  filter adapter — and what outlives a step is `vm/effects.ts`: continuous effects with their
-  `effect`/`effectEnded` beats, delayed effects at the five `DELAY_TIMINGS`, and a [Permanent]'s
-  statics *read* rather than stored. A value is read through the layers its `DEFINE ATTRIBUTE`
-  declares (`layers: [printed, rewrite, numeric]`, 9-9-1) and nowhere else. A running program is
-  `state.programs`, a stack of frames the runner steps before any checkpoint (9-6-3), so a skill
-  that stops to ask is storable mid-decision like everything else; the question is the contract's
-  own `Prompt` and the answer arrives as the same `choose`/`chooseMode` action both engines take.
-  What this engine has no half of — a KO, a play, a price, a battle — is a `NotYet` naming the
-  issue that builds it, caught at the one program boundary in `flow.ts`.
-  **The flag flips** (#149): `ENGINE_INFO.rules.available` is true and `playableEngine("rules")`
-  no longer refuses. The plan's own exit bar for this — `arena:diff` clean over every saved game
-  whose action log uses only Stage 5 actions, and over the harness and playthrough scripts — is
-  the owner's to run and confirm against Neon; an agent session cannot (`arena:diff` needs the
-  database this sandbox stays off), so it flipped the flag on the fuzzer and the engine-switch
-  suite (`verify/vm.ts`) instead and said so in the PR rather than claiming the database check.
-  What was a
-  note-and-continue at the `NotYet` boundary above is now `endGame` with no winner: a card this
-  engine cannot finish ends the *game*, not just that skill, because a note nobody reads is the
-  wrong answer once a real player can reach it — the same `overReason` a concede or a win already
-  puts on the board, so no `Snapshot` field moved for it. Not every mode: Claude's side of Sparring
-  and Tournament (`ai/run.ts`, a hand and a deck read off `state.players[p]`) and a 1 v 1's
-  hidden-hand masking (`beats.ts`'s `maskBeats`, `view.ts`'s `revealedTo`) both still read the
-  legacy `GameState` field for field rather than either engine's shape generically, so `games.ts`'s
-  `assertEngineForMode` and `matches.ts`'s `openMatch` refuse those combinations at creation — the
-  rules engine plays **hot-seat only** for now, one level narrower than `playableEngine` alone
-  answers. Outside the six engine calls the app was entirely legacy-shaped (`games.ts` read
-  `state.turn`); most of it now reads only the field names the two state shapes share
-  (`turn`/`phase`/`winner`/`overReason`/`prompt`/`cards`, plus `engines.ts`'s new `sideName` for
-  `players[p].name`/`sides[p].name`), and `legacyState(value)` is the narrower seam left for the two
-  reads above: a `rules` state reaching it throws `EngineMismatch` rather than being read field by
-  field as `undefined`.
-- **The rules language** (`src/lib/arena/lang/`, `docs/arena-rules-language.md`, since 9 Sep
-  2026): one closed grammar for a card's rule — WHEN / COST / IF / THEN — printed and parsed
-  from `OP_SCHEMA`/`COND_SCHEMA` plus the `SELECTOR_FIELDS`/`FILTER_FIELDS` tables in
-  `lang/ast.ts`, so **adding an operation is still one interpreter case and one schema row**
-  and the grammar follows. Client-safe; the workbench's *Show as text* imports it into the
-  browser. The promise it rests on is an equality — `parse(print(x))` is `x`, over every op,
-  condition, selector, filter, keyword, every compiled program and every drafter record, and
-  the doc's own examples (`scripts/verify/lang.ts`, in `npm test`) — so the printer never has
-  a choice of forms and the parser is the generous one. A filter is printed in its own words
-  only when `parseFilter` reads them back *equal*; otherwise field by field. The `DEFINE …`
-  grammar for `rulesets/*.rules` is in (eleven kinds, §3b of the doc); the referee's answers are
-  a later stage, and the language is shared, not dialected.
-- **A game is files, not code** (`src/lib/arena/rulesets/`, since 12 Sep 2026): `loadRuleset(files)`
-  reads a game's `.rules` declarations into one `GameDefinition` — every name resolved against
-  another declaration (a phase's steps, an action's price, a trigger's or a program's zone, a
-  keyword's hook point), the schema's defaults applied (the printer drops none), and a `Vocabulary`
-  of the closed word lists the language is checked against. Pure and **client-safe**: the text
-  arrives as a generated constant (`dbs/files.ts`, written by `npm run arena:rulesets` from the
-  `.rules` files beside it), so nothing reads a file at request time.
-  `docs/arena-ruleset-spec.md` §3 says what each file declares and what the loader refuses.
-  A zone's `place:` (default true) is what lets an interpreter build a side from the declarations
-  without knowing a name: DBS declares `play` (the word for the three in-play areas, 9-1-3-1) and
-  `under` (the pile hanging off one card, 23-2-2-2) as `place: false`, and programs still name both.
-  `expandMacros` (`rulesets/expand.ts`) is the other half of the plan's second decision: a
-  program written in the ops the cards use, lowered through the game's own `DEFINE OP`
-  declarations to the primitives an interpreter runs — an op with no declaration passes
-  through untouched, and the round-trip promise stays over the macro's *name*, never its
-  expansion. `dbs/ops.rules` declares 20 of the thirty-one so far — its header says what
-  each of the rest waits on (#137); `modifyAttr` reaches a card, a player and the battle
-  in progress (#275).
-  **The game's words are the only words** (`rulesets/words.ts`, since 12 Sep 2026): the
-  language's parser, the workbench's chip editor (`optionsFor`), the referee's prompt
-  (`effectLanguage`) and `validateRule` read the areas, durations, sides, keyword names and
-  the moments a WHEN may name off that `Vocabulary` rather than each keeping a copy, so a zone
-  deleted from `zones.rules` is gone from all of them at once — which is what
-  `scripts/verify/rulesets.ts` asserts, by deleting one. `script-schema.ts` keeps its arrays as
-  the **legacy engine's** side of the same list, which #136's completeness suite holds it to.
-  `whenMoments()` is the game's triggers less the five counter windows: a `CounterWindow` is
-  what a [Counter] answers in, and those five are the only names in `triggers.rules` a record's
-  WHEN never says. `SPECIAL_TARGETS` is the one list with no `Vocabulary` field and no `DEFINE`
-  kind that could declare it. `lang/index.ts` is where `parseRule`'s default vocabulary is
-  bound, and the loader imports `lang/parse` directly — the one module that must not ask for
-  the words it produces.
-- **The specified-cost baseline is a column a person writes** (`cards.specified_cost`, issue #255,
-  owner's decision of 13 Sep 2026): the deckplanet feed carries no cost orbs at all, so the coloured
-  half of an X-cost card's price is entered by hand in the language's orb notation (`{u}{u}` = two
-  blue) from the rules record on the workbench, or seeded by a migration on a ruling (0034 enters
-  BT19-039 as `{u}{u}`). `cardDefFrom` reads it onto `CardDef.specifiedCost` through
-  `parseSpecifiedCost` (`src/lib/arena/specified-cost.ts`), and nothing else in the engine changed.
-  **The hazard:** `sync:catalog` upserts every card column, so the upsert `coalesce`s this one like
-  `image_url` — remove that line and the next sync erases every entry. An entry has no feed to be
-  checked against, so `staleSpecifiedCosts` gives it the check it can have at sync time (the card
-  still prints an X cost and a specified-cost clause). Unknown stays unknown, said rather than
-  filled: `specifiedCostUnknown` drives the record's *Incomplete — specified cost unknown* box, the
-  probe's assumption, and `npm run arena:specified`'s per-card source (entered / ruling on file /
-  still unknown). Only an X-cost card takes an entry; a fixed cost's orbs are filled by convention.
-- **The record's WHEN is the engine's WHEN** (`skillAnswersTo` in `engine/triggers.ts`): an
-  [Auto] skill's moment comes off `card_rules.trigger` (carried on `Script.trigger` by
-  `rulesFor`), and only a skill with *no* record falls back to reading the printed text. The
-  same precedent as the price of 8 Sep 2026, and the reason the text view's WHEN does
-  anything at all. A keyword's own moments (§22) stay the engine's rule. The text view is the
-  only editor for WHEN and COST — the chips have none and are not getting one — and the
-  printed skill tag is read-only.
-- **Arena UI** (`/arena`, `src/components/arena/`, `src/lib/arena/{games,view}.ts`): phone-first
-  board, hot-seat or 1 v 1. A game is one `arena_games` row holding the seed, the action log (the
-  reproducible source) and a state snapshot; `applyToGame` is the only writer, and it writes
-  `WHERE version = <what it read>` so two devices racing cannot lose a move — the loser gets
-  `StaleGame` and re-reads. The board is drawn
-  from `boardView`, which hides what the player may not see (3-1-3), and every tappable thing comes
-  from the engine's `legalActions`, so the UI knows no rules. `npm run arena:playthrough` plays a
-  whole game through the database, and `npm run arena:coverage` reports how much card text the
-  compiler reads. The board is `src/components/arena/stage/` — motion-first, cards fly between zones
-  on `layoutId`, and a whole opponent turn is *played back* from the beat stream rather than
-  arriving as a jump. Everything it renders comes from one `Snapshot`
-  (`src/lib/arena/session.ts` + `snapshot.ts`), which `/api/v1` serves to the planned Android app as
-  well, so no client ever evaluates a rule. **`docs/arena-client-contract.md`** is that contract and
-  is read first; `docs/arena-ui-motion-spec.md` records the web board and
-  `docs/arena-android-spec.md` briefs the Android app, which is not built.
-  `docs/arena-battle-staging-spec.md` — the duel band and takeover battle stagings,
-  the in-fight card inspector, and triggered combo/counter skills.
-  `docs/arena-workflow-spec.md` is the current work brief for making every rule a
-  visible workflow — read it before touching `legalActions` or the `Snapshot` shape.
-  Phases 1–3 of it are built: `rejectedActions` beside `legalActions` (a `whyNot*` twin per
-  predicate, never an edit to one), `taps.whyByCard`, `view.you.choices` for a search of a
-  hidden zone, `prompt.min/max/step/cost`, `owner` on the `skill` beat — and on the web board the
-  card action sheet, the refusal line, the search sheet, the step chip and the narration ribbon.
-  **One rejection per card per action type — except an activation, which is one per skill line**
-  (§3.2, amended 8 Sep 2026): a card prints up to nine of them and one being on the menu says
-  nothing about the others. The two places that promise is asserted are
-  `scripts/verify/harness.ts` and `scripts/arena-playthrough.mts`; they must say the same thing.
-  `docs/arena-refusals-spec.md` is the brief that measured it, and holds what is still unworded.
-  `src/lib/arena/wording.ts` is the only place a `Requirement` becomes a sentence,
-  `src/lib/arena/narration.ts` the only place a beat does, and `src/lib/arena/effects.ts` the only
-  place a rule in force (a continuous effect or a [Permanent]'s static) becomes a label and a
-  duration — the card's `effects`/`permanents`, the `effect`/`effectEnded` beats and the side's
-  `rules` all read from it. All three are pure and under `npm test`.
-  `docs/arena-compiler-workflow-review.md` is the review that added the effect and [Permanent]
-  surfaces, with the fixes it found; read it before changing what a card says about itself.
-  **Skins** (`docs/arena-skin-spec.md`): the whole app has two, `anime` (default) and `night`,
-  chosen by the `arenaSkin` cookie (Settings → Look, or the board's toggle) and applied as
-  `data-skin` on `<html>` by the root layout; `?skin=` on a game page pins one board for one load.
-  A skin is paint only: the theme's `--color-*` tokens are redefined under that attribute in
-  `globals.css`, so every Tailwind utility follows. Keep it that way — no colour literals in
-  components (the arena's are named classes painted from tokens), no size or logic behind a skin
-  check, and card faces keep the night palette under both.
-  **Pace** (`src/lib/arena/pace.ts`): how fast a turn plays back is a remembered preference —
-  slow (default), normal, or step (tap *Next* between beats); while it plays, the prompt bar's
-  headline is the narration sentence and a card from a hidden pile flies in as a ghost.
-  **Whose move** (`docs/arena-hud-spec.md`, §1/§1.1/§2.1 built): `TurnStrip` states it full width
-  above the ask, in colour, words and position at once. One rule holds it together — **everything
-  the board says about who is acting reads `live.waiting`, never the `snapshot` prop**. The prop is
-  used for exactly one thing, `useLiveGame`'s `active` argument, because a value read from `live`
-  could go false before the first poll returned; collapsing those two expressions back into one is
-  the bug that made the board say "Claude is thinking…" over the player's own prompt. The invariant
-  is asserted in `npm test` and on every move of `arena:playthrough`. §2.2–§2.6 of that spec (merging
-  the ribbon into the ask, ghost buttons for declines, the hint's own line, the settings behind `⋯`,
-  the collapsed empty Battle Area) are **not** built.
-  **Turn presence** (`src/lib/arena/lighting.ts`, `docs/arena-turn-presence-spec.md`): whose turn
-  it is, readable at arm's length. The acting leader grows and gets a ring, the idle one dims, and
-  the room takes the acting leader's **printed** colour — never one sampled from its art, so both
-  clients derive the same room from `colors[0]` with no image pipeline. `turnVars` is the only
-  place a turn becomes a colour; everything below it is CSS on the `.arena` root, and no snapshot
-  field was added. Two rules to keep: the light is **never the only signal** (Settings → Turn
-  lighting → *Off* must still leave the board unambiguous — that is the test, not a feature), and
-  `.arena` must **not** become a stacking context, or the card sheet falls behind the app header —
-  the room sits at `z-index: 0` and children are lifted at zero specificity instead.
-- **1 v 1** (mode `versus`, `src/lib/arena/matches.ts`, `docs/arena-client-contract.md` §3.3): two
-  people, two devices, one game. It needs two `app_users` logins — the seats are
-  `arena_games.p1_user`/`p2_user` and `seatOf` reads `currentUser()`. Because each player picks
-  their own deck and they are not at one keyboard, a 1 v 1 is opened as an `arena_matches` row and
-  the *second* deck is what calls `startGame`, so there is never a half-built game. Three things
-  this mode is the first to need, all now true of every mode: `buildSnapshot` takes an explicit
-  `viewer` (the same game is drawn twice and each device stays in its own chair); `waitingFor`
-  reads against that viewer, so `"opponent"` covers a person and the board's existing long-poll
-  animates their turn with no change to it; and **`maskBeats` strips `Beats.art` to what
-  `revealedTo` allows** — a real leak, since the queue carried the face of every card drawn. Only
-  the face goes, never the beat, so the card still flies face-down. A 1 v 1 belongs to its two
-  seats and to nobody else, over as well as playing (owner's decision, 7 Sep 2026): the board, the
-  debug page and every `/api/v1` route answer `not_found` to anyone else. **With the app running
-  open there is no identity and `seatOf` lets everything through** — the same hole `proxy.ts` has,
-  no wider, and what keeps local dev and `arena:playthrough` working. The referee is on, as in
-  Sparring and Tournament; there is no Claude opponent, and `aiPlayerOf` now *names* the two AI
-  modes rather than excluding hot-seat, so a future mode cannot inherit one by accident.
-- **Claude as the arena opponent** (`src/lib/arena/ai/`): `view.ts` builds what Claude may see —
-  its own hand and decklist plus public state; your hand, life and decklist are never in the
-  request. `opponent.ts` picks a number from the engine's legal-move list, so an answer can be
-  wrong but never illegal, and takes the decisions that cannot go wrong (one legal move, the coin
-  flip, the mulligan, which card to charge) without an API call at all. Two tiers, the owner's
-  choice: Sparring on Haiku 4.5, Tournament sending the Main Phase and counter windows to Opus 5.
-  The same module holds the **referee**, which answers with a program in the effect language when
-  a card's text defeats the compiler. `run.ts` drives Claude's side and totals what it spent onto
-  the game row. Caching note: the cached prefix is ~3,200 tokens, over Opus 5's 512-token minimum
-  but under Haiku 4.5's 4,096, so Tournament games cache and Sparring games do not.
-- **Arena debug** (`src/lib/arena/ai/debug.ts`): every decision the server takes is
-  written to `arena_decisions` — the prompt kind, the whole menu offered, what was chosen, whether a
-  rule or Claude decided it, the model, tokens, cost and latency, plus the exact prompt text when
-  the game has `debug` on. `/arena/[id]/debug` reads it back. What the compiler cannot read is
-  **not** a second list: it is `card_rules.unread` on the rule itself, grouped at
-  `/arena/rules/patterns` (`card_text_notes` was folded in and dropped, migration 0030). The
-  referee bumps `times_seen` on the rule when the text actually comes up, and the program it
-  produced is that rule's Claude draft, so the worked example is the record.
-- **Rules are records** (`docs/arena-rules-workbench-spec.md`, phases 1-3 built 8 Sep 2026): the
-  engine plays from `card_rules` — one row per skill per card face with the program, trigger,
-  cost, hoisted condition, provenance (`compiler | claude | user`), state (`open | draft |
-  confirmed | corrected`), unread clauses, plain reading and version — and **never compiles
-  card text at game time**. That last claim became true of the *price* too on 8 Sep 2026: the
-  cost before the colon is read off `card_rules.cost` (carried on `Script.price`, filled by
-  `rulesFor` from the row and by `compileCard` from the text), so a skill with no record has an
-  **unknown** price rather than a free one. `src/lib/arena/rules-store.ts` is the only module that touches the
-  table; `src/lib/arena/draft.ts` is the only one that calls the compiler in production
-  (`draftCards`, and `reviewOpenRules`, which asks Claude about what the compiler left open,
-  within the `arena.reviewBudget` setting). A row a person confirmed or corrected is never
-  rewritten by a script: the compiler's newer reading lands beside it as `compiler_diff`. The
-  effect language is defined once, in `OP_SCHEMA` and `COND_SCHEMA` (`engine/script-schema.ts`): the
-  validator, the plain reading, the referee's prompt and the workbench's chip editor read them, so
-  a new operation or condition kind is one interpreter case and one row. The workbench has three
-  worklists over the same records: `/arena/rules` the cards in the decks the arena can play,
-  `/arena/rules/all` the whole catalog (filtered by set, source, mechanism, pattern or text, 200
-  rows a page), `/arena/rules/patterns` the same rules grouped by the wording that produced them.
-  The record is WHEN / COST / IF / DO as chips — reorderable, nested programs, modal options and
-  conditions included — with a JSON view of the same program, Confirm / Correct by hand / Explain
-  to Claude / does nothing, and history. **Confirm all drafts in view** confirms exactly what the
-  *filter* matches (not the rows on screen); the rows it moved are kept on the `arena_feedback`
-  row as `{id, version}` pairs so **Undo** puts back exactly those and leaves anything edited since
-  alone. `npm run arena:draft` fills the table; the catalog sync drafts every new or changed card.
-  A rule with no steps and a `keyword:` pattern is not blank — the keyword is the rule the engine
-  plays, and the record says which, from `glossary.ts`.
-- **The probe** (`src/lib/arena/probe.ts`, the record's right-hand pane, phase 3 of the same
-  brief): a record says what the engine *will* play, a probe says what it *does*.
-  `probe(rule, scenario)` builds a game with `createGame` and two minimal decks, stages the one
-  board that rule's moment needs, plays the move under test, answers every prompt by a fixed
-  policy, and reports **Input / Applied rule / Result / Assumptions** with a digest over the
-  conclusion. Pure — no database, no network, and **no compiler**: the cards it stages around the
-  rule carry hand-written programs, so `draft.ts` stays the only module that compiles text. It
-  invents no wording either: the log is `toBeats` → `narrate`, a refusal is `wording.sentence`, a
-  question is `view.ts`'s own `questionFor`, and an *assumption* is only ever a `note` in the
-  program, a note the engine logged, a clause the compiler could not read, or the glossary's
-  `engine` line for a keyword it plays only partly. Ten families (`familyOf`) cover the catalog's
-  shapes with two or three edge boards each — no legal target, skills negated, the opponent's
-  turn, the card in hand; the rules whose moment the engine does not know get `none`, whose
-  honest answer is that sentence. **The board is built in the card's favour and says so**: the
-  Leader shares the card's colours, characters and traits, a keyword gets a body its own
-  description matches, and each of those is a line in Input. A [Permanent] and a keyword are
-  *read* rather than resolved — power with and without the rule, the keywords in force, and
-  whether the opponent's KO skill was offered the card at all. Confirming a rule keeps its probe
-  on the row (`card_rules.probe`), so `npm run arena:reprobe` after an engine change lists the
-  rules whose answer moved: the regression suite the rules never had. `npm run arena:probe --all`
-  sweeps the catalog in ~70 s.
-- **Explaining a card** (`src/lib/arena/ai/clarify.ts`, from any record on the workbench): you say
-  what a card does in plain words; Claude returns a program in the effect language, saved as the
-  card's **draft** rule (`source: claude`, for you to confirm), and a markdown work item for
-  teaching `compile.ts` the *wording*, kept as `card_rules.brief` and shown on the record and on
-  its Patterns group. The referee's mid-game rulings land the same way, so nothing Claude decides
-  is invisible. The program fixes one card; the work item is what fixes every card phrased the
-  same way. The two are not the same fix and the page says so.
-  **A ruling that arrives in conversation goes to the same row, not into a commit message**:
-  `npm run arena:rule -- <cardId> [--skill N] [--clause "…"] "<the ruling>"` writes it to
-  `card_rules.explanation` (`--list` reads them all back). Unlike the page's box it asks
-  Claude for nothing — it records what the owner said, and the code change is then made
-  deliberately against every card sharing the wording. Owner's instruction, 7 Sep 2026: when a
-  ruling is given in chat, store it there first, then wait to be asked for the code change.
+- **Arena rules engine** (`src/lib/arena/engine/`): a game is a `GameState` plus an event log;
+  `apply()` is the only mutator. `legalActions()` offers only skills the engine can pay for **and**
+  resolve, and drives both the UI and Claude's move menu. Doc: `docs/arena-code-map.md`.
+- **The compiler's glossary** (`src/lib/arena/glossary.ts`, `/arena/rules/keywords`): the only
+  written record of what the compiler understands per keyword — part of the compiler, not
+  documentation about it (Conventions below: touch the compiler, update the glossary). Doc:
+  `docs/arena-code-map.md`.
+- **Two engines, chosen per game** (`src/lib/arena/engines.ts`): `legacy` (`engine/`, frozen)
+  plays every game today; the config-driven `rules` engine (`vm/`) is being built beside it. A game
+  keeps the engine it was made on — `engineFor(id)` is the one switch. **One rejection per card per
+  action type, except an activation, which is one per skill line** (§3.2). Doc:
+  `docs/arena-code-map.md`.
+- **The rules language** (`src/lib/arena/lang/`, `docs/arena-rules-language.md`): one closed
+  grammar for a card's rule. `npm test` holds it to `parse(print(x)) === x` for every op,
+  condition, selector and filter. Doc: `docs/arena-code-map.md`.
+- **A game is files, not code** (`src/lib/arena/rulesets/`): `loadRuleset` reads a game's `.rules`
+  declarations into one `GameDefinition`; `npm run arena:rulesets` regenerates the generated
+  constant — nothing reads a file at request time. Doc: `docs/arena-code-map.md`,
+  `docs/arena-ruleset-spec.md`.
+- **The specified-cost baseline is a column a person writes** (`cards.specified_cost`, issue
+  #255): the feed carries no cost orbs, so an X-cost card's coloured price is entered by hand. The
+  catalog upsert must `coalesce` this column — remove that and the next sync erases every entry.
+  Doc: `docs/arena-code-map.md`.
+- **The record's WHEN is the engine's WHEN** (`skillAnswersTo`, `engine/triggers.ts`): an [Auto]
+  skill's trigger comes off `card_rules.trigger`; only a skill with no record falls back to the
+  printed text. Doc: `docs/arena-code-map.md`.
+- **Arena UI** (`/arena`, `src/components/arena/`, `docs/arena-client-contract.md`): phone-first
+  board driven entirely by `legalActions()` and one `Snapshot` — no client evaluates a rule.
+  **Everything the board says about who is acting reads `live.waiting`, never the `snapshot`
+  prop.** Doc: `docs/arena-code-map.md`.
+- **1 v 1** (mode `versus`, `src/lib/arena/matches.ts`): two people, two devices, one game. A 1 v 1
+  belongs to its two seats and nobody else, over as well as playing. Doc: `docs/arena-code-map.md`.
+- **Claude as the arena opponent** (`src/lib/arena/ai/`): your hand, life and decklist are
+  **never** in the request. `opponent.ts` picks from the legal-move list, so an answer can be wrong
+  but never illegal. Doc: `docs/arena-code-map.md`.
+- **Arena debug** (`src/lib/arena/ai/debug.ts`, `/arena/[id]/debug`): every server decision is
+  logged to `arena_decisions`. What the compiler cannot read is `card_rules.unread` on the rule
+  itself, not a second list. Doc: `docs/arena-code-map.md`.
+- **Rules are records** (`docs/arena-rules-workbench-spec.md`): the engine plays from `card_rules`
+  and **never compiles card text at game time**; a row a person confirmed or corrected is never
+  rewritten by a script. Doc: `docs/arena-code-map.md`.
+- **The probe** (`src/lib/arena/probe.ts`): says what the engine *does* with a rule, not what it
+  should. Pure — no database, no network, and **no compiler**: `draft.ts` stays the only module
+  that compiles card text. Doc: `docs/arena-code-map.md`.
+- **Explaining a card** (`src/lib/arena/ai/clarify.ts`): plain-language explanations become a
+  draft rule. **A ruling given in conversation goes to `card_rules.explanation` first** (`npm run
+  arena:rule`), and the code change is made afterwards, deliberately. Doc: `docs/arena-code-map.md`.
 - **Optimiser** (`src/lib/marketplace/optimizer.ts`) is deterministic: greedy + exhaustive 1/2/3-seller
   subsets + removal local search, shipping counted once per seller.
 

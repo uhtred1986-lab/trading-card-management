@@ -16,6 +16,7 @@ to read first.
 
 | doc | status | what it is for |
 |---|---|---|
+| `docs/arena-code-map.md` | **Current** | The full "how each arena module fits together" narrative, moved out of `CLAUDE.md` by issue #282; `CLAUDE.md` keeps only a three-line pointer per module. |
 | `docs/arena-backlog.md` | **Current** | The live roadmap: milestones, phases and how arena backlog issues are tracked in GitHub. |
 | `docs/arena-next-stage-spec.md` | **Current** | The detailed hand-off spec for the current rules-engine stage; read after the next-session prompt when working on compiler/engine internals. |
 | `docs/arena-rules-language.md` | **Current** | The authoritative grammar and invariants for the rules language under `src/lib/arena/lang/`. |
