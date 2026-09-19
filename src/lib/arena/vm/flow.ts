@@ -51,7 +51,8 @@ import { vmHost } from "./host";
 import { NotYet } from "./errors";
 import { stepScript, type ScriptFrame } from "../engine/script";
 import type { Trigger } from "../engine/types";
-import { SETUP_ZONES, arrivalMode, moveCard } from "./zones";
+import { SETUP_ZONES, arrivalMode, inPlayZones, moveCard } from "./zones";
+import { fireHook, queryHookStatics } from "./hooks";
 import { playerAttributes } from "./cards";
 import { BATTLE_STEP_WORK } from "./battle";
 import type { VmFrame, VmState } from "./state";
@@ -239,6 +240,12 @@ const STEP_WORK: Record<string, Work> = {
           // event for a change that did not happen would be a beat the board
           // plays over nothing.
           if (card.mode === mode) continue;
+          // #155: [Servant] does not switch to Active Mode during its
+          // master's Charge Phase (22-40) — the `activeStep` query hook, read
+          // declaratively the same way `attrBonus` is, rather than a special
+          // case naming the keyword here. Only checked for the active-bound
+          // half of the step; nothing stops a card being rested.
+          if (mode === "active" && queryHookStatics(ctx, game, state, id, "activeStep").some((f) => f.op === "forbid" && f.forbid.what === "switchToActive")) continue;
           card.mode = mode;
           // 1-10-1: the switch is a moment (`modeSwitched`), and this one has no
           // `by:` — the Charge Phase stands cards up as a rule of the turn, not
@@ -756,6 +763,37 @@ export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, 
       ? { type: "move", card: id, from: from ?? "removed", to, owner: result.move.owner, ...(opts.reveal === undefined ? {} : { reveal: opts.reveal }) }
       : null;
   emit(ctx, game, state, ev, movement(result.move.card, from, to, result.move.owner, opts), shown);
+  // #155: a keyword's onLeave/onEnter hook, scoped to a place a card is *in
+  // play* in (9-1-3-1) — [Field] cares about the Battle Area, never a hand or
+  // deck a card passes through on the way to being dealt. `hookBodiesFor`
+  // (`vm/program.ts`) already narrows to the few cards a body actually names,
+  // so a card with none of these keywords costs one cheap lookup and
+  // nothing else. Queued onto `state.programs` rather than run inline, the
+  // same as any other triggered program, so a body that asks a question does
+  // not need this call site to know how to hold one. [Z-Stack] and [Revive]
+  // are candidates for these same two hooks that #155 did not build: neither
+  // is one universal rule a keyword body can state once for every card that
+  // prints it — [Z-Stack]'s "matching the printed description" is a filter
+  // that varies card to card, which `TAKES (x: number)` carries no room for,
+  // and [Revive]'s "covers both named colours" is the covering-set choice
+  // `CardChoice.cover` reads for [Aegis], which no op in the language can
+  // yet ask for. Reading either wrong would be worse than not reading it.
+  const places = inPlayZones(game);
+  if (from && places.includes(from)) fireHook(ctx, game, state, id, "onLeave");
+  if (places.includes(to)) fireHook(ctx, game, state, id, "onEnter");
+  // #155: [Heroic]/[Villainous]'s afterSkill — "when you play another card
+  // with the same keyword" is a board-wide broadcast from the *entering*
+  // card's play, not something the entering card's own hooks say about
+  // itself, so it is fired here rather than folded into onEnter above. Scoped
+  // to `asPlay` (9-6-9-4) and to the owner's own other in-play cards, since
+  // "you play" never means an opponent's play or a card arriving by a
+  // non-play move (a KO'd card returning, a search finding one).
+  if (opts.asPlay) {
+    const owner = result.move.owner;
+    for (const other of inPlayZones(game).flatMap((zone) => state.sides[owner].zones[zone] ?? [])) {
+      if (other !== id) fireHook(ctx, game, state, other, "afterSkill", { source: [id] });
+    }
+  }
 }
 
 /** The `moved` moment, in the words `triggers.rules` asks about it in. */
