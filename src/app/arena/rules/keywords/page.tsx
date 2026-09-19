@@ -32,8 +32,9 @@ export default function KeywordsPage() {
         </Link>
       </div>
       <p className="text-sm text-space-300">
-        All {total} keyword skills the arena&rsquo;s parser reads, with what the Rule Manual says and what this engine actually does with it. The second line is the one worth reading: {approximate} of
-        them are played to an approximation, and each says where it differs. Section numbers are <span className="font-mono text-[11px]">docs/rules/rulemanual.txt</span>.
+        All {total} keyword skills the arena&rsquo;s parser reads, with what the Rule Manual says and what each engine actually does with it. The engine lines are the ones worth reading: {approximate}{" "}
+        of the legacy engine&rsquo;s are played to an approximation, and each says where it differs; the rules engine&rsquo;s own line is never blank — where it has no <span className="font-mono text-[11px]">HOOK</span> body yet it says
+        so and names the doc that builds it. Section numbers are <span className="font-mono text-[11px]">docs/rules/rulemanual.txt</span>.
       </p>
 
       <nav className="flex flex-wrap gap-1.5 text-[11px]">
@@ -71,8 +72,12 @@ export default function KeywordsPage() {
                 </div>
                 <p className="mt-1.5 text-[13px] leading-relaxed text-space-200">{k.meaning}</p>
                 <p className="mt-1 text-[12px] leading-relaxed text-space-400">
-                  <span className="text-space-500">the engine: </span>
+                  <span className="text-space-500">legacy engine: </span>
                   {k.engine}
+                </p>
+                <p className="mt-1 text-[12px] leading-relaxed text-space-400">
+                  <span className="text-space-500">rules engine: </span>
+                  {k.engineRules}
                 </p>
                 <p className="mt-1 font-mono text-[10px] text-space-600">Rule Manual {k.section}</p>
               </li>

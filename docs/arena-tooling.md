@@ -156,7 +156,46 @@ skipped) tells you what you broke:
 - **`compiler.ts`** — the largest: what a printed line becomes, and what the
   interpreter does with it. Most compiler changes that break something break
   here.
-- **`keywords.ts`** — the §22 keywords as engine rules.
+- **`keywords.ts`** — the §22 keywords as engine rules, and a good deal of
+  general §9/§20 mechanism besides. **Runs on both engines since #158**,
+  through the same state-interface layer `battles.ts`/`workflow.ts` use
+  (`arenaG`/`playG`/`findG`/`labelsG`/`actsG`/`canActivateG`/
+  `rejectedActionsG`, `zoneOf`/`leaderOf`/`unisonOf`). Two readers this suite
+  needed that neither of those had reached for yet are on `harness.ts`
+  alongside them: `hasG`/`skillNegatedG` (a keyword or a skill in force,
+  off `vm/program.ts`'s `hasKeyword` and `vm/effects.ts`'s `skillNegated`)
+  and `masterOfG` (3-1-6, bound to the `GameDefinition` the way `powerOfG`
+  already is); `stageMoveG` is a new test-only fixture rig beside
+  `stageOnRules`'s own, for relocating a card into a zone as pure setup
+  (no event, no moment) where `move(CTX, …)`'s reason and event log are not
+  what the case is testing. Four gate functions name what is still skipped
+  on `--engine rules`, each printing the reason rather than doing nothing:
+  `keywordGap` (a keyword's own `DEFINE KEYWORD` carries no `HOOK` body for
+  what the case needs — most of the 39, `docs/arena-backlog/s7-0{2,3,4,5}-
+  *.md`), `staticGap` (a [Permanent] reads to a static kind
+  `vm/effects.ts`'s own `DEFERRED_STATICS` names as unread — `altCost`,
+  `payWith`, `immune`), `replaceGap` (the 9-10 family: `vm/host.ts`'s
+  `replacementsFor` answers `[]` unconditionally until #146 gives a
+  skill-driven KO something to replace), and `notYetGap` for everything else
+  found empirically rather than guessed at from a doc — a skill-driven KO
+  (`h.ko`, #146), the `addSkip` queue (#145), an X price on a skill line
+  (`actions.rules`'s own gap), and several real, individually-diagnosed
+  gaps this porting pass turned up and none of the other suites had reason
+  to exercise: [Spirit Boost]'s own keyword-shaped marker amount not
+  reaching the cost planner though the price grammar is declared; two
+  trigger-moment wordings ("switched to Rest Mode by one of your skills",
+  "when you use a card in a combo") that do not yet pend on this engine;
+  `copySkills` granting a keyword and an [Auto] but not the copied
+  [Permanent] itself (20-18); an [Activate: Battle] skill not reaching the
+  menu from hand during the combo step; `control` (20-9) not preserving a
+  card's markers across the move; and a [Permanent]'s live per-step skip
+  condition (`stepSkippedByPermanent`, distinct from `addSkip`) not read by
+  the battle sub-flow at all. Every one of these was found by running the
+  ported case and reading what actually happened, not by trusting a claim
+  already on file — one of them (Spirit Boost) contradicted an earlier
+  note that it needed no hook at all. The suite still reports `ok` on both
+  engines; what moved is *how much of it* is a real assertion on `rules`
+  today, printed at the top of the run.
 - **`readings.ts` / `wordings.ts`** — the wordings learned after the keywords.
   Together ~3,000 lines, and the closest thing to a regression corpus for the
   compiler.
@@ -249,7 +288,8 @@ is each suite's own issue to take up, the way #152 took up these two:
 |---|---|---|
 | through #151 (Stage 6, the rules engine plays a battle) | zones/attributes, the turn, costs, the play family, the battle sub-flow, damage/life/Z-Energy/WIN | `vm`, `rulesets`, `text`, `deck-api` pass; `probe`'s fixture digest is skipped (needs every suite's cards); everything else is `skipped` with `EngineMismatch` |
 | #152 (this doc's own build item) | the state-interface half of `harness.ts` | `battles`, `workflow` pass too, real assertions with named `skipped case`s for what Stage 7's keywords still own (plus a handful of real, non-keyword gaps `workflow.ts`'s own entry above names) |
-| Stage 7 (`docs/arena-backlog/s7-*.md`) | keyword bodies over four hook groups | the `keywordGap` cases in `battles`/`workflow` close one by one; `keywords`/`readings`/`wordings` are the suites most of Stage 7's own value lands in, and are candidates to port next |
+| #158 | `keywords` ported onto the same state interface | `keywords` passes too, real assertions with named `skipped case`s — most of them Stage 7 keyword gaps, the rest real gaps this porting pass found and diagnosed on its own (`keywords.ts`'s own entry above names each) |
+| Stage 7 (`docs/arena-backlog/s7-*.md`) | keyword bodies over four hook groups | the `keywordGap` cases in `battles`/`workflow`/`keywords` close one by one; `readings`/`wordings` are the suites most of Stage 7's own remaining value lands in, and are candidates to port next |
 | Stage 8 | words from config, `primer`/`prompts`/`view` | `workflow.ts`'s `assertLabelOnLegacy`/`viewGap` cases close; `contract` becomes portable |
 | Stage 9 (#165) | the rules engine is the default | `test:rules` folds into `npm test`, or vice versa |
 
