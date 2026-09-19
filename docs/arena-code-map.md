@@ -212,6 +212,18 @@ the same as if it were still in `CLAUDE.md`.
   keyword names a body yet (`rulesets/dbs/keywords.rules` still declares all 39 with none) — the
   plumbing is proved instead by a small worked ruleset in `scripts/verify/rulesets.ts`, one body per
   hook, run through both runners for real. Writing the 39 real bodies is `s7-02` through `s7-05`.
+  **`s7-03` (#155) wrote group B's four tractable bodies**: [Field]'s onEnter (22-3, dropping the
+  Field Extra already out), [Heroic]/[Villainous]'s afterSkill (22-35/22-36, fired from `moved()`
+  itself for every other in-play card the entering card's owner controls, not folded into onEnter
+  because the broadcast is about the *entering* card's play rather than something the receiving
+  card's own hooks say about itself) and [Servant]'s activeStep (22-40, a query `chargeActivate`
+  reads before switching a card to Active Mode — see #154 for the same keyword's attrBonus half).
+  [Heroic]/[Villainous]'s printed self-negation is a known, named gap: a hook body's frame carries
+  no `skillIndex` for `negate(what: own)` to read, so each fires once per other card played rather
+  than once a turn. The rest of B's candidates — [Arrival], [Wish], [Successor], [Overlord],
+  [Rejuvenate], [Z-Awaken] — are whole-keyword activations with no `do:` a `DEFINE KEYWORD` can
+  carry yet (`s7-05`/#157's gap, not B's), and [Z-Stack]/[Revive] each need a per-card filter or a
+  covering-set choice the language cannot ask for yet (`moved()`'s own comment names both).
   **The interpreter is shared** (#142): `stepScript` runs on a `ScriptHost`
   (`engine/script-host.ts`) rather than on a `GameState`, `legacyHost` is that interface over the
   old state and `vm/host.ts` over the new one, so one `card_rules` row means one thing on both
