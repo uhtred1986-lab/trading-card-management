@@ -1099,6 +1099,84 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     assert.deepEqual(shape(l.primitive.beats), shape(r.primitive.beats), "the two engines draw a negation differently");
   }
 
+  // ── #275: `modifyAttr` reaches a Leader's back side and a card's mode ────
+  //
+  // `flip` and `switchMode` written as themselves and written as
+  // `modifyAttr(attr: flipped)`/`modifyAttr(attr: mode)` run through the
+  // same interpreter case on either host (`modifyAttrAs`, the precedent
+  // `negateAs` set above), so the events and the beats a board draws are
+  // the same both ways, on both engines. `ops.rules` declares both over the
+  // primitive for real, so `DBS` proves a lowered program is the same
+  // program rather than a fixture built just for this block.
+  {
+    const self: Ref = { sel: { special: "self" } };
+
+    /** `flip`: p1's own Leader, "L-RED", which prints a back side (22-2-4). */
+    {
+      const spelled: Op[] = [{ op: "flip", target: self }];
+      const primitive: Op[] = [{ op: "modifyAttr", target: self, attr: "flipped" }];
+      assert.deepEqual(expandMacros(spelled, DBS), primitive, "flip declared over modifyAttr did not lower to the primitive");
+
+      const onRules = (ops: Op[]) => {
+        const s = mainPhase();
+        const leader = s.sides.p1.zones.leader[0];
+        const ev: GameEvent[] = [];
+        assert.equal(stepScript(vmHost(CTX, DBS, s, ev), { ops, ip: 0, vars: {}, card: leader, master: "p1" }), "done");
+        assert.ok(s.cards[leader].flipped, "the rules engine did not flip the Leader");
+        return { events: JSON.parse(JSON.stringify(ev)) as unknown, beats: rulesEngine.toBeats(CTX, s, ev).list.map((b) => JSON.parse(JSON.stringify(b)) as unknown) };
+      };
+      const onLegacy = (ops: Op[]) => {
+        const l = createGame(CTX, SAME).state;
+        const leader = l.players.p1.leader;
+        const ev: GameEvent[] = [];
+        assert.equal(stepScript(legacyHost(CTX, l, ev), { ops, ip: 0, vars: {}, card: leader, master: "p1" }), "done");
+        assert.ok(l.cards[leader].flipped, "the legacy engine did not flip the Leader");
+        return { events: JSON.parse(JSON.stringify(ev)) as unknown, beats: toBeats(CTX, l, ev).list.map((b) => JSON.parse(JSON.stringify(b)) as unknown) };
+      };
+
+      const r = { spelled: onRules(spelled), primitive: onRules(primitive) };
+      const l = { spelled: onLegacy(spelled), primitive: onLegacy(primitive) };
+      assert.deepEqual(r.primitive.events, r.spelled.events, "flip as op and as modifyAttr do not log the same events on the rules engine");
+      assert.deepEqual(l.primitive.events, l.spelled.events, "flip as op and as modifyAttr do not log the same events on the legacy engine");
+      assert.deepEqual(r.primitive.beats, r.spelled.beats, "flip as op and as modifyAttr do not make the same beats on the rules engine");
+      assert.deepEqual(l.primitive.beats, l.spelled.beats, "flip as op and as modifyAttr do not make the same beats on the legacy engine");
+    }
+
+    /** `switchMode`: a Battle Card resting itself. */
+    {
+      const spelled: Op[] = [{ op: "switchMode", target: self, mode: "rest" }];
+      const primitive: Op[] = [{ op: "modifyAttr", target: self, attr: "mode", mode: "rest" }];
+      assert.deepEqual(expandMacros(spelled, DBS), primitive, "switchMode declared over modifyAttr did not lower to the primitive");
+
+      const onRules = (ops: Op[]) => {
+        const s = mainPhase();
+        const card = staged(s, "p1", "V1");
+        const ev: GameEvent[] = [];
+        assert.equal(stepScript(vmHost(CTX, DBS, s, ev), { ops, ip: 0, vars: {}, card, master: "p1" }), "done");
+        assert.equal(s.cards[card].mode, "rest", "the rules engine did not rest the card");
+        return { events: JSON.parse(JSON.stringify(ev)) as unknown, beats: rulesEngine.toBeats(CTX, s, ev).list.map((b) => JSON.parse(JSON.stringify(b)) as unknown) };
+      };
+      const onLegacy = (ops: Op[]) => {
+        const l = createGame(CTX, SAME).state;
+        const [card] = l.players.p1.deck.splice(0, 1);
+        l.cards[card].cardId = "V1";
+        l.cards[card].mode = "active";
+        l.players.p1.battle = [card];
+        const ev: GameEvent[] = [];
+        assert.equal(stepScript(legacyHost(CTX, l, ev), { ops, ip: 0, vars: {}, card, master: "p1" }), "done");
+        assert.equal(l.cards[card].mode, "rest", "the legacy engine did not rest the card");
+        return { events: JSON.parse(JSON.stringify(ev)) as unknown, beats: toBeats(CTX, l, ev).list.map((b) => JSON.parse(JSON.stringify(b)) as unknown) };
+      };
+
+      const r = { spelled: onRules(spelled), primitive: onRules(primitive) };
+      const l = { spelled: onLegacy(spelled), primitive: onLegacy(primitive) };
+      assert.deepEqual(r.primitive.events, r.spelled.events, "switchMode as op and as modifyAttr do not log the same events on the rules engine");
+      assert.deepEqual(l.primitive.events, l.spelled.events, "switchMode as op and as modifyAttr do not log the same events on the legacy engine");
+      assert.deepEqual(r.primitive.beats, r.spelled.beats, "switchMode as op and as modifyAttr do not make the same beats on the rules engine");
+      assert.deepEqual(l.primitive.beats, l.spelled.beats, "switchMode as op and as modifyAttr do not make the same beats on the legacy engine");
+    }
+  }
+
   // ── 9-1-4 and 7-4-5: a continuous effect, and the turn it ends with ───────
   {
     const s = mainPhase();

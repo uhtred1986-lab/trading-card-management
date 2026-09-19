@@ -48,7 +48,7 @@
  * Pure and client-safe: no database, no network, no `fs`.
  */
 import type { EngineContext, GameEvent } from "../engine";
-import { costModifierAs, negateAs, type Amount, type Op, type ScriptFrame } from "../engine/script";
+import { costModifierAs, modifyAttrAs, negateAs, type Amount, type Op, type ScriptFrame } from "../engine/script";
 import type { Color, ContinuousEffect, DelayedEffect, DelayTiming, KeywordSkill, PlayerId, Prohibition } from "../engine/types";
 import { other as otherPlayer } from "../engine/types";
 import type { GameDefinition } from "../rulesets";
@@ -185,6 +185,11 @@ export const LAYER_KINDS: Record<string, Record<string, ContinuousEffect["kind"]
   // the coloured attribute reads the *same* `cost` effects through its own
   // `reduction` layer; `specified` is the half that moves the colours alone.
   specifiedCost: { reduction: "cost", specified: "specifiedCost" },
+  // `keywords` (plural, the names in force) reads `keyword` (singular, what
+  // `grant` puts in force) through both layers 9-9-1 gives a non-numeric
+  // change: a [Permanent]'s standing grant (rewrite) and a resolved skill's
+  // own grant for a duration (numeric) — spec §2.5-1/§2.5-3, #275.
+  keywords: { rewrite: "keyword", numeric: "keyword" },
 };
 
 /**
@@ -417,11 +422,13 @@ function collect(
   holds: (frame: ScriptFrame, op: Op) => boolean,
   measure: (frame: ScriptFrame, amount: Amount) => number,
 ): void {
-  // A `negate` (#276) or a `costModifier` (#277) is walked as the spelling
-  // it stands for, the same as `collectStatics` on the legacy engine — so a
-  // `negateKeyword` written as the primitive is deferred by the same name
-  // `DEFERRED_STATICS` gives it, and nothing else.
-  for (const op of ops.map((o) => costModifierAs(negateAs(o)))) {
+  // A `negate` (#276), a `costModifier` (#277) or a `modifyAttr` widening
+  // (spec §2.5-1/§2.5-3, #275) is walked as the spelling it stands for, the
+  // same as `collectStatics` on the legacy engine — so a `negateKeyword`
+  // written as the primitive is deferred by the same name `DEFERRED_STATICS`
+  // gives it, a `modifyAttr(attr: keywords, …)` reads as the `grant` case
+  // below, and nothing else.
+  for (const op of ops.map((o) => costModifierAs(negateAs(modifyAttrAs(o))))) {
     if (op.op === "if") {
       // A [Permanent] under a condition holds only while the condition does
       // (9-5-1-1), so the branch is taken afresh on every reading.
@@ -505,12 +512,25 @@ type Layer = (value: AttrValue | undefined, statics: EffectValue[], timed: Effec
 
 type EffectValue = number | KeywordSkill | SpecifiedChange | Prohibition;
 
-/** Numbers added to a number, which is every change 9-9-1 makes to `power` and `comboPower`. */
+/**
+ * Numbers added to a number — every change 9-9-1 makes to `power` and
+ * `comboPower` — or keyword names unioned into a list, once each, which is
+ * every change it makes to `keywords` (spec §2.5-1/§2.5-3, #275): a grant is
+ * not subtracted by this fold at all, because negating one is read where a
+ * skill is negated (9-1-5), not through this layer. One function rather than
+ * a branch per attribute, because both are "every change of this kind,
+ * folded into the value so far" — a layer picks which by what its own
+ * changes actually carry, never by the attribute's name.
+ */
 function added(value: AttrValue | undefined, changes: EffectValue[]): AttrValue | undefined {
   let out = value;
   for (const add of changes) {
-    if (typeof add !== "number") continue;
-    out = (typeof out === "number" ? out : 0) + add;
+    if (typeof add === "number") out = (typeof out === "number" ? out : 0) + add;
+    else if (add && typeof add === "object" && "name" in add) {
+      const names = new Set(Array.isArray(out) ? (out as readonly string[]) : []);
+      names.add((add as KeywordSkill).name);
+      out = [...names];
+    }
   }
   return out;
 }
