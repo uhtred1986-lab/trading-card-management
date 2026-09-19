@@ -124,7 +124,8 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     type: "[Activate: Main]",
     group: "play",
     meaning: "An Extra Card that stays on the table in Active Mode instead of going to the Drop Area. Its other skills work from there, and playing another [Field] Extra drops the one already out.",
-    engine: "Offered from hand for the card's own energy cost; the engine drops your other [Field] Extras first and then places this one face-up in the Battle Area.",
+    engine:
+      "Offered from hand for the card's own energy cost; the engine drops your other [Field] Extras first and then places this one face-up in the Battle Area. The rules engine's own onEnter hook does the same drop the moment a [Field] Extra reaches the Battle Area (#155) — its own activation, how the Extra gets there in the first place, is not built yet (#157), so nothing offers the skill there today.",
     support: "engine",
   },
   Evolve: {
@@ -215,7 +216,8 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     type: "[Auto]",
     group: "play",
     meaning: "When you play another card with [Heroic], draw 1 card; the skill is then negated on this card for the rest of the turn.",
-    engine: "Pends only on another card carrying the same keyword — [Heroic] and [Villainous] do not set each other off — and negates itself once it has resolved.",
+    engine:
+      "Pends only on another card carrying the same keyword — [Heroic] and [Villainous] do not set each other off — and negates itself once it has resolved. The rules engine's own afterSkill hook draws the same way (#155), but does not yet negate itself for the rest of the turn — a hook body's frame carries no skillIndex for `negate(what: own)` to read — so it draws once per other [Heroic] card played in the turn rather than once there.",
     support: "engine",
   },
   Villainous: {
@@ -224,7 +226,8 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     type: "[Auto]",
     group: "play",
     meaning: "When you play another card with [Villainous], your opponent chooses a card in their hand and drops it; the skill is then negated for the rest of the turn.",
-    engine: "As [Heroic], and the discard is the ordinary one, so the card that goes is the opponent's choice rather than the end of their hand.",
+    engine:
+      "As [Heroic], and the discard is the ordinary one, so the card that goes is the opponent's choice rather than the end of their hand. The rules engine's own afterSkill hook asks the opponent the same way (#155), with the same missing self-negation [Heroic]'s entry names.",
     support: "engine",
   },
   Unique: {
@@ -351,7 +354,8 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     type: "[Permanent]",
     group: "battle",
     meaning: "+10000 power, and the card does not switch to Active Mode during its master's Charge Phase.",
-    engine: "Both halves. The power is part of the card's power everywhere it is read, so combos and comparisons see it.",
+    engine:
+      "Both halves. The power is part of the card's power everywhere it is read, so combos and comparisons see it. The rules engine reads both halves too, through its own attrBonus hook (#154) and its own activeStep hook (#155), the latter checked only against `chargeActivate`'s own switch to Active Mode — nothing stops the card being rested some other way.",
     support: "engine",
   },
 

@@ -3725,3 +3725,121 @@ console.log("verify/vm: ok");
     assert.deepEqual(expandMacros([{ op: "damage", n: 1, side: "opponent" }], DBS), [{ op: "damage", n: 1, side: "opponent" }], "an undeclared damage op should pass through expandMacros untouched, not be silently altered");
   }
 }
+
+// ── 25. hook group B: entering, leaving and after a skill (#155) ────────────
+//
+// onEnter/onLeave (9-1-3-1's zones, scoped to a game's own `inPlay: true`
+// declarations) and afterSkill (9-6-9-4's "you play another card") both fire
+// from `moved()` itself, the one mover every arrival passes through —
+// tested here against three of the four keyword bodies #155 built: [Field]'s
+// onEnter (22-3) and [Heroic]/[Villainous]'s afterSkill (22-35/22-36).
+// [Servant]'s activeStep is not `moved()`'s to fire — it is `chargeActivate`'s
+// own query (7-2-7) — and is tested separately below. [Field]'s own
+// activation, how the Extra reaches the Battle Area in the first place, is
+// #157's (`actions.rules`'s own note refuses it `unread` today), so its hook
+// body is fired the way that activation will fire it once built: through
+// `moved()` directly, standing in for the `activate` action that does not
+// exist yet.
+{
+  const rulesEngine = engineFor("rules");
+
+  DEFS.FIELDX = card("FIELDX", { type: "EXTRA", energyCost: 1, power: null, comboCost: null, comboPower: null, skill: "[Field]" });
+  DEFS.HEROICX = card("HEROICX", { energyCost: 1, skill: "[Heroic]" });
+  DEFS.VILLAINX = card("VILLAINX", { energyCost: 1, skill: "[Villainous]" });
+  DEFS.SERVANTX = card("SERVANTX", { energyCost: 1, power: 10000, skill: "[Servant]" });
+
+  /** p1's first Main Phase, mulligans and the Charge Phase declined throughout — the same loop §14's own `mainPhase` uses. */
+  function mainPhase(): VmState {
+    let s = rulesEngine.createGame(CTX, SAME).state as VmState;
+    s = rulesEngine.apply(CTX, s, { type: "chooseFirst", player: s.chooser, first: "p1" }).state as VmState;
+    for (let i = 0; i < 20 && s.prompt.kind !== "main"; i++) {
+      s = rulesEngine.apply(CTX, s, { type: "pass", player: (s.prompt as { player: PlayerId }).player }).state as VmState;
+    }
+    assert.equal(s.prompt.kind, "main", "a rules game did not reach a Main Phase to stage a play in");
+    return s;
+  }
+
+  /** The next hand card, relabelled and moved to `zone` directly — a fixture placed rather than played, the way §14's own `staged` places a Battle Card. */
+  function stagedIn(s: VmState, p: PlayerId, cardId: string, zone: string): string {
+    const id = s.sides[p].zones.hand[0];
+    assert.ok(id, `${p} has no card in hand to stage`);
+    s.cards[id].cardId = cardId;
+    assert.ok(moveCard(s, DBS, id, zone, { owner: p }).ok, `${cardId} could not be staged in ${p}'s ${zone}`);
+    return id;
+  }
+
+  // [Field] (22-3): a second [Field] Extra entering the Battle Area drops
+  // the one already there — fired through `moved()` rather than a play, per
+  // the block comment above.
+  {
+    const s = mainPhase();
+    const first = stagedIn(s, "p1", "FIELDX", "battle");
+    const second = s.sides.p1.zones.hand[0];
+    s.cards[second].cardId = "FIELDX";
+    const events: GameEvent[] = [];
+    moved(CTX, DBS, s, events, second, "battle", { owner: "p1", asPlay: true });
+    run(CTX, DBS, s, events);
+    assert.equal(s.prompt.kind, "chooseCards", "[Field]'s onEnter did not ask which other [Field] Extra to drop (22-3)");
+    const pr = s.prompt as { choice: { candidates: string[] } };
+    assert.deepEqual(pr.choice.candidates, [first], "[Field]'s onEnter offered the wrong candidate to drop (22-3)");
+    const after = rulesEngine.apply(CTX, s, { type: "choose", player: "p1", cards: [first] }).state as VmState;
+    assert.ok(after.sides.p1.zones.drop.includes(first), "the [Field] Extra already out was not dropped (22-3)");
+    assert.ok(after.sides.p1.zones.battle.includes(second), "the newly-entered [Field] Extra did not stay in the Battle Area (22-3)");
+  }
+
+  // [Heroic] (22-35): playing a second [Heroic] card draws 1 off the first
+  // one's own afterSkill — a real play, since [Heroic] carries no keyword
+  // activation of its own to route around.
+  {
+    const s = mainPhase();
+    stagedIn(s, "p1", "HEROICX", "battle");
+    stagedIn(s, "p1", "V1", "energy");
+    const second = s.sides.p1.zones.hand[0];
+    s.cards[second].cardId = "HEROICX";
+    const handBefore = s.sides.p1.zones.hand.length;
+    const after = rulesEngine.apply(CTX, s, { type: "play", player: "p1", card: second }).state as VmState;
+    assert.ok(after.sides.p1.zones.battle.includes(second), "the played [Heroic] card was not placed in the Battle Area");
+    assert.equal(after.sides.p1.zones.hand.length, handBefore, "playing a second [Heroic] card did not draw 1 off the first one's afterSkill, net against the card just played (22-35)");
+  }
+
+  // [Villainous] (22-36): playing a second [Villainous] card makes the
+  // *opponent* choose one of their own hand cards to drop.
+  {
+    const s = mainPhase();
+    stagedIn(s, "p1", "VILLAINX", "battle");
+    stagedIn(s, "p1", "V1", "energy");
+    const second = s.sides.p1.zones.hand[0];
+    s.cards[second].cardId = "VILLAINX";
+    const oppHandBefore = s.sides.p2.zones.hand.length;
+    const after = rulesEngine.apply(CTX, s, { type: "play", player: "p1", card: second }).state as VmState;
+    assert.equal(after.prompt.kind, "chooseCards", "[Villainous]'s afterSkill did not ask its opponent to choose a hand card to drop (22-36)");
+    const pr = after.prompt as { player: PlayerId; choice: { candidates: string[] } };
+    assert.equal(pr.player, "p2", "[Villainous] asked the wrong player to choose (22-36)");
+    const target = pr.choice.candidates[0];
+    assert.ok(target, "[Villainous]'s afterSkill offered its opponent no candidate to drop (22-36)");
+    const resolved = rulesEngine.apply(CTX, after, { type: "choose", player: "p2", cards: [target] }).state as VmState;
+    assert.equal(resolved.sides.p2.zones.hand.length, oppHandBefore - 1, "the opponent's chosen hand card was not dropped (22-36)");
+    assert.ok(resolved.sides.p2.zones.drop.includes(target), "the dropped card did not land in its owner's Drop Area (22-36)");
+  }
+
+  // [Servant] (22-40): the activeStep half — a resting [Servant] does not
+  // switch to Active Mode in its master's own Charge Phase (7-2-7), unlike an
+  // ordinary card staged the same way. The power half, attrBonus, is #154's.
+  {
+    let s = rulesEngine.createGame(CTX, SAME).state as VmState;
+    s = rulesEngine.apply(CTX, s, { type: "chooseFirst", player: s.chooser, first: "p1" }).state as VmState;
+    s = rulesEngine.apply(CTX, s, { type: "mulligan", player: "p1", redraw: false }).state as VmState;
+    s = rulesEngine.apply(CTX, s, { type: "mulligan", player: "p2", redraw: false }).state as VmState;
+    s = rulesEngine.apply(CTX, s, { type: "charge", player: "p1", card: null }).state as VmState;
+    s = rulesEngine.apply(CTX, s, { type: "endMain", player: "p1" }).state as VmState;
+    const servant = stagedIn(s, "p1", "SERVANTX", "battle");
+    s.cards[servant].mode = "rest";
+    const plain = stagedIn(s, "p1", "V1", "battle");
+    s.cards[plain].mode = "rest";
+    s = rulesEngine.apply(CTX, s, { type: "charge", player: "p2", card: null }).state as VmState;
+    s = rulesEngine.apply(CTX, s, { type: "endMain", player: "p2" }).state as VmState;
+    assert.equal(s.prompt.kind, "charge", "p1's second Charge Phase did not reach its own question (7-2-11)");
+    assert.equal(s.cards[plain].mode, "active", "an ordinary rested card did not switch to Active Mode in its master's Charge Phase (7-2-7) — the fixture is not exercising chargeActivate");
+    assert.equal(s.cards[servant].mode, "rest", "[Servant] switched to Active Mode during its master's Charge Phase (22-40)");
+  }
+}
