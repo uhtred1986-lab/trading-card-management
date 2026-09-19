@@ -29,7 +29,7 @@ import { EngineMismatch } from "../src/lib/arena/engines";
 import { NotYet } from "../src/lib/arena/vm";
 import { ENGINE } from "./verify/harness";
 
-const SUITES = ["text", "setup", "battles", "compiler", "keywords", "readings", "wordings", "workflow", "contract", "deck-api", "language", "lang", "rulesets", "probe", "vm"];
+const SUITES = ["text", "setup", "battles", "compiler", "keywords", "readings", "wordings", "workflow", "contract", "deck-api", "language", "lang", "rulesets", "board-words", "probe", "vm"];
 
 // A plain `.ts` file runs as CJS under `tsx`, which does not allow top-level
 // `await` — so the loop is a function `npm test`/`npm run test:rules` waits on
