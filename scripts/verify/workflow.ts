@@ -54,8 +54,9 @@ import type { Beat, EngineState, PlayerId, RejectedAction, Requirement } from ".
 
 const S7 = {
   swap: "docs/arena-backlog/s7-05-keywords-play-charge-pay.md — hook group D: play, charge and paying ([Swap])",
-  barrier: "docs/arena-backlog/s7-02-keywords-choosing-immunity.md — hook group A: choosing and immunity ([Barrier])",
-  unique: "docs/arena-backlog/s7-02-keywords-choosing-immunity.md — hook group A: choosing and immunity ([Critical], [Indestructible], [Unique])",
+  // [Barrier] is done (#154) — see [Barrier]'s own block below, gated on
+  // `chooseRejectionGap` for its rejection-reason half only.
+  unique: "docs/arena-backlog/s7-05-keywords-play-charge-pay.md — hook group D: play, charge and paying (`playRefused`) — moved out of hook group A once #153's inventory confirmed [Unique]'s real hook",
 };
 let skipped = 0;
 function keywordGap(keyword: string, doc: string): boolean {
@@ -96,6 +97,29 @@ function assertLabelOnLegacy(actual: string, expected: string, msg?: string): vo
  * mid-suite risks exactly the kind of untested engine change this issue is
  * not about. Named so it is never mistaken for a keyword skip.
  */
+/**
+ * `declaredRejectedActions` (`vm/actions.ts`) explains a rejected move by
+ * iterating `actionsAt`'s own `DEFINE ACTION`s — the top-level "which move"
+ * prompts. A `chooseCards` prompt is not one of those: it is a mid-skill
+ * answer with no declaration of its own, and nothing populates a per-card
+ * reason for it on the rules engine (`rejectedActionsG` returns `[]`
+ * outright, checked while wiring [Barrier], #154). The shape it would need —
+ * `attackRejectedActions`'s twin for a `choose`, reading the resolved
+ * candidates against the full area `resolveSelector` filtered them from — is
+ * real and not a keyword's; `CardChoice` (`engine/types.ts`) does not even
+ * carry the selector a `choose` opened with, so building it also touches
+ * what the prompt stores. Not Stage 7's, and not fixed here for the same
+ * reason `nativeRejectionGap` above is not: a prompt-machinery change
+ * mid-suite risks exactly the kind of untested engine change this issue is
+ * not about.
+ */
+function chooseRejectionGap(where: string): boolean {
+  if (ENGINE !== "rules") return false;
+  console.log(`  skipped case — ${where}: chooseCards prompts have no rejectedActions reasoning on the rules engine yet (real gap, not a keyword — see this file's own comment on chooseRejectionGap)`);
+  skipped++;
+  return true;
+}
+
 function nativeRejectionGap(where: string): boolean {
   if (ENGINE !== "rules") return false;
   console.log(`  skipped case — ${where}: combo/counter/block have no rejectedActions reasoning on the rules engine yet (real gap, not a keyword — see this file's own comment on nativeRejectionGap)`);
@@ -609,18 +633,27 @@ function forbidUsesGap(where: string): boolean {
     assert.deepEqual(first(r), { kind: "mode", card: tired, mode: "rest" });
     assertLabelOnLegacy(r!.label, "Block with BLOCKER");
   }
-  if (!keywordGap("Barrier", S7.barrier)) {
-    // A choice: the card with [Barrier] is refused by its own rule (22-16), and
-    // your own card because it is not what the skill asks for.
+  {
+    // A choice: the card with [Barrier] is excluded by its own rule (22-16),
+    // and your own card by the target description — the *legality* half,
+    // which `resolveSelector` (#154) settles regardless of whether a prompt
+    // can explain a rejection yet.
     let s = arenaG({ hand: ["KILLER"], battle: ["V1"], energy: ["V1"], oppBattle: ["V-BLUE", "WALL"] });
     const wall = findG(s, "p2", "battle", "WALL");
     const mine = zoneOf(s, "p1", "battle")[0];
+    const offered = zoneOf(s, "p2", "battle")[0];
     s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "KILLER") });
     assert.equal(s.prompt.kind, "chooseCards");
-    const rejected = rejectedActionsG(s);
-    assert.deepEqual(first(ofCard(rejected, "choose", wall)), { kind: "forbidden", by: "WALL", until: "permanent" });
-    assert.deepEqual(first(ofCard(rejected, "choose", mine)), { kind: "target", reason: "choose up to 1 of your opponent's Battle Cards" });
-    assert.equal(ofCard(rejected, "choose", zoneOf(s, "p2", "battle")[0]), undefined, "the offered card is not rejected");
+    const candidates = (s.prompt as { choice: { candidates: string[] } }).choice.candidates;
+    assert.ok(!candidates.includes(wall), "22-16: [Barrier] is still offered as a choice");
+    assert.ok(!candidates.includes(mine), "the choice offers your own card, which the skill does not ask for");
+    assert.ok(candidates.includes(offered), "the one legal candidate is not offered");
+    if (!chooseRejectionGap("[Barrier]'s own rejection reason")) {
+      const rejected = rejectedActionsG(s);
+      assert.deepEqual(first(ofCard(rejected, "choose", wall)), { kind: "forbidden", by: "WALL", until: "permanent" });
+      assert.deepEqual(first(ofCard(rejected, "choose", mine)), { kind: "target", reason: "choose up to 1 of your opponent's Battle Cards" });
+      assert.equal(ofCard(rejected, "choose", offered), undefined, "the offered card is not rejected");
+    }
   }
 
   // A turn-scoped prohibition names the card that made it and how long it

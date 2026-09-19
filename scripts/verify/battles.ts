@@ -55,7 +55,14 @@ import type { EngineState, PlayerId } from "./harness";
 
 const S7 = {
   battle: "docs/arena-backlog/s7-04-keywords-battle.md — hook group C: blocking, counters, attack, damage, battle end ([Revenge], [Double/Triple Strike], [Dual Attack], [Awaken])",
-  immunity: "docs/arena-backlog/s7-02-keywords-choosing-immunity.md — hook group A: choosing and immunity ([Critical], [Indestructible], [Unique])",
+  // [Indestructible]'s battle-KO half is #154's and done (see its own split
+  // block below); [Unique] moved to hook group D (`playRefused`) once #153's
+  // inventory confirmed it, so its own remaining skip cites `S7.unique`
+  // below rather than this string. [Critical] stays cited here for now —
+  // reconciling it against `beforeDamage` (group C) is hook group C's own
+  // call to make, not renamed out from under it mid-issue.
+  immunity: "docs/arena-backlog/s7-02-keywords-choosing-immunity.md — hook group A: choosing and immunity ([Critical])",
+  unique: "docs/arena-backlog/s7-05-keywords-play-charge-pay.md — hook group D: play, charge and paying (`playRefused`) — moved out of hook group A once #153's inventory confirmed [Unique]'s real hook",
   playCharge: "docs/arena-backlog/s7-05-keywords-play-charge-pay.md — hook group D: play, charge and paying ([Evolve])",
   enterLeave: "docs/arena-backlog/s7-03-keywords-enter-leave.md — hook group B: entering and leaving ([Z-Stack])",
 };
@@ -285,8 +292,10 @@ if (!keywordGap("Dual Attack", S7.battle)) {
   assert.equal(zoneOf(s, "p2", "life").length, 6);
 }
 
-// [Indestructible] survives a losing battle (22-12).
-if (!keywordGap("Indestructible", S7.immunity)) {
+// [Indestructible] survives a losing battle (22-12) — #154's own half, built
+// and split from [Revenge] below so it runs on the rules engine without
+// waiting on hook group C.
+{
   let s = arenaG({ battle: ["BIG"], oppBattle: ["INDESTRUCT"] });
   const big = zoneOf(s, "p1", "battle")[0];
   const ind = findG(s, "p2", "battle", "INDESTRUCT");
@@ -311,7 +320,7 @@ if (!keywordGap("Revenge", S7.battle)) {
 }
 
 // [Unique] (22-39): a second copy can't be played while one is in play.
-if (!keywordGap("Unique", S7.immunity)) {
+if (!keywordGap("Unique", S7.unique)) {
   const s = arenaG({ hand: ["UNIQ"], battle: ["UNIQ"], energy: ["V1"] });
   assert.ok(!labelsG(s).some((x) => x.startsWith("Play UNIQ")));
 }

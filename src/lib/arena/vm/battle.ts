@@ -51,12 +51,12 @@
  * declared `life` zone to the hand, face down, one card per hit — and
  * `koCard` is the generic KO: the card to its owner's Drop, the `ko` moment
  * fired with both roles. Both are *this* module's, because a battle cannot
- * resolve without them, but neither reads a keyword ([Critical] sending the
- * card to the Drop face up, [Strike] raising the amount, [Indestructible]
- * stopping the KO, [Victory Strike] ending the game outright) — those are
- * Stage 7's, and the honest board today is the one 8-4-6-1 and 8-4-6-2 read
- * with no keyword in force. Combo is paid through the same `energy`-priced
- * planner every other move is (`vm/costs.ts`), reading `comboCostOf` — the
+ * resolve without them, and read one keyword directly ([Indestructible]
+ * stopping a battle KO, #154) while three more still read the board with none
+ * of them in force ([Critical] sending the card to the Drop face up, [Strike]
+ * raising the amount, [Victory Strike] ending the game outright) — those are
+ * Stage 7's too, just not this issue's. Combo is paid through the same
+ * `energy`-priced planner every other move is (`vm/costs.ts`), reading `comboCostOf` — the
  * declared, reduction-aware attribute — rather than a number this module
  * invents; #151 owns the Z-Energy a spent combo card may become at the end
  * of the battle (`DECLARED_BY`'s own "#151" against `zEnergyFromCombo`) and
@@ -229,7 +229,7 @@ export const BATTLE_STEP_WORK: Record<string, Work> = {
 
   battleDamage: {
     section: "8-4",
-    waits: "[Strike]/[Critical]/[Indestructible]/[Victory Strike] (Stage 7 keyword bodies) — this reads 8-4-6-1/8-4-6-2 with none of them in force",
+    waits: "[Strike]/[Critical]/[Victory Strike] (Stage 7 keyword bodies) — this reads 8-4-6-1/8-4-6-2 with none of them in force; [Indestructible]'s battle-KO half is #154's, read directly in `damageWork` below",
     run: (ctx, game, state, ev) => damageWork(ctx, game, state, ev),
   },
 
@@ -604,7 +604,12 @@ function damageWork(ctx: EngineContext, game: GameDefinition, state: VmState, ev
       inst.markers = Math.max(0, inst.markers - 1);
       log(ev, { type: "markers", card: b.guard, delta: -n, total: inst.markers });
       fire(ctx, game, state, { event: "markerRemoved", card: b.guard, controller: defP, args: {} });
-    } else {
+    } else if (!hasKeyword(ctx, game, state, b.guard, "Indestructible")) {
+      // 22-12: "can't be KO'd... as a result of battle" — battle's own KO,
+      // not an effect's, so it is read directly rather than through the hook
+      // contract's `koByEffect` (#154; that hook is for a *skill's* KO, and
+      // reads `forbid(what: beKOdBySkill)` through `prohibitions()` instead —
+      // see `docs/arena-ruleset-spec.md` §4.3).
       koCard(ctx, game, state, ev, b.guard, b.attacker);
     }
   }

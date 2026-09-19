@@ -208,10 +208,26 @@ the same as if it were still in `CLAUDE.md`.
   onto `state.programs` exactly like a triggered [Auto]'s `DO` block — `fireHook`). Both go through
   one lookup, `hookBodiesFor`, so a hook body is never a special case a call site invents — `rulesets/
   hooks.ts` carries the closed name list the loader checks a `HOOK` against (it cannot import `vm/`,
-  which imports it back), `vm/hooks.ts`'s `HOOK_CONTRACT` is the typed, documented half beside it. No
-  keyword names a body yet (`rulesets/dbs/keywords.rules` still declares all 39 with none) — the
-  plumbing is proved instead by a small worked ruleset in `scripts/verify/rulesets.ts`, one body per
-  hook, run through both runners for real. Writing the 39 real bodies is `s7-02` through `s7-05`.
+  which imports it back), `vm/hooks.ts`'s `HOOK_CONTRACT` is the typed, documented half beside it
+  (moved to the leaf `vm/hook-contract.ts` by #154 so `vm/program.ts` — where `queryHookStatics`
+  actually lives — and `vm/hooks.ts` can both read the table without importing each other). Writing
+  the 39 real bodies is `s7-02` through `s7-05`.
+  **#154 built hook group A for real** — [Barrier] (`chooseable`), [Indestructible]'s battle-KO half
+  (`koByEffect`, read directly in `vm/battle.ts` for the "as a result of battle" clause, since that
+  is not an effect) and [Servant]'s power (`attrBonus`) — and found the contract's own `chooseable`/
+  `koByEffect` example wrong while wiring the first real caller: a query hook's refusal already has a
+  `ForbiddenAction` word (`beChosen`, `beKOdBySkill`, `beMovedBySkill`), so a body ends in `forbid`,
+  folded straight into `prohibitions()`'s existing 20-14 reading (`vm/program.ts`) rather than the
+  `immune` op #153 illustrated — `queryHookStatics` moved there in the same commit, since it needs
+  the same recursion-guarded `condHolds`/`amount` every other interpreter reading does. Three
+  candidates in `s7-02`'s own list moved to the hook they actually need once checked against the
+  inventory: [Unique] to `playRefused` (group D), [Deflect] to `counterWindow` (group C), [Critical]/
+  [Strike]/[Victory Strike] to `beforeDamage` (group C) — `docs/arena-backlog/s7-02-*.md`'s "confirm
+  against the inventory... move it to the later one" working as intended. What #154 did **not**
+  build, named rather than hidden: a `chooseCards` prompt has no `rejectedActions` reasoning on the
+  rules engine at all (`chooseRejectionGap`, `scripts/verify/workflow.ts` — [Barrier]'s own legality
+  is proven, its rejection *reason* is not), and [Indestructible]'s skill-KO half has no caller since
+  the rules engine does not resolve a skill's `ko` yet (#146).
   **`s7-03` (#155) wrote group B's four tractable bodies**: [Field]'s onEnter (22-3, dropping the
   Field Extra already out), [Heroic]/[Villainous]'s afterSkill (22-35/22-36, fired from `moved()`
   itself for every other in-play card the entering card's owner controls, not folded into onEnter

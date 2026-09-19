@@ -367,7 +367,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     group: "target",
     meaning: "This card can't be chosen by the skills of cards your opponent masters.",
     engine:
-      "Taken out of the candidates of every opponent selector, and named as the reason when you tap the card anyway. “Ignoring [Barrier]” lifts it for that one choice, and a card in a hand was never in scope to begin with.",
+      "Taken out of the candidates of every opponent selector, and named as the reason when you tap the card anyway. “Ignoring [Barrier]” lifts it for that one choice, and a card in a hand was never in scope to begin with. The rules engine (#154) excludes the same candidates through the same `forbid(what: beChosen)`/20-4 machinery, folded into the card's own rules (`prohibitions()`) rather than a special case; naming *why* a `chooseCards` candidate was refused is not built there yet (a real gap, not this keyword's), so only the legality half is proven so far.",
     support: "engine",
   },
   Deflect: {
@@ -385,7 +385,8 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     type: "[Permanent]",
     group: "target",
     meaning: "This card can't be KO'd or moved out of your Battle Area by the opponent's skills or as a result of battle.",
-    engine: "Honoured both by battle and by an opponent's script. A card at 0 power or less still goes to the Drop Area — that is 21-6, not a KO.",
+    engine:
+      "Honoured both by battle and by an opponent's script on the engine playing every game today. A card at 0 power or less still goes to the Drop Area — that is 21-6, not a KO. The rules engine (#154) honours the battle half the same way; the script half has no caller yet, because the rules engine does not resolve a skill's KO at all (#146) — nothing reaches it to be immune from.",
     support: "engine",
   },
 
