@@ -90,11 +90,23 @@ export interface VmCard {
   usedThisTurn: number[];
   /** 13-4: a card may use no second marker skill this turn. Emptied with the list above. */
   usedMarkerSkill: boolean;
+  /**
+   * 8-1-2-1/8-1-2-2: this card was the attacker or the guard in a battle this
+   * turn — a memory that outlives the battle itself, which is what BT3-103's
+   * "if this card participated in a battle during your opponent's turn" reads
+   * (`vm/program.ts`'s `"battled"` condition). The legacy engine's own
+   * `battledThisTurn` exactly, ported for #152 rather than left `NARROWER`:
+   * `vm/battle.ts`'s `joinsBattle` sets it the same two places the legacy
+   * `joinsBattle` does (the attacker and the original target at
+   * `declareAttack`, the new guard at `applyBlock`), and `endTurn` clears it
+   * with `usedThisTurn`/`usedMarkerSkill`.
+   */
+  battledThisTurn: boolean;
 }
 
 /** A fresh card, in no zone yet: its caller moves it somewhere with `moveCard`. */
 export function newCard(id: string, cardId: string, owner: PlayerId): VmCard {
-  return { id, cardId, owner, mode: null, markers: 0, under: [], faceUp: false, flipped: false, hidden: false, usedThisTurn: [], usedMarkerSkill: false };
+  return { id, cardId, owner, mode: null, markers: 0, under: [], faceUp: false, flipped: false, hidden: false, usedThisTurn: [], usedMarkerSkill: false, battledThisTurn: false };
 }
 
 /**
@@ -235,11 +247,20 @@ export function moveCard(board: Board, game: GameDefinition, id: string, to: str
     // 23-2-2-2: the cards under a card are in the area of the card on top, and
     // 3-1-4 applies on the way down — a card in a pile carries nothing with it.
     reset(card, null);
-    // A card arriving with a pile of its own flattens into the host's, the way
-    // the legacy engine's `placeUnder` does: a pile hanging off a card that is
-    // itself in a pile is in no area at all.
+    // A card that already has a pile of its own — an evolved Battle Card, a
+    // Z-Stack — takes it along when it lands in an area of the same name
+    // (23-2-6, `follows` below) and leaves each one in its own owner's Drop
+    // when the name changes instead (23-2-5): the legacy engine's own
+    // `placeUnder` condition (`from === null || from === hostArea`), ported
+    // rather than always flattened. Each straggler is moved with a recursive
+    // `moveCard` — not spliced into the Drop array by hand — so it gets the
+    // same zone-entry reset (mode, markers, faces) any other arrival does;
+    // it cannot itself carry a further pile, since 3-1-4/23-2-2-2 already
+    // stripped one from every card once it went under another.
     const carried = card.under.splice(0);
-    onTop.under.unshift(id, ...carried);
+    const follows = from === null || from.zone === at.zone;
+    onTop.under.unshift(id, ...(follows ? carried : []));
+    if (!follows) for (const u of carried) moveCard(board, game, u, "drop", {});
     return { ok: true, move: record(id, from, "under", onTop.owner, opts, opts.under) };
   }
 

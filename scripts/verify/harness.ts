@@ -37,7 +37,12 @@ import {
   type RejectedAction,
   type Requirement,
 } from "../../src/lib/arena/engine";
-import { DEFAULT_ENGINE, engineFor, isEngineId, legacyState, type EngineId } from "../../src/lib/arena/engines";
+import { DEFAULT_ENGINE, engineFor, isEngineId, isVmState, legacyState, type EngineId, type EngineState } from "../../src/lib/arena/engines";
+import type { VmState } from "../../src/lib/arena/vm/state";
+import { moveCard } from "../../src/lib/arena/vm/zones";
+import { attrsNow } from "../../src/lib/arena/vm/program";
+import { addEffect as vmAddEffect } from "../../src/lib/arena/vm/effects";
+import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { appendBeats, maskBeats, toBeats, type Beat, type Beats, type NumberedBeat } from "../../src/lib/arena/beats";
 import { buildSnapshot, rejectedFor, waitingFor, type Snapshot } from "../../src/lib/arena/snapshot";
 import { boardView } from "../../src/lib/arena/view";
@@ -375,6 +380,221 @@ function assertDisjoint(s: GameState, where: string): RejectedAction[] {
   return rejected;
 }
 
+// ── the state interface (#152): the same staging helpers, on either engine ──
+//
+// Everything above this line reads and writes `GameState` directly — `game`,
+// `arena`, `play`, `find`, `labels` and the assertions built on them — and
+// stays exactly as it was: every other suite (`setup`, `compiler`, `keywords`,
+// `readings`, `wordings`, `contract`, `deck-api`, `language`) still imports
+// those, still narrows through `legacyState`, and is still meant to read
+// `skipped — EngineMismatch` under `--engine rules` until its own stage lands.
+// Changing what they narrow to is not this issue's to do.
+//
+// What *is* this issue's: `battles.ts` and `workflow.ts` need the same fixture
+// vocabulary — a board staged to a name, a card found by its catalog id, the
+// menu read off it — built once, generically, rather than each suite (or each
+// one, copying `verify/vm.ts`'s own local `stage`/`atMain`/`legacyBoard`)
+// growing its own copy. The names below are deliberately the `G` (generic)
+// twin of the function above them with the same job: `gameG`/`arenaG` for
+// `game`/`arena`, `playG` for `play`, `findG` for `find`, `labelsG`/`actsG`/
+// `canActivateG` for `labels`/`acts`/`canActivate`.
+//
+// **The fields that differ.** `EngineState`'s own doc (`engines.ts`) already
+// names what the two shapes share by name — `prompt`, `battle`, `winner`,
+// `overReason`, `phase`, `turn`, `turnPlayer`, `effects` — and #152 adds
+// `cards[id].{mode,markers,under,flipped,faceUp,hidden,battledThisTurn}` to
+// that list (the last one ported from `NARROWER` to real by this same issue,
+// `vm/zones.ts`). Those are read directly off `EngineState` below with no
+// branch, because they *are* the same field. What is not the same field is an
+// **area**: `players[p][area]` (legacy) against `sides[p].zones[area]` (rules)
+// — `zoneOf`/`leaderOf`/`unisonOf` are the one seam a caller needs, mirroring
+// `sideName`/`damageTaken`'s own precedent in `engines.ts` for a field the two
+// engines keep under a different name.
+//
+// **Why `arenaG`'s two branches stay two branches rather than one generic
+// mover.** The legacy branch delegates to `arena` above, unchanged, because
+// that fixture stages a card through the real `move()` — zone-entry moments
+// included — and nothing about this issue asks it to stage more cheaply than
+// it already does. The rules branch is `verify/vm.ts`'s own `stage`/`atMain`
+// (§23/§24), moved here rather than copied a third time: a raw relabel-and-
+// splice into the zone array, no moment fired, `mode` set active outside the
+// hand — the same "kept local since only this suite needs it" fixture that
+// file's own comment describes, now shared. The two fixtures were never going
+// to produce identical events (one is the real move machinery, the other is a
+// board built by hand for a test), so making them the same *function* would
+// only hide that they are not the same *staging strategy* — the state
+// interface is the seam, not a pretence that both engines set a table the
+// same way.
+
+type ZoneArea = "deck" | "hand" | "energy" | "battle" | "drop" | "warp" | "life" | "combo" | "zDeck" | "zEnergy" | "removed";
+const ZONE_AREAS: ZoneArea[] = ["deck", "hand", "energy", "battle", "drop", "warp", "life", "combo", "zDeck", "zEnergy", "removed"];
+
+/** A side's named area, off whichever shape wrote this state. The one seam every staging helper below goes through instead of reaching into `players`/`sides` itself. */
+function zoneOf(s: EngineState, p: PlayerId, area: ZoneArea): string[] {
+  return isVmState(s) ? (s.sides[p].zones[area] ??= []) : s.players[p][area];
+}
+
+/** The one card in the Leader Area — a scalar field on the legacy engine, a single-entry zone on the rules engine (8-1-1's own `zones.leader?.[0]` reading). */
+function leaderOf(s: EngineState, p: PlayerId): string {
+  return isVmState(s) ? s.sides[p].zones.leader![0] : s.players[p].leader;
+}
+
+/** The Unison in play, or none — the same scalar/zone difference `leaderOf` bridges. */
+function unisonOf(s: EngineState, p: PlayerId): string | null {
+  return isVmState(s) ? (s.sides[p].zones.unison?.[0] ?? null) : s.players[p].unison;
+}
+
+/** 1-14 energy markers — `state.sides[p].attrs.energyMarkers` (a declared `of: player` attribute) on the rules engine, `state.players[p].energyMarkers` on the legacy one. Read-only: a fixture that wants to set it uses `setEnergyMarkersG`. */
+function energyMarkersOf(s: EngineState, p: PlayerId): number {
+  return isVmState(s) ? Number(s.sides[p].attrs.energyMarkers ?? 0) : s.players[p].energyMarkers;
+}
+function setEnergyMarkersG(s: EngineState, p: PlayerId, n: number): void {
+  if (isVmState(s)) s.sides[p].attrs.energyMarkers = n;
+  else s.players[p].energyMarkers = n;
+}
+
+/** A fresh game on whichever engine `--engine` named — `IMPL.createGame` itself, undressed of the `legacyState` narrowing `game()` above applies. */
+function gameG(seed = 1, p1 = fifty("V1"), p2 = fifty("V-BLUE"), z: string[] = []): EngineState {
+  return IMPL.createGame(CTX, { seed, p1: { name: "You", leader: "L-RED", main: p1, z }, p2: { name: "Claude", leader: "L-BLUE", main: p2 } }).state;
+}
+
+/** Apply a list of actions on whichever engine `--engine` named, asserting each is legal (`IllegalAction`/`RulesetBroken` throw on their own). */
+function playG(s: EngineState, ...actions: Action[]): EngineState {
+  for (const a of actions) s = IMPL.apply(CTX, s, a).state;
+  return s;
+}
+
+function labelsG(s: EngineState): string[] {
+  return IMPL.legalActions(CTX, s).map((a) => a.label);
+}
+function actsG(s: EngineState) {
+  return IMPL.legalActions(CTX, s).map((a) => a.action);
+}
+function canActivateG(s: EngineState, card: string): boolean {
+  return actsG(s).some((a) => a.type === "activate" && a.card === card);
+}
+
+/** `IMPL.rejectedActions` over `IMPL.legalActions`'s own menu — the common case, where a caller has no menu of its own to pass. */
+function rejectedActionsG(s: EngineState): RejectedAction[] {
+  return IMPL.rejectedActions(CTX, s, IMPL.legalActions(CTX, s));
+}
+
+function findG(s: EngineState, p: PlayerId, area: ZoneArea, cardId: string): string {
+  const id = zoneOf(s, p, area).find((x) => s.cards[x].cardId === cardId);
+  assert.ok(id, `${p}'s ${area} has no ${cardId}`);
+  return id!;
+}
+
+/** `verify/vm.ts` §23/§24's own `stage`, moved here so `battles.ts` and `workflow.ts` do not each grow a copy: one card moved from the deck into a named area, cardId swapped, mode set active outside the hand — a raw fixture, no moment fired. */
+function stageOnRules(r: VmState, p: PlayerId, cardId: string, area: "hand" | "energy" | "battle"): string {
+  const filler = p === "p1" ? "V1" : "V-BLUE";
+  const inst = r.sides[p].zones.deck.find((id) => r.cards[id].cardId === filler);
+  assert.ok(inst, `${p}'s deck has run out of fixture cards to relabel as ${cardId}`);
+  r.sides[p].zones.deck = r.sides[p].zones.deck.filter((id) => id !== inst);
+  r.cards[inst!].cardId = cardId;
+  r.sides[p].zones[area] = [...r.sides[p].zones[area], inst!];
+  if (area !== "hand") r.cards[inst!].mode = "active";
+  return inst!;
+}
+
+interface ArenaOpts {
+  hand?: string[];
+  energy?: string[];
+  battle?: string[];
+  oppHand?: string[];
+  oppBattle?: string[];
+  oppEnergy?: string[];
+  z?: string[];
+}
+
+/** `verify/vm.ts` §23/§24's own `atMain`: p1's Main Phase, their second turn, on the rules engine. */
+function arenaOnRules(opts: ArenaOpts): VmState {
+  let r = IMPL.createGame(CTX, { seed: 7, p1: { name: "You", leader: "L-RED", main: fifty("V1"), z: opts.z ?? [] }, p2: { name: "Claude", leader: "L-BLUE", main: fifty("V-BLUE") } }).state as VmState;
+  const chooser = (r.prompt as { player: PlayerId }).player;
+  r = IMPL.apply(CTX, r, { type: "chooseFirst", player: chooser, first: "p1" }).state as VmState;
+  r = IMPL.apply(CTX, r, { type: "mulligan", player: "p1", redraw: false }).state as VmState;
+  r = IMPL.apply(CTX, r, { type: "mulligan", player: "p2", redraw: false }).state as VmState;
+  r = IMPL.apply(CTX, r, { type: "charge", player: "p1", card: null }).state as VmState;
+  r = IMPL.apply(CTX, r, { type: "endMain", player: "p1" }).state as VmState;
+  r = IMPL.apply(CTX, r, { type: "charge", player: "p2", card: null }).state as VmState;
+  r = IMPL.apply(CTX, r, { type: "endMain", player: "p2" }).state as VmState;
+  r = IMPL.apply(CTX, r, { type: "charge", player: "p1", card: null }).state as VmState;
+  assert.equal(r.prompt.kind, "main", "the rules-engine fixture did not reach p1's second Main Phase");
+  for (const cardId of opts.hand ?? []) stageOnRules(r, "p1", cardId, "hand");
+  for (const cardId of opts.energy ?? []) stageOnRules(r, "p1", cardId, "energy");
+  for (const cardId of opts.battle ?? []) stageOnRules(r, "p1", cardId, "battle");
+  for (const cardId of opts.oppHand ?? []) stageOnRules(r, "p2", cardId, "hand");
+  for (const cardId of opts.oppEnergy ?? []) stageOnRules(r, "p2", cardId, "energy");
+  for (const cardId of opts.oppBattle ?? []) stageOnRules(r, "p2", cardId, "battle");
+  return r;
+}
+
+/** `arena()` above, on whichever engine `--engine` named — see the header comment above this section for why the two branches stage a board differently rather than sharing one mover. */
+function arenaG(opts: ArenaOpts = {}): EngineState {
+  return ENGINE === "rules" ? arenaOnRules(opts) : arena(opts);
+}
+
+/** Every card instance is in exactly one area (3-1) — `assertConsistent` above, generic over the area names `zoneOf` reads. */
+function assertConsistentG(s: EngineState): void {
+  const seen = new Map<string, number>();
+  for (const p of ["p1", "p2"] as PlayerId[]) {
+    const all = [leaderOf(s, p), unisonOf(s, p), ...ZONE_AREAS.flatMap((a) => zoneOf(s, p, a))].filter(Boolean) as string[];
+    for (const id of all) seen.set(id, (seen.get(id) ?? 0) + 1);
+    for (const id of all) for (const u of s.cards[id].under) seen.set(u, (seen.get(u) ?? 0) + 1);
+  }
+  for (const id of Object.keys(s.cards)) assert.equal(seen.get(id), 1, `${id} is in exactly one place (found ${seen.get(id) ?? 0})`);
+}
+
+/** Is this card anywhere on the board — a zone, the Leader/Unison scalar, or under another card? The one predicate `assertConsistentAfterDropG` needs, since a fixture that spliced a life array by hand leaves the card it removed in none of them. */
+function isPlacedG(s: EngineState, id: string): boolean {
+  for (const p of ["p1", "p2"] as PlayerId[]) {
+    if (leaderOf(s, p) === id || unisonOf(s, p) === id) return true;
+    if (ZONE_AREAS.some((a) => zoneOf(s, p, a).includes(id))) return true;
+  }
+  return Object.values(s.cards).some((c) => c.under.includes(id));
+}
+
+/** `assertConsistentAfterDrop` above, generic: a fixture that removed life cards outright by splicing the array puts them in the Drop so the invariant holds. */
+function assertConsistentAfterDropG(s: EngineState): void {
+  const gone = Object.keys(s.cards).filter((id) => s.cards[id].owner === "p1" && !isPlacedG(s, id));
+  zoneOf(s, "p1", "drop").push(...gone);
+}
+
+/** `assertDisjoint` above, over `IMPL` rather than the legacy-narrowed `legalActions`/`rejectedActions` module functions — the same §3.2 promise, on whichever engine staged the board. */
+function assertDisjointG(s: EngineState, where: string): RejectedAction[] {
+  const legal = IMPL.legalActions(CTX, s);
+  const rejected = IMPL.rejectedActions(CTX, s, legal);
+  assertMenuInvariants(legal, rejected, where);
+  return rejected;
+}
+
+const DBS_DEFINITION = (() => {
+  const r = rulesetFor("dbs");
+  if (!r.ok) throw new Error(`the DBS ruleset did not load for the harness's own use: ${JSON.stringify(r.errors)}`);
+  return r.definition;
+})();
+
+/**
+ * `placeUnder` (`engine/state`) on whichever engine `--engine` named — a
+ * fixture reaching for 23-2 directly, the way a card's own skill does through
+ * `moveCard`'s `under` option (`vm/host.ts`'s `placeUnder`, #152).
+ */
+function placeUnderG(s: EngineState, id: string, host: string): boolean {
+  if (isVmState(s)) return moveCard(s, DBS_DEFINITION, id, "drop", { under: host }).ok;
+  return placeUnder(CTX, s, [], id, host);
+}
+
+/** `addEffect` above, on whichever engine `--engine` named — both take the identical `EffectSpec`/`Omit<ContinuousEffect,…>` shape, so a fixture's call site needs no change beyond which state it hands in. */
+function addEffectG(s: EngineState, ev: GameEvent[], e: Parameters<typeof addEffect>[2]): void {
+  if (isVmState(s)) vmAddEffect(s, ev, e);
+  else addEffect(s, ev, e);
+}
+
+/** `powerOf` above, on whichever engine `--engine` named — `battle.ts`'s own local reading of `attrsNow(...).power`, the declared attribute rather than the legacy engine's own computed one. */
+function powerOfG(s: EngineState, id: string): number {
+  return isVmState(s) ? Number(attrsNow(CTX, DBS_DEFINITION, s, id).power ?? 0) : powerOf(CTX, s, id);
+}
+
 export {
   COND_CLASS,
   COND_SCHEMA,
@@ -390,15 +610,23 @@ export {
   OP_SCHEMA,
   RIVAL,
   TONES,
+  IMPL,
   acts,
+  actsG,
   addEffect,
+  addEffectG,
   appendBeats,
   apply,
   arena,
+  arenaG,
   assertConsistent,
   assertConsistentAfterDrop,
+  assertConsistentAfterDropG,
+  assertConsistentG,
   assertDisjoint,
+  assertDisjointG,
   assertMenuInvariants,
+  canActivateG,
   autoTriggerMatches,
   boardView,
   buildSnapshot,
@@ -422,11 +650,14 @@ export {
   describeTrigger,
   eitherOrbsIn,
   encodeLighting,
+  energyMarkersOf,
   fifty,
   find,
+  findG,
   forbids,
   lifeReplacementChoicesFor,
   game,
+  gameG,
   has,
   hoist,
   keywordOf,
@@ -435,6 +666,8 @@ export {
   keywordsByGroup,
   koCard,
   labels,
+  labelsG,
+  leaderOf,
   legalActions,
   lightingFrom,
   locate,
@@ -456,10 +689,15 @@ export {
   patternKey,
   pill,
   placeUnder,
+  placeUnderG,
   planPayment,
+  rejectedActionsG,
+  setEnergyMarkersG,
   play,
   playCost,
+  playG,
   powerOf,
+  powerOfG,
   priceCondition,
   priceOf,
   priceX,
@@ -484,8 +722,10 @@ export {
   trailingTrigger,
   triggersOf,
   turnVars,
+  unisonOf,
   validate,
   waitingFor,
   zEnergyCostOf,
+  zoneOf,
 };
-export type { Action, Beat, Beats, CardDef, CardFilter, GameState, NumberedBeat, PlayerId, RejectedAction, Requirement, SchemaOp, Snapshot, Trigger };
+export type { Action, Beat, Beats, CardDef, CardFilter, EngineState, GameState, NumberedBeat, PlayerId, RejectedAction, Requirement, SchemaOp, Snapshot, Trigger, VmState };

@@ -528,12 +528,11 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
       return c.not ? !inBattle : inBattle;
     }
     // BT3-103's "if this card participated in a battle during your opponent's
-    // turn": the legacy `battledThisTurn` is a per-copy memory that outlives
-    // the battle itself (8-1-2-2), which `VmCard` does not carry yet — #150's
-    // own battle steps do not join one (`joinsBattle`'s reading is `NARROWER`
-    // below), so this stays the honest "no" until a card needs it.
+    // turn": `VmCard.battledThisTurn` (#152) is the legacy engine's own
+    // per-copy memory that outlives the battle itself (8-1-2-2) —
+    // `vm/battle.ts`'s `joinsBattle` sets it, `endTurn` clears it.
     case "battled":
-      return false;
+      return resolveSelector(ctx, game, state, frame, c.sel).some((id) => !!state.cards[id]?.battledThisTurn);
     case "every": {
       const ids = resolveSelector(ctx, game, state, frame, c.sel);
       // Nothing there is not "all of it" (0-2-4-1).

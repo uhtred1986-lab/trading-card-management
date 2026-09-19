@@ -3264,33 +3264,23 @@ console.log("verify/vm: ok");
     assert.equal((l2.state as GameState).cards[board.unison].markers, 1, "the Unison did not gain a marker on the legacy engine");
     assert.deepEqual((l2.state as GameState).cards[board.unison].under, [board.copy], "the copy did not go under the Unison on the legacy engine");
 
-    // The rules engine's own move-under primitive is not built yet
-    // (`vm/host.ts`'s `placeUnder`, throwing `NotYet("#146")` unconditionally)
-    // — declaring growUnison over the player attribute #269 adds is what
-    // finally offers the move at all, and the `NotYet` it hits partway through
-    // the `DO` is caught at the one program boundary `stepProgram` already has
-    // for exactly this (`vm/flow.ts`). Since #149 that boundary ends the game
-    // rather than noting the gap and playing on — `ENGINE_INFO.rules.available`
-    // is true and a real player can reach this today, so a skill stopping
-    // halfway with nothing said would be a worse answer than the game refusing
-    // to go on. Nothing after the failed `moveTo` ran, so neither the marker
-    // nor the once-a-turn fact is set — that half is #146's to close, not
-    // #149's, and #149 only changes *what the game does* once it is reached.
+    // The rules engine's own move-under primitive is real now (#152's
+    // `vm/host.ts` `placeUnder`, wired to `moveCard`'s own `under` option
+    // rather than throwing `NotYet("#146")` unconditionally) — this test used
+    // to assert the `DO` stopping partway through and the game ending rather
+    // than the grow completing; rewritten to assert completion, the fact this
+    // suite is actually testing (`docs/arena-tooling.md`'s own "a failing test
+    // is sometimes the bug, not a description of it").
     const r2 = rulesEngine.apply(CTX, board.r, grow);
-    assert.ok(
-      r2.events.some((e) => e.type === "gameOver" && e.winner === null && e.reason.includes("#146")),
-      "growing a Unison on the rules engine did not end the game naming the move-under gap and #146",
-    );
-    assert.equal((r2.state as VmState).prompt.kind, "gameOver", "the game did not come to rest in its over phase after the NotYet");
-    assert.equal((r2.state as VmState).winner, null, "an engine gap declared a winner rather than leaving the game undecided");
-    assert.equal((r2.state as VmState).cards[board.unison].markers, 0, "the Unison gained a marker despite the DO stopping before addMarker ran");
-    assert.equal((r2.state as VmState).sides.p1.attrs.grewUnison, false, "the once-a-turn fact was set despite the DO stopping before setPlayerAttr ran");
+    assert.equal((r2.state as VmState).prompt.kind, "main", "growing the Unison did not leave the Main Phase's own question on the table (7-3-4: free timing, `again: true`)");
+    assert.equal((r2.state as VmState).cards[board.unison].markers, 1, "the Unison did not gain a marker on the rules engine");
+    assert.deepEqual((r2.state as VmState).cards[board.unison].under, [board.copy], "the copy did not go under the Unison on the rules engine");
+    assert.equal((r2.state as VmState).sides.p1.attrs.grewUnison, true, "the once-a-turn fact was not set by the completed grow");
 
-    // Once a turn: a second copy, staged the same way, is refused before the
-    // move-under gap is ever reached — the once-a-turn requirement is a fact
-    // about the *player*, not about what the interpreter can finish, so it is
-    // checked (and can refuse) without needing the rest built. Set by hand,
-    // since taking the real move never reaches `setPlayerAttr` today.
+    // Once a turn: a second copy, staged fresh, is refused by the same fact
+    // the completed grow above just set for real — asserted here on a hand-set
+    // attribute anyway, so this case does not depend on the grow above having
+    // actually run first.
     {
       const second = board.r.sides.p1.zones.hand[1];
       board.r.cards[second].cardId = "P-UNISON";
