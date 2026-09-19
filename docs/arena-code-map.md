@@ -611,9 +611,28 @@ the same as if it were still in `CLAUDE.md`.
   description matches, and each of those is a line in Input. A [Permanent] and a keyword are
   *read* rather than resolved — power with and without the rule, the keywords in force, and
   whether the opponent's KO skill was offered the card at all. Confirming a rule keeps its probe
-  on the row (`card_rules.probe`), so `npm run arena:reprobe` after an engine change lists the
-  rules whose answer moved: the regression suite the rules never had. `npm run arena:probe --all`
-  sweeps the catalog in ~70 s.
+  on the row (`card_rules.probe`, tagged with the `engine` it was taken on since #161), so `npm run
+  arena:reprobe` after an engine change lists the rules whose answer moved: the regression suite
+  the rules never had. `npm run arena:probe --all` sweeps the catalog in ~70 s.
+  **#161 started the rules-engine port and named the rest.** `src/lib/arena/engine-state.ts` is the
+  `zoneOf`/`leaderOf`/`unisonOf`/`energyMarkersOf` seam #152/#158 built inside
+  `scripts/verify/harness.ts` for `battles.ts`/`workflow.ts`/`keywords.ts`, pulled out to a
+  production module so the probe's own eventual port reads the same seam rather than growing a
+  third copy — `harness.ts` now imports it instead of keeping its own. The probe itself is not
+  ported yet: every one of `stage()`'s ten families still reads `GameState` (`s.players[p]`, real
+  `move()`/`placeUnder()`/`addEffect()`) directly rather than through that seam, and
+  `probe-report.ts`'s own readings (`powerOf`, `keywordsInForce`, `toBeats`) are legacy-typed too —
+  a real port needs both, and is bigger than this issue's own "M" sizing once `probe-report.ts` is
+  counted, so it stays future work rather than a half-finished attempt at story. What #161 did
+  build: `opening()` now refuses a rules-engine board with one clear, named message
+  (`probe staging is not ported to the rules engine yet (#161)`) instead of failing several calls
+  deeper with `legacyState`'s own generic `EngineMismatch`, so `probe(rule, scenario, "rules")`
+  reports a clean `error` outcome for every family — checked directly by a new section of
+  `scripts/verify/probe.ts` (`contract/probe-rules-status.json`), which will need updating the day
+  a family's staging is actually ported. `npm run arena:probe -- --all --engine rules` therefore
+  already sweeps the whole catalog today, faster than the legacy pass (nothing it stages ever plays
+  a turn) and with a fully explained, uniform "moved" list on `arena:reprobe` — the honest reading
+  `docs/arena-tooling.md` already described before this issue landed.
 - **Explaining a card** (`src/lib/arena/ai/clarify.ts`, from any record on the workbench): you say
   what a card does in plain words; Claude returns a program in the effect language, saved as the
   card's **draft** rule (`source: claude`, for you to confirm), and a markdown work item for
