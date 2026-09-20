@@ -40,13 +40,12 @@ import { other, type Action, type PlayerId, type Prompt, type Requirement } from
 import type { Cond, Selector } from "../engine/script";
 import type { ActionDef, GameDefinition } from "../rulesets";
 import { activationMoment, activationRefusals, activationsOf, boundFor, resolveActivation, type ActivationLine } from "./activate";
-import { attrsOf } from "./cards";
 import { actionCostOf, chargeCost, freePrice, planCost, priceFor, xValues, type BoundAmounts, type Price } from "./costs";
 import { RulesetBroken } from "./errors";
 import { fire } from "./events";
 import { answered } from "./flow";
 import { predicateOf } from "./filters";
-import { forbiddenBy } from "./program";
+import { attrsNow, forbiddenBy } from "./program";
 import { SETUP_ZONES } from "./zones";
 import type { VmState } from "./state";
 
@@ -638,6 +637,21 @@ function promptsOf(game: GameDefinition, def: ActionDef): Prompt["kind"][] {
  * ignored on purpose: they say how many of the candidates a player ends up
  * choosing, which is the prompt's business, not which cards may be chosen.
  *
+ * The filter reads `attrsNow` (#326), the same layered bag every other
+ * reading in `vm/` goes through — a `FOR`/`REFUSE` measuring a cost or a
+ * colour now sees a [Permanent]'s reduction or a `gains` the way
+ * `program.ts`'s own `resolveSelector` and a card's own program already do,
+ * rather than only the printed row. Deliberately narrower than
+ * `resolveSelector` in two ways, both left as they were rather than guessed
+ * at: a `FOR` still reads a side, an area, a filter and a mode and refuses
+ * anything richer (`rich`, above, #142); and it does **not** honour 23-5-2's
+ * hidden cards or 20-4's "can't be chosen" — those are a *skill's* reading of
+ * a bound `$card`, which needs the `frame.master`/`frame.card` a
+ * menu-building selector does not have yet, so a candidate list stays the
+ * wider of the two rather than reaching for a frame it would have to invent.
+ * If a `FOR` ever needs to say "can't be chosen" too, that is a frame for
+ * menu-building selectors to grow, not a reason to loosen this one.
+ *
  * The whole of selector evaluation is `engine/state.ts`'s `resolveSelector` and
  * is deliberately code rather than configuration (`docs/arena-ruleset-spec.md`
  * §7); this is the part a menu needs, and #142 is where the two become one.
@@ -656,10 +670,7 @@ function select(ctx: EngineContext, game: GameDefinition, state: VmState, sel: S
         const inst = state.cards[id];
         if (!inst) continue;
         if (sel.mode !== undefined && inst.mode !== sel.mode) continue;
-        if (matches) {
-          const def = ctx.defs[inst.cardId];
-          if (!def || !matches(attrsOf(def, game).attrs)) continue;
-        }
+        if (matches && !matches(attrsNow(ctx, game, state, id))) continue;
         out.push(id);
       }
     }
@@ -737,7 +748,7 @@ function holds(ctx: EngineContext, game: GameDefinition, state: VmState, cond: C
   }
 }
 
-/** How many cards a condition's selector finds — the candidate itself when it says `FROM $<bind>`, else the board. */
+/** How many cards a condition's selector finds — the candidate itself when it says `FROM $<bind>`, else the board. The `FROM $<bind>` filter reads `attrsNow` too (#326), for the same reason `select` above does. */
 function counted(ctx: EngineContext, game: GameDefinition, state: VmState, sel: Selector, me: PlayerId, card: string | null): number {
   if (sel.fromVar === undefined) return select(ctx, game, state, sel, me).length;
   if (card === null) return 0;
@@ -749,10 +760,7 @@ function counted(ctx: EngineContext, game: GameDefinition, state: VmState, sel: 
     const where = sidesOf(sel.side ?? "you", me).some((p) => areas.some((a) => (state.sides[p].zones[a] ?? []).includes(card)));
     if (!where) return 0;
   }
-  if (sel.filter) {
-    const def = ctx.defs[inst.cardId];
-    if (!def || !predicateOf(sel.filter, game)(attrsOf(def, game).attrs)) return 0;
-  }
+  if (sel.filter && !predicateOf(sel.filter, game)(attrsNow(ctx, game, state, card))) return 0;
   return 1;
 }
 

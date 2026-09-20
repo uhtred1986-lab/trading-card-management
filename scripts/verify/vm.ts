@@ -59,6 +59,7 @@ import {
   activeEnergy,
   activationsOf,
   boundFor,
+  candidatesOf,
   cardPrice,
   chargeCost,
   chargesOf,
@@ -4066,5 +4067,141 @@ console.log("verify/vm: ok");
     // this engine it does, which is the difference the two attributes exist to
     // keep (issue #238's own gap, on the legacy engine, is `powerMin`'s).
     assert.equal(predicateOf({ ...emptyFilter(), powerMin: 15000 }, DBS)(now), true, "a pumped card's current power did not reach `powerMin`");
+  }
+}
+
+// ── 27. an action's FOR and REFUSE read the board, not the printed row (#326) ─
+//
+// `select()` and `counted()` (`vm/actions.ts`) used to build their predicate's
+// bag with `attrsOf(def, game).attrs` — the printed catalog row, with none of
+// `attrsNow`'s layers applied. Nothing declared in `actions.rules` today
+// measures a number or a colour, so nothing was visibly wrong; the fix is
+// this section's own case, not a regression test for one.
+//
+// **Which measures moved.** `attrsOf` only fills the attributes a `CardDef`
+// reader answers (`vm/cards.ts`'s `CATALOG`); the ten `FROM_BOARD`-only
+// attributes — `costOf`, `comboCostOf`, `zEnergyCostOf`, `mode`, `markers`,
+// `keywords`, `hidden`, `faceUp`, `flipped`, `originalPower` — were always
+// absent from it, and `power`/`comboPower` carried no [Permanent] or effect
+// layer at all. So `powerMin`/`powerMax`, `originalPowerMin`/`originalPowerMax`
+// and every measure this attribute list backs moved from always-wrong (never
+// seeing a board effect) to correct. `costMin`/`costMax` did **not** move:
+// `vm/filters.ts`'s own `MEASURES` row reads `costMin`/`costMax` off
+// `energyCost`, the printed total (2-5) — the same attribute `resolveSelector`
+// has always read for it, deliberately distinct from `costOf`'s reduced price
+// the same way `originalPower` is deliberately distinct from `power` (§26
+// above) — so a card whose price a [Permanent] discounts was, and remains,
+// unmatched by "an energy cost of N or less" on both engines alike. Nothing
+// in `actions.rules` declares a `COST` filter of that shape, so this is a
+// property of the attribute the wording measures, not a gap this issue's
+// build steps touch (they say nothing about `MEASURES`).
+{
+  const rulesEngine = engineFor("rules");
+
+  // A synthetic action, built directly rather than parsed — `candidatesOf`
+  // takes its declaration as a value, so a `DEFINE ACTION` no `.rules` file
+  // has to carry is enough to prove what `select`/`counted` do with one.
+  const forPower: ActionDef = {
+    define: "ACTION",
+    name: "c326For",
+    when: [],
+    for: { side: "you", area: "battle", filter: { ...emptyFilter(), powerMin: 15000 } },
+    do: [],
+  } as unknown as ActionDef;
+  const refusePower: ActionDef = {
+    define: "ACTION",
+    name: "c326Refuse",
+    when: [],
+    for: { side: "you", area: "battle" },
+    bind: "card",
+    refusals: [{ kind: "cardType", args: { needs: "a card with 15000 power or more" }, unless: { kind: "count", sel: { fromVar: "card", filter: { ...emptyFilter(), powerMin: 15000 } }, atLeast: 1 } }],
+    do: [],
+  } as unknown as ActionDef;
+
+  /** p1's Main Phase, an unboosted 10000-power Battle Card in play, `AURA` (+5000 to every Battle Card) staged separately so each case controls whether it is active. */
+  function withTarget(boosted: boolean): { s: VmState; target: string } {
+    let s = rulesEngine.createGame(CTX, SAME).state as VmState;
+    s = rulesEngine.apply(CTX, s, { type: "chooseFirst", player: (s.prompt as { player: PlayerId }).player, first: "p1" }).state as VmState;
+    s = rulesEngine.apply(CTX, s, { type: "mulligan", player: "p1", redraw: false }).state as VmState;
+    s = rulesEngine.apply(CTX, s, { type: "mulligan", player: "p2", redraw: false }).state as VmState;
+    s = rulesEngine.apply(CTX, s, { type: "charge", player: "p1", card: null }).state as VmState;
+    assert.equal(s.prompt.kind, "main", "the fixture did not reach p1's Main Phase");
+    const target = s.sides.p1.zones.deck[0];
+    s.cards[target].cardId = "V1";
+    s.cards[target].mode = "active";
+    s.sides.p1.zones.deck = s.sides.p1.zones.deck.filter((id) => id !== target);
+    s.sides.p1.zones.battle = [target];
+    if (boosted) {
+      const aura = s.sides.p1.zones.deck[0];
+      s.cards[aura].cardId = "AURA";
+      s.cards[aura].mode = "active";
+      s.sides.p1.zones.deck = s.sides.p1.zones.deck.filter((id) => id !== aura);
+      s.sides.p1.zones.battle.push(aura);
+    }
+    assert.equal(CTX.defs.V1.power, 10000, "the fixture card no longer prints 10000 power, so this case proves nothing");
+    return { s, target };
+  }
+
+  // The `FOR` above reads `powerMin: 15000` — unreachable by V1's printed
+  // 10000, reachable only once AURA's [Permanent] is standing. `attrsOf` never
+  // saw a [Permanent]'s layer at all, so this candidate was refused
+  // unconditionally before #326; `attrsNow` is the same reading every other
+  // predicate in `vm/` already gets.
+  {
+    const { s, target } = withTarget(false);
+    const without = candidatesOf(CTX, DBS, s, forPower, "p1");
+    assert.equal(
+      without.find((c) => c.card === target),
+      undefined,
+      "a FOR measuring power offered an unboosted card — the fixture's own baseline is wrong",
+    );
+  }
+  {
+    const { s, target } = withTarget(true);
+    const with_ = candidatesOf(CTX, DBS, s, forPower, "p1");
+    const found = with_.find((c) => c.card === target);
+    assert.ok(found, "a FOR measuring power did not offer a card a standing [Permanent] boosted into range (#326)");
+    assert.deepEqual(found?.why, [], "the boosted card was offered with a refusal attached");
+  }
+
+  // `counted()`'s own `FROM $card` branch (`REFUSE ... count(FROM $card ...)`
+  // above) is the second half of the same fix, checked the same way.
+  {
+    const { s, target } = withTarget(false);
+    const cand = candidatesOf(CTX, DBS, s, refusePower, "p1").find((c) => c.card === target);
+    assert.ok(cand?.why.length, "an unboosted card was not refused by a REFUSE measuring power");
+  }
+  {
+    const { s, target } = withTarget(true);
+    const cand = candidatesOf(CTX, DBS, s, refusePower, "p1").find((c) => c.card === target);
+    assert.deepEqual(cand?.why, [], "a REFUSE measuring power still refused a card a standing [Permanent] boosted into range (#326)");
+  }
+
+  // `costMin`/`costMax` itself does not move (see this section's own header):
+  // a [Permanent] discounting `costOf` leaves `energyCost` exactly as printed,
+  // on both engines, because neither reads the reduced attribute for this
+  // wording. Recorded here so the claim is checked rather than only argued.
+  {
+    DEFS["C326-CUT"] = card("C326-CUT", { energyCost: 3, skill: "[Permanent] Reduce the energy cost of your red cards in your hand by 1." });
+    DEFS["C326-BYSTANDER"] = card("C326-BYSTANDER", { energyCost: 3 });
+    let s = rulesEngine.createGame(CTX, SAME).state as VmState;
+    s = rulesEngine.apply(CTX, s, { type: "chooseFirst", player: (s.prompt as { player: PlayerId }).player, first: "p1" }).state as VmState;
+    s = rulesEngine.apply(CTX, s, { type: "mulligan", player: "p1", redraw: false }).state as VmState;
+    s = rulesEngine.apply(CTX, s, { type: "mulligan", player: "p2", redraw: false }).state as VmState;
+    s = rulesEngine.apply(CTX, s, { type: "charge", player: "p1", card: null }).state as VmState;
+    const hand = s.sides.p1.zones.hand[0];
+    s.cards[hand].cardId = "C326-BYSTANDER";
+    const reducer = s.sides.p1.zones.deck[0];
+    s.cards[reducer].cardId = "C326-CUT";
+    s.cards[reducer].mode = "active";
+    s.sides.p1.zones.deck = s.sides.p1.zones.deck.filter((id) => id !== reducer);
+    s.sides.p1.zones.battle = [reducer];
+    assert.equal(attrsNow(CTX, DBS, s, hand).costOf, 2, "the reducer in play is not discounting the bystander's price, so this case proves nothing");
+    const forCost: ActionDef = { define: "ACTION", name: "c326ForCost", when: [], for: { side: "you", area: "hand", filter: { ...emptyFilter(), costMax: 2 } }, do: [] } as unknown as ActionDef;
+    assert.equal(
+      candidatesOf(CTX, DBS, s, forCost, "p1").find((c) => c.card === hand),
+      undefined,
+      "costMax read the reduced costOf instead of the printed energyCost — update this section's header comment, it is now wrong",
+    );
   }
 }
