@@ -229,7 +229,8 @@ learned the expensive way. Read it before changing the compiler or the engine.
   itself, not a second list. Doc: `docs/arena-code-map.md`.
 - **Rules are records** (`docs/arena-rules-workbench-spec.md`): the engine plays from `card_rules`
   and **never compiles card text at game time**; a row a person confirmed or corrected is never
-  rewritten by a script. Doc: `docs/arena-code-map.md`.
+  rewritten by a script. Doc: `docs/arena-code-map.md`, and for the owner's own walkthrough of
+  correcting a record, `docs/arena-fixing-a-card.md`.
 - **The probe** (`src/lib/arena/probe.ts`): says what the engine *does* with a rule, not what it
   should. Pure — no database, no network, and **no compiler**: `draft.ts` stays the only module
   that compiles card text. Doc: `docs/arena-code-map.md`.

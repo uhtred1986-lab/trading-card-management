@@ -23,6 +23,7 @@ to read first.
 | `docs/arena-ruleset-spec.md` | **Current** | What is configuration and what is interpreter in the rules engine, the definition files, the oracle protocol and how a primitive or a game is added; §2–§4 are filled by their stage issues. |
 | `docs/arena-workflow-spec.md` | **Current** | The rules-as-workflow UI spec; phases 1–3 are built and phase 4 (Android) is still open. |
 | `docs/arena-rules-workbench-spec.md` | **Current** | The Rules Workbench spec and phase record for rules stored as records rather than compiled at runtime. |
+| `docs/arena-fixing-a-card.md` | **Current** | The owner's own guide to correcting a card's record in the workbench's text view — not for an agent. |
 | `docs/arena-client-contract.md` | **Current** | The shared `Snapshot`/API contract for arena clients; read before changing client-visible arena data. |
 | `docs/arena-ui-motion-spec.md` | **Current** | The current record of the web board's motion/UI behaviour; all phases are built. |
 | `docs/arena-hud-spec.md` | **Current** | The "whose move is it" HUD brief; some sections are built and later sections remain open. |
