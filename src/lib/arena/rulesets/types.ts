@@ -30,6 +30,8 @@ export type KeywordDef = Def<"KEYWORD">;
 export type CostDef = Def<"COST">;
 export type WinDef = Def<"WIN">;
 export type OpDef = Def<"OP">;
+export type WordsDef = Def<"WORDS">;
+export type PromptDef = Def<"PROMPT">;
 
 /**
  * One game, as its files declare it.
@@ -57,6 +59,8 @@ export interface GameDefinition {
   costs: Record<string, CostDef>;
   wins: Record<string, WinDef>;
   ops: Record<string, OpDef>;
+  words: Record<string, WordsDef>;
+  prompts: Record<string, PromptDef>;
   definitions: Definition[];
   /** `"zone:battle"` → `"zones.rules"`, the key shape `words` uses too. */
   sources: Record<string, string>;
@@ -68,12 +72,15 @@ export interface GameDefinition {
  * re-export of this. The names are the ones those constants use, so the swap
  * is a re-export and not a rename.
  *
- * Four of the eight have no `DEFINE` kind that could declare them yet:
- * `durations` and `sides` are the effect language's own words, `skillKinds`
- * comes off a card's printed tag, and `promptKinds` awaits the owner's
- * decision on `DEFINE PROMPT` (#131's closing question). Those are filled from
- * the engine's lists and from what the declarations happen to name; the other
- * four are the definition's, and are empty until the game's files declare them.
+ * Four of the eight have no `DEFINE` kind of their own: `durations` and
+ * `sides` are the effect language's own words, `skillKinds` comes off a
+ * card's printed tag, and `promptKinds` is not the same list `DEFINE PROMPT`
+ * declares (below) — it is the questions the steps actually ask for
+ * (`step.prompt`), which an action's `prompts:` is checked against, and stays
+ * narrower than `PROMPT_KINDS` until every asking step exists (Stage 5/6).
+ * Those four are filled from the engine's lists and from what the
+ * declarations happen to name; the other four are the definition's, and are
+ * empty until the game's files declare them.
  */
 export interface Vocabulary {
   areas: string[];

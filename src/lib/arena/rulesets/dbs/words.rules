@@ -1,0 +1,192 @@
+-- The words a board shows for a zone, a phase or beat, a mode or a colour —
+-- `wording.ts`'s refusals, `narration.ts`'s beats and `lighting.ts`'s room
+-- colours, gathered as `board-words.ts`'s `BoardWords` (Stage 8, #159).
+--
+-- Declared rather than hand-written by the owner's decision on #131/#135
+-- (20 Sep 2026): DEFINE WORDS is a declaration of its own, not a field of
+-- DEFINE GAME. `of:` says which table a word belongs to; the name is the
+-- zone, phase/step, mode or colour it is the word for, so `DEFINE WORDS
+-- battle` is the words for `DEFINE ZONE battle` and needs no second name.
+--
+-- Declared, not consumed. `board-words.ts`'s own tables (`WORDING_AREA`,
+-- `NARRATION_AREA`, `PHASE`, the mode words, `LEADER_COLOURS`) still stand,
+-- unchanged, and `wordsFromRuleset` still only checks a zone/mode/colour
+-- exists rather than reading a phrase from here — the wiring that would
+-- retire the hand-written tables is Stage 8's own follow-up, deliberately
+-- not done in this file (CLAUDE.md: "declare only; do not move any consumer
+-- Stage 8 did not already move").
+--
+-- Left out on purpose, and named rather than silently missing: `wording.ts`'s
+-- `VERB` (the verb in "X cannot attack") and `WINDOW` (a timing window's
+-- phrase, for a Requirement), and `effects.ts`'s `untilWords` (how long a
+-- rule in force lasts, said "your"/"Claude's", singular/plural). All three
+-- are viewer-dependent sentence templates with a branch in them, not a flat
+-- name -> word lookup, so they do not fit this file's shape. Giving them a
+-- home is real design work — either a templated-sentence declaration beside
+-- this one, or a further split of DEFINE WORDS — left to a follow-up rather
+-- than forced into a table that would lie about what it can say.
+
+-- §3: the twelve areas the manual counts, minus the two effect-language-only
+-- routes (`under`, `play`) `zones.rules` also declares — a program needs to
+-- name them, but a board never shows them as a place a card sits, so
+-- `board-words.ts`'s own tables carry no entry for either and neither does
+-- this file. Order follows `zones.rules`.
+DEFINE WORDS deck
+  of: zone
+  you: "your deck"
+  text: "the deck"
+
+DEFINE WORDS hand
+  of: zone
+  you: "your hand"
+  text: "hand"
+
+DEFINE WORDS drop
+  of: zone
+  you: "your Drop Area"
+  text: "the Drop"
+
+DEFINE WORDS leader
+  of: zone
+  you: "the Leader Area"
+  text: "the Leader Area"
+
+DEFINE WORDS battle
+  of: zone
+  you: "your Battle Area"
+  text: "the Battle Area"
+
+DEFINE WORDS combo
+  of: zone
+  you: "your Combo Area"
+  text: "the Combo Area"
+
+DEFINE WORDS energy
+  of: zone
+  you: "your Energy Area"
+  text: "the Energy Area"
+
+DEFINE WORDS life
+  of: zone
+  you: "your Life Area"
+  text: "life"
+
+DEFINE WORDS warp
+  of: zone
+  you: "your Warp"
+  text: "the Warp"
+
+DEFINE WORDS unison
+  of: zone
+  you: "the Unison Area"
+  text: "the Unison Area"
+
+DEFINE WORDS zDeck
+  of: zone
+  you: "your Z-Deck"
+  text: "the Z-Deck"
+
+DEFINE WORDS zEnergy
+  of: zone
+  you: "your Z-Energy Area"
+  text: "Z-Energy"
+
+DEFINE WORDS removed
+  of: zone
+  you: "out of the game"
+  text: "out of the game"
+
+-- §6, §7: the six turn phases and the two a turn is not made of (`setup`,
+-- `over`), as `narration.ts`'s beat stream names them, plus the five battle
+-- sub-flow steps a "phase" beat also narrates (`declared`..`battleEnd`,
+-- `board-words.ts`'s own `PHASE_DECLARATION` maps each to `game.rules`'s
+-- `mainEnd` or to `battle.rules`'s own step). Order follows `PHASE` there.
+DEFINE WORDS charge
+  of: phase
+  text: "Charge Phase"
+
+DEFINE WORDS main
+  of: phase
+  text: "Main Phase"
+
+DEFINE WORDS mainEnd
+  of: phase
+  text: "Main Phase ends"
+
+DEFINE WORDS end
+  of: phase
+  text: "End Phase"
+
+DEFINE WORDS declared
+  of: phase
+  text: "Attack declared"
+
+DEFINE WORDS offense
+  of: phase
+  text: "Offense Step"
+
+DEFINE WORDS defense
+  of: phase
+  text: "Defense Step"
+
+DEFINE WORDS damage
+  of: phase
+  text: "Damage Step"
+
+DEFINE WORDS battleEnd
+  of: phase
+  text: "The battle ends"
+
+DEFINE WORDS setup
+  of: phase
+  text: "Setting up"
+
+DEFINE WORDS over
+  of: phase
+  text: "The game is over"
+
+-- §1-10: the only two tokens `zones.rules` declares for a zone's `modes:`.
+DEFINE WORDS active
+  of: mode
+  text: "Active Mode"
+
+DEFINE WORDS rest
+  of: mode
+  text: "Rest Mode"
+
+-- §1-2-3: the seven colours `attributes.rules`' own `colors` attribute may
+-- hold. `room: true` marks the five a Leader can be, and so a room can be lit
+-- for (`lighting.ts`'s `LEADER_COLOURS`) — White and Colorless light no room
+-- of their own (`colourOf`'s own fallback to Black).
+DEFINE WORDS Red
+  of: color
+  room: true
+  text: "Red"
+
+DEFINE WORDS Blue
+  of: color
+  room: true
+  text: "Blue"
+
+DEFINE WORDS Green
+  of: color
+  room: true
+  text: "Green"
+
+DEFINE WORDS Yellow
+  of: color
+  room: true
+  text: "Yellow"
+
+DEFINE WORDS Black
+  of: color
+  room: true
+  text: "Black"
+
+DEFINE WORDS White
+  of: color
+  text: "White"
+
+DEFINE WORDS Colorless
+  of: color
+  text: "Colorless"

@@ -15,7 +15,7 @@ export { ZONE_ARGS, loadRuleset, vocabularyOf } from "./load";
 export { expandMacros, opsIn, MacroError } from "./expand";
 export { HOOK_POINTS, isHookPoint, type HookPoint } from "./hooks";
 export { DBS_FILES, loadDbs } from "./dbs";
-export type { ActionDef, AttributeDef, CostDef, Def, GameDef, GameDefinition, KeywordDef, Loaded, OpDef, PhaseDef, RulesetError, StepDef, TriggerDef, Vocabulary, WinDef, ZoneDef } from "./types";
+export type { ActionDef, AttributeDef, CostDef, Def, GameDef, GameDefinition, KeywordDef, Loaded, OpDef, PhaseDef, PromptDef, RulesetError, StepDef, TriggerDef, Vocabulary, WinDef, WordsDef, ZoneDef } from "./types";
 
 import { loadDbs } from "./dbs";
 import type { Loaded } from "./types";
