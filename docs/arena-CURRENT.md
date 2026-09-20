@@ -1,6 +1,6 @@
 # Arena current state (short)
 
-Last updated: 13 Sep 2026
+Last updated: 20 Sep 2026
 
 This file is the short, always-current arena state-of-the-world summary.
 Keep it under 200 lines. Update it whenever arena scope, priorities, or the
@@ -12,24 +12,34 @@ Keep it under 200 lines. Update it whenever arena scope, priorities, or the
 - The production flow is still: catalog sync drafts/updates `card_rules`,
   the engine plays from those rows, and unresolved wording is escalated via
   the referee workflow.
-- Two engines exist (`legacy`, `rules`), but only `legacy` is playable today.
-  `rules` is `src/lib/arena/vm/`: `engineFor("rules")` resolves it and it can
-  **make a game and deal the opening board** — a side is a map of the zones
-  `zones.rules` declares, a card is a bag of the attributes `attributes.rules`
-  declares, and from the same seed the hands, life piles and decks are card for
-  card the ones the legacy engine deals. Every other call throws `NotYet` naming
-  the issue that builds it (#140 the flow, #141 the log, #142 effects and
-  prompts), and `playableEngine("rules")` still throws `EngineNotBuilt` so no new
-  game can be started on it.
-- `npx tsx scripts/arena-fuzz.mts 40 --engine rules` is the dealing fuzz for that
-  engine: forty real deck pairings created and the board checked, no moves.
-- The immediate day-to-day work remains improving wording coverage and avoiding
-  wrongly-read clauses (prefer unread over wrong reads).
+- Two engines exist (`legacy`, `rules`), and **both are playable**. Stages 5
+  to 9 of the plan merged between 14 and 20 Sep 2026, so `src/lib/arena/vm/`
+  now plays a whole game: the turn off `DEFINE PHASE`/`STEP`, the declared
+  actions with their prices (charge, the play family, `activate`, 13-3's
+  Unison growth), the battle as a nested sub-flow with its nine steps,
+  damage, life and the WIN checkpoint, and Stage 7's keyword hook contract
+  with eight bodies written against it. `engineFor(id)` is the one switch.
+- **`DEFAULT_ENGINE` is still `legacy`.** Flipping it is issue #166's build
+  step 2 and is blocked on the owner's two parity runs (#164, #165), which
+  need the shared Neon database. `ENGINE_INFO.rules.available` is true, and
+  since #162 a hot-seat game, Sparring and Tournament may all be started on
+  the rules engine from Settings → Arena engine; only a 1 v 1 is refused,
+  because the hidden-hand masking still reads the legacy `GameState`.
+- What the rules engine cannot do yet throws `NotYet` naming the issue that
+  builds it, and since #149 that **ends the game** rather than playing on —
+  a skill's own KO and tokens (#146), the skip list (#145), an action price
+  or an X price on a skill line (#149), the counter:play window (#150), the
+  Z-Energy a spent combo card becomes (#151), and most keyword activations
+  (#157) are the ones a real game meets.
+- `npm test` runs `verify-arena.ts`'s nineteen suites **once per engine**
+  since #165, so the rules-engine run and its named skips are checked on
+  every ordinary test run. `npx tsx scripts/arena-fuzz.mts 200 --engine
+  rules` is clean.
+- The immediate day-to-day work remains improving wording coverage and
+  avoiding wrongly-read clauses (prefer unread over wrong reads).
 - `docs/arena-ruleset-spec.md` is the interpreter contract for the `rules`
-  engine: what is configuration and what is code, how a primitive or a game is
-  added, and the oracle protocol that gates each stage. Sections 2–4 (the
-  primitives table, the definition files, the hook contract) are headings the
-  stage issues fill.
+  engine: what is configuration and what is code, how a primitive or a game
+  is added, and the oracle protocol that gates each stage.
 
 ## Current priority order (session start)
 
