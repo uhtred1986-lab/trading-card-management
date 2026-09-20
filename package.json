@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "tsx scripts/verify-rules.ts && tsx scripts/verify-arena.ts && tsx scripts/verify-arena.ts --engine rules && tsx scripts/verify-db.mts && tsx scripts/verify/backlog.ts",
+    "test": "tsx scripts/verify-rules.ts && tsx scripts/verify-arena.ts && tsx scripts/verify-arena.ts --engine rules && tsx scripts/verify-db.mts && tsx scripts/verify/backlog.ts && tsx scripts/verify/diff-report.ts",
     "test:rules": "tsx scripts/verify-arena.ts --engine rules",
     "contract:emit": "tsx scripts/verify-arena.ts --emit",
     "db:generate": "drizzle-kit generate",

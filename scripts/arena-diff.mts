@@ -21,6 +21,7 @@ import { IllegalAction, type Action, type EngineContext, type GameState } from "
 import { engineFor, engineOr, isEngineId, legacyState, type EngineId } from "../src/lib/arena/engines";
 import { deckInputFor, defsForCards } from "../src/lib/arena/load";
 import { rulesFor } from "../src/lib/arena/rules-store";
+import { formatDiffReport, groupDiffOutcomes, type DiffOutcome } from "./lib/arena-diff-report";
 
 const args = process.argv.slice(2);
 const flag = (name: string) => args.includes(`--${name}`);
@@ -29,16 +30,8 @@ const value = (name: string) => {
   return i >= 0 ? args[i + 1] : undefined;
 };
 
-interface Report {
-  id: number;
-  engine: EngineId;
-  actions: number;
-  /** Null when the replay reached the end; otherwise the action index and why. */
-  divergence: { at: number; why: string } | null;
-  /** Whether the final state is byte-identical to the row's. */
-  same: boolean;
-  deckChanged: boolean;
-}
+/** The shape `scripts/lib/arena-diff-report.ts` groups and formats — see there for field meanings. */
+type Report = DiffOutcome;
 
 /**
  * Postgres hands jsonb back with its keys in its own order, so two equal
@@ -118,14 +111,16 @@ if (on !== undefined && !isEngineId(on)) throw new Error(`--engine must be one o
 
 if (flag("all")) {
   const rows = await db.select({ id: arenaGames.id }).from(arenaGames).orderBy(desc(arenaGames.id)).limit(Number(value("limit") ?? 50) || 50);
-  let same = 0;
+  const outcomes: DiffOutcome[] = [];
   for (const { id } of rows) {
     const r = await replay(id, on);
-    if (!r) continue;
-    say(r);
-    if (r.same) same++;
+    if (r) outcomes.push(r);
   }
-  console.log(`\n${same} of ${rows.length} games replay to the same state`);
+  // Grouped by cause rather than dumped one line per game (docs/arena-tooling.md §4): two games
+  // hitting the same bug report the identical first differing prompt or refused action, and a
+  // deck edited since it was played is set apart, since its shuffle — not the engine — is why it
+  // might not match.
+  for (const line of formatDiffReport(groupDiffOutcomes(outcomes))) console.log(line);
 } else {
   const id = Number(args.find((a) => /^\d+$/.test(a)));
   if (!Number.isInteger(id)) throw new Error("usage: arena:diff -- <gameId> [--engine legacy|rules] | --all [--limit N]");
