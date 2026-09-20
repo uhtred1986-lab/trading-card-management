@@ -1190,7 +1190,7 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
         characters: op.attr === "characters" ? vals : [],
         // The schema takes the values as plain words; the colours among them are the game's own.
         colors: op.attr === "colors" ? (vals as Color[]) : [],
-        names: op.attr === "names" ? vals : [],
+        names: op.attr === "alsoNames" ? vals : [],
       };
       for (const id of op.target ? staticTargets(ctx, s, frame, op.target) : [source]) out.push({ source, kind: "gains", target: id, value });
       continue;

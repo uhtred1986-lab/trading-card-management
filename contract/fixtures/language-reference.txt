@@ -560,7 +560,7 @@
             "colors",
             "characters",
             "traits",
-            "names",
+            "alsoNames",
             "mode",
             "markers",
             "keywords",

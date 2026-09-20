@@ -324,7 +324,7 @@ itself.
 | File | Declares | Manual | Written by |
 |---|---|---|---|
 | `game.rules` | `GAME` (deck sizes, opening hand, life, mulligan, turn order, which phase is the setup and which the over), six `PHASE`s and the 26 `STEP`s of the turn — including the End Phase's bounded repeat — and `WIN` for life-out and deck-out | §0-1-3, §6, §7 | #133 ✔, #140 ✔ |
-| `attributes.rules` | `ATTRIBUTE` — every `CardDef` field (id, name, type, colours, energy cost, specified-cost orbs, Z-Energy cost, power, combo cost and power, characters, traits, skill, back, also-names), the three derived costs with their layer order, and the player's energy markers | §1-2, §1-9, §1-14, §2, §9-9-1, §20-21 | #133 ✔ |
+| `attributes.rules` | `ATTRIBUTE` — every `CardDef` field (id, name, type, colours, energy cost, specified-cost orbs, Z-Energy cost, power, combo cost and power, characters, traits, skill, back, also-names), the three derived costs with their layer order, the player's energy markers and charge/growUnison flags, and the battle in progress's one attribute, `guard` (#328) | §1-2, §1-9, §1-14, §2, §8-1, §9-9-1, §20-21, §22-4-2 | #133 ✔ |
 | `zones.rules` | `ZONE` — the manual's twelve areas plus `removed`, `under` and `play`: owner, visibility, order, single, markers, modes, host, and what "in play" means | §3, §9-1-3-1, §20-10, §23-2 | #133 ✔ |
 | `ops.rules` | `OP` — one macro per row §2.3 marks *macro*, over the primitives beside it; `rulesets/expand.ts` lowers a program through them | §2 above | #137 |
 | `triggers.rules` | `TRIGGER` — every moment an [Auto] or a [Counter] answers to, as the event pattern that *is* it, with the counter windows (58 declarations: the 53 of the `Trigger` union and the five `counter:*` windows) | §9-6, §4-3, §9-7 | #134 ✔ |

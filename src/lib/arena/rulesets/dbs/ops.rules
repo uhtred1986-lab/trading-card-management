@@ -353,7 +353,7 @@ DEFINE OP gains
     modifyAttr(target: $target, attr: traits, values: $traits)
     modifyAttr(target: $target, attr: characters, values: $characters)
     modifyAttr(target: $target, attr: colors, values: $colors)
-    modifyAttr(target: $target, attr: names, values: $names)
+    modifyAttr(target: $target, attr: alsoNames, values: $names)
   }
   text: "the card also counts as the named traits, characters, colours and names, wherever it is"
   doc: "what `gains` means: `modifyAttr`'s general row, one call per list attribute — a call that leaves one out leaves that call's own \"values\" out too, which the static reader (`collectStatics`/`permanents`) already treats as none of that list (docs/arena-ruleset-spec.md §2.3)"
