@@ -1102,13 +1102,24 @@ has been playing games.
 | 7 — keywords | All 39 keyword bodies are written as macros and the keyword suite passes on both |
 | 8 — from config | Words, prompts, primer, probes and the AI read the definition, with no new snapshot field |
 | 9 — parity | **Every** saved game replays identically on the rules engine (`arena:diff --all`), reprobe moves nothing unexplained, fuzz is clean — then the default flips |
-| 10 — retirement | `engine/` is gone; saved legacy games are handled per the owner's ruling (still needed) |
+| 10 — retirement | `engine/` is gone; saved legacy games are handled per the owner's ruling — **Archive**, below |
 
 **The two-engines rule until Stage 10.** A game keeps the engine it was made on: `state` is that
 engine's shape and `actions` replay only on it. `engineFor(row.engine)` is the one switch, and
 nothing that plays a saved game may import `./engine` directly for the purpose. That is exactly
 what keeps the oracle available — the moment the two engines are entangled there is nothing left to
 compare against.
+
+**Saved legacy games, once `engine/` retires (issue #119, owner's ruling of 20 Sep 2026): Archive.**
+Of the three options the issue put to the owner — replay onto the rules engine on load, read-only
+off the legacy engine's own `boardView`/`toBeats`, or archive — the choice is **Archive**: a legacy
+game's *last snapshot* is stored as JSON, and the arena list and game page show that stored snapshot
+read-only, with a banner and no legal actions, rather than recomputing anything through a retired
+engine or replaying the action log onto a different one. A legacy game cannot be continued once
+`engine/` is gone — there is no migration path, only a record of how the game last stood. The
+implementation (the stored-snapshot column or table, a one-off snapshotting script the owner runs,
+and the read-only view) is issue #335's own, filed as a Stage 10 backlog item; this document
+records the ruling, not the build.
 
 **The gate on every commit** (from `docs/arena-backlog.md` and the stage issues):
 `npm run typecheck && npm run lint && npm test && npm run build`, then the fuzz run. A change to a
