@@ -696,6 +696,20 @@ export const arenaGames = pgTable(
     review: text("review"),
     reviewAt: timestamp("review_at", { withTimezone: true }),
     /**
+     * The last `Snapshot`(s) rendered for this game, stored once as JSON
+     * while `engine/` — the legacy engine — still exists to compute them
+     * (issue #335). Null until a legacy row is archived by
+     * `scripts/arena-snapshot-legacy.mts`; every other row stays null
+     * forever. Its *presence*, not `engine`'s value, is what makes a game
+     * archived: `games.ts`'s `loadArchivedGame` reads it instead of calling
+     * `legalActions`/`apply`, which a retired engine could no longer answer
+     * anyway. Shaped `StoredSnapshot` (`src/lib/arena/snapshot.ts`): one
+     * `shared` board for every mode but `versus`, and a `p1`/`p2` pair for
+     * it, since that is the one mode with a real hidden-hand boundary
+     * between two logins to preserve forever rather than re-derive.
+     */
+    snapshot: jsonb("snapshot"),
+    /**
      * Bumped by every `applyToGame`, which writes `WHERE version = <what it
      * read>`. Two people on two devices can legitimately both be poised to
      * act — a blocker or counter prompt belongs to the player whose turn it is

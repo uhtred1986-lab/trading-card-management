@@ -90,6 +90,12 @@ export interface Snapshot {
     /** The login in each seat. Null outside a 1 v 1. */
     p1User?: string | null;
     p2User?: string | null;
+    /**
+     * True only for a legacy row read off its stored snapshot rather than
+     * computed live (§3.5, issue #335). Absent — never `false` — on every
+     * live snapshot, so the field changes no existing fixture.
+     */
+    archived?: true;
   };
   /** src/lib/arena/view.ts — unchanged, already carries per-card art. */
   view: BoardView;
@@ -329,6 +335,47 @@ export interface BattleView {
 A client may draw these and nothing else with them. Working out which cards are in a battle, what
 each contributes, or whether a skill fired is the engine's job — inferring a trigger from a power
 figure changing is the exact failure §1 is about.
+
+### 3.5 Archived games (added 20 Sep 2026, issue #335, owner's ruling #119)
+
+Stage 10 retires `src/lib/arena/engine/` — the legacy engine — but `arena_games` rows made on it
+(`engine = "legacy"`) still exist afterward, and "a game is its seed plus its actions" (§1's own
+premise) stops being true for one: there is no engine left to replay it on. The ruling is
+**archive**: a legacy row's *last* `Snapshot` is computed once, while the legacy engine still
+exists to compute it, stored as JSON, and read back forever after — nothing is recomputed, and
+nothing replays.
+
+**A client tells an archived game by one field: `game.archived`.** Present and `true` only for a
+row read this way; absent on every live snapshot, including a live game still on the legacy
+engine. It is not a fourth `status` — `status` keeps whatever the row held when it was archived
+(`"playing"` included), because that is part of the record — so a client must check `archived`
+itself before offering anything `status` alone would suggest, exactly as it would for a finished
+game:
+
+- **`legal` is always empty and `waiting` is always `null`** for an archived snapshot, whatever the
+  row's `status` says. A client already renders a finished game this way; an archived one needs no
+  new logic, only the banner.
+- **The server never calls `legalActions` or `apply` for an archived row** — not merely discards
+  the result. `games.ts`'s `loadGame` returns `null` for a row with a stored snapshot, so every
+  path that would otherwise reach the engine (a move, `advance`, a bug report, the debug page)
+  refuses exactly as it does for a game that does not exist. The one path that *does* answer for an
+  archived row (`session.ts`'s `snapshotOf`) never calls `loadGame` either — it reads the stored
+  JSON straight through `games.ts`'s `loadArchivedGame` and `snapshot.ts`'s `archivedSnapshotFor`.
+- **A `versus` row is gated by its two seats before the stored snapshot is ever read** — the same
+  `seatOf`/`seatFor` check a live 1 v 1 uses, run against the row's identity columns
+  (`p1User`/`p2User`) rather than anything inside the snapshot. Archiving does not loosen §3.3's
+  hidden-hand boundary: the row keeps one masked `Snapshot` per seat rather than one shared board,
+  so a login who was never in the game still gets `not_found`, and each seat still sees only its
+  own hand, forever.
+- **`view`, `log`, `beats`, `spotlight`, `spend` and `over` are the frozen board exactly as it last
+  stood** — not scrubbed, not re-derived. A client renders them precisely as it would a live
+  snapshot's; the only new behaviour is the banner `archived` asks for and the absence of anything
+  tappable.
+
+No other field changed shape and the contract did not bump (§7). The arena list (`/arena`) marks
+the same rows with a badge, from a plain presence check on the stored column — it never builds a
+`Snapshot` for a list row.
+
 ## 4. `Beats` — the animation stream
 
 The engine's own comment on `GameEvent` says *"Append-only log; the UI animates from these"*. Today
@@ -598,6 +645,11 @@ changes; adding an optional field is not a bump.
   `Snapshot.kt` grew the three fields and the fixtures were re-emitted, with
   `versus.json` new: a board drawn for p2 with p1's hand hidden and p1's draw
   beat carrying no face.
+
+- **20 Sep 2026 — additive, no bump.** Archived games (§3.5, issue #335) added `game.archived`.
+  Optional and only ever `true`, so a client that has never heard of it renders an archived row
+  exactly as a finished live one — `legal: []`, `waiting: null` — minus the one banner it cannot
+  yet show. No fixture changed: nothing emitted by `contract:emit` is archived.
 
 - `GET /api/v1/health` returns `minClient`, the oldest Android `versionCode` the server will still
   talk to. Below it the app refuses to play and offers the update (`docs/arena-android-spec.md` §8).

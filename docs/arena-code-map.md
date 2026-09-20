@@ -518,6 +518,24 @@ the same as if it were still in `CLAUDE.md`.
   (§3.2, amended 8 Sep 2026): a card prints up to nine of them and one being on the menu says
   nothing about the others. The two places that promise is asserted are
   `scripts/verify/harness.ts` and `scripts/arena-playthrough.mts`; they must say the same thing.
+- **Archived legacy games** (issue #335, owner's ruling #119, 20 Sep 2026): once a legacy row's
+  `arena_games.snapshot` column is set, `games.ts`'s `loadArchivedGame` — never `loadGame` — is
+  what answers for it. `loadGame` itself returns null for a row with a stored snapshot, so
+  `legalActions`/`apply` are structurally unreachable rather than merely unused; every caller that
+  already treats a null `LoadedGame` as "no such game" refuses an archived row the same way for
+  free. `session.ts`'s `snapshotOf` checks `loadArchivedGame` first and reads the frozen board
+  straight out of `StoredSnapshot` (`snapshot.ts`) through the pure `archivedSnapshotFor` —
+  `legal`/`taps`/`waiting` are overridden there rather than trusted from storage, so a row archived
+  mid-game reads exactly like a finished one: nothing to tap, nothing to wait on. A `versus` row
+  keeps one masked `Snapshot` per seat rather than one shared board, since it is the one mode with a
+  real hidden-hand boundary between two logins to preserve forever — flattening it into a single
+  frozen render would leak one seat's hand to the other; every other mode has no second viewer to
+  protect against, so it gets one `shared` board. `scripts/arena-snapshot-legacy.mts`
+  (`npm run arena:snapshot-legacy`, owner-run, needs `DATABASE_URL`) is what writes the column,
+  computing each row's snapshot(s) through the still-live legacy engine while it exists to compute
+  them — the read path itself does not care whether `engine/` has actually been deleted yet, only
+  whether the column is set. `docs/arena-client-contract.md`'s `game.archived` is the one field a
+  client reads to show the "archived, cannot be continued" banner.
   `docs/arena-refusals-spec.md` is the brief that measured it, and holds what is still unworded.
   `src/lib/arena/wording.ts` is the only place a `Requirement` becomes a sentence,
   `src/lib/arena/narration.ts` the only place a beat does, and `src/lib/arena/effects.ts` the only
