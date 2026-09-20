@@ -38,6 +38,7 @@ import {
   type Requirement,
 } from "../../src/lib/arena/engine";
 import { DEFAULT_ENGINE, engineFor, isEngineId, isVmState, legacyState, type EngineId, type EngineState } from "../../src/lib/arena/engines";
+import { energyMarkersOf, leaderOf, unisonOf, zoneOf, type ZoneArea } from "../../src/lib/arena/engine-state";
 import type { VmState } from "../../src/lib/arena/vm/state";
 import { moveCard } from "../../src/lib/arena/vm/zones";
 import { attrsNow } from "../../src/lib/arena/vm/program";
@@ -428,28 +429,14 @@ function assertDisjoint(s: GameState, where: string): RejectedAction[] {
 // interface is the seam, not a pretence that both engines set a table the
 // same way.
 
-type ZoneArea = "deck" | "hand" | "energy" | "battle" | "drop" | "warp" | "life" | "combo" | "zDeck" | "zEnergy" | "removed";
 const ZONE_AREAS: ZoneArea[] = ["deck", "hand", "energy", "battle", "drop", "warp", "life", "combo", "zDeck", "zEnergy", "removed"];
 
-/** A side's named area, off whichever shape wrote this state. The one seam every staging helper below goes through instead of reaching into `players`/`sides` itself. */
-function zoneOf(s: EngineState, p: PlayerId, area: ZoneArea): string[] {
-  return isVmState(s) ? (s.sides[p].zones[area] ??= []) : s.players[p][area];
-}
-
-/** The one card in the Leader Area — a scalar field on the legacy engine, a single-entry zone on the rules engine (8-1-1's own `zones.leader?.[0]` reading). */
-function leaderOf(s: EngineState, p: PlayerId): string {
-  return isVmState(s) ? s.sides[p].zones.leader![0] : s.players[p].leader;
-}
-
-/** The Unison in play, or none — the same scalar/zone difference `leaderOf` bridges. */
-function unisonOf(s: EngineState, p: PlayerId): string | null {
-  return isVmState(s) ? (s.sides[p].zones.unison?.[0] ?? null) : s.players[p].unison;
-}
-
-/** 1-14 energy markers — `state.sides[p].attrs.energyMarkers` (a declared `of: player` attribute) on the rules engine, `state.players[p].energyMarkers` on the legacy one. Read-only: a fixture that wants to set it uses `setEnergyMarkersG`. */
-function energyMarkersOf(s: EngineState, p: PlayerId): number {
-  return isVmState(s) ? Number(s.sides[p].attrs.energyMarkers ?? 0) : s.players[p].energyMarkers;
-}
+/**
+ * `zoneOf`/`leaderOf`/`unisonOf`/`energyMarkersOf` now live in
+ * `src/lib/arena/engine-state.ts` — a production module, since `#161`'s probe
+ * staging reads the same seam — and are imported above rather than kept here
+ * as a second copy.
+ */
 function setEnergyMarkersG(s: EngineState, p: PlayerId, n: number): void {
   if (isVmState(s)) s.sides[p].attrs.energyMarkers = n;
   else s.players[p].energyMarkers = n;

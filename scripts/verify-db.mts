@@ -524,7 +524,7 @@ assert.equal(priceForFinish(prices.get("BT18-020_SPR"), "foil"), 199);
   const rule = ruleFrom(row, cardDefFrom(def), programOf(row));
   const run = probe(rule, scenariosFor(rule)[0]);
   assert.equal(run.outcome, "fired", `the drafted rule draws when it is played: ${run.result.join(" | ")}`);
-  await setProbe(db, row.id, { scenario: run.scenario.key, outcome: run.outcome, digest: run.digest, applied: run.applied, result: run.result, assumptions: run.assumptions, at: new Date().toISOString() });
+  await setProbe(db, row.id, { scenario: run.scenario.key, outcome: run.outcome, digest: run.digest, applied: run.applied, result: run.result, assumptions: run.assumptions, at: new Date().toISOString(), engine: "legacy" });
 
   const kept = await probedRules(db);
   assert.equal(kept.length, 1, "the rule with a probe is the one that comes back");

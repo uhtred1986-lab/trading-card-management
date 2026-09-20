@@ -342,6 +342,12 @@ function drive(ctx: EngineContext, s: GameState, actions: Action[]): GameState {
  * them.
  */
 function opening(ctx: EngineContext, engine: EngineId, actor: PlayerId): GameState {
+  // #161's own remaining scope: the staging below reads `GameState` (players,
+  // hand, deck) directly rather than through the `zoneOf`/`leaderOf` seam
+  // `src/lib/arena/engine-state.ts` now offers (built for this port), so a
+  // rules-engine board is refused here, clearly and by name, rather than
+  // failing several calls deeper with `legacyState`'s own generic message.
+  if (engine !== "legacy") throw new Error(`probe staging is not ported to the rules engine yet (#161) — every family still builds a legacy board`);
   let s = legacyState(engineFor(engine).createGame(ctx, { seed: 7, p1: { name: "You", leader: LEADER, main: deck(FILLER) }, p2: { name: "Opponent", leader: THEIR_LEADER, main: deck(FILLER) } }).state);
   const chooser = (s.prompt as { player: PlayerId }).player;
   s = drive(ctx, s, [{ type: "chooseFirst", player: chooser, first: YOU }]);

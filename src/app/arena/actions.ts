@@ -156,7 +156,12 @@ export async function confirmRuleAction(id: number): Promise<{ error: string | n
   const found = await probeRuleFor(id);
   if (found) {
     const run = probe(found.rule, found.scenarios[0]);
-    await setProbe(db, id, { scenario: run.scenario.key, outcome: run.outcome, digest: run.digest, applied: run.applied, result: run.result, assumptions: run.assumptions, at: new Date().toISOString() });
+    // Always probed on `legacy`: it is the only engine `probe()` can stage a
+    // board on today (#161), regardless of the workbench's own `arena.engine`
+    // setting — probing on an engine that cannot build the board would store
+    // an "error" result for every confirmation once the owner flips the
+    // default, which is worse than the fixed choice this makes instead.
+    await setProbe(db, id, { scenario: run.scenario.key, outcome: run.outcome, digest: run.digest, applied: run.applied, result: run.result, assumptions: run.assumptions, at: new Date().toISOString(), engine: "legacy" });
   }
   await noteRule(id, `confirmed: ${row.printed}`, row.reads);
   return { error: null };

@@ -24,8 +24,13 @@ import { FAST_MODEL, MODEL, anthropic, hasAnthropic, recordRun } from "@/lib/ai/
 import { comboPowerOf, face, other, powerOf, validateProgram, type EngineContext, type GameState, type LegalAction, type Op, type PlayerId } from "../engine";
 import { COND_SCHEMA, CONDITIONS_OFF_A_CARD, OP_SCHEMA, condSignature, opSignature, type Cond } from "../engine/script";
 import { words, type Words } from "../rulesets/words";
-import { def, has } from "../engine/state";
+import { loadDbs } from "../rulesets";
+import { has } from "../engine/state";
 import { decklistText, money, movesText, stateText } from "./view";
+import { generatedPrimer } from "./primer";
+import type { EngineState } from "../engines";
+import { isVmState } from "../vm/state";
+import { catalogDefOf, leaderOf, zoneOf } from "../engine-state";
 
 export type Tier = "sparring" | "tournament";
 
@@ -39,13 +44,12 @@ export interface Choice {
   how: string;
 }
 
-const RULES_PRIMER = `You are playing the Dragon Ball Super Card Game (Masters) against a human, through a rules engine.
-
-How a turn goes: Charge Phase (everything untaps, you draw, you may place one card from hand into your energy) → Main Phase (play cards, activate skills, attack, then end) → End Phase.
-
-Attacking: switch an active card to Rest Mode to attack the opposing Leader, their Unison, or one of their Battle Cards that is already rested. Both sides may then add Combo Power from hand or from active Battle Cards; the attacker wins ties. A beaten Battle Card is KO'd; a beaten Leader loses life, which goes to that player's hand unless the attacker has [Critical].
-
-Winning: your opponent loses when their life or their deck runs out.
+/**
+ * Attacking, and the doctrine for playing well — judgement about the game,
+ * not a fact `game.rules`/`zones.rules` could state, so it stays hand-written
+ * beside the generated half above it (#160).
+ */
+const DOCTRINE = `Attacking: switch an active card to Rest Mode to attack the opposing Leader, their Unison, or one of their Battle Cards that is already rested. Both sides may then add Combo Power from hand or from active Battle Cards; the attacker wins ties. A beaten Battle Card is KO'd; a beaten Leader loses life, which goes to that player's hand unless the attacker has [Critical].
 
 What matters, roughly in order: do not let your life run out; trade up in power; keep energy of the colours you still need; a card in hand that you cannot pay for is worth less than the energy it would have been; life in the Drop is gone, life in hand is a card.
 
@@ -53,6 +57,20 @@ Combos, which is where a hand is usually thrown away: both players may add Combo
 On defense you already know what the attack is worth, so the question is only whether this hit is worth paying for. Add the least that holds — enough to beat the attack outright, not one card more — and only when what you save is worth more than the cards you spend. Ties go to the attacker, so matching the number is not enough. Early in the game, with life to spare, taking the hit is usually the cheaper play: a lost life card comes back to your hand, and a hand emptied on turn 3 is not there on turn 8. Late, or when the hit would be lethal or [Critical], pay whatever it takes.
 
 The engine enforces every rule. You will be given a numbered list of the only moves that are currently legal. Answer with one of those numbers.`;
+
+/**
+ * The primer Claude is told the game by: the mechanical half generated from
+ * the definition (`primer.ts`, so it cannot say a turn goes a way the engine
+ * no longer plays it), then `DOCTRINE`. Both engines play `dbs` only, so one
+ * primer serves either (`docs/arena-code-map.md`, "Two engines").
+ */
+function primer(): string {
+  const loaded = loadDbs();
+  if (!loaded.ok) throw new Error(`the DBS ruleset does not load, so the rules primer has nothing to generate from: ${JSON.stringify(loaded.errors[0])}`);
+  return `${generatedPrimer(loaded.definition)}\n\n${DOCTRINE}`;
+}
+
+const RULES_PRIMER = primer();
 
 const MoveSchema = z.object({
   move: z.number().int().describe("The number of the move you choose, from the list"),
@@ -89,13 +107,14 @@ function systemBlocks(ctx: EngineContext, s: GameState, p: PlayerId) {
  * rarely sharp, so a rule does it: give up the card you are least likely to
  * play — the most expensive one, preferring a colour the leader cannot pay for.
  */
-function chargeChoice(ctx: EngineContext, s: GameState, legal: LegalAction[], p: PlayerId): number | null {
-  const leaderColors = s.players[p].leader ? def(ctx, s, s.players[p].leader).colors : [];
+function chargeChoice(ctx: EngineContext, s: EngineState, legal: LegalAction[], p: PlayerId): number | null {
+  const leader = leaderOf(s, p);
+  const leaderColors = leader ? catalogDefOf(ctx, s, leader).colors : [];
   const scored = legal
     .map((l, i) => ({ i, card: l.action.type === "charge" ? l.action.card : null }))
     .filter((x) => x.card)
     .map((x) => {
-      const d = def(ctx, s, x.card!);
+      const d = catalogDefOf(ctx, s, x.card!);
       const cost = typeof d.energyCost === "number" ? d.energyCost : 9;
       const offColour = d.colors.some((c) => !leaderColors.includes(c)) ? 10 : 0;
       return { i: x.i, score: cost + offColour };
@@ -105,19 +124,28 @@ function chargeChoice(ctx: EngineContext, s: GameState, legal: LegalAction[], p:
   return scored[0].i;
 }
 
-/** Keep an opening hand that can act early; otherwise take the one redraw (6-2-1-9). */
-function mulliganChoice(ctx: EngineContext, s: GameState, legal: LegalAction[], p: PlayerId): number | null {
-  const cheap = s.players[p].hand.filter((id) => {
-    const c = def(ctx, s, id).energyCost;
+/**
+ * Keep an opening hand that can act early; otherwise take the one redraw
+ * (6-2-1-9). `mulliganed` is legacy-only bookkeeping the rules engine's own
+ * `charged`/`grewUnison`-style player attributes have no analogue for yet
+ * (`vm/`'s mulligan is a plain `DEFINE ACTION`, once per player by the flow
+ * itself rather than a tracked fact) — this reads `false` there, which is
+ * always the honest answer since a rules-engine game never reaches this
+ * function twice for the same player's opening hand.
+ */
+function mulliganChoice(ctx: EngineContext, s: EngineState, legal: LegalAction[], p: PlayerId): number | null {
+  const cheap = zoneOf(s, p, "hand").filter((id) => {
+    const c = catalogDefOf(ctx, s, id).energyCost;
     return typeof c === "number" && c <= 2;
   }).length;
-  const wantRedraw = cheap < 2 && !s.players[p].mulliganed;
+  const alreadyMulliganed = isVmState(s) ? false : s.players[p].mulliganed;
+  const wantRedraw = cheap < 2 && !alreadyMulliganed;
   const i = legal.findIndex((l) => l.action.type === "mulligan" && l.action.redraw === wantRedraw);
   return i >= 0 ? i : null;
 }
 
 /** Decisions taken without spending anything. Returns the chosen index, or null to ask. */
-function freeChoice(ctx: EngineContext, s: GameState, legal: LegalAction[], p: PlayerId): { index: number; how: string } | null {
+function freeChoice(ctx: EngineContext, s: EngineState, legal: LegalAction[], p: PlayerId): { index: number; how: string } | null {
   if (legal.length === 1) return { index: 0, how: "only one legal move" };
   const kind = s.prompt.kind;
   if (kind === "chooseFirst") {
@@ -159,11 +187,17 @@ function modelFor(tier: Tier, s: GameState): { model: string; effort?: "low" | "
 
 // ── the decision ───────────────────────────────────────────────────────────
 
-export async function chooseMove(db: Db, ctx: EngineContext, s: GameState, legal: LegalAction[], p: PlayerId, tier: Tier): Promise<Choice> {
+export async function chooseMove(db: Db, ctx: EngineContext, s: EngineState, legal: LegalAction[], p: PlayerId, tier: Tier): Promise<Choice> {
   if (!legal.length) throw new Error("no legal move to choose from");
   const free = freeChoice(ctx, s, legal, p);
   if (free) return { index: free.index, say: null, spend: null, how: free.how };
   if (!hasAnthropic()) return { index: 0, say: null, spend: null, how: "no API key — took the first legal move" };
+  // #162's own remaining scope: `stateText`/`decklistText`/`systemBlocks`
+  // below read `GameState` (players, hand, deck) directly rather than through
+  // the `zoneOf`/`catalogDefOf` seam the shortcuts above just used, so a real
+  // API call on a rules-engine game is refused here, clearly and by name,
+  // rather than failing a few calls deeper reading `undefined` off `.players`.
+  if (isVmState(s)) throw new Error(`Claude's own move is not built on the rules engine yet (#162) — only the free-choice shortcuts (one legal move, the coin flip, mulligan, charge) run there today`);
 
   const { model, effort } = modelFor(tier, s);
   const question = `${stateText(ctx, s, p)}\n\nYou are being asked: ${promptQuestion(ctx, s, p)}\n\nLEGAL MOVES:\n${movesText(legal)}\n\nAnswer with the number of your move and at most one short sentence.`;
