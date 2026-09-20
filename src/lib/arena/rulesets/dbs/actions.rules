@@ -143,7 +143,7 @@ DEFINE ACTION concede                                                     -- §0
   label: "Concede"
   text: "a player gives up the game, and their opponent wins immediately (0-1-3-4)"
 
--- ── playing a card (§5-5, §8-3-2, §13-2, §16-2) ────────────────────────────
+-- ── playing a card (§5-5, §13-2, §16-2) ───────────────────────────────────
 --
 -- Three paragraphs rather than one, because the shared `Action` union has
 -- three words: a client sends `play`, `playUnison` or `playZ`, and the
@@ -184,7 +184,7 @@ DEFINE ACTION concede                                                     -- §0
 -- (`vm/costs.ts`'s `xValues`) rather than a branch per action. [Evolve],
 -- [Union], [Over Realm] and [Swap] are plays a keyword gates and are #157's.
 
-DEFINE ACTION play                                                        -- §8-3-2
+DEFINE ACTION play                                                        -- §5-5-2
   WHEN [main]
   prompts: [main]
   FOR 1 IN you.hand "battle card"
@@ -197,7 +197,7 @@ DEFINE ACTION play                                                        -- §8
   REFUSE forbidden() UNLESS NOT forbidden(what: play, bySkill: false)
   again: true
   label: "Play"
-  text: "the turn player pays a Battle Card's energy cost and places it in their Battle Area, active and revealed (8-3-2, 5-5)"
+  text: "the turn player pays a Battle Card's energy cost and places it in their Battle Area, revealed and active (5-5-2, 3-6-3)"
 
 -- 13-2-3: a Unison Card arrives carrying the energy that was paid for it as
 -- markers, which is what `X` is in this program — the amount the move's price

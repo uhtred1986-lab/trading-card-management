@@ -17,12 +17,15 @@
  * zone that is — the same word `SETUP_ZONES` already names), and `play`,
  * `under` and `hand`, each of which the language itself names.
  *
- * **Where it is narrower than the rule, it says so rather than guessing.**
- * `battled` (8-1-2-2, BT3-103) has no board to read yet and returns the
- * answer that refuses rather than the answer that fires: #150 built the
- * battle itself and `inBattle`/the `attacker`/`guard` specials with it —
- * `battled` is the one piece left, a per-copy memory of having fought that
- * outlives the battle, and `VmCard` carries no field for it yet.
+ * **Where it is narrower than the rule, it says so rather than guessing** —
+ * and where it has stopped being narrower, it stops saying so. `battled`
+ * (8-1-2-2, BT3-103) was that entry from #150 until #152 gave `VmCard` the
+ * `battledThisTurn` field the legacy engine has always had, and the condition
+ * has read it ever since; `vm/zones.ts`, `vm/state.ts` and `vm/battle.ts` each
+ * say so in their own comments, and `NARROWER` below went on claiming the
+ * opposite until #166's pre-flip review read the four together. A claim about
+ * a gap is worse than no claim once it is untrue — the same reason
+ * `glossary.ts`'s `engine` line is a convention rather than a test.
  *
  * 20-14's prohibitions were a third until #145: `forbids` and `forbiddenBy`
  * below read them off the board — a [Permanent] in play, a skill's turn-long
@@ -63,10 +66,18 @@ export const NAMED_ZONES = {
   hand: "the `handUpTo` amount counts a hand (5-4-2)",
 } as const;
 
-/** Where a reading is narrower or wider than the manual, and the issue that closes it. */
+/**
+ * Where a reading is narrower or wider than the manual, and the issue that
+ * closes it.
+ *
+ * One entry today. `battled` left this list at #152 (see the module doc);
+ * `immune` stays, with the reason it has *now* rather than the one it had
+ * when Stage 7's hook groups were unbuilt — those landed (#154), and what
+ * keeps 9-1-4 immunity from a skill unreachable is that no skill's KO reaches
+ * it in the first place.
+ */
 export const NARROWER: Record<string, string> = {
-  immune: "#154 — 9-1-4 immunity narrows what a skill may choose, and the hook group that reads choosing is Stage 7's",
-  battled: "#150 built the battle and `inBattle`; `battled` (8-1-2-2) still reads false, since `VmCard` has no memory of a fight that outlived it",
+  immune: "#146 — 9-1-4 immunity narrows what a skill may choose or KO, and `koByEffect`'s hook body (#154) has no caller until `vm/host.ts` resolves a skill's own `ko`",
 };
 
 /**
@@ -122,13 +133,31 @@ export function attrsNow(ctx: EngineContext, game: GameDefinition, state: VmStat
   if (!def) return {};
   const printed = attrsOf(def, game).attrs;
   const standing = statics(ctx, game, state);
-  const out: Record<string, AttrValue> = { ...printed };
   // 20-21: a board-filled price has no printed face of its own — its `printed`
   // layer is the number beside it, and `PRINTED_BASE` is that pairing. Seeded
   // before the layers are walked, so a reduction adds to the printed cost
   // rather than to nothing. Absent stays absent: an X cost has no total until
   // someone names one (1-2-2-2), and 0 would be a price nobody chose.
   const base: Record<string, AttrValue> = { ...printed };
+  // 1-9, 23-5: the number is read off the **face showing**. `attrsOf` reads the
+  // catalog row, which is the front — a card's back side is a face of its own
+  // and the adapter has no kind for one (`attributes.rules`' own `back` entry
+  // says so, and `vm/triggers.ts`'s `skillsShowing` reads the awakened text
+  // separately for the same reason). `power` is the measure that cannot wait
+  // for that answer: a battle is decided by it (8-4-6), and an awakened Leader
+  // fought with its *front* side's number until the pre-flip review of #166.
+  // The legacy `face()`/`powerOf` pair is the reading, blank face included —
+  // a Hidden Mode card has no front-side information at all (23-5-2), so the
+  // attribute is absent rather than the printed number.
+  const shown = facePower(ctx, state, id);
+  if (shown === undefined) delete base.power;
+  else base.power = shown;
+  // 20-3-1: "an original power of 5000" is that same printed face value,
+  // *before* any layer — which is why it is an attribute of its own and not a
+  // second reading of `power`, whose declared layers 9-9-1 applies. Reading
+  // both off one attribute is what made a 5000-power card pumped to 15000 stop
+  // answering to it, and one printed 15000 start (the same review).
+  if (game.attributes.originalPower && shown !== undefined) base.originalPower = shown;
   for (const [derived, face] of Object.entries(PRINTED_BASE)) {
     if (!game.attributes[derived] || printed[face] === undefined) continue;
     base[derived] = printed[face];
@@ -147,6 +176,10 @@ export function attrsNow(ctx: EngineContext, game: GameDefinition, state: VmStat
   if (game.attributes.faceUp) base.faceUp = card.faceUp;
   if (game.attributes.flipped) base.flipped = card.flipped;
   if (game.attributes.keywords) base.keywords = keywordsInSkills(parseSkills(typeof printed.skill === "string" ? printed.skill : null)).map((k) => k.name);
+  // The value every layer is applied *to*, so an attribute the base left out —
+  // a hidden card's power — stays out rather than falling back to the catalog
+  // row the spread above would have carried.
+  const out: Record<string, AttrValue> = { ...base };
   // Every change in force **about this card**, of every kind: which of them a
   // layer reads is `LAYER_KINDS`, and keeping that pairing in one place is the
   // whole reason this no longer filters by the attribute's name (#148).
@@ -172,21 +205,35 @@ export function attrsNow(ctx: EngineContext, game: GameDefinition, state: VmStat
   return out;
 }
 
+/**
+ * The power printed on the face a card is showing, or nothing at all.
+ *
+ * The legacy `face(ctx, s, id).power`, exactly: a Hidden Mode card shows no
+ * front-side information (23-5-2) and so has none, a flipped Leader shows its
+ * awakened side's number (1-9), and every other card shows the catalog row's.
+ * `undefined` rather than 0 for the first two, because "this card has no power
+ * to read" and "this card's power is zero" are different claims — a filter
+ * measuring power must not match the first (`vm/filters.ts`).
+ */
+function facePower(ctx: EngineContext, state: VmState, id: string): number | undefined {
+  const card = state.cards[id];
+  const def = card ? ctx.defs[card.cardId] : undefined;
+  if (!card || !def || card.hidden) return undefined;
+  if (card.flipped && def.back) return def.back.power ?? undefined;
+  return def.power ?? undefined;
+}
+
 /** One number off one card, for the `attr` and `sumOf` amounts — a cost read through its reduction layer (20-21-2), as the legacy `measure` reads it. */
 function measureOf(ctx: EngineContext, game: GameDefinition, state: VmState, id: string, name: AmountAttr): number {
   const now = attrsNow(ctx, game, state, id);
   switch (name) {
     case "power":
       return num(now.power);
-    case "originalPower": {
-      // 20-3-1: the printed face value, before any layer — the current face's
-      // own number, which is the printed attribute rather than the read one.
-      const card = state.cards[id];
-      const def = card ? ctx.defs[card.cardId] : undefined;
-      if (!def) return 0;
-      if (card.flipped && def.back) return def.back.power ?? 0;
-      return def.power ?? 0;
-    }
+    case "originalPower":
+      // 20-3-1: the printed face value, before any layer — the same number
+      // `attrsNow` seeds the `originalPower` attribute from, read through the
+      // one helper so the amount and the filter cannot answer differently.
+      return facePower(ctx, state, id) ?? 0;
     case "comboPower":
       return num(now.comboPower);
     // 20-21-2: "a card with an energy cost of 2 or less" asks what it costs

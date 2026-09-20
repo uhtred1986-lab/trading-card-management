@@ -227,12 +227,21 @@ const STEP_WORK: Record<string, Work> = {
   },
   chargeActivate: {
     section: "7-2-7",
-    waits: "switchMode() over a selector naming every in-play area at once",
+    waits: "switchMode() over a selector naming the four areas a card has a mode in at once",
     run: (ctx, game, state, ev) => {
       for (const zone of Object.keys(state.sides[state.turnPlayer].zones)) {
         const declared = game.zones[zone];
-        if (declared?.inPlay !== true) continue;
-        const mode = arrivalMode(declared);
+        // 7-2-7 names the Leader, Battle, **Energy** and Unison Areas — which
+        // is exactly the set of zones whose declaration says a card in them
+        // has a mode at all (`modes:`, 1-10), and is why this reads that line
+        // rather than `inPlay:`. It read `inPlay:` until the pre-flip review
+        // of #166, and `zones.rules` declares the Energy Area `inPlay: false`
+        // (3-8 is not one of 9-1-3-1's three areas a card's own skills are
+        // valid in), so rested energy was never stood back up: a player's
+        // pool shrank by whatever they spent and only a fresh charge ever
+        // grew it again. The legacy `turn.activeAll` has always read
+        // `[leader, unison, ...battle, ...energy]`.
+        const mode = declared ? arrivalMode(declared) : null;
         if (mode === null) continue;
         for (const id of state.sides[state.turnPlayer].zones[zone]) {
           const card = state.cards[id];

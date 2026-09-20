@@ -628,11 +628,13 @@ function completeness(actual: readonly string[], expected: readonly string[], wh
 
 // attributes.rules also declares derived `of: card` attributes with no
 // `CardDef` field at all: three the board computes (20-21: the cost as it
-// stands after reductions), and six that live on the card sitting on the
-// table rather than on the catalog row (spec §2.5-1/§2.5-3, #275) — set
-// aside by name rather than counted as unions the legacy engine's `CardDef`
-// does not have.
-const DERIVED_CARD_ATTRIBUTES = ["costOf", "comboCostOf", "zEnergyCostOf", "mode", "markers", "keywords", "hidden", "faceUp", "flipped"];
+// stands after reductions), six that live on the card sitting on the
+// table rather than on the catalog row (spec §2.5-1/§2.5-3, #275), and
+// `originalPower` (20-3-1), which is the number printed on the face
+// *showing* and so is not the catalog row's either (#166's pre-flip review)
+// — set aside by name rather than counted as unions the legacy engine's
+// `CardDef` does not have.
+const DERIVED_CARD_ATTRIBUTES = ["costOf", "comboCostOf", "zEnergyCostOf", "mode", "markers", "keywords", "hidden", "faceUp", "flipped", "originalPower"];
 
 if (dbs.ok) {
   const { vocabulary: vocab, definition: def } = dbs;

@@ -80,6 +80,21 @@ DEFINE ATTRIBUTE power                                                    -- §2
   layers: [printed, rewrite, numeric]
   text: "the number a battle is decided by (2-7, 8-4); combo power is added to it only in the Damage Step (5-7)"
 
+-- 20-3-1 — the printed face value, said on its own so that nothing has to
+-- read it back off `power` once 9-9-1's layers have been applied to that one.
+-- It has no `CardDef` field of its own (`vm/cards.ts`'s `CATALOG` is keyed by
+-- one), because the face showing is not the catalog row: a flipped Leader
+-- answers with its awakened side and a card in Hidden Mode with nothing at all
+-- (1-9, 23-5-2), which is `vm/program.ts`'s `facePower` and the legacy
+-- `face()`. `layers: [printed]` is what says the board fills it and no layer
+-- moves it — the same shape `mode` and `markers` below take.
+DEFINE ATTRIBUTE originalPower                                            -- §20-3-1
+  of: card
+  value: number
+  printed: false
+  layers: [printed]
+  text: "the power printed on the face this card is showing, before any skill effect has applied (20-3-1); a Hidden Mode card has none to read at all (23-5-2)"
+
 DEFINE ATTRIBUTE comboCost                                                -- §2-9
   of: card
   value: number
