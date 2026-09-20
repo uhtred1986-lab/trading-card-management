@@ -254,3 +254,21 @@ DEFINE ATTRIBUTE grewUnison                                               -- §1
   printed: false
   reset: turnStart
   text: "whether this player has already grown their Unison Card this turn (13-3); set the moment growUnison resolves"
+
+-- ── the battle in progress (§8-1, §22-4-2, #328) ────────────────────────────
+--
+-- `modifyAttr` reached a second widened subject alongside the player
+-- (spec §2.5-1): the battle in progress, which has one attribute and needs no
+-- locator of its own since there is only one (`redirectAttack`'s own
+-- `docs/arena-ruleset-spec.md` §2.3 row). Declared here, like `energyMarkers`
+-- above, so the loader's attribute check (#328) has something to resolve
+-- `attr: guard` against — nothing reads this declaration's `value`/`printed`
+-- the way a card or player attribute's are read; `redirectAttack` is the one
+-- op that ever writes it, straight onto the battle rather than through a
+-- layer.
+
+DEFINE ATTRIBUTE guard                                                    -- §8-1, §22-4-2
+  of: battle
+  value: ref
+  printed: false
+  text: "the current target of the attack in progress, switched by a redirect (8-1, 22-4-2); the battle in progress has only one, so modifyAttr reads this as the value being set rather than a locator"

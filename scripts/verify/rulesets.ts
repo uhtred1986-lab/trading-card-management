@@ -223,6 +223,26 @@ says(
   "a program moving a card to an undeclared zone",
 );
 
+// An undeclared attribute is a dangling reference too (#328): `modifyAttr`'s
+// `attr:` may name any of the engine's own closed list, but a game that
+// declares only `power` and writes `attr: markers` would apply the change to
+// an attribute no layer reads — a rule that compiles, prints and round-trips
+// while doing nothing.
+const danglingAttr = says(
+  refused(
+    {
+      "attrs.rules": lines("DEFINE ATTRIBUTE power", "  of: card", "  value: number", "  printed: true", '  text: "power"'),
+      "play.rules": lines("DEFINE STEP mainStart", '  phase: "main"', "  DO {", "    modifyAttr(target: [self], attr: markers, amount: 1)", "  }"),
+    },
+    "a step naming an undeclared attribute",
+  ),
+  '"markers"',
+  "a step naming an undeclared attribute",
+);
+assert.match(danglingAttr.message, /STEP "mainStart"/, "the error does not name the declaration the dangling attribute is in");
+assert.match(danglingAttr.message, /an attribute/, "the error does not say what kind of name is missing");
+assert.deepEqual(danglingAttr.expected, ["power"], "the error's expected list is not the game's own declared attributes");
+
 // ── a duplicate ─────────────────────────────────────────────────────────────
 
 const zone = lines("DEFINE ZONE battle", "  owner: player", "  visibility: all");
@@ -269,9 +289,13 @@ assert.equal(unknownHook.clause, "KEYWORD");
   /** The zones a macro body names: the loader resolves every area a program mentions, whichever declaration it sits in. */
   const ZONES = ["battle", "drop", "hand", "deck", "life"].map((z) => lines(`DEFINE ZONE ${z}`, "  owner: player", "  visibility: all")).join("\n\n");
 
+  // The one attribute a macro body below writes through `modifyAttr` (#328: an
+  // undeclared one is now refused the same way an undeclared zone always was).
+  const ATTRS = lines("DEFINE ATTRIBUTE power", "  of: card", "  value: number", '  text: "the power a battle is decided by"');
+
   /** A definition holding just these macros, which is all the expander reads. */
   const withMacros = (...decls: string[]) => {
-    const loaded = loadRuleset({ "ops.rules": decls.join("\n\n"), "zones.rules": ZONES });
+    const loaded = loadRuleset({ "ops.rules": decls.join("\n\n"), "zones.rules": ZONES, "attributes.rules": ATTRS });
     assert.ok(loaded.ok, `the macro fixture did not load: ${loaded.ok ? "" : JSON.stringify(loaded.errors)}`);
     if (!loaded.ok) throw new Error("unreachable");
     return loaded.definition;
@@ -926,7 +950,18 @@ if (dbs.ok) {
   assert.deepEqual(Object.keys(KEYWORD_AT).sort(), [...HOOK_POINTS].sort(), "this test does not cover every hook point");
 
   const keywordsRules = lines(...Object.values(KEYWORD_AT).map((k) => k.def).filter(Boolean));
-  const loaded = loadRuleset({ ...WHOLE, "keywords.rules": keywordsRules });
+  // The three attributes the fifteen worked hook bodies above write through
+  // `modifyAttr` — `WHOLE` declares none, so #328's check needs its own
+  // fixture rather than one shared with the "resolves" assertions above,
+  // which count `WHOLE`'s declarations exactly.
+  const hookAttrs = lines(
+    'DEFINE ATTRIBUTE power\n  of: card\n  value: number\n  text: "the power a battle is decided by"',
+    "",
+    'DEFINE ATTRIBUTE mode\n  of: card\n  value: string\n  text: "Active Mode or Rest Mode"',
+    "",
+    'DEFINE ATTRIBUTE markers\n  of: card\n  value: number\n  text: "the markers on this card"',
+  );
+  const loaded = loadRuleset({ ...WHOLE, "keywords.rules": keywordsRules, "attributes.rules": hookAttrs });
   assert.ok(loaded.ok, `the fifteen worked hook bodies did not load: ${loaded.ok ? "" : JSON.stringify(loaded.errors, null, 2)}`);
   if (!loaded.ok) throw new Error("unreachable");
   const def = loaded.definition;

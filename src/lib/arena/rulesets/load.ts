@@ -21,7 +21,7 @@
  * (#131).
  */
 import type { Game } from "../../catalog/games";
-import { COND_SCHEMA, DURATIONS, OP_SCHEMA, SIDES, type Amount, type Cond, type FieldType, type Op, type Ref, type Selector } from "../engine/script";
+import { CARD_ATTRS, COND_SCHEMA, DURATIONS, OP_SCHEMA, SIDES, type Amount, type Cond, type FieldType, type Op, type Ref, type Selector } from "../engine/script";
 import type { SkillKindPrefix } from "../engine/types";
 // Deep imports, not the `lang` barrel: the barrel binds `parseRule` to *this*
 // module's own output (the game's words, #137), and the loader is what
@@ -172,6 +172,11 @@ export function loadRuleset(files: Record<string, string>, id: Game = "dbs"): Lo
     }
     // Every program and every selector names its areas, wherever it sits.
     need(areasOf(def), definition.zones, "a zone");
+    // Every `modifyAttr` names an attribute of one of `CARD_ATTRS` — the
+    // engine's own closed list — but that list is not the game's: a
+    // declaration reaching for one nothing declares would apply to an
+    // attribute no layer reads (#328).
+    need(attributesOf(def), definition.attributes, "an attribute");
   }
 
   if (errors.length) return { ok: false, errors };
@@ -370,6 +375,75 @@ function opsAreas(ops: Op[] | undefined): string[] {
     return spec.fields.flatMap((f) => {
       const value = (op as unknown as Record<string, unknown>)[f.name];
       return value === undefined || value === null ? [] : fieldAreas(f.type, value);
+    });
+  });
+}
+
+// ── the attributes a declaration names ──────────────────────────────────────
+
+/**
+ * Every attribute any part of a declaration names, walked the same way
+ * `areasOf` walks zones. Today that is only `modifyAttr`'s own `attr:` field —
+ * in a `DO`, a `HOOK` body or a macro body — but the walk is driven by which
+ * op field the schema types against `CARD_ATTRS` (`isCardAttrField`, found by
+ * identity rather than by op name), so a second op reaching for the same
+ * closed list is checked the day its row says so, with no new case here.
+ */
+function attributesOf(def: Definition): string[] {
+  const out: string[] = [];
+  for (const f of fieldsOf(def.define) as readonly DefineField[]) {
+    const value = (def as unknown as Record<string, unknown>)[f.name];
+    if (value === undefined || value === null) continue;
+    if (f.type === "hooks") {
+      for (const hook of value as DefineHook[]) out.push(...opsAttrs(hook.ops));
+      continue;
+    }
+    if (f.type === "refusals") {
+      for (const refusal of value as DefineRefusal[]) out.push(...condAttrs(refusal.unless));
+      continue;
+    }
+    if (f.type === "pattern" || f.type === "params") continue;
+    out.push(...fieldAttrs(f.type, value));
+  }
+  return [...new Set(out)];
+}
+
+/** A field's type, as far as `attributesOf` cares: only `cond`/`conds`/`ops`/`modes` can nest an op that names an attribute. */
+function fieldAttrs(type: FieldType, value: unknown): string[] {
+  if (typeof type === "object") return [];
+  switch (type) {
+    case "cond":
+      return condAttrs(value as Cond);
+    case "conds":
+      return (value as Cond[]).flatMap(condAttrs);
+    case "ops":
+      return opsAttrs(value as Op[]);
+    case "modes":
+      return (value as { ops: Op[] }[]).flatMap((m) => opsAttrs(m.ops ?? []));
+    default:
+      return [];
+  }
+}
+
+function condAttrs(cond: Cond | undefined): string[] {
+  const spec = cond && typeof cond === "object" ? COND_SCHEMA[cond.kind] : undefined;
+  if (!spec) return [];
+  return spec.fields.flatMap((f) => fieldAttrs(f.type, (cond as unknown as Record<string, unknown>)[f.name])).filter(Boolean);
+}
+
+/** A field the schema types against `CARD_ATTRS` — found by identity, since that one array is the engine's single closed list of attribute names (`modifyAttr`'s own `attr` field today). */
+const isCardAttrField = (type: FieldType): boolean => typeof type === "object" && "enum" in type && type.enum === CARD_ATTRS;
+
+function opsAttrs(ops: Op[] | undefined): string[] {
+  if (!Array.isArray(ops)) return [];
+  return ops.flatMap((op) => {
+    const spec = op && typeof op === "object" ? OP_SCHEMA[op.op] : undefined;
+    if (!spec) return [];
+    return spec.fields.flatMap((f) => {
+      const value = (op as unknown as Record<string, unknown>)[f.name];
+      if (value === undefined || value === null) return [];
+      if (isCardAttrField(f.type)) return typeof value === "string" ? [value] : [];
+      return fieldAttrs(f.type, value);
     });
   });
 }

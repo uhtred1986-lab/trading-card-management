@@ -723,10 +723,10 @@ export const DEFINE_SCHEMA = {
     ],
   },
   ATTRIBUTE: {
-    doc: "something a card, a player or a zone has — printed on the card, or derived from the board",
+    doc: "something a card, a player, a zone or the battle in progress has — printed on the card, or derived from the board",
     fields: [
-      { name: "of", type: { enum: ["card", "player", "zone"] }, required: true },
-      { name: "value", type: { enum: ["number", "string", "strings", "colors", "boolean"] }, required: true },
+      { name: "of", type: { enum: ["card", "player", "zone", "battle"] }, required: true },
+      { name: "value", type: { enum: ["number", "string", "strings", "colors", "boolean", "ref"] }, required: true },
       { name: "printed", type: "boolean" },
       { name: "derived", type: "amount" },
       { name: "layers", type: { list: "string" } },

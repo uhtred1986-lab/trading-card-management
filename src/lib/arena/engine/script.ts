@@ -279,7 +279,7 @@ export type Cond =
  * spelling it stands for, so adding one here without a case there would be a
  * field that lies.
  */
-export type CardAttr = "power" | "comboPower" | "colors" | "characters" | "traits" | "names" | "mode" | "markers" | "keywords" | "hidden" | "faceUp" | "flipped";
+export type CardAttr = "power" | "comboPower" | "colors" | "characters" | "traits" | "alsoNames" | "mode" | "markers" | "keywords" | "hidden" | "faceUp" | "flipped";
 
 /**
  * The two subjects beyond a card `modifyAttr` reaches (spec §2.5-1): a

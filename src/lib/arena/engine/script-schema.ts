@@ -96,7 +96,7 @@ export const AREAS = ["hand", "deck", "drop", "life", "battle", "combo", "energy
  * than one per subject, because the field itself does not branch on
  * `subject` — `modifyAttrAs` is what reads the two together.
  */
-export const CARD_ATTRS = ["power", "comboPower", "colors", "characters", "traits", "names", "mode", "markers", "keywords", "hidden", "faceUp", "flipped", "energyMarkers", "guard"] as const satisfies readonly (CardAttr | "energyMarkers" | "guard")[];
+export const CARD_ATTRS = ["power", "comboPower", "colors", "characters", "traits", "alsoNames", "mode", "markers", "keywords", "hidden", "faceUp", "flipped", "energyMarkers", "guard"] as const satisfies readonly (CardAttr | "energyMarkers" | "guard")[];
 export const DURATIONS = ["battle", "turn", "opponentTurn", "nextTurn", "afterNextCharge", "game"] as const satisfies readonly Duration[];
 const DELAY_TIMINGS = ["turnStart", "mainStart", "turnEnd", "turnCleanup", "battleEnd"] as const satisfies readonly DelayTiming[];
 export const MOVE_REASONS = ["ko", "effect", "rule", "cost", "play", "combo", "damage", "draw", "charge"] as const satisfies readonly MoveReason[];
@@ -368,9 +368,9 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       const op = raw as OpOf<"modifyAttr">;
       if (op.attr === "power" || op.attr === "comboPower")
         return renderTemplate(`{target} {amount:${op.attr === "power" ? "power" : "combo power"}}{until}`, raw as unknown as Record<string, unknown>, MODIFY_ATTR_FIELDS, r);
-      if (op.attr === "colors" || op.attr === "characters" || op.attr === "traits" || op.attr === "names") {
+      if (op.attr === "colors" || op.attr === "characters" || op.attr === "traits" || op.attr === "alsoNames") {
         const words = (op.values ?? []).join(", ");
-        const said = op.attr === "traits" ? `\u226a${words}\u226b` : op.attr === "characters" ? `<${words}>` : op.attr === "names" ? `the card named ${words}` : words;
+        const said = op.attr === "traits" ? `\u226a${words}\u226b` : op.attr === "characters" ? `<${words}>` : op.attr === "alsoNames" ? `the card named ${words}` : words;
         return `${describeRef(op.target ?? { sel: { special: "self" } })} also counts as ${said}${forThe(op.until, r)}`;
       }
       return describeScript([modifyAttrAs(raw as Op)], r);
