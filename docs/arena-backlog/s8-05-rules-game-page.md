@@ -3,6 +3,8 @@ title: Arena: /arena/rules/game shows the .rules files, and /arena/rules/keyword
 milestone: Arena M11 — Everything else from config (Stage 8)
 labels: backlog, ready-for-agent, enhancement, area:arena-workbench, area:arena-rulesets, phase:rules-stage8, model:sonnet-5
 stage: 8
+status: closed
+closed_at: 2026-09-20
 touches: src/app/arena/rules/game/page.tsx, src/app/arena/rules/keywords/page.tsx
 ---
 **Source:** plan Stage 8; `src/app/arena/rules/keywords` (rendered from `glossary.ts`); the printer in `src/lib/arena/lang/print.ts` (client-safe).
