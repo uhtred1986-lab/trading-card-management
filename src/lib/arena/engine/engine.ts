@@ -718,9 +718,17 @@ function resolvePlay(
     // 3-11-5: an existing Unison goes to the Drop.
     if (ps.unison) move(ctx, s, ev, ps.unison, "drop", p, { reason: "rule" });
     move(ctx, s, ev, card, "unison", p, { reason: "play", reveal: true });
-    s.cards[card].markers = (markers ?? 0) + carried;
-    ev.push({ type: "markers", card, delta: s.cards[card].markers, total: s.cards[card].markers });
-    if (carried) note(ev, `Empower: ${carried} marker${carried === 1 ? "" : "s"} carried over`);
+    const paid = markers ?? 0;
+    s.cards[card].markers = paid + carried;
+    // #109: the carried markers get their own event naming the Unison they
+    // left, so the board can fly them across rather than count the total up
+    // in place; a marker paid for as part of the cost is an ordinary gain
+    // with no `from`, since it never sat on the old Unison.
+    if (paid) ev.push({ type: "markers", card, delta: paid, total: paid });
+    if (carried) {
+      ev.push({ type: "markers", card, delta: carried, total: s.cards[card].markers, from: old! });
+      note(ev, `Empower: ${carried} marker${carried === 1 ? "" : "s"} carried over`);
+    }
   } else if (d.type === "Z-EXTRA") {
     // 17-2-1-3: other Z-Extras are removed.
     for (const id of ps.battle.slice()) if (def(ctx, s, id).type === "Z-EXTRA") move(ctx, s, ev, id, "removed", p, { reason: "rule" });

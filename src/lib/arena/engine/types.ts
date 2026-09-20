@@ -822,7 +822,8 @@ export type GameEvent =
   | { type: "mode"; card: string; mode: Mode }
   | { type: "flip"; card: string; flipped: boolean }
   | { type: "hidden"; card: string; hidden: boolean }
-  | { type: "markers"; card: string; delta: number; total: number }
+  /** `from` is the Unison this card's markers were carried over from ([Empower], 22-45-3) — omitted for an ordinary gain or spend. */
+  | { type: "markers"; card: string; delta: number; total: number; from?: string }
   | { type: "energyMarker"; player: PlayerId; delta: number }
   | { type: "attack"; attacker: string; target: string }
   | { type: "guardChanged"; guard: string; by: string }

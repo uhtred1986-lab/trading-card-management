@@ -62,7 +62,10 @@ function baseMs(beat: Beat): number {
     case "flip":
       return 350;
     case "markers":
-      return 180;
+      // [Empower]'s carry names both cards (#109): the marker actually has to
+      // cross the board to the new Unison, which takes longer than counting
+      // up in place.
+      return beat.from ? 340 : 180;
     case "token":
       return 280;
     case "attack":

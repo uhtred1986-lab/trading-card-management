@@ -84,6 +84,9 @@ export function narrate(b: Beat, n: Narrator, words: BoardWords = DBS_WORDS): st
     case "flip":
       return `${name(b.card)} awakens!`;
     case "markers":
+      // [Empower], 22-45-3: named both cards, since the markers came *from*
+      // the Unison that just left rather than appearing on the new one.
+      if (b.from) return `${b.delta} marker${b.delta === 1 ? "" : "s"} move${b.delta === 1 ? "s" : ""} from ${name(b.from)} to ${name(b.card)}.`;
       return b.delta >= 0 ? `${name(b.card)} gains ${b.delta} marker${b.delta === 1 ? "" : "s"} (${b.total}).` : `${name(b.card)} loses ${-b.delta} marker${b.delta === -1 ? "" : "s"} (${b.total}).`;
     case "token":
       return `${who(b.owner, "get", "gets")} a ${name(b.card)} token.`;

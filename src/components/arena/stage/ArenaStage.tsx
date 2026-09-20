@@ -39,6 +39,8 @@ import { battleShape, BattleVerdict, firedInBattle } from "./BattleParts";
 import { DuelBand } from "./DuelBand";
 import { Ghosts } from "./Ghosts";
 import { Hand } from "./Hand";
+import { MarkerFlight } from "./MarkerFlight";
+import { msFor } from "./motion";
 import { StagingToggle } from "../StagingToggle";
 import type { ArenaStaging } from "@/lib/arena/staging";
 import type { Moment } from "./StageCard";
@@ -179,16 +181,18 @@ export function ArenaStage({
     return b.t === "say" ? view.them.player : view.turnPlayer;
   };
 
+  /** Whose card an instance is right now, read off the board rather than a beat, which does not always say. */
+  const ownerOf = (id: string): typeof view.you.player | null => {
+    for (const side of [view.you, view.them]) {
+      for (const c of [side.leader, side.unison, ...side.battle, ...side.combo, ...side.energy, ...(side.hand ?? []), side.dropTop]) if (c?.id === id) return side.player;
+    }
+    return null;
+  };
+
   const beatNow = playback.current;
   if (beatNow && held?.n !== beatNow.n) {
     // Adjusted while rendering rather than in an effect, as the beat player
     // does: it is a change of props the board reflects on the same paint.
-    const ownerOf = (id: string): typeof view.you.player | null => {
-      for (const side of [view.you, view.them]) {
-        for (const c of [side.leader, side.unison, ...side.battle, ...side.combo, ...side.energy, ...(side.hand ?? []), side.dropTop]) if (c?.id === id) return side.player;
-      }
-      return null;
-    };
     const text = narrate(beatNow, { viewer: view.you.player, them: view.them.name, art: beats?.art ?? {}, ownerOf });
     if (text) setHeld({ text, n: beatNow.n, mine: actorOf(beatNow) === view.you.player });
   }
@@ -641,6 +645,16 @@ export function ArenaStage({
         </Hand>
 
         {view.battle && !shape && <AttackBeam from={view.battle.attacker} to={view.battle.guard} hostRef={boardRef} />}
+
+        {beatNow?.t === "markers" && beatNow.from && (
+          <MarkerFlight
+            beat={{ ...beatNow, from: beatNow.from }}
+            hostRef={boardRef}
+            art={beats?.art ?? {}}
+            ownerOfTo={ownerOf(beatNow.card) ?? view.turnPlayer}
+            ms={msFor(beatNow, pace)}
+          />
+        )}
 
         {moreOpen && (
           <Sheet title="Board controls" onClose={() => setMoreOpen(false)}>
