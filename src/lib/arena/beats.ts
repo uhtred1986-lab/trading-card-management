@@ -30,7 +30,8 @@ export type Beat =
   | { t: "move"; card: string; from: Area; to: Area; owner: PlayerId }
   | { t: "mode"; card: string; mode: "active" | "rest" }
   | { t: "flip"; card: string }
-  | { t: "markers"; card: string; delta: number; total: number }
+  /** `from` is the Unison these markers were carried over from ([Empower], 22-45-3) — the count on a Unison is public, so this rides through `maskBeats` unchanged. */
+  | { t: "markers"; card: string; delta: number; total: number; from?: string }
   /** A token appears in a Battle Area from outside the game. */
   | { t: "token"; card: string; owner: PlayerId }
   | { t: "attack"; attacker: string; target: string }
@@ -192,7 +193,8 @@ export function toBeats(ctx: EngineContext, state: GameState, events: GameEvent[
         break;
       case "markers":
         remember(e.card);
-        push({ t: "markers", card: e.card, delta: e.delta, total: e.total });
+        if (e.from) remember(e.from);
+        push({ t: "markers", card: e.card, delta: e.delta, total: e.total, ...(e.from ? { from: e.from } : {}) });
         break;
       case "token":
         // A token is pushed straight into the Battle Area with no `move`, so

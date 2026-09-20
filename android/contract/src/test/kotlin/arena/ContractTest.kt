@@ -273,7 +273,7 @@ private fun Beat.cards(): List<String> = when (this) {
     is Beat.Move -> listOf(card)
     is Beat.Mode -> listOf(card)
     is Beat.Flip -> listOf(card)
-    is Beat.Markers -> listOf(card)
+    is Beat.Markers -> listOfNotNull(card, from)
     is Beat.Token -> listOf(card)
     is Beat.Ko -> listOf(card)
     is Beat.Skill -> listOf(card)

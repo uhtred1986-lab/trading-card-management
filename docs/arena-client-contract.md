@@ -343,7 +343,7 @@ export type Beat =
   | { t: "move"; card: string; from: Area; to: Area; owner: PlayerId }
   | { t: "mode"; card: string; mode: "active" | "rest" }
   | { t: "flip"; card: string }
-  | { t: "markers"; card: string; delta: number; total: number }
+  | { t: "markers"; card: string; delta: number; total: number; from?: string }
   | { t: "token"; card: string; owner: PlayerId }
   | { t: "attack"; attacker: string; target: string }
   | { t: "block"; guard: string; by: string }
@@ -390,6 +390,24 @@ Four things the build settled that the first draft of this section had wrong:
   wherever it expires an effect, which is what the second beat is made from. A source or target
   no longer in the game is left out of the beat rather than named without a face.
 - **One `skill` beat per activation.** A text [Activate] used to emit two (review §3.2).
+- **`markers` carries an optional `from`** (added 20 Sep 2026, issue #109): [Empower] (22-45-3) lets
+  a Unison carry markers over from the one it replaces, and the beat used to say only the new
+  total, so the board counted the markers up in place with nothing to say they came *from* the
+  card that just left. The choice was between a new kind, `{ t: "markersMoved"; from; to; count }`,
+  and a `from?` field on the existing `markers` beat — `from?` won because it keeps `toBeats`
+  exhaustive switch unchanged (both engines' `toBeats`/`vmToBeats` already have a `"markers"` case;
+  a new kind would need a new one in every consumer — `narration.ts`, `motion.ts`, `ArenaStage.tsx`,
+  the Kotlin sealed type — for one optional field). The legacy engine now splits a Unison's
+  entering markers into up to two events when both apply: an ordinary gain for markers paid as
+  part of the cost, and — only when [Empower] actually carries markers over — a second event with
+  `from` set to the outgoing Unison's instance id and `delta` equal to the carried count alone, so
+  the beat never conflates "markers this card was given" with "markers carried from that one".
+  Marker counts on a Unison are public to both players, so `maskBeats` needed no change and passes
+  a `markers` beat with `from` through untouched — asserted directly in
+  `scripts/verify/contract.ts`. The rules (`vm/`) engine does not resolve [Empower]'s carry yet
+  (`vm/host.ts`'s own comment on `resolvePlay`), so only the legacy engine ever emits `from` today;
+  `vmToBeats` still forwards the field so the two engines' `Beat` shapes stay identical the day it
+  does.
 
 Three properties the clients depend on, all of which are the server's job:
 

@@ -429,9 +429,10 @@ sealed class Beat {
     @SerialName("flip")
     data class Flip(override val n: Int, val card: String) : Beat()
 
+    /** `from` is the Unison these markers were carried over from ([Empower], 22-45-3) — null for an ordinary gain or spend. */
     @Serializable
     @SerialName("markers")
-    data class Markers(override val n: Int, val card: String, val delta: Int, val total: Int) : Beat()
+    data class Markers(override val n: Int, val card: String, val delta: Int, val total: Int, val from: String? = null) : Beat()
 
     @Serializable
     @SerialName("token")

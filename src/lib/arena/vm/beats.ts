@@ -89,7 +89,8 @@ export function vmToBeats(ctx: EngineContext, state: VmState, events: GameEvent[
         break;
       case "markers":
         remember(e.card);
-        push({ t: "markers", card: e.card, delta: e.delta, total: e.total });
+        if (e.from) remember(e.from);
+        push({ t: "markers", card: e.card, delta: e.delta, total: e.total, ...(e.from ? { from: e.from } : {}) });
         break;
       case "token":
         remember(e.card);

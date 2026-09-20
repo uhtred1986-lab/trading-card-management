@@ -14,6 +14,8 @@ import type { Zone } from "../../src/lib/decks/queries";
 import {
   CTX,
   DEFAULT_LIGHTING,
+  DEFS,
+  ENGINE,
   LEADER_COLOURS,
   LIGHTING_VERSION,
   RIVAL,
@@ -30,10 +32,12 @@ import {
   lightingFrom,
   maskBeats,
   mix,
+  narrate,
   play,
   toBeats,
   toneFor,
   turnVars,
+  unisonOf,
   waitingFor,
 } from "./harness";
 import type { Beat, Beats, GameState, NumberedBeat, PlayerId, Snapshot } from "./harness";
@@ -363,7 +367,9 @@ import type { Beat, Beats, GameState, NumberedBeat, PlayerId, Snapshot } from ".
       at({ t: "move", card: mine, from: "hand", to: "battle", owner: "p1" }),
       at({ t: "mode", card: mine, mode: "rest" }),
       at({ t: "flip", card: mine }),
-      at({ t: "markers", card: mine, delta: 1, total: 2 }),
+      // `from` exercises issue #109's addition: the Kotlin round trip must
+      // decode it, not just the fields the shape always carried.
+      at({ t: "markers", card: mine, delta: 1, total: 2, from: theirs }),
       at({ t: "token", card: theirs, owner: "p2" }),
       at({ t: "attack", attacker: mine, target: theirs }),
       at({ t: "block", guard: theirs, by: theirs }),
@@ -384,6 +390,49 @@ import type { Beat, Beats, GameState, NumberedBeat, PlayerId, Snapshot } from ".
     // If a kind is ever added to the union, this fixture must grow with it.
     const covered = new Set(list.map((b) => b.t));
     assert.equal(covered.size, list.length, "every beat kind appears exactly once in the all-beats fixture");
+  }
+
+  {
+    // Issue #109 — [Empower]'s carry (22-45-3) names both cards in one beat,
+    // so the board can fly the markers across rather than count them up in
+    // place. Only the legacy engine resolves the carry today: `vm/host.ts`'s
+    // own comment on `resolvePlay` says the rules engine's play step is
+    // synchronous because nothing a play does on it asks a question yet, and
+    // [Empower]'s "how many to carry" is one of the two that would — so this
+    // runs on the legacy engine specifically (`arena`/`play`/`apply`, this
+    // file's own throughout, are legacy unless `--engine rules` is passed;
+    // gated here because, unlike the rest of the file, this exercises a
+    // keyword the rules engine cannot play at all).
+    if (ENGINE !== "rules") {
+      DEFS.CONTRACTEMP = { ...DEFS.U1, id: "CONTRACTEMP", name: "CONTRACTEMP", skill: "[Empower Red 2]" };
+      let s = arena({ hand: ["U1", "CONTRACTEMP"], energy: ["V1", "V1", "V1", "V1", "V1"] });
+      s = play(s, { type: "playUnison", player: "p1", card: find(s, "p1", "hand", "U1"), x: 3 });
+      const old = unisonOf(s, "p1")!;
+      s = play(s, { type: "playUnison", player: "p1", card: find(s, "p1", "hand", "CONTRACTEMP"), x: 1 });
+      assert.equal(s.prompt.kind, "empowerCarry", "22-45-3: carrying is asked before the play resolves");
+      const { state, events } = apply(CTX, s, { type: "empowerCarry", player: "p1", amount: 2 });
+      const beats = toBeats(CTX, state, events, 0);
+
+      const moved = beats.list.filter((b): b is Extract<NumberedBeat, { t: "markers" }> & { from: string } => b.t === "markers" && !!b.from);
+      assert.equal(moved.length, 1, "exactly one markers-with-from beat per [Empower] resolution");
+      const beat = moved[0];
+      const newUnison = unisonOf(state, "p1")!;
+      assert.equal(beat.from, old, "names the Unison the markers left");
+      assert.equal(beat.card, newUnison, "names the Unison they arrived on");
+      assert.equal(beat.delta, 2, "the carried count alone — the 1 marker paid for as part of the cost is its own, separate beat with no `from`");
+      assert.equal(beat.total, 3, "1 paid plus 2 carried, same as 22-45-2's own arithmetic");
+      assert.equal(beats.list.filter((b) => b.t === "markers").length, 2, "the paid marker and the carried markers are two beats, not one conflating both");
+
+      assert.equal(narrate(beat, { viewer: "p1", them: "Claude", art: beats.art }), `2 markers move from ${beats.art[old].name} to ${beats.art[newUnison].name}.`);
+
+      // Marker counts on a Unison are public (5-13-2), so `maskBeats` has
+      // nothing to hide here for either side — the very same queue comes
+      // back for the mover and for the opponent watching.
+      assert.equal(maskBeats(state, beats, "p1"), beats, "nothing hidden from the mover");
+      assert.equal(maskBeats(state, beats, "p2"), beats, "nothing hidden from the opponent either — marker counts on a Unison are public");
+    } else {
+      console.log("  skipped case — [Empower]'s carry is not resolved on the rules engine yet (vm/host.ts's own comment on resolvePlay)");
+    }
   }
 
   // `npm test` runs from the repo root, which is what makes this path right.
