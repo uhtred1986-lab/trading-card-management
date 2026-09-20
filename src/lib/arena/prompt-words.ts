@@ -2,10 +2,14 @@
  * The prompt bar's fixed questions, shared by `view.ts` (legacy) and
  * `vm/view.ts` (rules) — Stage 8, issue #160.
  *
- * There is no `prompts.rules` yet: `DEFINE PROMPT` is not one of the eleven
- * declaration kinds (`docs/arena-ruleset-spec.md` §3, the same #131 gap
- * `board-words.ts` names for `DEFINE WORDS`). What moves here instead is the
- * *sharing*: both engines answer the same `Prompt` union
+ * `prompts.rules` (`rulesets/dbs/prompts.rules`, #135) now declares a
+ * `DEFINE PROMPT` for every one of `PROMPT_KINDS` — the owner's decision on
+ * #131/#135 (20 Sep 2026) made `DEFINE PROMPT` a declaration of its own, the
+ * same as `board-words.ts`'s `DEFINE WORDS`. Declared, not consumed:
+ * `questionFor` still reads `PROMPT_QUESTIONS` below, not the ruleset —
+ * wiring the two together is Stage 8's own follow-up (CLAUDE.md: "declare
+ * only; do not move any consumer Stage 8 did not already move"). What moves
+ * here instead is the *sharing*: both engines answer the same `Prompt` union
  * (`vm/flow.ts`'s own comment: "one union for both engines... a second
  * spelling of the same question would make one client unable to answer
  * both"), so a prompt kind that asks a fixed question — no card, no number,

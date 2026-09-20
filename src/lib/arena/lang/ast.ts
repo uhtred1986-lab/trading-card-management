@@ -225,7 +225,7 @@ export const COST_ITEMS = [
  */
 export const RESERVED = new Set([
   "WHEN", "COST", "IF", "THEN", "DO", "TEXT", "PAYWITH", "AS", "AND", "OR", "NOT", "IN", "FROM", "UNDER", "ANY", "TOP", "BOTTOM", "UP", "TO", "MINUS", "NULL", "TRUE", "FALSE", "ALL",
-  "DEFINE", "GAME", "ATTRIBUTE", "ZONE", "PHASE", "STEP", "ACTION", "TRIGGER", "KEYWORD", "WIN", "OP", "HOOK", "ON", "WHERE", "BIND", "FOR", "REFUSE", "UNLESS", "TAKES", "LIMIT",
+  "DEFINE", "GAME", "ATTRIBUTE", "ZONE", "PHASE", "STEP", "ACTION", "TRIGGER", "KEYWORD", "WIN", "OP", "WORDS", "PROMPT", "HOOK", "ON", "WHERE", "BIND", "FOR", "REFUSE", "UNLESS", "TAKES", "LIMIT",
 ]);
 
 // ── definitions ─────────────────────────────────────────────────────────────
@@ -235,14 +235,17 @@ export const RESERVED = new Set([
  * a *game's* definition, written as declarations in `rulesets/*.rules` rather
  * than as TypeScript unions and a phase switch.
  *
- * Eleven kinds, the list the plan of 9 Sep 2026 fixed. Nothing here interprets
- * one — that is Stage 4 — and nothing here resolves a name against another
+ * Eleven kinds were the plan of 9 Sep 2026's own list; `WORDS` and `PROMPT`
+ * are two more, added by the owner's decision on #131/#135 (20 Sep 2026): the
+ * words a board shows and the questions a prompt asks are declarations of
+ * their own rather than fields of `DEFINE GAME`. Nothing here interprets one
+ * — that is Stage 4 — and nothing here resolves a name against another
  * declaration, which is the loader's job (`rulesets/load.ts`, its own issue).
  * This is the grammar and the tree only.
  */
-export type DefineKind = "GAME" | "ATTRIBUTE" | "ZONE" | "PHASE" | "STEP" | "ACTION" | "TRIGGER" | "KEYWORD" | "COST" | "WIN" | "OP";
+export type DefineKind = "GAME" | "ATTRIBUTE" | "ZONE" | "PHASE" | "STEP" | "ACTION" | "TRIGGER" | "KEYWORD" | "COST" | "WIN" | "OP" | "WORDS" | "PROMPT";
 
-export const DEFINE_KINDS = ["GAME", "ATTRIBUTE", "ZONE", "PHASE", "STEP", "ACTION", "TRIGGER", "KEYWORD", "COST", "WIN", "OP"] as const satisfies readonly DefineKind[];
+export const DEFINE_KINDS = ["GAME", "ATTRIBUTE", "ZONE", "PHASE", "STEP", "ACTION", "TRIGGER", "KEYWORD", "COST", "WIN", "OP", "WORDS", "PROMPT"] as const satisfies readonly DefineKind[];
 type DefineKindMissing = Exclude<DefineKind, (typeof DEFINE_KINDS)[number]>;
 const _everyDefineKindListed: DefineKindMissing extends never ? true : never = true;
 void _everyDefineKindListed;
@@ -702,7 +705,60 @@ export interface DefOp extends Declaration<"OP"> {
   doc?: string;
 }
 
-export type Definition = DefGame | DefAttribute | DefZone | DefPhase | DefStep | DefAction | DefTrigger | DefKeyword | DefCost | DefWin | DefOp;
+/**
+ * `DEFINE WORDS` — the word a board shows for a zone, a phase or beat, a
+ * mode or a colour: the vocabulary `wording.ts` and `narration.ts` read off
+ * `board-words.ts`'s `BoardWords` (Stage 8, #159), declared rather than
+ * hand-written (owner's decision on #131/#135, 20 Sep 2026). One declaration
+ * per word, named after the zone, phase/step, mode or colour it is the word
+ * for — `DEFINE WORDS battle` is the words for `DEFINE ZONE battle` — so
+ * `of:` says which table the word belongs to rather than a second name.
+ *
+ * Not every table `board-words.ts` isolates is here: `wording.ts`'s own
+ * `VERB`/`WINDOW` (a `Requirement`'s sentence) and `effects.ts`'s
+ * `untilWords` (a rule in force) are viewer-dependent sentence templates —
+ * "your" versus "Claude's", singular versus plural — and a flat name → word
+ * table cannot hold a branch. Giving them a home is real follow-up work, not
+ * a gap in this file: either a second declaration shape for a templated
+ * sentence, or a further split of `DEFINE WORDS` once one is designed.
+ */
+export interface DefWords extends Declaration<"WORDS"> {
+  of: "zone" | "phase" | "mode" | "color";
+  /**
+   * The second-person, possessive form — "your Battle Area" — `wording.ts`'s
+   * refusals use and `narration.ts`'s third-person `text:` does not. Only a
+   * zone carries one; every other category reads the same regardless of
+   * whose it is.
+   */
+  you?: string;
+  /**
+   * This colour lights a room of its own (`lighting.ts`'s `LEADER_COLOURS`)
+   * — White and Colorless do not. Only a colour carries this.
+   */
+  room?: boolean;
+  /** The word itself: a zone's third-person form ("the Battle Area"), a phase or beat's label ("Charge Phase"), a mode's name ("Active Mode"), or a colour's own name. */
+  text: string;
+}
+
+/**
+ * `DEFINE PROMPT` — the question a fixed prompt kind puts to the player, and
+ * the hint under it (Stage 8's `prompt-words.ts`, #160), declared rather than
+ * hand-written (owner's decision on #131/#135, 20 Sep 2026). One per
+ * `Prompt["kind"]` (`PROMPT_KINDS`, `engine/script-schema.ts`).
+ *
+ * A kind whose real question is built at the table — a card's name, a cost,
+ * a count interpolated in — still gets a declaration: `question:` carries
+ * the same template `questionFor` (`view.ts`) writes today, in prose naming
+ * the value the way a `DEFINE OP`'s own `text:` names a parameter ("the
+ * amount") rather than as a hole a program could fill. Turning it into a
+ * hole a client could read is Stage 8's own wiring, not this declaration.
+ */
+export interface DefPrompt extends Declaration<"PROMPT"> {
+  question: string;
+  hint?: string;
+}
+
+export type Definition = DefGame | DefAttribute | DefZone | DefPhase | DefStep | DefAction | DefTrigger | DefKeyword | DefCost | DefWin | DefOp | DefWords | DefPrompt;
 
 const PARAMS = { name: "takes", type: "params", word: "TAKES" } as const satisfies DefineField;
 const TEXT = { name: "text", type: "string" } as const satisfies DefineField;
@@ -837,6 +893,22 @@ export const DEFINE_SCHEMA = {
   OP: {
     doc: "a macro over the primitives, so a step the cards use is a row rather than an interpreter case",
     fields: [PARAMS, { name: "do", type: "ops", word: "DO", required: true }, TEXT, { name: "doc", type: "string" }],
+  },
+  WORDS: {
+    doc: "the word a board shows for a zone, a phase or beat, a mode or a colour",
+    fields: [
+      { name: "of", type: { enum: ["zone", "phase", "mode", "color"] }, required: true },
+      { name: "you", type: "string" },
+      { name: "room", type: "boolean" },
+      { name: "text", type: "string", required: true },
+    ],
+  },
+  PROMPT: {
+    doc: "the question a fixed prompt kind puts to the player, and the hint under it",
+    fields: [
+      { name: "question", type: "string", required: true },
+      { name: "hint", type: "string" },
+    ],
   },
 } as const satisfies Record<DefineKind, DefineSpec>;
 

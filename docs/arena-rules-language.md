@@ -158,7 +158,7 @@ against another (the loader), and the DBS files are their own issues. `parseDefi
 file    := ( definition )*                          blank lines and "--" comments between
 definition := "DEFINE" kind name ( field )*         one field per line, until the next DEFINE
 kind    := "GAME" | "ATTRIBUTE" | "ZONE" | "PHASE" | "STEP" | "ACTION" | "TRIGGER"
-         | "KEYWORD" | "COST" | "WIN" | "OP"
+         | "KEYWORD" | "COST" | "WIN" | "OP" | "WORDS" | "PROMPT"
 name    := word | "\"" text "\""                     quoted when it carries a space or a hyphen
 field   := name ":" value                           the fields written as a pair
          | WORD value                               the fields written as a clause word
@@ -191,7 +191,7 @@ keyword takes), `hooks` (a keyword's bodies, which print one `HOOK` line each ra
 list, so a diff shows the hook that changed), and `refusals` (an action's requirements, one `REFUSE`
 line each for the same reason, and in the order the legality check runs them).
 
-### The eleven kinds
+### The thirteen kinds
 
 **GAME** — the game itself: how a player starts and what a turn is made of (manual §5). `title:`,
 `players:`, `deck:`, `zDeck:`, `hand:`, `life:`, `startMarkers:`, `markersPerTurn:`, `mulligan:`,
@@ -531,6 +531,35 @@ was declared as (a duration where a side was, an expression where a number was),
 a cycle, and leaves an **optional** field out of the expansion when its hole is a parameter the
 call did not give — the interpreter then assumes for the expansion what it would have assumed for
 the call — while a required one is refused by name.
+
+**WORDS** — the word a board shows for a zone, a phase or beat, a mode or a colour: the vocabulary
+`wording.ts` and `narration.ts` read off `board-words.ts`'s `BoardWords` (manual §3, §6, §7, §1-2-3).
+`of:` (zone | phase | mode | color) says which table the word belongs to (required); `you:` the
+second-person, possessive form a zone carries beside its third-person `text:` ("your Battle Area"
+next to "the Battle Area"); `room:` marks a colour that lights a room of its own (`lighting.ts`'s
+five leader colours, against White and Colorless, which do not); `text:` the word itself (required).
+One declaration per word, named after the zone, phase, mode or colour it is the word for — this is
+the words for `DEFINE ZONE battle`, not a second name for it.
+
+```
+DEFINE WORDS battle
+  of: zone
+  you: "your Battle Area"
+  text: "the Battle Area"
+```
+
+**PROMPT** — the question a fixed prompt kind puts to the player, and the hint under it (Stage 8's
+`prompt-words.ts`). `question:` the question (required), `hint:` what to do about it. One per
+`Prompt["kind"]` (`PROMPT_KINDS`, `engine/script-schema.ts`); a kind whose real question is built at
+the table carries the same template `questionFor` (`view.ts`) writes today, in prose naming the
+value the way a `DEFINE OP`'s own `text:` names a parameter, rather than as a hole a program could
+fill.
+
+```
+DEFINE PROMPT charge
+  question: "Charge one card as energy?"
+  hint: "Tap a card in hand, or skip."
+```
 
 ### What the loader refuses
 

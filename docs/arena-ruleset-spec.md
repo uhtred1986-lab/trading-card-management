@@ -306,9 +306,11 @@ A game is a **directory of `.rules` files**, one per concern, read by
 says what the files are, what the loader does with them, and what it refuses.
 
 The loader landed 12 Sep 2026 (#132), and four of the files the same day: `game.rules`,
-`attributes.rules` and `zones.rules` (#133), then `triggers.rules` (#134). The rest are #135 and
-the stage issues below, so `src/lib/arena/rulesets/dbs/` holds five of the eleven rows — `ops.rules`
-is there with its header and its first two declarations (#137, #273) — every refusal is still checked against
+`attributes.rules` and `zones.rules` (#133), then `triggers.rules` (#134). #135 added
+`keywords.rules` (12 Sep 2026) and, once the owner answered #131's open question (20 Sep 2026),
+`words.rules` and `prompts.rules` — so `src/lib/arena/rulesets/dbs/` holds nine of the eleven rows.
+`ops.rules` is there with its header and a growing set of macro declarations (#137, #273–#277) and
+`battle.rules` is Stage 6's own — every refusal is still checked against
 fixtures, and what the real files claim is checked against them directly
 (`scripts/verify/rulesets.ts`). The trigger declarations name nine of the zones — `battle`,
 `combo`, `drop`, `energy`, `hand`, `leader`, `life`, `unison`, `zEnergy` — and the loader resolves
@@ -329,8 +331,8 @@ itself.
 | `ops.rules` | `OP` — one macro per row §2.3 marks *macro*, over the primitives beside it; `rulesets/expand.ts` lowers a program through them | §2 above | #137 |
 | `triggers.rules` | `TRIGGER` — every moment an [Auto] or a [Counter] answers to, as the event pattern that *is* it, with the counter windows (58 declarations: the 53 of the `Trigger` union and the five `counter:*` windows) | §9-6, §4-3, §9-7 | #134 ✔ |
 | `keywords.rules` | `KEYWORD` — all 39, their parameters and their meanings; the `HOOK` bodies stay empty until Stage 7 | §22 | #135 |
-| `words.rules` | the words the board says for a zone, a colour, a mode, a requirement — **not written yet**: `DEFINE WORDS` is not one of the eleven kinds, and its shape is an open question on #131 | — | #135, after that answer |
-| `prompts.rules` | one declaration per `Prompt` kind with the question it asks — **not written yet**, the same open question (it may be a field of `DEFINE ACTION` rather than a kind) | — | #135, after that answer |
+| `words.rules` | `WORDS` — the word a board shows for a zone, a phase/beat, a mode or a colour: `board-words.ts`'s own `BoardWords` tables, declared (not yet consumed — Stage 8's own wiring) | §3, §6, §7, §1-2-3 | #135 (owner's decision on #131, 20 Sep 2026) |
+| `prompts.rules` | `PROMPT` — one declaration per `Prompt["kind"]` (`PROMPT_KINDS`, 18), with the question `questionFor` writes today | — | #135 (owner's decision on #131, 20 Sep 2026) |
 | `actions.rules` | `ACTION` — charge, play, playUnison, playZ, activate, endMain, pass, concede: `WHEN / FOR / COST / DO / REFUSE`, the refusal in the order the legacy engine checks it. The grammar and the generic legality are in (#144), charge, endMain, pass and concede are declared (#145), the play family (#146), and activate with `skills:` and one rejection per line (#147) | §6, §7 | #144 ✔, #145 ✔, #146 ✔, #147 ✔ |
 | `costs.rules` | `COST` — energy with colours, either-orbs and X, Z-Energy, markers, life, rest, pay-with, and the unreadable price that refuses. Each says what it `consumes:`, which card attribute its `amount:` is read off and how the payment `asks:` its question, and `vm/costs.ts` is one planner over those words | §5-3, §5-4, §8-3-2-3, §13-4, §20-19, §21-3 | #148 ✔, #146 ✔ |
 | `battle.rules` | the battle sub-flow as `STEP`s and `ACTION`s — declaration, the blocker window, counter windows, combo, comparison, damage | §7, §8 | Stage 6 |

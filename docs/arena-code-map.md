@@ -421,7 +421,8 @@ the same as if it were still in `CLAUDE.md`.
   the doc's own examples (`scripts/verify/lang.ts`, in `npm test`) — so the printer never has
   a choice of forms and the parser is the generous one. A filter is printed in its own words
   only when `parseFilter` reads them back *equal*; otherwise field by field. The `DEFINE …`
-  grammar for `rulesets/*.rules` is in (eleven kinds, §3b of the doc); the referee's answers are
+  grammar for `rulesets/*.rules` is in (thirteen kinds, §3b of the doc — `WORDS` and `PROMPT`
+  joined the eleven by the owner's decision on #131/#135, 20 Sep 2026); the referee's answers are
   a later stage, and the language is shared, not dialected.
 - **A game is files, not code** (`src/lib/arena/rulesets/`, since 12 Sep 2026): `loadRuleset(files)`
   reads a game's `.rules` declarations into one `GameDefinition` — every name resolved against

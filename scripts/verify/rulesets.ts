@@ -15,24 +15,21 @@
  * precisely the failure a configuration-driven engine has to make loud.
  *
  * The DBS files have begun to arrive (#133: `game.rules`, `attributes.rules`,
- * `zones.rules`; #134: `triggers.rules`; #135: `keywords.rules`), so the set
- * the app actually loads is checked for what those five carry: that it loads,
- * that it is the game it says it is, that the areas of the manual's §3 are
- * all declared, that every moment a record's WHEN may name is a moment the
- * definition declares and no other, and that every keyword the parser reads
- * is declared with the same arity. Beyond that, the DBS ruleset is checked
- * for *completeness* against three more of the legacy engine's own
- * hard-coded unions — `PHASES`, `CARD_ATTRIBUTES` and, once one exists,
- * `PROMPT_KINDS` — by name, in both directions: nothing would otherwise
- * notice a case the definition forgot until Stage 4 fails to play a card
- * that uses it. `words.rules` and `prompts.rules` still wait on the owner's
- * word on DEFINE WORDS/PROMPT (#131), so that one check below **skips, with
- * a printed line**, until it does; every other completeness check here is
- * live — deleting one `ZONE` line from `zones.rules` makes `npm test` fail
- * naming that zone (the presence loop below, which covers all 15 of `AREAS`;
- * `AREA_NAMES` is the 13-name `Area` a card's own state actually has a field
- * for, checked separately against those 15 with the two effect-language-only
- * routes, `under` and `play`, set aside).
+ * `zones.rules`; #134: `triggers.rules`; #135: `keywords.rules`, `words.rules`,
+ * `prompts.rules`), so the set the app actually loads is checked for what
+ * those seven carry: that it loads, that it is the game it says it is, that
+ * the areas of the manual's §3 are all declared, that every moment a record's
+ * WHEN may name is a moment the definition declares and no other, and that
+ * every keyword the parser reads is declared with the same arity. Beyond
+ * that, the DBS ruleset is checked for *completeness* against four more of
+ * the legacy engine's own hard-coded unions — `PHASES`, `CARD_ATTRIBUTES`,
+ * `PROMPT_KINDS` and `COLORS` — by name, in both directions: nothing would
+ * otherwise notice a case the definition forgot until Stage 4 fails to play a
+ * card that uses it. Deleting one `ZONE` line from `zones.rules` makes
+ * `npm test` fail naming that zone (the presence loop below, which covers all
+ * 15 of `AREAS`; `AREA_NAMES` is the 13-name `Area` a card's own state
+ * actually has a field for, checked separately against those 15 with the two
+ * effect-language-only routes, `under` and `play`, set aside).
  *
  * Part of `npm test`; run from `scripts/verify-arena.ts`, which fixes the order.
  */
@@ -40,7 +37,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { effectLanguage } from "../../src/lib/arena/ai/opponent";
-import { AREA_NAMES, CARD_ATTRIBUTES, KEYWORD_NAMES, OP_CLASS, OP_SCHEMA, PHASES, PROMPT_KINDS, validateProgram, type Op } from "../../src/lib/arena/engine/script";
+import { AREA_NAMES, CARD_ATTRIBUTES, COLORS, KEYWORD_NAMES, OP_CLASS, OP_SCHEMA, PHASES, PROMPT_KINDS, validateProgram, type Op } from "../../src/lib/arena/engine/script";
 import type { CounterWindow, KeywordSkill, PlayerId } from "../../src/lib/arena/engine/types";
 import { TRIGGERS, describeTrigger } from "../../src/lib/arena/gaps";
 import { deepEqual, parseDefinitions, parseRule, printDefinitions, validateRule } from "../../src/lib/arena/lang";
@@ -684,15 +681,43 @@ if (dbs.ok) {
     CARD_ATTRIBUTES,
     "card attributes",
   );
-  // `game.rules` already names five (`chooseFirst`, `mulligan`, `charge`,
-  // `main`, `gameOver`, on the steps it declares), but no file declares
-  // `DEFINE PROMPT` and #131 is still open on whether one ever will, or
-  // whether a prompt is a field of `DEFINE ACTION` instead — and the rest of
-  // `PROMPT_KINDS` belongs to steps Stage 5/6's `actions.rules` and
-  // `battle.rules` have not written yet. So this stays an unconditional skip
-  // (not "empty, so skip": `vocab.promptKinds` already has five entries)
-  // until that question is answered and every step exists to ask it of.
-  console.log(`  skipped: prompt kinds — prompts.rules not yet written (${vocab.promptKinds.length} of ${PROMPT_KINDS.length} named by steps so far)`);
+  // `prompts.rules` (#135): every `PROMPT_KINDS` entry has a `DEFINE PROMPT`
+  // and nothing else does, in both directions — the same shape as the
+  // keyword check above, over the newer list. `vocab.promptKinds` stays a
+  // narrower, separate thing (the questions the steps actually ask for so
+  // far, `type Vocabulary`'s own note on it above): a prompt kind can have
+  // its fixed question declared here well before Stage 5/6 writes the step
+  // that puts it to a player.
+  completeness(Object.keys(def.prompts), PROMPT_KINDS, "prompt kinds");
+  // `words.rules` (#135): every colour `attributes.rules`' own `colors`
+  // attribute may hold has a `DEFINE WORDS … of: color`, and no other colour
+  // is declared — the same both-directions shape, over `COLORS`
+  // (`engine/script-schema.ts`), the one closed list no declaration names yet
+  // (`board-words.ts`'s own note on why `COLORS` is still exported).
+  completeness(
+    Object.entries(def.words)
+      .filter(([, w]) => w.of === "color")
+      .map(([name]) => name),
+    COLORS,
+    "colour words",
+  );
+  // And the acceptance's own claim: `words.rules` names every zone and every
+  // mode the definition already declares, not only every colour. Every zone
+  // but the two effect-language-only routes (`under`, `play`) — neither is a
+  // place a board ever shows a card sitting, so `board-words.ts`'s own
+  // tables carry no entry for either and `words.rules` declares none either.
+  for (const zone of Object.keys(def.zones)) {
+    if (zone === "under" || zone === "play") continue;
+    assert.equal(def.words[zone]?.of, "zone", `words.rules has no DEFINE WORDS for the zone ${JSON.stringify(zone)}`);
+  }
+  // The modes a zone actually declares (`zones.rules`' own `modes:` — active
+  // and rest, board-words.ts's own check that there are exactly two), rather
+  // than a list kept here a second time.
+  const declaredModes = [...new Set(Object.values(def.zones).flatMap((z) => z.modes ?? []))];
+  assert.ok(declaredModes.length > 0, "no zone declares modes:, so this checks nothing");
+  for (const mode of declaredModes) {
+    assert.equal(def.words[mode]?.of, "mode", `words.rules has no DEFINE WORDS for the mode ${JSON.stringify(mode)}`);
+  }
 }
 
 // ── whole-file round trip ────────────────────────────────────────────────────

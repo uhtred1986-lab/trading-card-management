@@ -1,0 +1,95 @@
+-- One DEFINE PROMPT per Prompt["kind"] (PROMPT_KINDS, engine/script-schema.ts,
+-- 18 entries, in that order), with the question template questionFor
+-- (view.ts, shared with vm/view.ts on the rules engine) uses today.
+--
+-- Declared rather than hand-written by the owner's decision on #131/#135
+-- (20 Sep 2026): DEFINE PROMPT is a declaration of its own, not a field of
+-- DEFINE ACTION. Declared, not consumed — `prompt-words.ts`'s own
+-- PROMPT_QUESTIONS table still stands unchanged and `questionFor` still reads
+-- it, not this file; wiring the two together is Stage 8's own follow-up
+-- (CLAUDE.md: "declare only; do not move any consumer Stage 8 did not
+-- already move").
+--
+-- Eleven kinds ask a question that never varies — PROMPT_QUESTIONS'
+-- own eleven entries, copied in verbatim. The other seven build their
+-- question from the situation (a card's name, a cost, a count): `question:`
+-- carries the same template questionFor writes, in prose naming the value
+-- the way a DEFINE OP's own text: names a parameter ("the amount") rather
+-- than as a hole a program could fill — turning it into one a client could
+-- read is Stage 8's wiring, not this declaration. `chooseCards`'s question,
+-- `chooseMode`'s and `replaceMove`'s are the engine's own text verbatim, with
+-- no template of their own to add to it; `referee`'s hint is the same, so it
+-- carries none here.
+
+DEFINE PROMPT chooseFirst
+  question: "You won the flip. Who goes first?"
+  hint: "The second player starts with one energy marker."
+
+DEFINE PROMPT mulligan
+  question: "Keep this hand?"
+  hint: "You may redraw six cards once (6-2-1-9)."
+
+DEFINE PROMPT charge
+  question: "Charge one card as energy?"
+  hint: "Tap a card in hand, or skip."
+
+DEFINE PROMPT main
+  question: "Your Main Phase."
+  hint: "Play cards, attack, or end the turn."
+
+DEFINE PROMPT combo
+  question: "Combo? Tap a glowing card."
+  hint: "Each adds its combo power and costs its combo cost."
+
+DEFINE PROMPT blocker
+  question: "Block with one of these?"
+  hint: "[Blocker] rests the card and makes it the guard instead."
+
+DEFINE PROMPT counter
+  question: "Play a counter?"
+  hint: "Counter cards are activated from hand and go to the Drop."
+
+-- The candidates' own reason, read verbatim off the choice being asked for —
+-- no fixed wording of its own.
+DEFINE PROMPT orderPending
+  question: "Which skill resolves first?"
+  hint: "Several of your skills triggered at once."
+
+DEFINE PROMPT chooseCards
+  question: "the reason given for the choice"
+  hint: "Choose the minimum to the maximum, or exactly the minimum when the two are equal."
+
+DEFINE PROMPT chooseMode
+  question: "the reason given for the choice"
+  hint: "The card offers these; exactly one happens (20-2)."
+
+DEFINE PROMPT replaceMove
+  question: "the reason given for the replacement"
+  hint: "Choose one replacement, or let the original move happen."
+
+DEFINE PROMPT zEnergyFromCombo
+  question: "Send one combo card to Z-Energy?"
+  hint: "At the end of a battle, one card may go there instead of the Drop."
+
+DEFINE PROMPT optionalCost
+  question: "Pay the skill's cost for the card?"
+  hint: "An [Auto] skill's cost may be declined; then it does not resolve."
+
+DEFINE PROMPT payCost
+  question: "Which energy do you rest to pay the cost?"
+  hint: "The colours you keep active decide what you can still do this turn."
+
+DEFINE PROMPT offering
+  question: "[Offering]: drop one life, or let them draw two?"
+
+DEFINE PROMPT empowerCarry
+  question: "[Empower]: carry up to the maximum marker or markers from the card being replaced to the card played over it?"
+  hint: "You may carry fewer than the maximum, or none at all (22-45-3)."
+
+-- The hint is the unsupported request's own detail, read verbatim — no fixed
+-- wording of its own, unlike every prompt above.
+DEFINE PROMPT referee
+  question: "Claude is ruling on the card's name…"
+
+DEFINE PROMPT gameOver
+  question: "The game is over."

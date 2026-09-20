@@ -91,6 +91,8 @@ export function loadRuleset(files: Record<string, string>, id: Game = "dbs"): Lo
     costs: {},
     wins: {},
     ops: {},
+    words: {},
+    prompts: {},
     definitions: entries.map((e) => e.def),
     sources: {},
   };
@@ -260,6 +262,12 @@ function file(into: GameDefinition, def: Definition): void {
       return;
     case "OP":
       into.ops[def.name] = def;
+      return;
+    case "WORDS":
+      into.words[def.name] = def;
+      return;
+    case "PROMPT":
+      into.prompts[def.name] = def;
       return;
   }
 }

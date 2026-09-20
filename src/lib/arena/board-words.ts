@@ -10,19 +10,21 @@
  * gets by default — legacy and rules alike, since the arena only ever plays
  * `dbs` on either engine today (`docs/arena-code-map.md`, "Two engines").
  *
- * There is no `words.rules` yet: `DEFINE WORDS` is not one of the eleven
- * declaration kinds (`docs/arena-ruleset-spec.md` §3, blocked on #131), and
- * neither `zones.rules` nor `attributes.rules` carries a short display label
- * for a zone or a colour — only prose in `text:`. `wordsFromRuleset` reads
- * everything the declarations really do say today (which zones and modes
- * exist, that a mode word is one of exactly two tokens) and fails loudly if
- * `DBS_WORDS` and the loaded ruleset disagree about any of it, so a zone
- * renamed or removed in `zones.rules` is caught here rather than drifting
- * silently. The phrases themselves stay hand-written until #131 gives a
- * declaration somewhere to hold them — named as a gap rather than guessed
- * around, the same as `engine/script-schema.ts`'s own `COLORS` export says of
- * itself ("the day a game declares its own colours, this export goes back to
- * being private").
+ * `words.rules` (`rulesets/dbs/words.rules`, #135) now declares a `DEFINE
+ * WORDS` for every zone, phase/beat, mode and colour this module names — the
+ * owner's decision on #131/#135 (20 Sep 2026) made `DEFINE WORDS` a
+ * declaration of its own. Declared, not consumed: reading the phrases *from*
+ * the ruleset rather than from the constants below is Stage 8's own wiring
+ * and deliberately not done here (CLAUDE.md: "declare only; do not move any
+ * consumer Stage 8 did not already move"), so `DBS_WORDS` stays hand-written
+ * and `wordsFromRuleset` keeps checking the same things it always did (which
+ * zones and modes exist, that a mode word is one of exactly two tokens) —
+ * it does not yet read a phrase out of `def.words` either. `COLORS` stays
+ * exported from `engine/script-schema.ts` for the same reason ("the day a
+ * game declares its own colours, this export goes back to being private") —
+ * `words.rules` now declares them too, and the day this module reads a
+ * colour's word from there instead of from `LEADER_COLOURS` is the day that
+ * comment stops being true.
  */
 import type { Area } from "./engine/types";
 import { COLORS } from "./engine/script-schema";
