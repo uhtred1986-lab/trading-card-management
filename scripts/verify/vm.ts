@@ -406,13 +406,32 @@ for (const field of FILTER_FIELD_NAMES) {
 
   const predicate = predicateOf(filter, DBS);
   for (const def of CORPUS) {
-    const over = attrsOf(def, DBS).attrs;
+    const over = onACatalogRow(def);
     assert.equal(
       predicate(over),
       matches(def, { ...emptyFilter(), ...filter }),
       `the rules engine and the legacy engine disagree about whether ${def.id} satisfies ${JSON.stringify(filter)}`,
     );
   }
+}
+
+/**
+ * One card's attributes with no board under it: the catalog adapter's bag, plus
+ * the board-filled attributes a measure reads that a bare `CardDef` still
+ * determines.
+ *
+ * `originalPower` (20-3-1) is the one such measure today. `attrsNow` seeds it
+ * off the **face showing** (`vm/program.ts`'s `facePower`) rather than off the
+ * catalog row, because a flipped Leader shows its awakened side and a Hidden
+ * Mode card shows nothing (1-9, 23-5-2) — neither of which a `CardDef` on its
+ * own can be in, so here the face showing is the row and the seed is `power`.
+ * Written out rather than left absent, because a measure reading an attribute
+ * nothing filled answers `false` for every card, and a sweep comparing two
+ * engines would then agree only where the legacy one also said no.
+ */
+function onACatalogRow(def: CardDef): Attrs {
+  const attrs = attrsOf(def, DBS).attrs;
+  return def.power == null ? attrs : { ...attrs, originalPower: def.power };
 }
 
 // The three measures a card's attributes cannot answer say so by name, with the
@@ -3941,5 +3960,111 @@ console.log("verify/vm: ok");
     assert.equal(s.prompt.kind, "charge", "p1's second Charge Phase did not reach its own question (7-2-11)");
     assert.equal(s.cards[plain].mode, "active", "an ordinary rested card did not switch to Active Mode in its master's Charge Phase (7-2-7) — the fixture is not exercising chargeActivate");
     assert.equal(s.cards[servant].mode, "rest", "[Servant] switched to Active Mode during its master's Charge Phase (22-40)");
+  }
+}
+
+// ── 26. what the pre-flip review of #166 found ──────────────────────────────
+//
+// Three readings the rules engine got wrong and the legacy engine gets right,
+// each fixed in `vm/` and each proved here against that engine rather than
+// against a number written down: the Active Step's own list of areas (7-2-7),
+// the face a measure is read off (1-9, 23-5-2) and "original power" (20-3-1).
+// They are one section because they are one review, and because all three are
+// the same failure — a value read one layer or one face away from the rule.
+{
+  const rulesEngine = engineFor("rules");
+
+  /** p1's second Charge Phase, both players having passed through their first turn — the shortest board on which 7-2-7 has anything to stand up. */
+  function secondCharge(rest: (s: VmState) => void): VmState {
+    let s = rulesEngine.createGame(CTX, SAME).state as VmState;
+    s = rulesEngine.apply(CTX, s, { type: "chooseFirst", player: s.chooser, first: "p1" }).state as VmState;
+    s = rulesEngine.apply(CTX, s, { type: "mulligan", player: "p1", redraw: false }).state as VmState;
+    s = rulesEngine.apply(CTX, s, { type: "mulligan", player: "p2", redraw: false }).state as VmState;
+    const charged = s.sides.p1.zones.hand[0];
+    s = rulesEngine.apply(CTX, s, { type: "charge", player: "p1", card: charged }).state as VmState;
+    rest(s);
+    s = rulesEngine.apply(CTX, s, { type: "endMain", player: "p1" }).state as VmState;
+    s = rulesEngine.apply(CTX, s, { type: "charge", player: "p2", card: null }).state as VmState;
+    s = rulesEngine.apply(CTX, s, { type: "endMain", player: "p2" }).state as VmState;
+    assert.equal(s.prompt.kind, "charge", "the fixture did not reach p1's second Charge Phase");
+    return s;
+  }
+
+  // 7-2-7 names four areas — Leader, Battle, **Energy** and Unison — and the
+  // Energy Area is the one a turn's economy turns on: every cost is paid by
+  // resting energy (5-3), so energy that never stands back up is a pool that
+  // only ever shrinks. `chargeActivate` gated on `inPlay:` until this review,
+  // and `zones.rules` declares the Energy Area `inPlay: false` (3-8 is not one
+  // of 9-1-3-1's three areas a card's own skills are valid in), so a rested
+  // energy card stayed rested for the rest of the game.
+  {
+    let rested = "";
+    const s = secondCharge((mid) => {
+      rested = mid.sides.p1.zones.energy[0];
+      assert.ok(rested, "the fixture charged no card, so there is no rested energy to stand up");
+      mid.cards[rested].mode = "rest";
+    });
+    assert.equal(s.cards[rested].mode, "active", "7-2-7: rested energy did not switch back to Active Mode in its master's Charge Phase");
+
+    // The same board on the engine that has been playing, so the fix is held
+    // to that engine rather than to this assertion's own wording.
+    let l = createGame(CTX, SAME).state;
+    l = apply(CTX, l, { type: "chooseFirst", player: (l.prompt as { player: PlayerId }).player, first: "p1" }).state;
+    l = apply(CTX, l, { type: "mulligan", player: "p1", redraw: false }).state;
+    l = apply(CTX, l, { type: "mulligan", player: "p2", redraw: false }).state;
+    l = apply(CTX, l, { type: "charge", player: "p1", card: l.players.p1.hand[0] }).state;
+    const legacyRested = l.players.p1.energy[0];
+    l.cards[legacyRested].mode = "rest";
+    l = apply(CTX, l, { type: "endMain", player: "p1" }).state;
+    l = apply(CTX, l, { type: "charge", player: "p2", card: null }).state;
+    l = apply(CTX, l, { type: "endMain", player: "p2" }).state;
+    assert.equal(l.cards[legacyRested].mode, s.cards[rested].mode, "the two engines disagree about whether the Active Step stands rested energy back up (7-2-7)");
+  }
+
+  // 1-9: a Leader that has flipped shows its awakened face, and that face's
+  // power is the number the battle is decided by (8-4-6). `attrsNow` read the
+  // catalog row — the front — so L-RED fought at 10000 where the legacy
+  // `face()`/`powerOf` pair reads its back side's 15000.
+  {
+    const s = secondCharge(() => {});
+    const leader = s.sides.p1.zones.leader[0];
+    assert.equal(CTX.defs["L-RED"].power, 10000, "the fixture leader no longer prints 10000 on its front, so this case proves nothing");
+    assert.equal(CTX.defs["L-RED"].back?.power, 15000, "the fixture leader no longer prints 15000 on its back");
+    assert.equal(attrsNow(CTX, DBS, s, leader).power, 10000, "an unflipped Leader is not read at its front side's power (1-9)");
+    s.cards[leader].flipped = true;
+    assert.equal(attrsNow(CTX, DBS, s, leader).power, 15000, "1-9: a flipped Leader is still read at its *front* side's power");
+    assert.equal(attrsNow(CTX, DBS, s, leader).originalPower, 15000, "20-3-1: the original power of a flipped Leader is not its awakened face's printed number");
+
+    // 23-5-2: a card in Hidden Mode has no front-side information at all, so
+    // there is no power to read — absent rather than the printed number, which
+    // is what keeps a "10000 power or less" filter off it. The legacy `face()`
+    // blanks the same three fields for the same reason.
+    s.cards[leader].flipped = false;
+    s.cards[leader].hidden = true;
+    assert.equal(attrsNow(CTX, DBS, s, leader).power, undefined, "23-5-2: a Hidden Mode card was read at its printed power");
+    assert.equal(attrsNow(CTX, DBS, s, leader).originalPower, undefined, "23-5-2: a Hidden Mode card was read at its printed original power");
+  }
+
+  // 20-3-1: "an original power of N" is the printed face value, *before* any
+  // skill effect. It shared the `power` attribute with `powerMin`/`powerMax`,
+  // and `power` carries 9-9-1's layers — so by the time a predicate saw it,
+  // every continuous effect in force had been applied and the measure was
+  // answering about the current number instead. A card pumped to 15000 started
+  // matching "an original power of 15000" and stopped matching its own.
+  {
+    const s = secondCharge(() => {});
+    const leader = s.sides.p1.zones.leader[0];
+    addEffect(s, [], { target: leader, kind: "power", value: 5000, until: "turn", source: leader });
+    const now = attrsNow(CTX, DBS, s, leader);
+    assert.equal(now.power, 15000, "the +5000 the case rests on is not in force, so it proves nothing");
+    assert.equal(now.originalPower, 10000, "20-3-1: a pumped card's original power moved with its power");
+    const printed = predicateOf({ ...emptyFilter(), originalPowerMin: 10000, originalPowerMax: 10000 }, DBS);
+    const pumped = predicateOf({ ...emptyFilter(), originalPowerMin: 15000, originalPowerMax: 15000 }, DBS);
+    assert.equal(printed(now), true, "20-3-1: a pumped card stopped answering to its own printed original power");
+    assert.equal(pumped(now), false, "20-3-1: a pumped card answered to an original power it only has while the effect lasts");
+    // The bare measure is the one that *should* move with the effect — and on
+    // this engine it does, which is the difference the two attributes exist to
+    // keep (issue #238's own gap, on the legacy engine, is `powerMin`'s).
+    assert.equal(predicateOf({ ...emptyFilter(), powerMin: 15000 }, DBS)(now), true, "a pumped card's current power did not reach `powerMin`");
   }
 }

@@ -122,13 +122,31 @@ export function attrsNow(ctx: EngineContext, game: GameDefinition, state: VmStat
   if (!def) return {};
   const printed = attrsOf(def, game).attrs;
   const standing = statics(ctx, game, state);
-  const out: Record<string, AttrValue> = { ...printed };
   // 20-21: a board-filled price has no printed face of its own — its `printed`
   // layer is the number beside it, and `PRINTED_BASE` is that pairing. Seeded
   // before the layers are walked, so a reduction adds to the printed cost
   // rather than to nothing. Absent stays absent: an X cost has no total until
   // someone names one (1-2-2-2), and 0 would be a price nobody chose.
   const base: Record<string, AttrValue> = { ...printed };
+  // 1-9, 23-5: the number is read off the **face showing**. `attrsOf` reads the
+  // catalog row, which is the front — a card's back side is a face of its own
+  // and the adapter has no kind for one (`attributes.rules`' own `back` entry
+  // says so, and `vm/triggers.ts`'s `skillsShowing` reads the awakened text
+  // separately for the same reason). `power` is the measure that cannot wait
+  // for that answer: a battle is decided by it (8-4-6), and an awakened Leader
+  // fought with its *front* side's number until the pre-flip review of #166.
+  // The legacy `face()`/`powerOf` pair is the reading, blank face included —
+  // a Hidden Mode card has no front-side information at all (23-5-2), so the
+  // attribute is absent rather than the printed number.
+  const shown = facePower(ctx, state, id);
+  if (shown === undefined) delete base.power;
+  else base.power = shown;
+  // 20-3-1: "an original power of 5000" is that same printed face value,
+  // *before* any layer — which is why it is an attribute of its own and not a
+  // second reading of `power`, whose declared layers 9-9-1 applies. Reading
+  // both off one attribute is what made a 5000-power card pumped to 15000 stop
+  // answering to it, and one printed 15000 start (the same review).
+  if (game.attributes.originalPower && shown !== undefined) base.originalPower = shown;
   for (const [derived, face] of Object.entries(PRINTED_BASE)) {
     if (!game.attributes[derived] || printed[face] === undefined) continue;
     base[derived] = printed[face];
@@ -147,6 +165,10 @@ export function attrsNow(ctx: EngineContext, game: GameDefinition, state: VmStat
   if (game.attributes.faceUp) base.faceUp = card.faceUp;
   if (game.attributes.flipped) base.flipped = card.flipped;
   if (game.attributes.keywords) base.keywords = keywordsInSkills(parseSkills(typeof printed.skill === "string" ? printed.skill : null)).map((k) => k.name);
+  // The value every layer is applied *to*, so an attribute the base left out —
+  // a hidden card's power — stays out rather than falling back to the catalog
+  // row the spread above would have carried.
+  const out: Record<string, AttrValue> = { ...base };
   // Every change in force **about this card**, of every kind: which of them a
   // layer reads is `LAYER_KINDS`, and keeping that pairing in one place is the
   // whole reason this no longer filters by the attribute's name (#148).
@@ -172,21 +194,35 @@ export function attrsNow(ctx: EngineContext, game: GameDefinition, state: VmStat
   return out;
 }
 
+/**
+ * The power printed on the face a card is showing, or nothing at all.
+ *
+ * The legacy `face(ctx, s, id).power`, exactly: a Hidden Mode card shows no
+ * front-side information (23-5-2) and so has none, a flipped Leader shows its
+ * awakened side's number (1-9), and every other card shows the catalog row's.
+ * `undefined` rather than 0 for the first two, because "this card has no power
+ * to read" and "this card's power is zero" are different claims — a filter
+ * measuring power must not match the first (`vm/filters.ts`).
+ */
+function facePower(ctx: EngineContext, state: VmState, id: string): number | undefined {
+  const card = state.cards[id];
+  const def = card ? ctx.defs[card.cardId] : undefined;
+  if (!card || !def || card.hidden) return undefined;
+  if (card.flipped && def.back) return def.back.power ?? undefined;
+  return def.power ?? undefined;
+}
+
 /** One number off one card, for the `attr` and `sumOf` amounts — a cost read through its reduction layer (20-21-2), as the legacy `measure` reads it. */
 function measureOf(ctx: EngineContext, game: GameDefinition, state: VmState, id: string, name: AmountAttr): number {
   const now = attrsNow(ctx, game, state, id);
   switch (name) {
     case "power":
       return num(now.power);
-    case "originalPower": {
-      // 20-3-1: the printed face value, before any layer — the current face's
-      // own number, which is the printed attribute rather than the read one.
-      const card = state.cards[id];
-      const def = card ? ctx.defs[card.cardId] : undefined;
-      if (!def) return 0;
-      if (card.flipped && def.back) return def.back.power ?? 0;
-      return def.power ?? 0;
-    }
+    case "originalPower":
+      // 20-3-1: the printed face value, before any layer — the same number
+      // `attrsNow` seeds the `originalPower` attribute from, read through the
+      // one helper so the amount and the filter cannot answer differently.
+      return facePower(ctx, state, id) ?? 0;
     case "comboPower":
       return num(now.comboPower);
     // 20-21-2: "a card with an energy cost of 2 or less" asks what it costs

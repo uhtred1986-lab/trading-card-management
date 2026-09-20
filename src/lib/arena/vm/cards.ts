@@ -123,17 +123,24 @@ const CATALOG: Record<keyof CardDef, Reader> = {
  * showing skills, both seeded fresh by `attrsNow` (`vm/program.ts`), which is
  * the one place either half of this set is filled.
  *
+ * `originalPower` (20-3-1) is the tenth and joined them in the pre-flip review
+ * of #166: the number printed on the face *showing*, which is not the catalog
+ * row's for a flipped Leader and is nothing at all for a card in Hidden Mode
+ * (1-9, 23-5-2), so it has no `CardDef` field to read either.
+ *
  * Listed rather than derived from `layers:` because `power` has layers too and
- * *is* printed: the difference is that none of these nine has a face of its
- * own on `CardDef` to read. #140 computes the first three; #275 the rest.
+ * *is* printed: the difference is that none of these ten has a face of its
+ * own on `CardDef` to read. #140 computes the first three; #275 the next six.
  */
-const FROM_BOARD = new Set(["costOf", "comboCostOf", "zEnergyCostOf", "mode", "markers", "keywords", "hidden", "faceUp", "flipped"]);
+const FROM_BOARD = new Set(["costOf", "comboCostOf", "zEnergyCostOf", "mode", "markers", "keywords", "hidden", "faceUp", "flipped", "originalPower"]);
 
 /**
  * The printed face each board-filled price is a reading *of* (20-21).
  *
- * `costOf` declares `layers: [printed, reduction, specified]`, and its
- * `printed` layer is not a value of its own — it is the printed total beside
+ * `costOf` declares `layers: [printed, reduction]` — the `specified` layer is
+ * `specifiedCost`'s, the coloured half that moves without moving the total
+ * (the owner's BT19-039 ruling) — and its
+ * `printed` layer is not a value of its own: it is the printed total beside
  * it. Without this pairing the attribute reads as absent however many layers
  * are wired, which is the "nothing maps `costOf` back onto the `energyCost` it
  * discounts" `vm/costs.ts` named as one of the four pieces 20-21 was waiting
