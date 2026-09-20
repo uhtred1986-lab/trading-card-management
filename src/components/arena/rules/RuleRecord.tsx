@@ -9,6 +9,7 @@ import { COND_SCHEMA, OP_SCHEMA, costSentence, describeScript, validateProgram, 
 import type { Trigger } from "@/lib/arena/engine";
 import { describeTrigger } from "@/lib/arena/gaps";
 import { parseRule, printRule, validateRule, type LangError, type Rule } from "@/lib/arena/lang";
+import { loadDbs } from "@/lib/arena/rulesets";
 import { CondChip, OpList, blankCond } from "./OpEditor";
 
 /**
@@ -113,6 +114,56 @@ function whenLine(trigger: Trigger[], tag: string): string {
   if (tag.startsWith("activate")) return "when you activate it";
   if (tag.startsWith("counter")) return "at the counter timing the tag names";
   return "the engine knows no moment for this wording";
+}
+
+/**
+ * Which `triggers.rules` moments the WHEN chip names — every trigger in the
+ * record's own `trigger[]` that a `DEFINE TRIGGER` actually declares, so a
+ * WHEN chip can link straight to the declaration behind it on
+ * `/arena/rules/game` (#163). `loadDbs()` is pure and client-safe (it reads
+ * the generated `files.ts` constant, never the filesystem), so this checks
+ * the real definition rather than guessing a name is declared.
+ */
+function triggerLinks(trigger: Trigger[]): string[] {
+  const loaded = loadDbs();
+  if (!loaded.ok) return [];
+  return trigger.filter((t) => t in loaded.definition.triggers);
+}
+
+/**
+ * Which `costs.rules` declaration a `CostRecord`'s own shape names — a price
+ * is not itself a pointer to one `DEFINE COST` row, so this is a reading of
+ * what it charges rather than a stored reference: orbs (including an either-
+ * orb list or an X) are the `energy` cost, a marker count is `marker`, a
+ * life card is `life`, a card offered to pay with is `payWith`, and the
+ * catch-all `text` price is what a program with no other shape still charges
+ * (20-19/21-3, `docs/arena-ruleset-spec.md` §3's own costs.rules row).
+ */
+function costLinks(cost: CostRecord | null): string[] {
+  if (!cost) return [];
+  const loaded = loadDbs();
+  if (!loaded.ok) return [];
+  const names = new Set<string>();
+  if (Object.keys(cost.orbs).length || cost.either.length || cost.x) names.add("energy");
+  if (cost.marker != null) names.add("marker");
+  if (cost.burst != null) names.add("life");
+  if (cost.payWith?.length) names.add("payWith");
+  if (names.size === 0 && cost.text) names.add("text");
+  return [...names].filter((n) => n in loaded.definition.costs);
+}
+
+/** A small "→ declaration" link beside a chip, to the printed `.rules` row it names. */
+function DeclarationLinks({ define, names }: { define: string; names: string[] }) {
+  if (!names.length) return null;
+  return (
+    <>
+      {names.map((name) => (
+        <Link key={name} href={`/arena/rules/game#${define}-${name}`} target="_blank" className="text-[10px] text-space-500 hover:text-ki-300 hover:underline">
+          {name} →
+        </Link>
+      ))}
+    </>
+  );
 }
 
 export function RuleRecord(r: RecordProps) {
@@ -344,6 +395,7 @@ export function RuleRecord(r: RecordProps) {
           <Chip>
             [{r.kind}] · {whenLine(trigger, r.tag)}
           </Chip>
+          <DeclarationLinks define="trigger" names={triggerLinks(trigger)} />
           {!textOpen && (
             <button type="button" className="tap rounded-lg border border-dashed border-space-600 px-2 py-1 text-[11px] text-space-400" onClick={openText}>
               edit as text
@@ -353,6 +405,7 @@ export function RuleRecord(r: RecordProps) {
         {costSentence(cost) && (
           <Row k="COST" tone="text-space-300">
             <Chip>{costSentence(cost)}</Chip>
+            <DeclarationLinks define="cost" names={costLinks(cost)} />
           </Row>
         )}
         {(cond || editing) && (
