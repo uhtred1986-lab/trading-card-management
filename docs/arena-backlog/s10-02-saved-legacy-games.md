@@ -3,6 +3,8 @@ title: Arena: what happens to saved legacy games — replay onto the rules engin
 milestone: Arena M13 — Retire the legacy engine (Stage 10)
 labels: backlog, needs-owner-ruling, area:arena-vm, phase:rules-stage10
 stage: 10
+status: closed
+closed_at: 2026-09-20
 ---
 **Source:** plan Stage 10 ("old games either replay onto `vm` on load or open read-only (owner's call then)"); `arena_games.engine`, `arena_matches.engine`; `docs/arena-client-contract.md` (a game is its seed plus actions).
 
