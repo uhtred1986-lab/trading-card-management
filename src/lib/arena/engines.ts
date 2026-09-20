@@ -3,16 +3,18 @@
  *
  * `legacy` is the hand-written engine in `./engine/`, which plays the
  * original game's rule manual as TypeScript. `rules` is the
- * configuration-driven engine being built beside it (`./vm/`,
- * `docs/arena-ruleset-spec.md`). It is listed, described and resolvable here
- * — a call it cannot answer says which issue builds it — and since #149
- * `ENGINE_INFO.rules.available` is true: the actions of Stage 5 (charging,
- * playing, activating) play the same on both engines, so a new **hot-seat**
- * game may be made on it. Sparring, Tournament and a 1 v 1 still refuse it at
- * `startGame`/`openMatch` — Claude's side and a 1 v 1's hidden-hand masking
- * both still read the legacy `GameState` shape directly and have not been
- * widened. A game that reaches what Stage 5 does not build (battle, most
- * keywords) ends rather than continuing (`vm/flow.ts`'s `stepProgram`).
+ * configuration-driven engine built beside it (`./vm/`,
+ * `docs/arena-ruleset-spec.md`) and, since #166 (20 Sep 2026), the
+ * `DEFAULT_ENGINE`. It is listed, described and resolvable here — a call it
+ * cannot answer says which issue builds it. A game that reaches what it does
+ * not build ends rather than continuing (`vm/flow.ts`'s `stepProgram`).
+ *
+ * The flip changed the default and nothing else: `ENGINE_INFO[id].available`
+ * still says which engines a new game may be made on at all, the `arena.engine`
+ * setting still overrides the constant (`engine-setting.ts`), and the one mode
+ * the rules engine is not built for — a 1 v 1, whose hidden-hand masking still
+ * reads the legacy `GameState` (#162) — resolves to `FALLBACK_ENGINE` through
+ * `games.ts`'s `engineForMode` instead of refusing the default path.
  *
  * A game picks its engine when it is made (`arena_games.engine`) and keeps it:
  * `state` is the shape that engine writes, and `actions` replay only on it.
@@ -34,7 +36,30 @@ export { isVmState };
 export const ENGINE_IDS = ["legacy", "rules"] as const;
 export type EngineId = (typeof ENGINE_IDS)[number];
 
-export const DEFAULT_ENGINE: EngineId = "legacy";
+/**
+ * The engine a new game is made on when nothing says otherwise (#166,
+ * 20 Sep 2026).
+ *
+ * `rules` since the flip: the configuration-driven engine is what a new game
+ * gets unless the form, the API body or the `arena.engine` setting names the
+ * other one. The setting stays exactly as it was — Settings → Arena engine
+ * puts a new game back on `legacy` without a deploy — and no saved game moves,
+ * because a game keeps the engine it was made on.
+ *
+ * A mode the rules engine is not built for does **not** make this a refusal:
+ * `games.ts`'s `engineForMode` resolves the default down to `FALLBACK_ENGINE`
+ * for that mode and says why, so creating a 1 v 1 with no choice made still
+ * works.
+ */
+export const DEFAULT_ENGINE: EngineId = "rules";
+
+/**
+ * The engine a mode falls back to when the preferred one is not built for it.
+ *
+ * `legacy` plays every mode — that is the whole of why it is the fallback, and
+ * why `games.ts`'s `modeRefusal` only ever has to ask about `rules`.
+ */
+export const FALLBACK_ENGINE: EngineId = "legacy";
 
 export interface EngineInfo {
   id: EngineId;
@@ -50,19 +75,20 @@ export const ENGINE_INFO: Record<EngineId, EngineInfo> = {
   legacy: {
     id: "legacy",
     label: "Legacy engine",
-    note: "The engine the arena has always played on. Rules are code; card text is read by the compiler and the rules workbench.",
+    note: "The engine the arena played on until 20 Sep 2026, and still the oracle every rules-engine game is measured against. Rules are code; card text is read by the compiler and the rules workbench. It plays every mode, so it is what a 1 v 1 is made on.",
     available: true,
   },
   rules: {
     id: "rules",
-    label: "Rules engine (beta)",
-    // Battle (Stage 6) and everything past it is still `NotYet`, and a game
-    // that reaches one ends rather than continuing on the legacy engine
-    // (`vm/flow.ts`'s `stepProgram`, #149) — the note says so up front rather
-    // than a player learning it mid-game. Hot-seat only for the same reason
-    // `startGame` refuses the others: Claude's side of Sparring and Tournament
-    // and a 1 v 1's hidden-hand masking are both still legacy-only.
-    note: "The configuration-driven engine: the game and every card written in one rules language. Hot-seat only for now, and a game that reaches something not yet built (battle, most keywords) ends there — no continuing on the legacy engine.",
+    label: "Rules engine",
+    // The default since #166 (20 Sep 2026). What it still cannot do is
+    // `NotYet`, and a game that reaches one ends rather than continuing on the
+    // legacy engine (`vm/flow.ts`'s `stepProgram`, #149) — the note says so up
+    // front rather than a player learning it mid-game. A 1 v 1 is the one mode
+    // it is not made on, because the hidden-hand masking still reads the
+    // legacy `GameState` (#162); `games.ts`'s `engineForMode` sends that mode
+    // to `FALLBACK_ENGINE` rather than refusing it.
+    note: "The default: the game and every card written in one rules language. A 1 v 1 is still made on the legacy engine, and a game that reaches something not yet built (most keywords) ends there — no continuing on the legacy engine.",
     available: true,
   },
 };
@@ -71,8 +97,18 @@ export function isEngineId(v: unknown): v is EngineId {
   return typeof v === "string" && (ENGINE_IDS as readonly string[]).includes(v);
 }
 
-/** An engine id from anywhere (a column, a form field), never undefined. */
-export function engineOr(v: unknown, fallback: EngineId = DEFAULT_ENGINE): EngineId {
+/**
+ * An engine id from anywhere (a column, a form field), never undefined.
+ *
+ * The fallback is `FALLBACK_ENGINE` rather than `DEFAULT_ENGINE` and the two
+ * stopped being the same thing at #166: a value that cannot be read is a
+ * *stored* one — a row from before the column, a hand-edited row — and every
+ * such state is legacy-shaped. Reading one with the new default's eyes would
+ * hand a `GameState` to the rules engine. What a *new* game gets when nobody
+ * chose is a different question, asked by `defaultEngine`/`engineForMode` at
+ * the creation paths, which pass their own fallback here.
+ */
+export function engineOr(v: unknown, fallback: EngineId = FALLBACK_ENGINE): EngineId {
   return isEngineId(v) ? v : fallback;
 }
 

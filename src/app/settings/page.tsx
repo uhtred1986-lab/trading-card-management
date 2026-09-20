@@ -72,7 +72,8 @@ export default async function SettingsPage() {
           </div>
         </div>
         <p className="mt-1 text-xs text-space-300">
-          The engine a new game is made on unless the form says otherwise. Every game keeps the engine it was made on, so flipping this changes nothing already being played.{" "}
+          The engine a new game is made on unless the form says otherwise. Every game keeps the engine it was made on, so changing this changes nothing already being played. The rules engine is the
+          default since 20 Sep 2026; choose the legacy one here to put new games back on it. A 1 v 1 is made on the legacy engine either way — the rules engine does not keep two hands hidden yet.{" "}
           {ENGINE_INFO.rules.available ? "" : "The rules engine is being built beside the legacy one and cannot be chosen until it plays."}
         </p>
       </section>

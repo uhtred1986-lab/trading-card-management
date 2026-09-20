@@ -57,8 +57,9 @@ the same as if it were still in `CLAUDE.md`.
   replay only on it. `engineFor(row.engine)` is the one switch; `games.ts`, `snapshot.ts` and
   the scripts go through it and never import `./engine` to play a saved game. `ENGINE_INFO`
   says which engines can play; the `/arena` form greys the rest, and the `arena.engine`
-  setting (Settings → Arena engine, `engine-setting.ts`) is the default until the owner flips
-  it. The old engine stays the **oracle**: `arena:diff` replays a game's actions on either
+  setting (Settings → Arena engine, `engine-setting.ts`) is the default, falling back to
+  `DEFAULT_ENGINE` — **`rules` since #166** (20 Sep 2026), so the setting is now the way *back*
+  to `legacy` rather than the way forward. The old engine stays the **oracle**: `arena:diff` replays a game's actions on either
   engine and must land on the row's state. `Snapshot.game.engine`/`.game` are the one
   contract change. `engineFor` resolves **both** ids — the `Engine` interface is the six calls
   `createGame`, `apply`, `legalActions`, `rejectedActions`, `boardView` and `toBeats`, and what the
@@ -324,9 +325,10 @@ the same as if it were still in `CLAUDE.md`.
   and Tournament (`ai/run.ts`, a hand and a deck read off `state.players[p]`) and a 1 v 1's
   hidden-hand masking (`beats.ts`'s `maskBeats`, `view.ts`'s `revealedTo`) both still read the
   legacy `GameState` field for field rather than either engine's shape generically, so `games.ts`'s
-  `assertEngineForMode` and `matches.ts`'s `openMatch` refuse those combinations at creation — the
-  rules engine plays **hot-seat only** for now, one level narrower than `playableEngine` alone
-  answers. Outside the six engine calls the app was entirely legacy-shaped (`games.ts` read
+  `assertEngineForMode` and `matches.ts`'s `openMatch` refused those combinations at creation — one
+  level narrower than `playableEngine` alone answers. #162 then let Sparring and Tournament
+  through, and **#166 turned the last refusal into a resolution** (see the flip below): a 1 v 1 is
+  *made on* the legacy engine rather than refused. Outside the six engine calls the app was entirely legacy-shaped (`games.ts` read
   `state.turn`); most of it now reads only the field names the two state shapes share
   (`turn`/`phase`/`winner`/`overReason`/`prompt`/`cards`, plus `engines.ts`'s new `sideName` for
   `players[p].name`/`sides[p].name`), and `legacyState(value)` is the narrower seam left for the two
@@ -594,8 +596,9 @@ the same as if it were still in `CLAUDE.md`.
   not: `stateText`/`decklistText` still read `GameState` directly, so `chooseMove` refuses one by
   name (`"Claude's own move is not built on the rules engine yet (#162)"`) the moment the
   shortcuts run out, rather than reading `undefined` off `.players` several calls deeper — the
-  same discipline `#161`'s `opening()` applies. `games.ts`'s `assertEngineForMode` now refuses only
-  `versus` on the rules engine (the 1 v 1 hidden-hand masking is still legacy-only); Sparring and
+  same discipline `#161`'s `opening()` applies. `games.ts`'s `modeRefusal` (then
+  `assertEngineForMode`) now names only `versus` on the rules engine (the 1 v 1 hidden-hand masking
+  is still legacy-only); Sparring and
   Tournament are let through, since a game that cannot yet make a real decision still ends
   correctly — `run.ts`'s `advance` catches the refusal the same way it catches any other AI error
   and reports it to the player rather than crashing. `arena_decisions` does not carry its own
@@ -603,6 +606,34 @@ the same as if it were still in `CLAUDE.md`.
   Neon database Claude Code on the web is configured against here) — `/arena/[id]/debug` shows the
   game's own `engine` instead, which is exactly as much as the column would ever have said, since a
   game never changes engine.
+  **#166 flipped the default** (20 Sep 2026, build steps 2 and 3). `DEFAULT_ENGINE` is `rules`, so
+  a new game with nothing said about an engine is a rules-engine game; the `arena.engine` setting
+  stays exactly as it was and is now the way *back* (Settings → Arena engine puts new games on
+  `legacy` without a deploy), and no saved game moves, because a game keeps the engine it was made
+  on. Three things fell out of it, and each is the sort of thing a flipped default breaks quietly.
+  **One: the default and the fallback became different questions.** `engineOr`'s own fallback is
+  now `FALLBACK_ENGINE` (`legacy`) rather than `DEFAULT_ENGINE` — a value that cannot be read is a
+  *stored* one, from before the column or from a hand-edited row, and every such state is
+  legacy-shaped, so following the new default there would hand a `GameState` to the rules engine.
+  The same reading is why `snapshot.ts`'s `input.engine ?? …`, `probe.ts`'s `engine` parameter and
+  `verify/harness.ts`'s `ENGINE` all pin to the fallback: a snapshot built by hand, a stored probe
+  answer and `npm run contract:emit` all mean the legacy engine, and a default that followed the
+  flip would have moved the contract fixtures and re-answered every probe without anyone asking.
+  **Two: a mode the rules engine is not built for resolves rather than refuses.** A 1 v 1's
+  hidden-hand masking is still legacy-only (#162), and before the flip that refusal was only ever
+  met by someone who had gone out of their way to ask for it; after it, "a 1 v 1, engine
+  unspecified" is the ordinary path. So the rule became `games.ts`'s `modeRefusal`, which *returns*
+  the reason, and `engineForMode(preferred, mode)`, which sends that mode to `FALLBACK_ENGINE` and
+  carries the reason out with it. `/arena` prints it under the Engine fieldset before the form is
+  submitted, `POST /api/v1/games` answers `{ id, engine, engineNote? }` so a client knows what it
+  got, and `assertEngineForMode`/`openMatch` still *throw* — for a caller that named an engine,
+  which is a request to say no to rather than a default to quietly override. The fallback plays
+  every mode, which is what makes the resolution total (asserted in `verify/engine-default.ts`).
+  **Three: the badge inverted.** `Snapshot.game.engine` did not change shape — the contract
+  fixtures are byte-identical across the flip, which is the check that the change was a default and
+  not a behaviour — but what is worth saying on a board did: `/arena/[id]` and the game list now
+  badge a **legacy** game, muted, and say nothing about a rules-engine one. The parity runs
+  (`arena:diff` over saved games, `arena:reprobe`) are the owner's, against the shared database.
 - **Arena debug** (`src/lib/arena/ai/debug.ts`): every decision the server takes is
   written to `arena_decisions` — the prompt kind, the whole menu offered, what was chosen, whether a
   rule or Claude decided it, the model, tokens, cost and latency, plus the exact prompt text when

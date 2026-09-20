@@ -3,7 +3,7 @@ import { db } from "@/db";
 import { listDecks } from "@/lib/decks/queries";
 import { defaultEngine } from "@/lib/arena/engine-setting";
 import { ENGINE_IDS, ENGINE_INFO, engineOr } from "@/lib/arena/engines";
-import { listGames, modeLabel } from "@/lib/arena/games";
+import { listGames, modeLabel, modeRefusal } from "@/lib/arena/games";
 import { listOpenMatches } from "@/lib/arena/matches";
 import { currentOwner, currentUser } from "@/lib/auth";
 import { listUsers } from "@/lib/auth/users";
@@ -49,6 +49,14 @@ export default async function ArenaPage() {
   const playable = decks.filter((d) => d.leader && d.mainCount >= 50);
   const coverage = new Map<number, { cards: number; referee: number } | null>();
   for (const d of playable) coverage.set(d.id, await coverageFor(d.id));
+
+  // A 1 v 1 is not built on the rules engine (#162), so with the default
+  // flipped (#166) the form says which mode does not get it before anyone
+  // submits — `startGameForm` resolves the same rule rather than refusing.
+  // Capitalised here rather than in `modeRefusal`, whose other reader is a
+  // thrown message and wants it lower-case mid-sentence.
+  const why = modeRefusal(engine, "versus");
+  const versusNote = why ? `${why[0].toUpperCase()}${why.slice(1)}.` : null;
 
   const select = "tap w-full rounded-md border border-space-600 bg-space-900 px-2 py-2 text-sm text-space-100";
 
@@ -149,7 +157,7 @@ export default async function ArenaPage() {
               <Link href="/settings" className="text-space-300 hover:text-ki-300">
                 Settings → Arena engine
               </Link>
-              .
+              . {versusNote ?? ""}
             </p>
           </fieldset>
           <label className="flex items-center gap-2 text-xs text-space-300">
@@ -269,7 +277,8 @@ export default async function ArenaPage() {
                   )}
                   <span className="text-xs text-space-400">turn {g.turn}</span>
                   <span className="text-xs text-space-500">{modeLabel(g.mode)}</span>
-                  {g.engine !== "legacy" && <span className="rounded-full border border-ki-500/50 px-1.5 text-[10px] uppercase tracking-wider text-ki-300">{ENGINE_INFO[engineOr(g.engine)].label}</span>}
+                  {/* Inverted at #166: the rules engine is the default now, so the badge marks the games that are *not* on it. Muted, because a legacy game is the ordinary older one rather than something to look at. */}
+                  {engineOr(g.engine) === "legacy" && <span className="rounded-full border border-space-700 px-1.5 text-[10px] uppercase tracking-wider text-space-400">{ENGINE_INFO.legacy.label}</span>}
                   <span className={`ml-auto text-xs ${g.status === "playing" ? "text-ki-300" : "text-space-400"}`}>
                     {g.status === "playing" ? "in progress" : g.status === "over" ? (g.winner ? `${g.winner === "p1" ? g.p1Name : g.p2Name} won` : "draw") : "abandoned"}
                   </span>

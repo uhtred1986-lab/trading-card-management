@@ -193,11 +193,14 @@ learned the expensive way. Read it before changing the compiler or the engine.
   written record of what the compiler understands per keyword — part of the compiler, not
   documentation about it (Conventions below: touch the compiler, update the glossary). Doc:
   `docs/arena-code-map.md`.
-- **Two engines, chosen per game** (`src/lib/arena/engines.ts`): `legacy` (`engine/`, frozen)
-  plays every game today; the config-driven `rules` engine (`vm/`) is being built beside it. A game
-  keeps the engine it was made on — `engineFor(id)` is the one switch. **One rejection per card per
-  action type, except an activation, which is one per skill line** (§3.2). Doc:
-  `docs/arena-code-map.md`.
+- **Two engines, chosen per game** (`src/lib/arena/engines.ts`): the config-driven `rules` engine
+  (`vm/`) is the **default** since 20 Sep 2026 (#166); `legacy` (`engine/`, frozen) stays the
+  oracle, is what Settings → Arena engine puts new games back on, and is what a **1 v 1** is made
+  on either way (`engineForMode`, #162 — never a refusal of the default path). A game keeps the
+  engine it was made on — `engineFor(id)` is the one switch, and `engineOr`'s own fallback is
+  `FALLBACK_ENGINE`, not the default, because an unreadable stored value is an old legacy row.
+  **One rejection per card per action type, except an activation, which is one per skill line**
+  (§3.2). Doc: `docs/arena-code-map.md`.
 - **The rules language** (`src/lib/arena/lang/`, `docs/arena-rules-language.md`): one closed
   grammar for a card's rule. `npm test` holds it to `parse(print(x)) === x` for every op,
   condition, selector and filter. Doc: `docs/arena-code-map.md`.

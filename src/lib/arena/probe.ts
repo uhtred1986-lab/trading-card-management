@@ -34,7 +34,7 @@ import {
 } from "./engine";
 import type { Cond, SkillPrice, XCost } from "./engine/script";
 import { parseFilter } from "./engine/filters";
-import { DEFAULT_ENGINE, engineFor, legacyState, type EngineId } from "./engines";
+import { engineFor, FALLBACK_ENGINE, legacyState, type EngineId } from "./engines";
 import { addEffect, move, placeUnder } from "./engine/state";
 import { sentence } from "./wording";
 import { specifiedCostWords } from "./specified-cost";
@@ -731,8 +731,13 @@ const empty = (scenario: ProbeScenario, outcome: ProbeOutcome, said: string[]): 
  * staging below is still the legacy state's, which is why an engine that
  * cannot hand one over is reported as the probe's own error rather than
  * crashing the page. #161 is where the fixtures come off the definition.
+ *
+ * The default is `FALLBACK_ENGINE`, not `DEFAULT_ENGINE`: every stored probe
+ * answer was taken on the legacy engine, and #166's flip of the default must
+ * not silently re-answer them. A probe on the other engine is this argument,
+ * said out loud.
  */
-export function probe(rule: ProbeRule, scenario: ProbeScenario, engine: EngineId = DEFAULT_ENGINE): ProbeRun {
+export function probe(rule: ProbeRule, scenario: ProbeScenario, engine: EngineId = FALLBACK_ENGINE): ProbeRun {
   if (scenario.family === "none") {
     return empty(scenario, "noScenario", [
       rule.kind === "auto"

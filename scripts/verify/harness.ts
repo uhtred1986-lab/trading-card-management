@@ -37,7 +37,7 @@ import {
   type RejectedAction,
   type Requirement,
 } from "../../src/lib/arena/engine";
-import { DEFAULT_ENGINE, engineFor, isEngineId, isVmState, legacyState, type EngineId, type EngineState } from "../../src/lib/arena/engines";
+import { engineFor, FALLBACK_ENGINE, isEngineId, isVmState, legacyState, type EngineId, type EngineState } from "../../src/lib/arena/engines";
 import { energyMarkersOf, leaderOf, unisonOf, zoneOf, type ZoneArea } from "../../src/lib/arena/engine-state";
 import type { VmState } from "../../src/lib/arena/vm/state";
 import { moveCard } from "../../src/lib/arena/vm/zones";
@@ -70,7 +70,14 @@ import { clauseShape, describeTrigger, mechanismOf, triggersOf } from "../../src
 const engineArg = process.argv.indexOf("--engine");
 const engineValue = engineArg >= 0 ? process.argv[engineArg + 1] : undefined;
 if (engineValue !== undefined && !isEngineId(engineValue)) throw new Error(`--engine must be one of legacy, rules; got ${engineValue}`);
-export const ENGINE: EngineId = engineValue ?? DEFAULT_ENGINE;
+// `FALLBACK_ENGINE`, not `DEFAULT_ENGINE`: the flip at #166 made the default a
+// new game's engine, not this harness's. Every fixture here is legacy-shaped
+// (`legacyState` below narrows it), `npm test` runs this file once with no flag
+// and once with `--engine rules` and needs the first to be the legacy pass, and
+// `npm run contract:emit` re-emits the contract fixtures from whichever engine
+// this resolves to — so a default that followed the flip would quietly move
+// them.
+export const ENGINE: EngineId = engineValue ?? FALLBACK_ENGINE;
 const IMPL = engineFor(ENGINE);
 
 function createGame(ctx: EngineContext, options: GameOptions): { state: GameState; events: GameEvent[] } {
