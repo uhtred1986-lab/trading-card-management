@@ -1,9 +1,9 @@
 # Continuing the arena rules programme
 
 Written 9 Sep 2026, after Stage 1, fourteen increments of Stage 2 and three
-rounds of parallel work merged; §1a's module map refreshed 14 Sep 2026. It
-assumes no knowledge of the sessions that came before and no particular
-tooling — any coding client can pick this up.
+rounds of parallel work merged; §1a's module map refreshed 20 Sep 2026, after
+Stages 5 to 9 landed. It assumes no knowledge of the sessions that came before
+and no particular tooling — any coding client can pick this up.
 
 Read `CLAUDE.md` first for the app as a whole. This document is only the arena
 compiler and engine.
@@ -28,7 +28,7 @@ the written record of what the compiler understands, and it is part of the
 compiler rather than documentation about it: change what the engine reads, and
 that file changes in the same commit.
 
-## 1a. Current module map (refreshed 14 Sep 2026)
+## 1a. Current module map (refreshed 20 Sep 2026)
 
 Written at file-and-module grain rather than line numbers on purpose — a line number is exactly
 what goes stale first (`docs/arena-backlog/_README.md` and issue #281 are the record of that
@@ -37,10 +37,18 @@ of `CLAUDE.md` by issue #282, kept current in the same commit as any change to w
 understands or does) and, for what the engine reads today, `src/lib/arena/glossary.ts`
 (`/arena/rules/keywords`).
 
+Stages 5 to 9 merged between 14 and 20 Sep 2026. The per-issue narratives this section used to
+carry for #150–#152 are history now and have been replaced by what is true on `main`; the
+issues' own PR descriptions remain the record of how each got there.
+
 - **Two engines** (`src/lib/arena/engines.ts`): `legacy` (`src/lib/arena/engine/`, frozen —
   bug fixes only) and `rules` (`src/lib/arena/vm/`, the programme this file used to be the only
   account of). `engineFor(id)` is the one switch both `games.ts`/`snapshot.ts` and the scripts go
-  through.
+  through. `DEFAULT_ENGINE` is **still `legacy`**: flipping it is #166's own build step 2 and
+  waits on the owner's parity runs (#164, #165). `ENGINE_INFO.rules.available` is true, and since
+  #162 `playableEngine("rules")` allows a hot-seat game, Sparring **and** Tournament — only a
+  1 v 1 is refused (`games.ts`'s `assertEngineForMode`), because the hidden-hand masking is the
+  one thing still reading the legacy `GameState` directly.
 - **The effect language's tables**: `src/lib/arena/engine/script-schema.ts` (`OP_SCHEMA`,
   `COND_SCHEMA`, the closed word lists) — `engine/script.ts` re-exports them, so existing imports
   still work.
@@ -50,90 +58,74 @@ understands or does) and, for what the engine reads today, `src/lib/arena/glossa
 - **A game is files, not code**: `src/lib/arena/rulesets/<game>/*.rules`, read by
   `loadRuleset` into one `GameDefinition`; `npm run arena:rulesets` regenerates the generated
   `files.ts` constant from the `.rules` files. `docs/arena-ruleset-spec.md` is the interpreter
-  contract. `ops.rules` declares 20 of the 31 macro rows; `modifyAttr` reaches a card, a
-  player (`energyMarkers`, its `side` field) and the battle in progress (`guard`, its
-  `target` field read as a value) — `modifyAttrAs` (`engine/script-schema.ts`) reads each of
-  the nine short spellings this unblocked back as the primitive (spec §2.5-1/§2.5-3, #275).
-- **`vm/` built so far**: zones and attributes off the declarations, `flow.ts` (a turn as a
-  program over `DEFINE PHASE`/`STEP`), `events.ts`/`triggers.ts` (a moment is an event pattern),
-  `program.ts`/`effects.ts` (the shared interpreter, continuous/delayed effects), `actions.ts` +
-  `dbs/actions.rules` (charge/pass/concede, the play family, `activate`), `costs.ts` (energy,
-  marker, life, rest, payWith prices as declarations, with cost-reduction layers — including
-  20-19's own `payWith` cost item since #149, bound the same way an activation's marker and life
-  already were), `battle.ts` + `dbs/battle.rules` (the battle sub-flow, #150 — see its own bullet
-  below). What is not yet built throws `NotYet` naming the stage/issue that builds it,
-  which since #149 (14 Sep 2026) ends the game rather than noting the gap and playing on —
-  `ENGINE_INFO.rules.available` is true and `playableEngine("rules")` allows a new **hot-seat**
-  game; Sparring, Tournament and a 1 v 1 are still refused (`games.ts`'s `assertEngineForMode`),
-  since Claude's side and a 1 v 1's hidden-hand masking both still read the legacy `GameState`
-  directly.
+  contract. `ops.rules` declares 20 of the 31 macro rows, and each row that is still out names
+  the one thing it waits on. `keywords.rules` declares all 39 keywords and carries **eight `HOOK`
+  bodies over seven of them** (below).
+- **`vm/` is the whole rules engine now, not a skeleton**: zones and attributes off the
+  declarations (`zones.ts`, `cards.ts`), `flow.ts` (a turn as a program over `DEFINE PHASE`/
+  `STEP`), `events.ts`/`triggers.ts` (a moment is an event pattern), `program.ts`/`effects.ts`
+  (the shared interpreter, continuous and delayed effects, the declared attribute layers),
+  `filters.ts` (a `CardFilter` as a predicate over declared attributes), `actions.ts` +
+  `activate.ts` + `play.ts` with `dbs/actions.rules` (charge/pass/concede, the play family,
+  `activate`, 13-3's Unison growth), `costs.ts` + `dbs/costs.rules` (one planner over declared
+  prices, with 20-21's reduction layers), `battle.ts` + `dbs/battle.rules` (the battle sub-flow),
+  `hooks.ts`/`hook-contract.ts` (Stage 7's keyword bodies), `host.ts` (the `ScriptHost` the shared
+  `stepScript` runs on), `view.ts`/`beats.ts` and `index.ts` (the six-call `Engine`). What is not
+  yet built throws `NotYet` naming the issue that builds it, which since #149 **ends the game**
+  rather than playing on — the reason `ENGINE_INFO.rules.note` says so to a player up front.
 - **The battle is a nested sub-flow, not a phase of the turn** (`vm/battle.ts` +
   `dbs/battle.rules`, #150): `attack` opens `state.battle` and pushes a `battle` phase frame with
-  the same `enterPhase` a turn phase uses, *without* answering the Main Phase's own question — the
-  frame beneath keeps waiting exactly as `play`/`activate`'s `again: true` leaves it, and when the
-  battle's nine steps run out the runner's existing fallback (a phase with no declared successor,
-  a frame still underneath) resumes reading "main" with nothing changed in `flow.ts` for that half.
+  the same `enterPhase` a turn phase uses, *without* answering the Main Phase's own question, and
+  the runner's existing fallback resumes the frame beneath when the battle's nine steps run out.
   `battle` is declared but deliberately **not** one of `DEFINE GAME`'s turn `phases:`
-  (`verify/rulesets.ts`'s phase completeness excludes it from the legacy `PHASES` comparison the
-  same way zones exclude `under`/`play`). `attack`, `block`, `counter` and `combo` are **native**
-  rather than `DEFINE ACTION`s — an attack is a player and two cards where every declaration is a
-  player and at most one, and `block`/`counter`'s `Prompt` shapes freeze their candidates onto the
-  question the moment it opens rather than reading a live `FOR`; `vm/flow.ts`'s `Work.run` gained
-  one addition for this (`"wait"`, letting a native step set `state.prompt` itself) and
-  `vm/index.ts`'s `apply()`/`legalActions()`/`rejectedActions()` merge the four in beside the
-  declared moves, the `promptAnswers` precedent chooseFirst/mulligan/payCost already set. Damage,
-  KO and combo are built only as far as a battle needs — `dealDamage`/`koCard` are the generic
-  primitives, named and shaped for **#151** to extend (its own `zEnergyFromCombo` at battle end is
-  still `NotYet`) rather than a throwaway. `vm/program.ts`'s `attacker`/`guard` specials and
-  `inBattle` condition read `state.battle` now too (`battled`, 8-1-2-2's memory that outlives the
-  battle, is the one piece still `NARROWER` — `VmCard` has no field for it). Two bugs the fuzzer
-  and a new `verify/vm.ts` §23 caught and fixed: a [Counter] played from an Extra card
-  double-charged its price (`boundFor`'s own Extra-in-hand addition, reused where it should not
-  have been), and a negated attack's jump to `battleEnd` landed one step past it, leaving the
-  battle open forever (`vm/flow.ts`'s runner does `top.index++` right after a step's `run` returns
-  without waiting, so the jump has to land one short).
-- **#151 (damage, life, Z-Energy) found three of its four build items already done and one real
-  gap, now closed.** Combo's power reaching the fight is #150's own (§23's `view.battle.contributions`
-  assertion already covers it); Z-Energy from a spent combo card is #146/#149's `playZ` paying
-  `dbs/costs.rules`'s `DEFINE COST zEnergy`, per the one comment on issue #151 itself. `damage`/
-  `addLife`/`lifeDownTo` are not new primitives — `stepScript` (`engine/script.ts`) has carried a
-  full `case` for each since #142, and `vmHost` implements every `ScriptHost` method those cases
-  call, so a card's own skill program reaching one was already possible before this issue. The real
-  gap, found by staging it rather than trusting the claim: `vm/flow.ts`'s `checkWins` ran beside a
-  *step's* own native work and once at `run`'s opening, but never beside a *program* draining
-  through `stepProgram` — the path every [Auto]/[Activate]/[Counter] skill's `DO` block takes. A
-  card's own skill dealing the last point of damage left `state.winner` `null` and the Main Phase's
-  question back on the table; one line beside `stepProgram`'s own call now checks again there too.
-  What stays out, and why: `damage`/`addLife`/`lifeDownTo` still carry no `DEFINE OP` row in
-  `ops.rules` — a macro's body can only give a selector's count a bare `number`
-  (`rulesets/holes.ts`), while these ops' own `n` is an `amount`, X included, so declaring the row
-  today would silently misread the first X-priced card it met. That is #122's ("a selector that can
-  count by an expression"), not this issue's — no row in `ops.rules` is declared "for the fixed
-  case only", so there is no precedent for a partial declaration either. `verify/vm.ts` §24 is the
-  section for all four findings: the WIN checkpoint checked by hand for both paths, `addLife`/
-  `lifeDownTo` exercised the same way, and one assertion that the macro row stays absent today.
-- **#152 ported `verify/battles.ts` and `verify/workflow.ts` onto both engines**, through a state-
-  interface half `harness.ts` grew beside its legacy-only one (`arenaG`/`playG`/`findG`/`labelsG`/
-  `zoneOf`/`leaderOf`, `docs/arena-tooling.md` §2's own entry for `harness.ts` says the split). Three
-  real, non-keyword gaps came out of it and are fixed rather than skipped: `VmCard.battledThisTurn`
-  (8-1-2-1/8-1-2-2, was `NARROWER`), `vm/host.ts`'s `placeUnder` (23-2, threw `NotYet("#146")`
-  unconditionally — now wired to `moveCard`'s own `under` option, which also gained 23-2-5's "a
-  different area sends the pile to Drop" half it did not have), and `growUnison`'s missing `again:
-  true` (7-3-4, found because completing the move at all needed `placeUnder` first). What is left
-  unfixed and named rather than hidden, all in `workflow.ts`: `combo`/`counter`/`block` have no
-  `rejectedActions` reasoning of their own (native moves, no `attackRejectedActions` twin), a
-  counted prohibition's `uses` budget is read but never spent, and `vmBoardView` does not build
-  `you.choices`/`them.rules` for a couple of prompts yet — each its own named function
-  (`nativeRejectionGap`/`forbidUsesGap`/`viewGap`) in that file, distinct from the `keywordGap` cases
-  Stage 7 still owns ([Awaken], [Critical], [Dual Attack], [Indestructible], [Revenge], [Unique],
-  [Evolve], [Z-Stack], [Swap], [Barrier]). Exact menu-label wording is checked legacy-only
-  (`assertLabelOnLegacy`) — matching the rules engine's generic labels to the legacy engine's bespoke
-  ones word for word is Stage 8's, not this issue's.
-- **Tests**: `scripts/verify-arena.ts` runs (in order) `text, setup, battles, compiler, keywords,
-  readings, wordings, workflow, contract, deck-api, language, lang, rulesets, probe, vm` — a new
-  suite is one `import "./verify/<name>"` line there. `scripts/verify/vm.ts` is the rules-engine
-  suite; `scripts/verify/rulesets.ts` checks a ruleset's declarations against the legacy engine's
-  own unions.
+  (`verify/rulesets.ts` excludes it from the legacy `PHASES` comparison the same way zones exclude
+  `under`/`play`). `attack`, `block`, `counter` and `combo` are **native** rather than
+  `DEFINE ACTION`s — an attack is a player and two cards where every declaration is a player and
+  at most one, and `block`/`counter`'s `Prompt` shapes freeze their candidates onto the question
+  the moment it opens rather than reading a live `FOR`. `Work.run` may return `"wait"` for a step
+  that sets `state.prompt` itself, and `vm/index.ts` merges the four in beside the declared moves.
+  Damage, KO and combo are the generic `dealDamage`/`koCard` primitives (#151); the Z-Energy a
+  spent combo card can become at battle end (`zEnergyFromCombo`) is still `NotYet`.
+- **A keyword's own moments are a hook contract** (`vm/hooks.ts`, `vm/hook-contract.ts`, #153):
+  `HOOK_CONTRACT` is fifteen confirmed hook points, each either a **query** (read declaratively
+  and never run — `queryHookStatics`, the way `permanents()` reads a [Permanent]) or an **effect**
+  (queued onto `state.programs` exactly like a triggered [Auto] — `fireHook`), both through the
+  one `hookBodiesFor` lookup so a body is never a special case a call site invents. Stage 7's four
+  groups (#154–#157) wrote the bodies that were writable: [Barrier]'s `chooseable`,
+  [Indestructible]'s `koByEffect`, [Servant]'s `attrBonus` and `activeStep`, [Field]'s `onEnter`,
+  [Heroic]/[Villainous]'s `afterSkill` and [Energy-Exhaust]'s `chargeLimit`. **Each of the other
+  thirty-two is deferred with its own reason in its own trailing comment** rather than left
+  blank — most are whole-keyword *activations*, which a `DEFINE KEYWORD` has no `do:` for yet
+  (#157's own gap); [Revenge]'s body is written out in a comment and left undeclared because the
+  `ko` it would run still throws.
+- **Everything else from config** (Stage 8, #158–#163): `board-words.ts` (one zone/phase/mode/
+  colour vocabulary for `wording.ts`, `narration.ts`, `effects.ts` and `lighting.ts`, validated
+  against the declarations by `wordsFromRuleset`), `prompt-words.ts` (one question/hint table both
+  engines' views read), `ai/primer.ts` (the factual half of `RULES_PRIMER` generated from the
+  ruleset; the doctrine after it stays hand-written), `engine-state.ts` (the `zoneOf`/`leaderOf`/
+  `unisonOf`/`catalogDefOf` seam, lifted out of `verify/harness.ts` so production code reads one
+  copy), and `/arena/rules/game` with `rulesets/print-by-file.ts` (every declaration printed back
+  from what the loader parsed, one section per file). `/arena/rules/keywords` renders
+  `keywords.rules`' own text, and `verify/game-page.ts` holds it equal to `glossary.ts`.
+  `probe.ts` refuses a rules-engine board by name rather than failing several calls deeper, and
+  `contract/probe-rules-status.json` is the fixture that will show the day a family is ported.
+  `ai/opponent.ts`'s free-choice shortcuts run on either engine; a real Main Phase decision is
+  still refused by name, since `stateText`/`decklistText` read `GameState`.
+- **Tests**: `scripts/verify-arena.ts` runs nineteen suites, in order — `text, setup, battles,
+  compiler, keywords, readings, wordings, workflow, contract, deck-api, language, lang, rulesets,
+  board-words, primer, game-page, probe, ai-vm, vm` — and a new suite is one name in that list.
+  **Since #165 `npm test` runs the whole of it twice**, once per engine, so the rules-engine run
+  and its named skips are checked on every ordinary test run; `npm run test:rules` remains a
+  standalone alias for the second half. `scripts/verify/vm.ts` is the rules-engine suite proper
+  and `scripts/verify/rulesets.ts` checks a ruleset's declarations against the legacy engine's own
+  unions. `docs/arena-tooling.md` §2 says which suite means what when it fails.
+- **What Stage 9 still owes, and who can run it**: `arena:diff --all` groups divergences by cause
+  and sets deck-changed games apart (#164), and `arena-fuzz.mts 200 --engine rules` is clean
+  (#165) — but the two runs those issues exist for, `npm run arena:diff -- --all --engine rules`
+  and `npm run arena:reprobe -- --engine rules`, need the shared Neon database and are **the
+  owner's**, not an agent session's (`CLAUDE.md`). #166's build step 1, the pre-flip review of
+  `vm/` and `rulesets/`, is in review; steps 2 and 3 are the flip itself, and wait on those two
+  runs.
 
 **The gate, every commit** (unchanged): `npm run typecheck && npm run lint && npm test && npm run
 build`, then `npx tsx --env-file-if-exists=.env.local scripts/arena-fuzz.mts 40` (0 crashes; add
