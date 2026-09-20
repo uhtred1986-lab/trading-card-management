@@ -3,6 +3,8 @@ title: "Arena: the loader resolves every zone a declaration names, and no attrib
 milestone: Arena M12 — Parity and the flip (Stage 9)
 labels: backlog, ready-for-agent, bug, area:arena-rulesets, phase:rules-stage9, model:sonnet-5
 stage: 9
+status: closed
+closed_at: 2026-09-20
 issue: 328
 touches: src/lib/arena/rulesets/load.ts, scripts/verify/rulesets.ts
 ---
