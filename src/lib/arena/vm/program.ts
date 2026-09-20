@@ -17,12 +17,15 @@
  * zone that is — the same word `SETUP_ZONES` already names), and `play`,
  * `under` and `hand`, each of which the language itself names.
  *
- * **Where it is narrower than the rule, it says so rather than guessing.**
- * `battled` (8-1-2-2, BT3-103) has no board to read yet and returns the
- * answer that refuses rather than the answer that fires: #150 built the
- * battle itself and `inBattle`/the `attacker`/`guard` specials with it —
- * `battled` is the one piece left, a per-copy memory of having fought that
- * outlives the battle, and `VmCard` carries no field for it yet.
+ * **Where it is narrower than the rule, it says so rather than guessing** —
+ * and where it has stopped being narrower, it stops saying so. `battled`
+ * (8-1-2-2, BT3-103) was that entry from #150 until #152 gave `VmCard` the
+ * `battledThisTurn` field the legacy engine has always had, and the condition
+ * has read it ever since; `vm/zones.ts`, `vm/state.ts` and `vm/battle.ts` each
+ * say so in their own comments, and `NARROWER` below went on claiming the
+ * opposite until #166's pre-flip review read the four together. A claim about
+ * a gap is worse than no claim once it is untrue — the same reason
+ * `glossary.ts`'s `engine` line is a convention rather than a test.
  *
  * 20-14's prohibitions were a third until #145: `forbids` and `forbiddenBy`
  * below read them off the board — a [Permanent] in play, a skill's turn-long
@@ -63,10 +66,18 @@ export const NAMED_ZONES = {
   hand: "the `handUpTo` amount counts a hand (5-4-2)",
 } as const;
 
-/** Where a reading is narrower or wider than the manual, and the issue that closes it. */
+/**
+ * Where a reading is narrower or wider than the manual, and the issue that
+ * closes it.
+ *
+ * One entry today. `battled` left this list at #152 (see the module doc);
+ * `immune` stays, with the reason it has *now* rather than the one it had
+ * when Stage 7's hook groups were unbuilt — those landed (#154), and what
+ * keeps 9-1-4 immunity from a skill unreachable is that no skill's KO reaches
+ * it in the first place.
+ */
 export const NARROWER: Record<string, string> = {
-  immune: "#154 — 9-1-4 immunity narrows what a skill may choose, and the hook group that reads choosing is Stage 7's",
-  battled: "#150 built the battle and `inBattle`; `battled` (8-1-2-2) still reads false, since `VmCard` has no memory of a fight that outlived it",
+  immune: "#146 — 9-1-4 immunity narrows what a skill may choose or KO, and `koByEffect`'s hook body (#154) has no caller until `vm/host.ts` resolves a skill's own `ko`",
 };
 
 /**
