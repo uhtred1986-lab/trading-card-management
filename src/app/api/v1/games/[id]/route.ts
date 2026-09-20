@@ -1,7 +1,8 @@
 import { db } from "@/db";
 import { fail, ok, pollParams, seatFor } from "@/lib/arena/api";
-import { isVersus, loadGame } from "@/lib/arena/games";
+import { isVersus, loadArchivedGame, loadGame } from "@/lib/arena/games";
 import { snapshotOf, snapshotOfGame, waitForBeats } from "@/lib/arena/session";
+import { archivedSnapshotFor } from "@/lib/arena/snapshot";
 
 export const dynamic = "force-dynamic";
 /** A long-poll holds the function for its whole wait; `pollParams` caps it at 30 s. */
@@ -18,6 +19,17 @@ export const maxDuration = 60;
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const id = Number((await params).id);
   if (!Number.isInteger(id)) return fail("bad_request", "game id must be a number");
+
+  // An archived legacy row (issue #335) is checked before `loadGame` — never
+  // through it, so `legalActions` is never reached for one. No long-poll
+  // either: nothing further is coming for a board that cannot be continued.
+  const archived = await loadArchivedGame(db, id);
+  if (archived) {
+    const seat = await seatFor(archived);
+    if (isVersus(archived.mode) && !seat) return fail("not_found", `no game ${id}`);
+    const snapshot = archivedSnapshotFor(archived.store, seat);
+    return snapshot ? ok(snapshot) : fail("not_found", `no game ${id}`);
+  }
 
   // The chair this login sits in. In a 1 v 1 the two devices poll the same
   // game and must be answered differently — same board, two sets of eyes.

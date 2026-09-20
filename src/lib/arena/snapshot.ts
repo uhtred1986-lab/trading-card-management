@@ -46,6 +46,16 @@ export interface Snapshot {
     /** The login in each seat, for the names on the board. Null outside a 1 v 1. */
     p1User?: string | null;
     p2User?: string | null;
+    /**
+     * True only for a legacy row read off its stored snapshot (issue #335)
+     * rather than computed live. A client shows the banner this implies —
+     * "archived, cannot be continued" — and nothing else: `legal` is already
+     * empty and `waiting` already null, exactly as a finished game's are, so
+     * no other field needs a client to treat it differently. Absent (never
+     * `false`) on every live snapshot, so the field changes no existing
+     * fixture.
+     */
+    archived?: true;
   };
   view: BoardView;
   legal: LegalAction[];
@@ -179,6 +189,53 @@ export function buildSnapshot(input: SnapshotInput): Snapshot {
     waiting: waitingFor(input),
     spend: input.spend,
     over: input.state.phase === "over" ? { winner: input.state.winner, reason: input.state.overReason ?? "" } : null,
+  };
+}
+
+/**
+ * What a legacy row keeps forever once it is archived (issue #335, `games.ts`'s
+ * `loadArchivedGame`) — the last `Snapshot`(s) `buildSnapshot` produced for it,
+ * computed once while `engine/` still exists and never recomputed after.
+ *
+ * `versus` is the one mode with a real hidden-hand boundary between two
+ * logins (§3.3 of the client contract), and archiving must not flatten it
+ * into a single board that leaks one seat's hand to the other — so it keeps
+ * one masked `Snapshot` per seat. Every other mode has no second viewer to
+ * protect against (hot-seat is one device; against Claude the human is
+ * always `p1`), so `shared` is the only key a non-`versus` row ever sets.
+ */
+export interface StoredSnapshot {
+  shared?: Snapshot;
+  p1?: Snapshot;
+  p2?: Snapshot;
+}
+
+const ARCHIVED_TAPS: Tappable = { byCard: {}, bare: [], attackTargets: {} };
+
+/**
+ * The archived reading of a stored snapshot, for the seat asking (`null`
+ * outside `versus`) — never recomputed from `state`, since an archived row
+ * is read after `engine/` may already be gone. `legal`/`taps`/`waiting` are
+ * overridden here rather than trusted from storage, so a row archived
+ * mid-game (still `"playing"`) reads exactly like a finished one: nothing to
+ * tap, nothing to wait on. Everything else — `view`, `log`, `beats`,
+ * `spotlight`, `spend`, `over` — is the frozen board as it last stood.
+ *
+ * Null when the seat asking has no stored board at all (a `versus` row
+ * archived before both seats' snapshots existed), which the caller treats
+ * the same as "no such game".
+ */
+export function archivedSnapshotFor(store: StoredSnapshot, seat: PlayerId | null): Snapshot | null {
+  const picked = seat ? store[seat] : store.shared;
+  if (!picked) return null;
+  const rest: Snapshot = { ...picked };
+  delete rest.rejected;
+  return {
+    ...rest,
+    game: { ...picked.game, archived: true },
+    legal: [],
+    taps: ARCHIVED_TAPS,
+    waiting: null,
   };
 }
 

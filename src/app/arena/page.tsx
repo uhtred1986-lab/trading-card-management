@@ -279,6 +279,8 @@ export default async function ArenaPage() {
                   <span className="text-xs text-space-500">{modeLabel(g.mode)}</span>
                   {/* Inverted at #166: the rules engine is the default now, so the badge marks the games that are *not* on it. Muted, because a legacy game is the ordinary older one rather than something to look at. */}
                   {engineOr(g.engine) === "legacy" && <span className="rounded-full border border-space-700 px-1.5 text-[10px] uppercase tracking-wider text-space-400">{ENGINE_INFO.legacy.label}</span>}
+                  {/* Issue #335: a legacy row read off its stored snapshot rather than computed live — read-only, and worth marking the way the engine badge is. */}
+                  {g.archived && <span className="rounded-full border border-dbs-yellow/50 px-1.5 text-[10px] uppercase tracking-wider text-dbs-yellow">archived</span>}
                   <span className={`ml-auto text-xs ${g.status === "playing" ? "text-ki-300" : "text-space-400"}`}>
                     {g.status === "playing" ? "in progress" : g.status === "over" ? (g.winner ? `${g.winner === "p1" ? g.p1Name : g.p2Name} won` : "draw") : "abandoned"}
                   </span>

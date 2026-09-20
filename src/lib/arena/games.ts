@@ -21,6 +21,7 @@ import { NOT_YET_REASON_PREFIX } from "./vm";
 import { recordDecision } from "./ai/debug";
 import { cardDefFrom, deckInputFor } from "./load";
 import { rulesFor } from "./rules-store";
+import type { StoredSnapshot } from "./snapshot";
 import { gameOr, type Game } from "@/lib/catalog/games";
 
 export type ArenaMode = "hotseat" | "sparring" | "tournament" | "versus";
@@ -265,9 +266,83 @@ export async function startGame(
   return row.id;
 }
 
+/**
+ * A legacy game archived under issue #335: its identity, and the stored
+ * snapshot(s) it was last rendered as (`snapshot.ts`'s `StoredSnapshot`) —
+ * never its `state`, never a compiled rule, never an engine. `store` is read
+ * exactly as written; picking the right seat out of it is `archivedSnapshotFor`'s
+ * job, not this one.
+ */
+export interface ArchivedGame {
+  id: number;
+  mode: ArenaMode;
+  engine: EngineId;
+  game: Game;
+  p1Name: string;
+  p2Name: string;
+  p1User: string | null;
+  p2User: string | null;
+  p1DeckId: number | null;
+  p2DeckId: number | null;
+  store: StoredSnapshot;
+}
+
+/**
+ * The one query every caller must run before `loadGame`, whose
+ * `legalActions` an archived row must never reach — not merely have the
+ * result thrown away. Selects only the columns a read-only board needs, so
+ * an archived row's (possibly stale, possibly enormous) `state`/`actions`/`log`
+ * are never fetched either.
+ *
+ * Null for a row with no stored snapshot — not archived, `loadGame` is the
+ * path — or no such row at all; the two are indistinguishable on purpose,
+ * the same as `loadGame`'s own null.
+ */
+export async function loadArchivedGame(db: Db, id: number): Promise<ArchivedGame | null> {
+  const [row] = await db
+    .select({
+      id: arenaGames.id,
+      mode: arenaGames.mode,
+      engine: arenaGames.engine,
+      game: arenaGames.game,
+      p1Name: arenaGames.p1Name,
+      p2Name: arenaGames.p2Name,
+      p1User: arenaGames.p1User,
+      p2User: arenaGames.p2User,
+      p1DeckId: arenaGames.p1DeckId,
+      p2DeckId: arenaGames.p2DeckId,
+      snapshot: arenaGames.snapshot,
+    })
+    .from(arenaGames)
+    .where(eq(arenaGames.id, id))
+    .limit(1);
+  if (!row || !row.snapshot) return null;
+  return {
+    id: row.id,
+    mode: row.mode as ArenaMode,
+    engine: engineOr(row.engine),
+    game: gameOr(row.game),
+    p1Name: row.p1Name,
+    p2Name: row.p2Name,
+    p1User: row.p1User,
+    p2User: row.p2User,
+    p1DeckId: row.p1DeckId,
+    p2DeckId: row.p2DeckId,
+    store: row.snapshot as StoredSnapshot,
+  };
+}
+
 export async function loadGame(db: Db, id: number): Promise<LoadedGame | null> {
   const row = await db.query.arenaGames.findFirst({ where: eq(arenaGames.id, id) });
   if (!row) return null;
+  // An archived row (`loadArchivedGame`) answers to nothing this function
+  // builds — `legalActions` must never be called for it, not merely have the
+  // result thrown away — so it is null here exactly as a missing row is. A
+  // caller that means to show the board checks `loadArchivedGame` first and
+  // never reaches this; every other caller (a move, a bug report, Claude's
+  // turn, the debug page) already treats null as "no such game", which reads
+  // right for an archived one too: nothing here can be continued.
+  if (row.snapshot) return null;
   const state = row.state as EngineState;
   const defs = await defsForState(db, state);
   // The rules the engine plays by come from `card_rules`, not from a compile.
@@ -453,11 +528,18 @@ export async function listGames(db: Db, limit = 20, user: string | null = null) 
       engine: arenaGames.engine,
       costMicros: arenaGames.aiCostMicros,
       updatedAt: arenaGames.updatedAt,
+      // Only its presence is wanted here, never its content — the list shows
+      // a badge, not a board. Dropped before returning so a list of 20 never
+      // carries 20 full boards over the wire.
+      snapshot: arenaGames.snapshot,
     })
     .from(arenaGames)
     .orderBy(desc(arenaGames.updatedAt))
     .limit(limit * 2);
-  return rows.filter((g) => !isVersus(g.mode) || seatOf(g, user) !== null).slice(0, limit);
+  return rows
+    .filter((g) => !isVersus(g.mode) || seatOf(g, user) !== null)
+    .slice(0, limit)
+    .map(({ snapshot, ...g }) => ({ ...g, archived: snapshot != null }));
 }
 
 export async function abandonGame(db: Db, id: number): Promise<void> {

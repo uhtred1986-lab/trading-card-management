@@ -253,6 +253,13 @@
       "when": 1789385805374,
       "tag": "0035_flimsy_shinobi_shaw",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1789915226154,
+      "tag": "0036_hesitant_spitfire",
+      "breakpoints": true
     }
   ]
 }

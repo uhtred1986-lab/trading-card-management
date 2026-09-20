@@ -130,7 +130,10 @@ export function ArenaStage({
   // referee ruling is the server's, and either side may trigger that.
   const serverDecides = live.game.mode !== "versus" ? waitingOnServer : live.waiting === "referee";
   const rejected = live.rejected ?? [];
-  const playable = live.game.status === "playing";
+  // An archived game (issue #335) may still read `"playing"` — it is the
+  // status it was archived at, kept for the record — but `legal` is already
+  // empty and `waiting` already null, so nothing here is actually pending.
+  const playable = live.game.status === "playing" && !live.game.archived;
 
   // Reduced motion is not a second code path: it simply never queues anything,
   // which is the same state the board reaches the instant you press Skip.
