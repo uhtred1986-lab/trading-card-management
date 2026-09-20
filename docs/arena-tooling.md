@@ -94,12 +94,15 @@ the change working.
 
 ## 2. `npm test` — what it actually runs
 
-Three scripts, in order. All three must pass; none needs the network.
+In order. All must pass; none needs the network. Since #165, `verify-arena.ts` runs **twice** —
+once on the legacy engine (default) and once with `--engine rules` — so both engines are checked
+on every `npm test`, not just on request.
 
 | script | needs | proves |
 |---|---|---|
 | `scripts/verify-rules.ts` | nothing | the pure rules helpers (deck legality, reservations, scan matching) |
-| `scripts/verify-arena.ts` | nothing | the arena — fourteen suites, below |
+| `scripts/verify-arena.ts` | nothing | the arena — fourteen suites, below — on the legacy engine |
+| `scripts/verify-arena.ts --engine rules` | nothing | the same suites again, on the rules engine, with named `skipped case`s where a stage hasn't landed yet (§ below) |
 | `scripts/verify-db.mts` | nothing (PGlite in memory) | the migrations apply, and the reservation rules hold against real SQL |
 
 `verify-arena.ts` imports fourteen suites from `scripts/verify/`, each on its
@@ -254,10 +257,14 @@ skipped) tells you what you broke:
 ### `--engine legacy|rules` and `npm run test:rules`
 
 `scripts/verify/harness.ts` reads `--engine` off the command line (default
-`legacy`) and exports the resolved `ENGINE`. `npm test` never passes it, so
-`legacy` is what it has always run. `npm run test:rules` is
-`tsx scripts/verify-arena.ts --engine rules` — the same fourteen suites, on
-the rules engine.
+`legacy`) and exports the resolved `ENGINE`. **Since #165, `npm test` runs
+`verify-arena.ts` twice** — once with no flag (legacy) and once with
+`--engine rules` — so both engines are checked on every ordinary test run,
+not just on request. `npm run test:rules` still exists as a standalone
+alias for just the second half (`tsx scripts/verify-arena.ts --engine
+rules` — the same fourteen suites, on the rules engine alone), useful when
+iterating on the rules engine without waiting for the legacy pass, `verify-db`
+and `verify/backlog` too.
 
 `vm.ts` and `rulesets.ts` name `legacy` and `rules` explicitly rather than
 reading `ENGINE` (it is the suite proving the switch, so it cannot depend on
@@ -291,11 +298,13 @@ is each suite's own issue to take up, the way #152 took up these two:
 | #158 | `keywords` ported onto the same state interface | `keywords` passes too, real assertions with named `skipped case`s — most of them Stage 7 keyword gaps, the rest real gaps this porting pass found and diagnosed on its own (`keywords.ts`'s own entry above names each) |
 | Stage 7 (`docs/arena-backlog/s7-*.md`) | keyword bodies over four hook groups | the `keywordGap` cases in `battles`/`workflow`/`keywords` close one by one; `readings`/`wordings` are the suites most of Stage 7's own remaining value lands in, and are candidates to port next |
 | Stage 8 | words from config, `primer`/`prompts`/`view` | `workflow.ts`'s `assertLabelOnLegacy`/`viewGap` cases close; `contract` becomes portable |
-| Stage 9 (#165) | the rules engine is the default | `test:rules` folds into `npm test`, or vice versa |
+| #165 (done) | `verify-arena` on both engines folded into `npm test`; `arena:fuzz 200 --engine rules` clean | `npm test` runs both engines every time — `test:rules` remains as a standalone alias, no longer the only way to see the rules-engine run |
+| Stage 9, remainder (#164, #165's own `arena:reprobe` bullet, #163's own flip) | every saved game replays on `rules`, `arena:reprobe --engine rules` at 0 moved, the `arena.engine` default flips | the table above still applies suite by suite until every row reads "pass" |
 
 Making a suite actually pass on `rules` before its stage lands is out of
-scope for the tooling itself — `test:rules` exists to say honestly which
-suites do and which do not, not to make them.
+scope for the tooling itself — `test:rules` (now folded into `npm test`, and
+still runnable alone) exists to say honestly which suites do and which do
+not, not to make them.
 
 ### Two things that will bite you
 
@@ -339,15 +348,19 @@ npx tsx --env-file-if-exists=.env.local scripts/arena-fuzz.mts 40
 ```
 
 Plays N random complete games and reports crashes. **40 is the standing gate**;
-use 200 for anything touching the movement, payment or flow machinery. It proves
-only that nothing threw — it says nothing about correctness — but it is the
-cheapest possible check that the engine still runs to completion, and it has
-caught real breakage. Takes `--engine legacy|rules` (default `legacy`). On
-`rules` it plays whole games through that engine's own menu and checks the same
-invariant after every move (every card in exactly one place, 3-1); the moves it
-has are `pass`, `endMain` and `concede` (#140), so every game ends the way a
-game of nothing but passing ends — on a deck-out, around turn 72. A run that
-reports games *dealt* rather than won is a run on a build from before #140.
+use 200 for anything touching the movement, payment or flow machinery, and
+**200 on `--engine rules` is #165's own gate** (0 crashes, checked into the
+history archive). It proves only that nothing threw — it says nothing about
+correctness — but it is the cheapest possible check that the engine still
+runs to completion, and it has caught real breakage. Takes `--engine
+legacy|rules` (default `legacy`). On `rules` it plays whole games through
+that engine's own menu (`charge`, `play`/`playUnison`/`playZ`, `activate`,
+the native `attack`/`block`/`counter`/`combo`, `pass`, `endMain`, `concede`)
+and checks the same invariant after every move (every card in exactly one
+place, 3-1); a card whose skill needs a mechanism the rules engine does not
+build yet ends its game as a clean `NotYet` draw rather than a crash (`Abandon
+this game …`, `vm/flow.ts`'s `stepProgram`) — that is expected and is not
+counted against the 0-crashes gate.
 
 ### `arena:diff` — the oracle
 

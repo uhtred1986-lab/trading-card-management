@@ -75,7 +75,7 @@ npm run dev            # Dev server (port 3000, or 3001 if taken)
 npm run build          # Production build
 npm run typecheck      # tsc --noEmit
 npm run lint           # ESLint
-npm test               # scripts/verify-rules.ts (pure) + scripts/verify-db.mts (migrations + reservation rules on PGlite)
+npm test               # verify-rules.ts (pure) + verify-arena.ts on both engines (docs/arena-tooling.md) + verify-db.mts (PGlite)
 npm run contract:emit  # rewrite contract/fixtures/*.json after a deliberate Snapshot shape change
 npm run android:test   # Kotlin round-trip of those fixtures, in Docker — no JDK on the machine
 npm run db:generate    # Generate a migration after editing src/db/schema.ts
