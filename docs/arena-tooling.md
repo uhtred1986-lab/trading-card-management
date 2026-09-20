@@ -359,6 +359,34 @@ a database and real saved games. Takes `--engine legacy|rules` to replay on an
 engine other than the one the game row was played on — the oracle check between
 the two engines (`npm run arena:diff -- <gameId> [--engine legacy|rules] | --all`).
 
+**Reading the `--all` report (#164).** A single `<gameId>` still prints one line, its own
+verdict. `--all` does not: dumping one line per game buried the signal in fifty lines that mostly
+say "same state", so it groups instead — `scripts/lib/arena-diff-report.ts` is the pure module
+that does the grouping (covered by `scripts/verify/diff-report.ts` on synthetic outcomes, no
+database needed to exercise the logic itself), `scripts/arena-diff.mts` only feeds it the
+per-game outcomes its own `replay()` already computes.
+
+1. **Games whose deck was edited since they were played come first, listed individually, never
+   folded into a cause group.** Their shuffle differs from the one the game was actually dealt
+   with, so any divergence there says nothing about the engine — `replay()`'s own `deckChanged`
+   flag (comparing the deck's current card count against what the game's zones account for) is
+   what decides this, not a guess from the divergence text.
+2. **Every other divergence is clustered by its "why" text** — the first differing prompt or
+   refused action `replay()` already reports for a single game (`refused: …`, `threw: …`, or
+   `after every action, state.<path>: … against … on the row` when every action replayed clean
+   but the final state still disagrees). Two games hitting the *same* bug produce the *identical*
+   text, so grouping on it verbatim turns "38 divergent games" into "1 cause, 38 games" without
+   guessing at what the cause actually is — the largest cluster is printed first, ties broken by
+   the cause text so the order is stable across runs.
+3. **The closing tally** (`N of M stable-deck games replay to the same state`) counts only the
+   deck-unchanged games — a deck-changed game that happens to replay to the same state anyway is
+   still reported in its own section, not folded into `N`.
+
+Fixing what a cause group names is issue #164's own build step 2: one `vm/` fix (or a recorded
+ruling plus a fix on both engines, when the *legacy* engine turns out to be the one that's wrong)
+should collapse a whole cluster's game ids to zero on the next run — a cluster that shrinks by
+fewer than its full count is the sign the fix did not cover every game it claimed to.
+
 ### `arena:probe` / `arena:reprobe`
 
 A probe builds a game around one card's rule, stages the board its moment needs,
