@@ -2,9 +2,18 @@
 -- order. TAKES is the arity KeywordSkill (engine/types.ts) carries and
 -- keywordOf (engine/cards.ts) reads back; scripts/verify/rulesets.ts checks
 -- both against this file. text: is the glossary's meaning line, verbatim
--- (src/lib/arena/glossary.ts), so /arena/rules/keywords can render it from
--- here once Stage 8 (#159) swaps the reader. No HOOK bodies yet — that is
--- Stage 7 (#153-#157); a keyword's own moments stay the engine's until then.
+-- (src/lib/arena/glossary.ts) — /arena/rules/keywords renders it from here
+-- rather than from glossary.ts since #163, and scripts/verify/game-page.ts
+-- holds the two equal so the page and the record cannot quietly disagree.
+--
+-- Eight HOOK bodies over seven keywords, written by Stage 7's four hook
+-- groups (#154-#157) against the contract #153 built: [Field]'s onEnter,
+-- [Indestructible]'s koByEffect, [Barrier]'s chooseable, [Servant]'s
+-- attrBonus and activeStep, [Energy-Exhaust]'s chargeLimit, and
+-- [Heroic]/[Villainous]'s afterSkill. Every other keyword's own moments are
+-- still the engine's, and each one's trailing comment says which group looked
+-- at it and why it is deferred — the header used to say "no HOOK bodies yet",
+-- which stopped being true at #154 and was found by #166's pre-flip review.
 
 -- 22-2
 DEFINE KEYWORD Awaken
