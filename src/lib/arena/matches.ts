@@ -14,8 +14,8 @@
 import { and, desc, eq } from "drizzle-orm";
 import type { Db } from "@/db";
 import { arenaMatches, decks as decksTable } from "@/db/schema";
-import { ENGINE_INFO, engineOr, playableEngine, type EngineId } from "./engines";
-import { startGame } from "./games";
+import { engineOr, FALLBACK_ENGINE, playableEngine, type EngineId } from "./engines";
+import { modeRefusal, startGame } from "./games";
 
 export interface OpenMatch {
   id: number;
@@ -34,17 +34,20 @@ export interface OpenMatch {
  * people, and with the app running open (no `BASIC_AUTH_*`, no `app_users`)
  * there is nobody to be the second. Hot-seat is what that machine wants.
  */
-export async function openMatch(db: Db, hostUser: string | null, hostDeckId: number, debug: boolean, engine: EngineId = "legacy"): Promise<number> {
+export async function openMatch(db: Db, hostUser: string | null, hostDeckId: number, debug: boolean, engine: EngineId = FALLBACK_ENGINE): Promise<number> {
   if (!hostUser) throw new Error("a 1 v 1 needs two logins — add one at Settings → Users, or play hot-seat");
   // Refused now rather than when the other player joins, which is the wrong moment to learn it.
   playableEngine(engine);
   // A 1 v 1 is the one mode the rules engine cannot play yet (#149): its
   // hidden-hand masking (`beats.ts`'s `maskBeats`) reveals everything for a
   // rules-engine game, which is harmless with one viewer and a real leak with
-  // two. `games.ts`'s `assertEngineForMode` is the same rule for `startGame`;
-  // a match is refused here, at the invitation, rather than when the second
-  // player already has a deck picked.
-  if (engine === "rules") throw new Error(`the ${ENGINE_INFO.rules.label} plays hot-seat only for now — a 1 v 1's hidden hands are not built yet`);
+  // two. The rule itself is `games.ts`'s `modeRefusal`, asked here once rather
+  // than written out a second time — and asked at the invitation rather than
+  // when the second player already has a deck picked. Since #166 a caller with
+  // no engine of its own resolves through `engineForMode` before it gets here,
+  // so what this refuses is an engine someone actually named.
+  const why = modeRefusal(engine, "versus");
+  if (why) throw new Error(why);
   const [row] = await db.insert(arenaMatches).values({ hostUser, hostDeckId, debug, engine }).returning({ id: arenaMatches.id });
   return row.id;
 }

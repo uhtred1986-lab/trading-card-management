@@ -11,7 +11,7 @@ import { IllegalAction, type Action, type GameState } from "@/lib/arena/engine";
 import { printRule, readRule } from "@/lib/arena/lang";
 import { defaultEngine } from "@/lib/arena/engine-setting";
 import { engineOr } from "@/lib/arena/engines";
-import { abandonGame, applyToGame, clearBeatsForTurn, isVersus, loadGame, seatOf, StaleGame, startGame, type ArenaMode } from "@/lib/arena/games";
+import { abandonGame, applyToGame, clearBeatsForTurn, engineForMode, isVersus, loadGame, seatOf, StaleGame, startGame, type ArenaMode } from "@/lib/arena/games";
 import { cancelMatch, joinMatch, matchById, openMatch } from "@/lib/arena/matches";
 import { currentUser } from "@/lib/auth";
 import { advance } from "@/lib/arena/ai/run";
@@ -343,8 +343,16 @@ export async function startGameForm(formData: FormData) {
   const mode = String(formData.get("mode") ?? "hotseat") as ArenaMode;
   const debug = formData.get("debug") != null;
   // The form offers every engine; one it did not name, or named wrongly, falls
-  // back to the setting. `startGame`/`openMatch` refuse an engine that cannot play.
-  const engine = engineOr(formData.get("engine"), await defaultEngine(db));
+  // back to the setting — which since #166 is the rules engine unless the owner
+  // has put it back (Settings → Arena engine). `startGame`/`openMatch` refuse an
+  // engine that cannot play at all.
+  //
+  // Then the mode has its say: a 1 v 1 is not built on the rules engine (#162),
+  // and with the default flipped that combination is the ordinary path rather
+  // than an odd request, so it resolves to the legacy engine instead of
+  // throwing. The form says the same thing before it is submitted; this is the
+  // half that has to hold when it is.
+  const { engine } = engineForMode(engineOr(formData.get("engine"), await defaultEngine(db)), mode);
   if (!Number.isInteger(p1)) throw new Error("pick a deck");
 
   // A 1 v 1 cannot be created here: the other player picks their own deck, and

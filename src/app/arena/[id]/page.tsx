@@ -71,9 +71,14 @@ export default async function ArenaGamePage({ params, searchParams }: { params: 
           </span>
         )}
         <span className="rounded-full border border-space-700 px-2 py-0.5 text-[11px] uppercase tracking-wider text-space-400">{modeLabel(game.mode)}</span>
-        {game.engine !== "legacy" && (
-          <span className="rounded-full border border-ki-500/50 px-2 py-0.5 text-[11px] uppercase tracking-wider text-ki-300" title={ENGINE_INFO[game.engine].note}>
-            {ENGINE_INFO[game.engine].label}
+        {/* Inverted at #166: the rules engine became the default, so what is
+            worth saying on a board is that this game is *not* on it — a game
+            keeps the engine it was made on, and every game made before the
+            flip is a legacy one. Muted rather than accented for the same
+            reason: it marks the ordinary older game, not a new thing. */}
+        {game.engine === "legacy" && (
+          <span className="rounded-full border border-space-700 px-2 py-0.5 text-[11px] uppercase tracking-wider text-space-400" title={ENGINE_INFO.legacy.note}>
+            {ENGINE_INFO.legacy.label}
           </span>
         )}
         <Link href={`/arena/${id}/debug`} className="ml-auto text-sm text-space-400 hover:text-ki-300">

@@ -19,12 +19,17 @@ Keep it under 200 lines. Update it whenever arena scope, priorities, or the
   Unison growth), the battle as a nested sub-flow with its nine steps,
   damage, life and the WIN checkpoint, and Stage 7's keyword hook contract
   with eight bodies written against it. `engineFor(id)` is the one switch.
-- **`DEFAULT_ENGINE` is still `legacy`.** Flipping it is issue #166's build
-  step 2 and is blocked on the owner's two parity runs (#164, #165), which
-  need the shared Neon database. `ENGINE_INFO.rules.available` is true, and
-  since #162 a hot-seat game, Sparring and Tournament may all be started on
-  the rules engine from Settings → Arena engine; only a 1 v 1 is refused,
-  because the hidden-hand masking still reads the legacy `GameState`.
+- **`DEFAULT_ENGINE` is `rules`** since 20 Sep 2026 (#166 build steps 2 and 3,
+  executed on the owner's decision ahead of the parity runs). A new game with
+  no engine chosen is a rules-engine game; Settings → Arena engine is the way
+  back to `legacy` and every saved game keeps the engine it was made on. A
+  **1 v 1 is still made on the legacy engine** — the hidden-hand masking reads
+  the legacy `GameState` (#162) — but that is now a resolution rather than a
+  refusal (`games.ts`'s `engineForMode`, with the reason shown on `/arena` and
+  in `POST /api/v1/games`'s `engineNote`). `Snapshot.game.engine` did not
+  change shape and the contract fixtures are unchanged; the badge inverted, so
+  a **legacy** game is what is marked now. The owner's parity runs (#164, #165:
+  `arena:diff`, `arena:reprobe`) and confirmation remain open on #166.
 - What the rules engine cannot do yet throws `NotYet` naming the issue that
   builds it, and since #149 that **ends the game** rather than playing on —
   a skill's own KO and tokens (#146), the skip list (#145), an action price

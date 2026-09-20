@@ -12,7 +12,7 @@
  * `session.ts` is the half that reaches the database.
  */
 import type { EngineContext, LegalAction, PlayerId, RejectedAction } from "./engine";
-import { DEFAULT_ENGINE, engineFor, type EngineId, type EngineState } from "./engines";
+import { engineFor, FALLBACK_ENGINE, type EngineId, type EngineState } from "./engines";
 import { tappable, viewerOf, type BoardView, type CardArt, type Tappable } from "./view";
 import { maskBeats, type Beats } from "./beats";
 import type { ArenaMode, Spotlight } from "./games";
@@ -69,7 +69,13 @@ export interface Snapshot {
 export interface SnapshotInput {
   id: number;
   mode: ArenaMode;
-  /** Left off by tests built by hand, which are all on the legacy engine and the original game. */
+  /**
+   * Left off by tests built by hand, which are all on the legacy engine and
+   * the original game — so what fills it in is `FALLBACK_ENGINE`, not
+   * `DEFAULT_ENGINE`. The two diverged at #166 and an input with no engine
+   * still means a legacy-shaped state, which is also what keeps the contract
+   * fixtures still saying `legacy` after the flip.
+   */
   engine?: EngineId;
   game?: Game;
   status: string;
@@ -140,7 +146,7 @@ export function rejectedFor(input: Pick<SnapshotInput, "ai" | "state" | "ctx" | 
   const prompt = input.state.prompt;
   if (!("player" in prompt) || !prompt.player) return [];
   if (prompt.player !== viewerFor(input) || prompt.player === input.ai) return [];
-  return engineFor(input.engine ?? DEFAULT_ENGINE).rejectedActions(input.ctx, input.state, input.legal);
+  return engineFor(input.engine ?? FALLBACK_ENGINE).rejectedActions(input.ctx, input.state, input.legal);
 }
 
 export function buildSnapshot(input: SnapshotInput): Snapshot {
@@ -151,7 +157,7 @@ export function buildSnapshot(input: SnapshotInput): Snapshot {
     game: {
       id: input.id,
       mode: input.mode,
-      engine: input.engine ?? DEFAULT_ENGINE,
+      engine: input.engine ?? FALLBACK_ENGINE,
       game: input.game ?? DEFAULT_GAME,
       status: input.status,
       turn: input.state.turn,
@@ -161,7 +167,7 @@ export function buildSnapshot(input: SnapshotInput): Snapshot {
       ...(input.p1User !== undefined ? { p1User: input.p1User } : {}),
       ...(input.p2User !== undefined ? { p2User: input.p2User } : {}),
     },
-    view: engineFor(input.engine ?? DEFAULT_ENGINE).boardView(input.ctx, input.state, viewer, input.images),
+    view: engineFor(input.engine ?? FALLBACK_ENGINE).boardView(input.ctx, input.state, viewer, input.images),
     legal: input.legal,
     taps: tappable(input.legal, rejected),
     ...(rejected.length ? { rejected } : {}),

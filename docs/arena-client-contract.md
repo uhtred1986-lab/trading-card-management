@@ -69,7 +69,15 @@ export interface Snapshot {
      * to (added 9 Sep 2026, `src/lib/arena/engines.ts`). A client shows the
      * engine as a badge and reads nothing else off either: what the board is,
      * `view` says. `legacy` is the hand-written engine; `rules` the
-     * configuration-driven one being built beside it.
+     * configuration-driven one beside it, and **the default for a new game
+     * since 20 Sep 2026** (#166).
+     *
+     * The flip changed which value is common, not the field: the type, the
+     * two spellings and the contract version are unchanged, and the emitted
+     * fixtures are byte-identical across it. What a client should change is
+     * the badge — `legacy` is now the one worth marking, and a `rules` game is
+     * the ordinary one. A game keeps the engine it was made on, so a client
+     * must go on reading this per game rather than assuming the default.
      */
     engine: "legacy" | "rules";
     game: "dbs" | "fusion";
@@ -416,13 +424,21 @@ Only the Android app uses these; the web board calls §2 directly.
 | `GET` | `/api/v1/decks` | `?game=dbs` | deck list: id, name, leader art, built/virtual, legality, playable |
 | `GET` | `/api/v1/decks/{id}` | — | deck detail: zones, counts, per-card flags — **read-only** |
 | `GET` | `/api/v1/games` | `?limit=20` | game list, as `/arena` shows it |
-| `POST` | `/api/v1/games` | `{ p1DeckId, p2DeckId, mode, debug }` | `{ id }` — `mode` excludes `versus`, §3.3 |
+| `POST` | `/api/v1/games` | `{ p1DeckId, p2DeckId, mode, debug, engine? }` | `{ id, engine, engineNote? }` — `mode` excludes `versus`, §3.3 |
 | `GET` | `/api/v1/games/{id}` | `?sinceBeat=N&wait=25` | `Snapshot` — §6 |
 | `POST` | `/api/v1/games/{id}/actions` | `{ index, basedOn? }` | `Snapshot` — your move only |
 | `POST` | `/api/v1/games/{id}/advance` | — | `Snapshot` once Claude has finished deciding |
 | `POST` | `/api/v1/games/{id}/abandon` | — | `Snapshot` |
 | `GET` | `/api/v1/app/version` | — | `{ versionCode, versionName, sha256, notes }` |
 | `GET` | `/api/v1/app/apk` | — | the signed APK, behind the same auth |
+
+**`POST /api/v1/games` answers with the engine it used.** `engine` in the body is optional and
+still means "this one, or an error": a mode that engine is not built for is refused by name, since
+a client that asked was asking. Left out, the server takes the `arena.engine` setting — `rules`
+since #166 (20 Sep 2026) unless the owner has put it back — and resolves it against `mode`, so a
+mode the default is not built for lands on `legacy` and `engineNote` says why rather than the
+default path failing. `engine` comes back either way, because the game keeps it for good; the same
+value appears on every later `Snapshot` as `game.engine` (§6).
 
 **A client picks a move by index into `legal`, never by describing one.** This is §1's rule made
 structural rather than merely checked: there is no way to write down a move the engine did not

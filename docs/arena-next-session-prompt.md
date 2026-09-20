@@ -44,11 +44,15 @@ issues' own PR descriptions remain the record of how each got there.
 - **Two engines** (`src/lib/arena/engines.ts`): `legacy` (`src/lib/arena/engine/`, frozen —
   bug fixes only) and `rules` (`src/lib/arena/vm/`, the programme this file used to be the only
   account of). `engineFor(id)` is the one switch both `games.ts`/`snapshot.ts` and the scripts go
-  through. `DEFAULT_ENGINE` is **still `legacy`**: flipping it is #166's own build step 2 and
-  waits on the owner's parity runs (#164, #165). `ENGINE_INFO.rules.available` is true, and since
-  #162 `playableEngine("rules")` allows a hot-seat game, Sparring **and** Tournament — only a
-  1 v 1 is refused (`games.ts`'s `assertEngineForMode`), because the hidden-hand masking is the
-  one thing still reading the legacy `GameState` directly.
+  through. `DEFAULT_ENGINE` is **`rules`** since 20 Sep 2026 (#166 build steps 2 and 3); the
+  `arena.engine` setting stays as the way back to `legacy`, and `engineOr`'s own fallback is
+  `FALLBACK_ENGINE`, not the default, so a stored row that cannot be read is still legacy.
+  `ENGINE_INFO.rules.available` is true, and since #162 a hot-seat game, Sparring **and**
+  Tournament run on it — a 1 v 1 is the one mode that does not, because the hidden-hand masking is
+  the one thing still reading the legacy `GameState` directly, and since #166 that resolves to the
+  legacy engine (`games.ts`'s `engineForMode`) instead of refusing. #166's own remaining bullets —
+  the owner's confirmation and the `arena:diff`/`arena:reprobe` parity runs (#164, #165) — need the
+  shared database and are the owner's.
 - **The effect language's tables**: `src/lib/arena/engine/script-schema.ts` (`OP_SCHEMA`,
   `COND_SCHEMA`, the closed word lists) — `engine/script.ts` re-exports them, so existing imports
   still work.

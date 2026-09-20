@@ -16,7 +16,7 @@ import { arenaGames, cards as cardsTable } from "@/db/schema";
 import { inArray } from "drizzle-orm";
 import { seedFrom, type Action, type CardDef, type EngineContext, type GameEvent, type LegalAction, type PlayerId } from "./engine";
 import { appendBeats, describeSkillEvent, type Beats, type NumberedBeat } from "./beats";
-import { ENGINE_INFO, engineFor, engineOr, isVmState, playableEngine, sideName, type EngineId, type EngineState } from "./engines";
+import { ENGINE_INFO, engineFor, engineOr, FALLBACK_ENGINE, isVmState, playableEngine, sideName, type EngineId, type EngineState } from "./engines";
 import { NOT_YET_REASON_PREFIX } from "./vm";
 import { recordDecision } from "./ai/debug";
 import { cardDefFrom, deckInputFor } from "./load";
@@ -148,7 +148,8 @@ async function defsForState(db: Db, state: EngineState): Promise<Record<string, 
 }
 
 /**
- * Is this engine built for this mode? (#149, narrowed by #162.)
+ * Why this engine is not built for this mode, or null. (#149, narrowed by
+ * #162, turned from a refusal into a resolution by #166.)
  *
  * The rules engine plays the actions of Stage 5 the same as the legacy one.
  * Two things past those six calls used to still read the legacy `GameState`
@@ -163,14 +164,48 @@ async function defsForState(db: Db, state: EngineState): Promise<Record<string, 
  * charge), and refuse a real API call by name — `stateText`'s own rendering
  * is not ported — rather than reading `undefined` off `.players`. So Sparring
  * and Tournament are let through here now; only `versus` still needs the
- * hidden-hand fix, refused here at creation rather than left to leak both
- * hands — the same discipline `playableEngine` already applies to the engine
- * itself, one level narrower.
+ * hidden-hand fix, kept off the rules engine at creation rather than left to
+ * leak both hands — the same discipline `playableEngine` already applies to
+ * the engine itself, one level narrower.
+ *
+ * Returning the reason instead of throwing it is what #166 needed: with
+ * `DEFAULT_ENGINE` flipped to `rules`, "a 1 v 1, engine unspecified" is the
+ * ordinary path and must not be a refusal. `engineForMode` resolves it, and
+ * `assertEngineForMode` still throws for a caller that *named* an engine —
+ * saying no to what was asked for, never to what was merely defaulted.
  */
-function assertEngineForMode(engine: EngineId, mode: ArenaMode): void {
+export function modeRefusal(engine: EngineId, mode: ArenaMode): string | null {
   if (engine === "rules" && mode === "versus") {
-    throw new Error(`the ${ENGINE_INFO.rules.label} does not keep a 1 v 1's hands hidden yet`);
+    return `the ${ENGINE_INFO.rules.label} does not keep a 1 v 1's hands hidden yet, so a 1 v 1 is played on the ${ENGINE_INFO.legacy.label}`;
   }
+  return null;
+}
+
+/** An engine a caller asked for by name, refused if this mode is not built on it. */
+function assertEngineForMode(engine: EngineId, mode: ArenaMode): void {
+  const why = modeRefusal(engine, mode);
+  if (why) throw new Error(why);
+}
+
+/** An engine resolved for a mode: which one it will be, and why it is not the preferred one. */
+export interface ResolvedEngine {
+  engine: EngineId;
+  /** Null unless `preferred` was sent to `FALLBACK_ENGINE`; a sentence for the form and the API. */
+  note: string | null;
+}
+
+/**
+ * The engine a new game of this mode is made on when nobody named one.
+ *
+ * `preferred` is the setting's answer (`defaultEngine`), which since #166 is
+ * the rules engine unless the owner has put it back. A mode that engine is not
+ * built for resolves to `FALLBACK_ENGINE` and carries the reason out with it,
+ * so the page that opens the game can say so; the fallback plays every mode,
+ * which is why this cannot recurse into a second refusal.
+ */
+export function engineForMode(preferred: EngineId, mode: ArenaMode): ResolvedEngine {
+  const note = modeRefusal(preferred, mode);
+  return note ? { engine: FALLBACK_ENGINE, note } : { engine: preferred, note: null };
 }
 
 export async function startGame(
@@ -180,7 +215,12 @@ export async function startGame(
   mode: ArenaMode = "hotseat",
   debug = true,
   seats: Seats = { p1User: null, p2User: null },
-  engineId: EngineId = "legacy",
+  // Named, never defaulted from the setting here: this is pure enough to have
+  // no database of its own to read it from, and every caller that has one
+  // (`startGameForm`, `POST /api/v1/games`, `joinMatch`) resolves it first.
+  // `FALLBACK_ENGINE` is the engine that plays every mode, so a caller that
+  // says nothing gets the one that cannot be wrong.
+  engineId: EngineId = FALLBACK_ENGINE,
 ): Promise<number> {
   // Resolved first: an engine that cannot play refuses before any deck is read.
   const engine = playableEngine(engineId);
