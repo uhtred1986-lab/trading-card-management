@@ -124,7 +124,7 @@ import { legacyHost } from "../../src/lib/arena/engine/script-host";
 import { stepScript, type Op, type PayWith, type Ref, type ScriptFrame } from "../../src/lib/arena/engine/script";
 import { skillsNegated as legacySkillsNegated } from "../../src/lib/arena/engine/state";
 import { skillsNegated as vmSkillsNegated } from "../../src/lib/arena/vm/effects";
-import { CTX, DEFS, assertMenuInvariants, card, fifty, matches, parseSkills } from "./harness";
+import { CTX, DEFS, assertMenuInvariants, card, cardNow, fifty, matches, parseSkills } from "./harness";
 
 const DECKS = { seed: 11, p1: { name: "You", leader: "L-RED", main: fifty("V1") }, p2: { name: "Claude", leader: "L-BLUE", main: fifty("V-BLUE") } };
 
@@ -4044,6 +4044,68 @@ console.log("verify/vm: ok");
     s.cards[leader].hidden = true;
     assert.equal(attrsNow(CTX, DBS, s, leader).power, undefined, "23-5-2: a Hidden Mode card was read at its printed power");
     assert.equal(attrsNow(CTX, DBS, s, leader).originalPower, undefined, "23-5-2: a Hidden Mode card was read at its printed original power");
+  }
+
+  // 1-9, 10-1-3, 23-5-2: the owner's face-showing ruling of 20 Sep 2026 (issue
+  // #327) — every attribute it names reads off the face showing, not just
+  // `power` (the one measure #166's pre-flip review could not wait for).
+  // L-RED's back prints a different name (and no skill) beside its 15000
+  // power; colours and traits have no back-side value of their own the
+  // catalog has ever recorded, so a flip must leave them exactly as printed —
+  // asserted here too, so a regression that stopped reading them entirely
+  // would be caught the same as one that read the wrong thing.
+  {
+    const s = secondCharge(() => {});
+    const leader = s.sides.p1.zones.leader[0];
+    const front = attrsNow(CTX, DBS, s, leader);
+    assert.equal(front.name, "L-RED", "an unflipped Leader is not read at its front side's name (1-9)");
+    assert.equal(front.skill, DEFS["L-RED"].skill, "an unflipped Leader is not read at its front side's skill (1-9)");
+    assert.deepEqual(front.colors, ["Red"], "an unflipped Leader's colours moved for no reason");
+    assert.deepEqual(front.traits, [], "an unflipped Leader's traits moved for no reason");
+
+    s.cards[leader].flipped = true;
+    const back = attrsNow(CTX, DBS, s, leader);
+    assert.equal(back.name, "L-RED awakened", "1-9: a flipped Leader is not read at its back side's name");
+    assert.equal(back.skill, undefined, "1-9: a flipped Leader is not read at its back side's skill, which L-RED prints as none");
+    assert.deepEqual(back.colors, ["Red"], "10-1-3: colours have no back-side value of their own, so a flip must not lose the printed one");
+    assert.deepEqual(back.traits, [], "10-1-3: traits have no back-side value of their own, so a flip must not lose the printed one");
+
+    s.cards[leader].flipped = false;
+    s.cards[leader].hidden = true;
+    const hidden = attrsNow(CTX, DBS, s, leader);
+    assert.equal(hidden.name, undefined, "23-5-2: a Hidden Mode card was read at its printed name");
+    assert.equal(hidden.skill, undefined, "23-5-2: a Hidden Mode card was read at its printed skill");
+    assert.equal(hidden.colors, undefined, "23-5-2: a Hidden Mode card was read at its printed colours");
+    assert.equal(hidden.traits, undefined, "23-5-2: a Hidden Mode card was read at its printed traits");
+
+    // The same board on the legacy engine, held to the same claims —
+    // `cardNow`, which every `matches` call reads a card through, was still
+    // returning the raw catalog row's `name`/`skill` regardless of the face
+    // showing until this issue.
+    let l = createGame(CTX, SAME).state;
+    l = apply(CTX, l, { type: "chooseFirst", player: (l.prompt as { player: PlayerId }).player, first: "p1" }).state;
+    l = apply(CTX, l, { type: "mulligan", player: "p1", redraw: false }).state;
+    l = apply(CTX, l, { type: "mulligan", player: "p2", redraw: false }).state;
+    const legacyLeader = l.players.p1.leader;
+    const legacyFront = cardNow(CTX, l, legacyLeader);
+    assert.equal(legacyFront.name, "L-RED", "the legacy engine is not read at its front side's name (1-9)");
+    assert.deepEqual(legacyFront.colors, ["Red"], "the legacy engine's unflipped colours moved for no reason");
+
+    l.cards[legacyLeader].flipped = true;
+    const legacyBack = cardNow(CTX, l, legacyLeader);
+    assert.equal(legacyBack.name, "L-RED awakened", "1-9: the legacy engine (matches/cardNow) is not read at a flipped Leader's back side's name (issue #327)");
+    assert.equal(legacyBack.skill, null, "1-9: the legacy engine is not read at a flipped Leader's back side's skill");
+    assert.deepEqual(legacyBack.colors, ["Red"], "10-1-3: the legacy engine's colours have no back-side value of their own either");
+    assert.ok(matches(legacyBack, { ...emptyFilter(), names: ["L-RED awakened"] }), "matches does not find a flipped Leader by its awakened name");
+    assert.ok(!matches(legacyBack, { ...emptyFilter(), names: ["L-RED"] }), "matches still finds a flipped Leader by its front name, which 10-1-3 says is no longer relevant");
+
+    l.cards[legacyLeader].flipped = false;
+    l.cards[legacyLeader].hidden = true;
+    const legacyHidden = cardNow(CTX, l, legacyLeader);
+    assert.equal(legacyHidden.name, "Hidden card", "23-5-2: the legacy engine's Hidden Mode reading lost its own placeholder name");
+    assert.equal(legacyHidden.skill, null, "23-5-2: the legacy engine was read at a Hidden Mode card's printed skill");
+    assert.deepEqual(legacyHidden.colors, [], "23-5-2: the legacy engine was read at a Hidden Mode card's printed colours");
+    assert.deepEqual(legacyHidden.traits, [], "23-5-2: the legacy engine was read at a Hidden Mode card's printed traits");
   }
 
   // 20-3-1: "an original power of N" is the printed face value, *before* any

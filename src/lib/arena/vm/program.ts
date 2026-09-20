@@ -139,17 +139,20 @@ export function attrsNow(ctx: EngineContext, game: GameDefinition, state: VmStat
   // rather than to nothing. Absent stays absent: an X cost has no total until
   // someone names one (1-2-2-2), and 0 would be a price nobody chose.
   const base: Record<string, AttrValue> = { ...printed };
-  // 1-9, 23-5: the number is read off the **face showing**. `attrsOf` reads the
-  // catalog row, which is the front — a card's back side is a face of its own
-  // and the adapter has no kind for one (`attributes.rules`' own `back` entry
-  // says so, and `vm/triggers.ts`'s `skillsShowing` reads the awakened text
-  // separately for the same reason). `power` is the measure that cannot wait
-  // for that answer: a battle is decided by it (8-4-6), and an awakened Leader
-  // fought with its *front* side's number until the pre-flip review of #166.
-  // The legacy `face()`/`powerOf` pair is the reading, blank face included —
-  // a Hidden Mode card has no front-side information at all (23-5-2), so the
-  // attribute is absent rather than the printed number.
-  const shown = facePower(ctx, state, id);
+  // 1-9, 10-1-3, 23-5: every declared attribute the owner's face-showing
+  // ruling of 20 Sep 2026 names (issue #327) is read off the **face showing**,
+  // not off the catalog row unconditionally — `attrsOf` stays that catalog
+  // (front) reading, and `face: true` on the declaration is what tells this
+  // function which ones to overlay. `faceOf` is the one place either engine
+  // reads the shown face from (the legacy `face()` is its counterpart): blank
+  // while the card is in Hidden Mode (23-5-2, no front-side information at
+  // all), the back's own value once a flipped card has one recorded
+  // (`CardDef.back`'s `name`, `power`, `skill`), and the printed value
+  // otherwise. `power` is the measure that could not wait for the rest of this
+  // ruling (8-4-6, #166's pre-flip review), so it keeps its own read below
+  // rather than going through `FACE_FIELD`'s generic one.
+  const shownFace = faceOf(ctx, state, id);
+  const shown = shownFace?.power;
   if (shown === undefined) delete base.power;
   else base.power = shown;
   // 20-3-1: "an original power of 5000" is that same printed face value,
@@ -158,9 +161,28 @@ export function attrsNow(ctx: EngineContext, game: GameDefinition, state: VmStat
   // both off one attribute is what made a 5000-power card pumped to 15000 stop
   // answering to it, and one printed 15000 start (the same review).
   if (game.attributes.originalPower && shown !== undefined) base.originalPower = shown;
+  // Every other `face: true` attribute (`name`, `skill`, `colors`, `traits`,
+  // every cost): hidden deletes it, same as `power` above. A flipped card
+  // substitutes it only when `CardDef.back` actually carries a value of its
+  // own — `name` and `skill` are the two that do; colours, traits and every
+  // cost have no distinct back-side value the catalog has ever recorded, so
+  // 10-1-3 is satisfied by the printed value already sitting in `base` — the
+  // feed simply never gave this adapter a second number to prefer.
+  for (const [name, decl] of Object.entries(game.attributes)) {
+    if (!decl.face || name === "power" || name === "originalPower") continue;
+    if (!shownFace) {
+      delete base[name];
+      continue;
+    }
+    const field = FACE_FIELD[name];
+    if (!field) continue;
+    const value = shownFace[field];
+    if (value === undefined || value === null) delete base[name];
+    else base[name] = value;
+  }
   for (const [derived, face] of Object.entries(PRINTED_BASE)) {
-    if (!game.attributes[derived] || printed[face] === undefined) continue;
-    base[derived] = printed[face];
+    if (!game.attributes[derived] || base[face] === undefined) continue;
+    base[derived] = base[face];
   }
   // The six card-state attributes have no catalog face at all (spec
   // §2.5-1/§2.5-3, #275): five read live off the card sitting on the table,
@@ -175,7 +197,13 @@ export function attrsNow(ctx: EngineContext, game: GameDefinition, state: VmStat
   if (game.attributes.hidden) base.hidden = card.hidden;
   if (game.attributes.faceUp) base.faceUp = card.faceUp;
   if (game.attributes.flipped) base.flipped = card.flipped;
-  if (game.attributes.keywords) base.keywords = keywordsInSkills(parseSkills(typeof printed.skill === "string" ? printed.skill : null)).map((k) => k.name);
+  // `base.skill`, not `printed.skill`: keywords come off the face showing the
+  // same as the rest of a card's text (1-9, 10-1-3, issue #327) — a flipped
+  // Leader's awakened side is what `keywordsInForce`/`hasKeyword` (both read
+  // through this attribute) must find [Blocker] and friends in, and a Hidden
+  // Mode card grants none at all (23-5-2), which `base.skill` being absent
+  // there already gives for free.
+  if (game.attributes.keywords) base.keywords = keywordsInSkills(parseSkills(typeof base.skill === "string" ? base.skill : null)).map((k) => k.name);
   // The value every layer is applied *to*, so an attribute the base left out —
   // a hidden card's power — stays out rather than falling back to the catalog
   // row the spread above would have carried.
@@ -205,22 +233,33 @@ export function attrsNow(ctx: EngineContext, game: GameDefinition, state: VmStat
   return out;
 }
 
+/** What `CardDef.back` carries a value of its own for — the two `attrsNow`'s generic `face: true` overlay substitutes on a flip, `power` (read separately, below) beside them. */
+interface FaceValues {
+  name: string;
+  power: number | undefined;
+  skill: string | null | undefined;
+}
+
+/** Which declared-attribute name each `FaceValues` field answers to, for `attrsNow`'s generic overlay. */
+const FACE_FIELD: Partial<Record<string, keyof FaceValues>> = { name: "name", skill: "skill" };
+
 /**
- * The power printed on the face a card is showing, or nothing at all.
+ * The face a card is showing right now, or nothing at all while it is hidden.
  *
- * The legacy `face(ctx, s, id).power`, exactly: a Hidden Mode card shows no
+ * The legacy `face(ctx, s, id)`, exactly: a Hidden Mode card shows no
  * front-side information (23-5-2) and so has none, a flipped Leader shows its
- * awakened side's number (1-9), and every other card shows the catalog row's.
- * `undefined` rather than 0 for the first two, because "this card has no power
- * to read" and "this card's power is zero" are different claims — a filter
- * measuring power must not match the first (`vm/filters.ts`).
+ * awakened side's `name`/`power`/`skill` (1-9), and every other card shows the
+ * catalog row's. `undefined` rather than a blank face for the first, because
+ * "this card has no face to read" and "this card's face reads as nothing" are
+ * different claims, and every reader below already treats an absent card the
+ * same way it treats a hidden one.
  */
-function facePower(ctx: EngineContext, state: VmState, id: string): number | undefined {
+function faceOf(ctx: EngineContext, state: VmState, id: string): FaceValues | undefined {
   const card = state.cards[id];
   const def = card ? ctx.defs[card.cardId] : undefined;
   if (!card || !def || card.hidden) return undefined;
-  if (card.flipped && def.back) return def.back.power ?? undefined;
-  return def.power ?? undefined;
+  if (card.flipped && def.back) return { name: def.back.name, power: def.back.power ?? undefined, skill: def.back.skill ?? undefined };
+  return { name: def.name, power: def.power ?? undefined, skill: def.skill ?? undefined };
 }
 
 /** One number off one card, for the `attr` and `sumOf` amounts — a cost read through its reduction layer (20-21-2), as the legacy `measure` reads it. */
@@ -233,7 +272,7 @@ function measureOf(ctx: EngineContext, game: GameDefinition, state: VmState, id:
       // 20-3-1: the printed face value, before any layer — the same number
       // `attrsNow` seeds the `originalPower` attribute from, read through the
       // one helper so the amount and the filter cannot answer differently.
-      return facePower(ctx, state, id) ?? 0;
+      return faceOf(ctx, state, id)?.power ?? 0;
     case "comboPower":
       return num(now.comboPower);
     // 20-21-2: "a card with an energy cost of 2 or less" asks what it costs

@@ -40,7 +40,8 @@ DEFINE ATTRIBUTE name                                                     -- §2
   of: card
   value: string
   printed: true
-  text: "the card name (2-3)"
+  face: true
+  text: "the card name (2-3); a Leader's back reads its awakened side's own name once flipped (1-9, 10-1-3), the owner's face-showing ruling of 20 Sep 2026 (issue #327)"
 
 DEFINE ATTRIBUTE type                                                     -- §2-1
   of: card
@@ -52,33 +53,38 @@ DEFINE ATTRIBUTE colors                                                   -- §2
   of: card
   value: colors
   printed: true
-  text: "the card's colors: red, blue, green, yellow, black, white, or none of them (1-8, 2-2)"
+  face: true
+  text: "the card's colors: red, blue, green, yellow, black, white, or none of them (1-8, 2-2); the face-showing ruling of 20 Sep 2026 (issue #327) names this one, though the catalog has never recorded a Leader's back printing a different colour from its front"
 
 DEFINE ATTRIBUTE energyCost                                               -- §2-5
   of: card
   value: number
   printed: true
-  text: "the total cost of playing the card from hand; an X cost is a number its master chooses when it is paid and zero at every other time (1-2-2, 1-2-2-2)"
+  face: true
+  text: "the total cost of playing the card from hand; an X cost is a number its master chooses when it is paid and zero at every other time (1-2-2, 1-2-2-2); the face-showing ruling of 20 Sep 2026 (issue #327) names every cost, though a Leader — the only card with a back to flip to — has none of this to read on either face"
 
 DEFINE ATTRIBUTE specifiedCost                                            -- §1-2-3
   of: card
   value: colors
   printed: true
   layers: [printed, reduction, specified]
-  text: "the coloured orbs of the energy cost, one entry per orb, that must be matched in colour when the cost is paid (1-2-3, 5-3); a flat reduction takes an orb off with each energy it takes off the total (20-21-2), and the `specified` layer is the half that relaxes or tightens the colours alone without moving the total at all"
+  face: true
+  text: "the coloured orbs of the energy cost, one entry per orb, that must be matched in colour when the cost is paid (1-2-3, 5-3); a flat reduction takes an orb off with each energy it takes off the total (20-21-2), and the `specified` layer is the half that relaxes or tightens the colours alone without moving the total at all; the face-showing ruling of 20 Sep 2026 (issue #327) names this among the costs"
 
 DEFINE ATTRIBUTE zEnergyCost                                             -- §2-6
   of: card
   value: number
   printed: true
-  text: "the Z-Energy cost of playing the card from the Z-Deck (1-4, 2-6)"
+  face: true
+  text: "the Z-Energy cost of playing the card from the Z-Deck (1-4, 2-6); the face-showing ruling of 20 Sep 2026 (issue #327) names every cost"
 
 DEFINE ATTRIBUTE power                                                    -- §2-7
   of: card
   value: number
   printed: true
   layers: [printed, rewrite, numeric]
-  text: "the number a battle is decided by (2-7, 8-4); combo power is added to it only in the Damage Step (5-7)"
+  face: true
+  text: "the number a battle is decided by (2-7, 8-4); combo power is added to it only in the Damage Step (5-7); read off the face showing since #166's pre-flip review, and named again by the owner's face-showing ruling of 20 Sep 2026 (issue #327)"
 
 -- 20-3-1 — the printed face value, said on its own so that nothing has to
 -- read it back off `power` once 9-9-1's layers have been applied to that one.
@@ -87,7 +93,12 @@ DEFINE ATTRIBUTE power                                                    -- §2
 -- answers with its awakened side and a card in Hidden Mode with nothing at all
 -- (1-9, 23-5-2), which is `vm/program.ts`'s `facePower` and the legacy
 -- `face()`. `layers: [printed]` is what says the board fills it and no layer
--- moves it — the same shape `mode` and `markers` below take.
+-- moves it — the same shape `mode` and `markers` below take. It carries no
+-- `face:` of its own for exactly that reason: `face:` says "overlay the shown
+-- face onto the catalog's printed value", and this attribute has no catalog
+-- value to overlay in the first place — `power` and this one are the two
+-- `attrsNow` fills entirely through the shown-face helper, the pattern every
+-- other `face: true` attribute below now shares (issue #327).
 DEFINE ATTRIBUTE originalPower                                            -- §20-3-1
   of: card
   value: number
@@ -99,14 +110,16 @@ DEFINE ATTRIBUTE comboCost                                                -- §2
   of: card
   value: number
   printed: true
-  text: "the energy paid to use the card in a combo (2-9, 5-6)"
+  face: true
+  text: "the energy paid to use the card in a combo (2-9, 5-6); the face-showing ruling of 20 Sep 2026 (issue #327) names every cost"
 
 DEFINE ATTRIBUTE comboPower                                               -- §2-8
   of: card
   value: number
   printed: true
   layers: [printed, rewrite, numeric]
-  text: "the power the card adds when it is used in a combo (2-8, 5-7)"
+  face: true
+  text: "the power the card adds when it is used in a combo (2-8, 5-7); the face-showing ruling of 20 Sep 2026 (issue #327) reads this off the face showing alongside `power`"
 
 DEFINE ATTRIBUTE characters                                               -- §2-10
   of: card
@@ -118,19 +131,21 @@ DEFINE ATTRIBUTE traits                                                   -- §2
   of: card
   value: strings
   printed: true
-  text: "the special traits the card carries, written in double angle brackets (2-11)"
+  face: true
+  text: "the special traits the card carries, written in double angle brackets (2-11); the face-showing ruling of 20 Sep 2026 (issue #327) names this one, though the catalog has never recorded a Leader's back printing traits its front does not"
 
 DEFINE ATTRIBUTE skill                                                    -- §2-4
   of: card
   value: string
   printed: true
-  text: "the card's text box, which is every skill it has before any is gained or negated (2-4, 1-5)"
+  face: true
+  text: "the card's text box, which is every skill it has before any is gained or negated (2-4, 1-5); a Leader's back reads its awakened side's own text once flipped (1-9, 10-1-3), the owner's face-showing ruling of 20 Sep 2026 (issue #327)"
 
 DEFINE ATTRIBUTE back                                                     -- §1-9
   of: card
   value: boolean
   printed: true
-  text: "whether the card has a back side to turn to — a Leader's awakened face, or a Z-Leader's single face (1-9). What is printed on that face is a face of its own, which this grammar has no kind for; see the history entry of 12 Sep 2026"
+  text: "whether the card has a back side to turn to — a Leader's awakened face, or a Z-Leader's single face (1-9). What is printed on that face is a face of its own, which this grammar still has no kind for (see the history entry of 12 Sep 2026) — `face: true` on the attributes above is the smaller answer the owner's ruling of 20 Sep 2026 (issue #327) settled on instead: every attribute that ruling names is read off the face showing rather than off this boolean's own card row, and `CardDef.back` is still the only place a distinct back value can actually be recorded (`name`, `power`, `skill`)"
 
 DEFINE ATTRIBUTE alsoNames                                                -- §20-1
   of: card

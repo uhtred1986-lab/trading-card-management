@@ -452,6 +452,22 @@ side as a *face* of its own (1-9). The engine also runs the Main Phase End Step 
 own, where the manual makes it a step of the Main Phase (7-3-5); the declaration follows the
 engine and says so.
 
+**The back-face gap closed, by ruling (issue #327, owner's ruling of 20 Sep 2026): all attributes
+follow the face showing.** Once a Leader awakens, its name, skill, colours, traits, costs and power
+all come off the back face (1-9, 10-1-3); a Hidden Mode card exposes none of it (23-5-2). Said in
+the grammar as `face: true` on `DEFINE ATTRIBUTE` — smaller than a `DEFINE FACE` kind, and every
+declaration this ruling touches still has exactly one value, read off whichever face is showing
+rather than off the catalog row unconditionally. Read in one place: `vm/program.ts`'s `attrsNow`
+overlays every `face: true` attribute through the same helper `power`/`originalPower` already used
+(widened rather than duplicated) — hidden deletes it, a flipped card with a back-side value of its
+own (`CardDef.back`'s `name`, `power`, `skill`) substitutes it, and an attribute the catalog never
+recorded a distinct back value for (colours, traits, every cost) stands as printed, since 10-1-3
+still holds even where the feed carries only one number to read. `attrsOf` is untouched — it stays
+the catalog (front) reading `face: true` is overlaid onto, per attribute #275 already drew this
+line at. The legacy engine's `cardNow`/`matches` pair changed in the same commit, for the same
+reason #275's own line names: two engines patched attribute by attribute drift apart quietly, and
+the owner's ruling is one answer for both.
+
 ### What a trigger declaration says
 
 `triggers.rules` is the first file written, and four conventions hold across it. They are the
