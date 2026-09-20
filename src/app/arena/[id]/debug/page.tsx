@@ -52,6 +52,9 @@ export default async function ArenaDebugPage({ params }: { params: Promise<{ id:
         <h1 className="text-lg font-semibold tracking-tight text-space-50">
           How Claude played · {game.p1Name} vs {game.p2Name}
         </h1>
+        <span className="rounded bg-space-800 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-space-300" title="Every decision below was taken on the engine this game was made on (#162) — a game never changes engine, so this applies to the whole log.">
+          {game.engine} engine
+        </span>
         <Link href="/arena/rules/patterns?half=open" className="ml-auto text-xs text-ki-300 hover:underline">
           card-text patterns →
         </Link>

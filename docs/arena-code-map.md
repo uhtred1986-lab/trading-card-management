@@ -567,6 +567,23 @@ the same as if it were still in `CLAUDE.md`.
   perhaps 50–100 tokens — still comfortably over Opus 5's 512-token minimum and nowhere near Haiku
   4.5's 4,096, so Tournament games cache and Sparring games do not, unchanged. Re-measure exactly
   from a played game's `ai_runs` row rather than trusting this estimate.
+  **#162 put the "cannot go wrong" shortcuts on both engines.** `chooseMove`'s `freeChoice`/
+  `chargeChoice`/`mulliganChoice` now read the board through the `zoneOf`/`catalogDefOf`/`leaderOf`
+  seam (`engine-state.ts`, the same one `#161`'s probe uses) instead of `GameState`'s own shape, so
+  a rules-engine game's coin flip, mulligan and charge decide themselves exactly as a legacy one's
+  do — proven against a real `VmState` in `scripts/verify/ai-vm.ts`. A real Main Phase decision is
+  not: `stateText`/`decklistText` still read `GameState` directly, so `chooseMove` refuses one by
+  name (`"Claude's own move is not built on the rules engine yet (#162)"`) the moment the
+  shortcuts run out, rather than reading `undefined` off `.players` several calls deeper — the
+  same discipline `#161`'s `opening()` applies. `games.ts`'s `assertEngineForMode` now refuses only
+  `versus` on the rules engine (the 1 v 1 hidden-hand masking is still legacy-only); Sparring and
+  Tournament are let through, since a game that cannot yet make a real decision still ends
+  correctly — `run.ts`'s `advance` catches the refusal the same way it catches any other AI error
+  and reports it to the player rather than crashing. `arena_decisions` does not carry its own
+  `engine` column (a schema migration this sandbox could not write without touching the shared
+  Neon database Claude Code on the web is configured against here) — `/arena/[id]/debug` shows the
+  game's own `engine` instead, which is exactly as much as the column would ever have said, since a
+  game never changes engine.
 - **Arena debug** (`src/lib/arena/ai/debug.ts`): every decision the server takes is
   written to `arena_decisions` — the prompt kind, the whole menu offered, what was chosen, whether a
   rule or Claude decided it, the model, tokens, cost and latency, plus the exact prompt text when

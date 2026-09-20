@@ -8,23 +8,23 @@
  * the opponent then takes the first legal move and the referee rules nothing.
  *
  * `--engine` (default `legacy`) is passed straight to `startGame`, which
- * resolves it through `playableEngine` and, since #149, `assertEngineForMode`
- * too — the rules engine plays hot-seat only, so `--engine rules` with the
- * default `sparring` tier refuses there before a deck is even read, the same
- * refusal the `/arena` form gives for that combination. `--engine rules
- * hotseat` runs, and the board-drawing calls below are narrowed to the
- * legacy `GameState` accordingly (`legacyState`) since the stand-in that
- * plays every seat here reads `boardView` directly rather than through
- * `engineFor`.
+ * resolves it through `playableEngine` and `assertEngineForMode` — since
+ * #162, that refuses only `versus` on the rules engine, so `--engine rules`
+ * with the default `sparring` tier now starts (`ai/opponent.ts`'s own
+ * `chooseMove` is what still refuses a real API call there, mid-game, once
+ * the free-choice shortcuts run out). The board-drawing call below goes
+ * through `engineFor(game.engine)` rather than the legacy `boardView`
+ * directly, so the stand-in that plays every seat here draws either engine's
+ * board the same way the real page does.
  */
 import { eq } from "drizzle-orm";
 import { db } from "../src/db";
 import { arenaGames, decks } from "../src/db/schema";
 import { advance } from "../src/lib/arena/ai/run";
-import { isEngineId, legacyState } from "../src/lib/arena/engines";
+import { engineFor, isEngineId } from "../src/lib/arena/engines";
 import { loadGame, startGame, type ArenaMode } from "../src/lib/arena/games";
 import { deckInputFor } from "../src/lib/arena/load";
-import { boardView, tappable, viewerOf } from "../src/lib/arena/view";
+import { tappable, viewerOf } from "../src/lib/arena/view";
 
 const argv = process.argv.slice(2);
 const engineArg = argv.indexOf("--engine");
@@ -70,9 +70,9 @@ for (let i = 0; i < 400; i++) {
 
   const game = await loadGame(db, id);
   if (!game || game.status !== "playing") break;
-  const state = legacyState(game.state);
+  const state = game.state;
   // The board must build on every state, or the page would crash mid-game.
-  boardView(game.ctx, state, "p1", {});
+  engineFor(game.engine).boardView(game.ctx, state, "p1", {});
   tappable(game.legal);
   // The stand-in plays for whoever is being asked, except Claude itself.
   const ai = tier === "hotseat" ? null : "p2";

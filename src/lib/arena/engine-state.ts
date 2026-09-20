@@ -6,12 +6,14 @@
  * `leaderOf`, `unisonOf`, `energyMarkersOf`) so `battles.ts`/`workflow.ts`/
  * `keywords.ts` could run for real on both engines; `harness.ts` re-exports
  * these rather than keeping its own copy, so the test suites and the probe
- * (`#161`) read the same seam. The two engines were never going to store a
- * board the same way — `GameState.players[p][area]` against
- * `VmState.sides[p].zones[area]`, a scalar Leader/Unison against a
- * single-entry zone — so this is the one place that difference is bridged,
- * rather than each caller reaching into `players`/`sides` for itself.
+ * (`#161`) and the opponent (`#162`) read the same seam. The two engines were
+ * never going to store a board the same way —
+ * `GameState.players[p][area]` against `VmState.sides[p].zones[area]`, a
+ * scalar Leader/Unison against a single-entry zone — so this is the one
+ * place that difference is bridged, rather than each caller reaching into
+ * `players`/`sides` for itself.
  */
+import type { CardDef } from "./engine";
 import type { PlayerId } from "./engine/types";
 import type { EngineState } from "./engines";
 import { isVmState } from "./vm/state";
@@ -36,4 +38,14 @@ export function unisonOf(s: EngineState, p: PlayerId): string | null {
 /** 1-14 energy markers — `state.sides[p].attrs.energyMarkers` (a declared `of: player` attribute) on the rules engine, `state.players[p].energyMarkers` on the legacy one. */
 export function energyMarkersOf(s: EngineState, p: PlayerId): number {
   return isVmState(s) ? Number(s.sides[p].attrs.energyMarkers ?? 0) : s.players[p].energyMarkers;
+}
+
+/** A player's name, from whichever side it sits on (`state.sides[p].name` / `state.players[p].name`) — issue #162's own need, one seat name read by either engine. */
+export function nameOf(s: EngineState, p: PlayerId): string {
+  return isVmState(s) ? s.sides[p].name : s.players[p].name;
+}
+
+/** A card's catalog definition — the printed values (`energyCost`, `colors`, …), read off `ctx.defs` by the instance's `cardId`, the one field both engines' card records carry under the same name. Not for a token: those never sit in a hand or a deck, which is the only place this is used. */
+export function catalogDefOf(ctx: { defs: Record<string, CardDef> }, s: EngineState, id: string): CardDef {
+  return ctx.defs[s.cards[id].cardId];
 }
