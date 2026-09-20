@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getRepoUrl } from "@/lib/github";
 import type { RuleCounts, RuleStatus } from "@/lib/arena/rules-store";
 
 /**
@@ -39,6 +40,9 @@ export function RulesHeader({ tab, inDecks, catalog, openSinceSync }: { tab: str
         {openSinceSync != null ? <Kpi n={openSinceSync} label="open since last sync" tone={openSinceSync ? "text-loss" : ""} /> : null}
       </div>
       <div className="flex gap-3 text-xs">
+        <a href={`${getRepoUrl()}/blob/main/docs/arena-fixing-a-card.md`} target="_blank" rel="noopener noreferrer" className="text-space-300 hover:text-ki-300">
+          How to fix a card
+        </a>
         <Link href="/arena/rules/keywords" className="text-space-300 hover:text-ki-300">
           keywords
         </Link>

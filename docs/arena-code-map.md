@@ -668,7 +668,8 @@ the same as if it were still in `CLAUDE.md`.
   row as `{id, version}` pairs so **Undo** puts back exactly those and leaves anything edited since
   alone. `npm run arena:draft` fills the table; the catalog sync drafts every new or changed card.
   A rule with no steps and a `keyword:` pattern is not blank — the keyword is the rule the engine
-  plays, and the record says which, from `glossary.ts`.
+  plays, and the record says which, from `glossary.ts`. The owner's own walkthrough for correcting
+  a record from the phone or the PC is `docs/arena-fixing-a-card.md`, linked from `/arena/rules`.
 - **The probe** (`src/lib/arena/probe.ts`, the record's right-hand pane, phase 3 of the same
   brief): a record says what the engine *will* play, a probe says what it *does*.
   `probe(rule, scenario)` builds a game with `createGame` and two minimal decks, stages the one
