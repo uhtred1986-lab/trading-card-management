@@ -372,9 +372,27 @@ export interface Gains {
  */
 export function cardNow(ctx: GameContext, s: GameState, id: string): CardDef {
   const d = def(ctx, s, id);
+  const inst = s.cards[id];
+  // 1-9, 10-1-3, 23-5: every attribute the owner's face-showing ruling of 20
+  // Sep 2026 names (issue #327) comes off the face showing, not off the
+  // catalog row unconditionally — the whole point being that `matches`, which
+  // every filter reads a card through via this function, must not answer
+  // differently about a flipped or Hidden Mode card than `powerOf`/`face()`
+  // already do. `face()` is the one place either engine reads a shown card's
+  // `name`/`power`/`skill` from, reused here rather than re-read, so the two
+  // cannot drift. Colours, traits and every cost have no distinct back-side
+  // value the catalog has ever recorded, so a flip leaves them as printed;
+  // Hidden Mode blanks all of it (23-5-2) — a card with none of its
+  // front-side information to read matches no colour, trait or cost filter
+  // either, the same reading `face()` already gives `name`/`power`/`skill`.
+  const base: CardDef = inst.hidden
+    ? { ...d, name: "Hidden card", skill: null, power: null, colors: [], traits: [], energyCost: null, zEnergyCost: null, comboCost: null, comboPower: null, specifiedCost: undefined }
+    : inst.flipped && d.back
+      ? { ...d, ...face(ctx, s, id) }
+      : d;
   const gains = staticEffects(ctx, s).filter((e) => e.kind === "gains" && e.target === id);
-  if (!gains.length) return d;
-  const out = { ...d, traits: [...d.traits], characters: [...d.characters], colors: [...d.colors], alsoNames: [...(d.alsoNames ?? [])] };
+  if (!gains.length) return base;
+  const out = { ...base, traits: [...base.traits], characters: [...base.characters], colors: [...base.colors], alsoNames: [...(base.alsoNames ?? [])] };
   const add = (list: string[], more: string[]) => {
     for (const x of more) if (!list.some((y) => y.toLowerCase() === x.toLowerCase())) list.push(x);
   };

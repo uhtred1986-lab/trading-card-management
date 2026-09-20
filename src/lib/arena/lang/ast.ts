@@ -375,6 +375,15 @@ export interface DefAttribute extends Declaration<"ATTRIBUTE"> {
   derived?: Amount;
   layers?: string[];
   /**
+   * This card attribute is read off the **face showing** (1-9, 10-1-3), not
+   * off the catalog row unconditionally: a flipped Leader answers with its
+   * awakened side, and a card in Hidden Mode has none of it to read at all
+   * (23-5-2). `vm/program.ts`'s `attrsNow` is the one place this is applied —
+   * `attrsOf` stays the catalog (front) reading for every attribute, marked or
+   * not, and this flag is what tells `attrsNow` which ones it must overlay.
+   */
+  face?: boolean;
+  /**
    * When a `of: player` fact returns to its rest value on its own, rather
    * than only ever being read and set by name (issue #269): `"turnStart"` is
    * every declared player attribute with this the interpreter clears for
@@ -731,6 +740,7 @@ export const DEFINE_SCHEMA = {
       { name: "derived", type: "amount" },
       { name: "layers", type: { list: "string" } },
       { name: "reset", type: { enum: ["turnStart"] } },
+      { name: "face", type: "boolean" },
       TEXT,
     ],
   },

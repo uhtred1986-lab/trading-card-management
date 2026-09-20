@@ -223,7 +223,10 @@ board (manual §4). `of:` (card | player | zone) and `value:` (number | string |
 boolean) are required; `printed:` says it comes off the card, `derived:` is the expression that
 computes it instead, `layers:` the order the layers apply in, `reset:` (`turnStart`) says when a
 `player` fact returns to its rest value on its own rather than only ever being read and set by name
-(issue #269), `text:` what it means.
+(issue #269), `face:` says a card attribute is read off the face showing rather than off the
+catalog row unconditionally — absent while the card is in Hidden Mode, the back's own value once a
+flipped card has one recorded, the printed value otherwise (1-9, 10-1-3, 23-5-2, issue #327),
+`text:` what it means.
 
 ```
 DEFINE ATTRIBUTE power
