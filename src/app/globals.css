@@ -490,6 +490,104 @@ input[type="number"] {
 }
 
 /* ==========================================================================
+ * Drag from the hand (issue #345, docs/arena-board-redesign-spec.md
+ * decisions 1-2). A card in the air over the zones that could take it: the
+ * board only draws the engine's verdict (`data-drop="ok|no"`), it decides
+ * nothing. Fixed inks, not the skin's scale, because the anime skin inverts
+ * that and these sit on a card-sized gold or red pill in both.
+ * ========================================================================== */
+.arena-drop-ring {
+  position: absolute;
+  inset: -4px;
+  z-index: 2;
+  pointer-events: none;
+  border-radius: 14px;
+  border: 3px dashed transparent;
+  display: none;
+}
+[data-drop] > .arena-drop-ring {
+  display: block;
+}
+[data-drop="ok"] > .arena-drop-ring {
+  border-color: var(--color-ki-400);
+  animation: arena-blink 1s ease-in-out infinite;
+}
+[data-drop="ok"][data-hot] > .arena-drop-ring {
+  border-style: solid;
+  animation: none;
+  background: color-mix(in srgb, var(--color-ki-400) 16%, transparent);
+  box-shadow: 0 0 28px color-mix(in srgb, var(--color-ki-400) 55%, transparent);
+}
+[data-drop="no"][data-hot] > .arena-drop-ring {
+  border-color: var(--color-loss);
+  background: color-mix(in srgb, var(--color-loss) 14%, transparent);
+}
+@keyframes arena-blink {
+  50% {
+    opacity: 0.45;
+  }
+}
+.arena-slot-land {
+  border: 2px solid var(--color-ki-400);
+  background: color-mix(in srgb, var(--color-ki-400) 22%, transparent);
+  animation: arena-blink 1s ease-in-out infinite;
+}
+/* At the left end, where a card held over the middle of the zone does not cover it. */
+.arena-droptag {
+  position: absolute;
+  left: 12px;
+  top: -14px;
+  z-index: 9;
+  white-space: nowrap;
+  pointer-events: none;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #d8322f;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  font-style: italic;
+  line-height: 1;
+  animation: arena-pop 260ms ease-out backwards;
+}
+.arena-droptag[data-ok] {
+  background: #ffc02e;
+  color: #12161f;
+}
+.arena-droptag-energy {
+  top: auto;
+  bottom: -14px;
+  left: auto;
+  right: 8px;
+}
+/* The energy that would rest pulses; the energy that is missing is drawn dashed. */
+.arena-will {
+  animation: arena-blink 0.8s ease-in-out infinite;
+  filter: drop-shadow(0 0 4px var(--color-ki-400));
+}
+.arena-dragghost {
+  margin: 0;
+  transform: translate(-50%, -64%) rotate(-6deg) scale(1.14);
+  transition:
+    transform 150ms,
+    filter 150ms;
+  filter: drop-shadow(0 18px 18px rgba(0, 0, 0, 0.5)) drop-shadow(0 0 3px var(--color-ki-400));
+}
+.arena-dragghost[data-over] {
+  transform: translate(-50%, -64%) rotate(0deg) scale(1.24);
+}
+.arena-dragghost[data-bad] {
+  filter: saturate(0.35) brightness(0.85) drop-shadow(0 18px 18px rgba(0, 0, 0, 0.5));
+}
+.arena-dragghost[data-back] {
+  transform: translate(-50%, -64%) rotate(0deg) scale(1);
+  transition:
+    left 440ms cubic-bezier(0.2, 1.5, 0.4, 1),
+    top 440ms cubic-bezier(0.2, 1.5, 0.4, 1),
+    transform 440ms;
+}
+
+/* ==========================================================================
  * Unmissable turns (issue #344, docs/arena-board-redesign-spec.md §2).
  *
  * Banner, pill, edge and lit row all read the acting side's colour from the
@@ -1439,6 +1537,9 @@ html[data-skin="anime"] body::before {
   .arena-slam,
   .arena-drop,
   .arena-nudge,
+  .arena-will,
+  .arena-slot-land,
+  .arena-drop-ring,
   .arena-lunge-up,
   .arena-lunge-down,
   .arena-hit,

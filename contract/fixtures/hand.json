@@ -1,0 +1,531 @@
+{
+  "contract": 1,
+  "game": {
+    "id": 1,
+    "mode": "hotseat",
+    "engine": "legacy",
+    "game": "dbs",
+    "status": "playing",
+    "turn": 3,
+    "p1Name": "You",
+    "p2Name": "Claude",
+    "you": "p1"
+  },
+  "view": {
+    "you": {
+      "player": "p1",
+      "name": "You",
+      "leader": {
+        "id": "p1#0",
+        "cardId": "L-RED",
+        "name": "L-RED",
+        "power": 10000,
+        "colors": [
+          "Red"
+        ],
+        "imageUrl": null,
+        "mode": "active",
+        "hidden": false,
+        "flipped": false,
+        "markers": 0,
+        "underCount": 0,
+        "isToken": false,
+        "cost": null,
+        "comboCost": null,
+        "comboPower": 0,
+        "keywords": [
+          "Awaken"
+        ],
+        "text": "[Awaken] When your life is at 4 or less: Draw 1 card and flip this card over.",
+        "reading": "draw 1",
+        "referee": false
+      },
+      "unison": null,
+      "battle": [],
+      "combo": [],
+      "energy": [
+        {
+          "id": "p1#12",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#45",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        }
+      ],
+      "hand": [
+        {
+          "id": "p1#15",
+          "cardId": "UNIQ",
+          "name": "UNIQ",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [
+            "Unique"
+          ],
+          "text": "[Unique]",
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#35",
+          "cardId": "BLOCKER",
+          "name": "BLOCKER",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "2",
+          "comboCost": 1,
+          "comboPower": 10000,
+          "keywords": [
+            "Blocker"
+          ],
+          "text": "[Blocker]",
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#18",
+          "cardId": "COST3",
+          "name": "COST3",
+          "power": 15000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "3",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#38",
+          "cardId": "CRIT",
+          "name": "CRIT",
+          "power": 15000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "3",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [
+            "Critical"
+          ],
+          "text": "[Critical]",
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#13",
+          "cardId": "REVENGE",
+          "name": "REVENGE",
+          "power": 5000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "2",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [
+            "Revenge"
+          ],
+          "text": "[Revenge]",
+          "reading": "",
+          "referee": false
+        }
+      ],
+      "handCount": 5,
+      "life": 8,
+      "lifeFaceUp": [],
+      "zDeckFaceUp": [],
+      "deck": 35,
+      "drop": 0,
+      "warp": 0,
+      "zDeck": 0,
+      "zEnergy": 0,
+      "energyMarkers": 0,
+      "activeEnergy": 2,
+      "dropTop": null
+    },
+    "them": {
+      "player": "p2",
+      "name": "Claude",
+      "leader": {
+        "id": "p2#0",
+        "cardId": "L-BLUE",
+        "name": "L-BLUE",
+        "power": 10000,
+        "colors": [
+          "Blue"
+        ],
+        "imageUrl": null,
+        "mode": "active",
+        "hidden": false,
+        "flipped": false,
+        "markers": 0,
+        "underCount": 0,
+        "isToken": false,
+        "cost": null,
+        "comboCost": null,
+        "comboPower": 0,
+        "keywords": [],
+        "text": null,
+        "reading": "",
+        "referee": false
+      },
+      "unison": null,
+      "battle": [],
+      "combo": [],
+      "energy": [],
+      "hand": null,
+      "handCount": 0,
+      "life": 8,
+      "lifeFaceUp": [],
+      "zDeckFaceUp": [],
+      "deck": 42,
+      "drop": 0,
+      "warp": 0,
+      "zDeck": 0,
+      "zEnergy": 0,
+      "energyMarkers": 1,
+      "activeEnergy": 0,
+      "dropTop": null
+    },
+    "turn": 3,
+    "phase": "main",
+    "turnPlayer": "p1",
+    "battle": null,
+    "prompt": {
+      "kind": "main",
+      "player": "p1",
+      "question": "Your Main Phase.",
+      "hint": "Play cards, attack, or end the turn."
+    },
+    "over": null
+  },
+  "legal": [
+    {
+      "action": {
+        "type": "play",
+        "player": "p1",
+        "card": "p1#15"
+      },
+      "label": "Play UNIQ (1)"
+    },
+    {
+      "action": {
+        "type": "play",
+        "player": "p1",
+        "card": "p1#35"
+      },
+      "label": "Play BLOCKER (2)"
+    },
+    {
+      "action": {
+        "type": "play",
+        "player": "p1",
+        "card": "p1#13"
+      },
+      "label": "Play REVENGE (2)"
+    },
+    {
+      "action": {
+        "type": "attack",
+        "player": "p1",
+        "attacker": "p1#0",
+        "target": "p2#0"
+      },
+      "label": "Attack L-BLUE with L-RED (10000 vs 10000)"
+    },
+    {
+      "action": {
+        "type": "endMain",
+        "player": "p1"
+      },
+      "label": "End turn"
+    }
+  ],
+  "taps": {
+    "byCard": {
+      "p1#15": [
+        0
+      ],
+      "p1#35": [
+        1
+      ],
+      "p1#13": [
+        2
+      ],
+      "p1#0": [
+        3
+      ]
+    },
+    "bare": [
+      4
+    ],
+    "attackTargets": {
+      "p1#0": {
+        "p2#0": 3
+      }
+    },
+    "whyByCard": {
+      "p1#15": [
+        {
+          "kind": "oncePerTurn",
+          "what": "charge"
+        }
+      ],
+      "p1#35": [
+        {
+          "kind": "oncePerTurn",
+          "what": "charge"
+        }
+      ],
+      "p1#18": [
+        {
+          "kind": "energy",
+          "need": 3,
+          "have": 2
+        },
+        {
+          "kind": "oncePerTurn",
+          "what": "charge"
+        }
+      ],
+      "p1#38": [
+        {
+          "kind": "energy",
+          "need": 3,
+          "have": 2
+        },
+        {
+          "kind": "oncePerTurn",
+          "what": "charge"
+        }
+      ],
+      "p1#13": [
+        {
+          "kind": "oncePerTurn",
+          "what": "charge"
+        }
+      ],
+      "p1#0": [
+        {
+          "kind": "condition",
+          "text": "When your life is at 4 or less"
+        }
+      ]
+    }
+  },
+  "rejected": [
+    {
+      "action": {
+        "type": "charge",
+        "player": "p1",
+        "card": "p1#15"
+      },
+      "label": "Charge UNIQ",
+      "why": [
+        {
+          "kind": "oncePerTurn",
+          "what": "charge"
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "charge",
+        "player": "p1",
+        "card": "p1#35"
+      },
+      "label": "Charge BLOCKER",
+      "why": [
+        {
+          "kind": "oncePerTurn",
+          "what": "charge"
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "play",
+        "player": "p1",
+        "card": "p1#18"
+      },
+      "label": "Play COST3 (3)",
+      "why": [
+        {
+          "kind": "energy",
+          "need": 3,
+          "have": 2
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "charge",
+        "player": "p1",
+        "card": "p1#18"
+      },
+      "label": "Charge COST3",
+      "why": [
+        {
+          "kind": "oncePerTurn",
+          "what": "charge"
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "play",
+        "player": "p1",
+        "card": "p1#38"
+      },
+      "label": "Play CRIT (3)",
+      "why": [
+        {
+          "kind": "energy",
+          "need": 3,
+          "have": 2
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "charge",
+        "player": "p1",
+        "card": "p1#38"
+      },
+      "label": "Charge CRIT",
+      "why": [
+        {
+          "kind": "oncePerTurn",
+          "what": "charge"
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "charge",
+        "player": "p1",
+        "card": "p1#13"
+      },
+      "label": "Charge REVENGE",
+      "why": [
+        {
+          "kind": "oncePerTurn",
+          "what": "charge"
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "activate",
+        "player": "p1",
+        "card": "p1#0",
+        "skill": 0
+      },
+      "label": "Activate L-RED: [Awaken]",
+      "why": [
+        {
+          "kind": "condition",
+          "text": "When your life is at 4 or less"
+        }
+      ]
+    }
+  ],
+  "beats": null,
+  "spotlight": null,
+  "log": [],
+  "waiting": "you",
+  "spend": {
+    "calls": 0,
+    "input": 0,
+    "output": 0,
+    "cached": 0,
+    "micros": 0
+  },
+  "over": null
+}

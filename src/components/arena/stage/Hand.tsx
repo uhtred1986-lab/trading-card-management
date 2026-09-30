@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "motion/react";
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import type { CardView } from "@/lib/arena/view";
 import { ZoneAnchor } from "./anchors";
 import { StageCard } from "./StageCard";
@@ -25,6 +25,8 @@ export function Hand({
   cardProps,
   controls,
   children,
+  dragId = null,
+  dragFor,
 }: {
   cards: CardView[];
   count: number;
@@ -34,8 +36,26 @@ export function Hand({
   controls: React.ReactNode;
   /** The log, when it is open — above the cards, never instead of them. */
   children?: React.ReactNode;
+  /** The card being dragged out of the hand (rd-03): it fades where it sits. */
+  dragId?: string | null;
+  /** The pointer handlers that make one card draggable, or null when it is not. */
+  dragFor?: (id: string) => React.HTMLAttributes<HTMLDivElement> | null;
 }) {
   const [open, setOpen] = useState(false);
+  // A hand wider than the screen scrolls sideways, and a card that took every
+  // touch (`touch-action: none`) would make the far cards unreachable. So a
+  // scrolling hand lets a sideways swipe through and keeps the vertical one.
+  const strip = useRef<HTMLDivElement | null>(null);
+  const [scrolls, setScrolls] = useState(false);
+  useLayoutEffect(() => {
+    const el = strip.current;
+    if (!el) return;
+    const measure = () => setScrolls(el.scrollWidth > el.clientWidth + 1);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [cards.length, open]);
   const width = open ? 92 : 62;
   const middle = (cards.length - 1) / 2;
 
@@ -77,19 +97,27 @@ export function Hand({
 
       {children}
 
-      <div className={`flex overflow-x-auto pb-1 transition-all duration-200 ${open ? "gap-2 pt-3 sm:gap-3" : "gap-1 sm:gap-2 lg:gap-3"} sm:[justify-content:safe_center]`}>
+      <div ref={strip} className={`flex overflow-x-auto pb-1 transition-all duration-200 ${open ? "gap-2 pt-3 sm:gap-3" : "gap-1 sm:gap-2 lg:gap-3"} sm:[justify-content:safe_center]`}>
         {cards.map((c, i) => {
           const off = i - middle;
+          const handlers = dragFor?.(c.id) ?? null;
           return (
-            <StageCard
+            <div
               key={c.id}
-              {...cardProps(c)}
-              width={width}
-              // A small tilt and a shallow arc: a hand, not a shear.
-              fan={open ? off * 2.5 : 0}
-              lift={open ? Math.abs(off) * 2.5 : 0}
-              lifts
-            />
+              {...handlers}
+              className="shrink-0 transition-[opacity,filter] duration-150"
+              style={{ touchAction: handlers ? (scrolls ? "pan-x" : "none") : undefined, ...(dragId === c.id ? { opacity: 0.22, filter: "grayscale(0.7)" } : null) }}
+            >
+              <StageCard
+                {...cardProps(c)}
+                width={width}
+                // A small tilt and a shallow arc: a hand, not a shear.
+                fan={open ? off * 2.5 : 0}
+                lift={open ? Math.abs(off) * 2.5 : 0}
+                lifts
+                holdLock={dragId === c.id}
+              />
+            </div>
           );
         })}
         {cards.length === 0 && <span className="py-4 text-xs text-space-500 sm:text-sm">no cards in hand</span>}

@@ -5,6 +5,7 @@ milestone: Arena M16 — Board redesign: play feel and card review
 labels: backlog, ready-for-agent, enhancement, area:arena-ui, phase:board-redesign, model:sonnet-5
 stage: ui
 touches: src/components/arena/stage/Hand.tsx, src/components/arena/stage/ArenaStage.tsx, src/components/arena/stage/StageCard.tsx, src/components/arena/stage/StageZones.tsx, src/app/globals.css
+status: closed
 ---
 **Source:** `docs/arena-board-redesign-spec.md` decisions 1–2; frames `docs/arena-redesign/phone-04-drag-to-play.jpg`, `docs/arena-redesign/desk-04-drag-to-play.jpg`, `docs/arena-redesign/phone-05-refusal-energy-short.jpg`; `src/components/arena/stage/Hand.tsx`; `src/components/arena/stage/anchors.tsx` (`data-arena-zone` rectangles); `src/components/arena/stage/ArenaStage.tsx` (`tapCard`, `taps`, `whyOf`); prototype `docs/arena-redesign/prototype/arena.js` (`dragDown` / `dragMove` / `dragUp`).
 

@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CardView } from "@/lib/arena/view";
 
 const COLOR_BAR: Record<string, string> = {
@@ -98,6 +98,7 @@ export function ArenaCard({
   onHover,
   badge,
   outlined = false,
+  holdLock = false,
 }: {
   card: CardView;
   width?: number;
@@ -113,6 +114,8 @@ export function ArenaCard({
   badge?: string | null;
   /** The docked inspector's In play list is on this card's row: outline it on the board. */
   outlined?: boolean;
+  /** A drag has begun from this card: the long press it started is over (rd-03). */
+  holdLock?: boolean;
 }) {
   // Keyed to the URL that failed: a leader keeps its instance when it awakens
   // and its art switches to the back, so a plain flag would hide the new face.
@@ -139,6 +142,15 @@ export function ArenaCard({
     press.current = null;
     setHeld(false);
   };
+
+  useEffect(() => {
+    // Only the timer: the bar is hidden by `holdLock` below, and the next
+    // press or leave resets `held` itself.
+    if (holdLock && press.current) {
+      clearTimeout(press.current);
+      press.current = null;
+    }
+  }, [holdLock]);
 
   const hoverable = !!onHover && !card.hidden;
   // Energy sits upside-down and its cost, power and combo mean nothing there —
@@ -251,7 +263,7 @@ export function ArenaCard({
           </span>
         )}
         {/* The long press, made visible: it fills, then the inspector opens. */}
-        {held && <span className="arena-hold pointer-events-none absolute inset-x-0 bottom-0 h-[2px] origin-left bg-ki-400" aria-hidden />}
+        {held && !holdLock && <span className="arena-hold pointer-events-none absolute inset-x-0 bottom-0 h-[2px] origin-left bg-ki-400" aria-hidden />}
         {/* Combo is the number that decides a battle from hand — worth its own badge. */}
         {card.comboPower != null && card.comboPower > 0 && chrome && (
           <span className="absolute right-[2px] top-[2px] rounded-full bg-dbs-blue/90 px-[3px] font-mono font-bold leading-none text-space-50" style={{ fontSize: px(7), paddingBlock: px(2) }}>

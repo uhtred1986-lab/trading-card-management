@@ -10,7 +10,7 @@ import { feel } from "@/lib/arena/feel";
 import type { Snapshot } from "@/lib/arena/snapshot";
 import type { CardView } from "@/lib/arena/view";
 import { useWakeLock } from "@/lib/arena/wake";
-import type { CardState } from "../ArenaCard";
+import { ArenaCard, type CardState } from "../ArenaCard";
 import { FeelToggle } from "../FeelToggle";
 import { PaceToggle } from "../PaceToggle";
 import { SkinToggle } from "../SkinToggle";
@@ -46,6 +46,7 @@ import { battleShape, BattleVerdict, firedInBattle } from "./BattleParts";
 import { DuelBand } from "./DuelBand";
 import { Ghosts } from "./Ghosts";
 import { Hand } from "./Hand";
+import type { DropState } from "./StageZones";
 import { MarkerFlight } from "./MarkerFlight";
 import { msFor, turnBannerMs } from "./motion";
 import { StagingToggle } from "../StagingToggle";
@@ -126,6 +127,17 @@ export function ArenaStage({
   /** The last refused tap: which card, and the sentence the rules gave for it. */
   const [refusal, setRefusal] = useState<{ card: string; text: string; at: number } | null>(null);
   const [shaking, setShaking] = useState<string | null>(null);
+  /**
+   * A card being dragged out of the hand (rd-03). `x`/`y` are the pointer in
+   * viewport pixels; `over` is the zone under it; `back` is the ghost flying
+   * home after a refused or missed drop.
+   */
+  const [drag, setDrag] = useState<{ id: string; x: number; y: number; over: "battle" | "energy" | null; back: boolean } | null>(null);
+  const dragRef = useRef<{ id: string; pid: number; sx: number; sy: number; on: boolean } | null>(null);
+  const dragEndedAt = useRef(0);
+  const snapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const edgeRaf = useRef<number | null>(null);
+  const pointerAt = useRef({ x: 0, y: 0 });
   /** The search prompt the player closed to look at the board; it reopens on the next prompt. */
   const [closedSearch, setClosedSearch] = useState<string | null>(null);
   /** The last sentence the story told, kept after playback stops until you act. */
@@ -367,7 +379,7 @@ export function ArenaStage({
 
   // Missing energy chips beside the energy strip (ui-100-missing-energy-chips.md).
   // Shown for the card the player has selected or the last refused tap, hidden during playback.
-  const focusCard = selected ?? (sheet ? sheet.id : null) ?? (refusal ? refusal.card : null);
+  const focusCard = drag?.id ?? selected ?? (sheet ? sheet.id : null) ?? (refusal ? refusal.card : null);
   const focusWhy = focusCard && !playback.playing ? (whyOf(focusCard) ?? rejected.find((r) => cardIdOf(r.action) === focusCard)?.why ?? []) : [];
   const energyChips = focusWhy.length > 0 ? missingEnergyChips(focusWhy) : [];
 
@@ -594,6 +606,187 @@ export function ArenaStage({
     return { ...p, onTap: p.onTap ?? (() => inspect(c)) };
   };
 
+  // --- Drag from the hand (rd-03) ---------------------------------------------
+  //
+  // Legality is the engine's: a drop sends an action that is already in
+  // `legal`, or says why there is none. Nothing here evaluates a rule.
+  const playsOf = (id: string) => (taps.byCard[id] ?? []).filter((i) => legal[i].action.type === "play");
+  const chargesOf = (id: string) => (taps.byCard[id] ?? []).filter((i) => legal[i].action.type === "charge");
+  const rejectedFor1 = (id: string, type: "play" | "charge") => rejected.find((r) => cardIdOf(r.action) === id && r.action.type === type)?.why ?? [];
+  const inHand = (id: string) => !!view.you.hand?.some((c) => c.id === id);
+  const draggable = (id: string) => playable && !busy && yourTurn && !isTargeting && !searchOpen && !sheet && inHand(id) && (playsOf(id).length > 0 || chargesOf(id).length > 0 || !!whyOf(id)?.length);
+
+  /** Which of your zones is under the pointer: the anchors' rectangles, a little generous. */
+  const zoneAt = (x: number, y: number): "battle" | "energy" | null => {
+    const host = boardRef.current;
+    if (!host) return null;
+    const inside = (zone: string, pad: number) => {
+      const el = host.querySelector(`[data-arena-zone="${CSS.escape(zone)}"]`);
+      if (!el) return false;
+      const r = el.getBoundingClientRect();
+      return x >= r.left - pad && x <= r.right + pad && y >= r.top - pad && y <= r.bottom + pad;
+    };
+    if (inside(`${view.you.player}:energy`, 10)) return "energy";
+    if (inside(`${view.you.player}:battle`, 24)) return "battle";
+    return null;
+  };
+
+  /**
+   * Near the top of the screen the page scrolls up under the card. On a desktop
+   * the hand sits below the fold from the Battle Area, and a drag that could
+   * not reach it would be a drag only a tall window could use. Only upward: the
+   * hand is always the lowest thing on the board, so every drop is above it.
+   */
+  const stopEdgeScroll = () => {
+    if (edgeRaf.current != null) cancelAnimationFrame(edgeRaf.current);
+    edgeRaf.current = null;
+  };
+  const startEdgeScroll = () => {
+    if (edgeRaf.current != null) return;
+    const edge = 80;
+    const tick = () => {
+      const { x, y } = pointerAt.current;
+      if (y < edge && window.scrollY > 0) {
+        window.scrollBy(0, -Math.ceil(((edge - y) / edge) * 22));
+        // The page moved under a pointer that did not: what it is over changed.
+        const over = zoneAt(x, y);
+        setDrag((d) => (d && !d.back && d.over !== over ? { ...d, over } : d));
+      }
+      edgeRaf.current = requestAnimationFrame(tick);
+    };
+    edgeRaf.current = requestAnimationFrame(tick);
+  };
+
+  /** The ghost flies home over 440 ms; the card shakes when it lands. */
+  const snapBack = (id: string, say: string | null) => {
+    stopEdgeScroll();
+    const src = boardRef.current?.querySelector(`[data-arena-card="${CSS.escape(id)}"]`)?.getBoundingClientRect();
+    setDrag((d) => (d ? { ...d, back: true, over: null, ...(src ? { x: src.left + src.width / 2, y: src.top + src.height * 0.64 } : null) } : d));
+    feel("illegal");
+    if (say) setRefusal({ card: id, text: say, at: Date.now() });
+    if (snapTimer.current) clearTimeout(snapTimer.current);
+    snapTimer.current = setTimeout(() => {
+      setDrag(null);
+      setShaking(id);
+    }, 440);
+  };
+
+  const dropCard = (id: string, zone: "battle" | "energy" | null) => {
+    const card = cardOf(id);
+    if (zone) {
+      const list = zone === "battle" ? playsOf(id) : chargesOf(id);
+      if (list.length === 1) {
+        stopEdgeScroll();
+        setDrag(null);
+        return send(legal[list[0]].action);
+      }
+      if (list.length > 1 && card) {
+        // Several ways to do it (a choice of payment): the sheet lists them.
+        stopEdgeScroll();
+        setDrag(null);
+        setSheet(card);
+        return;
+      }
+      const type = zone === "battle" ? "play" : "charge";
+      const why = rejectedFor1(id, type).length ? rejectedFor1(id, type) : (whyOf(id) ?? []);
+      const line = refusalLine(why, { name: card?.name ?? "That card", reaching: type, side: view.you, inHand: true });
+      return snapBack(id, line ?? "Not now.");
+    }
+    snapBack(id, null);
+  };
+
+  const dragFor = (id: string): React.HTMLAttributes<HTMLDivElement> | null => {
+    if (!playable || !yourTurn) return null;
+    return {
+      // A native image drag would cancel the pointer stream on a mouse.
+      onDragStart: (e) => e.preventDefault(),
+      onPointerDown: (e) => {
+        if (e.pointerType === "mouse" && e.button !== 0) return;
+        dragRef.current = draggable(id) ? { id, pid: e.pointerId, sx: e.clientX, sy: e.clientY, on: false } : null;
+      },
+      onPointerMove: (e) => {
+        const d = dragRef.current;
+        if (!d || d.id !== id || d.pid !== e.pointerId) return;
+        if (!d.on) {
+          // Under 8 px it is still a tap or a long press, and both keep working.
+          if (Math.hypot(e.clientX - d.sx, e.clientY - d.sy) < 8) return;
+          d.on = true;
+          try {
+            e.currentTarget.setPointerCapture(e.pointerId);
+          } catch {
+            /* a pointer that is already gone */
+          }
+          setHover(null);
+          startEdgeScroll();
+        }
+        pointerAt.current = { x: e.clientX, y: e.clientY };
+        setDrag({ id, x: e.clientX, y: e.clientY, over: zoneAt(e.clientX, e.clientY), back: false });
+      },
+      onPointerUp: (e) => {
+        const d = dragRef.current;
+        dragRef.current = null;
+        if (!d || !d.on || d.id !== id) return;
+        dragEndedAt.current = Date.now();
+        dropCard(id, zoneAt(e.clientX, e.clientY));
+      },
+      onPointerCancel: () => {
+        const d = dragRef.current;
+        dragRef.current = null;
+        if (!d || !d.on) return;
+        dragEndedAt.current = Date.now();
+        snapBack(id, null);
+      },
+      // The click that ends a drag must not be read as a tap.
+      onClickCapture: (e) => {
+        if (Date.now() - dragEndedAt.current < 350) {
+          e.stopPropagation();
+          e.preventDefault();
+        }
+      },
+    };
+  };
+
+  // What the zones say while a card is in the air.
+  const dragCard = drag ? cardOf(drag.id) : null;
+  const dragPlays = drag ? playsOf(drag.id) : [];
+  const dragCharges = drag ? chargesOf(drag.id) : [];
+  const dragPrice = dragPlays.length && dragCard ? (legal[dragPlays[0]].cost?.energy ?? Number(dragCard.cost)) : NaN;
+  const whyWords = (why: Requirement[], fallback: string) => {
+    const short = why.find((w) => w.kind === "energy");
+    if (short && short.kind === "energy") return `${short.need - short.have} energy short`;
+    const first = why[0];
+    if (!first) return fallback;
+    return first.kind === "oncePerTurn" ? "Already charged" : pill(first);
+  };
+  const battleWhy = drag ? (rejectedFor1(drag.id, "play").length ? rejectedFor1(drag.id, "play") : (whyOf(drag.id) ?? [])) : [];
+  const battleDrop: DropState | null =
+    drag && !drag.back
+      ? {
+          ok: dragPlays.length > 0,
+          hot: drag.over === "battle",
+          say: dragPlays.length > 0 || drag.over === "battle" || battleWhy.some((w) => w.kind === "energy"),
+          label: dragPlays.length > 0 ? (dragPrice > 0 ? `Drop to play · −${dragPrice} energy` : "Drop to play") : whyWords(battleWhy, "Can't play now"),
+        }
+      : null;
+  const energyDrop: DropState | null =
+    drag && !drag.back
+      ? {
+          ok: dragCharges.length > 0,
+          hot: drag.over === "energy",
+          // Not said through every play: "Already charged" only when the pointer is over it.
+          say: dragCharges.length > 0 || drag.over === "energy",
+          label: dragCharges.length > 0 ? "Drop to charge · +1 energy" : whyWords(rejectedFor1(drag.id, "charge").length ? rejectedFor1(drag.id, "charge") : [{ kind: "oncePerTurn", what: "charge" }], "Can't charge now"),
+        }
+      : null;
+  const willRest = drag && !drag.back && dragPlays.length > 0 && dragPrice > 0 ? dragPrice : 0;
+  useEffect(
+    () => () => {
+      if (snapTimer.current) clearTimeout(snapTimer.current);
+      if (edgeRaf.current != null) cancelAnimationFrame(edgeRaf.current);
+    },
+    [],
+  );
+
   const cardProps = (c: CardView) => ({
     card: c,
     state: stateOf(c.id),
@@ -728,7 +921,7 @@ export function ArenaStage({
                 <HandBacks count={view.them.handCount} />
                 <BattleRow cards={view.them.battle.filter((c) => !lifted.has(c.id))} cardProps={cardProps} zone="p2:battle" label={`${view.them.name} has no Battle Cards`} active={!acting} />
                 <ClashBand view={view} cardProps={cardProps} staged={!!shape} />
-                <BattleRow cards={view.you.battle.filter((c) => !lifted.has(c.id))} cardProps={cardProps} zone="p1:battle" label="You have no Battle Cards" active={acting} />
+                <BattleRow cards={view.you.battle.filter((c) => !lifted.has(c.id))} cardProps={cardProps} zone="p1:battle" label="You have no Battle Cards" active={acting} drop={battleDrop} />
               </div>
               {bandOn && shape && <DuelBand shape={shape} cardProps={stagedProps} beat={beat} progress={playback.playing ? { index: playback.index, total: playback.total } : null} />}
             </section>
@@ -741,6 +934,8 @@ export function ArenaStage({
               narrator={narrator}
               lifted={lifted}
               energyChips={energyChips}
+              drop={energyDrop}
+              willRest={willRest}
               className="lg:col-start-1 lg:row-start-3"
             />
           </div>
@@ -809,6 +1004,8 @@ export function ArenaStage({
             count={view.you.handCount}
             name={view.you.name}
             cardProps={cardProps}
+            dragId={drag?.id ?? null}
+            dragFor={dragFor}
             controls={
               <>
                 <button type="button" onClick={() => setLogOpen((x) => !x)} className="tap uppercase tracking-widest text-ki-300 hover:text-ki-400 lg:hidden">
@@ -931,6 +1128,21 @@ export function ArenaStage({
         <BattleVerdict beat={beat} art={beats?.art ?? {}} sideOf={sideOf} />
 
         <Ghosts ghosts={playback.ghosts} art={beats?.art ?? {}} />
+
+        {/* The card in the air. Positioned inline: the unlayered `.arena > *`
+            rule beats Tailwind's `fixed` and `z-*` on a direct child (#412). */}
+        {drag && dragCard && (
+          <div
+            aria-hidden
+            className="arena-dragghost"
+            data-over={drag.over && !drag.back ? "" : undefined}
+            data-bad={drag.over && !drag.back && !(drag.over === "battle" ? dragPlays.length > 0 : dragCharges.length > 0) ? "" : undefined}
+            data-back={drag.back ? "" : undefined}
+            style={{ position: "fixed", left: drag.x, top: drag.y, zIndex: 90, pointerEvents: "none" }}
+          >
+            <ArenaCard card={dragCard} width={66} />
+          </div>
+        )}
 
         {hover && !wide && !sheet && !searchOpen && <CardPreview card={hover.card} box={hover.box} narrator={narrator} />}
 

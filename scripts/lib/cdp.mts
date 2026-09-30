@@ -251,6 +251,63 @@ export class Page {
     return box;
   }
 
+  /** The middle of the first match (scrolled into view only when it is off screen). */
+  async pointOf(selector: string, flag = "pointOf") {
+    return this.centre(selector, flag);
+  }
+
+  /**
+   * One stage of a pointer gesture: a finger on the phone viewport, the mouse on
+   * desktop. Pieces rather than a finished tap, so a script can hold, drag, and
+   * stop mid-gesture for a shot (`--drag` in arena-shots.mts).
+   */
+  async pointer(stage: "down" | "move" | "up", x: number, y: number) {
+    if (this.vp.mobile) {
+      const type = stage === "down" ? "touchStart" : stage === "move" ? "touchMove" : "touchEnd";
+      await this.call("Input.dispatchTouchEvent", { type, touchPoints: stage === "up" ? [] : [{ x, y }] });
+      return;
+    }
+    if (stage === "down") {
+      await this.call("Input.dispatchMouseEvent", { type: "mouseMoved", x, y });
+      await this.call("Input.dispatchMouseEvent", { type: "mousePressed", x, y, button: "left", buttons: 1, clickCount: 1 });
+    } else if (stage === "move") await this.call("Input.dispatchMouseEvent", { type: "mouseMoved", x, y, button: "left", buttons: 1 });
+    else await this.call("Input.dispatchMouseEvent", { type: "mouseReleased", x, y, button: "left", buttons: 0, clickCount: 1 });
+  }
+
+  /**
+   * Press on `from`, carry the pointer to `to`, and release there — or stay down
+   * (`release: false`) so the drag can be photographed in progress. `to` is a
+   * selector (its middle) or a point. A target that is off screen is chased the
+   * way a hand would: the pointer goes to the top edge (where the board scrolls
+   * the page) until it comes into view.
+   */
+  async dragTo(from: string, to: string | { x: number; y: number }, o: { release?: boolean } = {}) {
+    const a = await this.centre(from, "--drag");
+    const where = async () => {
+      if (typeof to !== "string") return to;
+      const p = await this.eval<{ x: number; y: number } | null>(`(() => { const el = document.querySelector(${JSON.stringify(to)}); if (!el) return null; const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
+      if (!p) throw new Error(`--to: nothing matches ${to}`);
+      return p;
+    };
+    await this.pointer("down", a.x, a.y);
+    let x = a.x;
+    let y = a.y;
+    for (let i = 0; i < 400; i++) {
+      const goal = await where();
+      const edge = goal.y < 120 ? 6 : goal.y;
+      const dx = goal.x - x;
+      const dy = edge - y;
+      const d = Math.hypot(dx, dy);
+      if (d < 2 && goal.y >= 120) break;
+      const k = Math.min(1, 28 / d);
+      x += dx * k;
+      y += dy * k;
+      await this.pointer("move", x, y);
+      await sleep(16);
+    }
+    if (o.release !== false) await this.pointer("up", x, y);
+  }
+
   /** Move the mouse over the first match, without pressing (desktop only: a phone has no hover). */
   async hover(selector: string) {
     const { x, y } = await this.centre(selector, "--hover");
