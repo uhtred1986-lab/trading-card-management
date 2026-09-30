@@ -1,5 +1,10 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
+import { BoardSettingsSheet } from "@/components/arena/BoardSettingsSheet";
+import { SKIN_COOKIE, skinFrom } from "@/lib/arena/skin";
+import { STAGING_COOKIE, stagingFrom } from "@/lib/arena/staging";
 import { getRepoUrl } from "@/lib/github";
+import { ReferenceDrawer } from "@/components/arena/rules/ReferenceDrawer";
 import type { RuleCounts, RuleStatus } from "@/lib/arena/rules-store";
 
 /**
@@ -26,9 +31,12 @@ export function readable(c: RuleCounts): string {
 }
 
 const item = "tap flex items-center rounded-md px-3 py-2 text-sm text-space-100 hover:bg-space-800";
-const dim = "tap flex items-center rounded-md px-3 py-2 text-sm text-space-500";
 
-export function ArenaHeader({ side, kpis }: { side: "play" | "rules" | "other"; kpis?: ArenaKpis }) {
+export async function ArenaHeader({ side, kpis }: { side: "play" | "rules" | "other"; kpis?: ArenaKpis }) {
+  // Board settings show the same cookies the game page reads (`/arena/[id]`).
+  const jar = await cookies();
+  const skin = skinFrom(jar.get(SKIN_COOKIE)?.value);
+  const staging = stagingFrom(jar.get(STAGING_COOKIE)?.value);
   const seg = (active: boolean) => `tap flex items-center rounded-md px-4 text-sm font-medium ${active ? "bg-space-700 text-space-50" : "text-space-300 hover:text-space-100"}`;
   return (
     <header className="space-y-3">
@@ -48,13 +56,10 @@ export function ArenaHeader({ side, kpis }: { side: "play" | "rules" | "other"; 
         </nav>
 
         <div className="ml-auto flex items-center gap-2">
-          <Link href="/arena#games" className="tap flex items-center rounded-md border border-space-700 px-3 text-sm text-space-200 hover:text-space-50 sm:hidden">
+          <Link href="/arena?tab=games#games" className="tap flex items-center rounded-md border border-space-700 px-3 text-sm text-space-200 hover:text-space-50 sm:hidden">
             Games
           </Link>
-          {/* Placeholder until the reference drawer (ah-08). */}
-          <button type="button" disabled className="tap hidden items-center rounded-md border border-space-700 px-3 text-sm text-space-500 sm:flex">
-            Reference
-          </button>
+          {side === "rules" ? <ReferenceDrawer fixingHref={`${getRepoUrl()}/blob/main/docs/arena-fixing-a-card.md`} /> : null}
           <details className="relative">
             <summary
               aria-label="More"
@@ -63,7 +68,7 @@ export function ArenaHeader({ side, kpis }: { side: "play" | "rules" | "other"; 
               <span aria-hidden>⋯</span>
             </summary>
             <div className="absolute right-0 z-30 mt-1 w-64 rounded-xl border border-space-700 bg-space-900 p-1 shadow-xl">
-              <Link href="/arena#games" className={item}>
+              <Link href="/arena?tab=games#games" className={item}>
                 Games
               </Link>
               {/* Phone-only entries: the phone has no Play | Rules switch, and these are its friend and board doors. */}
@@ -71,9 +76,7 @@ export function ArenaHeader({ side, kpis }: { side: "play" | "rules" | "other"; 
                 <Link href="/arena#friend" className={item}>
                   Play a friend
                 </Link>
-                <span aria-disabled="true" className={dim}>
-                  Board settings
-                </span>
+                <BoardSettingsSheet skin={skin} staging={staging} className={`${item} w-full text-left`} />
               </div>
               <Link href="/arena/feedback" className={item}>
                 <span className="sm:hidden">Report a problem</span>
@@ -107,15 +110,6 @@ export function ArenaHeader({ side, kpis }: { side: "play" | "rules" | "other"; 
             <Kpi n={readable(kpis.inDecks)} label="decks ready" />
             <Kpi n={readable(kpis.catalog)} label="catalog readable" />
             {kpis.openSinceSync != null ? <Kpi n={kpis.openSinceSync} label="open since last sync" tone={kpis.openSinceSync ? "text-loss" : ""} /> : null}
-          </div>
-          {/* Until the reference drawer (ah-08) lands, these keep the reference pages reachable. */}
-          <div className="flex gap-3 text-xs">
-            <Link href="/arena/rules/keywords" className="text-space-300 hover:text-ki-300">
-              keywords
-            </Link>
-            <a href={`${getRepoUrl()}/blob/main/docs/arena-fixing-a-card.md`} target="_blank" rel="noopener noreferrer" className="text-space-300 hover:text-ki-300">
-              How to fix a card
-            </a>
           </div>
         </div>
       ) : null}

@@ -9,6 +9,7 @@
  *   npm run arena:shots -- --fixtures play --tap "[data-arena-card]" --tag review
  *   npm run arena:shots -- --fixtures play --hover "[data-arena-card]" --tag hover   # desktop: pointer over a card
  *   npm run arena:shots -- --fixtures play --rclick "[data-arena-card]" --tag pin     # desktop: right-click
+ *   npm run arena:shots -- --fixtures play --query turn=banner --tag turn --settle 500   # extra preview params: the turn banner up
  *   npm run arena:shots -- --full     # whole scrolled page, not just the viewport
  *
  * Output: docs/arena-redesign/current/{phone,desk}-<fixture>-<skin>[-<tag>].jpg
@@ -33,6 +34,7 @@ const settle = Number(arg("settle") ?? 1500);
 const full = process.argv.includes("--full");
 const staging = arg("staging");
 const pace = arg("pace") ?? "step";
+const query = arg("query");
 
 function allSnapshotFixtures(): string[] {
   return readdirSync(FIXTURES)
@@ -60,7 +62,7 @@ try {
     await page.beforeLoad(`try { localStorage.setItem("arena.pace", ${JSON.stringify(pace)}); } catch {}`);
     for (const fixture of fixtures) {
       for (const skin of skins) {
-        const url = `${base}/arena/preview?fixture=${fixture}&skin=${skin}&pace=${pace}${staging ? `&staging=${staging}` : ""}`;
+        const url = `${base}/arena/preview?fixture=${fixture}&skin=${skin}&pace=${pace}${staging ? `&staging=${staging}` : ""}${query ? `&${query}` : ""}`;
         // The root layout skins <html> (and so the page behind the board) from
         // the cookie; `?skin=` only pins the board itself. Set both.
         await page.setCookie("arenaSkin", skin, base);

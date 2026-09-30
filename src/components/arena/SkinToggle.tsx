@@ -12,7 +12,7 @@ import type { ArenaSkin } from "@/lib/arena/skin";
  * every load, so the server reads the cookie and sends the right markup.
  * The button names the skin you would switch *to*, as the old board toggle did.
  */
-export function SkinToggle({ gameId, skin }: { gameId: number; skin: ArenaSkin }) {
+export function SkinToggle({ gameId, skin }: { gameId?: number; skin: ArenaSkin }) {
   const [pending, start] = useTransition();
   const next: ArenaSkin = skin === "anime" ? "night" : "anime";
   return (

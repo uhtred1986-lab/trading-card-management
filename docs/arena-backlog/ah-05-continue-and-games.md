@@ -4,6 +4,7 @@ issue: 359
 milestone: Arena M17 — Arena home: Play and Rules Workbench
 labels: backlog, ready-for-agent, enhancement, area:arena-ui, phase:arena-home, model:sonnet-5
 stage: ui
+status: closed
 touches: src/app/arena/page.tsx, src/components/arena/GamesList.tsx, src/lib/arena/games.ts
 ---
 **Source:** `src/app/arena/page.tsx` (sections *Waiting for a player* and *Games*); `listGames`, `listOpenMatches`; canvas frames `PlayPhone` (Continue strip, Games button), `GamesPhone`, `PlayDesktop` (Games table).

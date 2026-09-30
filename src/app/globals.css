@@ -256,43 +256,6 @@ input[type="number"] {
   }
 }
 
-/* The turn strip — whose move it is (docs/arena-hud-spec.md §2.1).
- *
- * Three channels saying one thing: a fill you can tell apart at a glance, the
- * words themselves, and which of the pill or the pulse is present. Lose any
- * one of them — greyscale, sunlight, a colour-blind viewer — and the other two
- * still read.
- *
- * Its ink is the one thing on the board that must stay dark in *both* skins:
- * both fills are light in each, and the anime skin inverts the space scale, so
- * `--color-space-950` is near-white there. `--strip-ink` is therefore its own
- * value, redefined per skin, and the component carries no colour utilities. */
-.arena-turnstrip {
-  --strip-ink: var(--color-space-950);
-  color: var(--strip-ink);
-  border: 1px solid color-mix(in srgb, var(--strip-ink) 35%, transparent);
-  transition: background var(--turn-ms) cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-.arena-turnstrip-you {
-  background: linear-gradient(180deg, var(--color-ki-300), var(--color-ki-500));
-}
-.arena-turnstrip-them {
-  background: linear-gradient(180deg, var(--color-space-200), var(--color-space-300));
-}
-.arena-turnstrip-pill {
-  background: color-mix(in srgb, white 55%, transparent);
-  border: 1px solid color-mix(in srgb, var(--strip-ink) 40%, transparent);
-}
-.arena-turnstrip-turn {
-  color: color-mix(in srgb, var(--strip-ink) 72%, transparent);
-}
-/* "They are still deciding" — the same beat the prompt bar's dot keeps, so the
-   two never look like two different waits. */
-.arena-turnstrip-dot {
-  background: var(--strip-ink);
-  animation: arena-breathe 1.2s ease-in-out infinite;
-}
-
 .arena-card-back {
   background: var(--card-back);
   box-shadow: 0 2px 6px color-mix(in srgb, var(--color-space-950) 50%, transparent);
@@ -524,6 +487,229 @@ input[type="number"] {
   border: 1px dashed var(--color-space-700);
   border-radius: 4px;
   background: color-mix(in srgb, var(--color-space-50) 1.2%, transparent);
+}
+
+/* ==========================================================================
+ * Unmissable turns (issue #344, docs/arena-board-redesign-spec.md §2).
+ *
+ * Banner, pill, edge and lit row all read the acting side's colour from the
+ * turn presence variables above (`--turn-tint` on the stage root; `--tb` on
+ * the banner, which can belong to the side that is *about* to hold the room).
+ * The ink for text sitting on that colour is fixed and dark in both skins:
+ * the anime skin inverts the space scale, so a token would flip it.
+ * ========================================================================== */
+.arena {
+  --turn-ink: #12161f;
+}
+
+/* The turn banner: a skewed bar sweeps in, the stroked type slides through,
+   both leave to the right. Nothing on it takes a pointer. */
+@keyframes arena-turnbar {
+  0% {
+    opacity: 0;
+    transform: translateX(-105%) skewY(-4deg);
+  }
+  14% {
+    opacity: 1;
+    transform: translateX(0) skewY(-4deg);
+  }
+  84% {
+    opacity: 1;
+    transform: translateX(0) skewY(-4deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(105%) skewY(-4deg);
+  }
+}
+@keyframes arena-turntext {
+  0% {
+    opacity: 0;
+    transform: translateX(-24%) skewY(4deg);
+  }
+  16% {
+    opacity: 1;
+    transform: translateX(-3%) skewY(4deg);
+  }
+  84% {
+    opacity: 1;
+    transform: translateX(3%) skewY(4deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(30%) skewY(4deg);
+  }
+}
+/* Step pace: the walk waits for a tap, so the bar comes in and stays. */
+@keyframes arena-turnbar-in {
+  0% {
+    opacity: 0;
+    transform: translateX(-105%) skewY(-4deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) skewY(-4deg);
+  }
+}
+@keyframes arena-turntext-in {
+  0% {
+    opacity: 0;
+    transform: translateX(-24%) skewY(4deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) skewY(4deg);
+  }
+}
+@keyframes arena-turnfade {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  10%,
+  90% {
+    opacity: 1;
+  }
+}
+@keyframes arena-turnfade-in {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+.arena-turnbanner {
+  width: 100%;
+  background: var(--tb);
+  /* A faint ruled texture, so the bar reads as ink-on-paper rather than a flat box. */
+  background-image: repeating-linear-gradient(90deg, transparent 0 14px, color-mix(in srgb, white 10%, transparent) 14px 16px);
+  border-block: 3px solid color-mix(in srgb, var(--tb) 55%, #000);
+  box-shadow: 0 10px 40px color-mix(in srgb, var(--tb) 50%, transparent);
+  animation: arena-turnbar 1.3s ease-out forwards;
+}
+.arena-turnbanner-inner {
+  padding: 0.9rem 1rem 1.1rem;
+  text-align: center;
+  animation: arena-turntext 1.3s ease-out forwards;
+}
+.arena-turnbanner-hold {
+  animation-name: arena-turnbar-in;
+}
+.arena-turnbanner-hold .arena-turnbanner-inner {
+  animation-name: arena-turntext-in;
+}
+.arena-turnbanner-text {
+  color: #fff;
+  -webkit-text-stroke: 4px var(--turn-ink);
+  paint-order: stroke fill;
+  text-shadow: 3px 4px 0 var(--turn-ink);
+}
+.arena-turnbanner-sub {
+  margin-top: 0.15rem;
+  color: #fff;
+  text-shadow: 1px 2px 0 var(--turn-ink);
+}
+/* The anime skin: ink rules top and bottom and a hard offset under the type. */
+[data-skin="anime"] .arena-turnbanner {
+  border-block: 4px solid var(--turn-ink);
+  box-shadow:
+    0 -4px 0 var(--turn-ink),
+    0 4px 0 var(--turn-ink),
+    0 12px 0 rgba(18, 22, 31, 0.35);
+}
+[data-skin="anime"] .arena-turnbanner-text {
+  -webkit-text-stroke: 5px var(--turn-ink);
+  text-shadow: 5px 6px 0 var(--turn-ink);
+}
+
+/* The turn pill: "YOUR TURN · Turn 3", filled with the acting side's colour.
+   Dark ink on a tint lightened toward white, so every leader colour clears 4.5:1. */
+.arena-turnpill {
+  background: color-mix(in srgb, var(--turn-tint) 62%, #fff);
+  color: var(--turn-ink);
+  border: 2px solid var(--turn-tint);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--turn-ink) 25%, transparent);
+  transition:
+    background var(--turn-ms),
+    border-color var(--turn-ms);
+}
+.arena-turnpill-dot {
+  background: var(--turn-ink);
+  animation: arena-breathe 1.2s ease-in-out infinite;
+}
+[data-skin="anime"] .arena-turnpill {
+  border: 2px solid var(--turn-ink);
+  box-shadow: 2px 3px 0 rgba(18, 22, 31, 0.85);
+}
+/* Sticky under a phone's bar it needs a ground, or the board scrolls through it. */
+.arena-topbar {
+  background: transparent;
+}
+@media (max-width: 639px) {
+  .arena-topbar {
+    background: color-mix(in srgb, var(--color-space-950) 80%, transparent);
+    backdrop-filter: blur(6px);
+  }
+}
+
+/* The phase chips: the live one lit, the others quiet. */
+.arena-phase {
+  background: color-mix(in srgb, var(--color-space-900) 85%, transparent);
+  color: var(--color-space-300);
+  border: 1px solid color-mix(in srgb, var(--color-space-500) 45%, transparent);
+}
+.arena-phase-dot {
+  background: var(--color-space-500);
+}
+.arena-phase-on {
+  background: color-mix(in srgb, var(--turn-tint) 62%, #fff);
+  color: var(--turn-ink);
+  border-color: var(--turn-tint);
+}
+.arena-phase-on .arena-phase-dot {
+  background: var(--turn-ink);
+}
+[data-skin="anime"] .arena-phase {
+  background: rgba(255, 255, 255, 0.88);
+  color: #3b475c;
+  border-color: rgba(18, 22, 31, 0.45);
+}
+[data-skin="anime"] .arena-phase-on {
+  background: color-mix(in srgb, var(--turn-tint) 62%, #fff);
+  color: var(--turn-ink);
+  border: 2px solid var(--turn-ink);
+  box-shadow: 1px 2px 0 rgba(18, 22, 31, 0.85);
+}
+
+/* The board edge: an inner frame in the acting side's colour, round the stage
+   root rather than <html>. It switches with the banner. */
+.arena-edge {
+  position: absolute;
+  inset: -4px;
+  z-index: 15;
+  pointer-events: none;
+  border-radius: 18px;
+  box-shadow:
+    inset 0 0 0 5px var(--turn-tint),
+    inset 0 0 28px 2px color-mix(in srgb, var(--turn-glow) 45%, transparent);
+  transition: box-shadow var(--turn-ms);
+}
+[data-skin="anime"] .arena-edge {
+  box-shadow:
+    inset 0 0 0 5px var(--turn-tint),
+    inset 0 0 0 7px var(--turn-ink),
+    0 0 0 2px var(--turn-ink);
+}
+
+/* The acting side's Battle Area: a faint band under the row. */
+.arena-row {
+  border-radius: 10px;
+  transition: background var(--turn-ms);
+}
+.arena-row-on {
+  background: color-mix(in srgb, var(--turn-tint) 16%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--turn-tint) 35%, transparent);
 }
 
 /* The step banner: the one moment of theatre, on every phase and battle step. */
@@ -1013,22 +1199,6 @@ html[data-skin="anime"] body::before {
 [data-skin="anime"] .arena-stage {
   background: rgba(255, 255, 255, 0.55);
 }
-/* The turn strip under the sky: ink outline and the hard cel shadow every
-   other surface here carries. Both fills are repainted — the ki gradient is
-   the skin's own, and the opponent's slate has to be a *light* slate, because
-   this skin's space-200/300 are dark and the strip's ink text sits on them. */
-[data-skin="anime"] .arena-turnstrip {
-  --strip-ink: var(--ink);
-  border: 2px solid var(--ink);
-  box-shadow: 2px 3px 0 rgba(18, 22, 31, 0.85);
-}
-[data-skin="anime"] .arena-turnstrip-you {
-  background: linear-gradient(180deg, #ffd97a, #f2b21c);
-}
-[data-skin="anime"] .arena-turnstrip-them {
-  background: linear-gradient(180deg, #dbe6f5, #b9cbe4);
-}
-
 [data-skin="anime"] .arena-prompt-live {
   box-shadow:
     3px 4px 0 rgba(18, 22, 31, 0.85),
@@ -1304,10 +1474,21 @@ html[data-skin="anime"] body::before {
     animation: none;
     opacity: 1;
   }
-  /* The strip's pulse is information — "they are still deciding" — so it stays
-     on screen; it simply stops blinking. */
-  .arena-turnstrip-dot {
+  /* The pill's blink is decoration, the words are the information: the dot
+     stays, it just stops blinking. */
+  .arena-turnpill-dot {
     animation: none;
     opacity: 1;
+  }
+  /* The turn banner still shows for its whole duration, but it fades instead
+     of sweeping: no transform, no slide. */
+  .arena-turnbanner,
+  .arena-turnbanner-inner {
+    animation-name: arena-turnfade;
+    transform: none;
+  }
+  .arena-turnbanner-hold,
+  .arena-turnbanner-hold .arena-turnbanner-inner {
+    animation-name: arena-turnfade-in;
   }
 }

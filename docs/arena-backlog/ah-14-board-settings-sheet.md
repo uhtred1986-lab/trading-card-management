@@ -4,6 +4,7 @@ issue: 370
 milestone: Arena M17 — Arena home: Play and Rules Workbench
 labels: backlog, ready-for-agent, enhancement, area:arena-ui, phase:arena-home, model:sonnet-5
 stage: ui
+status: closed
 touches: src/components/arena/BoardSettingsSheet.tsx, src/components/arena/SkinToggle.tsx, src/components/arena/StagingToggle.tsx, src/app/arena/actions.ts
 ---
 **Source:** `src/components/arena/SkinToggle.tsx`, `src/components/arena/PaceToggle.tsx`, `src/components/arena/FeelToggle.tsx` and `src/components/arena/StagingToggle.tsx`, which are rendered only inside `ArenaStage` (`src/components/arena/stage/ArenaStage.tsx`); canvas frame `PlayPhone` → ⋯ → *Board settings*.

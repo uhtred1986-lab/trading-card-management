@@ -17,6 +17,7 @@ export function PromptPanel({
   pace,
   playingMine,
   playingIndex,
+  moves,
   playingTotal,
   yourPlayer,
   isTargeting,
@@ -43,6 +44,8 @@ export function PromptPanel({
   pace: "slow" | "normal" | "step";
   playingMine: boolean;
   playingIndex: number;
+  /** How many things you could do now; the turn pill says whose turn it is, this says what is open. */
+  moves: number;
   playingTotal: number;
   yourPlayer: PlayerId;
   isTargeting: boolean;
@@ -90,7 +93,7 @@ export function PromptPanel({
                 ? view.over.reason
                 : playing
                   ? `${playingMine ? "Your move" : `${view.them.name} is playing`} · ${playingIndex + 1} of ${playingTotal}${pace === "step" ? " · tap Next" : ""}`
-                  : (error ?? refusalText ?? view.prompt.hint ?? "")}
+                  : (error ?? refusalText ?? (yourTurn && playable && moves > 0 ? `${moves} ${moves === 1 ? "move" : "moves"} available${view.prompt.hint ? ` — ${view.prompt.hint}` : ""}` : (view.prompt.hint ?? "")))}
             </span>
           </p>
         </div>

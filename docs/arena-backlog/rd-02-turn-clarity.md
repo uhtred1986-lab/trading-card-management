@@ -4,7 +4,8 @@ issue: 344
 milestone: Arena M16 — Board redesign: play feel and card review
 labels: backlog, ready-for-agent, enhancement, area:arena-ui, phase:board-redesign, model:sonnet-5
 stage: ui
-touches: src/components/arena/shared-display.tsx, src/components/arena/stage/ArenaStage.tsx, src/app/globals.css
+status: closed
+touches: src/components/arena/shared-display.tsx, src/components/arena/stage/ArenaStage.tsx, src/components/arena/stage/TurnPresence.tsx, src/components/arena/stage/useBeatPlayer.ts, src/components/arena/stage/StageZones.tsx, src/components/arena/stage/PromptPanel.tsx, src/app/globals.css
 ---
 **Source:** `docs/arena-board-redesign-spec.md` §2 and decision 6; frames `docs/arena-redesign/phone-02-turn-banner.jpg`, `docs/arena-redesign/desk-02-turn-banner.jpg`, `docs/arena-redesign/phone-01-board-your-turn.jpg`; `src/components/arena/shared-display.tsx` (`StepBanner`, `TurnStrip`, `TopStrip`); `src/lib/arena/lighting.ts` (`turnVars`).
 

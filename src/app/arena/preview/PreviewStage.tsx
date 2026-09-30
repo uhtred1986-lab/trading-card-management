@@ -17,9 +17,9 @@ const STUB = {
   advance: async () => ({ error: null }),
 };
 
-export function PreviewStage({ snapshot, skin, staging, pace }: { snapshot: Snapshot; skin: ArenaSkin; staging: ArenaStaging; pace: Pace | null }) {
+export function PreviewStage({ snapshot, skin, staging, pace, announceTurn }: { snapshot: Snapshot; skin: ArenaSkin; staging: ArenaStaging; pace: Pace | null; announceTurn: boolean }) {
   useEffect(() => {
     if (pace) setPacePref(pace);
   }, [pace]);
-  return <ArenaStage gameId={snapshot.game.id} snapshot={snapshot} skin={skin} staging={staging} server={STUB} />;
+  return <ArenaStage gameId={snapshot.game.id} snapshot={snapshot} skin={skin} staging={staging} server={STUB} announceTurn={announceTurn} />;
 }

@@ -14,7 +14,7 @@ import { defaultEngine } from "@/lib/arena/engine-setting";
 import { engineOr } from "@/lib/arena/engines";
 import { abandonGame, applyToGame, clearBeatsForTurn, engineForMode, isVersus, loadGame, seatOf, StaleGame, startGame, type ArenaMode } from "@/lib/arena/games";
 import { cancelMatch, joinMatch, matchById, openMatch } from "@/lib/arena/matches";
-import { currentUser } from "@/lib/auth";
+import { currentOwner, currentUser } from "@/lib/auth";
 import { advance } from "@/lib/arena/ai/run";
 import { reviewGame } from "@/lib/arena/ai/review";
 import { clarifyRule } from "@/lib/arena/ai/clarify";
@@ -34,11 +34,12 @@ import { syncFeedbackItem, syncAllFeedbackItems, type FeedbackItem } from "@/lib
  * `localStorage`, so the server sends the right skin and the board never
  * flashes the other one on load.
  */
-export async function chooseSkin(gameId: number, skin: ArenaSkin) {
+export async function chooseSkin(gameId: number | undefined, skin: ArenaSkin) {
   (await cookies()).set(SKIN_COOKIE, skin, { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
   // The skin paints the whole app now, so every page is stale.
   revalidatePath("/", "layout");
-  revalidatePath(`/arena/${gameId}`);
+  // No game (the settings sheet on Play): the next game reads the cookie anyway.
+  revalidatePath(gameId == null ? "/arena" : `/arena/${gameId}`);
 }
 
 /**
@@ -49,9 +50,9 @@ export async function chooseSkin(gameId: number, skin: ArenaSkin) {
  * on the server and nothing flashes. Only this game's page is stale — a
  * staging paints nothing outside the board.
  */
-export async function chooseStaging(gameId: number, staging: ArenaStaging) {
+export async function chooseStaging(gameId: number | undefined, staging: ArenaStaging) {
   (await cookies()).set(STAGING_COOKIE, staging, { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
-  revalidatePath(`/arena/${gameId}`);
+  revalidatePath(gameId == null ? "/arena" : `/arena/${gameId}`);
 }
 
 /**
@@ -412,7 +413,7 @@ export async function joinMatchForm(formData: FormData) {
   const matchId = Number(formData.get("match"));
   const deckId = Number(formData.get("deck"));
   if (!Number.isInteger(matchId) || !Number.isInteger(deckId)) throw new Error("pick a deck");
-  const gameId = await joinMatch(db, matchId, await currentUser(), deckId);
+  const gameId = await joinMatch(db, matchId, await currentUser(), deckId, await currentOwner());
   revalidatePath("/arena");
   redirect(`/arena/${gameId}`);
 }
