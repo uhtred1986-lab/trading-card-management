@@ -16,6 +16,7 @@ import type { Db } from "@/db";
 import { arenaMatches, decks as decksTable } from "@/db/schema";
 import { engineOr, FALLBACK_ENGINE, playableEngine, type EngineId } from "./engines";
 import { modeRefusal, startGame } from "./games";
+import { assertDecksPlayable } from "./readiness";
 
 export interface OpenMatch {
   id: number;
@@ -48,6 +49,10 @@ export async function openMatch(db: Db, hostUser: string | null, hostDeckId: num
   // so what this refuses is an engine someone actually named.
   const why = modeRefusal(engine, "versus");
   if (why) throw new Error(why);
+  // The host's deck is refused now too: nobody should wait on an invitation to a game that cannot start.
+  const host = await db.query.decks.findFirst({ where: eq(decksTable.id, hostDeckId) });
+  if (!host) throw new Error("that deck is gone");
+  await assertDecksPlayable(db, [{ id: hostDeckId, name: host.name }]);
   const [row] = await db.insert(arenaMatches).values({ hostUser, hostDeckId, debug, engine }).returning({ id: arenaMatches.id });
   return row.id;
 }
