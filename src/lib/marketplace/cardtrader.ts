@@ -250,9 +250,9 @@ export async function syncCardTraderCatalog(db: Db): Promise<CtSyncSummary> {
   // Leaders' front art: deckplanet's bucket 404s for every Masters-era set from
   // BT19 on (verifyFrontImages), and the price sync's fillMissingImages
   // deliberately skips a Leader's TCGplayer product ("Front // Back", whose
-  // photo is the back reveal art) rather than show the wrong face — so a
-  // Leader synced after BT19 has no other source for its front. CardTrader's
-  // own blueprint image is that source.
+  // photo is the back reveal art) rather than show the wrong face. The catalog
+  // sync fills those from Bandai's card list (bandai.ts); CardTrader's own
+  // blueprint image is the fallback for any leader Bandai does not show.
   const frontfilled = rows<{ n: number }>(
     await db.execute(sql`
       with src as (

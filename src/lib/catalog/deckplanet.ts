@@ -17,7 +17,7 @@
 import { inArray, isNotNull, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { cardPrints, cardSets, cards } from "@/db/schema";
-import { applyOfficialImages, fetchOfficialImageNames } from "./bandai";
+import { applyMastersLeaderImages, applyOfficialImages, fetchOfficialImageNames, mastersLeaderCandidates } from "./bandai";
 import { correctSkillText, unmatchedCorrections } from "./errata";
 import { staleSpecifiedCosts } from "@/lib/arena/specified-cost";
 import { GAMES, GAME_INFO, type Game } from "./games";
@@ -362,7 +362,7 @@ export interface CatalogSyncSummary {
   backImages?: number;
   /** Original-game prints whose deckplanet front image was confirmed to exist. */
   frontImages?: number;
-  /** Fusion World prints given Bandai's official art (bandai.ts). */
+  /** Faces given Bandai's official art (bandai.ts): Fusion World prints, and the original game's leader fronts and backs deckplanet lacks. */
   officialImages?: number;
 }
 
@@ -428,6 +428,20 @@ export async function verifyFrontImages(shaped: ShapedCatalog, concurrency = 40)
     if (c.imageUrl && broken.has(c.imageUrl)) c.imageUrl = null;
   }
   return kept;
+}
+
+/**
+ * The original game's leaders that deckplanet has no art for (every set from
+ * BT19 on) get Bandai's, front and awakened side (bandai.ts). The candidates
+ * are HEAD-checked like deckplanet's, so only a URL that resolves is stored.
+ * Runs after `verifyFrontImages`/`verifyBackImages`, which decide what is missing.
+ */
+export async function applyOfficialLeaderImages(shaped: ShapedCatalog, concurrency = 12): Promise<number> {
+  const candidates = mastersLeaderCandidates(shaped);
+  if (!candidates.length) return 0;
+  const broken = await findBrokenImages(candidates, concurrency);
+  const applied = applyMastersLeaderImages(shaped, new Set(candidates.filter((u) => !broken.has(u))));
+  return applied.fronts + applied.backs;
 }
 
 /**
@@ -509,8 +523,12 @@ export async function importCatalog(db: Db, shaped: ShapedCatalog): Promise<Cata
           // deckplanet URL always yields to the fresh (possibly null) one.
           imageUrl: sql`case when ${cards.imageUrl} is null or starts_with(${cards.imageUrl}, ${IMAGE_BASE})
             then excluded.image_url else coalesce(excluded.image_url, ${cards.imageUrl}) end`,
-          // Keep a back image the CardTrader sync supplied when deckplanet has none.
-          backImageUrl: sql`coalesce(excluded.back_image_url, ${cards.backImageUrl})`,
+          // Keep a back image the CardTrader or price sync supplied when no
+          // source here has one — but, as with the front, a stored deckplanet
+          // guess always yields, so a back that failed its HEAD check is
+          // cleared rather than replayed (and the backfills can then fill it).
+          backImageUrl: sql`case when ${cards.backImageUrl} is null or starts_with(${cards.backImageUrl}, ${IMAGE_BASE})
+            then excluded.back_image_url else coalesce(excluded.back_image_url, ${cards.backImageUrl}) end`,
           // The hand-entered cost orbs (issue #255): the feed never carries
           // any, so `excluded.specified_cost` is always null and a plain
           // overwrite would erase every entry on every sync. Coalesce keeps
@@ -604,12 +622,16 @@ export async function syncCatalogFor(db: Db, game: Game, opts: CatalogSyncOption
     const { touched, ...imported } = await importCatalog(db, shaped);
     return { ...imported, ...(await draftTouched(db, game, touched, opts)), backImages, officialImages: official.prints };
   }
-  // Front images are deckplanet's own guess too, and its bucket lags badly
-  // for the original game (see verifyFrontImages); Fusion World has none to
-  // check, so this is a no-op there.
+  // Front and back images are deckplanet's own guesses, and its bucket lags
+  // badly for the original game (see verifyFrontImages). Both are checked
+  // *before* the import: a back verified only afterwards was stored unchecked,
+  // which left every leader from BT19 on pointing at a 404 for its awakened
+  // side. What deckplanet lacks, Bandai's card list then supplies for leaders.
   const frontImages = await verifyFrontImages(shaped);
+  const backImages = await verifyBackImages(shaped);
+  const officialImages = await applyOfficialLeaderImages(shaped);
   const { touched, ...imported } = await importCatalog(db, shaped);
-  return { ...imported, ...(await draftTouched(db, game, touched, opts)), backImages: await verifyBackImages(shaped), frontImages };
+  return { ...imported, ...(await draftTouched(db, game, touched, opts)), backImages, frontImages, officialImages };
 }
 
 /** Both games, in order. A failure on either aborts the whole sync run. */

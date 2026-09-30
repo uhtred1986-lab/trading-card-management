@@ -10,6 +10,8 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "storage.googleapis.com", pathname: "/deckplanet_card_images/**" },
       // Fusion World art from Bandai's own card list (see src/lib/catalog/bandai.ts).
       { protocol: "https", hostname: "www.dbs-cardgame.com", pathname: "/fw/images/**" },
+      // The original game's leaders deckplanet lacks, both faces (see src/lib/catalog/bandai.ts).
+      { protocol: "https", hostname: "www.dbs-cardgame.com", pathname: "/images/cardlist/cardimg/**" },
       // TCGplayer product photos — fallback when a print has no deckplanet image.
       { protocol: "https", hostname: "tcgplayer-cdn.tcgplayer.com" },
       // CardTrader blueprint images — leader back sides for Masters-era sets.
