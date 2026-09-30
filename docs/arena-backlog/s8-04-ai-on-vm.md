@@ -4,6 +4,8 @@ milestone: Arena M11 — Everything else from config (Stage 8)
 labels: backlog, ready-for-agent, enhancement, area:arena-vm, phase:rules-stage8, model:sonnet-5
 stage: 8
 touches: src/lib/arena/ai/run.ts, src/lib/arena/ai/opponent.ts, src/lib/arena/ai/debug.ts, src/app/arena/[id]/debug/page.tsx
+issue: 162
+status: closed
 ---
 **Source:** `src/lib/arena/ai/{view,opponent,run,debug,clarify}.ts`; `CLAUDE.md` "Claude as the arena opponent" and "Arena debug"; `aiPlayerOf`.
 

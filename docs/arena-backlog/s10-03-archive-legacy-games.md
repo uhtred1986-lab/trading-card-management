@@ -5,6 +5,7 @@ labels: backlog, ready-for-agent, area:arena-vm, phase:rules-stage10, model:sonn
 stage: 10
 issue: 335
 touches: src/db/schema.ts, src/lib/arena/games.ts, src/lib/arena/matches.ts
+status: closed
 ---
 **Source:** `docs/arena-ruleset-spec.md` §6's Stage 10 row and its "Saved legacy games, once `engine/` retires" subsection; issue #119, decided 20 Sep 2026; `src/db/schema.ts`'s `arenaGames` (`state`, `actions`, `engine` columns); `src/lib/arena/games.ts`; `src/lib/arena/matches.ts` (the 1 v 1 case); `docs/arena-client-contract.md` (a game is its seed plus actions, which is exactly what stops being true here).
 
