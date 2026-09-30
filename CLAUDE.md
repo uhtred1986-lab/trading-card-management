@@ -44,32 +44,19 @@ branches agents push (`feat/*`, `arena-*`, `backlog/*`, `claude/*`, `copilot/*`,
 `db:check`, `db:migrate`, `sync:*` — unless the issue's acceptance cannot be met any other way;
 it says which acceptance bullet it could not verify instead, and the owner runs that one.
 
+
 ## Working efficiently in this repo
 
 **Working one issue as an agent, or coordinating several: read `docs/agent-brief.md` first** —
 branching, data, the habits that stall sessions, the PR, and the coordinator's review-and-merge loop.
 
-A `SessionStart` hook (`.claude/settings.json` → `scripts/session-start-check.mjs`) runs `npm ci`
-before a fresh Claude Code on the web session's first turn whenever `node_modules` is missing or
-older than `package-lock.json`, then warms the `tsx` cache — plain Node, so it works the same
-under the owner's Windows/PowerShell machine and in the sandbox. It is a no-op in under a second
-when `node_modules` is already current. A `Cannot find module` error from any `verify-*` or
-`arena:*` script means the hook did not run (or ran and failed) — run `npm ci` by hand rather than
-assuming the suite is broken.
-
-Before opening arena docs or engine source for a specific question, start with
-`docs/arena-tooling.md` (what each verify/probe/tally script proves) and
-`docs/arena-next-session-prompt.md` (current state, priority order) — both are short and meant
-as the entry point. There are 20+ other `docs/arena-*.md` files (several 400–900+ lines); grep
-them for the term you need rather than reading multiple specs end to end. `src/lib/arena/engine/`
-is large: the compiler implementation now lives under `src/lib/arena/engine/compile/`,
-`compile.ts` is its stable public barrel, and `engine.ts`, `script.ts` + `script-schema.ts`,
-`state.ts` are each 1,800–4,600 lines — grep for the symbol first and read a line range, don't
-open these files whole. For iterating on pure rule
-logic, `npx tsx scripts/verify-rules.ts` and `npx tsx scripts/verify-arena.ts` are much faster than
-full `npm test` (which also runs `verify-db.mts`, spinning up PGlite + migrations every time); run
-the full suite before finalizing. Never run `sync:catalog`/`sync:prices` just to inspect state —
-they hit real network endpoints and take 30–50s.
+A `SessionStart` hook runs `npm ci` when `node_modules` is stale; a `Cannot find module` error from a
+`verify-*` or `arena:*` script means it did not run — run `npm ci` by hand. Detail:
+`docs/architecture/db.md`. For arena work start with the `arena-work` skill and
+`docs/arena-tooling.md`; grep the long `docs/arena-*.md` files, don't read them whole. Never run
+`sync:catalog`/`sync:prices` just to inspect state. For pure rule logic,
+`npx tsx scripts/verify-rules.ts` and `npx tsx scripts/verify-arena.ts` are faster than `npm test`;
+run the full suite before finalizing.
 
 ## Commands
 
@@ -79,169 +66,49 @@ npm run build          # Production build
 npm run typecheck      # tsc --noEmit
 npm run lint           # ESLint
 npm test               # verify-rules.ts (pure) + verify-arena.ts on both engines (docs/arena-tooling.md) + verify-db.mts (PGlite)
-npm run contract:emit  # rewrite contract/fixtures/*.json after a deliberate Snapshot shape change
-npm run android:test   # Kotlin round-trip of those fixtures, in Docker — no JDK on the machine
 npm run db:generate    # Generate a migration after editing src/db/schema.ts
 npm run db:migrate     # Apply migrations (also run on every *production* Vercel deploy via scripts/vercel-build.mjs)
 npm run sync:catalog   # Import both games' catalogs from deckplanet + Fusion World art from Bandai (~50 s),
                        # then draft arena rules for every new or changed card and ask Claude about the
                        # skills the compiler could not read (--no-review, --budget N)
-npm run arena:draft    # Compile the catalog offline into card_rules drafts (--card, --set, --only-open, --review)
-npm run arena:rulesets # Rewrite src/lib/arena/rulesets/<game>/files.ts from the .rules files beside it
-                       # (--check fails instead of writing); the loader itself reads no filesystem
-npm run arena:probe    # Try stored rules on a board built for each (--card, --set, --all, --limit, --fill)
-npm run arena:reprobe  # Re-run every probe a rule carries and list the ones whose answer moved (--write)
-npm run arena:tally    # Compiler coverage over the live deckplanet catalog, with op/cond usage and unread
-                       # clause shapes — no database needed (--misses N, --show "<a wording>")
-npm run arena:specified # The specified (coloured) half of a play's price: proves the catalog feed carries
-                       # no cost orbs, lists the X-cost cards whose baseline is therefore refused (--all),
-                       # and — with DATABASE_URL — says per card whether one was entered, ruled on or is unknown
-npm run arena:readings # The other half: what the compiler reads every skill to *mean*, printed text
-                       # beside the program in words. Diff it before and after a compiler change — a
-                       # clause that compiles and reads wrongly moves no coverage number (--grep, --unread)
-npm run arena:diff     # Replay a saved game's action log from its seed and compare with the row
-                       # (-- <gameId> [--engine legacy|rules] | --all): the oracle check between the engines
 npm run db:check       # Can this machine reach the database, and over which driver?
 npm run db:migrate:http # db:migrate for a sandbox that allows HTTPS only (see DB_DRIVER below)
 npm run sync:prices    # Import TCGplayer products + today's prices from tcgcsv (both categories),
                        # the USD→EUR rate, and TCGplayer art for prints still without any (~35 s)
 ```
 
-`npm test` needs no database or network. Everything else needs `DATABASE_URL` in `.env.local`,
-except `android:test`, which needs Docker and nothing else — the Kotlin toolchain lives in a
-container (`android/Dockerfile`) because the machine has no JDK, no Gradle and no Android SDK.
-There is no test framework — both scripts are plain `assert` scripts run with `tsx`; extend them in
-the same style. **`docs/arena-tooling.md` explains every arena instrument** — what `arena:readings`
-and `arena:tally` prove and how to diff them, which of `verify-arena`'s twelve suites means what
-when it fails, when `contract:emit` and the oracle `arena:diff` are required, and the practices
-learned the expensive way. Read it before changing the compiler or the engine.
+`npm test` needs no database or network; everything else needs `DATABASE_URL` in `.env.local`
+(except `android:test`, which needs Docker). The `arena:*` scripts, `contract:emit`, `android:test`
+and the rest of the arena tooling are listed with their flags in `docs/architecture/arena.md`;
+`docs/arena-tooling.md` explains what each proves — read it before changing the compiler or the
+engine. There is no test framework, only `assert` scripts run with `tsx`.
 
-## Data sources (verified 2 Sep 2026)
+## Where the detail lives — open before touching the area
 
-| What | Source | Notes |
-|---|---|---|
-| Card catalog | `https://api.deckplanet.net/cardsearch/{dbs_masters_cards,fusion_world_cards}?limit=100000` | One call per game; the `dragogodev/cgs` repo the spec names is only a *pointer* to the first. 6.5k cards for the original game, ~2k for Fusion World. Alternate prints appear as top-level entries **and** in `variants[]`; `shapeCatalog` collapses them to one card per base number + a print list. The Fusion World payload differs in three ways, all handled in `deckplanet.ts`: bare rarity codes ("SR", normalised to "Super Rare[SR]" by `normaliseRarity`), no character/era lists, and a numeric energy cost. **Its skill text carries typos** — see `errata.ts` below. |
-| Card images | `https://storage.googleapis.com/deckplanet_card_images/{number}.png` | Hot-linked via `next/image`; a few prints 404 and fall back to a placeholder. **Fusion World is not in this bucket at all** — its art comes from Bandai's own card list, `https://www.dbs-cardgame.com/fw/images/cards/card/en/{number}.webp` (leaders `_f`/`_b`, alternate prints `_p1`, `_p2`…; no User-Agent or Referer check). `src/lib/catalog/bandai.ts` crawls the card list's series pages for the exact image names at catalog sync and only assigns URLs that exist, since deckplanet lists ~700 more alternate prints than Bandai shows. Whatever is still null afterwards gets the matched TCGplayer product photo (`_200w.jpg` rewritten to `_in_1000x1000.jpg`) from `fillMissingImages` during the price sync. The catalog upserts therefore `coalesce` `image_url` instead of overwriting it. |
-| Leader faces | deckplanet `{number}.png` / `{number}_b.png` (sets before BT19 only) → else Bandai's original-game card list, `https://www.dbs-cardgame.com/images/cardlist/cardimg/{number}.png` / `{number}_b.png` (every set, BT1 onward) → else the CardTrader blueprint image / `back_image`. All of it HEAD-verified at catalog sync **before** the import (`verifyFrontImages`, `verifyBackImages`, `applyOfficialLeaderImages`). Fusion World leaders use Bandai's `{number}_f.webp` / `_b.webp`, the back inferred from the `_f` front and HEAD-verified the same way | Stored in `cards.image_url` / `back_image_url`. The upsert lets a stored deckplanet URL yield to the fresh (possibly null) answer and otherwise `coalesce`s, so a CardTrader or price-sync backfill survives a re-sync until a catalog source has the face. **TCGplayer's photo of a leader ("Front // Back") is the awakened side** — never use it as a front. `CardFaces` shows front + awakened when present. |
-| Prices | `https://tcgcsv.com/tcgplayer/{27,80}/...` | **Requires a browser-like User-Agent** (401 otherwise). Category 27 is the original game, 80 is Fusion World; 27 also carries a stray duplicate of Fusion World's FB01 group, which is skipped there. Products join to cards on the printed `Number`; SR+ cards only exist as a foil sub-type, so `priceForFinish` falls back foil↔normal — and the foil sub-type is called `Foil` in category 27 but `Holofoil` in 80 (`FOIL_SUB_TYPES`). |
-| FX | `https://api.frankfurter.app/latest?from=USD&to=EUR` | Daily. |
-| CardTrader | `https://api.cardtrader.com/api/v2` | **Read-only client**, and every live call is gated by `CARDTRADER_ENABLED=true` (the owner enabled it on 2 Sep 2026 after testing). Never add cart/purchase endpoints without being asked. Quirks the docs omit: `/games` returns `{"array": [...]}` (the client unwraps it); `/expansions` is a bare array; Dragon Ball Super is game id 9 and **includes Fusion World expansions** (`fb*`, `fs*`), which now cross-walk like any other set; `fixed_properties.collector_number` is `BT14-113` on newer sets but bare `049` on older ones (see `collectorNumbers`). Crosswalk covers ~98 % of cards, mostly via `tcg_player_id` = tcgcsv `productId`. Cardmarket also files Fusion World under its `DragonBallSuper` category, but **TCGplayer does not** — `externalLinks` picks the search slug per game. |
-| Claude | `claude-opus-5`, adaptive thinking, Zod structured outputs via `messages.parse` | Every call is recorded in `ai_runs` with token usage. |
+The Data sources and Architecture sections moved out of this file unchanged (issue #382).
 
-## Architecture
+| Touching… | Read |
+|---|---|
+| Working one issue as an agent (habits, proof, PR) | `docs/agent-brief.md` |
+| Catalog import, deckplanet/Bandai/TCGplayer/CardTrader/FX sources, card images, leader faces, errata, prices, the optimiser | `docs/architecture/catalog-and-sync.md` |
+| Ownership, reservations, deck legality, deck/lot owners, add-to-deck, voice entry, quick capture, scan batches | `docs/architecture/collection-and-decks.md` |
+| Deck analysis, wizard, card scanning, cart explainer, "Build a deck with Claude" | `docs/architecture/ai.md` |
+| Server actions, raw SQL (`rows()`, `textArray()`), the SessionStart hook | `docs/architecture/db.md` |
+| The arena: engines, compiler, rules language, rulesets, workbench, UI, opponent, probe, arena scripts | `docs/architecture/arena.md`, then `docs/arena-tooling.md` and `docs/arena-code-map.md` |
+| Original feature spec (written before Fusion World) | `dbs-tcg-app-feature-summary.md` |
 
-- **Server actions over API routes.** Mutations live in `actions.ts` files next to their pages.
-  The only API routes are the cron price sync (`/api/sync/prices`) and the scan upload
-  (`/api/scan`).
-- **Catalog is immutable app data**: `card_sets` → `cards` → `card_prints`. Ownership
-  (`owned_cards`) always references a *print* so foil/alt-art copies are distinct; deck slots
-  (`deck_cards`) reference a *card*, because any print satisfies a deck slot.
-- **The source's card-text typos are corrected on the way in** (`src/lib/catalog/errata.ts`) — the
-  arena's compiler reads text literally, so one missing letter can cost a whole skill. **Never fix
-  one with an UPDATE**: the catalog upsert sets `skill = excluded.skill`, so a hand-edited row is
-  silently overwritten by the next `sync:catalog`. `syncCatalogFor` re-checks every entry against
-  the fetched payload and warns if one stops matching. Only unambiguous errors are corrected, and a
-  name correction is checked against Bandai's art first, never guessed.
-- **No card-number prefix belongs to both games** — BT/EX/SD/TB/EB/DB/XD/P/TOKEN vs
-  FB/FS/FP/SB/ST/E — so `gameOfSetCode` is a lookup, not a guess. Watch the `E`/`E01` pair in
-  `sets.ts` and `normaliseNumber`'s `BARE_SET_CODES`.
-- **Reservations are computed, never stored** (`src/lib/decks/reservations.ts`): reserved = sum of
-  `deck_cards` across decks with `is_built`; available = owned − reserved. Marking a deck built is
-  **blocked outright** when it would over-reserve, and `buildConflicts` lists the exact shortfall.
-- **Prices are daily snapshots** (`tcg_prices` keyed by product/sub-type/day) so movers can be
-  computed; `pricesForPrints` reduces several TCGplayer products per print to one Normal + one Foil
-  figure.
-- **Raw SQL reads go through `rows()`** (`src/db/rows.ts`) because postgres.js returns arrays and
-  PGlite (used by `npm test`) returns `{ rows }`.
-- **AI**: `src/lib/ai/deck.ts` (summary, wizard, set review), `src/lib/ai/scan.ts` (photo → cards,
-  matched by number then name), `src/lib/ai/cart.ts` (explains the optimiser's output, never does
-  the arithmetic). The wizard's pool is scoped to the leader's colours and capped at 450; every
-  deck prompt is scoped to one game — only the scanner reads both at once, since a photo can mix
-  them.
-- **Lot owner**: every `owned_cards` row records `owner` = the Basic Auth username
-  (`currentUser()`); null when the app runs open. Every path that creates lots stamps it — keep
-  that true for new paths.
-- **Decks belong to a login too** (`decks.owner`, issue #279): stamped from `currentOwner()` on
-  every path that creates a deck — keep that true for new ones. A deck's owner also gates
-  *visibility* (`listDecks`/`getDeck` hide a deck owned by someone else); a deck id that isn't
-  yours answers `not_found`. Reservations do **not** follow ownership — every built deck counts
-  against the shared collection regardless of owner. Deck transfer between logins and the
-  workbench's rule-coverage pages are deliberately out of scope.
-- **Deck legality is a flag, never a block** (`src/lib/decks/legality.ts`): a deck saves in any
-  state; `legality(rows, game)` labels it **legal / incomplete / illegal** with per-card flags. The
-  one thing actually *refused* is over-reserving a **built** deck — that's ownership, not legality.
-  Colour differs in *kind* per game: a warning in the original game, illegal in Fusion World (which
-  also has no Z-Deck).
-- **"Also add to deck"** (`DeckPicker`, `src/lib/decks/add.ts`): every add path can target a deck.
-  `addCardsToDeck` sorts by zone and **never caps or replaces** — an over-limit add is flagged
-  rather than dropped.
-- **Voice bulk entry** (`VoiceEntry`, `src/lib/scan/voice.ts`): browser speech recognition, no
-  audio uploaded. `parseSpoken` returns *ordered* interpretations rather than deciding;
-  `resolveSpokenAction` picks the first whose card number exists in the catalog, falling back to a
-  name search.
-- **Quick capture** (`/add/quick`, `POST /api/scan/quick`): phone loop — one photo → identified
-  immediately (nothing stored) → quantity with big ± buttons → `addLot` → the camera re-opens.
-- **Scan batches** (`src/lib/scan/batches.ts`): a scan is persisted as it happens so a batch
-  started on the phone can be finished on the PC. `POST /api/scan` stores the photo *before*
-  identifying so a retry never needs the phone again.
-- **Leaders → "Build a deck with Claude"** (`/leaders`, `src/lib/ai/deck-builder.ts`): the draft
-  gets an owned pool and a capped buy pool, runs through `sanitiseDraft`, and becomes a *virtual*
-  deck with a shopping list. Owned/buy flags come from the collection, not the model.
-- **Binding arrays in raw SQL:** use `textArray()` from `src/db/sqlx.ts` — `${arr}::text[]` fails
-  under postgres.js with a `transformTypeCast` error.
-- **Arena rules engine** (`src/lib/arena/engine/`): a game is a `GameState` plus an event log;
-  `apply()` is the only mutator. `legalActions()` offers only skills the engine can pay for **and**
-  resolve, and drives both the UI and Claude's move menu. Doc: `docs/arena-code-map.md`.
-- **The compiler's glossary** (`src/lib/arena/glossary.ts`, `/arena/rules/keywords`): the only
-  written record of what the compiler understands per keyword — part of the compiler, not
-  documentation about it (Conventions below: touch the compiler, update the glossary). Doc:
-  `docs/arena-code-map.md`.
-- **Two engines, chosen per game** (`src/lib/arena/engines.ts`): the config-driven `rules` engine
-  (`vm/`) is the **default** since 20 Sep 2026 (#166); `legacy` (`engine/`, frozen) stays the
-  oracle, is what Settings → Arena engine puts new games back on, and is what a **1 v 1** is made
-  on either way (`engineForMode`, #162 — never a refusal of the default path). A game keeps the
-  engine it was made on — `engineFor(id)` is the one switch, and `engineOr`'s own fallback is
-  `FALLBACK_ENGINE`, not the default, because an unreadable stored value is an old legacy row.
-  **One rejection per card per action type, except an activation, which is one per skill line**
-  (§3.2). Doc: `docs/arena-code-map.md`.
-- **The rules language** (`src/lib/arena/lang/`, `docs/arena-rules-language.md`): one closed
-  grammar for a card's rule. `npm test` holds it to `parse(print(x)) === x` for every op,
-  condition, selector and filter. Doc: `docs/arena-code-map.md`.
-- **A game is files, not code** (`src/lib/arena/rulesets/`): `loadRuleset` reads a game's `.rules`
-  declarations into one `GameDefinition`; `npm run arena:rulesets` regenerates the generated
-  constant — nothing reads a file at request time. Doc: `docs/arena-code-map.md`,
-  `docs/arena-ruleset-spec.md`.
-- **The specified-cost baseline is a column a person writes** (`cards.specified_cost`, issue
-  #255): the feed carries no cost orbs, so an X-cost card's coloured price is entered by hand. The
-  catalog upsert must `coalesce` this column — remove that and the next sync erases every entry.
-  Doc: `docs/arena-code-map.md`.
-- **The record's WHEN is the engine's WHEN** (`skillAnswersTo`, `engine/triggers.ts`): an [Auto]
-  skill's trigger comes off `card_rules.trigger`; only a skill with no record falls back to the
-  printed text. Doc: `docs/arena-code-map.md`.
-- **Arena UI** (`/arena`, `src/components/arena/`, `docs/arena-client-contract.md`): phone-first
-  board driven entirely by `legalActions()` and one `Snapshot` — no client evaluates a rule.
-  **Everything the board says about who is acting reads `live.waiting`, never the `snapshot`
-  prop.** Doc: `docs/arena-code-map.md`.
-- **1 v 1** (mode `versus`, `src/lib/arena/matches.ts`): two people, two devices, one game. A 1 v 1
-  belongs to its two seats and nobody else, over as well as playing. Doc: `docs/arena-code-map.md`.
-- **Claude as the arena opponent** (`src/lib/arena/ai/`): your hand, life and decklist are
-  **never** in the request. `opponent.ts` picks from the legal-move list, so an answer can be wrong
-  but never illegal. Doc: `docs/arena-code-map.md`.
-- **Arena debug** (`src/lib/arena/ai/debug.ts`, `/arena/[id]/debug`): every server decision is
-  logged to `arena_decisions`. What the compiler cannot read is `card_rules.unread` on the rule
-  itself, not a second list. Doc: `docs/arena-code-map.md`.
-- **Rules are records** (`docs/arena-rules-workbench-spec.md`): the engine plays from `card_rules`
-  and **never compiles card text at game time**; a row a person confirmed or corrected is never
-  rewritten by a script. Doc: `docs/arena-code-map.md`, and for the owner's own walkthrough of
-  correcting a record, `docs/arena-fixing-a-card.md`.
-- **The probe** (`src/lib/arena/probe.ts`): says what the engine *does* with a rule, not what it
-  should. Pure — no database, no network, and **no compiler**: `draft.ts` stays the only module
-  that compiles card text. Doc: `docs/arena-code-map.md`.
-- **Explaining a card** (`src/lib/arena/ai/clarify.ts`): plain-language explanations become a
-  draft rule. **A ruling given in conversation goes to `card_rules.explanation` first** (`npm run
-  arena:rule`), and the code change is made afterwards, deliberately. Doc: `docs/arena-code-map.md`.
-- **Optimiser** (`src/lib/marketplace/optimizer.ts`) is deterministic: greedy + exhaustive 1/2/3-seller
-  subsets + removal local search, shipping counted once per seller.
+Large docs: `docs/arena-history-lessons.md` (199 KB) and `docs/arena-code-map.md` (69 KB) — grep, don't read whole.
+
+## Hard rules (detail in the docs above)
+
+- **Reservations are computed, never stored**; over-reserving a *built* deck is the one thing refused. `collection-and-decks.md`
+- **Legality is a flag, never a block**: `legality(rows, game)` labels, it never refuses. `collection-and-decks.md`
+- **Errata are fixed in `errata.ts`, never by UPDATE**: the catalog upsert overwrites `skill`. `catalog-and-sync.md`
+- **Keep `coalesce` on `image_url` and `cards.specified_cost`** in the catalog upsert, or a sync erases them. `catalog-and-sync.md`
+- **Stamp `owned_cards.owner` and `decks.owner`** on every path that creates them. `collection-and-decks.md`
+- **Raw SQL reads go through `rows()`; bind arrays with `textArray()`.** `db.md`
+- **Rules are records**: the engine never compiles card text at game time; a confirmed rule is never rewritten by a script. `arena.md`
+- **The two games are kept apart by `game`**; the arena only plays `dbs` decks.
 
 ## Environment
 
