@@ -17,7 +17,11 @@ function postgresClient() {
   const sql =
     globalForDb.__dbsSql ??
     postgres(connectionString!, {
-      max: 10,
+      // Few sockets per warm serverless instance; idle ones are closed
+      // rather than left to linger. Keep DATABASE_URL on the -pooler host.
+      max: 5,
+      idle_timeout: 20,
+      connect_timeout: 10,
       ssl: connectionString!.includes("sslmode=require") ? "require" : false,
       prepare: connectionString!.includes("-pooler") ? false : true,
     });
