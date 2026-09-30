@@ -39,13 +39,21 @@ export function anthropic(): Anthropic {
   return (cached ??= new Anthropic({ apiKey }));
 }
 
-export type RunKind = "deck_summary" | "deck_wizard" | "set_review" | "scan_identify" | "cart_explain" | "arena_move" | "arena_referee" | "arena_review";
+export type RunKind = "deck_summary" | "deck_wizard" | "set_review" | "scan_identify" | "cart_explain" | "deck_builder" | "deck_from_card" | "arena_move" | "arena_referee" | "arena_clarify" | "arena_review";
+
+/** The slice of the SDK's `usage` that `ai_runs` keeps; the cache fields are absent or null when a call did not use the cache. */
+export type RunUsage = {
+  input_tokens: number;
+  output_tokens: number;
+  cache_read_input_tokens?: number | null;
+  cache_creation_input_tokens?: number | null;
+};
 
 export async function recordRun<T>(
   db: Db,
   kind: RunKind,
   input: unknown,
-  response: { parsed_output?: T | null; usage: { input_tokens: number; output_tokens: number }; stop_reason: string | null },
+  response: { parsed_output?: T | null; usage: RunUsage; stop_reason: string | null },
   deckId?: number,
   model: string = MODEL,
 ): Promise<{ id: number; output: T }> {
@@ -62,6 +70,8 @@ export async function recordRun<T>(
       output: output as object,
       inputTokens: response.usage.input_tokens,
       outputTokens: response.usage.output_tokens,
+      cacheReadTokens: response.usage.cache_read_input_tokens ?? null,
+      cacheCreationTokens: response.usage.cache_creation_input_tokens ?? null,
     })
     .returning({ id: aiRuns.id });
   return { id: row.id, output };
