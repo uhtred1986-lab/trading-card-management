@@ -9,7 +9,7 @@
  * id to the engine this module calls, so this file never imports `./engine`
  * directly to play a saved game.
  */
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { hasAnthropic } from "@/lib/ai/client";
 import { arenaGames, cards as cardsTable } from "@/db/schema";
@@ -521,33 +521,52 @@ export async function clearBeats(db: Db, id: number): Promise<void> {
  */
 export async function listGames(db: Db, limit = 20, user: string | null = null) {
   const rows = await db
-    .select({
-      id: arenaGames.id,
-      p1Name: arenaGames.p1Name,
-      p2Name: arenaGames.p2Name,
-      p1User: arenaGames.p1User,
-      p2User: arenaGames.p2User,
-      status: arenaGames.status,
-      winner: arenaGames.winner,
-      reason: arenaGames.reason,
-      turn: arenaGames.turn,
-      mode: arenaGames.mode,
-      engine: arenaGames.engine,
-      costMicros: arenaGames.aiCostMicros,
-      updatedAt: arenaGames.updatedAt,
-      // Only its presence is wanted here, never its content — the list shows
-      // a badge, not a board. Dropped before returning so a list of 20 never
-      // carries 20 full boards over the wire.
-      snapshot: arenaGames.snapshot,
-    })
+    .select(GAME_LIST_COLUMNS)
     .from(arenaGames)
     .orderBy(desc(arenaGames.updatedAt))
     .limit(limit * 2);
-  return rows
-    .filter((g) => !isVersus(g.mode) || seatOf(g, user) !== null)
-    .slice(0, limit)
-    .map(({ snapshot, ...g }) => ({ ...g, archived: snapshot != null }));
+  return rows.filter((g) => !isVersus(g.mode) || seatOf(g, user) !== null).slice(0, limit);
 }
+
+/**
+ * The games still being played, newest first (ah-05). `listGames` is the
+ * newest twenty of every status, so a game left for a while would drop out of
+ * it behind twenty finished ones; this one is bounded by status instead, and
+ * uses the partial shape of the same list so a row renders the same way.
+ */
+export async function listPlayingGames(db: Db, limit = 10, user: string | null = null) {
+  const rows = await db
+    .select(GAME_LIST_COLUMNS)
+    .from(arenaGames)
+    .where(eq(arenaGames.status, "playing"))
+    .orderBy(desc(arenaGames.updatedAt))
+    .limit(limit * 2);
+  return rows.filter((g) => !isVersus(g.mode) || seatOf(g, user) !== null).slice(0, limit);
+}
+
+/**
+ * The columns a games list shows. `archived` and `turnPlayer` are read as
+ * scalars in SQL, so a list never carries a stored board or a full state over
+ * the wire: presence of `snapshot` is a badge, and `state.turnPlayer` (both
+ * engines write it at the top level) says whose move a game in progress is.
+ */
+const GAME_LIST_COLUMNS = {
+  id: arenaGames.id,
+  p1Name: arenaGames.p1Name,
+  p2Name: arenaGames.p2Name,
+  p1User: arenaGames.p1User,
+  p2User: arenaGames.p2User,
+  status: arenaGames.status,
+  winner: arenaGames.winner,
+  reason: arenaGames.reason,
+  turn: arenaGames.turn,
+  mode: arenaGames.mode,
+  engine: arenaGames.engine,
+  costMicros: arenaGames.aiCostMicros,
+  updatedAt: arenaGames.updatedAt,
+  archived: sql<boolean>`${arenaGames.snapshot} is not null`,
+  turnPlayer: sql<string | null>`${arenaGames.state}->>'turnPlayer'`,
+};
 
 /**
  * The decks this viewer last played with, read off their newest games so the
@@ -562,11 +581,7 @@ export async function listGames(db: Db, limit = 20, user: string | null = null) 
 export async function lastPlayedDecks(db: Db, deckIds: number[], user: string | null): Promise<{ own: number | null; claude: number | null }> {
   if (!deckIds.length) return { own: null, claude: null };
   const ids = new Set(deckIds);
-  const rows = await db
-    .select({ p1: arenaGames.p1DeckId, p2: arenaGames.p2DeckId, mode: arenaGames.mode, p1User: arenaGames.p1User })
-    .from(arenaGames)
-    .orderBy(desc(arenaGames.updatedAt))
-    .limit(60);
+  const rows = await db.select({ p1: arenaGames.p1DeckId, p2: arenaGames.p2DeckId, mode: arenaGames.mode, p1User: arenaGames.p1User }).from(arenaGames).orderBy(desc(arenaGames.updatedAt)).limit(60);
   let own: number | null = null;
   let claude: number | null = null;
   for (const r of rows) {
