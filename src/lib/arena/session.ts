@@ -9,12 +9,13 @@
  *
  * The pure half is `snapshot.ts`; this half is the database and Claude.
  */
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { arenaGames, cards as cardsTable } from "@/db/schema";
 import type { Action, PlayerId } from "./engine";
 import { applyToGame, clearBeatsForTurn, loadArchivedGame, loadGame, type LoadedGame } from "./games";
 import { advance, aiPlayerOf } from "./ai/run";
+import { longPollStepMs } from "./poll-schedule";
 import { archivedSnapshotFor, buildSnapshot, type Snapshot } from "./snapshot";
 import type { CardArt } from "./view";
 
@@ -75,22 +76,43 @@ export async function advanceSession(db: Db, gameId: number, viewer: PlayerId | 
 }
 
 /**
- * Long-poll: return as soon as the queue has climbed past `sinceBeat`, or null
- * once `timeoutMs` has passed with nothing new.
+ * The sequence number the stored beats have reached, read on its own.
+ *
+ * `arena_games.beats` is a jsonb object `{ seq, list, art }` (`beats.ts`,
+ * `EMPTY_BEATS`), or null before anything has happened; `->>` pulls just the
+ * counter out so the poll never ships the (possibly large) `list`/`art`.
+ * Null when there is no such row.
+ */
+async function beatSeq(db: Db, gameId: number): Promise<number | null> {
+  const [row] = await db
+    .select({ seq: sql<string | null>`${arenaGames.beats}->>'seq'` })
+    .from(arenaGames)
+    .where(eq(arenaGames.id, gameId))
+    .limit(1);
+  if (!row) return null;
+  const n = Number(row.seq ?? 0);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/**
+ * Long-poll: resolves true as soon as the queue has climbed past `sinceBeat`,
+ * false once `timeoutMs` has passed with nothing new (or the row is gone).
+ * The caller loads the game once afterwards, whichever way it ended.
  *
  * `advance` writes each `applyToGame` to the row as it goes, so polling the row
  * is how Claude's charge, plays and attack arrive *as they are decided* rather
- * than as one jump at the end of a minute of thinking.
+ * than as one jump at the end of a minute of thinking. Each look reads only the
+ * counter, every 400 ms at first and then backing off (`poll-schedule.ts`,
+ * issue #377).
  */
-export async function waitForBeats(db: Db, gameId: number, sinceBeat: number, timeoutMs = 25_000, viewer: PlayerId | null = null): Promise<Snapshot | null> {
-  const deadline = Date.now() + timeoutMs;
-  const interval = 400;
+export async function waitForBeats(db: Db, gameId: number, sinceBeat: number, timeoutMs = 25_000): Promise<boolean> {
+  const started = Date.now();
   for (;;) {
-    const [row] = await db.select({ beats: arenaGames.beats }).from(arenaGames).where(eq(arenaGames.id, gameId)).limit(1);
-    if (!row) return null;
-    const seq = (row.beats as { seq?: number } | null)?.seq ?? 0;
-    if (seq > sinceBeat) return snapshotOf(db, gameId, viewer);
-    if (Date.now() >= deadline) return null;
-    await new Promise((r) => setTimeout(r, Math.min(interval, Math.max(0, deadline - Date.now()))));
+    const seq = await beatSeq(db, gameId);
+    if (seq === null) return false;
+    if (seq > sinceBeat) return true;
+    const elapsed = Date.now() - started;
+    if (elapsed >= timeoutMs) return false;
+    await new Promise((r) => setTimeout(r, Math.min(longPollStepMs(elapsed), timeoutMs - elapsed)));
   }
 }
