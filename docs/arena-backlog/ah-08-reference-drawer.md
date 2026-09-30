@@ -4,6 +4,7 @@ issue: 362
 milestone: Arena M17 — Arena home: Play and Rules Workbench
 labels: backlog, ready-for-agent, enhancement, area:arena-workbench, area:arena-docs, phase:arena-home, model:sonnet-5
 stage: ui
+status: closed
 touches: src/components/arena/rules/ReferenceDrawer.tsx, src/components/arena/ArenaHeader.tsx
 ---
 **Source:** `src/app/arena/rules/keywords/page.tsx`, `src/app/arena/rules/game/page.tsx`, `src/app/arena/rules/language/page.tsx`; `RulesHeader` (links to keywords and the GitHub copy of `docs/arena-fixing-a-card.md`); canvas frame `RulesDesktop` (Reference button).
