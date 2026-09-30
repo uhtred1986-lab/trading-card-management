@@ -14,7 +14,8 @@ import { defaultEngine } from "@/lib/arena/engine-setting";
 import { engineOr } from "@/lib/arena/engines";
 import { abandonGame, applyToGame, clearBeatsForTurn, engineForMode, isVersus, loadGame, seatOf, StaleGame, startGame, type ArenaMode } from "@/lib/arena/games";
 import { cancelMatch, joinMatch, matchById, openMatch } from "@/lib/arena/matches";
-import { currentOwner, currentUser } from "@/lib/auth";
+import { currentOwner, currentUser, isArenaAdmin } from "@/lib/auth";
+import { flagTurn as storeFlagTurn, reopenFlag, reviewFlag, type FlagLine } from "@/lib/arena/review-store";
 import { advance } from "@/lib/arena/ai/run";
 import { reviewGame } from "@/lib/arena/ai/review";
 import { clarifyRule } from "@/lib/arena/ai/clarify";
@@ -89,6 +90,36 @@ export async function reportBug(gameId: number, note: string, cardId?: string | 
   });
   revalidatePath("/arena/feedback");
   return { error: null };
+}
+
+/**
+ * Flag the turn the game is on, from the admin drawer (issue #351).
+ *
+ * The turn and the move are read off the game row here, never taken from the
+ * client: a flag says "this is where the game stood", and only the server knows.
+ * Admin-only, checked again on the server — the drawer not rendering for a player
+ * is a courtesy, this is the gate. Flagging a turn twice is a no-op that hands
+ * back the flag already there.
+ */
+export async function flagThisTurn(gameId: number, note: string | null): Promise<{ error: string | null; flag: FlagLine | null; created: boolean }> {
+  if (!(await isArenaAdmin())) return { error: "admins only", flag: null, created: false };
+  const game = await loadGame(db, gameId);
+  if (!game) return { error: "no such game", flag: null, created: false };
+  const user = await currentUser();
+  if (isVersus(game.mode) && !seatOf(game, user)) return { error: "this is not your game", flag: null, created: false };
+  const { created, flag } = await storeFlagTurn(db, { gameId, turn: game.state.turn, beatIndex: Math.max(game.actions.length - 1, 0), note, flaggedBy: user });
+  revalidatePath("/arena/review");
+  return { error: null, flag, created };
+}
+
+/** The review screen's two buttons: save the reviewer's note, and Resolve (or put a resolved flag back). Admin-only, checked here. */
+export async function reviewFlagAction(flagId: number, formData: FormData): Promise<void> {
+  if (!(await isArenaAdmin())) throw new Error("admins only");
+  const intent = String(formData.get("intent") ?? "save");
+  const reviewerNote = String(formData.get("reviewerNote") ?? "");
+  if (intent === "reopen") await reopenFlag(db, flagId);
+  else await reviewFlag(db, flagId, { reviewerNote, resolve: intent === "resolve" });
+  revalidatePath("/arena/review");
 }
 
 export async function setFeedbackStatus(id: number, status: "open" | "fixed" | "wontfix") {

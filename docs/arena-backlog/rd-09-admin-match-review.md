@@ -4,7 +4,8 @@ issue: 351
 milestone: Arena M16 — Board redesign: play feel and card review
 labels: backlog, enhancement, area:arena-ui, phase:board-redesign, model:sonnet-5
 stage: ui
-touches: src/app/arena/[id]/debug/page.tsx, src/db/schema.ts, drizzle, src/app/arena/actions.ts
+status: closed
+touches: src/app/arena/[id]/debug/page.tsx, src/db/schema.ts, drizzle, src/app/arena/actions.ts, src/app/arena/review/page.tsx, src/components/arena/ReviewScreen.tsx, src/components/arena/stage/AdminDrawer.tsx, src/lib/arena/review.ts, src/lib/arena/review-store.ts, src/lib/arena/review-load.ts
 ---
 **Source:** `docs/arena-board-redesign-spec.md` §2 (the Review later row); frame `docs/arena-redesign/admin-match-review.jpg`; `src/app/arena/[id]/debug/page.tsx`; `src/components/arena/ReportBug.tsx` (what a report already captures).
 

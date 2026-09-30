@@ -899,6 +899,37 @@ export const appUsers = pgTable("app_users", {
 });
 
 /**
+ * A turn an admin flagged for later review (issue #351), from the board's admin
+ * drawer. Read on `/arena/review`, which rebuilds the board at the start of the
+ * turn from the game's seed and actions — nothing of the board is stored here.
+ *
+ * One flag per turn of a game: flagging it again is a no-op
+ * (`arena_flags_game_turn_unique`). `beatIndex` is the game's latest action at
+ * the moment of flagging, 0-based, so the review opens on the move the admin was
+ * looking at. The reviewer's note and the resolution live on the same row.
+ */
+export const arenaFlags = pgTable(
+  "arena_flags",
+  {
+    id: serial("id").primaryKey(),
+    gameId: integer("game_id")
+      .notNull()
+      .references(() => arenaGames.id, { onDelete: "cascade" }),
+    turn: integer("turn").notNull(),
+    beatIndex: integer("beat_index").notNull(),
+    /** The optional one-liner written when flagging. */
+    note: text("note"),
+    /** The `app_users.username` who flagged it; null when the app runs open. */
+    flaggedBy: text("flagged_by"),
+    /** What the reviewer concluded, written on the review screen. */
+    reviewerNote: text("reviewer_note"),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("arena_flags_game_turn_unique").on(t.gameId, t.turn)],
+);
+
+/**
  * Everything the owner tells the arena, from whichever page they said it on.
  *
  * One table, because there is one question worth asking of it: what has been
