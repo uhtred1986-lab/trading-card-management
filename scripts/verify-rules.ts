@@ -23,6 +23,7 @@ import { shouldSkipBuild } from "./vercel-ignore-build.mjs";
 import { shouldMigrate } from "./vercel-build.mjs";
 import { parseSpecifiedCost, printSpecifiedCost, specifiedCostWords, staleSpecifiedCosts } from "../src/lib/arena/specified-cost";
 import { cardDefFrom } from "../src/lib/arena/load";
+import { defaultState, legacyQueueUrl, parseQueue, queueHref, queueLink, reasonOf } from "../src/lib/arena/queue";
 import { specifiedCostOf, specifiedCostUnknown } from "../src/lib/arena/engine/cards";
 
 // ── catalog shaping ────────────────────────────────────────────────────────
@@ -696,4 +697,34 @@ assert.equal(specifiedCostWords({}), "no colour");
   assert.match(silent[0], /BT2-002: .*no longer prints a specified-cost clause/);
   const typo = staleSpecifiedCosts([{ ...ok, id: "BT3-003", specifiedCost: "2 blue" }]);
   assert.match(typo[0], /BT3-003: .*not orb notation/);
+}
+
+// The Rules Workbench's one queue (#360): what a link builds is what the page
+// reads back, and the two retired URLs mean their equivalent queue.
+{
+  const fresh = parseQueue({});
+  assert.deepEqual([fresh.scope.kind, fresh.state, fresh.group], ["decks", null, "none"], "the default is all decks, a state chosen from the counts, ungrouped");
+  assert.equal(queueHref(fresh), "/arena/rules", "and the default is the bare URL");
+  const q = parseQueue({ deck: "12", state: "draft", group: "wording", q: " krillin ", set: "BT19" });
+  assert.equal(queueHref(q), "/arena/rules?deck=12&state=draft&group=wording&q=krillin&set=BT19");
+  assert.deepEqual(parseQueue(Object.fromEntries(new URL(`http://x${queueHref(q)}`).searchParams)), q, "a link reads back as the queue that built it");
+  assert.equal(parseQueue({ game: "7", deck: "12" }).scope.kind, "game", "a game's scope wins: it is what ah-04 links to");
+  assert.equal(parseQueue({ state: "bogus", group: "bogus" }).group, "none", "an unknown state or grouping is the default, not an error");
+  assert.equal(queueLink({ ...q, page: 3, rule: 9 }, { state: "open" }), "/arena/rules?deck=12&state=open&group=wording&q=krillin&set=BT19", "changing the view drops the page and the selection");
+  assert.match(queueLink({ ...q, page: 3 }, { rule: 9 }), /page=3&rule=9$/, "selecting a rule keeps the page");
+  assert.equal(defaultState({ open: 2, draft: 9, confirmed: 0, corrected: 0 }), "open");
+  assert.equal(defaultState({ open: 0, draft: 9, confirmed: 0, corrected: 0 }), "draft", "Open when the scope has any, else Draft");
+
+  assert.equal(legacyQueueUrl("all", { set: "BT19" }), "/arena/rules?scope=catalog&set=BT19", "/all?set=BT19 is the catalog, narrowed to the set");
+  assert.equal(legacyQueueUrl("all", { seg: "draft", source: "claude", pattern: "draw", q: "x", page: "2", rule: "5" }), "/arena/rules?scope=catalog&state=draft&source=claude&pattern=draw&q=x&page=2&rule=5");
+  assert.equal(legacyQueueUrl("all", { seg: "all" }), "/arena/rules?scope=catalog", "seg=all was every state: now the default state");
+  assert.equal(legacyQueueUrl("patterns", {}), "/arena/rules?scope=catalog&state=draft&group=wording", "the drafts half");
+  assert.equal(legacyQueueUrl("patterns", { half: "open" }), "/arena/rules?scope=catalog&state=open&group=wording", "/patterns?half=open is the open state grouped by wording");
+
+  const row = { status: "draft", source: "compiler", unread: [] as string[] };
+  assert.equal(reasonOf(row), null, "a plain draft has nothing to flag");
+  assert.equal(reasonOf({ ...row, source: "claude" }), "Claude drafted");
+  assert.equal(reasonOf({ ...row, costUnknown: true }), "specified cost unknown");
+  assert.equal(reasonOf({ ...row, status: "confirmed", hasDiff: true }), "compiler reads it differently", "a disagreement is flagged whatever the state");
+  assert.match(reasonOf({ ...row, status: "open", unread: ["your opponent skips their next Charge Phase"] }) ?? "", /^(unread: .+|phrasing only)$/);
 }

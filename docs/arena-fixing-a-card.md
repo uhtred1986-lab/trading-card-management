@@ -6,9 +6,10 @@ Four worked corrections; each names the exact button, tab and field you'll see. 
 
 ## Where things are
 
-`/arena/rules` (tab **My decks**, the default) lists the skills of the cards in your decks; use
-the **find a card…** box, or open `/arena/rules/all` (tab **All cards**) for any card in the
-catalog. Tap a row to open its record in the middle pane.
+`/arena/rules` is the one queue. **Cards in** picks the scope — all decks (the default), one deck,
+the whole catalog — and the state control (Open / Draft / Confirmed / Corrected) picks what to
+work on; use the **find a card…** box for a card by name. Tap a row to open its record in the
+middle pane. (`/arena/rules/all` and `/arena/rules/patterns` redirect here.)
 
 A record shows: a status badge (**Open — played as blank**, **Draft — compiled, not confirmed**,
 **Confirmed**, or **Corrected**), the printed skill text, then four rows — **WHEN**, **COST**,
@@ -42,7 +43,7 @@ shuffle your deck."* — an `[auto]` skill that should fire on **played**.
    click **Confirm — plays exactly like this**.
 
 `![the record for BT19-061 with the corrected WHEN line and a probe outcome of "fired"](images/arena-fixing-a-card/01-when-trigger.png)`
-Capture: `/arena/rules/all`, `BT19-061` open, text view showing `WHEN [auto] played`, and the Probe
+Capture: `/arena/rules` (Cards in: Whole catalog), `BT19-061` open, text view showing `WHEN [auto] played`, and the Probe
 pane below/beside it showing the **fired** badge from step 6.
 
 ## 2. A wrong price (COST)
@@ -61,7 +62,7 @@ card from their hand."* — the cost is a marker, paid by discarding a card from
 6. Re-probe: it now costs a marker and a card from your hand before your opponent discards.
 
 `![the record for BT17-065 with a COST line added in the text view](images/arena-fixing-a-card/02-cost-price.png)`
-Capture: `/arena/rules/all`, `BT17-065`, text view open with the `COST +1 marker, TEXT "Discard 1
+Capture: `/arena/rules` (Cards in: Whole catalog), `BT17-065`, text view open with the `COST +1 marker, TEXT "Discard 1
 card from your hand", DO { discard(n: 1) }` line visible above the THEN.
 
 ## 3. An unread clause, fixed by typing the program
@@ -86,7 +87,7 @@ says more than that."
 6. **Save as corrected**, then re-probe to confirm the chosen card is actually KO'd.
 
 `![the text view for BT16-087, showing a refused field name and then the corrected ko(target: $c0) line](images/arena-fixing-a-card/03-unread-clause.png)`
-Capture: `/arena/rules/all`, `BT16-087`, text view open, with the refusal message from step 4
+Capture: `/arena/rules` (Cards in: Whole catalog), `BT16-087`, text view open, with the refusal message from step 4
 visible (or, if you'd rather show the fixed state, the corrected two-line DO with no error).
 
 ## 4. Prefer unread to wrongly read
@@ -115,7 +116,7 @@ A wrongly-read program plays confidently wrong, every game, until someone notice
 unread one says so and asks a live ruling instead — the safer state when you're not sure.
 
 `![BT31-097's record showing the unread mark on "Skip your turn and begin your opponent's Charge Phase", with the status badge still reading Open](images/arena-fixing-a-card/04-prefer-unread.png)`
-Capture: `/arena/rules/all`, `BT31-097`, record view (chips, not text view), showing the **Open**
+Capture: `/arena/rules` (Cards in: Whole catalog), `BT31-097`, record view (chips, not text view), showing the **Open**
 badge and the highlighted unread clause in the printed line.
 
 ## When to use "Explain to Claude" instead

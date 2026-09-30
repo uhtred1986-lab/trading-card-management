@@ -108,7 +108,7 @@ function costRecord(sk: ReturnType<typeof parseSkills>[number]): CostRecord | nu
  * 1,089 of them are keyword lines whose reminder or specification text
  * compiles to no steps because the keyword itself is the rule the engine
  * plays ("[Z-Stack 1] Yellow <Son Goku> …"), and grouping them under `null`
- * put the largest group on the Patterns page out of sight. They group by
+ * put the largest group on the same-wording groups out of sight. They group by
  * keyword; the 47 that are genuinely empty group together as `nothing`.
  */
 export function patternKey(sk: { keyword: KeywordSkill | null }, unread: string[], ops: Op[]): string {

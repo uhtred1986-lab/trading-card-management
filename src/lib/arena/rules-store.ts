@@ -12,9 +12,7 @@ import { cardRules, cards } from "@/db/schema";
 import { describeScript, type CardDef, type CardScripts, type Op } from "./engine";
 import type { Cond, PayWith, SkillPrice, XCost } from "./engine/script";
 import type { Trigger } from "./engine/types";
-import { rows as rowsOf } from "@/db/rows";
-import { textArray } from "@/db/sqlx";
-import { clauseShape, mechanismOf } from "./gaps";
+import { clauseShape, mechanismOf, PHRASING_ONLY } from "./gaps";
 import type { EngineId } from "./engines";
 
 export type RuleRow = typeof cardRules.$inferSelect;
@@ -182,7 +180,7 @@ export async function setBrief(db: Db, id: number, brief: { brief?: string | nul
 
 /**
  * This skill came up in a game and the referee had to rule on it. The count is
- * what sorts the Patterns page: a wording that has actually been played is
+ * what sorts the same-wording groups: a wording that has actually been played is
  * worth teaching the compiler before one that has not.
  */
 export async function markRuleSeen(db: Db, cardId: string, side: Side, skillIndex: number): Promise<void> {
@@ -249,7 +247,12 @@ export async function countRules(db: Db, cardIds?: string[]): Promise<RuleCounts
 
 // ── reads for the workbench ─────────────────────────────────────────────────
 
-export type WorklistRow = RuleRow & { name: string; setCode: string };
+export type WorklistRow = RuleRow & {
+  name: string;
+  setCode: string;
+  /** The card is an X-cost one whose specified cost nobody entered (`specifiedCostUnknown`). Filled by `worklistPage`. */
+  costUnknown?: boolean;
+};
 
 /** Every rule of the given cards, with the card's name and set beside it. */
 export async function worklist(db: Db, cardIds: string[]): Promise<WorklistRow[]> {
@@ -301,7 +304,16 @@ export interface RuleFilter {
   mechanism?: string;
   /** Card name, card id or printed text. */
   q?: string;
+  /** Exactly these rules: the scope "fired in game X" (`firedInGame`). */
+  ruleIds?: number[];
+  /** Only rules whose card the compiler now reads differently from what is stored (`compiler_diff`). */
+  compilerDiff?: boolean;
+  /** Only rules of an X-cost card with no specified cost entered. */
+  costUnknown?: boolean;
 }
+
+/** `specifiedCostUnknown` in SQL: `def.energyCost === "X" && !def.specifiedCost`. */
+const COST_UNKNOWN = sql<boolean>`(${cards.energyCost} = 'X' and coalesce(${cards.specifiedCost}, '') = '')`;
 
 /** The filter as SQL, minus the parts that are not columns. `ignoreStatus` is for the segment counts. */
 function rulePredicate(f: RuleFilter, ignoreStatus = false): SQL | undefined {
@@ -312,6 +324,9 @@ function rulePredicate(f: RuleFilter, ignoreStatus = false): SQL | undefined {
   else if (f.status && !ignoreStatus) cs.push(eq(cardRules.status, f.status));
   if (f.setCode) cs.push(eq(cards.setCode, f.setCode));
   if (f.source) cs.push(eq(cardRules.source, f.source));
+  if (f.ruleIds) cs.push(f.ruleIds.length ? inArray(cardRules.id, [...new Set(f.ruleIds)]) : sql`false`);
+  if (f.compilerDiff) cs.push(isNotNull(cardRules.compilerDiff));
+  if (f.costUnknown) cs.push(COST_UNKNOWN);
   if (f.pattern) cs.push(eq(cardRules.pattern, f.pattern));
   if (f.q?.trim()) {
     const like = `%${f.q.trim()}%`;
@@ -335,7 +350,7 @@ export interface WorklistPage {
  */
 export async function worklistPage(db: Db, f: RuleFilter, page: { limit: number; offset: number }): Promise<WorklistPage> {
   const base = db
-    .select({ rule: cardRules, name: cards.name, setCode: cards.setCode })
+    .select({ rule: cardRules, name: cards.name, setCode: cards.setCode, costUnknown: COST_UNKNOWN })
     .from(cardRules)
     .innerJoin(cards, eq(cards.id, cardRules.cardId))
     .where(rulePredicate(f))
@@ -344,7 +359,7 @@ export async function worklistPage(db: Db, f: RuleFilter, page: { limit: number;
   // A mechanism cannot be asked of the database: it is read off the clause the
   // compiler could not read. Open rows are few enough to sort here.
   if (f.mechanism) {
-    const all = (await base.orderBy(STATUS_ORDER, asc(cardRules.cardId), asc(cardRules.skillIndex))).map((r) => ({ ...r.rule, name: r.name, setCode: r.setCode }));
+    const all = (await base.orderBy(STATUS_ORDER, asc(cardRules.cardId), asc(cardRules.skillIndex))).map((r) => ({ ...r.rule, name: r.name, setCode: r.setCode, costUnknown: r.costUnknown }));
     const mine = all.filter((r) => mechanismOf(r.unread[0] ?? "") === f.mechanism);
     return { rows: mine.slice(page.offset, page.offset + page.limit), total: mine.length };
   }
@@ -353,7 +368,7 @@ export async function worklistPage(db: Db, f: RuleFilter, page: { limit: number;
     base.orderBy(STATUS_ORDER, asc(cardRules.cardId), asc(cardRules.skillIndex)).limit(page.limit).offset(page.offset),
     db.select({ n: sql<number>`count(*)::int` }).from(cardRules).innerJoin(cards, eq(cards.id, cardRules.cardId)).where(rulePredicate(f)),
   ]);
-  return { rows: rows.map((r) => ({ ...r.rule, name: r.name, setCode: r.setCode })), total: counted[0]?.n ?? 0 };
+  return { rows: rows.map((r) => ({ ...r.rule, name: r.name, setCode: r.setCode, costUnknown: r.costUnknown })), total: counted[0]?.n ?? 0 };
 }
 
 /** The segment row's numbers: the same filter, counted per status, with the status itself ignored. */
@@ -399,7 +414,7 @@ export interface ConfirmBatch {
 
 /**
  * Confirm every draft the filter matches — the page's "Confirm all drafts in
- * view", and the Patterns page's "Confirm the pattern", which is the same
+ * view", and the same-wording groups's "Confirm the pattern", which is the same
  * thing keyed by `pattern`.
  */
 export async function confirmMatching(db: Db, f: RuleFilter): Promise<ConfirmBatch> {
@@ -443,7 +458,7 @@ export async function undoConfirmed(db: Db, batch: ConfirmBatch): Promise<{ reve
 // ── the same rules, grouped by the wording that produced them ───────────────
 
 /**
- * One group of the Patterns page: rules that came out of the compiler the same
+ * One group of the same-wording groups: rules that came out of the compiler the same
  * way, or open rules whose text defeats it the same way.
  *
  * Two groupings, because the two halves are worked down differently. A draft
@@ -469,75 +484,88 @@ export interface PatternGroup {
   examples: { id: number; cardId: string; name: string; printed: string; reads: string; unread: string[] }[];
 }
 
-interface GroupRow {
+/** Five examples a group shows, in card order. */
+const EXAMPLES = 5;
+
+/** What the groups below are made from: the columns a group and its examples show, never the program. */
+interface LightRow {
   id: number;
-  card_id: string;
+  cardId: string;
   name: string;
+  setCode: string;
   printed: string;
   reads: string;
   unread: string[];
+  status: RuleStatus;
+  source: RuleSource;
+  pattern: string | null;
+  skillIndex: number;
+  hasDiff: boolean;
+  costUnknown: boolean;
+  timesSeen: number;
+  brief: string | null;
+  explanation: string | null;
 }
 
-/** Compiler drafts, grouped by the reading they came out as. */
-export async function draftPatterns(db: Db, limit = 60): Promise<PatternGroup[]> {
-  const counted = await db
-    .select({
-      pattern: cardRules.pattern,
-      rules: sql<number>`count(*)::int`,
-      cards: sql<number>`count(distinct ${cardRules.cardId})::int`,
-      brief: sql<string | null>`max(${cardRules.brief})`,
-      explanation: sql<string | null>`max(${cardRules.explanation})`,
-      timesSeen: sql<number>`sum(${cardRules.timesSeen})::int`,
-    })
-    .from(cardRules)
-    .where(eq(cardRules.status, "draft"))
-    .groupBy(cardRules.pattern)
-    .orderBy(sql`sum(${cardRules.timesSeen}) desc, count(*) desc`)
-    .limit(limit);
-  const keys = counted.map((c) => c.pattern).filter((p): p is string => !!p);
-  const examples = keys.length
-    ? rowsOf<GroupRow & { pattern: string }>(
-        await db.execute(sql`
-          select pattern, id, card_id, name, printed, reads, unread from (
-            select r.id, r.card_id, r.pattern, c.name, r.printed, r.reads, r.unread,
-                   row_number() over (partition by r.pattern order by r.card_id, r.skill_index) as rn
-            from ${cardRules} r join ${cards} c on c.id = r.card_id
-            where r.status = 'draft' and r.pattern = any(${textArray(keys)})
-          ) t where rn <= 5`),
-      )
-    : [];
-  return counted
-    .filter((c) => c.pattern)
-    .map((c) => ({
-      key: c.pattern!,
-      kind: "draft" as const,
-      label: c.pattern!,
-      rules: c.rules,
-      cards: c.cards,
-      brief: c.brief,
-      explanation: c.explanation,
-      timesSeen: c.timesSeen ?? 0,
-      examples: examples.filter((e) => e.pattern === c.pattern).map(asExample),
-    }));
-}
-
-/** Open rules, grouped by what their first unread clause would need, then by its shape. */
-export async function openPatterns(db: Db): Promise<PatternGroup[]> {
-  const open = await db
+async function lightRows(db: Db, f: RuleFilter): Promise<LightRow[]> {
+  const rows = await db
     .select({
       id: cardRules.id,
       cardId: cardRules.cardId,
       name: cards.name,
+      setCode: cards.setCode,
       printed: cardRules.printed,
       reads: cardRules.reads,
       unread: cardRules.unread,
+      status: cardRules.status,
+      source: cardRules.source,
+      pattern: cardRules.pattern,
+      skillIndex: cardRules.skillIndex,
+      hasDiff: isNotNull(cardRules.compilerDiff),
+      costUnknown: COST_UNKNOWN,
+      timesSeen: cardRules.timesSeen,
       brief: cardRules.brief,
       explanation: cardRules.explanation,
-      timesSeen: cardRules.timesSeen,
     })
     .from(cardRules)
     .innerJoin(cards, eq(cards.id, cardRules.cardId))
-    .where(eq(cardRules.status, "open"));
+    .where(rulePredicate(f))
+    .orderBy(asc(cardRules.cardId), asc(cardRules.skillIndex));
+  const mine = f.mechanism ? rows.filter((r) => mechanismOf(r.unread[0] ?? "") === f.mechanism) : rows;
+  return mine as LightRow[];
+}
+
+const exampleOf = (r: LightRow): PatternGroup["examples"][number] => ({ id: r.id, cardId: r.cardId, name: r.name, printed: r.printed, reads: r.reads, unread: r.unread ?? [] });
+
+/**
+ * Rules grouped by the reading they came out as. Drafts by default, since one
+ * reading covers 400 cards and confirming it once is how 11,375 drafts are
+ * ever reviewed; a filter narrows it to a scope, a set or a state.
+ */
+export async function draftPatterns(db: Db, limit = 60, f: RuleFilter = {}): Promise<PatternGroup[]> {
+  const filter: RuleFilter = { ...f, status: f.status ?? "draft" };
+  const rows = (await lightRows(db, filter)).filter((r) => r.pattern);
+  const byPattern = new Map<string, LightRow[]>();
+  for (const r of rows) byPattern.set(r.pattern!, [...(byPattern.get(r.pattern!) ?? []), r]);
+  return [...byPattern.entries()]
+    .map(([pattern, rs]) => ({
+      key: pattern,
+      kind: "draft" as const,
+      label: pattern,
+      rules: rs.length,
+      cards: new Set(rs.map((r) => r.cardId)).size,
+      brief: rs.find((r) => r.brief)?.brief ?? null,
+      explanation: rs.find((r) => r.explanation)?.explanation ?? null,
+      timesSeen: rs.reduce((n, r) => n + r.timesSeen, 0),
+      examples: rs.slice(0, EXAMPLES).map(exampleOf),
+    }))
+    .sort((a, b) => b.timesSeen - a.timesSeen || b.rules - a.rules || a.label.localeCompare(b.label))
+    .slice(0, limit);
+}
+
+/** Open rules, grouped by what their first unread clause would need, then by its shape. */
+export async function openPatterns(db: Db, f: RuleFilter = {}): Promise<PatternGroup[]> {
+  const open = await lightRows(db, { ...f, status: "open" });
   const groups = new Map<string, PatternGroup & { cardIds: Set<string> }>();
   for (const r of open) {
     const clause = r.unread[0] ?? "";
@@ -550,7 +578,7 @@ export async function openPatterns(db: Db): Promise<PatternGroup[]> {
     g.timesSeen += r.timesSeen;
     g.brief ??= r.brief;
     g.explanation ??= r.explanation;
-    if (g.examples.length < 5) g.examples.push({ id: r.id, cardId: r.cardId, name: r.name, printed: r.printed, reads: r.reads, unread: r.unread });
+    if (g.examples.length < EXAMPLES) g.examples.push(exampleOf(r));
     groups.set(key, g);
   }
   return [...groups.values()]
@@ -559,8 +587,86 @@ export async function openPatterns(db: Db): Promise<PatternGroup[]> {
     .sort((a, b) => b.timesSeen - a.timesSeen || b.rules - a.rules || a.label.localeCompare(b.label));
 }
 
-function asExample(r: GroupRow): PatternGroup["examples"][number] {
-  return { id: r.id, cardId: r.card_id, name: r.name, printed: r.printed, reads: r.reads, unread: r.unread ?? [] };
+/**
+ * The queue's *Group by reason* and *Group by set*. A group is exactly the
+ * filter it links to, which is what lets "Confirm all in view" mean the same
+ * thing on a group as on a list — so a rule with two reasons is in two groups.
+ * `patch` is the query-string change that turns a group into that filter.
+ */
+export interface QueueGroup extends PatternGroup {
+  patch: Record<string, string>;
+  /** The filter a Confirm on this group is aimed at, beyond the page's own; null when a group must be looked at rather than waved through. */
+  confirm: Partial<RuleFilter> | null;
+}
+
+export async function reasonGroups(db: Db, f: RuleFilter): Promise<QueueGroup[]> {
+  const rows = await lightRows(db, f);
+  const make = (key: string, label: string, hit: LightRow[], patch: Record<string, string>, confirm: Partial<RuleFilter> | null, mechanism?: string): QueueGroup | null =>
+    hit.length
+      ? {
+          key,
+          kind: "open",
+          label,
+          mechanism,
+          rules: hit.length,
+          cards: new Set(hit.map((r) => r.cardId)).size,
+          brief: null,
+          explanation: null,
+          timesSeen: hit.reduce((n, r) => n + r.timesSeen, 0),
+          examples: hit.slice(0, 3).map(exampleOf),
+          patch,
+          confirm,
+        }
+      : null;
+  const out: (QueueGroup | null)[] = [
+    // A compiler disagreement is a decision (take its reading or keep yours), not something to confirm in bulk.
+    make("diff", "The compiler reads it differently now", rows.filter((r) => r.hasDiff), { reason: "diff" }, null),
+    make("claude", "Claude drafted, not yet confirmed", rows.filter((r) => r.source === "claude" && r.status === "draft"), { source: "claude", state: "draft" }, { source: "claude" }),
+    make("cost", "Specified cost unknown", rows.filter((r) => r.costUnknown), { reason: "cost" }, { costUnknown: true }),
+  ];
+  const byMech = new Map<string, LightRow[]>();
+  for (const r of rows) {
+    if (r.status !== "open") continue;
+    const m = mechanismOf(r.unread[0] ?? "");
+    byMech.set(m, [...(byMech.get(m) ?? []), r]);
+  }
+  for (const [key, hit] of [...byMech.entries()].sort((a, b) => b[1].length - a[1].length)) {
+    out.push(make(`mech:${key}`, key === PHRASING_ONLY ? "Unread: phrasing only" : `Unread: ${key}`, hit, { mech: key, state: "open" }, null, key));
+  }
+  return out.filter((g): g is QueueGroup => g !== null);
+}
+
+/** *Group by set*: one group per set the filter reaches, in set order. */
+export async function setGroups(db: Db, f: RuleFilter): Promise<QueueGroup[]> {
+  const rows = await lightRows(db, f);
+  const bySet = new Map<string, LightRow[]>();
+  for (const r of rows) bySet.set(r.setCode, [...(bySet.get(r.setCode) ?? []), r]);
+  return [...bySet.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([setCode, hit]) => ({
+      key: `set:${setCode}`,
+      kind: "open" as const,
+      label: setCode,
+      rules: hit.length,
+      cards: new Set(hit.map((r) => r.cardId)).size,
+      brief: null,
+      explanation: null,
+      timesSeen: 0,
+      examples: hit.slice(0, 3).map(exampleOf),
+      patch: { set: setCode },
+      confirm: { setCode },
+    }));
+}
+
+/** The rules behind some fired skills: `{ cardId, skillIndex }`, on either side of the card. */
+export async function ruleIdsFor(db: Db, skills: { cardId: string; skillIndex: number }[]): Promise<number[]> {
+  if (!skills.length) return [];
+  const rows = await db
+    .select({ id: cardRules.id, cardId: cardRules.cardId, skillIndex: cardRules.skillIndex })
+    .from(cardRules)
+    .where(inArray(cardRules.cardId, [...new Set(skills.map((s) => s.cardId))]));
+  const want = new Set(skills.map((s) => `${s.cardId}\u0000${s.skillIndex}`));
+  return rows.filter((r) => want.has(`${r.cardId}\u0000${r.skillIndex}`)).map((r) => r.id);
 }
 
 /**

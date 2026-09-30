@@ -186,7 +186,7 @@ export async function saveRuleAction(id: number, rule: unknown, explanation: str
       brief: `## Wording\n${row.printed}\n\n## What it should emit\n\`\`\`\n${printRule(read.rule)}\n\`\`\`\n\nThe compiler's pattern \`${row.pattern}\` produced a different program for this card and its siblings; the owner corrected this one by hand and marked the pattern wrong.`,
       explanation: explanation ?? `corrected by hand on the workbench; the pattern "${row.pattern}" reads this wording wrongly`,
     });
-    revalidatePath("/arena/rules/patterns");
+    revalidatePath("/arena/rules");
   }
   await noteRule(id, `corrected by hand${patternWrong ? " (the pattern is wrong)" : ""}: ${row.printed}`, saved.reads);
   return { error: null };
@@ -212,7 +212,6 @@ export async function setSpecifiedCostAction(cardId: string, text: string): Prom
     .set({ specifiedCost: parsed ? printSpecifiedCost(parsed) : null, updatedAt: new Date() })
     .where(eq(cards.id, cardId));
   revalidatePath("/arena/rules");
-  revalidatePath("/arena/rules/all");
   return { error: null };
 }
 
@@ -259,12 +258,15 @@ function readFilter(raw: unknown): RuleFilter {
     pattern: str(f.pattern, 300),
     mechanism: str(f.mechanism, 60),
     q: str(f.q),
+    ruleIds: Array.isArray(f.ruleIds) ? f.ruleIds.filter((x): x is number => Number.isInteger(x)).slice(0, 20000) : undefined,
+    compilerDiff: f.compilerDiff === true ? true : undefined,
+    costUnknown: f.costUnknown === true ? true : undefined,
   };
 }
 
 /** A short account of what a bulk confirm was aimed at, for the feedback row. */
 function filterInWords(f: RuleFilter): string {
-  const bits = [f.setCode, f.source && `by ${f.source}`, f.pattern && `pattern ${f.pattern}`, f.q && `matching “${f.q}”`, f.cardIds && "in your decks"].filter(Boolean);
+  const bits = [f.setCode, f.source && `by ${f.source}`, f.pattern && `pattern ${f.pattern}`, f.q && `matching “${f.q}”`, f.cardIds && "in the chosen decks", f.ruleIds && "fired in a game", f.costUnknown && "specified cost unknown"].filter(Boolean);
   return bits.length ? bits.join(" · ") : "the whole catalog";
 }
 
@@ -283,8 +285,6 @@ export async function confirmAllAction(rawFilter: unknown): Promise<{ error: str
     .values({ kind: "rule", note: `confirmed ${batch.rules.length} draft${batch.rules.length === 1 ? "" : "s"}: ${filterInWords(filter)}`, batch })
     .returning({ id: arenaFeedback.id });
   revalidatePath("/arena/rules");
-  revalidatePath("/arena/rules/all");
-  revalidatePath("/arena/rules/patterns");
   return { error: null, confirmed: batch.rules.length, batchId: row?.id ?? null };
 }
 
@@ -301,8 +301,6 @@ export async function undoConfirmAction(batchId: number): Promise<{ error: strin
     .set({ batch: null, resolution: `undone: ${reverted} back to draft${kept ? `, ${kept} left as they were changed since` : ""}` })
     .where(eq(arenaFeedback.id, batchId));
   revalidatePath("/arena/rules");
-  revalidatePath("/arena/rules/all");
-  revalidatePath("/arena/rules/patterns");
   return { error: null, reverted, kept };
 }
 
@@ -323,7 +321,6 @@ export async function explainRuleAction(id: number, explanation: string): Promis
     return { error: describeAiError(err) };
   }
   revalidatePath("/arena/rules");
-  revalidatePath("/arena/rules/patterns");
   revalidatePath("/arena/feedback");
   return { error: null };
 }

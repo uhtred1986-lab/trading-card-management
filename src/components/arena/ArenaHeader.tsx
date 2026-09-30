@@ -102,20 +102,14 @@ export function ArenaHeader({ side, kpis }: { side: "play" | "rules" | "other"; 
       {side === "rules" && kpis ? (
         <div className="hidden flex-wrap items-center gap-x-6 gap-y-2 sm:flex">
           <div className="flex flex-wrap gap-4">
-            <Kpi n={kpis.inDecks.open} label="open in your decks" tone={kpis.inDecks.open ? "text-loss" : ""} />
+            <Kpi n={kpis.inDecks.open} label="open in decks" tone={kpis.inDecks.open ? "text-loss" : ""} />
             <Kpi n={kpis.inDecks.draft} label="drafts to check" tone={kpis.inDecks.draft ? "text-ki-300" : ""} />
             <Kpi n={readable(kpis.inDecks)} label="decks ready" />
             <Kpi n={readable(kpis.catalog)} label="catalog readable" />
             {kpis.openSinceSync != null ? <Kpi n={kpis.openSinceSync} label="open since last sync" tone={kpis.openSinceSync ? "text-loss" : ""} /> : null}
           </div>
-          {/* Until the one queue (ah-06) and the reference drawer (ah-08) land, these keep the workbench's other pages reachable. */}
+          {/* Until the reference drawer (ah-08) lands, these keep the reference pages reachable. */}
           <div className="flex gap-3 text-xs">
-            <Link href="/arena/rules/all" className="text-space-300 hover:text-ki-300">
-              All cards
-            </Link>
-            <Link href="/arena/rules/patterns" className="text-space-300 hover:text-ki-300">
-              Patterns
-            </Link>
             <Link href="/arena/rules/keywords" className="text-space-300 hover:text-ki-300">
               keywords
             </Link>

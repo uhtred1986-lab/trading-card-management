@@ -657,8 +657,8 @@ the same as if it were still in `CLAUDE.md`.
   written to `arena_decisions` — the prompt kind, the whole menu offered, what was chosen, whether a
   rule or Claude decided it, the model, tokens, cost and latency, plus the exact prompt text when
   the game has `debug` on. `/arena/[id]/debug` reads it back. What the compiler cannot read is
-  **not** a second list: it is `card_rules.unread` on the rule itself, grouped at
-  `/arena/rules/patterns` (`card_text_notes` was folded in and dropped, migration 0030). The
+  **not** a second list: it is `card_rules.unread` on the rule itself, grouped in
+  the queue at `/arena/rules` (*Group by: same wording*; `card_text_notes` was folded in and dropped, migration 0030). The
   referee bumps `times_seen` on the rule when the text actually comes up, and the program it
   produced is that rule's Claude draft, so the worked example is the record.
 - **Rules are records** (`docs/arena-rules-workbench-spec.md`, phases 1-3 built 8 Sep 2026): the
@@ -675,10 +675,11 @@ the same as if it were still in `CLAUDE.md`.
   rewritten by a script: the compiler's newer reading lands beside it as `compiler_diff`. The
   effect language is defined once, in `OP_SCHEMA` and `COND_SCHEMA` (`engine/script-schema.ts`): the
   validator, the plain reading, the referee's prompt and the workbench's chip editor read them, so
-  a new operation or condition kind is one interpreter case and one row. The workbench has three
-  worklists over the same records: `/arena/rules` the cards in the decks the arena can play,
-  `/arena/rules/all` the whole catalog (filtered by set, source, mechanism, pattern or text, 200
-  rows a page), `/arena/rules/patterns` the same rules grouped by the wording that produced them.
+  a new operation or condition kind is one interpreter case and one row. The workbench has one
+  queue over the records, `/arena/rules` (`lib/arena/queue.ts` is its query string): *Cards in* (all
+  decks, whoever owns them, #364 · one deck · the whole catalog, 200 rows a page · `?game=<id>`, what
+  that game fired, `lib/arena/fired.ts`), a state, and *Group by* (same wording · reason · set).
+  `/arena/rules/all` and `/patterns` redirect into it.
   The record is WHEN / COST / IF / DO as chips — reorderable, nested programs, modal options and
   conditions included — with a JSON view of the same program, Confirm / Correct by hand / Explain
   to Claude / does nothing, and history. **Confirm all drafts in view** confirms exactly what the
