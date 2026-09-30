@@ -23,7 +23,7 @@ import { shouldSkipBuild, isDocsOnlyChange, changedFiles } from "./vercel-ignore
 import { shouldMigrate } from "./vercel-build.mjs";
 import { parseSpecifiedCost, printSpecifiedCost, specifiedCostWords, staleSpecifiedCosts } from "../src/lib/arena/specified-cost";
 import { cardDefFrom } from "../src/lib/arena/load";
-import { defaultState, legacyQueueUrl, parseQueue, queueHref, queueLink, reasonOf } from "../src/lib/arena/queue";
+import { defaultState, legacyQueueUrl, neighbours, parseQueue, queueHref, queueLink, reasonOf } from "../src/lib/arena/queue";
 import { specifiedCostOf, specifiedCostUnknown } from "../src/lib/arena/engine/cards";
 
 // ── catalog shaping ────────────────────────────────────────────────────────
@@ -746,4 +746,12 @@ assert.equal(specifiedCostWords({}), "no colour");
   assert.equal(reasonOf({ ...row, costUnknown: true }), "specified cost unknown");
   assert.equal(reasonOf({ ...row, status: "confirmed", hasDiff: true }), "compiler reads it differently", "a disagreement is flagged whatever the state");
   assert.match(reasonOf({ ...row, status: "open", unread: ["your opponent skips their next Charge Phase"] }) ?? "", /^(unread: .+|phrasing only)$/);
+
+  // Skip and Confirm follow the queue's own order (#361).
+  assert.deepEqual(neighbours([4, 7, 9], 7), { prev: 4, next: 9, skip: 9, after: 9 }, "the middle: next is next");
+  assert.deepEqual(neighbours([4, 7, 9], 9), { prev: 7, next: null, skip: 4, after: 7 }, "the end: Skip wraps, Confirm falls back to the one before");
+  assert.deepEqual(neighbours([4, 7, 9], 4), { prev: null, next: 7, skip: 7, after: 7 }, "the start has no previous");
+  assert.deepEqual(neighbours([4, 7, 9], 99), { prev: null, next: 4, skip: 4, after: 4 }, "a rule opened by id starts at the top of the queue");
+  assert.deepEqual(neighbours([4], 4), { prev: null, next: null, skip: null, after: null }, "a queue of one has nowhere to go");
+  assert.deepEqual(neighbours([], null), { prev: null, next: null, skip: null, after: null });
 }

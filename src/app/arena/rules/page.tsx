@@ -4,11 +4,12 @@ import { ConfirmAll } from "@/components/arena/rules/ConfirmAll";
 import { ArenaHeader } from "@/components/arena/ArenaHeader";
 import { Groups, type GroupView } from "@/components/arena/rules/Groups";
 import { SelectLink } from "@/components/arena/rules/SelectLink";
+import { FIND_ID } from "@/components/arena/rules/WorkbenchKeys";
 import { Choice, StateSegments, Workbench, chipClass, type QueueRow } from "@/components/arena/rules/Workbench";
 import { PHRASING_ONLY } from "@/lib/arena/gaps";
 import { firedInGame } from "@/lib/arena/fired";
 import { deckCardSets } from "@/lib/arena/readiness";
-import { defaultState, parseQueue, queueLink, queueParams, type GroupBy, type Queue } from "@/lib/arena/queue";
+import { defaultState, neighbours, parseQueue, queueLink, queueParams, type GroupBy, type Queue } from "@/lib/arena/queue";
 import { countRules, draftPatterns, openPatterns, reasonGroups, ruleById, ruleIdsFor, setGroups, setsWithRules, statusCounts, worklistPage, type PatternGroup, type QueueGroup, type RuleFilter, type RuleStatus } from "@/lib/arena/rules-store";
 import { listDecks } from "@/lib/decks/queries";
 import { lastSyncRuns } from "@/lib/sync";
@@ -135,6 +136,10 @@ export default async function RulesPage({ searchParams }: { searchParams: Promis
   // A rule opened from a group, or one past the page, is not among `rows`; it is read by id.
   const picked = qu.group === "none" ? (rows.find((r) => r.id === qu.rule) ?? (qu.rule ? await ruleById(db, qu.rule) : null) ?? rows[0] ?? null) : null;
   const selected = picked ? { ...picked, decks: decksOf.get(picked.cardId) ?? [] } : null;
+  // Where the keys, Skip and Confirm go from here: along the rows as the queue lists them.
+  const around = neighbours(rows.map((r) => r.id), selected?.id ?? null);
+  const hrefOf = (id: number | null) => (id == null ? null : link({ rule: id }));
+  const nav = { prev: hrefOf(around.prev), next: hrefOf(around.next), skip: hrefOf(around.skip), after: hrefOf(around.after) ?? link({ rule: null }) };
   const record = selected ? await buildRecord(db, selected, selected.decks) : null;
   const probe = selected ? await probeScenarios(db, selected) : null;
 
@@ -187,7 +192,7 @@ export default async function RulesPage({ searchParams }: { searchParams: Promis
         {[...carried.entries()].map(([k, v]) => (
           <input key={k} type="hidden" name={k} value={v} />
         ))}
-        <input name="q" defaultValue={qu.q} placeholder="find a card…" aria-label="Find a card" className="tap min-w-0 flex-1 rounded-md border border-space-600 bg-space-950 px-2 py-1 text-xs text-space-100" />
+        <input id={FIND_ID} name="q" defaultValue={qu.q} placeholder="find a card…" aria-label="Find a card" className="tap min-w-0 flex-1 rounded-md border border-space-600 bg-space-950 px-2 py-1 text-xs text-space-100" />
         <button type="submit" className="tap rounded-md border border-space-600 px-2 py-1 text-xs text-space-100 hover:border-space-300">
           go
         </button>
@@ -231,6 +236,7 @@ export default async function RulesPage({ searchParams }: { searchParams: Promis
         empty={nothingToPlay ? "No deck the arena can play yet — a deck needs a leader and 50 cards." : scope.kind === "game" && fired.length === 0 ? "That game fired no skill that could be read back." : "Nothing here."}
         footer={footer}
         head={head}
+        nav={nav}
         grouped={views ? <Groups views={views} open={(id) => link({ group: "none", rule: id })} batches={[]} note={groupNote} /> : undefined}
       />
     </div>
