@@ -14,7 +14,7 @@ import { ARENA_STAGINGS, STAGING_LABEL, type ArenaStaging } from "@/lib/arena/st
  * the board looks like the moment a battle opens, so it is read on the server
  * and nothing flashes.
  */
-export function StagingToggle({ gameId, staging }: { gameId: number; staging: ArenaStaging }) {
+export function StagingToggle({ gameId, staging }: { gameId?: number; staging: ArenaStaging }) {
   const [pending, start] = useTransition();
   return (
     <span className="inline-flex items-center gap-1" role="group" aria-label="battle staging">

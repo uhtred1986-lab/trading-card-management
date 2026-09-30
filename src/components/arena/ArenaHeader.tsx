@@ -1,4 +1,8 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
+import { BoardSettingsSheet } from "@/components/arena/BoardSettingsSheet";
+import { SKIN_COOKIE, skinFrom } from "@/lib/arena/skin";
+import { STAGING_COOKIE, stagingFrom } from "@/lib/arena/staging";
 import { getRepoUrl } from "@/lib/github";
 import { ReferenceDrawer } from "@/components/arena/rules/ReferenceDrawer";
 import type { RuleCounts, RuleStatus } from "@/lib/arena/rules-store";
@@ -27,9 +31,12 @@ export function readable(c: RuleCounts): string {
 }
 
 const item = "tap flex items-center rounded-md px-3 py-2 text-sm text-space-100 hover:bg-space-800";
-const dim = "tap flex items-center rounded-md px-3 py-2 text-sm text-space-500";
 
-export function ArenaHeader({ side, kpis }: { side: "play" | "rules" | "other"; kpis?: ArenaKpis }) {
+export async function ArenaHeader({ side, kpis }: { side: "play" | "rules" | "other"; kpis?: ArenaKpis }) {
+  // Board settings show the same cookies the game page reads (`/arena/[id]`).
+  const jar = await cookies();
+  const skin = skinFrom(jar.get(SKIN_COOKIE)?.value);
+  const staging = stagingFrom(jar.get(STAGING_COOKIE)?.value);
   const seg = (active: boolean) => `tap flex items-center rounded-md px-4 text-sm font-medium ${active ? "bg-space-700 text-space-50" : "text-space-300 hover:text-space-100"}`;
   return (
     <header className="space-y-3">
@@ -69,9 +76,7 @@ export function ArenaHeader({ side, kpis }: { side: "play" | "rules" | "other"; 
                 <Link href="/arena#friend" className={item}>
                   Play a friend
                 </Link>
-                <span aria-disabled="true" className={dim}>
-                  Board settings
-                </span>
+                <BoardSettingsSheet skin={skin} staging={staging} className={`${item} w-full text-left`} />
               </div>
               <Link href="/arena/feedback" className={item}>
                 <span className="sm:hidden">Report a problem</span>
