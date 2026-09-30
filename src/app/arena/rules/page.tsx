@@ -7,7 +7,7 @@ import { SelectLink } from "@/components/arena/rules/SelectLink";
 import { Choice, StateSegments, Workbench, chipClass, type QueueRow } from "@/components/arena/rules/Workbench";
 import { PHRASING_ONLY } from "@/lib/arena/gaps";
 import { firedInGame } from "@/lib/arena/fired";
-import { deckInputFor } from "@/lib/arena/load";
+import { deckCardSets } from "@/lib/arena/readiness";
 import { defaultState, parseQueue, queueLink, queueParams, type GroupBy, type Queue } from "@/lib/arena/queue";
 import { countRules, draftPatterns, openPatterns, reasonGroups, ruleById, ruleIdsFor, setGroups, setsWithRules, statusCounts, worklistPage, type PatternGroup, type QueueGroup, type RuleFilter, type RuleStatus } from "@/lib/arena/rules-store";
 import { listDecks } from "@/lib/decks/queries";
@@ -53,14 +53,11 @@ export default async function RulesPage({ searchParams }: { searchParams: Promis
 
   // Every deck the arena can play, whoever owns it (see the note above).
   const decks = (await listDecks(db, { game: "dbs" })).filter((d) => d.leader && d.mainCount >= 50);
-  const deckCards = new Map<number, Set<string>>();
+  // One query for every deck's cards (readiness.ts), not one per deck.
+  const deckCards = await deckCardSets(db, decks.map((d) => d.id));
   const decksOf = new Map<string, string[]>();
   for (const d of decks) {
-    const input = await deckInputFor(db, d.id);
-    if (!input) continue;
-    const ids = new Set(input.cardIds);
-    deckCards.set(d.id, ids);
-    for (const id of ids) decksOf.set(id, [...(decksOf.get(id) ?? []), d.name]);
+    for (const id of deckCards.get(d.id) ?? []) decksOf.set(id, [...(decksOf.get(id) ?? []), d.name]);
   }
   const allDeckCards = [...decksOf.keys()];
 
