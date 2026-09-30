@@ -1,5 +1,6 @@
 ---
 title: Arena: phone card review as a pager — swipe, prev/next, thumbnail strip, and a review-the-board button
+issue: 348
 milestone: Arena M16 — Board redesign: play feel and card review
 labels: backlog, ready-for-agent, enhancement, area:arena-ui, phase:board-redesign, model:sonnet-5
 stage: ui

@@ -1,5 +1,6 @@
 ---
 title: Arena: drag a card from hand onto the battle area to play it, or onto energy to charge it
+issue: 345
 milestone: Arena M16 — Board redesign: play feel and card review
 labels: backlog, ready-for-agent, enhancement, area:arena-ui, phase:board-redesign, model:sonnet-5
 stage: ui

@@ -1,5 +1,6 @@
 ---
 title: Arena: move debug and engine internals off the player's board — an admin-only drawer
+issue: 350
 milestone: Arena M16 — Board redesign: play feel and card review
 labels: backlog, ready-for-agent, enhancement, area:arena-ui, phase:board-redesign, model:sonnet-5
 stage: ui

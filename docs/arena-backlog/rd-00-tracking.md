@@ -1,5 +1,6 @@
 ---
 title: Arena board redesign tracking — play feel and card review
+issue: 352
 milestone: Arena M16 — Board redesign: play feel and card review
 labels: epic, backlog, area:arena-ui, phase:board-redesign
 stage: ui

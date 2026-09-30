@@ -1,5 +1,6 @@
 ---
 title: Arena: effects that make the play land — reveal on play, explosion on a hit, KO shatter, life break, clash verdict
+issue: 349
 milestone: Arena M16 — Board redesign: play feel and card review
 labels: backlog, ready-for-agent, enhancement, area:arena-ui, phase:board-redesign, model:sonnet-5
 stage: ui

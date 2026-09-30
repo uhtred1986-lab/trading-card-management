@@ -1,5 +1,6 @@
 ---
 title: Arena: board screenshots from contract fixtures and a contrast audit, both skins (review tooling)
+issue: 343
 milestone: Arena M16 — Board redesign: play feel and card review
 labels: backlog, ready-for-agent, enhancement, area:arena-ui, phase:board-redesign, model:sonnet-5
 stage: ui

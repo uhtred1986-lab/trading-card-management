@@ -1,5 +1,6 @@
 ---
 title: Arena: admin match review — flag a turn from the board, review flagged turns with Claude's legal moves and reasons
+issue: 351
 milestone: Arena M16 — Board redesign: play feel and card review
 labels: backlog, enhancement, area:arena-ui, phase:board-redesign, model:sonnet-5
 stage: ui

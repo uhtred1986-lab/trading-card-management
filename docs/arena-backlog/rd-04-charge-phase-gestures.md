@@ -1,5 +1,6 @@
 ---
 title: Arena: in the Charge phase, tap (touch) or double-click (mouse) a hand card to charge it
+issue: 346
 milestone: Arena M16 — Board redesign: play feel and card review
 labels: backlog, ready-for-agent, enhancement, area:arena-ui, phase:board-redesign, model:sonnet-5
 stage: ui

@@ -1,5 +1,6 @@
 ---
 title: Arena: unmissable turns — YOUR TURN / CLAUDE'S TURN banner, turn pill and board edge
+issue: 344
 milestone: Arena M16 — Board redesign: play feel and card review
 labels: backlog, ready-for-agent, enhancement, area:arena-ui, phase:board-redesign, model:sonnet-5
 stage: ui
