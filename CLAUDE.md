@@ -46,6 +46,9 @@ it says which acceptance bullet it could not verify instead, and the owner runs 
 
 ## Working efficiently in this repo
 
+**Working one issue as an agent, or coordinating several: read `docs/agent-brief.md` first** —
+branching, data, the habits that stall sessions, the PR, and the coordinator's review-and-merge loop.
+
 A `SessionStart` hook (`.claude/settings.json` → `scripts/session-start-check.mjs`) runs `npm ci`
 before a fresh Claude Code on the web session's first turn whenever `node_modules` is missing or
 older than `package-lock.json`, then warms the `tsx` cache — plain Node, so it works the same

@@ -5,6 +5,7 @@ milestone: Arena M17 — Arena home: Play and Rules Workbench
 labels: backlog, ready-for-agent, area:arena-workbench, phase:arena-home, model:sonnet-5
 stage: ui
 touches: src/app/arena/backlog/page.tsx, src/app/arena/actions.ts, src/lib/github.ts
+status: closed
 ---
 **Source:** `src/app/arena/backlog/page.tsx` (does not exist since this issue deleted it); `syncBacklogAction` and `revalidatePath("/arena/backlog")` in `src/app/arena/actions.ts`; issues #177, #93, #107 (all closed).
 
