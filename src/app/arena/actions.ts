@@ -11,6 +11,7 @@ import { describeAiError } from "@/lib/ai/client";
 import { IllegalAction, type Action, type GameState } from "@/lib/arena/engine";
 import { printRule, readRule } from "@/lib/arena/lang";
 import { defaultEngine } from "@/lib/arena/engine-setting";
+import { engineOr } from "@/lib/arena/engines";
 import { abandonGame, applyToGame, clearBeatsForTurn, engineForMode, isVersus, loadGame, seatOf, StaleGame, startGame, type ArenaMode } from "@/lib/arena/games";
 import { cancelMatch, joinMatch, matchById, openMatch } from "@/lib/arena/matches";
 import { currentUser } from "@/lib/auth";
@@ -357,6 +358,44 @@ export async function startGameForm(formData: FormData) {
   const id = await startGame(db, deck, other, mode, debug, undefined, engine);
   revalidatePath("/arena");
   redirect(`/arena/${id}`);
+}
+
+/**
+ * REMATCH (#358): the same two decks, mode and engine, a new seed.
+ *
+ * `startGame` seeds from the clock, so the coin flip is a fresh one (it can
+ * land the same way: the flip is fair). The engine is the one the game was
+ * made on (`engineOr(row.engine)`, never the setting), so a rematch plays
+ * exactly like the game it follows. The open-rule block (#357) is asked again
+ * by `startGame`/`openMatch`, because a deck may have gained an open rule since,
+ * and comes back as an error the button shows rather than a thrown page.
+ *
+ * A 1 v 1 cannot start without the other person: it opens a new invitation
+ * from the caller's own deck of that game (the host's for the host).
+ */
+export async function rematch(gameId: number): Promise<{ error: string | null }> {
+  const row = await db.query.arenaGames.findFirst({ where: eq(arenaGames.id, gameId) });
+  if (!row || row.snapshot) return { error: "no such game" };
+  if (row.status === "playing") return { error: "the game is not over yet" };
+  const mode = row.mode as ArenaMode;
+  const me = await currentUser();
+  let next: string;
+  try {
+    if (isVersus(mode)) {
+      const seat = seatOf(row, me);
+      if (!seat) return { error: "no such game" };
+      const deck = seat === "p1" ? row.p1DeckId : row.p2DeckId;
+      if (deck == null) return { error: "your deck from that game is gone" };
+      next = `/arena/match/${await openMatch(db, me, deck, true, engineOr(row.engine))}`;
+    } else {
+      if (row.p1DeckId == null || row.p2DeckId == null) return { error: "a deck from that game is gone" };
+      next = `/arena/${await startGame(db, row.p1DeckId, row.p2DeckId, mode, true, undefined, engineOr(row.engine))}`;
+    }
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "could not start the rematch" };
+  }
+  revalidatePath("/arena");
+  redirect(next);
 }
 
 /** Take the empty seat in someone's 1 v 1, with a deck of your own. */

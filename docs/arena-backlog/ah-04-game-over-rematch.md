@@ -4,7 +4,8 @@ issue: 358
 milestone: Arena M17 — Arena home: Play and Rules Workbench
 labels: backlog, ready-for-agent, enhancement, area:arena-ui, phase:arena-home, model:sonnet-5
 stage: ui
-touches: src/components/arena/GameOver.tsx, src/app/arena/actions.ts, src/lib/arena/games.ts
+status: closed
+touches: src/components/arena/GameOver.tsx, src/app/arena/actions.ts, src/app/arena/page.tsx, src/app/arena/[id]/page.tsx, src/lib/arena/game-over.ts
 ---
 **Source:** `src/components/arena/GameOver.tsx` (stats, spend, "Ask Claude what to learn from this"); `docs/arena-home-spec.md` §2; canvas frame `GameOverPhone`.
 

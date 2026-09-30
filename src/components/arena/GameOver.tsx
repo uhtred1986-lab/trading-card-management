@@ -1,11 +1,16 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { requestReview } from "@/app/arena/actions";
+import Link from "next/link";
+import { rematch, requestReview } from "@/app/arena/actions";
 import type { GameReview } from "@/lib/arena/ai/review";
+import { ReportBug } from "./ReportBug";
 
 /**
  * The end screen: who won, what it cost, and Claude's coaching.
+ *
+ * Below the result: REMATCH (the one filled button), Change deck, how many
+ * unchecked (draft) rules this game relied on, then the secondary actions (#358).
  *
  * The cost is what the game actually spent, added up from the token counts of
  * every call, not an estimate — which is the whole point of recording them.
@@ -20,6 +25,10 @@ export function GameOver({
   spend,
   review,
   aiEnabled,
+  deckId,
+  versus,
+  draftFired,
+  cards,
 }: {
   gameId: number;
   winnerName: string | null;
@@ -30,9 +39,18 @@ export function GameOver({
   spend: { calls: number; input: number; output: number; cached: number; micros: number };
   review: GameReview | null;
   aiEnabled: boolean;
+  /** The viewer's deck in this game, preselected by "Change deck"; null when it is gone. */
+  deckId: number | null;
+  /** A 1 v 1: rematch opens a new invitation rather than starting a game. */
+  versus: boolean;
+  /** Draft rules that resolved in this game (`game-over.ts`). */
+  draftFired: { count: number; names: string[] };
+  cards: { cardId: string; name: string }[];
 }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [rematching, startRematch] = useTransition();
+  const [rematchError, setRematchError] = useState<string | null>(null);
 
   const dollars = spend.micros / 1_000_000;
   const cost = dollars < 0.01 && dollars > 0 ? "under $0.01" : `$${dollars.toFixed(2)}`;
@@ -45,6 +63,50 @@ export function GameOver({
         <p className="mt-1 text-3xl font-bold tracking-tight text-ki-300">{draw ? "A draw" : `${winnerName} wins`}</p>
         <p className="mt-1 text-xs text-space-300">{reason}</p>
       </div>
+
+      <div className="space-y-2">
+        <button
+          type="button"
+          disabled={rematching}
+          onClick={() =>
+            startRematch(async () => {
+              // On success the action redirects and this never returns.
+              const r = await rematch(gameId);
+              setRematchError(r.error);
+            })
+          }
+          className="tap w-full rounded-lg bg-ki-500 px-4 py-3 text-base font-bold uppercase tracking-widest text-space-950 disabled:opacity-60"
+        >
+          {rematching ? (versus ? "Opening the invitation…" : "Dealing…") : versus ? "Rematch — invite again" : "Rematch"}
+        </button>
+        {rematchError && <p className="text-xs text-loss">{rematchError}</p>}
+        <div className="grid grid-cols-2 gap-2 text-center text-sm">
+          <Link href={deckId != null ? `/arena?deck=${deckId}` : "/arena"} className="tap rounded-lg border border-space-600 bg-space-800 px-3 py-2.5 font-semibold text-space-50">
+            Change deck
+          </Link>
+          <a href="#board" className="tap rounded-lg border border-space-600 bg-space-800 px-3 py-2.5 font-semibold text-space-50">
+            Look at the final board
+          </a>
+        </div>
+      </div>
+
+      {draftFired.count > 0 && (
+        <div className="rounded-lg border border-space-700 bg-space-900 p-3 text-xs">
+          <p className="font-semibold text-space-100">
+            {draftFired.count} unchecked {draftFired.count === 1 ? "rule" : "rules"} played this game
+          </p>
+          <p className="mt-0.5 text-space-400">
+            {draftFired.names.join(", ")}
+            {draftFired.count > draftFired.names.length && ` and ${draftFired.count - draftFired.names.length} more`}
+          </p>
+          {/* Computer: a link into the Rules queue scoped to this game. Phone: a
+              note only; Rules is worked at the computer (spec decision 6). */}
+          <Link href={`/arena/rules?game=${gameId}&state=draft`} className="mt-1 hidden text-ki-300 hover:underline sm:inline-block">
+            Check them in Rules →
+          </Link>
+          <p className="mt-1 text-space-400 sm:hidden">They wait at the top of Rules for your next session at the computer.</p>
+        </div>
+      )}
 
       <dl className="grid grid-cols-3 gap-2 text-center">
         <Stat label="turns" value={String(turns)} />
@@ -94,6 +156,10 @@ export function GameOver({
           {error && <p className="mt-1 text-xs text-loss">{error}</p>}
         </div>
       ) : null}
+
+      <div className="text-center">
+        <ReportBug gameId={gameId} cards={cards} />
+      </div>
     </section>
   );
 }
