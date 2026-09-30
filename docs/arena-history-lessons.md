@@ -312,11 +312,11 @@ Two thirds of the unreadable clauses — 6,116 of them — need **no new
 mechanism**, only a phrase pattern. The loop for grinding them down already
 exists and is the fastest way to raise coverage:
 
-`/arena/backlog` groups them by the shape of the wording. For each group you can
+The Rules Workbench at `/arena/rules` groups them by the shape of the wording. For each group you can
 tell Claude in plain words what the card does; it saves a program against that
 card (so it plays correctly from the next game, with no referee call) *and*
 produces a work item describing the wording, which is about twenty lines of
-`compile.ts`. The two are different fixes and the page says so: the program
+`compile.ts`. The two are different fixes and the workbench says so: the program
 fixes one card, the pattern fixes every card phrased that way.
 
 `npm run arena:gaps` prints the same thing catalog-wide with counts — start at

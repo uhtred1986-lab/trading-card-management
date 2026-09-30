@@ -3,6 +3,7 @@ import { desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { arenaFeedback, arenaGames, cards as cardsTable } from "@/db/schema";
 import { listRemoteIssues, getFeedbackGitHubLink } from "@/lib/github";
+import { ArenaHeader } from "@/components/arena/ArenaHeader";
 import { setFeedbackStatus, syncFeedbackToGitHubAction, syncAllFeedbackAction } from "../actions";
 
 export const dynamic = "force-dynamic";
@@ -60,12 +61,8 @@ export default async function FeedbackPage({ searchParams }: { searchParams: Pro
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-baseline gap-2">
-        <h1 className="text-lg font-semibold tracking-tight text-space-50">What you told me</h1>
-        <Link href="/arena" className="ml-auto text-xs text-space-300 hover:text-ki-300">
-          ← Arena
-        </Link>
-      </div>
+      <ArenaHeader side="other" />
+      <h1 className="text-lg font-semibold tracking-tight text-space-50">What you told the arena</h1>
       <p className="text-sm text-space-300">
         Everything said from inside the arena, in one place: bugs reported from the board, cards explained on the backlog, and rules set by hand. Either player in a 1 v 1 can file one, and it says who
         did. A bug carries the whole game with it — the state, every move made, and what was on offer — so it can be replayed exactly as it was seen.

@@ -34,6 +34,8 @@
     "arena:rulesets": "tsx scripts/arena-rulesets-emit.mts",
     "arena:probe": "tsx --env-file-if-exists=.env.local scripts/arena-probe.mts",
     "arena:reprobe": "tsx --env-file-if-exists=.env.local scripts/arena-probe.mts --reprobe",
+    "arena:shots": "tsx scripts/arena-shots.mts",
+    "arena:contrast": "tsx scripts/arena-contrast.mts",
     "arena:tally": "tsx scripts/arena-catalog-tally.mts",
     "arena:readings": "tsx scripts/arena-readings.mts",
     "arena:diff": "tsx --env-file-if-exists=.env.local scripts/arena-diff.mts",

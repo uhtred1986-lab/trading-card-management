@@ -139,7 +139,8 @@ mechanisms in §6.
    scanned.
 7. **Before every commit:** `npm run typecheck`, `npm run lint`, `npm test`
    (includes `scripts/verify-arena.ts`), `npm run build`, `npm run arena:fuzz 40`
-   (must report `0 crashes`). Commit on the feature branch, push, do not merge.
+   (must report `0 crashes`). Commit on the feature branch, push, and open a PR; the
+   coordinator merges it once it is reviewed and green (`docs/agent-brief.md`).
 
    Two ways that gate lies to you, both hit on 6 Sep 2026. **Read the exit
    code, not the output** — `npm run build | tail` reports `tail`'s status, so
@@ -271,7 +272,7 @@ gives the line). Helpers:
 
 Also useful: `npm run arena:playthrough` (a whole game through the database),
 `/arena/[id]/debug` (every decision, prompt and program of a real game),
-`/arena/backlog` (unreadable clauses grouped by shape, with the "explain a
+and `/arena/rules` (the Rules Workbench with unreadable clauses grouped by shape, and the "explain a
 card" loop that stores a program per card and a work item per wording).
 
 ---
@@ -758,8 +759,7 @@ The owner's ruling on each of these is stored **in the database**, on the note
 itself, not only here: `npm run arena:rule -- <cardId> [--skill N]
 [--clause "…"] "<the ruling>"` writes it to `card_text_notes.explanation`, and
 `npm run arena:rule -- --list` reads them all back. That is the route to use
-when a ruling arrives in conversation rather than through `/arena/backlog`'s
-box — unlike the box, it asks Claude for nothing and writes down only what was
+when a ruling arrives in conversation — it asks Claude for nothing and writes down only what was
 said, because the code change that follows is made against every card sharing
 the wording rather than one card at a time.
 
@@ -904,5 +904,5 @@ work, and they are parked here so they are not lost.
 - `npm test`, `lint`, `typecheck` clean; `arena:fuzz 100` with 0 crashes.
 - `docs/arena-history-lessons.md` gains a dated history entry with the numbers
   and the lessons.
-- Nothing merged to `main` unless the owner asks; then rebase on `main`, run
-  everything again, and open the PR.
+- Open the PR once everything above is green; the coordinator merges it once it is
+  reviewed and CI is green (owner's standing permission, 30 Sep 2026 — `docs/agent-brief.md`).
