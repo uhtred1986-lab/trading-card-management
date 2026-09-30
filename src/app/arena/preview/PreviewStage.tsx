@@ -24,6 +24,8 @@ const STUB = {
     return { error: null };
   },
   advance: async () => ({ error: null }),
+  // Flagging, answered without a database: the flag the drawer would get back.
+  flag: async (gameId: number, note: string | null) => ({ error: null, created: true, flag: { id: 1, gameId, turn: 4, beatIndex: 0, note, flaggedBy: null, reviewerNote: null, resolved: false } }),
 };
 
 /**
@@ -56,6 +58,7 @@ function fxBeats(fx: string, snap: Snapshot): NonNullable<Snapshot["beats"]> {
 
 /** What the drawer shows beyond the snapshot, made up for the preview: no database is behind it. */
 const PREVIEW_DEBUG: AdminDebug = {
+  flags: [],
   seed: 20260930,
   theirHand: ["Ember Vanguard", "Iron Guardian", "Comet Dancer", "Azure Sage"],
   decisions: [

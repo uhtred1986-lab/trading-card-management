@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { AdminDebug } from "@/lib/arena/admin-debug";
 import type { NumberedBeat } from "@/lib/arena/beats";
 import type { Narrator } from "@/lib/arena/narration";
 import { narrate } from "@/lib/arena/narration";
 import type { Snapshot } from "@/lib/arena/snapshot";
+import type { FlagLine } from "@/lib/arena/review-store";
 
 /** The shield in the board's top bar: only ever rendered for an admin. */
 export function AdminShield({ onOpen, className = "" }: { onOpen: () => void; className?: string }) {
@@ -52,6 +53,7 @@ export function AdminDrawer({
   beats,
   log,
   narrator,
+  onFlag,
   onClose,
 }: {
   snapshot: Snapshot;
@@ -59,6 +61,8 @@ export function AdminDrawer({
   beats: NumberedBeat[];
   log: string[];
   narrator: Narrator;
+  /** Flags the game's current turn (`flagThisTurn`); the server reads the turn, this only carries the note. */
+  onFlag: (note: string | null) => Promise<{ error: string | null; flag: FlagLine | null; created: boolean }>;
   onClose: () => void;
 }) {
   const closeRef = useRef<HTMLButtonElement | null>(null);
@@ -79,6 +83,28 @@ export function AdminDrawer({
   }, []);
 
   const { game, view } = snapshot;
+  const [flags, setFlags] = useState<FlagLine[]>(debug?.flags ?? []);
+  const [note, setNote] = useState("");
+  const [flagging, setFlagging] = useState(false);
+  const [flagMsg, setFlagMsg] = useState<string | null>(null);
+  const flagThis = async () => {
+    setFlagging(true);
+    setFlagMsg(null);
+    try {
+      const r = await onFlag(note.trim() || null);
+      if (r.error || !r.flag) setFlagMsg(r.error ?? "could not flag");
+      else {
+        const f = r.flag;
+        setFlags((cur) => (cur.some((c) => c.id === f.id) ? cur : [...cur, f].sort((a, b) => a.turn - b.turn)));
+        setFlagMsg(r.created ? `Turn ${f.turn} flagged.` : `Turn ${f.turn} was already flagged.`);
+        setNote("");
+      }
+    } catch {
+      setFlagMsg("could not flag");
+    } finally {
+      setFlagging(false);
+    }
+  };
   const versus = game.mode === "versus";
   const beatRows = [...beats].reverse().slice(0, 120);
   const decisions = debug ? [...debug.decisions].reverse() : [];
@@ -119,7 +145,40 @@ export function AdminDrawer({
           </Cell>
         </dl>
 
-        {/* rd-09 adds "Flag this turn" here; until it records something the button is left out. */}
+        <section aria-label="Flag this turn" data-arena-admin="flag" className="space-y-2 rounded-lg border border-space-800 bg-space-900/60 p-3">
+          <h3 className="text-[10px] font-semibold uppercase tracking-widest text-space-300">Review later</h3>
+          <input
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            maxLength={280}
+            placeholder="Optional one-line note"
+            aria-label="Note for the flag"
+            className="tap w-full rounded border border-space-700 bg-space-950 px-2 py-1.5 text-sm text-space-50 placeholder:text-space-400"
+          />
+          <div className="flex items-center gap-3">
+            <button type="button" onClick={flagThis} disabled={flagging} className="tap rounded-lg bg-loss px-3 py-2 text-sm font-bold text-space-950 disabled:opacity-60">
+              Flag this turn
+            </button>
+            <span role="status" className="text-xs text-space-300">
+              {flagMsg}
+            </span>
+          </div>
+          {flags.length > 0 && (
+            <ul className="space-y-0.5 text-xs">
+              {flags.map((f) => (
+                <li key={f.id}>
+                  <Link href={`/arena/review?game=${f.gameId}&turn=${f.turn}`} className="text-ki-300 hover:underline">
+                    Turn {f.turn}
+                  </Link>{" "}
+                  <span className="text-space-300">
+                    {f.note ?? "no note"}
+                    {f.resolved ? " · resolved" : ""}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
 
         <nav className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
           <Link href={`/arena/${game.id}/debug`} className="text-ki-300 hover:underline">

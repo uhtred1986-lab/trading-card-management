@@ -2,7 +2,7 @@
 
 import { LayoutGroup, useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
-import { act, advanceGame } from "@/app/arena/actions";
+import { act, advanceGame, flagThisTurn } from "@/app/arena/actions";
 
 import type { Action, PlayerId, Requirement } from "@/lib/arena/engine";
 import type { NumberedBeat } from "@/lib/arena/beats";
@@ -81,7 +81,7 @@ import { BattleRow, cardIdOf, ClashBand, HandBacks, MenuSection, ReferenceCounts
  * cards out of their rows so each card is drawn once — a card's `layoutId` is
  * what flies it there and back, so it may exist in exactly one place.
  */
-const REAL_SERVER = { act, advance: advanceGame };
+const REAL_SERVER = { act, advance: advanceGame, flag: flagThisTurn };
 
 /**
  * Whether the board is wide enough for the docked inspector (Tailwind `lg`).
@@ -122,7 +122,7 @@ export function ArenaStage({
    * the fixture preview (`/arena/preview`, dev-only) injects stubs, so a tap
    * there goes nowhere instead of to a database that is not there.
    */
-  server?: { act: typeof act; advance: typeof advanceGame };
+  server?: { act: typeof act; advance: typeof advanceGame; flag: typeof flagThisTurn };
   /** Fixture preview only: open with the turn banner up, so a shot can catch a turn boundary (#344). */
   announceTurn?: boolean;
   /**
@@ -1206,7 +1206,7 @@ export function ArenaStage({
           </Sheet>
         )}
 
-        {admin && adminOpen && <AdminDrawer snapshot={live} debug={adminDebug} beats={beats?.list ?? []} log={log} narrator={{ viewer: view.you.player, them: view.them.name, art: beats?.art ?? {}, ownerOf }} onClose={() => setAdminOpen(false)} />}
+        {admin && adminOpen && <AdminDrawer snapshot={live} debug={adminDebug} beats={beats?.list ?? []} log={log} narrator={{ viewer: view.you.player, them: view.them.name, art: beats?.art ?? {}, ownerOf }} onFlag={(note) => server.flag(gameId, note)} onClose={() => setAdminOpen(false)} />}
 
         {takeoverOn && <Takeover shape={shape} cardProps={stagedProps} beat={beat} progress={playback.playing ? { index: playback.index, total: playback.total } : null} />}
 

@@ -8,6 +8,7 @@
 import { engineFor, type EngineId, type EngineState } from "./engines";
 import type { EngineContext, PlayerId } from "./engine";
 import type { CardArt } from "./view";
+import type { FlagLine } from "./review-store";
 
 /** One decision the server took, as the drawer lists it (a slice of `arena_decisions`). */
 export interface DecisionLine {
@@ -29,6 +30,8 @@ export interface AdminDebug {
   /** The opponent's hand by name: hidden information, labelled so in the drawer. */
   theirHand: string[] | null;
   decisions: DecisionLine[];
+  /** The turns of this game an admin has flagged (#351). */
+  flags: FlagLine[];
 }
 
 type DecisionRowLike = {
@@ -59,7 +62,7 @@ export function decisionLines(rows: DecisionRowLike[]): DecisionLine[] {
   }));
 }
 
-export function adminDebugOf(input: { engine: EngineId; ctx: EngineContext; state: EngineState; viewer: PlayerId; images: Record<string, CardArt>; decisions: DecisionRowLike[] }): AdminDebug {
+export function adminDebugOf(input: { engine: EngineId; ctx: EngineContext; state: EngineState; viewer: PlayerId; images: Record<string, CardArt>; decisions: DecisionRowLike[]; flags?: FlagLine[] }): AdminDebug {
   const other: PlayerId = input.viewer === "p1" ? "p2" : "p1";
   // The opponent's own board view: the one place their hand is face-up.
   const theirs = engineFor(input.engine).boardView(input.ctx, input.state, other, input.images);
@@ -67,5 +70,6 @@ export function adminDebugOf(input: { engine: EngineId; ctx: EngineContext; stat
     seed: typeof (input.state as { seed?: unknown }).seed === "number" ? (input.state as { seed: number }).seed : null,
     theirHand: theirs.you.hand ? theirs.you.hand.map((c) => c.name) : null,
     decisions: decisionLines(input.decisions),
+    flags: input.flags ?? [],
   };
 }

@@ -11,6 +11,7 @@ import type { GameReview } from "@/lib/arena/ai/review";
 import { ENGINE_INFO, damageTaken, sideName } from "@/lib/arena/engines";
 import { decisionsFor } from "@/lib/arena/ai/debug";
 import { adminDebugOf } from "@/lib/arena/admin-debug";
+import { flagsForGame } from "@/lib/arena/review-store";
 import { isVersus, loadArchivedGame, loadGame, modeLabel, seatOf } from "@/lib/arena/games";
 import { currentUser, isArenaAdmin } from "@/lib/auth";
 import { artForGame, snapshotOfGame } from "@/lib/arena/session";
@@ -113,7 +114,7 @@ export default async function ArenaGamePage({ params, searchParams }: { params: 
   const snap = await snapshotOfGame(db, game, isVersus(game.mode) ? seat : null);
   const playing = snap.game.status === "playing";
   // The drawer's extras — seed, the opponent's hand, the decisions — only for an admin.
-  const adminDebug = admin ? adminDebugOf({ engine: game.engine, ctx: game.ctx, state: game.state, viewer: snap.game.you, images: await artForGame(db, game), decisions: await decisionsFor(db, id) }) : null;
+  const adminDebug = admin ? adminDebugOf({ engine: game.engine, ctx: game.ctx, state: game.state, viewer: snap.game.you, images: await artForGame(db, game), decisions: await decisionsFor(db, id), flags: await flagsForGame(db, id) }) : null;
   const review = game.review ? (JSON.parse(game.review) as GameReview) : null;
 
   return (
