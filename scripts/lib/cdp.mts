@@ -192,7 +192,7 @@ export class Page {
     const box = await this.eval<{ x: number; y: number } | null>(`(() => {
       const el = document.querySelector(${JSON.stringify(selector)});
       if (!el) return null;
-      el.scrollIntoView({ block: "center", inline: "center" });
+      el.scrollIntoView({ block: "center", inline: "nearest" });
       const r = el.getBoundingClientRect();
       return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
     })()`);
@@ -205,6 +205,34 @@ export class Page {
       await this.call("Input.dispatchMouseEvent", { type: "mousePressed", x: box.x, y: box.y, button: "left", clickCount: 1 });
       await this.call("Input.dispatchMouseEvent", { type: "mouseReleased", x: box.x, y: box.y, button: "left", clickCount: 1 });
     }
+  }
+
+  /**
+   * Stop a card's glow or scale from widening the page. On an emulated phone an
+   * overflow of a few px shrinks the whole layout viewport (390 becomes 425), and
+   * a touch is then delivered at the wrong point — a tap lands beside its target.
+   * Used when a script is about to tap or swipe.
+   */
+  async clipOverflow() {
+    await this.beforeLoad(`document.addEventListener("DOMContentLoaded", () => { const s = document.createElement("style"); s.textContent = "html,body{overflow-x:hidden}"; document.head.appendChild(s); });`);
+  }
+
+  /** Drag one finger from the middle of `selector` by (dx, dy) px, in a few steps — touch only. */
+  async swipe(selector: string, dx: number, dy: number) {
+    const box = await this.eval<{ x: number; y: number } | null>(`(() => {
+      const el = document.querySelector(${JSON.stringify(selector)});
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    })()`);
+    if (!box) throw new Error(`swipe: nothing matches ${selector}`);
+    await this.call("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: box.x, y: box.y }] });
+    const steps = 6;
+    for (let i = 1; i <= steps; i++) {
+      await this.call("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: box.x + (dx * i) / steps, y: box.y + (dy * i) / steps }] });
+      await sleep(16);
+    }
+    await this.call("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
   }
 
   private async centre(selector: string, flag: string) {

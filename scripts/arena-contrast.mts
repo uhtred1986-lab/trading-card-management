@@ -5,6 +5,7 @@
  *   npm run arena:contrast                   # play, attack, ko  x  anime, night  x  phone, desk
  *   npm run arena:contrast -- --strict       # exit 1 when anything fails
  *   npm run arena:contrast -- --fixtures play --skins anime --json out.json
+ *   npm run arena:contrast -- --fixtures play --tap '[aria-label="Review cards in play"]'   # phone, a state that opens on a tap (the review pager)
  *   npm run arena:contrast -- --fixtures play --hover 'section[aria-label="Your hand"] [data-arena-card]'   # desktop, pointer over a card
  *
  * axe-core cannot resolve a background through a gradient, and the anime sky is
@@ -32,6 +33,7 @@ const strict = process.argv.includes("--strict");
 const jsonOut = arg("json") ?? join(process.cwd(), "docs", "arena-redesign", "current", "contrast.json");
 const settle = Number(arg("settle") ?? 1500);
 const hover = arg("hover");
+const tap = arg("tap");
 
 /** Runs in the page. Returns one row per visible text node: its worst-case ratio. */
 const AUDIT = String.raw`(() => {
@@ -152,6 +154,7 @@ let checked = 0;
 try {
   for (const vp of VIEWPORTS) {
     const page = await browser.page(vp);
+    if (tap && vp.mobile) await page.clipOverflow();
     await page.beforeLoad(`try { localStorage.setItem("arena.pace", "step"); } catch {}`);
     for (const fixture of fixtures) {
       for (const skin of skins) {
@@ -164,6 +167,11 @@ try {
         if (hover && !vp.mobile) {
           await page.hover(hover);
           await page.settle(400);
+        }
+        // A state that opens on a tap (the phone review pager): phone only.
+        if (tap && vp.mobile) {
+          await page.tap(tap);
+          await page.settle(600);
         }
         const rows = await page.eval<Row[]>(AUDIT);
         checked += rows.length;

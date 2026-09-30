@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { LegalAction, RejectedAction } from "@/lib/arena/engine";
 import { effectLine } from "@/lib/arena/effects";
 import { pill, priceOf, refusal, stepText } from "@/lib/arena/wording";
@@ -57,7 +58,7 @@ export function CardDetail({
       {withName && <p className="text-sm font-semibold leading-tight text-space-50">{card.name}</p>}
       {battle && (
         <p className="rounded-lg border-l-2 border-ki-500 bg-space-800 p-2 text-[11px] sm:text-xs">
-          <span className="text-[10px] uppercase tracking-widest text-space-400">in this battle </span>
+          <span className="text-[10px] uppercase tracking-widest text-space-300">in this battle </span>
           <span className="font-mono font-semibold text-ki-300">{battle.contribution.toLocaleString("en")}</span>
           <span className="text-space-300">
             {" "}
@@ -284,6 +285,94 @@ export function StatTiles({ card, leader }: { card: CardView; leader?: { life: n
   );
 }
 
+/** One chip on a card review: a card's state, or what stands in the way of it. */
+export interface InspectorChip {
+  label: string;
+  /** `bad` is red (a refusal), `good` is the ready colour, `plain` is neutral. */
+  tone: "plain" | "good" | "bad";
+}
+
+const CHIP_TONE: Record<InspectorChip["tone"], string> = {
+  plain: "border-space-500 text-space-100",
+  good: "border-gain/70 text-gain",
+  bad: "border-loss/70 text-loss",
+};
+
+/** The chip row of the docked inspector and of the phone pager. */
+export function ChipRow({ chips }: { chips: InspectorChip[] }) {
+  if (chips.length === 0) return null;
+  return (
+    <p className="flex flex-wrap gap-1">
+      {chips.map((c) => (
+        <span key={c.label} className={`rounded-full border px-2 py-px text-[11px] font-semibold ${CHIP_TONE[c.tone]}`}>
+          {c.label}
+        </span>
+      ))}
+    </p>
+  );
+}
+
+/** The run of cards a phone review steps through, and whose each one is. */
+export interface ReviewSequence {
+  /** "In play", "Your hand". */
+  label: string;
+  items: { card: CardView; yours: boolean }[];
+}
+
+/** A left or right swipe moves one card past this many px; a downward one closes past `CLOSE_PX`. */
+export const SWIPE_PX = 50;
+export const CLOSE_PX = 90;
+
+/**
+ * Reads one finished gesture. Horizontal wins when it is the longer of the
+ * two, so a slightly slanted swipe still pages; a downward one only closes.
+ */
+export function swipeOf(dx: number, dy: number): "next" | "prev" | "close" | null {
+  if (Math.abs(dx) >= SWIPE_PX && Math.abs(dx) > Math.abs(dy)) return dx < 0 ? "next" : "prev";
+  if (dy >= CLOSE_PX && dy > Math.abs(dx)) return "close";
+  return null;
+}
+
+function Thumb({ card, yours, current, index, total, onJump }: { card: CardView; yours: boolean; current: boolean; index: number; total: number; onJump: () => void }) {
+  const ref = useRef<HTMLButtonElement | null>(null);
+  useEffect(() => {
+    // Scroll the strip itself, never the page: `scrollIntoView` would drag the board.
+    const el = ref.current;
+    const strip = el?.parentElement;
+    if (current && el && strip) strip.scrollTo({ left: el.offsetLeft - (strip.clientWidth - el.offsetWidth) / 2, behavior: "auto" });
+  }, [current]);
+  const face = `h-[46px] w-[34px] rounded-[4px] border transition-transform ${current ? "-translate-y-1 border-ki-400 ring-2 ring-ki-400" : "border-space-600"}`;
+  return (
+    <button
+      ref={ref}
+      type="button"
+      onClick={onJump}
+      data-arena-thumb={card.id}
+      aria-current={current ? "true" : undefined}
+      aria-label={`${card.name}, ${index + 1} of ${total}`}
+      className="flex h-[56px] w-11 shrink-0 flex-col items-center justify-end gap-0.5 pb-0.5"
+    >
+      {card.imageUrl && !card.hidden ? (
+        // eslint-disable-next-line @next/next/no-img-element -- a strip swatch; the board has already loaded this URL.
+        <img src={card.imageUrl} alt="" className={`${face} object-cover`} />
+      ) : (
+        <span className={`${face} bg-space-700`} />
+      )}
+      <span className={`h-[3px] w-[30px] rounded-full ${yours ? "bg-ki-500" : "bg-[#7c5cd6]"}`} aria-hidden />
+    </button>
+  );
+}
+
+/**
+ * The phone card review (`docs/arena-backlog/rd-06`): a sheet that pages
+ * through the run of cards the open one belongs to.
+ *
+ * Swipe left or right steps one card, swipe down shuts it, prev and next sit on
+ * the card's edges, and a thumbnail jumps. It owns no game state — the stage
+ * hands it the card, the chips and the actions (`ActionRows`), the same pieces
+ * the docked inspector draws on desktop. A card outside any run (an energy, a
+ * life card) is reviewed alone, without the pager.
+ */
 export function CardSheet({
   card,
   side,
@@ -293,6 +382,11 @@ export function CardSheet({
   onClose,
   narrator = DEFAULT_NARRATOR,
   battle,
+  sequence,
+  where = null,
+  chips = [],
+  leader = null,
+  onJump,
 }: {
   card: CardView;
   /** The player's own side, for the remedy in an energy refusal. */
@@ -304,28 +398,172 @@ export function CardSheet({
   narrator?: Narrator;
   /** What this card is putting into the open battle, when it is in one. */
   battle?: BattleShare | null;
+  /** The run this card belongs to, when it belongs to one. */
+  sequence?: ReviewSequence | null;
+  /** "Claude's battle area". */
+  where?: string | null;
+  chips?: InspectorChip[];
+  /** A leader's life and energy, for its stat tiles. */
+  leader?: { life: number; energy: string } | null;
+  onJump?: (card: CardView) => void;
 }) {
+  const items = sequence?.items ?? [];
+  const at = items.findIndex((i) => i.card.id === card.id);
+  const pager = at >= 0 && !!onJump;
+  const go = (to: number) => {
+    const target = items[to];
+    if (pager && target) onJump!(target.card);
+  };
+
+  // Keys, for a tablet with a keyboard: the pager has the same three moves.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      else if (pager && e.key === "ArrowRight") go(at + 1);
+      else if (pager && e.key === "ArrowLeft") go(at - 1);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
+  // One gesture at a time, read when it ends. `touch-action: pan-y` lets a
+  // horizontal move through to us untouched; a vertical one may be claimed by
+  // the browser as a scroll, which ends the pointer with a cancel — so a
+  // cancel is read exactly as a release, from the last point seen.
+  const drag = useRef<{ x: number; y: number; lx: number; ly: number; top: boolean } | null>(null);
+  const swipedAt = useRef(0);
+  const body = useRef<HTMLDivElement | null>(null);
+  // A body that fits has nothing to scroll, so the browser must not be offered
+  // a vertical pan there — it would cancel the pointer and a swipe down could
+  // not be read. One that overflows keeps `pan-y` and scrolls; a swipe down
+  // then closes from the handle, the strip and the Close row instead.
+  const [scrolls, setScrolls] = useState(false);
+  useLayoutEffect(() => {
+    const el = body.current;
+    if (el) setScrolls(el.scrollHeight > el.clientHeight + 1);
+  }, [card.id, moves.length, rejected.length, chips.length, items.length]);
+  const begin = (e: React.PointerEvent) => {
+    drag.current = { x: e.clientX, y: e.clientY, lx: e.clientX, ly: e.clientY, top: (body.current?.scrollTop ?? 0) <= 0 };
+  };
+  const move = (e: React.PointerEvent) => {
+    if (drag.current) {
+      drag.current.lx = e.clientX;
+      drag.current.ly = e.clientY;
+    }
+  };
+  const end = (e: React.PointerEvent) => {
+    const d = drag.current;
+    drag.current = null;
+    if (!d) return;
+    const cancelled = e.type === "pointercancel";
+    const s = swipeOf((cancelled ? d.lx : e.clientX) - d.x, (cancelled ? d.ly : e.clientY) - d.y);
+    // A scrolled body scrolls; only from the top does a downward move close it.
+    if (!s || (s === "close" && !d.top)) return;
+    swipedAt.current = Date.now();
+    if (s === "close") onClose();
+    else go(at + (s === "next" ? 1 : -1));
+  };
+
+  const position = pager ? `${sequence!.label} ${at + 1} / ${items.length}` : null;
+
   return (
-    <Sheet
-      onClose={onClose}
-      title={card.name}
-      eyebrow={
-        moves.length ? (
-          <span className="text-[10px] uppercase tracking-widest text-ki-300">what would you like to do?</span>
-        ) : rejected.length ? (
-          <span className="text-[10px] uppercase tracking-widest text-loss">no move right now</span>
-        ) : undefined
-      }
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center arena-scrim p-0 sm:items-center sm:p-4"
+      // Inline on purpose: `.arena > *` (globals.css) is unlayered, so it beats
+      // Tailwind's layered `fixed` and `z-50` on any direct child of the board,
+      // and the sheet would be drawn in the flow under the hand.
+      style={{ position: "fixed", zIndex: 50 }}
+      onClick={onClose}
     >
-      <ActionRows card={card} side={side} moves={moves} rejected={rejected} onPick={onPick} narrator={narrator} />
-      <div className={moves.length || rejected.length ? "border-t border-space-700 pt-2" : ""}>
-        {card.imageUrl && (
-          // eslint-disable-next-line @next/next/no-img-element -- transient sheet; the board has already loaded this URL.
-          <img src={card.imageUrl} alt="" className="card-aspect float-right ml-3 mb-2 w-24 rounded-lg object-cover sm:w-28" />
+      <div
+        role="dialog"
+        aria-label={`${card.name}${position ? `, ${position}` : ""}`}
+        data-arena-review={card.id}
+        className="flex max-h-[88dvh] w-full max-w-md touch-none select-none flex-col overscroll-contain rounded-t-2xl border border-space-700 bg-space-900 pb-6 pt-2 sm:max-w-lg sm:rounded-2xl sm:pb-4"
+        onClick={(e) => e.stopPropagation()}
+        // The button a swipe ends on must not also be pressed.
+        onClickCapture={(e) => {
+          if (Date.now() - swipedAt.current < 200) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+        }}
+        onPointerDown={begin}
+        onPointerMove={move}
+        onPointerUp={end}
+        onPointerCancel={end}
+      >
+        <span className="mx-auto mb-2 h-1 w-10 shrink-0 rounded-full bg-space-600" aria-hidden />
+
+        {pager && (
+          <div className="mb-1 flex shrink-0 items-center gap-2 px-4">
+            <p className="w-[4.5rem] shrink-0 text-[10px] font-semibold uppercase leading-tight tracking-[0.18em] text-space-300" aria-live="polite">
+              {sequence!.label}
+              <span className="block font-mono text-lg font-black italic tracking-normal text-space-50">
+                {at + 1} / {items.length}
+              </span>
+            </p>
+            <div className="flex min-w-0 flex-1 touch-pan-x overflow-x-auto pt-1.5" role="group" aria-label={`${sequence!.label}, all cards`}>
+              {items.map((it, i) => (
+                <Thumb key={it.card.id} card={it.card} yours={it.yours} current={i === at} index={i} total={items.length} onJump={() => go(i)} />
+              ))}
+            </div>
+          </div>
         )}
-        <CardDetail card={card} narrator={narrator} battle={battle} />
+
+        <div ref={body} className={`min-h-0 flex-1 space-y-2 overflow-y-auto overflow-x-hidden px-4 ${scrolls ? "touch-pan-y" : "touch-none"}`}>
+          <div className="flex gap-3">
+            <div className="relative w-32 shrink-0 self-start">
+              {card.imageUrl && !card.hidden ? (
+                // eslint-disable-next-line @next/next/no-img-element -- transient sheet; the board has already loaded this URL.
+                <img src={card.imageUrl} alt="" className="card-aspect w-full rounded-lg object-cover" />
+              ) : (
+                <span className="card-aspect block w-full rounded-lg bg-space-700" />
+              )}
+              {pager && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => go(at - 1)}
+                    disabled={at <= 0}
+                    aria-label="Previous card"
+                    className="absolute -left-4 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full border-2 border-space-500 bg-space-900 text-xl font-black leading-none text-space-50 shadow-md disabled:border-space-600 disabled:text-space-300"
+                  >
+                    ‹
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => go(at + 1)}
+                    disabled={at >= items.length - 1}
+                    aria-label="Next card"
+                    className="absolute -right-4 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full border-2 border-space-500 bg-space-900 text-xl font-black leading-none text-space-50 shadow-md disabled:border-space-600 disabled:text-space-300"
+                  >
+                    ›
+                  </button>
+                </>
+              )}
+            </div>
+            <div className="min-w-0 flex-1 space-y-1.5 pl-3">
+              {where && <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-space-200">{where}</p>}
+              <h3 className="text-lg font-black italic leading-tight text-space-50">{card.name}</h3>
+              <ChipRow chips={chips} />
+              <StatTiles card={card} leader={leader} />
+            </div>
+          </div>
+          <ActionRows card={card} side={side} moves={moves} rejected={rejected} onPick={onPick} narrator={narrator} docked />
+          <CardDetail card={card} narrator={narrator} battle={battle} figures={false} />
+        </div>
+
+        <button
+          type="button"
+          onClick={onClose}
+          className="tap mx-4 mt-3 flex w-[calc(100%-2rem)] shrink-0 items-center justify-between rounded-xl border-2 border-space-500 px-4 py-2 text-left text-sm font-bold text-space-50 hover:border-ki-400"
+        >
+          <span>Close</span>
+          <span className="text-xs font-normal text-space-200">or swipe down</span>
+        </button>
       </div>
-    </Sheet>
+    </div>
   );
 }
 
