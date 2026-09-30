@@ -271,13 +271,16 @@ export function missingSourcePaths(
   return out;
 }
 
-/** null when the file's `status:` agrees with the issue's state (or there is nothing to compare); else an explanation. */
+/**
+ * null when the file's `status:` agrees with the issue's state (or there is nothing to compare); else an explanation.
+ *
+ * A file marked `status: closed` while its issue is still OPEN is **not** drift: it is the PR that closes
+ * the issue, in flight (issue #389). The PR marks its own file, and the merge closes the issue, so no
+ * bookkeeping commit follows every merge and `main` never goes red in between. Only a CLOSED issue whose
+ * file does not say so is reported.
+ */
 export function statusMismatch(meta: IssueMeta, remoteState: "OPEN" | "CLOSED" | undefined): string | null {
   if (!remoteState) return null;
-  const fileClosed = meta.status === "closed";
-  const remoteClosed = remoteState === "CLOSED";
-  if (fileClosed === remoteClosed) return null;
-  return fileClosed
-    ? `front matter says status: closed, GitHub issue is ${remoteState}`
-    : `GitHub issue is ${remoteState}, front matter has no status: closed`;
+  if (remoteState === "CLOSED" && meta.status !== "closed") return `GitHub issue is ${remoteState}, front matter has no status: closed`;
+  return null;
 }

@@ -22,8 +22,10 @@ issue: 208                           optional — the GitHub issue number, writt
                                      the first time it creates or matches one. Once present it is
                                      the match key (a title rename no longer detaches the file);
                                      absent, the title is still the fallback key.
-status: closed                       optional — set once the issue is done, so `--check` can catch
-                                     the file and the issue drifting apart (`closed_at: …` beside it)
+status: closed                       optional — set by the PR that closes the issue, in that PR, so
+                                     `--check` can catch a closed issue whose file still reads open
+                                     (`closed_at: …` beside it). Closed-file-open-issue is a PR in
+                                     flight and is not reported (#389)
 ---
 ```
 
@@ -44,8 +46,8 @@ environment is enough, with `gh api` as the fallback when neither is set (same o
 
 - `--push [file…]` creates or updates issues from the local files (all of them with no arguments).
 - `--sync` rebuilds every tracking issue's `{{children}}` list from the current issue numbers and state.
-- `--check` reports drift and exits non-zero: a file's `status:` disagreeing with the issue's
-  state, and a `**Source:**` citation whose path no longer exists in the tree. Only the `Source`
+- `--check` reports drift and exits non-zero: a CLOSED issue whose file lacks `status: closed`
+  (a file marked closed while its issue is open is the closing PR in flight, not drift), and a `**Source:**` citation whose path no longer exists in the tree. Only the `Source`
   line is checked — the `Build` section names paths the issue's own work will create, so a path
   not existing there is the point, not drift. Runs read-only in CI
   (`.github/workflows/checks.yml`, job `backlog`) with no arguments beyond `--check` needed.

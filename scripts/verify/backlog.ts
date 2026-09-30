@@ -223,7 +223,8 @@ assert.ok(!expanded.includes("{{children}}"));
     ["---", "title: Open in front matter", "milestone: M", "labels: ready-for-agent", "stage: 1", "---", "Body."].join("\n")
   );
 
-  assert.equal(statusMismatch(closedFile, "OPEN"), "front matter says status: closed, GitHub issue is OPEN");
+  // The closing PR marks its own file before the merge closes the issue (#389): not drift.
+  assert.equal(statusMismatch(closedFile, "OPEN"), null);
   assert.equal(statusMismatch(closedFile, "CLOSED"), null);
   assert.equal(statusMismatch(openFile, "CLOSED"), "GitHub issue is CLOSED, front matter has no status: closed");
   assert.equal(statusMismatch(openFile, "OPEN"), null);

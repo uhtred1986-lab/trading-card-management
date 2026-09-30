@@ -367,6 +367,17 @@ assert.equal(priceForFinish(prices.get("BT18-020_SPR"), "foil"), 199);
     ["FB07-021"],
   );
   assert.ok((await collectionCopies(db, { game: "dbs" })).rows.every((r) => r.game === "dbs"));
+
+  // The dashboard values the collection once and hands it to movers and
+  // breakdown; the precomputed forms must answer exactly as the self-computing ones.
+  const { movers, breakdown, collectionCards } = await import("../src/lib/collection/queries.ts");
+  const pre = await valuedLots(db);
+  assert.deepEqual(await movers(db, 7, 8, pre), await movers(db));
+  assert.deepEqual(await breakdown(db, {}, pre), await breakdown(db));
+  const preFw = await valuedLots(db, { game: "fusion" });
+  assert.deepEqual(await breakdown(db, { game: "fusion" }, preFw), await breakdown(db, { game: "fusion" }));
+  assert.deepEqual(await collectionCards(db, { game: "fusion", valued: preFw }), await collectionCards(db, { game: "fusion" }));
+  assert.ok((await breakdown(db, {}, pre)).byGame.length >= 2, "the seeded collection spans both games");
 }
 
 // ── What the compiler cannot read is on the rule, and so is the brief ──────
