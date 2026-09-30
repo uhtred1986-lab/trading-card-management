@@ -14,7 +14,9 @@ import { cancelMatchAction, joinMatchForm, startGameForm } from "./actions";
 
 export const dynamic = "force-dynamic";
 
-export default async function ArenaPage() {
+export default async function ArenaPage({ searchParams }: { searchParams: Promise<{ deck?: string }> }) {
+  // `?deck=<id>` preselects a deck: GameOver's "Change deck" (#358).
+  const wanted = Number((await searchParams).deck);
   // The engine reads the original game's rule manual and nothing else, so
   // Fusion World decks are simply not offered here (owner's decision).
   const me = await currentUser();
@@ -44,7 +46,8 @@ export default async function ArenaPage() {
   const last = await lastPlayedDecks(db, playable.map((d) => d.id), me);
   const readyIds = playable.filter((d) => !isLocked(ready.get(d.id))).map((d) => d.id);
   const pick = (id: number | null, fallback: number) => (id != null && readyIds.includes(id) ? id : fallback);
-  const initialDeck = pick(last.own, readyIds[0] ?? playable[0]?.id ?? 0);
+  // A deck named in the query wins even when locked, so the picker shows why.
+  const initialDeck = playable.some((d) => d.id === wanted) ? wanted : pick(last.own, readyIds[0] ?? playable[0]?.id ?? 0);
   const initialClaudeDeck = pick(last.claude, readyIds.find((id) => id !== initialDeck) ?? readyIds[0] ?? playable[0]?.id ?? 0);
 
   const select = "tap w-full rounded-md border border-space-600 bg-space-900 px-2 py-2 text-sm text-space-100";

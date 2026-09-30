@@ -5,6 +5,8 @@ import { db } from "@/db";
 import { ArenaStage } from "@/components/arena/stage/ArenaStage";
 import { hasAnthropic } from "@/lib/ai/client";
 import { GameOver } from "@/components/arena/GameOver";
+import { cardsOnTable } from "@/components/arena/shared-display";
+import { draftFiredInGame } from "@/lib/arena/game-over";
 import type { GameReview } from "@/lib/arena/ai/review";
 import { ENGINE_INFO, damageTaken, sideName } from "@/lib/arena/engines";
 import { isVersus, loadArchivedGame, loadGame, modeLabel, seatOf } from "@/lib/arena/games";
@@ -155,12 +157,18 @@ export default async function ArenaGamePage({ params, searchParams }: { params: 
           spend={game.spend}
           review={review}
           aiEnabled={hasAnthropic()}
+          deckId={snap.game.you === "p2" ? game.p2DeckId : game.p1DeckId}
+          versus={isVersus(game.mode)}
+          draftFired={await draftFiredInGame(db, id)}
+          cards={cardsOnTable(snap.view)}
         />
       )}
 
       {/* The whole snapshot, because the board keeps watching the game while
           the server is deciding and replaces it with what it reads. */}
-      <ArenaStage gameId={id} snapshot={snap} skin={skin} staging={staging} lighting={lighting} />
+      <div id="board" className="scroll-mt-2">
+        <ArenaStage gameId={id} snapshot={snap} skin={skin} staging={staging} lighting={lighting} />
+      </div>
     </div>
   );
 }
