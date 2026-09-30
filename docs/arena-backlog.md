@@ -208,6 +208,7 @@ npx tsx scripts/sync-arena-backlog.mts --sync                       # rebuild ev
 npx tsx scripts/sync-arena-backlog.mts --check                      # exit non-zero on status/path drift (see below)
 npx tsx scripts/sync-arena-backlog.mts --close s2-01 --dry-run      # close one issue, preview the comment (unchanged)
 npx tsx scripts/sync-arena-backlog.mts --all-closed                 # close every file already marked status: closed
+                                                                    # — only on main: an open PR's branch marks its own issue early
 ```
 
 `--push` matches a file to its GitHub issue by the front-matter `issue:` number first (see
@@ -216,9 +217,10 @@ matches — writing `issue: N` back into the file so a later title change cannot
 is the Node port of `Expand-Children` above: it rewrites every `tracking: true` issue's body from
 the live state of its stage's other issues, which is what tracking issue checklists like #169's
 depend on staying current. `--check` is read-only and needs nothing but `GITHUB_TOKEN`: it flags a
-file whose `status:` disagrees with its issue's open/closed state, and any path cited in a file's
+CLOSED issue whose file lacks `status: closed` (a file marked closed while its issue is still open is
+the closing PR in flight, #389, and passes), and any path cited in a file's
 `**Source:**` line that no longer exists in the tree (the `Build` section names paths the issue's
-own work will create, so those are not checked). It runs in CI as the `backlog` job in
+own work will create, so those are not checked). It runs in CI (since #374 as the last step of the `web` job) in
 `.github/workflows/checks.yml`, on every push and pull request, with the workflow's own read-only
 `GITHUB_TOKEN` — no secret to configure.
 

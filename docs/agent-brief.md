@@ -77,6 +77,8 @@ Neon is one database for production, preview and dev, with a spend limit. Stay o
   names the issue number.
 - `Closes #N` only when the diff delivers the issue's Acceptance; `ac-check` grades it, and
   GitHub closes the issue on merge whether or not the work is there. Use `Refs #N` otherwise.
+- **A PR that closes an arena issue sets `status: closed` in its `docs/arena-backlog/<id>.md`** in
+  the same PR. The drift check accepts a closed file while the issue is still open (#389).
 - The body gives each acceptance bullet with its evidence, then every judgement call and
   deferral, then the bullets you could not verify.
 - **Report back:** branch and commit, changed files, any migration, screenshot paths, judgement
@@ -101,9 +103,8 @@ Neon is one database for production, preview and dev, with a spend limit. Stay o
   runs the migrations. Wait for that deploy's `Vercel` status before the next merge. Then:
   - tick the issue's acceptance boxes;
   - delete the branch;
-  - mark each closed issue's `docs/arena-backlog/<id>.md` with `status: closed`. Put all of them
-    in one bookkeeping commit per batch: the `backlog` CI job fails when the file and GitHub
-    disagree.
+  - nothing for the backlog file: the PR that closes an issue sets `status: closed` in its own
+    `docs/arena-backlog/<id>.md` (#389), so the merge leaves the drift check green.
 - **Review fixes go back to the agent that wrote the PR, or to a fresh agent on its branch.**
   Worker sessions don't wake on PR comments posted from the same account.
 - **Stop and ask the owner** (merging is not on this list) before:
