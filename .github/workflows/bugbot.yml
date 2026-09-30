@@ -27,6 +27,10 @@ on:
         required: true
         type: number
 
+concurrency:
+  group: bugbot-${{ github.event.pull_request.number || inputs.pr_number || github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
   # pull-requests: write is required for posting inline review comments and
