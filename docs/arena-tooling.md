@@ -518,11 +518,15 @@ npm run arena:shots                                   # play, attack, ko
 npm run arena:shots -- --fixtures play,over --skins anime --viewports phone
 npm run arena:shots -- --all                          # every Snapshot fixture
 npm run arena:shots -- --fixtures play --tap "[data-arena-card]" --tag review
+npm run arena:shots -- --fixtures play --hover "[data-arena-card]" --tag hover   # desktop only
+npm run arena:shots -- --fixtures play --rclick "[data-arena-card]" --tag pin     # right-click (pins the inspector)
 npm run arena:shots -- --full --base http://localhost:3001
 ```
 
 `--tap "<selector>"` taps the first match (touch on the phone, mouse on desk)
-before shooting — a card's review, an opened sheet. `--tag` is appended to the
+before shooting — a card's review, an opened sheet. `--hover` and `--rclick` do the same with the pointer on
+desktop (a phone has none): the docked inspector filled, or pinned. `arena:contrast` takes `--hover` too,
+so a state that exists only under the pointer can be audited. `--tag` is appended to the
 file name so an opened state does not overwrite the plain one. A fixture is one
 moment; a state no fixture holds is added to `scripts/verify/contract.ts`, not
 faked here. Card art is `null` in fixtures, so cards show their text face. The

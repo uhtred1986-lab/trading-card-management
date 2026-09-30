@@ -5,6 +5,7 @@
  *   npm run arena:contrast                   # play, attack, ko  x  anime, night  x  phone, desk
  *   npm run arena:contrast -- --strict       # exit 1 when anything fails
  *   npm run arena:contrast -- --fixtures play --skins anime --json out.json
+ *   npm run arena:contrast -- --fixtures play --hover 'section[aria-label="Your hand"] [data-arena-card]'   # desktop, pointer over a card
  *
  * axe-core cannot resolve a background through a gradient, and the anime sky is
  * built from them. This walks each visible text node's ancestors, composites
@@ -30,6 +31,7 @@ const fixtures = (arg("fixtures") ?? "play,attack,ko").split(",");
 const strict = process.argv.includes("--strict");
 const jsonOut = arg("json") ?? join(process.cwd(), "docs", "arena-redesign", "current", "contrast.json");
 const settle = Number(arg("settle") ?? 1500);
+const hover = arg("hover");
 
 /** Runs in the page. Returns one row per visible text node: its worst-case ratio. */
 const AUDIT = String.raw`(() => {
@@ -157,6 +159,12 @@ try {
         await page.goto(`${base}/arena/preview?fixture=${fixture}&skin=${skin}&pace=step`);
         await page.waitFor(".arena");
         await page.settle(settle);
+        // A state the board only has under the pointer (the docked inspector
+        // filled): desktop only, a phone has no hover.
+        if (hover && !vp.mobile) {
+          await page.hover(hover);
+          await page.settle(400);
+        }
         const rows = await page.eval<Row[]>(AUDIT);
         checked += rows.length;
         for (const r of rows) all.push({ ...r, fixture, skin, viewport: vp.name });
