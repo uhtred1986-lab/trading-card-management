@@ -46,15 +46,16 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
   // The grid aggregates by card; the list is one row per physical copy. Only
   // the one being shown is fetched — both walk every lot. The set, keyword
   // and ability dropdowns follow the game filter, same as on /cards.
-  const [grid, list, allSets, sets, traits, abilities, all, decks, locations] = await Promise.all([
-    view === "grid" ? collectionCards(db, filters) : null,
+  // The header totals honour the game filter, so they agree with the list;
+  // the grid reuses the same valuation instead of repeating it.
+  const all = await valuedLots(db, { game });
+  const [grid, list, allSets, sets, traits, abilities, decks, locations] = await Promise.all([
+    view === "grid" ? collectionCards(db, { ...filters, valued: all }) : null,
     view === "list" ? collectionCopies(db, filters) : null,
     listSets(db),
     game ? listSets(db, { game }) : listSets(db),
     listTraits(db, { game }),
     listAbilityKeywords(db, { game }),
-    // The header totals honour the game filter, so they agree with the list.
-    valuedLots(db, { game }),
     deckOptions(db),
     listLocations(db),
   ]);

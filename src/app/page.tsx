@@ -9,7 +9,10 @@ import { CardImage } from "@/components/CardImage";
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const [{ lots, usdEur }, mv, bd, sync] = await Promise.all([valuedLots(db), movers(db), breakdown(db), lastSyncRuns(db)]);
+  // Valued once (the heavy price join) and handed to movers and breakdown.
+  const valued = await valuedLots(db);
+  const { lots, usdEur } = valued;
+  const [mv, bd, sync] = await Promise.all([movers(db, 7, 8, valued), breakdown(db, {}, valued), lastSyncRuns(db)]);
   const s = summarise(lots, usdEur);
   const gain = s.valueEurCents - s.spentEurCents;
   const catalogRun = sync.latest.get("catalog");

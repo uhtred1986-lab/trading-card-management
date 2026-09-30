@@ -59,13 +59,16 @@ export interface ValuedLot {
   marketEurCents: number | null;
 }
 
+/** What `valuedLots` returns — pass it on so one page values the collection once. */
+export type ValuedCollection = { lots: ValuedLot[]; usdEur: number | null };
+
 /**
  * Every lot, valued. Used by the dashboard and the collection list.
  *
  * `game` narrows to one game's cards, which is what makes the collection
  * header's totals agree with the filter above the grid.
  */
-export async function valuedLots(db: Db, opts: { game?: Game } = {}): Promise<{ lots: ValuedLot[]; usdEur: number | null }> {
+export async function valuedLots(db: Db, opts: { game?: Game } = {}): Promise<ValuedCollection> {
   const [lots, usdEur] = await Promise.all([
     db
       .select({
@@ -186,9 +189,11 @@ export async function collectionCards(
     deck?: (number | "none")[];
     owner?: string;
     sort?: "value" | "name" | "number" | "recent";
+    /** `valuedLots(db, { game: opts.game })` already computed by the caller; skips the repeat. */
+    valued?: ValuedCollection;
   } = {},
 ) {
-  const { lots: allLots, usdEur } = await valuedLots(db, { game: opts.game });
+  const { lots: allLots, usdEur } = opts.valued ?? (await valuedLots(db, { game: opts.game }));
   let lots = allLots;
   if (opts.owner) lots = opts.owner === "none" ? lots.filter((l) => !l.owner) : lots.filter((l) => l.owner === opts.owner);
   if (opts.location === "none") lots = lots.filter((l) => l.locationId == null);
@@ -498,8 +503,9 @@ export async function archivedCopies(db: Db): Promise<ArchivedCopy[]> {
 }
 
 /** Value now vs. N days ago for owned cards, base-print Normal price. */
-export async function movers(db: Db, days = 7, limit = 8) {
-  const { lots, usdEur } = await valuedLots(db);
+export async function movers(db: Db, days = 7, limit = 8, pre?: ValuedCollection) {
+  // `pre` must be the unfiltered `valuedLots(db)`.
+  const { lots, usdEur } = pre ?? (await valuedLots(db));
   const qty = new Map<string, number>();
   for (const l of lots) qty.set(l.cardId, (qty.get(l.cardId) ?? 0) + 1);
   const ids = [...qty.keys()];
@@ -526,8 +532,9 @@ export async function movers(db: Db, days = 7, limit = 8) {
   return { rows: top.map((t) => ({ ...t, ...nameMap.get(t.cardId)! })), usdEur, days };
 }
 
-export async function breakdown(db: Db, opts: { game?: Game } = {}) {
-  const { lots, usdEur } = await valuedLots(db, opts);
+export async function breakdown(db: Db, opts: { game?: Game } = {}, pre?: ValuedCollection) {
+  // `pre` must be `valuedLots(db, opts)` for the same `game`.
+  const { lots, usdEur } = pre ?? (await valuedLots(db, opts));
   const ids = [...new Set(lots.map((l) => l.cardId))];
   if (ids.length === 0) return { bySet: [], byRarity: [], byGame: [], usdEur };
   const meta = await db
