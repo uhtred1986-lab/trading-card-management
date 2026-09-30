@@ -139,7 +139,8 @@ mechanisms in §6.
    scanned.
 7. **Before every commit:** `npm run typecheck`, `npm run lint`, `npm test`
    (includes `scripts/verify-arena.ts`), `npm run build`, `npm run arena:fuzz 40`
-   (must report `0 crashes`). Commit on the feature branch, push, do not merge.
+   (must report `0 crashes`). Commit on the feature branch, push, and open a PR; the
+   coordinator merges it once it is reviewed and green (`docs/agent-brief.md`).
 
    Two ways that gate lies to you, both hit on 6 Sep 2026. **Read the exit
    code, not the output** — `npm run build | tail` reports `tail`'s status, so
@@ -904,5 +905,5 @@ work, and they are parked here so they are not lost.
 - `npm test`, `lint`, `typecheck` clean; `arena:fuzz 100` with 0 crashes.
 - `docs/arena-history-lessons.md` gains a dated history entry with the numbers
   and the lessons.
-- Nothing merged to `main` unless the owner asks; then rebase on `main`, run
-  everything again, and open the PR.
+- Open the PR once everything above is green; the coordinator merges it once it is
+  reviewed and CI is green (owner's standing permission, 30 Sep 2026 — `docs/agent-brief.md`).

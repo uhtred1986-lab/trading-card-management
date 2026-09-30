@@ -93,6 +93,10 @@ Neon is one database for production, preview and dev, with a spend limit. Stay o
 - **Review before merge.** Check the diff against the issue's Acceptance, not against the
   agent's summary. Look for guessed links, ids or paths, scope creep into a sibling issue, and a
   `Closes` that the diff doesn't earn. Fix small things yourself on the branch.
+- **The coordinator merges without asking.** Standing permission from the owner (30 Sep 2026):
+  every PR that is reviewed against its issue and green is merged, with no need to wait for
+  the owner's go-ahead. An open owner decision on a *different* question never holds up a
+  merge; a PR whose own acceptance depends on an unanswered ruling waits for the ruling.
 - **Merge one PR at a time**, once CI is green. Each merge to `main` is a production deploy that
   runs the migrations. Wait for that deploy's `Vercel` status before the next merge. Then:
   - tick the issue's acceptance boxes;
@@ -102,7 +106,7 @@ Neon is one database for production, preview and dev, with a spend limit. Stay o
     disagree.
 - **Review fixes go back to the agent that wrote the PR, or to a fresh agent on its branch.**
   Worker sessions don't wake on PR comments posted from the same account.
-- **Stop and ask the owner** before:
+- **Stop and ask the owner** (merging is not on this list) before:
   - adding a new npm dependency;
   - a destructive migration;
   - changing production or Vercel settings;
