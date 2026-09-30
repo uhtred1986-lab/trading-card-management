@@ -272,7 +272,7 @@ gives the line). Helpers:
 
 Also useful: `npm run arena:playthrough` (a whole game through the database),
 `/arena/[id]/debug` (every decision, prompt and program of a real game),
-`/arena/backlog` (unreadable clauses grouped by shape, with the "explain a
+and `/arena/rules` (the Rules Workbench with unreadable clauses grouped by shape, and the "explain a
 card" loop that stores a program per card and a work item per wording).
 
 ---
@@ -759,8 +759,7 @@ The owner's ruling on each of these is stored **in the database**, on the note
 itself, not only here: `npm run arena:rule -- <cardId> [--skill N]
 [--clause "…"] "<the ruling>"` writes it to `card_text_notes.explanation`, and
 `npm run arena:rule -- --list` reads them all back. That is the route to use
-when a ruling arrives in conversation rather than through `/arena/backlog`'s
-box — unlike the box, it asks Claude for nothing and writes down only what was
+when a ruling arrives in conversation — it asks Claude for nothing and writes down only what was
 said, because the code change that follows is made against every card sharing
 the wording rather than one card at a time.
 

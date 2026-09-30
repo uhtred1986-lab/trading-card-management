@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { db } from "@/db";
 import { ConfirmAll } from "@/components/arena/rules/ConfirmAll";
-import { RulesHeader } from "@/components/arena/rules/RulesHeader";
+import { ArenaHeader } from "@/components/arena/ArenaHeader";
 import { chipClass } from "@/components/arena/rules/Workbench";
 import { mechanismNeeds, PHRASING_ONLY } from "@/lib/arena/gaps";
 import { deckInputFor } from "@/lib/arena/load";
@@ -33,7 +33,7 @@ export default async function PatternsPage({ searchParams }: { searchParams: Pro
 
   return (
     <div className="space-y-3">
-      <RulesHeader tab="/arena/rules/patterns" inDecks={inDecks} catalog={catalog} />
+      <ArenaHeader side="rules" kpis={{ inDecks, catalog }} />
 
       <div className="flex flex-wrap items-center gap-2">
         <Link href="/arena/rules/patterns" className={chipClass(half === "drafts")}>

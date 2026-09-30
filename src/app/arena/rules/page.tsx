@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { db } from "@/db";
 import { ConfirmAll } from "@/components/arena/rules/ConfirmAll";
-import { RulesHeader } from "@/components/arena/rules/RulesHeader";
+import { ArenaHeader } from "@/components/arena/ArenaHeader";
 import { Segments, Workbench, chipClass, statusRank } from "@/components/arena/rules/Workbench";
 import { mechanismOf, PHRASING_ONLY } from "@/lib/arena/gaps";
 import { deckInputFor } from "@/lib/arena/load";
@@ -76,7 +76,7 @@ export default async function RulesPage({ searchParams }: { searchParams: Promis
 
   return (
     <div className="space-y-3">
-      <RulesHeader tab="/arena/rules" inDecks={inDecks} catalog={catalog} openSinceSync={lastSync && (lastSync.cardsNew || lastSync.cardsChanged) ? (lastSync.stillOpen ?? 0) : null} />
+      <ArenaHeader side="rules" kpis={{ inDecks, catalog, openSinceSync: lastSync && (lastSync.cardsNew || lastSync.cardsChanged) ? (lastSync.stillOpen ?? 0) : null }} />
 
       {rows.length === 0 ? (
         <p className="rounded-xl border border-dashed border-space-700 p-6 text-center text-sm text-space-300">
