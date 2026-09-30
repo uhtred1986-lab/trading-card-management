@@ -190,7 +190,7 @@ export async function suggestDeck(db: Db, leaderId: string, owner: string | null
     ],
     messages: [{ role: "user", content: ask }],
   });
-  const { output: draft } = await recordRun<DeckDraft>(db, "deck_wizard", { leaderId, game, mode: "build", ownedPool: owned.length, buyPool: buy.length }, res);
+  const { output: draft } = await recordRun<DeckDraft>(db, "deck_builder", { leaderId, game, mode: "build", ownedPool: owned.length, buyPool: buy.length }, res);
   const sanitised = sanitiseDraft(draft, pool, game);
 
   const purchases = new Map(draft.purchases.map((p) => [p.cardId.toUpperCase().split("_")[0], p.why]));
