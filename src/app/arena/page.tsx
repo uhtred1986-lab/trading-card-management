@@ -9,6 +9,7 @@ import { currentOwner, currentUser } from "@/lib/auth";
 import { listUsers } from "@/lib/auth/users";
 import { deckInputFor } from "@/lib/arena/load";
 import { loadRules } from "@/lib/arena/rules-store";
+import { ArenaHeader } from "@/components/arena/ArenaHeader";
 import { SubmitButton } from "@/components/SubmitButton";
 import { cancelMatchAction, joinMatchForm, startGameForm } from "./actions";
 
@@ -62,8 +63,8 @@ export default async function ArenaPage() {
 
   return (
     <div className="space-y-5">
+      <ArenaHeader side="play" />
       <div>
-        <h1 className="text-xl font-semibold tracking-tight text-space-50">Arena</h1>
         <p className="mt-1 text-sm text-space-300">
           Play a full game against Claude, hot-seat against yourself, or 1 v 1 against someone else on their own phone. The rules are enforced by the engine, so only legal moves are ever offered — an
           opponent, human or Claude, picks from the same list you do and never sees your hand.
@@ -178,18 +179,6 @@ export default async function ArenaPage() {
         <section>
           <div className="mb-2 flex items-baseline gap-2">
             <h2 className="text-xs uppercase tracking-widest text-space-400">What the engine reads in each deck</h2>
-            <Link href="/arena/rules/keywords" className="ml-auto text-xs text-space-300 hover:text-ki-300">
-              keywords
-            </Link>
-            <Link href="/arena/rules" className="text-xs text-space-300 hover:text-ki-300">
-              set a card&rsquo;s rule
-            </Link>
-            <Link href="/arena/feedback" className="text-xs text-space-300 hover:text-ki-300">
-              what you told me
-            </Link>
-            <Link href="/arena/rules/patterns?half=open" className="text-xs text-ki-300 hover:underline">
-              what it cannot read →
-            </Link>
           </div>
           <ul className="space-y-1 text-xs">
             {playable.map((d) => {
@@ -213,7 +202,7 @@ export default async function ArenaPage() {
       )}
 
       {matches.length > 0 && (
-        <section>
+        <section id="friend">
           <h2 className="mb-2 text-xs uppercase tracking-widest text-space-400">Waiting for a player</h2>
           <ul className="space-y-2">
             {matches.map((m) => {
@@ -258,7 +247,7 @@ export default async function ArenaPage() {
         </section>
       )}
 
-      <section>
+      <section id="games">
         <h2 className="mb-2 text-xs uppercase tracking-widest text-space-400">Games</h2>
         {games.length === 0 ? (
           <p className="text-sm text-space-400">None yet.</p>
