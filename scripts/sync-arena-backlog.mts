@@ -330,14 +330,22 @@ async function runCheck(issues: IssueMeta[], client: BacklogGhClient | null, roo
     console.log(`  [info] no GitHub auth available — skipped status: vs issue-state comparison`);
   }
 
+  // On a pull request, status drift is a warning, not a failure: an issue closed by another PR that
+  // merged while this run was starting shows as drift here even though the closing PR marked its file.
+  // Pushes to main (where drift is real) stay strict. Path problems always fail.
+  const statusWarnOnly = process.env.BACKLOG_STATUS_WARN_ONLY === "1";
   if (remote) {
     for (const meta of issues) {
       const match = findRemoteMatch(meta, remote);
       if (!match) continue;
       const mismatch = statusMismatch(meta, match.state);
       if (mismatch) {
-        problems++;
-        console.error(`  [status] ${meta.file} (#${match.number}): ${mismatch}`);
+        if (statusWarnOnly) {
+          console.warn(`  [status, warning] ${meta.file} (#${match.number}): ${mismatch}`);
+        } else {
+          problems++;
+          console.error(`  [status] ${meta.file} (#${match.number}): ${mismatch}`);
+        }
       }
     }
   }

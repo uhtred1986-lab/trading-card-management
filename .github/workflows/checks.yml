@@ -96,6 +96,9 @@ jobs:
         run: npx tsx scripts/sync-arena-backlog.mts --check
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # A PR's run can start just before another PR closes an issue; that race is not this PR's
+          # drift, so on PRs status drift only warns. main stays strict; cited-path drift always fails.
+          BACKLOG_STATUS_WARN_ONLY: ${{ github.event_name == 'pull_request' && '1' || '' }}
 
   contract:
     name: the contract, from the Kotlin side
