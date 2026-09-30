@@ -3,7 +3,9 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import type { Spotlight } from "@/lib/arena/games";
 import type { BoardView, CardView } from "@/lib/arena/view";
-import { CardDetail } from "./shared-sheets";
+import { CardDetail, ChipRow, type InspectorChip } from "./shared-sheets";
+
+export type { InspectorChip };
 import { DEFAULT_NARRATOR, plainText, type Narrator } from "./shared-model";
 
 export function Counter({ label, value }: { label: string; value: number }) {
@@ -277,19 +279,6 @@ export function NarrationRibbon({ text, n, mine, live }: { text: string; n: numb
   );
 }
 
-/** One chip on the inspector: a card's state, or what stands in the way of it. */
-export interface InspectorChip {
-  label: string;
-  /** `bad` is red (a refusal), `good` is the ready colour, `plain` is neutral. */
-  tone: "plain" | "good" | "bad";
-}
-
-const CHIP_TONE: Record<InspectorChip["tone"], string> = {
-  plain: "border-space-500 text-space-100",
-  good: "border-gain/70 text-gain",
-  bad: "border-loss/70 text-loss",
-};
-
 /**
  * The docked card review (desktop, lg and up; `docs/arena-backlog/rd-05`).
  *
@@ -346,15 +335,7 @@ export function DockedInspector({
         )}
       </div>
       <h3 className="text-lg font-black italic leading-tight text-space-50">{card.name}</h3>
-      {chips.length > 0 && (
-        <p className="flex flex-wrap gap-1">
-          {chips.map((c) => (
-            <span key={c.label} className={`rounded-full border px-2 py-px text-[11px] font-semibold ${CHIP_TONE[c.tone]}`}>
-              {c.label}
-            </span>
-          ))}
-        </p>
-      )}
+      <ChipRow chips={chips} />
       {stats}
       <div className="space-y-1.5">{actions}</div>
       <CardDetail card={card} narrator={narrator} battle={battle} figures={false} />

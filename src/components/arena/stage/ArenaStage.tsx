@@ -405,7 +405,17 @@ export function ArenaStage({
     const options = taps.byCard[id];
     const why = whyOf(id);
     if (!options?.length) {
-      if (why?.length) refuse(id, why);
+      if (!why?.length) return;
+      // Below lg a card on the table that cannot act opens its review, with the
+      // reason in the chip row (rd-06). A hand card keeps today's refusal — the
+      // shake, the prompt-bar sentence and the missing-energy chips — and its
+      // second tap opens the review; a wide board keeps the refusal throughout.
+      const card = cardOf(id);
+      const inHand = !!view.you.hand?.some((c) => c.id === id);
+      if (!wide && card && !inHand) {
+        feel("illegal");
+        setSheet(card);
+      } else refuse(id, why);
       return;
     }
     // Only attacks: straight to picking a target, as before. Anything richer —
@@ -584,7 +594,7 @@ export function ArenaStage({
     suppressed: playback.suppressed.has(c.id),
     nudge: nudging && !!taps.byCard[c.id]?.length,
     moment: momentOf(c.id),
-    onTap: taps.byCard[c.id]?.length || whyOf(c.id)?.length || isTargeting ? () => tapCard(c.id) : undefined,
+    onTap: taps.byCard[c.id]?.length || whyOf(c.id)?.length || isTargeting ? () => tapCard(c.id) : wide ? undefined : () => inspect(c),
     onInspect: () => inspect(c),
     onHover: hoverOf(c),
     outlined: rowHover === c.id,
@@ -611,17 +621,38 @@ export function ArenaStage({
     }
     return null;
   };
+  const whereOf = (id: string) => {
+    const at = locate(id);
+    return at ? `${at.side === view.you ? "Your" : `${at.side.name}'s`} ${at.zone}` : null;
+  };
   const inspectAt = inspectCard && inspectId ? locate(inspectId) : null;
-  const inspectWhere = inspectAt ? `${inspectAt.side === view.you ? "Your" : `${inspectAt.side.name}'s`} ${inspectAt.zone}` : null;
-  const inspectRejected = inspectId && playable && !busy ? rejected.filter((r) => cardIdOf(r.action) === inspectId) : [];
-  const inspectChips: InspectorChip[] = [];
-  if (inspectCard && inspectId && inspectAt) {
-    if (["leader", "unison", "battle area", "energy area"].includes(inspectAt.zone)) inspectChips.push({ label: inspectCard.mode === "rest" ? "Rested" : "Standing", tone: "plain" });
-    if (playable && !busy && targetsOf(inspectId)) inspectChips.push({ label: "Can attack", tone: "good" });
-    if (isTargeting && targetsOf(selected!)?.[inspectId] != null) inspectChips.push({ label: "Valid target", tone: "good" });
-    const short = inspectRejected.flatMap((r) => r.why).find((w) => w.kind === "energy");
-    if (short) inspectChips.push({ label: pill(short).replace("short", "energy short"), tone: "bad" });
-  }
+  const inspectWhere = inspectId ? whereOf(inspectId) : null;
+  const rejectedFor = (id: string) => (playable && !busy ? rejected.filter((r) => cardIdOf(r.action) === id) : []);
+  const inspectRejected = inspectId ? rejectedFor(inspectId) : [];
+  /**
+   * The chips for one card: its state, and what it can do. The phone review
+   * also says *why* a card cannot act (`reason`) — the desktop inspector has
+   * the refusal rows and leaves the chip row to state.
+   */
+  const chipsFor = (id: string, reason = false): InspectorChip[] => {
+    const card = cardOf(id);
+    const at = locate(id);
+    const chips: InspectorChip[] = [];
+    if (!card || !at) return chips;
+    if (["leader", "unison", "battle area", "energy area"].includes(at.zone)) chips.push({ label: card.mode === "rest" ? "Rested" : "Standing", tone: "plain" });
+    if (playable && !busy && targetsOf(id)) chips.push({ label: "Can attack", tone: "good" });
+    if (isTargeting && targetsOf(selected!)?.[id] != null) chips.push({ label: "Valid target", tone: "good" });
+    const why = rejectedFor(id).flatMap((r) => r.why);
+    const short = why.find((w) => w.kind === "energy");
+    if (short) chips.push({ label: pill(short).replace("short", "energy short"), tone: "bad" });
+    if (reason) {
+      const other = why.find((w) => w.kind !== "energy");
+      if (other) chips.push({ label: pill(other), tone: "bad" });
+      else if (at.side !== view.you && !chips.some((c) => c.tone === "good")) chips.push({ label: `${at.side.name}'s card`, tone: "plain" });
+    }
+    return chips;
+  };
+  const inspectChips = inspectId ? chipsFor(inspectId) : [];
   const inspectMoves: SheetMove[] = [];
   if (inspectId && playable && !busy) {
     if (isTargeting) {
@@ -629,6 +660,15 @@ export function ArenaStage({
       if (at != null) inspectMoves.push({ index: at, legal: legal[at], label: "Attack it" });
     } else inspectMoves.push(...movesFor(inspectId));
   }
+  /**
+   * The run the open sheet steps through (rd-06): everything in play, the
+   * opponent's leader first, or your hand when the card is in it. A card in
+   * neither (an energy, a life card) is reviewed alone.
+   */
+  const inPlayRun = [view.them, view.you].flatMap((side) => [side.leader, side.unison, ...side.battle].filter((c): c is CardView => !!c).map((card) => ({ card, yours: side === view.you })));
+  const handRun = (view.you.hand ?? []).map((card) => ({ card, yours: true }));
+  const sequence = sheet ? (inPlayRun.some((i) => i.card.id === sheet.id) ? { label: "In play", items: inPlayRun } : handRun.some((i) => i.card.id === sheet.id) ? { label: "Your hand", items: handRun } : null) : null;
+  const sheetAt = sheet ? locate(sheet.id) : null;
   const inPlaySides: InPlaySide[] = [view.them, view.you].map((side) => {
     const word = (c: CardView) => (c.mode === "rest" ? "rested" : "standing");
     const rows: InPlaySide["rows"] = [];
@@ -759,6 +799,18 @@ export function ArenaStage({
                 </button>
                 <button
                   type="button"
+                  onClick={() => view.them.leader && setSheet(view.them.leader)}
+                  disabled={!view.them.leader}
+                  className="tap flex h-11 w-11 items-center justify-center rounded-full border border-space-600 text-space-300 hover:border-ki-500/60 hover:text-ki-300 disabled:opacity-40 lg:hidden"
+                  aria-label="Review cards in play"
+                >
+                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
                   onClick={() => setMoreOpen(true)}
                   className="tap flex h-11 w-11 items-center justify-center rounded-full border border-space-600 text-xl leading-none text-space-300 hover:border-ki-500/60 hover:text-ki-300"
                   aria-label="Open arena settings and counts"
@@ -867,14 +919,19 @@ export function ArenaStage({
 
         {sheet && (
           <CardSheet
-            card={sheet}
+            card={cardOf(sheet.id) ?? sheet}
             side={view.you}
             narrator={narrator}
             moves={playable && !busy && !isTargeting ? movesFor(sheet.id) : []}
-            rejected={playable && !busy ? rejected.filter((r) => cardIdOf(r.action) === sheet.id) : []}
+            rejected={rejectedFor(sheet.id)}
             onPick={pickMove}
             onClose={() => setSheet(null)}
             battle={shareOf(sheet.id)}
+            sequence={sequence}
+            where={whereOf(sheet.id)}
+            chips={chipsFor(sheet.id, true)}
+            leader={sheetAt?.zone === "leader" ? { life: sheetAt.side.life, energy: `${sheetAt.side.activeEnergy}/${sheetAt.side.energy.length}` } : null}
+            onJump={(c) => setSheet(cardOf(c.id) ?? c)}
           />
         )}
 

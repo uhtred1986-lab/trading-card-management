@@ -56,6 +56,7 @@ try {
     const page = await browser.page(vp);
     // The preview route pins pace with ?pace=, but a board that read its pace
     // from localStorage before that effect ran would still start slow.
+    if (tap && vp.mobile) await page.clipOverflow();
     await page.beforeLoad(`try { localStorage.setItem("arena.pace", ${JSON.stringify(pace)}); } catch {}`);
     for (const fixture of fixtures) {
       for (const skin of skins) {
