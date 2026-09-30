@@ -28,6 +28,7 @@ to read first.
 | `docs/arena-ui-motion-spec.md` | **Current** | The current record of the web board's motion/UI behaviour; all phases are built. |
 | `docs/arena-hud-spec.md` | **Current** | The "whose move is it" HUD brief; some sections are built and later sections remain open. |
 | `docs/arena-turn-presence-spec.md` | **Current** | The ambient turn-lighting/presence spec and record of what shipped. |
+| `docs/arena-board-redesign-spec.md` | **Current (planned)** | The owner's board redesign of 30 Sep 2026 — drag to play, charge gestures, card review, effects, admin-only debug; frames in `docs/arena-redesign/`, issues `rd-*`. |
 | `docs/arena-skin-spec.md` | **Current** | The arena skin brief and implementation record for the built skin system. |
 | `docs/arena-android-spec.md` | **Current (planned)** | The Android client brief; no app code exists yet, but the contract and fixture tests it depends on do. |
 | `docs/arena-battle-staging-spec.md` | **Current (planned)** | The not-yet-built brief for richer battle staging, takeover visuals and in-fight card inspection. |
