@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { db } from "@/db";
 import { ConfirmAll } from "@/components/arena/rules/ConfirmAll";
-import { RulesHeader } from "@/components/arena/rules/RulesHeader";
+import { ArenaHeader } from "@/components/arena/ArenaHeader";
 import { Segments, Workbench, chipClass } from "@/components/arena/rules/Workbench";
 import { MECHANISMS, PHRASING_ONLY } from "@/lib/arena/gaps";
 import { deckInputFor } from "@/lib/arena/load";
@@ -75,7 +75,7 @@ export default async function AllRulesPage({ searchParams }: { searchParams: Pro
 
   return (
     <div className="space-y-3">
-      <RulesHeader tab="/arena/rules/all" inDecks={inDecks} catalog={catalog} />
+      <ArenaHeader side="rules" kpis={{ inDecks, catalog }} />
       <Workbench
         rows={rows}
         record={record}

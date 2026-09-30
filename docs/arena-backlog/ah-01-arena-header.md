@@ -6,7 +6,7 @@ labels: backlog, ready-for-agent, enhancement, area:arena-ui, phase:arena-home, 
 stage: ui
 touches: src/components/arena/ArenaHeader.tsx, src/components/arena/rules/RulesHeader.tsx, src/app/arena/page.tsx, src/app/arena/rules/page.tsx, src/app/arena/feedback/page.tsx
 ---
-**Source:** `docs/arena-home-spec.md` §1 decision 1 and §2; `src/components/arena/rules/RulesHeader.tsx`; `src/app/arena/page.tsx` (the "What the engine reads" link row); canvas frames `PlayPhone`, `PlayDesktop`, `RulesDesktop`.
+**Source:** `docs/arena-home-spec.md` §1 decision 1 and §2; `src/components/arena/rules/RulesHeader.tsx` (does not exist since this issue replaced it with `src/components/arena/ArenaHeader.tsx`); `src/app/arena/page.tsx` (the "What the engine reads" link row); canvas frames `PlayPhone`, `PlayDesktop`, `RulesDesktop`.
 
 **Problem.** Play and Rules have no shared navigation.
 - `/arena` has a row of five small text links: *keywords · set a card's rule · what you told me · what it cannot read*.

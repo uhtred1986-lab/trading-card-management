@@ -54,7 +54,7 @@ export default async function SettingsPage() {
 
       <TurnLighting prefs={lighting} />
 
-      <section className="rounded-xl border border-space-700/70 bg-space-900/50 p-3 text-sm">
+      <section id="arena-engine" className="rounded-xl border border-space-700/70 bg-space-900/50 p-3 text-sm">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="font-semibold text-space-50">Arena engine</h2>
           <div className="flex gap-2">
