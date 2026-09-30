@@ -6,7 +6,7 @@ labels: backlog, ready-for-agent, enhancement, area:arena-workbench, area:arena-
 stage: ui
 touches: src/components/arena/rules/ReferenceDrawer.tsx, src/components/arena/ArenaHeader.tsx
 ---
-**Source:** `src/app/arena/rules/keywords/page.tsx`, `src/app/arena/rules/game/page.tsx`, `src/app/arena/rules/language/page.tsx`; `RulesHeader` (links to keywords and the GitHub copy of `docs/arena-fixing-a-card.md`); canvas frames `RulesPhone`, `RulesDesktop` (Reference button).
+**Source:** `src/app/arena/rules/keywords/page.tsx`, `src/app/arena/rules/game/page.tsx`, `src/app/arena/rules/language/page.tsx`; `RulesHeader` (links to keywords and the GitHub copy of `docs/arena-fixing-a-card.md`); canvas frame `RulesDesktop` (Reference button).
 
 **Problem.** Four reference pages exist, but only *keywords* is linked from the Rules header. `/arena/rules/game` and `/arena/rules/language` are linked from nowhere in the UI. *How to fix a card* opens GitHub in a new tab.
 

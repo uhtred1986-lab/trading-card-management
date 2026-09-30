@@ -1,19 +1,20 @@
 ---
-title: "Rules Workbench: should the queue and deck readiness follow the deck owner? (#279 left this out)"
+title: "Rules Workbench: cover every deck regardless of owner — All decks, not My decks"
 issue: 364
 milestone: Arena M17 — Arena home: Play and Rules Workbench
-labels: backlog, needs-owner-ruling, question, area:arena-workbench, phase:arena-home, model:sonnet-5
+labels: backlog, ready-for-agent, enhancement, area:arena-workbench, phase:arena-home, model:sonnet-5
 stage: ui
-touches: src/app/arena/rules/page.tsx, src/lib/arena/readiness.ts
+touches: src/app/arena/rules/page.tsx, src/components/arena/ArenaHeader.tsx, src/components/arena/rules/RulesHeader.tsx
 ---
-**Source:** `CLAUDE.md` Architecture, "Decks belong to a login too" (*"…the workbench's rule-coverage pages are deliberately out of scope"*); PR #288; `listDecks(db, { game: "dbs" })` in `src/app/arena/rules/page.tsx` (no `viewer`), against `listDecks(db, { game: "dbs", viewer })` on `/arena`.
+**Source:** `docs/arena-home-spec.md` §1 decision 7; `CLAUDE.md` Architecture, "Decks belong to a login too" (the rule-coverage pages were left out of #279 on purpose); `listDecks(db, { game: "dbs" })` in `src/app/arena/rules/page.tsx`.
 
-**Problem.** Play lists the viewer's decks. Rules, "My decks", lists **every** login's decks as scope chips and counts their cards in its KPIs. With a second login, the Rules page says *"open in your decks"* about decks that aren't yours. The FIX N CARDS link from Play (ah-03) scopes by deck id, so it works either way.
+**Ruling (owner, 30 Sep 2026).** Deck ownership doesn't matter to Rules. A rule is per card, so the queue, its scope chips and its counts cover every deck the arena can play, whoever owns it. Today's behaviour is therefore right, but the words are wrong: the scope says *My decks*, and the KPIs say *open in your decks*.
 
-**Decision needed.**
-- **(a)** Scope the queue's *All my decks* and the KPIs to `viewer`. Editing a rule stays global: rules are per card, not per deck.
-- **(b)** Keep it global and rename the scope *All decks*.
+**Build.**
+1. Rename the default scope to **All decks**, and the KPIs to *open in decks* / *drafts to check* / *decks ready*.
+2. Keep the rules page's `listDecks` call without `viewer`. Add a one-line comment pointing at this ruling, so nobody "fixes" it.
+3. Play (`/arena`) is unchanged: it lists the viewer's own decks, as #279 made it.
 
-Recommendation: (a). It is one argument, and the readiness helper already takes deck ids.
-
-**Acceptance (once ruled).** `npm run typecheck && npm run lint && npm test && npm run build`; with two logins, each sees only their own decks under *Cards in*.
+**Acceptance.**
+- `npm run typecheck && npm run lint && npm test && npm run build`
+- `grep -rn "My decks\|in your decks" src/app/arena src/components/arena` finds nothing.

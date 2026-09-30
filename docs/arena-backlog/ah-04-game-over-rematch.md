@@ -15,7 +15,9 @@ touches: src/components/arena/GameOver.tsx, src/app/arena/actions.ts, src/lib/ar
 **Build.**
 1. **REMATCH**, the one filled button. A server action `rematch(gameId)` starts a new game with the same two decks, mode and engine (`engineFor(id)`), with a new seed, and redirects. For a 1 v 1 it opens a new match invitation from the same host deck instead.
 2. **Change deck** → `/arena` with this game's deck preselected.
-3. **"N draft rules fired this game"** — the distinct `card_rules` rows in `draft` whose skill resolved in this game, read from the game's events (the beats already name card and skill). Show the first two names. It links to `/arena/rules?game=<id>` (ah-06's *Fired in my last game* scope). Hidden when zero.
+3. **"N unchecked rules played this game"** — the distinct `card_rules` rows in `draft` whose skill resolved in this game, read from the game's events (the beats already name card and skill). Show the first two names. Hidden when zero.
+   - On the computer it links to `/arena/rules?game=<id>` (ah-06's *Fired in my last game* scope).
+   - On a phone it is a note, not a link: *they wait at the top of Rules for your next session at the computer* (spec decision 6). The scope does the rest.
 4. Keep *What to learn* (today's review) as a secondary button, *Look at the final board*, and *Report a problem* (`ReportBug`).
 
 **Out of scope.** The victory/defeat effects (M16 #349).

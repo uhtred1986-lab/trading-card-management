@@ -21,7 +21,7 @@ Nothing is remembered between games.
 1. **Your deck.**
    - Phone: a carousel, one deck at a time, with the leader art, name, size and 44 px prev/next buttons.
    - Desktop: a three-column grid; clicking a deck selects it.
-   - The list comes from the same `playable` filter as today. The last deck this viewer played is preselected (from their newest `arena_games` row; no new storage needed).
+   - The list comes from the same `playable` filter as today. The last deck this viewer played is preselected, from their newest `arena_games` row, so no new storage is needed. Once ah-03 lands, it is the last-played deck that is **ready**.
    - Fusion World decks stay out, with the one-line reason under the grid.
 2. **Opponent.** Three choices: *Claude · Sparring* (default), *Claude · Tournament*, *A friend*.
    - Keep today's measured-cost wording, shortened: "~12¢" / "~25¢", or the viewer's own average when there is one.
