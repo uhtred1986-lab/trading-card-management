@@ -13,7 +13,7 @@
  */
 import { and, desc, eq } from "drizzle-orm";
 import type { Db } from "@/db";
-import { arenaMatches, decks as decksTable } from "@/db/schema";
+import { arenaMatches, cards as cardsTable, deckCards, decks as decksTable } from "@/db/schema";
 import { engineOr, FALLBACK_ENGINE, playableEngine, type EngineId } from "./engines";
 import { modeRefusal, startGame } from "./games";
 import { assertDecksPlayable } from "./readiness";
@@ -83,6 +83,30 @@ export async function matchById(db: Db, id: number) {
   return row ?? null;
 }
 
+export interface InviteView {
+  hostDeckName: string | null;
+  leaderName: string | null;
+  leaderImage: string | null;
+}
+
+/**
+ * What the invite page may show of the host's side: the deck's name and its
+ * leader, and nothing else — no hand, no decklist (the page is open to any
+ * login, and a 1 v 1 belongs to its two seats).
+ */
+export async function inviteView(db: Db, hostDeckId: number | null): Promise<InviteView> {
+  if (!hostDeckId) return { hostDeckName: null, leaderName: null, leaderImage: null };
+  const deck = await db.query.decks.findFirst({ where: eq(decksTable.id, hostDeckId), columns: { name: true } });
+  if (!deck) return { hostDeckName: null, leaderName: null, leaderImage: null };
+  const [leader] = await db
+    .select({ name: cardsTable.name, imageUrl: cardsTable.imageUrl })
+    .from(deckCards)
+    .innerJoin(cardsTable, eq(cardsTable.id, deckCards.cardId))
+    .where(and(eq(deckCards.deckId, hostDeckId), eq(deckCards.zone, "leader")))
+    .limit(1);
+  return { hostDeckName: deck.name, leaderName: leader?.name ?? null, leaderImage: leader?.imageUrl ?? null };
+}
+
 /**
  * Take the empty seat: choose a deck, and the game begins.
  *
@@ -94,13 +118,21 @@ export async function matchById(db: Db, id: number) {
  * one match: exactly one update matches a row, and the other is told the match
  * is taken.
  */
-export async function joinMatch(db: Db, id: number, guestUser: string | null, guestDeckId: number): Promise<number> {
+export async function joinMatch(db: Db, id: number, guestUser: string | null, guestDeckId: number, guestOwner?: string | null): Promise<number> {
   if (!guestUser) throw new Error("a 1 v 1 needs two logins — add one at Settings → Users, or play hot-seat");
   const match = await matchById(db, id);
   if (!match) throw new Error("no such match");
   if (match.status !== "open") throw new Error("that match has already started");
   if (match.hostUser === guestUser) throw new Error("that is your own match — the other player joins it, or play hot-seat");
   if (!match.hostDeckId) throw new Error("the deck this match was opened with is gone");
+
+  // Deck visibility follows owner (#279): a guest plays one of their own decks
+  // (or an unowned one), never a deck another login keeps private. Skipped
+  // only when the caller names no owner, as with the app running open.
+  if (guestOwner) {
+    const deck = await db.query.decks.findFirst({ where: eq(decksTable.id, guestDeckId), columns: { owner: true } });
+    if (!deck || (deck.owner && deck.owner !== guestOwner)) throw new Error("that deck is not yours");
+  }
 
   // Claim it first. Whoever loses this race never calls `startGame`, so a
   // refused join costs nothing but a message.

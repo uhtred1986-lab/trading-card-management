@@ -14,7 +14,7 @@ import { defaultEngine } from "@/lib/arena/engine-setting";
 import { engineOr } from "@/lib/arena/engines";
 import { abandonGame, applyToGame, clearBeatsForTurn, engineForMode, isVersus, loadGame, seatOf, StaleGame, startGame, type ArenaMode } from "@/lib/arena/games";
 import { cancelMatch, joinMatch, matchById, openMatch } from "@/lib/arena/matches";
-import { currentUser } from "@/lib/auth";
+import { currentOwner, currentUser } from "@/lib/auth";
 import { advance } from "@/lib/arena/ai/run";
 import { reviewGame } from "@/lib/arena/ai/review";
 import { clarifyRule } from "@/lib/arena/ai/clarify";
@@ -412,7 +412,7 @@ export async function joinMatchForm(formData: FormData) {
   const matchId = Number(formData.get("match"));
   const deckId = Number(formData.get("deck"));
   if (!Number.isInteger(matchId) || !Number.isInteger(deckId)) throw new Error("pick a deck");
-  const gameId = await joinMatch(db, matchId, await currentUser(), deckId);
+  const gameId = await joinMatch(db, matchId, await currentUser(), deckId, await currentOwner());
   revalidatePath("/arena");
   redirect(`/arena/${gameId}`);
 }
