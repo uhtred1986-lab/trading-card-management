@@ -4,7 +4,8 @@ issue: 368
 milestone: Arena M17 — Arena home: Play and Rules Workbench
 labels: backlog, ready-for-agent, enhancement, area:arena-ui, phase:arena-home, model:sonnet-5
 stage: ui
-touches: src/components/arena/DeckPreviewSheet.tsx, src/app/arena/page.tsx, src/lib/arena/readiness.ts
+status: closed
+touches: src/components/arena/DeckPreviewSheet.tsx, src/components/arena/PlayPicker.tsx, src/app/arena/deck-preview-action.ts, src/lib/arena/deck-preview.ts, src/lib/arena/readiness.ts
 ---
 **Source:** `docs/arena-home-spec.md` §1 decision 6; `deckInputFor` in `src/lib/arena/load.ts`; canvas frame `PlayPhone` → *See the cards*.
 
