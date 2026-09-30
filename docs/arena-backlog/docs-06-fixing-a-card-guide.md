@@ -4,6 +4,7 @@ issue: 116
 milestone: Arena M14 — Rules language and ruleset documentation
 labels: backlog, ready-for-agent, documentation, area:arena-docs, area:arena-workbench, phase:rules-docs, model:sonnet-5
 stage: docs
+status: closed
 ---
 **Source:** the programme's aim ("fix each card by setting the right DSL statement"); `docs/arena-rules-workbench-spec.md`; `docs/arena-rules-language.md` §6–§7; the probe pane (`src/lib/arena/probe.ts`); `npm run arena:rule`.
 

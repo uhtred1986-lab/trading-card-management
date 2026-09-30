@@ -74,6 +74,7 @@ for compiler work (`move()` replacement prompting, #107 — built 10 and 13 Sep 
 | Arena M14 — Rules language and ruleset documentation | plan "Docs" |
 | Arena M15 — Backlog tooling and CI | review of 12 Sep 2026: the issue sync, the PR template and the ac-check |
 | Arena M16 — Board redesign: play feel and card review | `docs/arena-board-redesign-spec.md` (owner's decisions of 30 Sep 2026) and the frames in `docs/arena-redesign/` |
+| Arena M17 — Arena home: Play and Rules Workbench | `docs/arena-home-spec.md` (owner's decisions of 30 Sep 2026) and the Arena home / Rules workbench rows of the "DBS Arena Redesign" canvas |
 
 ## 3. Labels
 
@@ -84,7 +85,7 @@ for compiler work (`move()` replacement prompting, #107 — built 10 and 13 Sep 
 
 **Phase** — `phase:rules-stage2` … `phase:rules-stage10`, `phase:rules-docs`, and the older
 `phase:hud-workflow`, `phase:battle-staging`, `phase:android-client`, `phase:capability-gap`,
-plus `phase:board-redesign` (M16).
+plus `phase:board-redesign` (M16) and `phase:arena-home` (M17).
 
 **Workflow** — `backlog`, `ready-for-agent`, `needs-owner-ruling`, `blocked`, `epic` (a stage's
 tracking issue).
