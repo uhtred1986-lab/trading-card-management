@@ -7,6 +7,7 @@ import { listDecks } from "@/lib/decks/queries";
 import { currentOwner, currentUser } from "@/lib/auth";
 import { CardImage } from "@/components/CardImage";
 import { SubmitButton } from "@/components/SubmitButton";
+import { ArenaHeader } from "@/components/arena/ArenaHeader";
 import { InviteShare } from "@/components/arena/InviteShare";
 import { MatchWaiting } from "@/components/arena/MatchWaiting";
 import { cancelMatchAction, joinMatchForm } from "../../actions";
@@ -54,6 +55,8 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
 
   if (mine) {
     return (
+      <div className="space-y-4">
+      <ArenaHeader side="other" />
       <div className="mx-auto max-w-md space-y-4 py-6 text-center">
         <h1 className="text-lg font-semibold tracking-tight text-space-50">Waiting for your opponent</h1>
         {hostSide}
@@ -61,7 +64,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
         <p className="text-sm text-space-300">Send them this link. They pick a deck on it and the game starts on both phones.</p>
         <InviteShare path={`/arena/match/${id}`} hostName={match.hostUser} />
         <div className="flex items-center justify-center gap-4 pt-2 text-sm">
-          <Link href="/arena" className="text-space-300 hover:text-ki-300">
+          <Link href="/arena" className="tap inline-flex items-center text-space-300 hover:text-ki-300">
             ← Arena
           </Link>
           <form action={cancelMatchAction.bind(null, id)}>
@@ -70,6 +73,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
             </SubmitButton>
           </form>
         </div>
+      </div>
       </div>
     );
   }
@@ -80,6 +84,8 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
   const firstReady = decks.find((d) => !isLocked(ready.get(d.id)))?.id;
 
   return (
+    <div className="space-y-4">
+    <ArenaHeader side="other" />
     <div className="mx-auto max-w-md space-y-4 py-6">
       <h1 className="text-center text-lg font-semibold tracking-tight text-space-50">{match.hostUser} invites you to play</h1>
       {hostSide}
@@ -126,10 +132,11 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
         </form>
       )}
       <p className="text-center text-sm">
-        <Link href="/arena" className="text-space-300 hover:text-ki-300">
+        <Link href="/arena" className="tap inline-flex items-center text-space-300 hover:text-ki-300">
           ← Arena
         </Link>
       </p>
+    </div>
     </div>
   );
 }

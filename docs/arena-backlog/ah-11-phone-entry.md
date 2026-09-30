@@ -4,6 +4,7 @@ issue: 365
 milestone: Arena M17 — Arena home: Play and Rules Workbench
 labels: backlog, ready-for-agent, enhancement, accessibility, area:arena-ui, phase:arena-home, model:sonnet-5
 stage: ui
+status: closed
 touches: src/lib/navigation.ts, src/components/AppShell.tsx, src/components/BottomTabs.tsx, src/components/arena/ArenaHeader.tsx
 ---
 **Source:** `docs/arena-home-spec.md` §1 decision 6; `src/app/manifest.ts` (`start_url: "/arena"`, "this is installed to play"); `src/lib/navigation.ts` (`NAV_ITEMS`, `SECONDARY_ITEMS`, `isFullBleed`); `src/components/AppShell.tsx`; canvas frames `PlayPhone`, `GamesPhone`, `MatchPhone`.

@@ -185,7 +185,7 @@ export function PlayPicker({
         </label>
       )}
 
-      <div className="sticky bottom-2 z-10 space-y-1 rounded-xl bg-space-950/80 py-1 backdrop-blur sm:static sm:bg-transparent sm:backdrop-blur-none">
+      <div className="sticky bottom-[max(0.5rem,env(safe-area-inset-bottom))] z-10 space-y-1 rounded-xl bg-space-950/80 py-1 backdrop-blur sm:static sm:bg-transparent sm:backdrop-blur-none">
         {isLocked ? (
           <>
             {/* Computer: Rules is one click away. */}
