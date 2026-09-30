@@ -6,24 +6,13 @@ import { lastPlayedDecks, listGames, modeLabel } from "@/lib/arena/games";
 import { listOpenMatches } from "@/lib/arena/matches";
 import { currentOwner, currentUser } from "@/lib/auth";
 import { listUsers } from "@/lib/auth/users";
-import { deckInputFor } from "@/lib/arena/load";
-import { loadRules } from "@/lib/arena/rules-store";
+import { isLocked, readiness } from "@/lib/arena/readiness";
 import { ArenaHeader } from "@/components/arena/ArenaHeader";
 import { PlayPicker } from "@/components/arena/PlayPicker";
 import { SubmitButton } from "@/components/SubmitButton";
 import { cancelMatchAction, joinMatchForm, startGameForm } from "./actions";
 
 export const dynamic = "force-dynamic";
-
-/** How much of a deck's card text the engine reads on its own (proposal §6). */
-async function coverageFor(deckId: number): Promise<{ cards: number; referee: number } | null> {
-  const input = await deckInputFor(db, deckId);
-  if (!input) return null;
-  const ids = [...new Set(input.cardIds)];
-  // A card with an open rule row is played as blank or put to the referee.
-  const open = new Set((await loadRules(db, ids)).filter((r) => r.status === "open").map((r) => r.cardId));
-  return { cards: ids.length, referee: open.size };
-}
 
 export default async function ArenaPage() {
   // The engine reads the original game's rule manual and nothing else, so
@@ -47,15 +36,16 @@ export default async function ArenaPage() {
     costs[mode] = `your average ~${Math.round(avg)}¢`;
   }
   const playable = decks.filter((d) => d.leader && d.mainCount >= 50);
-  const coverage = new Map<number, { cards: number; referee: number } | null>();
-  for (const d of playable) coverage.set(d.id, await coverageFor(d.id));
+  // One query for every deck's rule readiness (#357).
+  const ready = await readiness(db, playable.map((d) => d.id));
 
-  // Preselected from the newest games, so nothing new is stored. The ready
-  // filter for the deck (ah-03) and the Continue strip (ah-05) plug in here.
+  // Preselected from the newest games, but always a *ready* deck: a locked one
+  // cannot be played, so the last-played ready one wins, then the first ready.
   const last = await lastPlayedDecks(db, playable.map((d) => d.id), me);
-  const pick = (id: number | null, fallback: number) => (id != null && playable.some((d) => d.id === id) ? id : fallback);
-  const initialDeck = pick(last.own, playable[0]?.id ?? 0);
-  const initialClaudeDeck = pick(last.claude, playable[1]?.id ?? playable[0]?.id ?? 0);
+  const readyIds = playable.filter((d) => !isLocked(ready.get(d.id))).map((d) => d.id);
+  const pick = (id: number | null, fallback: number) => (id != null && readyIds.includes(id) ? id : fallback);
+  const initialDeck = pick(last.own, readyIds[0] ?? playable[0]?.id ?? 0);
+  const initialClaudeDeck = pick(last.claude, readyIds.find((id) => id !== initialDeck) ?? readyIds[0] ?? playable[0]?.id ?? 0);
 
   const select = "tap w-full rounded-md border border-space-600 bg-space-900 px-2 py-2 text-sm text-space-100";
 
@@ -72,7 +62,7 @@ export default async function ArenaPage() {
         </p>
       ) : (
         <PlayPicker
-          decks={playable.map((d) => ({ id: d.id, name: d.name, leaderName: d.leader?.name ?? null, leaderImage: d.leader?.imageUrl ?? null, mainCount: d.mainCount }))}
+          decks={playable.map((d) => ({ id: d.id, name: d.name, leaderName: d.leader?.name ?? null, leaderImage: d.leader?.imageUrl ?? null, mainCount: d.mainCount, ready: ready.get(d.id)! }))}
           initialDeck={initialDeck}
           initialClaudeDeck={initialClaudeDeck}
           costs={costs}
@@ -80,32 +70,6 @@ export default async function ArenaPage() {
           versusNote="Needs a second login: add one under Settings → Users."
           action={startGameForm}
         />
-      )}
-
-      {playable.length > 0 && (
-        <section>
-          <div className="mb-2 flex items-baseline gap-2">
-            <h2 className="text-xs uppercase tracking-widest text-space-400">What the engine reads in each deck</h2>
-          </div>
-          <ul className="space-y-1 text-xs">
-            {playable.map((d) => {
-              const c = coverage.get(d.id);
-              return (
-                <li key={d.id} className="flex flex-wrap items-baseline gap-x-2 rounded-lg bg-space-900/50 px-2 py-1.5">
-                  <span className="font-medium text-space-100">{d.name}</span>
-                  {c ? (
-                    <span className="text-space-400">
-                      {c.cards - c.referee} of {c.cards} cards fully read
-                      {c.referee > 0 && <span className="text-dbs-yellow"> · {c.referee} put to Claude when they resolve</span>}
-                    </span>
-                  ) : (
-                    <span className="text-loss">no leader — cannot be played</span>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        </section>
       )}
 
       {matches.length > 0 && (
@@ -134,10 +98,11 @@ export default async function ArenaPage() {
                       <input type="hidden" name="match" value={m.id} />
                       <label className="min-w-0 flex-1 text-sm">
                         <span className="mb-1 block text-xs uppercase tracking-wider text-space-400">Your deck</span>
-                        <select name="deck" className={select} defaultValue={playable[0]?.id}>
+                        <select name="deck" className={select} defaultValue={readyIds[0] ?? playable[0]?.id}>
                           {playable.map((d) => (
-                            <option key={d.id} value={d.id}>
+                            <option key={d.id} value={d.id} disabled={isLocked(ready.get(d.id))}>
                               {d.name} — {d.leader?.name ?? "no leader"}
+                              {isLocked(ready.get(d.id)) ? ` (${ready.get(d.id)!.open} open, locked)` : ""}
                             </option>
                           ))}
                         </select>

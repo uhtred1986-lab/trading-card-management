@@ -20,6 +20,7 @@ import { ENGINE_INFO, engineFor, engineOr, FALLBACK_ENGINE, isVmState, playableE
 import { NOT_YET_REASON_PREFIX } from "./vm";
 import { recordDecision } from "./ai/debug";
 import { cardDefFrom, deckInputFor } from "./load";
+import { assertDecksPlayable } from "./readiness";
 import { rulesFor } from "./rules-store";
 import type { StoredSnapshot } from "./snapshot";
 import { gameOr, type Game } from "@/lib/catalog/games";
@@ -233,6 +234,12 @@ export async function startGame(
   if (!a) throw new Error("the first deck has no leader or is not a Dragon Ball Super deck, so it cannot be played");
   if (!b) throw new Error("the second deck has no leader or is not a Dragon Ball Super deck, so it cannot be played");
   if (a.game !== b.game) throw new Error("the two decks belong to different games");
+  // Owner's ruling (30 Sep 2026): a deck with an open rule is not played, on
+  // either side and in every mode (`joinMatch` reaches it through here).
+  await assertDecksPlayable(db, [
+    { id: p1DeckId, name: a.input.name },
+    { id: p2DeckId, name: b.input.name },
+  ]);
   const rows = await db
     .select()
     .from(cardsTable)
