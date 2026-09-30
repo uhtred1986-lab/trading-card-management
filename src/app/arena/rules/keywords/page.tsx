@@ -189,8 +189,8 @@ export default function KeywordsPage() {
           the rules of your cards
         </Link>
         ; the wordings it cannot read at all are on{" "}
-        <Link href="/arena/rules/patterns?half=open" className="text-ki-300 hover:underline">
-          the Patterns tab
+        <Link href="/arena/rules?scope=catalog&state=open&group=wording" className="text-ki-300 hover:underline">
+          the queue grouped by wording
         </Link>
         .
       </p>

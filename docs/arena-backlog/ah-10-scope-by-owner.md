@@ -4,6 +4,8 @@ issue: 364
 milestone: Arena M17 — Arena home: Play and Rules Workbench
 labels: backlog, ready-for-agent, enhancement, area:arena-workbench, phase:arena-home, model:sonnet-5
 stage: ui
+status: closed
+closed_at: 2026-09-30
 touches: src/app/arena/rules/page.tsx, src/components/arena/ArenaHeader.tsx, src/components/arena/rules/RulesHeader.tsx
 ---
 **Source:** `docs/arena-home-spec.md` §1 decision 7; `CLAUDE.md` Architecture, "Decks belong to a login too" (the rule-coverage pages were left out of #279 on purpose); `listDecks(db, { game: "dbs" })` in `src/app/arena/rules/page.tsx`.

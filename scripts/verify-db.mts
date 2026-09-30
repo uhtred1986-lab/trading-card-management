@@ -497,6 +497,21 @@ assert.equal(priceForFinish(prices.get("BT18-020_SPR"), "foil"), 199);
   assert.ok((await confirmMatching(db, { pattern: "draw" })).rules.length >= 3, "confirming the pattern confirms the group");
   assert.deepEqual(await statusCounts(db, { cardIds: ids }), { open: 1, draft: 0, confirmed: 3, corrected: 0 }, "…every draft of it, in one press");
 
+  // The one queue (#360): the same groups, narrowed to a scope, and the new scopes and reasons.
+  const { reasonGroups, ruleIdsFor, setGroups } = await import("../src/lib/arena/rules-store.ts");
+  const scoped = await draftPatterns(db, 60, { cardIds: ["BT18-040"], status: "confirmed" });
+  assert.equal(scoped.find((g) => g.label === "draw")?.rules, 1, "a group counts only the scope's rules, in any state");
+  assert.deepEqual((await setGroups(db, { cardIds: ids })).map((g) => [g.label, g.rules]), [["BT18", 2], ["BT19", 2]], "one group per set, in set order");
+  const why = await reasonGroups(db, { cardIds: ids });
+  assert.equal(why.find((g) => g.key === "mech:turn structure")?.rules, 1, "an open rule is grouped by what it would need");
+  assert.equal(why.find((g) => g.key === "diff"), undefined, "no compiler disagreement, no group for it");
+  const nappa = await ruleIdsFor(db, [{ cardId: "BT19-002", skillIndex: 0 }]);
+  assert.equal(nappa.length, 1, "a fired skill is one rule");
+  assert.deepEqual((await worklistPage(db, { ruleIds: nappa }, { limit: 10, offset: 0 })).rows.map((r) => r.cardId), ["BT19-002"], "the scope *fired in game X* is exactly those rules");
+  assert.equal((await worklistPage(db, { ruleIds: [] }, { limit: 10, offset: 0 })).total, 0, "a game that fired nothing is an empty scope, not the catalog");
+  assert.equal((await worklistPage(db, { cardIds: ids, compilerDiff: true }, { limit: 10, offset: 0 })).total, 0, "nothing here has a newer compiler reading");
+  assert.equal((await worklistPage(db, { cardIds: ids, costUnknown: true }, { limit: 10, offset: 0 })).total, 0, "and no X-cost card without a specified cost");
+
   await db.delete(schema.cardRules).where(inArray(schema.cardRules.cardId, ids));
   await db.delete(schema.cards).where(inArray(schema.cards.id, ids));
 }

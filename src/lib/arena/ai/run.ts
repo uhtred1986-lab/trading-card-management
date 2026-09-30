@@ -223,7 +223,7 @@ async function runReferee(db: Db, game: LoadedGame, gameId: number): Promise<str
     await saveRule(db, { cardId: req.cardId, side, skillIndex: req.skillIndex, ops: ruling.ops, source: "claude", status: "draft", explanation: ruling.why, printed: req.text, kind: sk?.kind ?? "auto" });
   }
   // The skill has now actually come up in a game, which is what sorts the
-  // Patterns page: a wording a game has met is worth teaching the compiler
+  // same-wording groups: a wording a game has met is worth teaching the compiler
   // before one that has not. The worked example is the draft written above,
   // so there is nowhere else for it to be kept.
   await markRuleSeen(db, req.cardId, side, req.skillIndex);

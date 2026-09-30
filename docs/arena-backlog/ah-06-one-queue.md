@@ -4,6 +4,8 @@ issue: 360
 milestone: Arena M17 — Arena home: Play and Rules Workbench
 labels: backlog, ready-for-agent, enhancement, area:arena-workbench, phase:arena-home, model:sonnet-5
 stage: ui
+status: closed
+closed_at: 2026-09-30
 touches: src/app/arena/rules/page.tsx, src/app/arena/rules/all/page.tsx, src/app/arena/rules/patterns/page.tsx, src/components/arena/rules/Workbench.tsx, src/lib/arena/rules-store.ts, next.config.ts
 ---
 **Source:** `docs/arena-home-spec.md` §1 decision 5, §2; `docs/arena-rules-workbench-spec.md` (the worklist); the three pages under `src/app/arena/rules/`; `worklist`, `worklistPage`, `draftPatterns`, `openPatterns` in `src/lib/arena/rules-store.ts`; canvas frame `RulesDesktop`.
