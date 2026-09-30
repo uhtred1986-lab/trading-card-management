@@ -10,7 +10,11 @@ name: Acceptance criteria check
 
 on:
   pull_request:
-    types: [opened, synchronize, edited]
+    types: [opened, synchronize]
+
+concurrency:
+  group: ac-check-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read

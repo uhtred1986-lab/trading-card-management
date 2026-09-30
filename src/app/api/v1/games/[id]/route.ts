@@ -1,8 +1,11 @@
+import { eq, sql } from "drizzle-orm";
 import { db } from "@/db";
+import { arenaGames } from "@/db/schema";
 import { fail, ok, pollParams, seatFor } from "@/lib/arena/api";
-import { isVersus, loadArchivedGame, loadGame } from "@/lib/arena/games";
-import { snapshotOf, snapshotOfGame, waitForBeats } from "@/lib/arena/session";
+import { isVersus, loadArchivedGame, loadGame, seatOf } from "@/lib/arena/games";
+import { snapshotOfGame, waitForBeats } from "@/lib/arena/session";
 import { archivedSnapshotFor } from "@/lib/arena/snapshot";
+import { currentUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 /** A long-poll holds the function for its whole wait; `pollParams` caps it at 30 s. */
@@ -19,6 +22,38 @@ export const maxDuration = 60;
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const id = Number((await params).id);
   if (!Number.isInteger(id)) return fail("bad_request", "game id must be a number");
+
+  const { sinceBeat, waitMs } = pollParams(new URL(req.url));
+
+  // A long-poll decides seat and mode from the few columns that say so, and
+  // loads the whole game once, after the wait (issue #377). Loading it first
+  // meant a full row, rules and card art for a request that mostly ends in
+  // "nothing yet". An archived row falls through to the answer-at-once path.
+  if (waitMs > 0) {
+    const [head] = await db
+      .select({
+        mode: arenaGames.mode,
+        p1User: arenaGames.p1User,
+        p2User: arenaGames.p2User,
+        archived: sql<boolean>`${arenaGames.snapshot} is not null`,
+      })
+      .from(arenaGames)
+      .where(eq(arenaGames.id, id))
+      .limit(1);
+    if (!head) return fail("not_found", `no game ${id}`);
+    if (!head.archived) {
+      const versus = isVersus(head.mode);
+      const seat = versus ? seatOf(head, await currentUser()) : null;
+      if (versus && !seat) return fail("not_found", `no game ${id}`);
+      const moved = await waitForBeats(db, id, sinceBeat, waitMs);
+      const game = await loadGame(db, id);
+      if (!game) return fail("not_found", `no game ${id}`);
+      const snapshot = await snapshotOfGame(db, game, seat);
+      // Nothing new inside the window: answer with the board as it stands and
+      // no beats, so the client simply asks again.
+      return ok(moved ? snapshot : { ...snapshot, beats: null });
+    }
+  }
 
   // An archived legacy row (issue #335) is checked before `loadGame` — never
   // through it, so `legalActions` is never reached for one. No long-poll
@@ -38,17 +73,5 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const seat = await seatFor(game);
   if (isVersus(game.mode) && !seat) return fail("not_found", `no game ${id}`);
 
-  const { sinceBeat, waitMs } = pollParams(new URL(req.url));
-  if (waitMs > 0) {
-    const changed = await waitForBeats(db, id, sinceBeat, waitMs, seat);
-    // Nothing new inside the window: answer with the board as it stands and no
-    // beats, so the client simply asks again.
-    if (changed) return ok(changed);
-    const snapshot = await snapshotOf(db, id, seat);
-    return snapshot ? ok({ ...snapshot, beats: null }) : fail("not_found", `no game ${id}`);
-  }
-
-  // Re-read rather than reuse `game`: a long wait above may have gone stale,
-  // and this branch is the cheap one.
   return ok(await snapshotOfGame(db, game, seat));
 }
