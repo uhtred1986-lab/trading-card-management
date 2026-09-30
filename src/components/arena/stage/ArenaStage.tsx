@@ -21,6 +21,10 @@ import { colourOf, DEFAULT_LIGHTING, turnVars, type TurnLighting } from "@/lib/a
 import type { ArenaSkin } from "@/lib/arena/skin";
 import { ReportBug } from "../ReportBug";
 import { narrate } from "@/lib/arena/narration";
+import { foldStory, type StoryLine } from "@/lib/arena/story";
+import type { AdminDebug } from "@/lib/arena/admin-debug";
+import { AdminContext } from "../admin-context";
+import { AdminDrawer, AdminShield } from "./AdminDrawer";
 import { missingEnergyChips, pill } from "@/lib/arena/wording";
 import {
   ActionRows,
@@ -57,6 +61,7 @@ import { useBeatPlayer } from "./useBeatPlayer";
 import { useLiveGame } from "./useLiveGame";
 import { useIdle } from "./useIdle";
 import { PromptPanel } from "./PromptPanel";
+import { StoryList } from "../shared-display";
 import { BattleRow, cardIdOf, ClashBand, HandBacks, MenuSection, ReferenceCounts, SideRail } from "./StageZones";
 
 /**
@@ -104,6 +109,8 @@ export function ArenaStage({
   lighting = DEFAULT_LIGHTING,
   server = REAL_SERVER,
   announceTurn = false,
+  admin = false,
+  adminDebug = null,
 }: {
   gameId: number;
   snapshot: Snapshot;
@@ -118,6 +125,15 @@ export function ArenaStage({
   server?: { act: typeof act; advance: typeof advanceGame };
   /** Fixture preview only: open with the turn banner up, so a shot can catch a turn boundary (#344). */
   announceTurn?: boolean;
+  /**
+   * Whether the viewer is an arena admin (#350). Decided on the server by
+   * `isArenaAdmin()` and passed down — never inferred here. False takes the
+   * internals out of the render: the REF badge, the engine reading, raw ids,
+   * the raw log and the drawer that holds them.
+   */
+  admin?: boolean;
+  /** What only the server can say — seed, the opponent's hand, the decisions. Present only for an admin. */
+  adminDebug?: AdminDebug | null;
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -163,6 +179,9 @@ export function ArenaStage({
   const [rowHover, setRowHover] = useState<string | null>(null);
   const wide = useWide();
   const [logOpen, setLogOpen] = useState(false);
+  const [adminOpen, setAdminOpen] = useState(false);
+  /** The narration log (#350): what `NarrationRibbon` said, kept, oldest first. */
+  const [story, setStory] = useState<StoryLine[]>([]);
   const [moreOpen, setMoreOpen] = useState(false);
   const asked = useRef(false);
   const boardRef = useRef<HTMLDivElement | null>(null);
@@ -277,6 +296,12 @@ export function ArenaStage({
     const text = narrate(beatNow, { viewer: view.you.player, them: view.them.name, art: beats?.art ?? {}, ownerOf });
     if (text) setHeld({ text, n: beatNow.n, mine: actorOf(beatNow) === view.you.player });
   }
+
+  // The narration log takes each beat as it is told, not as it arrives, so
+  // reading it back never spoils a move the board has yet to play.
+  const told = beats && playback.playing && beatNow ? { ...beats, list: beats.list.filter((b) => b.n <= beatNow.n) } : beats;
+  const folded = foldStory(story, told, { viewer: view.you.player, them: view.them.name, art: beats?.art ?? {}, ownerOf }, view.turn, actorOf);
+  if (folded !== story) setStory(folded);
 
   // Only for arriving at a game that is already mid-turn — a normal move runs
   // the opponent's reply inside `act` itself.
@@ -930,6 +955,7 @@ export function ArenaStage({
   });
 
   return (
+    <AdminContext.Provider value={admin}>
     <LayoutGroup>
       <div
         ref={boardRef}
@@ -961,6 +987,8 @@ export function ArenaStage({
           <div className="arena-topbar flex flex-col gap-1.5 max-sm:sticky max-sm:top-0 max-sm:z-30 max-sm:-mx-1 max-sm:px-1 max-sm:py-1.5 sm:mt-2 sm:flex-row sm:items-center sm:gap-3">
             <TurnPill view={view} />
             <PhaseChips view={view} className="lg:hidden" />
+            {/* Admins only, and rendered only for them: the shield that opens the drawer (#350). */}
+            {admin && <AdminShield onOpen={() => setAdminOpen(true)} className="max-sm:absolute max-sm:right-3 max-sm:top-1.5 sm:ml-auto" />}
           </div>
 
           {/* Below lg this is one column (them, the board, you). From lg it is
@@ -1100,13 +1128,8 @@ export function ArenaStage({
             {/* The log no longer replaces the hand: you can read what just
               happened and look at your cards at the same time. */}
             {logOpen && (
-              <ol className="mb-2 lg:hidden max-h-40 space-y-0.5 overflow-y-auto font-mono text-[10px] leading-relaxed text-space-400 sm:max-h-56 sm:text-xs">
-                {log.slice(-80).map((line, i) => (
-                  <li key={i} className={line.startsWith("—") ? "mt-1 text-space-200" : ""}>
-                    {line}
-                  </li>
-                ))}
-                {log.length === 0 && <li>nothing has happened yet</li>}
+              <ol className="mb-2 lg:hidden max-h-40 space-y-0.5 overflow-y-auto text-[11px] leading-relaxed text-space-300 sm:max-h-56 sm:text-xs">
+                <StoryList story={story} />
               </ol>
             )}
           </Hand>
@@ -1145,7 +1168,7 @@ export function ArenaStage({
                 onPin={setPinned}
               />
             }
-            log={log}
+            story={story}
           />
         </div>
 
@@ -1182,6 +1205,8 @@ export function ArenaStage({
             </MenuSection>
           </Sheet>
         )}
+
+        {admin && adminOpen && <AdminDrawer snapshot={live} debug={adminDebug} beats={beats?.list ?? []} log={log} narrator={{ viewer: view.you.player, them: view.them.name, art: beats?.art ?? {}, ownerOf }} onClose={() => setAdminOpen(false)} />}
 
         {takeoverOn && <Takeover shape={shape} cardProps={stagedProps} beat={beat} progress={playback.playing ? { index: playback.index, total: playback.total } : null} />}
 
@@ -1239,5 +1264,6 @@ export function ArenaStage({
         )}
       </div>
     </LayoutGroup>
+    </AdminContext.Provider>
   );
 }

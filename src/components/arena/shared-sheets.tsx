@@ -6,6 +6,7 @@ import { effectLine } from "@/lib/arena/effects";
 import { pill, priceOf, refusal, stepText } from "@/lib/arena/wording";
 import type { CardView, PermanentView, PromptView, SideView } from "@/lib/arena/view";
 import { DEFAULT_NARRATOR, plainText, type Narrator } from "./shared-model";
+import { useArenaAdmin } from "./admin-context";
 
 /** What a card is putting into the open battle, and the figure it is part of. */
 export interface BattleShare {
@@ -53,6 +54,8 @@ export function CardDetail({
   figures?: boolean;
 }) {
   const delta = card.basePower != null && card.power != null ? card.power - card.basePower : 0;
+  // Engine internals — the id, the compile notes, "Engine reads" — are an admin's (#350).
+  const admin = useArenaAdmin();
   return (
     <div className="space-y-1.5">
       {withName && <p className="text-sm font-semibold leading-tight text-space-50">{card.name}</p>}
@@ -68,9 +71,9 @@ export function CardDetail({
       )}
       {figures && (
         <p className="text-[11px] text-space-400 sm:text-xs">
-          {card.cardId}
-          {card.cost ? ` · cost ${card.cost}` : ""}
-          {card.power != null ? ` · ${card.power.toLocaleString("en")} power` : ""}
+          {admin ? card.cardId : null}
+          {card.cost ? `${admin ? " · " : ""}cost ${card.cost}` : ""}
+          {card.power != null ? `${admin || card.cost ? " · " : ""}${card.power.toLocaleString("en")} power` : ""}
           {delta !== 0 && <span className={delta > 0 ? "text-gain" : "text-loss"}>{` (${card.basePower!.toLocaleString("en")} printed, ${delta > 0 ? "+" : ""}${delta.toLocaleString("en")})`}</span>}
           {card.comboCost != null ? ` · combo +${(card.comboPower ?? 0).toLocaleString("en")} for ${card.comboCost}` : ""}
         </p>
@@ -96,13 +99,15 @@ export function CardDetail({
         <div className="space-y-1">
           {card.permanents.map((pm) => {
             const st = PERMANENT_STATE[pm.state];
+            // "Not applied" and "unread" are the compiler's words; a player sees the line, and whether it holds.
+            const showState = admin || pm.state === "on" || pm.state === "off";
             return (
               <div key={pm.index} className="rounded-lg border border-space-700 bg-space-800/60 p-2 text-[11px] sm:text-xs">
                 <div className="flex items-start gap-2">
-                  <span className={`mt-px shrink-0 rounded-full border px-1.5 py-px font-mono text-[9px] uppercase tracking-wider ${st.className}`}>∞ {st.word}</span>
+                  {showState && <span className={`mt-px shrink-0 rounded-full border px-1.5 py-px font-mono text-[9px] uppercase tracking-wider ${st.className}`}>∞ {st.word}</span>}
                   <span className="min-w-0 flex-1 leading-snug text-space-200">{plainText(pm.text)}</span>
                 </div>
-                {st.note && <p className="mt-1 text-[10px] leading-snug text-space-400">{st.note}</p>}
+                {admin && st.note && <p className="mt-1 text-[10px] leading-snug text-space-400">{st.note}</p>}
               </div>
             );
           })}
@@ -118,10 +123,12 @@ export function CardDetail({
         </p>
       )}
       {card.text && <p className="whitespace-pre-wrap text-xs leading-relaxed text-space-200 sm:text-sm">{plainText(card.text)}</p>}
-      <div className={`rounded-lg border-l-2 p-2 text-[11px] sm:text-xs ${card.referee ? "border-dbs-yellow bg-space-800" : "border-gain bg-space-800"}`}>
-        <span className="font-semibold text-space-100">{card.referee ? "Not fully compiled. " : "Engine reads: "}</span>
-        <span className="text-space-300">{card.referee ? "Claude rules on this card's remaining text when it resolves." : card.reading || "no effect of its own"}</span>
-      </div>
+      {admin && (
+        <div className={`rounded-lg border-l-2 p-2 text-[11px] sm:text-xs ${card.referee ? "border-dbs-yellow bg-space-800" : "border-gain bg-space-800"}`}>
+          <span className="font-semibold text-space-100">{card.referee ? "Not fully compiled. " : "Engine reads: "}</span>
+          <span className="text-space-300">{card.referee ? "Claude rules on this card's remaining text when it resolves." : card.reading || "no effect of its own"}</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -584,6 +591,7 @@ export function SearchSheet({
   onPick: (index: number) => void;
   onClose: () => void;
 }) {
+  const admin = useArenaAdmin();
   return (
     <Sheet onClose={onClose} title={prompt.question} eyebrow={<StepChip step={prompt.step} />} closeLabel="see the board" tall>
       <p className="text-[11px] text-space-400 sm:text-xs">
@@ -608,10 +616,7 @@ export function SearchSheet({
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm font-semibold text-space-50">{c.name}</span>
               <span className="block text-[11px] text-space-400">
-                {c.cardId}
-                {c.cost ? ` · cost ${c.cost}` : ""}
-                {c.power != null ? ` · ${c.power.toLocaleString("en")}` : ""}
-                {c.keywords.length ? ` · ${c.keywords.join(", ")}` : ""}
+                {[admin ? c.cardId : null, c.cost ? `cost ${c.cost}` : null, c.power != null ? c.power.toLocaleString("en") : null, c.keywords.length ? c.keywords.join(", ") : null].filter(Boolean).join(" · ")}
               </span>
             </span>
             <span className="shrink-0 rounded-full border border-ki-500/60 px-2 py-px font-mono text-[10px] text-ki-300">choose</span>

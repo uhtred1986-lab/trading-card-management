@@ -7,6 +7,7 @@ import { CardDetail, ChipRow, type InspectorChip } from "./shared-sheets";
 
 export type { InspectorChip };
 import { DEFAULT_NARRATOR, plainText, type Narrator } from "./shared-model";
+import { newestFirst, type StoryLine } from "@/lib/arena/story";
 
 export function Counter({ label, value }: { label: string; value: number }) {
   return (
@@ -159,7 +160,7 @@ export function SkillSpotlight({ spotlight }: { spotlight: (Spotlight & { imageU
             <p className="truncate text-sm font-semibold text-space-50">{shown.name}</p>
             <span className="mt-0.5 inline-block rounded bg-ki-500/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ki-300">{shown.label}</span>
             <p className={`mt-1 whitespace-pre-wrap text-[11px] leading-snug text-space-200 sm:text-xs ${expanded ? "max-h-48 overflow-y-auto pr-1" : "line-clamp-3"}`}>{plainText(shown.text)}</p>
-            {shown.unread && <p className="mt-1 text-[10px] font-semibold text-dbs-yellow">Claude ruled on this one.</p>}
+            {shown.unread && <p className="mt-1 text-[10px] font-semibold text-dbs-yellow">The referee ruled on this card&apos;s text.</p>}
           </div>
         </div>
         <button
@@ -239,6 +240,25 @@ export function CardPreview({ card, box, narrator = DEFAULT_NARRATOR }: { card: 
       )}
       <CardDetail card={card} withName narrator={narrator} />
     </div>
+  );
+}
+
+/**
+ * The narration log's rows (#350), newest first, a turn heading whenever the
+ * turn changes. Children of an `<ol>`; empty reads as "nothing has happened yet".
+ */
+export function StoryList({ story }: { story: StoryLine[] }) {
+  const rows = newestFirst(story);
+  if (rows.length === 0) return <li>nothing has happened yet</li>;
+  return (
+    <>
+      {rows.map((l, i) => (
+        <li key={l.n}>
+          {(i === 0 || rows[i - 1].turn !== l.turn) && <span className="mb-0.5 mt-1.5 block text-[10px] font-semibold uppercase tracking-widest text-space-400">Turn {l.turn}</span>}
+          <span className={l.mine ? "text-space-100" : "text-space-300"}>{l.text}</span>
+        </li>
+      ))}
+    </>
   );
 }
 
@@ -396,10 +416,10 @@ export function InPlayList({
 }
 
 /**
- * The inspector over two tabs — In play, and the battle log. The log is the
- * one the board already keeps; rd-08 swaps it for the narration log.
+ * The inspector over two tabs — In play, and the log. The log is the narration
+ * log (#350): the sentences the story told, newest first, under their turn.
  */
-export function InspectorColumn({ inspector, inPlay, log }: { inspector: React.ReactNode; inPlay: React.ReactNode; log: string[] }) {
+export function InspectorColumn({ inspector, inPlay, story }: { inspector: React.ReactNode; inPlay: React.ReactNode; story: StoryLine[] }) {
   const [tab, setTab] = useState<"play" | "log">("play");
   return (
     <div className="flex max-h-[calc(100dvh-5rem)] flex-col overflow-hidden rounded-xl border border-space-700/70 bg-space-900/90 lg:sticky lg:top-16" aria-label="Card review">
@@ -429,13 +449,8 @@ export function InspectorColumn({ inspector, inPlay, log }: { inspector: React.R
         {tab === "play" ? (
           inPlay
         ) : (
-          <ol className="space-y-0.5 p-2 font-mono text-[11px] leading-relaxed text-space-300">
-            {log.slice(-80).map((line, i) => (
-              <li key={i} className={line.startsWith("—") ? "mt-1 text-space-100" : ""}>
-                {line}
-              </li>
-            ))}
-            {log.length === 0 && <li>nothing has happened yet</li>}
+          <ol className="space-y-0.5 p-2 text-xs leading-relaxed text-space-300">
+            <StoryList story={story} />
           </ol>
         )}
       </div>
