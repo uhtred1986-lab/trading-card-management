@@ -33,7 +33,7 @@ export function ArenaHeader({ side, kpis }: { side: "play" | "rules" | "other"; 
   return (
     <header className="space-y-3">
       <div className="flex items-center gap-3">
-        <Link href="/arena" className="text-lg font-bold tracking-[0.2em] text-space-50">
+        <Link href="/arena" className="tap flex items-center text-lg font-bold tracking-[0.2em] text-space-50">
           ARENA
         </Link>
 
@@ -58,7 +58,7 @@ export function ArenaHeader({ side, kpis }: { side: "play" | "rules" | "other"; 
           <details className="relative">
             <summary
               aria-label="More"
-              className="tap flex cursor-pointer list-none items-center justify-center rounded-md border border-space-700 px-3 text-lg leading-none text-space-200 marker:hidden [&::-webkit-details-marker]:hidden"
+              className="tap flex min-w-11 cursor-pointer list-none items-center justify-center rounded-md border border-space-700 px-3 text-lg leading-none text-space-200 marker:hidden [&::-webkit-details-marker]:hidden"
             >
               <span aria-hidden>⋯</span>
             </summary>

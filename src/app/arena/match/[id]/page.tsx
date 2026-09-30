@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 import { matchById } from "@/lib/arena/matches";
 import { currentUser } from "@/lib/auth";
 import { SubmitButton } from "@/components/SubmitButton";
+import { ArenaHeader } from "@/components/arena/ArenaHeader";
 import { MatchWaiting } from "@/components/arena/MatchWaiting";
 import { cancelMatchAction } from "../../actions";
 
@@ -33,7 +34,9 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
   const deck = match.hostDeckId ? await db.query.decks.findFirst({ where: eq(decksTable.id, match.hostDeckId), columns: { name: true } }) : null;
 
   return (
-    <div className="mx-auto max-w-md space-y-4 py-8 text-center">
+    <div className="space-y-4">
+      <ArenaHeader side="other" />
+      <div className="mx-auto max-w-md space-y-4 py-8 text-center">
       <h1 className="text-lg font-semibold tracking-tight text-space-50">{mine ? "Waiting for your opponent" : `${match.hostUser} is waiting for a player`}</h1>
       <p className="text-sm text-space-300">
         {mine ? (
@@ -51,7 +54,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
       <MatchWaiting matchId={id} />
 
       <div className="flex items-center justify-center gap-4 pt-2 text-sm">
-        <Link href="/arena" className="text-space-300 hover:text-ki-300">
+        <Link href="/arena" className="tap flex items-center text-space-300 hover:text-ki-300">
           ← Arena
         </Link>
         {mine && (
@@ -61,6 +64,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
             </SubmitButton>
           </form>
         )}
+      </div>
       </div>
     </div>
   );

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BottomTabs } from "./BottomTabs";
 import { HeaderNav } from "./HeaderNav";
-import { SECONDARY_ITEMS, isFullBleed } from "@/lib/navigation";
+import { SECONDARY_ITEMS, isArenaShell, isFullBleed } from "@/lib/navigation";
 
 /**
  * The app's chrome, and the one screen that does without it.
@@ -32,19 +32,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
+  // Below `sm` an Arena page is the whole app: no header, no tab bar, insets handled here.
+  const shell = isArenaShell(pathname);
+
   return (
     <>
-      <header className="sticky top-0 z-20 border-b border-space-700/70 bg-space-950/85 backdrop-blur">
+      <header className={`sticky top-0 z-20 border-b border-space-700/70 bg-space-950/85 backdrop-blur${shell ? " max-sm:hidden" : ""}`}>
         <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3">
-          <Link href="/" className="flex items-baseline gap-2">
+          <Link href="/" className="tap flex items-center gap-2">
             <span className="text-lg font-semibold tracking-tight text-ki-400">DBS</span>
-            <span className="text-xs uppercase tracking-widest text-space-300">Card Companion</span>
+            <span className="hidden text-xs uppercase tracking-widest text-space-300 min-[420px]:inline">Card Companion</span>
           </Link>
           <HeaderNav />
-          {/* The five bottom tabs cannot grow, so everything else lives here on a phone. */}
+          {/* The five bottom tabs cannot grow, so everything else lives here on a phone (Arena is the first tab). */}
           <div className="ml-auto flex gap-1 sm:hidden">
-            {SECONDARY_ITEMS.map((item) => (
-              <Link key={item.href} href={item.href} className="rounded-md px-2 py-1 text-xs text-space-300 hover:text-space-50">
+            {SECONDARY_ITEMS.filter((item) => item.href !== "/arena").map((item) => (
+              <Link key={item.href} href={item.href} className="tap flex items-center rounded-md px-2 text-xs text-space-300 hover:text-space-50">
                 {item.short ?? item.label}
               </Link>
             ))}
@@ -53,9 +56,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </header>
 
       {/* Extra bottom padding clears the phone tab bar; it collapses at `sm`. */}
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 pb-24 pt-5 sm:pb-8">{children}</main>
+      <main
+        className={`mx-auto w-full max-w-7xl flex-1 px-4 sm:pb-8 sm:pt-5 ${
+          shell ? "pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[max(0.75rem,env(safe-area-inset-top))]" : "pb-24 pt-5"
+        }`}
+      >
+        {children}
+      </main>
 
-      <BottomTabs />
+      {shell ? null : <BottomTabs />}
     </>
   );
 }
