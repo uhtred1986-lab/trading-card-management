@@ -63,7 +63,7 @@ jobs:
           # decks/queries and the harness), plus scripts/verify/ itself.
           git diff --name-only "$BASE...$HEAD" > changed.txt
           cat changed.txt
-          if grep -qE '^(android/|contract/|scripts/verify-arena\.ts$|scripts/verify/|src/lib/arena/|src/lib/decks/|src/lib/ai/client\.ts$|src/lib/catalog/games\.ts$|src/db/|\.github/workflows/checks\.yml$)' changed.txt; then
+          if grep -qE '^(android/|contract/|scripts/verify-arena\.ts$|scripts/verify/|src/lib/arena/|src/lib/decks/|src/lib/ai/client\.ts$|src/lib/catalog/games\.ts$|src/db/|package-lock\.json$|\.github/workflows/checks\.yml$)' changed.txt; then
             echo "contract=true" >> "$GITHUB_OUTPUT"
           else
             echo "contract=false" >> "$GITHUB_OUTPUT"
