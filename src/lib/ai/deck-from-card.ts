@@ -194,7 +194,7 @@ export async function suggestDeckFromCard(db: Db, cardId: string, owner: string 
     ],
     messages: [{ role: "user", content: ask }],
   });
-  const { output: draft } = await recordRun<DeckFromCardDraft>(db, "deck_wizard", { cardId, game, mode: "from-card", leaderPool: leaders.length, ownedPool: owned.length, buyPool: buy.length }, res);
+  const { output: draft } = await recordRun<DeckFromCardDraft>(db, "deck_from_card", { cardId, game, mode: "from-card", leaderPool: leaders.length, ownedPool: owned.length, buyPool: buy.length }, res);
 
   const chosenLeaderId = draft.leaderId.trim().toUpperCase().split("_")[0];
   const chosenLeader = leaderPool.get(chosenLeaderId) ?? leaders[0];
