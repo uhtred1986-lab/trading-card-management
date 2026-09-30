@@ -13,10 +13,10 @@
  * images for it, so a matched product's TCGplayer photo is copied onto any
  * card or print that still has none.
  */
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { rows } from "@/db/rows";
-import { cardPrints, cardSets, cards, tcgGroups, tcgPrices, tcgProducts } from "@/db/schema";
+import { cardPrints, cards, tcgGroups, tcgPrices, tcgProducts } from "@/db/schema";
 import { baseNumber } from "@/lib/catalog/deckplanet";
 import { GAMES, GAME_INFO, type Game } from "@/lib/catalog/games";
 import { setCodeOfNumber, setLineFor } from "@/lib/catalog/sets";
@@ -248,26 +248,7 @@ export async function syncPricesForGame(
     });
     products += rows.length;
 
-    if (rows.length) {
-      await db
-        .insert(tcgProducts)
-        .values(rows)
-        .onConflictDoUpdate({
-          target: tcgProducts.id,
-          set: {
-            groupId: sql`excluded.group_id`,
-            name: sql`excluded.name`,
-            number: sql`excluded.number`,
-            rarity: sql`excluded.rarity`,
-            imageUrl: sql`excluded.image_url`,
-            url: sql`excluded.url`,
-            marker: sql`excluded.marker`,
-            cardId: sql`excluded.card_id`,
-            printId: sql`excluded.print_id`,
-            modifiedOn: sql`excluded.modified_on`,
-          },
-        });
-    }
+    if (rows.length) await upsertProducts(db, rows);
 
     const known = new Set(rows.map((r) => r.id));
     const priceRows = priceList
@@ -305,11 +286,16 @@ export async function syncPricesForGame(
   });
 
   // Backfill set release dates + line classification where unknown.
-  for (const [code, releasedOn] of setDates) {
-    await db
-      .update(cardSets)
-      .set({ releasedOn, line: setLineFor(code, releasedOn) })
-      .where(and(eq(cardSets.code, code), isNull(cardSets.releasedOn)));
+  if (setDates.size) {
+    const values = sql.join(
+      [...setDates].map(([code, releasedOn]) => sql`(${code}, ${releasedOn}::date, ${setLineFor(code, releasedOn)})`),
+      sql`, `,
+    );
+    await db.execute(sql`
+      update card_sets cs set released_on = v.released_on, line = v.line
+      from (values ${values}) as v(code, released_on, line)
+      where cs.code = v.code and cs.released_on is null
+    `);
   }
 
   return {
@@ -323,6 +309,40 @@ export async function syncPricesForGame(
 }
 
 /**
+ * Upsert product rows, rewriting only those that actually changed. The nightly
+ * sync sends every product; without the `setWhere` guard each one was rewritten
+ * daily (WAL + dead tuples for nothing). `is distinct from` is null-safe.
+ */
+export async function upsertProducts(db: Db, rows: (typeof tcgProducts.$inferInsert)[]): Promise<void> {
+  if (rows.length === 0) return;
+  await db
+    .insert(tcgProducts)
+    .values(rows)
+    .onConflictDoUpdate({
+      target: tcgProducts.id,
+      set: {
+        groupId: sql`excluded.group_id`,
+        name: sql`excluded.name`,
+        number: sql`excluded.number`,
+        rarity: sql`excluded.rarity`,
+        imageUrl: sql`excluded.image_url`,
+        url: sql`excluded.url`,
+        marker: sql`excluded.marker`,
+        cardId: sql`excluded.card_id`,
+        printId: sql`excluded.print_id`,
+        modifiedOn: sql`excluded.modified_on`,
+      },
+      setWhere: sql`(
+        ${tcgProducts.groupId}, ${tcgProducts.name}, ${tcgProducts.number}, ${tcgProducts.rarity}, ${tcgProducts.imageUrl},
+        ${tcgProducts.url}, ${tcgProducts.marker}, ${tcgProducts.cardId}, ${tcgProducts.printId}, ${tcgProducts.modifiedOn}
+      ) is distinct from (
+        excluded.group_id, excluded.name, excluded.number, excluded.rarity, excluded.image_url,
+        excluded.url, excluded.marker, excluded.card_id, excluded.print_id, excluded.modified_on
+      )`,
+    });
+}
+
+/**
  * Give cards and prints that still have no art the photo from their matched
  * TCGplayer product. Today that is the Fusion World alternate prints Bandai's
  * card list does not show (see catalog/bandai.ts) — deckplanet covers the
@@ -332,7 +352,25 @@ export async function syncPricesForGame(
  * TCGplayer serves several sizes off one path; the catalog grid wants the big
  * one, and the stored product row keeps the thumbnail it was given.
  */
-async function fillMissingImages(db: Db): Promise<number> {
+export async function fillMissingImages(db: Db): Promise<number> {
+  // Cheap guard: most nights nothing lacks art, and the three statements below
+  // each scan tcg_products. One exists probe decides (a card's back only
+  // counts when a "Front // Back" product could actually fill it).
+  const [{ missing }] = rows<{ missing: boolean }>(
+    await db.execute(sql`
+      select (
+        exists (select 1 from card_prints where image_url is null)
+        or exists (select 1 from cards where image_url is null)
+        or exists (
+          select 1 from cards c
+          join card_prints bp on bp.card_id = c.id and bp.is_base
+          join tcg_products p on p.print_id = bp.id and p.image_url is not null and p.name like '%//%'
+          where c.back_image_url is null
+        )
+      ) as missing
+    `),
+  );
+  if (!missing) return 0;
   const big = sql`replace(src.image_url, '_200w.jpg', '_in_1000x1000.jpg')`;
   // A print can have several products (foil and non-foil listings); the
   // unmarked one is the plain card face, so it is preferred. A two-sided
