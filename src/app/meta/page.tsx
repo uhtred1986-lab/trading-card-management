@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { db } from "@/db";
 import { GAMES, parseGame } from "@/lib/catalog/games";
 import { GameFilter } from "@/components/GameFilter";
-import { buyLink, leaderboard, resultCardsFor } from "@/lib/meta/leaderboard";
+import { buyLink } from "@/lib/meta/leaderboard";
+import { cachedLeaderboard, cachedResultCards } from "@/lib/cache/reads";
 import { CardImage } from "@/components/CardImage";
 import { ColorPill } from "@/components/ColorPill";
 
@@ -16,12 +16,12 @@ export default async function MetaPage({ searchParams }: { searchParams: Promise
   const sp = await searchParams;
   const game = parseGame(one(sp.game));
 
-  const all = await leaderboard(db, { days: DAYS });
+  const all = await cachedLeaderboard({ days: DAYS });
   const gamesPresent = GAMES.filter((g) => all.some((e) => e.game === g));
   const board = game ? all.filter((e) => e.game === game) : all;
 
   const resultIds = board.flatMap((e) => e.placements.map((p) => p.resultId));
-  const cardsByResult = await resultCardsFor(db, resultIds);
+  const cardsByResult = await cachedResultCards(resultIds);
 
   return (
     <div className="space-y-4">

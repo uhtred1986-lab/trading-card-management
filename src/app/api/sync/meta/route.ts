@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { syncMeta } from "@/lib/meta/sync";
 import { runSync } from "@/lib/sync";
+import { expireTagsFromRoute } from "@/lib/cache/tags";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -16,6 +17,11 @@ export async function GET(req: Request) {
   if (req.headers.get("authorization") !== `Bearer ${secret}`) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  const meta = await runSync(db, "meta", () => syncMeta(db));
-  return NextResponse.json({ meta });
+  try {
+    const meta = await runSync(db, "meta", () => syncMeta(db));
+    return NextResponse.json({ meta });
+  } finally {
+    // Even a sync that failed part-way may have written (src/lib/cache/reads.ts).
+    expireTagsFromRoute("meta");
+  }
 }

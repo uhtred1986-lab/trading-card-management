@@ -11,32 +11,37 @@ import { syncCatalog } from "@/lib/catalog/deckplanet";
 import { syncFx } from "@/lib/pricing/fx";
 import { syncPrices } from "@/lib/pricing/tcgcsv";
 import { runSync } from "@/lib/sync";
+import { expireTagsFromAction, type CacheTag } from "@/lib/cache/tags";
 
 /**
  * A failed sync is already recorded in `sync_runs` by `runSync`; swallowing
  * the rethrow here lets the Settings page render the error instead of Next's
  * generic 500 screen.
  */
-async function quietly(fn: () => Promise<unknown>): Promise<void> {
+async function quietly(tags: CacheTag[], fn: () => Promise<unknown>): Promise<void> {
   try {
     await fn();
   } catch {
     // recorded in sync_runs
   }
+  // Even a failed sync may have written part of its rows (src/lib/cache/reads.ts).
+  expireTagsFromAction(...tags);
   revalidatePath("/", "layout");
 }
 
 export async function syncCatalogAction(): Promise<void> {
-  await quietly(() => runSync(db, "catalog", () => syncCatalog(db)));
+  await quietly(["catalog"], () => runSync(db, "catalog", () => syncCatalog(db)));
 }
 
 export async function syncCardTraderAction(): Promise<void> {
   const { syncCardTraderCatalog } = await import("@/lib/marketplace/cardtrader");
-  await quietly(() => runSync(db, "cardtrader", () => syncCardTraderCatalog(db)));
+  // CardTrader backfills leader faces into `cards`.
+  await quietly(["catalog"], () => runSync(db, "cardtrader", () => syncCardTraderCatalog(db)));
 }
 
 export async function syncPricesAction(): Promise<void> {
-  await quietly(async () => {
+  // The price sync also backfills card art and set release dates.
+  await quietly(["prices", "catalog"], async () => {
     await runSync(db, "fx", () => syncFx(db));
     await runSync(db, "prices", () => syncPrices(db));
   });
@@ -44,7 +49,7 @@ export async function syncPricesAction(): Promise<void> {
 
 export async function syncMetaAction(): Promise<void> {
   const { syncMeta } = await import("@/lib/meta/sync");
-  await quietly(() => runSync(db, "meta", () => syncMeta(db)));
+  await quietly(["meta"], () => runSync(db, "meta", () => syncMeta(db)));
 }
 
 /** The engine a new arena game is made on unless the form says otherwise (`engines.ts`). A setting, so it is flipped without a deploy. */
