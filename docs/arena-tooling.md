@@ -491,6 +491,69 @@ demands no colour for it, so a lenient price is never mistaken for the card's.
 
 ---
 
+## 5a. Seeing the board — `arena:shots` and `arena:contrast`
+
+The redesign is visual, and development keeps off Neon, so neither needs a game
+in the database. Both draw the real `ArenaStage` from a `contract/fixtures/*.json`
+snapshot through **`/arena/preview`** (dev-only: `notFound()` when
+`NODE_ENV === "production"`, so `npm run build` ships nothing reachable). The
+route takes `?fixture=play|attack|ko|…`, `?skin=anime|night`, `?staging=` and
+`?pace=step`; the board's two server actions are stubbed (`ArenaStage`'s
+`server` prop), so a tap goes nowhere. Both scripts drive the installed Chrome
+over the DevTools protocol (`scripts/lib/cdp.mts`, Node's built-in WebSocket) —
+no Playwright dependency. Set `CHROME_PATH` if yours is somewhere unusual.
+
+**Neither is in `npm test`**: both need `npm run dev` running and a browser.
+
+### `npm run arena:shots`
+
+Proves what the board *looks like*, for a review to set beside the frames in
+`docs/arena-redesign/`. Shoots fixtures x {anime, night} x {phone 390x844 with
+touch emulation, desk 1440x900} into `docs/arena-redesign/current/` (ignored by
+version control), named like the reference frames: `phone-play-anime.jpg`,
+`desk-ko-night.jpg`.
+
+```
+npm run arena:shots                                   # play, attack, ko
+npm run arena:shots -- --fixtures play,over --skins anime --viewports phone
+npm run arena:shots -- --all                          # every Snapshot fixture
+npm run arena:shots -- --fixtures play --tap "[data-arena-card]" --tag review
+npm run arena:shots -- --full --base http://localhost:3001
+```
+
+`--tap "<selector>"` taps the first match (touch on the phone, mouse on desk)
+before shooting — a card's review, an opened sheet. `--tag` is appended to the
+file name so an opened state does not overwrite the plain one. A fixture is one
+moment; a state no fixture holds is added to `scripts/verify/contract.ts`, not
+faked here. Card art is `null` in fixtures, so cards show their text face. The
+skin is set both as `?skin=` (the board) and as the `arenaSkin` cookie (the page
+behind it, which the root layout skins) — set both by hand if you open the URL
+yourself.
+
+### `npm run arena:contrast`
+
+Proves the board's text is **legible** (WCAG 1.4.3: 4.5:1, 3:1 for large text),
+in both skins, phone and desk. axe-core cannot resolve a background through a
+gradient and the anime sky is made of them, so this walks each text node's
+ancestors, composites every translucent fill — and **every gradient stop**,
+worst case — down from the first opaque ground, and reports the lowest ratio.
+A card face carries an opaque dark ground (`docs/arena-skin-spec.md` decision
+4), so text inside one is judged against the card, not the sky.
+
+```
+npm run arena:contrast                  # prints a table; writes current/contrast.json
+npm run arena:contrast -- --strict      # exit 1 on any failure
+npm run arena:contrast -- --fixtures play --skins anime --json /tmp/c.json
+```
+
+What a pass does **not** cover: text over photo art (judged against black and
+white, flagged), `text-shadow`, `backdrop-filter`, pseudo-element fills; and
+text with a `-webkit-text-stroke` of 1 px or more is judged by its outline
+colour. Dimmed states (a card that is not a legal target, a disabled control)
+are measured at their dimmed opacity and do show up; decide per finding whether
+WCAG's inactive-component exemption applies. Animations are finished before the
+measurement so an entrance fade is not read as low contrast.
+
 ## 5. Recording a ruling
 
 ```

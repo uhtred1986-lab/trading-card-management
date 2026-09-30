@@ -68,18 +68,27 @@ import { BattleRow, cardIdOf, ClashBand, HandBacks, MenuSection, ReferenceCounts
  * cards out of their rows so each card is drawn once — a card's `layoutId` is
  * what flies it there and back, so it may exist in exactly one place.
  */
+const REAL_SERVER = { act, advance: advanceGame };
+
 export function ArenaStage({
   gameId,
   snapshot,
   skin = "night",
   staging = "band",
   lighting = DEFAULT_LIGHTING,
+  server = REAL_SERVER,
 }: {
   gameId: number;
   snapshot: Snapshot;
   skin?: ArenaSkin;
   staging?: ArenaStaging;
   lighting?: TurnLighting;
+  /**
+   * The two server actions the board calls. Defaults to the real ones; only
+   * the fixture preview (`/arena/preview`, dev-only) injects stubs, so a tap
+   * there goes nowhere instead of to a database that is not there.
+   */
+  server?: { act: typeof act; advance: typeof advanceGame };
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -206,10 +215,10 @@ export function ArenaStage({
     if (!serverDecides || asked.current) return;
     asked.current = true;
     startTransition(async () => {
-      const r = await advanceGame(gameId);
+      const r = await server.advance(gameId);
       if (r.error) setError(r.error);
     });
-  }, [serverDecides, gameId]);
+  }, [serverDecides, gameId, server]);
 
   /**
    * How tall the prompt bar is, published as a CSS variable on the board.
@@ -270,7 +279,7 @@ export function ArenaStage({
     setHeld(null);
     feel("tap");
     startTransition(async () => {
-      const r = await act(gameId, action);
+      const r = await server.act(gameId, action);
       if (r.error) {
         setError(r.error);
         feel("illegal");

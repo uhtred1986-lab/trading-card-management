@@ -5,6 +5,7 @@ milestone: Arena M16 — Board redesign: play feel and card review
 labels: backlog, ready-for-agent, enhancement, area:arena-ui, phase:board-redesign, model:sonnet-5
 stage: ui
 touches: scripts/arena-shots.mts, scripts/arena-contrast.mts, src/app/arena/preview/page.tsx, package.json, docs/arena-tooling.md
+status: closed
 ---
 **Source:** `docs/arena-board-redesign-spec.md` §2 (the review tooling row); `contract/fixtures/`; `src/components/arena/stage/ArenaStage.tsx`; `scripts/verify/game-page.ts` (which notes there is no Playwright here); `docs/arena-redesign/README.md`.
 

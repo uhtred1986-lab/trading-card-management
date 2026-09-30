@@ -23,7 +23,7 @@ import { parseSpecifiedCost, printSpecifiedCost } from "@/lib/arena/specified-co
 import { probe, ruleFrom, scenariosFor, type ProbeRule, type ProbeRun, type ProbeScenario } from "@/lib/arena/probe";
 import { SKIN_COOKIE, type ArenaSkin } from "@/lib/arena/skin";
 import { STAGING_COOKIE, type ArenaStaging } from "@/lib/arena/staging";
-import { syncFeedbackItem, syncAllFeedbackItems, syncBacklogIssues, type FeedbackItem } from "@/lib/github";
+import { syncFeedbackItem, syncAllFeedbackItems, type FeedbackItem } from "@/lib/github";
 
 /**
  * Which skin paints the board (`docs/arena-skin-spec.md` §3.1).
@@ -115,15 +115,6 @@ export async function syncAllFeedbackAction(): Promise<void> {
     revalidatePath("/arena/feedback");
   } catch (err) {
     console.error("[github] Failed to sync all feedback:", err);
-  }
-}
-
-export async function syncBacklogAction(): Promise<void> {
-  try {
-    await syncBacklogIssues({ allClosed: true });
-    revalidatePath("/arena/backlog");
-  } catch (err) {
-    console.error("[github] Failed to sync backlog:", err);
   }
 }
 
