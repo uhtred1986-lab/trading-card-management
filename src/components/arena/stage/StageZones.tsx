@@ -177,6 +177,22 @@ export function HandBacks({ count }: { count: number }) {
   );
 }
 
+/** The explosion's 12 shards: angle in degrees and how far each flies, in px (the prototype's). */
+const SHARDS: readonly (readonly [number, number])[] = [
+  [0, 74],
+  [30, 58],
+  [60, 80],
+  [90, 62],
+  [120, 78],
+  [150, 56],
+  [180, 72],
+  [210, 60],
+  [240, 82],
+  [270, 58],
+  [300, 76],
+  [330, 64],
+];
+
 /** A player's own corner of the table, with an anchor on every pile. */
 export function SideRail({
   side,
@@ -184,6 +200,7 @@ export function SideRail({
   active = false,
   cardProps,
   hurt = false,
+  hit = null,
   narrator,
   lifted,
   energyChips,
@@ -199,6 +216,12 @@ export function SideRail({
   cardProps: CardProps;
   /** This player is taking damage right now. */
   hurt?: boolean;
+  /**
+   * The damage beat on screen against this player (rd-07): an explosion on the
+   * leader, the emptied life pips shattering and -N LIFE rising. `n` is the
+   * beat's number, so a second hit in a row plays again.
+   */
+  hit?: { n: number; amount: number; critical: boolean } | null;
   narrator: { viewer: PlayerId; them: string };
   /** Cards a battle staging is drawing, which this rail must not draw twice. */
   lifted?: ReadonlySet<string>;
@@ -238,7 +261,7 @@ export function SideRail({
     <aside
       // Keyed on `hurt` so a second hit in the same turn shakes again rather
       // than sitting still on an animation that already played.
-      key={hurt ? `${p}-hurt` : p}
+      key={hurt ? `${p}-hurt-${hit?.n ?? 0}` : p}
       className={`flex items-center gap-3 rounded-xl border border-space-700/70 bg-space-900/60 p-2 sm:rounded-2xl sm:p-3 lg:w-44 lg:flex-col lg:items-stretch lg:gap-3 xl:w-52 ${hurt ? "arena-hurt" : ""} ${className}`}
       aria-label={them ? `${side.name}'s side` : "Your side"}
     >
@@ -259,6 +282,16 @@ export function SideRail({
             </span>
           ))}
         {side.unison && !lifted?.has(side.unison.id) && <StageCard {...cardProps(side.unison)} width={48} />}
+        {/* The explosion, centred on the leader's slot. The pieces are transforms, not shadows. */}
+        {hit && (
+          <span className={`arena-boom ${hit.critical ? "arena-boom-big" : ""}`} style={{ left: `calc(28px * var(--arena, 1))`, top: `calc(39px * var(--arena, 1))` }} aria-hidden>
+            <span className="arena-boom-flash" />
+            <span className="arena-boom-ring" />
+            {SHARDS.map(([a, d]) => (
+              <i key={a} className="arena-boom-shard" style={{ "--a": `${a}deg`, "--d": `${d}px` } as React.CSSProperties} />
+            ))}
+          </span>
+        )}
       </div>
 
       <div className="relative min-w-0 lg:text-center">
@@ -270,9 +303,17 @@ export function SideRail({
         </div>
         <span className="mt-1 flex gap-[2px] lg:justify-center">
           {Array.from({ length: 8 }, (_, i) => (
-            <i key={i} className={`h-2 w-[5px] rounded-[1px] sm:h-2.5 sm:w-[6px] ${i < side.life ? "bg-gain" : "bg-space-700"}`} />
+            <i key={i} className={`relative h-2 w-[5px] rounded-[1px] sm:h-2.5 sm:w-[6px] ${i < side.life ? "bg-gain" : "bg-space-700"}`}>
+              {/* The pips this beat emptied are the ones just past the life now left. */}
+              {hit && i >= side.life && i < side.life + hit.amount && <b className="arena-pip-shatter" />}
+            </i>
           ))}
         </span>
+        {hit && (
+          <span className="arena-lifefloat text-xl sm:text-3xl" aria-hidden>
+            −{hit.amount} LIFE
+          </span>
+        )}
         {side.leader?.power != null && <p className="mt-1 font-mono text-xs font-bold text-gain sm:text-sm">{side.leader.power.toLocaleString("en")}</p>}
         {/* 3-9-2-1: a life card turned face up is open to both players, and the
             skills that read it are counting these, so they are shown. */}

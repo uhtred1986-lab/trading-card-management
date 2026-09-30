@@ -1115,6 +1115,432 @@ input[type="number"] {
 }
 
 /* ==========================================================================
+ * Effects that make a play land (issue #349, docs/arena-board-redesign-spec.md
+ * §5). Each is a class on an element a beat on screen mounts, so one beat plays
+ * it once; none is a beat of its own. Lengths are `--fx-*` custom properties
+ * the board publishes from `FX` in motion.ts (scaled by the pace), so this file
+ * holds the shapes and motion.ts holds the times. Colours are skin tokens.
+ * Shards, rings and the rest move by transform and opacity; the only infinite
+ * loops are the slow rays behind a fight and a title, never on a hand card.
+ * ========================================================================== */
+@keyframes arena-fx-reveal {
+  0% {
+    transform: translateY(-70px) rotateY(180deg) scale(1.7);
+    opacity: 0;
+    filter: brightness(3);
+  }
+  45% {
+    opacity: 1;
+    transform: translateY(-12px) rotateY(80deg) scale(1.35);
+    filter: brightness(2.4);
+  }
+  100% {
+    transform: none;
+    filter: none;
+    opacity: 1;
+  }
+}
+@keyframes arena-fx-ring {
+  0% {
+    transform: scale(0.25);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+}
+@keyframes arena-fx-flash {
+  0% {
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+/* A card from the hand, turned over as it lands, with a ring of light from 330 ms. */
+.arena-fx-reveal {
+  position: relative;
+  animation: arena-fx-reveal var(--fx-reveal, 850ms) cubic-bezier(0.2, 0.9, 0.25, 1.15) both;
+}
+.arena-fx-reveal::before {
+  content: "";
+  position: absolute;
+  inset: -35%;
+  z-index: 4;
+  border-radius: 50%;
+  border: 3px solid var(--color-ki-300);
+  box-shadow: 0 0 22px var(--color-ki-500);
+  pointer-events: none;
+  animation: arena-fx-ring calc(var(--fx-reveal, 850ms) - var(--fx-reveal-ring, 330ms)) ease-out var(--fx-reveal-ring, 330ms) both;
+}
+/* The brief full-board flash: a wash of light, not a blackout, and gone in under half a second. */
+.arena-fx-flash {
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 50%, color-mix(in srgb, #fff 50%, transparent), color-mix(in srgb, var(--color-ki-300) 14%, transparent) 45%, transparent 70%);
+  animation: arena-fx-flash var(--fx-reveal-flash, 460ms) ease-out both;
+}
+
+/* The explosion on a leader that takes damage: a radial flash, a shock ring and 12 shards. */
+@keyframes arena-fx-bflash {
+  0% {
+    transform: scale(0.1);
+    opacity: 1;
+  }
+  35% {
+    transform: scale(1.25);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.7);
+    opacity: 0;
+  }
+}
+@keyframes arena-fx-shard {
+  0% {
+    transform: rotate(var(--a)) translateY(0) scale(1.2);
+    opacity: 1;
+  }
+  100% {
+    transform: rotate(var(--a)) translateY(calc(-1 * var(--d))) scale(0.3);
+    opacity: 0;
+  }
+}
+.arena-boom {
+  position: absolute;
+  width: 0;
+  height: 0;
+  z-index: 20;
+  pointer-events: none;
+}
+.arena-boom-flash {
+  position: absolute;
+  left: -64px;
+  top: -64px;
+  width: 128px;
+  height: 128px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff 0%, color-mix(in srgb, #fff 60%, var(--color-ki-300)) 18%, var(--color-ki-400) 40%, color-mix(in srgb, var(--color-ki-500) 60%, transparent) 58%, transparent 72%);
+  animation: arena-fx-bflash var(--fx-boom, 680ms) ease-out both;
+}
+.arena-boom-ring {
+  position: absolute;
+  left: -52px;
+  top: -52px;
+  width: 104px;
+  height: 104px;
+  border-radius: 50%;
+  border: 4px solid var(--color-ki-300);
+  box-shadow: 0 0 20px var(--color-ki-500);
+  animation: arena-fx-ring var(--fx-boom-ring, 720ms) ease-out both;
+}
+.arena-boom-shard {
+  position: absolute;
+  left: -4px;
+  top: -8px;
+  width: 8px;
+  height: 16px;
+  border-radius: 2px;
+  background: linear-gradient(#fff, var(--color-ki-400));
+  animation: arena-fx-shard var(--fx-boom-shard, 760ms) cubic-bezier(0.1, 0.8, 0.3, 1) both;
+}
+.arena-boom-big {
+  transform: scale(1.6);
+}
+/* The board shake. Two names so a second hit in a row restarts it. */
+@keyframes arena-fx-shake-a {
+  10% {
+    transform: translate(-6px, 3px);
+  }
+  25% {
+    transform: translate(5px, -4px);
+  }
+  40% {
+    transform: translate(-4px, -2px);
+  }
+  55% {
+    transform: translate(3px, 3px);
+  }
+  70% {
+    transform: translate(-2px, 1px);
+  }
+  85% {
+    transform: translate(1px, -1px);
+  }
+}
+@keyframes arena-fx-shake-b {
+  10% {
+    transform: translate(-6px, 3px);
+  }
+  25% {
+    transform: translate(5px, -4px);
+  }
+  40% {
+    transform: translate(-4px, -2px);
+  }
+  55% {
+    transform: translate(3px, 3px);
+  }
+  70% {
+    transform: translate(-2px, 1px);
+  }
+  85% {
+    transform: translate(1px, -1px);
+  }
+}
+.arena-fx-shake-a {
+  animation: arena-fx-shake-a var(--fx-shake, 420ms) ease-out;
+}
+.arena-fx-shake-b {
+  animation: arena-fx-shake-b var(--fx-shake, 420ms) ease-out;
+}
+
+/* Life break: the emptied pip flashes white, doubles and spins away; -1 LIFE rises. */
+@keyframes arena-fx-shatter {
+  0% {
+    transform: scale(1);
+    background: #fff;
+    opacity: 1;
+  }
+  45% {
+    transform: scale(2.6) rotate(25deg);
+    background: var(--color-ki-300);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.1) rotate(80deg);
+    background: var(--color-ki-300);
+    opacity: 0;
+  }
+}
+.arena-pip-shatter {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  border-radius: 1px;
+  background: #fff;
+  pointer-events: none;
+  animation: arena-fx-shatter var(--fx-life-break, 750ms) ease-out both;
+}
+@keyframes arena-fx-floatup {
+  0% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+  25% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-40px);
+    opacity: 0;
+  }
+}
+.arena-lifefloat {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  z-index: 30;
+  translate: -50% 0;
+  white-space: nowrap;
+  pointer-events: none;
+  font-family: var(--font-impact), "Kanit", var(--font-sans, system-ui), sans-serif;
+  font-style: italic;
+  font-weight: 900;
+  color: var(--color-loss);
+  -webkit-text-stroke: 2px var(--ink, var(--color-space-950));
+  paint-order: stroke fill;
+  animation: arena-fx-floatup var(--fx-life-float, 950ms) ease-out both;
+}
+
+/* A KO: burn white, crack, tilt and fall; the ghost flies to the Drop after. */
+@keyframes arena-fx-ko {
+  0% {
+    filter: brightness(3.2);
+  }
+  18% {
+    transform: scale(1.14) rotate(-5deg);
+    filter: brightness(2.2);
+  }
+  100% {
+    transform: scale(0.8) rotate(22deg) translateY(34px);
+    filter: grayscale(1) brightness(0.5);
+  }
+}
+@keyframes arena-fx-crack {
+  0%,
+  10% {
+    opacity: 0;
+  }
+  30%,
+  100% {
+    opacity: 1;
+  }
+}
+.arena-fx-ko {
+  position: relative;
+  animation: arena-fx-ko var(--fx-ko, 780ms) ease-in both;
+}
+.arena-fx-ko::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(112deg, transparent 44%, #fff 45% 47%, transparent 48%), linear-gradient(68deg, transparent 58%, #fff 59% 60.5%, transparent 61.5%);
+  animation: arena-fx-crack var(--fx-ko, 780ms) linear both;
+}
+
+/* The staged fight: cards in from opposite corners, VS slams, then the verdict. */
+@keyframes arena-fx-in-l {
+  from {
+    transform: translate(-120%, -40px) rotate(-8deg);
+    opacity: 0;
+  }
+}
+@keyframes arena-fx-in-r {
+  from {
+    transform: translate(120%, 40px) rotate(8deg);
+    opacity: 0;
+  }
+}
+@keyframes arena-fx-slam {
+  0% {
+    transform: scale(3.2);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+.arena-fx-in-l {
+  animation: arena-fx-in-l var(--fx-card-in, 460ms) cubic-bezier(0.2, 0.9, 0.2, 1.15) both;
+}
+.arena-fx-in-r {
+  animation: arena-fx-in-r var(--fx-card-in, 460ms) cubic-bezier(0.2, 0.9, 0.2, 1.15) both;
+}
+.arena-fx-vs {
+  display: inline-block;
+  transition: opacity 0.2s;
+  animation: arena-fx-slam var(--fx-vs, 520ms) cubic-bezier(0.2, 1.8, 0.4, 1) var(--fx-vs-delay, 180ms) backwards;
+}
+.arena-fx-vs-off {
+  opacity: 0;
+}
+.arena-fx-word {
+  display: block;
+  animation: arena-fx-slam var(--fx-word, 640ms) cubic-bezier(0.2, 1.6, 0.35, 1) var(--fx-beam, 360ms) both;
+}
+.arena-fx-stage {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+/* Night: a quiet ring behind the power figures. The sky swaps it for the starburst. */
+.arena-fx-burst {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(420px, 96%);
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--color-ki-400) 38%, transparent);
+  background: radial-gradient(circle, transparent 52%, color-mix(in srgb, var(--color-ki-500) 14%, transparent) 70%, transparent 71%);
+}
+.arena-fx-lines {
+  display: none;
+}
+/* The ki beam, attacker to defender, and the barrier that flares when it holds. */
+@keyframes arena-fx-beam {
+  from {
+    transform: rotate(var(--ang)) scaleX(0);
+    opacity: 1;
+  }
+  to {
+    transform: rotate(var(--ang)) scaleX(1);
+    opacity: 1;
+  }
+}
+@keyframes arena-fx-fade {
+  to {
+    opacity: 0;
+  }
+}
+.arena-fx-beam {
+  position: absolute;
+  height: 18px;
+  margin-top: -9px;
+  border-radius: 9px;
+  transform-origin: 0 50%;
+  background: linear-gradient(90deg, var(--color-ki-400), #fff 15%, var(--color-ki-300) 50%, #fff 85%, var(--color-ki-400));
+  box-shadow: 0 0 0 2px var(--ink, var(--color-ki-600));
+  filter: drop-shadow(0 0 10px var(--color-ki-400));
+  pointer-events: none;
+  animation:
+    arena-fx-beam var(--fx-beam, 360ms) ease-out both,
+    arena-fx-fade 320ms ease-in var(--fx-word, 640ms) forwards;
+}
+@keyframes arena-fx-shield {
+  0% {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  40% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0.85;
+  }
+}
+.arena-fx-shield {
+  position: absolute;
+  border-radius: 50%;
+  border: 4px solid color-mix(in srgb, var(--color-dbs-blue) 70%, #fff);
+  box-shadow:
+    0 0 0 2px var(--ink, var(--color-space-950)),
+    0 0 26px var(--color-dbs-blue);
+  background: radial-gradient(circle, transparent 50%, color-mix(in srgb, var(--color-dbs-blue) 45%, transparent) 100%);
+  pointer-events: none;
+  animation: arena-fx-shield var(--fx-shield, 620ms) ease-out var(--fx-beam, 360ms) both;
+}
+
+/* Victory and defeat: slow rays behind a slammed title. */
+@keyframes arena-fx-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.arena-fx-rays {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: -1;
+  width: 900px;
+  height: 900px;
+  margin: -450px 0 0 -450px;
+  border-radius: 50%;
+  pointer-events: none;
+  background: repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--color-ki-300) 22%, transparent) 0 10deg, transparent 10deg 20deg);
+  -webkit-mask-image: radial-gradient(circle, #000 12%, transparent 60%);
+  mask-image: radial-gradient(circle, #000 12%, transparent 60%);
+  animation: arena-fx-spin 24s linear infinite;
+}
+.arena-fx-title {
+  display: block;
+  animation: arena-fx-slam var(--fx-title, 640ms) cubic-bezier(0.2, 1.6, 0.35, 1) both;
+}
+
+/* ==========================================================================
  * Anime Sky — the app's skin (docs/arena-skin-spec.md, extended to the whole
  * app on 6 Sep 2026 at the owner's request).
  *
@@ -1559,8 +1985,86 @@ html[data-skin="anime"] body::before {
   --scrim: color-mix(in srgb, var(--color-space-950) 70%, transparent);
 }
 
+/* The sky's share of the effects (issue #349): ink-edged light, a slow starburst
+   and ink speed lines behind the fight. A pinned night board keeps night's ring. */
+[data-skin="anime"] .arena-fx-reveal::before,
+[data-skin="anime"] .arena-boom-ring {
+  border-color: #fff;
+  box-shadow:
+    0 0 0 2px var(--ink),
+    0 0 22px var(--color-ki-400);
+}
+[data-skin="anime"] .arena-lifefloat {
+  -webkit-text-stroke: 3px var(--ink);
+}
+[data-skin="anime"] .arena-fx-burst {
+  border: 0;
+  background: repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--color-ki-300) 70%, transparent) 0 8deg, transparent 8deg 22deg);
+  -webkit-mask-image: radial-gradient(circle, transparent 30%, #000 40%, #000 56%, transparent 70%);
+  mask-image: radial-gradient(circle, transparent 30%, #000 40%, #000 56%, transparent 70%);
+  animation: arena-fx-spin 6s linear infinite reverse;
+}
+[data-skin="anime"] .arena-fx-lines {
+  display: block;
+  position: absolute;
+  inset: -60%;
+  background: repeating-conic-gradient(from 0deg at 50% 50%, rgba(18, 22, 31, 0.13) 0 1.2deg, transparent 1.2deg 9deg);
+  -webkit-mask-image: radial-gradient(circle, transparent 16%, #000 50%);
+  mask-image: radial-gradient(circle, transparent 16%, #000 50%);
+  animation: arena-fx-spin 10s linear infinite;
+}
+[data-skin="anime"] .arena-fx-word {
+  -webkit-text-stroke: 3px var(--ink);
+  text-shadow: 4px 5px 0 rgba(18, 22, 31, 0.55);
+}
+[data-skin="anime"] .arena-fx-title {
+  color: var(--ki-gold);
+  -webkit-text-stroke: 3px var(--ink);
+  paint-order: stroke fill;
+  text-shadow: 4px 5px 0 rgba(18, 22, 31, 0.55);
+  font-family: var(--font-impact), "Kanit", var(--font-sans, system-ui), sans-serif;
+  font-style: italic;
+  font-weight: 900;
+}
+[data-skin="anime"] .arena-fx-rays {
+  background: repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--color-ki-300) 55%, transparent) 0 10deg, transparent 10deg 20deg);
+}
+
 /* Reduced motion zeroes every animation, the skin's included — kept after the skin so it wins. */
 @media (prefers-reduced-motion: reduce) {
+  .arena-fx-reveal,
+  .arena-fx-reveal::before,
+  .arena-fx-flash,
+  .arena-boom-flash,
+  .arena-boom-ring,
+  .arena-boom-shard,
+  .arena-fx-shake-a,
+  .arena-fx-shake-b,
+  .arena-pip-shatter,
+  .arena-lifefloat,
+  .arena-fx-ko,
+  .arena-fx-ko::after,
+  .arena-fx-in-l,
+  .arena-fx-in-r,
+  .arena-fx-vs,
+  .arena-fx-word,
+  .arena-fx-beam,
+  .arena-fx-shield,
+  .arena-fx-rays,
+  .arena-fx-title,
+  [data-skin="anime"] .arena-fx-burst,
+  [data-skin="anime"] .arena-fx-lines {
+    animation: none;
+  }
+  /* What is only ever a flourish is not drawn at all: a still frame of a beam or a shard is noise. */
+  .arena-fx-flash,
+  .arena-boom,
+  .arena-pip-shatter,
+  .arena-lifefloat,
+  .arena-fx-beam,
+  .arena-fx-shield {
+    display: none;
+  }
   .arena-banner,
   .arena-slam,
   .arena-drop,

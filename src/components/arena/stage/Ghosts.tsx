@@ -27,15 +27,21 @@ export function Ghosts({ ghosts, art }: { ghosts: Ghost[]; art: Record<string, B
           <motion.div
             key={g.key}
             className="pointer-events-none absolute z-30"
+            // Inline as well: a direct child of `.arena` is forced to `relative` by
+            // an unlayered rule that beats the classes (#412), and a ghost that is
+            // not absolute flies from the wrong place.
+            style={{ position: "absolute", zIndex: 30 }}
             // A card leaving shudders out and fades to the Drop; one arriving
             // flies in from its pile, whole, and hands over to the real card.
             initial={g.kind === "arrive" ? { left: g.from.x, top: g.from.y, opacity: 0.85, scale: 0.9 } : { left: g.from.x, top: g.from.y, opacity: 1, scale: 1, filter: "saturate(1)" }}
             animate={g.kind === "arrive" ? { left: g.to.x, top: g.to.y, opacity: 1, scale: 1 } : { left: g.to.x, top: g.to.y, opacity: 0, scale: 0.7, filter: "saturate(0.15)" }}
             exit={{ opacity: 0 }}
-            transition={{ duration: Math.min(0.9, g.ms / 1000), ease: g.kind === "arrive" ? "easeOut" : "easeIn" }}
+            // A KO holds still while it shatters (the inner card plays `arena-fx-ko`
+            // for `delay`), and only then does the flight to the Drop begin.
+            transition={{ duration: Math.min(0.9, g.ms / 1000), ease: g.kind === "arrive" ? "easeOut" : "easeIn", delay: g.ko ? g.ko.delay / 1000 : 0 }}
           >
             <div
-              className={`arena-card card-aspect w-[calc(52px*var(--arena,1))] overflow-hidden rounded-[4px] border bg-space-800 ${g.kind === "arrive" ? "arena-ring-legal border-ki-400/70" : "arena-ghost border-loss/60"}`}
+              className={`arena-card card-aspect w-[calc(52px*var(--arena,1))] overflow-hidden rounded-[4px] border bg-space-800 ${g.kind === "arrive" ? "arena-ring-legal border-ki-400/70" : "arena-ghost border-loss/60"} ${g.ko ? "arena-fx-ko" : ""}`}
             >
               {!face ? (
                 <span className="arena-card-back grid h-full w-full place-items-center" aria-hidden>

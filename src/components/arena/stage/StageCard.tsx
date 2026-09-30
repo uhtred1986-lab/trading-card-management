@@ -6,7 +6,7 @@ import { ArenaCard, type CardState } from "../ArenaCard";
 import { SPRING } from "./motion";
 
 /** A storyboard moment that happens *to* a card, rather than moving it. */
-export type Moment = "lungeUp" | "lungeDown" | "hit" | "awaken" | "arrive" | "refuse" | "surge" | "settle";
+export type Moment = "lungeUp" | "lungeDown" | "hit" | "awaken" | "arrive" | "reveal" | "refuse" | "surge" | "settle";
 
 const MOMENT: Record<Moment | "none", string> = {
   lungeUp: "arena-lunge-up",
@@ -14,6 +14,8 @@ const MOMENT: Record<Moment | "none", string> = {
   hit: "arena-hit",
   awaken: "arena-awaken",
   arrive: "arena-pop",
+  /** A card from the hand landing in the Battle Area (rd-07): flip, ring, and a board flash. */
+  reveal: "arena-fx-reveal",
   /** A tap the rules refused: a headshake while the prompt bar says why. */
   refuse: "arena-nope",
   /** A rule coming into force on this card, and the same rule wearing off. */

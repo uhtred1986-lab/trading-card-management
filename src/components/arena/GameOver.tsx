@@ -57,10 +57,13 @@ export function GameOver({
   const cachedShare = spend.input + spend.cached > 0 ? Math.round((spend.cached / (spend.input + spend.cached)) * 100) : 0;
 
   return (
-    <section className="space-y-3 rounded-xl border border-space-700/70 bg-space-900/60 p-4">
+    <section className="relative isolate space-y-3 overflow-hidden rounded-xl border border-space-700/70 bg-space-900/60 p-4">
+      {/* Slow rays behind a slammed title (rd-07). A background layer, and not
+          drawn at all for a draw, which has no winner to celebrate. */}
+      {!draw && <span className="arena-fx-rays" aria-hidden />}
       <div className="text-center">
         <p className="text-[11px] uppercase tracking-[0.28em] text-space-400">{draw ? "Draw" : winnerName ? "Result" : "Over"}</p>
-        <p className="mt-1 text-3xl font-bold tracking-tight text-ki-300">{draw ? "A draw" : `${winnerName} wins`}</p>
+        <p className="arena-fx-title mt-1 text-3xl font-bold tracking-tight text-ki-300 sm:text-4xl">{draw ? "A draw" : `${winnerName} wins`}</p>
         <p className="mt-1 text-xs text-space-300">{reason}</p>
       </div>
 

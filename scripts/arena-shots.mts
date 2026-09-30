@@ -11,6 +11,7 @@
  *   npm run arena:shots -- --fixtures play --rclick "[data-arena-card]" --tag pin     # desktop: right-click
  *   npm run arena:shots -- --fixtures play --query turn=banner --tag turn --settle 500   # extra preview params: the turn banner up
  *   npm run arena:shots -- --fixtures hand --drag "[data-arena-card]" --to '[data-arena-zone="p1:battle"]' --tag drag   # a drag in progress, held for the shot
+ *   npm run arena:shots -- --fixtures ko --query fx=ko --settle 50 --on ".arena-fx-ko" --freeze 400 --tag fx   # an effect frozen mid-animation (preview-only ?fx=)
  *   npm run arena:shots -- --full     # whole scrolled page, not just the viewport
  *
  * Output: docs/arena-redesign/current/{phone,desk}-<fixture>-<skin>[-<tag>].jpg
@@ -41,6 +42,11 @@ const full = process.argv.includes("--full");
 const staging = arg("staging");
 const pace = arg("pace") ?? "step";
 const query = arg("query");
+// An effect caught mid-animation (rd-07): wait until --on <selector> is on the
+// page, pause every running animation and set each to --freeze <ms>.
+// Pair it with a preview-only ?fx= hook and a small --settle.
+const freeze = arg("freeze");
+const freezeOn = arg("on");
 
 function allSnapshotFixtures(): string[] {
   return readdirSync(FIXTURES)
@@ -92,6 +98,12 @@ try {
         if (rclick && !vp.mobile) {
           await page.rightClick(rclick);
           await page.settle(400);
+        }
+        if (freeze) {
+          if (freezeOn) await page.waitFor(freezeOn);
+          await page.eval(`(() => { for (const a of document.getAnimations()) { a.pause(); a.currentTime = ${Number(freeze)}; } })()`);
+          // Not `settle`: that finishes every animation, which is the opposite of a freeze.
+          await page.eval(`new Promise((r) => setTimeout(r, 200))`);
         }
         const file = join(OUT, `${vp.name}-${fixture}-${skin}${tag ? `-${tag}` : ""}.jpg`);
         writeFileSync(file, await page.screenshot(full));

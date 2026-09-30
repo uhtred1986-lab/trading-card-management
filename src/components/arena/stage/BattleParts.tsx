@@ -365,7 +365,21 @@ export function TriggerLine({ beat, name }: { beat: NumberedBeat | null; name: s
  * board can no longer see, and the banner is then simply uncoloured — saying
  * "theirs" because a card had left would be worse than saying nothing.
  */
-export function BattleVerdict({ beat, art, sideOf }: { beat: NumberedBeat | null; art: Record<string, BeatArt>; sideOf: (card: string) => "yours" | "theirs" | null }) {
+export function BattleVerdict({
+  beat,
+  art,
+  sideOf,
+  hostRef,
+  leaders = [],
+}: {
+  beat: NumberedBeat | null;
+  art: Record<string, BeatArt>;
+  sideOf: (card: string) => "yours" | "theirs" | null;
+  /** The board, so the ki beam and the barrier can be drawn between the two cards (rd-07). */
+  hostRef?: React.RefObject<HTMLDivElement | null>;
+  /** Both leaders' instance ids: a hit on one of them is a BREAK THROUGH, on anything else a K.O. */
+  leaders?: readonly (string | undefined)[];
+}) {
   if (!beat || (beat.t !== "clash" && beat.t !== "negated")) return null;
 
   if (beat.t === "negated") {
@@ -373,28 +387,82 @@ export function BattleVerdict({ beat, art, sideOf }: { beat: NumberedBeat | null
   }
   const winner = beat.hit ? beat.attacker : beat.guard;
   const name = art[winner]?.name ?? "That card";
+  // The word is only a name for the engine's verdict (`hit`) and for who the
+  // guard was; it decides nothing.
+  const word = !beat.hit ? "HELD!" : leaders.includes(beat.guard) ? "BREAK THROUGH" : "K.O.";
   return (
-    <Banner
-      key={beat.n}
-      eyebrow={beat.hit ? "the attack hits" : "the attack is repelled"}
-      tone={sideOf(winner) ?? "neutral"}
-      name={name}
-      line={`${beat.attackPower.toLocaleString("en")} vs ${beat.guardPower.toLocaleString("en")}`}
-      won
-    />
+    <>
+      {hostRef && <ClashFx key={`fx-${beat.n}`} from={beat.attacker} to={beat.guard} held={!beat.hit} hostRef={hostRef} />}
+      <Banner
+        key={beat.n}
+        eyebrow={beat.hit ? "the attack hits" : "the attack is repelled"}
+        tone={sideOf(winner) ?? "neutral"}
+        name={name}
+        line={`${beat.attackPower.toLocaleString("en")} vs ${beat.guardPower.toLocaleString("en")}`}
+        won
+        word={word}
+      />
+    </>
+  );
+}
+
+/**
+ * The ki beam from attacker to defender, and on a hold the barrier that flares
+ * around the defender (rd-07). Drawn between the two cards where they are on
+ * screen right now — a band, a takeover or the board — and not at all when one
+ * of them is no longer anywhere to be measured. Positioned inline: a direct
+ * child of the board is forced `relative` by a rule the classes cannot beat (#412).
+ */
+function ClashFx({ from, to, held, hostRef }: { from: string; to: string; held: boolean; hostRef: React.RefObject<HTMLDivElement | null> }) {
+  const [geo, setGeo] = useState<{ x: number; y: number; len: number; ang: number; box: { x: number; y: number; w: number; h: number } } | null>(null);
+  useEffect(() => {
+    const host = hostRef.current;
+    const a = host?.querySelector(`[data-arena-card="${CSS.escape(from)}"]`);
+    const b = host?.querySelector(`[data-arena-card="${CSS.escape(to)}"]`);
+    if (!host || !a || !b) return setGeo(null);
+    const h = host.getBoundingClientRect();
+    const ra = a.getBoundingClientRect();
+    const rb = b.getBoundingClientRect();
+    const x1 = ra.left + ra.width / 2 - h.left;
+    const y1 = ra.top + ra.height / 2 - h.top;
+    const x2 = rb.left + rb.width / 2 - h.left;
+    const y2 = rb.top + rb.height / 2 - h.top;
+    setGeo({ x: x1, y: y1, len: Math.hypot(x2 - x1, y2 - y1), ang: (Math.atan2(y2 - y1, x2 - x1) * 180) / Math.PI, box: { x: rb.left - h.left, y: rb.top - h.top, w: rb.width, h: rb.height } });
+  }, [from, to, hostRef]);
+  if (!geo) return null;
+  return (
+    <>
+      <span className="arena-fx-beam" style={{ position: "absolute", left: geo.x, top: geo.y, width: geo.len, zIndex: 45, "--ang": `${geo.ang}deg` } as React.CSSProperties} aria-hidden />
+      {held && <span className="arena-fx-shield" style={{ position: "absolute", left: geo.box.x - 24, top: geo.box.y - 24, width: geo.box.w + 48, height: geo.box.h + 48, zIndex: 44 }} aria-hidden />}
+    </>
+  );
+}
+
+/**
+ * The slow starburst and ink speed lines behind a staged fight's power figures
+ * (the sky), or a quiet ring (night) — chosen by the skin's CSS, not here. A
+ * background layer: the lane's content sits above it.
+ */
+export function ClashBackdrop() {
+  return (
+    <span className="arena-fx-stage" aria-hidden>
+      <span className="arena-fx-lines" />
+      <span className="arena-fx-burst" />
+    </span>
   );
 }
 
 /** The verdict's one shape, so the three outcomes cannot drift apart. */
-function Banner({ eyebrow, tone, name, line, won = false }: { eyebrow: string; tone: "yours" | "theirs" | "neutral"; name: string; line: string; won?: boolean }) {
+function Banner({ eyebrow, tone, name, line, won = false, word }: { eyebrow: string; tone: "yours" | "theirs" | "neutral"; name: string; line: string; won?: boolean; word?: string }) {
   const colour = tone === "yours" ? "text-ki-300" : tone === "theirs" ? "text-loss" : "text-space-200";
   return (
-    <div className="pointer-events-none fixed inset-x-0 top-1/3 z-40 flex justify-center px-3" aria-live="polite">
+    <div className="pointer-events-none flex justify-center px-3" style={{ position: "fixed", left: 0, right: 0, top: "33%", zIndex: 40 }} aria-live="polite">
       <div className="arena-verdict max-w-[92vw] rounded-2xl border border-ki-500/40 px-5 py-3 text-center sm:px-8 sm:py-5">
         <p className="text-[10px] uppercase tracking-[0.3em] text-space-300 sm:text-xs">{eyebrow}</p>
-        <p className={`arena-verdict-name arena-impact mt-1 text-2xl font-black leading-tight sm:text-4xl ${colour}`}>
+        {word && <span className={`arena-fx-word arena-impact mt-1 whitespace-nowrap font-black leading-none text-[clamp(1.6rem,9vw,2.9rem)] sm:text-[clamp(2.75rem,5.5vw,5rem)] ${colour}`}>{word}</span>}
+        <p className={`arena-verdict-name arena-impact mt-1 font-black leading-tight ${word ? "text-lg sm:text-2xl" : "text-2xl sm:text-4xl"} ${colour}`}>
           {name}
-          {won && <span className="ml-2 align-middle text-lg sm:text-2xl">WINS</span>}
+          {won && <span className="ml-2 align-middle text-base sm:text-xl">WINS</span>}
         </p>
         <p className="mt-1 font-mono text-xs tabular-nums text-space-300 sm:text-base">{line}</p>
       </div>
