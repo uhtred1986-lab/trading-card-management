@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "motion/react";
-import { Chain, ChainCard, STEP_WORD, TriggerLine, Totals, type StagingProps } from "./BattleParts";
+import { Chain, ChainCard, ClashBackdrop, STEP_WORD, TriggerLine, Totals, type StagingProps } from "./BattleParts";
 import { StageCard } from "./StageCard";
 
 /**
@@ -36,10 +36,11 @@ export function DuelBand({ shape, cardProps, beat, progress }: StagingProps) {
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.2, ease: "easeOut" }}
-      className="arena-band pointer-events-none absolute left-2 right-2 z-20 -translate-y-1/2 rounded-2xl border border-ki-500/40 p-2 sm:p-3"
+      className="arena-band pointer-events-none absolute isolate left-2 right-2 z-20 -translate-y-1/2 rounded-2xl border border-ki-500/40 p-2 sm:p-3"
       style={{ top: "46%" }}
       aria-label="the battle"
     >
+      <ClashBackdrop />
       <div className="pointer-events-auto">
         <div className="flex items-center justify-between gap-2">
           <span className="truncate text-[9px] uppercase tracking-[0.2em] text-space-400 sm:text-[10px]">{STEP_WORD[shape.step] ?? shape.step}</span>
@@ -52,15 +53,22 @@ export function DuelBand({ shape, cardProps, beat, progress }: StagingProps) {
 
         <div className="mt-1 flex items-center justify-center gap-1.5 overflow-x-auto [justify-content:safe_center] sm:gap-2">
           <Chain side={left} cardProps={cardProps} width={42} outward="left" beat={beat} />
+          {/* The two cards arrive from opposite corners and VS slams between them
+              (rd-07). The arrival is on a wrapper of its own, so it does not
+              fight `arena-resolving` for the one `animation` property. */}
           {left.main && (
-            <div className={`shrink-0 ${resolving === left.main.id ? "arena-resolving" : ""}`}>
-              <StageCard {...cardProps(left.main)} width={76} />
+            <div className="arena-fx-in-l shrink-0">
+              <div className={resolving === left.main.id ? "arena-resolving" : ""}>
+                <StageCard {...cardProps(left.main)} width={76} />
+              </div>
             </div>
           )}
-          <span className="arena-impact shrink-0 px-0.5 font-mono text-[10px] font-bold tracking-[0.25em] text-space-500 sm:text-xs">VS</span>
+          <span className={`arena-fx-vs arena-impact shrink-0 px-0.5 font-mono text-[10px] font-bold tracking-[0.25em] text-space-500 sm:text-xs ${beat?.t === "clash" ? "arena-fx-vs-off" : ""}`}>VS</span>
           {right.main && (
-            <div className={`shrink-0 ${resolving === right.main.id ? "arena-resolving" : ""}`}>
-              <StageCard {...cardProps(right.main)} width={76} />
+            <div className="arena-fx-in-r shrink-0">
+              <div className={resolving === right.main.id ? "arena-resolving" : ""}>
+                <StageCard {...cardProps(right.main)} width={76} />
+              </div>
             </div>
           )}
           <Chain side={right} cardProps={cardProps} width={42} outward="right" beat={beat} />

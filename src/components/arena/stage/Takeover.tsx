@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "motion/react";
-import { Chain, STEP_WORD, TriggerLine, Totals, type StagingProps } from "./BattleParts";
+import { Chain, ClashBackdrop, STEP_WORD, TriggerLine, Totals, type StagingProps } from "./BattleParts";
 import { StageCard } from "./StageCard";
 
 /**
@@ -36,8 +36,9 @@ export function Takeover({ shape, cardProps, beat, progress }: StagingProps) {
   const resolving = beat && "card" in beat ? (beat as { card: string }).card : null;
   const name = beat?.t === "skill" ? (shape.cards.find((c) => c.id === beat.card)?.name ?? null) : null;
 
+  // The two sides arrive from opposite corners (rd-07).
   const cluster = (side: typeof left, outward: "left" | "right") => (
-    <div className="flex min-w-0 flex-1 flex-col items-center gap-2">
+    <div className={`flex min-w-0 flex-1 flex-col items-center gap-2 ${outward === "left" ? "arena-fx-in-l" : "arena-fx-in-r"}`}>
       <span className="truncate text-[10px] uppercase tracking-[0.2em] text-space-400 sm:text-xs">{side.mine ? "you" : side.name}</span>
       <div className={`${resolving === side.main?.id ? "arena-resolving" : ""}`}>{side.main && <StageCard {...cardProps(side.main)} width={104} />}</div>
       <Chain side={side} cardProps={cardProps} width={48} outward={outward} beat={beat} />
@@ -49,12 +50,13 @@ export function Takeover({ shape, cardProps, beat, progress }: StagingProps) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.2, ease: "easeOut" }}
-      className="arena-takeover fixed inset-x-0 top-0 z-20 flex flex-col items-center gap-3 overflow-y-auto p-3 sm:gap-5 sm:p-6"
+      className="arena-takeover isolate fixed inset-x-0 top-0 z-20 flex flex-col items-center gap-3 overflow-y-auto p-3 sm:gap-5 sm:p-6"
       // The bar's own height plus the gap it keeps from the edge. The fallback
       // is only for the first paint, before the measurement lands.
       style={{ bottom: "calc(var(--arena-prompt-h, 4.5rem) + 1rem)" }}
       aria-label="the battle"
     >
+      <ClashBackdrop />
       {/* Centred by the auto margins on the first and last child rather than by
           `justify-center`, which on a window too short to hold the fight would
           put the top of it out of reach above this container's own start. */}
@@ -70,8 +72,8 @@ export function Takeover({ shape, cardProps, beat, progress }: StagingProps) {
       <div className="flex w-full max-w-3xl items-start justify-center gap-3 sm:gap-8">
         {cluster(left, "left")}
         {/* The wave between them: one element, so it can be found and changed. */}
-        <span className="arena-wave mt-10 shrink-0 self-center font-mono text-xs font-bold tracking-[0.3em] text-space-500 sm:text-base" aria-hidden>
-          VS
+        <span className={`arena-fx-vs mt-10 shrink-0 self-center ${beat?.t === "clash" ? "arena-fx-vs-off" : ""}`} aria-hidden>
+          <span className="arena-wave block font-mono text-xs font-bold tracking-[0.3em] text-space-500 sm:text-base">VS</span>
         </span>
         {cluster(right, "right")}
       </div>

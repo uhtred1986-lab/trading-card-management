@@ -48,7 +48,7 @@ import { Ghosts } from "./Ghosts";
 import { Hand } from "./Hand";
 import type { DropState } from "./StageZones";
 import { MarkerFlight } from "./MarkerFlight";
-import { msFor, turnBannerMs } from "./motion";
+import { fxVars, msFor, turnBannerMs } from "./motion";
 import { StagingToggle } from "../StagingToggle";
 import type { ArenaStaging } from "@/lib/arena/staging";
 import type { Moment } from "./StageCard";
@@ -614,12 +614,17 @@ export function ArenaStage({
     if (beat.t === "attack" && beat.attacker === id) return mine(id) ? "lungeUp" : "lungeDown";
     if (beat.t === "clash" && beat.hit && beat.guard === id) return "hit";
     if (beat.t === "flip" && beat.card === id) return "awaken";
+    // A card from the hand into the Battle Area is a reveal; any other arrival pops in.
+    if (beat.t === "move" && beat.card === id && beat.from === "hand" && beat.to === "battle") return "reveal";
     if ((beat.t === "token" && beat.card === id) || (beat.t === "move" && beat.card === id)) return "arrive";
     if (beat.t === "effect" && beat.card === id) return "surge";
     if (beat.t === "effectEnded" && beat.card === id) return "settle";
     return null;
   };
   const hurting = beat?.t === "damage" ? beat.player : null;
+  /** The damage on screen, for the explosion, the life pip and the shake (rd-07). */
+  const damageNow = beat?.t === "damage" ? beat : null;
+  const hitOf = (p: PlayerId) => (damageNow && damageNow.player === p ? { n: damageNow.n, amount: damageNow.amount, critical: damageNow.critical } : null);
 
   // The skill banner is bound to the `skill` beat on screen, so each ability
   // in a turn gets its moment in the story's order — the row's `spotlight`
@@ -930,11 +935,16 @@ export function ArenaStage({
         ref={boardRef}
         className="arena relative mx-auto flex w-full max-w-7xl flex-col gap-2 sm:gap-3 lg:grid lg:grid-cols-[minmax(0,1fr)_17rem] lg:gap-4 xl:grid-cols-[minmax(0,1fr)_21rem]"
         data-skin={skin}
-        style={turnStyle}
+        style={{ ...turnStyle, ...fxVars(pace) }}
       >
         {/* Speed lines under an attack — a skin's moment, driven by the beat on
             screen like every other; it draws nothing on the night table. */}
         {beat && (beat.t === "attack" || beat.t === "clash") && <div key={beat.n} className="arena-speedlines pointer-events-none absolute inset-0 z-20" aria-hidden />}
+        {/* A card revealed from the hand: a brief flash over the whole board (rd-07).
+            Positioned inline, because `.arena > *` beats a class on a direct child (#412). */}
+        {beat?.t === "move" && beat.from === "hand" && beat.to === "battle" && (
+          <div key={beat.n} className="arena-fx-flash" style={{ position: "absolute", inset: 0, zIndex: 35 }} aria-hidden />
+        )}
         {/* The edge: an inner frame in the acting side's colour, switching with the banner. */}
         <div className="arena-edge" aria-hidden />
         <TurnBanner call={turnCall} view={view} lighting={lighting} ms={turnBannerMs(pace)} holdUntilTap={pace === "step"} />
@@ -956,10 +966,13 @@ export function ArenaStage({
           {/* Below lg this is one column (them, the board, you). From lg it is
             the desktop review layout: both players' rails stacked on the left,
             the board, and the docked inspector over its tabs on the right. */}
-          <div className="flex flex-col gap-2 lg:grid lg:grid-cols-[auto_minmax(0,1fr)] lg:items-start lg:gap-4">
+          {/* The shake is on this block and not on the board: a transform on the
+              board would become the containing block of the takeover and the
+              drag ghost, which are `fixed`. Nothing fixed is inside this one. */}
+          <div className={`flex flex-col gap-2 lg:grid lg:grid-cols-[auto_minmax(0,1fr)] lg:items-start lg:gap-4 ${damageNow ? (damageNow.n % 2 ? "arena-fx-shake-a" : "arena-fx-shake-b") : ""}`}>
             {/* The desktop's phase chips: the top of the left column, so they are on screen with the board. */}
             <PhaseChips view={view} className="hidden lg:col-start-1 lg:row-start-1 lg:flex lg:w-44 xl:w-52" />
-            <SideRail side={view.them} them active={!acting} cardProps={cardProps} hurt={hurting === view.them.player} narrator={narrator} lifted={lifted} className="lg:col-start-1 lg:row-start-2" />
+            <SideRail side={view.them} them active={!acting} cardProps={cardProps} hurt={hurting === view.them.player} hit={hitOf(view.them.player)} narrator={narrator} lifted={lifted} className="lg:col-start-1 lg:row-start-2" />
 
             <section className="arena-stage relative rounded-xl border border-space-700/70 p-2 sm:rounded-2xl sm:p-3 lg:col-start-2 lg:row-span-3 lg:row-start-1 lg:p-4" aria-label="Battle Areas">
               {/* Dimmed and blurred under the band, never hidden: the position
@@ -978,6 +991,7 @@ export function ArenaStage({
               active={acting}
               cardProps={cardProps}
               hurt={hurting === view.you.player}
+              hit={hitOf(view.you.player)}
               narrator={narrator}
               lifted={lifted}
               energyChips={energyChips}
@@ -1174,7 +1188,7 @@ export function ArenaStage({
         {/* Who won the fight, named. Outside the stagings on purpose: it must
             appear on all three, and a battle that has already closed by the
             time the beats arrive has no band left to carry it. */}
-        <BattleVerdict beat={beat} art={beats?.art ?? {}} sideOf={sideOf} />
+        <BattleVerdict beat={beat} art={beats?.art ?? {}} sideOf={sideOf} hostRef={boardRef} leaders={[view.you.leader?.id, view.them.leader?.id]} />
 
         <Ghosts ghosts={playback.ghosts} art={beats?.art ?? {}} />
 

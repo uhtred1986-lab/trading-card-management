@@ -51,6 +51,55 @@ export function turnBannerMs(pace: Pace = "normal"): number {
   return pace === "slow" ? Math.round(1300 * 2.4) : 1300;
 }
 
+/**
+ * The effects that make a play land (rd-07), at 1x, in milliseconds.
+ *
+ * The same table the CSS reads: `fxVars` publishes each row as a custom
+ * property on the board, scaled by the pace, so a keyframe's length and a
+ * beat's dwell cannot drift apart. Reduced motion never queues a beat, so none
+ * of these play; the keyframes are also zeroed in `globals.css`.
+ */
+export const FX = {
+  /** A card from the hand lands in the Battle Area: flip, scale-in, ring, flash. */
+  reveal: 850,
+  /** When the light ring leaves the revealed card. */
+  revealRing: 330,
+  revealFlash: 460,
+  /** An explosion on a leader that takes damage. */
+  boom: 680,
+  boomRing: 720,
+  boomShard: 760,
+  shake: 420,
+  /** The damage beat: the emptied life pip shatters and -1 LIFE rises. */
+  lifeBreak: 750,
+  lifeFloat: 950,
+  /** A KO: burn white, crack, tilt, fall; then the ghost flies to the Drop. */
+  ko: 780,
+  koFly: 420,
+  /** The staged fight. */
+  cardIn: 460,
+  vs: 520,
+  vsDelay: 180,
+  beam: 360,
+  word: 640,
+  shield: 620,
+  /** Victory and defeat. */
+  title: 640,
+} as const;
+
+/** The effects' multiplier: slow pace stretches them like every beat. Step plays at 1x. */
+export function fxScale(pace: Pace = "normal"): number {
+  return pace === "slow" ? 2.4 : 1;
+}
+
+/** `--fx-<name>` custom properties for the board root, from `FX` at this pace. */
+export function fxVars(pace: Pace = "normal"): Record<string, string> {
+  const k = fxScale(pace);
+  const out: Record<string, string> = {};
+  for (const [name, ms] of Object.entries(FX)) out[`--fx-${name.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}`] = `${Math.round(ms * k)}ms`;
+  return out;
+}
+
 /** Additions to one battle before they start playing themselves back faster. */
 export const CHAIN_ACCEL_AFTER = 4;
 
@@ -65,6 +114,11 @@ function baseMs(beat: Beat): number {
       // A charge turns the card over on the way; a play lands and settles. A
       // card going from hand to Drop is a counter or the discard that paid for
       // one, and either way it slides in from the side of a fight (§3.2).
+      // A card from the hand into the Battle Area is a reveal (rd-07), which
+      // has the time to flip, ring and flash; one going from the Battle Area to
+      // the Drop follows a KO shatter and is the tail of its flight.
+      if (beat.from === "hand" && beat.to === "battle") return FX.reveal;
+      if (beat.from === "battle" && beat.to === "drop") return FX.koFly;
       return beat.to === "energy" ? 260 : beat.to === "combo" ? 280 : beat.from === "hand" && beat.to === "drop" ? 320 : 280;
     case "mode":
       return 200;
@@ -90,9 +144,11 @@ function baseMs(beat: Beat): number {
       // glimpsed. This is the longest beat on the board on purpose.
       return 1100;
     case "damage":
-      return 560;
+      // The explosion and the life pip breaking are both on this beat (rd-07).
+      return FX.lifeBreak;
     case "ko":
-      return 560;
+      // The shatter; the flight to the Drop starts when it is over.
+      return FX.ko;
     case "negated":
       // An attack that never happened is still an outcome, and the sentence
       // explaining why the battle ended here is a long one.
@@ -176,6 +232,15 @@ export function arrives(beat: NumberedBeat, drawn: ReadonlySet<string> = EMPTY):
 const EMPTY: ReadonlySet<string> = new Set<string>();
 
 /**
+ * A card from the hand into the Battle Area (rd-07): the card's own reveal,
+ * so it is on screen for its whole beat rather than held back until the next
+ * one, and no ghost is flown in for it.
+ */
+export function reveals(beat: Beat): boolean {
+  return beat.t === "move" && beat.from === "hand" && beat.to === "battle";
+}
+
+/**
  * A card is arriving from somewhere it could not be seen — the deck, or the
  * opponent's hand — so there is no element to fly. Draw a ghost from that
  * pile to where it lands, and the real card appears as the ghost arrives.
@@ -184,6 +249,8 @@ const EMPTY: ReadonlySet<string> = new Set<string>();
  */
 export function arrivesFrom(beat: NumberedBeat, viewer: PlayerId): { card: string; from: string; to: string; owner: string } | null {
   if (beat.t !== "move" || !VISIBLE.has(beat.to)) return null;
+  // A reveal is played by the card itself, turning over where it lands.
+  if (reveals(beat)) return null;
   const hiddenHand = beat.from === "hand" && beat.owner !== viewer;
   if (!hiddenHand && VISIBLE.has(beat.from)) return null;
   return { card: beat.card, from: beat.from, to: beat.to, owner: beat.owner };

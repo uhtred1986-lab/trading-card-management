@@ -537,7 +537,15 @@ hand with three cards you can afford and two you cannot) and `charge` (Charge Ph
 before shooting — a card's review, an opened sheet. `--hover` and `--rclick` do the same with the pointer on
 desktop (a phone has none): the docked inspector filled, or pinned. `arena:contrast` takes `--hover` too,
 so a state that exists only under the pointer can be audited. `--tag` is appended to the
-file name so an opened state does not overwrite the plain one. A fixture is one
+file name so an opened state does not overwrite the plain one.
+
+An effect caught mid-animation (rd-07): the preview takes a preview-only
+`?fx=reveal|damage|damage-you|ko|attack|clash-hit|clash-ko|clash-held|over`, which mounts the fixture's
+board without its beats and then delivers one beat (or, for `ko`, the fixture's own) so the beat
+player walks it. Pair it with `--on "<selector>"` (wait until the effect is on the page),
+`--freeze <ms>` (pause every animation and set each to that time) and a small `--settle 50`:
+`--fixtures play --query fx=damage --on ".arena-boom" --freeze 250 --tag fx-boom`. The default
+`?pace=step` holds on the beat, so the frame is deterministic. A fixture is one
 moment; a state no fixture holds is added to `scripts/verify/contract.ts`, not
 faked here. Card art is `null` in fixtures, so cards show their text face. The
 skin is set both as `?skin=` (the board) and as the `arenaSkin` cookie (the page

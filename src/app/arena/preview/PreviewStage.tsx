@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { ArenaStage } from "@/components/arena/stage/ArenaStage";
+import { GameOver } from "@/components/arena/GameOver";
+import type { Beat, NumberedBeat } from "@/lib/arena/beats";
 import { setPacePref, type Pace } from "@/lib/arena/pace";
 import type { Snapshot } from "@/lib/arena/snapshot";
 import type { ArenaSkin } from "@/lib/arena/skin";
@@ -23,9 +25,76 @@ const STUB = {
   advance: async () => ({ error: null }),
 };
 
-export function PreviewStage({ snapshot, skin, staging, pace, announceTurn }: { snapshot: Snapshot; skin: ArenaSkin; staging: ArenaStaging; pace: Pace | null; announceTurn: boolean }) {
+/**
+ * `?fx=` (preview only, rd-07): play one effect on the fixture's board. A fixture
+ * is a moment, so its beats have already been seen; this mounts the board
+ * without them and then delivers them, the way a server response does, so the
+ * beat player walks them. Pair it with `?pace=step` to hold on the beat.
+ *
+ *   reveal | ko           the fixture's own beats (`play`, `ko`)
+ *   damage | damage-you   a hit on the opponent's / your leader (1 life)
+ *   clash-hit | clash-ko | clash-held   a verdict on the open battle (`attack`)
+ *   attack                the staged fight arriving (`attack`): cards in from the corners, VS
+ *   over                  the end screen's title (`over`)
+ */
+function fxBeats(fx: string, snap: Snapshot): NonNullable<Snapshot["beats"]> {
+  const own = snap.beats?.list ?? [];
+  const art = snap.beats?.art ?? {};
+  const number = (list: Beat[]): NumberedBeat[] => list.map((b, i) => ({ ...b, n: i + 1 }) as NumberedBeat);
+  let list: NumberedBeat[] = own;
+  if (fx === "reveal") list = own.filter((b) => b.t === "move");
+  else if (fx === "damage" || fx === "damage-you") list = number([{ t: "damage", player: fx === "damage" ? snap.view.them.player : snap.view.you.player, amount: 1, critical: false, cards: [] }]);
+  else if (fx.startsWith("clash")) {
+    const attacker = snap.view.battle?.attacker ?? "";
+    // A K.O. needs a guard that is not a leader; the verdict's word follows it.
+    const guard = fx === "clash-ko" ? (snap.view.them.battle[0]?.id ?? snap.view.battle?.guard ?? "") : (snap.view.battle?.guard ?? "");
+    list = number([{ t: "clash", attacker, guard, attackPower: 25000, guardPower: fx === "clash-held" ? 30000 : 10000, hit: fx !== "clash-held" }]);
+  }
+  return { seq: list.length, list, art };
+}
+
+export function PreviewStage({ snapshot, skin, staging, pace, announceTurn, fx }: { snapshot: Snapshot; skin: ArenaSkin; staging: ArenaStaging; pace: Pace | null; announceTurn: boolean; fx: string | null }) {
   useEffect(() => {
     if (pace) setPacePref(pace);
   }, [pace]);
-  return <ArenaStage gameId={snapshot.game.id} snapshot={snapshot} skin={skin} staging={staging} server={STUB} announceTurn={announceTurn} />;
+  // `attack` opens on the board before the fight, so the staged fight's entrance plays.
+  const [shown, setShown] = useState<Snapshot>(() =>
+    fx && fx !== "over" ? { ...snapshot, view: fx === "attack" ? { ...snapshot.view, battle: null } : snapshot.view, beats: { seq: 0, list: [], art: snapshot.beats?.art ?? {} } } : snapshot,
+  );
+  useEffect(() => {
+    if (!fx || fx === "over") return;
+    const beats = fxBeats(fx, snapshot);
+    // The fixture's board is the moment *before* the play; a beat plays over the
+    // board *after* it, so the card the reveal brings in is put in its row.
+    let view = snapshot.view;
+    const played = fx === "reveal" ? beats.list.find((b) => b.t === "move") : null;
+    const card = played && played.t === "move" ? view.you.hand?.find((c) => c.id === played.card) : null;
+    if (card) view = { ...view, you: { ...view.you, hand: (view.you.hand ?? []).filter((c) => c.id !== card.id), battle: [...view.you.battle, card] } };
+    const t = setTimeout(() => setShown({ ...snapshot, view, beats }), 500);
+    return () => clearTimeout(t);
+  }, [fx, snapshot]);
+  return (
+    <>
+      <ArenaStage gameId={snapshot.game.id} snapshot={shown} skin={skin} staging={staging} server={STUB} announceTurn={announceTurn} />
+      {fx === "over" && (
+        <div className="mx-auto mt-3 max-w-xl px-2">
+          <GameOver
+            gameId={snapshot.game.id}
+            winnerName="Red Leader"
+            draw={false}
+            reason="Claude's leader falls on turn 5."
+            turns={5}
+            damage={{ you: 3, them: 8 }}
+            spend={{ calls: 0, input: 0, output: 0, cached: 0, micros: 0 }}
+            review={null}
+            aiEnabled={false}
+            deckId={null}
+            versus={false}
+            draftFired={{ count: 0, names: [] }}
+            cards={[]}
+          />
+        </div>
+      )}
+    </>
+  );
 }

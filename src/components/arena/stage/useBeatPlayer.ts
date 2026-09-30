@@ -6,7 +6,7 @@ import type { PlayerId } from "@/lib/arena/engine";
 import { feel } from "@/lib/arena/feel";
 import type { Pace } from "@/lib/arena/pace";
 import { anchorPoint, type Point } from "./anchors";
-import { addsToChain, arrives, arrivesFrom, battleLink, departs, feelFor, msFor, turnBannerMs } from "./motion";
+import { addsToChain, arrives, arrivesFrom, battleLink, departs, feelFor, FX, fxScale, msFor, reveals, turnBannerMs } from "./motion";
 
 export interface Ghost {
   key: number;
@@ -18,6 +18,11 @@ export interface Ghost {
   kind: "leave" | "arrive";
   /** How long the flight has, so it matches the beat's dwell at the chosen pace. */
   ms: number;
+  /**
+   * A KO (rd-07): the card burns white, cracks, tilts and falls for `delay` ms
+   * where it stood, *then* the flight to the Drop begins.
+   */
+  ko?: { delay: number };
 }
 
 /** A turn boundary the board is announcing ("YOUR TURN"), before the phase that opens it. */
@@ -260,7 +265,16 @@ export function useBeatPlayer(
           // card actually left it.
           const from = anchorPoint(hostRef.current, `${gone.owner}:${gone.from}`);
           const to = anchorPoint(hostRef.current, `${gone.owner}:drop`);
-          if (from) setGhosts((g) => [...g, { key: beat.n, card: gone.card, from, to: to ?? from, kind: "leave", ms }]);
+          if (from) {
+            const k = fxScale(paceRef.current === "step" ? "normal" : paceRef.current);
+            // A KO shatters where it stood and then flies; the `move` to the Drop
+            // that follows it is the same card's flight, not a second ghost.
+            const ghost: Ghost =
+              beat.t === "ko"
+                ? { key: beat.n, card: gone.card, from, to: to ?? from, kind: "leave", ms: Math.round(FX.koFly * k), ko: { delay: Math.round(FX.ko * k) } }
+                : { key: beat.n, card: gone.card, from, to: to ?? from, kind: "leave", ms };
+            setGhosts((g) => (beat.t === "move" && g.some((x) => x.card === ghost.card && x.ko) ? g : [...g, ghost]));
+          }
         }
         const coming = arrivesFrom(beat, viewer);
         if (coming) {
@@ -291,6 +305,8 @@ export function useBeatPlayer(
   if (playing) {
     suppressed = new Set<string>();
     for (let i = at; i < queue.length; i++) {
+      // A reveal is on screen while its own beat plays: the card turns over.
+      if (i === at && reveals(queue[i])) continue;
       const card = arrives(queue[i], drawn);
       if (card) suppressed.add(card);
     }
