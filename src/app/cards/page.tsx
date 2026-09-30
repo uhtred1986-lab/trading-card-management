@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { db } from "@/db";
-import { COLORS, cardTypesFor, listAbilityKeywords, listRarities, listSets, listTraits, searchCards, type CardSearch } from "@/lib/catalog/queries";
+import { COLORS, cardTypesFor, searchCards, type CardSearch } from "@/lib/catalog/queries";
+import { cachedAbilityKeywords, cachedListRarities, cachedListSets, cachedListTraits, cachedUsdEur } from "@/lib/cache/reads";
 import { GAMES, parseGame } from "@/lib/catalog/games";
 import { GameFilter } from "@/components/GameFilter";
 import { allocationForCards } from "@/lib/decks/reservations";
-import { latestUsdEur } from "@/lib/pricing/fx";
 import { basePricesForCards, priceForFinish } from "@/lib/pricing/queries";
 import { formatCents } from "@/lib/money";
 import { CardTile } from "@/components/CardTile";
@@ -42,12 +42,12 @@ export default async function CardsPage({ searchParams }: { searchParams: Promis
   // would empty the page.
   const [result, allSets, sets, rarities, traits, abilities, usdEur] = await Promise.all([
     searchCards(db, search),
-    listSets(db),
-    search.game ? listSets(db, { game: search.game }) : listSets(db),
-    listRarities(db, { game: search.game }),
-    listTraits(db, { game: search.game }),
-    listAbilityKeywords(db, { game: search.game }),
-    latestUsdEur(db),
+    cachedListSets(),
+    search.game ? cachedListSets(search.game) : cachedListSets(),
+    cachedListRarities(search.game),
+    cachedListTraits(search.game),
+    cachedAbilityKeywords(search.game),
+    cachedUsdEur(),
   ]);
   const gamesPresent = GAMES.filter((g) => allSets.some((s) => s.game === g));
   const ids = result.rows.map((r) => r.id);

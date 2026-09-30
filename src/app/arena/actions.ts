@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { expireTagsFromAction } from "@/lib/cache/tags";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { and, desc, eq, isNotNull } from "drizzle-orm";
@@ -210,6 +211,8 @@ export async function setSpecifiedCostAction(cardId: string, text: string): Prom
     .update(cards)
     .set({ specifiedCost: parsed ? printSpecifiedCost(parsed) : null, updatedAt: new Date() })
     .where(eq(cards.id, cardId));
+  // `getCard` is cached under `catalog` and returns the whole row.
+  expireTagsFromAction("catalog");
   revalidatePath("/arena/rules");
   revalidatePath("/arena/rules/all");
   return { error: null };

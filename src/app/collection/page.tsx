@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { db } from "@/db";
-import { COLORS, cardTypesFor, listAbilityKeywords, listSets, listTraits } from "@/lib/catalog/queries";
+import { COLORS, cardTypesFor } from "@/lib/catalog/queries";
+import { cachedAbilityKeywords, cachedListSets, cachedListTraits } from "@/lib/cache/reads";
 import { GAMES, parseGame } from "@/lib/catalog/games";
 import { GameFilter } from "@/components/GameFilter";
 import { collectionCards, collectionCopies, summarise, valuedLots } from "@/lib/collection/queries";
@@ -52,10 +53,10 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
   const [grid, list, allSets, sets, traits, abilities, decks, locations] = await Promise.all([
     view === "grid" ? collectionCards(db, { ...filters, valued: all }) : null,
     view === "list" ? collectionCopies(db, filters) : null,
-    listSets(db),
-    game ? listSets(db, { game }) : listSets(db),
-    listTraits(db, { game }),
-    listAbilityKeywords(db, { game }),
+    cachedListSets(),
+    game ? cachedListSets(game) : cachedListSets(),
+    cachedListTraits(game),
+    cachedAbilityKeywords(game),
     deckOptions(db),
     listLocations(db),
   ]);

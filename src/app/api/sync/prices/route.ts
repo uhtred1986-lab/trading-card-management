@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { syncFx } from "@/lib/pricing/fx";
 import { syncPrices } from "@/lib/pricing/tcgcsv";
 import { runSync } from "@/lib/sync";
+import { expireTagsFromRoute } from "@/lib/cache/tags";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -18,7 +19,14 @@ export async function GET(req: Request) {
   if (req.headers.get("authorization") !== `Bearer ${secret}`) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  const fx = await runSync(db, "fx", () => syncFx(db));
-  const prices = await runSync(db, "prices", () => syncPrices(db));
-  return NextResponse.json({ fx, prices });
+  try {
+    const fx = await runSync(db, "fx", () => syncFx(db));
+    const prices = await runSync(db, "prices", () => syncPrices(db));
+    return NextResponse.json({ fx, prices });
+  } finally {
+    // Even a sync that failed part-way may have written. `catalog` too: the
+    // price sync backfills `cards.image_url` / `card_prints.image_url` and
+    // `card_sets.released_on` (src/lib/cache/reads.ts).
+    expireTagsFromRoute("prices", "catalog");
+  }
 }

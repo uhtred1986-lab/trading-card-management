@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/db";
-import { getCard } from "@/lib/catalog/queries";
+import { cachedCard, cachedPricesForPrints, cachedTcgUrl, cachedUsdEur } from "@/lib/cache/reads";
 import { CONDITIONS, LANGUAGES, knownOwners, lotsForCard } from "@/lib/collection/queries";
 import { currentUser } from "@/lib/auth";
 import { LotOwnerPicker } from "@/components/LotOwnerPicker";
@@ -10,8 +10,6 @@ import { listLocations } from "@/lib/collection/locations";
 import { CardDecks } from "@/components/CardDecks";
 import { decksForCard } from "@/lib/decks/queries";
 import { allocationForCards, decksReserving } from "@/lib/decks/reservations";
-import { latestUsdEur } from "@/lib/pricing/fx";
-import { pricesForPrints } from "@/lib/pricing/queries";
 import { formatCents } from "@/lib/money";
 import { CardFaces } from "@/components/CardFaces";
 import { LotFinishToggle } from "@/components/LotFinishToggle";
@@ -30,16 +28,16 @@ export const dynamic = "force-dynamic";
 export default async function CardPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: rawId } = await params;
   const id = decodeURIComponent(rawId);
-  const card = await getCard(db, id);
+  const card = await cachedCard(id);
   if (!card) notFound();
 
   const printIds = card.prints.map((p) => p.id);
   const [prices, alloc, lots, reservedBy, usdEur, decks, ownersUsed, me, locations] = await Promise.all([
-    pricesForPrints(db, printIds),
+    cachedPricesForPrints(printIds),
     allocationForCards(db, [id]),
     lotsForCard(db, id),
     decksReserving(db, id),
-    latestUsdEur(db),
+    cachedUsdEur(),
     // Only decks that could legally hold this card are offered as a target.
     deckOptions(db, { game: gameOr(card.game) }),
     knownOwners(db),
@@ -49,7 +47,7 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
   const inDecks = await decksForCard(db, id);
   const owners = [...new Set([...ownersUsed, ...(me ? [me] : [])])];
   const a = alloc.get(id)!;
-  const tcgUrl = (await db.query.tcgProducts.findFirst({ where: (p, { eq }) => eq(p.cardId, id), columns: { url: true } }))?.url ?? null;
+  const tcgUrl = await cachedTcgUrl(id);
   const eur = (usd: number | null) => (usd == null ? "—" : usdEur != null ? formatCents(Math.round(usd * usdEur), "EUR") : formatCents(usd, "USD"));
   const printOptions = card.prints.map((p) => ({ id: p.id, label: p.label, rarity: p.rarity }));
   const input = "tap w-full rounded-md border border-space-600 bg-space-900 px-2 py-1.5 text-sm text-space-100";

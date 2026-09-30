@@ -29,5 +29,11 @@ Read before touching the catalog import, errata, card images, TCGplayer or CardT
 - **Prices are daily snapshots** (`tcg_prices` keyed by product/sub-type/day) so movers can be
   computed; `pricesForPrints` reduces several TCGplayer products per print to one Normal + one Foil
   figure.
+- **Catalog, price and meta reads are cached until the next sync** (`src/lib/cache/`, issue
+  #383): `unstable_cache` tagged `catalog` / `prices` / `meta`, with a 24 h TTL as the backstop
+  for the `sync:*` scripts, which run outside Next and cannot expire a tag. **A new writer of a
+  cached table must expire its tag** (`expireTagsFromRoute` / `expireTagsFromAction`); the table
+  in `reads.ts` lists every read, tag and writer, and `scripts/verify-cache.mts` checks the
+  wiring. Never cache anything that reads ownership, decks, arena state or a login there.
 - **Optimiser** (`src/lib/marketplace/optimizer.ts`) is deterministic: greedy + exhaustive 1/2/3-seller
   subsets + removal local search, shipping counted once per seller.

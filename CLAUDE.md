@@ -109,6 +109,7 @@ Large docs: `docs/arena-history-lessons.md` (199 KB) and `docs/arena-code-map.md
 - **Errata are fixed in `errata.ts`, never by UPDATE**: the catalog upsert overwrites `skill`. `catalog-and-sync.md`
 - **Keep `coalesce` on `image_url` and `cards.specified_cost`** in the catalog upsert, or a sync erases them. `catalog-and-sync.md`
 - **Stamp `owned_cards.owner` and `decks.owner`** on every path that creates them. `collection-and-decks.md`
+- **Catalog, price and meta reads are cached until the next sync** (`src/lib/cache/`): a new writer of a cached table must expire its tag. `catalog-and-sync.md`
 - **Raw SQL reads go through `rows()`; bind arrays with `textArray()`.** `db.md`
 - **Rules are records**: the engine never compiles card text at game time; a confirmed rule is never rewritten by a script. `arena.md`
 - **The two games are kept apart by `game`**; the arena only plays `dbs` decks.

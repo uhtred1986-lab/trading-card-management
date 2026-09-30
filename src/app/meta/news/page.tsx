@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { db } from "@/db";
 import { GAMES, parseGame } from "@/lib/catalog/games";
 import { GameFilter } from "@/components/GameFilter";
 import { CardImage } from "@/components/CardImage";
-import { OFFICIAL_NEWS_LINKS, recentCards } from "@/lib/catalog/news";
+import { OFFICIAL_NEWS_LINKS } from "@/lib/catalog/news";
+import { cachedRecentCards } from "@/lib/cache/reads";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +15,7 @@ export default async function MetaNewsPage({ searchParams }: { searchParams: Pro
   const sp = await searchParams;
   const game = parseGame(one(sp.game));
 
-  const [all, filtered] = await Promise.all([recentCards(db, { days: DAYS }), game ? recentCards(db, { game, days: DAYS }) : Promise.resolve(null)]);
+  const [all, filtered] = await Promise.all([cachedRecentCards({ days: DAYS }), game ? cachedRecentCards({ game, days: DAYS }) : Promise.resolve(null)]);
   const cards = filtered ?? all;
   const gamesPresent = GAMES.filter((g) => all.some((c) => c.game === g));
 
