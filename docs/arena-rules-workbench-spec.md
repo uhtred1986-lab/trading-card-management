@@ -111,7 +111,7 @@ The pain is entirely in the layer around them.
    matches. The skill tag in brackets stays read-only: it comes off the card.
 7. **Patterns stay first-class.** The number of sibling cards with the same wording is on every
    record, and correcting a compiled draft asks "fix this card" or "fix the pattern" (the latter
-   files a compiler brief, as `/arena/backlog` does today). The workbench must not make it easy to
+   files a compiler brief). The workbench must not make it easy to
    hand-fix 400 cards one by one.
 8. **New cards get a rule at sync, not later.** The catalog sync (CardTrader import, and the
    errata scrape) is the moment a card's text arrives or changes. Right there the drafter runs

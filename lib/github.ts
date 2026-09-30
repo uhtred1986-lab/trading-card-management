@@ -1,5 +1,3 @@
-import fs from "node:fs";
-import path from "node:path";
 import { execSync } from "node:child_process";
 
 export interface GitHubIssue {
@@ -15,22 +13,6 @@ export interface GitHubIssue {
   closed_at?: string | null;
 }
 
-export interface BacklogItem {
-  file: string;
-  filePath: string;
-  id: string; // e.g., "s2-01", "ui-101"
-  title: string;
-  milestone: string;
-  labels: string[];
-  stage: string;
-  tracking: boolean;
-  status: "open" | "closed" | "in progress" | "ready" | "queued" | string;
-  closedAt?: string;
-  body: string;
-  githubIssueNumber?: number;
-  githubUrl?: string;
-  githubState?: "open" | "closed";
-}
 
 export interface FeedbackItem {
   id: number;
@@ -392,100 +374,6 @@ export async function postIssueComment(
 }
 
 /**
- * Reads and parses an arena backlog markdown file with YAML front matter.
- */
-export function readBacklogFile(filePath: string): BacklogItem {
-  const text = fs.readFileSync(filePath, "utf-8");
-  const lines = text.split(/\r?\n/);
-  if (lines[0] !== "---") throw new Error(`${filePath}: missing front matter`);
-
-  const meta: Record<string, string> = {};
-  let i = 1;
-  while (i < lines.length && lines[i] !== "---") {
-    const line = lines[i];
-    const idx = line.indexOf(":");
-    if (idx > 0) {
-      meta[line.slice(0, idx).trim()] = line.slice(idx + 1).trim();
-    }
-    i++;
-  }
-  if (i >= lines.length) throw new Error(`${filePath}: front matter never closed`);
-
-  const body = lines.slice(i + 1).join("\n").trim();
-  const file = path.basename(filePath);
-  // Preserve stage prefix and sequence number (e.g., s2-94, ui-100, docs-01, s10-02)
-  const idMatch = file.match(/^([a-z0-9]+-\d+)/i);
-  const id = idMatch ? idMatch[1] : file.replace(/\.md$/, "");
-
-  return {
-    file,
-    filePath,
-    id,
-    title: meta.title || "",
-    milestone: meta.milestone || "",
-    labels: (meta.labels || "")
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean),
-    stage: meta.stage || "",
-    tracking: meta.tracking === "true",
-    status: meta.status || "open",
-    closedAt: meta.closed_at,
-    body,
-  };
-}
-
-/**
- * Normalizes title string for robust matching across minor typography variations.
- */
-function normalizeIssueTitle(title: string): string {
-  return title
-    .trim()
-    .toLowerCase()
-    .replace(/[\u2018\u2019]/g, "'")
-    .replace(/[\u201C\u201D]/g, '"')
-    .replace(/[\u2014\u2013]/g, "-")
-    .replace(/\s+/g, " ");
-}
-
-/**
- * Loads all local backlog items from docs/arena-backlog.
- */
-export function loadAllBacklogItems(backlogDir?: string): BacklogItem[] {
-  const dir = backlogDir || path.resolve(process.cwd(), "docs/arena-backlog");
-  if (!fs.existsSync(dir)) return [];
-  const files = fs.readdirSync(dir).filter((f) => f.endsWith(".md") && !f.startsWith("_"));
-  return files.map((f) => readBacklogFile(path.join(dir, f)));
-}
-
-/**
- * Loads all backlog items and enriches them with linked GitHub issue numbers and URLs.
- */
-export async function getBacklogItemsWithGitHub(
-  options: { repo?: string; remoteIssues?: GitHubIssue[]; fetchRemote?: boolean } = {}
-): Promise<BacklogItem[]> {
-  const repo = options.repo || getGitHubConfig().repo;
-  const items = loadAllBacklogItems();
-  const remote = options.remoteIssues || (options.fetchRemote !== false ? await listRemoteIssues(repo) : []);
-
-  return items.map((item) => {
-    // Match by normalized title (stable key across backlog files and remote issues)
-    const normItemTitle = normalizeIssueTitle(item.title);
-    const match = remote.find((r) => normalizeIssueTitle(r.title) === normItemTitle);
-    if (match) {
-      return {
-        ...item,
-        githubIssueNumber: match.number,
-        githubUrl: match.html_url || getIssueUrl(match.number, repo),
-        githubState: match.state,
-      };
-    }
-
-    return item;
-  });
-}
-
-/**
  * Repository-compliant intake metadata for feedback items according to
  * README.md and .github/ISSUE_TEMPLATE/arena_backlog_item.yml.
  */
@@ -800,57 +688,3 @@ export async function syncAllFeedbackItems(
   };
 }
 
-/**
- * Synchronizes local backlog issue files with GitHub issues.
- * Closes remote issues for completed backlog items and updates tracking issues.
- */
-export async function syncBacklogIssues(
-  options: {
-    repo?: string;
-    dryRun?: boolean;
-    allClosed?: boolean;
-    closeIds?: string[];
-  } = {}
-): Promise<{ closed: number; updated: number; total: number }> {
-  const targetRepo = options.repo || getGitHubConfig().repo;
-  const remoteIssues = await listRemoteIssues(targetRepo, { forceRefresh: true });
-  const backlogItems = loadAllBacklogItems();
-
-  let closedCount = 0;
-  const updatedCount = 0;
-
-  const targetsToClose: BacklogItem[] = [];
-
-  if (options.allClosed) {
-    for (const item of backlogItems) {
-      if (item.status === "closed" || item.labels.includes("done")) {
-        targetsToClose.push(item);
-      }
-    }
-  } else if (options.closeIds && options.closeIds.length > 0) {
-    for (const id of options.closeIds) {
-      const match = backlogItems.find(
-        (i) => i.file.startsWith(id) || i.id === id || normalizeIssueTitle(i.title).includes(normalizeIssueTitle(id))
-      );
-      if (match) targetsToClose.push(match);
-    }
-  }
-
-  for (const item of targetsToClose) {
-    const normItemTitle = normalizeIssueTitle(item.title);
-    const remote = remoteIssues.find((r) => normalizeIssueTitle(r.title) === normItemTitle);
-    if (remote && remote.state === "open") {
-      if (!options.dryRun) {
-        const closingComment = `### Verified and Completed\nCompleted and verified in the codebase repository.\n\n${item.body.slice(-400)}`;
-        await closeGitHubIssue(remote.number, closingComment, targetRepo);
-      }
-      closedCount++;
-    }
-  }
-
-  return {
-    total: backlogItems.length,
-    closed: closedCount,
-    updated: updatedCount,
-  };
-}

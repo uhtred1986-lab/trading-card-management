@@ -504,7 +504,7 @@ feature, a clause the parser simply has no pattern for is an afternoon.
 **6,493 cards. 4,530 have at least one skill the compiler cannot read, over
 11,577 clauses. 7,759 of those clauses — two thirds — need no new mechanism at
 all.** They are phrasings nobody has written a rule for yet, and the
-explain-a-card loop on `/arena/backlog` is the machine for grinding them down:
+explain-a-card loop in the [Arena M1 milestone](https://github.com/uhtred1986-lab/trading-card-management/milestone/1) is the machine for grinding them down:
 each brief it produces is roughly twenty lines of compiler work.
 
 The rest need something the engine does not have. Ranked by how many cards each
@@ -626,5 +626,5 @@ which is the one genuinely hard piece and unblocks a family of Masters-era
 cards. Everything else after.
 
 Throughout, the phrasing backlog is the other track, and it is the larger
-number. It does not need planning — it needs the loop on `/arena/backlog` to be
+number. It does not need planning — it needs the loop in the [Arena M1 milestone](https://github.com/uhtred1986-lab/trading-card-management/milestone/1) to be
 used.
