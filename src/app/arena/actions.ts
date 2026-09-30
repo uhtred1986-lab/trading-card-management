@@ -14,11 +14,11 @@ import { defaultEngine } from "@/lib/arena/engine-setting";
 import { engineOr } from "@/lib/arena/engines";
 import { abandonGame, applyToGame, clearBeatsForTurn, engineForMode, isVersus, loadGame, seatOf, StaleGame, startGame, type ArenaMode } from "@/lib/arena/games";
 import { cancelMatch, joinMatch, matchById, openMatch } from "@/lib/arena/matches";
-import { currentUser } from "@/lib/auth";
+import { currentOwner, currentUser } from "@/lib/auth";
 import { advance } from "@/lib/arena/ai/run";
 import { reviewGame } from "@/lib/arena/ai/review";
 import { clarifyRule } from "@/lib/arena/ai/clarify";
-import { blankRule, confirmMatching, confirmRule, programOf, ruleById, setProbe, saveRule, setBrief, setCompilerDiff, takeCompilerDiff, undoConfirmed, type ConfirmBatch, type RuleFilter, type RuleSource, type RuleStatus } from "@/lib/arena/rules-store";
+import { blankRule, confirmMatching, confirmRule, reopenRule, programOf, ruleById, setProbe, saveRule, setBrief, setCompilerDiff, takeCompilerDiff, undoConfirmed, type ConfirmBatch, type RuleFilter, type RuleSource, type RuleStatus } from "@/lib/arena/rules-store";
 import { defsForCards } from "@/lib/arena/load";
 import { parseSpecifiedCost, printSpecifiedCost } from "@/lib/arena/specified-cost";
 import { probe, ruleFrom, scenariosFor, type ProbeRule, type ProbeRun, type ProbeScenario } from "@/lib/arena/probe";
@@ -156,6 +156,15 @@ export async function confirmRuleAction(id: number): Promise<{ error: string | n
     await setProbe(db, id, { scenario: run.scenario.key, outcome: run.outcome, digest: run.digest, applied: run.applied, result: run.result, assumptions: run.assumptions, at: new Date().toISOString(), engine: "legacy" });
   }
   await noteRule(id, `confirmed: ${row.printed}`, row.reads);
+  return { error: null };
+}
+
+/** A confirmed or corrected record goes back to draft, program untouched, to be looked at again. */
+export async function reopenRuleAction(id: number): Promise<{ error: string | null }> {
+  const row = await ruleById(db, id);
+  if (!row) return { error: "no such rule" };
+  await reopenRule(db, id);
+  await noteRule(id, `reopened for review: ${row.printed}`, row.reads);
   return { error: null };
 }
 
@@ -403,7 +412,7 @@ export async function joinMatchForm(formData: FormData) {
   const matchId = Number(formData.get("match"));
   const deckId = Number(formData.get("deck"));
   if (!Number.isInteger(matchId) || !Number.isInteger(deckId)) throw new Error("pick a deck");
-  const gameId = await joinMatch(db, matchId, await currentUser(), deckId);
+  const gameId = await joinMatch(db, matchId, await currentUser(), deckId, await currentOwner());
   revalidatePath("/arena");
   redirect(`/arena/${gameId}`);
 }

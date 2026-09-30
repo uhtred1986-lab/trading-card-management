@@ -7,6 +7,8 @@
  *   npm run arena:shots -- --fixtures play,over --skins anime
  *   npm run arena:shots -- --all      # every Snapshot fixture
  *   npm run arena:shots -- --fixtures play --tap "[data-arena-card]" --tag review
+ *   npm run arena:shots -- --fixtures play --hover "[data-arena-card]" --tag hover   # desktop: pointer over a card
+ *   npm run arena:shots -- --fixtures play --rclick "[data-arena-card]" --tag pin     # desktop: right-click
  *   npm run arena:shots -- --full     # whole scrolled page, not just the viewport
  *
  * Output: docs/arena-redesign/current/{phone,desk}-<fixture>-<skin>[-<tag>].jpg
@@ -24,6 +26,8 @@ const FIXTURES = join(process.cwd(), "contract", "fixtures");
 const base = (arg("base") ?? "http://localhost:3000").replace(/\/$/, "");
 const skins = (arg("skins") ?? "anime,night").split(",");
 const tap = arg("tap");
+const hover = arg("hover");
+const rclick = arg("rclick");
 const tag = arg("tag");
 const settle = Number(arg("settle") ?? 1500);
 const full = process.argv.includes("--full");
@@ -65,6 +69,15 @@ try {
         if (tap) {
           await page.tap(tap);
           await page.settle(600);
+        }
+        // Desktop only: a phone has no pointer to hover or right-click with.
+        if (hover && !vp.mobile) {
+          await page.hover(hover);
+          await page.settle(400);
+        }
+        if (rclick && !vp.mobile) {
+          await page.rightClick(rclick);
+          await page.settle(400);
         }
         const file = join(OUT, `${vp.name}-${fixture}-${skin}${tag ? `-${tag}` : ""}.jpg`);
         writeFileSync(file, await page.screenshot(full));

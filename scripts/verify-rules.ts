@@ -24,7 +24,7 @@ import { shouldMigrate } from "./vercel-build.mjs";
 import { parseSpecifiedCost, printSpecifiedCost, specifiedCostWords, staleSpecifiedCosts } from "../src/lib/arena/specified-cost";
 import { cardDefFrom } from "../src/lib/arena/load";
 import { groupPreview, type DeckPreviewCard } from "../src/lib/arena/deck-preview";
-import { defaultState, legacyQueueUrl, parseQueue, queueHref, queueLink, reasonOf } from "../src/lib/arena/queue";
+import { defaultState, legacyQueueUrl, neighbours, parseQueue, queueHref, queueLink, reasonOf } from "../src/lib/arena/queue";
 import { specifiedCostOf, specifiedCostUnknown } from "../src/lib/arena/engine/cards";
 
 // ── catalog shaping ────────────────────────────────────────────────────────
@@ -762,4 +762,12 @@ assert.equal(specifiedCostWords({}), "no colour");
   assert.deepEqual(groups.map((g) => g.label), ["Leader", "Battle", "Extra", "Z-Deck"], "zones in display order, empty ones left out");
   assert.deepEqual(groups[1].cards.map((c) => c.cardId), ["b-open", "b-draft", "b-conf", "b-plain"], "open first, then draft, corrected, confirmed, plain");
   assert.equal(groups[1].copies, 16, "copies, not distinct cards");
+
+  // Skip and Confirm follow the queue's own order (#361).
+  assert.deepEqual(neighbours([4, 7, 9], 7), { prev: 4, next: 9, skip: 9, after: 9 }, "the middle: next is next");
+  assert.deepEqual(neighbours([4, 7, 9], 9), { prev: 7, next: null, skip: 4, after: 7 }, "the end: Skip wraps, Confirm falls back to the one before");
+  assert.deepEqual(neighbours([4, 7, 9], 4), { prev: null, next: 7, skip: 7, after: 7 }, "the start has no previous");
+  assert.deepEqual(neighbours([4, 7, 9], 99), { prev: null, next: 4, skip: 4, after: 4 }, "a rule opened by id starts at the top of the queue");
+  assert.deepEqual(neighbours([4], 4), { prev: null, next: null, skip: null, after: null }, "a queue of one has nowhere to go");
+  assert.deepEqual(neighbours([], null), { prev: null, next: null, skip: null, after: null });
 }

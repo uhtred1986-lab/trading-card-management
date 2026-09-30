@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getRepoUrl } from "@/lib/github";
+import { ReferenceDrawer } from "@/components/arena/rules/ReferenceDrawer";
 import type { RuleCounts, RuleStatus } from "@/lib/arena/rules-store";
 
 /**
@@ -51,10 +52,7 @@ export function ArenaHeader({ side, kpis }: { side: "play" | "rules" | "other"; 
           <Link href="/arena#games" className="tap flex items-center rounded-md border border-space-700 px-3 text-sm text-space-200 hover:text-space-50 sm:hidden">
             Games
           </Link>
-          {/* Placeholder until the reference drawer (ah-08). */}
-          <button type="button" disabled className="tap hidden items-center rounded-md border border-space-700 px-3 text-sm text-space-500 sm:flex">
-            Reference
-          </button>
+          {side === "rules" ? <ReferenceDrawer fixingHref={`${getRepoUrl()}/blob/main/docs/arena-fixing-a-card.md`} /> : null}
           <details className="relative">
             <summary
               aria-label="More"
@@ -107,15 +105,6 @@ export function ArenaHeader({ side, kpis }: { side: "play" | "rules" | "other"; 
             <Kpi n={readable(kpis.inDecks)} label="decks ready" />
             <Kpi n={readable(kpis.catalog)} label="catalog readable" />
             {kpis.openSinceSync != null ? <Kpi n={kpis.openSinceSync} label="open since last sync" tone={kpis.openSinceSync ? "text-loss" : ""} /> : null}
-          </div>
-          {/* Until the reference drawer (ah-08) lands, these keep the reference pages reachable. */}
-          <div className="flex gap-3 text-xs">
-            <Link href="/arena/rules/keywords" className="text-space-300 hover:text-ki-300">
-              keywords
-            </Link>
-            <a href={`${getRepoUrl()}/blob/main/docs/arena-fixing-a-card.md`} target="_blank" rel="noopener noreferrer" className="text-space-300 hover:text-ki-300">
-              How to fix a card
-            </a>
           </div>
         </div>
       ) : null}

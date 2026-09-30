@@ -4,6 +4,7 @@ issue: 347
 milestone: Arena M16 — Board redesign: play feel and card review
 labels: backlog, ready-for-agent, enhancement, area:arena-ui, phase:board-redesign, model:sonnet-5
 stage: ui
+status: closed
 touches: src/components/arena/stage/ArenaStage.tsx, src/components/arena/shared-display.tsx, src/components/arena/shared-sheets.tsx, src/components/arena/ArenaCard.tsx
 ---
 **Source:** `docs/arena-board-redesign-spec.md` decision 4; frames `docs/arena-redesign/desk-06-review-cards-in-play.jpg`, `docs/arena-redesign/desk-01-board-your-turn.jpg`, `docs/arena-redesign/desk-05-refusal-energy-short.jpg`; `src/components/arena/shared-display.tsx` (`CardPreview`); `src/components/arena/shared-sheets.tsx` (`CardDetail`, `CardSheet`); `src/components/arena/stage/StageZones.tsx` (`ReferenceCounts`).

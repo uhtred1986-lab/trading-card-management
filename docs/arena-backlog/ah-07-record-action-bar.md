@@ -4,6 +4,8 @@ issue: 361
 milestone: Arena M17 — Arena home: Play and Rules Workbench
 labels: backlog, ready-for-agent, enhancement, area:arena-workbench, phase:arena-home, model:sonnet-5
 stage: ui
+status: closed
+closed_at: 2026-09-30
 touches: src/components/arena/rules/RuleRecord.tsx, src/components/arena/rules/Workbench.tsx, src/components/arena/rules/ProbePane.tsx
 ---
 **Source:** `src/components/arena/rules/RuleRecord.tsx`; `docs/arena-fixing-a-card.md` (the buttons it names); canvas frame `RulesDesktop`.

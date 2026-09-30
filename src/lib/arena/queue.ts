@@ -130,3 +130,20 @@ export function reasonOf(r: { status: string; source: string; unread: string[]; 
   if (r.costUnknown) return "specified cost unknown";
   return null;
 }
+
+/**
+ * Where to go from the open rule, in the order the queue lists them (issue
+ * #361): `prev`/`next` are the `k`/`j` keys, `skip` is *Skip* (the next row,
+ * wrapping to the first at the end of the list), and `after` is where
+ * *Confirm* lands — the next row, or the one before it at the end of the list,
+ * since the rule just confirmed leaves an Open or Draft queue. A rule not in
+ * the list (opened by id, or from past the page) has the first row for next.
+ * Null where there is nowhere to go.
+ */
+export function neighbours(ids: number[], current: number | null): { prev: number | null; next: number | null; skip: number | null; after: number | null } {
+  const i = current == null ? -1 : ids.indexOf(current);
+  const prev = i > 0 ? ids[i - 1] : null;
+  const next = i >= 0 ? (ids[i + 1] ?? null) : (ids[0] ?? null);
+  const skip = next ?? (ids.length > 1 && ids[0] !== current ? ids[0] : null);
+  return { prev, next, skip, after: next ?? prev };
+}

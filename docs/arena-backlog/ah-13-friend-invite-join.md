@@ -4,6 +4,7 @@ issue: 369
 milestone: Arena M17 — Arena home: Play and Rules Workbench
 labels: backlog, ready-for-agent, enhancement, area:arena-ui, phase:arena-home, model:sonnet-5
 stage: ui
+status: closed
 touches: src/app/arena/match/[id]/page.tsx, src/app/arena/actions.ts, src/components/arena/MatchWaiting.tsx, src/lib/arena/matches.ts
 ---
 **Source:** `src/app/arena/match/[id]/page.tsx` (the guest reads *"Choose your own deck back on the arena page to start the game"*); `joinMatchForm` in `src/app/arena/actions.ts`; `CLAUDE.md` "1 v 1"; canvas frame `MatchPhone` (switch Host / Guest).

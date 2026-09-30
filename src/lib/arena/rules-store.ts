@@ -195,6 +195,14 @@ export async function confirmRule(db: Db, id: number): Promise<void> {
   await db.update(cardRules).set({ status: "confirmed", confirmedAt: new Date(), updatedAt: new Date() }).where(eq(cardRules.id, id));
 }
 
+/**
+ * Put a confirmed or corrected rule back in front of a person (issue #361, *Reopen for review*):
+ * the same write `undoConfirmed` makes — status `draft`, the program and its version untouched — for one rule.
+ */
+export async function reopenRule(db: Db, id: number): Promise<void> {
+  await db.update(cardRules).set({ status: "draft", confirmedAt: null, updatedAt: new Date() }).where(and(eq(cardRules.id, id), inArray(cardRules.status, ["confirmed", "corrected"])));
+}
+
 /** The skill does nothing the engine should carry out — an empty program, owned by the person. */
 export async function blankRule(db: Db, id: number, explanation: string | null): Promise<void> {
   await db

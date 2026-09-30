@@ -37,7 +37,20 @@ const EFFECT_COLOUR: Record<string, string> = {
   other: "text-space-100",
 };
 
-export function CardDetail({ card, withName = false, narrator = DEFAULT_NARRATOR, battle }: { card: CardView; withName?: boolean; narrator?: Narrator; battle?: BattleShare | null }) {
+export function CardDetail({
+  card,
+  withName = false,
+  narrator = DEFAULT_NARRATOR,
+  battle,
+  figures = true,
+}: {
+  card: CardView;
+  withName?: boolean;
+  narrator?: Narrator;
+  battle?: BattleShare | null;
+  /** The id · cost · power line. The docked inspector shows those as tiles and turns it off. */
+  figures?: boolean;
+}) {
   const delta = card.basePower != null && card.power != null ? card.power - card.basePower : 0;
   return (
     <div className="space-y-1.5">
@@ -52,13 +65,15 @@ export function CardDetail({ card, withName = false, narrator = DEFAULT_NARRATOR
           </span>
         </p>
       )}
-      <p className="text-[11px] text-space-400 sm:text-xs">
-        {card.cardId}
-        {card.cost ? ` · cost ${card.cost}` : ""}
-        {card.power != null ? ` · ${card.power.toLocaleString("en")} power` : ""}
-        {delta !== 0 && <span className={delta > 0 ? "text-gain" : "text-loss"}>{` (${card.basePower!.toLocaleString("en")} printed, ${delta > 0 ? "+" : ""}${delta.toLocaleString("en")})`}</span>}
-        {card.comboCost != null ? ` · combo +${(card.comboPower ?? 0).toLocaleString("en")} for ${card.comboCost}` : ""}
-      </p>
+      {figures && (
+        <p className="text-[11px] text-space-400 sm:text-xs">
+          {card.cardId}
+          {card.cost ? ` · cost ${card.cost}` : ""}
+          {card.power != null ? ` · ${card.power.toLocaleString("en")} power` : ""}
+          {delta !== 0 && <span className={delta > 0 ? "text-gain" : "text-loss"}>{` (${card.basePower!.toLocaleString("en")} printed, ${delta > 0 ? "+" : ""}${delta.toLocaleString("en")})`}</span>}
+          {card.comboCost != null ? ` · combo +${(card.comboPower ?? 0).toLocaleString("en")} for ${card.comboCost}` : ""}
+        </p>
+      )}
       {card.effects && card.effects.length > 0 && (
         <div className="rounded-lg border-l-2 border-ki-500 bg-space-800 p-2 text-[11px] sm:text-xs">
           <p className="mb-0.5 text-[10px] uppercase tracking-widest text-space-400">in force</p>
@@ -150,7 +165,9 @@ export function Sheet({
 
 export function StepChip({ step }: { step: PromptView["step"] }) {
   if (!step) return null;
-  return <span className="inline-block whitespace-nowrap rounded-full border border-ki-500 px-1.5 py-px font-mono text-[9px] uppercase tracking-wider text-ki-300 sm:text-[10px]">{stepText(step)}</span>;
+  return (
+    <span className="inline-block whitespace-nowrap rounded-full border border-ki-500 px-1.5 py-px font-mono text-[9px] uppercase tracking-wider text-ki-300 sm:text-[10px]">{stepText(step)}</span>
+  );
 }
 
 /** One move the sheet offers, already resolved to the card it is about. */
@@ -159,6 +176,112 @@ export interface SheetMove {
   legal: LegalAction;
   /** An attack with several targets is one row; picking it starts targeting. */
   targets?: number;
+  /** Wording that replaces the engine's label, for a row the inspector words itself ("Attack it"). */
+  label?: string;
+}
+
+/**
+ * The moves a card has right now, each with its price, then the ones it does
+ * not have, each with the sentence the rules gave. One list for the action
+ * sheet and the docked inspector, so the two can never word a refusal
+ * differently (`docs/arena-board-redesign-spec.md` decision 2).
+ */
+export function ActionRows({
+  card,
+  side,
+  moves,
+  rejected,
+  onPick,
+  narrator = DEFAULT_NARRATOR,
+  docked = false,
+}: {
+  card: CardView;
+  side: SideView | null;
+  moves: SheetMove[];
+  rejected: RejectedAction[];
+  onPick: (move: SheetMove) => void;
+  narrator?: Narrator;
+  /**
+   * In the docked inspector rather than a sheet: smaller rows, and a refusal
+   * drawn at full strength — it is the sentence the player came to read, and
+   * the sheet's dimmed version fails contrast on both skins.
+   */
+  docked?: boolean;
+}) {
+  const inHand = side?.hand?.some((c) => c.id === card.id) ?? false;
+  const word = { side, inHand, them: narrator.them };
+  return (
+    <>
+      {moves.map((m) => {
+        const price = m.targets ? `${m.targets} target${m.targets === 1 ? "" : "s"}` : priceOf(m.legal.action, card, m.legal.label, m.legal.cost);
+        return (
+          <button
+            key={m.index}
+            type="button"
+            onClick={() => onPick(m)}
+            className={`tap flex w-full items-center gap-3 rounded-lg border border-ki-500/60 bg-ki-500/10 px-3 py-2 text-left text-sm font-semibold text-space-50 hover:border-ki-400 ${docked ? "" : "sm:px-4 sm:py-3 sm:text-base"}`}
+          >
+            <span className="min-w-0 flex-1">{m.targets ? `Attack with ${card.name}…` : (m.label ?? m.legal.label)}</span>
+            {price && <span className="shrink-0 rounded-full border border-space-600 px-2 py-px font-mono text-[10px] text-ki-300 sm:text-xs">{price}</span>}
+          </button>
+        );
+      })}
+      {rejected.map((r) => {
+        const why = r.why[0];
+        const w = refusal(why, { name: card.name, reaching: r.action.type, ...word });
+        return (
+          <div
+            key={`${r.action.type}:${"skill" in r.action ? r.action.skill : ""}`}
+            className={`rounded-lg border border-space-700 bg-space-800/60 px-3 py-2 ${docked ? "" : "opacity-80 sm:px-4 sm:py-3"}`}
+            aria-disabled
+          >
+            <div className="flex items-center gap-3">
+              <span className={`min-w-0 flex-1 text-sm font-semibold ${docked ? "text-space-100" : "text-space-300 sm:text-base"}`}>{r.label}</span>
+              <span className={`shrink-0 rounded-full border border-loss/50 px-2 py-px font-mono text-[10px] sm:text-xs ${docked ? "text-space-100" : "text-loss"}`}>{pill(why)}</span>
+            </div>
+            <p className={`mt-1 text-[11px] leading-snug sm:text-xs ${docked ? "text-space-100" : "text-space-200"}`}>
+              {w.fact}
+              {w.remedy && <span className={docked ? "font-semibold" : "text-ki-300"}> {w.remedy}</span>}
+            </p>
+            {r.why.length > 1 && (
+              <p className={`mt-0.5 text-[10px] ${docked ? "text-space-200" : "text-space-400"}`}>
+                {r.why
+                  .slice(1)
+                  .map((q) => refusal(q, { name: card.name, reaching: r.action.type, ...word }).fact)
+                  .join(" ")}
+              </p>
+            )}
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+/** Cost, power and combo as three tiles; a leader's are power, life and energy. */
+export function StatTiles({ card, leader }: { card: CardView; leader?: { life: number; energy: string } | null }) {
+  const n = (v: number | null | undefined) => (v == null ? "—" : v.toLocaleString("en"));
+  const tiles: [string, string][] = leader
+    ? [
+        ["power", n(card.power)],
+        ["life", String(leader.life)],
+        ["energy", leader.energy],
+      ]
+    : [
+        ["cost", card.cost ?? "—"],
+        ["power", n(card.power)],
+        ["combo", card.comboPower != null && card.comboPower > 0 ? `+${n(card.comboPower)}` : "—"],
+      ];
+  return (
+    <dl className="grid grid-cols-3 gap-1.5">
+      {tiles.map(([k, v]) => (
+        <div key={k} className="rounded-lg border border-space-700 bg-space-800/60 px-2 py-1">
+          <dt className="text-[9px] font-semibold uppercase tracking-widest text-space-300">{k}</dt>
+          <dd className="font-mono text-sm font-bold tabular-nums text-space-50">{v}</dd>
+        </div>
+      ))}
+    </dl>
+  );
 }
 
 export function CardSheet({
@@ -182,8 +305,6 @@ export function CardSheet({
   /** What this card is putting into the open battle, when it is in one. */
   battle?: BattleShare | null;
 }) {
-  const inHand = side?.hand?.some((c) => c.id === card.id) ?? false;
-  const word = { side, inHand, them: narrator.them };
   return (
     <Sheet
       onClose={onClose}
@@ -196,39 +317,7 @@ export function CardSheet({
         ) : undefined
       }
     >
-      {moves.map((m) => {
-        const price = m.targets ? `${m.targets} target${m.targets === 1 ? "" : "s"}` : priceOf(m.legal.action, card, m.legal.label, m.legal.cost);
-        return (
-          <button key={m.index} type="button" onClick={() => onPick(m)} className="tap flex w-full items-center gap-3 rounded-lg border border-ki-500/60 bg-ki-500/10 px-3 py-2 text-left text-sm font-semibold text-space-50 hover:border-ki-400 sm:px-4 sm:py-3 sm:text-base">
-            <span className="min-w-0 flex-1">{m.targets ? `Attack with ${card.name}…` : m.legal.label}</span>
-            {price && <span className="shrink-0 rounded-full border border-space-600 px-2 py-px font-mono text-[10px] text-ki-300 sm:text-xs">{price}</span>}
-          </button>
-        );
-      })}
-      {rejected.map((r) => {
-        const why = r.why[0];
-        const w = refusal(why, { name: card.name, reaching: r.action.type, ...word });
-        return (
-          <div key={`${r.action.type}:${"skill" in r.action ? r.action.skill : ""}`} className="rounded-lg border border-space-700 bg-space-800/60 px-3 py-2 opacity-80 sm:px-4 sm:py-3" aria-disabled>
-            <div className="flex items-center gap-3">
-              <span className="min-w-0 flex-1 text-sm font-semibold text-space-300 sm:text-base">{r.label}</span>
-              <span className="shrink-0 rounded-full border border-loss/50 px-2 py-px font-mono text-[10px] text-loss sm:text-xs">{pill(why)}</span>
-            </div>
-            <p className="mt-1 text-[11px] leading-snug text-space-200 sm:text-xs">
-              {w.fact}
-              {w.remedy && <span className="text-ki-300"> {w.remedy}</span>}
-            </p>
-            {r.why.length > 1 && (
-              <p className="mt-0.5 text-[10px] text-space-400">
-                {r.why
-                  .slice(1)
-                  .map((q) => refusal(q, { name: card.name, reaching: r.action.type, ...word }).fact)
-                  .join(" ")}
-              </p>
-            )}
-          </div>
-        );
-      })}
+      <ActionRows card={card} side={side} moves={moves} rejected={rejected} onPick={onPick} narrator={narrator} />
       <div className={moves.length || rejected.length ? "border-t border-space-700 pt-2" : ""}>
         {card.imageUrl && (
           // eslint-disable-next-line @next/next/no-img-element -- transient sheet; the board has already loaded this URL.
@@ -265,7 +354,13 @@ export function SearchSheet({
       {choices.map((c) => {
         const i = indexOf(c.id);
         return (
-          <button key={c.id} type="button" disabled={i == null} onClick={() => i != null && onPick(i)} className="tap flex w-full items-center gap-3 rounded-lg border border-space-600 bg-space-800 px-2 py-2 text-left hover:border-ki-500/60 disabled:opacity-50 sm:px-3">
+          <button
+            key={c.id}
+            type="button"
+            disabled={i == null}
+            onClick={() => i != null && onPick(i)}
+            className="tap flex w-full items-center gap-3 rounded-lg border border-space-600 bg-space-800 px-2 py-2 text-left hover:border-ki-500/60 disabled:opacity-50 sm:px-3"
+          >
             {c.imageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element -- a list row; the board has already loaded this URL.
               <img src={c.imageUrl} alt="" className="card-aspect w-10 shrink-0 rounded object-cover sm:w-12" />
@@ -286,7 +381,11 @@ export function SearchSheet({
         );
       })}
       {none != null && (
-        <button type="button" onClick={() => onPick(none)} className="tap w-full rounded-lg border border-dashed border-space-500 bg-space-950 px-3 py-3 text-left text-sm font-semibold text-space-100 hover:border-ki-500/60">
+        <button
+          type="button"
+          onClick={() => onPick(none)}
+          className="tap w-full rounded-lg border border-dashed border-space-500 bg-space-950 px-3 py-3 text-left text-sm font-semibold text-space-100 hover:border-ki-500/60"
+        >
           Choose none
           <span className="block text-[11px] font-normal text-space-400">The skill says “up to” — this is the way out.</span>
         </button>

@@ -49,6 +49,7 @@ export function StageCard({
   onTap,
   onInspect,
   onHover,
+  outlined = false,
 }: {
   card: CardView;
   state?: CardState;
@@ -69,6 +70,8 @@ export function StageCard({
   onTap?: () => void;
   onInspect?: () => void;
   onHover?: (box: DOMRect | null) => void;
+  /** Outlined on the board because its row in the inspector's In play list is hovered. */
+  outlined?: boolean;
 }) {
   return (
     <motion.div
@@ -96,7 +99,7 @@ export function StageCard({
         {/* The lift reads the parent hover, not its own: an element that moves
             out from under the cursor un-hovers itself, drops back, and oscillates. */}
         <div key={moment ?? "still"} className={`${MOMENT[moment ?? "none"]} ${lifts ? "transition-transform duration-200 group-hover:-translate-y-2" : ""}`}>
-          <ArenaCard card={card} state={state} width={width} upsideDown={upsideDown} onTap={onTap} onInspect={onInspect} onHover={onHover} />
+          <ArenaCard card={card} state={state} width={width} upsideDown={upsideDown} onTap={onTap} onInspect={onInspect} onHover={onHover} outlined={outlined} />
         </div>
       </div>
     </motion.div>

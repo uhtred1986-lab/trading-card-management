@@ -20,6 +20,7 @@ export type CardProps = (c: CardView) => {
   onHover: (box: DOMRect | null) => void;
   nudge: boolean;
   moment: Moment | null;
+  outlined: boolean;
 };
 
 export function MenuSection({ title, children }: { title: string; children: ReactNode }) {
@@ -56,7 +57,9 @@ export function ReferenceCounts({ side }: { side: SideView }) {
 /** One player's Battle Area, collapsed until it holds a card. */
 export function BattleRow({ cards, cardProps, zone, label }: { cards: CardView[]; cardProps: CardProps; zone: string; label: string }) {
   return (
-    <div className={`relative flex items-center gap-1.5 overflow-x-auto [justify-content:safe_center] sm:gap-2 lg:gap-3 ${cards.length > 0 ? "min-h-[calc(78px*var(--arena,1))]" : "min-h-[30px] justify-center"}`}>
+    <div
+      className={`relative flex items-center gap-1.5 overflow-x-auto [justify-content:safe_center] sm:gap-2 lg:gap-3 ${cards.length > 0 ? "min-h-[calc(78px*var(--arena,1))]" : "min-h-[30px] justify-center"}`}
+    >
       <ZoneAnchor zone={zone} />
       {cards.map((c) => (
         <StageCard key={c.id} {...cardProps(c)} width={52} />
@@ -250,11 +253,7 @@ export function SideRail({
           {energyChips && energyChips.length > 0 && (
             <span className="ml-1 inline-flex flex-wrap items-center gap-1">
               {energyChips.map((chip, i) => (
-                <span
-                  key={i}
-                  className="rounded border border-loss/30 bg-loss/15 px-1.5 py-0.5 font-mono text-[10px] font-medium leading-none text-loss whitespace-nowrap"
-                  title={chip.text}
-                >
+                <span key={i} className="rounded border border-loss/30 bg-loss/15 px-1.5 py-0.5 font-mono text-[10px] font-medium leading-none text-loss whitespace-nowrap" title={chip.text}>
                   {chip.text}
                 </span>
               ))}

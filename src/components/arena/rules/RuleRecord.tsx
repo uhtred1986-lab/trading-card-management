@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState, useTransition } from "react";
-import { blankRuleAction, confirmRuleAction, explainRuleAction, keepMineAction, saveRuleAction, setSpecifiedCostAction, takeCompilerAction } from "@/app/arena/actions";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
+import { createPortal } from "react-dom";
+import { blankRuleAction, confirmRuleAction, explainRuleAction, keepMineAction, reopenRuleAction, saveRuleAction, setSpecifiedCostAction, takeCompilerAction } from "@/app/arena/actions";
 import { keywordPlays } from "@/lib/arena/glossary";
 import { COND_SCHEMA, OP_SCHEMA, costSentence, describeScript, validateProgram, type Cond, type CostRecord, type Op } from "@/lib/arena/engine/script";
 import type { Trigger } from "@/lib/arena/engine";
@@ -88,6 +89,15 @@ export interface RecordProps {
   specifiedCost: { entered: string | null; words: string | null; unknown: boolean } | null;
 }
 
+/** Where Skip and the advance after Confirm go: hrefs into the current queue. */
+export interface RecordNav {
+  skip: string | null;
+  after: string;
+}
+
+/** The action bar's slot: the foot of the right pane on the computer, pinned above the tab bar on a phone. */
+export const ACTION_BAR_ID = "record-bar";
+
 const BADGE: Record<RecordProps["status"], { label: string; cls: string; dot: string }> = {
   open: { label: "Open — played as blank", cls: "bg-loss/15 text-loss", dot: "bg-loss" },
   draft: { label: "Draft — compiled, not confirmed", cls: "bg-dbs-blue/20 text-space-100", dot: "bg-dbs-blue" },
@@ -166,7 +176,7 @@ function DeclarationLinks({ define, names }: { define: string; names: string[] }
   );
 }
 
-export function RuleRecord(r: RecordProps) {
+export function RuleRecord({ nav, ...r }: RecordProps & { nav?: RecordNav }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [editing, setEditing] = useState(false);
@@ -201,7 +211,8 @@ export function RuleRecord(r: RecordProps) {
   // version for nothing.
   const dirty = printRule(rule) !== printRule({ kind: r.tag, trigger: r.trigger, cost: r.cost, cond: r.cond, ops: r.ops });
 
-  const run = (label: string, fn: () => Promise<{ error: string | null }>) => {
+  /** `advance`: on success go on to the next rule in the queue (keeping the scroll) rather than stay on this one. */
+  const run = (label: string, fn: () => Promise<{ error: string | null }>, advance = false) => {
     setError(null);
     setDone(null);
     start(async () => {
@@ -210,11 +221,16 @@ export function RuleRecord(r: RecordProps) {
       else {
         setDone(label);
         setEditing(false);
-        router.refresh();
+        if (advance && nav) router.push(nav.after, { scroll: false });
+        else router.refresh();
       }
     });
   };
 
+  const confirm = () => run("Confirmed — the engine plays it exactly like this.", () => confirmRuleAction(r.id), true);
+  const skip = () => {
+    if (nav?.skip) router.push(nav.skip, { scroll: false });
+  };
   /** The JSON view is the same program; a bad edit keeps the last valid one and says why. */
   const readJson = () => {
     try {
@@ -274,6 +290,35 @@ export function RuleRecord(r: RecordProps) {
     }
     setTextOpen(!textOpen);
   };
+
+  const textRef = useRef<HTMLTextAreaElement>(null);
+  const editText = () => {
+    if (!textOpen) openText();
+    requestAnimationFrame(() => textRef.current?.focus());
+  };
+
+  // The keys the workbench listens for (`WorkbenchKeys`) arrive as events, so what a key does is what its button does.
+  const keyed = useRef({ confirm, editText, pending, canConfirm: false });
+  useEffect(() => {
+    keyed.current = { confirm, editText, pending, canConfirm: r.status === "draft" && !editing };
+  });
+  useEffect(() => {
+    const on = (e: Event) => {
+      const k = keyed.current;
+      const what = (e as CustomEvent<string>).detail;
+      if (what === "confirm" && k.canConfirm && !k.pending) k.confirm();
+      if (what === "edit") k.editText();
+    };
+    window.addEventListener("workbench:action", on);
+    return () => window.removeEventListener("workbench:action", on);
+  }, []);
+
+  // The slot only exists in the browser, after the page has been laid out: null on the server, the element on the client.
+  const slot = useSyncExternalStore(
+    () => () => {},
+    () => document.getElementById(ACTION_BAR_ID),
+    () => null,
+  );
 
   const printed = r.printed.replace(/\s+/g, " ").trim();
   const mark = r.status === "open" ? r.unread[0] : null;
@@ -431,6 +476,13 @@ export function RuleRecord(r: RecordProps) {
           ) : (
             <OpList ops={ops} editing={editing} onChange={setOps} />
           )}
+          {r.status === "open" &&
+            !dirty &&
+            r.unread.map((u) => (
+              <span key={u} className="inline-flex max-w-full items-center rounded-lg border border-dashed border-loss bg-loss/5 px-2.5 py-1.5 text-[12px] text-loss" title="the engine could not read this clause">
+                unread: {u}
+              </span>
+            ))}
         </Row>
         <div className="border-t border-space-700 px-4 py-3 text-xs text-space-300">
           The engine will: <b className="font-semibold text-space-50">{reads || (plays ? `play this as ${plays.tag}` : "nothing")}</b>
@@ -439,55 +491,85 @@ export function RuleRecord(r: RecordProps) {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        {!editing && r.status !== "confirmed" && (
-          <button type="button" disabled={pending} className={primary} onClick={() => run("Confirmed — the engine plays it exactly like this.", () => confirmRuleAction(r.id))}>
-            Confirm — plays exactly like this
-          </button>
+      {slot &&
+        createPortal(
+          <div className="space-y-1.5 border-t border-space-700 bg-space-950/95 p-3 backdrop-blur" role="toolbar" aria-label="Rule actions">
+            {(pending || error || done) && (
+              <p className="text-[11px]" aria-live="polite">
+                {pending && <span className="text-space-400">working…</span>}
+                {error && <span className="text-loss">{error}</span>}
+                {done && !pending && <span className="text-gain">{done}</span>}
+              </p>
+            )}
+            <div className="flex flex-wrap items-center gap-2">
+              {editing ? (
+                <>
+                  <button type="button" disabled={pending || !!jsonError || !!textError} className={primary} onClick={() => run("Saved as corrected.", () => saveRuleAction(r.id, rule, explanation.trim() || null, patternWrong), true)}>
+                    Save as corrected
+                  </button>
+                  <button
+                    type="button"
+                    className={`${btn} border-transparent text-space-400`}
+                    onClick={() => {
+                      setEditing(false);
+                      setOps(r.ops);
+                      setCond(r.cond);
+                      setTrigger(r.trigger);
+                      setCost(r.cost);
+                      setText(printRule({ kind: r.tag, trigger: r.trigger, cost: r.cost, cond: r.cond, ops: r.ops }));
+                      setJsonError(null);
+                      setTextError(null);
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <>
+                  {r.status === "open" ? (
+                    <button type="button" disabled={pending} className={primary} onClick={() => setExplainOpen(true)}>
+                      Draft with Claude
+                    </button>
+                  ) : r.status === "draft" ? (
+                    <button type="button" disabled={pending} className={primary} onClick={confirm} title="Confirm — plays exactly like this (c)">
+                      Confirm
+                    </button>
+                  ) : (
+                    <button type="button" disabled={pending} className={primary} onClick={() => run("Reopened — it is a draft again.", () => reopenRuleAction(r.id))}>
+                      Reopen for review
+                    </button>
+                  )}
+                  <button type="button" className={btn} onClick={editText} title="Edit as text (e)">
+                    {r.status === "open" ? "Write as text" : "Edit as text"}
+                  </button>
+                  <button type="button" disabled={!nav?.skip} className={`${btn} border-transparent text-space-300`} onClick={skip} title="Skip to the next (s)">
+                    Skip
+                  </button>
+                  <details className="relative ml-auto">
+                    <summary className={`${btn} cursor-pointer list-none`} aria-label="More actions">
+                      ⋯
+                    </summary>
+                    <div className="absolute bottom-full right-0 z-30 mb-1 flex w-56 flex-col gap-1 rounded-xl border border-space-600 bg-space-900 p-2 shadow-lg">
+                      <button type="button" className={btn} onClick={() => setEditing(true)}>
+                        Correct with the chips
+                      </button>
+                      <button type="button" className={btn} onClick={() => setExplainOpen(!explainOpen)}>
+                        Explain to Claude
+                      </button>
+                      <button type="button" className={btn} onClick={openJson}>
+                        {jsonOpen ? "Hide" : "Show"} program (JSON)
+                      </button>
+                      <button type="button" disabled={pending} className={`${btn} border-transparent text-loss`} onClick={() => run("Stored as an empty program.", () => blankRuleAction(r.id, explanation.trim() || null), true)}>
+                        Mark as does nothing
+                      </button>
+                    </div>
+                  </details>
+                </>
+              )}
+            </div>
+          </div>,
+          slot,
         )}
-        {editing ? (
-          <>
-            <button type="button" disabled={pending || !!jsonError || !!textError} className={primary} onClick={() => run("Saved as corrected.", () => saveRuleAction(r.id, rule, explanation.trim() || null, patternWrong))}>
-              Save as corrected
-            </button>
-            <button
-              type="button"
-              className={`${btn} border-transparent text-space-400`}
-              onClick={() => {
-                setEditing(false);
-                setOps(r.ops);
-                setCond(r.cond);
-                setTrigger(r.trigger);
-                setCost(r.cost);
-                setText(printRule({ kind: r.tag, trigger: r.trigger, cost: r.cost, cond: r.cond, ops: r.ops }));
-                setJsonError(null);
-                setTextError(null);
-              }}
-            >
-              Cancel
-            </button>
-          </>
-        ) : (
-          <button type="button" className={btn} onClick={() => setEditing(true)}>
-            Correct by hand
-          </button>
-        )}
-        <button type="button" className={btn} onClick={() => setExplainOpen(!explainOpen)}>
-          Explain to Claude
-        </button>
-        <button type="button" className={btn} onClick={openText}>
-          {textOpen ? "Hide" : "Show"} as text
-        </button>
-        <button type="button" className={btn} onClick={openJson}>
-          {jsonOpen ? "Hide" : "Show"} program (JSON)
-        </button>
-        <button type="button" disabled={pending} className={`${btn} border-transparent text-loss`} onClick={() => run("Stored as an empty program.", () => blankRuleAction(r.id, explanation.trim() || null))}>
-          Mark as does nothing
-        </button>
-        {pending && <span className="text-[11px] text-space-400">working…</span>}
-        {error && <span className="text-[11px] text-loss">{error}</span>}
-        {done && !pending && <span className="text-[11px] text-gain">{done}</span>}
-      </div>
       <p className="text-[11px] text-space-500">
         Confirming keeps this program against the card. A later compiler change never overwrites it: the new reading lands beside yours, with a choice.
         {editing && r.pattern && r.source === "compiler" && (
@@ -501,6 +583,7 @@ export function RuleRecord(r: RecordProps) {
       {textOpen && (
         <div>
           <textarea
+            ref={textRef}
             spellCheck={false}
             value={text}
             onChange={(e) => setText(e.target.value)}
