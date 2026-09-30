@@ -48,3 +48,6 @@ android/build/
 android/*/build/
 android/.gradle/
 android/local.properties
+
+# Board screenshots from `npm run arena:shots` (docs/arena-tooling.md)
+docs/arena-redesign/current/
