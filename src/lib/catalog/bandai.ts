@@ -122,3 +122,66 @@ export function applyOfficialImages(shaped: ShapedCatalog, names: ReadonlySet<st
   }
   return out;
 }
+
+// ── the original game's leaders ─────────────────────────────────────────────
+
+/**
+ * Bandai's card list for the original game (https://www.dbs-cardgame.com/us-en/cardlist/)
+ * hosts both faces of every two-sided card, from BT1 to the latest Masters
+ * set: "<number>.png" for the front and "<number>_b.png" for the awakened side.
+ *
+ * It is the fallback for the leaders deckplanet's bucket lacks — every set
+ * from BT19 on (verified 30 Sep 2026: BT24-055 404s there and resolves here).
+ * Without it, those leaders had no reliable front at all: TCGplayer's photo of
+ * a "Front // Back" product is the awakened side, so `fillMissingImages` skips
+ * it, and the CardTrader backfill only runs when that sync is enabled and run.
+ */
+export const BANDAI_MASTERS_IMAGE_BASE = "https://www.dbs-cardgame.com/images/cardlist/cardimg/";
+
+export function mastersImageUrl(name: string): string {
+  return `${BANDAI_MASTERS_IMAGE_BASE}${encodeURIComponent(name)}.png`;
+}
+
+/**
+ * The Bandai URLs worth checking for a shaped original-game catalog: each
+ * two-sided card's front when it has none yet, and its awakened side likewise.
+ * Only leaders are looked up — every other card's front is covered by the
+ * TCGplayer photo, which shows the right face for a one-sided card.
+ */
+export function mastersLeaderCandidates(shaped: ShapedCatalog): string[] {
+  if (shaped.game !== "dbs") return [];
+  const out: string[] = [];
+  for (const c of shaped.cards) {
+    if (!c.backName) continue;
+    if (!c.imageUrl) out.push(mastersImageUrl(c.id));
+    if (!c.backImageUrl) out.push(mastersImageUrl(`${c.id}_b`));
+  }
+  return out;
+}
+
+/**
+ * Lays the Bandai URLs that were confirmed to exist (`available`, from a HEAD
+ * check of `mastersLeaderCandidates`) onto the faces still missing, and onto
+ * the leader's base print so a lot of it shows the same art.
+ */
+export function applyMastersLeaderImages(shaped: ShapedCatalog, available: ReadonlySet<string>): { fronts: number; backs: number } {
+  const out = { fronts: 0, backs: 0 };
+  if (shaped.game !== "dbs") return out;
+  const basePrint = new Map(shaped.prints.filter((p) => p.isBase).map((p) => [p.cardId, p]));
+  for (const c of shaped.cards) {
+    if (!c.backName) continue;
+    const front = mastersImageUrl(c.id);
+    if (!c.imageUrl && available.has(front)) {
+      c.imageUrl = front;
+      const p = basePrint.get(c.id);
+      if (p && !p.imageUrl) p.imageUrl = front;
+      out.fronts++;
+    }
+    const back = mastersImageUrl(`${c.id}_b`);
+    if (!c.backImageUrl && available.has(back)) {
+      c.backImageUrl = back;
+      out.backs++;
+    }
+  }
+  return out;
+}

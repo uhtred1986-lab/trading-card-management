@@ -606,6 +606,76 @@ assert.equal(priceForFinish(prices.get("BT18-020_SPR"), "foil"), 199);
   assert.equal(other.specifiedCost, null, "a card nobody entered stays unknown");
 }
 
+// ── A leader's art survives the catalog sync the right way round ───────────
+// deckplanet's guesses are HEAD-checked before the import; what the import
+// then receives decides the stored faces. A stored deckplanet URL always
+// yields to the fresh answer — a back that stopped resolving is cleared, not
+// replayed — while art another source supplied (CardTrader, the price sync)
+// is kept until a source here has something better.
+{
+  const { eq, inArray } = await import("drizzle-orm");
+  const { importCatalog } = await import("../src/lib/catalog/deckplanet.ts");
+  const { mastersImageUrl } = await import("../src/lib/catalog/bandai.ts");
+  const DP = "https://storage.googleapis.com/deckplanet_card_images/";
+  const CT = "https://www.cardtrader.com/uploads/blueprints/image/1/back.jpg";
+  const leader = (id: string, imageUrl: string | null, backImageUrl: string | null) => ({
+    id,
+    setCode: "BT24",
+    game: "dbs" as const,
+    name: "Son Goku",
+    cardType: "LEADER",
+    colors: ["Green"],
+    energyCost: null,
+    zEnergyCost: null,
+    power: 10000,
+    comboCost: null,
+    comboPower: null,
+    skill: null,
+    characters: [],
+    traits: [],
+    eras: [],
+    keywords: [],
+    rarity: "Uncommon[UC]",
+    rarityCode: "UC",
+    limitedTo: 4,
+    isBanned: false,
+    isLimited: false,
+    hasErrata: false,
+    isHorizontal: false,
+    backName: "SS Son Goku, Beginning of a Legend",
+    backSkill: null,
+    backPower: 15000,
+    imageUrl,
+    backImageUrl,
+    deckplanetId: 1,
+    searchText: id.toLowerCase(),
+  });
+  const faces = async (ids: string[]) =>
+    new Map((await db.select({ id: schema.cards.id, front: schema.cards.imageUrl, back: schema.cards.backImageUrl }).from(schema.cards).where(inArray(schema.cards.id, ids))).map((r) => [r.id, r]));
+  const ids = ["BT24-901", "BT24-902", "BT24-903"];
+
+  // What the old sync order left behind: an unchecked deckplanet back guess.
+  await importCatalog(db, { game: "dbs", sets: ["BT24"], prints: [], cards: ids.map((id) => leader(id, null, `${DP}${id}_b.png`)) });
+  await db.update(schema.cards).set({ backImageUrl: CT }).where(eq(schema.cards.id, "BT24-902"));
+
+  // Re-synced with the guess refused (null), and Bandai's faces for one of them.
+  await importCatalog(db, {
+    game: "dbs",
+    sets: ["BT24"],
+    prints: [],
+    cards: [leader("BT24-901", null, null), leader("BT24-902", null, null), leader("BT24-903", mastersImageUrl("BT24-903"), mastersImageUrl("BT24-903_b"))],
+  });
+  const after = await faces(ids);
+  assert.equal(after.get("BT24-901")!.back, null, "a stored deckplanet back that no longer resolves is cleared, so a backfill can fill it");
+  assert.equal(after.get("BT24-902")!.back, CT, "a back another source supplied is kept when nothing here has one");
+  assert.equal(after.get("BT24-903")!.front, mastersImageUrl("BT24-903"), "Bandai's front lands");
+  assert.equal(after.get("BT24-903")!.back, mastersImageUrl("BT24-903_b"), "Bandai's back lands");
+
+  // Once Bandai has a face, it replaces a backfilled one on the next sync.
+  await importCatalog(db, { game: "dbs", sets: ["BT24"], prints: [], cards: [leader("BT24-902", mastersImageUrl("BT24-902"), mastersImageUrl("BT24-902_b"))] });
+  assert.equal((await faces(["BT24-902"])).get("BT24-902")!.back, mastersImageUrl("BT24-902_b"), "the official back wins over the backfill");
+}
+
 // ── A deck belongs to a login (issue #279) ──────────────────────────────────
 // Two owners, each with their own deck, plus one nobody claimed: each login
 // sees their own decks and the unowned one, never the other login's.

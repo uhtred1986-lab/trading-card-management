@@ -111,12 +111,14 @@ export function ArenaCard({
   onHover?: (box: DOMRect | null) => void;
   badge?: string | null;
 }) {
-  const [failed, setFailed] = useState(false);
+  // Keyed to the URL that failed: a leader keeps its instance when it awakens
+  // and its art switches to the back, so a plain flag would hide the new face.
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const height = Math.round((width * 88) / 63);
   const rested = card.mode === "rest";
   const rotation = rested ? 90 : upsideDown ? 180 : 0;
   const box = rested ? Math.max(width, height) : height;
-  const showArt = !!card.imageUrl && !failed && !card.hidden;
+  const showArt = !!card.imageUrl && failedSrc !== card.imageUrl && !card.hidden;
   const long = card.name.length > 18;
 
   // A long press opens the inspector; the timer has to survive re-renders.
@@ -180,7 +182,7 @@ export function ArenaCard({
             <span className="block h-[62%] w-[62%] rounded-full border border-ki-400/35" />
           </span>
         ) : showArt ? (
-          <Image src={card.imageUrl!} alt={card.name} fill sizes={`${width * 3}px`} className="object-cover" onError={() => setFailed(true)} unoptimized />
+          <Image src={card.imageUrl!} alt={card.name} fill sizes={`${width * 3}px`} className="object-cover" onError={() => setFailedSrc(card.imageUrl)} unoptimized />
         ) : (
           <>
             <span className={`block h-[18%] ${COLOR_BAR[card.colors[0] ?? "Colorless"]}`} />

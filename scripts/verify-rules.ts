@@ -3,7 +3,7 @@
  */
 import assert from "node:assert/strict";
 import { baseNumber, normaliseRarity, printLabel, printSuffix, shapeCatalog } from "../src/lib/catalog/deckplanet";
-import { applyOfficialImages, officialBackImageName, officialImageName, officialImageUrl, parseImageNames, parseSeriesIds } from "../src/lib/catalog/bandai";
+import { applyMastersLeaderImages, applyOfficialImages, mastersImageUrl, mastersLeaderCandidates, officialBackImageName, officialImageName, officialImageUrl, parseImageNames, parseSeriesIds } from "../src/lib/catalog/bandai";
 import { correctSkillText } from "../src/lib/catalog/errata";
 import { gameOfNumber, gameOfSetCode, setCodeOfNumber, setLineFor, setNameFor } from "../src/lib/catalog/sets";
 import { legality, parseDeckList, type DeckCardRow } from "../src/lib/decks/queries";
@@ -199,6 +199,45 @@ assert.deepEqual(parseImageNames('<img data-src="../../images/cards/card/en/FB11
   assert.equal(fwShaped.cards.find((c) => c.id === "E-112")!.imageUrl, officialImageUrl("E-112"));
   assert.deepEqual(applyOfficialImages(shaped, names), { prints: 0, cards: 0, backs: 0 }, "the original game is never touched");
   assert.ok(shaped.cards.every((c) => c.imageUrl?.startsWith("https://storage.googleapis.com/")));
+}
+
+// ── The original game's leaders from Bandai's card list ───────────────────
+// deckplanet's bucket has no art from BT19 on, and TCGplayer's photo of a
+// leader is its awakened side, so Bandai's card list supplies both faces.
+{
+  const dp = shapeCatalog([
+    { id: 10, card_number: "BT24-055", card_name: "Son Goku", card_back_name: "SS Son Goku, Beginning of a Legend", card_type: "LEADER", card_rarity: "Uncommon[UC]", img_link: "BT24-055", variants: [{ id: 13, card_number: "BT24-055_PR", img_link: "BT24-055_PR" }] },
+    { id: 11, card_number: "BT1-001", card_name: "Son Goku", card_back_name: "Kaio-Ken Son Goku", card_type: "LEADER", card_rarity: "Uncommon[UC]", img_link: "BT1-001", variants: [] },
+    { id: 12, card_number: "BT24-010", card_name: "Vegeta", card_type: "BATTLE", card_rarity: "Common[C]", img_link: "BT24-010", variants: [] },
+  ] as never);
+  const card = (id: string) => dp.cards.find((c) => c.id === id)!;
+  const print = (id: string) => dp.prints.find((p) => p.id === id)!;
+  assert.equal(card("BT24-055").backImageUrl, "https://storage.googleapis.com/deckplanet_card_images/BT24-055_b.png", "the shaper guesses deckplanet's back");
+  // What verifyFrontImages/verifyBackImages leave when deckplanet 404s: both
+  // faces of the BT24 leader, its prints, and the BT24 battle card's front.
+  card("BT24-055").imageUrl = null;
+  card("BT24-055").backImageUrl = null;
+  print("BT24-055").imageUrl = null;
+  print("BT24-055_PR").imageUrl = null;
+  card("BT24-010").imageUrl = null;
+  print("BT24-010").imageUrl = null;
+
+  assert.equal(mastersImageUrl("BT24-055_b"), "https://www.dbs-cardgame.com/images/cardlist/cardimg/BT24-055_b.png");
+  assert.deepEqual(mastersLeaderCandidates(dp), [mastersImageUrl("BT24-055"), mastersImageUrl("BT24-055_b")], "only a leader's missing faces are looked up");
+  assert.deepEqual(mastersLeaderCandidates(fwShaped), [], "Fusion World has its own Bandai source");
+
+  // Only what the HEAD check confirmed is laid on: here, the front alone.
+  assert.deepEqual(applyMastersLeaderImages(dp, new Set([mastersImageUrl("BT24-055")])), { fronts: 1, backs: 0 });
+  assert.equal(card("BT24-055").imageUrl, mastersImageUrl("BT24-055"));
+  assert.equal(print("BT24-055").imageUrl, mastersImageUrl("BT24-055"), "the base print shows the same front");
+  assert.equal(print("BT24-055_PR").imageUrl, null, "an alternate print's name is never guessed");
+  assert.equal(card("BT24-055").backImageUrl, null, "a back that did not resolve stays empty for the backfills");
+  assert.equal(card("BT24-010").imageUrl, null, "a one-sided card is left to the TCGplayer photo");
+  assert.equal(card("BT1-001").imageUrl, "https://storage.googleapis.com/deckplanet_card_images/BT1-001.png", "deckplanet's art is kept where it exists");
+
+  assert.deepEqual(applyMastersLeaderImages(dp, new Set([mastersImageUrl("BT24-055_b")])), { fronts: 0, backs: 1 });
+  assert.equal(card("BT24-055").backImageUrl, mastersImageUrl("BT24-055_b"));
+  assert.deepEqual(mastersLeaderCandidates(dp), [], "nothing is left to look up");
 }
 
 // ── price matching ─────────────────────────────────────────────────────────

@@ -20,15 +20,19 @@ export function CardImage({
   priority?: boolean;
   className?: string;
 }) {
-  const [failed, setFailed] = useState(false);
-  if (!src || failed) {
+  // Remember *which* src failed, not just that one did: the same instance is
+  // reused when its src changes (a leader flipped to its other face, a picker
+  // moving to another card), and a plain flag would carry one 404 onto every
+  // image it is given afterwards.
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  if (!src || failedSrc === src) {
     return (
       <div className={`card-aspect flex items-center justify-center rounded-lg border border-dashed border-space-600 bg-space-900 p-2 text-center text-xs text-space-300 ${className}`}>{alt}</div>
     );
   }
   return (
     <div className={`card-aspect relative overflow-hidden rounded-lg bg-space-900 ${className}`}>
-      <Image src={src} alt={alt} fill sizes={sizes} priority={priority} className="object-contain" onError={() => setFailed(true)} />
+      <Image src={src} alt={alt} fill sizes={sizes} priority={priority} className="object-contain" onError={() => setFailedSrc(src)} />
     </div>
   );
 }
