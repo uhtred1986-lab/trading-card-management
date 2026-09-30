@@ -41,7 +41,8 @@ export function parseQueue(sp: Raw): Queue {
   const game = int(one(sp.game));
   const deck = int(one(sp.deck));
   const scope: Scope = game ? { kind: "game", id: game } : deck ? { kind: "deck", id: deck } : one(sp.scope) === "catalog" ? { kind: "catalog" } : { kind: "decks" };
-  const state = one(sp.state) as RuleStatus;
+  // `seg` is the old name of `state` (the Play picker links `?deck=<id>&seg=open&q=<cardId>`).
+  const state = (one(sp.state) || one(sp.seg)) as RuleStatus;
   const group = one(sp.group) as GroupBy;
   const source = one(sp.source) as RuleSource;
   const reason = one(sp.reason);

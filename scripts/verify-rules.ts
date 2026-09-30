@@ -709,6 +709,8 @@ assert.equal(specifiedCostWords({}), "no colour");
   assert.equal(queueHref(q), "/arena/rules?deck=12&state=draft&group=wording&q=krillin&set=BT19");
   assert.deepEqual(parseQueue(Object.fromEntries(new URL(`http://x${queueHref(q)}`).searchParams)), q, "a link reads back as the queue that built it");
   assert.equal(parseQueue({ game: "7", deck: "12" }).scope.kind, "game", "a game's scope wins: it is what ah-04 links to");
+  const fromPlay = parseQueue({ deck: "4", seg: "open", q: "BT19-061" });
+  assert.deepEqual([fromPlay.scope, fromPlay.state, fromPlay.q], [{ kind: "deck", id: 4 }, "open", "BT19-061"], "the Play picker's link (?deck=&seg=open&q=) still lands on that deck's open card");
   assert.equal(parseQueue({ state: "bogus", group: "bogus" }).group, "none", "an unknown state or grouping is the default, not an error");
   assert.equal(queueLink({ ...q, page: 3, rule: 9 }, { state: "open" }), "/arena/rules?deck=12&state=open&group=wording&q=krillin&set=BT19", "changing the view drops the page and the selection");
   assert.match(queueLink({ ...q, page: 3 }, { rule: 9 }), /page=3&rule=9$/, "selecting a rule keeps the page");
