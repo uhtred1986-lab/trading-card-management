@@ -55,5 +55,9 @@ assert.deepEqual(story.map((l) => [l.n, l.turn]), [[1, 3], [2, 3], [3, 4]], "eac
 assert.deepEqual(newestFirst(story).map((l) => l.n), [3, 2, 1], "newest first");
 assert.equal(foldStory(story, beats, narrator, 9, () => "p2"), story, "a beat already recorded is not recorded twice");
 assert.equal(foldStory(story, { ...beats, seq: 4, list: [...beats.list, { n: 4, t: "say", text: "Again" }] }, narrator, 9, () => "p2").length, 4, "only the new beat is added");
+// A beat with nothing to say must not produce a new list, or the board, which
+// sets state whenever the fold differs, would re-render without end.
+const silent = { ...beats, seq: 5, list: [...beats.list, { n: 5, t: "no-such-beat" } as unknown as Beats["list"][number]] };
+assert.equal(foldStory(story, silent, narrator, 9, () => "p2"), story, "a silent beat keeps the same list");
 
 console.log("verify arena-admin: ok");

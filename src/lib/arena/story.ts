@@ -35,7 +35,10 @@ export function foldStory(prev: StoryLine[], beats: Beats | null, narrator: Narr
     const text = narrate(b, narrator);
     if (text) out.push({ n: b.n, turn, text, mine: actorOf(b) === narrator.viewer });
   }
-  return out;
+  // Nothing said: hand back the same list. The board sets state when the
+  // result differs, so a fresh copy of an unchanged list would render forever
+  // on a beat `narrate` has nothing to say about (it may return null).
+  return out.length === prev.length ? prev : out;
 }
 
 /** Newest first, for display. */
