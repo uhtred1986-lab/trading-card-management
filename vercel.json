@@ -14,5 +14,11 @@
       "schedule": "0 7 * * *"
     }
   ],
+  "git": {
+    "deploymentEnabled": {
+      "**": false,
+      "main": true
+    }
+  },
   "ignoreCommand": "node scripts/vercel-ignore-build.mjs"
 }
