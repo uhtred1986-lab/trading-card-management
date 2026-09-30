@@ -9,6 +9,12 @@
 # change was deliberate (fixtures regenerated, Kotlin not yet updated) or an
 # accident (neither updated).
 #
+# The Kotlin job runs only when the contract can have changed (#376): every
+# push to `main`, and a pull request whose diff touches the paths in the
+# `changes` job below. A job skipped by `if:` reports as skipped, which
+# satisfies branch protection; a workflow-level `paths:` filter would leave a
+# required check pending forever, so it is not used.
+#
 # `backlog` is `scripts/sync-arena-backlog.mts --check` (`docs/arena-backlog.md`
 # §6): read-only against the GitHub API via the workflow's own `GITHUB_TOKEN`,
 # it catches a backlog file whose `status:` disagrees with the issue's state
@@ -26,6 +32,43 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  changes:
+    name: did the contract change
+    runs-on: ubuntu-latest
+    outputs:
+      contract: ${{ steps.filter.outputs.contract }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The diff needs both the PR's base and head commits.
+          fetch-depth: 0
+      - id: filter
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          # A push to main always runs the Kotlin job.
+          if [ "$EVENT" != "pull_request" ]; then
+            echo "contract=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # What the Kotlin job reads is android/ and contract/fixtures/. What can
+          # change those is the emitter `npm run contract:emit`
+          # (scripts/verify-arena.ts --emit, which writes from scripts/verify/
+          # contract.ts, language.ts and probe.ts) and everything they import:
+          # all of src/lib/arena/ (snapshot and view are only two of the 85 files
+          # in the closure), src/lib/decks/, src/lib/ai/client.ts,
+          # src/lib/catalog/games.ts and src/db/ (pulled in through
+          # decks/queries and the harness), plus scripts/verify/ itself.
+          git diff --name-only "$BASE...$HEAD" > changed.txt
+          cat changed.txt
+          if grep -qE '^(android/|contract/|scripts/verify-arena\.ts$|scripts/verify/|src/lib/arena/|src/lib/decks/|src/lib/ai/client\.ts$|src/lib/catalog/games\.ts$|src/db/|package-lock\.json$|\.github/workflows/checks\.yml$)' changed.txt; then
+            echo "contract=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "contract=false" >> "$GITHUB_OUTPUT"
+          fi
+
   web:
     name: types, lint and tests
     runs-on: ubuntu-latest
@@ -56,6 +99,8 @@ jobs:
 
   contract:
     name: the contract, from the Kotlin side
+    needs: changes
+    if: needs.changes.outputs.contract == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
